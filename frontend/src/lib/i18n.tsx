@@ -4,8 +4,13 @@ export type Language = "en" | "ja" | "zh-CN" | "es" | "vi" | "it" | "pt";
 type Dictionary = Record<string, string>;
 
 const dictionaries: Record<Language, Dictionary> = {
-  en: {},
+  en: {
+    "Spot markets":"Spot markets","Live prices from the BTCBOX market service":"Live prices from the BTCBOX market service","Loading…":"Loading…","pairs":"pairs","Market feed unavailable":"Market feed unavailable","No market pairs are currently available.":"No market pairs are currently available.",
+    "Asset":"Asset","Last price":"Last price","24h change":"24h change","24h volume":"24h volume","24h high":"24h high","24h low":"24h low"
+  },
   ja: {
+    "Spot markets":"現物市場","Live prices from the BTCBOX market service":"BTCBOXマーケットサービスのリアルタイム価格","Loading…":"読み込み中…","pairs":"通貨ペア","Market feed unavailable":"相場データを取得できません","No market pairs are currently available.":"現在利用できる通貨ペアはありません。",
+    "Asset":"銘柄","Last price":"最終価格","24h change":"24時間変動","24h volume":"24時間取引高","24h high":"24時間高値","24h low":"24時間安値",
     Home:"ホーム",Markets:"市場",Trade:"取引",Assets:"資産",My:"マイページ",Orders:"注文",Earn:"運用",Support:"サポート",Settings:"設定",Manage:"管理",Search:"検索",Preview:"プレビュー環境",
     "Market overview":"マーケット概要","Live spot prices and 24-hour market movement.":"現物価格と24時間の価格変動。",Connecting:"接続中","Feed unavailable":"相場データを取得できません","Live market feed":"リアルタイム相場","Market analytics":"マーケット分析",
     "Historical chart integration is still in progress.":"過去チャートの接続を準備中です。","Choose your trading mode":"取引方法を選択","Sign in":"ログイン","Create account":"アカウント作成","My account":"マイアカウント","Sign in to continue":"続行するにはログインしてください",
@@ -18,6 +23,8 @@ const dictionaries: Record<Language, Dictionary> = {
     "Account details are not loaded in this preview.":"このプレビューではアカウント情報を読み込んでいません。","Manage your profile, verification, security and support.":"プロフィール、本人確認、セキュリティ、サポートを管理します。"
   },
   "zh-CN": {
+    "Spot markets":"现货市场","Live prices from the BTCBOX market service":"BTCBOX 行情服务实时价格","Loading…":"加载中…","pairs":"个交易对","Market feed unavailable":"行情数据暂不可用","No market pairs are currently available.":"当前暂无可用交易对。",
+    "Asset":"币种","Last price":"最新价格","24h change":"24小时涨跌","24h volume":"24小时成交量","24h high":"24小时最高","24h low":"24小时最低",
     Home:"首页",Markets:"行情",Trade:"交易",Assets:"资产",My:"我的",Orders:"订单",Earn:"理财",Support:"客服",Settings:"设置",Manage:"管理",Search:"搜索",Preview:"预览环境",
     "Market overview":"市场总览","Live spot prices and 24-hour market movement.":"现货实时价格与 24 小时涨跌情况。",Connecting:"连接中","Feed unavailable":"行情暂不可用","Live market feed":"实时行情","Market analytics":"市场分析",
     "Historical chart integration is still in progress.":"历史图表接口仍在接入中。","Choose your trading mode":"选择交易模式","Sign in":"登录","Create account":"创建账户","My account":"我的账户","Sign in to continue":"登录后继续",
@@ -30,6 +37,8 @@ const dictionaries: Record<Language, Dictionary> = {
     "Account details are not loaded in this preview.":"当前预览环境尚未加载账户详情。","Manage your profile, verification, security and support.":"管理个人资料、身份认证、安全与客服。"
   },
   es: {
+    "Spot markets":"Mercados spot","Live prices from the BTCBOX market service":"Precios en vivo del servicio de mercado de BTCBOX","Loading…":"Cargando…","pairs":"pares","Market feed unavailable":"Datos de mercado no disponibles","No market pairs are currently available.":"No hay pares de mercado disponibles.",
+    "Asset":"Activo","Last price":"Último precio","24h change":"Cambio 24 h","24h volume":"Volumen 24 h","24h high":"Máximo 24 h","24h low":"Mínimo 24 h",
     Home:"Inicio",Markets:"Mercados",Trade:"Operar",Assets:"Activos",My:"Mi cuenta",Orders:"Órdenes",Earn:"Ganancias",Support:"Soporte",Settings:"Configuración",Manage:"Administrar",Search:"Buscar",Preview:"Entorno de vista previa",
     "Market overview":"Resumen del mercado","Live spot prices and 24-hour market movement.":"Precios spot en tiempo real y variación de las últimas 24 horas.",Connecting:"Conectando","Feed unavailable":"Datos de mercado no disponibles","Live market feed":"Mercado en tiempo real","Market analytics":"Análisis del mercado",
     "Historical chart integration is still in progress.":"La integración del historial de gráficos sigue en curso.","Choose your trading mode":"Elige tu modalidad de trading","Sign in":"Iniciar sesión","Create account":"Crear cuenta","My account":"Mi cuenta","Sign in to continue":"Inicia sesión para continuar",
@@ -42,6 +51,8 @@ const dictionaries: Record<Language, Dictionary> = {
     "Account details are not loaded in this preview.":"Los datos de la cuenta no están cargados en esta vista previa.","Manage your profile, verification, security and support.":"Administra tu perfil, verificación, seguridad y asistencia."
   },
   vi: {
+    "Spot markets":"Thị trường giao ngay","Live prices from the BTCBOX market service":"Giá trực tiếp từ dịch vụ thị trường BTCBOX","Loading…":"Đang tải…","pairs":"cặp","Market feed unavailable":"Dữ liệu thị trường không khả dụng","No market pairs are currently available.":"Hiện không có cặp thị trường nào khả dụng.",
+    "Asset":"Tài sản","Last price":"Giá gần nhất","24h change":"Thay đổi 24 giờ","24h volume":"Khối lượng 24 giờ","24h high":"Cao nhất 24 giờ","24h low":"Thấp nhất 24 giờ",
     Home:"Trang chủ",Markets:"Thị trường",Trade:"Giao dịch",Assets:"Tài sản",My:"Tài khoản",Orders:"Lệnh",Earn:"Kiếm lợi nhuận",Support:"Hỗ trợ",Settings:"Cài đặt",Manage:"Quản lý",Search:"Tìm kiếm",Preview:"Môi trường xem trước",
     "Market overview":"Tổng quan thị trường","Live spot prices and 24-hour market movement.":"Giá giao ngay trực tiếp và biến động trong 24 giờ.",Connecting:"Đang kết nối","Feed unavailable":"Không có dữ liệu thị trường","Live market feed":"Dữ liệu thị trường trực tiếp","Market analytics":"Phân tích thị trường",
     "Historical chart integration is still in progress.":"Đang hoàn thiện kết nối biểu đồ lịch sử.","Choose your trading mode":"Chọn phương thức giao dịch","Sign in":"Đăng nhập","Create account":"Tạo tài khoản","My account":"Tài khoản của tôi","Sign in to continue":"Đăng nhập để tiếp tục",
@@ -54,6 +65,8 @@ const dictionaries: Record<Language, Dictionary> = {
     "Account details are not loaded in this preview.":"Thông tin tài khoản chưa được tải trong bản xem trước này.","Manage your profile, verification, security and support.":"Quản lý hồ sơ, xác minh, bảo mật và hỗ trợ."
   },
   it: {
+    "Spot markets":"Mercati spot","Live prices from the BTCBOX market service":"Prezzi in tempo reale dal servizio di mercato BTCBOX","Loading…":"Caricamento…","pairs":"coppie","Market feed unavailable":"Dati di mercato non disponibili","No market pairs are currently available.":"Nessuna coppia di mercato è attualmente disponibile.",
+    "Asset":"Asset","Last price":"Ultimo prezzo","24h change":"Variazione 24 h","24h volume":"Volume 24 h","24h high":"Massimo 24 h","24h low":"Minimo 24 h",
     Home:"Home",Markets:"Mercati",Trade:"Trading",Assets:"Asset",My:"Il mio account",Orders:"Ordini",Earn:"Rendimenti",Support:"Assistenza",Settings:"Impostazioni",Manage:"Gestione",Search:"Cerca",Preview:"Ambiente di anteprima",
     "Market overview":"Panoramica del mercato","Live spot prices and 24-hour market movement.":"Prezzi spot in tempo reale e variazioni delle ultime 24 ore.",Connecting:"Connessione in corso","Feed unavailable":"Dati di mercato non disponibili","Live market feed":"Mercato in tempo reale","Market analytics":"Analisi del mercato",
     "Historical chart integration is still in progress.":"L'integrazione dei grafici storici è in corso.","Choose your trading mode":"Scegli la modalità di trading","Sign in":"Accedi","Create account":"Crea account","My account":"Il mio account","Sign in to continue":"Accedi per continuare",
@@ -66,6 +79,8 @@ const dictionaries: Record<Language, Dictionary> = {
     "Account details are not loaded in this preview.":"I dettagli dell'account non sono caricati in questa anteprima.","Manage your profile, verification, security and support.":"Gestisci profilo, verifica, sicurezza e assistenza."
   },
   pt: {
+    "Spot markets":"Mercados spot","Live prices from the BTCBOX market service":"Preços ao vivo do serviço de mercado BTCBOX","Loading…":"Carregando…","pairs":"pares","Market feed unavailable":"Dados de mercado indisponíveis","No market pairs are currently available.":"Não há pares de mercado disponíveis no momento.",
+    "Asset":"Ativo","Last price":"Último preço","24h change":"Variação 24 h","24h volume":"Volume 24 h","24h high":"Máxima 24 h","24h low":"Mínima 24 h",
     Home:"Início",Markets:"Mercados",Trade:"Negociar",Assets:"Ativos",My:"Minha conta",Orders:"Ordens",Earn:"Rendimentos",Support:"Suporte",Settings:"Configurações",Manage:"Gerenciar",Search:"Pesquisar",Preview:"Ambiente de pré-visualização",
     "Market overview":"Visão geral do mercado","Live spot prices and 24-hour market movement.":"Preços spot em tempo real e variação nas últimas 24 horas.",Connecting:"Conectando","Feed unavailable":"Dados de mercado indisponíveis","Live market feed":"Mercado em tempo real","Market analytics":"Análise de mercado",
     "Historical chart integration is still in progress.":"A integração do histórico de gráficos está em andamento.","Choose your trading mode":"Escolha seu modo de negociação","Sign in":"Entrar","Create account":"Criar conta","My account":"Minha conta","Sign in to continue":"Entre para continuar",
