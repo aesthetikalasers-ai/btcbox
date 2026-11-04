@@ -82,7 +82,23 @@ Supabase 控制台开启 Email Auth，不等于 BTCBOX 后端已经支持 Email 
 
 在真实 Preview API/E2E 证明前，前端只能呈现“未接通 / 暂不可用 / 等待审核”等真实状态，不能用模拟余额、模拟成交、模拟充值或模拟提现替代。
 
-## 6. 验收清单
+## 6. 已发现的图表交互与移动端待修项
+
+源码检查发现一项会误导用户的图表行为：
+
+- `Dashboard.tsx` 只在页面加载时请求一次 `getKlines("BTCUSDT", "1h")`。
+- `LiquidityChart` 的范围按钮（1h、6h、24h、7d、30d）只改变 Lightweight Charts 的可视逻辑区间，没有重新请求匹配周期的数据。
+- `VolumeChart` 的 1d、7d、30d 按钮也只改变可视区间，却继续使用同一份 1h K 线。
+- Zustand 初始范围分别为 30d 和 7d，而当前只取后端最多 100 根 1h K 线，实际覆盖范围不足以支撑 30d/7d 标签。
+
+因此，目前图表按钮属于“视窗切换”，不是完整的时间周期切换；默认 30d/7d 也没有相应历史跨度。修复时应将按钮状态映射到后端已支持的 interval（1m、3m、5m、15m、30m、1h、2h、4h、1d），按当前选中范围请求相应数据，并在请求期间显示 loading；失败时保留清晰的错误/空状态，不得静默退回未标识的假数据。前端与 API 的周期映射必须明确测试。
+
+移动端源码初检：
+- 主壳使用 `h-dvh`、`min-w-0`、底部 safe-area padding 与移动底部导航，具备基本响应式基础。
+- 行情表格设定 `min-w-[700px]` 并在外层横向滚动；小屏可查看，但必须在 320–430px 实机/浏览器宽度确认滚动提示、列可读性与触控体验。
+- 目前没有本轮真实设备截图或浏览器 E2E 证据；不能标记手机适配验收通过。
+
+## 7. 验收清单
 
 ### 构建与部署
 - [ ] Vercel 构建日志显示在正确 workspace 执行 Vite build，而不是根目录 CRA build。
@@ -105,7 +121,7 @@ Supabase 控制台开启 Email Auth，不等于 BTCBOX 后端已经支持 Email 
 - [ ] 平板、桌面、横屏与 iOS safe-area。
 - [ ] 图表、订单表格、底部导航、弹窗和键盘弹起场景无横向溢出或遮挡。
 
-## 7. 证据来源
+## 8. 证据来源
 
 - `frontend/package.json`、`frontend/vite.config.ts`、`frontend/src/lib/api.ts`、`frontend/src/App.tsx`
 - `backend/api-core.js`、`backend/api-adapter.js`、`backend/api/[...path].js`、`backend/api/healthz.js`
