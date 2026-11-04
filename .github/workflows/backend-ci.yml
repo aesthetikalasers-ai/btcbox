@@ -35,11 +35,11 @@ jobs:
       - name: Install backend dependencies
         run: npm ci --prefix backend
 
-      - name: Run backend tests
-        run: npm test --prefix backend
-
       - name: Build unified site
         run: npm run build --prefix backend
+
+      - name: Run backend tests
+        run: npm test --prefix backend
 
       - name: Validate fail-closed deployment configuration shape
         env:
