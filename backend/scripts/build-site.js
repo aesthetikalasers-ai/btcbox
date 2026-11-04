@@ -44,7 +44,7 @@ for (const entry of fs.readdirSync(pagesDir)) {
   }
 }
 
-// Overlay the Strata Pro Vite application as the customer-facing root.
+// Overlay the BTCBOX Vite frontend as the customer-facing root.
 // Vite assets use /frontend-assets so they cannot overwrite legacy /assets.
 if (!fs.existsSync(frontendIndex) || !fs.statSync(frontendIndex).isFile()) {
   throw new Error('Vite frontend build is missing: frontend/dist/index.html');
@@ -59,4 +59,4 @@ if (!html.includes('/frontend-assets/')) {
 fs.copyFileSync(frontendIndex, path.join(out, 'index.html'));
 fs.cpSync(frontendAssets, path.join(out, 'frontend-assets'), { recursive: true });
 
-console.log('BTCBOX unified public build created in dist/ (Strata customer app + legacy admin/OAuth assets).');
+console.log('BTCBOX unified public build created in dist/ (BTCBOX customer app + legacy admin/OAuth assets).');

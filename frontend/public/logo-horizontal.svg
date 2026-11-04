@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 280 100" width="280" height="100">
+  <g transform="translate(4,11) scale(0.78)">
+    <g fill="none" stroke="#555A60" stroke-width="11" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M82 36 L90 50 L50 90 L10 50 L50 10 L68 24"/>
+    </g>
+    <polygon points="17,45 50,68 97,25 50,80 21,55" fill="#2E9E6B"/>
+  </g>
+  <text x="98" y="72" font-family="Arial, Helvetica, sans-serif" font-weight="900" font-size="52" letter-spacing="-1">
+    <tspan fill="#2E9E6B">BTC</tspan><tspan fill="#555A60">BOX</tspan>
+  </text>
+</svg>
