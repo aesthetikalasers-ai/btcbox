@@ -5,35 +5,16 @@ import { cn } from "../../lib/utils";
 
 export function AppLayout({ children }: { children: ReactNode }) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-
   return (
-    <div className="flex h-dvh min-h-[560px] w-full overflow-hidden bg-brand-bg text-brand-text">
-      {/* Desktop Sidebar */}
-      <div className="hidden lg:block lg:w-[min(84vw,280px)] h-full shadow-[1px_0_0_0_rgba(255,255,255,0.05)] z-20 shrink-0">
-        <Sidebar />
-      </div>
-
-      {/* Mobile Drawer Overlay */}
-      {isMobileMenuOpen && (
-        <div 
-          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 lg:hidden transition-opacity"
-          onClick={() => setIsMobileMenuOpen(false)}
-        />
-      )}
-
-      {/* Mobile Drawer */}
-      <div className={cn(
-        "fixed inset-y-0 left-0 z-50 w-[248px] transform transition-transform duration-300 ease-out lg:hidden bg-brand-sidebar shadow-2xl",
-        isMobileMenuOpen ? "translate-x-0" : "-translate-x-full"
-      )}>
+    <div className="flex h-dvh min-h-[100dvh] w-full overflow-hidden bg-brand-bg text-brand-text">
+      <div className="hidden h-full w-[248px] shrink-0 shadow-[1px_0_0_0_rgba(255,255,255,0.05)] lg:z-20 lg:block"><Sidebar /></div>
+      {isMobileMenuOpen && <button aria-label="Close navigation" className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm lg:hidden" onClick={() => setIsMobileMenuOpen(false)} />}
+      <div className={cn("fixed inset-y-0 left-0 z-50 w-[min(84vw,280px)] transform bg-brand-sidebar shadow-2xl transition-transform duration-300 ease-out lg:hidden",isMobileMenuOpen ? "translate-x-0" : "-translate-x-full")}>
         <Sidebar onClose={() => setIsMobileMenuOpen(false)} />
       </div>
-
-      <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden relative z-10">
+      <div className="relative z-10 flex h-full min-w-0 flex-1 flex-col overflow-hidden">
         <Topbar onMenuClick={() => setIsMobileMenuOpen(true)} />
-        <main className="flex-1 overflow-y-auto">
-          {children}
-        </main>
+        <main className="min-h-0 flex-1 overflow-y-auto">{children}</main>
       </div>
     </div>
   );
