@@ -67,7 +67,7 @@ async function boot(){
   }catch(e){}
   // hide splash
   setTimeout(()=>{const sp=$('#splash');if(sp){sp.classList.add('hide');setTimeout(()=>sp.remove(),500);}},900);
-  if(!location.hash) location.hash='#/home';
+  if(!location.hash) location.hash = /^\/admin(?:\.html)?\/?$/.test(location.pathname) ? '#/admin' : '#/home';
   router();
   if(supabaseTwoFactorPending && supabaseTwoFactorPending.email){
     Auth.showLoginTwoFactor(supabaseTwoFactorPending.email,supabaseTwoFactorPending.tempToken);

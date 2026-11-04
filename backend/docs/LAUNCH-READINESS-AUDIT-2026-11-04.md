@@ -52,6 +52,12 @@ Supabase migration history currently lists only two versions, while the restored
 
 **Required:** produce a schema/function inventory and reconcile migration history in a staging clone before applying any numbered migration to Production. Do not run the historical `supabase-migration-runner.sql`; it is a stale concatenated script.
 
+## P1 — The dedicated /admin entry route did not open the admin console
+
+Before this PR, `backend/admin.html` was byte-for-byte identical to `index.html`; the shared boot sequence always defaulted an empty hash to `#/home`, and the router treated `admin` as a private user route. Consequently, visiting `/admin` did not directly open the admin console and an unauthenticated administrator was redirected to ordinary user login before the Basic Auth prompt.
+
+**Action in this branch:** the boot sequence now defaults `/admin` and `/admin.html` to `#/admin`, the admin route is allowed to reach the view without a normal user session, and the dedicated admin route hides the customer navigation. All admin data/actions still require server-side HTTP Basic Auth on `/api/admin/*`. Added a source-level regression test.
+
 ## P1 — No active CI workflow currently runs the backend tests
 The existing workflow is stored at `backend/.github/workflows/baseline.yml`, but GitHub only discovers workflows under repository-root `.github/workflows/`. The audited main commit has no associated workflow runs. This means the restored backend's build/tests are not currently enforced by GitHub Actions.
 
@@ -71,6 +77,7 @@ The existing account read path and frontend use JavaScript `Number` for high-pre
 
 ## What this audit changed
 - Added a root-level backend CI workflow in this branch.
+- Fixed the dedicated `/admin` route so it opens the admin console directly and relies on server-side Basic Auth rather than requiring a normal customer login.
 - Marked the stale combined Supabase migration runner as archived/do-not-execute.
 - Added the Vercel Root Directory requirement to the deployment guide.
 - No runtime API, financial logic, database, production env vars, Vercel settings, or production deployment was changed.
