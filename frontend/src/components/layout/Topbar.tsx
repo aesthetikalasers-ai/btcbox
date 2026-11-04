@@ -11,7 +11,7 @@ export function Topbar({ onMenuClick }: { onMenuClick?: () => void }) {
         </div>
       </div>
       <div className="flex shrink-0 items-center gap-2 sm:gap-3">
-        <span className="hidden text-[11px] text-brand-text-muted lg:inline">Market feed pending</span>
+        <span className="hidden text-[11px] text-brand-text-muted lg:inline">Markets</span>
         <div className="flex h-7 items-center gap-1.5 rounded-full border border-brand-border-subtle bg-[#151618] px-2.5">
           <Radio className="h-3.5 w-3.5 text-profit"/>
           <span className="hidden text-[12px] font-medium text-brand-text sm:inline">Preview</span>
