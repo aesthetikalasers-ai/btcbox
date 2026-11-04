@@ -1,0 +1,6 @@
+[submodule "frontend/vendor/strata-pro"]
+	path = frontend/vendor/strata-pro
+	url = https://github.com/bymilon/strata-pro-crypto-ui.git
+[submodule "frontend/vendor/shadcn-fintech"]
+	path = frontend/vendor/shadcn-fintech
+	url = https://github.com/abderrahimghazali/shadcn-fintech.git
