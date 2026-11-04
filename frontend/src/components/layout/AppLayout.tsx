@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from "react";
 import { Sidebar } from "./Sidebar";
 import { Topbar } from "./Topbar";
+import { BottomNav } from "./BottomNav";
 import { cn } from "../../lib/utils";
 
 export function AppLayout({ children }: { children: ReactNode }) {
@@ -14,8 +15,9 @@ export function AppLayout({ children }: { children: ReactNode }) {
       </div>
       <div className="relative z-10 flex h-full min-w-0 flex-1 flex-col overflow-hidden">
         <Topbar onMenuClick={() => setIsMobileMenuOpen(true)} />
-        <main className="min-h-0 flex-1 overflow-y-auto">{children}</main>
+        <main className="min-h-0 flex-1 overflow-y-auto pb-[calc(76px+env(safe-area-inset-bottom))] lg:pb-0">{children}</main>
       </div>
+      <BottomNav />
     </div>
   );
 }

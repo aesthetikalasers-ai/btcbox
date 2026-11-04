@@ -82,7 +82,7 @@ export function LiquidityChart() {
     // Create the subtle $1.68B horiz line from the screenshot
     series.createPriceLine({
         price: 1.68,
-        color: '#F59E0B',
+        color: '#22C55E',
         lineWidth: 1,
         lineStyle: 3,
         axisLabelVisible: false,
