@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { Search } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
 import { TokenIcon } from "../../../components/ui/TokenIcon";
 import { Card } from "./Card";
@@ -30,7 +31,7 @@ export function LiveMarketsTable({ markets, loading, error }: {
   error: string;
 }) {
   const { t, language } = useI18n();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const query = (searchParams.get("q") || "").trim().toLowerCase();
   const visibleMarkets = useMemo(() => markets.filter((item) => {
     if (!query) return true;
@@ -47,6 +48,19 @@ export function LiveMarketsTable({ markets, loading, error }: {
         <span className="shrink-0 rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-2 text-xs font-semibold text-brand-text-secondary">
           {loading ? t("Loading…") : `${visibleMarkets.length} ${t("pairs")}`}
         </span>
+      </div>
+      <div className="border-b border-brand-border px-4 py-3 md:px-6">
+        <label className="relative block">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-brand-text-muted" />
+          <input
+            type="search"
+            aria-label={t("Search BTCBOX")}
+            placeholder={t("Search")}
+            value={searchParams.get("q") || ""}
+            onChange={(event) => setSearchParams(event.target.value ? { q: event.target.value } : {})}
+            className="h-11 w-full rounded-xl border border-brand-border bg-brand-surface px-3 pl-10 text-sm text-brand-text placeholder:text-brand-text-muted focus:border-brand-accent focus:outline-none"
+          />
+        </label>
       </div>
       {error ? (
         <div className="px-5 py-10 text-center">
