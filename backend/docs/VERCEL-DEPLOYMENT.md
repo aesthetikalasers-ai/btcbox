@@ -1,5 +1,9 @@
 # Vercel 部署指南（BTCBOX 后端 + 前端）
 
+## 必须先配置 Vercel 项目根目录
+
+**BTCBOX 后端项目的 Root Directory 必须设置为 `backend`。** 当前仓库根目录是独立 React 前端模板；如果 Vercel 从仓库根目录构建，会运行根目录的 `react-scripts build` 并输出 `build/`，而后端 `backend/vercel.json` 要求输出 `dist/`，最终会出现 `STATIC_BUILD_NO_OUT_DIR`。请在 Vercel Project Settings → Build and Deployment 中将 Root Directory 设为 `backend`，Framework Preset 设为 Other（或使用 backend 内配置覆盖），Install Command 使用 `npm ci`；构建命令和输出目录由 `backend/vercel.json` 控制。修改项目设置前先确认该 Vercel 项目确实绑定 `avali9308-code/btcboxcdt`，不要把根目录 React 模板误当成 BTCBOX 交易前端。
+
 ## 构建与输出
 - **构建命令**: `npm run build && npm test`
 - **输出目录**: `dist`（由 `scripts/build-site.js` 生成）

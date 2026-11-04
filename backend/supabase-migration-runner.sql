@@ -1,5 +1,10 @@
 -- ============================================================================
 -- BTCBOX Supabase 迁移一键执行文件 (supabase-migration-runner.sql)
+-- ARCHIVED / DO NOT EXECUTE AS A ONE-SHOT MIGRATION.
+-- This concatenated script is historical and is not synchronized with the current numbered migration files,
+-- live database schema, or runtime feature gates. It contains stale production instructions and must not be
+-- pasted into the production SQL Editor. Use reviewed numbered migrations in an isolated staging project,
+-- verify each live RPC/table signature, record migration history, and keep all financial flags explicitly 0.
 -- 生成时间: 2026-11-01
 -- 适用项目: https://zlozsutefnmgwwzrlipt.supabase.co
 --
