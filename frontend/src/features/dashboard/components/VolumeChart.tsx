@@ -1,12 +1,13 @@
 import { useEffect, useRef } from 'react';
 import { createChart, ColorType, HistogramSeries } from 'lightweight-charts';
 import { chartData, useDashboardStore } from '../dashboard.data';
+import type { MarketCandle } from '../../../lib/api';
 import { Card, CardHeader } from './Card';
 import { cn } from '../../../lib/utils';
 
 const RANGES = ['1d', '7d', '30d'];
 
-export function VolumeChart() {
+export function VolumeChart({ candles = [] }: { candles?: MarketCandle[] }) {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const activeRange = useDashboardStore(s => s.volumeRange);
   const setRange = useDashboardStore(s => s.setVolumeRange);
@@ -58,18 +59,18 @@ export function VolumeChart() {
       },
     });
 
-    series.setData(chartData.volume);
+    series.setData(candles.length ? candles.map(c => ({ time: Math.floor(c.time / 1000) as import('lightweight-charts').UTCTimestamp, value: c.volume, color: c.close >= c.open ? 'rgba(34, 197, 94, 0.8)' : 'rgba(239, 68, 68, 0.8)' })) : chartData.volume);
     
     chart.timeScale().fitContent();
 
     return () => {
       chart.remove();
     };
-  }, []);
+  }, [candles]);
 
   return (
     <Card className="flex flex-col h-[340px] md:h-[400px]">
-      <CardHeader title="Volume chart preview">
+      <CardHeader title="BTC/USDT trading volume">
         <div className="flex bg-[#121316] rounded-lg p-0.5 border border-brand-border-subtle shadow-[inset_0_1px_1px_rgba(0,0,0,0.3)]">
           {RANGES.map(r => (
             <button
