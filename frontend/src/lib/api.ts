@@ -8,9 +8,25 @@ export interface MarketTicker {
   source: string;
 }
 
+export interface MarketCandle {
+  time: number;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  volume: number;
+}
+
 interface MarketResponse {
   ok: boolean;
   markets?: MarketTicker[];
+  msg?: string;
+  code?: string;
+}
+
+interface KlineResponse {
+  ok: boolean;
+  klines?: MarketCandle[];
   msg?: string;
   code?: string;
 }
@@ -62,5 +78,41 @@ export async function getMarkets(signal?: AbortSignal): Promise<MarketTicker[]> 
     Number.isFinite(item.high) && item.high > 0 &&
     Number.isFinite(item.low) && item.low > 0 &&
     typeof item.vol === "string"
+  );
+}
+
+export async function getKlines(
+  symbol = "BTCUSDT",
+  interval = "1h",
+  signal?: AbortSignal,
+): Promise<MarketCandle[]> {
+  const query = new URLSearchParams({ symbol, interval });
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE_URL}/kline?${query.toString()}`, {
+      method: "GET",
+      credentials: "include",
+      headers: { Accept: "application/json" },
+      cache: "no-store",
+      signal,
+    });
+  } catch (error) {
+    if (error instanceof Error && error.name === "AbortError") throw error;
+    throw new ApiError("Unable to reach BTCBOX chart service.", 0, "NETWORK_ERROR");
+  }
+
+  const payload = (await response.json().catch(() => null)) as KlineResponse | null;
+  if (!response.ok || !payload || payload.ok !== true || !Array.isArray(payload.klines)) {
+    throw new ApiError(payload?.msg || "Historical market data is unavailable.", response.status, payload?.code);
+  }
+
+  return payload.klines.filter((candle) =>
+    candle &&
+    Number.isFinite(candle.time) &&
+    Number.isFinite(candle.open) && candle.open > 0 &&
+    Number.isFinite(candle.high) && candle.high > 0 &&
+    Number.isFinite(candle.low) && candle.low > 0 &&
+    Number.isFinite(candle.close) && candle.close > 0 &&
+    Number.isFinite(candle.volume) && candle.volume >= 0
   );
 }
