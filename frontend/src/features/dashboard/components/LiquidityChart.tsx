@@ -11,6 +11,9 @@ export function LiquidityChart({ candles = [] }: { candles?: MarketCandle[] }) {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const activeRange = useDashboardStore(s => s.liquidityRange);
   const setRange = useDashboardStore(s => s.setLiquidityRange);
+  const latestCandle = candles[candles.length - 1];
+  const firstCandle = candles[0];
+  const changePct = firstCandle && latestCandle ? ((latestCandle.close - firstCandle.open) / firstCandle.open) * 100 : 0;
 
   useEffect(() => {
     if (!chartContainerRef.current) return;
@@ -80,12 +83,14 @@ export function LiquidityChart({ candles = [] }: { candles?: MarketCandle[] }) {
     
     volumeSeries.setData(candles.length ? candles.map(c => ({ time: Math.floor(c.time / 1000) as import('lightweight-charts').UTCTimestamp, value: c.volume, color: c.close >= c.open ? 'rgba(34, 197, 94, 0.15)' : 'rgba(239, 68, 68, 0.15)' })) : chartData.liquidityVolume);
     
-    chart.timeScale().fitContent();
+    const bars = { '1h': 1, '6h': 6, '24h': 24, '7d': 168, '30d': 720 }[activeRange] || 24;
+    const totalBars = candles.length || chartData.liquidity.length;
+    chart.timeScale().setVisibleLogicalRange({ from: Math.max(0, totalBars - bars), to: totalBars });
 
     return () => {
       chart.remove();
     };
-  }, [candles]);
+  }, [candles, activeRange]);
 
   return (
     <Card className="flex flex-col h-[340px] md:h-[400px]">
@@ -109,7 +114,7 @@ export function LiquidityChart({ candles = [] }: { candles?: MarketCandle[] }) {
       </CardHeader>
       
       <div className="flex items-baseline gap-3 mb-4 shrink-0">
-        <span className="text-[32px] font-semibold tracking-tight leading-none">Sample series</span>
+        <span className="text-[32px] font-semibold tracking-tight leading-none">{latestCandle ? latestCandle.close.toLocaleString("en-US", { maximumFractionDigits: 2 }) : "Sample series"}</span>
         <div className="flex items-center text-[12px] font-medium text-profit">
           <span className="mr-0.5">▲</span> Illustrative data
         </div>
