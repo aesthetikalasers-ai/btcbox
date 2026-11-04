@@ -1,42 +1,5 @@
 import { create } from "zustand";
 
-// SAMPLE DATA ONLY. Replace this module with the BTCBOX market API adapter before production.
-function generateCandleData() {
-  const data = [];
-  let time = new Date('2025-01-01').getTime() / 1000;
-  let o = 1.75;
-  for (let i = 0; i < 90; i++) {
-    const isUp = Math.random() > 0.45; // slight upward bias
-    const c = isUp ? o + Math.random() * 0.05 : o - Math.random() * 0.05;
-    const h = Math.max(o, c) + Math.random() * 0.02;
-    const l = Math.min(o, c) - Math.random() * 0.02;
-    data.push({ time: time + i * 86400, open: o, high: h, low: l, close: c });
-    o = c;
-  }
-  return data;
-}
-
-function generateVolumeData() {
-  const data = [];
-  let time = new Date('2025-04-01').getTime() / 1000;
-  let val = 10; // Billions starting point
-  data.push({ time: time, value: 10.5, color: 'rgba(34, 197, 94, 0.8)' });
-  data.push({ time: time + (30 * 86400), value: 6.8, color: 'rgba(34, 197, 94, 0.8)' });
-  data.push({ time: time + (60 * 86400), value: 8.7, color: 'rgba(34, 197, 94, 0.8)' });
-  data.push({ time: time + (90 * 86400), value: 3.5, color: 'rgba(34, 197, 94, 0.8)' });
-  return data;
-}
-
-export const chartData = {
-  liquidity: generateCandleData(),
-  liquidityVolume: generateCandleData().map(c => ({
-    time: c.time,
-    value: Math.random() * 50 + 10,
-    color: c.close > c.open ? 'rgba(34, 197, 94, 0.15)' : 'rgba(239, 68, 68, 0.15)',
-  })),
-  volume: generateVolumeData(),
-};
-
 export const topTokens = [
   {
     id: "ETH",
