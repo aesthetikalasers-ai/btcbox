@@ -16,7 +16,7 @@ export function Card({ children, className }: { children: ReactNode, className?:
 export function CardHeader({ title, children }: { title: string, children?: ReactNode }) {
   return (
     <div className="flex flex-wrap items-center justify-between gap-2 pb-4 border-b border-brand-border mb-4">
-      <h2 className="text-[15px] font-semibold tracking-tight text-brand-text">{title}</h2>
+      <h2 className="type-card-title text-brand-text">{title}</h2>
       {children}
     </div>
   );
