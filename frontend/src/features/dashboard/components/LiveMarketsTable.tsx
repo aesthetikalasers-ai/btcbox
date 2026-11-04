@@ -89,7 +89,7 @@ export function LiveMarketsTable({ markets, loading, error }: {
                       <div><p className="text-sm font-semibold text-brand-text">{names[item.sym] || item.sym}</p><p className="text-xs text-brand-text-muted">{item.sym}/USDT</p></div>
                     </div>
                   </td>
-                  <td className="whitespace-nowrap px-4 type-body font-semibold tabular-nums text-brand-text md:px-6">{price(item.price)}</td>
+                  <td className="whitespace-nowrap px-4 type-body font-semibold tabular-nums text-brand-text md:px-6">{price(item.price, numberLocale)}</td>
                   <td className="whitespace-nowrap px-4 md:px-6"><Change value={item.chg} /></td>
                   <td className="whitespace-nowrap px-4 text-sm tabular-nums text-brand-text-secondary md:px-6">{item.vol} USDT</td>
                   <td className="whitespace-nowrap px-4 text-sm tabular-nums text-brand-text-secondary md:px-6">{price(item.high, numberLocale)}</td>
