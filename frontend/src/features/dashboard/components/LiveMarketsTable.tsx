@@ -1,7 +1,7 @@
 import { TokenIcon } from "../../../components/ui/TokenIcon";
 import { Card } from "./Card";
 import type { MarketTicker } from "../../../lib/api";
-import { useI18n } from "../../../lib/i18n";
+import { useI18n, type Language } from "../../../lib/i18n";
 
 const names: Record<string, string> = {
   BTC: "Bitcoin", ETH: "Ethereum", SOL: "Solana", BNB: "BNB",
@@ -11,14 +11,18 @@ const names: Record<string, string> = {
   ATOM: "Cosmos", ETC: "Ethereum Classic",
 };
 
-const price = (value: number) => new Intl.NumberFormat("en-US", {
+const numberLocales: Record<Language, string> = {
+  en: "en-US", ja: "ja-JP", "zh-CN": "zh-CN", es: "es-ES", vi: "vi-VN", it: "it-IT", pt: "pt-PT",
+};
+
+const price = (value: number, locale: string) => new Intl.NumberFormat(locale, {
   minimumFractionDigits: 2,
   maximumFractionDigits: value >= 1 ? 4 : 8,
 }).format(value);
 
-function Change({ value }: { value: number }) {
+function Change({ value, locale }: { value: number; locale: string }) {
   return <span className={`inline-flex min-w-[76px] justify-center rounded-lg px-2.5 py-1.5 text-xs font-semibold tabular-nums ${value >= 0 ? "bg-profit/10 text-profit" : "bg-loss/10 text-loss"}`}>
-    {value > 0 ? "+" : ""}{value.toFixed(2)}%
+    {value > 0 ? "+" : ""}{value.toLocaleString(locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%
   </span>;
 }
 
@@ -27,7 +31,8 @@ export function LiveMarketsTable({ markets, loading, error }: {
   loading: boolean;
   error: string;
 }) {
-  const { t } = useI18n();
+  const { t, language } = useI18n();
+  const numberLocale = numberLocales[language];
   return (
     <Card className="flex flex-col overflow-hidden px-0 py-0">
       <div className="flex items-center justify-between gap-3 border-b border-brand-border px-4 py-4 md:px-6">
@@ -63,8 +68,8 @@ export function LiveMarketsTable({ markets, loading, error }: {
                   </div>
                 </div>
                 <div className="flex shrink-0 flex-col items-end gap-1.5">
-                  <span className="type-body font-bold tabular-nums text-brand-text">{price(item.price)}</span>
-                  <Change value={item.chg} />
+                  <span className="type-body font-bold tabular-nums text-brand-text">{price(item.price, numberLocale)}</span>
+                  <Change value={item.chg} locale={numberLocale} />
                 </div>
               </div>
             ))}
@@ -87,8 +92,8 @@ export function LiveMarketsTable({ markets, loading, error }: {
                   <td className="whitespace-nowrap px-4 type-body font-semibold tabular-nums text-brand-text md:px-6">{price(item.price)}</td>
                   <td className="whitespace-nowrap px-4 md:px-6"><Change value={item.chg} /></td>
                   <td className="whitespace-nowrap px-4 text-sm tabular-nums text-brand-text-secondary md:px-6">{item.vol} USDT</td>
-                  <td className="whitespace-nowrap px-4 text-sm tabular-nums text-brand-text-secondary md:px-6">{price(item.high)}</td>
-                  <td className="whitespace-nowrap px-4 text-sm tabular-nums text-brand-text-secondary md:px-6">{price(item.low)}</td>
+                  <td className="whitespace-nowrap px-4 text-sm tabular-nums text-brand-text-secondary md:px-6">{price(item.high, numberLocale)}</td>
+                  <td className="whitespace-nowrap px-4 text-sm tabular-nums text-brand-text-secondary md:px-6">{price(item.low, numberLocale)}</td>
                 </tr>
               ))}</tbody>
             </table>
