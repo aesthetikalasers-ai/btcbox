@@ -17,7 +17,7 @@ const variants = cva(
       },
       size: {
         default: "min-h-11 h-auto px-4 py-2 sm:px-5",
-        sm: "min-h-10 h-auto rounded-lg px-3 py-2 text-xs sm:px-4 text-[13px]",
+        sm: "min-h-10 h-auto rounded-lg px-3 py-2 text-[13px] sm:px-4",
         lg: "min-h-12 h-auto rounded-xl px-5 py-2.5 text-[15px] sm:px-7",
         icon: "h-11 w-11 min-w-11 shrink-0 p-0",
       },
