@@ -18,9 +18,9 @@ permissions:
 
 jobs:
   backend:
-    name: Backend build, tests, and fail-closed preflight
+    name: Unified frontend/backend build, tests, and fail-closed preflight
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -38,7 +38,7 @@ jobs:
       - name: Run backend tests
         run: npm test --prefix backend
 
-      - name: Build backend site
+      - name: Build unified site
         run: npm run build --prefix backend
 
       - name: Validate fail-closed deployment configuration shape
@@ -56,11 +56,15 @@ jobs:
           FINANCIAL_MATCHING_ENGINE_ENABLED: '0'
         run: npm run preflight --prefix backend
 
-      - name: Verify backend output
+      - name: Verify unified output and preserved entrypoints
         run: |
           test -f backend/dist/index.html
+          test -f backend/dist/legacy-index.html
           test -f backend/dist/admin.html
+          test -d backend/dist/frontend-assets
+          grep -q '/frontend-assets/' backend/dist/index.html
           test -f 'backend/api/[...path].js'
           test -f backend/api/healthz.js
           test ! -d backend/dist/api
           test -f backend/dist/assets/js/app-core.js
+          test -d backend/dist/oauth
