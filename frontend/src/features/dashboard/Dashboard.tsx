@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { LiquidityChart } from "./components/LiquidityChart";
 import { VolumeChart } from "./components/VolumeChart";
-import { TopTokensTable } from "./components/TopTokensTable";
+import { LiveMarketsTable } from "./components/LiveMarketsTable";
 import { Badge } from "../../components/ui/badge";
 import { getMarkets, type MarketTicker } from "../../lib/api";
 
@@ -12,19 +12,15 @@ export function Dashboard() {
 
   useEffect(() => {
     const controller = new AbortController();
-    getMarkets(controller.signal)
-      .then((rows) => {
-        setMarkets(rows);
-        setError("");
-      })
-      .catch((reason: unknown) => {
-        if (reason instanceof Error && reason.name === "AbortError") return;
-        setError(reason instanceof Error ? reason.message : "Market data is temporarily unavailable.");
-      })
-      .finally(() => {
-        if (!controller.signal.aborted) setLoading(false);
-      });
-
+    getMarkets(controller.signal).then((rows) => {
+      setMarkets(rows);
+      setError("");
+    }).catch((reason: unknown) => {
+      if (reason instanceof Error && reason.name === "AbortError") return;
+      setError(reason instanceof Error ? reason.message : "Market data is unavailable.");
+    }).finally(() => {
+      if (!controller.signal.aborted) setLoading(false);
+    });
     return () => controller.abort();
   }, []);
 
@@ -40,19 +36,13 @@ export function Dashboard() {
           {loading ? "Connecting" : error ? "Feed unavailable" : "Live market feed"}
         </Badge>
       </div>
-
-      <TopTokensTable markets={markets} loading={loading} error={error} />
-
+      <LiveMarketsTable markets={markets} loading={loading} error={error} />
       <div className="flex items-center justify-between gap-3 px-1 pt-1">
-        <div>
-          <h2 className="text-sm font-semibold text-brand-text">Market analytics</h2>
-          <p className="mt-1 text-xs text-brand-text-muted">Historical chart integration is still in progress.</p>
-        </div>
+        <div><h2 className="text-sm font-semibold text-brand-text">Market analytics</h2><p className="mt-1 text-xs text-brand-text-muted">Historical chart integration is still in progress.</p></div>
         <Badge variant="outline" className="shrink-0">Chart preview</Badge>
       </div>
       <div className="grid min-w-0 grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)] lg:gap-5">
-        <LiquidityChart />
-        <VolumeChart />
+        <LiquidityChart /><VolumeChart />
       </div>
     </div>
   );
