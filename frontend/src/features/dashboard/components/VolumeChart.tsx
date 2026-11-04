@@ -11,6 +11,7 @@ export function VolumeChart({ candles = [] }: { candles?: MarketCandle[] }) {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const activeRange = useDashboardStore(s => s.volumeRange);
   const setRange = useDashboardStore(s => s.setVolumeRange);
+  const latestCandle = candles[candles.length - 1];
 
   useEffect(() => {
     if (!chartContainerRef.current) return;
@@ -61,12 +62,14 @@ export function VolumeChart({ candles = [] }: { candles?: MarketCandle[] }) {
 
     series.setData(candles.length ? candles.map(c => ({ time: Math.floor(c.time / 1000) as import('lightweight-charts').UTCTimestamp, value: c.volume, color: c.close >= c.open ? 'rgba(34, 197, 94, 0.8)' : 'rgba(239, 68, 68, 0.8)' })) : chartData.volume);
     
-    chart.timeScale().fitContent();
+    const bars = { '1d': 24, '7d': 168, '30d': 720 }[activeRange] || 24;
+    const totalBars = candles.length || chartData.volume.length;
+    chart.timeScale().setVisibleLogicalRange({ from: Math.max(0, totalBars - bars), to: totalBars });
 
     return () => {
       chart.remove();
     };
-  }, [candles]);
+  }, [candles, activeRange]);
 
   return (
     <Card className="flex flex-col h-[340px] md:h-[400px]">
@@ -90,7 +93,7 @@ export function VolumeChart({ candles = [] }: { candles?: MarketCandle[] }) {
       </CardHeader>
       
       <div className="flex items-baseline gap-3 mb-4 shrink-0">
-        <span className="text-[32px] font-semibold tracking-tight leading-none">Sample series</span>
+        <span className="text-[32px] font-semibold tracking-tight leading-none">{latestCandle ? latestCandle.volume.toLocaleString("en-US", { maximumFractionDigits: 2 }) : "Sample series"}</span>
         <div className="flex items-center text-[12px] font-medium text-profit">
           <span className="mr-0.5">▲</span> Illustrative data
         </div>
