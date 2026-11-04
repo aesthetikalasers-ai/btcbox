@@ -1,6 +1,6 @@
 import { createContext, useContext, useMemo, useState, type ReactNode } from "react";
 
-export type Language = "zh-CN" | "zh-TW" | "en" | "km";
+export type Language = "en" | "ja" | "zh-CN" | "es" | "vi" | "it" | "pt";
 type Dictionary = Record<string, string>;
 const zhCN: Dictionary = {
   Home:"首页",Markets:"行情",Trade:"交易",Assets:"资产",My:"我的",Orders:"订单",Earn:"理财",Support:"客服",Settings:"设置",Manage:"管理",
