@@ -1,6 +1,7 @@
 import { TokenIcon } from "../../../components/ui/TokenIcon";
 import { Card } from "./Card";
 import type { MarketTicker } from "../../../lib/api";
+import { useI18n } from "../../../lib/i18n";
 
 const names: Record<string, string> = {
   BTC: "Bitcoin", ETH: "Ethereum", SOL: "Solana", BNB: "BNB",
@@ -26,20 +27,21 @@ export function LiveMarketsTable({ markets, loading, error }: {
   loading: boolean;
   error: string;
 }) {
+  const { t } = useI18n();
   return (
     <Card className="flex flex-col overflow-hidden px-0 py-0">
       <div className="flex items-center justify-between gap-3 border-b border-brand-border px-4 py-4 md:px-6">
         <div className="min-w-0">
-          <h2 className="text-[15px] font-semibold tracking-tight text-brand-text">Spot markets</h2>
-          <p className="mt-1 text-xs text-brand-text-muted">Live prices from the BTCBOX market service</p>
+          <h2 className="text-[15px] font-semibold tracking-tight text-brand-text">{t("Spot markets")}</h2>
+          <p className="mt-1 text-xs text-brand-text-muted">{t("Live prices from the BTCBOX market service")}</p>
         </div>
         <span className="shrink-0 rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-2 text-xs font-semibold text-brand-text-secondary">
-          {loading ? "Loading…" : `${markets.length} pairs`}
+          {loading ? t("Loading…") : `${markets.length} ${t("pairs")}`}
         </span>
       </div>
       {error ? (
         <div className="px-5 py-10 text-center">
-          <p className="text-sm font-semibold text-brand-text">Market feed unavailable</p>
+          <p className="text-sm font-semibold text-brand-text">{t("Market feed unavailable")}</p>
           <p className="mt-2 break-words text-sm text-brand-text-muted">{error}</p>
         </div>
       ) : loading && markets.length === 0 ? (
@@ -47,7 +49,7 @@ export function LiveMarketsTable({ markets, loading, error }: {
           {Array.from({ length: 5 }).map((_, index) => <div key={index} className="h-12 animate-pulse rounded-xl bg-white/[0.05]" />)}
         </div>
       ) : markets.length === 0 ? (
-        <div className="px-5 py-10 text-center text-sm text-brand-text-muted">No market pairs are currently available.</div>
+        <div className="px-5 py-10 text-center text-sm text-brand-text-muted">{t("No market pairs are currently available.")}</div>
       ) : (
         <>
           <div className="divide-y divide-brand-border/70 sm:hidden">
@@ -71,7 +73,7 @@ export function LiveMarketsTable({ markets, loading, error }: {
             <table className="w-full min-w-[700px] border-collapse text-left">
               <thead><tr className="border-b border-brand-border bg-brand-surface-2/70">
                 {["Asset", "Last price", "24h change", "24h volume", "24h high", "24h low"].map((label) =>
-                  <th key={label} className="whitespace-nowrap px-4 py-3 text-xs font-semibold text-brand-text-muted md:px-6">{label}</th>
+                  <th key={label} className="whitespace-nowrap px-4 py-3 text-xs font-semibold text-brand-text-muted md:px-6">{t(label)}</th>
                 )}
               </tr></thead>
               <tbody>{markets.map((item) => (
