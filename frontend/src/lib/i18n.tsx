@@ -21,6 +21,11 @@ const dictionaries: Record<Language, Dictionary> = {
     "Your balances and transaction activity will appear here after the authenticated account API is connected.":"認証済みアカウントAPIの接続後、残高と取引履歴がここに表示されます。",
     "This preview does not invent balances or transaction history. Sign in and connect the account service to load your actual assets.":"このプレビューでは残高や取引履歴を捏造しません。ログインしてアカウントサービスを接続すると実際の資産を確認できます。",
     "Account details are not loaded in this preview.":"このプレビューではアカウント情報を読み込んでいません。","Manage your profile, verification, security and support.":"プロフィール、本人確認、セキュリティ、サポートを管理します。"
+    "Chart preview":"チャートプレビュー",
+    "Coming soon — no supported futures service is registered in the current backend.":"近日公開 — 現在のバックエンドでは先物サービスはまだ利用できません。",
+    "Buy and sell supported digital assets at market or limit prices.":"対応するデジタル資産を成行または指値で売買できます。",
+    "Short-duration direction contracts with open positions and history.":"短期方向性契約、オープンポジションと履歴。",
+    "Loading markets":"市場を読み込み中",
   },
   "zh-CN": {
     "Spot markets":"现货市场","Live prices from the BTCBOX market service":"BTCBOX 行情服务实时价格","Loading…":"加载中…","pairs":"个交易对","Market feed unavailable":"行情数据暂不可用","No market pairs are currently available.":"当前暂无可用交易对。",
@@ -35,6 +40,11 @@ const dictionaries: Record<Language, Dictionary> = {
     "Your balances and transaction activity will appear here after the authenticated account API is connected.":"账户 API 接通后，将在此显示余额和交易记录。",
     "This preview does not invent balances or transaction history. Sign in and connect the account service to load your actual assets.":"预览环境不会伪造余额或交易记录。登录并连接账户服务后即可查看真实资产。",
     "Account details are not loaded in this preview.":"当前预览环境尚未加载账户详情。","Manage your profile, verification, security and support.":"管理个人资料、身份认证、安全与客服。"
+    "Chart preview":"图表预览",
+    "Coming soon — no supported futures service is registered in the current backend.":"即将开放——当前后端尚未接入期货服务。",
+    "Buy and sell supported digital assets at market or limit prices.":"以市价或限价买卖当前支持的数字资产。",
+    "Short-duration direction contracts with open positions and history.":"短周期方向合约，包含持仓与历史记录。",
+    "Loading markets":"正在加载行情",
   },
   es: {
     "Spot markets":"Mercados spot","Live prices from the BTCBOX market service":"Precios en vivo del servicio de mercado de BTCBOX","Loading…":"Cargando…","pairs":"pares","Market feed unavailable":"Datos de mercado no disponibles","No market pairs are currently available.":"No hay pares de mercado disponibles.",
@@ -49,6 +59,11 @@ const dictionaries: Record<Language, Dictionary> = {
     "Your balances and transaction activity will appear here after the authenticated account API is connected.":"Tus saldos y movimientos aparecerán aquí cuando se conecte la API autenticada de la cuenta.",
     "This preview does not invent balances or transaction history. Sign in and connect the account service to load your actual assets.":"Esta vista previa no inventa saldos ni movimientos. Inicia sesión y conecta el servicio de cuenta para ver tus activos reales.",
     "Account details are not loaded in this preview.":"Los datos de la cuenta no están cargados en esta vista previa.","Manage your profile, verification, security and support.":"Administra tu perfil, verificación, seguridad y asistencia."
+    "Chart preview":"Vista previa del gráfico",
+    "Coming soon — no supported futures service is registered in the current backend.":"Próximamente: el servicio de futuros aún no está disponible en el backend.",
+    "Buy and sell supported digital assets at market or limit prices.":"Compra y vende activos digitales compatibles a precio de mercado o limitado.",
+    "Short-duration direction contracts with open positions and history.":"Contratos direccionales de corta duración con posiciones abiertas e historial.",
+    "Loading markets":"Cargando mercados",
   },
   vi: {
     "Spot markets":"Thị trường giao ngay","Live prices from the BTCBOX market service":"Giá trực tiếp từ dịch vụ thị trường BTCBOX","Loading…":"Đang tải…","pairs":"cặp","Market feed unavailable":"Dữ liệu thị trường không khả dụng","No market pairs are currently available.":"Hiện không có cặp thị trường nào khả dụng.",
@@ -63,6 +78,11 @@ const dictionaries: Record<Language, Dictionary> = {
     "Your balances and transaction activity will appear here after the authenticated account API is connected.":"Số dư và lịch sử giao dịch sẽ hiển thị sau khi kết nối API tài khoản đã xác thực.",
     "This preview does not invent balances or transaction history. Sign in and connect the account service to load your actual assets.":"Bản xem trước không tạo số dư hoặc lịch sử giả. Hãy đăng nhập và kết nối dịch vụ tài khoản để tải tài sản thực tế.",
     "Account details are not loaded in this preview.":"Thông tin tài khoản chưa được tải trong bản xem trước này.","Manage your profile, verification, security and support.":"Quản lý hồ sơ, xác minh, bảo mật và hỗ trợ."
+    "Chart preview":"Bản xem trước biểu đồ",
+    "Coming soon — no supported futures service is registered in the current backend.":"Sắp ra mắt — dịch vụ hợp đồng tương lai chưa có trong hệ thống hiện tại.",
+    "Buy and sell supported digital assets at market or limit prices.":"Mua và bán tài sản số được hỗ trợ theo giá thị trường hoặc giá giới hạn.",
+    "Short-duration direction contracts with open positions and history.":"Hợp đồng dự đoán xu hướng ngắn hạn với vị thế đang mở và lịch sử.",
+    "Loading markets":"Đang tải thị trường",
   },
   it: {
     "Spot markets":"Mercati spot","Live prices from the BTCBOX market service":"Prezzi in tempo reale dal servizio di mercato BTCBOX","Loading…":"Caricamento…","pairs":"coppie","Market feed unavailable":"Dati di mercato non disponibili","No market pairs are currently available.":"Nessuna coppia di mercato è attualmente disponibile.",
@@ -77,6 +97,11 @@ const dictionaries: Record<Language, Dictionary> = {
     "Your balances and transaction activity will appear here after the authenticated account API is connected.":"I saldi e le attività appariranno qui dopo il collegamento dell'API autenticata dell'account.",
     "This preview does not invent balances or transaction history. Sign in and connect the account service to load your actual assets.":"Questa anteprima non inventa saldi o cronologia. Accedi e collega il servizio account per visualizzare i tuoi asset reali.",
     "Account details are not loaded in this preview.":"I dettagli dell'account non sono caricati in questa anteprima.","Manage your profile, verification, security and support.":"Gestisci profilo, verifica, sicurezza e assistenza."
+    "Chart preview":"Anteprima del grafico",
+    "Coming soon — no supported futures service is registered in the current backend.":"In arrivo: il servizio futures non è ancora disponibile nel backend.",
+    "Buy and sell supported digital assets at market or limit prices.":"Acquista e vendi asset digitali supportati a prezzo di mercato o limite.",
+    "Short-duration direction contracts with open positions and history.":"Contratti direzionali di breve durata con posizioni aperte e storico.",
+    "Loading markets":"Caricamento dei mercati",
   },
   pt: {
     "Spot markets":"Mercados spot","Live prices from the BTCBOX market service":"Preços ao vivo do serviço de mercado BTCBOX","Loading…":"Carregando…","pairs":"pares","Market feed unavailable":"Dados de mercado indisponíveis","No market pairs are currently available.":"Não há pares de mercado disponíveis no momento.",
@@ -91,6 +116,11 @@ const dictionaries: Record<Language, Dictionary> = {
     "Your balances and transaction activity will appear here after the authenticated account API is connected.":"Seus saldos e atividades aparecerão aqui após a conexão da API autenticada da conta.",
     "This preview does not invent balances or transaction history. Sign in and connect the account service to load your actual assets.":"Esta prévia não inventa saldos nem histórico. Entre e conecte o serviço da conta para carregar seus ativos reais.",
     "Account details are not loaded in this preview.":"Os detalhes da conta não foram carregados nesta prévia.","Manage your profile, verification, security and support.":"Gerencie seu perfil, verificação, segurança e suporte."
+    "Chart preview":"Prévia do gráfico",
+    "Coming soon — no supported futures service is registered in the current backend.":"Em breve: o serviço de futuros ainda não está disponível no backend.",
+    "Buy and sell supported digital assets at market or limit prices.":"Compre e venda ativos digitais compatíveis a preço de mercado ou limite.",
+    "Short-duration direction contracts with open positions and history.":"Contratos direcionais de curta duração com posições abertas e histórico.",
+    "Loading markets":"Carregando mercados",
   }
 };
 
