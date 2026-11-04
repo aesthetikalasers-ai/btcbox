@@ -1,0 +1,14 @@
+模板名称: React Crypto Exchange Template (cenksari)
+来源 URL: https://github.com/cenksari/react-crypto-exchange
+演示地址: https://react-crypto-exchange-nine.vercel.app/
+下载方式: GitHub master 分支 zip (2026-11-04 下载)
+许可证: MIT License (Copyright (c) 2025 Cenk SARI) — 允许商用、修改、再分发，需保留版权声明
+许可证文件: LICENSE.md (已随源码保留)
+技术栈: React 18 + TypeScript + react-router-dom + react-scripts (CRA) + Poppins 字体, 纯前端静态数据 (mock)
+构建方式: npm install / yarn install 后 npm start (开发) 或 npm run build (产物在 build/)
+入口文件: public/index.html, src/index.tsx, src/navigation/Navigation.tsx (路由)
+页面(9 screen): Signin(首页路由), Signup, Forgot-password, Profile, Dashboard, Capital(资产), Market(行情+K线+下单+订单簿), Transactions, NotFound
+组件(12 widgets): BankProcess, BuyOrders, BuySell, CandleStick, Coin, Limits, Market, MyAssets, Profile, RecentActivity, SellOrders, TradeHistory
+主题: 浅色 (white background), 无内置深色模式; 白标需自行改深色变量
+已知痕迹: 示例数据用土耳其里拉(TRY), 少量土耳其语文案("Hakkında"), "Etherium"拼写笔误, 均易替换
+GitHub Stars: ~115 (2026-11)
