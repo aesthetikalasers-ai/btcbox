@@ -1,7 +1,7 @@
-@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+SC:wght@400;500;600;700&family=Noto+Sans+Khmer:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+JP:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;600;700&family=Noto+Sans+Khmer:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap");
 @import "tailwindcss";
 @theme {
-  --font-sans:"Inter","Noto Sans SC","Noto Sans Khmer",ui-sans-serif,system-ui,sans-serif;
+  --font-sans:"Inter","Noto Sans JP","Noto Sans SC","Noto Sans Khmer",ui-sans-serif,system-ui,sans-serif;
   --font-mono:"JetBrains Mono",ui-monospace,monospace;
   --color-brand-bg:#080d18; --color-brand-sidebar:#0b1220; --color-brand-surface:#101b2c; --color-brand-surface-2:#17263b;
   --color-brand-surface-hover:rgba(88,166,255,.08); --color-brand-border:rgba(148,180,220,.16); --color-brand-border-subtle:rgba(148,180,220,.10);
