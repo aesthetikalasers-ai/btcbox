@@ -1,12 +1,13 @@
 import { useEffect, useRef } from 'react';
 import { createChart, ColorType, CandlestickSeries, HistogramSeries } from 'lightweight-charts';
 import { chartData, useDashboardStore } from '../dashboard.data';
+import type { MarketCandle } from '../../../lib/api';
 import { Card, CardHeader } from './Card';
 import { cn } from '../../../lib/utils';
 
 const RANGES = ['1h', '24h', '6h', '7d', '30d'];
 
-export function LiquidityChart() {
+export function LiquidityChart({ candles = [] }: { candles?: MarketCandle[] }) {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const activeRange = useDashboardStore(s => s.liquidityRange);
   const setRange = useDashboardStore(s => s.setLiquidityRange);
@@ -60,7 +61,7 @@ export function LiquidityChart() {
         wickDownColor: '#F87171',
     });
 
-    series.setData(chartData.liquidity);
+    series.setData(candles.length ? candles.map(c => ({ time: Math.floor(c.time / 1000) as import('lightweight-charts').UTCTimestamp, open: c.open, high: c.high, low: c.low, close: c.close })) : chartData.liquidity);
     
     const volumeSeries = chart.addSeries(HistogramSeries, {
         color: 'rgba(255, 255, 255, 0.1)',
@@ -77,27 +78,18 @@ export function LiquidityChart() {
         },
     });
     
-    volumeSeries.setData(chartData.liquidityVolume);
-    
-    // Create the subtle $1.68B horiz line from the screenshot
-    series.createPriceLine({
-        price: 1.68,
-        color: '#22C55E',
-        lineWidth: 1,
-        lineStyle: 3,
-        axisLabelVisible: false,
-    });
+    volumeSeries.setData(candles.length ? candles.map(c => ({ time: Math.floor(c.time / 1000) as import('lightweight-charts').UTCTimestamp, value: c.volume, color: c.close >= c.open ? 'rgba(34, 197, 94, 0.15)' : 'rgba(239, 68, 68, 0.15)' })) : chartData.liquidityVolume);
     
     chart.timeScale().fitContent();
 
     return () => {
       chart.remove();
     };
-  }, []);
+  }, [candles]);
 
   return (
     <Card className="flex flex-col h-[340px] md:h-[400px]">
-      <CardHeader title="Liquidity chart preview">
+      <CardHeader title="BTC/USDT price history">
         <div className="flex bg-[#121316] rounded-lg p-0.5 border border-brand-border-subtle shadow-[inset_0_1px_1px_rgba(0,0,0,0.3)]">
           {RANGES.map(r => (
             <button
@@ -123,7 +115,7 @@ export function LiquidityChart() {
         </div>
       </div>
       
-      {/* Container must have flex-1 and min-h-0 to let chart auto-size properly */}
+      {/* Historical BTC/USDT candles when available; preview series otherwise. */}
       <div className="relative flex-1 min-h-0 w-full" ref={chartContainerRef} />
     </Card>
   );
