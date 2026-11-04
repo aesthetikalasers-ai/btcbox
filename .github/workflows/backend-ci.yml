@@ -1,0 +1,66 @@
+name: BTCBOX backend CI
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'backend/**'
+      - '.github/workflows/backend-ci.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'backend/**'
+      - '.github/workflows/backend-ci.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    name: Backend build, tests, and fail-closed preflight
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install backend dependencies
+        run: npm ci --prefix backend
+
+      - name: Run backend tests
+        run: npm test --prefix backend
+
+      - name: Build backend site
+        run: npm run build --prefix backend
+
+      - name: Validate fail-closed deployment configuration shape
+        env:
+          CONTEXT: production
+          SUPABASE_URL: https://ci-shape-check.supabase.co
+          SUPABASE_SERVICE_ROLE_KEY: ci_dummy_service_role_key_not_a_real_secret
+          SUPABASE_AUTH_URL: https://ci-shape-check.supabase.co
+          SUPABASE_AUTH_PUBLISHABLE_KEY: sb_publishable_ci_shape_check_dummy
+          ADMIN_USER: ci-shape-check-admin
+          ADMIN_PASS: CI-Only-Strong-Dummy-Password-123!
+          FINANCIAL_POSTGRES_RPC_ENABLED: '0'
+          FINANCIAL_POSTGRES_FULL_CUTOVER_APPROVED: '0'
+          FINANCIAL_POSTGRES_READS_ENABLED: '0'
+          FINANCIAL_MATCHING_ENGINE_ENABLED: '0'
+        run: npm run preflight --prefix backend
+
+      - name: Verify backend output
+        run: |
+          test -f backend/dist/index.html
+          test -f backend/dist/admin.html
+          test -f 'backend/api/[...path].js'
+          test -f backend/api/healthz.js
+          test ! -d backend/dist/api
+          test -f backend/dist/assets/js/app-core.js

@@ -510,7 +510,7 @@ function renderSidebar(active){
 }
 
 /* ---------- guest access and return-to routing ---------- */
-const GUEST_PUBLIC_ROUTES = new Set(['home','markets','trade','tradehub','kline','seconds','help','404']);
+const GUEST_PUBLIC_ROUTES = new Set(['home','markets','trade','tradehub','kline','seconds','help','404','admin']);
 const GUEST_PREVIEW_ROUTES = new Set(['assets','me']);
 function rememberLoginReturn(target,intent){
   const value=String(target||location.hash||'#/markets');
@@ -535,7 +535,7 @@ function guestAccessView(route){
 }
 
 /* ---------- router ---------- */
-const HIDE_NAV = {login:true,register:true,kline:true};
+const HIDE_NAV = {login:true,register:true,kline:true,admin:true};
 function parseHash(){
   const h=(location.hash||'#/').replace(/^#\/?/,'');
   const parts=h.split('/').filter(Boolean);
