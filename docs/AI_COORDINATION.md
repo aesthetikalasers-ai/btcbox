@@ -22,25 +22,31 @@ Observed baseline: `main` at/including merge commit `93a236e4a3ed6c9edd2003ac106
 6. Keep frontend/backend API contracts explicit. Never fabricate market prices, balances, order history, or chart candles.
 7. Reuse mature, license-compatible components and assets where practical; retain required license/attribution notices.
 8. Prioritize mobile usability and accessible touch targets, but do not change core trading behavior or layout without explicit approval.
-9. Keep deployment automation paused until the user authorizes release readiness.
+9. Keep deployment automation paused until the user authorizes release readiness. Do not trigger deployments during audit.
 10. Classify findings as SOURCE OBSERVED, REPRODUCED, TEST PASSED, or NOT VERIFIED.
 
 ## Repository observations at refresh
 
-- The previously designated coordination branch was absent from the branch listing; this branch has now been recreated from `main`.
-- The prior `docs/AI_COORDINATION.md` was not present on `main` or the inspected UI feature branch, so this file restores the coordination entry point from established project rules and current verifiable repository state.
-- Latest commit found in repository commit search: `93a236e4a3ed6c9edd2003ac1068a89161015511`, merge of PR #20 (`feat/read-only-account-orders-20261105`).
+- The previously designated coordination branch was absent from the branch listing; this branch was recreated from `main` and the entry point restored in commit `b792ab74c93947e7b2325d51d3a9bd07ae2e3b66`.
+- Latest main commit found: `93a236e4a3ed6c9edd2003ac1068a89161015511`, merge of PR #20 (`feat/read-only-account-orders-20261105`).
 - PR #20 adds authenticated read-only account/orders functions in `frontend/src/lib/api.ts`; the diff alone does not prove live API connectivity or end-to-end account hydration.
-- Root `README.md` describes an English-only, mock-data CRA frontend and lists known mock-only limitations. Root `package.json` also defines a CRA frontend. This documentation must be reconciled against the actual deployed app and current `frontend/` tree before treating it as authoritative.
+- Root `README.md` describes an English-only, mock-data CRA frontend. Root `package.json` is also CRA.
+- `frontend/package.json` defines a separate Vite + React + TypeScript app with Tailwind, lightweight-charts, Radix UI and Zustand. Therefore two frontend build roots coexist. Vercel project `btcboxcdt` reports framework `create-react-app`; the deployed root and intended canonical frontend must be explicitly reconciled before code cleanup or deployment.
+- Vercel project `btcboxcdt` reports `live:false`; latest deployment `dpl_5ddHpmH8cVkyYyPxEfSTwbjDzfNG` is `BLOCKED`, associated with coordination commit `b792ab74c93947e7b2325d51d3a9bd07ae2e3b66`. Vercel's returned error link points to team configuration. This is a source-observed block, not proof that automatic deployments are disabled.
+- The latest ten deployments inspected for this project were all `BLOCKED`, including commits from account/orders, i18n and UI branches. No production deployment was initiated in this audit.
+- Workflow lookup for merge commit `93a236e4a3ed6c9edd2003ac1068a89161015511` returned no PR-triggered workflow runs; this does not establish that all CI checks are passing or that no other workflow ran.
+- Several active fix branches are heavily overlapping and have diverged from main. Compared with main, `fix/btcbox-button-hierarchy-mobile-20261105` is 43 commits ahead / 6 behind; `fix/btcbox-i18n-completeness-20261105` 33 ahead / 6 behind; `fix/btcbox-live-chart-no-fake-data-20261105` 40 ahead / 6 behind; `fix/i18n-remove-duplicate-dictionary-keys-20261105` 45 ahead / 6 behind; `fix/mobile-sidebar-close-touch-target-20261105` 45 ahead / 6 behind; `fix/production-launch-page-audit-20261105` 16 ahead / 5 behind. These counts indicate shared history/divergence, not independent merge-ready PRs.
+- Pairwise comparison shows `fix/btcbox-i18n-completeness-20261105` contains the `fix/i18n-remove-duplicate-dictionary-keys-20261105` branch history plus 12 commits; the chart/no-fake-data branch and button-hierarchy branch diverge with overlapping changes; the production page audit branch also overlaps chart, topbar, mobile shell and i18n files. Do not merge these branches separately without rebasing/consolidating and re-reviewing.
+- Legacy integration branches `integration/repo-reconciliation-20261104`, `integration/frontend-market-api-20261104`, and `audit/admin-launch-readiness-20261104` are behind main by 81, 53, and 77 commits respectively, with no unique commits in the compare result; treat as historical unless new evidence shows otherwise.
 - Branch inventory observed: `audit/admin-launch-readiness-20261104`, `feat/btcbox-brand-assets-20261104`, `feat/btcbox-mature-ui-foundation-20261105`, `feat/btcbox-ui-i18n-mobile-20261105`, `feat/read-only-account-orders-20261105`, `feature/btcbox-react-frontend-20261104`, `fix/backend-launch-readiness-20261104`, `fix/btcbox-button-hierarchy-mobile-20261105`, `fix/btcbox-i18n-completeness-20261105`, `fix/btcbox-live-chart-no-fake-data-20261105`, `fix/i18n-remove-duplicate-dictionary-keys-20261105`, `fix/mobile-sidebar-close-touch-target-20261105`, `fix/production-launch-page-audit-20261105`, `integration/admin-fixes-on-strata-20261104`, `integration/frontend-backend-contract-map-20261104`, `integration/frontend-market-api-20261104`, `integration/repo-reconciliation-20261104`, `integration/restore-btcbox-admin-20261104`, `integration/strata-unified-build-20261104`, `main`.
 
 ## Batch execution queue
 
 ### Batch A — establish source of truth (current)
-- Inspect root and frontend package manifests, app entry points, route maps, build/test scripts, workflows, and deployment configuration.
-- Compare the merged `main` tree with active feature branches and open PRs; identify duplicate or superseded fixes.
-- Reconcile README claims with actual source and API behavior.
-- Check CI and deployment automation state; do not trigger production deployment.
+- Resolve canonical app root: inspect Vercel root/build settings and compare the production hostname with the intended `frontend/` Vite app.
+- Reconcile root README, root CRA package, `frontend/` Vite package, routes and backend contract; do not delete either app until ownership and deployment entry are proven.
+- Inspect all open PRs, exact head SHAs, checks and review states; identify one consolidated UI fix candidate instead of merging overlapping branches.
+- Resolve Vercel team configuration block and confirm deployment automation remains paused; do not change access or deploy without user approval.
 
 ### Batch B — mobile and visual system
 - Audit shared shell, navigation, typography, spacing, cards, button hierarchy, loading/error/empty states at 320/360/375/390/430px and tablet/desktop breakpoints.
@@ -54,12 +60,14 @@ Observed baseline: `main` at/including merge commit `93a236e4a3ed6c9edd2003ac106
 
 ### Batch D — localization and release readiness
 - Check all visible routes for complete locale coverage, language persistence, duplicate keys, and typography.
-- Run install/build/lint/unit/integration checks and report exact results.
-- Independent QA must review each PR head SHA before any merge request is approved.
+- Run the canonical app's install/build/lint/unit/integration checks and report exact results.
+- Independent QA must review each consolidated PR head SHA before any merge request is approved.
 
 ## Evidence ledger
 
-- SOURCE OBSERVED: branch search showed the coordination branch missing before it was recreated; current repository branch inventory is recorded above.
-- SOURCE OBSERVED: root README describes mock-only frontend limitations; root package manifest uses CRA scripts.
-- SOURCE OBSERVED: commit `93a236e4a3ed6c9edd2003ac1068a89161015511` adds read-only account/orders client functions.
-- NOT VERIFIED: production API connectivity, account/order end-to-end behavior, mobile visual correctness, complete localization, current CI state, and Vercel deployment state.
+- SOURCE OBSERVED: coordination branch was absent before restoration; current coordination commit is `b792ab74c93947e7b2325d51d3a9bd07ae2e3b66`.
+- SOURCE OBSERVED: main baseline commit `93a236e4a3ed6c9edd2003ac1068a89161015511` contains read-only account/orders client functions.
+- SOURCE OBSERVED: root CRA and `frontend/` Vite manifests both exist; Vercel project framework is CRA.
+- SOURCE OBSERVED: Vercel project is `live:false`; latest inspected deployment is `BLOCKED` with team-configuration error link; ten most recent deployments inspected were blocked.
+- SOURCE OBSERVED: listed UI fix branches overlap and diverge from main; legacy integration branches are behind main.
+- NOT VERIFIED: canonical production app root, actual live API connectivity, account/order end-to-end behavior, mobile visual correctness, complete localization, complete CI status, and the reason the Vercel team configuration blocks deployments.
