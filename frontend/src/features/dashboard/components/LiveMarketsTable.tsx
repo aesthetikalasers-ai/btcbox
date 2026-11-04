@@ -45,7 +45,7 @@ export function LiveMarketsTable({ markets, loading, error }: {
           <p className="mt-1 text-xs text-brand-text-muted">{t("Live prices from the BTCBOX market service")}</p>
         </div>
         <span className="shrink-0 rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-2 text-xs font-semibold text-brand-text-secondary">
-          {loading ? t("Loading…") : t("pairs", { count: visibleMarkets.length } as never)}
+          {loading ? t("Loading…") : `${visibleMarkets.length} ${t("pairs")}`}
         </span>
       </div>
       {error ? (
