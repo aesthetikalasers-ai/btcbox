@@ -13,8 +13,8 @@ export function Dashboard() {
 
   useEffect(() => {
     const controller = new AbortController();
+    getKlines("BTCUSDT", "1h", controller.signal).then(setCandles).catch(() => setCandles([]));
     const loadMarkets = () => {
-      getKlines("BTCUSDT", "1h", controller.signal).then(setCandles).catch(() => setCandles([]));
       getMarkets(controller.signal).then((rows) => {
         setMarkets(rows);
         setError("");
