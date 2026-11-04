@@ -115,8 +115,8 @@ export function LiquidityChart({ candles = [] }: { candles?: MarketCandle[] }) {
       
       <div className="flex items-baseline gap-3 mb-4 shrink-0">
         <span className="text-[32px] font-semibold tracking-tight leading-none">{latestCandle ? latestCandle.close.toLocaleString("en-US", { maximumFractionDigits: 2 }) : "Sample series"}</span>
-        <div className="flex items-center text-[12px] font-medium text-profit">
-          <span className="mr-0.5">▲</span> Illustrative data
+        <div className={cn("flex items-center text-[12px] font-medium", latestCandle ? (changePct >= 0 ? "text-profit" : "text-loss") : "text-brand-text-muted")}>
+          {latestCandle ? `${changePct >= 0 ? "▲" : "▼"} ${Math.abs(changePct).toFixed(2)}% across loaded candles` : "Illustrative data"}
         </div>
       </div>
       
