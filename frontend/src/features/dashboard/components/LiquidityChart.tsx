@@ -97,7 +97,7 @@ export function LiquidityChart() {
 
   return (
     <Card className="flex flex-col h-[340px] md:h-[400px]">
-      <CardHeader title="Liquidity Overview">
+      <CardHeader title="Liquidity chart preview">
         <div className="flex bg-[#121316] rounded-lg p-0.5 border border-brand-border-subtle shadow-[inset_0_1px_1px_rgba(0,0,0,0.3)]">
           {RANGES.map(r => (
             <button
@@ -117,9 +117,9 @@ export function LiquidityChart() {
       </CardHeader>
       
       <div className="flex items-baseline gap-3 mb-4 shrink-0">
-        <span className="text-[32px] font-semibold tracking-tight leading-none">$1.55B</span>
+        <span className="text-[32px] font-semibold tracking-tight leading-none">Sample series</span>
         <div className="flex items-center text-[12px] font-medium text-profit">
-          <span className="mr-0.5">▲</span> +1.73%
+          <span className="mr-0.5">▲</span> Illustrative data
         </div>
       </div>
       
