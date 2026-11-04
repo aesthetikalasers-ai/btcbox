@@ -1,0 +1,62 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+
+  --color-brand-bg: #090909;
+  --color-brand-sidebar: #0B0B0C;
+  --color-brand-surface: #101113;
+  --color-brand-surface-2: #141518;
+  --color-brand-surface-hover: rgba(255, 255, 255, 0.025);
+  
+  --color-brand-border: rgba(255, 255, 255, 0.05);
+  --color-brand-border-subtle: rgba(255, 255, 255, 0.03);
+
+  --color-brand-text: #F4F4F5;
+  --color-brand-text-secondary: rgba(255, 255, 255, 0.62);
+  --color-brand-text-muted: rgba(255, 255, 255, 0.38);
+
+  --color-profit: #22C55E;
+  --color-loss: #EF4444;
+  --color-gold: #F59E0B;
+  --color-background: var(--background); --color-foreground: var(--foreground); --color-card: var(--card); --color-card-foreground: var(--card-foreground); --color-popover: var(--popover); --color-popover-foreground: var(--popover-foreground); --color-primary: var(--primary); --color-primary-foreground: var(--primary-foreground); --color-secondary: var(--secondary); --color-secondary-foreground: var(--secondary-foreground); --color-muted: var(--muted); --color-muted-foreground: var(--muted-foreground); --color-accent: var(--accent); --color-accent-foreground: var(--accent-foreground); --color-destructive: var(--destructive); --color-border: var(--border); --color-input: var(--input); --color-ring: var(--ring);
+}
+:root { color-scheme: dark; --background:#090909; --foreground:#f4f4f5; --card:#101113; --card-foreground:#f4f4f5; --popover:#101113; --popover-foreground:#f4f4f5; --primary:#f4f4f5; --primary-foreground:#090909; --secondary:#18191c; --secondary-foreground:#f4f4f5; --muted:#18191c; --muted-foreground:#92939a; --accent:#202126; --accent-foreground:#f4f4f5; --destructive:#ef4444; --border:rgba(255,255,255,.09); --input:rgba(255,255,255,.12); --ring:#a1a1aa;
+}
+
+* { box-sizing: border-box; }
+html, body, #root { width:100%; min-height:100%; margin:0; }
+html, body { overflow-x:clip; }
+body { @apply bg-brand-bg text-brand-text antialiased; min-width:320px; }
+button, input { font:inherit; }
+:focus-visible { outline:2px solid var(--ring); outline-offset:2px; }
+
+/* Institutional Dark Tech Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+@layer utilities {
+  .custom-scrollbar::-webkit-scrollbar {
+    height: 4px;
+    width: 4px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 999px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+}

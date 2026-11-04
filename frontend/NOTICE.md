@@ -1,0 +1,1 @@
+Includes source files adapted from Strata Pro Crypto UI by Milon: https://github.com/bymilon/strata-pro-crypto-ui. Distributed under MIT; license preserved in LICENSE. BTCBOX modifications include branding, preview labels, responsive shell adjustments, shadcn/ui configuration and primitives.
