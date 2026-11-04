@@ -94,3 +94,44 @@ Observed baseline: `main` at/including merge commit `93a236e4a3ed6c9edd2003ac106
 - INTEGRATION GUIDANCE: reuse visual components and page structures selectively; do not import either template's demo market data, seeded balances/transactions, simulated transfers, Clerk auth, or mock ticker into BTCBOX. Keep BTCBOX Supabase auth/session and backend API contracts authoritative.
 - NOT VERIFIED: recursive submodule clone, local install/build, route-by-route responsive behavior, and any runtime integration of either template.
 - NEXT ACTION: create a page/component/dependency inventory for both pinned sources, map each candidate screen to BTCBOX routes, then settle canonical app root and dependency compatibility before implementation.
+
+
+## Admin readiness audit — 2026-11-05
+
+Audit scope: read-only source inspection of `btcboxcdt` main at `93a236e4a3ed6c9edd2003ac1068a89161015511`. No code, database, secrets, environment variables, production records, or deployment settings were changed.
+
+### SOURCE OBSERVED
+
+- The admin entry shell exists at `backend/admin.html` (blob `1347b4c32ef2c11f9f47f867a509c486ad716114`). `backend/vercel.json` rewrites `/admin` to `/admin.html`.
+- The shell loads the shared SPA scripts, including `assets/js/app-core.js`, `views-account.js`, `views-missing.js`, and `boot.js`; it is not a separate admin application.
+- The current SPA route registry in `backend/assets/js/app-core.js` defines `admin` only as the placeholder `Admin view loading…`. A repository search found no `VIEWS.admin` implementation in the loaded view files. The admin route therefore exists, but the actual admin management UI is NOT IMPLEMENTED in this source snapshot.
+- `backend/assets/js/app-core.js` contains admin API client methods and a Basic Auth prompt. It sends an HTTP Basic Authorization header for admin API calls.
+- `backend/api-core.js` authenticates every `admin/` route against server-side `ADMIN_USER` / `ADMIN_PASS`, compares credentials using `crypto.timingSafeEqual`, and persists failed-attempt counters (5 failures / 15-minute lockout).
+- Backend admin endpoints are present for stats, users, user detail, addresses, withdrawals, orders, support messages, config, account freeze/unfreeze, password/email reset, manual deposit credit, withdrawal review, KYC approve/reject, announcements/push messages, address management, and audit logs.
+- `backend/tests/admin-entry.test.js` checks the dedicated /admin route and Basic Auth request wiring. It does not test an implemented admin dashboard, because the route currently resolves to the placeholder.
+- SQL migration files are present under `backend/supabase/sql/`, including admin adjustment and manual deposit RPC migrations. Their presence in Git does NOT prove they have been applied to the connected Supabase project.
+- The old branch `integration/restore-btcbox-admin-20261104` is 79 commits behind current main and has 0 unique commits relative to main; do not merge or use it as a current integration source.
+
+### ADMIN FUNCTIONAL GAPS / RISKS
+
+1. **P0 — Admin UI missing:** the /admin route currently renders a placeholder; API client methods are not wired into an actual admin console view.
+2. **P1 — KYC evidence incomplete:** the customer KYC view explicitly says document photo upload is not required in this version. An admin cannot perform a reliable document review from the current submitted fields alone.
+3. **P1 — Withdrawal settlement incomplete:** the approve endpoint explicitly performs manual review only and does not broadcast a transaction to a blockchain. It reports approved/not yet broadcast. No end-to-end withdrawal settlement/tx-hash/confirmation workflow is established by this source inspection.
+4. **Financial writes are intentionally fail-closed:** balance adjustment, manual deposit credit, and withdrawal review return `FINANCIAL_CUTOVER_INCOMPLETE` unless the full financial cutover flags are enabled. Preserve this state during audit; never enable flags or execute real financial operations as a test.
+5. **Supabase-managed identity operations:** local admin password/email reset endpoints explicitly reject users managed by Supabase Auth (`SUPABASE_AUTH_MANAGED`). Any future admin user-management workflow must use a trusted server-side Supabase Auth Admin API integration, not local password hashes or client-side service credentials.
+6. **NOT VERIFIED:** actual admin login against deployed environment, server-side credential configuration/rotation, applied Supabase migrations/RLS/grants, UI/API end-to-end behavior, and runtime persistence.
+
+### NEXT ADMIN BATCH
+
+- Build an admin page/API coverage matrix before implementation; do not redesign or alter the public frontend branding task.
+- Implement the missing admin view in an isolated feature branch only after confirming ownership and the canonical runtime root.
+- Cover overview, user lookup/detail, account status, deposits, withdrawals, KYC queue, orders, support, system configuration, and audit logs; visibly distinguish read-only, disabled, and actionable controls.
+- Keep financial mutation controls disabled unless a separately approved staging cutover and independent QA evidence exist.
+- Add tests proving admin UI rendering, API auth boundaries, role separation, route coverage, safe failure states, and no unauthenticated data leakage.
+- Require exact branch SHA, tests, and independent QA before asking the user to approve merge. Do not merge or deploy.
+
+### Evidence classification
+
+- SOURCE OBSERVED: backend admin shell, API routes, Basic Auth implementation, admin SQL migration files, and admin route placeholder.
+- SOURCE OBSERVED: legacy admin restore branch is behind main with no unique commits.
+- NOT VERIFIED: working admin dashboard, live admin authentication, Supabase migration state, deployed API behavior, or real withdrawal settlement.
