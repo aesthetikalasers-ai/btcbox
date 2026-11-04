@@ -1,15 +1,19 @@
 import { useEffect, useRef } from 'react';
 import { createChart, ColorType, CandlestickSeries, HistogramSeries } from 'lightweight-charts';
 import { chartData, useDashboardStore } from '../dashboard.data';
+import type { MarketCandle } from '../../../lib/api';
 import { Card, CardHeader } from './Card';
 import { cn } from '../../../lib/utils';
 
 const RANGES = ['1h', '24h', '6h', '7d', '30d'];
 
-export function LiquidityChart() {
+export function LiquidityChart({ candles = [] }: { candles?: MarketCandle[] }) {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const activeRange = useDashboardStore(s => s.liquidityRange);
   const setRange = useDashboardStore(s => s.setLiquidityRange);
+  const latestCandle = candles[candles.length - 1];
+  const firstCandle = candles[0];
+  const changePct = firstCandle && latestCandle ? ((latestCandle.close - firstCandle.open) / firstCandle.open) * 100 : 0;
 
   useEffect(() => {
     if (!chartContainerRef.current) return;
@@ -60,7 +64,7 @@ export function LiquidityChart() {
         wickDownColor: '#F87171',
     });
 
-    series.setData(chartData.liquidity);
+    series.setData(candles.length ? candles.map(c => ({ time: Math.floor(c.time / 1000) as import('lightweight-charts').UTCTimestamp, open: c.open, high: c.high, low: c.low, close: c.close })) : chartData.liquidity);
     
     const volumeSeries = chart.addSeries(HistogramSeries, {
         color: 'rgba(255, 255, 255, 0.1)',
@@ -77,27 +81,20 @@ export function LiquidityChart() {
         },
     });
     
-    volumeSeries.setData(chartData.liquidityVolume);
+    volumeSeries.setData(candles.length ? candles.map(c => ({ time: Math.floor(c.time / 1000) as import('lightweight-charts').UTCTimestamp, value: c.volume, color: c.close >= c.open ? 'rgba(34, 197, 94, 0.15)' : 'rgba(239, 68, 68, 0.15)' })) : chartData.liquidityVolume);
     
-    // Create the subtle $1.68B horiz line from the screenshot
-    series.createPriceLine({
-        price: 1.68,
-        color: '#F59E0B',
-        lineWidth: 1,
-        lineStyle: 3,
-        axisLabelVisible: false,
-    });
-    
-    chart.timeScale().fitContent();
+    const bars = { '1h': 1, '6h': 6, '24h': 24, '7d': 168, '30d': 720 }[activeRange] || 24;
+    const totalBars = candles.length || chartData.liquidity.length;
+    chart.timeScale().setVisibleLogicalRange({ from: Math.max(0, totalBars - bars), to: totalBars });
 
     return () => {
       chart.remove();
     };
-  }, []);
+  }, [candles, activeRange]);
 
   return (
     <Card className="flex flex-col h-[340px] md:h-[400px]">
-      <CardHeader title="Liquidity Overview">
+      <CardHeader title="BTC/USDT price history">
         <div className="flex bg-[#121316] rounded-lg p-0.5 border border-brand-border-subtle shadow-[inset_0_1px_1px_rgba(0,0,0,0.3)]">
           {RANGES.map(r => (
             <button
@@ -117,13 +114,13 @@ export function LiquidityChart() {
       </CardHeader>
       
       <div className="flex items-baseline gap-3 mb-4 shrink-0">
-        <span className="text-[32px] font-semibold tracking-tight leading-none">$1.55B</span>
-        <div className="flex items-center text-[12px] font-medium text-profit">
-          <span className="mr-0.5">▲</span> +1.73%
+        <span className="text-[32px] font-semibold tracking-tight leading-none">{latestCandle ? latestCandle.close.toLocaleString("en-US", { maximumFractionDigits: 2 }) : "Sample series"}</span>
+        <div className={cn("flex items-center text-[12px] font-medium", latestCandle ? (changePct >= 0 ? "text-profit" : "text-loss") : "text-brand-text-muted")}>
+          {latestCandle ? `${changePct >= 0 ? "▲" : "▼"} ${Math.abs(changePct).toFixed(2)}% across loaded candles` : "Illustrative data"}
         </div>
       </div>
       
-      {/* Container must have flex-1 and min-h-0 to let chart auto-size properly */}
+      {/* Historical BTC/USDT candles when available; preview series otherwise. */}
       <div className="relative flex-1 min-h-0 w-full" ref={chartContainerRef} />
     </Card>
   );
