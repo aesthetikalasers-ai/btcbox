@@ -40,7 +40,7 @@
   "rewrites": [
     {
       "source": "/auth/callback",
-      "destination": "/?auth_callback=1"
+      "destination": "/legacy-index.html?auth_callback=1"
     },
     {
       "source": "/admin",
