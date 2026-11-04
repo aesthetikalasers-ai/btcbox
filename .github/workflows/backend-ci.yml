@@ -60,6 +60,6 @@ jobs:
         run: |
           test -f backend/dist/index.html
           test -f backend/dist/admin.html
-          test -f backend/dist/api/[...path].js
+          test -f 'backend/dist/api/[...path].js'
           test -f backend/dist/api/healthz.js
           test -f backend/dist/assets/js/app-core.js
