@@ -1,16 +1,12 @@
 import { NavLink } from "react-router-dom";
 import { ArrowLeftRight, ChartNoAxesCombined, House, UserRound, Wallet } from "lucide-react";
 import { cn } from "../../lib/utils";
+import { useI18n } from "../../lib/i18n";
 
-const items=[
- {to:"/home",label:"Home",icon:House},
- {to:"/markets",label:"Markets",icon:ChartNoAxesCombined},
- {to:"/trade-hub",label:"Trade",icon:ArrowLeftRight},
- {to:"/assets",label:"Assets",icon:Wallet},
- {to:"/me",label:"My",icon:UserRound},
-];
+const items=[{to:"/home",label:"Home",icon:House},{to:"/markets",label:"Markets",icon:ChartNoAxesCombined},{to:"/trade-hub",label:"Trade",icon:ArrowLeftRight},{to:"/assets",label:"Assets",icon:Wallet},{to:"/me",label:"My",icon:UserRound}];
 export function BottomNav(){
- return <nav aria-label="Primary navigation" className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-5 border-t border-white/[0.08] bg-[#0b0c0ef2] px-1 pt-2 backdrop-blur-xl lg:hidden" style={{paddingBottom:"max(8px, env(safe-area-inset-bottom))"}}>
-  {items.map(({to,label,icon:Icon})=><NavLink key={to} to={to} className={({isActive})=>cn("flex min-h-14 flex-col items-center justify-center gap-1 rounded-lg text-[10px] font-medium transition-colors",isActive?"text-white":"text-zinc-500 hover:text-zinc-300")}><Icon className="h-[19px] w-[19px]"/><span>{label}</span></NavLink>)}
+ const {t}=useI18n();
+ return <nav aria-label="Primary navigation" className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-5 border-t border-brand-border bg-brand-sidebar/95 px-1 pt-2 backdrop-blur-xl lg:hidden" style={{paddingBottom:"max(8px, env(safe-area-inset-bottom))"}}>
+  {items.map(({to,label,icon:Icon})=><NavLink key={to} to={to} className={({isActive})=>cn("flex min-h-14 flex-col items-center justify-center gap-1 rounded-xl text-xs font-semibold transition-colors",isActive?"text-sky-300":"text-brand-text-muted hover:text-brand-text-secondary")}><Icon className="h-5 w-5"/><span>{t(label)}</span></NavLink>)}
  </nav>;
 }

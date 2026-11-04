@@ -1,0 +1,103 @@
+import { createContext, useContext, useMemo, useState, type ReactNode } from "react";
+
+export type Language = "en" | "ja" | "zh-CN" | "es" | "vi" | "it" | "pt";
+type Dictionary = Record<string, string>;
+
+const dictionaries: Record<Language, Dictionary> = {
+  en: {},
+  ja: {
+    Home:"ホーム",Markets:"市場",Trade:"取引",Assets:"資産",My:"マイページ",Orders:"注文",Earn:"運用",Support:"サポート",Settings:"設定",Manage:"管理",Search:"検索",Preview:"プレビュー環境",
+    "Market overview":"マーケット概要","Live spot prices and 24-hour market movement.":"現物価格と24時間の価格変動。",Connecting:"接続中","Feed unavailable":"相場データを取得できません","Live market feed":"リアルタイム相場","Market analytics":"マーケット分析",
+    "Historical chart integration is still in progress.":"過去チャートの接続を準備中です。","Choose your trading mode":"取引方法を選択","Sign in":"ログイン","Create account":"アカウント作成","My account":"マイアカウント","Sign in to continue":"続行するにはログインしてください",
+    "No account data loaded":"アカウントデータがありません","Integration pending":"接続準備中","This page is scaffolded; no live action is enabled in this preview.":"このプレビューでは実際の操作は利用できません。",
+    Spot:"現物",Seconds:"秒単位取引",Futures:"先物",Deposit:"入金",Withdraw:"出金",Verification:"本人確認",Open:"開く",Unavailable:"利用不可",
+    "BTCBOX / MARKETS":"BTCBOX / 市場","BTCBOX / TRADE":"BTCBOX / 取引","BTCBOX / WALLET":"BTCBOX / ウォレット","BTCBOX / ACCOUNT":"BTCBOX / アカウント","BTCBOX / WORKSPACE":"BTCBOX / ワークスペース",
+    "API integration pending":"API接続準備中","Open deposit":"入金する","Open withdrawal":"出金する","Explore Earn":"運用を見る","Spot trading":"現物取引","Seconds trading":"秒単位取引",
+    "Your balances and transaction activity will appear here after the authenticated account API is connected.":"認証済みアカウントAPIの接続後、残高と取引履歴がここに表示されます。",
+    "This preview does not invent balances or transaction history. Sign in and connect the account service to load your actual assets.":"このプレビューでは残高や取引履歴を捏造しません。ログインしてアカウントサービスを接続すると実際の資産を確認できます。",
+    "Account details are not loaded in this preview.":"このプレビューではアカウント情報を読み込んでいません。","Manage your profile, verification, security and support.":"プロフィール、本人確認、セキュリティ、サポートを管理します。"
+  },
+  "zh-CN": {
+    Home:"首页",Markets:"行情",Trade:"交易",Assets:"资产",My:"我的",Orders:"订单",Earn:"理财",Support:"客服",Settings:"设置",Manage:"管理",Search:"搜索",Preview:"预览环境",
+    "Market overview":"市场总览","Live spot prices and 24-hour market movement.":"现货实时价格与 24 小时涨跌情况。",Connecting:"连接中","Feed unavailable":"行情暂不可用","Live market feed":"实时行情","Market analytics":"市场分析",
+    "Historical chart integration is still in progress.":"历史图表接口仍在接入中。","Choose your trading mode":"选择交易模式","Sign in":"登录","Create account":"创建账户","My account":"我的账户","Sign in to continue":"登录后继续",
+    "No account data loaded":"尚未加载账户数据","Integration pending":"接口接入中","This page is scaffolded; no live action is enabled in this preview.":"此页面已建立，当前预览环境尚未开放真实操作。",
+    Spot:"现货",Seconds:"秒合约",Futures:"期货",Deposit:"充值",Withdraw:"提现",Verification:"身份认证",Open:"打开",Unavailable:"暂不可用",
+    "BTCBOX / MARKETS":"BTCBOX / 行情","BTCBOX / TRADE":"BTCBOX / 交易","BTCBOX / WALLET":"BTCBOX / 钱包","BTCBOX / ACCOUNT":"BTCBOX / 账户","BTCBOX / WORKSPACE":"BTCBOX / 工作区",
+    "API integration pending":"接口接入中","Open deposit":"前往充值","Open withdrawal":"前往提现","Explore Earn":"查看理财","Spot trading":"现货交易","Seconds trading":"秒合约交易",
+    "Your balances and transaction activity will appear here after the authenticated account API is connected.":"账户 API 接通后，将在此显示余额和交易记录。",
+    "This preview does not invent balances or transaction history. Sign in and connect the account service to load your actual assets.":"预览环境不会伪造余额或交易记录。登录并连接账户服务后即可查看真实资产。",
+    "Account details are not loaded in this preview.":"当前预览环境尚未加载账户详情。","Manage your profile, verification, security and support.":"管理个人资料、身份认证、安全与客服。"
+  },
+  es: {
+    Home:"Inicio",Markets:"Mercados",Trade:"Operar",Assets:"Activos",My:"Mi cuenta",Orders:"Órdenes",Earn:"Ganancias",Support:"Soporte",Settings:"Configuración",Manage:"Administrar",Search:"Buscar",Preview:"Entorno de vista previa",
+    "Market overview":"Resumen del mercado","Live spot prices and 24-hour market movement.":"Precios spot en tiempo real y variación de las últimas 24 horas.",Connecting:"Conectando","Feed unavailable":"Datos de mercado no disponibles","Live market feed":"Mercado en tiempo real","Market analytics":"Análisis del mercado",
+    "Historical chart integration is still in progress.":"La integración del historial de gráficos sigue en curso.","Choose your trading mode":"Elige tu modalidad de trading","Sign in":"Iniciar sesión","Create account":"Crear cuenta","My account":"Mi cuenta","Sign in to continue":"Inicia sesión para continuar",
+    "No account data loaded":"No se han cargado datos de la cuenta","Integration pending":"Integración pendiente","This page is scaffolded; no live action is enabled in this preview.":"Esta página está preparada, pero las operaciones reales no están habilitadas en esta vista previa.",
+    Spot:"Spot",Seconds:"Contratos por segundos",Futures:"Futuros",Deposit:"Depositar",Withdraw:"Retirar",Verification:"Verificación",Open:"Abrir",Unavailable:"No disponible",
+    "BTCBOX / MARKETS":"BTCBOX / MERCADOS","BTCBOX / TRADE":"BTCBOX / TRADING","BTCBOX / WALLET":"BTCBOX / BILLETERA","BTCBOX / ACCOUNT":"BTCBOX / CUENTA","BTCBOX / WORKSPACE":"BTCBOX / ESPACIO DE TRABAJO",
+    "API integration pending":"Integración de API pendiente","Open deposit":"Ir a depósitos","Open withdrawal":"Ir a retiros","Explore Earn":"Ver ganancias","Spot trading":"Trading spot","Seconds trading":"Trading por segundos",
+    "Your balances and transaction activity will appear here after the authenticated account API is connected.":"Tus saldos y movimientos aparecerán aquí cuando se conecte la API autenticada de la cuenta.",
+    "This preview does not invent balances or transaction history. Sign in and connect the account service to load your actual assets.":"Esta vista previa no inventa saldos ni movimientos. Inicia sesión y conecta el servicio de cuenta para ver tus activos reales.",
+    "Account details are not loaded in this preview.":"Los datos de la cuenta no están cargados en esta vista previa.","Manage your profile, verification, security and support.":"Administra tu perfil, verificación, seguridad y asistencia."
+  },
+  vi: {
+    Home:"Trang chủ",Markets:"Thị trường",Trade:"Giao dịch",Assets:"Tài sản",My:"Tài khoản",Orders:"Lệnh",Earn:"Kiếm lợi nhuận",Support:"Hỗ trợ",Settings:"Cài đặt",Manage:"Quản lý",Search:"Tìm kiếm",Preview:"Môi trường xem trước",
+    "Market overview":"Tổng quan thị trường","Live spot prices and 24-hour market movement.":"Giá giao ngay trực tiếp và biến động trong 24 giờ.",Connecting:"Đang kết nối","Feed unavailable":"Không có dữ liệu thị trường","Live market feed":"Dữ liệu thị trường trực tiếp","Market analytics":"Phân tích thị trường",
+    "Historical chart integration is still in progress.":"Đang hoàn thiện kết nối biểu đồ lịch sử.","Choose your trading mode":"Chọn phương thức giao dịch","Sign in":"Đăng nhập","Create account":"Tạo tài khoản","My account":"Tài khoản của tôi","Sign in to continue":"Đăng nhập để tiếp tục",
+    "No account data loaded":"Chưa tải dữ liệu tài khoản","Integration pending":"Đang chờ tích hợp","This page is scaffolded; no live action is enabled in this preview.":"Trang đã được dựng nhưng chưa bật thao tác thực trong bản xem trước này.",
+    Spot:"Giao ngay",Seconds:"Hợp đồng giây",Futures:"Hợp đồng tương lai",Deposit:"Nạp tiền",Withdraw:"Rút tiền",Verification:"Xác minh",Open:"Mở",Unavailable:"Chưa khả dụng",
+    "BTCBOX / MARKETS":"BTCBOX / THỊ TRƯỜNG","BTCBOX / TRADE":"BTCBOX / GIAO DỊCH","BTCBOX / WALLET":"BTCBOX / VÍ","BTCBOX / ACCOUNT":"BTCBOX / TÀI KHOẢN","BTCBOX / WORKSPACE":"BTCBOX / KHÔNG GIAN LÀM VIỆC",
+    "API integration pending":"Đang chờ tích hợp API","Open deposit":"Mở nạp tiền","Open withdrawal":"Mở rút tiền","Explore Earn":"Xem sản phẩm lợi nhuận","Spot trading":"Giao dịch giao ngay","Seconds trading":"Giao dịch hợp đồng giây",
+    "Your balances and transaction activity will appear here after the authenticated account API is connected.":"Số dư và lịch sử giao dịch sẽ hiển thị sau khi kết nối API tài khoản đã xác thực.",
+    "This preview does not invent balances or transaction history. Sign in and connect the account service to load your actual assets.":"Bản xem trước không tạo số dư hoặc lịch sử giả. Hãy đăng nhập và kết nối dịch vụ tài khoản để tải tài sản thực tế.",
+    "Account details are not loaded in this preview.":"Thông tin tài khoản chưa được tải trong bản xem trước này.","Manage your profile, verification, security and support.":"Quản lý hồ sơ, xác minh, bảo mật và hỗ trợ."
+  },
+  it: {
+    Home:"Home",Markets:"Mercati",Trade:"Trading",Assets:"Asset",My:"Il mio account",Orders:"Ordini",Earn:"Rendimenti",Support:"Assistenza",Settings:"Impostazioni",Manage:"Gestione",Search:"Cerca",Preview:"Ambiente di anteprima",
+    "Market overview":"Panoramica del mercato","Live spot prices and 24-hour market movement.":"Prezzi spot in tempo reale e variazioni delle ultime 24 ore.",Connecting:"Connessione in corso","Feed unavailable":"Dati di mercato non disponibili","Live market feed":"Mercato in tempo reale","Market analytics":"Analisi del mercato",
+    "Historical chart integration is still in progress.":"L'integrazione dei grafici storici è in corso.","Choose your trading mode":"Scegli la modalità di trading","Sign in":"Accedi","Create account":"Crea account","My account":"Il mio account","Sign in to continue":"Accedi per continuare",
+    "No account data loaded":"Nessun dato account caricato","Integration pending":"Integrazione in corso","This page is scaffolded; no live action is enabled in this preview.":"La pagina è predisposta, ma le operazioni reali non sono abilitate in questa anteprima.",
+    Spot:"Spot",Seconds:"Contratti a secondi",Futures:"Futures",Deposit:"Deposita",Withdraw:"Preleva",Verification:"Verifica",Open:"Apri",Unavailable:"Non disponibile",
+    "BTCBOX / MARKETS":"BTCBOX / MERCATI","BTCBOX / TRADE":"BTCBOX / TRADING","BTCBOX / WALLET":"BTCBOX / PORTAFOGLIO","BTCBOX / ACCOUNT":"BTCBOX / ACCOUNT","BTCBOX / WORKSPACE":"BTCBOX / AREA DI LAVORO",
+    "API integration pending":"Integrazione API in attesa","Open deposit":"Vai ai depositi","Open withdrawal":"Vai ai prelievi","Explore Earn":"Scopri i rendimenti","Spot trading":"Trading spot","Seconds trading":"Trading a secondi",
+    "Your balances and transaction activity will appear here after the authenticated account API is connected.":"I saldi e le attività appariranno qui dopo il collegamento dell'API autenticata dell'account.",
+    "This preview does not invent balances or transaction history. Sign in and connect the account service to load your actual assets.":"Questa anteprima non inventa saldi o cronologia. Accedi e collega il servizio account per visualizzare i tuoi asset reali.",
+    "Account details are not loaded in this preview.":"I dettagli dell'account non sono caricati in questa anteprima.","Manage your profile, verification, security and support.":"Gestisci profilo, verifica, sicurezza e assistenza."
+  },
+  pt: {
+    Home:"Início",Markets:"Mercados",Trade:"Negociar",Assets:"Ativos",My:"Minha conta",Orders:"Ordens",Earn:"Rendimentos",Support:"Suporte",Settings:"Configurações",Manage:"Gerenciar",Search:"Pesquisar",Preview:"Ambiente de pré-visualização",
+    "Market overview":"Visão geral do mercado","Live spot prices and 24-hour market movement.":"Preços spot em tempo real e variação nas últimas 24 horas.",Connecting:"Conectando","Feed unavailable":"Dados de mercado indisponíveis","Live market feed":"Mercado em tempo real","Market analytics":"Análise de mercado",
+    "Historical chart integration is still in progress.":"A integração do histórico de gráficos está em andamento.","Choose your trading mode":"Escolha seu modo de negociação","Sign in":"Entrar","Create account":"Criar conta","My account":"Minha conta","Sign in to continue":"Entre para continuar",
+    "No account data loaded":"Nenhum dado da conta carregado","Integration pending":"Integração pendente","This page is scaffolded; no live action is enabled in this preview.":"Esta página está estruturada, mas as operações reais não estão habilitadas nesta prévia.",
+    Spot:"Spot",Seconds:"Contratos por segundos",Futures:"Futuros",Deposit:"Depositar",Withdraw:"Sacar",Verification:"Verificação",Open:"Abrir",Unavailable:"Indisponível",
+    "BTCBOX / MARKETS":"BTCBOX / MERCADOS","BTCBOX / TRADE":"BTCBOX / NEGOCIAÇÃO","BTCBOX / WALLET":"BTCBOX / CARTEIRA","BTCBOX / ACCOUNT":"BTCBOX / CONTA","BTCBOX / WORKSPACE":"BTCBOX / ESPAÇO DE TRABALHO",
+    "API integration pending":"Integração da API pendente","Open deposit":"Ir para depósitos","Open withdrawal":"Ir para saques","Explore Earn":"Ver rendimentos","Spot trading":"Negociação spot","Seconds trading":"Negociação por segundos",
+    "Your balances and transaction activity will appear here after the authenticated account API is connected.":"Seus saldos e atividades aparecerão aqui após a conexão da API autenticada da conta.",
+    "This preview does not invent balances or transaction history. Sign in and connect the account service to load your actual assets.":"Esta prévia não inventa saldos nem histórico. Entre e conecte o serviço da conta para carregar seus ativos reais.",
+    "Account details are not loaded in this preview.":"Os detalhes da conta não foram carregados nesta prévia.","Manage your profile, verification, security and support.":"Gerencie seu perfil, verificação, segurança e suporte."
+  }
+};
+
+type I18nValue = { language: Language; setLanguage: (language: Language) => void; t: (value: string) => string };
+const I18nContext = createContext<I18nValue | null>(null);
+
+export function I18nProvider({ children }: { children: ReactNode }) {
+  const [language, setLanguageState] = useState<Language>(() => {
+    const saved = typeof window !== "undefined" ? window.localStorage.getItem("btcbox-language") : null;
+    return saved === "en" || saved === "ja" || saved === "zh-CN" || saved === "es" || saved === "vi" || saved === "it" || saved === "pt" ? saved : "en";
+  });
+  const setLanguage = (next: Language) => {
+    setLanguageState(next);
+    if (typeof window !== "undefined") window.localStorage.setItem("btcbox-language", next);
+    document.documentElement.lang = next;
+  };
+  const value = useMemo(() => ({ language, setLanguage, t: (text: string) => dictionaries[language][text] || text }), [language]);
+  return <I18nContext.Provider value={value}>{children}</I18nContext.Provider>;
+}
+
+export function useI18n() {
+  const value = useContext(I18nContext);
+  if (!value) throw new Error("useI18n must be used inside I18nProvider");
+  return value;
+}

@@ -15,6 +15,12 @@ const price = (value: number) => new Intl.NumberFormat("en-US", {
   maximumFractionDigits: value >= 1 ? 4 : 8,
 }).format(value);
 
+function Change({ value }: { value: number }) {
+  return <span className={`inline-flex min-w-[76px] justify-center rounded-lg px-2.5 py-1.5 text-xs font-semibold tabular-nums ${value >= 0 ? "bg-profit/10 text-profit" : "bg-loss/10 text-loss"}`}>
+    {value > 0 ? "+" : ""}{value.toFixed(2)}%
+  </span>;
+}
+
 export function LiveMarketsTable({ markets, loading, error }: {
   markets: MarketTicker[];
   loading: boolean;
@@ -23,50 +29,69 @@ export function LiveMarketsTable({ markets, loading, error }: {
   return (
     <Card className="flex flex-col overflow-hidden px-0 py-0">
       <div className="flex items-center justify-between gap-3 border-b border-brand-border px-4 py-4 md:px-6">
-        <div>
+        <div className="min-w-0">
           <h2 className="text-[15px] font-semibold tracking-tight text-brand-text">Spot markets</h2>
           <p className="mt-1 text-xs text-brand-text-muted">Live prices from the BTCBOX market service</p>
         </div>
-        <span className="shrink-0 rounded-lg border border-brand-border-subtle bg-[#121316] px-3 py-2 text-xs text-brand-text-secondary">
+        <span className="shrink-0 rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-2 text-xs font-semibold text-brand-text-secondary">
           {loading ? "Loading…" : `${markets.length} pairs`}
         </span>
       </div>
       {error ? (
         <div className="px-5 py-10 text-center">
-          <p className="text-sm font-medium text-brand-text">Market feed unavailable</p>
-          <p className="mt-2 text-sm text-brand-text-muted">{error}</p>
+          <p className="text-sm font-semibold text-brand-text">Market feed unavailable</p>
+          <p className="mt-2 break-words text-sm text-brand-text-muted">{error}</p>
         </div>
       ) : loading && markets.length === 0 ? (
         <div className="space-y-3 px-5 py-8" aria-label="Loading markets">
-          {Array.from({ length: 5 }).map((_, index) => <div key={index} className="h-10 animate-pulse rounded-lg bg-white/[0.04]" />)}
+          {Array.from({ length: 5 }).map((_, index) => <div key={index} className="h-12 animate-pulse rounded-xl bg-white/[0.05]" />)}
         </div>
       ) : markets.length === 0 ? (
         <div className="px-5 py-10 text-center text-sm text-brand-text-muted">No market pairs are currently available.</div>
       ) : (
-        <div className="w-full overflow-x-auto">
-          <table className="w-full min-w-[700px] border-collapse text-left">
-            <thead><tr className="border-b border-brand-border bg-[#101113]">
-              {["Asset", "Last price", "24h change", "24h volume", "24h high", "24h low"].map((label) =>
-                <th key={label} className="whitespace-nowrap px-4 py-3 text-xs font-medium text-brand-text-muted md:px-6">{label}</th>
-              )}
-            </tr></thead>
-            <tbody>{markets.map((item) => (
-              <tr key={item.sym} className="border-b border-brand-border/50 transition-colors hover:bg-brand-surface-hover">
-                <td className="h-16 whitespace-nowrap px-4 py-2 md:px-6">
-                  <div className="flex items-center gap-3">
-                    <TokenIcon symbol={item.sym} className="h-8 w-8" />
-                    <div><p className="text-sm font-medium text-brand-text">{names[item.sym] || item.sym}</p><p className="text-[11px] text-brand-text-muted">{item.sym}/USDT</p></div>
+        <>
+          <div className="divide-y divide-brand-border/70 sm:hidden">
+            {markets.map((item) => (
+              <div key={item.sym} className="flex min-h-[76px] items-center justify-between gap-3 px-4 py-3 transition-colors active:bg-brand-surface-hover">
+                <div className="flex min-w-0 items-center gap-3">
+                  <TokenIcon symbol={item.sym} className="h-9 w-9 shrink-0" />
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-semibold text-brand-text">{item.sym}/USDT</p>
+                    <p className="mt-0.5 truncate text-xs text-brand-text-muted">{names[item.sym] || item.sym}</p>
                   </div>
-                </td>
-                <td className="whitespace-nowrap px-4 text-sm font-medium tabular-nums text-brand-text md:px-6">{price(item.price)}</td>
-                <td className={`whitespace-nowrap px-4 text-sm font-medium tabular-nums md:px-6 ${item.chg >= 0 ? "text-profit" : "text-loss"}`}>{item.chg > 0 ? "+" : ""}{item.chg.toFixed(2)}%</td>
-                <td className="whitespace-nowrap px-4 text-sm tabular-nums text-brand-text-secondary md:px-6">{item.vol} USDT</td>
-                <td className="whitespace-nowrap px-4 text-sm tabular-nums text-brand-text-secondary md:px-6">{price(item.high)}</td>
-                <td className="whitespace-nowrap px-4 text-sm tabular-nums text-brand-text-secondary md:px-6">{price(item.low)}</td>
-              </tr>
-            ))}</tbody>
-          </table>
-        </div>
+                </div>
+                <div className="flex shrink-0 flex-col items-end gap-1.5">
+                  <span className="text-sm font-semibold tabular-nums text-brand-text">{price(item.price)}</span>
+                  <Change value={item.chg} />
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="hidden w-full overflow-x-auto sm:block">
+            <table className="w-full min-w-[700px] border-collapse text-left">
+              <thead><tr className="border-b border-brand-border bg-brand-surface-2/70">
+                {["Asset", "Last price", "24h change", "24h volume", "24h high", "24h low"].map((label) =>
+                  <th key={label} className="whitespace-nowrap px-4 py-3 text-xs font-semibold text-brand-text-muted md:px-6">{label}</th>
+                )}
+              </tr></thead>
+              <tbody>{markets.map((item) => (
+                <tr key={item.sym} className="border-b border-brand-border/50 transition-colors last:border-0 hover:bg-brand-surface-hover">
+                  <td className="h-16 whitespace-nowrap px-4 py-2 md:px-6">
+                    <div className="flex items-center gap-3">
+                      <TokenIcon symbol={item.sym} className="h-8 w-8" />
+                      <div><p className="text-sm font-semibold text-brand-text">{names[item.sym] || item.sym}</p><p className="text-xs text-brand-text-muted">{item.sym}/USDT</p></div>
+                    </div>
+                  </td>
+                  <td className="whitespace-nowrap px-4 text-sm font-semibold tabular-nums text-brand-text md:px-6">{price(item.price)}</td>
+                  <td className="whitespace-nowrap px-4 md:px-6"><Change value={item.chg} /></td>
+                  <td className="whitespace-nowrap px-4 text-sm tabular-nums text-brand-text-secondary md:px-6">{item.vol} USDT</td>
+                  <td className="whitespace-nowrap px-4 text-sm tabular-nums text-brand-text-secondary md:px-6">{price(item.high)}</td>
+                  <td className="whitespace-nowrap px-4 text-sm tabular-nums text-brand-text-secondary md:px-6">{price(item.low)}</td>
+                </tr>
+              ))}</tbody>
+            </table>
+          </div>
+        </>
       )}
     </Card>
   );
