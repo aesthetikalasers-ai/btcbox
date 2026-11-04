@@ -12,16 +12,23 @@ export function Dashboard() {
 
   useEffect(() => {
     const controller = new AbortController();
-    getMarkets(controller.signal).then((rows) => {
-      setMarkets(rows);
-      setError("");
-    }).catch((reason: unknown) => {
-      if (reason instanceof Error && reason.name === "AbortError") return;
-      setError(reason instanceof Error ? reason.message : "Market data is unavailable.");
-    }).finally(() => {
-      if (!controller.signal.aborted) setLoading(false);
-    });
-    return () => controller.abort();
+    const loadMarkets = () => {
+      getMarkets(controller.signal).then((rows) => {
+        setMarkets(rows);
+        setError("");
+      }).catch((reason: unknown) => {
+        if (reason instanceof Error && reason.name === "AbortError") return;
+        setError(reason instanceof Error ? reason.message : "Market data is unavailable.");
+      }).finally(() => {
+        if (!controller.signal.aborted) setLoading(false);
+      });
+    };
+    loadMarkets();
+    const refreshId = window.setInterval(loadMarkets, 30_000);
+    return () => {
+      window.clearInterval(refreshId);
+      controller.abort();
+    };
   }, []);
 
   return (
