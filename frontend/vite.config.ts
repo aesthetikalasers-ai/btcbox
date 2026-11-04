@@ -8,7 +8,7 @@ const rootDir = path.dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
-  resolve: { alias: { "@": rootDir } },
+  resolve: { alias: { "@": path.resolve(rootDir, "src") } },
   server: {
     hmr: process.env.DISABLE_HMR !== "true",
     watch: process.env.DISABLE_HMR === "true" ? null : {},
