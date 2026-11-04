@@ -116,3 +116,97 @@ export async function getKlines(
     Number.isFinite(candle.volume) && candle.volume >= 0
   );
 }
+
+
+export interface AccountBalance {
+  free: number | string;
+  frozen: number | string;
+  usdt?: number | string;
+  valuation_available?: boolean;
+}
+
+export interface AccountSnapshot {
+  uid: string;
+  email: string;
+  balances: Record<string, AccountBalance>;
+  totalUsdt: number;
+  valuation_complete: boolean;
+  unpriced_assets: string[];
+  kyc: { status: string; name?: string; id_type?: string; id_number?: string };
+  twofa_enabled: boolean;
+}
+
+export interface OrderRecord {
+  order_id?: string | number;
+  id?: string | number;
+  symbol?: string;
+  side?: string;
+  type?: string;
+  price?: number | string;
+  quantity?: number | string;
+  amount?: number | string;
+  status?: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+async function readAuthenticated<T>(path: string, signal?: AbortSignal): Promise<T> {
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE_URL}/${path}`, {
+      method: "GET",
+      credentials: "include",
+      headers: { Accept: "application/json" },
+      cache: "no-store",
+      signal,
+    });
+  } catch (error) {
+    if (error instanceof Error && error.name === "AbortError") throw error;
+    throw new ApiError("Unable to reach BTCBOX services. Please try again.", 0, "NETWORK_ERROR");
+  }
+
+  const payload = await response.json().catch(() => null) as (T & { ok?: boolean; msg?: string; code?: string; need_login?: boolean }) | null;
+  if (!response.ok || !payload || payload.ok !== true) {
+    const authRequired = !!payload?.need_login;
+    throw new ApiError(
+      payload?.msg || (authRequired ? "Please sign in to continue." : "BTCBOX account data is temporarily unavailable."),
+      authRequired ? 401 : response.status,
+      authRequired ? "AUTH_REQUIRED" : payload?.code,
+    );
+  }
+  return payload;
+}
+
+export async function getAccount(signal?: AbortSignal): Promise<AccountSnapshot> {
+  const payload = await readAuthenticated<AccountSnapshot & { ok: true }>("account", signal);
+  if (!payload.balances || typeof payload.balances !== "object" || !Array.isArray(payload.unpriced_assets)) {
+    throw new ApiError("BTCBOX returned an invalid account response.", 502, "INVALID_ACCOUNT_RESPONSE");
+  }
+  return payload;
+}
+
+export async function getOrders(signal?: AbortSignal): Promise<OrderRecord[]> {
+  const payload = await readAuthenticated<{ ok: true; orders: OrderRecord[] }>("orders", signal);
+  if (!Array.isArray(payload.orders)) {
+    throw new ApiError("BTCBOX returned an invalid order response.", 502, "INVALID_ORDER_RESPONSE");
+  }
+  return payload.orders;
+}
+
+export async function logout(): Promise<void> {
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE_URL}/logout`, {
+      method: "POST",
+      credentials: "include",
+      headers: { Accept: "application/json" },
+      cache: "no-store",
+    });
+  } catch {
+    throw new ApiError("Unable to reach BTCBOX services. Please try again.", 0, "NETWORK_ERROR");
+  }
+  const payload = await response.json().catch(() => null) as { ok?: boolean; msg?: string; code?: string } | null;
+  if (!response.ok || !payload || payload.ok !== true) {
+    throw new ApiError(payload?.msg || "Sign out could not be confirmed.", response.status, payload?.code);
+  }
+}
