@@ -2744,7 +2744,7 @@ async function handleRequest(event, context) {
       const actionFilter = String(params.action || '').trim().slice(0, 100);
       const uidFilter = String(params.uid || '').trim().slice(0, 100);
       const before = String(params.before || '').trim();
-      if (before && !/^[1-9]\\d{0,18}$/.test(before)) return json({ ok: false, code: 'AUDIT_CURSOR_INVALID', msg: 'Audit page cursor is invalid.' }, 400);
+      if (before && !/^[1-9]\d{0,18}$/.test(before)) return json({ ok: false, code: 'AUDIT_CURSOR_INVALID', msg: 'Audit page cursor is invalid.' }, 400);
 
       // Explicit opt-in switches the viewer to the canonical append-only PostgreSQL
       // audit table. Never silently fall back to the retention-limited state document.
