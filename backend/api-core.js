@@ -2703,9 +2703,9 @@ async function handleRequest(event, context) {
       if (uidFilter) logs = logs.filter(function (entry) { return String(entry.uid || '') === uidFilter; });
       if (before) {
         const beforeIndex = logs.findIndex(function (entry) { return String(entry.id || '') === before; });
-        if (beforeIndex >= 0) logs = logs.slice(beforeIndex + 1);
+        if (beforeIndex < 0) return json({ ok: false, code: 'AUDIT_CURSOR_NOT_FOUND', msg: 'Audit page cursor is no longer available. Refresh the log list.' }, 400);
+        logs = logs.slice(beforeIndex + 1);
       }
-      if (before && !logs.length) return json({ ok: false, code: 'AUDIT_CURSOR_NOT_FOUND', msg: 'Audit page cursor is no longer available. Refresh the log list.' }, 400);
       const page = logs.slice(0, limit).map(function (entry) {
         const rawDetail = String(entry.detail || '').slice(0, 300);
         const safeDetail = rawDetail
