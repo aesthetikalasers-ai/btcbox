@@ -290,6 +290,30 @@ export async function setBtcboxCredentials(username: string, password: string, c
   }
 }
 
+export async function reauthenticateBtcboxCredentials(accessToken: string): Promise<void> {
+  const response = await fetch(`${API_BASE_URL}/account/credentials/reauth`, {
+    method: "POST", credentials: "include",
+    headers: { Accept: "application/json", "Content-Type": "application/json" },
+    cache: "no-store", body: JSON.stringify({ supabase_access_token: accessToken }),
+  });
+  const payload = await response.json().catch(() => null) as { ok?: boolean; msg?: string; code?: string } | null;
+  if (!response.ok || !payload || payload.ok !== true) {
+    throw new ApiError(payload?.msg || "Recent identity verification could not be confirmed.", response.status, payload?.code);
+  }
+}
+
+export async function recoverBtcboxCredentials(password: string): Promise<void> {
+  const response = await fetch(`${API_BASE_URL}/account/credentials/recover`, {
+    method: "POST", credentials: "include",
+    headers: { Accept: "application/json", "Content-Type": "application/json" },
+    cache: "no-store", body: JSON.stringify({ password }),
+  });
+  const payload = await response.json().catch(() => null) as { ok?: boolean; msg?: string; code?: string } | null;
+  if (!response.ok || !payload || payload.ok !== true) {
+    throw new ApiError(payload?.msg || "BTCBOX password could not be reset.", response.status, payload?.code);
+  }
+}
+
 export async function linkSupabaseIdentity(accessToken: string): Promise<void> {
   const response = await fetch(`${API_BASE_URL}/auth/link-identity`, {
     method: "POST", credentials: "include",
