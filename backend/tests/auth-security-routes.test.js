@@ -122,9 +122,9 @@ function harness(marker = {}, options = {}) {
     source + '\nexports.__testHandleRequest = handleRequest;\n})');
   factory(require, mod, mod.exports, { env }, Buffer, fetchMock, AbortSignal, URL, { warn() {}, error() {} });
   return {
-    run: async (route, body = {}, cookie = sessionToken) => {
+    run: async (route, body = {}, cookie = sessionToken, method = 'POST') => {
       const result = await mod.exports.__testHandleRequest({
-        path: '/api/' + route, httpMethod: 'POST',
+        path: '/api/' + route, httpMethod: method,
         headers: { cookie: 'session_token=' + cookie }, body: JSON.stringify(body),
       }, {});
       return { status: result.statusCode, body: JSON.parse(result.body) };
@@ -406,6 +406,29 @@ test('logout never reports success when session revocation cannot be persisted',
   assert.notEqual(result.status, 200);
   assert.notEqual(result.body.ok, true);
   assert.ok(h.data.sessions[sessionToken], 'failed persistence must not be mistaken for a revoked session');
+});
+
+test('expired sessions cannot access protected endpoints even when their record remains stored', async () => {
+  const h = harness({ created_at: Date.now() - 8 * 24 * 60 * 60 * 1000 });
+  const result = await h.run('auth/link-identity/reauth', {
+    supabase_access_token: h.sourceToken,
+  });
+  assert.equal(result.status, 401);
+  assert.equal(result.body.need_login, true);
+});
+
+test('logout invalidates the old cookie while a separate device session remains usable', async () => {
+  const h = harness();
+  const logout = await h.run('logout');
+  assert.equal(logout.status, 200);
+  const oldCookie = await h.run('auth/link-identity/reauth', {
+    supabase_access_token: h.sourceToken,
+  }, sessionToken);
+  assert.equal(oldCookie.status, 401);
+  const otherDevice = await h.run('auth/link-identity/reauth', {
+    supabase_access_token: h.sourceToken,
+  }, 'other-session');
+  assert.equal(otherDevice.status, 200, JSON.stringify(otherDevice.body));
 });
 
 
