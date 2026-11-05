@@ -17,6 +17,7 @@ test('policy versions are immutable, append-only and initialized to the observed
   assert.match(migration, /ARRAY\['BTC','ETH','SOL','BNB'\]/);
   assert.match(migration, /ARRAY\[30,60,300,900\]/);
   assert.match(migration, /seconds_contract_policy_audit/i);
+  assert.match(migration, /seconds_contract_policy_audit_immutable[\\s\\S]*?BEFORE UPDATE OR DELETE/i);
   assert.match(migration, /REVOKE INSERT, UPDATE, DELETE[\s\S]*?service_role/i);
 });
 

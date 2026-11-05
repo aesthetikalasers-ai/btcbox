@@ -43,6 +43,18 @@ CREATE TABLE IF NOT EXISTS public.seconds_contract_policy_audit (
   created_at timestamptz NOT NULL DEFAULT clock_timestamp()
 );
 
+CREATE OR REPLACE FUNCTION public.prevent_seconds_policy_audit_mutation_v1()
+RETURNS trigger LANGUAGE plpgsql SET search_path = '' AS $$
+BEGIN
+  RAISE EXCEPTION 'seconds contract policy audit is append-only';
+END;
+$$;
+
+DROP TRIGGER IF EXISTS seconds_contract_policy_audit_immutable ON public.seconds_contract_policy_audit;
+CREATE TRIGGER seconds_contract_policy_audit_immutable
+BEFORE UPDATE OR DELETE ON public.seconds_contract_policy_audit
+FOR EACH ROW EXECUTE FUNCTION public.prevent_seconds_policy_audit_mutation_v1();
+
 ALTER TABLE public.seconds_contract_positions
   ADD COLUMN IF NOT EXISTS policy_id uuid REFERENCES public.seconds_contract_policies(policy_id),
   ADD COLUMN IF NOT EXISTS policy_version bigint,
@@ -167,7 +179,8 @@ BEGIN
   WHERE a.singleton=true
     AND p.effective_from<=v_now
     AND (p.effective_until IS NULL OR p.effective_until>v_now)
-  FOR SHARE OF a,p;
+  -- Policy rows are immutable and the active pointer is not writable by the API role.
+  -- A plain MVCC read is sufficient; avoid requiring UPDATE privilege for row locks.
   IF NOT FOUND THEN
     RETURN jsonb_build_object('ok',false,'code','SECONDS_POLICY_UNAVAILABLE');
   END IF;
