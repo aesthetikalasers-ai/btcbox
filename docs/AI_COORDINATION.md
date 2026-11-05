@@ -393,3 +393,11 @@ Also verify the Site URL and inspect Authentication → Rate Limits / CAPTCHA fo
 - Compared with `main` `14a8e361fd928626d4e350a03698135f0c49ceea`, the feature branch is now 77 commits ahead / 0 behind. This remains a large integration branch, not merge-ready.
 - NOT VERIFIED: rendered hit-box dimensions, iOS/Android interaction, keyboard focus, or visual regressions; no build/test/browser/device run was performed. This is a source-level class refinement only.
 - No Vercel deployment, production configuration change, merge, or financial operation was performed.
+
+## CI trigger coverage review — 2026-11-05
+
+- SOURCE OBSERVED: `.github/workflows/frontend-ci.yml` runs on pull requests touching frontend paths, but its push branch allowlist currently contains only `main`, `feature/btcbox-react-frontend-20261104`, and `feat/btcbox-react-google-auth-20261105`. The active branch `feat/btcbox-web3-auth-20261105` is not included.
+- SOURCE OBSERVED: `.github/workflows/backend-ci.yml` push and pull-request branch allowlists likewise omit `feat/btcbox-web3-auth-20261105`; it includes a manual `workflow_dispatch` trigger, but no workflow-dispatch action is available in the current GitHub connector.
+- RESULT: current feature branch pushes do not trigger these CI workflows by their configured branch filters. The previous absence of workflow runs is therefore consistent with the workflow configuration and is not evidence that the tests passed.
+- No workflow files were changed and no workflow or deployment was triggered, because pushing workflow changes could also trigger Vercel automation and deployment automation has not been independently confirmed paused.
+- NEXT: once deployment automation is confirmed paused or an isolated CI-only path is approved, add the active feature branch to both workflow filters and run the frontend lint/build plus backend build/test/preflight jobs. Keep all financial flags disabled and use dummy CI-only values only.
