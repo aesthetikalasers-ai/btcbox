@@ -15,7 +15,13 @@ export function AppLayout({ children }: { children: ReactNode }) {
       </div>
       <div className="relative z-10 flex h-full min-w-0 flex-1 flex-col overflow-hidden">
         <Topbar onMenuClick={() => setIsMobileMenuOpen(true)} />
-        <main className="min-h-0 flex-1 overflow-y-auto pb-[calc(76px+env(safe-area-inset-bottom))] lg:pb-0">{children}</main>
+        <main className="min-h-0 flex-1 overflow-y-auto pb-[calc(76px+env(safe-area-inset-bottom))] lg:pb-0">
+          {children}
+          <footer className="mx-auto flex w-full max-w-[1600px] flex-wrap items-center justify-center gap-x-2 gap-y-1 px-4 pb-4 pt-2 text-center text-[11px] text-brand-text-muted" aria-label="Open source attribution">
+            <span>TradingView Lightweight Charts™ · Copyright (с) 2025 TradingView, Inc.</span>
+            <a href="https://www.tradingview.com/" target="_blank" rel="noreferrer" className="underline decoration-brand-border underline-offset-2 hover:text-brand-text-secondary">TradingView</a>
+          </footer>
+        </main>
       </div>
       <BottomNav />
     </div>
