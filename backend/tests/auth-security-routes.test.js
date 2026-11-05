@@ -96,10 +96,11 @@ function harness(marker = {}, options = {}) {
         credential_recover: [5, 900],
       }[scope];
       if (!p) return reply({}, 400);
+      const now = Math.floor(Date.now() / 1000);
       return reply({
-        allowed: true, limit: p[0], count: 1, remaining: p[0] - 1,
+        ok: true, allowed: true, limit: p[0], count: 1, remaining: p[0] - 1,
         retry_after_seconds: p[1], window_seconds: p[1],
-        window_start: Math.floor(Date.now() / 1000),
+        window_start: Math.floor(now / p[1]) * p[1],
       });
     }
     if (url.endsWith('/auth/v1/user')) {
