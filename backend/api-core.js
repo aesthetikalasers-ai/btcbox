@@ -594,9 +594,12 @@ function withdrawalRequiresAdminReview(user, coin, amount, usdtValue, thresholdU
 }
 // 估算提现金额的 USDT 等值；价格不可用时返回 null（调用方应保守视为大额，强制审核）。
 function estimateUsdtValue(coin, amount, prices) {
-  if (coin === 'USDT' || coin === 'USDC') return amount;
+  // Review-threshold estimate only; authoritative ledger amounts remain decimal strings.
+  const numericAmount = Number(amount);
+  if (!Number.isFinite(numericAmount)) return null;
+  if (coin === 'USDT' || coin === 'USDC') return numericAmount;
   const p = prices && prices[coin + 'USDT'];
-  if (p && Number.isFinite(Number(p))) return amount * Number(p);
+  if (p && Number.isFinite(Number(p))) return numericAmount * Number(p);
   return null;
 }
 // All API status messages are natively English. User-authored content and data
@@ -776,13 +779,33 @@ function maskIdentityNumber(value) {
 }
 
 function parseMoneyInput(value) {
-  // 仅接受 string（服务端解析为精确数值）；拒绝 number 类型，避免 JS 浮点精度污染金额。
-  if (typeof value === 'number') return null;
+  // Keep monetary values as canonical decimal strings. Never pass them through IEEE-754.
   if (typeof value !== 'string') return null;
   const raw = value.trim();
-  if (!/^(?:0|[1-9]\d*)(?:\.\d{1,18})?$/.test(raw)) return null;
-  const amount = Number(raw);
-  return Number.isFinite(amount) && amount >= 0 ? amount : null;
+  if (raw.length > 64 || !/^(?:0|[1-9]\d*)(?:\.\d{1,18})?$/.test(raw)) return null;
+  const parts = raw.split('.');
+  const fraction = (parts[1] || '').replace(/0+$/, '');
+  return fraction ? parts[0] + '.' + fraction : parts[0];
+}
+function moneyScaledInteger(value, scale) {
+  const parts = String(value).split('.');
+  return BigInt(parts[0]) * (10n ** BigInt(scale)) + BigInt(((parts[1] || '').padEnd(scale, '0')) || '0');
+}
+function compareMoney(a, b) {
+  const pa = String(a).split('.'), pb = String(b).split('.');
+  const scale = Math.max((pa[1] || '').length, (pb[1] || '').length);
+  const ai = moneyScaledInteger(a, scale), bi = moneyScaledInteger(b, scale);
+  return ai < bi ? -1 : ai > bi ? 1 : 0;
+}
+function addMoney(a, b) {
+  const pa = String(a).split('.'), pb = String(b).split('.');
+  const scale = Math.max((pa[1] || '').length, (pb[1] || '').length);
+  const sum = moneyScaledInteger(a, scale) + moneyScaledInteger(b, scale);
+  const digits = sum.toString().padStart(scale + 1, '0');
+  if (!scale) return digits;
+  const whole = digits.slice(0, -scale);
+  const fraction = digits.slice(-scale).replace(/0+$/, '');
+  return fraction ? whole + '.' + fraction : whole;
 }
 
 function genTotpSecret() {
@@ -1671,11 +1694,11 @@ async function handleRequest(event, context) {
     if (!user) return json({ ok: false, msg: 'Not signed in.', need_login: true });
     const coin = body.coin || 'USDT';
     const network = body.network || 'TRC20';
-    const parsedAmount = body.amount === undefined || body.amount === null || body.amount === '' ? 0 : parseMoneyInput(body.amount);
+    const parsedAmount = body.amount === undefined || body.amount === null || body.amount === '' ? '0' : parseMoneyInput(body.amount);
     if (parsedAmount === null) return json({ ok: false, msg: 'Invalid amount format.' }, 400);
     const amount = parsedAmount;
     // amount <= 0 时为查询地址模式，仅返回充值地址，不入账
-    if (amount <= 0) {
+    if (compareMoney(amount, '0') <= 0) {
       const key = coin + '-' + network;
       const legacyKey = key === 'BTC-BTC' ? 'BTC-Bitcoin' : (key === 'SOL-SOL' ? 'SOL-Solana' : '');
       const addr = db.deposit_addresses[key] || (legacyKey && db.deposit_addresses[legacyKey]) || '';
@@ -1704,7 +1727,7 @@ async function handleRequest(event, context) {
     // PostgreSQL is the sole idempotency authority for withdrawals. Do not consult
     // the legacy state document for a replay decision; it may be stale after cutover.
     if (!addr) return json({ ok: false, msg: 'Please enter a withdrawal address.' }, 400);
-    if (amount === null || amount <= 0 || amount > 1e12) return json({ ok: false, msg: 'Invalid amount.' }, 400);
+    if (amount === null || compareMoney(amount, '0') <= 0 || compareMoney(amount, '1000000000000') > 0) return json({ ok: false, msg: 'Invalid amount.' }, 400);
     const allowedNetworks = { BTC:['BTC'], ETH:['ERC20'], USDT:['TRC20','ERC20','BEP20'], SOL:['SOL'], BNB:['BEP20'], USDC:['ERC20'] };
     if (!allowedNetworks[coin] || allowedNetworks[coin].indexOf(network) < 0) return json({ok:false,msg:'Operation failed: coin and network do not match.'},400);
     let addressValid = false;
@@ -1719,9 +1742,9 @@ async function handleRequest(event, context) {
     if (!addrCheck.allowed) return json({ ok: false, code: addrCheck.code, msg: addrCheck.msg }, 403);
     const supportedFees = { USDT: 1.0, BTC: 0.0001, ETH: 0.001, SOL: 0.01, BNB: 0.0005, USDC: 1.0 };
     if (!Object.prototype.hasOwnProperty.call(supportedFees, coin)) return json({ ok: false, msg: 'Operation failed: withdrawals for this coin are not supported.' }, 400);
-    const fee = supportedFees[coin];
-    const totalDebit = amount + fee;
-    if (!Number.isFinite(totalDebit) || totalDebit <= 0) return json({ ok: false, msg: 'Invalid amount.' }, 400);
+    const fee = String(supportedFees[coin]);
+    const totalDebit = addMoney(amount, fee);
+    if (compareMoney(totalDebit, '0') <= 0) return json({ ok: false, msg: 'Invalid amount.' }, 400);
     // 首次提现 / 大额提现（USDT 等值超阈值，价格不可用时保守视为大额）→ 强制人工审核 pending_admin_review。
     const thresholdUsdt = Number(process.env.WITHDRAWAL_LARGE_THRESHOLD_USDT) || 1000;
     const usdtValue = estimateUsdtValue(coin, amount, livePriceCache.prices);
@@ -1924,7 +1947,7 @@ async function handleRequest(event, context) {
     if (action === 'subscribe') {
       if (!/^[A-Za-z0-9_-]{16,100}$/.test(requestId)) return json({ ok: false, code: 'IDEMPOTENCY_KEY_REQUIRED', msg: 'A valid subscription request ID is required.' }, 400);
       const amount = parseMoneyInput(body.amount);
-      if (amount === null || amount <= 0 || amount > 1e12) return json({ ok: false, msg: 'Invalid amount.' }, 400);
+      if (amount === null || compareMoney(amount, '0') <= 0 || compareMoney(amount, '1000000000000') > 0) return json({ ok: false, msg: 'Invalid amount.' }, 400);
       const productId = String(body.product_id || 'flex_USDT');
       const products = new Set(['demand','flex_USDT','flex_BTC','flex_ETH','fixed30','fixed90','fixed180']);
       if (!products.has(productId)) return json({ ok: false, msg: 'This earn product is not supported.' }, 400);
@@ -1978,7 +2001,7 @@ async function handleRequest(event, context) {
     if (!SECONDS_ALLOWED_SYMBOLS.has(symbol)) return json({ ok: false, msg: 'This trading pair is not supported for short-term contracts.' }, 400);
     if (!['up', 'down'].includes(direction)) return json({ ok: false, msg: 'Invalid trade direction.' }, 400);
     if (!SECONDS_ALLOWED_DURATIONS.has(durationSec)) return json({ ok: false, msg: 'Invalid contract duration.' }, 400);
-    if (amount === null || amount <= 0 || amount > 1e12) return json({ ok: false, msg: 'Invalid investment amount.' }, 400);
+    if (amount === null || compareMoney(amount, '0') <= 0 || compareMoney(amount, '1000000000000') > 0) return json({ ok: false, msg: 'Invalid investment amount.' }, 400);
     if (!/^[A-Za-z0-9_-]{16,100}$/.test(requestId)) return json({ ok: false, code: 'IDEMPOTENCY_KEY_REQUIRED', msg: 'A valid request ID (16-100 characters) is required.' }, 400);
     let ref;
     try { ref = await fetchSecondsReferencePrice(symbol); }
@@ -2716,6 +2739,8 @@ exports._test = {
   validateFundPassword: validateFundPassword,
   validateAdminPasswordStrength: validateAdminPasswordStrength,
   parseMoneyInput: parseMoneyInput,
+  compareMoney: compareMoney,
+  addMoney: addMoney,
   withdrawalAddressCheck: withdrawalAddressCheck,
   withdrawalRequiresAdminReview: withdrawalRequiresAdminReview,
   estimateUsdtValue: estimateUsdtValue,

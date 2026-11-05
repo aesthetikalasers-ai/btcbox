@@ -504,7 +504,7 @@ VIEWS.withdraw.afterRender = function(){
       toast('A previous withdrawal result for this account is still unconfirmed. Do not submit another request; contact support to reconcile it.','warn');
       return;
     }
-    const coin=$('#wd-coin').value, addr=$('#wd-addr').value.trim(), amt=parseFloat($('#wd-amount').value);
+    const coin=$('#wd-coin').value, addr=$('#wd-addr').value.trim(), amtRaw=$('#wd-amount').value.trim(), amt=Number(amtRaw);
     if(!addr||addr.length<8){toast('Enter a valid withdrawal address.','err');return;}
     if(!amt||amt<=0){toast('Enter a valid amount.','err');return;}
     const avail=state.balances[coin]?state.balances[coin].free:0;
@@ -512,7 +512,7 @@ VIEWS.withdraw.afterRender = function(){
     if(!/^\d{6}$/.test($('#wd-fundpwd').value)){toast('Fund password must be 6 digits.','err');return;}
     if(state.settings.twofa&&!/^\d{6}$/.test($('#wd-2fa').value)){toast('Enter your 6-digit 2FA code.','err');return;}
     const btn=$('#wd-submit');if(!btn)return;
-    const withdrawalIntent={version:1,request_id:uid(),coin,amount:String(amt),address:addr,network:$('#wd-network').value,created_at:Date.now()};
+    const withdrawalIntent={version:1,request_id:uid(),coin,amount:amtRaw,address:addr,network:$('#wd-network').value,created_at:Date.now()};
     /* Persist the exact idempotency key + immutable intent before network I/O. Never store fund password or 2FA. */
     if(!persistPendingWithdrawal(withdrawalIntent)){
       toast('This browser cannot safely retain the withdrawal request ID. No request was sent. Enable site storage and try again.','err');
@@ -522,7 +522,7 @@ VIEWS.withdraw.afterRender = function(){
     withdrawalSubmitting=true;btn.disabled=true;btn.textContent='Submitting…';
     let r;
     try{
-      r=await apiAdapter.withdraw({coin:withdrawalIntent.coin,amount:amt,address:withdrawalIntent.address,
+      r=await apiAdapter.withdraw({coin:withdrawalIntent.coin,amount:amtRaw,address:withdrawalIntent.address,
         network:withdrawalIntent.network,request_id:withdrawalIntent.request_id,
         fund_password:$('#wd-fundpwd').value,twofa_code:$('#wd-2fa').value||undefined});
       withdrawalOutcomeUnknown=isWdOutcomeUnknown(r);
@@ -616,14 +616,14 @@ VIEWS.earn.afterRender = function(){
           cancelBtn.onclick=()=>{if(!submitting)close();};
           $('#earn-confirm').onclick=async ()=>{
             if(submitting||outcomeUnknown)return;
-            const amt=parseFloat($('#earn-amt').value);
-            if(!amt||amt<p.min){toast('Minimum subscription is '+fmt(p.min,p.coin==='USDT'?2:4)+' '+p.coin,'err');return;}
-            const payloadKey=p.id+'|'+String(amt);
+            const amtRaw=$('#earn-amt').value.trim(),amt=Number(amtRaw);
+            if(!amtRaw||!Number.isFinite(amt)||amt<=0||amt<p.min){toast('Minimum subscription is '+fmt(p.min,p.coin==='USDT'?2:4)+' '+p.coin,'err');return;}
+            const payloadKey=p.id+'|'+amtRaw;
             if(payloadKey!==lastPayloadKey){requestId=uid();lastPayloadKey=payloadKey;}
             const btn=$('#earn-confirm');submitting=true;btn.disabled=true;cancelBtn.disabled=true;amountInput.disabled=true;btn.textContent='Submitting…';
             let r;
             try{
-              r=await apiAdapter.earn({action:'subscribe',request_id:requestId,amount:amt,product_id:p.id});
+              r=await apiAdapter.earn({action:'subscribe',request_id:requestId,amount:amtRaw,product_id:p.id});
               outcomeUnknown=!!(!r||Number(r.status||0)===0||r.code==='NETWORK_ERROR'||r.code==='NETWORK_RESPONSE_ERROR'||(Number(r.status)>=500&&r.code!=='FINANCIAL_CUTOVER_INCOMPLETE'));
             }catch(err){
               r={ok:false,code:'NETWORK_ERROR',status:0,msg:'Subscription result could not be confirmed.'};

@@ -193,8 +193,8 @@ VIEWS.seconds.afterRender = function(){
     if(!positionsReady){toast('Contract positions are not confirmed yet. Refresh before opening a new position.','warn');return;}
     if(busy){toast('A position or an unconfirmed order is still active. Check Open Positions and do not submit again until its status is verified.','warn');return;}
     if(secondsPendingIntent){toast('A previous order is still unconfirmed. Do not submit another position until support reconciles it.','warn');return;}
-    const amt=parseFloat($('#sec-amount').value); if(!amt||amt<1){toast('Enter a valid amount (min 1 USDT).','err');return;}
-    const orderIntent={version:1,request_id:uid(),symbol:coin,direction:dir,duration_sec:dur,amount:String(amt),created_at:Date.now()};
+    const amtRaw=$('#sec-amount').value.trim(),amt=Number(amtRaw); if(!amtRaw||!Number.isFinite(amt)||amt<1){toast('Enter a valid amount (min 1 USDT).','err');return;}
+    const orderIntent={version:1,request_id:uid(),symbol:coin,direction:dir,duration_sec:dur,amount:amtRaw,created_at:Date.now()};
     if(!persistPendingSecondsOrder(orderIntent)){
       toast('This browser cannot safely retain the order request ID. No order was sent. Enable site storage and try again.','err');
       return;
@@ -204,7 +204,7 @@ VIEWS.seconds.afterRender = function(){
     setSecondsEntryEnabled(false,'Order submission is being confirmed.');
     let r;
     try{
-      r=await apiAdapter.secondsOrder({symbol:orderIntent.symbol,direction:orderIntent.direction,duration_sec:orderIntent.duration_sec,amount:amt,request_id:orderIntent.request_id});
+      r=await apiAdapter.secondsOrder({symbol:orderIntent.symbol,direction:orderIntent.direction,duration_sec:orderIntent.duration_sec,amount:amtRaw,request_id:orderIntent.request_id});
     }catch(_){
       r={ok:false,status:0,code:'NETWORK_ERROR',msg:'The order response was interrupted.'};
     }

@@ -307,10 +307,10 @@ const apiAdapter = {
   // ACCOUNT -> POST /api/addresses
   async addAddress(p){ return apiFetch('/addresses',{method:'POST',body:p}); },
   // ACCOUNT -> POST /api/deposit {coin,network,amount:0} -> deposit address (query mode; amount>0 is 403)
-  async deposit(p){ return apiFetch('/deposit',{method:'POST',body:{coin:p.coin||'USDT', network:p.network||'TRC20', amount:0}}); },
+  async deposit(p){ return apiFetch('/deposit',{method:'POST',body:{coin:p.coin||'USDT', network:p.network||'TRC20', amount:'0'}}); },
   // ACCOUNT -> POST /api/withdraw {coin,amount,address,network,request_id(16-80),fund_password,twofa_code?}
   async withdraw(p){
-    const body={coin:p.coin, amount:p.amount, address:p.address, network:p.network, request_id:p.request_id||uid(), fund_password:p.fund_password};
+    const body={coin:p.coin, amount:String(p.amount), address:p.address, network:p.network, request_id:p.request_id||uid(), fund_password:p.fund_password};
     if(p.twofa_code) body.twofa_code=p.twofa_code;
     return apiFetch('/withdraw',{method:'POST',body:body});
   },
@@ -347,7 +347,7 @@ const apiAdapter = {
   async captcha(){ try{ const r=await apiFetch('/captcha',{method:'POST',body:{},skipAuthRedirect:true}); return r; }catch(e){ return {ok:false, code:'VERIFICATION_UNAVAILABLE', msg:'Captcha unavailable — treated as optional'}; } },
   // SECONDS -> POST /api/seconds/order {symbol(bare base e.g. BTC/ETH/SOL/BNB),direction,duration_sec,amount,request_id(16+)}
   async secondsOrder(o){
-    const r=await apiFetch('/seconds/order',{method:'POST',body:{symbol:o.symbol, direction:o.direction, duration_sec:o.duration_sec||o.duration, amount:o.amount, request_id:o.request_id||uid()}});
+    const r=await apiFetch('/seconds/order',{method:'POST',body:{symbol:o.symbol, direction:o.direction, duration_sec:o.duration_sec||o.duration, amount:String(o.amount), request_id:o.request_id||uid()}});
     if(r.ok){
       r.position={position_id:r.position_id, symbol:r.symbol, direction:r.direction, amount:r.amount, duration_sec:r.duration_sec, open_price:r.open_price, settle_at:r.settle_at, status:'open'};
       await this.secondsPositionsGet();
@@ -370,7 +370,7 @@ const apiAdapter = {
   // EARN -> POST /api/earn {action subscribe|redeem,request_id,amount,product_id,record_id?}
   async earn(p){
     const body={action:p.action||'subscribe', request_id:p.request_id||uid()};
-    if(p.amount!=null) body.amount=p.amount;
+    if(p.amount!=null) body.amount=String(p.amount);
     if(p.product_id) body.product_id=p.product_id;
     if(p.record_id) body.record_id=p.record_id;
     return apiFetch('/earn',{method:'POST',body:body});

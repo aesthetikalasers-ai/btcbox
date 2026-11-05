@@ -142,8 +142,29 @@ test('secCounter: 5 次失败后锁定 15 分钟，成功后重置', () => {
 test('parseMoneyInput: 拒绝 number 类型，仅接受 string', () => {
   assert.equal(_test.parseMoneyInput(123.45), null, 'number 类型拒绝');
   assert.equal(_test.parseMoneyInput(0), null, 'number 0 拒绝');
-  assert.equal(_test.parseMoneyInput('123.45'), 123.45, 'string 合法');
-  assert.equal(_test.parseMoneyInput('0'), 0, 'string 0 合法');
+  assert.equal(_test.parseMoneyInput('123.45'), '123.45', 'string 合法且保持十进制文本');
+  assert.equal(_test.parseMoneyInput('0'), '0', 'string 0 合法');
+  assert.equal(_test.parseMoneyInput('1.230000'), '1.23', '移除无意义尾随零');
+  assert.equal(_test.parseMoneyInput('9007199254740993.000000000000000001'), '9007199254740993.000000000000000001', '超过 JS 安全整数范围仍保持精确');
+  assert.equal(_test.parseMoneyInput('1e3'), null, '科学计数法拒绝');
+  assert.equal(_test.parseMoneyInput('1.1234567890123456789'), null, '超过 18 位小数拒绝');
   assert.equal(_test.parseMoneyInput('abc'), null, '非法 string 拒绝');
   assert.equal(_test.parseMoneyInput('-5'), null, '负数拒绝');
+});
+test('money decimal helpers compare and add without floating-point rounding', () => {
+  assert.equal(_test.compareMoney('0.000000000000000009', '0.000000000000000010'), -1);
+  assert.equal(_test.compareMoney('9007199254740993.000000000000000001', '9007199254740993'), 1);
+  assert.equal(_test.addMoney('0.1', '0.2'), '0.3');
+  assert.equal(_test.addMoney('1.000000000000000001', '0.000000000000000009'), '1.00000000000000001');
+});
+test('frontend financial adapters preserve decimal-string request contracts', () => {
+  const fs = require('node:fs');
+  const appCore = fs.readFileSync(path.join(__dirname, '..', 'assets/js/app-core.js'), 'utf8');
+  const assetsView = fs.readFileSync(path.join(__dirname, '..', 'assets/js/views-assets.js'), 'utf8');
+  const tradingView = fs.readFileSync(path.join(__dirname, '..', 'assets/js/views-trading.js'), 'utf8');
+  assert.ok(appCore.includes("amount:'0'"), 'deposit address query sends a string zero');
+  assert.ok(appCore.includes('amount:String(p.amount)'), 'withdraw and earn adapter payloads stringify amount fields');
+  assert.ok(appCore.includes('amount:String(o.amount)'), 'seconds order adapter stringifies amount');
+  assert.ok(assetsView.includes('amount:amtRaw'), 'withdraw and earn views pass original decimal input');
+  assert.ok(tradingView.includes('amount:amtRaw'), 'seconds view passes original decimal input');
 });
