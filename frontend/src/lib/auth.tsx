@@ -53,7 +53,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         const config = await getAuthClientConfig(controller.signal);
         if (!active) return;
-        if (!config.google_enabled) throw new Error("Google sign-in is currently unavailable.");
+        if (config.google_enabled === false) throw new Error("Google sign-in is currently unavailable.");
         const client = createClient(config.supabase_url, config.publishable_key, {
           auth: { flowType: "pkce", persistSession: true, autoRefreshToken: true, detectSessionInUrl: false },
         });

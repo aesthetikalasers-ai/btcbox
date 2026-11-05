@@ -712,7 +712,7 @@ async function handleRequest(event, context) {
   // Public, read-only configuration for the React Supabase Auth client.
   // This route intentionally runs before loadDB and only exposes the public anon/publishable key.
   if (path === 'auth-client-config' && method === 'GET') {
-    const authUrl = String(process.env.SUPABASE_AUTH_URL || process.env.SUPABASE_URL || '').trim().replace(/\/+$/, '');
+    const authUrl = String(process.env.SUPABASE_AUTH_URL || '').trim().replace(/\/+$/, '');
     const publishableKey = getPublishableKey();
     let validAuthUrl = false;
     try {

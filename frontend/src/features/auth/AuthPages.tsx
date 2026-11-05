@@ -11,7 +11,7 @@ export function AuthPage({ mode }: { mode: "login" | "register" }) {
   const [code, setCode] = useState("");
   const [verifyBusy, setVerifyBusy] = useState(false);
   const navigate = useNavigate();
-  useEffect(() => { if (status === "authenticated") navigate("/home", { replace: true }); }, [status, navigate]);
+  useEffect(() => { if (status === "authenticated") navigate("/home", { replace: true }); else if (status === "two-factor") navigate("/login", { replace: true }); }, [status, navigate]);
   if (status === "loading") return <div className="mx-auto flex min-h-[60vh] items-center justify-center text-sm text-brand-text-muted">Loading authentication…</div>;
   return <div className="mx-auto flex min-h-[calc(100dvh-150px)] w-full max-w-[480px] items-center justify-center p-4 sm:p-6">
     <Card className="w-full border-brand-border bg-brand-surface shadow-xl">
@@ -36,7 +36,7 @@ export function AuthPage({ mode }: { mode: "login" | "register" }) {
 export function AuthCallbackPage() {
   const { finishOAuth, status, error, busy } = useAuth();
   const navigate = useNavigate();
-  useEffect(() => { void finishOAuth(); }, [finishOAuth]);
+  useEffect(() => { if (status !== "loading" && status !== "authenticated" && status !== "two-factor") void finishOAuth(); }, [finishOAuth, status]);
   useEffect(() => { if (status === "authenticated") navigate("/home", { replace: true }); }, [status, navigate]);
   return <div className="mx-auto flex min-h-[60vh] max-w-lg flex-col items-center justify-center gap-3 p-6 text-center">
     <div className="h-6 w-6 animate-spin rounded-full border-2 border-white/20 border-t-brand-accent"/>
