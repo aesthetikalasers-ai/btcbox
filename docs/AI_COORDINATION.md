@@ -1390,3 +1390,13 @@ The backend CI branch filters were pointing at an older auth branch. Updated bot
 - Code commit: `0b9887fc19558f59f5043ada6c5e8ac92bb5b867`; regression test commit: `753de438e72a73344c125749a16d8d1762dbeb3a`.
 - Exact-head CI run `42114754980` for `753de438e72a73344c125749a16d8d1762dbeb3a` is in progress. The preceding code-only run `42114738313` is also in progress. Do not accept this edge-case fix until the latest exact-head run completes successfully.
 - No production/staging DB access, schema migration, financial write, merge, or Vercel deployment occurred.
+
+
+### Audit retention and auth-secret redaction follow-up — 2026-11-06 (UTC+8)
+
+- TEST PASSED: the `slice(-0)` retention edge correction passed exact-head CI run `42114754980` at `753de438e72a73344c125749a16d8d1762dbeb3a`; code-only run `42114738313` for `0b9887fc19558f59f5043ada6c5e8ac92bb5b867` also completed successfully.
+- SOURCE FINDING: audit detail redaction covered generic token/secret fields but missed common compound names such as `access_token`, `refresh_token`, `supabase_service_role_key`, and `client_secret`. Those values can be embedded in a free-form detail string and would otherwise remain in the persisted audit outbox.
+- PATCHED: extend key-value redaction to common access/refresh/auth/session token names, authorization/bearer fields, client secrets, service-role/API/private keys, OTP and TOTP secret names. Regression fixture now includes these cases.
+- Code commit: `abb9869b7d1babd5a9b0b23b55b3775de2882c05`; test commit: `732a53f035dd1a854e0f136f1b978c830b71c20c`.
+- Exact-head CI run `42114900352` for `732a53f035dd1a854e0f136f1b978c830b71c20c` is in progress; code-only run `42114875225` is also in progress. Do not accept this redaction extension until exact-head CI passes.
+- No production/staging DB access, schema migration, financial write, merge, or Vercel deployment occurred.
