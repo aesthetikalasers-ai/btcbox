@@ -2705,8 +2705,30 @@ async function handleRequest(event, context) {
         const beforeIndex = logs.findIndex(function (entry) { return String(entry.id || '') === before; });
         if (beforeIndex >= 0) logs = logs.slice(beforeIndex + 1);
       }
-      const page = logs.slice(0, limit);
-      return json({ ok: true, logs: page, next_before: page.length === limit ? String(page[page.length - 1].id || '') : null });
+      if (before && !logs.length) return json({ ok: false, code: 'AUDIT_CURSOR_NOT_FOUND', msg: 'Audit page cursor is no longer available. Refresh the log list.' }, 400);
+      const page = logs.slice(0, limit).map(function (entry) {
+        const rawDetail = String(entry.detail || '').slice(0, 300);
+        const safeDetail = rawDetail
+          .replace(/(password|passwd|token|secret|recovery[_ -]?code|id[_ -]?number|private[_ -]?key)(\\s*[:=]\\s*)[^,}\\s]+/ig, '$1$2[redacted]')
+          .replace(/0x[a-fA-F0-9]{40}/g, '[wallet address]')
+          .replace(/T[1-9A-HJ-NP-Za-km-z]{33}/g, '[wallet address]');
+        return {
+          id: String(entry.id || ''),
+          action: String(entry.action || '').slice(0, 100),
+          uid: String(entry.uid || '').slice(0, 100),
+          by: String(entry.by || 'admin').slice(0, 80),
+          time: String(entry.time || '').slice(0, 40),
+          detail: safeDetail,
+          postgres_sync_status: ['synced', 'pending', 'local_only'].includes(entry.postgres_sync_status) ? entry.postgres_sync_status : 'unknown'
+        };
+      });
+      return json({
+        ok: true,
+        source: 'btcbox_state',
+        completeness: 'state_document_retention_limited',
+        logs: page,
+        next_before: page.length === limit ? String(page[page.length - 1].id || '') : null
+      });
     }
 
     // GET /api/admin/config
