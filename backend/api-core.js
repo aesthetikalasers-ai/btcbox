@@ -715,8 +715,12 @@ async function handleRequest(event, context) {
     const authUrl = String(process.env.SUPABASE_AUTH_URL || process.env.SUPABASE_URL || '').trim().replace(/\/+$/, '');
     const publishableKey = getPublishableKey();
     let validAuthUrl = false;
-    try { const parsed = new URL(authUrl); validAuthUrl = parsed.protocol === 'https:' && parsed.hostname.endsWith('.supabase.co'); } catch (_) { validAuthUrl = false; }
+    try {
+      const parsed = new URL(authUrl);
+      validAuthUrl = parsed.protocol === 'https:' && parsed.hostname.endsWith('.supabase.co');
+    } catch (_) { validAuthUrl = false; }
     if (!validAuthUrl || !publishableKey) {
+      return json({ ok: false, code: 'AUTH_CLIENT_CONFIG_UNAVAILABLE', msg: 'Authentication is not configured.' }, 503);
     }
     const googleEnabled = await detectGoogleProviderEnabled();
     return json({
