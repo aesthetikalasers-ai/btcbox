@@ -481,7 +481,8 @@ VIEWS.admin = function(){
       '<span class="tag" style="background:rgba(240,185,11,.12);color:var(--warning)">管理员 — HTTP Basic Auth</span>'+
     '</div>'+
     '<div id="admin-stats" class="va-admin-stats">'+skeleton(4,1)+'</div>'+
-    '<div id="admin-err" style="display:none" class="va-banner va-banner-err"></div>'+
+    '<div id="admin-err" style="display:none" class="va-banner va-banner-err"></div>'+\
+    '<div id="admin-data-status" style="display:none" class="va-banner va-banner-inf" role="status"></div>'+
     '<div class="card" style="padding:0;margin-bottom:16px">'+
       '<div style="display:flex;border-bottom:1px solid var(--border);overflow-x:auto" class="no-scrollbar">'+
         '<div class="tab active" data-atab="users">用户管理</div><div class="tab" data-atab="deposits">充值审核</div><div class="tab" data-atab="withdrawals">提币审批</div><div class="tab" data-atab="kyc">KYC 审核</div>'+
@@ -504,6 +505,25 @@ VIEWS.admin.afterRender = function(){
   }).catch(function(){
     var err=$('#admin-err'); if(err){err.style.display='block';err.textContent='网络错误，统计数据加载失败。';}
   });
+  var tab='users';
+  var adminDataLoading=true;
+  var adminDataErrors=[];
+  async function loadAdminData(){
+    adminDataLoading=true;
+    adminDataErrors=[];
+    var status=$('#admin-data-status');
+    if(status){status.style.display='block';status.textContent='正在加载管理员数据…';}
+    var results=await Promise.allSettled([apiAdapter.adminUsers(),apiAdapter.adminWithdrawals()]);
+    if(results[0].status==='fulfilled'&&results[0].value&&results[0].value.ok&&Array.isArray(results[0].value.users)){
+      state.admin.users=results[0].value.users.map(function(u){return Object.assign({},u,{kyc:u.kyc_status||'unverified',balances:{USDT:Number(u.total_usdt)||0}});});
+    }else{adminDataErrors.push('用户列表加载失败：'+(results[0].status==='fulfilled'?(results[0].value&&(results[0].value.error||results[0].value.msg)||'服务器返回异常'):'网络连接失败'));}
+    if(results[1].status==='fulfilled'&&results[1].value&&results[1].value.ok&&Array.isArray(results[1].value.withdrawals)){
+      state.admin.withdrawals=results[1].value.withdrawals;
+    }else{adminDataErrors.push('提现列表加载失败：'+(results[1].status==='fulfilled'?(results[1].value&&(results[1].value.error||results[1].value.msg)||'服务器返回异常'):'网络连接失败'));}
+    adminDataLoading=false;
+    if(status){status.style.display=adminDataErrors.length?'block':'none';status.textContent=adminDataErrors.join('；');status.className=adminDataErrors.length?'va-banner va-banner-err':'va-banner va-banner-inf';}
+    render(tab);
+  }
   async function runAdminAction(button, action, successText, pendingText){
     if(button.disabled) return;
     var oldText=button.textContent;
@@ -516,7 +536,9 @@ VIEWS.admin.afterRender = function(){
       var result=await action();
       if(result&&result.ok){
         button.textContent=successText;
-        toast(successText,'ok');
+        if(result.audit_sync_pending===true) toast('业务操作已保存，但审计日志仍待同步。请勿重复执行该操作。','warn');
+        else toast(successText,'ok');
+        await loadAdminData();
         return;
       }
       var status=Number(result&&result.status||0);
@@ -549,7 +571,9 @@ VIEWS.admin.afterRender = function(){
   }
   function render(tab){
     if(tab==='users'){
-      if(!state.admin.users||!state.admin.users.length){$('#admin-body').innerHTML=emptyState('暂无用户数据','用户列表为空。');return;}
+      if(adminDataLoading){$('#admin-body').innerHTML=skeleton(5,4);return;}
+      if(adminDataErrors.some(function(e){return e.indexOf('用户列表')===0;})){ $('#admin-body').innerHTML=emptyState('用户列表加载失败','请检查管理员权限或网络后切换标签重试。');return;}
+      if(!state.admin.users||!state.admin.users.length){$('#admin-body').innerHTML=emptyState('暂无用户数据','服务器当前没有返回用户记录。');return;}
       $('#admin-body').innerHTML='<table style="width:100%;border-collapse:collapse;min-width:640px"><thead><tr><th class="th">UID</th><th class="th">邮箱</th><th class="th">KYC</th><th class="th">状态</th><th class="th" style="text-align:right">余额 (USDT)</th><th class="th">操作</th></tr></thead><tbody>'+
         state.admin.users.map(function(u){
           return '<tr class="trow"><td class="td num" style="font-size:12px">'+escapeHtml(u.uid)+'</td><td class="td">'+escapeHtml(u.email)+'</td><td class="td" style="text-transform:capitalize;color:'+(u.kyc==='verified'?'var(--up)':u.kyc==='pending'?'var(--warning)':'var(--text-muted)')+'">'+escapeHtml(u.kyc)+'</td><td class="td">'+(u.frozen?'<span style="color:var(--down);font-weight:600">已冻结</span>':'<span style="color:var(--up)">正常</span>')+'</td><td class="td num" style="text-align:right">'+fmt(u.balances.USDT,2)+'</td><td class="td"><button class="au-freeze" data-uid="'+escapeHtml(u.uid)+'" data-f="'+(u.frozen?0:1)+'" style="color:'+(u.frozen?'var(--up)':'var(--down)')+';font-size:12px;font-weight:600;margin-right:10px;background:none;border:none;cursor:pointer">'+(u.frozen?'解冻':'冻结')+'</button></td></tr>';
@@ -561,6 +585,8 @@ VIEWS.admin.afterRender = function(){
         await runAdminAction(b,()=>apiAdapter.adminFreeze({uid:b.dataset.uid,frozen:freeze,reason:'Admin action'}),'状态已更新');
       };});
     } else if(tab==='deposits'){
+      $('#admin-body').innerHTML=emptyState('充值审核暂不可用','当前版本尚无管理员充值列表读取接口。为避免展示不完整数据，充值审核操作已暂停。');
+      return;
       var list=(state.admin.deposits||[]).filter(function(d){return d.status==='pending';});
       if(!list.length){$('#admin-body').innerHTML=emptyState('暂无待审核充值','所有充值均已处理。');return;}
       $('#admin-body').innerHTML='<table style="width:100%;border-collapse:collapse;min-width:640px"><thead><tr><th class="th">ID</th><th class="th">用户</th><th class="th">币种</th><th class="th" style="text-align:right">数量</th><th class="th">网络</th><th class="th">参考号</th><th class="th">操作</th></tr></thead><tbody>'+
@@ -575,7 +601,9 @@ VIEWS.admin.afterRender = function(){
         await runAdminAction(b,()=>apiAdapter.adminConfirmDeposit({id:d.id,uid:d.uid,coin:d.coin,amount:d.amount,reference:d.reference,note:'manual',idempotency_key:uid()}),'充值已确认');
       };});
     } else if(tab==='withdrawals'){
-      var wlist=(state.admin.withdrawals||[]).filter(function(w){return w.status==='pending';});
+      if(adminDataLoading){$('#admin-body').innerHTML=skeleton(5,4);return;}
+      if(adminDataErrors.some(function(e){return e.indexOf('提现列表')===0;})){ $('#admin-body').innerHTML=emptyState('提现列表加载失败','请检查管理员权限或网络后切换标签重试。');return;}
+      var wlist=(state.admin.withdrawals||[]).filter(function(w){return w.status==='pending'||w.status==='pending_admin_review';});
       if(!wlist.length){$('#admin-body').innerHTML=emptyState('暂无待审批提币','所有提币均已处理。');return;}
       $('#admin-body').innerHTML='<table style="width:100%;border-collapse:collapse;min-width:640px"><thead><tr><th class="th">ID</th><th class="th">用户</th><th class="th">币种</th><th class="th" style="text-align:right">数量</th><th class="th">地址</th><th class="th">操作</th></tr></thead><tbody>'+
         wlist.map(function(w){
@@ -584,6 +612,8 @@ VIEWS.admin.afterRender = function(){
       $('.aw-approve').forEach(function(b){b.onclick=async function(){var w=(state.admin.withdrawals||[]).find(function(x){return String(x.id)===String(b.dataset.id);})||{};var ok=await confirmAdminAction('批准提币','<b>提币 ID：</b>'+escapeHtml(b.dataset.id)+'<br><b>用户 UID：</b>'+escapeHtml(w.uid||'—')+'<br><b>币种/数量：</b>'+escapeHtml(w.coin||'—')+' '+escapeHtml(w.amount||'—')+'<br><b>目标地址：</b>'+escapeHtml(w.address||'—'));if(!ok)return;await runAdminAction(b,()=>apiAdapter.adminApproveWithdraw(b.dataset.id),'提币审批已提交');};});
       $('.aw-reject').forEach(function(b){b.onclick=async function(){var w=(state.admin.withdrawals||[]).find(function(x){return String(x.id)===String(b.dataset.id);})||{};var ok=await confirmAdminAction('驳回提币','<b>提币 ID：</b>'+escapeHtml(b.dataset.id)+'<br><b>用户 UID：</b>'+escapeHtml(w.uid||'—')+'<br><b>币种/数量：</b>'+escapeHtml(w.coin||'—')+' '+escapeHtml(w.amount||'—')+'<br><b>目标地址：</b>'+escapeHtml(w.address||'—')+'<br><b>驳回原因：</b>地址不匹配 (Address mismatch)');if(!ok)return;await runAdminAction(b,()=>apiAdapter.adminRejectWithdraw({id:b.dataset.id,reason:'Address mismatch'}),'提币驳回已提交');};});
     } else {
+      $('#admin-body').innerHTML=emptyState('KYC 审核暂不可用','当前版本尚无完整的管理员 KYC 申请读取接口，不能安全展示或审核申请。');
+      return;
       var klist=(state.admin.kycs||[]).filter(function(k){return k.status==='pending';});
       if(!klist.length){$('#admin-body').innerHTML=emptyState('暂无待审核 KYC','所有 KYC 申请均已审核。');return;}
       $('#admin-body').innerHTML='<table style="width:100%;border-collapse:collapse;min-width:560px"><thead><tr><th class="th">用户</th><th class="th">姓名</th><th class="th">证件类型</th><th class="th">操作</th></tr></thead><tbody>'+
@@ -594,8 +624,9 @@ VIEWS.admin.afterRender = function(){
       $('.ak-reject').forEach(function(b){b.onclick=async function(){var k=(state.admin.kycs||[]).find(function(x){return String(x.uid)===String(b.dataset.uid);})||{};var ok=await confirmAdminAction('驳回 KYC 审核','<b>用户 UID：</b>'+escapeHtml(b.dataset.uid)+'<br><b>姓名：</b>'+escapeHtml(k.name||'—')+'<br><b>证件类型：</b>'+escapeHtml(k.id_type||'—')+'<br><b>驳回原因：</b>证件不清晰 (Document unclear)');if(!ok)return;await runAdminAction(b,()=>apiAdapter.adminRejectKyc({uid:b.dataset.uid,reason:'Document unclear'}),'KYC 驳回已提交');};});
     }
   }
-  var tab='users'; render(tab);
-  $$('[data-atab]').forEach(function(t){t.onclick=function(){tab=t.dataset.atab;$$('[data-atab]').forEach(function(x){x.classList.remove('active');});t.classList.add('active');render(tab);};});
+  render(tab);
+  loadAdminData();
+  $('[data-atab]').forEach(function(t){t.onclick=function(){tab=t.dataset.atab;$('[data-atab]').forEach(function(x){x.classList.remove('active');});t.classList.add('active');render(tab);};});
 };
 
 /* ================= 404 (override app-core stub) ================= */
