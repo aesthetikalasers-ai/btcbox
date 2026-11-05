@@ -64,7 +64,7 @@ test('Supabase auth_time is parsed only from a structurally valid JWT payload', 
 test('credential recovery requires a server-verified, linked, recently reauthenticated identity', () => {
   assert.ok(source.includes("path === 'account/credentials/reauth' && method === 'POST'"));
   assert.ok(source.includes("path === 'account/credentials/recover' && method === 'POST'"));
-  assert.ok(source.includes("identity endpoint"));
+  assert.ok(source.includes("supabaseUrl + '/auth/v1/user'"));
   assert.ok(source.includes("claims.subject !== linkedId"));
   assert.ok(source.includes("nowSeconds - authTime > 5 * 60"));
   assert.ok(source.includes("!isSupabaseIdentityLinked(user, linkedId)"));
