@@ -36,6 +36,22 @@ for (const name of allowedDirs) {
   fs.cpSync(src, path.join(out, name), { recursive: true });
 }
 
+// Copy unified BTCBOX brand static assets from the Vite frontend build to the
+// site root so legacy admin/OAuth pages can resolve the same files.
+// Files are copied only when present.
+const brandAssets = [
+  'favicon.svg', 'favicon.ico', 'apple-touch-icon.png',
+  'logo-icon.svg', 'logo-horizontal.svg',
+  'logo-16.png', 'logo-32.png', 'logo-48.png',
+  'logo192.png', 'logo512.png',
+];
+for (const name of brandAssets) {
+  const src = path.join(frontendDist, name);
+  if (fs.existsSync(src) && fs.statSync(src).isFile()) {
+    fs.copyFileSync(src, path.join(out, name));
+  }
+}
+
 // Preserve the existing clean-URL pages used by the legacy admin and OAuth UI.
 const pagesDir = path.join(root, 'pages');
 for (const entry of fs.readdirSync(pagesDir)) {
