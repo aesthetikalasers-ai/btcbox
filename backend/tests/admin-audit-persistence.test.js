@@ -63,3 +63,27 @@ test('admin audit RPC uses a unique event ID and validates duplicate payloads', 
   assert.match(migration, /administrator audit event idempotency conflict/i);
   assert.match(migration, /notify pgrst, 'reload schema'/i);
 });
+
+
+test('canonical PostgreSQL audit reader is opt-in, keyset-paginated, redacted, and fail-closed', () => {
+  const start = source.indexOf('async function readAdminAuditLogPage(params)');
+  const end = source.indexOf('function attachRevision', start);
+  assert.ok(start >= 0 && end > start);
+  const reader = source.slice(start, end);
+  assert.match(reader, /financial_audit_log/);
+  assert.match(reader, /order: 'id\\.desc'/);
+  assert.match(reader, /query\.set\('id', 'lt\.' \+ params\.before\)/);
+  assert.match(reader, /query\.set\('action', 'eq\.' \+ params\.action\)/);
+  assert.match(reader, /query\.set\('subject_user_id', 'eq\.' \+ params\.uid\)/);
+  assert.match(reader, /redactAdminAuditDetail\(row\.reason \|\| ''\)/);
+  assert.doesNotMatch(reader, /metadata/);
+  assert.match(source, /ADMIN_AUDIT_POSTGRES_READS_ENABLED === '1'/);
+  const routeStart = source.indexOf("if (sub === 'audit-logs' && method === 'GET')");
+  const routeEnd = source.indexOf('// GET /api/admin/config', routeStart);
+  assert.ok(routeStart >= 0 && routeEnd > routeStart);
+  const route = source.slice(routeStart, routeEnd);
+  assert.match(route, /completeness: 'postgres_canonical'/);
+  assert.match(route, /ADMIN_AUDIT_READ_UNAVAILABLE/);
+  assert.match(route, /Never silently fall back/);
+  assert.match(route, /state_document_retention_limited/);
+});
