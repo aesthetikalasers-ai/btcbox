@@ -451,6 +451,8 @@ const apiAdapter = {
   async adminPush(p){ return adminFetch('/admin/push',{method:'POST',body:{content:p.content, uid:p.uid}}); },
   // ADMIN -> POST /api/admin/support/reply {uid,content}
   async adminSupportReply(p){ return adminFetch('/admin/support/reply',{method:'POST',body:{uid:p.uid, content:p.content}}); },
+  // ADMIN -> GET /api/admin/audit-logs?limit=&before=&action=&uid=
+  async adminAuditLogs(params){ var q=new URLSearchParams(); if(params&&params.limit)q.set('limit',String(params.limit)); if(params&&params.before)q.set('before',String(params.before)); if(params&&params.action)q.set('action',String(params.action)); if(params&&params.uid)q.set('uid',String(params.uid)); return adminFetch('/admin/audit-logs'+(q.toString()?'?'+q.toString():'')); },
   // ADMIN -> GET /api/admin/addresses
   async adminAddresses(){ return adminFetch('/admin/addresses'); },
   // ADMIN -> GET /api/admin/withdrawals
