@@ -222,7 +222,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setCredentialRecoveryReady(true);
       setNotice("Identity verified. Set your new BTCBOX password within five minutes.");
     } catch (cause) {
-      if ((cause as { code?: string })?.code === "RECENT_REAUTH_REQUIRED") {
+      const failureCode = cause && typeof cause === "object" && "code" in cause
+        ? String((cause as { code?: unknown }).code || "") : "";
+      if (["RECENT_REAUTH_REQUIRED", "IDENTITY_NOT_LINKED", "INVALID_SUPABASE_IDENTITY", "ACCOUNT_FROZEN"].includes(failureCode)) {
         setPendingCredentialRecoveryToken("");
         setCredentialRecoveryNeedsTwoFactor(false);
       }
@@ -273,6 +275,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setIdentityLinkSourceVerified(true);
       setNotice("Existing Google sign-in method verified. Now choose the new method to connect.");
     } catch (cause) {
+      const failureCode = cause && typeof cause === "object" && "code" in cause
+        ? String((cause as { code?: unknown }).code || "") : "";
+      if (["RECENT_REAUTH_REQUIRED", "IDENTITY_NOT_LINKED", "INVALID_SUPABASE_IDENTITY", "ACCOUNT_FROZEN"].includes(failureCode)) {
+        setPendingIdentityLinkToken("");
+        setIdentityLinkNeedsTwoFactor(false);
+      }
       setError(cause instanceof Error ? cause.message : "Authenticator verification failed.");
       throw cause;
     } finally { setBusy(false); }
