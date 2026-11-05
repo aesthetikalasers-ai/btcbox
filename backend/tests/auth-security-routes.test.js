@@ -299,9 +299,9 @@ test('shared rate limiter fails closed on missing HMAC secret or unavailable RPC
 test('shared rate limiter blocks an over-limit identity reauthentication request', async () => {
   const limited = harness({}, {
     rateLimitResult: {
-      allowed: false, limit: 8, count: 9, remaining: 0,
+      ok: true, allowed: false, limit: 8, count: 9, remaining: 0,
       retry_after_seconds: 900, window_seconds: 900,
-      window_start: Math.floor(Date.now() / 1000),
+      window_start: Math.floor(Math.floor(Date.now() / 1000) / 900) * 900,
     },
   });
   const result = await limited.run('auth/link-identity/reauth', {
