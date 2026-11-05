@@ -4,6 +4,7 @@ import { AppLayout } from "./components/layout/AppLayout";
 import { I18nProvider } from "./lib/i18n";
 import { AuthCallbackPage, AuthPage } from "./features/auth/AuthPages";
 import { AccountSetupPage } from "./features/auth/AccountSetupPage";
+import { AccountSecurityPage } from "./features/account/AccountSecurityPage";
 import { useAuth } from "./lib/auth";
 
 const Dashboard = lazy(() => import("./features/dashboard/Dashboard").then((m) => ({ default: m.Dashboard })));
@@ -42,7 +43,7 @@ export default function App() {
     
     <Route path="/kyc" element={<SectionPage title="Verification" description="Identity verification status and submission will be connected to the existing account API." />} />
     <Route path="/support" element={<SectionPage title="Support" description="Support conversations will be connected to the authenticated support API." />} />
-    <Route path="/settings" element={<SectionPage title="Settings" description="Security and account settings will be connected after the existing settings API contract is verified." />} />
+    <Route path="/settings" element={<ProtectedAccountRoute><AccountSecurityPage /></ProtectedAccountRoute>} />
     <Route path="*" element={<Navigate to="/home" replace />} />
   </Routes></AccountSetupGate></Suspense></AppLayout></I18nProvider>;
 }
