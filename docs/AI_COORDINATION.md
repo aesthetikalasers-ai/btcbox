@@ -1436,3 +1436,14 @@ The backend CI branch filters were pointing at an older auth branch. Updated bot
 - Code commit: `a009834e302e32e190b5d8fa1c6fc4ccc953c689`; regression-test commit: `80f4893d9ba6f39936589cfd34b32f462cc498c1`. An initial source-test regex assertion was replaced with a literal assertion before final verification.
 - Exact-head CI for the latest test commit is pending; do not mark this guard accepted until its exact SHA run passes.
 - SAFETY: no production DB operation, migration, merge, deployment, or financial action occurred.
+
+
+### Authentication session and identity-link review — 2026-11-06 (UTC+8)
+
+- TEST PASSED: future-dated session timestamp guard and its regression coverage passed exact-head CI run `42118224555` at feature SHA `80f4893d9ba6f39936589cfd34b32f462cc498c1`. Unified build, backend tests, fail-closed deployment configuration preflight, and output/entrypoint verification all completed successfully.
+- SOURCE REVIEW: re-read the server-verified Supabase provider resolver, Google/Web3 identity exchange, source and target reauthentication, identity-link marker consumption, account identity conflict checks, wallet uniqueness checks, and frontend callback flow.
+- SOURCE OBSERVED: identity linking requires a fresh source proof and a separate fresh target proof; source/target tokens are checked against Supabase `/auth/v1/user`, JWT subject and auth_time, provider allowlist, wallet address validation, optional account TOTP, shared rate limits, and revision-CAS persistence. Marker replay and concurrent CAS conflict tests are present.
+- TEST COVERAGE OBSERVED: `backend/tests/auth-security-routes.test.js` includes source/target stale or future auth_time rejection, expired signed auth_time, wrong-purpose/expired marker rejection, replay prevention, one-winner CAS, credential-recovery marker consumption, and fail-closed rate-limit behavior. `backend/tests/google-only-identity.test.js` covers provider/identity agreement and EVM/Solana address validation. `backend/tests/identity-link-frontend-contract.test.js` covers the two-step client flow and cookie-bound API calls.
+- REVIEW RESULT: no additional reproducible defect was established in the reviewed identity-link flow; no speculative code change was made.
+- NEXT BATCH: inspect account profile/security settings read and write contracts, including username setup/change, credential updates, session invalidation, and 2FA lifecycle. Preserve existing trading page layout and keep financial actions disabled.
+- SAFETY: no production/staging DB access or writes, migration, merge, Vercel deployment, or financial operation occurred.
