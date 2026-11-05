@@ -15,22 +15,29 @@ const redactAdminAuditDetail = api._test.redactAdminAuditDetail;
 test('admin audit detail redaction masks quoted JSON secrets and personal identifiers', () => {
   const input = '{"password":"Super Secret Phrase","token":"abc123","id_number":"A1234567","email":"operator@example.com","wallet":"0x' + 'a'.repeat(40) + '"}';
   const output = redactAdminAuditDetail(input);
-  assert.match(output, /"password":"\\[redacted\\]"/);
-  assert.match(output, /"token":"\\[redacted\\]"/);
-  assert.match(output, /"id_number":"\\[redacted\\]"/);
-  assert.doesNotMatch(output, /Super Secret Phrase|abc123|A1234567|operator@example\\.com|0x[a-f0-9]{40}/i);
-  assert.match(output, /\\[email\\]/);
-  assert.match(output, /\\[wallet address\\]/);
+  assert.ok(output.includes('"password":"[redacted]"'));
+  assert.ok(output.includes('"token":"[redacted]"'));
+  assert.ok(output.includes('"id_number":"[redacted]"'));
+  assert.ok(!output.includes('Super Secret Phrase'));
+  assert.ok(!output.includes('abc123'));
+  assert.ok(!output.includes('A1234567'));
+  assert.ok(!output.includes('operator@example.com'));
+  assert.ok(!output.includes('0x' + 'a'.repeat(40)));
+  assert.ok(output.includes('[email]'));
+  assert.ok(output.includes('[wallet address]'));
 });
 
 test('admin audit detail redaction also masks unquoted key-value secrets and TRON addresses', () => {
   const tron = 'T' + '1'.repeat(33);
   const output = redactAdminAuditDetail('private_key=priv-secret recovery_code: 123456 email admin@example.com wallet ' + tron);
-  assert.doesNotMatch(output, /priv-secret|123456|admin@example\\.com|T1{33}/);
-  assert.match(output, /private_key="\\[redacted\\]"/);
-  assert.match(output, /recovery_code: "\\[redacted\\]"/);
-  assert.match(output, /\\[email\\]/);
-  assert.match(output, /\\[wallet address\\]/);
+  assert.ok(!output.includes('priv-secret'));
+  assert.ok(!output.includes('123456'));
+  assert.ok(!output.includes('admin@example.com'));
+  assert.ok(!output.includes(tron));
+  assert.ok(output.includes('private_key="[redacted]"'));
+  assert.ok(output.includes('recovery_code: "[redacted]"'));
+  assert.ok(output.includes('[email]'));
+  assert.ok(output.includes('[wallet address]'));
 });
 
 
