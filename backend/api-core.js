@@ -62,6 +62,23 @@ function getSupabaseWalletIdentity(identity) {
   if (chain === 'solana' && /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(address)) return { chain, address };
   return null;
 }
+function normalizeWalletIdentityAddress(chain, address) {
+  const network = String(chain || '').toLowerCase();
+  const value = String(address || '').trim();
+  if (network === 'ethereum' && /^0x[a-fA-F0-9]{40}$/.test(value)) return value.toLowerCase();
+  if (network === 'solana' && /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(value)) return value;
+  return null;
+}
+function isSameWalletIdentity(left, right) {
+  if (!left || !right) return false;
+  const leftChain = String(left.chain || '').toLowerCase();
+  const rightChain = String(right.chain || '').toLowerCase();
+  if (!leftChain || leftChain !== rightChain) return false;
+  const leftAddress = normalizeWalletIdentityAddress(leftChain, left.address);
+  const rightAddress = normalizeWalletIdentityAddress(rightChain, right.address);
+  return !!leftAddress && leftAddress === rightAddress;
+}
+
 function isPositivePostgresBigintString(value) {
   return typeof value === 'string' && /^[1-9][0-9]{0,18}$/.test(value) &&
     (value.length < 19 || value <= '9223372036854775807');
@@ -1099,8 +1116,8 @@ async function handleRequest(event, context) {
     if (walletIdentity) {
       const walletOwner = Object.values(db.users).find(function (candidate) {
         const wallets = Array.isArray(candidate.wallet_identities) ? candidate.wallet_identities : [];
-        return wallets.some(function (item) { return item && item.chain === walletIdentity.chain && item.address === walletIdentity.address; }) ||
-          (candidate.wallet_chain === walletIdentity.chain && candidate.wallet_address === walletIdentity.address);
+        return wallets.some(function (item) { return isSameWalletIdentity(item, walletIdentity); }) ||
+          isSameWalletIdentity({ chain: candidate.wallet_chain, address: candidate.wallet_address }, walletIdentity);
       });
       if (walletOwner && (!user || walletOwner.uid !== user.uid)) {
         return json({ ok: false, code: 'IDENTITY_IN_USE', msg: 'This wallet is already associated with another BTCBOX account.' }, 409);
@@ -1146,7 +1163,7 @@ async function handleRequest(event, context) {
       }
       if (walletIdentity) {
         user.wallet_identities = Array.isArray(user.wallet_identities) ? user.wallet_identities : [];
-        if (!user.wallet_identities.some(function (item) { return item && item.chain === walletIdentity.chain && item.address === walletIdentity.address; })) {
+        if (!user.wallet_identities.some(function (item) { return isSameWalletIdentity(item, walletIdentity); })) {
           user.wallet_identities.push({ address: walletIdentity.address, chain: walletIdentity.chain, supabase_user_id: supabaseUserId, linked_at: nowStr() });
         }
         if (!user.wallet_address) { user.wallet_address = walletIdentity.address; user.wallet_chain = walletIdentity.chain; }
@@ -1564,8 +1581,8 @@ async function handleRequest(event, context) {
       if (provider === 'google' && linkedEmail && String(candidate.email || '').trim().toLowerCase() === linkedEmail) return true;
       if (walletIdentity) {
         const wallets = Array.isArray(candidate.wallet_identities) ? candidate.wallet_identities : [];
-        return wallets.some(function (item) { return item && item.chain === walletIdentity.chain && item.address === walletIdentity.address; }) ||
-          (candidate.wallet_chain === walletIdentity.chain && candidate.wallet_address === walletIdentity.address);
+        return wallets.some(function (item) { return isSameWalletIdentity(item, walletIdentity); }) ||
+          isSameWalletIdentity({ chain: candidate.wallet_chain, address: candidate.wallet_address }, walletIdentity);
       }
       return false;
     });
