@@ -1124,6 +1124,68 @@ async function handleRequest(event, context) {
   // ---------- 以下接口需要登录 ----------
   const user = getUser(db, event);
 
+  // ---------- POST /api/auth/link-identity/reauth ----------
+  // Freshly prove control of an identity already linked to this BTCBOX account.
+  if (path === 'auth/link-identity/reauth' && method === 'POST') {
+    if (!user) return json({ ok: false, msg: 'Not signed in.', need_login: true }, 401);
+    if (user.frozen) return json({ ok: false, code: 'ACCOUNT_FROZEN', msg: 'Account frozen. Please contact support.' }, 403);
+    const sessionRecord = getSessionRecord(db, event);
+    if (!sessionRecord || sessionRecord.user.uid !== user.uid) return json({ ok: false, msg: 'Please sign in again.', need_login: true }, 401);
+    const accessToken = typeof body.supabase_access_token === 'string' ? body.supabase_access_token : '';
+    const supabaseUrl = String(process.env.SUPABASE_AUTH_URL || process.env.SUPABASE_URL || '').replace(/\/$/, '');
+    const supabaseKey = getPublishableKey();
+    if (!supabaseUrl || !supabaseKey) return json({ ok: false, code: 'AUTH_SERVICE_UNAVAILABLE', msg: 'Authentication service is not configured.' }, 503);
+    if (!accessToken || accessToken.length > 16384) return json({ ok: false, code: 'INVALID_SUPABASE_IDENTITY', msg: 'Please verify a linked sign-in method.' }, 401);
+    let identity;
+    try {
+      const verifyResponse = await fetch(supabaseUrl + '/auth/v1/user', {
+        method: 'GET', headers: { 'apikey': supabaseKey, 'Authorization': 'Bearer ' + accessToken, 'Accept': 'application/json' }
+      });
+      if (!verifyResponse.ok) return json({ ok: false, code: 'INVALID_SUPABASE_IDENTITY', msg: 'The sign-in identity could not be verified.' }, 401);
+      identity = await verifyResponse.json();
+    } catch (_) {
+      return json({ ok: false, code: 'AUTH_SERVICE_UNAVAILABLE', msg: 'Authentication service temporarily unavailable.' }, 503);
+    }
+    const sourceId = String(identity && identity.id || '').trim();
+    const claims = getVerifiedSupabaseAuthTime(accessToken);
+    const nowSeconds = Math.floor(Date.now() / 1000);
+    const authTime = claims && claims.auth_time;
+    const provider = getSingleSupabaseAuthProvider(identity);
+    const walletIdentity = provider === 'web3' ? getSupabaseWalletIdentity(identity) : null;
+    const email = String(identity && identity.email || '').trim().toLowerCase();
+    const confirmed = !!(identity && (identity.email_confirmed_at || identity.confirmed_at));
+    if (!isSupabaseUserId(sourceId) || !claims || claims.subject !== sourceId ||
+        !Number.isFinite(authTime) || authTime > nowSeconds + 60 || nowSeconds - authTime > 5 * 60 ||
+        !['google', 'web3'].includes(provider) ||
+        (provider === 'google' && (!confirmed || !isValidAuthEmail(email))) ||
+        (provider === 'web3' && !walletIdentity)) {
+      return json({ ok: false, code: 'RECENT_REAUTH_REQUIRED', msg: 'Please freshly verify a sign-in method already connected to this BTCBOX account.' }, 403);
+    }
+    if (!isSupabaseIdentityLinked(user, sourceId)) {
+      return json({ ok: false, code: 'IDENTITY_NOT_LINKED', msg: 'The verified sign-in method is not connected to this BTCBOX account.' }, 403);
+    }
+    if (provider === 'google' && await detectGoogleProviderEnabled() !== true) {
+      return json({ ok: false, code: 'GOOGLE_PROVIDER_UNAVAILABLE', msg: 'Google sign-in is temporarily unavailable.' }, 503);
+    }
+    if (user.twofa_enabled) {
+      const code = typeof body.twofa_code === 'string' ? body.twofa_code : '';
+      if (!code) return json({ ok: false, code: 'TWO_FACTOR_REQUIRED', msg: 'Enter your authenticator code to continue.' }, 403);
+      if (!totpVerify(user.twofa_secret, code)) return json({ ok: false, code: 'TWO_FACTOR_INVALID', msg: 'The authenticator code is incorrect.' }, 403);
+    }
+    sessionRecord.session.identity_link_reauth = {
+      purpose: 'identity_link',
+      supabase_user_id: sourceId,
+      auth_time: authTime,
+      verified_at: Date.now()
+    };
+    try { await saveDB(db); }
+    catch (e) {
+      if (e && e.message === 'Persistent storage write conflict') return json({ ok: false, code: 'ACCOUNT_UPDATE_CONFLICT', msg: 'Your account changed at the same time. Please retry verification.' }, 409);
+      return json({ ok: false, code: 'PERSISTENCE_UNAVAILABLE', msg: 'Verification could not be saved. Please try again.' }, 503);
+    }
+    return json({ ok: true, expires_in_seconds: 300 });
+  }
+
   // ---------- POST /api/account/credentials/reauth ----------
   // A recent BTCBOX cookie alone is not proof of a recent Google/wallet
   // re-authentication. Verify the linked Supabase identity and its signed auth_time.
@@ -1285,9 +1347,16 @@ async function handleRequest(event, context) {
     if (!user) return json({ ok: false, msg: 'Not signed in.', need_login: true }, 401);
     if (user.frozen) return json({ ok: false, code: 'ACCOUNT_FROZEN', msg: 'Account frozen. Please contact support.' }, 403);
     const sessionRecord = getSessionRecord(db, event);
-    const createdAt = Number(sessionRecord && sessionRecord.session && sessionRecord.session.created_at);
-    if (!Number.isFinite(createdAt) || Date.now() - createdAt > 5 * 60 * 1000) {
-      return json({ ok: false, code: 'REAUTH_REQUIRED', msg: 'Please sign in again before linking another identity.' }, 403);
+    const marker = sessionRecord && sessionRecord.session && sessionRecord.session.identity_link_reauth;
+    const markerAge = Date.now() - Number(marker && marker.verified_at);
+    if (!sessionRecord || sessionRecord.user.uid !== user.uid ||
+        !marker || marker.purpose !== 'identity_link' ||
+        !isSupabaseIdentityLinked(user, String(marker.supabase_user_id || '')) ||
+        !Number.isFinite(markerAge) || markerAge < 0 || markerAge > 5 * 60 * 1000 ||
+        !Number.isFinite(Number(marker.auth_time)) ||
+        Date.now() / 1000 - Number(marker.auth_time) > 5 * 60 ||
+        Number(marker.auth_time) > Date.now() / 1000 + 60) {
+      return json({ ok: false, code: 'REAUTH_REQUIRED', msg: 'Please freshly verify a sign-in method already connected to this BTCBOX account.' }, 403);
     }
     const accessToken = typeof body.supabase_access_token === 'string' ? body.supabase_access_token : '';
     const supabaseUrl = String(process.env.SUPABASE_AUTH_URL || '').replace(/\/$/, '');
@@ -1354,6 +1423,10 @@ async function handleRequest(event, context) {
     }
     if (provider === 'google' && !user.email) user.email = linkedEmail;
     user.auth_providers = Array.from(new Set([].concat(user.auth_providers || [], [provider])));
+    if (String(marker.supabase_user_id) === linkedId) {
+      return json({ ok: false, code: 'IDENTITY_LINK_SOURCE_TARGET_SAME', msg: 'Choose a different sign-in method to link.' }, 409);
+    }
+    delete sessionRecord.session.identity_link_reauth;
     try { await saveDB(db); }
     catch (e) {
       if (e && e.message === 'Persistent storage write conflict') return json({ ok: false, code: 'ACCOUNT_UPDATE_CONFLICT', msg: 'Your account changed at the same time. Please reload and try again.' }, 409);
