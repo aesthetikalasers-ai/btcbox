@@ -260,8 +260,8 @@ Audit scope: read-only source inspection of `btcboxcdt` main at `93a236e4a3ed6c9
 
 ### IMPLEMENTED ON ISOLATED FEATURE BRANCH
 - Branch: `feat/btcbox-web3-auth-20261105`.
-- Latest inspected head: `c9bedb92b9a86c61d76a92ac58d03644d203752a`.
-- Compare with current `main` `14a8e361fd928626d4e350a03698135f0c49ceea`: 73 commits ahead / 0 behind. This branch contains the earlier authentication, username/password, visual-token and chart work as well as the current recovery batch; it is not a merge-ready isolated patch.
+- Latest inspected head: `3dd22811aa9cb996194569239e614af7091ca984`.
+- Compare with current `main` `14a8e361fd928626d4e350a03698135f0c49ceea`: 74 commits ahead / 0 behind. This branch contains the earlier authentication, username/password, visual-token and chart work as well as the current recovery batch; it is not a merge-ready isolated patch.
 - Added server-side credential reauthentication and recovery endpoints:
   - `POST /api/account/credentials/reauth` verifies the submitted token against Supabase `/auth/v1/user`, requires the verified Supabase UUID to already belong to the current BTCBOX UID, accepts only the linked Google or supported Web3 identity, and requires a fresh signed JWT `auth_time` within five minutes.
   - When BTCBOX 2FA is enabled, the reauthentication step also requires a valid TOTP code.
@@ -274,7 +274,7 @@ Audit scope: read-only source inspection of `btcboxcdt` main at `93a236e4a3ed6c9
 ### TEST / DEPLOYMENT STATUS
 - TEST ADDED: `backend/tests/account-credentials.test.js` now includes credential-recovery coverage.
 - NOT VERIFIED: the new Node tests have not been executed; the frontend TypeScript build has not been run; no browser E2E has been performed with Google, MetaMask or Phantom.
-- SOURCE OBSERVED: `.github/workflows/backend-ci.yml` includes `workflow_dispatch` and runs the unified build, Node tests and fail-closed preflight. The connected GitHub toolset does not expose a workflow-dispatch action, so no manual CI run was started.
+- SOURCE OBSERVED: `.github/workflows/backend-ci.yml` includes `workflow_dispatch` and runs the unified build, Node tests and fail-closed preflight. The connected GitHub toolset does not expose a workflow-dispatch action, so no manual CI run was started. The workflow was not altered and no deploy-triggering push was made to its watched branches.
 - SOURCE OBSERVED: latest inspected GitHub status context for the feature head is `Vercel – btcboxcdt: failure` with a `build-rate-limit` target. This is a platform quota block, not evidence of a source build failure.
 - SOURCE OBSERVED: Vercel deployment lookup for this exact branch and SHA returned zero deployments. No Preview or production deployment was initiated.
 - `main` and production data/configuration remain untouched.
