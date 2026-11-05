@@ -19,3 +19,24 @@ test('admin route is reachable without a customer session but still uses Basic A
   assert.ok(app.includes("const HIDE_NAV = {login:true,register:true,kline:true,admin:true};"));
   assert.ok(app.includes("if(isAdmin && state.adminAuth) headers['Authorization']='Basic '+state.adminAuth;"));
 });
+
+
+const accountView = fs.readFileSync(path.join(root, 'assets/js/views-account.js'), 'utf8');
+
+test('admin console hydrates only supported read APIs and maps canonical user fields', () => {
+  assert.match(accountView, /Promise\.allSettled\(\[apiAdapter\.adminUsers\(\),apiAdapter\.adminWithdrawals\(\)\]\)/);
+  assert.match(accountView, /kyc:u\.kyc_status\|\|'unverified'/);
+  assert.match(accountView, /balances:\{USDT:Number\(u\.total_usdt\)\|\|0\}/);
+  assert.match(accountView, /state\.admin\.withdrawals=results\[1\]\.value\.withdrawals/);
+});
+
+test('admin console includes admin-review withdrawals and does not expose unsupported deposit or KYC queues', () => {
+  assert.match(accountView, /w\.status==='pending'\|\|w\.status==='pending_admin_review'/);
+  assert.match(accountView, /尚无管理员充值列表读取接口/);
+  assert.match(accountView, /尚无完整的管理员 KYC 申请读取接口/);
+});
+
+test('admin console warns when business state is saved but audit delivery is pending', () => {
+  assert.match(accountView, /result\.audit_sync_pending===true/);
+  assert.match(accountView, /审计日志仍待同步。请勿重复执行该操作/);
+});
