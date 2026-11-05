@@ -1536,3 +1536,16 @@ The backend CI branch filters were pointing at an older auth branch. Updated bot
 - REGRESSION COVERAGE ADDED: asserts the successful server call precedes local proof clearing and that local clearing precedes provider sign-out for both Google callback and Web3 linking.
 - Feature commits: `c481a2d98a96b1e58f38c4a4df8ed688100f0282` (frontend), `5bd578d237811a36631a9fddeb3ef11a57a35c77` (test); latest feature HEAD pending exact-head CI.
 - SAFETY: no production/staging DB writes or migrations, merge, Vercel deployment, or financial operations occurred.
+
+
+
+### Identity-link proof consumption ordering and session lifecycle regression checks — 2026-11-06 (UTC+8)
+
+- TEST PASSED: exact-head unified build/backend/preflight run `42119925291` completed successfully for `7c20187b016b3d8c6a3678b4aebebd251c6e85d6`.
+- SOURCE OBSERVED: the 2FA login challenge is consumed only after current challenge/factor/frozen-account checks and TOTP-step validation; session creation and challenge deletion are persisted together through revision-CAS. Logout removes only the presented cookie session and does not clear client state when server persistence fails.
+- REGRESSION COVERAGE ADDED: test commit `623bdefda65ac99c498987d3b7ebfca540bcfa22` asserts 2FA challenge/TOTP/session write ordering and logout current-session-only removal, revision increment, and fail-closed CAS behavior. Exact-head CI run `42120141576` completed successfully for that SHA.
+- SOURCE OBSERVED: Google OAuth and Web3 identity-link success paths now clear the consumed local source proof, pending target token, and 2FA-needed state immediately after the server confirms the link, before attempting Supabase client sign-out. This avoids retaining a locally verified proof after the server has consumed it.
+- REGRESSION COVERAGE ADDED: test commit `5bd578d237811a36631a9fddeb3ef11a57a35c77` checks both Google and Web3 ordering. Exact-head backend CI run `42120292911` completed successfully for the current feature branch HEAD `5bd578d237811a36631a9fddeb3ef11a57a35c77`.
+- REVIEW RESULT: source/target identity proof validation, server-side one-time marker consumption, conflict checks, CAS winner semantics, and local proof clearing were re-reviewed. No additional reproducible defect was established; no speculative auth behavior change was made.
+- NOT VERIFIED: live Google OAuth and wallet provider behavior in a deployed environment; Vercel deployment remains paused and no end-to-end live authentication was performed.
+- SAFETY: no production/staging DB access or writes, migration, merge, Vercel deployment, or financial operation occurred.
