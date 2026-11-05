@@ -485,7 +485,7 @@ VIEWS.admin = function(){
     '<div id="admin-data-status" style="display:none" class="va-banner va-banner-inf" role="status"></div>'+
     '<div class="card" style="padding:0;margin-bottom:16px">'+
       '<div style="display:flex;border-bottom:1px solid var(--border);overflow-x:auto" class="no-scrollbar">'+
-        '<div class="tab active" data-atab="users">用户管理</div><div class="tab" data-atab="deposits">充值审核</div><div class="tab" data-atab="withdrawals">提币审批</div><div class="tab" data-atab="kyc">KYC 审核</div><div class="tab" data-atab="audit">审计日志</div>'+
+        '<div class="tab active" data-atab="users">用户管理</div><div class="tab" data-atab="deposits">充值审核</div><div class="tab" data-atab="withdrawals">提币审批</div><div class="tab" data-atab="kyc">KYC 审核</div><div class="tab" data-atab="audit">审计日志</div><div class="tab" data-atab="config">系统配置</div>'+
       '</div>'+
       '<div id="admin-body" style="overflow-x:auto" class="scroll">'+skeleton(5,4)+'</div>'+
     '</div>'+
@@ -512,6 +512,9 @@ VIEWS.admin.afterRender = function(){
   var auditLoading=false;
   var auditActionFilter='';
   var auditUidFilter='';
+  var adminConfigData=null;
+  var adminConfigLoading=false;
+  var adminConfigError='';
   async function loadAdminData(){
     if(adminDataLoading) return;
     adminDataLoading=true;
@@ -548,6 +551,46 @@ VIEWS.admin.afterRender = function(){
     }catch(_){toast('网络错误，审计记录加载失败。','err');}
     auditLoading=false;
     if(tab==='audit')render('audit');
+  }
+  async function loadAdminConfig(){
+    if(adminConfigLoading)return;
+    adminConfigLoading=true;adminConfigError='';
+    if(tab==='config')render('config');
+    try{
+      var result=await apiAdapter.adminConfig();
+      if(!result||!result.ok||!result.deposit_addresses||typeof result.deposit_addresses!=='object'){
+        adminConfigError=(result&&(result.error||result.msg))||'系统配置读取失败。';
+      }else{adminConfigData={deposit_addresses:result.deposit_addresses,announcement:String(result.announcement||'')};}
+    }catch(_){adminConfigError='网络错误，系统配置读取失败。';}
+    adminConfigLoading=false;
+    if(tab==='config')render('config');
+  }
+  async function saveAdminConfig(button){
+    if(!button||button.disabled||!adminConfigData)return;
+    button.disabled=true;var oldText=button.textContent;button.textContent='保存中…';
+    var addresses={};
+    ['USDT-TRC20','USDT-ERC20','USDT-BEP20','BTC-BTC','ETH-ERC20','SOL-SOL','BNB-BEP20','USDC-ERC20'].forEach(function(key){
+      var field=document.getElementById('admin-address-'+key);
+      var value=String(field&&field.value||'').trim();
+      if(value)addresses[key]=value;
+    });
+    var announcementField=document.getElementById('admin-announcement');
+    var payload={deposit_addresses:addresses,announcement:String(announcementField&&announcementField.value||'').trim()};
+    try{
+      var result=await apiAdapter.adminConfig(payload);
+      if(result&&result.ok){
+        adminConfigData={deposit_addresses:result.deposit_addresses||adminConfigData.deposit_addresses,announcement:String(result.announcement||'')};
+        button.textContent='已保存';
+        if(result.audit_sync_pending===true)toast('配置已保存，但审计日志仍待同步。请核对审计记录。','warn');
+        else toast('系统配置已保存。','ok');
+        render('config');
+        return;
+      }
+      var status=Number(result&&result.status||0);
+      if(!status||status>=500){button.textContent='结果待核实';toast('保存结果暂时无法确认。请重新读取配置和审计记录，不要连续重复提交。','warn');return;}
+      toast((result&&(result.error||result.msg))||'配置保存失败。','err');
+      button.disabled=false;button.textContent=oldText;
+    }catch(_){button.textContent='结果待核实';toast('网络中断，保存结果无法确认。请重新读取配置和审计记录。','warn');}
   }
   async function runAdminAction(button, action, successText, pendingText){
     if(button.disabled) return;
@@ -608,6 +651,15 @@ VIEWS.admin.afterRender = function(){
     });
   }
   function render(tab){
+    if(tab==='config'){
+      if(adminConfigLoading){$('#admin-body').innerHTML=skeleton(5,2);return;}
+      if(adminConfigError){$('#admin-body').innerHTML='<div style="padding:16px"><div class="va-banner va-banner-err">'+escapeHtml(adminConfigError)+'</div><button id="admin-config-retry" class="btn btn-secondary" style="margin-top:12px">重新读取</button></div>';var retry=$('#admin-config-retry');if(retry)retry.onclick=loadAdminConfig;return;}
+      if(!adminConfigData){$('#admin-body').innerHTML=emptyState('尚未读取系统配置','点击下方按钮读取当前配置。')+'<div style="padding:12px"><button id="admin-config-retry" class="btn btn-secondary">读取配置</button></div>';var initialRetry=$('#admin-config-retry');if(initialRetry)initialRetry.onclick=loadAdminConfig;return;}
+      var configKeys=[['USDT-TRC20','USDT · TRC20'],['USDT-ERC20','USDT · ERC20'],['USDT-BEP20','USDT · BEP20'],['BTC-BTC','BTC · Bitcoin'],['ETH-ERC20','ETH · ERC20'],['SOL-SOL','SOL · Solana'],['BNB-BEP20','BNB · BEP20'],['USDC-ERC20','USDC · ERC20']];
+      $('#admin-body').innerHTML='<form id="admin-config-form" style="padding:16px;display:grid;gap:14px"><div class="va-banner va-banner-inf">这里只编辑平台展示的充值地址和公告。地址必须是对应网络的真实收款地址；空白字段会保持原配置不变。保存操作会写入管理员审计日志。</div><div><h3 style="font-size:15px;font-weight:700;margin:0 0 10px">充值地址</h3><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px">'+configKeys.map(function(item){return '<label style="display:grid;gap:6px;font-size:12px;color:var(--text-secondary)">'+escapeHtml(item[1])+'<input id="admin-address-'+item[0]+'" autocomplete="off" spellcheck="false" value="'+escapeHtml(adminConfigData.deposit_addresses[item[0]]||'')+'" style="width:100%;box-sizing:border-box;padding:10px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text-primary)"></label>';}).join('')+'</div></div><div><label for="admin-announcement" style="display:block;font-size:13px;font-weight:700;margin-bottom:6px">平台公告</label><textarea id="admin-announcement" maxlength="2000" rows="5" style="width:100%;box-sizing:border-box;padding:10px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text-primary);resize:vertical">'+escapeHtml(adminConfigData.announcement)+'</textarea><div style="margin-top:5px;font-size:11px;color:var(--text-muted)">最多 2,000 个字符。</div></div><div style="display:flex;justify-content:flex-end"><button id="admin-config-save" type="submit" class="btn btn-primary">保存系统配置</button></div></form>';
+      var configForm=$('#admin-config-form');if(configForm)configForm.onsubmit=function(event){event.preventDefault();saveAdminConfig($('#admin-config-save'));};
+      return;
+    }
     if(tab==='audit'){
       var auditLogs=state.admin.auditLogs||[];
       var rows=auditLogs.map(function(entry){
@@ -678,7 +730,7 @@ VIEWS.admin.afterRender = function(){
   }
   render(tab);
   loadAdminData();
-  $('[data-atab]').forEach(function(t){t.onclick=function(){tab=t.dataset.atab;$('[data-atab]').forEach(function(x){x.classList.remove('active');});t.classList.add('active');if(tab==='audit')loadAuditLogs(true);else if(adminDataErrors.length)loadAdminData();render(tab);};});
+  $('[data-atab]').forEach(function(t){t.onclick=function(){tab=t.dataset.atab;$('[data-atab]').forEach(function(x){x.classList.remove('active');});t.classList.add('active');if(tab==='audit')loadAuditLogs(true);else if(tab==='config')loadAdminConfig();else if(adminDataErrors.length)loadAdminData();render(tab);};});
 };
 
 /* ================= 404 (override app-core stub) ================= */
