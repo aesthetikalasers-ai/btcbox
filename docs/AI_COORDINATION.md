@@ -1125,3 +1125,13 @@ The backend CI branch filters were pointing at an older auth branch. Updated bot
 - Repository tree audit confirms no chain-verifier/indexer/webhook/cron implementation files; the checked-in chain verification RPC is present in migration `0016`, but no in-repo caller or pending-record ingestion worker was found. This is limited to the inspected branch tree; external services remain unverified.
 - Migration `0023` defines service-role-only bounded cleanup but only instructs invocation by a trusted scheduled job/maintenance task. No in-repo scheduler was found in the checked `vercel.json` or repository tree. Do not add an unauthenticated public cleanup endpoint.
 - No merge, deployment, production database migration, or financial write was performed.
+
+
+## KYC admin queue context and evidence disclosure — 2026-11-06
+
+- On feature branch `feat/btcbox-web3-auth-20261105`, the admin KYC pending queue now displays the API-provided email and submission timestamp alongside UID, applicant name, and ID type. All user-controlled values remain escaped before HTML rendering.
+- Added an explicit operator-facing notice: this version does not collect document photos; the queue data does not establish that document-image or identity-authenticity verification was completed. This is a disclosure only and does not disable either approval or rejection controls or change existing KYC business rules.
+- Added source-contract assertions for the new fields, evidence notice, and continued presence of both action controls.
+- Feature commits: `59ca01cef8a60646da1da7714f14694534e21cd1` (UI) and `8df5e74d3b7d30bc2a014b9eec0647f4c1341e69` (tests). Exact-head GitHub Actions run `42088289773` for `8df5e74d3b7d30bc2a014b9eec0647f4c1341e69` was in progress at the time of this note; do not claim it passed until completed.
+- Both modified feature files were fetched back from GitHub and their new source assertions were confirmed present. No browser interaction test has been performed.
+- No merge to `main`, Vercel deployment, production database migration, or financial write was performed. Deployment pause remains active.
