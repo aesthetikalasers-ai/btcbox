@@ -7,24 +7,10 @@ alter table public.withdrawal_requests
   add column if not exists require_admin_review boolean not null default false,
   add column if not exists request_hash text;
 
--- Replace whichever status CHECK currently governs withdrawal_requests. This handles
--- the unnamed CHECK created by 0002 as well as explicitly named variants.
-do $$
-declare
-  v_constraint record;
-begin
-  for v_constraint in
-    select conname
-    from pg_constraint
-    where conrelid = 'public.withdrawal_requests'::regclass
-      and contype = 'c'
-      and pg_get_constraintdef(oid) ilike '%status%'
-  loop
-    execute format('alter table public.withdrawal_requests drop constraint %I', v_constraint.conname);
-  end loop;
-end;
-$$;
-
+-- 0002 creates this canonical inline CHECK as withdrawal_requests_status_check.
+-- Drop only that known constraint; never remove unrelated status-related checks.
+alter table public.withdrawal_requests
+  drop constraint if exists withdrawal_requests_status_check;
 alter table public.withdrawal_requests
   add constraint withdrawal_requests_status_check
   check (status in ('pending', 'pending_admin_review', 'approved', 'rejected', 'broadcast', 'failed'));
