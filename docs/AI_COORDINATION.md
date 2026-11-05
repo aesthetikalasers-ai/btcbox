@@ -1595,3 +1595,14 @@ The backend CI branch filters were pointing at an older auth branch. Updated bot
 - CI PENDING: exact latest-head run 42121479935. The earlier run for the intermediate scope rollback is not a substitute for exact latest HEAD.
 - NOT VERIFIED: live Google/Web3 provider callbacks, actual first-time sign-in in deployed environment, and persistence behavior against production storage.
 - SAFETY: no production/staging DB writes or migrations, merge, Vercel deployment, or financial operations occurred.
+
+
+### First-time credential setup guard review — 2026-11-06 (UTC+8)
+
+- TEST PASSED: exact latest-head CI run 42121479935 completed successfully for feature HEAD e7248b720679e32d3450bc8c8e20c6e173c8ca24, including first-time Supabase account creation coverage.
+- SOURCE OBSERVED: POST /api/account/credentials requires a valid current BTCBOX session, validates username and password, requires a current password when credentials already exist, and limits initial credential setup to a session created within the previous five minutes. Duplicate normalized usernames are rejected before credential mutation. Passwords are stored with PBKDF2-SHA256 at 600,000 iterations. Other account sessions and stale reauthentication markers are invalidated before revision-CAS persistence; the current session is preserved.
+- REGRESSION COVERAGE ADDED: backend/tests/account-credentials.test.js now asserts the fresh-session gate, existing-password verification, validation and duplicate-check ordering before mutation, normalized username uniqueness, configured password hash algorithm, and persistence failure handling.
+- Feature test commit: bc1cb0484b06cd6eeebb3ccaee0351588ca1099c. Latest feature HEAD bc1cb0484b06cd6eeebb3ccaee0351588ca1099c.
+- CI PENDING: exact latest-head run 42121694108. Do not accept this test-only batch until exact latest-head CI succeeds.
+- NOT VERIFIED: live browser setup flow, real Supabase session timing, and production persistence behavior. No backend behavior change was made in this batch.
+- SAFETY: no production/staging DB writes or migrations, merge, Vercel deployment, or financial operations occurred.
