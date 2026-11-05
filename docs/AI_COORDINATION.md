@@ -1216,3 +1216,11 @@ The backend CI branch filters were pointing at an older auth branch. Updated bot
 - Feature commits: `cd12e15ac7409eab6c4aa90df979af52885644f1` (reader), `946017e2813f338a89f793868832a0a4e408c9d7` (initial test assertion), `bd59b9fc249a0fd65e646fb261194dfd3e81279f` (test assertion correction).
 - Reader-only CI run `42093709361` passed; exact-head test run `42093773921` was queued/in progress at documentation time. Do not mark this batch fully verified until exact-head CI completes.
 - Canonical audit read remains opt-in and fail-closed. Do not enable until the corresponding migration is verified on the target database; no production DB access or migration was performed.
+
+
+### Bigint cursor validator follow-up — CI failures and correction
+
+- Exact-head run `42093773921` failed because the new source-contract test used an over-escaped regex assertion. The first assertion-only correction did not match the file line and therefore did not remove the failure.
+- Further inspection of the actual API source also found the reader's validation still used `Number.isSafeInteger(Number(row.id))`; the earlier attempted replacement had changed only the PostgREST select expression, not the validator. This is now corrected to require a positive decimal-string ID and avoid numeric coercion.
+- Follow-up commits: `e751122ddb7b2b051acc560393f5fd830d6e4b89`, `dcac0282a6c1b7fcf91af4b3a1aa784a6f0bc5da`, `15e5a7eb88f9cb550b44cccd48988c04ff332910`, and final regex correction `5a8daf847e16d486220238ad58211ef85920054a`.
+- The exact-head CI run for `5a8daf847e16d486220238ad58211ef85920054a` is pending at the time of this update. Do not mark bigint cursor work complete until the final run passes and source is re-read.
