@@ -1,3 +1,11 @@
+import { useEffect, useState, type FormEvent } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { ArrowLeft, Chrome, Eye, EyeOff, ShieldCheck, Wallet } from "lucide-react";
+import { Button } from "../../components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/card";
+import { Input } from "../../components/ui/input";
+import { useAuth } from "../../lib/auth";
+
 export function AuthPage({ mode }: { mode: "login" | "register" }) {
   const { status, needsCredentials, busy, error, notice, googleEnabled, ethereumWallets, signInWithGoogle, signInWithWeb3, signInWithUsername, verifyTwoFactor, clearError } = useAuth();
   const [username, setUsername] = useState("");
