@@ -485,7 +485,7 @@ VIEWS.admin = function(){
     '<div id="admin-data-status" style="display:none" class="va-banner va-banner-inf" role="status"></div>'+
     '<div class="card" style="padding:0;margin-bottom:16px">'+
       '<div style="display:flex;border-bottom:1px solid var(--border);overflow-x:auto" class="no-scrollbar">'+
-        '<div class="tab active" data-atab="users">用户管理</div><div class="tab" data-atab="deposits">充值审核</div><div class="tab" data-atab="withdrawals">提币审批</div><div class="tab" data-atab="kyc">KYC 审核</div><div class="tab" data-atab="audit">审计日志</div><div class="tab" data-atab="config">系统配置</div>'+
+        '<div class="tab active" data-atab="users">用户管理</div><div class="tab" data-atab="deposits">充值审核</div><div class="tab" data-atab="withdrawals">提币审批</div><div class="tab" data-atab="kyc">KYC 审核</div><div class="tab" data-atab="audit">审计日志</div><div class="tab" data-atab="orders">订单查询</div><div class="tab" data-atab="support">客服消息</div><div class="tab" data-atab="config">系统配置</div>'+
       '</div>'+
       '<div id="admin-body" style="overflow-x:auto" class="scroll">'+skeleton(5,4)+'</div>'+
     '</div>'+
@@ -515,6 +515,13 @@ VIEWS.admin.afterRender = function(){
   var adminConfigData=null;
   var adminConfigLoading=false;
   var adminConfigError='';
+  var adminOrdersData=null;
+  var adminOrdersSource='';
+  var adminOrdersLoading=false;
+  var adminOrdersError='';
+  var adminSupportData=null;
+  var adminSupportLoading=false;
+  var adminSupportError='';
   async function loadAdminData(){
     if(adminDataLoading) return;
     adminDataLoading=true;
@@ -564,6 +571,30 @@ VIEWS.admin.afterRender = function(){
     }catch(_){adminConfigError='网络错误，系统配置读取失败。';}
     adminConfigLoading=false;
     if(tab==='config')render('config');
+  }
+  async function loadAdminOrders(){
+    if(adminOrdersLoading)return;
+    adminOrdersLoading=true;adminOrdersError='';
+    if(tab==='orders')render('orders');
+    try{
+      var result=await apiAdapter.adminOrders();
+      if(!result||!result.ok||!Array.isArray(result.orders))adminOrdersError=(result&&(result.msg||result.error))||'订单数据暂不可用。';
+      else{adminOrdersData=result.orders;adminOrdersSource=result.source||'unknown';}
+    }catch(_){adminOrdersError='网络错误，订单数据读取失败。';}
+    adminOrdersLoading=false;
+    if(tab==='orders')render('orders');
+  }
+  async function loadAdminSupport(){
+    if(adminSupportLoading)return;
+    adminSupportLoading=true;adminSupportError='';
+    if(tab==='support')render('support');
+    try{
+      var result=await apiAdapter.adminSupportMessages();
+      if(!result||!result.ok||!Array.isArray(result.messages))adminSupportError=(result&&(result.msg||result.error))||'客服消息读取失败。';
+      else adminSupportData=result.messages;
+    }catch(_){adminSupportError='网络错误，客服消息读取失败。';}
+    adminSupportLoading=false;
+    if(tab==='support')render('support');
   }
   async function saveAdminConfig(button){
     if(!button||button.disabled||!adminConfigData)return;
@@ -651,6 +682,24 @@ VIEWS.admin.afterRender = function(){
     });
   }
   function render(tab){
+    if(tab==='orders'){
+      if(adminOrdersLoading){$('#admin-body').innerHTML=skeleton(6,4);return;}
+      if(adminOrdersError){$('#admin-body').innerHTML='<div style="padding:16px"><div class="va-banner va-banner-err">'+escapeHtml(adminOrdersError)+'</div><button id="admin-orders-retry" class="btn btn-secondary" style="margin-top:12px">重新读取</button></div>';var ordersRetry=$('#admin-orders-retry');if(ordersRetry)ordersRetry.onclick=loadAdminOrders;return;}
+      if(!Array.isArray(adminOrdersData)){ $('#admin-body').innerHTML=emptyState('尚未读取订单','点击下方按钮读取订单列表。')+'<div style="padding:12px"><button id="admin-orders-retry" class="btn btn-secondary">读取订单</button></div>';var ordersInitial=$('#admin-orders-retry');if(ordersInitial)ordersInitial.onclick=loadAdminOrders;return; }
+      var orderRows=adminOrdersData.map(function(o){return '<tr class="trow"><td class="td num">'+escapeHtml(o.id||'—')+'</td><td class="td num">'+escapeHtml(o.uid||'—')+'</td><td class="td">'+escapeHtml(o.email||'—')+'</td><td class="td">'+escapeHtml(o.symbol||'—')+'</td><td class="td">'+escapeHtml(o.side||'—')+'</td><td class="td">'+escapeHtml(o.type||'—')+'</td><td class="td num">'+escapeHtml(o.price==null?'—':String(o.price))+'</td><td class="td num">'+escapeHtml(o.amount==null?'—':String(o.amount))+'</td><td class="td num">'+escapeHtml(o.remaining_quantity==null?'—':String(o.remaining_quantity))+'</td><td class="td">'+escapeHtml(o.status||'—')+'</td><td class="td">'+escapeHtml(o.time||'—')+'</td></tr>';}).join('');
+      $('#admin-body').innerHTML='<div style="padding:12px"><div class="va-banner va-banner-inf">数据来源：'+escapeHtml(adminOrdersSource)+'。'+(adminOrdersSource==='legacy_state'?'当前为旧状态存储订单视图，不代表 PostgreSQL 撮合订单的完整记录。':'订单读取来自 PostgreSQL 撮合订单数据。')+'</div><div style="display:flex;justify-content:flex-end;margin:10px 0"><button id="admin-orders-refresh" class="btn btn-secondary">刷新</button></div>'+(adminOrdersData.length?'<table style="width:100%;border-collapse:collapse;min-width:1050px"><thead><tr><th class="th">订单 ID</th><th class="th">用户 UID</th><th class="th">邮箱</th><th class="th">交易对</th><th class="th">方向</th><th class="th">类型</th><th class="th">价格</th><th class="th">数量</th><th class="th">剩余</th><th class="th">状态</th><th class="th">时间</th></tr></thead><tbody>'+orderRows+'</tbody></table>':emptyState('暂无订单','当前数据源没有返回订单记录。'))+'</div>';
+      var ordersRefresh=$('#admin-orders-refresh');if(ordersRefresh)ordersRefresh.onclick=loadAdminOrders;
+      return;
+    }
+    if(tab==='support'){
+      if(adminSupportLoading){$('#admin-body').innerHTML=skeleton(4,3);return;}
+      if(adminSupportError){$('#admin-body').innerHTML='<div style="padding:16px"><div class="va-banner va-banner-err">'+escapeHtml(adminSupportError)+'</div><button id="admin-support-retry" class="btn btn-secondary" style="margin-top:12px">重新读取</button></div>';var supportRetry=$('#admin-support-retry');if(supportRetry)supportRetry.onclick=loadAdminSupport;return;}
+      if(!Array.isArray(adminSupportData)){ $('#admin-body').innerHTML=emptyState('尚未读取客服消息','点击下方按钮读取最近的用户消息。')+'<div style="padding:12px"><button id="admin-support-retry" class="btn btn-secondary">读取客服消息</button></div>';var supportInitial=$('#admin-support-retry');if(supportInitial)supportInitial.onclick=loadAdminSupport;return; }
+      var supportRows=adminSupportData.map(function(m){return '<tr class="trow"><td class="td num">'+escapeHtml(m.id||'—')+'</td><td class="td num">'+escapeHtml(m.uid||'—')+'</td><td class="td">'+escapeHtml(m.email||'—')+'</td><td class="td" style="white-space:pre-wrap;min-width:260px">'+escapeHtml(m.content||'')+'</td><td class="td">'+escapeHtml(m.time||'—')+'</td></tr>';}).join('');
+      $('#admin-body').innerHTML='<div style="padding:12px"><div class="va-banner va-banner-inf">只读收件箱：接口当前返回最近 100 条用户发来的消息；此页面不执行回复或其他写操作。</div><div style="display:flex;justify-content:flex-end;margin:10px 0"><button id="admin-support-refresh" class="btn btn-secondary">刷新</button></div>'+(adminSupportData.length?'<table style="width:100%;border-collapse:collapse;min-width:760px"><thead><tr><th class="th">消息 ID</th><th class="th">用户 UID</th><th class="th">邮箱</th><th class="th">消息内容</th><th class="th">时间</th></tr></thead><tbody>'+supportRows+'</tbody></table>':emptyState('暂无客服消息','当前数据源没有返回用户消息。'))+'</div>';
+      var supportRefresh=$('#admin-support-refresh');if(supportRefresh)supportRefresh.onclick=loadAdminSupport;
+      return;
+    }
     if(tab==='config'){
       if(adminConfigLoading){$('#admin-body').innerHTML=skeleton(5,2);return;}
       if(adminConfigError){$('#admin-body').innerHTML='<div style="padding:16px"><div class="va-banner va-banner-err">'+escapeHtml(adminConfigError)+'</div><button id="admin-config-retry" class="btn btn-secondary" style="margin-top:12px">重新读取</button></div>';var retry=$('#admin-config-retry');if(retry)retry.onclick=loadAdminConfig;return;}
@@ -730,7 +779,7 @@ VIEWS.admin.afterRender = function(){
   }
   render(tab);
   loadAdminData();
-  $('[data-atab]').forEach(function(t){t.onclick=function(){tab=t.dataset.atab;$('[data-atab]').forEach(function(x){x.classList.remove('active');});t.classList.add('active');if(tab==='audit')loadAuditLogs(true);else if(tab==='config')loadAdminConfig();else if(adminDataErrors.length)loadAdminData();render(tab);};});
+  $('[data-atab]').forEach(function(t){t.onclick=function(){tab=t.dataset.atab;$('[data-atab]').forEach(function(x){x.classList.remove('active');});t.classList.add('active');if(tab==='audit')loadAuditLogs(true);else if(tab==='config')loadAdminConfig();else if(tab==='orders')loadAdminOrders();else if(tab==='support')loadAdminSupport();else if(adminDataErrors.length)loadAdminData();render(tab);};});
 };
 
 /* ================= 404 (override app-core stub) ================= */
