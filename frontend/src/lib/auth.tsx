@@ -9,7 +9,8 @@ type AuthContextValue = {
   signInWithUsername: (username: string, password: string) => Promise<void>;
   setBtcboxCredentials: (username: string, password: string) => Promise<void>;
   reauthenticateCredentialsWithGoogle: () => Promise<void>;
-  reauthenticateCredentialsWithWeb3: (chain: "ethereum" | "solana") => Promise<void>;
+  reauthenticateCredentialsWithWeb3: (chain: "ethereum" | "solana", twoFactorCode?: string) => Promise<void>;
+  completeCredentialRecoveryTwoFactor: (code: string) => Promise<void>;
   recoverBtcboxPassword: (password: string) => Promise<void>;
   linkSupabaseIdentity: (accessToken: string) => Promise<void>;
   linkGoogleIdentity: () => Promise<void>;
@@ -36,6 +37,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [googleEnabled, setGoogleEnabled] = useState(true);
   const [needsCredentials, setNeedsCredentials] = useState(false);
   const [credentialRecoveryReady, setCredentialRecoveryReady] = useState(false);
+  const [credentialRecoveryNeedsTwoFactor, setCredentialRecoveryNeedsTwoFactor] = useState(false);
+  const [pendingCredentialRecoveryToken, setPendingCredentialRecoveryToken] = useState("");
   const [tempToken, setTempToken] = useState("");
   const exchangeLock = useRef(false);
   const callbackLock = useRef(false);
@@ -143,7 +146,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [googleEnabled]);
 
-  const reauthenticateCredentialsWithWeb3 = useCallback(async (chain: "ethereum" | "solana") => {
+  const reauthenticateCredentialsWithWeb3 = useCallback(async (chain: "ethereum" | "solana", twoFactorCode = "") => {
     setBusy(true); setError(""); setNotice("");
     const client = clientRef.current;
     try {
@@ -152,7 +155,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const { data, error: authError } = await client.auth.signInWithWeb3({ chain, statement });
       if (authError) throw authError;
       if (!data.session?.access_token) throw new Error("The wallet did not return a verifiable identity.");
-      await reauthenticateCredentialsRequest(data.session.access_token);
+      await reauthenticateCredentialsRequest(data.session.access_token, twoFactorCode);
       await client.auth.signOut();
       await setSignedIn();
       setCredentialRecoveryReady(true);
@@ -163,6 +166,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       throw cause;
     } finally { setBusy(false); }
   }, [setSignedIn]);
+
+  const completeCredentialRecoveryTwoFactor = useCallback(async (code: string) => {
+    if (!pendingCredentialRecoveryToken) throw new Error("The verification has expired. Please verify your identity again.");
+    setBusy(true); setError(""); setNotice("");
+    try {
+      await reauthenticateCredentialsRequest(pendingCredentialRecoveryToken, code);
+      setPendingCredentialRecoveryToken("");
+      setCredentialRecoveryNeedsTwoFactor(false);
+      setCredentialRecoveryReady(true);
+      setNotice("Identity verified. Set your new BTCBOX password within five minutes.");
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "The authenticator code could not be verified.");
+      throw cause;
+    } finally { setBusy(false); }
+  }, [pendingCredentialRecoveryToken]);
 
   const recoverBtcboxPassword = useCallback(async (password: string) => {
     setBusy(true); setError(""); setNotice("");
@@ -340,11 +358,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (sessionError) throw sessionError;
       if (!data.session?.access_token) throw new Error("Google authorization did not return a session.");
       if (url.searchParams.get("flow") === "credential-recovery") {
-        await reauthenticateCredentialsRequest(data.session.access_token);
-        await client.auth.signOut();
-        await setSignedIn();
-        setCredentialRecoveryReady(true);
-        setNotice("Identity verified. Set your new BTCBOX password within five minutes.");
+        try {
+          await reauthenticateCredentialsRequest(data.session.access_token);
+          await client.auth.signOut();
+          await setSignedIn();
+          setCredentialRecoveryReady(true);
+          setNotice("Identity verified. Set your new BTCBOX password within five minutes.");
+        } catch (cause) {
+          if ((cause as { code?: string })?.code !== "TWO_FACTOR_REQUIRED") throw cause;
+          setPendingCredentialRecoveryToken(data.session.access_token);
+          setCredentialRecoveryNeedsTwoFactor(true);
+          await client.auth.signOut();
+          await setSignedIn();
+          setNotice("Enter your authenticator code to complete password recovery.");
+        }
         window.history.replaceState({}, document.title, "/settings");
         return;
       }
@@ -388,10 +415,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const value = useMemo(() => ({
-    status, email, busy, error, notice, googleEnabled, needsCredentials, credentialRecoveryReady, signInWithGoogle, linkGoogleIdentity, linkWeb3Identity, signInWithUsername, setBtcboxCredentials, reauthenticateCredentialsWithGoogle, reauthenticateCredentialsWithWeb3, recoverBtcboxPassword, linkSupabaseIdentity, signInWithWeb3, signInWithEmail, signUpWithEmail,
+    status, email, busy, error, notice, googleEnabled, needsCredentials, credentialRecoveryReady, credentialRecoveryNeedsTwoFactor, signInWithGoogle, linkGoogleIdentity, linkWeb3Identity, signInWithUsername, setBtcboxCredentials, reauthenticateCredentialsWithGoogle, reauthenticateCredentialsWithWeb3, completeCredentialRecoveryTwoFactor, recoverBtcboxPassword, linkSupabaseIdentity, signInWithWeb3, signInWithEmail, signUpWithEmail,
     requestPasswordReset, completePasswordRecovery, finishOAuth, verifyTwoFactor, signOut,
     clearError: () => setError(""),
-  }), [status, email, busy, error, notice, googleEnabled, needsCredentials, credentialRecoveryReady, signInWithGoogle, linkGoogleIdentity, linkWeb3Identity, signInWithUsername, setBtcboxCredentials, reauthenticateCredentialsWithGoogle, reauthenticateCredentialsWithWeb3, recoverBtcboxPassword, linkSupabaseIdentity, signInWithWeb3, signInWithEmail, signUpWithEmail,
+  }), [status, email, busy, error, notice, googleEnabled, needsCredentials, credentialRecoveryReady, credentialRecoveryNeedsTwoFactor, signInWithGoogle, linkGoogleIdentity, linkWeb3Identity, signInWithUsername, setBtcboxCredentials, reauthenticateCredentialsWithGoogle, reauthenticateCredentialsWithWeb3, completeCredentialRecoveryTwoFactor, recoverBtcboxPassword, linkSupabaseIdentity, signInWithWeb3, signInWithEmail, signUpWithEmail,
     requestPasswordReset, completePasswordRecovery, finishOAuth, verifyTwoFactor, signOut]);
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
