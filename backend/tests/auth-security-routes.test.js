@@ -12,6 +12,14 @@ const ids = {
 };
 const sessionToken = 'test-session';
 
+test('session validation rejects creation timestamps beyond allowed clock skew', () => {
+  const start = source.indexOf('function getSessionRecord');
+  const end = source.indexOf('function getUser', start);
+  assert.ok(start >= 0 && end > start, 'session validator must exist');
+  const validator = source.slice(start, end);
+  assert.match(validator, /createdAt > Date\\.now\\(\\) \\+ 60 \\* 1000/, 'future-dated session timestamps must be rejected');
+});
+
 function jwt(subject, authTime = Math.floor(Date.now() / 1000)) {
   const payload = Buffer.from(JSON.stringify({
     sub: subject, auth_time: authTime,
