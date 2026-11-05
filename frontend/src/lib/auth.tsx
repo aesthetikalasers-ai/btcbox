@@ -172,6 +172,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setBusy(true); setError(""); setNotice("");
     try {
       await reauthenticateCredentialsRequest(pendingCredentialRecoveryToken, code);
+      await clientRef.current?.auth.signOut();
       setPendingCredentialRecoveryToken("");
       setCredentialRecoveryNeedsTwoFactor(false);
       setCredentialRecoveryReady(true);
@@ -373,7 +374,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           if ((cause as { code?: string })?.code !== "TWO_FACTOR_REQUIRED") throw cause;
           setPendingCredentialRecoveryToken(data.session.access_token);
           setCredentialRecoveryNeedsTwoFactor(true);
-          await client.auth.signOut();
           await setSignedIn();
           setNotice("Enter your authenticator code to complete password recovery.");
         }
