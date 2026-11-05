@@ -1617,3 +1617,14 @@ The backend CI branch filters were pointing at an older auth branch. Updated bot
 - Feature API commit `caf51a3a5c49df801f05ab71d04291c531af12bd`; test commit `ad31716bcfd7a0bff2e5927ea6f70a1afc5ace47`.
 - Exact feature HEAD at coordination update: ad31716bcfd7a0bff2e5927ea6f70a1afc5ace47. CI for this exact HEAD must complete successfully before acceptance.
 - NOT VERIFIED: live Supabase/Google browser flow, production persistence fault injection, and external authenticator behavior. No production DB writes/migrations, merge, deployment, or financial operations occurred.
+
+
+### Google/Web3 login persistence parity — 2026-11-06 (UTC+8)
+
+- TEST PASSED: preceding exact feature HEAD `ad31716bcfd7a0bff2e5927ea6f70a1afc5ace47` completed CI run `42122722478` successfully.
+- SOURCE OBSERVED: Supabase login verifies the bearer token through `/auth/v1/user`, validates a single allowed provider, requires confirmed email for Google or validated wallet identity for Web3, resolves an internal account, checks identity/wallet ownership and frozen state before issuing a login challenge or session.
+- FIXED: Supabase Google/Web3 2FA challenge creation now fails closed with `PERSISTENCE_UNAVAILABLE` when state persistence fails. Final authenticated session persistence is also guarded; no success cookie is returned unless save succeeds. Sessions now record explicit `supabase_google` or `supabase_web3` auth method.
+- REGRESSION COVERAGE ADDED: `backend/tests/google-only-identity.test.js` verifies frozen-account gating precedes challenge/account creation, 2FA challenge persistence precedes challenge response, final session persistence precedes success cookie, and auth-method attribution.
+- Feature API commit `5ea329384167522d81333d0a69daddc199c6506c`; test commit `ef225e3f7f44e05ec5f306f8b24dc2d9d1cd0046`.
+- Exact feature HEAD: ef225e3f7f44e05ec5f306f8b24dc2d9d1cd0046. CI must pass for this exact HEAD before acceptance.
+- NOT VERIFIED: live Google OAuth and wallet browser callbacks, real provider state, production DB fault injection. No production writes/migrations, merge, deployment, or financial operations occurred.
