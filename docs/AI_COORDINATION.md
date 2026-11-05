@@ -1303,3 +1303,9 @@ The backend CI branch filters were pointing at an older auth branch. Updated bot
 - ADDITIONAL CORRECTION: review of the corrective diff found one more adjacent helper affected by the same broad replacement: `isValidAuthEmail`. Restored its original email-format contract in `a2d4c067eee5f839b715c287fd228aa6129d13e7`.
 - Diff audit from the last known-good feature SHA `203ed17db13992834e4a9f143d1f7b3618a73746` now shows exactly two changed files: `backend/api-core.js` and `backend/tests/admin-audit-persistence.test.js`. No other files are in this audit-cursor patch series.
 - Latest feature HEAD: `a2d4c067eee5f839b715c287fd228aa6129d13e7`; exact-head CI run `42109618999` is in progress. Prior runs for intermediate corrective commits failed and are superseded by this latest exact-head run.
+
+
+- FOLLOW-UP TEST FINDINGS: exact-head run `42109618999` still failed after the initial restoration because the email/password regular-expression backslashes had been double-escaped in source, and one audit-reader assertion used an over-escaped regex. Both were corrected using exact source regex semantics and literal assertion text.
+- Corrective commits: `678cd1235f0e507ee07a334c97032faf26fc9727` (restore email/password regex semantics) and `9f999c03025f92ececa4bd67a5e369d3b506ca60` (audit assertion).
+- Latest feature SHA `9f999c03025f92ececa4bd67a5e369d3b506ca60`; exact-head CI run `42109785313` queued/in progress. Previous failures remain failures and must not be represented as passing. Acceptance depends only on the latest exact-head run.
+- Diff audit against known-good SHA `203ed17db13992834e4a9f143d1f7b3618a73746` confirms only `backend/api-core.js` and `backend/tests/admin-audit-persistence.test.js` changed in this patch series.
