@@ -1132,7 +1132,8 @@ async function handleRequest(event, context) {
       db.temp_tokens = db.temp_tokens || {};
       db.temp_tokens[tempToken] = { uid: user.uid, exp: Date.now() + 10 * 60 * 1000 };
       secCounterReset(db.security_counters, loginKey);
-      await saveDB(db);
+      try { await saveDB(db); }
+      catch (_) { return json({ ok: false, code: 'PERSISTENCE_UNAVAILABLE', msg: 'Authentication is temporarily unavailable. Please try again.' }, 503); }
       return json({ ok: false, require_2fa: true, temp_token: tempToken }, 200);
     }
     if (!user) {
@@ -1173,9 +1174,10 @@ async function handleRequest(event, context) {
     }
     user.last_login = nowStr();
     const token = genToken();
-    db.sessions[token] = { uid: user.uid, email: email, created_at: Date.now() };
+    db.sessions[token] = { uid: user.uid, email: email, created_at: Date.now(), auth_method: authProvider === 'web3' ? 'supabase_web3' : 'supabase_google' };
     secCounterReset(db.security_counters, loginKey);
-    await saveDB(db);
+    try { await saveDB(db); }
+    catch (_) { return json({ ok: false, code: 'PERSISTENCE_UNAVAILABLE', msg: 'Authentication is temporarily unavailable. Please try again.' }, 503); }
     return json({ ok: true, uid: user.uid }, 200, setCookieHeader(token));
   }
 
