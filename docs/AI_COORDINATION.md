@@ -1447,3 +1447,16 @@ The backend CI branch filters were pointing at an older auth branch. Updated bot
 - REVIEW RESULT: no additional reproducible defect was established in the reviewed identity-link flow; no speculative code change was made.
 - NEXT BATCH: inspect account profile/security settings read and write contracts, including username setup/change, credential updates, session invalidation, and 2FA lifecycle. Preserve existing trading page layout and keep financial actions disabled.
 - SAFETY: no production/staging DB access or writes, migration, merge, Vercel deployment, or financial operation occurred.
+
+
+### Account credential and 2FA session invalidation hardening — 2026-11-06 (UTC+8)
+
+- SOURCE OBSERVED: `POST /api/account/credentials` verified the current password when changing an existing BTCBOX credential, but did not invalidate other active sessions after the credential changed. This allowed previously issued sessions to remain usable after a password change.
+- PATCHED: the route now explicitly resolves and verifies the current session record, preserves that request's session, and removes every other session belonging to the same user before the CAS-backed save. First-time credential setup still requires a session no older than five minutes; existing-password changes still require the current BTCBOX password.
+- SOURCE OBSERVED: `POST /api/2fa/disable` verified a fresh TOTP step but retained other active sessions after removal of the second factor.
+- PATCHED: after a valid, one-time TOTP verification, the route preserves the current verified session and invalidates the user's other active sessions before persistence.
+- DEFENSIVE FIX: account snapshot `kyc_level` previously dereferenced `user.kyc.status` without guarding the KYC object, despite the adjacent fields already handling absent legacy KYC data. It now safely reports level 0 when the object is absent.
+- REGRESSION COVERAGE ADDED: account credential tests assert current-session preservation and other-session revocation; auth-security route tests assert the same for 2FA disable; account snapshot test covers legacy users without a KYC object.
+- Commits in the feature branch: `3c2ddacf1b7881896716a58dac34ea6cfbcddb58`, `16bb80df3e532a01e7a96fc808acd21ecb712bde`, `24d998bdf12a73cc9bd56bf1956fe86a467b99d3`, `f785cc190f0aaa5a70ebbd59963696ecd3bf498b`, latest exact feature HEAD `de70001529974c5741a9f5ba6fef2848d12d2054`.
+- Exact-head CI has been triggered for each sequential commit; runs `42118729189`, `42118737250`, `42118780556`, and `42118789024` were still in progress at the time of this note. Do not mark this batch TEST PASSED until run `42118789024` for the latest exact SHA completes successfully.
+- SAFETY: no production/staging database writes or migrations, merge, Vercel deployment, or financial operations occurred.
