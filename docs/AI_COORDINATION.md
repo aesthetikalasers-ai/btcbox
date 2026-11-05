@@ -1643,3 +1643,15 @@ The backend CI branch filters were pointing at an older auth branch. Updated bot
 - CI runs `42122937012` (API commit `5ea329384167522d81333d0a69daddc199c6506c`) and `42122960265` (test commit `ef225e3f7f44e05ec5f306f8b24dc2d9d1cd0046`) failed in backend tests, not build. Both failures identify the same stale source assertion in `google-only-identity.test.js`: it expected the pre-hardening session object without `auth_method`. This was a test expectation mismatch introduced by the intentional provider-attribution change, not a runtime test failure.
 - FIXED: updated the assertion to require explicit provider-specific `supabase_google` / `supabase_web3` attribution. Test commit `53c5ac8f1402807ff7840b454ade7b9cbe701eb7`.
 - The following exact HEAD must pass CI before this batch is accepted: 53c5ac8f1402807ff7840b454ade7b9cbe701eb7.
+
+
+### Auth provider attribution, persistence assertions, and session lifecycle regression — 2026-11-06 (UTC+8)
+
+- CI FAILURE REVIEW: exact feature HEAD `53c5ac8f1402807ff7840b454ade7b9cbe701eb7` failed run `42123159803` because two test assertions lagged behind intentional code changes: username 2FA temporary challenges now include `auth_method`, and first-time Supabase session persistence is wrapped in fail-closed try/catch. The runtime build succeeded; backend test stage failed and downstream preflight stages were skipped.
+- FIXED TESTS: updated the username 2FA challenge assertion to include `username_password_2fa`; updated first-time Supabase account creation test to assert guarded persistence rather than a direct unguarded save. Intermediate exact HEAD `0a53ae6bbee3746cf0851250fe183bc8372691d7` passed CI run `42123726358`.
+- SESSION REVIEW: `getSessionRecord` rejects missing/invalid/non-positive creation timestamps, timestamps more than 60 seconds in the future, and sessions older than `SESSION_MAX_AGE_MS` (7 days). Protected handlers derive their user through this validator.
+- LOGOUT REVIEW: logout deletes only the presented session token, persists the state change, and emits the clearing cookie only after persistence succeeds. A persistence failure is surfaced by the outer handler as an error and does not return a success cookie.
+- REGRESSION COVERAGE ADDED: expired sessions cannot access protected identity reauthentication; after logout, the old cookie receives 401 while a separate device session for the same account remains usable. Existing logout tests also assert current-session-only revocation and fail-closed persistence.
+- TEST PASSED: exact feature HEAD `febacca709ebb90f2f4a2071ce7cd69a31ce69ec` completed unified build, backend tests, fail-closed deployment configuration preflight, and unified output/entrypoint verification in CI run `42123833236`.
+- ACCEPTANCE: auth provider attribution and session lifecycle regression batch accepted for feature-branch QA only. This does not authorize merge to `main`, Vercel deployment, production DB writes/migrations, or real financial operations.
+- NOT VERIFIED: live browser logout behavior, real multi-device provider sessions, and production persistence fault injection. No live OAuth or wallet sign-in was performed.
