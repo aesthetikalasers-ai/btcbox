@@ -1,6 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import { useNavigate } from "react-router-dom";
 import { completeLogin2fa, exchangeSupabaseSession, getAccount, getAuthClientConfig, logout } from "./api";
 
 type AuthStatus = "loading" | "anonymous" | "authenticated" | "two-factor";

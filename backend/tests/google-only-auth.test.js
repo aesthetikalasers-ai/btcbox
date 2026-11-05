@@ -83,3 +83,30 @@ test('React auth client config is public-only and runs before database loading',
   assert.ok(route.includes('google_enabled: googleEnabled'));
   assert.ok(route.includes('AUTH_CLIENT_CONFIG_UNAVAILABLE'));
 });
+
+
+test('React Google auth uses the template flow without legacy registration consent UI', () => {
+  const app = read('../frontend/src/App.tsx');
+  const auth = read('../frontend/src/features/auth/AuthPages.tsx');
+  const provider = read('../frontend/src/lib/auth.tsx');
+  assert.ok(app.includes('path="/auth/react-callback"'));
+  assert.ok(app.includes('<AuthPage mode="register" />'));
+  assert.ok(auth.includes('Continue with Google'));
+  assert.ok(!auth.includes('reg-terms') && !auth.includes('Terms of Service'));
+  assert.ok(provider.includes('flowType: "pkce"'));
+  assert.ok(provider.includes('redirectTo: window.location.origin + "/auth/react-callback"'));
+  assert.ok(provider.includes('exchangeSupabaseSession'));
+  assert.ok(provider.includes('completeLogin2fa'));
+  assert.ok(provider.includes('clientRef.current?.auth.signOut()'));
+});
+
+test('React public auth config fails closed when URL or public key is invalid', () => {
+  const core = read('api-core.js');
+  const start = core.indexOf("path === 'auth-client-config' && method === 'GET'");
+  const end = core.indexOf("if (path === 'auth-health'", start);
+  const route = core.slice(start, end);
+  assert.ok(route.includes('if (!validAuthUrl || !publishableKey)'));
+  assert.ok(route.includes('return json({ ok: false, code: \'AUTH_CLIENT_CONFIG_UNAVAILABLE\''));
+  assert.ok(route.includes('process.env.SUPABASE_AUTH_URL ||'));
+  assert.ok(!route.includes('SUPABASE_SERVICE_ROLE_KEY'));
+});

@@ -1,4 +1,4 @@
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, type ReactNode } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 import { AppLayout } from "./components/layout/AppLayout";
 import { I18nProvider } from "./lib/i18n";
@@ -11,7 +11,7 @@ const AssetsPage = lazy(() => import("./features/pages/Pages").then((m) => ({ de
 const MyPage = lazy(() => import("./features/pages/Pages").then((m) => ({ default: m.MyPage })));
 const SectionPage = lazy(() => import("./features/pages/Pages").then((m) => ({ default: m.SectionPage })));
 
-function ProtectedAccountRoute({ children }: { children: React.ReactNode }) { const { status } = useAuth(); if (status === "loading") return <RouteLoading />; if (status !== "authenticated") return <Navigate to="/login" replace />; return <>{children}</>; }
+function ProtectedAccountRoute({ children }: { children: ReactNode }) { const { status } = useAuth(); if (status === "loading") return <RouteLoading />; if (status !== "authenticated") return <Navigate to="/login" replace />; return <>{children}</>; }
 
 function RouteLoading() {
   return <div className="mx-auto flex min-h-[240px] w-full max-w-[1200px] items-center justify-center p-6" role="status" aria-live="polite"><div className="flex items-center gap-3 text-sm text-brand-text-muted"><span className="h-4 w-4 animate-spin rounded-full border-2 border-white/15 border-t-brand-accent" />Loading BTCBOX…</div></div>;
