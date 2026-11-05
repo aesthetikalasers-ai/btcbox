@@ -877,3 +877,24 @@ The backend CI branch filters were pointing at an older auth branch. Updated bot
 - GitHub workflow lookup returned no PR-triggered workflow runs for the latest feature SHA. The only combined status currently exposed is the Vercel `build-rate-limit` failure; this is not a GitHub Actions test result.
 - Admin audit remains awaited before the JSON state save but is not one transaction across PostgreSQL audit append and JSON-state CAS. If the append succeeds and the later CAS fails, an orphan audit row can remain; do not describe this cross-store workflow as atomic.
 - No database migration was applied, no production records or schema were changed, no secrets were read or modified, no merge occurred, and no Vercel build/deployment was initiated. Deployment pause remains active.
+
+
+## Administrator audit outbox and idempotent delivery — 2026-11-06
+
+### IMPLEMENTED ON FEATURE BRANCH — SOURCE READ-BACK VERIFIED; TEST EXECUTION AND DATABASE MIGRATION PENDING
+- Feature branch: `feat/btcbox-web3-auth-20261105`.
+- Latest feature branch commit at this update: `085153f6d5ab395781a14e44a3ea1297e89cedff`.
+- Replaced the previous PostgreSQL-first dual-write order for non-financial admin mutations. `auditAdmin` now stages a uniquely identified event in `db.audit_logs`; the route saves the business mutation and pending audit event together through the existing revision-CAS state write before attempting PostgreSQL delivery.
+- Added `flushAdminAuditOutbox`. It retries pending events on subsequent authenticated admin requests and immediately after each audited mutation. A PostgreSQL append is considered delivered only when the RPC returns HTTP success and the literal JSON boolean `true`. Successful deliveries are marked `synced` and saved back to the CAS state document. If the marker save fails after PostgreSQL accepted the event, the same event ID is retried later.
+- API responses for the covered non-financial admin mutations now include `audit_sync_pending`, so a completed state mutation can be distinguished from a PostgreSQL audit delivery that still needs retry.
+- Updated `backend/supabase/sql/0021_admin_audit_log_append_only_v1.sql`: adds nullable `financial_audit_log.event_id`, a partial unique index, replaces the legacy five-argument append RPC with a six-argument event-ID contract, and treats an identical event retry as success while rejecting reuse of an event ID with a different payload.
+- Extended the outbox coverage to admin support replies and address-book management, which previously saved state/audit data without using the shared PostgreSQL append path. The support reply route now also initializes a missing support-message array safely.
+- Existing financial mutations remain outside this outbox path: their audit entries are expected to be written in the same PostgreSQL transaction as their financial ledger operation. Do not route financial writes through this JSON-state outbox.
+
+### VALIDATION / LIMITS
+- SOURCE READ-BACK VERIFIED: re-fetched `backend/api-core.js`, `backend/supabase/sql/0021_admin_audit_log_append_only_v1.sql`, and `backend/tests/admin-audit-persistence.test.js`. Static checks confirmed 9 non-financial admin audit call sites, 9 post-state-save outbox flushes, a retry flush on authenticated admin requests, stable event IDs, unique-index idempotency, and duplicate-payload conflict checks.
+- Added/updated source-contract assertions for state-before-delivery ordering, outbox retry semantics, the 9 covered routes, and the SQL event-ID contract. These tests have NOT been executed in Node in this session.
+- NOT VERIFIED: PostgreSQL migration syntax/runtime, RPC signature replacement against an existing database, unique-index creation against live rows, real HTTP/PostgREST behavior, cross-instance retry behavior, and browser/admin UI handling of `audit_sync_pending`.
+- Outbox retries are request-driven: pending events retry on later authenticated admin requests; no cron/worker was added. The local CAS document is the durable queue until PostgreSQL delivery succeeds.
+- The SQL migration has not been applied to any database. No production data/schema was changed, no secrets were read or modified, no merge occurred, and no Vercel build/deployment was initiated. Keep deployment paused.
+- The only combined status observed for the latest feature commit is the Vercel `build-rate-limit` failure. The workflow-run lookup returned no PR-triggered GitHub Actions run for that SHA; do not claim CI passed or failed based on the Vercel status.
