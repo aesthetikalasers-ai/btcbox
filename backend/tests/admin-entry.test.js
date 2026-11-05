@@ -134,3 +134,23 @@ test('KYC rejection collects an operator-provided reason instead of recording a 
   assert.match(accountView, /adminRejectKyc\(\{uid:b\.dataset\.uid,reason:reason\}\)/);
   assert.doesNotMatch(accountView, /adminRejectKyc\(\{uid:b\.dataset\.uid,reason:'Document unclear'\}\)/);
 });
+
+test('KYC approval and rejection persist reviewer, timestamp, decision reason, and audit outbox event', () => {
+  const approveStart = apiCore.indexOf("if (sub === 'kyc/approve' && method === 'POST')");
+  const rejectStart = apiCore.indexOf("if (sub === 'kyc/reject' && method === 'POST')", approveStart);
+  const pushStart = apiCore.indexOf("// POST /api/admin/push", rejectStart);
+  assert.ok(approveStart >= 0 && rejectStart > approveStart && pushStart > rejectStart);
+  const approve = apiCore.slice(approveStart, rejectStart);
+  const reject = apiCore.slice(rejectStart, pushStart);
+  for (const route of [approve, reject]) {
+    assert.ok(route.includes("u.kyc.reviewed_by = 'admin'"));
+    assert.ok(route.includes("u.kyc.reviewed_at = nowStr()"));
+    assert.ok(route.includes("await auditAdmin("));
+    assert.ok(route.includes("await saveDB(db)"));
+    assert.ok(route.includes("await flushAdminAuditOutbox()"));
+    assert.ok(route.includes("audit_sync_pending: auditFlush.pending"));
+  }
+  assert.ok(approve.includes("u.kyc.review_reason = override ? reason"));
+  assert.ok(reject.includes("u.kyc.reject_reason = reason"));
+  assert.ok(reject.includes("await auditAdmin('kyc_reject', u.uid, reason)"));
+});
