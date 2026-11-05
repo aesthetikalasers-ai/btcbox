@@ -172,6 +172,17 @@ test('credential updates preserve the current session and revoke every other acc
   assert.ok(route.includes("code: 'ACCOUNT_UPDATE_CONFLICT'"));
 });
 
+test('credential updates also revoke outstanding 2FA login challenges before persistence', () => {
+  const start = source.indexOf("if (path === 'account/credentials' && method === 'POST')");
+  const end = source.indexOf("// ---------- POST /api/auth/link-identity ----------", start);
+  const route = source.slice(start, end);
+  const revoke = route.indexOf("if (db.temp_tokens[token] && db.temp_tokens[token].uid === user.uid) delete db.temp_tokens[token]");
+  const persist = route.indexOf("try { await saveDB(db); }");
+  assert.ok(revoke >= 0 && persist > revoke);
+  assert.ok(route.includes('Credential changes invalidate every other session'));
+  assert.ok(route.includes('PERSISTENCE_UNAVAILABLE'));
+});
+
 
 test('account snapshot tolerates legacy users without a KYC object', () => {
   assert.ok(source.includes("kyc_level: user.kyc && user.kyc.status === 'approved' ? 2 : (user.kyc && user.kyc.status === 'pending' ? 1 : 0)"));
