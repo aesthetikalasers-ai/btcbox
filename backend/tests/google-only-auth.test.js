@@ -132,30 +132,36 @@ test('React auth server endpoints retain exact POST contracts and legacy callbac
 });
 
 
-test('React authentication supports Supabase email and Google without linking identities automatically', () => {
+test('React authentication uses BTCBOX username credentials with Google and Web3 providers', () => {
   const backend = read('api-core.js');
   const auth = read('../frontend/src/lib/auth.tsx');
   const pages = read('../frontend/src/features/auth/AuthPages.tsx');
+  const provider = read('../frontend/src/lib/auth.tsx');
+  const setup = read('../frontend/src/features/auth/AccountSetupPage.tsx');
   assert.ok(backend.includes('function getSingleSupabaseAuthProvider(identity)'));
   assert.ok(backend.includes("['google', 'email', 'web3'].includes(provider)"));
   assert.ok(backend.includes('getSupabaseWalletIdentity(identity)'));
   assert.ok(backend.includes("if (!user && email) user = Object.values(db.users).find"));
   assert.ok(backend.includes("const authProviders = [authProvider]"));
   assert.ok(backend.includes('SUPABASE_IDENTITY_MISMATCH') && backend.includes('SUPABASE_IDENTITY_LINK_REQUIRED'));
-  assert.ok(auth.includes('signInWithPassword'));
+  assert.ok(auth.includes('signInWithUsername'));
+  assert.ok(auth.includes('setBtcboxCredentials'));
+  assert.ok(auth.includes('linkSupabaseIdentity'));
   assert.ok(auth.includes('signUp({'));
   assert.ok(auth.includes('resetPasswordForEmail'));
   assert.ok(auth.includes('updateUser({ password })'));
   assert.ok(auth.includes('flowType: "pkce"'));
-  assert.ok(pages.includes('Sign in with email'));
+  assert.ok(pages.includes('Sign in with username'));
+  assert.ok(!pages.includes('Sign in with email'));
   assert.ok(pages.includes('Continue with Ethereum wallet'));
   assert.ok(pages.includes('Continue with Solana wallet'));
   assert.ok(provider.includes('signInWithWeb3({ chain, statement })'));
   assert.ok(backend.includes("authProvider === 'web3' ? !walletIdentity"));
   assert.ok(backend.includes("email: email || ''"));
   assert.ok(backend.includes("wallet_address: walletIdentity ? walletIdentity.address : ''"));
-  assert.ok(pages.includes('Create account with email'));
-  assert.ok(pages.includes('Forgot password?'));
+  assert.ok(!pages.includes('Create account with email'));
+  assert.ok(setup.includes('Set up your BTCBOX account'));
+  assert.ok(setup.includes('Save BTCBOX credentials'));
   assert.ok(pages.includes('Choose a new password'));
   assert.ok(!pages.includes('Terms of Service'));
 });
