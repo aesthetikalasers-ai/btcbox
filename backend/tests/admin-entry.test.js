@@ -88,6 +88,12 @@ test('KYC queue is read through a redacted admin endpoint and rendered from API 
   assert.ok(accountView.includes("apiAdapter.adminKyc()"));
   assert.ok(accountView.includes("state.admin.kycs=results[2].value.kycs"));
   assert.ok(!accountView.includes("KYC 审核暂不可用"));
+  assert.ok(accountView.includes("escapeHtml(k.email||'—')"));
+  assert.ok(accountView.includes("escapeHtml(k.submitted_at||'—')"));
+  assert.ok(accountView.includes("当前版本的 KYC 申请不收集证件照片"));
+  assert.ok(accountView.includes("不代表已完成证件影像或身份真实性核验"));
+  assert.ok(accountView.includes('class="ak-approve"'));
+  assert.ok(accountView.includes('class="ak-reject"'));
 });
 
 test('admin audit history is paginated, field-allowlisted, and rendered with escaped content', () => {
