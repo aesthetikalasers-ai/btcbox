@@ -414,7 +414,7 @@ test('username login only returns a 2FA challenge after its temporary token is p
   const end = source.indexOf("// ---------- POST /api/supabase-login", start);
   assert.ok(start >= 0 && end > start);
   const route = source.slice(start, end);
-  const challenge = route.indexOf("db.temp_tokens[tempToken] = { uid: user.uid, exp: Date.now() + 10 * 60 * 1000 }");
+  const challenge = route.indexOf("db.temp_tokens[tempToken] = { uid: user.uid, exp: Date.now() + 10 * 60 * 1000, auth_method: 'username_password_2fa' }");
   const persist = route.indexOf("try { await saveDB(db); }", challenge);
   const response = route.indexOf("return json({ ok: false, require_2fa: true, temp_token: tempToken }, 200)", challenge);
   assert.ok(challenge >= 0 && persist > challenge && response > persist);
