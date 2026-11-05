@@ -66,6 +66,7 @@ function harness(marker = {}, options = {}) {
     BTCBOX_RATE_LIMIT_HMAC_SECRET: 'a-test-only-hmac-secret-longer-than-32-bytes',
     CONTEXT: 'dev',
   };
+  if (options.missingRateLimitSecret) delete env.BTCBOX_RATE_LIMIT_HMAC_SECRET;
   const fetchMock = async (input, init = {}) => {
     const url = String(input);
     if (url.includes('/rest/v1/btcbox_state?')) {
@@ -86,6 +87,8 @@ function harness(marker = {}, options = {}) {
       return reply(true);
     }
     if (url.endsWith('/rest/v1/rpc/btcbox_rate_limit_consume_v1')) {
+      if (options.rateLimitStatus) return reply({}, options.rateLimitStatus);
+      if (options.rateLimitResult) return reply(options.rateLimitResult);
       const scope = JSON.parse(init.body).p_scope;
       const p = {
         identity_link_reauth: [8, 900],
@@ -274,5 +277,37 @@ test('recent server marker cannot make an expired Supabase auth_time valid for l
   });
   assert.equal(recoveryResult.status, 403);
   assert.equal(recoveryResult.body.code, 'RECENT_REAUTH_REQUIRED');
+});
+
+test('shared rate limiter fails closed on missing HMAC secret or unavailable RPC', async () => {
+  const missingSecret = harness({}, { missingRateLimitSecret: true });
+  const missingSecretResult = await missingSecret.run('auth/link-identity/reauth', {
+    supabase_access_token: missingSecret.sourceToken,
+  });
+  assert.equal(missingSecretResult.status, 503);
+  assert.equal(missingSecretResult.body.code, 'RATE_LIMIT_UNAVAILABLE');
+
+  const rpcUnavailable = harness({}, { rateLimitStatus: 503 });
+  const rpcUnavailableResult = await rpcUnavailable.run('auth/link-identity/reauth', {
+    supabase_access_token: rpcUnavailable.sourceToken,
+  });
+  assert.equal(rpcUnavailableResult.status, 503);
+  assert.equal(rpcUnavailableResult.body.code, 'RATE_LIMIT_UNAVAILABLE');
+});
+
+test('shared rate limiter blocks an over-limit identity reauthentication request', async () => {
+  const limited = harness({}, {
+    rateLimitResult: {
+      allowed: false, limit: 8, count: 9, remaining: 0,
+      retry_after_seconds: 900, window_seconds: 900,
+      window_start: Math.floor(Date.now() / 1000),
+    },
+  });
+  const result = await limited.run('auth/link-identity/reauth', {
+    supabase_access_token: limited.sourceToken,
+  });
+  assert.equal(result.status, 429);
+  assert.equal(result.body.code, 'RATE_LIMITED');
+  assert.equal(result.body.retry_after, 900);
 });
 
