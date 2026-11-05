@@ -52,7 +52,7 @@ test('migration checker refuses to compare timestamp ledger versions with four-d
     '        pass',
     'def connect(url):',
     '    return Connection()'
-  ].join('\\n');
+  ].join('\n');
 
   try {
     fs.writeFileSync(path.join(tempDir, 'psycopg2.py'), fakeDriver);
@@ -64,7 +64,7 @@ test('migration checker refuses to compare timestamp ledger versions with four-d
     const result = spawnSync('python3', [script], { encoding: 'utf8', env });
 
     assert.equal(result.status, 2, result.stderr);
-    assert.match(result.stderr, /\\[STATUS\\] VERSION_MAPPING_REQUIRED/);
+    assert.match(result.stderr, /\[STATUS\] VERSION_MAPPING_REQUIRED/);
     assert.match(result.stderr, /do not use the repository's four-digit numbering/);
   } finally {
     fs.rmSync(tempDir, { recursive: true, force: true });
