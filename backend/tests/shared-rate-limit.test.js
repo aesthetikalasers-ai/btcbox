@@ -63,7 +63,7 @@ test('database limiter uses a unique key and atomic upsert with fixed limits and
 
 test('identity source-target equality is rejected before account identity arrays are mutated', () => {
   const routeStart = api.indexOf("if (path === 'auth/link-identity' && method === 'POST')");
-  const routeEnd = api.indexOf('\\n  // ---------- POST /api/', routeStart);
+  const routeEnd = api.indexOf('\n  // ---------- POST /api/', routeStart);
   assert.ok(routeStart >= 0);
   assert.ok(routeEnd > routeStart);
   const route = api.slice(routeStart, routeEnd);
