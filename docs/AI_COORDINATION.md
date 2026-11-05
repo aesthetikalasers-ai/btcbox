@@ -1181,3 +1181,12 @@ The backend CI branch filters were pointing at an older auth branch. Updated bot
 - Feature commit: `6a532279e81303d431fc49b35d1fbba138a8de62`. Exact-head GitHub Actions run `42090589549` succeeded: unified build, 156 backend tests (156 passed / 0 failed), fail-closed preflight shape, and preserved entrypoint checks all passed.
 - A fresh read-only production catalog query reconfirmed `financial_audit_log` base columns exist but `event_id` and `append_admin_audit_log(text,text,text,text,text,jsonb)` are absent; `btcbox_rate_limits`, `btcbox_rate_limit_consume_v1`, and `btcbox_rate_limit_cleanup_v1` are also absent. Therefore the canonical audit read flag stays OFF and shared-rate-limit protected routes remain fail-closed. No schema writes, migrations, or financial writes were performed.
 - No browser test, merge, Vercel deployment, or production migration was performed. Deployment pause remains active.
+
+
+## KYC rejection reason adapter hardening — 2026-11-06
+
+- Removed the generic `Rejected by admin` fallback from `apiAdapter.adminRejectKyc`. The adapter now passes only the operator-supplied reason; if it is absent/blank, the existing backend validation rejects the request rather than manufacturing an audit reason.
+- Added a regression assertion to ensure the adapter never invents a rejection reason. The existing UI prompt still requires a non-empty reason and backend still enforces it.
+- Feature commits: `1e8d3121ed573a9fe18d9d2c280dfada750cba10` (adapter fix) and `9bef7472df7b585032a5410a591b3adf8dca502e` (test). Exact-head GitHub Actions run `42090819188` succeeded: unified build, 157 backend tests (157 passed / 0 failed), fail-closed preflight shape, and preserved entrypoint checks all passed.
+- Files were fetched back from GitHub and the adapter/test assertions were confirmed present. No browser test was performed.
+- No merge, Vercel deployment, production migration, or financial write was performed. Deployment pause remains active.
