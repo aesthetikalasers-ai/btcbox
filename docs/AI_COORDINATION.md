@@ -1560,3 +1560,15 @@ The backend CI branch filters were pointing at an older auth branch. Updated bot
 - CI PENDING at note time: API commit run 42120773368 and exact latest-head run 42120779237 both in progress. Do not mark this batch accepted until latest-head CI completes successfully.
 - REVIEW RESULT: no other source-proven defect was established in the inspected provider allowlist, Supabase identity-ID ownership checks, and wallet claim validation. Live provider behavior remains NOT VERIFIED.
 - SAFETY: no DB writes/migrations, merge, deployment, or financial operations occurred.
+
+
+### Identity-link wallet record deduplication and legacy-field compatibility — 2026-11-06 (UTC+8)
+
+- TEST PASSED: previous exact-head wallet canonicalization CI run 42120779237 completed successfully for 07a1fa266f7fa847d3c162372d73da21b8aeb897.
+- SOURCE OBSERVED: the identity-link route correctly rejected wallets already owned by another BTCBOX account, but after passing that conflict check it unconditionally appended a wallet record. Linking a second Supabase identity representing the same wallet to the same BTCBOX account could therefore create duplicate wallet_identities entries. The same-account check also needed to recognize the legacy primary wallet_chain/wallet_address fields.
+- PATCHED: identity linking now checks the normalized wallet_identities list and legacy primary wallet fields before appending a wallet record. It still records the distinct Supabase auth identity in auth_identities; it only deduplicates the wallet record itself.
+- REGRESSION COVERAGE ADDED: backend/tests/google-only-identity.test.js asserts both normalized and legacy wallet duplicate checks and confirms the linked auth identity is still appended.
+- Feature commits: API f682106791dac858a3d2f91d3097239ff2fd51a0; tests affe1573f696b47528a6bf008a914390590c5657. Latest feature HEAD affe1573f696b47528a6bf008a914390590c5657.
+- CI PENDING: API run 42121004690 and exact latest-head run 42121010913 were in progress when recorded. This batch is not accepted until exact latest-head CI succeeds.
+- NOT VERIFIED: no live provider login/link test; no wallet unlink endpoint was found in the inspected route section, and no unlink behavior was changed.
+- SAFETY: no production/staging DB writes or migrations, merge, Vercel deployment, or financial operations occurred.
