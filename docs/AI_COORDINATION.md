@@ -1035,3 +1035,15 @@ The backend CI branch filters were pointing at an older auth branch. Updated bot
 - GitHub Actions run `42082114633` for exact SHA `93a15f8acf3621042b71605ed4625e5e89f3da9a` completed successfully: unified build passed, backend tests 145/145 passed, fail-closed preflight passed, preserved-entrypoint checks passed.
 - An earlier intermediate test run `42082080232` failed one stale hydration assertion; it was corrected before the final-head run. Another intermediate run `42082030837` failed due to an invalid regex in the first test draft; final test uses literal source assertions and is green.
 - No PostgreSQL migration, production data/configuration change, merge, or Vercel deployment. Deployment pause remains active. Live admin browser and real Basic Auth remain unverified.
+
+
+## Admin audit viewer and deposit ledger boundary — 2026-11-06
+
+- Feature branch exact HEAD: `1d3008a985a75fdcc8283bea9fd4989d59accd2e`.
+- Added a read-only, paginated admin audit-log tab using existing `GET /api/admin/audit-logs` and the new `adminAuditLogs` adapter. Supports 50-row pages, action and UID filters, refresh, and load-more.
+- API response is field-allowlisted (id/action/uid/actor/time/detail/sync status), caps the page size at 200, redacts password/token/secret/recovery/identity-number fields, email addresses, and common EVM/TRON wallet-address forms, and rejects stale pagination cursors with HTTP 400.
+- UI escapes all rendered record values and labels the source honestly: current `btcbox_state` audit document with retention-limited completeness. This is NOT the full PostgreSQL `financial_audit_log` history and must not be represented as canonical complete financial audit history.
+- GitHub Actions run `42083244113` for exact SHA `1d3008a985a75fdcc8283bea9fd4989d59accd2e` completed successfully: unified build passed, backend tests 146/146 passed, fail-closed deployment preflight passed, preserved-entrypoint checks passed.
+- Deposit ledger review: SQL `0002` defines canonical `public.deposit_records` with pending/confirmed/rejected status, user/asset/network/amount/txid and confirmation metadata; `0016` only credits through trusted chain-verification RPC after a pending row already exists and blocks manual confirmation. SQL `0007` adds an admin manual-credit RPC, but the API remains fail-closed behind financial cutover. No admin deposit snapshot/read API exists in `0012`; `0010` exposes account/withdrawal snapshots only. User POST `/api/deposit` rejects user-supplied credit requests and only serves deposit addresses for non-positive amount queries.
+- Therefore deposit review remains disabled. Before adding an admin read route, establish the trusted chain-verifier's pending-row creation/ingestion path, confirm whether canonical financial read cutover is enabled, and add a service-role-only read snapshot over `deposit_records` with explicit pagination and no mixing of legacy `user.deposits`. Do not enable manual credit or execute migrations.
+- No production database changes, merge, or Vercel deployment. Deployment pause remains active. Browser Admin/Basic Auth and live Postgres data remain unverified.
