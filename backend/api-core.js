@@ -475,6 +475,7 @@ function nowStr() { return new Date().toISOString().slice(0, 19).replace('T', ' 
 const RATE_LIMIT_POLICIES = Object.freeze({
   login_2fa: { limit: 20, windowSeconds: 900 },
   credential_reauth: { limit: 8, windowSeconds: 900 },
+  identity_link_reauth: { limit: 8, windowSeconds: 900 },
   credential_recover: { limit: 5, windowSeconds: 900 },
   twofa_setup_password: { limit: 10, windowSeconds: 900 },
   twofa_setup_confirm: { limit: 10, windowSeconds: 900 },
@@ -1161,6 +1162,9 @@ async function handleRequest(event, context) {
     if (user.frozen) return json({ ok: false, code: 'ACCOUNT_FROZEN', msg: 'Account frozen. Please contact support.' }, 403);
     const sessionRecord = getSessionRecord(db, event);
     if (!sessionRecord || sessionRecord.user.uid !== user.uid) return json({ ok: false, msg: 'Please sign in again.', need_login: true }, 401);
+    const reauthLimit = await rateCheckShared('identity_link_reauth', String(user.uid));
+    if (reauthLimit.unavailable) return rateLimitUnavailableJson();
+    if (reauthLimit.limited) return rateLimitedJson(reauthLimit.retryAfter);
     const accessToken = typeof body.supabase_access_token === 'string' ? body.supabase_access_token : '';
     const supabaseUrl = String(process.env.SUPABASE_AUTH_URL || process.env.SUPABASE_URL || '').replace(/\/$/, '');
     const supabaseKey = getPublishableKey();
