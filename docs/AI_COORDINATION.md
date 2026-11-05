@@ -1113,3 +1113,15 @@ The backend CI branch filters were pointing at an older auth branch. Updated bot
 - Job log confirms backend tests: 153 passed / 0 failed.
 - This is source/build/automated-test evidence only. It does not verify live Supabase RPC/migration readiness, browser KYC/admin workflows, external chain-verifier ingestion, or production behavior.
 - This supersedes the earlier statement that exact-head CI was pending. No new Vercel deployment, merge, database migration, or production write was performed.
+
+
+
+## KYC rejection-reason interaction repair — 2026-11-06
+
+- Feature branch `feat/btcbox-web3-auth-20261105`: replaced the hardcoded KYC rejection reason “Document unclear” with an operator-entered required reason in the existing admin modal. The prompt is bounded to 300 characters; cancel/empty input stops the action; the submitted reason is passed to the existing API and audit path. Approve/reject controls remain available; no backend business rule changed.
+- Added a source-contract test in `backend/tests/admin-entry.test.js` and updated the sensitive-action UI contract in `backend/tests/frontend_security.test.js` to recognize the dedicated reason prompt for KYC rejection. GitHub Actions first exposed the expected stale assertion (the number of generic confirmation calls decreased by one); that assertion was corrected to verify the explicit KYC reason prompt and empty-input guard.
+- Latest feature commit at time of this note: `ff21de2432d6066db8c3f566bc27465d0307ec9e`. Exact-head CI run `42086414280` was in progress when recorded; do not claim this head passed until the run concludes successfully.
+- Current KYC customer submission UI explicitly says document-photo upload is not required in this version. Admin review must therefore not imply document-image verification. The admin list currently has the submitted timestamp and email in the API payload but does not display both; this is a usability follow-up, not a reason to disable review.
+- Repository tree audit confirms no chain-verifier/indexer/webhook/cron implementation files; the checked-in chain verification RPC is present in migration `0016`, but no in-repo caller or pending-record ingestion worker was found. This is limited to the inspected branch tree; external services remain unverified.
+- Migration `0023` defines service-role-only bounded cleanup but only instructs invocation by a trusted scheduled job/maintenance task. No in-repo scheduler was found in the checked `vercel.json` or repository tree. Do not add an unauthenticated public cleanup endpoint.
+- No merge, deployment, production database migration, or financial write was performed.
