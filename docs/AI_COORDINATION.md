@@ -521,3 +521,34 @@ Also verify the Site URL and inspect Authentication → Rate Limits / CAPTCHA fo
 - Resulting file blob: `ad9c6de76dd2966925625c296ba29292ff639da6`.
 - This source edit is not evidence that the TypeScript build now passes; other diagnostics may appear after the first set is resolved.
 - Deployment pause remains in force: no Vercel deployment was triggered by this source repair. Continue with source audit and non-deploying checks only until the user explicitly re-authorizes deployment.
+
+
+## Authentication backend and account-flow audit — 2026-11-05
+
+### SOURCE OBSERVED
+- Feature branch feat/btcbox-web3-auth-20261105 is at a69f9c661262dc2eee765038c9ba004b6543ee86 after the AuthPages import repair.
+- Compared with main at 14a8e361fd928626d4e350a03698135f0c49ceea, the feature branch is 78 commits ahead / 0 behind; compare reports 23 changed files. This is a large, multi-area change set and is not merge-ready merely because it is based on main.
+- Backend username/password login normalizes usernames, applies per-IP and per-username counters, uses a dummy PBKDF2 derivation for unknown usernames, compares derived hashes with crypto.timingSafeEqual, returns a generic invalid-credentials response, and preserves 2FA through a temporary token.
+- New BTCBOX credentials require a normalized 3–24 character username and a 12–128 character password. New hashes use PBKDF2-HMAC-SHA256 with 600,000 iterations and per-account salt.
+- Supabase login verifies the supplied access token through Supabase /auth/v1/user, checks the server-side provider metadata and identity list, validates Web3 chain/address claims, rejects conflicting wallet ownership, and requires Google provider availability for Google identities.
+- Password recovery re-verifies the Supabase token with /auth/v1/user, checks the signed token auth_time and sub, requires the identity to be explicitly linked to the current BTCBOX account, enforces a five-minute freshness window, preserves the account's 2FA requirement, consumes the recovery marker, and revokes other BTCBOX sessions and outstanding temporary 2FA tokens.
+- The account setup page enforces matching password confirmation and a 12-character minimum in the UI; the backend independently validates the password policy.
+- The AuthPages missing imports repair is present in the current feature branch. This is source inspection only, not a successful TypeScript build.
+
+### FINDING — IDENTITY-LINK SESSION FRESHNESS
+- SOURCE OBSERVED: POST /api/auth/link-identity requires the existing BTCBOX session created_at to be no more than five minutes old.
+- SOURCE OBSERVED: the frontend Google/Web3 link flow authenticates the identity being added, then sends that second identity's access token to the link endpoint. The callback does not renew the existing BTCBOX session before the backend freshness check.
+- IMPACT: linking another identity can fail with REAUTH_REQUIRED when the user has been signed into BTCBOX for more than five minutes, even if the newly added Google/wallet identity was just verified. Signing out and signing back into the existing BTCBOX account immediately before linking is a workaround, but the flow is unnecessarily fragile.
+- STATUS: issue identified; no code change made in this batch. Before changing the contract, decide whether to require a fresh proof of the current identity as well as the new identity, or to introduce a narrowly scoped server-side reauthentication marker. Do not weaken the five-minute security requirement by merely extending the session age.
+
+### TEST EVIDENCE AND LIMITATIONS
+- SOURCE OBSERVED: backend/tests/account-credentials.test.js exercises username normalization/validation, password policy, identity-ID membership, JWT auth_time parsing, and source assertions for credential recovery, identity linking, revision-CAS persistence, and generic login failures.
+- SOURCE OBSERVED: backend/tests/google-only-identity.test.js exercises single-provider acceptance/rejection, email validation, UUID shape, and Ethereum/Solana address-claim validation.
+- LIMITATION: these tests include source-text assertions and isolated helper extraction; they do not by themselves prove full HTTP route behavior, Supabase token verification, concurrent database behavior, or browser end-to-end flows.
+- NOT VERIFIED: no non-deploying full backend test run or frontend TypeScript build was executed in this batch. The import repair remains unbuild-verified.
+- NOT VERIFIED: live Google OAuth, real Ethereum/Solana wallet providers, 2FA recovery, multi-session revocation, and the identity-link freshness edge case have not been exercised end to end.
+
+### DEPLOYMENT AND RELEASE BOUNDARY
+- The user-directed pause on all Vercel Preview and Production deployments remains in force.
+- No deployment, merge, production configuration change, database mutation, or financial operation was performed in this audit.
+- Next audit batch: inspect route-level session/cookie behavior and the complete auth callback state machine; then prepare a minimal, security-preserving fix for the identity-link freshness mismatch and expand behavioral tests before any deployment is reconsidered.
