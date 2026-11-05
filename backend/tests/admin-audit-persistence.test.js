@@ -106,3 +106,40 @@ test('admin audit bigint cursor validation rejects values above signed PostgreSQ
   assert.ok(source.includes('!isPositivePostgresBigintString(row.id)'));
   assert.ok(!validator.includes('Number('));
 });
+
+
+test('admin audit detail redaction masks credential, personal, and wallet values', () => {
+  const start = source.indexOf('function redactAdminAuditDetail(value)');
+  const end = source.indexOf('function isValidAuthEmail(value)', start);
+  assert.ok(start >= 0 && end > start);
+  const redact = require('node:vm').runInNewContext(source.slice(start, end) + '\\nredactAdminAuditDetail');
+  const raw = JSON.stringify({
+    password: 'hunter2-secret',
+    token: 'eyJ-sensitive-token',
+    api_key: 'sk-sensitive-key',
+    recovery_code: 'recovery-phrase-123',
+    email: 'private.person@example.com',
+    wallet: '0x1234567890abcdef1234567890abcdef12345678',
+    tron: 'TQn9Y2khEsLJW1ChVWFMSMeRDow5KcbLSE'
+  });
+  const safe = redact(raw);
+  for (const secret of ['hunter2-secret', 'eyJ-sensitive-token', 'sk-sensitive-key', 'recovery-phrase-123',
+    'private.person@example.com', '0x1234567890abcdef1234567890abcdef12345678',
+    'TQn9Y2khEsLJW1ChVWFMSMeRDow5KcbLSE']) {
+    assert.ok(!safe.includes(secret), 'sensitive value must not appear: ' + secret);
+  }
+  assert.match(safe, /\\[redacted\\]/);
+  assert.match(safe, /\\[email\\]/);
+  assert.match(safe, /\\[wallet address\\]/);
+  assert.ok(safe.length <= 300);
+});
+
+test('admin audit detail redaction is case-insensitive and caps displayed detail length', () => {
+  const start = source.indexOf('function redactAdminAuditDetail(value)');
+  const end = source.indexOf('function isValidAuthEmail(value)', start);
+  const redact = require('node:vm').runInNewContext(source.slice(start, end) + '\\nredactAdminAuditDetail');
+  const safe = redact('PASSWORD=UpperSecret TOKEN=UpperToken ' + 'x'.repeat(500));
+  assert.ok(!safe.includes('UpperSecret'));
+  assert.ok(!safe.includes('UpperToken'));
+  assert.ok(safe.length <= 300);
+});
