@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { createChart, ColorType, HistogramSeries } from 'lightweight-charts';
-import { chartData, useDashboardStore } from '../dashboard.data';
+import { useDashboardStore } from '../dashboard.data';
 import type { MarketCandle } from '../../../lib/api';
 import { Card, CardHeader } from './Card';
 import { cn } from '../../../lib/utils';
@@ -60,11 +60,11 @@ export function VolumeChart({ candles = [] }: { candles?: MarketCandle[] }) {
       },
     });
 
-    series.setData(candles.length ? candles.map(c => ({ time: Math.floor(c.time / 1000) as import('lightweight-charts').UTCTimestamp, value: c.volume, color: c.close >= c.open ? 'rgba(34, 197, 94, 0.8)' : 'rgba(239, 68, 68, 0.8)' })) : chartData.volume);
+    series.setData(candles.map(c => ({ time: Math.floor(c.time / 1000) as import('lightweight-charts').UTCTimestamp, value: c.volume, color: c.close >= c.open ? 'rgba(34, 197, 94, 0.8)' : 'rgba(239, 68, 68, 0.8)' })));
     
     const bars = { '1d': 24, '7d': 168, '30d': 720 }[activeRange] || 24;
-    const totalBars = candles.length || chartData.volume.length;
-    chart.timeScale().setVisibleLogicalRange({ from: Math.max(0, totalBars - bars), to: totalBars });
+    const totalBars = candles.length;
+    if (totalBars > 0) chart.timeScale().setVisibleLogicalRange({ from: Math.max(0, totalBars - bars), to: totalBars });
 
     return () => {
       chart.remove();
