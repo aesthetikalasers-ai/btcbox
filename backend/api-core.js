@@ -491,8 +491,8 @@ async function rateCheckShared(scope, subject) {
       typeof subject !== 'string' || !subject || subject.length > 256 ||
       !supabaseStorageConfigured()) return { unavailable: true };
   const keyHash = crypto.createHmac('sha256', secret)
-    .update('btcbox-rate-limit-v1\\0' + scope + '\\0' + subject, 'utf8').digest('hex');
-  const base = String(process.env.SUPABASE_URL || '').replace(/\\/+$/, '');
+    .update('btcbox-rate-limit-v1|' + scope + '|' + subject, 'utf8').digest('hex');
+  const base = String(process.env.SUPABASE_URL || '').replace(/\/+$/, '');
   try {
     const response = await fetch(base + '/rest/v1/rpc/btcbox_rate_limit_consume_v1', {
       method: 'POST', headers: supabaseHeaders(),
@@ -2235,7 +2235,7 @@ async function handleRequest(event, context) {
       db.audit_logs.push({ id: 'AL' + Date.now() + crypto.randomBytes(3).toString('hex'), action: action, uid: String(uid || ''), by: 'admin', time: nowStr(), detail: String(detail || '').slice(0, 300) });
       if (db.audit_logs.length > 5000) db.audit_logs = db.audit_logs.slice(-5000);
       if (supabaseStorageConfigured()) {
-        const base = String(process.env.SUPABASE_URL || '').replace(/\/+$/, '');
+  const base = String(process.env.SUPABASE_URL || '').replace(/\/+$/, '');
         if (base) {
           fetch(base + '/rest/v1/rpc/append_admin_audit_log', {
             method: 'POST', headers: supabaseHeaders(),
