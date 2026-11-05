@@ -446,3 +446,18 @@ Also verify the Site URL and inspect Authentication → Rate Limits / CAPTCHA fo
 - Supabase Authentication → URL Configuration → Site URL. Expected canonical value remains `https://btcboxcdt.vercel.app` without a path.
 - Actual end-to-end Google OAuth login and callback in a browser.
 - No Supabase Auth settings, repository application code, database, deployment, or financial operation was changed in this update.
+
+
+## Google provider and Site URL confirmation — 2026-11-05
+
+### USER CONFIRMATION
+- User explicitly confirmed Supabase Authentication → Providers → Google is enabled.
+- User explicitly confirmed Supabase Authentication → URL Configuration → Site URL is `https://btcboxcdt.vercel.app` (canonical production host, root URL with no path).
+- Together with the earlier user confirmations above, the Google OAuth dashboard setup checklist is user-confirmed complete: Google JavaScript origins, Google Cloud Supabase callback URI, Supabase app Redirect URLs, Google provider enabled, and canonical Site URL.
+- These are user confirmations, not independent read-back from the provider dashboard. Do not describe the OAuth flow itself as tested.
+
+### NEXT VALIDATION
+- Perform a real browser Google sign-in and verify callback, new-user account setup, and existing-user routing. This requires the user to operate the browser/account; no credentials or one-time codes should be requested in chat.
+- Before any merge/release decision, obtain non-deploying frontend build and backend test evidence, then real-device/browser QA.
+- Preserve the canonical host `https://btcboxcdt.vercel.app`; the additional `btcboxcdt-pi.vercel.app` origin is not a production-host change.
+- No repository application code, Supabase configuration, database, deployment, or financial operation was changed by this confirmation.
