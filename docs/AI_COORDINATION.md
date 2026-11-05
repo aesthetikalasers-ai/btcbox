@@ -701,3 +701,29 @@ Also verify the Site URL and inspect Authentication → Rate Limits / CAPTCHA fo
 - The existing frontend link actions have not yet been converted to the new two-step API sequence. Until that is implemented and tested, identity linking is intentionally fail-closed and may return `REAUTH_REQUIRED`; do not describe linking as user-ready.
 - The source/target same-identity check currently happens after in-memory account object preparation but before `saveDB`; no persisted account mutation occurs on that rejection. Review this ordering in the next pass for clarity.
 - Deployment pause remains active. No merge, production database change, Vercel build, or deployment occurred.
+
+## Shared PostgreSQL rate limiter — runtime integration draft — 2026-11-05
+
+### IMPLEMENTED ON FEATURE BRANCH — NOT VERIFIED
+- Replaced all ten process-local `rateCheck` call sites in `backend/api-core.js` with awaited `rateCheckShared(scope, subject)` calls. The local `_rateBuckets` Map and synchronous `rateCheck` helper have been removed.
+- Runtime helper uses the dedicated `BTCBOX_RATE_LIMIT_HMAC_SECRET` (minimum 32 UTF-8 bytes) to HMAC-SHA256 the bounded `scope|subject` input. Raw account IDs are not sent to or stored in the limiter table.
+- Runtime calls `public.btcbox_rate_limit_consume_v1` using the existing server-only Supabase service-role headers, validates the RPC response against the exact per-scope policy including `window_seconds`, and fails closed with generic 503 on missing configuration, timeout, RPC error, or malformed response. Valid over-limit responses return 429 with `Retry-After`.
+- Migrated scopes and preserved limits: `login_2fa` 20/900s; `credential_reauth` 8/900s; `credential_recover` 5/900s; `twofa_setup_password` 10/900s; `twofa_setup_confirm` 10/900s; `twofa_disable` 10/900s; `seconds_order` 30/300s; `seconds_settle` 60/300s; `password_change` 10/900s; `fund_password_change` 10/900s.
+- SQL migration now returns `window_seconds` so the API can validate the server-side policy.
+- Added `backend/tests/shared-rate-limit.test.js` with source-contract checks for all ten scopes, HMAC/fail-closed behavior, atomic upsert/retention SQL, and identity source-target guard ordering.
+- Moved the identity-link same-source/target rejection before in-memory account identity arrays are mutated.
+
+### CURRENT FEATURE BRANCH COMMITS
+- `bd2e32c344451d41aef65a94a114ed88045b39e1` — initial shared limiter runtime replacement and ten call-site migration.
+- `54e42b38a44fdc850ab113477850b837442157f3` — corrected canonical HMAC key encoding and URL normalization.
+- `141e58bb8bd76fa2b72a6b700f23cbf2d4ee3cb3` — SQL RPC returns `window_seconds`.
+- `ece4365a82c8641665f04fc8329a4057eadb1371` — reject same source/target before account mutation.
+- `6d3cba3c5aa0a663725dba1783a83eef945ca5e9` — add static contract tests.
+- Latest feature branch commit recorded at this update: `6d3cba3c5aa0a663725dba1783a83eef945ca5e9`.
+
+### IMPORTANT VALIDATION / CONFIGURATION LIMITS
+- These are source-level changes only. The test suite was not executed; no Node syntax check, PostgreSQL migration execution, isolated DB concurrency test, multi-instance simulation, HTTP route integration test, frontend build, or browser E2E was run.
+- The SQL migration remains unapplied. No production or staging Supabase database was changed.
+- `BTCBOX_RATE_LIMIT_HMAC_SECRET` has not been configured in Vercel or any deployment environment. Until the migration is applied in an approved isolated environment and the secret is configured, every route using the shared limiter will deliberately fail closed with 503. Do not deploy this feature branch as-is.
+- Next: review the SQL/function permissions and response contract in an isolated PostgreSQL database; execute the new tests and concurrency tests; then implement the frontend two-proof identity-link sequence. The existing frontend still starts the target identity flow directly and has not yet been converted to source reauthentication followed by target verification.
+- No merge, production DB change, Vercel Preview/Production build, or deployment was performed. Deployment pause remains active.
