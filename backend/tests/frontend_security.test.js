@@ -77,11 +77,13 @@ test('admin withdrawals table wraps address/uid/coin/id in escapeHtml', () => {
   assert.ok(s.includes("escapeHtml(w.id)"), 'w.id not escaped');
 });
 
-test('admin KYC table wraps name/uid/id_type in escapeHtml', () => {
+test('admin KYC table wraps identity and submission fields in escapeHtml', () => {
   const s = read('assets/js/views-account.js');
-  assert.ok(s.includes("escapeHtml(k.name)"), 'k.name not escaped (critical sink)');
-  assert.ok(s.includes("escapeHtml(k.uid)"), 'k.uid not escaped');
-  assert.ok(s.includes("escapeHtml((k.id_type||\'\').replace(\'_\',\' \'))"), 'k.id_type not escaped');
+  assert.ok(s.includes("escapeHtml(k.name||'—')"), 'k.name not escaped (critical sink)');
+  assert.ok(s.includes("escapeHtml(k.uid||'—')"), 'k.uid not escaped');
+  assert.ok(s.includes("escapeHtml(k.email||'—')"), 'k.email not escaped');
+  assert.ok(s.includes("escapeHtml(k.submitted_at||'—')"), 'k.submitted_at not escaped');
+  assert.ok(s.includes("escapeHtml((k.id_type||'').replace('_',' '))"), 'k.id_type not escaped');
 });
 
 test('order/asset views escape dynamic string fields; app-core search href escaped', () => {
