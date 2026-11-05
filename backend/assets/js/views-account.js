@@ -543,7 +543,7 @@ VIEWS.admin.afterRender = function(){
       else{
         state.admin.auditLogs=(state.admin.auditLogs||[]).concat(result.logs);
         auditNextBefore=result.next_before||null;
-        if(result.completeness==='state_document_retention_limited')state.admin.auditLogCompleteness=result.completeness;
+        state.admin.auditLogCompleteness=result.completeness||'unknown';state.admin.auditLogSource=result.source||'';
       }
     }catch(_){toast('网络错误，审计记录加载失败。','err');}
     auditLoading=false;
@@ -617,7 +617,7 @@ VIEWS.admin.afterRender = function(){
       $('#admin-body').innerHTML='<div style="display:flex;gap:8px;flex-wrap:wrap;padding:12px"><input id="audit-action-filter" aria-label="按操作筛选" value="'+escapeHtml(auditActionFilter)+'" placeholder="操作类型" style="min-width:120px;flex:1;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--surface)"><input id="audit-uid-filter" aria-label="按 UID 筛选" value="'+escapeHtml(auditUidFilter)+'" placeholder="用户 UID" style="min-width:120px;flex:1;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--surface)"><button id="audit-filter-apply" class="btn btn-secondary">筛选</button></div>'+
         (auditLogs.length?'<table style="width:100%;border-collapse:collapse;min-width:760px"><thead><tr><th class="th">时间</th><th class="th">操作</th><th class="th">用户 UID</th><th class="th">操作者</th><th class="th">同步状态</th><th class="th">详情（已脱敏）</th></tr></thead><tbody>'+rows+'</tbody></table>':emptyState(auditLoading?'正在加载审计记录…':'暂无审计记录','可调整筛选条件或刷新记录。'))+
         '<div style="display:flex;justify-content:center;gap:10px;padding:14px"><button id="audit-refresh" class="btn btn-secondary">刷新</button>'+(auditNextBefore?'<button id="audit-more" class="btn btn-secondary">加载更多</button>':'')+'</div>'+
-        '<div style="padding:0 12px 12px;color:var(--text-muted);font-size:11px">数据来源：当前状态文档中的管理员操作记录；受保留策略限制，不代表 PostgreSQL 完整财务审计历史。</div>';
+        '<div style="padding:0 12px 12px;color:var(--text-muted);font-size:11px">'+(state.admin.auditLogCompleteness==='postgres_canonical'?'数据来源：PostgreSQL canonical financial_audit_log；按记录 ID 倒序分页。':'数据来源：当前状态文档中的管理员操作记录；受保留策略限制，不代表 PostgreSQL 完整财务审计历史。')+'</div>';
       var applyAuditFilter=function(){auditActionFilter=String($('#audit-action-filter')&&$('#audit-action-filter').value||'').trim();auditUidFilter=String($('#audit-uid-filter')&&$('#audit-uid-filter').value||'').trim();loadAuditLogs(true);};
       var filterButton=$('#audit-filter-apply');if(filterButton)filterButton.onclick=applyAuditFilter;
       var refreshButton=$('#audit-refresh');if(refreshButton)refreshButton.onclick=function(){loadAuditLogs(true);};
