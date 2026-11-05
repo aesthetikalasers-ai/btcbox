@@ -97,3 +97,19 @@ test('username login is separate from Supabase email/password and uses generic c
   assert.ok(source.includes('crypto.timingSafeEqual(actual, expected)'));
   assert.ok(source.includes('login_username:'));
 });
+
+test('identity linking requires a fresh linked-source proof and a separate fresh target proof', () => {
+  assert.ok(source.includes("path === 'auth/link-identity/reauth' && method === 'POST'"));
+  assert.ok(source.includes("sessionRecord.session.identity_link_reauth = {"));
+  assert.ok(source.includes("marker.purpose !== 'identity_link'"));
+  assert.ok(source.includes("!isSupabaseIdentityLinked(user, String(marker.supabase_user_id || ''))"));
+  assert.ok(source.includes("markerAge > 5 * 60 * 1000"));
+  assert.ok(source.includes("targetClaims.subject !== linkedId"));
+  assert.ok(source.includes("targetNowSeconds - targetAuthTime > 5 * 60"));
+  assert.ok(source.includes("String(marker.supabase_user_id) === linkedId"));
+  assert.ok(source.includes("delete sessionRecord.session.identity_link_reauth"));
+  assert.ok(source.includes("await saveDB(db)"));
+  assert.ok(source.includes("code: 'IDENTITY_IN_USE'"));
+  assert.ok(source.includes("code: 'TWO_FACTOR_REQUIRED'"));
+  assert.ok(source.includes("code: 'TWO_FACTOR_INVALID'"));
+});
