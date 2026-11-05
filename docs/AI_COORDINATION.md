@@ -1502,5 +1502,17 @@ The backend CI branch filters were pointing at an older auth branch. Updated bot
 - PATCHED: both handlers now clear pending identity tokens and their 2FA-needed flags for terminal errors only; retryable TOTP/service/rate-limit failures are not included in the terminal error set.
 - REGRESSION COVERAGE ADDED: frontend contract test asserts the terminal cleanup behavior for both flows and exact terminal-code allowlist.
 - Feature commits: `ef67f9c3c5ad81bdefa2117089217872e037cd6c` (frontend), `65dbee4d4828c101825baa868ac7323892603d58` (test), `17b945ce54713e973c536d4490d6696b93cd7da6` (test assertion cleanup); latest feature HEAD `17b945ce54713e973c536d4490d6696b93cd7da6`.
-- Exact-head CI is pending; do not mark this batch TEST PASSED until the run for this exact SHA completes successfully.
+- Exact-head CI run `42119663440` completed successfully for latest SHA `17b945ce54713e973c536d4490d6696b93cd7da6`.
+- SAFETY: no production/staging DB writes or migrations, merge, Vercel deployment, or financial operations occurred.
+
+
+### OAuth callback and credential-change reauthentication cleanup — 2026-11-06 (UTC+8)
+
+- TEST PASSED (prior batch): exact-head CI run `42119663440` completed successfully for `17b945ce54713e973c536d4490d6696b93cd7da6`.
+- SOURCE OBSERVED: OAuth credential-recovery and identity-link reauthentication callbacks could leave stale pending tokens/flags from an earlier attempt when a fresh callback succeeded, entered the 2FA branch, or failed terminally. Credential reset/update also preserved the current session but left other account-scoped reauthentication proofs attached to that session.
+- PATCHED frontend: successful OAuth reauthentication replaces/clears old pending state; entering a 2FA challenge clears incompatible ready/source-verified flags; failed reauth callbacks clear their corresponding pending tokens and state while preserving existing retry behavior for the dedicated 2FA challenge handlers.
+- PATCHED backend: successful credential reset and credential setup/update now clear both `credential_reauth` and `identity_link_reauth` markers from the preserved current session before persistence. Other sessions continue to be revoked as before.
+- REGRESSION COVERAGE ADDED: frontend OAuth callback state transitions and backend marker invalidation are asserted by contract tests.
+- Feature commits: `1b5b2a43db11347d824104f2027b3dda136f5acd` (frontend), `f6f25c065fc7d857a2130902801f40f4c645797d` (frontend test), `6bb6b10090ec995ec7253c1d9eafb09a5d91c9dc` (API), `7c20187b016b3d8c6a3678b4aebebd251c6e85d6` (API test); latest feature HEAD pending final CI.
+- Exact-head CI pending; do not mark this batch TEST PASSED until the run for the final exact SHA completes successfully.
 - SAFETY: no production/staging DB writes or migrations, merge, Vercel deployment, or financial operations occurred.
