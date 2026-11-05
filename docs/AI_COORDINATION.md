@@ -951,3 +951,29 @@ The backend CI branch filters were pointing at an older auth branch. Updated bot
 - SOURCE OBSERVED: failing CI run and log, malformed regex, two stale test assertions, current admin UI/API client read wiring.
 - NOT VERIFIED: final-head CI, browser admin behavior, Postgres migration/RPC behavior, and production/staging database state.
 - No database migration, production data/configuration change, merge, or Vercel deployment was performed. Deployment pause remains active.
+
+
+## Admin API/read-contract reconciliation and final CI candidate — 2026-11-06
+
+### ADDITIONAL SOURCE OBSERVATIONS
+- The current legacy admin UI user renderer expects `u.kyc` and `u.balances.USDT`, while the actual `GET /api/admin/users` response emits `kyc_status` and `total_usdt`. This is a concrete frontend/backend shape mismatch; merely calling `adminUsers()` will not make the existing table correct.
+- The deposits tab expects `state.admin.deposits`, but no `GET /api/admin/deposits` handler or `adminDeposits()` API client method exists in the inspected feature source. Do not populate it from invented data or expose a manual-credit action without a real, audited read contract.
+- The KYC tab expects submitted `name` and `id_type`, but the inspected users list response only provides `kyc_status`; no dedicated KYC queue read endpoint was found in the inspected admin route block. Current customer KYC UI also states that document photo upload is not required, so evidence review is incomplete.
+- The current API's admin withdrawals response includes `pending_admin_review`, but the UI still filters only `pending`.
+- The current admin action handler still ignores `audit_sync_pending`. Successful business mutation with delayed audit delivery must be shown as a warning, not a plain success toast.
+
+### TEST FIX STATUS
+- A follow-up CI run on SHA `df433220f83684391710703c66e67666d3d245f8` reached 140 tests: 139 passed, 1 failed. The remaining failure was the stale five-argument audit RPC permission assertion.
+- The test was then corrected to assert dropping the legacy five-argument signature and revoking browser-role execution on the six-argument event-ID signature.
+- Current feature branch head observed after that test correction: `5ac6209f54bbe01e6905ed2221773663f2c226a6`.
+- GitHub Actions run `42080961892` was observed in progress for that exact head. Final result must be checked before claiming the batch is green.
+- The earlier CI runs `42080814549` and `42080821601` are intermediate SHAs and are not final-head acceptance evidence.
+
+### NEXT IMPLEMENTATION ORDER
+1. Verify CI run `42080961892` for SHA `5ac6209f54bbe01e6905ed2221773663f2c226a6`; if green, record exact run and test totals.
+2. Build an explicit admin API contract matrix before UI edits: users, deposits, withdrawals, KYC, audit logs. Identify missing read routes and exact response fields.
+3. Add only read-only queue endpoints needed for the console, with sensitive-field minimization and Postgres/legacy source semantics made explicit. Do not expose document numbers or other PII unless necessary and approved.
+4. Hydrate each tab with loading/error/empty states and refresh after successful actions. Include both pending withdrawal statuses and distinguish admin review.
+5. Surface `audit_sync_pending` as a warning that the business mutation is saved but audit delivery is pending; do not instruct the operator to repeat it.
+6. Add admin view/API contract tests. Keep deposit credit, withdrawal review, balance changes, and all other financial writes fail-closed.
+- No database migration, production data/configuration change, merge, or Vercel deployment. Deployment pause remains active.
