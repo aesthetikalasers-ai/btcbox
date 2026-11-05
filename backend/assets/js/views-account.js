@@ -506,9 +506,10 @@ VIEWS.admin.afterRender = function(){
     var err=$('#admin-err'); if(err){err.style.display='block';err.textContent='网络错误，统计数据加载失败。';}
   });
   var tab='users';
-  var adminDataLoading=true;
+  var adminDataLoading=false;
   var adminDataErrors=[];
   async function loadAdminData(){
+    if(adminDataLoading) return;
     adminDataLoading=true;
     adminDataErrors=[];
     var status=$('#admin-data-status');
@@ -626,7 +627,7 @@ VIEWS.admin.afterRender = function(){
   }
   render(tab);
   loadAdminData();
-  $('[data-atab]').forEach(function(t){t.onclick=function(){tab=t.dataset.atab;$('[data-atab]').forEach(function(x){x.classList.remove('active');});t.classList.add('active');render(tab);};});
+  $('[data-atab]').forEach(function(t){t.onclick=function(){tab=t.dataset.atab;$('[data-atab]').forEach(function(x){x.classList.remove('active');});t.classList.add('active');if(adminDataErrors.length)loadAdminData();render(tab);};});
 };
 
 /* ================= 404 (override app-core stub) ================= */
