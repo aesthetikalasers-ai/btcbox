@@ -17,10 +17,14 @@ export function AuthPage({ mode }: { mode: "login" | "register" }) {
   const navigate = useNavigate();
   useEffect(() => { if (status === "authenticated") navigate("/home", { replace: true }); else if (status === "two-factor") navigate("/login", { replace: true }); }, [status, navigate]);
   if (status === "loading") return <div className="mx-auto flex min-h-[60vh] items-center justify-center text-sm text-brand-text-muted">Loading authentication…</div>;
-  const submitEmail = async (event: React.FormEvent<HTMLFormElement>) => {
+  const submitEmail = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (mode === "register") await signUpWithEmail(email, password);
-    else await signInWithEmail(email, password);
+    try {
+      if (mode === "register") await signUpWithEmail(email, password);
+      else await signInWithEmail(email, password);
+    } catch {
+      // AuthProvider stores the safe, user-visible error message.
+    }
   };
   return <div className="mx-auto flex min-h-[calc(100dvh-150px)] w-full max-w-[480px] items-center justify-center p-4 sm:p-6">
     <Card className="w-full border-brand-border bg-brand-surface shadow-xl">

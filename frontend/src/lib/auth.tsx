@@ -155,7 +155,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const client = clientRef.current;
       if (!client) throw new Error("Authentication is still initializing. Reload and try again.");
       const url = new URL(window.location.href);
-      const authError = url.searchParams.get("error_description") || url.searchParams.get("error");
+      const authError = url.searchParams.get("error_description") || url.searchParams.get("error") || url.searchParams.get("error_code") || url.searchParams.get("error_reason");
       if (authError) throw new Error(authError);
       const code = url.searchParams.get("code");
       if (code) {
