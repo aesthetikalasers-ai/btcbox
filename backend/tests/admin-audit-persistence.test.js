@@ -72,8 +72,7 @@ test('canonical PostgreSQL audit reader is opt-in, keyset-paginated, redacted, a
   const reader = source.slice(start, end);
   assert.match(reader, /financial_audit_log/);
   assert.match(reader, /id::text/);
-  assert.ok(reader.includes("typeof row.id !== 'string'"));
-  assert.ok(reader.includes("typeof row.id !== 'string'"));
+  assert.match(reader, /isPositivePostgresBigintString\\(row\\.id\\)/);
   assert.ok(!reader.includes('Number.isSafeInteger(Number(row.id))'));
   assert.match(reader, /order: 'id\.desc'/);
   assert.match(reader, /query\.set\('id', 'lt\.' \+ params\.before\)/);
@@ -93,4 +92,17 @@ test('canonical PostgreSQL audit reader is opt-in, keyset-paginated, redacted, a
   assert.match(route, /ADMIN_AUDIT_READ_UNAVAILABLE/);
   assert.match(route, /Never silently fall back/);
   assert.match(route, /state_document_retention_limited/);
+});
+
+
+test('admin audit bigint cursor validation rejects values above signed PostgreSQL bigint without Number coercion', () => {
+  const start = source.indexOf('function isPositivePostgresBigintString(value)');
+  const end = source.indexOf('function redactAdminAuditDetail(value)', start);
+  assert.ok(start >= 0 && end > start);
+  const validator = source.slice(start, end);
+  assert.match(validator, /\\^\\[1-9\\]\\[0-9\\]\\{0,18\\}\\$/);
+  assert.ok(validator.includes("value <= '9223372036854775807'"));
+  assert.match(source, /before && !isPositivePostgresBigintString\\(before\\)/);
+  assert.match(source, /!isPositivePostgresBigintString\\(row\\.id\\)/);
+  assert.doesNotMatch(validator, /Number\\(/);
 });
