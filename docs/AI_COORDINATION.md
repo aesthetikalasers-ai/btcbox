@@ -1702,3 +1702,18 @@ The backend CI branch filters were pointing at an older auth branch. Updated bot
 3. Resolve canonical app root and Vercel build configuration before changing frontend ownership or removing legacy assets.
 4. Prepare a dedicated integration branch from the current approved development base only after inventory and compatibility review. Do not merge either divergent branch wholesale.
 5. Preserve the locked trading layout and all existing auth backend behavior. No merge to main, deployment, production DB writes/migrations, or financial operations without user approval.
+
+
+## Follow-up API contract audit — 2026-11-06
+
+Application branch inspected: `feat/btcbox-web3-auth-20261105` at `741c709d818cb10145620e2e0ba84891736d64de`.
+
+- SOURCE OBSERVED: backend exposes market ticker, candles and depth; spot limit submit/cancel routes; seconds order/settle/positions routes; account and order reads; deposit-address query; withdrawal validation/review flow; KYC and support submission.
+- SOURCE OBSERVED: spot matching uses `submit_limit_order_matching_v1` / `cancel_limit_order_matching_v1` and is blocked unless the matching-engine cutover gate passes. Market orders are explicitly rejected.
+- SOURCE OBSERVED: seconds trading uses server-side reference prices and atomic SQL RPCs with idempotency protections; it is distinct from perpetual futures and is blocked unless the financial-write cutover gate passes.
+- SOURCE OBSERVED: `0008_financial_spot_trade_v3.sql` explicitly states it is not a matching engine; do not treat it as the active order book implementation. Separate `0009_financial_matching_engine_v1.sql` is present.
+- SOURCE OBSERVED: current Vite `frontend/src/lib/api.ts` exposes market/kline, account read and order-history read, but not spot submit/cancel or seconds order/settle/positions methods. Current React routes for spot, seconds, orders, assets, deposit and withdrawal remain placeholders or are not connected.
+- SOURCE OBSERVED: the legacy vanilla-JS customer UI has some trading interaction code, but it is not automatically connected to the new Vite React app.
+- NOT VERIFIED: financial migrations/RPCs have been applied to the target Supabase project, matching or financial cutover flags are enabled, or any live financial lifecycle is end-to-end ready.
+- NOT FOUND IN INSPECTED SOURCE: a perpetual futures engine/API; do not relabel seconds contracts as futures.
+- Updated detail: see `docs/BTCBOX-FRONTEND-BACKEND-INTEGRATION-MATRIX.md` for the complete route/API matrix and safe connection sequence.
