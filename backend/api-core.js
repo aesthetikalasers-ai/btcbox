@@ -1438,7 +1438,9 @@ async function handleRequest(event, context) {
     Object.keys(db.temp_tokens || {}).forEach(function (token) {
       if (db.temp_tokens[token] && db.temp_tokens[token].uid === user.uid) delete db.temp_tokens[token];
     });
+    // A credential reset invalidates every account-scoped reauthentication proof.
     delete sessionRecord.session.credential_reauth;
+    delete sessionRecord.session.identity_link_reauth;
     try { await saveDB(db); }
     catch (e) {
       if (e && e.message === 'Persistent storage write conflict') return json({ ok: false, code: 'ACCOUNT_UPDATE_CONFLICT', msg: 'Your account changed at the same time. Please retry.' }, 409);
@@ -1486,6 +1488,9 @@ async function handleRequest(event, context) {
       const session = db.sessions[token];
       if (token !== currentSessionRecord.token && session && session.uid === user.uid) delete db.sessions[token];
     });
+    // Even the preserved current session must not retain stale account reauthentication proofs.
+    delete currentSessionRecord.session.credential_reauth;
+    delete currentSessionRecord.session.identity_link_reauth;
     try { await saveDB(db); }
     catch (e) {
       if (e && e.message === 'Persistent storage write conflict') return json({ ok: false, code: 'ACCOUNT_UPDATE_CONFLICT', msg: 'Your account changed at the same time. Please reload and try again.' }, 409);
