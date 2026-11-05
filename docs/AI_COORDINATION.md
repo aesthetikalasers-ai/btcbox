@@ -1583,3 +1583,15 @@ The backend CI branch filters were pointing at an older auth branch. Updated bot
 - Feature commits: API 04687d7fc890578d0b84a4b46949ef91ae24eba5; tests 6ee725cdb87c79d0d547dbc62137252b2c558580. Latest feature HEAD 6ee725cdb87c79d0d547dbc62137252b2c558580.
 - CI PENDING: API run 42121255258 and exact latest-head run 42121260377. Do not accept this batch until exact latest-head CI succeeds.
 - SAFETY: no production/staging DB writes or migrations, merge, Vercel deployment, or financial operations occurred.
+
+
+### Scope correction and first-time account creation coverage — 2026-11-06 (UTC+8)
+
+- USER CONFIRMED: BTCBOX currently has no legacy users. Do not treat legacy account migration or backward-compatibility as an active product requirement unless explicitly requested.
+- SCOPE CORRECTION: reverted the speculative auth_identities-only fallback in isSupabaseIdentityLinked; ownership matching remains based on the active primary Supabase ID and explicit supabase_user_ids list. Removed the legacy-only regression assertion. This intentionally avoids expanding production logic for a non-existent user cohort.
+- SOURCE REVIEW: first-time Supabase sign-in creates one internal BTCBOX user from the server-verified Supabase UUID; Google requires a confirmed valid email, Web3 requires a validated wallet identity and does not synthesize an email. The creation record initializes the provider identity, wallet identity (when Web3), empty balances, and account collections; the session is then created and persisted with the user in the same saveDB operation.
+- REGRESSION COVERAGE ADDED: test asserts first-time account creation identity fields, wallet/provider initialization, empty balance initialization, and session persistence through the same save operation.
+- Feature commits: scope rollback API 80ce76e35ffc53b1100d47b193455ffd2e73ac84; legacy-only test removal 2cd43761c3afe433962d6f1928d5d7e7d32947cc; first-time account test e7248b720679e32d3450bc8c8e20c6e173c8ca24. Latest feature HEAD e7248b720679e32d3450bc8c8e20c6e173c8ca24.
+- CI PENDING: exact latest-head run 42121479935. The earlier run for the intermediate scope rollback is not a substitute for exact latest HEAD.
+- NOT VERIFIED: live Google/Web3 provider callbacks, actual first-time sign-in in deployed environment, and persistence behavior against production storage.
+- SAFETY: no production/staging DB writes or migrations, merge, Vercel deployment, or financial operations occurred.
