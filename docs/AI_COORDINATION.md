@@ -177,3 +177,24 @@ Audit scope: read-only source inspection of `btcboxcdt` main at `93a236e4a3ed6c9
 - TEST PASSED: build and 87/87 Node tests on `6af0210b6b2716cf5d0310fa3b7384d33bf8e808`.
 - SOURCE OBSERVED: backend build orchestration, Vite output, unified dist assembly, recent deployment burst, and Vercel project framework metadata.
 - NOT VERIFIED: preview-disable flag readback, canonical Vercel rootDirectory setting as a directly returned project field, browser-visible responsive behavior, actual Supabase/API runtime connectivity, and admin UI completeness.
+
+## Batch B initial visual/data integrity audit — 2026-11-05
+
+### SOURCE OBSERVED
+- The pinned Strata Pro upstream theme uses near-black surfaces: background `#090909`, sidebar `#0B0B0C`, surface `#101113`, surface-2 `#141518`, subtle white borders around 5%, text `#F4F4F5`, secondary white at 62%, muted white at 38%, profit `#22C55E`, loss `#EF4444`, gold `#F59E0B`, and Inter.
+- BTCBOX's current `frontend/src/index.css` instead defines a blue-navy palette (`#080d18`, `#0b1220`, `#101b2c`, `#17263b`), blue-tinted borders, and bright blue primary accent `#38a5ff`. The button primary variant adds a prominent blue shadow. This is a material visual divergence from the selected Strata Pro base.
+- BTCBOX's current font stack adds Noto Sans JP, SC and Khmer plus JetBrains Mono. Preserve multilingual fallback coverage and monospaced numeric display where useful; do not blindly replace these with upstream Inter-only declarations.
+- On the active migration branch, `dashboard.data.ts` still creates random sample candle and volume series; `LiquidityChart.tsx` and `VolumeChart.tsx` still fall back to those series when the API returns no candles. The volume card visibly labels this as `Sample series` / `Illustrative data`. The current migration deployment therefore still contains a synthetic chart fallback path.
+- Both PR #15 and PR #19 branches contain chart implementations that set data only from API-provided candles and use empty/waiting states when none are returned. PR #19 also changes mobile navigation, button text wrapping, and locale coverage. Its chart file has a stale comment saying preview series are used otherwise, although the inspected implementation passes only API candles; clean up that comment during consolidation.
+- The current migration branch's route registry still maps `/trade/*`, `/seconds`, `/orders`, `/deposit`, `/withdraw`, `/earn`, `/login`, `/register`, `/kyc`, `/support`, and `/settings` to generic `SectionPage` placeholders. The Assets and My pages are also explanatory shells rather than connected account views.
+- The current branch's `getMarkets` and `getKlines` API adapters exist, but their presence does not establish live endpoint connectivity. Account and orders read adapters exist in `frontend/src/lib/api.ts`, but the route audit above shows they are not yet hydrated into the corresponding page views.
+
+### COORDINATION DECISION
+- For the visual system, use Strata Pro's actual theme tokens as the baseline rather than inventing new hex values. Keep BTCBOX brand identity restrained; retain locale-specific font fallbacks and mono numerals as compatibility needs. Avoid applying a second unrelated blue-heavy theme.
+- For chart integrity, the migration branch's random fallback is a release-blocking data-integrity defect. AI 1 should port the no-fabricated-candles behavior from the existing chart-fix work into the consolidated current implementation; AI 2 should verify both chart components and dashboard store contain no random/demo fallback path.
+- PR #19 is the broader source of the chart + mobile + locale fixes, while PR #15 overlaps on chart + locale. Do not merge either stale branch as-is. Rebase/port the required changes onto one current consolidated implementation head, then obtain independent review.
+- Treat the current page placeholders as integration gaps, not finished features. Prioritize the mature page composition from Shadcn Fintech while keeping BTCBOX API/auth and all financial write boundaries authoritative.
+
+### Evidence classification
+- SOURCE OBSERVED: upstream and BTCBOX theme token values, current chart random fallback implementation, the two fix branches' no-fallback chart implementations, and current placeholder route registry.
+- NOT VERIFIED: browser-rendered color/contrast quality, exact responsive behavior at the target viewport matrix, API freshness/connectivity, account hydration, and completed route integrations.
