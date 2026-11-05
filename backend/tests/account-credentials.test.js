@@ -78,7 +78,7 @@ test('credential recovery requires a server-verified, linked, recently reauthent
   assert.ok(source.includes("code: 'TWO_FACTOR_INVALID'"));
   assert.ok(source.includes("token !== sessionRecord.token"));
   const recoveryStart = source.indexOf("if (path === 'account/credentials/recover' && method === 'POST')");
-  const recoveryEnd = source.indexOf("\\n  // ---------- POST /api/account/credentials ----------", recoveryStart);
+  const recoveryEnd = source.indexOf("\n  // ---------- POST /api/account/credentials ----------", recoveryStart);
   const recoveryRoute = source.slice(recoveryStart, recoveryEnd);
   assert.ok(recoveryRoute.indexOf("delete sessionRecord.session.credential_reauth") < recoveryRoute.indexOf("await saveDB(db)"));
   assert.ok(recoveryRoute.includes("token !== sessionRecord.token"));
