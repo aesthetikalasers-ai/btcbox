@@ -1289,3 +1289,12 @@ The backend CI branch filters were pointing at an older auth branch. Updated bot
 - Latest feature branch HEAD: `0d6bdb7efda22a2d3abc22c0763ac555266316fe`. Exact-head CI run `42108921107` is in progress; do not mark the audit cursor change accepted until this exact-head run succeeds.
 - Intermediate commits `187dbbe4a62431b688507f81b4f872a7cfced014` and `2b4b8f24a3ce1a2cd9bb9061af798e631d3e877f` also have CI runs in progress; exact-head run `42108921107` is the acceptance gate.
 - No production PostgREST request was executed, no production schema/rows/secrets were changed, and the canonical admin audit reader remains opt-in. No merge, deployment, or financial write was performed.
+
+
+### CI failure analysis and correction — 2026-11-06 (UTC+8)
+
+- Exact-head run `42108921107` at `0d6bdb7efda22a2d3abc22c0763ac555266316fe` FAILED in backend tests. Build passed; test runner reported 16 failures because an overly broad automated line replacement unintentionally changed three adjacent identity validators (`validateBtcboxUsername`, `validateBtcboxLoginPassword`, `isSupabaseUserId`) and introduced an invalid regular-expression assertion in the new audit test.
+- This was a source-edit regression, not an application runtime observation. It has been corrected: the three identity validators were restored to their original contracts; bigint cursor assertions now use literal string checks instead of an invalid regex literal.
+- Corrective commits: `b78e41a5ae80bd6c8dfd67946dcf39879a7214d8` (restore validators) and `754debb8a541ce810e9a2cd7b7035ea32d1d7a62` (repair test assertions).
+- Current feature HEAD: `754debb8a541ce810e9a2cd7b7035ea32d1d7a62`. Exact-head CI run `42109483650` is queued/in progress. Do not accept the batch until this exact SHA passes all jobs.
+- No production DB access or writes, merge, deployment, or financial operation occurred.
