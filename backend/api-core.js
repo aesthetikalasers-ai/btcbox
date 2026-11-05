@@ -2279,18 +2279,18 @@ async function handleRequest(event, context) {
 
     // All privileged account changes are auditable and validated server-side.
     // 审计日志双写：JSON blob（兼容旧读取路径）+ PostgreSQL append-only 表（fire-and-forget，失败告警回退）。
-    function auditAdmin(action, uid, detail) {
+    async function auditAdmin(action, uid, detail) {
       if (!Array.isArray(db.audit_logs)) db.audit_logs = [];
       db.audit_logs.push({ id: 'AL' + Date.now() + crypto.randomBytes(3).toString('hex'), action: action, uid: String(uid || ''), by: 'admin', time: nowStr(), detail: String(detail || '').slice(0, 300) });
       if (db.audit_logs.length > 5000) db.audit_logs = db.audit_logs.slice(-5000);
       if (supabaseStorageConfigured()) {
-  const base = String(process.env.SUPABASE_URL || '').replace(/\/+$/, '');
-        if (base) {
-          fetch(base + '/rest/v1/rpc/append_admin_audit_log', {
-            method: 'POST', headers: supabaseHeaders(),
-            body: JSON.stringify({ p_action: String(action), p_uid: String(uid || ''), p_by: 'admin', p_detail: String(detail || '').slice(0, 300) })
-          }).catch(function (e) { console.warn('[audit-log] PG append failed (JSON blob fallback):', e.message); });
-        }
+        const base = String(process.env.SUPABASE_URL || '').replace(/\\/+$/, '');
+        if (!base) throw new Error('Admin audit storage is not configured.');
+        const response = await fetch(base + '/rest/v1/rpc/append_admin_audit_log', {
+          method: 'POST', headers: supabaseHeaders(),
+          body: JSON.stringify({ p_action: String(action), p_uid: String(uid || ''), p_by: 'admin', p_detail: String(detail || '').slice(0, 300) })
+        });
+        if (!response.ok) throw new Error('Admin audit persistence failed with status ' + response.status);
       }
     }
 
@@ -2356,7 +2356,7 @@ async function handleRequest(event, context) {
       if (!!u.frozen === frozen) return json({ ok: false, code: 'ACCOUNT_STATE_UNCHANGED', msg: frozen ? 'Account is already frozen.' : 'Account is already active.' }, 409);
       u.frozen = frozen;
       u.frozen_reason = frozen ? reason : '';
-      auditAdmin(frozen ? 'user_freeze' : 'user_unfreeze', u.uid, reason);
+      await auditAdmin(frozen ? 'user_freeze' : 'user_unfreeze', u.uid, reason);
       await saveDB(db);
       return json({ ok: true, msg: u.frozen ? 'Account frozen.' : 'Account unfrozen.' });
     }
@@ -2371,7 +2371,7 @@ async function handleRequest(event, context) {
       u.salt = genSalt();
       u.password_hash = hashPassword(newPassword, u.salt);
       Object.keys(db.sessions || {}).forEach(function (token) { if (db.sessions[token].uid === u.uid) delete db.sessions[token]; });
-      auditAdmin('user_password_reset', u.uid, 'Admin reset login password; existing sessions invalidated.');
+      await auditAdmin('user_password_reset', u.uid, 'Admin reset login password; existing sessions invalidated.');
       await saveDB(db);
       return json({ ok: true, msg: 'Password has been reset. The user must sign in again.' });
     }
@@ -2387,7 +2387,7 @@ async function handleRequest(event, context) {
       if (duplicate) return json({ ok: false, msg: 'This email is already used by another account.' }, 409);
       const previousEmail = u.email;
       u.email = newEmail;
-      auditAdmin('user_email_change', u.uid, JSON.stringify({ from: previousEmail, to: newEmail }));
+      await auditAdmin('user_email_change', u.uid, JSON.stringify({ from: previousEmail, to: newEmail }));
       await saveDB(db);
       return json({ ok: true, msg: 'Email updated successfully.' });
     }
@@ -2490,7 +2490,7 @@ async function handleRequest(event, context) {
       u.kyc.reviewed_at = nowStr();
       u.kyc.reject_reason = '';
       u.kyc.review_reason = override ? reason : 'Approved pending identity verification application.';
-      auditAdmin(override ? 'kyc_approve_exception' : 'kyc_approve', u.uid, override ? reason : 'Admin approved pending identity verification application.');
+      await auditAdmin(override ? 'kyc_approve_exception' : 'kyc_approve', u.uid, override ? reason : 'Admin approved pending identity verification application.');
       await saveDB(db);
       return json({ ok: true, msg: override ? 'KYC approved via admin exception; reason recorded.' : 'KYC approved.' });
     }
@@ -2507,7 +2507,7 @@ async function handleRequest(event, context) {
       u.kyc.reject_reason = reason;
       u.kyc.reviewed_by = 'admin';
       u.kyc.reviewed_at = nowStr();
-      auditAdmin('kyc_reject', u.uid, reason);
+      await auditAdmin('kyc_reject', u.uid, reason);
       await saveDB(db);
       return json({ ok: true, msg: 'KYC rejected.' });
     }
@@ -2527,7 +2527,7 @@ async function handleRequest(event, context) {
           u.support_messages.push({ id: 'M' + Date.now() + crypto.randomBytes(3).toString('hex'), from: 'admin', content: content, time: nowStr() });
         });
       }
-      auditAdmin('admin_push_message', body.uid || 'all', JSON.stringify({ target: body.uid ? 'single_user' : 'all_users', length: content.length }));
+      await auditAdmin('admin_push_message', body.uid || 'all', JSON.stringify({ target: body.uid ? 'single_user' : 'all_users', length: content.length }));
       await saveDB(db);
       return json({ ok: true, msg: 'Message sent.' });
     }
@@ -2644,7 +2644,7 @@ async function handleRequest(event, context) {
         if (body.announcement.length > 2000) return json({ ok: false, msg: 'Announcement cannot exceed 2,000 characters.' }, 400);
         db.announcement = body.announcement.trim();
       }
-      auditAdmin('system_config_update', 'system', JSON.stringify({ deposit_address_keys: changedKeys, announcement_updated: typeof body.announcement === 'string' }));
+      await auditAdmin('system_config_update', 'system', JSON.stringify({ deposit_address_keys: changedKeys, announcement_updated: typeof body.announcement === 'string' }));
       await saveDB(db);
       return json({ ok: true, msg: 'Configuration updated.', deposit_addresses: safeDepositAddresses(db.deposit_addresses), announcement: db.announcement });
     }
