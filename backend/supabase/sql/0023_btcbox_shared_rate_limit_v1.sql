@@ -53,6 +53,7 @@ begin
   case p_scope
     when 'login_2fa' then v_limit := 20; v_window_seconds := 900;
     when 'credential_reauth' then v_limit := 8; v_window_seconds := 900;
+    when 'identity_link_reauth' then v_limit := 8; v_window_seconds := 900;
     when 'credential_recover' then v_limit := 5; v_window_seconds := 900;
     when 'twofa_setup_password' then v_limit := 10; v_window_seconds := 900;
     when 'twofa_setup_confirm' then v_limit := 10; v_window_seconds := 900;
