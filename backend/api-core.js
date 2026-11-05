@@ -2452,8 +2452,11 @@ async function handleRequest(event, context) {
       };
       db.audit_logs.push(event);
       const pending = db.audit_logs.filter(function (entry) { return entry && entry.postgres_sync_status === 'pending'; });
-      const retained = db.audit_logs.filter(function (entry) { return !entry || entry.postgres_sync_status !== 'pending'; })
-        .slice(-Math.max(0, 5000 - pending.length));
+      const nonPending = db.audit_logs.filter(function (entry) { return !entry || entry.postgres_sync_status !== 'pending'; });
+      const retainedLimit = Math.max(0, 5000 - pending.length);
+      // slice(-0) is slice(0), which keeps every historical row. Handle a full
+      // pending queue explicitly so non-pending history cannot grow unbounded.
+      const retained = retainedLimit > 0 ? nonPending.slice(-retainedLimit) : [];
       db.audit_logs = retained.concat(pending).sort(function (a, b) { return String(a.time || '').localeCompare(String(b.time || '')); });
       return event.id;
     }
