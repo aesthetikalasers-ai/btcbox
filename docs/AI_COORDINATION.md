@@ -589,3 +589,39 @@ Also verify the Site URL and inspect Authentication → Rate Limits / CAPTCHA fo
 - SOURCE READ-BACK: verified both recovery inputs have minLength=12/maxLength=128 and the submit condition enforces the same length bounds.
 - NOT VERIFIED: no frontend build, unit test run, or browser password-recovery test was performed. Backend policy remains unchanged.
 - No deployment, merge, database write, or production configuration change was performed; Vercel deployment pause remains active.
+## Identity-link and shared rate-limit design audit — 2026-11-05
+
+### SOURCE OBSERVED — identity linking
+- Current feature head re-read from Git refs: `feat/btcbox-web3-auth-20261105` at `96ceef0189353d22ee974be920807ed281e8c090`.
+- `backend/api-core.js` blob `b99eabff46f1bfce8b6e919b2783fe81633ccbf2`, lines 1281 onward: `POST /api/auth/link-identity` requires the existing BTCBOX session's `created_at` to be within five minutes, then verifies only the Supabase access token for the identity being added.
+- `frontend/src/lib/auth.tsx` blob `8d0a67974522b113781a7c7bcf4bb2611cbe64cf`: Google and Web3 link flows authenticate the new identity and pass its access token to `linkSupabaseIdentity`; they do not first prove recent control of an identity already linked to the current BTCBOX account.
+- `frontend/src/features/account/AccountSecurityPage.tsx` blob `d1efa23e9c0d495c4fa32ee0c7b41749f25542ee`: UI copy says linking requires recent sign-in and proof of new identity; fallback instructs users to sign out and sign back in if the session is no longer recent.
+- Confirmed UX/contract mismatch: after five minutes, freshly verifying the new identity cannot satisfy the backend age check on the existing BTCBOX session. Signing out and signing back in is only a workaround, not a robust two-proof link flow.
+
+### IDENTITY-LINK FIX DESIGN — NOT IMPLEMENTED
+- Preserve the five-minute security window; do not extend the BTCBOX session age.
+- Add a narrowly scoped, session-bound server-side `identity_link_reauth` marker minted only after a fresh Supabase token for an identity already linked to the current BTCBOX UID has been verified by `/auth/v1/user`, its signed `auth_time` and `sub` match, provider/identity claims are valid, and current-account 2FA is satisfied when enabled.
+- The subsequent link request must still verify the new identity token independently, reject identity/wallet/email conflicts as today, require the marker to be no older than five minutes, bind it to the same BTCBOX UID/session and existing identity ID, and consume it on successful link. Failure/expiry must not weaken ownership checks or silently merge accounts.
+- Frontend sequence should obtain proof of an existing linked method first, then proof of the new method, preserving pending flow across Google callback or wallet interaction. Never store raw access tokens in local storage or URL parameters. Avoid a generic reusable reauth flag; marker must be purpose-scoped and single-use.
+- Before implementation, inspect callback routing and error handling for Google and wallet flows and add route-level tests for wrong-account proof, stale auth_time, expired marker, missing 2FA, replay, conflicting target identity, and successful one-time consumption.
+
+### SOURCE OBSERVED — rate limiting and persistence
+- `backend/api-core.js` blob `b99eabff46f1bfce8b6e919b2783fe81633ccbf2`, lines 475–490: `rateCheck` increments a module-local `_rateBuckets = new Map()`; it is not durable or shared across serverless instances.
+- The same file uses this helper on credential reauthentication, credential recovery, login 2FA, 2FA setup/password checks, 2FA confirmation, and 2FA disable routes. These counters can reset on cold starts and are not coordinated across instances.
+- The file's existing `btcbox_state.security_counters` helper is pure object mutation. It is used by some login/admin/fund-password paths, but persistence occurs through whole-state `saveDB`.
+- `saveDB` reads/writes one `btcbox_state` JSON document using `btcbox_save_state(p_expected_revision, p_data)`; `backend/supabase/sql/0001_btcbox_state_cas.sql` atomically checks the whole-row revision and replaces the full JSON document. This protects state writes from silent overwrite but is not a dedicated atomic increment/lock primitive for high-contention rate-limit keys.
+- Therefore a non-atomic read/modify/write of `security_counters` is not an acceptable fix. Reusing whole-state CAS without bounded conflict retry and a dedicated limiter contract risks contention with unrelated account/session updates.
+
+### RATE-LIMITER FIX DESIGN — NOT IMPLEMENTED
+- Prefer a dedicated table keyed by a deterministic HMAC of the limiter scope/key, with a database-side RPC that atomically creates/resets/increments a window and returns limited/retry-after. Do not persist raw IP addresses, usernames, wallet addresses, or access tokens as limiter keys.
+- Define explicit window semantics (fixed window or token bucket), expiry/cleanup, maximum key cardinality, and bounded payload. The database function must enforce the cap atomically under concurrent requests (row lock/upsert semantics), not rely on client read/modify/write.
+- Use a separate namespace/purpose per route family so credential recovery cannot consume or reset a 2FA or identity-link budget unexpectedly. Decide whether limits are per account, per IP, per identity, or layered combinations, and document each.
+- Fail closed with a safe 503/429 behavior if limiter RPC is unavailable; do not silently fall back to process memory.
+- Add SQL migration and isolated PostgreSQL concurrency tests first. Do not apply the migration to the connected production Supabase project without explicit user approval. Then add API tests for concurrent increments, expiry/reset, limit boundary, retry-after, RPC failure, and multi-instance consistency.
+
+### VALIDATION / RELEASE STATUS
+- SOURCE OBSERVED only. No code or SQL migration was changed in this audit; no production database was touched.
+- No backend tests, frontend build, HTTP integration tests, browser QA, or multi-instance simulation were run.
+- Latest feature branch head verified through Git refs: `96ceef0189353d22ee974be920807ed281e8c090`.
+- Latest coordination branch head before this entry: `6823487e4fbcf359bda065394986036ac0cca39a`.
+- All Vercel Preview and Production deployments remain paused at the user's direction. No merge or deployment was performed.
