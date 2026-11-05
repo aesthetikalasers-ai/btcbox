@@ -776,3 +776,8 @@ Also verify the Site URL and inspect Authentication → Rate Limits / CAPTCHA fo
 - Tests were not executed; no Node syntax check, HTTP route integration, Postgres migration execution, concurrency/replay test, frontend build, or browser OAuth/wallet/TOTP test was run.
 - The migration remains unapplied and the Vercel HMAC secret remains unverified. Because the route fails closed through the shared limiter, it will return 503 until the approved database migration and runtime secret configuration are in place.
 - No production/staging database was changed; no merge or Vercel build/deployment was triggered. Deployment pause remains active.
+
+
+## Latest source audit — 2026-11-05
+
+Feature branch `feat/btcbox-web3-auth-20261105` at `48d82c0877dd945d7a4f4115f3cfa56b8a5f71a6` now includes a twelve-scope shared request guard. Source read-back confirms each scope appears in the API policy and call site, migration CHECK and RPC CASE, and the source-contract test. The target route uses the shared guard and consistent Auth URL fallback. Tests and database execution remain pending. No database changes, merge, or deployment; release pause remains active.
