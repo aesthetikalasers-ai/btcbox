@@ -991,3 +991,13 @@ The backend CI branch filters were pointing at an older auth branch. Updated bot
 - Vercel's separate `build-rate-limit` status is not a failure of this GitHub Actions run. No Vercel deployment was initiated.
 - Admin console API/data-shape gaps documented above remain open and must be addressed before calling the admin console operational.
 - No merge to `main`, no database migration, and no production deployment. Deployment pause remains active.
+
+
+## Admin console batch 2026-11-06
+- Feature branch HEAD: `9b45d8a0f24b83114bf4cfc32bdba2e680b8b8e3`.
+- `backend/assets/js/views-account.js` now loads supported admin user and withdrawal read APIs, maps `kyc_status`/`total_usdt` into the existing user table shape, includes `pending_admin_review`, and refreshes supported lists after successful admin actions.
+- Admin action success checks `audit_sync_pending` and warns that the business operation is saved while audit delivery is pending; operators are told not to repeat it.
+- Deposits and KYC tabs now state that the required complete read APIs are unavailable and do not expose their prior review controls. No fabricated queue data is used.
+- `backend/tests/admin-entry.test.js` adds coverage for hydration, response mapping, pending-review visibility, unavailable queues, and audit-pending feedback.
+- GitHub Actions run `42081382847` for this exact SHA succeeded: unified build passed, backend tests 143/143 passed, fail-closed preflight passed, preserved-entrypoint checks passed.
+- Browser admin/Basic Auth and live database behavior remain unverified. No migration, merge, or Vercel deployment.
