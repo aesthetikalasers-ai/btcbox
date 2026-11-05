@@ -63,3 +63,22 @@ test('OAuth reauthentication callbacks replace stale challenges and clear failed
   assert.match(auth, /if \(failedFlow === "link-reauth"\) \{\s*setPendingIdentityLinkToken\(""\);\s*setIdentityLinkNeedsTwoFactor\(false\);\s*setIdentityLinkSourceVerified\(false\);/);
   assert.match(auth, /if \(failedFlow === "credential-recovery"\) \{\s*setPendingCredentialRecoveryToken\(""\);\s*setCredentialRecoveryNeedsTwoFactor\(false\);\s*setCredentialRecoveryReady\(false\);/);
 });
+
+
+test('successful Google and Web3 identity linking clear the consumed source proof before Supabase cleanup', () => {
+  const oauthStart = auth.indexOf('if (url.searchParams.get("flow") === "link-target")');
+  const oauthEnd = auth.indexOf('await acceptSupabaseSession(data.session.access_token)', oauthStart);
+  const oauth = auth.slice(oauthStart, oauthEnd);
+  assert.ok(oauth.indexOf('await linkIdentityRequest(data.session.access_token)') < oauth.indexOf('setIdentityLinkSourceVerified(false)'));
+  assert.ok(oauth.indexOf('setIdentityLinkSourceVerified(false)') < oauth.indexOf('await client.auth.signOut()'));
+  assert.ok(oauth.includes('setPendingIdentityLinkToken("")'));
+  assert.ok(oauth.includes('setIdentityLinkNeedsTwoFactor(false)'));
+
+  const web3Start = auth.indexOf('const linkWeb3Identity = useCallback');
+  const web3End = auth.indexOf('const signInWithGoogle = useCallback', web3Start);
+  const web3 = auth.slice(web3Start, web3End);
+  assert.ok(web3.indexOf('await linkIdentityRequest(data.session.access_token)') < web3.indexOf('setIdentityLinkSourceVerified(false)'));
+  assert.ok(web3.indexOf('setIdentityLinkSourceVerified(false)') < web3.indexOf('await clientRef.current.auth.signOut()'));
+  assert.ok(web3.includes('setPendingIdentityLinkToken("")'));
+  assert.ok(web3.includes('setIdentityLinkNeedsTwoFactor(false)'));
+});
