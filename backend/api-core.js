@@ -63,7 +63,7 @@ function getSupabaseWalletIdentity(identity) {
   return null;
 }
 function isPositivePostgresBigintString(value) {
-  return typeof value === 'string' && /^[1-9]\\d{0,18}$/.test(value) &&
+  return typeof value === 'string' && /^[1-9][0-9]{0,18}$/.test(value) &&
     (value.length < 19 || value <= '9223372036854775807');
 }
 
@@ -76,10 +76,10 @@ function redactAdminAuditDetail(value) {
 }
 
 function isValidAuthEmail(value) {
-  return typeof value === 'string' && /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(value);
+  return typeof value === 'string' && /^[1-9][0-9]{0,18}$/.test(value) &&
 }
 function isSupabaseUserId(value) {
-  return typeof value === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+  return typeof value === 'string' && /^[1-9][0-9]{0,18}$/.test(value) &&
 }
 
 // Read auth_time from a JWT only after the exact token has been accepted by
@@ -109,10 +109,10 @@ function normalizeBtcboxUsername(value) {
   return typeof value === 'string' ? value.trim().toLowerCase() : '';
 }
 function validateBtcboxUsername(value) {
-  return typeof value === 'string' && /^[a-z0-9][a-z0-9_]{2,23}$/.test(value);
+  return typeof value === 'string' && /^[1-9][0-9]{0,18}$/.test(value) &&
 }
 function validateBtcboxLoginPassword(value) {
-  return typeof value === 'string' && value.length >= 12 && value.length <= 128 && !/[\x00-\x1f\x7f]/.test(value);
+  return typeof value === 'string' && /^[1-9][0-9]{0,18}$/.test(value) &&
 }
 function hashBtcboxLoginPassword(password, salt) {
   return crypto.pbkdf2Sync(password, salt, BTCBOX_PASSWORD_ITERATIONS, BTCBOX_PASSWORD_KEYLEN, 'sha256').toString('hex');
