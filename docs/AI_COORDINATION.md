@@ -214,3 +214,27 @@ Audit scope: read-only source inspection of `btcboxcdt` main at `93a236e4a3ed6c9
 - SOURCE OBSERVED: GitHub commit status context `Vercel – btcboxcdt` reports success for the latest commit. A Vercel deployment-history query for this branch returned zero deployments. This status context alone is not a build log or a deployment; no build/test result is claimed.
 - NOT VERIFIED: frontend TypeScript/build, browser-rendered empty state, live market API freshness, and all other dashboard hard-coded sample data paths.
 - NEXT: inspect the remaining dashboard market data sources and page integration gaps, then apply the approved Strata visual tokens in a separate batched change after confirming all usages and shared component impact.
+
+
+## Batch 2 — Strata visual token alignment — 2026-11-05
+
+### SOURCE OBSERVED
+- The pinned upstream Strata Pro repository `bymilon/strata-pro-crypto-ui` was inspected directly at `main`. Its `src/index.css` confirms the actual palette: background `#090909`, sidebar `#0B0B0C`, surface `#101113`, surface-2 `#141518`, hover white at 2.5%, border white at 5%, subtle border white at 3%, primary text `#F4F4F5`, secondary white at 62%, muted white at 38%, profit `#22C55E`, loss `#EF4444`, gold `#F59E0B`. The upstream CSS does not define a blue primary/accent token.
+- BTCBOX retains Inter first plus Noto Sans JP/SC/Khmer fallbacks and JetBrains Mono. This intentionally preserves locale coverage and numeric typography rather than copying the upstream Inter-only font stack.
+- IMPLEMENTED on isolated branch `feat/btcbox-strata-theme-batch-20261105`, based on current `main` `14a8e361fd928626d4e350a03698135f0c49ceea` and including Batch 1 no-fake-chart changes. Branch compare: 13 commits ahead / 0 behind. Latest known branch commit: `33a6c9348875db926d3d7b42da31cce56a3e4654`.
+- Updated global theme tokens in `frontend/src/index.css` to Strata's actual surface/text/border/profit/loss/gold values. For BTCBOX's existing semantic `primary` and `brand-accent` usages, neutral white/near-black was chosen because the upstream stylesheet defines no blue primary; gold is exposed as a separate semantic token and is not spread across every control.
+- Removed the legacy blue glow from shared Button default variant; changed BTCBOX sidebar brand accents to neutral silver; removed remaining sky-blue accents from dashboard eyebrow, shared page icon/link accents, and active mobile bottom navigation.
+- Updated chart card controls to use the surface token, chart axis text to Strata muted opacity, and candle border/wick colors to Strata profit/loss values. Empty chart labels now say `No market data` / `Waiting for market data`; removed stale comment claiming a preview series fallback.
+- Source re-fetch confirms the changed files contain the intended new values and no old sky-blue classes in the changed Sidebar, BottomNav, Dashboard, or Pages files.
+
+### TEST / DEPLOYMENT STATUS
+- GitHub combined status for latest known commit `33a6c9348875db926d3d7b42da31cce56a3e4654` reports `Vercel – btcboxcdt` failure with target URL indicating `build-rate-limit`. This is a rate-limit failure, not a TypeScript/build/test result.
+- GitHub Actions workflow lookup returned no PR-triggered workflow runs for that commit.
+- No Vercel deployment was initiated by the operator. The branch has no verified browser preview or visual acceptance.
+- NOT VERIFIED: frontend typecheck/build after theme changes, full-page color contrast, all route/component blue utility occurrences outside the inspected shared files, actual market API freshness, and visual behavior at mobile/tablet/desktop viewports.
+
+### NEXT
+- Stop creating per-file commits. Future changes should be grouped into one atomic commit per batch, using a single tree/commit update where available; avoid any Preview build until a full batch is ready and the user authorizes it.
+- Audit the remaining dashboard data module for unused hard-coded token fixtures and trace their imports before removal. Do not delete fixtures until their usage is confirmed.
+- Run the canonical backend-orchestrated frontend build and Node tests locally or in non-deploying CI when a safe execution path is available. Do not use Vercel Preview as a routine test loop.
+- Continue with page/API integration inventory only after the visual token batch has build evidence; preserve placeholders where API contracts are not yet verified.
