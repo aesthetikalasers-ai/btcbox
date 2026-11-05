@@ -1469,5 +1469,16 @@ The backend CI branch filters were pointing at an older auth branch. Updated bot
 - PATCHED: require a valid current BTCBOX session; after consuming a valid one-time TOTP step, preserve that current session while revoking every other session for the account and deleting the account's pending `temp_tokens` before CAS persistence.
 - REGRESSION COVERAGE ADDED: auth security route contract asserts current-session validation, current-session preservation, revocation of other sessions, deletion of pending login challenges, and persistence ordering.
 - Feature commits: `fae0b09f154b2b2c72735ac3a356576265b432b2` (API) and `3a986fe2488bb3822323d7265a78f377dd0b92b3` (test); latest feature HEAD `3a986fe2488bb3822323d7265a78f377dd0b92b3`.
-- Exact-head CI run `42119012415` was queued and run `42119004524` was in progress when recorded. Do not mark this 2FA enrollment change TEST PASSED until run `42119012415` for the latest SHA completes successfully.
+- Exact-head CI run `42119004524` passed for API commit `fae0b09f154b2b2c72735ac3a356576265b432b2`; latest 2FA enrollment SHA `3a986fe2488bb3822323d7265a78f377dd0b92b3` passed exact-head CI run `42119012415`, including unified build, backend tests, fail-closed deployment configuration preflight, and entrypoint verification.
+- SAFETY: no production/staging DB writes or migrations, merge, Vercel deployment, or financial operations occurred.
+
+
+### 2FA challenge lifecycle hardening — 2026-11-06 (UTC+8)
+
+- TEST PASSED (2FA enrollment): exact-head CI run `42119012415` passed for `3a986fe2488bb3822323d7265a78f377dd0b92b3`.
+- SOURCE OBSERVED: disabling 2FA revoked older sessions but left pending `temp_tokens`; a pending second-step challenge could outlive the account's factor state. The `POST /api/login/2fa` route also treated a missing/non-finite expiry differently from an expired one and did not re-check that TOTP remained enabled when consuming the challenge.
+- PATCHED: disabling 2FA now deletes all pending login challenges for that user before persistence. The 2FA login route now requires a finite expiry strictly later than current time, deletes expired/malformed challenge records, and rejects/deletes a challenge if the user no longer has an enabled TOTP secret.
+- REGRESSION COVERAGE ADDED: route-contract tests assert pending challenge invalidation on disable, finite strict expiry, and current enabled-factor checks.
+- Feature commits: `d5a40e32f19503c7f9ac5287847cd64ef29165cd` (API) and `9a06a8c38f0c5aeb987dc8a44fcd818b0d20f401` (tests); latest feature HEAD `9a06a8c38f0c5aeb987dc8a44fcd818b0d20f401`.
+- Exact-head CI run `42119180401` is queued; API commit run `42119171670` is in progress. Do not mark this challenge lifecycle batch TEST PASSED until run `42119180401` for the latest SHA completes successfully.
 - SAFETY: no production/staging DB writes or migrations, merge, Vercel deployment, or financial operations occurred.
