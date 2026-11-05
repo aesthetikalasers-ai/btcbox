@@ -1361,3 +1361,10 @@ The backend CI branch filters were pointing at an older auth branch. Updated bot
 - Exact-head CI run `42113504711` for `f254cb216982239dea13a5fcedced850f57c24d6` is in progress. Code-only run `42113489305` is also in progress. Do not mark bounded retry accepted until exact-head CI passes.
 - Prior redaction-safe idempotency SQL/test commits `407cf44a349e3240ec4765667978228b03c21109` and `e4cd543e8bb4c406d24579b5cfb35c0f477f5cf6` passed exact-head CI runs `42113353008` and `42113367770` respectively.
 - Outbox delivery remains request-triggered; no trusted scheduler/cron was added. The shared rate-limit cleanup scheduler gap also remains. No production or staging migration/database operation, merge, deployment, or financial operation was performed.
+
+
+### Bounded outbox retry CI correction — 2026-11-06 (UTC+8)
+
+- Initial code/test CI runs `42113489305` and `42113504711` failed because the generated URL trailing-slash regex in the new function had an extra escape, producing a JavaScript syntax error. This was a patch-generation defect, not a test or runtime dependency failure.
+- Corrected in commit `5f4b6a94156f812661207c27bcf83bc7fc6a2d68`; source now uses the same valid `replace(/\\/+$/, '')` URL normalization semantics as the existing code.
+- Exact-head CI run `42113645330` for `5f4b6a94156f812661207c27bcf83bc7fc6a2d68` is in progress. Do not accept bounded retry until this run completes successfully.
