@@ -65,3 +65,44 @@ test('migration is additive and does not open financial cutover or modify legacy
   assert.doesNotMatch(migration, /UPDATE public\.seconds_contract_positions[\s\S]*?SET[\s\S]*?policy_id/i);
   assert.doesNotMatch(migration, /financialWritesEnabled|FINANCIAL_CUTOVER_ENABLED/i);
 });
+
+
+test('order idempotent replay is resolved before requiring a currently active policy', () => {
+  const start = migration.indexOf('CREATE OR REPLACE FUNCTION public.submit_seconds_order_v1');
+  const end = migration.indexOf('-- Settlement uses the immutable payout snapshot', start);
+  const fn = migration.slice(start, end);
+  const replay = fn.indexOf('WHERE open_request_id=p_request_id FOR UPDATE');
+  const policy = fn.indexOf('FROM public.seconds_contract_policy_active');
+  assert.ok(replay >= 0 && policy > replay);
+  assert.match(fn.slice(replay, policy), /IDEMPOTENCY_CONFLICT/);
+  assert.match(fn.slice(replay, policy), /duplicate/);
+});
+
+test('policy-aware settlement preserves the historical owner, maturity, idempotency and ledger contract', () => {
+  const start = migration.indexOf('CREATE OR REPLACE FUNCTION public.settle_seconds_position_v1');
+  const end = migration.indexOf('REVOKE ALL ON FUNCTION public.submit_seconds_order_v1', start);
+  const fn = migration.slice(start, end);
+  for (const invariant of [
+    /WHERE position_id=p_position_id AND user_id=p_user_id FOR UPDATE/i,
+    /settle_request_hash IS DISTINCT FROM p_request_hash/i,
+    /POSITION_ALREADY_SETTLED/,
+    /v_now<v_pos\.settle_at/,
+    /p_settle_price_ts<v_pos\.settle_at/,
+    /FROZEN_BALANCE_INVARIANT/,
+    /INSERT INTO public\.financial_operations/i,
+    /UPDATE public\.financial_accounts/i,
+    /INSERT INTO public\.financial_ledger/i,
+    /settle_operation_id=v_op_id/
+  ]) assert.match(fn, invariant);
+  assert.match(fn, /coalesce\(v_pos\.payout_bps_snapshot,8500\)/i);
+  assert.match(fn, /'policy_version',v_pos\.policy_version/);
+});
+
+test('policy RPC execution remains service-role-only and policy tables are not client-writable', () => {
+  assert.match(migration, /REVOKE ALL ON public\.seconds_contract_policies, public\.seconds_contract_policy_active,[\s\S]*?FROM public, anon, authenticated/i);
+  assert.match(migration, /REVOKE INSERT, UPDATE, DELETE ON public\.seconds_contract_policies,[\s\S]*?FROM service_role/i);
+  assert.match(migration, /REVOKE ALL ON FUNCTION public\.submit_seconds_order_v1\([\s\S]*?FROM public, anon, authenticated/i);
+  assert.match(migration, /GRANT EXECUTE ON FUNCTION public\.submit_seconds_order_v1\([\s\S]*?TO service_role/i);
+  assert.match(migration, /REVOKE ALL ON FUNCTION public\.settle_seconds_position_v1\([\s\S]*?FROM public, anon, authenticated/i);
+  assert.match(migration, /GRANT EXECUTE ON FUNCTION public\.settle_seconds_position_v1\([\s\S]*?TO service_role/i);
+});
