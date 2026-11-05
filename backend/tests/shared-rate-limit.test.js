@@ -59,6 +59,9 @@ test('database limiter uses a unique key and atomic upsert with fixed limits and
   assert.ok(migration.includes('to service_role'));
   assert.ok(migration.includes('limit 5000'));
   assert.ok(migration.includes("interval '48 hours'"));
+  assert.ok(migration.includes('revoke all on function public.btcbox_rate_limit_cleanup_v1() from public, anon, authenticated'));
+  assert.ok(migration.includes('grant execute on function public.btcbox_rate_limit_cleanup_v1() to service_role'));
+  assert.ok(!api.includes('btcbox_rate_limit_cleanup_v1'), 'cleanup must not be exposed through an unauthenticated API route');
 });
 
 test('identity source-target equality is rejected before account identity arrays are mutated', () => {
