@@ -1,10 +1,11 @@
 export function AuthPage({ mode }: { mode: "login" | "register" }) {
-  const { status, needsCredentials, busy, error, notice, googleEnabled, signInWithGoogle, signInWithWeb3, signInWithUsername, verifyTwoFactor, clearError } = useAuth();
+  const { status, needsCredentials, busy, error, notice, googleEnabled, ethereumWallets, signInWithGoogle, signInWithWeb3, signInWithUsername, verifyTwoFactor, clearError } = useAuth();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [code, setCode] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [verifyBusy, setVerifyBusy] = useState(false);
+  const [showEthereumWallets, setShowEthereumWallets] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -19,6 +20,10 @@ export function AuthPage({ mode }: { mode: "login" | "register" }) {
     try { await signInWithUsername(username, password); }
     catch { /* AuthProvider displays the safe error. */ }
   };
+
+  const dappUrl = window.location.origin + window.location.pathname;
+  const phantomBrowseUrl = "https://phantom.app/ul/browse/" + encodeURIComponent(dappUrl) + "?ref=" + encodeURIComponent(window.location.origin);
+  const coinbaseDappUrl = "https://go.cb-w.com/dapp?cb_url=" + encodeURIComponent(dappUrl);
 
   return <div className="mx-auto flex min-h-[calc(100dvh-150px)] w-full max-w-[480px] items-center justify-center p-4 sm:p-6">
     <Card className="w-full border-brand-border bg-brand-surface shadow-xl">
@@ -42,8 +47,21 @@ export function AuthPage({ mode }: { mode: "login" | "register" }) {
           {mode === "register" && <div className="rounded-lg border border-brand-border bg-brand-surface-2 p-3 text-sm text-brand-text-secondary">No email address is required. After verification, BTCBOX will guide you to create a unique username and password for this same account.</div>}
           {googleEnabled && <><div className="flex items-center gap-3 py-1"><div className="h-px flex-1 bg-brand-border"/><span className="text-xs text-brand-text-muted">{mode === "login" ? "OR CONTINUE WITH" : "SIGN UP WITH"}</span><div className="h-px flex-1 bg-brand-border"/></div><Button className="w-full" size="lg" variant="outline" disabled={busy || status !== "anonymous"} onClick={signInWithGoogle}><Chrome className="h-5 w-5"/> Continue with Google</Button></>}
           <div className="flex items-center gap-3 py-1"><div className="h-px flex-1 bg-brand-border"/><span className="text-xs text-brand-text-muted">WEB3 WALLET</span><div className="h-px flex-1 bg-brand-border"/></div>
-          <Button className="w-full" size="lg" variant="outline" disabled={busy || status !== "anonymous"} onClick={() => void signInWithWeb3("ethereum")}><Wallet className="h-5 w-5"/> Continue with Ethereum wallet</Button>
+          <Button className="w-full" size="lg" variant="outline" disabled={busy || status !== "anonymous"} onClick={() => ethereumWallets.length > 1 ? setShowEthereumWallets(true) : void signInWithWeb3("ethereum", ethereumWallets[0]?.provider)}><Wallet className="h-5 w-5"/> Continue with Ethereum wallet</Button>
+          {showEthereumWallets && <div className="space-y-2 rounded-lg border border-brand-border bg-brand-surface-2 p-3" aria-label="Choose Ethereum wallet">
+            <p className="text-sm font-medium text-brand-text">Choose your Ethereum wallet</p>
+            {ethereumWallets.map(wallet => <Button key={wallet.info.uuid} className="w-full justify-start" size="lg" variant="outline" disabled={busy} onClick={() => { setShowEthereumWallets(false); void signInWithWeb3("ethereum", wallet.provider); }}><Wallet className="h-4 w-4"/> {wallet.info.name}</Button>)}
+            <Button className="w-full" variant="ghost" disabled={busy} onClick={() => setShowEthereumWallets(false)}>Cancel</Button>
+          </div>}
           <Button className="w-full" size="lg" variant="outline" disabled={busy || status !== "anonymous"} onClick={() => void signInWithWeb3("solana")}><Wallet className="h-5 w-5"/> Continue with Solana wallet</Button>
+          <div className="rounded-lg border border-brand-border bg-brand-surface-2 p-3 text-left">
+            <p className="text-sm font-medium text-brand-text">Using a wallet on your phone?</p>
+            <p className="mt-1 text-xs leading-5 text-brand-text-muted">Open BTCBOX inside your wallet’s built-in browser. MetaMask users can open the Explore tab and visit this site.</p>
+            <div className="mt-3 flex flex-wrap gap-3 text-sm">
+              <a className="font-medium text-brand-text underline underline-offset-4" href={phantomBrowseUrl} target="_blank" rel="noreferrer">Open in Phantom</a>
+              <a className="font-medium text-brand-text underline underline-offset-4" href={coinbaseDappUrl} target="_blank" rel="noreferrer">Open in Coinbase Wallet</a>
+            </div>
+          </div>
         </>}
         <div className="text-center text-xs text-brand-text-muted">{mode === "login" ? <>New to BTCBOX? <Link className="text-brand-text underline underline-offset-4" to="/register">Create account</Link></> : <>Already have an account? <Link className="text-brand-text underline underline-offset-4" to="/login">Sign in</Link></>}</div>
         <Link to="/home" className="flex items-center justify-center gap-2 text-xs text-brand-text-muted hover:text-brand-text"><ArrowLeft className="h-3.5 w-3.5"/> Back to BTCBOX</Link>

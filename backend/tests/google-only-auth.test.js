@@ -160,6 +160,13 @@ test('React authentication uses BTCBOX username credentials with Google and Web3
   assert.ok(!pages.includes('Sign in with email'));
   assert.ok(pages.includes('Continue with Ethereum wallet'));
   assert.ok(pages.includes('Continue with Solana wallet'));
+  assert.ok(auth.includes('eip6963:announceProvider'));
+  assert.ok(auth.includes('eip6963:requestProvider'));
+  assert.ok(auth.includes('getInjectedSolanaWallet'));
+  assert.ok(pages.includes('Choose your Ethereum wallet'));
+  assert.ok(pages.includes('phantom.app/ul/browse/'));
+  assert.ok(pages.includes('go.cb-w.com/dapp?cb_url='));
+
   assert.ok(provider.includes('signInWithWeb3({ chain, statement })'));
   assert.ok(backend.includes("authProvider === 'web3' ? !walletIdentity"));
   assert.ok(backend.includes("email: email || ''"));

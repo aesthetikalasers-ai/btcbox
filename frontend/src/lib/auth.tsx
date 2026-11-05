@@ -3,19 +3,37 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { completeLogin2fa, exchangeSupabaseSession, getAccount, getAuthClientConfig, linkSupabaseIdentity as linkIdentityRequest, loginWithUsername, logout, reauthenticateBtcboxCredentials as reauthenticateCredentialsRequest, recoverBtcboxCredentials as recoverCredentialsRequest, setBtcboxCredentials as saveCredentialsRequest } from "./api";
 
 type AuthStatus = "loading" | "anonymous" | "authenticated" | "two-factor" | "password-recovery";
+
+type EthereumWalletChoice = {
+  info: { uuid: string; name: string; rdns?: string };
+  provider: unknown;
+};
+
+function getInjectedSolanaWallet(): unknown {
+  if (typeof window === "undefined") return undefined;
+  const walletWindow = window as Window & {
+    phantom?: { solana?: unknown };
+    solana?: unknown;
+    braveSolana?: unknown;
+  };
+  return [walletWindow.phantom?.solana, walletWindow.braveSolana, walletWindow.solana].find((candidate) => {
+    if (!candidate || typeof candidate !== "object") return false;
+    return "signIn" in candidate || "signMessage" in candidate;
+  });
+}
 type AuthContextValue = {
-  status: AuthStatus; email: string; busy: boolean; error: string; notice: string; googleEnabled: boolean; needsCredentials: boolean; credentialRecoveryReady: boolean; credentialRecoveryNeedsTwoFactor: boolean;
+  status: AuthStatus; email: string; busy: boolean; error: string; notice: string; googleEnabled: boolean; needsCredentials: boolean; credentialRecoveryReady: boolean; credentialRecoveryNeedsTwoFactor: boolean; ethereumWallets: EthereumWalletChoice[];
   signInWithGoogle: () => Promise<void>;
   signInWithUsername: (username: string, password: string) => Promise<void>;
   setBtcboxCredentials: (username: string, password: string) => Promise<void>;
   reauthenticateCredentialsWithGoogle: () => Promise<void>;
-  reauthenticateCredentialsWithWeb3: (chain: "ethereum" | "solana", twoFactorCode?: string) => Promise<void>;
+  reauthenticateCredentialsWithWeb3: (chain: "ethereum" | "solana", twoFactorCode?: string, wallet?: unknown) => Promise<void>;
   completeCredentialRecoveryTwoFactor: (code: string) => Promise<void>;
   recoverBtcboxPassword: (password: string) => Promise<void>;
   linkSupabaseIdentity: (accessToken: string) => Promise<void>;
   linkGoogleIdentity: () => Promise<void>;
-  linkWeb3Identity: (chain: "ethereum" | "solana") => Promise<void>;
-  signInWithWeb3: (chain: "ethereum" | "solana") => Promise<void>;
+  linkWeb3Identity: (chain: "ethereum" | "solana", wallet?: unknown) => Promise<void>;
+  signInWithWeb3: (chain: "ethereum" | "solana", wallet?: unknown) => Promise<void>;
   signInWithEmail: (email: string, password: string) => Promise<void>;
   signUpWithEmail: (email: string, password: string) => Promise<void>;
   requestPasswordReset: (email: string) => Promise<void>;
@@ -39,9 +57,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [credentialRecoveryReady, setCredentialRecoveryReady] = useState(false);
   const [credentialRecoveryNeedsTwoFactor, setCredentialRecoveryNeedsTwoFactor] = useState(false);
   const [pendingCredentialRecoveryToken, setPendingCredentialRecoveryToken] = useState("");
+  const [ethereumWallets, setEthereumWallets] = useState<EthereumWalletChoice[]>([]);
   const [tempToken, setTempToken] = useState("");
   const exchangeLock = useRef(false);
   const callbackLock = useRef(false);
+
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const onAnnounceProvider = (event: Event) => {
+      const detail = (event as CustomEvent<{ info?: { uuid?: string; name?: string; rdns?: string }; provider?: unknown }>).detail;
+      if (!detail?.info?.uuid || !detail.info.name || !detail.provider || typeof detail.provider !== "object" ||
+          !("request" in detail.provider) || typeof (detail.provider as { request?: unknown }).request !== "function") return;
+      const choice: EthereumWalletChoice = {
+        info: { uuid: detail.info.uuid, name: detail.info.name, rdns: detail.info.rdns },
+        provider: detail.provider,
+      };
+      setEthereumWallets((current) => current.some((item) => item.info.uuid === choice.info.uuid) ? current : [...current, choice]);
+    };
+    window.addEventListener("eip6963:announceProvider", onAnnounceProvider);
+    window.dispatchEvent(new Event("eip6963:requestProvider"));
+    return () => window.removeEventListener("eip6963:announceProvider", onAnnounceProvider);
+  }, []);
 
   const setSignedIn = useCallback(async () => {
     const account = await getAccount();
@@ -146,13 +183,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [googleEnabled]);
 
-  const reauthenticateCredentialsWithWeb3 = useCallback(async (chain: "ethereum" | "solana", twoFactorCode = "") => {
+  const reauthenticateCredentialsWithWeb3 = useCallback(async (chain: "ethereum" | "solana", twoFactorCode = "", selectedWallet?: unknown) => {
     setBusy(true); setError(""); setNotice("");
     const client = clientRef.current;
     try {
       if (!client) throw new Error("Authentication is still initializing. Please try again.");
       const statement = "Verify my identity to reset my BTCBOX password. This signature proves wallet ownership only and does not authorize any blockchain transaction.";
-      const { data, error: authError } = await client.auth.signInWithWeb3({ chain, statement });
+      const wallet = selectedWallet || (chain === "solana" ? getInjectedSolanaWallet() : undefined);
+      const { data, error: authError } = await client.auth.signInWithWeb3({ chain, statement, ...(wallet ? { wallet } : {}) } as Parameters<SupabaseClient["auth"]["signInWithWeb3"]>[0]);
       if (authError) throw authError;
       if (!data.session?.access_token) throw new Error("The wallet did not return a verifiable identity.");
       await reauthenticateCredentialsRequest(data.session.access_token, twoFactorCode);
@@ -229,12 +267,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [googleEnabled]);
 
-  const linkWeb3Identity = useCallback(async (chain: "ethereum" | "solana") => {
+  const linkWeb3Identity = useCallback(async (chain: "ethereum" | "solana", selectedWallet?: unknown) => {
     setBusy(true); setError(""); setNotice("");
     try {
       if (!clientRef.current) throw new Error("Authentication is still initializing. Please try again.");
       const statement = "Link this wallet to my existing BTCBOX account. This signature verifies wallet ownership only and does not authorize any blockchain transaction.";
-      const { data, error: authError } = await clientRef.current.auth.signInWithWeb3({ chain, statement });
+      const wallet = selectedWallet || (chain === "solana" ? getInjectedSolanaWallet() : undefined);
+      const { data, error: authError } = await clientRef.current.auth.signInWithWeb3({ chain, statement, ...(wallet ? { wallet } : {}) } as Parameters<SupabaseClient["auth"]["signInWithWeb3"]>[0]);
       if (authError) throw authError;
       if (!data.session?.access_token) throw new Error("The wallet did not return a verifiable identity.");
       await linkIdentityRequest(data.session.access_token);
@@ -264,13 +303,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [googleEnabled]);
 
-  const signInWithWeb3 = useCallback(async (chain: "ethereum" | "solana") => {
+  const signInWithWeb3 = useCallback(async (chain: "ethereum" | "solana", selectedWallet?: unknown) => {
     setBusy(true); setError(""); setNotice("");
     try {
       const client = clientRef.current;
       if (!client) throw new Error("Authentication is still initializing. Please try again.");
       const statement = "Sign in to BTCBOX. This signature verifies wallet ownership only and does not authorize any blockchain transaction.";
-      const { data, error: authError } = await client.auth.signInWithWeb3({ chain, statement });
+      const wallet = selectedWallet || (chain === "solana" ? getInjectedSolanaWallet() : undefined);
+      const { data, error: authError } = await client.auth.signInWithWeb3({ chain, statement, ...(wallet ? { wallet } : {}) } as Parameters<SupabaseClient["auth"]["signInWithWeb3"]>[0]);
       if (authError) throw authError;
       if (!data.session?.access_token) throw new Error("The wallet did not return a valid sign-in session. Please try again.");
       await acceptSupabaseSession(data.session.access_token);
@@ -420,10 +460,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const value = useMemo(() => ({
-    status, email, busy, error, notice, googleEnabled, needsCredentials, credentialRecoveryReady, credentialRecoveryNeedsTwoFactor, signInWithGoogle, linkGoogleIdentity, linkWeb3Identity, signInWithUsername, setBtcboxCredentials, reauthenticateCredentialsWithGoogle, reauthenticateCredentialsWithWeb3, completeCredentialRecoveryTwoFactor, recoverBtcboxPassword, linkSupabaseIdentity, signInWithWeb3, signInWithEmail, signUpWithEmail,
+    status, email, busy, error, notice, googleEnabled, needsCredentials, credentialRecoveryReady, credentialRecoveryNeedsTwoFactor, ethereumWallets, signInWithGoogle, linkGoogleIdentity, linkWeb3Identity, signInWithUsername, setBtcboxCredentials, reauthenticateCredentialsWithGoogle, reauthenticateCredentialsWithWeb3, completeCredentialRecoveryTwoFactor, recoverBtcboxPassword, linkSupabaseIdentity, signInWithWeb3, signInWithEmail, signUpWithEmail,
     requestPasswordReset, completePasswordRecovery, finishOAuth, verifyTwoFactor, signOut,
     clearError: () => setError(""),
-  }), [status, email, busy, error, notice, googleEnabled, needsCredentials, credentialRecoveryReady, credentialRecoveryNeedsTwoFactor, signInWithGoogle, linkGoogleIdentity, linkWeb3Identity, signInWithUsername, setBtcboxCredentials, reauthenticateCredentialsWithGoogle, reauthenticateCredentialsWithWeb3, completeCredentialRecoveryTwoFactor, recoverBtcboxPassword, linkSupabaseIdentity, signInWithWeb3, signInWithEmail, signUpWithEmail,
+  }), [status, email, busy, error, notice, googleEnabled, needsCredentials, credentialRecoveryReady, credentialRecoveryNeedsTwoFactor, ethereumWallets, signInWithGoogle, linkGoogleIdentity, linkWeb3Identity, signInWithUsername, setBtcboxCredentials, reauthenticateCredentialsWithGoogle, reauthenticateCredentialsWithWeb3, completeCredentialRecoveryTwoFactor, recoverBtcboxPassword, linkSupabaseIdentity, signInWithWeb3, signInWithEmail, signUpWithEmail,
     requestPasswordReset, completePasswordRecovery, finishOAuth, verifyTwoFactor, signOut]);
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
