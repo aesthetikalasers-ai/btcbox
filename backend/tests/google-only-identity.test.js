@@ -127,3 +127,15 @@ test('wallet identity comparisons canonicalize Ethereum case and preserve Solana
     { chain: 'solana', address: '0x52908400098527886e0f7030069857d2e4169ee7' }
   ), false, 'wallets on different chains must never collide');
 });
+
+
+test('identity linking avoids duplicate wallet records across legacy and normalized fields', () => {
+  const routeStart = source.indexOf("path === 'auth/link-identity' && method === 'POST'");
+  const routeEnd = source.indexOf("// ---------- POST /api/2fa/enable ----------", routeStart);
+  assert.ok(routeStart >= 0 && routeEnd > routeStart);
+  const route = source.slice(routeStart, routeEnd);
+  assert.match(route, /const walletAlreadyRecorded = user\.wallet_identities\.some/);
+  assert.match(route, /isSameWalletIdentity\(\{ chain: user\.wallet_chain, address: user\.wallet_address \}, walletIdentity\)/);
+  assert.match(route, /if \(!walletAlreadyRecorded\)\s*\{\s*user\.wallet_identities\.push/);
+  assert.match(route, /user\.auth_identities\.push\(\{ supabase_user_id: linkedId/);
+});
