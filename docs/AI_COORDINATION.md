@@ -727,3 +727,32 @@ Also verify the Site URL and inspect Authentication → Rate Limits / CAPTCHA fo
 - Vercel environment-variable names/values were not read or changed in this batch, so whether `BTCBOX_RATE_LIMIT_HMAC_SECRET` is already configured remains unverified. Until the migration is applied in an approved isolated environment and a valid secret (minimum 32 UTF-8 bytes) is confirmed in the target runtime, every route using the shared limiter will deliberately fail closed with 503. Do not deploy this feature branch as-is.
 - Next: review the SQL/function permissions and response contract in an isolated PostgreSQL database; execute the new tests and concurrency tests; then implement the frontend two-proof identity-link sequence. The existing frontend still starts the target identity flow directly and has not yet been converted to source reauthentication followed by target verification.
 - No merge, production DB change, Vercel Preview/Production build, or deployment was performed. Deployment pause remains active.
+
+
+## Identity-link frontend two-proof flow — 2026-11-05
+
+### IMPLEMENTED ON FEATURE BRANCH — SOURCE REVIEW ONLY
+- Added frontend API helper `reauthenticateIdentityForLink(accessToken, twoFactorCode)` for `POST /api/auth/link-identity/reauth`.
+- Replaced the old direct target-first flow with two explicit steps in `AccountSecurityPage.tsx`: freshly verify an already-connected Google/Web3 identity first, then verify a distinct new Google/Web3 identity.
+- Google source proof uses OAuth callback `flow=link-reauth`; Web3 source proof uses a distinct wallet-signature statement and calls the source reauth endpoint directly.
+- Google target proof uses callback `flow=link-target`; Web3 target proof calls the existing target identity endpoint only after source verification.
+- Added Google source TOTP handling: if the backend returns `TWO_FACTOR_REQUIRED`, the short-lived source access token remains only in AuthProvider React memory while the user enters the account authenticator code. No token or reauth marker is written to URL, localStorage, or sessionStorage.
+- After successful target linking, the frontend clears its local source-verification state and the backend consumes the server-side marker during the account save.
+- Added `backend/tests/identity-link-frontend-contract.test.js` source-contract checks for two-step flow, TOTP handling, endpoint wiring, and no URL/storage token handling.
+
+### FEATURE BRANCH COMMITS
+- `3818f38884fafff77184b1928d6641ae06dc0b50` — add source identity reauthentication API client.
+- `e6a9a743c2960f6947a2f37878a11abb57667ff7` — add two-proof identity linking to AuthProvider.
+- `97431df46c5b8804b7a44fc61afdcdb37de79c02` — add Google source-proof TOTP challenge.
+- `c940bc4d8b13c6b84ae370f80007420b57b56a57` — add two-step source/target UI.
+- `e09856b9ce1e144209b2fb3002d1b9b2d17cab18` — clear state after successful link and stabilize context dependencies.
+- `661aaf8ac233ef851ccf2cb8e4fa66c9586a2404` — keep BTCBOX authenticated while Google source TOTP is pending.
+- `8567048ce10d39f4cfd32b3b9c010e5dc8839bef` — add frontend identity-link source-contract tests.
+- Feature branch latest commit at this update: `8567048ce10d39f4cfd32b3b9c010e5dc8839bef`.
+
+### VALIDATION LIMITS / FOLLOW-UP
+- Source files were fetched back from GitHub and reviewed for the expected endpoint, callbacks, UI steps, and TOTP state wiring. The new test file was not executed; no TypeScript build, lint, unit test, browser OAuth round-trip, wallet signature, account TOTP, stale marker, marker replay, or CAS concurrency test was run.
+- The Google TOTP path intentionally keeps the access token in volatile React memory only while the callback page remains mounted. A full page reload during this challenge discards it and requires starting verification again; this is fail-safe.
+- The current UI supports source proof only for linked providers surfaced by the account snapshot and wallets available through the injected provider APIs. A linked wallet not currently accessible in the browser cannot be reverified from this device.
+- The new frontend path must be exercised against the backend before describing identity linking as user-ready.
+- The separate shared rate-limiter SQL migration remains unapplied; no production/staging DB changes, no Vercel env changes, no merge, and no deployment were performed. Deployment pause remains active.
