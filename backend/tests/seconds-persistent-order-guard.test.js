@@ -188,14 +188,6 @@ test('only definitive rejection and server-confirmed position reconciliation cle
   assert.ok(view.includes('if(unknown){\n        if(secondsUserKey)state._secondsOrderUnknownUserKey=secondsUserKey;'),
     'unknown outcomes retain the account-scoped guard');
 });
-/,'request hash must be exactly 64 lowercase SHA-256 hex characters');
-  assert.match(sql,/security invoker set search_path = ''/,'keep the hardened invoker/search_path contract');
-  assert.match(sql,/where position_id=p_position_id and user_id=p_user_id for update/,'lock the owned position row');
-  assert.ok(sql.includes('insert into public.financial_operations'),'keep settlement operation recording');
-  assert.ok(sql.includes('insert into public.financial_ledger'),'keep ledger settlement in the same transaction');
-  assert.ok(sql.includes('revoke all on function public.settle_seconds_position_v1'),'revoke public execution');
-  assert.ok(sql.includes('to service_role'),'grant execution only to service_role');
-});
 test('seconds order response uses the database settlement timestamp, not a client-side recomputation', () => {
   const api=fs.readFileSync(path.join(root,'api-core.js'),'utf8');
   assert.ok(api.includes('const settleAt = Number(result.settle_at);'),'read the canonical DB timestamp');
