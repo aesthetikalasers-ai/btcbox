@@ -694,7 +694,7 @@ function getSessionRecord(db, event) {
   const session = token && db.sessions[token];
   if (!session) return null;
   const createdAt = Number(session.created_at);
-  if (!Number.isFinite(createdAt) || createdAt <= 0 || Date.now() - createdAt > SESSION_MAX_AGE_MS) return null;
+  if (!Number.isFinite(createdAt) || createdAt <= 0 || createdAt > Date.now() + 60 * 1000 || Date.now() - createdAt > SESSION_MAX_AGE_MS) return null;
   const user = db.users[session.uid] || null;
   return user ? { token: token, session: session, user: user } : null;
 }
