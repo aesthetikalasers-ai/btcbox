@@ -31,7 +31,9 @@ type AuthContextValue = {
   completeCredentialRecoveryTwoFactor: (code: string) => Promise<void>;
   recoverBtcboxPassword: (password: string) => Promise<void>;
   linkSupabaseIdentity: (accessToken: string) => Promise<void>;
+  identityLinkSourceVerified: boolean; identityLinkNeedsTwoFactor: boolean;
   reauthenticateIdentityLinkWithGoogle: () => Promise<void>;
+  completeIdentityLinkReauthTwoFactor: (code: string) => Promise<void>;
   reauthenticateIdentityLinkWithWeb3: (chain: "ethereum" | "solana", twoFactorCode?: string, wallet?: unknown) => Promise<void>;
   linkGoogleIdentity: () => Promise<void>;
   linkWeb3Identity: (chain: "ethereum" | "solana", wallet?: unknown) => Promise<void>;
@@ -56,6 +58,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [notice, setNotice] = useState("");
   const [googleEnabled, setGoogleEnabled] = useState(true);
   const [identityLinkSourceVerified, setIdentityLinkSourceVerified] = useState(false);
+  const [pendingIdentityLinkToken, setPendingIdentityLinkToken] = useState("");
+  const [identityLinkNeedsTwoFactor, setIdentityLinkNeedsTwoFactor] = useState(false);
   const [needsCredentials, setNeedsCredentials] = useState(false);
   const [credentialRecoveryReady, setCredentialRecoveryReady] = useState(false);
   const [credentialRecoveryNeedsTwoFactor, setCredentialRecoveryNeedsTwoFactor] = useState(false);
@@ -270,6 +274,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [googleEnabled]);
 
+  const completeIdentityLinkReauthTwoFactor = useCallback(async (code: string) => {
+    if (!pendingIdentityLinkToken) throw new Error("The verification has expired. Please verify your existing sign-in method again.");
+    setBusy(true); setError(""); setNotice("");
+    try {
+      await reauthenticateIdentityForLinkRequest(pendingIdentityLinkToken, code);
+      await clientRef.current?.auth.signOut();
+      setPendingIdentityLinkToken("");
+      setIdentityLinkNeedsTwoFactor(false);
+      await setSignedIn();
+      setIdentityLinkSourceVerified(true);
+      setNotice("Existing Google sign-in method verified. Now choose the new method to connect.");
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Authenticator verification failed.");
+      throw cause;
+    } finally { setBusy(false); }
+  }, [pendingIdentityLinkToken, setSignedIn]);
+
   const reauthenticateIdentityLinkWithWeb3 = useCallback(async (chain: "ethereum" | "solana", twoFactorCode = "", selectedWallet?: unknown) => {
     setBusy(true); setError(""); setNotice("");
     const client = clientRef.current;
@@ -465,11 +486,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return;
       }
       if (url.searchParams.get("flow") === "link-reauth") {
-        await reauthenticateIdentityForLinkRequest(data.session.access_token);
-        await client.auth.signOut();
-        await setSignedIn();
-        setIdentityLinkSourceVerified(true);
-        setNotice("Existing Google sign-in method verified. Now choose the new method to connect.");
+        try {
+          await reauthenticateIdentityForLinkRequest(data.session.access_token);
+          await client.auth.signOut();
+          await setSignedIn();
+          setIdentityLinkSourceVerified(true);
+          setNotice("Existing Google sign-in method verified. Now choose the new method to connect.");
+        } catch (cause) {
+          if ((cause as { code?: string })?.code !== "TWO_FACTOR_REQUIRED") throw cause;
+          setPendingIdentityLinkToken(data.session.access_token);
+          setIdentityLinkNeedsTwoFactor(true);
+          setNotice("Enter your authenticator code to finish verifying your existing Google sign-in method.");
+        }
         window.history.replaceState({}, document.title, "/settings");
         return;
       }
@@ -513,10 +541,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const value = useMemo(() => ({
-    status, email, busy, error, notice, googleEnabled, identityLinkSourceVerified, needsCredentials, credentialRecoveryReady, credentialRecoveryNeedsTwoFactor, ethereumWallets, signInWithGoogle, reauthenticateIdentityLinkWithGoogle, reauthenticateIdentityLinkWithWeb3, linkGoogleIdentity, linkWeb3Identity, signInWithUsername, setBtcboxCredentials, reauthenticateCredentialsWithGoogle, reauthenticateCredentialsWithWeb3, completeCredentialRecoveryTwoFactor, recoverBtcboxPassword, linkSupabaseIdentity, signInWithWeb3, signInWithEmail, signUpWithEmail,
+    status, email, busy, error, notice, googleEnabled, identityLinkSourceVerified, identityLinkNeedsTwoFactor, completeIdentityLinkReauthTwoFactor, needsCredentials, credentialRecoveryReady, credentialRecoveryNeedsTwoFactor, ethereumWallets, signInWithGoogle, reauthenticateIdentityLinkWithGoogle, reauthenticateIdentityLinkWithWeb3, linkGoogleIdentity, linkWeb3Identity, signInWithUsername, setBtcboxCredentials, reauthenticateCredentialsWithGoogle, reauthenticateCredentialsWithWeb3, completeCredentialRecoveryTwoFactor, recoverBtcboxPassword, linkSupabaseIdentity, signInWithWeb3, signInWithEmail, signUpWithEmail,
     requestPasswordReset, completePasswordRecovery, finishOAuth, verifyTwoFactor, signOut,
     clearError: () => setError(""),
-  }), [status, email, busy, error, notice, googleEnabled, identityLinkSourceVerified, needsCredentials, credentialRecoveryReady, credentialRecoveryNeedsTwoFactor, ethereumWallets, signInWithGoogle, linkGoogleIdentity, linkWeb3Identity, signInWithUsername, setBtcboxCredentials, reauthenticateCredentialsWithGoogle, reauthenticateCredentialsWithWeb3, completeCredentialRecoveryTwoFactor, recoverBtcboxPassword, linkSupabaseIdentity, signInWithWeb3, signInWithEmail, signUpWithEmail,
+  }), [status, email, busy, error, notice, googleEnabled, identityLinkSourceVerified, identityLinkNeedsTwoFactor, completeIdentityLinkReauthTwoFactor, needsCredentials, credentialRecoveryReady, credentialRecoveryNeedsTwoFactor, ethereumWallets, signInWithGoogle, linkGoogleIdentity, linkWeb3Identity, signInWithUsername, setBtcboxCredentials, reauthenticateCredentialsWithGoogle, reauthenticateCredentialsWithWeb3, completeCredentialRecoveryTwoFactor, recoverBtcboxPassword, linkSupabaseIdentity, signInWithWeb3, signInWithEmail, signUpWithEmail,
     requestPasswordReset, completePasswordRecovery, finishOAuth, verifyTwoFactor, signOut]);
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
