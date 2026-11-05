@@ -80,11 +80,12 @@ test('legacy email registration stays disabled while BTCBOX username/password lo
   assert.doesNotMatch(register, /hashPassword\(/);
 });
 
-test('local account cannot be silently linked by matching email alone', () => {
-  assert.ok(source.includes("user.supabase_user_id || '') !== supabaseUserId"));
-  assert.ok(source.includes("'SUPABASE_IDENTITY_LINK_REQUIRED'"));
+test('local account only accepts explicitly linked Supabase identity IDs', () => {
+  assert.ok(source.includes("if (user && !isSupabaseIdentityLinked(user, supabaseUserId))"));
+  assert.ok(source.includes("if (!user && email) user = Object.values(db.users).find"));
+  assert.ok(source.includes("user.supabase_user_ids.push(linkedId)"));
+  assert.ok(source.includes("code: 'IDENTITY_IN_USE'"));
   assert.ok(source.includes("'SUPABASE_IDENTITY_MISMATCH'"));
-  assert.ok(source.includes('supabase_user_id: supabaseUserId'));
 });
 
 
