@@ -1048,7 +1048,8 @@ async function handleRequest(event, context) {
       const tempToken = genToken();
       db.temp_tokens = db.temp_tokens || {};
       db.temp_tokens[tempToken] = { uid: user.uid, exp: Date.now() + 10 * 60 * 1000 };
-      await saveDB(db);
+      try { await saveDB(db); }
+      catch (_) { return json({ ok: false, code: 'PERSISTENCE_UNAVAILABLE', msg: 'Authentication is temporarily unavailable. Please try again.' }, 503); }
       return json({ ok: false, require_2fa: true, temp_token: tempToken }, 200);
     }
     user.last_login = nowStr();
@@ -1195,24 +1196,40 @@ async function handleRequest(event, context) {
     const rec = typeof tt === 'string' && tt ? db.temp_tokens[tt] : null;
     const expiresAt = Number(rec && rec.exp);
     if (!rec || !Number.isFinite(expiresAt) || expiresAt <= Date.now()) {
-      if (rec) { delete db.temp_tokens[tt]; await saveDB(db); }
+      if (rec) {
+        delete db.temp_tokens[tt];
+        try { await saveDB(db); }
+        catch (_) { return json({ ok: false, code: 'PERSISTENCE_UNAVAILABLE', msg: 'Authentication is temporarily unavailable. Please try again.' }, 503); }
+      }
       return json({ ok: false, code: 'TWOFA_CHALLENGE_EXPIRED', msg: 'Session expired. Please sign in again.' }, 401);
     }
     const u2 = db.users[rec.uid];
-    if (!u2) { delete db.temp_tokens[tt]; await saveDB(db); return json({ ok: false, code: 'USER_NOT_FOUND', msg: 'User not found.' }, 401); }
+    if (!u2) {
+      delete db.temp_tokens[tt];
+      try { await saveDB(db); }
+      catch (_) { return json({ ok: false, code: 'PERSISTENCE_UNAVAILABLE', msg: 'Authentication is temporarily unavailable. Please try again.' }, 503); }
+      return json({ ok: false, code: 'USER_NOT_FOUND', msg: 'User not found.' }, 401);
+    }
     if (!u2.twofa_enabled || !u2.twofa_secret) {
       delete db.temp_tokens[tt];
-      await saveDB(db);
+      try { await saveDB(db); }
+      catch (_) { return json({ ok: false, code: 'PERSISTENCE_UNAVAILABLE', msg: 'Authentication is temporarily unavailable. Please try again.' }, 503); }
       return json({ ok: false, code: 'TWOFA_NOT_ENABLED', msg: 'Two-factor authentication is no longer enabled. Please sign in again.' }, 401);
     }
-    if (u2.frozen) { delete db.temp_tokens[tt]; await saveDB(db); return json({ ok: false, code: 'ACCOUNT_FROZEN', msg: 'Account frozen. Please contact support.' }, 403); }
+    if (u2.frozen) {
+      delete db.temp_tokens[tt];
+      try { await saveDB(db); }
+      catch (_) { return json({ ok: false, code: 'PERSISTENCE_UNAVAILABLE', msg: 'Authentication is temporarily unavailable. Please try again.' }, 503); }
+      return json({ ok: false, code: 'ACCOUNT_FROZEN', msg: 'Account frozen. Please contact support.' }, 403);
+    }
     { const rl = await rateCheckShared('login_2fa', String(u2.uid)); if (rl.unavailable) return rateLimitUnavailableJson(); if (rl.limited) return rateLimitedJson(rl.retryAfter); }
     if (!consumeTotpStep(u2, String(code))) return json({ ok: false, msg: 'Invalid or already-used 2FA code.' });
     delete db.temp_tokens[tt];
     u2.last_login = nowStr();
     const token2 = genToken();
-    db.sessions[token2] = { uid: u2.uid, email: u2.email, created_at: Date.now() };
-    await saveDB(db);
+    db.sessions[token2] = { uid: u2.uid, email: u2.email, created_at: Date.now(), auth_method: 'username_password_2fa' };
+    try { await saveDB(db); }
+    catch (_) { return json({ ok: false, code: 'PERSISTENCE_UNAVAILABLE', msg: 'Authentication is temporarily unavailable. Please try again.' }, 503); }
     return json({ ok: true }, 200, setCookieHeader(token2));
   }
 
