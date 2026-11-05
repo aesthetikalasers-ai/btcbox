@@ -5,7 +5,7 @@ on:
       - "frontend/**"
       - ".github/workflows/frontend-ci.yml"
   push:
-    branches: [main, "feature/btcbox-react-frontend-20261104", "feat/btcbox-react-google-auth-20261105"]
+    branches: [main, "feature/btcbox-react-frontend-20261104", "feat/btcbox-web3-auth-20261105"]
     paths:
       - "frontend/**"
       - ".github/workflows/frontend-ci.yml"
