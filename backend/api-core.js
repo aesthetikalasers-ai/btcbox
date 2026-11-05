@@ -76,7 +76,7 @@ function redactAdminAuditDetail(value) {
 }
 
 function isValidAuthEmail(value) {
-  return typeof value === 'string' && /^[1-9][0-9]{0,18}$/.test(value) &&
+  return typeof value === 'string' && /^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$/.test(value);
 }
 function isSupabaseUserId(value) {
   return typeof value === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
