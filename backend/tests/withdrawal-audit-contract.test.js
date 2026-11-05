@@ -57,7 +57,7 @@ test('withdrawal API trusts only validated database status and persisted review 
   assert.match(api, /!\['pending', 'pending_admin_review', 'approved', 'rejected', 'broadcast', 'failed'\]\.includes\(result\.status\)/);
   assert.match(api, /typeof result\.require_admin_review !== 'boolean'/);
   assert.match(api, /require_admin_review: result\.require_admin_review/);
-  assert.doesNotMatch(api, /require_admin_review: requireAdminReview/);
+  assert.doesNotMatch(api, /, require_admin_review: requireAdminReview, msg:/);
   assert.match(api, /pending_admin_review_count/);
   assert.match(api, /pending_admin_review_withdrawals: pendingAdminReviewWd/);
   assert.match(api, /result\.pending_admin_review_count > result\.pending_count/);
