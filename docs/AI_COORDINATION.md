@@ -1779,3 +1779,25 @@ Application branch inspected: `feat/btcbox-web3-auth-20261105` at `741c709d818cb
 - Feature commit `34ba5e5ef159828aa1983beb166970bab49ba55e` adds admin read-only order and customer-support message tabs using existing authenticated API adapters. Order source is displayed; `legacy_state` is explicitly distinguished from PostgreSQL matching-engine data. Support is read-only and shows the API's latest 100 user messages.
 - Regression tests are in `f55caad847f912888471dae9f3890f27c1b3dd0f`. Exact-head CI run `42130318767` completed successfully: unified build, backend tests, fail-closed preflight, and output verification passed.
 - No merge, deployment, production configuration change, or financial operation was performed.
+
+
+## React seconds positions read-only integration — 2026-11-06
+
+### SOURCE OBSERVED / IMPLEMENTED
+- Re-read this coordination document at current HEAD before this batch; the feature branch baseline was `f55caad847f912888471dae9f3890f27c1b3dd0f`.
+- Commit `5703623a3224d66299baaac3f1fb7f88d05d98ec` adds a typed `getSecondsPositions()` client using the existing authenticated, no-store GET helper. It validates position IDs, supported symbols/directions/durations, positive amount/prices, epoch timestamps, and settlement-history fields.
+- The React `/seconds` route is now protected by `ProtectedAccountRoute` and renders actual open positions and up to the API-provided history records in read-only cards. The UI does not call the order or settle endpoints.
+- `cutover_incomplete: true` is rendered as a dedicated unavailable state and is explicitly not interpreted as an empty account. Network/API failures are shown separately. No countdown-based settlement action is offered.
+- Commit `ad63253e9e40529b8f4faca29ddbf4086bda52c6` adds source-level regression tests for response validation, route authentication, read-only boundaries, and backend fail-closed gates, plus Simplified Chinese labels.
+
+### TEST PASSED
+- Exact-head frontend CI run `42131019355`: `npm install`, `npm run lint`, and `npm run build` all passed.
+- Exact-head backend CI run `42131019361`: unified site build, complete backend test suite, fail-closed deployment preflight, and output/entrypoint verification all passed.
+- Exact feature HEAD at time of verification: `ad63253e9e40529b8f4faca29ddbf4086bda52c6`.
+
+### SAFETY / NOT VERIFIED
+- This batch is read-only UI integration only. It does not enable or call `POST /api/seconds/order` or `POST /api/seconds/settle`.
+- No Supabase migration was applied and no production database, balances, positions, or financial records were changed.
+- The financial cutover gate remains closed. The CI pass proves build and source-level tests, not that migrations are applied, RPCs work in staging, reference feeds are operational, or real user positions can be loaded from a deployed environment.
+- CSRF/request nonce/idempotency behavior for future React write actions remains to be verified before any trading action is exposed.
+- No merge to `main`, Vercel deployment, or production financial operation was performed.
