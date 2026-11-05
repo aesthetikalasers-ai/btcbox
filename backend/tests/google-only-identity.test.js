@@ -160,3 +160,26 @@ test('first-time Supabase sign-in creates one BTCBOX account with server-verifie
   assert.match(route, /await saveDB\(db\);\s*return json\(\{ ok: true, uid: user\.uid \}/);
   assert.match(route, /if \(authProvider === 'web3' \? !walletIdentity : \(!isValidAuthEmail\(email\) \|\| !confirmed\)\)/);
 });
+
+
+test('Google and Web3 login persist 2FA challenges and authenticated sessions before returning success', () => {
+  const routeStart = source.indexOf("if ((path === 'supabase-login' || path === 'google-login') && method === 'POST')");
+  const routeEnd = source.indexOf("// ---------- POST /api/logout ----------", routeStart);
+  assert.ok(routeStart >= 0 && routeEnd > routeStart);
+  const route = source.slice(routeStart, routeEnd);
+  const frozen = route.indexOf("if (user && user.frozen)");
+  const twofa = route.indexOf("if (user && user.twofa_enabled)");
+  const createAccount = route.indexOf("if (!user) {");
+  assert.ok(frozen >= 0 && twofa > frozen && createAccount > twofa);
+  const challenge = route.slice(twofa, createAccount);
+  const challengeSave = challenge.indexOf("try { await saveDB(db); }");
+  const challengeReply = challenge.indexOf("return json({ ok: false, require_2fa: true, temp_token: tempToken }, 200)");
+  assert.ok(challengeSave >= 0 && challengeReply > challengeSave);
+  assert.match(challenge.slice(challengeSave, challengeReply), /PERSISTENCE_UNAVAILABLE/);
+  const session = route.indexOf("db.sessions[token] =");
+  const save = route.indexOf("try { await saveDB(db); }", session);
+  const success = route.indexOf("return json({ ok: true, uid: user.uid }, 200, setCookieHeader(token))", session);
+  assert.ok(session > createAccount && save > session && success > save);
+  assert.match(route.slice(save, success), /PERSISTENCE_UNAVAILABLE/);
+  assert.match(route, /auth_method: authProvider === 'web3' \? 'supabase_web3' : 'supabase_google'/);
+});
