@@ -671,3 +671,18 @@ Also verify the Site URL and inspect Authentication → Rate Limits / CAPTCHA fo
 - Before runtime integration, configure a dedicated server secret `BTCBOX_RATE_LIMIT_HMAC_SECRET` of at least 32 random bytes in the target deployment environment. Missing/invalid secret must fail closed; do not fall back to process memory.
 - Next work: add SQL return `window_seconds` (so API can assert the expected policy), validate SQL in disposable PostgreSQL, test concurrent upserts from separate connections, then integrate an async fail-closed helper and migrate all ten call sites in one feature-branch batch.
 - Deployment pause remains active. No Vercel build/deployment or merge was triggered.
+## Additional identity-link freshness finding — 2026-11-05
+
+### SOURCE OBSERVED
+- In `backend/api-core.js` blob `b99eabff46f1bfce8b6e919b2783fe81633ccbf2`, the current `POST /api/auth/link-identity` route checks only the BTCBOX cookie session `created_at` against a five-minute age and verifies the target access token through Supabase `/auth/v1/user`.
+- Unlike the credential reauthentication route, the target identity-link route does not parse the verified JWT `auth_time`, compare its `sub` with the returned Supabase user ID, or enforce a five-minute provider authentication freshness window.
+- A recently created BTCBOX session therefore does not, by itself, prove that the target Google/Web3 identity was freshly authenticated. This is a separate gap from the previously recorded missing proof of an already-linked source identity.
+
+### REQUIRED FIX
+- The eventual two-proof flow must validate freshness independently for both source and target identities: each token must be accepted by Supabase `/auth/v1/user`, each signed JWT subject must equal the returned identity ID, and each auth_time must be within 300 seconds with a bounded future skew.
+- Keep account ownership checks separate: source proof must map to an identity already linked to this BTCBOX UID; target proof must be a distinct identity and must pass all current duplicate wallet/email/account conflict checks.
+- Do not treat `session.created_at` as a substitute for Supabase provider reauthentication freshness.
+- Add tests for stale target auth_time, mismatched target JWT sub, target token accepted by Supabase but authenticated too long ago, and valid source+target proofs.
+
+### STATUS
+- Finding is source-observed only. No code change, database change, test run, merge, or deployment was performed.
