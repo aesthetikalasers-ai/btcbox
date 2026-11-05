@@ -89,12 +89,12 @@ export function AccountSecurityPage() {
             try { await completeCredentialRecoveryTwoFactor(twoFactorCode); setTwoFactorCode(""); }
             catch { /* AuthProvider displays the safe error. */ }
           }}>
-            <label className="block space-y-1.5 text-sm"><span className="text-brand-text-secondary">Authenticator code</span><Input value={twoFactorCode} onChange={event => setTwoFactorCode(event.target.value.replace(/\\D/g, "").slice(0, 8))} inputMode="numeric" autoComplete="one-time-code" maxLength={8} placeholder="Enter your 2FA code" required /></label>
+            <label className="block space-y-1.5 text-sm"><span className="text-brand-text-secondary">Authenticator code</span><Input value={twoFactorCode} onChange={event => setTwoFactorCode(event.target.value.replace(/\D/g, "").slice(0, 8))} inputMode="numeric" autoComplete="one-time-code" maxLength={8} placeholder="Enter your 2FA code" required /></label>
             <Button type="submit" className="w-full" disabled={busy || twoFactorCode.length < 6}>Verify and continue</Button>
           </form>
         ) : (
           <div className="space-y-3">
-            {account?.twofa_enabled && <label className="block space-y-1.5 text-sm"><span className="text-brand-text-secondary">Authenticator code (required for wallet verification)</span><Input value={twoFactorCode} onChange={event => setTwoFactorCode(event.target.value.replace(/\\D/g, "").slice(0, 8))} inputMode="numeric" autoComplete="one-time-code" maxLength={8} placeholder="Enter your 2FA code" /></label>}
+            {account?.twofa_enabled && <label className="block space-y-1.5 text-sm"><span className="text-brand-text-secondary">Authenticator code (required for wallet verification)</span><Input value={twoFactorCode} onChange={event => setTwoFactorCode(event.target.value.replace(/\D/g, "").slice(0, 8))} inputMode="numeric" autoComplete="one-time-code" maxLength={8} placeholder="Enter your 2FA code" /></label>}
             <div className="grid gap-3 sm:grid-cols-2">
               {hasGoogle && <Button variant="outline" disabled={busy || !googleEnabled} onClick={() => void reauthenticateCredentialsWithGoogle()}>Verify with Google</Button>}
               {hasEthereum && <Button variant="outline" disabled={busy || (account?.twofa_enabled === true && twoFactorCode.length < 6)} onClick={() => void reauthenticateCredentialsWithWeb3("ethereum", twoFactorCode)}>Verify Ethereum wallet</Button>}
