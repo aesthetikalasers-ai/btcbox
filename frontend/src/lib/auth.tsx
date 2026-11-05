@@ -517,8 +517,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!tempToken) throw new Error("Your sign-in verification has expired. Please sign in again.");
     setBusy(true); setError("");
     try { await completeLogin2fa(tempToken, code); await setSignedIn(); }
-    catch (cause) { setError(cause instanceof Error ? cause.message : "Verification failed."); throw cause; }
-    finally { setBusy(false); }
+    catch (cause) {
+      const failureCode = cause && typeof cause === "object" && "code" in cause
+        ? String((cause as { code?: unknown }).code || "") : "";
+      if (["TWOFA_CHALLENGE_EXPIRED", "TWOFA_NOT_ENABLED", "USER_NOT_FOUND", "ACCOUNT_FROZEN"].includes(failureCode)) {
+        setTempToken("");
+        setEmail("");
+        setNeedsCredentials(false);
+        setStatus("anonymous");
+      }
+      setError(cause instanceof Error ? cause.message : "Verification failed.");
+      throw cause;
+    } finally { setBusy(false); }
   }, [setSignedIn, tempToken]);
 
   const signOut = useCallback(async () => {
@@ -526,7 +536,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       await logout();
       await clientRef.current?.auth.signOut();
-      setEmail(""); setTempToken(""); setNeedsCredentials(false); setCredentialRecoveryReady(false); setCredentialRecoveryNeedsTwoFactor(false); setPendingCredentialRecoveryToken(""); setStatus("anonymous");
+      setEmail("");
+      setTempToken("");
+      setNeedsCredentials(false);
+      setIdentityLinkSourceVerified(false);
+      setPendingIdentityLinkToken("");
+      setIdentityLinkNeedsTwoFactor(false);
+      setCredentialRecoveryReady(false);
+      setCredentialRecoveryNeedsTwoFactor(false);
+      setPendingCredentialRecoveryToken("");
+      setNotice("");
+      setStatus("anonymous");
     } catch (cause) { setError(cause instanceof Error ? cause.message : "Sign out failed."); throw cause; }
     finally { setBusy(false); }
   }, []);
