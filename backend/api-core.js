@@ -366,7 +366,7 @@ async function readAdminAuditLogPage(params) {
   if (!response.ok) throw new Error('Canonical administrator audit read failed');
   const rows = await response.json();
   if (!Array.isArray(rows) || rows.some(function (row) {
-    return !row || typeof row.id !== 'string' || !/^[1-9]\d{0,18}$/.test(row.id) ||
+    return !row || !isPositivePostgresBigintString(row.id) ||
       typeof row.action !== 'string' || typeof row.created_at !== 'string';
   })) throw new Error('Canonical administrator audit response invalid');
   const hasMore = rows.length > limit;
@@ -2752,7 +2752,7 @@ async function handleRequest(event, context) {
       const before = String(params.before || '').trim();
       if (actionFilter && !/^[A-Za-z0-9_.:-]{1,100}$/.test(actionFilter)) return json({ ok: false, code: 'AUDIT_ACTION_FILTER_INVALID', msg: 'Audit action filter is invalid.' }, 400);
       if (uidFilter && !/^[A-Za-z0-9_:-]{1,100}$/.test(uidFilter)) return json({ ok: false, code: 'AUDIT_UID_FILTER_INVALID', msg: 'Audit user filter is invalid.' }, 400);
-      if (before && !/^[1-9]\d{0,18}$/.test(before)) return json({ ok: false, code: 'AUDIT_CURSOR_INVALID', msg: 'Audit page cursor is invalid.' }, 400);
+      if (before && !isPositivePostgresBigintString(before)) return json({ ok: false, code: 'AUDIT_CURSOR_INVALID', msg: 'Audit page cursor is invalid.' }, 400);
 
       // Explicit opt-in switches the viewer to the canonical append-only PostgreSQL
       // audit table. Never silently fall back to the retention-limited state document.
