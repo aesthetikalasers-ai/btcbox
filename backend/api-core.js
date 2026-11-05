@@ -143,8 +143,12 @@ function verifyBtcboxLoginPassword(user, supplied) {
   return actual.length === expected.length && actual.length === BTCBOX_PASSWORD_KEYLEN && crypto.timingSafeEqual(actual, expected);
 }
 function isSupabaseIdentityLinked(user, supabaseUserId) {
-  return !!user && (String(user.supabase_user_id || '') === supabaseUserId ||
-    (Array.isArray(user.supabase_user_ids) && user.supabase_user_ids.includes(supabaseUserId)));
+  if (!user || !supabaseUserId) return false;
+  if (String(user.supabase_user_id || '') === supabaseUserId ||
+      (Array.isArray(user.supabase_user_ids) && user.supabase_user_ids.includes(supabaseUserId))) return true;
+  return Array.isArray(user.auth_identities) && user.auth_identities.some(function (identity) {
+    return identity && String(identity.supabase_user_id || '') === supabaseUserId;
+  });
 }
 function getUserLinkedIdentityIds(user) {
   return Array.from(new Set([String(user && user.supabase_user_id || ''), ...(
