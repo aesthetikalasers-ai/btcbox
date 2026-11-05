@@ -177,6 +177,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setCredentialRecoveryReady(true);
       setNotice("Identity verified. Set your new BTCBOX password within five minutes.");
     } catch (cause) {
+      if ((cause as { code?: string })?.code === "RECENT_REAUTH_REQUIRED") {
+        setPendingCredentialRecoveryToken("");
+        setCredentialRecoveryNeedsTwoFactor(false);
+      }
       setError(cause instanceof Error ? cause.message : "The authenticator code could not be verified.");
       throw cause;
     } finally { setBusy(false); }
@@ -190,6 +194,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await setSignedIn();
       setNotice("Your BTCBOX password has been reset. You can now sign in with your username and new password.");
     } catch (cause) {
+      if ((cause as { code?: string })?.code === "RECENT_REAUTH_REQUIRED") setCredentialRecoveryReady(false);
       setError(cause instanceof Error ? cause.message : "BTCBOX password could not be reset.");
       throw cause;
     } finally { setBusy(false); }
