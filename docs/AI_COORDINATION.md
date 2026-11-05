@@ -1491,5 +1491,16 @@ The backend CI branch filters were pointing at an older auth branch. Updated bot
 - PATCHED: terminal 2FA challenge errors (`TWOFA_CHALLENGE_EXPIRED`, `TWOFA_NOT_ENABLED`, `USER_NOT_FOUND`, `ACCOUNT_FROZEN`) now clear the pending challenge and return the auth provider to anonymous state; invalid TOTP codes remain retryable. Sign-out now clears identity-link source proof, pending target token, identity-link 2FA flag, credential recovery state, and notices in addition to the previous auth state.
 - REGRESSION COVERAGE ADDED: frontend contract test in `backend/tests/identity-link-frontend-contract.test.js` checks terminal challenge cleanup and account-scoped transient-state reset.
 - Feature commits: `a359e6bdcd339a8fc5f9637d88a72101713b3c44` (frontend) and `36ba7cb9a6afd65caae0d6dccf86bc49396d873b` (contract test); latest feature HEAD `36ba7cb9a6afd65caae0d6dccf86bc49396d873b`.
-- Exact-head CI run `42119401407` was queued when recorded; runs `42119396031` and `42119395835` were also queued for preceding commits. Do not mark this frontend batch TEST PASSED until run `42119401407` for the latest SHA completes successfully.
+- Exact-head CI run `42119401407` completed successfully for frontend challenge/sign-out cleanup SHA `36ba7cb9a6afd65caae0d6dccf86bc49396d873b`.
+- SAFETY: no production/staging DB writes or migrations, merge, Vercel deployment, or financial operations occurred.
+
+
+### Account reauthentication challenge terminal-state cleanup — 2026-11-06 (UTC+8)
+
+- TEST PASSED (prior frontend batch): exact-head CI run `42119401407` completed successfully for `36ba7cb9a6afd65caae0d6dccf86bc49396d873b`.
+- SOURCE OBSERVED: identity-link and credential-recovery second-factor handlers retained pending Supabase identity tokens after terminal errors (expired/invalid reauth proof, identity not linked, invalid Supabase identity, or frozen account), leaving stale account reauthentication state available for repeated submissions. Invalid TOTP and transient service/rate-limit failures must remain retryable.
+- PATCHED: both handlers now clear pending identity tokens and their 2FA-needed flags for terminal errors only; retryable TOTP/service/rate-limit failures are not included in the terminal error set.
+- REGRESSION COVERAGE ADDED: frontend contract test asserts the terminal cleanup behavior for both flows and exact terminal-code allowlist.
+- Feature commits: `ef67f9c3c5ad81bdefa2117089217872e037cd6c` (frontend), `65dbee4d4828c101825baa868ac7323892603d58` (test), `17b945ce54713e973c536d4490d6696b93cd7da6` (test assertion cleanup); latest feature HEAD `17b945ce54713e973c536d4490d6696b93cd7da6`.
+- Exact-head CI is pending; do not mark this batch TEST PASSED until the run for this exact SHA completes successfully.
 - SAFETY: no production/staging DB writes or migrations, merge, Vercel deployment, or financial operations occurred.
