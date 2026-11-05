@@ -797,3 +797,12 @@ The backend CI branch filters were pointing at an older auth branch. Updated bot
 - CI logs show a Vite chunk-size warning and Node/action deprecation warnings; neither failed the run. The workflow contains no Vercel deployment step.
 - Latest feature branch SHA at this note: `cbe90673585f8a7916b41b235ce4ec584b9097fd`. These CI results apply to that SHA, not to any later commits.
 - The PostgreSQL migration remains unapplied; live database role/RLS/atomicity checks, browser OAuth, wallet, and TOTP end-to-end checks remain outstanding. No production database change, merge, or Vercel deployment was performed; deployment pause remains active.
+
+## Credential recovery marker hardening — 2026-11-05
+
+- Feature branch feat/btcbox-web3-auth-20261105 commit 13d6c2144eead13c97a4bae5bc2ed02f4aede92a adds an explicit purpose: credential_recovery to the server-side reauthentication marker and requires that exact purpose before password recovery.
+- Recovery now rechecks that the stored Supabase auth_time is not more than 60 seconds in the future and is no older than five minutes at consumption time. The marker remains scoped to the authenticated server session, is deleted in the same revision-CAS save as the password update, and other sessions/temporary 2FA tokens are revoked in that save.
+- Added source-contract assertions in backend/tests/account-credentials.test.js for marker purpose, future-skew rejection, one-time marker deletion, and retention of the current session. Follow-up test-boundary correction is commit f78e6668ca287f8244ff7ef2dbbca6339bbee5d7.
+- Latest feature branch SHA at this note: f78e6668ca287f8244ff7ef2dbbca6339bbee5d7.
+- CI for the initial code commit and the follow-up test-boundary correction is pending inspection; do not treat the batch as passed until the latest run is complete and logs are reviewed.
+- NOT VERIFIED: full HTTP route integration, concurrent recovery replay, real session-cookie binding, Supabase auth token integration, and browser E2E. No production/staging DB changes, migration execution, merge, or Vercel deployment occurred. Deployment pause remains active.
