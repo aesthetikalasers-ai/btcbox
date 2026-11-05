@@ -15,8 +15,8 @@ import sys
 from pathlib import Path
 
 SQL_DIR = Path(__file__).resolve().parent.parent / "supabase" / "sql"
-MIGRATION_RE = re.compile(r"^(\\d{4})_.+\\.sql$")
-LEDGER_VERSION_RE = re.compile(r"^\\d{4}$")
+MIGRATION_RE = re.compile(r"^(\d{4})_.+\.sql$")
+LEDGER_VERSION_RE = re.compile(r"^\d{4}$")
 
 
 def expected_migrations():
