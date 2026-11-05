@@ -1218,6 +1218,13 @@ async function handleRequest(event, context) {
     user.login_password_hash = hashBtcboxLoginPassword(password, user.login_password_salt);
     user.login_password_algo = 'pbkdf2-sha256-600000';
     user.credentials_updated_at = nowStr();
+    // Password recovery revokes other BTCBOX sessions and outstanding 2FA login tokens.
+    Object.keys(db.sessions || {}).forEach(function (token) {
+      if (token !== sessionRecord.token && db.sessions[token] && db.sessions[token].uid === user.uid) delete db.sessions[token];
+    });
+    Object.keys(db.temp_tokens || {}).forEach(function (token) {
+      if (db.temp_tokens[token] && db.temp_tokens[token].uid === user.uid) delete db.temp_tokens[token];
+    });
     delete sessionRecord.session.credential_reauth;
     try { await saveDB(db); }
     catch (e) {
