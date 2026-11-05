@@ -461,3 +461,28 @@ Also verify the Site URL and inspect Authentication → Rate Limits / CAPTCHA fo
 - Before any merge/release decision, obtain non-deploying frontend build and backend test evidence, then real-device/browser QA.
 - Preserve the canonical host `https://btcboxcdt.vercel.app`; the additional `btcboxcdt-pi.vercel.app` origin is not a production-host change.
 - No repository application code, Supabase configuration, database, deployment, or financial operation was changed by this confirmation.
+
+
+## Follow-up auth source audit — 2026-11-05
+
+### SOURCE OBSERVED
+- Rechecked `feat/btcbox-web3-auth-20261105` against `main`: 77 commits ahead / 0 behind; compare reports 23 changed files. The inspected auth-related file blobs are:
+  - `frontend/src/lib/auth.tsx`: `9930e21f76e18123454ebd1504c9997bfb6c704e`
+  - `frontend/src/features/auth/AuthPages.tsx`: `cf3cd1045957716a6e3db6eb161228473c8bfca8`
+  - `frontend/src/App.tsx`: `cb12ddb582f86905c458a785026fc5706c2db90f`
+  - `frontend/src/features/auth/AccountSetupPage.tsx`: `af61c861c052e4bb73d59a8158113ff7afbc6172`
+- Source inspection confirms Google OAuth uses `/auth/react-callback`, PKCE flow, explicit code exchange, then BTCBOX session exchange and account hydration. Authenticated users with missing BTCBOX credentials are routed to `/account-setup`; users with credentials are routed to `/home`.
+- Source inspection confirms the wallet sign-in path requests an off-chain ownership signature and passes the selected provider to Supabase `signInWithWeb3`; no transaction authorization is requested in the statement.
+- GitHub Actions workflow-run lookup for feature SHA `8182397a4066d0ac8811e5e992eae175c64c8f4e` returned no runs. The GitHub combined status endpoint returned a Vercel success context, but this status alone is not a substitute for a reproducible build, a confirmed deployment artifact, or browser QA.
+- No source files were modified in this audit.
+
+### NOT VERIFIED
+- Google callback success against the live Supabase/Google client, new-vs-existing user routing, actual backend session exchange, and account hydration.
+- Wallet signing across real providers/devices.
+- TypeScript build, frontend tests, backend tests, or real-device visual/touch behavior.
+- Whether the Vercel success context points to a currently accessible artifact for this exact branch/SHA.
+
+### NEXT
+- User-operated browser test is still required for Google OAuth. Do not request passwords, OAuth codes, or wallet seed phrases.
+- Obtain a non-deploying test runner for build/unit tests; do not create a Vercel Preview while quota is constrained.
+- Keep this 77-commit feature branch unmerged until full diff scope, tests, and independent browser QA are reviewed.
