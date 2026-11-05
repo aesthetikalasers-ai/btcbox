@@ -210,3 +210,63 @@ export async function logout(): Promise<void> {
     throw new ApiError(payload?.msg || "Sign out could not be confirmed.", response.status, payload?.code);
   }
 }
+
+
+export interface AuthClientConfig {
+  ok: true;
+  supabase_url: string;
+  publishable_key: string;
+  google_enabled: boolean | null;
+}
+
+export async function getAuthClientConfig(signal?: AbortSignal): Promise<AuthClientConfig> {
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE_URL}/auth-client-config`, {
+      method: "GET", credentials: "include", headers: { Accept: "application/json" },
+      cache: "no-store", signal,
+    });
+  } catch (error) {
+    if (error instanceof Error && error.name === "AbortError") throw error;
+    throw new ApiError("Unable to reach BTCBOX authentication service.", 0, "NETWORK_ERROR");
+  }
+  const payload = await response.json().catch(() => null) as (AuthClientConfig & { msg?: string; code?: string }) | null;
+  if (!response.ok || !payload || payload.ok !== true || !payload.supabase_url || !payload.publishable_key) {
+    throw new ApiError(payload?.msg || "Google sign-in is not configured.", response.status, payload?.code);
+  }
+  return payload;
+}
+
+export interface SupabaseLoginResult {
+  ok: boolean;
+  require_2fa?: boolean;
+  temp_token?: string;
+  uid?: string;
+  msg?: string;
+  code?: string;
+}
+
+export async function exchangeSupabaseSession(accessToken: string): Promise<SupabaseLoginResult> {
+  const response = await fetch(`${API_BASE_URL}/supabase-login`, {
+    method: "POST", credentials: "include",
+    headers: { Accept: "application/json", "Content-Type": "application/json" },
+    cache: "no-store", body: JSON.stringify({ supabase_access_token: accessToken }),
+  });
+  const payload = await response.json().catch(() => null) as SupabaseLoginResult | null;
+  if (!response.ok || !payload) throw new ApiError(payload?.msg || "BTCBOX sign-in failed.", response.status, payload?.code);
+  if (payload.require_2fa) return payload;
+  if (payload.ok !== true) throw new ApiError(payload.msg || "BTCBOX sign-in failed.", response.status, payload.code);
+  return payload;
+}
+
+export async function completeLogin2fa(tempToken: string, code: string): Promise<void> {
+  const response = await fetch(`${API_BASE_URL}/login/2fa`, {
+    method: "POST", credentials: "include",
+    headers: { Accept: "application/json", "Content-Type": "application/json" },
+    cache: "no-store", body: JSON.stringify({ temp_token: tempToken, code }),
+  });
+  const payload = await response.json().catch(() => null) as { ok?: boolean; msg?: string; code?: string } | null;
+  if (!response.ok || !payload || payload.ok !== true) {
+    throw new ApiError(payload?.msg || "The verification code was not accepted.", response.status, payload?.code);
+  }
+}
