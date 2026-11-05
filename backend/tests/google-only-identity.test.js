@@ -139,3 +139,24 @@ test('identity linking avoids duplicate wallet records across legacy and normali
   assert.match(route, /if \(!walletAlreadyRecorded\)\s*\{\s*user\.wallet_identities\.push/);
   assert.match(route, /user\.auth_identities\.push\(\{ supabase_user_id: linkedId/);
 });
+
+
+test('first-time Supabase sign-in creates one BTCBOX account with server-verified identity and session', () => {
+  const routeStart = source.indexOf("if ((path === 'supabase-login' || path === 'google-login') && method === 'POST')");
+  const routeEnd = source.indexOf("// ---------- POST /api/logout ----------", routeStart);
+  assert.ok(routeStart >= 0 && routeEnd > routeStart);
+  const route = source.slice(routeStart, routeEnd);
+  const createStart = route.indexOf('if (!user) {');
+  const existingStart = route.indexOf('} else {', createStart);
+  assert.ok(createStart >= 0 && existingStart > createStart);
+  const create = route.slice(createStart, existingStart);
+  assert.match(create, /supabase_user_id: supabaseUserId/);
+  assert.match(create, /supabase_user_ids: \[supabaseUserId\]/);
+  assert.match(create, /auth_identities: \[\{ supabase_user_id: supabaseUserId/);
+  assert.match(create, /wallet_identities: walletIdentity \? \[\{/);
+  assert.match(create, /auth_providers: authProviders/);
+  assert.match(create, /balances: emptyBalances\(\)/);
+  assert.match(route, /db\.sessions\[token\] = \{ uid: user\.uid, email: email, created_at: Date\.now\(\) \}/);
+  assert.match(route, /await saveDB\(db\);\s*return json\(\{ ok: true, uid: user\.uid \}/);
+  assert.match(route, /if \(authProvider === 'web3' \? !walletIdentity : \(!isValidAuthEmail\(email\) \|\| !confirmed\)\)/);
+});
