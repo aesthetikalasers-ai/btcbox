@@ -26,7 +26,8 @@ test('new order RPC resolves the active backend policy and snapshots it atomical
   const end = migration.indexOf('-- Settlement uses the immutable payout snapshot', start);
   assert.ok(start >= 0 && end > start);
   const fn = migration.slice(start, end);
-  assert.match(fn, /seconds_contract_policy_active[\s\S]*?FOR SHARE OF a,p/i);
+  assert.match(fn, /seconds_contract_policy_active/);
+  assert.doesNotMatch(fn, /FOR SHARE|FOR UPDATE/i);
   assert.match(fn, /POLICY_LIMIT_EXCEEDED/);
   assert.match(fn, /OPEN_EXPOSURE_LIMIT_EXCEEDED/);
   assert.match(fn, /payout_bps_snapshot/);
