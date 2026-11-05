@@ -27,8 +27,8 @@ export function AccountSecurityPage() {
 
   const identities = account?.linked_identities || [];
   const hasGoogle = identities.some((identity) => identity.provider === "google") || account?.auth_providers?.includes("google") === true;
-  const hasEthereum = identities.some((identity) => identity.provider === "web3" && identity.wallet_chain === "ethereum");
-  const hasSolana = identities.some((identity) => identity.provider === "web3" && identity.wallet_chain === "solana");
+  const hasEthereum = account?.wallet_chain === "ethereum" || identities.some((identity) => identity.provider === "web3" && identity.wallet_chain === "ethereum");
+  const hasSolana = account?.wallet_chain === "solana" || identities.some((identity) => identity.provider === "web3" && identity.wallet_chain === "solana");
 
   return <div className="mx-auto w-full max-w-3xl space-y-5 p-4 pb-24 sm:p-6">
     <div className="flex items-center gap-3"><ShieldCheck className="h-6 w-6 text-brand-text-secondary"/><div><h1 className="text-xl font-semibold text-brand-text">Account security</h1><p className="text-sm text-brand-text-muted">Manage the sign-in methods connected to one BTCBOX account.</p></div></div>
