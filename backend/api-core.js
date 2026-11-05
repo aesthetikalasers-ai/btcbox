@@ -361,7 +361,7 @@ async function readAdminAuditLogPage(params) {
   if (!response.ok) throw new Error('Canonical administrator audit read failed');
   const rows = await response.json();
   if (!Array.isArray(rows) || rows.some(function (row) {
-    return !row || !Number.isSafeInteger(Number(row.id)) || Number(row.id) <= 0 ||
+    return !row || typeof row.id !== 'string' || !/^[1-9]\\d{0,18}$/.test(row.id) ||
       typeof row.action !== 'string' || typeof row.created_at !== 'string';
   })) throw new Error('Canonical administrator audit response invalid');
   const hasMore = rows.length > limit;
