@@ -290,11 +290,11 @@ export async function setBtcboxCredentials(username: string, password: string, c
   }
 }
 
-export async function reauthenticateBtcboxCredentials(accessToken: string): Promise<void> {
+export async function reauthenticateBtcboxCredentials(accessToken: string, twoFactorCode = ""): Promise<void> {
   const response = await fetch(`${API_BASE_URL}/account/credentials/reauth`, {
     method: "POST", credentials: "include",
     headers: { Accept: "application/json", "Content-Type": "application/json" },
-    cache: "no-store", body: JSON.stringify({ supabase_access_token: accessToken }),
+    cache: "no-store", body: JSON.stringify({ supabase_access_token: accessToken, twofa_code: twoFactorCode }),
   });
   const payload = await response.json().catch(() => null) as { ok?: boolean; msg?: string; code?: string } | null;
   if (!response.ok || !payload || payload.ok !== true) {
