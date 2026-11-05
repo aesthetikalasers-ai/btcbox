@@ -2318,6 +2318,24 @@ async function handleRequest(event, context) {
       }) });
     }
 
+    // GET /api/admin/kyc — return only the minimum fields needed for review.
+    // Never expose id_number, auth secrets, credentials, or raw user records.
+    if (sub === 'kyc' && method === 'GET') {
+      const applications = Object.values(db.users || {}).filter(function (u) {
+        return u && u.kyc && u.kyc.status === 'pending';
+      }).map(function (u) {
+        return {
+          uid: String(u.uid || ''),
+          email: String(u.email || ''),
+          name: String(u.kyc.name || ''),
+          id_type: String(u.kyc.id_type || ''),
+          status: 'pending',
+          submitted_at: String(u.kyc.submitted_at || '')
+        };
+      }).sort(function (a, b) { return a.submitted_at < b.submitted_at ? 1 : -1; }).slice(0, 200);
+      return json({ ok: true, kycs: applications, source: 'btcbox_state' });
+    }
+
     // GET /api/admin/user?uid=
     if (sub === 'user' && method === 'GET') {
       const uid = (event.queryStringParameters && event.queryStringParameters.uid) || '';
