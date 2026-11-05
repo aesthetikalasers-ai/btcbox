@@ -570,3 +570,12 @@ Also verify the Site URL and inspect Authentication → Rate Limits / CAPTCHA fo
 ### VALIDATION STATUS
 - SOURCE OBSERVED only. No HTTP integration tests, serverless multi-instance simulation, frontend build, or live authentication tests were run.
 - All Vercel deployments remain paused at the user's direction.
+
+## Google provider status fail-closed UI alignment — 2026-11-05
+
+- SOURCE OBSERVED: /api/auth-client-config can return google_enabled as null when Supabase Auth settings cannot be determined. The backend Supabase login and identity-link routes already reject Google sign-in unless provider status is exactly true.
+- FINDING: the frontend previously treated every value other than false as enabled, so a null/unknown provider status still displayed the Google button even though the backend would reject the exchange.
+- FIX COMMITTED on feat/btcbox-web3-auth-20261105: set Google UI availability only when config.google_enabled === true.
+- Commit: e9bfd4d1749180b3776d3243d96c08f822f5d497. File: frontend/src/lib/auth.tsx. New blob: 8d0a67974522b113781a7c7bcf4bb2611cbe64cf.
+- STATUS: source change committed and verified by read-back in the next check; frontend build and browser behavior remain NOT VERIFIED.
+- Deployment pause remains in force; no Vercel build/deployment was triggered.
