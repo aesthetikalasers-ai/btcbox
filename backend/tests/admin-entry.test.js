@@ -7,6 +7,7 @@ const path = require('node:path');
 const root = path.join(__dirname, '..');
 const boot = fs.readFileSync(path.join(root, 'assets/js/boot.js'), 'utf8');
 const app = fs.readFileSync(path.join(root, 'assets/js/app-core.js'), 'utf8');
+const apiCore = fs.readFileSync(path.join(root, 'api-core.js'), 'utf8');
 const admin = fs.readFileSync(path.join(root, 'admin.html'), 'utf8');
 
 test('dedicated /admin URL defaults to the admin route before SPA boot', () => {
@@ -36,16 +37,15 @@ test('admin console includes admin-review withdrawals and keeps unsupported depo
 });
 
 test('KYC queue is read through a redacted admin endpoint and rendered from API data', () => {
-  assert.match(apiCore, /sub === 'kyc' && method === 'GET'/);
-  assert.match(apiCore, /id_type: String\\(u\\.kyc\\.id_type \\|\\| ''\\)/);
-  assert.match(apiCore, /submitted_at: String\\(u\\.kyc\\.submitted_at \\|\\| ''\\)/);
-  assert.doesNotMatch(apiCore.slice(apiCore.indexOf("sub === 'kyc' && method === 'GET'"), apiCore.indexOf("// GET /api/admin/user?uid=")), /id_number|password_hash|twofa_secret|recovery_codes/);
-  assert.match(app, /async adminKyc\\(\\)\\{ return adminFetch\\('\\/admin\\/kyc'\\); \\}/);
-  assert.match(accountView, /apiAdapter\\.adminKyc\\(\\)/);
-  assert.match(accountView, /state\\.admin\\.kycs=results\\[2\\]\\.value\\.kycs/);
-  assert.doesNotMatch(accountView, /KYC 审核暂不可用/);
+  const kycRoute = apiCore.slice(apiCore.indexOf("sub === 'kyc' && method === 'GET'"), apiCore.indexOf("// GET /api/admin/user?uid="));
+  assert.ok(kycRoute.includes("id_type: String(u.kyc.id_type || '')"));
+  assert.ok(kycRoute.includes("submitted_at: String(u.kyc.submitted_at || '')"));
+  assert.doesNotMatch(kycRoute, /id_number|password_hash|twofa_secret|recovery_codes/);
+  assert.ok(app.includes("async adminKyc(){ return adminFetch('/admin/kyc'); }"));
+  assert.ok(accountView.includes("apiAdapter.adminKyc()"));
+  assert.ok(accountView.includes("state.admin.kycs=results[2].value.kycs"));
+  assert.ok(!accountView.includes("KYC 审核暂不可用"));
 });
-
 
 test('admin console warns when business state is saved but audit delivery is pending', () => {
   assert.match(accountView, /result\.audit_sync_pending===true/);
