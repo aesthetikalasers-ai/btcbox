@@ -333,3 +333,18 @@ test('disabling two-factor authentication revokes other sessions but preserves t
   assert.ok(route.indexOf('delete db.sessions[token]') < route.indexOf('await saveDB(db)'));
   assert.ok(route.includes('consumeTotpStep(user, String(body.code || \'\'))'));
 });
+
+
+test('enabling two-factor authentication requires a valid current session and revokes older sessions and pending challenges', () => {
+  const start = source.indexOf("if (path === '2fa/confirm' && method === 'POST')");
+  const end = source.indexOf("// ---------- POST /api/2fa/disable ----------", start);
+  assert.ok(start >= 0 && end > start, '2FA confirm route must exist');
+  const route = source.slice(start, end);
+  assert.ok(route.includes('const currentSessionRecord = getSessionRecord(db, event)'));
+  assert.ok(route.includes('currentSessionRecord.user.uid !== user.uid'));
+  assert.ok(route.includes("token !== currentSessionRecord.token && session && session.uid === user.uid"));
+  assert.ok(route.includes('delete db.sessions[token]'));
+  assert.ok(route.includes('db.temp_tokens[token].uid === user.uid'));
+  assert.ok(route.includes('delete db.temp_tokens[token]'));
+  assert.ok(route.indexOf('delete db.sessions[token]') < route.indexOf('await saveDB(db)'));
+});
