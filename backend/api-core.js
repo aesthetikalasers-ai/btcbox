@@ -2012,8 +2012,10 @@ async function handleRequest(event, context) {
     try {
       const rpc = await fetch(base + '/rest/v1/rpc/submit_seconds_order_v1', { method: 'POST', headers: supabaseHeaders(), body: JSON.stringify({ p_position_id: positionId, p_user_id: String(user.uid), p_symbol: symbol, p_direction: direction, p_amount: String(amount), p_duration_sec: durationSec, p_open_price: String(ref.price), p_request_id: requestId, p_request_hash: requestHash }) });
       const result = await rpc.json().catch(() => null);
-      if (!rpc.ok || !result || result.ok !== true || !result.position_id) return json({ ok: false, code: 'FINANCIAL_RPC_FAILED', msg: 'The database did not confirm the contract order. Funds were not changed; verify the order status before retrying.', duplicate: !!(result && result.duplicate) }, rpc.status === 400 ? 400 : 503);
-      return json({ ok: true, server_now: Date.now(), duplicate: !!result.duplicate, position_id: result.position_id, symbol: symbol, direction: direction, amount: amount, duration_sec: durationSec, open_price: ref.price, open_price_source: ref.source, settle_at: Math.floor(Date.now() / 1000) + durationSec, msg: result.duplicate ? 'This order request has already been processed. Do not submit it again.' : 'Position opened successfully. Funds have been reserved.' });
+      if (!rpc.ok || !result || result.ok !== true || !result.position_id) return json({ ok: false, code: 'FINANCIAL_RPC_FAILED', msg: 'The database did not confirm the contract order. Verify the position status before retrying.', duplicate: !!(result && result.duplicate) }, rpc.status === 400 ? 400 : 503);
+      const settleAt = Number(result.settle_at);
+      if (!Number.isSafeInteger(settleAt) || settleAt <= 0) return json({ ok: false, code: 'FINANCIAL_RPC_INVALID_RESPONSE', msg: 'The database response did not include a valid settlement time. The order status is unconfirmed; check your positions before retrying.' }, 503);
+      return json({ ok: true, server_now: Date.now(), duplicate: !!result.duplicate, position_id: result.position_id, symbol: symbol, direction: direction, amount: amount, duration_sec: durationSec, open_price: ref.price, open_price_source: ref.source, settle_at: settleAt, msg: result.duplicate ? 'This order request has already been processed. Do not submit it again.' : 'Position opened successfully. Funds have been reserved.' });
     } catch (e) { return json({ ok: false, code: 'FINANCIAL_RPC_UNAVAILABLE', msg: 'The financial database is unavailable. The order is unconfirmed and funds were not changed.' }, 503); }
   }
 
@@ -2044,7 +2046,15 @@ async function handleRequest(event, context) {
     try {
       const rpc = await fetch(base + '/rest/v1/rpc/settle_seconds_position_v1', { method: 'POST', headers: supabaseHeaders(), body: JSON.stringify({ p_position_id: positionId, p_user_id: String(user.uid), p_request_id: requestId, p_request_hash: requestHash, p_symbol: symbol, p_settle_price: String(settleRef.price), p_settle_price_source: settleRef.source, p_settle_price_ts: new Date().toISOString() }) });
       const result = await rpc.json().catch(() => null);
-      if (!rpc.ok || !result || result.ok !== true) return json({ ok: false, code: 'FINANCIAL_RPC_FAILED', msg: result && result.msg ? result.msg : 'The database did not confirm settlement. Please try again later.', duplicate: !!(result && result.duplicate), settled: !!(result && result.settled) }, rpc.status === 400 ? 400 : 503);
+      if (!rpc.ok || !result || result.ok !== true) {
+        const conflictCode = result && ['IDEMPOTENCY_CONFLICT','POSITION_ALREADY_SETTLED'].includes(result.code) ? result.code : '';
+        const conflictMessage = conflictCode === 'POSITION_ALREADY_SETTLED'
+          ? 'This position was already settled by a different request. Refresh your history; do not retry with a new request ID.'
+          : 'This settlement request ID was reused with different parameters. Refresh your position history before retrying.';
+        return json({ ok: false, code: conflictCode || 'FINANCIAL_RPC_FAILED',
+          msg: conflictCode ? conflictMessage : (result && result.msg ? result.msg : 'The database did not confirm settlement. Please try again later.'),
+          duplicate: !!(result && result.duplicate), settled: !!(result && result.settled) }, conflictCode ? 409 : (rpc.status === 400 ? 400 : 503));
+      }
       return json({ ok: true, duplicate: !!result.duplicate, position_id: positionId, settled: result.settled !== false, win: result.win, tie: result.tie, pnl: result.pnl, settle_price: result.settle_price, msg: result.duplicate ? 'This settlement request has already been processed.' : (result.settled === false ? 'This position has not reached maturity and cannot be settled yet.' : 'Settlement completed.') });
     } catch (e) { return json({ ok: false, code: 'FINANCIAL_RPC_UNAVAILABLE', msg: 'The financial database is unavailable. Settlement remains unconfirmed.' }, 503); }
   }

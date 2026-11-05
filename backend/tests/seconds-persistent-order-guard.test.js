@@ -63,6 +63,30 @@ test('pending intent reader validates schema and fails closed on corrupt or unav
   assert.equal(read().invalid, true, 'storage read failure must fail closed');
 });
 
+test('settlement SQL only reports duplicate for the exact original request ID and hash', () => {
+  const sql=fs.readFileSync(path.join(root,'supabase/sql/0024_seconds_settlement_idempotency_v1.sql'),'utf8');
+  const start=sql.indexOf("if v_pos.status='settled' then");
+  const end=sql.indexOf('  if v_now < v_pos.settle_at then',start);
+  assert.ok(start>=0&&end>start,'settled-position branch must exist');
+  const branch=sql.slice(start,end);
+  assert.ok(branch.includes('if v_pos.settle_request_id = p_request_id then'),'only the original request ID can replay');
+  assert.ok(branch.includes('v_pos.settle_request_hash IS DISTINCT FROM p_request_hash'),'payload mismatch must conflict, including NULL mismatch');
+  assert.ok(branch.includes("'duplicate',true"),'same request ID and hash returns duplicate');
+  assert.ok(branch.includes("'POSITION_ALREADY_SETTLED'"),'a different request ID cannot masquerade as duplicate success');
+  assert.match(sql,/security invoker set search_path = ''/,'keep the hardened invoker/search_path contract');
+  assert.match(sql,/where position_id=p_position_id and user_id=p_user_id for update/,'lock the owned position row');
+  assert.ok(sql.includes('insert into public.financial_operations'),'keep settlement operation recording');
+  assert.ok(sql.includes('insert into public.financial_ledger'),'keep ledger settlement in the same transaction');
+  assert.ok(sql.includes('revoke all on function public.settle_seconds_position_v1'),'revoke public execution');
+  assert.ok(sql.includes('to service_role'),'grant execution only to service_role');
+});
+test('seconds order response uses the database settlement timestamp, not a client-side recomputation', () => {
+  const api=fs.readFileSync(path.join(root,'api-core.js'),'utf8');
+  assert.ok(api.includes('const settleAt = Number(result.settle_at);'),'read the canonical DB timestamp');
+  assert.ok(api.includes('settle_at: settleAt'),'return the canonical DB timestamp');
+  assert.ok(!api.includes('settle_at: Math.floor(Date.now() / 1000) + durationSec'),'do not invent a replacement timestamp');
+  assert.ok(api.includes("'POSITION_ALREADY_SETTLED'"),'map an already-settled conflict to a non-success response');
+});
 test('settlement request IDs are persisted per user and position before network I/O', () => {
   const persistAt=view.indexOf('if(!persistPendingSecondsSettlement(settlementIntent))');
   const requestAt=view.indexOf('await apiAdapter.secondsSettle({position_id:positionId,request_id:settlementIntent.request_id');
