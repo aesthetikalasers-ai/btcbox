@@ -328,7 +328,9 @@ async function readAdminWithdrawalSnapshot() {
   if (!response.ok) throw new Error('Admin withdrawal read failed');
   const result = await response.json();
   if (!result || result.ok !== true || !Array.isArray(result.withdrawals) ||
-      !Number.isSafeInteger(result.pending_count) || result.pending_count < 0) {
+      !Number.isSafeInteger(result.pending_count) || result.pending_count < 0 ||
+      !Number.isSafeInteger(result.pending_admin_review_count) || result.pending_admin_review_count < 0 ||
+      result.pending_admin_review_count > result.pending_count) {
     throw new Error('Admin withdrawal response invalid');
   }
   return result;
@@ -2218,13 +2220,14 @@ async function handleRequest(event, context) {
     // GET /api/admin/stats
     if (sub === 'stats' && method === 'GET') {
       const users = Object.values(db.users);
-      let pendingWd = users.reduce(function (s, u) { return s + (Array.isArray(u.withdrawals) ? u.withdrawals.filter(function (w) { return w.status === 'pending' || w.status === 'approved_pending_broadcast'; }).length : 0); }, 0);
+      let pendingWd = users.reduce(function (s, u) { return s + (Array.isArray(u.withdrawals) ? u.withdrawals.filter(function (w) { return w.status === 'pending' || w.status === 'pending_admin_review' || w.status === 'approved_pending_broadcast'; }).length : 0); }, 0);
+      let pendingAdminReviewWd = users.reduce(function (s, u) { return s + (Array.isArray(u.withdrawals) ? u.withdrawals.filter(function (w) { return w.status === 'pending_admin_review'; }).length : 0); }, 0);
       if (financialPostgresReadsEnabled()) {
-        try { pendingWd = (await readAdminWithdrawalSnapshot()).pending_count; }
+        try { const withdrawalSnapshot = await readAdminWithdrawalSnapshot(); pendingWd = withdrawalSnapshot.pending_count; pendingAdminReviewWd = withdrawalSnapshot.pending_admin_review_count; }
         catch (e) { return json({ ok: false, msg: 'Financial data temporarily unavailable. Please try again later.', code: 'FINANCIAL_READ_UNAVAILABLE' }, 503); }
       }
       const pendingKyc = users.filter(function (u) { return u.kyc && u.kyc.status === 'pending'; }).length;
-      return json({ ok: true, total_users: users.length, pending_withdrawals: pendingWd, pending_kyc: pendingKyc, deposit_addresses: safeDepositAddresses(db.deposit_addresses), announcement: db.announcement || '' });
+      return json({ ok: true, total_users: users.length, pending_withdrawals: pendingWd, pending_admin_review_withdrawals: pendingAdminReviewWd, pending_kyc: pendingKyc, deposit_addresses: safeDepositAddresses(db.deposit_addresses), announcement: db.announcement || '' });
     }
 
     // GET /api/admin/users?search=
