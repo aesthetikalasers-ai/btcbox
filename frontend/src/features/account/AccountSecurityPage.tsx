@@ -8,13 +8,14 @@ import { getAccount, type AccountSnapshot } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
 
 export function AccountSecurityPage() {
-  const { status, busy, error, notice, googleEnabled, ethereumWallets, linkGoogleIdentity, linkWeb3Identity, credentialRecoveryReady, credentialRecoveryNeedsTwoFactor, reauthenticateCredentialsWithGoogle, reauthenticateCredentialsWithWeb3, completeCredentialRecoveryTwoFactor, recoverBtcboxPassword } = useAuth();
+  const { status, busy, error, notice, googleEnabled, ethereumWallets, identityLinkSourceVerified, identityLinkNeedsTwoFactor, reauthenticateIdentityLinkWithGoogle, reauthenticateIdentityLinkWithWeb3, completeIdentityLinkReauthTwoFactor, linkGoogleIdentity, linkWeb3Identity, credentialRecoveryReady, credentialRecoveryNeedsTwoFactor, reauthenticateCredentialsWithGoogle, reauthenticateCredentialsWithWeb3, completeCredentialRecoveryTwoFactor, recoverBtcboxPassword } = useAuth();
   const [account, setAccount] = useState<AccountSnapshot | null>(null);
   const [loadError, setLoadError] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmNewPassword, setConfirmNewPassword] = useState("");
   const [twoFactorCode, setTwoFactorCode] = useState("");
   const [showLinkEthereumWallets, setShowLinkEthereumWallets] = useState(false);
+  const [showSourceEthereumWallets, setShowSourceEthereumWallets] = useState(false);
   const [showRecoveryEthereumWallets, setShowRecoveryEthereumWallets] = useState(false);
 
   useEffect(() => {
@@ -60,11 +61,31 @@ export function AccountSecurityPage() {
       </CardContent>
     </Card>
     <Card className="border-brand-border bg-brand-surface">
-      <CardHeader><CardTitle className="text-base">Link another sign-in method</CardTitle><CardDescription>Do not link an identity that belongs to a different BTCBOX account. The system will reject identities already in use.</CardDescription></CardHeader>
-      <CardContent className="grid gap-3 sm:grid-cols-2">
-        <Button variant="outline" disabled={busy || !googleEnabled || hasGoogle} onClick={() => void linkGoogleIdentity()}><Link2 className="h-4 w-4"/>{hasGoogle ? "Google connected" : "Link Google"}</Button>
-        <Button variant="outline" disabled={busy || hasEthereum} onClick={() => ethereumWallets.length > 1 ? setShowLinkEthereumWallets(value => !value) : void linkWeb3Identity("ethereum", ethereumWallets[0]?.provider)}><Wallet className="h-4 w-4"/>{hasEthereum ? "Ethereum connected" : "Link Ethereum wallet"}</Button>
-        <Button variant="outline" disabled={busy || hasSolana} onClick={() => void linkWeb3Identity("solana")}><Wallet className="h-4 w-4"/>{hasSolana ? "Solana connected" : "Link Solana wallet"}</Button>
+      <CardHeader><CardTitle className="text-base">Link another sign-in method</CardTitle><CardDescription>First reverify a sign-in method already connected to this BTCBOX account. Then verify the new method you want to add. The two proofs must be different.</CardDescription></CardHeader>
+      <CardContent className="space-y-3">
+        <div className="rounded-lg border border-brand-border bg-brand-surface-2 p-3 space-y-2">
+          <p className="text-sm font-medium text-brand-text">Step 1 · Verify an existing method</p>
+          <div className="grid gap-2 sm:grid-cols-2">
+            {hasGoogle && <Button variant="outline" disabled={busy || !googleEnabled || identityLinkSourceVerified} onClick={() => void reauthenticateIdentityLinkWithGoogle()}>Verify existing Google</Button>}
+            {hasEthereum && <Button variant="outline" disabled={busy || identityLinkSourceVerified} onClick={() => ethereumWallets.length > 1 ? setShowSourceEthereumWallets(value => !value) : void reauthenticateIdentityLinkWithWeb3("ethereum", twoFactorCode, ethereumWallets[0]?.provider)}>Verify existing Ethereum wallet</Button>}
+            {hasSolana && <Button variant="outline" disabled={busy || identityLinkSourceVerified} onClick={() => void reauthenticateIdentityLinkWithWeb3("solana", twoFactorCode)}>Verify existing Solana wallet</Button>}
+          </div>
+          {showSourceEthereumWallets && <div className="space-y-2">{ethereumWallets.map(wallet => <Button key={wallet.info.uuid} variant="outline" className="w-full justify-start" disabled={busy} onClick={() => { setShowSourceEthereumWallets(false); void reauthenticateIdentityLinkWithWeb3("ethereum", twoFactorCode, wallet.provider); }}><Wallet className="h-4 w-4"/>{wallet.info.name}</Button>)}</div>}
+          {account?.twofa_enabled && <label className="block space-y-1.5 text-sm"><span className="text-brand-text-secondary">Authenticator code (required when account 2FA is enabled)</span><Input value={twoFactorCode} onChange={event => setTwoFactorCode(event.target.value.replace(/\D/g, "").slice(0, 6))} inputMode="numeric" autoComplete="one-time-code" maxLength={6} placeholder="Enter your 2FA code" /></label>}
+          {identityLinkNeedsTwoFactor && <form className="space-y-2" onSubmit={async event => { event.preventDefault(); try { await completeIdentityLinkReauthTwoFactor(twoFactorCode); setTwoFactorCode(""); } catch { /* AuthProvider displays the safe error. */ } }}>
+            <p className="text-sm text-brand-text-secondary">Google identity confirmed. Enter your authenticator code to complete this step.</p>
+            <Button type="submit" className="w-full" disabled={busy || twoFactorCode.length !== 6}>Confirm existing identity</Button>
+          </form>}
+          {identityLinkSourceVerified && <p role="status" className="text-sm text-profit">Existing identity verified. Continue to step 2.</p>}
+        </div>
+        <div className="rounded-lg border border-brand-border p-3 space-y-2">
+          <p className="text-sm font-medium text-brand-text">Step 2 · Verify the new method</p>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Button variant="outline" disabled={busy || !identityLinkSourceVerified || !googleEnabled || hasGoogle} onClick={() => void linkGoogleIdentity()}><Link2 className="h-4 w-4"/>{hasGoogle ? "Google connected" : "Link Google"}</Button>
+            <Button variant="outline" disabled={busy || !identityLinkSourceVerified || hasEthereum} onClick={() => ethereumWallets.length > 1 ? setShowLinkEthereumWallets(value => !value) : void linkWeb3Identity("ethereum", ethereumWallets[0]?.provider)}><Wallet className="h-4 w-4"/>{hasEthereum ? "Ethereum connected" : "Link Ethereum wallet"}</Button>
+            <Button variant="outline" disabled={busy || !identityLinkSourceVerified || hasSolana} onClick={() => void linkWeb3Identity("solana")}><Wallet className="h-4 w-4"/>{hasSolana ? "Solana connected" : "Link Solana wallet"}</Button>
+          </div>
+        </div>
         {showLinkEthereumWallets && <div className="col-span-full space-y-2 rounded-lg border border-brand-border bg-brand-surface-2 p-3">
           <p className="text-sm font-medium text-brand-text">Choose the Ethereum wallet to link</p>
           {ethereumWallets.map(wallet => <Button key={wallet.info.uuid} variant="outline" className="w-full justify-start" disabled={busy} onClick={() => { setShowLinkEthereumWallets(false); void linkWeb3Identity("ethereum", wallet.provider); }}><Wallet className="h-4 w-4"/>{wallet.info.name}</Button>)}
