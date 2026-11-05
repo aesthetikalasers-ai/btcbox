@@ -20,6 +20,9 @@ export function AppLayout({ children }: { children: ReactNode }) {
           <footer className="mx-auto flex w-full max-w-[1600px] flex-wrap items-center justify-center gap-x-2 gap-y-1 px-4 pb-4 pt-2 text-center text-[11px] text-brand-text-muted" aria-label="Open source attribution">
             <span>TradingView Lightweight Charts™ · Copyright (с) 2025 TradingView, Inc.</span>
             <a href="https://www.tradingview.com/" target="_blank" rel="noreferrer" className="underline decoration-brand-border underline-offset-2 hover:text-brand-text-secondary">TradingView</a>
+            <span aria-hidden="true">·</span>
+            <a href="/NOTICE" className="underline decoration-brand-border underline-offset-2 hover:text-brand-text-secondary">Notices</a>
+            <a href="/LICENSE-Lightweight-Charts" className="underline decoration-brand-border underline-offset-2 hover:text-brand-text-secondary">License</a>
           </footer>
         </main>
       </div>
