@@ -22,6 +22,12 @@ test('withdrawal review migration extends the canonical table and retains atomic
   assert.match(sql, /revoke all on function public\.create_withdrawal_atomic[\s\S]*from public, anon, authenticated/i);
 });
 
+test('concurrent first-use withdrawal retries serialize the absent-row idempotency key', () => {
+  const sql = read('supabase/sql/0022_withdrawal_admin_review_status_v1.sql');
+  assert.match(sql, /pg_catalog\\.pg_advisory_xact_lock\\(pg_catalog\\.hashtextextended\\(p_request_id, 0\\)\\)/i);
+  assert.ok(sql.indexOf('pg_catalog.pg_advisory_xact_lock') < sql.indexOf('where request_id = p_request_id'));
+});
+
 test('withdrawal retries return the original row and reject payload or review-flag mismatch', () => {
   const sql = read('supabase/sql/0022_withdrawal_admin_review_status_v1.sql');
   assert.match(sql, /where request_id = p_request_id\s+for update/i);
