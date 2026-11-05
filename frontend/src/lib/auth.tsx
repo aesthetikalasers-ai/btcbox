@@ -61,8 +61,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           auth: { flowType: "pkce", persistSession: true, autoRefreshToken: true, detectSessionInUrl: false },
         });
         clientRef.current = client;
+        const callbackParams = new URLSearchParams(window.location.search);
         const isCallback = window.location.pathname === "/auth/react-callback" &&
-          (new URLSearchParams(window.location.search).has("code") || new URLSearchParams(window.location.search).get("flow") === "recovery");
+          (callbackParams.has("code") || callbackParams.get("flow") === "recovery" ||
+            callbackParams.has("error") || callbackParams.has("error_description") ||
+            callbackParams.has("error_code") || callbackParams.has("error_reason"));
         if (isCallback) { setStatus("anonymous"); return; }
         try { await setSignedIn(); return; } catch { /* Recover Supabase session below. */ }
         const { data, error: sessionError } = await client.auth.getSession();

@@ -95,6 +95,9 @@ test('React Google auth uses the template flow without legacy registration conse
   assert.ok(!auth.includes('reg-terms') && !auth.includes('Terms of Service'));
   assert.ok(provider.includes('flowType: "pkce"'));
   assert.ok(provider.includes('redirectTo: window.location.origin + "/auth/react-callback"'));
+  assert.ok(provider.includes('callbackParams.has("error_code")'));
+  assert.ok(provider.includes('callbackParams.has("error_description")'));
+  assert.ok(provider.includes('callbackParams.get("flow") === "recovery"'));
   assert.ok(provider.includes('exchangeSupabaseSession'));
   assert.ok(provider.includes('completeLogin2fa'));
   assert.ok(provider.includes('clientRef.current?.auth.signOut()'));
