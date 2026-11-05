@@ -127,3 +127,24 @@ test('React auth server endpoints retain exact POST contracts and legacy callbac
   assert.ok(vercel.includes('/auth/callback'));
   assert.ok(vercel.includes('/legacy-index.html?auth_callback=1'));
 });
+
+
+test('React authentication supports Supabase email and Google without linking identities automatically', () => {
+  const backend = read('api-core.js');
+  const auth = read('../frontend/src/lib/auth.tsx');
+  const pages = read('../frontend/src/features/auth/AuthPages.tsx');
+  assert.ok(backend.includes('function getSingleSupabaseAuthProvider(identity)'));
+  assert.ok(backend.includes("['google', 'email'].includes(provider)"));
+  assert.ok(backend.includes("const authProviders = [authProvider]"));
+  assert.ok(backend.includes('SUPABASE_IDENTITY_MISMATCH') && backend.includes('SUPABASE_IDENTITY_LINK_REQUIRED'));
+  assert.ok(auth.includes('signInWithPassword'));
+  assert.ok(auth.includes('signUp({'));
+  assert.ok(auth.includes('resetPasswordForEmail'));
+  assert.ok(auth.includes('updateUser({ password })'));
+  assert.ok(auth.includes('flowType: "pkce"'));
+  assert.ok(pages.includes('Sign in with email'));
+  assert.ok(pages.includes('Create account with email'));
+  assert.ok(pages.includes('Forgot password?'));
+  assert.ok(pages.includes('Choose a new password'));
+  assert.ok(!pages.includes('Terms of Service'));
+});

@@ -39,15 +39,17 @@ function getPublishableKey() {
 // supabase-login call does not pay an extra round trip. Returns true / false, or
 // null if the status cannot be determined (settings endpoint unreachable).
 let _googleProviderCache = { value: null, expiresAt: 0 };
-// Google-only identity boundary. Authorization uses server-verified app_metadata and linked identities,
-// never user_metadata or a provider value supplied by the browser.
-function isGoogleOnlySupabaseIdentity(identity) {
-  if (!identity || typeof identity !== 'object') return false;
+// Accept only one server-verified Supabase identity. Mixed/linked identities are
+// deliberately rejected until an explicit, audited account-linking flow exists.
+function getSingleSupabaseAuthProvider(identity) {
+  if (!identity || typeof identity !== 'object') return null;
   const appMetadata = identity.app_metadata && typeof identity.app_metadata === 'object' ? identity.app_metadata : {};
+  const provider = String(appMetadata.provider || '').toLowerCase();
   const providers = Array.isArray(appMetadata.providers) ? appMetadata.providers.map(p => String(p || '').toLowerCase()) : [];
   const identities = Array.isArray(identity.identities) ? identity.identities : [];
-  return appMetadata.provider === 'google' && providers.length === 1 && providers[0] === 'google' &&
-    identities.length === 1 && identities[0] && identities[0].provider === 'google';
+  if (!['google', 'email'].includes(provider) || providers.length !== 1 || providers[0] !== provider) return null;
+  if (identities.length !== 1 || !identities[0] || String(identities[0].provider || '').toLowerCase() !== provider) return null;
+  return provider;
 }
 function isValidAuthEmail(value) {
   return typeof value === 'string' && /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(value);
@@ -808,7 +810,7 @@ async function handleRequest(event, context) {
     return json({ ok: false, code: 'GOOGLE_ONLY_AUTH', msg: 'Please sign in with Google.' }, 403);
   }
 
-  // ---------- POST /api/supabase-login (Supabase-verified Google OAuth only) ----------
+  // ---------- POST /api/supabase-login (Supabase-verified single-provider identity) ----------
   if ((path === 'supabase-login' || path === 'google-login') && method === 'POST') {
     // 登录路径持久化限流（按 IP，20 次/15 分钟），计数存 btcbox_state，跨实例共享。
     if (!db.security_counters) db.security_counters = {};
@@ -822,10 +824,6 @@ async function handleRequest(event, context) {
     const supabaseKey = getPublishableKey();
     if (!supabaseUrl || !supabaseKey) {
       return json({ ok: false, msg: 'Authentication service is not configured on the server.' }, 503);
-    }
-    const googleEnabled = await detectGoogleProviderEnabled();
-    if (googleEnabled !== true) {
-      return json({ ok: false, code: 'GOOGLE_PROVIDER_UNAVAILABLE', msg: 'Google sign-in is temporarily unavailable. Please try again later.' }, 503);
     }
     if (!accessToken || accessToken.length > 16384) {
       return json({ ok: false, msg: 'Invalid session. Please sign in again.' }, 401);
@@ -845,18 +843,22 @@ async function handleRequest(event, context) {
     const confirmed = !!(identity && (identity.email_confirmed_at || identity.confirmed_at));
     const supabaseUserId = String(identity && identity.id || '').trim();
     if (!isValidAuthEmail(email) || !confirmed || !isSupabaseUserId(supabaseUserId)) {
-      return json({ ok: false, code: 'INVALID_SUPABASE_IDENTITY', msg: 'The verified Google account could not be confirmed. Please sign in again.' }, 403);
+      return json({ ok: false, code: 'INVALID_SUPABASE_IDENTITY', msg: 'The verified email identity could not be confirmed. Please sign in again.' }, 403);
     }
-    if (!isGoogleOnlySupabaseIdentity(identity)) {
-      return json({ ok: false, code: 'GOOGLE_ONLY_AUTH', msg: 'Please use a Google account to sign in to BTCBOX.' }, 403);
+    const authProvider = getSingleSupabaseAuthProvider(identity);
+    if (!authProvider) {
+      return json({ ok: false, code: 'AUTH_PROVIDER_NOT_ALLOWED', msg: 'This account uses multiple or unsupported sign-in methods. Please contact support.' }, 403);
     }
-    const authProviders = ['google'];
+    if (authProvider === 'google' && await detectGoogleProviderEnabled() !== true) {
+      return json({ ok: false, code: 'GOOGLE_PROVIDER_UNAVAILABLE', msg: 'Google sign-in is temporarily unavailable. Please try again later.' }, 503);
+    }
+    const authProviders = [authProvider];
     let user = Object.values(db.users).find(function (u) { return String(u.email || '').trim().toLowerCase() === email; });
     if (user && String(user.supabase_user_id || '') !== supabaseUserId) {
       return json({ ok: false, code: user.supabase_user_id ? 'SUPABASE_IDENTITY_MISMATCH' : 'SUPABASE_IDENTITY_LINK_REQUIRED', msg: 'This email is already associated with another BTCBOX identity. Please contact support.' }, 409);
     }
     if (user && user.frozen) return json({ ok: false, code: 'ACCOUNT_FROZEN', msg: 'Account frozen. Please contact support.' }, 403);
-    // Preserve the existing account's second factor for Google sign-ins.
+    // Preserve the existing account's second factor for all Supabase sign-ins.
     // The temporary token can only be exchanged through /api/login/2fa and never creates a session by itself.
     if (user && user.twofa_enabled) {
       const tempToken = genToken();

@@ -2,10 +2,14 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { completeLogin2fa, exchangeSupabaseSession, getAccount, getAuthClientConfig, logout } from "./api";
 
-type AuthStatus = "loading" | "anonymous" | "authenticated" | "two-factor";
+type AuthStatus = "loading" | "anonymous" | "authenticated" | "two-factor" | "password-recovery";
 type AuthContextValue = {
-  status: AuthStatus; email: string; busy: boolean; error: string;
+  status: AuthStatus; email: string; busy: boolean; error: string; notice: string; googleEnabled: boolean;
   signInWithGoogle: () => Promise<void>;
+  signInWithEmail: (email: string, password: string) => Promise<void>;
+  signUpWithEmail: (email: string, password: string) => Promise<void>;
+  requestPasswordReset: (email: string) => Promise<void>;
+  completePasswordRecovery: (password: string) => Promise<void>;
   finishOAuth: () => Promise<void>;
   verifyTwoFactor: (code: string) => Promise<void>;
   signOut: () => Promise<void>;
@@ -19,6 +23,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [email, setEmail] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
+  const [googleEnabled, setGoogleEnabled] = useState(true);
   const [tempToken, setTempToken] = useState("");
   const exchangeLock = useRef(false);
 
@@ -40,9 +46,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return;
       }
       await setSignedIn();
-    } finally {
-      exchangeLock.current = false;
-    }
+    } finally { exchangeLock.current = false; }
   }, [setSignedIn]);
 
   useEffect(() => {
@@ -52,26 +56,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         const config = await getAuthClientConfig(controller.signal);
         if (!active) return;
-        if (config.google_enabled === false) throw new Error("Google sign-in is currently unavailable.");
+        setGoogleEnabled(config.google_enabled !== false);
         const client = createClient(config.supabase_url, config.publishable_key, {
           auth: { flowType: "pkce", persistSession: true, autoRefreshToken: true, detectSessionInUrl: false },
         });
         clientRef.current = client;
-        try {
-          await setSignedIn();
+        const isCallback = window.location.pathname === "/auth/react-callback" &&
+          (new URLSearchParams(window.location.search).has("code") || new URLSearchParams(window.location.search).get("flow") === "recovery");
+        if (isCallback) { setStatus("anonymous"); return; }
+        try { await setSignedIn(); return; } catch { /* Recover Supabase session below. */ }
+        const { data, error: sessionError } = await client.auth.getSession();
+        if (sessionError) throw sessionError;
+        if (data.session?.access_token) {
+          await acceptSupabaseSession(data.session.access_token);
           return;
-        } catch {
-          const { data, error: sessionError } = await client.auth.getSession();
-          if (sessionError) throw sessionError;
-          if (data.session?.access_token) {
-            const result = await exchangeSupabaseSession(data.session.access_token);
-            if (result.require_2fa && result.temp_token) {
-              if (active) { setTempToken(result.temp_token); setStatus("two-factor"); }
-              return;
-            }
-            await setSignedIn();
-            return;
-          }
         }
         if (active) setStatus("anonymous");
       } catch (cause) {
@@ -79,25 +77,80 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     })();
     return () => { active = false; controller.abort(); };
-  }, [setSignedIn]);
+  }, [acceptSupabaseSession, setSignedIn]);
 
   const signInWithGoogle = useCallback(async () => {
-    setBusy(true); setError("");
+    setBusy(true); setError(""); setNotice("");
     try {
+      if (!googleEnabled) throw new Error("Google sign-in is currently unavailable.");
       if (!clientRef.current) throw new Error("Authentication is still initializing. Please try again.");
-      const { error: oauthError } = await clientRef.current.auth.signInWithOAuth({
+      const { error: authError } = await clientRef.current.auth.signInWithOAuth({
         provider: "google",
         options: { redirectTo: window.location.origin + "/auth/react-callback", queryParams: { prompt: "select_account" } },
       });
-      if (oauthError) throw oauthError;
+      if (authError) throw authError;
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Google sign-in could not be started.");
       setBusy(false);
     }
+  }, [googleEnabled]);
+
+  const signInWithEmail = useCallback(async (address: string, password: string) => {
+    setBusy(true); setError(""); setNotice("");
+    try {
+      if (!clientRef.current) throw new Error("Authentication is still initializing. Please try again.");
+      const { data, error: authError } = await clientRef.current.auth.signInWithPassword({ email: address.trim(), password });
+      if (authError) throw authError;
+      if (!data.session?.access_token) throw new Error("Email is not verified yet. Please check your inbox and confirm your email.");
+      await acceptSupabaseSession(data.session.access_token);
+    } catch (cause) { setError(cause instanceof Error ? cause.message : "Email sign-in failed."); throw cause; }
+    finally { setBusy(false); }
+  }, [acceptSupabaseSession]);
+
+  const signUpWithEmail = useCallback(async (address: string, password: string) => {
+    setBusy(true); setError(""); setNotice("");
+    try {
+      if (!clientRef.current) throw new Error("Authentication is still initializing. Please try again.");
+      const { data, error: authError } = await clientRef.current.auth.signUp({
+        email: address.trim(), password,
+        options: { emailRedirectTo: window.location.origin + "/auth/react-callback" },
+      });
+      if (authError) throw authError;
+      if (data.session?.access_token) await acceptSupabaseSession(data.session.access_token);
+      else setNotice("Registration received. Please check your email and confirm your address before signing in.");
+    } catch (cause) { setError(cause instanceof Error ? cause.message : "Email registration failed."); throw cause; }
+    finally { setBusy(false); }
+  }, [acceptSupabaseSession]);
+
+  const requestPasswordReset = useCallback(async (address: string) => {
+    setBusy(true); setError(""); setNotice("");
+    try {
+      if (!clientRef.current) throw new Error("Authentication is still initializing. Please try again.");
+      const { error: authError } = await clientRef.current.auth.resetPasswordForEmail(address.trim(), {
+        redirectTo: window.location.origin + "/auth/react-callback?flow=recovery",
+      });
+      if (authError) throw authError;
+      setNotice("If an account exists for this email, a password reset message will be sent.");
+    } catch (cause) { setError(cause instanceof Error ? cause.message : "Password reset could not be requested."); throw cause; }
+    finally { setBusy(false); }
   }, []);
 
+  const completePasswordRecovery = useCallback(async (password: string) => {
+    setBusy(true); setError(""); setNotice("");
+    try {
+      if (!clientRef.current) throw new Error("Authentication is unavailable. Please reload and try again.");
+      const { error: updateError } = await clientRef.current.auth.updateUser({ password });
+      if (updateError) throw updateError;
+      const { data, error: sessionError } = await clientRef.current.auth.getSession();
+      if (sessionError || !data.session?.access_token) throw sessionError || new Error("Password updated. Please sign in again.");
+      await acceptSupabaseSession(data.session.access_token);
+      setNotice("Your password has been updated.");
+    } catch (cause) { setError(cause instanceof Error ? cause.message : "Password could not be updated."); throw cause; }
+    finally { setBusy(false); }
+  }, [acceptSupabaseSession]);
+
   const finishOAuth = useCallback(async () => {
-    setBusy(true); setError("");
+    setBusy(true); setError(""); setNotice("");
     try {
       const client = clientRef.current;
       if (!client) throw new Error("Authentication is still initializing. Reload and try again.");
@@ -109,13 +162,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const { error: exchangeError } = await client.auth.exchangeCodeForSession(code);
         if (exchangeError) throw exchangeError;
       }
+      if (url.searchParams.get("flow") === "recovery") {
+        const { data, error: sessionError } = await client.auth.getSession();
+        if (sessionError || !data.session) throw sessionError || new Error("The password reset link is invalid or expired.");
+        setStatus("password-recovery");
+        window.history.replaceState({}, document.title, "/auth/react-callback?flow=recovery");
+        return;
+      }
       const { data, error: sessionError } = await client.auth.getSession();
       if (sessionError) throw sessionError;
-      if (!data.session?.access_token) throw new Error("Google authorization did not return a session.");
+      if (!data.session?.access_token) throw new Error("Email confirmation or Google authorization did not return a session.");
       await acceptSupabaseSession(data.session.access_token);
       window.history.replaceState({}, document.title, "/auth/react-callback");
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Google authorization failed.");
+      setError(cause instanceof Error ? cause.message : "Authentication callback failed.");
       setStatus("anonymous");
     } finally { setBusy(false); }
   }, [acceptSupabaseSession]);
@@ -134,14 +194,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await logout();
       await clientRef.current?.auth.signOut();
       setEmail(""); setTempToken(""); setStatus("anonymous");
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Sign out failed.");
-      throw cause;
-    } finally { setBusy(false); }
+    } catch (cause) { setError(cause instanceof Error ? cause.message : "Sign out failed."); throw cause; }
+    finally { setBusy(false); }
   }, []);
 
-  const value = useMemo(() => ({ status, email, busy, error, signInWithGoogle, finishOAuth, verifyTwoFactor, signOut, clearError: () => setError("") }),
-    [status, email, busy, error, signInWithGoogle, finishOAuth, verifyTwoFactor, signOut]);
+  const value = useMemo(() => ({
+    status, email, busy, error, notice, googleEnabled, signInWithGoogle, signInWithEmail, signUpWithEmail,
+    requestPasswordReset, completePasswordRecovery, finishOAuth, verifyTwoFactor, signOut,
+    clearError: () => setError(""),
+  }), [status, email, busy, error, notice, googleEnabled, signInWithGoogle, signInWithEmail, signUpWithEmail,
+    requestPasswordReset, completePasswordRecovery, finishOAuth, verifyTwoFactor, signOut]);
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
