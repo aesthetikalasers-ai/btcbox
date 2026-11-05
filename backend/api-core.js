@@ -1130,10 +1130,12 @@ async function handleRequest(event, context) {
   if (path === 'account/credentials/reauth' && method === 'POST') {
     if (!user) return json({ ok: false, msg: 'Not signed in.', need_login: true }, 401);
     if (user.frozen) return json({ ok: false, code: 'ACCOUNT_FROZEN', msg: 'Account frozen. Please contact support.' }, 403);
+    const reauthLimit = rateCheck('credential-reauth:' + user.uid, 8, 15 * 60 * 1000);
+    if (reauthLimit.limited) return rateLimitedJson(reauthLimit.retryAfter);
     const sessionRecord = getSessionRecord(db, event);
     if (!sessionRecord || sessionRecord.user.uid !== user.uid) return json({ ok: false, msg: 'Please sign in again.', need_login: true }, 401);
     const accessToken = typeof body.supabase_access_token === 'string' ? body.supabase_access_token : '';
-    const supabaseUrl = String(process.env.SUPABASE_AUTH_URL || '').replace(/\/$/, '');
+    const supabaseUrl = String(process.env.SUPABASE_AUTH_URL || process.env.SUPABASE_URL || '').replace(/\/$/, '');
     const supabaseKey = getPublishableKey();
     if (!supabaseUrl || !supabaseKey) return json({ ok: false, code: 'AUTH_SERVICE_UNAVAILABLE', msg: 'Authentication service is not configured.' }, 503);
     if (!accessToken || accessToken.length > 16384) return json({ ok: false, code: 'INVALID_SUPABASE_IDENTITY', msg: 'Please verify a linked sign-in method.' }, 401);
@@ -1187,12 +1189,15 @@ async function handleRequest(event, context) {
   if (path === 'account/credentials/recover' && method === 'POST') {
     if (!user) return json({ ok: false, msg: 'Not signed in.', need_login: true }, 401);
     if (user.frozen) return json({ ok: false, code: 'ACCOUNT_FROZEN', msg: 'Account frozen. Please contact support.' }, 403);
+    const recoverLimit = rateCheck('credential-recover:' + user.uid, 5, 15 * 60 * 1000);
+    if (recoverLimit.limited) return rateLimitedJson(recoverLimit.retryAfter);
     const sessionRecord = getSessionRecord(db, event);
     const verified = sessionRecord && sessionRecord.session && sessionRecord.session.credential_reauth;
     const verifiedAt = Number(verified && verified.verified_at);
     const linkedId = String(verified && verified.supabase_user_id || '');
     if (!sessionRecord || sessionRecord.user.uid !== user.uid || !Number.isFinite(verifiedAt) ||
         Date.now() - verifiedAt < 0 || Date.now() - verifiedAt > 5 * 60 * 1000 ||
+        !Number.isFinite(Number(verified && verified.auth_time)) || Date.now() / 1000 - Number(verified.auth_time) > 5 * 60 ||
         !isSupabaseIdentityLinked(user, linkedId)) {
       return json({ ok: false, code: 'RECENT_REAUTH_REQUIRED', msg: 'Please verify a linked Google account or wallet again before resetting your password.' }, 403);
     }
