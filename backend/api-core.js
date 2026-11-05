@@ -62,6 +62,11 @@ function getSupabaseWalletIdentity(identity) {
   if (chain === 'solana' && /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(address)) return { chain, address };
   return null;
 }
+function isPositivePostgresBigintString(value) {
+  return typeof value === 'string' && /^[1-9]\\d{0,18}$/.test(value) &&
+    (value.length < 19 || value <= '9223372036854775807');
+}
+
 function redactAdminAuditDetail(value) {
   return String(value || '').slice(0, 300)
     .replace(/(["']?(?:password|passwd|token|secret|api[_ -]?key|private[_ -]?key|seed[_ -]?phrase|mnemonic|recovery[_ -]?codes?|id[_ -]?number)["']?\s*[:=]\s*)("(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|[^,}\s]+)/ig, '$1"[redacted]"')
