@@ -1052,7 +1052,7 @@ The backend CI branch filters were pointing at an older auth branch. Updated bot
 ## Admin audit redaction and deposit/KYC follow-up — 2026-11-06
 
 ### FEATURE BRANCH — SOURCE OBSERVED
-- Feature branch exact HEAD: `106957d9e578eeb514ef229740356b192c5753ab` (verified by comparing the branch ref to the prior exact HEAD `1d3008a985a75fdcc8283bea9fd4989d59accd2e`; 7 commits ahead, 0 behind).
+- Feature branch exact HEAD: `bf996caffdee2d67c9d3ced4f48efd439e1a9559` (verified by comparing the branch ref to the prior exact HEAD `1d3008a985a75fdcc8283bea9fd4989d59accd2e`; 8 commits ahead, 0 behind).
 - The previous audit detail sanitizer used over-escaped whitespace and email-dot patterns in regex literals. A direct behavior probe showed JSON values such as `{"password":"Super Secret Phrase","token":"abc123"}` were returned unchanged. This is a reproduced source-level defect, not merely a style concern.
 - Replaced the inline sanitizer with `redactAdminAuditDetail()`, using correctly escaped patterns and handling quoted JSON values, unquoted key/value secrets, emails, EVM addresses, and TRON addresses.
 - Added behavioral tests in `backend/tests/admin-entry.test.js` for quoted JSON secrets, identity-number fields, emails, EVM/TRON addresses, private keys, recovery codes, escaped quotes inside secret values, plural recovery-code fields, and API keys. Updated the audit-viewer source-contract assertions to follow the extracted sanitizer helper.
@@ -1077,7 +1077,7 @@ The backend CI branch filters were pointing at an older auth branch. Updated bot
 - `0023_btcbox_shared_rate_limit_v1.sql` defines an atomic fixed-window limiter with a unique `(scope,key_hash,window_start)` key, HMAC-derived subject hashes, service-role-only RPC access, and bounded cleanup.
 - The feature API declares twelve explicit shared policies and awaits the shared RPC for login 2FA, identity-link reauthentication/target proof, credential reauthentication/recovery, 2FA setup/disable, password/fund-password changes, and Seconds order/settlement routes. Missing secret, database configuration, RPC errors, or malformed RPC responses fail closed with HTTP 503.
 - Identity linking checks a server-saved source reauthentication marker and signed Supabase `auth_time`; both source and target proofs must be within five minutes, and future timestamps beyond the small clock-skew allowance are rejected. The identity-link and credential-recovery markers are single-use and bounded to five minutes.
-- Added tests in `backend/tests/auth-security-routes.test.js` for stale/future source proofs, stale target proofs, and expired signed auth timestamps even when the server marker timestamp itself is fresh.
+- Added tests in `backend/tests/auth-security-routes.test.js` for stale/future source proofs, stale target proofs, expired signed auth timestamps even when the server marker timestamp itself is fresh, missing HMAC secret, unavailable limiter RPC, and over-limit rejection.
 - Migration `0023` remains a prepared migration. The production migration inventory previously inspected did not show it as applied; until the RPC exists and the HMAC secret is configured, these protected routes intentionally fail closed. Live environment readiness is **NOT VERIFIED**. No migration was run.
 - The migration defines `btcbox_rate_limit_cleanup_v1()` with a 48-hour retention threshold and 5,000-row batch cap, but no invocation was found in the inspected `backend/api-core.js`, `backend/vercel.json`, migration SQL, or migration-order guide. A trusted scheduled invocation may exist outside this repository, but it is **NOT VERIFIED**. Without cleanup, the rate-limit table can grow over time; do not add an unauthenticated public cleanup route.
 
@@ -1089,7 +1089,7 @@ The backend CI branch filters were pointing at an older auth branch. Updated bot
 - No production database change, merge to `main`, or Vercel deployment. Deployment pause remains active.
 
 ### VALIDATION / NEXT ACTION
-1. Verify the exact-head GitHub Actions run for `106957d9e578eeb514ef229740356b192c5753ab`; full CI remains pending.
+1. Verify the exact-head GitHub Actions run for `bf996caffdee2d67c9d3ced4f48efd439e1a9559`; full CI remains pending.
 2. Continue locating/confirming any external chain-verifier service and its trusted creation path for pending chain deposits; do not infer it from SQL alone.
 3. Decide, with explicit business approval, whether KYC approve/reject controls must remain disabled until document evidence is collected.
 4. Design a service-role-only, paginated canonical PostgreSQL deposit read snapshot only after the financial read cutover and data source are proven.
