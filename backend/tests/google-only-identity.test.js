@@ -6,26 +6,30 @@ const path = require('node:path');
 const vm = require('node:vm');
 
 const source = fs.readFileSync(path.join(__dirname, '..', 'api-core.js'), 'utf8');
-function extractFunction(name) {
+function extractFunction(name, context = {}) {
   const start = source.indexOf('function ' + name + '(');
   assert.ok(start >= 0, name + ' must exist');
   const end = source.indexOf('\n}', start);
   assert.ok(end > start, name + ' must have a complete body');
-  return vm.runInNewContext('(' + source.slice(start, end + 2) + ')');
+  return vm.runInNewContext('(' + source.slice(start, end + 2) + ')', context);
 }
 
 const getSingleSupabaseAuthProvider = extractFunction('getSingleSupabaseAuthProvider');
 const isValidAuthEmail = extractFunction('isValidAuthEmail');
-const getSupabaseWalletIdentity = extractFunction('getSupabaseWalletIdentity');
+const getSupabaseWalletIdentity = extractFunction('getSupabaseWalletIdentity', { getSingleSupabaseAuthProvider });
 const isSupabaseUserId = extractFunction('isSupabaseUserId');
 
-test('only one server-verified Google or email Supabase identity is accepted', () => {
+test('only one server-verified Google, email or Web3 Supabase identity is accepted', () => {
   const google = {
     app_metadata: { provider: 'google', providers: ['google'] },
     identities: [{ provider: 'google' }],
     user_metadata: { provider: 'google' }
   };
   assert.equal(getSingleSupabaseAuthProvider(google), 'google');
+  assert.equal(getSingleSupabaseAuthProvider({
+    app_metadata: { provider: 'web3', providers: ['web3'] },
+    identities: [{ provider: 'web3', identity_data: { custom_claims: { chain: 'ethereum', address: '0x52908400098527886E0F7030069857D2E4169EE7' } } }]
+  }), 'web3');
   assert.equal(getSingleSupabaseAuthProvider({
     app_metadata: { provider: 'email', providers: ['email'] },
     identities: [{ provider: 'email' }],
