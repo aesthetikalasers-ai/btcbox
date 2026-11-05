@@ -1527,6 +1527,10 @@ async function handleRequest(event, context) {
     // Even the preserved current session must not retain stale account reauthentication proofs.
     delete currentSessionRecord.session.credential_reauth;
     delete currentSessionRecord.session.identity_link_reauth;
+    // A credential change also invalidates outstanding second-factor login challenges.
+    Object.keys(db.temp_tokens || {}).forEach(function (token) {
+      if (db.temp_tokens[token] && db.temp_tokens[token].uid === user.uid) delete db.temp_tokens[token];
+    });
     try { await saveDB(db); }
     catch (e) {
       if (e && e.message === 'Persistent storage write conflict') return json({ ok: false, code: 'ACCOUNT_UPDATE_CONFLICT', msg: 'Your account changed at the same time. Please reload and try again.' }, 409);
@@ -1659,7 +1663,11 @@ async function handleRequest(event, context) {
       if (!currentPassword || hashPassword(currentPassword, user.salt) !== user.password_hash) return json({ ok: false, code: 'REAUTH_FAILED', msg: 'The current login password is incorrect.' }, 403);
     }
     if (!user.twofa_secret) { user.twofa_secret = genTotpSecret(); delete user.twofa_last_used_step; }
-    await saveDB(db);
+    try { await saveDB(db); }
+    catch (e) {
+      if (e && e.message === 'Persistent storage write conflict') return json({ ok: false, code: 'ACCOUNT_UPDATE_CONFLICT', msg: 'Your account changed at the same time. Please reload and try again.' }, 409);
+      return json({ ok: false, code: 'PERSISTENCE_UNAVAILABLE', msg: 'Two-factor setup could not be saved. Please try again.' }, 503);
+    }
     return json({ ok: true, secret: user.twofa_secret, enabled: false });
   }
   // ---------- POST /api/2fa/confirm ----------
@@ -1680,7 +1688,11 @@ async function handleRequest(event, context) {
     Object.keys(db.temp_tokens || {}).forEach(function (token) {
       if (db.temp_tokens[token] && db.temp_tokens[token].uid === user.uid) delete db.temp_tokens[token];
     });
-    await saveDB(db);
+    try { await saveDB(db); }
+    catch (e) {
+      if (e && e.message === 'Persistent storage write conflict') return json({ ok: false, code: 'ACCOUNT_UPDATE_CONFLICT', msg: 'Your account changed at the same time. Please reload and try again.' }, 409);
+      return json({ ok: false, code: 'PERSISTENCE_UNAVAILABLE', msg: 'Two-factor authentication could not be enabled. Please try again.' }, 503);
+    }
     return json({ ok: true, msg: 'Two-factor authentication enabled.' });
   }
   // ---------- POST /api/2fa/disable ----------
@@ -1703,7 +1715,11 @@ async function handleRequest(event, context) {
     Object.keys(db.temp_tokens || {}).forEach(function (token) {
       if (db.temp_tokens[token] && db.temp_tokens[token].uid === user.uid) delete db.temp_tokens[token];
     });
-    await saveDB(db);
+    try { await saveDB(db); }
+    catch (e) {
+      if (e && e.message === 'Persistent storage write conflict') return json({ ok: false, code: 'ACCOUNT_UPDATE_CONFLICT', msg: 'Your account changed at the same time. Please reload and try again.' }, 409);
+      return json({ ok: false, code: 'PERSISTENCE_UNAVAILABLE', msg: 'Two-factor authentication could not be disabled. Please try again.' }, 503);
+    }
     return json({ ok: true, msg: 'Two-factor authentication disabled.' });
   }
 
