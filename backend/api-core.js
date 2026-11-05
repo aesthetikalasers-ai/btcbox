@@ -2748,11 +2748,11 @@ async function handleRequest(event, context) {
       const params = event.queryStringParameters || {};
       const limitValue = Number(params.limit || 100);
       const limit = Math.max(1, Math.min(200, Number.isFinite(limitValue) ? Math.floor(limitValue) : 100));
-      const actionFilter = String(params.action || '').trim().slice(0, 100);
-      const uidFilter = String(params.uid || '').trim().slice(0, 100);
+      const actionFilter = String(params.action || '').trim();
+      const uidFilter = String(params.uid || '').trim();
       const before = String(params.before || '').trim();
-      if (actionFilter && !/^[A-Za-z0-9_.:-]{1,100}$/.test(actionFilter)) return json({ ok: false, code: 'AUDIT_ACTION_FILTER_INVALID', msg: 'Audit action filter is invalid.' }, 400);
-      if (uidFilter && !/^[A-Za-z0-9_:-]{1,100}$/.test(uidFilter)) return json({ ok: false, code: 'AUDIT_UID_FILTER_INVALID', msg: 'Audit user filter is invalid.' }, 400);
+      if (actionFilter.length > 100 || (actionFilter && !/^[A-Za-z0-9_.:-]{1,100}$/.test(actionFilter))) return json({ ok: false, code: 'AUDIT_ACTION_FILTER_INVALID', msg: 'Audit action filter is invalid.' }, 400);
+      if (uidFilter.length > 100 || (uidFilter && !/^[A-Za-z0-9_:-]{1,100}$/.test(uidFilter))) return json({ ok: false, code: 'AUDIT_UID_FILTER_INVALID', msg: 'Audit user filter is invalid.' }, 400);
       if (before && !isPositivePostgresBigintString(before)) return json({ ok: false, code: 'AUDIT_CURSOR_INVALID', msg: 'Audit page cursor is invalid.' }, 400);
 
       // Explicit opt-in switches the viewer to the canonical append-only PostgreSQL
@@ -2780,6 +2780,7 @@ async function handleRequest(event, context) {
         if (beforeIndex < 0) return json({ ok: false, code: 'AUDIT_CURSOR_NOT_FOUND', msg: 'Audit page cursor is no longer available. Refresh the log list.' }, 400);
         logs = logs.slice(beforeIndex + 1);
       }
+      const hasMore = logs.length > limit;
       const page = logs.slice(0, limit).map(function (entry) {
         const safeDetail = redactAdminAuditDetail(entry.detail);
         return {
@@ -2797,7 +2798,7 @@ async function handleRequest(event, context) {
         source: 'btcbox_state',
         completeness: 'state_document_retention_limited',
         logs: page,
-        next_before: page.length === limit ? String(page[page.length - 1].id || '') : null
+        next_before: hasMore && page.length ? String(page[page.length - 1].id || '') : null
       });
     }
 
