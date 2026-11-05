@@ -63,6 +63,51 @@ test('pending intent reader validates schema and fails closed on corrupt or unav
   assert.equal(read().invalid, true, 'storage read failure must fail closed');
 });
 
+test('settlement request IDs are persisted per user and position before network I/O', () => {
+  const persistAt=view.indexOf('if(!persistPendingSecondsSettlement(settlementIntent))');
+  const requestAt=view.indexOf('await apiAdapter.secondsSettle({position_id:positionId,request_id:settlementIntent.request_id');
+  assert.ok(persistAt>=0&&requestAt>persistAt,'persist settlement intent before network I/O');
+  assert.ok(view.includes('request_id:settlementIntent.request_id'),'retries reuse the stored settlement request ID');
+  assert.ok(view.includes('readPendingSecondsSettlement(positionId)'),'reloads restore the position-scoped settlement intent');
+});
+test('settlement intent reader rejects corrupt storage and restores the exact request ID', () => {
+  const readSource=helper('readPendingSecondsSettlement','persistPendingSecondsSettlement');
+  const key='btcbox.seconds.settlement.v1.user-1.position1234567890';
+  const valid={version:1,position_id:'position1234567890',request_id:'settle_123456789012',created_at:1700000000000};
+  let stored=JSON.stringify(valid);
+  const context={secondsSettlementStoragePrefix:'btcbox.seconds.settlement.v1.user-1.',localStorage:{getItem(){return stored;}}};
+  const read=vm.runInNewContext('('+readSource+')',context);
+  assert.deepEqual(JSON.parse(JSON.stringify(read(valid.position_id))),valid);
+  stored='{broken';
+  assert.equal(read(valid.position_id).invalid,true);
+  stored=JSON.stringify({...valid,position_id:'another-position123'});
+  assert.equal(read(valid.position_id).invalid,true);
+  context.localStorage.getItem=()=>{throw new Error('storage blocked');};
+  assert.equal(read(valid.position_id).invalid,true);
+});
+test('settlement intent persistence reuses the same key and fails closed on storage errors', () => {
+  const persistSource=helper('persistPendingSecondsSettlement','clearPendingSecondsSettlement');
+  const clearStart=view.indexOf('function clearPendingSecondsSettlement(positionId){');
+  const clearEnd=view.indexOf('  let secondsPendingIntent=',clearStart);
+  assert.ok(clearStart>=0&&clearEnd>clearStart,'clear helper must be present');
+  const clearSource=view.slice(clearStart,clearEnd).trim();
+  const values=new Map();
+  const context={secondsSettlementStoragePrefix:'btcbox.seconds.settlement.v1.user-1.',localStorage:{
+    setItem(k,v){values.set(k,v);},removeItem(k){values.delete(k);}
+  }};
+  const persist=vm.runInNewContext('('+persistSource+')',context);
+  const clear=vm.runInNewContext('('+clearSource+')',context);
+  const intent={version:1,position_id:'position1234567890',request_id:'settle_123456789012',created_at:1700000000000};
+  assert.equal(persist(intent),true);
+  const key='btcbox.seconds.settlement.v1.user-1.position1234567890';
+  assert.equal(JSON.parse(values.get(key)).request_id,intent.request_id);
+  assert.equal(clear(intent.position_id),true);
+  assert.equal(values.has(key),false);
+  persist(intent);
+  context.localStorage.removeItem=()=>{throw new Error('storage removal failed');};
+  assert.equal(clear(intent.position_id),false);
+  assert.equal(values.has(key),true,'failed cleanup must retain the original request ID');
+});
 test('pending intent cleanup only clears the in-memory guard after storage removal succeeds', () => {
   const persistSource = helper('persistPendingSecondsOrder', 'clearPendingSecondsOrder');
   const clearStart = view.indexOf('function clearPendingSecondsOrder(){');
