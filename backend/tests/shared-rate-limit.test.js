@@ -22,10 +22,13 @@ const policies = {
 };
 
 test('shared limiter has an explicit policy and async call site for all eleven protected routes', () => {
+  const tableScopeCheck = migration.match(/scope text not null check \(scope in \(([\s\S]*?)\)\)/);
+  assert.ok(tableScopeCheck, 'rate-limit table must constrain scope values');
   for (const [scope, [limit, seconds]] of Object.entries(policies)) {
     assert.match(api, new RegExp(scope + ': \\{ limit: ' + limit + ', windowSeconds: ' + seconds + ' \\}'));
     assert.ok(api.includes("await rateCheckShared('" + scope + "',"), scope + ' must use the shared limiter');
-    assert.ok(migration.includes("'" + scope + "'"), scope + ' must be accepted by the database RPC');
+    assert.ok(migration.includes("when '" + scope + "' then"), scope + ' must be accepted by the database RPC');
+    assert.ok(tableScopeCheck[1].includes("'" + scope + "'"), scope + ' must be accepted by the table CHECK constraint');
   }
   assert.equal((api.match(/await rateCheckShared\(/g) || []).length, 11);
   assert.equal(api.includes('_rateBuckets'), false);
@@ -48,6 +51,10 @@ test('database limiter uses a unique key and atomic upsert with fixed limits and
   assert.ok(migration.includes('request_count = public.btcbox_rate_limits.request_count + 1'));
   assert.ok(migration.includes("'window_seconds', v_window_seconds"));
   assert.ok(migration.includes('enable row level security'));
+  assert.ok(migration.includes('security invoker'));
+  assert.ok(migration.includes("set search_path = ''"));
+  assert.ok(migration.includes('revoke all on table public.btcbox_rate_limits from public, anon, authenticated'));
+  assert.ok(migration.includes('revoke all on function public.btcbox_rate_limit_consume_v1(text, text) from public, anon, authenticated'));
   assert.ok(migration.includes('to service_role'));
   assert.ok(migration.includes('limit 5000'));
   assert.ok(migration.includes("interval '48 hours'"));
