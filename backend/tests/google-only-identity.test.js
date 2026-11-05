@@ -157,7 +157,7 @@ test('first-time Supabase sign-in creates one BTCBOX account with server-verifie
   assert.match(create, /auth_providers: authProviders/);
   assert.match(create, /balances: emptyBalances\(\)/);
   assert.match(route, /db\.sessions\[token\] = \{ uid: user\.uid, email: email, created_at: Date\.now\(\), auth_method: authProvider === 'web3' \? 'supabase_web3' : 'supabase_google' \}/);
-  assert.match(route, /await saveDB\(db\);\s*return json\(\{ ok: true, uid: user\.uid \}/);
+  assert.match(route, /try\s*\{\s*await saveDB\(db\);\s*\}\s*catch[\s\S]*?return json\(\{ ok: true, uid: user\.uid \}/);
   assert.match(route, /if \(authProvider === 'web3' \? !walletIdentity : \(!isValidAuthEmail\(email\) \|\| !confirmed\)\)/);
 });
 
