@@ -93,9 +93,9 @@ export function VolumeChart({ candles = [] }: { candles?: MarketCandle[] }) {
       </CardHeader>
       
       <div className="mb-4 flex min-w-0 shrink-0 flex-wrap items-baseline gap-x-3 gap-y-2">
-        <span className="text-2xl font-semibold leading-none tracking-tight sm:text-[32px]">{latestCandle ? latestCandle.volume.toLocaleString("en-US", { maximumFractionDigits: 2 }) : "Sample series"}</span>
+        <span className="text-2xl font-semibold leading-none tracking-tight sm:text-[32px]">{latestCandle ? latestCandle.volume.toLocaleString("en-US", { maximumFractionDigits: 2 }) : "No market data"}</span>
         <div className="min-w-0 break-words text-[12px] font-medium text-brand-text-muted">
-          {latestCandle ? "Latest 1h candle · BTC/USDT" : "Illustrative data"}
+          {latestCandle ? "Latest 1h candle · BTC/USDT" : "Waiting for market data"}
         </div>
       </div>
       
