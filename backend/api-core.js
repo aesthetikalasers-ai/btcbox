@@ -2744,6 +2744,8 @@ async function handleRequest(event, context) {
       const actionFilter = String(params.action || '').trim().slice(0, 100);
       const uidFilter = String(params.uid || '').trim().slice(0, 100);
       const before = String(params.before || '').trim();
+      if (actionFilter && !/^[A-Za-z0-9_.:-]{1,100}$/.test(actionFilter)) return json({ ok: false, code: 'AUDIT_ACTION_FILTER_INVALID', msg: 'Audit action filter is invalid.' }, 400);
+      if (uidFilter && !/^[A-Za-z0-9_:-]{1,100}$/.test(uidFilter)) return json({ ok: false, code: 'AUDIT_UID_FILTER_INVALID', msg: 'Audit user filter is invalid.' }, 400);
       if (before && !/^[1-9]\d{0,18}$/.test(before)) return json({ ok: false, code: 'AUDIT_CURSOR_INVALID', msg: 'Audit page cursor is invalid.' }, 400);
 
       // Explicit opt-in switches the viewer to the canonical append-only PostgreSQL
