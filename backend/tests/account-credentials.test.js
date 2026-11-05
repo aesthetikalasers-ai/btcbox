@@ -139,3 +139,22 @@ test('identity linking requires a fresh linked-source proof and a separate fresh
   assert.ok(targetRoute.includes("Date.now() / 1000 - Number(marker.auth_time) > 5 * 60"));
   assert.ok(targetRoute.includes("Number(marker.auth_time) > Date.now() / 1000 + 60"));
 });
+
+test('Supabase state persistence enforces a database-side single-winner revision CAS', () => {
+  const migration = fs.readFileSync(path.join(__dirname, '..', 'supabase', 'sql', '0001_btcbox_state_cas.sql'), 'utf8');
+  const saveStart = source.indexOf('async function saveDB(db)');
+  const saveEnd = source.indexOf('\\n}', saveStart);
+  const saveRoute = source.slice(saveStart, saveEnd);
+  assert.ok(saveRoute.includes('p_expected_revision: Number(db._revision || 0)'));
+  assert.ok(saveRoute.includes('if (saved !== true) throw new Error(\'Persistent storage write conflict\')'));
+  assert.ok(saveRoute.indexOf('if (saved !== true)') < saveRoute.indexOf('db._revision = Number(db._revision || 0) + 1'));
+  assert.ok(saveRoute.includes("if (e && e.message === 'Persistent storage write conflict') throw e"));
+  assert.ok(migration.includes('where id = \'main\''));
+  assert.ok(migration.includes('and revision = p_expected_revision'));
+  assert.ok(migration.includes('set revision = revision + 1'));
+  assert.ok(migration.includes('return inserted_count = 1'));
+  assert.ok(migration.includes('on conflict (id) do nothing'));
+  assert.ok(migration.includes('if p_expected_revision = 0'));
+  assert.ok(migration.includes('revoke all on function public.btcbox_save_state(bigint, jsonb) from public, anon, authenticated'));
+  assert.ok(migration.includes('grant execute on function public.btcbox_save_state(bigint, jsonb) to service_role'));
+});
