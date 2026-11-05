@@ -1079,6 +1079,8 @@ The backend CI branch filters were pointing at an older auth branch. Updated bot
 - Identity linking checks a server-saved source reauthentication marker and signed Supabase `auth_time`; both source and target proofs must be within five minutes, and future timestamps beyond the small clock-skew allowance are rejected. The identity-link and credential-recovery markers are single-use and bounded to five minutes.
 - Added tests in `backend/tests/auth-security-routes.test.js` for stale/future source proofs, stale target proofs, and expired signed auth timestamps even when the server marker timestamp itself is fresh.
 - Migration `0023` remains a prepared migration. The production migration inventory previously inspected did not show it as applied; until the RPC exists and the HMAC secret is configured, these protected routes intentionally fail closed. Live environment readiness is **NOT VERIFIED**. No migration was run.
+- The migration defines `btcbox_rate_limit_cleanup_v1()` with a 48-hour retention threshold and 5,000-row batch cap, but no invocation was found in the inspected `backend/api-core.js`, `backend/vercel.json`, migration SQL, or migration-order guide. A trusted scheduled invocation may exist outside this repository, but it is **NOT VERIFIED**. Without cleanup, the rate-limit table can grow over time; do not add an unauthenticated public cleanup route.
+
 
 
 ### AUDIT HISTORY LIMIT
