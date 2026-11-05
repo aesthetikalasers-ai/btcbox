@@ -1612,9 +1612,19 @@ async function handleRequest(event, context) {
     if (!user) return json({ ok: false, msg: 'Not signed in.', need_login: true }, 401);
     if (user.twofa_enabled) return json({ ok: false, code: 'TWOFA_ALREADY_ENABLED', msg: 'Two-factor authentication is already enabled.' }, 409);
     if (!user.twofa_secret) return json({ ok: false, code: 'TWOFA_SETUP_REQUIRED', msg: 'Please start the two-factor authentication setup first.' }, 400);
+    const currentSessionRecord = getSessionRecord(db, event);
+    if (!currentSessionRecord || currentSessionRecord.user.uid !== user.uid) return json({ ok: false, code: 'REAUTH_REQUIRED', msg: 'Your session is no longer valid. Please sign in again.' }, 403);
     { const rl = await rateCheckShared('twofa_setup_confirm', String(user.uid)); if (rl.unavailable) return rateLimitUnavailableJson(); if (rl.limited) return rateLimitedJson(rl.retryAfter); }
     if (!consumeTotpStep(user, String(body.code || ''))) return json({ ok: false, msg: 'Invalid or already-used verification code.' }, 403);
     user.twofa_enabled = true;
+    // Enabling a second factor invalidates sessions and pending login challenges issued before enrollment.
+    Object.keys(db.sessions || {}).forEach(function (token) {
+      const session = db.sessions[token];
+      if (token !== currentSessionRecord.token && session && session.uid === user.uid) delete db.sessions[token];
+    });
+    Object.keys(db.temp_tokens || {}).forEach(function (token) {
+      if (db.temp_tokens[token] && db.temp_tokens[token].uid === user.uid) delete db.temp_tokens[token];
+    });
     await saveDB(db);
     return json({ ok: true, msg: 'Two-factor authentication enabled.' });
   }
