@@ -211,3 +211,18 @@ test('admin audit outbox retries use a bounded concurrent batch and finite netwo
   assert.match(flush, /signal: AbortSignal\.timeout\(4000\)/);
   assert.match(flush, /postgres_sync_status === 'pending'/);
 });
+
+
+test('admin audit outbox refuses new audited mutations at the pending-event ceiling', () => {
+  const start = source.indexOf('async function auditAdmin(action, uid, detail)');
+  const end = source.indexOf('// POST /api/admin/user/balance', start);
+  assert.ok(start >= 0 && end > start);
+  const stage = source.slice(start, end);
+  const guard = stage.indexOf('if (pendingCount >= 5000)');
+  const append = stage.indexOf('db.audit_logs.push(event)');
+  assert.ok(guard >= 0 && append > guard, 'outbox capacity must be checked before appending');
+  assert.match(stage, /entry\.postgres_sync_status === 'pending'/);
+  assert.match(stage, /error\.code = 'ADMIN_AUDIT_OUTBOX_FULL'/);
+  assert.match(source, /e\.code === 'ADMIN_AUDIT_OUTBOX_FULL'[\s\S]*code: 'ADMIN_AUDIT_OUTBOX_FULL'[\s\S]*}, 503\)/);
+  assert.match(stage, /Never discard unsynced audit events/);
+});
