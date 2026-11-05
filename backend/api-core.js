@@ -2298,6 +2298,11 @@ async function handleRequest(event, context) {
     if (!base) return { pending: true, persistenceUnavailable: false };
     let changed = false;
     for (const entry of pending) {
+      const safeDetail = redactAdminAuditDetail(entry.detail);
+      if (safeDetail !== String(entry.detail || '')) {
+        entry.detail = safeDetail;
+        changed = true;
+      }
       try {
         const response = await fetch(base + '/rest/v1/rpc/append_admin_audit_log', {
           method: 'POST', headers: supabaseHeaders(),
@@ -2306,7 +2311,7 @@ async function handleRequest(event, context) {
             p_action: String(entry.action || ''),
             p_uid: String(entry.uid || ''),
             p_by: String(entry.by || 'admin'),
-            p_detail: String(entry.detail || '').slice(0, 300)
+            p_detail: safeDetail
           })
         });
         const result = await response.json().catch(() => null);
