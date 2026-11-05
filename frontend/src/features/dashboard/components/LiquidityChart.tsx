@@ -57,11 +57,11 @@ export function LiquidityChart({ candles = [] }: { candles?: MarketCandle[] }) {
     const series = chart.addSeries(CandlestickSeries, {
         upColor: '#22C55E',
         downColor: '#EF4444',
-        borderUpColor: '#4ADE80',
-        borderDownColor: '#F87171',
+        borderUpColor: '#22C55E',
+        borderDownColor: '#EF4444',
         borderVisible: true,
-        wickUpColor: '#4ADE80',
-        wickDownColor: '#F87171',
+        wickUpColor: '#22C55E',
+        wickDownColor: '#EF4444',
     });
 
     series.setData(candles.map(c => ({ time: Math.floor(c.time / 1000) as import('lightweight-charts').UTCTimestamp, open: c.open, high: c.high, low: c.low, close: c.close })));
@@ -114,13 +114,13 @@ export function LiquidityChart({ candles = [] }: { candles?: MarketCandle[] }) {
       </CardHeader>
       
       <div className="mb-4 flex min-w-0 shrink-0 flex-wrap items-baseline gap-x-3 gap-y-2">
-        <span className="text-2xl font-semibold leading-none tracking-tight sm:text-[32px]">{latestCandle ? latestCandle.close.toLocaleString("en-US", { maximumFractionDigits: 2 }) : "Sample series"}</span>
+        <span className="text-2xl font-semibold leading-none tracking-tight sm:text-[32px]">{latestCandle ? latestCandle.close.toLocaleString("en-US", { maximumFractionDigits: 2 }) : "No market data"}</span>
         <div className={cn("min-w-0 break-words text-[12px] font-medium", latestCandle ? (changePct >= 0 ? "text-profit" : "text-loss") : "text-brand-text-muted")}>
-          {latestCandle ? `${changePct >= 0 ? "▲" : "▼"} ${Math.abs(changePct).toFixed(2)}% across loaded candles` : "Illustrative data"}
+          {latestCandle ? `${changePct >= 0 ? "▲" : "▼"} ${Math.abs(changePct).toFixed(2)}% across loaded candles` : "Waiting for market data"}
         </div>
       </div>
       
-      {/* Historical BTC/USDT candles when available; preview series otherwise. */}
+      {/* Only API-provided BTC/USDT candles are rendered; no synthetic fallback is used. */}
       <div className="relative flex-1 min-h-0 w-full" ref={chartContainerRef} />
     </Card>
   );
