@@ -2232,6 +2232,50 @@ async function handleRequest(event, context) {
     try { await saveDB(db); } catch (e) { console.warn('[admin-lock] persist failed:', e.message); return { persistenceUnavailable: true }; }
     return null;
   }
+  // Durable outbox delivery: state and pending audit event are saved together.
+  // PostgreSQL appends are idempotent by event ID, so a lost response or failed
+  // post-append CAS can be retried without creating a duplicate audit row.
+  async function flushAdminAuditOutbox() {
+    if (!supabaseStorageConfigured()) return { pending: false, persistenceUnavailable: false };
+    const pending = (Array.isArray(db.audit_logs) ? db.audit_logs : []).filter(function (entry) {
+      return entry && entry.postgres_sync_status === 'pending';
+    });
+    if (!pending.length) return { pending: false, persistenceUnavailable: false };
+    const base = String(process.env.SUPABASE_URL || '').replace(/\\/+$/, '');
+    if (!base) return { pending: true, persistenceUnavailable: false };
+    let changed = false;
+    for (const entry of pending) {
+      try {
+        const response = await fetch(base + '/rest/v1/rpc/append_admin_audit_log', {
+          method: 'POST', headers: supabaseHeaders(),
+          body: JSON.stringify({
+            p_event_id: String(entry.id),
+            p_action: String(entry.action || ''),
+            p_uid: String(entry.uid || ''),
+            p_by: String(entry.by || 'admin'),
+            p_detail: String(entry.detail || '').slice(0, 300)
+          })
+        });
+        const result = await response.json().catch(() => null);
+        if (response.ok && result === true) {
+          entry.postgres_sync_status = 'synced';
+          entry.postgres_synced_at = nowStr();
+          changed = true;
+        }
+      } catch (_) {
+        // Keep the durable outbox entry pending; the next admin request retries it.
+      }
+    }
+    if (changed) {
+      try { await saveDB(db); }
+      catch (_) { return { pending: true, persistenceUnavailable: true }; }
+    }
+    return {
+      pending: db.audit_logs.some(function (entry) { return entry && entry.postgres_sync_status === 'pending'; }),
+      persistenceUnavailable: false
+    };
+  }
+
   if (path.startsWith('admin/')) {
     const adminAuthResult = await adminAuth();
     if (adminAuthResult && adminAuthResult.persistenceUnavailable) return json({ ok: false, code: 'SECURITY_STATE_UNAVAILABLE', msg: 'Administrator authentication is temporarily unavailable. Please try again.' }, 503);
@@ -2239,6 +2283,8 @@ async function handleRequest(event, context) {
     if (!adminAuthResult) {
       return json({ ok: false, msg: 'Administrator authentication failed.' }, 401, { 'WWW-Authenticate': 'Basic realm="BTCBOX Admin"' });
     }
+    const priorAuditFlush = await flushAdminAuditOutbox();
+    if (priorAuditFlush.persistenceUnavailable) return json({ ok: false, code: 'AUDIT_OUTBOX_STATE_UNAVAILABLE', msg: 'Administrator audit delivery state could not be saved. Please retry.' }, 503);
     const sub = path.slice(6); // 去掉 admin/ 前缀
 
     // GET /api/admin/stats
@@ -2300,21 +2346,25 @@ async function handleRequest(event, context) {
       return json({ ok: true, user: safeUser });
     }
 
-    // All privileged account changes are auditable and validated server-side.
-    // 审计日志双写：JSON blob 兼容旧读取路径；PostgreSQL 已配置时必须等待 append-only 写入成功后才保存并确认管理操作。
+    // Stage the audit event in the same CAS document as the business mutation.
+    // PostgreSQL delivery happens only after that durable state write succeeds.
     async function auditAdmin(action, uid, detail) {
       if (!Array.isArray(db.audit_logs)) db.audit_logs = [];
-      db.audit_logs.push({ id: 'AL' + Date.now() + crypto.randomBytes(3).toString('hex'), action: action, uid: String(uid || ''), by: 'admin', time: nowStr(), detail: String(detail || '').slice(0, 300) });
-      if (db.audit_logs.length > 5000) db.audit_logs = db.audit_logs.slice(-5000);
-      if (supabaseStorageConfigured()) {
-        const base = String(process.env.SUPABASE_URL || '').replace(/\\/+$/, '');
-        if (!base) throw new Error('Admin audit storage is not configured.');
-        const response = await fetch(base + '/rest/v1/rpc/append_admin_audit_log', {
-          method: 'POST', headers: supabaseHeaders(),
-          body: JSON.stringify({ p_action: String(action), p_uid: String(uid || ''), p_by: 'admin', p_detail: String(detail || '').slice(0, 300) })
-        });
-        if (!response.ok) throw new Error('Admin audit persistence failed with status ' + response.status);
-      }
+      const event = {
+        id: 'AL' + Date.now() + crypto.randomBytes(8).toString('hex'),
+        action: String(action),
+        uid: String(uid || ''),
+        by: 'admin',
+        time: nowStr(),
+        detail: String(detail || '').slice(0, 300),
+        postgres_sync_status: supabaseStorageConfigured() ? 'pending' : 'local_only'
+      };
+      db.audit_logs.push(event);
+      const pending = db.audit_logs.filter(function (entry) { return entry && entry.postgres_sync_status === 'pending'; });
+      const retained = db.audit_logs.filter(function (entry) { return !entry || entry.postgres_sync_status !== 'pending'; })
+        .slice(-Math.max(0, 5000 - pending.length));
+      db.audit_logs = retained.concat(pending).sort(function (a, b) { return String(a.time || '').localeCompare(String(b.time || '')); });
+      return event.id;
     }
 
     // POST /api/admin/user/balance 调整余额
@@ -2381,7 +2431,8 @@ async function handleRequest(event, context) {
       u.frozen_reason = frozen ? reason : '';
       await auditAdmin(frozen ? 'user_freeze' : 'user_unfreeze', u.uid, reason);
       await saveDB(db);
-      return json({ ok: true, msg: u.frozen ? 'Account frozen.' : 'Account unfrozen.' });
+      const auditFlush = await flushAdminAuditOutbox();
+      return json({ ok: true, audit_sync_pending: auditFlush.pending, msg: u.frozen ? 'Account frozen.' : 'Account unfrozen.' });
     }
 
     // POST /api/admin/user/reset-pwd
@@ -2396,7 +2447,8 @@ async function handleRequest(event, context) {
       Object.keys(db.sessions || {}).forEach(function (token) { if (db.sessions[token].uid === u.uid) delete db.sessions[token]; });
       await auditAdmin('user_password_reset', u.uid, 'Admin reset login password; existing sessions invalidated.');
       await saveDB(db);
-      return json({ ok: true, msg: 'Password has been reset. The user must sign in again.' });
+      const auditFlush = await flushAdminAuditOutbox();
+      return json({ ok: true, audit_sync_pending: auditFlush.pending, msg: 'Password has been reset. The user must sign in again.' });
     }
 
     // POST /api/admin/user/reset-email
@@ -2412,7 +2464,8 @@ async function handleRequest(event, context) {
       u.email = newEmail;
       await auditAdmin('user_email_change', u.uid, JSON.stringify({ from: previousEmail, to: newEmail }));
       await saveDB(db);
-      return json({ ok: true, msg: 'Email updated successfully.' });
+      const auditFlush = await flushAdminAuditOutbox();
+      return json({ ok: true, audit_sync_pending: auditFlush.pending, msg: 'Email updated successfully.' });
     }
 
     // POST /api/admin/deposit/confirm — explicit administrator manual credit.
@@ -2515,7 +2568,8 @@ async function handleRequest(event, context) {
       u.kyc.review_reason = override ? reason : 'Approved pending identity verification application.';
       await auditAdmin(override ? 'kyc_approve_exception' : 'kyc_approve', u.uid, override ? reason : 'Admin approved pending identity verification application.');
       await saveDB(db);
-      return json({ ok: true, msg: override ? 'KYC approved via admin exception; reason recorded.' : 'KYC approved.' });
+      const auditFlush = await flushAdminAuditOutbox();
+      return json({ ok: true, audit_sync_pending: auditFlush.pending, msg: override ? 'KYC approved via admin exception; reason recorded.' : 'KYC approved.' });
     }
 
     // POST /api/admin/kyc/reject
@@ -2532,7 +2586,8 @@ async function handleRequest(event, context) {
       u.kyc.reviewed_at = nowStr();
       await auditAdmin('kyc_reject', u.uid, reason);
       await saveDB(db);
-      return json({ ok: true, msg: 'KYC rejected.' });
+      const auditFlush = await flushAdminAuditOutbox();
+      return json({ ok: true, audit_sync_pending: auditFlush.pending, msg: 'KYC rejected.' });
     }
 
     // POST /api/admin/push 推送站内信
@@ -2552,16 +2607,20 @@ async function handleRequest(event, context) {
       }
       await auditAdmin('admin_push_message', body.uid || 'all', JSON.stringify({ target: body.uid ? 'single_user' : 'all_users', length: content.length }));
       await saveDB(db);
-      return json({ ok: true, msg: 'Message sent.' });
+      const auditFlush = await flushAdminAuditOutbox();
+      return json({ ok: true, audit_sync_pending: auditFlush.pending, msg: 'Message sent.' });
     }
 
     // POST /api/admin/support/reply 回复客服
     if (sub === 'support/reply' && method === 'POST') {
       const u = db.users[body.uid];
       if (!u) return json({ ok: false, msg: 'User not found.' });
-      u.support_messages.push({ id: 'M' + Date.now(), from: 'admin', content: body.content || '', time: nowStr() });
+      const supportMessage = { id: 'M' + Date.now() + crypto.randomBytes(3).toString('hex'), from: 'admin', content: body.content || '', time: nowStr() };
+      u.support_messages.push(supportMessage);
+      await auditAdmin('support_reply', u.uid, JSON.stringify({ message_id: supportMessage.id, length: String(body.content || '').length }));
       await saveDB(db);
-      return json({ ok: true, msg: 'Reply sent.' });
+      const auditFlush = await flushAdminAuditOutbox();
+      return json({ ok: true, audit_sync_pending: auditFlush.pending, msg: 'Reply sent.' });
     }
 
     // GET /api/admin/addresses — sensitive fields visible only to authenticated admin
@@ -2607,11 +2666,11 @@ async function handleRequest(event, context) {
         }
       } else return json({ok:false,msg:'Unknown operation.'},400);
       if(!Array.isArray(target.address_audit)) target.address_audit=[];
-      target.address_audit.push({id:'L'+Date.now(),action:action,address_id:body.id,by:'admin',time:nowStr(),detail:String(body.reason||'').slice(0,200)});
-      if(!Array.isArray(db.audit_logs)) db.audit_logs=[];
-      db.audit_logs.push({id:'AL'+Date.now(),action:'address_'+action,uid:target.uid,address_id:body.id,by:'admin',time:nowStr(),detail:String(body.reason||'').slice(0,200)});
+      target.address_audit.push({id:'L'+Date.now()+crypto.randomBytes(3).toString('hex'),action:action,address_id:body.id,by:'admin',time:nowStr(),detail:String(body.reason||'').slice(0,200)});
+      await auditAdmin('address_'+action, target.uid, JSON.stringify({ address_id: body.id, reason: String(body.reason || '').slice(0, 200) }));
       await saveDB(db);
-      return json({ok:true,msg:'Submitted successfully.'});
+      const auditFlush = await flushAdminAuditOutbox();
+      return json({ok:true,audit_sync_pending:auditFlush.pending,msg:'Submitted successfully.'});
     }
     if (sub === 'audit-logs' && method === 'GET') {
       const params = event.queryStringParameters || {};
@@ -2669,7 +2728,8 @@ async function handleRequest(event, context) {
       }
       await auditAdmin('system_config_update', 'system', JSON.stringify({ deposit_address_keys: changedKeys, announcement_updated: typeof body.announcement === 'string' }));
       await saveDB(db);
-      return json({ ok: true, msg: 'Configuration updated.', deposit_addresses: safeDepositAddresses(db.deposit_addresses), announcement: db.announcement });
+      const auditFlush = await flushAdminAuditOutbox();
+      return json({ ok: true, audit_sync_pending: auditFlush.pending, msg: 'Configuration updated.', deposit_addresses: safeDepositAddresses(db.deposit_addresses), announcement: db.announcement });
     }
 
 
