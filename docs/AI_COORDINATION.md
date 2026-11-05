@@ -579,3 +579,13 @@ Also verify the Site URL and inspect Authentication → Rate Limits / CAPTCHA fo
 - Commit: e9bfd4d1749180b3776d3243d96c08f822f5d497. File: frontend/src/lib/auth.tsx. New blob: 8d0a67974522b113781a7c7bcf4bb2611cbe64cf.
 - STATUS: source change committed and verified by read-back in the next check; frontend build and browser behavior remain NOT VERIFIED.
 - Deployment pause remains in force; no Vercel build/deployment was triggered.
+
+## Password recovery UI policy alignment — 2026-11-05
+
+- SOURCE OBSERVED: backend validateBtcboxLoginPassword and POST /api/account/credentials/recover require 12–128 characters and reject control characters.
+- FINDING: the OAuth password-recovery page in frontend/src/features/auth/AuthPages.tsx previously advertised minLength=8 and enabled submit for 8–11 characters. The server correctly rejected those values, creating a confusing client/server policy mismatch.
+- FIX COMMITTED on feat/btcbox-web3-auth-20261105: recovery password and confirmation inputs now specify minLength=12 and maxLength=128; submit is disabled below 12 or above 128 characters.
+- Commit: 96ceef0189353d22ee974be920807ed281e8c090. File blob: 75d899646079bce4f857afec644739effa67588d.
+- SOURCE READ-BACK: verified both recovery inputs have minLength=12/maxLength=128 and the submit condition enforces the same length bounds.
+- NOT VERIFIED: no frontend build, unit test run, or browser password-recovery test was performed. Backend policy remains unchanged.
+- No deployment, merge, database write, or production configuration change was performed; Vercel deployment pause remains active.
