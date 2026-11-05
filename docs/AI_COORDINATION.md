@@ -1249,3 +1249,11 @@ The backend CI branch filters were pointing at an older auth branch. Updated bot
 - Test commits: `db627894bb268cfdc1cf0dab358b9247a46e93a8` (initial test), `9da24057a9c81c7c6c7612a6ff22cd56dfac45ae` (corrected route-boundary assertions).
 - The new exact-head CI run must pass before this guard is considered verified. No deposit row, ledger balance, or production DB was modified.
 - Rate-limit cleanup remains a service-role-only bounded SQL helper (48-hour retention, 5,000-row batch). There is no in-repo trusted scheduler; do not add an unauthenticated public cleanup route. Scheduler choice awaits deployment-plan/secret ownership review.
+
+
+### Deposit guard and rate-limit cleanup privilege regression tests — follow-up
+
+- Exact-head CI run `42103526187` for `9da24057a9c81c7c6c7612a6ff22cd56dfac45ae` passed. The added deposit source-contract guard is verified at that SHA.
+- Added a further regression guard in `backend/tests/shared-rate-limit.test.js` to assert the cleanup RPC explicitly revokes PUBLIC/anon/authenticated and grants execution only to service_role, and that API core does not expose the cleanup RPC.
+- Latest feature commit: `01f5e1f1e6d0d04717b84d1c9ea0457f560986c4`; exact-head CI run `42103611209` is in progress.
+- Cleanup remains unscheduled until a trusted scheduler, secret handling, and hosting-plan constraints are confirmed. No public endpoint, cron configuration, or deployment was added.
