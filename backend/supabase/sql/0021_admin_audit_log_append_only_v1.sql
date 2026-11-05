@@ -77,13 +77,15 @@ begin
     from public.financial_audit_log
     where event_id = p_event_id;
 
+    -- Event identity is immutable. Reason text may differ on a retry when
+    -- the application has upgraded its redaction rules; do not strand the
+    -- outbox solely because the already-appended historical reason is older.
     if not found
        or v_existing.actor_id is distinct from v_actor
        or v_existing.subject_user_id is distinct from v_subject
        or v_existing.action is distinct from p_action
        or v_existing.object_type is distinct from 'admin_action'
        or v_existing.object_id is not null
-       or v_existing.reason is distinct from v_reason
        or v_existing.metadata is distinct from p_meta then
       raise exception 'administrator audit event idempotency conflict';
     end if;
