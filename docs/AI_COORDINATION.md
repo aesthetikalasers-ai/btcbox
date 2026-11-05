@@ -1012,3 +1012,14 @@ The backend CI branch filters were pointing at an older auth branch. Updated bot
 - Intermediate commit `a00e1715d1c0f9bd82f254cf07ee55fa0dc4fcd9` run `42081688954` and final commit `d457e3edc516c8acd154a4bd3a1a4664fda7f322` run `42081696844` were both still in progress when recorded. Do not claim final CI green until the latter exact-SHA run completes successfully.
 - Further read-only audit: legacy deposit records live under each user's `user.deposits`, but there is no dedicated admin deposits GET route. A new route must not be added until it is clear whether Postgres financial read cutover is enabled and how to read the canonical deposit ledger without mixing sources. KYC submissions are stored on user records, but a queue endpoint must return only the minimum necessary fields and must not expose document numbers or credentials.
 - No database migration, production data/configuration change, merge, or Vercel deployment. Deployment pause remains active.
+
+
+## Admin retry hardening final CI — 2026-11-06
+
+- Final feature head `d457e3edc516c8acd154a4bd3a1a4664fda7f322` verified.
+- GitHub Actions run `42081696844` for this exact SHA completed successfully.
+- Unified build passed; backend tests: 144 passed / 0 failed; fail-closed deployment preflight passed; preserved-entrypoint checks passed.
+- The earlier implementation commit `a00e1715d1c0f9bd82f254cf07ee55fa0dc4fcd9` also passed its own CI run `42081688954` (143/143 tests); final-head evidence is run `42081696844`.
+- This confirms the source/build/test pipeline only. Admin browser flows, Basic Auth against a live environment, Supabase/Postgres runtime, and real data correctness remain unverified.
+- Current coordination document commit: this entry appended after the prior coordination SHA; verify branch ref before further edits.
+- No database migration, production data/configuration change, merge, or Vercel deployment. Deployment pause remains active.
