@@ -1514,5 +1514,16 @@ The backend CI branch filters were pointing at an older auth branch. Updated bot
 - PATCHED backend: successful credential reset and credential setup/update now clear both `credential_reauth` and `identity_link_reauth` markers from the preserved current session before persistence. Other sessions continue to be revoked as before.
 - REGRESSION COVERAGE ADDED: frontend OAuth callback state transitions and backend marker invalidation are asserted by contract tests.
 - Feature commits: `1b5b2a43db11347d824104f2027b3dda136f5acd` (frontend), `f6f25c065fc7d857a2130902801f40f4c645797d` (frontend test), `6bb6b10090ec995ec7253c1d9eafb09a5d91c9dc` (API), `7c20187b016b3d8c6a3678b4aebebd251c6e85d6` (API test); latest feature HEAD pending final CI.
-- Exact-head CI pending; do not mark this batch TEST PASSED until the run for the final exact SHA completes successfully.
+- Exact-head CI run `42119925291` completed successfully for `7c20187b016b3d8c6a3678b4aebebd251c6e85d6`.
+- SAFETY: no production/staging DB writes or migrations, merge, Vercel deployment, or financial operations occurred.
+
+
+### 2FA challenge atomicity and logout persistence regression checks — 2026-11-06 (UTC+8)
+
+- TEST PASSED (previous batch): exact-head CI run `42119925291` completed successfully for `7c20187b016b3d8c6a3678b4aebebd251c6e85d6`.
+- SOURCE OBSERVED: 2FA login currently validates expiry/enabled factor/frozen state, consumes the one-time TOTP step, deletes the temporary challenge, creates the session, and persists the combined state through the database revision-CAS before returning success. This preserves single-winner semantics; no speculative production logic change was made.
+- SOURCE OBSERVED: logout deletes only the presented cookie session, persists state, then returns the clearing cookie. A persistence failure must not be treated as a successful logout.
+- REGRESSION COVERAGE ADDED: tests assert 2FA challenge/TOTP/session write ordering and terminal guards; logout success removes only the current session, preserves unrelated sessions, and increments persisted revision; failed CAS must not report success or pretend the server session was revoked.
+- Feature test commit: `623bdefda65ac99c498987d3b7ebfca540bcfa22`; latest feature HEAD pending exact-head CI.
+- Exact-head CI run `42120141576` queued; do not mark this batch TEST PASSED until it completes successfully.
 - SAFETY: no production/staging DB writes or migrations, merge, Vercel deployment, or financial operations occurred.
