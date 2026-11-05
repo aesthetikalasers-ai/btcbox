@@ -82,6 +82,9 @@ test('canonical PostgreSQL audit reader is opt-in, keyset-paginated, redacted, a
   const routeEnd = source.indexOf('// GET /api/admin/config', routeStart);
   assert.ok(routeStart >= 0 && routeEnd > routeStart);
   const route = source.slice(routeStart, routeEnd);
+  assert.match(route, /AUDIT_ACTION_FILTER_INVALID/);
+  assert.match(route, /AUDIT_UID_FILTER_INVALID/);
+  assert.match(route, /AUDIT_CURSOR_INVALID/);
   assert.match(route, /completeness: 'postgres_canonical'/);
   assert.match(route, /ADMIN_AUDIT_READ_UNAVAILABLE/);
   assert.match(route, /Never silently fall back/);
