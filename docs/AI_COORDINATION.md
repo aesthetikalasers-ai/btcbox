@@ -510,3 +510,14 @@ Also verify the Site URL and inspect Authentication → Rate Limits / CAPTCHA fo
 - Prepare the minimal import repair and inspect the rest of the auth page for any additional missing imports/type errors.
 - Review auth/backend security and identity-linking flows, and prepare a reproducible non-deploying test path.
 - Do not call Vercel deployment APIs until the user explicitly re-authorizes.
+
+
+## Auth page compile-error source repair — 2026-11-05
+
+- SOURCE OBSERVED: the failed Vercel Preview TypeScript diagnostics all pointed to unresolved names in `frontend/src/features/auth/AuthPages.tsx`; source inspection found that the file began with the component declaration and had no imports.
+- FIX COMMITTED (not build-verified): restored imports for React hooks/FormEvent, React Router Link/useNavigate, the Lucide icons actually referenced, shared Button/Card/Input components, and `useAuth`.
+- Feature branch: `feat/btcbox-web3-auth-20261105`.
+- Repair commit: `a69f9c661262dc2eee765038c9ba004b6543ee86`.
+- Resulting file blob: `ad9c6de76dd2966925625c296ba29292ff639da6`.
+- This source edit is not evidence that the TypeScript build now passes; other diagnostics may appear after the first set is resolved.
+- Deployment pause remains in force: no Vercel deployment was triggered by this source repair. Continue with source audit and non-deploying checks only until the user explicitly re-authorizes deployment.
