@@ -654,3 +654,20 @@ Also verify the Site URL and inspect Authentication → Rate Limits / CAPTCHA fo
 - The ten-call-site inventory is source-read from `backend/api-core.js`; no limiter code or SQL was changed in this follow-up.
 - The implementation contract above is a proposal for feature-branch work only. No production Supabase migration was applied, no Vercel build/deployment was run, and no merge occurred.
 - Current feature head at time of inventory: `96ceef0189353d22ee974be920807ed281e8c090`. Current coordination head before this update: `68a8ee09ee14dc397f9cd987bf52254145b07cc0`.
+## Shared rate-limit migration draft — 2026-11-05
+
+### IMPLEMENTED ON FEATURE BRANCH — SQL DRAFT ONLY
+- Added `backend/supabase/sql/0023_btcbox_shared_rate_limit_v1.sql` on `feat/btcbox-web3-auth-20261105`.
+- Commit: `451cd4e63f31de9f07f7fa08b8b400c22ac62aad`; SQL blob: `19e8fb925e60cfbeab2de873408df6f762c6d57d`.
+- Defines `public.btcbox_rate_limits` with a composite primary key `(scope, key_hash, window_start)`, a 64-character lowercase HMAC key constraint, bounded integer counters, RLS enabled, and direct table grants restricted to `service_role`.
+- Defines `btcbox_rate_limit_consume_v1(scope,key_hash)` with an allowlisted ten-scope policy matching the existing limits, database-clock fixed windows, and a single `INSERT ... ON CONFLICT DO UPDATE` increment so concurrent requests serialize on the unique row.
+- Defines a bounded cleanup RPC deleting at most 5,000 rows older than 48 hours per invocation; scheduling is not configured by this migration.
+- The RPC returns allowed/limit/count/remaining/retry-after/window-start data. The API caller must validate the shape and expected policy before acting.
+
+### IMPORTANT — NOT WIRED OR APPLIED
+- This commit adds only the SQL migration draft. `backend/api-core.js` still uses process-local `rateCheck`; no runtime behavior has changed.
+- No PostgreSQL parser, isolated database execution, concurrent transaction test, or RPC integration test has been run. The migration is not yet syntax- or behavior-validated against PostgreSQL.
+- The new migration has not been applied to staging or production. Production Supabase was not touched.
+- Before runtime integration, configure a dedicated server secret `BTCBOX_RATE_LIMIT_HMAC_SECRET` of at least 32 random bytes in the target deployment environment. Missing/invalid secret must fail closed; do not fall back to process memory.
+- Next work: add SQL return `window_seconds` (so API can assert the expected policy), validate SQL in disposable PostgreSQL, test concurrent upserts from separate connections, then integrate an async fail-closed helper and migrate all ten call sites in one feature-branch batch.
+- Deployment pause remains active. No Vercel build/deployment or merge was triggered.
