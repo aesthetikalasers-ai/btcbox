@@ -496,6 +496,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           if ((cause as { code?: string })?.code !== "TWO_FACTOR_REQUIRED") throw cause;
           setPendingIdentityLinkToken(data.session.access_token);
           setIdentityLinkNeedsTwoFactor(true);
+          await setSignedIn();
           setNotice("Enter your authenticator code to finish verifying your existing Google sign-in method.");
         }
         window.history.replaceState({}, document.title, "/settings");
