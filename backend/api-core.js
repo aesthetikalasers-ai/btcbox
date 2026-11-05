@@ -2294,10 +2294,13 @@ async function handleRequest(event, context) {
       return entry && entry.postgres_sync_status === 'pending';
     });
     if (!pending.length) return { pending: false, persistenceUnavailable: false };
-    const base = String(process.env.SUPABASE_URL || '').replace(/\/+$/, '');
+    const base = String(process.env.SUPABASE_URL || '').replace(/\\/+$/, '');
     if (!base) return { pending: true, persistenceUnavailable: false };
     let changed = false;
-    for (const entry of pending) {
+    // Bound each request's work; concurrent admin requests can safely retry the
+    // same stable event IDs because the append RPC is idempotent.
+    const batch = pending.slice(0, 10);
+    await Promise.all(batch.map(async function (entry) {
       const safeDetail = redactAdminAuditDetail(entry.detail);
       if (safeDetail !== String(entry.detail || '')) {
         entry.detail = safeDetail;
@@ -2312,7 +2315,8 @@ async function handleRequest(event, context) {
             p_uid: String(entry.uid || ''),
             p_by: String(entry.by || 'admin'),
             p_detail: safeDetail
-          })
+          }),
+          signal: AbortSignal.timeout(4000)
         });
         const result = await response.json().catch(() => null);
         if (response.ok && result === true) {
@@ -2323,7 +2327,7 @@ async function handleRequest(event, context) {
       } catch (_) {
         // Keep the durable outbox entry pending; the next admin request retries it.
       }
-    }
+    }));
     if (changed) {
       try { await saveDB(db); }
       catch (_) { return { pending: true, persistenceUnavailable: true }; }
