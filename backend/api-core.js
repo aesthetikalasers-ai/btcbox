@@ -2430,6 +2430,17 @@ async function handleRequest(event, context) {
     // PostgreSQL delivery happens only after that durable state write succeeds.
     async function auditAdmin(action, uid, detail) {
       if (!Array.isArray(db.audit_logs)) db.audit_logs = [];
+      const pendingCount = db.audit_logs.filter(function (entry) {
+        return entry && entry.postgres_sync_status === 'pending';
+      }).length;
+      // Never discard unsynced audit events or let an unavailable PostgreSQL
+      // sink grow the state document without bound. The caller has not saved
+      // its business mutation yet, so throwing here keeps that mutation uncommitted.
+      if (pendingCount >= 5000) {
+        const error = new Error('Admin audit outbox is full');
+        error.code = 'ADMIN_AUDIT_OUTBOX_FULL';
+        throw error;
+      }
       const event = {
         id: 'AL' + Date.now() + crypto.randomBytes(8).toString('hex'),
         action: String(action),
@@ -2932,6 +2943,9 @@ async function handleRequest(event, context) {
   } catch (e) {
     if (e && e.message === 'Persistent storage write conflict') {
       return json({ ok: false, msg: 'Data changed recently. Please refresh and try again.', code: 'STORAGE_CONFLICT' }, 409);
+    }
+    if (e && e.code === 'ADMIN_AUDIT_OUTBOX_FULL') {
+      return json({ ok: false, msg: 'Administrator audit storage is temporarily backed up. No change was saved; please retry later.', code: 'ADMIN_AUDIT_OUTBOX_FULL' }, 503);
     }
     // Do not expose internal storage, provider, or database error details to clients.
     return json({ ok: false, msg: 'Service temporarily unavailable. Please try again later.', code: 'INTERNAL_ERROR' }, 500);
