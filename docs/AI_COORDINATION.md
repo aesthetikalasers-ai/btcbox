@@ -1773,3 +1773,9 @@ Application branch inspected: `feat/btcbox-web3-auth-20261105` at `741c709d818cb
 - No Supabase migration, production database write, financial transaction, merge to `main`, or Vercel deployment was performed.
 - Runtime admin authentication, actual browser form behavior, live config persistence, and exact-head CI outcome remain NOT VERIFIED pending CI and staging QA.
 - The older main-snapshot admin-placeholder statement remains valid for that snapshot only; do not generalize it to the feature branch.
+
+
+## Admin read-only tabs — 2026-11-06
+- Feature commit `34ba5e5ef159828aa1983beb166970bab49ba55e` adds admin read-only order and customer-support message tabs using existing authenticated API adapters. Order source is displayed; `legacy_state` is explicitly distinguished from PostgreSQL matching-engine data. Support is read-only and shows the API's latest 100 user messages.
+- Regression tests are in `f55caad847f912888471dae9f3890f27c1b3dd0f`. Exact-head CI run `42130318767` completed successfully: unified build, backend tests, fail-closed preflight, and output verification passed.
+- No merge, deployment, production configuration change, or financial operation was performed.
