@@ -69,6 +69,24 @@ function isSupabaseUserId(value) {
   return typeof value === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
 }
 
+// Read auth_time from a JWT only after the exact token has been accepted by
+// Supabase's /auth/v1/user endpoint. The external verification authenticates
+// the signed claims; this helper deliberately performs no local trust decision.
+function getVerifiedSupabaseAuthTime(accessToken) {
+  if (typeof accessToken !== 'string') return null;
+  const parts = accessToken.split('.');
+  if (parts.length !== 3 || !parts[1]) return null;
+  try {
+    const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString('utf8'));
+    const value = Number(payload && payload.auth_time);
+    const subject = String(payload && payload.sub || '');
+    if (!Number.isFinite(value) || value <= 0 || !isSupabaseUserId(subject)) return null;
+    return { auth_time: value, subject: subject };
+  } catch (_) {
+    return null;
+  }
+}
+
 // BTCBOX credentials are independent of Supabase email/password. Passwords are
 // stored only as PBKDF2-HMAC-SHA256 hashes with a per-account random salt.
 const BTCBOX_PASSWORD_ITERATIONS = 600000;
@@ -1105,6 +1123,104 @@ async function handleRequest(event, context) {
 
   // ---------- 以下接口需要登录 ----------
   const user = getUser(db, event);
+
+  // ---------- POST /api/account/credentials/reauth ----------
+  // A recent BTCBOX cookie alone is not proof of a recent Google/wallet
+  // re-authentication. Verify the linked Supabase identity and its signed auth_time.
+  if (path === 'account/credentials/reauth' && method === 'POST') {
+    if (!user) return json({ ok: false, msg: 'Not signed in.', need_login: true }, 401);
+    if (user.frozen) return json({ ok: false, code: 'ACCOUNT_FROZEN', msg: 'Account frozen. Please contact support.' }, 403);
+    const sessionRecord = getSessionRecord(db, event);
+    if (!sessionRecord || sessionRecord.user.uid !== user.uid) return json({ ok: false, msg: 'Please sign in again.', need_login: true }, 401);
+    const accessToken = typeof body.supabase_access_token === 'string' ? body.supabase_access_token : '';
+    const supabaseUrl = String(process.env.SUPABASE_AUTH_URL || '').replace(/\/$/, '');
+    const supabaseKey = getPublishableKey();
+    if (!supabaseUrl || !supabaseKey) return json({ ok: false, code: 'AUTH_SERVICE_UNAVAILABLE', msg: 'Authentication service is not configured.' }, 503);
+    if (!accessToken || accessToken.length > 16384) return json({ ok: false, code: 'INVALID_SUPABASE_IDENTITY', msg: 'Please verify a linked sign-in method.' }, 401);
+    let identity;
+    try {
+      const verifyResponse = await fetch(supabaseUrl + '/auth/v1/user', {
+        method: 'GET', headers: { 'apikey': supabaseKey, 'Authorization': 'Bearer ' + accessToken, 'Accept': 'application/json' }
+      });
+      if (!verifyResponse.ok) return json({ ok: false, code: 'INVALID_SUPABASE_IDENTITY', msg: 'The sign-in identity could not be verified.' }, 401);
+      identity = await verifyResponse.json();
+    } catch (_) {
+      return json({ ok: false, code: 'AUTH_SERVICE_UNAVAILABLE', msg: 'Authentication service temporarily unavailable.' }, 503);
+    }
+    const linkedId = String(identity && identity.id || '').trim();
+    const claims = getVerifiedSupabaseAuthTime(accessToken);
+    const nowSeconds = Math.floor(Date.now() / 1000);
+    const authTime = claims && claims.auth_time;
+    const provider = getSingleSupabaseAuthProvider(identity);
+    const walletIdentity = provider === 'web3' ? getSupabaseWalletIdentity(identity) : null;
+    const confirmed = !!(identity && (identity.email_confirmed_at || identity.confirmed_at));
+    if (!isSupabaseUserId(linkedId) || !claims || claims.subject !== linkedId ||
+        !Number.isFinite(authTime) || authTime > nowSeconds + 60 || nowSeconds - authTime > 5 * 60 ||
+        !['google', 'web3'].includes(provider) ||
+        (provider === 'google' && (!confirmed || !isValidAuthEmail(String(identity.email || '').trim().toLowerCase()))) ||
+        (provider === 'web3' && !walletIdentity)) {
+      return json({ ok: false, code: 'RECENT_REAUTH_REQUIRED', msg: 'Please complete a fresh Google or wallet verification, then try again.' }, 403);
+    }
+    if (!isSupabaseIdentityLinked(user, linkedId)) {
+      return json({ ok: false, code: 'IDENTITY_NOT_LINKED', msg: 'Verify a Google account or wallet already linked to this BTCBOX account.' }, 403);
+    }
+    sessionRecord.session.credential_reauth = {
+      supabase_user_id: linkedId,
+      auth_time: authTime,
+      verified_at: Date.now()
+    };
+    try { await saveDB(db); }
+    catch (e) {
+      if (e && e.message === 'Persistent storage write conflict') return json({ ok: false, code: 'ACCOUNT_UPDATE_CONFLICT', msg: 'Your account changed at the same time. Please retry verification.' }, 409);
+      return json({ ok: false, code: 'PERSISTENCE_UNAVAILABLE', msg: 'Verification could not be saved. Please try again.' }, 503);
+    }
+    return json({ ok: true, recovery_window_seconds: 300 });
+  }
+
+  // ---------- POST /api/account/credentials/recover ----------
+  // One short-lived server-side re-auth marker authorizes one password reset.
+  if (path === 'account/credentials/recover' && method === 'POST') {
+    if (!user) return json({ ok: false, msg: 'Not signed in.', need_login: true }, 401);
+    if (user.frozen) return json({ ok: false, code: 'ACCOUNT_FROZEN', msg: 'Account frozen. Please contact support.' }, 403);
+    const sessionRecord = getSessionRecord(db, event);
+    const verified = sessionRecord && sessionRecord.session && sessionRecord.session.credential_reauth;
+    const verifiedAt = Number(verified && verified.verified_at);
+    const linkedId = String(verified && verified.supabase_user_id || '');
+    if (!sessionRecord || sessionRecord.user.uid !== user.uid || !Number.isFinite(verifiedAt) ||
+        Date.now() - verifiedAt < 0 || Date.now() - verifiedAt > 5 * 60 * 1000 ||
+        !isSupabaseIdentityLinked(user, linkedId)) {
+      return json({ ok: false, code: 'RECENT_REAUTH_REQUIRED', msg: 'Please verify a linked Google account or wallet again before resetting your password.' }, 403);
+    }
+    const password = typeof body.password === 'string' ? body.password : '';
+    if (!validateBtcboxLoginPassword(password)) return json({ ok: false, code: 'PASSWORD_INVALID', msg: 'Password must be 12–128 characters and cannot contain control characters.' }, 400);
+    const suppliedUsername = body.username === undefined || body.username === null || body.username === ''
+      ? '' : normalizeBtcboxUsername(body.username);
+    if (suppliedUsername && !validateBtcboxUsername(suppliedUsername)) {
+      return json({ ok: false, code: 'USERNAME_INVALID', msg: 'Username must be 3–24 characters and use lowercase letters, numbers, or underscores.' }, 400);
+    }
+    if (!user.username && !suppliedUsername) {
+      return json({ ok: false, code: 'USERNAME_REQUIRED', msg: 'Set a BTCBOX username before resetting your password.' }, 400);
+    }
+    if (suppliedUsername) {
+      const duplicate = Object.values(db.users).find(function (candidate) {
+        return candidate.uid !== user.uid && normalizeBtcboxUsername(candidate.username_normalized || candidate.username) === suppliedUsername;
+      });
+      if (duplicate) return json({ ok: false, code: 'USERNAME_TAKEN', msg: 'This username is already in use. Please choose another.' }, 409);
+      user.username = suppliedUsername;
+      user.username_normalized = suppliedUsername;
+    }
+    user.login_password_salt = genSalt();
+    user.login_password_hash = hashBtcboxLoginPassword(password, user.login_password_salt);
+    user.login_password_algo = 'pbkdf2-sha256-600000';
+    user.credentials_updated_at = nowStr();
+    delete sessionRecord.session.credential_reauth;
+    try { await saveDB(db); }
+    catch (e) {
+      if (e && e.message === 'Persistent storage write conflict') return json({ ok: false, code: 'ACCOUNT_UPDATE_CONFLICT', msg: 'Your account changed at the same time. Please retry.' }, 409);
+      return json({ ok: false, code: 'PERSISTENCE_UNAVAILABLE', msg: 'Your password could not be saved. Please try again.' }, 503);
+    }
+    return json({ ok: true, username: user.username, has_login_password: true });
+  }
 
   // ---------- POST /api/account/credentials ----------
   // Credentials belong to the existing internal account; this never creates a second user.
