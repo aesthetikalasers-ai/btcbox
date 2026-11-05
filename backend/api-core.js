@@ -2615,6 +2615,7 @@ async function handleRequest(event, context) {
     if (sub === 'support/reply' && method === 'POST') {
       const u = db.users[body.uid];
       if (!u) return json({ ok: false, msg: 'User not found.' });
+      if (!Array.isArray(u.support_messages)) u.support_messages = [];
       const supportMessage = { id: 'M' + Date.now() + crypto.randomBytes(3).toString('hex'), from: 'admin', content: body.content || '', time: nowStr() };
       u.support_messages.push(supportMessage);
       await auditAdmin('support_reply', u.uid, JSON.stringify({ message_id: supportMessage.id, length: String(body.content || '').length }));
