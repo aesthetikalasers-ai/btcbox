@@ -118,12 +118,18 @@ test('admin audit detail redaction masks credential, personal, and wallet values
     token: 'eyJ-sensitive-token',
     api_key: 'sk-sensitive-key',
     recovery_code: 'recovery-phrase-123',
+    access_token: 'access-token-secret',
+    refresh_token: 'refresh-token-secret',
+    supabase_service_role_key: 'service-role-secret',
+    client_secret: 'oauth-client-secret',
+    authorization: 'Bearer authorization-secret',
     email: 'private.person@example.com',
     wallet: '0x1234567890abcdef1234567890abcdef12345678',
     tron: 'TQn9Y2khEsLJW1ChVWFMSMeRDow5KcbLSE'
   });
   const safe = redact(raw);
   for (const secret of ['hunter2-secret', 'eyJ-sensitive-token', 'sk-sensitive-key', 'recovery-phrase-123',
+    'access-token-secret', 'refresh-token-secret', 'service-role-secret', 'oauth-client-secret', 'authorization-secret',
     'private.person@example.com', '0x1234567890abcdef1234567890abcdef12345678',
     'TQn9Y2khEsLJW1ChVWFMSMeRDow5KcbLSE']) {
     assert.ok(!safe.includes(secret), 'sensitive value must not appear: ' + secret);
