@@ -481,7 +481,7 @@ VIEWS.admin = function(){
       '<span class="tag" style="background:rgba(240,185,11,.12);color:var(--warning)">管理员 — HTTP Basic Auth</span>'+
     '</div>'+
     '<div id="admin-stats" class="va-admin-stats">'+skeleton(4,1)+'</div>'+
-    '<div id="admin-err" style="display:none" class="va-banner va-banner-err"></div>'+\
+    '<div id="admin-err" style="display:none" class="va-banner va-banner-err"></div>'+
     '<div id="admin-data-status" style="display:none" class="va-banner va-banner-inf" role="status"></div>'+
     '<div class="card" style="padding:0;margin-bottom:16px">'+
       '<div style="display:flex;border-bottom:1px solid var(--border);overflow-x:auto" class="no-scrollbar">'+
