@@ -1330,3 +1330,14 @@ The backend CI branch filters were pointing at an older auth branch. Updated bot
 - Latest feature HEAD: `d324fdbb458ed58d6a6c1f0610ef847717da157a`. Exact-head CI run `42112984087` is in progress; do not mark these fixes accepted until this exact run completes successfully.
 - Intermediate exact-head runs `42112907989` and `42112924121` were started for earlier commits in this patch series; they are superseded by `42112984087`.
 - No production DB write/read, migration, merge, Vercel deployment, or financial operation was performed.
+
+
+### Legacy outbox redaction retry hardening — 2026-11-06 (UTC+8)
+
+- FOLLOW-UP SOURCE REVIEW: moving redaction to event creation protects new outbox rows, but previously queued `pending` rows could still contain pre-fix raw detail. The retry worker therefore also normalizes each pending entry with `redactAdminAuditDetail` before sending it to the PostgreSQL RPC and persists the sanitized value together with any sync-state change.
+- Code commit: `ee7a81fe650f4446c91d961b48fd5aa818b1b608`.
+- Regression test commit: `21e5c87c0bd44f29ca8ded53ab3ec3f0eb0db387`, asserting legacy pending rows are redacted and the RPC receives only the sanitized detail.
+- Earlier patch commits have passed their own exact-head CI: pagination implementation `a2026ea81fc8d6567b7d8886b8f7fc7be6e5f181` / run `42112907989`; pagination/filter tests `118554d0e837ab2ff40724bf150a28771c3967b6` / run `42112924121`; new-event outbox redaction and regression test `d324fdbb458ed58d6a6c1f0610ef847717da157a` / run `42112984087`.
+- Latest exact-head CI run `42113080692` for `21e5c87c0bd44f29ca8ded53ab3ec3f0eb0db387` is in progress. The code-only run `42113066862` for `ee7a81fe650f4446c91d961b48fd5aa818b1b608` is also in progress. Do not mark the legacy-retry hardening accepted until the latest exact-head run passes.
+- IMPORTANT LIMIT: this patch only sanitizes local pending outbox rows before future retries. It does not rewrite or delete any already-committed PostgreSQL audit rows; historical canonical rows remain append-only and require a separately approved, evidence-based remediation if exposure is established.
+- No production DB read/write, schema change, merge, deployment, or financial operation was performed.
