@@ -923,3 +923,31 @@ The backend CI branch filters were pointing at an older auth branch. Updated bot
 - **P1 — admin list data is not hydrated:** on the current feature branch, `state.admin` is initialized with empty `users`, `deposits`, `withdrawals`, and `kycs` arrays. The only API method called by `VIEWS.admin.afterRender` is `apiAdapter.adminStats()`. A repository-wide read of all eight scripts loaded by `backend/admin.html` found no assignments populating `state.admin.*`, and no call sites for `adminUsers()`, `adminWithdrawals()`, `adminAddresses()`, `adminOrders()`, `adminSupportMessages()`, or `adminConfig()` outside their API-client declarations. Consequently the four table tabs read empty arrays and show their empty-state UI; the current console is a rendered shell with stats, not an operationally hydrated management console. Before exposing any mutation buttons, the UI integration must load the corresponding server data, validate response shapes, handle 401/503, and refresh affected data after a successful mutation.
 - **FINANCIAL AUDIT SOURCE CHECK:** `admin_adjustment_atomic` in migration `0004_financial_admin_adjustment_v1.sql` calls `apply_financial_operation` and inserts `financial_audit_log` in the same PostgreSQL function transaction. `admin_manual_deposit_atomic` in migration `0007_financial_admin_manual_deposit_v1.sql` likewise performs the ledger credit, deposit status update, and audit insert in one function transaction. The withdrawal review function in `0022` similarly locks the row and performs ledger update plus audit insert in one transaction. The API routes fail closed when the required financial cutover is not enabled and do not fall back to JSON state writes. These are source-contract observations only; no SQL was executed against PostgreSQL.
 - **UI implementation scope:** the two previously recorded P1 items (include `pending_admin_review` in the review list; surface `audit_sync_pending` as a warning) are necessary but not sufficient. The admin view also needs explicit data hydration, error/loading/empty states, post-mutation refresh, and a deliberate audit-log view before the console can be treated as operational. Keep all financial actions disabled unless the separately approved cutover conditions are met.
+
+
+## CI failure triage and admin console follow-up — 2026-11-06
+
+### FEATURE BRANCH — SOURCE OBSERVED
+- Reconfirmed feature branch head before remediation: `b18778a06e629713f5efa000791372d608b1ebf4`.
+- Retrieved GitHub Actions run `42077859560` (run #72, push event) for that exact SHA. Unified build passed; backend tests failed: 124 tests, 114 passed, 10 failed. This is a real GitHub Actions result, distinct from the Vercel `build-rate-limit` status.
+- Root cause found in `backend/api-core.js`: malformed trailing-slash regex in `flushAdminAuditOutbox` caused a JavaScript SyntaxError at module load, cascading into route/security tests.
+- Two independent contract-test mismatches were also confirmed: the security-counter test expected exactly two fail-closed sentinels although the route contains a third valid TOTP persistence fail-closed branch; the withdrawal/audit test still expected the removed five-argument RPC permission signature instead of the current six-argument event-ID signature.
+
+### REMEDIATION PUSHED — FINAL HEAD AWAITING CI
+- Corrected the outbox URL normalization regex in `backend/api-core.js`.
+- Relaxed the security-counter source assertion to require the fund-password failure/reset protections while allowing the additional TOTP fail-closed branch.
+- Updated the audit SQL contract test to assert removal of the legacy five-argument RPC and permission revocation for the current six-argument signature.
+- Resulting feature branch head observed: `4d4d587fdfd5239e311180e2e219fefb5f210aa2`.
+- GitHub Actions runs `42080814549` (SHA `58e1129580f0929770ac9a8e1dc2bdb2af72cbf1`) and `42080821601` (SHA `df433220f83684391710703c66e67666d3d245f8`) were both in progress when inspected. These are intermediate commits; no CI result is yet available for final head `4d4d587...`.
+
+### ADMIN CONSOLE SOURCE RECONFIRMATION
+- The legacy console remains under `backend/assets/js/views-account.js`; its `afterRender` still calls only `adminStats()`, while tab renderers read `state.admin.users/deposits/withdrawals/kycs`.
+- The API client exposes `adminUsers`, `adminWithdrawals`, and other read methods, but the current console does not invoke those loaders. No `adminDeposits()` read method was found in the inspected API client excerpt; the deposits tab must not be populated from invented or synthetic data.
+- Withdrawal list renderer still filters only `status === 'pending'`; it hides `pending_admin_review` returned by the backend.
+- `runAdminAction` still treats any `result.ok` as ordinary success and does not inspect `audit_sync_pending`.
+- Do not enable financial mutation controls as part of data hydration. First map which read endpoints actually exist and define safe loading/error states. Preserve the locked trading layout.
+
+### VALIDATION / LIMITS
+- SOURCE OBSERVED: failing CI run and log, malformed regex, two stale test assertions, current admin UI/API client read wiring.
+- NOT VERIFIED: final-head CI, browser admin behavior, Postgres migration/RPC behavior, and production/staging database state.
+- No database migration, production data/configuration change, merge, or Vercel deployment was performed. Deployment pause remains active.
