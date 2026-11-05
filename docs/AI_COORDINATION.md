@@ -1052,10 +1052,10 @@ The backend CI branch filters were pointing at an older auth branch. Updated bot
 ## Admin audit redaction and deposit/KYC follow-up — 2026-11-06
 
 ### FEATURE BRANCH — SOURCE OBSERVED
-- Feature branch exact HEAD: `c2dada682a4e2f0fafbb16f48b1d331db9dd669e` (verified by comparing the branch ref to the prior exact HEAD `1d3008a985a75fdcc8283bea9fd4989d59accd2e`; 3 commits ahead, 0 behind).
+- Feature branch exact HEAD: `634c8ad8bd1f504e13d44d7ea0ae21097c84f71e` (verified by comparing the branch ref to the prior exact HEAD `1d3008a985a75fdcc8283bea9fd4989d59accd2e`; 6 commits ahead, 0 behind).
 - The previous audit detail sanitizer used over-escaped whitespace and email-dot patterns in regex literals. A direct behavior probe showed JSON values such as `{"password":"Super Secret Phrase","token":"abc123"}` were returned unchanged. This is a reproduced source-level defect, not merely a style concern.
 - Replaced the inline sanitizer with `redactAdminAuditDetail()`, using correctly escaped patterns and handling quoted JSON values, unquoted key/value secrets, emails, EVM addresses, and TRON addresses.
-- Added behavioral tests in `backend/tests/admin-entry.test.js` for quoted JSON secrets, identity-number fields, emails, EVM/TRON addresses, private keys, and recovery codes.
+- Added behavioral tests in `backend/tests/admin-entry.test.js` for quoted JSON secrets, identity-number fields, emails, EVM/TRON addresses, private keys, recovery codes, escaped quotes inside secret values, plural recovery-code fields, and API keys. Updated the audit-viewer source-contract assertions to follow the extracted sanitizer helper.
 - A direct isolated JavaScript probe of the new helper's equivalent patterns produced the expected redacted output. The full repository test suite and GitHub Actions result for the exact new HEAD are **PENDING**; do not mark this batch CI-green until an exact-SHA run is verified.
 - The backend workflow is configured to trigger on pushes to `feat/btcbox-web3-auth-20261105` for changes under `backend/**`. The available workflow-run lookup only returns PR-triggered runs; combined commit status currently exposes no check records for this push SHA. This is an evidence-access limitation, not a pass.
 
@@ -1077,7 +1077,7 @@ The backend CI branch filters were pointing at an older auth branch. Updated bot
 - No production database change, merge to `main`, or Vercel deployment. Deployment pause remains active.
 
 ### VALIDATION / NEXT ACTION
-1. Verify the exact-head GitHub Actions run for `c2dada682a4e2f0fafbb16f48b1d331db9dd669e`; full CI remains pending.
+1. Verify the exact-head GitHub Actions run for `634c8ad8bd1f504e13d44d7ea0ae21097c84f71e`; full CI remains pending.
 2. Continue locating/confirming any external chain-verifier service and its trusted creation path for pending chain deposits; do not infer it from SQL alone.
 3. Decide, with explicit business approval, whether KYC approve/reject controls must remain disabled until document evidence is collected.
 4. Design a service-role-only, paginated canonical PostgreSQL deposit read snapshot only after the financial read cutover and data source are proven.
