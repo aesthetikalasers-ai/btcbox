@@ -178,3 +178,22 @@ test('admin console exposes authenticated editing for supported deposit addresse
   assert.ok(configRoute.includes('Invalid deposit address format: '));
   assert.ok(configRoute.includes('announcement_updated'));
 });
+
+
+test('admin console exposes read-only order and support inbox views with escaped API fields', () => {
+  assert.ok(accountView.includes('data-atab="orders">订单查询</div>'));
+  assert.ok(accountView.includes('data-atab="support">客服消息</div>'));
+  assert.ok(accountView.includes('apiAdapter.adminOrders()'));
+  assert.ok(accountView.includes('apiAdapter.adminSupportMessages()'));
+  assert.ok(accountView.includes("adminOrdersSource==='legacy_state'"));
+  assert.ok(accountView.includes("escapeHtml(o.email||'—')"));
+  assert.ok(accountView.includes("escapeHtml(m.content||'')"));
+  assert.ok(accountView.includes('只读收件箱'));
+  assert.ok(app.includes("async adminOrders(){ return adminFetch('/admin/orders'); }"));
+  assert.ok(app.includes("async adminSupportMessages(){ return adminFetch('/admin/support/messages'); }"));
+  const orderStart = apiCore.indexOf("if (sub === 'orders' && method === 'GET')");
+  const supportStart = apiCore.indexOf("if (sub === 'support/messages' && method === 'GET')");
+  assert.ok(orderStart >= 0 && supportStart > orderStart);
+  assert.ok(apiCore.slice(orderStart, supportStart).includes("source: 'legacy_state'"));
+  assert.ok(apiCore.slice(supportStart).includes('list.slice(0, 100)'));
+});
