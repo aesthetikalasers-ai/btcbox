@@ -336,9 +336,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (authError) throw authError;
       if (!data.session?.access_token) throw new Error("The wallet did not return a verifiable identity.");
       await linkIdentityRequest(data.session.access_token);
+      // The server consumed the one-time source proof; clear local proof state before cleanup.
+      setIdentityLinkSourceVerified(false);
+      setPendingIdentityLinkToken("");
+      setIdentityLinkNeedsTwoFactor(false);
       await clientRef.current.auth.signOut();
       await setSignedIn();
-      setIdentityLinkSourceVerified(false);
       setNotice("The wallet has been linked to this BTCBOX account.");
     } catch (cause) {
       await clientRef.current?.auth.signOut().catch(() => undefined);
@@ -505,10 +508,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       if (url.searchParams.get("flow") === "link-target") {
         await linkIdentityRequest(data.session.access_token);
-        await client.auth.signOut();
+        // The server consumed the one-time source proof; clear local proof state before cleanup.
         setIdentityLinkSourceVerified(false);
         setPendingIdentityLinkToken("");
         setIdentityLinkNeedsTwoFactor(false);
+        await client.auth.signOut();
         await setSignedIn();
         setNotice("The Google identity has been linked to this BTCBOX account.");
         window.history.replaceState({}, document.title, "/settings");
