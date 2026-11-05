@@ -2241,7 +2241,7 @@ async function handleRequest(event, context) {
       return entry && entry.postgres_sync_status === 'pending';
     });
     if (!pending.length) return { pending: false, persistenceUnavailable: false };
-    const base = String(process.env.SUPABASE_URL || '').replace(/\\/+$/, '');
+    const base = String(process.env.SUPABASE_URL || '').replace(/\/+$/, '');
     if (!base) return { pending: true, persistenceUnavailable: false };
     let changed = false;
     for (const entry of pending) {
