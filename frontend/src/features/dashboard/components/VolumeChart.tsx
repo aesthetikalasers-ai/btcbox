@@ -19,7 +19,7 @@ export function VolumeChart({ candles = [] }: { candles?: MarketCandle[] }) {
     const chart = createChart(chartContainerRef.current, {
       layout: {
         background: { type: ColorType.Solid, color: 'transparent' },
-        textColor: 'rgba(255, 255, 255, 0.46)',
+        textColor: 'rgba(255, 255, 255, 0.38)',
         fontSize: 11,
         fontFamily: 'Inter',
       },
@@ -74,7 +74,7 @@ export function VolumeChart({ candles = [] }: { candles?: MarketCandle[] }) {
   return (
     <Card className="flex h-[320px] min-w-0 flex-col sm:h-[340px] md:h-[400px]">
       <CardHeader title="BTC/USDT trading volume">
-        <div className="flex bg-[#121316] rounded-lg p-0.5 border border-brand-border-subtle shadow-[inset_0_1px_1px_rgba(0,0,0,0.3)]">
+        <div className="flex bg-brand-surface-2 rounded-lg p-0.5 border border-brand-border-subtle shadow-[inset_0_1px_1px_rgba(0,0,0,0.3)]">
           {RANGES.map(r => (
             <button
               key={r}
