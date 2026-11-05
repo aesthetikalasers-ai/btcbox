@@ -111,7 +111,7 @@ test('settlement intent persistence reuses the same key and fails closed on stor
 test('pending intent cleanup only clears the in-memory guard after storage removal succeeds', () => {
   const persistSource = helper('persistPendingSecondsOrder', 'clearPendingSecondsOrder');
   const clearStart = view.indexOf('function clearPendingSecondsOrder(){');
-  const clearEnd = view.indexOf('  let secondsPendingIntent=', clearStart);
+  const clearEnd = view.indexOf('  function readPendingSecondsSettlement(', clearStart);
   assert.ok(clearStart >= 0 && clearEnd > clearStart, 'clear helper must be present');
   const clearSource = view.slice(clearStart, clearEnd).trim();
   const values = new Map();
