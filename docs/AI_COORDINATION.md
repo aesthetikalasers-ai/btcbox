@@ -284,3 +284,39 @@ Audit scope: read-only source inspection of `btcboxcdt` main at `93a236e4a3ed6c9
 - Review OAuth callback recovery, TOTP completion, token expiry and session revocation in a real browser.
 - Mobile wallet sign-in still depends on injected providers; WalletConnect QR / mobile deep-link behavior is not implemented or verified.
 - Do not merge or deploy until build/tests and browser QA pass, the full 73-commit branch scope is reconciled, and the user approves release.
+
+## Mobile wallet compatibility audit — 2026-11-05
+
+### CURRENT FRONTEND FINDING
+- `frontend/package.json` currently has no dedicated wallet connector dependency.
+- Current BTCBOX Web3 sign-in calls Supabase `signInWithWeb3({ chain, statement })` without passing a selected wallet object. This relies on the default `window.ethereum` / `window.solana` provider and does not provide an explicit EIP-6963 wallet chooser.
+- Supabase JS already supports an explicit EIP-1193 Ethereum provider and a Solana wallet object; its published types accept `wallet.request` for Ethereum and `publicKey.toBase58()` plus `signMessage()` or `signIn()` for Solana. The official docs demonstrate EIP-6963 provider selection and the Solana Wallet Adapter.
+
+### CONNECTOR / LICENSE REVIEW
+- DO NOT add Reown AppKit or the current WalletConnect Ethereum provider as a default dependency without written commercial approval. Reown's July 2026 Terms explicitly list exchanges, brokers, VASPs and related financial businesses among use cases that may be required to enter an Enterprise Agreement; the AppKit/WalletConnect Community Licenses also impose proprietary-network and usage-threshold conditions.
+- DO NOT adopt MetaMask Connect blindly. Its current repository `LICENCE` is a custom ConsenSys grant with a 10,000-MAU ceiling in its defined Non-Commercial Use; confirm the commercial license position before using it in a growing exchange product.
+- Phantom Connect React SDK is MIT-licensed and advertises mobile deep-link support, but its SDK flow requires a Phantom Portal app ID for the relevant deeplink/embedded providers. Do not introduce a new app ID dependency unless that is the chosen path.
+- Anza Solana Wallet Adapter is Apache-2.0 and supports Solana Wallet Standard; its mobile wallet adapter path is a separate capability and must not be assumed to cover every iOS wallet.
+
+### PREFERRED LOW-DEPENDENCY DIRECTION
+- Keep Supabase `signInWithWeb3` as the authentication authority. Do not create a custom signature-verification service.
+- Ethereum: add EIP-6963 provider discovery/selection, pass the selected EIP-1193 provider through Supabase's `wallet` option, and retain `window.ethereum` as a backward-compatible fallback.
+- Solana: explicitly detect supported provider objects such as Phantom's `window.phantom.solana` (rather than assuming every wallet exposes only `window.solana`); use the documented wallet-object interface and preserve the Wallet Standard path for broader wallet coverage.
+- Mobile browser handoff: provide explicit, user-clicked official wallet-app links that reopen the BTCBOX sign-in URL inside the wallet's own in-app browser. Phantom documents its `/ul/browse/` universal link; MetaMask and Coinbase document their respective app-browser links. The app browser then exposes the wallet provider for the existing Supabase off-chain sign-in flow.
+- Do not request transaction, token-approval, or transfer permissions for login. Only request the message-signing capability required to prove wallet ownership.
+- Test iOS Safari -> wallet app -> BTCBOX callback and return, Android Chrome, desktop multi-wallet discovery, cancellation, provider switch, and touch target sizes before acceptance.
+
+### REFERENCES REVIEWED
+- Supabase Web3 auth: https://supabase.com/docs/guides/auth/auth-web3
+- Supabase JS wallet types: https://github.com/supabase/auth-js/blob/master/src/lib/types.ts
+- Reown Terms: https://reown.com/terms-of-service
+- WalletConnect Ethereum provider license: https://github.com/WalletConnect/walletconnect-monorepo/blob/v2.0/providers/ethereum-provider/LICENSE.md
+- MetaMask Connect license/repository: https://github.com/MetaMask/connect-monorepo/blob/main/LICENCE
+- Phantom mobile browse link: https://docs.phantom.com/phantom-deeplinks/other-methods/browse
+- Coinbase Wallet SDK: https://github.com/coinbase/coinbase-wallet-sdk
+- Solana Wallet Adapter: https://github.com/anza-xyz/wallet-adapter
+
+### STATUS
+- No wallet SDK/dependency was installed in this audit.
+- No wallet connection UI or production configuration was changed in this audit.
+- Next implementation batch should follow the low-dependency direction above, then run non-deploying build/tests and real-device wallet QA.
