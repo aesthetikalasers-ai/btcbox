@@ -1104,3 +1104,12 @@ The backend CI branch filters were pointing at an older auth branch. Updated bot
 - Evidence limitation remains: the current submission flow does not provide document-image evidence. The UI and operator guidance must not claim that an image/document authenticity check was completed. This is a disclosure limitation, not a reason to block the controls.
 - The latest feature branch comparison against the previously verified audit-viewer head `1d3008a985a75fdcc8283bea9fd4989d59accd2e` reports 8 commits ahead / 0 behind. The current branch source includes the audit redaction helper and behavior tests, plus auth-security route tests. Exact-head GitHub Actions evidence for the current branch head is still not available from the workflow/status lookup; do not claim CI passed.
 - No merge, deployment, production database migration, or financial write was performed. Deployment pause remains active.
+
+
+## Exact-head CI result correction — 2026-11-06
+
+- The prior workflow/status wrapper did not expose push-triggered runs, but a direct read-only Actions runs listing for branch `feat/btcbox-web3-auth-20261105` found run `42084534759` for exact SHA `bf996caffdee2d67c9d3ced4f48efd439e1a9559`.
+- Run conclusion: `success`. Its single job completed successfully: backend dependency install, unified frontend/backend build, backend tests, fail-closed deployment preflight, and preserved-entrypoint checks all passed.
+- Job log confirms backend tests: 153 passed / 0 failed.
+- This is source/build/automated-test evidence only. It does not verify live Supabase RPC/migration readiness, browser KYC/admin workflows, external chain-verifier ingestion, or production behavior.
+- This supersedes the earlier statement that exact-head CI was pending. No new Vercel deployment, merge, database migration, or production write was performed.
