@@ -135,3 +135,24 @@ Audit scope: read-only source inspection of `btcboxcdt` main at `93a236e4a3ed6c9
 - SOURCE OBSERVED: backend admin shell, API routes, Basic Auth implementation, admin SQL migration files, and admin route placeholder.
 - SOURCE OBSERVED: legacy admin restore branch is behind main with no unique commits.
 - NOT VERIFIED: working admin dashboard, live admin authentication, Supabase migration state, deployed API behavior, or real withdrawal settlement.
+
+## Batch A follow-up — 2026-11-05
+
+### SOURCE OBSERVED
+- The active migration branch `feat/btcbox-unified-template-migration-20261105` still compares against `main` as 24 commits ahead / 49 behind. It remains isolated and must not be merged or force-updated as part of this audit.
+- Vercel project `btcboxcdt` is project ID `prj_rmwOE9q0XyZ3BikpxX2FzDt2VjKK`, framework metadata `create-react-app`, `live:false`. Project metadata does not expose the `previewDeploymentsDisabled` setting in the response used for this audit.
+- The latest inspected deployment is Preview/source branch `feat/btcbox-unified-template-migration-20261105`, commit `6af0210b6b2716cf5d0310fa3b7384d33bf8e808`, deployment `dpl_4miXoT3jqbzemkdgSsYXLMG5TPzZ`, state `READY`, target `null`. This confirms a READY preview artifact exists; it does not prove the latest source has been visually or functionally accepted.
+- Commit `6af0210b6b2716cf5d0310fa3b7384d33bf8e808` has one reported Vercel status context marked success. GitHub Actions workflow lookup returned no PR-triggered workflow runs for this commit; do not describe this as a full CI pass.
+- Open PR #19 (`fix(production): remove fake market charts and repair live page controls`) and PR #15 (`fix(market): remove fabricated chart fallback and localize page states`) have no submitted review records in the inspected review endpoint.
+- Compared with `main`, PR #19's branch is 16 ahead / 54 behind; PR #15's branch is 6 ahead / 21 behind. Pairwise comparison reports PR #19's branch as 17 ahead / 40 behind PR #15's branch. Both touch overlapping chart/dashboard/i18n files; PR #19 additionally touches the shell, navigation, button hierarchy and audit document. These are divergent branches, not merge-ready independent changes.
+- The latest inspected migration deployment still reports framework `create-react-app`, while the intended app source is under `frontend/` (Vite). The canonical Vercel root/build relationship remains unresolved; do not change project build settings until the intended runtime and backend routing are proven.
+
+### COORDINATION DECISION
+- Keep `main` and production untouched. Keep all work isolated from production.
+- Do not merge PR #15 and PR #19 separately. AI 1 should identify a single consolidated implementation head (or rebase one owned branch onto the agreed current base), preserving the no-fake-market-data and mobile/i18n fixes without duplicate overlapping commits. AI 2 must review the exact resulting head SHA and run the relevant checks before any merge is proposed.
+- AI 3 continues source-of-truth, dependency, branch and release coordination only; no direct edits to AI 1/AI 2 owned feature files.
+- Continue Batch A by resolving the Vercel root/build source of truth and deployment automation state using read-only evidence. Do not trigger a deployment.
+
+### Evidence classification
+- SOURCE OBSERVED: branch divergence counts, open PR scopes, no submitted PR review records, latest preview deployment metadata, and reported Vercel commit status.
+- NOT VERIFIED: Vercel preview auto-deployment disable flag, exact project root/build settings, full CI result, route-by-route runtime behavior, mobile visual acceptance, and real API end-to-end connectivity.
