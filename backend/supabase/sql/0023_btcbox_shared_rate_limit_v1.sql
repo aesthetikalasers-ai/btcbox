@@ -7,6 +7,7 @@ create table if not exists public.btcbox_rate_limits (
   scope text not null check (scope in (
     'login_2fa',
     'credential_reauth',
+    'identity_link_reauth',
     'credential_recover',
     'twofa_setup_password',
     'twofa_setup_confirm',
