@@ -159,3 +159,22 @@ test('KYC approval and rejection persist reviewer, timestamp, decision reason, a
   assert.ok(reject.includes("u.kyc.reject_reason = reason"));
   assert.ok(reject.includes("await auditAdmin('kyc_reject', u.uid, reason)"));
 });
+
+
+test('admin console exposes authenticated editing for supported deposit addresses and announcement config', () => {
+  assert.ok(accountView.includes('data-atab="config">系统配置</div>'));
+  assert.ok(accountView.includes('apiAdapter.adminConfig()'));
+  assert.ok(accountView.includes('apiAdapter.adminConfig(payload)'));
+  assert.ok(accountView.includes('admin-config-save'));
+  assert.ok(accountView.includes('escapeHtml(adminConfigData.deposit_addresses[item[0]]||\'\')'));
+  assert.ok(accountView.includes('maxlength="2000"'));
+  assert.ok(app.includes("async adminConfig(p){ if(p && typeof p==='object' && !(p instanceof Event)) return adminFetch('/admin/config',{method:'POST',body:p}); return adminFetch('/admin/config'); }"));
+  const configStart = apiCore.indexOf("if (sub === 'config' && method === 'GET')");
+  const configEnd = apiCore.indexOf("// GET /api/admin/withdrawals", configStart);
+  assert.ok(configStart >= 0 && configEnd > configStart);
+  const configRoute = apiCore.slice(configStart, configEnd);
+  assert.ok(configRoute.includes('allowedDepositKeys'));
+  assert.ok(configRoute.includes('Unsupported deposit network configuration found.'));
+  assert.ok(configRoute.includes('Invalid deposit address format: '));
+  assert.ok(configRoute.includes('announcement_updated'));
+});
