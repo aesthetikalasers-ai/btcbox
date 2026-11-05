@@ -756,3 +756,23 @@ Also verify the Site URL and inspect Authentication → Rate Limits / CAPTCHA fo
 - The current UI supports source proof only for linked providers surfaced by the account snapshot and wallets available through the injected provider APIs. A linked wallet not currently accessible in the browser cannot be reverified from this device.
 - The new frontend path must be exercised against the backend before describing identity linking as user-ready.
 - The separate shared rate-limiter SQL migration remains unapplied; no production/staging DB changes, no Vercel env changes, no merge, and no deployment were performed. Deployment pause remains active.
+
+
+## Identity-link reauthentication rate-limit hardening — 2026-11-05
+
+### SOURCE OBSERVED
+- The new `POST /api/auth/link-identity/reauth` endpoint verified fresh linked Google/Web3 proof and optional account TOTP, but it did not consume the shared database-backed rate limiter. The ten-scope shared limiter policy therefore left this sensitive endpoint without its own cross-instance request budget.
+- The feature branch already contains the source/target two-proof flow and the shared PostgreSQL limiter migration draft; the migration is still unapplied.
+
+### IMPLEMENTED ON FEATURE BRANCH — NOT TESTED
+- Added `identity_link_reauth` shared rate-limit scope: 8 requests per 900 seconds, keyed by HMAC of the BTCBOX UID through the existing shared limiter.
+- The endpoint now fails closed with the standard 503 response if the shared limiter is unavailable and returns the standard 429/Retry-After response when limited.
+- Added the matching fixed policy to migration `0023_btcbox_shared_rate_limit_v1.sql` and source-contract assertions in `shared-rate-limit.test.js` and `account-credentials.test.js`.
+- Feature branch commit: `458991da846dc18be929c88150ed652468686e6f`.
+- Changed file blob SHAs: `backend/api-core.js` `ca142b47d45527a30e69a1a148408dd8359e3965`; migration `1017b1a790ea5ee0358196bb8591d85688e17f10`; shared limiter test `fac45a2074e673641cbd2427ee99b77d9aca3a4b`; account credentials test `4e24f05f31a43b70b5b9dcaad1a18523fc8e5d38`.
+
+### VALIDATION LIMITS
+- GitHub source read-back confirms the API policy, endpoint call site, SQL scope, and both test assertions are present.
+- Tests were not executed; no Node syntax check, HTTP route integration, Postgres migration execution, concurrency/replay test, frontend build, or browser OAuth/wallet/TOTP test was run.
+- The migration remains unapplied and the Vercel HMAC secret remains unverified. Because the route fails closed through the shared limiter, it will return 503 until the approved database migration and runtime secret configuration are in place.
+- No production/staging database was changed; no merge or Vercel build/deployment was triggered. Deployment pause remains active.
