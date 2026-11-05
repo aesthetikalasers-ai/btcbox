@@ -226,3 +226,14 @@ test('admin audit outbox refuses new audited mutations at the pending-event ceil
   assert.match(source, /e\.code === 'ADMIN_AUDIT_OUTBOX_FULL'[\s\S]*code: 'ADMIN_AUDIT_OUTBOX_FULL'[\s\S]*}, 503\)/);
   assert.match(stage, /Never discard unsynced audit events/);
 });
+
+
+test('admin audit retention handles a zero non-pending capacity without slice(-0)', () => {
+  const start = source.indexOf('async function auditAdmin(action, uid, detail)');
+  const end = source.indexOf('// POST /api/admin/user/balance', start);
+  assert.ok(start >= 0 && end > start);
+  const stage = source.slice(start, end);
+  assert.match(stage, /const retainedLimit = Math\.max\(0, 5000 - pending\.length\)/);
+  assert.match(stage, /const retained = retainedLimit > 0 \? nonPending\.slice\(-retainedLimit\) : \[\]/);
+  assert.doesNotMatch(stage, /\.slice\(-Math\.max\(0, 5000 - pending\.length\)\)/);
+});
