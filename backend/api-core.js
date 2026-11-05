@@ -62,6 +62,14 @@ function getSupabaseWalletIdentity(identity) {
   if (chain === 'solana' && /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(address)) return { chain, address };
   return null;
 }
+function redactAdminAuditDetail(value) {
+  return String(value || '').slice(0, 300)
+    .replace(/(["']?(?:password|passwd|token|secret|recovery[_ -]?code|id[_ -]?number|private[_ -]?key)["']?\s*[:=]\s*)("[^"]*"|'[^']*'|[^,}\s]+)/ig, '$1"[redacted]"')
+    .replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/ig, '[email]')
+    .replace(/0x[a-fA-F0-9]{40}/g, '[wallet address]')
+    .replace(/T[1-9A-HJ-NP-Za-km-z]{33}/g, '[wallet address]');
+}
+
 function isValidAuthEmail(value) {
   return typeof value === 'string' && /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(value);
 }
@@ -2707,12 +2715,7 @@ async function handleRequest(event, context) {
         logs = logs.slice(beforeIndex + 1);
       }
       const page = logs.slice(0, limit).map(function (entry) {
-        const rawDetail = String(entry.detail || '').slice(0, 300);
-        const safeDetail = rawDetail
-          .replace(/([\"']?(?:password|passwd|token|secret|recovery[_ -]?code|id[_ -]?number|private[_ -]?key)[\"']?\\s*[:=]\\s*[\"']?)[^,}\"'\\s]+/ig, '$1[redacted]')
-          .replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,}/ig, '[email]')
-          .replace(/0x[a-fA-F0-9]{40}/g, '[wallet address]')
-          .replace(/T[1-9A-HJ-NP-Za-km-z]{33}/g, '[wallet address]');
+        const safeDetail = redactAdminAuditDetail(entry.detail);
         return {
           id: String(entry.id || ''),
           action: String(entry.action || '').slice(0, 100),
@@ -2883,6 +2886,7 @@ exports._test = {
   withdrawalAddressCheck: withdrawalAddressCheck,
   withdrawalRequiresAdminReview: withdrawalRequiresAdminReview,
   estimateUsdtValue: estimateUsdtValue,
+  redactAdminAuditDetail: redactAdminAuditDetail,
   secCounterIsLocked: secCounterIsLocked,
   secCounterRecordFailure: secCounterRecordFailure,
   secCounterReset: secCounterReset,
