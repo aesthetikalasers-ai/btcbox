@@ -163,6 +163,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await setSignedIn();
       setNotice("The wallet has been linked to this BTCBOX account.");
     } catch (cause) {
+      await clientRef.current?.auth.signOut().catch(() => undefined);
       setError(cause instanceof Error ? cause.message : "Wallet identity could not be linked.");
       throw cause;
     } finally { setBusy(false); }
@@ -295,9 +296,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       window.history.replaceState({}, document.title, "/auth/react-callback");
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Authentication callback failed.");
-      setStatus("anonymous");
+      if (new URL(window.location.href).searchParams.get("flow") === "link") {
+        await clientRef.current?.auth.signOut().catch(() => undefined);
+        try { await setSignedIn(); } catch { setStatus("anonymous"); }
+      } else {
+        setStatus("anonymous");
+      }
     } finally { callbackLock.current = false; setBusy(false); }
-  }, [acceptSupabaseSession]);
+  }, [acceptSupabaseSession, setSignedIn]);
 
   const verifyTwoFactor = useCallback(async (code: string) => {
     if (!tempToken) throw new Error("Your sign-in verification has expired. Please sign in again.");
