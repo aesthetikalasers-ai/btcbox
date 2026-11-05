@@ -193,3 +193,38 @@ test('credential reset and credential setup invalidate both current-session reau
   assert.ok(updateRoute.includes('delete currentSessionRecord.session.identity_link_reauth'));
   assert.ok(updateRoute.indexOf('delete currentSessionRecord.session.identity_link_reauth') < updateRoute.indexOf('await saveDB(db)'));
 });
+
+
+test('first credential setup is restricted to a fresh session and existing credentials require the current password', () => {
+  const start = source.indexOf("if (path === 'account/credentials' && method === 'POST')");
+  const end = source.indexOf("// ---------- POST /api/auth/link-identity ----------", start);
+  assert.ok(start >= 0 && end > start);
+  const route = source.slice(start, end);
+  assert.ok(route.includes("const hasCredentials = !!(user.login_password_hash && user.login_password_salt && user.login_password_algo === 'pbkdf2-sha256-600000')"));
+  assert.ok(route.includes("if (hasCredentials && !verifyBtcboxLoginPassword(user, currentPassword))"));
+  assert.ok(route.includes("code: 'CURRENT_PASSWORD_INVALID'"));
+  assert.ok(route.includes("if (!hasCredentials)"));
+  assert.ok(route.includes("Date.now() - createdAt > 5 * 60 * 1000"));
+  assert.ok(route.includes("!Number.isFinite(createdAt)"));
+  assert.ok(route.includes("code: 'REAUTH_REQUIRED'"));
+});
+
+test('credential setup validates username, password and uniqueness before mutating account credentials', () => {
+  const start = source.indexOf("if (path === 'account/credentials' && method === 'POST')");
+  const end = source.indexOf("// ---------- POST /api/auth/link-identity ----------", start);
+  assert.ok(start >= 0 && end > start);
+  const route = source.slice(start, end);
+  const usernameValidation = route.indexOf('if (!validateBtcboxUsername(username))');
+  const passwordValidation = route.indexOf('if (!validateBtcboxLoginPassword(password))');
+  const duplicateCheck = route.indexOf('const duplicate = Object.values(db.users).find');
+  const usernameMutation = route.indexOf('user.username = username');
+  const passwordHash = route.indexOf('user.login_password_hash = hashBtcboxLoginPassword(password, user.login_password_salt)');
+  assert.ok(usernameValidation >= 0 && passwordValidation > usernameValidation);
+  assert.ok(duplicateCheck > passwordValidation);
+  assert.ok(usernameMutation > duplicateCheck);
+  assert.ok(passwordHash > usernameMutation);
+  assert.ok(route.includes("normalizeBtcboxUsername(candidate.username_normalized || candidate.username) === username"));
+  assert.ok(route.includes("user.login_password_algo = 'pbkdf2-sha256-600000'"));
+  assert.ok(route.includes('await saveDB(db)'));
+  assert.ok(route.includes("code: 'PERSISTENCE_UNAVAILABLE'"));
+});
