@@ -177,3 +177,22 @@ test('frontend financial adapters preserve decimal-string request contracts', ()
   assert.ok(!apiCore.includes('const qty = Number(body.qty);'), 'spot API must not convert quantity to binary float');
   assert.ok(!apiCore.includes('const price = Number(body.price || 0);'), 'spot API must not convert price to binary float');
 });
+
+
+// The chain verifier migration is not wired to an ingestion worker yet.
+// Keep user-submitted deposit intents fail-closed until a trusted verifier exists.
+test('deposit API cannot credit user-declared amounts or bypass the chain verifier', () => {
+  const fs = require('node:fs');
+  const src = fs.readFileSync(path.join(__dirname, '..', 'api-core.js'), 'utf8');
+  const start = src.indexOf("if (path === 'deposit' && method === 'POST')");
+  const end = src.indexOf("\\n  // ---------- POST /api/withdraw ----------", start);
+  assert.ok(start >= 0, 'deposit route must exist');
+  assert.ok(end > start, 'deposit route boundary must exist');
+  const route = src.slice(start, end);
+  assert.match(route, /compareMoney\\(amount, '0'\\) <= 0/);
+  assert.match(route, /deposits are credited only after on-chain confirmation/);
+  assert.match(route, /}, 403\\)/);
+  assert.ok(!route.includes('verify_and_credit_deposit_atomic'));
+  assert.ok(!route.includes('deposit_records'));
+  assert.ok(!src.includes('verify_and_credit_deposit_atomic'));
+});
