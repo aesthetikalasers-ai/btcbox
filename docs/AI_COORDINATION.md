@@ -1232,3 +1232,20 @@ The backend CI branch filters were pointing at an older auth branch. Updated bot
 - Subsequent test-only cleanup commits `83a27e5204128aa6c518f7f9483928e2dfe6d3a5` and `6306d2527f8d333f312f55a55dccf42d97626538` simplify the brittle source assertion to literal substring checks and explicitly assert that unsafe Number coercion is absent.
 - Exact latest-head CI run `42094224016` for `6306d2527f8d333f312f55a55dccf42d97626538` is still in progress. Until it finishes, use the implementation-level passing run as evidence for the cursor correction, but do not mark the current exact branch head fully CI-verified.
 - No database read toggle enabled, no production migration, no merge, and no deployment.
+
+
+## Audit bigint cursor exact-head verification — 2026-11-06
+
+- Latest feature HEAD before the deposit guard batch: `6306d2527f8d333f312f55a55dccf42d97626538`.
+- Exact-head CI run `42094224016` completed successfully: `159 passed, 0 failed`; unified build and fail-closed preflight job passed.
+- Bigint cursor work is verified at that SHA. Reader selects `id::text`, validates a positive decimal string, and uses the string cursor without Number coercion.
+
+## Deposit ingestion boundary guard
+
+- Repository tree audit at `6306d2527f8d333f312f55a55dccf42d97626538` found only the chain-verification migration and no in-repo chain indexer, webhook, ingestion worker, cron, or verifier implementation.
+- `verify_and_credit_deposit_atomic` in migration `0016` assumes an existing pending `deposit_records` row; it is service-role-only and checks exact amount, asset/network, txid, confirmations, request hash, idempotency/duplicate state, and writes ledger/audit in the transaction.
+- Current `POST /api/deposit` in `backend/api-core.js` only returns a configured deposit address for zero/empty amount requests and rejects user-declared positive amounts with HTTP 403. It has no pending-record insertion or verifier RPC call.
+- Added a source-contract regression test in `backend/tests/backend_security.test.js` to keep user-declared deposit amounts from being credited or routed into the chain verifier before a trusted ingestion service is implemented.
+- Test commits: `db627894bb268cfdc1cf0dab358b9247a46e93a8` (initial test), `9da24057a9c81c7c6c7612a6ff22cd56dfac45ae` (corrected route-boundary assertions).
+- The new exact-head CI run must pass before this guard is considered verified. No deposit row, ledger balance, or production DB was modified.
+- Rate-limit cleanup remains a service-role-only bounded SQL helper (48-hour retention, 5,000-row batch). There is no in-repo trusted scheduler; do not add an unauthenticated public cleanup route. Scheduler choice awaits deployment-plan/secret ownership review.
