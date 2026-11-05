@@ -471,23 +471,53 @@ function verifyFundPassword(user, supplied) {
 
 function genToken() { return crypto.randomBytes(32).toString('hex'); }
 function nowStr() { return new Date().toISOString().slice(0, 19).replace('T', ' '); }
-// ===== 速率限制（内存滑动窗口；单实例内有效，降低暴力破解风险）=====
-const _rateBuckets = new Map();
-function clientIp(event) {
-  const h = event.headers || {};
-  return String(h['x-nf-client-connection-ip'] || h['x-forwarded-for'] || h['X-Forwarded-For'] || 'unknown').split(',')[0].trim();
-}
-function rateCheck(key, max, windowMs) {
-  const now = Date.now();
-  let b = _rateBuckets.get(key);
-  if (!b || b.resetAt <= now) { b = { count: 0, resetAt: now + windowMs }; _rateBuckets.set(key, b); }
-  b.count += 1;
-  if (b.count > max) {
-    const retryAfter = Math.ceil((b.resetAt - now) / 1000);
-    return { limited: true, retryAfter: retryAfter };
+// ===== 持久化共享限流：跨 serverless 实例的数据库原子计数 =====
+const RATE_LIMIT_POLICIES = Object.freeze({
+  login_2fa: { limit: 20, windowSeconds: 900 },
+  credential_reauth: { limit: 8, windowSeconds: 900 },
+  credential_recover: { limit: 5, windowSeconds: 900 },
+  twofa_setup_password: { limit: 10, windowSeconds: 900 },
+  twofa_setup_confirm: { limit: 10, windowSeconds: 900 },
+  twofa_disable: { limit: 10, windowSeconds: 900 },
+  seconds_order: { limit: 30, windowSeconds: 300 },
+  seconds_settle: { limit: 60, windowSeconds: 300 },
+  password_change: { limit: 10, windowSeconds: 900 },
+  fund_password_change: { limit: 10, windowSeconds: 900 }
+});
+async function rateCheckShared(scope, subject) {
+  const policy = RATE_LIMIT_POLICIES[scope];
+  const secret = String(process.env.BTCBOX_RATE_LIMIT_HMAC_SECRET || '');
+  if (!policy || Buffer.byteLength(secret, 'utf8') < 32 ||
+      typeof subject !== 'string' || !subject || subject.length > 256 ||
+      !supabaseStorageConfigured()) return { unavailable: true };
+  const keyHash = crypto.createHmac('sha256', secret)
+    .update('btcbox-rate-limit-v1\\0' + scope + '\\0' + subject, 'utf8').digest('hex');
+  const base = String(process.env.SUPABASE_URL || '').replace(/\\/+$/, '');
+  try {
+    const response = await fetch(base + '/rest/v1/rpc/btcbox_rate_limit_consume_v1', {
+      method: 'POST', headers: supabaseHeaders(),
+      body: JSON.stringify({ p_scope: scope, p_key_hash: keyHash }),
+      signal: AbortSignal.timeout(4000)
+    });
+    const result = await response.json().catch(() => null);
+    if (!response.ok || !result || typeof result !== 'object' || Array.isArray(result) ||
+        typeof result.allowed !== 'boolean' || result.limit !== policy.limit ||
+        !Number.isSafeInteger(result.count) || result.count < 1 || result.count > 1000000 ||
+        !Number.isSafeInteger(result.remaining) || result.remaining < 0 || result.remaining > policy.limit ||
+        !Number.isSafeInteger(result.retry_after_seconds) || result.retry_after_seconds < 1 ||
+        result.retry_after_seconds > policy.windowSeconds ||
+        result.window_seconds !== policy.windowSeconds ||
+        !Number.isSafeInteger(result.window_start) || result.window_start < 0 ||
+        (result.allowed && result.count > policy.limit) || (!result.allowed && result.count <= policy.limit)) {
+      return { unavailable: true };
+    }
+    return { limited: !result.allowed, retryAfter: result.retry_after_seconds };
+  } catch (_) {
+    return { unavailable: true };
   }
-  if (_rateBuckets.size > 5000) { const cutoff = now; for (const [k, v] of _rateBuckets) { if (v.resetAt <= cutoff) _rateBuckets.delete(k); } }
-  return { limited: false };
+}
+function rateLimitUnavailableJson() {
+  return json({ ok: false, code: 'RATE_LIMIT_UNAVAILABLE', msg: 'Security checks are temporarily unavailable. Please try again later.' }, 503);
 }
 function rateLimitedJson(retryAfter) {
   return json({ ok: false, code: 'RATE_LIMITED', msg: 'Too many requests. Please try again later.', retry_after: retryAfter }, 429, { 'Retry-After': String(retryAfter) });
@@ -1052,7 +1082,7 @@ async function handleRequest(event, context) {
     const u2 = db.users[rec.uid];
     if (!u2) return json({ ok: false, msg: 'User not found.' });
     if (u2.frozen) { delete db.temp_tokens[tt]; await saveDB(db); return json({ ok: false, code: 'ACCOUNT_FROZEN', msg: 'Account frozen. Please contact support.' }, 403); }
-    { const rl = rateCheck('2fa:' + u2.uid, 20, 15 * 60 * 1000); if (rl.limited) return rateLimitedJson(rl.retryAfter); }
+    { const rl = await rateCheckShared('login_2fa', String(u2.uid)); if (rl.unavailable) return rateLimitUnavailableJson(); if (rl.limited) return rateLimitedJson(rl.retryAfter); }
     if (!totpVerify(u2.twofa_secret, code)) return json({ ok: false, msg: 'Invalid 2FA code.' });
     delete db.temp_tokens[tt];
     u2.last_login = nowStr();
@@ -1192,7 +1222,8 @@ async function handleRequest(event, context) {
   if (path === 'account/credentials/reauth' && method === 'POST') {
     if (!user) return json({ ok: false, msg: 'Not signed in.', need_login: true }, 401);
     if (user.frozen) return json({ ok: false, code: 'ACCOUNT_FROZEN', msg: 'Account frozen. Please contact support.' }, 403);
-    const reauthLimit = rateCheck('credential-reauth:' + user.uid, 8, 15 * 60 * 1000);
+    const reauthLimit = await rateCheckShared('credential_reauth', String(user.uid));
+    if (reauthLimit.unavailable) return rateLimitUnavailableJson();
     if (reauthLimit.limited) return rateLimitedJson(reauthLimit.retryAfter);
     const sessionRecord = getSessionRecord(db, event);
     if (!sessionRecord || sessionRecord.user.uid !== user.uid) return json({ ok: false, msg: 'Please sign in again.', need_login: true }, 401);
@@ -1251,7 +1282,8 @@ async function handleRequest(event, context) {
   if (path === 'account/credentials/recover' && method === 'POST') {
     if (!user) return json({ ok: false, msg: 'Not signed in.', need_login: true }, 401);
     if (user.frozen) return json({ ok: false, code: 'ACCOUNT_FROZEN', msg: 'Account frozen. Please contact support.' }, 403);
-    const recoverLimit = rateCheck('credential-recover:' + user.uid, 5, 15 * 60 * 1000);
+    const recoverLimit = await rateCheckShared('credential_recover', String(user.uid));
+    if (recoverLimit.unavailable) return rateLimitUnavailableJson();
     if (recoverLimit.limited) return rateLimitedJson(recoverLimit.retryAfter);
     const sessionRecord = getSessionRecord(db, event);
     const verified = sessionRecord && sessionRecord.session && sessionRecord.session.credential_reauth;
@@ -1451,7 +1483,7 @@ async function handleRequest(event, context) {
         return json({ ok: false, code: 'REAUTH_REQUIRED', msg: 'Please sign in again before enabling two-factor authentication.' }, 403);
       }
     } else {
-      { const rl = rateCheck('2fa-setup-password:' + user.uid, 10, 15 * 60 * 1000); if (rl.limited) return rateLimitedJson(rl.retryAfter); }
+      { const rl = await rateCheckShared('twofa_setup_password', String(user.uid)); if (rl.unavailable) return rateLimitUnavailableJson(); if (rl.limited) return rateLimitedJson(rl.retryAfter); }
       const currentPassword = String(body.current_password || '');
       if (!currentPassword || hashPassword(currentPassword, user.salt) !== user.password_hash) return json({ ok: false, code: 'REAUTH_FAILED', msg: 'The current login password is incorrect.' }, 403);
     }
@@ -1464,7 +1496,7 @@ async function handleRequest(event, context) {
     if (!user) return json({ ok: false, msg: 'Not signed in.', need_login: true }, 401);
     if (user.twofa_enabled) return json({ ok: false, code: 'TWOFA_ALREADY_ENABLED', msg: 'Two-factor authentication is already enabled.' }, 409);
     if (!user.twofa_secret) return json({ ok: false, code: 'TWOFA_SETUP_REQUIRED', msg: 'Please start the two-factor authentication setup first.' }, 400);
-    { const rl = rateCheck('2fa-setup-confirm:' + user.uid, 10, 15 * 60 * 1000); if (rl.limited) return rateLimitedJson(rl.retryAfter); }
+    { const rl = await rateCheckShared('twofa_setup_confirm', String(user.uid)); if (rl.unavailable) return rateLimitUnavailableJson(); if (rl.limited) return rateLimitedJson(rl.retryAfter); }
     if (!totpVerify(user.twofa_secret, String(body.code || ''))) return json({ ok: false, msg: 'Invalid verification code.' }, 403);
     user.twofa_enabled = true;
     await saveDB(db);
@@ -1474,7 +1506,7 @@ async function handleRequest(event, context) {
   if (path === '2fa/disable' && method === 'POST') {
     if (!user) return json({ ok: false, msg: 'Not signed in.', need_login: true }, 401);
     if (!user.twofa_enabled || !user.twofa_secret) return json({ ok: false, code: 'TWOFA_NOT_ENABLED', msg: 'Two-factor authentication is not enabled.' }, 409);
-    { const rl = rateCheck('2fa-disable:' + user.uid, 10, 15 * 60 * 1000); if (rl.limited) return rateLimitedJson(rl.retryAfter); }
+    { const rl = await rateCheckShared('twofa_disable', String(user.uid)); if (rl.unavailable) return rateLimitUnavailableJson(); if (rl.limited) return rateLimitedJson(rl.retryAfter); }
     if (!totpVerify(user.twofa_secret, String(body.code || ''))) return json({ ok: false, msg: 'Invalid verification code.' }, 403);
     user.twofa_enabled = false;
     user.twofa_secret = ''; // Rotate the secret on next enrollment; do not retain a disabled factor.
@@ -1920,7 +1952,8 @@ async function handleRequest(event, context) {
   if (path === 'seconds/order' && method === 'POST') {
     if (!user) return json({ ok: false, msg: 'Not signed in.', need_login: true }, 401);
     if (user.frozen) return json({ ok: false, msg: 'This account is frozen and cannot open short-term contracts.', code: 'ACCOUNT_FROZEN' }, 403);
-    const rl = rateCheck('seconds:order:' + String(user.uid), 30, 5 * 60 * 1000);
+    const rl = await rateCheckShared('seconds_order', String(user.uid));
+    if (rl.unavailable) return rateLimitUnavailableJson();
     if (rl.limited) return rateLimitedJson(rl.retryAfter);
     if (!financialWritesEnabled()) {
       return json({ ok: false, code: 'FINANCIAL_CUTOVER_INCOMPLETE', msg: 'Short-term contracts are unavailable until financial cutover is complete. No funds were frozen and no position was created.' }, 503);
@@ -1953,7 +1986,8 @@ async function handleRequest(event, context) {
   if (path === 'seconds/settle' && method === 'POST') {
     if (!user) return json({ ok: false, msg: 'Not signed in.', need_login: true }, 401);
     if (user.frozen) return json({ ok: false, msg: 'This account is frozen.', code: 'ACCOUNT_FROZEN' }, 403);
-    const rl = rateCheck('seconds:settle:' + String(user.uid), 60, 5 * 60 * 1000);
+    const rl = await rateCheckShared('seconds_settle', String(user.uid));
+    if (rl.unavailable) return rateLimitUnavailableJson();
     if (rl.limited) return rateLimitedJson(rl.retryAfter);
     if (!financialWritesEnabled()) {
       return json({ ok: false, code: 'FINANCIAL_CUTOVER_INCOMPLETE', msg: 'Short-term contracts are unavailable until financial cutover is complete. This position was not settled.' }, 503);
@@ -2021,7 +2055,7 @@ async function handleRequest(event, context) {
   // ---------- POST /api/settings/password ----------
   if (path === 'settings/password' && method === 'POST') {
     if (!user) return json({ ok: false, msg: 'Not signed in.', need_login: true }, 401);
-    { const rl = rateCheck('password-change:' + user.uid, 10, 15 * 60 * 1000); if (rl.limited) return rateLimitedJson(rl.retryAfter); }
+    { const rl = await rateCheckShared('password_change', String(user.uid)); if (rl.unavailable) return rateLimitUnavailableJson(); if (rl.limited) return rateLimitedJson(rl.retryAfter); }
     if (Array.isArray(user.auth_providers) && user.auth_providers.length) return json({ ok: false, code: 'SUPABASE_AUTH_MANAGED', msg: 'This account is managed by Supabase Auth. Please update your sign-in credentials through the trusted Supabase Auth password recovery flow.' }, 409);
     if (!body.old_password || hashPassword(String(body.old_password), user.salt) !== user.password_hash) return json({ ok: false, code: 'REAUTH_FAILED', msg: 'The current password is incorrect.' }, 403);
     if ((body.new_password || '').length < 6) return json({ ok: false, msg: 'New password must be at least 6 characters.' }, 400);
@@ -2038,7 +2072,7 @@ async function handleRequest(event, context) {
   // ---------- POST /api/settings/fundpwd ----------
   if (path === 'settings/fundpwd' && method === 'POST') {
     if (!user) return json({ ok: false, msg: 'Not signed in.', need_login: true }, 401);
-    { const rl = rateCheck('fundpwd-change:' + user.uid, 10, 15 * 60 * 1000); if (rl.limited) return rateLimitedJson(rl.retryAfter); }
+    { const rl = await rateCheckShared('fund_password_change', String(user.uid)); if (rl.unavailable) return rateLimitUnavailableJson(); if (rl.limited) return rateLimitedJson(rl.retryAfter); }
     const pwd = String(body.fund_password || '');
     const fpValid = validateFundPassword(pwd);
     if (!fpValid.ok) return json({ ok: false, code: 'FUND_PASSWORD_FORMAT', msg: fpValid.msg }, 400);
