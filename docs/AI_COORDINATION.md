@@ -1190,3 +1190,12 @@ The backend CI branch filters were pointing at an older auth branch. Updated bot
 - Feature commits: `1e8d3121ed573a9fe18d9d2c280dfada750cba10` (adapter fix) and `9bef7472df7b585032a5410a591b3adf8dca502e` (test). Exact-head GitHub Actions run `42090819188` succeeded: unified build, 157 backend tests (157 passed / 0 failed), fail-closed preflight shape, and preserved entrypoint checks all passed.
 - Files were fetched back from GitHub and the adapter/test assertions were confirmed present. No browser test was performed.
 - No merge, Vercel deployment, production migration, or financial write was performed. Deployment pause remains active.
+
+
+## Migration status checker fail-closed correction — 2026-11-06
+
+- Source audit found `backend/scripts/check_migration_status.py` could return exit code 0 when `DATABASE_URL` was absent, `psycopg2` was unavailable, or the migration ledger query failed. It also compared four-digit repository migration filenames directly with Supabase timestamp-style migration versions, which are different namespaces.
+- Updated the checker to distinguish `STATIC_ONLY`, `DATABASE_UNAVAILABLE`, `VERSION_MAPPING_REQUIRED`, `MIGRATIONS_MISSING`, and `SCHEMA_LEDGER_MATCHED`. Only an explicitly requested `--offline` filename-only check may return success without database verification. Missing DB configuration/dependency, connection/query failures, and incompatible version namespaces now exit non-zero.
+- Added Node regression tests for explicit offline labeling and missing-`DATABASE_URL` fail-closed behavior.
+- Feature commits: `203444889d5c18a5e0b8eb8205f5826a7709e021` (checker) and `46f6482feff1e32c1aaeeb953339058af1202f17` (tests). Exact-head CI run `42093273024` and prior checker-only run `42093244767` were still in progress at documentation time; do not treat this batch as CI-verified until the final-head run completes.
+- No production database connection, migration, schema write, financial write, merge, or deployment was performed.
