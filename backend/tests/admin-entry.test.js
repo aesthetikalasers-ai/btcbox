@@ -30,11 +30,22 @@ test('admin console hydrates only supported read APIs and maps canonical user fi
   assert.match(accountView, /state\.admin\.withdrawals=results\[1\]\.value\.withdrawals/);
 });
 
-test('admin console includes admin-review withdrawals and does not expose unsupported deposit or KYC queues', () => {
-  assert.match(accountView, /w\.status==='pending'\|\|w\.status==='pending_admin_review'/);
+test('admin console includes admin-review withdrawals and keeps unsupported deposit queue disabled', () => {
+  assert.match(accountView, /w\\.status==='pending'\\|\\|w\\.status==='pending_admin_review'/);
   assert.match(accountView, /尚无管理员充值列表读取接口/);
-  assert.match(accountView, /尚无完整的管理员 KYC 申请读取接口/);
 });
+
+test('KYC queue is read through a redacted admin endpoint and rendered from API data', () => {
+  assert.match(apiCore, /sub === 'kyc' && method === 'GET'/);
+  assert.match(apiCore, /id_type: String\\(u\\.kyc\\.id_type \\|\\| ''\\)/);
+  assert.match(apiCore, /submitted_at: String\\(u\\.kyc\\.submitted_at \\|\\| ''\\)/);
+  assert.doesNotMatch(apiCore.slice(apiCore.indexOf("sub === 'kyc' && method === 'GET'"), apiCore.indexOf("// GET /api/admin/user?uid=")), /id_number|password_hash|twofa_secret|recovery_codes/);
+  assert.match(app, /async adminKyc\\(\\)\\{ return adminFetch\\('\\/admin\\/kyc'\\); \\}/);
+  assert.match(accountView, /apiAdapter\\.adminKyc\\(\\)/);
+  assert.match(accountView, /state\\.admin\\.kycs=results\\[2\\]\\.value\\.kycs/);
+  assert.doesNotMatch(accountView, /KYC 审核暂不可用/);
+});
+
 
 test('admin console warns when business state is saved but audit delivery is pending', () => {
   assert.match(accountView, /result\.audit_sync_pending===true/);
