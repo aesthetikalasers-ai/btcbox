@@ -31,3 +31,24 @@ Before cutover:
 - Import/restore historical state into staging, reconcile balances and histories, and verify rollback.
 - Test idempotent retries and concurrent requests for deposits, withdrawals, earn, spot trade, and seconds contracts.
 - Keep financial writes disabled until all relevant reads and writes use the same authoritative ledger and the full-cutover approval is explicit.
+
+## Withdrawal review and audit contract corrections
+
+The ordered migrations retain a single canonical `public.financial_audit_log` schema from
+`0002_financial_ledger_v1.sql`. Migration `0021` must map the legacy administrator
+audit RPC arguments onto `actor_id`, `subject_user_id`, `action`, `object_type`,
+`object_id`, `reason`, and `metadata`; it must not create a competing set of
+`uid/by/detail/meta` columns.
+
+Migration `0022` extends `public.withdrawal_requests` (not a separate
+`public.withdrawals` table), adds the persisted `require_admin_review` and
+`request_hash` fields, and changes the canonical RPC to the single 10-argument
+signature used by the API. The function must retain `apply_financial_operation`
+inside the same transaction as the withdrawal row insert. Both `pending` and
+`pending_admin_review` are eligible for the existing atomic review RPC and the
+administrator read snapshot.
+
+Do not apply these migrations to production as part of source-code validation.
+Run the complete ordered migration chain on an isolated staging database, then test
+same-key/same-payload retries, same-key/payload-mismatch rejection, concurrent
+withdrawal creation, approval, rejection/refund, and the administrator review queue.
