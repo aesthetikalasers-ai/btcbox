@@ -62,8 +62,13 @@ test('database limiter uses a unique key and atomic upsert with fixed limits and
 });
 
 test('identity source-target equality is rejected before account identity arrays are mutated', () => {
-  const guard = api.indexOf("code: 'IDENTITY_LINK_SOURCE_TARGET_SAME'");
-  const mutation = api.indexOf('user.supabase_user_ids = getUserLinkedIdentityIds(user)');
+  const routeStart = api.indexOf("if (path === 'auth/link-identity' && method === 'POST')");
+  const routeEnd = api.indexOf('\\n  // ---------- POST /api/', routeStart);
+  assert.ok(routeStart >= 0);
+  assert.ok(routeEnd > routeStart);
+  const route = api.slice(routeStart, routeEnd);
+  const guard = route.indexOf("code: 'IDENTITY_LINK_SOURCE_TARGET_SAME'");
+  const mutation = route.indexOf('user.supabase_user_ids = getUserLinkedIdentityIds(user)');
   assert.ok(guard >= 0);
   assert.ok(mutation > guard);
 });
