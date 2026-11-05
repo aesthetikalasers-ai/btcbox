@@ -743,6 +743,7 @@ function totpMatchStep(secret, code) {
     if (typeof code !== 'string' || !/^\d{6}$/.test(code)) return null;
     const key = base32Decode(secret);
     const counter = Math.floor(Date.now() / 1000 / 30);
+    let matchedStep = null;
     for (let offset = -1; offset <= 1; offset++) {
       const step = counter + offset;
       if (step < 0) continue;
@@ -752,8 +753,10 @@ function totpMatchStep(secret, code) {
       const o = hmac[hmac.length - 1] & 0x0f;
       const binCode = ((hmac[o] & 0x7f) << 24) | (hmac[o + 1] << 16) | (hmac[o + 2] << 8) | hmac[o + 3];
       const expected = (binCode % 1000000).toString().padStart(6, '0');
-      if (expected === code) return step;
+      // If a rare six-digit collision matches multiple adjacent steps, consume the newest.
+      if (expected === code) matchedStep = step;
     }
+    return matchedStep;
   } catch (e) { }
   return null;
 }
