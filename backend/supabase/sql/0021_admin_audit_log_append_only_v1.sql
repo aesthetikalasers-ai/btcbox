@@ -100,3 +100,6 @@ grant execute on function public.append_admin_audit_log(text, text, text, text, 
 -- Do not grant direct table mutation to browser roles. The financial ledger migration
 -- already grants service_role the required table and sequence privileges.
 revoke all on public.financial_audit_log from public, anon, authenticated;
+
+-- Refresh PostgREST's function signature cache after replacing the RPC contract.
+notify pgrst, 'reload schema';
