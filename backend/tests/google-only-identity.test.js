@@ -64,7 +64,7 @@ test('Supabase identity must include a canonical UUID user id', () => {
   assert.equal(isSupabaseUserId(null), false);
 });
 
-test('legacy local registration and password login endpoints are explicitly disabled', () => {
+test('legacy email registration stays disabled while BTCBOX username/password login is enabled', () => {
   const registerStart = source.indexOf("if (path === 'register' && method === 'POST')");
   const loginStart = source.indexOf("if (path === 'login' && method === 'POST')");
   const supabaseStart = source.indexOf("if ((path === 'supabase-login' || path === 'google-login') && method === 'POST')");
@@ -72,11 +72,12 @@ test('legacy local registration and password login endpoints are explicitly disa
   const register = source.slice(registerStart, loginStart);
   const login = source.slice(loginStart, supabaseStart);
   assert.match(register, /GOOGLE_ONLY_AUTH/);
-  assert.match(login, /GOOGLE_ONLY_AUTH/);
   assert.match(register, /403/);
-  assert.match(login, /403/);
+  assert.match(login, /INVALID_CREDENTIALS/);
+  assert.match(login, /hashBtcboxLoginPassword/);
+  assert.match(login, /login_username:/);
+  assert.match(login, /auth_method: 'username_password'/);
   assert.doesNotMatch(register, /hashPassword\(/);
-  assert.doesNotMatch(login, /hashPassword\(/);
 });
 
 test('local account cannot be silently linked by matching email alone', () => {
