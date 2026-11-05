@@ -1224,3 +1224,11 @@ The backend CI branch filters were pointing at an older auth branch. Updated bot
 - Further inspection of the actual API source also found the reader's validation still used `Number.isSafeInteger(Number(row.id))`; the earlier attempted replacement had changed only the PostgREST select expression, not the validator. This is now corrected to require a positive decimal-string ID and avoid numeric coercion.
 - Follow-up commits: `e751122ddb7b2b051acc560393f5fd830d6e4b89`, `dcac0282a6c1b7fcf91af4b3a1aa784a6f0bc5da`, `15e5a7eb88f9cb550b44cccd48988c04ff332910`, and final regex correction `5a8daf847e16d486220238ad58211ef85920054a`.
 - The exact-head CI run for `5a8daf847e16d486220238ad58211ef85920054a` is pending at the time of this update. Do not mark bigint cursor work complete until the final run passes and source is re-read.
+
+
+### Final audit cursor validation status
+
+- The corrected implementation at `5a8daf847e16d486220238ad58211ef85920054a` passed CI run `42094067086`.
+- Subsequent test-only cleanup commits `83a27e5204128aa6c518f7f9483928e2dfe6d3a5` and `6306d2527f8d333f312f55a55dccf42d97626538` simplify the brittle source assertion to literal substring checks and explicitly assert that unsafe Number coercion is absent.
+- Exact latest-head CI run `42094224016` for `6306d2527f8d333f312f55a55dccf42d97626538` is still in progress. Until it finishes, use the implementation-level passing run as evidence for the cursor correction, but do not mark the current exact branch head fully CI-verified.
+- No database read toggle enabled, no production migration, no merge, and no deployment.
