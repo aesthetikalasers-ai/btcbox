@@ -594,6 +594,19 @@ VIEWS.admin.afterRender = function(){
         ]});
     });
   }
+
+  function promptAdminReason(title, summaryHTML){
+    return new Promise(function(resolve){
+      if(!(window.BTCBox&&BTCBox.modal)){ resolve(''); return; }
+      var inputId='admin-reason-'+Math.random().toString(36).slice(2);
+      BTCBox.modal({title:title,width:'md',closable:true,
+        content:'<div style="font-size:14px;line-height:1.8;color:var(--text-secondary)">'+summaryHTML+'</div><label for="'+inputId+'" style="display:block;margin-top:14px;font-size:13px;font-weight:600">驳回原因（必填）</label><textarea id="'+inputId+'" maxlength="300" rows="4" placeholder="请填写真实、具体的驳回原因" style="display:block;width:100%;box-sizing:border-box;margin-top:6px;padding:10px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text-primary);resize:vertical"></textarea><div style="margin-top:8px;color:var(--text-muted);font-size:12px">原因将写入管理员审计记录。</div>',
+        buttons:[
+          {text:'取消',variant:'ghost',onClick:function(close){close();resolve('');}},
+          {text:'确认驳回',variant:'danger',onClick:function(close){var field=document.getElementById(inputId);var reason=String(field&&field.value||'').trim();if(!reason){if(field){field.focus();field.setCustomValidity('请填写驳回原因');field.reportValidity();}return;}close();resolve(reason.slice(0,300));}}
+        ]});
+    });
+  }
   function render(tab){
     if(tab==='audit'){
       var auditLogs=state.admin.auditLogs||[];
@@ -659,7 +672,7 @@ VIEWS.admin.afterRender = function(){
           return '<tr class="trow"><td class="td">'+escapeHtml(k.uid)+'</td><td class="td">'+escapeHtml(k.name)+'</td><td class="td" style="text-transform:capitalize;color:var(--text-secondary)">'+escapeHtml((k.id_type||'').replace('_',' '))+'</td><td class="td"><button class="ak-approve" data-uid="'+escapeHtml(k.uid)+'" style="color:var(--up);font-weight:600;font-size:12px;margin-right:10px;background:none;border:none;cursor:pointer">通过</button><button class="ak-reject" data-uid="'+escapeHtml(k.uid)+'" style="color:var(--down);font-weight:600;font-size:12px;background:none;border:none;cursor:pointer">驳回</button></td></tr>';
         }).join('')+'</tbody></table>';
       $('.ak-approve').forEach(function(b){b.onclick=async function(){var k=(state.admin.kycs||[]).find(function(x){return String(x.uid)===String(b.dataset.uid);})||{};var ok=await confirmAdminAction('通过 KYC 审核','<b>用户 UID：</b>'+escapeHtml(b.dataset.uid)+'<br><b>姓名：</b>'+escapeHtml(k.name||'—')+'<br><b>证件类型：</b>'+escapeHtml(k.id_type||'—'));if(!ok)return;await runAdminAction(b,()=>apiAdapter.adminApproveKyc({uid:b.dataset.uid}),'KYC 审核已提交');};});
-      $('.ak-reject').forEach(function(b){b.onclick=async function(){var k=(state.admin.kycs||[]).find(function(x){return String(x.uid)===String(b.dataset.uid);})||{};var ok=await confirmAdminAction('驳回 KYC 审核','<b>用户 UID：</b>'+escapeHtml(b.dataset.uid)+'<br><b>姓名：</b>'+escapeHtml(k.name||'—')+'<br><b>证件类型：</b>'+escapeHtml(k.id_type||'—')+'<br><b>驳回原因：</b>证件不清晰 (Document unclear)');if(!ok)return;await runAdminAction(b,()=>apiAdapter.adminRejectKyc({uid:b.dataset.uid,reason:'Document unclear'}),'KYC 驳回已提交');};});
+      $('.ak-reject').forEach(function(b){b.onclick=async function(){var k=(state.admin.kycs||[]).find(function(x){return String(x.uid)===String(b.dataset.uid);})||{};var reason=await promptAdminReason('驳回 KYC 审核','<b>用户 UID：</b>'+escapeHtml(b.dataset.uid)+'<br><b>姓名：</b>'+escapeHtml(k.name||'—')+'<br><b>证件类型：</b>'+escapeHtml(k.id_type||'—'));if(!reason)return;await runAdminAction(b,()=>apiAdapter.adminRejectKyc({uid:b.dataset.uid,reason:reason}),'KYC 驳回已提交');};});
     }
   }
   render(tab);
