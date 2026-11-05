@@ -27,6 +27,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [googleEnabled, setGoogleEnabled] = useState(true);
   const [tempToken, setTempToken] = useState("");
   const exchangeLock = useRef(false);
+  const callbackLock = useRef(false);
 
   const setSignedIn = useCallback(async () => {
     const account = await getAccount();
@@ -153,6 +154,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [acceptSupabaseSession]);
 
   const finishOAuth = useCallback(async () => {
+    if (callbackLock.current) return;
+    callbackLock.current = true;
     setBusy(true); setError(""); setNotice("");
     try {
       const client = clientRef.current;
@@ -180,7 +183,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Authentication callback failed.");
       setStatus("anonymous");
-    } finally { setBusy(false); }
+    } finally { callbackLock.current = false; setBusy(false); }
   }, [acceptSupabaseSession]);
 
   const verifyTwoFactor = useCallback(async (code: string) => {

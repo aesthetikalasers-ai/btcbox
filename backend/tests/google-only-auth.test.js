@@ -151,3 +151,12 @@ test('React authentication supports Supabase email and Google without linking id
   assert.ok(pages.includes('Choose a new password'));
   assert.ok(!pages.includes('Terms of Service'));
 });
+
+
+test('React auth callback is single-flight under StrictMode effect replay', () => {
+  const auth = read('../frontend/src/lib/auth.tsx');
+  assert.ok(auth.includes('const callbackLock = useRef(false)'));
+  assert.ok(auth.includes('if (callbackLock.current) return;'));
+  assert.ok(auth.includes('callbackLock.current = true;'));
+  assert.ok(auth.includes('finally { callbackLock.current = false; setBusy(false); }'));
+});
