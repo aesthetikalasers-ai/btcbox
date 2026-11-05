@@ -2427,7 +2427,7 @@ async function handleRequest(event, context) {
         uid: String(uid || ''),
         by: 'admin',
         time: nowStr(),
-        detail: String(detail || '').slice(0, 300),
+        detail: redactAdminAuditDetail(detail),
         postgres_sync_status: supabaseStorageConfigured() ? 'pending' : 'local_only'
       };
       db.audit_logs.push(event);
