@@ -468,11 +468,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           await reauthenticateCredentialsRequest(data.session.access_token);
           await client.auth.signOut();
           await setSignedIn();
+          setPendingCredentialRecoveryToken("");
+          setCredentialRecoveryNeedsTwoFactor(false);
           setCredentialRecoveryReady(true);
           setNotice("Identity verified. Set your new BTCBOX password within five minutes.");
         } catch (cause) {
           if ((cause as { code?: string })?.code !== "TWO_FACTOR_REQUIRED") throw cause;
           setPendingCredentialRecoveryToken(data.session.access_token);
+          setCredentialRecoveryReady(false);
           setCredentialRecoveryNeedsTwoFactor(true);
           await setSignedIn();
           setNotice("Enter your authenticator code to complete password recovery.");
@@ -485,11 +488,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           await reauthenticateIdentityForLinkRequest(data.session.access_token);
           await client.auth.signOut();
           await setSignedIn();
+          setPendingIdentityLinkToken("");
+          setIdentityLinkNeedsTwoFactor(false);
           setIdentityLinkSourceVerified(true);
           setNotice("Existing Google sign-in method verified. Now choose the new method to connect.");
         } catch (cause) {
           if ((cause as { code?: string })?.code !== "TWO_FACTOR_REQUIRED") throw cause;
           setPendingIdentityLinkToken(data.session.access_token);
+          setIdentityLinkSourceVerified(false);
           setIdentityLinkNeedsTwoFactor(true);
           await setSignedIn();
           setNotice("Enter your authenticator code to finish verifying your existing Google sign-in method.");
@@ -512,7 +518,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       window.history.replaceState({}, document.title, "/auth/react-callback");
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Authentication callback failed.");
-      if (["link-reauth", "link-target", "credential-recovery"].includes(new URL(window.location.href).searchParams.get("flow") || "")) {
+      const failedFlow = new URL(window.location.href).searchParams.get("flow") || "";
+      if (failedFlow === "link-reauth") {
+        setPendingIdentityLinkToken("");
+        setIdentityLinkNeedsTwoFactor(false);
+        setIdentityLinkSourceVerified(false);
+      }
+      if (failedFlow === "credential-recovery") {
+        setPendingCredentialRecoveryToken("");
+        setCredentialRecoveryNeedsTwoFactor(false);
+        setCredentialRecoveryReady(false);
+      }
+      if (["link-reauth", "link-target", "credential-recovery"].includes(failedFlow)) {
         await clientRef.current?.auth.signOut().catch(() => undefined);
         try { await setSignedIn(); } catch { setStatus("anonymous"); }
       } else {
