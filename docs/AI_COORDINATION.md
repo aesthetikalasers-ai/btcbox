@@ -1257,3 +1257,13 @@ The backend CI branch filters were pointing at an older auth branch. Updated bot
 - Added a further regression guard in `backend/tests/shared-rate-limit.test.js` to assert the cleanup RPC explicitly revokes PUBLIC/anon/authenticated and grants execution only to service_role, and that API core does not expose the cleanup RPC.
 - Latest feature commit: `01f5e1f1e6d0d04717b84d1c9ea0457f560986c4`; exact-head CI run `42103611209` is in progress.
 - Cleanup remains unscheduled until a trusted scheduler, secret handling, and hosting-plan constraints are confirmed. No public endpoint, cron configuration, or deployment was added.
+
+
+## Chain-deposit verifier contract regression tests and ingestion design — 2026-11-06
+
+- Latest source/test commit: `322c3f826cc369131e7448886133171001f62590`. Added five source-contract regression tests over migration `0016_financial_deposit_chain_verification_v3.sql`: confirmation/hash validation, existing pending-row lock and exact asset/network/amount match, atomic financial operation + confirmed state + audit event, same-observation idempotent replay, and service_role-only execution with legacy manual-confirmation bypass blocked.
+- Exact-head CI run `42104362259` completed successfully. Unified build passed; backend tests: **165 passed / 0 failed**; fail-closed preflight configuration-shape check passed; unified output and preserved entrypoint checks passed.
+- Added `docs/DEPOSIT_CHAIN_INGESTION_CONTRACT.md` in documentation-only commit `d8f5e695332c4f995aba86aa9bd2cdb9d01b9747`. It documents the current user-facing 403 guard, the verifier RPC's dependency on an existing pending intent, the missing in-repository ingestion/worker path, required trust boundaries, idempotency, chain finality/reorg handling, operational controls, acceptance gates, and unresolved provider/asset/address/scheduler decisions.
+- Current feature branch HEAD is `d8f5e695332c4f995aba86aa9bd2cdb9d01b9747`. The latest code/test commit has exact-head CI evidence above; the subsequent commit changes documentation only and did not alter executable source.
+- This is source-contract/build evidence, not proof of live chain-provider integration, a working pending-intent creator, production RPC privileges, or an end-to-end deposit credit. Keep positive-amount user deposit requests fail-closed. No production rows, balances, schema, or secrets were changed.
+- No merge, Vercel deployment, production migration, or financial write was performed. Deployment pause remains active.
