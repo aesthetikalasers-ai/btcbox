@@ -370,3 +370,40 @@ test('2FA login challenge requires a finite unexpired challenge and an enabled f
   assert.ok(route.includes('!u2.twofa_enabled || !u2.twofa_secret'));
   assert.ok(route.includes("code: 'TWOFA_CHALLENGE_EXPIRED'"));
 });
+
+
+test('2FA login challenge consumes the challenge and TOTP step in the same CAS-protected state write', () => {
+  const start = source.indexOf("if (path === 'login/2fa' && method === 'POST')");
+  const end = source.indexOf("// ---------- GET /api/kline", start);
+  assert.ok(start >= 0 && end > start, '2FA login route must exist');
+  const route = source.slice(start, end);
+  const consume = route.indexOf('consumeTotpStep(u2, String(code))');
+  const challengeDelete = route.indexOf('delete db.temp_tokens[tt]', consume);
+  const sessionCreate = route.indexOf('db.sessions[token2] =', challengeDelete);
+  const persist = route.indexOf('await saveDB(db)', sessionCreate);
+  const success = route.indexOf('return json({ ok: true }', persist);
+  assert.ok(consume >= 0 && challengeDelete > consume);
+  assert.ok(sessionCreate > challengeDelete && persist > sessionCreate && success > persist);
+  assert.ok(route.includes("code: 'TWOFA_CHALLENGE_EXPIRED'"));
+  assert.ok(route.includes("code: 'TWOFA_NOT_ENABLED'"));
+  assert.ok(route.includes("code: 'ACCOUNT_FROZEN'"));
+  assert.ok(route.includes("code: 'TWOFA_CHALLENGE_EXPIRED'"));
+});
+
+test('logout removes only the presented server session and clears the browser cookie after persistence', async () => {
+  const h = harness();
+  const result = await h.run('logout');
+  assert.equal(result.status, 200);
+  assert.equal(result.body.ok, true);
+  assert.equal(h.data.sessions[sessionToken], undefined);
+  assert.ok(h.data.sessions['other-session'], 'unrelated sessions must remain intact');
+  assert.equal(h.revision, 5, 'session revocation must be persisted');
+});
+
+test('logout never reports success when session revocation cannot be persisted', async () => {
+  const h = harness({}, { failCas: true });
+  const result = await h.run('logout');
+  assert.notEqual(result.status, 200);
+  assert.notEqual(result.body.ok, true);
+  assert.ok(h.data.sessions[sessionToken], 'failed persistence must not be mistaken for a revoked session');
+});
