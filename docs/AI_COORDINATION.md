@@ -354,3 +354,33 @@ Audit scope: read-only source inspection of `btcboxcdt` main at `93a236e4a3ed6c9
 - Test EIP-6963 multi-wallet selection, legacy `window.ethereum` fallback, Phantom Solana injection, wallet cancellation, and mobile handoff on actual iOS and Android devices.
 - Verify that the Supabase Auth project's Redirect URLs include the deployed BTCBOX login and registration routes with the required trailing-slash behavior noted in Supabase's guide.
 - Keep `main`, production auth configuration, and all funds-related flows untouched until full validation and explicit release approval.
+
+## Web3 redirect and configuration audit — 2026-11-05
+
+### SOURCE OBSERVED
+- Supabase project metadata lookup returned project `zlozsutefnmgwwzrlipt`, status `ACTIVE_HEALTHY`, region `us-east-1`. This confirms project metadata only; it does not expose Auth URL Configuration or provider/rate-limit settings.
+- The current React route registry maps `/login` and `/register` to the authentication page, `/settings` to account security, and `/auth/react-callback` to the OAuth callback.
+- The current Web3 calls invoke `signInWithWeb3({ chain, statement, wallet? })` without overriding `options.url`; Supabase Auth JS therefore uses the current browser URL for the SIWE/SIWS message. Web3 signing can occur on `/login`, `/register`, and `/settings`.
+- Google OAuth explicitly redirects to `/auth/react-callback`; that callback must also be permitted in Supabase's redirect URL allowlist.
+- Solana provider detection passes `window.phantom.solana`, `window.braveSolana`, or `window.solana` when they expose `signIn` or `signMessage`. Supabase Auth JS's current Solana wallet interface supports these methods; no custom signature-verification code or wallet SDK was added.
+- The Supabase documentation currently requires the Web3 signing page's URL to be registered in Redirect URLs and gives the trailing slash as significant (e.g. `/sign-in/`). It also recommends rate limiting and CAPTCHA to reduce automated wallet-account creation.
+- Supabase CLI v3 was released on 2026-11-02 and changes hosted/local command defaults; no CLI command was run in this audit.
+
+### NOT VERIFIED / BLOCKERS
+- The Supabase MCP project tools available in this session expose project metadata, database operations, and docs search, but not the project's Auth URL Configuration or Web3 rate-limit/CAPTCHA settings. Therefore the allowlist, Site URL, enabled providers, rate limits, and CAPTCHA state have NOT been verified or changed.
+- The canonical deployed host for this React route set is still not established from the current source/hosting evidence. Do not guess a production hostname or add broad wildcard redirect rules.
+- No browser/device wallet flow or build/test was executed in this audit.
+
+### REQUIRED DASHBOARD CHECK
+In Supabase Dashboard → Authentication → URL Configuration, confirm the exact deployed host and allowlist the following paths for that host, using the documented trailing-slash form for Web3 signing:
+- `https://<actual-app-host>/login/`
+- `https://<actual-app-host>/register/`
+- `https://<actual-app-host>/settings/`
+- `https://<actual-app-host>/auth/react-callback` (Google OAuth callback)
+
+Also verify the Site URL and inspect Authentication → Rate Limits / CAPTCHA for Web3 abuse controls. Use the exact live app host; keep preview wildcards out of production unless separately required and narrowly scoped.
+
+### NEXT
+- Obtain a screenshot or read-only confirmation of the actual Supabase URL Configuration and Web3 provider/rate-limit/CAPTCHA settings before declaring wallet login ready.
+- Keep the project configuration unchanged until the actual frontend host and required paths are confirmed.
+- Continue source-level security review and seek a non-deploying build/test environment; do not use Vercel Preview for test evidence while build quota is constrained.
