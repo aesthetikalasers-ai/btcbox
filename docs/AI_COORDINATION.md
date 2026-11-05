@@ -1628,3 +1628,11 @@ The backend CI branch filters were pointing at an older auth branch. Updated bot
 - Feature API commit `5ea329384167522d81333d0a69daddc199c6506c`; test commit `ef225e3f7f44e05ec5f306f8b24dc2d9d1cd0046`.
 - Exact feature HEAD: ef225e3f7f44e05ec5f306f8b24dc2d9d1cd0046. CI must pass for this exact HEAD before acceptance.
 - NOT VERIFIED: live Google OAuth and wallet browser callbacks, real provider state, production DB fault injection. No production writes/migrations, merge, deployment, or financial operations occurred.
+
+
+### Shared 2FA provider attribution follow-up — 2026-11-06 (UTC+8)
+
+- FOLLOW-UP FIX: Google/Web3 and username/password login share `/api/login/2fa`; temporary challenges now retain their originating `auth_method`, and the final session copies that value. This prevents a Google or wallet 2FA completion from being mislabeled as username/password authentication.
+- REGRESSION COVERAGE ADDED: `backend/tests/google-only-identity.test.js` checks provider-specific challenge attribution and propagation into the final session.
+- Feature API commit `f6378d05f1880843b70c8f1e933b16d6fe96028c`; test commit `b927139c042505a7fa5477cebb0604e824008657`.
+- Exact feature HEAD: b927139c042505a7fa5477cebb0604e824008657. Exact-head CI required; prior run results do not certify this new HEAD.
