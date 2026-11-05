@@ -552,3 +552,21 @@ Also verify the Site URL and inspect Authentication → Rate Limits / CAPTCHA fo
 - The user-directed pause on all Vercel Preview and Production deployments remains in force.
 - No deployment, merge, production configuration change, database mutation, or financial operation was performed in this audit.
 - Next audit batch: inspect route-level session/cookie behavior and the complete auth callback state machine; then prepare a minimal, security-preserving fix for the identity-link freshness mismatch and expand behavioral tests before any deployment is reconsidered.
+
+## Session and rate-limit follow-up — 2026-11-05
+
+### SOURCE OBSERVED
+- BTCBOX session cookies are HttpOnly, SameSite=Lax, Secure outside development, and scoped to Path=/; server-side sessions expire after seven days based on created_at.
+- The five-minute identity-link check uses the same original BTCBOX session created_at timestamp; successful OAuth/Web3 verification of the identity being added does not refresh that timestamp. This confirms the previously recorded identity-link freshness mismatch.
+- The backend rateCheck helper stores counters only in the module-local _rateBuckets Map. The credential reauthentication route, credential recovery route, and login 2FA route use this helper. In a serverless deployment, module memory is not a durable cross-instance rate-limit store and may reset on cold starts or differ between instances.
+- Username/password login and Supabase login use separate security_counters stored in btcbox_state, but the rateCheck-protected routes do not use that same persistent counter mechanism in the inspected paths.
+
+### SECURITY FOLLOW-UP
+- Finding: per-user throttles on credential reauthentication, credential recovery, and TOTP verification are process-local rather than shared across serverless instances.
+- Risk: request distribution across instances or instance restarts can weaken the intended per-account attempt ceiling. This is a defense-in-depth gap; it does not establish that an account was compromised.
+- Recommendation: move these sensitive throttles to an atomic, shared counter/lock implementation (for example, a Supabase RPC with a transaction/unique key) and fail closed when the limiter cannot be updated. Do not replace this with a non-atomic read/modify/write of the whole JSON state row.
+- STATUS: finding documented; no code or database changes made. Requires a reviewed atomic persistence design and isolated tests before implementation.
+
+### VALIDATION STATUS
+- SOURCE OBSERVED only. No HTTP integration tests, serverless multi-instance simulation, frontend build, or live authentication tests were run.
+- All Vercel deployments remain paused at the user's direction.
