@@ -1172,3 +1172,12 @@ The backend CI branch filters were pointing at an older auth branch. Updated bot
 - Read-only production catalog checks against project `zlozsutefnmgwwzrlipt` confirm `public.btcbox_rate_limits`, `public.btcbox_rate_limit_consume_v1(text,text)`, and `public.btcbox_rate_limit_cleanup_v1()` are all absent.
 - This confirms migration `0023_btcbox_shared_rate_limit_v1.sql` is not present in the live schema, regardless of the repository implementation. The 12 protected API policies therefore cannot use the shared Postgres limiter yet; the application is designed to fail closed with HTTP 503 when the required RPC/configuration is unavailable. Do not weaken this to an in-memory or local fallback.
 - The cleanup scheduler must not be implemented or enabled against production before the table and cleanup RPC exist. After explicit approval to stage/apply migration `0023`, use a trusted scheduled invocation authenticated by a server-side secret; never expose an unauthenticated cleanup endpoint. No SQL writes or migrations were performed.
+
+
+## KYC reviewer audit trail contract check — 2026-11-06
+
+- Added a focused source-contract test confirming both KYC approve and reject routes persist `reviewed_by='admin'`, `reviewed_at`, decision reason, and stage an audit event before saving state and flushing the audit outbox. Both responses expose `audit_sync_pending` so the UI can warn operators when delivery is pending.
+- No KYC business rule was changed: approval remains pending-only unless the existing reason-required exception flow is used; rejection remains available under the existing route behavior and requires a non-empty operator reason.
+- Feature commit: `6a532279e81303d431fc49b35d1fbba138a8de62`. Exact-head GitHub Actions run `42090589549` succeeded: unified build, 156 backend tests (156 passed / 0 failed), fail-closed preflight shape, and preserved entrypoint checks all passed.
+- A fresh read-only production catalog query reconfirmed `financial_audit_log` base columns exist but `event_id` and `append_admin_audit_log(text,text,text,text,text,jsonb)` are absent; `btcbox_rate_limits`, `btcbox_rate_limit_consume_v1`, and `btcbox_rate_limit_cleanup_v1` are also absent. Therefore the canonical audit read flag stays OFF and shared-rate-limit protected routes remain fail-closed. No schema writes, migrations, or financial writes were performed.
+- No browser test, merge, Vercel deployment, or production migration was performed. Deployment pause remains active.
