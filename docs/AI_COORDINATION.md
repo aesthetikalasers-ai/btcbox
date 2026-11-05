@@ -781,3 +781,8 @@ Also verify the Site URL and inspect Authentication → Rate Limits / CAPTCHA fo
 ## Latest source audit — 2026-11-05
 
 Feature branch `feat/btcbox-web3-auth-20261105` at `48d82c0877dd945d7a4f4115f3cfa56b8a5f71a6` now includes a twelve-scope shared request guard. Source read-back confirms each scope appears in the API policy and call site, migration CHECK and RPC CASE, and the source-contract test. The target route uses the shared guard and consistent Auth URL fallback. Tests and database execution remain pending. No database changes, merge, or deployment; release pause remains active.
+
+
+## CI coverage for active auth feature branch — 2026-11-05
+
+The backend CI branch filters were pointing at an older auth branch. Updated both push and pull-request filters to include `feat/btcbox-web3-auth-20261105`. This CI workflow runs the unified build, backend test suite, and fail-closed preflight; it contains no Vercel deployment step. GitHub Actions run `42052460527` was created for feature SHA `86af1338b21d9576e334070c826c554a1f85d14d` and was observed in progress at the time of this note. Do not treat the run as passed until its completed conclusion and logs are inspected. The Vercel deployment pause remains unchanged.
