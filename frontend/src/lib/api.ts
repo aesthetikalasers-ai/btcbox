@@ -128,6 +128,10 @@ export interface AccountBalance {
 export interface AccountSnapshot {
   uid: string;
   email: string;
+  username?: string;
+  has_login_password?: boolean;
+  auth_providers?: string[];
+  linked_identities?: Array<{ provider: string; wallet_address?: string; wallet_chain?: string; linked_at?: string }>;
   wallet_address?: string;
   wallet_chain?: "ethereum" | "solana" | "";
   balances: Record<string, AccountBalance>;
@@ -259,6 +263,43 @@ export async function exchangeSupabaseSession(accessToken: string): Promise<Supa
   if (payload.require_2fa) return payload;
   if (payload.ok !== true) throw new ApiError(payload.msg || "BTCBOX sign-in failed.", response.status, payload.code);
   return payload;
+}
+
+export async function loginWithUsername(username: string, password: string): Promise<SupabaseLoginResult> {
+  const response = await fetch(`${API_BASE_URL}/login`, {
+    method: "POST", credentials: "include",
+    headers: { Accept: "application/json", "Content-Type": "application/json" },
+    cache: "no-store", body: JSON.stringify({ username, password }),
+  });
+  const payload = await response.json().catch(() => null) as SupabaseLoginResult | null;
+  if (!response.ok || !payload) throw new ApiError(payload?.msg || "BTCBOX sign-in failed.", response.status, payload?.code);
+  if (payload.require_2fa) return payload;
+  if (payload.ok !== true) throw new ApiError(payload.msg || "Username or password is incorrect.", response.status, payload.code);
+  return payload;
+}
+
+export async function setBtcboxCredentials(username: string, password: string, currentPassword?: string): Promise<void> {
+  const response = await fetch(`${API_BASE_URL}/account/credentials`, {
+    method: "POST", credentials: "include",
+    headers: { Accept: "application/json", "Content-Type": "application/json" },
+    cache: "no-store", body: JSON.stringify({ username, password, current_password: currentPassword || "" }),
+  });
+  const payload = await response.json().catch(() => null) as { ok?: boolean; msg?: string; code?: string } | null;
+  if (!response.ok || !payload || payload.ok !== true) {
+    throw new ApiError(payload?.msg || "BTCBOX credentials could not be saved.", response.status, payload?.code);
+  }
+}
+
+export async function linkSupabaseIdentity(accessToken: string): Promise<void> {
+  const response = await fetch(`${API_BASE_URL}/auth/link-identity`, {
+    method: "POST", credentials: "include",
+    headers: { Accept: "application/json", "Content-Type": "application/json" },
+    cache: "no-store", body: JSON.stringify({ supabase_access_token: accessToken }),
+  });
+  const payload = await response.json().catch(() => null) as { ok?: boolean; msg?: string; code?: string } | null;
+  if (!response.ok || !payload || payload.ok !== true) {
+    throw new ApiError(payload?.msg || "Identity could not be linked.", response.status, payload?.code);
+  }
 }
 
 export async function completeLogin2fa(tempToken: string, code: string): Promise<void> {

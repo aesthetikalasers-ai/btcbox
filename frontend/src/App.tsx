@@ -3,6 +3,7 @@ import { Navigate, Route, Routes } from "react-router-dom";
 import { AppLayout } from "./components/layout/AppLayout";
 import { I18nProvider } from "./lib/i18n";
 import { AuthCallbackPage, AuthPage } from "./features/auth/AuthPages";
+import { AccountSetupPage } from "./features/auth/AccountSetupPage";
 import { useAuth } from "./lib/auth";
 
 const Dashboard = lazy(() => import("./features/dashboard/Dashboard").then((m) => ({ default: m.Dashboard })));
@@ -28,7 +29,7 @@ export default function App() {
     <Route path="/deposit" element={<SectionPage title="Deposit" description="Deposit address selection and pending-deposit workflow are not connected in this frontend preview." />} />
     <Route path="/withdraw" element={<SectionPage title="Withdraw" description="Withdrawal review and confirmation will use the existing backend contract; no transaction can be submitted from this preview." />} />
     <Route path="/earn" element={<SectionPage title="Earn" description="Earn products and redemption actions will be connected to the existing backend after API contract verification." />} />
-    <Route path="/login" element={<AuthPage mode="login" />} /><Route path="/register" element={<AuthPage mode="register" />} /><Route path="/auth/react-callback" element={<AuthCallbackPage />} />
+    <Route path="/login" element={<AuthPage mode="login" />} /><Route path="/register" element={<AuthPage mode="register" />} /><Route path="/account-setup" element={<AccountSetupPage />} /><Route path="/auth/react-callback" element={<AuthCallbackPage />} />
     
     <Route path="/kyc" element={<SectionPage title="Verification" description="Identity verification status and submission will be connected to the existing account API." />} />
     <Route path="/support" element={<SectionPage title="Support" description="Support conversations will be connected to the authenticated support API." />} />

@@ -1,11 +1,14 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import { completeLogin2fa, exchangeSupabaseSession, getAccount, getAuthClientConfig, logout } from "./api";
+import { completeLogin2fa, exchangeSupabaseSession, getAccount, getAuthClientConfig, linkSupabaseIdentity as linkIdentityRequest, loginWithUsername, logout, setBtcboxCredentials as saveCredentialsRequest } from "./api";
 
 type AuthStatus = "loading" | "anonymous" | "authenticated" | "two-factor" | "password-recovery";
 type AuthContextValue = {
-  status: AuthStatus; email: string; busy: boolean; error: string; notice: string; googleEnabled: boolean;
+  status: AuthStatus; email: string; busy: boolean; error: string; notice: string; googleEnabled: boolean; needsCredentials: boolean;
   signInWithGoogle: () => Promise<void>;
+  signInWithUsername: (username: string, password: string) => Promise<void>;
+  setBtcboxCredentials: (username: string, password: string) => Promise<void>;
+  linkSupabaseIdentity: (accessToken: string) => Promise<void>;
   signInWithWeb3: (chain: "ethereum" | "solana") => Promise<void>;
   signInWithEmail: (email: string, password: string) => Promise<void>;
   signUpWithEmail: (email: string, password: string) => Promise<void>;
@@ -26,6 +29,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [googleEnabled, setGoogleEnabled] = useState(true);
+  const [needsCredentials, setNeedsCredentials] = useState(false);
   const [tempToken, setTempToken] = useState("");
   const exchangeLock = useRef(false);
   const callbackLock = useRef(false);
@@ -33,6 +37,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const setSignedIn = useCallback(async () => {
     const account = await getAccount();
     setEmail(account.email || "");
+    setNeedsCredentials(!account.username || account.has_login_password !== true);
     setTempToken("");
     setStatus("authenticated");
   }, []);
@@ -86,6 +91,46 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     })();
     return () => { active = false; controller.abort(); };
   }, [acceptSupabaseSession, setSignedIn]);
+
+  const signInWithUsername = useCallback(async (username: string, password: string) => {
+    setBusy(true); setError(""); setNotice("");
+    try {
+      const result = await loginWithUsername(username, password);
+      if (result.require_2fa && result.temp_token) {
+        setTempToken(result.temp_token);
+        setStatus("two-factor");
+        return;
+      }
+      await setSignedIn();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Username or password is incorrect.");
+      throw cause;
+    } finally { setBusy(false); }
+  }, [setSignedIn]);
+
+  const setBtcboxCredentials = useCallback(async (username: string, password: string) => {
+    setBusy(true); setError(""); setNotice("");
+    try {
+      await saveCredentialsRequest(username, password);
+      await setSignedIn();
+      setNotice("Your BTCBOX username and password are ready.");
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "BTCBOX credentials could not be saved.");
+      throw cause;
+    } finally { setBusy(false); }
+  }, [setSignedIn]);
+
+  const linkSupabaseIdentity = useCallback(async (accessToken: string) => {
+    setBusy(true); setError(""); setNotice("");
+    try {
+      await linkIdentityRequest(accessToken);
+      await setSignedIn();
+      setNotice("The sign-in identity has been linked to this BTCBOX account.");
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Identity could not be linked.");
+      throw cause;
+    } finally { setBusy(false); }
+  }, [setSignedIn]);
 
   const signInWithGoogle = useCallback(async () => {
     setBusy(true); setError(""); setNotice("");
@@ -223,16 +268,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       await logout();
       await clientRef.current?.auth.signOut();
-      setEmail(""); setTempToken(""); setStatus("anonymous");
+      setEmail(""); setTempToken(""); setNeedsCredentials(false); setStatus("anonymous");
     } catch (cause) { setError(cause instanceof Error ? cause.message : "Sign out failed."); throw cause; }
     finally { setBusy(false); }
   }, []);
 
   const value = useMemo(() => ({
-    status, email, busy, error, notice, googleEnabled, signInWithGoogle, signInWithWeb3, signInWithEmail, signUpWithEmail,
+    status, email, busy, error, notice, googleEnabled, needsCredentials, signInWithGoogle, signInWithUsername, setBtcboxCredentials, linkSupabaseIdentity, signInWithWeb3, signInWithEmail, signUpWithEmail,
     requestPasswordReset, completePasswordRecovery, finishOAuth, verifyTwoFactor, signOut,
     clearError: () => setError(""),
-  }), [status, email, busy, error, notice, googleEnabled, signInWithGoogle, signInWithWeb3, signInWithEmail, signUpWithEmail,
+  }), [status, email, busy, error, notice, googleEnabled, needsCredentials, signInWithGoogle, signInWithUsername, setBtcboxCredentials, linkSupabaseIdentity, signInWithWeb3, signInWithEmail, signUpWithEmail,
     requestPasswordReset, completePasswordRecovery, finishOAuth, verifyTwoFactor, signOut]);
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
