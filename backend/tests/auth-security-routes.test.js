@@ -138,7 +138,7 @@ const recoveryMarker = {
 test('identity-link handler verifies source, links target, consumes marker, and rejects replay', async () => {
   const h = harness();
   const source = await h.run('auth/link-identity/reauth', { supabase_access_token: 'source-token' });
-  assert.equal(source.status, 200);
+  assert.equal(source.status, 200, JSON.stringify(source.body));
   const linked = await h.run('auth/link-identity', { supabase_access_token: 'target-token' });
   assert.equal(linked.status, 200);
   assert.ok(h.data.users['16588'].supabase_user_ids.includes(ids.target));
@@ -158,7 +158,8 @@ test('identity-link handler rejects expired or wrong-purpose markers and CAS all
     assert.equal(result.status, 403);
   }
   const h = harness();
-  assert.equal((await h.run('auth/link-identity/reauth', { supabase_access_token: 'source-token' })).status, 200);
+  const reauth = await h.run('auth/link-identity/reauth', { supabase_access_token: 'source-token' });
+  assert.equal(reauth.status, 200, JSON.stringify(reauth.body));
   h.holdTwoReads();
   const results = await Promise.all([
     h.run('auth/link-identity', { supabase_access_token: 'target-token' }),
