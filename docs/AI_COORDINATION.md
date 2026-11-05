@@ -1549,3 +1549,14 @@ The backend CI branch filters were pointing at an older auth branch. Updated bot
 - REVIEW RESULT: source/target identity proof validation, server-side one-time marker consumption, conflict checks, CAS winner semantics, and local proof clearing were re-reviewed. No additional reproducible defect was established; no speculative auth behavior change was made.
 - NOT VERIFIED: live Google OAuth and wallet provider behavior in a deployed environment; Vercel deployment remains paused and no end-to-end live authentication was performed.
 - SAFETY: no production/staging DB access or writes, migration, merge, Vercel deployment, or financial operation occurred.
+
+
+### Wallet identity canonicalization across Ethereum and Solana — 2026-11-06 (UTC+8)
+
+- SOURCE OBSERVED: server-verified Ethereum wallet addresses are normalized to lowercase when parsed from Supabase claims, but legacy wallet_identities and legacy primary wallet_address records may retain EIP-55 checksum casing. Three uniqueness paths (initial Supabase login, identity-link conflict detection, and same-account wallet duplicate detection) previously compared address strings exactly. The same EVM address with different letter casing could therefore evade a conflict/duplicate check.
+- PATCHED: added strict chain-aware wallet normalization and equality helpers. Ethereum addresses are validated and compared case-insensitively; Solana addresses remain case-sensitive; malformed stored addresses and cross-chain comparisons never match. Applied consistently to login ownership checks, identity-link conflict checks, and existing-account duplicate prevention.
+- REGRESSION COVERAGE ADDED: backend/tests/google-only-identity.test.js checks EVM checksum-case equivalence, Solana case sensitivity, malformed address rejection, and chain separation.
+- Feature commits: API dba3382938fff77326a54cf49a05b260131d59af; tests 07a1fa266f7fa847d3c162372d73da21b8aeb897. Latest feature HEAD: 07a1fa266f7fa847d3c162372d73da21b8aeb897.
+- CI PENDING at note time: API commit run 42120773368 and exact latest-head run 42120779237 both in progress. Do not mark this batch accepted until latest-head CI completes successfully.
+- REVIEW RESULT: no other source-proven defect was established in the inspected provider allowlist, Supabase identity-ID ownership checks, and wallet claim validation. Live provider behavior remains NOT VERIFIED.
+- SAFETY: no DB writes/migrations, merge, deployment, or financial operations occurred.
