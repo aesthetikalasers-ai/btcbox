@@ -320,3 +320,37 @@ Audit scope: read-only source inspection of `btcboxcdt` main at `93a236e4a3ed6c9
 - No wallet SDK/dependency was installed in this audit.
 - No wallet connection UI or production configuration was changed in this audit.
 - Next implementation batch should follow the low-dependency direction above, then run non-deploying build/tests and real-device wallet QA.
+
+## Wallet discovery and mobile handoff implementation — 2026-11-05
+
+### IMPLEMENTED ON FEATURE BRANCH
+- Feature branch: `feat/btcbox-web3-auth-20261105`.
+- Latest inspected feature SHA: `8051911660efded4913a7baf8668417d189fac4e`.
+- Compared with `main` `14a8e361fd928626d4e350a03698135f0c49ceea`: 76 commits ahead / 0 behind. The branch contains the previously recorded authentication and UI/theme/chart work; do not treat this large branch as a narrow merge-ready wallet patch.
+- `frontend/src/lib/auth.tsx` now listens for EIP-6963 `eip6963:announceProvider`, requests announcements via `eip6963:requestProvider`, deduplicates providers by UUID, and passes the explicitly selected EIP-1193 provider to Supabase `signInWithWeb3`.
+- Ethereum sign-in UI shows a wallet chooser when multiple EIP-6963 providers are discovered. If none are announced, the existing Supabase injected `window.ethereum` fallback remains.
+- Solana wallet detection now explicitly checks `window.phantom.solana`, `window.braveSolana`, then `window.solana`, and passes a compatible `signIn` / `signMessage` wallet object to Supabase.
+- Account security linking and password re-verification also allow selection of an announced Ethereum provider when multiple are present.
+- Mobile sign-in help now provides user-clicked Phantom Browse and Coinbase Wallet Dapp universal links, and explains how to open BTCBOX in MetaMask's Explore browser. No automatic redirect or transaction request is used.
+- Added source assertions for EIP-6963 discovery, Solana provider detection, Ethereum wallet selection, and mobile deep-link construction.
+
+### SOURCE REFERENCES
+- Supabase Web3 Auth guide (updated 2026-10-22): https://supabase.com/docs/guides/auth/auth-web3
+- Supabase JS `signInWithWeb3`: https://supabase.com/docs/reference/javascript/auth-signinwithweb3
+- EIP-6963 specification: https://eips.ethereum.org/EIPS/eip-6963
+- Phantom Browse deeplink: https://docs.phantom.com/phantom-deeplinks/other-methods/browse
+- Coinbase Wallet mobile deeplink: https://docs.cdp.coinbase.com/coinbase-wallet/developer-guidance/mobile-dapp-integration
+- MetaMask mobile browser guidance: https://support.metamask.io/configure/wallet/how-to-use-the-metamask-mobile-browser
+
+### VALIDATION / DEPLOYMENT
+- Source changes and branch ref were re-read after commit; feature head is `8051911660efded4913a7baf8668417d189fac4e`.
+- GitHub combined status currently reports `Vercel – btcboxcdt: success`, but Vercel deployment history lookup for the exact feature branch/SHA returned zero records and direct lookup of the status target returned 404. Therefore no deployment URL or completed build artifact is verified from this check.
+- GitHub Actions workflow lookup returned no workflow runs for this SHA. The frontend TypeScript build and Node test suite have not been executed in a non-deploying environment; the added source assertions are not a test pass.
+- No browser or real-device tests have been performed with MetaMask, Phantom, Coinbase Wallet, iOS Safari or Android Chrome.
+- No Vercel deployment was created by the operator; no production merge or deployment occurred.
+
+### NEXT
+- Obtain a safe non-deploying environment to run `npm run build` and the backend Node tests. Do not use Vercel Preview merely to obtain test evidence while quota is constrained.
+- Test EIP-6963 multi-wallet selection, legacy `window.ethereum` fallback, Phantom Solana injection, wallet cancellation, and mobile handoff on actual iOS and Android devices.
+- Verify that the Supabase Auth project's Redirect URLs include the deployed BTCBOX login and registration routes with the required trailing-slash behavior noted in Supabase's guide.
+- Keep `main`, production auth configuration, and all funds-related flows untouched until full validation and explicit release approval.
