@@ -1165,3 +1165,10 @@ The backend CI branch filters were pointing at an older auth branch. Updated bot
 - The migration inventory still lists only two versions, despite the live chain-verifier schema/RPC being present. Treat this as migration-history drift: do not blindly reapply migration `0016`; reconcile schema state and migration history in an isolated environment first.
 - Production audit readiness remains blocked as described above: the canonical audit table exists but is empty; `event_id` and `append_admin_audit_log` are absent. Keep the canonical audit reader feature flag off.
 - These were read-only metadata/aggregate checks only. No rows were read, no SQL writes or migrations were executed, and no deposit or financial operation was performed.
+
+
+## Live shared-rate-limit readiness check — 2026-11-06
+
+- Read-only production catalog checks against project `zlozsutefnmgwwzrlipt` confirm `public.btcbox_rate_limits`, `public.btcbox_rate_limit_consume_v1(text,text)`, and `public.btcbox_rate_limit_cleanup_v1()` are all absent.
+- This confirms migration `0023_btcbox_shared_rate_limit_v1.sql` is not present in the live schema, regardless of the repository implementation. The 12 protected API policies therefore cannot use the shared Postgres limiter yet; the application is designed to fail closed with HTTP 503 when the required RPC/configuration is unavailable. Do not weaken this to an in-memory or local fallback.
+- The cleanup scheduler must not be implemented or enabled against production before the table and cleanup RPC exist. After explicit approval to stage/apply migration `0023`, use a trusted scheduled invocation authenticated by a server-side secret; never expose an unauthenticated cleanup endpoint. No SQL writes or migrations were performed.
