@@ -139,3 +139,14 @@ test('identity linking avoids duplicate wallet records across legacy and normali
   assert.match(route, /if \(!walletAlreadyRecorded\)\s*\{\s*user\.wallet_identities\.push/);
   assert.match(route, /user\.auth_identities\.push\(\{ supabase_user_id: linkedId/);
 });
+
+
+test('linked Supabase identity ownership includes legacy auth_identities records', () => {
+  const isLinked = extractFunction('isSupabaseIdentityLinked');
+  const id = '550e8400-e29b-41d4-a716-446655440000';
+  assert.equal(isLinked({ auth_identities: [{ supabase_user_id: id }] }, id), true);
+  assert.equal(isLinked({ supabase_user_ids: [id] }, id), true);
+  assert.equal(isLinked({ supabase_user_id: id }, id), true);
+  assert.equal(isLinked({ auth_identities: [{ supabase_user_id: 'other' }] }, id), false);
+  assert.equal(isLinked({ auth_identities: [{ supabase_user_id: id }] }, ''), false);
+});
