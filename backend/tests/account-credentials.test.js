@@ -18,6 +18,8 @@ const validUsername = extractFunction('validateBtcboxUsername');
 const validPassword = extractFunction('validateBtcboxLoginPassword');
 const linked = extractFunction('isSupabaseIdentityLinked');
 const linkedIds = extractFunction('getUserLinkedIdentityIds');
+const validSupabaseId = extractFunction('isSupabaseUserId');
+const verifiedAuthTime = extractFunction('getVerifiedSupabaseAuthTime', { Buffer, isSupabaseUserId: validSupabaseId });
 
 test('BTCBOX usernames are normalized consistently and validated strictly', () => {
   assert.equal(normalize('  Alice_123  '), 'alice_123');
@@ -45,6 +47,28 @@ test('Supabase identity lookup accepts legacy primary IDs and explicitly linked 
   assert.equal(linked(user, 'unrelated-id'), false);
   assert.deepEqual(Array.from(linkedIds(user)), ['primary-id', 'linked-id']);
   assert.deepEqual(Array.from(linkedIds({ supabase_user_id: 'legacy-id' })), ['legacy-id']);
+});
+
+test('Supabase auth_time is parsed only from a structurally valid JWT payload', () => {
+  const subject = '123e4567-e89b-12d3-a456-426614174000';
+  const payload = Buffer.from(JSON.stringify({ sub: subject, auth_time: 1793898000 })).toString('base64url');
+  const token = 'header.' + payload + '.signature';
+  assert.deepEqual(verifiedAuthTime(token), { auth_time: 1793898000, subject });
+  assert.equal(verifiedAuthTime('not-a-jwt'), null);
+  const noAuthTime = Buffer.from(JSON.stringify({ sub: subject, iat: 1793898000 })).toString('base64url');
+  assert.equal(verifiedAuthTime('header.' + noAuthTime + '.signature'), null);
+  const badSubject = Buffer.from(JSON.stringify({ sub: 'not-a-uuid', auth_time: 1793898000 })).toString('base64url');
+  assert.equal(verifiedAuthTime('header.' + badSubject + '.signature'), null);
+});
+
+test('credential recovery requires a server-verified, linked, recently reauthenticated identity', () => {
+  assert.ok(source.includes("path === 'account/credentials/reauth' && method === 'POST'"));
+  assert.ok(source.includes("path === 'account/credentials/recover' && method === 'POST'"));
+  assert.ok(source.includes("identity endpoint"));
+  assert.ok(source.includes("claims.subject !== linkedId"));
+  assert.ok(source.includes("nowSeconds - authTime > 5 * 60"));
+  assert.ok(source.includes("!isSupabaseIdentityLinked(user, linkedId)"));
+  assert.ok(source.includes("delete sessionRecord.session.credential_reauth"));
 });
 
 test('credential and linking routes preserve one internal account and use revision-CAS persistence', () => {
