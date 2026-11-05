@@ -199,3 +199,15 @@ test('admin audit SQL idempotency tolerates reason redaction upgrades but preser
   assert.doesNotMatch(block, /v_existing\.reason is distinct from v_reason/);
   assert.match(block, /Reason text may differ on a retry when/);
 });
+
+
+test('admin audit outbox retries use a bounded concurrent batch and finite network timeout', () => {
+  const start = source.indexOf('async function flushAdminAuditOutbox()');
+  const end = source.indexOf("if (path.startsWith('admin/'))", start);
+  assert.ok(start >= 0 && end > start);
+  const flush = source.slice(start, end);
+  assert.match(flush, /const batch = pending\.slice\(0, 10\)/);
+  assert.match(flush, /await Promise\.all\(batch\.map\(async function \(entry\)/);
+  assert.match(flush, /signal: AbortSignal\.timeout\(4000\)/);
+  assert.match(flush, /postgres_sync_status === 'pending'/);
+});
