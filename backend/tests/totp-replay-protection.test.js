@@ -9,7 +9,8 @@ const source = fs.readFileSync(path.join(__dirname, '..', 'api-core.js'), 'utf8'
 test('TOTP verifier returns a matched time-step and validates six-digit input', () => {
   assert.ok(source.includes('function totpMatchStep(secret, code)'));
   assert.ok(source.includes("if (typeof code !== 'string' || !/^\\d{6}$/.test(code)) return null;"));
-  assert.ok(source.includes('if (expected === code) return step;'));
+  assert.ok(source.includes('if (expected === code) matchedStep = step;'));
+  assert.ok(source.includes('return matchedStep;'));
 });
 
 test('TOTP consumption rejects a previously consumed step and stores the new counter', () => {
