@@ -514,13 +514,16 @@ VIEWS.admin.afterRender = function(){
     adminDataErrors=[];
     var status=$('#admin-data-status');
     if(status){status.style.display='block';status.textContent='正在加载管理员数据…';}
-    var results=await Promise.allSettled([apiAdapter.adminUsers(),apiAdapter.adminWithdrawals()]);
+    var results=await Promise.allSettled([apiAdapter.adminUsers(),apiAdapter.adminWithdrawals(),apiAdapter.adminKyc()]);
     if(results[0].status==='fulfilled'&&results[0].value&&results[0].value.ok&&Array.isArray(results[0].value.users)){
       state.admin.users=results[0].value.users.map(function(u){return Object.assign({},u,{kyc:u.kyc_status||'unverified',balances:{USDT:Number(u.total_usdt)||0}});});
     }else{adminDataErrors.push('用户列表加载失败：'+(results[0].status==='fulfilled'?(results[0].value&&(results[0].value.error||results[0].value.msg)||'服务器返回异常'):'网络连接失败'));}
     if(results[1].status==='fulfilled'&&results[1].value&&results[1].value.ok&&Array.isArray(results[1].value.withdrawals)){
       state.admin.withdrawals=results[1].value.withdrawals;
     }else{adminDataErrors.push('提现列表加载失败：'+(results[1].status==='fulfilled'?(results[1].value&&(results[1].value.error||results[1].value.msg)||'服务器返回异常'):'网络连接失败'));}
+    if(results[2].status==='fulfilled'&&results[2].value&&results[2].value.ok&&Array.isArray(results[2].value.kycs)){
+      state.admin.kycs=results[2].value.kycs;
+    }else{adminDataErrors.push('KYC 申请列表加载失败：'+(results[2].status==='fulfilled'?(results[2].value&&(results[2].value.error||results[2].value.msg)||'服务器返回异常'):'网络连接失败'));}
     adminDataLoading=false;
     if(status){status.style.display=adminDataErrors.length?'block':'none';status.textContent=adminDataErrors.join('；');status.className=adminDataErrors.length?'va-banner va-banner-err':'va-banner va-banner-inf';}
     render(tab);
@@ -613,8 +616,6 @@ VIEWS.admin.afterRender = function(){
       $('.aw-approve').forEach(function(b){b.onclick=async function(){var w=(state.admin.withdrawals||[]).find(function(x){return String(x.id)===String(b.dataset.id);})||{};var ok=await confirmAdminAction('批准提币','<b>提币 ID：</b>'+escapeHtml(b.dataset.id)+'<br><b>用户 UID：</b>'+escapeHtml(w.uid||'—')+'<br><b>币种/数量：</b>'+escapeHtml(w.coin||'—')+' '+escapeHtml(w.amount||'—')+'<br><b>目标地址：</b>'+escapeHtml(w.address||'—'));if(!ok)return;await runAdminAction(b,()=>apiAdapter.adminApproveWithdraw(b.dataset.id),'提币审批已提交');};});
       $('.aw-reject').forEach(function(b){b.onclick=async function(){var w=(state.admin.withdrawals||[]).find(function(x){return String(x.id)===String(b.dataset.id);})||{};var ok=await confirmAdminAction('驳回提币','<b>提币 ID：</b>'+escapeHtml(b.dataset.id)+'<br><b>用户 UID：</b>'+escapeHtml(w.uid||'—')+'<br><b>币种/数量：</b>'+escapeHtml(w.coin||'—')+' '+escapeHtml(w.amount||'—')+'<br><b>目标地址：</b>'+escapeHtml(w.address||'—')+'<br><b>驳回原因：</b>地址不匹配 (Address mismatch)');if(!ok)return;await runAdminAction(b,()=>apiAdapter.adminRejectWithdraw({id:b.dataset.id,reason:'Address mismatch'}),'提币驳回已提交');};});
     } else {
-      $('#admin-body').innerHTML=emptyState('KYC 审核暂不可用','当前版本尚无完整的管理员 KYC 申请读取接口，不能安全展示或审核申请。');
-      return;
       var klist=(state.admin.kycs||[]).filter(function(k){return k.status==='pending';});
       if(!klist.length){$('#admin-body').innerHTML=emptyState('暂无待审核 KYC','所有 KYC 申请均已审核。');return;}
       $('#admin-body').innerHTML='<table style="width:100%;border-collapse:collapse;min-width:560px"><thead><tr><th class="th">用户</th><th class="th">姓名</th><th class="th">证件类型</th><th class="th">操作</th></tr></thead><tbody>'+
