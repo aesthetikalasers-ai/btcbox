@@ -1606,3 +1606,14 @@ The backend CI branch filters were pointing at an older auth branch. Updated bot
 - CI PENDING: exact latest-head run 42121694108. Do not accept this test-only batch until exact latest-head CI succeeds.
 - NOT VERIFIED: live browser setup flow, real Supabase session timing, and production persistence behavior. No backend behavior change was made in this batch.
 - SAFETY: no production/staging DB writes or migrations, merge, Vercel deployment, or financial operations occurred.
+
+
+### Username login and 2FA persistence hardening — 2026-11-06 (UTC+8)
+
+- TEST PASSED: preceding exact feature HEAD `bc1cb0484b06cd6eeebb3ccaee0351588ca1099c` completed CI run `42121694108` successfully.
+- SOURCE OBSERVED: username/password login persists its 2FA temporary challenge before returning it; 2FA verification validates challenge expiry, account existence, 2FA state and frozen status, applies shared rate limiting, consumes a TOTP step, removes the temporary challenge, and creates the authenticated session in one state save.
+- FIXED: all persistence paths for 2FA challenge creation, invalid-challenge cleanup, and final 2FA session creation now return explicit `PERSISTENCE_UNAVAILABLE` 503 responses on write failure. The final session cookie is emitted only after the session/challenge transition is saved. Successful 2FA sessions now record `auth_method: username_password_2fa`.
+- REGRESSION COVERAGE ADDED: `backend/tests/auth-security-routes.test.js` asserts challenge persistence precedes returning the temporary token and that the final cookie response follows successful persistence, including frozen/expired/disabled challenge branches.
+- Feature API commit `caf51a3a5c49df801f05ab71d04291c531af12bd`; test commit `ad31716bcfd7a0bff2e5927ea6f70a1afc5ace47`.
+- Exact feature HEAD at coordination update: ad31716bcfd7a0bff2e5927ea6f70a1afc5ace47. CI for this exact HEAD must complete successfully before acceptance.
+- NOT VERIFIED: live Supabase/Google browser flow, production persistence fault injection, and external authenticator behavior. No production DB writes/migrations, merge, deployment, or financial operations occurred.
