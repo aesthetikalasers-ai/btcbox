@@ -1305,14 +1305,20 @@ async function handleRequest(event, context) {
       return json({ ok: false, code: 'AUTH_SERVICE_UNAVAILABLE', msg: 'Authentication service temporarily unavailable.' }, 503);
     }
     const linkedId = String(identity && identity.id || '').trim();
+    const targetClaims = getVerifiedSupabaseAuthTime(accessToken);
+    const targetNowSeconds = Math.floor(Date.now() / 1000);
+    const targetAuthTime = targetClaims && targetClaims.auth_time;
     const linkedEmail = String(identity && identity.email || '').trim().toLowerCase();
     const provider = getSingleSupabaseAuthProvider(identity);
     const walletIdentity = provider === 'web3' ? getSupabaseWalletIdentity(identity) : null;
     const confirmed = !!(identity && (identity.email_confirmed_at || identity.confirmed_at));
-    if (!isSupabaseUserId(linkedId) || !['google', 'web3'].includes(provider) ||
+    if (!isSupabaseUserId(linkedId) || !targetClaims || targetClaims.subject !== linkedId ||
+        !Number.isFinite(targetAuthTime) || targetAuthTime > targetNowSeconds + 60 ||
+        targetNowSeconds - targetAuthTime > 5 * 60 ||
+        !['google', 'web3'].includes(provider) ||
         (provider === 'google' && (!isValidAuthEmail(linkedEmail) || !confirmed)) ||
         (provider === 'web3' && !walletIdentity)) {
-      return json({ ok: false, code: 'INVALID_SUPABASE_IDENTITY', msg: 'Only a verified Google or supported wallet identity can be linked.' }, 403);
+      return json({ ok: false, code: 'RECENT_TARGET_REAUTH_REQUIRED', msg: 'Please freshly verify the Google account or wallet you want to link.' }, 403);
     }
     if (provider === 'google' && await detectGoogleProviderEnabled() !== true) {
       return json({ ok: false, code: 'GOOGLE_PROVIDER_UNAVAILABLE', msg: 'Google sign-in is temporarily unavailable.' }, 503);
