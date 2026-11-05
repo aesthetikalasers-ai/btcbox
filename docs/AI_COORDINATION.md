@@ -1418,3 +1418,12 @@ The backend CI branch filters were pointing at an older auth branch. Updated bot
 - PATCHED: removed only the orphaned fragment; retained the literal strict SHA-256 SQL assertion and the existing security-invoker, row-lock, ledger, and service-role contract assertions already covered in the intended test block.
 - Repair commit: `b58db3a6a6171d4749e08070c5914dd15ac11cc8`. Exact-head CI has been triggered by the commit; pending verification.
 - Migration `0024` remains prepared only. No production/staging DB operation, merge, deployment, or financial operation occurred.
+
+
+### Seconds settlement migration structural repair — 2026-11-06 (UTC+8)
+
+- CI RESULT: exact-head run `42117812367` for `b58db3a6a6171d4749e08070c5914dd15ac11cc8` completed `failure`. Unified build passed; backend tests failed at `backend/tests/seconds-persistent-order-guard.test.js:76` because the strict hash-guard assertion did not match the migration source.
+- ROOT CAUSE (SOURCE OBSERVED): migration `0024_seconds_settlement_idempotency_v1.sql` had been structurally corrupted by the earlier edit: the request-ID regex lost its closing quote/anchor, the new request-hash guard and fragments of the function body were appended after the grants, and duplicated SQL fragments followed the canonical function. This is a migration source defect, not a test-only defect.
+- PATCHED: reconstructed the migration from its first complete function body, retained exactly one `create or replace function`, one revoke, and one service_role grant; restored the request ID guard as `^[A-Za-z0-9_-]{16,100}$`; placed the strict request hash guard `coalesce(p_request_hash,'') !~ '^[0-9a-f]{64}$'` inside the function's initial argument-validation block. Ledger/financial operations, row lock, duplicate replay logic, and grants preserved from the canonical function body.
+- Repair commit / current feature head at time of note: `1a3bbb625e98351a20d2b21812f858b50e12ff91`. Exact-head CI run `42118084457` is queued; not yet accepted.
+- SAFETY: migration remains source-only and unapplied. No production/staging DB operations, financial writes, merge, or Vercel deployment occurred.
