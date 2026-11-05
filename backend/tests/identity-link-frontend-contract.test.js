@@ -38,3 +38,12 @@ test('identity link API calls are cookie-bound and do not expose reauth marker o
   assert.equal(auth.includes('sessionStorage.setItem("identity_link'), false);
   assert.equal(auth.includes('flow=link-target&token='), false);
 });
+
+
+test('frontend auth clears expired 2FA challenge state and resets account-scoped transient state on sign out', () => {
+  const auth = fs.readFileSync(path.join(__dirname, '../../frontend/src/lib/auth.tsx'), 'utf8');
+  assert.match(auth, /\["TWOFA_CHALLENGE_EXPIRED", "TWOFA_NOT_ENABLED", "USER_NOT_FOUND", "ACCOUNT_FROZEN"\]\.includes\(failureCode\)/);
+  assert.match(auth, /setTempToken\(""\);\s*setEmail\(""\);\s*setNeedsCredentials\(false\);\s*setStatus\("anonymous"\)/);
+  assert.match(auth, /setIdentityLinkSourceVerified\(false\);\s*setPendingIdentityLinkToken\(""\);\s*setIdentityLinkNeedsTwoFactor\(false\)/);
+  assert.match(auth, /setCredentialRecoveryReady\(false\);\s*setCredentialRecoveryNeedsTwoFactor\(false\);\s*setPendingCredentialRecoveryToken\(""\)/);
+});
