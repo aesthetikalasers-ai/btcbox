@@ -843,3 +843,16 @@ The backend CI branch filters were pointing at an older auth branch. Updated bot
 - The latest commit status endpoint only exposes a failing Vercel status context pointing to the `fuyao999` build-rate-limit page. The GitHub workflow-run lookup returned no PR-triggered runs for this SHA; therefore no green CI claim is made.
 - No Supabase migration was applied, no database or production records were changed, no secrets were read or modified, no merge occurred, and no new Vercel build/deployment was initiated. Keep deployment paused.
 - Review the audit append semantics for possible orphan audit rows if PostgreSQL append succeeds but the subsequent JSON state CAS fails; this is preferable to silently reporting success without a durable audit record, but it is not a single transaction for non-financial admin mutations.
+
+## Withdrawal status constraint migration hardening — 2026-11-06
+
+### IMPLEMENTED ON FEATURE BRANCH — SOURCE READ-BACK VERIFIED; TEST EXECUTION PENDING
+- Updated `backend/supabase/sql/0022_withdrawal_admin_review_status_v1.sql` to drop only the canonical PostgreSQL-generated `withdrawal_requests_status_check` created by migration `0002_financial_ledger_v1.sql`.
+- Removed the prior catalog loop that dropped every CHECK constraint whose definition happened to contain the word `status`. This prevents unrelated status-related constraints from being removed during migration.
+- Extended `backend/tests/withdrawal-audit-contract.test.js` to assert the exact named drop and reject the broad catalog-based deletion pattern.
+- Latest feature branch commit at this update: `7fa2e79f438897cc2b880ce4f0614f9131ed3b37`.
+
+### VALIDATION / LIMITS
+- SOURCE READ-BACK VERIFIED: migration SQL and test source were fetched from the feature branch; the exact named drop is present and the broad loop is absent.
+- NOT VERIFIED: Node test execution, migration execution against PostgreSQL, existing-schema drift, constraint dependency behavior, and transaction/rollback behavior.
+- No database migration was applied, no production data/schema was changed, no merge occurred, and no Vercel build/deployment was initiated. The Vercel status remains a failure pointing to the `fuyao999` build-rate-limit page; no green CI claim is made.
