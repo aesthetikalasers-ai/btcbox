@@ -72,7 +72,7 @@ test('canonical PostgreSQL audit reader is opt-in, keyset-paginated, redacted, a
   const reader = source.slice(start, end);
   assert.match(reader, /financial_audit_log/);
   assert.match(reader, /id::text/);
-  assert.match(reader, /isPositivePostgresBigintString\\(row\\.id\\)/);
+    assert.ok(reader.includes('!isPositivePostgresBigintString(row.id)'));
   assert.ok(!reader.includes('Number.isSafeInteger(Number(row.id))'));
   assert.match(reader, /order: 'id\.desc'/);
   assert.match(reader, /query\.set\('id', 'lt\.' \+ params\.before\)/);
