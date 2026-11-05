@@ -61,4 +61,5 @@ test('withdrawal API trusts only validated database status and persisted review 
   assert.match(api, /pending_admin_review_count/);
   assert.match(api, /pending_admin_review_withdrawals: pendingAdminReviewWd/);
   assert.match(api, /result\.pending_admin_review_count > result\.pending_count/);
+  assert.match(api, /w\.status === 'pending_admin_review'/);
 });
