@@ -71,9 +71,17 @@ test('credential recovery requires a server-verified, linked, recently reauthent
   assert.ok(source.includes("nowSeconds - authTime > 5 * 60"));
   assert.ok(source.includes("!isSupabaseIdentityLinked(user, linkedId)"));
   assert.ok(source.includes("delete sessionRecord.session.credential_reauth"));
+  assert.ok(source.includes("purpose: 'credential_recovery'"));
+  assert.ok(source.includes("verified.purpose !== 'credential_recovery'"));
+  assert.ok(source.includes("Number(verified.auth_time) > Date.now() / 1000 + 60"));
   assert.ok(source.includes("code: 'TWO_FACTOR_REQUIRED'"));
   assert.ok(source.includes("code: 'TWO_FACTOR_INVALID'"));
   assert.ok(source.includes("token !== sessionRecord.token"));
+  const recoveryStart = source.indexOf("if (path === 'account/credentials/recover' && method === 'POST')");
+  const recoveryEnd = source.indexOf("\\n  // ---------- POST /api/account/credentials ----------", recoveryStart);
+  const recoveryRoute = source.slice(recoveryStart, recoveryEnd);
+  assert.ok(recoveryRoute.indexOf("delete sessionRecord.session.credential_reauth") < recoveryRoute.indexOf("await saveDB(db)"));
+  assert.ok(recoveryRoute.includes("token !== sessionRecord.token"));
 });
 
 test('credential and linking routes preserve one internal account and use revision-CAS persistence', () => {

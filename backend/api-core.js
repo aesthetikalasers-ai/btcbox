@@ -1270,6 +1270,7 @@ async function handleRequest(event, context) {
       if (!totpVerify(user.twofa_secret, twoFactorCode)) return json({ ok: false, code: 'TWO_FACTOR_INVALID', msg: 'The authenticator code is incorrect.' }, 403);
     }
     sessionRecord.session.credential_reauth = {
+      purpose: 'credential_recovery',
       supabase_user_id: linkedId,
       auth_time: authTime,
       verified_at: Date.now()
@@ -1296,7 +1297,10 @@ async function handleRequest(event, context) {
     const linkedId = String(verified && verified.supabase_user_id || '');
     if (!sessionRecord || sessionRecord.user.uid !== user.uid || !Number.isFinite(verifiedAt) ||
         Date.now() - verifiedAt < 0 || Date.now() - verifiedAt > 5 * 60 * 1000 ||
-        !Number.isFinite(Number(verified && verified.auth_time)) || Date.now() / 1000 - Number(verified.auth_time) > 5 * 60 ||
+        !verified || verified.purpose !== 'credential_recovery' ||
+        !Number.isFinite(Number(verified.auth_time)) ||
+        Number(verified.auth_time) > Date.now() / 1000 + 60 ||
+        Date.now() / 1000 - Number(verified.auth_time) > 5 * 60 ||
         !isSupabaseIdentityLinked(user, linkedId)) {
       return json({ ok: false, code: 'RECENT_REAUTH_REQUIRED', msg: 'Please verify a linked Google account or wallet again before resetting your password.' }, 403);
     }
