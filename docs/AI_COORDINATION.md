@@ -7,10 +7,8 @@ Observed baseline: `main` at/including merge commit `93a236e4a3ed6c9edd2003ac106
 
 ## Roles and boundaries
 
-- AI 1 — Implementation: owns implementation work on its assigned feature/fix branches and opens PRs.
-- AI 2 — Independent QA: reviews diffs, tests, responsive behavior, API contracts, and reports evidence; does not silently take over implementation ownership.
-- AI 3 — Integration and coordination: maintains this document, audits repository/PR/CI state, maps dependencies and risks, coordinates batches, and does not modify other teams' owned code without explicit approval.
-- The user is the final approver for merges, production deployment, destructive operations, and material business-rule changes.
+- Single-owner execution: ChatGPT is the sole active operator for repository audit, implementation, integration, testing, and coordination. Do not create parallel AI/team workstreams or wait for external AI handoffs.
+- The user is the final approver for merges to `main`, production deployment, destructive operations, and material business-rule changes.
 
 ## Mandatory operating rules
 
@@ -198,3 +196,21 @@ Audit scope: read-only source inspection of `btcboxcdt` main at `93a236e4a3ed6c9
 ### Evidence classification
 - SOURCE OBSERVED: upstream and BTCBOX theme token values, current chart random fallback implementation, the two fix branches' no-fallback chart implementations, and current placeholder route registry.
 - NOT VERIFIED: browser-rendered color/contrast quality, exact responsive behavior at the target viewport matrix, API freshness/connectivity, account hydration, and completed route integrations.
+
+
+## Single-owner execution update — 2026-11-05
+
+### Operating decision
+- The user explicitly selected a single-operator workflow because parallel AI/team work created coordination noise. ChatGPT is now the only active operator; historical AI1/AI2/AI3 role references below are retained as historical evidence, not active assignments.
+- Work in one isolated branch per coherent batch. Prefer one atomic commit per batch; avoid unnecessary Git pushes and Vercel builds.
+- Preserve all prior safety boundaries: no production data writes, no real financial operations, no merge to main, and no production deployment without the user's approval.
+
+### Batch 1 — remove synthetic chart fallback
+- SOURCE OBSERVED: current `main` is now `14a8e361fd928626d4e350a03698135f0c49ceea`, which merged PR #21 after the previous audit baseline. The older template migration branch remains 24 ahead / 49 behind and is not a safe continuation point.
+- SOURCE OBSERVED: current `main` still generated random candle/volume data in `frontend/src/features/dashboard/dashboard.data.ts`; both chart components used that data when the API returned no candles.
+- IMPLEMENTED ON ISOLATED BRANCH: `fix/btcbox-no-fake-market-data-20261105`, based directly on current `main`. Three files changed: `dashboard.data.ts`, `LiquidityChart.tsx`, and `VolumeChart.tsx`. The random chart generators and fallback imports/calls were removed; chart series now use only the supplied API candles, and empty data no longer sets a fabricated logical range.
+- Latest known commit on the batch branch: `39c1a970bec240cd2f1c77aa063fff0c7c130ce2`. The branch compares to current main as 3 commits ahead / 0 behind.
+- SOURCE CHECK PASSED: re-fetched all three files from the branch and verified no `Math.random`, `generateCandleData`, `generateVolumeData`, or `chartData` remain in the dashboard data module; both chart components no longer contain chartData fallbacks, use mapped supplied candles, and guard empty logical ranges.
+- SOURCE OBSERVED: GitHub commit status context `Vercel – btcboxcdt` reports success for the latest commit. A Vercel deployment-history query for this branch returned zero deployments. This status context alone is not a build log or a deployment; no build/test result is claimed.
+- NOT VERIFIED: frontend TypeScript/build, browser-rendered empty state, live market API freshness, and all other dashboard hard-coded sample data paths.
+- NEXT: inspect the remaining dashboard market data sources and page integration gaps, then apply the approved Strata visual tokens in a separate batched change after confirming all usages and shared component impact.
