@@ -407,3 +407,36 @@ test('logout never reports success when session revocation cannot be persisted',
   assert.notEqual(result.body.ok, true);
   assert.ok(h.data.sessions[sessionToken], 'failed persistence must not be mistaken for a revoked session');
 });
+
+
+test('username login only returns a 2FA challenge after its temporary token is persisted', () => {
+  const start = source.indexOf("if (path === 'login' && method === 'POST')");
+  const end = source.indexOf("// ---------- POST /api/supabase-login", start);
+  assert.ok(start >= 0 && end > start);
+  const route = source.slice(start, end);
+  const challenge = route.indexOf("db.temp_tokens[tempToken] = { uid: user.uid, exp: Date.now() + 10 * 60 * 1000 }");
+  const persist = route.indexOf("try { await saveDB(db); }", challenge);
+  const response = route.indexOf("return json({ ok: false, require_2fa: true, temp_token: tempToken }, 200)", challenge);
+  assert.ok(challenge >= 0 && persist > challenge && response > persist);
+  assert.ok(route.slice(persist, response).includes("code: 'PERSISTENCE_UNAVAILABLE'"));
+});
+
+test('2FA login consumes its challenge and creates a session only through a successful persistence step', () => {
+  const start = source.indexOf("if (path === 'login/2fa' && method === 'POST')");
+  const end = source.indexOf("// ---------- GET /api/kline", start);
+  assert.ok(start >= 0 && end > start);
+  const route = source.slice(start, end);
+  assert.ok(route.includes("if (u2.frozen)"));
+  assert.ok(route.includes("delete db.temp_tokens[tt]"));
+  assert.ok(route.includes("await rateCheckShared('login_2fa', String(u2.uid))"));
+  assert.ok(route.includes("if (!consumeTotpStep(u2, String(code)))"));
+  const consume = route.indexOf("delete db.temp_tokens[tt];", route.indexOf("if (!consumeTotpStep"));
+  const session = route.indexOf("db.sessions[token2] =");
+  const persist = route.indexOf("try { await saveDB(db); }", session);
+  const cookie = route.indexOf("return json({ ok: true }, 200, setCookieHeader(token2))", session);
+  assert.ok(consume >= 0 && session > consume && persist > session && cookie > persist);
+  assert.ok(route.slice(persist, cookie).includes("code: 'PERSISTENCE_UNAVAILABLE'"));
+  assert.ok(route.includes("TWOFA_CHALLENGE_EXPIRED"));
+  assert.ok(route.includes("TWOFA_NOT_ENABLED"));
+  assert.ok(route.includes("ACCOUNT_FROZEN"));
+});
