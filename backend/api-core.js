@@ -1784,11 +1784,11 @@ async function handleRequest(event, context) {
             p_request_id: requestId, p_request_hash: requestHash, p_require_admin_review: requireAdminReview })
         });
         const result = await rpc.json().catch(() => null);
-        if (!rpc.ok || !result || result.ok !== true || !result.withdrawal_id) {
+        if (!rpc.ok || !result || result.ok !== true || !result.withdrawal_id || !['pending', 'pending_admin_review', 'approved', 'rejected', 'broadcast', 'failed'].includes(result.status) || typeof result.require_admin_review !== 'boolean') {
           const insufficient = rpc.status === 400 && /insufficient funds/i.test(JSON.stringify(result));
           return json({ ok: false, code: insufficient ? 'INSUFFICIENT_FUNDS' : 'FINANCIAL_RPC_FAILED', msg: insufficient ? 'Insufficient available balance (including fees).' : 'Withdrawal request was not confirmed by the database. Please check your operation history before retrying.' }, insufficient ? 400 : 503);
         }
-        return json({ ok: true, duplicate: !!result.duplicate, withdrawal_id: result.withdrawal_id, status: result.status, require_admin_review: requireAdminReview, msg: result.duplicate ? 'This withdrawal request has already been received. Do not submit it again.' : (requireAdminReview ? 'Withdrawal request submitted and flagged for admin review.' : 'Withdrawal request submitted. Funds will be sent after review.') });
+        return json({ ok: true, duplicate: result.duplicate === true, withdrawal_id: result.withdrawal_id, status: result.status, require_admin_review: result.require_admin_review, msg: result.duplicate === true ? 'This withdrawal request has already been received. Do not submit it again.' : (result.require_admin_review ? 'Withdrawal request submitted and flagged for admin review.' : 'Withdrawal request submitted. Funds will be sent after review.') });
       } catch (e) {
         return json({ ok: false, code: 'FINANCIAL_RPC_UNAVAILABLE', msg: 'Financial database temporarily unavailable. Withdrawal is unconfirmed. Please check your operation history before retrying.' }, 503);
       }
