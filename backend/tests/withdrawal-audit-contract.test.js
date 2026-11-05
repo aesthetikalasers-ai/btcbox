@@ -56,7 +56,8 @@ test('admin audit RPC maps the existing API contract to canonical financial_audi
   assert.match(sql, /actor_id, subject_user_id, action, object_type, object_id, reason, metadata/i);
   assert.match(sql, /coalesce\(nullif\(p_by, ''\), 'admin'\)/i);
   assert.match(sql, /security invoker\s+set search_path = ''/i);
-  assert.match(sql, /revoke all on function public\.append_admin_audit_log\(text, text, text, text, jsonb\) from public, anon, authenticated/i);
+  assert.match(sql, /drop function if exists public\.append_admin_audit_log\(text, text, text, text, jsonb\)/i);
+  assert.match(sql, /revoke all on function public\.append_admin_audit_log\(text, text, text, text, text, jsonb\) from public, anon, authenticated/i);
   assert.doesNotMatch(sql, /\b(uid|detail|meta)\s*\)/i);
 });
 
