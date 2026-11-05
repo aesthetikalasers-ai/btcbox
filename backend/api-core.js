@@ -740,7 +740,7 @@ function base32Decode(s) {
 }
 function totpMatchStep(secret, code) {
   try {
-    if (typeof code !== 'string' || !/^\\d{6}$/.test(code)) return null;
+    if (typeof code !== 'string' || !/^\d{6}$/.test(code)) return null;
     const key = base32Decode(secret);
     const counter = Math.floor(Date.now() / 1000 / 30);
     for (let offset = -1; offset <= 1; offset++) {
