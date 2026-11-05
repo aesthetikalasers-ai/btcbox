@@ -60,3 +60,52 @@ This is meaningful integration progress, but the route source still explicitly l
 ## Safety / release boundaries
 
 No merge to `main`, no Vercel deployment/configuration change, no Supabase production migration or write, no real order/deposit/withdrawal, and no change to the locked trading page layout was performed in this batch.
+
+
+## Follow-up API contract audit — 2026-11-06 (UTC+8)
+
+Application branch re-inspected: `feat/btcbox-web3-auth-20261105` at `741c709d818cb10145620e2e0ba84891736d64de`.
+This addendum supersedes any broader wording above that implies the seconds APIs do not exist.
+
+### Confirmed backend capabilities and hard gates
+
+| Capability | Backend evidence | Current readiness |
+|---|---|---|
+| Market ticker / candles / depth | `GET /api/market`, `GET /api/kline`, `GET /api/depth` fetch Coinbase primary / Bybit fallback data | SOURCE OBSERVED; React Dashboard calls ticker and kline APIs |
+| Spot limit orders | `POST /api/order` validates supported pair, side, quantity, limit price and idempotency; calls `submit_limit_order_matching_v1` | SOURCE OBSERVED; hard-disabled unless `matchingEngineEnabled()` passes |
+| Spot cancel | `POST /api/order/cancel` calls `cancel_limit_order_matching_v1` | SOURCE OBSERVED; hard-disabled by same matching-engine gate |
+| Spot market orders | API explicitly rejects every type other than `limit` | NOT SUPPORTED |
+| Spot matching migration | `0009_financial_matching_engine_v1.sql` exists | SOURCE OBSERVED; migration application, RPC readiness and matching cutover are NOT VERIFIED |
+| Legacy spot ledger RPC | `0008_financial_spot_trade_v3.sql` creates `execute_spot_trade_atomic`, but its own header says it is not a matching engine and records a caller-validated simulated/market fill | DO NOT treat as the active matching engine; current `POST /api/order` calls the separate matching RPC |
+| Seconds contracts | `POST /api/seconds/order`, `POST /api/seconds/settle`, `GET /api/seconds/positions`; trusted server-side reference prices; SQL ledger RPCs and idempotency protections | SOURCE OBSERVED; hard-disabled unless `financialWritesEnabled()` passes |
+| Seconds scope | BTC/ETH/SOL/BNB; 30/60/300/900 seconds; up/down directions | SOURCE OBSERVED; this is seconds trading, not perpetual futures |
+| Perpetual futures | No corresponding futures order/position/funding/liquidation API or migration found in inspected tree | NOT FOUND IN INSPECTED SOURCE; separate implementation required |
+| Account / balances | `GET /api/account` and `getAccount()`; normalized ledger snapshot only when financial-read cutover is enabled, otherwise legacy account state | SOURCE OBSERVED; React AssetsPage does not call it yet |
+| Order history | `GET /api/orders` and `getOrders()`; matching-table read path is conditional on matching-engine gate | SOURCE OBSERVED; React Orders route is still placeholder |
+| Deposit | `POST /api/deposit` with zero/omitted amount only queries a configured deposit address; positive amount is explicitly rejected pending on-chain confirmation | SOURCE OBSERVED; React Deposit route is placeholder |
+| Withdrawal | `POST /api/withdraw` includes address allowlist/cooldown, fund-password/2FA and admin-review logic; final posting requires financial cutover | SOURCE OBSERVED; React Withdraw route is placeholder and financial write gate is closed by default |
+| KYC / support | `POST /api/kyc`, `POST /api/support/chat` exist | SOURCE OBSERVED; React routes remain placeholders |
+
+### React frontend connection gap
+
+The current Vite client `frontend/src/lib/api.ts` exposes market, kline, authenticated account, read-only orders and auth methods. It does not expose spot order submit/cancel or seconds order/settle/positions methods. `frontend/src/App.tsx` maps `/trade/:symbol` and `/seconds` to generic placeholder `SectionPage`; `/orders`, `/deposit`, `/withdraw`, `/kyc` and `/support` are also placeholders. `AssetsPage` does not invoke the existing `getAccount()` client method.
+
+The repository also contains a legacy vanilla-JS customer application under `backend/assets/js` with spot/seconds interaction code and tests. That code is not automatically wired into the current Vite React routes. Reuse must be deliberate and contract-tested; do not mistake legacy UI presence for React integration.
+
+### Corrected integration sequence
+
+1. Preserve the already implemented backend API contracts; do not rebuild them.
+2. Add typed Vite client methods for the existing read-only endpoints first: account, orders and seconds positions (while preserving the explicit cutover-incomplete state instead of interpreting it as a genuine empty portfolio).
+3. Connect the React Assets and Orders pages to those read-only methods with loading/error/empty states and auth guards.
+4. Add typed spot submit/cancel and seconds order/settle client methods only after request/response contract tests cover idempotency, uncertain network outcomes and the backend's fail-closed codes. Keep controls unavailable while financial/matching gates are closed.
+5. Treat deposits as address display + chain-confirmation status; never allow client-side credit. Treat withdrawals as a staged request with review status, never as an immediate transfer.
+6. Perpetual futures remain a distinct backend product gap; do not relabel seconds contracts as futures.
+
+### Evidence classification
+
+- SOURCE OBSERVED: backend route implementations and SQL migrations exist for spot matching, seconds lifecycle, account reads, withdrawal and deposit address query.
+- SOURCE OBSERVED: spot matching and seconds financial mutations are protected by server-side cutover flags.
+- SOURCE OBSERVED: current Vite client and routes are not yet connected to most of these business APIs.
+- NOT VERIFIED: migrations are applied in the target Supabase project; RPCs are deployed; financial read/write flags are configured; any end-to-end financial lifecycle is operational.
+- NOT VERIFIED: any perpetual futures engine exists outside the inspected application branch.
+- No production DB writes, financial operations, Vercel changes, merge, or deployment were performed.
