@@ -979,7 +979,7 @@ async function handleRequest(event, context) {
     const loginRl = secCounterIsLocked(db.security_counters, loginKey, Date.now());
     if (loginRl.locked) return rateLimitedJson(loginRl.retryAfter);
     secCounterRecordFailure(db.security_counters, loginKey, 20, 15 * 60 * 1000, Date.now());
-    try { await saveDB(db); } catch (e) { console.warn('[login-rl] persist failed (best-effort):', e.message); }
+    try { await saveDB(db); } catch (e) { console.warn('[login-rl] persist failed:', e.message); return json({ ok: false, code: 'SECURITY_STATE_UNAVAILABLE', msg: 'Authentication is temporarily unavailable. Please try again.' }, 503); }
     const accessToken = typeof body.supabase_access_token === 'string' ? body.supabase_access_token : '';
     const supabaseUrl = String(process.env.SUPABASE_AUTH_URL || '').replace(/\/$/, '');
     const supabaseKey = getPublishableKey();
@@ -1764,11 +1764,11 @@ async function handleRequest(event, context) {
     }
     if (!verifyFundPassword(user, fundPassword)) {
       secCounterRecordFailure(db.security_counters, lockKey, 5, 15 * 60 * 1000, Date.now());
-      try { await saveDB(db); } catch (e) { console.warn('[fundpwd-lock] persist failed (best-effort):', e.message); }
+      try { await saveDB(db); } catch (e) { console.warn('[fundpwd-lock] persist failed:', e.message); return json({ ok: false, code: 'SECURITY_STATE_UNAVAILABLE', msg: 'Withdrawal security checks are temporarily unavailable. Please try again.' }, 503); }
       return json({ ok: false, code: 'FUND_PASSWORD_INVALID', msg: 'Incorrect fund password, or no fund password is set. Please set one in Security Center first.' }, 403);
     }
     secCounterReset(db.security_counters, lockKey);
-    try { await saveDB(db); } catch (e) { console.warn('[fundpwd-lock] reset persist failed (best-effort):', e.message); }
+    try { await saveDB(db); } catch (e) { console.warn('[fundpwd-lock] reset persist failed:', e.message); return json({ ok: false, code: 'SECURITY_STATE_UNAVAILABLE', msg: 'Withdrawal security checks are temporarily unavailable. Please try again.' }, 503); }
     if (user.twofa_enabled && !/^\d{6}$/.test(String(body.twofa_code || ''))) return json({ ok: false, code: 'TWOFA_REQUIRED', msg: 'Two-factor authentication is enabled on this account. Please enter your 2FA code.' }, 400);
     if (user.twofa_enabled && !totpVerify(user.twofa_secret, String(body.twofa_code || ''))) return json({ ok: false, code: 'TWOFA_INVALID', msg: 'Invalid 2FA code.' }, 403);
     // 输入与安全校验全部通过后再检查资金切开关；RPC 错误 fail-closed，绝不回退 Blobs。
@@ -2201,16 +2201,17 @@ async function handleRequest(event, context) {
         const padSupplied = Buffer.alloc(padLen, 0); supplied.copy(padSupplied);
         const padExpected = Buffer.alloc(padLen, 0); expected.copy(padExpected);
         const match = crypto.timingSafeEqual(padSupplied, padExpected) && supplied.length === expected.length;
-        if (match) { secCounterReset(db.security_counters, lockKey); try { await saveDB(db); } catch (e) { } return true; }
+        if (match) { secCounterReset(db.security_counters, lockKey); try { await saveDB(db); } catch (e) { console.warn('[admin-lock] reset persist failed:', e.message); return { persistenceUnavailable: true }; } return true; }
       }
     } catch (e) { }
     // 认证失败：持久化记录失败计数（5 次锁 15 分钟）。
     secCounterRecordFailure(db.security_counters, lockKey, 5, 15 * 60 * 1000, Date.now());
-    try { await saveDB(db); } catch (e) { console.warn('[admin-lock] persist failed (best-effort):', e.message); }
+    try { await saveDB(db); } catch (e) { console.warn('[admin-lock] persist failed:', e.message); return { persistenceUnavailable: true }; }
     return null;
   }
   if (path.startsWith('admin/')) {
     const adminAuthResult = await adminAuth();
+    if (adminAuthResult && adminAuthResult.persistenceUnavailable) return json({ ok: false, code: 'SECURITY_STATE_UNAVAILABLE', msg: 'Administrator authentication is temporarily unavailable. Please try again.' }, 503);
     if (adminAuthResult && adminAuthResult.rateLimited) return rateLimitedJson(adminAuthResult.retryAfter);
     if (!adminAuthResult) {
       return json({ ok: false, msg: 'Administrator authentication failed.' }, 401, { 'WWW-Authenticate': 'Basic realm="BTCBOX Admin"' });
