@@ -14,7 +14,16 @@ export function Dashboard() {
   const [candles,setCandles]=useState<MarketCandle[]>([]);
   useEffect(()=>{
     const controller=new AbortController();
-    getKlines("BTCUSDT","1h",controller.signal).then(setCandles).catch(()=>setCandles([]));
+    const loadCandles=()=>{
+      getKlines("BTCUSDT","1h",controller.signal).then((rows)=>{
+        if(!controller.signal.aborted)setCandles(rows);
+      }).catch((reason:unknown)=>{
+        if(reason instanceof Error&&reason.name==="AbortError")return;
+        if(!controller.signal.aborted)setCandles([]);
+      });
+    };
+    loadCandles();
+    const candleRefreshId=window.setInterval(loadCandles,60000);
     const loadMarkets=()=>{
       getMarkets(controller.signal).then((rows)=>{setMarkets(rows);setError("");}).catch((reason:unknown)=>{
         if(reason instanceof Error&&reason.name==="AbortError")return;
@@ -22,7 +31,7 @@ export function Dashboard() {
       }).finally(()=>{if(!controller.signal.aborted)setLoading(false);});
     };
     loadMarkets();const refreshId=window.setInterval(loadMarkets,30000);
-    return()=>{window.clearInterval(refreshId);controller.abort();};
+    return()=>{window.clearInterval(refreshId);window.clearInterval(candleRefreshId);controller.abort();};
   },[]);
   return <div className="mx-auto flex w-full max-w-[1600px] min-w-0 flex-col gap-5 p-3 sm:gap-6 sm:p-5 lg:p-7">
     <div className="flex flex-wrap items-end justify-between gap-3"><div className="min-w-0"><p className="mb-1 text-xs font-bold uppercase tracking-[.18em] text-brand-text-muted">{t("BTCBOX / MARKETS")}</p><h1 className="type-page-title text-brand-text">{t("Market overview")}</h1><p className="type-body mt-1.5 text-brand-text-secondary">{t("Live spot prices and 24-hour market movement.")}</p></div><Badge variant="outline" className="border-brand-accent/30 bg-brand-accent/10 px-3 py-1 text-brand-text-secondary">{loading?t("Connecting"):error?t("Feed unavailable"):t("Live market feed")}</Badge></div>
