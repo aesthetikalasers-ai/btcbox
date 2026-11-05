@@ -167,7 +167,7 @@ test('React authentication uses BTCBOX username credentials with Google and Web3
   assert.ok(pages.includes('phantom.app/ul/browse/'));
   assert.ok(pages.includes('go.cb-w.com/dapp?cb_url='));
 
-  assert.ok(provider.includes('signInWithWeb3({ chain, statement, ...(wallet ? { wallet } : {}) })'));
+  assert.ok(provider.includes('signInWithWeb3({ chain, statement, ...(wallet ? { wallet } : {}) } as Parameters<'));
   assert.ok(backend.includes("authProvider === 'web3' ? !walletIdentity"));
   assert.ok(backend.includes("email: email || ''"));
   assert.ok(backend.includes("wallet_address: walletIdentity ? walletIdentity.address : ''"));
