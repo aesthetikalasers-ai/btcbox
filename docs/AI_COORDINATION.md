@@ -1636,3 +1636,10 @@ The backend CI branch filters were pointing at an older auth branch. Updated bot
 - REGRESSION COVERAGE ADDED: `backend/tests/google-only-identity.test.js` checks provider-specific challenge attribution and propagation into the final session.
 - Feature API commit `f6378d05f1880843b70c8f1e933b16d6fe96028c`; test commit `b927139c042505a7fa5477cebb0604e824008657`.
 - Exact feature HEAD: b927139c042505a7fa5477cebb0604e824008657. Exact-head CI required; prior run results do not certify this new HEAD.
+
+
+### CI regression correction — 2026-11-06 (UTC+8)
+
+- CI runs `42122937012` (API commit `5ea329384167522d81333d0a69daddc199c6506c`) and `42122960265` (test commit `ef225e3f7f44e05ec5f306f8b24dc2d9d1cd0046`) failed in backend tests, not build. Both failures identify the same stale source assertion in `google-only-identity.test.js`: it expected the pre-hardening session object without `auth_method`. This was a test expectation mismatch introduced by the intentional provider-attribution change, not a runtime test failure.
+- FIXED: updated the assertion to require explicit provider-specific `supabase_google` / `supabase_web3` attribution. Test commit `53c5ac8f1402807ff7840b454ade7b9cbe701eb7`.
+- The following exact HEAD must pass CI before this batch is accepted: 53c5ac8f1402807ff7840b454ade7b9cbe701eb7.
