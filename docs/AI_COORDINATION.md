@@ -1368,3 +1368,15 @@ The backend CI branch filters were pointing at an older auth branch. Updated bot
 - Initial code/test CI runs `42113489305` and `42113504711` failed because the generated URL trailing-slash regex in the new function had an extra escape, producing a JavaScript syntax error. This was a patch-generation defect, not a test or runtime dependency failure.
 - Corrected in commit `5f4b6a94156f812661207c27bcf83bc7fc6a2d68`; source now uses the same valid `replace(/\\/+$/, '')` URL normalization semantics as the existing code.
 - Exact-head CI run `42113645330` for `5f4b6a94156f812661207c27bcf83bc7fc6a2d68` is in progress. Do not accept bounded retry until this run completes successfully.
+
+
+## Admin audit outbox bounded retry and backlog protection — 2026-11-06 (UTC+8)
+
+- TEST PASSED: bounded outbox retry exact-head CI run `42113645330` completed successfully at feature SHA `5f4b6a94156f812661207c27bcf83bc7fc6a2d68`. All workflow steps passed, including unified build, backend tests, fail-closed configuration preflight, and output/entrypoint verification.
+- SOURCE REVIEW: the outbox intentionally preserves every unsynced event. If PostgreSQL delivery remains unavailable for a prolonged period, pending entries could otherwise grow the shared state document without a bound.
+- PATCHED: `auditAdmin` now counts pending entries before appending a new event. At 5,000 pending events it throws a typed `ADMIN_AUDIT_OUTBOX_FULL` error before the caller reaches `saveDB`; the outer handler returns HTTP 503 and explicitly states no change was saved. Existing pending events are never discarded. Read-only admin routes remain available.
+- Code commit: `cd8afac2b65d63845054b6a1cabd37aca8c7b507`; regression test commit: `263aa4cf826b1341caba94ee456d118005bec17e`.
+- Exact-head CI run `42114215138` for `263aa4cf826b1341caba94ee456d118005bec17e` is in progress. Do not mark backlog protection accepted until this exact-head run completes successfully.
+- Shared rate-limit cleanup SQL is already indexed on `updated_at`, deletes only rows older than 48 hours, and is capped at 5,000 rows per invocation. Repository tree review found no trusted scheduler/worker or Vercel cron configuration. Do not add a public cleanup route; scheduler ownership and hosting-plan constraints remain unresolved.
+- Admin mutation source-contract tests already verify audit staging precedes state save and PostgreSQL delivery follows the durable save for all nine legacy non-financial admin mutation routes. The new test covers the pending-outbox ceiling and explicit fail-closed response.
+- SAFETY: no production/staging DB operations, production migrations, financial writes, merge, or Vercel deployment occurred. Positive-amount user deposits remain rejected until a trusted ingestion worker and pending-intent creator are implemented and independently verified.
