@@ -1525,5 +1525,5 @@ The backend CI branch filters were pointing at an older auth branch. Updated bot
 - SOURCE OBSERVED: logout deletes only the presented cookie session, persists state, then returns the clearing cookie. A persistence failure must not be treated as a successful logout.
 - REGRESSION COVERAGE ADDED: tests assert 2FA challenge/TOTP/session write ordering and terminal guards; logout success removes only the current session, preserves unrelated sessions, and increments persisted revision; failed CAS must not report success or pretend the server session was revoked.
 - Feature test commit: `623bdefda65ac99c498987d3b7ebfca540bcfa22`; latest feature HEAD pending exact-head CI.
-- Exact-head CI run `42120141576` queued; do not mark this batch TEST PASSED until it completes successfully.
+- TEST PASSED: exact-head CI run `42120141576` completed successfully for `623bdefda65ac99c498987d3b7ebfca540bcfa22` (unified build, backend tests, fail-closed config preflight, and unified output verification all succeeded).
 - SAFETY: no production/staging DB writes or migrations, merge, Vercel deployment, or financial operations occurred.
