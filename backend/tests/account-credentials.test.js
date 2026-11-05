@@ -100,6 +100,7 @@ test('username login is separate from Supabase email/password and uses generic c
 
 test('identity linking requires a fresh linked-source proof and a separate fresh target proof', () => {
   assert.ok(source.includes("path === 'auth/link-identity/reauth' && method === 'POST'"));
+  assert.ok(source.includes("await rateCheckShared('identity_link_reauth', String(user.uid))"));
   assert.ok(source.includes("sessionRecord.session.identity_link_reauth = {"));
   assert.ok(source.includes("marker.purpose !== 'identity_link'"));
   assert.ok(source.includes("!isSupabaseIdentityLinked(user, String(marker.supabase_user_id || ''))"));
