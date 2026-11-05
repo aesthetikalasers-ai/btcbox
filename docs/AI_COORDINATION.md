@@ -1094,3 +1094,13 @@ The backend CI branch filters were pointing at an older auth branch. Updated bot
 3. Decide, with explicit business approval, whether KYC approve/reject controls must remain disabled until document evidence is collected.
 4. Design a service-role-only, paginated canonical PostgreSQL deposit read snapshot only after the financial read cutover and data source are proven.
 5. Keep production financial writes disabled; no migration, merge, or deployment.
+
+
+## KYC business-owner decision and current review boundary — 2026-11-06
+
+- The business owner explicitly decided: keep KYC approve/reject controls open so users can use the KYC workflow. Do not disable or make these controls read-only solely because the current submission flow does not collect document images.
+- Preserve the existing business rules: direct approval requires a pending application; an admin exception requires a reason; rejection requires a reason and currently can set the rejected state even without a pending submission. Do not change these rules without a separate business approval.
+- Source inspection at feature branch `feat/btcbox-web3-auth-20261105` confirms the pending-only KYC read endpoint returns UID, email, applicant name, ID type, status, and submission timestamp; it omits identity number and credential secrets. Approval and rejection both stage an admin audit event, save the state, and report pending audit delivery.
+- Evidence limitation remains: the current submission flow does not provide document-image evidence. The UI and operator guidance must not claim that an image/document authenticity check was completed. This is a disclosure limitation, not a reason to block the controls.
+- The latest feature branch comparison against the previously verified audit-viewer head `1d3008a985a75fdcc8283bea9fd4989d59accd2e` reports 8 commits ahead / 0 behind. The current branch source includes the audit redaction helper and behavior tests, plus auth-security route tests. Exact-head GitHub Actions evidence for the current branch head is still not available from the workflow/status lookup; do not claim CI passed.
+- No merge, deployment, production database migration, or financial write was performed. Deployment pause remains active.
