@@ -862,8 +862,9 @@ The backend CI branch filters were pointing at an older auth branch. Updated bot
 
 ### IMPLEMENTED ON FEATURE BRANCH — SOURCE READ-BACK VERIFIED; TEST EXECUTION PENDING
 - Feature branch: `feat/btcbox-web3-auth-20261105`.
-- Latest feature branch commit at this update: `6f8cfb23c670e968394a37f64e5e324290fe896f`.
+- Latest feature branch commit at this update: `f6cb10ea8b5017ac44412bbb1602b3355e7ff708`.
 - Added `totpMatchStep`, which returns the exact matching 30-second TOTP counter rather than only a boolean. All protected TOTP paths now use `consumeTotpStep`, which rejects a counter at or below the user's persisted `twofa_last_used_step`.
+- If a six-digit value happens to collide across more than one adjacent accepted time-step, the matcher selects the newest matching step before replay comparison; this avoids consuming the older match and leaving the newer colliding step reusable.
 - The consumed counter is saved in the same revision-CAS state write as the associated login session, reauthentication marker, credential change, or 2FA state change. The withdrawal route persists the consumed counter before the financial cutover check or any financial RPC; persistence failure fails closed with 503.
 - New TOTP enrollment clears a prior counter when creating a fresh secret; disabling 2FA clears the counter together with the secret.
 - Added `backend/tests/totp-replay-protection.test.js` with source-contract assertions for matched-step validation, replay rejection, protected-route consumption, withdrawal persistence ordering, and enrollment/disable reset behavior.
