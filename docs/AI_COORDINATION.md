@@ -1801,3 +1801,32 @@ Application branch inspected: `feat/btcbox-web3-auth-20261105` at `741c709d818cb
 - The financial cutover gate remains closed. The CI pass proves build and source-level tests, not that migrations are applied, RPCs work in staging, reference feeds are operational, or real user positions can be loaded from a deployed environment.
 - CSRF/request nonce/idempotency behavior for future React write actions remains to be verified before any trading action is exposed.
 - No merge to `main`, Vercel deployment, or production financial operation was performed.
+
+
+## Seconds backend-authoritative policy audit — 2026-11-06
+
+### SOURCE OBSERVED
+- Re-read the coordination entrypoint at `chore/shared-ai-coordination` HEAD `d27a6cade283dcb476ef63bd028a5d3eb2c0ebfa` before this batch. The feature branch baseline was `ad63253e9e40529b8f4faca29ddbf4086bda52c6`.
+- `backend/api-core.js` currently owns the seconds order request boundary: symbols BTC/ETH/SOL/BNB, durations 30/60/300/900 seconds, positive amount with a hard-coded upper bound of 1,000,000,000,000, direction up/down, and mandatory request id. The handler does not accept client payout/profit-rate fields and passes only server-validated order fields to `submit_seconds_order_v1`.
+- The SQL RPC independently checks symbol, direction, duration, positive amount and server-only execution grants. The order RPC accepts no payout parameter.
+- The settlement handler samples the reference price on the server and passes that value to the SQL RPC; it does not use a client-supplied settlement price.
+- `0014_financial_seconds_contracts_v1.sql` and `0024_seconds_settlement_idempotency_v1.sql` calculate winning profit as `round(amount * 0.85, 18)`. This is a fixed database rule in the current source, not an admin-editable setting.
+- The inspected admin config UI/API is scoped to deposit addresses and announcement text; no seconds policy/config endpoint, configuration table, payout setting, minimum-stake setting, or versioned policy model was found in the inspected source.
+- Existing SQL positions persist the order symbol, direction, amount, duration and prices, but do not persist a policy/config version or payout-rate snapshot.
+
+### IMPLEMENTED
+- Feature commit `0e18748eba11e6cddf78f0f24431ae1481cd1c51` adds `backend/tests/seconds-server-authoritative-rules.test.js`.
+- The regression suite asserts backend-owned symbol/duration/amount limits, no client payout override, database-side rule checks and service-role-only RPC execution, server-sampled settlement price, fixed database payout rule, and the financial cutover gate.
+- Exact feature HEAD verified after push: `0e18748eba11e6cddf78f0f24431ae1481cd1c51`; test file blob `169554e97d8449ae1291be6c72159c583a161fad`.
+
+### TEST / STATUS
+- SOURCE TEST ADDED: the new regression file is present at the exact feature HEAD.
+- NOT VERIFIED: this new commit has no PR-triggered GitHub Actions workflow run in the workflow lookup. The combined status currently reports only `Vercel – btcboxcdt` failure with target `upgradeToPro=build-rate-limit`; this is a Vercel build-rate-limit status, not a reported Node test result. Do not claim the new test suite passed.
+- Existing previously recorded CI passes apply to the earlier exact feature HEAD `ad63253e9e40529b8f4faca29ddbf4086bda52c6`, not this new commit.
+
+### NEXT SAFE DESIGN
+- Keep the policy authoritative on the server/database; never trust frontend-calculated limits, payout, open price, settlement price, or outcome.
+- Before exposing admin-editable seconds policy, design a versioned policy record with active/effective windows, explicit symbol/duration allowlists, min/max stake, payout basis points, per-user exposure limits, admin authorization, append-only audit history, optimistic version checks and effective-time rules.
+- Snapshot the policy version and payout terms onto each newly opened position so later policy edits cannot rewrite an existing position's settlement terms or history.
+- Do not invent or silently change commercial values. Current 85% payout and amount ceiling remain source constants until separately approved business policy and isolated staging verification exist.
+- No policy table, migration, admin write endpoint/UI, production database change, financial write, merge, or deployment was made in this batch.
