@@ -16,6 +16,7 @@ function extractFunction(name) {
 
 const getSingleSupabaseAuthProvider = extractFunction('getSingleSupabaseAuthProvider');
 const isValidAuthEmail = extractFunction('isValidAuthEmail');
+const getSupabaseWalletIdentity = extractFunction('getSupabaseWalletIdentity');
 const isSupabaseUserId = extractFunction('isSupabaseUserId');
 
 test('only one server-verified Google or email Supabase identity is accepted', () => {
@@ -79,4 +80,21 @@ test('local account cannot be silently linked by matching email alone', () => {
   assert.ok(source.includes("'SUPABASE_IDENTITY_LINK_REQUIRED'"));
   assert.ok(source.includes("'SUPABASE_IDENTITY_MISMATCH'"));
   assert.ok(source.includes('supabase_user_id: supabaseUserId'));
+});
+
+
+test('Web3 identities require one server-verified provider and validated chain address claims', () => {
+  const ethereum = {
+    app_metadata: { provider: 'web3', providers: ['web3'] },
+    identities: [{ provider: 'web3', identity_data: { custom_claims: { chain: 'ethereum', address: '0x52908400098527886E0F7030069857D2E4169EE7' } } }]
+  };
+  assert.deepEqual(JSON.parse(JSON.stringify(getSupabaseWalletIdentity(ethereum))), { chain: 'ethereum', address: '0x52908400098527886e0f7030069857d2e4169ee7' });
+  const solana = {
+    app_metadata: { provider: 'web3', providers: ['web3'] },
+    identities: [{ provider: 'web3', identity_data: { custom_claims: { chain: 'solana', address: '11111111111111111111111111111111' } } }]
+  };
+  assert.deepEqual(JSON.parse(JSON.stringify(getSupabaseWalletIdentity(solana))), { chain: 'solana', address: '11111111111111111111111111111111' });
+  assert.equal(getSupabaseWalletIdentity({ ...ethereum, identities: [{ provider: 'web3', identity_data: { custom_claims: { chain: 'ethereum', address: 'not-an-address' } } }] }), null);
+  assert.equal(getSupabaseWalletIdentity({ ...ethereum, app_metadata: { provider: 'google', providers: ['google'] } }), null);
+  assert.equal(getSupabaseWalletIdentity({ ...ethereum, identities: [{ provider: 'google' }] }), null);
 });

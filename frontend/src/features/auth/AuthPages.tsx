@@ -1,13 +1,13 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Chrome, ShieldCheck, ArrowLeft, Mail, Eye, EyeOff } from "lucide-react";
+import { Chrome, ShieldCheck, ArrowLeft, Mail, Eye, EyeOff, Wallet } from "lucide-react";
 import { Button } from "../../components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/card";
 import { Input } from "../../components/ui/input";
 import { useAuth } from "../../lib/auth";
 
 export function AuthPage({ mode }: { mode: "login" | "register" }) {
-  const { status, busy, error, notice, googleEnabled, signInWithGoogle, signInWithEmail, signUpWithEmail, requestPasswordReset, verifyTwoFactor, clearError } = useAuth();
+  const { status, busy, error, notice, googleEnabled, signInWithGoogle, signInWithWeb3, signInWithEmail, signUpWithEmail, requestPasswordReset, verifyTwoFactor, clearError } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [code, setCode] = useState("");
@@ -51,6 +51,9 @@ export function AuthPage({ mode }: { mode: "login" | "register" }) {
           </form>
           {mode === "login" && <button type="button" className="w-full text-right text-xs text-brand-text-secondary underline" onClick={()=>setView("forgot")}>Forgot password?</button>}
           {googleEnabled && <><div className="flex items-center gap-3 py-1"><div className="h-px flex-1 bg-brand-border"/><span className="text-xs text-brand-text-muted">OR</span><div className="h-px flex-1 bg-brand-border"/></div><Button className="w-full" size="lg" variant="outline" disabled={busy || status !== "anonymous"} onClick={signInWithGoogle}><Chrome className="h-5 w-5"/> Continue with Google</Button></>}
+          <div className="flex items-center gap-3 py-1"><div className="h-px flex-1 bg-brand-border"/><span className="text-xs text-brand-text-muted">WEB3 WALLET</span><div className="h-px flex-1 bg-brand-border"/></div>
+          <Button className="w-full" size="lg" variant="outline" disabled={busy || status !== "anonymous"} onClick={() => void signInWithWeb3("ethereum")}><Wallet className="h-5 w-5"/> Continue with Ethereum wallet</Button>
+          <Button className="w-full" size="lg" variant="outline" disabled={busy || status !== "anonymous"} onClick={() => void signInWithWeb3("solana")}><Wallet className="h-5 w-5"/> Continue with Solana wallet</Button>
         </>}
         <div className="text-center text-xs text-brand-text-muted">{mode === "login" ? <>New to BTCBOX? <Link className="text-brand-text underline underline-offset-4" to="/register">Create account</Link></> : <>Already have an account? <Link className="text-brand-text underline underline-offset-4" to="/login">Sign in</Link></>}</div>
         <Link to="/home" className="flex items-center justify-center gap-2 text-xs text-brand-text-muted hover:text-brand-text"><ArrowLeft className="h-3.5 w-3.5"/> Back to BTCBOX</Link>

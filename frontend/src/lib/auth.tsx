@@ -6,6 +6,7 @@ type AuthStatus = "loading" | "anonymous" | "authenticated" | "two-factor" | "pa
 type AuthContextValue = {
   status: AuthStatus; email: string; busy: boolean; error: string; notice: string; googleEnabled: boolean;
   signInWithGoogle: () => Promise<void>;
+  signInWithWeb3: (chain: "ethereum" | "solana") => Promise<void>;
   signInWithEmail: (email: string, password: string) => Promise<void>;
   signUpWithEmail: (email: string, password: string) => Promise<void>;
   requestPasswordReset: (email: string) => Promise<void>;
@@ -101,6 +102,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setBusy(false);
     }
   }, [googleEnabled]);
+
+  const signInWithWeb3 = useCallback(async (chain: "ethereum" | "solana") => {
+    setBusy(true); setError(""); setNotice("");
+    try {
+      const client = clientRef.current;
+      if (!client) throw new Error("Authentication is still initializing. Please try again.");
+      const statement = "I agree to the BTCBOX Terms of Service and Privacy Policy. This signature only verifies wallet ownership and does not authorize a transaction.";
+      const { data, error: authError } = await client.auth.signInWithWeb3({ chain, statement });
+      if (authError) throw authError;
+      if (!data.session?.access_token) throw new Error("The wallet did not return a valid sign-in session. Please try again.");
+      await acceptSupabaseSession(data.session.access_token);
+    } catch (cause) {
+      const message = cause instanceof Error ? cause.message : "Wallet sign-in failed.";
+      setError(message.toLowerCase().includes("provider is disabled") ? "This wallet network is not enabled in BTCBOX authentication settings." : message);
+    } finally { setBusy(false); }
+  }, [acceptSupabaseSession]);
 
   const signInWithEmail = useCallback(async (address: string, password: string) => {
     setBusy(true); setError(""); setNotice("");
@@ -212,10 +229,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const value = useMemo(() => ({
-    status, email, busy, error, notice, googleEnabled, signInWithGoogle, signInWithEmail, signUpWithEmail,
+    status, email, busy, error, notice, googleEnabled, signInWithGoogle, signInWithWeb3, signInWithEmail, signUpWithEmail,
     requestPasswordReset, completePasswordRecovery, finishOAuth, verifyTwoFactor, signOut,
     clearError: () => setError(""),
-  }), [status, email, busy, error, notice, googleEnabled, signInWithGoogle, signInWithEmail, signUpWithEmail,
+  }), [status, email, busy, error, notice, googleEnabled, signInWithGoogle, signInWithWeb3, signInWithEmail, signUpWithEmail,
     requestPasswordReset, completePasswordRecovery, finishOAuth, verifyTwoFactor, signOut]);
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

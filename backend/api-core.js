@@ -47,9 +47,20 @@ function getSingleSupabaseAuthProvider(identity) {
   const provider = String(appMetadata.provider || '').toLowerCase();
   const providers = Array.isArray(appMetadata.providers) ? appMetadata.providers.map(p => String(p || '').toLowerCase()) : [];
   const identities = Array.isArray(identity.identities) ? identity.identities : [];
-  if (!['google', 'email'].includes(provider) || providers.length !== 1 || providers[0] !== provider) return null;
+  if (!['google', 'email', 'web3'].includes(provider) || providers.length !== 1 || providers[0] !== provider) return null;
   if (identities.length !== 1 || !identities[0] || String(identities[0].provider || '').toLowerCase() !== provider) return null;
   return provider;
+}
+function getSupabaseWalletIdentity(identity) {
+  if (!identity || typeof identity !== 'object' || getSingleSupabaseAuthProvider(identity) !== 'web3') return null;
+  const walletIdentity = Array.isArray(identity.identities) ? identity.identities[0] : null;
+  const identityData = walletIdentity && walletIdentity.identity_data && typeof walletIdentity.identity_data === 'object' ? walletIdentity.identity_data : {};
+  const claims = identityData.custom_claims && typeof identityData.custom_claims === 'object' ? identityData.custom_claims : {};
+  const chain = String(claims.chain || '').toLowerCase();
+  const address = String(claims.address || '').trim();
+  if (chain === 'ethereum' && /^0x[a-fA-F0-9]{40}$/.test(address)) return { chain, address: address.toLowerCase() };
+  if (chain === 'solana' && /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(address)) return { chain, address };
+  return null;
 }
 function isValidAuthEmail(value) {
   return typeof value === 'string' && /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(value);
@@ -840,22 +851,29 @@ async function handleRequest(event, context) {
       return json({ ok: false, msg: 'Authentication service temporarily unavailable. Please try again later.' }, 503);
     }
     const email = String(identity && identity.email || '').trim().toLowerCase();
-    const confirmed = !!(identity && (identity.email_confirmed_at || identity.confirmed_at));
     const supabaseUserId = String(identity && identity.id || '').trim();
-    if (!isValidAuthEmail(email) || !confirmed || !isSupabaseUserId(supabaseUserId)) {
-      return json({ ok: false, code: 'INVALID_SUPABASE_IDENTITY', msg: 'The verified email identity could not be confirmed. Please sign in again.' }, 403);
+    if (!isSupabaseUserId(supabaseUserId)) {
+      return json({ ok: false, code: 'INVALID_SUPABASE_IDENTITY', msg: 'The verified account identity could not be confirmed. Please sign in again.' }, 403);
     }
     const authProvider = getSingleSupabaseAuthProvider(identity);
     if (!authProvider) {
       return json({ ok: false, code: 'AUTH_PROVIDER_NOT_ALLOWED', msg: 'This account uses multiple or unsupported sign-in methods. Please contact support.' }, 403);
     }
+    const walletIdentity = authProvider === 'web3' ? getSupabaseWalletIdentity(identity) : null;
+    const confirmed = !!(identity && (identity.email_confirmed_at || identity.confirmed_at));
+    if (authProvider === 'web3' ? !walletIdentity : (!isValidAuthEmail(email) || !confirmed)) {
+      return json({ ok: false, code: 'INVALID_SUPABASE_IDENTITY', msg: 'The verified sign-in identity could not be confirmed. Please sign in again.' }, 403);
+    }
     if (authProvider === 'google' && await detectGoogleProviderEnabled() !== true) {
       return json({ ok: false, code: 'GOOGLE_PROVIDER_UNAVAILABLE', msg: 'Google sign-in is temporarily unavailable. Please try again later.' }, 503);
     }
     const authProviders = [authProvider];
-    let user = Object.values(db.users).find(function (u) { return String(u.email || '').trim().toLowerCase() === email; });
+    // Resolve the internal account by the server-verified Supabase UUID first.
+    // Wallet identities have no email; never synthesize one or link by wallet metadata.
+    let user = Object.values(db.users).find(function (u) { return String(u.supabase_user_id || '') === supabaseUserId; });
+    if (!user && email) user = Object.values(db.users).find(function (u) { return String(u.email || '').trim().toLowerCase() === email; });
     if (user && String(user.supabase_user_id || '') !== supabaseUserId) {
-      return json({ ok: false, code: user.supabase_user_id ? 'SUPABASE_IDENTITY_MISMATCH' : 'SUPABASE_IDENTITY_LINK_REQUIRED', msg: 'This email is already associated with another BTCBOX identity. Please contact support.' }, 409);
+      return json({ ok: false, code: 'SUPABASE_IDENTITY_MISMATCH', msg: 'This identity is already associated with another BTCBOX account. Please contact support.' }, 409);
     }
     if (user && user.frozen) return json({ ok: false, code: 'ACCOUNT_FROZEN', msg: 'Account frozen. Please contact support.' }, 403);
     // Preserve the existing account's second factor for all Supabase sign-ins.
@@ -872,7 +890,8 @@ async function handleRequest(event, context) {
       const uid = String(db.next_uid++);
       const salt = genSalt();
       user = {
-        uid: uid, email: email, email_verified: true, supabase_user_id: supabaseUserId, auth_providers: authProviders, addresses: [], address_audit: [],
+        uid: uid, email: email || '', email_verified: authProvider !== 'web3', supabase_user_id: supabaseUserId, auth_providers: authProviders,
+        wallet_address: walletIdentity ? walletIdentity.address : '', wallet_chain: walletIdentity ? walletIdentity.chain : '', addresses: [], address_audit: [],
         password_hash: hashPassword(genToken(), salt), salt: salt,
         fund_password: '', twofa_secret: '', twofa_enabled: false,
         kyc: { status: 'unsubmitted', name: '', id_type: 'id_card', id_number: '', submitted_at: '' },
@@ -881,7 +900,8 @@ async function handleRequest(event, context) {
       };
       db.users[uid] = user;
     } else {
-      user.email_verified = true;
+      if (email) user.email_verified = true;
+      if (walletIdentity) { user.wallet_address = walletIdentity.address; user.wallet_chain = walletIdentity.chain; }
       user.auth_providers = Array.from(new Set([].concat(user.auth_providers || [], authProviders)));
     }
     user.last_login = nowStr();
@@ -1051,7 +1071,7 @@ async function handleRequest(event, context) {
     const total = totalUsdt(accountBalances, livePrices);
     return json({
       ok: true,
-      uid: user.uid, email: user.email,
+      uid: user.uid, email: user.email || '', wallet_address: user.wallet_address || '', wallet_chain: user.wallet_chain || '',
       // Do not serialize the full identity number to an ordinary user session.
       // Keep the existing id_number field for UI compatibility, but expose only its masked form.
       kyc: {
