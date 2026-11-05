@@ -485,7 +485,7 @@ VIEWS.admin = function(){
     '<div id="admin-data-status" style="display:none" class="va-banner va-banner-inf" role="status"></div>'+
     '<div class="card" style="padding:0;margin-bottom:16px">'+
       '<div style="display:flex;border-bottom:1px solid var(--border);overflow-x:auto" class="no-scrollbar">'+
-        '<div class="tab active" data-atab="users">用户管理</div><div class="tab" data-atab="deposits">充值审核</div><div class="tab" data-atab="withdrawals">提币审批</div><div class="tab" data-atab="kyc">KYC 审核</div>'+
+        '<div class="tab active" data-atab="users">用户管理</div><div class="tab" data-atab="deposits">充值审核</div><div class="tab" data-atab="withdrawals">提币审批</div><div class="tab" data-atab="kyc">KYC 审核</div><div class="tab" data-atab="audit">审计日志</div>'+
       '</div>'+
       '<div id="admin-body" style="overflow-x:auto" class="scroll">'+skeleton(5,4)+'</div>'+
     '</div>'+
@@ -508,6 +508,10 @@ VIEWS.admin.afterRender = function(){
   var tab='users';
   var adminDataLoading=false;
   var adminDataErrors=[];
+  var auditNextBefore=null;
+  var auditLoading=false;
+  var auditActionFilter='';
+  var auditUidFilter='';
   async function loadAdminData(){
     if(adminDataLoading) return;
     adminDataLoading=true;
@@ -527,6 +531,23 @@ VIEWS.admin.afterRender = function(){
     adminDataLoading=false;
     if(status){status.style.display=adminDataErrors.length?'block':'none';status.textContent=adminDataErrors.join('；');status.className=adminDataErrors.length?'va-banner va-banner-err':'va-banner va-banner-inf';}
     render(tab);
+  }
+  async function loadAuditLogs(reset){
+    if(auditLoading)return;
+    auditLoading=true;
+    if(reset){state.admin.auditLogs=[];auditNextBefore=null;}
+    render('audit');
+    try{
+      var result=await apiAdapter.adminAuditLogs({limit:50,before:reset?'':auditNextBefore,action:auditActionFilter,uid:auditUidFilter});
+      if(!result||!result.ok||!Array.isArray(result.logs)){toast((result&&(result.error||result.msg))||'审计记录加载失败。','err');}
+      else{
+        state.admin.auditLogs=(state.admin.auditLogs||[]).concat(result.logs);
+        auditNextBefore=result.next_before||null;
+        if(result.completeness==='state_document_retention_limited')state.admin.auditLogCompleteness=result.completeness;
+      }
+    }catch(_){toast('网络错误，审计记录加载失败。','err');}
+    auditLoading=false;
+    if(tab==='audit')render('audit');
   }
   async function runAdminAction(button, action, successText, pendingText){
     if(button.disabled) return;
@@ -574,7 +595,22 @@ VIEWS.admin.afterRender = function(){
     });
   }
   function render(tab){
-    if(tab==='users'){
+    if(tab==='audit'){
+      var auditLogs=state.admin.auditLogs||[];
+      var rows=auditLogs.map(function(entry){
+        var sync=entry.postgres_sync_status==='synced'?'已同步':entry.postgres_sync_status==='pending'?'待同步':entry.postgres_sync_status==='local_only'?'本地记录':'未知';
+        return '<tr class="trow"><td class="td num" style="font-size:11px">'+escapeHtml(entry.time||'—')+'</td><td class="td">'+escapeHtml(entry.action||'—')+'</td><td class="td num">'+escapeHtml(entry.uid||'—')+'</td><td class="td">'+escapeHtml(entry.by||'—')+'</td><td class="td">'+escapeHtml(sync)+'</td><td class="td" style="white-space:normal;min-width:180px">'+escapeHtml(entry.detail||'—')+'</td></tr>';
+      }).join('');
+      $('#admin-body').innerHTML='<div style="display:flex;gap:8px;flex-wrap:wrap;padding:12px"><input id="audit-action-filter" aria-label="按操作筛选" placeholder="操作类型" style="min-width:120px;flex:1;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--surface)"><input id="audit-uid-filter" aria-label="按 UID 筛选" placeholder="用户 UID" style="min-width:120px;flex:1;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--surface)"><button id="audit-filter-apply" class="btn btn-secondary">筛选</button></div>'+
+        (auditLogs.length?'<table style="width:100%;border-collapse:collapse;min-width:760px"><thead><tr><th class="th">时间</th><th class="th">操作</th><th class="th">用户 UID</th><th class="th">操作者</th><th class="th">同步状态</th><th class="th">详情（已脱敏）</th></tr></thead><tbody>'+rows+'</tbody></table>':emptyState(auditLoading?'正在加载审计记录…':'暂无审计记录','可调整筛选条件或刷新记录。'))+
+        '<div style="display:flex;justify-content:center;gap:10px;padding:14px"><button id="audit-refresh" class="btn btn-secondary">刷新</button>'+(auditNextBefore?'<button id="audit-more" class="btn btn-secondary">加载更多</button>':'')+'</div>'+
+        '<div style="padding:0 12px 12px;color:var(--text-muted);font-size:11px">数据来源：当前状态文档中的管理员操作记录；受保留策略限制，不代表 PostgreSQL 完整财务审计历史。</div>';
+      var applyAuditFilter=function(){auditActionFilter=String($('#audit-action-filter')&&$('#audit-action-filter').value||'').trim();auditUidFilter=String($('#audit-uid-filter')&&$('#audit-uid-filter').value||'').trim();loadAuditLogs(true);};
+      var filterButton=$('#audit-filter-apply');if(filterButton)filterButton.onclick=applyAuditFilter;
+      var refreshButton=$('#audit-refresh');if(refreshButton)refreshButton.onclick=function(){loadAuditLogs(true);};
+      var moreButton=$('#audit-more');if(moreButton)moreButton.onclick=function(){loadAuditLogs(false);};
+      return;
+    } else if(tab==='users'){
       if(adminDataLoading){$('#admin-body').innerHTML=skeleton(5,4);return;}
       if(adminDataErrors.some(function(e){return e.indexOf('用户列表')===0;})){ $('#admin-body').innerHTML=emptyState('用户列表加载失败','请检查管理员权限或网络后切换标签重试。');return;}
       if(!state.admin.users||!state.admin.users.length){$('#admin-body').innerHTML=emptyState('暂无用户数据','服务器当前没有返回用户记录。');return;}
@@ -628,7 +664,7 @@ VIEWS.admin.afterRender = function(){
   }
   render(tab);
   loadAdminData();
-  $('[data-atab]').forEach(function(t){t.onclick=function(){tab=t.dataset.atab;$('[data-atab]').forEach(function(x){x.classList.remove('active');});t.classList.add('active');if(adminDataErrors.length)loadAdminData();render(tab);};});
+  $('[data-atab]').forEach(function(t){t.onclick=function(){tab=t.dataset.atab;$('[data-atab]').forEach(function(x){x.classList.remove('active');});t.classList.add('active');if(tab==='audit')loadAuditLogs(true);else if(adminDataErrors.length)loadAdminData();render(tab);};});
 };
 
 /* ================= 404 (override app-core stub) ================= */
