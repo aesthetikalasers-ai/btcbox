@@ -1830,3 +1830,23 @@ Application branch inspected: `feat/btcbox-web3-auth-20261105` at `741c709d818cb
 - Snapshot the policy version and payout terms onto each newly opened position so later policy edits cannot rewrite an existing position's settlement terms or history.
 - Do not invent or silently change commercial values. Current 85% payout and amount ceiling remain source constants until separately approved business policy and isolated staging verification exist.
 - No policy table, migration, admin write endpoint/UI, production database change, financial write, merge, or deployment was made in this batch.
+
+
+## Seconds policy versioning design — 2026-11-06
+
+### IMPLEMENTED (documentation only)
+- Re-read the coordination entrypoint at branch HEAD `242795398059f2c6bed42da6d9a76dbcb92080e0`.
+- Re-read the feature branch baseline `bb08e2b6c70ab2794fb02fba91e34f71ebf2c1b6`, including the current server-authoritative policy regression test and SQL migrations `0014` / `0024`.
+- Feature commit `e87a77871c221d4ea67c6457e7c64a831147c9f5` adds `docs/SECONDS_POLICY_VERSIONING.md`, a non-executable design specification for immutable policy versions, effective windows, per-user exposure, admin audit, optimistic concurrency, and per-position payout snapshots.
+- The design preserves the source-observed baseline (BTC/ETH/SOL/BNB; 30/60/300/900 seconds; current API ceiling; 85% winning profit) without changing runtime behavior.
+- It specifies legacy NULL-snapshot settlement compatibility and requires order RPC policy resolution/snapshotting to be atomic before any admin editor is exposed.
+
+### NOT IMPLEMENTED / NOT VERIFIED
+- No migration, policy table, policy RPC, admin API, or policy UI was created in this batch.
+- No migration was applied; no production/staging database, financial record, balance, position, or order was modified.
+- No financial write gate was opened; no merge or deployment was performed.
+- CI/runtime verification for the documentation-only commit is not yet recorded. This batch is not a runtime feature acceptance.
+
+### NEXT
+- Convert the approved specification into an additive migration and RPC changes on the feature branch, retaining legacy position behavior and current policy values.
+- Before adding administrator write routes, verify the existing admin identity/role contract and implement append-only audit, nonce/idempotency, optimistic concurrency, and isolated staging tests.
