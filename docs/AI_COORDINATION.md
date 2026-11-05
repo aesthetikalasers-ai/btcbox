@@ -1669,3 +1669,13 @@ The backend CI branch filters were pointing at an older auth branch. Updated bot
 - REVIEW RESULT: password change and 2FA enrollment/removal revoke account-scoped old sessions/challenges while preserving the verified current session. The state changes remain atomic under database revision-CAS; conflict or persistence failure does not return success.
 - NOT VERIFIED: live browser flows, authenticator-app behavior, actual multi-device sessions against deployed storage, and production persistence fault injection. No live OAuth/Web3 sign-in was performed.
 - ACCEPTANCE: accepted for feature-branch QA only. No merge to `main`, Vercel deployment, production database writes/migrations, or real financial operations authorized or performed.
+
+
+### React account-security surface audit — 2026-11-06 (UTC+8)
+
+- SOURCE OBSERVED: `frontend/src/features/account/AccountSecurityPage.tsx` exposes linked sign-in methods and BTCBOX password recovery, but does not expose 2FA enrollment, confirmation, disablement, or authenticator recovery controls.
+- SOURCE OBSERVED: `frontend/src/lib/api.ts` contains login 2FA completion but no client wrappers for `/api/2fa/enable`, `/api/2fa/confirm`, or `/api/2fa/disable`. The backend routes exist and have fail-closed persistence handling.
+- SOURCE OBSERVED: `frontend/src/lib/auth.tsx` clears the local BTCBOX auth state only after the logout API succeeds; failed server logout preserves the signed-in UI state and reports the error. It also clears pending credential/identity reauthentication state on successful sign-out.
+- SCOPE GUARD: the coordination baseline still records both root CRA and `frontend/` Vite applications and has not established which is canonical for the intended production hostname. Therefore no React security UI was added in this batch; implementing 2FA controls before canonical-root resolution risks building functionality into the non-deployed app.
+- NOT VERIFIED: the active production app's 2FA settings UI, browser behavior after cross-device session revocation, and live provider/session synchronization.
+- NEXT ACTION: resolve canonical app root and deployment entrypoint, then implement/test a complete 2FA management flow only in the confirmed active frontend. Preserve the locked trading page layout.
