@@ -883,11 +883,11 @@ The backend CI branch filters were pointing at an older auth branch. Updated bot
 
 ### IMPLEMENTED ON FEATURE BRANCH — SOURCE READ-BACK VERIFIED; TEST EXECUTION AND DATABASE MIGRATION PENDING
 - Feature branch: `feat/btcbox-web3-auth-20261105`.
-- Latest feature branch commit at this update: `085153f6d5ab395781a14e44a3ea1297e89cedff`.
+- Latest feature branch commit at this update: `b18778a06e629713f5efa000791372d608b1ebf4`.
 - Replaced the previous PostgreSQL-first dual-write order for non-financial admin mutations. `auditAdmin` now stages a uniquely identified event in `db.audit_logs`; the route saves the business mutation and pending audit event together through the existing revision-CAS state write before attempting PostgreSQL delivery.
 - Added `flushAdminAuditOutbox`. It retries pending events on subsequent authenticated admin requests and immediately after each audited mutation. A PostgreSQL append is considered delivered only when the RPC returns HTTP success and the literal JSON boolean `true`. Successful deliveries are marked `synced` and saved back to the CAS state document. If the marker save fails after PostgreSQL accepted the event, the same event ID is retried later.
 - API responses for the covered non-financial admin mutations now include `audit_sync_pending`, so a completed state mutation can be distinguished from a PostgreSQL audit delivery that still needs retry.
-- Updated `backend/supabase/sql/0021_admin_audit_log_append_only_v1.sql`: adds nullable `financial_audit_log.event_id`, a partial unique index, replaces the legacy five-argument append RPC with a six-argument event-ID contract, and treats an identical event retry as success while rejecting reuse of an event ID with a different payload.
+- Updated `backend/supabase/sql/0021_admin_audit_log_append_only_v1.sql`: adds nullable `financial_audit_log.event_id`, a partial unique index, replaces the legacy five-argument append RPC with a six-argument event-ID contract, and treats an identical event retry as success while rejecting reuse of an event ID with a different payload. The migration also sends `NOTIFY pgrst, 'reload schema'` after changing the RPC signature so PostgREST refreshes its function cache.
 - Extended the outbox coverage to admin support replies and address-book management, which previously saved state/audit data without using the shared PostgreSQL append path. The support reply route now also initializes a missing support-message array safely.
 - Existing financial mutations remain outside this outbox path: their audit entries are expected to be written in the same PostgreSQL transaction as their financial ledger operation. Do not route financial writes through this JSON-state outbox.
 
