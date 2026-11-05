@@ -1679,3 +1679,26 @@ The backend CI branch filters were pointing at an older auth branch. Updated bot
 - SCOPE GUARD: the coordination baseline still records both root CRA and `frontend/` Vite applications and has not established which is canonical for the intended production hostname. Therefore no React security UI was added in this batch; implementing 2FA controls before canonical-root resolution risks building functionality into the non-deployed app.
 - NOT VERIFIED: the active production app's 2FA settings UI, browser behavior after cross-device session revocation, and live provider/session synchronization.
 - NEXT ACTION: resolve canonical app root and deployment entrypoint, then implement/test a complete 2FA management flow only in the confirmed active frontend. Preserve the locked trading page layout.
+
+
+## Template migration reconciliation — 2026-11-06 (UTC+8)
+
+### SOURCE OBSERVED
+- Re-read this coordination document at blob 38245d759510afe77c204b3db2c0e4fce5c74f72 before this batch.
+- Migration branch HEAD: `6af0210b6b2716cf5d0310fa3b7384d33bf8e808`; its tree contains Git submodule entries (mode `160000`) for the pinned template repositories, not expanded vendor source files.
+- Pinned upstream snapshots: Strata Pro `a3f79d0237c68faddc877f8c1b00afece2fbbae8`; Shadcn Fintech `a905058c75a840896d27a16991f2e7cc1ca06f3f`. The upstream trees inspected contain 32 and 198 file blobs respectively. These counts confirm upstream source trees, not recursive clone/download into BTCBOX.
+- Current auth feature branch HEAD: `741c709d818cb10145620e2e0ba84891736d64de`; its tree has no `frontend/vendor` directory. Its CI run `42124394817` passed unified build, backend tests, fail-closed deployment preflight, and unified output/entrypoint checks as previously recorded.
+- The two branches are diverged. Compare reports migration branch as base and auth branch as head: 372 commits ahead / 24 behind, common ancestor `93a236e4a3ed6c9edd2003ac1068a89161015511`. This is not a safe direct-merge instruction; inspect unique commits and file overlap before any integration.
+- Coordination branch remains the authoritative work entrypoint. No code, submodule, deployment, environment, or database changes were made in this batch.
+
+### CONCLUSION / CLASSIFICATION
+- SOURCE OBSERVED: both template versions are pinned as submodule references on the migration branch; neither template is expanded as ordinary files in the current auth branch.
+- NOT VERIFIED: recursive submodule checkout/download, local dependency install/build of either upstream, actual page/component reuse in the canonical runtime, and visual/functional integration.
+- SOURCE OBSERVED: the migration guide says these are design/component sources only; mock data, seeded balances, simulated transfers, Clerk auth, and fake ticker behavior must not be imported into BTCBOX.
+
+### NEXT BATCH — SAFE EXECUTION
+1. Build a source inventory from the exact pinned upstream trees: page routes, component entrypoints, package dependencies, licenses/attributions, and external service assumptions.
+2. Build a BTCBOX route-to-template mapping without copying files yet; mark reuse, adapt, retain-native, or reject.
+3. Resolve canonical app root and Vercel build configuration before changing frontend ownership or removing legacy assets.
+4. Prepare a dedicated integration branch from the current approved development base only after inventory and compatibility review. Do not merge either divergent branch wholesale.
+5. Preserve the locked trading layout and all existing auth backend behavior. No merge to main, deployment, production DB writes/migrations, or financial operations without user approval.
