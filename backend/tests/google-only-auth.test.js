@@ -69,3 +69,17 @@ test('email-only client recovery handlers are not exposed by Auth helper', () =>
   }
   assert.ok(adapter.includes('async login2fa('), 'optional Google-session 2FA endpoint must remain');
 });
+
+test('React auth client config is public-only and runs before database loading', () => {
+  const core = read('api-core.js');
+  const routeAt = core.indexOf("path === 'auth-client-config' && method === 'GET'");
+  const dbAt = core.indexOf('let db;');
+  assert.ok(routeAt >= 0 && dbAt > routeAt, 'auth client config must be handled before database loading');
+  const route = core.slice(routeAt, core.indexOf("if (path === 'auth-health'", routeAt));
+  assert.ok(route.includes('getPublishableKey()'));
+  assert.ok(route.includes('supabase_url: authUrl'));
+  assert.ok(route.includes('publishable_key: publishableKey'));
+  assert.ok(!route.includes('SERVICE_ROLE') && !route.includes('SECRET_KEY'));
+  assert.ok(route.includes('google_enabled: googleEnabled'));
+  assert.ok(route.includes('AUTH_CLIENT_CONFIG_UNAVAILABLE'));
+});
