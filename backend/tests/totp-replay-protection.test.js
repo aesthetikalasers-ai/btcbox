@@ -21,7 +21,7 @@ test('TOTP consumption rejects a previously consumed step and stores the new cou
 
 test('protected routes consume one-time steps instead of accepting boolean verification', () => {
   assert.equal(source.includes('!totpVerify('), false);
-  assert.ok((source.match(/consumeTotpStep\\(/g) || []).length >= 9);
+  assert.ok(source.split('consumeTotpStep(').length - 1 >= 9);
 });
 
 test('withdrawal persists the consumed TOTP step before financial cutover or RPC', () => {
