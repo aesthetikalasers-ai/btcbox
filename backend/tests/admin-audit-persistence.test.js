@@ -36,7 +36,7 @@ test('every non-financial admin mutation stages an audit event and saves state b
     ["if (sub === 'kyc/reject' && method === 'POST')", "if (sub === 'push'"],
     ["if (sub === 'push' && method === 'POST')", "if (sub === 'support/reply'"],
     ["if (sub === 'support/reply' && method === 'POST')", "if (sub === 'addresses'"],
-    ["if (sub === 'address' && method === 'POST')", "if (sub === 'audit-logs'"],
+    ["if (sub === 'address/manage' && method === 'POST')", "if (sub === 'audit-logs'"],
     ["if (sub === 'config' && method === 'POST')", "if (sub === 'withdrawals'"]
   ];
   for (const [from, to] of actionBlocks) {
