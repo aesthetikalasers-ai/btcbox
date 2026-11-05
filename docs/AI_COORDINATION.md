@@ -238,3 +238,20 @@ Audit scope: read-only source inspection of `btcboxcdt` main at `93a236e4a3ed6c9
 - Audit the remaining dashboard data module for unused hard-coded token fixtures and trace their imports before removal. Do not delete fixtures until their usage is confirmed.
 - Run the canonical backend-orchestrated frontend build and Node tests locally or in non-deploying CI when a safe execution path is available. Do not use Vercel Preview as a routine test loop.
 - Continue with page/API integration inventory only after the visual token batch has build evidence; preserve placeholders where API contracts are not yet verified.
+
+
+## Batch 3 — live market data source and refresh audit — 2026-11-05
+
+### SOURCE OBSERVED
+- `frontend/src/lib/api.ts` calls same-origin `GET /api/market` and `GET /api/kline?symbol=BTCUSDT&interval=1h`, validates response shapes and finite positive OHLC values, and rejects malformed/failed responses rather than creating fallback records.
+- `backend/api-core.js` implements `GET /api/market` using Coinbase spot `BASE-USDT` products/statistics as primary and Bybit spot USDT tickers as fallback for missing pairs. It returns 503 with an empty markets array if no valid provider rows are available; no fabricated price fallback was observed.
+- `backend/api-core.js` implements `GET /api/kline` using Coinbase candles as primary and Bybit spot kline as fallback. Both provider paths validate provider arrays and return 503 with empty klines when unavailable; source comments explicitly prohibit synthetic candles.
+- `Dashboard.tsx` previously loaded BTC/USDT 1h candles only once at mount, while market tickers refreshed every 30 seconds. IMPLEMENTED: candle retrieval now refreshes every 60 seconds, shares the component AbortController, clears the timer on unmount, and clears candle data on non-abort request failures so a failed refresh does not leave fabricated values.
+- Latest known feature branch head: `0b93b1a5c77aaff5420ab1bbdf2f5c9eec5f88de`. Branch `feat/btcbox-strata-theme-batch-20261105` compares to current `main` `14a8e361fd928626d4e350a03698135f0c49ceea` as 14 commits ahead / 0 behind. Changed files: global theme CSS, shared button/sidebar/bottom nav, dashboard and chart components, and existing no-fake-data dashboard store cleanup.
+- GitHub combined status lookup for latest commit returned no status contexts; GitHub Actions lookup returned no PR-triggered workflow runs. Vercel deployment-history query for this branch returned zero deployments. No build/test pass or browser verification is claimed.
+- Previous commit `33a6c9348875db926d3d7b42da31cce56a3e4654` had a Vercel status failure whose target URL indicated `build-rate-limit`; it was not a code compilation result.
+
+### NOT VERIFIED / NEXT
+- NOT VERIFIED: Coinbase/Bybit live network responses from the deployed environment, actual market freshness, build/typecheck after the changes, chart empty-state visual behavior, and complete color-token usage across every route.
+- `frontend/src/features/dashboard/dashboard.data.ts` still contains a static `topTokens` fixture array. The current dashboard uses `LiveMarketsTable` with API-provided markets, but the full repository import graph was not available through the current code search response. Do not delete the fixture until all references are traced.
+- Avoid further per-file commits in this batch. The GitHub contents API produced individual commits for each file; next feature batch must use a single tree/commit operation if a reliable base tree can be obtained. Keep the existing Preview pause and do not trigger Vercel deployments.
