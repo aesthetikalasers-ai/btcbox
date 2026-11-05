@@ -1267,3 +1267,14 @@ The backend CI branch filters were pointing at an older auth branch. Updated bot
 - Current feature branch HEAD is `d8f5e695332c4f995aba86aa9bd2cdb9d01b9747`. The latest code/test commit has exact-head CI evidence above; the subsequent commit changes documentation only and did not alter executable source.
 - This is source-contract/build evidence, not proof of live chain-provider integration, a working pending-intent creator, production RPC privileges, or an end-to-end deposit credit. Keep positive-amount user deposit requests fail-closed. No production rows, balances, schema, or secrets were changed.
 - No merge, Vercel deployment, production migration, or financial write was performed. Deployment pause remains active.
+
+
+## Security and database-readiness batch — 2026-11-06 (UTC+8)
+
+- SOURCE OBSERVED: feature branch `feat/btcbox-web3-auth-20261105` advanced to `ed15357f4cbfbcf8539b0a893c9cd192be93ad79`.
+- TEST PASSED: migration-checker regression fixture at `0f27798aaee2ebcfceaced37268bb53ff2c1e822`; CI run `42108055357` completed successfully. It verifies a timestamp-form migration ledger is not compared to repository four-digit SQL filenames and is reported as `VERSION_MAPPING_REQUIRED`.
+- SOURCE OBSERVED: shared rate-limit RPC response validation now requires explicit `ok: true`, exact `remaining = max(0, limit - count)`, and a `window_start` aligned to the configured fixed window. Invalid payloads continue to fail closed as `RATE_LIMIT_UNAVAILABLE` (HTTP 503).
+- SOURCE OBSERVED: regression coverage was added in `backend/tests/shared-rate-limit.test.js`; the auth route fixture was updated to return the full RPC success contract and aligned window start in `backend/tests/auth-security-routes.test.js`.
+- NOT VERIFIED: CI for `ed15357f4cbfbcf8539b0a893c9cd192be93ad79` is still running as workflow `42108400377`; earlier attempts failed because the auth test's mocked RPC response omitted `ok: true` and used an unaligned `window_start`. The fixture was corrected; do not treat the new CI as passed until its exact-head result is green.
+- SOURCE OBSERVED: canonical admin audit reader remains opt-in via `ADMIN_AUDIT_POSTGRES_READS_ENABLED=1`, uses `id::text`, string keyset cursors and fail-closed 503 behavior; no production PostgREST execution or schema verification was performed.
+- SAFETY: no production database writes/migrations, no real financial actions, no merge to `main`, and no Vercel deployment.
