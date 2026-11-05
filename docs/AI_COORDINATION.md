@@ -1023,3 +1023,15 @@ The backend CI branch filters were pointing at an older auth branch. Updated bot
 - This confirms the source/build/test pipeline only. Admin browser flows, Basic Auth against a live environment, Supabase/Postgres runtime, and real data correctness remain unverified.
 - Current coordination document commit: this entry appended after the prior coordination SHA; verify branch ref before further edits.
 - No database migration, production data/configuration change, merge, or Vercel deployment. Deployment pause remains active.
+
+
+## Redacted KYC admin read queue — 2026-11-06
+
+- Feature branch final head: `93a15f8acf3621042b71605ed4625e5e89f3da9a`.
+- Added read-only `GET /api/admin/kyc` behind the existing admin Basic Auth route. It returns only pending application UID, email, applicant name, ID type, status, and submission timestamp; it does not return identity number, password hashes, TOTP secrets, recovery codes, or raw user records.
+- Added `apiAdapter.adminKyc()`; admin console now hydrates the KYC queue with user and withdrawal reads, and renders the existing approval/rejection controls only for records returned by this pending-only endpoint.
+- Kept the deposits tab disabled: user-facing deposit submission currently rejects user-entered deposit claims and no canonical deposit-read contract for the financial ledger has been verified. Do not manufacture a queue from unsupported legacy assumptions or enable manual credit.
+- Added admin-entry contract coverage for KYC redaction, API adapter, queue hydration, and preserving the disabled deposits queue.
+- GitHub Actions run `42082114633` for exact SHA `93a15f8acf3621042b71605ed4625e5e89f3da9a` completed successfully: unified build passed, backend tests 145/145 passed, fail-closed preflight passed, preserved-entrypoint checks passed.
+- An earlier intermediate test run `42082080232` failed one stale hydration assertion; it was corrected before the final-head run. Another intermediate run `42082030837` failed due to an invalid regex in the first test draft; final test uses literal source assertions and is green.
+- No PostgreSQL migration, production data/configuration change, merge, or Vercel deployment. Deployment pause remains active. Live admin browser and real Basic Auth remain unverified.
