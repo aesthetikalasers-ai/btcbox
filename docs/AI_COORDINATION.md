@@ -1278,3 +1278,14 @@ The backend CI branch filters were pointing at an older auth branch. Updated bot
 - NOT VERIFIED: CI for `ed15357f4cbfbcf8539b0a893c9cd192be93ad79` is still running as workflow `42108400377`; earlier attempts failed because the auth test's mocked RPC response omitted `ok: true` and used an unaligned `window_start`. The fixture was corrected; do not treat the new CI as passed until its exact-head result is green.
 - SOURCE OBSERVED: canonical admin audit reader remains opt-in via `ADMIN_AUDIT_POSTGRES_READS_ENABLED=1`, uses `id::text`, string keyset cursors and fail-closed 503 behavior; no production PostgREST execution or schema verification was performed.
 - SAFETY: no production database writes/migrations, no real financial actions, no merge to `main`, and no Vercel deployment.
+
+
+## Follow-up verification — 2026-11-06 (UTC+8)
+
+- CORRECTION / TEST PASSED: shared rate-limit strict RPC response contract and corrected auth test fixtures passed exact-head CI run `42108563079` at feature SHA `203ed17db13992834e4a9f143d1f7b3618a73746`. This supersedes the earlier `NOT VERIFIED` status recorded above for the corrected fixture batch.
+- PostgREST bigint cast compatibility checked against the official PostgREST Tables and Views documentation: `select=id::text,...` is a documented supported column-casting form. Source: https://docs.postgrest.org/en/stable/references/api/tables_views.html
+- AUDIT CURSOR HARDENING: added `isPositivePostgresBigintString` to reject non-decimal, zero/negative, >19-digit, and >9223372036854775807 cursors without JavaScript Number coercion. Applied to both incoming `before` cursors and returned row IDs. The cursor continues to be sent as a decimal string in the `id=lt.<cursor>` filter; bigint ordering remains database-side.
+- Added source-contract regression coverage in `backend/tests/admin-audit-persistence.test.js` for the signed PostgreSQL bigint upper bound and absence of Number coercion.
+- Latest feature branch HEAD: `0d6bdb7efda22a2d3abc22c0763ac555266316fe`. Exact-head CI run `42108921107` is in progress; do not mark the audit cursor change accepted until this exact-head run succeeds.
+- Intermediate commits `187dbbe4a62431b688507f81b4f872a7cfced014` and `2b4b8f24a3ce1a2cd9bb9061af798e631d3e877f` also have CI runs in progress; exact-head run `42108921107` is the acceptance gate.
+- No production PostgREST request was executed, no production schema/rows/secrets were changed, and the canonical admin audit reader remains opt-in. No merge, deployment, or financial write was performed.
