@@ -9,6 +9,30 @@ const boot = fs.readFileSync(path.join(root, 'assets/js/boot.js'), 'utf8');
 const app = fs.readFileSync(path.join(root, 'assets/js/app-core.js'), 'utf8');
 const apiCore = fs.readFileSync(path.join(root, 'api-core.js'), 'utf8');
 const admin = fs.readFileSync(path.join(root, 'admin.html'), 'utf8');
+const api = require(path.join(root, 'api-core.js'));
+const redactAdminAuditDetail = api._test.redactAdminAuditDetail;
+
+test('admin audit detail redaction masks quoted JSON secrets and personal identifiers', () => {
+  const input = '{"password":"Super Secret Phrase","token":"abc123","id_number":"A1234567","email":"operator@example.com","wallet":"0x' + 'a'.repeat(40) + '"}';
+  const output = redactAdminAuditDetail(input);
+  assert.match(output, /"password":"\\[redacted\\]"/);
+  assert.match(output, /"token":"\\[redacted\\]"/);
+  assert.match(output, /"id_number":"\\[redacted\\]"/);
+  assert.doesNotMatch(output, /Super Secret Phrase|abc123|A1234567|operator@example\\.com|0x[a-f0-9]{40}/i);
+  assert.match(output, /\\[email\\]/);
+  assert.match(output, /\\[wallet address\\]/);
+});
+
+test('admin audit detail redaction also masks unquoted key-value secrets and TRON addresses', () => {
+  const tron = 'T' + '1'.repeat(33);
+  const output = redactAdminAuditDetail('private_key=priv-secret recovery_code: 123456 email admin@example.com wallet ' + tron);
+  assert.doesNotMatch(output, /priv-secret|123456|admin@example\\.com|T1{33}/);
+  assert.match(output, /private_key="\\[redacted\\]"/);
+  assert.match(output, /recovery_code: "\\[redacted\\]"/);
+  assert.match(output, /\\[email\\]/);
+  assert.match(output, /\\[wallet address\\]/);
+});
+
 
 test('dedicated /admin URL defaults to the admin route before SPA boot', () => {
   assert.ok(boot.includes("if(!location.hash) location.hash = /^\\/admin(?:\\.html)?\\/?$/.test(location.pathname) ? '#/admin' : '#/home';"));
