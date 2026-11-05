@@ -446,7 +446,7 @@ const apiAdapter = {
   // ADMIN -> POST /api/admin/kyc/approve {uid,admin_override?,reason?} (extra)
   async adminApproveKyc(p){ return adminFetch('/admin/kyc/approve',{method:'POST',body:{uid:p.uid, admin_override:!!p.admin_override, reason:p.reason}}); },
   // ADMIN -> POST /api/admin/kyc/reject {uid,reason}
-  async adminRejectKyc(p){ return adminFetch('/admin/kyc/reject',{method:'POST',body:{uid:p.uid, reason:p.reason||'Rejected by admin'}}); },
+  async adminRejectKyc(p){ return adminFetch('/admin/kyc/reject',{method:'POST',body:{uid:p.uid, reason:p.reason}}); },
   // ADMIN -> POST /api/admin/push {content,uid?}
   async adminPush(p){ return adminFetch('/admin/push',{method:'POST',body:{content:p.content, uid:p.uid}}); },
   // ADMIN -> POST /api/admin/support/reply {uid,content}
