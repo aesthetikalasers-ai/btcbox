@@ -347,7 +347,7 @@ async function readAdminAuditLogPage(params) {
   if (!supabaseStorageConfigured()) throw new Error('Canonical administrator audit storage unavailable');
   const limit = params.limit;
   const query = new URLSearchParams({
-    select: 'id,actor_id,subject_user_id,action,reason,created_at',
+    select: 'id::text,actor_id,subject_user_id,action,reason,created_at',
     order: 'id.desc',
     limit: String(limit + 1)
   });
