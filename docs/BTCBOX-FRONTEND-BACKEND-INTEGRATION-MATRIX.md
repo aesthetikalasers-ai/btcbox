@@ -109,3 +109,20 @@ The repository also contains a legacy vanilla-JS customer application under `bac
 - NOT VERIFIED: migrations are applied in the target Supabase project; RPCs are deployed; financial read/write flags are configured; any end-to-end financial lifecycle is operational.
 - NOT VERIFIED: any perpetual futures engine exists outside the inspected application branch.
 - No production DB writes, financial operations, Vercel changes, merge, or deployment were performed.
+
+
+## Derivatives template source audit — 2026-11-06
+
+### SOURCE OBSERVED
+
+- The pinned Strata Pro source at `bymilon/strata-pro-crypto-ui` commit `a3f79d0237c68faddc877f8c1b00afece2fbbae8` contains 42 tree entries. Its tracked source is a dashboard starter: app shell, sidebar/topbar, token icon, dashboard cards/charts/table and static dashboard data. No futures, perpetual, derivatives, leverage, margin, position, or contract-specific source paths were found.
+- Strata Pro README explicitly describes the project as frontend-only, using mock market data, and excluding live trading, auth, and backend integration.
+- The pinned Shadcn Fintech source at `abderrahimghazali/shadcn-fintech` commit `a905058c75a840896d27a16991f2e7cc1ca06f3f` contains Crypto, Investments, Accounts, Transactions and Transfers pages, but no futures/perpetual/derivatives/margin/position source paths.
+- Shadcn Fintech `src/components/crypto/trade-form.tsx` is a spot-style conversion/buy/sell form. Its `handleTrade()` uses local timers to display a successful trade without calling a backend. `crypto-page-client.tsx` seeds prices from static data and simulates price drift every three seconds. These are demo interactions, not an exchange order flow.
+
+### INTEGRATION DECISION
+
+- Do not treat either downloaded template as an existing perpetual-contract implementation.
+- Reuse Strata Pro's market-terminal visual components and Shadcn Fintech's account/portfolio UI selectively; replace all demo prices, seeded balances and simulated trade success with BTCBOX APIs.
+- Perpetual contracts remain a separate backend/frontend product gap: require explicit contract specs, isolated/cross margin policy, leverage limits, position accounting, funding, risk checks, liquidation and settlement before implementation. Do not relabel the existing seconds-contract product as perpetual.
+- This audit is source-only. It does not prove runtime behavior or any external database deployment.
