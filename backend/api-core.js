@@ -1421,6 +1421,9 @@ async function handleRequest(event, context) {
         (provider === 'web3' && !walletIdentity)) {
       return json({ ok: false, code: 'RECENT_TARGET_REAUTH_REQUIRED', msg: 'Please freshly verify the Google account or wallet you want to link.' }, 403);
     }
+    if (String(marker.supabase_user_id) === linkedId) {
+      return json({ ok: false, code: 'IDENTITY_LINK_SOURCE_TARGET_SAME', msg: 'Choose a different sign-in method to link.' }, 409);
+    }
     if (provider === 'google' && await detectGoogleProviderEnabled() !== true) {
       return json({ ok: false, code: 'GOOGLE_PROVIDER_UNAVAILABLE', msg: 'Google sign-in is temporarily unavailable.' }, 503);
     }
@@ -1455,9 +1458,6 @@ async function handleRequest(event, context) {
     }
     if (provider === 'google' && !user.email) user.email = linkedEmail;
     user.auth_providers = Array.from(new Set([].concat(user.auth_providers || [], [provider])));
-    if (String(marker.supabase_user_id) === linkedId) {
-      return json({ ok: false, code: 'IDENTITY_LINK_SOURCE_TARGET_SAME', msg: 'Choose a different sign-in method to link.' }, 409);
-    }
     delete sessionRecord.session.identity_link_reauth;
     try { await saveDB(db); }
     catch (e) {
