@@ -409,7 +409,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       await logout();
       await clientRef.current?.auth.signOut();
-      setEmail(""); setTempToken(""); setNeedsCredentials(false); setStatus("anonymous");
+      setEmail(""); setTempToken(""); setNeedsCredentials(false); setCredentialRecoveryReady(false); setCredentialRecoveryNeedsTwoFactor(false); setPendingCredentialRecoveryToken(""); setStatus("anonymous");
     } catch (cause) { setError(cause instanceof Error ? cause.message : "Sign out failed."); throw cause; }
     finally { setBusy(false); }
   }, []);
