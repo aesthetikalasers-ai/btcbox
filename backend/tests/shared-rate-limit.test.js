@@ -10,6 +10,7 @@ const migration = fs.readFileSync(path.join(__dirname, '..', 'supabase', 'sql', 
 const policies = {
   login_2fa: [20, 900],
   credential_reauth: [8, 900],
+  identity_link_reauth: [8, 900],
   credential_recover: [5, 900],
   twofa_setup_password: [10, 900],
   twofa_setup_confirm: [10, 900],
@@ -20,13 +21,13 @@ const policies = {
   fund_password_change: [10, 900],
 };
 
-test('shared limiter has an explicit policy and async call site for all ten protected routes', () => {
+test('shared limiter has an explicit policy and async call site for all eleven protected routes', () => {
   for (const [scope, [limit, seconds]] of Object.entries(policies)) {
     assert.match(api, new RegExp(scope + ': \\{ limit: ' + limit + ', windowSeconds: ' + seconds + ' \\}'));
     assert.ok(api.includes("await rateCheckShared('" + scope + "',"), scope + ' must use the shared limiter');
     assert.ok(migration.includes("'" + scope + "'"), scope + ' must be accepted by the database RPC');
   }
-  assert.equal((api.match(/await rateCheckShared\(/g) || []).length, 10);
+  assert.equal((api.match(/await rateCheckShared\(/g) || []).length, 11);
   assert.equal(api.includes('_rateBuckets'), false);
   assert.equal(api.includes('function rateCheck('), false);
 });
