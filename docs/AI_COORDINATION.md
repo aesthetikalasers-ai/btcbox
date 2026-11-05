@@ -856,3 +856,23 @@ The backend CI branch filters were pointing at an older auth branch. Updated bot
 - SOURCE READ-BACK VERIFIED: migration SQL and test source were fetched from the feature branch; the exact named drop is present and the broad loop is absent.
 - NOT VERIFIED: Node test execution, migration execution against PostgreSQL, existing-schema drift, constraint dependency behavior, and transaction/rollback behavior.
 - No database migration was applied, no production data/schema was changed, no merge occurred, and no Vercel build/deployment was initiated. The Vercel status remains a failure pointing to the `fuyao999` build-rate-limit page; no green CI claim is made.
+
+
+## TOTP replay and withdrawal concurrency hardening — 2026-11-06
+
+### IMPLEMENTED ON FEATURE BRANCH — SOURCE READ-BACK VERIFIED; TEST EXECUTION PENDING
+- Feature branch: `feat/btcbox-web3-auth-20261105`.
+- Latest feature branch commit at this update: `6f8cfb23c670e968394a37f64e5e324290fe896f`.
+- Added `totpMatchStep`, which returns the exact matching 30-second TOTP counter rather than only a boolean. All protected TOTP paths now use `consumeTotpStep`, which rejects a counter at or below the user's persisted `twofa_last_used_step`.
+- The consumed counter is saved in the same revision-CAS state write as the associated login session, reauthentication marker, credential change, or 2FA state change. The withdrawal route persists the consumed counter before the financial cutover check or any financial RPC; persistence failure fails closed with 503.
+- New TOTP enrollment clears a prior counter when creating a fresh secret; disabling 2FA clears the counter together with the secret.
+- Added `backend/tests/totp-replay-protection.test.js` with source-contract assertions for matched-step validation, replay rejection, protected-route consumption, withdrawal persistence ordering, and enrollment/disable reset behavior.
+- Added a transaction-scoped PostgreSQL advisory lock on `hashtextextended(p_request_id, 0)` before the initial `withdrawal_requests` lookup in `0022_withdrawal_admin_review_status_v1.sql`. This closes the absent-row race where two simultaneous first-use retries could both observe no row; the unique request_id and financial-operation idempotency key already prevented double financial posting, but the losing request could previously end in a uniqueness error instead of returning the original withdrawal.
+- Extended `backend/tests/withdrawal-audit-contract.test.js` to assert the advisory lock precedes the request lookup. Existing review logic continues to lock the withdrawal row with `FOR UPDATE`, apply the ledger operation and audit row in the same SQL transaction, and return the terminal status for a repeated review; the API maps a conflicting decision to HTTP 409.
+
+### VALIDATION / LIMITS
+- SOURCE READ-BACK VERIFIED: fetched the feature-branch API, TOTP test, withdrawal migration, and withdrawal contract test after the edits. Static checks confirmed the six-digit TOTP regex, no protected route still calls the boolean verifier, all protected routes use the one-time-step consumer, withdrawal persists the counter before the financial gate, and the advisory lock is placed before the absent-row lookup.
+- NOT VERIFIED: Node test execution, unified build, live concurrent TOTP requests across separate serverless instances, PostgreSQL advisory-lock behavior on the target schema, migration execution, and HTTP/browser end-to-end behavior.
+- GitHub workflow lookup returned no PR-triggered workflow runs for the latest feature SHA. The only combined status currently exposed is the Vercel `build-rate-limit` failure; this is not a GitHub Actions test result.
+- Admin audit remains awaited before the JSON state save but is not one transaction across PostgreSQL audit append and JSON-state CAS. If the append succeeds and the later CAS fails, an orphan audit row can remain; do not describe this cross-store workflow as atomic.
+- No database migration was applied, no production records or schema were changed, no secrets were read or modified, no merge occurred, and no Vercel build/deployment was initiated. Deployment pause remains active.
