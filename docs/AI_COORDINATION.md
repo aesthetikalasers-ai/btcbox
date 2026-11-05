@@ -1298,3 +1298,8 @@ The backend CI branch filters were pointing at an older auth branch. Updated bot
 - Corrective commits: `b78e41a5ae80bd6c8dfd67946dcf39879a7214d8` (restore validators) and `754debb8a541ce810e9a2cd7b7035ea32d1d7a62` (repair test assertions).
 - Current feature HEAD: `754debb8a541ce810e9a2cd7b7035ea32d1d7a62`. Exact-head CI run `42109483650` is queued/in progress. Do not accept the batch until this exact SHA passes all jobs.
 - No production DB access or writes, merge, deployment, or financial operation occurred.
+
+
+- ADDITIONAL CORRECTION: review of the corrective diff found one more adjacent helper affected by the same broad replacement: `isValidAuthEmail`. Restored its original email-format contract in `a2d4c067eee5f839b715c287fd228aa6129d13e7`.
+- Diff audit from the last known-good feature SHA `203ed17db13992834e4a9f143d1f7b3618a73746` now shows exactly two changed files: `backend/api-core.js` and `backend/tests/admin-audit-persistence.test.js`. No other files are in this audit-cursor patch series.
+- Latest feature HEAD: `a2d4c067eee5f839b715c287fd228aa6129d13e7`; exact-head CI run `42109618999` is in progress. Prior runs for intermediate corrective commits failed and are superseded by this latest exact-head run.
