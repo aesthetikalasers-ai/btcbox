@@ -354,7 +354,7 @@ async function readAdminAuditLogPage(params) {
   if (params.before) query.set('id', 'lt.' + params.before);
   if (params.action) query.set('action', 'eq.' + params.action);
   if (params.uid) query.set('subject_user_id', 'eq.' + params.uid);
-  const base = process.env.SUPABASE_URL.replace(/\\/+$/, '');
+  const base = process.env.SUPABASE_URL.replace(/\/+$/, '');
   const response = await fetch(base + '/rest/v1/financial_audit_log?' + query.toString(), {
     method: 'GET', headers: supabaseHeaders()
   });
