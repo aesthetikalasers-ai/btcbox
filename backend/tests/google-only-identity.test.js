@@ -14,31 +14,35 @@ function extractFunction(name) {
   return vm.runInNewContext('(' + source.slice(start, end + 2) + ')');
 }
 
-const isGoogleOnlySupabaseIdentity = extractFunction('isGoogleOnlySupabaseIdentity');
+const getSingleSupabaseAuthProvider = extractFunction('getSingleSupabaseAuthProvider');
 const isValidAuthEmail = extractFunction('isValidAuthEmail');
 const isSupabaseUserId = extractFunction('isSupabaseUserId');
 
-test('only a server-verified Google-only Supabase identity is accepted', () => {
+test('only one server-verified Google or email Supabase identity is accepted', () => {
   const google = {
     app_metadata: { provider: 'google', providers: ['google'] },
     identities: [{ provider: 'google' }],
     user_metadata: { provider: 'google' }
   };
-  assert.equal(isGoogleOnlySupabaseIdentity(google), true);
-  assert.equal(isGoogleOnlySupabaseIdentity({
+  assert.equal(getSingleSupabaseAuthProvider(google), 'google');
+  assert.equal(getSingleSupabaseAuthProvider({
     app_metadata: { provider: 'email', providers: ['email'] },
     identities: [{ provider: 'email' }],
     user_metadata: { provider: 'google' }
-  }), false, 'user-editable metadata must never authorize Google sign-in');
-  assert.equal(isGoogleOnlySupabaseIdentity({
+  }), 'email', 'user-editable metadata must not override the server-verified email provider');
+  assert.equal(getSingleSupabaseAuthProvider({
     app_metadata: { provider: 'google', providers: ['google', 'email'] },
     identities: [{ provider: 'google' }, { provider: 'email' }]
-  }), false, 'linked email identity must not bypass Google-only policy');
-  assert.equal(isGoogleOnlySupabaseIdentity({
+  }), null, 'linked identities must be rejected until explicit linking is implemented');
+  assert.equal(getSingleSupabaseAuthProvider({
     app_metadata: { provider: 'google', providers: ['google'] },
     identities: [{ provider: 'email' }]
-  }), false, 'provider metadata and identity list must agree');
-  assert.equal(isGoogleOnlySupabaseIdentity(null), false);
+  }), null, 'provider metadata and identity list must agree');
+  assert.equal(getSingleSupabaseAuthProvider({
+    app_metadata: { provider: 'email', providers: ['email'] },
+    identities: []
+  }), null, 'an empty identity list must fail closed');
+  assert.equal(getSingleSupabaseAuthProvider(null), null);
 });
 
 test('Google identity exchange validates a normal email address without accepting whitespace', () => {
