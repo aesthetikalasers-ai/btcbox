@@ -360,6 +360,41 @@ test('disabling two-factor authentication revokes pending login challenges', () 
   assert.ok(route.indexOf('delete db.temp_tokens[token]') < route.indexOf('await saveDB(db)'));
 });
 
+test('2FA setup, enable and disable only report success after fail-closed persistence', () => {
+  const setupStart = source.indexOf("if (path === '2fa/enable' && method === 'POST')");
+  const confirmStart = source.indexOf("if (path === '2fa/confirm' && method === 'POST')");
+  const disableStart = source.indexOf("if (path === '2fa/disable' && method === 'POST')");
+  const accountStart = source.indexOf("// ---------- GET /api/account ----------", disableStart);
+  assert.ok(setupStart >= 0 && confirmStart > setupStart && disableStart > confirmStart && accountStart > disableStart);
+  const routes = [
+    source.slice(setupStart, confirmStart),
+    source.slice(confirmStart, disableStart),
+    source.slice(disableStart, accountStart),
+  ];
+  for (const route of routes) {
+    const persist = route.indexOf("try { await saveDB(db); }");
+    const success = route.indexOf("return json({ ok: true");
+    assert.ok(persist >= 0 && success > persist, 'success response must follow guarded persistence');
+    assert.ok(route.includes("code: 'PERSISTENCE_UNAVAILABLE'"));
+    assert.ok(route.includes("code: 'ACCOUNT_UPDATE_CONFLICT'"));
+  }
+});
+
+test('2FA state changes revoke other sessions and pending challenges before guarded persistence', () => {
+  const confirmStart = source.indexOf("if (path === '2fa/confirm' && method === 'POST')");
+  const disableStart = source.indexOf("if (path === '2fa/disable' && method === 'POST')");
+  const accountStart = source.indexOf("// ---------- GET /api/account ----------", disableStart);
+  const confirm = source.slice(confirmStart, disableStart);
+  const disable = source.slice(disableStart, accountStart);
+  for (const route of [confirm, disable]) {
+    assert.ok(route.includes("token !== currentSessionRecord.token && session && session.uid === user.uid"));
+    assert.ok(route.includes("db.temp_tokens[token].uid === user.uid"));
+    assert.ok(route.includes("delete db.sessions[token]"));
+    assert.ok(route.includes("delete db.temp_tokens[token]"));
+    assert.ok(route.indexOf("delete db.temp_tokens[token]") < route.indexOf("try { await saveDB(db); }"));
+  }
+});
+
 test('2FA login challenge requires a finite unexpired challenge and an enabled factor', () => {
   const start = source.indexOf("if (path === 'login/2fa' && method === 'POST')");
   const end = source.indexOf('\n  }', start);
