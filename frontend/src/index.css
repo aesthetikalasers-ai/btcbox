@@ -16,3 +16,16 @@
 *{box-sizing:border-box}html,body,#root{width:100%;min-height:100%;margin:0}html,body{overflow-x:clip}body{@apply bg-brand-bg text-brand-text antialiased;font-size:15px;min-width:320px;line-height:1.55}button,input,select,textarea{font:inherit}button{touch-action:manipulation}:focus-visible{outline:2px solid var(--ring);outline-offset:2px}::-webkit-scrollbar{width:6px;height:6px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:rgba(148,180,220,.22);border-radius:999px}::-webkit-scrollbar-thumb:hover{background:rgba(148,180,220,.38)}
 @media(max-width:640px){body{font-size:15px}button{min-height:40px}input,select,textarea{font-size:16px!important}}
 @layer utilities{.custom-scrollbar::-webkit-scrollbar{height:4px;width:4px}.custom-scrollbar::-webkit-scrollbar-thumb{background:rgba(148,180,220,.22);border-radius:999px}.custom-scrollbar::-webkit-scrollbar-track{background:transparent}}
+
+@layer components {
+.type-display{font-size:clamp(1.75rem,5vw,2.25rem);line-height:1.12;font-weight:750;letter-spacing:-.045em;font-variant-numeric:tabular-nums}
+.type-page-title{font-size:clamp(1.375rem,3.5vw,1.625rem);line-height:1.2;font-weight:750;letter-spacing:-.035em}
+.type-section-title{font-size:1rem;line-height:1.35;font-weight:700;letter-spacing:-.015em}
+.type-card-title{font-size:.9375rem;line-height:1.4;font-weight:650}
+.type-body{font-size:.9375rem;line-height:1.55}
+.type-body-compact{font-size:.875rem;line-height:1.5}
+.type-label{font-size:.8125rem;line-height:1.4;font-weight:600}
+.type-meta{font-size:.75rem;line-height:1.45}
+.type-micro{font-size:.6875rem;line-height:1.4}
+.type-price{font-size:clamp(1.25rem,4vw,1.75rem);line-height:1.15;font-weight:700;letter-spacing:-.035em;font-variant-numeric:tabular-nums}
+}
