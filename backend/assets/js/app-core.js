@@ -425,6 +425,8 @@ const apiAdapter = {
   async adminStats(){ return adminFetch('/admin/stats'); },
   // ADMIN -> GET /api/admin/users?search=
   async adminUsers(q){ return adminFetch('/admin/users'+(q?'?search='+encodeURIComponent(q):'')); },
+  // ADMIN -> GET /api/admin/kyc (redacted pending applications)
+  async adminKyc(){ return adminFetch('/admin/kyc'); },
   // ADMIN -> GET /api/admin/user?uid=
   async adminUser(id){ return adminFetch('/admin/user?uid='+encodeURIComponent(id)); },
   // ADMIN -> POST /api/admin/user/balance {uid,coin,delta,mode,request_id(16+),reason}
