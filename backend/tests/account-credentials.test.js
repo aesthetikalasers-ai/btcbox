@@ -176,3 +176,20 @@ test('credential updates preserve the current session and revoke every other acc
 test('account snapshot tolerates legacy users without a KYC object', () => {
   assert.ok(source.includes("kyc_level: user.kyc && user.kyc.status === 'approved' ? 2 : (user.kyc && user.kyc.status === 'pending' ? 1 : 0)"));
 });
+
+
+test('credential reset and credential setup invalidate both current-session reauthentication markers', () => {
+  const recoveryStart = source.indexOf("if (path === 'account/credentials/recover' && method === 'POST')");
+  const recoveryEnd = source.indexOf("// ---------- POST /api/account/credentials ----------", recoveryStart);
+  const recoveryRoute = source.slice(recoveryStart, recoveryEnd);
+  assert.ok(recoveryRoute.includes('delete sessionRecord.session.credential_reauth'));
+  assert.ok(recoveryRoute.includes('delete sessionRecord.session.identity_link_reauth'));
+  assert.ok(recoveryRoute.indexOf('delete sessionRecord.session.identity_link_reauth') < recoveryRoute.indexOf('await saveDB(db)'));
+
+  const updateStart = source.indexOf("if (path === 'account/credentials' && method === 'POST')");
+  const updateEnd = source.indexOf("// ---------- POST /api/auth/link-identity ----------", updateStart);
+  const updateRoute = source.slice(updateStart, updateEnd);
+  assert.ok(updateRoute.includes('delete currentSessionRecord.session.credential_reauth'));
+  assert.ok(updateRoute.includes('delete currentSessionRecord.session.identity_link_reauth'));
+  assert.ok(updateRoute.indexOf('delete currentSessionRecord.session.identity_link_reauth') < updateRoute.indexOf('await saveDB(db)'));
+});
