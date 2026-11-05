@@ -75,3 +75,15 @@ test('identity source-target equality is rejected before account identity arrays
   assert.ok(guard >= 0);
   assert.ok(mutation > guard);
 });
+
+
+test('shared limiter rejects incomplete or internally inconsistent RPC success payloads', () => {
+  const start = api.indexOf('async function rateCheckShared(scope, subject)');
+  const end = api.indexOf('\nfunction rateLimitUnavailableJson()', start);
+  assert.ok(start >= 0 && end > start);
+  const checker = api.slice(start, end);
+  assert.ok(checker.includes('result.ok !== true'), 'RPC must explicitly confirm success');
+  assert.ok(checker.includes('result.remaining !== Math.max(0, policy.limit - result.count)'), 'remaining must match the authoritative count');
+  assert.ok(checker.includes('result.window_start % policy.windowSeconds !== 0'), 'window start must align to the fixed window');
+  assert.ok(checker.includes('return { unavailable: true }'), 'invalid payloads must fail closed');
+});
