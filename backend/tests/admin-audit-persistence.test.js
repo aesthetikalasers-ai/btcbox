@@ -167,3 +167,19 @@ test('admin audit action and uid filters reject overlong raw values before allow
   assert.doesNotMatch(route, /params\.action \|\| ''\)\.trim\(\)\.slice\(0, 100\)/);
   assert.doesNotMatch(route, /params\.uid \|\| ''\)\.trim\(\)\.slice\(0, 100\)/);
 });
+
+
+test('admin audit outbox stages only redacted detail before local persistence and PostgreSQL delivery', () => {
+  const stageStart = source.indexOf('async function auditAdmin(action, uid, detail)');
+  const stageEnd = source.indexOf('// POST /api/admin/user/balance', stageStart);
+  assert.ok(stageStart >= 0 && stageEnd > stageStart);
+  const stage = source.slice(stageStart, stageEnd);
+  assert.match(stage, /detail: redactAdminAuditDetail\(detail\)/);
+  assert.doesNotMatch(stage, /detail: String\(detail/);
+
+  const flushStart = source.indexOf('async function flushAdminAuditOutbox()');
+  const flushEnd = source.indexOf("if (path.startsWith('admin/'))", flushStart);
+  assert.ok(flushStart >= 0 && flushEnd > flushStart);
+  const flush = source.slice(flushStart, flushEnd);
+  assert.match(flush, /p_detail: String\(entry\.detail \|\| ''\)/);
+});
