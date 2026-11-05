@@ -486,3 +486,27 @@ Also verify the Site URL and inspect Authentication → Rate Limits / CAPTCHA fo
 - User-operated browser test is still required for Google OAuth. Do not request passwords, OAuth codes, or wallet seed phrases.
 - Obtain a non-deploying test runner for build/unit tests; do not create a Vercel Preview while quota is constrained.
 - Keep this 77-commit feature branch unmerged until full diff scope, tests, and independent browser QA are reviewed.
+
+
+## Vercel Preview failure and deployment pause — 2026-11-05
+
+### USER DIRECTION
+- User explicitly instructed: the deployment failed; finish other work first and only resume deployment later.
+- Treat this as a pause on ALL Vercel deployments (Preview and Production). Do not call deployment creation, promote, alias, or production deployment actions again until the user explicitly re-authorizes deployment.
+- Continue source review, offline-safe fixes, documentation, and non-deploying checks only. Do not change production domain routing or Supabase production settings.
+
+### FAILED PREVIEW EVIDENCE
+- Preview deployment ID: `dpl_F6w3xwSebuqX7YncUtRietkk9mPJ`
+- Preview URL: `btcboxcdt-k6rbp0wq2-box-2753.vercel.app`
+- Branch: `feat/btcbox-web3-auth-20261105`
+- Source SHA: `8182397a4066d0ac8811e5e992eae175c64c8f4e`
+- Vercel final state: `ERROR`; error code `lint_or_type_error`; command `npm run build && npm test` exited with 1.
+- Build reached frontend TypeScript compilation. The emitted diagnostics repeatedly report missing identifiers in `frontend/src/features/auth/AuthPages.tsx`, including `useAuth`, React hooks/types (`useState`, `useEffect`, `FormEvent`), router hook `useNavigate`, UI components (`Card`, `CardHeader`, `CardTitle`, `CardDescription`, `CardContent`, `Button`, `Input`), Lucide icons (`ShieldCheck`, `Eye`, `EyeOff`, `Wallet`, `Chrome`) and `Link`.
+- Source inspection confirms the current file begins directly with `export function AuthPage...` and has no imports. This is a concrete root-cause candidate for the compiler errors; fix must be made on the feature branch under the correct file ownership and then reviewed without triggering deployment.
+- No Production deployment or production alias change occurred.
+
+### NEXT WORK WHILE DEPLOYMENTS ARE PAUSED
+- Review the ownership boundary for `frontend/src/features/auth/AuthPages.tsx` before editing; do not cross another team's file ownership.
+- Prepare the minimal import repair and inspect the rest of the auth page for any additional missing imports/type errors.
+- Review auth/backend security and identity-linking flows, and prepare a reproducible non-deploying test path.
+- Do not call Vercel deployment APIs until the user explicitly re-authorizes.
