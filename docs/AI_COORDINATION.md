@@ -384,3 +384,12 @@ Also verify the Site URL and inspect Authentication → Rate Limits / CAPTCHA fo
 - Obtain a screenshot or read-only confirmation of the actual Supabase URL Configuration and Web3 provider/rate-limit/CAPTCHA settings before declaring wallet login ready.
 - Keep the project configuration unchanged until the actual frontend host and required paths are confirmed.
 - Continue source-level security review and seek a non-deploying build/test environment; do not use Vercel Preview for test evidence while build quota is constrained.
+
+## Authentication touch-target refinement — 2026-11-05
+
+- SOURCE OBSERVED: shared button variants already provide 44px minimum height for default buttons and 48px for large buttons. A focused source review found several inline authentication controls did not inherit those dimensions.
+- IMPLEMENTED on `feat/btcbox-web3-auth-20261105`: expanded the password-visibility control, error-dismiss control, Phantom/Coinbase mobile handoff links, and Back to BTCBOX link to at least 44px minimum height / touch area in `frontend/src/features/auth/AuthPages.tsx`.
+- Feature commit: `8182397a4066d0ac8811e5e992eae175c64c8f4e` (`fix(mobile): enlarge authentication touch targets`).
+- Compared with `main` `14a8e361fd928626d4e350a03698135f0c49ceea`, the feature branch is now 77 commits ahead / 0 behind. This remains a large integration branch, not merge-ready.
+- NOT VERIFIED: rendered hit-box dimensions, iOS/Android interaction, keyboard focus, or visual regressions; no build/test/browser/device run was performed. This is a source-level class refinement only.
+- No Vercel deployment, production configuration change, merge, or financial operation was performed.
