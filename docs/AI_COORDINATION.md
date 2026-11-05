@@ -1351,3 +1351,13 @@ The backend CI branch filters were pointing at an older auth branch. Updated bot
 - Code/SQL commit: `407cf44a349e3240ec4765667978228b03c21109`; regression-test commit: `e4cd543e8bb4c406d24579b5cfb35c0f477f5cf6`.
 - Latest exact-head CI: run `42113367770` for `e4cd543e8bb4c406d24579b5cfb35c0f477f5cf6` is in progress. Do not mark this SQL contract change accepted until the exact-head CI passes.
 - Migration remains prepared only. It has not been applied to production or staging. No DB reads/writes, merges, deployments, or financial operations were performed.
+
+
+### Bounded admin audit outbox retry — 2026-11-06 (UTC+8)
+
+- SOURCE REVIEW: the previous retry loop attempted every pending audit event sequentially with no per-request network timeout. A large backlog could make an admin request spend unbounded time draining the queue.
+- PATCH: each invocation now processes at most 10 pending entries concurrently; each PostgREST RPC has a 4-second timeout. Unprocessed and failed entries remain pending for later retries; successful results are persisted together.
+- Code commit: `495aa6f47c8457fb12f1d787c33c8a69762f9461`; regression test commit: `f254cb216982239dea13a5fcedced850f57c24d6`.
+- Exact-head CI run `42113504711` for `f254cb216982239dea13a5fcedced850f57c24d6` is in progress. Code-only run `42113489305` is also in progress. Do not mark bounded retry accepted until exact-head CI passes.
+- Prior redaction-safe idempotency SQL/test commits `407cf44a349e3240ec4765667978228b03c21109` and `e4cd543e8bb4c406d24579b5cfb35c0f477f5cf6` passed exact-head CI runs `42113353008` and `42113367770` respectively.
+- Outbox delivery remains request-triggered; no trusted scheduler/cron was added. The shared rate-limit cleanup scheduler gap also remains. No production or staging migration/database operation, merge, deployment, or financial operation was performed.
