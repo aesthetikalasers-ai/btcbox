@@ -126,3 +126,22 @@ The repository also contains a legacy vanilla-JS customer application under `bac
 - Reuse Strata Pro's market-terminal visual components and Shadcn Fintech's account/portfolio UI selectively; replace all demo prices, seeded balances and simulated trade success with BTCBOX APIs.
 - Perpetual contracts remain a separate backend/frontend product gap: require explicit contract specs, isolated/cross margin policy, leverage limits, position accounting, funding, risk checks, liquidation and settlement before implementation. Do not relabel the existing seconds-contract product as perpetual.
 - This audit is source-only. It does not prove runtime behavior or any external database deployment.
+
+
+## Seconds-contract implementation coverage audit — 2026-11-06
+
+### SOURCE OBSERVED
+
+- Existing seconds-contract backend is materially implemented in `backend/api-core.js`: authenticated `POST /api/seconds/order`, `POST /api/seconds/settle`, and `GET /api/seconds/positions`; reference prices are sampled server-side from Coinbase with Bybit fallback. All three routes fail closed when `financialWritesEnabled()` is false.
+- SQL migrations `0014_financial_seconds_contracts_v1.sql`, `0015_financial_seconds_one_open_position_v1.sql`, and `0024_seconds_settlement_idempotency_v1.sql` define atomic reserve/settlement ledger movements, one-open-position-per-user enforcement, and settlement idempotency. Migration files in Git do not prove they were applied to any Supabase environment.
+- Legacy vanilla-JS UI `backend/assets/js/views-trading.js` includes a Seconds Contracts screen, open/history positions, countdown/settlement actions, durable pending-order intent and reconciliation. The source is not the current React/Vite route implementation.
+- Existing tests in `backend/tests/seconds-persistent-order-guard.test.js` and `backend/tests/seconds-one-open-position-migration.test.js` cover durable idempotency intent, unknown outcomes, settlement request replay/conflicts, server-canonical settlement timestamps, and the database one-open-position guard. These are source-level automated tests; no test run was performed in this documentation-only batch.
+- Current React/Vite `frontend/src/features/pages/Pages.tsx` still renders trade/seconds as integration-pending placeholders; `frontend/src/lib/api.ts` has no seconds API client methods. Thus existing seconds capability is not yet integrated into the new React UI.
+- The inspected backend tree contains no perpetual/futures order, margin, leverage, funding, liquidation, or futures position engine. Seconds contracts are a distinct fixed-duration UP/DOWN product, not perpetual futures.
+
+### NEXT SAFE WORK
+
+- Reuse the existing seconds backend contract; do not create a second seconds ledger or duplicate order/settlement endpoints.
+- Before wiring the React UI, add typed client methods matching the exact request/response contracts and tests for API parsing/error handling; keep all write actions disabled while the financial cutover gate is incomplete.
+- Perpetual futures remain a separate product requiring approved risk/business rules and a dedicated engine. No leverage, margin, funding, liquidation, or settlement policy is inferred from the seconds product.
+- No database migration was applied, no financial write was performed, and no deployment was initiated during this audit.
