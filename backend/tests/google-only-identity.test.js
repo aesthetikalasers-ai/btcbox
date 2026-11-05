@@ -104,3 +104,26 @@ test('Web3 identities require one server-verified provider and validated chain a
   assert.equal(getSupabaseWalletIdentity({ ...ethereum, app_metadata: { provider: 'google', providers: ['google'] } }), null);
   assert.equal(getSupabaseWalletIdentity({ ...ethereum, identities: [{ provider: 'google' }] }), null);
 });
+
+
+test('wallet identity comparisons canonicalize Ethereum case and preserve Solana case sensitivity', () => {
+  const sameWallet = extractFunction('isSameWalletIdentity', {
+    normalizeWalletIdentityAddress: extractFunction('normalizeWalletIdentityAddress')
+  });
+  assert.equal(sameWallet(
+    { chain: 'ethereum', address: '0x52908400098527886E0F7030069857D2E4169EE7' },
+    { chain: 'ethereum', address: '0x52908400098527886e0f7030069857d2e4169ee7' }
+  ), true, 'EVM checksum casing must not bypass wallet uniqueness');
+  assert.equal(sameWallet(
+    { chain: 'solana', address: '11111111111111111111111111111111' },
+    { chain: 'solana', address: '11111111111111111111111111111112' }
+  ), false, 'Solana addresses remain case-sensitive');
+  assert.equal(sameWallet(
+    { chain: 'ethereum', address: '0xinvalid' },
+    { chain: 'ethereum', address: '0xinvalid' }
+  ), false, 'malformed stored wallet records must not match');
+  assert.equal(sameWallet(
+    { chain: 'ethereum', address: '0x52908400098527886E0F7030069857D2E4169EE7' },
+    { chain: 'solana', address: '0x52908400098527886e0f7030069857d2e4169ee7' }
+  ), false, 'wallets on different chains must never collide');
+});
