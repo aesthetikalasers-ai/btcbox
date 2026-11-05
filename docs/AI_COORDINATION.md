@@ -786,3 +786,14 @@ Feature branch `feat/btcbox-web3-auth-20261105` at `48d82c0877dd945d7a4f4115f3cf
 ## CI coverage for active auth feature branch — 2026-11-05
 
 The backend CI branch filters were pointing at an older auth branch. Updated both push and pull-request filters to include `feat/btcbox-web3-auth-20261105`. This CI workflow runs the unified build, backend test suite, and fail-closed preflight; it contains no Vercel deployment step. GitHub Actions run `42052460527` was created for feature SHA `86af1338b21d9576e334070c826c554a1f85d14d` and was observed in progress at the time of this note. Do not treat the run as passed until its completed conclusion and logs are inspected. The Vercel deployment pause remains unchanged.
+
+
+## CI validation and identity-link cleanup — 2026-11-05
+
+- Removed the obsolete direct identity-link callback from the React AuthContext. The supported UI flow now exposes the explicit source-proof then target-proof actions; backend session marker validation remains authoritative.
+- First backend CI run identified two stale source assertions: one expected an untyped Web3 provider call, and one compared source positions across the entire API file instead of the identity-link route. Updated both tests to match the typed call and scope the ordering assertion to that route.
+- Updated frontend CI branch coverage for `feat/btcbox-web3-auth-20261105`; frontend CI run `42052761320` completed successfully at SHA `d49aafe0ab4386a9c6af1be91667f7ddc05b34b3`.
+- Updated backend CI path coverage so changes to the auth provider and frontend CI workflow run the unified build and backend tests. Backend CI run `42052795499` completed successfully at SHA `cbe90673585f8a7916b41b235ce4ec584b9097fd`: unified build succeeded; 109 tests passed, 0 failed; fail-closed preflight succeeded; preserved-entrypoint checks succeeded.
+- CI logs show a Vite chunk-size warning and Node/action deprecation warnings; neither failed the run. The workflow contains no Vercel deployment step.
+- Latest feature branch SHA at this note: `cbe90673585f8a7916b41b235ce4ec584b9097fd`. These CI results apply to that SHA, not to any later commits.
+- The PostgreSQL migration remains unapplied; live database role/RLS/atomicity checks, browser OAuth, wallet, and TOTP end-to-end checks remain outstanding. No production database change, merge, or Vercel deployment was performed; deployment pause remains active.
