@@ -12,9 +12,9 @@ const ids = {
 };
 const sessionToken = 'test-session';
 
-function jwt(subject) {
+function jwt(subject, authTime = Math.floor(Date.now() / 1000)) {
   const payload = Buffer.from(JSON.stringify({
-    sub: subject, auth_time: Math.floor(Date.now() / 1000),
+    sub: subject, auth_time: authTime,
   })).toString('base64url');
   return 'header.' + payload + '.signature';
 }
@@ -51,8 +51,9 @@ function harness(marker = {}, options = {}) {
   let reads = 0;
   let release;
   let barrier = null;
-  const sourceToken = jwt(ids.source);
-  const targetToken = jwt(ids.target);
+  const nowSeconds = Math.floor(now / 1000);
+  const sourceToken = jwt(ids.source, options.sourceAuthTime === undefined ? nowSeconds : options.sourceAuthTime);
+  const targetToken = jwt(ids.target, options.targetAuthTime === undefined ? nowSeconds : options.targetAuthTime);
   const identities = new Map([
     [sourceToken, identity(ids.source, '0x1111111111111111111111111111111111111111')],
     [targetToken, identity(ids.target, '0x2222222222222222222222222222222222222222')],
@@ -223,3 +224,55 @@ test('credential recovery does not commit or consume its marker after a database
   assert.equal(h.data.users['16588'].login_password_hash, undefined);
   assert.equal(h.data.sessions[sessionToken].credential_reauth.purpose, 'credential_recovery');
 });
+
+test('identity linking rejects stale or future signed auth_time on both source and target proofs', async () => {
+  const nowSeconds = Math.floor(Date.now() / 1000);
+  const staleSource = harness({}, { sourceAuthTime: nowSeconds - 301 });
+  const staleSourceResult = await staleSource.run('auth/link-identity/reauth', {
+    supabase_access_token: staleSource.sourceToken,
+  });
+  assert.equal(staleSourceResult.status, 403);
+  assert.equal(staleSourceResult.body.code, 'RECENT_REAUTH_REQUIRED');
+
+  const futureSource = harness({}, { sourceAuthTime: nowSeconds + 120 });
+  const futureSourceResult = await futureSource.run('auth/link-identity/reauth', {
+    supabase_access_token: futureSource.sourceToken,
+  });
+  assert.equal(futureSourceResult.status, 403);
+  assert.equal(futureSourceResult.body.code, 'RECENT_REAUTH_REQUIRED');
+
+  const staleTarget = harness(linkMarker, { targetAuthTime: nowSeconds - 301 });
+  const staleTargetResult = await staleTarget.run('auth/link-identity', {
+    supabase_access_token: staleTarget.targetToken,
+  });
+  assert.equal(staleTargetResult.status, 403);
+  assert.equal(staleTargetResult.body.code, 'RECENT_TARGET_REAUTH_REQUIRED');
+});
+
+test('recent server marker cannot make an expired Supabase auth_time valid for linking or recovery', async () => {
+  const staleAuthTime = Math.floor(Date.now() / 1000) - 301;
+  const link = harness({
+    identity_link_reauth: {
+      purpose: 'identity_link', supabase_user_id: ids.source,
+      auth_time: staleAuthTime, verified_at: Date.now(),
+    },
+  });
+  const linkResult = await link.run('auth/link-identity', {
+    supabase_access_token: link.targetToken,
+  });
+  assert.equal(linkResult.status, 403);
+  assert.equal(linkResult.body.code, 'REAUTH_REQUIRED');
+
+  const recovery = harness({
+    credential_reauth: {
+      purpose: 'credential_recovery', supabase_user_id: ids.source,
+      auth_time: staleAuthTime, verified_at: Date.now(),
+    },
+  });
+  const recoveryResult = await recovery.run('account/credentials/recover', {
+    password: 'a-new-strong-btcbox-password-2026',
+  });
+  assert.equal(recoveryResult.status, 403);
+  assert.equal(recoveryResult.body.code, 'RECENT_REAUTH_REQUIRED');
+});
+
