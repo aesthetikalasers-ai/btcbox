@@ -712,10 +712,11 @@ async function handleRequest(event, context) {
   // Public, read-only configuration for the React Supabase Auth client.
   // This route intentionally runs before loadDB and only exposes the public anon/publishable key.
   if (path === 'auth-client-config' && method === 'GET') {
-    const authUrl = String(process.env.SUPABASE_AUTH_URL || process.env.SUPABASE_URL || '').trim().replace(/\\/+$/, '');
+    const authUrl = String(process.env.SUPABASE_AUTH_URL || process.env.SUPABASE_URL || '').trim().replace(/\/+$/, '');
     const publishableKey = getPublishableKey();
-    if (!authUrl || !publishableKey || !/^https:\\/\\/[a-z0-9.-]+\\.supabase\\.co$/i.test(authUrl)) {
-      return json({ ok: false, code: 'AUTH_CLIENT_CONFIG_UNAVAILABLE', msg: 'Authentication is not configured.' }, 503);
+    let validAuthUrl = false;
+    try { const parsed = new URL(authUrl); validAuthUrl = parsed.protocol === 'https:' && parsed.hostname.endsWith('.supabase.co'); } catch (_) { validAuthUrl = false; }
+    if (!validAuthUrl || !publishableKey) {
     }
     const googleEnabled = await detectGoogleProviderEnabled();
     return json({
