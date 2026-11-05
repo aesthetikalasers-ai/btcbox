@@ -63,10 +63,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         });
         clientRef.current = client;
         const callbackParams = new URLSearchParams(window.location.search);
+        const callbackHashParams = new URLSearchParams(window.location.hash.replace(/^#/, ""));
         const isCallback = window.location.pathname === "/auth/react-callback" &&
           (callbackParams.has("code") || callbackParams.get("flow") === "recovery" ||
             callbackParams.has("error") || callbackParams.has("error_description") ||
-            callbackParams.has("error_code") || callbackParams.has("error_reason"));
+            callbackParams.has("error_code") || callbackParams.has("error_reason") ||
+            callbackHashParams.has("error") || callbackHashParams.has("error_description") ||
+            callbackHashParams.has("error_code") || callbackHashParams.has("error_reason"));
         if (isCallback) { setStatus("anonymous"); return; }
         try { await setSignedIn(); return; } catch { /* Recover Supabase session below. */ }
         const { data, error: sessionError } = await client.auth.getSession();
@@ -161,7 +164,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const client = clientRef.current;
       if (!client) throw new Error("Authentication is still initializing. Reload and try again.");
       const url = new URL(window.location.href);
-      const authError = url.searchParams.get("error_description") || url.searchParams.get("error") || url.searchParams.get("error_code") || url.searchParams.get("error_reason");
+      const hashParams = new URLSearchParams(url.hash.replace(/^#/, ""));
+      const authError = url.searchParams.get("error_description") || url.searchParams.get("error") ||
+        url.searchParams.get("error_code") || url.searchParams.get("error_reason") ||
+        hashParams.get("error_description") || hashParams.get("error") ||
+        hashParams.get("error_code") || hashParams.get("error_reason");
       if (authError) throw new Error(authError);
       const code = url.searchParams.get("code");
       if (code) {
