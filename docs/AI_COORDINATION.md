@@ -816,3 +816,12 @@ The backend CI branch filters were pointing at an older auth branch. Updated bot
 - Latest feature head observed: 2cd536965cacd62621a29514f95c50d62f27cf66.
 - SOURCE OBSERVED, NOT ROUTE-INTEGRATION VERIFIED: Supabase state writes use expected_revision CAS; the handler's in-process request queue is explicitly not a cross-instance lock. Cross-instance one-time behavior therefore depends on the database RPC CAS contract and still needs a live/staging integration test with concurrent requests.
 - NOT VERIFIED: replay and concurrency against a running HTTP handler plus real Supabase persistence, Google OAuth, MetaMask/Phantom/Coinbase wallet, TOTP, and browser E2E. No database migration execution, production DB change, merge, or Vercel deployment. Deployment pause remains active.
+
+## Database-side state CAS contract coverage — 2026-11-05
+
+- Added a source-contract test for the Supabase state CAS adapter and migration `backend/supabase/sql/0001_btcbox_state_cas.sql`.
+- Test verifies that `saveDB` sends the loaded expected revision, only increments the local revision after a literal `true` RPC result, and propagates a write conflict; SQL must perform a conditional `UPDATE ... WHERE revision = p_expected_revision`, increment the revision atomically, and return success only for one affected row. It also verifies the initial revision-0 insert is conflict-safe and function execution is restricted to service_role.
+- Feature commit: 7aba5d2298621e0a900f8a844cf9d3ed75766dec. Backend CI run 42054424697 completed successfully: unified build passed, 110 tests passed / 0 failed, fail-closed preflight passed, and preserved-entrypoint checks passed. No Vercel deployment step ran.
+- Latest feature head observed: 7aba5d2298621e0a900f8a844cf9d3ed75766dec.
+- IMPORTANT LIMIT: this is static source-contract coverage, not a live PostgreSQL concurrency test. The SQL migration `0001` and shared rate-limit migration `0023` have not been applied or exercised against staging/production. Real two-client concurrent CAS, RPC permissions, and marker replay still require a disposable/staging Supabase project.
+- No migration execution, production DB change, merge, or Vercel deployment. Deployment pause remains active.
