@@ -1874,3 +1874,24 @@ Application branch inspected: `feat/btcbox-web3-auth-20261105` at `741c709d818cb
 - Independently review PostgreSQL trigger/locking behavior and the SQL function replacement against the deployed migration history.
 - Add isolated staging tests for migration application, active-policy resolution, policy boundary rejects, concurrent same-user reserve, historical NULL-snapshot settlement, payout snapshot immutability, and ledger invariants.
 - Admin policy authoring/activation remains intentionally unavailable until admin identity/permission contract, nonce/idempotency, optimistic concurrency and audit transaction are implemented.
+
+
+## Seconds policy privilege and audit hardening — 2026-11-06
+
+### IMPLEMENTED (source only)
+- Re-read coordination HEAD `34d1e7b743f2b22d9b8eea319add73f3011f2a48` and feature baseline `c9393e4a35be714a838e9785a184f2648b9a7ab8`.
+- Review found the policy resolver used `SELECT ... FOR SHARE` while `service_role` had only SELECT on policy tables. PostgreSQL row-locking SELECT can require UPDATE privilege, so the order RPC could fail despite the intended read-only grants.
+- Feature commits `1fab9a3d5bab544e5cfbea618fd39704e3308e2f` and `a7871a870f2f4837322c5a86885f4906464da066` remove that row-lock privilege dependency; immutable policy rows and non-writable active pointer are read through MVCC.
+- Added a database trigger that rejects UPDATE/DELETE on the policy audit table.
+- Updated source-level regression assertions to require no row-lock clause and require append-only audit protection.
+- Latest feature head after these changes: `fde1e6f7e9d272b41bacfd69b6e9e0cfbe77274f`.
+
+### ADMIN AUTHORITY FINDING
+- Current `api-core.js` admin authorization is a single shared `ADMIN_USER` / `ADMIN_PASS` Basic Auth credential, not an identified multi-admin subject with granular roles or policy-specific approval permission.
+- Therefore no seconds policy draft/approve/activate API or UI is added in this batch. A shared Basic Auth identity is insufficient to produce trustworthy actor-level approval/audit records.
+- Before policy writes, introduce an attributable admin identity/role contract and separate draft vs approval permission; preserve the existing admin auth path until a reviewed migration and compatibility plan exists.
+
+### VALIDATION / NOT VERIFIED
+- Re-fetched feature branch and changed files. Source checks are present; workflow lookup for the latest feature commit returned no runs. Node test execution and PostgreSQL parsing/application are not verified.
+- No database migration was applied to staging or production. No balances, positions, orders or ledger rows changed; financial cutover remains closed. No merge or deployment.
+- Next: obtain an actual PostgreSQL staging validation path; review admin identity/RBAC design; only then add read/write policy management endpoints.
