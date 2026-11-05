@@ -183,3 +183,15 @@ test('Google and Web3 login persist 2FA challenges and authenticated sessions be
   assert.match(route.slice(save, success), /PERSISTENCE_UNAVAILABLE/);
   assert.match(route, /auth_method: authProvider === 'web3' \? 'supabase_web3' : 'supabase_google'/);
 });
+
+
+test('Supabase provider is retained across the shared 2FA challenge exchange', () => {
+  const start = source.indexOf("if ((path === 'supabase-login' || path === 'google-login') && method === 'POST')");
+  const end = source.indexOf("// ---------- POST /api/logout ----------", start);
+  const route = source.slice(start, end);
+  assert.match(route, /auth_method: authProvider === 'web3' \? 'supabase_web3_2fa' : 'supabase_google_2fa'/);
+  const challengeStart = source.indexOf("if (path === 'login/2fa' && method === 'POST')");
+  const challengeEnd = source.indexOf("// ---------- GET /api/kline", challengeStart);
+  const challengeRoute = source.slice(challengeStart, challengeEnd);
+  assert.match(challengeRoute, /auth_method: rec\.auth_method \|\| 'username_password_2fa'/);
+});
