@@ -199,6 +199,62 @@ export async function getOrders(signal?: AbortSignal): Promise<OrderRecord[]> {
   return payload.orders;
 }
 
+
+export interface SecondsPosition {
+  position_id: string;
+  symbol: string;
+  direction: "up" | "down";
+  amount: number | string;
+  duration_sec: number;
+  open_price: number | string;
+  settle_at: number;
+}
+export interface SecondsHistoryRecord extends SecondsPosition {
+  settle_price: number | string;
+  pnl: number | string;
+  win: boolean;
+  tie: boolean;
+  settled_at: number;
+}
+export interface SecondsPositionsSnapshot {
+  server_now: number;
+  open: SecondsPosition[];
+  history: SecondsHistoryRecord[];
+  cutover_incomplete?: boolean;
+}
+function isSecondsPosition(value: unknown): value is SecondsPosition {
+  if (!value || typeof value !== "object") return false;
+  const item = value as Record<string, unknown>;
+  return typeof item.position_id === "string" && /^SC[A-Fa-f0-9]{30}$/.test(item.position_id) &&
+    typeof item.symbol === "string" && ["BTC", "ETH", "SOL", "BNB"].includes(item.symbol) &&
+    (item.direction === "up" || item.direction === "down") &&
+    (typeof item.amount === "string" || (typeof item.amount === "number" && Number.isFinite(item.amount))) &&
+    Number.isFinite(Number(item.amount)) && Number(item.amount) > 0 &&
+    [30, 60, 300, 900].includes(Number(item.duration_sec)) &&
+    (typeof item.open_price === "string" || (typeof item.open_price === "number" && Number.isFinite(item.open_price))) &&
+    Number.isFinite(Number(item.open_price)) && Number(item.open_price) > 0 &&
+    Number.isSafeInteger(item.settle_at) && Number(item.settle_at) > 0;
+}
+export async function getSecondsPositions(signal?: AbortSignal): Promise<SecondsPositionsSnapshot> {
+  const payload = await readAuthenticated<SecondsPositionsSnapshot & { ok: true }>("seconds/positions", signal);
+  if (!Number.isFinite(payload.server_now) || payload.server_now <= 0 ||
+      !Array.isArray(payload.open) || !Array.isArray(payload.history) ||
+      (payload.cutover_incomplete !== undefined && typeof payload.cutover_incomplete !== "boolean") ||
+      !payload.open.every(isSecondsPosition) ||
+      !payload.history.every((item) => isSecondsPosition(item) &&
+        (typeof item.settle_price === "string" || (typeof item.settle_price === "number" && Number.isFinite(item.settle_price))) &&
+        Number.isFinite(Number(item.settle_price)) && Number(item.settle_price) > 0 &&
+        (typeof item.pnl === "string" || (typeof item.pnl === "number" && Number.isFinite(item.pnl))) &&
+        Number.isFinite(Number(item.pnl)) && typeof item.win === "boolean" &&
+        typeof item.tie === "boolean" && Number.isSafeInteger(item.settled_at) && item.settled_at > 0)) {
+    throw new ApiError("BTCBOX returned an invalid seconds-position response.", 502, "INVALID_SECONDS_POSITIONS_RESPONSE");
+  }
+  if (payload.cutover_incomplete === true && (payload.open.length || payload.history.length)) {
+    throw new ApiError("BTCBOX returned inconsistent seconds cutover status.", 502, "INVALID_SECONDS_CUTOVER_RESPONSE");
+  }
+  return payload;
+}
+
 export async function logout(): Promise<void> {
   let response: Response;
   try {
