@@ -401,3 +401,30 @@ Also verify the Site URL and inspect Authentication → Rate Limits / CAPTCHA fo
 - RESULT: current feature branch pushes do not trigger these CI workflows by their configured branch filters. The previous absence of workflow runs is therefore consistent with the workflow configuration and is not evidence that the tests passed.
 - No workflow files were changed and no workflow or deployment was triggered, because pushing workflow changes could also trigger Vercel automation and deployment automation has not been independently confirmed paused.
 - NEXT: once deployment automation is confirmed paused or an isolated CI-only path is approved, add the active feature branch to both workflow filters and run the frontend lint/build plus backend build/test/preflight jobs. Keep all financial flags disabled and use dummy CI-only values only.
+
+
+## Supabase redirect allowlist update — 2026-11-05
+
+### USER CONFIRMATION
+- User confirmed the four additional URLs have now been added in Supabase Authentication → URL Configuration.
+- Production app host supplied by the user: `https://btcboxcdt.vercel.app`.
+- Added URLs as instructed:
+  - `https://btcboxcdt.vercel.app/login/`
+  - `https://btcboxcdt.vercel.app/register/`
+  - `https://btcboxcdt.vercel.app/settings/`
+  - `https://btcboxcdt.vercel.app/auth/react-callback`
+- The three Web3 signing page URLs intentionally retain trailing slashes, as required by the current Supabase Web3 guidance.
+- This is USER-CONFIRMED, not independently read back from the Supabase Dashboard; the available Supabase project tools do not expose Auth URL Configuration.
+
+### OAUTH CALLBACK DISTINCTION
+- Supabase project API URL read through the project tool: `https://zlozsutefnmgwwzrlipt.supabase.co`.
+- Therefore the Google Cloud OAuth client's Authorized redirect URI for the Supabase-managed Google provider should be:
+  `https://zlozsutefnmgwwzrlipt.supabase.co/auth/v1/callback`
+- This Google Cloud URI is different from the app's post-auth redirect `https://btcboxcdt.vercel.app/auth/react-callback`, which belongs in Supabase Redirect URLs.
+- NOT VERIFIED: Google Cloud Console's actual Authorized redirect URI, Supabase Site URL, Google provider enablement/credentials, Web3 provider state, Web3 rate limits, and CAPTCHA settings. Do not change these settings without inspecting the dashboard and confirming the current values.
+
+### NEXT
+- Inspect Supabase URL Configuration screenshot/read-only confirmation for Site URL; expected production default is `https://btcboxcdt.vercel.app` (with no path), unless a deliberate alternative is configured.
+- Inspect Google provider status and Google Cloud Authorized redirect URI; if the Google Cloud URI differs from the Supabase callback above, correct it in Google Cloud Console.
+- Inspect Web3 rate limits and CAPTCHA before calling wallet registration launch-ready.
+- No repository application code, production auth settings, database, deployment, or financial operations were changed in this update.
