@@ -1341,3 +1341,13 @@ The backend CI branch filters were pointing at an older auth branch. Updated bot
 - Latest exact-head CI run `42113080692` for `21e5c87c0bd44f29ca8ded53ab3ec3f0eb0db387` is in progress. The code-only run `42113066862` for `ee7a81fe650f4446c91d961b48fd5aa818b1b608` is also in progress. Do not mark the legacy-retry hardening accepted until the latest exact-head run passes.
 - IMPORTANT LIMIT: this patch only sanitizes local pending outbox rows before future retries. It does not rewrite or delete any already-committed PostgreSQL audit rows; historical canonical rows remain append-only and require a separately approved, evidence-based remediation if exposure is established.
 - No production DB read/write, schema change, merge, deployment, or financial operation was performed.
+
+
+### Audit outbox redaction-upgrade idempotency — 2026-11-06 (UTC+8)
+
+- SOURCE FINDING: the append-only SQL RPC used the stable `event_id` for deduplication but also required the persisted `reason` text to equal the retry payload. When a pending legacy event is sanitized before retry, the reason can legitimately differ from the already-inserted historical row, causing a permanent idempotency conflict and a stuck outbox.
+- PATCH: prepared SQL contract `backend/supabase/sql/0021_admin_audit_log_append_only_v1.sql` now keeps strict event identity checks for actor, subject, action, object type/id, and metadata, while allowing reason text to differ across retries after a redaction-policy upgrade. The canonical row remains append-only; this does not rewrite its historical reason.
+- Regression test: `backend/tests/admin-audit-persistence.test.js` verifies stable identity checks remain and reason-only mismatch is tolerated.
+- Code/SQL commit: `407cf44a349e3240ec4765667978228b03c21109`; regression-test commit: `e4cd543e8bb4c406d24579b5cfb35c0f477f5cf6`.
+- Latest exact-head CI: run `42113367770` for `e4cd543e8bb4c406d24579b5cfb35c0f477f5cf6` is in progress. Do not mark this SQL contract change accepted until the exact-head CI passes.
+- Migration remains prepared only. It has not been applied to production or staging. No DB reads/writes, merges, deployments, or financial operations were performed.
