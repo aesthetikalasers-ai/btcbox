@@ -2710,6 +2710,7 @@ async function handleRequest(event, context) {
         const rawDetail = String(entry.detail || '').slice(0, 300);
         const safeDetail = rawDetail
           .replace(/(password|passwd|token|secret|recovery[_ -]?code|id[_ -]?number|private[_ -]?key)(\\s*[:=]\\s*)[^,}\\s]+/ig, '$1$2[redacted]')
+          .replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,}/ig, '[email]')
           .replace(/0x[a-fA-F0-9]{40}/g, '[wallet address]')
           .replace(/T[1-9A-HJ-NP-Za-km-z]{33}/g, '[wallet address]');
         return {
