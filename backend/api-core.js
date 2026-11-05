@@ -1443,6 +1443,10 @@ async function handleRequest(event, context) {
   if (path === 'account/credentials' && method === 'POST') {
     if (!user) return json({ ok: false, msg: 'Not signed in.', need_login: true }, 401);
     if (user.frozen) return json({ ok: false, code: 'ACCOUNT_FROZEN', msg: 'Account frozen. Please contact support.' }, 403);
+    const currentSessionRecord = getSessionRecord(db, event);
+    if (!currentSessionRecord || currentSessionRecord.user.uid !== user.uid) {
+      return json({ ok: false, code: 'REAUTH_REQUIRED', msg: 'Your session is no longer valid. Please sign in again.' }, 403);
+    }
     const username = normalizeBtcboxUsername(body.username);
     const password = typeof body.password === 'string' ? body.password : '';
     const currentPassword = typeof body.current_password === 'string' ? body.current_password : '';
@@ -1453,8 +1457,7 @@ async function handleRequest(event, context) {
       return json({ ok: false, code: 'CURRENT_PASSWORD_INVALID', msg: 'Current BTCBOX password is incorrect.' }, 403);
     }
     if (!hasCredentials) {
-      const sessionRecord = getSessionRecord(db, event);
-      const createdAt = Number(sessionRecord && sessionRecord.session && sessionRecord.session.created_at);
+      const createdAt = Number(currentSessionRecord.session && currentSessionRecord.session.created_at);
       if (!Number.isFinite(createdAt) || Date.now() - createdAt > 5 * 60 * 1000) {
         return json({ ok: false, code: 'REAUTH_REQUIRED', msg: 'Please sign in again before setting your BTCBOX username and password.' }, 403);
       }
@@ -1469,6 +1472,11 @@ async function handleRequest(event, context) {
     user.login_password_hash = hashBtcboxLoginPassword(password, user.login_password_salt);
     user.login_password_algo = 'pbkdf2-sha256-600000';
     user.credentials_updated_at = nowStr();
+    // Credential changes invalidate every other session while preserving this request's session.
+    Object.keys(db.sessions || {}).forEach(function (token) {
+      const session = db.sessions[token];
+      if (token !== currentSessionRecord.token && session && session.uid === user.uid) delete db.sessions[token];
+    });
     try { await saveDB(db); }
     catch (e) {
       if (e && e.message === 'Persistent storage write conflict') return json({ ok: false, code: 'ACCOUNT_UPDATE_CONFLICT', msg: 'Your account changed at the same time. Please reload and try again.' }, 409);
