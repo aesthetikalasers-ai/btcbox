@@ -1175,10 +1175,19 @@ async function handleRequest(event, context) {
     const tt = body.temp_token || '';
     const code = body.code || '';
     db.temp_tokens = db.temp_tokens || {};
-    const rec = db.temp_tokens[tt];
-    if (!rec || rec.exp < Date.now()) return json({ ok: false, msg: 'Session expired. Please sign in again.' });
+    const rec = typeof tt === 'string' && tt ? db.temp_tokens[tt] : null;
+    const expiresAt = Number(rec && rec.exp);
+    if (!rec || !Number.isFinite(expiresAt) || expiresAt <= Date.now()) {
+      if (rec) { delete db.temp_tokens[tt]; await saveDB(db); }
+      return json({ ok: false, code: 'TWOFA_CHALLENGE_EXPIRED', msg: 'Session expired. Please sign in again.' }, 401);
+    }
     const u2 = db.users[rec.uid];
-    if (!u2) return json({ ok: false, msg: 'User not found.' });
+    if (!u2) { delete db.temp_tokens[tt]; await saveDB(db); return json({ ok: false, code: 'USER_NOT_FOUND', msg: 'User not found.' }, 401); }
+    if (!u2.twofa_enabled || !u2.twofa_secret) {
+      delete db.temp_tokens[tt];
+      await saveDB(db);
+      return json({ ok: false, code: 'TWOFA_NOT_ENABLED', msg: 'Two-factor authentication is no longer enabled. Please sign in again.' }, 401);
+    }
     if (u2.frozen) { delete db.temp_tokens[tt]; await saveDB(db); return json({ ok: false, code: 'ACCOUNT_FROZEN', msg: 'Account frozen. Please contact support.' }, 403); }
     { const rl = await rateCheckShared('login_2fa', String(u2.uid)); if (rl.unavailable) return rateLimitUnavailableJson(); if (rl.limited) return rateLimitedJson(rl.retryAfter); }
     if (!consumeTotpStep(u2, String(code))) return json({ ok: false, msg: 'Invalid or already-used 2FA code.' });
@@ -1643,6 +1652,10 @@ async function handleRequest(event, context) {
     Object.keys(db.sessions || {}).forEach(function (token) {
       const session = db.sessions[token];
       if (token !== currentSessionRecord.token && session && session.uid === user.uid) delete db.sessions[token];
+    });
+    // Pending second-step challenges are no longer valid after the factor is disabled.
+    Object.keys(db.temp_tokens || {}).forEach(function (token) {
+      if (db.temp_tokens[token] && db.temp_tokens[token].uid === user.uid) delete db.temp_tokens[token];
     });
     await saveDB(db);
     return json({ ok: true, msg: 'Two-factor authentication disabled.' });
