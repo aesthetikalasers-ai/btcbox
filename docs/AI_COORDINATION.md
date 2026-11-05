@@ -1655,3 +1655,17 @@ The backend CI branch filters were pointing at an older auth branch. Updated bot
 - TEST PASSED: exact feature HEAD `febacca709ebb90f2f4a2071ce7cd69a31ce69ec` completed unified build, backend tests, fail-closed deployment configuration preflight, and unified output/entrypoint verification in CI run `42123833236`.
 - ACCEPTANCE: auth provider attribution and session lifecycle regression batch accepted for feature-branch QA only. This does not authorize merge to `main`, Vercel deployment, production DB writes/migrations, or real financial operations.
 - NOT VERIFIED: live browser logout behavior, real multi-device provider sessions, and production persistence fault injection. No live OAuth or wallet sign-in was performed.
+
+
+### Credential rotation and 2FA lifecycle fail-closed hardening — 2026-11-06 (UTC+8)
+
+- SOURCE OBSERVED: `POST /api/account/credentials` preserved the current authenticated session and revoked all other BTCBOX sessions, and cleared current-session credential/identity reauthentication markers. It did not revoke outstanding `db.temp_tokens` for the account, leaving pre-change 2FA login challenges usable until expiry.
+- FIXED: credential updates now remove all pending temporary login challenges for the same account before the same revision-CAS persistence. Other accounts' challenges are not touched. The current session remains preserved; other sessions remain revoked.
+- SOURCE OBSERVED: `POST /api/2fa/enable`, `POST /api/2fa/confirm`, and `POST /api/2fa/disable` performed direct `saveDB` calls without route-specific handling for revision conflicts or storage outages.
+- FIXED: all three 2FA state transitions now return `ACCOUNT_UPDATE_CONFLICT` (409) on revision-CAS conflict and `PERSISTENCE_UNAVAILABLE` (503) on other persistence errors. Success responses occur only after persistence succeeds.
+- REGRESSION COVERAGE: credential update tests assert pending account-scoped 2FA challenges are revoked before persistence. Auth route tests assert guarded persistence for setup/enable/disable and assert other sessions plus pending challenges are removed before the guarded write.
+- Feature commits: API `a9fb8a70ea461331b90587a35fa52797287f34ab`; credential test `749df4ab7d1bf38ab33664c542a040aab8b714c7`; 2FA tests `741c709d818cb10145620e2e0ba84891736d64de`.
+- TEST PASSED: exact feature HEAD `741c709d818cb10145620e2e0ba84891736d64de`, CI run `42124394817`, unified build, backend tests, fail-closed deployment configuration validation, and unified output/entrypoint checks all succeeded.
+- REVIEW RESULT: password change and 2FA enrollment/removal revoke account-scoped old sessions/challenges while preserving the verified current session. The state changes remain atomic under database revision-CAS; conflict or persistence failure does not return success.
+- NOT VERIFIED: live browser flows, authenticator-app behavior, actual multi-device sessions against deployed storage, and production persistence fault injection. No live OAuth/Web3 sign-in was performed.
+- ACCEPTANCE: accepted for feature-branch QA only. No merge to `main`, Vercel deployment, production database writes/migrations, or real financial operations authorized or performed.
