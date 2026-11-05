@@ -476,6 +476,7 @@ const RATE_LIMIT_POLICIES = Object.freeze({
   login_2fa: { limit: 20, windowSeconds: 900 },
   credential_reauth: { limit: 8, windowSeconds: 900 },
   identity_link_reauth: { limit: 8, windowSeconds: 900 },
+  identity_link_target: { limit: 10, windowSeconds: 900 },
   credential_recover: { limit: 5, windowSeconds: 900 },
   twofa_setup_password: { limit: 10, windowSeconds: 900 },
   twofa_setup_confirm: { limit: 10, windowSeconds: 900 },
@@ -1394,8 +1395,11 @@ async function handleRequest(event, context) {
         Number(marker.auth_time) > Date.now() / 1000 + 60) {
       return json({ ok: false, code: 'REAUTH_REQUIRED', msg: 'Please freshly verify a sign-in method already connected to this BTCBOX account.' }, 403);
     }
+    const targetLimit = await rateCheckShared('identity_link_target', String(user.uid));
+    if (targetLimit.unavailable) return rateLimitUnavailableJson();
+    if (targetLimit.limited) return rateLimitedJson(targetLimit.retryAfter);
     const accessToken = typeof body.supabase_access_token === 'string' ? body.supabase_access_token : '';
-    const supabaseUrl = String(process.env.SUPABASE_AUTH_URL || '').replace(/\/$/, '');
+    const supabaseUrl = String(process.env.SUPABASE_AUTH_URL || process.env.SUPABASE_URL || '').replace(/\/$/, '');
     const supabaseKey = getPublishableKey();
     if (!supabaseUrl || !supabaseKey) return json({ ok: false, code: 'AUTH_SERVICE_UNAVAILABLE', msg: 'Authentication service is not configured.' }, 503);
     if (!accessToken || accessToken.length > 16384) return json({ ok: false, code: 'INVALID_SUPABASE_IDENTITY', msg: 'The identity to link could not be verified.' }, 401);
