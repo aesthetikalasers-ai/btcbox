@@ -52,7 +52,7 @@ test('migration checker refuses to compare timestamp ledger versions with four-d
     '        pass',
     'def connect(url):',
     '    return Connection()'
-  ].join('\n');
+  ].join(String.fromCharCode(10));
 
   try {
     fs.writeFileSync(path.join(tempDir, 'psycopg2.py'), fakeDriver);
