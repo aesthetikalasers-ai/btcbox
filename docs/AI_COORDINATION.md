@@ -428,3 +428,21 @@ Also verify the Site URL and inspect Authentication → Rate Limits / CAPTCHA fo
 - Inspect Google provider status and Google Cloud Authorized redirect URI; if the Google Cloud URI differs from the Supabase callback above, correct it in Google Cloud Console.
 - Inspect Web3 rate limits and CAPTCHA before calling wallet registration launch-ready.
 - No repository application code, production auth settings, database, deployment, or financial operations were changed in this update.
+
+## Google Cloud OAuth redirect confirmation — 2026-11-05
+
+### USER CONFIRMATION
+- User confirmed the Google Cloud OAuth client's Authorized redirect URI has been added:
+  `https://zlozsutefnmgwwzrlipt.supabase.co/auth/v1/callback`.
+- User also showed the Authorized JavaScript origins list containing:
+  - `https://btcboxcdt.vercel.app` (the selected canonical app host)
+  - `http://localhost:3000` (local development)
+  - `https://btcboxcdt-pi.vercel.app` (additional Google browser origin only; user decided the finished site will continue using the former `btcboxcdt.vercel.app` domain).
+- Do not treat the additional `btcboxcdt-pi.vercel.app` JavaScript origin as a production-host switch. Keep the existing BTCBOX host as canonical.
+- This is USER-CONFIRMED based on the user's dashboard confirmation, not independently read back from Google Cloud.
+
+### STILL NOT VERIFIED
+- Supabase Authentication → Providers → Google enabled state and configured client ID/secret.
+- Supabase Authentication → URL Configuration → Site URL. Expected canonical value remains `https://btcboxcdt.vercel.app` without a path.
+- Actual end-to-end Google OAuth login and callback in a browser.
+- No Supabase Auth settings, repository application code, database, deployment, or financial operation was changed in this update.
