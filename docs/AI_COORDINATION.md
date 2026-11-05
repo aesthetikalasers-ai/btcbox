@@ -156,3 +156,24 @@ Audit scope: read-only source inspection of `btcboxcdt` main at `93a236e4a3ed6c9
 ### Evidence classification
 - SOURCE OBSERVED: branch divergence counts, open PR scopes, no submitted PR review records, latest preview deployment metadata, and reported Vercel commit status.
 - NOT VERIFIED: Vercel preview auto-deployment disable flag, exact project root/build settings, full CI result, route-by-route runtime behavior, mobile visual acceptance, and real API end-to-end connectivity.
+
+## Batch A build-root and deployment-cost evidence — 2026-11-05
+
+### SOURCE OBSERVED
+- Vercel deployment build events for `dpl_4miXoT3jqbzemkdgSsYXLMG5TPzZ` show entrypoint `.`, package script `btcbox-vercel@1.0.0 build`, and command `npm --prefix ../frontend install --no-audit --no-fund && npm --prefix ../frontend run build && node scripts/build-site.js`. This is the backend orchestrated build path: it builds the Vite app from `frontend/`, then assembles the customer app with legacy admin/OAuth resources.
+- The same deployment logs show `tsc -b && vite build`, 1,718 modules transformed, and successful output to `dist/` plus `frontend-assets/`; `build-site.js` reports the unified public build was created.
+- The same deployment's Node test run completed with `# tests 87`, `# pass 87`, `# fail 0`, `# skipped 0`; Vercel reported `Build Completed` and `Deployment completed`. This is a verified build/test result for SHA `6af0210b6b2716cf5d0310fa3b7384d33bf8e808`, not a visual or API end-to-end acceptance.
+- The deployment event entrypoint is `.` and the executed package is `btcbox-vercel`, matching the inspected `backend/package.json` build script and `backend/vercel.json`. This is strong evidence the active deployment uses the backend orchestrator; the Vercel project metadata's `create-react-app` framework label is stale/inconsistent with the observed build command.
+- A five-deployment history query returned three READY and two CANCELED deployments for the same migration branch within a short interval, covering successive commits `4042358`, `b728ec7`, `fe20b7d`, `4d87be0`, and `6af0210`. This confirms repeated preview builds occurred during the recent batch and supports batching commits before the next preview.
+- The project update call to set `previewDeploymentsDisabled:true` returned without an API error. The subsequent `get_project` response does not expose this setting, so the flag itself remains NOT VERIFIED by readback. No new deployment was created by the setting update call.
+
+### COORDINATION DECISION
+- Treat `backend/package.json` + `backend/vercel.json` + `backend/scripts/build-site.js` as the currently evidenced deployment orchestrator. Do not delete or rewrite the root CRA package/README as cleanup until the repository owners reconcile legacy documentation and ownership.
+- The actual customer runtime is the Vite app under `frontend/`; backend build orchestration keeps legacy admin/OAuth assets and API functions in the same output. Continue mapping route/API coverage before replacing pages.
+- Preserve the approved Preview pause. Batch future feature changes and use local/CI checks first; request one consolidated Preview only after the implementation batch is ready.
+- Do not alter Vercel framework/root/build settings based only on the stale `create-react-app` label; retain current configuration until a separately reviewed change is approved.
+
+### Evidence classification
+- TEST PASSED: build and 87/87 Node tests on `6af0210b6b2716cf5d0310fa3b7384d33bf8e808`.
+- SOURCE OBSERVED: backend build orchestration, Vite output, unified dist assembly, recent deployment burst, and Vercel project framework metadata.
+- NOT VERIFIED: preview-disable flag readback, canonical Vercel rootDirectory setting as a directly returned project field, browser-visible responsive behavior, actual Supabase/API runtime connectivity, and admin UI completeness.
