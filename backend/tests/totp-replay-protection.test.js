@@ -6,25 +6,25 @@ const path = require('node:path');
 
 const source = fs.readFileSync(path.join(__dirname, '..', 'api-core.js'), 'utf8');
 
-test('TOTP verifier returns the matched time-step and rejects malformed codes', () => {
-  assert.match(source, /function totpMatchStep\\(secret, code\\)/);
+test('TOTP verifier returns a matched time-step and validates six-digit input', () => {
+  assert.ok(source.includes('function totpMatchStep(secret, code)'));
   assert.ok(source.includes("if (typeof code !== 'string' || !/^\\d{6}$/.test(code)) return null;"));
-  assert.match(source, /if \\(expected === code\\) return step/);
+  assert.ok(source.includes('if (expected === code) return step;'));
 });
 
-test('TOTP consumption rejects a previously consumed step and persists its counter', () => {
-  assert.match(source, /function consumeTotpStep\\(user, code\\)/);
-  assert.match(source, /const previous = user\\.twofa_last_used_step/);
-  assert.match(source, /step <= previous/);
-  assert.match(source, /user\\.twofa_last_used_step = step/);
+test('TOTP consumption rejects a previously consumed step and stores the new counter', () => {
+  assert.ok(source.includes('function consumeTotpStep(user, code)'));
+  assert.ok(source.includes('const previous = user.twofa_last_used_step;'));
+  assert.ok(source.includes('step <= previous'));
+  assert.ok(source.includes('user.twofa_last_used_step = step;'));
 });
 
-test('all protected TOTP routes consume a one-time step rather than boolean verification', () => {
-  assert.doesNotMatch(source, /!totpVerify\\(/);
+test('protected routes consume one-time steps instead of accepting boolean verification', () => {
+  assert.equal(source.includes('!totpVerify('), false);
   assert.ok((source.match(/consumeTotpStep\\(/g) || []).length >= 9);
 });
 
-test('withdrawal persists the consumed TOTP step before any financial cutover or RPC', () => {
+test('withdrawal persists the consumed TOTP step before financial cutover or RPC', () => {
   const start = source.indexOf("if (path === 'withdraw' && method === 'POST')");
   const end = source.indexOf('// ----------', start + 20);
   assert.ok(start >= 0 && end > start);
@@ -35,7 +35,7 @@ test('withdrawal persists the consumed TOTP step before any financial cutover or
   assert.ok(consume >= 0 && persist > consume && cutover > persist);
 });
 
-test('new TOTP enrollment clears an old secret counter; disable clears it with the secret', () => {
-  assert.match(source, /user\\.twofa_secret = genTotpSecret\\(\\); delete user\\.twofa_last_used_step/);
-  assert.match(source, /user\\.twofa_secret = '';[\\s\\S]{0,120}delete user\\.twofa_last_used_step/);
+test('new enrollment clears an old counter and disabling 2FA clears the counter with its secret', () => {
+  assert.ok(source.includes('user.twofa_secret = genTotpSecret(); delete user.twofa_last_used_step;'));
+  assert.ok(source.includes("user.twofa_secret = ''; // Rotate the secret on next enrollment; do not retain a disabled factor.\n    delete user.twofa_last_used_step;"));
 });
