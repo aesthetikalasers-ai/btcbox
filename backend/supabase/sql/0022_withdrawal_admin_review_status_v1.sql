@@ -59,6 +59,10 @@ begin
     raise exception 'invalid withdrawal request';
   end if;
 
+  -- Lock the idempotency key even when no withdrawal row exists yet. A row lock
+  -- cannot protect the absent-row case; this transaction lock serializes first-use retries.
+  perform pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended(p_request_id, 0));
+
   select * into v_existing
   from public.withdrawal_requests
   where request_id = p_request_id
