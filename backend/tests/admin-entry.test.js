@@ -47,6 +47,24 @@ test('KYC queue is read through a redacted admin endpoint and rendered from API 
   assert.ok(!accountView.includes("KYC 审核暂不可用"));
 });
 
+test('admin audit history is paginated, field-allowlisted, and rendered with escaped content', () => {
+  const start = apiCore.indexOf("if (sub === 'audit-logs' && method === 'GET')");
+  const end = apiCore.indexOf("// GET /api/admin/config", start);
+  assert.ok(start >= 0 && end > start);
+  const route = apiCore.slice(start, end);
+  assert.ok(route.includes("source: 'btcbox_state'"));
+  assert.ok(route.includes("completeness: 'state_document_retention_limited'"));
+  assert.ok(route.includes("AUDIT_CURSOR_NOT_FOUND"));
+  assert.ok(route.includes("postgres_sync_status"));
+  assert.ok(route.includes("[wallet address]"));
+  assert.ok(app.includes("adminAuditLogs(params)"));
+  assert.ok(accountView.includes('data-atab="audit"'));
+  assert.ok(accountView.includes("apiAdapter.adminAuditLogs("));
+  assert.ok(accountView.includes("escapeHtml(entry.detail||'—')"));
+  assert.ok(accountView.includes("audit-more"));
+  assert.ok(accountView.includes("PostgreSQL 完整财务审计历史"));
+});
+
 test('admin console warns when business state is saved but audit delivery is pending', () => {
   assert.match(accountView, /result\.audit_sync_pending===true/);
   assert.match(accountView, /审计日志仍待同步。请勿重复执行该操作/);
