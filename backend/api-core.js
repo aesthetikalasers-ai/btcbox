@@ -551,13 +551,14 @@ async function rateCheckShared(scope, subject) {
     });
     const result = await response.json().catch(() => null);
     if (!response.ok || !result || typeof result !== 'object' || Array.isArray(result) ||
-        typeof result.allowed !== 'boolean' || result.limit !== policy.limit ||
+        result.ok !== true || typeof result.allowed !== 'boolean' || result.limit !== policy.limit ||
         !Number.isSafeInteger(result.count) || result.count < 1 || result.count > 1000000 ||
-        !Number.isSafeInteger(result.remaining) || result.remaining < 0 || result.remaining > policy.limit ||
+        !Number.isSafeInteger(result.remaining) || result.remaining !== Math.max(0, policy.limit - result.count) ||
         !Number.isSafeInteger(result.retry_after_seconds) || result.retry_after_seconds < 1 ||
         result.retry_after_seconds > policy.windowSeconds ||
         result.window_seconds !== policy.windowSeconds ||
         !Number.isSafeInteger(result.window_start) || result.window_start < 0 ||
+        result.window_start % policy.windowSeconds !== 0 ||
         (result.allowed && result.count > policy.limit) || (!result.allowed && result.count <= policy.limit)) {
       return { unavailable: true };
     }
