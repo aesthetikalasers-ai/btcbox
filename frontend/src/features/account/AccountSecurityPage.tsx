@@ -1,15 +1,18 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { Navigate } from "react-router-dom";
 import { Link2, ShieldCheck, Wallet } from "lucide-react";
 import { Button } from "../../components/ui/button";
+import { Input } from "../../components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/card";
 import { getAccount, type AccountSnapshot } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
 
 export function AccountSecurityPage() {
-  const { status, busy, error, notice, googleEnabled, linkGoogleIdentity, linkWeb3Identity } = useAuth();
+  const { status, busy, error, notice, googleEnabled, linkGoogleIdentity, linkWeb3Identity, credentialRecoveryReady, reauthenticateCredentialsWithGoogle, reauthenticateCredentialsWithWeb3, recoverBtcboxPassword } = useAuth();
   const [account, setAccount] = useState<AccountSnapshot | null>(null);
   const [loadError, setLoadError] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmNewPassword, setConfirmNewPassword] = useState("");
 
   useEffect(() => {
     if (status !== "authenticated") return;
@@ -59,6 +62,34 @@ export function AccountSecurityPage() {
         <Button variant="outline" disabled={busy || !googleEnabled || hasGoogle} onClick={() => void linkGoogleIdentity()}><Link2 className="h-4 w-4"/>{hasGoogle ? "Google connected" : "Link Google"}</Button>
         <Button variant="outline" disabled={busy || hasEthereum} onClick={() => void linkWeb3Identity("ethereum")}><Wallet className="h-4 w-4"/>{hasEthereum ? "Ethereum connected" : "Link Ethereum wallet"}</Button>
         <Button variant="outline" disabled={busy || hasSolana} onClick={() => void linkWeb3Identity("solana")}><Wallet className="h-4 w-4"/>{hasSolana ? "Solana connected" : "Link Solana wallet"}</Button>
+      </CardContent>
+    </Card>
+    <Card className="border-brand-border bg-brand-surface">
+      <CardHeader><CardTitle className="text-base">Reset BTCBOX password</CardTitle><CardDescription>Verify a Google account or wallet already connected to this BTCBOX account. A fresh verification opens a five-minute reset window.</CardDescription></CardHeader>
+      <CardContent className="space-y-3">
+        {credentialRecoveryReady ? (
+          <form className="space-y-3" onSubmit={async (event: FormEvent<HTMLFormElement>) => {
+            event.preventDefault();
+            if (newPassword !== confirmNewPassword) return;
+            try {
+              await recoverBtcboxPassword(newPassword);
+              setNewPassword("");
+              setConfirmNewPassword("");
+            } catch { /* AuthProvider displays the safe error. */ }
+          }}>
+            <label className="block space-y-1.5 text-sm"><span className="text-brand-text-secondary">New BTCBOX password</span><Input type="password" value={newPassword} onChange={event => setNewPassword(event.target.value)} autoComplete="new-password" minLength={12} maxLength={128} placeholder="At least 12 characters" required /></label>
+            <label className="block space-y-1.5 text-sm"><span className="text-brand-text-secondary">Confirm new password</span><Input type="password" value={confirmNewPassword} onChange={event => setConfirmNewPassword(event.target.value)} autoComplete="new-password" minLength={12} maxLength={128} placeholder="Enter it again" required /></label>
+            {confirmNewPassword && newPassword !== confirmNewPassword && <p className="text-sm text-loss">Passwords do not match.</p>}
+            <Button type="submit" className="w-full" disabled={busy || newPassword.length < 12 || newPassword !== confirmNewPassword}>Save new password</Button>
+          </form>
+        ) : (
+          <div className="grid gap-3 sm:grid-cols-2">
+            {hasGoogle && <Button variant="outline" disabled={busy || !googleEnabled} onClick={() => void reauthenticateCredentialsWithGoogle()}>Verify with Google</Button>}
+            {hasEthereum && <Button variant="outline" disabled={busy} onClick={() => void reauthenticateCredentialsWithWeb3("ethereum")}>Verify Ethereum wallet</Button>}
+            {hasSolana && <Button variant="outline" disabled={busy} onClick={() => void reauthenticateCredentialsWithWeb3("solana")}>Verify Solana wallet</Button>}
+            {!hasGoogle && !hasEthereum && !hasSolana && <p className="text-sm text-brand-text-muted">No linked Google account or wallet is available for password recovery. Contact support before changing your sign-in methods.</p>}
+          </div>
+        )}
       </CardContent>
     </Card>
     <p className="text-xs leading-5 text-brand-text-muted">If linking reports that your sign-in is no longer recent, sign out and sign back in, then retry. Identity linking never moves balances or merges two existing BTCBOX accounts.</p>
