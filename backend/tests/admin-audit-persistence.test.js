@@ -112,7 +112,7 @@ test('admin audit detail redaction masks credential, personal, and wallet values
   const start = source.indexOf('function redactAdminAuditDetail(value)');
   const end = source.indexOf('function isValidAuthEmail(value)', start);
   assert.ok(start >= 0 && end > start);
-  const redact = require('node:vm').runInNewContext(source.slice(start, end) + '\\nredactAdminAuditDetail');
+  const redact = require('node:vm').runInNewContext(source.slice(start, end) + '\nredactAdminAuditDetail');
   const entries = [
     ['password', 'hunter2-secret'],
     ['token', 'eyJ-sensitive-token'],
