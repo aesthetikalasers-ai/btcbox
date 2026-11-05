@@ -69,6 +69,41 @@ function isSupabaseUserId(value) {
   return typeof value === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
 }
 
+// BTCBOX credentials are independent of Supabase email/password. Passwords are
+// stored only as PBKDF2-HMAC-SHA256 hashes with a per-account random salt.
+const BTCBOX_PASSWORD_ITERATIONS = 600000;
+const BTCBOX_PASSWORD_KEYLEN = 32;
+const BTCBOX_PASSWORD_DUMMY_SALT = 'btcbox-username-login-dummy-salt-v1';
+function normalizeBtcboxUsername(value) {
+  return typeof value === 'string' ? value.trim().toLowerCase() : '';
+}
+function validateBtcboxUsername(value) {
+  return typeof value === 'string' && /^[a-z0-9][a-z0-9_]{2,23}$/.test(value);
+}
+function validateBtcboxLoginPassword(value) {
+  return typeof value === 'string' && value.length >= 12 && value.length <= 128 && !/[\x00-\x1f\x7f]/.test(value);
+}
+function hashBtcboxLoginPassword(password, salt) {
+  return crypto.pbkdf2Sync(password, salt, BTCBOX_PASSWORD_ITERATIONS, BTCBOX_PASSWORD_KEYLEN, 'sha256').toString('hex');
+}
+function verifyBtcboxLoginPassword(user, supplied) {
+  if (!user || typeof supplied !== 'string' || !user.login_password_hash || !user.login_password_salt ||
+      user.login_password_algo !== 'pbkdf2-sha256-600000') return false;
+  const actual = Buffer.from(hashBtcboxLoginPassword(supplied, user.login_password_salt), 'hex');
+  const expected = Buffer.from(String(user.login_password_hash), 'hex');
+  return actual.length === expected.length && actual.length === BTCBOX_PASSWORD_KEYLEN && crypto.timingSafeEqual(actual, expected);
+}
+function isSupabaseIdentityLinked(user, supabaseUserId) {
+  return !!user && (String(user.supabase_user_id || '') === supabaseUserId ||
+    (Array.isArray(user.supabase_user_ids) && user.supabase_user_ids.includes(supabaseUserId)));
+}
+function getUserLinkedIdentityIds(user) {
+  return Array.from(new Set([String(user && user.supabase_user_id || ''), ...(
+    Array.isArray(user && user.supabase_user_ids) ? user.supabase_user_ids : []
+  )].filter(Boolean)));
+}
+
+
 async function detectGoogleProviderEnabled() {
   const now = Date.now();
   if (_googleProviderCache.value !== null && _googleProviderCache.expiresAt > now) return _googleProviderCache.value;
@@ -816,9 +851,49 @@ async function handleRequest(event, context) {
     return json({ ok: false, code: 'GOOGLE_ONLY_AUTH', msg: 'Please create your BTCBOX account with Google sign-in.' }, 403);
   }
 
-  // ---------- POST /api/login — disabled: BTCBOX uses Google-only Supabase identity ----------
+  // ---------- POST /api/login — BTCBOX username + password ----------
   if (path === 'login' && method === 'POST') {
-    return json({ ok: false, code: 'GOOGLE_ONLY_AUTH', msg: 'Please sign in with Google.' }, 403);
+    const username = normalizeBtcboxUsername(body.username);
+    const password = typeof body.password === 'string' ? body.password : '';
+    if (!db.security_counters) db.security_counters = {};
+    const now = Date.now();
+    const ipKey = 'login_ip:' + clientIp(event);
+    const usernameKey = 'login_username:' + crypto.createHash('sha256').update(username || 'invalid').digest('hex');
+    const ipLock = secCounterIsLocked(db.security_counters, ipKey, now);
+    const usernameLock = secCounterIsLocked(db.security_counters, usernameKey, now);
+    if (ipLock.locked || usernameLock.locked) return rateLimitedJson(Math.max(ipLock.retryAfter || 0, usernameLock.retryAfter || 0));
+    secCounterRecordFailure(db.security_counters, ipKey, 20, 15 * 60 * 1000, now);
+    secCounterRecordFailure(db.security_counters, usernameKey, 10, 15 * 60 * 1000, now);
+    try { await saveDB(db); }
+    catch (_) { return json({ ok: false, code: 'PERSISTENCE_UNAVAILABLE', msg: 'Authentication is temporarily unavailable. Please try again.' }, 503); }
+
+    const user = validateBtcboxUsername(username)
+      ? Object.values(db.users).find(function (candidate) { return normalizeBtcboxUsername(candidate.username_normalized || candidate.username) === username; })
+      : null;
+    // Perform the same expensive derivation for unknown usernames to reduce timing-based enumeration.
+    const salt = user && user.login_password_salt ? user.login_password_salt : BTCBOX_PASSWORD_DUMMY_SALT;
+    const actual = Buffer.from(hashBtcboxLoginPassword(password, salt), 'hex');
+    const expected = Buffer.from(user && user.login_password_hash || '0'.repeat(BTCBOX_PASSWORD_KEYLEN * 2), 'hex');
+    const passwordMatches = actual.length === expected.length && crypto.timingSafeEqual(actual, expected);
+    if (!user || !user.login_password_hash || !passwordMatches) {
+      return json({ ok: false, code: 'INVALID_CREDENTIALS', msg: 'Username or password is incorrect.' }, 401);
+    }
+    if (user.frozen) return json({ ok: false, code: 'ACCOUNT_FROZEN', msg: 'Account frozen. Please contact support.' }, 403);
+    secCounterReset(db.security_counters, ipKey);
+    secCounterReset(db.security_counters, usernameKey);
+    if (user.twofa_enabled) {
+      const tempToken = genToken();
+      db.temp_tokens = db.temp_tokens || {};
+      db.temp_tokens[tempToken] = { uid: user.uid, exp: Date.now() + 10 * 60 * 1000 };
+      await saveDB(db);
+      return json({ ok: false, require_2fa: true, temp_token: tempToken }, 200);
+    }
+    user.last_login = nowStr();
+    const token = genToken();
+    db.sessions[token] = { uid: user.uid, email: user.email || '', created_at: Date.now(), auth_method: 'username_password' };
+    try { await saveDB(db); }
+    catch (_) { return json({ ok: false, code: 'PERSISTENCE_UNAVAILABLE', msg: 'Authentication is temporarily unavailable. Please try again.' }, 503); }
+    return json({ ok: true, uid: user.uid }, 200, setCookieHeader(token));
   }
 
   // ---------- POST /api/supabase-login (Supabase-verified single-provider identity) ----------
@@ -870,10 +945,20 @@ async function handleRequest(event, context) {
     const authProviders = [authProvider];
     // Resolve the internal account by the server-verified Supabase UUID first.
     // Wallet identities have no email; never synthesize one or link by wallet metadata.
-    let user = Object.values(db.users).find(function (u) { return String(u.supabase_user_id || '') === supabaseUserId; });
+    let user = Object.values(db.users).find(function (u) { return isSupabaseIdentityLinked(u, supabaseUserId); });
     if (!user && email) user = Object.values(db.users).find(function (u) { return String(u.email || '').trim().toLowerCase() === email; });
-    if (user && String(user.supabase_user_id || '') !== supabaseUserId) {
+    if (user && !isSupabaseIdentityLinked(user, supabaseUserId)) {
       return json({ ok: false, code: 'SUPABASE_IDENTITY_MISMATCH', msg: 'This identity is already associated with another BTCBOX account. Please contact support.' }, 409);
+    }
+    if (walletIdentity) {
+      const walletOwner = Object.values(db.users).find(function (candidate) {
+        const wallets = Array.isArray(candidate.wallet_identities) ? candidate.wallet_identities : [];
+        return wallets.some(function (item) { return item && item.chain === walletIdentity.chain && item.address === walletIdentity.address; }) ||
+          (candidate.wallet_chain === walletIdentity.chain && candidate.wallet_address === walletIdentity.address);
+      });
+      if (walletOwner && (!user || walletOwner.uid !== user.uid)) {
+        return json({ ok: false, code: 'IDENTITY_IN_USE', msg: 'This wallet is already associated with another BTCBOX account.' }, 409);
+      }
     }
     if (user && user.frozen) return json({ ok: false, code: 'ACCOUNT_FROZEN', msg: 'Account frozen. Please contact support.' }, 403);
     // Preserve the existing account's second factor for all Supabase sign-ins.
@@ -890,7 +975,12 @@ async function handleRequest(event, context) {
       const uid = String(db.next_uid++);
       const salt = genSalt();
       user = {
-        uid: uid, email: email || '', email_verified: authProvider !== 'web3', supabase_user_id: supabaseUserId, auth_providers: authProviders,
+        uid: uid, email: email || '', email_verified: authProvider !== 'web3', supabase_user_id: supabaseUserId,
+        supabase_user_ids: [supabaseUserId],
+        auth_identities: [{ supabase_user_id: supabaseUserId, provider: authProvider,
+          email: email || '', wallet_address: walletIdentity ? walletIdentity.address : '', wallet_chain: walletIdentity ? walletIdentity.chain : '', linked_at: nowStr() }],
+        wallet_identities: walletIdentity ? [{ address: walletIdentity.address, chain: walletIdentity.chain, supabase_user_id: supabaseUserId, linked_at: nowStr() }] : [],
+        auth_providers: authProviders,
         wallet_address: walletIdentity ? walletIdentity.address : '', wallet_chain: walletIdentity ? walletIdentity.chain : '', addresses: [], address_audit: [],
         password_hash: hashPassword(genToken(), salt), salt: salt,
         fund_password: '', twofa_secret: '', twofa_enabled: false,
@@ -901,7 +991,20 @@ async function handleRequest(event, context) {
       db.users[uid] = user;
     } else {
       if (email) user.email_verified = true;
-      if (walletIdentity) { user.wallet_address = walletIdentity.address; user.wallet_chain = walletIdentity.chain; }
+      user.supabase_user_ids = getUserLinkedIdentityIds(user);
+      if (!user.supabase_user_ids.includes(supabaseUserId)) user.supabase_user_ids.push(supabaseUserId);
+      user.auth_identities = Array.isArray(user.auth_identities) ? user.auth_identities : [];
+      if (!user.auth_identities.some(function (item) { return item && item.supabase_user_id === supabaseUserId; })) {
+        user.auth_identities.push({ supabase_user_id: supabaseUserId, provider: authProvider, email: email || '',
+          wallet_address: walletIdentity ? walletIdentity.address : '', wallet_chain: walletIdentity ? walletIdentity.chain : '', linked_at: nowStr() });
+      }
+      if (walletIdentity) {
+        user.wallet_identities = Array.isArray(user.wallet_identities) ? user.wallet_identities : [];
+        if (!user.wallet_identities.some(function (item) { return item && item.chain === walletIdentity.chain && item.address === walletIdentity.address; })) {
+          user.wallet_identities.push({ address: walletIdentity.address, chain: walletIdentity.chain, supabase_user_id: supabaseUserId, linked_at: nowStr() });
+        }
+        if (!user.wallet_address) { user.wallet_address = walletIdentity.address; user.wallet_chain = walletIdentity.chain; }
+      }
       user.auth_providers = Array.from(new Set([].concat(user.auth_providers || [], authProviders)));
     }
     user.last_login = nowStr();
@@ -1003,6 +1106,125 @@ async function handleRequest(event, context) {
   // ---------- 以下接口需要登录 ----------
   const user = getUser(db, event);
 
+  // ---------- POST /api/account/credentials ----------
+  // Credentials belong to the existing internal account; this never creates a second user.
+  if (path === 'account/credentials' && method === 'POST') {
+    if (!user) return json({ ok: false, msg: 'Not signed in.', need_login: true }, 401);
+    if (user.frozen) return json({ ok: false, code: 'ACCOUNT_FROZEN', msg: 'Account frozen. Please contact support.' }, 403);
+    const username = normalizeBtcboxUsername(body.username);
+    const password = typeof body.password === 'string' ? body.password : '';
+    const currentPassword = typeof body.current_password === 'string' ? body.current_password : '';
+    if (!validateBtcboxUsername(username)) return json({ ok: false, code: 'USERNAME_INVALID', msg: 'Username must be 3–24 characters and use lowercase letters, numbers, or underscores.' }, 400);
+    if (!validateBtcboxLoginPassword(password)) return json({ ok: false, code: 'PASSWORD_INVALID', msg: 'Password must be 12–128 characters and cannot contain control characters.' }, 400);
+    const hasCredentials = !!(user.login_password_hash && user.login_password_salt && user.login_password_algo === 'pbkdf2-sha256-600000');
+    if (hasCredentials && !verifyBtcboxLoginPassword(user, currentPassword)) {
+      return json({ ok: false, code: 'CURRENT_PASSWORD_INVALID', msg: 'Current BTCBOX password is incorrect.' }, 403);
+    }
+    if (!hasCredentials) {
+      const sessionRecord = getSessionRecord(db, event);
+      const createdAt = Number(sessionRecord && sessionRecord.session && sessionRecord.session.created_at);
+      if (!Number.isFinite(createdAt) || Date.now() - createdAt > 5 * 60 * 1000) {
+        return json({ ok: false, code: 'REAUTH_REQUIRED', msg: 'Please sign in again before setting your BTCBOX username and password.' }, 403);
+      }
+    }
+    const duplicate = Object.values(db.users).find(function (candidate) {
+      return candidate.uid !== user.uid && normalizeBtcboxUsername(candidate.username_normalized || candidate.username) === username;
+    });
+    if (duplicate) return json({ ok: false, code: 'USERNAME_TAKEN', msg: 'This username is already in use. Please choose another.' }, 409);
+    user.username = username;
+    user.username_normalized = username;
+    user.login_password_salt = genSalt();
+    user.login_password_hash = hashBtcboxLoginPassword(password, user.login_password_salt);
+    user.login_password_algo = 'pbkdf2-sha256-600000';
+    user.credentials_updated_at = nowStr();
+    try { await saveDB(db); }
+    catch (e) {
+      if (e && e.message === 'Persistent storage write conflict') return json({ ok: false, code: 'ACCOUNT_UPDATE_CONFLICT', msg: 'Your account changed at the same time. Please reload and try again.' }, 409);
+      return json({ ok: false, code: 'PERSISTENCE_UNAVAILABLE', msg: 'Account settings could not be saved. Please try again.' }, 503);
+    }
+    return json({ ok: true, username: user.username, has_login_password: true });
+  }
+
+  // ---------- POST /api/auth/link-identity ----------
+  // The current BTCBOX session proves control of the account; the second verified
+  // Supabase access token proves control of the identity being added.
+  if (path === 'auth/link-identity' && method === 'POST') {
+    if (!user) return json({ ok: false, msg: 'Not signed in.', need_login: true }, 401);
+    if (user.frozen) return json({ ok: false, code: 'ACCOUNT_FROZEN', msg: 'Account frozen. Please contact support.' }, 403);
+    const sessionRecord = getSessionRecord(db, event);
+    const createdAt = Number(sessionRecord && sessionRecord.session && sessionRecord.session.created_at);
+    if (!Number.isFinite(createdAt) || Date.now() - createdAt > 5 * 60 * 1000) {
+      return json({ ok: false, code: 'REAUTH_REQUIRED', msg: 'Please sign in again before linking another identity.' }, 403);
+    }
+    const accessToken = typeof body.supabase_access_token === 'string' ? body.supabase_access_token : '';
+    const supabaseUrl = String(process.env.SUPABASE_AUTH_URL || '').replace(/\/$/, '');
+    const supabaseKey = getPublishableKey();
+    if (!supabaseUrl || !supabaseKey) return json({ ok: false, code: 'AUTH_SERVICE_UNAVAILABLE', msg: 'Authentication service is not configured.' }, 503);
+    if (!accessToken || accessToken.length > 16384) return json({ ok: false, code: 'INVALID_SUPABASE_IDENTITY', msg: 'The identity to link could not be verified.' }, 401);
+    let identity;
+    try {
+      const verifyResponse = await fetch(supabaseUrl + '/auth/v1/user', {
+        method: 'GET', headers: { 'apikey': supabaseKey, 'Authorization': 'Bearer ' + accessToken, 'Accept': 'application/json' }
+      });
+      if (!verifyResponse.ok) return json({ ok: false, code: 'INVALID_SUPABASE_IDENTITY', msg: 'The identity to link could not be verified.' }, 401);
+      identity = await verifyResponse.json();
+    } catch (_) {
+      return json({ ok: false, code: 'AUTH_SERVICE_UNAVAILABLE', msg: 'Authentication service temporarily unavailable.' }, 503);
+    }
+    const linkedId = String(identity && identity.id || '').trim();
+    const linkedEmail = String(identity && identity.email || '').trim().toLowerCase();
+    const provider = getSingleSupabaseAuthProvider(identity);
+    const walletIdentity = provider === 'web3' ? getSupabaseWalletIdentity(identity) : null;
+    const confirmed = !!(identity && (identity.email_confirmed_at || identity.confirmed_at));
+    if (!isSupabaseUserId(linkedId) || !['google', 'web3'].includes(provider) ||
+        (provider === 'google' && (!isValidAuthEmail(linkedEmail) || !confirmed)) ||
+        (provider === 'web3' && !walletIdentity)) {
+      return json({ ok: false, code: 'INVALID_SUPABASE_IDENTITY', msg: 'Only a verified Google or supported wallet identity can be linked.' }, 403);
+    }
+    if (provider === 'google' && await detectGoogleProviderEnabled() !== true) {
+      return json({ ok: false, code: 'GOOGLE_PROVIDER_UNAVAILABLE', msg: 'Google sign-in is temporarily unavailable.' }, 503);
+    }
+    if (isSupabaseIdentityLinked(user, linkedId)) return json({ ok: false, code: 'IDENTITY_ALREADY_LINKED', msg: 'This identity is already linked to your BTCBOX account.' }, 409);
+    const conflict = Object.values(db.users).find(function (candidate) {
+      if (candidate.uid === user.uid) return false;
+      if (isSupabaseIdentityLinked(candidate, linkedId)) return true;
+      if (provider === 'google' && linkedEmail && String(candidate.email || '').trim().toLowerCase() === linkedEmail) return true;
+      if (walletIdentity) {
+        const wallets = Array.isArray(candidate.wallet_identities) ? candidate.wallet_identities : [];
+        return wallets.some(function (item) { return item && item.chain === walletIdentity.chain && item.address === walletIdentity.address; }) ||
+          (candidate.wallet_chain === walletIdentity.chain && candidate.wallet_address === walletIdentity.address);
+      }
+      return false;
+    });
+    if (conflict) return json({ ok: false, code: 'IDENTITY_IN_USE', msg: 'This identity is already associated with another BTCBOX account. Sign in to that account instead.' }, 409);
+
+    user.supabase_user_ids = getUserLinkedIdentityIds(user);
+    user.supabase_user_ids.push(linkedId);
+    user.auth_identities = Array.isArray(user.auth_identities) ? user.auth_identities : [];
+    if (user.supabase_user_id && !user.auth_identities.some(function (item) { return item && item.supabase_user_id === user.supabase_user_id; })) {
+      const primaryProvider = Array.isArray(user.auth_providers) && user.auth_providers.length === 1 ? user.auth_providers[0] : 'unknown';
+      user.auth_identities.push({ supabase_user_id: user.supabase_user_id, provider: primaryProvider,
+        email: user.email || '', wallet_address: user.wallet_address || '', wallet_chain: user.wallet_chain || '', linked_at: user.created_at || nowStr() });
+    }
+    user.auth_identities.push({ supabase_user_id: linkedId, provider: provider, email: linkedEmail || '',
+      wallet_address: walletIdentity ? walletIdentity.address : '', wallet_chain: walletIdentity ? walletIdentity.chain : '', linked_at: nowStr() });
+    if (walletIdentity) {
+      user.wallet_identities = Array.isArray(user.wallet_identities) ? user.wallet_identities : [];
+      user.wallet_identities.push({ address: walletIdentity.address, chain: walletIdentity.chain, supabase_user_id: linkedId, linked_at: nowStr() });
+      if (!user.wallet_address) { user.wallet_address = walletIdentity.address; user.wallet_chain = walletIdentity.chain; }
+    }
+    if (provider === 'google' && !user.email) user.email = linkedEmail;
+    user.auth_providers = Array.from(new Set([].concat(user.auth_providers || [], [provider])));
+    try { await saveDB(db); }
+    catch (e) {
+      if (e && e.message === 'Persistent storage write conflict') return json({ ok: false, code: 'ACCOUNT_UPDATE_CONFLICT', msg: 'Your account changed at the same time. Please reload and try again.' }, 409);
+      return json({ ok: false, code: 'PERSISTENCE_UNAVAILABLE', msg: 'Identity could not be linked. Please try again.' }, 503);
+    }
+    return json({ ok: true, linked_identities: user.auth_identities.map(function (item) {
+      return { provider: item.provider || 'unknown', wallet_address: item.wallet_address || '', wallet_chain: item.wallet_chain || '', linked_at: item.linked_at || '' };
+    }) });
+  }
+
   // ---------- POST /api/2fa/enable ----------
   // Never disclose an already-enabled TOTP secret to a session-only caller.
   // Local-password accounts must re-enter that password; OAuth/magic-link accounts
@@ -1071,7 +1293,12 @@ async function handleRequest(event, context) {
     const total = totalUsdt(accountBalances, livePrices);
     return json({
       ok: true,
-      uid: user.uid, email: user.email || '', wallet_address: user.wallet_address || '', wallet_chain: user.wallet_chain || '',
+      uid: user.uid, email: user.email || '', username: user.username || '', has_login_password: !!user.login_password_hash,
+      auth_providers: Array.isArray(user.auth_providers) ? user.auth_providers : [],
+      linked_identities: (Array.isArray(user.auth_identities) ? user.auth_identities : []).map(function (item) {
+        return { provider: item.provider || 'unknown', wallet_address: item.wallet_address || '', wallet_chain: item.wallet_chain || '', linked_at: item.linked_at || '' };
+      }),
+      wallet_address: user.wallet_address || '', wallet_chain: user.wallet_chain || '',
       // Do not serialize the full identity number to an ordinary user session.
       // Keep the existing id_number field for UI compatibility, but expose only its masked form.
       kyc: {
