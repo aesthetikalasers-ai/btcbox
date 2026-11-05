@@ -135,6 +135,11 @@ test('KYC rejection collects an operator-provided reason instead of recording a 
   assert.doesNotMatch(accountView, /adminRejectKyc\(\{uid:b\.dataset\.uid,reason:'Document unclear'\}\)/);
 });
 
+test('KYC API adapter never invents a rejection reason when the operator supplies none', () => {
+  assert.ok(app.includes("async adminRejectKyc(p){ return adminFetch('/admin/kyc/reject',{method:'POST',body:{uid:p.uid, reason:p.reason}}); }"));
+  assert.doesNotMatch(app, /adminRejectKyc\(p\)[^\\n]*Rejected by admin/);
+});
+
 test('KYC approval and rejection persist reviewer, timestamp, decision reason, and audit outbox event', () => {
   const approveStart = apiCore.indexOf("if (sub === 'kyc/approve' && method === 'POST')");
   const rejectStart = apiCore.indexOf("if (sub === 'kyc/reject' && method === 'POST')", approveStart);
