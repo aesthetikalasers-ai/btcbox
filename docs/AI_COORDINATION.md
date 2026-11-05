@@ -1001,3 +1001,14 @@ The backend CI branch filters were pointing at an older auth branch. Updated bot
 - `backend/tests/admin-entry.test.js` adds coverage for hydration, response mapping, pending-review visibility, unavailable queues, and audit-pending feedback.
 - GitHub Actions run `42081382847` for this exact SHA succeeded: unified build passed, backend tests 143/143 passed, fail-closed preflight passed, preserved-entrypoint checks passed.
 - Browser admin/Basic Auth and live database behavior remain unverified. No migration, merge, or Vercel deployment.
+
+
+## Admin queue retry resilience — 2026-11-06
+
+- Feature branch current head: `d457e3edc516c8acd154a4bd3a1a4664fda7f322`.
+- Follow-up finding: the admin queue error message advised switching tabs to retry, but the tab handler only re-rendered and never retried the API reads. Added a retry path on tab selection whenever either supported queue has a read error.
+- Added an in-flight guard to prevent duplicate parallel queue reads, with loading state initialized so the first request is not blocked.
+- Added source-contract test coverage for retry behavior and duplicate-load guard.
+- Intermediate commit `a00e1715d1c0f9bd82f254cf07ee55fa0dc4fcd9` run `42081688954` and final commit `d457e3edc516c8acd154a4bd3a1a4664fda7f322` run `42081696844` were both still in progress when recorded. Do not claim final CI green until the latter exact-SHA run completes successfully.
+- Further read-only audit: legacy deposit records live under each user's `user.deposits`, but there is no dedicated admin deposits GET route. A new route must not be added until it is clear whether Postgres financial read cutover is enabled and how to read the canonical deposit ledger without mixing sources. KYC submissions are stored on user records, but a queue endpoint must return only the minimum necessary fields and must not expose document numbers or credentials.
+- No database migration, production data/configuration change, merge, or Vercel deployment. Deployment pause remains active.
