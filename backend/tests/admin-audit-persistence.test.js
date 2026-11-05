@@ -100,9 +100,9 @@ test('admin audit bigint cursor validation rejects values above signed PostgreSQ
   const end = source.indexOf('function redactAdminAuditDetail(value)', start);
   assert.ok(start >= 0 && end > start);
   const validator = source.slice(start, end);
-  assert.match(validator, /\\^\\[1-9\\]\\[0-9\\]\\{0,18\\}\\$/);
+  assert.ok(validator.includes('/^[1-9][0-9]{0,18}$/'));
   assert.ok(validator.includes("value <= '9223372036854775807'"));
-  assert.match(source, /before && !isPositivePostgresBigintString\\(before\\)/);
-  assert.match(source, /!isPositivePostgresBigintString\\(row\\.id\\)/);
-  assert.doesNotMatch(validator, /Number\\(/);
+  assert.ok(source.includes('before && !isPositivePostgresBigintString(before)'));
+  assert.ok(source.includes('!isPositivePostgresBigintString(row.id)'));
+  assert.ok(!validator.includes('Number('));
 });
