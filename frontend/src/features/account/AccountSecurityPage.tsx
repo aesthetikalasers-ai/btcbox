@@ -8,11 +8,12 @@ import { getAccount, type AccountSnapshot } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
 
 export function AccountSecurityPage() {
-  const { status, busy, error, notice, googleEnabled, linkGoogleIdentity, linkWeb3Identity, credentialRecoveryReady, reauthenticateCredentialsWithGoogle, reauthenticateCredentialsWithWeb3, recoverBtcboxPassword } = useAuth();
+  const { status, busy, error, notice, googleEnabled, linkGoogleIdentity, linkWeb3Identity, credentialRecoveryReady, credentialRecoveryNeedsTwoFactor, reauthenticateCredentialsWithGoogle, reauthenticateCredentialsWithWeb3, completeCredentialRecoveryTwoFactor, recoverBtcboxPassword } = useAuth();
   const [account, setAccount] = useState<AccountSnapshot | null>(null);
   const [loadError, setLoadError] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmNewPassword, setConfirmNewPassword] = useState("");
+  const [twoFactorCode, setTwoFactorCode] = useState("");
 
   useEffect(() => {
     if (status !== "authenticated") return;
@@ -82,12 +83,24 @@ export function AccountSecurityPage() {
             {confirmNewPassword && newPassword !== confirmNewPassword && <p className="text-sm text-loss">Passwords do not match.</p>}
             <Button type="submit" className="w-full" disabled={busy || newPassword.length < 12 || newPassword !== confirmNewPassword}>Save new password</Button>
           </form>
+        ) : credentialRecoveryNeedsTwoFactor ? (
+          <form className="space-y-3" onSubmit={async event => {
+            event.preventDefault();
+            try { await completeCredentialRecoveryTwoFactor(twoFactorCode); setTwoFactorCode(""); }
+            catch { /* AuthProvider displays the safe error. */ }
+          }}>
+            <label className="block space-y-1.5 text-sm"><span className="text-brand-text-secondary">Authenticator code</span><Input value={twoFactorCode} onChange={event => setTwoFactorCode(event.target.value.replace(/\\D/g, "").slice(0, 8))} inputMode="numeric" autoComplete="one-time-code" maxLength={8} placeholder="Enter your 2FA code" required /></label>
+            <Button type="submit" className="w-full" disabled={busy || twoFactorCode.length < 6}>Verify and continue</Button>
+          </form>
         ) : (
-          <div className="grid gap-3 sm:grid-cols-2">
-            {hasGoogle && <Button variant="outline" disabled={busy || !googleEnabled} onClick={() => void reauthenticateCredentialsWithGoogle()}>Verify with Google</Button>}
-            {hasEthereum && <Button variant="outline" disabled={busy} onClick={() => void reauthenticateCredentialsWithWeb3("ethereum")}>Verify Ethereum wallet</Button>}
-            {hasSolana && <Button variant="outline" disabled={busy} onClick={() => void reauthenticateCredentialsWithWeb3("solana")}>Verify Solana wallet</Button>}
-            {!hasGoogle && !hasEthereum && !hasSolana && <p className="text-sm text-brand-text-muted">No linked Google account or wallet is available for password recovery. Contact support before changing your sign-in methods.</p>}
+          <div className="space-y-3">
+            {account?.twofa_enabled && <label className="block space-y-1.5 text-sm"><span className="text-brand-text-secondary">Authenticator code (required for wallet verification)</span><Input value={twoFactorCode} onChange={event => setTwoFactorCode(event.target.value.replace(/\\D/g, "").slice(0, 8))} inputMode="numeric" autoComplete="one-time-code" maxLength={8} placeholder="Enter your 2FA code" /></label>}
+            <div className="grid gap-3 sm:grid-cols-2">
+              {hasGoogle && <Button variant="outline" disabled={busy || !googleEnabled} onClick={() => void reauthenticateCredentialsWithGoogle()}>Verify with Google</Button>}
+              {hasEthereum && <Button variant="outline" disabled={busy || (account?.twofa_enabled === true && twoFactorCode.length < 6)} onClick={() => void reauthenticateCredentialsWithWeb3("ethereum", twoFactorCode)}>Verify Ethereum wallet</Button>}
+              {hasSolana && <Button variant="outline" disabled={busy || (account?.twofa_enabled === true && twoFactorCode.length < 6)} onClick={() => void reauthenticateCredentialsWithWeb3("solana", twoFactorCode)}>Verify Solana wallet</Button>}
+              {!hasGoogle && !hasEthereum && !hasSolana && <p className="text-sm text-brand-text-muted">No linked Google account or wallet is available for password recovery. Contact support before changing your sign-in methods.</p>}
+            </div>
           </div>
         )}
       </CardContent>
