@@ -1047,3 +1047,38 @@ The backend CI branch filters were pointing at an older auth branch. Updated bot
 - Deposit ledger review: SQL `0002` defines canonical `public.deposit_records` with pending/confirmed/rejected status, user/asset/network/amount/txid and confirmation metadata; `0016` only credits through trusted chain-verification RPC after a pending row already exists and blocks manual confirmation. SQL `0007` adds an admin manual-credit RPC, but the API remains fail-closed behind financial cutover. No admin deposit snapshot/read API exists in `0012`; `0010` exposes account/withdrawal snapshots only. User POST `/api/deposit` rejects user-supplied credit requests and only serves deposit addresses for non-positive amount queries.
 - Therefore deposit review remains disabled. Before adding an admin read route, establish the trusted chain-verifier's pending-row creation/ingestion path, confirm whether canonical financial read cutover is enabled, and add a service-role-only read snapshot over `deposit_records` with explicit pagination and no mixing of legacy `user.deposits`. Do not enable manual credit or execute migrations.
 - No production database changes, merge, or Vercel deployment. Deployment pause remains active. Browser Admin/Basic Auth and live Postgres data remain unverified.
+
+
+## Admin audit redaction and deposit/KYC follow-up — 2026-11-06
+
+### FEATURE BRANCH — SOURCE OBSERVED
+- Feature branch exact HEAD: `c2dada682a4e2f0fafbb16f48b1d331db9dd669e` (verified by comparing the branch ref to the prior exact HEAD `1d3008a985a75fdcc8283bea9fd4989d59accd2e`; 3 commits ahead, 0 behind).
+- The previous audit detail sanitizer used over-escaped whitespace and email-dot patterns in regex literals. A direct behavior probe showed JSON values such as `{"password":"Super Secret Phrase","token":"abc123"}` were returned unchanged. This is a reproduced source-level defect, not merely a style concern.
+- Replaced the inline sanitizer with `redactAdminAuditDetail()`, using correctly escaped patterns and handling quoted JSON values, unquoted key/value secrets, emails, EVM addresses, and TRON addresses.
+- Added behavioral tests in `backend/tests/admin-entry.test.js` for quoted JSON secrets, identity-number fields, emails, EVM/TRON addresses, private keys, and recovery codes.
+- A direct isolated JavaScript probe of the new helper's equivalent patterns produced the expected redacted output. The full repository test suite and GitHub Actions result for the exact new HEAD are **PENDING**; do not mark this batch CI-green until an exact-SHA run is verified.
+- The backend workflow is configured to trigger on pushes to `feat/btcbox-web3-auth-20261105` for changes under `backend/**`. The available workflow-run lookup only returns PR-triggered runs; combined commit status currently exposes no check records for this push SHA. This is an evidence-access limitation, not a pass.
+
+### DEPOSIT LEDGER BOUNDARY — SOURCE OBSERVED
+- `0002_financial_ledger_v1.sql` creates canonical `public.deposit_records` with pending/confirmed/rejected status and service-role-only table access.
+- `0007_financial_admin_manual_deposit_v1.sql` implements `admin_manual_deposit_atomic`; the RPC itself creates a pending manual-deposit row and, in the same database transaction, performs the ledger credit, confirms the row, and appends the financial audit event. This is the documented manual-review path in the migration-order guide.
+- `0016_financial_deposit_chain_verification_v3.sql` implements the optional chain-verifier RPC but requires a pre-existing pending deposit row. The inspected backend `api-core.js` contains no call to `verify_and_credit_deposit_atomic` and no insert into `deposit_records`; an external verifier/ingestion service is therefore **NOT VERIFIED** from this repository path.
+- User `POST /api/deposit` is an address-query flow and rejects positive user-submitted deposit claims. Admin manual credit remains fail-closed behind the complete financial cutover flags. No deposit-read endpoint exists, so the admin deposits tab remains disabled and must not be populated from legacy `user.deposits` as if it were the canonical ledger.
+- No database query or migration was executed.
+
+### KYC REVIEW EVIDENCE — SOURCE OBSERVED
+- `GET /api/admin/kyc` returns a pending-only, minimized list (UID, email, applicant name, ID type, status, submission time) and omits identity number and credential secrets.
+- The current customer submission path does not provide document-image evidence; the admin view nevertheless exposes approve/reject controls based on name and ID type alone. This is an evidence sufficiency risk. Do not claim KYC review is operationally complete.
+- The approve route requires pending status unless an explicit admin override with a reason is supplied. The reject route currently allows setting rejected status without a pending submission; preserve this documented behavior until the business owner approves a rule change. No KYC business rule was changed in this batch.
+
+### AUDIT HISTORY LIMIT
+- The admin audit viewer still reads the retention-limited `btcbox_state` audit document. It is not the canonical complete PostgreSQL `financial_audit_log` reader.
+- Outbox delivery uses stable event IDs and the SQL RPC's idempotent append contract. If PostgreSQL append succeeds but state CAS fails, the event remains pending and can be retried by a later admin request; duplicate insertion is prevented by the event-ID unique index and payload consistency check.
+- No production database change, merge to `main`, or Vercel deployment. Deployment pause remains active.
+
+### VALIDATION / NEXT ACTION
+1. Verify the exact-head GitHub Actions run for `c2dada682a4e2f0fafbb16f48b1d331db9dd669e`; full CI remains pending.
+2. Continue locating/confirming any external chain-verifier service and its trusted creation path for pending chain deposits; do not infer it from SQL alone.
+3. Decide, with explicit business approval, whether KYC approve/reject controls must remain disabled until document evidence is collected.
+4. Design a service-role-only, paginated canonical PostgreSQL deposit read snapshot only after the financial read cutover and data source are proven.
+5. Keep production financial writes disabled; no migration, merge, or deployment.
