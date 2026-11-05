@@ -86,6 +86,7 @@ begin
     'count', v_count,
     'remaining', greatest(0, v_limit - v_count),
     'retry_after_seconds', v_retry_after,
+    'window_seconds', v_window_seconds,
     'window_start', v_window_start
   );
 end;
