@@ -79,6 +79,7 @@ test('credential recovery requires a server-verified, linked, recently reauthent
 test('credential and linking routes preserve one internal account and use revision-CAS persistence', () => {
   assert.ok(source.includes("path === 'account/credentials' && method === 'POST'"));
   assert.ok(source.includes("path === 'auth/link-identity' && method === 'POST'"));
+  assert.ok(source.includes("await rateCheckShared('identity_link_target', String(user.uid))"));
   assert.ok(source.includes("code: 'USERNAME_TAKEN'"));
   assert.ok(source.includes("code: 'IDENTITY_IN_USE'"));
   assert.ok(source.includes("code: 'REAUTH_REQUIRED'"));
