@@ -1309,3 +1309,13 @@ The backend CI branch filters were pointing at an older auth branch. Updated bot
 - Corrective commits: `678cd1235f0e507ee07a334c97032faf26fc9727` (restore email/password regex semantics) and `9f999c03025f92ececa4bd67a5e369d3b506ca60` (audit assertion).
 - Latest feature SHA `9f999c03025f92ececa4bd67a5e369d3b506ca60`; exact-head CI run `42109785313` queued/in progress. Previous failures remain failures and must not be represented as passing. Acceptance depends only on the latest exact-head run.
 - Diff audit against known-good SHA `203ed17db13992834e4a9f143d1f7b3618a73746` confirms only `backend/api-core.js` and `backend/tests/admin-audit-persistence.test.js` changed in this patch series.
+
+
+## Admin audit hardening follow-up — 2026-11-06 (UTC+8)
+
+- TEST PASSED: exact-head CI run `42112511644` completed successfully for feature SHA `b99086bc8cef86fa23f65e57ebb54ab5c2102ff9`. The unified build, backend tests, fail-closed deployment configuration preflight, and unified output/entrypoint verification all passed.
+- TEST PASSED: audit-detail redaction regression coverage now includes password/token/API key/recovery code/email/EVM/TRON address masking, case-insensitive key-value matching, and a final 300-character output cap after substitutions.
+- SOURCE OBSERVED: review of the state-document audit pagination path found that it emitted a next-page cursor whenever a page contained exactly `limit` rows, without checking whether another row existed. This can cause a spurious empty-page request.
+- SOURCE OBSERVED: action and uid filter values were sliced to 100 characters before validation, so an overlong input could be silently accepted as a truncated filter.
+- NEXT ACTION: change fallback pagination to read `limit + 1` rows for has-more detection and reject overlong raw action/uid filters before applying the existing allowlist regex. Add source-contract regression tests and require exact-head CI.
+- SAFETY: no production PostgREST read, production DB write/migration, merge, Vercel deployment, or financial operation was performed. Canonical PostgreSQL audit reads remain opt-in and fail closed.
