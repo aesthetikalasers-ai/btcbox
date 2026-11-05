@@ -1458,5 +1458,16 @@ The backend CI branch filters were pointing at an older auth branch. Updated bot
 - DEFENSIVE FIX: account snapshot `kyc_level` previously dereferenced `user.kyc.status` without guarding the KYC object, despite the adjacent fields already handling absent legacy KYC data. It now safely reports level 0 when the object is absent.
 - REGRESSION COVERAGE ADDED: account credential tests assert current-session preservation and other-session revocation; auth-security route tests assert the same for 2FA disable; account snapshot test covers legacy users without a KYC object.
 - Commits in the feature branch: `3c2ddacf1b7881896716a58dac34ea6cfbcddb58`, `16bb80df3e532a01e7a96fc808acd21ecb712bde`, `24d998bdf12a73cc9bd56bf1956fe86a467b99d3`, `f785cc190f0aaa5a70ebbd59963696ecd3bf498b`, latest exact feature HEAD `de70001529974c5741a9f5ba6fef2848d12d2054`.
-- Exact-head CI has been triggered for each sequential commit; runs `42118729189`, `42118737250`, `42118780556`, and `42118789024` were still in progress at the time of this note. Do not mark this batch TEST PASSED until run `42118789024` for the latest exact SHA completes successfully.
+- Exact-head CI runs `42118729189`, `42118737250`, `42118780556`, and `42118789024` completed successfully for their respective commits. Latest combined account-hardening HEAD `de70001529974c5741a9f5ba6fef2848d12d2054` passed exact-head CI run `42118796890`; all unified build, backend tests, fail-closed deployment configuration preflight, and entrypoint verification steps succeeded.
 - SAFETY: no production/staging database writes or migrations, merge, Vercel deployment, or financial operations occurred.
+
+
+### 2FA enrollment session invalidation — 2026-11-06 (UTC+8)
+
+- TEST PASSED (previous account batch): latest combined account-hardening SHA `de70001529974c5741a9f5ba6fef2848d12d2054` passed exact-head CI run `42118796890`, including unified build, backend tests, fail-closed deployment configuration preflight, and entrypoint verification.
+- SOURCE OBSERVED: enabling TOTP at `POST /api/2fa/confirm` previously set `twofa_enabled=true` after checking the one-time TOTP code, but did not revoke sessions or pending 2FA login challenges issued before enrollment. Older sessions could therefore remain active without having completed the newly enabled second factor.
+- PATCHED: require a valid current BTCBOX session; after consuming a valid one-time TOTP step, preserve that current session while revoking every other session for the account and deleting the account's pending `temp_tokens` before CAS persistence.
+- REGRESSION COVERAGE ADDED: auth security route contract asserts current-session validation, current-session preservation, revocation of other sessions, deletion of pending login challenges, and persistence ordering.
+- Feature commits: `fae0b09f154b2b2c72735ac3a356576265b432b2` (API) and `3a986fe2488bb3822323d7265a78f377dd0b92b3` (test); latest feature HEAD `3a986fe2488bb3822323d7265a78f377dd0b92b3`.
+- Exact-head CI run `42119012415` was queued and run `42119004524` was in progress when recorded. Do not mark this 2FA enrollment change TEST PASSED until run `42119012415` for the latest SHA completes successfully.
+- SAFETY: no production/staging DB writes or migrations, merge, Vercel deployment, or financial operations occurred.
