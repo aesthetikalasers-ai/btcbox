@@ -2,12 +2,12 @@ name: BTCBOX backend CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, 'feat/btcbox-react-google-auth-20261105']
     paths:
       - 'backend/**'
       - '.github/workflows/backend-ci.yml'
   pull_request:
-    branches: [main]
+    branches: [main, 'feat/btcbox-react-google-auth-20261105']
     paths:
       - 'backend/**'
       - '.github/workflows/backend-ci.yml'
