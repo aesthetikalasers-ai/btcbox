@@ -825,3 +825,21 @@ The backend CI branch filters were pointing at an older auth branch. Updated bot
 - Latest feature head observed: 7aba5d2298621e0a900f8a844cf9d3ed75766dec.
 - IMPORTANT LIMIT: this is static source-contract coverage, not a live PostgreSQL concurrency test. The SQL migration `0001` and shared rate-limit migration `0023` have not been applied or exercised against staging/production. Real two-client concurrent CAS, RPC permissions, and marker replay still require a disposable/staging Supabase project.
 - No migration execution, production DB change, merge, or Vercel deployment. Deployment pause remains active.
+
+## Security-counter and admin-audit hardening — 2026-11-06
+
+### IMPLEMENTED ON FEATURE BRANCH — SOURCE READ-BACK VERIFIED; TEST EXECUTION PENDING
+- Feature branch: `feat/btcbox-web3-auth-20261105`.
+- Latest feature commit at this update: `984c2f8b5747743e72fe7f4f3acd70c0f1392589`.
+- `backend/api-core.js` now returns a generic `503 SECURITY_STATE_UNAVAILABLE` when the Supabase-login IP counter cannot be persisted, rather than continuing authentication with an unrecorded attempt.
+- Withdrawal fund-password failure-counter writes and successful-password counter resets now fail closed with `503` if `saveDB` fails, before the financial cutover check or any withdrawal RPC.
+- Administrator auth now returns an explicit persistence-unavailable sentinel when failed-attempt counter writes or successful-auth counter resets fail. The admin route maps that sentinel to `503`, rather than treating the failure as an ordinary 401 or granting access.
+- General admin audit append is now awaited. When Supabase storage is configured, the handler requires the PostgreSQL `append_admin_audit_log` RPC to return an HTTP success before saving and confirming the associated admin state mutation. All seven existing `auditAdmin` call sites now await it. When Supabase storage is not configured, the existing JSON state audit-log path remains the compatibility path.
+- Added `backend/tests/security-counter-persistence.test.js` and `backend/tests/admin-audit-persistence.test.js` with source-contract assertions for fail-closed counter persistence and awaited audit append ordering.
+
+### VALIDATION / LIMITS
+- SOURCE READ-BACK VERIFIED: updated API source and both test files were fetched back from the feature branch; source-level checks confirmed all intended fail-closed branches, all seven awaited audit call sites, and both test files exist.
+- NOT VERIFIED: Node test execution, unified build, PostgreSQL RPC permissions/runtime behavior, audit append response behavior against a live database, and HTTP/browser integration.
+- The latest commit status endpoint only exposes a failing Vercel status context pointing to the `fuyao999` build-rate-limit page. The GitHub workflow-run lookup returned no PR-triggered runs for this SHA; therefore no green CI claim is made.
+- No Supabase migration was applied, no database or production records were changed, no secrets were read or modified, no merge occurred, and no new Vercel build/deployment was initiated. Keep deployment paused.
+- Review the audit append semantics for possible orphan audit rows if PostgreSQL append succeeds but the subsequent JSON state CAS fails; this is preferable to silently reporting success without a durable audit record, but it is not a single transaction for non-financial admin mutations.
