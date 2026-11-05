@@ -504,6 +504,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (url.searchParams.get("flow") === "link-target") {
         await linkIdentityRequest(data.session.access_token);
         await client.auth.signOut();
+        setIdentityLinkSourceVerified(false);
+        setPendingIdentityLinkToken("");
+        setIdentityLinkNeedsTwoFactor(false);
         await setSignedIn();
         setNotice("The Google identity has been linked to this BTCBOX account.");
         window.history.replaceState({}, document.title, "/settings");
@@ -545,7 +548,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     requestPasswordReset, completePasswordRecovery, finishOAuth, verifyTwoFactor, signOut,
     clearError: () => setError(""),
   }), [status, email, busy, error, notice, googleEnabled, identityLinkSourceVerified, identityLinkNeedsTwoFactor, completeIdentityLinkReauthTwoFactor, needsCredentials, credentialRecoveryReady, credentialRecoveryNeedsTwoFactor, ethereumWallets, signInWithGoogle, linkGoogleIdentity, linkWeb3Identity, signInWithUsername, setBtcboxCredentials, reauthenticateCredentialsWithGoogle, reauthenticateCredentialsWithWeb3, completeCredentialRecoveryTwoFactor, recoverBtcboxPassword, linkSupabaseIdentity, signInWithWeb3, signInWithEmail, signUpWithEmail,
-    requestPasswordReset, completePasswordRecovery, finishOAuth, verifyTwoFactor, signOut]);
+    requestPasswordReset, completePasswordRecovery, finishOAuth, verifyTwoFactor, signOut, reauthenticateIdentityLinkWithGoogle, reauthenticateIdentityLinkWithWeb3]);
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
