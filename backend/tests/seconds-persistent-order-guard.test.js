@@ -73,7 +73,7 @@ test('settlement SQL only reports duplicate for the exact original request ID an
   assert.ok(branch.includes('v_pos.settle_request_hash IS DISTINCT FROM p_request_hash'),'payload mismatch must conflict, including NULL mismatch');
   assert.ok(branch.includes("'duplicate',true"),'same request ID and hash returns duplicate');
   assert.ok(branch.includes("'POSITION_ALREADY_SETTLED'"),'a different request ID cannot masquerade as duplicate success');
-  assert.match(sql,/coalesce\(p_request_hash,''\) !~ '\^\[0-9a-f\]\{64\}\
+  assert.ok(sql.includes("coalesce(p_request_hash,'') !~ '^[0-9a-f]{64}$'"),'request hash must be exactly 64 lowercase SHA-256 hex characters');
   assert.match(sql,/where position_id=p_position_id and user_id=p_user_id for update/,'lock the owned position row');
   assert.ok(sql.includes('insert into public.financial_operations'),'keep settlement operation recording');
   assert.ok(sql.includes('insert into public.financial_ledger'),'keep ledger settlement in the same transaction');
