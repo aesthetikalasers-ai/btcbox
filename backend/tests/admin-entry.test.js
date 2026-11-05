@@ -25,7 +25,7 @@ test('admin route is reachable without a customer session but still uses Basic A
 const accountView = fs.readFileSync(path.join(root, 'assets/js/views-account.js'), 'utf8');
 
 test('admin console hydrates only supported read APIs and maps canonical user fields', () => {
-  assert.match(accountView, /Promise\.allSettled\(\[apiAdapter\.adminUsers\(\),apiAdapter\.adminWithdrawals\(\)\]\)/);
+  assert.ok(accountView.includes('Promise.allSettled([apiAdapter.adminUsers(),apiAdapter.adminWithdrawals(),apiAdapter.adminKyc()])'));
   assert.match(accountView, /kyc:u\.kyc_status\|\|'unverified'/);
   assert.match(accountView, /balances:\{USDT:Number\(u\.total_usdt\)\|\|0\}/);
   assert.match(accountView, /state\.admin\.withdrawals=results\[1\]\.value\.withdrawals/);
