@@ -1319,3 +1319,14 @@ The backend CI branch filters were pointing at an older auth branch. Updated bot
 - SOURCE OBSERVED: action and uid filter values were sliced to 100 characters before validation, so an overlong input could be silently accepted as a truncated filter.
 - NEXT ACTION: change fallback pagination to read `limit + 1` rows for has-more detection and reject overlong raw action/uid filters before applying the existing allowlist regex. Add source-contract regression tests and require exact-head CI.
 - SAFETY: no production PostgREST read, production DB write/migration, merge, Vercel deployment, or financial operation was performed. Canonical PostgreSQL audit reads remain opt-in and fail closed.
+
+
+### Audit pagination, filter, and outbox privacy patch — pending exact-head CI
+
+- SOURCE OBSERVED / PATCHED: feature commit `a2026ea81fc8d6567b7d8886b8f7fc7be6e5f181` changes state-document pagination to compute `hasMore` from the filtered result count before returning a cursor. A full final page no longer advertises a phantom next page.
+- SOURCE OBSERVED / PATCHED: action and uid filters are no longer truncated before validation; raw trimmed values longer than 100 characters are rejected with the existing 400 validation codes.
+- SOURCE OBSERVED / PATCHED: feature commit `3e983a0a85b346a8e314e03a21434136fc449df0` applies `redactAdminAuditDetail` before an audit event is staged in the durable state-document outbox. The PostgreSQL delivery path therefore receives the already-redacted stored detail, rather than raw input.
+- Regression tests added in `backend/tests/admin-audit-persistence.test.js` cover truthful pagination continuation, overlong action/uid rejection, and redaction before durable outbox persistence.
+- Latest feature HEAD: `d324fdbb458ed58d6a6c1f0610ef847717da157a`. Exact-head CI run `42112984087` is in progress; do not mark these fixes accepted until this exact run completes successfully.
+- Intermediate exact-head runs `42112907989` and `42112924121` were started for earlier commits in this patch series; they are superseded by `42112984087`.
+- No production DB write/read, migration, merge, Vercel deployment, or financial operation was performed.
