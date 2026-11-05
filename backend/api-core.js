@@ -343,6 +343,44 @@ async function readAdminWithdrawalSnapshot() {
   }
   return result;
 }
+async function readAdminAuditLogPage(params) {
+  if (!supabaseStorageConfigured()) throw new Error('Canonical administrator audit storage unavailable');
+  const limit = params.limit;
+  const query = new URLSearchParams({
+    select: 'id,actor_id,subject_user_id,action,reason,created_at',
+    order: 'id.desc',
+    limit: String(limit + 1)
+  });
+  if (params.before) query.set('id', 'lt.' + params.before);
+  if (params.action) query.set('action', 'eq.' + params.action);
+  if (params.uid) query.set('subject_user_id', 'eq.' + params.uid);
+  const base = process.env.SUPABASE_URL.replace(/\\/+$/, '');
+  const response = await fetch(base + '/rest/v1/financial_audit_log?' + query.toString(), {
+    method: 'GET', headers: supabaseHeaders()
+  });
+  if (!response.ok) throw new Error('Canonical administrator audit read failed');
+  const rows = await response.json();
+  if (!Array.isArray(rows) || rows.some(function (row) {
+    return !row || !Number.isSafeInteger(Number(row.id)) || Number(row.id) <= 0 ||
+      typeof row.action !== 'string' || typeof row.created_at !== 'string';
+  })) throw new Error('Canonical administrator audit response invalid');
+  const hasMore = rows.length > limit;
+  const page = rows.slice(0, limit).map(function (row) {
+    return {
+      id: String(row.id),
+      action: String(row.action).slice(0, 100),
+      uid: String(row.subject_user_id || '').slice(0, 100),
+      by: String(row.actor_id || '').slice(0, 80),
+      time: String(row.created_at).slice(0, 40),
+      detail: redactAdminAuditDetail(row.reason || ''),
+      postgres_sync_status: 'synced'
+    };
+  });
+  return {
+    logs: page,
+    next_before: hasMore && page.length ? page[page.length - 1].id : null
+  };
+}
 function attachRevision(db, revision) {
   Object.defineProperty(db, '_revision', { value: Number(revision || 0), writable: true, configurable: true, enumerable: false });
   return db;
@@ -2705,7 +2743,26 @@ async function handleRequest(event, context) {
       const limit = Math.max(1, Math.min(200, Number.isFinite(limitValue) ? Math.floor(limitValue) : 100));
       const actionFilter = String(params.action || '').trim().slice(0, 100);
       const uidFilter = String(params.uid || '').trim().slice(0, 100);
-      const before = String(params.before || '').trim().slice(0, 100);
+      const before = String(params.before || '').trim();
+      if (before && !/^[1-9]\\d{0,18}$/.test(before)) return json({ ok: false, code: 'AUDIT_CURSOR_INVALID', msg: 'Audit page cursor is invalid.' }, 400);
+
+      // Explicit opt-in switches the viewer to the canonical append-only PostgreSQL
+      // audit table. Never silently fall back to the retention-limited state document.
+      if (process.env.ADMIN_AUDIT_POSTGRES_READS_ENABLED === '1') {
+        try {
+          const result = await readAdminAuditLogPage({ limit, action: actionFilter, uid: uidFilter, before });
+          return json({
+            ok: true,
+            source: 'postgres_financial_audit_log',
+            completeness: 'postgres_canonical',
+            logs: result.logs,
+            next_before: result.next_before
+          });
+        } catch (e) {
+          return json({ ok: false, code: 'ADMIN_AUDIT_READ_UNAVAILABLE', msg: 'Canonical administrator audit history is temporarily unavailable. No incomplete fallback was shown.' }, 503);
+        }
+      }
+
       let logs = (Array.isArray(db.audit_logs) ? db.audit_logs : []).slice().reverse();
       if (actionFilter) logs = logs.filter(function (entry) { return String(entry.action || '') === actionFilter; });
       if (uidFilter) logs = logs.filter(function (entry) { return String(entry.uid || '') === uidFilter; });
