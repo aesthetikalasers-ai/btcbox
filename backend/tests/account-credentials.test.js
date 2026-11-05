@@ -158,3 +158,16 @@ test('Supabase state persistence enforces a database-side single-winner revision
   assert.ok(migration.includes('revoke all on function public.btcbox_save_state(bigint, jsonb) from public, anon, authenticated'));
   assert.ok(migration.includes('grant execute on function public.btcbox_save_state(bigint, jsonb) to service_role'));
 });
+
+
+test('credential updates preserve the current session and revoke every other account session', () => {
+  const start = source.indexOf("if (path === 'account/credentials' && method === 'POST')");
+  const end = source.indexOf("// ---------- POST /api/auth/link-identity ----------", start);
+  assert.ok(start >= 0 && end > start, 'credential update route must exist');
+  const route = source.slice(start, end);
+  assert.ok(route.includes('const currentSessionRecord = getSessionRecord(db, event)'));
+  assert.ok(route.includes("token !== currentSessionRecord.token && session && session.uid === user.uid"));
+  assert.ok(route.includes('delete db.sessions[token]'));
+  assert.ok(route.indexOf('delete db.sessions[token]') < route.indexOf('await saveDB(db)'));
+  assert.ok(route.includes("code: 'ACCOUNT_UPDATE_CONFLICT'"));
+});
