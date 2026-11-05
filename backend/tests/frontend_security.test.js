@@ -159,8 +159,11 @@ test('all six admin sensitive actions require confirmAdminAction before executio
   const s = read('assets/js/views-account.js');
   assert.ok(s.includes('function confirmAdminAction('), 'confirmAdminAction helper missing');
   const count = (s.match(/await confirmAdminAction\(/g) || []).length;
-  assert.ok(count >= 6, `expected >=6 confirmAdminAction call sites, got ${count}`);
-  // every call site is followed by a guard
+  assert.ok(count >= 5, `expected >=5 confirmAdminAction call sites, got ${count}`);
+  assert.ok(s.includes('function promptAdminReason('), 'KYC rejection must collect a real operator reason');
+  assert.ok(s.includes("reason=await promptAdminReason('驳回 KYC 审核'"), 'KYC rejection reason prompt missing');
+  assert.ok(s.includes('if(!reason)return;'), 'KYC rejection must stop when no reason is supplied');
+  // every confirmation call site is followed by a guard
   assert.ok(s.includes('if(!ok)return;'), 'confirm result guard missing');
 });
 
