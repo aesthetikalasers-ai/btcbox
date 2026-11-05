@@ -53,7 +53,9 @@ test('Supabase auth_time is parsed only from a structurally valid JWT payload', 
   const subject = '123e4567-e89b-12d3-a456-426614174000';
   const payload = Buffer.from(JSON.stringify({ sub: subject, auth_time: 1793898000 })).toString('base64url');
   const token = 'header.' + payload + '.signature';
-  assert.deepEqual(verifiedAuthTime(token), { auth_time: 1793898000, subject });
+  const claims = verifiedAuthTime(token);
+  assert.equal(claims.auth_time, 1793898000);
+  assert.equal(claims.subject, subject);
   assert.equal(verifiedAuthTime('not-a-jwt'), null);
   const noAuthTime = Buffer.from(JSON.stringify({ sub: subject, iat: 1793898000 })).toString('base64url');
   assert.equal(verifiedAuthTime('header.' + noAuthTime + '.signature'), null);
@@ -69,6 +71,9 @@ test('credential recovery requires a server-verified, linked, recently reauthent
   assert.ok(source.includes("nowSeconds - authTime > 5 * 60"));
   assert.ok(source.includes("!isSupabaseIdentityLinked(user, linkedId)"));
   assert.ok(source.includes("delete sessionRecord.session.credential_reauth"));
+  assert.ok(source.includes("code: 'TWO_FACTOR_REQUIRED'"));
+  assert.ok(source.includes("code: 'TWO_FACTOR_INVALID'"));
+  assert.ok(source.includes("token !== sessionRecord.token"));
 });
 
 test('credential and linking routes preserve one internal account and use revision-CAS persistence', () => {
