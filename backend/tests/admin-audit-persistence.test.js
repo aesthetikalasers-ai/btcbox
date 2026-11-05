@@ -112,7 +112,7 @@ test('admin audit detail redaction masks credential, personal, and wallet values
   const start = source.indexOf('function redactAdminAuditDetail(value)');
   const end = source.indexOf('function isValidAuthEmail(value)', start);
   assert.ok(start >= 0 && end > start);
-  const redact = require('node:vm').runInNewContext(source.slice(start, end) + '\\nredactAdminAuditDetail');
+  const redact = require('node:vm').runInNewContext(source.slice(start, end) + '\nredactAdminAuditDetail');
   const raw = JSON.stringify({
     password: 'hunter2-secret',
     token: 'eyJ-sensitive-token',
@@ -128,16 +128,16 @@ test('admin audit detail redaction masks credential, personal, and wallet values
     'TQn9Y2khEsLJW1ChVWFMSMeRDow5KcbLSE']) {
     assert.ok(!safe.includes(secret), 'sensitive value must not appear: ' + secret);
   }
-  assert.match(safe, /\\[redacted\\]/);
-  assert.match(safe, /\\[email\\]/);
-  assert.match(safe, /\\[wallet address\\]/);
+  assert.match(safe, /\[redacted\]/);
+  assert.match(safe, /\[email\]/);
+  assert.match(safe, /\[wallet address\]/);
   assert.ok(safe.length <= 300);
 });
 
 test('admin audit detail redaction is case-insensitive and caps displayed detail length', () => {
   const start = source.indexOf('function redactAdminAuditDetail(value)');
   const end = source.indexOf('function isValidAuthEmail(value)', start);
-  const redact = require('node:vm').runInNewContext(source.slice(start, end) + '\\nredactAdminAuditDetail');
+  const redact = require('node:vm').runInNewContext(source.slice(start, end) + '\nredactAdminAuditDetail');
   const safe = redact('PASSWORD=UpperSecret TOKEN=UpperToken ' + 'x'.repeat(500));
   assert.ok(!safe.includes('UpperSecret'));
   assert.ok(!safe.includes('UpperToken'));
