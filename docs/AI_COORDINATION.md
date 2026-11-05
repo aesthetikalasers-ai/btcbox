@@ -1572,3 +1572,14 @@ The backend CI branch filters were pointing at an older auth branch. Updated bot
 - CI PENDING: API run 42121004690 and exact latest-head run 42121010913 were in progress when recorded. This batch is not accepted until exact latest-head CI succeeds.
 - NOT VERIFIED: no live provider login/link test; no wallet unlink endpoint was found in the inspected route section, and no unlink behavior was changed.
 - SAFETY: no production/staging DB writes or migrations, merge, Vercel deployment, or financial operations occurred.
+
+
+### Legacy Supabase identity ownership compatibility — 2026-11-06 (UTC+8)
+
+- TEST PASSED: exact latest-head CI run 42121010913 completed successfully for feature HEAD affe1573f696b47528a6bf008a914390590c5657, validating wallet record deduplication.
+- SOURCE OBSERVED: isSupabaseIdentityLinked previously recognized only the primary supabase_user_id and supabase_user_ids array. It did not recognize an identity present only in a legacy auth_identities record. Ownership checks that rely on this helper (including login mismatch and identity-link conflict checks) could therefore fail to recognize that legacy-linked Supabase identity.
+- PATCHED: isSupabaseIdentityLinked now checks the primary ID, the ID array, and auth_identities entries; empty requested IDs fail closed.
+- REGRESSION COVERAGE ADDED: tests cover primary, array, legacy auth_identities-only, unrelated, and empty-ID cases.
+- Feature commits: API 04687d7fc890578d0b84a4b46949ef91ae24eba5; tests 6ee725cdb87c79d0d547dbc62137252b2c558580. Latest feature HEAD 6ee725cdb87c79d0d547dbc62137252b2c558580.
+- CI PENDING: API run 42121255258 and exact latest-head run 42121260377. Do not accept this batch until exact latest-head CI succeeds.
+- SAFETY: no production/staging DB writes or migrations, merge, Vercel deployment, or financial operations occurred.
