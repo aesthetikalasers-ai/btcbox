@@ -686,3 +686,18 @@ Also verify the Site URL and inspect Authentication → Rate Limits / CAPTCHA fo
 
 ### STATUS
 - Finding is source-observed only. No code change, database change, test run, merge, or deployment was performed.
+## Identity-link two-proof backend implementation — 2026-11-05
+
+### IMPLEMENTED ON FEATURE BRANCH — NOT END-TO-END VERIFIED
+- Feature branch commit `855a2c06d186a7879e9bcc39ce8c7bf5043e6d0f` adds `POST /api/auth/link-identity/reauth`.
+- The new route verifies the source access token through Supabase `/auth/v1/user`, checks JWT subject equality and `auth_time` freshness (300 seconds, 60-second future allowance), validates Google/Web3 provider claims, requires that source identity is already linked to the current BTCBOX account, and enforces account TOTP when enabled.
+- On success, the route persists a purpose-scoped `identity_link_reauth` marker in the current server-side session. No marker is returned to the browser.
+- `POST /api/auth/link-identity` now requires that marker, checks purpose, current account identity membership, marker age, auth_time age, and source/target inequality. It independently verifies the target Supabase identity and its JWT subject/auth_time freshness, then deletes the marker in the same state save that persists the linked identity.
+- Feature branch commit `ed2a7a401402ada87150ade865a2f068c8d5fc22` added independent target token subject/auth_time checks.
+- Added source-contract assertions in `backend/tests/account-credentials.test.js`, commit `a2abd34f5cfe97b17f224b10c5f34e62f5a46ce4`.
+
+### IMPORTANT VALIDATION LIMITS
+- These are source changes only. The test file was not executed; no full HTTP route harness, Supabase token integration, TOTP integration, concurrent CAS/replay test, frontend build, or browser flow was run.
+- The existing frontend link actions have not yet been converted to the new two-step API sequence. Until that is implemented and tested, identity linking is intentionally fail-closed and may return `REAUTH_REQUIRED`; do not describe linking as user-ready.
+- The source/target same-identity check currently happens after in-memory account object preparation but before `saveDB`; no persisted account mutation occurs on that rejection. Review this ordering in the next pass for clarity.
+- Deployment pause remains active. No merge, production database change, Vercel build, or deployment occurred.
