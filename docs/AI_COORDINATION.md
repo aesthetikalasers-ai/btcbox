@@ -1753,3 +1753,23 @@ Application branch inspected: `feat/btcbox-web3-auth-20261105` at `741c709d818cb
 - Before wiring the React UI, add typed client methods matching the exact request/response contracts and tests for API parsing/error handling; keep all write actions disabled while the financial cutover gate is incomplete.
 - Perpetual futures remain a separate product requiring approved risk/business rules and a dedicated engine. No leverage, margin, funding, liquidation, or settlement policy is inferred from the seconds product.
 - No database migration was applied, no financial write was performed, and no deployment was initiated during this audit.
+
+
+## Admin configuration UI follow-up — 2026-11-06
+
+### SOURCE OBSERVED
+- Re-read this coordination file at commit 430a99fbf29f92c28dc686d0595e10be5bf9fca4 before the batch.
+- Corrected branch-specific admin finding: the earlier note that the admin route was only a placeholder describes the inspected main snapshot at 93a236e4a3ed6c9edd2003ac1068a89161015511. On the current development branch `feat/btcbox-web3-auth-20261105`, `backend/assets/js/views-account.js` already implements a partial `VIEWS.admin` console with user, withdrawal, KYC and audit tabs. The feature branch is not equivalent to the main snapshot.
+- The feature branch already exposes `apiAdapter.adminConfig()` and the backend `GET/POST /api/admin/config` routes. The POST validates a fixed allowlist of deposit networks and address formats, supports announcement text up to 2,000 characters, and appends an admin audit event.
+
+### IMPLEMENTED
+- Feature commit `dbac594be78ecf158d8f3a3c8976e50e92d71a3a` adds a System Configuration tab to the existing admin console. It reads the existing config API, renders escaped deposit-address values and announcement text, and saves through the existing authenticated admin API. Blank address inputs are omitted from updates so they do not erase existing values. Uncertain save outcomes are surfaced as requiring verification rather than encouraging blind retries.
+- Feature commit `2e7fd1c16e413be670ed5364a9817f896f4604e4` adds regression assertions for the config UI, API adapter and backend allowlist/validation contract.
+- Exact current feature HEAD: `2e7fd1c16e413be670ed5364a9817f896f4604e4`.
+- GitHub Actions run `42130071772` was observed as `queued` for this exact HEAD. Do not classify tests as passed until the run completes successfully.
+
+### SAFETY / NOT VERIFIED
+- No deposit address or announcement value was changed in a live environment; the code adds only the operator UI.
+- No Supabase migration, production database write, financial transaction, merge to `main`, or Vercel deployment was performed.
+- Runtime admin authentication, actual browser form behavior, live config persistence, and exact-head CI outcome remain NOT VERIFIED pending CI and staging QA.
+- The older main-snapshot admin-placeholder statement remains valid for that snapshot only; do not generalize it to the feature branch.
