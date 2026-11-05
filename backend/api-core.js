@@ -2278,7 +2278,7 @@ async function handleRequest(event, context) {
     }
 
     // All privileged account changes are auditable and validated server-side.
-    // 审计日志双写：JSON blob（兼容旧读取路径）+ PostgreSQL append-only 表（fire-and-forget，失败告警回退）。
+    // 审计日志双写：JSON blob 兼容旧读取路径；PostgreSQL 已配置时必须等待 append-only 写入成功后才保存并确认管理操作。
     async function auditAdmin(action, uid, detail) {
       if (!Array.isArray(db.audit_logs)) db.audit_logs = [];
       db.audit_logs.push({ id: 'AL' + Date.now() + crypto.randomBytes(3).toString('hex'), action: action, uid: String(uid || ''), by: 'admin', time: nowStr(), detail: String(detail || '').slice(0, 300) });
