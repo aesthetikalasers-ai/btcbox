@@ -1206,3 +1206,13 @@ The backend CI branch filters were pointing at an older auth branch. Updated bot
 - The first exact-head run with the new regression tests, `42093273024` for `46f6482feff1e32c1aaeeb953339058af1202f17`, failed because the Python filename regex was double-escaped and therefore matched no SQL migration files. This was a test-discovered implementation defect, not a database result.
 - Corrected the regex and committed `5a21fbd1286f0798d6cdc9bb496fb74b4a75acc6`. Exact-head CI run `42093472292` was in progress when this note was written. The earlier checker-only run `42093244767` passed but predates the regression-test file and is not final-head evidence.
 - Keep this batch pending until run `42093472292` completes; if it fails, inspect the job log and repair before proceeding.
+
+
+## PostgreSQL audit bigint cursor precision correction — 2026-11-06
+
+- Source audit found `financial_audit_log.id` is PostgreSQL `bigint`, but the canonical reader parsed the PostgREST JSON numeric ID through JavaScript `Number.isSafeInteger`. Values above JS safe integer precision could be rounded, corrupting keyset pagination cursors.
+- Reader now requests `id::text` from PostgREST and validates a positive decimal string before using it as the cursor; it does not convert the bigint cursor to Number.
+- Added source-contract assertions for text casting and decimal-string validation.
+- Feature commits: `cd12e15ac7409eab6c4aa90df979af52885644f1` (reader), `946017e2813f338a89f793868832a0a4e408c9d7` (initial test assertion), `bd59b9fc249a0fd65e646fb261194dfd3e81279f` (test assertion correction).
+- Reader-only CI run `42093709361` passed; exact-head test run `42093773921` was queued/in progress at documentation time. Do not mark this batch fully verified until exact-head CI completes.
+- Canonical audit read remains opt-in and fail-closed. Do not enable until the corresponding migration is verified on the target database; no production DB access or migration was performed.
