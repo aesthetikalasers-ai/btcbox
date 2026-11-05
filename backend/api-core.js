@@ -1164,6 +1164,11 @@ async function handleRequest(event, context) {
     if (!isSupabaseIdentityLinked(user, linkedId)) {
       return json({ ok: false, code: 'IDENTITY_NOT_LINKED', msg: 'Verify a Google account or wallet already linked to this BTCBOX account.' }, 403);
     }
+    if (user.twofa_enabled) {
+      const twoFactorCode = typeof body.twofa_code === 'string' ? body.twofa_code : '';
+      if (!twoFactorCode) return json({ ok: false, code: 'TWO_FACTOR_REQUIRED', msg: 'Enter your authenticator code to continue.' }, 403);
+      if (!totpVerify(user.twofa_secret, twoFactorCode)) return json({ ok: false, code: 'TWO_FACTOR_INVALID', msg: 'The authenticator code is incorrect.' }, 403);
+    }
     sessionRecord.session.credential_reauth = {
       supabase_user_id: linkedId,
       auth_time: authTime,
