@@ -320,3 +320,16 @@ test('shared rate limiter blocks an over-limit identity reauthentication request
   assert.equal(result.body.retry_after, 900);
 });
 
+
+
+test('disabling two-factor authentication revokes other sessions but preserves the verified current session', () => {
+  const start = source.indexOf("if (path === '2fa/disable' && method === 'POST')");
+  const end = source.indexOf("// ---------- GET /api/account ----------", start);
+  assert.ok(start >= 0 && end > start, '2FA disable route must exist');
+  const route = source.slice(start, end);
+  assert.ok(route.includes('const currentSessionRecord = getSessionRecord(db, event)'));
+  assert.ok(route.includes("token !== currentSessionRecord.token && session && session.uid === user.uid"));
+  assert.ok(route.includes('delete db.sessions[token]'));
+  assert.ok(route.indexOf('delete db.sessions[token]') < route.indexOf('await saveDB(db)'));
+  assert.ok(route.includes('consumeTotpStep(user, String(body.code || \'\'))'));
+});
