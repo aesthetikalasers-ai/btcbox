@@ -738,21 +738,36 @@ function base32Decode(s) {
   for (let i = 0; i + 8 <= bits.length; i += 8) bytes.push(parseInt(bits.slice(i, i + 8), 2));
   return Buffer.from(bytes);
 }
-function totpVerify(secret, code) {
+function totpMatchStep(secret, code) {
   try {
+    if (typeof code !== 'string' || !/^\\d{6}$/.test(code)) return null;
     const key = base32Decode(secret);
     const counter = Math.floor(Date.now() / 1000 / 30);
     for (let offset = -1; offset <= 1; offset++) {
+      const step = counter + offset;
+      if (step < 0) continue;
       const buf = Buffer.alloc(8);
-      buf.writeBigInt64BE(BigInt(counter + offset));
+      buf.writeBigInt64BE(BigInt(step));
       const hmac = crypto.createHmac('sha1', key).update(buf).digest();
       const o = hmac[hmac.length - 1] & 0x0f;
       const binCode = ((hmac[o] & 0x7f) << 24) | (hmac[o + 1] << 16) | (hmac[o + 2] << 8) | hmac[o + 3];
       const expected = (binCode % 1000000).toString().padStart(6, '0');
-      if (expected === code) return true;
+      if (expected === code) return step;
     }
   } catch (e) { }
-  return false;
+  return null;
+}
+function totpVerify(secret, code) { return totpMatchStep(secret, code) !== null; }
+// Persist the matched 30-second counter with the protected state change.
+// State CAS makes concurrent requests using the same step mutually exclusive.
+function consumeTotpStep(user, code) {
+  const step = totpMatchStep(user && user.twofa_secret, code);
+  if (step === null) return false;
+  const previous = user.twofa_last_used_step;
+  if (previous !== undefined && previous !== null && !Number.isSafeInteger(previous)) return false;
+  if (Number.isSafeInteger(previous) && step <= previous) return false;
+  user.twofa_last_used_step = step;
+  return true;
 }
 // Parse user-supplied financial amounts strictly; parseFloat('1abc') must never become 1.
 // Return a masked identity number for ordinary account responses.
@@ -1110,7 +1125,7 @@ async function handleRequest(event, context) {
     if (!u2) return json({ ok: false, msg: 'User not found.' });
     if (u2.frozen) { delete db.temp_tokens[tt]; await saveDB(db); return json({ ok: false, code: 'ACCOUNT_FROZEN', msg: 'Account frozen. Please contact support.' }, 403); }
     { const rl = await rateCheckShared('login_2fa', String(u2.uid)); if (rl.unavailable) return rateLimitUnavailableJson(); if (rl.limited) return rateLimitedJson(rl.retryAfter); }
-    if (!totpVerify(u2.twofa_secret, code)) return json({ ok: false, msg: 'Invalid 2FA code.' });
+    if (!consumeTotpStep(u2, String(code))) return json({ ok: false, msg: 'Invalid or already-used 2FA code.' });
     delete db.temp_tokens[tt];
     u2.last_login = nowStr();
     const token2 = genToken();
@@ -1230,7 +1245,7 @@ async function handleRequest(event, context) {
     if (user.twofa_enabled) {
       const code = typeof body.twofa_code === 'string' ? body.twofa_code : '';
       if (!code) return json({ ok: false, code: 'TWO_FACTOR_REQUIRED', msg: 'Enter your authenticator code to continue.' }, 403);
-      if (!totpVerify(user.twofa_secret, code)) return json({ ok: false, code: 'TWO_FACTOR_INVALID', msg: 'The authenticator code is incorrect.' }, 403);
+      if (!consumeTotpStep(user, code)) return json({ ok: false, code: 'TWO_FACTOR_INVALID', msg: 'The authenticator code is incorrect or already used.' }, 403);
     }
     sessionRecord.session.identity_link_reauth = {
       purpose: 'identity_link',
@@ -1292,7 +1307,7 @@ async function handleRequest(event, context) {
     if (user.twofa_enabled) {
       const twoFactorCode = typeof body.twofa_code === 'string' ? body.twofa_code : '';
       if (!twoFactorCode) return json({ ok: false, code: 'TWO_FACTOR_REQUIRED', msg: 'Enter your authenticator code to continue.' }, 403);
-      if (!totpVerify(user.twofa_secret, twoFactorCode)) return json({ ok: false, code: 'TWO_FACTOR_INVALID', msg: 'The authenticator code is incorrect.' }, 403);
+      if (!consumeTotpStep(user, twoFactorCode)) return json({ ok: false, code: 'TWO_FACTOR_INVALID', msg: 'The authenticator code is incorrect or already used.' }, 403);
     }
     sessionRecord.session.credential_reauth = {
       purpose: 'credential_recovery',
@@ -1524,7 +1539,7 @@ async function handleRequest(event, context) {
       const currentPassword = String(body.current_password || '');
       if (!currentPassword || hashPassword(currentPassword, user.salt) !== user.password_hash) return json({ ok: false, code: 'REAUTH_FAILED', msg: 'The current login password is incorrect.' }, 403);
     }
-    if (!user.twofa_secret) user.twofa_secret = genTotpSecret();
+    if (!user.twofa_secret) { user.twofa_secret = genTotpSecret(); delete user.twofa_last_used_step; }
     await saveDB(db);
     return json({ ok: true, secret: user.twofa_secret, enabled: false });
   }
@@ -1534,7 +1549,7 @@ async function handleRequest(event, context) {
     if (user.twofa_enabled) return json({ ok: false, code: 'TWOFA_ALREADY_ENABLED', msg: 'Two-factor authentication is already enabled.' }, 409);
     if (!user.twofa_secret) return json({ ok: false, code: 'TWOFA_SETUP_REQUIRED', msg: 'Please start the two-factor authentication setup first.' }, 400);
     { const rl = await rateCheckShared('twofa_setup_confirm', String(user.uid)); if (rl.unavailable) return rateLimitUnavailableJson(); if (rl.limited) return rateLimitedJson(rl.retryAfter); }
-    if (!totpVerify(user.twofa_secret, String(body.code || ''))) return json({ ok: false, msg: 'Invalid verification code.' }, 403);
+    if (!consumeTotpStep(user, String(body.code || ''))) return json({ ok: false, msg: 'Invalid or already-used verification code.' }, 403);
     user.twofa_enabled = true;
     await saveDB(db);
     return json({ ok: true, msg: 'Two-factor authentication enabled.' });
@@ -1544,9 +1559,10 @@ async function handleRequest(event, context) {
     if (!user) return json({ ok: false, msg: 'Not signed in.', need_login: true }, 401);
     if (!user.twofa_enabled || !user.twofa_secret) return json({ ok: false, code: 'TWOFA_NOT_ENABLED', msg: 'Two-factor authentication is not enabled.' }, 409);
     { const rl = await rateCheckShared('twofa_disable', String(user.uid)); if (rl.unavailable) return rateLimitUnavailableJson(); if (rl.limited) return rateLimitedJson(rl.retryAfter); }
-    if (!totpVerify(user.twofa_secret, String(body.code || ''))) return json({ ok: false, msg: 'Invalid verification code.' }, 403);
+    if (!consumeTotpStep(user, String(body.code || ''))) return json({ ok: false, msg: 'Invalid or already-used verification code.' }, 403);
     user.twofa_enabled = false;
     user.twofa_secret = ''; // Rotate the secret on next enrollment; do not retain a disabled factor.
+    delete user.twofa_last_used_step;
     await saveDB(db);
     return json({ ok: true, msg: 'Two-factor authentication disabled.' });
   }
@@ -1770,7 +1786,11 @@ async function handleRequest(event, context) {
     secCounterReset(db.security_counters, lockKey);
     try { await saveDB(db); } catch (e) { console.warn('[fundpwd-lock] reset persist failed:', e.message); return json({ ok: false, code: 'SECURITY_STATE_UNAVAILABLE', msg: 'Withdrawal security checks are temporarily unavailable. Please try again.' }, 503); }
     if (user.twofa_enabled && !/^\d{6}$/.test(String(body.twofa_code || ''))) return json({ ok: false, code: 'TWOFA_REQUIRED', msg: 'Two-factor authentication is enabled on this account. Please enter your 2FA code.' }, 400);
-    if (user.twofa_enabled && !totpVerify(user.twofa_secret, String(body.twofa_code || ''))) return json({ ok: false, code: 'TWOFA_INVALID', msg: 'Invalid 2FA code.' }, 403);
+    if (user.twofa_enabled && !consumeTotpStep(user, String(body.twofa_code || ''))) return json({ ok: false, code: 'TWOFA_INVALID', msg: 'Invalid or already-used 2FA code.' }, 403);
+    if (user.twofa_enabled) {
+      try { await saveDB(db); }
+      catch (e) { return json({ ok: false, code: 'SECURITY_STATE_UNAVAILABLE', msg: 'Withdrawal security checks are temporarily unavailable. Please try again.' }, 503); }
+    }
     // 输入与安全校验全部通过后再检查资金切开关；RPC 错误 fail-closed，绝不回退 Blobs。
     if (!financialWritesEnabled()) return json({ ok: false, code: 'FINANCIAL_CUTOVER_INCOMPLETE', msg: 'Financial ledger cutover is incomplete. Withdrawal was not submitted and your balance was unchanged.' }, 503);
     const withdrawalId = 'W' + Date.now() + crypto.randomBytes(8).toString('hex');
@@ -2106,7 +2126,7 @@ async function handleRequest(event, context) {
     if (Array.isArray(user.auth_providers) && user.auth_providers.length) return json({ ok: false, code: 'SUPABASE_AUTH_MANAGED', msg: 'This account is managed by Supabase Auth. Please update your sign-in credentials through the trusted Supabase Auth password recovery flow.' }, 409);
     if (!body.old_password || hashPassword(String(body.old_password), user.salt) !== user.password_hash) return json({ ok: false, code: 'REAUTH_FAILED', msg: 'The current password is incorrect.' }, 403);
     if ((body.new_password || '').length < 6) return json({ ok: false, msg: 'New password must be at least 6 characters.' }, 400);
-    if (user.twofa_enabled && (!/^\d{6}$/.test(String(body.twofa_code || '')) || !totpVerify(user.twofa_secret, String(body.twofa_code || '')))) return json({ ok: false, code: 'TWOFA_REQUIRED', msg: 'Two-factor authentication is enabled on this account. Please enter your 2FA code.' }, 403);
+    if (user.twofa_enabled && (!/^\d{6}$/.test(String(body.twofa_code || '')) || !consumeTotpStep(user, String(body.twofa_code || '')))) return json({ ok: false, code: 'TWOFA_REQUIRED', msg: 'Two-factor authentication is enabled on this account. Please enter your 2FA code.' }, 403);
     user.salt = genSalt();
     user.password_hash = hashPassword(body.new_password, user.salt);
     // A password change invalidates every existing session, not only the browser
@@ -2128,11 +2148,11 @@ async function handleRequest(event, context) {
       // Supabase OAuth/magic-link users do not have a usable local password hash.
       // Require an already-enabled TOTP factor rather than silently downgrading to session-only authorization.
       if (!user.twofa_enabled || !user.twofa_secret) return json({ ok: false, code: 'FUND_PASSWORD_REAUTH_REQUIRED', msg: 'Enable two-factor authentication before setting or changing your fund password.' }, 403);
-      if (!/^\d{6}$/.test(code) || !totpVerify(user.twofa_secret, code)) return json({ ok: false, code: 'TWOFA_INVALID', msg: 'Invalid 2FA code.' }, 403);
+      if (!/^\d{6}$/.test(code) || !consumeTotpStep(user, code)) return json({ ok: false, code: 'TWOFA_INVALID', msg: 'Invalid 2FA code.' }, 403);
     } else {
       const currentPassword = String(body.current_password || '');
       if (!currentPassword || hashPassword(currentPassword, user.salt) !== user.password_hash) return json({ ok: false, code: 'REAUTH_FAILED', msg: 'The current login password is incorrect.' }, 403);
-      if (user.twofa_enabled && (!/^\d{6}$/.test(code) || !totpVerify(user.twofa_secret, code))) return json({ ok: false, code: 'TWOFA_INVALID', msg: 'Invalid 2FA code.' }, 403);
+      if (user.twofa_enabled && (!/^\d{6}$/.test(code) || !consumeTotpStep(user, code))) return json({ ok: false, code: 'TWOFA_INVALID', msg: 'Invalid 2FA code.' }, 403);
     }
     const fundSalt = genSalt();
     user.fund_password_salt = fundSalt;
