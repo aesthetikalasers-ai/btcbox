@@ -1400,3 +1400,13 @@ The backend CI branch filters were pointing at an older auth branch. Updated bot
 - Code commit: `abb9869b7d1babd5a9b0b23b55b3775de2882c05`; test commit: `732a53f035dd1a854e0f136f1b978c830b71c20c`.
 - Exact-head CI run `42114900352` for `732a53f035dd1a854e0f136f1b978c830b71c20c` is in progress; code-only run `42114875225` is also in progress. Do not accept this redaction extension until exact-head CI passes.
 - No production/staging DB access, schema migration, financial write, merge, or Vercel deployment occurred.
+
+
+### Seconds settlement request-hash validation hardening — 2026-11-06 (UTC+8)
+
+- SOURCE OBSERVED: prepared migration `0024_seconds_settlement_idempotency_v1.sql` previously validated `p_request_hash` by length only. A 64-character non-hex string could pass the SQL argument guard even though the API constructs SHA-256 hexadecimal hashes.
+- PATCHED: the SQL guard now requires exactly 64 lowercase hexadecimal characters via `coalesce(p_request_hash,'') !~ '^[0-9a-f]{64}$'`. This aligns the database contract with the API's SHA-256 digest format and rejects NULL, malformed, or non-hex request hashes.
+- REGRESSION TEST: `backend/tests/seconds-persistent-order-guard.test.js` now asserts the strict SHA-256 hex validation contract.
+- SQL commit: `62a94971e9226d7a76a8f4814f8ad09a75b2358e`; test commit / current feature HEAD: `2c69cf6b63d71a688af1c7009067191fbc364091`.
+- Exact-head CI run `42117132815` is in progress; code-only SQL run `42117120706` is also in progress. Do not mark this patch TEST PASSED until run `42117132815` completes successfully.
+- SAFETY: migration remains prepared only. No production/staging DB migration, DB write, merge, Vercel deployment, or financial operation was performed.
