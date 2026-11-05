@@ -2667,7 +2667,7 @@ async function handleRequest(event, context) {
       const list = [];
       Object.values(db.users).forEach(function (u) {
         (Array.isArray(u.withdrawals) ? u.withdrawals : []).forEach(function (w) {
-          if (w.status === 'pending' || w.status === 'approved_pending_broadcast') list.push({ id: w.id, uid: u.uid, email: u.email, coin: w.coin, amount: w.amount, fee: w.fee || 0, network: w.network, address: w.address, status: w.status, txid: w.txid || '', time: w.time });
+          if (w.status === 'pending' || w.status === 'pending_admin_review' || w.status === 'approved_pending_broadcast') list.push({ id: w.id, uid: u.uid, email: u.email, coin: w.coin, amount: w.amount, fee: w.fee || 0, network: w.network, address: w.address, status: w.status, require_admin_review: w.status === 'pending_admin_review', txid: w.txid || '', time: w.time });
         });
       });
       list.sort(function (a, b) { return (a.time < b.time) ? 1 : -1; });
