@@ -181,5 +181,7 @@ test('admin audit outbox stages only redacted detail before local persistence an
   const flushEnd = source.indexOf("if (path.startsWith('admin/'))", flushStart);
   assert.ok(flushStart >= 0 && flushEnd > flushStart);
   const flush = source.slice(flushStart, flushEnd);
-  assert.match(flush, /p_detail: String\(entry\.detail \|\| ''\)/);
+  assert.match(flush, /const safeDetail = redactAdminAuditDetail\(entry\.detail\)/);
+  assert.match(flush, /entry\.detail = safeDetail/);
+  assert.match(flush, /p_detail: safeDetail/);
 });
