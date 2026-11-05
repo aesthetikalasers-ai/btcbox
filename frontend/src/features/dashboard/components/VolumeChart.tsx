@@ -82,7 +82,7 @@ export function VolumeChart({ candles = [] }: { candles?: MarketCandle[] }) {
               key={r}
               onClick={() => setRange(r)}
               className={cn(
-                "min-h-11 min-w-10 shrink-0 whitespace-nowrap rounded-md px-2 py-1 text-[12px] font-medium transition-all duration-200 cursor-pointer touch-manipulation active:scale-[0.97] sm:px-2.5",
+                "min-h-11 min-w-11 shrink-0 whitespace-nowrap rounded-md px-2 py-1 text-[12px] font-medium transition-all duration-200 cursor-pointer touch-manipulation active:scale-[0.97] sm:px-2.5",
                 activeRange === r 
                   ? "bg-brand-surface-2 text-brand-text shadow-[0_1px_2px_rgba(0,0,0,0.5),inset_0_1px_1px_rgba(255,255,255,0.02)] border border-brand-border-subtle" 
                   : "text-brand-text-muted hover:text-brand-text-secondary hover:bg-brand-surface-hover"
