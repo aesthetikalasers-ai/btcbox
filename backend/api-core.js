@@ -1622,11 +1622,18 @@ async function handleRequest(event, context) {
   if (path === '2fa/disable' && method === 'POST') {
     if (!user) return json({ ok: false, msg: 'Not signed in.', need_login: true }, 401);
     if (!user.twofa_enabled || !user.twofa_secret) return json({ ok: false, code: 'TWOFA_NOT_ENABLED', msg: 'Two-factor authentication is not enabled.' }, 409);
+    const currentSessionRecord = getSessionRecord(db, event);
+    if (!currentSessionRecord || currentSessionRecord.user.uid !== user.uid) return json({ ok: false, code: 'REAUTH_REQUIRED', msg: 'Your session is no longer valid. Please sign in again.' }, 403);
     { const rl = await rateCheckShared('twofa_disable', String(user.uid)); if (rl.unavailable) return rateLimitUnavailableJson(); if (rl.limited) return rateLimitedJson(rl.retryAfter); }
     if (!consumeTotpStep(user, String(body.code || ''))) return json({ ok: false, msg: 'Invalid or already-used verification code.' }, 403);
     user.twofa_enabled = false;
     user.twofa_secret = ''; // Rotate the secret on next enrollment; do not retain a disabled factor.
     delete user.twofa_last_used_step;
+    // Removing a second factor invalidates other active sessions; retain only this verified session.
+    Object.keys(db.sessions || {}).forEach(function (token) {
+      const session = db.sessions[token];
+      if (token !== currentSessionRecord.token && session && session.uid === user.uid) delete db.sessions[token];
+    });
     await saveDB(db);
     return json({ ok: true, msg: 'Two-factor authentication disabled.' });
   }
@@ -1671,7 +1678,7 @@ async function handleRequest(event, context) {
         reviewed_at: user.kyc && user.kyc.reviewed_at || '',
         reject_reason: user.kyc && user.kyc.reject_reason || ''
       },
-      kyc_level: user.kyc.status === 'approved' ? 2 : (user.kyc.status === 'pending' ? 1 : 0),
+      kyc_level: user.kyc && user.kyc.status === 'approved' ? 2 : (user.kyc && user.kyc.status === 'pending' ? 1 : 0),
       balances: compatBalances,
       totalUsdt: total,
       total_usdt: total,
