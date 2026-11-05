@@ -143,7 +143,8 @@ test('React authentication uses BTCBOX username credentials with Google and Web3
   assert.ok(backend.includes('getSupabaseWalletIdentity(identity)'));
   assert.ok(backend.includes("if (!user && email) user = Object.values(db.users).find"));
   assert.ok(backend.includes("const authProviders = [authProvider]"));
-  assert.ok(backend.includes('SUPABASE_IDENTITY_MISMATCH') && backend.includes('SUPABASE_IDENTITY_LINK_REQUIRED'));
+  assert.ok(backend.includes('SUPABASE_IDENTITY_MISMATCH'));
+  assert.ok(backend.includes("path === 'auth/link-identity' && method === 'POST'"));
   assert.ok(auth.includes('signInWithUsername'));
   assert.ok(auth.includes('setBtcboxCredentials'));
   assert.ok(auth.includes('linkSupabaseIdentity'));
