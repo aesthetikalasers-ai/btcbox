@@ -348,3 +348,25 @@ test('enabling two-factor authentication requires a valid current session and re
   assert.ok(route.includes('delete db.temp_tokens[token]'));
   assert.ok(route.indexOf('delete db.sessions[token]') < route.indexOf('await saveDB(db)'));
 });
+
+
+test('disabling two-factor authentication revokes pending login challenges', () => {
+  const start = source.indexOf("if (path === '2fa/disable' && method === 'POST')");
+  const end = source.indexOf('// ---------- GET /api/account ----------', start);
+  assert.ok(start >= 0 && end > start, '2FA disable route must exist');
+  const route = source.slice(start, end);
+  assert.ok(route.includes('db.temp_tokens[token].uid === user.uid'));
+  assert.ok(route.includes('delete db.temp_tokens[token]'));
+  assert.ok(route.indexOf('delete db.temp_tokens[token]') < route.indexOf('await saveDB(db)'));
+});
+
+test('2FA login challenge requires a finite unexpired challenge and an enabled factor', () => {
+  const start = source.indexOf("if (path === 'login/2fa' && method === 'POST')");
+  const end = source.indexOf('\n  }', start);
+  assert.ok(start >= 0 && end > start, '2FA login route must exist');
+  const route = source.slice(start, end);
+  assert.ok(route.includes('Number.isFinite(expiresAt)'));
+  assert.ok(route.includes('expiresAt <= Date.now()'));
+  assert.ok(route.includes('!u2.twofa_enabled || !u2.twofa_secret'));
+  assert.ok(route.includes("code: 'TWOFA_CHALLENGE_EXPIRED'"));
+});
