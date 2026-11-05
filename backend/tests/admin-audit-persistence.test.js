@@ -61,4 +61,5 @@ test('admin audit RPC uses a unique event ID and validates duplicate payloads', 
   assert.match(migration, /create or replace function public\.append_admin_audit_log\([\s\S]*p_event_id text/i);
   assert.match(migration, /on conflict \(event_id\) where event_id is not null do nothing/i);
   assert.match(migration, /administrator audit event idempotency conflict/i);
+  assert.match(migration, /notify pgrst, 'reload schema'/i);
 });
