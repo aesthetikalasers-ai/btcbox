@@ -8,7 +8,7 @@ const source = fs.readFileSync(path.join(__dirname, '..', 'api-core.js'), 'utf8'
 
 test('TOTP verifier returns the matched time-step and rejects malformed codes', () => {
   assert.match(source, /function totpMatchStep\\(secret, code\\)/);
-  assert.match(source, /if \\(typeof code !== 'string' \\|\\| !\\/\\^\\\\d\\{6\\}\\$\\/);
+  assert.ok(source.includes("if (typeof code !== 'string' || !/^\\d{6}$/.test(code)) return null;"));
   assert.match(source, /if \\(expected === code\\) return step/);
 });
 
