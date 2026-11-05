@@ -41,6 +41,18 @@ test('admin audit detail redaction also masks unquoted key-value secrets and TRO
 });
 
 
+test('admin audit detail redaction handles escaped quotes and plural credential fields', () => {
+  const escaped = '{"password":"left ' + '\\' + '"quoted' + '\\' + '" tail","recovery_codes":"R1 R2","api_key":"key-123"}';
+  const output = redactAdminAuditDetail(escaped);
+  assert.ok(output.includes('"password":"[redacted]"'));
+  assert.ok(output.includes('"recovery_codes":"[redacted]"'));
+  assert.ok(output.includes('"api_key":"[redacted]"'));
+  assert.ok(!output.includes('left '));
+  assert.ok(!output.includes('quoted'));
+  assert.ok(!output.includes('R1 R2'));
+  assert.ok(!output.includes('key-123'));
+});
+
 test('dedicated /admin URL defaults to the admin route before SPA boot', () => {
   assert.ok(boot.includes("if(!location.hash) location.hash = /^\\/admin(?:\\.html)?\\/?$/.test(location.pathname) ? '#/admin' : '#/home';"));
   assert.ok(admin.includes('/assets/js/boot.js'));
