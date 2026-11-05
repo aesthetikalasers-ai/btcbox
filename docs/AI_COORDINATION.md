@@ -1199,3 +1199,10 @@ The backend CI branch filters were pointing at an older auth branch. Updated bot
 - Added Node regression tests for explicit offline labeling and missing-`DATABASE_URL` fail-closed behavior.
 - Feature commits: `203444889d5c18a5e0b8eb8205f5826a7709e021` (checker) and `46f6482feff1e32c1aaeeb953339058af1202f17` (tests). Exact-head CI run `42093273024` and prior checker-only run `42093244767` were still in progress at documentation time; do not treat this batch as CI-verified until the final-head run completes.
 - No production database connection, migration, schema write, financial write, merge, or deployment was performed.
+
+
+### Migration checker CI correction follow-up
+
+- The first exact-head run with the new regression tests, `42093273024` for `46f6482feff1e32c1aaeeb953339058af1202f17`, failed because the Python filename regex was double-escaped and therefore matched no SQL migration files. This was a test-discovered implementation defect, not a database result.
+- Corrected the regex and committed `5a21fbd1286f0798d6cdc9bb496fb74b4a75acc6`. Exact-head CI run `42093472292` was in progress when this note was written. The earlier checker-only run `42093244767` passed but predates the regression-test file and is not final-head evidence.
+- Keep this batch pending until run `42093472292` completes; if it fails, inspect the job log and repair before proceeding.
