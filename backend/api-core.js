@@ -64,7 +64,7 @@ function getSupabaseWalletIdentity(identity) {
 }
 function redactAdminAuditDetail(value) {
   return String(value || '').slice(0, 300)
-    .replace(/(["']?(?:password|passwd|token|secret|recovery[_ -]?code|id[_ -]?number|private[_ -]?key)["']?\s*[:=]\s*)("[^"]*"|'[^']*'|[^,}\s]+)/ig, '$1"[redacted]"')
+    .replace(/(["']?(?:password|passwd|token|secret|api[_ -]?key|private[_ -]?key|seed[_ -]?phrase|mnemonic|recovery[_ -]?codes?|id[_ -]?number)["']?\s*[:=]\s*)("(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|[^,}\s]+)/ig, '$1"[redacted]"')
     .replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/ig, '[email]')
     .replace(/0x[a-fA-F0-9]{40}/g, '[wallet address]')
     .replace(/T[1-9A-HJ-NP-Za-km-z]{33}/g, '[wallet address]');
