@@ -57,6 +57,7 @@ test('admin audit history is paginated, field-allowlisted, and rendered with esc
   assert.ok(route.includes("AUDIT_CURSOR_NOT_FOUND"));
   assert.ok(route.includes("postgres_sync_status"));
   assert.ok(route.includes("[wallet address]"));
+  assert.ok(route.includes("[email]"));
   assert.ok(app.includes("adminAuditLogs(params)"));
   assert.ok(accountView.includes('data-atab="audit"'));
   assert.ok(accountView.includes("apiAdapter.adminAuditLogs("));
