@@ -110,3 +110,20 @@ test('React public auth config fails closed when URL or public key is invalid', 
   assert.ok(route.includes('process.env.SUPABASE_AUTH_URL ||'));
   assert.ok(!route.includes('SUPABASE_SERVICE_ROLE_KEY'));
 });
+
+
+test('React auth server endpoints retain exact POST contracts and legacy callback routing', () => {
+  const core = read('api-core.js');
+  const frontendApi = read('../frontend/src/lib/api.ts');
+  const vercel = read('vercel.json');
+  assert.doesNotThrow(() => new vm.Script(core), 'api-core.js must parse');
+  assert.ok(core.includes("path === 'logout' && method === 'POST'"));
+  assert.ok(core.includes("path === 'login/2fa' && method === 'POST'"));
+  assert.ok(core.includes("path === 'supabase-login' || path === 'google-login'"));
+  assert.ok(frontendApi.includes('method: "POST", credentials: "include"'));
+  assert.ok(frontendApi.includes('supabase_access_token: accessToken'));
+  assert.ok(frontendApi.includes('temp_token: tempToken, code'));
+  assert.ok(frontendApi.includes('method: "POST"') && frontendApi.includes('/logout'));
+  assert.ok(vercel.includes('/auth/callback'));
+  assert.ok(vercel.includes('/legacy-index.html?auth_callback=1'));
+});
