@@ -171,3 +171,8 @@ test('credential updates preserve the current session and revoke every other acc
   assert.ok(route.indexOf('delete db.sessions[token]') < route.indexOf('await saveDB(db)'));
   assert.ok(route.includes("code: 'ACCOUNT_UPDATE_CONFLICT'"));
 });
+
+
+test('account snapshot tolerates legacy users without a KYC object', () => {
+  assert.ok(source.includes("kyc_level: user.kyc && user.kyc.status === 'approved' ? 2 : (user.kyc && user.kyc.status === 'pending' ? 1 : 0)"));
+});
