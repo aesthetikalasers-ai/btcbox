@@ -1514,7 +1514,7 @@ The backend CI branch filters were pointing at an older auth branch. Updated bot
 - PATCHED backend: successful credential reset and credential setup/update now clear both `credential_reauth` and `identity_link_reauth` markers from the preserved current session before persistence. Other sessions continue to be revoked as before.
 - REGRESSION COVERAGE ADDED: frontend OAuth callback state transitions and backend marker invalidation are asserted by contract tests.
 - Feature commits: `1b5b2a43db11347d824104f2027b3dda136f5acd` (frontend), `f6f25c065fc7d857a2130902801f40f4c645797d` (frontend test), `6bb6b10090ec995ec7253c1d9eafb09a5d91c9dc` (API), `7c20187b016b3d8c6a3678b4aebebd251c6e85d6` (API test); latest feature HEAD pending final CI.
-- Exact-head CI run `42119925291` completed successfully for `7c20187b016b3d8c6a3678b4aebebd251c6e85d6`.
+- TEST PASSED: exact-head CI run `42119925291` completed successfully for `7c20187b016b3d8c6a3678b4aebebd251c6e85d6`.
 - SAFETY: no production/staging DB writes or migrations, merge, Vercel deployment, or financial operations occurred.
 
 
@@ -1526,4 +1526,13 @@ The backend CI branch filters were pointing at an older auth branch. Updated bot
 - REGRESSION COVERAGE ADDED: tests assert 2FA challenge/TOTP/session write ordering and terminal guards; logout success removes only the current session, preserves unrelated sessions, and increments persisted revision; failed CAS must not report success or pretend the server session was revoked.
 - Feature test commit: `623bdefda65ac99c498987d3b7ebfca540bcfa22`; latest feature HEAD pending exact-head CI.
 - TEST PASSED: exact-head CI run `42120141576` completed successfully for `623bdefda65ac99c498987d3b7ebfca540bcfa22` (unified build, backend tests, fail-closed config preflight, and unified output verification all succeeded).
+- SAFETY: no production/staging DB writes or migrations, merge, Vercel deployment, or financial operations occurred.
+
+
+### Identity-link one-time proof local-state ordering — 2026-11-06 (UTC+8)
+
+- SOURCE OBSERVED: after the server successfully consumes the one-time identity-link source proof, Google OAuth and Web3 UI previously waited for Supabase client sign-out before clearing the local source-verified flag. If provider cleanup failed after the server-side link had committed, the UI could still display the source as verified even though the server proof was already consumed.
+- PATCHED frontend: after successful server link response, clear source-verified, pending identity token, and 2FA-needed state immediately, before attempting Supabase sign-out and account refresh. Failed link requests still retain retryable source proof state.
+- REGRESSION COVERAGE ADDED: asserts the successful server call precedes local proof clearing and that local clearing precedes provider sign-out for both Google callback and Web3 linking.
+- Feature commits: `c481a2d98a96b1e58f38c4a4df8ed688100f0282` (frontend), `5bd578d237811a36631a9fddeb3ef11a57a35c77` (test); latest feature HEAD pending exact-head CI.
 - SAFETY: no production/staging DB writes or migrations, merge, Vercel deployment, or financial operations occurred.
