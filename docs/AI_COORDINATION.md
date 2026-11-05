@@ -977,3 +977,17 @@ The backend CI branch filters were pointing at an older auth branch. Updated bot
 5. Surface `audit_sync_pending` as a warning that the business mutation is saved but audit delivery is pending; do not instruct the operator to repeat it.
 6. Add admin view/API contract tests. Keep deposit credit, withdrawal review, balance changes, and all other financial writes fail-closed.
 - No database migration, production data/configuration change, merge, or Vercel deployment. Deployment pause remains active.
+
+
+## Final-head CI verification — 2026-11-06
+
+- Feature branch head verified: `5ac6209f54bbe01e6905ed2221773663f2c226a6`.
+- GitHub Actions run `42080961892` for that exact SHA completed with conclusion `success`.
+- Unified frontend/backend build: passed; generated the unified public build with Strata customer app plus legacy admin/OAuth assets.
+- Backend automated tests: 140 passed / 0 failed.
+- Fail-closed deployment preflight: passed with CI-only dummy configuration and all financial cutover flags set to `0`.
+- Preserved-entrypoint checks: passed (`index.html`, `legacy-index.html`, `admin.html`, frontend assets, API functions and OAuth assets).
+- This verifies the GitHub Actions pipeline at this exact commit. It does NOT verify PostgreSQL migration/RPC runtime, Supabase environment readiness, browser admin workflows, real auth, financial settlement, or production behavior.
+- Vercel's separate `build-rate-limit` status is not a failure of this GitHub Actions run. No Vercel deployment was initiated.
+- Admin console API/data-shape gaps documented above remain open and must be addressed before calling the admin console operational.
+- No merge to `main`, no database migration, and no production deployment. Deployment pause remains active.
