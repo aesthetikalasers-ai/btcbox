@@ -1480,5 +1480,16 @@ The backend CI branch filters were pointing at an older auth branch. Updated bot
 - PATCHED: disabling 2FA now deletes all pending login challenges for that user before persistence. The 2FA login route now requires a finite expiry strictly later than current time, deletes expired/malformed challenge records, and rejects/deletes a challenge if the user no longer has an enabled TOTP secret.
 - REGRESSION COVERAGE ADDED: route-contract tests assert pending challenge invalidation on disable, finite strict expiry, and current enabled-factor checks.
 - Feature commits: `d5a40e32f19503c7f9ac5287847cd64ef29165cd` (API) and `9a06a8c38f0c5aeb987dc8a44fcd818b0d20f401` (tests); latest feature HEAD `9a06a8c38f0c5aeb987dc8a44fcd818b0d20f401`.
-- Exact-head CI run `42119180401` is queued; API commit run `42119171670` is in progress. Do not mark this challenge lifecycle batch TEST PASSED until run `42119180401` for the latest SHA completes successfully.
+- Exact-head CI run `42119180401` completed successfully for latest challenge lifecycle SHA `9a06a8c38f0c5aeb987dc8a44fcd818b0d20f401`; API commit run `42119171670` also completed successfully.
+- SAFETY: no production/staging DB writes or migrations, merge, Vercel deployment, or financial operations occurred.
+
+
+### Frontend 2FA expiry and account-state cleanup — 2026-11-06 (UTC+8)
+
+- TEST PASSED (previous backend challenge batch): latest SHA `9a06a8c38f0c5aeb987dc8a44fcd818b0d20f401` passed exact-head CI run `42119180401`; API-only commit run `42119171670` also passed.
+- SOURCE OBSERVED: frontend `verifyTwoFactor` retained an expired/revoked challenge token and kept the auth provider in `two-factor` state after terminal challenge errors, leaving the user on a verification flow that could not succeed. Sign-out also left identity-link transient proof state in memory, allowing stale account-scoped UI state to survive account exit.
+- PATCHED: terminal 2FA challenge errors (`TWOFA_CHALLENGE_EXPIRED`, `TWOFA_NOT_ENABLED`, `USER_NOT_FOUND`, `ACCOUNT_FROZEN`) now clear the pending challenge and return the auth provider to anonymous state; invalid TOTP codes remain retryable. Sign-out now clears identity-link source proof, pending target token, identity-link 2FA flag, credential recovery state, and notices in addition to the previous auth state.
+- REGRESSION COVERAGE ADDED: frontend contract test in `backend/tests/identity-link-frontend-contract.test.js` checks terminal challenge cleanup and account-scoped transient-state reset.
+- Feature commits: `a359e6bdcd339a8fc5f9637d88a72101713b3c44` (frontend) and `36ba7cb9a6afd65caae0d6dccf86bc49396d873b` (contract test); latest feature HEAD `36ba7cb9a6afd65caae0d6dccf86bc49396d873b`.
+- Exact-head CI run `42119401407` was queued when recorded; runs `42119396031` and `42119395835` were also queued for preceding commits. Do not mark this frontend batch TEST PASSED until run `42119401407` for the latest SHA completes successfully.
 - SAFETY: no production/staging DB writes or migrations, merge, Vercel deployment, or financial operations occurred.
