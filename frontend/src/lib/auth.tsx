@@ -108,7 +108,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const client = clientRef.current;
       if (!client) throw new Error("Authentication is still initializing. Please try again.");
-      const statement = "I agree to the BTCBOX Terms of Service and Privacy Policy. This signature only verifies wallet ownership and does not authorize a transaction.";
+      const statement = "Sign in to BTCBOX. This signature verifies wallet ownership only and does not authorize any blockchain transaction.";
       const { data, error: authError } = await client.auth.signInWithWeb3({ chain, statement });
       if (authError) throw authError;
       if (!data.session?.access_token) throw new Error("The wallet did not return a valid sign-in session. Please try again.");

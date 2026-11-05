@@ -151,6 +151,9 @@ test('React authentication supports Supabase email and Google without linking id
   assert.ok(pages.includes('Continue with Ethereum wallet'));
   assert.ok(pages.includes('Continue with Solana wallet'));
   assert.ok(provider.includes('signInWithWeb3({ chain, statement })'));
+  assert.ok(backend.includes("authProvider === 'web3' ? !walletIdentity"));
+  assert.ok(backend.includes("email: email || ''"));
+  assert.ok(backend.includes("wallet_address: walletIdentity ? walletIdentity.address : ''"));
   assert.ok(pages.includes('Create account with email'));
   assert.ok(pages.includes('Forgot password?'));
   assert.ok(pages.includes('Choose a new password'));

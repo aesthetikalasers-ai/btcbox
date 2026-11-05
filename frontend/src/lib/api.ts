@@ -128,6 +128,8 @@ export interface AccountBalance {
 export interface AccountSnapshot {
   uid: string;
   email: string;
+  wallet_address?: string;
+  wallet_chain?: "ethereum" | "solana" | "";
   balances: Record<string, AccountBalance>;
   totalUsdt: number;
   valuation_complete: boolean;
