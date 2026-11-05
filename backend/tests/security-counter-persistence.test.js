@@ -23,7 +23,7 @@ test('withdrawal fund-password failure and reset counters fail closed before fin
   const route = source.slice(start, end);
   assert.match(route, /\[fundpwd-lock\] persist failed:/);
   assert.match(route, /\[fundpwd-lock\] reset persist failed:/);
-  assert.equal((route.match(/code: 'SECURITY_STATE_UNAVAILABLE'/g) || []).length, 2);
+  assert.ok((route.match(/code: 'SECURITY_STATE_UNAVAILABLE'/g) || []).length >= 2, 'fund-password failure/reset and TOTP persistence must fail closed');
   assert.doesNotMatch(route, /fundpwd-lock.*best-effort/);
   assert.ok(route.indexOf('reset persist failed') < route.indexOf('financialWritesEnabled()'));
 });
