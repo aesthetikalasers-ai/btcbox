@@ -314,9 +314,9 @@ const apiAdapter = {
     if(p.twofa_code) body.twofa_code=p.twofa_code;
     return apiFetch('/withdraw',{method:'POST',body:body});
   },
-  // TRADE -> POST /api/order {symbol(BTCUSDT),side(BUY/SELL),type(limit),qty(number),price,client_order_id(16+),request_id}
+  // TRADE -> POST /api/order {symbol(BTCUSDT),side(BUY/SELL),type(limit),qty/price(decimal strings),client_order_id(16+),request_id}
   async placeOrder(o){
-    const body={symbol:o.symbol, side:String(o.side||'').toUpperCase(), type:String(o.type||'limit').toLowerCase(), qty:Number(o.qty), price:Number(o.price), client_order_id:o.client_order_id||uid(), request_id:o.request_id||uid()};
+    const body={symbol:o.symbol, side:String(o.side||'').toUpperCase(), type:String(o.type||'limit').toLowerCase(), qty:String(o.qty), price:String(o.price), client_order_id:o.client_order_id||uid(), request_id:o.request_id||uid()};
     return apiFetch('/order',{method:'POST',body:body});
   },
   // TRADE -> POST /api/order/cancel {order_id,client_cancel_id(16+),request_id}

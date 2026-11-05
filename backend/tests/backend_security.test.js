@@ -162,9 +162,18 @@ test('frontend financial adapters preserve decimal-string request contracts', ()
   const appCore = fs.readFileSync(path.join(__dirname, '..', 'assets/js/app-core.js'), 'utf8');
   const assetsView = fs.readFileSync(path.join(__dirname, '..', 'assets/js/views-assets.js'), 'utf8');
   const tradingView = fs.readFileSync(path.join(__dirname, '..', 'assets/js/views-trading.js'), 'utf8');
+  const spotView = fs.readFileSync(path.join(__dirname, '..', 'assets/js/views-trade.js'), 'utf8');
+  const apiCore = fs.readFileSync(path.join(__dirname, '..', 'api-core.js'), 'utf8');
   assert.ok(appCore.includes("amount:'0'"), 'deposit address query sends a string zero');
   assert.ok(appCore.includes('amount:String(p.amount)'), 'withdraw and earn adapter payloads stringify amount fields');
   assert.ok(appCore.includes('amount:String(o.amount)'), 'seconds order adapter stringifies amount');
   assert.ok(assetsView.includes('amount:amtRaw'), 'withdraw and earn views pass original decimal input');
   assert.ok(tradingView.includes('amount:amtRaw'), 'seconds view passes original decimal input');
+  assert.ok(appCore.includes('qty:String(o.qty), price:String(o.price)'), 'spot adapter preserves decimal strings');
+  assert.ok(spotView.includes('qty:amountRaw,price'), 'spot form passes original quantity text');
+  assert.ok(spotView.includes('const price=priceRaw;'), 'spot form passes original price text');
+  assert.ok(apiCore.includes('const qty = parseMoneyInput(body.qty);'), 'spot API parses quantity as decimal text');
+  assert.ok(apiCore.includes("const price = parseMoneyInput(body.price === undefined || body.price === null || body.price === '' ? '0' : body.price);"), 'spot API parses price as decimal text');
+  assert.ok(!apiCore.includes('const qty = Number(body.qty);'), 'spot API must not convert quantity to binary float');
+  assert.ok(!apiCore.includes('const price = Number(body.price || 0);'), 'spot API must not convert price to binary float');
 });

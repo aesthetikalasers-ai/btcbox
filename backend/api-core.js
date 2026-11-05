@@ -1883,15 +1883,15 @@ async function handleRequest(event, context) {
     const symbol = String(body.symbol || 'BTCUSDT').toUpperCase();
     const side = String(body.side || 'buy').toLowerCase();
     const type = String(body.type || body.order_type || 'limit').toLowerCase();
-    const qty = Number(body.qty);
-    const price = Number(body.price || 0);
+    const qty = parseMoneyInput(body.qty);
+    const price = parseMoneyInput(body.price === undefined || body.price === null || body.price === '' ? '0' : body.price);
     const pair = matchingPairFromSymbol(symbol);
     if (!pair) return json({ ok: false, msg: 'Operation failed: this trading pair is not supported.' }, 400);
     if (!['buy','sell'].includes(side)) return json({ ok: false, msg: 'Operation failed: invalid trade direction.' }, 400);
     // Market orders are intentionally rejected until a separately bounded market-order policy exists.
     if (type !== 'limit') return json({ ok: false, code: 'ORDER_TYPE_UNSUPPORTED', msg: 'Only limit orders are currently supported.' }, 400);
-    if (!Number.isFinite(qty) || qty <= 0 || qty > 1e12) return json({ ok: false, msg: 'Operation failed: invalid quantity.' }, 400);
-    if (!Number.isFinite(price) || price <= 0 || price > 1e15) return json({ ok: false, msg: 'Operation failed: invalid limit price.' }, 400);
+    if (qty === null || compareMoney(qty, '0') <= 0 || compareMoney(qty, '1000000000000') > 0) return json({ ok: false, msg: 'Operation failed: invalid quantity.' }, 400);
+    if (price === null || compareMoney(price, '0') <= 0 || compareMoney(price, '1000000000000000') > 0) return json({ ok: false, msg: 'Operation failed: invalid limit price.' }, 400);
     const clientOrderId = String(body.client_order_id || body.request_id || '').trim();
     if (!/^[A-Za-z0-9_-]{16,100}$/.test(clientOrderId)) return json({ ok: false, code: 'IDEMPOTENCY_KEY_REQUIRED', msg: 'Please provide a valid client_order_id (16-100 characters).' }, 400);
     if (!matchingEngineEnabled()) {
@@ -1901,7 +1901,7 @@ async function handleRequest(event, context) {
     try {
       const result = await matchingRpc('submit_limit_order_matching_v1', {
         p_order_id: orderId, p_user_id: String(user.uid), p_base_asset: pair[0], p_quote_asset: pair[1],
-        p_side: side, p_price: String(price), p_quantity: String(qty), p_client_order_id: clientOrderId
+        p_side: side, p_price: price, p_quantity: qty, p_client_order_id: clientOrderId
       });
       return json({ ok: true, duplicate: !!result.duplicate, order_id: result.order_id || orderId,
         status: result.status, price: result.price, quantity: result.quantity,
