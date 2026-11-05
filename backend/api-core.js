@@ -1600,7 +1600,12 @@ async function handleRequest(event, context) {
       wallet_address: walletIdentity ? walletIdentity.address : '', wallet_chain: walletIdentity ? walletIdentity.chain : '', linked_at: nowStr() });
     if (walletIdentity) {
       user.wallet_identities = Array.isArray(user.wallet_identities) ? user.wallet_identities : [];
-      user.wallet_identities.push({ address: walletIdentity.address, chain: walletIdentity.chain, supabase_user_id: linkedId, linked_at: nowStr() });
+      const walletAlreadyRecorded = user.wallet_identities.some(function (item) {
+        return isSameWalletIdentity(item, walletIdentity);
+      }) || isSameWalletIdentity({ chain: user.wallet_chain, address: user.wallet_address }, walletIdentity);
+      if (!walletAlreadyRecorded) {
+        user.wallet_identities.push({ address: walletIdentity.address, chain: walletIdentity.chain, supabase_user_id: linkedId, linked_at: nowStr() });
+      }
       if (!user.wallet_address) { user.wallet_address = walletIdentity.address; user.wallet_chain = walletIdentity.chain; }
     }
     if (provider === 'google' && !user.email) user.email = linkedEmail;
