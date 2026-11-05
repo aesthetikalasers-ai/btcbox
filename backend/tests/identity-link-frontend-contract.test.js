@@ -47,3 +47,10 @@ test('frontend auth clears expired 2FA challenge state and resets account-scoped
   assert.match(auth, /setIdentityLinkSourceVerified\(false\);\s*setPendingIdentityLinkToken\(""\);\s*setIdentityLinkNeedsTwoFactor\(false\)/);
   assert.match(auth, /setCredentialRecoveryReady\(false\);\s*setCredentialRecoveryNeedsTwoFactor\(false\);\s*setPendingCredentialRecoveryToken\(""\)/);
 });
+
+
+test('identity-link and credential-recovery 2FA clear terminal reauthentication tokens but retain retryable failures', () => {
+  assert.match(auth, /\["RECENT_REAUTH_REQUIRED", "IDENTITY_NOT_LINKED", "INVALID_SUPABASE_IDENTITY", "ACCOUNT_FROZEN"\]\.includes\(failureCode\)[\s\S]{0,220}setPendingIdentityLinkToken\(""\);\s*setIdentityLinkNeedsTwoFactor\(false\)/);
+  assert.match(auth, /\["RECENT_REAUTH_REQUIRED", "IDENTITY_NOT_LINKED", "INVALID_SUPABASE_IDENTITY", "ACCOUNT_FROZEN"\]\.includes\(failureCode\)[\s\S]{0,220}setPendingCredentialRecoveryToken\(""\);\s*setCredentialRecoveryNeedsTwoFactor\(false\)/);
+  assert.match(auth, /TWO_FACTOR_INVALID/ === null ? /never/ : /setError/);
+});
