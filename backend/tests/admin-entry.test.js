@@ -40,3 +40,9 @@ test('admin console warns when business state is saved but audit delivery is pen
   assert.match(accountView, /result\.audit_sync_pending===true/);
   assert.match(accountView, /审计日志仍待同步。请勿重复执行该操作/);
 });
+
+test('admin data failures can be retried from any admin tab without parallel duplicate loads', () => {
+  assert.match(accountView, /var adminDataLoading=false;/);
+  assert.match(accountView, /if\(adminDataLoading\) return;/);
+  assert.match(accountView, /if\(adminDataErrors\.length\)loadAdminData\(\)/);
+});
