@@ -120,3 +120,11 @@ test('admin data failures can be retried from any admin tab without parallel dup
   assert.match(accountView, /if\(adminDataLoading\) return;/);
   assert.match(accountView, /if\(adminDataErrors\.length\)loadAdminData\(\)/);
 });
+
+test('KYC rejection collects an operator-provided reason instead of recording a hardcoded reason', () => {
+  assert.match(accountView, /function promptAdminReason\(title, summaryHTML\)/);
+  assert.match(accountView, /驳回原因（必填）/);
+  assert.match(accountView, /reason\.slice\(0,300\)/);
+  assert.match(accountView, /adminRejectKyc\(\{uid:b\.dataset\.uid,reason:reason\}\)/);
+  assert.doesNotMatch(accountView, /adminRejectKyc\(\{uid:b\.dataset\.uid,reason:'Document unclear'\}\)/);
+});
