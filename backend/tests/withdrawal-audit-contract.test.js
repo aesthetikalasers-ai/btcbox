@@ -11,6 +11,8 @@ test('withdrawal review migration extends the canonical table and retains atomic
   const sql = read('supabase/sql/0022_withdrawal_admin_review_status_v1.sql');
   assert.match(sql, /alter table public\.withdrawal_requests[\s\S]*add column if not exists require_admin_review boolean not null default false/i);
   assert.match(sql, /add constraint withdrawal_requests_status_check[\s\S]*pending_admin_review/i);
+  assert.match(sql, /drop constraint if exists withdrawal_requests_status_check/i);
+  assert.doesNotMatch(sql, /pg_get_constraintdef\(oid\) ilike '%status%'/i);
   assert.match(sql, /drop function if exists public\.create_withdrawal_atomic\(text,text,text,text,numeric,numeric,text,text,text\)/i);
   assert.match(sql, /create function public\.create_withdrawal_atomic\([\s\S]*p_amount numeric[\s\S]*p_fee numeric[\s\S]*p_require_admin_review boolean default false/i);
   assert.match(sql, /public\.apply_financial_operation\([\s\S]*'withdraw-freeze:' \|\| p_request_id/i);
