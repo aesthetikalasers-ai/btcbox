@@ -185,3 +185,17 @@ test('admin audit outbox stages only redacted detail before local persistence an
   assert.match(flush, /entry\.detail = safeDetail/);
   assert.match(flush, /p_detail: safeDetail/);
 });
+
+
+test('admin audit SQL idempotency tolerates reason redaction upgrades but preserves event identity checks', () => {
+  const start = migration.indexOf('if v_inserted = 0 then');
+  const end = migration.indexOf('return true;', start);
+  assert.ok(start >= 0 && end > start);
+  const block = migration.slice(start, end);
+  assert.match(block, /v_existing\.actor_id is distinct from v_actor/);
+  assert.match(block, /v_existing\.subject_user_id is distinct from v_subject/);
+  assert.match(block, /v_existing\.action is distinct from p_action/);
+  assert.match(block, /v_existing\.metadata is distinct from p_meta/);
+  assert.doesNotMatch(block, /v_existing\.reason is distinct from v_reason/);
+  assert.match(block, /Reason text may differ on a retry when/);
+});
