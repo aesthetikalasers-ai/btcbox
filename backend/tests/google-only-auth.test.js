@@ -138,6 +138,8 @@ test('React authentication uses BTCBOX username credentials with Google and Web3
   const pages = read('../frontend/src/features/auth/AuthPages.tsx');
   const provider = read('../frontend/src/lib/auth.tsx');
   const setup = read('../frontend/src/features/auth/AccountSetupPage.tsx');
+  const security = read('../frontend/src/features/account/AccountSecurityPage.tsx');
+  const app = read('../frontend/src/App.tsx');
   assert.ok(backend.includes('function getSingleSupabaseAuthProvider(identity)'));
   assert.ok(backend.includes("['google', 'email', 'web3'].includes(provider)"));
   assert.ok(backend.includes('getSupabaseWalletIdentity(identity)'));
@@ -148,6 +150,8 @@ test('React authentication uses BTCBOX username credentials with Google and Web3
   assert.ok(auth.includes('signInWithUsername'));
   assert.ok(auth.includes('setBtcboxCredentials'));
   assert.ok(auth.includes('linkSupabaseIdentity'));
+  assert.ok(auth.includes('linkGoogleIdentity'));
+  assert.ok(auth.includes('linkWeb3Identity'));
   assert.ok(auth.includes('signUp({'));
   assert.ok(auth.includes('resetPasswordForEmail'));
   assert.ok(auth.includes('updateUser({ password })'));
@@ -163,6 +167,11 @@ test('React authentication uses BTCBOX username credentials with Google and Web3
   assert.ok(!pages.includes('Create account with email'));
   assert.ok(setup.includes('Set up your BTCBOX account'));
   assert.ok(setup.includes('Save BTCBOX credentials'));
+  assert.ok(security.includes('Link Google'));
+  assert.ok(security.includes('Link Ethereum wallet'));
+  assert.ok(security.includes('Link Solana wallet'));
+  assert.ok(app.includes('AccountSetupGate'));
+  assert.ok(app.includes('AccountSecurityPage'));
   assert.ok(pages.includes('Choose a new password'));
   assert.ok(!pages.includes('Terms of Service'));
 });
