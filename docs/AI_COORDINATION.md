@@ -1850,3 +1850,27 @@ Application branch inspected: `feat/btcbox-web3-auth-20261105` at `741c709d818cb
 ### NEXT
 - Convert the approved specification into an additive migration and RPC changes on the feature branch, retaining legacy position behavior and current policy values.
 - Before adding administrator write routes, verify the existing admin identity/role contract and implement append-only audit, nonce/idempotency, optimistic concurrency, and isolated staging tests.
+
+
+## Seconds policy schema and RPC implementation — 2026-11-06
+
+### IMPLEMENTED (source only; staging not applied)
+- Re-read coordination branch HEAD `a1ea5cc3351d00c0f11d952ada05f3799e638b6b` and feature branch HEAD `e87a77871c221d4ea67c6457e7c64a831147c9f5`.
+- Feature commit `c9393e4a35be714a838e9785a184f2648b9a7ab8` adds:
+  - `backend/supabase/sql/0025_seconds_policy_versioning_v1.sql`
+  - `backend/tests/seconds-policy-versioning.test.js`
+- Migration is additive: immutable versioned policy table, separate active-policy pointer, append-only audit table, nullable per-position policy/version/payout/snapshot fields, immutable policy and position snapshot triggers.
+- Version 1 seed records only source-observed baseline: BTC/ETH/SOL/BNB; 30/60/300/900 sec; positive minimum at numeric(38,18) precision; API-observed maximum 1e12; 8500 payout basis points. Exposure cap remains NULL (not invented).
+- Replaced order RPC resolves and locks active policy, validates product/stake/exposure inside the same transaction as reserve, and stores immutable policy snapshot. It keeps idempotent replay before policy lookup and preserves the one-open-position DB guard.
+- Replaced settlement RPC uses position payout snapshot; legacy NULL-snapshot positions retain 8500 bps fallback. Existing settlement maturity, ownership, idempotency, source and ledger logic retained.
+- No client policy/payout parameters or admin mutation endpoint/UI added. Tables remain inaccessible to anon/authenticated; service_role receives read-only policy table access, and no policy writes are granted to service_role in this migration.
+
+### VALIDATION / NOT VERIFIED
+- Re-fetched exact feature HEAD `c9393e4a35be714a838e9785a184f2648b9a7ab8`; both files and blob SHAs verified.
+- PR-triggered workflow lookup returned no runs for this commit. Node tests, SQL parsing, live RPC behavior, concurrency, and financial ledger invariants are NOT verified in this environment. Do not mark accepted.
+- Migration has NOT been applied to staging or production. No balances, positions, orders, financial records or cutover flags were changed. No merge or deployment.
+
+### REVIEW FLAGS BEFORE STAGING
+- Independently review PostgreSQL trigger/locking behavior and the SQL function replacement against the deployed migration history.
+- Add isolated staging tests for migration application, active-policy resolution, policy boundary rejects, concurrent same-user reserve, historical NULL-snapshot settlement, payout snapshot immutability, and ledger invariants.
+- Admin policy authoring/activation remains intentionally unavailable until admin identity/permission contract, nonce/idempotency, optimistic concurrency and audit transaction are implemented.
