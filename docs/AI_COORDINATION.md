@@ -1427,3 +1427,12 @@ The backend CI branch filters were pointing at an older auth branch. Updated bot
 - PATCHED: reconstructed the migration from its first complete function body, retained exactly one `create or replace function`, one revoke, and one service_role grant; restored the request ID guard as `^[A-Za-z0-9_-]{16,100}$`; placed the strict request hash guard `coalesce(p_request_hash,'') !~ '^[0-9a-f]{64}$'` inside the function's initial argument-validation block. Ledger/financial operations, row lock, duplicate replay logic, and grants preserved from the canonical function body.
 - Repair commit / current feature head at time of note: `1a3bbb625e98351a20d2b21812f858b50e12ff91`. Exact-head CI run `42118084457` is queued; not yet accepted.
 - SAFETY: migration remains source-only and unapplied. No production/staging DB operations, financial writes, merge, or Vercel deployment occurred.
+
+
+### Authentication session timestamp boundary hardening — 2026-11-06 (UTC+8)
+
+- SOURCE OBSERVED: `getSessionRecord` rejected missing, non-positive, and expired `created_at` values, but accepted timestamps arbitrarily far in the future because `Date.now() - createdAt` becomes negative. This affects every route relying on the canonical BTCBOX session validator, including first-time credential setup and identity-link flows.
+- PATCHED: reject session timestamps more than 60 seconds ahead of server time, allowing a small clock-skew tolerance while preventing future-dated sessions from satisfying fresh-session checks.
+- Code commit: `a009834e302e32e190b5d8fa1c6fc4ccc953c689`; regression-test commit: `80f4893d9ba6f39936589cfd34b32f462cc498c1`. An initial source-test regex assertion was replaced with a literal assertion before final verification.
+- Exact-head CI for the latest test commit is pending; do not mark this guard accepted until its exact SHA run passes.
+- SAFETY: no production DB operation, migration, merge, deployment, or financial action occurred.
