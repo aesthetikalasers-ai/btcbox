@@ -53,3 +53,13 @@ test('identity-link and credential-recovery 2FA clear terminal reauthentication 
   assert.match(auth, /\["RECENT_REAUTH_REQUIRED", "IDENTITY_NOT_LINKED", "INVALID_SUPABASE_IDENTITY", "ACCOUNT_FROZEN"\]\.includes\(failureCode\)[\s\S]{0,220}setPendingIdentityLinkToken\(""\);\s*setIdentityLinkNeedsTwoFactor\(false\)/);
   assert.match(auth, /\["RECENT_REAUTH_REQUIRED", "IDENTITY_NOT_LINKED", "INVALID_SUPABASE_IDENTITY", "ACCOUNT_FROZEN"\]\.includes\(failureCode\)[\s\S]{0,220}setPendingCredentialRecoveryToken\(""\);\s*setCredentialRecoveryNeedsTwoFactor\(false\)/);
 });
+
+
+test('OAuth reauthentication callbacks replace stale challenges and clear failed account recovery state', () => {
+  assert.match(auth, /setPendingCredentialRecoveryToken\(""\);\s*setCredentialRecoveryNeedsTwoFactor\(false\);\s*setCredentialRecoveryReady\(true\)/);
+  assert.match(auth, /setPendingCredentialRecoveryToken\(data\.session\.access_token\);\s*setCredentialRecoveryReady\(false\);\s*setCredentialRecoveryNeedsTwoFactor\(true\)/);
+  assert.match(auth, /setPendingIdentityLinkToken\(""\);\s*setIdentityLinkNeedsTwoFactor\(false\);\s*setIdentityLinkSourceVerified\(true\)/);
+  assert.match(auth, /setPendingIdentityLinkToken\(data\.session\.access_token\);\s*setIdentityLinkSourceVerified\(false\);\s*setIdentityLinkNeedsTwoFactor\(true\)/);
+  assert.match(auth, /if \(failedFlow === "link-reauth"\) \{\s*setPendingIdentityLinkToken\(""\);\s*setIdentityLinkNeedsTwoFactor\(false\);\s*setIdentityLinkSourceVerified\(false\);/);
+  assert.match(auth, /if \(failedFlow === "credential-recovery"\) \{\s*setPendingCredentialRecoveryToken\(""\);\s*setCredentialRecoveryNeedsTwoFactor\(false\);\s*setCredentialRecoveryReady\(false\);/);
+});
