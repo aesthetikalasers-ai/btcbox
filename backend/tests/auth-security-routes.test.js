@@ -51,9 +51,11 @@ function harness(marker = {}, options = {}) {
   let reads = 0;
   let release;
   let barrier = null;
+  const sourceToken = jwt(ids.source);
+  const targetToken = jwt(ids.target);
   const identities = new Map([
-    ['source-token', identity(ids.source, '0x1111111111111111111111111111111111111111')],
-    ['target-token', identity(ids.target, '0x2222222222222222222222222222222222222222')],
+    [sourceToken, identity(ids.source, '0x1111111111111111111111111111111111111111')],
+    [targetToken, identity(ids.target, '0x2222222222222222222222222222222222222222')],
   ]);
   const env = {
     SUPABASE_URL: 'https://test.supabase.co',
@@ -114,6 +116,8 @@ function harness(marker = {}, options = {}) {
       }, {});
       return { status: result.statusCode, body: JSON.parse(result.body) };
     },
+    sourceToken,
+    targetToken,
     get data() { return JSON.parse(JSON.stringify(data)); },
     get revision() { return revision; },
     holdTwoReads() {
@@ -137,13 +141,13 @@ const recoveryMarker = {
 
 test('identity-link handler verifies source, links target, consumes marker, and rejects replay', async () => {
   const h = harness();
-  const source = await h.run('auth/link-identity/reauth', { supabase_access_token: 'source-token' });
+  const source = await h.run('auth/link-identity/reauth', { supabase_access_token: h.sourceToken });
   assert.equal(source.status, 200, JSON.stringify(source.body));
-  const linked = await h.run('auth/link-identity', { supabase_access_token: 'target-token' });
+  const linked = await h.run('auth/link-identity', { supabase_access_token: h.targetToken });
   assert.equal(linked.status, 200);
   assert.ok(h.data.users['16588'].supabase_user_ids.includes(ids.target));
   assert.equal(h.data.sessions[sessionToken].identity_link_reauth, undefined);
-  const replay = await h.run('auth/link-identity', { supabase_access_token: 'target-token' });
+  const replay = await h.run('auth/link-identity', { supabase_access_token: h.targetToken });
   assert.equal(replay.status, 403);
   assert.equal(replay.body.code, 'REAUTH_REQUIRED');
 });
@@ -154,16 +158,16 @@ test('identity-link handler rejects expired or wrong-purpose markers and CAS all
     { purpose: 'credential_recovery', supabase_user_id: ids.source, auth_time: Math.floor(Date.now() / 1000), verified_at: Date.now() },
   ]) {
     const h = harness({ identity_link_reauth: marker });
-    const result = await h.run('auth/link-identity', { supabase_access_token: 'target-token' });
+    const result = await h.run('auth/link-identity', { supabase_access_token: h.targetToken });
     assert.equal(result.status, 403);
   }
   const h = harness();
-  const reauth = await h.run('auth/link-identity/reauth', { supabase_access_token: 'source-token' });
+  const reauth = await h.run('auth/link-identity/reauth', { supabase_access_token: h.sourceToken });
   assert.equal(reauth.status, 200, JSON.stringify(reauth.body));
   h.holdTwoReads();
   const results = await Promise.all([
-    h.run('auth/link-identity', { supabase_access_token: 'target-token' }),
-    h.run('auth/link-identity', { supabase_access_token: 'target-token' }),
+    h.run('auth/link-identity', { supabase_access_token: h.targetToken }),
+    h.run('auth/link-identity', { supabase_access_token: h.targetToken }),
   ]);
   assert.deepEqual(results.map(x => x.status).sort(), [200, 409]);
   assert.equal(h.data.users['16588'].supabase_user_ids.filter(x => x === ids.target).length, 1);
