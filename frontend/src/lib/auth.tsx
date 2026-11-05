@@ -30,7 +30,6 @@ type AuthContextValue = {
   reauthenticateCredentialsWithWeb3: (chain: "ethereum" | "solana", twoFactorCode?: string, wallet?: unknown) => Promise<void>;
   completeCredentialRecoveryTwoFactor: (code: string) => Promise<void>;
   recoverBtcboxPassword: (password: string) => Promise<void>;
-  linkSupabaseIdentity: (accessToken: string) => Promise<void>;
   identityLinkSourceVerified: boolean; identityLinkNeedsTwoFactor: boolean;
   reauthenticateIdentityLinkWithGoogle: () => Promise<void>;
   completeIdentityLinkReauthTwoFactor: (code: string) => Promise<void>;
@@ -242,18 +241,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch (cause) {
       if ((cause as { code?: string })?.code === "RECENT_REAUTH_REQUIRED") setCredentialRecoveryReady(false);
       setError(cause instanceof Error ? cause.message : "BTCBOX password could not be reset.");
-      throw cause;
-    } finally { setBusy(false); }
-  }, [setSignedIn]);
-
-  const linkSupabaseIdentity = useCallback(async (accessToken: string) => {
-    setBusy(true); setError(""); setNotice("");
-    try {
-      await linkIdentityRequest(accessToken);
-      await setSignedIn();
-      setNotice("The sign-in identity has been linked to this BTCBOX account.");
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Identity could not be linked.");
       throw cause;
     } finally { setBusy(false); }
   }, [setSignedIn]);
@@ -545,10 +532,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const value = useMemo(() => ({
-    status, email, busy, error, notice, googleEnabled, identityLinkSourceVerified, identityLinkNeedsTwoFactor, completeIdentityLinkReauthTwoFactor, needsCredentials, credentialRecoveryReady, credentialRecoveryNeedsTwoFactor, ethereumWallets, signInWithGoogle, reauthenticateIdentityLinkWithGoogle, reauthenticateIdentityLinkWithWeb3, linkGoogleIdentity, linkWeb3Identity, signInWithUsername, setBtcboxCredentials, reauthenticateCredentialsWithGoogle, reauthenticateCredentialsWithWeb3, completeCredentialRecoveryTwoFactor, recoverBtcboxPassword, linkSupabaseIdentity, signInWithWeb3, signInWithEmail, signUpWithEmail,
+    status, email, busy, error, notice, googleEnabled, identityLinkSourceVerified, identityLinkNeedsTwoFactor, completeIdentityLinkReauthTwoFactor, needsCredentials, credentialRecoveryReady, credentialRecoveryNeedsTwoFactor, ethereumWallets, signInWithGoogle, reauthenticateIdentityLinkWithGoogle, reauthenticateIdentityLinkWithWeb3, linkGoogleIdentity, linkWeb3Identity, signInWithUsername, setBtcboxCredentials, reauthenticateCredentialsWithGoogle, reauthenticateCredentialsWithWeb3, completeCredentialRecoveryTwoFactor, recoverBtcboxPassword, signInWithWeb3, signInWithEmail, signUpWithEmail,
     requestPasswordReset, completePasswordRecovery, finishOAuth, verifyTwoFactor, signOut,
     clearError: () => setError(""),
-  }), [status, email, busy, error, notice, googleEnabled, identityLinkSourceVerified, identityLinkNeedsTwoFactor, completeIdentityLinkReauthTwoFactor, needsCredentials, credentialRecoveryReady, credentialRecoveryNeedsTwoFactor, ethereumWallets, signInWithGoogle, linkGoogleIdentity, linkWeb3Identity, signInWithUsername, setBtcboxCredentials, reauthenticateCredentialsWithGoogle, reauthenticateCredentialsWithWeb3, completeCredentialRecoveryTwoFactor, recoverBtcboxPassword, linkSupabaseIdentity, signInWithWeb3, signInWithEmail, signUpWithEmail,
+  }), [status, email, busy, error, notice, googleEnabled, identityLinkSourceVerified, identityLinkNeedsTwoFactor, completeIdentityLinkReauthTwoFactor, needsCredentials, credentialRecoveryReady, credentialRecoveryNeedsTwoFactor, ethereumWallets, signInWithGoogle, linkGoogleIdentity, linkWeb3Identity, signInWithUsername, setBtcboxCredentials, reauthenticateCredentialsWithGoogle, reauthenticateCredentialsWithWeb3, completeCredentialRecoveryTwoFactor, recoverBtcboxPassword, signInWithWeb3, signInWithEmail, signUpWithEmail,
     requestPasswordReset, completePasswordRecovery, finishOAuth, verifyTwoFactor, signOut, reauthenticateIdentityLinkWithGoogle, reauthenticateIdentityLinkWithWeb3]);
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
