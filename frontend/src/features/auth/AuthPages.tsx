@@ -33,7 +33,7 @@ export function AuthPage({ mode }: { mode: "login" | "register" }) {
         <CardDescription>{status === "two-factor" ? "Enter the verification code from your authenticator app." : mode === "login" ? "Sign in with your BTCBOX username and password, Google, or a wallet." : "Choose Google or a supported wallet. You’ll set your BTCBOX username and password after your first sign-in."}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        {error && <div role="alert" className="rounded-lg border border-loss/30 bg-loss/10 p-3 text-sm text-loss">{error}<button className="ml-2 underline" onClick={clearError}>Dismiss</button></div>}
+        {error && <div role="alert" className="rounded-lg border border-loss/30 bg-loss/10 p-3 text-sm text-loss">{error}<button className="ml-2 inline-flex min-h-11 items-center px-2 underline" onClick={clearError}>Dismiss</button></div>}
         {notice && <div role="status" className="rounded-lg border border-brand-border bg-brand-surface-2 p-3 text-sm text-brand-text-secondary">{notice}</div>}
         {status === "two-factor" ? <form className="space-y-3" onSubmit={async e=>{e.preventDefault();setVerifyBusy(true);try{await verifyTwoFactor(code);}catch{/* AuthProvider displays the error. */}finally{setVerifyBusy(false);}}}>
           <Input value={code} onChange={e=>setCode(e.target.value.replace(/\D/g,"").slice(0,8))} inputMode="numeric" autoComplete="one-time-code" placeholder="Authentication code" aria-label="Authentication code" required/>
@@ -41,7 +41,7 @@ export function AuthPage({ mode }: { mode: "login" | "register" }) {
         </form> : <>
           {mode === "login" && <form className="space-y-3" onSubmit={submitUsername}>
             <label className="block space-y-1.5 text-sm"><span className="text-brand-text-secondary">BTCBOX username</span><Input value={username} onChange={e=>setUsername(e.target.value.toLowerCase())} autoComplete="username" placeholder="Your username" minLength={3} maxLength={24} required/></label>
-            <label className="block space-y-1.5 text-sm"><span className="text-brand-text-secondary">Password</span><span className="relative block"><Input type={showPassword ? "text" : "password"} autoComplete="current-password" value={password} onChange={e=>setPassword(e.target.value)} placeholder="Your BTCBOX password" required className="pr-12"/><button type="button" aria-label={showPassword ? "Hide password" : "Show password"} onClick={()=>setShowPassword(v=>!v)} className="absolute inset-y-0 right-3 text-brand-text-muted">{showPassword ? <EyeOff className="h-4 w-4"/> : <Eye className="h-4 w-4"/>}</button></span></label>
+            <label className="block space-y-1.5 text-sm"><span className="text-brand-text-secondary">Password</span><span className="relative block"><Input type={showPassword ? "text" : "password"} autoComplete="current-password" value={password} onChange={e=>setPassword(e.target.value)} placeholder="Your BTCBOX password" required className="pr-12"/><button type="button" aria-label={showPassword ? "Hide password" : "Show password"} onClick={()=>setShowPassword(v=>!v)} className="absolute inset-y-0 right-1 inline-flex min-h-11 min-w-11 items-center justify-center text-brand-text-muted">{showPassword ? <EyeOff className="h-4 w-4"/> : <Eye className="h-4 w-4"/>}</button></span></label>
             <Button type="submit" className="w-full" disabled={busy || status !== "anonymous" || !username.trim() || !password}>{busy ? "Please wait…" : "Sign in with username"}</Button>
           </form>}
           {mode === "register" && <div className="rounded-lg border border-brand-border bg-brand-surface-2 p-3 text-sm text-brand-text-secondary">No email address is required. After verification, BTCBOX will guide you to create a unique username and password for this same account.</div>}
@@ -58,13 +58,13 @@ export function AuthPage({ mode }: { mode: "login" | "register" }) {
             <p className="text-sm font-medium text-brand-text">Using a wallet on your phone?</p>
             <p className="mt-1 text-xs leading-5 text-brand-text-muted">Open BTCBOX inside your wallet’s built-in browser. MetaMask users can open the Explore tab and visit this site.</p>
             <div className="mt-3 flex flex-wrap gap-3 text-sm">
-              <a className="font-medium text-brand-text underline underline-offset-4" href={phantomBrowseUrl} target="_blank" rel="noreferrer">Open in Phantom</a>
-              <a className="font-medium text-brand-text underline underline-offset-4" href={coinbaseDappUrl} target="_blank" rel="noreferrer">Open in Coinbase Wallet</a>
+              <a className="inline-flex min-h-11 items-center rounded-lg px-3 py-2 font-medium text-brand-text underline underline-offset-4" href={phantomBrowseUrl} target="_blank" rel="noreferrer">Open in Phantom</a>
+              <a className="inline-flex min-h-11 items-center rounded-lg px-3 py-2 font-medium text-brand-text underline underline-offset-4" href={coinbaseDappUrl} target="_blank" rel="noreferrer">Open in Coinbase Wallet</a>
             </div>
           </div>
         </>}
         <div className="text-center text-xs text-brand-text-muted">{mode === "login" ? <>New to BTCBOX? <Link className="text-brand-text underline underline-offset-4" to="/register">Create account</Link></> : <>Already have an account? <Link className="text-brand-text underline underline-offset-4" to="/login">Sign in</Link></>}</div>
-        <Link to="/home" className="flex items-center justify-center gap-2 text-xs text-brand-text-muted hover:text-brand-text"><ArrowLeft className="h-3.5 w-3.5"/> Back to BTCBOX</Link>
+        <Link to="/home" className="flex min-h-11 items-center justify-center gap-2 px-3 text-xs text-brand-text-muted hover:text-brand-text"><ArrowLeft className="h-3.5 w-3.5"/> Back to BTCBOX</Link>
       </CardContent>
     </Card>
   </div>;
