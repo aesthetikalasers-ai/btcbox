@@ -143,3 +143,27 @@ test('admin audit detail redaction is case-insensitive and caps displayed detail
   assert.ok(!safe.includes('UpperToken'));
   assert.ok(safe.length <= 300);
 });
+
+
+test('admin audit fallback pagination only emits a cursor when another row exists', () => {
+  const routeStart = source.indexOf("if (sub === 'audit-logs' && method === 'GET')");
+  const routeEnd = source.indexOf('// GET /api/admin/config', routeStart);
+  assert.ok(routeStart >= 0 && routeEnd > routeStart);
+  const route = source.slice(routeStart, routeEnd);
+  assert.match(route, /const hasMore = logs\.length > limit/);
+  assert.match(route, /next_before: hasMore && page\.length \?/);
+  assert.doesNotMatch(route, /next_before: page\.length === limit/);
+});
+
+test('admin audit action and uid filters reject overlong raw values before allowlist validation', () => {
+  const routeStart = source.indexOf("if (sub === 'audit-logs' && method === 'GET')");
+  const routeEnd = source.indexOf('// GET /api/admin/config', routeStart);
+  assert.ok(routeStart >= 0 && routeEnd > routeStart);
+  const route = source.slice(routeStart, routeEnd);
+  assert.match(route, /const actionFilter = String\(params\.action \|\| ''\)\.trim\(\);/);
+  assert.match(route, /const uidFilter = String\(params\.uid \|\| ''\)\.trim\(\);/);
+  assert.match(route, /actionFilter\.length > 100/);
+  assert.match(route, /uidFilter\.length > 100/);
+  assert.doesNotMatch(route, /params\.action \|\| ''\)\.trim\(\)\.slice\(0, 100\)/);
+  assert.doesNotMatch(route, /params\.uid \|\| ''\)\.trim\(\)\.slice\(0, 100\)/);
+});
