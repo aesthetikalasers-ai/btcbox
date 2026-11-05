@@ -1410,3 +1410,11 @@ The backend CI branch filters were pointing at an older auth branch. Updated bot
 - SQL commit: `62a94971e9226d7a76a8f4814f8ad09a75b2358e`. Initial test commit `2c69cf6b63d71a688af1c7009067191fbc364091` failed CI run `42117132815` because the newly added regex assertion was syntactically malformed (166/167 tests passed; test file failed to parse).
 - PATCHED: replaced the fragile regex assertion with a literal SQL-contract assertion. Corrected test commit / current feature HEAD: `e88b0df202fda20224daee1aeb2f829a55500222`. Its exact-head CI is pending; do not mark this patch TEST PASSED until the new run completes successfully. Code-only SQL run `42117120706` completed successfully.
 - SAFETY: migration remains prepared only. No production/staging DB migration, DB write, merge, Vercel deployment, or financial operation was performed.
+
+
+### Seconds settlement hash-guard regression-test repair — 2026-11-06 (UTC+8)
+
+- CI DIAGNOSIS: exact-head run `42117271378` for `e88b0df202fda20224daee1aeb2f829a55500222` failed in backend tests; unified build passed, but `backend/tests/seconds-persistent-order-guard.test.js` contained an orphaned tail from the prior malformed regex assertion. GitHub Actions log identifies a SyntaxError at line 191 (166/167 tests passed).
+- PATCHED: removed only the orphaned fragment; retained the literal strict SHA-256 SQL assertion and the existing security-invoker, row-lock, ledger, and service-role contract assertions already covered in the intended test block.
+- Repair commit: `b58db3a6a6171d4749e08070c5914dd15ac11cc8`. Exact-head CI has been triggered by the commit; pending verification.
+- Migration `0024` remains prepared only. No production/staging DB operation, merge, deployment, or financial operation occurred.
