@@ -374,7 +374,7 @@ export function AdminPage() {
   // the first (response-lost) attempt; a retry must be surfaced as a confirmed
   // notice, not as a red failure, and the queue should be refreshed.
   const isAlreadyProcessed = (reason: unknown): reason is ApiError =>
-    reason instanceof ApiError && (reason.code === "WITHDRAWAL_ALREADY_PROCESSED" || reason.status === 409);
+    reason instanceof ApiError && (reason.code === "WITHDRAWAL_ALREADY_PROCESSED" || reason.code === "KYC_EXCEPTION_REQUIRED" || reason.status === 409);
   const handleAlreadyProcessed = (message: string) => {
     setNotice(message);
     setError("");
@@ -482,7 +482,14 @@ export function AdminPage() {
       try { setKyc((await getAdminKyc(token)).kycs || []); }
       catch { setError("KYC review is confirmed; the queue could not refresh. Reload this tab before reviewing another application."); }
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "KYC review was not confirmed.");
+      if (isAlreadyProcessed(reason)) {
+        setNotice("KYC application was already reviewed on a previous attempt.");
+        setError("");
+        try { setKyc((await getAdminKyc(token)).kycs || []); }
+        catch { setError("KYC review is confirmed; the queue could not refresh. Reload this tab before reviewing another application."); }
+      } else {
+        setError(reason instanceof Error ? reason.message : "KYC review was not confirmed.");
+      }
     } finally {
       setBusy(false);
     }
