@@ -53,13 +53,15 @@ Run the complete ordered migration chain on an isolated staging database, then t
 same-key/same-payload retries, same-key/payload-mismatch rejection, concurrent
 withdrawal creation, approval, rejection/refund, and the administrator review queue.
 
-## Later prepared migrations (0023–0025)
+## Later prepared migrations (0023–0027)
 
 The numbered SQL files added after the original 0001–0022 sequence are separate prepared migrations; their presence in Git does not mean they are installed in any database.
 
 15. `0023_btcbox_shared_rate_limit_v1.sql` — creates the server-side shared fixed-window limiter. Apply before enabling API routes that call `btcbox_rate_limit_consume_v1`; it denies browser-role table access and grants the RPC to the server role only.
 16. `0024_seconds_settlement_idempotency_v1.sql` — replaces the Seconds settlement RPC with request-hash idempotency. Requires the Seconds tables/RPCs from `0014_financial_seconds_contracts_v1.sql` and the one-open-position invariant from `0015_financial_seconds_one_open_position_v1.sql`; validate the ledger invariants in isolated staging.
 17. `0025_seconds_policy_versioning_v1.sql` — adds immutable versioned policy, active pointer, append-only policy audit, and per-position payout/policy snapshots. Apply only after the Seconds base and settlement-idempotency migrations have been validated. It does not implement administrator policy authoring/approval/activation APIs and does not enable financial cutover.
+18. `0026_admin_rbac_private_store_v1.sql` — creates the private administrator membership, permission-event, security-audit and request-idempotency store. It seeds permission definitions only; it does not create an administrator. Super Admin provisioning is a separate owner-controlled operation, and the API must verify Supabase Auth and load membership before these permissions are effective.
+19. `0027_withdrawal_manual_payout_completion_v1.sql` — adds staff-paid completion after an approved withdrawal. A non-empty TxID/reference is mandatory; the RPC is idempotent for the same reference, rejects a conflicting reference, changes status and appends audit only, and does not broadcast or debit funds again. It preserves the pending/review/approved states from `0022`.
 
 Do not interpret the filename sequence as permission to apply every file blindly. The existing staging/import and reconciliation migrations remain conditional workflow steps, and optional chain verification remains conditional on enabling that product path. Follow each migration's header and the staging drill.
 
