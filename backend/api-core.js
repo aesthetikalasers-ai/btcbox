@@ -2065,6 +2065,13 @@ async function handleRequest(event, context) {
     return json({ ok: true, markets: out, data: dataObj, source: missingBases.length ? 'coinbase_primary_bybit_fallback' : 'coinbase' }, 200, { 'Cache-Control': 'public, max-age=2, s-maxage=5, stale-while-revalidate=3' });
   }
 
+  // Public capability snapshot. Financial order writes remain fail-closed unless
+  // every matching-engine cutover flag is explicitly enabled server-side.
+  if (path === 'trading/status' && method === 'GET') {
+    const enabled = matchingEngineEnabled();
+    return json({ ok: true, spot_order_entry_enabled: enabled, spot_cancel_enabled: enabled, supported_order_types: ['limit'] });
+  }
+
   // ---------- POST /api/order ----------
   // Never simulate fills or mutate customer balances outside the PostgreSQL matching RPC.
   if (path === 'order' && method === 'POST') {
