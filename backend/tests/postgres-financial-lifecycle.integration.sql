@@ -71,6 +71,16 @@ BEGIN
   WHERE user_id='long-reference-user' AND asset='USDT';
   IF v_balance<>5 THEN RAISE EXCEPTION 'long-reference manual deposit ledger mismatch: %',v_balance; END IF;
 
+  v_result := pg_temp.test_credit(
+    'MD-CI-LONG-REF-RETRY','long-reference-user','USDT',5,'deposit-ci-long-reference-0001',repeat('R',130),'postgres-ci'
+  );
+  IF v_result->>'duplicate'<>'true' THEN
+    RAISE EXCEPTION 'long-reference exact retry was not idempotent: %',v_result;
+  END IF;
+  SELECT available INTO v_balance FROM public.financial_accounts
+  WHERE user_id='long-reference-user' AND asset='USDT';
+  IF v_balance<>5 THEN RAISE EXCEPTION 'long-reference retry credited funds twice: %',v_balance; END IF;
+
   v_failed := false;
   BEGIN
     PERFORM pg_temp.test_credit(
