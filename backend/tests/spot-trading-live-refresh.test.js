@@ -60,3 +60,18 @@ test('market table preserves last confirmed prices and displays a stale-feed war
   assert.ok(marketTable.includes('error && markets.length > 0'));
   assert.ok(marketTable.includes('Showing the last confirmed market data.'));
 });
+const api = fs.readFileSync(path.resolve(__dirname, '../../frontend/src/lib/api.ts'), 'utf8');
+const backend = fs.readFileSync(path.resolve(__dirname, '../api-core.js'), 'utf8');
+
+test('market API carries per-symbol server snapshot time separately from provider event time', () => {
+  assert.ok(backend.includes('const snapshotTs = Math.floor(Date.now() / 1000)'));
+  assert.ok(backend.includes('ts: snapshotTs, source: row.source'));
+  assert.ok(api.includes('snapshotTs?: number'));
+  assert.ok(api.includes('snapshotTs: Number.isFinite(snapshot?.ts)'));
+});
+
+test('spot UI labels server snapshot time and does not substitute browser receipt time', () => {
+  assert.ok(page.includes('t("Snapshot checked")'));
+  assert.ok(page.includes('selected.snapshotTs?selected.snapshotTs*1000:null'));
+  assert.ok(!page.includes('setMarketUpdatedAt(Date.now())'));
+});
