@@ -32,6 +32,6 @@ test('policy API requires an authenticated user and validates policy bounds befo
 test('active payout policy has an 85 percent floor and no hard-coded 100 percent ceiling', () => {
   assert.match(sql, /payout_bps integer NOT NULL CHECK \(payout_bps >= 8500\)/);
   assert.doesNotMatch(sql, /payout_bps BETWEEN 8500 AND 10000/);
-  assert.match(api, /policy\.payout_bps < 8500/);
-  assert.doesNotMatch(api, /policy\.payout_bps > 10000/);
+  assert.match(api, /Number\(policy\.payout_bps\) >= 8500/);
+  assert.doesNotMatch(api, /payout_bps\)\s*<=\s*10000/);
 });
