@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { RefreshCw, TrendingUp, TrendingDown, Clock3, ShieldAlert, Send, MessageCircle } from "lucide-react";
 import { getAccount, getOrders, getSecondsPositions, getSupportMessages, sendSupportMessage, type AccountBalance, type AccountSnapshot, type OrderRecord, type SecondsPositionsSnapshot, type SupportMessage } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
@@ -222,7 +222,7 @@ export function SupportPage(){
   }).finally(()=>{if(!controller.signal.aborted)setLoading(false);});
   return ()=>controller.abort();
  },[reload]);
- const submit=async(event:React.FormEvent<HTMLFormElement>)=>{
+ const submit=async(event:FormEvent<HTMLFormElement>)=>{
   event.preventDefault();
   const message=draft.trim();
   if(!message||sending)return;
