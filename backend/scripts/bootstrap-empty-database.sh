@@ -64,7 +64,6 @@ FILES=(
   0005_financial_earn_redemption_idempotency_v4.sql
   0006_financial_earn_policy_v5.sql
   0007_financial_admin_manual_deposit_v1.sql
-  0008_financial_spot_trade_v3.sql
   0009_financial_matching_engine_v1.sql
   0010_financial_read_api_v1.sql
   0011_financial_read_api_earn_v1.sql
