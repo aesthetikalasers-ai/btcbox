@@ -26,9 +26,9 @@ npm run lint --prefix frontend
 npm run build --prefix frontend
 ```
 
-## Compatibility assets
+## Static compatibility surface
 
-The build currently retains selected legacy static assets and OAuth routes while their remaining dependencies are being replaced by the React application. These files are compatibility dependencies, not a second canonical customer frontend. Do not remove them until their routes, callbacks, tests, and production references have been migrated and verified.
+The React/Vite application is the only customer and administrator application published by the build. The only retained static page is the OAuth consent screen at `/oauth/consent`; it uses an isolated token stylesheet and its own external script. The legacy `/auth/callback` URL redirects into the React PKCE callback route. Old static SPA assets remain source-only during test-contract retirement and are not copied into the public output.
 
 ## Safety and release rules
 
