@@ -26,3 +26,10 @@ The API fails closed when the bucket is unavailable. No bucket was created and n
 ## Verification boundary
 
 Source regression tests cover validation, private storage calls, signed URL expiry, admin permission boundaries and the customer/admin UI contract. Hosted bucket configuration, real upload/download, browser E2E, retention/deletion policy and production operation remain **NOT VERIFIED**. Do not upload real identity documents to a non-production test environment.
+
+## Privacy and object lifecycle hardening
+
+- The general administrator `users.read` user-detail endpoint exposes only the KYC status. Full identity numbers and Storage object paths are not included; KYC evidence remains behind the separate `kyc.read` route.
+- Every signed preview and deletion operation verifies that the object key belongs to the target user's exact UID and matches the generated UUID filename format. This prevents a corrupted KYC record from being used to sign or delete another user's object.
+- When a rejected applicant resubmits, the new image is saved first; only after the new KYC record is persisted does the API attempt to delete the previous user-owned image. If persistence fails, it attempts to remove the new unreferenced upload and leaves the previous evidence intact.
+- No automatic deletion is performed after approval or rejection. Retention duration and legal deletion requirements remain a release-policy decision and must be explicitly set before production KYC use.
