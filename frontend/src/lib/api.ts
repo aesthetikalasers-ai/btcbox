@@ -671,12 +671,12 @@ async function adminRequest<T>(token: string, path: string, options: { method?: 
   if (!token || token.length < 20) throw new ApiError("Administrator Supabase session is missing.", 401, "ADMIN_AUTH_REQUIRED");
   let response: Response;
   try {
-    response = await fetch(\`\${API_BASE_URL}/\${path}\`, {
+    response = await fetch(`${API_BASE_URL}/${path}`, {
       method: options.method || "GET",
       credentials: "include",
       cache: "no-store",
       signal: options.signal,
-      headers: { Accept: "application/json", Authorization: \`Bearer \${token}\`, ...(options.body === undefined ? {} : { "Content-Type": "application/json" }) },
+      headers: { Accept: "application/json", Authorization: `Bearer ${token}`, ...(options.body === undefined ? {} : { "Content-Type": "application/json" }) },
       ...(options.body === undefined ? {} : { body: JSON.stringify(options.body) }),
     });
   } catch {
@@ -695,11 +695,11 @@ export async function getAdminStats(token: string, signal?: AbortSignal) {
   return adminRequest<{ ok: true; total_users: number; pending_withdrawals: number; pending_admin_review_withdrawals: number; pending_kyc: number; deposit_addresses: Record<string, string>; announcement: string }>(token, "admin/stats", { signal });
 }
 export async function getAdminUsers(token: string, search = "", signal?: AbortSignal) {
-  const query = search.trim() ? \`?search=\${encodeURIComponent(search.trim())}\` : "";
-  return adminRequest<{ ok: true; users: AdminUserRecord[] }>(token, \`admin/users\${query}\`, { signal });
+  const query = search.trim() ? `?search=${encodeURIComponent(search.trim())}` : "";
+  return adminRequest<{ ok: true; users: AdminUserRecord[] }>(token, `admin/users${query}`, { signal });
 }
 export async function getAdminUser(token: string, uid: string, signal?: AbortSignal) {
-  return adminRequest<{ ok: true; user: AdminUserRecord }>(token, \`admin/user?uid=\${encodeURIComponent(uid)}\`, { signal });
+  return adminRequest<{ ok: true; user: AdminUserRecord }>(token, `admin/user?uid=${encodeURIComponent(uid)}`, { signal });
 }
 export async function getAdminWithdrawals(token: string, signal?: AbortSignal) {
   return adminRequest<{ ok: true; withdrawals: AdminWithdrawalRecord[]; pending_count?: number; pending_admin_review_count?: number }>(token, "admin/withdrawals", { signal });
@@ -733,7 +733,7 @@ export async function adminRejectKyc(token: string, uid: string, reason: string)
 }
 export async function getAdminAuditLogs(token: string, limit = 50, signal?: AbortSignal) {
   const query = new URLSearchParams({ limit: String(limit) });
-  return adminRequest<{ ok: true; logs: AdminAuditRecord[]; next_before?: string | null; source?: string; completeness?: string }>(token, \`admin/audit-logs?\${query.toString()}\`, { signal });
+  return adminRequest<{ ok: true; logs: AdminAuditRecord[]; next_before?: string | null; source?: string; completeness?: string }>(token, `admin/audit-logs?${query.toString()}`, { signal });
 }
 export async function getAdminOrders(token: string, signal?: AbortSignal) {
   return adminRequest<{ ok: true; orders: OrderRecord[]; source?: string }>(token, "admin/orders", { signal });
