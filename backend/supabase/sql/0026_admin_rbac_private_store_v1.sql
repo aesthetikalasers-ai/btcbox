@@ -369,7 +369,7 @@ REVOKE ALL ON FUNCTION private.admin_get_membership_v1(uuid) FROM PUBLIC, anon, 
 REVOKE ALL ON FUNCTION private.admin_manage_membership_v1(uuid,uuid,bigint,text,text[],text,text,text) FROM PUBLIC, anon, authenticated, service_role;
 GRANT EXECUTE ON FUNCTION private.bootstrap_super_admin_v1(uuid,text,text) TO postgres;
 GRANT EXECUTE ON FUNCTION private.admin_get_membership_v1(uuid) TO service_role;
-GRANT EXECUTE ON FUNCTION private.admin_manage_membership_v1(uuid,uuid,text,text[],text,text,text) TO service_role;
+GRANT EXECUTE ON FUNCTION private.admin_manage_membership_v1(uuid,uuid,bigint,text,text[],text,text,text) TO service_role;
 
 COMMENT ON SCHEMA private IS 'Non-exposed BTCBOX administrator identity, grants, and audit storage. Never add to Data API exposed schemas.';
 COMMENT ON FUNCTION private.bootstrap_super_admin_v1(uuid,text,text) IS 'Owner-only one-time Super Admin bootstrap; never expose through HTTP/PostgREST.';
