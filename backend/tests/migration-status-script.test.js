@@ -8,11 +8,7 @@ const script = path.join(__dirname, '..', 'scripts', 'check_migration_status.py'
 test('migration checker labels offline output as static-only', () => {
   const env = { ...process.env };
   delete env.DATABASE_URL;
-  const result = spawnSync('python3', [script, '--offline'], {
-    encoding: 'utf8',
-    env
-  });
-
+  const result = spawnSync('python3', [script, '--offline'], { encoding: 'utf8', env });
   assert.equal(result.status, 0, result.stderr);
   assert.match(result.stdout, /\[STATUS\] STATIC_ONLY/);
   assert.match(result.stdout, /Database migration state was not checked/);
@@ -21,11 +17,7 @@ test('migration checker labels offline output as static-only', () => {
 test('migration checker does not pass when database verification was requested but unavailable', () => {
   const env = { ...process.env };
   delete env.DATABASE_URL;
-  const result = spawnSync('python3', [script], {
-    encoding: 'utf8',
-    env
-  });
-
+  const result = spawnSync('python3', [script], { encoding: 'utf8', env });
   assert.equal(result.status, 2);
   assert.match(result.stderr, /\[STATUS\] DATABASE_UNAVAILABLE/);
   assert.match(result.stderr, /DATABASE_URL is not set/);
@@ -53,16 +45,10 @@ test('migration checker refuses to compare timestamp ledger versions with four-d
     'def connect(url):',
     '    return Connection()'
   ].join(String.fromCharCode(10));
-
   try {
     fs.writeFileSync(path.join(tempDir, 'psycopg2.py'), fakeDriver);
-    const env = {
-      ...process.env,
-      DATABASE_URL: 'postgresql://migration-check-test.invalid/test',
-      PYTHONPATH: [tempDir, process.env.PYTHONPATH].filter(Boolean).join(path.delimiter)
-    };
+    const env = { ...process.env, DATABASE_URL: 'postgresql://migration-check-test.invalid/test', PYTHONPATH: [tempDir, process.env.PYTHONPATH].filter(Boolean).join(path.delimiter) };
     const result = spawnSync('python3', [script], { encoding: 'utf8', env });
-
     assert.equal(result.status, 2, result.stderr);
     assert.match(result.stderr, /\[STATUS\] VERSION_MAPPING_REQUIRED/);
     assert.match(result.stderr, /do not use the repository's four-digit numbering/);
@@ -85,64 +71,28 @@ test('migration order document records prepared Seconds migrations and their pre
   assert.match(orderDoc, /timestamp registry versions directly with four-digit filenames/i);
 });
 
-
-test('fresh database bootstrap includes only canonical operational SQL and refuses unconfirmed targets', () => {
+test('fresh database bootstrap expands safety variables and includes every canonical SQL file', () => {
   const fs = require('node:fs');
-  const bootstrap = fs.readFileSync(path.join(__dirname, '..', 'scripts', 'bootstrap-empty-database.sh'), 'utf8');
+  const root = path.resolve(__dirname, '..');
+  const bootstrapPath = path.join(root, 'scripts', 'bootstrap-empty-database.sh');
+  const bootstrap = fs.readFileSync(bootstrapPath, 'utf8');
   assert.match(bootstrap, /BTCBOX_BOOTSTRAP_CONFIRM/);
   assert.match(bootstrap, /BTCBOX_ALLOW_REMOTE_BOOTSTRAP/);
   assert.match(bootstrap, /BTCBOX-owned tables/);
-  // bash -n accepts escaped expansions, so assert the safety variables really expand.
-  assert.ok(bootstrap.includes('
+  assert.ok(bootstrap.includes('$' + '{BASH_SOURCE[0]}'), 'script directory must resolve from BASH_SOURCE');
+  assert.ok(bootstrap.includes('$' + '{DATABASE_URL:-}'), 'DATABASE_URL must be expanded');
+  assert.ok(bootstrap.includes('$' + '{BTCBOX_BOOTSTRAP_CONFIRM:-}'), 'bootstrap confirmation must be expanded');
+  assert.ok(bootstrap.includes('$' + '{BTCBOX_ALLOW_REMOTE_BOOTSTRAP:-}'), 'remote approval must be expanded');
+  assert.ok(!bootstrap.includes('\\$' + '{'), 'shell variable expansions must not be escaped');
+  const syntax = spawnSync('bash', ['-n', bootstrapPath], { encoding: 'utf8' });
   assert.equal(syntax.status, 0, syntax.stderr);
-  assert.match(bootstrap, /0001_btcbox_state_cas.sql/);
-  assert.match(bootstrap, /0028_admin_rbac_service_rpc_wrappers_v1.sql/);
-  for (const excluded of ['0016_financial_deposit_chain_verification_v3.sql','0017_financial_migration_staging_v5.sql','0018_financial_migration_staging_reconciliation_v6.sql','0019_financial_migration_reconciliation_v4.sql','0020_financial_ledger_reconciliation_v1.sql']) {
-    assert.ok(!bootstrap.includes(excluded), excluded + ' must not be part of fresh operational bootstrap');
-  }
-});
- + '{BASH_SOURCE[0]}'), 'script directory must resolve from BASH_SOURCE');
-  assert.ok(bootstrap.includes('
-  assert.equal(syntax.status, 0, syntax.stderr);
-  assert.match(bootstrap, /0001_btcbox_state_cas.sql/);
-  assert.match(bootstrap, /0028_admin_rbac_service_rpc_wrappers_v1.sql/);
-  for (const excluded of ['0016_financial_deposit_chain_verification_v3.sql','0017_financial_migration_staging_v5.sql','0018_financial_migration_staging_reconciliation_v6.sql','0019_financial_migration_reconciliation_v4.sql','0020_financial_ledger_reconciliation_v1.sql']) {
-    assert.ok(!bootstrap.includes(excluded), excluded + ' must not be part of fresh operational bootstrap');
-  }
-});
- + '{DATABASE_URL:-}'), 'DATABASE_URL must be expanded');
-  assert.ok(bootstrap.includes('
-  assert.equal(syntax.status, 0, syntax.stderr);
-  assert.match(bootstrap, /0001_btcbox_state_cas.sql/);
-  assert.match(bootstrap, /0028_admin_rbac_service_rpc_wrappers_v1.sql/);
-  for (const excluded of ['0016_financial_deposit_chain_verification_v3.sql','0017_financial_migration_staging_v5.sql','0018_financial_migration_staging_reconciliation_v6.sql','0019_financial_migration_reconciliation_v4.sql','0020_financial_ledger_reconciliation_v1.sql']) {
-    assert.ok(!bootstrap.includes(excluded), excluded + ' must not be part of fresh operational bootstrap');
-  }
-});
- + '{BTCBOX_BOOTSTRAP_CONFIRM:-}'), 'explicit bootstrap confirmation must be expanded');
-  assert.ok(bootstrap.includes('
-  assert.equal(syntax.status, 0, syntax.stderr);
-  assert.match(bootstrap, /0001_btcbox_state_cas.sql/);
-  assert.match(bootstrap, /0028_admin_rbac_service_rpc_wrappers_v1.sql/);
-  for (const excluded of ['0016_financial_deposit_chain_verification_v3.sql','0017_financial_migration_staging_v5.sql','0018_financial_migration_staging_reconciliation_v6.sql','0019_financial_migration_reconciliation_v4.sql','0020_financial_ledger_reconciliation_v1.sql']) {
-    assert.ok(!bootstrap.includes(excluded), excluded + ' must not be part of fresh operational bootstrap');
-  }
-});
- + '{BTCBOX_ALLOW_REMOTE_BOOTSTRAP:-}'), 'remote approval gate must be expanded');
-  assert.ok(!bootstrap.includes('\\\\
-  assert.equal(syntax.status, 0, syntax.stderr);
-  assert.match(bootstrap, /0001_btcbox_state_cas.sql/);
-  assert.match(bootstrap, /0028_admin_rbac_service_rpc_wrappers_v1.sql/);
-  for (const excluded of ['0016_financial_deposit_chain_verification_v3.sql','0017_financial_migration_staging_v5.sql','0018_financial_migration_staging_reconciliation_v6.sql','0019_financial_migration_reconciliation_v4.sql','0020_financial_ledger_reconciliation_v1.sql']) {
-    assert.ok(!bootstrap.includes(excluded), excluded + ' must not be part of fresh operational bootstrap');
-  }
-});
- + '{'), 'shell variable expansions must not be escaped');
-  const syntax = spawnSync('bash', ['-n', path.join(__dirname, '..', 'scripts', 'bootstrap-empty-database.sh')], { encoding: 'utf8' });
-  assert.equal(syntax.status, 0, syntax.stderr);
-  assert.match(bootstrap, /0001_btcbox_state_cas.sql/);
-  assert.match(bootstrap, /0028_admin_rbac_service_rpc_wrappers_v1.sql/);
-  for (const excluded of ['0016_financial_deposit_chain_verification_v3.sql','0017_financial_migration_staging_v5.sql','0018_financial_migration_staging_reconciliation_v6.sql','0019_financial_migration_reconciliation_v4.sql','0020_financial_ledger_reconciliation_v1.sql']) {
-    assert.ok(!bootstrap.includes(excluded), excluded + ' must not be part of fresh operational bootstrap');
-  }
+  const sqlDir = path.join(root, 'supabase', 'sql');
+  const actual = fs.readdirSync(sqlDir).filter(name => /^\d{4}_.+\.sql$/.test(name)).sort();
+  const block = bootstrap.match(/FILES=\(([\s\S]*?)\n\)/);
+  assert.ok(block, 'bootstrap SQL allowlist must exist');
+  const configured = [...block[1].matchAll(/\b(\d{4}_[A-Za-z0-9_-]+\.sql)\b/g)].map(match => match[1]).sort();
+  assert.deepEqual(configured, actual, 'bootstrap must include each canonical SQL file exactly once');
+  assert.ok(!bootstrap.includes('0016_financial_deposit_chain_verification_v3.sql'));
+  assert.ok(!bootstrap.includes('0017_financial_migration_staging_v5.sql'));
+  assert.ok(!bootstrap.includes('0020_financial_ledger_reconciliation_v1.sql'));
 });
