@@ -232,3 +232,8 @@ Required next work: minimal manual workflow only—user deposit record/history i
 - Latest diff from main: 6 files changed (API core, app-core adapter, admin UI, withdrawal UI, SQL migration, API routing tests). Static source checks confirm the new endpoints, RPC guard, admin queue, and user history paths are present. Node tests/build have not been rerun after the regex correction.
 - Migration 0023 is committed but NOT applied to the live Supabase project. No production env variables changed, no deploy, no DB DDL/write, and no financial operation performed. Current financial flags were last observed at 0 in production and preview; they have not been changed in this batch. Matching engine remains off.
 - Next: restore Vercel team access to inspect the latest build; apply migration 0023 only after a reviewed database change window; deploy/integrate this branch; run build, API tests and authenticated manual workflow smoke tests; then enable the three financial cutover flags (not the matching engine flag). User has said not to keep the switch closed just because there are no users; this does not replace the code/schema/smoke-check prerequisites.
+
+
+### Supabase migration 0023 transactional smoke test
+- Ran migration 0023 in a PostgreSQL transaction, inserted a synthetic approved withdrawal, invoked `mark_withdrawal_paid_atomic` for first completion and same-reference idempotent retry, and called `read_withdrawal_history_v1`. No SQL/RPC error occurred.
+- Rolled back the transaction. Follow-up query confirmed 0 persisted synthetic withdrawal rows and 0 persisted payout metadata columns. This verifies SQL/RPC execution paths without applying the migration or retaining data; migration 0023 remains unapplied.
