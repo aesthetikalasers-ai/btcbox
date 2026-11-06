@@ -15,6 +15,7 @@ const SectionPage = lazy(() => import("./features/pages/Pages").then((m) => ({ d
 const OrdersPage = lazy(() => import("./features/pages/Pages").then((m) => ({ default: m.OrdersPage })));
 const SecondsPage = lazy(() => import("./features/pages/Pages").then((m) => ({ default: m.SecondsPage })));
 const KycPage = lazy(() => import("./features/pages/Pages").then((m) => ({ default: m.KycPage })));
+const SupportPage = lazy(() => import("./features/pages/Pages").then((m) => ({ default: m.SupportPage })));
 
 function ProtectedAccountRoute({ children }: { children: ReactNode }) { const { status } = useAuth(); if (status === "loading") return <RouteLoading />; if (status !== "authenticated") return <Navigate to="/login" replace />; return <>{children}</>; }
 
@@ -45,7 +46,7 @@ export default function App() {
     <Route path="/login" element={<AuthPage mode="login" />} /><Route path="/register" element={<AuthPage mode="register" />} /><Route path="/account-setup" element={<AccountSetupPage />} /><Route path="/auth/react-callback" element={<AuthCallbackPage />} />
     
     <Route path="/kyc" element={<ProtectedAccountRoute><KycPage /></ProtectedAccountRoute>} />
-    <Route path="/support" element={<SectionPage title="Support" description="Support conversations will be connected to the authenticated support API." />} />
+    <Route path="/support" element={<ProtectedAccountRoute><SupportPage /></ProtectedAccountRoute>} />
     <Route path="/settings" element={<ProtectedAccountRoute><AccountSecurityPage /></ProtectedAccountRoute>} />
     <Route path="*" element={<Navigate to="/home" replace />} />
   </Routes></AccountSetupGate></Suspense></AppLayout></I18nProvider>;
