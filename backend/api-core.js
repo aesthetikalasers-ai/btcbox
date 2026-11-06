@@ -3196,9 +3196,14 @@ async function handleRequest(event, context) {
       const uid = String(body.uid || '').trim();
       const coin = String(body.coin || 'USDT').trim().toUpperCase();
       const amountText = parseMoneyInput(body.amount);
-      const reference = String(body.reference || '').trim().slice(0, 120);
+      const reference = String(body.reference || '').trim();
       const note = String(body.note || '').trim().slice(0, 300);
       const idempotencyKey = String(body.idempotency_key || '').trim();
+      // A manual credit must be traceable to a verified incoming transfer.
+      // Accept a chain transaction hash or another auditable receipt reference.
+      if (!reference || reference.length > 160 || /[\\u0000-\\u001f\\u007f]/.test(reference)) {
+        return json({ ok: false, code: 'DEPOSIT_REFERENCE_REQUIRED', msg: 'A verified transaction hash or receipt reference is required before manual credit.' }, 400);
+      }
       const u = db.users[uid];
       if (!u) return json({ ok: false, msg: 'User not found.' }, 404);
       if (!['USDT', 'BTC', 'ETH', 'SOL', 'BNB', 'USDC'].includes(coin)) return json({ ok: false, msg: 'Coin not supported.' }, 400);
