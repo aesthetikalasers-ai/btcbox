@@ -12,7 +12,7 @@ const AdminPage = lazy(() => import("./features/admin/AdminPage").then((m) => ({
 const TradeHubPage = lazy(() => import("./features/pages/Pages").then((m) => ({ default: m.TradeHubPage })));
 const AssetsPage = lazy(() => import("./features/assets/AssetsPage").then((m) => ({ default: m.AssetsPage })));
 const MyPage = lazy(() => import("./features/pages/Pages").then((m) => ({ default: m.MyPage })));
-const SectionPage = lazy(() => import("./features/pages/Pages").then((m) => ({ default: m.SectionPage })));
+const SpotTradingPage = lazy(() => import("./features/pages/Pages").then((m) => ({ default: m.SpotTradingPage })));
 const OrdersPage = lazy(() => import("./features/orders/OrdersPage").then((m) => ({ default: m.OrdersPage })));
 const SecondsPage = lazy(() => import("./features/pages/Pages").then((m) => ({ default: m.SecondsPage })));
 const KycPage = lazy(() => import("./features/pages/Pages").then((m) => ({ default: m.KycPage })));
@@ -42,7 +42,7 @@ function CustomerRoutes() {
   return <AppLayout><AccountSetupGate><Suspense fallback={<RouteLoading />}><Routes>
     <Route path="/home" element={<Dashboard />} /><Route path="/markets" element={<Dashboard />} />
     <Route path="/trade-hub" element={<TradeHubPage />} /><Route path="/trade" element={<Navigate to="/trade-hub" replace />} />
-    <Route path="/trade/:symbol" element={<SectionPage title="Spot trading" description="The BTCBOX order-entry interface will connect to the existing spot order API after its request and response contract is verified." />} />
+    <Route path="/trade/:symbol" element={<ProtectedAccountRoute><SpotTradingPage /></ProtectedAccountRoute>} />
     <Route path="/seconds" element={<ProtectedAccountRoute><SecondsPage /></ProtectedAccountRoute>} />
     <Route path="/assets" element={<ProtectedAccountRoute><AssetsPage /></ProtectedAccountRoute>} /><Route path="/me" element={<MyPage />} />
     <Route path="/orders" element={<ProtectedAccountRoute><OrdersPage /></ProtectedAccountRoute>} />
