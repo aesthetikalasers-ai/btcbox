@@ -38,7 +38,8 @@ The current canonical source inventory is:
 19. `0026_admin_rbac_private_store_v1.sql`
 20. `0027_withdrawal_manual_payout_completion_v1.sql`
 21. `0028_admin_rbac_service_rpc_wrappers_v1.sql`
-22. `0029_withdrawal_fee_quote_idempotency_v1.sql`
+22. `0029_withdrawal_fee_quote_idempotency_v1.sql
+- `0030_seconds_admin_open_positions_read_v1.sql``
 
 The legacy `0008_financial_spot_trade_v3.sql` direct-fill RPC was removed because it bypassed the order book and was not called by the API. The durable matching engine now occupies `0008_financial_matching_engine_v1.sql` and is the only supported spot write path. Sequence `0009` is retired and intentionally omitted; the offline migration checker explicitly recognizes retired slots `0009` and `0015`–`0020`. The bootstrap allowlist contains only live numbered SQL files and is tested against the actual source inventory.
 
@@ -60,6 +61,7 @@ Manual deposits follow the chosen half-manual workflow: staff verifies the trans
 - `0027` adds staff-paid completion for an already approved withdrawal; it records the payout reference and status/audit transition without broadcasting or debiting a second time.
 - `0028` adds service-role-only PostgREST wrappers for admin membership and atomic Seconds policy version activation.
 - `0029` makes withdrawal fee quotes replay-safe: existing requests retain their stored fee and review snapshot, while new requests must match the current server quote.
+- `0030` adds a bounded, read-only administrator queue for open Seconds positions. It rechecks active `seconds_policy.read` membership inside PostgreSQL, returns at most 100 operational rows plus aggregate exposure/overdue counts, and cannot mutate positions or financial balances.
 
 ## Admin bootstrap and financial safety
 
@@ -73,7 +75,7 @@ All financial writes and matching remain fail-closed during source QA. Applying 
 
 Source CI verifies migration inventory, shell syntax, bootstrap safety gates and source-level RPC contracts. It does not execute PostgreSQL DDL. Before any hosted install:
 - create or use a disposable empty PostgreSQL/Supabase environment;
-- apply all 22 files in the exact order above and stop on any error;
+- apply all 23 files in the exact order above and stop on any error;
 - verify function signatures, RLS, grants, service-role-only execution and private schema exposure;
 - bootstrap the intended Super Admin and test delegated admin permissions;
 - test manual credit, withdrawal approval/payout completion, spot order idempotency and Seconds order/settlement concurrency/replay without enabling production financial cutover;
