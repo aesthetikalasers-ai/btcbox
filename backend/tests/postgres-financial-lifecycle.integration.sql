@@ -60,6 +60,17 @@ BEGIN
   WHERE user_id='deposit-user' AND asset='USDT';
   IF v_balance<>100 THEN RAISE EXCEPTION 'manual deposit credited more than once: %',v_balance; END IF;
 
+  -- UI/API allow 160-character receipt references; the SQL hash must use the same full value.
+  v_result := pg_temp.test_credit(
+    'MD-CI-LONG-REF','long-reference-user','USDT',5,'deposit-ci-long-reference-0001',repeat('R',130),'postgres-ci'
+  );
+  IF v_result->>'ok'<>'true' OR v_result->>'status'<>'confirmed' THEN
+    RAISE EXCEPTION 'manual deposit rejected a valid 130-character reference: %',v_result;
+  END IF;
+  SELECT available INTO v_balance FROM public.financial_accounts
+  WHERE user_id='long-reference-user' AND asset='USDT';
+  IF v_balance<>5 THEN RAISE EXCEPTION 'long-reference manual deposit ledger mismatch: %',v_balance; END IF;
+
   v_failed := false;
   BEGIN
     PERFORM pg_temp.test_credit(
