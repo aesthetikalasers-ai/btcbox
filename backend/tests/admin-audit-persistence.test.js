@@ -78,7 +78,7 @@ test('canonical PostgreSQL audit reader is cutover-aware, keyset-paginated, reda
   assert.match(reader, /query\.set\('id', 'lt\.' \+ params\.before\)/);
   assert.match(reader, /query\.set\('action', 'eq\.' \+ params\.action\)/);
   assert.match(reader, /query\.set\('subject_user_id', 'eq\.' \+ params\.uid\)/);
-  assert.match(reader, /redactAdminAuditDetail\(row\.reason \|\| ''\)/);
+  assert.ok(reader.includes('formatAdminAuditDetail(row)'));
   assert.match(reader, /metadata/);
   assert.match(reader, /object_type,object_id,reason,metadata/);
   assert.ok(reader.includes('formatAdminAuditDetail(row)'));
