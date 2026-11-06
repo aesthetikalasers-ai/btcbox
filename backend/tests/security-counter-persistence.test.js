@@ -30,7 +30,7 @@ test('withdrawal fund-password failure and reset counters fail closed before fin
 
 test('administrator authentication fails closed when Supabase identity or membership lookup fails', () => {
   const start = source.indexOf('async function adminAuth()');
-  const end = source.indexOf("\\n  if (path.startsWith('admin/'))", start);
+  const end = source.indexOf("\n  if (path.startsWith('admin/'))", start);
   assert.ok(start >= 0 && end > start);
   const auth = source.slice(start, end);
   assert.match(auth, /authorizeSupabaseAdmin/);
