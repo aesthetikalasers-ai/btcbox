@@ -96,7 +96,8 @@ test('withdrawal and earn options use the backend financial contract', () => {
   assert.ok(frontend.includes("BTC:['BTC']") && frontend.includes("SOL:['SOL']") && frontend.includes("BNB:['BEP20']"));
   assert.ok(frontend.includes('const WITHDRAW_FEES={USDT:1,BTC:0.0001,ETH:0.001,SOL:0.01,BNB:0.0005,USDC:1}'));
   assert.ok(backend.includes("BTC:['BTC']") && backend.includes("SOL:['SOL']") && backend.includes("BNB:['BEP20']"));
-  assert.ok(backend.includes('const supportedFees = { USDT: 1.0, BTC: 0.0001, ETH: 0.001, SOL: 0.01, BNB: 0.0005, USDC: 1.0 }'));
+  assert.ok(backend.includes('const supportedFees = safeWithdrawalFees(db.withdrawal_fees)'));
+  assert.ok(backend.includes('const fee = supportedFees[coin]'));
   for (const id of ['flex_USDT', 'flex_BTC', 'flex_ETH', 'fixed30', 'fixed90', 'fixed180']) {
     assert.ok(frontend.includes(`id:'${id}'`), `frontend product ${id} missing`);
     assert.ok(backend.includes(`'${id}'`), `backend product ${id} missing`);
