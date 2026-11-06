@@ -310,6 +310,7 @@ BEGIN
   IF v_result->>'code'<>'IDEMPOTENCY_CONFLICT' THEN
     RAISE EXCEPTION 'Seconds settlement accepted a conflicting request hash: %',v_result;
   END IF;
+  RAISE NOTICE 'BTCBOX deposit, withdrawal, spot, admin-market and Seconds RPC integration checks passed';
 END
 $financial_tests$;
 
