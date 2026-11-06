@@ -1950,14 +1950,10 @@ async function handleRequest(event, context) {
     const supportedFees = safeWithdrawalFees(db.withdrawal_fees);
     if (!Object.prototype.hasOwnProperty.call(supportedFees, coin)) return json({ ok: false, msg: 'Operation failed: withdrawals for this coin are not supported.' }, 400);
     const fee = supportedFees[coin];
-    // A displayed fee can become stale while the form is open. Require the
-    // caller's quoted fee to match the current server schedule before reserving funds.
-    if (body.expected_fee !== undefined) {
-      const expectedFee = parseMoneyInput(body.expected_fee);
-      if (expectedFee === null || compareMoney(expectedFee, fee) !== 0) {
-        return json({ ok: false, code: 'WITHDRAWAL_FEE_CHANGED', msg: 'The withdrawal fee changed. Refresh the current fee and review the request again.' }, 409);
-      }
-    }
+    // Bind a new withdrawal to the fee shown to the customer. The database
+    // checks this only after its idempotency lookup so retries replay the original fee.
+    const expectedFee = body.expected_fee === undefined ? fee : parseMoneyInput(body.expected_fee);
+    if (expectedFee === null) return json({ ok: false, code: 'INVALID_WITHDRAWAL_FEE_QUOTE', msg: 'Invalid withdrawal fee quote. Refresh the fee and try again.' }, 400);
     const totalDebit = addMoney(amount, fee);
     if (compareMoney(totalDebit, '0') <= 0) return json({ ok: false, msg: 'Invalid amount.' }, 400);
     // 首次提现 / 大额提现（USDT 等值超阈值，价格不可用时保守视为大额）→ 强制人工审核 pending_admin_review。
@@ -1993,19 +1989,25 @@ async function handleRequest(event, context) {
     const withdrawalId = 'W' + Date.now() + crypto.randomBytes(8).toString('hex');
     if (manualDepositRpcEnabled()) {
       if (!supabaseStorageConfigured()) return json({ ok: false, code: 'FINANCIAL_RPC_NOT_CONFIGURED', msg: 'Financial database not configured. Withdrawal was not submitted.' }, 503);
-      const requestHash = crypto.createHash('sha256').update([String(user.uid), coin, network, String(amount), String(fee), addr, requestId].join('|')).digest('hex');
+      const requestHash = crypto.createHash('sha256').update([String(user.uid), coin, network, String(amount), addr, requestId].join('|')).digest('hex');
       try {
         const base = process.env.SUPABASE_URL.replace(/\/+$/, '');
         const rpc = await fetch(base + '/rest/v1/rpc/create_withdrawal_atomic', {
           method: 'POST', headers: supabaseHeaders(),
           body: JSON.stringify({ p_withdrawal_id: withdrawalId, p_user_id: String(user.uid), p_asset: coin,
             p_network: network, p_amount: String(amount), p_fee: String(fee), p_destination: addr,
-            p_request_id: requestId, p_request_hash: requestHash, p_require_admin_review: requireAdminReview })
+            p_request_id: requestId, p_request_hash: requestHash, p_require_admin_review: requireAdminReview, p_expected_fee: String(expectedFee) })
         });
         const result = await rpc.json().catch(() => null);
         if (!rpc.ok || !result || result.ok !== true || !result.withdrawal_id || !['pending', 'pending_admin_review', 'approved', 'rejected', 'broadcast', 'failed'].includes(result.status) || typeof result.require_admin_review !== 'boolean') {
-          const insufficient = rpc.status === 400 && /insufficient funds/i.test(JSON.stringify(result));
-          return json({ ok: false, code: insufficient ? 'INSUFFICIENT_FUNDS' : 'FINANCIAL_RPC_FAILED', msg: insufficient ? 'Insufficient available balance (including fees).' : 'Withdrawal request was not confirmed by the database. Please check your operation history before retrying.' }, insufficient ? 400 : 503);
+          const rpcErrorText = JSON.stringify(result || {});
+          const feeChanged = /withdrawal fee changed/i.test(rpcErrorText);
+          const insufficient = rpc.status === 400 && /insufficient funds/i.test(rpcErrorText);
+          return json({
+            ok: false,
+            code: feeChanged ? 'WITHDRAWAL_FEE_CHANGED' : insufficient ? 'INSUFFICIENT_FUNDS' : 'FINANCIAL_RPC_FAILED',
+            msg: feeChanged ? 'The withdrawal fee changed. Refresh the current fee and review the request again.' : insufficient ? 'Insufficient available balance (including fees).' : 'Withdrawal request was not confirmed by the database. Please check your operation history before retrying.'
+          }, feeChanged ? 409 : insufficient ? 400 : 503);
         }
         return json({ ok: true, duplicate: result.duplicate === true, withdrawal_id: result.withdrawal_id, status: result.status, require_admin_review: result.require_admin_review, msg: result.duplicate === true ? 'This withdrawal request has already been received. Do not submit it again.' : (result.require_admin_review ? 'Withdrawal request submitted and flagged for admin review.' : 'Withdrawal request submitted. Funds will be sent after review.') });
       } catch (e) {
