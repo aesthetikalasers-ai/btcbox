@@ -1,7 +1,7 @@
 -- BTCBOX durable limit-order matching engine v1.
--- Apply only in an isolated Supabase staging project after financial_ledger_v1.sql,
--- financial_lifecycle_v2.sql and financial_spot_trade_v3.sql. Do not enable the API
--- adapter until this migration has been exercised against real PostgreSQL transactions.
+-- Canonical spot order path: DB-locked limit matching with reserve/fill/cancel ledger transitions.
+-- Apply after financial_ledger_v1.sql and financial_lifecycle_v2.sql in isolated PostgreSQL first.
+-- Do not enable the API adapter until this migration has been exercised against real transactions.
 
 alter table public.financial_operations drop constraint if exists financial_operations_operation_type_check;
 alter table public.financial_operations add constraint financial_operations_operation_type_check
