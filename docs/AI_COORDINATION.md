@@ -3315,3 +3315,12 @@ The prior withdrawal UI audit statement claiming the active BTCBOX admin route w
 - Therefore all three code/test workflows passed on the exact same implementation SHA. The separate Vercel status context continues to report a Hobby build-rate-limit failure; it is not a failing code/test workflow and no deployment was attempted.
 - PR #50 remains Draft/open/unmerged. No hosted Supabase writes, real KYC file reads, financial mutations, merge, or production deployment. Trading page layout unchanged.
 - NEXT: continue with a focused cross-layer audit of the admin queue response contracts (KYC, withdrawals, orders, audit) and user-facing manual deposit/withdrawal states. Only make evidence-backed changes, then repeat exact-head CI.
+
+
+## Latest verified test batch — 2026-11-06
+
+- Added signed-out customer route mutation-boundary coverage across deposit, withdrawal, assets, orders, KYC, Seconds, support, settings, earn, and spot trading. No API write request is allowed before login.
+- Added backend permission-matrix contract tests for explicit admin route permissions and fail-closed unknown/unauthorized routes.
+- Exact implementation head a53469dc4105e57cdf2ef835422505b274949cb4: frontend CI 42241431366 passed; backend CI 42241431369 passed; PostgreSQL schema CI 42241431357 passed.
+- KYC privacy correction head 17c4714c6a4acbbb5edbafd77ade30c4f792163e: frontend 42240994240, backend 42240994268, PostgreSQL 42240994372 all passed.
+- Tests use synthetic or source-level fixtures only. No hosted writes, real financial actions, merge, or production deployment. PR #50 remains Draft/open. Trading layout unchanged.
