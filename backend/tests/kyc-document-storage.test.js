@@ -21,6 +21,11 @@ test('KYC image upload validates content, size and stores evidence privately', (
   assert.ok(backend.includes("KYC_STORAGE_UNAVAILABLE"));
   assert.ok(backend.includes("KYC_DOCUMENT_REQUIRED"));
   assert.ok(backend.includes("document_preview_error"));
+  assert.ok(backend.includes("function isOwnedKycDocumentPath(path, userId)"));
+  assert.ok(backend.includes("parts[0] === userId"));
+  assert.ok(backend.includes("createSignedKycDocumentUrl(u.kyc.document_path, String(u.uid || ''))"));
+  assert.ok(backend.includes("deleteKycDocument(previousDocumentPath, user.uid)"));
+  assert.ok(backend.includes("previousDocumentPath && previousDocumentPath !== documentPath"));
   assert.ok(!backend.includes("publicUrl"));
 });
 
@@ -35,6 +40,13 @@ test('KYC evidence is exposed only to permission-checked admin review', () => {
   assert.ok(listBlock.includes('document_url'));
   assert.ok(!listBlock.includes('id_number:'));
   assert.ok(!listBlock.includes('document_path:'));
+  const userDetailStart = backend.indexOf("if (sub === 'user' && method === 'GET')");
+  const userDetailEnd = backend.indexOf("// Stage the audit event", userDetailStart);
+  const userDetailBlock = backend.slice(userDetailStart, userDetailEnd);
+  assert.ok(userDetailBlock.includes("safeUser.kyc = { status: String(u.kyc && u.kyc.status || 'unsubmitted') }"));
+  assert.ok(userDetailBlock.includes("safeUser.kyc_status = safeUser.kyc.status"));
+  assert.ok(!userDetailBlock.includes("safeUser.kyc.id_number"));
+  assert.ok(!userDetailBlock.includes("safeUser.kyc.document_path"));
 });
 
 test('customer KYC form requires a compressed identity image', () => {
