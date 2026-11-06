@@ -2777,3 +2777,9 @@ The prior withdrawal UI audit statement claiming the active BTCBOX admin route w
 - Explicit blank address values now clear/deactivate a known network; unknown network keys and malformed nonblank addresses remain rejected. User deposit flow remains manual verification/manual credit; no pending deposit orders or chain automation.
 - Manual credit remains behind the financial cutover gate and atomic ledger RPC with idempotency/audit. No production DB writes, migration application, flag changes, merge or deployment.
 - Five regression tests were added. A source-level audit passed 10/10 targeted assertions; Node tests/build/browser/isolated PostgreSQL were NOT RUN. GitHub Actions lookup for implementation SHA returned zero runs and no combined status contexts. Issue #2 remains open until executable test and independent review evidence is available.
+
+
+## BTCBOX V33 — migration chain finding — 2026-11-06
+
+- Issue #3: https://github.com/avali9308-code/btcbox-v33/issues/3. Source inspection found numbered migration 0022 references `public.withdrawals`, while 0002/0003 establish `public.withdrawal_requests` and 0023 uses `public.withdrawal_requests`. The numbered runner executes all these files in order.
+- Classification: SOURCE OBSERVED; PostgreSQL runtime failure NOT REPRODUCED. Keep production DB untouched; do not skip/renumber migrations. Resolve against canonical schema and prove the full sequence in isolated PostgreSQL before cutover.
