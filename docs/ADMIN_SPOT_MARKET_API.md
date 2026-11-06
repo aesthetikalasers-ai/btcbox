@@ -36,6 +36,12 @@ This is the backend contract used by the Admin Console's Spot Markets panel.
 
 An empty array means no market pair has been configured yet.
 
+## User-facing market catalogue
+
+- Public `GET /api/market/pairs` returns only enabled pairs from the same PostgreSQL catalogue. The Trade Hub builds its spot links from this response; it no longer assumes BTC/USDT is always enabled.
+- Only supported ledger base assets quoted in USDT are currently allowed. Other quote currencies remain unavailable until matching market-data providers and user-facing valuation are implemented.
+- Public ticker, candle and depth routes are gated by the same enabled-pair catalogue. A disabled or unconfigured pair returns `SPOT_MARKET_DISABLED`; an empty configured catalogue returns an empty market list rather than invented symbols.
+
 ## Update one market
 
 `POST /api/admin/spot-markets` accepts:
