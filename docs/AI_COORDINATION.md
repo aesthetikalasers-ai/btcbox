@@ -5959,3 +5959,11 @@ The prior withdrawal UI audit statement claiming the active BTCBOX admin route w
 - Exact-head CI for `e0b192f5749f30934257bb69966dc114bf7b9cc7`: Backend run `42293160614`, Frontend run `42293160750`, PostgreSQL schema run `42293160618`; all were running when this note was authored. No pass is claimed until final conclusions are successful.
 - No schema change, merge, deployment, production database operation, or financial transaction. PR #51 remains Draft.
 - NEXT: after CI passes, continue auditing permission-scoped KYC identity evidence, order/customer history parity and audit-event coverage. Hosted Supabase workflows remain staging-only.
+
+
+#### Verification result — 2026-11-07
+- Exact application-code head `e0b192f5749f30934257bb69966dc114bf7b9cc7` CI is fully green:
+  - Backend `42293160614`: **378/378 tests passed**, build and fail-closed preflight passed.
+  - Frontend `42293160750`: lint/build passed; **20/20** desktop/mobile Playwright route smoke tests passed.
+  - PostgreSQL `42293160618`: empty-database bootstrap and canonical SQL application passed.
+- The final coordination-doc-only branch head is recorded in Git; no application code changed after the exact tested code head.
