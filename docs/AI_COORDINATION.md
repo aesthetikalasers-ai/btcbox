@@ -2043,3 +2043,18 @@ Application branch inspected: `feat/btcbox-web3-auth-20261105` at `741c709d818cb
 - Do not apply migration 0025 to production. Obtain an isolated staging project, map timestamp migration history to actual schema, apply the reviewed ordered chain there, and validate SQL/RPC/ledger invariants.
 - Review the two private backup tables' retention and owner-only access model; separately review the 14 public RLS tables before granting any browser-role access.
 - Review and enable leaked-password protection through the owner-approved Auth settings workflow.
+
+## Supabase least-privilege follow-up — 2026-11-06 (UTC+8)
+
+### Additional READ-ONLY privilege evidence
+- Expanded catalog checks across all 14 observed `public` tables and both `private` backup tables. For every returned table, effective `PUBLIC`, `anon`, and `authenticated` privileges were false for SELECT, INSERT, UPDATE, and DELETE.
+- Both private backup tables are owned by `postgres`, have RLS disabled and FORCE RLS disabled, but `private` schema USAGE and all four table privileges remain false for `PUBLIC`/API roles. This establishes current API-role inaccessibility, not an absence of defense-in-depth risk.
+- Enumerated `SECURITY DEFINER` functions in `public`: only `rls_auto_enable()` was returned. It has fixed `search_path=pg_catalog`, owner `postgres`, and effective EXECUTE is false for `PUBLIC`, `anon`, and `authenticated`.
+- These are point-in-time catalog observations; they do not prove all future default privileges or external connection roles. No SQL writes were made.
+
+### Source guard added
+- Added `backend/tests/supabase-privilege-contract.test.js` to assert the intended server-only privilege model in prepared migrations 0023 and 0025: RLS enabled, browser-role revokes, service-role-only RPC execution, and no direct policy-table DML grants to service_role.
+- The source test is a static contract guard only; it does not execute SQL or prove live database state.
+
+### Supabase CLI v3 compatibility note
+- Supabase changelog announced CLI v3 as a breaking change on 2026-11-04: database commands default to local; hosted operations require explicit `--remote`, and unattended hosted changes require `--yes`. Current repository CI workflows do not invoke Supabase CLI, so no current workflow change was made. Any future staging scripts must pin the intended CLI major and explicitly select the staging target; never target production by default.
