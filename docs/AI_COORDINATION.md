@@ -3232,8 +3232,8 @@ The prior withdrawal UI audit statement claiming the active BTCBOX admin route w
 - Final exact implementation head: `2da76b37eb25b0f121d2474b6fc218a1b27b56d3`; final CI exact-head SHA validated: `2da76b37eb25b0f121d2474b6fc218a1b27b56d3`.
 - Frontend CI run 417 (run ID `42234125211`): **passed**. TypeScript lint and Vite production build passed; Playwright browser suite passed **8/8** tests across Desktop Chromium and Pixel 7 mobile Chromium.
 - Playwright coverage: login form, registration form, unauthenticated protected-route redirect, and administrator login gate. All four cases passed in both viewport projects.
-- Backend CI run 552 (run ID `42234125236`): **passed**; unified frontend/backend build, backend tests and fail-closed preflight passed.
-- PostgreSQL schema CI run 117 (run ID `42234125250`): **passed**; all canonical SQL files bootstrapped in disposable PostgreSQL and schema/RLS/grants checks passed.
+- Backend CI run 551 (run ID `42234125236`): **passed**; unified frontend/backend build, backend tests and fail-closed preflight passed.
+- PostgreSQL schema CI run 116 (run ID `42234125250`): **passed**; all canonical SQL files bootstrapped in disposable PostgreSQL and schema/RLS/grants checks passed.
 - Browser suite uses mocked API auth configuration and unauthenticated account response; synthetic Supabase origin is blocked. No hosted Supabase identity, hosted database, customer data or financial write was used.
 - PR #50 remains Draft, open, unmerged. No production deployment or hosted database write was performed. Spot trading layout remains unchanged.
 - Next: extend read-only browser smoke coverage to account hydration/dashboard data with mocked fixtures. Keep financial submit operations mocked and never send real funds during browser verification.
