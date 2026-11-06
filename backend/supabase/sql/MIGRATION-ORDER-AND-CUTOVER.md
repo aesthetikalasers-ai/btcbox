@@ -60,6 +60,7 @@ Manual deposits follow the chosen half-manual workflow: staff verifies the trans
 - `0026` adds the private admin membership/permission store, Super Admin bootstrap and delegated-admin lifecycle.
 - `0027` adds staff-paid completion for an already approved withdrawal; it records the payout reference and status/audit transition without broadcasting or debiting a second time.
 - `0028` adds service-role-only PostgREST wrappers for admin membership and atomic Seconds policy version activation.
+- `0029` makes withdrawal fee quotes replay-safe: existing requests retain their stored fee and review snapshot, while new requests must match the current server quote.
 - `0029` extends the withdrawal create RPC with an expected-fee quote check that runs only after the request-id replay lookup. Existing requests replay their originally stored fee across later admin fee changes; new requests with stale quotes are rejected before funds are reserved.
 
 ## Admin bootstrap and financial safety
@@ -74,7 +75,7 @@ All financial writes and matching remain fail-closed during source QA. Applying 
 
 Source CI verifies migration inventory, shell syntax, bootstrap safety gates and source-level RPC contracts. It does not execute PostgreSQL DDL. Before any hosted install:
 - create or use a disposable empty PostgreSQL/Supabase environment;
-- apply all 22 files in the exact order above and stop on any error;
+- apply all 23 files in the exact order above and stop on any error;
 - verify function signatures, RLS, grants, service-role-only execution and private schema exposure;
 - bootstrap the intended Super Admin and test delegated admin permissions;
 - test manual credit, withdrawal approval/payout completion, spot order idempotency and Seconds order/settlement concurrency/replay without enabling production financial cutover;
