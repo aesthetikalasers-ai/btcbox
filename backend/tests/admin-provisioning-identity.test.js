@@ -7,8 +7,8 @@ const path = require('node:path');
 
 const root = path.resolve(__dirname, '..');
 const api = fs.readFileSync(path.join(root, 'api-core.js'), 'utf8');
-const page = fs.readFileSync(path.resolve(root, '../../frontend/src/features/admin/AdminPage.tsx'), 'utf8');
-const types = fs.readFileSync(path.resolve(root, '../../frontend/src/lib/api.ts'), 'utf8');
+const page = fs.readFileSync(path.resolve(root, '../frontend/src/features/admin/AdminPage.tsx'), 'utf8');
+const types = fs.readFileSync(path.resolve(root, '../frontend/src/lib/api.ts'), 'utf8');
 
 test('administrator user search returns the canonical Supabase Auth UUID only to Super Admin', () => {
   const start = api.indexOf("if (sub === 'users' && method === 'GET')");
