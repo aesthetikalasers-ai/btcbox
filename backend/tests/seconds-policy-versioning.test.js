@@ -129,18 +129,18 @@ test('seed minimum is the numeric precision floor, not an invented commercial mi
 test('policy payout keeps the 85 percent floor without a hard-coded 100 percent ceiling', () => {
   assert.ok(migration.includes('payout_bps integer NOT NULL CHECK (payout_bps >= 8500)'));
   assert.ok(migration.includes('payout_bps_snapshot IS NULL OR payout_bps_snapshot >= 8500'));
-  assert.doesNotMatch(migration, /payout_bps BETWEEN 8500 AND 10000/i);
-  assert.doesNotMatch(migration, /payout_bps_snapshot BETWEEN 8500 AND 10000/i);
-  assert.match(migration, /8500,/);
-  assert.match(migration, /coalesce\\(v_pos\\.payout_bps_snapshot,8500\\)/i);
+  assert.ok(!migration.includes('payout_bps BETWEEN 8500 AND 10000'));
+  assert.ok(!migration.includes('payout_bps_snapshot BETWEEN 8500 AND 10000'));
+  assert.ok(migration.includes('8500,'));
+  assert.ok(migration.includes('coalesce(v_pos.payout_bps_snapshot,8500)'));
   const orderStart = migration.indexOf('CREATE OR REPLACE FUNCTION public.submit_seconds_order_v1');
   const settleStart = migration.indexOf('CREATE OR REPLACE FUNCTION public.settle_seconds_position_v1');
   const orderFn = migration.slice(orderStart, settleStart);
   const settleFn = migration.slice(settleStart);
-  assert.match(orderFn, /v_policy\\.payout_bps/);
-  assert.match(orderFn, /payout_bps_snapshot/);
-  assert.match(settleFn, /v_pos\\.payout_bps_snapshot/);
-  assert.match(settleFn, /v_pos\\.amount\\*v_payout_bps\\/10000/);
+  assert.ok(orderFn.includes('v_policy.payout_bps'));
+  assert.ok(orderFn.includes('payout_bps_snapshot'));
+  assert.ok(settleFn.includes('v_pos.payout_bps_snapshot'));
+  assert.ok(settleFn.includes('v_pos.amount*v_payout_bps/10000'));
 });
 
 test('active policy SELECT is terminated before the PL/pgSQL NOT FOUND branch', () => {
