@@ -80,6 +80,7 @@ CREATE OR REPLACE FUNCTION private.admin_set_seconds_policy_v1(
   p_max_stake numeric,
   p_payout_bps integer,
   p_per_user_open_exposure numeric,
+  p_max_open_positions_per_user integer,
   p_reason text,
   p_request_id text,
   p_request_hash text
@@ -103,11 +104,12 @@ BEGIN
   IF p_actor_user_id IS NULL OR p_expected_policy_version IS NULL OR p_expected_policy_version < 1
      OR coalesce(array_length(p_symbols,1),0) < 1 OR coalesce(array_length(p_durations_sec,1),0) < 1
      OR p_symbols <@ ARRAY['BTC','ETH','SOL','BNB']::text[]
-     OR p_durations_sec <@ ARRAY[30,60,300,900]::integer[]
+     OR NOT (0 < ALL(p_durations_sec))
      OR p_min_stake IS NULL OR p_min_stake <= 0
      OR p_max_stake IS NULL OR p_max_stake < p_min_stake
      OR p_payout_bps IS NULL OR p_payout_bps < 8500
      OR (p_per_user_open_exposure IS NOT NULL AND p_per_user_open_exposure <= 0)
+     OR (p_max_open_positions_per_user IS NOT NULL AND p_max_open_positions_per_user <= 0)
      OR length(btrim(coalesce(p_reason,''))) NOT BETWEEN 1 AND 500
      OR p_request_id IS NULL OR p_request_id !~ '^[A-Za-z0-9_-]{16,100}$'
      OR p_request_hash IS NULL OR p_request_hash !~ '^[0-9a-f]{64}$' THEN
@@ -139,7 +141,8 @@ BEGIN
     jsonb_build_object('policy_id',p.policy_id,'policy_version',p.policy_version,
       'symbols',p.symbols,'durations_sec',p.durations_sec,'min_stake',p.min_stake,
       'max_stake',p.max_stake,'payout_bps',p.payout_bps,
-      'per_user_open_exposure',p.per_user_open_exposure)
+      'per_user_open_exposure',p.per_user_open_exposure,
+      'max_open_positions_per_user',p.max_open_positions_per_user)
   INTO v_current_version,v_before
   FROM public.seconds_contract_policy_active a
   JOIN public.seconds_contract_policies p ON p.policy_id=a.policy_id
@@ -152,10 +155,10 @@ BEGIN
   v_policy_id := gen_random_uuid();
   INSERT INTO public.seconds_contract_policies(
     policy_id,policy_version,symbols,durations_sec,min_stake,max_stake,payout_bps,
-    per_user_open_exposure,effective_from,change_reason,created_by
+    per_user_open_exposure,max_open_positions_per_user,effective_from,change_reason,created_by
   ) VALUES (
     v_policy_id,v_next_version,p_symbols,p_durations_sec,p_min_stake,p_max_stake,p_payout_bps,
-    p_per_user_open_exposure,v_now,btrim(p_reason),p_actor_user_id::text
+    p_per_user_open_exposure,p_max_open_positions_per_user,v_now,btrim(p_reason),p_actor_user_id::text
   );
 
   UPDATE public.seconds_contract_policy_active
@@ -166,7 +169,8 @@ BEGIN
   v_after := jsonb_build_object('policy_id',v_policy_id,'policy_version',v_next_version,
     'symbols',p_symbols,'durations_sec',p_durations_sec,'min_stake',p_min_stake,
     'max_stake',p_max_stake,'payout_bps',p_payout_bps,
-    'per_user_open_exposure',p_per_user_open_exposure);
+    'per_user_open_exposure',p_per_user_open_exposure,
+    'max_open_positions_per_user',p_max_open_positions_per_user);
   INSERT INTO public.seconds_contract_policy_audit(
     policy_id,action,actor_id,reason,before_snapshot,after_snapshot,request_id
   ) VALUES (
@@ -180,12 +184,12 @@ BEGIN
 END;
 $$;
 
-REVOKE ALL ON FUNCTION private.admin_set_seconds_policy_v1(uuid,bigint,text[],integer[],numeric,numeric,integer,numeric,text,text,text)
+REVOKE ALL ON FUNCTION private.admin_set_seconds_policy_v1(uuid,bigint,text[],integer[],numeric,numeric,integer,numeric,integer,text,text,text)
   FROM PUBLIC,anon,authenticated,service_role;
-GRANT EXECUTE ON FUNCTION private.admin_set_seconds_policy_v1(uuid,bigint,text[],integer[],numeric,numeric,integer,numeric,text,text,text)
+GRANT EXECUTE ON FUNCTION private.admin_set_seconds_policy_v1(uuid,bigint,text[],integer[],numeric,numeric,integer,numeric,integer,text,text,text)
   TO service_role;
 
-COMMENT ON FUNCTION private.admin_set_seconds_policy_v1(uuid,bigint,text[],integer[],numeric,numeric,integer,numeric,text,text,text) IS
+COMMENT ON FUNCTION private.admin_set_seconds_policy_v1(uuid,bigint,text[],integer[],numeric,numeric,integer,numeric,integer,text,text,text) IS
   'Trusted backend only. Atomically versions and activates a Seconds policy after live seconds_policy.manage authorization; 8500 bps is a floor with no fixed ceiling.';
 
 
@@ -200,6 +204,7 @@ CREATE OR REPLACE FUNCTION public.admin_set_seconds_policy_v1(
   p_max_stake numeric,
   p_payout_bps integer,
   p_per_user_open_exposure numeric,
+  p_max_open_positions_per_user integer,
   p_reason text,
   p_request_id text,
   p_request_hash text
@@ -210,12 +215,12 @@ SET search_path = ''
 AS $wrap$
   SELECT private.admin_set_seconds_policy_v1(
     p_actor_user_id,p_expected_policy_version,p_symbols,p_durations_sec,
-    p_min_stake,p_max_stake,p_payout_bps,p_per_user_open_exposure,
+    p_min_stake,p_max_stake,p_payout_bps,p_per_user_open_exposure,p_max_open_positions_per_user,
     p_reason,p_request_id,p_request_hash
   );
 $wrap$;
 
-REVOKE ALL ON FUNCTION public.admin_set_seconds_policy_v1(uuid,bigint,text[],integer[],numeric,numeric,integer,numeric,text,text,text)
+REVOKE ALL ON FUNCTION public.admin_set_seconds_policy_v1(uuid,bigint,text[],integer[],numeric,numeric,integer,numeric,integer,text,text,text)
   FROM PUBLIC,anon,authenticated,service_role;
-GRANT EXECUTE ON FUNCTION public.admin_set_seconds_policy_v1(uuid,bigint,text[],integer[],numeric,numeric,integer,numeric,text,text,text)
+GRANT EXECUTE ON FUNCTION public.admin_set_seconds_policy_v1(uuid,bigint,text[],integer[],numeric,numeric,integer,numeric,integer,text,text,text)
   TO service_role;
