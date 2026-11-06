@@ -67,7 +67,7 @@ test('migration order document records prepared Seconds migrations and their pre
   const manualPayout = orderDoc.indexOf('0027_withdrawal_manual_payout_completion_v1.sql');
   assert.ok(rateLimit >= 0 && settlement > rateLimit && policy > settlement && adminRbac > policy && manualPayout > adminRbac);
   assert.match(orderDoc, /requires the Seconds tables\/RPCs from/i);
-  assert.match(orderDoc, /Apply only after the Seconds base and settlement-idempotency migrations/i);
+  assert.match(orderDoc, /adds Seconds settlement request-hash idempotency/i);
   assert.match(orderDoc, /timestamp registry versions directly with four-digit filenames/i);
 });
 
