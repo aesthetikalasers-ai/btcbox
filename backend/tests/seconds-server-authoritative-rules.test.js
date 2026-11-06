@@ -50,7 +50,7 @@ test('settlement price and payout policy remain server/database authoritative', 
   assert.ok(start >= 0 && end > start, 'seconds settlement handler must exist');
   const handler = api.slice(start, end);
   assert.match(handler, /fetchSecondsReferencePrice\(symbol\)/);
-  assert.match(handler, /p_settle_price: settleRef \\? String\\(settleRef\\.price\\) : null/);
+  assert.match(handler, /p_settle_price: settleRef \? String\(settleRef\.price\) : null/);
   assert.doesNotMatch(handler, /body\.settle_price/i);
   assert.match(initialMigration, /round\(v_pos\.amount\*0\.85,18\)/);
   assert.match(settlementMigration, /round\(v_pos\.amount\*0\.85,18\)/);
