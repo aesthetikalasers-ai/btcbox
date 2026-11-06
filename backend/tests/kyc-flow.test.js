@@ -93,3 +93,16 @@ test('confirmed KYC review is not reported as failed when the pending queue refr
   assert.match(handler, /KYC review is confirmed; the queue could not refresh/);
   assert.match(handler, /catch \(reason\).*KYC review was not confirmed/);
 });
+
+
+test('administrator rejection uses the centered in-app dialog, never a browser prompt', () => {
+  assert.ok(admin.includes('setReviewDialog({ kind: "kyc", uid })'));
+  assert.ok(admin.includes('setReviewDialog({ kind: "withdrawal", id })'));
+  assert.ok(admin.includes('role="dialog"'));
+  assert.ok(admin.includes('aria-modal="true"'));
+  assert.ok(admin.includes('await adminRejectKyc(token, target.uid, reasonText)'));
+  assert.ok(admin.includes('await adminRejectWithdrawal(token, target.id, reasonText)'));
+  assert.ok(!admin.includes('window.prompt('));
+  assert.ok(!admin.includes('window.confirm('));
+  assert.ok(!admin.includes('window.alert('));
+});
