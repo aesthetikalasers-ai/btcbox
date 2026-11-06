@@ -58,7 +58,7 @@ test('admin audit detail redaction handles escaped quotes and plural credential 
 });
 
 test('React owns the /admin route and the legacy admin shell is no longer published', () => {
-  const buildSite = fs.readFileSync(path.resolve(root, '../scripts/build-site.js'), 'utf8');
+  const buildSite = fs.readFileSync(path.resolve(root, 'scripts/build-site.js'), 'utf8');
   assert.ok(reactApp.includes('<Route path="/admin" element={<AdminPage />} />'));
   assert.match(buildSite, /const allowedFiles = \\['index\\.html'\\]/);
   assert.doesNotMatch(buildSite, /admin\\.html/);
