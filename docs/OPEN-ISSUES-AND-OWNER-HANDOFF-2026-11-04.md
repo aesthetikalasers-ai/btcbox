@@ -27,6 +27,17 @@
   path-filter-skipped on GitHub because no `frontend/**` file changed.
 - PostgreSQL schema CI: path-filter-skipped because no `backend/supabase/sql/**`
   file changed. Parent baseline green.
+- CI-skip clarification (verified 2026-11-07): `frontend-ci.yml` and
+  `btcbox-postgres-schema-ci.yml` have no `workflow_dispatch` trigger, and their
+  `push` branch whitelists do not include `work/btcbox-unified-20261104`. On a
+  pull_request they are additionally gated by `paths` (`frontend/**` and
+  `backend/supabase/sql/**` respectively). Since this batch changes zero frontend
+  and zero SQL files, both suites are correctly skipped — no source change was
+  fabricated to force them. If a future batch touches either path, both will
+  trigger automatically on the PR.
+- Collaboration PR: Draft **#54** (open) `work/btcbox-unified-20261104` →
+  `fix/post-merge-db-bootstrap-seconds-20261106`. PRs #51/#52/#53 were found
+  closed and unreopenable. Do not merge or deploy.
 - Verified backend CI runs (exact SHA): 42297056648 (4e5e568), 42297955945 (e423b4a),
   42298110345 (88e39bf). Later commits (e6c7d93, dd98b54) were triggered via
   workflow_dispatch; check `actions/workflows/backend-ci.yml` runs for the final SHA.
