@@ -17,31 +17,30 @@ The script does not clear or overwrite an existing schema. It is not idempotent 
 
 The current canonical source inventory is:
 
-1. `0001_btcbox_state_cas.sql`
-2. `0002_financial_ledger_v1.sql`
-3. `0003_financial_lifecycle_v2.sql`
-4. `0004_financial_admin_adjustment_v1.sql`
-5. `0005_financial_earn_redemption_idempotency_v4.sql`
-6. `0006_financial_earn_policy_v5.sql`
-7. `0007_financial_admin_manual_deposit_v1.sql`
-8. `0008_financial_spot_trade_v3.sql`
-9. `0009_financial_matching_engine_v1.sql`
-10. `0010_financial_read_api_v1.sql`
-11. `0011_financial_read_api_earn_v1.sql`
-12. `0012_financial_admin_read_api_v1.sql`
-13. `0013_financial_admin_account_read_api_v1.sql`
-14. `0014_financial_seconds_contracts_v1.sql`
-15. `0021_admin_audit_log_append_only_v1.sql`
-16. `0022_withdrawal_admin_review_status_v1.sql`
-17. `0023_btcbox_shared_rate_limit_v1.sql`
-18. `0024_seconds_settlement_idempotency_v1.sql`
-19. `0025_seconds_policy_versioning_v1.sql`
-20. `0026_admin_rbac_private_store_v1.sql`
-21. `0027_withdrawal_manual_payout_completion_v1.sql`
-22. `0028_admin_rbac_service_rpc_wrappers_v1.sql`
-23. `0029_withdrawal_fee_quote_idempotency_v1.sql`
-
-The bootstrap test compares the allowlist to the actual numbered SQL files so a newly added migration cannot silently be omitted.
+1.1. `0001_btcbox_state_cas.sql`
+2.2. `0002_financial_ledger_v1.sql`
+3.3. `0003_financial_lifecycle_v2.sql`
+4.4. `0004_financial_admin_adjustment_v1.sql`
+5.5. `0005_financial_earn_redemption_idempotency_v4.sql`
+6.6. `0006_financial_earn_policy_v5.sql`
+7.7. `0007_financial_admin_manual_deposit_v1.sql`
+8.9. `0009_financial_matching_engine_v1.sql`
+9.10. `0010_financial_read_api_v1.sql`
+10.11. `0011_financial_read_api_earn_v1.sql`
+11.12. `0012_financial_admin_read_api_v1.sql`
+12.13. `0013_financial_admin_account_read_api_v1.sql`
+13.14. `0014_financial_seconds_contracts_v1.sql`
+14.15. `0021_admin_audit_log_append_only_v1.sql`
+15.16. `0022_withdrawal_admin_review_status_v1.sql`
+16.17. `0023_btcbox_shared_rate_limit_v1.sql`
+17.18. `0024_seconds_settlement_idempotency_v1.sql`
+18.19. `0025_seconds_policy_versioning_v1.sql`
+19.20. `0026_admin_rbac_private_store_v1.sql`
+20.21. `0027_withdrawal_manual_payout_completion_v1.sql`
+21.22. `0028_admin_rbac_service_rpc_wrappers_v1.sql`
+22.23. `0029_withdrawal_fee_quote_idempotency_v1.sql`
+23.
+The retired `0008_financial_spot_trade_v3.sql` direct-fill RPC was removed: it bypassed the order book and was not called by the API. `0009_financial_matching_engine_v1.sql` is the only supported spot write path. The bootstrap test compares the allowlist to the actual numbered SQL files so a newly added migration cannot silently be omitted.
 
 ## Intentionally excluded legacy/optional material
 
@@ -51,7 +50,7 @@ Manual deposits follow the chosen half-manual workflow: staff verifies the trans
 
 ## Key dependency and behavior notes
 
-- `0001`–`0014` establish the state/CAS, financial ledger and lifecycle RPCs, admin adjustment/manual credit, spot, read APIs, and Seconds base schema.
+- `0001`–`0007` establish the state/CAS, financial ledger and lifecycle RPCs, admin adjustment and manual credit; `0009` is the sole canonical spot limit-order matching engine; `0010`–`0014` establish financial read APIs and the Seconds base schema.
 - `0021` extends the canonical financial audit contract; it must not create a second competing audit-log schema.
 - `0022` extends the existing withdrawal review/request contract.
 - `0023` adds shared server-side rate limiting before routes that consume its RPC.
@@ -74,7 +73,7 @@ All financial writes and matching remain fail-closed during source QA. Applying 
 
 Source CI verifies migration inventory, shell syntax, bootstrap safety gates and source-level RPC contracts. It does not execute PostgreSQL DDL. Before any hosted install:
 - create or use a disposable empty PostgreSQL/Supabase environment;
-- apply all 23 files in the exact order above and stop on any error;
+- apply all 22 files in the exact order above and stop on any error;
 - verify function signatures, RLS, grants, service-role-only execution and private schema exposure;
 - bootstrap the intended Super Admin and test delegated admin permissions;
 - test manual credit, withdrawal approval/payout completion, spot order idempotency and Seconds order/settlement concurrency/replay without enabling production financial cutover;
