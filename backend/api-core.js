@@ -2856,6 +2856,12 @@ async function handleRequest(event, context) {
     if (sub === 'user/balance' && method === 'POST') {
       return json({ ok: false, code: 'FINANCIAL_ADJUSTMENT_APPROVAL_REQUIRED', msg: 'Direct administrator balance adjustments are disabled. Use the verified deposit workflow or wait for the dual-approval adjustment queue.' }, 409);
     }
+    // Manual credit operators must also be allowed to inspect deposit history
+    // so the existing receipt/ledger record can be checked before crediting.
+    if (sub === 'deposit/confirm' && method === 'POST' &&
+        !hasAdminPermission(adminMembership, 'deposits.read')) {
+      return json({ ok: false, code: 'ADMIN_PERMISSION_DENIED', permission: 'deposits.read', msg: 'Deposit history read permission is required before manual credit.' }, 403);
+    }
     const priorAuditFlush = await flushAdminAuditOutbox();
     if (priorAuditFlush.persistenceUnavailable) return json({ ok: false, code: 'AUDIT_OUTBOX_STATE_UNAVAILABLE', msg: 'Administrator audit delivery state could not be saved. Please retry.' }, 503);
 
