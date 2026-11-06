@@ -1,5 +1,5 @@
 -- BTCBOX seconds settlement idempotency correction.
--- Apply only in an isolated staging Supabase project after 0014/0015 and
+-- Apply only in an isolated staging Supabase project after 0014 and
 -- verify financial ledger invariants before considering any production change.
 -- Source-only in this workflow: this migration is NOT executed automatically.
 
