@@ -42,5 +42,5 @@ test('user Trade Hub links only to configured pairs and Spot order submission ch
   assert.ok(pages.includes('if(!spotPairEnabled&&!pendingIntent)'));
   assert.ok(pages.includes('(!spotPairEnabled&&!pendingIntent)'));
   assert.ok(pages.includes('setSpotPairEnabled(false);setTradingStatus(null)'));
-  assert.ok(pages.includes('!spotPairEnabled||!tradingStatus?.spot_order_entry_enabled'));
+  assert.ok(pages.includes('(!spotPairEnabled&&!pendingIntent)||(!tradingStatus?.spot_order_entry_enabled&&!pendingIntent)'));
 });
