@@ -161,7 +161,7 @@ export function AdminPage() {
     } finally {
       setLoading(false);
     }
-  }, [token, session, tab, search]);
+  }, [token, session, tab, search, adminSearch]);
 
   useEffect(() => { void loadTab(); }, [loadTab]);
 
