@@ -2908,7 +2908,7 @@ async function handleRequest(event, context) {
       const u = db.users[uid];
       if (!u) return json({ ok: false, msg: 'User not found.' }, 404);
       if (!['USDT', 'BTC', 'ETH', 'SOL'].includes(coin)) return json({ ok: false, msg: 'Coin not supported.' }, 400);
-      if (amountText === null || compareMoney(amountText, '0') <= 0 || compareMoney(amountText, '1000000000000') > 0 || !/^\\d+(?:\\.\\d{1,12})?$/.test(String(body.amount || '').trim())) {
+      if (amountText === null || compareMoney(amountText, '0') <= 0 || compareMoney(amountText, '1000000000000') > 0 || !/^\d+(?:\.\d{1,12})?$/.test(String(body.amount || '').trim())) {
         return json({ ok: false, msg: 'Invalid deposit amount. Must be a valid number greater than 0.' }, 400);
       }
       if (!/^[A-Za-z0-9_-]{16,100}$/.test(idempotencyKey)) return json({ ok: false, msg: 'Invalid credit request ID. Please try again.' }, 400);
