@@ -83,3 +83,13 @@ test('KYC document previews are private, owner-scoped and short-lived', () => {
   assert.ok(api.includes('JSON.stringify({ expiresIn: 300 })'));
   assert.ok(api.includes("signedUrl.origin !== new URL(base).origin"));
 });
+
+test('confirmed KYC review is not reported as failed when the pending queue refresh fails', () => {
+  const start = admin.indexOf('const reviewKyc = async (uid: string, approved: boolean)');
+  const end = admin.indexOf('const replySupport = async', start);
+  assert.ok(start >= 0 && end > start);
+  const handler = admin.slice(start, end);
+  assert.match(handler, /await adminApproveKyc[\s\S]*?setKyc\(current => current\.filter\(item => item\.uid !== uid\)\)/);
+  assert.match(handler, /KYC review is confirmed; the queue could not refresh/);
+  assert.match(handler, /catch \(reason\).*KYC review was not confirmed/);
+});
