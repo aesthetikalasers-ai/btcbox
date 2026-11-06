@@ -2,7 +2,7 @@ name: BTCBOX PostgreSQL schema CI
 
 on:
   pull_request:
-    branches: [main]
+    branches: [main, 'fix/post-merge-db-bootstrap-seconds-20261106']
     paths:
       - 'backend/supabase/sql/**'
       - 'backend/scripts/bootstrap-empty-database.sh'
