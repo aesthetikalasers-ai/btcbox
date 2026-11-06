@@ -806,6 +806,7 @@ export function WithdrawPage(){
    const result=await submitWithdrawal({
     request_id:intent.request_id,coin:intent.coin,network:intent.network,
     amount:intent.amount,address:intent.address,fund_password:fundPassword,
+    expected_fee:String(config?.fees[intent.coin] ?? ""),
     ...(account?.twofa_enabled?{twofa_code:twofaCode}:{})
    });
    requestAccepted=true;
@@ -818,7 +819,11 @@ export function WithdrawPage(){
    setReload(value=>value+1);
   }catch(reason){
    setError(reason instanceof Error?reason.message:"Withdrawal result is unconfirmed. Keep this request unchanged and retry with the same request ID.");
-   if(!requestAccepted&&reason instanceof ApiError&&reason.status>=400&&reason.status<500&&reason.status!==409)clearPending();
+   if(!requestAccepted&&reason instanceof ApiError&&reason.code==="WITHDRAWAL_FEE_CHANGED"){
+    clearPending();
+    try{setConfig(await getWithdrawalConfig());}catch{}
+    setError("The withdrawal fee changed. The latest fee has been refreshed. Review the request and submit again.");
+   }else if(!requestAccepted&&reason instanceof ApiError&&reason.status>=400&&reason.status<500&&reason.status!==409)clearPending();
   }finally{setSubmitting(false);}
  };
  return <PageFrame eyebrow="BTCBOX / WALLET" title="Withdraw" description="Choose a saved address and submit a withdrawal request. BTCBOX staff review requests and manually transfer approved withdrawals.">
