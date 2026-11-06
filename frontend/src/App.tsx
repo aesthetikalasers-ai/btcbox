@@ -18,6 +18,7 @@ const KycPage = lazy(() => import("./features/pages/Pages").then((m) => ({ defau
 const SupportPage = lazy(() => import("./features/pages/Pages").then((m) => ({ default: m.SupportPage })));
 const DepositPage = lazy(() => import("./features/pages/Pages").then((m) => ({ default: m.DepositPage })));
 const WithdrawPage = lazy(() => import("./features/pages/Pages").then((m) => ({ default: m.WithdrawPage })));
+const EarnPage = lazy(() => import("./features/pages/Pages").then((m) => ({ default: m.EarnPage })));
 
 function ProtectedAccountRoute({ children }: { children: ReactNode }) { const { status } = useAuth(); if (status === "loading") return <RouteLoading />; if (status !== "authenticated") return <Navigate to="/login" replace />; return <>{children}</>; }
 
@@ -44,7 +45,7 @@ export default function App() {
     <Route path="/orders" element={<ProtectedAccountRoute><OrdersPage /></ProtectedAccountRoute>} />
     <Route path="/deposit" element={<ProtectedAccountRoute><DepositPage /></ProtectedAccountRoute>} />
     <Route path="/withdraw" element={<ProtectedAccountRoute><WithdrawPage /></ProtectedAccountRoute>} />
-    <Route path="/earn" element={<SectionPage title="Earn" description="Earn products and redemption actions will be connected to the existing backend after API contract verification." />} />
+    <Route path="/earn" element={<ProtectedAccountRoute><EarnPage /></ProtectedAccountRoute>} />
     <Route path="/login" element={<AuthPage mode="login" />} /><Route path="/register" element={<AuthPage mode="register" />} /><Route path="/account-setup" element={<AccountSetupPage />} /><Route path="/auth/react-callback" element={<AuthCallbackPage />} />
     
     <Route path="/kyc" element={<ProtectedAccountRoute><KycPage /></ProtectedAccountRoute>} />
