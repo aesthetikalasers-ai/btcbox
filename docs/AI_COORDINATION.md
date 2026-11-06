@@ -1954,3 +1954,21 @@ Application branch inspected: `feat/btcbox-web3-auth-20261105` at `741c709d818cb
 ### NEXT
 - Design attributable administrator identity and explicit seconds-policy permissions, with separate author/reviewer/activator roles and atomic audit/idempotency/revision checks.
 - Then add authenticated read/preview and draft/approve/activate endpoints and admin UI against the versioned policy model; validate only in isolated staging before any release.
+
+
+## Seconds policy administrator identity and RBAC contract — 2026-11-06
+
+### IMPLEMENTED (design and source guard only)
+- Re-read coordination HEAD `bc63a59e4bee8bbb7969685f0fb8f0d6017e0adb` and feature HEAD `c1a65c40683c7305d55d972407580aeab9a27bc3`.
+- Added `docs/SECONDS_POLICY_ADMIN_RBAC.md`: proposed dedicated Supabase Auth subject validation, private server-side permission lookup, explicit policy permissions, three-distinct-actor author/reviewer/activator separation, immutable draft/review/activate lifecycle, idempotency/revision/atomic audit contract, and UI/API rollout gates.
+- Updated `docs/SECONDS_POLICY_VERSIONING.md` to point to the administrator identity and separation-of-duties contract.
+- Added `backend/tests/seconds-policy-admin-rbac-design.test.js` source guard tests. They assert the current shared Basic Auth gate remains the only admin identity path and no seconds-policy write route is exposed before the RBAC implementation is ready.
+
+### NOT IMPLEMENTED / NOT VERIFIED
+- This batch is a proposed security contract, not runtime RBAC. No Supabase Auth admin enrollment, role table, policy endpoint, or admin UI was created.
+- No Node tests or CI were run; no PostgreSQL staging environment was available/used.
+- No SQL migration, database mutation, financial write, cutover change, merge, or deployment was performed.
+
+### NEXT
+- Review/approve administrator enrollment and the three-distinct-actor separation model.
+- After approval, implement the identity/permission data model and private transition RPCs additively, then validate in isolated staging before exposing API/UI.
