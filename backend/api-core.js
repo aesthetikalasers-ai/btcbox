@@ -2426,40 +2426,10 @@ async function handleRequest(event, context) {
   // 管理员认证：timingSafeEqual 保留；失败计数持久化到 btcbox_state（5 次/15 分钟锁）。
   async function adminAuth() {
     const authHeader = event.headers && (event.headers.authorization || event.headers.Authorization);
-    if (authHeader && /^Bearer /i.test(authHeader)) {
-      const delegated = await authorizeSupabaseAdmin({ authorization: authHeader });
-      if (!delegated.ok) return { authError: delegated };
-      return { authMode: 'supabase', user: delegated.user, membership: delegated.membership };
-    }
-    if (!authHeader || !authHeader.startsWith('Basic ')) return null;
-    if (!db.security_counters) db.security_counters = {};
-    const lockKey = 'admin_fail:' + clientIp(event);
-    const lockState = secCounterIsLocked(db.security_counters, lockKey, Date.now());
-    if (lockState.locked) return { rateLimited: true, retryAfter: lockState.retryAfter };
-    try {
-      const decoded = Buffer.from(authHeader.slice(6), 'base64').toString();
-      const separator = decoded.indexOf(':');
-      if (separator < 1) return null;
-      const u = decoded.slice(0, separator);
-      const p = decoded.slice(separator + 1);
-      const ADMIN_USER = process.env.ADMIN_USER;
-      const ADMIN_PASS = process.env.ADMIN_PASS;
-      if (ADMIN_USER && ADMIN_PASS) {
-        // Constant-time comparison: pad both sides to the same length so neither
-        // credential length nor byte differences leak through timing.
-        const supplied = Buffer.from(u + '\x00' + p);
-        const expected = Buffer.from(ADMIN_USER + '\x00' + ADMIN_PASS);
-        const padLen = Math.max(supplied.length, expected.length, 64);
-        const padSupplied = Buffer.alloc(padLen, 0); supplied.copy(padSupplied);
-        const padExpected = Buffer.alloc(padLen, 0); expected.copy(padExpected);
-        const match = crypto.timingSafeEqual(padSupplied, padExpected) && supplied.length === expected.length;
-        if (match) { secCounterReset(db.security_counters, lockKey); try { await saveDB(db); } catch (e) { console.warn('[admin-lock] reset persist failed:', e.message); return { persistenceUnavailable: true }; } return true; }
-      }
-    } catch (e) { }
-    // 认证失败：持久化记录失败计数（5 次锁 15 分钟）。
-    secCounterRecordFailure(db.security_counters, lockKey, 5, 15 * 60 * 1000, Date.now());
-    try { await saveDB(db); } catch (e) { console.warn('[admin-lock] persist failed:', e.message); return { persistenceUnavailable: true }; }
-    return null;
+    if (!authHeader || !/^Bearer /i.test(authHeader)) return null;
+    const delegated = await authorizeSupabaseAdmin({ authorization: authHeader });
+    if (!delegated.ok) return { authError: delegated };
+    return { authMode: 'supabase', user: delegated.user, membership: delegated.membership };
   }
   // Durable outbox delivery: state and pending audit event are saved together.
   // PostgreSQL appends are idempotent by event ID, so a lost response or failed
@@ -2520,32 +2490,32 @@ async function handleRequest(event, context) {
       const failure = adminAuthResult.authError;
       return json({ ok: false, code: failure.code, msg: failure.status === 403 ? 'Administrator access is not enabled for this account.' : failure.status === 401 ? 'Please sign in again.' : 'Administrator authentication is temporarily unavailable.' }, failure.status || 503);
     }
-    if (adminAuthResult && adminAuthResult.persistenceUnavailable) return json({ ok: false, code: 'SECURITY_STATE_UNAVAILABLE', msg: 'Administrator authentication is temporarily unavailable. Please try again.' }, 503);
-    if (adminAuthResult && adminAuthResult.rateLimited) return rateLimitedJson(adminAuthResult.retryAfter);
     if (!adminAuthResult) {
-      return json({ ok: false, msg: 'Administrator authentication failed.' }, 401, { 'WWW-Authenticate': 'Basic realm="BTCBOX Admin"' });
+      return json({ ok: false, code: 'ADMIN_UNAUTHENTICATED', msg: 'A verified Supabase Auth bearer token is required.' }, 401);
+    }
+    const sub = path.slice(6);
+    if (sub === 'session' && method === 'GET') {
+      return json({ ok: true, user_id: adminAuthResult.user.id, status: adminAuthResult.membership.status, is_super_admin: adminAuthResult.membership.is_super_admin === true, permissions: Array.isArray(adminAuthResult.membership.permissions) ? adminAuthResult.membership.permissions : [] });
+    }
+    const permissionByRoute = {
+      stats: 'dashboard.read',
+      users: 'users.read', user: 'users.read', 'user/balance': 'financial_adjustment.request',
+      'user/freeze': 'users.freeze', 'user/reset-pwd': 'users.manage', 'user/reset-email': 'users.manage',
+      kyc: 'kyc.read', 'kyc/approve': 'kyc.review', 'kyc/reject': 'kyc.review',
+      'deposit/confirm': 'deposits.review',
+      withdrawals: 'withdrawals.read', orders: 'orders.read', 'support/messages': 'support.read',
+      'withdraw/approve': 'withdrawals.review', 'withdraw/reject': 'withdrawals.review', 'withdraw/mark-paid': 'withdrawals.review',
+      push: 'announcements.manage', 'support/reply': 'support.reply',
+      addresses: 'deposits.read', 'address/manage': 'system_config.write',
+      'audit-logs': 'financial_audit.read', config: method === 'GET' ? 'system_config.read' : 'system_config.write',
+      'seconds-policy': method === 'GET' ? 'seconds_policy.read' : 'seconds_policy.manage'
+    };
+    const requiredPermission = permissionByRoute[sub];
+    if (!requiredPermission || !hasAdminPermission(adminAuthResult.membership, requiredPermission)) {
+      return json({ ok: false, code: 'ADMIN_PERMISSION_DENIED', msg: 'Your administrator account does not have permission for this operation.' }, 403);
     }
     const priorAuditFlush = await flushAdminAuditOutbox();
     if (priorAuditFlush.persistenceUnavailable) return json({ ok: false, code: 'AUDIT_OUTBOX_STATE_UNAVAILABLE', msg: 'Administrator audit delivery state could not be saved. Please retry.' }, 503);
-    const sub = path.slice(6); // 去掉 admin/ 前缀
-    if (adminAuthResult && adminAuthResult.authMode === 'supabase') {
-      const permissionByRoute = {
-        stats: 'dashboard.read',
-        users: 'users.read', user: 'users.read', 'user/balance': 'financial_adjustment.request',
-        'user/freeze': 'users.freeze', 'user/reset-pwd': 'users.manage', 'user/reset-email': 'users.manage',
-        kyc: 'kyc.read', 'kyc/approve': 'kyc.review', 'kyc/reject': 'kyc.review',
-        'deposit/confirm': 'deposits.review',
-        withdrawals: 'withdrawals.read', orders: 'orders.read', 'support/messages': 'support.read',
-        'withdraw/approve': 'withdrawals.review', 'withdraw/reject': 'withdrawals.review', 'withdraw/mark-paid': 'withdrawals.review',
-        push: 'announcements.manage', 'support/reply': 'support.reply',
-        addresses: 'deposits.read', 'address/manage': 'system_config.write',
-        'audit-logs': 'financial_audit.read', config: method === 'GET' ? 'system_config.read' : 'system_config.write'
-      };
-      const requiredPermission = permissionByRoute[sub];
-      if (!requiredPermission || !hasAdminPermission(adminAuthResult.membership, requiredPermission)) {
-        return json({ ok: false, code: 'ADMIN_PERMISSION_DENIED', msg: 'Your administrator account does not have permission for this operation.' }, 403);
-      }
-    }
 
     // GET /api/admin/stats
     if (sub === 'stats' && method === 'GET') {
@@ -2776,7 +2746,7 @@ async function handleRequest(event, context) {
       const idempotencyKey = String(body.idempotency_key || '').trim();
       const u = db.users[uid];
       if (!u) return json({ ok: false, msg: 'User not found.' }, 404);
-      if (!['USDT', 'BTC', 'ETH', 'SOL'].includes(coin)) return json({ ok: false, msg: 'Coin not supported.' }, 400);
+      if (!['USDT', 'BTC', 'ETH', 'SOL', 'BNB', 'USDC'].includes(coin)) return json({ ok: false, msg: 'Coin not supported.' }, 400);
       if (!Number.isFinite(amount) || amount <= 0 || amount > 1e12 || !/^\d+(?:\.\d{1,12})?$/.test(String(body.amount || '').trim())) {
         return json({ ok: false, msg: 'Invalid deposit amount. Must be a valid number greater than 0.' }, 400);
       }
