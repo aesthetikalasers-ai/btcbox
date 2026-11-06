@@ -64,7 +64,7 @@ function statusVariant(status: string): "default" | "outline" | "destructive" {
 }
 
 export function AdminPage() {
-  const { status: authStatus, getAccessToken } = useAuth();
+  const { status: authStatus, getSupabaseAccessToken } = useAuth();
   const [token, setToken] = useState("");
   const [session, setSession] = useState<AdminSession | null>(null);
   const [tab, setTab] = useState<Tab>("overview");
@@ -94,7 +94,7 @@ export function AdminPage() {
   }, [session]);
 
   const refreshTokenAndSession = useCallback(async () => {
-    const accessToken = await getAccessToken();
+    const accessToken = await getSupabaseAccessToken();
     if (!accessToken) {
       setToken("");
       setSession(null);
@@ -106,7 +106,7 @@ export function AdminPage() {
     const current = await getAdminSession(accessToken);
     setSession(current);
     setError("");
-  }, [getAccessToken]);
+  }, [getSupabaseAccessToken]);
 
   useEffect(() => {
     if (authStatus === "loading") return;
