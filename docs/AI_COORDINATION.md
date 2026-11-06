@@ -6043,3 +6043,16 @@ The prior withdrawal UI audit statement claiming the active BTCBOX admin route w
   /earn, /trade/BTCUSDT, /me.
 - CI: Backend workflow_dispatch + temp draft PR #58 on `36bcc71`; Frontend CI
   via PR #58. PostgreSQL path-skipped (no SQL change this batch).
+
+
+## Frontend public-market preview batch — 2026-11-07
+
+- Implemented public `/trade/:symbol` route access; private account/order endpoints remain authenticated by their API handlers.
+- Anonymous account `AUTH_REQUIRED` no longer turns the spot preview into a page-wide error.
+- Public market overview refresh now polls every 15 seconds with an in-flight guard; last confirmed ticker rows remain visible during provider errors with an explicit stale-feed warning.
+- Added source-contract regression assertions in `backend/tests/spot-trading-live-refresh.test.js`.
+- Commits: `06586c56e5286cec63ebab8f64b2a5a9224692e3`, `19b143136b28bbb7e565ab134a1732d0ae80043c`, `0ef183b58f7e83984ce08baad8dea63603f22271`, `7d4bd7d92a172364254ae75feb6a78e8f67c3b91`, `4be2b4b7462f89ce0f210ba6730e34b073f5683b`.
+- TEST NOT YET RUN on these commits. Prior successful CI at `abe8bedc922e2d5cf2d1e6e2755ebb25c15d7117` is historical evidence only.
+- NOT VERIFIED: browser end-to-end, frontend build/typecheck on this head, public preview on deployed hostname, and provider data freshness.
+- Auth mismatch remains open: inspected `AuthPages.tsx` still contains email/password, username/password and wallet sign-in options despite the user's report that Google-only adjustment was made. Do not overwrite; locate the intended adjustment first.
+- Detailed evidence and resume steps: `docs/FRONTEND-MARKET-PREVIEW-BATCH-2026-11-07.md`.
