@@ -12,7 +12,7 @@ test('migration checker labels offline output as static-only', () => {
   assert.equal(result.status, 0, result.stderr);
   assert.ok(result.stdout.includes('[STATUS] STATIC_ONLY'));
   assert.ok(result.stdout.includes('Database migration state was not checked'));
-  assert.ok(result.stdout.includes('Retired sequence numbers intentionally omitted: [ 9, 15, 16, 17, 18, 19, 20 ]'));
+  assert.ok(result.stdout.includes('Retired sequence numbers intentionally omitted: [9, 15, 16, 17, 18, 19, 20]'));
 });
 
 test('migration checker does not pass when database verification was requested but unavailable', () => {
