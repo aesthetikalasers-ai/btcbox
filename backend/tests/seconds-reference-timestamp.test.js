@@ -38,3 +38,22 @@ test('Seconds settlement persists the provider event timestamp, never a fabricat
   assert.match(source, /normalizeReferenceTimestamp\(ticker && ticker\.time\)/);
   assert.match(source, /normalizeReferenceTimestamp\(payload && payload\.time\)/);
 });
+
+test('settlement API asks PostgreSQL to resolve idempotent replay when providers are unavailable', () => {
+  const start = source.indexOf("if (path === 'seconds/settle' && method === 'POST')");
+  const end = source.indexOf("// ---------- GET /api/seconds/positions ----------", start);
+  const handler = source.slice(start, end);
+  assert.match(handler, /let settleRef = null/);
+  assert.match(handler, /Still ask PostgreSQL for an idempotent replay/);
+  assert.match(handler, /p_settle_price: settleRef \? String\(settleRef\.price\) : null/);
+  assert.match(handler, /result\.code === 'REFERENCE_PRICE_UNAVAILABLE'/);
+});
+
+test('database checks settled idempotency before requiring a fresh reference quote', () => {
+  const migration = fs.readFileSync(path.join(__dirname, '..', 'supabase/sql/0025_seconds_policy_versioning_v1.sql'), 'utf8');
+  const start = migration.indexOf('CREATE OR REPLACE FUNCTION public.settle_seconds_position_v1');
+  const end = migration.indexOf('REVOKE ALL ON FUNCTION public.submit_seconds_order_v1', start);
+  const rpc = migration.slice(start, end);
+  assert.ok(rpc.indexOf("IF v_pos.status='settled'") < rpc.indexOf("IF p_settle_price IS NULL"));
+  assert.match(rpc, /'code','REFERENCE_PRICE_UNAVAILABLE'/);
+});
