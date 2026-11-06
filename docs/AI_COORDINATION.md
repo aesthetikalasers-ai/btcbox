@@ -2860,3 +2860,13 @@ The prior withdrawal UI audit statement claiming the active BTCBOX admin route w
 - The stale PRs #42, #44 and #45 are behind/diverged from current main and must not be merged wholesale. Selectively port only any still-missing, reviewed changes.
 - No hosted SQL migration was applied, no production DB writes or financial flag changes were made, no financial transactions were run, and no deployment was performed by the assistant. SQL 0028 and the revised 0025 remain source-only pending isolated PostgreSQL verification and owner approval.
 - Next order: (1) owner approves/merges PR #48; (2) remove the legacy admin HTML from the public build; (3) implement Super Admin-only delegated-admin management; (4) implement the Seconds policy editor and transactional draft/activation lifecycle; (5) verify the canonical empty-database bootstrap and all SQL in isolated PostgreSQL before any hosted cutover.
+
+
+## Template source integration audit — 2026-11-06
+
+- The main repository tracks `frontend/vendor/strata-pro` and `frontend/vendor/shadcn-fintech` as Git submodules (tree mode `160000`), not as ordinary files in the BTCBOX tree. Pinned commits: Strata Pro `a3f79d0237c68faddc877f8c1b00afece2fbbae8`; Shadcn Fintech `a905058c75a840896d27a16991f2e7cc1ca06f3f`.
+- The submodule URLs are the official upstream repositories: `bymilon/strata-pro-crypto-ui` and `abderrahimghazali/shadcn-fintech`. Their full source remains reachable through those submodule pointers, but this is not the same as adapting their pages/components into the live BTCBOX frontend.
+- Strata Pro README describes a frontend-only React 19/Vite 6/Tailwind 4 starter with mock market data and no live trading/auth/backend. Shadcn Fintech is a Next.js 16/React 19/Tailwind 4 app with its own 11-page fintech dashboard. BTCBOX's active frontend is Vite/React; no evidence was found in the current app entry/routes that the complete upstream page sets are already integrated.
+- Next UI work must selectively adapt the premium Strata trading terminal and Shadcn finance/account components into the existing BTCBOX Vite app, connect them to BTCBOX APIs, and preserve the locked trading-page layout unless a specific approved change is needed. Do not claim the submodules alone mean the live app is integrated.
+- Security: use only the official `abderrahimghazali/shadcn-fintech` upstream. Its README warns about a malicious third-party re-upload named `Weebapp003/shadcn-fintech-template` and dependencies `oscar-redis` / `oracle-redis`; do not install or execute that copy.
+- PR #48 remains open and mergeable; backend CI and Vercel checks passed on `e9ca612f4a1088ac19150bd020142cf16b1fa3d3`. Current main remains `e85fea7df0a9ef835b82b63283d09cd72ea6aa6c` until owner approval and merge.
