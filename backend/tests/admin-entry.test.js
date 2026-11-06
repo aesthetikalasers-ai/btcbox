@@ -59,8 +59,8 @@ test('dedicated /admin URL defaults to the admin route before SPA boot', () => {
 });
 
 test('React admin console uses verified Supabase identity and route permissions outside the customer shell', () => {
-  const reactApp = fs.readFileSync(path.join(root, '..', '..', 'frontend/src/App.tsx'), 'utf8');
-  const reactAdmin = fs.readFileSync(path.join(root, '..', '..', 'frontend/src/features/admin/AdminPage.tsx'), 'utf8');
+  const reactApp = fs.readFileSync(path.join(root, '..', 'frontend/src/App.tsx'), 'utf8');
+  const reactAdmin = fs.readFileSync(path.join(root, '..', 'frontend/src/features/admin/AdminPage.tsx'), 'utf8');
   const adminAuthModule = fs.readFileSync(path.join(root, 'admin-auth.js'), 'utf8');
   assert.ok(reactApp.includes('<Route path="/admin" element={<AdminPage />} />'));
   assert.ok(reactApp.includes('<Route path="/*" element={<CustomerRoutes />} />'));
