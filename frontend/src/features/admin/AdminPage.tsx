@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
 import { Badge } from "../../components/ui/badge";
 import { Button } from "../../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
@@ -80,26 +80,28 @@ export function AdminPage() {
   }, [load, retry]);
 
 
-  const performAction = async (path: string, body: Record<string, unknown>, success: string) => {
+  const performAction = async (path: string, body: Record<string, unknown>, success: string): Promise<boolean> => {
     setActionBusy(true); setError(""); setActionMessage("");
     try {
       const token = await getSupabaseAccessToken();
       await requestAdmin(token, path, { method: "POST", body });
       setActionMessage(success);
       await load();
+      return true;
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "The server did not confirm this administrator action.");
+      return false;
     } finally { setActionBusy(false); }
   };
 
-  const submitManualCredit = async (event: React.FormEvent<HTMLFormElement>) => {
+  const submitManualCredit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!creditUser || !String(creditUser.uid || "") || !creditAmount.trim()) return;
-    await performAction("deposit/confirm", {
+    const confirmed = await performAction("deposit/confirm", {
       uid: String(creditUser.uid), coin: creditAsset, amount: creditAmount.trim(),
       reference: creditReference.trim(), note: creditNote.trim(), idempotency_key: crypto.randomUUID(),
     }, "Manual credit confirmed by the financial service.");
-    setCreditAmount(""); setCreditReference(""); setCreditNote(""); setCreditUser(null);
+    if (confirmed) { setCreditAmount(""); setCreditReference(""); setCreditNote(""); setCreditUser(null); }
   };
 
   const rows = useMemo(() => {
