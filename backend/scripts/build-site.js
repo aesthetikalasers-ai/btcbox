@@ -11,7 +11,7 @@ const frontendDist = path.resolve(root, '..', 'frontend', 'dist');
 const frontendIndex = path.join(frontendDist, 'index.html');
 const frontendAssets = path.join(frontendDist, 'frontend-assets');
 const allowedFiles = ['index.html'];
-const allowedDirs = ['pages', 'assets', 'oauth'];
+const allowedDirs = ['oauth'];
 
 fs.rmSync(out, { recursive: true, force: true });
 fs.mkdirSync(out, { recursive: true });
@@ -33,16 +33,15 @@ for (const name of allowedDirs) {
   fs.cpSync(src, path.join(out, name), { recursive: true });
 }
 
-// Preserve legacy OAuth and content pages; the administrator console is served by the React SPA.
-const pagesDir = path.join(root, 'pages');
-for (const entry of fs.readdirSync(pagesDir)) {
-  if (entry.endsWith('.html')) {
-    fs.copyFileSync(path.join(pagesDir, entry), path.join(out, entry));
-  }
-}
+// The OAuth consent page is the only retained static HTML compatibility surface.
+const tokensCss = path.join(root, 'assets', 'css', 'tokens.css');
+const publicCssDir = path.join(out, 'assets', 'css');
+if (!fs.existsSync(tokensCss)) throw new Error('Required OAuth design tokens are missing');
+fs.mkdirSync(publicCssDir, { recursive: true });
+fs.copyFileSync(tokensCss, path.join(publicCssDir, 'tokens.css'));
 
 // Overlay the Strata Pro Vite application as the customer-facing root.
-// Vite assets use /frontend-assets so they cannot overwrite legacy /assets.
+// Vite assets use /frontend-assets; only the OAuth consent screen keeps /assets/css/tokens.css.
 if (!fs.existsSync(frontendIndex) || !fs.statSync(frontendIndex).isFile()) {
   throw new Error('Vite frontend build is missing: frontend/dist/index.html');
 }
