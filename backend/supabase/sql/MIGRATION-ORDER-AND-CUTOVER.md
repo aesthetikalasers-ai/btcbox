@@ -32,7 +32,7 @@ The current canonical source inventory is:
 13. `0014_financial_seconds_contracts_v1.sql`
 14. `0021_admin_audit_log_append_only_v1.sql`
 15. `0022_withdrawal_admin_review_status_v1.sql`
-16. `0024_btcbox_shared_rate_limit_v1.sql`
+16. `0023_btcbox_shared_rate_limit_v1.sql`
 17. `0024_seconds_settlement_idempotency_v1.sql`
 18. `0025_seconds_policy_versioning_v1.sql`
 19. `0026_admin_rbac_private_store_v1.sql`
