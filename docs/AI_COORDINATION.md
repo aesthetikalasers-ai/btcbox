@@ -2326,3 +2326,11 @@ Application branch inspected: `feat/btcbox-web3-auth-20261105` at `741c709d818cb
 - V211 source path remains unverified; no trading page edits are authorized until the exact approved source/snapshot is identified.
 - User reports all test Auth users cleared; Supabase was not queried during this audit. Do not delete business schema/configuration or migration history.
 - No main merge, production deployment, Supabase write, or destructive operation occurred.
+
+
+## Candidate ancestry and page audit follow-up — 2026-11-06
+
+- Updated reconciliation report: `docs/INTEGRATION_RECONCILIATION_2026-11-06.md`, latest report commit `e7158b06f6095fb032672230e6f2e0a2a4dae641`.
+- Pairwise compare confirms candidate `fbfb96ee26ff8bce6637f2ca11cbf21f0644c928` descends from React Google Auth, Strata theme batch, no-fake-market-data fix and UI i18n/mobile branch histories. The old template migration branch remains diverged and its pinned vendor submodules are not in the candidate tree.
+- Candidate SecondsPage is read-only positions/history with safe loading/error/cutover states; order placement/settlement are disabled. Candidate React routes for spot entry, orders, deposit, withdrawal, Earn, KYC and support remain placeholders. Admin UI remains absent and Basic Auth remains the active legacy route. No V211 source has been positively identified.
+- No source implementation, database write, merge, or deployment was performed in this audit batch; the durable work is the current evidence ledger and branch/route disposition.
