@@ -44,6 +44,7 @@ type AuthContextValue = {
   finishOAuth: () => Promise<void>;
   verifyTwoFactor: (code: string) => Promise<void>;
   signOut: () => Promise<void>;
+  getAccessToken: () => Promise<string | null>;
   clearError: () => void;
 };
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -560,6 +561,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } finally { setBusy(false); }
   }, [setSignedIn, tempToken]);
 
+  const getAccessToken = useCallback(async (): Promise<string | null> => {
+    const client = clientRef.current;
+    if (!client) return null;
+    const { data, error: sessionError } = await client.auth.getSession();
+    if (sessionError) throw sessionError;
+    return data.session?.access_token || null;
+  }, []);
+
   const signOut = useCallback(async () => {
     setBusy(true); setError("");
     try {
@@ -582,10 +591,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const value = useMemo(() => ({
     status, email, busy, error, notice, googleEnabled, identityLinkSourceVerified, identityLinkNeedsTwoFactor, completeIdentityLinkReauthTwoFactor, needsCredentials, credentialRecoveryReady, credentialRecoveryNeedsTwoFactor, ethereumWallets, signInWithGoogle, reauthenticateIdentityLinkWithGoogle, reauthenticateIdentityLinkWithWeb3, linkGoogleIdentity, linkWeb3Identity, signInWithUsername, setBtcboxCredentials, reauthenticateCredentialsWithGoogle, reauthenticateCredentialsWithWeb3, completeCredentialRecoveryTwoFactor, recoverBtcboxPassword, signInWithWeb3, signInWithEmail, signUpWithEmail,
-    requestPasswordReset, completePasswordRecovery, finishOAuth, verifyTwoFactor, signOut,
+    requestPasswordReset, completePasswordRecovery, finishOAuth, verifyTwoFactor, signOut, getAccessToken,
     clearError: () => setError(""),
   }), [status, email, busy, error, notice, googleEnabled, identityLinkSourceVerified, identityLinkNeedsTwoFactor, completeIdentityLinkReauthTwoFactor, needsCredentials, credentialRecoveryReady, credentialRecoveryNeedsTwoFactor, ethereumWallets, signInWithGoogle, linkGoogleIdentity, linkWeb3Identity, signInWithUsername, setBtcboxCredentials, reauthenticateCredentialsWithGoogle, reauthenticateCredentialsWithWeb3, completeCredentialRecoveryTwoFactor, recoverBtcboxPassword, signInWithWeb3, signInWithEmail, signUpWithEmail,
-    requestPasswordReset, completePasswordRecovery, finishOAuth, verifyTwoFactor, signOut, reauthenticateIdentityLinkWithGoogle, reauthenticateIdentityLinkWithWeb3]);
+    requestPasswordReset, completePasswordRecovery, finishOAuth, verifyTwoFactor, signOut, getAccessToken, reauthenticateIdentityLinkWithGoogle, reauthenticateIdentityLinkWithWeb3]);
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
