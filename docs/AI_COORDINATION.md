@@ -6056,3 +6056,6 @@ The prior withdrawal UI audit statement claiming the active BTCBOX admin route w
 - NOT VERIFIED: browser end-to-end, frontend build/typecheck on this head, public preview on deployed hostname, and provider data freshness.
 - Auth mismatch remains open: inspected `AuthPages.tsx` still contains email/password, username/password and wallet sign-in options despite the user's report that Google-only adjustment was made. Do not overwrite; locate the intended adjustment first.
 - Detailed evidence and resume steps: `docs/FRONTEND-MARKET-PREVIEW-BATCH-2026-11-07.md`.
+
+- Additional Admin Panel cross-check: the current `frontend/src/features/admin/AdminPage.tsx` includes the manual-credit workflow under user detail, required receipt/TxID reference, stable idempotency key, balance/history refresh and deposit read/review permission gates. Backend uses `admin_manual_deposit_atomic` and fails closed while financial writes are disabled; no production write testing was done. Existing manual-credit and deposit-reference tests cover these contracts.
+- Vercel domain lookup confirms `btcboxcdt.vercel.app` belongs to the `btcboxcdt` project, but the project still reports `live:false` and latest deployment `ERROR`; deployment remains paused.
