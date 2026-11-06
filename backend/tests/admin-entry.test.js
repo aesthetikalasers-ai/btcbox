@@ -8,7 +8,12 @@ const root = path.join(__dirname, '..');
 const boot = fs.readFileSync(path.join(root, 'assets/js/boot.js'), 'utf8');
 const app = fs.readFileSync(path.join(root, 'assets/js/app-core.js'), 'utf8');
 const apiCore = fs.readFileSync(path.join(root, 'api-core.js'), 'utf8');
+const reactApp = fs.readFileSync(path.resolve(root, '../frontend/src/App.tsx'), 'utf8');
+const reactAdminPage = fs.readFileSync(path.resolve(root, '../frontend/src/features/admin/AdminPage.tsx'), 'utf8');
+const adminAuth = fs.readFileSync(path.join(root, 'admin-auth.js'), 'utf8');
 const admin = fs.readFileSync(path.join(root, 'admin.html'), 'utf8');
+const vercelConfig = JSON.parse(fs.readFileSync(path.join(root, 'vercel.json'), 'utf8'));
+const authPages = fs.readFileSync(path.resolve(root, '../frontend/src/features/auth/AuthPages.tsx'), 'utf8');
 const api = require(path.join(root, 'api-core.js'));
 const redactAdminAuditDetail = api._test.redactAdminAuditDetail;
 
@@ -58,10 +63,26 @@ test('dedicated /admin URL defaults to the admin route before SPA boot', () => {
   assert.ok(admin.includes('/assets/js/boot.js'));
 });
 
-test('admin route is reachable without a customer session but still uses Basic Auth APIs', () => {
-  assert.ok(app.includes("const GUEST_PUBLIC_ROUTES = new Set(['home','markets','trade','tradehub','kline','seconds','help','404','admin']);"));
-  assert.ok(app.includes("const HIDE_NAV = {login:true,register:true,kline:true,admin:true};"));
-  assert.ok(app.includes("if(isAdmin && state.adminAuth) headers['Authorization']='Basic '+state.adminAuth;"));
+test('Vercel serves /admin through the React SPA instead of the legacy admin.html rewrite', () => {
+  assert.ok(!vercelConfig.rewrites.some((rule) => rule.source === '/admin' && rule.destination === '/admin.html'));
+  assert.ok(vercelConfig.rewrites.some((rule) => rule.destination === '/index.html' && rule.source.includes('api/')));
+  assert.ok(vercelConfig.redirects.some((rule) => rule.source === '/admin.html' && rule.destination === '/admin'));
+});
+
+test('React admin route uses verified Supabase Auth identity and server-side role permissions', () => {
+  assert.ok(reactApp.includes('const AdminPage = lazy(() => import("./features/admin/AdminPage")'));
+  assert.ok(reactApp.includes('<Route path="/admin" element={<AdminPage />} />'));
+  assert.ok(reactAdminPage.includes('const { status: authStatus, getSupabaseAccessToken } = useAuth()'));
+  assert.ok(reactAdminPage.includes('<AuthPage mode="login" redirectTo="/admin" />'));
+  assert.ok(authPages.includes('redirectTo || "/home"'));
+  assert.ok(reactAdminPage.includes('getAdminSession(accessToken)'));
+  assert.ok(reactAdminPage.includes('session.is_super_admin || session.permissions.includes(permission)'));
+  assert.ok(apiCore.includes("require('./admin-auth')"));
+  assert.ok(apiCore.includes('authorizeSupabaseAdmin'));
+  assert.ok(adminAuth.includes('admin_get_membership_v1'));
+  assert.ok(apiCore.includes('hasAdminPermission'));
+  assert.ok(apiCore.includes('ADMIN_PERMISSION_DENIED'));
+  assert.ok(!apiCore.includes('WWW-Authenticate: Basic realm="BTCBOX Admin"'));
 });
 
 
@@ -74,7 +95,7 @@ test('admin console hydrates only supported read APIs and maps canonical user fi
   assert.match(accountView, /state\.admin\.withdrawals=results\[1\]\.value\.withdrawals/);
 });
 
-test('admin console includes admin-review withdrawals and keeps unsupported deposit queue disabled', () => {
+test('admin console supports manual credit by selected user and does not create pending deposit orders', () => {
   assert.match(accountView, /w\\.status==='pending'\\|\\|w\\.status==='pending_admin_review'/);
   assert.match(accountView, /尚无管理员充值列表读取接口/);
 });
@@ -148,7 +169,7 @@ test('KYC approval and rejection persist reviewer, timestamp, decision reason, a
   const approve = apiCore.slice(approveStart, rejectStart);
   const reject = apiCore.slice(rejectStart, pushStart);
   for (const route of [approve, reject]) {
-    assert.ok(route.includes("u.kyc.reviewed_by = 'admin'"));
+    assert.ok(route.includes("u.kyc.reviewed_by = adminUserId"));
     assert.ok(route.includes("u.kyc.reviewed_at = nowStr()"));
     assert.ok(route.includes("await auditAdmin("));
     assert.ok(route.includes("await saveDB(db)"));
@@ -157,7 +178,7 @@ test('KYC approval and rejection persist reviewer, timestamp, decision reason, a
   }
   assert.ok(approve.includes("u.kyc.review_reason = override ? reason"));
   assert.ok(reject.includes("u.kyc.reject_reason = reason"));
-  assert.ok(reject.includes("await auditAdmin('kyc_reject', u.uid, reason)"));
+  assert.ok(reject.includes("await auditAdmin('kyc_reject', u.uid, reason, adminUserId)"));
 });
 
 

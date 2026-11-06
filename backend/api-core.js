@@ -2217,7 +2217,7 @@ async function handleRequest(event, context) {
         Array.isArray(policy.symbols) && policy.symbols.length > 0 && policy.symbols.every((symbol) => SECONDS_ALLOWED_SYMBOLS.has(symbol)) &&
         Array.isArray(policy.durations_sec) && policy.durations_sec.length > 0 && policy.durations_sec.every((duration) => SECONDS_ALLOWED_DURATIONS.has(Number(duration))) &&
         compareMoney(policy.min_stake, '0') > 0 && compareMoney(policy.max_stake, policy.min_stake) >= 0 &&
-        Number.isInteger(Number(policy.payout_bps)) && Number(policy.payout_bps) >= 8500 && Number(policy.payout_bps) <= 10000 &&
+        Number.isSafeInteger(Number(policy.payout_bps)) && Number(policy.payout_bps) >= 8500 &&
         (policy.per_user_open_exposure == null || compareMoney(policy.per_user_open_exposure, '0') > 0);
       if (!rpc.ok || !result || result.ok !== true || !validPolicy) {
         return json({ ok: false, code: 'SECONDS_POLICY_UNAVAILABLE', msg: 'Short-term contract policy is not configured or is invalid.' }, 503);
@@ -2422,44 +2422,13 @@ async function handleRequest(event, context) {
     return json({ ok: true, unread: unread });
   }
 
-  // ==================== 后台管理 API（Basic Auth） ====================
-  // 管理员认证：timingSafeEqual 保留；失败计数持久化到 btcbox_state（5 次/15 分钟锁）。
+  // ==================== 后台管理 API（Supabase Auth + RBAC） ====================
+  // 每次请求验证 Supabase bearer identity，并实时读取管理员 membership/permissions。
   async function adminAuth() {
     const authHeader = event.headers && (event.headers.authorization || event.headers.Authorization);
-    if (authHeader && /^Bearer /i.test(authHeader)) {
-      const delegated = await authorizeSupabaseAdmin({ authorization: authHeader });
-      if (!delegated.ok) return { authError: delegated };
-      return { authMode: 'supabase', user: delegated.user, membership: delegated.membership };
-    }
-    if (!authHeader || !authHeader.startsWith('Basic ')) return null;
-    if (!db.security_counters) db.security_counters = {};
-    const lockKey = 'admin_fail:' + clientIp(event);
-    const lockState = secCounterIsLocked(db.security_counters, lockKey, Date.now());
-    if (lockState.locked) return { rateLimited: true, retryAfter: lockState.retryAfter };
-    try {
-      const decoded = Buffer.from(authHeader.slice(6), 'base64').toString();
-      const separator = decoded.indexOf(':');
-      if (separator < 1) return null;
-      const u = decoded.slice(0, separator);
-      const p = decoded.slice(separator + 1);
-      const ADMIN_USER = process.env.ADMIN_USER;
-      const ADMIN_PASS = process.env.ADMIN_PASS;
-      if (ADMIN_USER && ADMIN_PASS) {
-        // Constant-time comparison: pad both sides to the same length so neither
-        // credential length nor byte differences leak through timing.
-        const supplied = Buffer.from(u + '\x00' + p);
-        const expected = Buffer.from(ADMIN_USER + '\x00' + ADMIN_PASS);
-        const padLen = Math.max(supplied.length, expected.length, 64);
-        const padSupplied = Buffer.alloc(padLen, 0); supplied.copy(padSupplied);
-        const padExpected = Buffer.alloc(padLen, 0); expected.copy(padExpected);
-        const match = crypto.timingSafeEqual(padSupplied, padExpected) && supplied.length === expected.length;
-        if (match) { secCounterReset(db.security_counters, lockKey); try { await saveDB(db); } catch (e) { console.warn('[admin-lock] reset persist failed:', e.message); return { persistenceUnavailable: true }; } return true; }
-      }
-    } catch (e) { }
-    // 认证失败：持久化记录失败计数（5 次锁 15 分钟）。
-    secCounterRecordFailure(db.security_counters, lockKey, 5, 15 * 60 * 1000, Date.now());
-    try { await saveDB(db); } catch (e) { console.warn('[admin-lock] persist failed:', e.message); return { persistenceUnavailable: true }; }
-    return null;
+    const delegated = await authorizeSupabaseAdmin({ authorization: authHeader, env: process.env });
+    if (!delegated.ok) return { ok: false, status: delegated.status || 503, code: delegated.code || 'ADMIN_AUTH_UNAVAILABLE' };
+    return { ok: true, userId: delegated.user.id, membership: delegated.membership };
   }
   // Durable outbox delivery: state and pending audit event are saved together.
   // PostgreSQL appends are idempotent by event ID, so a lost response or failed
@@ -2516,36 +2485,51 @@ async function handleRequest(event, context) {
 
   if (path.startsWith('admin/')) {
     const adminAuthResult = await adminAuth();
-    if (adminAuthResult && adminAuthResult.authError) {
-      const failure = adminAuthResult.authError;
-      return json({ ok: false, code: failure.code, msg: failure.status === 403 ? 'Administrator access is not enabled for this account.' : failure.status === 401 ? 'Please sign in again.' : 'Administrator authentication is temporarily unavailable.' }, failure.status || 503);
+    if (!adminAuthResult || !adminAuthResult.ok) {
+      const status = adminAuthResult && adminAuthResult.status ? adminAuthResult.status : 401;
+      const code = adminAuthResult && adminAuthResult.code ? adminAuthResult.code : 'ADMIN_UNAUTHENTICATED';
+      const msg = status === 403 ? 'This Supabase identity is not an active BTCBOX administrator.' :
+        status === 503 ? 'Administrator identity or permission store is temporarily unavailable.' :
+        'A verified Supabase Auth bearer token is required.';
+      return json({ ok: false, code, msg }, status);
     }
-    if (adminAuthResult && adminAuthResult.persistenceUnavailable) return json({ ok: false, code: 'SECURITY_STATE_UNAVAILABLE', msg: 'Administrator authentication is temporarily unavailable. Please try again.' }, 503);
-    if (adminAuthResult && adminAuthResult.rateLimited) return rateLimitedJson(adminAuthResult.retryAfter);
-    if (!adminAuthResult) {
-      return json({ ok: false, msg: 'Administrator authentication failed.' }, 401, { 'WWW-Authenticate': 'Basic realm="BTCBOX Admin"' });
+    const adminUserId = adminAuthResult.userId;
+    const adminMembership = adminAuthResult.membership;
+    const sub = path.slice(6);
+    if (sub === 'session' && method === 'GET') {
+      return json({ ok: true, user_id: adminUserId, status: adminMembership.status, is_super_admin: adminMembership.is_super_admin === true, permissions: Array.isArray(adminMembership.permissions) ? adminMembership.permissions : [] });
+    }
+    const requiredPermission = (function(route, verb) {
+      if (route === 'stats' && verb === 'GET') return 'dashboard.read';
+      if (route === 'users' && verb === 'GET') return 'users.read';
+      if (route === 'user' && verb === 'GET') return 'users.read';
+      if (route === 'user/freeze' && verb === 'POST') return 'users.freeze';
+      if (route === 'user/balance' && verb === 'POST') return 'financial_adjustment.request';
+      if ((route === 'user/reset-pwd' || route === 'user/reset-email') && verb === 'POST') return 'users.manage';
+      if (route === 'kyc' && verb === 'GET') return 'kyc.read';
+      if ((route === 'kyc/approve' || route === 'kyc/reject') && verb === 'POST') return 'kyc.review';
+      if (route === 'deposit/confirm' && verb === 'POST') return 'deposits.review';
+      if (route === 'addresses' && verb === 'GET') return 'deposits.read';
+      if (route === 'address/manage' && verb === 'POST') return 'system_config.write';
+      if (route === 'withdrawals' && verb === 'GET') return 'withdrawals.read';
+      if (['withdraw/approve','withdraw/reject','withdraw/mark-paid'].includes(route) && verb === 'POST') return 'withdrawals.review';
+      if (route === 'orders' && verb === 'GET') return 'orders.read';
+      if (route === 'support/messages' && verb === 'GET') return 'support.read';
+      if (route === 'support/reply' && verb === 'POST') return 'support.reply';
+      if (route === 'push' && verb === 'POST') return 'announcements.manage';
+      if (route === 'audit-logs' && verb === 'GET') return 'financial_audit.read';
+      if (route === 'config' && verb === 'GET') return 'system_config.read';
+      if (route === 'config' && verb === 'POST') return 'system_config.write';
+      if (route === 'seconds-policy' && verb === 'GET') return 'seconds_policy.read';
+      if (route === 'seconds-policy' && verb === 'POST') return 'seconds_policy.manage';
+      return null;
+    })(sub, method);
+    if (!requiredPermission) return json({ ok: false, code: 'ADMIN_ROUTE_NOT_FOUND', msg: 'Administrator route not found.' }, 404);
+    if (!hasAdminPermission(adminMembership, requiredPermission)) {
+      return json({ ok: false, code: 'ADMIN_PERMISSION_DENIED', permission: requiredPermission, msg: 'Your administrator role does not allow this action.' }, 403);
     }
     const priorAuditFlush = await flushAdminAuditOutbox();
     if (priorAuditFlush.persistenceUnavailable) return json({ ok: false, code: 'AUDIT_OUTBOX_STATE_UNAVAILABLE', msg: 'Administrator audit delivery state could not be saved. Please retry.' }, 503);
-    const sub = path.slice(6); // 去掉 admin/ 前缀
-    if (adminAuthResult && adminAuthResult.authMode === 'supabase') {
-      const permissionByRoute = {
-        stats: 'dashboard.read',
-        users: 'users.read', user: 'users.read', 'user/balance': 'financial_adjustment.request',
-        'user/freeze': 'users.freeze', 'user/reset-pwd': 'users.manage', 'user/reset-email': 'users.manage',
-        kyc: 'kyc.read', 'kyc/approve': 'kyc.review', 'kyc/reject': 'kyc.review',
-        'deposit/confirm': 'deposits.review',
-        withdrawals: 'withdrawals.read', orders: 'orders.read', 'support/messages': 'support.read',
-        'withdraw/approve': 'withdrawals.review', 'withdraw/reject': 'withdrawals.review', 'withdraw/mark-paid': 'withdrawals.review',
-        push: 'announcements.manage', 'support/reply': 'support.reply',
-        addresses: 'deposits.read', 'address/manage': 'system_config.write',
-        'audit-logs': 'financial_audit.read', config: method === 'GET' ? 'system_config.read' : 'system_config.write'
-      };
-      const requiredPermission = permissionByRoute[sub];
-      if (!requiredPermission || !hasAdminPermission(adminAuthResult.membership, requiredPermission)) {
-        return json({ ok: false, code: 'ADMIN_PERMISSION_DENIED', msg: 'Your administrator account does not have permission for this operation.' }, 403);
-      }
-    }
 
     // GET /api/admin/stats
     if (sub === 'stats' && method === 'GET') {
@@ -2626,7 +2610,7 @@ async function handleRequest(event, context) {
 
     // Stage the audit event in the same CAS document as the business mutation.
     // PostgreSQL delivery happens only after that durable state write succeeds.
-    async function auditAdmin(action, uid, detail) {
+    async function auditAdmin(action, uid, detail, actorId) {
       if (!Array.isArray(db.audit_logs)) db.audit_logs = [];
       const pendingCount = db.audit_logs.filter(function (entry) {
         return entry && entry.postgres_sync_status === 'pending';
@@ -2643,7 +2627,7 @@ async function handleRequest(event, context) {
         id: 'AL' + Date.now() + crypto.randomBytes(8).toString('hex'),
         action: String(action),
         uid: String(uid || ''),
-        by: 'admin',
+        by: String(actorId || 'admin'),
         time: nowStr(),
         detail: redactAdminAuditDetail(detail),
         postgres_sync_status: supabaseStorageConfigured() ? 'pending' : 'local_only'
@@ -2679,7 +2663,7 @@ async function handleRequest(event, context) {
         if (!Number.isFinite(delta) || delta === 0 || Math.abs(delta) > 1e12 || !Number.isSafeInteger(Math.round(delta * 1e8)) || (mode !== 'adjust' && delta < 0)) return json({ ok: false, msg: 'Invalid operation amount. Freeze/unfreeze amounts must be positive.' }, 400);
         if (!/^[A-Za-z0-9_-]{16,100}$/.test(requestId)) return json({ ok: false, code: 'IDEMPOTENCY_KEY_REQUIRED', msg: 'A valid operation ID is required. Balance was unchanged.' }, 400);
         if (reason.length < 5) return json({ ok: false, msg: 'Please provide an adjustment reason of at least 5 characters. Balance was unchanged.' }, 400);
-        const adminId = String(process.env.ADMIN_USER || '').trim();
+        const adminId = adminUserId;
         if (!adminId) return json({ ok: false, code: 'ADMIN_ACTOR_NOT_CONFIGURED', msg: 'Administrator audit identity not configured. Balance was unchanged.' }, 503);
         // Canonical decimal text must match PostgreSQL numeric::text when hashing the RPC payload.
         const canonicalDecimal = function (n) { return (n < 0 ? '-' : '') + Math.abs(n).toFixed(8).replace(/\.?0+$/, ''); };
@@ -2721,7 +2705,7 @@ async function handleRequest(event, context) {
       if (!!u.frozen === frozen) return json({ ok: false, code: 'ACCOUNT_STATE_UNCHANGED', msg: frozen ? 'Account is already frozen.' : 'Account is already active.' }, 409);
       u.frozen = frozen;
       u.frozen_reason = frozen ? reason : '';
-      await auditAdmin(frozen ? 'user_freeze' : 'user_unfreeze', u.uid, reason);
+      await auditAdmin(frozen ? 'user_freeze' : 'user_unfreeze', u.uid, reason, adminUserId);
       await saveDB(db);
       const auditFlush = await flushAdminAuditOutbox();
       return json({ ok: true, audit_sync_pending: auditFlush.pending, msg: u.frozen ? 'Account frozen.' : 'Account unfrozen.' });
@@ -2737,7 +2721,7 @@ async function handleRequest(event, context) {
       u.salt = genSalt();
       u.password_hash = hashPassword(newPassword, u.salt);
       Object.keys(db.sessions || {}).forEach(function (token) { if (db.sessions[token].uid === u.uid) delete db.sessions[token]; });
-      await auditAdmin('user_password_reset', u.uid, 'Admin reset login password; existing sessions invalidated.');
+      await auditAdmin('user_password_reset', u.uid, 'Admin reset login password; existing sessions invalidated.', adminUserId);
       await saveDB(db);
       const auditFlush = await flushAdminAuditOutbox();
       return json({ ok: true, audit_sync_pending: auditFlush.pending, msg: 'Password has been reset. The user must sign in again.' });
@@ -2754,7 +2738,7 @@ async function handleRequest(event, context) {
       if (duplicate) return json({ ok: false, msg: 'This email is already used by another account.' }, 409);
       const previousEmail = u.email;
       u.email = newEmail;
-      await auditAdmin('user_email_change', u.uid, JSON.stringify({ from: previousEmail, to: newEmail }));
+      await auditAdmin('user_email_change', u.uid, JSON.stringify({ from: previousEmail, to: newEmail }), adminUserId);
       await saveDB(db);
       const auditFlush = await flushAdminAuditOutbox();
       return json({ ok: true, audit_sync_pending: auditFlush.pending, msg: 'Email updated successfully.' });
@@ -2781,7 +2765,7 @@ async function handleRequest(event, context) {
         return json({ ok: false, msg: 'Invalid deposit amount. Must be a valid number greater than 0.' }, 400);
       }
       if (!/^[A-Za-z0-9_-]{16,100}$/.test(idempotencyKey)) return json({ ok: false, msg: 'Invalid credit request ID. Please try again.' }, 400);
-      const adminId = String(process.env.ADMIN_USER || '').trim();
+      const adminId = adminUserId;
       if (!adminId) return json({ ok: false, code: 'ADMIN_ACTOR_NOT_CONFIGURED', msg: 'Administrator audit identity not configured. Manual credit was not executed.' }, 503);
       const amountText = String(body.amount).trim();
       const requestHash = crypto.createHash('sha256').update([adminId, uid, coin, amountText, reference, note].join('|')).digest('hex');
@@ -2804,7 +2788,7 @@ async function handleRequest(event, context) {
       if (!wdId || wdId.length > 100) return json({ ok: false, msg: 'Withdrawal record ID is invalid' }, 400);
       if (manualDepositRpcEnabled()) {
         if (!supabaseStorageConfigured()) return json({ ok: false, code: 'FINANCIAL_RPC_NOT_CONFIGURED', msg: 'Financial database not configured. Withdrawal was not reviewed.' }, 503);
-        const adminId = String(process.env.ADMIN_USER || '').trim();
+        const adminId = adminUserId;
         if (!adminId) return json({ ok: false, code: 'ADMIN_ACTOR_NOT_CONFIGURED', msg: 'Administrator audit identity not configured. Withdrawal was not reviewed.' }, 503);
         try {
           const rpc = await fetch(process.env.SUPABASE_URL.replace(/\/+$/, '') + '/rest/v1/rpc/review_withdrawal_atomic', {
@@ -2826,7 +2810,7 @@ async function handleRequest(event, context) {
       if (!wdId || wdId.length > 100) return json({ ok: false, msg: 'Withdrawal record ID is invalid' }, 400);
       if (manualDepositRpcEnabled()) {
         if (!supabaseStorageConfigured()) return json({ ok: false, code: 'FINANCIAL_RPC_NOT_CONFIGURED', msg: 'Financial database not configured. Withdrawal was not rejected or refunded.' }, 503);
-        const adminId = String(process.env.ADMIN_USER || '').trim();
+        const adminId = adminUserId;
         if (!adminId) return json({ ok: false, code: 'ADMIN_ACTOR_NOT_CONFIGURED', msg: 'Administrator audit identity not configured. Withdrawal was not rejected or refunded.' }, 503);
         const reason = String(body.reason || 'Admin rejected withdrawal.').trim().slice(0, 200) || 'Admin rejected withdrawal.';
         try {
@@ -2854,7 +2838,7 @@ async function handleRequest(event, context) {
       if (!reference) return json({ ok: false, code: 'PAYOUT_REFERENCE_REQUIRED', msg: 'TxID / payout reference is required.' }, 400);
       if (reference.length > 160 || note.length > 300) return json({ ok: false, msg: 'Payout reference or note is too long.' }, 400);
       if (!supabaseStorageConfigured()) return json({ ok: false, code: 'FINANCIAL_RPC_NOT_CONFIGURED', msg: 'Financial database is not configured. Payout status was not changed.' }, 503);
-      const adminId = String(process.env.ADMIN_USER || '').trim();
+      const adminId = adminUserId;
       if (!adminId) return json({ ok: false, code: 'ADMIN_ACTOR_NOT_CONFIGURED', msg: 'Administrator audit identity not configured. Payout status was not changed.' }, 503);
       try {
         const rpc = await fetch(process.env.SUPABASE_URL.replace(/\/+$/, '') + '/rest/v1/rpc/mark_withdrawal_paid_atomic', {
@@ -2884,11 +2868,11 @@ async function handleRequest(event, context) {
       if (override && !reason) return json({ ok: false, code: 'ADMIN_REASON_REQUIRED', msg: 'A reason is required for admin exception approval.' }, 400);
       if (status === 'pending' && override && !reason) return json({ ok: false, code: 'ADMIN_REASON_REQUIRED', msg: 'A reason is required for admin exception approval.' }, 400);
       u.kyc.status = 'approved';
-      u.kyc.reviewed_by = 'admin';
+      u.kyc.reviewed_by = adminUserId;
       u.kyc.reviewed_at = nowStr();
       u.kyc.reject_reason = '';
       u.kyc.review_reason = override ? reason : 'Approved pending identity verification application.';
-      await auditAdmin(override ? 'kyc_approve_exception' : 'kyc_approve', u.uid, override ? reason : 'Admin approved pending identity verification application.');
+      await auditAdmin(override ? 'kyc_approve_exception' : 'kyc_approve', u.uid, override ? reason : 'Admin approved pending identity verification application.', adminUserId);
       await saveDB(db);
       const auditFlush = await flushAdminAuditOutbox();
       return json({ ok: true, audit_sync_pending: auditFlush.pending, msg: override ? 'KYC approved via admin exception; reason recorded.' : 'KYC approved.' });
@@ -2904,9 +2888,9 @@ async function handleRequest(event, context) {
       if (!reason) return json({ ok: false, msg: 'Please provide a rejection reason.' }, 400);
       u.kyc.status = 'rejected';
       u.kyc.reject_reason = reason;
-      u.kyc.reviewed_by = 'admin';
+      u.kyc.reviewed_by = adminUserId;
       u.kyc.reviewed_at = nowStr();
-      await auditAdmin('kyc_reject', u.uid, reason);
+      await auditAdmin('kyc_reject', u.uid, reason, adminUserId);
       await saveDB(db);
       const auditFlush = await flushAdminAuditOutbox();
       return json({ ok: true, audit_sync_pending: auditFlush.pending, msg: 'KYC rejected.' });
@@ -2927,7 +2911,7 @@ async function handleRequest(event, context) {
           u.support_messages.push({ id: 'M' + Date.now() + crypto.randomBytes(3).toString('hex'), from: 'admin', content: content, time: nowStr() });
         });
       }
-      await auditAdmin('admin_push_message', body.uid || 'all', JSON.stringify({ target: body.uid ? 'single_user' : 'all_users', length: content.length }));
+      await auditAdmin('admin_push_message', body.uid || 'all', JSON.stringify({ target: body.uid ? 'single_user' : 'all_users', length: content.length }), adminUserId);
       await saveDB(db);
       const auditFlush = await flushAdminAuditOutbox();
       return json({ ok: true, audit_sync_pending: auditFlush.pending, msg: 'Message sent.' });
@@ -2940,7 +2924,7 @@ async function handleRequest(event, context) {
       if (!Array.isArray(u.support_messages)) u.support_messages = [];
       const supportMessage = { id: 'M' + Date.now() + crypto.randomBytes(3).toString('hex'), from: 'admin', content: body.content || '', time: nowStr() };
       u.support_messages.push(supportMessage);
-      await auditAdmin('support_reply', u.uid, JSON.stringify({ message_id: supportMessage.id, length: String(body.content || '').length }));
+      await auditAdmin('support_reply', u.uid, JSON.stringify({ message_id: supportMessage.id, length: String(body.content || '').length }), adminUserId);
       await saveDB(db);
       const auditFlush = await flushAdminAuditOutbox();
       return json({ ok: true, audit_sync_pending: auditFlush.pending, msg: 'Reply sent.' });
@@ -2989,8 +2973,8 @@ async function handleRequest(event, context) {
         }
       } else return json({ok:false,msg:'Unknown operation.'},400);
       if(!Array.isArray(target.address_audit)) target.address_audit=[];
-      target.address_audit.push({id:'L'+Date.now()+crypto.randomBytes(3).toString('hex'),action:action,address_id:body.id,by:'admin',time:nowStr(),detail:String(body.reason||'').slice(0,200)});
-      await auditAdmin('address_'+action, target.uid, JSON.stringify({ address_id: body.id, reason: String(body.reason || '').slice(0, 200) }));
+      target.address_audit.push({id:'L'+Date.now()+crypto.randomBytes(3).toString('hex'),action:action,address_id:body.id,by:adminUserId,time:nowStr(),detail:String(body.reason||'').slice(0,200)});
+      await auditAdmin('address_'+action, target.uid, JSON.stringify({ address_id: body.id, reason: String(body.reason || '').slice(0, 200) }), adminUserId);
       await saveDB(db);
       const auditFlush = await flushAdminAuditOutbox();
       return json({ok:true,audit_sync_pending:auditFlush.pending,msg:'Submitted successfully.'});
@@ -3089,7 +3073,7 @@ async function handleRequest(event, context) {
         if (body.announcement.length > 2000) return json({ ok: false, msg: 'Announcement cannot exceed 2,000 characters.' }, 400);
         db.announcement = body.announcement.trim();
       }
-      await auditAdmin('system_config_update', 'system', JSON.stringify({ deposit_address_keys: changedKeys, announcement_updated: typeof body.announcement === 'string' }));
+      await auditAdmin('system_config_update', 'system', JSON.stringify({ deposit_address_keys: changedKeys, announcement_updated: typeof body.announcement === 'string' }), adminUserId);
       await saveDB(db);
       const auditFlush = await flushAdminAuditOutbox();
       return json({ ok: true, audit_sync_pending: auditFlush.pending, msg: 'Configuration updated.', deposit_addresses: safeDepositAddresses(db.deposit_addresses), announcement: db.announcement });

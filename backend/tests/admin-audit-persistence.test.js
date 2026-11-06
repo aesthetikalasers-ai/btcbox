@@ -9,7 +9,7 @@ const source = fs.readFileSync(path.join(root, 'api-core.js'), 'utf8');
 const migration = fs.readFileSync(path.join(root, 'supabase/sql/0021_admin_audit_log_append_only_v1.sql'), 'utf8');
 
 test('admin audit events are staged locally and delivered through a durable outbox', () => {
-  const stageStart = source.indexOf('async function auditAdmin(action, uid, detail)');
+  const stageStart = source.indexOf('async function auditAdmin(action, uid, detail, actorId)');
   const stageEnd = source.indexOf('// POST /api/admin/user/balance', stageStart);
   assert.ok(stageStart >= 0 && stageEnd > stageStart);
   const stage = source.slice(stageStart, stageEnd);
@@ -173,7 +173,7 @@ test('admin audit action and uid filters reject overlong raw values before allow
 
 
 test('admin audit outbox stages only redacted detail before local persistence and PostgreSQL delivery', () => {
-  const stageStart = source.indexOf('async function auditAdmin(action, uid, detail)');
+  const stageStart = source.indexOf('async function auditAdmin(action, uid, detail, actorId)');
   const stageEnd = source.indexOf('// POST /api/admin/user/balance', stageStart);
   assert.ok(stageStart >= 0 && stageEnd > stageStart);
   const stage = source.slice(stageStart, stageEnd);
@@ -217,7 +217,7 @@ test('admin audit outbox retries use a bounded concurrent batch and finite netwo
 
 
 test('admin audit outbox refuses new audited mutations at the pending-event ceiling', () => {
-  const start = source.indexOf('async function auditAdmin(action, uid, detail)');
+  const start = source.indexOf('async function auditAdmin(action, uid, detail, actorId)');
   const end = source.indexOf('// POST /api/admin/user/balance', start);
   assert.ok(start >= 0 && end > start);
   const stage = source.slice(start, end);
@@ -232,7 +232,7 @@ test('admin audit outbox refuses new audited mutations at the pending-event ceil
 
 
 test('admin audit retention handles a zero non-pending capacity without slice(-0)', () => {
-  const start = source.indexOf('async function auditAdmin(action, uid, detail)');
+  const start = source.indexOf('async function auditAdmin(action, uid, detail, actorId)');
   const end = source.indexOf('// POST /api/admin/user/balance', start);
   assert.ok(start >= 0 && end > start);
   const stage = source.slice(start, end);

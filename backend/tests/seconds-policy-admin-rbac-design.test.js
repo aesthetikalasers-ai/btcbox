@@ -8,16 +8,17 @@ const root = path.resolve(__dirname, '..');
 const api = fs.readFileSync(path.join(root, 'api-core.js'), 'utf8');
 const design = fs.readFileSync(path.resolve(root, '../docs/SECONDS_POLICY_ADMIN_RBAC.md'), 'utf8');
 
-test('seconds policy write routes remain unavailable while admin identity is shared Basic Auth', () => {
+test('seconds policy write routes remain unavailable until dedicated policy lifecycle RPCs are wired', () => {
   const authStart = api.indexOf('async function adminAuth()');
   const authEnd = api.indexOf('async function flushAdminAuditOutbox()', authStart);
   assert.ok(authStart >= 0 && authEnd > authStart);
   const auth = api.slice(authStart, authEnd);
-  assert.match(auth, /startsWith\('Basic '\)/);
-  assert.match(auth, /process\.env\.ADMIN_USER/);
-  assert.match(auth, /process\.env\.ADMIN_PASS/);
-  assert.doesNotMatch(api, /seconds-policy/);
+  assert.match(auth, /authorizeSupabaseAdmin/);
+  assert.doesNotMatch(auth, /Basic |ADMIN_USER|ADMIN_PASS/);
   assert.match(api, /if \(path\.startsWith\('admin\/'\)\)/);
+  assert.match(api, /route === 'seconds-policy' && verb === 'GET'/);
+  assert.match(api, /route === 'seconds-policy' && verb === 'POST'/);
+  assert.doesNotMatch(api, /if \(sub === 'seconds-policy' && method === 'POST'\)/);
 });
 
 test('seconds policy RBAC design requires a validated Supabase subject and server-side permission lookup', () => {
@@ -93,14 +94,19 @@ test('RBAC database contract defines immutable identity, permission, review, tra
   ]) assert.ok(design.toLowerCase().includes(phrase.toLowerCase()), 'missing contract phrase: ' + phrase);
 });
 
-test('private RBAC schema remains unexposed and PostgREST wrapper cannot become a public security-definer endpoint', () => {
+test('private RBAC schema remains unexposed behind a service-role-only PostgREST wrapper', () => {
   assert.match(design, /private schema remains absent from Supabase Data API exposed schemas/i);
-  assert.match(design, /SECURITY INVOKER wrapper/i);
-  assert.match(design, /EXECUTE privilege is revoked from PUBLIC, anon, and authenticated/i);
-  assert.match(design, /Do not create a public SECURITY DEFINER wrapper/i);
+  const wrapper = fs.readFileSync(path.join(root, 'supabase/sql/0028_admin_rbac_service_rpc_wrappers_v1.sql'), 'utf8');
+  assert.match(wrapper, /SECURITY DEFINER/i);
+  assert.match(wrapper, /SET search_path = ''/i);
+  assert.ok(wrapper.includes('REVOKE ALL ON FUNCTION public.admin_get_membership_v1(uuid)\\n  FROM PUBLIC,anon,authenticated,service_role;'));
+  assert.ok(wrapper.includes('REVOKE ALL ON FUNCTION public.admin_manage_membership_v1(uuid,uuid,bigint,text,text[],text,text,text)\\n  FROM PUBLIC,anon,authenticated,service_role;'));
+  assert.ok(wrapper.includes('GRANT EXECUTE ON FUNCTION public.admin_get_membership_v1(uuid) TO service_role;'));
+  assert.ok(wrapper.includes('GRANT EXECUTE ON FUNCTION public.admin_manage_membership_v1(uuid,uuid,bigint,text,text[],text,text,text)\\n  TO service_role;'));
+  assert.doesNotMatch(wrapper, /GRANT EXECUTE ON FUNCTION[\\s\\S]*TO (?:anon|authenticated)/i);
+  assert.doesNotMatch(wrapper, /GRANT EXECUTE ON FUNCTION[\\s\\S]*TO (?:anon|authenticated)/i);
   assert.match(design, /do not grant direct table DML/i);
 });
-
 
 test('Super Admin has full authority and exclusively manages delegated administrator permissions', () => {
   assert.match(design, /Super Admin has every BTCBOX admin permission/i);

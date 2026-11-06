@@ -37,14 +37,13 @@
       ]
     }
   ],
+  "redirects": [
+    { "source": "/admin.html", "destination": "/admin", "permanent": true }
+  ],
   "rewrites": [
     {
       "source": "/auth/callback",
       "destination": "/legacy-index.html?auth_callback=1"
-    },
-    {
-      "source": "/admin",
-      "destination": "/admin.html"
     },
     {
       "source": "/oauth/consent",

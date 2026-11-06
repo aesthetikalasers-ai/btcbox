@@ -1,17 +1,17 @@
 # BTCBOX Seconds Policy Administration — Identity, RBAC and Approval Contract
 
-Status: proposed security design; documentation only. No runtime admin identity or policy-write feature is enabled by this document.
-Scope: seconds-contract policy management only. This is not a general admin-console RBAC migration.
+Status: source security contract for the React Admin API and Seconds policy governance. Supabase Auth/RBAC middleware and the React Admin Console are implemented in source; Seconds policy mutation lifecycle remains gated and not implemented.
+Scope: shared administrator identity/permissions plus seconds-contract policy management.
 
 ## 1. Current-state boundary
 
-The current admin API is protected by one shared `ADMIN_USER` / `ADMIN_PASS` Basic Auth credential. The authenticated actor is effectively the shared configured username, not a separately authenticated human administrator. Existing admin audit logging does not turn that shared credential into attributable individual identity.
+The earlier admin API used one shared `ADMIN_USER` / `ADMIN_PASS` Basic Auth credential. The current React Admin API uses a verified Supabase Auth Bearer token and a live server-side membership/permission lookup. The authenticated actor is the validated Supabase Auth UUID, not a caller-supplied username or request field.
 
 Therefore:
 - Do not expose seconds-policy create, edit, approve, activate, schedule, retire, or delete routes under the current Basic Auth gate.
 - Do not accept `actor_id`, `role`, `approved_by`, or `activated_by` from request JSON as proof of identity or authority.
 - Do not infer an admin role from customer `user_metadata`, browser state, local storage, email text, or an unverified JWT payload.
-- Keep existing admin routes and authentication behavior unchanged until a separately reviewed migration and compatibility plan is approved.
+- Do not reintroduce shared Basic Auth as a fallback for the React Admin API; all admin mutations must derive actor identity from the verified Supabase Auth UUID.
 
 ## 2. Proposed administrator identity
 
@@ -23,7 +23,7 @@ Use a dedicated administrator identity mapped to a Supabase Auth user:
 - Do not use mutable `user_metadata` for authorization. Do not rely solely on `app_metadata` claims for immediate revocation.
 - Unknown, disabled, suspended, or unavailable identity/permission state fails closed.
 
-The initial implementation should be additive and isolated to seconds-policy administration. It must not silently convert all existing Basic Auth admin routes or alter their current behavior.
+The current source integration applies verified Supabase Auth and route-specific RBAC to the Admin API family. Seconds-policy mutation remains unavailable until its dedicated transactional lifecycle RPCs and tests are complete.
 
 ## 3. Least-privilege permissions
 
@@ -44,14 +44,14 @@ For every policy version that becomes active:
 - An administrator's permission can be revoked between stages; the permission must be rechecked at the time of each transition.
 - Emergency suspension, if later required, must be a separate audited operation with narrowly scoped permission and explicit behavior for already-open positions. Do not invent it as a side effect of ordinary policy edits.
 
-This is a proposed high-assurance separation-of-duties model. Any relaxation (for example, allowing one person to hold multiple roles across separate actions) requires explicit product/security approval and must never collapse the three actor identities for one activation.
+The Super Admin may complete the full lifecycle alone. No three-person or three-actor separation requirement is imposed. Ordinary Admins remain limited to their explicit permissions; any optional review step must not block the Super Admin from authoring, reviewing and activating a policy alone.
 
 ## 5. Policy lifecycle and immutable versions
 
 Recommended lifecycle:
 1. Draft: author submits a complete candidate version with a reason and expected base version.
-2. Review: a different reviewer approves or rejects the exact immutable draft hash/version.
-3. Activation: a third administrator activates the approved version, immediately or at a validated future effective time.
+2. Review: the Super Admin may review the exact immutable draft hash/version, including a draft they authored; a separate reviewer is not mandatory.
+3. Activation: the Super Admin may activate the approved version, immediately or at a validated future effective time.
 4. Retirement: a separately authorized action closes future eligibility without rewriting positions already opened under the policy.
 
 Every edit creates a new draft/version. Never UPDATE an activated policy row in place. The active pointer transition, effective-window conflict check, audit append, request-idempotency record, and optimistic revision check must commit atomically.
@@ -60,8 +60,9 @@ A policy must contain the full approved terms: symbol allowlist, duration allowl
 
 ## 6. API contract before implementation
 
-Proposed route family (not implemented):
-- `GET /api/admin/seconds-policy`: authenticated read; requires `seconds_policy.read`.
+Current/proposed route family:
+- `GET /api/admin/seconds-policy`: authenticated read is implemented in source; requires `seconds_policy.read`.
+- `POST /api/admin/seconds-policy`: permission is reserved as `seconds_policy.manage`; policy mutation remains unavailable until the complete transactional lifecycle RPC is implemented and tested.
 - `POST /api/admin/seconds-policy/drafts`: create immutable draft; requires `seconds_policy.draft`.
 - `POST /api/admin/seconds-policy/drafts/:id/review`: approve/reject exact draft; requires `seconds_policy.review`.
 - `POST /api/admin/seconds-policy/:id/activate`: activate/schedule approved version; requires `seconds_policy.activate`.
@@ -309,17 +310,21 @@ This source-only migration implements the first storage layer for the single Sup
 - `private.admin_get_membership_v1`: trusted backend lookup after Supabase Auth verification; returns active status, revision and current allowlisted permissions.
 - `private.admin_manage_membership_v1`: trusted-server transition requiring an active Super Admin actor. It provisions an existing Auth user, replaces explicit grants, suspends/reactivates/revokes ordinary Admins, rejects self-management and any Super Admin target, increments revision, writes grant/revoke events, idempotency and audit atomically.
 - The service role has private schema USAGE and EXECUTE on the two runtime functions only. It has no direct table DML. PUBLIC/anon/authenticated have no schema/table/function access. Tables have RLS enabled as defense in depth. The private schema must remain absent from Data API exposed schemas.
-- SECURITY DEFINER is confined to private functions with fixed search_path and narrow EXECUTE grants; there is no public SECURITY DEFINER wrapper.
+- SECURITY DEFINER is confined to private functions and two narrowly scoped public PostgREST wrappers with an empty search_path and fully qualified private-function calls. The wrappers revoke EXECUTE from PUBLIC, anon, authenticated and service_role before granting EXECUTE only to service_role. The private schema remains unexposed and no direct table DML is granted.
 
 ### Important integration boundary
-The SQL functions trust the actor UUID passed by the trusted backend. The future route MUST first call the Supabase Auth user endpoint, derive the actor UUID from that verified response, ignore actor/role fields in request JSON, and only then call the private RPC using the server-held service credential. Never expose the service credential. The backend must compute a canonical SHA-256 request hash and stable request ID. A private schema RPC is not automatically callable through PostgREST unless private is exposed; do not expose it. The integration must use a separately verified invocation path or a narrowly reviewed SECURITY INVOKER wrapper without granting direct table DML.
+The SQL functions trust the actor UUID passed by the trusted backend. The future route MUST first call the Supabase Auth user endpoint, derive the actor UUID from that verified response, ignore actor/role fields in request JSON, and only then call the private RPC using the server-held service credential. Never expose the service credential. The backend must compute a canonical SHA-256 request hash and stable request ID. A private schema RPC is not automatically callable through PostgREST unless private is exposed; do not expose it. The integration uses narrowly reviewed public SECURITY DEFINER wrappers solely as PostgREST transport to the private functions. Each wrapper uses an empty search_path, fully qualified private function names, and EXECUTE is granted only to service_role; the HTTP layer verifies the caller's Supabase Auth token and checks live membership/permissions before invoking them. Do not expose the private schema or grant direct table DML.
 
 ### Bootstrap and safety
 The migration seeds only permission definitions. It does not create a Super Admin, ordinary Admin, permission grant, or default account. Initial Super Admin bootstrap is a separate owner-controlled SQL operation against an isolated staging environment, using an exact verified Auth UUID. No self-service bootstrap, default email, password, or hidden recovery account exists. Ordinary APIs cannot modify the Super Admin identity.
 
 ### Validation status
-This batch adds migration source and static contract tests only. No PostgreSQL parser or isolated staging database was available for execution, so SQL runtime/catalog behavior is NOT yet validated. Do not apply this migration to production. The next integration stage must validate SQL on isolated staging, verify actual role/function privileges and exposed-schema configuration, and test concurrent/idempotent operations before any route is connected.
+The SQL remains source-only. No PostgreSQL parser or isolated staging database was available for execution, so SQL runtime/catalog behavior is NOT yet validated. Do not apply this migration to production. Before enabling administrator access, validate SQL on isolated staging, verify actual role/function privileges and exposed-schema configuration, and test concurrent/idempotent membership operations.
 
+
+
+
+The React Admin source exposes `/admin` outside the customer AppLayout, obtains a short-lived Supabase access token from AuthContext, and sends it only in Bearer authorization headers. The backend verifies the token, loads current membership through the service-role-only RPC wrapper, checks route permissions, and attributes audit events to the verified Auth UUID. The UI covers overview, user lookup/manual credit, deposit-address configuration, withdrawal review/manual payout, KYC, audit, orders and support. Administrator provisioning/permission-management UI and the Seconds policy editor remain follow-up work.
 
 ### 15.1 Source review corrections
 - Bootstrap audit attribution is explicitly marked `owner_bootstrap` with no fabricated administrator actor UUID; the target Auth UUID remains separately recorded.
