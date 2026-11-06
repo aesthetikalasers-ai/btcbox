@@ -60,9 +60,13 @@ test('migration order document records the prepared Seconds migration dependenci
   const policy = orderDoc.indexOf('0025_seconds_policy_versioning_v1.sql');
   const adminRbac = orderDoc.indexOf('0026_admin_rbac_private_store_v1.sql');
   const manualPayout = orderDoc.indexOf('0027_withdrawal_manual_payout_completion_v1.sql');
-  assert.ok(rateLimit >= 0 && settlement > rateLimit && policy > settlement && adminRbac > policy && manualPayout > adminRbac);
+  const rbacWrappers = orderDoc.indexOf('0028_admin_rbac_service_rpc_wrappers_v1.sql');
+  const feeIdempotency = orderDoc.indexOf('0029_withdrawal_fee_quote_idempotency_v1.sql');
+  assert.ok(rateLimit >= 0 && settlement > rateLimit && policy > settlement && adminRbac > policy && manualPayout > adminRbac && rbacWrappers > manualPayout && feeIdempotency > rbacWrappers);
   assert.ok(orderDoc.includes('depends on the Seconds base schema in'));
   assert.ok(orderDoc.includes('adds Seconds settlement request-hash idempotency'));
+  assert.ok(orderDoc.includes('replay lookup'));
+  assert.ok(orderDoc.includes('originally stored fee'));
   assert.ok(orderDoc.includes('timestamp registry versions with four-digit source filenames'));
 });
 
