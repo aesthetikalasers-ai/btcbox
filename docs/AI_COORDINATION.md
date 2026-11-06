@@ -6013,3 +6013,33 @@ The prior withdrawal UI audit statement claiming the active BTCBOX admin route w
 - **SQL (PostgreSQL CI exercised)**: new migration `0032_admin_audit_log_filter_indexes_v1.sql` adds two non-destructive indexes on `public.financial_audit_log` — `(action, id desc)` and `(subject_user_id, id desc)` — matching the `GET /api/admin/audit-logs` query access paths (filtered by action or subject, ordered by id desc). Registered in `scripts/bootstrap-empty-database.sh` FILES list and `MIGRATION-ORDER-AND-CUTOVER.md` (required by the bootstrap test; initial omission caused one backend CI failure, fixed in follow-up commit).
 - Regression tests: extended `admin-support-idempotency.test.js` (customer chat idempotency + frontend wiring), `admin-fund-ops-audit.test.js` (0032 indexes). Local backend: 395 tests, 394 pass (1 pre-existing build-site env issue).
 - Commits: `5be1998` (support idempotency + SQL indexes), `4afe942` (bootstrap/migration-doc registration fix). PR #56 (draft) triggers all three CI suites on `4afe942`. Frontend CI run **42301789426** and PostgreSQL CI run **42301789026** already passed on `5be1998`; backend CI on `5be1998` failed only due to the missing bootstrap registration, fixed by `4afe942`.
+
+## 2026-11-07 — Phase 2 batch 2: admin withdrawal 409 retry UX
+
+- Withdrawal approve/reject retries that return 409 `WITHDRAWAL_ALREADY_PROCESSED`
+  (first attempt succeeded but response was lost) are now surfaced in the Admin
+  Panel as a confirmed notice + queue refresh via `isAlreadyProcessed` /
+  `handleAlreadyProcessed`, instead of a red error. Applies to approve and reject
+  (confirmReviewRejection) paths; mark-paid duplicate was already handled in the
+  success path. Frontend `tsc --noEmit` + `vite build` pass. Regression test in
+  `admin-api-contract.test.js`. Commit `b3f82d9`. Backend CI (workflow_dispatch)
+  **42303540899** success; PR-triggered backend **42303573419** success; frontend
+  CI **42303573493** (temp draft PR #57) verified. PostgreSQL CI path-skipped (no
+  SQL change this batch).
+
+## 2026-11-07 — Phase 2 batch 3: KYC already-reviewed 409 UX + Playwright smoke green
+
+- KYC approve retry returning 409 `KYC_EXCEPTION_REQUIRED` (first attempt
+  succeeded but response lost) is now surfaced in the Admin Panel as a confirmed
+  notice + queue refresh via the generalized `isAlreadyProcessed` helper (now
+  covers WITHDRAWAL_ALREADY_PROCESSED, KYC_EXCEPTION_REQUIRED, and status 409).
+  Regression test in `admin-api-contract.test.js`. Commit `36bcc71`.
+- Verified Earn subscribe/redeem and Seconds open/settle already use stable
+  deterministic request ids retained across retries (idempotent); admin support
+  reply likewise. No change needed.
+- Playwright e2e smoke (`frontend/e2e/auth-routes.spec.ts`) runs **20/20 green**
+  locally (desktop + mobile chromium), covering /login, /register, /admin,
+  /assets, /orders, /kyc, /deposit, /withdraw, /seconds, /support, /settings,
+  /earn, /trade/BTCUSDT, /me.
+- CI: Backend workflow_dispatch + temp draft PR #58 on `36bcc71`; Frontend CI
+  via PR #58. PostgreSQL path-skipped (no SQL change this batch).

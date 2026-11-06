@@ -51,6 +51,8 @@ test('admin error feedback surfaces server codes and the refresh-after-confirmed
   assert.ok(adminPage.includes('WITHDRAWAL_ALREADY_PROCESSED'));
   assert.ok(adminPage.includes('already approved on a previous attempt'));
   assert.ok(adminPage.includes('already reviewed on a previous attempt'));
+  assert.ok(adminPage.includes('KYC application was already reviewed on a previous attempt'));
+  assert.ok(adminPage.includes('KYC_EXCEPTION_REQUIRED'));
   assert.ok(adminPage.includes('handleAlreadyProcessed'));
   // ApiError carries the server code so callers can distinguish 409/400/503.
   assert.ok(client.includes('class ApiError') || client.includes('ApiError'));
