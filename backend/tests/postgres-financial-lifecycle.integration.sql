@@ -89,7 +89,7 @@ BEGIN
   IF v_snapshot->'deposits'->0->>'status'<>'confirmed' OR
      v_snapshot->'deposits'->0->>'reference'<>repeat('R',130) OR
      (v_snapshot->'deposits'->0->>'amount')::numeric<>5 OR
-     v_snapshot->'balances'->'USDT'->>'free'<>'5' THEN
+     (v_snapshot->'balances'->'USDT'->>'free')::numeric<>5 THEN
     RAISE EXCEPTION 'account snapshot deposit history and balance do not match: %',v_snapshot;
   END IF;
 
