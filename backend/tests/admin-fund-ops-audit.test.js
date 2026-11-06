@@ -87,3 +87,17 @@ test('direct administrator balance adjustment remains disabled pending maker-che
   assert.ok(afterPermission >= 0, 'direct balance adjustment must be closed before the handler body');
   assert.ok(api.includes('dual-approval adjustment queue'));
 });
+
+test('canonical financial_audit_log has indexes matching the admin audit-logs query access paths', () => {
+  const migration = fs.readFileSync(path.join(root, 'supabase/sql/0032_admin_audit_log_filter_indexes_v1.sql'), 'utf8');
+  // GET /api/admin/audit-logs filters by action=eq / subject_user_id=eq and
+  // orders by id.desc; these indexes cover both filtered access paths.
+  assert.ok(migration.includes('financial_audit_action_id_desc_idx'));
+  assert.ok(migration.includes('financial_audit_subject_id_desc_idx'));
+  assert.ok(migration.includes('action, id desc'));
+  assert.ok(migration.includes('subject_user_id, id desc'));
+  assert.ok(migration.includes('create index if not exists'));
+  // Existing subject+created_at index is retained (no drop).
+  const base = fs.readFileSync(path.join(root, 'supabase/sql/0002_financial_ledger_v1.sql'), 'utf8');
+  assert.ok(base.includes('financial_audit_subject_time_idx'));
+});

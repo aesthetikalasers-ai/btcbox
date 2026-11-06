@@ -2605,15 +2605,30 @@ async function handleRequest(event, context) {
   if (path === 'support/chat' && method === 'POST') {
     if (!user) return json({ ok: false, msg: 'Not signed in.', need_login: true }, 401);
     const content = typeof body.content === 'string' ? body.content.trim() : '';
+    const requestId = String(body.request_id || '').trim();
     if (!content) return json({ ok: false, msg: 'Please enter a message.' }, 400);
     if (content.length > 2000) return json({ ok: false, msg: 'Messages cannot exceed 2,000 characters.' }, 400);
     user.support_messages = Array.isArray(user.support_messages) ? user.support_messages : [];
-    user.support_messages.push({ id: 'M' + Date.now() + crypto.randomBytes(3).toString('hex'), from: 'user', content: content, time: nowStr() });
+    // A stable client request_id makes customer support sends idempotent: a
+    // retry after a lost response returns the original message instead of
+    // duplicating it in the conversation.
+    if (requestId) {
+      if (!/^[A-Za-z0-9_-]{16,100}$/.test(requestId)) return json({ ok: false, code: 'INVALID_REQUEST_ID', msg: 'Invalid message request ID. No message was sent.' }, 400);
+      const prior = user.support_messages.find(function (message) { return message && message.from === 'user' && message.request_id === requestId; });
+      if (prior) {
+        if (String(prior.content || '') !== content) return json({ ok: false, code: 'SUPPORT_MESSAGE_IDEMPOTENCY_CONFLICT', msg: 'This request ID was already used for a different message.' }, 409);
+        return json({ ok: true, duplicate: true, message_id: prior.id, time: prior.time });
+      }
+    }
+    const messageId = 'M' + Date.now() + crypto.randomBytes(3).toString('hex');
+    const entry = { id: messageId, from: 'user', content: content, time: nowStr() };
+    if (requestId) entry.request_id = requestId;
+    user.support_messages.push(entry);
     // Keep the conversation bounded so repeated submissions cannot grow the
     // per-user record without limit. Preserve the newest messages.
     if (user.support_messages.length > 500) user.support_messages = user.support_messages.slice(-500);
     await saveDB(db);
-    return json({ ok: true, msg: 'Submitted successfully.' });
+    return json({ ok: true, duplicate: false, message_id: messageId, time: entry.time });
   }
 
   // ---------- GET /api/support/messages ----------

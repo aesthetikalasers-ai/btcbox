@@ -65,3 +65,26 @@ test('KYC and withdrawal review operations are state/idempotency guarded so a re
   assert.ok(wdApprove.includes('WITHDRAWAL_ALREADY_PROCESSED'));
   assert.ok(wdApprove.includes('duplicate'));
 });
+
+test('customer support chat send is idempotent by request_id and the SupportPage persists it across retries', () => {
+  const route = sliceRoute("if (path === 'support/chat' && method === 'POST')", "// ---------- GET /api/support/messages");
+  // Optional client request_id; invalid format refused before any write.
+  assert.ok(route.includes('request_id'));
+  assert.ok(route.includes('INVALID_REQUEST_ID'));
+  // Prior same request_id + same content => duplicate success; different content => 409.
+  assert.ok(route.includes('SUPPORT_MESSAGE_IDEMPOTENCY_CONFLICT'));
+  assert.ok(route.includes("message.from === 'user' && message.request_id === requestId"));
+  assert.ok(route.includes('duplicate: true'));
+  // Delivered user message carries request_id for reconciliation.
+  assert.ok(route.includes('entry.request_id = requestId'));
+  assert.ok(route.includes('await saveDB(db)'));
+  // Frontend SupportPage generates a stable request id and keeps it until send
+  // succeeds, so a retry after a lost response cannot duplicate the message.
+  const pages = fs.readFileSync(path.resolve(root, '../frontend/src/features/pages/Pages.tsx'), 'utf8');
+  assert.ok(pages.includes('pendingRequestId'));
+  assert.ok(pages.includes('sendSupportMessage(message,requestId)'));
+  assert.ok(pages.includes('crypto.randomUUID()'));
+  const client = fs.readFileSync(path.resolve(root, '../frontend/src/lib/api.ts'), 'utf8');
+  assert.ok(client.includes('sendSupportMessage(content: string, requestId?: string)'));
+  assert.ok(client.includes('request_id: requestId'));
+});

@@ -680,6 +680,7 @@ export function SupportPage(){
  const [error,setError]=useState("");
  const [sendError,setSendError]=useState("");
  const [reload,setReload]=useState(0);
+ const [pendingRequestId,setPendingRequestId]=useState<string>("");
  useEffect(()=>{
   const controller=new AbortController();
   setLoading(true);setError("");
@@ -693,10 +694,13 @@ export function SupportPage(){
   event.preventDefault();
   const message=draft.trim();
   if(!message||sending)return;
+  const requestId=pendingRequestId||("MSG"+crypto.randomUUID().replace(/-/g,"")).slice(0,64);
+  if(!pendingRequestId)setPendingRequestId(requestId);
   setSending(true);setSendError("");
   try{
-   await sendSupportMessage(message);
+   await sendSupportMessage(message,requestId);
    setDraft("");
+   setPendingRequestId("");
    setReload(n=>n+1);
   }catch(reason){
    setSendError(reason instanceof Error?reason.message:"Message could not be sent. Please try again.");
