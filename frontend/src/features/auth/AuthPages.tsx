@@ -25,6 +25,7 @@ export function AuthPage({ mode }: { mode: "login" | "register" }) {
   const [verifyBusy, setVerifyBusy] = useState(false);
   const [showEthereumWallets, setShowEthereumWallets] = useState(false);
   const navigate = useNavigate();
+  const isAdminLogin = window.location.pathname.startsWith("/admin") || new URLSearchParams(window.location.search).get("next") === "/admin";
 
   useEffect(() => {
     if (status === "authenticated") navigate(postAuthDestination(needsCredentials), { replace: true });
@@ -56,7 +57,7 @@ export function AuthPage({ mode }: { mode: "login" | "register" }) {
       <CardHeader className="gap-3 text-center">
         <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl border border-brand-border bg-brand-surface-2"><ShieldCheck className="h-6 w-6 text-brand-text-secondary"/></div>
         <CardTitle className="text-xl">{status === "two-factor" ? "Two-step verification" : mode === "login" ? "Welcome back" : "Create your BTCBOX account"}</CardTitle>
-        <CardDescription>{status === "two-factor" ? "Enter the verification code from your authenticator app." : mode === "login" ? "Sign in with your email, BTCBOX username, Google, or a supported wallet." : "Create an account with email or Google. You can also use a supported wallet."}</CardDescription>
+        <CardDescription>{status === "two-factor" ? "Enter the verification code from your authenticator app." : isAdminLogin ? "Sign in with your dedicated Supabase administrator identity." : mode === "login" ? "Sign in with your email, BTCBOX username, Google, or a supported wallet." : "Create an account with email or Google. You can also use a supported wallet."}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         {error && <div role="alert" className="rounded-lg border border-loss/30 bg-loss/10 p-3 text-sm text-loss">{error}<button className="ml-2 inline-flex min-h-11 items-center px-2 underline" onClick={clearError}>Dismiss</button></div>}
@@ -65,7 +66,7 @@ export function AuthPage({ mode }: { mode: "login" | "register" }) {
           <Input value={code} onChange={e=>setCode(e.target.value.replace(/\D/g,"").slice(0,8))} inputMode="numeric" autoComplete="one-time-code" placeholder="Authentication code" aria-label="Authentication code" required/>
           <Button type="submit" className="w-full" disabled={verifyBusy || code.length < 6}>{verifyBusy ? "Verifying…" : "Verify and continue"}</Button>
         </form> : <>
-          {mode === "login" && <form className="space-y-3" onSubmit={submitUsername}>
+          {mode === "login" && !isAdminLogin && <form className="space-y-3" onSubmit={submitUsername}>
             <label className="block space-y-1.5 text-sm"><span className="text-brand-text-secondary">BTCBOX username</span><Input value={username} onChange={e=>setUsername(e.target.value.toLowerCase())} autoComplete="username" placeholder="Your username" minLength={3} maxLength={24} required/></label>
             <label className="block space-y-1.5 text-sm"><span className="text-brand-text-secondary">Password</span><span className="relative block"><Input type={showPassword ? "text" : "password"} autoComplete="current-password" value={password} onChange={e=>setPassword(e.target.value)} placeholder="Your BTCBOX password" required className="pr-12"/><button type="button" aria-label={showPassword ? "Hide password" : "Show password"} onClick={()=>setShowPassword(v=>!v)} className="absolute inset-y-0 right-1 inline-flex min-h-11 min-w-11 items-center justify-center text-brand-text-muted">{showPassword ? <EyeOff className="h-4 w-4"/> : <Eye className="h-4 w-4"/>}</button></span></label>
             <Button type="submit" className="w-full" disabled={busy || status !== "anonymous" || !username.trim() || !password}>{busy ? "Please wait…" : "Sign in with username"}</Button>
@@ -78,7 +79,7 @@ export function AuthPage({ mode }: { mode: "login" | "register" }) {
             {mode === "login" && <button type="button" className="min-h-11 text-sm text-brand-text-secondary underline underline-offset-4 disabled:opacity-50" disabled={busy || !emailAddress.trim()} onClick={()=>void requestPasswordReset(emailAddress).catch(()=>{})}>Forgot password?</button>}
           </form>
           {googleEnabled && <><div className="flex items-center gap-3 py-1"><div className="h-px flex-1 bg-brand-border"/><span className="text-xs text-brand-text-muted">{mode === "login" ? "OR CONTINUE WITH" : "SIGN UP WITH"}</span><div className="h-px flex-1 bg-brand-border"/></div><Button className="w-full" size="lg" variant="outline" disabled={busy || status !== "anonymous"} onClick={signInWithGoogle}><Chrome className="h-5 w-5"/> Continue with Google</Button></>}
-          <div className="flex items-center gap-3 py-1"><div className="h-px flex-1 bg-brand-border"/><span className="text-xs text-brand-text-muted">WEB3 WALLET</span><div className="h-px flex-1 bg-brand-border"/></div>
+          {!isAdminLogin && <><div className="flex items-center gap-3 py-1"><div className="h-px flex-1 bg-brand-border"/><span className="text-xs text-brand-text-muted">WEB3 WALLET</span><div className="h-px flex-1 bg-brand-border"/></div>
           <Button className="w-full" size="lg" variant="outline" disabled={busy || status !== "anonymous"} onClick={() => ethereumWallets.length > 1 ? setShowEthereumWallets(true) : void signInWithWeb3("ethereum", ethereumWallets[0]?.provider)}><Wallet className="h-5 w-5"/> Continue with Ethereum wallet</Button>
           {showEthereumWallets && <div className="space-y-2 rounded-lg border border-brand-border bg-brand-surface-2 p-3" aria-label="Choose Ethereum wallet">
             <p className="text-sm font-medium text-brand-text">Choose your Ethereum wallet</p>
@@ -93,10 +94,11 @@ export function AuthPage({ mode }: { mode: "login" | "register" }) {
               <a className="inline-flex min-h-11 items-center rounded-lg px-3 py-2 font-medium text-brand-text underline underline-offset-4" href={phantomBrowseUrl} target="_blank" rel="noreferrer">Open in Phantom</a>
               <a className="inline-flex min-h-11 items-center rounded-lg px-3 py-2 font-medium text-brand-text underline underline-offset-4" href={coinbaseDappUrl} target="_blank" rel="noreferrer">Open in Coinbase Wallet</a>
             </div>
-          </div>
+          </div></>}
         </>}
-        <div className="text-center text-xs text-brand-text-muted">{mode === "login" ? <>New to BTCBOX? <Link className="text-brand-text underline underline-offset-4" to="/register">Create account</Link></> : <>Already have an account? <Link className="text-brand-text underline underline-offset-4" to="/login">Sign in</Link></>}</div>
-        <Link to="/home" className="flex min-h-11 items-center justify-center gap-2 px-3 text-xs text-brand-text-muted hover:text-brand-text"><ArrowLeft className="h-3.5 w-3.5"/> Back to BTCBOX</Link>
+        {!isAdminLogin && <div className="text-center text-xs text-brand-text-muted">{mode === "login" ? <>New to BTCBOX? <Link className="text-brand-text underline underline-offset-4" to="/register">Create account</Link></> : <>Already have an account? <Link className="text-brand-text underline underline-offset-4" to="/login">Sign in</Link></>}</div>}
+        {!isAdminLogin && <Link to="/home" className="flex min-h-11 items-center justify-center gap-2 px-3 text-xs text-brand-text-muted hover:text-brand-text"><ArrowLeft className="h-3.5 w-3.5"/> Back to BTCBOX</Link>}
+        {isAdminLogin && <p className="text-center text-xs text-brand-text-muted">Administrator access is granted by an active BTCBOX admin membership, not by registering a customer account.</p>}
       </CardContent>
     </Card>
   </div>;
