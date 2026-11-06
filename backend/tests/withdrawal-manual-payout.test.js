@@ -25,6 +25,7 @@ test('manual payout completion requires the financial cutover and configured ser
 
 test('database RPC independently rejects blank references and permits only approved withdrawals', () => {
   assert.ok(sql.includes("coalesce(btrim(p_reference),'')=''"));
+  assert.ok(sql.includes("coalesce(p_reference,'') ~ '[[:cntrl:]]'"));
   assert.ok(sql.includes("IF v_w.status<>'approved' THEN"));
   assert.ok(sql.includes("withdrawal must be approved before manual payout completion"));
 });
