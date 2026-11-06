@@ -2110,6 +2110,31 @@ async function handleRequest(event, context) {
     }
   }
 
+  // ---------- GET /api/earn/products ----------
+  // The active catalog is read from PostgreSQL; never substitute frontend seed data.
+  if (path === 'earn/products' && method === 'GET') {
+    if (!user) return json({ ok: false, msg: 'Not signed in.', need_login: true }, 401);
+    if (!supabaseStorageConfigured()) return json({ ok: false, code: 'EARN_CATALOG_UNAVAILABLE', msg: 'Earn products are temporarily unavailable.' }, 503);
+    try {
+      const base = process.env.SUPABASE_URL.replace(/\\/+$/, '');
+      const query = 'select=product_id,asset,product_type,apy_percent,term_days,early_fee_percent,amount_scale,active,updated_at&active=eq.true&order=asset.asc,term_days.asc';
+      const response = await fetch(base + '/rest/v1/earn_product_catalog?' + query, {
+        method: 'GET', headers: supabaseHeaders(), signal: AbortSignal.timeout(8000)
+      });
+      if (!response.ok) return json({ ok: false, code: 'EARN_CATALOG_UNAVAILABLE', msg: 'Earn products are temporarily unavailable.' }, 503);
+      const rows = await response.json();
+      if (!Array.isArray(rows) || rows.some(function (item) {
+        return !item || typeof item.product_id !== 'string' || typeof item.asset !== 'string' ||
+          !['demand', 'fixed'].includes(item.product_type) || !Number.isFinite(Number(item.apy_percent)) ||
+          !Number.isInteger(Number(item.term_days)) || !Number.isFinite(Number(item.early_fee_percent)) ||
+          !Number.isInteger(Number(item.amount_scale)) || item.active !== true;
+      })) return json({ ok: false, code: 'EARN_CATALOG_INVALID', msg: 'Earn product data is invalid.' }, 503);
+      return json({ ok: true, products: rows, actions_enabled: financialWritesEnabled() && supabaseStorageConfigured() });
+    } catch (e) {
+      return json({ ok: false, code: 'EARN_CATALOG_UNAVAILABLE', msg: 'Earn products are temporarily unavailable.' }, 503);
+    }
+  }
+
   // ---------- POST /api/earn ----------
   if (path === 'earn' && method === 'POST') {
     if (!user) return json({ ok: false, msg: 'Not signed in.', need_login: true }, 401);
