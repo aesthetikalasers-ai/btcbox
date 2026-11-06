@@ -756,6 +756,16 @@ export interface AdminWithdrawalRecord {
   payout_reference?: string;
   paid_at?: string | null;
 }
+export interface AdminMembershipRecord {
+  user_id: string;
+  status: "active" | "suspended" | "revoked";
+  revision: number;
+  created_at?: string;
+  updated_at?: string;
+  permissions: string[];
+}
+export type AdminMembershipAction = "provision" | "set_permissions" | "suspend" | "reactivate" | "revoke";
+
 export interface AdminConfig {
   deposit_addresses: Record<string, string>;
   announcement: string;
@@ -800,6 +810,15 @@ async function adminRequest<T>(token: string, path: string, options: { method?: 
 }
 export async function getAdminSession(token: string, signal?: AbortSignal) {
   return adminRequest<AdminSession & { ok: true }>(token, "admin/session", { signal });
+}
+export async function getAdminMemberships(token: string, signal?: AbortSignal) {
+  return adminRequest<{ ok: true; admins: AdminMembershipRecord[] }>(token, "admin/admins", { signal });
+}
+export async function manageAdminMembership(token: string, input: {
+  target_user_id: string; expected_revision: number; action: AdminMembershipAction;
+  permissions: string[]; reason: string; request_id: string;
+}) {
+  return adminRequest<{ ok: true; result: AdminMembershipRecord & { action: AdminMembershipAction; replayed?: boolean } }>(token, "admin/admins/manage", { method: "POST", body: input });
 }
 export async function getAdminStats(token: string, signal?: AbortSignal) {
   return adminRequest<{ ok: true; total_users: number; pending_withdrawals: number; pending_admin_review_withdrawals: number; pending_kyc: number; deposit_addresses: Record<string, string>; announcement: string }>(token, "admin/stats", { signal });
