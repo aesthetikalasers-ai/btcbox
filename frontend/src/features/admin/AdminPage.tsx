@@ -283,6 +283,11 @@ export function AdminPage() {
       setError("Enter the verified amount received.");
       return;
     }
+    const reference = (creditReference[coin] || "").trim();
+    if (!reference || reference.length > 160 || /[\\u0000-\\u001f\\u007f]/.test(reference)) {
+      setError("Enter the verified transaction hash or receipt reference before crediting.");
+      return;
+    }
     if (!session?.user_id) {
       setError("The authenticated administrator identity is unavailable. No credit was sent.");
       return;
@@ -294,7 +299,7 @@ export function AdminPage() {
       const intent = {
         version: 1, actor_id: session.user_id, target_uid: selectedUser.uid, coin,
         request_id: stableRequestId, amount,
-        reference: creditReference[coin] || "", note: creditNote[coin] || "",
+        reference, note: creditNote[coin] || "",
         created_at: Date.now(),
       };
       try { window.localStorage.setItem(storageKey, JSON.stringify(intent)); }
@@ -309,7 +314,7 @@ export function AdminPage() {
     try {
       const result = await adminManualCredit(token, {
         uid: selectedUser.uid, coin, amount,
-        reference: creditReference[coin] || "",
+        reference,
         note: creditNote[coin] || "",
         idempotency_key: stableRequestId,
       });
@@ -541,7 +546,7 @@ export function AdminPage() {
           <div className="space-y-3">{assets.map(coin=><form key={coin} className="rounded-xl border border-brand-border p-3" onSubmit={event=>void manualCredit(event,coin)}>
             <div className="mb-2 flex items-center justify-between"><span className="font-semibold">{coin}</span><span className="text-xs text-brand-text-muted">Available: {asText(selectedUser.balances?.[coin]?.free ?? "0")}</span></div>
             <input disabled={!!creditRequestIds[coin]||!!creditPendingInvalid[coin]||busy} value={creditAmount[coin]||""} onChange={event=>setCreditAmount(current=>({...current,[coin]:event.target.value}))} placeholder="Verified amount received" className="mb-2 w-full rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-2 text-sm text-brand-text" inputMode="decimal"/>
-            <input disabled={!!creditRequestIds[coin]||!!creditPendingInvalid[coin]||busy} value={creditReference[coin]||""} onChange={event=>setCreditReference(current=>({...current,[coin]:event.target.value}))} placeholder="TxID / reference (optional)" className="mb-2 w-full rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-2 text-sm text-brand-text"/>
+            <input disabled={!!creditRequestIds[coin]||!!creditPendingInvalid[coin]||busy} value={creditReference[coin]||""} onChange={event=>setCreditReference(current=>({...current,[coin]:event.target.value}))} placeholder="Required TxID / receipt reference" required maxLength={160} className="mb-2 w-full rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-2 text-sm text-brand-text"/>
             <input disabled={!!creditRequestIds[coin]||!!creditPendingInvalid[coin]||busy} value={creditNote[coin]||""} onChange={event=>setCreditNote(current=>({...current,[coin]:event.target.value}))} placeholder="Note (optional)" className="mb-2 w-full rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-2 text-sm text-brand-text"/>
             <Button type="submit" size="sm" disabled={busy || !!creditPendingInvalid[coin] || !hasPermission("deposits.review")}>{creditRequestIds[coin] ? "Retry same credit request" : "Confirm manual credit"}</Button>
           </form>)}</div>
