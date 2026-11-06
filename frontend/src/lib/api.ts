@@ -46,6 +46,29 @@ export class ApiError extends Error {
   }
 }
 
+export async function getSpotMarketPairs(signal?: AbortSignal): Promise<SpotMarketPair[]> {
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE_URL}/market/pairs`, {
+      method: "GET", credentials: "include", headers: { Accept: "application/json" },
+      cache: "no-store", signal,
+    });
+  } catch (error) {
+    if (error instanceof Error && error.name === "AbortError") throw error;
+    throw new ApiError("Unable to load the BTCBOX spot-market catalogue.", 0, "NETWORK_ERROR");
+  }
+  const payload = await response.json().catch(() => null) as { ok?: boolean; markets?: SpotMarketPair[]; msg?: string; code?: string } | null;
+  if (!response.ok || !payload || payload.ok !== true || !Array.isArray(payload.markets)) {
+    throw new ApiError(payload?.msg || "Spot-market catalogue is unavailable.", response.status, payload?.code);
+  }
+  return payload.markets.filter(market =>
+    market && market.enabled === true && typeof market.base_asset === "string" &&
+    market.quote_asset === "USDT" && typeof market.price_tick === "string" &&
+    typeof market.quantity_step === "string" && typeof market.min_quantity === "string" &&
+    typeof market.min_notional === "string"
+  );
+}
+
 export async function getMarkets(signal?: AbortSignal): Promise<MarketTicker[]> {
   let response: Response;
   try {
@@ -856,6 +879,17 @@ export interface AdminSpotMarket {
   maker_fee_rate?: string | number;
   taker_fee_rate?: string | number;
   updated_at?: string;
+}
+export interface SpotMarketPair {
+  base_asset: string;
+  quote_asset: "USDT";
+  enabled: true;
+  price_tick: string;
+  quantity_step: string;
+  min_quantity: string;
+  min_notional: string;
+  min_limit_price: string | null;
+  max_limit_price: string | null;
 }
 export interface AdminKycRecord {
   uid: string;
