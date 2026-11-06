@@ -181,7 +181,7 @@ test('frontend financial adapters preserve decimal-string request contracts', ()
 
 // The chain verifier migration is not wired to an ingestion worker yet.
 // Keep user-submitted deposit intents fail-closed until a trusted verifier exists.
-test('deposit API cannot credit user-declared amounts or bypass the chain verifier', () => {
+test('deposit API rejects user-submitted amounts and keeps account credit staff-controlled', () => {
   const fs = require('node:fs');
   const src = fs.readFileSync(path.join(__dirname, '..', 'api-core.js'), 'utf8');
   const start = src.indexOf("if (path === 'deposit' && method === 'POST')");
@@ -190,7 +190,7 @@ test('deposit API cannot credit user-declared amounts or bypass the chain verifi
   assert.ok(end > start, 'deposit route boundary must exist');
   const route = src.slice(start, end);
   assert.match(route, /compareMoney\(amount, '0'\) <= 0/);
-  assert.match(route, /deposits are credited only after on-chain confirmation/);
+  assert.match(route, /staff verify incoming transfers and manually credit the account/i);
   assert.match(route, /}, 403\)/);
   assert.ok(!route.includes('verify_and_credit_deposit_atomic'));
   assert.ok(!route.includes('deposit_records'));
