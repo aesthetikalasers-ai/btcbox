@@ -2861,3 +2861,19 @@ The prior withdrawal UI audit statement claiming the active BTCBOX admin route w
 - The page renders every open position and settled history row; no per-user order-count cap was introduced. Backend policy may still set an aggregate exposure boundary.
 - Financial writes remain disabled unless the existing backend cutover switch is enabled. No database was reset or written and no live financial operation or deployment was executed.
 - Validation pending: frontend build, backend tests, and independent browser QA on the exact PR head.
+
+
+## 2026-11-07 — 2号 AI frontend/admin integration follow-up
+
+- Role: 2号 AI — Web App + Admin Panel owner. This batch is a dependent follow-up to Draft PR #50, not a replacement for it.
+- Repository: `avali9308-code/btcboxcdt`.
+- The previously mandated branch `work/btcbox-unified-20261104` was absent from the current GitHub branch inventory. It was recreated from the exact integration baseline `73367233a5f4d37e828cb124f03f3eff84a10a2c`, which compares identical to `fix/post-merge-db-bootstrap-seconds-20261106`. No old branch was deleted.
+- SOURCE OBSERVED: PR #50 remains Draft and targets `main`; the parent integration branch contains the deposit snapshot/history, manual-credit ledger RPC, admin RBAC, withdrawal lifecycle, KYC/support workflows and the latest three passing CI runs attached to commit `73367233a5f4d37e828cb124f03f3eff84a10a2c`.
+- SOURCE OBSERVED: customer `GET /api/orders` and administrator `GET /api/admin/orders` both use `financial_matching_orders` when matching-engine mode is requested, and both fail closed when that requested cutover is unavailable. Legacy state reads are an explicit fallback only when matching-engine mode is not requested.
+- GAP FOUND: the admin audit endpoint previously selected canonical PostgreSQL audit reads only from `ADMIN_AUDIT_POSTGRES_READS_ENABLED`. Normalized financial reads could therefore be enabled while the audit UI still read the retention-limited state document, hiding PostgreSQL ledger events from the admin audit view.
+- FIXED IN SOURCE: canonical audit reads are now also required whenever `financialPostgresReadsEnabled()` is true. Database audit read failures return 503; the route does not silently fall back to the state document.
+- FIXED IN SOURCE: administrator withdrawal rejection and KYC rejection no longer use native `window.prompt`. Both use a centered, accessible in-app modal with a required reason, bounded to 300 characters; approval/rejection request behavior and existing financial cutover guards are unchanged.
+- TESTS ADDED: regression coverage for custom rejection dialogs, manual-credit consistency across PostgreSQL ledger/deposit/audit writes and admin balance refresh, and customer/admin spot-order source parity. Existing PostgreSQL lifecycle assertions remain the database-level evidence for deposit history and idempotent retry.
+- NOT VERIFIED: new branch CI, exact-head frontend build, Node tests, and independent browser QA are pending. The new changes are source-observed only until exact-head checks complete.
+- SAFETY: no hosted database reads/writes were initiated in this batch; no financial operation, merge to `main`, production deployment, secret/config change, or financial cutover flag change was performed.
+- NEXT: run Backend, PostgreSQL schema and Frontend CI on the dependent draft PR; review exact-head results; then continue checking whether every audited admin mutation has a matching canonical event and whether the admin/user views expose the same confirmed financial state.
