@@ -128,3 +128,16 @@ test('delegated administrator listing is Super Admin-only and exposes permission
   assert.ok(wrapper.includes('FUNCTION public.admin_list_memberships_v1(p_actor_user_id uuid)'));
   assert.ok(wrapper.includes('GRANT EXECUTE ON FUNCTION public.admin_list_memberships_v1(uuid) TO service_role'));
 });
+
+
+test('delegated administrator public RPC bridge is invoker-only and matches the private request-hash contract', () => {
+  const wrapper = fs.readFileSync(path.resolve(__dirname, '../supabase/sql/0028_admin_rbac_service_rpc_wrappers_v1.sql'), 'utf8');
+  const listStart = wrapper.indexOf('CREATE OR REPLACE FUNCTION public.admin_list_memberships_v1');
+  const listEnd = wrapper.indexOf('REVOKE ALL ON FUNCTION public.admin_list_memberships_v1', listStart);
+  assert.ok(listStart >= 0 && listEnd > listStart);
+  assert.ok(wrapper.slice(listStart, listEnd).includes('SECURITY INVOKER'));
+  assert.ok(!wrapper.slice(listStart, listEnd).includes('SECURITY DEFINER'));
+  assert.ok(wrapper.includes('p_request_id text,\\n  p_request_hash text'));
+  assert.ok(wrapper.includes('p_request_id,p_request_hash'));
+  assert.ok(wrapper.includes('GRANT EXECUTE ON FUNCTION public.admin_list_memberships_v1(uuid) TO service_role'));
+});
