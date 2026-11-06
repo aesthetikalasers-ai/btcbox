@@ -579,8 +579,13 @@ export function AdminPage() {
       await manageAdminMembership(token, { target_user_id: targetUserId, expected_revision: expectedRevision, action, permissions, reason, request_id: requestId });
       setNotice(action === "provision" ? "Administrator access provisioned." : action === "set_permissions" ? "Administrator permissions updated." : action === "suspend" ? "Administrator suspended." : action === "reactivate" ? "Administrator reactivated." : "Administrator access revoked.");
       setAdminRequestId(""); setAdminRequestKey(""); setAdminReason("");
-      const refreshed = await getAdminMemberships(token); setAdminMemberships(refreshed.admins || []);
       if (action === "provision") setAdminTargetUserId("");
+      try {
+        const refreshed = await getAdminMemberships(token);
+        setAdminMemberships(refreshed.admins || []);
+      } catch {
+        setError("Administrator change is confirmed; the list could not refresh. Reload this tab before taking another action.");
+      }
     } catch (reason) { setError(reason instanceof Error ? reason.message : "Administrator change could not be confirmed. Refresh before retrying."); }
     finally { setBusy(false); }
   };
