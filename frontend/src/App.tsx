@@ -11,7 +11,8 @@ const Dashboard = lazy(() => import("./features/dashboard/Dashboard").then((m) =
 const TradeHubPage = lazy(() => import("./features/pages/Pages").then((m) => ({ default: m.TradeHubPage })));
 const AssetsPage = lazy(() => import("./features/pages/Pages").then((m) => ({ default: m.AssetsPage })));
 const MyPage = lazy(() => import("./features/pages/Pages").then((m) => ({ default: m.MyPage })));
-const SectionPage = lazy(() => import("./features/pages/Pages").then((m) => ({ default: m.SectionPage })));\nconst OrdersPage = lazy(() => import("./features/pages/Pages").then((m) => ({ default: m.OrdersPage })));
+const SectionPage = lazy(() => import("./features/pages/Pages").then((m) => ({ default: m.SectionPage })));
+const OrdersPage = lazy(() => import("./features/pages/Pages").then((m) => ({ default: m.OrdersPage })));
 const SecondsPage = lazy(() => import("./features/pages/Pages").then((m) => ({ default: m.SecondsPage })));
 
 function ProtectedAccountRoute({ children }: { children: ReactNode }) { const { status } = useAuth(); if (status === "loading") return <RouteLoading />; if (status !== "authenticated") return <Navigate to="/login" replace />; return <>{children}</>; }
