@@ -8,7 +8,7 @@ Use `backend/scripts/bootstrap-empty-database.sh` only against a verified empty 
 - requires `DATABASE_URL` and `BTCBOX_BOOTSTRAP_CONFIRM=YES`;
 - parses the URL hostname and refuses remote targets unless `BTCBOX_ALLOW_REMOTE_BOOTSTRAP=YES` is explicitly supplied;
 - checks that no BTCBOX-owned tables already exist before applying SQL;
-- applies every numbered SQL file currently present in `backend/supabase/sql` in the allowlisted order;
+- applies the 23 canonical SQL files explicitly allowlisted in `backend/scripts/bootstrap-empty-database.sh`; excluded legacy/optional files and read-only diagnostics are not applied;
 - stops on the first SQL error and never prints the database URL.
 
 The script does not clear or overwrite an existing schema. It is not idempotent by design: a second run sees the installed BTCBOX tables and refuses. Do not run it against a production database without a separately approved maintenance operation.
