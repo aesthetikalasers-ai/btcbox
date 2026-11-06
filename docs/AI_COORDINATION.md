@@ -2985,3 +2985,19 @@ The prior withdrawal UI audit statement claiming the active BTCBOX admin route w
 - Current AdminPage tabs include dashboard/users/deposits/withdrawals/KYC/audit/orders/support/admins/Seconds; there is no market-management tab or API route to enable/disable spot pairs from the admin UI.
 - Supported spot pairs and the six manual withdrawal/deposit assets remain source-defined. The new admin fee editor changes withdrawal fees only; it does not yet provide an editable currency catalogue or spot-market enable/disable controls.
 - Keep these as explicit remaining requirements under the user's operational configuration scope. Do not describe admin currency/market switches as complete. Seconds policy parameters and withdrawal fees are editable; spot market catalogue/availability controls are not.
+
+
+## Follow-up: replace the retired spot write path and exercise financial RPCs — 2026-11-06 (UTC)
+
+- Supersedes the earlier 23-file / source-only checkpoints above. The canonical SQL inventory is now **22 files**: `0008_financial_matching_engine_v1.sql` replaces the former direct-fill spot SQL; the old direct-fill implementation was deleted and sequence `0009` is explicitly retired in `check_migration_status.py`.
+- Exact PR #50 head: `bf4ff9b09800b4dde885b84ab2e79124b5791ac9`; 91 commits ahead / 0 behind `main` `fa4513701af75b4c4cb39d60a3df08f07d632af4`; Draft, mergeable, not merged.
+- Added `.github/workflows/btcbox-postgres-schema-ci.yml` and a disposable PostgreSQL 16 harness. It creates only isolated CI roles/Auth stubs, applies the canonical bootstrap, verifies key RLS flags and service-role-only grants, then runs SQL RPC lifecycle checks inside a transaction that is rolled back.
+- PostgreSQL schema CI run 11 passed on the exact head: all 22 SQL files applied, RLS/grants verified, and transactional runtime checks passed for:
+  - manual deposit first credit, exact replay and changed-payload rejection;
+  - withdrawal amount+fee freeze, stored-fee replay after fee change, approval, rejection/refund, manual payout completion/replay without a second ledger debit;
+  - spot maker/taker matching, balance movements, cancellation replay and same-key/different-order rejection;
+  - Seconds order policy snapshot, maturity settlement, exact replay and conflicting-hash rejection.
+- Backend CI run 462 passed on the exact head: unified build and **310/310 tests**, fail-closed preflight and output/entrypoint checks. Frontend CI run 326 passed lint and production build.
+- This is disposable PostgreSQL runtime evidence, not hosted Supabase certification. Still NOT VERIFIED: hosted Supabase setup, first Super Admin provisioning with real Auth identities, browser E2E, live price feed connectivity and production release.
+- Still incomplete product scope: KYC document-image upload/secure evidence storage/review; editable admin spot-pair/currency catalogue and market enable/disable controls. Do not claim these are complete.
+- No hosted database write/bootstrap, real financial operation, production deployment or merge to `main` was performed.
