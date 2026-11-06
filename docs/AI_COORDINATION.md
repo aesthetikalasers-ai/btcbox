@@ -1982,3 +1982,22 @@ Application branch inspected: `feat/btcbox-web3-auth-20261105` at `741c709d818cb
 - ADDED: `backend/tests/seconds-policy-versioning-doc-consistency.test.js` guards the documentation against contradicting migration 0025 and asserts the current service-role read-only/browser-role-denied privilege contract.
 - TEST STATUS: regression tests are committed as source but have not been executed locally in this tool session. Exact-head GitHub Actions evidence must be checked before calling the batch CI-verified.
 - SAFETY: no Supabase SQL was executed, no migration was applied, no admin roles/users were provisioned, no financial writes, merge, or Vercel deployment occurred. Deployment pause and financial fail-closed state remain unchanged.
+
+## Seconds policy administrator provisioning and recovery contract — 2026-11-06 (UTC+8)
+
+### IMPLEMENTED (design and source guard only)
+- Feature commit: `904547a8dfbbb842a58be71ae3d7910f10f23c90`; changed blobs: RBAC `9503fcadb210ee5ae9f9e60a0f0b5228e44bb145`, versioning `38cc5487e5261401e437101d5bdb0a437b65cd01`, tests `5a261788da845e08c3e88b552ab3830480d17d95`. Coordination entry records source HEADs `5fd90c1646d9b7cdcf0b46e58c6cbaec86a590bd` / `98c06349596812306b0374de1c664a63554a3ff5`; the feature branch had advanced beyond the previously recorded RBAC batch, so this change is based on the current branch tip.
+- Extended `docs/SECONDS_POLICY_ADMIN_RBAC.md` §11 with explicit enrollment/bootstrap, least-privilege grant and immediate revocation, suspension, emergency recovery, and private-schema/Data API requirements.
+- Updated `docs/SECONDS_POLICY_VERSIONING.md` to point to the provisioning and recovery contract.
+- Added four source-guard tests for non-self-service enrollment, two-person bootstrap, immediate revocation, break-glass limits, and browser/Data API isolation.
+- Reviewed the current Supabase breaking-change index: as of 2026-10-30, new public tables are no longer automatically exposed to the Data API by default. This does not replace explicit verification that the proposed private schema is not in the project's exposed schemas and that grants/RLS are restrictive.
+
+### NOT IMPLEMENTED / NOT VERIFIED
+- This is still a design/specification and source-test change. No administrator identities, permission tables, bootstrap function, recovery credential, API route, UI, or runtime RBAC were created.
+- The new Node source tests were not executed in this tool session; no PostgreSQL staging validation or CI run is claimed.
+- No Supabase SQL was executed, no migration applied, no project settings/secrets changed, and no financial write/cutover, merge, or deployment occurred.
+
+### NEXT
+- Before runtime implementation, obtain an isolated staging database and approve the initial administrator enrollment procedure, exact permission grantors, and recovery operators.
+- Inspect existing schema privileges/exposed schemas and the complete prerequisite migration chain in that isolated environment; then create the governance migration through the supported Supabase CLI workflow.
+- Keep shared Basic Auth admin behavior unchanged and do not expose seconds-policy writes until verified identity, permission lookup, transition RPCs, and audit atomicity pass isolated tests.
