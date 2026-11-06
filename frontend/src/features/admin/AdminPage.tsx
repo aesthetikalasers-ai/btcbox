@@ -89,7 +89,11 @@ export function AdminPage() {
   const [creditPendingInvalid, setCreditPendingInvalid] = useState<Record<string, boolean>>({});
   const [withdrawals, setWithdrawals] = useState<AdminWithdrawalRecord[]>([]);
   const [payoutReferences, setPayoutReferences] = useState<Record<string, string>>({});
-  const [config, setConfig] = useState<AdminConfig>({ deposit_addresses: {}, announcement: "" });
+  const [config, setConfig] = useState<AdminConfig>({
+    deposit_addresses: {},
+    withdrawal_fees: { USDT: "1", BTC: "0.0001", ETH: "0.001", SOL: "0.01", BNB: "0.0005", USDC: "1" },
+    announcement: "",
+  });
   const [kyc, setKyc] = useState<AdminKycRecord[]>([]);
   const [audit, setAudit] = useState<AdminAuditRecord[]>([]);
   const [orders, setOrders] = useState<Array<Record<string, unknown>>>([]);
@@ -333,7 +337,7 @@ export function AdminPage() {
     setBusy(true); setError(""); setNotice("");
     try {
       await saveAdminConfig(token, config);
-      setNotice("Deposit address configuration saved.");
+      setNotice("Finance configuration saved.");
     } catch (reason) { setError(reason instanceof Error ? reason.message : "Configuration was not saved."); }
     finally { setBusy(false); }
   };
@@ -447,8 +451,9 @@ export function AdminPage() {
       </CardContent></Card>
     </div> : null}
 
-    {!loading && tab === "deposits" ? <Card><CardHeader><CardTitle>Deposit addresses</CardTitle><CardDescription>Configure the exact asset/network addresses shown to customers. Staff verify receipts and manually credit the selected user's asset row.</CardDescription></CardHeader><CardContent><form onSubmit={saveAddresses} className="space-y-3">
-      <div className="grid gap-3 md:grid-cols-2">{depositAddressKeys.map(key=><label key={key} className="block space-y-1"><span className="text-xs font-semibold text-brand-text-muted">{key.replace("_"," · ")}</span><input value={config.deposit_addresses[key]||""} onChange={event=>setConfig(current=>({...current,deposit_addresses:{...current.deposit_addresses,[key]:event.target.value}}))} className="w-full rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-2 text-sm text-brand-text" placeholder="Configured wallet address"/></label>)}</div>
+    {!loading && tab === "deposits" ? <Card><CardHeader><CardTitle>Finance configuration</CardTitle><CardDescription>Configure customer deposit addresses and server-enforced withdrawal fees. Staff verify incoming transfers and manually credit the selected user's asset row.</CardDescription></CardHeader><CardContent><form onSubmit={saveAddresses} className="space-y-5">
+      <section className="space-y-3"><h3 className="text-sm font-semibold text-brand-text">Deposit addresses</h3><div className="grid gap-3 md:grid-cols-2">{depositAddressKeys.map(key=><label key={key} className="block space-y-1"><span className="text-xs font-semibold text-brand-text-muted">{key.replace("_"," · ")}</span><input value={config.deposit_addresses[key]||""} onChange={event=>setConfig(current=>({...current,deposit_addresses:{...current.deposit_addresses,[key]:event.target.value}}))} className="w-full rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-2 text-sm text-brand-text" placeholder="Configured wallet address"/></label>)}</div></section>
+      <section className="space-y-3"><div><h3 className="text-sm font-semibold text-brand-text">Withdrawal fees</h3><p className="text-xs text-brand-text-muted">These values are applied by the server when a withdrawal is submitted. Enter zero to disable a fee for an asset.</p></div><div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{assets.map(coin=><label key={coin} className="block space-y-1"><span className="text-xs font-semibold text-brand-text-muted">{coin} fee</span><input inputMode="decimal" value={config.withdrawal_fees?.[coin] ?? ""} onChange={event=>setConfig(current=>({...current,withdrawal_fees:{...current.withdrawal_fees,[coin]:event.target.value}}))} className="w-full rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-2 text-sm text-brand-text" placeholder="0"/></label>)}</div></section>
       <label className="block space-y-1"><span className="text-xs font-semibold text-brand-text-muted">Customer announcement</span><textarea value={config.announcement||""} onChange={event=>setConfig(current=>({...current,announcement:event.target.value}))} rows={3} className="w-full rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-2 text-sm text-brand-text"/></label>
       <Button type="submit" disabled={busy || !hasPermission("system_config.write")}>Save configuration</Button>
     </form></CardContent></Card> : null}
