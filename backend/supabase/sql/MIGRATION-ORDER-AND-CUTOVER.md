@@ -8,7 +8,7 @@ Use `backend/scripts/bootstrap-empty-database.sh` only against a verified empty 
 - requires `DATABASE_URL` and `BTCBOX_BOOTSTRAP_CONFIRM=YES`;
 - parses the URL hostname and refuses remote targets unless `BTCBOX_ALLOW_REMOTE_BOOTSTRAP=YES` is explicitly supplied;
 - checks that no BTCBOX-owned tables already exist before applying SQL;
-- applies the 23 canonical SQL files explicitly allowlisted in `backend/scripts/bootstrap-empty-database.sh`; excluded legacy/optional files and read-only diagnostics are not applied;
+- applies the 24 canonical SQL files explicitly allowlisted in `backend/scripts/bootstrap-empty-database.sh`; excluded legacy/optional files and read-only diagnostics are not applied;
 - stops on the first SQL error and never prints the database URL.
 
 The script does not clear or overwrite an existing schema. It is not idempotent by design: a second run sees the installed BTCBOX tables and refuses. Do not run it against a production database without a separately approved maintenance operation.
@@ -32,7 +32,7 @@ The current canonical source inventory is:
 13. `0014_financial_seconds_contracts_v1.sql`
 14. `0021_admin_audit_log_append_only_v1.sql`
 15. `0022_withdrawal_admin_review_status_v1.sql`
-16. `0023_btcbox_shared_rate_limit_v1.sql`
+16. `0024_btcbox_shared_rate_limit_v1.sql`
 17. `0024_seconds_settlement_idempotency_v1.sql`
 18. `0025_seconds_policy_versioning_v1.sql`
 19. `0026_admin_rbac_private_store_v1.sql`
@@ -40,6 +40,7 @@ The current canonical source inventory is:
 21. `0028_admin_rbac_service_rpc_wrappers_v1.sql`
 22. `0029_withdrawal_fee_quote_idempotency_v1.sql`
 23. `0030_seconds_admin_open_positions_read_v1.sql`
+24. `0031_seconds_policy_duration_alignment_v1.sql`
 
 The legacy `0008_financial_spot_trade_v3.sql` direct-fill RPC was removed because it bypassed the order book and was not called by the API. The durable matching engine now occupies `0008_financial_matching_engine_v1.sql` and is the only supported spot write path. Sequence `0009` is retired and intentionally omitted; the offline migration checker explicitly recognizes retired slots `0009` and `0015`–`0020`. The bootstrap allowlist contains only live numbered SQL files and is tested against the actual source inventory.
 
@@ -62,6 +63,7 @@ Manual deposits follow the chosen half-manual workflow: staff verifies the trans
 - `0028` adds service-role-only PostgREST wrappers for admin membership and atomic Seconds policy version activation.
 - `0029` makes withdrawal fee quotes replay-safe: existing requests retain their stored fee and review snapshot, while new requests must match the current server quote.
 - `0030` adds a bounded, read-only administrator queue for open Seconds positions. It rechecks active `seconds_policy.read` membership inside PostgreSQL, returns at most 100 operational rows plus aggregate exposure/overdue counts, and cannot mutate positions or financial balances.
+- `0031` removes the obsolete fixed Seconds position-duration allowlist; positive duration values are now governed by the active immutable policy, matching the admin policy RPC.
 
 ## Admin bootstrap and financial safety
 
@@ -75,7 +77,7 @@ All financial writes and matching remain fail-closed during source QA. Applying 
 
 Source CI verifies migration inventory, shell syntax, bootstrap safety gates and source-level RPC contracts. It does not execute PostgreSQL DDL. Before any hosted install:
 - create or use a disposable empty PostgreSQL/Supabase environment;
-- apply all 23 files in the exact order above and stop on any error;
+- apply all 24 files in the exact order above and stop on any error;
 - verify function signatures, RLS, grants, service-role-only execution and private schema exposure;
 - bootstrap the intended Super Admin and test delegated admin permissions;
 - test manual credit, withdrawal approval/payout completion, spot order idempotency and Seconds order/settlement concurrency/replay without enabling production financial cutover;
