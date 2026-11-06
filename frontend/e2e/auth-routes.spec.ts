@@ -56,6 +56,7 @@ test("unauthenticated customer is redirected from a protected route", async ({ p
 test("administrator route requires a verified administrator identity", async ({ page }) => {
   await page.goto("/admin");
 
+  await expect(page).toHaveURL(/\\/admin$/);
   await expect(page.getByRole("heading", { name: "Welcome back" })).toBeVisible();
-  await expect(page.getByText("Sign in with your BTCBOX administrator Supabase identity.")).toBeVisible();
+  await expect(page.getByText("Continue with email")).toBeVisible();
 });
