@@ -2759,3 +2759,13 @@ The prior withdrawal UI audit statement claiming the active BTCBOX admin route w
 
 ### NEXT
 - Run the backend test suite and syntax checks in an isolated runtime. Then resolve the numbered migration baseline compatibility before planning any hosted database change. Keep the manual workflow simple and preserve V211.
+
+
+## BTCBOX v33 — simple manual deposit workflow coordination (2026-11-06)
+
+- User-approved behavior is intentionally simple: configure receiving address/network in admin; user transfers; staff verifies receipt manually; staff selects the user and matching asset row and enters the received amount for audited atomic credit.
+- No user-created pending deposit order, chain watcher, automated credit, or extra approval stage is requested. UID and coin must be auto-bound from the selected user and asset row.
+- Source audit on `avali9308-code/btcbox-v33` branch `fix/manual-withdrawal-rpc-compat-20261106`: backend `GET/POST /api/admin/config` exists and validates configured addresses, but the active Admin Console has no address configuration tab/form. Deposit page supports USDT/BTC/ETH/SOL/BNB/USDC while manual-credit UI/API only support USDT/BTC/ETH/SOL; `safeDepositAddresses()` also omits BNB/USDC.
+- Implementation handoff: https://github.com/avali9308-code/btcbox-v33/issues/2
+- The existing manual credit atomic RPC/idempotency/audit path must remain the only balance-credit path. Existing financial cutover gate must not be bypassed. No financial flags, DB schema/data, merge, or deployment changed.
+- AI 3 updated BTCBOX v33 coordination/task-board docs in commits `0c8a760b4a6032f81c67e116fdae3901f744e7f3` and `5d397664990be07bb0f80e7fd6a4ac523f505db4`. This is a coordination handoff, not implementation or QA acceptance.
