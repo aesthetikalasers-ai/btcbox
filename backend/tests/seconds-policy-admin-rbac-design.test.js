@@ -45,7 +45,7 @@ test('seconds policy RBAC design requires a validated Supabase subject and serve
   assert.ok(design.includes('canonical actor is the validated Auth user UUID'));
   assert.ok(design.includes('private, non-Data-API-exposed schema/table'));
   assert.ok(design.includes('Read the current membership/permission state server-side for every sensitive action'));
-  assert.ok(design.includes('Do not use mutable user_metadata'));
+  assert.ok(design.includes('Do not use mutable `user_metadata`'));
 });
 
 test('seconds policy versions remain immutable while Super Admin can complete the lifecycle alone', () => {
