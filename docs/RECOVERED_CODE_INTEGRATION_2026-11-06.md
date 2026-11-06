@@ -76,3 +76,34 @@ Required before calling this a complete integrated release:
 6. Exact final commit SHA and reproducible evidence for each passing check.
 
 Until all checks pass, do not describe the product as fully integrated or ready for release, and do not delete the V33 source repository.
+
+
+## Actual integration commits added to this recovery branch
+
+The following source code has now been copied or reconciled into this target branch (not merely referenced):
+
+- Restored the authenticated customer API client: account, orders, seconds positions, support, deposit-address lookup, saved addresses, Earn catalog/actions, Supabase session exchange, username credentials, identity linking and 2FA.
+- Restored the React authentication provider, email sign-in/registration/password reset UI, Google sign-in, account setup, linked-identity security page and authenticated route guards.
+- Restored customer service pages for seconds positions/history, deposit-address lookup, saved withdrawal addresses/balances, Earn, KYC and support. The seconds page remains read-only; the deposit page follows manual staff credit.
+- Restored backend auth/business API additions, admin helper modules, shared rate limiting, seconds settlement idempotency, versioned seconds policy and admin RBAC source schema.
+- Restored associated Node regression tests and migration-status checks.
+- Added a target-numbered migration `0027_withdrawal_manual_payout_completion_v1.sql` because target migrations 0023–0026 already have different meanings from V33. The new RPC requires a non-empty payout reference, permits completion only after approval, is idempotent for the same reference, rejects a different reference, and records status/audit only.
+- Added `POST /api/admin/withdraw/mark-paid` with cutover fail-closed checks and the required TxID/reference validation.
+- Recovered market search/filter behavior and removed the unused hard-coded demo market rows.
+
+## Current integration branch and review
+
+- Draft PR: [#26 — Integrate recovered BTCBOX frontend, authentication and business contracts](https://github.com/avali9308-code/btcboxcdt/pull/26)
+- The PR is mergeable at the last check, but it is intentionally draft and must not be merged yet.
+- GitHub Actions backend and frontend workflows were triggered and were still running at the last check.
+- Vercel reported `build-rate-limit`; this is a platform rate limit, not a passing or failing source test.
+- No local build, PostgreSQL migration execution or browser QA has been performed in this recovery session.
+
+## Important unfinished integration work
+
+- The admin API still authenticates with the legacy Basic Auth middleware. The Supabase Auth verifier and RBAC helpers/schema have been recovered but are not wired into the admin request path. Do not call the independent admin identity system complete.
+- The modern React admin console and the user-facing withdrawal request form remain unfinished. The restored withdrawal page is read-only; the backend submission path remains fail-closed until the ledger cutover is verified.
+- The spot order-entry page remains a scaffold; the Seconds customer page is read-only and does not submit or settle positions.
+- The new 0027 migration has not been applied or executed in PostgreSQL. The full 0001–0027 chain must be run in an isolated database; production remains untouched.
+- The manual deposit confirmation endpoint remains gated by the financial cutover flags. The user-facing deposit page only reads configured addresses; it does not create a pending deposit order.
+- `frontend/vendor/strata-pro` and `frontend/vendor/shadcn-fintech` are Git submodule pins to full upstream repositories, not vendored copies inside the BTCBOX runtime. Their design language has been adapted into BTCBOX components, but upstream app pages have not all been copied into the runtime.
