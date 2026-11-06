@@ -16,6 +16,8 @@ import {
   getAdminAuditLogs,
   getAdminConfig,
   getAdminKyc,
+  getAdminMemberships,
+  manageAdminMembership,
   getAdminOrders,
   getAdminSession,
   getAdminStats,
