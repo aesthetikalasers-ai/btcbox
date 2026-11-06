@@ -98,3 +98,10 @@ Safety: no merge, deployment, production database access, financial writes, or r
 - Auth page entry points now expose Google only. Removed wallet-connect controls and wallet-specific mobile deep links. The existing 2FA verification state remains available; no email login UI was added.
 - Added source-contract tests for snapshot timestamp propagation and Google-only sign-in UI. The earlier 400-test backend run on commit `c966aa0` had 399 pass / 1 fail because an existing assertion still expected the old label “Last update”; the assertion has now been corrected to “Snapshot checked”.
 - CI on subsequent commits is the required verification. Do not claim these latest changes passed until the exact current branch-head runs complete.
+
+## Latest CI evidence — 2026-11-07
+
+- Backend CI run `42310916938`, source commit `7d5ed8fd58faee3e502a5025ca97425704d294c2`: SUCCESS. Unified site build passed; all 401 backend tests passed (401 pass / 0 fail); fail-closed preflight and output/entrypoint checks passed.
+- Frontend CI run `42310911601`, source commit `0394a88d5607f31ab04938e7db3fcd4183c6a586`: npm install, lint, and production build passed; desktop/mobile route smoke-test step was still running at the last inspection. Do not mark the full frontend CI successful until that step completes.
+- The earlier backend failures were actionable stale assertions / an omitted normalize argument, both corrected in subsequent commits. Latest successful backend run includes the provider event timestamp changes and Google-only UI/test changes.
+- CI results apply to the source commits above. Documentation-only commits after those runs do not alter application source.
