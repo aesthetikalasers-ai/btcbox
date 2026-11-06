@@ -2788,7 +2788,7 @@ async function handleRequest(event, context) {
       const adminId = String(process.env.ADMIN_USER || '').trim();
       if (!adminId) return json({ ok: false, code: 'ADMIN_ACTOR_NOT_CONFIGURED', msg: 'Administrator audit identity not configured. Payout status was not changed.' }, 503);
       try {
-        const rpc = await fetch(process.env.SUPABASE_URL.replace(/\\/+$/, '') + '/rest/v1/rpc/mark_withdrawal_paid_atomic', {
+        const rpc = await fetch(process.env.SUPABASE_URL.replace(/\/+$/, '') + '/rest/v1/rpc/mark_withdrawal_paid_atomic', {
           method: 'POST', headers: supabaseHeaders(),
           body: JSON.stringify({ p_withdrawal_id: wdId, p_admin_id: adminId, p_reference: reference, p_note: note })
         });
