@@ -63,7 +63,7 @@ test('admin audit RPC maps the existing API contract to canonical financial_audi
 
 test('withdrawal API trusts only validated database status and persisted review flag', () => {
   const api = read('api-core.js');
-  assert.match(api, /!\['pending', 'pending_admin_review', 'approved', 'rejected', 'broadcast', 'failed'\]\.includes\(result\.status\)/);
+  assert.match(api, /!\['pending', 'pending_admin_review', 'approved', 'rejected', 'broadcast', 'failed', 'completed'\]\.includes\(result\.status\)/);
   assert.match(api, /typeof result\.require_admin_review !== 'boolean'/);
   assert.match(api, /require_admin_review: result\.require_admin_review/);
   assert.doesNotMatch(api, /, require_admin_review: requireAdminReview, msg:/);
@@ -71,4 +71,11 @@ test('withdrawal API trusts only validated database status and persisted review 
   assert.match(api, /pending_admin_review_withdrawals: pendingAdminReviewWd/);
   assert.match(api, /result\.pending_admin_review_count > result\.pending_count/);
   assert.match(api, /w\.status === 'pending_admin_review'/);
+});
+
+
+test('completed withdrawal status is accepted on idempotent create-request replay', () => {
+  const api = read('api-core.js');
+  assert.match(api, /'broadcast', 'failed', 'completed'\]\.includes\(result\.status\)/);
+  assert.match(api, /duplicate: result\.duplicate === true/);
 });
