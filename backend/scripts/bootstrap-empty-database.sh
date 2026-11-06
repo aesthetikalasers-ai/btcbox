@@ -4,21 +4,21 @@
 # the operator supplies both explicit confirmation variables.
 set -euo pipefail
 
-DIR="$(cd "$(dirname "\${BASH_SOURCE[0]}")" && pwd)"
+DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SQL_DIR="$DIR/../supabase/sql"
 
-if [ -z "\${DATABASE_URL:-}" ]; then
+if [ -z "${DATABASE_URL:-}" ]; then
   echo "[FAIL] DATABASE_URL is required." >&2
   exit 2
 fi
-if [ "\${BTCBOX_BOOTSTRAP_CONFIRM:-}" != "YES" ]; then
+if [ "${BTCBOX_BOOTSTRAP_CONFIRM:-}" != "YES" ]; then
   echo "[FAIL] Set BTCBOX_BOOTSTRAP_CONFIRM=YES after verifying the target is a new empty database." >&2
   exit 2
 fi
 case "$DATABASE_URL" in
   *localhost*|*127.0.0.1*|*host.docker.internal*) ;;
   *)
-    if [ "\${BTCBOX_ALLOW_REMOTE_BOOTSTRAP:-}" != "YES" ]; then
+    if [ "${BTCBOX_ALLOW_REMOTE_BOOTSTRAP:-}" != "YES" ]; then
       echo "[FAIL] Remote database refused. Set BTCBOX_ALLOW_REMOTE_BOOTSTRAP=YES only after explicit owner approval." >&2
       exit 2
     fi
@@ -73,8 +73,8 @@ FILES=(
   0028_admin_rbac_service_rpc_wrappers_v1.sql
 )
 
-echo "[info] Bootstrapping a fresh BTCBOX schema with \${#FILES[@]} canonical SQL files."
-for file in "\${FILES[@]}"; do
+echo "[info] Bootstrapping a fresh BTCBOX schema with ${#FILES[@]} canonical SQL files."
+for file in "${FILES[@]}"; do
   if [ ! -f "$SQL_DIR/$file" ]; then
     echo "[FAIL] Required bootstrap SQL file missing: $file" >&2
     exit 4
