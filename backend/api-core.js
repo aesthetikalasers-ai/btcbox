@@ -2394,8 +2394,8 @@ async function handleRequest(event, context) {
     return json({ ok: true, unread: unread });
   }
 
-  // ==================== 后台管理 API（Basic Auth） ====================
-  // 管理员认证：timingSafeEqual 保留；失败计数持久化到 btcbox_state（5 次/15 分钟锁）。
+  // ==================== 后台管理 API（Supabase Auth + RBAC） ====================
+  // Admin identity is verified against Supabase Auth; permissions are loaded from the private admin membership store.
   async function adminAuth() {
     const authHeader = event.headers && (event.headers.authorization || event.headers.Authorization);
     const verified = await verifySupabaseAccessToken({ authorization: authHeader, env: process.env });
