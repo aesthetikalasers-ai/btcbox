@@ -65,7 +65,7 @@ test('migration order document records the prepared Seconds migration dependenci
   assert.ok(rateLimit >= 0 && settlement > rateLimit && policy > settlement && adminRbac > policy && manualPayout > adminRbac && rbacWrappers > manualPayout && feeIdempotency > rbacWrappers);
   assert.ok(orderDoc.includes('depends on the Seconds base schema in'));
   assert.ok(orderDoc.includes('adds Seconds settlement request-hash idempotency'));
-  assert.ok(orderDoc.includes('replay lookup'));
+  assert.ok(orderDoc.includes('withdrawal fee quotes replay-safe'));
   assert.ok(orderDoc.includes('originally stored fee'));
   assert.ok(orderDoc.includes('timestamp registry versions with four-digit source filenames'));
 });
