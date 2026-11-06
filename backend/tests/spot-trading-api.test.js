@@ -69,3 +69,13 @@ test('Spot order intent is saved before POST, restored per account/market, and c
   assert.ok(pages.includes('pendingIntentInvalid'));
   assert.ok(pages.includes('No order was sent.'));
 });
+
+
+test('Spot cancellation request ID is persisted per account and order until final status is confirmed', () => {
+  assert.ok(pages.includes('btcbox.spot.cancel.v1.'));
+  assert.ok(pages.includes('window.localStorage.setItem(storageKey,requestId)'));
+  assert.ok(pages.includes('client_cancel_id:requestId'));
+  assert.ok(pages.includes('const latest=await getOrders()'));
+  assert.ok(pages.includes('Order cancellation confirmed in order history.'));
+  assert.ok(pages.includes('storage_unavailable'));
+});
