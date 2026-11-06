@@ -8,16 +8,17 @@ const root = path.resolve(__dirname, '..');
 const api = fs.readFileSync(path.join(root, 'api-core.js'), 'utf8');
 const design = fs.readFileSync(path.resolve(root, '../docs/SECONDS_POLICY_ADMIN_RBAC.md'), 'utf8');
 
-test('seconds policy write routes remain unavailable while admin identity is shared Basic Auth', () => {
+test('seconds policy write routes remain unavailable until dedicated policy lifecycle RPCs are wired', () => {
   const authStart = api.indexOf('async function adminAuth()');
   const authEnd = api.indexOf('async function flushAdminAuditOutbox()', authStart);
   assert.ok(authStart >= 0 && authEnd > authStart);
   const auth = api.slice(authStart, authEnd);
-  assert.match(auth, /startsWith\('Basic '\)/);
-  assert.match(auth, /process\.env\.ADMIN_USER/);
-  assert.match(auth, /process\.env\.ADMIN_PASS/);
-  assert.doesNotMatch(api, /seconds-policy/);
+  assert.match(auth, /authorizeSupabaseAdmin/);
+  assert.doesNotMatch(auth, /Basic |ADMIN_USER|ADMIN_PASS/);
   assert.match(api, /if \(path\.startsWith\('admin\/'\)\)/);
+  assert.match(api, /route === 'seconds-policy' && verb === 'GET'/);
+  assert.match(api, /route === 'seconds-policy' && verb === 'POST'/);
+  assert.doesNotMatch(api, /if \(sub === 'seconds-policy' && method === 'POST'\)/);
 });
 
 test('seconds policy RBAC design requires a validated Supabase subject and server-side permission lookup', () => {
