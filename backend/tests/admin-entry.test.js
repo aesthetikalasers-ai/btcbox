@@ -75,6 +75,12 @@ test('React admin console uses verified Supabase identity and route permissions 
   assert.ok(adminAuthModule.includes('loadAdminMembership'));
   assert.doesNotMatch(apiCore, /authHeader\.startsWith\('Basic '/);
   assert.doesNotMatch(apiCore, /WWW-Authenticate: Basic realm="BTCBOX Admin"/);
+  assert.ok(apiCore.includes("const adminActorId = String(adminAuthResult.user.id);"));
+  assert.ok(apiCore.includes("by: adminActorId"));
+  assert.doesNotMatch(apiCore, /process\.env\.ADMIN_USER/);
+  assert.ok(apiCore.includes("normalizeAdminBalances"));
+  assert.ok(apiCore.includes("'BNB-BEP20', 'USDC-ERC20'"));
+  assert.ok(apiCore.includes("'USDT', 'BTC', 'ETH', 'SOL', 'BNB', 'USDC'"));
 });
 
 
