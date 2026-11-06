@@ -317,13 +317,13 @@ async function readFinancialAccountSnapshot(userId) {
   return result;
 }
 
-async // Keep this list aligned with spot pair support, manual-deposit assets, and admin asset controls.
+// Keep this list aligned with spot pair support, manual-deposit assets, and admin asset controls.
 const SUPPORTED_LEDGER_ASSETS = new Set([
   'USDT', 'USDC', 'BTC', 'ETH', 'SOL', 'BNB',
   'XRP', 'DOGE', 'ADA', 'AVAX', 'LINK', 'DOT', 'TRX', 'LTC', 'BCH', 'NEAR', 'UNI', 'ATOM', 'ETC',
 ]);
 
-function readAdminAccountBalances(userIds) {
+async function readAdminAccountBalances(userIds) {
   if (!supabaseStorageConfigured()) throw new Error('Financial database unavailable');
   if (!Array.isArray(userIds) || userIds.length > 200 || userIds.some(function (id) { return typeof id !== 'string' || !id || id.length > 128; })) {
     throw new Error('Admin account identity list invalid');
