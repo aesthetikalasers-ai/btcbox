@@ -3108,17 +3108,42 @@ async function handleRequest(event, context) {
       delete safeUser.twofa_secret;
       delete safeUser.totp_secret;
       delete safeUser.recovery_codes;
+      // Do not let the broad users.read permission expose raw financial histories.
+      // Each history is projected separately under its matching read permission.
+      delete safeUser.deposits;
+      delete safeUser.withdrawals;
+      delete safeUser.earn_records;
+      delete safeUser.support_messages;
       // KYC evidence and full identity numbers require the separate kyc.read permission.
       // The general users.read detail endpoint exposes only the current verification state.
       safeUser.kyc = { status: String(u.kyc && u.kyc.status || 'unsubmitted') };
       safeUser.kyc_status = safeUser.kyc.status;
+      const canReadDeposits = hasAdminPermission(adminMembership, 'deposits.read');
+      const canReadWithdrawals = hasAdminPermission(adminMembership, 'withdrawals.read');
       if (financialPostgresReadsEnabled()) {
         try {
-          const normalized = await readAdminAccountBalances([String(u.uid)]);
-          safeUser.balances = normalized[String(u.uid)] || {};
+          const normalized = await readFinancialAccountSnapshot(String(u.uid));
+          safeUser.balances = normalized.balances || {};
           safeUser.financial_balance_source = 'postgres_financial_ledger';
+          if (canReadDeposits) {
+            safeUser.deposit_history = normalized.deposits.slice(0, 20);
+            safeUser.deposit_history_source = 'postgres_financial_ledger';
+          }
+          if (canReadWithdrawals) {
+            safeUser.withdrawal_history = normalized.withdrawals.slice(0, 20);
+            safeUser.withdrawal_history_source = 'postgres_financial_ledger';
+          }
         } catch (e) {
           return json({ ok: false, msg: 'Financial data temporarily unavailable. Please try again later.', code: 'FINANCIAL_READ_UNAVAILABLE' }, 503);
+        }
+      } else {
+        if (canReadDeposits) {
+          safeUser.deposit_history = Array.isArray(u.deposits) ? u.deposits.slice(-20).reverse() : [];
+          safeUser.deposit_history_source = 'legacy_state_retention_limited';
+        }
+        if (canReadWithdrawals) {
+          safeUser.withdrawal_history = Array.isArray(u.withdrawals) ? u.withdrawals.slice(-20).reverse() : [];
+          safeUser.withdrawal_history_source = 'legacy_state_retention_limited';
         }
       }
       return json({ ok: true, user: safeUser });
