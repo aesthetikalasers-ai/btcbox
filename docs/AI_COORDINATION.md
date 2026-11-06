@@ -3097,3 +3097,19 @@ The prior withdrawal UI audit statement claiming the active BTCBOX admin route w
 - Vercel check remains failed due to the account build-rate limit. No deployment was attempted.
 - Still NOT VERIFIED: hosted private Storage bucket setup, real upload/signed preview, KYC retention policy, hosted Supabase/Auth bootstrap, first Super Admin provisioning, browser E2E, live market provider, real network deposit/payout.
 - No hosted DB write, real financial operation, merge to `main`, or production deployment was performed.
+
+## Evidence-backed manual deposit credit — CI passed — 2026-11-06 UTC
+
+- Continued on the consolidated implementation branch `fix/post-merge-db-bootstrap-seconds-20261106`, Draft PR #50. The branch is 157 commits ahead and 0 behind `main` at this update.
+- SOURCE CHANGE: administrator manual deposit credit now requires a non-empty verified transaction hash or auditable receipt reference. The backend independently rejects missing references, references longer than 160 characters, and control characters; it does not rely on browser validation.
+- SOURCE CHANGE: Admin → Users & manual credit marks the reference field required and validates it before creating the persisted idempotency intent. The API client type now requires `reference: string`.
+- The reference is included in the atomic PostgreSQL RPC payload and request hash. Retries must preserve the same request ID and exact evidence.
+- Added `backend/tests/manual-deposit-reference.test.js` and `docs/MANUAL_DEPOSIT_CREDIT.md`.
+- Source/test SHA: `cc97c04319649a09a8f79864f024a398d8938b47`. Documentation follow-up SHA: `2ef343e8b481c7ed4eb8261d8fe464aafaf160e0`.
+- EXACT SOURCE/TEST SHA CI PASSED:
+  - Backend CI run 525: unified build, **324/324 tests**, fail-closed preflight and output/entrypoint checks passed.
+  - Frontend CI run 389: lint and production build passed.
+  - PostgreSQL schema CI run 86: all 22 canonical SQL files applied to disposable PostgreSQL 16; RLS/grants and financial lifecycle integration assertions passed; transaction ended with `ROLLBACK`.
+- Vercel status remains failed due to the account build-rate limit; no production deployment was attempted.
+- Still NOT VERIFIED: hosted private KYC Storage bucket setup and real upload/preview, hosted Supabase/Auth bootstrap and first Super Admin provisioning, customer/admin browser E2E, live market provider, real network deposit/payout, and KYC retention/deletion policy.
+- No hosted database write, real financial operation, merge to `main`, or production deployment was performed.
