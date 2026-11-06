@@ -155,7 +155,7 @@ async function apiFetch(path, opts){
   const skipAuthRedirect = !!opts.skipAuthRedirect;
   const url = API_BASE + (path.charAt(0)==='/'?'':'/') + path;
   const headers = {'Content-Type':'application/json'};
-  if(isAdmin && state.adminAuth) headers['Authorization']='Basic '+state.adminAuth;
+  if(isAdmin && opts.adminAccessToken) headers['Authorization']='Bearer '+opts.adminAccessToken;
   let resp, text;
   try{
     resp = await fetch(url, {method:method, headers:headers, credentials:'include', body: (body!=null)?JSON.stringify(body):undefined});
@@ -187,23 +187,55 @@ async function apiFetch(path, opts){
   return data;
 }
 
-/* ---------- admin Basic Auth prompt (reuses existing modal) ---------- */
+/* ---------- Supabase Auth admin session (membership is checked server-side) ---------- */
+async function getAdminAccessToken(){
+  if(!window.supabaseClient&&typeof Auth!=='undefined'&&Auth.init)await Auth.init();
+  if(!window.supabaseClient||!window.supabaseClient.auth)return '';
+  try{
+    const result=await window.supabaseClient.auth.getSession();
+    const session=result&&result.data&&result.data.session;
+    if(session&&session.access_token)return session.access_token;
+  }catch(_){}
+  return await promptAdminAuth();
+}
 function promptAdminAuth(){
   return new Promise(resolve=>{
-    modal('Admin Authentication','<form id="aa-form"><div style="margin-bottom:12px"><label class="auth-label">Admin Username</label><input id="aa-user" class="auth-input" autocomplete="off" required></div><div style="margin-bottom:16px"><label class="auth-label">Admin Password</label><input id="aa-pass" class="auth-input" type="password" autocomplete="off" required></div><button class="btn btn-primary btn-block">Continue</button></form>', close=>{
-      $('#aa-form').onsubmit=e=>{ e.preventDefault(); const u=$('#aa-user').value.trim(), p=$('#aa-pass').value; if(!u||!p){ toast('Enter admin username and password.','err'); return; } try{ state.adminAuth=btoa(u+':'+p); }catch(err){ state.adminAuth=btoa(unescape(encodeURIComponent(u+':'+p))); } close(); resolve(state.adminAuth); };
+    const content='<form id="aa-form"><div style="margin-bottom:12px"><label class="auth-label">Administrator email</label><input id="aa-email" class="auth-input" type="email" autocomplete="username" required></div><div style="margin-bottom:16px"><label class="auth-label">Password</label><input id="aa-pass" class="auth-input" type="password" autocomplete="current-password" required></div><button class="btn btn-primary btn-block">Sign in with Supabase</button></form><div style="margin-top:12px;text-align:center"><button type="button" id="aa-google" class="btn btn-secondary btn-block">Continue with Google</button></div><p style="margin-top:12px;color:var(--text-muted);font-size:11px">Access is granted only to an active BTCBOX administrator identity. A regular customer account is not sufficient.</p>';
+    modal('Administrator Sign In',content,close=>{
+      const form=$('#aa-form');
+      if(form)form.onsubmit=async event=>{
+        event.preventDefault();
+        if(!window.supabaseClient||!window.supabaseClient.auth){toast('Supabase Auth is not configured.','err');return;}
+        const email=String($('#aa-email').value||'').trim();
+        const password=String($('#aa-pass').value||'');
+        const button=form.querySelector('button[type="submit"]');
+        if(button){button.disabled=true;button.textContent='Signing in…';}
+        try{
+          const result=await window.supabaseClient.auth.signInWithPassword({email,password});
+          if(result.error||!result.data||!result.data.session){toast(Auth.friendlyError(result.error||'Sign in failed.'),'err');if(button){button.disabled=false;button.textContent='Sign in with Supabase';}return;}
+          close();resolve(result.data.session.access_token);
+        }catch(error){toast(Auth.friendlyError(error),'err');if(button){button.disabled=false;button.textContent='Sign in with Supabase';}}
+      };
+      const google=$('#aa-google');
+      if(google)google.onclick=async()=>{
+        if(!window.supabaseClient||!window.supabaseClient.auth){toast('Supabase Auth is not configured.','err');return;}
+        try{await window.supabaseClient.auth.signInWithOAuth({provider:'google',options:{redirectTo:window.location.href}});}
+        catch(error){toast(Auth.friendlyError(error),'err');}
+      };
     });
   });
 }
-async function adminFetch(path, opts){
-  opts = opts||{};
-  if(!state.adminAuth) await promptAdminAuth();
-  let r = await apiFetch(path, Object.assign({}, opts, {admin:true}));
-  if(r && r._adminAuthFailed){
-    toast('Admin credentials rejected — please re-enter.','err');
-    await promptAdminAuth();
-    r = await apiFetch(path, Object.assign({}, opts, {admin:true}));
-    if(r && r._adminAuthFailed){ state.adminAuth=null; return {ok:false, msg:'Admin authentication failed', status:401}; }
+async function adminFetch(path,opts){
+  opts=opts||{};
+  let token=await getAdminAccessToken();
+  if(!token)return {ok:false,code:'ADMIN_AUTH_REQUIRED',msg:'Sign in with an administrator identity.',status:401};
+  let r=await apiFetch(path,Object.assign({},opts,{admin:true,adminAccessToken:token}));
+  if(r&&r._adminAuthFailed){
+    try{await window.supabaseClient.auth.signOut();}catch(_){}
+    token=await promptAdminAuth();
+    if(!token)return {ok:false,code:'ADMIN_AUTH_REQUIRED',msg:'Sign in with an administrator identity.',status:401};
+    r=await apiFetch(path,Object.assign({},opts,{admin:true,adminAccessToken:token}));
+    if(r&&r._adminAuthFailed)return {ok:false,code:'ADMIN_AUTH_FAILED',msg:'Administrator authentication failed.',status:401};
   }
   return r;
 }
