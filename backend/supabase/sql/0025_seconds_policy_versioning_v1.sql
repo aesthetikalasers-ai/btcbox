@@ -284,15 +284,12 @@ DECLARE
   v_now timestamptz:=clock_timestamp();
   v_payout_bps integer;
 BEGIN
+  -- Validate identity and idempotency inputs before requiring a live quote.
+  -- A settled request must remain replayable even while both price providers are down.
   IF coalesce(p_user_id,'')='' OR p_position_id !~ '^SC[A-Fa-f0-9]{30}$'
      OR p_request_id !~ '^[A-Za-z0-9_-]{16,100}$'
      OR coalesce(p_request_hash,'') !~ '^[0-9a-f]{64}$'
-     OR p_symbol NOT IN ('BTC','ETH','SOL','BNB')
-     OR p_settle_price IS NULL OR p_settle_price<=0
-     OR coalesce(p_settle_price_source,'') NOT IN ('coinbase','bybit')
-     OR p_settle_price_ts IS NULL
-     OR p_settle_price_ts>v_now+interval '5 seconds'
-     OR p_settle_price_ts<v_now-interval '2 minutes' THEN
+     OR p_symbol NOT IN ('BTC','ETH','SOL','BNB') THEN
     RETURN jsonb_build_object('ok',false,'code','INVALID_ARGUMENT');
   END IF;
 
@@ -315,6 +312,13 @@ BEGIN
   IF v_now<v_pos.settle_at THEN
     RETURN jsonb_build_object('ok',true,'duplicate',false,'settled',false,
       'settle_at',extract(epoch from v_pos.settle_at)::bigint);
+  END IF;
+  IF p_settle_price IS NULL OR p_settle_price<=0
+     OR coalesce(p_settle_price_source,'') NOT IN ('coinbase','bybit')
+     OR p_settle_price_ts IS NULL
+     OR p_settle_price_ts>v_now+interval '5 seconds'
+     OR p_settle_price_ts<v_now-interval '2 minutes' THEN
+    RETURN jsonb_build_object('ok',false,'code','REFERENCE_PRICE_UNAVAILABLE');
   END IF;
   IF p_settle_price_ts<v_pos.settle_at THEN
     RETURN jsonb_build_object('ok',false,'code','SETTLEMENT_PRICE_BEFORE_MATURITY');

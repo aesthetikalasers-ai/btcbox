@@ -32,6 +32,7 @@ BEGIN
   IF coalesce(p_withdrawal_id,'')='' OR length(p_withdrawal_id)>100
      OR coalesce(p_admin_id,'')='' OR length(p_admin_id)>128
      OR coalesce(btrim(p_reference),'')='' OR length(coalesce(p_reference,''))>160
+     OR coalesce(p_reference,'') ~ '[[:cntrl:]]'
      OR length(coalesce(p_note,''))>300 THEN
     RAISE EXCEPTION 'invalid manual payout completion request';
   END IF;

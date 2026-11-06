@@ -22,21 +22,28 @@ import {
   getAdminSession,
   getAdminStats,
   getAdminSecondsPolicy,
+  getAdminSecondsOpenPositions,
+  getAdminSpotMarkets,
   getAdminSupportMessages,
   getAdminUser,
   getAdminUsers,
   getAdminWithdrawals,
   saveAdminConfig,
   saveAdminSecondsPolicy,
+  saveAdminSpotMarket,
   type AdminAuditRecord,
   type AdminConfig,
   type AdminKycRecord,
   type AdminSession,
+  type AdminSpotMarket,
+  type AdminSecondsOpenPosition,
+  type AdminSecondsOpenPositionsSnapshot,
   type AdminUserRecord,
   type AdminWithdrawalRecord,
 } from "../../lib/api";
 
-type Tab = "overview" | "users" | "deposits" | "withdrawals" | "kyc" | "audit" | "orders" | "support" | "admins" | "seconds";
+type ReviewDialogState = { kind: "withdrawal"; id: string } | { kind: "kyc"; uid: string };
+type Tab = "overview" | "users" | "deposits" | "withdrawals" | "kyc" | "audit" | "orders" | "support" | "admins" | "seconds" | "markets";
 const tabs: Array<{ id: Tab; label: string; permission: string }> = [
   { id: "overview", label: "Overview", permission: "dashboard.read" },
   { id: "users", label: "Users & manual credit", permission: "users.read" },
@@ -47,13 +54,15 @@ const tabs: Array<{ id: Tab; label: string; permission: string }> = [
   { id: "orders", label: "Orders", permission: "orders.read" },
   { id: "support", label: "Support", permission: "support.read" },
   { id: "seconds", label: "Seconds policy", permission: "seconds_policy.read" },
+  { id: "markets", label: "Spot markets", permission: "system_config.read" },
 ];
-const adminPermissionOptions = [["dashboard.read","Dashboard"],["users.read","Read users"],["users.manage","Manage users"],["users.freeze","Freeze accounts"],["kyc.read","Read KYC"],["kyc.review","Review KYC"],["deposits.read","Read deposits"],["deposits.review","Manual deposit credit"],["withdrawals.read","Read withdrawals"],["withdrawals.review","Review and mark paid"],["orders.read","Read orders"],["support.read","Read support"],["support.reply","Reply to support"],["support.manage","Manage support"],["announcements.read","Read announcements"],["announcements.manage","Manage announcements"],["system_config.read","Read system configuration"],["system_config.write","Edit system configuration"],["seconds_policy.read","Read Seconds policy"],["seconds_policy.manage","Manage Seconds policy"],["financial_audit.read","Read financial audit"],["financial_adjustment.request","Request financial adjustment"]] as const;
+const adminPermissionOptions = [["dashboard.read","Dashboard"],["users.read","Read users"],["users.manage","Manage users"],["users.freeze","Freeze accounts"],["kyc.read","Read KYC"],["kyc.review","Review KYC"],["deposits.read","Read deposits"],["deposits.review","Manual deposit credit"],["withdrawals.read","Read withdrawals"],["withdrawals.review","Review and mark paid"],["orders.read","Read orders"],["support.read","Read support"],["support.reply","Reply to support"],["support.manage","Manage support"],["announcements.read","Read announcements"],["announcements.manage","Manage announcements"],["system_config.read","Read system configuration"],["system_config.write","Edit system configuration"],["seconds_policy.read","Read Seconds policy"],["seconds_policy.manage","Manage Seconds policy"],["financial_audit.read","Read financial audit"]] as const;
 const depositAddressKeys = [
   "USDT-TRC20", "USDT-ERC20", "USDT-BEP20", "BTC-BTC",
   "ETH-ERC20", "SOL-SOL", "BNB-BEP20", "USDC-ERC20",
 ];
 const assets = ["USDT", "BTC", "ETH", "SOL", "BNB", "USDC"];
+const spotAssets = ["USDT", "USDC", "BTC", "ETH", "SOL", "BNB", "XRP", "DOGE", "ADA", "AVAX", "LINK", "DOT", "TRX", "LTC", "BCH", "NEAR", "UNI", "ATOM", "ETC"];
 
 function asText(value: unknown) {
   return value === null || value === undefined ? "—" : String(value);
@@ -89,10 +98,19 @@ export function AdminPage() {
   const [creditPendingInvalid, setCreditPendingInvalid] = useState<Record<string, boolean>>({});
   const [withdrawals, setWithdrawals] = useState<AdminWithdrawalRecord[]>([]);
   const [payoutReferences, setPayoutReferences] = useState<Record<string, string>>({});
-  const [config, setConfig] = useState<AdminConfig>({ deposit_addresses: {}, announcement: "" });
+  const [reviewDialog, setReviewDialog] = useState<ReviewDialogState | null>(null);
+  const [reviewReason, setReviewReason] = useState("");
+  const [config, setConfig] = useState<AdminConfig>({
+    deposit_addresses: {},
+    withdrawal_fees: { USDT: "1", BTC: "0.0001", ETH: "0.001", SOL: "0.01", BNB: "0.0005", USDC: "1" },
+    announcement: "",
+  });
   const [kyc, setKyc] = useState<AdminKycRecord[]>([]);
   const [audit, setAudit] = useState<AdminAuditRecord[]>([]);
+  const [auditSource, setAuditSource] = useState("unknown");
+  const [auditCompleteness, setAuditCompleteness] = useState("unknown");
   const [orders, setOrders] = useState<Array<Record<string, unknown>>>([]);
+  const [ordersSource, setOrdersSource] = useState("unknown");
   const [support, setSupport] = useState<Array<Record<string, unknown>>>([]);
   const [supportReply, setSupportReply] = useState<Record<string, string>>({});
   const [supportReplyRequestIds, setSupportReplyRequestIds] = useState<Record<string, string>>({});
@@ -104,7 +122,18 @@ export function AdminPage() {
   const [adminReason, setAdminReason] = useState("");
   const [adminRequestId, setAdminRequestId] = useState("");
   const [adminRequestKey, setAdminRequestKey] = useState("");
+  const [spotMarkets, setSpotMarkets] = useState<AdminSpotMarket[]>([]);
+  const [spotMarketDraft, setSpotMarketDraft] = useState({
+    base_asset: "BTC", quote_asset: "USDT", enabled: true,
+    price_tick: "0.01", quantity_step: "0.000001", min_quantity: "0.000001",
+    min_notional: "1", min_limit_price: "", max_limit_price: "", reason: "",
+  });
+  const [spotMarketRequestId, setSpotMarketRequestId] = useState("");
   const [secondsPolicy, setSecondsPolicy] = useState<{policy_id:string;policy_version:number;symbols:string[];durations_sec:number[];min_stake:number|string;max_stake:number|string;payout_bps:number;per_user_open_exposure:number|string|null;max_open_positions_per_user:number|null}|null>(null);
+  const [secondsOpenPositions, setSecondsOpenPositions] = useState<AdminSecondsOpenPosition[]>([]);
+  const [secondsOpenSummary, setSecondsOpenSummary] = useState<AdminSecondsOpenPositionsSnapshot | null>(null);
+  const [secondsQueueLoading, setSecondsQueueLoading] = useState(false);
+  const [secondsQueueError, setSecondsQueueError] = useState("");
   const [secondsSymbols, setSecondsSymbols] = useState<string[]>([]);
   const [secondsDurations, setSecondsDurations] = useState<number[]>([]);
   const [secondsMinStake, setSecondsMinStake] = useState("");
@@ -164,10 +193,39 @@ export function AdminPage() {
       if (tab === "overview") setStats(await getAdminStats(token));
       if (tab === "users") setUsers((await getAdminUsers(token, search)).users);
       if (tab === "deposits") setConfig(await getAdminConfig(token));
+      if (tab === "markets") {
+        const result = await getAdminSpotMarkets(token);
+        setSpotMarkets(result.markets || []);
+        const pendingKey = "btcbox.admin.spot-market.v1." + session.user_id;
+        try {
+          const raw = window.localStorage.getItem(pendingKey);
+          if (raw) {
+            const saved = JSON.parse(raw);
+            if (saved && saved.version === 1 && saved.actor_id === session.user_id &&
+                typeof saved.request_id === "string" && /^[A-Za-z0-9_-]{16,100}$/.test(saved.request_id) &&
+                saved.draft && typeof saved.draft.base_asset === "string" && typeof saved.draft.quote_asset === "string" &&
+                typeof saved.draft.reason === "string") {
+              setSpotMarketDraft(saved.draft);
+              setSpotMarketRequestId(saved.request_id);
+            }
+          }
+        } catch {
+          setError("A saved spot-market update could not be read. Check the market list before creating another update.");
+        }
+      }
       if (tab === "withdrawals") setWithdrawals((await getAdminWithdrawals(token)).withdrawals || []);
       if (tab === "kyc") setKyc((await getAdminKyc(token)).kycs || []);
-      if (tab === "audit") setAudit((await getAdminAuditLogs(token)).logs || []);
-      if (tab === "orders") setOrders(((await getAdminOrders(token)).orders || []) as unknown as Array<Record<string, unknown>>);
+      if (tab === "audit") {
+        const snapshot = await getAdminAuditLogs(token);
+        setAudit(snapshot.logs || []);
+        setAuditSource(snapshot.source || "unknown");
+        setAuditCompleteness(snapshot.completeness || "unknown");
+      }
+      if (tab === "orders") {
+        const snapshot = await getAdminOrders(token);
+        setOrders((snapshot.orders || []) as unknown as Array<Record<string, unknown>>);
+        setOrdersSource(snapshot.source || "unknown");
+      }
       if (tab === "support") setSupport(((await getAdminSupportMessages(token)).messages || []) as unknown as Array<Record<string, unknown>>);
       if (tab === "seconds") {
         const result = await getAdminSecondsPolicy(token);
@@ -176,6 +234,14 @@ export function AdminPage() {
         setSecondsPayoutPercent((result.policy.payout_bps / 100).toString());
         setSecondsExposure(result.policy.per_user_open_exposure === null ? "" : String(result.policy.per_user_open_exposure));
         setSecondsMaxOpenPositions(result.policy.max_open_positions_per_user === null ? "" : String(result.policy.max_open_positions_per_user));
+        try {
+          const queue = await getAdminSecondsOpenPositions(token);
+          setSecondsOpenPositions(queue.positions);
+          setSecondsOpenSummary(queue);
+          setSecondsQueueError("");
+        } catch (queueError) {
+          setSecondsQueueError(queueError instanceof Error ? queueError.message : "Open Seconds positions are temporarily unavailable.");
+        }
       }
       if (tab === "admins" && session.is_super_admin) {
         const [membershipResult, userResult] = await Promise.all([getAdminMemberships(token), getAdminUsers(token, adminSearch)]);
@@ -229,10 +295,7 @@ export function AdminPage() {
     try {
       const result = await getAdminUser(token, uid);
       setSelectedUser(result.user);
-      setCreditAmount({});
-      setCreditReference({});
-      setCreditNote({});
-      setCreditRequestIds({});
+
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "User account could not be loaded.");
     } finally { setBusy(false); }
@@ -250,6 +313,11 @@ export function AdminPage() {
       setError("Enter the verified amount received.");
       return;
     }
+    const reference = (creditReference[coin] || "").trim();
+    if (!reference || reference.length > 160 || /[\u0000-\u001f\u007f]/.test(reference)) {
+      setError("Enter the verified transaction hash or receipt reference before crediting.");
+      return;
+    }
     if (!session?.user_id) {
       setError("The authenticated administrator identity is unavailable. No credit was sent.");
       return;
@@ -261,7 +329,7 @@ export function AdminPage() {
       const intent = {
         version: 1, actor_id: session.user_id, target_uid: selectedUser.uid, coin,
         request_id: stableRequestId, amount,
-        reference: creditReference[coin] || "", note: creditNote[coin] || "",
+        reference, note: creditNote[coin] || "",
         created_at: Date.now(),
       };
       try { window.localStorage.setItem(storageKey, JSON.stringify(intent)); }
@@ -276,7 +344,7 @@ export function AdminPage() {
     try {
       const result = await adminManualCredit(token, {
         uid: selectedUser.uid, coin, amount,
-        reference: creditReference[coin] || "",
+        reference,
         note: creditNote[coin] || "",
         idempotency_key: stableRequestId,
       });
@@ -294,28 +362,83 @@ export function AdminPage() {
       }
     } finally { setBusy(false); }
   };
+  const refreshWithdrawalQueue = async (confirmedAction: string) => {
+    try {
+      const snapshot = await getAdminWithdrawals(token);
+      setWithdrawals(snapshot.withdrawals || []);
+    } catch {
+      setError(confirmedAction + " The database action is confirmed; the queue could not refresh. Reload this tab before taking another action.");
+    }
+  };
+  // A 409 WITHDRAWAL_ALREADY_PROCESSED means the operation actually succeeded on
+  // the first (response-lost) attempt; a retry must be surfaced as a confirmed
+  // notice, not as a red failure, and the queue should be refreshed.
+  const isAlreadyProcessed = (reason: unknown): reason is ApiError =>
+    reason instanceof ApiError && (reason.code === "WITHDRAWAL_ALREADY_PROCESSED" || reason.code === "KYC_EXCEPTION_REQUIRED" || reason.status === 409);
+  const handleAlreadyProcessed = (message: string) => {
+    setNotice(message);
+    setError("");
+    void refreshWithdrawalQueue(message + " ");
+  };
   const approveWithdrawal = async (id: string) => {
     if (!token) return;
     setBusy(true); setError(""); setNotice("");
     try {
       await adminApproveWithdrawal(token, id);
+      setWithdrawals(current => current.map(item => item.id === id ? { ...item, status: "approved" } : item));
       setNotice("Withdrawal approved. Staff must still transfer the funds manually.");
-      setWithdrawals((await getAdminWithdrawals(token)).withdrawals || []);
-    } catch (reason) { setError(reason instanceof Error ? reason.message : "Approval failed."); }
+      await refreshWithdrawalQueue("Withdrawal approval confirmed.");
+    } catch (reason) {
+      if (isAlreadyProcessed(reason)) { handleAlreadyProcessed("Withdrawal was already approved on a previous attempt. No duplicate charge was made."); }
+      else { setError(reason instanceof Error ? reason.message : "Approval was not confirmed."); }
+    }
     finally { setBusy(false); }
   };
-  const rejectWithdrawal = async (id: string) => {
-    if (!token) return;
-    const reasonText = window.prompt("Reason for rejecting this withdrawal:");
-    if (!reasonText?.trim()) return;
+  const rejectWithdrawal = (id: string) => {
+    setReviewDialog({ kind: "withdrawal", id });
+    setReviewReason("");
+    setError("");
+    setNotice("");
+  };
+
+  const confirmReviewRejection = async () => {
+    if (!token || !reviewDialog) return;
+    const reasonText = reviewReason.trim();
+    if (!reasonText) {
+      setError("A rejection reason is required.");
+      return;
+    }
+    const target = reviewDialog;
     setBusy(true); setError(""); setNotice("");
     try {
-      await adminRejectWithdrawal(token, id, reasonText.trim());
-      setNotice("Withdrawal rejected.");
-      setWithdrawals((await getAdminWithdrawals(token)).withdrawals || []);
-    } catch (reason) { setError(reason instanceof Error ? reason.message : "Rejection failed."); }
-    finally { setBusy(false); }
+      if (target.kind === "withdrawal") {
+        await adminRejectWithdrawal(token, target.id, reasonText);
+        setWithdrawals(current => current.filter(item => item.id !== target.id));
+        setNotice("Withdrawal rejected and refund confirmed.");
+        setReviewDialog(null);
+        setReviewReason("");
+        await refreshWithdrawalQueue("Withdrawal rejection and refund confirmed.");
+      } else {
+        await adminRejectKyc(token, target.uid, reasonText);
+        setKyc(current => current.filter(item => item.uid !== target.uid));
+        setNotice("KYC rejected.");
+        setReviewDialog(null);
+        setReviewReason("");
+        try { setKyc((await getAdminKyc(token)).kycs || []); }
+        catch { setError("KYC review is confirmed; the queue could not refresh. Reload this tab before reviewing another application."); }
+      }
+    } catch (reason) {
+      if (target.kind === "withdrawal" && isAlreadyProcessed(reason)) {
+        setReviewDialog(null); setReviewReason("");
+        handleAlreadyProcessed("Withdrawal was already reviewed on a previous attempt. No duplicate refund was issued.");
+      } else {
+        setError(reason instanceof Error ? reason.message : "Rejection was not confirmed.");
+      }
+    } finally {
+      setBusy(false);
+    }
   };
+
   const markPaid = async (id: string) => {
     if (!token) return;
     const reference = (payoutReferences[id] || "").trim();
@@ -323,9 +446,10 @@ export function AdminPage() {
     setBusy(true); setError(""); setNotice("");
     try {
       const result = await adminMarkWithdrawalPaid(token, { id, reference, note: "Staff manually transferred funds." });
-      setNotice(result.duplicate ? "This payout reference was already recorded." : "Manual payout completion recorded.");
-      setWithdrawals((await getAdminWithdrawals(token)).withdrawals || []);
+      setWithdrawals(current => current.filter(item => item.id !== id));
       setPayoutReferences((current) => ({ ...current, [id]: "" }));
+      setNotice(result.duplicate ? "This payout reference was already recorded." : "Manual payout completion recorded.");
+      await refreshWithdrawalQueue("Manual payout completion confirmed.");
     } catch (reason) { setError(reason instanceof Error ? reason.message : "Payout completion was not confirmed."); }
     finally { setBusy(false); }
   };
@@ -336,23 +460,39 @@ export function AdminPage() {
     setBusy(true); setError(""); setNotice("");
     try {
       await saveAdminConfig(token, config);
-      setNotice("Deposit address configuration saved.");
+      setNotice("Finance configuration saved.");
     } catch (reason) { setError(reason instanceof Error ? reason.message : "Configuration was not saved."); }
     finally { setBusy(false); }
   };
 
   const reviewKyc = async (uid: string, approved: boolean) => {
     if (!token) return;
-    const reasonText = approved ? "" : (window.prompt("Reason for rejecting this KYC application:") || "");
-    if (!approved && !reasonText.trim()) return;
+    if (!approved) {
+      setReviewDialog({ kind: "kyc", uid });
+      setReviewReason("");
+      setError("");
+      setNotice("");
+      return;
+    }
     setBusy(true); setError(""); setNotice("");
     try {
-      if (approved) await adminApproveKyc(token, uid);
-      else await adminRejectKyc(token, uid, reasonText.trim());
-      setNotice(approved ? "KYC approved." : "KYC rejected.");
-      setKyc((await getAdminKyc(token)).kycs || []);
-    } catch (reason) { setError(reason instanceof Error ? reason.message : "KYC review failed."); }
-    finally { setBusy(false); }
+      await adminApproveKyc(token, uid);
+      setKyc(current => current.filter(item => item.uid !== uid));
+      setNotice("KYC approved.");
+      try { setKyc((await getAdminKyc(token)).kycs || []); }
+      catch { setError("KYC review is confirmed; the queue could not refresh. Reload this tab before reviewing another application."); }
+    } catch (reason) {
+      if (isAlreadyProcessed(reason)) {
+        setNotice("KYC application was already reviewed on a previous attempt.");
+        setError("");
+        try { setKyc((await getAdminKyc(token)).kycs || []); }
+        catch { setError("KYC review is confirmed; the queue could not refresh. Reload this tab before reviewing another application."); }
+      } else {
+        setError(reason instanceof Error ? reason.message : "KYC review was not confirmed.");
+      }
+    } finally {
+      setBusy(false);
+    }
   };
 
   const replySupport = async (uid: string) => {
@@ -367,9 +507,76 @@ export function AdminPage() {
       setNotice(result.audit_sync_pending ? "Support reply sent; audit delivery is pending." : "Support reply sent.");
       setSupportReply((current) => ({ ...current, [uid]: "" }));
       setSupportReplyRequestIds((current) => { const next = { ...current }; delete next[uid]; return next; });
-      setSupport((await getAdminSupportMessages(token)).messages || []);
+      try { setSupport((await getAdminSupportMessages(token)).messages || []); }
+      catch { setError("Support reply is confirmed; the conversation could not refresh. Reload this tab to view the sent reply."); }
     } catch (reason) { setError(reason instanceof Error ? reason.message : "Support reply failed."); }
     finally { setBusy(false); }
+  };
+
+  const saveSpotMarket = async () => {
+    if (!token || !session?.user_id || !hasPermission("system_config.write")) return;
+    const draft = {
+      base_asset: spotMarketDraft.base_asset.trim().toUpperCase(),
+      quote_asset: "USDT",
+      enabled: spotMarketDraft.enabled,
+      price_tick: spotMarketDraft.price_tick.trim(),
+      quantity_step: spotMarketDraft.quantity_step.trim(),
+      min_quantity: spotMarketDraft.min_quantity.trim(),
+      min_notional: spotMarketDraft.min_notional.trim(),
+      min_limit_price: spotMarketDraft.min_limit_price.trim(),
+      max_limit_price: spotMarketDraft.max_limit_price.trim(),
+      reason: spotMarketDraft.reason.trim(),
+    };
+    const decimal = /^(?:0|[1-9]\\d{0,19})(?:\\.\\d{1,18})?$/;
+    const asset = /^[A-Z0-9]{2,16}$/;
+    if (!asset.test(draft.base_asset) || !asset.test(draft.quote_asset) || draft.base_asset === draft.quote_asset ||
+        !decimal.test(draft.price_tick) || Number(draft.price_tick) <= 0 ||
+        !decimal.test(draft.quantity_step) || Number(draft.quantity_step) <= 0 ||
+        !decimal.test(draft.min_quantity) || Number(draft.min_quantity) <= 0 ||
+        !decimal.test(draft.min_notional) ||
+        (draft.min_limit_price && (!decimal.test(draft.min_limit_price) || Number(draft.min_limit_price) <= 0)) ||
+        (draft.max_limit_price && (!decimal.test(draft.max_limit_price) || Number(draft.max_limit_price) <= 0)) ||
+        (draft.min_limit_price && draft.max_limit_price && Number(draft.min_limit_price) > Number(draft.max_limit_price)) ||
+        !draft.reason || draft.reason.length > 500) {
+      setError("Check the pair, positive tick/step/minimums, optional price bounds and required reason.");
+      return;
+    }
+    const storageKey = "btcbox.admin.spot-market.v1." + session.user_id;
+    let requestId = spotMarketRequestId;
+    if (!requestId) {
+      requestId = window.crypto.randomUUID();
+      try {
+        window.localStorage.setItem(storageKey, JSON.stringify({
+          version: 1, actor_id: session.user_id, request_id: requestId, draft,
+          created_at: Date.now(),
+        }));
+      } catch {
+        setError("This browser cannot safely save the spot-market request. No update was sent.");
+        return;
+      }
+      setSpotMarketRequestId(requestId);
+    }
+    setBusy(true); setError(""); setNotice("");
+    try {
+      const result = await saveAdminSpotMarket(token, {
+        ...draft,
+        min_limit_price: draft.min_limit_price || null,
+        max_limit_price: draft.max_limit_price || null,
+        request_id: requestId,
+      });
+      try { window.localStorage.removeItem(storageKey); } catch {}
+      setSpotMarketRequestId("");
+      setSpotMarketDraft(current => ({ ...current, reason: "" }));
+      setNotice(result.replayed ? "This spot-market update was already saved." : "Spot-market configuration saved.");
+      try {
+        const refreshed = await getAdminSpotMarkets(token);
+        setSpotMarkets(refreshed.markets || []);
+      } catch {
+        setError("The market update was saved, but the list could not be refreshed. Retry loading the Spot markets tab.");
+      }
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "Spot-market update could not be confirmed. Retry the same saved request.");
+    } finally { setBusy(false); }
   };
 
   const saveSecondsPolicy = async () => {
@@ -402,8 +609,13 @@ export function AdminPage() {
       await manageAdminMembership(token, { target_user_id: targetUserId, expected_revision: expectedRevision, action, permissions, reason, request_id: requestId });
       setNotice(action === "provision" ? "Administrator access provisioned." : action === "set_permissions" ? "Administrator permissions updated." : action === "suspend" ? "Administrator suspended." : action === "reactivate" ? "Administrator reactivated." : "Administrator access revoked.");
       setAdminRequestId(""); setAdminRequestKey(""); setAdminReason("");
-      const refreshed = await getAdminMemberships(token); setAdminMemberships(refreshed.admins || []);
       if (action === "provision") setAdminTargetUserId("");
+      try {
+        const refreshed = await getAdminMemberships(token);
+        setAdminMemberships(refreshed.admins || []);
+      } catch {
+        setError("Administrator change is confirmed; the list could not refresh. Reload this tab before taking another action.");
+      }
     } catch (reason) { setError(reason instanceof Error ? reason.message : "Administrator change could not be confirmed. Refresh before retrying."); }
     finally { setBusy(false); }
   };
@@ -438,33 +650,55 @@ export function AdminPage() {
       </CardContent></Card>
       <Card><CardHeader><CardTitle>Manual credit</CardTitle><CardDescription>UID and asset are bound by the selected user and asset row. No pending deposit order is created.</CardDescription></CardHeader><CardContent>
         {!selectedUser ? <p className="text-sm text-brand-text-muted">Select a user to load their current balances.</p> : <>
-          <p className="mb-3 text-sm font-semibold">{selectedUser.email} · <span className="font-mono">{selectedUser.uid}</span></p>
-          <div className="space-y-3">{assets.map(coin=><form key={coin} className="rounded-xl border border-brand-border p-3" onSubmit={event=>void manualCredit(event,coin)}>
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2"><p className="text-sm font-semibold">{selectedUser.email} · <span className="font-mono">{selectedUser.uid}</span></p>{hasPermission("deposits.read") ? <Badge variant="outline">{selectedUser.financial_balance_source === "postgres_financial_ledger" ? "Balances: PostgreSQL ledger" : selectedUser.financial_balance_source === "legacy_state_retention_limited" ? "Balances: legacy state · limited" : "Balances: source unknown"}</Badge> : null}</div>
+          {!hasPermission("deposits.read") ? <p className="text-sm text-brand-text-muted">Balance details require the deposits.read permission.</p> : <div className="space-y-3">{assets.map(coin=><form key={coin} className="rounded-xl border border-brand-border p-3" onSubmit={event=>void manualCredit(event,coin)}>
             <div className="mb-2 flex items-center justify-between"><span className="font-semibold">{coin}</span><span className="text-xs text-brand-text-muted">Available: {asText(selectedUser.balances?.[coin]?.free ?? "0")}</span></div>
             <input disabled={!!creditRequestIds[coin]||!!creditPendingInvalid[coin]||busy} value={creditAmount[coin]||""} onChange={event=>setCreditAmount(current=>({...current,[coin]:event.target.value}))} placeholder="Verified amount received" className="mb-2 w-full rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-2 text-sm text-brand-text" inputMode="decimal"/>
-            <input disabled={!!creditRequestIds[coin]||!!creditPendingInvalid[coin]||busy} value={creditReference[coin]||""} onChange={event=>setCreditReference(current=>({...current,[coin]:event.target.value}))} placeholder="TxID / reference (optional)" className="mb-2 w-full rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-2 text-sm text-brand-text"/>
+            <input disabled={!!creditRequestIds[coin]||!!creditPendingInvalid[coin]||busy} value={creditReference[coin]||""} onChange={event=>setCreditReference(current=>({...current,[coin]:event.target.value}))} placeholder="Required TxID / receipt reference" required maxLength={160} className="mb-2 w-full rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-2 text-sm text-brand-text"/>
             <input disabled={!!creditRequestIds[coin]||!!creditPendingInvalid[coin]||busy} value={creditNote[coin]||""} onChange={event=>setCreditNote(current=>({...current,[coin]:event.target.value}))} placeholder="Note (optional)" className="mb-2 w-full rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-2 text-sm text-brand-text"/>
-            <Button type="submit" size="sm" disabled={busy || !!creditPendingInvalid[coin] || !hasPermission("deposits.review")}>{creditRequestIds[coin] ? "Retry same credit request" : "Confirm manual credit"}</Button>
-          </form>)}</div>
+            <Button type="submit" size="sm" disabled={busy || !!creditPendingInvalid[coin] || !hasPermission("deposits.review") || !hasPermission("deposits.read")}>{creditRequestIds[coin] ? "Retry same credit request" : "Confirm manual credit"}</Button>
+          </form>)}</div>}
+          {hasPermission("deposits.read") ? <section className="mt-6 space-y-3 border-t border-brand-border pt-4">
+            <div className="flex flex-wrap items-center justify-between gap-2"><h3 className="text-sm font-semibold">Deposit history</h3><Badge variant="outline">{selectedUser.deposit_history_source === "postgres_financial_ledger" ? "Source: PostgreSQL ledger" : selectedUser.deposit_history_source === "legacy_state_retention_limited" ? "Source: legacy state · limited" : "Source: unavailable"}</Badge></div>
+            {!selectedUser.deposit_history ? <p className="text-sm text-brand-text-muted">Deposit history is not available in this response. Refresh the user record before reviewing a credit.</p> :
+              selectedUser.deposit_history.length === 0 ? <p className="text-sm text-brand-text-muted">No deposit records found.</p> :
+              <div className="overflow-x-auto"><table className="w-full min-w-[620px] text-left text-xs"><thead><tr className="border-b border-brand-border text-brand-text-muted"><th className="p-2">Asset / network</th><th className="p-2">Amount</th><th className="p-2">Status</th><th className="p-2">Reference</th><th className="p-2">Time</th></tr></thead><tbody>{selectedUser.deposit_history.map((item,index)=><tr key={item.id || index} className="border-b border-brand-border/60"><td className="p-2">{item.coin} · {item.network || "—"}</td><td className="p-2 font-mono tabular-nums">{asText(item.amount)}</td><td className="p-2"><Badge variant={statusVariant(item.status)}>{item.status}</Badge></td><td className="max-w-[220px] truncate p-2 font-mono" title={item.reference || item.txid || ""}>{item.reference || item.txid || "—"}</td><td className="whitespace-nowrap p-2">{formatDate(item.time)}</td></tr>)}</tbody></table></div>}
+          </section> : null}
         </>}
       </CardContent></Card>
     </div> : null}
 
-    {!loading && tab === "deposits" ? <Card><CardHeader><CardTitle>Deposit addresses</CardTitle><CardDescription>Configure the exact asset/network addresses shown to customers. Staff verify receipts and manually credit the selected user's asset row.</CardDescription></CardHeader><CardContent><form onSubmit={saveAddresses} className="space-y-3">
-      <div className="grid gap-3 md:grid-cols-2">{depositAddressKeys.map(key=><label key={key} className="block space-y-1"><span className="text-xs font-semibold text-brand-text-muted">{key.replace("_"," · ")}</span><input value={config.deposit_addresses[key]||""} onChange={event=>setConfig(current=>({...current,deposit_addresses:{...current.deposit_addresses,[key]:event.target.value}}))} className="w-full rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-2 text-sm text-brand-text" placeholder="Configured wallet address"/></label>)}</div>
+    {!loading && tab === "deposits" ? <Card><CardHeader><CardTitle>Finance configuration</CardTitle><CardDescription>Configure customer deposit addresses and server-enforced withdrawal fees. Staff verify incoming transfers and manually credit the selected user's asset row.</CardDescription></CardHeader><CardContent><form onSubmit={saveAddresses} className="space-y-5">
+      <section className="space-y-3"><h3 className="text-sm font-semibold text-brand-text">Deposit addresses</h3><div className="grid gap-3 md:grid-cols-2">{depositAddressKeys.map(key=><label key={key} className="block space-y-1"><span className="text-xs font-semibold text-brand-text-muted">{key.replace("_"," · ")}</span><input value={config.deposit_addresses[key]||""} onChange={event=>setConfig(current=>({...current,deposit_addresses:{...current.deposit_addresses,[key]:event.target.value}}))} className="w-full rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-2 text-sm text-brand-text" placeholder="Configured wallet address"/></label>)}</div></section>
+      <section className="space-y-3"><div><h3 className="text-sm font-semibold text-brand-text">Withdrawal fees</h3><p className="text-xs text-brand-text-muted">These values are applied by the server when a withdrawal is submitted. Enter zero to disable a fee for an asset.</p></div><div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{assets.map(coin=><label key={coin} className="block space-y-1"><span className="text-xs font-semibold text-brand-text-muted">{coin} fee</span><input inputMode="decimal" value={config.withdrawal_fees?.[coin] ?? ""} onChange={event=>setConfig(current=>({...current,withdrawal_fees:{...current.withdrawal_fees,[coin]:event.target.value}}))} className="w-full rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-2 text-sm text-brand-text" placeholder="0"/></label>)}</div></section>
       <label className="block space-y-1"><span className="text-xs font-semibold text-brand-text-muted">Customer announcement</span><textarea value={config.announcement||""} onChange={event=>setConfig(current=>({...current,announcement:event.target.value}))} rows={3} className="w-full rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-2 text-sm text-brand-text"/></label>
       <Button type="submit" disabled={busy || !hasPermission("system_config.write")}>Save configuration</Button>
     </form></CardContent></Card> : null}
 
-    {!loading && tab === "withdrawals" ? <Card><CardHeader><CardTitle>Withdrawal queue</CardTitle><CardDescription>Approve or reject requests. After staff actually transfer funds, mark paid with the TxID/reference.</CardDescription></CardHeader><CardContent><div className="overflow-x-auto"><table className="w-full min-w-[900px] text-left text-sm"><thead><tr className="border-b border-brand-border text-xs text-brand-text-muted"><th className="p-2">ID</th><th className="p-2">User</th><th className="p-2">Asset / amount</th><th className="p-2">Network / destination</th><th className="p-2">Status</th><th className="p-2">Action</th></tr></thead><tbody>{withdrawals.map(item=><tr key={item.id} className="border-b border-brand-border/60 align-top"><td className="p-2 font-mono text-xs">{item.id}</td><td className="p-2">{item.uid}</td><td className="p-2">{item.coin} {item.amount}<div className="text-xs text-brand-text-muted">Fee {item.fee}</div></td><td className="max-w-[260px] break-all p-2">{item.network}<div className="text-xs text-brand-text-muted">{item.address}</div></td><td className="p-2"><Badge variant={statusVariant(item.status)}>{item.status}</Badge></td><td className="min-w-[220px] space-y-2 p-2">{item.status==="pending"||item.status==="pending_admin_review"?<><Button size="sm" disabled={busy||!hasPermission("withdrawals.review")} onClick={()=>void approveWithdrawal(item.id)}>Approve</Button><Button size="sm" variant="outline" disabled={busy||!hasPermission("withdrawals.review")} onClick={()=>void rejectWithdrawal(item.id)}>Reject</Button></>:item.status==="approved"?<><input value={payoutReferences[item.id]||""} onChange={event=>setPayoutReferences(current=>({...current,[item.id]:event.target.value}))} placeholder="Required TxID / reference" className="w-full rounded-lg border border-brand-border bg-brand-surface-2 px-2 py-2 text-xs text-brand-text"/><Button size="sm" disabled={busy||!payoutReferences[item.id]?.trim()||!hasPermission("withdrawals.review")} onClick={()=>void markPaid(item.id)}>Mark paid</Button></>:<span className="text-xs text-brand-text-muted">{item.payout_reference||"—"}</span>}</td></tr>)}</tbody></table></div></CardContent></Card> : null}
+    {!loading && tab === "withdrawals" ? <Card><CardHeader><CardTitle>Withdrawal queue</CardTitle><CardDescription>Approve or reject requests. After staff actually transfer funds, mark paid with the TxID/reference.</CardDescription></CardHeader><CardContent><div className="overflow-x-auto"><table className="w-full min-w-[900px] text-left text-sm"><thead><tr className="border-b border-brand-border text-xs text-brand-text-muted"><th className="p-2">ID</th><th className="p-2">User</th><th className="p-2">Asset / amount</th><th className="p-2">Network / destination</th><th className="p-2">Status</th><th className="p-2">Action</th></tr></thead><tbody>{withdrawals.map(item=><tr key={item.id} className="border-b border-brand-border/60 align-top"><td className="p-2 font-mono text-xs">{item.id}</td><td className="p-2">{item.uid}</td><td className="p-2">{item.coin} {item.amount}<div className="text-xs text-brand-text-muted">Fee {item.fee}</div></td><td className="max-w-[260px] break-all p-2">{item.network}<div className="text-xs text-brand-text-muted">{item.address}</div></td><td className="p-2"><Badge variant={statusVariant(item.status)}>{item.status}</Badge></td><td className="min-w-[220px] space-y-2 p-2">{item.status==="pending"||item.status==="pending_admin_review"?<><Button size="sm" disabled={busy||!hasPermission("withdrawals.review")} onClick={()=>void approveWithdrawal(item.id)}>Approve</Button><Button size="sm" variant="outline" disabled={busy||!hasPermission("withdrawals.review")} onClick={()=>void rejectWithdrawal(item.id)}>Reject</Button></>:item.status==="approved"?<><input value={payoutReferences[item.id]||""} onChange={event=>setPayoutReferences(current=>({...current,[item.id]:event.target.value}))} placeholder="Required TxID / reference" maxLength={160} className="w-full rounded-lg border border-brand-border bg-brand-surface-2 px-2 py-2 text-xs text-brand-text"/><Button size="sm" disabled={busy||!payoutReferences[item.id]?.trim()||!hasPermission("withdrawals.review")} onClick={()=>void markPaid(item.id)}>Mark paid</Button></>:<span className="text-xs text-brand-text-muted">{item.payout_reference||"—"}</span>}</td></tr>)}</tbody></table></div></CardContent></Card> : null}
 
-    {!loading && tab === "kyc" ? <Card><CardHeader><CardTitle>KYC review</CardTitle></CardHeader><CardContent><div className="overflow-x-auto"><table className="w-full min-w-[700px] text-left text-sm"><thead><tr className="border-b border-brand-border text-xs text-brand-text-muted"><th className="p-2">User</th><th className="p-2">Name</th><th className="p-2">Document</th><th className="p-2">Status</th><th className="p-2">Submitted</th><th className="p-2">Action</th></tr></thead><tbody>{kyc.map(item=><tr key={item.uid} className="border-b border-brand-border/60"><td className="p-2">{item.uid}<div className="text-xs text-brand-text-muted">{item.email}</div></td><td className="p-2">{item.name}</td><td className="p-2">{item.id_type}</td><td className="p-2">{item.status}</td><td className="p-2">{formatDate(item.submitted_at)}</td><td className="space-x-2 p-2"><Button size="sm" disabled={busy||!hasPermission("kyc.review")} onClick={()=>void reviewKyc(item.uid,true)}>Approve</Button><Button size="sm" variant="outline" disabled={busy||!hasPermission("kyc.review")} onClick={()=>void reviewKyc(item.uid,false)}>Reject</Button></td></tr>)}</tbody></table></div></CardContent></Card> : null}
+    {!loading && tab === "kyc" ? <Card><CardHeader><CardTitle>KYC review</CardTitle></CardHeader><CardContent><div className="overflow-x-auto"><table className="w-full min-w-[700px] text-left text-sm"><thead><tr className="border-b border-brand-border text-xs text-brand-text-muted"><th className="p-2">User</th><th className="p-2">Name</th><th className="p-2">Document</th><th className="p-2">Status</th><th className="p-2">Submitted</th><th className="p-2">Action</th></tr></thead><tbody>{kyc.map(item=><tr key={item.uid} className="border-b border-brand-border/60"><td className="p-2">{item.uid}<div className="text-xs text-brand-text-muted">{item.email}</div></td><td className="p-2">{item.name}</td><td className="p-2">{item.id_type}<div className="mt-1 text-xs">{item.document_url?<a href={item.document_url} target="_blank" rel="noreferrer" className="text-brand-accent underline underline-offset-2">Open secure image</a>:<span className="text-brand-text-muted">{item.document_preview_error||"Document image missing"}</span>}</div></td><td className="p-2">{item.status}</td><td className="p-2">{formatDate(item.submitted_at)}</td><td className="space-x-2 p-2"><Button size="sm" disabled={busy||!hasPermission("kyc.review")} onClick={()=>void reviewKyc(item.uid,true)}>Approve</Button><Button size="sm" variant="outline" disabled={busy||!hasPermission("kyc.review")} onClick={()=>void reviewKyc(item.uid,false)}>Reject</Button></td></tr>)}</tbody></table></div></CardContent></Card> : null}
 
-    {!loading && tab === "audit" ? <Card><CardHeader><CardTitle>Financial audit log</CardTitle><CardDescription>Source and synchronization status are displayed as returned by the backend.</CardDescription></CardHeader><CardContent><div className="overflow-x-auto"><table className="w-full min-w-[800px] text-left text-sm"><thead><tr className="border-b border-brand-border text-xs text-brand-text-muted"><th className="p-2">Time</th><th className="p-2">Actor</th><th className="p-2">Action</th><th className="p-2">User</th><th className="p-2">Sync</th><th className="p-2">Detail</th></tr></thead><tbody>{audit.map((item,index)=><tr key={item.id||index} className="border-b border-brand-border/60"><td className="p-2">{formatDate(item.time)}</td><td className="p-2 font-mono text-xs">{item.by}</td><td className="p-2">{item.action}</td><td className="p-2">{item.uid}</td><td className="p-2">{item.postgres_sync_status}</td><td className="max-w-[280px] break-all p-2 text-xs">{item.detail}</td></tr>)}</tbody></table></div></CardContent></Card> : null}
+    {!loading && tab === "audit" ? <Card><CardHeader><div className="flex flex-wrap items-start justify-between gap-2"><div><CardTitle>Financial audit log</CardTitle><CardDescription>{auditCompleteness === "postgres_canonical" ? "Canonical append-only PostgreSQL history. Financial operations and account history use the same database source." : auditCompleteness === "state_document_retention_limited" ? "Retention-limited state-file history. Do not treat this list as a complete financial audit record." : "Audit source is not confirmed. Do not treat this list as complete until the source is verified."}</CardDescription></div><Badge variant={auditCompleteness === "postgres_canonical" ? "default" : "destructive"}>{auditSource === "postgres_financial_audit_log" ? "PostgreSQL canonical" : auditSource === "btcbox_state" ? "State file · limited" : "Source unknown"}</Badge></div></CardHeader><CardContent><div className="overflow-x-auto"><table className="w-full min-w-[800px] text-left text-sm"><thead><tr className="border-b border-brand-border text-xs text-brand-text-muted"><th className="p-2">Time</th><th className="p-2">Actor</th><th className="p-2">Action</th><th className="p-2">User</th><th className="p-2">Sync</th><th className="p-2">Detail</th></tr></thead><tbody>{audit.map((item,index)=><tr key={item.id||index} className="border-b border-brand-border/60"><td className="p-2">{formatDate(item.time)}</td><td className="p-2 font-mono text-xs">{item.by}</td><td className="p-2">{item.action}</td><td className="p-2">{item.uid}</td><td className="p-2">{item.postgres_sync_status}</td><td className="max-w-[280px] break-all p-2 text-xs">{item.detail}</td></tr>)}</tbody></table></div></CardContent></Card> : null}
 
-    {!loading && tab === "orders" ? <Card><CardHeader><CardTitle>Orders</CardTitle><CardDescription>Read-only operational view.</CardDescription></CardHeader><CardContent><div className="overflow-x-auto"><table className="w-full min-w-[700px] text-left text-sm"><thead><tr className="border-b border-brand-border text-xs text-brand-text-muted"><th className="p-2">ID</th><th className="p-2">User</th><th className="p-2">Symbol</th><th className="p-2">Side</th><th className="p-2">Status</th><th className="p-2">Created</th></tr></thead><tbody>{orders.map((item,index)=><tr key={asText(item.id)||index} className="border-b border-brand-border/60"><td className="p-2 font-mono text-xs">{asText(item.id)}</td><td className="p-2">{asText(item.uid||item.user_id)}</td><td className="p-2">{asText(item.symbol)}</td><td className="p-2">{asText(item.side)}</td><td className="p-2">{asText(item.status)}</td><td className="p-2">{formatDate(item.created_at||item.time)}</td></tr>)}</tbody></table></div></CardContent></Card> : null}
+    {!loading && tab === "orders" ? <Card><CardHeader><div className="flex flex-wrap items-start justify-between gap-2"><div><CardTitle>Orders</CardTitle><CardDescription>{ordersSource === "postgres_financial_matching" ? "Customer order history and this administrator view use the canonical PostgreSQL matching orders." : ordersSource === "legacy_state" ? "Legacy state fallback is active because matching-engine mode was not requested." : "Order data source is not confirmed."}</CardDescription></div><Badge variant={ordersSource === "postgres_financial_matching" ? "default" : "destructive"}>{ordersSource === "postgres_financial_matching" ? "Source: PostgreSQL matching" : ordersSource === "legacy_state" ? "Source: legacy state" : "Source: unknown"}</Badge></div></CardHeader><CardContent><div className="overflow-x-auto"><table className="w-full min-w-[700px] text-left text-sm"><thead><tr className="border-b border-brand-border text-xs text-brand-text-muted"><th className="p-2">ID</th><th className="p-2">User</th><th className="p-2">Symbol</th><th className="p-2">Side</th><th className="p-2">Status</th><th className="p-2">Created</th></tr></thead><tbody>{orders.map((item,index)=><tr key={asText(item.id)||index} className="border-b border-brand-border/60"><td className="p-2 font-mono text-xs">{asText(item.id)}</td><td className="p-2">{asText(item.uid||item.user_id)}</td><td className="p-2">{asText(item.symbol)}</td><td className="p-2">{asText(item.side)}</td><td className="p-2">{asText(item.status)}</td><td className="p-2">{formatDate(item.created_at||item.time)}</td></tr>)}</tbody></table></div></CardContent></Card> : null}
 
     {!loading && tab === "support" ? <Card><CardHeader><CardTitle>Support messages</CardTitle></CardHeader><CardContent className="space-y-3">{support.map((item,index)=>{const uid=asText(item.uid||item.user_id);return <div key={asText(item.id)||index} className="rounded-xl border border-brand-border p-3"><p className="text-xs text-brand-text-muted">{uid} · {formatDate(item.created_at||item.time)}</p><p className="mt-2 whitespace-pre-wrap text-sm">{asText(item.content||item.message)}</p><textarea value={supportReply[uid]||""} onChange={event=>{setSupportReply(current=>({...current,[uid]:event.target.value}));setSupportReplyRequestIds(current=>({...current,[uid]:window.crypto.randomUUID()}));}} rows={2} className="mt-3 w-full rounded-lg border border-brand-border bg-brand-surface-2 p-2 text-sm text-brand-text" placeholder="Reply to customer"/><Button size="sm" className="mt-2" disabled={busy||!supportReply[uid]?.trim()||!hasPermission("support.reply")} onClick={()=>void replySupport(uid)}>Send reply</Button></div>;})}</CardContent></Card> : null}
+    {!loading && tab === "markets" ? <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(340px,0.9fr)]">
+      <Card><CardHeader><CardTitle>Spot market catalogue</CardTitle><CardDescription>Only enabled pairs accept limit orders. Market orders remain disabled; maker/taker fees stay at zero until fee movements are implemented atomically.</CardDescription></CardHeader><CardContent className="space-y-3">
+        {spotMarkets.length ? <div className="overflow-x-auto"><table className="w-full min-w-[620px] text-left text-sm"><thead><tr className="border-b border-brand-border text-xs text-brand-text-muted"><th className="p-2">Pair</th><th className="p-2">Status</th><th className="p-2">Tick / step</th><th className="p-2">Min quantity / notional</th><th className="p-2"></th></tr></thead><tbody>{spotMarkets.map(market=><tr key={market.base_asset + "/" + market.quote_asset} className="border-b border-brand-border/60"><td className="p-2 font-semibold">{market.base_asset}/{market.quote_asset}</td><td className="p-2"><Badge variant={market.enabled ? "default" : "outline"}>{market.enabled ? "Enabled" : "Disabled"}</Badge></td><td className="p-2 text-xs tabular-nums">{asText(market.price_tick)} / {asText(market.quantity_step)}</td><td className="p-2 text-xs tabular-nums">{asText(market.min_quantity)} / {asText(market.min_notional)}</td><td className="p-2"><Button size="sm" variant="outline" disabled={busy || !!spotMarketRequestId || !hasPermission("system_config.write")} onClick={()=>setSpotMarketDraft({base_asset:market.base_asset,quote_asset:market.quote_asset,enabled:market.enabled,price_tick:String(market.price_tick),quantity_step:String(market.quantity_step),min_quantity:String(market.min_quantity),min_notional:String(market.min_notional),min_limit_price:market.min_limit_price==null?"":String(market.min_limit_price),max_limit_price:market.max_limit_price==null?"":String(market.max_limit_price),reason:""})}>Edit</Button></td></tr>)}</tbody></table></div> : <p className="text-sm text-brand-text-muted">No spot pairs have been configured yet.</p>}
+        <Button size="sm" variant="outline" disabled={busy || !!spotMarketRequestId || !hasPermission("system_config.write")} onClick={()=>setSpotMarketDraft({base_asset:"",quote_asset:"USDT",enabled:false,price_tick:"0.01",quantity_step:"0.000001",min_quantity:"0.000001",min_notional:"1",min_limit_price:"",max_limit_price:"",reason:""})}>Add market pair</Button>
+      </CardContent></Card>
+      <Card><CardHeader><CardTitle>Market parameters</CardTitle><CardDescription>Changes are permission-checked, request-ID protected and audited by PostgreSQL. Existing orders keep their accepted terms.</CardDescription></CardHeader><CardContent className="space-y-3">
+        {spotMarketRequestId ? <p role="status" className="rounded-lg border border-amber-500/30 p-3 text-xs text-amber-300">A previous request is unconfirmed. Retry the exact same update; fields are locked to prevent changing the payload.</p> : null}
+        <div className="grid grid-cols-2 gap-3"><label className="space-y-1 text-sm"><span>Base asset</span><select value={spotMarketDraft.base_asset} disabled={busy||!!spotMarketRequestId||!hasPermission("system_config.write")} onChange={event=>setSpotMarketDraft(current=>({...current,base_asset:event.target.value}))} className="w-full rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-2 text-brand-text"><option value="">Select asset</option>{spotAssets.map(asset=><option key={asset} value={asset}>{asset}</option>)}</select></label><label className="space-y-1 text-sm"><span>Quote asset</span><input value="USDT" readOnly disabled className="w-full rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-2 text-brand-text"/></label></div>
+        <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={spotMarketDraft.enabled} disabled={busy||!!spotMarketRequestId||!hasPermission("system_config.write")} onChange={event=>setSpotMarketDraft(current=>({...current,enabled:event.target.checked}))}/>Enable this market</label>
+        <div className="grid grid-cols-2 gap-3">{([["price_tick","Price tick"],["quantity_step","Quantity step"],["min_quantity","Minimum quantity"],["min_notional","Minimum notional"]] as const).map(([key,label])=><label key={key} className="space-y-1 text-sm"><span>{label}</span><input value={spotMarketDraft[key as keyof typeof spotMarketDraft] as string} disabled={busy||!!spotMarketRequestId||!hasPermission("system_config.write")} onChange={event=>setSpotMarketDraft(current=>({...current,[key]:event.target.value}))} inputMode="decimal" className="w-full rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-2 text-brand-text"/></label>)}</div>
+        <div className="grid grid-cols-2 gap-3"><label className="space-y-1 text-sm"><span>Minimum limit price (optional)</span><input value={spotMarketDraft.min_limit_price} disabled={busy||!!spotMarketRequestId||!hasPermission("system_config.write")} onChange={event=>setSpotMarketDraft(current=>({...current,min_limit_price:event.target.value}))} inputMode="decimal" className="w-full rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-2 text-brand-text"/></label><label className="space-y-1 text-sm"><span>Maximum limit price (optional)</span><input value={spotMarketDraft.max_limit_price} disabled={busy||!!spotMarketRequestId||!hasPermission("system_config.write")} onChange={event=>setSpotMarketDraft(current=>({...current,max_limit_price:event.target.value}))} inputMode="decimal" className="w-full rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-2 text-brand-text"/></label></div>
+        <label className="block space-y-1 text-sm"><span>Reason (required)</span><textarea value={spotMarketDraft.reason} disabled={busy||!!spotMarketRequestId||!hasPermission("system_config.write")} onChange={event=>setSpotMarketDraft(current=>({...current,reason:event.target.value}))} rows={2} maxLength={500} className="w-full rounded-lg border border-brand-border bg-brand-surface-2 p-3 text-brand-text"/></label>
+        {hasPermission("system_config.write") ? <Button block disabled={busy||!spotMarketDraft.reason.trim()} onClick={()=>void saveSpotMarket()}>{spotMarketRequestId ? "Retry same update" : "Save market settings"}</Button> : <p className="text-sm text-brand-text-muted">Your administrator role is read-only for spot markets.</p>}
+      </CardContent></Card>
+    </div> : null}
     {!loading && tab === "seconds" && secondsPolicy ? <Card><CardHeader><CardTitle>Seconds contract policy</CardTitle><CardDescription>Changes create and activate a new immutable policy version. Existing open positions keep their original policy snapshot. 85% is the minimum payout rate; no fixed upper limit is imposed.</CardDescription></CardHeader><CardContent className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2"><Badge variant="outline">Active version {secondsPolicy.policy_version}</Badge><span className="text-xs text-brand-text-muted">Policy ID · {secondsPolicy.policy_id}</span></div>
       <div><p className="mb-2 text-sm font-semibold">Supported markets</p><div className="flex flex-wrap gap-2">{["BTC","ETH","SOL","BNB"].map(symbol=><label key={symbol} className="flex items-center gap-2 rounded-lg border border-brand-border px-3 py-2 text-sm"><input type="checkbox" checked={secondsSymbols.includes(symbol)} disabled={busy||!hasPermission("seconds_policy.manage")} onChange={event=>setSecondsSymbols(current=>event.target.checked?[...current,symbol]:current.filter(item=>item!==symbol))}/>{symbol}</label>)}</div></div>
@@ -473,17 +707,68 @@ export function AdminPage() {
       <label className="block space-y-1 text-sm"><span>Reason for policy change (required)</span><textarea value={secondsReason} disabled={busy||!hasPermission("seconds_policy.manage")} onChange={event=>setSecondsReason(event.target.value)} rows={2} maxLength={500} className="w-full rounded-lg border border-brand-border bg-brand-surface-2 p-3 text-brand-text" placeholder="Explain why these rules are changing"/></label>
       {hasPermission("seconds_policy.manage")?<Button block disabled={busy||!secondsReason.trim()} onClick={()=>void saveSecondsPolicy()}>Create and activate new policy version</Button>:<p className="text-sm text-brand-text-muted">Your administrator role is read-only for Seconds policy.</p>}
     </CardContent></Card> : null}
+    {!loading && tab === "seconds" ? <Card><CardHeader><div className="flex flex-wrap items-center justify-between gap-2"><div><CardTitle>Open Seconds positions</CardTitle><CardDescription>Read-only live queue. Due positions remain visible until the server confirms settlement; staff cannot force a result or manually release frozen funds here.</CardDescription></div><Button size="sm" variant="outline" disabled={secondsQueueLoading || !token} onClick={() => { if (!token) return; setSecondsQueueLoading(true); void getAdminSecondsOpenPositions(token).then(result => { setSecondsOpenPositions(result.positions); setSecondsOpenSummary(result); setSecondsQueueError(""); }).catch(reason => setSecondsQueueError(reason instanceof Error ? reason.message : "Open Seconds positions are temporarily unavailable.")).finally(() => setSecondsQueueLoading(false)); }}>{secondsQueueLoading ? "Refreshing…" : "Refresh queue"}</Button></div></CardHeader><CardContent className="space-y-3">
+      {secondsQueueError ? <p role="alert" className="rounded-lg border border-brand-border p-3 text-sm text-brand-text-muted">{secondsQueueError}</p> : null}
+      {secondsOpenSummary ? <div className="grid gap-2 sm:grid-cols-3"><div className="rounded-lg border border-brand-border p-3"><p className="text-xs text-brand-text-muted">Open positions</p><p className="mt-1 text-lg font-semibold">{secondsOpenSummary.total_open_count}</p></div><div className="rounded-lg border border-brand-border p-3"><p className="text-xs text-brand-text-muted">Open exposure · USDT</p><p className="mt-1 text-lg font-semibold">{Number(secondsOpenSummary.total_open_exposure).toLocaleString(undefined,{maximumFractionDigits:8})}</p></div><div className="rounded-lg border border-brand-border p-3"><p className="text-xs text-brand-text-muted">Past maturity, not yet settled</p><p className="mt-1 text-lg font-semibold">{secondsOpenSummary.overdue_count}</p></div></div> : null}
+      {secondsOpenSummary?.truncated ? <p className="text-xs text-brand-text-muted">Showing the earliest 100 open positions. Summary totals include all open positions.</p> : null}
+      {secondsOpenPositions.length ? <div className="space-y-2">{secondsOpenPositions.map(position=><div key={position.position_id} className="rounded-xl border border-brand-border p-3"><div className="flex flex-wrap items-center justify-between gap-2"><div className="font-semibold">{position.symbol}/USDT · {position.direction.toUpperCase()}</div><Badge variant={position.overdue ? "destructive" : "outline"}>{position.overdue ? "Maturity reached · awaiting settlement" : "Open"}</Badge></div><div className="mt-2 grid gap-2 text-xs sm:grid-cols-2 xl:grid-cols-4"><div><span className="text-brand-text-muted">Stake</span><p className="font-medium">{Number(position.amount).toLocaleString(undefined,{maximumFractionDigits:8})} USDT</p></div><div><span className="text-brand-text-muted">Open price</span><p className="font-medium">{Number(position.open_price).toLocaleString(undefined,{maximumFractionDigits:12})}</p></div><div><span className="text-brand-text-muted">Duration / payout</span><p className="font-medium">{position.duration_sec}s · {position.payout_bps_snapshot === null ? "Legacy 85%" : (position.payout_bps_snapshot/100)+"%"}</p></div><div><span className="text-brand-text-muted">Maturity</span><p className="font-medium">{new Date(position.settle_at).toLocaleString()}</p></div></div><div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-brand-text-muted"><span>User UID · <span className="font-mono">{position.user_id}</span></span><span>Position · <span className="font-mono">{position.position_id}</span></span><span>Policy v{position.policy_version ?? "legacy"}</span></div></div>)}</div> : secondsQueueError ? null : <p className="rounded-lg border border-dashed border-brand-border p-6 text-center text-sm text-brand-text-muted">No open Seconds positions.</p>}
+    </CardContent></Card> : null}
     {!loading && tab === "admins" && session.is_super_admin ? <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(360px,0.9fr)]">
       <Card><CardHeader><CardTitle>Delegated administrators</CardTitle><CardDescription>Only the Super Admin can provision, change, suspend or revoke administrator access. Every change requires a reason and is recorded by the database.</CardDescription></CardHeader><CardContent className="space-y-3">
         {adminMemberships.length ? adminMemberships.map(item=><div key={item.user_id} className="rounded-xl border border-brand-border p-3"><div className="flex flex-wrap items-start justify-between gap-2"><div><p className="font-mono text-xs text-brand-text">{item.user_id}</p><p className="mt-1 text-xs text-brand-text-muted">Revision {item.revision} · {formatDate(item.updated_at||item.created_at)}</p></div><Badge variant={statusVariant(item.status)}>{item.status}</Badge></div><p className="mt-2 break-words text-xs text-brand-text-muted">{item.permissions.join(" · ") || "No permissions"}</p><div className="mt-3 flex flex-wrap gap-2"><Button size="sm" variant="outline" disabled={busy||item.status==="revoked"} onClick={()=>{setAdminTargetUserId(item.user_id);setAdminPermissions(item.permissions);setAdminReason("");setAdminRequestId("");setAdminRequestKey("");}}>Edit permissions</Button>{item.status==="active"?<Button size="sm" variant="outline" disabled={busy} onClick={()=>void submitAdminMembershipChange("suspend",item.user_id,item.revision,[])}>Suspend</Button>:null}{item.status==="suspended"?<Button size="sm" variant="outline" disabled={busy} onClick={()=>void submitAdminMembershipChange("reactivate",item.user_id,item.revision,item.permissions)}>Reactivate</Button>:null}{item.status!=="revoked"?<Button size="sm" variant="destructive" disabled={busy} onClick={()=>void submitAdminMembershipChange("revoke",item.user_id,item.revision,[])}>Revoke</Button>:null}</div></div>) : <p className="text-sm text-brand-text-muted">No delegated administrators have been provisioned.</p>}
       </CardContent></Card>
       <Card><CardHeader><CardTitle>{adminMemberships.some(item=>item.user_id===adminTargetUserId)?"Edit administrator permissions":"Provision administrator"}</CardTitle><CardDescription>Select an existing BTCBOX user. The database verifies that the target UUID belongs to a real Supabase Auth user.</CardDescription></CardHeader><CardContent className="space-y-3">
         <form className="flex gap-2" onSubmit={event=>{event.preventDefault();void getAdminUsers(token,adminSearch).then(result=>setAdminCandidates(result.users||[])).catch(reason=>setError(reason instanceof Error?reason.message:"User search failed."));}}><input value={adminSearch} onChange={event=>setAdminSearch(event.target.value)} placeholder="Search user email or UID" className="min-w-0 flex-1 rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-2 text-sm text-brand-text"/><Button size="sm" type="submit" variant="outline">Search</Button></form>
-        <select value={adminTargetUserId} onChange={event=>{const value=event.target.value;setAdminTargetUserId(value);const found=adminMemberships.find(item=>item.user_id===value);setAdminPermissions(found?.permissions||[]);setAdminRequestId("");setAdminRequestKey("");}} className="w-full rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-2 text-sm text-brand-text"><option value="">Select an existing user</option>{adminCandidates.filter(user=>!adminMemberships.some(item=>item.user_id===user.uid)).map(user=><option key={user.uid} value={user.uid}>{user.email} · {user.uid}</option>)}{adminMemberships.some(item=>item.user_id===adminTargetUserId)?<option value={adminTargetUserId}>{adminTargetUserId}</option>:null}</select>
+        <select value={adminTargetUserId} onChange={event=>{const value=event.target.value;setAdminTargetUserId(value);const found=adminMemberships.find(item=>item.user_id===value);setAdminPermissions(found?.permissions||[]);setAdminRequestId("");setAdminRequestKey("");}} className="w-full rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-2 text-sm text-brand-text"><option value="">Select an Auth-linked user</option>{adminCandidates.filter(user=>/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(user.admin_auth_user_id||"")&&!adminMemberships.some(item=>item.user_id===user.admin_auth_user_id)).map(user=><option key={user.uid} value={user.admin_auth_user_id}>{user.email} · BTCBOX UID {user.uid}</option>)}{adminMemberships.some(item=>item.user_id===adminTargetUserId)?<option value={adminTargetUserId}>{adminTargetUserId}</option>:null}</select>
         <div className="grid gap-2 sm:grid-cols-2">{adminPermissionOptions.map(([key,label])=><label key={key} className="flex items-center gap-2 rounded-lg border border-brand-border p-2 text-xs"><input type="checkbox" checked={adminPermissions.includes(key)} onChange={event=>setAdminPermissions(current=>event.target.checked?[...current,key]:current.filter(item=>item!==key))}/><span>{label}</span></label>)}</div>
         <textarea value={adminReason} onChange={event=>setAdminReason(event.target.value)} rows={2} maxLength={500} placeholder="Required reason for this administrator change" className="w-full rounded-lg border border-brand-border bg-brand-surface-2 p-3 text-sm text-brand-text"/>
         <Button block disabled={busy||!adminTargetUserId||(!adminMemberships.some(item=>item.user_id===adminTargetUserId)&&!adminPermissions.length)||!adminReason.trim()} onClick={()=>{const existing=adminMemberships.find(item=>item.user_id===adminTargetUserId);void submitAdminMembershipChange(existing?"set_permissions":"provision",adminTargetUserId,existing?.revision||0,adminPermissions);}}>{adminMemberships.some(item=>item.user_id===adminTargetUserId)?"Save permissions":"Provision administrator"}</Button>
       </CardContent></Card>
+    </div> : null}
+    {reviewDialog ? <div
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/75 p-4"
+      role="presentation"
+      onMouseDown={event => { if (event.target === event.currentTarget && !busy) { setReviewDialog(null); setReviewReason(""); } }}
+    >
+      <section
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="review-dialog-title"
+        aria-describedby="review-dialog-description"
+        className="w-full max-w-lg rounded-xl border border-brand-border bg-brand-surface p-5 shadow-2xl"
+      >
+        <div className="mb-4">
+          <h2 id="review-dialog-title" className="text-lg font-semibold text-brand-text">
+            {reviewDialog.kind === "withdrawal" ? "Reject withdrawal" : "Reject KYC application"}
+          </h2>
+          <p id="review-dialog-description" className="mt-1 text-sm text-brand-text-muted">
+            {reviewDialog.kind === "withdrawal"
+              ? "The rejection and refund will be recorded together. Enter the reason for the audit record."
+              : "Enter the reason that will be recorded with this KYC decision."}
+          </p>
+        </div>
+        <label className="block space-y-2 text-sm">
+          <span className="font-medium text-brand-text">Rejection reason <span className="text-rose-400">*</span></span>
+          <textarea
+            autoFocus
+            value={reviewReason}
+            onChange={event => setReviewReason(event.target.value)}
+            rows={4}
+            maxLength={300}
+            disabled={busy}
+            placeholder="Enter a clear reason (up to 300 characters)"
+            className="w-full resize-y rounded-lg border border-brand-border bg-brand-surface-2 p-3 text-brand-text outline-none focus:border-brand-accent"
+          />
+          <span className="block text-right text-xs text-brand-text-muted">{reviewReason.length}/300</span>
+        </label>
+        {error ? <p role="alert" className="mt-3 text-sm text-rose-300">{error}</p> : null}
+        <div className="mt-5 flex flex-col-reverse justify-end gap-2 sm:flex-row">
+          <Button type="button" variant="outline" disabled={busy} onClick={() => { setReviewDialog(null); setReviewReason(""); }}>Cancel</Button>
+          <Button type="button" variant="destructive" disabled={busy || !reviewReason.trim()} onClick={() => void confirmReviewRejection()}>
+            {busy ? "Submitting…" : "Confirm rejection"}
+          </Button>
+        </div>
+      </section>
     </div> : null}
   </div>;
 }

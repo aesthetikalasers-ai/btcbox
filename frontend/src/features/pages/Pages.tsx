@@ -1,7 +1,7 @@
 import { Link, useParams } from "react-router-dom";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { RefreshCw, TrendingUp, TrendingDown, Clock3, ShieldAlert, Send, MessageCircle } from "lucide-react";
-import { ApiError, getAccount, getOrders, getMarkets, getKlines, getOrderBook, getTradingStatus, submitSpotOrder, cancelSpotOrder, getSecondsPositions, getSecondsPolicy, submitSecondsOrder, settleSecondsPosition, getSupportMessages, sendSupportMessage, getDepositAddress, getSavedCryptoAddresses, getSelectedCryptoAddress, getWithdrawalConfig, submitWithdrawal, getEarnCatalog, submitEarnAction, type EarnProduct, type EarnPosition, type SavedCryptoAddress, type AccountBalance, type AccountSnapshot, type OrderRecord, type MarketTicker, type MarketCandle, type OrderBookSnapshot, type TradingStatus, type SecondsPositionsSnapshot, type SecondsOrderInput, type SecondsPolicyResponse, type SupportMessage, type SelectedCryptoAddress, type WithdrawalConfig, type WithdrawalRecord, submitKyc } from "../../lib/api";
+import { ApiError, getAccount, getOrders, getMarkets, getSpotMarketPairs, getKlines, getOrderBook, getTradingStatus, submitSpotOrder, cancelSpotOrder, getSecondsPositions, getSecondsPolicy, submitSecondsOrder, settleSecondsPosition, getSupportMessages, sendSupportMessage, getDepositAddress, getSavedCryptoAddresses, getSelectedCryptoAddress, getWithdrawalConfig, submitWithdrawal, getEarnCatalog, submitEarnAction, type EarnProduct, type EarnPosition, type SavedCryptoAddress, type AccountBalance, type AccountSnapshot, type DepositRecord, type OrderRecord, type MarketTicker, type MarketCandle, type OrderBookSnapshot, type SpotMarketPair, type TradingStatus, type SecondsPositionsSnapshot, type SecondsOrderInput, type SecondsPolicyResponse, type SupportMessage, type SelectedCryptoAddress, type WithdrawalConfig, type WithdrawalRecord, submitKyc } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
 
 import type { ReactNode } from "react";
@@ -18,8 +18,27 @@ function PageFrame({eyebrow,title,description,children}:{eyebrow:string;title:st
 }
 export function TradeHubPage(){
  const {t}=useI18n();
- const products=[{title:"Spot",desc:"Place supported limit orders against the BTCBOX spot matching service.",to:"/trade/BTCUSDT",icon:ChartNoAxesCombined,state:"Live market data · server-gated limit orders"},{title:"Seconds",desc:"Place policy-driven positions with independent timers and server-side settlement.",to:"/seconds",icon:ArrowLeftRight,state:"Policy-driven order entry"}];
- return <PageFrame eyebrow="BTCBOX / TRADE" title="Choose your trading mode" description="Choose a BTCBOX spot market or policy-driven seconds contract. Market data, order status and settlement rules come from the backend."><div className="grid gap-4 md:grid-cols-2">{products.map(({title,desc,to,icon:Icon,state})=><Card key={title} className="border-brand-border bg-brand-surface"><CardHeader><div className="mb-2 flex h-12 w-12 items-center justify-center rounded-2xl border border-brand-accent/20 bg-brand-accent/10 text-brand-text-secondary"><Icon className="h-5 w-5"/></div><CardTitle>{t(title)}</CardTitle><CardDescription>{t(desc)}</CardDescription></CardHeader><CardContent className="flex flex-wrap items-center justify-between gap-3"><Badge variant="outline" className="max-w-full whitespace-normal text-center leading-tight border-amber-400/25 bg-amber-400/5 text-amber-200">{t(state)}</Badge><Button asChild size="sm" variant="secondary" className="shrink-0"><Link to={to}>{t("Open")} <ArrowUpRight className="h-4 w-4"/></Link></Button></CardContent></Card>)}</div><Card className="border-dashed border-brand-border bg-transparent"><CardContent className="flex min-w-0 flex-wrap items-center gap-3 p-4 sm:p-5"><LockKeyhole className="h-5 w-5 shrink-0 text-brand-text-muted"/><div className="min-w-0 flex-1"><p className="text-sm font-semibold">{t("Futures")}</p><p className="text-sm break-words text-brand-text-muted">{t("Coming soon — no supported futures service is registered in the current backend.")}</p></div><Badge variant="secondary" className="shrink-0">{t("Unavailable")}</Badge></CardContent></Card></PageFrame>;
+ const [spotPairs,setSpotPairs]=useState<SpotMarketPair[]>([]);
+ const [pairsLoading,setPairsLoading]=useState(true);
+ const [pairsError,setPairsError]=useState("");
+ useEffect(()=>{
+  const controller=new AbortController();
+  getSpotMarketPairs(controller.signal).then(setSpotPairs).catch(reason=>{
+   if(reason instanceof Error&&reason.name==="AbortError")return;
+   setPairsError(reason instanceof Error?reason.message:"Spot-market catalogue is unavailable.");
+  }).finally(()=>{if(!controller.signal.aborted)setPairsLoading(false);});
+  return ()=>controller.abort();
+ },[]);
+ return <PageFrame eyebrow="BTCBOX / TRADE" title="Choose your trading mode" description="Choose an operator-enabled BTCBOX spot market or policy-driven seconds contract. Market data, order status and settlement rules come from the backend.">
+  <div className="grid gap-4 md:grid-cols-2">
+   {spotPairs.map(pair=><Card key={pair.base_asset+"/"+pair.quote_asset} className="border-brand-border bg-brand-surface"><CardHeader><div className="mb-2 flex h-12 w-12 items-center justify-center rounded-2xl border border-brand-accent/20 bg-brand-accent/10 text-brand-text-secondary"><ChartNoAxesCombined className="h-5 w-5"/></div><CardTitle>{pair.base_asset}/{pair.quote_asset}</CardTitle><CardDescription>{t("Place supported limit orders against the BTCBOX spot matching service.")}</CardDescription></CardHeader><CardContent className="flex flex-wrap items-center justify-between gap-3"><Badge variant="outline">{t("Enabled")}</Badge><Button asChild size="sm" variant="secondary" className="shrink-0"><Link to={"/trade/"+pair.base_asset+pair.quote_asset}>{t("Open")} <ArrowUpRight className="h-4 w-4"/></Link></Button></CardContent></Card>)}
+   {pairsLoading?<Card className="border-brand-border bg-brand-surface"><CardContent className="p-5 text-sm text-brand-text-muted" role="status">{t("Loading configured spot markets…")}</CardContent></Card>:null}
+   {!pairsLoading&&!pairsError&&!spotPairs.length?<Card className="border-dashed border-brand-border bg-transparent"><CardContent className="p-5 text-sm text-brand-text-muted">{t("No spot markets are currently enabled. Please check again later.")}</CardContent></Card>:null}
+   {pairsError?<Card className="border-rose-500/30 bg-brand-surface"><CardContent className="p-5 text-sm text-rose-300" role="alert">{pairsError}</CardContent></Card>:null}
+   <Card className="border-brand-border bg-brand-surface"><CardHeader><div className="mb-2 flex h-12 w-12 items-center justify-center rounded-2xl border border-brand-accent/20 bg-brand-accent/10 text-brand-text-secondary"><ArrowLeftRight className="h-5 w-5"/></div><CardTitle>{t("Seconds")}</CardTitle><CardDescription>{t("Place policy-driven positions with independent timers and server-side settlement.")}</CardDescription></CardHeader><CardContent className="flex flex-wrap items-center justify-between gap-3"><Badge variant="outline">{t("Policy-driven order entry")}</Badge><Button asChild size="sm" variant="secondary" className="shrink-0"><Link to="/seconds">{t("Open")} <ArrowUpRight className="h-4 w-4"/></Link></Button></CardContent></Card>
+  </div>
+  <Card className="border-dashed border-brand-border bg-transparent"><CardContent className="flex min-w-0 flex-wrap items-center gap-3 p-4 sm:p-5"><LockKeyhole className="h-5 w-5 shrink-0 text-brand-text-muted"/><div className="min-w-0 flex-1"><p className="text-sm font-semibold">{t("Futures")}</p><p className="text-sm break-words text-brand-text-muted">{t("Coming soon — no supported futures service is registered in the current backend.")}</p></div><Badge variant="secondary" className="shrink-0">{t("Unavailable")}</Badge></CardContent></Card>
+ </PageFrame>;
 }
 export function AssetsPage(){
  const {t}=useI18n();
@@ -136,6 +155,7 @@ export function SpotTradingPage(){
  const symbol=(routeSymbol||"BTCUSDT").toUpperCase();
  const {t}=useI18n();
  const [ticker,setTicker]=useState<MarketTicker|null>(null);
+ const [spotPairEnabled,setSpotPairEnabled]=useState(false);
  const [candles,setCandles]=useState<MarketCandle[]>([]);
  const [book,setBook]=useState<OrderBookSnapshot|null>(null);
  const [orders,setOrders]=useState<OrderRecord[]>([]);
@@ -152,22 +172,34 @@ export function SpotTradingPage(){
  const [pendingIntentInvalid,setPendingIntentInvalid]=useState(false);
  const [cancelRequestIds,setCancelRequestIds]=useState<Record<string,string>>({});
  const [reload,setReload]=useState(0);
+ const [marketUpdatedAt,setMarketUpdatedAt]=useState<number|null>(null);
+ const [marketFeedWarning,setMarketFeedWarning]=useState("");
  const chartContainer=useRef<HTMLDivElement|null>(null);
  const base=symbol.endsWith("USDT")?symbol.slice(0,-4):"BTC";
  const pendingStorageKey=accountUid?"btcbox.spot.pending.v1."+accountUid+"."+symbol:"";
 
  useEffect(()=>{
   const controller=new AbortController();
-  setLoading(true);setError("");
-  Promise.allSettled([getMarkets(controller.signal),getKlines(symbol,"1h",controller.signal),getOrderBook(symbol,controller.signal),getTradingStatus(controller.signal),getOrders(controller.signal),getAccount(controller.signal)]).then(results=>{
+  setLoading(true);setError("");setSpotPairEnabled(false);setTradingStatus(null);
+  Promise.allSettled([getSpotMarketPairs(controller.signal),getMarkets(controller.signal),getKlines(symbol,"1h",controller.signal),getOrderBook(symbol,controller.signal),getTradingStatus(controller.signal),getOrders(controller.signal),getAccount(controller.signal)]).then(results=>{
    if(controller.signal.aborted)return;
-   const [marketResult,candleResult,bookResult,statusResult,ordersResult,accountResult]=results;
+   const [pairResult,marketResult,candleResult,bookResult,statusResult,ordersResult,accountResult]=results;
+   if(pairResult.status==="fulfilled"){
+    const enabled=pairResult.value.some(pair=>pair.base_asset===base&&pair.quote_asset==="USDT");
+    setSpotPairEnabled(enabled);
+    if(!enabled)setError("This spot market is not enabled by BTCBOX operators.");
+   }else{
+    setSpotPairEnabled(false);
+    setError(pairResult.reason instanceof Error?pairResult.reason.message:"Spot-market catalogue is unavailable.");
+   }
    if(accountResult.status==="fulfilled")setAccountUid(accountResult.value.uid);
    else setError(accountResult.reason instanceof Error?accountResult.reason.message:"Account identity is unavailable.");
    if(marketResult.status==="fulfilled"){
     const marketBase=symbol.endsWith("USDT")?symbol.slice(0,-4):symbol;
     const selected=marketResult.value.find(item=>item.sym.toUpperCase()===marketBase)||null;
     setTicker(selected);
+    setMarketUpdatedAt(Date.now());
+    setMarketFeedWarning("");
     if(selected)setPrice(current=>current||String(selected.price));
    }else setError(marketResult.reason instanceof Error?marketResult.reason.message:"Live market data is unavailable.");
    if(candleResult.status==="fulfilled")setCandles(candleResult.value);
@@ -179,6 +211,40 @@ export function SpotTradingPage(){
   }).finally(()=>{if(!controller.signal.aborted)setLoading(false);});
   return ()=>controller.abort();
  },[symbol,reload]);
+
+ // The initial route load above also fetches account/order state. Keep the
+ // public ticker and order book fresh independently without reloading the form
+ // or overwriting a price the customer is currently editing.
+ useEffect(()=>{
+  const controller=new AbortController();
+  let refreshing=false;
+  const refreshMarketData=()=>{
+   if(refreshing||controller.signal.aborted)return;
+   refreshing=true;
+   Promise.allSettled([getMarkets(controller.signal),getOrderBook(symbol,controller.signal)]).then(([marketResult,bookResult])=>{
+    if(controller.signal.aborted)return;
+    let failed=false;
+    if(marketResult.status==="fulfilled"){
+     const marketBase=symbol.endsWith("USDT")?symbol.slice(0,-4):symbol;
+     const selected=marketResult.value.find(item=>item.sym.toUpperCase()===marketBase)||null;
+     setTicker(selected);
+     setMarketUpdatedAt(Date.now());
+    }else failed=true;
+    if(bookResult.status==="fulfilled")setBook(bookResult.value);
+    else failed=true;
+    setMarketFeedWarning(failed?"Live market refresh is temporarily unavailable; showing the last confirmed data.":"");
+   }).finally(()=>{refreshing=false;});
+  };
+  const refreshId=window.setInterval(refreshMarketData,15000);
+  const candleId=window.setInterval(()=>{
+   getKlines(symbol,"1h",controller.signal).then(rows=>{
+    if(!controller.signal.aborted)setCandles(rows);
+   }).catch(reason=>{
+    if(reason instanceof Error&&reason.name==="AbortError")return;
+   });
+  },60000);
+  return ()=>{window.clearInterval(refreshId);window.clearInterval(candleId);controller.abort();};
+ },[symbol]);
 
  useEffect(()=>{
   setPendingIntent(null);setPendingIntentInvalid(false);
@@ -192,6 +258,23 @@ export function SpotTradingPage(){
    }else{setPendingIntentInvalid(true);setError("A saved spot order request is invalid. Check order history before allowing another order.");}
   }catch{setPendingIntentInvalid(true);setError("A saved spot order request could not be read. No new order will be sent until it is reviewed.");}
  },[accountUid,symbol,pendingStorageKey]);
+
+ useEffect(()=>{
+  if(!accountUid)return;
+  const restored:Record<string,string>={};
+  for(const order of orders){
+   const orderId=String(order.order_id??order.id??"");
+   if(!orderId)continue;
+   const key="btcbox.spot.cancel.v1."+accountUid+"."+orderId;
+   try{
+    const requestId=window.localStorage.getItem(key);
+    const status=String(order.status||"").toLowerCase();
+    if(["cancelled","canceled","rejected","filled","completed"].includes(status)){window.localStorage.removeItem(key);continue;}
+    if(requestId&&/^[A-Za-z0-9_-]{16,100}$/.test(requestId))restored[orderId]=requestId;
+   }catch{restored[orderId]="storage_unavailable";}
+  }
+  setCancelRequestIds(restored);
+ },[accountUid,orders]);
 
  useEffect(()=>{
   const node=chartContainer.current;
@@ -208,7 +291,8 @@ export function SpotTradingPage(){
  const submitOrder=async(event:FormEvent<HTMLFormElement>)=>{
   event.preventDefault();
   if(pendingIntentInvalid){setError("A saved spot order request must be reconciled before another order can be placed.");return;}
-  if(!tradingStatus?.spot_order_entry_enabled){setError("Spot order execution is currently disabled by server policy. No order was placed.");return;}
+  if(!spotPairEnabled&&!pendingIntent){setError("This spot pair is not enabled by BTCBOX operators. No order was sent.");return;}
+  if(!tradingStatus?.spot_order_entry_enabled&&!pendingIntent){setError("Spot order execution is currently disabled by server policy. No order was placed.");return;}
   let intent=pendingIntent;
   if(!intent){
    if(!/^(?:0|[1-9]\d*)(?:\.\d{1,18})?$/.test(quantity)||Number(quantity)<=0||!/^(?:0|[1-9]\d*)(?:\.\d{1,18})?$/.test(price)||Number(price)<=0){setError("Enter a valid limit price and quantity.");return;}
@@ -240,21 +324,43 @@ export function SpotTradingPage(){
  };
  const cancelOrder=async(order:OrderRecord)=>{
   const orderId=String(order.order_id??order.id??"");if(!orderId)return;
-  const requestId=cancelRequestIds[orderId]||window.crypto.randomUUID();
-  setCancelRequestIds(current=>({...current,[orderId]:requestId}));setBusy(true);setError("");setNotice("");
+  if(!accountUid){setError("Account identity is unavailable. Cancellation was not sent.");return;}
+  const storageKey="btcbox.spot.cancel.v1."+accountUid+"."+orderId;
+  let requestId=cancelRequestIds[orderId];
+  if(requestId==="storage_unavailable"){setError("This browser cannot safely restore the cancellation request. Refresh order history before retrying.");return;}
+  if(!requestId){
+   requestId=window.crypto.randomUUID();
+   try{window.localStorage.setItem(storageKey,requestId);}
+   catch{setError("This browser cannot safely save the cancellation request. No cancellation was sent.");return;}
+   setCancelRequestIds(current=>({...current,[orderId]:requestId!}));
+  }
+  setBusy(true);setError("");setNotice("");
+  let cancelAccepted=false;
   try{
    const result=await cancelSpotOrder({order_id:orderId,client_cancel_id:requestId});
-   setNotice(result.duplicate?"This cancellation was already recorded.":"Order cancellation confirmed.");
-   setCancelRequestIds(current=>{const next={...current};delete next[orderId];return next;});setReload(value=>value+1);
-  }catch(reason){setError(reason instanceof Error?reason.message:"Cancellation result is unconfirmed. Refresh order history before retrying.");if(reason instanceof ApiError&&(reason.status===400||reason.status===401||reason.status===403))setCancelRequestIds(current=>{const next={...current};delete next[orderId];return next;});}
-  finally{setBusy(false);}
+   cancelAccepted=true;
+   const latest=await getOrders();
+   setOrders(latest);
+   const updated=latest.find(item=>String(item.order_id??item.id??"")===orderId);
+   const status=String(updated?.status||"").toLowerCase();
+   if(!["cancelled","canceled","rejected"].includes(status)){setError("The cancellation response arrived, but order history has not confirmed the final status. Retry only with the same request ID.");return;}
+   try{window.localStorage.removeItem(storageKey);}catch{}
+   setCancelRequestIds(current=>{const next={...current};delete next[orderId];return next;});
+   setNotice(result.duplicate?"This cancellation was already recorded and confirmed.":"Order cancellation confirmed in order history.");
+  }catch(reason){
+   setError(reason instanceof Error?reason.message:"Cancellation result is unconfirmed. Refresh order history and retry only with the same request ID.");
+   if(!cancelAccepted&&reason instanceof ApiError&&reason.status>=400&&reason.status<500&&reason.status!==409){
+    try{window.localStorage.removeItem(storageKey);}catch{}
+    setCancelRequestIds(current=>{const next={...current};delete next[orderId];return next;});
+   }
+  }finally{setBusy(false);}
  };
  const amountText=(value:unknown)=>value===null||value===undefined||value===""?"—":Number.isFinite(Number(value))?Number(value).toLocaleString(undefined,{maximumFractionDigits:8}):String(value);
  const openOrders=orders.filter(item=>["open","partially_filled","partially-filled","pending"].includes(String(item.status||"").toLowerCase()));
  const asks=(book?.asks||[]).slice(0,8).slice().reverse();const bids=(book?.bids||[]).slice(0,8);
  return <PageFrame eyebrow="BTCBOX / SPOT" title={symbol} description="Live market data and a server-authoritative limit-order workflow. Orders are never simulated in the browser.">
-  <div className="flex flex-wrap items-center justify-between gap-3"><div className="flex items-center gap-3"><Badge variant="outline">{t("Spot market")}</Badge><span className="text-xs text-brand-text-muted">{book?.source||ticker?.source||"—"}</span></div><Button size="sm" variant="outline" disabled={loading||busy} onClick={()=>setReload(value=>value+1)}><RefreshCw className={"mr-2 h-4 w-4 "+(loading?"animate-spin":"")}/>{t("Refresh")}</Button></div>
-  {error?<div role="alert" className="rounded-xl border border-rose-500/30 bg-rose-500/5 p-3 text-sm text-rose-300">{error}</div>:null}{notice?<div role="status" className="rounded-xl border border-emerald-500/25 bg-emerald-500/5 p-3 text-sm text-emerald-300">{notice}</div>:null}
+  <div className="flex flex-wrap items-center justify-between gap-3"><div className="flex items-center gap-3"><Badge variant="outline">{t("Spot market")}</Badge><span className="text-xs text-brand-text-muted">{book?.source||ticker?.source||"—"}</span><span className="text-xs text-brand-text-muted">{marketUpdatedAt? t("Last update")+": "+new Date(marketUpdatedAt).toLocaleTimeString():t("Waiting for live data")}</span></div><Button size="sm" variant="outline" disabled={loading||busy} onClick={()=>setReload(value=>value+1)}><RefreshCw className={"mr-2 h-4 w-4 "+(loading?"animate-spin":"")}/>{t("Refresh")}</Button></div>
+  {error?<div role="alert" className="rounded-xl border border-rose-500/30 bg-rose-500/5 p-3 text-sm text-rose-300">{error}</div>:null}{marketFeedWarning?<div role="status" className="rounded-xl border border-amber-500/25 bg-amber-500/5 p-3 text-sm text-amber-200">{marketFeedWarning}</div>:null}{notice?<div role="status" className="rounded-xl border border-emerald-500/25 bg-emerald-500/5 p-3 text-sm text-emerald-300">{notice}</div>:null}
   <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
    <div className="min-w-0 space-y-4">
     <Card className="border-brand-border bg-brand-surface"><CardContent className="grid grid-cols-2 gap-4 p-4 sm:grid-cols-4"><div><p className="text-xs text-brand-text-muted">{t("Last price")}</p><p className="mt-1 text-xl font-semibold tabular-nums">{ticker?amountText(ticker.price):"—"} <span className="text-xs text-brand-text-muted">USDT</span></p></div><div><p className="text-xs text-brand-text-muted">{t("24h change")}</p><p className={"mt-1 font-semibold tabular-nums "+(Number(ticker?.chg||0)>=0?"text-profit":"text-loss")}>{ticker?Number(ticker.chg).toFixed(2)+"%":"—"}</p></div><div><p className="text-xs text-brand-text-muted">{t("24h high")}</p><p className="mt-1 font-medium tabular-nums">{ticker?amountText(ticker.high):"—"}</p></div><div><p className="text-xs text-brand-text-muted">{t("24h low")}</p><p className="mt-1 font-medium tabular-nums">{ticker?amountText(ticker.low):"—"}</p></div></CardContent></Card>
@@ -262,7 +368,7 @@ export function SpotTradingPage(){
     <Card className="border-brand-border bg-brand-surface"><CardHeader><CardTitle>{t("Open orders")}</CardTitle><CardDescription>{t("Only authenticated order records are shown. Cancellation is sent to the matching service.")}</CardDescription></CardHeader><CardContent className="space-y-2">{openOrders.length?openOrders.map((item,index)=>{const id=String(item.order_id??item.id??index);return <div key={id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-brand-border p-3"><div><p className="font-semibold">{item.symbol||symbol} · {item.side||"—"}</p><p className="mt-1 text-xs text-brand-text-muted">{t("Price")} {amountText(item.price)} · {t("Remaining")} {amountText(item.remaining_quantity??item.quantity)}</p><Badge variant="outline">{item.status}</Badge></div><Button size="sm" variant="outline" disabled={busy||!tradingStatus?.spot_cancel_enabled} onClick={()=>void cancelOrder(item)}>{cancelRequestIds[id]?t("Retry cancel"):t("Cancel")}</Button></div>;}):<p className="rounded-lg border border-dashed border-brand-border p-4 text-sm text-brand-text-muted">{t("No open spot orders were returned.")}</p>}</CardContent></Card>
    </div>
    <div className="space-y-4">
-    <Card className="border-brand-border bg-brand-surface"><CardHeader><CardTitle>{t("Limit order")}</CardTitle><CardDescription>{t("Only limit orders are supported by the current matching contract.")}</CardDescription></CardHeader><CardContent className="space-y-3"><div className="grid grid-cols-2 gap-2"><Button variant={side==="buy"?"default":"outline"} onClick={()=>setSide("buy")} disabled={busy||!!pendingIntent||pendingIntentInvalid}>{t("Buy")}</Button><Button variant={side==="sell"?"destructive":"outline"} onClick={()=>setSide("sell")} disabled={busy||!!pendingIntent}>{t("Sell")}</Button></div><form className="space-y-3" onSubmit={event=>void submitOrder(event)}><label className="block space-y-1 text-sm"><span>{t("Limit price (USDT)")}</span><input value={price} onChange={event=>setPrice(event.target.value)} disabled={busy||!!pendingIntent} inputMode="decimal" className="w-full rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-3 text-brand-text" required/></label><label className="block space-y-1 text-sm"><span>{t("Quantity") } · {base}</span><input value={quantity} onChange={event=>setQuantity(event.target.value)} disabled={busy||!!pendingIntent} inputMode="decimal" className="w-full rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-3 text-brand-text" required/></label><p className="text-xs text-brand-text-muted">{t("Estimated total")}: {price&&quantity&&Number(price)>0&&Number(quantity)>0?amountText(Number(price)*Number(quantity))+" USDT":"—"}</p>{!tradingStatus?.spot_order_entry_enabled?<div className="rounded-lg border border-amber-400/25 bg-amber-400/5 p-3 text-xs text-amber-200">{t("Spot order execution is disabled by server policy. No order can be placed until the matching engine is approved and enabled.")}</div>:null}{pendingIntent?<p className="break-all text-xs text-amber-300">{t("Unconfirmed request ID. Keep the form unchanged and retry with the same ID.")} · {pendingIntent.client_order_id}</p>:null}<Button block type="submit" disabled={busy||pendingIntentInvalid||!tradingStatus?.spot_order_entry_enabled||!price||!quantity}>{busy?t("Submitting…"):pendingIntent?t("Retry same order"):side==="buy"?t("Place buy limit order"):t("Place sell limit order")}</Button></form></CardContent></Card>
+    <Card className="border-brand-border bg-brand-surface"><CardHeader><CardTitle>{t("Limit order")}</CardTitle><CardDescription>{t("Only limit orders are supported by the current matching contract.")}</CardDescription></CardHeader><CardContent className="space-y-3"><div className="grid grid-cols-2 gap-2"><Button variant={side==="buy"?"default":"outline"} onClick={()=>setSide("buy")} disabled={busy||!!pendingIntent||pendingIntentInvalid}>{t("Buy")}</Button><Button variant={side==="sell"?"destructive":"outline"} onClick={()=>setSide("sell")} disabled={busy||!!pendingIntent}>{t("Sell")}</Button></div><form className="space-y-3" onSubmit={event=>void submitOrder(event)}><label className="block space-y-1 text-sm"><span>{t("Limit price (USDT)")}</span><input value={price} onChange={event=>setPrice(event.target.value)} disabled={busy||!!pendingIntent} inputMode="decimal" className="w-full rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-3 text-brand-text" required/></label><label className="block space-y-1 text-sm"><span>{t("Quantity") } · {base}</span><input value={quantity} onChange={event=>setQuantity(event.target.value)} disabled={busy||!!pendingIntent} inputMode="decimal" className="w-full rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-3 text-brand-text" required/></label><p className="text-xs text-brand-text-muted">{t("Estimated total")}: {price&&quantity&&Number(price)>0&&Number(quantity)>0?amountText(Number(price)*Number(quantity))+" USDT":"—"}</p>{!tradingStatus?.spot_order_entry_enabled?<div className="rounded-lg border border-amber-400/25 bg-amber-400/5 p-3 text-xs text-amber-200">{t("Spot order execution is disabled by server policy. No order can be placed until the matching engine is approved and enabled.")}</div>:null}{pendingIntent?<p className="break-all text-xs text-amber-300">{t("Unconfirmed request ID. Keep the form unchanged and retry with the same ID.")} · {pendingIntent.client_order_id}</p>:null}<Button block type="submit" disabled={busy||pendingIntentInvalid||(!spotPairEnabled&&!pendingIntent)||(!tradingStatus?.spot_order_entry_enabled&&!pendingIntent)||!price||!quantity}>{busy?t("Submitting…"):pendingIntent?t("Retry same order"):side==="buy"?t("Place buy limit order"):t("Place sell limit order")}</Button></form></CardContent></Card>
     <Card className="border-brand-border bg-brand-surface"><CardHeader><CardTitle>{t("Order book")}</CardTitle><CardDescription>{book?.source||t("Live market depth")}</CardDescription></CardHeader><CardContent className="space-y-3"><div className="grid grid-cols-2 gap-3"><div><p className="mb-2 text-xs font-semibold text-loss">{t("Asks")}</p>{asks.length?asks.map((row,index)=><div key={index} className="flex justify-between gap-2 py-1 text-xs tabular-nums"><span className="text-loss">{amountText(row[0])}</span><span className="text-brand-text-muted">{amountText(row[1])}</span></div>):<p className="text-xs text-brand-text-muted">—</p>}</div><div><p className="mb-2 text-xs font-semibold text-profit">{t("Bids")}</p>{bids.length?bids.map((row,index)=><div key={index} className="flex justify-between gap-2 py-1 text-xs tabular-nums"><span className="text-profit">{amountText(row[0])}</span><span className="text-brand-text-muted">{amountText(row[1])}</span></div>):<p className="text-xs text-brand-text-muted">—</p>}</div></div></CardContent></Card>
    </div>
   </div>
@@ -452,12 +558,59 @@ export function SecondsPage(){
  </div>;
 }
 
+async function prepareKycDocumentImage(file: File): Promise<{
+ document_content_type: "image/jpeg";
+ document_image_base64: string;
+}> {
+ if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
+  throw new Error("Choose a JPEG, PNG, or WebP identity document image.");
+ }
+ if (!file.size || file.size > 8 * 1024 * 1024) {
+  throw new Error("The selected image must be smaller than 8 MB before compression.");
+ }
+ const bitmap = await createImageBitmap(file);
+ try {
+  let width = bitmap.width, height = bitmap.height;
+  const scale = Math.min(1, 1600 / Math.max(width, height));
+  width = Math.max(1, Math.round(width * scale));
+  height = Math.max(1, Math.round(height * scale));
+  let blob: Blob | null = null;
+  for (let attempt = 0; attempt < 5; attempt++) {
+   const canvas = document.createElement("canvas");
+   canvas.width = width; canvas.height = height;
+   const context = canvas.getContext("2d");
+   if (!context) throw new Error("This browser cannot prepare the document image.");
+   context.fillStyle = "#ffffff";
+   context.fillRect(0, 0, width, height);
+   context.drawImage(bitmap, 0, 0, width, height);
+   blob = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, "image/jpeg", [0.84, 0.78, 0.7, 0.62, 0.54][attempt]));
+   if (blob && blob.size <= 512 * 1024) break;
+   // Shrink both dimensions by the same factor to preserve the document's aspect ratio.
+   width = Math.max(1, Math.round(width * 0.82));
+   height = Math.max(1, Math.round(height * 0.82));
+  }
+  if (!blob || blob.size > 512 * 1024) throw new Error("The image could not be compressed below 512 KB. Choose a clearer, smaller photo.");
+  const dataUrl = await new Promise<string>((resolve, reject) => {
+   const reader = new FileReader();
+   reader.onerror = () => reject(new Error("The document image could not be read."));
+   reader.onload = () => typeof reader.result === "string" ? resolve(reader.result) : reject(new Error("The document image could not be read."));
+   reader.readAsDataURL(blob as Blob);
+  });
+  const encoded = dataUrl.split(",")[1];
+  if (!encoded) throw new Error("The document image could not be prepared.");
+  return { document_content_type: "image/jpeg", document_image_base64: encoded };
+ } finally {
+  bitmap.close();
+ }
+}
+
 export function KycPage(){
  const {t}=useI18n();
  const [account,setAccount]=useState<AccountSnapshot|null>(null);
  const [name,setName]=useState("");
  const [idType,setIdType]=useState<"passport"|"id_card"|"driver_license">("id_card");
  const [idNumber,setIdNumber]=useState("");
+ const [documentFile,setDocumentFile]=useState<File|null>(null);
  const [loading,setLoading]=useState(true);
  const [submitting,setSubmitting]=useState(false);
  const [error,setError]=useState("");
@@ -480,12 +633,19 @@ export function KycPage(){
  const submit=async(event:FormEvent<HTMLFormElement>)=>{
   event.preventDefault();const cleanName=name.trim(),cleanId=idNumber.trim();
   if(cleanName.length<2||cleanName.length>100||cleanId.length<4||cleanId.length>64){setSubmitError(t("Enter your full name and a valid document number."));return;}
+  if(!documentFile){setSubmitError(t("Upload a clear photo of your identity document."));return;}
   setSubmitting(true);setSubmitError("");setNotice("");
-  try{await submitKyc({name:cleanName,id_type:idType,id_number:cleanId});setNotice(t("Verification submitted. Your account status will update after staff review."));setReload(value=>value+1);}
+  try{
+   const image=await prepareKycDocumentImage(documentFile);
+   await submitKyc({name:cleanName,id_type:idType,id_number:cleanId,...image});
+   setDocumentFile(null);
+   setNotice(t("Verification details and document image submitted securely for staff review."));
+   setReload(value=>value+1);
+  }
   catch(reason){setSubmitError(reason instanceof Error?reason.message:t("Verification submission could not be confirmed. Refresh your status before retrying."));}
   finally{setSubmitting(false);}
  };
- return <PageFrame eyebrow="BTCBOX / ACCOUNT" title="Identity verification" description="Submit your identity details and track the review result returned by your authenticated BTCBOX account.">
+ return <PageFrame eyebrow="BTCBOX / ACCOUNT" title="Identity verification" description="Submit your identity details and a clear document image, then track the review result returned by your authenticated BTCBOX account.">
   {loading?<Card className="border-brand-border bg-brand-surface"><CardContent className="p-6 text-sm text-brand-text-muted" role="status">{t("Loading verification status…")}</CardContent></Card>
   :error?<Card className="border-rose-500/30 bg-brand-surface"><CardContent className="flex flex-wrap items-center justify-between gap-3 p-5"><p className="text-sm text-rose-300" role="alert">{error}</p><Button size="sm" variant="outline" onClick={()=>setReload(n=>n+1)}>{t("Try again")}</Button></CardContent></Card>
   :account?<div className="space-y-4"><Card className="border-brand-border bg-brand-surface"><CardContent className="grid gap-4 p-5 sm:grid-cols-2 sm:p-6">
@@ -494,13 +654,15 @@ export function KycPage(){
    <div><p className="text-xs text-brand-text-muted">{t("Document type")}</p><p className="mt-1 font-medium">{account.kyc?.id_type||"—"}</p></div>
    <div className="sm:col-span-2"><p className="text-xs text-brand-text-muted">{t("Document number")}</p><p className="mt-1 break-all font-mono text-sm">{account.kyc?.id_number?"••••"+account.kyc.id_number.slice(-4):"—"}</p></div>
    {account.kyc?.reject_reason?<div className="sm:col-span-2 rounded-lg border border-rose-500/25 bg-rose-500/5 p-3"><p className="text-xs font-semibold text-rose-300">{t("Review note")}</p><p className="mt-1 text-sm text-brand-text-secondary">{account.kyc.reject_reason}</p></div>:null}
-   <div className="sm:col-span-2 border-t border-brand-border pt-3"><p className="text-sm text-brand-text-muted">{submitted&&!canSubmit?t("Your verification is on file. You can check the status again after staff review."):t("Submit your details below. BTCBOX staff will review the information and update your verification status.")}</p></div>
+   <div className="sm:col-span-2 border-t border-brand-border pt-3"><p className="text-sm text-brand-text-muted">{submitted&&!canSubmit?t("Your verification is on file. You can check the status again after staff review."):t("Submit your details and a clear photo of your identity document. BTCBOX staff will review the information and update your verification status.")}</p></div>
   </CardContent></Card>
-  {canSubmit?<Card className="border-brand-border bg-brand-surface"><CardHeader><CardTitle>{status==="rejected"?t("Resubmit verification"):t("Submit identity details")}</CardTitle><CardDescription>{t("Use the same name and document details shown on your identity document. Do not send passwords or two-factor codes.")}</CardDescription></CardHeader><CardContent><form className="space-y-3" onSubmit={submit}>
+  {canSubmit?<Card className="border-brand-border bg-brand-surface"><CardHeader><CardTitle>{status==="rejected"?t("Resubmit verification"):t("Submit identity details")}</CardTitle><CardDescription>{t("Use the same name and document details shown on your identity document. Do not send passwords or two-factor codes. Images are compressed before secure upload.")}</CardDescription></CardHeader><CardContent><form className="space-y-3" onSubmit={submit}>
    <label className="block space-y-1 text-sm"><span>{t("Full legal name")}</span><input value={name} onChange={event=>setName(event.target.value)} maxLength={100} autoComplete="name" required disabled={submitting} className="w-full rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-3 text-brand-text"/></label>
    <label className="block space-y-1 text-sm"><span>{t("Identity document type")}</span><select value={idType} onChange={event=>setIdType(event.target.value as "passport"|"id_card"|"driver_license")} disabled={submitting} className="w-full rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-3 text-brand-text"><option value="id_card">{t("National ID card")}</option><option value="passport">{t("Passport")}</option><option value="driver_license">{t("Driver license")}</option></select></label>
    <label className="block space-y-1 text-sm"><span>{t("Document number")}</span><input value={idNumber} onChange={event=>setIdNumber(event.target.value)} maxLength={64} autoComplete="off" required disabled={submitting} className="w-full rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-3 font-mono text-brand-text"/></label>
-   <Button type="submit" block disabled={submitting||!name.trim()||!idNumber.trim()}>{submitting?t("Submitting…"):t("Submit for review")}</Button>
+   <label className="block space-y-1 text-sm"><span>{t("Identity document image")}</span><input type="file" accept="image/jpeg,image/png,image/webp" required disabled={submitting} onChange={event=>{setDocumentFile(event.target.files?.[0]||null);setSubmitError("");}} className="block w-full rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-3 text-sm text-brand-text file:mr-3 file:rounded-md file:border-0 file:bg-brand-surface file:px-3 file:py-2 file:text-brand-text"/></label>
+   <p className="text-xs text-brand-text-muted">{t("JPEG, PNG or WebP. Maximum original size 8 MB; securely compressed to 512 KB. Upload a clear, readable image.")}{documentFile?<span className="block mt-1">{t("Selected")}: {documentFile.name}</span>:null}</p>
+   <Button type="submit" block disabled={submitting||!name.trim()||!idNumber.trim()||!documentFile}>{submitting?t("Submitting…"):t("Submit for review")}</Button>
    {submitError?<p role="alert" className="text-sm text-rose-300">{submitError}</p>:null}{notice?<p role="status" className="text-sm text-emerald-300">{notice}</p>:null}
   </form></CardContent></Card>:null}
   <div className="flex flex-wrap gap-2"><Button asChild variant="outline"><Link to="/support">{t("Contact support")}</Link></Button><Button size="sm" variant="ghost" onClick={()=>setReload(n=>n+1)}>{t("Refresh status")}</Button></div></div>:null}
@@ -518,6 +680,7 @@ export function SupportPage(){
  const [error,setError]=useState("");
  const [sendError,setSendError]=useState("");
  const [reload,setReload]=useState(0);
+ const [pendingRequestId,setPendingRequestId]=useState<string>("");
  useEffect(()=>{
   const controller=new AbortController();
   setLoading(true);setError("");
@@ -531,10 +694,13 @@ export function SupportPage(){
   event.preventDefault();
   const message=draft.trim();
   if(!message||sending)return;
+  const requestId=pendingRequestId||("MSG"+crypto.randomUUID().replace(/-/g,"")).slice(0,64);
+  if(!pendingRequestId)setPendingRequestId(requestId);
   setSending(true);setSendError("");
   try{
-   await sendSupportMessage(message);
+   await sendSupportMessage(message,requestId);
    setDraft("");
+   setPendingRequestId("");
    setReload(n=>n+1);
   }catch(reason){
    setSendError(reason instanceof Error?reason.message:"Message could not be sent. Please try again.");
@@ -561,6 +727,10 @@ export function SupportPage(){
 const depositNetworks:Record<string,string[]>={BTC:["BTC"],ETH:["ERC20"],USDT:["TRC20","ERC20","BEP20"],SOL:["SOL"],BNB:["BEP20"],USDC:["ERC20"]};
 export function DepositPage(){
  const {t}=useI18n();
+ const [depositHistory,setDepositHistory]=useState<DepositRecord[]>([]);
+ const [historyLoading,setHistoryLoading]=useState(true);
+ const [historyError,setHistoryError]=useState("");
+ const [historyReload,setHistoryReload]=useState(0);
  const [coin,setCoin]=useState("USDT");
  const [network,setNetwork]=useState("TRC20");
  const [address,setAddress]=useState("");
@@ -576,6 +746,17 @@ export function DepositPage(){
   }).finally(()=>{if(!controller.signal.aborted)setLoading(false);});
   return ()=>controller.abort();
  },[coin,network,reload]);
+ useEffect(()=>{
+  const controller=new AbortController();
+  setHistoryLoading(true);setHistoryError("");
+  getAccount(controller.signal).then(snapshot=>{
+   if(!controller.signal.aborted)setDepositHistory(Array.isArray(snapshot.deposits)?snapshot.deposits:[]);
+  }).catch(reason=>{
+   if(reason instanceof Error&&reason.name==="AbortError")return;
+   if(!controller.signal.aborted)setHistoryError(reason instanceof Error?reason.message:"Deposit history is temporarily unavailable.");
+  }).finally(()=>{if(!controller.signal.aborted)setHistoryLoading(false);});
+  return ()=>controller.abort();
+ },[historyReload]);
  const changeCoin=(next:string)=>{setCoin(next);setNetwork(depositNetworks[next][0]);};
  return <PageFrame eyebrow="BTCBOX / WALLET" title="Deposit" description="View the deposit address configured by BTCBOX for the selected asset and network. BTCBOX staff verify incoming transfers and manually credit the account.">
   <Card className="border-brand-border bg-brand-surface"><CardHeader><CardTitle>{t("Deposit address")}</CardTitle><CardDescription>{t("Always verify the asset and network before sending funds.")}</CardDescription></CardHeader><CardContent className="space-y-4">
@@ -584,6 +765,12 @@ export function DepositPage(){
    :error?<div className="rounded-xl border border-amber-400/30 p-4"><p className="text-sm text-amber-200" role="alert">{error}</p><Button className="mt-3" size="sm" variant="outline" onClick={()=>setReload(n=>n+1)}>{t("Try again")}</Button></div>
    :<div className="space-y-2"><p className="text-xs font-semibold uppercase tracking-wide text-brand-text-muted">{coin} · {network}</p><div className="break-all rounded-xl border border-brand-border bg-brand-surface-2 p-4 font-mono text-sm">{address}</div><Button variant="outline" size="sm" onClick={()=>navigator.clipboard?.writeText(address)}>{t("Copy address")}</Button></div>}
    <div className="rounded-xl border border-amber-400/20 bg-amber-400/5 p-4 text-sm text-brand-text-secondary"><p className="font-semibold text-amber-200">{t("Important")}</p><p className="mt-1">{t("Send only the selected asset on the selected network. Sending unsupported assets or using another network may result in permanent loss. After the transfer, BTCBOX staff verify receipt and manually credit the account. This page does not create a deposit order or automatically credit funds.")}</p></div>
+  </CardContent></Card>
+  <Card className="border-brand-border bg-brand-surface"><CardHeader><div className="flex flex-wrap items-center justify-between gap-3"><div><CardTitle>{t("Deposit history")}</CardTitle><CardDescription>{t("Track deposits verified and credited by BTCBOX staff.")}</CardDescription></div><Button size="sm" variant="outline" disabled={historyLoading} onClick={()=>setHistoryReload(value=>value+1)}><RefreshCw className={"mr-2 h-4 w-4 "+(historyLoading?"animate-spin":"")}/>{t("Refresh")}</Button></div></CardHeader><CardContent className="space-y-2">
+   {historyLoading?<p className="text-sm text-brand-text-muted" role="status">{t("Loading deposit history…")}</p>
+   :historyError?<p className="text-sm text-rose-300" role="alert">{historyError}</p>
+   :depositHistory.length?depositHistory.map((item,index)=><div key={item.id||`${item.time||"deposit"}-${item.coin}-${index}`} className="flex flex-wrap items-start justify-between gap-3 rounded-xl border border-brand-border p-3"><div className="min-w-0"><p className="font-semibold">{item.amount} {item.coin} · {item.network||"—"}</p><p className="mt-1 text-xs text-brand-text-muted">{item.time||"—"}</p>{item.reference||item.txid?<p className="mt-1 break-all text-xs text-brand-text-muted">{t("Reference")}: {item.reference||item.txid}</p>:null}</div><Badge variant="outline" className={item.status==="confirmed"?"border-emerald-500/30 text-emerald-400":item.status==="rejected"?"border-rose-500/30 text-rose-300":"border-amber-500/30 text-amber-300"}>{item.status}</Badge></div>)
+   :<p className="rounded-xl border border-dashed border-brand-border p-5 text-sm text-brand-text-muted">{t("No deposit records have been returned for this account.")}</p>}
   </CardContent></Card>
  </PageFrame>;
 }
@@ -713,7 +900,7 @@ export function WithdrawPage(){
      if(raw){
       const saved=JSON.parse(raw);
       const savedAddress=book.find(item=>item.id===saved?.address_id);
-      if(saved&&saved.version===1&&typeof saved.request_id==="string"&&/^[A-Za-z0-9_-]{16,100}$/.test(saved.request_id)&&typeof saved.amount==="string"&&typeof saved.address==="string"&&savedAddress&&!savedAddress.blocked&&!savedAddress.unbound&&savedAddress.coin===saved.coin&&savedAddress.network===saved.network&&savedAddress.address===saved.address){
+      if(saved&&saved.version===1&&typeof saved.request_id==="string"&&/^[A-Za-z0-9_-]{16,100}$/.test(saved.request_id)&&typeof saved.amount==="string"&&typeof saved.address==="string"&&savedAddress&&!savedAddress.blocked&&!savedAddress.unbound&&savedAddress.coin===saved.coin&&savedAddress.network===saved.network){
        setPendingIntent(saved);setSelectedId(saved.address_id);setAmount(saved.amount);
       }else{setPendingIntentInvalid(true);setError("A saved withdrawal request cannot be matched to its original destination. Contact support before creating another withdrawal.");}
      }else{setPendingIntent(null);setPendingIntentInvalid(false);setSelectedId(current=>usable.some(item=>item.id===current)?current:(usable[0]?.id||""));}
@@ -767,6 +954,7 @@ export function WithdrawPage(){
    const result=await submitWithdrawal({
     request_id:intent.request_id,coin:intent.coin,network:intent.network,
     amount:intent.amount,address:intent.address,fund_password:fundPassword,
+    expected_fee:String(config?.fees[intent.coin] ?? ""),
     ...(account?.twofa_enabled?{twofa_code:twofaCode}:{})
    });
    requestAccepted=true;
@@ -779,7 +967,11 @@ export function WithdrawPage(){
    setReload(value=>value+1);
   }catch(reason){
    setError(reason instanceof Error?reason.message:"Withdrawal result is unconfirmed. Keep this request unchanged and retry with the same request ID.");
-   if(!requestAccepted&&reason instanceof ApiError&&reason.status>=400&&reason.status<500&&reason.status!==409)clearPending();
+   if(!requestAccepted&&reason instanceof ApiError&&reason.code==="WITHDRAWAL_FEE_CHANGED"){
+    clearPending();
+    try{setConfig(await getWithdrawalConfig());}catch{}
+    setError("The withdrawal fee changed. The latest fee has been refreshed. Review the request and submit again.");
+   }else if(!requestAccepted&&reason instanceof ApiError&&reason.status>=400&&reason.status<500&&reason.status!==409)clearPending();
   }finally{setSubmitting(false);}
  };
  return <PageFrame eyebrow="BTCBOX / WALLET" title="Withdraw" description="Choose a saved address and submit a withdrawal request. BTCBOX staff review requests and manually transfer approved withdrawals.">

@@ -1,0 +1,67 @@
+# BTCBOXCDT — Open Issues & Owner Handoff (2026-11-04, updated 2026-11-07)
+
+> This file was referenced in the collaboration instructions but did not exist in
+> the repository at handoff time. It is created here to record the current state
+> and exact continuation point.
+
+## Current branch & git state
+- Branch: `work/btcbox-unified-20261104` (tracks `origin/work/btcbox-unified-20261104`).
+- Handoff commits verified in history: `e0b192f5749f30934257bb69966dc114bf7b9cc7` (admin finance projection code), `d8539d2ed66370f7ce0fffadcc48d6fa98dbd5b9` (doc commit, was HEAD at start).
+- Code commits added in this session (oldest → newest):
+  1. `4e5e5685832a158a81cd8a34e181335355fd65e9` — fix(kyc): unify in-review status aliases
+  2. `e423b4afbe6827ef7bb05c0555b57614070471ee` — fix(orders): align customer/admin order projections
+  3. `88e39bf559be428394c26161d27fa27b8799453a` — test(admin): fund-operation audit/idempotency invariants
+  4. `e6c7d933358992b1874be425fbe7ec5c500c894a` — fix(admin): broadcast push idempotency by request_id
+  5. `dd98b5470f66952976e512bbb3e894e79fe87836` — test(admin): API contract invariants
+  - Plus this documentation commit (see git log).
+- Working tree: clean (no uncommitted changes) after the doc commit.
+- PRs: #51, #52, #53 were found closed and could not be reopened; fresh draft PRs
+  were opened to trigger CI. Backend CI was also triggered via `workflow_dispatch`
+  on the work branch as a reliable fallback.
+
+## Tests passed / not passed
+- Backend `node --test tests/*.test.js`: 393 tests, 392 pass. The single failure is
+  `build-site.js publishes the React root...` — a pre-existing environment issue
+  requiring a frontend build artifact (`frontend/dist`), unrelated to these changes.
+- Frontend: `tsc --noEmit` (lint script) passes locally. Frontend CI was
+  path-filter-skipped on GitHub because no `frontend/**` file changed.
+- PostgreSQL schema CI: path-filter-skipped because no `backend/supabase/sql/**`
+  file changed. Parent baseline green.
+- CI-skip clarification (verified 2026-11-07): `frontend-ci.yml` and
+  `btcbox-postgres-schema-ci.yml` have no `workflow_dispatch` trigger, and their
+  `push` branch whitelists do not include `work/btcbox-unified-20261104`. On a
+  pull_request they are additionally gated by `paths` (`frontend/**` and
+  `backend/supabase/sql/**` respectively). Since this batch changes zero frontend
+  and zero SQL files, both suites are correctly skipped — no source change was
+  fabricated to force them. If a future batch touches either path, both will
+  trigger automatically on the PR.
+- Collaboration PR: Draft **#54** (open) `work/btcbox-unified-20261104` →
+  `fix/post-merge-db-bootstrap-seconds-20261106`. PRs #51/#52/#53 were found
+  closed and unreopenable. Do not merge or deploy.
+- Verified backend CI runs (exact SHA): 42297056648 (4e5e568), 42297955945 (e423b4a),
+  42298110345 (88e39bf). Later commits (e6c7d93, dd98b54) were triggered via
+  workflow_dispatch; check `actions/workflows/backend-ci.yml` runs for the final SHA.
+
+## Unresolved / owner-policy items (do not invent)
+- KYC document retention/deletion after approval/rejection: no retention period,
+  no automatic deletion. Blocked on owner's explicit privacy/legal policy.
+- Withdrawal approve carries a hardcoded reason (no admin-supplied reason field);
+  intentionally left to avoid API contract change — owner may decide to add one.
+- Direct administrator balance adjustment (`POST /api/admin/user/balance`) remains
+  disabled pending a maker-checker / dual-approval queue.
+- PR #51/#52/#53 are closed/unreopenable; a future operator should open a fresh
+  draft PR against `fix/post-merge-db-bootstrap-seconds-20261106` (or `main`) if
+  CI-on-PR is desired, or rely on `workflow_dispatch`.
+
+## Exact continuation point for the next AI
+- Start from `work/btcbox-unified-20261104` HEAD (doc commit after `dd98b54`).
+- Files last modified: `backend/api-core.js`, `backend/tests/kyc-flow.test.js`,
+  `backend/tests/account-credentials.test.js`, `backend/tests/order-history-source-parity.test.js`,
+  `backend/tests/admin-fund-ops-audit.test.js` (new), `backend/tests/admin-support-idempotency.test.js` (new),
+  `backend/tests/admin-api-contract.test.js` (new), `docs/AI_COORDINATION.md`, this file.
+- Suggested next work: (a) if frontend/SQL changes are made, run frontend-ci and
+  PostgreSQL CI on the exact SHA; (b) consider adding admin-supplied reason to
+  withdrawal approve if the owner wants it; (c) continue hosted Supabase Auth/Storage
+  workflow testing only in isolated staging with test credentials.
+- No uncommitted modifications expected. If `git status` shows `backend/dist/`,
+  remove it (build artifact, not tracked).

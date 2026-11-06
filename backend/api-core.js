@@ -90,9 +90,40 @@ function redactAdminAuditDetail(value) {
   return String(value || '').slice(0, 300)
     .replace(/(["']?(?:password|passwd|(?:access|refresh|auth|session)[_ -]?token|[a-z0-9]+[_ -]token|token|authorization|bearer|secret|client[_ -]?secret|(?:service[_ -]?role|api|private)[_ -]?key|seed[_ -]?phrase|mnemonic|recovery[_ -]?codes?|id[_ -]?number|otp|totp[_ -]?secret)["']?\s*[:=]\s*)("(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|[^,}\s]+)/ig, '$1"[redacted]"')
     .replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/ig, '[email]')
-    .replace(/0x[a-fA-F0-9]{40}/g, '[wallet address]')
+    .replace(/0x[a-fA-F0-9]{40}(?![a-fA-F0-9])/g, '[wallet address]')
     .replace(/T[1-9A-HJ-NP-Za-km-z]{33}/g, '[wallet address]')
     .slice(0, 300);
+}
+
+function safeAdminAuditMetadata(value) {
+  const allowed = [
+    'asset', 'amount', 'fee', 'network', 'reference', 'payout_reference',
+    'operation_id', 'idempotency_key', 'status', 'side', 'base_asset',
+    'quote_asset', 'price', 'quantity', 'remaining_quantity'
+  ];
+  const safe = {};
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return safe;
+  for (const key of allowed) {
+    const item = value[key];
+    if (typeof item === 'string') {
+      const text = item.trim();
+      if (text && text.length <= 160 && !/[\x00-\x1f\x7f]/.test(text)) safe[key] = text;
+    } else if (typeof item === 'number' && Number.isFinite(item)) {
+      safe[key] = String(item);
+    }
+  }
+  return safe;
+}
+
+function formatAdminAuditDetail(row) {
+  const reason = redactAdminAuditDetail(row && row.reason || '').slice(0, 80);
+  const metadata = safeAdminAuditMetadata(row && row.metadata);
+  const metadataText = redactAdminAuditDetail(Object.keys(metadata)
+    .map(key => key + '=' + metadata[key]).join(', ')).slice(0, 150);
+  const objectType = typeof (row && row.object_type) === 'string' ? row.object_type.slice(0, 24) : '';
+  const objectId = typeof (row && row.object_id) === 'string' ? row.object_id.slice(0, 32) : '';
+  const objectText = objectType && objectId ? objectType + ':' + objectId : objectType || objectId;
+  return redactAdminAuditDetail([reason, metadataText, objectText].filter(Boolean).join(' · '));
 }
 
 function isValidAuthEmail(value) {
@@ -280,6 +311,24 @@ async function matchingRpc(name, payload) {
 // price itself from the same trusted feeds as /api/market; client-supplied
 // prices are never trusted for balance-affecting operations.
 const SECONDS_ALLOWED_SYMBOLS = new Set(['BTC', 'ETH', 'SOL', 'BNB']);
+function normalizeReferenceTimestamp(value, nowMs) {
+  const now = Number.isFinite(nowMs) ? nowMs : Date.now();
+  let timestampMs;
+  const numeric = typeof value === 'number' || (typeof value === 'string' && value.trim() !== '')
+    ? Number(value) : NaN;
+  if (Number.isFinite(numeric) && numeric >= 1000000000000) {
+    timestampMs = numeric;
+  } else if (typeof value === 'string') {
+    timestampMs = Date.parse(value);
+  } else {
+    timestampMs = NaN;
+  }
+  if (!Number.isFinite(timestampMs) || timestampMs <= 0) return null;
+  const ageMs = now - timestampMs;
+  if (ageMs > 120000 || ageMs < -5000) return null;
+  return Math.floor(timestampMs / 1000);
+}
+
 async function fetchSecondsReferencePrice(symbol) {
   if (!SECONDS_ALLOWED_SYMBOLS.has(symbol)) throw new Error('symbol unsupported');
   const fetchJson = async url => {
@@ -290,16 +339,18 @@ async function fetchSecondsReferencePrice(symbol) {
   try {
     const ticker = await fetchJson('https://api.exchange.coinbase.com/products/' + symbol + '-USDT/ticker');
     const price = Number(ticker && ticker.price);
-    if (Number.isFinite(price) && price > 0) return { price: price, source: 'coinbase', ts: Math.floor(Date.now() / 1000) };
+    const ts = normalizeReferenceTimestamp(ticker && ticker.time);
+    if (Number.isFinite(price) && price > 0 && ts !== null) return { price: price, source: 'coinbase', ts: ts };
   } catch (_) { /* fall through to Bybit */ }
   try {
     const payload = await fetchJson('https://api.bybit.com/v5/market/tickers?category=spot&symbol=' + symbol + 'USDT');
     const list = payload && payload.result && payload.result.list;
     const ticker = Array.isArray(list) && list[0];
     const price = Number(ticker && ticker.lastPrice);
-    if (Number.isFinite(price) && price > 0) return { price: price, source: 'bybit', ts: Math.floor(Date.now() / 1000) };
+    const ts = normalizeReferenceTimestamp(payload && payload.time);
+    if (Number.isFinite(price) && price > 0 && ts !== null) return { price: price, source: 'bybit', ts: ts };
   } catch (_) { /* fall through */ }
-  throw new Error('reference price unavailable');
+  throw new Error('reference price unavailable or stale');
 }
 
 async function readFinancialAccountSnapshot(userId) {
@@ -311,11 +362,48 @@ async function readFinancialAccountSnapshot(userId) {
   });
   if (!response.ok) throw new Error('Financial account read failed');
   const result = await response.json();
-  if (!result || result.ok !== true || !result.balances || !Array.isArray(result.withdrawals) || !Array.isArray(result.earn_records)) {
+  if (!result || result.ok !== true || !result.balances || !Array.isArray(result.withdrawals) || !Array.isArray(result.deposits) || !Array.isArray(result.earn_records)) {
     throw new Error('Financial account response invalid');
   }
   return result;
 }
+
+async function readSpotMarketCatalog() {
+  if (!supabaseStorageConfigured()) throw new Error('Spot market catalogue unavailable');
+  const base = String(process.env.SUPABASE_URL || '').replace(/\/+$/, '');
+  if (!base) throw new Error('Spot market catalogue unavailable');
+  const response = await fetch(base + '/rest/v1/rpc/read_spot_market_snapshot_v1', {
+    method: 'POST', headers: supabaseHeaders(), body: '{}', signal: AbortSignal.timeout(5000)
+  });
+  const result = await response.json().catch(() => null);
+  if (!response.ok || !result || result.ok !== true || !Array.isArray(result.markets)) {
+    throw new Error('Spot market catalogue read failed');
+  }
+  return result.markets.map(market => {
+    if (!market || typeof market.base_asset !== 'string' || typeof market.quote_asset !== 'string' ||
+        typeof market.enabled !== 'boolean' || !SUPPORTED_LEDGER_ASSETS.has(market.base_asset) ||
+        !SUPPORTED_LEDGER_ASSETS.has(market.quote_asset) || market.quote_asset !== 'USDT') {
+      throw new Error('Spot market catalogue contains an unsupported pair');
+    }
+    return {
+      base_asset: market.base_asset,
+      quote_asset: market.quote_asset,
+      enabled: market.enabled,
+      price_tick: String(market.price_tick),
+      quantity_step: String(market.quantity_step),
+      min_quantity: String(market.min_quantity),
+      min_notional: String(market.min_notional),
+      min_limit_price: market.min_limit_price == null ? null : String(market.min_limit_price),
+      max_limit_price: market.max_limit_price == null ? null : String(market.max_limit_price),
+    };
+  });
+}
+
+// Keep this list aligned with spot pair support, manual-deposit assets, and admin asset controls.
+const SUPPORTED_LEDGER_ASSETS = new Set([
+  'USDT', 'USDC', 'BTC', 'ETH', 'SOL', 'BNB',
+  'XRP', 'DOGE', 'ADA', 'AVAX', 'LINK', 'DOT', 'TRX', 'LTC', 'BCH', 'NEAR', 'UNI', 'ATOM', 'ETC',
+]);
 
 async function readAdminAccountBalances(userIds) {
   if (!supabaseStorageConfigured()) throw new Error('Financial database unavailable');
@@ -335,10 +423,10 @@ async function readAdminAccountBalances(userIds) {
     const assets = result.accounts[uid];
     if (!userIds.includes(uid) || !assets || typeof assets !== 'object' || Array.isArray(assets)) throw new Error('Admin account balance response invalid');
     for (const asset of Object.keys(assets)) {
-      // This UI currently supports only these ledger assets. Reject unexpected
-      // asset keys rather than silently passing malformed/unsupported balances
-      // into valuation and admin controls.
-      if (!['USDT', 'BTC', 'ETH', 'SOL'].includes(asset)) throw new Error('Admin account balance response invalid');
+      // Validate against the complete BTCBOX ledger asset catalogue. Spot markets
+      // and manual deposits include more assets than the original four-asset UI;
+      // rejecting those valid rows made the entire admin user list fail with 503.
+      if (!SUPPORTED_LEDGER_ASSETS.has(asset)) throw new Error('Admin account balance response invalid');
       const b = assets[asset];
       if (!b || !Number.isFinite(b.free) || !Number.isFinite(b.frozen) || b.free < 0 || b.frozen < 0) throw new Error('Admin account balance response invalid');
     }
@@ -371,7 +459,7 @@ async function readAdminAuditLogPage(params) {
   if (!supabaseStorageConfigured()) throw new Error('Canonical administrator audit storage unavailable');
   const limit = params.limit;
   const query = new URLSearchParams({
-    select: 'id::text,actor_id,subject_user_id,action,reason,created_at',
+    select: 'id::text,actor_id,subject_user_id,action,object_type,object_id,reason,metadata,created_at',
     order: 'id.desc',
     limit: String(limit + 1)
   });
@@ -396,7 +484,7 @@ async function readAdminAuditLogPage(params) {
       uid: String(row.subject_user_id || '').slice(0, 100),
       by: String(row.actor_id || '').slice(0, 80),
       time: String(row.created_at).slice(0, 40),
-      detail: redactAdminAuditDetail(row.reason || ''),
+      detail: formatAdminAuditDetail(row),
       postgres_sync_status: 'synced'
     };
   });
@@ -508,6 +596,7 @@ function defaultDB() {
       "BNB-BEP20": depositAddressFromEnv("BNB-BEP20"),
       "USDC-ERC20": depositAddressFromEnv("USDC-ERC20"),
     },
+    withdrawal_fees: Object.assign({}, DEFAULT_WITHDRAWAL_FEES),
     captcha: {},
   };
 }
@@ -734,12 +823,25 @@ function safeDepositAddresses(addresses) {
   const source = addresses && typeof addresses === 'object' && !Array.isArray(addresses) ? addresses : {};
   const result = {};
   const legacyKeys = { 'BTC-BTC': 'BTC-Bitcoin', 'SOL-SOL': 'SOL-Solana' };
-  for (const key of ['USDT-TRC20', 'USDT-ERC20', 'USDT-BEP20', 'BTC-BTC', 'ETH-ERC20', 'SOL-SOL']) {
+  for (const key of ['USDT-TRC20', 'USDT-ERC20', 'USDT-BEP20', 'BTC-BTC', 'ETH-ERC20', 'SOL-SOL', 'BNB-BEP20', 'USDC-ERC20']) {
     const legacyKey = legacyKeys[key];
     let raw = source[key];
     if ((typeof raw !== 'string' || !raw.trim()) && legacyKey) raw = source[legacyKey];
     const value = typeof raw === 'string' ? raw.trim() : '';
     result[key] = value && !/PLACEHOLDER/i.test(value) ? value : '';
+  }
+  return result;
+}
+
+const DEFAULT_WITHDRAWAL_FEES = Object.freeze({
+  USDT: '1', BTC: '0.0001', ETH: '0.001', SOL: '0.01', BNB: '0.0005', USDC: '1'
+});
+function safeWithdrawalFees(fees) {
+  const source = fees && typeof fees === 'object' && !Array.isArray(fees) ? fees : {};
+  const result = Object.assign({}, DEFAULT_WITHDRAWAL_FEES);
+  for (const coin of Object.keys(DEFAULT_WITHDRAWAL_FEES)) {
+    const value = typeof source[coin] === 'string' ? parseMoneyInput(source[coin]) : null;
+    if (value !== null && compareMoney(value, '1000000000000') <= 0) result[coin] = value;
   }
   return result;
 }
@@ -846,6 +948,32 @@ function consumeTotpStep(user, code) {
 // Parse user-supplied financial amounts strictly; parseFloat('1abc') must never become 1.
 // Return a masked identity number for ordinary account responses.
 // Full KYC identifiers remain server-side and are never serialized to the user API.
+// Canonical KYC status aliases. Legacy/imported records may use 'processing' /
+// 'under_review' for in-review and 'verified' for approved. Every read path must
+// treat these aliases consistently so users are never stuck in a state the admin
+// review queue cannot see or the submission guard blocks without an escape route.
+const KYC_IN_REVIEW_STATUSES = ['pending', 'processing', 'under_review'];
+const KYC_APPROVED_STATUSES = ['approved', 'verified'];
+function normalizeKycStatus(status) {
+  return String(status || '').trim().toLowerCase();
+}
+function isKycInReview(status) {
+  return KYC_IN_REVIEW_STATUSES.includes(normalizeKycStatus(status));
+}
+function isKycApproved(status) {
+  return KYC_APPROVED_STATUSES.includes(normalizeKycStatus(status));
+}
+function kycSubmissionBlock(status) {
+  const normalized = normalizeKycStatus(status);
+  if (isKycApproved(normalized)) {
+    return { code: 'KYC_ALREADY_APPROVED', msg: 'Identity verification already approved. No need to resubmit.' };
+  }
+  if (isKycInReview(normalized)) {
+    return { code: 'KYC_ALREADY_PENDING', msg: 'Identity verification is under review. Please do not resubmit.' };
+  }
+  return null;
+}
+
 function validateKycSubmission(body) {
   const name = String(body && body.name || '').trim();
   const idType = String(body && body.id_type || 'id_card').trim();
@@ -860,6 +988,87 @@ function validateKycSubmission(body) {
     return { ok: false, msg: 'Enter a valid document number (4–64 characters).' };
   }
   return { ok: true, name, id_type: idType, id_number: idNumber };
+}
+
+const KYC_STORAGE_BUCKET = 'kyc-documents';
+const KYC_IMAGE_MAX_BYTES = 512 * 1024;
+
+function validateKycImage(body) {
+  const contentType = String(body && body.document_content_type || '').toLowerCase();
+  const encoded = String(body && body.document_image_base64 || '');
+  if (!['image/jpeg', 'image/png', 'image/webp'].includes(contentType)) {
+    return { ok: false, msg: 'Upload a JPEG, PNG, or WebP identity document image.' };
+  }
+  if (!encoded || encoded.length > Math.ceil(KYC_IMAGE_MAX_BYTES * 4 / 3) + 8 || !/^[A-Za-z0-9+/]+={0,2}$/.test(encoded)) {
+    return { ok: false, msg: 'The identity document image is missing or too large (maximum 512 KB).' };
+  }
+  let bytes;
+  try { bytes = Buffer.from(encoded, 'base64'); } catch (_) { return { ok: false, msg: 'The identity document image is invalid.' }; }
+  if (!bytes.length || bytes.length > KYC_IMAGE_MAX_BYTES || bytes.toString('base64').replace(/=+$/, '') !== encoded.replace(/=+$/, '')) {
+    return { ok: false, msg: 'The identity document image is invalid or exceeds 512 KB.' };
+  }
+  const jpeg = bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff;
+  const png = bytes.length >= 8 && bytes.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]));
+  const webp = bytes.length >= 12 && bytes.toString('ascii', 0, 4) === 'RIFF' && bytes.toString('ascii', 8, 12) === 'WEBP';
+  if ((contentType === 'image/jpeg' && !jpeg) || (contentType === 'image/png' && !png) || (contentType === 'image/webp' && !webp)) {
+    return { ok: false, msg: 'The image content does not match its file type.' };
+  }
+  return { ok: true, bytes, content_type: contentType, extension: contentType === 'image/jpeg' ? 'jpg' : (contentType === 'image/png' ? 'png' : 'webp') };
+}
+
+async function uploadKycDocument(userId, image) {
+  if (!supabaseStorageConfigured() || typeof userId !== 'string' || !userId || userId.includes('/') || userId.includes('\\')) throw new Error('KYC document storage is unavailable');
+  const base = String(process.env.SUPABASE_URL || '').replace(/\/+$/, '');
+  const path = String(userId) + '/' + crypto.randomUUID() + '.' + image.extension;
+  const objectPath = path.split('/').map(encodeURIComponent).join('/');
+  const response = await fetch(base + '/storage/v1/object/' + KYC_STORAGE_BUCKET + '/' + objectPath, {
+    method: 'POST',
+    headers: { ...supabaseHeaders(), 'Content-Type': image.content_type, 'x-upsert': 'false' },
+    body: image.bytes,
+    signal: AbortSignal.timeout(10000)
+  });
+  if (!response.ok) throw new Error('KYC document upload failed');
+  return path;
+}
+
+function isOwnedKycDocumentPath(path, userId) {
+  if (typeof path !== 'string' || typeof userId !== 'string' || !userId ||
+      userId.includes('/') || userId.includes('\\') || path.length > 300) return false;
+  const parts = path.split('/');
+  return parts.length === 2 && parts[0] === userId &&
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.(?:jpg|png|webp)$/i.test(parts[1]);
+}
+
+async function createSignedKycDocumentUrl(path, userId) {
+  if (!supabaseStorageConfigured() || !isOwnedKycDocumentPath(path, userId)) {
+    throw new Error('KYC document is unavailable');
+  }
+  const base = String(process.env.SUPABASE_URL || '').replace(/\/+$/, '');
+  const objectPath = path.split('/').map(encodeURIComponent).join('/');
+  const response = await fetch(base + '/storage/v1/object/sign/' + KYC_STORAGE_BUCKET + '/' + objectPath, {
+    method: 'POST', headers: supabaseHeaders(), body: JSON.stringify({ expiresIn: 300 }),
+    signal: AbortSignal.timeout(8000)
+  });
+  const payload = await response.json().catch(() => null);
+  if (!response.ok || !payload || typeof payload.signedURL !== 'string' || !payload.signedURL) throw new Error('KYC document preview is unavailable');
+  const signedPath = payload.signedURL.startsWith('/storage/v1/')
+    ? payload.signedURL
+    : '/storage/v1/' + payload.signedURL.replace(/^\/+/, '');
+  const signedUrl = new URL(signedPath, base);
+  if (signedUrl.origin !== new URL(base).origin) throw new Error('KYC document preview URL is invalid');
+  return signedUrl.toString();
+}
+
+async function deleteKycDocument(path, userId) {
+  if (!supabaseStorageConfigured() || !isOwnedKycDocumentPath(path, userId)) return false;
+  const base = String(process.env.SUPABASE_URL || '').replace(/\/+$/, '');
+  try {
+    const response = await fetch(base + '/storage/v1/object/' + KYC_STORAGE_BUCKET, {
+      method: 'DELETE', headers: supabaseHeaders(), body: JSON.stringify({ prefixes: [path] }),
+      signal: AbortSignal.timeout(5000)
+    });
+    return response.ok;
+  } catch (_) { return false; }
 }
 
 function maskIdentityNumber(value) {
@@ -1242,6 +1451,14 @@ async function handleRequest(event, context) {
     const interval = (event.queryStringParameters && event.queryStringParameters.interval) || '1m';
     if (!/^[A-Z0-9]{5,20}$/.test(symbol) || !symbol.endsWith('USDT') || symbol.length <= 4 || !['1m','3m','5m','15m','30m','1h','2h','4h','1d'].includes(interval)) return json({ ok: false, msg: 'Invalid USDT symbol or interval' }, 400);
     const base = symbol.slice(0, -4);
+    try {
+      const catalog = await readSpotMarketCatalog();
+      if (!catalog.some(market => market.enabled && market.base_asset === base && market.quote_asset === 'USDT')) {
+        return json({ ok: false, code: 'SPOT_MARKET_DISABLED', msg: 'This spot market is not enabled.', klines: [], data: [] }, 404);
+      }
+    } catch (_) {
+      return json({ ok: false, code: 'MARKET_CATALOG_UNAVAILABLE', msg: 'Spot market catalogue is temporarily unavailable.', klines: [], data: {} }, 503);
+    }
     const coinbaseGranularity = { '1m': 60, '5m': 300, '15m': 900, '1h': 3600, '1d': 86400 }[interval];
     const timeoutFetchJson = async url => {
       const res = await fetch(url, { signal: AbortSignal.timeout(5000), headers: { 'Accept': 'application/json' } });
@@ -1276,6 +1493,14 @@ async function handleRequest(event, context) {
     const symbol = ((event.queryStringParameters && event.queryStringParameters.symbol) || 'BTCUSDT').toUpperCase();
     if (!/^[A-Z0-9]{5,20}$/.test(symbol) || !symbol.endsWith('USDT') || symbol.length <= 4) return json({ ok: false, msg: 'Invalid USDT symbol' }, 400);
     const base = symbol.slice(0, -4);
+    try {
+      const catalog = await readSpotMarketCatalog();
+      if (!catalog.some(market => market.enabled && market.base_asset === base && market.quote_asset === 'USDT')) {
+        return json({ ok: false, code: 'SPOT_MARKET_DISABLED', msg: 'This spot market is not enabled.', bids: [], asks: [] }, 404);
+      }
+    } catch (_) {
+      return json({ ok: false, code: 'MARKET_CATALOG_UNAVAILABLE', msg: 'Spot market catalogue is temporarily unavailable.', bids: [], asks: [] }, 503);
+    }
     const timeoutFetchJson = async url => {
       const res = await fetch(url, { signal: AbortSignal.timeout(5000), headers: { 'Accept': 'application/json' } });
       if (!res.ok) throw new Error('market provider HTTP ' + res.status);
@@ -1764,14 +1989,14 @@ async function handleRequest(event, context) {
         reviewed_at: user.kyc && user.kyc.reviewed_at || '',
         reject_reason: user.kyc && user.kyc.reject_reason || ''
       },
-      kyc_level: user.kyc && user.kyc.status === 'approved' ? 2 : (user.kyc && user.kyc.status === 'pending' ? 1 : 0),
+      kyc_level: user.kyc && isKycApproved(user.kyc.status) ? 2 : (user.kyc && isKycInReview(user.kyc.status) ? 1 : 0),
       balances: compatBalances,
       totalUsdt: total,
       total_usdt: total,
       valuation_complete: unpricedAssets.length === 0,
       unpriced_assets: unpricedAssets,
       orders: user.orders.slice(-50),
-      deposits: user.deposits.slice(-20),
+      deposits: financialSnapshot ? financialSnapshot.deposits : user.deposits.slice(-20),
       withdrawals: financialSnapshot ? financialSnapshot.withdrawals : user.withdrawals.slice(-20),
       earn_records: financialSnapshot ? financialSnapshot.earn_records : user.earn_records,
       fund_password_set: !!(user.fund_password_hash || user.fund_password),
@@ -1849,19 +2074,34 @@ async function handleRequest(event, context) {
   // ---------- POST /api/kyc ----------
   if (path === 'kyc' && method === 'POST') {
     if (!user) return json({ ok: false, msg: 'Not signed in.', need_login: true }, 401);
-    if (user.kyc && user.kyc.status === 'approved') return json({ ok: false, code: 'KYC_ALREADY_APPROVED', msg: 'Identity verification already approved. No need to resubmit.' }, 409);
-    if (user.kyc && user.kyc.status === 'pending') return json({ ok: false, code: 'KYC_ALREADY_PENDING', msg: 'Identity verification is under review. Please do not resubmit.' }, 409);
+    const submissionBlock = kycSubmissionBlock(user.kyc && user.kyc.status);
+    if (submissionBlock) return json({ ok: false, ...submissionBlock }, 409);
     const submission = validateKycSubmission(body);
     if (!submission.ok) return json({ ok: false, code: 'KYC_INVALID_INPUT', msg: submission.msg }, 400);
+    const image = validateKycImage(body);
+    if (!image.ok) return json({ ok: false, code: 'KYC_DOCUMENT_INVALID', msg: image.msg }, 400);
+    const previousDocumentPath = user.kyc && user.kyc.document_path;
+    let documentPath;
+    try { documentPath = await uploadKycDocument(user.uid, image); }
+    catch (_) { return json({ ok: false, code: 'KYC_STORAGE_UNAVAILABLE', msg: 'Secure document storage is unavailable. Your verification was not submitted.' }, 503); }
     user.kyc = {
       status: 'pending',
       name: submission.name,
       id_type: submission.id_type,
       id_number: submission.id_number,
+      document_path: documentPath,
+      document_content_type: image.content_type,
       submitted_at: nowStr(),
     };
-    await saveDB(db);
-    return json({ ok: true, code: 'KYC_SUBMITTED', status: 'pending', msg: 'Identity verification submitted. Review typically completes within 1-3 business days.' });
+    try { await saveDB(db); }
+    catch (_) {
+      await deleteKycDocument(documentPath, user.uid);
+      return json({ ok: false, code: 'KYC_PERSISTENCE_UNAVAILABLE', msg: 'Verification could not be saved. Please retry after refreshing your status.' }, 503);
+    }
+    if (previousDocumentPath && previousDocumentPath !== documentPath) {
+      await deleteKycDocument(previousDocumentPath, user.uid);
+    }
+    return json({ ok: true, code: 'KYC_SUBMITTED', status: 'pending', msg: 'Identity details and document image submitted securely for staff review.' });
   }
 
   // ---------- POST /api/deposit ----------
@@ -1891,7 +2131,7 @@ async function handleRequest(event, context) {
     return json({
       ok: true,
       actions_enabled: financialWritesEnabled() && manualDepositRpcEnabled() && supabaseStorageConfigured(),
-      fees: { USDT: 1.0, BTC: 0.0001, ETH: 0.001, SOL: 0.01, BNB: 0.0005, USDC: 1.0 },
+      fees: safeWithdrawalFees(db.withdrawal_fees),
       allowed_networks: { BTC:['BTC'], ETH:['ERC20'], USDT:['TRC20','ERC20','BEP20'], SOL:['SOL'], BNB:['BEP20'], USDC:['ERC20'] }
     });
   }
@@ -1927,9 +2167,13 @@ async function handleRequest(event, context) {
     const cooldownMs = (Number(process.env.WITHDRAWAL_ADDRESS_COOLDOWN_HOURS) || 24) * 3600 * 1000;
     const addrCheck = withdrawalAddressCheck(user, addr, coin, network, Date.now(), cooldownMs);
     if (!addrCheck.allowed) return json({ ok: false, code: addrCheck.code, msg: addrCheck.msg }, 403);
-    const supportedFees = { USDT: 1.0, BTC: 0.0001, ETH: 0.001, SOL: 0.01, BNB: 0.0005, USDC: 1.0 };
+    const supportedFees = safeWithdrawalFees(db.withdrawal_fees);
     if (!Object.prototype.hasOwnProperty.call(supportedFees, coin)) return json({ ok: false, msg: 'Operation failed: withdrawals for this coin are not supported.' }, 400);
-    const fee = String(supportedFees[coin]);
+    const fee = supportedFees[coin];
+    // Bind a new withdrawal to the fee shown to the customer. The database
+    // checks this only after its idempotency lookup so retries replay the original fee.
+    const expectedFee = body.expected_fee === undefined ? fee : parseMoneyInput(body.expected_fee);
+    if (expectedFee === null) return json({ ok: false, code: 'INVALID_WITHDRAWAL_FEE_QUOTE', msg: 'Invalid withdrawal fee quote. Refresh the fee and try again.' }, 400);
     const totalDebit = addMoney(amount, fee);
     if (compareMoney(totalDebit, '0') <= 0) return json({ ok: false, msg: 'Invalid amount.' }, 400);
     // 首次提现 / 大额提现（USDT 等值超阈值，价格不可用时保守视为大额）→ 强制人工审核 pending_admin_review。
@@ -1965,19 +2209,25 @@ async function handleRequest(event, context) {
     const withdrawalId = 'W' + Date.now() + crypto.randomBytes(8).toString('hex');
     if (manualDepositRpcEnabled()) {
       if (!supabaseStorageConfigured()) return json({ ok: false, code: 'FINANCIAL_RPC_NOT_CONFIGURED', msg: 'Financial database not configured. Withdrawal was not submitted.' }, 503);
-      const requestHash = crypto.createHash('sha256').update([String(user.uid), coin, network, String(amount), String(fee), addr, requestId].join('|')).digest('hex');
+      const requestHash = crypto.createHash('sha256').update([String(user.uid), coin, network, String(amount), addr, requestId].join('|')).digest('hex');
       try {
         const base = process.env.SUPABASE_URL.replace(/\/+$/, '');
         const rpc = await fetch(base + '/rest/v1/rpc/create_withdrawal_atomic', {
           method: 'POST', headers: supabaseHeaders(),
           body: JSON.stringify({ p_withdrawal_id: withdrawalId, p_user_id: String(user.uid), p_asset: coin,
             p_network: network, p_amount: String(amount), p_fee: String(fee), p_destination: addr,
-            p_request_id: requestId, p_request_hash: requestHash, p_require_admin_review: requireAdminReview })
+            p_request_id: requestId, p_request_hash: requestHash, p_require_admin_review: requireAdminReview, p_expected_fee: String(expectedFee) })
         });
         const result = await rpc.json().catch(() => null);
-        if (!rpc.ok || !result || result.ok !== true || !result.withdrawal_id || !['pending', 'pending_admin_review', 'approved', 'rejected', 'broadcast', 'failed'].includes(result.status) || typeof result.require_admin_review !== 'boolean') {
-          const insufficient = rpc.status === 400 && /insufficient funds/i.test(JSON.stringify(result));
-          return json({ ok: false, code: insufficient ? 'INSUFFICIENT_FUNDS' : 'FINANCIAL_RPC_FAILED', msg: insufficient ? 'Insufficient available balance (including fees).' : 'Withdrawal request was not confirmed by the database. Please check your operation history before retrying.' }, insufficient ? 400 : 503);
+        if (!rpc.ok || !result || result.ok !== true || !result.withdrawal_id || !['pending', 'pending_admin_review', 'approved', 'rejected', 'broadcast', 'failed', 'completed'].includes(result.status) || typeof result.require_admin_review !== 'boolean') {
+          const rpcErrorText = JSON.stringify(result || {});
+          const feeChanged = /withdrawal fee changed/i.test(rpcErrorText);
+          const insufficient = rpc.status === 400 && /insufficient funds/i.test(rpcErrorText);
+          return json({
+            ok: false,
+            code: feeChanged ? 'WITHDRAWAL_FEE_CHANGED' : insufficient ? 'INSUFFICIENT_FUNDS' : 'FINANCIAL_RPC_FAILED',
+            msg: feeChanged ? 'The withdrawal fee changed. Refresh the current fee and review the request again.' : insufficient ? 'Insufficient available balance (including fees).' : 'Withdrawal request was not confirmed by the database. Please check your operation history before retrying.'
+          }, feeChanged ? 409 : insufficient ? 400 : 503);
         }
         return json({ ok: true, duplicate: result.duplicate === true, withdrawal_id: result.withdrawal_id, status: result.status, require_admin_review: result.require_admin_review, msg: result.duplicate === true ? 'This withdrawal request has already been received. Do not submit it again.' : (result.require_admin_review ? 'Withdrawal request submitted and flagged for admin review.' : 'Withdrawal request submitted. Funds will be sent after review.') });
       } catch (e) {
@@ -1987,12 +2237,30 @@ async function handleRequest(event, context) {
     return json({ ok: false, code: 'FINANCIAL_CUTOVER_INCOMPLETE', msg: 'Financial ledger cutover is incomplete. Withdrawal was not submitted and your balance was unchanged.' }, 503);
   }
 
+  // ---------- GET /api/market/pairs ----------
+  // Public catalogue exposes only enabled, operator-configured USDT pairs.
+  if (path === 'market/pairs' && method === 'GET') {
+    try {
+      const markets = await readSpotMarketCatalog();
+      return json({ ok: true, markets: markets.filter(market => market.enabled) });
+    } catch (_) {
+      return json({ ok: false, code: 'MARKET_CATALOG_UNAVAILABLE', msg: 'Spot market catalogue is temporarily unavailable.', markets: [] }, 503);
+    }
+  }
+
   // ---------- GET /api/market ----------
   if (path === 'market' && method === 'GET') {
     // Coinbase is the primary source. Bybit is used only for symbols whose Coinbase
     // product/statistics are unavailable. Both sources are explicitly restricted to
     // BASE-USDT spot pairs so USDT and USD quotes are never silently mixed.
-    const bases = ['BTC', 'ETH', 'SOL', 'BNB', 'XRP', 'DOGE', 'ADA', 'AVAX', 'LINK', 'DOT', 'TRX', 'MATIC', 'LTC', 'BCH', 'NEAR', 'UNI', 'ATOM', 'ETC'];
+    let bases;
+    try {
+      const catalog = await readSpotMarketCatalog();
+      bases = [...new Set(catalog.filter(market => market.enabled && market.quote_asset === 'USDT').map(market => market.base_asset))];
+    } catch (_) {
+      return json({ ok: false, code: 'MARKET_CATALOG_UNAVAILABLE', msg: 'Spot market catalogue is temporarily unavailable.', markets: [], data: {} }, 503);
+    }
+    if (!bases.length) return json({ ok: true, markets: [], data: {}, source: 'configured_empty' });
     const now = Math.floor(Date.now() / 1000);
     const finitePositive = value => Number.isFinite(Number(value)) && Number(value) > 0;
     const fetchJson = async url => {
@@ -2253,7 +2521,7 @@ async function handleRequest(event, context) {
     if (!SECONDS_ALLOWED_SYMBOLS.has(symbol)) return json({ ok: false, msg: 'This trading pair is not supported for short-term contracts.' }, 400);
     if (!['up', 'down'].includes(direction)) return json({ ok: false, msg: 'Invalid trade direction.' }, 400);
     if (!Number.isSafeInteger(durationSec) || durationSec <= 0) return json({ ok: false, msg: 'Invalid contract duration.' }, 400);
-    if (amount === null || compareMoney(amount, '0') <= 0 || compareMoney(amount, '1000000000000') > 0) return json({ ok: false, msg: 'Invalid investment amount.' }, 400);
+    if (amount === null || compareMoney(amount, '0') <= 0) return json({ ok: false, msg: 'Invalid investment amount.' }, 400);
     if (!/^[A-Za-z0-9_-]{16,100}$/.test(requestId)) return json({ ok: false, code: 'IDEMPOTENCY_KEY_REQUIRED', msg: 'A valid request ID (16-100 characters) is required.' }, 400);
     const positionId = 'SC' + crypto.createHash('sha256').update(String(user.uid) + '|' + requestId).digest('hex').slice(0, 30);
     const requestHash = crypto.createHash('sha256').update(JSON.stringify({ user_id: String(user.uid), symbol, direction, amount: String(amount), duration_sec: durationSec, request_id: requestId })).digest('hex');
@@ -2296,13 +2564,16 @@ async function handleRequest(event, context) {
     // Sample the trusted reference feed on the server only. The client cannot
     // provide or alter the settlement price; PostgreSQL still checks maturity,
     // ownership, idempotency, and applies the ledger movement atomically.
-    let settleRef;
+    let settleRef = null;
     try { settleRef = await fetchSecondsReferencePrice(symbol); }
-    catch (_) { return json({ ok: false, code: 'REFERENCE_PRICE_UNAVAILABLE', msg: 'The settlement reference price is unavailable. The position remains unsettled; please try again later.' }, 503); }
+    catch (_) { /* Still ask PostgreSQL for an idempotent replay or an early-position response. */ }
     try {
-      const rpc = await fetch(base + '/rest/v1/rpc/settle_seconds_position_v1', { method: 'POST', headers: supabaseHeaders(), body: JSON.stringify({ p_position_id: positionId, p_user_id: String(user.uid), p_request_id: requestId, p_request_hash: requestHash, p_symbol: symbol, p_settle_price: String(settleRef.price), p_settle_price_source: settleRef.source, p_settle_price_ts: new Date().toISOString() }) });
+      const rpc = await fetch(base + '/rest/v1/rpc/settle_seconds_position_v1', { method: 'POST', headers: supabaseHeaders(), body: JSON.stringify({ p_position_id: positionId, p_user_id: String(user.uid), p_request_id: requestId, p_request_hash: requestHash, p_symbol: symbol, p_settle_price: settleRef ? String(settleRef.price) : null, p_settle_price_source: settleRef ? settleRef.source : null, p_settle_price_ts: settleRef ? new Date(settleRef.ts * 1000).toISOString() : null }) });
       const result = await rpc.json().catch(() => null);
       if (!rpc.ok || !result || result.ok !== true) {
+        if (result && result.code === 'REFERENCE_PRICE_UNAVAILABLE') {
+          return json({ ok: false, code: 'REFERENCE_PRICE_UNAVAILABLE', msg: 'The settlement reference price is unavailable or stale. The position remains unsettled; please try again later.' }, 503);
+        }
         const conflictCode = result && ['IDEMPOTENCY_CONFLICT','POSITION_ALREADY_SETTLED'].includes(result.code) ? result.code : '';
         const conflictMessage = conflictCode === 'POSITION_ALREADY_SETTLED'
           ? 'This position was already settled by a different request. Refresh your history; do not retry with a new request ID.'
@@ -2334,15 +2605,30 @@ async function handleRequest(event, context) {
   if (path === 'support/chat' && method === 'POST') {
     if (!user) return json({ ok: false, msg: 'Not signed in.', need_login: true }, 401);
     const content = typeof body.content === 'string' ? body.content.trim() : '';
+    const requestId = String(body.request_id || '').trim();
     if (!content) return json({ ok: false, msg: 'Please enter a message.' }, 400);
     if (content.length > 2000) return json({ ok: false, msg: 'Messages cannot exceed 2,000 characters.' }, 400);
     user.support_messages = Array.isArray(user.support_messages) ? user.support_messages : [];
-    user.support_messages.push({ id: 'M' + Date.now() + crypto.randomBytes(3).toString('hex'), from: 'user', content: content, time: nowStr() });
+    // A stable client request_id makes customer support sends idempotent: a
+    // retry after a lost response returns the original message instead of
+    // duplicating it in the conversation.
+    if (requestId) {
+      if (!/^[A-Za-z0-9_-]{16,100}$/.test(requestId)) return json({ ok: false, code: 'INVALID_REQUEST_ID', msg: 'Invalid message request ID. No message was sent.' }, 400);
+      const prior = user.support_messages.find(function (message) { return message && message.from === 'user' && message.request_id === requestId; });
+      if (prior) {
+        if (String(prior.content || '') !== content) return json({ ok: false, code: 'SUPPORT_MESSAGE_IDEMPOTENCY_CONFLICT', msg: 'This request ID was already used for a different message.' }, 409);
+        return json({ ok: true, duplicate: true, message_id: prior.id, time: prior.time });
+      }
+    }
+    const messageId = 'M' + Date.now() + crypto.randomBytes(3).toString('hex');
+    const entry = { id: messageId, from: 'user', content: content, time: nowStr() };
+    if (requestId) entry.request_id = requestId;
+    user.support_messages.push(entry);
     // Keep the conversation bounded so repeated submissions cannot grow the
     // per-user record without limit. Preserve the newest messages.
     if (user.support_messages.length > 500) user.support_messages = user.support_messages.slice(-500);
     await saveDB(db);
-    return json({ ok: true, msg: 'Submitted successfully.' });
+    return json({ ok: true, duplicate: false, message_id: messageId, time: entry.time });
   }
 
   // ---------- GET /api/support/messages ----------
@@ -2412,9 +2698,9 @@ async function handleRequest(event, context) {
         const response = await fetch(base + '/rest/v1/financial_matching_orders?' + query.toString(), { headers: supabaseHeaders() });
         const rows = await response.json().catch(() => null);
         if (!response.ok || !Array.isArray(rows)) return json({ ok: false, code: 'ORDER_READ_UNAVAILABLE', msg: 'Order data temporarily unavailable. Please try again later.' }, 503);
-        const orders = rows.map(row => ({ order_id: row.id, symbol: row.base_asset + row.quote_asset, side: row.side,
-          price: row.price, quantity: row.quantity, remaining_quantity: row.remaining_quantity, status: row.status,
-          client_order_id: row.client_order_id, created_at: row.created_at, updated_at: row.updated_at }));
+        const orders = rows.map(row => ({ order_id: row.id, id: row.id, symbol: row.base_asset + row.quote_asset, side: row.side, type: 'limit',
+          price: row.price, quantity: row.quantity, amount: row.quantity, remaining_quantity: row.remaining_quantity, status: row.status,
+          client_order_id: row.client_order_id, created_at: row.created_at, time: row.created_at, updated_at: row.updated_at }));
         return json({ ok: true, orders });
       } catch (e) { return json({ ok: false, code: 'ORDER_READ_UNAVAILABLE', msg: 'Order data temporarily unavailable. Please try again later.' }, 503); }
     }
@@ -2592,15 +2878,30 @@ async function handleRequest(event, context) {
       if (route === 'support/reply' && verb === 'POST') return 'support.reply';
       if (route === 'push' && verb === 'POST') return 'announcements.manage';
       if (route === 'audit-logs' && verb === 'GET') return 'financial_audit.read';
+      if (route === 'spot-markets' && verb === 'GET') return 'system_config.read';
+      if (route === 'spot-markets' && verb === 'POST') return 'system_config.write';
       if (route === 'config' && verb === 'GET') return 'system_config.read';
       if (route === 'config' && verb === 'POST') return 'system_config.write';
       if (route === 'seconds-policy' && verb === 'GET') return 'seconds_policy.read';
       if (route === 'seconds-policy' && verb === 'POST') return 'seconds_policy.manage';
+      if (route === 'seconds-positions' && verb === 'GET') return 'seconds_policy.read';
       return null;
     })(sub, method);
     if (!requiredPermission) return json({ ok: false, code: 'ADMIN_ROUTE_NOT_FOUND', msg: 'Administrator route not found.' }, 404);
     if (!hasAdminPermission(adminMembership, requiredPermission)) {
       return json({ ok: false, code: 'ADMIN_PERMISSION_DENIED', permission: requiredPermission, msg: 'Your administrator role does not allow this action.' }, 403);
+    }
+    // A financial adjustment request is not an approval workflow. The current
+    // RPC applies the ledger mutation immediately, so keep this endpoint closed
+    // until a separately authorized maker-checker queue is implemented.
+    if (sub === 'user/balance' && method === 'POST') {
+      return json({ ok: false, code: 'FINANCIAL_ADJUSTMENT_APPROVAL_REQUIRED', msg: 'Direct administrator balance adjustments are disabled. Use the verified deposit workflow or wait for the dual-approval adjustment queue.' }, 409);
+    }
+    // Manual credit operators must also be allowed to inspect deposit history
+    // so the existing receipt/ledger record can be checked before crediting.
+    if (sub === 'deposit/confirm' && method === 'POST' &&
+        !hasAdminPermission(adminMembership, 'deposits.read')) {
+      return json({ ok: false, code: 'ADMIN_PERMISSION_DENIED', permission: 'deposits.read', msg: 'Deposit history read permission is required before manual credit.' }, 403);
     }
     const priorAuditFlush = await flushAdminAuditOutbox();
     if (priorAuditFlush.persistenceUnavailable) return json({ ok: false, code: 'AUDIT_OUTBOX_STATE_UNAVAILABLE', msg: 'Administrator audit delivery state could not be saved. Please retry.' }, 503);
@@ -2620,6 +2921,26 @@ async function handleRequest(event, context) {
         return json({ ok: true, policy: result.policy });
       } catch (_) {
         return json({ ok: false, code: 'SECONDS_POLICY_UNAVAILABLE', msg: 'Seconds policy is temporarily unavailable.' }, 503);
+      }
+    }
+    // Read-only queue for current open positions. Identity and permission are
+    // checked above by Supabase Auth/RBAC and rechecked inside the database RPC.
+    if (sub === 'seconds-positions' && method === 'GET') {
+      try {
+        const base = String(process.env.SUPABASE_URL || '').replace(/\/+$/, '');
+        if (!base || !supabaseStorageConfigured()) throw new Error('Seconds position store unavailable');
+        const response = await fetch(base + '/rest/v1/rpc/admin_read_seconds_open_positions_v1', {
+          method: 'POST', headers: supabaseHeaders(),
+          body: JSON.stringify({ p_actor_user_id: adminUserId }),
+          signal: AbortSignal.timeout(5000)
+        });
+        const result = await response.json().catch(() => null);
+        if (!response.ok || !result || result.ok !== true || !Array.isArray(result.positions)) {
+          return json({ ok: false, code: 'SECONDS_POSITIONS_UNAVAILABLE', msg: 'Open Seconds positions are temporarily unavailable.' }, 503);
+        }
+        return json({ ok: true, ...result });
+      } catch (_) {
+        return json({ ok: false, code: 'SECONDS_POSITIONS_UNAVAILABLE', msg: 'Open Seconds positions are temporarily unavailable.' }, 503);
       }
     }
     if (sub === 'seconds-policy' && method === 'POST') {
@@ -2678,6 +2999,87 @@ async function handleRequest(event, context) {
       }
     }
 
+    // Spot-market controls are permissioned, audited and persisted through PostgreSQL RPCs.
+    if (sub === 'spot-markets' && method === 'GET') {
+      try {
+        const base = String(process.env.SUPABASE_URL || '').replace(/\/+$/, '');
+        if (!base || !supabaseStorageConfigured()) throw new Error('Spot market store unavailable');
+        const response = await fetch(base + '/rest/v1/rpc/read_spot_market_snapshot_v1', {
+          method: 'POST', headers: supabaseHeaders(), body: '{}', signal: AbortSignal.timeout(5000)
+        });
+        const result = await response.json().catch(() => null);
+        if (!response.ok || !result || result.ok !== true || !Array.isArray(result.markets)) {
+          return json({ ok: false, code: 'SPOT_MARKETS_UNAVAILABLE', msg: 'Spot market configuration is temporarily unavailable.' }, 503);
+        }
+        return json({ ok: true, markets: result.markets });
+      } catch (_) {
+        return json({ ok: false, code: 'SPOT_MARKETS_UNAVAILABLE', msg: 'Spot market configuration is temporarily unavailable.' }, 503);
+      }
+    }
+    if (sub === 'spot-markets' && method === 'POST') {
+      const baseAsset = String(body.base_asset || '').trim().toUpperCase();
+      const quoteAsset = String(body.quote_asset || '').trim().toUpperCase();
+      const enabled = body.enabled;
+      const priceTick = String(body.price_tick ?? '').trim();
+      const quantityStep = String(body.quantity_step ?? '').trim();
+      const minQuantity = String(body.min_quantity ?? '').trim();
+      const minNotional = String(body.min_notional ?? '').trim();
+      const minLimitPrice = body.min_limit_price === null || body.min_limit_price === undefined || body.min_limit_price === ''
+        ? null : String(body.min_limit_price).trim();
+      const maxLimitPrice = body.max_limit_price === null || body.max_limit_price === undefined || body.max_limit_price === ''
+        ? null : String(body.max_limit_price).trim();
+      const reason = typeof body.reason === 'string' ? body.reason.trim() : '';
+      const requestId = String(body.request_id || '');
+      const assetPattern = /^[A-Z0-9]{2,16}$/;
+      const decimal = /^(?:0|[1-9]\d{0,19})(?:\.\d{1,18})?$/;
+      if (!assetPattern.test(baseAsset) || !assetPattern.test(quoteAsset) ||
+          !SUPPORTED_LEDGER_ASSETS.has(baseAsset) || !SUPPORTED_LEDGER_ASSETS.has(quoteAsset) || quoteAsset !== 'USDT' || baseAsset === quoteAsset ||
+          typeof enabled !== 'boolean' || !decimal.test(priceTick) || Number(priceTick) <= 0 ||
+          !decimal.test(quantityStep) || Number(quantityStep) <= 0 ||
+          !decimal.test(minQuantity) || Number(minQuantity) <= 0 ||
+          !decimal.test(minNotional) ||
+          (minLimitPrice !== null && (!decimal.test(minLimitPrice) || Number(minLimitPrice) <= 0)) ||
+          (maxLimitPrice !== null && (!decimal.test(maxLimitPrice) || Number(maxLimitPrice) <= 0)) ||
+          !reason || reason.length > 500 || !/^[A-Za-z0-9_-]{16,100}$/.test(requestId)) {
+        return json({ ok: false, code: 'SPOT_MARKET_CONFIG_INVALID', msg: 'Spot market parameters are invalid.' }, 400);
+      }
+      const normalized = {
+        base_asset: baseAsset, quote_asset: quoteAsset, enabled,
+        price_tick: priceTick, quantity_step: quantityStep, min_quantity: minQuantity,
+        min_notional: minNotional, min_limit_price: minLimitPrice,
+        max_limit_price: maxLimitPrice, reason
+      };
+      const requestHash = crypto.createHash('sha256').update(JSON.stringify(normalized)).digest('hex');
+      try {
+        const base = String(process.env.SUPABASE_URL || '').replace(/\/+$/, '');
+        if (!base || !supabaseStorageConfigured()) throw new Error('Spot market store unavailable');
+        const response = await fetch(base + '/rest/v1/rpc/admin_set_spot_market_v1', {
+          method: 'POST', headers: supabaseHeaders(),
+          body: JSON.stringify({
+            p_actor_user_id: adminUserId,
+            p_base_asset: baseAsset, p_quote_asset: quoteAsset, p_enabled: enabled,
+            p_price_tick: priceTick, p_quantity_step: quantityStep, p_min_quantity: minQuantity,
+            p_min_notional: minNotional, p_min_limit_price: minLimitPrice,
+            p_max_limit_price: maxLimitPrice, p_reason: reason,
+            p_request_id: requestId, p_request_hash: requestHash
+          }),
+          signal: AbortSignal.timeout(7000)
+        });
+        const result = await response.json().catch(() => null);
+        if (!response.ok || !result || result.ok !== true || !result.market) {
+          const status = response.status === 400 || response.status === 409 ? 409 : 503;
+          return json({
+            ok: false,
+            code: status === 409 ? 'SPOT_MARKET_CHANGE_REJECTED' : 'SPOT_MARKET_CHANGE_UNAVAILABLE',
+            msg: status === 409 ? 'Spot market update was rejected. Refresh the market list before retrying.' : 'Spot market update could not be confirmed. Refresh before retrying.'
+          }, status);
+        }
+        return json({ ok: true, market: result.market, replayed: result.replayed === true });
+      } catch (_) {
+        return json({ ok: false, code: 'SPOT_MARKET_CHANGE_UNAVAILABLE', msg: 'Spot market update could not be confirmed. Refresh before retrying.' }, 503);
+      }
+    }
+
     // GET /api/admin/stats
     if (sub === 'stats' && method === 'GET') {
       const users = Object.values(db.users);
@@ -2697,33 +3099,58 @@ async function handleRequest(event, context) {
       let list = Object.values(db.users);
       if (q) list = list.filter(function (u) { return String(u.email || '').toLowerCase().indexOf(q) > -1 || String(u.uid || '').toLowerCase().indexOf(q) > -1; });
       list = list.slice(0, 200);
-      try { await getLiveUsdtPrices(list.flatMap(function (u) { return Object.keys(u.balances || {}); })); } catch (_) {}
+      const canReadFinancialAudit = hasAdminPermission(adminMembership, 'financial_audit.read');
       let normalizedBalances = null;
-      if (financialPostgresReadsEnabled()) {
+      if (canReadFinancialAudit && financialPostgresReadsEnabled()) {
         try { normalizedBalances = await readAdminAccountBalances(list.map(function (u) { return String(u.uid); })); }
         catch (e) { return json({ ok: false, msg: 'Financial data temporarily unavailable. Please try again later.', code: 'FINANCIAL_READ_UNAVAILABLE' }, 503); }
       }
+      // Financial aggregates are not part of the general users.read projection.
+      if (canReadFinancialAudit) {
+        const priceBases = list.flatMap(function (u) {
+          const balances = normalizedBalances ? (normalizedBalances[String(u.uid)] || {}) : (u.balances || {});
+          return Object.keys(balances);
+        });
+        try { await getLiveUsdtPrices(priceBases); } catch (_) {}
+      }
       return json({ ok: true, users: list.map(function (u) {
-        const balances = normalizedBalances ? (normalizedBalances[String(u.uid)] || {}) : (u.balances || {});
-        return { uid: u.uid, email: u.email || '', kyc_status: (u.kyc && u.kyc.status) || 'unverified', total_usdt: totalUsdt(balances, livePriceCache.prices), created_at: u.created_at || '', frozen: !!u.frozen, twofa: !!u.twofa_enabled };
+        const record = { uid: u.uid, email: u.email || '', admin_auth_user_id: adminMembership.is_super_admin === true ? String(u.supabase_user_id || (Array.isArray(u.supabase_user_ids) ? u.supabase_user_ids[0] : '') || '') : '', kyc_status: (u.kyc && u.kyc.status) || 'unverified', created_at: u.created_at || '', frozen: !!u.frozen, twofa: !!u.twofa_enabled };
+        if (canReadFinancialAudit) {
+          const balances = normalizedBalances ? (normalizedBalances[String(u.uid)] || {}) : (u.balances || {});
+          record.total_usdt = totalUsdt(balances, livePriceCache.prices);
+        }
+        return record;
       }) });
     }
 
     // GET /api/admin/kyc — return only the minimum fields needed for review.
     // Never expose id_number, auth secrets, credentials, or raw user records.
+    // Include every in-review alias ('pending' plus legacy 'processing' /
+    // 'under_review') so imported records are never invisible to reviewers while
+    // the customer-side submission guard blocks resubmission.
     if (sub === 'kyc' && method === 'GET') {
-      const applications = Object.values(db.users || {}).filter(function (u) {
-        return u && u.kyc && u.kyc.status === 'pending';
-      }).map(function (u) {
+      const pendingUsers = Object.values(db.users || {}).filter(function (u) {
+        return u && u.kyc && isKycInReview(u.kyc.status);
+      }).sort(function (a, b) { return String(a.kyc.submitted_at || '') < String(b.kyc.submitted_at || '') ? 1 : -1; }).slice(0, 200);
+      const applications = await Promise.all(pendingUsers.map(async function (u) {
+        let document_url = '';
+        let document_preview_error = '';
+        if (u.kyc.document_path) {
+          try { document_url = await createSignedKycDocumentUrl(u.kyc.document_path, String(u.uid || '')); }
+          catch (_) { document_preview_error = 'Document preview unavailable; verify private storage configuration.'; }
+        }
         return {
           uid: String(u.uid || ''),
           email: String(u.email || ''),
           name: String(u.kyc.name || ''),
           id_type: String(u.kyc.id_type || ''),
-          status: 'pending',
-          submitted_at: String(u.kyc.submitted_at || '')
+          status: normalizeKycStatus(u.kyc.status),
+          submitted_at: String(u.kyc.submitted_at || ''),
+          document_url,
+          document_preview_error,
+          document_uploaded: !!u.kyc.document_path
         };
-      }).sort(function (a, b) { return a.submitted_at < b.submitted_at ? 1 : -1; }).slice(0, 200);
+      }));
       return json({ ok: true, kycs: applications, source: 'btcbox_state' });
     }
 
@@ -2740,16 +3167,57 @@ async function handleRequest(event, context) {
       delete safeUser.fund_password_salt;
       safeUser.fund_password = !!(u.fund_password_hash || u.fund_password);
       delete safeUser.sessions;
+      // Auth UUIDs and linked provider identity records are internal authentication data, not Admin user-detail fields.
+      delete safeUser.supabase_user_id;
+      delete safeUser.supabase_user_ids;
+      delete safeUser.auth_identities;
+      delete safeUser.auth_providers;
       delete safeUser.twofa_secret;
       delete safeUser.totp_secret;
       delete safeUser.recovery_codes;
+      // Do not let the broad users.read permission expose raw financial histories.
+      // Each history is projected separately under its matching read permission.
+      delete safeUser.deposits;
+      delete safeUser.withdrawals;
+      delete safeUser.earn_records;
+      delete safeUser.support_messages;
+      // Balances are financial data too; remove the copied legacy snapshot before permission-scoped projection.
+      delete safeUser.balances;
+      delete safeUser.financial_balance_source;
+      // KYC evidence and full identity numbers require the separate kyc.read permission.
+      // The general users.read detail endpoint exposes only the current verification state.
+      safeUser.kyc = { status: String(u.kyc && u.kyc.status || 'unsubmitted') };
+      safeUser.kyc_status = safeUser.kyc.status;
+      const canReadDeposits = hasAdminPermission(adminMembership, 'deposits.read');
+      const canReadWithdrawals = hasAdminPermission(adminMembership, 'withdrawals.read');
       if (financialPostgresReadsEnabled()) {
         try {
-          const normalized = await readAdminAccountBalances([String(u.uid)]);
-          safeUser.balances = normalized[String(u.uid)] || {};
-          safeUser.financial_balance_source = 'postgres_financial_ledger';
+          const normalized = await readFinancialAccountSnapshot(String(u.uid));
+          if (canReadDeposits) {
+            safeUser.balances = normalized.balances || {};
+            safeUser.financial_balance_source = 'postgres_financial_ledger';
+          }
+          if (canReadDeposits) {
+            safeUser.deposit_history = normalized.deposits.slice(0, 20);
+            safeUser.deposit_history_source = 'postgres_financial_ledger';
+          }
+          if (canReadWithdrawals) {
+            safeUser.withdrawal_history = normalized.withdrawals.slice(0, 20);
+            safeUser.withdrawal_history_source = 'postgres_financial_ledger';
+          }
         } catch (e) {
           return json({ ok: false, msg: 'Financial data temporarily unavailable. Please try again later.', code: 'FINANCIAL_READ_UNAVAILABLE' }, 503);
+        }
+      } else {
+        if (canReadDeposits) {
+          safeUser.financial_balance_source = 'legacy_state_retention_limited';
+          safeUser.balances = u.balances || {};
+          safeUser.deposit_history = Array.isArray(u.deposits) ? u.deposits.slice(-20).reverse() : [];
+          safeUser.deposit_history_source = 'legacy_state_retention_limited';
+        }
+        if (canReadWithdrawals) {
+          safeUser.withdrawal_history = Array.isArray(u.withdrawals) ? u.withdrawals.slice(-20).reverse() : [];
+          safeUser.withdrawal_history_source = 'legacy_state_retention_limited';
         }
       }
       return json({ ok: true, user: safeUser });
@@ -2902,9 +3370,14 @@ async function handleRequest(event, context) {
       const uid = String(body.uid || '').trim();
       const coin = String(body.coin || 'USDT').trim().toUpperCase();
       const amountText = parseMoneyInput(body.amount);
-      const reference = String(body.reference || '').trim().slice(0, 120);
+      const reference = String(body.reference || '').trim();
       const note = String(body.note || '').trim().slice(0, 300);
       const idempotencyKey = String(body.idempotency_key || '').trim();
+      // A manual credit must be traceable to a verified incoming transfer.
+      // Accept a chain transaction hash or another auditable receipt reference.
+      if (!reference || reference.length > 160 || /[\u0000-\u001f\u007f]/.test(reference)) {
+        return json({ ok: false, code: 'DEPOSIT_REFERENCE_REQUIRED', msg: 'A verified transaction hash or receipt reference is required before manual credit.' }, 400);
+      }
       const u = db.users[uid];
       if (!u) return json({ ok: false, msg: 'User not found.' }, 404);
       if (!['USDT', 'BTC', 'ETH', 'SOL', 'BNB', 'USDC'].includes(coin)) return json({ ok: false, msg: 'Coin not supported.' }, 400);
@@ -2983,6 +3456,7 @@ async function handleRequest(event, context) {
       if (!wdId || wdId.length > 100) return json({ ok: false, msg: 'Withdrawal record ID is invalid.' }, 400);
       if (!reference) return json({ ok: false, code: 'PAYOUT_REFERENCE_REQUIRED', msg: 'TxID / payout reference is required.' }, 400);
       if (reference.length > 160 || note.length > 300) return json({ ok: false, msg: 'Payout reference or note is too long.' }, 400);
+      if (/[\u0000-\u001f\u007f]/.test(reference)) return json({ ok: false, code: 'PAYOUT_REFERENCE_INVALID', msg: 'Payout reference cannot contain control characters.' }, 400);
       if (!supabaseStorageConfigured()) return json({ ok: false, code: 'FINANCIAL_RPC_NOT_CONFIGURED', msg: 'Financial database is not configured. Payout status was not changed.' }, 503);
       const adminId = adminUserId;
       if (!adminId) return json({ ok: false, code: 'ADMIN_ACTOR_NOT_CONFIGURED', msg: 'Administrator audit identity not configured. Payout status was not changed.' }, 503);
@@ -3007,12 +3481,15 @@ async function handleRequest(event, context) {
       const u = db.users[body.uid];
       if (!u) return json({ ok: false, msg: 'User not found.' }, 404);
       if (!u.kyc || typeof u.kyc !== 'object') u.kyc = {};
-      const status = String(u.kyc.status || 'unsubmitted');
+      const status = normalizeKycStatus(u.kyc.status);
       const override = body.admin_override === true;
       const reason = String(body.reason || '').trim().slice(0, 300);
-      if (status !== 'pending' && !override) return json({ ok: false, code: 'KYC_EXCEPTION_REQUIRED', msg: 'Only pending applications can be approved directly. Other states require the admin exception flow with a reason.' }, 409);
+      // Accept every in-review alias (pending / processing / under_review) as a
+      // normal approval target. Only non-in-review states (already approved,
+      // rejected, etc.) require the admin exception flow with a reason.
+      if (!isKycInReview(status) && !override) return json({ ok: false, code: 'KYC_EXCEPTION_REQUIRED', msg: 'Only applications awaiting review can be approved directly. Other states require the admin exception flow with a reason.' }, 409);
+      if (isKycInReview(status) && !u.kyc.document_path && !override) return json({ ok: false, code: 'KYC_DOCUMENT_REQUIRED', msg: 'A stored identity document image is required before approval.' }, 409);
       if (override && !reason) return json({ ok: false, code: 'ADMIN_REASON_REQUIRED', msg: 'A reason is required for admin exception approval.' }, 400);
-      if (status === 'pending' && override && !reason) return json({ ok: false, code: 'ADMIN_REASON_REQUIRED', msg: 'A reason is required for admin exception approval.' }, 400);
       u.kyc.status = 'approved';
       u.kyc.reviewed_by = adminUserId;
       u.kyc.reviewed_at = nowStr();
@@ -3045,35 +3522,37 @@ async function handleRequest(event, context) {
     // POST /api/admin/push 推送站内信
     if (sub === 'push' && method === 'POST') {
       const content = String(body.content || '').trim();
+      const requestId = String(body.request_id || '').trim();
       if (!content || content.length > 2000) return json({ ok: false, msg: 'Message content is required and cannot exceed 2,000 characters.' }, 400);
+      // A stable request ID makes broadcast push idempotent: without it a double
+      // click (or a retry after a lost response) would duplicate the same message
+      // in every recipient's support conversation.
+      if (!/^[A-Za-z0-9_-]{16,100}$/.test(requestId)) return json({ ok: false, code: 'IDEMPOTENCY_KEY_REQUIRED', msg: 'A valid message request ID is required. No message was sent.' }, 400);
+      if (!Array.isArray(db.recent_admin_push_requests)) db.recent_admin_push_requests = [];
+      const priorPush = db.recent_admin_push_requests.find(function (entry) { return entry && entry.request_id === requestId; });
+      if (priorPush) {
+        if (priorPush.content_hash !== crypto.createHash('sha256').update(content).digest('hex') || String(priorPush.target || '') !== String(body.uid || 'all')) {
+          return json({ ok: false, code: 'ADMIN_PUSH_IDEMPOTENCY_CONFLICT', msg: 'This request ID was already used for a different message. No message was sent.' }, 409);
+        }
+        return json({ ok: true, duplicate: true, msg: 'This message was already sent. It was not sent again.' });
+      }
       if (body.uid) {
         const u = db.users[body.uid];
         if (!u) return json({ ok: false, msg: 'User not found.' }, 404);
         if (!Array.isArray(u.support_messages)) u.support_messages = [];
-        u.support_messages.push({ id: 'M' + Date.now() + crypto.randomBytes(3).toString('hex'), from: 'admin', content: content, time: nowStr() });
+        u.support_messages.push({ id: 'M' + Date.now() + crypto.randomBytes(3).toString('hex'), from: 'admin', content: content, time: nowStr(), request_id: requestId });
       } else {
         Object.values(db.users).forEach(function (u) {
           if (!Array.isArray(u.support_messages)) u.support_messages = [];
-          u.support_messages.push({ id: 'M' + Date.now() + crypto.randomBytes(3).toString('hex'), from: 'admin', content: content, time: nowStr() });
+          u.support_messages.push({ id: 'M' + Date.now() + crypto.randomBytes(3).toString('hex'), from: 'admin', content: content, time: nowStr(), request_id: requestId });
         });
       }
-      await auditAdmin('admin_push_message', body.uid || 'all', JSON.stringify({ target: body.uid ? 'single_user' : 'all_users', length: content.length }), adminUserId);
+      db.recent_admin_push_requests.push({ request_id: requestId, content_hash: crypto.createHash('sha256').update(content).digest('hex'), target: String(body.uid || 'all'), time: nowStr() });
+      if (db.recent_admin_push_requests.length > 200) db.recent_admin_push_requests = db.recent_admin_push_requests.slice(-200);
+      await auditAdmin('admin_push_message', body.uid || 'all', JSON.stringify({ target: body.uid ? 'single_user' : 'all_users', length: content.length, request_id: requestId }), adminUserId);
       await saveDB(db);
       const auditFlush = await flushAdminAuditOutbox();
-      return json({ ok: true, audit_sync_pending: auditFlush.pending, msg: 'Message sent.' });
-    }
-
-    // POST /api/admin/support/reply 回复客服
-    if (sub === 'support/reply' && method === 'POST') {
-      const u = db.users[body.uid];
-      if (!u) return json({ ok: false, msg: 'User not found.' });
-      if (!Array.isArray(u.support_messages)) u.support_messages = [];
-      const supportMessage = { id: 'M' + Date.now() + crypto.randomBytes(3).toString('hex'), from: 'admin', content: body.content || '', time: nowStr() };
-      u.support_messages.push(supportMessage);
-      await auditAdmin('support_reply', u.uid, JSON.stringify({ message_id: supportMessage.id, length: String(body.content || '').length }), adminUserId);
-      await saveDB(db);
-      const auditFlush = await flushAdminAuditOutbox();
-      return json({ ok: true, audit_sync_pending: auditFlush.pending, msg: 'Reply sent.' });
+      return json({ ok: true, duplicate: false, audit_sync_pending: auditFlush.pending, msg: 'Message sent.' });
     }
 
     // GET /api/admin/addresses — sensitive fields visible only to authenticated admin
@@ -3136,9 +3615,15 @@ async function handleRequest(event, context) {
       if (uidFilter.length > 100 || (uidFilter && !/^[A-Za-z0-9_:-]{1,100}$/.test(uidFilter))) return json({ ok: false, code: 'AUDIT_UID_FILTER_INVALID', msg: 'Audit user filter is invalid.' }, 400);
       if (before && !isPositivePostgresBigintString(before)) return json({ ok: false, code: 'AUDIT_CURSOR_INVALID', msg: 'Audit page cursor is invalid.' }, 400);
 
-      // Explicit opt-in switches the viewer to the canonical append-only PostgreSQL
-      // audit table. Never silently fall back to the retention-limited state document.
-      if (process.env.ADMIN_AUDIT_POSTGRES_READS_ENABLED === '1') {
+      // When normalized financial reads are active, financial mutations and the
+      // customer balance/history views are sourced from PostgreSQL. The audit viewer
+      // must then use that same canonical append-only table automatically; otherwise
+      // a successful ledger credit/debit could be invisible in the admin audit page.
+      // The explicit audit flag remains available for audit-only cutover.
+      const postgresAuditReadsRequired =
+        process.env.ADMIN_AUDIT_POSTGRES_READS_ENABLED === '1' ||
+        financialPostgresReadsEnabled();
+      if (postgresAuditReadsRequired) {
         try {
           const result = await readAdminAuditLogPage({ limit, action: actionFilter, uid: uidFilter, before });
           return json({
@@ -3185,7 +3670,7 @@ async function handleRequest(event, context) {
 
     // GET /api/admin/config
     if (sub === 'config' && method === 'GET') {
-      return json({ ok: true, deposit_addresses: safeDepositAddresses(db.deposit_addresses), announcement: db.announcement || '' });
+      return json({ ok: true, deposit_addresses: safeDepositAddresses(db.deposit_addresses), withdrawal_fees: safeWithdrawalFees(db.withdrawal_fees), announcement: db.announcement || '' });
     }
 
     // POST /api/admin/config 更新充值地址和公告。只接受已知网络且格式有效的地址，
@@ -3207,22 +3692,41 @@ async function handleRequest(event, context) {
         if (!updates || typeof updates !== 'object' || Array.isArray(updates)) return json({ ok: false, msg: 'Invalid deposit address configuration format.' }, 400);
         for (const key of Object.keys(updates)) {
           if (!Object.prototype.hasOwnProperty.call(allowedDepositKeys, key)) return json({ ok: false, msg: 'Unsupported deposit network configuration found.' }, 400);
-          const value = typeof updates[key] === 'string' ? updates[key].trim() : '';
-          if (!value || /PLACEHOLDER|TPLACEHOLDER/i.test(value) || !allowedDepositKeys[key](value)) {
+          if (typeof updates[key] !== 'string') return json({ ok: false, msg: 'Invalid deposit address format: ' + key }, 400);
+          const value = updates[key].trim();
+          const currentValue = typeof (db.deposit_addresses || {})[key] === 'string' ? db.deposit_addresses[key].trim() : '';
+          // Empty values deliberately clear/disable an address (fail-closed).
+          // This also lets admins save fee settings before every network is configured.
+          if (!value) { if (currentValue !== '') changedKeys.push(key); continue; }
+          if (/PLACEHOLDER|TPLACEHOLDER/i.test(value) || !allowedDepositKeys[key](value)) {
             return json({ ok: false, msg: 'Invalid deposit address format: ' + key }, 400);
           }
-          changedKeys.push(key);
+          if (currentValue !== value) changedKeys.push(key);
         }
       }
       if (updates !== undefined) db.deposit_addresses = Object.assign({}, db.deposit_addresses, Object.fromEntries(Object.keys(updates).map(function (key) { return [key, updates[key].trim()]; })));
+      const feeUpdates = body.withdrawal_fees;
+      const changedFeeKeys = [];
+      if (feeUpdates !== undefined) {
+        if (!feeUpdates || typeof feeUpdates !== 'object' || Array.isArray(feeUpdates)) return json({ ok: false, msg: 'Invalid withdrawal fee configuration format.' }, 400);
+        const nextFees = safeWithdrawalFees(db.withdrawal_fees);
+        for (const coin of Object.keys(feeUpdates)) {
+          if (!Object.prototype.hasOwnProperty.call(DEFAULT_WITHDRAWAL_FEES, coin)) return json({ ok: false, msg: 'Unsupported withdrawal fee asset.' }, 400);
+          const value = typeof feeUpdates[coin] === 'string' ? parseMoneyInput(feeUpdates[coin].trim()) : null;
+          if (value === null || compareMoney(value, '1000000000000') > 0) return json({ ok: false, msg: 'Invalid withdrawal fee: ' + coin }, 400);
+          if (nextFees[coin] !== value) changedFeeKeys.push(coin);
+          nextFees[coin] = value;
+        }
+        db.withdrawal_fees = nextFees;
+      }
       if (typeof body.announcement === 'string') {
         if (body.announcement.length > 2000) return json({ ok: false, msg: 'Announcement cannot exceed 2,000 characters.' }, 400);
         db.announcement = body.announcement.trim();
       }
-      await auditAdmin('system_config_update', 'system', JSON.stringify({ deposit_address_keys: changedKeys, announcement_updated: typeof body.announcement === 'string' }), adminUserId);
+      await auditAdmin('system_config_update', 'system', JSON.stringify({ deposit_address_keys: changedKeys, withdrawal_fee_assets: changedFeeKeys, announcement_updated: typeof body.announcement === 'string' }), adminUserId);
       await saveDB(db);
       const auditFlush = await flushAdminAuditOutbox();
-      return json({ ok: true, audit_sync_pending: auditFlush.pending, msg: 'Configuration updated.', deposit_addresses: safeDepositAddresses(db.deposit_addresses), announcement: db.announcement });
+      return json({ ok: true, audit_sync_pending: auditFlush.pending, msg: 'Configuration updated.', deposit_addresses: safeDepositAddresses(db.deposit_addresses), withdrawal_fees: safeWithdrawalFees(db.withdrawal_fees), announcement: db.announcement });
     }
 
 
@@ -3258,7 +3762,7 @@ async function handleRequest(event, context) {
         try {
           const base = process.env.SUPABASE_URL.replace(/\/+$/, '');
           const query = new URLSearchParams({
-            select: 'id,user_id,base_asset,quote_asset,side,price,quantity,remaining_quantity,status,created_at,updated_at',
+            select: 'id,user_id,base_asset,quote_asset,side,price,quantity,remaining_quantity,status,client_order_id,created_at,updated_at',
             order: 'created_at.desc', limit: '200'
           });
           const response = await fetch(base + '/rest/v1/financial_matching_orders?' + query.toString(), { headers: supabaseHeaders() });
@@ -3267,10 +3771,17 @@ async function handleRequest(event, context) {
           const usersById = new Map(Object.values(db.users).map(function (u) { return [String(u.uid), u]; }));
           const orders = rows.map(function (o) {
             const owner = usersById.get(String(o.user_id));
-            return { id: o.id, uid: o.user_id, email: owner ? (owner.email || '') : '',
-              symbol: o.base_asset + '/' + o.quote_asset, side: o.side, type: 'limit', price: o.price,
-              amount: o.quantity, remaining_quantity: o.remaining_quantity,
-              status: o.status === 'cancelled' ? 'canceled' : o.status, time: o.created_at, updated_at: o.updated_at };
+            // Project the same canonical field names/values as the customer order
+            // history (order_id, symbol without slash, quantity, created_at, raw
+            // DB status) plus admin-only identifiers (uid, email) and legacy
+            // aliases (id, amount, time) so neither view diverges.
+            return {
+              order_id: o.id, id: o.id, uid: o.user_id, email: owner ? (owner.email || '') : '',
+              symbol: o.base_asset + o.quote_asset, side: o.side, type: 'limit', price: o.price,
+              quantity: o.quantity, amount: o.quantity, remaining_quantity: o.remaining_quantity,
+              client_order_id: o.client_order_id,
+              status: o.status, time: o.created_at, created_at: o.created_at, updated_at: o.updated_at
+            };
           });
           return json({ ok: true, orders: orders, source: 'postgres_financial_matching' });
         } catch (e) {
@@ -3369,6 +3880,12 @@ exports._test = {
   getPublishableKey: getPublishableKey,
   validateFundPassword: validateFundPassword,
   validateAdminPasswordStrength: validateAdminPasswordStrength,
+  kycSubmissionBlock: kycSubmissionBlock,
+  normalizeKycStatus: normalizeKycStatus,
+  isKycInReview: isKycInReview,
+  isKycApproved: isKycApproved,
+  KYC_IN_REVIEW_STATUSES: KYC_IN_REVIEW_STATUSES,
+  KYC_APPROVED_STATUSES: KYC_APPROVED_STATUSES,
   parseMoneyInput: parseMoneyInput,
   compareMoney: compareMoney,
   addMoney: addMoney,
@@ -3376,6 +3893,7 @@ exports._test = {
   withdrawalRequiresAdminReview: withdrawalRequiresAdminReview,
   estimateUsdtValue: estimateUsdtValue,
   redactAdminAuditDetail: redactAdminAuditDetail,
+  normalizeReferenceTimestamp: normalizeReferenceTimestamp,
   secCounterIsLocked: secCounterIsLocked,
   secCounterRecordFailure: secCounterRecordFailure,
   secCounterReset: secCounterReset,

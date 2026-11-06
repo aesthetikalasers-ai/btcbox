@@ -3,6 +3,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
+const vm = require('node:vm');
 
 const root = path.resolve(__dirname, '..');
 const api = fs.readFileSync(path.join(root, 'api-core.js'), 'utf8');
@@ -13,7 +14,11 @@ const policyMigration = fs.readFileSync(path.join(root, 'supabase/sql/0025_secon
 test('seconds order boundaries are enforced by the server, not accepted from client policy fields', () => {
   assert.match(api, /const SECONDS_ALLOWED_SYMBOLS = new Set\(\['BTC', 'ETH', 'SOL', 'BNB'\]\)/);
   assert.match(api, /Number\.isSafeInteger\(durationSec\) \|\| durationSec <= 0/);
-  assert.match(api, /compareMoney\(amount, '1000000000000'\) > 0/);
+  const secondsOrderStart = api.indexOf("if (path === 'seconds/order' && method === 'POST')");
+  const secondsOrderEnd = api.indexOf("// ---------- POST /api/seconds/settle ----------", secondsOrderStart);
+  const secondsOrderHandler = api.slice(secondsOrderStart, secondsOrderEnd);
+  assert.match(secondsOrderHandler, /amount === null \|\| compareMoney\(amount, '0'\) <= 0/);
+  assert.doesNotMatch(secondsOrderHandler, /1000000000000/); // The active database policy is the sole max-stake authority.
   const start = api.indexOf("if (path === 'seconds/order' && method === 'POST')");
   const end = api.indexOf("// ---------- POST /api/seconds/settle ----------", start);
   assert.ok(start >= 0 && end > start, 'seconds order handler must exist');
@@ -46,7 +51,7 @@ test('settlement price and payout policy remain server/database authoritative', 
   assert.ok(start >= 0 && end > start, 'seconds settlement handler must exist');
   const handler = api.slice(start, end);
   assert.match(handler, /fetchSecondsReferencePrice\(symbol\)/);
-  assert.match(handler, /p_settle_price: String\(settleRef\.price\)/);
+  assert.match(handler, /p_settle_price: settleRef \? String\(settleRef\.price\) : null/);
   assert.doesNotMatch(handler, /body\.settle_price/i);
   assert.match(initialMigration, /round\(v_pos\.amount\*0\.85,18\)/);
   assert.match(settlementMigration, /round\(v_pos\.amount\*0\.85,18\)/);
@@ -62,3 +67,4 @@ test('seconds financial mutations stay behind the full financial cutover gate', 
   assert.match(api.slice(order, settle), /if \(!financialWritesEnabled\(\)\)/);
   assert.match(api.slice(settle, positions), /if \(!financialWritesEnabled\(\)\)/);
 });
+

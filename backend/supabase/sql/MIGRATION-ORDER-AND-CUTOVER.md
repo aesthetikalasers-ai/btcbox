@@ -1,74 +1,88 @@
 # BTCBOX fresh database bootstrap and SQL reference
 
-> **Current setup decision:** the BTCBOX database is treated as a new empty database with no customer records. Do not import legacy balances, run staging/quarantine workflows, or perform a historical data migration. Use `backend/scripts/bootstrap-empty-database.sh` for the one-time fresh-schema install. It requires explicit confirmation, refuses an existing BTCBOX schema, and runs only the canonical operational SQL list. It does not write to a database during source validation.
+Status: source-only SQL inventory and bootstrap instructions. The files are not proof of a hosted database installation. The user has confirmed the project database is empty; this workflow creates a fresh BTCBOX schema and is not a legacy-data migration.
 
-> **Excluded from the fresh operational setup:** `0016`–`0019` obsolete chain-verification and legacy staging/import SQL have been deleted; the read-only `0020` ledger diagnostic has been moved to `backend/supabase/diagnostics/financial-ledger-integrity.sql`. The manual deposit path is `admin_manual_deposit_atomic`; no user-created pending deposit or automatic chain watcher is part of this workflow.
+## Canonical fresh-schema bootstrap
 
-> **编号约定（phase2）**: 本目录下迁移已统一重命名为 `0001_xxx.sql` … `0022_xxx.sql`，按编号升序应用即可。`0001_btcbox_state_cas.sql` 为基础，`0002–0014` 为有序业务 RPC；旧 `0015` 单用户单未完成订单限制已废弃，`0016` 为可选自动化链上验证，`0017–0020` 为 staging/对账，`0021` 为管理员审计日志 append-only 表，`0022` 为提现人工审核状态扩展。用 `scripts/check_migration_status.py` 校验编号连续性与已应用状态。
+Use `backend/scripts/bootstrap-empty-database.sh` only against a verified empty BTCBOX schema. The script:
+- requires `DATABASE_URL` and `BTCBOX_BOOTSTRAP_CONFIRM=YES`;
+- parses the URL hostname and refuses remote targets unless `BTCBOX_ALLOW_REMOTE_BOOTSTRAP=YES` is explicitly supplied;
+- checks that no BTCBOX-owned tables already exist before applying SQL;
+- applies the 24 canonical SQL files explicitly allowlisted in `backend/scripts/bootstrap-empty-database.sh`; excluded legacy/optional files and read-only diagnostics are not applied;
+- stops on the first SQL error and never prints the database URL.
 
+The script does not clear or overwrite an existing schema. It is not idempotent by design: a second run sees the installed BTCBOX tables and refuses. Do not run it against a production database without a separately approved maintenance operation.
 
-Apply these migrations to a dedicated staging project in dependency order. These files are migrations, not read-only reports; audit scripts and staging drill outputs are not migrations. Complete the checks before production cutover.
+## Exact source migration order
 
-1. `financial_ledger_v1.sql`
-2. `financial_lifecycle_v2.sql`
-3. `financial_admin_adjustment_v1.sql`
-4. `financial_earn_redemption_idempotency_v4.sql`
-5. `financial_earn_policy_v5.sql`
-6. `financial_admin_manual_deposit_v1.sql`
-7. `financial_spot_trade_v3.sql`
-8. `financial_matching_engine_v1.sql`
-9. `financial_read_api_v1.sql` (base normalized account snapshot RPC)
-10. `financial_read_api_earn_v1.sql` (extends the account snapshot with earn positions)
-11. `financial_admin_read_api_v1.sql`
-12. `financial_admin_account_read_api_v1.sql`
-13. `financial_seconds_contracts_v1.sql` — creates the Seconds lifecycle RPCs and extends the financial operation type constraint.
+The current canonical source inventory is:
 
-The lifecycle `confirm_deposit_atomic` RPC is intentionally fail-closed and cannot credit a deposit without trusted verification. The intended deposit-credit path for the current manual-review business model is the separately audited `admin_manual_deposit_atomic` RPC; manual credits must use the separately audited `admin_manual_deposit_atomic` RPC. The `financial_deposit_chain_verification_v3.sql` is optional when the deployment does not enable automated chain verification, but it is required before enabling that automated verification path.
+1. `0001_btcbox_state_cas.sql`
+2. `0002_financial_ledger_v1.sql`
+3. `0003_financial_lifecycle_v2.sql`
+4. `0004_financial_admin_adjustment_v1.sql`
+5. `0005_financial_earn_redemption_idempotency_v4.sql`
+6. `0006_financial_earn_policy_v5.sql`
+7. `0007_financial_admin_manual_deposit_v1.sql`
+8. `0008_financial_matching_engine_v1.sql`
+9. `0010_financial_read_api_v1.sql`
+10. `0011_financial_read_api_earn_v1.sql`
+11. `0012_financial_admin_read_api_v1.sql`
+12. `0013_financial_admin_account_read_api_v1.sql`
+13. `0014_financial_seconds_contracts_v1.sql`
+14. `0021_admin_audit_log_append_only_v1.sql`
+15. `0022_withdrawal_admin_review_status_v1.sql`
+16. `0023_btcbox_shared_rate_limit_v1.sql`
+17. `0024_seconds_settlement_idempotency_v1.sql`
+18. `0025_seconds_policy_versioning_v1.sql`
+19. `0026_admin_rbac_private_store_v1.sql`
+20. `0027_withdrawal_manual_payout_completion_v1.sql`
+21. `0028_admin_rbac_service_rpc_wrappers_v1.sql`
+22. `0029_withdrawal_fee_quote_idempotency_v1.sql`
+23. `0030_seconds_admin_open_positions_read_v1.sql`
+24. `0031_seconds_policy_duration_alignment_v1.sql`
+25. `0032_admin_audit_log_filter_indexes_v1.sql`
 
-Legacy staging/import SQL has been removed because this project has no customer data to import. The read-only ledger integrity query is retained separately at `backend/supabase/diagnostics/financial-ledger-integrity.sql` and is never part of the bootstrap.
+The legacy `0008_financial_spot_trade_v3.sql` direct-fill RPC was removed because it bypassed the order book and was not called by the API. The durable matching engine now occupies `0008_financial_matching_engine_v1.sql` and is the only supported spot write path. Sequence `0009` is retired and intentionally omitted; the offline migration checker explicitly recognizes retired slots `0009` and `0015`–`0020`. The bootstrap allowlist contains only live numbered SQL files and is tested against the actual source inventory.
 
-Before cutover:
+## Intentionally excluded legacy/optional material
 
-- Confirm exact function signatures using the static audit and PostgreSQL staging drill.
-- Confirm service-role-only execution for all money-moving RPCs and deny direct browser-role table access.
-- Import/restore historical state into staging, reconcile balances and histories, and verify rollback.
-- Test idempotent retries and concurrent requests for deposits, withdrawals, earn, spot trade, and seconds contracts.
-- Keep financial writes disabled until all relevant reads and writes use the same authoritative ledger and the full-cutover approval is explicit.
+The old `0015` single-open-position restriction is not part of the current business rule; multiple unfinished Seconds positions are allowed unless the active policy sets an explicit per-user count limit. The old `0016` automated chain-verification path and `0017`–`0019` staging/import/reconciliation scripts were removed from the canonical source tree. The read-only `0020` ledger diagnostic is maintained separately under `backend/supabase/diagnostics/financial-ledger-integrity.sql` and is not a migration.
 
-## Withdrawal review and audit contract corrections
+Manual deposits follow the chosen half-manual workflow: staff verifies the transfer and invokes the audited manual-credit operation. No user-created pending deposit or automatic chain watcher is required.
 
-The ordered migrations retain a single canonical `public.financial_audit_log` schema from
-`0002_financial_ledger_v1.sql`. Migration `0021` must map the legacy administrator
-audit RPC arguments onto `actor_id`, `subject_user_id`, `action`, `object_type`,
-`object_id`, `reason`, and `metadata`; it must not create a competing set of
-`uid/by/detail/meta` columns.
+## Key dependency and behavior notes
 
-Migration `0022` extends `public.withdrawal_requests` (not a separate
-`public.withdrawals` table), adds the persisted `require_admin_review` and
-`request_hash` fields, and changes the canonical RPC to the single 10-argument
-signature used by the API. The function must retain `apply_financial_operation`
-inside the same transaction as the withdrawal row insert. Both `pending` and
-`pending_admin_review` are eligible for the existing atomic review RPC and the
-administrator read snapshot.
+- `0001`–`0007` establish the state/CAS, financial ledger and lifecycle RPCs, admin adjustment and manual credit; `0008` is the sole canonical spot limit-order matching engine; `0010`–`0014` establish financial read APIs and the Seconds base schema.
+- `0021` extends the canonical financial audit contract; it must not create a second competing audit-log schema.
+- `0022` extends the existing withdrawal review/request contract.
+- `0023` adds shared server-side rate limiting before routes that consume its RPC.
+- `0024` adds Seconds settlement request-hash idempotency and depends on the Seconds base schema in `0014`.
+- `0025` adds immutable Seconds policy versions, active pointer, policy audit and per-position payout/policy snapshots. New orders validate the active policy and snapshot it in the same transaction as the reserve.
+- `0026` adds the private admin membership/permission store, Super Admin bootstrap and delegated-admin lifecycle.
+- `0027` adds staff-paid completion for an already approved withdrawal; it records the payout reference and status/audit transition without broadcasting or debiting a second time.
+- `0028` adds service-role-only PostgREST wrappers for admin membership and atomic Seconds policy version activation.
+- `0029` makes withdrawal fee quotes replay-safe: existing requests retain their stored fee and review snapshot, while new requests must match the current server quote.
+- `0030` adds a bounded, read-only administrator queue for open Seconds positions. It rechecks active `seconds_policy.read` membership inside PostgreSQL, returns at most 100 operational rows plus aggregate exposure/overdue counts, and cannot mutate positions or financial balances.
+- `0031` removes the obsolete fixed Seconds position-duration allowlist; positive duration values are now governed by the active immutable policy, matching the admin policy RPC.
+- `0032` adds two non-destructive indexes on `public.financial_audit_log` — `(action, id desc)` and `(subject_user_id, id desc)` — matching the admin audit-logs query access paths (filtered by action or subject, ordered by id desc). Safe to re-run via `IF NOT EXISTS`.
 
-Do not apply these migrations to production as part of source-code validation.
-Run the complete ordered migration chain on an isolated staging database, then test
-same-key/same-payload retries, same-key/payload-mismatch rejection, concurrent
-withdrawal creation, approval, rejection/refund, and the administrator review queue.
+## Admin bootstrap and financial safety
 
-## Later prepared migrations (0023–0027)
+The initial Super Admin is not seeded automatically. First, the intended administrator must register through the configured Supabase Auth provider. The project owner then verifies the exact Auth UUID and invokes the owner-only `private.bootstrap_super_admin_v1` operation with a reason and change reference from a PostgreSQL owner session. The function requires `session_user = postgres`, checks the Auth user exists and refuses if a Super Admin already exists.
 
-The numbered SQL files added after the original 0001–0022 sequence are separate prepared migrations; their presence in Git does not mean they are installed in any database.
+Do not put a service-role key in the browser. Private tables remain unavailable to browser roles; the backend uses narrow RPC wrappers after validating Supabase Auth.
 
-15. `0023_btcbox_shared_rate_limit_v1.sql` — creates the server-side shared fixed-window limiter. Apply before enabling API routes that call `btcbox_rate_limit_consume_v1`; it denies browser-role table access and grants the RPC to the server role only.
-16. `0024_seconds_settlement_idempotency_v1.sql` — replaces the Seconds settlement RPC with request-hash idempotency. Requires the Seconds tables/RPCs from `0014_financial_seconds_contracts_v1.sql`. Requires only the Seconds tables/RPCs from that same core schema; multiple simultaneous open positions per user are supported and no per-user open-position unique index is permitted.
-17. `0025_seconds_policy_versioning_v1.sql` — adds immutable versioned policy, active pointer, append-only policy audit, and per-position payout/policy snapshots. Apply only after the Seconds base and settlement-idempotency migrations have been validated. It does not implement administrator policy authoring/approval/activation APIs and does not enable financial cutover.
-18. `0026_admin_rbac_private_store_v1.sql` — creates the private administrator membership, permission-event, security-audit and request-idempotency store. It seeds permission definitions only; it does not create an administrator. Super Admin provisioning is a separate owner-controlled operation, and the API must verify Supabase Auth and load membership before these permissions are effective.
-19. `0027_withdrawal_manual_payout_completion_v1.sql` — adds staff-paid completion after an approved withdrawal. A non-empty TxID/reference is mandatory; the RPC is idempotent for the same reference, rejects a conflicting reference, changes status and appends audit only, and does not broadcast or debit funds again. It preserves the pending/review/approved states from `0022`.
-20. `0028_admin_rbac_service_rpc_wrappers_v1.sql` — adds narrow service-role-only PostgREST wrappers for the private administrator membership RPCs. The private schema remains unexposed and browser roles receive no execute rights.
+All financial writes and matching remain fail-closed during source QA. Applying SQL does not itself authorize enabling deposits, withdrawals, spot matching, Seconds orders or settlement.
 
-Do not interpret the filename sequence as permission to apply every file blindly. The existing staging/import and reconciliation migrations remain conditional workflow steps, and optional chain verification remains conditional on enabling that product path. Follow each migration's header and the staging drill.
+## Validation and release gates
 
-### Migration registry mapping warning
+Source CI verifies migration inventory, shell syntax, bootstrap safety gates and source-level RPC contracts. It does not execute PostgreSQL DDL. Before any hosted install:
+- create or use a disposable empty PostgreSQL/Supabase environment;
+- apply all 24 files in the exact order above and stop on any error;
+- verify function signatures, RLS, grants, service-role-only execution and private schema exposure;
+- bootstrap the intended Super Admin and test delegated admin permissions;
+- test manual credit, withdrawal approval/payout completion, spot order idempotency and Seconds order/settlement concurrency/replay without enabling production financial cutover;
+- preserve evidence and the exact SQL/source SHA.
 
-The live Supabase migration registry may use timestamp versions rather than these four-digit source filenames. The migration checker intentionally refuses to compare timestamp registry versions directly with four-digit filenames. Do not infer that `0001`–`0025` have or have not been applied from a simple lexical comparison; verify the actual schema, function signatures, and a reviewed explicit mapping in an isolated environment.
+Never infer live migration state by comparing timestamp registry versions with four-digit source filenames. `backend/scripts/check_migration_status.py` intentionally refuses that unsafe comparison without an explicit reviewed mapping.

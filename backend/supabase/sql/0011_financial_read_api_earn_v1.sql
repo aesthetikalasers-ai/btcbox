@@ -10,6 +10,7 @@ as $$
 declare
   v_balances jsonb;
   v_withdrawals jsonb;
+  v_deposits jsonb;
   v_earn_records jsonb;
 begin
   if coalesce(p_user_id, '') = '' or length(p_user_id) > 128 then
@@ -45,6 +46,27 @@ begin
 
   select coalesce(jsonb_agg(jsonb_build_object(
     'id', id,
+    'coin', asset,
+    'amount', amount,
+    'network', network,
+    'status', status,
+    'time', created_at,
+    'confirmed_at', confirmed_at,
+    'txid', coalesce(txid, ''),
+    'reference', coalesce(reference, ''),
+    'source', source
+  ) order by created_at desc), '[]'::jsonb)
+  into v_deposits
+  from (
+    select id, asset, amount, network, status, created_at, confirmed_at, txid, reference, source
+    from public.deposit_records
+    where user_id = p_user_id
+    order by created_at desc
+    limit 20
+  ) recent_deposits;
+
+  select coalesce(jsonb_agg(jsonb_build_object(
+    'id', id,
     'product_id', product_id,
     'product', case product_id
       when 'demand' then asset || ' 活期'
@@ -76,6 +98,7 @@ begin
     'ok', true,
     'balances', v_balances,
     'withdrawals', v_withdrawals,
+    'deposits', v_deposits,
     'earn_records', v_earn_records
   );
 end;

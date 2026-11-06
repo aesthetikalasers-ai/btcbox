@@ -46,6 +46,29 @@ export class ApiError extends Error {
   }
 }
 
+export async function getSpotMarketPairs(signal?: AbortSignal): Promise<SpotMarketPair[]> {
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE_URL}/market/pairs`, {
+      method: "GET", credentials: "include", headers: { Accept: "application/json" },
+      cache: "no-store", signal,
+    });
+  } catch (error) {
+    if (error instanceof Error && error.name === "AbortError") throw error;
+    throw new ApiError("Unable to load the BTCBOX spot-market catalogue.", 0, "NETWORK_ERROR");
+  }
+  const payload = await response.json().catch(() => null) as { ok?: boolean; markets?: SpotMarketPair[]; msg?: string; code?: string } | null;
+  if (!response.ok || !payload || payload.ok !== true || !Array.isArray(payload.markets)) {
+    throw new ApiError(payload?.msg || "Spot-market catalogue is unavailable.", response.status, payload?.code);
+  }
+  return payload.markets.filter(market =>
+    market && market.enabled === true && typeof market.base_asset === "string" &&
+    market.quote_asset === "USDT" && typeof market.price_tick === "string" &&
+    typeof market.quantity_step === "string" && typeof market.min_quantity === "string" &&
+    typeof market.min_notional === "string"
+  );
+}
+
 export async function getMarkets(signal?: AbortSignal): Promise<MarketTicker[]> {
   let response: Response;
   try {
@@ -177,6 +200,19 @@ export interface AccountBalance {
   valuation_available?: boolean;
 }
 
+export interface DepositRecord {
+  id?: string;
+  coin: string;
+  amount: number | string;
+  network?: string;
+  status: string;
+  time?: string;
+  confirmed_at?: string | null;
+  txid?: string;
+  reference?: string;
+  source?: string;
+}
+
 export interface WithdrawalRecord {
   id: string;
   coin: string;
@@ -207,6 +243,7 @@ export interface AccountSnapshot {
   kyc: { status: string; name?: string; id_type?: string; id_number?: string; reject_reason?: string; };
   twofa_enabled: boolean;
   earn_records?: EarnPosition[];
+  deposits?: DepositRecord[];
   withdrawals?: WithdrawalRecord[];
 }
 
@@ -651,7 +688,13 @@ export interface SupportMessage {
   time: string;
 }
 
-export async function submitKyc(input: { name: string; id_type: "passport" | "id_card" | "driver_license"; id_number: string }): Promise<{ status: "pending" }> {
+export async function submitKyc(input: {
+  name: string;
+  id_type: "passport" | "id_card" | "driver_license";
+  id_number: string;
+  document_content_type: "image/jpeg" | "image/png" | "image/webp";
+  document_image_base64: string;
+}): Promise<{ status: "pending" }> {
   let response: Response;
   try {
     response = await fetch(`${API_BASE_URL}/kyc`, { method: "POST", credentials: "include", cache: "no-store", headers: { Accept: "application/json", "Content-Type": "application/json" }, body: JSON.stringify(input) });
@@ -676,7 +719,7 @@ export async function getSupportMessages(signal?: AbortSignal): Promise<SupportM
   return payload.messages;
 }
 
-export async function sendSupportMessage(content: string): Promise<void> {
+export async function sendSupportMessage(content: string, requestId?: string): Promise<{ duplicate?: boolean; message_id?: string; time?: string }> {
   const normalized = content.trim();
   if (!normalized || normalized.length > 2000) {
     throw new ApiError("Messages must contain 1–2,000 characters.", 400, "INVALID_SUPPORT_MESSAGE");
@@ -686,15 +729,16 @@ export async function sendSupportMessage(content: string): Promise<void> {
     response = await fetch(`${API_BASE_URL}/support/chat`, {
       method: "POST", credentials: "include",
       headers: { Accept: "application/json", "Content-Type": "application/json" },
-      cache: "no-store", body: JSON.stringify({ content: normalized }),
+      cache: "no-store", body: JSON.stringify({ content: normalized, ...(requestId ? { request_id: requestId } : {}) }),
     });
   } catch {
     throw new ApiError("Unable to reach BTCBOX support. Please try again.", 0, "NETWORK_ERROR");
   }
-  const payload = await response.json().catch(() => null) as { ok?: boolean; msg?: string; code?: string; need_login?: boolean } | null;
+  const payload = await response.json().catch(() => null) as { ok?: boolean; msg?: string; code?: string; need_login?: boolean; duplicate?: boolean; message_id?: string; time?: string } | null;
   if (!response.ok || !payload || payload.ok !== true) {
     throw new ApiError(payload?.msg || "Your message could not be sent.", payload?.need_login ? 401 : response.status, payload?.code);
   }
+  return { duplicate: payload.duplicate, message_id: payload.message_id, time: payload.time };
 }
 
 
@@ -755,6 +799,7 @@ export async function submitWithdrawal(input: {
   amount: string;
   address: string;
   fund_password: string;
+  expected_fee?: string;
   twofa_code?: string;
 }): Promise<WithdrawalSubmissionResult> {
   let response: Response;
@@ -808,11 +853,18 @@ export interface AdminSession {
 export interface AdminUserRecord {
   uid: string;
   email: string;
+  /** Supabase Auth UUID, populated only for Super Admin user-list responses. */
+  admin_auth_user_id?: string;
   kyc_status?: string;
   kyc?: { status?: string };
   frozen: boolean;
   total_usdt?: string | number;
   balances?: Record<string, AccountBalance>;
+  financial_balance_source?: "postgres_financial_ledger" | "legacy_state_retention_limited";
+  deposit_history?: DepositRecord[];
+  deposit_history_source?: "postgres_financial_ledger" | "legacy_state_retention_limited";
+  withdrawal_history?: WithdrawalRecord[];
+  withdrawal_history_source?: "postgres_financial_ledger" | "legacy_state_retention_limited";
 }
 export interface AdminWithdrawalRecord {
   id: string;
@@ -839,7 +891,33 @@ export interface AdminMembershipChangeResult { action: AdminMembershipAction; ta
 
 export interface AdminConfig {
   deposit_addresses: Record<string, string>;
+  withdrawal_fees: Record<string, string>;
   announcement: string;
+}
+export interface AdminSpotMarket {
+  base_asset: string;
+  quote_asset: string;
+  enabled: boolean;
+  price_tick: string | number;
+  quantity_step: string | number;
+  min_quantity: string | number;
+  min_notional: string | number;
+  min_limit_price?: string | number | null;
+  max_limit_price?: string | number | null;
+  maker_fee_rate?: string | number;
+  taker_fee_rate?: string | number;
+  updated_at?: string;
+}
+export interface SpotMarketPair {
+  base_asset: string;
+  quote_asset: "USDT";
+  enabled: true;
+  price_tick: string;
+  quantity_step: string;
+  min_quantity: string;
+  min_notional: string;
+  min_limit_price: string | null;
+  max_limit_price: string | null;
 }
 export interface AdminKycRecord {
   uid: string;
@@ -848,6 +926,9 @@ export interface AdminKycRecord {
   id_type: string;
   status: string;
   submitted_at: string;
+  document_url?: string;
+  document_preview_error?: string;
+  document_uploaded?: boolean;
 }
 export interface AdminAuditRecord {
   id: string;
@@ -907,6 +988,63 @@ export async function getAdminWithdrawals(token: string, signal?: AbortSignal) {
 export async function getAdminConfig(token: string, signal?: AbortSignal) {
   return adminRequest<AdminConfig & { ok: true }>(token, "admin/config", { signal });
 }
+export async function getAdminSpotMarkets(token: string, signal?: AbortSignal) {
+  return adminRequest<{ ok: true; markets: AdminSpotMarket[] }>(token, "admin/spot-markets", { signal });
+}
+export async function saveAdminSpotMarket(token: string, input: {
+  base_asset: string; quote_asset: string; enabled: boolean;
+  price_tick: string; quantity_step: string; min_quantity: string; min_notional: string;
+  min_limit_price: string | null; max_limit_price: string | null;
+  reason: string; request_id: string;
+}) {
+  return adminRequest<{ ok: true; market: AdminSpotMarket; replayed?: boolean }>(token, "admin/spot-markets", { method: "POST", body: input });
+}
+export interface AdminSecondsOpenPosition {
+  position_id: string;
+  user_id: string;
+  symbol: string;
+  direction: "up" | "down";
+  amount: number | string;
+  duration_sec: number;
+  open_price: number | string;
+  settle_at: number;
+  created_at: number;
+  payout_bps_snapshot: number | null;
+  policy_version: number | null;
+  overdue: boolean;
+}
+export interface AdminSecondsOpenPositionsSnapshot {
+  generated_at: number;
+  total_open_count: number;
+  total_open_exposure: number | string;
+  overdue_count: number;
+  truncated: boolean;
+  positions: AdminSecondsOpenPosition[];
+}
+export async function getAdminSecondsOpenPositions(token: string, signal?: AbortSignal) {
+  const result = await adminRequest<{ ok: true } & AdminSecondsOpenPositionsSnapshot>(token, "admin/seconds-positions", { signal });
+  if (!Number.isSafeInteger(result.generated_at) || result.generated_at <= 0 ||
+      !Number.isSafeInteger(result.total_open_count) || result.total_open_count < 0 ||
+      !Number.isSafeInteger(result.overdue_count) || result.overdue_count < 0 ||
+      typeof result.truncated !== "boolean" || !Array.isArray(result.positions) ||
+      !result.positions.every((item) =>
+        item && typeof item.position_id === "string" &&
+        /^SC[A-Fa-f0-9]{30}$/.test(item.position_id) &&
+        typeof item.user_id === "string" &&
+        ["BTC", "ETH", "SOL", "BNB"].includes(item.symbol) &&
+        (item.direction === "up" || item.direction === "down") &&
+        Number.isFinite(Number(item.amount)) && Number(item.amount) > 0 &&
+        Number.isSafeInteger(item.duration_sec) && item.duration_sec > 0 &&
+        Number.isFinite(Number(item.open_price)) && Number(item.open_price) > 0 &&
+        Number.isSafeInteger(item.settle_at) && Number.isSafeInteger(item.created_at) &&
+        (item.payout_bps_snapshot === null || (Number.isSafeInteger(item.payout_bps_snapshot) && item.payout_bps_snapshot >= 8500)) &&
+        (item.policy_version === null || (Number.isSafeInteger(item.policy_version) && item.policy_version > 0)) &&
+        typeof item.overdue === "boolean"
+      )) {
+    throw new ApiError("BTCBOX returned an invalid open Seconds position queue.", 502, "INVALID_SECONDS_POSITIONS");
+  }
+  return result;
+}
 export async function getAdminSecondsPolicy(token: string, signal?: AbortSignal) {
   return adminRequest<{ ok: true; policy: SecondsPolicySnapshot }>(token, "admin/seconds-policy", { signal });
 }
@@ -920,7 +1058,7 @@ export async function saveAdminSecondsPolicy(token: string, input: {
 export async function saveAdminConfig(token: string, config: AdminConfig) {
   return adminRequest<AdminConfig & { ok: true; audit_sync_pending?: boolean }>(token, "admin/config", { method: "POST", body: config });
 }
-export async function adminManualCredit(token: string, input: { uid: string; coin: string; amount: string; reference?: string; note?: string; idempotency_key: string }) {
+export async function adminManualCredit(token: string, input: { uid: string; coin: string; amount: string; reference: string; note?: string; idempotency_key: string }) {
   return adminRequest<{ ok: true; duplicate?: boolean; balance?: AccountBalance; audit_sync_pending?: boolean }>(token, "admin/deposit/confirm", { method: "POST", body: input });
 }
 export async function adminApproveWithdrawal(token: string, id: string) {

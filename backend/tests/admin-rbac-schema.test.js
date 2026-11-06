@@ -99,16 +99,16 @@ test('migration source is not applied and bootstrap does not provision a default
   assert.match(sql, /it does not create an admin/i);
   const beforeBootstrap = sql.slice(0, sql.indexOf('CREATE OR REPLACE FUNCTION private.bootstrap_super_admin_v1'));
   assert.doesNotMatch(beforeBootstrap, /INSERT INTO private\.admin_memberships/i);
-  assert.match(design, /initial Super Admin is provisioned once by the project owner/i);
-  assert.match(design, /No default email, password, UUID, or public bootstrap endpoint/i);
+  assert.match(design, /initial Super Admin bootstrap is a one-time owner-controlled database operation/i);
+  assert.match(design, /This bootstrap is not exposed as an API/i);
 });
 
 test('design supersedes old two-person bootstrap and three-person approval requirements', () => {
-  assert.match(design, /supersedes conflicting approval\/bootstrap language/i);
-  assert.match(design, /The Super Admin may perform the complete seconds-policy lifecycle alone/i);
-  assert.match(design, /No three-person approval requirement is imposed/i);
-  assert.match(design, /The initial Super Admin is provisioned once by the project owner through a private, out-of-band operation/i);
-  assert.doesNotMatch(design.slice(design.indexOf('## 13. Product decision'), design.length), /two separately authenticated approvers/i);
+  assert.match(design, /Super Admin may complete the policy change alone/i);
+  assert.match(design, /without a three-person workflow/i);
+  assert.match(design, /No three-person or distinct-author\/reviewer\/activator requirement applies/i);
+  assert.match(design, /project owner verifies the Auth UUID out of band/i);
+  assert.doesNotMatch(design, /two separately authenticated approvers/i);
 });
 
 
@@ -140,4 +140,20 @@ test('delegated administrator public RPC bridge is invoker-only and matches the 
   assert.ok(wrapper.includes('p_request_hash text'));
   assert.ok(wrapper.includes('p_request_id,p_request_hash'));
   assert.ok(wrapper.includes('GRANT EXECUTE ON FUNCTION public.admin_list_memberships_v1(uuid) TO service_role'));
+});
+
+
+test('initial Super Admin bootstrap is owner-only, one-time, and audited', () => {
+  const sql = fs.readFileSync(path.resolve(__dirname, '../supabase/sql/0026_admin_rbac_private_store_v1.sql'), 'utf8');
+  const start = sql.indexOf('CREATE OR REPLACE FUNCTION private.bootstrap_super_admin_v1');
+  const end = sql.indexOf('CREATE OR REPLACE FUNCTION private.admin_get_membership_v1', start);
+  assert.ok(start >= 0 && end > start);
+  const bootstrap = sql.slice(start, end);
+  assert.ok(bootstrap.includes("session_user <> 'postgres'"));
+  assert.ok(bootstrap.includes('FROM auth.users u WHERE u.id=p_auth_user_id'));
+  assert.ok(bootstrap.includes('WHERE is_super_admin=true'));
+  assert.ok(bootstrap.includes("'owner_bootstrap'"));
+  assert.ok(bootstrap.includes('INSERT INTO private.admin_security_audit'));
+  assert.ok(sql.includes('REVOKE ALL ON FUNCTION private.bootstrap_super_admin_v1(uuid,text,text) FROM PUBLIC, anon, authenticated, service_role'));
+  assert.ok(sql.includes('GRANT EXECUTE ON FUNCTION private.bootstrap_super_admin_v1(uuid,text,text) TO postgres'));
 });

@@ -346,6 +346,7 @@ VIEWS.withdraw.afterRender = function(){
   }
   let withdrawalPendingIntent=readPendingWithdrawal();
   let withdrawalSubmitting=false, withdrawalOutcomeUnknown=!!(withdrawalPendingIntent||(withdrawalUserKey&&state._withdrawUnknownUserKey===withdrawalUserKey));
+  let withdrawalFeeConfigReady=false;
   function currentFee(){return WITHDRAW_FEES[$('#wd-coin').value]||0;}
   function goStep(n){
     $$('.va-step-panel').forEach(p=>p.classList.toggle('active', p.dataset.wpanel==String(n)));
@@ -367,7 +368,9 @@ VIEWS.withdraw.afterRender = function(){
     const fee=currentFee();
     $('#wd-avail').textContent=fmt(avail,coin==='USDT'?2:6);
     $('#wd-coin2').textContent=coin; $('#wd-coin3').textContent=coin;
-    $('#wd-fee').textContent=fmt(fee,coin==='USDT'?2:6);
+    $('#wd-fee').textContent=withdrawalFeeConfigReady?fmt(fee,coin==='USDT'?2:6):'Loading';
+    $('#wd-next').disabled=!withdrawalFeeConfigReady;
+    $('#wd-max').disabled=!withdrawalFeeConfigReady;
     if($('#wd-receive-coin')) $('#wd-receive-coin').textContent=coin;
     calcReceive();
   }
@@ -450,6 +453,26 @@ VIEWS.withdraw.afterRender = function(){
     $('#wd-amount').value=String(maxAmount);calcReceive();
   };
   refresh();
+  // The server is authoritative for fees. Do not allow review/submission until
+  // the live fee schedule has been loaded; hard-coded values are only a fallback
+  // for display compatibility and must never be used to confirm a withdrawal.
+  fetch('/api/withdrawal/config',{credentials:'include',cache:'no-store'})
+    .then(response=>response.json().then(payload=>({ok:response.ok,payload})))
+    .then(({ok,payload})=>{
+      if(!ok||!payload||payload.ok!==true||!payload.fees||typeof payload.fees!=='object') throw new Error('Withdrawal fee configuration unavailable');
+      for(const coin of DW_COINS){
+        const fee=Number(payload.fees[coin]);
+        if(!Number.isFinite(fee)||fee<0) throw new Error('Invalid withdrawal fee configuration');
+        WITHDRAW_FEES[coin]=fee;
+      }
+      withdrawalFeeConfigReady=true;
+      refresh();
+    })
+    .catch(()=>{
+      $('#wd-fee').textContent='Unavailable';
+      $('#wd-next').disabled=true;
+      $('#wd-max').disabled=true;
+    });
   if(withdrawalOutcomeUnknown){
     const blockedBtn=$('#wd-submit');
     if(blockedBtn){blockedBtn.disabled=true;blockedBtn.textContent='Status Unconfirmed';}
@@ -524,6 +547,7 @@ VIEWS.withdraw.afterRender = function(){
     try{
       r=await apiAdapter.withdraw({coin:withdrawalIntent.coin,amount:amtRaw,address:withdrawalIntent.address,
         network:withdrawalIntent.network,request_id:withdrawalIntent.request_id,
+        expected_fee:String(WITHDRAW_FEES[withdrawalIntent.coin]),
         fund_password:$('#wd-fundpwd').value,twofa_code:$('#wd-2fa').value||undefined});
       withdrawalOutcomeUnknown=isWdOutcomeUnknown(r);
       if(withdrawalOutcomeUnknown){

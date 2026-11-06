@@ -34,8 +34,8 @@ test('every non-financial admin mutation stages an audit event and saves state b
     ["if (sub === 'user/reset-email' && method === 'POST')", "if (sub === 'deposit/confirm'"],
     ["if (sub === 'kyc/approve' && method === 'POST')", "if (sub === 'kyc/reject'"],
     ["if (sub === 'kyc/reject' && method === 'POST')", "if (sub === 'push'"],
-    ["if (sub === 'push' && method === 'POST')", "if (sub === 'support/reply'"],
-    ["if (sub === 'support/reply' && method === 'POST')", "if (sub === 'addresses'"],
+    ["if (sub === 'push' && method === 'POST')", "if (sub === 'addresses' && method === 'GET')"],
+    ["if (sub === 'support/reply' && method === 'POST')", "if (sub === 'support/messages' && method === 'GET')"],
     ["if (sub === 'address/manage' && method === 'POST')", "if (sub === 'audit-logs'"],
     ["if (sub === 'config' && method === 'POST')", "if (sub === 'withdrawals'"]
   ];
@@ -50,7 +50,7 @@ test('every non-financial admin mutation stages an audit event and saves state b
     assert.ok(audit >= 0 && save > audit && flush > save, from + ' must persist state/outbox before PostgreSQL delivery');
   }
   const calls = source.split('\n').filter(line => line.includes('auditAdmin(') && !line.includes('function auditAdmin'));
-  assert.equal(calls.length, 10);
+  assert.equal(calls.length, 9);
   for (const line of calls) assert.match(line.trim(), /^await auditAdmin\(/);
 });
 
@@ -65,7 +65,7 @@ test('admin audit RPC uses a unique event ID and validates duplicate payloads', 
 });
 
 
-test('canonical PostgreSQL audit reader is opt-in, keyset-paginated, redacted, and fail-closed', () => {
+test('canonical PostgreSQL audit reader is cutover-aware, keyset-paginated, redacted, and fail-closed', () => {
   const start = source.indexOf('async function readAdminAuditLogPage(params)');
   const end = source.indexOf('function attachRevision', start);
   assert.ok(start >= 0 && end > start);
@@ -78,9 +78,13 @@ test('canonical PostgreSQL audit reader is opt-in, keyset-paginated, redacted, a
   assert.match(reader, /query\.set\('id', 'lt\.' \+ params\.before\)/);
   assert.match(reader, /query\.set\('action', 'eq\.' \+ params\.action\)/);
   assert.match(reader, /query\.set\('subject_user_id', 'eq\.' \+ params\.uid\)/);
-  assert.match(reader, /redactAdminAuditDetail\(row\.reason \|\| ''\)/);
-  assert.doesNotMatch(reader, /metadata/);
+  assert.ok(reader.includes('formatAdminAuditDetail(row)'));
+  assert.match(reader, /metadata/);
+  assert.match(reader, /object_type,object_id,reason,metadata/);
+  assert.ok(reader.includes('formatAdminAuditDetail(row)'));
+  assert.ok(!reader.includes('metadata: row.metadata'));
   assert.match(source, /ADMIN_AUDIT_POSTGRES_READS_ENABLED === '1'/);
+  assert.ok(source.includes("const postgresAuditReadsRequired =\n        process.env.ADMIN_AUDIT_POSTGRES_READS_ENABLED === '1' ||\n        financialPostgresReadsEnabled();"));
   const routeStart = source.indexOf("if (sub === 'audit-logs' && method === 'GET')");
   const routeEnd = source.indexOf('// GET /api/admin/config', routeStart);
   assert.ok(routeStart >= 0 && routeEnd > routeStart);
@@ -90,7 +94,7 @@ test('canonical PostgreSQL audit reader is opt-in, keyset-paginated, redacted, a
   assert.match(route, /AUDIT_CURSOR_INVALID/);
   assert.match(route, /completeness: 'postgres_canonical'/);
   assert.match(route, /ADMIN_AUDIT_READ_UNAVAILABLE/);
-  assert.match(route, /Never silently fall back/);
+  assert.ok(route.includes('No incomplete fallback was shown.'));
   assert.match(route, /state_document_retention_limited/);
 });
 
@@ -239,4 +243,55 @@ test('admin audit retention handles a zero non-pending capacity without slice(-0
   assert.match(stage, /const retainedLimit = Math\.max\(0, 5000 - pending\.length\)/);
   assert.match(stage, /const retained = retainedLimit > 0 \? nonPending\.slice\(-retainedLimit\) : \[\]/);
   assert.doesNotMatch(stage, /\.slice\(-Math\.max\(0, 5000 - pending\.length\)\)/);
+});
+
+
+test('admin audit viewer exposes canonical versus retention-limited source completeness', () => {
+  const admin = fs.readFileSync(path.resolve(root, '../frontend/src/features/admin/AdminPage.tsx'), 'utf8');
+  assert.ok(admin.includes('setAuditSource(snapshot.source || "unknown")'));
+  assert.ok(admin.includes('setAuditCompleteness(snapshot.completeness || "unknown")'));
+  assert.ok(admin.includes('"PostgreSQL canonical"'));
+  assert.ok(admin.includes('"State file · limited"'));
+  assert.ok(admin.includes('Do not treat this list as a complete financial audit record.'));
+  assert.ok(admin.includes('Audit source is not confirmed.'));
+});
+
+
+test('canonical audit details expose safe financial metadata without leaking destinations or raw metadata', () => {
+  const start = source.indexOf('function redactAdminAuditDetail(value)');
+  const end = source.indexOf('function isValidAuthEmail(value)', start);
+  assert.ok(start >= 0 && end > start);
+  const helpers = require('node:vm').runInNewContext(source.slice(start, end) + '\n({ safeAdminAuditMetadata, formatAdminAuditDetail })');
+  const metadata = {
+    asset: 'USDT',
+    amount: '5.00000000',
+    reference: '0x' + 'a'.repeat(64),
+    operation_id: 'operation-123',
+    destination: 'TQn9Y2khEsLJW1ChVWFMSMeRDow5KcbLSE',
+    wallet: '0x' + 'b'.repeat(40),
+    email: 'private@example.com',
+    arbitrary_secret: 'must-not-appear',
+    oversized: 'x'.repeat(161)
+  };
+  const safe = helpers.safeAdminAuditMetadata(metadata);
+  assert.deepEqual(JSON.parse(JSON.stringify(safe)), {
+    asset: 'USDT',
+    amount: '5.00000000',
+    reference: '0x' + 'a'.repeat(64),
+    operation_id: 'operation-123'
+  });
+  const detail = helpers.formatAdminAuditDetail({
+    reason: 'Manual credit verified',
+    object_type: 'deposit',
+    object_id: 'MD123',
+    metadata
+  });
+  assert.ok(detail.includes('asset=USDT'));
+  assert.ok(detail.includes('amount=5.00000000'));
+  assert.ok(detail.includes('reference=0x' + 'a'.repeat(64)));
+  assert.ok(detail.includes('deposit:MD123'));
+  assert.ok(!detail.includes('TQn9Y2khEsLJW1ChVWFMSMeRDow5KcbLSE'));
+  assert.ok(!detail.includes('private@example.com'));
+  assert.ok(!detail.includes('must-not-appear'));
+  assert.ok(detail.length <= 300);
 });

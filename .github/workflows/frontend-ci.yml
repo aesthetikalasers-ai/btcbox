@@ -5,7 +5,7 @@ on:
       - "frontend/**"
       - ".github/workflows/frontend-ci.yml"
   push:
-    branches: [main, "feature/btcbox-react-frontend-20261104", "feat/btcbox-web3-auth-20261105"]
+    branches: [main, "feature/btcbox-react-frontend-20261104", "feat/btcbox-web3-auth-20261105", "fix/post-merge-db-bootstrap-seconds-20261106"]
     paths:
       - "frontend/**"
       - ".github/workflows/frontend-ci.yml"
@@ -23,3 +23,7 @@ jobs:
       - run: npm install
       - run: npm run lint
       - run: npm run build
+      - name: Install Chromium for isolated browser tests
+        run: npx playwright install --with-deps chromium
+      - name: Run desktop and mobile route smoke tests
+        run: npm run test:e2e

@@ -84,3 +84,23 @@ test('manual credit intent is account-scoped, reload-safe, and never stores cred
   assert.ok(!admin.includes('fund_password') && !admin.includes('twofa_code'));
   assert.ok(admin.includes('if (!/^(?:0|[1-9]\\d*)(?:\\.\\d{1,18})?$/.test(amount) || /^0(?:\\.0*)?$/.test(amount))'));
 });
+
+
+test('every React administrator read route is protected by its dedicated server-side permission', () => {
+  const adminBlock = apiSource.slice(apiSource.indexOf("if (path.startsWith('admin/'))"));
+  assert.ok(adminBlock.indexOf('const adminAuthResult = await adminAuth()') < adminBlock.indexOf("if (sub === 'session' && method === 'GET')"));
+  assert.ok(adminBlock.includes('if (!adminAuthResult || !adminAuthResult.ok)'));
+  const readRoutes = [
+    ['stats', 'dashboard.read'], ['users', 'users.read'], ['user', 'users.read'],
+    ['kyc', 'kyc.read'], ['withdrawals', 'withdrawals.read'], ['orders', 'orders.read'],
+    ['support/messages', 'support.read'], ['audit-logs', 'financial_audit.read'],
+    ['config', 'system_config.read'], ['spot-markets', 'system_config.read'],
+    ['seconds-policy', 'seconds_policy.read'], ['seconds-positions', 'seconds_policy.read'],
+  ];
+  for (const [route, permission] of readRoutes) {
+    assert.ok(adminBlock.includes("if (route === '" + route + "' && verb === 'GET') return '" + permission + "';"), route + ' must require ' + permission);
+  }
+  assert.ok(adminBlock.includes('if (!hasAdminPermission(adminMembership, requiredPermission))'));
+  assert.ok(adminBlock.includes("if (sub === 'admins' && method === 'GET')"));
+  assert.ok(adminBlock.includes('adminMembership.is_super_admin !== true'));
+});

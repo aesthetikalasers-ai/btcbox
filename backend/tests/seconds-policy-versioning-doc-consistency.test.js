@@ -6,36 +6,63 @@ const path = require('node:path');
 
 const root = path.resolve(__dirname, '..');
 const migration = fs.readFileSync(path.join(root, 'supabase/sql/0025_seconds_policy_versioning_v1.sql'), 'utf8');
+const durationAlignment = fs.readFileSync(path.join(root, 'supabase/sql/0031_seconds_policy_duration_alignment_v1.sql'), 'utf8');
+const rbacSql = fs.readFileSync(path.join(root, 'supabase/sql/0026_admin_rbac_private_store_v1.sql'), 'utf8');
+const policyRpc = fs.readFileSync(path.join(root, 'supabase/sql/0028_admin_rbac_service_rpc_wrappers_v1.sql'), 'utf8');
 const spec = fs.readFileSync(path.resolve(root, '../docs/SECONDS_POLICY_VERSIONING.md'), 'utf8');
+const bootstrapDoc = fs.readFileSync(path.join(root, 'supabase/sql/MIGRATION-ORDER-AND-CUTOVER.md'), 'utf8');
 const rbac = fs.readFileSync(path.resolve(root, '../docs/SECONDS_POLICY_ADMIN_RBAC.md'), 'utf8');
 
-test('policy versioning spec accurately distinguishes migration source from live database state', () => {
-  assert.match(spec, /source artifact only; its presence in Git does not prove it has been applied/i);
-  assert.match(spec, /Current source implementation boundary \(migration 0025\)/);
-  assert.match(spec, /Not implemented by migration 0025/i);
+test('policy documentation accurately separates source implementation from hosted database state', () => {
+  assert.match(spec, /implemented in the integration branch source/i);
+  assert.match(spec, /hosted database application and runtime PostgreSQL verification are NOT VERIFIED/i);
+  assert.match(spec, /0028_admin_rbac_service_rpc_wrappers_v1\.sql/);
+  assert.match(spec, /Separate draft\/review\/scheduled activation\/retirement endpoints are not implemented/i);
 });
 
-test('policy migration source creates immutable policy and position payout snapshots', () => {
+test('active policy durations are not contradicted by the base position constraint', () => {
+  assert.match(durationAlignment, /DROP CONSTRAINT IF EXISTS seconds_contract_positions_duration_sec_check/i);
+  assert.match(durationAlignment, /CHECK \(duration_sec > 0\)/i);
+  assert.match(bootstrapDoc, /0031_seconds_policy_duration_alignment_v1\.sql/);
+});
+
+test('policy migration creates immutable versions and snapshots payout terms on positions', () => {
   assert.match(migration, /CREATE TABLE IF NOT EXISTS public\.seconds_contract_policies/);
   assert.match(migration, /ADD COLUMN IF NOT EXISTS payout_bps_snapshot integer/);
   assert.match(migration, /v_policy\.payout_bps/);
   assert.match(migration, /coalesce\(v_pos\.payout_bps_snapshot,8500\)/);
-  assert.match(spec, /stores the policy\/payout snapshot in the same transaction/i);
-  assert.match(spec, /stored payout snapshot/i);
+  assert.match(spec, /snapshot policy ID\/version\/payout terms on the position/i);
 });
 
-test('policy source privileges are read-only for service_role and deny browser roles', () => {
+test('policy and admin RPCs enforce private storage, live permission, atomic audit and idempotency', () => {
   assert.match(migration, /REVOKE ALL ON public\.seconds_contract_policies, public\.seconds_contract_policy_active,[\s\S]*?FROM public, anon, authenticated/);
   assert.match(migration, /GRANT SELECT ON public\.seconds_contract_policies, public\.seconds_contract_policy_active TO service_role/);
   assert.match(migration, /REVOKE INSERT, UPDATE, DELETE ON public\.seconds_contract_policies,[\s\S]*?FROM service_role/);
-  assert.match(spec, /grants service_role SELECT[\s\S]*?revokes service_role INSERT\/UPDATE\/DELETE/i);
+  assert.match(rbacSql, /CREATE TABLE private\.admin_memberships/);
+  assert.match(rbacSql, /CREATE OR REPLACE FUNCTION private\.admin_get_membership_v1/);
+  assert.match(policyRpc, /FUNCTION private\.admin_set_seconds_policy_v1/);
+  assert.match(policyRpc, /seconds_policy\.manage/);
+  assert.match(policyRpc, /seconds_policy_request_idempotency/);
+  assert.match(policyRpc, /INSERT INTO public\.seconds_contract_policy_audit/);
+  assert.match(policyRpc, /GRANT EXECUTE ON FUNCTION public\.admin_set_seconds_policy_v1[\s\S]*?TO service_role/);
+  assert.match(spec, /inside the transaction that reserves funds/i);
 });
 
-test('administrator identity and transition governance remain a separate unimplemented layer', () => {
-  assert.match(spec, /individually authenticated admin actors, role\/membership tables/i);
-  assert.match(rbac, /Super Admin has every BTCBOX admin permission/i);
-  assert.match(rbac, /Ordinary Admins cannot create or promote administrators/i);
-  assert.match(rbac, /No three-person approval requirement is imposed/i);
-  assert.match(rbac, /validated Auth user UUID/i);
-  assert.match(spec, /No policy write path exists/i);
+test('Super Admin can complete policy changes alone; no three-person workflow is claimed', () => {
+  assert.match(rbac, /Super Admin may complete the policy change alone/i);
+  assert.match(rbac, /no three-person or distinct-author\/reviewer\/activator requirement applies/i);
+  assert.match(rbac, /seconds_policy\.manage/);
+  assert.match(rbac, /backend validates the token with Supabase Auth/i);
+  assert.match(rbac, /Initial Super Admin bootstrap is a one-time owner-controlled database operation/i);
+});
+
+test('PostgreSQL lifecycle coverage proves old and new positions use their own payout snapshots', () => {
+  const lifecycle = fs.readFileSync(path.join(root, 'tests/postgres-financial-lifecycle.integration.sql'), 'utf8');
+  assert.match(migration, /v_payout_bps:=coalesce\(v_pos\.payout_bps_snapshot,8500\)/i);
+  assert.match(migration, /round\(v_pos\.amount\*v_payout_bps\/10000,18\)/i);
+  assert.match(lifecycle, /Raise the payout rate for new positions/i);
+  assert.match(lifecycle, /v_payout_bps<>8500/);
+  assert.match(lifecycle, /v_payout_bps<>9200/);
+  assert.match(lifecycle, /v_result->>'pnl'\)::numeric<>9\.2/);
+  assert.match(lifecycle, /v_balance<>117\.7/);
 });

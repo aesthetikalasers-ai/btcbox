@@ -1,7 +1,7 @@
 -- BTCBOX durable limit-order matching engine v1.
--- Apply only in an isolated Supabase staging project after financial_ledger_v1.sql,
--- financial_lifecycle_v2.sql and financial_spot_trade_v3.sql. Do not enable the API
--- adapter until this migration has been exercised against real PostgreSQL transactions.
+-- Canonical spot order path: DB-locked limit matching with reserve/fill/cancel ledger transitions.
+-- Apply after financial_ledger_v1.sql and financial_lifecycle_v2.sql in isolated PostgreSQL first.
+-- Do not enable the API adapter until this migration has been exercised against real transactions.
 
 alter table public.financial_operations drop constraint if exists financial_operations_operation_type_check;
 alter table public.financial_operations add constraint financial_operations_operation_type_check
@@ -92,10 +92,25 @@ revoke all on public.financial_matching_orders, public.financial_matching_trades
 grant select, insert, update on public.financial_matching_orders to service_role;
 grant select, insert on public.financial_matching_trades to service_role;
 
+
+-- Persist cancellation request identity so a client_cancel_id cannot be replayed
+-- against another order and an exact retry returns the original outcome.
+create table if not exists public.financial_matching_cancel_requests (
+  user_id text not null,
+  client_cancel_id text not null check (length(client_cancel_id) between 16 and 100 and client_cancel_id !~ '[^A-Za-z0-9_-]'),
+  order_id text not null,
+  request_hash text not null check (length(request_hash)=64 and request_hash !~ '[^0-9a-f]'),
+  response jsonb not null,
+  created_at timestamptz not null default now(),
+  primary key (user_id, client_cancel_id)
+);
+alter table public.financial_matching_cancel_requests enable row level security;
+revoke all on public.financial_matching_cancel_requests from public, anon, authenticated;
+grant select, insert on public.financial_matching_cancel_requests to service_role;
+
 create or replace function public.submit_limit_order_matching_v1(
   p_order_id text, p_user_id text, p_base_asset text, p_quote_asset text,
-  p_side text, p_price numeric, p_quantity numeric, p_client_order_id text
-) returns jsonb
+  p_side text, p_price numeric, p_quantity numeric, p_client_order_id text) returns jsonb
 language plpgsql security invoker set search_path = ''
 as $$
 declare
@@ -135,18 +150,10 @@ begin
     raise exception 'invalid limit order';
   end if;
   v_pair := p_base_asset || '/' || p_quote_asset;
-  -- Pair rules are controlled by operators in PostgreSQL, never by browser input.
-  select * into v_market from public.financial_matching_markets
-    where base_asset=p_base_asset and quote_asset=p_quote_asset and enabled=true;
-  if not found then raise exception 'market disabled or unconfigured'; end if;
-  if mod(p_price, v_market.price_tick) <> 0 then raise exception 'price precision invalid'; end if;
-  if mod(p_quantity, v_market.quantity_step) <> 0 then raise exception 'quantity precision invalid'; end if;
-  if p_quantity < v_market.min_quantity then raise exception 'quantity below minimum'; end if;
-  if p_price*p_quantity < v_market.min_notional then raise exception 'notional below minimum'; end if;
-  if v_market.min_limit_price is not null and p_price < v_market.min_limit_price then raise exception 'price below protection bound'; end if;
-  if v_market.max_limit_price is not null and p_price > v_market.max_limit_price then raise exception 'price above protection bound'; end if;
   v_request_hash := encode(extensions.digest(concat_ws(':',p_user_id,v_pair,p_side,p_price::text,p_quantity::text),'sha256'),'hex');
-  -- Serialize matching per market. This is deliberately durable DB locking, not process memory.
+  -- Serialize the client request key first, then the market book. Exact retries
+  -- must replay even if the market was paused or its rules later changed.
+  perform pg_advisory_xact_lock(hashtextextended('spot-order:'||p_user_id||':'||p_client_order_id, 0));
   perform pg_advisory_xact_lock(hashtextextended(v_pair, 0));
 
   select * into v_existing from public.financial_matching_orders
@@ -159,6 +166,18 @@ begin
     return jsonb_build_object('ok',true,'duplicate',true,'order_id',v_existing.id,
       'status',v_existing.status,'remaining_quantity',v_existing.remaining_quantity);
   end if;
+
+  -- Read and validate current pair rules only for a new order, after acquiring
+  -- the same market lock used by the admin configuration transition.
+  select * into v_market from public.financial_matching_markets
+    where base_asset=p_base_asset and quote_asset=p_quote_asset and enabled=true;
+  if not found then raise exception 'market disabled or unconfigured'; end if;
+  if mod(p_price, v_market.price_tick) <> 0 then raise exception 'price precision invalid'; end if;
+  if mod(p_quantity, v_market.quantity_step) <> 0 then raise exception 'quantity precision invalid'; end if;
+  if p_quantity < v_market.min_quantity then raise exception 'quantity below minimum'; end if;
+  if p_price*p_quantity < v_market.min_notional then raise exception 'notional below minimum'; end if;
+  if v_market.min_limit_price is not null and p_price < v_market.min_limit_price then raise exception 'price below protection bound'; end if;
+  if v_market.max_limit_price is not null and p_price > v_market.max_limit_price then raise exception 'price above protection bound'; end if;
 
   v_reserve := case when p_side='buy' then p_price*p_quantity else p_quantity end;
   v_reserve_asset := case when p_side='buy' then p_quote_asset else p_base_asset end;
@@ -267,35 +286,77 @@ language plpgsql security invoker set search_path = ''
 as $$
 declare
   v_order public.financial_matching_orders%rowtype;
+  v_cancel public.financial_matching_cancel_requests%rowtype;
   v_op uuid;
   v_available numeric(38,18);
   v_frozen numeric(38,18);
-  v_hash text;
+  v_request_hash text;
+  v_operation_hash text;
+  v_response jsonb;
 begin
   if coalesce(p_user_id,'')='' or coalesce(p_order_id,'')='' or
-     coalesce(p_client_cancel_id,'') !~ '^[A-Za-z0-9_-]{16,100}$' then raise exception 'invalid cancel request'; end if;
-  -- Acquire market lock before row lock, matching submit's lock order to avoid deadlocks.
-  select * into v_order from public.financial_matching_orders where id=p_order_id and user_id=p_user_id;
+     coalesce(p_client_cancel_id,'') !~ '^[A-Za-z0-9_-]{16,100}$' then
+    raise exception 'invalid cancel request';
+  end if;
+
+  v_request_hash := encode(extensions.digest(p_user_id||':'||p_order_id,'sha256'),'hex');
+  -- Serialize a user's request key before looking up or changing any order.
+  perform pg_advisory_xact_lock(hashtextextended(p_user_id||':'||p_client_cancel_id,0));
+  select * into v_cancel
+  from public.financial_matching_cancel_requests
+  where user_id=p_user_id and client_cancel_id=p_client_cancel_id;
+  if found then
+    if v_cancel.order_id<>p_order_id or v_cancel.request_hash<>v_request_hash then
+      raise exception 'cancel idempotency key payload mismatch';
+    end if;
+    return v_cancel.response || jsonb_build_object('duplicate',true);
+  end if;
+
+  -- Read the market key first, then acquire the same market lock as submit.
+  select * into v_order from public.financial_matching_orders
+  where id=p_order_id and user_id=p_user_id;
   if not found then raise exception 'order not found'; end if;
   perform pg_advisory_xact_lock(hashtextextended(v_order.base_asset||'/'||v_order.quote_asset,0));
-  select * into v_order from public.financial_matching_orders where id=p_order_id and user_id=p_user_id for update;
+  select * into v_order from public.financial_matching_orders
+  where id=p_order_id and user_id=p_user_id for update;
   if not found then raise exception 'order not found'; end if;
-  if v_order.status='cancelled' then return jsonb_build_object('ok',true,'duplicate',true,'order_id',p_order_id,'status','cancelled'); end if;
+
+  if v_order.status='cancelled' then
+    v_response := jsonb_build_object('ok',true,'duplicate',true,'order_id',p_order_id,'status','cancelled');
+    insert into public.financial_matching_cancel_requests(user_id,client_cancel_id,order_id,request_hash,response)
+    values(p_user_id,p_client_cancel_id,p_order_id,v_request_hash,v_response);
+    return v_response;
+  end if;
   if v_order.status='filled' then raise exception 'filled order cannot be cancelled'; end if;
-  perform 1 from public.financial_accounts where user_id=p_user_id and asset=v_order.reserve_asset for update;
-  v_hash := encode(extensions.digest(concat_ws(':',p_user_id,p_order_id,v_order.reserved_remaining::text),'sha256'),'hex');
+
+  perform 1 from public.financial_accounts
+  where user_id=p_user_id and asset=v_order.reserve_asset for update;
+  v_operation_hash := encode(extensions.digest(concat_ws(':',p_user_id,p_order_id,v_order.reserved_remaining::text),'sha256'),'hex');
   insert into public.financial_operations(idempotency_key,user_id,asset,operation_type,request_hash,metadata)
-  values ('spot-cancel-'||encode(extensions.digest(p_user_id||':'||p_client_cancel_id,'sha256'),'hex'),p_user_id,v_order.reserve_asset,'spot_order_cancel',v_hash,
-    jsonb_build_object('order_id',p_order_id,'released',v_order.reserved_remaining)) returning id into v_op;
+  values ('spot-cancel-'||encode(extensions.digest(p_user_id||':'||p_client_cancel_id,'sha256'),'hex'),
+    p_user_id,v_order.reserve_asset,'spot_order_cancel',v_operation_hash,
+    jsonb_build_object('order_id',p_order_id,'released',v_order.reserved_remaining))
+  returning id into v_op;
+
   update public.financial_accounts set available=available+v_order.reserved_remaining,
     frozen=frozen-v_order.reserved_remaining,version=version+1,updated_at=now()
-    where user_id=p_user_id and asset=v_order.reserve_asset and frozen>=v_order.reserved_remaining;
+  where user_id=p_user_id and asset=v_order.reserve_asset and frozen>=v_order.reserved_remaining;
   if not found then raise exception 'order reservation invariant failed'; end if;
-  select available,frozen into v_available,v_frozen from public.financial_accounts where user_id=p_user_id and asset=v_order.reserve_asset;
+
+  select available,frozen into v_available,v_frozen
+  from public.financial_accounts where user_id=p_user_id and asset=v_order.reserve_asset;
   insert into public.financial_ledger(operation_id,user_id,asset,available_delta,frozen_delta,available_after,frozen_after)
-  values (v_op,p_user_id,v_order.reserve_asset,v_order.reserved_remaining,-v_order.reserved_remaining,v_available,v_frozen);
-  update public.financial_matching_orders set status='cancelled',remaining_quantity=0,reserved_remaining=0,updated_at=now() where id=p_order_id;
-  return jsonb_build_object('ok',true,'duplicate',false,'order_id',p_order_id,'status','cancelled');
+  values(v_op,p_user_id,v_order.reserve_asset,v_order.reserved_remaining,-v_order.reserved_remaining,v_available,v_frozen);
+
+  update public.financial_matching_orders
+  set status='cancelled',remaining_quantity=0,reserved_remaining=0,updated_at=now()
+  where id=p_order_id;
+
+  v_response := jsonb_build_object('ok',true,'duplicate',false,'order_id',p_order_id,'status','cancelled');
+  insert into public.financial_matching_cancel_requests(user_id,client_cancel_id,order_id,request_hash,response)
+  values(p_user_id,p_client_cancel_id,p_order_id,
+    v_request_hash,v_response);
+  return v_response;
 end;
 $$;
 
