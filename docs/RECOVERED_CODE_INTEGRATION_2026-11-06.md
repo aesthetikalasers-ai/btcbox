@@ -1,109 +1,55 @@
 # BTCBOX recovered code integration — 2026-11-06
 
-## Purpose
+## Repository and branch facts
 
-This branch is the consolidated recovery workspace for the BTCBOX work recovered from the existing BTCBOX repositories and feature branches. It is based on the current `main` commit, not V33. It must preserve the current BTCBOX React/Vite runtime and selectively port the proven business behavior from V33.
+- Target product repository: `avali9308-code/btcboxcdt`.
+- V33 remains a separate source/reference repository: `avali9308-code/btcbox-v33`.
+- PR #26 restored the first React/runtime and customer-page baseline and was merged to main as `59e00770635808c5a3d7026932096d279e391a58`.
+- PR #28 subsequently merged administrator RBAC and unlimited concurrent seconds-position support. Its changes are part of the current main baseline and must be preserved.
+- Current follow-up integration branch: `integration/btcbox-complete-final-20261106`, created from the latest main snapshot before these follow-up changes.
 
-## Target and source repositories
+## Work already merged to main
 
-- Target: `avali9308-code/btcboxcdt`
-- Target base at branch creation: `0506ba04015018e5c283e96b0ae6fc9a362ce390`
-- Recovery branch: `integration/btcbox-complete-recovered-20261106`
-- Business source: `avali9308-code/btcbox-v33`
-- V33 source branch: `fix/manual-withdrawal-rpc-compat-20261106`
-- V33 source head observed: `d2702086ce217fa365f8a77fe4e55b5766ebbe62`
-- V33 main observed: `18a354a9e8e1d0365e240c7c44eda4a18d62ce07`
-- V33 feature branch is 77 commits ahead of V33 main. It is a source of business changes, not a replacement runtime.
+- React 19 + Vite customer runtime and route structure.
+- BTCBOX styling adapted from the Strata design language; Shadcn Fintech source reference retained.
+- Market data is API-driven; removed seeded/demo market rows and random chart fallback data.
+- Customer Orders and Assets pages use authenticated account/order APIs with loading, empty, unauthenticated and error states.
+- Customer auth includes Supabase Email and Google, account setup, password recovery, linked identities and 2FA foundations.
+- Backend seconds settlement idempotency, multiple concurrent open positions, versioned policy schema and admin RBAC schema/helper foundations.
+- Manual payout completion SQL/API foundation requiring a non-empty TxID/reference, idempotent for the same reference, rejecting a conflicting reference and not broadcasting or debiting again.
 
-## Recovered work inventory
+## Follow-up integration branch contents
 
-### BTCBOX target repository changes already merged to main
+- Retires shared Basic Auth from admin API requests. Every admin API call requires a verified Supabase Auth bearer token, an active admin membership and route-specific RBAC permission checks.
+- Adds an admin session endpoint exposing only the verified administrator UUID, active status, Super Admin flag and permission list.
+- Adds Supabase email/Google sign-in to the legacy admin entry and isolates the admin login path from customer account exchange.
+- Adds a separate React `/admin` console with role-gated Overview, Users/manual credit, Deposit addresses, Withdrawals/manual payout, KYC, Audit, Orders and Support tabs.
+- Adds typed bearer-authenticated admin API methods and exposes the Supabase access token from the React AuthProvider.
+- Adds a customer withdrawal request form that derives asset/network from a selected saved address, requires fund password and 2FA when enabled, and retains the same request ID when a network result is uncertain.
+- Adds the withdrawal availability endpoint. It remains fail-closed until financial ledger cutover flags and the required backend services are enabled.
+- Adds per-user, per-asset manual credit in the admin UI. UID and coin are derived from the selected user and asset row; no user-created pending deposit order is introduced.
+- Adds manual payout completion controls that require TxID/reference after staff have actually transferred funds.
+- Retains the exact configured deposit-address network keys and the manual-credit model.
 
-- React 19 + Vite frontend workspace and routing.
-- Strata Pro and Shadcn Fintech source pins and licensing/attribution records.
-- BTCBOX visual refresh, responsive layouts, navigation and mobile improvements.
-- Seven-locale i18n work and subsequent dictionary fixes.
-- Removal of generated chart candles and random chart fallback.
-- Read-only authenticated account/order API client.
-- Recovery of the current target repository source and runtime-integration mapping.
-- Orders and Assets React pages using authenticated account/order APIs.
+## User-approved business constraints retained
 
-These are recorded as code history, not as end-to-end acceptance. No claim of full product completion follows from a merged PR.
+- Deposit: staff configure the receiving address/network; customer transfers there; staff verify actual receipt and manually credit. No automatic chain watcher, auto-credit, or user-created pending deposit order.
+- Withdrawal: staff review; staff manually transfer; staff enter TxID/reference to mark paid. No automatic blockchain broadcast.
+- Seconds: multiple unfinished orders are allowed. Policy boundaries and payout ratio must be controlled by the backend/admin policy, with 85% as a configurable floor rather than a hard-coded only value.
+- The BTCBOX trading-page layout is protected from unrelated redesign.
+- No production database write, destructive reset, real financial cutover enablement, production deployment or V33 deletion is authorized by this integration work.
 
-### Unmerged/recovered target branches requiring selective port or verification
+## Verification and remaining work
 
-- `fix/production-launch-page-audit-20261105` (PR #19, reopened for recovery review): 13 changed files; includes market search/filter, localized loading states, mobile navigation and chart presentation refinements. It is based on the earlier production commit and is not directly mergeable to current main without reconciliation.
-- `feat/btcbox-react-google-auth-20261105`: Google authentication flow, auth pages, API methods and tests; 14 changed files.
-- `feat/btcbox-unified-template-migration-20261105`: template source pins, build-site adjustments, attribution and assets; 43 changed files. Must not replace the React runtime or duplicate the vanilla-JS SPA.
-- `feat/btcbox-web3-auth-20261105`: large divergent branch containing authentication, RBAC, seconds-policy, financial API and SQL changes. Must be reviewed file-by-file; do not merge wholesale.
-- `fix/btcbox-live-chart-no-fake-data-20261105`: six changed files; portions overlap later main commits.
-- Other mature UI, i18n, mobile, admin and launch-readiness branches are retained as historical evidence; several are already represented in main.
-
-### V33 business behavior to port selectively
-
-- Manual deposit address configuration and staff-confirmed manual credit.
-- Manual withdrawal review and staff-paid completion requiring a non-empty TxID/reference.
-- Seconds positions, multiple open orders, idempotent settlement and per-order policy snapshots.
-- Admin policy editing and queue visibility.
-- Related API contracts, SQL/RPC definitions and regression tests.
-
-Do not copy V33's vanilla-JS SPA as a second customer runtime. Reconcile its business logic with the target React/Vite API and target database schema.
-
-## Product rules to preserve
-
-- Deposit: show configured address/network; staff verifies receipt and manually credits. No user-created pending deposit order, chain watcher or automatic credit.
-- Withdrawal: staff review and manual transfer; staff records TxID/reference to mark paid. No automatic chain broadcast.
-- Seconds: multiple unfinished orders are allowed; each order keeps its own policy snapshot and settlement time; policy bounds and payout are admin-configurable. 85% is a floor, not a fixed payout.
-- Do not enable real financial writes or change production cutover flags during integration.
-- Preserve the established trading-page layout.
-- No production database writes, destructive resets, production deployment, or deletion of V33 as part of recovery.
-
-## External tool access boundaries observed
-
-- Figma authenticated account reports a View seat on the available team plan. No Figma file key or editable file URL has been recovered from repository search, so design-file edits/imports cannot yet be performed.
-- No OpenAI Platform connector/tool is exposed in this ChatGPT session. Platform settings, API keys, projects, or deployments have not been changed.
-
-## Acceptance status
-
-The source recovery inventory is established. Feature integration and verification remain in progress.
-
-Required before calling this a complete integrated release:
-1. Frontend typecheck/build and backend test suite on the consolidated branch.
-2. PostgreSQL migrations executed against an isolated fresh database, not production.
-3. API contract tests for auth, seconds, manual deposit credit and manual withdrawal payout.
-4. Browser checks of desktop/mobile UI, route behavior, locale switching and real API loading/error/empty states.
-5. Explicit confirmation that production financial flags remain disabled.
-6. Exact final commit SHA and reproducible evidence for each passing check.
-
-Until all checks pass, do not describe the product as fully integrated or ready for release, and do not delete the V33 source repository.
-
-
-## Actual integration commits added to this recovery branch
-
-The following source code has now been copied or reconciled into this target branch (not merely referenced):
-
-- Restored the authenticated customer API client: account, orders, seconds positions, support, deposit-address lookup, saved addresses, Earn catalog/actions, Supabase session exchange, username credentials, identity linking and 2FA.
-- Restored the React authentication provider, email sign-in/registration/password reset UI, Google sign-in, account setup, linked-identity security page and authenticated route guards.
-- Restored customer service pages for seconds positions/history, deposit-address lookup, saved withdrawal addresses/balances, Earn, KYC and support. The seconds page remains read-only; the deposit page follows manual staff credit.
-- Restored backend auth/business API additions, admin helper modules, shared rate limiting, seconds settlement idempotency, versioned seconds policy and admin RBAC source schema.
-- Restored associated Node regression tests and migration-status checks.
-- Added a target-numbered migration `0027_withdrawal_manual_payout_completion_v1.sql` because target migrations 0023–0026 already have different meanings from V33. The new RPC requires a non-empty payout reference, permits completion only after approval, is idempotent for the same reference, rejects a different reference, and records status/audit only.
-- Added `POST /api/admin/withdraw/mark-paid` with cutover fail-closed checks and the required TxID/reference validation.
-- Recovered market search/filter behavior and removed the unused hard-coded demo market rows.
-
-## Current integration branch and review
-
-- Draft PR: [#26 — Integrate recovered BTCBOX frontend, authentication and business contracts](https://github.com/avali9308-code/btcboxcdt/pull/26)
-- The PR is mergeable at the last check, but it is intentionally draft and must not be merged yet.
-- GitHub Actions backend and frontend workflows were triggered and were still running at the last check.
-- Vercel reported `build-rate-limit`; this is a platform rate limit, not a passing or failing source test.
-- No local build, PostgreSQL migration execution or browser QA has been performed in this recovery session.
-
-## Important unfinished integration work
-
-- The admin API still authenticates with the legacy Basic Auth middleware. The Supabase Auth verifier and RBAC helpers/schema have been recovered but are not wired into the admin request path. Do not call the independent admin identity system complete.
-- The modern React admin console and the user-facing withdrawal request form remain unfinished. The restored withdrawal page is read-only; the backend submission path remains fail-closed until the ledger cutover is verified.
-- The spot order-entry page remains a scaffold; the Seconds customer page is read-only and does not submit or settle positions.
-- The new 0027 migration has not been applied or executed in PostgreSQL. The full 0001–0027 chain must be run in an isolated database; production remains untouched.
-- The manual deposit confirmation endpoint remains gated by the financial cutover flags. The user-facing deposit page only reads configured addresses; it does not create a pending deposit order.
-- `frontend/vendor/strata-pro` and `frontend/vendor/shadcn-fintech` are Git submodule pins to full upstream repositories, not vendored copies inside the BTCBOX runtime. Their design language has been adapted into BTCBOX components, but upstream app pages have not all been copied into the runtime.
+- Earlier snapshot `84f11a11bff5e45a4bb6049b5177bad2f41dcdcf` passed frontend TypeScript/Vite build, backend unified build and 281/281 Node regression tests.
+- Follow-up admin console, Supabase-only admin auth and withdrawal-form changes require a fresh CI pass on this branch.
+- The 0026 admin RBAC and 0027 manual payout migrations are source-only; they have not been applied to production. Isolated PostgreSQL execution of the full migration chain is still required.
+- No browser QA, Supabase admin-member bootstrap or live financial workflow test has been performed.
+- The React seconds page is still read-only; seconds order submission/settlement UI and admin policy authoring/activation API are not complete end-to-end.
+- Spot order-entry remains a scaffold.
+- Customer address-book creation UI is not yet present; withdrawal currently uses eligible saved addresses.
+- The React admin console is source-integrated but not browser-validated. Administrator membership-management UI and first Super Admin provisioning remain to be completed.
+- `frontend/vendor/strata-pro` and `frontend/vendor/shadcn-fintech` are Git submodule pins to full upstream repositories, not vendored copies inside the BTCBOX runtime. Their design language has been adapted, but not every upstream page has been copied into the runtime.
+- Figma connected seat was View-only and no editable design-file key was available. No OpenAI Platform connector was available in this session.
+- Vercel previously reported `build-rate-limit`; this is a platform rate limit, not a successful deployment.
+- V33 must remain intact until the final target branch passes migration, API, browser and financial workflow acceptance.
