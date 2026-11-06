@@ -178,7 +178,7 @@ export function SpotTradingPage(){
 
  useEffect(()=>{
   const controller=new AbortController();
-  setLoading(true);setError("");
+  setLoading(true);setError("");setSpotPairEnabled(false);setTradingStatus(null);
   Promise.allSettled([getSpotMarketPairs(controller.signal),getMarkets(controller.signal),getKlines(symbol,"1h",controller.signal),getOrderBook(symbol,controller.signal),getTradingStatus(controller.signal),getOrders(controller.signal),getAccount(controller.signal)]).then(results=>{
    if(controller.signal.aborted)return;
    const [pairResult,marketResult,candleResult,bookResult,statusResult,ordersResult,accountResult]=results;
