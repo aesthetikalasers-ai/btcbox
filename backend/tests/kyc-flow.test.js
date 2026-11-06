@@ -35,3 +35,15 @@ test('administrator KYC review remains permission-gated and exposes approve/reje
   assert.ok(admin.includes('adminApproveKyc('));
   assert.ok(admin.includes('adminRejectKyc('));
 });
+
+
+test('deposit address lookup requires authentication and user-supplied amounts never create credit requests', () => {
+  const start = api.indexOf("if (path === 'deposit' && method === 'POST')");
+  const end = api.indexOf("if (path === 'withdrawal/config'", start);
+  assert.ok(start >= 0 && end > start);
+  const route = api.slice(start, end);
+  assert.ok(route.includes("need_login: true }, 401"));
+  assert.ok(route.includes('User-submitted deposit amounts are not accepted'));
+  assert.ok(route.includes('Deposit address.'));
+  assert.ok(!route.includes('apply_financial_operation'));
+});
