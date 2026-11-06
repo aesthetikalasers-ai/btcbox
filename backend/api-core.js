@@ -2629,6 +2629,8 @@ async function handleRequest(event, context) {
       const minStake = String(body.min_stake ?? '').trim();
       const maxStake = String(body.max_stake ?? '').trim();
       const payoutBps = Number(body.payout_bps);
+      const maxOpenRaw = body.max_open_positions_per_user;
+      const maxOpenPositions = maxOpenRaw === null || maxOpenRaw === undefined || maxOpenRaw === '' ? null : Number(maxOpenRaw);
       const exposureRaw = body.per_user_open_exposure;
       const exposure = exposureRaw === null || exposureRaw === undefined || exposureRaw === '' ? null : String(exposureRaw).trim();
       const reason = typeof body.reason === 'string' ? body.reason.trim() : '';
@@ -2638,17 +2640,18 @@ async function handleRequest(event, context) {
       const allowedDurations = [30,60,300,900];
       if (!Number.isSafeInteger(expectedVersion) || expectedVersion < 1 ||
           !Array.isArray(symbols) || !symbols.length || symbols.some((v) => !allowedSymbols.includes(v)) || new Set(symbols).size !== symbols.length ||
-          !Array.isArray(durations) || !durations.length || durations.some((v) => !allowedDurations.includes(v)) || new Set(durations).size !== durations.length ||
+          !Array.isArray(durations) || !durations.length || durations.some((v) => !Number.isSafeInteger(v) || v <= 0) || new Set(durations).size !== durations.length ||
           !decimal.test(minStake) || Number(minStake) <= 0 || !decimal.test(maxStake) || Number(maxStake) < Number(minStake) ||
           !Number.isSafeInteger(payoutBps) || payoutBps < 8500 ||
           (exposure !== null && (!decimal.test(exposure) || Number(exposure) <= 0)) ||
+          (maxOpenPositions !== null && (!Number.isSafeInteger(maxOpenPositions) || maxOpenPositions <= 0)) ||
           !reason || reason.length > 500 || !/^[A-Za-z0-9_-]{16,100}$/.test(requestId)) {
         return json({ ok: false, code: 'SECONDS_POLICY_CHANGE_INVALID', msg: 'Seconds policy values are invalid. The minimum payout rate is 85%; there is no fixed upper limit.' }, 400);
       }
       const normalized = {
         expected_policy_version: expectedVersion, symbols: [...symbols].sort(), durations_sec: [...durations].sort((a,b)=>a-b),
         min_stake: minStake, max_stake: maxStake, payout_bps: payoutBps,
-        per_user_open_exposure: exposure, reason
+        per_user_open_exposure: exposure, max_open_positions_per_user: maxOpenPositions, reason
       };
       const requestHash = crypto.createHash('sha256').update(JSON.stringify(normalized)).digest('hex');
       try {
@@ -2660,7 +2663,7 @@ async function handleRequest(event, context) {
             p_actor_user_id: adminUserId, p_expected_policy_version: expectedVersion,
             p_symbols: normalized.symbols, p_durations_sec: normalized.durations_sec,
             p_min_stake: minStake, p_max_stake: maxStake, p_payout_bps: payoutBps,
-            p_per_user_open_exposure: exposure, p_reason: reason,
+            p_per_user_open_exposure: exposure, p_max_open_positions_per_user: maxOpenPositions, p_reason: reason,
             p_request_id: requestId, p_request_hash: requestHash
           }),
           signal: AbortSignal.timeout(7000)
