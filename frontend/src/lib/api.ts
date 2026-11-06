@@ -444,3 +444,40 @@ export async function sendSupportMessage(content: string): Promise<void> {
     throw new ApiError(payload?.msg || "Your message could not be sent.", payload?.need_login ? 401 : response.status, payload?.code);
   }
 }
+
+
+export interface SavedCryptoAddress {
+  id: string; type: "crypto"; coin: string; network: string; address: string;
+  note?: string; created_at?: string; flagged?: boolean; blocked?: boolean; unbound?: boolean;
+}
+export async function getSavedCryptoAddresses(signal?: AbortSignal): Promise<SavedCryptoAddress[]> {
+  const payload = await readAuthenticated<{ ok: true; addresses: SavedCryptoAddress[] }>("addresses", signal);
+  if (!Array.isArray(payload.addresses)) throw new ApiError("BTCBOX returned an invalid address book.", 502, "INVALID_ADDRESS_BOOK");
+  return payload.addresses.filter((item) => item && item.type === "crypto" &&
+    typeof item.id === "string" && typeof item.coin === "string" &&
+    typeof item.network === "string" && typeof item.address === "string" &&
+    typeof item.blocked === "boolean" && typeof item.unbound === "boolean");
+}
+export async function getDepositAddress(coin: string, network: string, signal?: AbortSignal): Promise<string> {
+  const normalizedCoin = coin.trim().toUpperCase();
+  const normalizedNetwork = network.trim().toUpperCase();
+  const supported: Record<string, string[]> = { BTC:["BTC"], ETH:["ERC20"], USDT:["TRC20","ERC20","BEP20"], SOL:["SOL"], BNB:["BEP20"], USDC:["ERC20"] };
+  if (!supported[normalizedCoin]?.includes(normalizedNetwork)) throw new ApiError("Unsupported asset/network combination.", 400, "UNSUPPORTED_DEPOSIT_NETWORK");
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE_URL}/deposit`, {
+      method: "POST", credentials: "include",
+      headers: { Accept: "application/json", "Content-Type": "application/json" },
+      cache: "no-store", signal,
+      body: JSON.stringify({ coin: normalizedCoin, network: normalizedNetwork, amount: "0" }),
+    });
+  } catch (error) {
+    if (error instanceof Error && error.name === "AbortError") throw error;
+    throw new ApiError("Unable to reach BTCBOX deposit service.", 0, "NETWORK_ERROR");
+  }
+  const payload = await response.json().catch(() => null) as { ok?: boolean; address?: string; msg?: string; code?: string; need_login?: boolean } | null;
+  if (!response.ok || !payload || payload.ok !== true || typeof payload.address !== "string" || !payload.address.trim()) {
+    throw new ApiError(payload?.msg || "Deposit address is not available for this network.", payload?.need_login ? 401 : response.status, payload?.code);
+  }
+  return payload.address;
+}
