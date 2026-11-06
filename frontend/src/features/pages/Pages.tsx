@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { RefreshCw, TrendingUp, TrendingDown, Clock3, ShieldAlert } from "lucide-react";
-import { getAccount, getOrders, getSecondsPositions, type AccountSnapshot, type OrderRecord, type SecondsPositionsSnapshot } from "../../lib/api";
+import { getAccount, getOrders, getSecondsPositions, type AccountBalance, type AccountSnapshot, type OrderRecord, type SecondsPositionsSnapshot } from "../../lib/api";
 
 import type { ReactNode } from "react";
 import { ArrowUpRight, LockKeyhole, Wallet, ChartNoAxesCombined, ArrowLeftRight } from "lucide-react";
@@ -35,7 +35,7 @@ export function AssetsPage(){
   return ()=>controller.abort();
  },[reload]);
  const amount=(raw:number|string|undefined)=>{if(raw===undefined||raw===null||raw==="")return "—";const n=Number(raw);return Number.isFinite(n)?n.toLocaleString(undefined,{maximumFractionDigits:10}):"—";};
- const balances=account?Object.entries(account.balances):[];
+ const balances: Array<[string, AccountBalance]> = account ? Object.entries(account.balances) as Array<[string, AccountBalance]> : [];
  return <PageFrame eyebrow="BTCBOX / WALLET" title="Assets" description="Your balances are loaded from the authenticated BTCBOX account service.">
   <div className="flex flex-wrap items-center justify-between gap-3"><div className="flex items-center gap-2"><Badge variant="outline" className="border-brand-border">{t("Live account data")}</Badge>{account&&!loading?<span className="text-xs text-brand-text-muted">{balances.length} {t("assets")}</span>:null}</div><Button size="sm" variant="outline" disabled={loading} onClick={()=>setReload((n)=>n+1)}><RefreshCw className={"mr-2 h-4 w-4 "+(loading?"animate-spin":"")}/>{t("Refresh")}</Button></div>
   {loading?<Card className="border-brand-border bg-brand-surface"><CardContent className="p-6 text-sm text-brand-text-muted" role="status">{t("Loading account balances…")}</CardContent></Card>
