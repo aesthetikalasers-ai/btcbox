@@ -977,6 +977,52 @@ export async function saveAdminSpotMarket(token: string, input: {
 }) {
   return adminRequest<{ ok: true; market: AdminSpotMarket; replayed?: boolean }>(token, "admin/spot-markets", { method: "POST", body: input });
 }
+export interface AdminSecondsOpenPosition {
+  position_id: string;
+  user_id: string;
+  symbol: string;
+  direction: "up" | "down";
+  amount: number | string;
+  duration_sec: number;
+  open_price: number | string;
+  settle_at: number;
+  created_at: number;
+  payout_bps_snapshot: number | null;
+  policy_version: number | null;
+  overdue: boolean;
+}
+export interface AdminSecondsOpenPositionsSnapshot {
+  generated_at: number;
+  total_open_count: number;
+  total_open_exposure: number | string;
+  overdue_count: number;
+  truncated: boolean;
+  positions: AdminSecondsOpenPosition[];
+}
+export async function getAdminSecondsOpenPositions(token: string, signal?: AbortSignal) {
+  const result = await adminRequest<{ ok: true } & AdminSecondsOpenPositionsSnapshot>(token, "admin/seconds-positions", { signal });
+  if (!Number.isSafeInteger(result.generated_at) || result.generated_at <= 0 ||
+      !Number.isSafeInteger(result.total_open_count) || result.total_open_count < 0 ||
+      !Number.isSafeInteger(result.overdue_count) || result.overdue_count < 0 ||
+      typeof result.truncated !== "boolean" || !Array.isArray(result.positions) ||
+      !result.positions.every((item) =>
+        item && typeof item.position_id === "string" &&
+        /^SC[A-Fa-f0-9]{30}$/.test(item.position_id) &&
+        typeof item.user_id === "string" &&
+        ["BTC", "ETH", "SOL", "BNB"].includes(item.symbol) &&
+        (item.direction === "up" || item.direction === "down") &&
+        Number.isFinite(Number(item.amount)) && Number(item.amount) > 0 &&
+        Number.isSafeInteger(item.duration_sec) && item.duration_sec > 0 &&
+        Number.isFinite(Number(item.open_price)) && Number(item.open_price) > 0 &&
+        Number.isSafeInteger(item.settle_at) && Number.isSafeInteger(item.created_at) &&
+        (item.payout_bps_snapshot === null || (Number.isSafeInteger(item.payout_bps_snapshot) && item.payout_bps_snapshot >= 8500)) &&
+        (item.policy_version === null || (Number.isSafeInteger(item.policy_version) && item.policy_version > 0)) &&
+        typeof item.overdue === "boolean"
+      )) {
+    throw new ApiError("BTCBOX returned an invalid open Seconds position queue.", 502, "INVALID_SECONDS_POSITIONS");
+  }
+  return result;
+}
 export async function getAdminSecondsPolicy(token: string, signal?: AbortSignal) {
   return adminRequest<{ ok: true; policy: SecondsPolicySnapshot }>(token, "admin/seconds-policy", { signal });
 }
