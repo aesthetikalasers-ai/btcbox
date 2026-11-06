@@ -2173,3 +2173,24 @@ Application branch inspected: `feat/btcbox-web3-auth-20261105` at `741c709d818cb
 - This pass is a source review and implementation-readiness contract only. No SQL migration, API route, admin UI, administrator membership, permission grant, or production setting was created or changed.
 - The repo's only connected Supabase project has no isolated staging branch/environment available in the reviewed state. Do not apply migration 0025 or build privileged transition functions against production.
 - Next safe implementation step is to obtain an isolated Supabase staging project, then create and validate a dedicated private-schema RBAC migration and transition RPCs there. Until then, keep the policy write surface absent and financial cutover closed.
+
+
+## Seconds policy RBAC concrete schema contract — 2026-11-06 (UTC+8)
+
+### IMPLEMENTED (documentation + source guard only)
+- Re-read coordination HEAD ecf7df7dc2e2155985f6c7cc99ebb90f6dee4814 and feature HEAD 6ef4a5344fedfea667fec4226093bb0a247c02ed before editing.
+- Extended docs/SECONDS_POLICY_ADMIN_RBAC.md with the concrete isolated-staging data contract: Auth-UUID membership, append-only permission grant events, immutable exact-version review decisions, actor/action/object/revision-bound idempotency, and append-only administrator security audit.
+- Specified membership/policy revision checks, live permission revalidation, distinct author/reviewer/activator, atomic activation plus audit, and retirement behavior that preserves open-position snapshots.
+- Clarified a PostgREST boundary: private schema remains non-exposed; because current backend uses REST RPC, a private RPC cannot be assumed callable. If REST is retained, only a tightly permissioned SECURITY INVOKER public wrapper is allowed, with no direct service-role table DML and no public SECURITY DEFINER wrapper. Otherwise use a separately authenticated direct DB connection.
+- Extended backend/tests/seconds-policy-admin-rbac-design.test.js with source-contract assertions for the schema model and invocation boundary.
+- Feature commit: 4bc5dc34ea8b45096183cdf7216324401a2369d0 (parent 6ef4a5344fedfea667fec4226093bb0a247c02ed); changed only docs/SECONDS_POLICY_ADMIN_RBAC.md and backend/tests/seconds-policy-admin-rbac-design.test.js.
+
+### VERIFICATION / RELEASE BOUNDARY
+- Exact GitHub Actions push run 42140415210 completed with conclusion success. All steps succeeded: backend dependency install, unified site build, backend tests, fail-closed deployment configuration validation, and unified output/preserved-entrypoint checks.
+- Exact SHA combined status still reports Vercel – btcboxcdt failure with Hobby build-rate-limit upgrade target. No plan upgrade or project setting change was made.
+- This is a design/source-guard contract only. No executable RBAC migration, administrator identity endpoint, policy write route, UI, membership, permission grant, Supabase database write, or staging database was created.
+- No merge to main, production deployment, policy activation, or financial cutover occurred.
+
+### NEXT
+- Isolated Supabase staging is still a hard prerequisite. Before implementation, validate the actual Data API exposed-schema setting and PostgREST role behavior; then generate a migration through the pinned Supabase CLI workflow and run catalog/adversarial tests against staging.
+- Keep seconds policy write surface absent and all financial cutover flags closed until the full runtime identity, RBAC, separation-of-duties, and atomic audit path is proven.
