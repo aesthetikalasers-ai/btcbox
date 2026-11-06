@@ -33,10 +33,14 @@ test('new order RPC resolves the active backend policy and snapshots it atomical
   assert.doesNotMatch(fn.slice(activeLookupStart, activeLookupEnd), /FOR SHARE|FOR UPDATE/i);
   assert.match(fn, /POLICY_LIMIT_EXCEEDED/);
   assert.match(fn, /OPEN_EXPOSURE_LIMIT_EXCEEDED/);
+  assert.match(fn, /max_open_positions_per_user/);
+  assert.match(fn, /OPEN_POSITION_COUNT_LIMIT_EXCEEDED/);
   assert.match(fn, /payout_bps_snapshot/);
   assert.match(fn, /policy_snapshot/);
   assert.match(fn, /financial_ledger/);
   assert.match(fn, /policy_version/);
+  assert.match(migration, /max_open_positions_per_user integer/);
+  assert.match(migration, /CHECK \\(0 < ALL\\(durations_sec\\)\\)/);
 });
 
 test('settlement uses position payout snapshot and preserves legacy 85 percent fallback', () => {
