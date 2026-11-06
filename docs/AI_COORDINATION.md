@@ -2644,3 +2644,25 @@ The user explicitly simplified the required business process. Do not expand it i
 2. Add database integration/concurrency tests for multiple simultaneous opens by one user, different request IDs, same request ID retries, concurrent settlement of separate positions, same-position settlement idempotency, and exact available/frozen/ledger invariants.
 3. Reconcile the two-row live migration history with existing live schema and repository migration contents without inserting fake history rows.
 4. Only after integration evidence and explicit approval, plan the hosted migration cutover. No production DDL, real financial writes, merge, or deployment without approval. Preserve V211.
+
+
+## Seconds policy / settlement source-to-live reconciliation — 2026-11-06
+
+### SOURCE OBSERVED
+- Re-fetched this coordination document before the batch. The feature branch remains `fix/manual-withdrawal-rpc-compat-20261106`, HEAD `3ad91a456f6f5bee3d190efd0bbc66e8637519d9`.
+- Re-read migration `20261106042714_seconds_policy_snapshot_and_admin_queue_v1.sql` (blob `b071d0f30275d9a4f39605628042020338b21ebe`). Its `settle_seconds_position_v1` contains the agreed three-way settled-position behavior: same request ID + same hash => duplicate success; same ID + different hash => `IDEMPOTENCY_CONFLICT`; different ID => `POSITION_ALREADY_SETTLED`.
+- The same migration's `submit_seconds_order_v1` checks existing `open_request_id`, rejects a hash/user mismatch, returns the original position for an exact retry, locks the policy row `FOR SHARE`, locks the USDT account `FOR UPDATE`, and writes operation/ledger/position in one transaction.
+- `backend/api-core.js` (blob `91acaf19944642cc3023ff9ea59aa3865ca72ac7`) maps `POSITION_ALREADY_SETTLED` and `IDEMPOTENCY_CONFLICT` to HTTP 409.
+- No new migration is needed for settlement idempotency; do not create a duplicate 0026 patch for behavior already present in 0025.
+
+### LIVE DATABASE — READ ONLY
+- Re-read migration history: only `20261102133555` and `20261103062716` are recorded.
+- Re-queried live schema: `public.seconds_contract_policy` is absent; `seconds_contract_positions_one_open_per_user_idx` remains present; seconds positions total 0 and open positions 0.
+- Fetched the actual live `settle_seconds_position_v1` definition. It still returns `duplicate:true` for every different request ID against an already-settled position, and its win calculation still hard-codes `0.85`. Therefore the 0025 source fix is NOT active in the hosted database.
+- No production DDL, financial writes, migration application/repair, merge, or deployment occurred.
+
+### NEXT
+1. Obtain a legitimate non-production PostgreSQL execution environment before claiming PL/pgSQL compilation or concurrency verification. Do not create a paid Supabase branch without the required cost approval.
+2. Run migration 0024 then 0025 against an isolated database and verify exact retry, hash conflict, different-request conflict, multiple simultaneous opens, independent concurrent settlement, and ledger/account invariants.
+3. Reconcile the live two-row migration history against every pre-existing migration's actual schema effects before proposing any hosted cutover. Never fabricate migration history entries.
+4. Keep the hosted multi-position feature and configurable payout policy marked NOT ACTIVE until a reviewed, approved migration is applied. Preserve V211; no merge or deployment.
