@@ -465,7 +465,7 @@ export async function submitSecondsOrder(input: SecondsOrderInput): Promise<Seco
       !["BTC", "ETH", "SOL", "BNB"].includes(payload.symbol) ||
       (payload.direction !== "up" && payload.direction !== "down") ||
       !Number.isFinite(Number(payload.amount)) || Number(payload.amount) <= 0 ||
-      ![30, 60, 300, 900].includes(payload.duration_sec) ||
+      (!Number.isSafeInteger(payload.duration_sec) || payload.duration_sec <= 0) ||
       !Number.isFinite(payload.open_price) || payload.open_price <= 0 ||
       !Number.isSafeInteger(payload.settle_at) || payload.settle_at <= 0) {
     throw new ApiError(payload?.msg || "Order was not confirmed. Check open positions before retrying.", payload?.need_login ? 401 : response.status, payload?.code);
