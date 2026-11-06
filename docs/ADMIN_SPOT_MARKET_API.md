@@ -64,6 +64,8 @@ Rules:
 - `reason` is required (1–500 characters); `request_id` is required and stable across retries (16–100 safe characters).
 - The same actor + request ID + payload replays the stored response. Reusing the request ID with a different payload is rejected.
 - Every successful change appends a `financial_audit_log` entry with before/after snapshots.
+- Order submission and admin rule changes share a per-market PostgreSQL advisory lock. Exact order retries replay before current market-state checks.
+- Precision, minimum-size/notional and absolute price-bound changes are rejected while open or partially filled orders remain. Cancel resting orders first; pausing a market is still allowed.
 - Maker/taker fees remain fixed at zero until fee charging/crediting is implemented atomically. The API intentionally does not expose fee editing.
 
 ## Current execution boundary
