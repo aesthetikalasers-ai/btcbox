@@ -5911,3 +5911,11 @@ The prior withdrawal UI audit statement claiming the active BTCBOX admin route w
 - Wait for exact-head backend/frontend/PostgreSQL CI results and fix any failures.
 - Validate with isolated Supabase staging only after a safe test identity and environment are available. Do not create or change hosted/production administrator memberships during QA.
 - No merge, deployment, production database operation, or financial transaction was performed.
+
+
+### Verification correction — 2026-11-07
+- The first backend CI attempt on `bf1bf3704c2de107b7e491e2d73dcdc54ebc90ba` exposed a test-harness path error (the new test referenced `../../frontend` from the backend directory). The application code built successfully, but the backend test job failed; this attempt is explicitly not counted as a pass.
+- Corrected the test paths to `../frontend` in commit `d017c8bdc3ccebd9337410d3e513ce41a8fdb5b2`.
+- Exact corrected-head backend CI run `42289313884`: **passed, 374/374 tests**, unified build and fail-closed preflight.
+- Exact corrected-head PostgreSQL schema CI run `42289313983`: **passed**, all canonical SQL migrations applied to an empty disposable PostgreSQL database.
+- Exact corrected-head frontend CI run `42289313921`: lint and Vite build passed; desktop/mobile Playwright route smoke test was still running when this entry was written. Do not claim full frontend CI until its final conclusion is successful.
