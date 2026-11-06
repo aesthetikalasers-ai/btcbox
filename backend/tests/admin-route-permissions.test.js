@@ -44,9 +44,12 @@ test('every read/write admin API contract is mapped to an explicit least-privile
 
   for (const [route, method, permission] of mappings) {
     const expected = `if (route === '${route}' && verb === '${method}') return '${permission}';`;
-    const alternateWithdrawalMapping = route.startsWith("withdraw/") &&
-      resolver.includes("['withdraw/approve','withdraw/reject','withdraw/mark-paid'].includes(route)");
-    assert.ok(resolver.includes(expected) || (alternateWithdrawalMapping && permission === "withdrawals.review"),
+    const groupedMapping =
+      (route === "user/reset-pwd" || route === "user/reset-email") &&
+        resolver.includes("if ((route === 'user/reset-pwd' || route === 'user/reset-email') && verb === 'POST') return 'users.manage';") ||
+      (route === "kyc/approve" || route === "kyc/reject") &&
+        resolver.includes("if ((route === 'kyc/approve' || route === 'kyc/reject') && verb === 'POST') return 'kyc.review';");
+    assert.ok(resolver.includes(expected) || groupedMapping,
       `Missing permission mapping: ${method} admin/${route} -> ${permission}`);
   }
   assert.ok(resolver.includes("if (['withdraw/approve','withdraw/reject','withdraw/mark-paid'].includes(route) && verb === 'POST') return 'withdrawals.review';"));
