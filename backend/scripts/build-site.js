@@ -10,7 +10,7 @@ const out = path.join(root, 'dist');
 const frontendDist = path.resolve(root, '..', 'frontend', 'dist');
 const frontendIndex = path.join(frontendDist, 'index.html');
 const frontendAssets = path.join(frontendDist, 'frontend-assets');
-const allowedFiles = ['index.html', 'admin.html'];
+const allowedFiles = ['index.html'];
 const allowedDirs = ['pages', 'assets', 'oauth'];
 
 fs.rmSync(out, { recursive: true, force: true });
@@ -36,7 +36,7 @@ for (const name of allowedDirs) {
   fs.cpSync(src, path.join(out, name), { recursive: true });
 }
 
-// Preserve the existing clean-URL pages used by the legacy admin and OAuth UI.
+// Preserve legacy OAuth and content pages; the administrator console is served by the React SPA.
 const pagesDir = path.join(root, 'pages');
 for (const entry of fs.readdirSync(pagesDir)) {
   if (entry.endsWith('.html')) {
@@ -59,4 +59,4 @@ if (!html.includes('/frontend-assets/')) {
 fs.copyFileSync(frontendIndex, path.join(out, 'index.html'));
 fs.cpSync(frontendAssets, path.join(out, 'frontend-assets'), { recursive: true });
 
-console.log('BTCBOX unified public build created in dist/ (Strata customer app + legacy admin/OAuth assets).');
+console.log('BTCBOX unified public build created in dist/ (Strata customer app + React admin route + legacy OAuth assets).');
