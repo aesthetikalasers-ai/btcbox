@@ -1934,3 +1934,23 @@ Application branch inspected: `feat/btcbox-web3-auth-20261105` at `741c709d818cb
 - Supabase currently reports no database branches for project `zlozsutefnmgwwzrlipt`; no isolated staging branch was available in the read-only branch inventory. Do not run migrations against the production project as a substitute.
 - Next batch: obtain a separately provisioned staging database or approved development branch; validate the complete prerequisite chain and execute SQL tests there. Continue admin identity/RBAC design separately; do not create write endpoints using the shared Basic Auth actor.
 - No production schema/data changed, no financial cutover, merge or deployment.
+
+
+## Seconds payout floor and configurability — 2026-11-06
+
+### IMPLEMENTED (source only)
+- Re-read coordination HEAD `a2f28764f593c0f4c4fa003409b2d02dcedd1745` and feature HEAD `5594e7450977a76423bc4cd7398c0f2beaed10b4`.
+- Clarified the user's product requirement: 85% is a minimum, not the only payout value; backend policy versions must be able to configure a higher winning-profit rate.
+- Tightened the new policy schema payout constraint from 0–10000 bps to 8500–10000 bps, and the per-position snapshot constraint to the same range. This prevents any future policy writer from setting a rate below 85%, while allowing values through 100%.
+- Updated the policy design specification to reflect 85%–100% configurable payout, per-version authority, and immutable per-position snapshots.
+- Added source-level regression assertions for the minimum/maximum bounds, policy-sourced order snapshot, and settlement consumption of the snapshot.
+
+### NOT IMPLEMENTED / NOT VERIFIED
+- No administrator policy editor or write endpoint is exposed. The current shared `ADMIN_USER` / `ADMIN_PASS` Basic Auth does not identify individual actors or support safe role separation; actor-specific RBAC and draft/approve/activate audit flow remain prerequisites.
+- The 85% floor is enforced in the new migration source only; migration `0025` has not been applied to any database.
+- No Node test execution, CI run, PostgreSQL staging execution, or runtime verification is recorded.
+- No production database changes, financial writes, cutover enablement, merge, or deployment.
+
+### NEXT
+- Design attributable administrator identity and explicit seconds-policy permissions, with separate author/reviewer/activator roles and atomic audit/idempotency/revision checks.
+- Then add authenticated read/preview and draft/approve/activate endpoints and admin UI against the versioned policy model; validate only in isolated staging before any release.
