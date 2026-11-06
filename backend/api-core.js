@@ -2774,6 +2774,36 @@ async function handleRequest(event, context) {
       return json({ ok: false, code: 'FINANCIAL_CUTOVER_INCOMPLETE', msg: 'Financial ledger cutover is incomplete. Withdrawal was not rejected or refunded and funds were unchanged.' }, 503);
     }
 
+    // POST /api/admin/withdraw/mark-paid — staff has already sent the funds manually.
+    // This is a status/audit confirmation only; it never broadcasts or debits funds.
+    if (sub === 'withdraw/mark-paid' && method === 'POST') {
+      if (!financialWritesEnabled()) return json({ ok: false, code: 'FINANCIAL_CUTOVER_INCOMPLETE', msg: 'Financial ledger cutover is incomplete. Payout status was not changed.' }, 503);
+      const wdId = String(body.id || '').trim();
+      const reference = String(body.reference || '').trim();
+      const note = String(body.note || '').trim();
+      if (!wdId || wdId.length > 100) return json({ ok: false, msg: 'Withdrawal record ID is invalid.' }, 400);
+      if (!reference) return json({ ok: false, code: 'PAYOUT_REFERENCE_REQUIRED', msg: 'TxID / payout reference is required.' }, 400);
+      if (reference.length > 160 || note.length > 300) return json({ ok: false, msg: 'Payout reference or note is too long.' }, 400);
+      if (!supabaseStorageConfigured()) return json({ ok: false, code: 'FINANCIAL_RPC_NOT_CONFIGURED', msg: 'Financial database is not configured. Payout status was not changed.' }, 503);
+      const adminId = String(process.env.ADMIN_USER || '').trim();
+      if (!adminId) return json({ ok: false, code: 'ADMIN_ACTOR_NOT_CONFIGURED', msg: 'Administrator audit identity not configured. Payout status was not changed.' }, 503);
+      try {
+        const rpc = await fetch(process.env.SUPABASE_URL.replace(/\\/+$/, '') + '/rest/v1/rpc/mark_withdrawal_paid_atomic', {
+          method: 'POST', headers: supabaseHeaders(),
+          body: JSON.stringify({ p_withdrawal_id: wdId, p_admin_id: adminId, p_reference: reference, p_note: note })
+        });
+        const result = await rpc.json().catch(() => null);
+        if (!rpc.ok || !result || result.ok !== true || result.status !== 'completed') {
+          return json({ ok: false, code: 'FINANCIAL_RPC_FAILED', msg: 'Manual payout completion was not confirmed. Check the withdrawal record before retrying.' }, rpc.status === 400 ? 400 : 503);
+        }
+        return json({ ok: true, duplicate: !!result.duplicate, withdrawal_id: result.withdrawal_id, status: result.status,
+          payout_reference: result.payout_reference || '', paid_at: result.paid_at || null,
+          msg: result.duplicate ? 'This withdrawal was already marked as paid.' : 'Manual payout completion recorded.' });
+      } catch (e) {
+        return json({ ok: false, code: 'FINANCIAL_RPC_UNAVAILABLE', msg: 'Financial database temporarily unavailable. Payout status is unconfirmed; check the withdrawal record before retrying.' }, 503);
+      }
+    }
+
     if (sub === 'kyc/approve' && method === 'POST') {
       const u = db.users[body.uid];
       if (!u) return json({ ok: false, msg: 'User not found.' }, 404);
