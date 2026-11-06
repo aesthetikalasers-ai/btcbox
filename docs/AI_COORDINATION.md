@@ -2257,3 +2257,16 @@ Application branch inspected: `feat/btcbox-web3-auth-20261105` at `741c709d818cb
 - Exact frontend CI run `42141737685` completed with conclusion `success`: lint and build passed.
 - The policy-helper module is still not runtime-connected to the legacy admin routes. It does not yet authenticate the Supabase token or load membership/grants from a protected store. Do not describe RBAC as live/active.
 - No Supabase migration/write, admin provisioning, permission grant, merge to main, or production deployment.
+
+
+## Supabase Auth token verification foundation — 2026-11-06 (UTC+8)
+
+- Re-read coordination HEAD `f4130b0a822becd65f1b92c3acf8877509496a78` and feature HEAD `b4471ac6462194e2c1bfc4a695754fec17729698` before this batch.
+- Added `backend/admin-auth.js`: strict bounded Bearer parsing; HTTPS-only Supabase Auth configuration; server-side GET to `/auth/v1/user` with the configured publishable/anon key and caller access token; canonical UUID validation; anonymous Auth users rejected; upstream failures fail closed as 503. It does not decode JWT claims for identity or roles and returns only the Auth user UUID.
+- Added `backend/tests/admin-auth.test.js` covering token parsing, config validation, canonical identity from Auth response, rejection of request/user_metadata role claims, missing credentials, anonymous/non-UUID identities, Auth 401/403, upstream failures and network errors.
+- Supabase docs were checked for JWT verification. For HS256/shared-secret projects, Supabase documents verifying the access token directly against Auth `/auth/v1/user`; JWT payload decoding alone is not a trust decision. Relevant doc: https://supabase.com/docs/guides/auth/jwts.
+- Feature commit: `5e8d008e43887d8228e1962157e0c048e5ad9006` (parent `b4471ac6462194e2c1bfc4a695754fec17729698`). Compare API confirms exactly two added files: `backend/admin-auth.js` and `backend/tests/admin-auth.test.js`.
+- Exact-SHA GitHub Actions backend run `42142544961` completed `success`; unified site build, backend tests, fail-closed deployment configuration validation, preserved output/entrypoint checks, and cleanup all passed.
+- Exact-SHA Vercel combined status: `success` (preview check). No production deployment was requested or initiated.
+- This is still an isolated identity-verification helper only. It is NOT wired into admin routes, does not load protected membership/grants, does not create the private admin store or bootstrap Super Admin, and does not replace legacy Basic Auth. No SQL migration, Supabase database write, live admin provisioning, permission grant, merge to main, or production deployment occurred.
+- Next safe batch: design and test the protected private-schema membership/grant storage contract and Super Admin owner-controlled bootstrap; keep it source-only until an isolated staging database exists. Then connect verified Auth UUID -> live membership lookup -> closed permission helper in a parallel admin API surface, without breaking current Basic Auth until migration is tested.
