@@ -286,7 +286,14 @@ DECLARE
 BEGIN
   -- Validate identity and idempotency inputs before requiring a live quote.
   -- A settled request must remain replayable even while both price providers are down.
-  IF coalesce(p_user_id,'')='' OR p_position_id !~ '^SC[A-Fa-f0-9]{30} FROM public.seconds_contract_positions
+  IF coalesce(p_user_id,'')='' OR p_position_id !~ '^SC[A-Fa-f0-9]{30}$'
+     OR p_request_id !~ '^[A-Za-z0-9_-]{16,100}$'
+     OR coalesce(p_request_hash,'') !~ '^[0-9a-f]{64}$'
+     OR p_symbol NOT IN ('BTC','ETH','SOL','BNB') THEN
+    RETURN jsonb_build_object('ok',false,'code','INVALID_ARGUMENT');
+  END IF;
+
+  SELECT * INTO v_pos FROM public.seconds_contract_positions
   WHERE position_id=p_position_id AND user_id=p_user_id FOR UPDATE;
   IF NOT FOUND THEN RETURN jsonb_build_object('ok',false,'code','POSITION_NOT_FOUND'); END IF;
   IF v_pos.symbol<>p_symbol THEN RETURN jsonb_build_object('ok',false,'code','SYMBOL_MISMATCH'); END IF;
