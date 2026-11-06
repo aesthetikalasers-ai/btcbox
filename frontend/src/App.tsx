@@ -16,6 +16,8 @@ const OrdersPage = lazy(() => import("./features/pages/Pages").then((m) => ({ de
 const SecondsPage = lazy(() => import("./features/pages/Pages").then((m) => ({ default: m.SecondsPage })));
 const KycPage = lazy(() => import("./features/pages/Pages").then((m) => ({ default: m.KycPage })));
 const SupportPage = lazy(() => import("./features/pages/Pages").then((m) => ({ default: m.SupportPage })));
+const DepositPage = lazy(() => import("./features/pages/Pages").then((m) => ({ default: m.DepositPage })));
+const WithdrawPage = lazy(() => import("./features/pages/Pages").then((m) => ({ default: m.WithdrawPage })));
 
 function ProtectedAccountRoute({ children }: { children: ReactNode }) { const { status } = useAuth(); if (status === "loading") return <RouteLoading />; if (status !== "authenticated") return <Navigate to="/login" replace />; return <>{children}</>; }
 
@@ -40,8 +42,8 @@ export default function App() {
     <Route path="/seconds" element={<ProtectedAccountRoute><SecondsPage /></ProtectedAccountRoute>} />
     <Route path="/assets" element={<ProtectedAccountRoute><AssetsPage /></ProtectedAccountRoute>} /><Route path="/me" element={<MyPage />} />
     <Route path="/orders" element={<ProtectedAccountRoute><OrdersPage /></ProtectedAccountRoute>} />
-    <Route path="/deposit" element={<SectionPage title="Deposit" description="Deposit address selection and pending-deposit workflow are not connected in this frontend preview." />} />
-    <Route path="/withdraw" element={<SectionPage title="Withdraw" description="Withdrawal review and confirmation will use the existing backend contract; no transaction can be submitted from this preview." />} />
+    <Route path="/deposit" element={<ProtectedAccountRoute><DepositPage /></ProtectedAccountRoute>} />
+    <Route path="/withdraw" element={<ProtectedAccountRoute><WithdrawPage /></ProtectedAccountRoute>} />
     <Route path="/earn" element={<SectionPage title="Earn" description="Earn products and redemption actions will be connected to the existing backend after API contract verification." />} />
     <Route path="/login" element={<AuthPage mode="login" />} /><Route path="/register" element={<AuthPage mode="register" />} /><Route path="/account-setup" element={<AccountSetupPage />} /><Route path="/auth/react-callback" element={<AuthCallbackPage />} />
     
