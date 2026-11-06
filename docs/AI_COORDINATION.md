@@ -2695,3 +2695,10 @@ The user explicitly simplified the required business process. Do not expand it i
 2. Keep 0001–0023 as a reviewed baseline, not an instruction to replay on the already-provisioned live database.
 3. Find a no-cost isolated PostgreSQL execution path; the account currently has no Supabase dev branch. Do not create a paid branch/project without explicit cost acceptance.
 4. Compile and execute 0024 then 0025 only in isolated PostgreSQL, run concurrency/idempotency and ledger invariants, then prepare—but do not execute—a production cutover plan.
+
+
+### Additional live drift found — manual withdrawal payout completion
+- Live `withdrawal_requests` columns currently stop at `review_operation_id`; the `payout_reference`, `payout_note`, `paid_by`, and `paid_at` columns required by numbered SQL 0023 are absent.
+- Live function inventory does not contain `mark_withdrawal_paid_atomic`; the 0023 SQL also defines `read_withdrawal_history_v1`, which is absent from the live function inventory.
+- Therefore the manually approved-then-record-paid withdrawal completion flow in source SQL 0023 is not active in the hosted DB either. Do not report manual payout completion as production-ready.
+- SQL 0023 is a numbered operational script, not a timestamped file in `supabase/migrations/`; no production changes were made.
