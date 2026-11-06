@@ -913,6 +913,71 @@ function validateKycSubmission(body) {
   return { ok: true, name, id_type: idType, id_number: idNumber };
 }
 
+const KYC_STORAGE_BUCKET = 'kyc-documents';
+const KYC_IMAGE_MAX_BYTES = 512 * 1024;
+
+function validateKycImage(body) {
+  const contentType = String(body && body.document_content_type || '').toLowerCase();
+  const encoded = String(body && body.document_image_base64 || '');
+  if (!['image/jpeg', 'image/png', 'image/webp'].includes(contentType)) {
+    return { ok: false, msg: 'Upload a JPEG, PNG, or WebP identity document image.' };
+  }
+  if (!encoded || encoded.length > Math.ceil(KYC_IMAGE_MAX_BYTES * 4 / 3) + 8 || !/^[A-Za-z0-9+/]+={0,2}$/.test(encoded)) {
+    return { ok: false, msg: 'The identity document image is missing or too large (maximum 512 KB).' };
+  }
+  let bytes;
+  try { bytes = Buffer.from(encoded, 'base64'); } catch (_) { return { ok: false, msg: 'The identity document image is invalid.' }; }
+  if (!bytes.length || bytes.length > KYC_IMAGE_MAX_BYTES || bytes.toString('base64').replace(/=+$/, '') !== encoded.replace(/=+$/, '')) {
+    return { ok: false, msg: 'The identity document image is invalid or exceeds 512 KB.' };
+  }
+  const jpeg = bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff;
+  const png = bytes.length >= 8 && bytes.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]));
+  const webp = bytes.length >= 12 && bytes.toString('ascii', 0, 4) === 'RIFF' && bytes.toString('ascii', 8, 12) === 'WEBP';
+  if ((contentType === 'image/jpeg' && !jpeg) || (contentType === 'image/png' && !png) || (contentType === 'image/webp' && !webp)) {
+    return { ok: false, msg: 'The image content does not match its file type.' };
+  }
+  return { ok: true, bytes, content_type: contentType, extension: contentType === 'image/jpeg' ? 'jpg' : (contentType === 'image/png' ? 'png' : 'webp') };
+}
+
+async function uploadKycDocument(userId, image) {
+  if (!supabaseStorageConfigured()) throw new Error('KYC document storage is unavailable');
+  const base = String(process.env.SUPABASE_URL || '').replace(/\\/+$/, '');
+  const path = String(userId) + '/' + crypto.randomUUID() + '.' + image.extension;
+  const objectPath = path.split('/').map(encodeURIComponent).join('/');
+  const response = await fetch(base + '/storage/v1/object/' + KYC_STORAGE_BUCKET + '/' + objectPath, {
+    method: 'POST',
+    headers: { ...supabaseHeaders(), 'Content-Type': image.content_type, 'x-upsert': 'false' },
+    body: image.bytes,
+    signal: AbortSignal.timeout(10000)
+  });
+  if (!response.ok) throw new Error('KYC document upload failed');
+  return path;
+}
+
+async function createSignedKycDocumentUrl(path) {
+  if (!supabaseStorageConfigured() || typeof path !== 'string' || !path || path.length > 300 || path.startsWith('/') || path.includes('..')) {
+    throw new Error('KYC document is unavailable');
+  }
+  const base = String(process.env.SUPABASE_URL || '').replace(/\\/+$/, '');
+  const objectPath = path.split('/').map(encodeURIComponent).join('/');
+  const response = await fetch(base + '/storage/v1/object/sign/' + KYC_STORAGE_BUCKET + '/' + objectPath, {
+    method: 'POST', headers: supabaseHeaders(), body: JSON.stringify({ expiresIn: 300 }),
+    signal: AbortSignal.timeout(8000)
+  });
+  const payload = await response.json().catch(() => null);
+  if (!response.ok || !payload || typeof payload.signedURL !== 'string' || !payload.signedURL) throw new Error('KYC document preview is unavailable');
+  return new URL(payload.signedURL, base + '/storage/v1/').toString();
+}
+
+async function deleteKycDocument(path) {
+  if (!supabaseStorageConfigured() || typeof path !== 'string' || !path) return;
+  const base = String(process.env.SUPABASE_URL || '').replace(/\\/+$/, '');
+  await fetch(base + '/storage/v1/object/' + KYC_STORAGE_BUCKET, {
+    method: 'DELETE', headers: supabaseHeaders(), body: JSON.stringify({ prefixes: [path] }),
+    signal: AbortSignal.timeout(5000)
+  }).catch(() => null);
+}
+
 function maskIdentityNumber(value) {
   const raw = String(value || '').trim();
   if (!raw) return '';
@@ -1920,15 +1985,26 @@ async function handleRequest(event, context) {
     if (user.kyc && user.kyc.status === 'pending') return json({ ok: false, code: 'KYC_ALREADY_PENDING', msg: 'Identity verification is under review. Please do not resubmit.' }, 409);
     const submission = validateKycSubmission(body);
     if (!submission.ok) return json({ ok: false, code: 'KYC_INVALID_INPUT', msg: submission.msg }, 400);
+    const image = validateKycImage(body);
+    if (!image.ok) return json({ ok: false, code: 'KYC_DOCUMENT_INVALID', msg: image.msg }, 400);
+    let documentPath;
+    try { documentPath = await uploadKycDocument(user.uid, image); }
+    catch (_) { return json({ ok: false, code: 'KYC_STORAGE_UNAVAILABLE', msg: 'Secure document storage is unavailable. Your verification was not submitted.' }, 503); }
     user.kyc = {
       status: 'pending',
       name: submission.name,
       id_type: submission.id_type,
       id_number: submission.id_number,
+      document_path: documentPath,
+      document_content_type: image.content_type,
       submitted_at: nowStr(),
     };
-    await saveDB(db);
-    return json({ ok: true, code: 'KYC_SUBMITTED', status: 'pending', msg: 'Identity verification submitted. Review typically completes within 1-3 business days.' });
+    try { await saveDB(db); }
+    catch (_) {
+      await deleteKycDocument(documentPath);
+      return json({ ok: false, code: 'KYC_PERSISTENCE_UNAVAILABLE', msg: 'Verification could not be saved. Please retry after refreshing your status.' }, 503);
+    }
+    return json({ ok: true, code: 'KYC_SUBMITTED', status: 'pending', msg: 'Identity details and document image submitted securely for staff review.' });
   }
 
   // ---------- POST /api/deposit ----------
@@ -2896,18 +2972,28 @@ async function handleRequest(event, context) {
     // GET /api/admin/kyc — return only the minimum fields needed for review.
     // Never expose id_number, auth secrets, credentials, or raw user records.
     if (sub === 'kyc' && method === 'GET') {
-      const applications = Object.values(db.users || {}).filter(function (u) {
+      const pendingUsers = Object.values(db.users || {}).filter(function (u) {
         return u && u.kyc && u.kyc.status === 'pending';
-      }).map(function (u) {
+      }).sort(function (a, b) { return String(a.kyc.submitted_at || '') < String(b.kyc.submitted_at || '') ? 1 : -1; }).slice(0, 200);
+      const applications = await Promise.all(pendingUsers.map(async function (u) {
+        let document_url = '';
+        let document_preview_error = '';
+        if (u.kyc.document_path) {
+          try { document_url = await createSignedKycDocumentUrl(u.kyc.document_path); }
+          catch (_) { document_preview_error = 'Document preview unavailable; verify private storage configuration.'; }
+        }
         return {
           uid: String(u.uid || ''),
           email: String(u.email || ''),
           name: String(u.kyc.name || ''),
           id_type: String(u.kyc.id_type || ''),
           status: 'pending',
-          submitted_at: String(u.kyc.submitted_at || '')
+          submitted_at: String(u.kyc.submitted_at || ''),
+          document_url,
+          document_preview_error,
+          document_uploaded: !!u.kyc.document_path
         };
-      }).sort(function (a, b) { return a.submitted_at < b.submitted_at ? 1 : -1; }).slice(0, 200);
+      }));
       return json({ ok: true, kycs: applications, source: 'btcbox_state' });
     }
 
@@ -3195,6 +3281,7 @@ async function handleRequest(event, context) {
       const override = body.admin_override === true;
       const reason = String(body.reason || '').trim().slice(0, 300);
       if (status !== 'pending' && !override) return json({ ok: false, code: 'KYC_EXCEPTION_REQUIRED', msg: 'Only pending applications can be approved directly. Other states require the admin exception flow with a reason.' }, 409);
+      if (status === 'pending' && !u.kyc.document_path && !override) return json({ ok: false, code: 'KYC_DOCUMENT_REQUIRED', msg: 'A stored identity document image is required before approval.' }, 409);
       if (override && !reason) return json({ ok: false, code: 'ADMIN_REASON_REQUIRED', msg: 'A reason is required for admin exception approval.' }, 400);
       if (status === 'pending' && override && !reason) return json({ ok: false, code: 'ADMIN_REASON_REQUIRED', msg: 'A reason is required for admin exception approval.' }, 400);
       u.kyc.status = 'approved';
