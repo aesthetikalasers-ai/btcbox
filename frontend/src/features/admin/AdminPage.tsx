@@ -32,7 +32,7 @@ import {
   type AdminWithdrawalRecord,
 } from "../../lib/api";
 
-type Tab = "overview" | "users" | "deposits" | "withdrawals" | "kyc" | "audit" | "orders" | "support";
+type Tab = "overview" | "users" | "deposits" | "withdrawals" | "kyc" | "audit" | "orders" | "support" | "admins";
 const tabs: Array<{ id: Tab; label: string; permission: string }> = [
   { id: "overview", label: "Overview", permission: "dashboard.read" },
   { id: "users", label: "Users & manual credit", permission: "users.read" },
@@ -43,6 +43,7 @@ const tabs: Array<{ id: Tab; label: string; permission: string }> = [
   { id: "orders", label: "Orders", permission: "orders.read" },
   { id: "support", label: "Support", permission: "support.read" },
 ];
+const adminPermissionOptions = [["dashboard.read","Dashboard"],["users.read","Read users"],["users.manage","Manage users"],["users.freeze","Freeze accounts"],["kyc.read","Read KYC"],["kyc.review","Review KYC"],["deposits.read","Read deposits"],["deposits.review","Manual deposit credit"],["withdrawals.read","Read withdrawals"],["withdrawals.review","Review and mark paid"],["orders.read","Read orders"],["support.read","Read support"],["support.reply","Reply to support"],["support.manage","Manage support"],["announcements.read","Read announcements"],["announcements.manage","Manage announcements"],["system_config.read","Read system configuration"],["system_config.write","Edit system configuration"],["seconds_policy.read","Read Seconds policy"],["seconds_policy.manage","Manage Seconds policy"],["financial_audit.read","Read financial audit"],["financial_adjustment.request","Request financial adjustment"]] as const;
 const depositAddressKeys = [
   "USDT-TRC20", "USDT-ERC20", "USDT-BEP20", "BTC-BTC",
   "ETH-ERC20", "SOL-SOL", "BNB-BEP20", "USDC-ERC20",
@@ -88,6 +89,13 @@ export function AdminPage() {
   const [orders, setOrders] = useState<Array<Record<string, unknown>>>([]);
   const [support, setSupport] = useState<Array<Record<string, unknown>>>([]);
   const [supportReply, setSupportReply] = useState<Record<string, string>>({});
+  const [adminMemberships, setAdminMemberships] = useState<Array<{user_id:string;status:"active"|"suspended"|"revoked";revision:number;permissions:string[];created_at?:string;updated_at?:string}>>([]);
+  const [adminCandidates, setAdminCandidates] = useState<AdminUserRecord[]>([]);
+  const [adminSearch, setAdminSearch] = useState("");
+  const [adminTargetUserId, setAdminTargetUserId] = useState("");
+  const [adminPermissions, setAdminPermissions] = useState<string[]>([]);
+  const [adminReason, setAdminReason] = useState("");
+  const [adminRequestId, setAdminRequestId] = useState("");
 
   const hasPermission = useCallback((permission: string) => {
     return !!session && (session.is_super_admin || session.permissions.includes(permission));
@@ -123,7 +131,7 @@ export function AdminPage() {
     return () => { active = false; };
   }, [authStatus, refreshTokenAndSession]);
 
-  const allowedTabs = useMemo(() => tabs.filter((item) => hasPermission(item.permission)), [hasPermission]);
+  const allowedTabs = useMemo(() => [...tabs.filter((item) => hasPermission(item.permission)), ...(session?.is_super_admin ? [{ id: "admins" as Tab, label: "Administrators", permission: "super_admin.only" }] : [])], [hasPermission, session]);
   useEffect(() => {
     if (allowedTabs.length && !allowedTabs.some((item) => item.id === tab)) setTab(allowedTabs[0].id);
   }, [allowedTabs, tab]);
@@ -141,6 +149,11 @@ export function AdminPage() {
       if (tab === "audit") setAudit((await getAdminAuditLogs(token)).logs || []);
       if (tab === "orders") setOrders(((await getAdminOrders(token)).orders || []) as unknown as Array<Record<string, unknown>>);
       if (tab === "support") setSupport(((await getAdminSupportMessages(token)).messages || []) as unknown as Array<Record<string, unknown>>);
+      if (tab === "admins" && session.is_super_admin) {
+        const [membershipResult, userResult] = await Promise.all([getAdminMemberships(token), getAdminUsers(token, adminSearch)]);
+        setAdminMemberships(membershipResult.admins || []);
+        setAdminCandidates(userResult.users || []);
+      }
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "Could not load administrator data.");
     } finally {
@@ -270,6 +283,22 @@ export function AdminPage() {
     finally { setBusy(false); }
   };
 
+  const submitAdminMembershipChange = async (action: "provision" | "set_permissions" | "suspend" | "reactivate" | "revoke", targetUserId: string, expectedRevision: number, permissions: string[]) => {
+    if (!token || !session?.is_super_admin || !targetUserId) return;
+    const reason = adminReason.trim();
+    if (!reason) { setError("A reason is required for every administrator change."); return; }
+    const requestId = adminRequestId || window.crypto.randomUUID();
+    setAdminRequestId(requestId); setBusy(true); setError(""); setNotice("");
+    try {
+      await manageAdminMembership(token, { target_user_id: targetUserId, expected_revision: expectedRevision, action, permissions, reason, request_id: requestId });
+      setNotice(action === "provision" ? "Administrator access provisioned." : action === "set_permissions" ? "Administrator permissions updated." : action === "suspend" ? "Administrator suspended." : action === "reactivate" ? "Administrator reactivated." : "Administrator access revoked.");
+      setAdminRequestId(""); setAdminReason("");
+      const refreshed = await getAdminMemberships(token); setAdminMemberships(refreshed.admins || []);
+      if (action === "provision") setAdminTargetUserId("");
+    } catch (reason) { setError(reason instanceof Error ? reason.message : "Administrator change could not be confirmed. Refresh before retrying."); }
+    finally { setBusy(false); }
+  };
+
   if (authStatus === "anonymous" || authStatus === "two-factor" || authStatus === "password-recovery") return <div className="mx-auto max-w-3xl p-4 md:p-6"><AuthPage mode="login" redirectTo="/admin" /></div>;
   if (loading && !session) return <div className="mx-auto max-w-7xl p-6"><Card><CardContent className="p-8 text-sm text-brand-text-muted">Verifying administrator identity…</CardContent></Card></div>;
   if (!session) return <div className="mx-auto max-w-3xl p-6"><Card><CardHeader><CardTitle>BTCBOX Administrator</CardTitle><CardDescription>Administrator access requires a verified Supabase Auth identity with an active BTCBOX administrator membership.</CardDescription></CardHeader><CardContent><p className="text-sm text-rose-300">{error || "Administrator membership was not found."}</p></CardContent></Card></div>;
@@ -327,5 +356,17 @@ export function AdminPage() {
     {!loading && tab === "orders" ? <Card><CardHeader><CardTitle>Orders</CardTitle><CardDescription>Read-only operational view.</CardDescription></CardHeader><CardContent><div className="overflow-x-auto"><table className="w-full min-w-[700px] text-left text-sm"><thead><tr className="border-b border-brand-border text-xs text-brand-text-muted"><th className="p-2">ID</th><th className="p-2">User</th><th className="p-2">Symbol</th><th className="p-2">Side</th><th className="p-2">Status</th><th className="p-2">Created</th></tr></thead><tbody>{orders.map((item,index)=><tr key={asText(item.id)||index} className="border-b border-brand-border/60"><td className="p-2 font-mono text-xs">{asText(item.id)}</td><td className="p-2">{asText(item.uid||item.user_id)}</td><td className="p-2">{asText(item.symbol)}</td><td className="p-2">{asText(item.side)}</td><td className="p-2">{asText(item.status)}</td><td className="p-2">{formatDate(item.created_at||item.time)}</td></tr>)}</tbody></table></div></CardContent></Card> : null}
 
     {!loading && tab === "support" ? <Card><CardHeader><CardTitle>Support messages</CardTitle></CardHeader><CardContent className="space-y-3">{support.map((item,index)=>{const uid=asText(item.uid||item.user_id);return <div key={asText(item.id)||index} className="rounded-xl border border-brand-border p-3"><p className="text-xs text-brand-text-muted">{uid} · {formatDate(item.created_at||item.time)}</p><p className="mt-2 whitespace-pre-wrap text-sm">{asText(item.content||item.message)}</p><textarea value={supportReply[uid]||""} onChange={event=>setSupportReply(current=>({...current,[uid]:event.target.value}))} rows={2} className="mt-3 w-full rounded-lg border border-brand-border bg-brand-surface-2 p-2 text-sm text-brand-text" placeholder="Reply to customer"/><Button size="sm" className="mt-2" disabled={busy||!supportReply[uid]?.trim()||!hasPermission("support.reply")} onClick={()=>void replySupport(uid)}>Send reply</Button></div>;})}</CardContent></Card> : null}
+    {!loading && tab === "admins" && session.is_super_admin ? <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(360px,0.9fr)]">
+      <Card><CardHeader><CardTitle>Delegated administrators</CardTitle><CardDescription>Only the Super Admin can provision, change, suspend or revoke administrator access. Every change requires a reason and is recorded by the database.</CardDescription></CardHeader><CardContent className="space-y-3">
+        {adminMemberships.length ? adminMemberships.map(item=><div key={item.user_id} className="rounded-xl border border-brand-border p-3"><div className="flex flex-wrap items-start justify-between gap-2"><div><p className="font-mono text-xs text-brand-text">{item.user_id}</p><p className="mt-1 text-xs text-brand-text-muted">Revision {item.revision} · {formatDate(item.updated_at||item.created_at)}</p></div><Badge variant={statusVariant(item.status)}>{item.status}</Badge></div><p className="mt-2 break-words text-xs text-brand-text-muted">{item.permissions.join(" · ") || "No permissions"}</p><div className="mt-3 flex flex-wrap gap-2"><Button size="sm" variant="outline" disabled={busy||item.status==="revoked"} onClick={()=>{setAdminTargetUserId(item.user_id);setAdminPermissions(item.permissions);setAdminReason("");setAdminRequestId("");}}>Edit permissions</Button>{item.status==="active"?<Button size="sm" variant="outline" disabled={busy} onClick={()=>void submitAdminMembershipChange("suspend",item.user_id,item.revision,[])}>Suspend</Button>:null}{item.status==="suspended"?<Button size="sm" variant="outline" disabled={busy} onClick={()=>void submitAdminMembershipChange("reactivate",item.user_id,item.revision,item.permissions)}>Reactivate</Button>:null}{item.status!=="revoked"?<Button size="sm" variant="destructive" disabled={busy} onClick={()=>void submitAdminMembershipChange("revoke",item.user_id,item.revision,[])}>Revoke</Button>:null}</div></div>) : <p className="text-sm text-brand-text-muted">No delegated administrators have been provisioned.</p>}
+      </CardContent></Card>
+      <Card><CardHeader><CardTitle>{adminMemberships.some(item=>item.user_id===adminTargetUserId)?"Edit administrator permissions":"Provision administrator"}</CardTitle><CardDescription>Select an existing BTCBOX user. The database verifies that the target UUID belongs to a real Supabase Auth user.</CardDescription></CardHeader><CardContent className="space-y-3">
+        <form className="flex gap-2" onSubmit={event=>{event.preventDefault();void getAdminUsers(token,adminSearch).then(result=>setAdminCandidates(result.users||[])).catch(reason=>setError(reason instanceof Error?reason.message:"User search failed."));}}><input value={adminSearch} onChange={event=>setAdminSearch(event.target.value)} placeholder="Search user email or UID" className="min-w-0 flex-1 rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-2 text-sm text-brand-text"/><Button size="sm" type="submit" variant="outline">Search</Button></form>
+        <select value={adminTargetUserId} onChange={event=>{const value=event.target.value;setAdminTargetUserId(value);const found=adminMemberships.find(item=>item.user_id===value);setAdminPermissions(found?.permissions||[]);setAdminRequestId("");}} className="w-full rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-2 text-sm text-brand-text"><option value="">Select an existing user</option>{adminCandidates.filter(user=>!adminMemberships.some(item=>item.user_id===user.uid)).map(user=><option key={user.uid} value={user.uid}>{user.email} · {user.uid}</option>)}{adminMemberships.some(item=>item.user_id===adminTargetUserId)?<option value={adminTargetUserId}>{adminTargetUserId}</option>:null}</select>
+        <div className="grid gap-2 sm:grid-cols-2">{adminPermissionOptions.map(([key,label])=><label key={key} className="flex items-center gap-2 rounded-lg border border-brand-border p-2 text-xs"><input type="checkbox" checked={adminPermissions.includes(key)} onChange={event=>setAdminPermissions(current=>event.target.checked?[...current,key]:current.filter(item=>item!==key))}/><span>{label}</span></label>)}</div>
+        <textarea value={adminReason} onChange={event=>setAdminReason(event.target.value)} rows={2} maxLength={500} placeholder="Required reason for this administrator change" className="w-full rounded-lg border border-brand-border bg-brand-surface-2 p-3 text-sm text-brand-text"/>
+        <Button block disabled={busy||!adminTargetUserId||!adminPermissions.length||!adminReason.trim()} onClick={()=>{const existing=adminMemberships.find(item=>item.user_id===adminTargetUserId);void submitAdminMembershipChange(existing?"set_permissions":"provision",adminTargetUserId,existing?.revision||0,adminPermissions);}}>{adminMemberships.some(item=>item.user_id===adminTargetUserId)?"Save permissions":"Provision administrator"}</Button>
+      </CardContent></Card>
+    </div> : null}
   </div>;
 }
