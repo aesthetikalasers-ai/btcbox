@@ -109,3 +109,6 @@ $verify$;
 
 SELECT 'BTCBOX PostgreSQL schema bootstrap and RLS/grant verification passed' AS result;
 SQL
+
+echo '[test] Executing financial lifecycle RPCs inside a rolled-back PostgreSQL transaction.'
+psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f backend/tests/postgres-financial-lifecycle.integration.sql
