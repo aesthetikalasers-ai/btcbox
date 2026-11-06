@@ -204,7 +204,7 @@ export interface AccountSnapshot {
   totalUsdt: number;
   valuation_complete: boolean;
   unpriced_assets: string[];
-  kyc: { status: string; name?: string; id_type?: string; id_number?: string };
+  kyc: { status: string; name?: string; id_type?: string; id_number?: string; reject_reason?: string; };
   twofa_enabled: boolean;
   earn_records?: EarnPosition[];
   withdrawals?: WithdrawalRecord[];
@@ -649,6 +649,20 @@ export interface SupportMessage {
   from: "user" | "admin";
   content: string;
   time: string;
+}
+
+export async function submitKyc(input: { name: string; id_type: "passport" | "id_card" | "driver_license"; id_number: string }): Promise<{ status: "pending" }> {
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE_URL}/kyc`, { method: "POST", credentials: "include", cache: "no-store", headers: { Accept: "application/json", "Content-Type": "application/json" }, body: JSON.stringify(input) });
+  } catch {
+    throw new ApiError("Verification submission could not be confirmed. Refresh your account status before retrying.", 0, "NETWORK_ERROR");
+  }
+  const payload = await response.json().catch(() => null) as { ok?: boolean; status?: string; msg?: string; code?: string; need_login?: boolean } | null;
+  if (!response.ok || !payload || payload.ok !== true || payload.status !== "pending") {
+    throw new ApiError(payload?.msg || "Verification submission was not accepted.", payload?.need_login ? 401 : response.status, payload?.code);
+  }
+  return { status: "pending" };
 }
 
 export async function getSupportMessages(signal?: AbortSignal): Promise<SupportMessage[]> {
