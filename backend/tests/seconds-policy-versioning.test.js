@@ -7,6 +7,7 @@ const path = require('node:path');
 const root = path.resolve(__dirname, '..');
 const migration = fs.readFileSync(path.join(root, 'supabase/sql/0025_seconds_policy_versioning_v1.sql'), 'utf8');
 const legacy = fs.readFileSync(path.join(root, 'supabase/sql/0024_seconds_settlement_idempotency_v1.sql'), 'utf8');
+const durationAlignment = fs.readFileSync(path.join(root, 'supabase/sql/0031_seconds_policy_duration_alignment_v1.sql'), 'utf8');
 const api = fs.readFileSync(path.join(root, 'api-core.js'), 'utf8');
 
 test('policy versions are immutable, append-only and initialized to the observed baseline', () => {
@@ -41,6 +42,12 @@ test('new order RPC resolves the active backend policy and snapshots it atomical
   assert.match(fn, /policy_version/);
   assert.match(migration, /max_open_positions_per_user integer/);
   assert.ok(migration.includes('CHECK (0 < ALL(durations_sec))') || migration.includes('CONSTRAINT seconds_contract_policies_durations_positive CHECK (0 < ALL(durations_sec))'));
+});
+
+test('policy-controlled positive durations are not blocked by the retired base-schema allowlist', () => {
+  assert.match(durationAlignment, /DROP CONSTRAINT IF EXISTS seconds_contract_positions_duration_sec_check/i);
+  assert.match(durationAlignment, /CHECK \(duration_sec > 0\)/i);
+  assert.match(migration, /CHECK \(0 < ALL\(durations_sec\)\)/i);
 });
 
 test('settlement uses position payout snapshot and preserves legacy 85 percent fallback', () => {
