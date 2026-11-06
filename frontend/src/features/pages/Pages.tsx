@@ -231,7 +231,7 @@ export function SecondsPage(){
    setAmount("");
    setNotice(result.duplicate?t("This order was already received and has been confirmed."):t("Order confirmed. Funds are reserved and the position has its own settlement time."));
   }catch(reason){
-   if(reason instanceof ApiError&&reason.status>=400&&reason.status<500){
+   if(reason instanceof ApiError&&((reason.status>=400&&reason.status<500)||['FINANCIAL_CUTOVER_INCOMPLETE','REFERENCE_PRICE_UNAVAILABLE'].includes(reason.code||''))){
     clearPending();
     setError(reason.message);
    }else{
@@ -253,10 +253,10 @@ export function SecondsPage(){
       symbol:position.symbol,
       request_id:"settle_"+position.position_id
      });
-     if(result.settled)refresh();
-     else window.setTimeout(refresh,5000);
+     if(result.settled)setReload(value=>value+1);
+     else window.setTimeout(()=>setReload(value=>value+1),5000);
     }catch{
-     window.setTimeout(refresh,10000);
+     window.setTimeout(()=>setReload(value=>value+1),10000);
     }finally{settling.current.delete(position.position_id);}
    },Math.min(delay,2147483000));
   });
