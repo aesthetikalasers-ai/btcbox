@@ -16,6 +16,8 @@ test('admin spot-market API is protected by the existing system-config permissio
   assert.match(api, /route === 'spot-markets' && verb === 'POST'\) return 'system_config\.write'/);
   assert.match(api, /if \(sub === 'spot-markets' && method === 'GET'\)/);
   assert.match(api, /if \(sub === 'spot-markets' && method === 'POST'\)/);
+  assert.match(api, /SUPPORTED_LEDGER_ASSETS\.has\(baseAsset\)/);
+  assert.match(api, /SUPPORTED_LEDGER_ASSETS\.has\(quoteAsset\)/);
   assert.match(api, /p_actor_user_id: adminUserId/);
   assert.match(api, /p_request_id: requestId, p_request_hash: requestHash/);
   assert.match(api, /admin_set_spot_market_v1/);
