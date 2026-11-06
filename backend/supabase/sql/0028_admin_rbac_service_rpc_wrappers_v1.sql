@@ -114,9 +114,9 @@ BEGIN
     RAISE EXCEPTION 'invalid seconds policy change';
   END IF;
 
-  SELECT count(DISTINCT value) INTO v_count FROM unnest(p_symbols) AS value;
+  SELECT count(DISTINCT symbol) INTO v_count FROM unnest(p_symbols) AS items(symbol);
   IF v_count <> cardinality(p_symbols) THEN RAISE EXCEPTION 'duplicate policy symbol'; END IF;
-  SELECT count(DISTINCT value) INTO v_count FROM unnest(p_durations_sec) AS value;
+  SELECT count(DISTINCT duration) INTO v_count FROM unnest(p_durations_sec) AS items(duration);
   IF v_count <> cardinality(p_durations_sec) THEN RAISE EXCEPTION 'duplicate policy duration'; END IF;
 
   v_membership := private.admin_get_membership_v1(p_actor_user_id);
