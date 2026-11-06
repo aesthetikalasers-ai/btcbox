@@ -2319,12 +2319,15 @@ async function handleRequest(event, context) {
         // Keep valid Coinbase rows; do not invent prices for missing symbols.
       }
     }
+    // This is the server snapshot time after provider responses have been received,
+    // not an exchange event timestamp (Coinbase stats has no event-time field).
+    const snapshotTs = Math.floor(Date.now() / 1000);
     const out = bases.filter(base => marketsByBase[base]).map(base => {
       const row = marketsByBase[base];
       return { sym: row.sym, price: row.price, chg: row.chg, high: row.high, low: row.low, vol: (row.vol / 1e9).toFixed(2) + 'B', source: row.source };
     });
     const dataObj = {};
-    out.forEach(row => { dataObj[row.sym] = { price: row.price, chg: row.chg, high: row.high, low: row.low, vol: marketsByBase[row.sym].vol, ts: now, source: row.source }; });
+    out.forEach(row => { dataObj[row.sym] = { price: row.price, chg: row.chg, high: row.high, low: row.low, vol: marketsByBase[row.sym].vol, ts: snapshotTs, source: row.source }; });
     if (!out.length) return json({ ok: false, code: 'MARKET_DATA_UNAVAILABLE', msg: 'Market data unavailable.', markets: [], data: {}, source: coinbaseAvailable ? 'coinbase_partial' : 'unavailable' }, 503);
     // Public market snapshots contain no user data. Allow short shared-cache reuse
     // so free serverless plans do not fetch every provider for every browser poll.
