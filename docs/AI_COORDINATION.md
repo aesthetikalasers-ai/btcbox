@@ -3214,3 +3214,14 @@ The prior withdrawal UI audit statement claiming the active BTCBOX admin route w
 - NOT VERIFIED: interactive browser E2E across customer/admin journeys; hosted Supabase Auth and private KYC Storage configuration; first Super Admin provisioning against a real Auth identity; real provider connectivity and production readiness.
 - No source code changes were justified by this route audit. No hosted DB write, real financial operation, merge, or deployment was performed.
 - Next batch: establish a browser-test harness that can exercise non-financial customer/admin flows using isolated fixtures and mocked network boundaries; add responsive route smoke coverage while explicitly excluding financial write execution and preserving the spot trading layout.
+
+## Isolated frontend browser smoke suite — 2026-11-06 UTC
+
+- Consolidated implementation branch: `fix/post-merge-db-bootstrap-seconds-20261106`; current exact head `ee6ab2eb8e3060dd9fa345636ba59bbf2196f8ed`; base main `fa4513701af75b4c4cb39d60a3df08f07d632af4`; comparison 185 commits ahead / 0 behind. PR #50 remains Draft, open and unmerged.
+- Added `@playwright/test`, `frontend/playwright.config.ts`, and `frontend/e2e/auth-routes.spec.ts`. The suite runs four smoke cases against both Desktop Chrome and Pixel 7 mobile Chromium: login form, registration form, unauthenticated redirect from protected withdrawal route, and admin route login gate.
+- The browser tests intercept `/api/auth-client-config` and `/api/account` with synthetic responses and abort the synthetic Supabase host. No real Supabase identity, hosted database, financial endpoint or write operation is used.
+- Updated `.github/workflows/frontend-ci.yml` to install Chromium and run `npm run test:e2e` after TypeScript lint and Vite production build. Added the consolidated integration branch to the workflow push branch filter so this branch receives its own frontend CI run.
+- SOURCE REVIEW: test selectors and route expectations were checked against current `AuthPages.tsx`, `AdminPage.tsx`, `App.tsx` and `AuthProvider` behavior. Admin anonymous route intentionally renders the login form at `/admin`; protected customer route redirects to `/login`.
+- CI STATUS: browser CI result for exact head `ee6ab2eb8e3060dd9fa345636ba59bbf2196f8ed` is pending/not yet visible through the current workflow-run query. Do not claim the Playwright tests passed until an exact-head GitHub Actions result is available. Existing earlier backend and PostgreSQL checks remain recorded at `ebcab45c2c40105e59fa81ff030be32a86ac4c6a`; they are not being represented as rerun on this new head.
+- No customer trading page layout change, hosted database write, real financial operation, merge or deployment occurred.
+- Next: confirm exact-head frontend/browser CI. If it passes, expand smoke coverage to account hydration and non-mutating dashboard reads; keep all financial submit actions mocked or disabled.
