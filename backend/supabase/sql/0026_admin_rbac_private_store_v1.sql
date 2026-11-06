@@ -142,7 +142,7 @@ BEGIN
   END IF;
 
   INSERT INTO private.admin_memberships(user_id,status,is_super_admin,revision,created_by)
-  VALUES(p_auth_user_id,'active',true,1,p_auth_user_id);
+  VALUES(p_auth_user_id,'active',true,1,NULL);
 
   INSERT INTO private.admin_security_audit(
     actor_kind,actor_user_id,target_user_id,action,reason,request_id,request_hash,
@@ -207,6 +207,7 @@ $$;
 CREATE OR REPLACE FUNCTION private.admin_manage_membership_v1(
   p_actor_user_id uuid,
   p_target_user_id uuid,
+  p_expected_revision bigint,
   p_action text,
   p_permissions text[],
   p_reason text,
@@ -230,6 +231,7 @@ DECLARE
   v_status text;
 BEGIN
   IF p_actor_user_id IS NULL OR p_target_user_id IS NULL
+     OR p_expected_revision IS NULL OR p_expected_revision<0
      OR p_actor_user_id=p_target_user_id
      OR p_action IS NULL OR p_action NOT IN ('provision','set_permissions','suspend','reactivate','revoke')
      OR length(btrim(coalesce(p_reason,''))) NOT BETWEEN 1 AND 500
@@ -290,12 +292,14 @@ BEGIN
   END IF;
 
   IF p_action='provision' THEN
+    IF p_expected_revision<>0 THEN RAISE EXCEPTION 'stale membership revision'; END IF;
     IF v_target_found THEN RAISE EXCEPTION 'administrator membership already exists'; END IF;
     INSERT INTO private.admin_memberships(user_id,status,is_super_admin,revision,created_by)
       VALUES(p_target_user_id,'active',false,1,p_actor_user_id)
       RETURNING revision INTO v_revision;
   ELSE
     IF NOT v_target_found THEN RAISE EXCEPTION 'administrator membership not found'; END IF;
+    IF p_expected_revision<>v_target.revision THEN RAISE EXCEPTION 'stale membership revision'; END IF;
     IF v_target.is_super_admin OR v_target.status='revoked' THEN
       RAISE EXCEPTION 'target administrator cannot be modified';
     END IF;
@@ -359,13 +363,14 @@ BEGIN
 END;
 $$;
 
+REVOKE ALL ON FUNCTION private.reject_admin_history_mutation_v1() FROM PUBLIC, anon, authenticated, service_role;
 REVOKE ALL ON FUNCTION private.bootstrap_super_admin_v1(uuid,text,text) FROM PUBLIC, anon, authenticated, service_role;
 REVOKE ALL ON FUNCTION private.admin_get_membership_v1(uuid) FROM PUBLIC, anon, authenticated, service_role;
-REVOKE ALL ON FUNCTION private.admin_manage_membership_v1(uuid,uuid,text,text[],text,text,text) FROM PUBLIC, anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION private.admin_manage_membership_v1(uuid,uuid,bigint,text,text[],text,text,text) FROM PUBLIC, anon, authenticated, service_role;
 GRANT EXECUTE ON FUNCTION private.bootstrap_super_admin_v1(uuid,text,text) TO postgres;
 GRANT EXECUTE ON FUNCTION private.admin_get_membership_v1(uuid) TO service_role;
 GRANT EXECUTE ON FUNCTION private.admin_manage_membership_v1(uuid,uuid,text,text[],text,text,text) TO service_role;
 
 COMMENT ON SCHEMA private IS 'Non-exposed BTCBOX administrator identity, grants, and audit storage. Never add to Data API exposed schemas.';
 COMMENT ON FUNCTION private.bootstrap_super_admin_v1(uuid,text,text) IS 'Owner-only one-time Super Admin bootstrap; never expose through HTTP/PostgREST.';
-COMMENT ON FUNCTION private.admin_manage_membership_v1(uuid,uuid,text,text[],text,text,text) IS 'Trusted-server-only Super Admin delegated-admin lifecycle transition; actor UUID must come from verified Supabase Auth.';
+COMMENT ON FUNCTION private.admin_manage_membership_v1(uuid,uuid,bigint,text,text[],text,text,text) IS 'Trusted-server-only Super Admin delegated-admin lifecycle transition; actor UUID must come from verified Supabase Auth.';

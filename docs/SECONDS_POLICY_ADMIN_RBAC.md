@@ -326,3 +326,10 @@ This batch adds migration source and static contract tests only. No PostgreSQL p
 - Permission replacement writes a complete grant/revoke snapshot for every catalogue key, so removing a permission actually revokes it rather than leaving an older grant active.
 - A transaction-scoped advisory lock serializes the same actor/request-id before idempotency lookup, preventing concurrent identical retries from racing into duplicate mutations.
 - Permission-event ordering uses an identity sequence as a deterministic tie-breaker for events created in the same timestamp resolution window.
+
+
+### 15.2 Optimistic revision and source-only hardening
+- Every delegated-admin mutation carries `p_expected_revision`. Provisioning requires revision 0; all later changes must match the current membership revision or fail as stale.
+- The request hash must cover the actor, target, action, exact sorted permission set, reason, request ID and expected revision.
+- The owner-bootstrap audit row is explicitly attributed as `owner_bootstrap` without fabricating an administrator actor UUID or a self-created membership record.
+- The append-only trigger function itself has PUBLIC/browser/service-role EXECUTE revoked; only trigger invocation by table writes is needed.
