@@ -3356,3 +3356,13 @@ The prior withdrawal UI audit statement claiming the active BTCBOX admin route w
 
 - CI diagnosis on prior PR head `00823fa51917d2ab261114aae370dd155960634d`: PostgreSQL schema CI `42249641096` passed; frontend CI `42249641135` was still running at last check; backend CI `42249641052` failed 2 tests in a duplicate timestamp test block added to `seconds-server-authoritative-rules.test.js` (missing `vm` import and overly literal handler string assertions). The dedicated `seconds-reference-timestamp.test.js` already covers the behavior correctly using exported `_test.normalizeReferenceTimestamp`.
 - FIX COMMITTED: removed the redundant duplicate block from `seconds-server-authoritative-rules.test.js` at implementation head `a2954c6bc3524b7643e39b475543b4f882f4df41`. Await exact-head CI before acceptance.
+
+
+## Manual deposit reference contract correction — 2026-11-07
+
+- SOURCE OBSERVED: the manual-credit UI and API accept verified receipt references up to 160 characters (AdminPage.tsx, api-core.js), but 0007_financial_admin_manual_deposit_v1.sql truncated the reference to 120 characters before recomputing the request hash. A valid 121–160 character reference therefore failed SQL hash verification.
+- FIX COMMITTED: aligned the SQL normalization limit to 160 characters, matching the UI/API contract. The reference remains trimmed and is used consistently for request hashing, persistence, and uniqueness checks.
+- REGRESSION COVERAGE ADDED: source contract test asserts the 160-character SQL limit; disposable PostgreSQL lifecycle integration submits a 130-character reference, checks the credit and balance, then replays the exact request and verifies no second credit.
+- Implementation branch: fix/post-merge-db-bootstrap-seconds-20261106; latest observed head: 12f9039066bfa702d8c8e369028a5ce7a27c0f2a. PR #50 remains Draft/open/unmerged.
+- Exact-head CI for this batch is NOT YET VERIFIED: the GitHub workflow lookup did not return runs for this SHA at the time of this update. Do not infer success from earlier workflow runs.
+- No hosted Supabase writes, real financial operations, merge, or deployment. Trading page layout unchanged.
