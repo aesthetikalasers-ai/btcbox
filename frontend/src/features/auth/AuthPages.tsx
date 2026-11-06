@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../..
 import { Input } from "../../components/ui/input";
 import { useAuth } from "../../lib/auth";
 
-export function AuthPage({ mode }: { mode: "login" | "register" }) {
+export function AuthPage({ mode, redirectTo }: { mode: "login" | "register"; redirectTo?: string }) {
   const { status, needsCredentials, busy, error, notice, googleEnabled, ethereumWallets, signInWithGoogle, signInWithWeb3, signInWithUsername, signInWithEmail, signUpWithEmail, requestPasswordReset, verifyTwoFactor, clearError } = useAuth();
   const [username, setUsername] = useState("");
   const [emailAddress, setEmailAddress] = useState("");
@@ -19,9 +19,9 @@ export function AuthPage({ mode }: { mode: "login" | "register" }) {
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (status === "authenticated") navigate(needsCredentials ? "/account-setup" : "/home", { replace: true });
-    else if (status === "two-factor") navigate("/login", { replace: true });
-  }, [status, needsCredentials, navigate]);
+    if (status === "authenticated") navigate(needsCredentials ? "/account-setup" : (redirectTo || "/home"), { replace: true });
+    else if (status === "two-factor") navigate(redirectTo || "/login", { replace: true });
+  }, [status, needsCredentials, navigate, redirectTo]);
 
   if (status === "loading") return <div className="mx-auto flex min-h-[60vh] items-center justify-center text-sm text-brand-text-muted">Loading authentication…</div>;
 

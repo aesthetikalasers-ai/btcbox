@@ -13,6 +13,7 @@ const reactAdminPage = fs.readFileSync(path.resolve(root, '../frontend/src/featu
 const adminAuth = fs.readFileSync(path.join(root, 'admin-auth.js'), 'utf8');
 const admin = fs.readFileSync(path.join(root, 'admin.html'), 'utf8');
 const vercelConfig = JSON.parse(fs.readFileSync(path.join(root, 'vercel.json'), 'utf8'));
+const authPages = fs.readFileSync(path.resolve(root, '../frontend/src/features/auth/AuthPages.tsx'), 'utf8');
 const api = require(path.join(root, 'api-core.js'));
 const redactAdminAuditDetail = api._test.redactAdminAuditDetail;
 
@@ -65,12 +66,15 @@ test('dedicated /admin URL defaults to the admin route before SPA boot', () => {
 test('Vercel serves /admin through the React SPA instead of the legacy admin.html rewrite', () => {
   assert.ok(!vercelConfig.rewrites.some((rule) => rule.source === '/admin' && rule.destination === '/admin.html'));
   assert.ok(vercelConfig.rewrites.some((rule) => rule.destination === '/index.html' && rule.source.includes('api/')));
+  assert.ok(vercelConfig.redirects.some((rule) => rule.source === '/admin.html' && rule.destination === '/admin'));
 });
 
 test('React admin route uses verified Supabase Auth identity and server-side role permissions', () => {
   assert.ok(reactApp.includes('const AdminPage = lazy(() => import("./features/admin/AdminPage")'));
   assert.ok(reactApp.includes('<Route path="/admin" element={<AdminPage />} />'));
   assert.ok(reactAdminPage.includes('const { status: authStatus, getSupabaseAccessToken } = useAuth()'));
+  assert.ok(reactAdminPage.includes('<AuthPage mode="login" redirectTo="/admin" />'));
+  assert.ok(authPages.includes('redirectTo || "/home"'));
   assert.ok(reactAdminPage.includes('getAdminSession(accessToken)'));
   assert.ok(reactAdminPage.includes('session.is_super_admin || session.permissions.includes(permission)'));
   assert.ok(apiCore.includes("require('./admin-auth')"));
