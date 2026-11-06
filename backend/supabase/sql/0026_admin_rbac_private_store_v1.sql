@@ -374,3 +374,22 @@ GRANT EXECUTE ON FUNCTION private.admin_manage_membership_v1(uuid,uuid,bigint,te
 COMMENT ON SCHEMA private IS 'Non-exposed BTCBOX administrator identity, grants, and audit storage. Never add to Data API exposed schemas.';
 COMMENT ON FUNCTION private.bootstrap_super_admin_v1(uuid,text,text) IS 'Owner-only one-time Super Admin bootstrap; never expose through HTTP/PostgREST.';
 COMMENT ON FUNCTION private.admin_manage_membership_v1(uuid,uuid,bigint,text,text[],text,text,text) IS 'Trusted-server-only Super Admin delegated-admin lifecycle transition; actor UUID must come from verified Supabase Auth.';
+
+
+-- Narrow PostgREST bridge for the trusted backend only. The private schema remains
+-- unexposed; this public SECURITY DEFINER wrapper returns only the caller's
+-- server-verified membership snapshot and grants EXECUTE to service_role only.
+CREATE OR REPLACE FUNCTION public.admin_get_membership_v1(p_actor_user_id uuid)
+RETURNS jsonb
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = pg_catalog, private
+AS $$
+  SELECT private.admin_get_membership_v1(p_actor_user_id);
+$$;
+
+REVOKE ALL ON FUNCTION public.admin_get_membership_v1(uuid) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.admin_get_membership_v1(uuid) TO service_role;
+
+COMMENT ON FUNCTION public.admin_get_membership_v1(uuid) IS
+  'Trusted-backend-only bridge to private administrator membership. Requires server-verified Auth UUID; never callable by anon/authenticated clients.';
