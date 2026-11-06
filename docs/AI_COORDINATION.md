@@ -3242,3 +3242,15 @@ The prior withdrawal UI audit statement claiming the active BTCBOX admin route w
 
 - Verified latest implementation ref and PR #50 head: `2da76b37eb25b0f121d2474b6fc218a1b27b56d3`; compare against main confirms **186 ahead / 0 behind**. The earlier 185 count was before the final workflow update commit.
 - Exact-head CI all passed: frontend run 417 (`42234125211`, Playwright 8/8), backend run 551 (`42234125236`), PostgreSQL schema run 116 (`42234125250`).
+
+## Browser E2E batch — 2026-11-06 (account-route access boundaries)
+
+- Re-verified the active implementation branch head before changes: `2da76b37eb25b0f121d2474b6fc218a1b27b56d3`; this supersedes the stale PR #50 head SHA recorded in the earlier canonical-status paragraph above.
+- Existing exact-head CI evidence at that baseline: frontend run `42234125211`, backend run `42234125236`, PostgreSQL schema run `42234125250`; all completed successfully. The combined status also exposes a Vercel Hobby build-rate-limit failure, which is not treated as a code-test result.
+- SOURCE OBSERVED: customer `/assets`, `/orders`, and `/kyc` routes are wrapped in the authenticated account route gate; unauthenticated access redirects to `/login`. `/me` renders a sign-in prompt and does not request the private account snapshot while signed out.
+- Added Playwright coverage for those three protected routes and the signed-out `/me` no-private-account-request behavior in `frontend/e2e/auth-routes.spec.ts`.
+- Implementation commit: `9d05cb977db07537e624e8dc18c6ab1bd01a69ad`. CI for this new exact head is pending/not yet verified; do not reuse the previous SHA's green checks as evidence for this commit.
+- QA remains mock-only: synthetic Supabase host is blocked, account API is mocked as unauthenticated, and no hosted Auth, database, KYC storage, or financial endpoint is written or executed.
+- NOT VERIFIED: authenticated account hydration, balances, order-history rows, KYC status retrieval, authenticated admin read-only data loading, and KYC review queue rendering. The current auth fixture only establishes the signed-out boundary; do not label these authenticated flows tested.
+- No merge, production deployment, hosted DB write, real financial action, or trading-layout change occurred.
+- NEXT ACTION: run exact-head frontend/backend/PostgreSQL CI, then extend authenticated browser coverage only after confirming the actual auth-provider session fixture contract. Keep admin/KYC/financial mutation actions mocked or blocked.
