@@ -2248,3 +2248,12 @@ Application branch inspected: `feat/btcbox-web3-auth-20261105` at `741c709d818cb
 ### Validation / release boundary
 - Exact-SHA GitHub Actions run lookup currently returns zero runs for `dd009a154a4dca8cdc2093f78e8bcd366a17d1e3`; tests have not been executed in CI yet. No pass claimed.
 - No Supabase database writes, migration, live admin account, permission grants, merge to main, or production deployment.
+
+
+### Exact-SHA CI and tree-integrity verification — 2026-11-06 (UTC+8)
+- A first helper commit was found to have been constructed from the wrong base tree. Before proceeding, the feature branch was repaired by rebuilding from the exact tree of parent feature commit `6dfd82cfb69b1a39e7acc2666366309219733398`. Compare API confirms the repaired feature commit changes exactly two files relative to that parent: `backend/admin-rbac.js` and `backend/tests/admin-rbac.test.js`; no existing files or layouts are removed or rewritten.
+- Repaired feature commit: `b4471ac6462194e2c1bfc4a695754fec17729698`.
+- Exact backend CI run `42141737708` completed with conclusion `success`: unified build, backend tests, fail-closed deployment configuration, and output/entrypoint checks all passed.
+- Exact frontend CI run `42141737685` completed with conclusion `success`: lint and build passed.
+- The policy-helper module is still not runtime-connected to the legacy admin routes. It does not yet authenticate the Supabase token or load membership/grants from a protected store. Do not describe RBAC as live/active.
+- No Supabase migration/write, admin provisioning, permission grant, merge to main, or production deployment.
