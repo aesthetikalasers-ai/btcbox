@@ -674,7 +674,13 @@ export interface SupportMessage {
   time: string;
 }
 
-export async function submitKyc(input: { name: string; id_type: "passport" | "id_card" | "driver_license"; id_number: string }): Promise<{ status: "pending" }> {
+export async function submitKyc(input: {
+  name: string;
+  id_type: "passport" | "id_card" | "driver_license";
+  id_number: string;
+  document_content_type: "image/jpeg" | "image/png" | "image/webp";
+  document_image_base64: string;
+}): Promise<{ status: "pending" }> {
   let response: Response;
   try {
     response = await fetch(`${API_BASE_URL}/kyc`, { method: "POST", credentials: "include", cache: "no-store", headers: { Accept: "application/json", "Content-Type": "application/json" }, body: JSON.stringify(input) });
@@ -898,6 +904,9 @@ export interface AdminKycRecord {
   id_type: string;
   status: string;
   submitted_at: string;
+  document_url?: string;
+  document_preview_error?: string;
+  document_uploaded?: boolean;
 }
 export interface AdminAuditRecord {
   id: string;
