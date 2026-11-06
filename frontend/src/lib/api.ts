@@ -530,6 +530,70 @@ export async function getSavedCryptoAddresses(signal?: AbortSignal): Promise<Sav
     typeof item.network === "string" && typeof item.address === "string")
     .map((item) => ({ ...item, blocked: item.blocked === true, unbound: item.unbound === true }));
 }
+export interface SelectedCryptoAddress {
+  address: string;
+  coin: string;
+  network: string;
+}
+
+export interface WithdrawalConfig {
+  actions_enabled: boolean;
+  fees: Record<string, number | string>;
+  allowed_networks: Record<string, string[]>;
+}
+
+export interface WithdrawalSubmissionResult {
+  withdrawal_id: string;
+  status: string;
+  require_admin_review: boolean;
+  duplicate: boolean;
+  msg?: string;
+}
+
+export async function getSelectedCryptoAddress(id: string, signal?: AbortSignal): Promise<SelectedCryptoAddress> {
+  const query = new URLSearchParams({ id });
+  const payload = await readAuthenticated<{ ok: true; address: string; coin: string; network: string }>(`addresses/select?${query.toString()}`, signal);
+  if (typeof payload.address !== "string" || !payload.address || typeof payload.coin !== "string" || typeof payload.network !== "string") {
+    throw new ApiError("BTCBOX returned an invalid selected withdrawal address.", 502, "INVALID_WITHDRAWAL_ADDRESS");
+  }
+  return { address: payload.address, coin: payload.coin, network: payload.network };
+}
+
+export async function getWithdrawalConfig(signal?: AbortSignal): Promise<WithdrawalConfig> {
+  const payload = await readAuthenticated<WithdrawalConfig & { ok: true }>("withdrawal/config", signal);
+  if (typeof payload.actions_enabled !== "boolean" || !payload.fees || typeof payload.fees !== "object" ||
+      !payload.allowed_networks || typeof payload.allowed_networks !== "object") {
+    throw new ApiError("BTCBOX returned an invalid withdrawal configuration.", 502, "INVALID_WITHDRAWAL_CONFIG");
+  }
+  return payload;
+}
+
+export async function submitWithdrawal(input: {
+  request_id: string;
+  coin: string;
+  network: string;
+  amount: string;
+  address: string;
+  fund_password: string;
+  twofa_code?: string;
+}): Promise<WithdrawalSubmissionResult> {
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE_URL}/withdraw`, {
+      method: "POST", credentials: "include",
+      headers: { Accept: "application/json", "Content-Type": "application/json" },
+      cache: "no-store", body: JSON.stringify(input),
+    });
+  } catch {
+    throw new ApiError("Withdrawal result is unconfirmed. Keep the same request ID and check your withdrawal history before retrying.", 0, "NETWORK_ERROR");
+  }
+  const payload = await response.json().catch(() => null) as (WithdrawalSubmissionResult & { ok?: boolean; need_login?: boolean; code?: string; msg?: string }) | null;
+  if (!response.ok || !payload || payload.ok !== true || typeof payload.withdrawal_id !== "string" || typeof payload.status !== "string") {
+    throw new ApiError(payload?.msg || "Withdrawal request was not confirmed. Check your withdrawal history before retrying.", payload?.need_login ? 401 : response.status, payload?.code);
+  }
+  return payload;
+}
+
 export async function getDepositAddress(coin: string, network: string, signal?: AbortSignal): Promise<string> {
   const normalizedCoin = coin.trim().toUpperCase();
   const normalizedNetwork = network.trim().toUpperCase();
