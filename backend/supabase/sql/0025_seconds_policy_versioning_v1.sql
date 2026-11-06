@@ -137,7 +137,8 @@ INSERT INTO public.seconds_contract_policy_audit(policy_id,action,actor_id,reaso
 SELECT policy_id,'seed','system-migration',change_reason,
   jsonb_build_object('version',policy_version,'symbols',symbols,'durations_sec',durations_sec,
     'min_stake',min_stake,'max_stake',max_stake,'payout_bps',payout_bps,
-    'per_user_open_exposure',per_user_open_exposure)
+    'per_user_open_exposure',per_user_open_exposure,
+    'max_open_positions_per_user',max_open_positions_per_user)
 FROM public.seconds_contract_policies WHERE policy_version=1
 AND NOT EXISTS (SELECT 1 FROM public.seconds_contract_policy_audit WHERE action='seed');
 
@@ -234,7 +235,8 @@ BEGIN
     jsonb_build_object('position_id',p_position_id,'symbol',p_symbol,'direction',p_direction,
       'amount',p_amount,'duration_sec',p_duration_sec,'open_price',p_open_price,
       'policy_id',v_policy.policy_id,'policy_version',v_policy.policy_version,
-      'payout_bps',v_policy.payout_bps))
+      'payout_bps',v_policy.payout_bps,
+      'max_open_positions_per_user',v_policy.max_open_positions_per_user))
   RETURNING id INTO v_operation_id;
 
   UPDATE public.financial_accounts SET available=available-p_amount,frozen=frozen+p_amount,
