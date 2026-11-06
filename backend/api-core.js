@@ -2222,10 +2222,11 @@ async function handleRequest(event, context) {
       const policy = result && result.policy;
       const validPolicy = policy && Number.isSafeInteger(Number(policy.policy_version)) && Number(policy.policy_version) > 0 &&
         Array.isArray(policy.symbols) && policy.symbols.length > 0 && policy.symbols.every((symbol) => SECONDS_ALLOWED_SYMBOLS.has(symbol)) &&
-        Array.isArray(policy.durations_sec) && policy.durations_sec.length > 0 && policy.durations_sec.every((duration) => SECONDS_ALLOWED_DURATIONS.has(Number(duration))) &&
+        Array.isArray(policy.durations_sec) && policy.durations_sec.length > 0 && policy.durations_sec.every((duration) => Number.isSafeInteger(Number(duration)) && Number(duration) > 0) &&
         compareMoney(policy.min_stake, '0') > 0 && compareMoney(policy.max_stake, policy.min_stake) >= 0 &&
         Number.isSafeInteger(Number(policy.payout_bps)) && Number(policy.payout_bps) >= 8500 &&
-        (policy.per_user_open_exposure == null || compareMoney(policy.per_user_open_exposure, '0') > 0);
+        (policy.per_user_open_exposure == null || compareMoney(policy.per_user_open_exposure, '0') > 0) &&
+        (policy.max_open_positions_per_user == null || (Number.isSafeInteger(Number(policy.max_open_positions_per_user)) && Number(policy.max_open_positions_per_user) > 0));
       if (!rpc.ok || !result || result.ok !== true || !validPolicy) {
         return json({ ok: false, code: 'SECONDS_POLICY_UNAVAILABLE', msg: 'Short-term contract policy is not configured or is invalid.' }, 503);
       }
@@ -2252,7 +2253,7 @@ async function handleRequest(event, context) {
     const requestId = String(body.request_id || '').trim();
     if (!SECONDS_ALLOWED_SYMBOLS.has(symbol)) return json({ ok: false, msg: 'This trading pair is not supported for short-term contracts.' }, 400);
     if (!['up', 'down'].includes(direction)) return json({ ok: false, msg: 'Invalid trade direction.' }, 400);
-    if (!SECONDS_ALLOWED_DURATIONS.has(durationSec)) return json({ ok: false, msg: 'Invalid contract duration.' }, 400);
+    if (!Number.isSafeInteger(durationSec) || durationSec <= 0) return json({ ok: false, msg: 'Invalid contract duration.' }, 400);
     if (amount === null || compareMoney(amount, '0') <= 0 || compareMoney(amount, '1000000000000') > 0) return json({ ok: false, msg: 'Invalid investment amount.' }, 400);
     if (!/^[A-Za-z0-9_-]{16,100}$/.test(requestId)) return json({ ok: false, code: 'IDEMPOTENCY_KEY_REQUIRED', msg: 'A valid request ID (16-100 characters) is required.' }, 400);
     const positionId = 'SC' + crypto.createHash('sha256').update(String(user.uid) + '|' + requestId).digest('hex').slice(0, 30);
