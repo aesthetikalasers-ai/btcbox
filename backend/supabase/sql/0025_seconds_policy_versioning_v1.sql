@@ -11,7 +11,7 @@ CREATE TABLE IF NOT EXISTS public.seconds_contract_policies (
   durations_sec integer[] NOT NULL CHECK (cardinality(durations_sec) > 0),
   min_stake numeric(38,18) NOT NULL CHECK (min_stake > 0),
   max_stake numeric(38,18) NOT NULL CHECK (max_stake >= min_stake),
-  payout_bps integer NOT NULL CHECK (payout_bps BETWEEN 8500 AND 10000),
+  payout_bps integer NOT NULL CHECK (payout_bps >= 8500),
   per_user_open_exposure numeric(38,18),
   effective_from timestamptz NOT NULL,
   effective_until timestamptz,
@@ -64,7 +64,7 @@ ALTER TABLE public.seconds_contract_positions
 
 ALTER TABLE public.seconds_contract_positions
   ADD CONSTRAINT seconds_positions_payout_bps_snapshot_check
-  CHECK (payout_bps_snapshot IS NULL OR payout_bps_snapshot BETWEEN 8500 AND 10000);
+  CHECK (payout_bps_snapshot IS NULL OR payout_bps_snapshot >= 8500);
 
 -- Policy records and position terms are immutable after insertion.
 CREATE OR REPLACE FUNCTION public.prevent_seconds_policy_mutation_v1()
@@ -352,3 +352,43 @@ REVOKE ALL ON FUNCTION public.settle_seconds_position_v1(text,text,text,text,tex
   FROM public, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.settle_seconds_position_v1(text,text,text,text,text,numeric,text,timestamptz)
   TO service_role;
+
+
+-- Read the active policy through a narrow server-only RPC. Browser roles never
+-- receive table access; the backend adds the financial cutover feature flag.
+CREATE OR REPLACE FUNCTION public.read_active_seconds_policy_v1()
+RETURNS jsonb
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = pg_catalog, public
+AS $$
+  SELECT coalesce(
+    (
+      SELECT jsonb_build_object(
+        'ok', true,
+        'policy', jsonb_build_object(
+          'policy_id', p.policy_id,
+          'policy_version', p.policy_version,
+          'symbols', p.symbols,
+          'durations_sec', p.durations_sec,
+          'min_stake', p.min_stake,
+          'max_stake', p.max_stake,
+          'payout_bps', p.payout_bps,
+          'per_user_open_exposure', p.per_user_open_exposure,
+          'effective_from', p.effective_from,
+          'effective_until', p.effective_until
+        )
+      )
+      FROM public.seconds_contract_policy_active a
+      JOIN public.seconds_contract_policies p ON p.policy_id = a.policy_id
+      WHERE a.singleton = true
+        AND p.effective_from <= clock_timestamp()
+        AND (p.effective_until IS NULL OR p.effective_until > clock_timestamp())
+      LIMIT 1
+    ),
+    jsonb_build_object('ok', false, 'code', 'SECONDS_POLICY_UNAVAILABLE')
+  );
+$$;
+
+REVOKE ALL ON FUNCTION public.read_active_seconds_policy_v1() FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.read_active_seconds_policy_v1() TO service_role;
