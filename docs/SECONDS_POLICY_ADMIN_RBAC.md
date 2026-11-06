@@ -119,20 +119,20 @@ The UI exposes policy controls only after the read/write APIs and server-side au
 
 ## 10. Rollout gates and explicit non-goals
 
-Before implementation: review and approve the identity provider contract, administrator enrollment/provisioning process, role assignments, separation-of-duties model, and emergency recovery process.
+Source implementation is present for verified Supabase Auth, live membership lookup, owner-only initial Super Admin bootstrap, delegated-admin provisioning, and Seconds policy version/activation. Hosted schema bootstrap and runtime verification remain separate release gates.
 
-This document does not create admin users, grant roles, create database tables/functions, expose API routes/UI, apply a migration, alter existing admin login, enable financial writes, merge, or deploy.
+The initial Super Admin bootstrap function and delegated-admin/Seconds policy source are implemented. This document does not execute the bootstrap, apply SQL to a hosted database, enable financial writes, merge, or deploy.
 
 ## 11. Administrator enrollment, permission lifecycle and recovery
 
-This section is a provisioning contract only. It does not create administrator accounts, permissions, or a database bootstrap path.
+The owner-only initial bootstrap is implemented in `backend/supabase/sql/0026_admin_rbac_private_store_v1.sql` as `private.bootstrap_super_admin_v1(uuid,text,text)`. It can only run when `session_user='postgres'`, requires an existing Supabase Auth UUID, records an owner-bootstrap audit event, and refuses to run after a Super Admin already exists.
 
 ### Enrollment and initial bootstrap
 - No self-service administrator registration, automatic promotion, or role inference from email domain is allowed.
 - An administrator must first have an existing Supabase Auth account. Provisioning is keyed by the exact Auth UUID obtained from a trusted Auth user lookup; email is a human-readable review attribute, never the authorization key.
-- The initial bootstrap must be an explicit, owner-controlled, out-of-band operation against an isolated environment first. Require two separately authenticated approvers, a recorded change/ticket identifier, exact Auth UUIDs, the permission set, and a reason. Do not ship a default administrator UUID, email allowlist, shared password, or public bootstrap endpoint.
-- After the first administrator set is provisioned, permanently disable/remove the bootstrap path. Further grants use the normal audited permission-management workflow and cannot be self-approved.
-- A provisioned identity starts disabled with no permissions until a separate grant is committed. Supabase account existence alone grants no BTCBOX administrator access.
+- The initial bootstrap is one explicit project-owner SQL Editor operation against the verified empty project. Supply the exact existing Auth UUID, a bounded reason, and a change reference. A second approver is not a product requirement; the database function itself enforces postgres-only execution, existing Auth identity, one-time use, and an append-only owner-bootstrap audit event. Do not ship a default administrator UUID, email allowlist, shared password, or public bootstrap endpoint.
+- The bootstrap function remains inaccessible to API roles and is guarded by the existence of a Super Admin. Further grants use the normal audited Super Admin workflow.
+- A normal delegated administrator starts disabled with no permissions until a separate grant is committed. The one-time owner bootstrap is the only path that creates the initial active Super Admin. Supabase account existence alone grants no BTCBOX administrator access.
 
 ### Permission grant, change and revocation
 - Model membership state separately from permission grants. Suggested states: pending, active, suspended, revoked. Suggested permission records contain the exact permission key, grantor Auth UUID, reason, change/ticket reference, created timestamp, and optional expiry.
@@ -142,7 +142,7 @@ This section is a provisioning contract only. It does not create administrator a
 - Permission names are an allowlisted enum. Unknown permission keys, wildcard grants, implicit inheritance, and client-supplied role names are rejected.
 
 ### Emergency recovery and break-glass
-- Break-glass is not a normal API role and must never bypass Supabase Auth validation, actor attribution, the three-person policy lifecycle, or append-only audit.
+- Break-glass is not a normal API role and must never bypass Supabase Auth validation, actor attribution, the Super Admin's explicit policy lifecycle authority, or append-only audit.
 - If all administrators are locked out, recovery is performed only by the project owner through a separately authenticated, out-of-band database operation in an isolated/reviewed change window. Require two-person approval where operationally possible, an incident/change identifier, exact Auth UUIDs, a bounded temporary grant, and a written reason.
 - The recovery grant expires automatically and is followed by a mandatory review of every action taken during the window, rotation/revocation of any temporary access, and a new two-person audit record. No permanent hidden super-admin or reusable bypass token is permitted.
 - If audit persistence is unavailable, emergency policy mutations remain blocked. Recovery may restore access administration, but it must not activate a seconds policy or enable financial cutover.
