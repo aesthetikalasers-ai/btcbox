@@ -30,14 +30,12 @@ test.beforeEach(async ({ page }) => {
   await page.route("https://btcbox-e2e.invalid/**", (route) => route.abort());
 });
 
-test("login route renders Google and wallet sign-in entry points", async ({ page }) => {
+test("login route renders the Google-only sign-in entry point", async ({ page }) => {
   await page.goto("/login");
 
   await expect(page.getByRole("heading", { name: "Welcome back" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Connect wallet" })).toBeVisible();
-  await page.getByRole("button", { name: "Connect wallet" }).click();
-  await expect(page.getByText("Ethereum / EVM")).toBeVisible();
-  await expect(page.getByText("Solana", { exact: true })).toBeVisible();
+  await expect(page.getByText("Google sign-in is temporarily unavailable.")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Connect wallet" })).toHaveCount(0);
 });
 
 test("Google sign-in button is shown when the public auth config enables Google", async ({ page }) => {
@@ -57,17 +55,14 @@ test("Google sign-in button is shown when the public auth config enables Google"
   await page.goto("/login");
 
   await expect(page.getByRole("button", { name: "Continue with Google" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Connect wallet" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Connect wallet" })).toHaveCount(0);
 });
 
 test("registration route renders account creation form", async ({ page }) => {
   await page.goto("/register");
 
   await expect(page.getByRole("heading", { name: "Create your BTCBOX account" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Connect wallet" })).toBeVisible();
-  await page.getByRole("button", { name: "Connect wallet" }).click();
-  await expect(page.getByText("Ethereum / EVM")).toBeVisible();
-  await expect(page.getByText("Solana", { exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Connect wallet" })).toHaveCount(0);
   await expect(page.getByRole("link", { name: "Sign in" })).toHaveAttribute("href", "/login");
 });
 
@@ -88,7 +83,7 @@ test("administrator route requires a verified administrator identity", async ({ 
 
   await expect(page).toHaveURL("http://127.0.0.1:4173/admin");
   await expect(page.getByRole("heading", { name: "Welcome back" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Connect wallet" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Connect wallet" })).toHaveCount(0);
   // No administrator API, including the session verifier, may run without a Supabase identity.
   expect(adminRequests).toEqual([]);
 });
