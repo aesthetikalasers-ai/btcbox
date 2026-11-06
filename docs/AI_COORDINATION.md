@@ -27,7 +27,7 @@ Observed baseline: `main` at/including merge commit `93a236e4a3ed6c9edd2003ac106
 
 - Main baseline: `fa4513701af75b4c4cb39d60a3df08f07d632af4`.
 - Active consolidated branch: `fix/post-merge-db-bootstrap-seconds-20261106`.
-- Draft PR #50 head: `cf1ac33013c6ab22be9d13f4536ed73b8dbaa9f6`; 91 commits ahead / 0 behind main; mergeable, not merged. Keep Draft until owner approval.
+- Draft PR #50 head: `8b3f469810ef4812bb74ab9d23ebbbf0a3c6b61e`; 91 commits ahead / 0 behind main; mergeable, not merged. Keep Draft until owner approval.
 - Canonical fresh-database SQL inventory is **24 files** (latest addition: `0031_seconds_policy_duration_alignment_v1.sql`). `0008_financial_matching_engine_v1.sql` is the sole spot order write path. The old `0008_financial_spot_trade_v3.sql` direct-fill implementation was removed; sequence `0009` is intentionally retired. Legacy optional sequence numbers `0015`–`0020` remain excluded.
 - On source head `a53469dc4105e57cdf2ef835422505b274949cb4`, backend CI run `42241431369` passed, frontend CI run `42241431366` passed, and PostgreSQL schema CI run `42241431357` passed. The PostgreSQL job log explicitly confirms all **23** canonical SQL files applied against disposable PostgreSQL 16, RLS/service-role grants verified, and financial lifecycle integration assertions passed inside a transaction ending with `ROLLBACK`.
 - The documentation-only implementation-branch commit `c109a673ab3a38f75c91a7a9b14a8610cceb1168` fixes the migration-order list formatting. Its exact-head frontend/backend/PostgreSQL CI runs `42242877084`, `42242877154`, and `42242877014` were still in progress at the last check; do not report them as passed until rechecked.
@@ -3346,7 +3346,7 @@ The prior withdrawal UI audit statement claiming the active BTCBOX admin route w
 - FIX COMMITTED: API now calls the settlement RPC with null quote fields when no provider is available. SQL checks owner/position/request-key/hash and returns an exact already-settled replay before requiring a quote. An open matured position still requires a valid fresh quote; otherwise it remains unsettled with `REFERENCE_PRICE_UNAVAILABLE`. Pre-maturity requests still return the not-yet-settled response.
 - Added unit coverage for Coinbase ISO timestamps, Bybit epoch-millisecond timestamps, missing/malformed/stale/future data, and provider-outage exact replay. PostgreSQL lifecycle integration now retries a settled position with all quote fields null and asserts duplicate result without another ledger movement.
 - Updated `docs/SECONDS_POLICY_VERSIONING.md` to describe source timestamp and retry behavior.
-- Implementation head at coordination update: `cf1ac33013c6ab22be9d13f4536ed73b8dbaa9f6`. Exact-head frontend/backend/PostgreSQL CI must be checked before claiming acceptance.
+- Implementation head at coordination update: `8b3f469810ef4812bb74ab9d23ebbbf0a3c6b61e`. Exact-head backend CI run `42249945370` passed; PostgreSQL schema CI run `42249945634` passed; frontend CI run `42249945231` had completed lint/build/Chromium installation and was still running desktop/mobile Playwright at the last check. Do not report frontend as passed until the browser job completes.
 - No hosted Supabase changes, real funds operations, merge, or deployment. PR #50 remains Draft/open. Trading page layout unchanged.
 
 
