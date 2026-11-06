@@ -413,9 +413,11 @@ export function AdminPage() {
     try {
       if (approved) await adminApproveKyc(token, uid);
       else await adminRejectKyc(token, uid, reasonText.trim());
+      setKyc(current => current.filter(item => item.uid !== uid));
       setNotice(approved ? "KYC approved." : "KYC rejected.");
-      setKyc((await getAdminKyc(token)).kycs || []);
-    } catch (reason) { setError(reason instanceof Error ? reason.message : "KYC review failed."); }
+      try { setKyc((await getAdminKyc(token)).kycs || []); }
+      catch { setError("KYC review is confirmed; the queue could not refresh. Reload this tab before reviewing another application."); }
+    } catch (reason) { setError(reason instanceof Error ? reason.message : "KYC review was not confirmed."); }
     finally { setBusy(false); }
   };
 
@@ -431,7 +433,8 @@ export function AdminPage() {
       setNotice(result.audit_sync_pending ? "Support reply sent; audit delivery is pending." : "Support reply sent.");
       setSupportReply((current) => ({ ...current, [uid]: "" }));
       setSupportReplyRequestIds((current) => { const next = { ...current }; delete next[uid]; return next; });
-      setSupport((await getAdminSupportMessages(token)).messages || []);
+      try { setSupport((await getAdminSupportMessages(token)).messages || []); }
+      catch { setError("Support reply is confirmed; the conversation could not refresh. Reload this tab to view the sent reply."); }
     } catch (reason) { setError(reason instanceof Error ? reason.message : "Support reply failed."); }
     finally { setBusy(false); }
   };
