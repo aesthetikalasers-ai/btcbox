@@ -179,7 +179,7 @@ BEGIN
   JOIN public.seconds_contract_policies p ON p.policy_id=a.policy_id
   WHERE a.singleton=true
     AND p.effective_from<=v_now
-    AND (p.effective_until IS NULL OR p.effective_until>v_now)
+    AND (p.effective_until IS NULL OR p.effective_until>v_now);
   -- Policy rows are immutable and the active pointer is not writable by the API role.
   -- A plain MVCC read is sufficient; avoid requiring UPDATE privilege for row locks.
   IF NOT FOUND THEN

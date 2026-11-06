@@ -136,3 +136,12 @@ test('policy payout is configurable only from the 85 percent floor through 100 p
   assert.match(settleFn, /v_pos\.payout_bps_snapshot/);
   assert.match(settleFn, /v_pos\.amount\*v_payout_bps\/10000/);
 });
+
+test('active policy SELECT is terminated before the PL/pgSQL NOT FOUND branch', () => {
+  const start = migration.indexOf('SELECT p.* INTO v_policy');
+  const end = migration.indexOf('IF NOT FOUND THEN', start);
+  assert.ok(start >= 0 && end > start);
+  const lookup = migration.slice(start, end);
+  assert.match(lookup, /AND \(p\.effective_until IS NULL OR p\.effective_until>v_now\);\s*-- Policy rows are immutable/i);
+  assert.doesNotMatch(lookup, /effective_until>v_now\)\s*-- Policy rows are immutable/i);
+});
