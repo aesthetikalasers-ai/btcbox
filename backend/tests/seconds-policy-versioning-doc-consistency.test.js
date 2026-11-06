@@ -56,5 +56,5 @@ test('PostgreSQL lifecycle coverage proves old and new positions use their own p
   assert.match(lifecycle, /v_payout_bps<>8500/);
   assert.match(lifecycle, /v_payout_bps<>9200/);
   assert.match(lifecycle, /pnl\)::numeric<>9\.2/);
-  assert.match(lifecycle, /available<>117\.7/);
+  assert.match(lifecycle, /v_balance<>117\.7/);
 });
