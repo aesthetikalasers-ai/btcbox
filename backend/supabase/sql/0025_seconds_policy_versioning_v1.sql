@@ -157,7 +157,7 @@ DECLARE
 BEGIN
   IF coalesce(p_user_id,'')='' OR p_symbol NOT IN ('BTC','ETH','SOL','BNB')
      OR p_direction NOT IN ('up','down') OR p_amount IS NULL OR p_amount<=0
-     OR p_duration_sec NOT IN (30,60,300,900) OR p_open_price IS NULL OR p_open_price<=0
+     OR p_duration_sec NOT IN (30,60,300,900)
      OR p_request_id !~ '^[A-Za-z0-9_-]{16,100}$'
      OR coalesce(p_request_hash,'') !~ '^[0-9a-f]{64}$'
      OR p_position_id !~ '^SC[A-Fa-f0-9]{30}$' THEN
@@ -173,6 +173,12 @@ BEGIN
     RETURN jsonb_build_object('ok',true,'duplicate',true,'position_id',v_existing.position_id,
       'status',v_existing.status,'open_price',v_existing.open_price,
       'settle_at',extract(epoch from v_existing.settle_at)::bigint);
+  END IF;
+
+  -- A missing/invalid price is acceptable only for the replay lookup above.
+  -- Never create a new position without a positive server-supplied price.
+  IF p_open_price IS NULL OR p_open_price<=0 THEN
+    RETURN jsonb_build_object('ok',false,'code','REFERENCE_PRICE_REQUIRED');
   END IF;
 
   SELECT p.* INTO v_policy

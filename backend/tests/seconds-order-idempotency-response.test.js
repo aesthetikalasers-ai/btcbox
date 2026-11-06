@@ -27,3 +27,17 @@ test('seconds order API displays the database-confirmed opening price instead of
   assert.match(handler, /result\.duplicate \? 'stored_reference' : ref\.source/);
   assert.doesNotMatch(handler, /open_price: ref\.price/);
 });
+
+test('seconds order replay is attempted without a feed price, while new orders fail closed without one', () => {
+  const start = api.indexOf("if (path === 'seconds/order' && method === 'POST')");
+  const end = api.indexOf('// ---------- POST /api/seconds/settle ----------', start);
+  const handler = api.slice(start, end);
+  assert.match(handler, /catch \(_\) \{ \/\* replay lookup may still succeed \*\/ \}/);
+  assert.match(handler, /p_open_price: ref \? String\(ref\.price\) : null/);
+  assert.match(handler, /result\.code === 'REFERENCE_PRICE_REQUIRED' && !ref/);
+  const rpcStart = migration.indexOf('CREATE OR REPLACE FUNCTION public.submit_seconds_order_v1');
+  const rpcEnd = migration.indexOf('CREATE OR REPLACE FUNCTION public.settle_seconds_position_v1', rpcStart);
+  const rpc = migration.slice(rpcStart, rpcEnd);
+  assert.ok(rpc.indexOf('WHERE open_request_id=p_request_id FOR UPDATE') < rpc.indexOf('IF p_open_price IS NULL OR p_open_price<=0'));
+  assert.match(rpc, /'code','REFERENCE_PRICE_REQUIRED'/);
+});

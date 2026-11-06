@@ -2181,15 +2181,17 @@ async function handleRequest(event, context) {
     if (!SECONDS_ALLOWED_DURATIONS.has(durationSec)) return json({ ok: false, msg: 'Invalid contract duration.' }, 400);
     if (amount === null || compareMoney(amount, '0') <= 0 || compareMoney(amount, '1000000000000') > 0) return json({ ok: false, msg: 'Invalid investment amount.' }, 400);
     if (!/^[A-Za-z0-9_-]{16,100}$/.test(requestId)) return json({ ok: false, code: 'IDEMPOTENCY_KEY_REQUIRED', msg: 'A valid request ID (16-100 characters) is required.' }, 400);
-    let ref;
-    try { ref = await fetchSecondsReferencePrice(symbol); }
-    catch (_) { return json({ ok: false, code: 'REFERENCE_PRICE_UNAVAILABLE', msg: 'The reference price is currently unavailable. No order was created.' }, 503); }
     const positionId = 'SC' + crypto.createHash('sha256').update(String(user.uid) + '|' + requestId).digest('hex').slice(0, 30);
     const requestHash = crypto.createHash('sha256').update(JSON.stringify({ user_id: String(user.uid), symbol, direction, amount: String(amount), duration_sec: durationSec, request_id: requestId })).digest('hex');
+    // Existing requests can be replayed from persisted state without a live feed.
+    // The database still rejects a genuinely new order when no valid price exists.
+    let ref = null;
+    try { ref = await fetchSecondsReferencePrice(symbol); } catch (_) { /* replay lookup may still succeed */ }
     const base = process.env.SUPABASE_URL.replace(/\/+$/, '');
     try {
-      const rpc = await fetch(base + '/rest/v1/rpc/submit_seconds_order_v1', { method: 'POST', headers: supabaseHeaders(), body: JSON.stringify({ p_position_id: positionId, p_user_id: String(user.uid), p_symbol: symbol, p_direction: direction, p_amount: String(amount), p_duration_sec: durationSec, p_open_price: String(ref.price), p_request_id: requestId, p_request_hash: requestHash }) });
+      const rpc = await fetch(base + '/rest/v1/rpc/submit_seconds_order_v1', { method: 'POST', headers: supabaseHeaders(), body: JSON.stringify({ p_position_id: positionId, p_user_id: String(user.uid), p_symbol: symbol, p_direction: direction, p_amount: String(amount), p_duration_sec: durationSec, p_open_price: ref ? String(ref.price) : null, p_request_id: requestId, p_request_hash: requestHash }) });
       const result = await rpc.json().catch(() => null);
+      if (result && result.ok === false && result.code === 'REFERENCE_PRICE_REQUIRED' && !ref) return json({ ok: false, code: 'REFERENCE_PRICE_UNAVAILABLE', msg: 'The reference price is currently unavailable. No new order was created.' }, 503);
       if (!rpc.ok || !result || result.ok !== true || !result.position_id) return json({ ok: false, code: 'FINANCIAL_RPC_FAILED', msg: 'The database did not confirm the contract order. Verify the position status before retrying.', duplicate: !!(result && result.duplicate) }, rpc.status === 400 ? 400 : 503);
       const settleAt = Number(result.settle_at);
       if (!Number.isSafeInteger(settleAt) || settleAt <= 0) return json({ ok: false, code: 'FINANCIAL_RPC_INVALID_RESPONSE', msg: 'The database response did not include a valid settlement time. The order status is unconfirmed; check your positions before retrying.' }, 503);
