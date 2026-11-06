@@ -3286,3 +3286,13 @@ The prior withdrawal UI audit statement claiming the active BTCBOX admin route w
 - All browser data remains synthetic; no real Supabase Auth, hosted database, private KYC storage, financial write, or real administrator operation is used. Trading page layout is unchanged.
 - PR #50 remains Draft/open/unmerged. No merge or production deployment was performed.
 - NEXT: confirm frontend run 42237467012; if successful, proceed to read-only admin API contract coverage only where endpoint/response shapes can be grounded without forging an admin session. Keep actual admin queue data and OAuth restoration marked unverified until a real authorized test identity is available.
+
+
+## KYC privacy boundary regression tests — 2026-11-06
+
+- Confirmed the previous implementation commit 555bbab04f2d5246219fd4108bba4bf0bede5814 exact-head CI completed successfully: frontend run 42237467012 passed with Playwright 18/18 (desktop and mobile projects); backend run 42237466757 passed; PostgreSQL schema run 42237466717 passed.
+- Added backend regression assertions in backend/tests/kyc-flow.test.js: ordinary account responses must mask the full KYC document number; administrator KYC queue must expose only review-safe allowlisted fields and never id_number or auth secrets; signed KYC previews must be owner-scoped, same-origin and expire after 300 seconds.
+- New implementation commit: 3c083727888cbf3490b07d70d16e6f10122aae3b. Exact-head CI evidence is pending; do not reuse the previous commit's green checks.
+- The existing admin authorization suite already verifies Supabase Auth identity first, server-side membership lookup second, inactive/mismatched membership fail-closed, and per-route read permissions. No synthetic admin identity is being fabricated.
+- No hosted Supabase calls, private document reads, database writes, financial mutations, merge, or deployment were performed. Trading page layout unchanged. PR #50 remains Draft/open/unmerged.
+- NEXT: verify exact-head CI for the KYC privacy regression commit; then continue with focused review of admin queue response schemas and financial lifecycle/API consistency without using real admin or customer credentials.
