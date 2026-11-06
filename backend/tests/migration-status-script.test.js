@@ -92,6 +92,52 @@ test('fresh database bootstrap includes only canonical operational SQL and refus
   assert.match(bootstrap, /BTCBOX_BOOTSTRAP_CONFIRM/);
   assert.match(bootstrap, /BTCBOX_ALLOW_REMOTE_BOOTSTRAP/);
   assert.match(bootstrap, /BTCBOX-owned tables/);
+  // bash -n accepts escaped expansions, so assert the safety variables really expand.
+  assert.ok(bootstrap.includes('
+  assert.equal(syntax.status, 0, syntax.stderr);
+  assert.match(bootstrap, /0001_btcbox_state_cas.sql/);
+  assert.match(bootstrap, /0028_admin_rbac_service_rpc_wrappers_v1.sql/);
+  for (const excluded of ['0016_financial_deposit_chain_verification_v3.sql','0017_financial_migration_staging_v5.sql','0018_financial_migration_staging_reconciliation_v6.sql','0019_financial_migration_reconciliation_v4.sql','0020_financial_ledger_reconciliation_v1.sql']) {
+    assert.ok(!bootstrap.includes(excluded), excluded + ' must not be part of fresh operational bootstrap');
+  }
+});
+ + '{BASH_SOURCE[0]}'), 'script directory must resolve from BASH_SOURCE');
+  assert.ok(bootstrap.includes('
+  assert.equal(syntax.status, 0, syntax.stderr);
+  assert.match(bootstrap, /0001_btcbox_state_cas.sql/);
+  assert.match(bootstrap, /0028_admin_rbac_service_rpc_wrappers_v1.sql/);
+  for (const excluded of ['0016_financial_deposit_chain_verification_v3.sql','0017_financial_migration_staging_v5.sql','0018_financial_migration_staging_reconciliation_v6.sql','0019_financial_migration_reconciliation_v4.sql','0020_financial_ledger_reconciliation_v1.sql']) {
+    assert.ok(!bootstrap.includes(excluded), excluded + ' must not be part of fresh operational bootstrap');
+  }
+});
+ + '{DATABASE_URL:-}'), 'DATABASE_URL must be expanded');
+  assert.ok(bootstrap.includes('
+  assert.equal(syntax.status, 0, syntax.stderr);
+  assert.match(bootstrap, /0001_btcbox_state_cas.sql/);
+  assert.match(bootstrap, /0028_admin_rbac_service_rpc_wrappers_v1.sql/);
+  for (const excluded of ['0016_financial_deposit_chain_verification_v3.sql','0017_financial_migration_staging_v5.sql','0018_financial_migration_staging_reconciliation_v6.sql','0019_financial_migration_reconciliation_v4.sql','0020_financial_ledger_reconciliation_v1.sql']) {
+    assert.ok(!bootstrap.includes(excluded), excluded + ' must not be part of fresh operational bootstrap');
+  }
+});
+ + '{BTCBOX_BOOTSTRAP_CONFIRM:-}'), 'explicit bootstrap confirmation must be expanded');
+  assert.ok(bootstrap.includes('
+  assert.equal(syntax.status, 0, syntax.stderr);
+  assert.match(bootstrap, /0001_btcbox_state_cas.sql/);
+  assert.match(bootstrap, /0028_admin_rbac_service_rpc_wrappers_v1.sql/);
+  for (const excluded of ['0016_financial_deposit_chain_verification_v3.sql','0017_financial_migration_staging_v5.sql','0018_financial_migration_staging_reconciliation_v6.sql','0019_financial_migration_reconciliation_v4.sql','0020_financial_ledger_reconciliation_v1.sql']) {
+    assert.ok(!bootstrap.includes(excluded), excluded + ' must not be part of fresh operational bootstrap');
+  }
+});
+ + '{BTCBOX_ALLOW_REMOTE_BOOTSTRAP:-}'), 'remote approval gate must be expanded');
+  assert.ok(!bootstrap.includes('\\\\
+  assert.equal(syntax.status, 0, syntax.stderr);
+  assert.match(bootstrap, /0001_btcbox_state_cas.sql/);
+  assert.match(bootstrap, /0028_admin_rbac_service_rpc_wrappers_v1.sql/);
+  for (const excluded of ['0016_financial_deposit_chain_verification_v3.sql','0017_financial_migration_staging_v5.sql','0018_financial_migration_staging_reconciliation_v6.sql','0019_financial_migration_reconciliation_v4.sql','0020_financial_ledger_reconciliation_v1.sql']) {
+    assert.ok(!bootstrap.includes(excluded), excluded + ' must not be part of fresh operational bootstrap');
+  }
+});
+ + '{'), 'shell variable expansions must not be escaped');
   const syntax = spawnSync('bash', ['-n', path.join(__dirname, '..', 'scripts', 'bootstrap-empty-database.sh')], { encoding: 'utf8' });
   assert.equal(syntax.status, 0, syntax.stderr);
   assert.match(bootstrap, /0001_btcbox_state_cas.sql/);
