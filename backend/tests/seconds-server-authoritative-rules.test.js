@@ -12,7 +12,7 @@ const policyMigration = fs.readFileSync(path.join(root, 'supabase/sql/0025_secon
 
 test('seconds order boundaries are enforced by the server, not accepted from client policy fields', () => {
   assert.match(api, /const SECONDS_ALLOWED_SYMBOLS = new Set\(\['BTC', 'ETH', 'SOL', 'BNB'\]\)/);
-  assert.match(api, /const SECONDS_ALLOWED_DURATIONS = new Set\(\[30, 60, 300, 900\]\)/);
+  assert.match(api, /Number\.isSafeInteger\(durationSec\) \|\| durationSec <= 0/);
   assert.match(api, /compareMoney\(amount, '1000000000000'\) > 0/);
   const start = api.indexOf("if (path === 'seconds/order' && method === 'POST')");
   const end = api.indexOf("// ---------- POST /api/seconds/settle ----------", start);
@@ -34,6 +34,10 @@ test('database RPC independently constrains contract symbol, direction, duration
   }
   assert.match(initialMigration, /revoke all on function public\.submit_seconds_order_v1[\s\S]*?from public, anon, authenticated/i);
   assert.match(initialMigration, /grant execute on function public\.submit_seconds_order_v1[\s\S]*?to service_role/i);
+  assert.match(policyMigration, /p_duration_sec IS NULL OR p_duration_sec <= 0/i);
+  assert.match(policyMigration, /p_duration_sec=ANY\(v_policy\.durations_sec\)/i);
+  assert.match(policyMigration, /max_open_positions_per_user/i);
+  assert.match(policyMigration, /OPEN_POSITION_COUNT_LIMIT_EXCEEDED/i);
 });
 
 test('settlement price and payout policy remain server/database authoritative', () => {
