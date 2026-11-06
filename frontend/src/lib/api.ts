@@ -125,6 +125,20 @@ export interface AccountBalance {
   valuation_available?: boolean;
 }
 
+export interface WithdrawalRecord {
+  id: string;
+  coin: string;
+  amount: number | string;
+  fee?: number | string;
+  network?: string;
+  address?: string;
+  status: string;
+  time?: string;
+  txid?: string;
+  payout_reference?: string;
+  paid_at?: string;
+}
+
 export interface AccountSnapshot {
   uid: string;
   email: string;
@@ -141,6 +155,7 @@ export interface AccountSnapshot {
   kyc: { status: string; name?: string; id_type?: string; id_number?: string };
   twofa_enabled: boolean;
   earn_records?: EarnPosition[];
+  withdrawals?: WithdrawalRecord[];
 }
 
 export interface OrderRecord {
