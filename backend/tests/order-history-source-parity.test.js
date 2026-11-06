@@ -52,3 +52,39 @@ test('administrator order viewer exposes the source used by customer and admin o
   assert.ok(adminPage.includes('Customer order history and this administrator view use the canonical PostgreSQL matching orders.'));
   assert.ok(adminPage.includes('Legacy state fallback is active because matching-engine mode was not requested.'));
 });
+
+test('customer and admin PostgreSQL order projections use consistent status values, key fields and symbol format', () => {
+  const customerStart = api.indexOf("if (path === 'orders' && method === 'GET')");
+  const customerEnd = api.indexOf('// ---------- GET /api/chat/unread', customerStart);
+  const adminStart = api.indexOf("if (sub === 'orders' && method === 'GET')");
+  const adminEnd = api.indexOf('// POST /api/admin/support/reply', adminStart);
+  const customer = api.slice(customerStart, customerEnd);
+  const admin = api.slice(adminStart, adminEnd);
+  const customerEngine = customer.slice(customer.indexOf('if (matchingEngineRequested())'), customer.indexOf('return json({ ok: true, orders: (Array.isArray(user.orders)'));
+  const adminEngine = admin.slice(admin.indexOf('if (matchingEngineRequested())'), admin.indexOf('const list = [];'));
+  // Both must select client_order_id from the canonical table.
+  assert.ok(customerEngine.includes('client_order_id'));
+  assert.ok(adminEngine.includes('client_order_id'));
+  // The admin view must not silently rewrite the canonical DB status. The
+  // matching engine check constraint uses 'cancelled'; both views must return
+  // the same raw value so a customer and an admin never see different statuses
+  // for the same order.
+  assert.ok(!adminEngine.includes("o.status === 'cancelled' ? 'canceled'"));
+  assert.ok(!adminEngine.includes("status: o.status === 'cancelled'"));
+  // Symbol format must match the customer view (base+quote, no slash).
+  assert.ok(adminEngine.includes('symbol: o.base_asset + o.quote_asset'));
+  assert.ok(!adminEngine.includes("o.base_asset + '/' + o.quote_asset"));
+  // Both projections expose the same core quantity/price/time fields under the
+  // customer-canonical names (order_id, quantity, created_at) while retaining
+  // legacy admin aliases (id, amount, time).
+  for (const field of ['order_id: o.id', 'quantity: o.quantity', 'created_at: o.created_at', 'client_order_id: o.client_order_id', "type: 'limit'"]) {
+    assert.ok(adminEngine.includes(field), 'admin projection must include ' + field);
+  }
+  for (const field of ['order_id: row.id', 'quantity: row.quantity', 'client_order_id: row.client_order_id', "type: 'limit'"]) {
+    assert.ok(customerEngine.includes(field), 'customer projection must include ' + field);
+  }
+  // Admin order read remains permission-gated and never falls back to legacy
+  // orders when the matching engine is requested.
+  assert.ok(adminEngine.includes('financial_matching_orders'));
+  assert.ok(!adminEngine.includes('u.orders'));
+});

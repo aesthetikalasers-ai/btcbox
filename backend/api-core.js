@@ -2683,9 +2683,9 @@ async function handleRequest(event, context) {
         const response = await fetch(base + '/rest/v1/financial_matching_orders?' + query.toString(), { headers: supabaseHeaders() });
         const rows = await response.json().catch(() => null);
         if (!response.ok || !Array.isArray(rows)) return json({ ok: false, code: 'ORDER_READ_UNAVAILABLE', msg: 'Order data temporarily unavailable. Please try again later.' }, 503);
-        const orders = rows.map(row => ({ order_id: row.id, symbol: row.base_asset + row.quote_asset, side: row.side,
-          price: row.price, quantity: row.quantity, remaining_quantity: row.remaining_quantity, status: row.status,
-          client_order_id: row.client_order_id, created_at: row.created_at, updated_at: row.updated_at }));
+        const orders = rows.map(row => ({ order_id: row.id, id: row.id, symbol: row.base_asset + row.quote_asset, side: row.side, type: 'limit',
+          price: row.price, quantity: row.quantity, amount: row.quantity, remaining_quantity: row.remaining_quantity, status: row.status,
+          client_order_id: row.client_order_id, created_at: row.created_at, time: row.created_at, updated_at: row.updated_at }));
         return json({ ok: true, orders });
       } catch (e) { return json({ ok: false, code: 'ORDER_READ_UNAVAILABLE', msg: 'Order data temporarily unavailable. Please try again later.' }, 503); }
     }
@@ -3732,7 +3732,7 @@ async function handleRequest(event, context) {
         try {
           const base = process.env.SUPABASE_URL.replace(/\/+$/, '');
           const query = new URLSearchParams({
-            select: 'id,user_id,base_asset,quote_asset,side,price,quantity,remaining_quantity,status,created_at,updated_at',
+            select: 'id,user_id,base_asset,quote_asset,side,price,quantity,remaining_quantity,status,client_order_id,created_at,updated_at',
             order: 'created_at.desc', limit: '200'
           });
           const response = await fetch(base + '/rest/v1/financial_matching_orders?' + query.toString(), { headers: supabaseHeaders() });
@@ -3741,10 +3741,17 @@ async function handleRequest(event, context) {
           const usersById = new Map(Object.values(db.users).map(function (u) { return [String(u.uid), u]; }));
           const orders = rows.map(function (o) {
             const owner = usersById.get(String(o.user_id));
-            return { id: o.id, uid: o.user_id, email: owner ? (owner.email || '') : '',
-              symbol: o.base_asset + '/' + o.quote_asset, side: o.side, type: 'limit', price: o.price,
-              amount: o.quantity, remaining_quantity: o.remaining_quantity,
-              status: o.status === 'cancelled' ? 'canceled' : o.status, time: o.created_at, updated_at: o.updated_at };
+            // Project the same canonical field names/values as the customer order
+            // history (order_id, symbol without slash, quantity, created_at, raw
+            // DB status) plus admin-only identifiers (uid, email) and legacy
+            // aliases (id, amount, time) so neither view diverges.
+            return {
+              order_id: o.id, id: o.id, uid: o.user_id, email: owner ? (owner.email || '') : '',
+              symbol: o.base_asset + o.quote_asset, side: o.side, type: 'limit', price: o.price,
+              quantity: o.quantity, amount: o.quantity, remaining_quantity: o.remaining_quantity,
+              client_order_id: o.client_order_id,
+              status: o.status, time: o.created_at, created_at: o.created_at, updated_at: o.updated_at
+            };
           });
           return json({ ok: true, orders: orders, source: 'postgres_financial_matching' });
         } catch (e) {
