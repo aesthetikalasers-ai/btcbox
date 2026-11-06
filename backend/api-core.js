@@ -2206,7 +2206,7 @@ async function handleRequest(event, context) {
     if (!supabaseStorageConfigured()) {
       return json({ ok: false, code: 'SECONDS_POLICY_UNAVAILABLE', msg: 'Short-term contract policy is temporarily unavailable.' }, 503);
     }
-    const base = process.env.SUPABASE_URL.replace(/\\/+$/, '');
+    const base = process.env.SUPABASE_URL.replace(/\/+$/, '');
     try {
       const rpc = await fetch(base + '/rest/v1/rpc/read_active_seconds_policy_v1', {
         method: 'POST', headers: supabaseHeaders(), body: '{}'
