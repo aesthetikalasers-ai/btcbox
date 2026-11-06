@@ -242,7 +242,7 @@ BEGIN
     'BTC',110,'coinbase',clock_timestamp()
   );
   IF v_result->>'settled'<>'true' OR v_result->>'win'<>'true' OR (v_result->>'pnl')::numeric<>8.5 THEN
-    RAISE EXCEPTION 'Seconds settlement did not use the 85% policy snapshot: %',v_result;
+    RAISE EXCEPTION 'Seconds settlement did not use the 85%% policy snapshot: %',v_result;
   END IF;
   SELECT available,frozen INTO v_balance,v_frozen FROM public.financial_accounts
   WHERE user_id='seconds-user' AND asset='USDT';
