@@ -3286,6 +3286,44 @@ async function handleRequest(event, context) {
       list.sort(function (a, b) { return (a.time < b.time) ? 1 : -1; });
       return json({ ok: true, orders: list.slice(0, 200), source: 'legacy_state' });
     }
+    // POST /api/admin/support/reply — authenticated, permission-gated staff reply.
+    // The request ID is persisted with the message so an exact retry cannot duplicate it.
+    if (sub === 'support/reply' && method === 'POST') {
+      const uid = String(body.uid || '').trim();
+      const reply = String(body.content || '').trim();
+      const requestId = String(body.request_id || '').trim();
+      if (!uid || uid.length > 128 || !reply || reply.length > 2000 ||
+          !/^[A-Za-z0-9_-]{16,100}$/.test(requestId)) {
+        return json({ ok: false, code: 'INVALID_SUPPORT_REPLY', msg: 'A customer, reply message, and valid request ID are required.' }, 400);
+      }
+      const target = db.users[uid];
+      if (!target) return json({ ok: false, code: 'SUPPORT_USER_NOT_FOUND', msg: 'Customer account was not found.' }, 404);
+      if (!Array.isArray(target.support_messages)) target.support_messages = [];
+      const prior = target.support_messages.find(function (message) {
+        return message && message.from === 'admin' && message.request_id === requestId;
+      });
+      if (prior) {
+        if (String(prior.content || '') !== reply) {
+          return json({ ok: false, code: 'SUPPORT_REPLY_IDEMPOTENCY_CONFLICT', msg: 'This request ID was already used for a different reply.' }, 409);
+        }
+        return json({ ok: true, duplicate: true, message_id: prior.id, time: prior.time });
+      }
+      const message = {
+        id: 'M' + Date.now() + crypto.randomBytes(8).toString('hex'),
+        from: 'admin',
+        content: reply,
+        time: nowStr(),
+        admin_id: adminUserId,
+        request_id: requestId
+      };
+      target.support_messages.push(message);
+      if (target.support_messages.length > 500) target.support_messages = target.support_messages.slice(-500);
+      await auditAdmin('support_reply', uid, 'Support reply sent; message_id=' + message.id, adminUserId);
+      await saveDB(db);
+      const auditFlush = await flushAdminAuditOutbox();
+      return json({ ok: true, duplicate: false, message_id: message.id, time: message.time, audit_sync_pending: auditFlush.pending });
+    }
+
     // GET /api/admin/support/messages 客服消息
     if (sub === 'support/messages' && method === 'GET') {
       const list = [];
