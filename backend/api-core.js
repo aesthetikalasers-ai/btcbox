@@ -3231,7 +3231,10 @@ async function handleRequest(event, context) {
         for (const key of Object.keys(updates)) {
           if (!Object.prototype.hasOwnProperty.call(allowedDepositKeys, key)) return json({ ok: false, msg: 'Unsupported deposit network configuration found.' }, 400);
           const value = typeof updates[key] === 'string' ? updates[key].trim() : '';
-          if (!value || /PLACEHOLDER|TPLACEHOLDER/i.test(value) || !allowedDepositKeys[key](value)) {
+          // Empty values deliberately clear/disable an address (fail-closed).
+          // This also lets admins save fee settings before every network is configured.
+          if (!value) { changedKeys.push(key); continue; }
+          if (/PLACEHOLDER|TPLACEHOLDER/i.test(value) || !allowedDepositKeys[key](value)) {
             return json({ ok: false, msg: 'Invalid deposit address format: ' + key }, 400);
           }
           changedKeys.push(key);
