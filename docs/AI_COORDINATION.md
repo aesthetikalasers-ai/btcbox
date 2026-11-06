@@ -2791,3 +2791,13 @@ The prior withdrawal UI audit statement claiming the active BTCBOX admin route w
 - Source resolution: 0002/0003 establish canonical `withdrawal_requests` and the single pending -> approved/rejected manual review flow. The active API calls the canonical nine-argument RPC; every withdrawal is manually reviewed. 0023 adds manual payout completion on that same table.
 - 0022 now acts as an explicit compatibility checkpoint; it verifies the canonical table/status column and does not create a parallel schema, RPC overload, or second review state. It remains in the numbered runner sequence. Regression test file added; static source audit 12/12 passed.
 - NOT RUN: Node tests/build or PostgreSQL runtime/full migration chain. No production DB writes, migration apply, financial flag changes, merge or deployment. Keep Issue #3 open until isolated runtime proof is obtained.
+
+
+## BTCBOX audit migration simplification — 2026-11-06
+
+- SOURCE OBSERVED: `backend/supabase/sql/0002_financial_ledger_v1.sql` is the single canonical creator of `public.financial_audit_log`; `0003`, `0004`, `0005`, `0006`, `0007`, and `0016` write using that canonical column contract.
+- SOURCE OBSERVED: `0021_admin_audit_log_append_only_v1.sql` now validates the canonical table and applies RLS, service-role append-only grants, mutation-blocking triggers, and the existing `append_admin_audit_log` RPC contract. No second audit table is needed.
+- FIXED IN SOURCE: marked `backend/supabase-migration-runner.sql` as deprecated/historical and explicitly prohibited execution. Its old instructions contradicted the current fail-closed financial flags and its aggregate SQL predates current numbered migration fixes.
+- Canonical SQL source remains `backend/supabase/sql/NNNN_*.sql`; the numbered local/test runner is `backend/scripts/run_migrations.sh` and must only use an isolated local/test `DATABASE_URL`.
+- NOT VERIFIED: PostgreSQL syntax/runtime, trigger behavior, role grants, complete numbered migration chain, Node tests/build. No hosted DB operation was performed.
+- NO production table drop/recreate, production write, financial flag change, merge, or deployment. Preserve production schema and records.
