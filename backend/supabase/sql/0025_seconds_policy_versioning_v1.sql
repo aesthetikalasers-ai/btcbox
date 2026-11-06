@@ -13,6 +13,7 @@ CREATE TABLE IF NOT EXISTS public.seconds_contract_policies (
   max_stake numeric(38,18) NOT NULL CHECK (max_stake >= min_stake),
   payout_bps integer NOT NULL CHECK (payout_bps >= 8500),
   per_user_open_exposure numeric(38,18),
+  max_open_positions_per_user integer CHECK (max_open_positions_per_user IS NULL OR max_open_positions_per_user > 0),
   effective_from timestamptz NOT NULL,
   effective_until timestamptz,
   change_reason text NOT NULL CHECK (length(btrim(change_reason)) BETWEEN 1 AND 500),
@@ -20,7 +21,7 @@ CREATE TABLE IF NOT EXISTS public.seconds_contract_policies (
   created_at timestamptz NOT NULL DEFAULT clock_timestamp(),
   CHECK (effective_until IS NULL OR effective_until > effective_from),
   CHECK (symbols <@ ARRAY['BTC','ETH','SOL','BNB']::text[]),
-  CHECK (durations_sec <@ ARRAY[30,60,300,900]::integer[]),
+  CHECK (0 < ALL(durations_sec)),
   CHECK (per_user_open_exposure IS NULL OR per_user_open_exposure > 0)
 );
 
@@ -55,6 +56,10 @@ DROP TRIGGER IF EXISTS seconds_contract_policy_audit_immutable ON public.seconds
 CREATE TRIGGER seconds_contract_policy_audit_immutable
 BEFORE UPDATE OR DELETE ON public.seconds_contract_policy_audit
 FOR EACH ROW EXECUTE FUNCTION public.prevent_seconds_policy_audit_mutation_v1();
+
+ALTER TABLE public.seconds_contract_policies
+  ADD COLUMN IF NOT EXISTS max_open_positions_per_user integer
+  CHECK (max_open_positions_per_user IS NULL OR max_open_positions_per_user > 0);
 
 ALTER TABLE public.seconds_contract_positions
   ADD COLUMN IF NOT EXISTS policy_id uuid REFERENCES public.seconds_contract_policies(policy_id),
@@ -156,7 +161,7 @@ DECLARE
 BEGIN
   IF coalesce(p_user_id,'')='' OR p_symbol NOT IN ('BTC','ETH','SOL','BNB')
      OR p_direction NOT IN ('up','down') OR p_amount IS NULL OR p_amount<=0
-     OR p_duration_sec NOT IN (30,60,300,900)
+     OR p_duration_sec IS NULL OR p_duration_sec <= 0
      OR p_request_id !~ '^[A-Za-z0-9_-]{16,100}$'
      OR coalesce(p_request_hash,'') !~ '^[0-9a-f]{64}$'
      OR p_position_id !~ '^SC[A-Fa-f0-9]{30}$' THEN
@@ -205,6 +210,10 @@ BEGIN
     RETURN jsonb_build_object('ok',false,'code','INSUFFICIENT_BALANCE');
   END IF;
 
+  IF v_policy.max_open_positions_per_user IS NOT NULL AND
+     (SELECT count(*) FROM public.seconds_contract_positions WHERE user_id=p_user_id AND status='open') >= v_policy.max_open_positions_per_user THEN
+    RETURN jsonb_build_object('ok',false,'code','OPEN_POSITION_COUNT_LIMIT_EXCEEDED');
+  END IF;
   IF v_policy.per_user_open_exposure IS NOT NULL AND
      (SELECT coalesce(sum(amount),0) FROM public.seconds_contract_positions
       WHERE user_id=p_user_id AND status='open') + p_amount > v_policy.per_user_open_exposure THEN
@@ -238,7 +247,8 @@ BEGIN
     jsonb_build_object('policy_version',v_policy.policy_version,'symbols',v_policy.symbols,
       'durations_sec',v_policy.durations_sec,'min_stake',v_policy.min_stake,
       'max_stake',v_policy.max_stake,'payout_bps',v_policy.payout_bps,
-      'per_user_open_exposure',v_policy.per_user_open_exposure)
+      'per_user_open_exposure',v_policy.per_user_open_exposure,
+      'max_open_positions_per_user',v_policy.max_open_positions_per_user)
   );
 
   RETURN jsonb_build_object('ok',true,'duplicate',false,'position_id',p_position_id,
@@ -375,6 +385,7 @@ AS $$
           'max_stake', p.max_stake,
           'payout_bps', p.payout_bps,
           'per_user_open_exposure', p.per_user_open_exposure,
+          'max_open_positions_per_user', p.max_open_positions_per_user,
           'effective_from', p.effective_from,
           'effective_until', p.effective_until
         )
