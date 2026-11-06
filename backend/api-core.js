@@ -3201,7 +3201,7 @@ async function handleRequest(event, context) {
       const idempotencyKey = String(body.idempotency_key || '').trim();
       // A manual credit must be traceable to a verified incoming transfer.
       // Accept a chain transaction hash or another auditable receipt reference.
-      if (!reference || reference.length > 160 || /[\\u0000-\\u001f\\u007f]/.test(reference)) {
+      if (!reference || reference.length > 160 || /[\u0000-\u001f\u007f]/.test(reference)) {
         return json({ ok: false, code: 'DEPOSIT_REFERENCE_REQUIRED', msg: 'A verified transaction hash or receipt reference is required before manual credit.' }, 400);
       }
       const u = db.users[uid];
