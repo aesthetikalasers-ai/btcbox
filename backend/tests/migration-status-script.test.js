@@ -63,11 +63,13 @@ test('migration order document records the prepared Seconds migration dependenci
   const manualPayout = orderDoc.indexOf('0027_withdrawal_manual_payout_completion_v1.sql');
   const rbacWrappers = orderDoc.indexOf('0028_admin_rbac_service_rpc_wrappers_v1.sql');
   const feeIdempotency = orderDoc.indexOf('0029_withdrawal_fee_quote_idempotency_v1.sql');
-  assert.ok(rateLimit >= 0 && settlement > rateLimit && policy > settlement && adminRbac > policy && manualPayout > adminRbac && rbacWrappers > manualPayout && feeIdempotency > rbacWrappers);
+  const secondsAdminQueue = orderDoc.indexOf('0030_seconds_admin_open_positions_read_v1.sql');
+  assert.ok(rateLimit >= 0 && settlement > rateLimit && policy > settlement && adminRbac > policy && manualPayout > adminRbac && rbacWrappers > manualPayout && feeIdempotency > rbacWrappers && secondsAdminQueue > feeIdempotency);
   assert.ok(orderDoc.includes('depends on the Seconds base schema in'));
   assert.ok(orderDoc.includes('adds Seconds settlement request-hash idempotency'));
   assert.ok(orderDoc.includes('withdrawal fee quotes replay-safe'));
   assert.ok(orderDoc.includes('retain their stored fee'));
+  assert.ok(orderDoc.includes('bounded, read-only administrator queue for open Seconds positions'));
   assert.ok(orderDoc.includes('timestamp registry versions with four-digit source filenames'));
 });
 
