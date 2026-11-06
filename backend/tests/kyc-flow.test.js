@@ -22,7 +22,7 @@ test('KYC frontend submits authenticated data and refreshes the account status',
   assert.ok(client.includes('export async function submitKyc(input:'));
   assert.ok(client.includes('${API_BASE_URL}/kyc'));
   assert.ok(pages.includes('export function KycPage()'));
-  assert.ok(pages.includes('await submitKyc({name:cleanName,id_type:idType,id_number:cleanId})'));
+  assert.ok(pages.includes('await submitKyc({name:cleanName,id_type:idType,id_number:cleanId,...image})'));
   assert.ok(pages.includes('setReload(value=>value+1)'));
   assert.ok(!pages.includes('Submission is not enabled in this frontend build.'));
 });
