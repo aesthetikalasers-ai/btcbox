@@ -96,7 +96,7 @@ export function LiveMarketsTable({ markets, loading, error }: {
                   <th key={label} className="whitespace-nowrap px-4 py-3 text-xs font-semibold text-brand-text-muted md:px-6">{t(label)}</th>
                 )}
               </tr></thead>
-              <tbody>{markets.map((item) => (
+              <tbody>{visibleMarkets.map((item) => (
                 <tr key={item.sym} className="border-b border-brand-border/50 transition-colors last:border-0 hover:bg-brand-surface-hover">
                   <td className="h-16 whitespace-nowrap px-4 py-2 md:px-6">
                     <div className="flex items-center gap-3">
