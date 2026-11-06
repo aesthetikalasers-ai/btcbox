@@ -3507,22 +3507,37 @@ async function handleRequest(event, context) {
     // POST /api/admin/push 推送站内信
     if (sub === 'push' && method === 'POST') {
       const content = String(body.content || '').trim();
+      const requestId = String(body.request_id || '').trim();
       if (!content || content.length > 2000) return json({ ok: false, msg: 'Message content is required and cannot exceed 2,000 characters.' }, 400);
+      // A stable request ID makes broadcast push idempotent: without it a double
+      // click (or a retry after a lost response) would duplicate the same message
+      // in every recipient's support conversation.
+      if (!/^[A-Za-z0-9_-]{16,100}$/.test(requestId)) return json({ ok: false, code: 'IDEMPOTENCY_KEY_REQUIRED', msg: 'A valid message request ID is required. No message was sent.' }, 400);
+      if (!Array.isArray(db.recent_admin_push_requests)) db.recent_admin_push_requests = [];
+      const priorPush = db.recent_admin_push_requests.find(function (entry) { return entry && entry.request_id === requestId; });
+      if (priorPush) {
+        if (priorPush.content_hash !== crypto.createHash('sha256').update(content).digest('hex') || String(priorPush.target || '') !== String(body.uid || 'all')) {
+          return json({ ok: false, code: 'ADMIN_PUSH_IDEMPOTENCY_CONFLICT', msg: 'This request ID was already used for a different message. No message was sent.' }, 409);
+        }
+        return json({ ok: true, duplicate: true, msg: 'This message was already sent. It was not sent again.' });
+      }
       if (body.uid) {
         const u = db.users[body.uid];
         if (!u) return json({ ok: false, msg: 'User not found.' }, 404);
         if (!Array.isArray(u.support_messages)) u.support_messages = [];
-        u.support_messages.push({ id: 'M' + Date.now() + crypto.randomBytes(3).toString('hex'), from: 'admin', content: content, time: nowStr() });
+        u.support_messages.push({ id: 'M' + Date.now() + crypto.randomBytes(3).toString('hex'), from: 'admin', content: content, time: nowStr(), request_id: requestId });
       } else {
         Object.values(db.users).forEach(function (u) {
           if (!Array.isArray(u.support_messages)) u.support_messages = [];
-          u.support_messages.push({ id: 'M' + Date.now() + crypto.randomBytes(3).toString('hex'), from: 'admin', content: content, time: nowStr() });
+          u.support_messages.push({ id: 'M' + Date.now() + crypto.randomBytes(3).toString('hex'), from: 'admin', content: content, time: nowStr(), request_id: requestId });
         });
       }
-      await auditAdmin('admin_push_message', body.uid || 'all', JSON.stringify({ target: body.uid ? 'single_user' : 'all_users', length: content.length }), adminUserId);
+      db.recent_admin_push_requests.push({ request_id: requestId, content_hash: crypto.createHash('sha256').update(content).digest('hex'), target: String(body.uid || 'all'), time: nowStr() });
+      if (db.recent_admin_push_requests.length > 200) db.recent_admin_push_requests = db.recent_admin_push_requests.slice(-200);
+      await auditAdmin('admin_push_message', body.uid || 'all', JSON.stringify({ target: body.uid ? 'single_user' : 'all_users', length: content.length, request_id: requestId }), adminUserId);
       await saveDB(db);
       const auditFlush = await flushAdminAuditOutbox();
-      return json({ ok: true, audit_sync_pending: auditFlush.pending, msg: 'Message sent.' });
+      return json({ ok: true, duplicate: false, audit_sync_pending: auditFlush.pending, msg: 'Message sent.' });
     }
 
     // GET /api/admin/addresses — sensitive fields visible only to authenticated admin

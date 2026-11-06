@@ -5967,3 +5967,40 @@ The prior withdrawal UI audit statement claiming the active BTCBOX admin route w
   - Frontend `42293160750`: lint/build passed; **20/20** desktop/mobile Playwright route smoke tests passed.
   - PostgreSQL `42293160618`: empty-database bootstrap and canonical SQL application passed.
 - The final coordination-doc-only branch head is recorded in Git; no application code changed after the exact tested code head.
+
+
+## 2026-11-07 — Five-batch continuation (KYC → orders → fund audit → support idempotency → API contract)
+
+- Role: continuation AI on `work/btcbox-unified-20261104`. Verified handoff commits `e0b192f` and `d8539d2` are in branch history; HEAD was `d8539d2` at start (no other AI had pushed to this branch). PR #51 and follow-up PRs #52/#53 were found closed and could not be reopened; opened fresh draft PRs to trigger CI. No merge, no deployment, no production DB / real funds operation. No new RBAC permission invented. Google sign-in unchanged; no Email OTP reintroduced.
+
+### Batch 1 — KYC permission & state consistency
+- FINDING: legacy `processing` / `under_review` KYC records were invisible to the admin review queue (exact `'pending'` filter) while the customer-side `kycSubmissionBlock` blocked resubmission, leaving those users stuck. `kyc_level` also ignored the `verified` / `processing` / `under_review` aliases. Permission exposure was already correct: ordinary responses mask `id_number`; admin user-detail strips KYC evidence to `{status}`; `reviewed_by` / `review_reason` are never serialized to customers; document previews are owner-scoped 5-minute signed URLs gated by `kyc.read`.
+- FIX: added shared `normalizeKycStatus` / `isKycInReview` / `isKycApproved` helpers; admin KYC queue now includes all in-review aliases and returns the actual status; approve accepts every in-review alias without the exception override; `kyc_level` uses alias-aware predicates. No new permission.
+- REGRESSION: `backend/tests/kyc-flow.test.js` extended (alias normalizer, approval gate accepts aliases, kyc_level alias awareness, no-new-permission guard, queue filter). `account-credentials.test.js` assertion updated.
+- Code commit `4e5e5685832a158a81cd8a34e181335355fd65e9`. Backend CI run **42297056648** passed (exact SHA). Frontend / PostgreSQL CI path-filter-skipped (no frontend / SQL changes); parent commit all three green.
+
+### Batch 2 — Spot order data consistency
+- FINDING: in PostgreSQL matching mode the customer order history and admin order list read the same `financial_matching_orders` table, but projections diverged: admin rewrote canonical `cancelled` → `canceled` (customer saw raw DB value), admin omitted `client_order_id`, used `amount`/`time`/slashed-symbol vs customer `quantity`/`created_at`/unslashed-symbol, and customer lacked `type`.
+- FIX: both projections now emit customer-canonical fields (`order_id`, `quantity`, `created_at`, `client_order_id`, `type: 'limit'`, unslashed symbol, raw DB status) while retaining legacy admin aliases (`id`, `amount`, `time`). No matching-engine / schema / trade-logic change.
+- REGRESSION: `backend/tests/order-history-source-parity.test.js` extended (consistent status values, client_order_id in both, no silent canceled→canceled rewrite, symbol format, shared core fields).
+- Code commit `e423b4afbe6827ef7bb05c0555b57614070471ee`. Backend CI run **42297955945** passed (exact SHA). Frontend / PostgreSQL path-filter-skipped.
+
+### Batch 3 — Admin fund operations audit (code + test review only)
+- FINDING: no critical gap. Manual deposit credit, withdrawal approve/reject/mark-paid, and account freeze/unfreeze all enforce cutover gating, actor identity, atomic RPCs, duplicate/idempotency protection, and write canonical `financial_audit_log` rows with actor, subject, amount, asset, reason, reference/operation id. Direct balance adjustment remains disabled pending a maker-checker queue. Minor: withdrawal approve carries a hardcoded reason (admin-supplied reason not accepted) — left as-is to avoid API contract change.
+- REGRESSION: new `backend/tests/admin-fund-ops-audit.test.js` locks in audit fields, idempotency keys, atomic RPCs, state guard on freeze, and disabled direct-adjustment guard.
+- Commit `88e39bf559be428394c26161d27fa27b8799453a`. Backend CI run **42298110345** passed (exact SHA).
+
+### Batch 4 — Customer service & review operation idempotency
+- FINDING: admin `POST /api/push` (broadcast / single-user in-app message) had no idempotency key — a double-click or retry after a lost response duplicated the message in every recipient's conversation. Support reply already had request_id idempotency; KYC/withdrawal review are state/RPC guarded.
+- FIX: mandatory 16–100 char `request_id` on push, bounded persisted dedup set `recent_admin_push_requests` (capped 200), content-hash + target conflict detection (409 on reuse with different content), `duplicate:true` on exact retry, request_id stored on each delivered message and in the audit event.
+- REGRESSION: new `backend/tests/admin-support-idempotency.test.js` (support reply idempotency, push idempotency, KYC/withdrawal review guards).
+- Commit `e6c7d933358992b1874be425fbe7ec5c500c894a`. Backend CI triggered via workflow_dispatch (PRs #51/#52/#53 were found closed); see final handoff for run id.
+
+### Batch 5 — Web App + Admin Panel integration
+- VERIFIED: frontend `tsc --noEmit` passes; admin permission map covers all admin routes; every key admin API function exists in the client and uses the bearer-token `adminRequest` helper; admin panel uses `role="dialog"` / `aria-modal="true"` and no native `alert`/`confirm`/`prompt`; confirmed-success-then-refresh-failure keeps the success notice and tells operator to reload (KYC + withdrawal queue). No real feature deleted, no permission relaxed.
+- REGRESSION: new `backend/tests/admin-api-contract.test.js`.
+- Commit `dd98b5470f66952976e512bbb3e894e79fe87836`. Backend CI triggered via workflow_dispatch.
+
+### Interruption / handoff note
+- Final branch HEAD at documentation time: see the doc commit SHA. Working tree clean after each batch. All five batches are backend-only (api-core.js + tests); no frontend source, no SQL migration changed. The single failing local test (`build-site.js publishes...`) is a pre-existing environment issue requiring a frontend build artifact, unrelated to these changes.
+- NEXT: if a future batch touches frontend or SQL, re-run frontend-ci and PostgreSQL schema CI on the exact commit (they were path-filter-skipped here). Reopen or open a fresh draft PR against `fix/post-merge-db-bootstrap-seconds-20261106` if CI is needed; PRs #51/#52/#53 were closed and unreopenable. KYC retention/deletion remains an owner-policy decision — do not invent a duration.
