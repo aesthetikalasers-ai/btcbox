@@ -2901,20 +2901,19 @@ async function handleRequest(event, context) {
       }
       const uid = String(body.uid || '').trim();
       const coin = String(body.coin || 'USDT').trim().toUpperCase();
-      const amount = Number(body.amount);
+      const amountText = parseMoneyInput(body.amount);
       const reference = String(body.reference || '').trim().slice(0, 120);
       const note = String(body.note || '').trim().slice(0, 300);
       const idempotencyKey = String(body.idempotency_key || '').trim();
       const u = db.users[uid];
       if (!u) return json({ ok: false, msg: 'User not found.' }, 404);
       if (!['USDT', 'BTC', 'ETH', 'SOL'].includes(coin)) return json({ ok: false, msg: 'Coin not supported.' }, 400);
-      if (!Number.isFinite(amount) || amount <= 0 || amount > 1e12 || !/^\d+(?:\.\d{1,12})?$/.test(String(body.amount || '').trim())) {
+      if (amountText === null || compareMoney(amountText, '0') <= 0 || compareMoney(amountText, '1000000000000') > 0 || !/^\\d+(?:\\.\\d{1,12})?$/.test(String(body.amount || '').trim())) {
         return json({ ok: false, msg: 'Invalid deposit amount. Must be a valid number greater than 0.' }, 400);
       }
       if (!/^[A-Za-z0-9_-]{16,100}$/.test(idempotencyKey)) return json({ ok: false, msg: 'Invalid credit request ID. Please try again.' }, 400);
       const adminId = adminUserId;
       if (!adminId) return json({ ok: false, code: 'ADMIN_ACTOR_NOT_CONFIGURED', msg: 'Administrator audit identity not configured. Manual credit was not executed.' }, 503);
-      const amountText = String(body.amount).trim();
       const requestHash = crypto.createHash('sha256').update([adminId, uid, coin, amountText, reference, note].join('|')).digest('hex');
       const depositId = 'MD' + crypto.randomBytes(16).toString('hex');
       try {
