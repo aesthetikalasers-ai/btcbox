@@ -371,7 +371,7 @@ function isSecondsPosition(value: unknown): value is SecondsPosition {
     (item.direction === "up" || item.direction === "down") &&
     (typeof item.amount === "string" || (typeof item.amount === "number" && Number.isFinite(item.amount))) &&
     Number.isFinite(Number(item.amount)) && Number(item.amount) > 0 &&
-    [30, 60, 300, 900].includes(Number(item.duration_sec)) &&
+    Number.isSafeInteger(item.duration_sec) && Number(item.duration_sec) > 0 &&
     (typeof item.open_price === "string" || (typeof item.open_price === "number" && Number.isFinite(item.open_price))) &&
     Number.isFinite(Number(item.open_price)) && Number(item.open_price) > 0 &&
     Number.isSafeInteger(item.settle_at) && Number(item.settle_at) > 0;
@@ -405,6 +405,7 @@ export interface SecondsPolicySnapshot {
   max_stake: number | string;
   payout_bps: number;
   per_user_open_exposure: number | string | null;
+  max_open_positions_per_user: number | null;
 }
 export interface SecondsPolicyResponse {
   policy: SecondsPolicySnapshot;
@@ -418,11 +419,12 @@ export async function getSecondsPolicy(signal?: AbortSignal): Promise<SecondsPol
       !Array.isArray(policy.symbols) || !policy.symbols.length ||
       !policy.symbols.every((symbol) => ["BTC", "ETH", "SOL", "BNB"].includes(symbol)) ||
       !Array.isArray(policy.durations_sec) || !policy.durations_sec.length ||
-      !policy.durations_sec.every((duration) => [30, 60, 300, 900].includes(duration)) ||
+      !policy.durations_sec.every((duration) => Number.isSafeInteger(duration) && duration > 0) ||
       !Number.isFinite(Number(policy.min_stake)) || Number(policy.min_stake) <= 0 ||
       !Number.isFinite(Number(policy.max_stake)) || Number(policy.max_stake) < Number(policy.min_stake) ||
       !Number.isSafeInteger(policy.payout_bps) || policy.payout_bps < 8500 ||
       (policy.per_user_open_exposure !== null && (!Number.isFinite(Number(policy.per_user_open_exposure)) || Number(policy.per_user_open_exposure) <= 0)) ||
+      (policy.max_open_positions_per_user !== null && (!Number.isSafeInteger(policy.max_open_positions_per_user) || policy.max_open_positions_per_user <= 0)) ||
       typeof payload.actions_enabled !== "boolean") {
     throw new ApiError("BTCBOX returned an invalid seconds policy.", 502, "INVALID_SECONDS_POLICY");
   }
@@ -896,7 +898,7 @@ export async function getAdminSecondsPolicy(token: string, signal?: AbortSignal)
 export async function saveAdminSecondsPolicy(token: string, input: {
   expected_policy_version: number; symbols: string[]; durations_sec: number[];
   min_stake: string; max_stake: string; payout_bps: number;
-  per_user_open_exposure: string | null; reason: string; request_id: string;
+  per_user_open_exposure: string | null; max_open_positions_per_user: number | null; reason: string; request_id: string;
 }) {
   return adminRequest<{ ok: true; policy: SecondsPolicySnapshot; replayed?: boolean }>(token, "admin/seconds-policy", { method: "POST", body: input });
 }
