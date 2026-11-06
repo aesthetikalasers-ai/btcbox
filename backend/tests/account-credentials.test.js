@@ -185,7 +185,7 @@ test('credential updates also revoke outstanding 2FA login challenges before per
 
 
 test('account snapshot tolerates legacy users without a KYC object', () => {
-  assert.ok(source.includes("kyc_level: user.kyc && user.kyc.status === 'approved' ? 2 : (user.kyc && user.kyc.status === 'pending' ? 1 : 0)"));
+  assert.ok(source.includes('kyc_level: user.kyc && isKycApproved(user.kyc.status) ? 2 : (user.kyc && isKycInReview(user.kyc.status) ? 1 : 0)'));
 });
 
 
