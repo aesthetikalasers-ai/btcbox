@@ -2334,3 +2334,11 @@ Application branch inspected: `feat/btcbox-web3-auth-20261105` at `741c709d818cb
 - Pairwise compare confirms candidate `fbfb96ee26ff8bce6637f2ca11cbf21f0644c928` descends from React Google Auth, Strata theme batch, no-fake-market-data fix and UI i18n/mobile branch histories. The old template migration branch remains diverged and its pinned vendor submodules are not in the candidate tree.
 - Candidate SecondsPage is read-only positions/history with safe loading/error/cutover states; order placement/settlement are disabled. Candidate React routes for spot entry, orders, deposit, withdrawal, Earn, KYC and support remain placeholders. Admin UI remains absent and Basic Auth remains the active legacy route. No V211 source has been positively identified.
 - No source implementation, database write, merge, or deployment was performed in this audit batch; the durable work is the current evidence ledger and branch/route disposition.
+
+
+## Implementation batch — authenticated assets and orders — 2026-11-06
+
+- Reconciliation detail updated in `docs/INTEGRATION_RECONCILIATION_2026-11-06.md`, commit `388805544cda4c984502ea147591f225b55e43b3`.
+- On `feat/btcbox-web3-auth-20261105`, added authenticated, read-only Orders and Assets pages backed by existing `getOrders` and `getAccount` clients; protected the orders route; implemented loading/error/retry/empty states and accurate valuation-completeness display.
+- Candidate head at report time: `403fc12d679b11590e5eaf5c8e8aaae15f33d99a`. CI run `42149902764` was still in progress; prior CI caught and identified a literal escaped newline syntax issue in App.tsx, corrected in this head. Await final CI result before claiming validation.
+- No merge, PR, deployment, Supabase write, or financial transaction.
