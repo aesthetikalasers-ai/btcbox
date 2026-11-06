@@ -284,7 +284,7 @@ export function AdminPage() {
       return;
     }
     const reference = (creditReference[coin] || "").trim();
-    if (!reference || reference.length > 160 || /[\\u0000-\\u001f\\u007f]/.test(reference)) {
+    if (!reference || reference.length > 160 || /[\u0000-\u001f\u007f]/.test(reference)) {
       setError("Enter the verified transaction hash or receipt reference before crediting.");
       return;
     }
