@@ -49,3 +49,16 @@ test('admin normalized balance reader accepts every configured deposit and suppo
   }
   assert.ok(api.includes('if (!SUPPORTED_LEDGER_ASSETS.has(asset))'));
 });
+
+test('admin valuation requests live prices from normalized ledger assets after the canonical balance read', () => {
+  const start = api.indexOf("// GET /api/admin/users?search=");
+  const end = api.indexOf("// GET /api/admin/kyc", start);
+  assert.ok(start >= 0 && end > start, 'admin user list route must exist');
+  const route = api.slice(start, end);
+  const normalizedReadAt = route.indexOf('readAdminAccountBalances(');
+  const livePriceAt = route.indexOf('getLiveUsdtPrices(priceBases)');
+  assert.ok(normalizedReadAt >= 0 && livePriceAt > normalizedReadAt,
+    'read canonical PostgreSQL balances before requesting their live valuation prices');
+  assert.ok(route.includes('const priceBases = list.flatMap(function (u)'));
+  assert.ok(route.includes('normalizedBalances ? (normalizedBalances[String(u.uid)] || {}) : (u.balances || {})'));
+});
