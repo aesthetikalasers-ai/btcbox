@@ -47,8 +47,8 @@ test('customer order history and admin order list use the same PostgreSQL matchi
 test('administrator order viewer exposes the source used by customer and admin order reads', () => {
   const adminPage = fs.readFileSync(path.resolve(root, '../frontend/src/features/admin/AdminPage.tsx'), 'utf8');
   assert.ok(adminPage.includes('setOrdersSource(snapshot.source || "unknown")'));
-  assert.ok(adminPage.includes('"PostgreSQL matching"'));
-  assert.ok(adminPage.includes('"Legacy state"'));
+  assert.ok(adminPage.includes('"Source: PostgreSQL matching"'));
+  assert.ok(adminPage.includes('"Source: legacy state"'));
   assert.ok(adminPage.includes('Customer order history and this administrator view use the canonical PostgreSQL matching orders.'));
   assert.ok(adminPage.includes('Legacy state fallback is active because matching-engine mode was not requested.'));
 });
