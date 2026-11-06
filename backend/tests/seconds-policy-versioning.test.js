@@ -127,8 +127,8 @@ test('seed minimum is the numeric precision floor, not an invented commercial mi
 
 
 test('policy payout keeps the 85 percent floor without a hard-coded 100 percent ceiling', () => {
-  assert.match(migration, /payout_bps integer NOT NULL CHECK \\(payout_bps >= 8500\\)/i);
-  assert.match(migration, /payout_bps_snapshot IS NULL OR payout_bps_snapshot >= 8500/i);
+  assert.ok(migration.includes('payout_bps integer NOT NULL CHECK (payout_bps >= 8500)'));
+  assert.ok(migration.includes('payout_bps_snapshot IS NULL OR payout_bps_snapshot >= 8500'));
   assert.doesNotMatch(migration, /payout_bps BETWEEN 8500 AND 10000/i);
   assert.doesNotMatch(migration, /payout_bps_snapshot BETWEEN 8500 AND 10000/i);
   assert.match(migration, /8500,/);

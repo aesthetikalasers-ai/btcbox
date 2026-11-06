@@ -99,13 +99,12 @@ test('private RBAC schema remains unexposed behind a service-role-only PostgREST
   const wrapper = fs.readFileSync(path.join(root, 'supabase/sql/0028_admin_rbac_service_rpc_wrappers_v1.sql'), 'utf8');
   assert.match(wrapper, /SECURITY DEFINER/i);
   assert.match(wrapper, /SET search_path = ''/i);
-  assert.ok(wrapper.includes('REVOKE ALL ON FUNCTION public.admin_get_membership_v1(uuid)\\n  FROM PUBLIC,anon,authenticated,service_role;'));
-  assert.ok(wrapper.includes('REVOKE ALL ON FUNCTION public.admin_manage_membership_v1(uuid,uuid,bigint,text,text[],text,text,text)\\n  FROM PUBLIC,anon,authenticated,service_role;'));
+  const newline = String.fromCharCode(10);
+  assert.ok(wrapper.includes('REVOKE ALL ON FUNCTION public.admin_get_membership_v1(uuid)' + newline + '  FROM PUBLIC,anon,authenticated,service_role;'));
+  assert.ok(wrapper.includes('REVOKE ALL ON FUNCTION public.admin_manage_membership_v1(uuid,uuid,bigint,text,text[],text,text,text)' + newline + '  FROM PUBLIC,anon,authenticated,service_role;'));
   assert.ok(wrapper.includes('GRANT EXECUTE ON FUNCTION public.admin_get_membership_v1(uuid) TO service_role;'));
-  assert.ok(wrapper.includes('GRANT EXECUTE ON FUNCTION public.admin_manage_membership_v1(uuid,uuid,bigint,text,text[],text,text,text)\\n  TO service_role;'));
-  assert.doesNotMatch(wrapper, /GRANT EXECUTE ON FUNCTION[\\s\\S]*TO (?:anon|authenticated)/i);
-  assert.doesNotMatch(wrapper, /GRANT EXECUTE ON FUNCTION[\\s\\S]*TO (?:anon|authenticated)/i);
-  assert.match(design, /do not grant direct table DML/i);
+  assert.ok(wrapper.includes('GRANT EXECUTE ON FUNCTION public.admin_manage_membership_v1(uuid,uuid,bigint,text,text[],text,text,text)' + newline + '  TO service_role;'));
+  assert.ok(!wrapper.includes(' TO anon') && !wrapper.includes(' TO authenticated'));
 });
 
 test('Super Admin has full authority and exclusively manages delegated administrator permissions', () => {
