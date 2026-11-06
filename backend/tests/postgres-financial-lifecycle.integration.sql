@@ -209,7 +209,56 @@ BEGIN
     RAISE EXCEPTION 'conflicting spot cancel changed reserved funds: available %, frozen %',v_balance,v_frozen;
   END IF;
 
-  -- 4) Seconds: reserve, snapshot payout policy, settle after maturity, exact replay.
+  -- 4) Admin market configuration: owner bootstrap, permission gate, audit and replay safety.
+  INSERT INTO auth.users(id) VALUES('00000000-0000-4000-8000-000000000001')
+  ON CONFLICT(id) DO NOTHING;
+  PERFORM private.bootstrap_super_admin_v1(
+    '00000000-0000-4000-8000-000000000001',
+    'disposable PostgreSQL integration test',
+    'CI-TEST-ONLY'
+  );
+  v_result := public.admin_set_spot_market_v1(
+    '00000000-0000-4000-8000-000000000001',
+    'BTC','USDT',true,1,0.001,0.001,1,NULL,NULL,
+    'enable spot market in disposable test',
+    'spot-market-config-request-0001',repeat('a',64)
+  );
+  IF v_result->>'ok'<>'true' OR v_result->>'replayed'<>'false'
+     OR v_result->'market'->>'enabled'<>'true' THEN
+    RAISE EXCEPTION 'admin spot market configuration failed: %',v_result;
+  END IF;
+  v_result := public.admin_set_spot_market_v1(
+    '00000000-0000-4000-8000-000000000001',
+    'BTC','USDT',true,1,0.001,0.001,1,NULL,NULL,
+    'enable spot market in disposable test',
+    'spot-market-config-request-0001',repeat('a',64)
+  );
+  IF v_result->>'replayed'<>'true' THEN
+    RAISE EXCEPTION 'admin spot market exact replay was not idempotent: %',v_result;
+  END IF;
+  v_failed := false;
+  BEGIN
+    PERFORM public.admin_set_spot_market_v1(
+      '00000000-0000-4000-8000-000000000001',
+      'BTC','USDT',false,1,0.001,0.001,1,NULL,NULL,
+      'conflicting reuse in disposable test',
+      'spot-market-config-request-0001',repeat('b',64)
+    );
+  EXCEPTION WHEN OTHERS THEN
+    v_failed := true;
+  END;
+  IF NOT v_failed THEN RAISE EXCEPTION 'admin spot market accepted a changed payload for an existing request ID'; END IF;
+  v_result := public.admin_set_spot_market_v1(
+    '00000000-0000-4000-8000-000000000001',
+    'BTC','USDT',false,1,0.001,0.001,1,NULL,NULL,
+    'disable spot market in disposable test',
+    'spot-market-config-request-0002',repeat('c',64)
+  );
+  IF v_result->'market'->>'enabled'<>'false' THEN
+    RAISE EXCEPTION 'admin spot market disable did not persist: %',v_result;
+  END IF;
+
+  -- 5) Seconds: reserve, snapshot payout policy, settle after maturity, exact replay.
   PERFORM pg_temp.test_credit(
     'MD-CI-0007','seconds-user','USDT',100,'deposit-ci-request-0005','deposit-ref-ci-5','postgres-ci'
   );
