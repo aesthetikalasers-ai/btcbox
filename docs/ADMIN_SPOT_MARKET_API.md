@@ -1,6 +1,6 @@
 # Admin Spot Market API
 
-This is the backend contract for the Admin UI's future Spot Markets panel.
+This is the backend contract used by the Admin Console's Spot Markets panel.
 
 ## Authorization
 
@@ -57,7 +57,7 @@ An empty array means no market pair has been configured yet.
 ```
 
 Rules:
-- Assets must be uppercase alphanumeric identifiers, 2–16 characters, and must differ.
+- Assets must be selected from the supported BTCBOX ledger catalogue (`USDT`, `USDC`, `BTC`, `ETH`, `SOL`, `BNB`, `XRP`, `DOGE`, `ADA`, `AVAX`, `LINK`, `DOT`, `TRX`, `LTC`, `BCH`, `NEAR`, `UNI`, `ATOM`, `ETC`) and must differ.
 - Decimal fields support up to 20 integer digits and 18 fractional digits, matching the database numeric precision.
 - Tick, quantity step and minimum quantity must be positive; minimum notional may be zero.
 - Optional absolute minimum/maximum limit prices must be positive and minimum cannot exceed maximum.
@@ -71,4 +71,4 @@ Rules:
 - Spot order submission remains limit-order-only and database-matched.
 - Market orders remain fail-closed.
 - Market enablement does not fabricate prices or provide a live reference-price feed. Dynamic price bands require a trusted feed and a separate verified rule.
-- The backend API and SQL RPC are implemented; the Admin UI panel and its form/reload/retry interactions are still pending the Interaction Team's file scope.
+- The Admin Console includes a Spot Markets tab for reading, adding, editing and enabling/disabling supported pairs. The form persists an ambiguous request ID and locks the payload until the exact request is retried. The UI does not expose fee editing.
