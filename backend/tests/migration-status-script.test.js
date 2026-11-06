@@ -84,3 +84,17 @@ test('migration order document records prepared Seconds migrations and their pre
   assert.match(orderDoc, /Apply only after the Seconds base and settlement-idempotency migrations/i);
   assert.match(orderDoc, /timestamp registry versions directly with four-digit filenames/i);
 });
+
+
+test('fresh database bootstrap includes only canonical operational SQL and refuses unconfirmed targets', () => {
+  const fs = require('node:fs');
+  const bootstrap = fs.readFileSync(path.join(__dirname, '..', 'scripts', 'bootstrap-empty-database.sh'), 'utf8');
+  assert.match(bootstrap, /BTCBOX_BOOTSTRAP_CONFIRM/);
+  assert.match(bootstrap, /BTCBOX_ALLOW_REMOTE_BOOTSTRAP/);
+  assert.match(bootstrap, /BTCBOX-owned tables/);
+  assert.match(bootstrap, /0001_btcbox_state_cas.sql/);
+  assert.match(bootstrap, /0028_admin_rbac_service_rpc_wrappers_v1.sql/);
+  for (const excluded of ['0016_financial_deposit_chain_verification_v3.sql','0017_financial_migration_staging_v5.sql','0018_financial_migration_staging_reconciliation_v6.sql','0019_financial_migration_reconciliation_v4.sql','0020_financial_ledger_reconciliation_v1.sql']) {
+    assert.ok(!bootstrap.includes(excluded), excluded + ' must not be part of fresh operational bootstrap');
+  }
+});
