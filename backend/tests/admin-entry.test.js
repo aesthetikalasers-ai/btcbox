@@ -12,6 +12,7 @@ const reactApp = fs.readFileSync(path.resolve(root, '../frontend/src/App.tsx'), 
 const reactAdminPage = fs.readFileSync(path.resolve(root, '../frontend/src/features/admin/AdminPage.tsx'), 'utf8');
 const adminAuth = fs.readFileSync(path.join(root, 'admin-auth.js'), 'utf8');
 const admin = fs.readFileSync(path.join(root, 'admin.html'), 'utf8');
+const vercelConfig = JSON.parse(fs.readFileSync(path.join(root, 'vercel.json'), 'utf8'));
 const api = require(path.join(root, 'api-core.js'));
 const redactAdminAuditDetail = api._test.redactAdminAuditDetail;
 
@@ -59,6 +60,11 @@ test('admin audit detail redaction handles escaped quotes and plural credential 
 test('dedicated /admin URL defaults to the admin route before SPA boot', () => {
   assert.ok(boot.includes("if(!location.hash) location.hash = /^\\/admin(?:\\.html)?\\/?$/.test(location.pathname) ? '#/admin' : '#/home';"));
   assert.ok(admin.includes('/assets/js/boot.js'));
+});
+
+test('Vercel serves /admin through the React SPA instead of the legacy admin.html rewrite', () => {
+  assert.ok(!vercelConfig.rewrites.some((rule) => rule.source === '/admin' && rule.destination === '/admin.html'));
+  assert.ok(vercelConfig.rewrites.some((rule) => rule.destination === '/index.html' && rule.source.includes('api/')));
 });
 
 test('React admin route uses verified Supabase Auth identity and server-side role permissions', () => {
