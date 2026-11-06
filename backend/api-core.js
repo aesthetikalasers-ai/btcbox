@@ -2622,6 +2622,8 @@ async function handleRequest(event, context) {
       if (route === 'support/reply' && verb === 'POST') return 'support.reply';
       if (route === 'push' && verb === 'POST') return 'announcements.manage';
       if (route === 'audit-logs' && verb === 'GET') return 'financial_audit.read';
+      if (route === 'spot-markets' && verb === 'GET') return 'system_config.read';
+      if (route === 'spot-markets' && verb === 'POST') return 'system_config.write';
       if (route === 'config' && verb === 'GET') return 'system_config.read';
       if (route === 'config' && verb === 'POST') return 'system_config.write';
       if (route === 'seconds-policy' && verb === 'GET') return 'seconds_policy.read';
@@ -2705,6 +2707,86 @@ async function handleRequest(event, context) {
         return json({ ok: true, policy: result.policy, replayed: result.replayed === true });
       } catch (_) {
         return json({ ok: false, code: 'SECONDS_POLICY_CHANGE_UNAVAILABLE', msg: 'Seconds policy update could not be confirmed. Refresh before retrying.' }, 503);
+      }
+    }
+
+    // Spot-market controls are permissioned, audited and persisted through PostgreSQL RPCs.
+    if (sub === 'spot-markets' && method === 'GET') {
+      try {
+        const base = String(process.env.SUPABASE_URL || '').replace(/\\/+$/, '');
+        if (!base || !supabaseStorageConfigured()) throw new Error('Spot market store unavailable');
+        const response = await fetch(base + '/rest/v1/rpc/read_spot_market_snapshot_v1', {
+          method: 'POST', headers: supabaseHeaders(), body: '{}', signal: AbortSignal.timeout(5000)
+        });
+        const result = await response.json().catch(() => null);
+        if (!response.ok || !result || result.ok !== true || !Array.isArray(result.markets)) {
+          return json({ ok: false, code: 'SPOT_MARKETS_UNAVAILABLE', msg: 'Spot market configuration is temporarily unavailable.' }, 503);
+        }
+        return json({ ok: true, markets: result.markets });
+      } catch (_) {
+        return json({ ok: false, code: 'SPOT_MARKETS_UNAVAILABLE', msg: 'Spot market configuration is temporarily unavailable.' }, 503);
+      }
+    }
+    if (sub === 'spot-markets' && method === 'POST') {
+      const baseAsset = String(body.base_asset || '').trim().toUpperCase();
+      const quoteAsset = String(body.quote_asset || '').trim().toUpperCase();
+      const enabled = body.enabled;
+      const priceTick = String(body.price_tick ?? '').trim();
+      const quantityStep = String(body.quantity_step ?? '').trim();
+      const minQuantity = String(body.min_quantity ?? '').trim();
+      const minNotional = String(body.min_notional ?? '').trim();
+      const minLimitPrice = body.min_limit_price === null || body.min_limit_price === undefined || body.min_limit_price === ''
+        ? null : String(body.min_limit_price).trim();
+      const maxLimitPrice = body.max_limit_price === null || body.max_limit_price === undefined || body.max_limit_price === ''
+        ? null : String(body.max_limit_price).trim();
+      const reason = typeof body.reason === 'string' ? body.reason.trim() : '';
+      const requestId = String(body.request_id || '');
+      const assetPattern = /^[A-Z0-9]{2,16}$/;
+      const decimal = /^(?:0|[1-9]\\d*)(?:\\.\\d{1,18})?$/;
+      if (!assetPattern.test(baseAsset) || !assetPattern.test(quoteAsset) || baseAsset === quoteAsset ||
+          typeof enabled !== 'boolean' || !decimal.test(priceTick) || Number(priceTick) <= 0 ||
+          !decimal.test(quantityStep) || Number(quantityStep) <= 0 ||
+          !decimal.test(minQuantity) || Number(minQuantity) <= 0 ||
+          !decimal.test(minNotional) ||
+          (minLimitPrice !== null && (!decimal.test(minLimitPrice) || Number(minLimitPrice) <= 0)) ||
+          (maxLimitPrice !== null && (!decimal.test(maxLimitPrice) || Number(maxLimitPrice) <= 0)) ||
+          !reason || reason.length > 500 || !/^[A-Za-z0-9_-]{16,100}$/.test(requestId)) {
+        return json({ ok: false, code: 'SPOT_MARKET_CONFIG_INVALID', msg: 'Spot market parameters are invalid.' }, 400);
+      }
+      const normalized = {
+        base_asset: baseAsset, quote_asset: quoteAsset, enabled,
+        price_tick: priceTick, quantity_step: quantityStep, min_quantity: minQuantity,
+        min_notional: minNotional, min_limit_price: minLimitPrice,
+        max_limit_price: maxLimitPrice, reason
+      };
+      const requestHash = crypto.createHash('sha256').update(JSON.stringify(normalized)).digest('hex');
+      try {
+        const base = String(process.env.SUPABASE_URL || '').replace(/\\/+$/, '');
+        if (!base || !supabaseStorageConfigured()) throw new Error('Spot market store unavailable');
+        const response = await fetch(base + '/rest/v1/rpc/admin_set_spot_market_v1', {
+          method: 'POST', headers: supabaseHeaders(),
+          body: JSON.stringify({
+            p_actor_user_id: adminUserId,
+            p_base_asset: baseAsset, p_quote_asset: quoteAsset, p_enabled: enabled,
+            p_price_tick: priceTick, p_quantity_step: quantityStep, p_min_quantity: minQuantity,
+            p_min_notional: minNotional, p_min_limit_price: minLimitPrice,
+            p_max_limit_price: maxLimitPrice, p_reason: reason,
+            p_request_id: requestId, p_request_hash: requestHash
+          }),
+          signal: AbortSignal.timeout(7000)
+        });
+        const result = await response.json().catch(() => null);
+        if (!response.ok || !result || result.ok !== true || !result.market) {
+          const status = response.status === 400 || response.status === 409 ? 409 : 503;
+          return json({
+            ok: false,
+            code: status === 409 ? 'SPOT_MARKET_CHANGE_REJECTED' : 'SPOT_MARKET_CHANGE_UNAVAILABLE',
+            msg: status === 409 ? 'Spot market update was rejected. Refresh the market list before retrying.' : 'Spot market update could not be confirmed. Refresh before retrying.'
+          }, status);
+        }
+        return json({ ok: true, market: result.market, replayed: result.replayed === true });
+      } catch (_) {
+        return json({ ok: false, code: 'SPOT_MARKET_CHANGE_UNAVAILABLE', msg: 'Spot market update could not be confirmed. Refresh before retrying.' }, 503);
       }
     }
 
