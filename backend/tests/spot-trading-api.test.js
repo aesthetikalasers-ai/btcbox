@@ -57,3 +57,15 @@ test('Spot limit form accepts decimal digits and rejects malformed decimal strin
   assert.ok(pages.includes('!/^(?:0|[1-9]\\d*)(?:\\.\\d{1,18})?$/.test(quantity)'));
   assert.ok(pages.includes('!/^(?:0|[1-9]\\d*)(?:\\.\\d{1,18})?$/.test(price)'));
 });
+
+
+test('Spot order intent is saved before POST, restored per account/market, and cleared only after order-history confirmation', () => {
+  assert.ok(pages.includes('btcbox.spot.pending.v1.'));
+  assert.ok(pages.includes('window.localStorage.setItem(pendingStorageKey,JSON.stringify(intent))'));
+  assert.ok(pages.includes('window.localStorage.getItem(pendingStorageKey)'));
+  assert.ok(pages.includes('submitSpotOrder(intent)'));
+  assert.ok(pages.includes('const latest=await getOrders()'));
+  assert.ok(pages.includes('const confirmed=latest.some(item=>String(item.order_id??item.id??"")===result.order_id)'));
+  assert.ok(pages.includes('pendingIntentInvalid'));
+  assert.ok(pages.includes('No order was sent.'));
+});
