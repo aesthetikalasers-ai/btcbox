@@ -6070,3 +6070,7 @@ The prior withdrawal UI audit statement claiming the active BTCBOX admin route w
 - CI follow-up: backend run `42309363348` exposed a stale spot-route assertion; updated `backend/tests/spot-trading-api.test.js` to assert the approved public preview route. Backend run `42309521968` on `1a1e93a78bfd2f5ef5d931796fabf5f11fc8428d` passed build, tests, fail-closed preflight and output checks. Frontend run `42309363409` passed install/lint/build/Chromium setup; Playwright desktop/mobile route smoke tests were still running at last check.
 
 - Frontend browser verification: after updating stale E2E assertions that expected email/username auth and a protected spot route, run `42309855968` passed all desktop/mobile route smoke tests. Added explicit Google-enabled runtime button coverage; latest run `42310007202` on `4f4b64917b1c1d0cea5575a71222fdbe7dd87313` passed install, lint, build, Chromium setup and all desktop/mobile Playwright tests.
+
+- Follow-up: market API now emits per-symbol server snapshot time after provider fetch completion; frontend propagates it as `snapshotTs` and labels it “Snapshot checked” (not exchange event time). Auth page entry points now expose Google only; wallet controls/deep links removed. Existing 2FA verification remains.
+- CI evidence: backend run `42310573294` at intermediate test commit `c966aa0` failed 1/400 because an older assertion expected “Last update”; that assertion has been updated. Latest exact-head CI must be checked before declaring tests passed.
+- Details: `docs/FRONTEND-MARKET-PREVIEW-BATCH-2026-11-07.md`.
