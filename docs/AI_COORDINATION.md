@@ -2912,3 +2912,20 @@ The prior withdrawal UI audit statement claiming the active BTCBOX admin route w
 - PostgreSQL schema CI was not rerun because this batch changes no SQL migration/bootstrap files. Parent baseline `73367233a5f4d37e828cb124f03f3eff84a10a2c` previously passed empty-database PostgreSQL CI run `42268516996`. A fresh database-level rerun remains a release gate after any future SQL changes.
 - Vercel check remains `build-rate-limit`; no deployment was initiated. No hosted database operation, real funds operation, financial cutover change, merge, or production deployment occurred.
 - NEXT: independently review the new user-detail field projection against every Admin role; verify Super Admin bootstrap and delegated-role provisioning in a disposable Supabase project; test real Supabase Auth/RBAC and private KYC Storage on staging; continue order/ledger reconciliation and complete a full browser workflow with a disposable account before any release decision.
+
+
+### 2026-11-07 — next batch: live spot refresh and financial permission hardening
+
+- Role: 2号 AI — Web App + Admin Panel. Work remains in Draft PR #51, based on PR #50's exact implementation head `73367233a5f4d37e828cb124f03f3eff84a10a2c`.
+- SECURITY HARDENING: manual deposit credit now requires both `deposits.review` and `deposits.read`. The API rejects a credit request with `ADMIN_PERMISSION_DENIED` if the verified membership lacks deposit-history read access; the UI disables the credit action under the same condition. This ensures an operator can inspect existing receipt/ledger history before crediting.
+- AUTH DOCUMENTATION: corrected `docs/INITIAL_SUPER_ADMIN_BOOTSTRAP.md` to state Google sign-in only. Email/password and email OTP are not to be enabled or relied on for this project.
+- LIVE PRICE GAP FOUND: the React Spot Trading page fetched its ticker/order book only on initial load or manual refresh. The public Dashboard already polled markets every 30 seconds, but the trading workstation did not have an automatic refresh loop.
+- FIXED IN SOURCE: Spot Trading now refreshes the ticker and order book every 15 seconds and candles every 60 seconds without reloading order-entry state or overwriting the customer's typed limit price. It displays the last successful update time and a warning when a refresh fails, retaining the last confirmed values instead of silently replacing them.
+- REGRESSION TESTS: `backend/tests/spot-trading-live-refresh.test.js` protects polling lifecycle, cancellation cleanup, and the no-price-overwrite rule. `admin-route-permissions.test.js` now protects the dual permission requirement.
+- EXACT-HEAD APPLICATION SHA: `8e7b9b8c271906df051a68d01e30c3f07b542e80`.
+- BACKEND CI run `42286959099`: success; 366 tests passed, 0 failed; unified build, fail-closed preflight, output/entrypoint checks passed.
+- FRONTEND CI run `42286959137`: success; lint, Vite build, Chromium installation and 20/20 desktop/mobile Playwright route smoke tests passed.
+- PostgreSQL schema CI was not rerun: this batch changes no SQL migration or bootstrap file. Parent integration baseline `73367233a5f4d37e828cb124f03f3eff84a10a2c` passed empty-database PostgreSQL CI run `42268516996`.
+- KYC RELEASE GATE: `docs/KYC_DOCUMENT_STORAGE.md` confirms no automatic deletion after approval/rejection and no retention period. This is intentionally left unresolved pending the owner's explicit privacy/legal retention policy; do not invent a retention duration or enable production KYC storage before it is set.
+- Hosting check remains Vercel `build-rate-limit`; no deployment was attempted. No hosted Supabase writes, real funds operations, financial cutover change, merge to `main`, or production deployment occurred.
+- NEXT: finish independent review of delegated-role grants and user-detail projection; perform Super Admin bootstrap, delegated-role provisioning, private KYC upload/preview and auth checks only in a disposable/staging Supabase project; get the owner-approved KYC retention/deletion policy; then continue full order/ledger reconciliation. Do not perform production cutover as part of this review.
