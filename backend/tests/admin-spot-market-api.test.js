@@ -18,6 +18,7 @@ test('admin spot-market API is protected by the existing system-config permissio
   assert.match(api, /if \(sub === 'spot-markets' && method === 'POST'\)/);
   assert.match(api, /SUPPORTED_LEDGER_ASSETS\.has\(baseAsset\)/);
   assert.match(api, /SUPPORTED_LEDGER_ASSETS\.has\(quoteAsset\)/);
+  assert.match(api, /quoteAsset !== 'USDT'/);
   assert.match(api, /p_actor_user_id: adminUserId/);
   assert.match(api, /p_request_id: requestId, p_request_hash: requestHash/);
   assert.match(api, /admin_set_spot_market_v1/);
@@ -35,6 +36,7 @@ test('spot-market configuration is audited, idempotent and cannot be written dir
   assert.match(sql, /pg_advisory_xact_lock[\s\S]*p_actor_user_id::text \|\| ':' \|\| p_request_id/i);
   assert.match(sql, /spot market idempotency payload mismatch/i);
   assert.match(sql, /admin_spot_market_updated/);
+  assert.match(sql, /p_quote_asset<>'USDT'/);
   assert.ok(sql.includes("hashtextextended(p_base_asset||'/'||p_quote_asset,0)"));
   assert.match(sql, /cannot change spot market rules while open orders exist/i);
   assert.ok(sql.includes("status IN ('open','partially_filled')"));
