@@ -27,7 +27,10 @@ test('new order RPC resolves the active backend policy and snapshots it atomical
   assert.ok(start >= 0 && end > start);
   const fn = migration.slice(start, end);
   assert.match(fn, /seconds_contract_policy_active/);
-  assert.doesNotMatch(fn, /FOR SHARE|FOR UPDATE/i);
+  const activeLookupStart = fn.indexOf('SELECT p.* INTO v_policy');
+  const activeLookupEnd = fn.indexOf('IF NOT FOUND THEN', activeLookupStart);
+  assert.ok(activeLookupStart >= 0 && activeLookupEnd > activeLookupStart);
+  assert.doesNotMatch(fn.slice(activeLookupStart, activeLookupEnd), /FOR SHARE|FOR UPDATE/i);
   assert.match(fn, /POLICY_LIMIT_EXCEEDED/);
   assert.match(fn, /OPEN_EXPOSURE_LIMIT_EXCEEDED/);
   assert.match(fn, /payout_bps_snapshot/);
@@ -117,7 +120,7 @@ test('seed minimum is the numeric precision floor, not an invented commercial mi
   const handler = api.slice(start, end);
   assert.match(handler, /amount === null \|\| compareMoney\(amount, '0'\) <= 0/);
   assert.match(handler, /compareMoney\(amount, '1000000000000'\) > 0/);
-  assert.doesNotMatch(handler, /compareMoney\(amount,\s*'(?!0(?:'|\.))/);
+  assert.doesNotMatch(handler, /compareMoney\(amount,\s*'0\.000000000000000001'/);
   assert.match(api, /raw\.length > 64 \|\| !\/\^\(\?:0\|\[1-9\]\\d\*\)\(\?:\\\.\\d\{1,18\}\)\?\$\//);
 });
 

@@ -6,8 +6,8 @@ const path = require('node:path');
 
 const root = path.resolve(__dirname, '..');
 const migration = fs.readFileSync(path.join(root, 'supabase/sql/0025_seconds_policy_versioning_v1.sql'), 'utf8');
-const spec = fs.readFileSync(path.resolve(root, '../../docs/SECONDS_POLICY_VERSIONING.md'), 'utf8');
-const rbac = fs.readFileSync(path.resolve(root, '../../docs/SECONDS_POLICY_ADMIN_RBAC.md'), 'utf8');
+const spec = fs.readFileSync(path.resolve(root, '../docs/SECONDS_POLICY_VERSIONING.md'), 'utf8');
+const rbac = fs.readFileSync(path.resolve(root, '../docs/SECONDS_POLICY_ADMIN_RBAC.md'), 'utf8');
 
 test('policy versioning spec accurately distinguishes migration source from live database state', () => {
   assert.match(spec, /source artifact only; its presence in Git does not prove it has been applied/i);

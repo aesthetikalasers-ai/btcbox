@@ -38,7 +38,7 @@ test('database RPC independently constrains contract symbol, direction, duration
 
 test('settlement price and payout policy remain server/database authoritative', () => {
   const start = api.indexOf("if (path === 'seconds/settle' && method === 'POST')");
-  const end = api.indexOf("// ---------- GET /api/market ----------", start);
+  const end = api.indexOf("// ---------- GET /api/seconds/positions ----------", start);
   assert.ok(start >= 0 && end > start, 'seconds settlement handler must exist');
   const handler = api.slice(start, end);
   assert.match(handler, /fetchSecondsReferencePrice\(symbol\)/);

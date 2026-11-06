@@ -6,7 +6,7 @@ const path = require('node:path');
 
 const root = path.resolve(__dirname, '..');
 const api = fs.readFileSync(path.join(root, 'api-core.js'), 'utf8');
-const design = fs.readFileSync(path.resolve(root, '../../docs/SECONDS_POLICY_ADMIN_RBAC.md'), 'utf8');
+const design = fs.readFileSync(path.resolve(root, '../docs/SECONDS_POLICY_ADMIN_RBAC.md'), 'utf8');
 
 test('seconds policy write routes remain unavailable while admin identity is shared Basic Auth', () => {
   const authStart = api.indexOf('async function adminAuth()');
