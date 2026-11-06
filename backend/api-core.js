@@ -2713,7 +2713,7 @@ async function handleRequest(event, context) {
     // Spot-market controls are permissioned, audited and persisted through PostgreSQL RPCs.
     if (sub === 'spot-markets' && method === 'GET') {
       try {
-        const base = String(process.env.SUPABASE_URL || '').replace(/\\/+$/, '');
+        const base = String(process.env.SUPABASE_URL || '').replace(/\/+$/, '');
         if (!base || !supabaseStorageConfigured()) throw new Error('Spot market store unavailable');
         const response = await fetch(base + '/rest/v1/rpc/read_spot_market_snapshot_v1', {
           method: 'POST', headers: supabaseHeaders(), body: '{}', signal: AbortSignal.timeout(5000)
@@ -2742,7 +2742,7 @@ async function handleRequest(event, context) {
       const reason = typeof body.reason === 'string' ? body.reason.trim() : '';
       const requestId = String(body.request_id || '');
       const assetPattern = /^[A-Z0-9]{2,16}$/;
-      const decimal = /^(?:0|[1-9]\\d*)(?:\\.\\d{1,18})?$/;
+      const decimal = /^(?:0|[1-9]\d{0,19})(?:\.\d{1,18})?$/;
       if (!assetPattern.test(baseAsset) || !assetPattern.test(quoteAsset) || baseAsset === quoteAsset ||
           typeof enabled !== 'boolean' || !decimal.test(priceTick) || Number(priceTick) <= 0 ||
           !decimal.test(quantityStep) || Number(quantityStep) <= 0 ||
@@ -2761,7 +2761,7 @@ async function handleRequest(event, context) {
       };
       const requestHash = crypto.createHash('sha256').update(JSON.stringify(normalized)).digest('hex');
       try {
-        const base = String(process.env.SUPABASE_URL || '').replace(/\\/+$/, '');
+        const base = String(process.env.SUPABASE_URL || '').replace(/\/+$/, '');
         if (!base || !supabaseStorageConfigured()) throw new Error('Spot market store unavailable');
         const response = await fetch(base + '/rest/v1/rpc/admin_set_spot_market_v1', {
           method: 'POST', headers: supabaseHeaders(),
