@@ -2769,3 +2769,11 @@ The prior withdrawal UI audit statement claiming the active BTCBOX admin route w
 - Implementation handoff: https://github.com/avali9308-code/btcbox-v33/issues/2
 - The existing manual credit atomic RPC/idempotency/audit path must remain the only balance-credit path. Existing financial cutover gate must not be bypassed. No financial flags, DB schema/data, merge, or deployment changed.
 - AI 3 updated BTCBOX v33 coordination/task-board docs in commits `0c8a760b4a6032f81c67e116fdae3901f744e7f3` and `5d397664990be07bb0f80e7fd6a4ac523f505db4`. This is a coordination handoff, not implementation or QA acceptance.
+
+
+## BTCBOX V33 — manual deposit configuration batch — 2026-11-06
+
+- The latest V33 feature branch source HEAD after this batch is `c82c07acad6df6e3bdc83de9f8be2b29bbade790` (subsequent coordination-document commits may advance it). The implementation adds an Admin Console deposit-address tab, uses existing authenticated admin config GET/POST, supports all eight configured network keys, and aligns manual-credit account rows/API validation with six assets (USDT/BTC/ETH/SOL/BNB/USDC).
+- Explicit blank address values now clear/deactivate a known network; unknown network keys and malformed nonblank addresses remain rejected. User deposit flow remains manual verification/manual credit; no pending deposit orders or chain automation.
+- Manual credit remains behind the financial cutover gate and atomic ledger RPC with idempotency/audit. No production DB writes, migration application, flag changes, merge or deployment.
+- Five regression tests were added. A source-level audit passed 10/10 targeted assertions; Node tests/build/browser/isolated PostgreSQL were NOT RUN. GitHub Actions lookup for implementation SHA returned zero runs and no combined status contexts. Issue #2 remains open until executable test and independent review evidence is available.
