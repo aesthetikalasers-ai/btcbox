@@ -9,6 +9,19 @@ const root = path.resolve(__dirname, '..');
 const migration = fs.readFileSync(path.join(root, 'supabase/sql/0008_financial_matching_engine_v1.sql'), 'utf8');
 const api = fs.readFileSync(path.join(root, 'api-core.js'), 'utf8');
 
+test('spot submit serializes client retries and reads market rules under the market lock', () => {
+  const start = migration.indexOf('create or replace function public.submit_limit_order_matching_v1');
+  const end = migration.indexOf('create or replace function public.cancel_limit_order_matching_v1', start);
+  assert.ok(start >= 0 && end > start, 'submit RPC must be present before cancel RPC');
+  const fn = migration.slice(start, end);
+  const requestLock = fn.indexOf("hashtextextended('spot-order:'||p_user_id||':'||p_client_order_id, 0)");
+  const marketLock = fn.indexOf('pg_advisory_xact_lock(hashtextextended(v_pair, 0))');
+  const replayLookup = fn.indexOf('select * into v_existing');
+  const marketLookup = fn.indexOf('select * into v_market');
+  assert.ok(requestLock >= 0 && marketLock > requestLock, 'request key and market must be locked in a stable order');
+  assert.ok(replayLookup > marketLock && marketLookup > replayLookup, 'exact retries must replay before checking current market state');
+});
+
 test('spot cancel persists user-scoped request identity and binds it to one order', () => {
   assert.match(migration, /CREATE TABLE IF NOT EXISTS public\.financial_matching_cancel_requests/i);
   assert.match(migration, /PRIMARY KEY\s*\(user_id, client_cancel_id\)/i);
