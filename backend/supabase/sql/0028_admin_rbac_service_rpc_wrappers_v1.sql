@@ -304,16 +304,39 @@ BEGIN
     RETURN v_existing.response || jsonb_build_object('replayed',true);
   END IF;
 
-  SELECT jsonb_build_object(
-    'base_asset',base_asset,'quote_asset',quote_asset,'enabled',enabled,
-    'price_tick',price_tick,'quantity_step',quantity_step,'min_quantity',min_quantity,
-    'min_notional',min_notional,'min_limit_price',min_limit_price,
-    'max_limit_price',max_limit_price,'maker_fee_rate',maker_fee_rate,
-    'taker_fee_rate',taker_fee_rate
-  ) INTO v_before
+  -- Serialize rule changes with every order submit/cancel on this market.
+  PERFORM pg_advisory_xact_lock(
+    hashtextextended(p_base_asset||'/'||p_quote_asset,0)
+  );
+  SELECT * INTO v_market
   FROM public.financial_matching_markets
   WHERE base_asset=p_base_asset AND quote_asset=p_quote_asset
   FOR UPDATE;
+
+  IF FOUND THEN
+    v_before := jsonb_build_object(
+      'base_asset',v_market.base_asset,'quote_asset',v_market.quote_asset,'enabled',v_market.enabled,
+      'price_tick',v_market.price_tick,'quantity_step',v_market.quantity_step,'min_quantity',v_market.min_quantity,
+      'min_notional',v_market.min_notional,'min_limit_price',v_market.min_limit_price,
+      'max_limit_price',v_market.max_limit_price,'maker_fee_rate',v_market.maker_fee_rate,
+      'taker_fee_rate',v_market.taker_fee_rate
+    );
+    -- Existing resting orders were accepted under their original precision and
+    -- price/size constraints. Do not silently reinterpret them under new rules.
+    IF (v_market.price_tick IS DISTINCT FROM p_price_tick
+        OR v_market.quantity_step IS DISTINCT FROM p_quantity_step
+        OR v_market.min_quantity IS DISTINCT FROM p_min_quantity
+        OR v_market.min_notional IS DISTINCT FROM p_min_notional
+        OR v_market.min_limit_price IS DISTINCT FROM p_min_limit_price
+        OR v_market.max_limit_price IS DISTINCT FROM p_max_limit_price)
+       AND EXISTS (
+         SELECT 1 FROM public.financial_matching_orders
+         WHERE base_asset=p_base_asset AND quote_asset=p_quote_asset
+           AND status IN ('open','partially_filled')
+       ) THEN
+      RAISE EXCEPTION 'cannot change spot market rules while open orders exist; cancel resting orders first';
+    END IF;
+  END IF;
 
   INSERT INTO public.financial_matching_markets(
     base_asset,quote_asset,enabled,price_tick,quantity_step,min_quantity,
