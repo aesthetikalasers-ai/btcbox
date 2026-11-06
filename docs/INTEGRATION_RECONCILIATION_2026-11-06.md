@@ -100,3 +100,21 @@ Further source inspection on candidate `fbfb96e`:
 - `backend/assets/js/app-core.js` still uses Basic Auth for admin endpoints; no `VIEWS.admin` implementation was found. Admin UI is still missing in this SPA snapshot.
 - Candidate `frontend/src/App.tsx` still uses SectionPage for spot order entry, orders, deposits, withdrawals, Earn, KYC and support. Authentication/account security and read-only seconds positions are implemented further than main, but those workflows remain incomplete.
 - V211 remains unlocated; the existing legacy trade view must not be assumed to equal V211.
+
+
+## Batch execution — authenticated assets and order history
+
+Implementation branch: `feat/btcbox-web3-auth-20261105`.
+
+- Added `OrdersPage` in `frontend/src/features/pages/Pages.tsx`, using the existing `getOrders(signal)` authenticated API client. It displays returned order records only, has loading/error/retry/empty states, and no order mutations.
+- Changed `/orders` to require an authenticated account route and load the new page.
+- Replaced the Assets placeholder with an authenticated `getAccount(signal)` view. It renders available/frozen balances from the returned account snapshot, shows estimated USDT total only when the backend marks valuation complete, and surfaces unpriced assets without presenting partial totals as complete. Loading/error/retry/empty states are included.
+- Both pages use the existing API client; no new endpoint, mock balance, seeded order, or financial write path was added.
+- Source commits in this batch:
+  - `f860aeabadbcd46e86e51cd395d9a1a92fe1f1fe` — order history page.
+  - `6601ed9771fe0d4e4cc21edd212b619bb04ae6f5` — protected orders route (contained a literal escaped newline typo in its import line; CI caught it).
+  - `5d3fb2f62e5a7e575412a779bca4e4b664dabed4` — authenticated assets page (same inherited import-line typo; CI caught it).
+  - `403fc12d679b11590e5eaf5c8e8aaae15f33d99a` — corrected the import-line syntax issue.
+- Frontend CI for the order page commit `f860ae...` passed (run `42149692267`). The two following commits failed TypeScript lint specifically at `frontend/src/App.tsx:14` due to the literal escaped newline; no build step ran on those commits. That source defect was corrected at `403fc12d...`. CI run `42149902764` for the corrected head was still in progress at the time of this report update; do not claim it passed until the run completes.
+- Latest candidate SHA observed: `403fc12d679b11590e5eaf5c8e8aaae15f33d99a`. It remains 377 commits ahead / 0 behind main at the last compare.
+- No main merge, pull request, deployment, database write, or financial transaction occurred.
