@@ -2123,3 +2123,26 @@ Application branch inspected: `feat/btcbox-web3-auth-20261105` at `741c709d818cb
 ### REMAINING FOLLOW-UP
 - Idempotent replay still fetches a live reference price before calling the RPC. If all reference feeds are unavailable, the API can fail before the database gets a chance to replay an already-created order. A follow-up should allow a replay lookup without accepting a missing price for a genuinely new order, with a regression test.
 - Continue to keep seconds policy write APIs/UI disabled until attributable administrator identity, permissions, approval transitions, and isolated staging validation exist.
+
+
+## Seconds order replay during market-feed outage — 2026-11-06 (UTC+8)
+
+### IMPLEMENTED (feature source)
+- Re-read coordination entry point on chore/shared-ai-coordination and feature branch head a72330711f632830d2756f0fdfce5b343010774d before editing.
+- Fixed the retry path for an already-created Seconds order when both market reference feeds are unavailable: the API now attempts the idempotent database RPC even when it cannot fetch a fresh reference price.
+- Reordered the SQL RPC checks so it first locks and checks the existing open_request_id; a matching request returns the persisted position/open price/settlement time without needing a new feed sample.
+- For a genuinely new request, the RPC now rejects NULL/non-positive opening prices with REFERENCE_PRICE_REQUIRED. The API maps that response to REFERENCE_PRICE_UNAVAILABLE; no new order is created without a valid server reference.
+- Preserved the existing request-hash/user ownership conflict check, active policy lookup, balance row lock, atomic ledger writes, and immutable policy snapshot behavior.
+- Added source-contract assertions covering replay-before-price-validation and the API's nullable feed-price replay attempt.
+- Feature commit: 6ef4a5344fedfea667fec4226093bb0a247c02ed (parent a72330711f632830d2756f0fdfce5b343010774d); changed only backend/api-core.js, backend/supabase/sql/0025_seconds_policy_versioning_v1.sql, and backend/tests/seconds-order-idempotency-response.test.js.
+
+### VALIDATION / RELEASE BOUNDARY
+- SOURCE OBSERVED: exact feature branch ref advanced to 6ef4a5344fedfea667fec4226093bb0a247c02ed; commit diff reviewed and limited to the three files above.
+- CI: GitHub Actions backend workflow run 42139779249 was observed in progress at 2026-11-06T00:51:03Z; no passing result is claimed until the run completes.
+- Vercel combined status for the exact SHA reports Vercel – btcboxcdt failure with the Hobby build-rate-limit upgrade target. No plan upgrade or project setting change was made.
+- NOT VERIFIED: Node test execution result until CI completion, PostgreSQL parsing/runtime behavior, live feed-outage replay, migration application, and isolated staging behavior.
+- No database writes, migration application, financial test transaction, policy activation, merge to main, or production deployment occurred.
+
+### NEXT
+- Retrieve the final status and job logs for backend workflow run 42139779249; repair any failing source guard before moving on.
+- Obtain isolated Supabase staging before applying migration 0025 or testing the financial RPC. Keep policy write APIs/UI and all financial cutover flags disabled.
