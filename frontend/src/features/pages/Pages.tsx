@@ -520,12 +520,58 @@ export function SecondsPage(){
  </div>;
 }
 
+async function prepareKycDocumentImage(file: File): Promise<{
+ document_content_type: "image/jpeg";
+ document_image_base64: string;
+}> {
+ if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
+  throw new Error("Choose a JPEG, PNG, or WebP identity document image.");
+ }
+ if (!file.size || file.size > 8 * 1024 * 1024) {
+  throw new Error("The selected image must be smaller than 8 MB before compression.");
+ }
+ const bitmap = await createImageBitmap(file);
+ try {
+  let width = bitmap.width, height = bitmap.height;
+  const scale = Math.min(1, 1600 / Math.max(width, height));
+  width = Math.max(1, Math.round(width * scale));
+  height = Math.max(1, Math.round(height * scale));
+  let blob: Blob | null = null;
+  for (let attempt = 0; attempt < 5; attempt++) {
+   const canvas = document.createElement("canvas");
+   canvas.width = width; canvas.height = height;
+   const context = canvas.getContext("2d");
+   if (!context) throw new Error("This browser cannot prepare the document image.");
+   context.fillStyle = "#ffffff";
+   context.fillRect(0, 0, width, height);
+   context.drawImage(bitmap, 0, 0, width, height);
+   blob = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, "image/jpeg", [0.84, 0.78, 0.7, 0.62, 0.54][attempt]));
+   if (blob && blob.size <= 512 * 1024) break;
+   width = Math.max(700, Math.round(width * 0.82));
+   height = Math.max(700, Math.round(height * 0.82));
+  }
+  if (!blob || blob.size > 512 * 1024) throw new Error("The image could not be compressed below 512 KB. Choose a clearer, smaller photo.");
+  const dataUrl = await new Promise<string>((resolve, reject) => {
+   const reader = new FileReader();
+   reader.onerror = () => reject(new Error("The document image could not be read."));
+   reader.onload = () => typeof reader.result === "string" ? resolve(reader.result) : reject(new Error("The document image could not be read."));
+   reader.readAsDataURL(blob as Blob);
+  });
+  const encoded = dataUrl.split(",")[1];
+  if (!encoded) throw new Error("The document image could not be prepared.");
+  return { document_content_type: "image/jpeg", document_image_base64: encoded };
+ } finally {
+  bitmap.close();
+ }
+}
+
 export function KycPage(){
  const {t}=useI18n();
  const [account,setAccount]=useState<AccountSnapshot|null>(null);
  const [name,setName]=useState("");
  const [idType,setIdType]=useState<"passport"|"id_card"|"driver_license">("id_card");
  const [idNumber,setIdNumber]=useState("");
+ const [documentFile,setDocumentFile]=useState<File|null>(null);
  const [loading,setLoading]=useState(true);
  const [submitting,setSubmitting]=useState(false);
  const [error,setError]=useState("");
@@ -548,12 +594,19 @@ export function KycPage(){
  const submit=async(event:FormEvent<HTMLFormElement>)=>{
   event.preventDefault();const cleanName=name.trim(),cleanId=idNumber.trim();
   if(cleanName.length<2||cleanName.length>100||cleanId.length<4||cleanId.length>64){setSubmitError(t("Enter your full name and a valid document number."));return;}
+  if(!documentFile){setSubmitError(t("Upload a clear photo of your identity document."));return;}
   setSubmitting(true);setSubmitError("");setNotice("");
-  try{await submitKyc({name:cleanName,id_type:idType,id_number:cleanId});setNotice(t("Verification submitted. Your account status will update after staff review."));setReload(value=>value+1);}
+  try{
+   const image=await prepareKycDocumentImage(documentFile);
+   await submitKyc({name:cleanName,id_type:idType,id_number:cleanId,...image});
+   setDocumentFile(null);
+   setNotice(t("Verification details and document image submitted securely for staff review."));
+   setReload(value=>value+1);
+  }
   catch(reason){setSubmitError(reason instanceof Error?reason.message:t("Verification submission could not be confirmed. Refresh your status before retrying."));}
   finally{setSubmitting(false);}
  };
- return <PageFrame eyebrow="BTCBOX / ACCOUNT" title="Identity verification" description="Submit your identity details and track the review result returned by your authenticated BTCBOX account.">
+ return <PageFrame eyebrow="BTCBOX / ACCOUNT" title="Identity verification" description="Submit your identity details and a clear document image, then track the review result returned by your authenticated BTCBOX account.">
   {loading?<Card className="border-brand-border bg-brand-surface"><CardContent className="p-6 text-sm text-brand-text-muted" role="status">{t("Loading verification status…")}</CardContent></Card>
   :error?<Card className="border-rose-500/30 bg-brand-surface"><CardContent className="flex flex-wrap items-center justify-between gap-3 p-5"><p className="text-sm text-rose-300" role="alert">{error}</p><Button size="sm" variant="outline" onClick={()=>setReload(n=>n+1)}>{t("Try again")}</Button></CardContent></Card>
   :account?<div className="space-y-4"><Card className="border-brand-border bg-brand-surface"><CardContent className="grid gap-4 p-5 sm:grid-cols-2 sm:p-6">
@@ -562,13 +615,15 @@ export function KycPage(){
    <div><p className="text-xs text-brand-text-muted">{t("Document type")}</p><p className="mt-1 font-medium">{account.kyc?.id_type||"—"}</p></div>
    <div className="sm:col-span-2"><p className="text-xs text-brand-text-muted">{t("Document number")}</p><p className="mt-1 break-all font-mono text-sm">{account.kyc?.id_number?"••••"+account.kyc.id_number.slice(-4):"—"}</p></div>
    {account.kyc?.reject_reason?<div className="sm:col-span-2 rounded-lg border border-rose-500/25 bg-rose-500/5 p-3"><p className="text-xs font-semibold text-rose-300">{t("Review note")}</p><p className="mt-1 text-sm text-brand-text-secondary">{account.kyc.reject_reason}</p></div>:null}
-   <div className="sm:col-span-2 border-t border-brand-border pt-3"><p className="text-sm text-brand-text-muted">{submitted&&!canSubmit?t("Your verification is on file. You can check the status again after staff review."):t("Submit your details below. BTCBOX staff will review the information and update your verification status.")}</p></div>
+   <div className="sm:col-span-2 border-t border-brand-border pt-3"><p className="text-sm text-brand-text-muted">{submitted&&!canSubmit?t("Your verification is on file. You can check the status again after staff review."):t("Submit your details and a clear photo of your identity document. BTCBOX staff will review the information and update your verification status.")}</p></div>
   </CardContent></Card>
-  {canSubmit?<Card className="border-brand-border bg-brand-surface"><CardHeader><CardTitle>{status==="rejected"?t("Resubmit verification"):t("Submit identity details")}</CardTitle><CardDescription>{t("Use the same name and document details shown on your identity document. Do not send passwords or two-factor codes.")}</CardDescription></CardHeader><CardContent><form className="space-y-3" onSubmit={submit}>
+  {canSubmit?<Card className="border-brand-border bg-brand-surface"><CardHeader><CardTitle>{status==="rejected"?t("Resubmit verification"):t("Submit identity details")}</CardTitle><CardDescription>{t("Use the same name and document details shown on your identity document. Do not send passwords or two-factor codes. Images are compressed before secure upload.")}</CardDescription></CardHeader><CardContent><form className="space-y-3" onSubmit={submit}>
    <label className="block space-y-1 text-sm"><span>{t("Full legal name")}</span><input value={name} onChange={event=>setName(event.target.value)} maxLength={100} autoComplete="name" required disabled={submitting} className="w-full rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-3 text-brand-text"/></label>
    <label className="block space-y-1 text-sm"><span>{t("Identity document type")}</span><select value={idType} onChange={event=>setIdType(event.target.value as "passport"|"id_card"|"driver_license")} disabled={submitting} className="w-full rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-3 text-brand-text"><option value="id_card">{t("National ID card")}</option><option value="passport">{t("Passport")}</option><option value="driver_license">{t("Driver license")}</option></select></label>
    <label className="block space-y-1 text-sm"><span>{t("Document number")}</span><input value={idNumber} onChange={event=>setIdNumber(event.target.value)} maxLength={64} autoComplete="off" required disabled={submitting} className="w-full rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-3 font-mono text-brand-text"/></label>
-   <Button type="submit" block disabled={submitting||!name.trim()||!idNumber.trim()}>{submitting?t("Submitting…"):t("Submit for review")}</Button>
+   <label className="block space-y-1 text-sm"><span>{t("Identity document image")}</span><input type="file" accept="image/jpeg,image/png,image/webp" required disabled={submitting} onChange={event=>{setDocumentFile(event.target.files?.[0]||null);setSubmitError("");}} className="block w-full rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-3 text-sm text-brand-text file:mr-3 file:rounded-md file:border-0 file:bg-brand-surface file:px-3 file:py-2 file:text-brand-text"/></label>
+   <p className="text-xs text-brand-text-muted">{t("JPEG, PNG or WebP. Maximum original size 8 MB; securely compressed to 512 KB. Upload a clear, readable image.")}{documentFile?<span className="block mt-1">{t("Selected")}: {documentFile.name}</span>:null}</p>
+   <Button type="submit" block disabled={submitting||!name.trim()||!idNumber.trim()||!documentFile}>{submitting?t("Submitting…"):t("Submit for review")}</Button>
    {submitError?<p role="alert" className="text-sm text-rose-300">{submitError}</p>:null}{notice?<p role="status" className="text-sm text-emerald-300">{notice}</p>:null}
   </form></CardContent></Card>:null}
   <div className="flex flex-wrap gap-2"><Button asChild variant="outline"><Link to="/support">{t("Contact support")}</Link></Button><Button size="sm" variant="ghost" onClick={()=>setReload(n=>n+1)}>{t("Refresh status")}</Button></div></div>:null}
