@@ -19,6 +19,7 @@ const SupportPage = lazy(() => import("./features/pages/Pages").then((m) => ({ d
 const DepositPage = lazy(() => import("./features/pages/Pages").then((m) => ({ default: m.DepositPage })));
 const WithdrawPage = lazy(() => import("./features/pages/Pages").then((m) => ({ default: m.WithdrawPage })));
 const EarnPage = lazy(() => import("./features/pages/Pages").then((m) => ({ default: m.EarnPage })));
+const AdminPage = lazy(() => import("./features/admin/AdminPage").then((m) => ({ default: m.AdminPage })));
 
 function ProtectedAccountRoute({ children }: { children: ReactNode }) { const { status } = useAuth(); if (status === "loading") return <RouteLoading />; if (status !== "authenticated") return <Navigate to="/login" replace />; return <>{children}</>; }
 
@@ -51,6 +52,7 @@ export default function App() {
     <Route path="/kyc" element={<ProtectedAccountRoute><KycPage /></ProtectedAccountRoute>} />
     <Route path="/support" element={<ProtectedAccountRoute><SupportPage /></ProtectedAccountRoute>} />
     <Route path="/settings" element={<ProtectedAccountRoute><AccountSecurityPage /></ProtectedAccountRoute>} />
+    <Route path="/admin" element={<ProtectedAccountRoute><AdminPage /></ProtectedAccountRoute>} />
     <Route path="*" element={<Navigate to="/home" replace />} />
   </Routes></AccountSetupGate></Suspense></AppLayout></I18nProvider>;
 }
