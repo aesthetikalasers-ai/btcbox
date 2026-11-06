@@ -11,10 +11,11 @@ const { execFileSync } = require('node:child_process');
 const root = path.resolve(__dirname, '..');
 const read = (p) => fs.readFileSync(path.join(root, p), 'utf8');
 
-test('build-site.js produces dist/index.html and dist/admin.html', () => {
+test('build-site.js produces the React root and legacy OAuth entry without a legacy admin shell', () => {
   execFileSync('node', [path.join(root, 'scripts', 'build-site.js')], { cwd: root, stdio: 'ignore' });
   assert.ok(fs.existsSync(path.join(root, 'dist', 'index.html')));
-  assert.ok(fs.existsSync(path.join(root, 'dist', 'admin.html')));
+  assert.ok(fs.existsSync(path.join(root, 'dist', 'legacy-index.html')));
+  assert.ok(!fs.existsSync(path.join(root, 'dist', 'admin.html')));
   assert.ok(fs.existsSync(path.join(root, 'dist', 'assets', 'js', 'app-core.js')));
   assert.ok(fs.existsSync(path.join(root, 'dist', 'assets', 'css', 'tokens.css')));
 });
@@ -55,12 +56,14 @@ test('asset bundle contains router + VIEWS registry + all view batches', () => {
   }
 });
 
-test('admin.html stays byte-identical to index.html', () => {
-  assert.equal(read('admin.html'), read('index.html'), 'index.html and admin.html have diverged');
+test('legacy OAuth document is copied from index and no admin shell is published', () => {
+  assert.equal(fs.readFileSync(path.join(root, 'dist', 'legacy-index.html'), 'utf8'), read('index.html'));
+  assert.ok(!fs.existsSync(path.join(root, 'dist', 'admin.html')));
 });
 
+
 test('no plaintext secrets in tracked public files or assets', () => {
-  const files = ['index.html', 'admin.html', ...fs.readdirSync(path.join(root, 'assets', 'js')).map(f => 'assets/js/' + f)];
+  const files = ['index.html', ...fs.readdirSync(path.join(root, 'assets', 'js')).map(f => 'assets/js/' + f)];
   for (const name of files) {
     const content = read(name);
     assert.ok(!/eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9/.test(content), `service-role JWT leaked into ${name}`);
@@ -182,7 +185,7 @@ test('all source CSS and HTML var() references resolve across the complete style
   const cssFiles = fs.readdirSync(cssDir).filter(name => name.endsWith('.css')).map(name => 'assets/css/' + name);
   assert.ok(cssFiles.includes('assets/css/tokens.css'));
   assert.equal(cssFiles.length, 9, 'scan every source stylesheet, not only selected global files');
-  const files = [...cssFiles, 'index.html', 'admin.html', 'oauth/consent.html'];
+  const files = [...cssFiles, 'index.html', 'oauth/consent.html'];
   const definitions = new Set();
   const references = new Set();
   for (const file of files) {
