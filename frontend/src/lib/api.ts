@@ -140,6 +140,7 @@ export interface AccountSnapshot {
   unpriced_assets: string[];
   kyc: { status: string; name?: string; id_type?: string; id_number?: string };
   twofa_enabled: boolean;
+  earn_records?: EarnPosition[];
 }
 
 export interface OrderRecord {
