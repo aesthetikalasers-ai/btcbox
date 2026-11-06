@@ -248,3 +248,12 @@ Required next work: minimal manual workflow only—user deposit record/history i
 - Vercel Preview deployment `dpl_5hS2oWZoufCFaxMTGKBqscGrdPsv` is `READY`; build output reports 87/87 Node tests passed (0 failed). Preview URL: `https://btcbox-v33-eksdw4zcz-box-2753.vercel.app`. No browser E2E was run and this is not a production deployment.
 - Migration 0023 remains unapplied. Prior SQL/RPC validation was rolled back and left no persistent test rows or DDL. No production env changes, database writes, real funds operations, merge, or production deployment occurred.
 - Next batch: safe authenticated preview read-only checks for admin UID lookup, deposit address configuration display, withdrawal queue/history; then confirm admin actor configuration and cutover prerequisites before seeking explicit production-change approval. Matching engine stays off.
+
+
+## Admin account-panel manual credit UX — 2026-11-06
+
+- Replaced the global manual-credit form (which required staff to type UID and choose a coin) with a user-row 账户资产 action. The panel loads the selected user through the existing admin detail API and displays the four supported assets with free/frozen balances.
+- Each asset row opens its own manual-credit form. UID and asset are bound from the selected user and asset row; staff enter only the actual received amount and optional reference/note. The existing confirmation, idempotency request ID, admin audit and ledger endpoint remain in place.
+- Removed the standalone manual-credit tab/form. No backend, SQL, Supabase, or financial flag changes were made.
+- Latest source SHA: 79c598a038547b973314147f43a81f97b8d697d5 (21 ahead / 0 behind main). Vercel Preview dpl_BYiXWaDKDzG57MCF7DaHHTNFSxrA is READY: https://btcbox-v33-d14znhjd0-box-2753.vercel.app; build completed, 87/87 tests passed. Browser E2E not run.
+- Migration 0023 remains unapplied; no real financial operation, production DDL, merge, environment change, or production deployment occurred. V211 trading layout remains protected.
