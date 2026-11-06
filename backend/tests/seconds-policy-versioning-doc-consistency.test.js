@@ -37,7 +37,7 @@ test('policy and admin RPCs enforce private storage, live permission, atomic aud
   assert.match(policyRpc, /seconds_policy_request_idempotency/);
   assert.match(policyRpc, /INSERT INTO public\.seconds_contract_policy_audit/);
   assert.match(policyRpc, /GRANT EXECUTE ON FUNCTION public\.admin_set_seconds_policy_v1[\s\S]*?TO service_role/);
-  assert.match(spec, /same transaction/i);
+  assert.match(spec, /inside the transaction that reserves funds/i);
 });
 
 test('Super Admin can complete policy changes alone; no three-person workflow is claimed', () => {
