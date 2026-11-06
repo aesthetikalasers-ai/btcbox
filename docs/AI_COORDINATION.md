@@ -2058,3 +2058,25 @@ Application branch inspected: `feat/btcbox-web3-auth-20261105` at `741c709d818cb
 
 ### Supabase CLI v3 compatibility note
 - Supabase changelog announced CLI v3 as a breaking change on 2026-11-04: database commands default to local; hosted operations require explicit `--remote`, and unattended hosted changes require `--yes`. Current repository CI workflows do not invoke Supabase CLI, so no current workflow change was made. Any future staging scripts must pin the intended CLI major and explicitly select the staging target; never target production by default.
+
+
+## Vercel build and CI trigger investigation — 2026-11-06 (UTC+8)
+
+### READ-ONLY VERCEL EVIDENCE
+- Queried the linked BOX team using its current team ID `team_tnwJkMYPnWK2BjBGf3Q2n3FB`. The team plan returned by Vercel is `hobby`; the linked project is `btcboxcdt` (`prj_rmwOE9q0XyZ3BikpxX2FzDt2VjKK`).
+- The latest 30 deployment records include repeated builds across several branches, with READY, ERROR, CANCELED, and BLOCKED states. This confirms substantial deployment churn in the inspected window, but does not establish the exact quota accounting or prove that concurrency alone caused the build-rate-limit status.
+- The latest READY deployment in the returned page was commit `d44d8d693ed026a4479b6fdc3d05bcbef2827a58` on `feat/btcbox-web3-auth-20261105`.
+- The current feature source commit `80dde835ec58b8f0ca62fab51c4d4f545de73376` has no matching Vercel deployment record in the exact-SHA query. Its GitHub combined status still reports Vercel context `Vercel – btcboxcdt` as failure with target `https://vercel.com/fuyao999?upgradeToPro=build-rate-limit`.
+- A previous deployment for commit `8182397a4066d0ac8811e5e992eae175c64c8f4e` failed during TypeScript compilation in `frontend/src/features/auth/AuthPages.tsx` because imports/identifiers such as `useAuth`, React hooks, router components, UI components and icons were unresolved in that historical source snapshot.
+- The current feature branch version of `AuthPages.tsx` (blob `75d899646079bce4f857afec644739effa67588d`) contains explicit imports for those identifiers. Therefore the observed TypeScript failure is historical and is not evidence that the current branch file still has that exact defect. The subsequent READY deployment is consistent with a later build succeeding, but does not prove the exact current commit was built.
+
+### CI WORKFLOW SCOPE
+- The current feature branch's `.github/workflows/frontend-ci.yml` includes `feat/btcbox-web3-auth-20261105` in its push branch filter and runs frontend lint/build.
+- The current feature branch's `.github/workflows/backend-ci.yml` also includes this branch in push and pull_request filters and covers `backend/**`, including the new source-contract test.
+- The available commit-workflow lookup returns only pull-request-triggered runs. Its empty result is therefore not evidence that push-triggered runs did not execute. No successful CI run is claimed from this lookup.
+- No workflow file change was necessary based on the inspected current feature branch contents.
+
+### NEXT / SAFETY
+- Keep the Hobby plan and Vercel project/team settings unchanged; do not upgrade, transfer projects, cancel deployments, or create another deployment without the user's explicit approval.
+- Avoid unnecessary pushes that trigger repeated Vercel builds. First obtain the exact current GitHub Actions push-run result through a workflow-runs listing capability, then reconcile the Vercel build-rate-limit status with the plan's actual usage/limit information.
+- Do not merge, deploy, modify production settings, or change financial cutover flags. The TypeScript failure above is historical evidence; the exact current commit remains without a matching Vercel deployment in the inspected history.
