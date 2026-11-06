@@ -6076,3 +6076,5 @@ The prior withdrawal UI audit statement claiming the active BTCBOX admin route w
 - Details: `docs/FRONTEND-MARKET-PREVIEW-BATCH-2026-11-07.md`.
 
 - CI: Backend run `42310916938` at `7d5ed8f` passed unified build, 401/401 tests, fail-closed preflight, and output/entrypoint checks. Frontend run `42310911601` at `0394a88` passed install, lint, and build; browser smoke test was still running at last check. See `docs/FRONTEND-MARKET-PREVIEW-BATCH-2026-11-07.md`.
+
+- Deployment cross-check: latest Vercel production deploy `dpl_2cAQrbFQbTouccNyccnYZfY7P89e` on main `361be5c` confirms `npm install` and frontend build now succeed, but Vercel's `npm test` reports 350/356 pass and 6 failures. GitHub backend/frontend/PostgreSQL CI for that same main SHA report success; investigate environment/test discrepancy without deploying the unified branch. Detailed record is in `docs/FRONTEND-MARKET-PREVIEW-BATCH-2026-11-07.md`.
