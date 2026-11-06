@@ -65,7 +65,7 @@ test('admin audit RPC uses a unique event ID and validates duplicate payloads', 
 });
 
 
-test('canonical PostgreSQL audit reader is opt-in, keyset-paginated, redacted, and fail-closed', () => {
+test('canonical PostgreSQL audit reader is cutover-aware, keyset-paginated, redacted, and fail-closed', () => {
   const start = source.indexOf('async function readAdminAuditLogPage(params)');
   const end = source.indexOf('function attachRevision', start);
   assert.ok(start >= 0 && end > start);
@@ -91,7 +91,7 @@ test('canonical PostgreSQL audit reader is opt-in, keyset-paginated, redacted, a
   assert.match(route, /AUDIT_CURSOR_INVALID/);
   assert.match(route, /completeness: 'postgres_canonical'/);
   assert.match(route, /ADMIN_AUDIT_READ_UNAVAILABLE/);
-  assert.match(route, /Never silently fall back/);
+  assert.ok(route.includes('No incomplete fallback was shown.'));
   assert.match(route, /state_document_retention_limited/);
 });
 
