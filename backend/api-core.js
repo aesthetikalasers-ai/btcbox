@@ -940,7 +940,7 @@ function validateKycImage(body) {
 }
 
 async function uploadKycDocument(userId, image) {
-  if (!supabaseStorageConfigured()) throw new Error('KYC document storage is unavailable');
+  if (!supabaseStorageConfigured() || typeof userId !== 'string' || !userId || userId.includes('/') || userId.includes('\\')) throw new Error('KYC document storage is unavailable');
   const base = String(process.env.SUPABASE_URL || '').replace(/\/+$/, '');
   const path = String(userId) + '/' + crypto.randomUUID() + '.' + image.extension;
   const objectPath = path.split('/').map(encodeURIComponent).join('/');
@@ -954,8 +954,16 @@ async function uploadKycDocument(userId, image) {
   return path;
 }
 
-async function createSignedKycDocumentUrl(path) {
-  if (!supabaseStorageConfigured() || typeof path !== 'string' || !path || path.length > 300 || path.startsWith('/') || path.includes('..')) {
+function isOwnedKycDocumentPath(path, userId) {
+  if (typeof path !== 'string' || typeof userId !== 'string' || !userId ||
+      userId.includes('/') || userId.includes('\\') || path.length > 300) return false;
+  const parts = path.split('/');
+  return parts.length === 2 && parts[0] === userId &&
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.(?:jpg|png|webp)$/i.test(parts[1]);
+}
+
+async function createSignedKycDocumentUrl(path, userId) {
+  if (!supabaseStorageConfigured() || !isOwnedKycDocumentPath(path, userId)) {
     throw new Error('KYC document is unavailable');
   }
   const base = String(process.env.SUPABASE_URL || '').replace(/\/+$/, '');
@@ -969,16 +977,21 @@ async function createSignedKycDocumentUrl(path) {
   const signedPath = payload.signedURL.startsWith('/storage/v1/')
     ? payload.signedURL
     : '/storage/v1/' + payload.signedURL.replace(/^\/+/, '');
-  return new URL(signedPath, base).toString();
+  const signedUrl = new URL(signedPath, base);
+  if (signedUrl.origin !== new URL(base).origin) throw new Error('KYC document preview URL is invalid');
+  return signedUrl.toString();
 }
 
-async function deleteKycDocument(path) {
-  if (!supabaseStorageConfigured() || typeof path !== 'string' || !path) return;
+async function deleteKycDocument(path, userId) {
+  if (!supabaseStorageConfigured() || !isOwnedKycDocumentPath(path, userId)) return false;
   const base = String(process.env.SUPABASE_URL || '').replace(/\/+$/, '');
-  await fetch(base + '/storage/v1/object/' + KYC_STORAGE_BUCKET, {
-    method: 'DELETE', headers: supabaseHeaders(), body: JSON.stringify({ prefixes: [path] }),
-    signal: AbortSignal.timeout(5000)
-  }).catch(() => null);
+  try {
+    const response = await fetch(base + '/storage/v1/object/' + KYC_STORAGE_BUCKET, {
+      method: 'DELETE', headers: supabaseHeaders(), body: JSON.stringify({ prefixes: [path] }),
+      signal: AbortSignal.timeout(5000)
+    });
+    return response.ok;
+  } catch (_) { return false; }
 }
 
 function maskIdentityNumber(value) {
@@ -1990,6 +2003,7 @@ async function handleRequest(event, context) {
     if (!submission.ok) return json({ ok: false, code: 'KYC_INVALID_INPUT', msg: submission.msg }, 400);
     const image = validateKycImage(body);
     if (!image.ok) return json({ ok: false, code: 'KYC_DOCUMENT_INVALID', msg: image.msg }, 400);
+    const previousDocumentPath = user.kyc && user.kyc.document_path;
     let documentPath;
     try { documentPath = await uploadKycDocument(user.uid, image); }
     catch (_) { return json({ ok: false, code: 'KYC_STORAGE_UNAVAILABLE', msg: 'Secure document storage is unavailable. Your verification was not submitted.' }, 503); }
@@ -2004,8 +2018,11 @@ async function handleRequest(event, context) {
     };
     try { await saveDB(db); }
     catch (_) {
-      await deleteKycDocument(documentPath);
+      await deleteKycDocument(documentPath, user.uid);
       return json({ ok: false, code: 'KYC_PERSISTENCE_UNAVAILABLE', msg: 'Verification could not be saved. Please retry after refreshing your status.' }, 503);
+    }
+    if (previousDocumentPath && previousDocumentPath !== documentPath) {
+      await deleteKycDocument(previousDocumentPath, user.uid);
     }
     return json({ ok: true, code: 'KYC_SUBMITTED', status: 'pending', msg: 'Identity details and document image submitted securely for staff review.' });
   }
@@ -2982,7 +2999,7 @@ async function handleRequest(event, context) {
         let document_url = '';
         let document_preview_error = '';
         if (u.kyc.document_path) {
-          try { document_url = await createSignedKycDocumentUrl(u.kyc.document_path); }
+          try { document_url = await createSignedKycDocumentUrl(u.kyc.document_path, String(u.uid || '')); }
           catch (_) { document_preview_error = 'Document preview unavailable; verify private storage configuration.'; }
         }
         return {
@@ -3016,6 +3033,10 @@ async function handleRequest(event, context) {
       delete safeUser.twofa_secret;
       delete safeUser.totp_secret;
       delete safeUser.recovery_codes;
+      // KYC evidence and full identity numbers require the separate kyc.read permission.
+      // The general users.read detail endpoint exposes only the current verification state.
+      safeUser.kyc = { status: String(u.kyc && u.kyc.status || 'unsubmitted') };
+      safeUser.kyc_status = safeUser.kyc.status;
       if (financialPostgresReadsEnabled()) {
         try {
           const normalized = await readAdminAccountBalances([String(u.uid)]);
