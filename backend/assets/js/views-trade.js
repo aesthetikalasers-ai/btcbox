@@ -143,8 +143,8 @@ VIEWS.trade = function(params){
       '<div class="card form-card">'+
         '<div class="side-switch"><button id="side-buy" class="btn btn-green">Buy</button><button id="side-sell" class="btn btn-ghost">Sell</button></div>'+
         '<div class="otype-row"><button class="otype active" data-ot="limit" aria-pressed="true">Limit Order</button></div>'+
-        '<div class="form-field"><label class="auth-label">Price (USDT)</label><input id="ord-price" class="auth-input num" type="text" inputmode="decimal" autocomplete="off" value="'+(Number(s.price)>0?String(s.price):'')+'" placeholder="Enter limit price"></div>'+
-        '<div class="form-field"><label id="ord-amount-label" class="auth-label">Amount ('+base+')</label><input id="ord-amount" class="auth-input num" type="text" inputmode="decimal" autocomplete="off" placeholder="0.00"></div>'+
+        '<div class="form-field"><label class="auth-label">Price (USDT)</label><input id="ord-price" class="auth-input num" type="number" step="any" value="'+(Number(s.price)>0?s.price.toFixed(base==='BTC'||base==='ETH'?2:4):'')+'" placeholder="Enter limit price"></div>'+
+        '<div class="form-field"><label id="ord-amount-label" class="auth-label">Amount ('+base+')</label><input id="ord-amount" class="auth-input num" type="number" step="any" placeholder="0.00"></div>'+
         '<div class="pct-row">'+[25,50,75,100].map(p=>'<button class="pct-btn" data-pct="'+p+'">'+p+'%</button>').join('')+'</div>'+
         '<div class="form-summary"><span>Total</span><span class="num" id="ord-total">0.00 USDT</span></div>'+
         '<div class="form-summary"><span>Available</span><span class="num" id="ord-avail">'+(state.user?(state.accountLoaded?fmt(state.balances.USDT?state.balances.USDT.free:0,2)+' USDT':'Loading…'):'Sign in to view')+'</span></div>'+
@@ -311,13 +311,13 @@ VIEWS.trade.afterRender = function(params){
   /* submit — API params preserved verbatim */
   $('#ord-submit').onclick=async ()=>{
     if(NOT_TRADEABLE[sym]){toast('Trading not available for this pair.','err');return;}
-    const amountRaw=$('#ord-amount').value.trim(),amount=Number(amountRaw);
+    const amount=parseFloat($('#ord-amount').value);
     if(!state.user){window.BTCBoxRequireLogin(location.hash,side);return;}
     if(!state.accountLoaded){toast('Account data is unavailable. Please refresh before submitting an order.','warn');return;}
-    if(!amountRaw||!Number.isFinite(amount)||amount<=0){toast('Enter a valid amount.','err');return;}
-    const priceRaw=$('#ord-price').value.trim(),limitPrice=Number(priceRaw);
-    if(!priceRaw||!Number.isFinite(limitPrice)||limitPrice<=0){toast('Enter a valid limit price.','err');return;}
-    const price=priceRaw;
+    if(!amount||amount<=0){toast('Enter a valid amount.','err');return;}
+    const limitPrice=Number($('#ord-price').value);
+    if(!Number.isFinite(limitPrice)||limitPrice<=0){toast('Enter a valid limit price.','err');return;}
+    const price=limitPrice;
     const btn=$('#ord-submit');
     if(btn.disabled||btn.dataset.submitting==='1'){return;} // re-entry / double-click guard
     btn.dataset.submitting='1'; btn.disabled=true;
@@ -325,7 +325,7 @@ VIEWS.trade.afterRender = function(params){
     // stable idempotency key for this submit intent — a retry of the SAME intent reuses it; a new submit generates a new one
     const clientOrderId=uid(); const requestId=uid();
     let r=null, thrown=null;
-    try{ r=await apiAdapter.placeOrder({symbol:sym,side,type:otype,qty:amountRaw,price,client_order_id:clientOrderId,request_id:requestId}); }
+    try{ r=await apiAdapter.placeOrder({symbol:sym,side,type:otype,qty:amount,price,client_order_id:clientOrderId,request_id:requestId}); }
     catch(e){ thrown=e; }
     const status=Number(r&&r.status||0);
     const unknown=!!thrown||status===0||status>=500||!!(r&&(r.code==='NETWORK_ERROR'||r.code==='NETWORK_RESPONSE_ERROR'));

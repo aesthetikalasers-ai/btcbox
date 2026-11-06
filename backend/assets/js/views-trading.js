@@ -33,7 +33,6 @@ VIEWS.seconds.afterRender = function(){
   let coin='BTC', dur=30, positionsReady=false, positionsLoadFailed=false;
   let positionsUnavailableMessage='The latest contract status could not be confirmed. Refresh before opening a new position.';
   const secondsPendingStorageKey=secondsUserKey?'btcbox.seconds.pending.v1.'+encodeURIComponent(secondsUserKey):'';
-  const secondsSettlementStoragePrefix=secondsUserKey?'btcbox.seconds.settlement.v1.'+encodeURIComponent(secondsUserKey)+'.':'';
   function readPendingSecondsOrder(){
     if(!secondsPendingStorageKey)return null;
     try{
@@ -59,33 +58,6 @@ VIEWS.seconds.afterRender = function(){
     secondsPendingIntent=null;
     if(secondsUserKey&&state._secondsOrderUnknownUserKey===secondsUserKey)delete state._secondsOrderUnknownUserKey;
     return true;
-  }
-  function readPendingSecondsSettlement(positionId){
-    if(!secondsSettlementStoragePrefix||! /^[A-Za-z0-9]{10,40}$/.test(String(positionId||'')))return {version:1,invalid:true};
-    const key=secondsSettlementStoragePrefix+encodeURIComponent(String(positionId));
-    try{
-      const raw=localStorage.getItem(key);
-      if(!raw)return null;
-      let item;
-      try{item=JSON.parse(raw);}catch(_){return {version:1,invalid:true};}
-      if(!item||item.version!==1||String(item.position_id)!==String(positionId)||
-        !/^[-A-Za-z0-9_]{16,100}$/.test(String(item.request_id||''))||
-        !Number.isFinite(Number(item.created_at)))return {version:1,invalid:true};
-      return {version:1,position_id:String(item.position_id),request_id:String(item.request_id),created_at:Number(item.created_at)};
-    }catch(_){return {version:1,invalid:true};}
-  }
-  function persistPendingSecondsSettlement(intent){
-    if(!secondsSettlementStoragePrefix||!intent||intent.version!==1||
-      !/^[A-Za-z0-9]{10,40}$/.test(String(intent.position_id||''))||
-      !/^[-A-Za-z0-9_]{16,100}$/.test(String(intent.request_id||''))||
-      !Number.isFinite(Number(intent.created_at)))return false;
-    const key=secondsSettlementStoragePrefix+encodeURIComponent(String(intent.position_id));
-    try{localStorage.setItem(key,JSON.stringify(intent));return true;}catch(_){return false;}
-  }
-  function clearPendingSecondsSettlement(positionId){
-    if(!secondsSettlementStoragePrefix||! /^[A-Za-z0-9]{10,40}$/.test(String(positionId||'')))return false;
-    const key=secondsSettlementStoragePrefix+encodeURIComponent(String(positionId));
-    try{localStorage.removeItem(key);return true;}catch(_){return false;}
   }
   let secondsPendingIntent=readPendingSecondsOrder();
   if(secondsPendingIntent&&secondsUserKey)state._secondsOrderUnknownUserKey=secondsUserKey;
@@ -168,9 +140,6 @@ VIEWS.seconds.afterRender = function(){
     apiAdapter.secondsPositionsGet().then(function(result){
       if(result&&result.ok&&!result.cutover_incomplete){
         positionsReady=true;positionsLoadFailed=false;
-        (Array.isArray(state.secondsPositions.history)?state.secondsPositions.history:[]).forEach(function(position){
-          if(position&&position.position_id)clearPendingSecondsSettlement(position.position_id);
-        });
         busy=state.secondsPositions.open.length>0||!!secondsPendingIntent||!!(secondsUserKey&&state._secondsOrderUnknownUserKey===secondsUserKey);
         setSecondsEntryEnabled(!busy,busy?'An open position or unresolved order must be reconciled first.':'');
       }else{
@@ -187,50 +156,31 @@ VIEWS.seconds.afterRender = function(){
   }
   async function settlePosition(positionId,symbol){
     if(settling) return;
-    let settlementIntent=readPendingSecondsSettlement(positionId);
-    if(settlementIntent&&settlementIntent.invalid){
-      toast('The saved settlement request is damaged. Do not retry with a new request ID; contact support to reconcile this position.','warn');
-      return false;
-    }
-    if(!settlementIntent){
-      settlementIntent={version:1,position_id:String(positionId),request_id:uid(),created_at:Date.now()};
-      if(!persistPendingSecondsSettlement(settlementIntent)){
-        toast('This browser cannot safely retain the settlement request ID. No settlement request was sent. Enable site storage and try again.','err');
-        return false;
-      }
-    }
     settling=true;
     let result;
     try {
-      result=await apiAdapter.secondsSettle({position_id:positionId,request_id:settlementIntent.request_id,symbol:symbol});
+      result=await apiAdapter.secondsSettle({position_id:positionId,request_id:uid(),symbol:symbol});
     } catch (_) {
       result={ok:false,msg:'Settlement could not be confirmed. The position remains pending.'};
     }
-    if(!result||!result.ok){
-      settling=false;
+    settling=false;
+    if(!result.ok){
       busy=true;
-      toast((result&&result.msg)||'Settlement could not be confirmed. The position remains pending.','err');
+      toast(result.msg||'Settlement could not be confirmed. The position remains pending.','err');
       renderList(stab);
       return false;
     }
     if(result.settled===false){
-      settling=false;
       busy=true;
-      toast('The position has not reached maturity yet. The same settlement request ID has been retained for retry.','warn');
+      toast('The position has not reached maturity yet. It remains open.','warn');
       renderList(stab);
       return false;
     }
-    // A confirmed database result is the only event that permits clearing this
-    // position-scoped idempotency key. A failed removal safely leaves it reusable.
-    const cleared=clearPendingSecondsSettlement(positionId);
-    try{await apiAdapter.secondsPositionsGet();}catch(_){}
-    settling=false;
     busy=state.secondsPositions.open.length>0;
     setSecondsEntryEnabled(!busy,busy?'An open position is still active.':'');
     const countdown=$('#sec-countdown');
     if(countdown) countdown.style.display='none';
     renderList(stab);
-    if(!cleared)toast('Settlement was confirmed, but its local retry record could not be cleared. Do not create a new settlement request.','warn');
     if(result.tie) toast('Settled: tie — principal refunded.','ok');
     else if(result.win) toast('Settled: WIN +'+fmt(result.pnl,2)+' USDT','ok');
     else toast('Settled: LOSS '+fmt(result.pnl,2)+' USDT','warn');
@@ -243,8 +193,8 @@ VIEWS.seconds.afterRender = function(){
     if(!positionsReady){toast('Contract positions are not confirmed yet. Refresh before opening a new position.','warn');return;}
     if(busy){toast('A position or an unconfirmed order is still active. Check Open Positions and do not submit again until its status is verified.','warn');return;}
     if(secondsPendingIntent){toast('A previous order is still unconfirmed. Do not submit another position until support reconciles it.','warn');return;}
-    const amtRaw=$('#sec-amount').value.trim(),amt=Number(amtRaw); if(!amtRaw||!Number.isFinite(amt)||amt<1){toast('Enter a valid amount (min 1 USDT).','err');return;}
-    const orderIntent={version:1,request_id:uid(),symbol:coin,direction:dir,duration_sec:dur,amount:amtRaw,created_at:Date.now()};
+    const amt=parseFloat($('#sec-amount').value); if(!amt||amt<1){toast('Enter a valid amount (min 1 USDT).','err');return;}
+    const orderIntent={version:1,request_id:uid(),symbol:coin,direction:dir,duration_sec:dur,amount:String(amt),created_at:Date.now()};
     if(!persistPendingSecondsOrder(orderIntent)){
       toast('This browser cannot safely retain the order request ID. No order was sent. Enable site storage and try again.','err');
       return;
@@ -254,7 +204,7 @@ VIEWS.seconds.afterRender = function(){
     setSecondsEntryEnabled(false,'Order submission is being confirmed.');
     let r;
     try{
-      r=await apiAdapter.secondsOrder({symbol:orderIntent.symbol,direction:orderIntent.direction,duration_sec:orderIntent.duration_sec,amount:amtRaw,request_id:orderIntent.request_id});
+      r=await apiAdapter.secondsOrder({symbol:orderIntent.symbol,direction:orderIntent.direction,duration_sec:orderIntent.duration_sec,amount:amt,request_id:orderIntent.request_id});
     }catch(_){
       r={ok:false,status:0,code:'NETWORK_ERROR',msg:'The order response was interrupted.'};
     }

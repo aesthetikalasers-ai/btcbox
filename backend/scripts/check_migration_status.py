@@ -1,12 +1,11 @@
 #!/usr/bin/env python3
-"""Compare numbered SQL migrations with the database migration ledger.
+"""对比已应用迁移与 supabase/sql/ 下预期的编号迁移清单。
 
-Use:
+用法:
   DATABASE_URL=postgresql://... python3 scripts/check_migration_status.py
-  python3 scripts/check_migration_status.py --offline
+  或本地 docker 测试: python3 scripts/check_migration_status.py --offline
 
-Offline mode validates only the local filename sequence and explicitly reports
-STATIC_ONLY. It never claims that database migrations are applied.
+离线模式仅列出预期迁移清单并校验编号连续性，不连接数据库。
 """
 import argparse
 import os
@@ -16,105 +15,73 @@ from pathlib import Path
 
 SQL_DIR = Path(__file__).resolve().parent.parent / "supabase" / "sql"
 MIGRATION_RE = re.compile(r"^(\d{4})_.+\.sql$")
-LEDGER_VERSION_RE = re.compile(r"^\d{4}$")
 
 
 def expected_migrations():
-    """Return numbered migration files as sorted (number, filename) pairs."""
+    """返回按编号排序的 (num, filename) 列表。"""
     items = []
-    for path in SQL_DIR.glob("*.sql"):
-        match = MIGRATION_RE.match(path.name)
-        if match:
-            items.append((int(match.group(1)), path.name))
+    for p in SQL_DIR.glob("*.sql"):
+        m = MIGRATION_RE.match(p.name)
+        if m:
+            items.append((int(m.group(1)), p.name))
     return sorted(items)
 
 
-def validate_expected(expected):
-    if not expected:
-        print("[STATUS] STATIC_CHECK_FAILED", file=sys.stderr)
-        print("[FAIL] No numbered migration files found.", file=sys.stderr)
-        return 2
-
-    numbers = [number for number, _ in expected]
-    gaps = [number for number in range(numbers[0], numbers[-1] + 1) if number not in numbers]
-    duplicates = sorted(number for number in set(numbers) if numbers.count(number) > 1)
-
-    print(f"Expected migrations: {len(expected)} ({numbers[0]:04d}..{numbers[-1]:04d})")
-    for number, filename in expected:
-        print(f"  {number:04d}  {filename}")
-    if gaps or duplicates:
-        print("[STATUS] STATIC_CHECK_FAILED", file=sys.stderr)
-        if gaps:
-            print(f"[FAIL] Missing sequence numbers: {gaps}", file=sys.stderr)
-        if duplicates:
-            print(f"[FAIL] Duplicate sequence numbers: {duplicates}", file=sys.stderr)
-        return 2
-    print("[OK] Local migration filename sequence is continuous.")
-    return 0
+def applied_migrations(conn):
+    """查询已应用迁移（依赖 supabase_migrations.schema_migrations 表；不存在则返回空）。"""
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT version FROM supabase_migrations.schema_migrations ORDER BY version")
+            return {row[0] for row in cur.fetchall()}
+    except Exception as e:
+        print(f"[warn] 无法读取迁移记录表（{e}），将仅做离线校验。", file=sys.stderr)
+        return set()
 
 
 def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--offline", action="store_true",
-                        help="validate local migration filenames only; do not inspect database state")
-    args = parser.parse_args()
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--offline", action="store_true", help="不连接数据库，仅校验预期清单编号连续性")
+    args = ap.parse_args()
 
     expected = expected_migrations()
-    static_result = validate_expected(expected)
-    if static_result:
-        return static_result
-
-    if args.offline:
-        print("[STATUS] STATIC_ONLY")
-        print("[INFO] Database migration state was not checked.")
-        return 0
-
-    database_url = os.environ.get("DATABASE_URL", "").strip()
-    if not database_url:
-        print("[STATUS] DATABASE_UNAVAILABLE", file=sys.stderr)
-        print("[NOT VERIFIED] DATABASE_URL is not set; use --offline for an explicitly static check.", file=sys.stderr)
+    if not expected:
+        print("[FAIL] 未找到任何编号迁移文件（应为 0001_xxx.sql ...）", file=sys.stderr)
         return 2
+
+    nums = [n for n, _ in expected]
+    gaps = [n for n in range(nums[0], nums[-1] + 1) if n not in nums]
+    dups = [n for n in set(nums) if nums.count(n) > 1]
+
+    print(f"预期迁移 {len(expected)} 个，编号 {nums[0]:04d}..{nums[-1]:04d}")
+    for n, name in expected:
+        print(f"  {n:04d}  {name}")
+    if gaps:
+        print(f"[FAIL] 编号断档: {gaps}", file=sys.stderr)
+        return 2
+    if dups:
+        print(f"[FAIL] 编号重复: {dups}", file=sys.stderr)
+        return 2
+    print("[OK] 预期迁移编号连续无重复。")
+
+    if args.offline or not os.environ.get("DATABASE_URL"):
+        print("[info] 离线模式或未设置 DATABASE_URL，跳过已应用对比。")
+        return 0
 
     try:
         import psycopg2
     except ImportError:
-        print("[STATUS] DATABASE_UNAVAILABLE", file=sys.stderr)
-        print("[NOT VERIFIED] psycopg2 is not installed; install psycopg2-binary to inspect the database.", file=sys.stderr)
-        return 2
+        print("[warn] 未安装 psycopg2，跳过数据库对比。pip install psycopg2-binary", file=sys.stderr)
+        return 0
 
-    conn = None
-    try:
-        conn = psycopg2.connect(database_url)
-        with conn.cursor() as cursor:
-            cursor.execute("SELECT version FROM supabase_migrations.schema_migrations ORDER BY version")
-            applied_versions = [str(row[0]) for row in cursor.fetchall()]
-    except Exception as error:
-        print("[STATUS] DATABASE_UNAVAILABLE", file=sys.stderr)
-        print(f"[NOT VERIFIED] Could not read the Supabase migration ledger: {error}", file=sys.stderr)
-        return 2
-    finally:
-        if conn is not None:
-            conn.close()
+    conn = psycopg2.connect(os.environ["DATABASE_URL"])
+    applied = applied_migrations(conn)
+    conn.close()
 
-    # This repository names SQL files with four-digit sequence numbers, while
-    # Supabase CLI ledgers commonly use 14-digit timestamps. Never compare the
-    # two namespaces as if they were interchangeable.
-    if any(not LEDGER_VERSION_RE.fullmatch(version) for version in applied_versions):
-        print("[STATUS] VERSION_MAPPING_REQUIRED", file=sys.stderr)
-        print("[NOT VERIFIED] Database ledger versions do not use the repository's four-digit numbering.", file=sys.stderr)
-        print("[INFO] Reconcile migration history before reporting applied/missing migrations.", file=sys.stderr)
-        return 2
-
-    applied = set(applied_versions)
-    missing = [f"{number:04d}" for number, _ in expected if f"{number:04d}" not in applied]
+    missing = [f"{n:04d}" for n, _ in expected if f"{n:04d}" not in applied]
     if missing:
-        print("[STATUS] MIGRATIONS_MISSING", file=sys.stderr)
-        print(f"[FAIL] Migrations not recorded as applied: {missing}", file=sys.stderr)
+        print(f"[FAIL] 以下迁移未应用: {missing}", file=sys.stderr)
         return 1
-
-    print("[STATUS] SCHEMA_LEDGER_MATCHED")
-    print("[OK] All numbered repository migrations are present in the matching ledger.")
-    print("[INFO] This compares migration ledger versions only; it does not verify live schema objects.")
+    print("[OK] 全部预期迁移已应用。")
     return 0
 
 

@@ -34,8 +34,7 @@
     "@radix-ui/react-separator": "^1.1.7",
     "@radix-ui/react-slot": "^1.2.3",
     "class-variance-authority": "^0.7.1",
-    "react-router-dom": "^7.9.2",
-    "@supabase/supabase-js": "^2.72.0"
+    "react-router-dom": "^7.9.2"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",
