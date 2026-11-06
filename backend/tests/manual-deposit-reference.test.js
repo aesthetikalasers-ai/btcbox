@@ -36,3 +36,17 @@ test('manual deposit SQL preserves the full 160-character UI/API reference limit
   assert.ok(sql.includes("v_reference text := left(btrim(coalesce(p_reference, '')), 160)"));
   assert.ok(!sql.includes("v_reference text := left(btrim(coalesce(p_reference, '')), 120)"));
 });
+
+test('financial account snapshot reads normalized deposit history instead of legacy deposits', () => {
+  const backend = read('backend/api-core.js');
+  const sql = read('backend/supabase/sql/0011_financial_read_api_earn_v1.sql');
+  const snapshot = backend.slice(backend.indexOf('async function readFinancialAccountSnapshot'), backend.indexOf('async function readSpotMarketCatalog'));
+  assert.ok(snapshot.includes('Array.isArray(result.deposits)'));
+  const accountStart = backend.indexOf("if (path === 'account' && method === 'GET')");
+  const accountEnd = backend.indexOf("// ---------- GET /api/addresses", accountStart);
+  const account = backend.slice(accountStart, accountEnd);
+  assert.ok(account.includes('deposits: financialSnapshot ? financialSnapshot.deposits : user.deposits.slice(-20)'));
+  assert.ok(sql.includes('from public.deposit_records'));
+  assert.ok(sql.includes("'deposits', v_deposits"));
+  assert.ok(sql.includes("'reference', coalesce(reference, '')"));
+});
