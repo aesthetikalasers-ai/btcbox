@@ -8,27 +8,25 @@ const vm = require('node:vm');
 const root = path.resolve(__dirname, '..');
 const read = (file) => fs.readFileSync(path.join(root, file), 'utf8');
 
-test('Google-only auth source files remain valid JavaScript', () => {
+test('legacy static auth support files remain valid JavaScript', () => {
   for (const file of ['assets/js/views-home.js', 'assets/js/boot.js', 'assets/js/app-core.js']) {
     assert.doesNotThrow(() => new vm.Script(read(file)), file + ' must parse');
   }
 });
 
-test('public login and registration expose Google OAuth only', () => {
-  const views = read('assets/js/views-home.js');
-  const start = views.indexOf('VIEWS.login = function(){');
-  const end = views.indexOf('VIEWS.markets = function(){', start);
-  assert.ok(start >= 0 && end > start, 'login/register view block must exist');
-  const authViews = views.slice(start, end);
-  assert.ok(authViews.includes('google-login-btn'));
-  assert.ok(authViews.includes('google-register-btn'));
-  assert.ok(authViews.includes('reg-terms'), 'registration must retain Terms/Privacy consent');
-  for (const forbidden of ['login-email', 'login-pwd', 'reg-email', 'reg-pwd', 'forgot-link', 'Forgot password', 'Auth.login(', 'Auth.register(']) {
-    assert.ok(!authViews.includes(forbidden), 'Google-only auth view must not expose ' + forbidden);
+test('React login and registration expose the approved BTCBOX authentication methods', () => {
+  const authPage = fs.readFileSync(path.resolve(root, '..', 'frontend/src/features/auth/AuthPages.tsx'), 'utf8');
+  assert.ok(authPage.includes('signInWithUsername'));
+  assert.ok(authPage.includes('Continue with Google'));
+  assert.ok(authPage.includes('Connect Ethereum wallet'));
+  assert.ok(authPage.includes('Connect Solana wallet'));
+  assert.ok(authPage.includes('set a BTCBOX username and password after verification'));
+  for (const forbidden of ['signInWithEmail(', 'signUpWithEmail(', 'Email registration', 'Email sign-in']) {
+    assert.ok(!authPage.includes(forbidden), 'BTCBOX auth page must not expose ' + forbidden);
   }
 });
 
-test('Google OAuth keeps same-origin callback, safe return target and Terms consent', () => {
+test('legacy static Google OAuth callback retains same-origin return-target safeguards', () => {
   const boot = read('assets/js/boot.js');
   assert.ok(boot.includes("redirectTo:window.location.origin+window.location.pathname+'?auth_callback=1'"));
   assert.ok(boot.includes('consumeOAuthReturnTarget()'));
