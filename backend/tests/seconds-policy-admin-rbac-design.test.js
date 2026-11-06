@@ -50,7 +50,8 @@ test('policy editor is explicitly gated on backend authorization and cannot writ
 test('administrator enrollment is explicit, attributable, and cannot be self-service', () => {
   assert.match(design, /No self-service administrator registration/i);
   assert.match(design, /exact Auth UUID obtained from a trusted Auth user lookup/i);
-  assert.match(design, /Require two separately authenticated approvers/i);
+  assert.match(design, /initial Super Admin is provisioned once by the project owner/i);
+  assert.match(design, /No default email, password, UUID, or public bootstrap endpoint/i);
   assert.match(design, /After the first administrator set is provisioned, permanently disable\/remove the bootstrap path/i);
   assert.match(design, /Supabase account existence alone grants no BTCBOX administrator access/i);
 });

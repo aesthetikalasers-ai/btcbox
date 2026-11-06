@@ -291,3 +291,31 @@ This is the initial allowlist for ordinary Admin grants. The Super Admin receive
 Administrator provisioning and permission assignment are deliberately absent from the ordinary grant catalogue. Only the Super Admin can list, create, modify, suspend, revoke, or grant permissions to Admin accounts. A separate owner-controlled procedure changes Super Admin authority.
 
 High-impact financial operations remain independently gated by backend cutover flags, transaction RPCs, idempotency, balance invariants, security checks and audit persistence. An Admin permission never bypasses those controls, and a UI permission never substitutes for server authorization.
+
+
+## 15. Private administrator store v1 — source implementation contract
+
+This source-only migration implements the first storage layer for the single Super Admin / delegated Admin product decision. It does not apply itself and does not create the first administrator.
+
+### Objects
+- `private.admin_memberships`: Auth UUID primary key, active/suspended/revoked state, protected Super Admin flag, monotonic revision, timestamps and creator UUID. A partial unique index permits at most one Super Admin.
+- `private.admin_permission_catalog`: closed seed list matching the backend permission helper.
+- `private.admin_permission_events`: append-only grant/revoke events; current permissions are derived from the latest event for each permission and live membership status.
+- `private.admin_security_audit`: append-only actor/target/action/reason/request-hash/before/after history.
+- `private.admin_request_idempotency`: actor + request ID primary key, request hash and committed response.
+
+### Functions and privilege boundary
+- `private.bootstrap_super_admin_v1`: owner-only one-time SQL operation; EXECUTE granted only to `postgres`. It requires an existing Auth UUID, a reason and change reference, refuses a second Super Admin, and creates an audit event. It is not an HTTP endpoint.
+- `private.admin_get_membership_v1`: trusted backend lookup after Supabase Auth verification; returns active status, revision and current allowlisted permissions.
+- `private.admin_manage_membership_v1`: trusted-server transition requiring an active Super Admin actor. It provisions an existing Auth user, replaces explicit grants, suspends/reactivates/revokes ordinary Admins, rejects self-management and any Super Admin target, increments revision, writes grant/revoke events, idempotency and audit atomically.
+- The service role has private schema USAGE and EXECUTE on the two runtime functions only. It has no direct table DML. PUBLIC/anon/authenticated have no schema/table/function access. Tables have RLS enabled as defense in depth. The private schema must remain absent from Data API exposed schemas.
+- SECURITY DEFINER is confined to private functions with fixed search_path and narrow EXECUTE grants; there is no public SECURITY DEFINER wrapper.
+
+### Important integration boundary
+The SQL functions trust the actor UUID passed by the trusted backend. The future route MUST first call the Supabase Auth user endpoint, derive the actor UUID from that verified response, ignore actor/role fields in request JSON, and only then call the private RPC using the server-held service credential. Never expose the service credential. The backend must compute a canonical SHA-256 request hash and stable request ID. A private schema RPC is not automatically callable through PostgREST unless private is exposed; do not expose it. The integration must use a separately verified invocation path or a narrowly reviewed SECURITY INVOKER wrapper without granting direct table DML.
+
+### Bootstrap and safety
+The migration seeds only permission definitions. It does not create a Super Admin, ordinary Admin, permission grant, or default account. Initial Super Admin bootstrap is a separate owner-controlled SQL operation against an isolated staging environment, using an exact verified Auth UUID. No self-service bootstrap, default email, password, or hidden recovery account exists. Ordinary APIs cannot modify the Super Admin identity.
+
+### Validation status
+This batch adds migration source and static contract tests only. No PostgreSQL parser or isolated staging database was available for execution, so SQL runtime/catalog behavior is NOT yet validated. Do not apply this migration to production. The next integration stage must validate SQL on isolated staging, verify actual role/function privileges and exposed-schema configuration, and test concurrent/idempotent operations before any route is connected.
