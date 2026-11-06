@@ -547,8 +547,9 @@ async function prepareKycDocumentImage(file: File): Promise<{
    context.drawImage(bitmap, 0, 0, width, height);
    blob = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, "image/jpeg", [0.84, 0.78, 0.7, 0.62, 0.54][attempt]));
    if (blob && blob.size <= 512 * 1024) break;
-   width = Math.max(700, Math.round(width * 0.82));
-   height = Math.max(700, Math.round(height * 0.82));
+   // Shrink both dimensions by the same factor to preserve the document's aspect ratio.
+   width = Math.max(1, Math.round(width * 0.82));
+   height = Math.max(1, Math.round(height * 0.82));
   }
   if (!blob || blob.size > 512 * 1024) throw new Error("The image could not be compressed below 512 KB. Choose a clearer, smaller photo.");
   const dataUrl = await new Promise<string>((resolve, reject) => {
