@@ -19,7 +19,7 @@ CREATE OR REPLACE FUNCTION public.admin_manage_membership_v1(
   p_permissions text[],
   p_reason text,
   p_request_id text,
-  p_target_status text
+  p_request_hash text
 ) RETURNS jsonb
 LANGUAGE sql
 SECURITY DEFINER
@@ -27,7 +27,7 @@ SET search_path = ''
 AS $$
   SELECT private.admin_manage_membership_v1(
     p_actor_user_id,p_target_user_id,p_expected_revision,p_action,
-    p_permissions,p_reason,p_request_id,p_target_status
+    p_permissions,p_reason,p_request_id,p_request_hash
   );
 $$;
 
