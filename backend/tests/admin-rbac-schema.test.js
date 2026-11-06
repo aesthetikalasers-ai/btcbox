@@ -44,7 +44,7 @@ test('grant and audit history is append-only and all membership state is revisio
   assert.match(sql, /actor_kind text NOT NULL DEFAULT 'admin'/i);
   assert.match(sql, /'owner_bootstrap',NULL,p_auth_user_id,'provision'/i);
   assert.match(sql, /revision=revision\+1/i);
-  assert.match(sql, /p_expected_revision<>v_target\\.revision/i);
+  assert.match(sql, /p_expected_revision<>v_target\.revision/i);
   assert.match(sql, /p_expected_revision<>0/i);
   assert.match(sql, /membership_revision bigint NOT NULL/i);\n  assert.match(sql, /event_id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY/i);
 });
@@ -88,7 +88,7 @@ test('membership lookup derives permissions from live membership and latest gran
   assert.match(sql, /FUNCTION private\.admin_get_membership_v1/i);
   assert.match(sql, /v_membership\.status <> 'active'/i);
   assert.match(sql, /DISTINCT ON \(e\.permission_key\)/i);
-  assert.match(sql, /ORDER BY e\.permission_key,e\.created_at DESC,e\.event_id DESC/i);
+  assert.match(sql, /ORDER BY e\.permission_key,e\.event_id DESC/i);
   assert.match(sql, /IF v_membership\.is_super_admin THEN/i);
 });
 
@@ -96,7 +96,7 @@ test('migration source is not applied and bootstrap does not provision a default
   assert.match(sql, /SOURCE ONLY: apply only to an isolated Supabase staging project/i);
   assert.match(sql, /No administrator is bootstrapped by this migration/i);
   const beforeBootstrap = sql.slice(0, sql.indexOf('CREATE OR REPLACE FUNCTION private.bootstrap_super_admin_v1'));
-  assert.doesNotMatch(beforeBootstrap, /INSERT INTO private\\.admin_memberships/i);
+  assert.doesNotMatch(beforeBootstrap, /INSERT INTO private\.admin_memberships/i);
   assert.match(design, /initial Super Admin is provisioned once by the project owner/i);
   assert.match(design, /No default email, password, UUID, or public bootstrap endpoint/i);
 });
