@@ -27,8 +27,8 @@ Observed baseline: `main` at/including merge commit `93a236e4a3ed6c9edd2003ac106
 
 - Main baseline: `fa4513701af75b4c4cb39d60a3df08f07d632af4`.
 - Active consolidated branch: `fix/post-merge-db-bootstrap-seconds-20261106`.
-- Draft PR #50 head: `a53469dc4105e57cdf2ef835422505b274949cb4`; 91 commits ahead / 0 behind main; mergeable, not merged. Keep Draft until owner approval.
-- Canonical fresh-database SQL inventory is **23 files**. `0008_financial_matching_engine_v1.sql` is the sole spot order write path. The old `0008_financial_spot_trade_v3.sql` direct-fill implementation was removed; sequence `0009` is intentionally retired. Legacy optional sequence numbers `0015`–`0020` remain excluded.
+- Draft PR #50 head: `6c86679fd5f88b7458c05cf2001148ff8cba0541`; 91 commits ahead / 0 behind main; mergeable, not merged. Keep Draft until owner approval.
+- Canonical fresh-database SQL inventory is **24 files** (latest addition: `0031_seconds_policy_duration_alignment_v1.sql`). `0008_financial_matching_engine_v1.sql` is the sole spot order write path. The old `0008_financial_spot_trade_v3.sql` direct-fill implementation was removed; sequence `0009` is intentionally retired. Legacy optional sequence numbers `0015`–`0020` remain excluded.
 - On source head `a53469dc4105e57cdf2ef835422505b274949cb4`, backend CI run `42241431369` passed, frontend CI run `42241431366` passed, and PostgreSQL schema CI run `42241431357` passed. The PostgreSQL job log explicitly confirms all **23** canonical SQL files applied against disposable PostgreSQL 16, RLS/service-role grants verified, and financial lifecycle integration assertions passed inside a transaction ending with `ROLLBACK`.
 - The documentation-only implementation-branch commit `c109a673ab3a38f75c91a7a9b14a8610cceb1168` fixes the migration-order list formatting. Its exact-head frontend/backend/PostgreSQL CI runs `42242877084`, `42242877154`, and `42242877014` were still in progress at the last check; do not report them as passed until rechecked.
 - Runtime integration assertions exercised: manual deposit first credit/exact replay/payload conflict; withdrawal amount+fee freeze, fee-snapshot replay after fee change, approve, reject/refund, manual paid completion without a second ledger debit; spot maker/taker matching, exact cancel replay and same-key/different-order conflict; Seconds active-policy payout snapshot, maturity settlement, exact replay and conflicting-hash rejection.
@@ -3327,3 +3327,13 @@ The prior withdrawal UI audit statement claiming the active BTCBOX admin route w
 - Exact implementation head a53469dc4105e57cdf2ef835422505b274949cb4: frontend CI 42241431366 passed; backend CI 42241431369 passed; PostgreSQL schema CI 42241431357 passed.
 - KYC privacy correction head 17c4714c6a4acbbb5edbafd77ade30c4f792163e: frontend 42240994240, backend 42240994268, PostgreSQL 42240994372 all passed.
 - Tests use synthetic or source-level fixtures only. No hosted writes, real financial actions, merge, or production deployment. PR #50 remains Draft/open. Trading layout unchanged.
+
+
+## Seconds duration policy alignment — 2026-11-06
+
+- SOURCE OBSERVED: the admin policy RPC and immutable policy table accept any positive integer duration; the active policy is intended to be the sole authority for allowed durations.
+- SOURCE OBSERVED: base migration `0014_financial_seconds_contracts_v1.sql` retained a table CHECK limiting positions to 30/60/300/900 seconds. Migration `0025_seconds_policy_versioning_v1.sql` replaced the policy-array allowlist with positive durations but did not remove the base position constraint. A policy such as 120 seconds could therefore be accepted by admin policy activation and then rejected when opening a position.
+- FIX COMMITTED: `0031_seconds_policy_duration_alignment_v1.sql` removes the retired position-duration allowlist and enforces only positive durations; the active immutable policy remains authoritative.
+- Updated fresh bootstrap allowlist and migration-order documentation to 24 canonical SQL files. Added PostgreSQL schema assertion and lifecycle integration coverage that activates a 120-second duration and opens/settles a position using it.
+- Implementation head: `6c86679fd5f88b7458c05cf2001148ff8cba0541`. Exact-head frontend/backend/PostgreSQL CI was in progress at the last check; do not report as passed until rechecked.
+- No hosted Supabase changes, real financial operations, merge, or deployment. PR #50 remains Draft/open. Trading page layout unchanged.
