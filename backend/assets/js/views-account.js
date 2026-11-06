@@ -485,7 +485,7 @@ VIEWS.admin = function(){
     '<div id="admin-data-status" style="display:none" class="va-banner va-banner-inf" role="status"></div>'+
     '<div class="card" style="padding:0;margin-bottom:16px">'+
       '<div style="display:flex;border-bottom:1px solid var(--border);overflow-x:auto" class="no-scrollbar">'+
-        '<div class="tab active" data-atab="users">用户管理</div><div class="tab" data-atab="deposits">充值审核</div><div class="tab" data-atab="withdrawals">提币审批</div><div class="tab" data-atab="kyc">KYC 审核</div><div class="tab" data-atab="audit">审计日志</div><div class="tab" data-atab="orders">订单查询</div><div class="tab" data-atab="support">客服消息</div><div class="tab" data-atab="config">系统配置</div>'+
+        '<div class="tab active" data-atab="users">用户管理</div><div class="tab" data-atab="deposits">充值流程</div><div class="tab" data-atab="withdrawals">提币审批</div><div class="tab" data-atab="kyc">KYC 审核</div><div class="tab" data-atab="audit">审计日志</div><div class="tab" data-atab="orders">订单查询</div><div class="tab" data-atab="support">客服消息</div><div class="tab" data-atab="config">系统配置</div>'+
       '</div>'+
       '<div id="admin-body" style="overflow-x:auto" class="scroll">'+skeleton(5,4)+'</div>'+
     '</div>'+
@@ -775,21 +775,9 @@ VIEWS.admin.afterRender = function(){
         await runAdminAction(b,()=>apiAdapter.adminFreeze({uid:b.dataset.uid,frozen:freeze,reason:'Admin action'}),'状态已更新');
       };});
     } else if(tab==='deposits'){
-      $('#admin-body').innerHTML=emptyState('充值审核暂不可用','当前版本尚无管理员充值列表读取接口。为避免展示不完整数据，充值审核操作已暂停。');
-      return;
-      var list=(state.admin.deposits||[]).filter(function(d){return d.status==='pending';});
-      if(!list.length){$('#admin-body').innerHTML=emptyState('暂无待审核充值','所有充值均已处理。');return;}
-      $('#admin-body').innerHTML='<table style="width:100%;border-collapse:collapse;min-width:640px"><thead><tr><th class="th">ID</th><th class="th">用户</th><th class="th">币种</th><th class="th" style="text-align:right">数量</th><th class="th">网络</th><th class="th">参考号</th><th class="th">操作</th></tr></thead><tbody>'+
-        list.map(function(d){
-          return '<tr class="trow"><td class="td num" style="font-size:12px">'+escapeHtml(d.id)+'</td><td class="td">'+escapeHtml(d.uid)+'</td><td class="td">'+escapeHtml(d.coin)+'</td><td class="td num" style="text-align:right">'+fmt(d.amount,d.coin==='USDT'?2:6)+'</td><td class="td" style="color:var(--text-secondary)">'+escapeHtml(d.network)+'</td><td class="td num" style="font-size:11px">'+escapeHtml(d.reference)+'</td><td class="td"><button class="ad-confirm" data-id="'+escapeHtml(d.id)+'" style="color:var(--up);font-weight:600;font-size:12px;margin-right:10px;background:none;border:none;cursor:pointer">确认到账</button><button style="color:var(--down);font-weight:600;font-size:12px;background:none;border:none;cursor:pointer" disabled>驳回</button></td></tr>';
-        }).join('')+'</tbody></table>';
-      $$('.ad-confirm').forEach(function(b){b.onclick=async function(){
-        var d=state.admin.deposits.find(function(x){return String(x.id)===String(b.dataset.id);});
-        if(!d){toast('无法找到对应充值记录，请刷新列表。','err');return;}
-        var ok=await confirmAdminAction('确认充值到账（人工入账）','<b>充值 ID：</b>'+escapeHtml(d.id)+'<br><b>用户 UID：</b>'+escapeHtml(d.uid)+'<br><b>币种/数量：</b>'+escapeHtml(d.coin)+' '+escapeHtml(d.amount)+'<br><b>参考号：</b>'+escapeHtml(d.reference||'—'));
-        if(!ok)return;
-        await runAdminAction(b,()=>apiAdapter.adminConfirmDeposit({id:d.id,uid:d.uid,coin:d.coin,amount:d.amount,reference:d.reference,note:'manual',idempotency_key:uid()}),'充值已确认');
-      };});
+      $('#admin-body').innerHTML='<div class="va-card"><div class="va-card-head"><div class="va-card-title">人工充值流程</div></div><div class="va-card-body"><div class="va-info">本系统不创建用户待审核充值订单，也不自动监听链上入账。先在系统配置中设置对应资产和网络的充值地址；工作人员核实实际到账后，在用户管理中打开该用户的资产行，按币种人工上分。</div><ol style="padding-left:22px;line-height:2;color:var(--text-secondary);font-size:13px"><li>系统配置：维护 USDT-TRC20、USDT-ERC20、USDT-BEP20、BTC-BTC、ETH-ERC20、SOL-SOL、BNB-BEP20、USDC-ERC20 地址。</li><li>工作人员核实实际到账币种、网络、金额和 TxID。</li><li>用户管理：打开对应用户的「账户资产 / 人工上分」，在对应币种资产行填写实际到账金额。</li><li>系统按当前用户和资产行绑定 UID、币种，保留幂等与审计记录。</li></ol><div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:14px"><button type="button" class="btn btn-secondary ad-go-config">配置充值地址</button><button type="button" class="btn btn-primary ad-go-users">前往用户人工上分</button></div></div></div>';
+      var configButton=$('.ad-go-config')[0];if(configButton)configButton.onclick=function(){var tabButton=$('[data-atab="config"]');if(tabButton)tabButton.click();};
+      var usersButton=$('.ad-go-users')[0];if(usersButton)usersButton.onclick=function(){var tabButton=$('[data-atab="users"]');if(tabButton)tabButton.click();};
     } else if(tab==='withdrawals'){
       if(adminDataLoading){$('#admin-body').innerHTML=skeleton(5,4);return;}
       if(adminDataErrors.some(function(e){return e.indexOf('提现列表')===0;})){ $('#admin-body').innerHTML=emptyState('提现列表加载失败','请检查管理员权限或网络后切换标签重试。');return;}
