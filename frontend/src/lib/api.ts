@@ -719,7 +719,7 @@ export async function getSupportMessages(signal?: AbortSignal): Promise<SupportM
   return payload.messages;
 }
 
-export async function sendSupportMessage(content: string): Promise<void> {
+export async function sendSupportMessage(content: string, requestId?: string): Promise<{ duplicate?: boolean; message_id?: string; time?: string }> {
   const normalized = content.trim();
   if (!normalized || normalized.length > 2000) {
     throw new ApiError("Messages must contain 1–2,000 characters.", 400, "INVALID_SUPPORT_MESSAGE");
@@ -729,15 +729,16 @@ export async function sendSupportMessage(content: string): Promise<void> {
     response = await fetch(`${API_BASE_URL}/support/chat`, {
       method: "POST", credentials: "include",
       headers: { Accept: "application/json", "Content-Type": "application/json" },
-      cache: "no-store", body: JSON.stringify({ content: normalized }),
+      cache: "no-store", body: JSON.stringify({ content: normalized, ...(requestId ? { request_id: requestId } : {}) }),
     });
   } catch {
     throw new ApiError("Unable to reach BTCBOX support. Please try again.", 0, "NETWORK_ERROR");
   }
-  const payload = await response.json().catch(() => null) as { ok?: boolean; msg?: string; code?: string; need_login?: boolean } | null;
+  const payload = await response.json().catch(() => null) as { ok?: boolean; msg?: string; code?: string; need_login?: boolean; duplicate?: boolean; message_id?: string; time?: string } | null;
   if (!response.ok || !payload || payload.ok !== true) {
     throw new ApiError(payload?.msg || "Your message could not be sent.", payload?.need_login ? 401 : response.status, payload?.code);
   }
+  return { duplicate: payload.duplicate, message_id: payload.message_id, time: payload.time };
 }
 
 
