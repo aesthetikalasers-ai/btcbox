@@ -53,3 +53,33 @@ test('deposit address lookup requires authentication and user-supplied amounts n
   assert.ok(route.includes('Deposit address.'));
   assert.ok(!route.includes('apply_financial_operation'));
 });
+
+
+test('ordinary account responses expose only a masked KYC document number', () => {
+  assert.ok(api.includes('function maskIdentityNumber(value)'));
+  assert.ok(api.includes('id_number: maskIdentityNumber(user.kyc && user.kyc.id_number)'));
+  assert.ok(api.includes('Full KYC identifiers remain server-side and are never serialized to the user API.'));
+});
+
+test('administrator KYC queue returns a strict review-safe allowlist, never the full identity number', () => {
+  const start = api.indexOf("if (sub === 'kyc' && method === 'GET')");
+  const end = api.indexOf("// GET /api/admin/user?uid=", start);
+  assert.ok(start >= 0 && end > start);
+  const route = api.slice(start, end);
+  for (const field of ['uid:', 'email:', 'name:', 'id_type:', "status: 'pending'", 'submitted_at:', 'document_url:', 'document_preview_error:', 'document_uploaded:']) {
+    assert.ok(route.includes(field), 'KYC review response must include ' + field);
+  }
+  assert.ok(!route.includes('id_number:'));
+  assert.ok(!route.includes('password_hash'));
+  assert.ok(!route.includes('twofa_secret'));
+  assert.ok(route.includes('slice(0, 200)'));
+});
+
+test('KYC document previews are private, owner-scoped and short-lived', () => {
+  assert.ok(api.includes("const KYC_STORAGE_BUCKET = 'kyc-documents'"));
+  assert.ok(api.includes('function isOwnedKycDocumentPath(path, userId)'));
+  assert.ok(api.includes('parts.length === 2 && parts[0] === userId'));
+  assert.ok(api.includes('method: \'POST\''));
+  assert.ok(api.includes('JSON.stringify({ expiresIn: 300 })'));
+  assert.ok(api.includes("signedUrl.origin !== new URL(base).origin"));
+});
