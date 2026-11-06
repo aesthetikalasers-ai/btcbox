@@ -51,3 +51,9 @@ test('React spot terminal uses real market, candle, order book, order and capabi
   assert.ok(pages.includes('cancelSpotOrder('));
   assert.ok(app.includes('<Route path="/trade/:symbol" element={<ProtectedAccountRoute><SpotTradingPage /></ProtectedAccountRoute>} />'));
 });
+
+
+test('Spot limit form accepts decimal digits and rejects malformed decimal strings', () => {
+  assert.ok(pages.includes('!/^(?:0|[1-9]\\d*)(?:\\.\\d{1,18})?$/.test(quantity)'));
+  assert.ok(pages.includes('!/^(?:0|[1-9]\\d*)(?:\\.\\d{1,18})?$/.test(price)'));
+});
