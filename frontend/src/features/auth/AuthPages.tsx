@@ -7,8 +7,10 @@ import { Input } from "../../components/ui/input";
 import { useAuth } from "../../lib/auth";
 
 export function AuthPage({ mode }: { mode: "login" | "register" }) {
-  const { status, needsCredentials, busy, error, notice, googleEnabled, ethereumWallets, signInWithGoogle, signInWithWeb3, signInWithUsername, verifyTwoFactor, clearError } = useAuth();
+  const { status, needsCredentials, busy, error, notice, googleEnabled, ethereumWallets, signInWithGoogle, signInWithWeb3, signInWithUsername, signInWithEmail, signUpWithEmail, requestPasswordReset, verifyTwoFactor, clearError } = useAuth();
   const [username, setUsername] = useState("");
+  const [emailAddress, setEmailAddress] = useState("");
+  const [emailPassword, setEmailPassword] = useState("");
   const [password, setPassword] = useState("");
   const [code, setCode] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -29,6 +31,14 @@ export function AuthPage({ mode }: { mode: "login" | "register" }) {
     catch { /* AuthProvider displays the safe error. */ }
   };
 
+  const submitEmail = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    try {
+      if (mode === "login") await signInWithEmail(emailAddress, emailPassword);
+      else await signUpWithEmail(emailAddress, emailPassword);
+    } catch { /* AuthProvider displays the safe error. */ }
+  };
+
   const dappUrl = window.location.origin + window.location.pathname;
   const phantomBrowseUrl = "https://phantom.app/ul/browse/" + encodeURIComponent(dappUrl) + "?ref=" + encodeURIComponent(window.location.origin);
   const coinbaseDappUrl = "https://go.cb-w.com/dapp?cb_url=" + encodeURIComponent(dappUrl);
@@ -38,7 +48,7 @@ export function AuthPage({ mode }: { mode: "login" | "register" }) {
       <CardHeader className="gap-3 text-center">
         <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl border border-brand-border bg-brand-surface-2"><ShieldCheck className="h-6 w-6 text-brand-text-secondary"/></div>
         <CardTitle className="text-xl">{status === "two-factor" ? "Two-step verification" : mode === "login" ? "Welcome back" : "Create your BTCBOX account"}</CardTitle>
-        <CardDescription>{status === "two-factor" ? "Enter the verification code from your authenticator app." : mode === "login" ? "Sign in with your BTCBOX username and password, Google, or a wallet." : "Choose Google or a supported wallet. You’ll set your BTCBOX username and password after your first sign-in."}</CardDescription>
+        <CardDescription>{status === "two-factor" ? "Enter the verification code from your authenticator app." : mode === "login" ? "Sign in with your email, BTCBOX username, Google, or a supported wallet." : "Create an account with email or Google. You can also use a supported wallet."}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         {error && <div role="alert" className="rounded-lg border border-loss/30 bg-loss/10 p-3 text-sm text-loss">{error}<button className="ml-2 inline-flex min-h-11 items-center px-2 underline" onClick={clearError}>Dismiss</button></div>}
@@ -52,7 +62,13 @@ export function AuthPage({ mode }: { mode: "login" | "register" }) {
             <label className="block space-y-1.5 text-sm"><span className="text-brand-text-secondary">Password</span><span className="relative block"><Input type={showPassword ? "text" : "password"} autoComplete="current-password" value={password} onChange={e=>setPassword(e.target.value)} placeholder="Your BTCBOX password" required className="pr-12"/><button type="button" aria-label={showPassword ? "Hide password" : "Show password"} onClick={()=>setShowPassword(v=>!v)} className="absolute inset-y-0 right-1 inline-flex min-h-11 min-w-11 items-center justify-center text-brand-text-muted">{showPassword ? <EyeOff className="h-4 w-4"/> : <Eye className="h-4 w-4"/>}</button></span></label>
             <Button type="submit" className="w-full" disabled={busy || status !== "anonymous" || !username.trim() || !password}>{busy ? "Please wait…" : "Sign in with username"}</Button>
           </form>}
-          {mode === "register" && <div className="rounded-lg border border-brand-border bg-brand-surface-2 p-3 text-sm text-brand-text-secondary">No email address is required. After verification, BTCBOX will guide you to create a unique username and password for this same account.</div>}
+          <form className="space-y-3 rounded-xl border border-brand-border bg-brand-surface-2 p-3" onSubmit={submitEmail}>
+            <p className="text-sm font-semibold text-brand-text">{mode === "login" ? "Continue with email" : "Register with email"}</p>
+            <label className="block space-y-1.5 text-sm"><span className="text-brand-text-secondary">Email address</span><Input type="email" value={emailAddress} onChange={event=>setEmailAddress(event.target.value)} autoComplete="email" placeholder="you@example.com" required /></label>
+            <label className="block space-y-1.5 text-sm"><span className="text-brand-text-secondary">Password</span><Input type="password" value={emailPassword} onChange={event=>setEmailPassword(event.target.value)} autoComplete={mode === "login" ? "current-password" : "new-password"} minLength={8} maxLength={128} placeholder="Enter your password" required /></label>
+            <Button type="submit" className="w-full" variant="outline" disabled={busy || status !== "anonymous" || !emailAddress.trim() || emailPassword.length < 8}>{busy ? "Please wait…" : mode === "login" ? "Sign in with email" : "Create account with email"}</Button>
+            {mode === "login" && <button type="button" className="min-h-11 text-sm text-brand-text-secondary underline underline-offset-4 disabled:opacity-50" disabled={busy || !emailAddress.trim()} onClick={()=>void requestPasswordReset(emailAddress).catch(()=>{})}>Forgot password?</button>}
+          </form>
           {googleEnabled && <><div className="flex items-center gap-3 py-1"><div className="h-px flex-1 bg-brand-border"/><span className="text-xs text-brand-text-muted">{mode === "login" ? "OR CONTINUE WITH" : "SIGN UP WITH"}</span><div className="h-px flex-1 bg-brand-border"/></div><Button className="w-full" size="lg" variant="outline" disabled={busy || status !== "anonymous"} onClick={signInWithGoogle}><Chrome className="h-5 w-5"/> Continue with Google</Button></>}
           <div className="flex items-center gap-3 py-1"><div className="h-px flex-1 bg-brand-border"/><span className="text-xs text-brand-text-muted">WEB3 WALLET</span><div className="h-px flex-1 bg-brand-border"/></div>
           <Button className="w-full" size="lg" variant="outline" disabled={busy || status !== "anonymous"} onClick={() => ethereumWallets.length > 1 ? setShowEthereumWallets(true) : void signInWithWeb3("ethereum", ethereumWallets[0]?.provider)}><Wallet className="h-5 w-5"/> Continue with Ethereum wallet</Button>
