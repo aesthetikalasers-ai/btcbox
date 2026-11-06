@@ -35,6 +35,11 @@ test('spot-market configuration is audited, idempotent and cannot be written dir
   assert.match(sql, /pg_advisory_xact_lock[\s\S]*p_actor_user_id::text \|\| ':' \|\| p_request_id/i);
   assert.match(sql, /spot market idempotency payload mismatch/i);
   assert.match(sql, /admin_spot_market_updated/);
+  assert.ok(sql.includes("hashtextextended(p_base_asset||'/'||p_quote_asset,0)"));
+  assert.match(sql, /cannot change spot market rules while open orders exist/i);
+  assert.match(sql, /status IN \\('open','partially_filled'\\)/i);
+  assert.ok(spotSchema.includes("Serialize the client request key first, then the market book."));
+  assert.ok(spotSchema.includes("hashtextextended('spot-order:'||p_user_id||':'||p_client_order_id, 0)"));
   assert.match(sql, /REVOKE ALL ON FUNCTION public\.admin_set_spot_market_v1[\s\S]*FROM PUBLIC,anon,authenticated,service_role/i);
   assert.match(sql, /GRANT EXECUTE ON FUNCTION public\.admin_set_spot_market_v1[\s\S]*TO service_role/i);
   assert.match(sql, /read_spot_market_snapshot_v1/);
