@@ -2462,3 +2462,8 @@ The user explicitly simplified the required business process. Do not expand it i
 - Latest GitHub combined status still reports Vercel failure and no GitHub workflow runs were returned. The earlier build logs identify the syntax error; after the fix, latest build logs could not be retrieved due Vercel team access requiring reauthorization. Do not claim the latest build or tests passed.
 - SQL migration `0023_withdrawal_manual_payout_completion_v1.sql` is committed but NOT applied to Supabase. No Vercel environment variables were changed, no production deployment was performed, no live database DDL/write was run, and no funds operation occurred in this batch.
 - The switch is not being held off for legacy users. Before enabling the production write flags, integrate/deploy the code, apply migration 0023, verify the RPC grants and status constraint, and pass build/API smoke checks. Keep `FINANCIAL_MATCHING_ENGINE_ENABLED=0`; this manual funds workflow does not need the matching engine.
+
+
+### Supabase transactional validation for migration 0023
+- Executed the committed migration inside a single PostgreSQL transaction, inserted one synthetic approved withdrawal, called `mark_withdrawal_paid_atomic` twice with the same reference (first completion + idempotent retry), and called `read_withdrawal_history_v1`; the transaction completed without SQL/RPC errors and was rolled back.
+- Post-rollback verification returned `persisted_test_withdrawals=0` and `persisted_payout_columns=0`. Therefore no migration DDL or test row remains in the live database. This is a transactional smoke test, not migration application or a production financial operation.
