@@ -1,6 +1,8 @@
 // BTCBOX shared API handler for Vercel Node Functions.
 // Persistent state and financial records require Supabase; no Netlify Blobs fallback.
 const crypto = require('crypto');
+const { verifySupabaseAccessToken } = require('./admin-auth');
+const { hasAdminPermission, canManageAdministrators } = require('./admin-rbac');
 
 const SESSION_COOKIE = 'session_token';
 const PBKDF2_ITER = 100000;
@@ -2396,35 +2398,24 @@ async function handleRequest(event, context) {
   // 管理员认证：timingSafeEqual 保留；失败计数持久化到 btcbox_state（5 次/15 分钟锁）。
   async function adminAuth() {
     const authHeader = event.headers && (event.headers.authorization || event.headers.Authorization);
-    if (!authHeader || !authHeader.startsWith('Basic ')) return null;
-    if (!db.security_counters) db.security_counters = {};
-    const lockKey = 'admin_fail:' + clientIp(event);
-    const lockState = secCounterIsLocked(db.security_counters, lockKey, Date.now());
-    if (lockState.locked) return { rateLimited: true, retryAfter: lockState.retryAfter };
+    const verified = await verifySupabaseAccessToken({ authorization: authHeader, env: process.env });
+    if (!verified.ok) return { ok: false, status: verified.status, code: verified.code };
+    if (!supabaseStorageConfigured()) return { ok: false, status: 503, code: 'ADMIN_MEMBERSHIP_STORE_UNAVAILABLE' };
+    const base = String(process.env.SUPABASE_URL || '').replace(/\/+$/, '');
     try {
-      const decoded = Buffer.from(authHeader.slice(6), 'base64').toString();
-      const separator = decoded.indexOf(':');
-      if (separator < 1) return null;
-      const u = decoded.slice(0, separator);
-      const p = decoded.slice(separator + 1);
-      const ADMIN_USER = process.env.ADMIN_USER;
-      const ADMIN_PASS = process.env.ADMIN_PASS;
-      if (ADMIN_USER && ADMIN_PASS) {
-        // Constant-time comparison: pad both sides to the same length so neither
-        // credential length nor byte differences leak through timing.
-        const supplied = Buffer.from(u + '\x00' + p);
-        const expected = Buffer.from(ADMIN_USER + '\x00' + ADMIN_PASS);
-        const padLen = Math.max(supplied.length, expected.length, 64);
-        const padSupplied = Buffer.alloc(padLen, 0); supplied.copy(padSupplied);
-        const padExpected = Buffer.alloc(padLen, 0); expected.copy(padExpected);
-        const match = crypto.timingSafeEqual(padSupplied, padExpected) && supplied.length === expected.length;
-        if (match) { secCounterReset(db.security_counters, lockKey); try { await saveDB(db); } catch (e) { console.warn('[admin-lock] reset persist failed:', e.message); return { persistenceUnavailable: true }; } return true; }
-      }
-    } catch (e) { }
-    // 认证失败：持久化记录失败计数（5 次锁 15 分钟）。
-    secCounterRecordFailure(db.security_counters, lockKey, 5, 15 * 60 * 1000, Date.now());
-    try { await saveDB(db); } catch (e) { console.warn('[admin-lock] persist failed:', e.message); return { persistenceUnavailable: true }; }
-    return null;
+      const response = await fetch(base + '/rest/v1/rpc/admin_get_membership_v1', {
+        method: 'POST',
+        headers: supabaseHeaders(),
+        body: JSON.stringify({ p_actor_user_id: verified.user.id }),
+        signal: AbortSignal.timeout(5000)
+      });
+      if (!response.ok) return { ok: false, status: 503, code: 'ADMIN_MEMBERSHIP_LOOKUP_FAILED' };
+      const membership = await response.json().catch(() => null);
+      if (!membership || membership.status !== 'active') return { ok: false, status: 403, code: 'ADMIN_MEMBERSHIP_REQUIRED' };
+      return { ok: true, userId: verified.user.id, membership };
+    } catch (_) {
+      return { ok: false, status: 503, code: 'ADMIN_MEMBERSHIP_LOOKUP_UNAVAILABLE' };
+    }
   }
   // Durable outbox delivery: state and pending audit event are saved together.
   // PostgreSQL appends are idempotent by event ID, so a lost response or failed
@@ -2481,14 +2472,48 @@ async function handleRequest(event, context) {
 
   if (path.startsWith('admin/')) {
     const adminAuthResult = await adminAuth();
-    if (adminAuthResult && adminAuthResult.persistenceUnavailable) return json({ ok: false, code: 'SECURITY_STATE_UNAVAILABLE', msg: 'Administrator authentication is temporarily unavailable. Please try again.' }, 503);
-    if (adminAuthResult && adminAuthResult.rateLimited) return rateLimitedJson(adminAuthResult.retryAfter);
-    if (!adminAuthResult) {
-      return json({ ok: false, msg: 'Administrator authentication failed.' }, 401, { 'WWW-Authenticate': 'Basic realm="BTCBOX Admin"' });
+    if (!adminAuthResult || !adminAuthResult.ok) {
+      const status = adminAuthResult && adminAuthResult.status ? adminAuthResult.status : 401;
+      const code = adminAuthResult && adminAuthResult.code ? adminAuthResult.code : 'ADMIN_UNAUTHENTICATED';
+      const msg = status === 403 ? 'This Supabase identity is not an active BTCBOX administrator.' :
+        status === 503 ? 'Administrator identity or permission store is temporarily unavailable.' :
+        'A verified Supabase Auth bearer token is required.';
+      return json({ ok: false, code, msg }, status);
+    }
+    const adminUserId = adminAuthResult.userId;
+    const adminMembership = adminAuthResult.membership;
+    const sub = path.slice(6);
+    const requiredPermission = (function(route, verb) {
+      if (route === 'stats' && verb === 'GET') return 'dashboard.read';
+      if (route === 'users' && verb === 'GET') return 'users.read';
+      if (route === 'user' && verb === 'GET') return 'users.read';
+      if (route === 'user/freeze' && verb === 'POST') return 'users.freeze';
+      if (route === 'user/balance' && verb === 'POST') return 'financial_adjustment.request';
+      if ((route === 'user/reset-pwd' || route === 'user/reset-email') && verb === 'POST') return 'users.manage';
+      if (route === 'kyc' && verb === 'GET') return 'kyc.read';
+      if ((route === 'kyc/approve' || route === 'kyc/reject') && verb === 'POST') return 'kyc.review';
+      if (route === 'deposit/confirm' && verb === 'POST') return 'deposits.review';
+      if (route === 'addresses' && verb === 'GET') return 'deposits.read';
+      if (route === 'address/manage' && verb === 'POST') return 'system_config.write';
+      if (route === 'withdrawals' && verb === 'GET') return 'withdrawals.read';
+      if (['withdraw/approve','withdraw/reject','withdraw/mark-paid'].includes(route) && verb === 'POST') return 'withdrawals.review';
+      if (route === 'orders' && verb === 'GET') return 'orders.read';
+      if (route === 'support/messages' && verb === 'GET') return 'support.read';
+      if (route === 'support/reply' && verb === 'POST') return 'support.reply';
+      if (route === 'push' && verb === 'POST') return 'announcements.manage';
+      if (route === 'audit-logs' && verb === 'GET') return 'financial_audit.read';
+      if (route === 'config' && verb === 'GET') return 'system_config.read';
+      if (route === 'config' && verb === 'POST') return 'system_config.write';
+      if (route === 'seconds-policy' && verb === 'GET') return 'seconds_policy.read';
+      if (route === 'seconds-policy' && verb === 'POST') return 'seconds_policy.manage';
+      return null;
+    })(sub, method);
+    if (!requiredPermission) return json({ ok: false, code: 'ADMIN_ROUTE_NOT_FOUND', msg: 'Administrator route not found.' }, 404);
+    if (!hasAdminPermission(adminMembership, requiredPermission)) {
+      return json({ ok: false, code: 'ADMIN_PERMISSION_DENIED', permission: requiredPermission, msg: 'Your administrator role does not allow this action.' }, 403);
     }
     const priorAuditFlush = await flushAdminAuditOutbox();
     if (priorAuditFlush.persistenceUnavailable) return json({ ok: false, code: 'AUDIT_OUTBOX_STATE_UNAVAILABLE', msg: 'Administrator audit delivery state could not be saved. Please retry.' }, 503);
-    const sub = path.slice(6); // 去掉 admin/ 前缀
 
     // GET /api/admin/stats
     if (sub === 'stats' && method === 'GET') {
@@ -2622,7 +2647,7 @@ async function handleRequest(event, context) {
         if (!Number.isFinite(delta) || delta === 0 || Math.abs(delta) > 1e12 || !Number.isSafeInteger(Math.round(delta * 1e8)) || (mode !== 'adjust' && delta < 0)) return json({ ok: false, msg: 'Invalid operation amount. Freeze/unfreeze amounts must be positive.' }, 400);
         if (!/^[A-Za-z0-9_-]{16,100}$/.test(requestId)) return json({ ok: false, code: 'IDEMPOTENCY_KEY_REQUIRED', msg: 'A valid operation ID is required. Balance was unchanged.' }, 400);
         if (reason.length < 5) return json({ ok: false, msg: 'Please provide an adjustment reason of at least 5 characters. Balance was unchanged.' }, 400);
-        const adminId = String(process.env.ADMIN_USER || '').trim();
+        const adminId = adminUserId;
         if (!adminId) return json({ ok: false, code: 'ADMIN_ACTOR_NOT_CONFIGURED', msg: 'Administrator audit identity not configured. Balance was unchanged.' }, 503);
         // Canonical decimal text must match PostgreSQL numeric::text when hashing the RPC payload.
         const canonicalDecimal = function (n) { return (n < 0 ? '-' : '') + Math.abs(n).toFixed(8).replace(/\.?0+$/, ''); };
