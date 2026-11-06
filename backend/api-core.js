@@ -2505,13 +2505,16 @@ async function handleRequest(event, context) {
     // Sample the trusted reference feed on the server only. The client cannot
     // provide or alter the settlement price; PostgreSQL still checks maturity,
     // ownership, idempotency, and applies the ledger movement atomically.
-    let settleRef;
+    let settleRef = null;
     try { settleRef = await fetchSecondsReferencePrice(symbol); }
-    catch (_) { return json({ ok: false, code: 'REFERENCE_PRICE_UNAVAILABLE', msg: 'The settlement reference price is unavailable. The position remains unsettled; please try again later.' }, 503); }
+    catch (_) { /* Still ask PostgreSQL for an idempotent replay or an early-position response. */ }
     try {
-      const rpc = await fetch(base + '/rest/v1/rpc/settle_seconds_position_v1', { method: 'POST', headers: supabaseHeaders(), body: JSON.stringify({ p_position_id: positionId, p_user_id: String(user.uid), p_request_id: requestId, p_request_hash: requestHash, p_symbol: symbol, p_settle_price: String(settleRef.price), p_settle_price_source: settleRef.source, p_settle_price_ts: new Date(settleRef.ts * 1000).toISOString() }) });
+      const rpc = await fetch(base + '/rest/v1/rpc/settle_seconds_position_v1', { method: 'POST', headers: supabaseHeaders(), body: JSON.stringify({ p_position_id: positionId, p_user_id: String(user.uid), p_request_id: requestId, p_request_hash: requestHash, p_symbol: symbol, p_settle_price: settleRef ? String(settleRef.price) : null, p_settle_price_source: settleRef ? settleRef.source : null, p_settle_price_ts: settleRef ? new Date(settleRef.ts * 1000).toISOString() : null }) });
       const result = await rpc.json().catch(() => null);
       if (!rpc.ok || !result || result.ok !== true) {
+        if (result && result.code === 'REFERENCE_PRICE_UNAVAILABLE') {
+          return json({ ok: false, code: 'REFERENCE_PRICE_UNAVAILABLE', msg: 'The settlement reference price is unavailable or stale. The position remains unsettled; please try again later.' }, 503);
+        }
         const conflictCode = result && ['IDEMPOTENCY_CONFLICT','POSITION_ALREADY_SETTLED'].includes(result.code) ? result.code : '';
         const conflictMessage = conflictCode === 'POSITION_ALREADY_SETTLED'
           ? 'This position was already settled by a different request. Refresh your history; do not retry with a new request ID.'
