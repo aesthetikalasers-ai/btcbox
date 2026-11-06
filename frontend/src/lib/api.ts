@@ -836,6 +836,16 @@ export async function getAdminWithdrawals(token: string, signal?: AbortSignal) {
 export async function getAdminConfig(token: string, signal?: AbortSignal) {
   return adminRequest<AdminConfig & { ok: true }>(token, "admin/config", { signal });
 }
+export async function getAdminSecondsPolicy(token: string, signal?: AbortSignal) {
+  return adminRequest<{ ok: true; policy: SecondsPolicySnapshot }>(token, "admin/seconds-policy", { signal });
+}
+export async function saveAdminSecondsPolicy(token: string, input: {
+  expected_policy_version: number; symbols: string[]; durations_sec: number[];
+  min_stake: string; max_stake: string; payout_bps: number;
+  per_user_open_exposure: string | null; reason: string; request_id: string;
+}) {
+  return adminRequest<{ ok: true; policy: SecondsPolicySnapshot; replayed?: boolean }>(token, "admin/seconds-policy", { method: "POST", body: input });
+}
 export async function saveAdminConfig(token: string, config: AdminConfig) {
   return adminRequest<AdminConfig & { ok: true; audit_sync_pending?: boolean }>(token, "admin/config", { method: "POST", body: config });
 }
