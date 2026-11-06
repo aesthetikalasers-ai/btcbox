@@ -11,7 +11,7 @@ const admin = fs.readFileSync(path.resolve(root, '../frontend/src/features/admin
 
 test('admin support replies are permission-gated, persisted, audited and idempotent', () => {
   assert.ok(api.includes("route === 'support/reply' && verb === 'POST'"));
-  const handlers = [...api.matchAll(/if \\(sub === 'support\\/reply' && method === 'POST'\\)/g)];
+  const handlers = [...api.matchAll(/if \(sub === 'support\/reply' && method === 'POST'\)/g)];
   assert.equal(handlers.length, 1, 'only one support reply handler may exist; a legacy earlier route would shadow idempotency');
   const start = handlers[0].index;
   const end = api.indexOf("if (sub === 'support/messages' && method === 'GET')", start);
