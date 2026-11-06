@@ -2740,3 +2740,22 @@ The user explicitly simplified the required business process. Do not expand it i
 
 ## Audit correction 2026-11-06
 The prior withdrawal UI audit statement claiming the active BTCBOX admin route was only a placeholder was incorrect. On feature branch fix/manual-withdrawal-rpc-compat-20261106, backend/assets/js/views-account.js contains the admin withdrawal queue and a manual paid-completion modal; backend/assets/js/app-core.js calls the mark-paid API and backend/api-core.js calls mark_withdrawal_paid_atomic. The modal currently labels TxID/reference as optional, so it does not yet enforce the user's desired transfer-reference recording. Keep the separate admin-panel React app classified as legacy and not evidence of the active SPA. The database blocker remains: live production was previously observed missing payout columns and payout/history RPCs. No database or deployment change was made in this audit.
+
+
+## Manual withdrawal TxID requirement — 2026-11-06
+
+### SOURCE OBSERVED / IMPLEMENTED
+- Feature branch: `fix/manual-withdrawal-rpc-compat-20261106`; latest commit: `e4c1bdb284a5228b38157e31ea82b698156ffd00`.
+- Active BTCBOX SPA manual payout modal now labels TxID/reference as required, prevents blank submission, and keeps the modal open with focus returned to the field when empty.
+- `POST /api/admin/withdraw/mark-paid` rejects a blank trimmed reference with `PAYOUT_REFERENCE_REQUIRED`; the existing 160-character limit remains.
+- Numbered operational SQL `0023_withdrawal_manual_payout_completion_v1.sql` independently rejects blank references inside `mark_withdrawal_paid_atomic`.
+- The existing approved-only completion, exact same-reference duplicate response, conflicting-reference rejection, and audit-log record remain unchanged. This records a staff-completed external transfer; it does not initiate a blockchain transfer or create a second debit.
+- Added `backend/tests/withdrawal-manual-payout.test.js` with four source regression checks.
+
+### VERIFICATION / NOT VERIFIED
+- SOURCE OBSERVED: all four changed paths are present on the feature branch; the latest commit is the regression-test addition above.
+- NOT VERIFIED: Node test suite execution, PostgreSQL compilation/integration, hosted database application, and production UI behavior. GitHub combined status returned no checks and workflow-run lookup returned no runs for the latest commit.
+- No production database write, migration application/repair, merge, or deployment occurred. The hosted database still must be treated as missing the payout columns/RPCs until a fresh read-only check proves otherwise.
+
+### NEXT
+- Run the backend test suite and syntax checks in an isolated runtime. Then resolve the numbered migration baseline compatibility before planning any hosted database change. Keep the manual workflow simple and preserve V211.
