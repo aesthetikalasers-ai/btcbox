@@ -2511,7 +2511,7 @@ async function handleRequest(event, context) {
     if (sub === 'admins' && method === 'GET') {
       if (adminMembership.is_super_admin !== true) return json({ ok: false, code: 'SUPER_ADMIN_REQUIRED', msg: 'Only the Super Admin can manage administrators.' }, 403);
       try {
-        const base = String(process.env.SUPABASE_URL || '').replace(/\\/+$/, '');
+        const base = String(process.env.SUPABASE_URL || '').replace(/\/+$/, '');
         if (!base || !supabaseStorageConfigured()) throw new Error('Admin membership store unavailable');
         const response = await fetch(base + '/rest/v1/rpc/admin_list_memberships_v1', {
           method: 'POST', headers: supabaseHeaders(),
@@ -2550,7 +2550,7 @@ async function handleRequest(event, context) {
         action, permissions: normalizedPermissions, reason
       })).digest('hex');
       try {
-        const base = String(process.env.SUPABASE_URL || '').replace(/\\/+$/, '');
+        const base = String(process.env.SUPABASE_URL || '').replace(/\/+$/, '');
         if (!base || !supabaseStorageConfigured()) throw new Error('Admin membership store unavailable');
         const response = await fetch(base + '/rest/v1/rpc/admin_manage_membership_v1', {
           method: 'POST', headers: supabaseHeaders(),
@@ -2608,7 +2608,7 @@ async function handleRequest(event, context) {
     // Seconds policy is read and changed through versioned PostgreSQL RPCs.
     if (sub === 'seconds-policy' && method === 'GET') {
       try {
-        const base = String(process.env.SUPABASE_URL || '').replace(/\\/+$/, '');
+        const base = String(process.env.SUPABASE_URL || '').replace(/\/+$/, '');
         if (!base || !supabaseStorageConfigured()) throw new Error('Seconds policy store unavailable');
         const response = await fetch(base + '/rest/v1/rpc/read_active_seconds_policy_v1', {
           method: 'POST', headers: supabaseHeaders(), body: '{}', signal: AbortSignal.timeout(5000)
@@ -2635,7 +2635,7 @@ async function handleRequest(event, context) {
       const exposure = exposureRaw === null || exposureRaw === undefined || exposureRaw === '' ? null : String(exposureRaw).trim();
       const reason = typeof body.reason === 'string' ? body.reason.trim() : '';
       const requestId = String(body.request_id || '');
-      const decimal = /^(?:0|[1-9]\\d*)(?:\\.\\d{1,18})?$/;
+      const decimal = /^(?:0|[1-9]\d*)(?:\.\d{1,18})?$/;
       const allowedSymbols = ['BTC','ETH','SOL','BNB'];
       if (!Number.isSafeInteger(expectedVersion) || expectedVersion < 1 ||
           !Array.isArray(symbols) || !symbols.length || symbols.some((v) => !allowedSymbols.includes(v)) || new Set(symbols).size !== symbols.length ||
@@ -2654,7 +2654,7 @@ async function handleRequest(event, context) {
       };
       const requestHash = crypto.createHash('sha256').update(JSON.stringify(normalized)).digest('hex');
       try {
-        const base = String(process.env.SUPABASE_URL || '').replace(/\\/+$/, '');
+        const base = String(process.env.SUPABASE_URL || '').replace(/\/+$/, '');
         if (!base || !supabaseStorageConfigured()) throw new Error('Seconds policy store unavailable');
         const response = await fetch(base + '/rest/v1/rpc/admin_set_seconds_policy_v1', {
           method: 'POST', headers: supabaseHeaders(),
