@@ -2483,6 +2483,9 @@ async function handleRequest(event, context) {
     const adminUserId = adminAuthResult.userId;
     const adminMembership = adminAuthResult.membership;
     const sub = path.slice(6);
+    if (sub === 'session' && method === 'GET') {
+      return json({ ok: true, user_id: adminUserId, status: adminMembership.status, is_super_admin: adminMembership.is_super_admin === true, permissions: Array.isArray(adminMembership.permissions) ? adminMembership.permissions : [] });
+    }
     const requiredPermission = (function(route, verb) {
       if (route === 'stats' && verb === 'GET') return 'dashboard.read';
       if (route === 'users' && verb === 'GET') return 'users.read';
