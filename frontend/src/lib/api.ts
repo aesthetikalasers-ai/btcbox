@@ -400,7 +400,7 @@ export async function submitSecondsOrder(input: SecondsOrderInput): Promise<Seco
       headers: { Accept: "application/json", "Content-Type": "application/json" },
       cache: "no-store", body: JSON.stringify(input),
     });
-  } catch (error) {
+  } catch {
     throw new ApiError("Order result is unconfirmed. Keep the same request ID and check open positions before retrying.", 0, "NETWORK_ERROR");
   }
   const payload = await response.json().catch(() => null) as (SecondsOrderResult & { ok?: boolean; msg?: string; code?: string; need_login?: boolean }) | null;
