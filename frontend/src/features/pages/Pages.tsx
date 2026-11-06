@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { RefreshCw, TrendingUp, TrendingDown, Clock3, ShieldAlert } from "lucide-react";
-import { getSecondsPositions, type SecondsPositionsSnapshot } from "../../lib/api";
+import { getOrders, getSecondsPositions, type OrderRecord, type SecondsPositionsSnapshot } from "../../lib/api";
 
 import type { ReactNode } from "react";
 import { ArrowUpRight, LockKeyhole, Wallet, ChartNoAxesCombined, ArrowLeftRight } from "lucide-react";
@@ -21,6 +21,51 @@ export function TradeHubPage(){
 }
 export function AssetsPage(){const {t}=useI18n();return <PageFrame eyebrow="BTCBOX / WALLET" title="Assets" description="Your balances and transaction activity will appear here after the authenticated account API is connected."><Card className="border-brand-border bg-brand-surface"><CardContent className="flex flex-col items-center px-5 py-12 text-center"><div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl border border-brand-accent/20 bg-brand-accent/10 text-brand-text-secondary"><Wallet className="h-8 w-8"/></div><p className="type-section-title">{t("No account data loaded")}</p><p className="type-body-compact mt-2 max-w-sm text-brand-text-muted">{t("This preview does not invent balances or transaction history. Sign in and connect the account service to load your actual assets.")}</p><Button asChild variant="secondary" className="mt-5"><Link to="/login">{t("Sign in")}</Link></Button></CardContent></Card><div className="grid gap-4 sm:grid-cols-3">{[{title:"Deposit",to:"/deposit",label:"Open deposit"},{title:"Withdraw",to:"/withdraw",label:"Open withdrawal"},{title:"Earn",to:"/earn",label:"Explore Earn"}].map(x=><Card key={x.to} className="border-brand-border bg-brand-surface"><CardContent className="p-5"><p className="type-label text-brand-text-secondary">{t(x.title)}</p><Button asChild variant="link" className="mt-2 min-h-0 h-auto px-0 py-0 text-left text-brand-text-secondary"><Link to={x.to}>{t(x.label)} <ArrowUpRight className="h-4 w-4"/></Link></Button></CardContent></Card>)}</div></PageFrame>}
 export function MyPage(){const {t}=useI18n();return <PageFrame eyebrow="BTCBOX / ACCOUNT" title="My account" description="Manage your profile, verification, security and support."><Card className="border-brand-border bg-brand-surface"><CardContent className="flex flex-col items-start gap-3 p-6"><div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-brand-accent/20 bg-brand-accent/10 text-brand-text-secondary"><LockKeyhole className="h-5 w-5"/></div><div><p className="type-card-title">{t("Sign in to continue")}</p><p className="type-body-compact mt-1 text-brand-text-muted">{t("Account details are not loaded in this preview.")}</p></div><div className="flex w-full flex-wrap gap-2 sm:w-auto"><Button asChild className="min-w-[112px] flex-1 sm:flex-none"><Link to="/login">{t("Sign in")}</Link></Button><Button asChild variant="outline" className="min-w-[112px] flex-1 sm:flex-none"><Link to="/register">{t("Create account")}</Link></Button></div></CardContent></Card><div className="grid gap-3 sm:grid-cols-2">{[{title:"Verification",to:"/kyc"},{title:"Orders",to:"/orders"},{title:"Support",to:"/support"},{title:"Settings",to:"/settings"}].map(x=><Link key={x.to} to={x.to} className="rounded-xl border border-brand-border bg-brand-surface p-4 text-sm font-semibold transition-colors hover:border-brand-accent/40 hover:bg-brand-surface-2">{t(x.title)}<ArrowUpRight className="ml-2 inline h-4 w-4 text-brand-text-secondary"/></Link>)}</div></PageFrame>}
+
+
+export function OrdersPage(){
+ const {t}=useI18n();
+ const [orders,setOrders]=useState<OrderRecord[]>([]);
+ const [loading,setLoading]=useState(true);
+ const [error,setError]=useState("");
+ const [reload,setReload]=useState(0);
+ useEffect(()=>{
+  const controller=new AbortController();
+  setLoading(true);setError("");
+  getOrders(controller.signal).then(setOrders).catch((reason:unknown)=>{
+   if(reason instanceof Error && reason.name==="AbortError")return;
+   setError(reason instanceof Error?reason.message:"Order history is temporarily unavailable.");
+  }).finally(()=>{if(!controller.signal.aborted)setLoading(false);});
+  return ()=>controller.abort();
+ },[reload]);
+ const value=(raw:unknown)=>raw===null||raw===undefined||raw===""?"—":String(raw);
+ const date=(raw?:string)=>{if(!raw)return "—";const parsed=new Date(raw);return Number.isNaN(parsed.getTime())?raw:parsed.toLocaleString();};
+ const statusTone=(status?:string)=>{
+  const normalized=String(status||"").toLowerCase();
+  if(["filled","completed","success","settled"].includes(normalized))return "border-emerald-500/30 text-emerald-400";
+  if(["cancelled","canceled","rejected","failed","expired"].includes(normalized))return "border-rose-500/30 text-rose-400";
+  return "border-amber-500/30 text-amber-300";
+ };
+ return <PageFrame eyebrow="BTCBOX / ACCOUNT" title="Orders" description="Review order records returned by your authenticated BTCBOX account service. This page is read-only.">
+  <div className="flex flex-wrap items-center justify-between gap-3">
+   <div className="flex items-center gap-2"><Badge variant="outline" className="border-brand-border">{t("Read-only history")}</Badge>{!loading&&!error?<span className="text-xs text-brand-text-muted">{orders.length} {t("records")}</span>:null}</div>
+   <Button size="sm" variant="outline" disabled={loading} onClick={()=>setReload((n)=>n+1)}><RefreshCw className={"mr-2 h-4 w-4 "+(loading?"animate-spin":"")}/>{t("Refresh")}</Button>
+  </div>
+  {loading?<Card className="border-brand-border bg-brand-surface"><CardContent className="p-6 text-sm text-brand-text-muted" role="status">{t("Loading orders…")}</CardContent></Card>
+   :error?<Card className="border-rose-500/30 bg-brand-surface"><CardContent className="flex flex-wrap items-center justify-between gap-3 p-5"><p className="text-sm text-rose-300" role="alert">{error}</p><Button size="sm" variant="outline" onClick={()=>setReload((n)=>n+1)}>{t("Try again")}</Button></CardContent></Card>
+   :orders.length===0?<Card className="border-brand-border bg-brand-surface"><CardContent className="flex flex-col items-center px-5 py-12 text-center"><div className="mb-3 flex h-12 w-12 items-center justify-center rounded-xl border border-brand-border bg-brand-surface-2"><Clock3 className="h-5 w-5 text-brand-text-muted"/></div><p className="font-semibold">{t("No orders returned")}</p><p className="mt-2 max-w-md text-sm text-brand-text-muted">{t("The account service returned no order records. No sample or simulated orders are shown.")}</p><Button asChild variant="secondary" className="mt-5"><Link to="/trade-hub">{t("Explore trading")}</Link></Button></CardContent></Card>
+   :<div className="space-y-3">{orders.map((order,index)=>{
+    const id=value(order.order_id??order.id);
+    const side=String(order.side||"").toLowerCase();
+    return <Card key={id!=="—"?id:index} className="min-w-0 border-brand-border bg-brand-surface"><CardContent className="grid gap-3 p-4 sm:p-5">
+     <div className="flex flex-wrap items-center justify-between gap-2"><div className="flex min-w-0 items-center gap-2"><span className="truncate font-semibold">{value(order.symbol)}</span><Badge variant="outline" className={side==="buy"?"border-emerald-500/30 text-emerald-400":side==="sell"?"border-rose-500/30 text-rose-400":"border-brand-border"}>{value(order.side)}</Badge><span className="text-xs text-brand-text-muted">{value(order.type)}</span></div><Badge variant="outline" className={statusTone(order.status)}>{value(order.status)}</Badge></div>
+     <div className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-4"><div><p className="text-xs text-brand-text-muted">{t("Price")}</p><p className="mt-1 font-medium tabular-nums">{value(order.price)}</p></div><div><p className="text-xs text-brand-text-muted">{t("Quantity")}</p><p className="mt-1 font-medium tabular-nums">{value(order.quantity)}</p></div><div><p className="text-xs text-brand-text-muted">{t("Amount")}</p><p className="mt-1 font-medium tabular-nums">{value(order.amount)}</p></div><div><p className="text-xs text-brand-text-muted">{t("Created")}</p><p className="mt-1 font-medium">{date(order.created_at)}</p></div></div>
+     <p className="border-t border-brand-border pt-2 text-[11px] text-brand-text-muted">{t("Order ID")}: <span className="break-all font-mono">{id}</span></p>
+    </CardContent></Card>;
+   })}</div>}
+ </PageFrame>;
+}
+
 export function SectionPage({title,description}:{title:string;description:string}){const {t}=useI18n();return <PageFrame eyebrow="BTCBOX / WORKSPACE" title={title} description={description}><Card className="border-brand-border bg-brand-surface"><CardContent className="flex flex-wrap items-start gap-3 p-4 sm:p-5"><Badge variant="outline" className="shrink-0 border-amber-400/25 bg-amber-400/5 text-amber-200">{t("Integration pending")}</Badge><p className="type-body-compact min-w-0 flex-1 text-brand-text-muted">{t("This page is scaffolded; no live action is enabled in this preview.")}</p></CardContent></Card></PageFrame>}
 
 
