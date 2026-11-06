@@ -3173,3 +3173,16 @@ The prior withdrawal UI audit statement claiming the active BTCBOX admin route w
   - Frontend CI run 408: lint and production build passed.
   - PostgreSQL schema CI run 109: all 23 canonical SQL files applied successfully to disposable PostgreSQL; schema/RLS/grants checks passed.
 - NOT VERIFIED: hosted Supabase migration application, browser E2E with a provisioned administrator, live price-provider behavior, real financial operations or production release. No hosted database write, merge to `main`, or deployment was performed.
+
+
+## Canonical frontend and KYC image-ratio follow-up — 2026-11-06 UTC
+
+- Re-read this coordination document before the batch. Continued only on the consolidated implementation branch; no merge, hosted DB write, financial operation or deployment.
+- SOURCE OBSERVED: the implementation branch `fix/post-merge-db-bootstrap-seconds-20261106` resolves to exact head `ebcab45c2c40105e59fa81ff030be32a86ac4c6a`, 180 commits ahead / 0 behind main `fa4513701af75b4c4cb39d60a3df08f07d632af4`.
+- SOURCE OBSERVED: canonical customer/admin runtime is `frontend/` (React + TypeScript + Vite); deployment/build root is `backend/`, whose build compiles the frontend and assembles `backend/dist/`. The root CRA package is absent on this consolidated branch. The root README documents this canonical structure; OAuth consent is the only standalone static page copied into output.
+- SOURCE FIX: KYC browser image compression previously clamped width and height independently to 700 px during repeated compression attempts, which could distort portrait/landscape document images. Commit `ebcab45c2c40105e59fa81ff030be32a86ac4c6a` now scales both dimensions by the same 0.82 factor (minimum 1 px), preserving aspect ratio.
+- TEST PASSED on preceding exact SHA `b0784a5bcd5ce0287a98370980495a3829952e16`: backend CI run 544 (329/329 tests), frontend CI run 408 (lint/build), PostgreSQL schema CI run 109 (23 canonical SQL files, schema/RLS/grants).
+- NOT YET VERIFIED: backend/frontend/PostgreSQL CI on the new exact SHA `ebcab45c2c40105e59fa81ff030be32a86ac4c6a`; browser/mobile E2E; hosted Supabase/Auth/Storage setup; live market provider and dynamic price protection; real network deposit/payout; KYC retention/deletion policy.
+- PR #50 description was refreshed to current head, 23-file SQL inventory, canonical app roots, exact prior CI evidence and remaining release gates. PR remains Draft, open, unmerged.
+- Vercel status on the previous exact head reported account build-rate-limit failure. No deployment was initiated.
+- Next batch: obtain exact-head CI results for `ebcab45c2c40105e59fa81ff030be32a86ac4c6a`; then continue source-level route/API contract audit and add isolated browser E2E coverage without using hosted financial writes.
