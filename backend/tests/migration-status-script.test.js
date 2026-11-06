@@ -66,7 +66,7 @@ test('migration order document records the prepared Seconds migration dependenci
   assert.ok(orderDoc.includes('depends on the Seconds base schema in'));
   assert.ok(orderDoc.includes('adds Seconds settlement request-hash idempotency'));
   assert.ok(orderDoc.includes('withdrawal fee quotes replay-safe'));
-  assert.ok(orderDoc.includes('originally stored fee'));
+  assert.ok(orderDoc.includes('retain their stored fee'));
   assert.ok(orderDoc.includes('timestamp registry versions with four-digit source filenames'));
 });
 
