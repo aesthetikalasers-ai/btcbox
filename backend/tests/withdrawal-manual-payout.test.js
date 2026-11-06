@@ -40,3 +40,16 @@ test('manual payout completion is audit/status-only and does not apply another l
   assert.ok(sql.includes('REVOKE ALL ON FUNCTION public.mark_withdrawal_paid_atomic'));
   assert.ok(sql.includes('TO service_role'));
 });
+
+
+test('React withdrawal intent persists only non-secret request fields and retries with the same ID', () => {
+  const pages = fs.readFileSync(path.resolve(__dirname, '../../frontend/src/features/pages/Pages.tsx'), 'utf8');
+  assert.ok(pages.includes('btcbox.withdraw.pending.v1.'));
+  assert.ok(pages.includes('window.localStorage.setItem(pendingStorageKey,JSON.stringify(intent))'));
+  assert.ok(pages.includes('request_id:intent.request_id'));
+  assert.ok(pages.includes('fund_password:fundPassword'));
+  assert.ok(pages.includes('twofa_code:twofaCode'));
+  assert.ok(!pages.includes('fund_password:fundPassword,\n    ...(account?.twofa_enabled?{twofa_code:twofaCode}:{})\n   });\n   try{window.localStorage.setItem'));
+  assert.ok(pages.includes('The withdrawal response arrived, but account history has not confirmed it.'));
+  assert.ok(pages.includes('Re-enter your fund password and 2FA code'));
+});

@@ -127,8 +127,9 @@ test('React auth server endpoints retain exact POST contracts and legacy callbac
   assert.ok(frontendApi.includes('supabase_access_token: accessToken'));
   assert.ok(frontendApi.includes('temp_token: tempToken, code'));
   assert.ok(frontendApi.includes('method: "POST"') && frontendApi.includes('/logout'));
-  assert.ok(vercel.includes('/auth/callback'));
-  assert.ok(vercel.includes('/legacy-index.html?auth_callback=1'));
+  assert.ok(vercel.includes('"source": "/auth/callback"'));
+  assert.ok(vercel.includes('"destination": "/auth/react-callback"'));
+  assert.ok(!vercel.includes('/legacy-index.html'));
 });
 
 

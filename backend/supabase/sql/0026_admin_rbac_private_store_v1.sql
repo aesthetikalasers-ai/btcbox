@@ -202,6 +202,54 @@ BEGIN
 END;
 $$;
 
+-- List delegated administrators only for the active Super Admin.
+-- The private membership store remains inaccessible to browser roles.
+CREATE OR REPLACE FUNCTION private.admin_list_memberships_v1(p_actor_user_id uuid)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = pg_catalog, private
+AS $fn$
+DECLARE
+  v_admins jsonb;
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM private.admin_memberships
+    WHERE user_id=p_actor_user_id AND status='active' AND is_super_admin=true
+  ) THEN
+    RAISE EXCEPTION 'Super Admin authority required';
+  END IF;
+
+  SELECT coalesce(jsonb_agg(
+    jsonb_build_object(
+      'user_id',m.user_id,
+      'status',m.status,
+      'revision',m.revision,
+      'created_at',m.created_at,
+      'updated_at',m.updated_at,
+      'permissions',coalesce((
+        SELECT jsonb_agg(latest.permission_key ORDER BY latest.permission_key)
+        FROM (
+          SELECT DISTINCT ON (e.permission_key) e.permission_key,e.event_type
+          FROM private.admin_permission_events e
+          WHERE e.target_user_id=m.user_id
+          ORDER BY e.permission_key,e.event_id DESC
+        ) latest
+        WHERE latest.event_type='grant'
+      ),'[]'::jsonb)
+    ) ORDER BY m.created_at DESC
+  ),'[]'::jsonb)
+  INTO v_admins
+  FROM private.admin_memberships m
+  WHERE m.is_super_admin=false;
+
+  RETURN jsonb_build_object('ok',true,'admins',v_admins);
+END;
+$fn$;
+
+REVOKE ALL ON FUNCTION private.admin_list_memberships_v1(uuid) FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION private.admin_list_memberships_v1(uuid) TO service_role;
+
 -- Atomic delegated-admin lifecycle. The verified Auth actor UUID is supplied
 -- only by the trusted backend; service_role cannot directly write any table.
 CREATE OR REPLACE FUNCTION private.admin_manage_membership_v1(

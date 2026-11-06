@@ -10,8 +10,8 @@ const out = path.join(root, 'dist');
 const frontendDist = path.resolve(root, '..', 'frontend', 'dist');
 const frontendIndex = path.join(frontendDist, 'index.html');
 const frontendAssets = path.join(frontendDist, 'frontend-assets');
-const allowedFiles = ['index.html', 'admin.html'];
-const allowedDirs = ['pages', 'assets', 'oauth'];
+const allowedFiles = ['index.html'];
+const allowedDirs = ['oauth'];
 
 fs.rmSync(out, { recursive: true, force: true });
 fs.mkdirSync(out, { recursive: true });
@@ -24,10 +24,7 @@ for (const name of allowedFiles) {
   fs.copyFileSync(src, path.join(out, name));
 }
 
-// Keep the original BTCBOX SPA available for the existing OAuth callback
-// while the new React frontend's Supabase callback flow is being integrated.
-fs.copyFileSync(path.join(root, 'index.html'), path.join(out, 'legacy-index.html'));
-
+// The React SPA is the only customer/admin application entry. OAuth callbacks are redirected to its React callback route.
 for (const name of allowedDirs) {
   const src = path.join(root, name);
   if (!fs.existsSync(src) || !fs.statSync(src).isDirectory()) {
@@ -36,16 +33,15 @@ for (const name of allowedDirs) {
   fs.cpSync(src, path.join(out, name), { recursive: true });
 }
 
-// Preserve the existing clean-URL pages used by the legacy admin and OAuth UI.
-const pagesDir = path.join(root, 'pages');
-for (const entry of fs.readdirSync(pagesDir)) {
-  if (entry.endsWith('.html')) {
-    fs.copyFileSync(path.join(pagesDir, entry), path.join(out, entry));
-  }
-}
+// The OAuth consent page is the only retained static HTML compatibility surface.
+const tokensCss = path.join(root, 'assets', 'css', 'tokens.css');
+const publicCssDir = path.join(out, 'assets', 'css');
+if (!fs.existsSync(tokensCss)) throw new Error('Required OAuth design tokens are missing');
+fs.mkdirSync(publicCssDir, { recursive: true });
+fs.copyFileSync(tokensCss, path.join(publicCssDir, 'tokens.css'));
 
 // Overlay the Strata Pro Vite application as the customer-facing root.
-// Vite assets use /frontend-assets so they cannot overwrite legacy /assets.
+// Vite assets use /frontend-assets; only the OAuth consent screen keeps /assets/css/tokens.css.
 if (!fs.existsSync(frontendIndex) || !fs.statSync(frontendIndex).isFile()) {
   throw new Error('Vite frontend build is missing: frontend/dist/index.html');
 }
@@ -59,4 +55,4 @@ if (!html.includes('/frontend-assets/')) {
 fs.copyFileSync(frontendIndex, path.join(out, 'index.html'));
 fs.cpSync(frontendAssets, path.join(out, 'frontend-assets'), { recursive: true });
 
-console.log('BTCBOX unified public build created in dist/ (Strata customer app + legacy admin/OAuth assets).');
+console.log('BTCBOX unified public build created in dist/ (React customer/admin app + retained OAuth consent assets).');

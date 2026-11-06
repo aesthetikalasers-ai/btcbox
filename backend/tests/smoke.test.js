@@ -11,28 +11,26 @@ const { execFileSync } = require('node:child_process');
 const root = path.resolve(__dirname, '..');
 const read = (p) => fs.readFileSync(path.join(root, p), 'utf8');
 
-test('build-site.js produces dist/index.html and dist/admin.html', () => {
+test('build-site.js publishes the React root and consent assets without legacy SPA entries', () => {
   execFileSync('node', [path.join(root, 'scripts', 'build-site.js')], { cwd: root, stdio: 'ignore' });
   assert.ok(fs.existsSync(path.join(root, 'dist', 'index.html')));
-  assert.ok(fs.existsSync(path.join(root, 'dist', 'admin.html')));
-  assert.ok(fs.existsSync(path.join(root, 'dist', 'assets', 'js', 'app-core.js')));
+  assert.ok(fs.existsSync(path.join(root, 'dist', 'index.html')));
+  assert.ok(fs.readFileSync(path.join(root, 'dist', 'index.html'), 'utf8').includes('/frontend-assets/'));
+  assert.ok(!fs.existsSync(path.join(root, 'dist', 'legacy-index.html')));
+  assert.ok(!fs.existsSync(path.join(root, 'dist', 'admin.html')));
+  assert.ok(!fs.existsSync(path.join(root, 'dist', 'assets', 'js')));
+  assert.ok(fs.existsSync(path.join(root, 'dist', 'assets', 'css', 'tokens.css')));
+  assert.ok(fs.existsSync(path.join(root, 'dist', 'oauth', 'consent.html')));
+});
+
+test('legacy static application is not part of the public build; OAuth consent keeps its isolated token asset', () => {
+  const consent = read('oauth/consent.html');
+  assert.ok(consent.includes('/assets/css/tokens.css'));
+  assert.ok(consent.includes('/oauth/consent.js'));
+  assert.ok(!fs.existsSync(path.join(root, 'dist', 'assets', 'js')));
   assert.ok(fs.existsSync(path.join(root, 'dist', 'assets', 'css', 'tokens.css')));
 });
 
-test('thin shells reference every asset in load order and keep mount points', () => {
-  const html = read('index.html');
-  assert.ok(html.includes('id="main-content"'));
-  assert.ok(html.includes('id="toast-root"') && html.includes('id="modal-root"'));
-  assert.ok(html.includes('@supabase/supabase-js'));
-  assert.ok(!html.includes('cdn.tailwindcss.com'), 'production Tailwind CDN must not be loaded');
-  const jsOrder = ['app-core', 'ui-components', 'views-home', 'views-trade', 'views-trading', 'views-assets', 'views-account', 'views-missing', 'boot']
-    .map(n => html.indexOf(`/assets/js/${n}.js`));
-  assert.ok(jsOrder.every(i => i >= 0), 'missing a js asset reference');
-  assert.deepEqual(jsOrder, [...jsOrder].sort((a, b) => a - b), 'js load order wrong');
-  const cssOrder = ['tokens', 'base', 'components', 'overlays', 'layouts', 'views'].map(n => html.indexOf(`/assets/css/${n}.css`));
-  assert.ok(cssOrder.every(i => i >= 0), 'missing a css asset reference');
-  assert.deepEqual(cssOrder, [...cssOrder].sort((a, b) => a - b), 'css load order wrong');
-});
 
 test('asset bundle contains router + VIEWS registry + all view batches', () => {
   const core = read('assets/js/app-core.js');
@@ -55,12 +53,14 @@ test('asset bundle contains router + VIEWS registry + all view batches', () => {
   }
 });
 
-test('admin.html stays byte-identical to index.html', () => {
-  assert.equal(read('admin.html'), read('index.html'), 'index.html and admin.html have diverged');
+test('public output contains no retired legacy customer/admin shell', () => {
+  assert.ok(!fs.existsSync(path.join(root, 'dist', 'legacy-index.html')));
+  assert.ok(!fs.existsSync(path.join(root, 'dist', 'admin.html')));
 });
 
+
 test('no plaintext secrets in tracked public files or assets', () => {
-  const files = ['index.html', 'admin.html', ...fs.readdirSync(path.join(root, 'assets', 'js')).map(f => 'assets/js/' + f)];
+  const files = ['index.html', ...fs.readdirSync(path.join(root, 'assets', 'js')).map(f => 'assets/js/' + f)];
   for (const name of files) {
     const content = read(name);
     assert.ok(!/eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9/.test(content), `service-role JWT leaked into ${name}`);
@@ -182,7 +182,7 @@ test('all source CSS and HTML var() references resolve across the complete style
   const cssFiles = fs.readdirSync(cssDir).filter(name => name.endsWith('.css')).map(name => 'assets/css/' + name);
   assert.ok(cssFiles.includes('assets/css/tokens.css'));
   assert.equal(cssFiles.length, 9, 'scan every source stylesheet, not only selected global files');
-  const files = [...cssFiles, 'index.html', 'admin.html', 'oauth/consent.html'];
+  const files = [...cssFiles, 'index.html', 'oauth/consent.html'];
   const definitions = new Set();
   const references = new Set();
   for (const file of files) {

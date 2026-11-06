@@ -11,7 +11,6 @@ const apiCore = fs.readFileSync(path.join(root, 'api-core.js'), 'utf8');
 const reactApp = fs.readFileSync(path.resolve(root, '../frontend/src/App.tsx'), 'utf8');
 const reactAdminPage = fs.readFileSync(path.resolve(root, '../frontend/src/features/admin/AdminPage.tsx'), 'utf8');
 const adminAuth = fs.readFileSync(path.join(root, 'admin-auth.js'), 'utf8');
-const admin = fs.readFileSync(path.join(root, 'admin.html'), 'utf8');
 const vercelConfig = JSON.parse(fs.readFileSync(path.join(root, 'vercel.json'), 'utf8'));
 const authPages = fs.readFileSync(path.resolve(root, '../frontend/src/features/auth/AuthPages.tsx'), 'utf8');
 const api = require(path.join(root, 'api-core.js'));
@@ -58,9 +57,11 @@ test('admin audit detail redaction handles escaped quotes and plural credential 
   assert.ok(!output.includes('key-123'));
 });
 
-test('dedicated /admin URL defaults to the admin route before SPA boot', () => {
-  assert.ok(boot.includes("if(!location.hash) location.hash = /^\\/admin(?:\\.html)?\\/?$/.test(location.pathname) ? '#/admin' : '#/home';"));
-  assert.ok(admin.includes('/assets/js/boot.js'));
+test('React owns the /admin route and the legacy admin shell is no longer published', () => {
+  const buildSite = fs.readFileSync(path.resolve(root, 'scripts/build-site.js'), 'utf8');
+  assert.ok(reactApp.includes('<Route path="/admin" element={<AdminPage />} />'));
+  assert.ok(buildSite.includes("const allowedFiles = ['index.html']"));
+  assert.ok(!buildSite.includes("'admin.html'"));
 });
 
 test('Vercel serves /admin through the React SPA instead of the legacy admin.html rewrite', () => {
@@ -217,4 +218,12 @@ test('admin console exposes read-only order and support inbox views with escaped
   assert.ok(orderStart >= 0 && supportStart > orderStart);
   assert.ok(apiCore.slice(orderStart, supportStart).includes("source: 'legacy_state'"));
   assert.ok(apiCore.slice(supportStart).includes('list.slice(0, 100)'));
+});
+
+test('public build excludes the retired legacy admin shell while retaining the React admin route', () => {
+  const buildSite = fs.readFileSync(path.resolve(root, 'scripts/build-site.js'), 'utf8');
+  assert.ok(buildSite.includes("const allowedFiles = ['index.html']"));
+  assert.ok(!buildSite.includes("'admin.html'"));
+  assert.ok(reactApp.includes('<Route path="/admin" element={<AdminPage />} />'));
+  assert.ok(reactAdminPage.includes('getSupabaseAccessToken'));
 });

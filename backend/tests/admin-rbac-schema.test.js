@@ -110,3 +110,34 @@ test('design supersedes old two-person bootstrap and three-person approval requi
   assert.match(design, /The initial Super Admin is provisioned once by the project owner through a private, out-of-band operation/i);
   assert.doesNotMatch(design.slice(design.indexOf('## 13. Product decision'), design.length), /two separately authenticated approvers/i);
 });
+
+
+test('public delegated-admin wrapper forwards the request hash expected by the private RPC', () => {
+  const wrapper = fs.readFileSync(path.resolve(__dirname, '../supabase/sql/0028_admin_rbac_service_rpc_wrappers_v1.sql'), 'utf8');
+  assert.ok(wrapper.includes('p_request_id text,\n  p_request_hash text'));
+  assert.ok(wrapper.includes('p_request_id,p_request_hash'));
+  assert.ok(!wrapper.includes('p_target_status'));
+});
+
+test('delegated administrator listing is Super Admin-only and exposes permission snapshots without table access', () => {
+  assert.ok(sql.includes('FUNCTION private.admin_list_memberships_v1(p_actor_user_id uuid)'));
+  assert.ok(sql.includes("status='active' AND is_super_admin=true"));
+  assert.ok(sql.includes('DISTINCT ON (e.permission_key)'));
+  assert.ok(sql.includes('GRANT EXECUTE ON FUNCTION private.admin_list_memberships_v1(uuid) TO service_role'));
+  const wrapper = fs.readFileSync(path.resolve(__dirname, '../supabase/sql/0028_admin_rbac_service_rpc_wrappers_v1.sql'), 'utf8');
+  assert.ok(wrapper.includes('FUNCTION public.admin_list_memberships_v1(p_actor_user_id uuid)'));
+  assert.ok(wrapper.includes('GRANT EXECUTE ON FUNCTION public.admin_list_memberships_v1(uuid) TO service_role'));
+});
+
+
+test('delegated administrator public RPC bridge is invoker-only and matches the private request-hash contract', () => {
+  const wrapper = fs.readFileSync(path.resolve(__dirname, '../supabase/sql/0028_admin_rbac_service_rpc_wrappers_v1.sql'), 'utf8');
+  const listStart = wrapper.indexOf('CREATE OR REPLACE FUNCTION public.admin_list_memberships_v1');
+  const listEnd = wrapper.indexOf('REVOKE ALL ON FUNCTION public.admin_list_memberships_v1', listStart);
+  assert.ok(listStart >= 0 && listEnd > listStart);
+  assert.ok(wrapper.slice(listStart, listEnd).includes('SECURITY INVOKER'));
+  assert.ok(!wrapper.slice(listStart, listEnd).includes('SECURITY DEFINER'));
+  assert.ok(wrapper.includes('p_request_hash text'));
+  assert.ok(wrapper.includes('p_request_id,p_request_hash'));
+  assert.ok(wrapper.includes('GRANT EXECUTE ON FUNCTION public.admin_list_memberships_v1(uuid) TO service_role'));
+});

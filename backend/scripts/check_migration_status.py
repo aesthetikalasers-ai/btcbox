@@ -18,7 +18,7 @@ SQL_DIR = Path(__file__).resolve().parent.parent / "supabase" / "sql"
 MIGRATION_RE = re.compile(r"^(\d{4})_.+\.sql$")
 LEDGER_VERSION_RE = re.compile(r"^\d{4}$")
 # 0015 was deliberately retired with the obsolete one-open-position restriction.
-RETIRED_SEQUENCE_NUMBERS = {15}
+RETIRED_SEQUENCE_NUMBERS = {15, 16, 17, 18, 19, 20}
 
 
 def expected_migrations():
@@ -27,7 +27,10 @@ def expected_migrations():
     for path in SQL_DIR.glob("*.sql"):
         match = MIGRATION_RE.match(path.name)
         if match:
-            items.append((int(match.group(1)), path.name))
+            number = int(match.group(1))
+            if number in RETIRED_SEQUENCE_NUMBERS:
+                continue
+            items.append((number, path.name))
     return sorted(items)
 
 

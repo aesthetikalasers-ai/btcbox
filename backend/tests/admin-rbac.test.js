@@ -2,6 +2,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { ADMIN_PERMISSION_KEYS, normalizeAdminPermissionSet, hasAdminPermission, canManageAdministrators } = require('../admin-rbac');
+const apiSource = require('node:fs').readFileSync(require('node:path').join(__dirname, '..', 'api-core.js'), 'utf8');
 test('permission catalogue is closed, unique, and excludes administrator-management grants', () => {
   assert.equal(new Set(ADMIN_PERMISSION_KEYS).size, ADMIN_PERMISSION_KEYS.length);
   assert.ok(ADMIN_PERMISSION_KEYS.includes('users.read'));
@@ -55,4 +56,31 @@ test('admin read routes and balance adjustments require their own explicit permi
   assert.ok(ADMIN_PERMISSION_KEYS.includes('orders.read'));
   assert.ok(ADMIN_PERMISSION_KEYS.includes('support.read'));
   assert.ok(ADMIN_PERMISSION_KEYS.includes('financial_adjustment.request'));
+});
+
+
+test('delegated administrator routes are restricted to the verified Super Admin and use server-derived actor identity', () => {
+  assert.ok(apiSource.includes("if (sub === 'admins' && method === 'GET')"));
+  assert.ok(apiSource.includes("if (sub === 'admins/manage' && method === 'POST')"));
+  assert.ok(apiSource.includes('adminMembership.is_super_admin !== true'));
+  assert.ok(apiSource.includes('p_actor_user_id: adminUserId'));
+  assert.ok(apiSource.includes('p_request_hash: requestHash'));
+  assert.ok(apiSource.includes("crypto.createHash('sha256')"));
+  const manageRoute = apiSource.slice(apiSource.indexOf("if (sub === 'admins/manage'"), apiSource.indexOf('const requiredPermission'));
+  assert.ok(!manageRoute.includes('body.actor_user_id'));
+});
+
+
+test('manual credit intent is account-scoped, reload-safe, and never stores credentials', () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const admin = fs.readFileSync(path.resolve(__dirname, '../../frontend/src/features/admin/AdminPage.tsx'), 'utf8');
+  assert.ok(admin.includes('btcbox.admin.manual-credit.v1.'));
+  assert.ok(admin.includes('window.localStorage.setItem(storageKey, JSON.stringify(intent))'));
+  assert.ok(admin.includes('window.localStorage.getItem(key)'));
+  assert.ok(admin.includes('idempotency_key: stableRequestId'));
+  assert.ok(admin.includes('creditPendingInvalid'));
+  assert.ok(admin.includes('if (!creditAccepted && reason instanceof ApiError'));
+  assert.ok(!admin.includes('fund_password') && !admin.includes('twofa_code'));
+  assert.ok(admin.includes('if (!/^(?:0|[1-9]\\d*)(?:\\.\\d{1,18})?$/.test(amount) || /^0(?:\\.0*)?$/.test(amount))'));
 });

@@ -38,13 +38,18 @@
     }
   ],
   "redirects": [
-    { "source": "/admin.html", "destination": "/admin", "permanent": true }
-  ],
-  "rewrites": [
+    {
+      "source": "/admin.html",
+      "destination": "/admin",
+      "permanent": true
+    },
     {
       "source": "/auth/callback",
-      "destination": "/legacy-index.html?auth_callback=1"
-    },
+      "destination": "/auth/react-callback",
+      "permanent": false
+    }
+  ],
+  "rewrites": [
     {
       "source": "/oauth/consent",
       "destination": "/oauth/consent.html"

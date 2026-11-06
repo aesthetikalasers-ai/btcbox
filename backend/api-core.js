@@ -280,7 +280,6 @@ async function matchingRpc(name, payload) {
 // price itself from the same trusted feeds as /api/market; client-supplied
 // prices are never trusted for balance-affecting operations.
 const SECONDS_ALLOWED_SYMBOLS = new Set(['BTC', 'ETH', 'SOL', 'BNB']);
-const SECONDS_ALLOWED_DURATIONS = new Set([30, 60, 300, 900]);
 async function fetchSecondsReferencePrice(symbol) {
   if (!SECONDS_ALLOWED_SYMBOLS.has(symbol)) throw new Error('symbol unsupported');
   const fetchJson = async url => {
@@ -1867,7 +1866,7 @@ async function handleRequest(event, context) {
 
   // ---------- POST /api/deposit ----------
   if (path === 'deposit' && method === 'POST') {
-    if (!user) return json({ ok: false, msg: 'Not signed in.', need_login: true });
+    if (!user) return json({ ok: false, msg: 'Not signed in.', need_login: true }, 401);
     const coin = body.coin || 'USDT';
     const network = body.network || 'TRC20';
     const parsedAmount = body.amount === undefined || body.amount === null || body.amount === '' ? '0' : parseMoneyInput(body.amount);
@@ -2065,6 +2064,13 @@ async function handleRequest(event, context) {
     return json({ ok: true, markets: out, data: dataObj, source: missingBases.length ? 'coinbase_primary_bybit_fallback' : 'coinbase' }, 200, { 'Cache-Control': 'public, max-age=2, s-maxage=5, stale-while-revalidate=3' });
   }
 
+  // Public capability snapshot. Financial order writes remain fail-closed unless
+  // every matching-engine cutover flag is explicitly enabled server-side.
+  if (path === 'trading/status' && method === 'GET') {
+    const enabled = matchingEngineEnabled();
+    return json({ ok: true, spot_order_entry_enabled: enabled, spot_cancel_enabled: enabled, supported_order_types: ['limit'] });
+  }
+
   // ---------- POST /api/order ----------
   // Never simulate fills or mutate customer balances outside the PostgreSQL matching RPC.
   if (path === 'order' && method === 'POST') {
@@ -2215,10 +2221,11 @@ async function handleRequest(event, context) {
       const policy = result && result.policy;
       const validPolicy = policy && Number.isSafeInteger(Number(policy.policy_version)) && Number(policy.policy_version) > 0 &&
         Array.isArray(policy.symbols) && policy.symbols.length > 0 && policy.symbols.every((symbol) => SECONDS_ALLOWED_SYMBOLS.has(symbol)) &&
-        Array.isArray(policy.durations_sec) && policy.durations_sec.length > 0 && policy.durations_sec.every((duration) => SECONDS_ALLOWED_DURATIONS.has(Number(duration))) &&
+        Array.isArray(policy.durations_sec) && policy.durations_sec.length > 0 && policy.durations_sec.every((duration) => Number.isSafeInteger(Number(duration)) && Number(duration) > 0) &&
         compareMoney(policy.min_stake, '0') > 0 && compareMoney(policy.max_stake, policy.min_stake) >= 0 &&
         Number.isSafeInteger(Number(policy.payout_bps)) && Number(policy.payout_bps) >= 8500 &&
-        (policy.per_user_open_exposure == null || compareMoney(policy.per_user_open_exposure, '0') > 0);
+        (policy.per_user_open_exposure == null || compareMoney(policy.per_user_open_exposure, '0') > 0) &&
+        (policy.max_open_positions_per_user == null || (Number.isSafeInteger(Number(policy.max_open_positions_per_user)) && Number(policy.max_open_positions_per_user) > 0));
       if (!rpc.ok || !result || result.ok !== true || !validPolicy) {
         return json({ ok: false, code: 'SECONDS_POLICY_UNAVAILABLE', msg: 'Short-term contract policy is not configured or is invalid.' }, 503);
       }
@@ -2245,7 +2252,7 @@ async function handleRequest(event, context) {
     const requestId = String(body.request_id || '').trim();
     if (!SECONDS_ALLOWED_SYMBOLS.has(symbol)) return json({ ok: false, msg: 'This trading pair is not supported for short-term contracts.' }, 400);
     if (!['up', 'down'].includes(direction)) return json({ ok: false, msg: 'Invalid trade direction.' }, 400);
-    if (!SECONDS_ALLOWED_DURATIONS.has(durationSec)) return json({ ok: false, msg: 'Invalid contract duration.' }, 400);
+    if (!Number.isSafeInteger(durationSec) || durationSec <= 0) return json({ ok: false, msg: 'Invalid contract duration.' }, 400);
     if (amount === null || compareMoney(amount, '0') <= 0 || compareMoney(amount, '1000000000000') > 0) return json({ ok: false, msg: 'Invalid investment amount.' }, 400);
     if (!/^[A-Za-z0-9_-]{16,100}$/.test(requestId)) return json({ ok: false, code: 'IDEMPOTENCY_KEY_REQUIRED', msg: 'A valid request ID (16-100 characters) is required.' }, 400);
     const positionId = 'SC' + crypto.createHash('sha256').update(String(user.uid) + '|' + requestId).digest('hex').slice(0, 30);
@@ -2499,6 +2506,73 @@ async function handleRequest(event, context) {
     if (sub === 'session' && method === 'GET') {
       return json({ ok: true, user_id: adminUserId, status: adminMembership.status, is_super_admin: adminMembership.is_super_admin === true, permissions: Array.isArray(adminMembership.permissions) ? adminMembership.permissions : [] });
     }
+    // Super Admin-only delegated administrator management. The caller UUID is
+    // always derived from the verified Supabase Auth identity above.
+    if (sub === 'admins' && method === 'GET') {
+      if (adminMembership.is_super_admin !== true) return json({ ok: false, code: 'SUPER_ADMIN_REQUIRED', msg: 'Only the Super Admin can manage administrators.' }, 403);
+      try {
+        const base = String(process.env.SUPABASE_URL || '').replace(/\/+$/, '');
+        if (!base || !supabaseStorageConfigured()) throw new Error('Admin membership store unavailable');
+        const response = await fetch(base + '/rest/v1/rpc/admin_list_memberships_v1', {
+          method: 'POST', headers: supabaseHeaders(),
+          body: JSON.stringify({ p_actor_user_id: adminUserId }),
+          signal: AbortSignal.timeout(5000)
+        });
+        const result = await response.json().catch(() => null);
+        if (!response.ok || !result || result.ok !== true || !Array.isArray(result.admins)) {
+          return json({ ok: false, code: 'ADMIN_LIST_UNAVAILABLE', msg: 'Administrator list is temporarily unavailable.' }, 503);
+        }
+        return json({ ok: true, admins: result.admins });
+      } catch (_) {
+        return json({ ok: false, code: 'ADMIN_LIST_UNAVAILABLE', msg: 'Administrator list is temporarily unavailable.' }, 503);
+      }
+    }
+    if (sub === 'admins/manage' && method === 'POST') {
+      if (adminMembership.is_super_admin !== true) return json({ ok: false, code: 'SUPER_ADMIN_REQUIRED', msg: 'Only the Super Admin can manage administrators.' }, 403);
+      const targetUserId = String(body.target_user_id || '').toLowerCase();
+      const action = String(body.action || '');
+      const reason = typeof body.reason === 'string' ? body.reason.trim() : '';
+      const requestId = String(body.request_id || '');
+      const expectedRevision = Number(body.expected_revision);
+      const permissions = body.permissions;
+      const validUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+      const allowedActions = ['provision','set_permissions','suspend','reactivate','revoke'];
+      if (!validUuid.test(targetUserId) || !allowedActions.includes(action) ||
+          !Number.isSafeInteger(expectedRevision) || expectedRevision < 0 ||
+          !Array.isArray(permissions) || permissions.some((item) => typeof item !== 'string') ||
+          reason.length < 1 || reason.length > 500 ||
+          !/^[A-Za-z0-9_-]{16,100}$/.test(requestId)) {
+        return json({ ok: false, code: 'ADMIN_CHANGE_INVALID', msg: 'Administrator change details are invalid.' }, 400);
+      }
+      const normalizedPermissions = [...permissions].sort();
+      const requestHash = crypto.createHash('sha256').update(JSON.stringify({
+        target_user_id: targetUserId, expected_revision: expectedRevision,
+        action, permissions: normalizedPermissions, reason
+      })).digest('hex');
+      try {
+        const base = String(process.env.SUPABASE_URL || '').replace(/\/+$/, '');
+        if (!base || !supabaseStorageConfigured()) throw new Error('Admin membership store unavailable');
+        const response = await fetch(base + '/rest/v1/rpc/admin_manage_membership_v1', {
+          method: 'POST', headers: supabaseHeaders(),
+          body: JSON.stringify({
+            p_actor_user_id: adminUserId, p_target_user_id: targetUserId,
+            p_expected_revision: expectedRevision, p_action: action,
+            p_permissions: normalizedPermissions, p_reason: reason,
+            p_request_id: requestId, p_request_hash: requestHash
+          }),
+          signal: AbortSignal.timeout(5000)
+        });
+        const result = await response.json().catch(() => null);
+        if (!response.ok || !result || result.ok !== true) {
+          const status = response.status === 400 || response.status === 409 ? 409 : 503;
+          return json({ ok: false, code: status === 409 ? 'ADMIN_CHANGE_REJECTED' : 'ADMIN_CHANGE_UNAVAILABLE', msg: status === 409 ? 'Administrator change was rejected. Refresh the membership and review the requested action.' : 'Administrator change could not be confirmed. Refresh the administrator list before retrying.' }, status);
+        }
+        return json({ ok: true, result });
+      } catch (_) {
+        return json({ ok: false, code: 'ADMIN_CHANGE_UNAVAILABLE', msg: 'Administrator change could not be confirmed. Refresh the administrator list before retrying.' }, 503);
+      }
+    }
+
     const requiredPermission = (function(route, verb) {
       if (route === 'stats' && verb === 'GET') return 'dashboard.read';
       if (route === 'users' && verb === 'GET') return 'users.read';
@@ -2530,6 +2604,79 @@ async function handleRequest(event, context) {
     }
     const priorAuditFlush = await flushAdminAuditOutbox();
     if (priorAuditFlush.persistenceUnavailable) return json({ ok: false, code: 'AUDIT_OUTBOX_STATE_UNAVAILABLE', msg: 'Administrator audit delivery state could not be saved. Please retry.' }, 503);
+
+    // Seconds policy is read and changed through versioned PostgreSQL RPCs.
+    if (sub === 'seconds-policy' && method === 'GET') {
+      try {
+        const base = String(process.env.SUPABASE_URL || '').replace(/\/+$/, '');
+        if (!base || !supabaseStorageConfigured()) throw new Error('Seconds policy store unavailable');
+        const response = await fetch(base + '/rest/v1/rpc/read_active_seconds_policy_v1', {
+          method: 'POST', headers: supabaseHeaders(), body: '{}', signal: AbortSignal.timeout(5000)
+        });
+        const result = await response.json().catch(() => null);
+        if (!response.ok || !result || result.ok !== true || !result.policy) {
+          return json({ ok: false, code: 'SECONDS_POLICY_UNAVAILABLE', msg: 'Seconds policy is temporarily unavailable.' }, 503);
+        }
+        return json({ ok: true, policy: result.policy });
+      } catch (_) {
+        return json({ ok: false, code: 'SECONDS_POLICY_UNAVAILABLE', msg: 'Seconds policy is temporarily unavailable.' }, 503);
+      }
+    }
+    if (sub === 'seconds-policy' && method === 'POST') {
+      const expectedVersion = Number(body.expected_policy_version);
+      const symbols = body.symbols;
+      const durations = body.durations_sec;
+      const minStake = String(body.min_stake ?? '').trim();
+      const maxStake = String(body.max_stake ?? '').trim();
+      const payoutBps = Number(body.payout_bps);
+      const maxOpenRaw = body.max_open_positions_per_user;
+      const maxOpenPositions = maxOpenRaw === null || maxOpenRaw === undefined || maxOpenRaw === '' ? null : Number(maxOpenRaw);
+      const exposureRaw = body.per_user_open_exposure;
+      const exposure = exposureRaw === null || exposureRaw === undefined || exposureRaw === '' ? null : String(exposureRaw).trim();
+      const reason = typeof body.reason === 'string' ? body.reason.trim() : '';
+      const requestId = String(body.request_id || '');
+      const decimal = /^(?:0|[1-9]\d*)(?:\.\d{1,18})?$/;
+      const allowedSymbols = ['BTC','ETH','SOL','BNB'];
+      if (!Number.isSafeInteger(expectedVersion) || expectedVersion < 1 ||
+          !Array.isArray(symbols) || !symbols.length || symbols.some((v) => !allowedSymbols.includes(v)) || new Set(symbols).size !== symbols.length ||
+          !Array.isArray(durations) || !durations.length || durations.some((v) => !Number.isSafeInteger(v) || v <= 0) || new Set(durations).size !== durations.length ||
+          !decimal.test(minStake) || Number(minStake) <= 0 || !decimal.test(maxStake) || Number(maxStake) < Number(minStake) ||
+          !Number.isSafeInteger(payoutBps) || payoutBps < 8500 ||
+          (exposure !== null && (!decimal.test(exposure) || Number(exposure) <= 0)) ||
+          (maxOpenPositions !== null && (!Number.isSafeInteger(maxOpenPositions) || maxOpenPositions <= 0)) ||
+          !reason || reason.length > 500 || !/^[A-Za-z0-9_-]{16,100}$/.test(requestId)) {
+        return json({ ok: false, code: 'SECONDS_POLICY_CHANGE_INVALID', msg: 'Seconds policy values are invalid. The minimum payout rate is 85%; there is no fixed upper limit.' }, 400);
+      }
+      const normalized = {
+        expected_policy_version: expectedVersion, symbols: [...symbols].sort(), durations_sec: [...durations].sort((a,b)=>a-b),
+        min_stake: minStake, max_stake: maxStake, payout_bps: payoutBps,
+        per_user_open_exposure: exposure, max_open_positions_per_user: maxOpenPositions, reason
+      };
+      const requestHash = crypto.createHash('sha256').update(JSON.stringify(normalized)).digest('hex');
+      try {
+        const base = String(process.env.SUPABASE_URL || '').replace(/\/+$/, '');
+        if (!base || !supabaseStorageConfigured()) throw new Error('Seconds policy store unavailable');
+        const response = await fetch(base + '/rest/v1/rpc/admin_set_seconds_policy_v1', {
+          method: 'POST', headers: supabaseHeaders(),
+          body: JSON.stringify({
+            p_actor_user_id: adminUserId, p_expected_policy_version: expectedVersion,
+            p_symbols: normalized.symbols, p_durations_sec: normalized.durations_sec,
+            p_min_stake: minStake, p_max_stake: maxStake, p_payout_bps: payoutBps,
+            p_per_user_open_exposure: exposure, p_max_open_positions_per_user: maxOpenPositions, p_reason: reason,
+            p_request_id: requestId, p_request_hash: requestHash
+          }),
+          signal: AbortSignal.timeout(7000)
+        });
+        const result = await response.json().catch(() => null);
+        if (!response.ok || !result || result.ok !== true || !result.policy) {
+          const status = response.status === 400 || response.status === 409 ? 409 : 503;
+          return json({ ok: false, code: status === 409 ? 'SECONDS_POLICY_CHANGE_REJECTED' : 'SECONDS_POLICY_CHANGE_UNAVAILABLE', msg: status === 409 ? 'Seconds policy update was rejected. Refresh the active policy and try again.' : 'Seconds policy update could not be confirmed. Refresh before retrying.' }, status);
+        }
+        return json({ ok: true, policy: result.policy, replayed: result.replayed === true });
+      } catch (_) {
+        return json({ ok: false, code: 'SECONDS_POLICY_CHANGE_UNAVAILABLE', msg: 'Seconds policy update could not be confirmed. Refresh before retrying.' }, 503);
+      }
+    }
 
     // GET /api/admin/stats
     if (sub === 'stats' && method === 'GET') {
@@ -2754,20 +2901,19 @@ async function handleRequest(event, context) {
       }
       const uid = String(body.uid || '').trim();
       const coin = String(body.coin || 'USDT').trim().toUpperCase();
-      const amount = Number(body.amount);
+      const amountText = parseMoneyInput(body.amount);
       const reference = String(body.reference || '').trim().slice(0, 120);
       const note = String(body.note || '').trim().slice(0, 300);
       const idempotencyKey = String(body.idempotency_key || '').trim();
       const u = db.users[uid];
       if (!u) return json({ ok: false, msg: 'User not found.' }, 404);
-      if (!['USDT', 'BTC', 'ETH', 'SOL'].includes(coin)) return json({ ok: false, msg: 'Coin not supported.' }, 400);
-      if (!Number.isFinite(amount) || amount <= 0 || amount > 1e12 || !/^\d+(?:\.\d{1,12})?$/.test(String(body.amount || '').trim())) {
+      if (!['USDT', 'BTC', 'ETH', 'SOL', 'BNB', 'USDC'].includes(coin)) return json({ ok: false, msg: 'Coin not supported.' }, 400);
+      if (amountText === null || compareMoney(amountText, '0') <= 0 || compareMoney(amountText, '1000000000000') > 0 || !/^\d+(?:\.\d{1,12})?$/.test(String(body.amount || '').trim())) {
         return json({ ok: false, msg: 'Invalid deposit amount. Must be a valid number greater than 0.' }, 400);
       }
       if (!/^[A-Za-z0-9_-]{16,100}$/.test(idempotencyKey)) return json({ ok: false, msg: 'Invalid credit request ID. Please try again.' }, 400);
       const adminId = adminUserId;
       if (!adminId) return json({ ok: false, code: 'ADMIN_ACTOR_NOT_CONFIGURED', msg: 'Administrator audit identity not configured. Manual credit was not executed.' }, 503);
-      const amountText = String(body.amount).trim();
       const requestHash = crypto.createHash('sha256').update([adminId, uid, coin, amountText, reference, note].join('|')).digest('hex');
       const depositId = 'MD' + crypto.randomBytes(16).toString('hex');
       try {
@@ -3140,6 +3286,44 @@ async function handleRequest(event, context) {
       list.sort(function (a, b) { return (a.time < b.time) ? 1 : -1; });
       return json({ ok: true, orders: list.slice(0, 200), source: 'legacy_state' });
     }
+    // POST /api/admin/support/reply — authenticated, permission-gated staff reply.
+    // The request ID is persisted with the message so an exact retry cannot duplicate it.
+    if (sub === 'support/reply' && method === 'POST') {
+      const uid = String(body.uid || '').trim();
+      const reply = String(body.content || '').trim();
+      const requestId = String(body.request_id || '').trim();
+      if (!uid || uid.length > 128 || !reply || reply.length > 2000 ||
+          !/^[A-Za-z0-9_-]{16,100}$/.test(requestId)) {
+        return json({ ok: false, code: 'INVALID_SUPPORT_REPLY', msg: 'A customer, reply message, and valid request ID are required.' }, 400);
+      }
+      const target = db.users[uid];
+      if (!target) return json({ ok: false, code: 'SUPPORT_USER_NOT_FOUND', msg: 'Customer account was not found.' }, 404);
+      if (!Array.isArray(target.support_messages)) target.support_messages = [];
+      const prior = target.support_messages.find(function (message) {
+        return message && message.from === 'admin' && message.request_id === requestId;
+      });
+      if (prior) {
+        if (String(prior.content || '') !== reply) {
+          return json({ ok: false, code: 'SUPPORT_REPLY_IDEMPOTENCY_CONFLICT', msg: 'This request ID was already used for a different reply.' }, 409);
+        }
+        return json({ ok: true, duplicate: true, message_id: prior.id, time: prior.time });
+      }
+      const message = {
+        id: 'M' + Date.now() + crypto.randomBytes(8).toString('hex'),
+        from: 'admin',
+        content: reply,
+        time: nowStr(),
+        admin_id: adminUserId,
+        request_id: requestId
+      };
+      target.support_messages.push(message);
+      if (target.support_messages.length > 500) target.support_messages = target.support_messages.slice(-500);
+      await auditAdmin('support_reply', uid, 'Support reply sent; message_id=' + message.id, adminUserId);
+      await saveDB(db);
+      const auditFlush = await flushAdminAuditOutbox();
+      return json({ ok: true, duplicate: false, message_id: message.id, time: message.time, audit_sync_pending: auditFlush.pending });
+    }
+
     // GET /api/admin/support/messages 客服消息
     if (sub === 'support/messages' && method === 'GET') {
       const list = [];

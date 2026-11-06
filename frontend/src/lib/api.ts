@@ -118,6 +118,58 @@ export async function getKlines(
 }
 
 
+export interface TradingStatus {
+  spot_order_entry_enabled: boolean;
+  spot_cancel_enabled: boolean;
+  supported_order_types: string[];
+}
+export async function getTradingStatus(signal?: AbortSignal): Promise<TradingStatus> {
+  const response = await fetch(`${API_BASE_URL}/trading/status`, { credentials: "include", cache: "no-store", signal, headers: { Accept: "application/json" } });
+  const payload = await response.json().catch(() => null) as (TradingStatus & { ok?: boolean; msg?: string; code?: string }) | null;
+  if (!response.ok || !payload || payload.ok !== true || typeof payload.spot_order_entry_enabled !== "boolean" || typeof payload.spot_cancel_enabled !== "boolean" || !Array.isArray(payload.supported_order_types)) {
+    throw new ApiError(payload?.msg || "Spot trading capability status is unavailable.", response.status, payload?.code);
+  }
+  return payload;
+}
+export interface OrderBookSnapshot { source: string; bids: Array<[string,string]>; asks: Array<[string,string]>; }
+export async function getOrderBook(symbol = "BTCUSDT", signal?: AbortSignal): Promise<OrderBookSnapshot> {
+  const query = new URLSearchParams({ symbol });
+  const response = await fetch(`${API_BASE_URL}/depth?${query.toString()}`, { credentials: "include", cache: "no-store", signal, headers: { Accept: "application/json" } });
+  const payload = await response.json().catch(() => null) as (OrderBookSnapshot & { ok?: boolean; msg?: string; code?: string }) | null;
+  if (!response.ok || !payload || payload.ok !== true || !Array.isArray(payload.bids) || !Array.isArray(payload.asks)) {
+    throw new ApiError(payload?.msg || "Order book data is temporarily unavailable.", response.status, payload?.code);
+  }
+  return payload;
+}
+export interface SpotOrderInput { symbol: string; side: "buy" | "sell"; type: "limit"; qty: string; price: string; client_order_id: string; }
+export interface SpotOrderResult { order_id: string; status: string; price: number | string; quantity: number | string; remaining_quantity?: number | string; duplicate: boolean; }
+export async function submitSpotOrder(input: SpotOrderInput): Promise<SpotOrderResult> {
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE_URL}/order`, { method: "POST", credentials: "include", cache: "no-store", headers: { Accept: "application/json", "Content-Type": "application/json" }, body: JSON.stringify(input) });
+  } catch {
+    throw new ApiError("Order result is unconfirmed. Keep the same request ID and check order history before retrying.", 0, "NETWORK_ERROR");
+  }
+  const payload = await response.json().catch(() => null) as (SpotOrderResult & { ok?: boolean; need_login?: boolean; msg?: string; code?: string }) | null;
+  if (!response.ok || !payload || payload.ok !== true || typeof payload.order_id !== "string" || typeof payload.status !== "string") {
+    throw new ApiError(payload?.msg || "Spot order was not confirmed. Check order history before retrying.", payload?.need_login ? 401 : response.status, payload?.code);
+  }
+  return payload;
+}
+export async function cancelSpotOrder(input: { order_id: string; client_cancel_id: string }): Promise<{ order_id: string; status: string; duplicate: boolean }> {
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE_URL}/order/cancel`, { method: "POST", credentials: "include", cache: "no-store", headers: { Accept: "application/json", "Content-Type": "application/json" }, body: JSON.stringify(input) });
+  } catch {
+    throw new ApiError("Cancel result is unconfirmed. Keep the same request ID and refresh order history before retrying.", 0, "NETWORK_ERROR");
+  }
+  const payload = await response.json().catch(() => null) as { ok?: boolean; order_id?: string; status?: string; duplicate?: boolean; need_login?: boolean; msg?: string; code?: string } | null;
+  if (!response.ok || !payload || payload.ok !== true || typeof payload.order_id !== "string" || typeof payload.status !== "string") {
+    throw new ApiError(payload?.msg || "Order cancellation was not confirmed.", payload?.need_login ? 401 : response.status, payload?.code);
+  }
+  return { order_id: payload.order_id, status: payload.status, duplicate: !!payload.duplicate };
+}
+
 export interface AccountBalance {
   free: number | string;
   frozen: number | string;
@@ -152,7 +204,7 @@ export interface AccountSnapshot {
   totalUsdt: number;
   valuation_complete: boolean;
   unpriced_assets: string[];
-  kyc: { status: string; name?: string; id_type?: string; id_number?: string };
+  kyc: { status: string; name?: string; id_type?: string; id_number?: string; reject_reason?: string; };
   twofa_enabled: boolean;
   earn_records?: EarnPosition[];
   withdrawals?: WithdrawalRecord[];
@@ -170,6 +222,8 @@ export interface OrderRecord {
   status?: string;
   created_at?: string;
   updated_at?: string;
+  remaining_quantity?: number | string;
+  client_order_id?: string;
 }
 
 async function readAuthenticated<T>(path: string, signal?: AbortSignal): Promise<T> {
@@ -317,7 +371,7 @@ function isSecondsPosition(value: unknown): value is SecondsPosition {
     (item.direction === "up" || item.direction === "down") &&
     (typeof item.amount === "string" || (typeof item.amount === "number" && Number.isFinite(item.amount))) &&
     Number.isFinite(Number(item.amount)) && Number(item.amount) > 0 &&
-    [30, 60, 300, 900].includes(Number(item.duration_sec)) &&
+    Number.isSafeInteger(Number(item.duration_sec)) && Number(item.duration_sec) > 0 &&
     (typeof item.open_price === "string" || (typeof item.open_price === "number" && Number.isFinite(item.open_price))) &&
     Number.isFinite(Number(item.open_price)) && Number(item.open_price) > 0 &&
     Number.isSafeInteger(item.settle_at) && Number(item.settle_at) > 0;
@@ -351,6 +405,7 @@ export interface SecondsPolicySnapshot {
   max_stake: number | string;
   payout_bps: number;
   per_user_open_exposure: number | string | null;
+  max_open_positions_per_user: number | null;
 }
 export interface SecondsPolicyResponse {
   policy: SecondsPolicySnapshot;
@@ -364,11 +419,12 @@ export async function getSecondsPolicy(signal?: AbortSignal): Promise<SecondsPol
       !Array.isArray(policy.symbols) || !policy.symbols.length ||
       !policy.symbols.every((symbol) => ["BTC", "ETH", "SOL", "BNB"].includes(symbol)) ||
       !Array.isArray(policy.durations_sec) || !policy.durations_sec.length ||
-      !policy.durations_sec.every((duration) => [30, 60, 300, 900].includes(duration)) ||
+      !policy.durations_sec.every((duration) => Number.isSafeInteger(duration) && duration > 0) ||
       !Number.isFinite(Number(policy.min_stake)) || Number(policy.min_stake) <= 0 ||
       !Number.isFinite(Number(policy.max_stake)) || Number(policy.max_stake) < Number(policy.min_stake) ||
       !Number.isSafeInteger(policy.payout_bps) || policy.payout_bps < 8500 ||
       (policy.per_user_open_exposure !== null && (!Number.isFinite(Number(policy.per_user_open_exposure)) || Number(policy.per_user_open_exposure) <= 0)) ||
+      (policy.max_open_positions_per_user !== null && (!Number.isSafeInteger(policy.max_open_positions_per_user) || policy.max_open_positions_per_user <= 0)) ||
       typeof payload.actions_enabled !== "boolean") {
     throw new ApiError("BTCBOX returned an invalid seconds policy.", 502, "INVALID_SECONDS_POLICY");
   }
@@ -409,7 +465,7 @@ export async function submitSecondsOrder(input: SecondsOrderInput): Promise<Seco
       !["BTC", "ETH", "SOL", "BNB"].includes(payload.symbol) ||
       (payload.direction !== "up" && payload.direction !== "down") ||
       !Number.isFinite(Number(payload.amount)) || Number(payload.amount) <= 0 ||
-      ![30, 60, 300, 900].includes(payload.duration_sec) ||
+      (!Number.isSafeInteger(payload.duration_sec) || payload.duration_sec <= 0) ||
       !Number.isFinite(payload.open_price) || payload.open_price <= 0 ||
       !Number.isSafeInteger(payload.settle_at) || payload.settle_at <= 0) {
     throw new ApiError(payload?.msg || "Order was not confirmed. Check open positions before retrying.", payload?.need_login ? 401 : response.status, payload?.code);
@@ -595,6 +651,20 @@ export interface SupportMessage {
   time: string;
 }
 
+export async function submitKyc(input: { name: string; id_type: "passport" | "id_card" | "driver_license"; id_number: string }): Promise<{ status: "pending" }> {
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE_URL}/kyc`, { method: "POST", credentials: "include", cache: "no-store", headers: { Accept: "application/json", "Content-Type": "application/json" }, body: JSON.stringify(input) });
+  } catch {
+    throw new ApiError("Verification submission could not be confirmed. Refresh your account status before retrying.", 0, "NETWORK_ERROR");
+  }
+  const payload = await response.json().catch(() => null) as { ok?: boolean; status?: string; msg?: string; code?: string; need_login?: boolean } | null;
+  if (!response.ok || !payload || payload.ok !== true || payload.status !== "pending") {
+    throw new ApiError(payload?.msg || "Verification submission was not accepted.", payload?.need_login ? 401 : response.status, payload?.code);
+  }
+  return { status: "pending" };
+}
+
 export async function getSupportMessages(signal?: AbortSignal): Promise<SupportMessage[]> {
   const payload = await readAuthenticated<{ ok: true; messages: SupportMessage[] }>("support/messages", signal);
   if (!Array.isArray(payload.messages) || !payload.messages.every((item) =>
@@ -756,6 +826,17 @@ export interface AdminWithdrawalRecord {
   payout_reference?: string;
   paid_at?: string | null;
 }
+export interface AdminMembershipRecord {
+  user_id: string;
+  status: "active" | "suspended" | "revoked";
+  revision: number;
+  created_at?: string;
+  updated_at?: string;
+  permissions: string[];
+}
+export type AdminMembershipAction = "provision" | "set_permissions" | "suspend" | "reactivate" | "revoke";
+export interface AdminMembershipChangeResult { action: AdminMembershipAction; target_user_id: string; revision: number; status: string; permissions: string[]; replayed?: boolean; }
+
 export interface AdminConfig {
   deposit_addresses: Record<string, string>;
   announcement: string;
@@ -801,6 +882,15 @@ async function adminRequest<T>(token: string, path: string, options: { method?: 
 export async function getAdminSession(token: string, signal?: AbortSignal) {
   return adminRequest<AdminSession & { ok: true }>(token, "admin/session", { signal });
 }
+export async function getAdminMemberships(token: string, signal?: AbortSignal) {
+  return adminRequest<{ ok: true; admins: AdminMembershipRecord[] }>(token, "admin/admins", { signal });
+}
+export async function manageAdminMembership(token: string, input: {
+  target_user_id: string; expected_revision: number; action: AdminMembershipAction;
+  permissions: string[]; reason: string; request_id: string;
+}) {
+  return adminRequest<{ ok: true; result: AdminMembershipChangeResult }>(token, "admin/admins/manage", { method: "POST", body: input });
+}
 export async function getAdminStats(token: string, signal?: AbortSignal) {
   return adminRequest<{ ok: true; total_users: number; pending_withdrawals: number; pending_admin_review_withdrawals: number; pending_kyc: number; deposit_addresses: Record<string, string>; announcement: string }>(token, "admin/stats", { signal });
 }
@@ -816,6 +906,16 @@ export async function getAdminWithdrawals(token: string, signal?: AbortSignal) {
 }
 export async function getAdminConfig(token: string, signal?: AbortSignal) {
   return adminRequest<AdminConfig & { ok: true }>(token, "admin/config", { signal });
+}
+export async function getAdminSecondsPolicy(token: string, signal?: AbortSignal) {
+  return adminRequest<{ ok: true; policy: SecondsPolicySnapshot }>(token, "admin/seconds-policy", { signal });
+}
+export async function saveAdminSecondsPolicy(token: string, input: {
+  expected_policy_version: number; symbols: string[]; durations_sec: number[];
+  min_stake: string; max_stake: string; payout_bps: number;
+  per_user_open_exposure: string | null; max_open_positions_per_user: number | null; reason: string; request_id: string;
+}) {
+  return adminRequest<{ ok: true; policy: SecondsPolicySnapshot; replayed?: boolean }>(token, "admin/seconds-policy", { method: "POST", body: input });
 }
 export async function saveAdminConfig(token: string, config: AdminConfig) {
   return adminRequest<AdminConfig & { ok: true; audit_sync_pending?: boolean }>(token, "admin/config", { method: "POST", body: config });
@@ -851,6 +951,9 @@ export async function getAdminOrders(token: string, signal?: AbortSignal) {
 export async function getAdminSupportMessages(token: string, signal?: AbortSignal) {
   return adminRequest<{ ok: true; messages: SupportMessage[] }>(token, "admin/support/messages", { signal });
 }
-export async function adminReplySupport(token: string, uid: string, content: string) {
-  return adminRequest<{ ok: true }>(token, "admin/support/reply", { method: "POST", body: { uid, content } });
+export async function adminReplySupport(token: string, uid: string, content: string, requestId: string) {
+  return adminRequest<{ ok: true; duplicate?: boolean; message_id?: string; audit_sync_pending?: boolean }>(token, "admin/support/reply", {
+    method: "POST",
+    body: { uid, content, request_id: requestId },
+  });
 }

@@ -50,7 +50,7 @@ test('every non-financial admin mutation stages an audit event and saves state b
     assert.ok(audit >= 0 && save > audit && flush > save, from + ' must persist state/outbox before PostgreSQL delivery');
   }
   const calls = source.split('\n').filter(line => line.includes('auditAdmin(') && !line.includes('function auditAdmin'));
-  assert.equal(calls.length, 9);
+  assert.equal(calls.length, 10);
   for (const line of calls) assert.match(line.trim(), /^await auditAdmin\(/);
 });
 

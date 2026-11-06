@@ -1,6 +1,6 @@
 # BTCBOX Seconds Policy Administration — Identity, RBAC and Approval Contract
 
-Status: source security contract for the React Admin API and Seconds policy governance. Supabase Auth/RBAC middleware and the React Admin Console are implemented in source; Seconds policy mutation lifecycle remains gated and not implemented.
+Status: source security contract for the React Admin API and Seconds policy governance. Supabase Auth/RBAC, delegated-admin management, and an atomic Seconds policy version-and-activate API/editor are implemented in source; hosted schema activation and runtime verification remain pending.
 Scope: shared administrator identity/permissions plus seconds-contract policy management.
 
 ## 1. Current-state boundary
@@ -23,7 +23,7 @@ Use a dedicated administrator identity mapped to a Supabase Auth user:
 - Do not use mutable `user_metadata` for authorization. Do not rely solely on `app_metadata` claims for immediate revocation.
 - Unknown, disabled, suspended, or unavailable identity/permission state fails closed.
 
-The current source integration applies verified Supabase Auth and route-specific RBAC to the Admin API family. Seconds-policy mutation remains unavailable until its dedicated transactional lifecycle RPCs and tests are complete.
+The current source integration applies verified Supabase Auth and route-specific RBAC to the Admin API family. The Seconds policy read and mutation routes use the dedicated transactional version-and-activate RPC; runtime database bootstrap and isolated PostgreSQL verification remain pending.
 
 ## 3. Least-privilege permissions
 
@@ -62,7 +62,8 @@ A policy must contain the full approved terms: symbol allowlist, duration allowl
 
 Current/proposed route family:
 - `GET /api/admin/seconds-policy`: authenticated read is implemented in source; requires `seconds_policy.read`.
-- `POST /api/admin/seconds-policy`: permission is reserved as `seconds_policy.manage`; policy mutation remains unavailable until the complete transactional lifecycle RPC is implemented and tested.
+- `GET /api/admin/seconds-policy`: requires `seconds_policy.read` and returns the active policy/version through the trusted server RPC.
+- `POST /api/admin/seconds-policy`: requires `seconds_policy.manage`, expected policy version, reason, idempotency request ID, and the full policy payload; the server calls the atomic version-and-activate RPC.
 - `POST /api/admin/seconds-policy/drafts`: create immutable draft; requires `seconds_policy.draft`.
 - `POST /api/admin/seconds-policy/drafts/:id/review`: approve/reject exact draft; requires `seconds_policy.review`.
 - `POST /api/admin/seconds-policy/:id/activate`: activate/schedule approved version; requires `seconds_policy.activate`.
@@ -92,7 +93,7 @@ Audit rows are append-only. A failed or rolled-back transition must not leave a 
 
 ## 8. Admin UI behavior
 
-The UI should expose policy controls only after read/write APIs and server-side authorization are complete:
+The UI exposes policy controls only after the read/write APIs and server-side authorization checks; keep them unavailable when the backend denies the required permission:
 - Read-only current policy and version history first.
 - Draft editor validates inputs for usability, but never acts as the authority.
 - Review view shows the exact candidate diff, author, reason, and effective time.
@@ -338,3 +339,12 @@ The React Admin source exposes `/admin` outside the customer AppLayout, obtains 
 - The request hash must cover the actor, target, action, exact sorted permission set, reason, request ID and expected revision.
 - The owner-bootstrap audit row is explicitly attributed as `owner_bootstrap` without fabricating an administrator actor UUID or a self-created membership record.
 - The append-only trigger function itself has PUBLIC/browser/service-role EXECUTE revoked; only trigger invocation by table writes is needed.
+
+
+## 14. Current implementation checkpoint — 2026-11-06
+
+- SOURCE IMPLEMENTED: Super Admin-only delegated administrator listing and lifecycle endpoints are connected to the private membership store through service-role-only RPC wrappers. The API derives actor identity from the verified Supabase Auth user, computes a canonical request hash, and uses the database's revision/idempotency/audit transaction.
+- SOURCE IMPLEMENTED: the React Admin Console includes administrator provisioning from an existing BTCBOX user, explicit allowlisted permission selection, permission updates, suspension, reactivation, and revocation. Ordinary Admins do not receive this tab or the API authority.
+- SOURCE IMPLEMENTED: the React Admin Console includes a Seconds policy editor for symbols, custom positive-second durations, minimum/maximum stake, payout rate, optional per-user exposure, and an optional maximum number of unfinished positions per user. The backend checks the live `seconds_policy.manage` grant and calls an atomic database RPC that creates an immutable policy version, switches the active pointer, appends audit, and records idempotency in one transaction. The order RPC enforces the active policy's duration, unfinished-position count and exposure limit while locking the user's USDT account.
+- Product rule preserved: 85% is the minimum payout rate; the schema and API impose no fixed upper ceiling. Existing open positions retain their immutable policy snapshots.
+- NOT VERIFIED: PostgreSQL compilation/execution of the new RPC source, full empty-database bootstrap, frontend TypeScript build, Node test execution, and browser end-to-end behavior. The connected hosted database was not changed; no Super Admin was provisioned and no policy was activated.
