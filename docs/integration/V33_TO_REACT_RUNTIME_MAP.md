@@ -71,10 +71,10 @@ Status: active integration ledger. This file separates implemented runtime work 
 
 ## Current evidence classification
 
-- SOURCE OBSERVED: integration branch compares to main as 19 commits ahead / 0 behind at the latest comparison; main baseline is `14a8e361fd928626d4e350a03698135f0c49ceea`.
+- SOURCE OBSERVED: integration branch compares to main as 22 commits ahead / 0 behind at the latest comparison; main baseline is `14a8e361fd928626d4e350a03698135f0c49ceea`.
 - IMPLEMENTED (source only): Orders and Assets React routes are connected to existing authenticated read APIs; no runtime test has yet been run.
 - SOURCE OBSERVED: target API core already contains seconds order/settle/positions handlers; V33 adds the admin seconds-policy contract and manual withdrawal payout completion handler.
 - SOURCE OBSERVED: V33 contains manual deposit credit route for USDT/BTC/ETH/SOL/BNB/USDC, eight deposit network keys, and manual payout reference validation.
 - NOT VERIFIED: frontend typecheck/build, backend tests, isolated PostgreSQL bootstrap/RPC execution, browser QA, and end-to-end Supabase connectivity.
-- CI STATUS: GitHub combined status for latest checked app commit `194bb06bafc782098b0efc3ee66116b356b18f5b` reports only a Vercel `build-rate-limit` failure; GitHub Actions returned no workflow runs. This is not a code test result.
+- CI STATUS: GitHub combined status for current integration head `694569eaf96c2380f50d33070230e25955931d6d` reports only a Vercel `build-rate-limit` failure; GitHub Actions returned no workflow runs. This is not a code test result.
 - NOT DONE: no V33 business logic has yet been declared fully integrated; no merge, production deployment, database write, or destructive action occurred.
