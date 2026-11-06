@@ -2104,3 +2104,22 @@ Application branch inspected: `feat/btcbox-web3-auth-20261105` at `741c709d818cb
 ### Next
 - Continue from feature SHA `c351c9de1671a93004d7ddda0021df5441672bee`.
 - With build and test gates green, proceed to the next backend integration review and identify any remaining source-only vs live-staging gaps. Keep financial writes and policy activation disabled until isolated staging and explicit approval.
+
+## Seconds order idempotent response consistency — 2026-11-06 (UTC+8)
+
+### SOURCE REVIEW / PATCH
+- Re-read coordination HEAD `bbd15940d1bfdd64c0db37ab198ea67249f15100` and feature HEAD `c351c9de1671a93004d7ddda0021df5441672bee`.
+- Found that `submit_seconds_order_v1` returned only the position ID/status/settlement time for an idempotent replay, while `/api/seconds/order` returned the newly fetched market sample as `open_price`. A replay could therefore display a price different from the persisted opening price.
+- Updated migration 0025 source so both new-order and duplicate RPC responses include the authoritative persisted/opening price. Updated the API to require and display that database-confirmed value; duplicate responses label the source as `stored_reference`.
+- Added `backend/tests/seconds-order-idempotency-response.test.js` to guard both RPC response paths and API response selection.
+- Feature commits: `879e4c799ac00a0cb170d4c735cdcc6489d57db8` (implementation) and `a72330711f632830d2756f0fdfce5b343010774d` (test regex correction). Current feature HEAD is `a72330711f632830d2756f0fdfce5b343010774d`.
+
+### VALIDATION / RELEASE BOUNDARY
+- SOURCE OBSERVED: exact feature branch head points to `a72330711f632830d2756f0fdfce5b343010774d`; commit diff contains only `backend/api-core.js`, `backend/supabase/sql/0025_seconds_policy_versioning_v1.sql`, and the new source test.
+- NOT VERIFIED: Node test execution, PostgreSQL parsing, migration execution, and staging behavior. GitHub Actions workflow-runs lookup for the exact SHA returned zero runs; no passing CI is claimed.
+- Vercel combined status for the exact SHA reports `Vercel – btcboxcdt` failure with the build-rate-limit upgrade target. No plan upgrade or project-setting change was made.
+- No migration was applied, no database or financial writes, no policy activation, no merge to main, and no production deployment.
+
+### REMAINING FOLLOW-UP
+- Idempotent replay still fetches a live reference price before calling the RPC. If all reference feeds are unavailable, the API can fail before the database gets a chance to replay an already-created order. A follow-up should allow a replay lookup without accepting a missing price for a genuinely new order, with a regression test.
+- Continue to keep seconds policy write APIs/UI disabled until attributable administrator identity, permissions, approval transitions, and isolated staging validation exist.
