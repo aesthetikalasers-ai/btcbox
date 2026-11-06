@@ -36,7 +36,7 @@ def validate_expected(expected):
         return 2
 
     numbers = [number for number, _ in expected]
-    gaps = [number for number in range(numbers[0], numbers[-1] + 1) if number not in numbers]
+    gaps = [number for number in range(numbers[0], numbers[-1] + 1) if number not in numbers and number not in RETIRED_SEQUENCE_NUMBERS]
     duplicates = sorted(number for number in set(numbers) if numbers.count(number) > 1)
 
     print(f"Expected migrations: {len(expected)} ({numbers[0]:04d}..{numbers[-1]:04d})")
