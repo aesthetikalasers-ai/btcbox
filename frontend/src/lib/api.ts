@@ -191,6 +191,77 @@ export async function getAccount(signal?: AbortSignal): Promise<AccountSnapshot>
   return payload;
 }
 
+export interface EarnProduct {
+  product_id: string;
+  asset: string;
+  product_type: "demand" | "fixed";
+  apy_percent: number | string;
+  term_days: number;
+  early_fee_percent: number | string;
+  amount_scale: number;
+  updated_at?: string;
+}
+
+export interface EarnPosition {
+  id: string;
+  product_id: string;
+  product: string;
+  amount: number | string;
+  apy: number | string;
+  expected_interest: number | string;
+  type: "flexible" | "fixed";
+  status: string;
+  start: string;
+  end: string;
+}
+
+export interface EarnCatalogSnapshot {
+  products: EarnProduct[];
+  actions_enabled: boolean;
+}
+
+export interface EarnActionResult {
+  record_id: string;
+  status: string;
+  duplicate: boolean;
+  operation_id?: string;
+  msg?: string;
+}
+
+export async function getEarnCatalog(signal?: AbortSignal): Promise<EarnCatalogSnapshot> {
+  const payload = await readAuthenticated<{ ok: true; products: EarnProduct[]; actions_enabled: boolean }>("earn/products", signal);
+  if (!Array.isArray(payload.products) || typeof payload.actions_enabled !== "boolean" ||
+      !payload.products.every((item) => item && typeof item.product_id === "string" &&
+        typeof item.asset === "string" && (item.product_type === "demand" || item.product_type === "fixed") &&
+        Number.isFinite(Number(item.apy_percent)) && Number.isInteger(Number(item.term_days)) &&
+        Number.isFinite(Number(item.early_fee_percent)) && Number.isInteger(Number(item.amount_scale)))) {
+    throw new ApiError("BTCBOX returned an invalid Earn catalog.", 502, "INVALID_EARN_CATALOG");
+  }
+  return payload;
+}
+
+export async function submitEarnAction(
+  action: "subscribe" | "redeem",
+  input: { request_id: string; product_id?: string; amount?: string; record_id?: string },
+): Promise<EarnActionResult> {
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE_URL}/earn`, {
+      method: "POST", credentials: "include",
+      headers: { Accept: "application/json", "Content-Type": "application/json" },
+      cache: "no-store",
+      body: JSON.stringify({ action, ...input }),
+    });
+  } catch {
+    throw new ApiError("Unable to confirm the Earn operation. Check Earn history before retrying.", 0, "NETWORK_ERROR");
+  }
+  const payload = await response.json().catch(() => null) as (EarnActionResult & { ok?: boolean; need_login?: boolean; code?: string; msg?: string }) | null;
+  if (!response.ok || !payload || payload.ok !== true || typeof payload.record_id !== "string" || typeof payload.status !== "string") {
+    throw new ApiError(payload?.msg || "Earn operation was not confirmed. Check Earn history before retrying.", response.status, payload?.code);
+  }
+  return payload;
+}
+
 export async function getOrders(signal?: AbortSignal): Promise<OrderRecord[]> {
   const payload = await readAuthenticated<{ ok: true; orders: OrderRecord[] }>("orders", signal);
   if (!Array.isArray(payload.orders)) {
