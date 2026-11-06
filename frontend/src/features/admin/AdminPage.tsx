@@ -3,6 +3,7 @@ import { Badge } from "../../components/ui/Badge";
 import { Button } from "../../components/ui/Button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/Card";
 import { useAuth } from "../../lib/auth";
+import { AuthPage } from "../auth/AuthPages";
 import {
   ApiError,
   adminApproveKyc,
@@ -269,8 +270,9 @@ export function AdminPage() {
     finally { setBusy(false); }
   };
 
+  if (authStatus === "anonymous" || authStatus === "two-factor" || authStatus === "password-recovery") return <div className="mx-auto max-w-3xl p-4 md:p-6"><AuthPage mode="login" /></div>;
   if (loading && !session) return <div className="mx-auto max-w-7xl p-6"><Card><CardContent className="p-8 text-sm text-brand-text-muted">Verifying administrator identity…</CardContent></Card></div>;
-  if (!session) return <div className="mx-auto max-w-3xl p-6"><Card><CardHeader><CardTitle>BTCBOX Administrator</CardTitle><CardDescription>Administrator access requires a verified Supabase Auth identity with an active BTCBOX administrator membership.</CardDescription></CardHeader><CardContent><p className="text-sm text-rose-300">{error || "Administrator membership was not found."}</p><Button className="mt-4" onClick={() => { window.location.hash = "#/login"; }}>Sign in</Button></CardContent></Card></div>;
+  if (!session) return <div className="mx-auto max-w-3xl p-6"><Card><CardHeader><CardTitle>BTCBOX Administrator</CardTitle><CardDescription>Administrator access requires a verified Supabase Auth identity with an active BTCBOX administrator membership.</CardDescription></CardHeader><CardContent><p className="text-sm text-rose-300">{error || "Administrator membership was not found."}</p></CardContent></Card></div>;
 
   return <div className="mx-auto w-full max-w-7xl space-y-5 p-4 md:p-6">
     <div className="flex flex-wrap items-start justify-between gap-3">
