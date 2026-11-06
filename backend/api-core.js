@@ -2888,7 +2888,7 @@ async function handleRequest(event, context) {
       if (!reason) return json({ ok: false, msg: 'Please provide a rejection reason.' }, 400);
       u.kyc.status = 'rejected';
       u.kyc.reject_reason = reason;
-      u.kyc.reviewed_by = 'admin';
+      u.kyc.reviewed_by = adminUserId;
       u.kyc.reviewed_at = nowStr();
       await auditAdmin('kyc_reject', u.uid, reason, adminUserId);
       await saveDB(db);
