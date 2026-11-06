@@ -56,3 +56,13 @@ test('admin read routes and balance adjustments require their own explicit permi
   assert.ok(ADMIN_PERMISSION_KEYS.includes('support.read'));
   assert.ok(ADMIN_PERMISSION_KEYS.includes('financial_adjustment.request'));
 });
+
+
+test('delegated administrator routes are restricted to the verified Super Admin and use server-derived actor identity', () => {
+  assert.match(apiCore, /sub === 'admins' && method === 'GET'[\\s\\S]*adminMembership\\.is_super_admin !== true/i);
+  assert.match(apiCore, /sub === 'admins\\/manage' && method === 'POST'[\\s\\S]*adminMembership\\.is_super_admin !== true/i);
+  assert.match(apiCore, /p_actor_user_id: adminUserId/);
+  assert.match(apiCore, /p_request_hash: requestHash/);
+  assert.match(apiCore, /crypto\.createHash\('sha256'\)/);
+  assert.doesNotMatch(apiCore.slice(apiCore.indexOf("if (sub === 'admins/manage'"), apiCore.indexOf('const requiredPermission')), /body\\.actor_user_id/);
+});
