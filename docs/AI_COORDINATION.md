@@ -3237,3 +3237,8 @@ The prior withdrawal UI audit statement claiming the active BTCBOX admin route w
 - Browser suite uses mocked API auth configuration and unauthenticated account response; synthetic Supabase origin is blocked. No hosted Supabase identity, hosted database, customer data or financial write was used.
 - PR #50 remains Draft, open, unmerged. No production deployment or hosted database write was performed. Spot trading layout remains unchanged.
 - Next: extend read-only browser smoke coverage to account hydration/dashboard data with mocked fixtures. Keep financial submit operations mocked and never send real funds during browser verification.
+
+## Final branch count correction — 2026-11-06 UTC
+
+- Verified latest implementation ref and PR #50 head: `2da76b37eb25b0f121d2474b6fc218a1b27b56d3`; compare against main confirms **186 ahead / 0 behind**. The earlier 185 count was before the final workflow update commit.
+- Exact-head CI all passed: frontend run 417 (`42234125211`, Playwright 8/8), backend run 551 (`42234125236`), PostgreSQL schema run 116 (`42234125250`).
