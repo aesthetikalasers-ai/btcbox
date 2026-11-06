@@ -35,7 +35,7 @@ The migration enables RLS and revokes table access from PUBLIC/anon/authenticate
 
 **Not implemented by migration 0025:** individually authenticated admin actors, role/membership tables, draft/review/activation transition APIs, three-person separation of duties, admin policy-write RPCs, idempotency records for admin transitions, or a policy editor UI. The existing `created_by` and audit `actor_id` are text fields and are not proof of a validated Supabase Auth subject.
 
-## Future governance data model
+Administrator enrollment, permission grants/revocation, and break-glass recovery are further specified in `docs/SECONDS_POLICY_ADMIN_RBAC.md` §11. These remain design requirements, not provisioned runtime controls.\n\n## Future governance data model
 
 The following is a target extension, not a description of the current migration:
 - Keep policy content immutable; every edit creates a new policy version.

@@ -48,3 +48,34 @@ test('policy editor is explicitly gated on backend authorization and cannot writ
   assert.match(design, /No frontend control may write directly to policy tables/i);
   assert.match(design, /does not create admin users, grant roles, create database tables\/functions, expose API routes\/UI/i);
 });
+
+test('administrator enrollment is explicit, attributable, and cannot be self-service', () => {
+  assert.match(design, /No self-service administrator registration/i);
+  assert.match(design, /exact Auth UUID obtained from a trusted Auth user lookup/i);
+  assert.match(design, /Require two separately authenticated approvers/i);
+  assert.match(design, /After the first administrator set is provisioned, permanently disable\/remove the bootstrap path/i);
+  assert.match(design, /Supabase account existence alone grants no BTCBOX administrator access/i);
+});
+
+test('permission grants and revocations are revisioned, audited, and immediately effective', () => {
+  assert.match(design, /grantor Auth UUID, reason, change\/ticket reference/i);
+  assert.match(design, /A grantor cannot grant permissions to themselves/i);
+  assert.match(design, /perform a live server-side membership\/permission lookup on every policy transition/i);
+  assert.match(design, /Unknown permission keys, wildcard grants/i);
+  assert.match(design, /Preserve historical actor UUIDs and audit records/i);
+});
+
+test('break-glass recovery is temporary and cannot bypass policy governance', () => {
+  assert.match(design, /Break-glass is not a normal API role/i);
+  assert.match(design, /project owner through a separately authenticated, out-of-band database operation/i);
+  assert.match(design, /bounded temporary grant/i);
+  assert.match(design, /must not activate a seconds policy or enable financial cutover/i);
+  assert.match(design, /If audit persistence is unavailable, emergency policy mutations remain blocked/i);
+});
+
+test('administrator permission data remains outside browser-accessible Data API paths', () => {
+  assert.match(design, /dedicated non-exposed schema/i);
+  assert.match(design, /Explicitly verify the project's exposed-schema configuration/i);
+  assert.match(design, /revoke table\/schema privileges from/i);
+  assert.match(design, /frontend receives only permission-filtered presentation data/i);
+});

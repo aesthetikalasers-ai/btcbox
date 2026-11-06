@@ -122,3 +122,43 @@ The UI should expose policy controls only after read/write APIs and server-side 
 Before implementation: review and approve the identity provider contract, administrator enrollment/provisioning process, role assignments, separation-of-duties model, and emergency recovery process.
 
 This document does not create admin users, grant roles, create database tables/functions, expose API routes/UI, apply a migration, alter existing admin login, enable financial writes, merge, or deploy.
+
+## 11. Administrator enrollment, permission lifecycle and recovery
+
+This section is a provisioning contract only. It does not create administrator accounts, permissions, or a database bootstrap path.
+
+### Enrollment and initial bootstrap
+- No self-service administrator registration, automatic promotion, or role inference from email domain is allowed.
+- An administrator must first have an existing Supabase Auth account. Provisioning is keyed by the exact Auth UUID obtained from a trusted Auth user lookup; email is a human-readable review attribute, never the authorization key.
+- The initial bootstrap must be an explicit, owner-controlled, out-of-band operation against an isolated environment first. Require two separately authenticated approvers, a recorded change/ticket identifier, exact Auth UUIDs, the permission set, and a reason. Do not ship a default administrator UUID, email allowlist, shared password, or public bootstrap endpoint.
+- After the first administrator set is provisioned, permanently disable/remove the bootstrap path. Further grants use the normal audited permission-management workflow and cannot be self-approved.
+- A provisioned identity starts disabled with no permissions until a separate grant is committed. Supabase account existence alone grants no BTCBOX administrator access.
+
+### Permission grant, change and revocation
+- Model membership state separately from permission grants. Suggested states: pending, active, suspended, revoked. Suggested permission records contain the exact permission key, grantor Auth UUID, reason, change/ticket reference, created timestamp, and optional expiry.
+- Grant/revoke operations require an authorized grantor, reason, expected membership revision, idempotency key, and atomic append-only audit event. A grantor cannot grant permissions to themselves or approve their own elevation.
+- Revocation and suspension take effect on the next sensitive request: perform a live server-side membership/permission lookup on every policy transition. Do not cache grants in browser state, long-lived server memory, JWT claims, or a stale session.
+- Deleting or disabling a Supabase Auth user must not silently leave an active BTCBOX membership. Disable/revoke the BTCBOX membership first; reject requests if Auth identity lookup or membership status cannot be confirmed.
+- Permission names are an allowlisted enum. Unknown permission keys, wildcard grants, implicit inheritance, and client-supplied role names are rejected.
+
+### Emergency recovery and break-glass
+- Break-glass is not a normal API role and must never bypass Supabase Auth validation, actor attribution, the three-person policy lifecycle, or append-only audit.
+- If all administrators are locked out, recovery is performed only by the project owner through a separately authenticated, out-of-band database operation in an isolated/reviewed change window. Require two-person approval where operationally possible, an incident/change identifier, exact Auth UUIDs, a bounded temporary grant, and a written reason.
+- The recovery grant expires automatically and is followed by a mandatory review of every action taken during the window, rotation/revocation of any temporary access, and a new two-person audit record. No permanent hidden super-admin or reusable bypass token is permitted.
+- If audit persistence is unavailable, emergency policy mutations remain blocked. Recovery may restore access administration, but it must not activate a seconds policy or enable financial cutover.
+
+### Database and Data API boundary
+- Keep membership, permission, provisioning history, idempotency, and audit objects in a dedicated non-exposed schema (proposed name: `private`). Explicitly verify the project's exposed-schema configuration; do not assume a `public` table is private merely because a current default changed.
+- Enable RLS as defense in depth, revoke table/schema privileges from `PUBLIC`, `anon`, and `authenticated`, and grant only the minimum server-side role access required. Do not grant the browser role membership reads.
+- Keep service credentials server-side. The frontend receives only permission-filtered presentation data and cannot grant, revoke, or edit administrator permissions directly.
+- Preserve historical actor UUIDs and audit records when an administrator is suspended or revoked; do not cascade-delete attribution history.
+
+### Provisioning acceptance checks
+- New Auth users are not administrators unless a separately audited membership grant exists.
+- Email changes, user-editable metadata changes, and JWT role-claim changes do not alter membership or permissions.
+- Self-grant, self-elevation, unknown permission, wildcard permission, expired grant, suspended membership, and revoked membership are rejected.
+- Permission revocation is honored on the next request, including between draft, review, and activation.
+- Duplicate grant/revoke requests replay one committed result; mismatched idempotency payloads conflict.
+- Auth lookup, membership lookup, audit storage, or database transaction failure denies the operation.
+- Initial bootstrap is unavailable after first provisioning; break-glass grants are temporary, audited, and cannot bypass policy separation of duties.
+
