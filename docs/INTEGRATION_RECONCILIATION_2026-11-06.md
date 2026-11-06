@@ -139,3 +139,13 @@ Implementation branch: `feat/btcbox-web3-auth-20261105`.
 - Exact-head source re-fetch confirms the updated copy. Compare from `403fc12d679b11590e5eaf5c8e8aaae15f33d99a`: 4 commits ahead / 0 behind, one path changed (`frontend/src/features/pages/Pages.tsx`).
 - Combined status still reports only the existing Vercel Hobby build-rate-limit failure. No GitHub Actions test result is available for this exact SHA; build/test/browser validation remains NOT VERIFIED.
 - No trade-order functionality or V211 layout was changed; no financial writes, merge, or deployment.
+
+
+## Implementation batch — authenticated KYC status view — 2026-11-06 (UTC+8)
+
+- On `feat/btcbox-web3-auth-20261105`, added `KycPage` using the existing authenticated `getAccount(signal)` response; protected the `/kyc` route with `ProtectedAccountRoute`.
+- The page presents backend-returned KYC status, applicant name, document type, and a masked document number; includes loading/error/retry states and a support link. It explicitly says submission is not enabled when no submission exists. No fabricated status, upload flow, or unsupported write endpoint was added.
+- Commits: `1790322796ca84e1c3b383569c55e73d878ec766` (KYC status component), `35f77daf6f6a6c2974d4cd0331e88bf6c25f31fa` (protected route).
+- Exact SHA source re-fetch: `{"appSha":"d6a5d0e907fbe51f4cb218645ca1b41609f284ba","appRoute":true,"appLazy":true,"pageSha":"f683f3968e21fcb300a284d23cf755154655b152","component":true,"accountData":true}`. Compare from `ed115174b193dd71132195ff148f9afd5bfd22c5`: 2 ahead / 0 behind; files: [{"filename":"frontend/src/App.tsx","status":"modified","additions":2,"deletions":1,"changes":3,"previous_filename":null},{"filename":"frontend/src/features/pages/Pages.tsx","status":"modified","additions":34,"deletions":0,"changes":34,"previous_filename":null}].
+- Combined status: [{"context":"Vercel – btcboxcdt","state":"failure","target_url":"https://vercel.com/fuyao999?upgradeToPro=build-rate-limit"}]. No GitHub Actions pass evidence was obtained for this exact SHA; TypeScript/build/browser QA remains NOT VERIFIED. Existing Vercel Hobby build-rate-limit failure is not treated as a code test result.
+- No database write, identity-document upload, merge, production deployment, or V211 trading-terminal change.
