@@ -50,7 +50,40 @@ export function AssetsPage(){
   <div className="grid gap-4 sm:grid-cols-3">{[{title:"Deposit",to:"/deposit",label:"Open deposit"},{title:"Withdraw",to:"/withdraw",label:"Open withdrawal"},{title:"Earn",to:"/earn",label:"Explore Earn"}].map(x=><Card key={x.to} className="border-brand-border bg-brand-surface"><CardContent className="p-5"><p className="type-label text-brand-text-secondary">{t(x.title)}</p><Button asChild variant="link" className="mt-2 min-h-0 h-auto px-0 py-0 text-left text-brand-text-secondary"><Link to={x.to}>{t(x.label)} <ArrowUpRight className="h-4 w-4"/></Link></Button></CardContent></Card>)}</div>
  </PageFrame>;
 }
-export function MyPage(){const {t}=useI18n();return <PageFrame eyebrow="BTCBOX / ACCOUNT" title="My account" description="Manage your profile, verification, security and support."><Card className="border-brand-border bg-brand-surface"><CardContent className="flex flex-col items-start gap-3 p-6"><div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-brand-accent/20 bg-brand-accent/10 text-brand-text-secondary"><LockKeyhole className="h-5 w-5"/></div><div><p className="type-card-title">{t("Sign in to continue")}</p><p className="type-body-compact mt-1 text-brand-text-muted">{t("Account details are not loaded in this preview.")}</p></div><div className="flex w-full flex-wrap gap-2 sm:w-auto"><Button asChild className="min-w-[112px] flex-1 sm:flex-none"><Link to="/login">{t("Sign in")}</Link></Button><Button asChild variant="outline" className="min-w-[112px] flex-1 sm:flex-none"><Link to="/register">{t("Create account")}</Link></Button></div></CardContent></Card><div className="grid gap-3 sm:grid-cols-2">{[{title:"Verification",to:"/kyc"},{title:"Orders",to:"/orders"},{title:"Support",to:"/support"},{title:"Settings",to:"/settings"}].map(x=><Link key={x.to} to={x.to} className="rounded-xl border border-brand-border bg-brand-surface p-4 text-sm font-semibold transition-colors hover:border-brand-accent/40 hover:bg-brand-surface-2">{t(x.title)}<ArrowUpRight className="ml-2 inline h-4 w-4 text-brand-text-secondary"/></Link>)}</div></PageFrame>}
+export function MyPage(){
+ const {t}=useI18n();
+ const {status}=useAuth();
+ const [account,setAccount]=useState<AccountSnapshot|null>(null);
+ const [loading,setLoading]=useState(status==="loading");
+ const [error,setError]=useState("");
+ const [reload,setReload]=useState(0);
+ useEffect(()=>{
+  if(status==="loading"){setLoading(true);return;}
+  if(status!=="authenticated"){setAccount(null);setLoading(false);setError("");return;}
+  const controller=new AbortController();
+  setLoading(true);setError("");
+  getAccount(controller.signal).then(setAccount).catch((reason:unknown)=>{
+   if(reason instanceof Error&&reason.name==="AbortError")return;
+   setError(reason instanceof Error?reason.message:"Account profile is temporarily unavailable.");
+  }).finally(()=>{if(!controller.signal.aborted)setLoading(false);});
+  return ()=>controller.abort();
+ },[status,reload]);
+ const links=[{title:"Verification",to:"/kyc"},{title:"Orders",to:"/orders"},{title:"Support",to:"/support"},{title:"Settings",to:"/settings"}];
+ return <PageFrame eyebrow="BTCBOX / ACCOUNT" title="My account" description="Manage your profile, verification, security and support.">
+  {status!=="authenticated"?<Card className="border-brand-border bg-brand-surface"><CardContent className="flex flex-col items-start gap-3 p-6"><div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-brand-accent/20 bg-brand-accent/10 text-brand-text-secondary"><LockKeyhole className="h-5 w-5"/></div><div><p className="type-card-title">{t("Sign in to continue")}</p><p className="type-body-compact mt-1 text-brand-text-muted">{t("Sign in to view your BTCBOX account profile.")}</p></div><div className="flex w-full flex-wrap gap-2 sm:w-auto"><Button asChild className="min-w-[112px] flex-1 sm:flex-none"><Link to="/login">{t("Sign in")}</Link></Button><Button asChild variant="outline" className="min-w-[112px] flex-1 sm:flex-none"><Link to="/register">{t("Create account")}</Link></Button></div></CardContent></Card>
+  :loading?<Card className="border-brand-border bg-brand-surface"><CardContent className="p-6 text-sm text-brand-text-muted" role="status">{t("Loading account profile…")}</CardContent></Card>
+  :error?<Card className="border-rose-500/30 bg-brand-surface"><CardContent className="flex flex-wrap items-center justify-between gap-3 p-5"><p className="text-sm text-rose-300" role="alert">{error}</p><Button size="sm" variant="outline" onClick={()=>setReload((n)=>n+1)}>{t("Try again")}</Button></CardContent></Card>
+  :account?<Card className="border-brand-border bg-brand-surface"><CardContent className="grid gap-4 p-5 sm:grid-cols-2 sm:p-6">
+   <div><p className="text-xs text-brand-text-muted">{t("Username")}</p><p className="mt-1 break-all font-semibold">{account.username||"—"}</p></div>
+   <div><p className="text-xs text-brand-text-muted">{t("Email")}</p><p className="mt-1 break-all font-semibold">{account.email||"—"}</p></div>
+   <div><p className="text-xs text-brand-text-muted">{t("Verification")}</p><p className="mt-1 font-semibold capitalize">{account.kyc?.status||"not submitted"}</p></div>
+   <div><p className="text-xs text-brand-text-muted">{t("Two-factor authentication")}</p><p className="mt-1 font-semibold">{account.twofa_enabled?t("Enabled"):t("Not enabled")}</p></div>
+   <div className="sm:col-span-2"><p className="text-xs text-brand-text-muted">{t("Linked sign-in methods")}</p><div className="mt-2 flex flex-wrap gap-2">{(account.auth_providers||[]).length?(account.auth_providers||[]).map(provider=><Badge key={provider} variant="outline" className="border-brand-border capitalize">{provider}</Badge>):<span className="text-sm text-brand-text-muted">—</span>}</div></div>
+   <div className="sm:col-span-2 border-t border-brand-border pt-3"><p className="text-xs text-brand-text-muted">{t("BTCBOX account ID")}</p><p className="mt-1 break-all font-mono text-xs text-brand-text-secondary">{account.uid?account.uid.slice(0,8)+"…"+account.uid.slice(-4):"—"}</p></div>
+  </CardContent></Card>:null}
+  <div className="grid gap-3 sm:grid-cols-2">{links.map(x=><Link key={x.to} to={x.to} className="rounded-xl border border-brand-border bg-brand-surface p-4 text-sm font-semibold transition-colors hover:border-brand-accent/40 hover:bg-brand-surface-2">{t(x.title)}<ArrowUpRight className="ml-2 inline h-4 w-4 text-brand-text-secondary"/></Link>)}</div>
+ </PageFrame>;
+}
 
 
 export function OrdersPage(){
