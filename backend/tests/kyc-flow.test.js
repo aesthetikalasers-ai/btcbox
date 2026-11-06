@@ -106,3 +106,16 @@ test('administrator rejection uses the centered in-app dialog, never a browser p
   assert.ok(!admin.includes('window.confirm('));
   assert.ok(!admin.includes('window.alert('));
 });
+
+
+test('KYC resubmission is blocked for all in-review and approved status aliases, but allowed after rejection', () => {
+  const { kycSubmissionBlock } = require('../api-core')._test;
+  for (const status of ['pending', 'processing', 'under_review', ' APPROVED ', 'verified']) {
+    const result = kycSubmissionBlock(status);
+    assert.ok(result, 'submission must be blocked for ' + status);
+    assert.equal(result.code, ['approved', 'verified'].includes(status.trim().toLowerCase()) ? 'KYC_ALREADY_APPROVED' : 'KYC_ALREADY_PENDING');
+  }
+  for (const status of ['rejected', 'failed', 'not_submitted', '', null, undefined]) {
+    assert.equal(kycSubmissionBlock(status), null, 'resubmission should remain available for ' + status);
+  }
+});

@@ -948,6 +948,17 @@ function consumeTotpStep(user, code) {
 // Parse user-supplied financial amounts strictly; parseFloat('1abc') must never become 1.
 // Return a masked identity number for ordinary account responses.
 // Full KYC identifiers remain server-side and are never serialized to the user API.
+function kycSubmissionBlock(status) {
+  const normalized = String(status || '').trim().toLowerCase();
+  if (normalized === 'approved' || normalized === 'verified') {
+    return { code: 'KYC_ALREADY_APPROVED', msg: 'Identity verification already approved. No need to resubmit.' };
+  }
+  if (['pending', 'processing', 'under_review'].includes(normalized)) {
+    return { code: 'KYC_ALREADY_PENDING', msg: 'Identity verification is under review. Please do not resubmit.' };
+  }
+  return null;
+}
+
 function validateKycSubmission(body) {
   const name = String(body && body.name || '').trim();
   const idType = String(body && body.id_type || 'id_card').trim();
@@ -2048,8 +2059,8 @@ async function handleRequest(event, context) {
   // ---------- POST /api/kyc ----------
   if (path === 'kyc' && method === 'POST') {
     if (!user) return json({ ok: false, msg: 'Not signed in.', need_login: true }, 401);
-    if (user.kyc && user.kyc.status === 'approved') return json({ ok: false, code: 'KYC_ALREADY_APPROVED', msg: 'Identity verification already approved. No need to resubmit.' }, 409);
-    if (user.kyc && user.kyc.status === 'pending') return json({ ok: false, code: 'KYC_ALREADY_PENDING', msg: 'Identity verification is under review. Please do not resubmit.' }, 409);
+    const submissionBlock = kycSubmissionBlock(user.kyc && user.kyc.status);
+    if (submissionBlock) return json({ ok: false, ...submissionBlock }, 409);
     const submission = validateKycSubmission(body);
     if (!submission.ok) return json({ ok: false, code: 'KYC_INVALID_INPUT', msg: submission.msg }, 400);
     const image = validateKycImage(body);
@@ -3795,6 +3806,7 @@ exports._test = {
   getPublishableKey: getPublishableKey,
   validateFundPassword: validateFundPassword,
   validateAdminPasswordStrength: validateAdminPasswordStrength,
+  kycSubmissionBlock: kycSubmissionBlock,
   parseMoneyInput: parseMoneyInput,
   compareMoney: compareMoney,
   addMoney: addMoney,
