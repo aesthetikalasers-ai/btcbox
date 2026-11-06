@@ -1,7 +1,7 @@
-import { Link } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { RefreshCw, TrendingUp, TrendingDown, Clock3, ShieldAlert, Send, MessageCircle } from "lucide-react";
-import { ApiError, getAccount, getOrders, getSecondsPositions, getSecondsPolicy, submitSecondsOrder, settleSecondsPosition, getSupportMessages, sendSupportMessage, getDepositAddress, getSavedCryptoAddresses, getSelectedCryptoAddress, getWithdrawalConfig, submitWithdrawal, getEarnCatalog, submitEarnAction, type EarnProduct, type EarnPosition, type SavedCryptoAddress, type AccountBalance, type AccountSnapshot, type OrderRecord, type SecondsPositionsSnapshot, type SecondsOrderInput, type SecondsPolicyResponse, type SupportMessage, type SelectedCryptoAddress, type WithdrawalConfig, type WithdrawalRecord } from "../../lib/api";
+import { ApiError, getAccount, getOrders, getMarkets, getKlines, getOrderBook, getTradingStatus, submitSpotOrder, cancelSpotOrder, getSecondsPositions, getSecondsPolicy, submitSecondsOrder, settleSecondsPosition, getSupportMessages, sendSupportMessage, getDepositAddress, getSavedCryptoAddresses, getSelectedCryptoAddress, getWithdrawalConfig, submitWithdrawal, getEarnCatalog, submitEarnAction, type EarnProduct, type EarnPosition, type SavedCryptoAddress, type AccountBalance, type AccountSnapshot, type OrderRecord, type MarketTicker, type MarketCandle, type OrderBookSnapshot, type TradingStatus, type SecondsPositionsSnapshot, type SecondsOrderInput, type SecondsPolicyResponse, type SupportMessage, type SelectedCryptoAddress, type WithdrawalConfig, type WithdrawalRecord } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
 
 import type { ReactNode } from "react";
@@ -10,6 +10,7 @@ import { Badge } from "../../components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
 import { useI18n } from "../../lib/i18n";
+import { CandlestickSeries, ColorType, createChart, type UTCTimestamp } from "lightweight-charts";
 
 function PageFrame({eyebrow,title,description,children}:{eyebrow:string;title:string;description:string;children:ReactNode}){
  const {t}=useI18n();
@@ -127,6 +128,107 @@ export function OrdersPage(){
      <p className="border-t border-brand-border pt-2 text-[11px] text-brand-text-muted">{t("Order ID")}: <span className="break-all font-mono">{id}</span></p>
     </CardContent></Card>;
    })}</div>}
+ </PageFrame>;
+}
+
+export function SpotTradingPage(){
+ const {symbol:routeSymbol}=useParams();
+ const symbol=(routeSymbol||"BTCUSDT").toUpperCase();
+ const {t}=useI18n();
+ const [ticker,setTicker]=useState<MarketTicker|null>(null);
+ const [candles,setCandles]=useState<MarketCandle[]>([]);
+ const [book,setBook]=useState<OrderBookSnapshot|null>(null);
+ const [orders,setOrders]=useState<OrderRecord[]>([]);
+ const [tradingStatus,setTradingStatus]=useState<TradingStatus|null>(null);
+ const [loading,setLoading]=useState(true);
+ const [busy,setBusy]=useState(false);
+ const [error,setError]=useState("");
+ const [notice,setNotice]=useState("");
+ const [side,setSide]=useState<"buy"|"sell">("buy");
+ const [price,setPrice]=useState("");
+ const [quantity,setQuantity]=useState("");
+ const [pendingRequestId,setPendingRequestId]=useState("");
+ const [cancelRequestIds,setCancelRequestIds]=useState<Record<string,string>>({});
+ const [reload,setReload]=useState(0);
+ const chartContainer=useRef<HTMLDivElement|null>(null);
+ const base=symbol.endsWith("USDT")?symbol.slice(0,-4):"BTC";
+
+ useEffect(()=>{
+  const controller=new AbortController();
+  setLoading(true);setError("");
+  Promise.allSettled([getMarkets(controller.signal),getKlines(symbol,"1h",controller.signal),getOrderBook(symbol,controller.signal),getTradingStatus(controller.signal),getOrders(controller.signal)]).then(results=>{
+   if(controller.signal.aborted)return;
+   const [marketResult,candleResult,bookResult,statusResult,ordersResult]=results;
+   if(marketResult.status==="fulfilled"){
+    const selected=marketResult.value.find(item=>item.sym.toUpperCase()===symbol)||null;
+    setTicker(selected);
+    if(selected)setPrice(current=>current||String(selected.price));
+   }else setError(marketResult.reason instanceof Error?marketResult.reason.message:"Live market data is unavailable.");
+   if(candleResult.status==="fulfilled")setCandles(candleResult.value);
+   if(bookResult.status==="fulfilled")setBook(bookResult.value);
+   if(statusResult.status==="fulfilled")setTradingStatus(statusResult.value);
+   else setTradingStatus(null);
+   if(ordersResult.status==="fulfilled")setOrders(ordersResult.value);
+   else if(ordersResult.reason instanceof ApiError && ordersResult.reason.code!=="AUTH_REQUIRED")setError(ordersResult.reason.message);
+  }).finally(()=>{if(!controller.signal.aborted)setLoading(false);});
+  return ()=>controller.abort();
+ },[symbol,reload]);
+
+ useEffect(()=>{
+  const node=chartContainer.current;
+  if(!node||!candles.length)return;
+  const chart=createChart(node,{width:node.clientWidth,height:320,layout:{background:{type:ColorType.Solid,color:"#111820"},textColor:"#9aa8b7"},grid:{vertLines:{color:"#26313d"},horzLines:{color:"#26313d"}},rightPriceScale:{borderColor:"#26313d"},timeScale:{borderColor:"#26313d",timeVisible:true,secondsVisible:false}});
+  const series=chart.addSeries(CandlestickSeries,{upColor:"#0ecb81",downColor:"#f6465d",borderVisible:false,wickUpColor:"#0ecb81",wickDownColor:"#f6465d"});
+  series.setData(candles.map(item=>({time:Math.floor(item.time/1000) as UTCTimestamp,open:item.open,high:item.high,low:item.low,close:item.close})).sort((a,b)=>Number(a.time)-Number(b.time)));
+  chart.timeScale().fitContent();
+  const observer=new ResizeObserver(entries=>{const width=entries[0]?.contentRect.width;if(width)chart.applyOptions({width:Math.floor(width)});});
+  observer.observe(node);
+  return ()=>{observer.disconnect();chart.remove();};
+ },[candles]);
+
+ const submitOrder=async(event:FormEvent<HTMLFormElement>)=>{
+  event.preventDefault();
+  if(!tradingStatus?.spot_order_entry_enabled){setError("Spot order execution is currently disabled by server policy. No order was placed.");return;}
+  if(!/^(?:0|[1-9]\\d*)(?:\\.\\d{1,18})?$/.test(quantity)||Number(quantity)<=0||!/^(?:0|[1-9]\\d*)(?:\\.\\d{1,18})?$/.test(price)||Number(price)<=0){setError("Enter a valid limit price and quantity.");return;}
+  const requestId=pendingRequestId||window.crypto.randomUUID();
+  setPendingRequestId(requestId);setBusy(true);setError("");setNotice("");
+  try{
+   const result=await submitSpotOrder({symbol,side,type:"limit",qty:quantity,price,client_order_id:requestId});
+   setNotice(result.duplicate?"This order request was already recorded.":"Limit order accepted by the matching service.");
+   setPendingRequestId("");setQuantity("");setReload(value=>value+1);
+  }catch(reason){
+   setError(reason instanceof Error?reason.message:"Order result is unconfirmed. Keep the same request ID and check orders before retrying.");
+   if(reason instanceof ApiError && (reason.status===400||reason.status===401||reason.status===403||reason.code==="MATCHING_ENGINE_UNAVAILABLE"))setPendingRequestId("");
+  }finally{setBusy(false);}
+ };
+ const cancelOrder=async(order:OrderRecord)=>{
+  const orderId=String(order.order_id??order.id??"");if(!orderId)return;
+  const requestId=cancelRequestIds[orderId]||window.crypto.randomUUID();
+  setCancelRequestIds(current=>({...current,[orderId]:requestId}));setBusy(true);setError("");setNotice("");
+  try{
+   const result=await cancelSpotOrder({order_id:orderId,client_cancel_id:requestId});
+   setNotice(result.duplicate?"This cancellation was already recorded.":"Order cancellation confirmed.");
+   setCancelRequestIds(current=>{const next={...current};delete next[orderId];return next;});setReload(value=>value+1);
+  }catch(reason){setError(reason instanceof Error?reason.message:"Cancellation result is unconfirmed. Refresh order history before retrying.");if(reason instanceof ApiError&&(reason.status===400||reason.status===401||reason.status===403))setCancelRequestIds(current=>{const next={...current};delete next[orderId];return next;});}
+  finally{setBusy(false);}
+ };
+ const amountText=(value:unknown)=>value===null||value===undefined||value===""?"—":Number.isFinite(Number(value))?Number(value).toLocaleString(undefined,{maximumFractionDigits:8}):String(value);
+ const openOrders=orders.filter(item=>["open","partially_filled","partially-filled","pending"].includes(String(item.status||"").toLowerCase()));
+ const asks=(book?.asks||[]).slice(0,8).slice().reverse();const bids=(book?.bids||[]).slice(0,8);
+ return <PageFrame eyebrow="BTCBOX / SPOT" title={symbol} description="Live market data and a server-authoritative limit-order workflow. Orders are never simulated in the browser.">
+  <div className="flex flex-wrap items-center justify-between gap-3"><div className="flex items-center gap-3"><Badge variant="outline">{t("Spot market")}</Badge><span className="text-xs text-brand-text-muted">{book?.source||ticker?.source||"—"}</span></div><Button size="sm" variant="outline" disabled={loading||busy} onClick={()=>setReload(value=>value+1)}><RefreshCw className={"mr-2 h-4 w-4 "+(loading?"animate-spin":"")}/>{t("Refresh")}</Button></div>
+  {error?<div role="alert" className="rounded-xl border border-rose-500/30 bg-rose-500/5 p-3 text-sm text-rose-300">{error}</div>:null}{notice?<div role="status" className="rounded-xl border border-emerald-500/25 bg-emerald-500/5 p-3 text-sm text-emerald-300">{notice}</div>:null}
+  <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
+   <div className="min-w-0 space-y-4">
+    <Card className="border-brand-border bg-brand-surface"><CardContent className="grid grid-cols-2 gap-4 p-4 sm:grid-cols-4"><div><p className="text-xs text-brand-text-muted">{t("Last price")}</p><p className="mt-1 text-xl font-semibold tabular-nums">{ticker?amountText(ticker.price):"—"} <span className="text-xs text-brand-text-muted">USDT</span></p></div><div><p className="text-xs text-brand-text-muted">{t("24h change")}</p><p className={"mt-1 font-semibold tabular-nums "+(Number(ticker?.chg||0)>=0?"text-profit":"text-loss")}>{ticker?Number(ticker.chg).toFixed(2)+"%":"—"}</p></div><div><p className="text-xs text-brand-text-muted">{t("24h high")}</p><p className="mt-1 font-medium tabular-nums">{ticker?amountText(ticker.high):"—"}</p></div><div><p className="text-xs text-brand-text-muted">{t("24h low")}</p><p className="mt-1 font-medium tabular-nums">{ticker?amountText(ticker.low):"—"}</p></div></CardContent></Card>
+    <Card className="border-brand-border bg-brand-surface"><CardHeader><CardTitle>{t("Price chart")}</CardTitle><CardDescription>{t("1-hour candles returned by the live market data provider.")}</CardDescription></CardHeader><CardContent><div ref={chartContainer} className="min-h-[320px] w-full">{!candles.length&&!loading?<p className="p-5 text-sm text-brand-text-muted">{t("No verified candle data is available for this market.")}</p>:null}</div></CardContent></Card>
+    <Card className="border-brand-border bg-brand-surface"><CardHeader><CardTitle>{t("Open orders")}</CardTitle><CardDescription>{t("Only authenticated order records are shown. Cancellation is sent to the matching service.")}</CardDescription></CardHeader><CardContent className="space-y-2">{openOrders.length?openOrders.map((item,index)=>{const id=String(item.order_id??item.id??index);return <div key={id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-brand-border p-3"><div><p className="font-semibold">{item.symbol||symbol} · {item.side||"—"}</p><p className="mt-1 text-xs text-brand-text-muted">{t("Price")} {amountText(item.price)} · {t("Remaining")} {amountText(item.remaining_quantity??item.quantity)}</p><Badge variant="outline">{item.status}</Badge></div><Button size="sm" variant="outline" disabled={busy||!tradingStatus?.spot_cancel_enabled} onClick={()=>void cancelOrder(item)}>{cancelRequestIds[id]?t("Retry cancel"):t("Cancel")}</Button></div>;}):<p className="rounded-lg border border-dashed border-brand-border p-4 text-sm text-brand-text-muted">{t("No open spot orders were returned.")}</p>}</CardContent></Card>
+   </div>
+   <div className="space-y-4">
+    <Card className="border-brand-border bg-brand-surface"><CardHeader><CardTitle>{t("Limit order")}</CardTitle><CardDescription>{t("Only limit orders are supported by the current matching contract.")}</CardDescription></CardHeader><CardContent className="space-y-3"><div className="grid grid-cols-2 gap-2"><Button variant={side==="buy"?"default":"outline"} onClick={()=>setSide("buy")} disabled={busy||!!pendingRequestId}>{t("Buy")}</Button><Button variant={side==="sell"?"destructive":"outline"} onClick={()=>setSide("sell")} disabled={busy||!!pendingRequestId}>{t("Sell")}</Button></div><form className="space-y-3" onSubmit={event=>void submitOrder(event)}><label className="block space-y-1 text-sm"><span>{t("Limit price (USDT)")}</span><input value={price} onChange={event=>setPrice(event.target.value)} disabled={busy||!!pendingRequestId} inputMode="decimal" className="w-full rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-3 text-brand-text" required/></label><label className="block space-y-1 text-sm"><span>{t("Quantity") } · {base}</span><input value={quantity} onChange={event=>setQuantity(event.target.value)} disabled={busy||!!pendingRequestId} inputMode="decimal" className="w-full rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-3 text-brand-text" required/></label><p className="text-xs text-brand-text-muted">{t("Estimated total")}: {price&&quantity&&Number(price)>0&&Number(quantity)>0?amountText(Number(price)*Number(quantity))+" USDT":"—"}</p>{!tradingStatus?.spot_order_entry_enabled?<div className="rounded-lg border border-amber-400/25 bg-amber-400/5 p-3 text-xs text-amber-200">{t("Spot order execution is disabled by server policy. No order can be placed until the matching engine is approved and enabled.")}</div>:null}{pendingRequestId?<p className="break-all text-xs text-amber-300">{t("Unconfirmed request ID. Keep the form unchanged and retry with the same ID.")} · {pendingRequestId}</p>:null}<Button block type="submit" disabled={busy||!tradingStatus?.spot_order_entry_enabled||!price||!quantity}>{busy?t("Submitting…"):pendingRequestId?t("Retry same order"):side==="buy"?t("Place buy limit order"):t("Place sell limit order")}</Button></form></CardContent></Card>
+    <Card className="border-brand-border bg-brand-surface"><CardHeader><CardTitle>{t("Order book")}</CardTitle><CardDescription>{book?.source||t("Live market depth")}</CardDescription></CardHeader><CardContent className="space-y-3"><div className="grid grid-cols-2 gap-3"><div><p className="mb-2 text-xs font-semibold text-loss">{t("Asks")}</p>{asks.length?asks.map((row,index)=><div key={index} className="flex justify-between gap-2 py-1 text-xs tabular-nums"><span className="text-loss">{amountText(row[0])}</span><span className="text-brand-text-muted">{amountText(row[1])}</span></div>):<p className="text-xs text-brand-text-muted">—</p>}</div><div><p className="mb-2 text-xs font-semibold text-profit">{t("Bids")}</p>{bids.length?bids.map((row,index)=><div key={index} className="flex justify-between gap-2 py-1 text-xs tabular-nums"><span className="text-profit">{amountText(row[0])}</span><span className="text-brand-text-muted">{amountText(row[1])}</span></div>):<p className="text-xs text-brand-text-muted">—</p>}</div></div></CardContent></Card>
+   </div>
+  </div>
  </PageFrame>;
 }
 
