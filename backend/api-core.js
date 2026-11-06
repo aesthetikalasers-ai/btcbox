@@ -107,7 +107,7 @@ function safeAdminAuditMetadata(value) {
     const item = value[key];
     if (typeof item === 'string') {
       const text = item.trim();
-      if (text && text.length <= 160 && !/[\\x00-\\x1f\\x7f]/.test(text)) safe[key] = text;
+      if (text && text.length <= 160 && !/[\x00-\x1f\x7f]/.test(text)) safe[key] = text;
     } else if (typeof item === 'number' && Number.isFinite(item)) {
       safe[key] = String(item);
     }
