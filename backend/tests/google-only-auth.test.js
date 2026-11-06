@@ -133,7 +133,7 @@ test('React auth server endpoints retain exact POST contracts and legacy callbac
 });
 
 
-test('React authentication supports Supabase email and Google alongside BTCBOX credentials and optional Web3', () => {
+test('React public auth page exposes Google and wallet entry points without legacy password login UI', () => {
   const backend = read('api-core.js');
   const auth = read('../frontend/src/lib/auth.tsx');
   const pages = read('../frontend/src/features/auth/AuthPages.tsx');
@@ -157,17 +157,18 @@ test('React authentication supports Supabase email and Google alongside BTCBOX c
   assert.ok(auth.includes('resetPasswordForEmail'));
   assert.ok(auth.includes('updateUser({ password })'));
   assert.ok(auth.includes('flowType: "pkce"'));
-  assert.ok(pages.includes('Sign in with username'));
-  assert.ok(pages.includes('Sign in with email'));
-  assert.ok(pages.includes('Register with email'));
+  assert.ok(!pages.includes('Sign in with username'));
+  assert.ok(!pages.includes('Sign in with email'));
+  assert.ok(!pages.includes('Register with email'));
   assert.ok(auth.includes('signInWithEmail'));
   assert.ok(auth.includes('signUpWithEmail'));
-  assert.ok(pages.includes('Continue with Ethereum wallet'));
-  assert.ok(pages.includes('Continue with Solana wallet'));
+  assert.ok(pages.includes('Connect wallet'));
+  assert.ok(pages.includes('Ethereum / EVM'));
+  assert.ok(pages.includes('Solana'));
   assert.ok(auth.includes('eip6963:announceProvider'));
   assert.ok(auth.includes('eip6963:requestProvider'));
   assert.ok(auth.includes('getInjectedSolanaWallet'));
-  assert.ok(pages.includes('Choose your Ethereum wallet'));
+  assert.ok(pages.includes('detected'));
   assert.ok(pages.includes('phantom.app/ul/browse/'));
   assert.ok(pages.includes('go.cb-w.com/dapp?cb_url='));
 
@@ -175,7 +176,8 @@ test('React authentication supports Supabase email and Google alongside BTCBOX c
   assert.ok(backend.includes("authProvider === 'web3' ? !walletIdentity"));
   assert.ok(backend.includes("email: email || ''"));
   assert.ok(backend.includes("wallet_address: walletIdentity ? walletIdentity.address : ''"));
-  assert.ok(pages.includes('Create account with email'));
+  assert.ok(pages.includes('Create your BTCBOX account'));
+  assert.ok(pages.includes('Wallet sign-in verifies ownership with a signature only'));
   assert.ok(setup.includes('Set up your BTCBOX account'));
   assert.ok(setup.includes('Save BTCBOX credentials'));
   assert.ok(security.includes('Link Google'));
