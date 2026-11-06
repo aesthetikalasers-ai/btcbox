@@ -8,6 +8,7 @@ const root = path.resolve(__dirname, '..');
 const api = fs.readFileSync(path.join(root, 'api-core.js'), 'utf8');
 const initialMigration = fs.readFileSync(path.join(root, 'supabase/sql/0014_financial_seconds_contracts_v1.sql'), 'utf8');
 const settlementMigration = fs.readFileSync(path.join(root, 'supabase/sql/0024_seconds_settlement_idempotency_v1.sql'), 'utf8');
+const policyMigration = fs.readFileSync(path.join(root, 'supabase/sql/0025_seconds_policy_versioning_v1.sql'), 'utf8');
 
 test('seconds order boundaries are enforced by the server, not accepted from client policy fields', () => {
   assert.match(api, /const SECONDS_ALLOWED_SYMBOLS = new Set\(\['BTC', 'ETH', 'SOL', 'BNB'\]\)/);
