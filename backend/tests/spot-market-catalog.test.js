@@ -44,3 +44,16 @@ test('user Trade Hub links only to configured pairs and Spot order submission ch
   assert.ok(pages.includes('setSpotPairEnabled(false);setTradingStatus(null)'));
   assert.ok(pages.includes('(!spotPairEnabled&&!pendingIntent)||(!tradingStatus?.spot_order_entry_enabled&&!pendingIntent)'));
 });
+
+test('market timestamps distinguish server snapshot time from provider-specific timestamps', () => {
+  const marketStart = backend.indexOf("if (path === 'market' && method === 'GET')");
+  const klineStart = backend.indexOf("if (path === 'kline' && method === 'GET')", marketStart);
+  const route = backend.slice(marketStart, klineStart);
+  assert.ok(route.includes("Date.parse(ticker.time) / 1000"), 'Coinbase timestamp is the last-trade timestamp');
+  assert.ok(route.includes("const providerTimeMs = Number(payload.time)"), 'Bybit timestamp is the provider response timestamp');
+  assert.ok(route.includes('providerTs'));
+  assert.ok(route.includes('const snapshotTs = Math.floor(Date.now() / 1000)'), 'server snapshot time is generated after provider responses');
+  assert.ok(route.includes('ts: snapshotTs, providerTs: marketsByBase[row.sym].providerTs'));
+  assert.ok(api.includes('Server snapshot time (Unix seconds), not an exchange event timestamp.'));
+  assert.ok(api.includes('not a universal exchange-event timestamp.'));
+});
