@@ -990,7 +990,7 @@ export async function saveAdminSecondsPolicy(token: string, input: {
 export async function saveAdminConfig(token: string, config: AdminConfig) {
   return adminRequest<AdminConfig & { ok: true; audit_sync_pending?: boolean }>(token, "admin/config", { method: "POST", body: config });
 }
-export async function adminManualCredit(token: string, input: { uid: string; coin: string; amount: string; reference?: string; note?: string; idempotency_key: string }) {
+export async function adminManualCredit(token: string, input: { uid: string; coin: string; amount: string; reference: string; note?: string; idempotency_key: string }) {
   return adminRequest<{ ok: true; duplicate?: boolean; balance?: AccountBalance; audit_sync_pending?: boolean }>(token, "admin/deposit/confirm", { method: "POST", body: input });
 }
 export async function adminApproveWithdrawal(token: string, id: string) {
