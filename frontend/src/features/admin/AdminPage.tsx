@@ -22,6 +22,7 @@ import {
   getAdminSession,
   getAdminStats,
   getAdminSecondsPolicy,
+  getAdminSecondsOpenPositions,
   getAdminSpotMarkets,
   getAdminSupportMessages,
   getAdminUser,
@@ -35,6 +36,8 @@ import {
   type AdminKycRecord,
   type AdminSession,
   type AdminSpotMarket,
+  type AdminSecondsOpenPosition,
+  type AdminSecondsOpenPositionsSnapshot,
   type AdminUserRecord,
   type AdminWithdrawalRecord,
 } from "../../lib/api";
@@ -121,6 +124,10 @@ export function AdminPage() {
   });
   const [spotMarketRequestId, setSpotMarketRequestId] = useState("");
   const [secondsPolicy, setSecondsPolicy] = useState<{policy_id:string;policy_version:number;symbols:string[];durations_sec:number[];min_stake:number|string;max_stake:number|string;payout_bps:number;per_user_open_exposure:number|string|null;max_open_positions_per_user:number|null}|null>(null);
+  const [secondsOpenPositions, setSecondsOpenPositions] = useState<AdminSecondsOpenPosition[]>([]);
+  const [secondsOpenSummary, setSecondsOpenSummary] = useState<AdminSecondsOpenPositionsSnapshot | null>(null);
+  const [secondsQueueLoading, setSecondsQueueLoading] = useState(false);
+  const [secondsQueueError, setSecondsQueueError] = useState("");
   const [secondsSymbols, setSecondsSymbols] = useState<string[]>([]);
   const [secondsDurations, setSecondsDurations] = useState<number[]>([]);
   const [secondsMinStake, setSecondsMinStake] = useState("");
@@ -212,6 +219,14 @@ export function AdminPage() {
         setSecondsPayoutPercent((result.policy.payout_bps / 100).toString());
         setSecondsExposure(result.policy.per_user_open_exposure === null ? "" : String(result.policy.per_user_open_exposure));
         setSecondsMaxOpenPositions(result.policy.max_open_positions_per_user === null ? "" : String(result.policy.max_open_positions_per_user));
+        try {
+          const queue = await getAdminSecondsOpenPositions(token);
+          setSecondsOpenPositions(queue.positions);
+          setSecondsOpenSummary(queue);
+          setSecondsQueueError("");
+        } catch (queueError) {
+          setSecondsQueueError(queueError instanceof Error ? queueError.message : "Open Seconds positions are temporarily unavailable.");
+        }
       }
       if (tab === "admins" && session.is_super_admin) {
         const [membershipResult, userResult] = await Promise.all([getAdminMemberships(token), getAdminUsers(token, adminSearch)]);
@@ -592,6 +607,12 @@ export function AdminPage() {
       <div className="grid gap-3 sm:grid-cols-2"><label className="space-y-1 text-sm"><span>Minimum stake (USDT)</span><input value={secondsMinStake} disabled={busy||!hasPermission("seconds_policy.manage")} onChange={event=>setSecondsMinStake(event.target.value)} inputMode="decimal" className="w-full rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-2 text-brand-text"/></label><label className="space-y-1 text-sm"><span>Maximum stake (USDT)</span><input value={secondsMaxStake} disabled={busy||!hasPermission("seconds_policy.manage")} onChange={event=>setSecondsMaxStake(event.target.value)} inputMode="decimal" className="w-full rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-2 text-brand-text"/></label><label className="space-y-1 text-sm"><span>Winning payout rate (%) · minimum 85</span><input value={secondsPayoutPercent} disabled={busy||!hasPermission("seconds_policy.manage")} onChange={event=>setSecondsPayoutPercent(event.target.value)} inputMode="decimal" className="w-full rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-2 text-brand-text"/></label><label className="space-y-1 text-sm"><span>Per-user open exposure limit (USDT, optional)</span><input value={secondsExposure} disabled={busy||!hasPermission("seconds_policy.manage")} onChange={event=>setSecondsExposure(event.target.value)} inputMode="decimal" placeholder="No additional limit" className="w-full rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-2 text-brand-text"/></label><label className="space-y-1 text-sm"><span>Maximum unfinished positions per user (optional)</span><input type="number" min="1" step="1" value={secondsMaxOpenPositions} disabled={busy||!hasPermission("seconds_policy.manage")} onChange={event=>setSecondsMaxOpenPositions(event.target.value)} placeholder="No count limit" className="w-full rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-2 text-brand-text"/></label></div>
       <label className="block space-y-1 text-sm"><span>Reason for policy change (required)</span><textarea value={secondsReason} disabled={busy||!hasPermission("seconds_policy.manage")} onChange={event=>setSecondsReason(event.target.value)} rows={2} maxLength={500} className="w-full rounded-lg border border-brand-border bg-brand-surface-2 p-3 text-brand-text" placeholder="Explain why these rules are changing"/></label>
       {hasPermission("seconds_policy.manage")?<Button block disabled={busy||!secondsReason.trim()} onClick={()=>void saveSecondsPolicy()}>Create and activate new policy version</Button>:<p className="text-sm text-brand-text-muted">Your administrator role is read-only for Seconds policy.</p>}
+    </CardContent></Card> : null}
+    {!loading && tab === "seconds" ? <Card><CardHeader><div className="flex flex-wrap items-center justify-between gap-2"><div><CardTitle>Open Seconds positions</CardTitle><CardDescription>Read-only live queue. Due positions remain visible until the server confirms settlement; staff cannot force a result or manually release frozen funds here.</CardDescription></div><Button size="sm" variant="outline" disabled={secondsQueueLoading || !token} onClick={() => { if (!token) return; setSecondsQueueLoading(true); void getAdminSecondsOpenPositions(token).then(result => { setSecondsOpenPositions(result.positions); setSecondsOpenSummary(result); setSecondsQueueError(""); }).catch(reason => setSecondsQueueError(reason instanceof Error ? reason.message : "Open Seconds positions are temporarily unavailable.")).finally(() => setSecondsQueueLoading(false)); }}>{secondsQueueLoading ? "Refreshing…" : "Refresh queue"}</Button></div></CardHeader><CardContent className="space-y-3">
+      {secondsQueueError ? <p role="alert" className="rounded-lg border border-brand-border p-3 text-sm text-brand-text-muted">{secondsQueueError}</p> : null}
+      {secondsOpenSummary ? <div className="grid gap-2 sm:grid-cols-3"><div className="rounded-lg border border-brand-border p-3"><p className="text-xs text-brand-text-muted">Open positions</p><p className="mt-1 text-lg font-semibold">{secondsOpenSummary.total_open_count}</p></div><div className="rounded-lg border border-brand-border p-3"><p className="text-xs text-brand-text-muted">Open exposure · USDT</p><p className="mt-1 text-lg font-semibold">{Number(secondsOpenSummary.total_open_exposure).toLocaleString(undefined,{maximumFractionDigits:8})}</p></div><div className="rounded-lg border border-brand-border p-3"><p className="text-xs text-brand-text-muted">Past maturity, not yet settled</p><p className="mt-1 text-lg font-semibold">{secondsOpenSummary.overdue_count}</p></div></div> : null}
+      {secondsOpenSummary?.truncated ? <p className="text-xs text-brand-text-muted">Showing the earliest 100 open positions. Summary totals include all open positions.</p> : null}
+      {secondsOpenPositions.length ? <div className="space-y-2">{secondsOpenPositions.map(position=><div key={position.position_id} className="rounded-xl border border-brand-border p-3"><div className="flex flex-wrap items-center justify-between gap-2"><div className="font-semibold">{position.symbol}/USDT · {position.direction.toUpperCase()}</div><Badge variant={position.overdue ? "destructive" : "outline"}>{position.overdue ? "Maturity reached · awaiting settlement" : "Open"}</Badge></div><div className="mt-2 grid gap-2 text-xs sm:grid-cols-2 xl:grid-cols-4"><div><span className="text-brand-text-muted">Stake</span><p className="font-medium">{Number(position.amount).toLocaleString(undefined,{maximumFractionDigits:8})} USDT</p></div><div><span className="text-brand-text-muted">Open price</span><p className="font-medium">{Number(position.open_price).toLocaleString(undefined,{maximumFractionDigits:12})}</p></div><div><span className="text-brand-text-muted">Duration / payout</span><p className="font-medium">{position.duration_sec}s · {position.payout_bps_snapshot === null ? "Legacy 85%" : (position.payout_bps_snapshot/100)+"%"}</p></div><div><span className="text-brand-text-muted">Maturity</span><p className="font-medium">{new Date(position.settle_at).toLocaleString()}</p></div></div><div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-brand-text-muted"><span>User UID · <span className="font-mono">{position.user_id}</span></span><span>Position · <span className="font-mono">{position.position_id}</span></span><span>Policy v{position.policy_version ?? "legacy"}</span></div></div>)}</div> : secondsQueueError ? null : <p className="rounded-lg border border-dashed border-brand-border p-6 text-center text-sm text-brand-text-muted">No open Seconds positions.</p>}
     </CardContent></Card> : null}
     {!loading && tab === "admins" && session.is_super_admin ? <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(360px,0.9fr)]">
       <Card><CardHeader><CardTitle>Delegated administrators</CardTitle><CardDescription>Only the Super Admin can provision, change, suspend or revoke administrator access. Every change requires a reason and is recorded by the database.</CardDescription></CardHeader><CardContent className="space-y-3">
