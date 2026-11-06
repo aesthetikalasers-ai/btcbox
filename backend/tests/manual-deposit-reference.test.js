@@ -95,5 +95,5 @@ test('manual credit refreshes the normalized admin balance and canonical audit r
   const auditRoute = backend.slice(auditStart, auditEnd);
   assert.match(auditRoute, /financialPostgresReadsEnabled\(\)/);
   assert.match(auditRoute, /completeness: 'postgres_canonical'/);
-  assert.match(auditRoute, /Never silently fall back/);
+  assert.ok(auditRoute.includes('No incomplete fallback was shown.'));
 });
