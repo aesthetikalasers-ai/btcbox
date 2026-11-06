@@ -19,8 +19,8 @@ export function AuthPage({ mode }: { mode: "login" | "register" }) {
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (status === "authenticated") navigate(needsCredentials ? "/account-setup" : "/home", { replace: true });
-    else if (status === "two-factor") navigate("/login", { replace: true });
+    if (status === "authenticated") navigate(postAuthDestination(needsCredentials), { replace: true });
+    else if (status === "two-factor") navigate(postAuthDestination(needsCredentials), { replace: true });
   }, [status, needsCredentials, navigate]);
 
   if (status === "loading") return <div className="mx-auto flex min-h-[60vh] items-center justify-center text-sm text-brand-text-muted">Loading authentication…</div>;
@@ -102,7 +102,7 @@ export function AuthCallbackPage() {
   const [saving, setSaving] = useState(false);
   const navigate = useNavigate();
   useEffect(() => { if (status !== "loading" && status !== "authenticated" && status !== "two-factor" && status !== "password-recovery") void finishOAuth(); }, [finishOAuth, status]);
-  useEffect(() => { if (status === "authenticated") navigate(needsCredentials ? "/account-setup" : "/home", { replace: true }); else if (status === "two-factor") navigate("/login", { replace: true }); }, [status, needsCredentials, navigate]);
+  useEffect(() => { if (status === "authenticated") navigate(postAuthDestination(needsCredentials), { replace: true }); else if (status === "two-factor") navigate(postAuthDestination(needsCredentials), { replace: true }); }, [status, needsCredentials, navigate]);
   if (status === "password-recovery") return <div className="mx-auto flex min-h-[60vh] max-w-lg items-center justify-center p-6"><Card className="w-full border-brand-border bg-brand-surface"><CardHeader><CardTitle>Choose a new password</CardTitle><CardDescription>Enter and confirm your new BTCBOX password.</CardDescription></CardHeader><CardContent><form className="space-y-3" onSubmit={async e=>{e.preventDefault();if(password!==confirmPassword)return;setSaving(true);try{await completePasswordRecovery(password);}catch{/* Error is shown below. */}finally{setSaving(false);}}}><Input type="password" autoComplete="new-password" minLength={12} maxLength={128} value={password} onChange={e=>setPassword(e.target.value)} placeholder="At least 12 characters" required/><Input type="password" autoComplete="new-password" minLength={12} maxLength={128} value={confirmPassword} onChange={e=>setConfirmPassword(e.target.value)} placeholder="Confirm new password" required/>{password && confirmPassword && password!==confirmPassword && <p className="text-sm text-loss">Passwords do not match.</p>}<Button type="submit" className="w-full" disabled={saving || busy || password.length<12 || password.length>128 || password!==confirmPassword}>{saving?"Updating…":"Update password"}</Button></form>{error && <p role="alert" className="mt-3 text-sm text-loss">{error}</p>}</CardContent></Card></div>;
   return <div className="mx-auto flex min-h-[60vh] max-w-lg flex-col items-center justify-center gap-3 p-6 text-center"><div className="h-6 w-6 animate-spin rounded-full border-2 border-white/20 border-t-brand-accent"/><p className="text-sm text-brand-text-secondary">{error || (busy ? "Completing secure sign-in…" : "Finishing sign-in…")}</p>{error && <Link to="/login" className="text-sm underline">Return to sign in</Link>}</div>;
 }
