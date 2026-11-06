@@ -117,7 +117,8 @@ export function AdminPage() {
 
   const submitConfig = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    await performAction("config", { deposit_addresses: depositAddresses, announcement }, "Deposit address configuration saved by server.");
+    const configured = Object.fromEntries(Object.entries(depositAddresses).filter(([, value]) => value.trim()));
+    await performAction("config", { deposit_addresses: configured, announcement }, "Deposit address configuration saved by server.");
   };
 
   const rows = useMemo(() => {
@@ -147,9 +148,9 @@ export function AdminPage() {
       <Card className="border-brand-border bg-brand-surface sm:col-span-2 xl:col-span-4"><CardHeader><CardTitle className="text-sm">Configured deposit addresses</CardTitle></CardHeader><CardContent><div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">{Object.entries((payload.deposit_addresses && typeof payload.deposit_addresses === "object" ? payload.deposit_addresses : {}) as Record<string, unknown>).map(([network, address]) => <div key={network} className="min-w-0 rounded-lg border border-brand-border p-3"><p className="text-xs text-brand-text-muted">{network}</p><p className="mt-1 break-all text-sm text-brand-text">{String(address || "Not configured")}</p></div>)}</div></CardContent></Card>
     </div> : null}
     {!loading && tab === "config" && payload ? <Card className="border-brand-border bg-brand-surface"><CardHeader><CardTitle>Deposit address configuration</CardTitle><p className="text-sm text-brand-text-muted">Only valid addresses for the selected network are accepted by the backend. Changes affect the address shown on the customer Deposit page.</p></CardHeader><CardContent><form className="space-y-4" onSubmit={submitConfig}>
-      <div className="grid gap-3 sm:grid-cols-2">{Object.entries(depositAddresses).map(([network,address])=><label key={network} className="min-w-0 space-y-1 text-sm"><span className="text-brand-text-muted">{network}</span><input value={address} onChange={e=>setDepositAddresses(current=>({...current,[network]:e.target.value}))} required className="w-full rounded-xl border border-brand-border bg-brand-surface-2 p-3 font-mono text-xs text-brand-text"/></label>)}</div>
+      <div className="grid gap-3 sm:grid-cols-2">{Object.entries(depositAddresses).map(([network,address])=><label key={network} className="min-w-0 space-y-1 text-sm"><span className="text-brand-text-muted">{network}</span><input value={address} onChange={e=>setDepositAddresses(current=>({...current,[network]:e.target.value}))} className="w-full rounded-xl border border-brand-border bg-brand-surface-2 p-3 font-mono text-xs text-brand-text"/></label>)}</div>
       <label className="block space-y-1 text-sm"><span className="text-brand-text-muted">Platform announcement</span><textarea rows={3} maxLength={2000} value={announcement} onChange={e=>setAnnouncement(e.target.value)} className="w-full rounded-xl border border-brand-border bg-brand-surface-2 p-3 text-sm text-brand-text"/></label>
-      <Button type="submit" disabled={actionBusy||!Object.values(depositAddresses).every(value=>value.trim())}>Save configuration</Button>
+      <Button type="submit" disabled={actionBusy}>Save configuration</Button>
     </form></CardContent></Card> : null}
     {!loading && tab === "users" ? <div className="flex flex-col gap-3">
       <div className="max-w-md"><Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search by email or UID" /></div>
