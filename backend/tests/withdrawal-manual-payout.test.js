@@ -61,3 +61,16 @@ test('React withdrawal intent persists only non-secret request fields and retrie
   assert.ok(pages.includes('Re-enter your fund password and 2FA code'));
   assert.ok(pages.includes('reason.status!==409'));
 });
+
+
+test('admin withdrawal mutations preserve confirmed UI state when queue refresh fails', () => {
+  const pages = fs.readFileSync(path.resolve(__dirname, '../../frontend/src/features/admin/AdminPage.tsx'), 'utf8');
+  const start = pages.indexOf('const refreshWithdrawalQueue = async (confirmedAction: string)');
+  const end = pages.indexOf('const replySupport = async', start);
+  assert.ok(start >= 0 && end > start);
+  const handlers = pages.slice(start, end);
+  assert.match(handlers, /setWithdrawals\(current => current\.map\(item => item\.id === id \? \{ \.\.\.item, status: "approved" \} : item\)\);[\s\S]*?await refreshWithdrawalQueue\("Withdrawal approval confirmed\."\)/);
+  assert.match(handlers, /setWithdrawals\(current => current\.filter\(item => item\.id !== id\)\);[\s\S]*?await refreshWithdrawalQueue\("Withdrawal rejection and refund confirmed\."\)/);
+  assert.match(handlers, /setNotice\(result\.duplicate[\s\S]*?await refreshWithdrawalQueue\("Manual payout completion confirmed\."\)/);
+  assert.match(handlers, /The database action is confirmed; the queue could not refresh/);
+});
