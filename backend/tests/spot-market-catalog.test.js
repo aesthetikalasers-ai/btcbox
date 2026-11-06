@@ -39,7 +39,8 @@ test('user Trade Hub links only to configured pairs and Spot order submission ch
   assert.ok(pages.includes('getSpotMarketPairs(controller.signal)'));
   assert.ok(pages.includes('pair.base_asset+pair.quote_asset'));
   assert.ok(pages.includes('pair.base_asset===base&&pair.quote_asset==="USDT"'));
-  assert.ok(pages.includes('if(!spotPairEnabled)'));
+  assert.ok(pages.includes('if(!spotPairEnabled&&!pendingIntent)'));
+  assert.ok(pages.includes('(!spotPairEnabled&&!pendingIntent)'));
   assert.ok(pages.includes('setSpotPairEnabled(false);setTradingStatus(null)'));
   assert.ok(pages.includes('!spotPairEnabled||!tradingStatus?.spot_order_entry_enabled'));
 });
