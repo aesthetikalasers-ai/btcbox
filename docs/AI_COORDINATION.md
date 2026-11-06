@@ -2881,13 +2881,15 @@ The prior withdrawal UI audit statement claiming the active BTCBOX admin route w
 
 ### 2026-11-07 verification addendum — exact-head audit
 
-- Latest tested code head: `8098c9594fd2804e52fe4ed7dd847f141c96786f`. A documentation-only follow-up may advance the branch tip without changing tested application code.
+- Latest tested application-code head: `6b82683a2436ccff6b4a23ebb68bd911fe9de43c`. The subsequent coordination-document commit is documentation-only and does not change tested application code.
 - Additional gap found: the canonical audit reader selected only actor/action/reason and omitted `object_type`, `object_id`, and financial `metadata`. The admin UI therefore could not show amount, asset, receipt/TxID, or operation identifiers even when the database held them.
 - FIXED IN SOURCE: canonical audit reads now select object identity and metadata, then render only an explicit allowlist (`asset`, `amount`, `fee`, `network`, `reference`, `payout_reference`, `operation_id`, `idempotency_key`, order fields). Raw metadata, wallet destinations, email addresses, and unknown keys are not returned. The audit UI now displays whether the source is PostgreSQL canonical, state-file retention-limited, or unknown.
 - FIXED IN SOURCE: wallet redaction now matches an exact 40-hex Ethereum address, not the first 40 characters of a 64-hex transaction hash. Wallet addresses remain masked; full transaction hashes can be displayed as audit references.
 - Additional refresh audit found one more false-failure path in delegated administrator membership changes. The membership mutation is now confirmed separately from the subsequent list refresh; refresh failure no longer reports that the membership mutation itself failed.
-- EXACT-HEAD BACKEND CI: run `42280711553`, success. Build, 355 Node tests (355 passed / 0 failed), fail-closed preflight, and output/entrypoint checks all passed.
-- EXACT-HEAD FRONTEND CI: run `42280711526`, success. Lint, Vite build, Chromium installation, and desktop/mobile route smoke tests all passed.
+- EXACT-HEAD BACKEND CI: run `42281250727`, success. Build, 356 Node tests (356 passed / 0 failed), fail-closed preflight, and output/entrypoint checks all passed.
+- EXACT-HEAD FRONTEND CI: run `42281250684`, success. Lint, Vite build, Chromium installation, and desktop/mobile route smoke tests all passed.
+
+- Additional integration improvement: the Admin Panel Orders tab now displays whether its rows come from canonical PostgreSQL matching orders or the explicit legacy-state fallback. The customer and administrator order routes are covered by a source-parity regression test.
 - POSTGRESQL EMPTY-DATABASE CI: run `42268516996`, success on the parent integration baseline `73367233a5f4d37e828cb124f03f3eff84a10a2c`. This follow-up changes no SQL migration or PostgreSQL bootstrap file, so the schema suite was not duplicated on the child PR.
 - Parent PR #50 description still states `21dacf90fac3b48bf461707da1442ca35afbc95f` as its exact head, while its implementation branch currently resolves to `73367233a5f4d37e828cb124f03f3eff84a10a2c` (the base SHA of PR #51). Treat the SHA in PR #50's description as stale until its owner updates it.
 - PR #51: Draft, open, based on `fix/post-merge-db-bootstrap-seconds-20261106`; no merge to `main`. PR #50 remains Draft.
