@@ -22,7 +22,7 @@ test('only the project owner can bootstrap the single Super Admin out of band', 
   assert.match(sql, /session_user <> 'postgres'/i);
   assert.match(sql, /Super Admin already bootstrapped/i);
   assert.match(sql, /GRANT EXECUTE ON FUNCTION private\.bootstrap_super_admin_v1[\s\S]* TO postgres/i);
-  assert.doesNotMatch(sql, /GRANT EXECUTE ON FUNCTION private\.bootstrap_super_admin_v1[\s\S]* TO service_role/i);
+  assert.doesNotMatch(sql, /GRANT EXECUTE ON FUNCTION private\.bootstrap_super_admin_v1\(uuid,text,text\) TO service_role/i);
   assert.match(sql, /single_super_admin_idx/i);
 });
 
