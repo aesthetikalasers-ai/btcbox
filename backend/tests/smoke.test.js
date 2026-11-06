@@ -18,24 +18,19 @@ test('build-site.js publishes the React root and consent assets without legacy S
   assert.ok(fs.readFileSync(path.join(root, 'dist', 'index.html'), 'utf8').includes('/frontend-assets/'));
   assert.ok(!fs.existsSync(path.join(root, 'dist', 'legacy-index.html')));
   assert.ok(!fs.existsSync(path.join(root, 'dist', 'admin.html')));
-  assert.ok(fs.existsSync(path.join(root, 'dist', 'assets', 'js', 'app-core.js')));
+  assert.ok(!fs.existsSync(path.join(root, 'dist', 'assets', 'js')));
+  assert.ok(fs.existsSync(path.join(root, 'dist', 'assets', 'css', 'tokens.css')));
+  assert.ok(fs.existsSync(path.join(root, 'dist', 'oauth', 'consent.html')));
+});
+
+test('legacy static application is not part of the public build; OAuth consent keeps its isolated token asset', () => {
+  const consent = read('oauth/consent.html');
+  assert.ok(consent.includes('/assets/css/tokens.css'));
+  assert.ok(consent.includes('/oauth/consent.js'));
+  assert.ok(!fs.existsSync(path.join(root, 'dist', 'assets', 'js')));
   assert.ok(fs.existsSync(path.join(root, 'dist', 'assets', 'css', 'tokens.css')));
 });
 
-test('thin shells reference every asset in load order and keep mount points', () => {
-  const html = read('index.html');
-  assert.ok(html.includes('id="main-content"'));
-  assert.ok(html.includes('id="toast-root"') && html.includes('id="modal-root"'));
-  assert.ok(html.includes('@supabase/supabase-js'));
-  assert.ok(!html.includes('cdn.tailwindcss.com'), 'production Tailwind CDN must not be loaded');
-  const jsOrder = ['app-core', 'ui-components', 'views-home', 'views-trade', 'views-trading', 'views-assets', 'views-account', 'views-missing', 'boot']
-    .map(n => html.indexOf(`/assets/js/${n}.js`));
-  assert.ok(jsOrder.every(i => i >= 0), 'missing a js asset reference');
-  assert.deepEqual(jsOrder, [...jsOrder].sort((a, b) => a - b), 'js load order wrong');
-  const cssOrder = ['tokens', 'base', 'components', 'overlays', 'layouts', 'views'].map(n => html.indexOf(`/assets/css/${n}.css`));
-  assert.ok(cssOrder.every(i => i >= 0), 'missing a css asset reference');
-  assert.deepEqual(cssOrder, [...cssOrder].sort((a, b) => a - b), 'css load order wrong');
-});
 
 test('asset bundle contains router + VIEWS registry + all view batches', () => {
   const core = read('assets/js/app-core.js');
