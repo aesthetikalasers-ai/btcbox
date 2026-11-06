@@ -150,18 +150,10 @@ begin
     raise exception 'invalid limit order';
   end if;
   v_pair := p_base_asset || '/' || p_quote_asset;
-  -- Pair rules are controlled by operators in PostgreSQL, never by browser input.
-  select * into v_market from public.financial_matching_markets
-    where base_asset=p_base_asset and quote_asset=p_quote_asset and enabled=true;
-  if not found then raise exception 'market disabled or unconfigured'; end if;
-  if mod(p_price, v_market.price_tick) <> 0 then raise exception 'price precision invalid'; end if;
-  if mod(p_quantity, v_market.quantity_step) <> 0 then raise exception 'quantity precision invalid'; end if;
-  if p_quantity < v_market.min_quantity then raise exception 'quantity below minimum'; end if;
-  if p_price*p_quantity < v_market.min_notional then raise exception 'notional below minimum'; end if;
-  if v_market.min_limit_price is not null and p_price < v_market.min_limit_price then raise exception 'price below protection bound'; end if;
-  if v_market.max_limit_price is not null and p_price > v_market.max_limit_price then raise exception 'price above protection bound'; end if;
   v_request_hash := encode(extensions.digest(concat_ws(':',p_user_id,v_pair,p_side,p_price::text,p_quantity::text),'sha256'),'hex');
-  -- Serialize matching per market. This is deliberately durable DB locking, not process memory.
+  -- Serialize the client request key first, then the market book. Exact retries
+  -- must replay even if the market was paused or its rules later changed.
+  perform pg_advisory_xact_lock(hashtextextended('spot-order:'||p_user_id||':'||p_client_order_id, 0));
   perform pg_advisory_xact_lock(hashtextextended(v_pair, 0));
 
   select * into v_existing from public.financial_matching_orders
@@ -174,6 +166,18 @@ begin
     return jsonb_build_object('ok',true,'duplicate',true,'order_id',v_existing.id,
       'status',v_existing.status,'remaining_quantity',v_existing.remaining_quantity);
   end if;
+
+  -- Read and validate current pair rules only for a new order, after acquiring
+  -- the same market lock used by the admin configuration transition.
+  select * into v_market from public.financial_matching_markets
+    where base_asset=p_base_asset and quote_asset=p_quote_asset and enabled=true;
+  if not found then raise exception 'market disabled or unconfigured'; end if;
+  if mod(p_price, v_market.price_tick) <> 0 then raise exception 'price precision invalid'; end if;
+  if mod(p_quantity, v_market.quantity_step) <> 0 then raise exception 'quantity precision invalid'; end if;
+  if p_quantity < v_market.min_quantity then raise exception 'quantity below minimum'; end if;
+  if p_price*p_quantity < v_market.min_notional then raise exception 'notional below minimum'; end if;
+  if v_market.min_limit_price is not null and p_price < v_market.min_limit_price then raise exception 'price below protection bound'; end if;
+  if v_market.max_limit_price is not null and p_price > v_market.max_limit_price then raise exception 'price above protection bound'; end if;
 
   v_reserve := case when p_side='buy' then p_price*p_quantity else p_quantity end;
   v_reserve_asset := case when p_side='buy' then p_quote_asset else p_base_asset end;
