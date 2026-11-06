@@ -92,7 +92,12 @@ revoke all on public.financial_matching_orders, public.financial_matching_trades
 grant select, insert, update on public.financial_matching_orders to service_role;
 grant select, insert on public.financial_matching_trades to service_role;
 
-create or replace function public.submit_limit_order_matching_v1(
+
+-- Persist cancellation request identity so a client_cancel_id cannot be replayed
+-- against another order and an exact retry returns the original outcome.
+create table if not exists public.financial_matching_cancel_requests (
+  user_id text not null,
+  client_cancel_id text not null check (client_cancel_id ~ '^[A-Za-z0-9_-]{16,100}
   p_order_id text, p_user_id text, p_base_asset text, p_quote_asset text,
   p_side text, p_price numeric, p_quantity numeric, p_client_order_id text
 ) returns jsonb
@@ -267,35 +272,76 @@ language plpgsql security invoker set search_path = ''
 as $$
 declare
   v_order public.financial_matching_orders%rowtype;
+  v_cancel public.financial_matching_cancel_requests%rowtype;
   v_op uuid;
   v_available numeric(38,18);
   v_frozen numeric(38,18);
   v_hash text;
+  v_response jsonb;
 begin
   if coalesce(p_user_id,'')='' or coalesce(p_order_id,'')='' or
-     coalesce(p_client_cancel_id,'') !~ '^[A-Za-z0-9_-]{16,100}$' then raise exception 'invalid cancel request'; end if;
-  -- Acquire market lock before row lock, matching submit's lock order to avoid deadlocks.
-  select * into v_order from public.financial_matching_orders where id=p_order_id and user_id=p_user_id;
+     coalesce(p_client_cancel_id,'') !~ '^[A-Za-z0-9_-]{16,100}$' then
+    raise exception 'invalid cancel request';
+  end if;
+
+  v_hash := encode(extensions.digest(p_user_id||':'||p_order_id,'sha256'),'hex');
+  -- Serialize a user's request key before looking up or changing any order.
+  perform pg_advisory_xact_lock(hashtextextended(p_user_id||':'||p_client_cancel_id,0));
+  select * into v_cancel
+  from public.financial_matching_cancel_requests
+  where user_id=p_user_id and client_cancel_id=p_client_cancel_id;
+  if found then
+    if v_cancel.order_id<>p_order_id or v_cancel.request_hash<>v_hash then
+      raise exception 'cancel idempotency key payload mismatch';
+    end if;
+    return v_cancel.response || jsonb_build_object('duplicate',true);
+  end if;
+
+  -- Read the market key first, then acquire the same market lock as submit.
+  select * into v_order from public.financial_matching_orders
+  where id=p_order_id and user_id=p_user_id;
   if not found then raise exception 'order not found'; end if;
   perform pg_advisory_xact_lock(hashtextextended(v_order.base_asset||'/'||v_order.quote_asset,0));
-  select * into v_order from public.financial_matching_orders where id=p_order_id and user_id=p_user_id for update;
+  select * into v_order from public.financial_matching_orders
+  where id=p_order_id and user_id=p_user_id for update;
   if not found then raise exception 'order not found'; end if;
-  if v_order.status='cancelled' then return jsonb_build_object('ok',true,'duplicate',true,'order_id',p_order_id,'status','cancelled'); end if;
+
+  if v_order.status='cancelled' then
+    v_response := jsonb_build_object('ok',true,'duplicate',true,'order_id',p_order_id,'status','cancelled');
+    insert into public.financial_matching_cancel_requests(user_id,client_cancel_id,order_id,request_hash,response)
+    values(p_user_id,p_client_cancel_id,p_order_id,v_hash,v_response);
+    return v_response;
+  end if;
   if v_order.status='filled' then raise exception 'filled order cannot be cancelled'; end if;
-  perform 1 from public.financial_accounts where user_id=p_user_id and asset=v_order.reserve_asset for update;
+
+  perform 1 from public.financial_accounts
+  where user_id=p_user_id and asset=v_order.reserve_asset for update;
   v_hash := encode(extensions.digest(concat_ws(':',p_user_id,p_order_id,v_order.reserved_remaining::text),'sha256'),'hex');
   insert into public.financial_operations(idempotency_key,user_id,asset,operation_type,request_hash,metadata)
-  values ('spot-cancel-'||encode(extensions.digest(p_user_id||':'||p_client_cancel_id,'sha256'),'hex'),p_user_id,v_order.reserve_asset,'spot_order_cancel',v_hash,
-    jsonb_build_object('order_id',p_order_id,'released',v_order.reserved_remaining)) returning id into v_op;
+  values ('spot-cancel-'||encode(extensions.digest(p_user_id||':'||p_client_cancel_id,'sha256'),'hex'),
+    p_user_id,v_order.reserve_asset,'spot_order_cancel',v_hash,
+    jsonb_build_object('order_id',p_order_id,'released',v_order.reserved_remaining))
+  returning id into v_op;
+
   update public.financial_accounts set available=available+v_order.reserved_remaining,
     frozen=frozen-v_order.reserved_remaining,version=version+1,updated_at=now()
-    where user_id=p_user_id and asset=v_order.reserve_asset and frozen>=v_order.reserved_remaining;
+  where user_id=p_user_id and asset=v_order.reserve_asset and frozen>=v_order.reserved_remaining;
   if not found then raise exception 'order reservation invariant failed'; end if;
-  select available,frozen into v_available,v_frozen from public.financial_accounts where user_id=p_user_id and asset=v_order.reserve_asset;
+
+  select available,frozen into v_available,v_frozen
+  from public.financial_accounts where user_id=p_user_id and asset=v_order.reserve_asset;
   insert into public.financial_ledger(operation_id,user_id,asset,available_delta,frozen_delta,available_after,frozen_after)
-  values (v_op,p_user_id,v_order.reserve_asset,v_order.reserved_remaining,-v_order.reserved_remaining,v_available,v_frozen);
-  update public.financial_matching_orders set status='cancelled',remaining_quantity=0,reserved_remaining=0,updated_at=now() where id=p_order_id;
-  return jsonb_build_object('ok',true,'duplicate',false,'order_id',p_order_id,'status','cancelled');
+  values(v_op,p_user_id,v_order.reserve_asset,v_order.reserved_remaining,-v_order.reserved_remaining,v_available,v_frozen);
+
+  update public.financial_matching_orders
+  set status='cancelled',remaining_quantity=0,reserved_remaining=0,updated_at=now()
+  where id=p_order_id;
+
+  v_response := jsonb_build_object('ok',true,'duplicate',false,'order_id',p_order_id,'status','cancelled');
+  insert into public.financial_matching_cancel_requests(user_id,client_cancel_id,order_id,request_hash,response)
+  values(p_user_id,p_client_cancel_id,p_order_id,
+    encode(extensions.digest(p_user_id||':'||p_order_id,'sha256'),'hex'),v_response);
+  return v_response;
 end;
 $$;
 
