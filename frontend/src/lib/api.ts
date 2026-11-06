@@ -405,3 +405,42 @@ export async function completeLogin2fa(tempToken: string, code: string): Promise
     throw new ApiError(payload?.msg || "The verification code was not accepted.", response.status, payload?.code);
   }
 }
+
+export interface SupportMessage {
+  id: string;
+  from: "user" | "admin";
+  content: string;
+  time: string;
+}
+
+export async function getSupportMessages(signal?: AbortSignal): Promise<SupportMessage[]> {
+  const payload = await readAuthenticated<{ ok: true; messages: SupportMessage[] }>("support/messages", signal);
+  if (!Array.isArray(payload.messages) || !payload.messages.every((item) =>
+    item && typeof item.id === "string" && (item.from === "user" || item.from === "admin") &&
+    typeof item.content === "string" && typeof item.time === "string"
+  )) {
+    throw new ApiError("BTCBOX returned an invalid support conversation.", 502, "INVALID_SUPPORT_RESPONSE");
+  }
+  return payload.messages;
+}
+
+export async function sendSupportMessage(content: string): Promise<void> {
+  const normalized = content.trim();
+  if (!normalized || normalized.length > 2000) {
+    throw new ApiError("Messages must contain 1–2,000 characters.", 400, "INVALID_SUPPORT_MESSAGE");
+  }
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE_URL}/support/chat`, {
+      method: "POST", credentials: "include",
+      headers: { Accept: "application/json", "Content-Type": "application/json" },
+      cache: "no-store", body: JSON.stringify({ content: normalized }),
+    });
+  } catch {
+    throw new ApiError("Unable to reach BTCBOX support. Please try again.", 0, "NETWORK_ERROR");
+  }
+  const payload = await response.json().catch(() => null) as { ok?: boolean; msg?: string; code?: string; need_login?: boolean } | null;
+  if (!response.ok || !payload || payload.ok !== true) {
+    throw new ApiError(payload?.msg || "Your message could not be sent.", payload?.need_login ? 401 : response.status, payload?.code);
+  }
+}
