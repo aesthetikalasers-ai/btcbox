@@ -3366,3 +3366,14 @@ The prior withdrawal UI audit statement claiming the active BTCBOX admin route w
 - Implementation branch: fix/post-merge-db-bootstrap-seconds-20261106; latest observed head: 12f9039066bfa702d8c8e369028a5ce7a27c0f2a. PR #50 remains Draft/open/unmerged.
 - Exact-head CI for this batch is NOT YET VERIFIED: the GitHub workflow lookup did not return runs for this SHA at the time of this update. Do not infer success from earlier workflow runs.
 - No hosted Supabase writes, real financial operations, merge, or deployment. Trading page layout unchanged.
+
+
+## Withdrawal admin state synchronization — 2026-11-07
+
+- SOURCE OBSERVED: approve, reject and mark-paid handlers treated the subsequent GET /admin/withdrawals refresh as part of the financial mutation try/catch. If PostgreSQL committed the review/payout but the read refresh failed, the UI reported the mutation as failed and retained stale action state.
+- FIX COMMITTED: after a confirmed API mutation, the admin queue now updates the affected row locally (approved) or removes it (rejected/completed), then refreshes separately. A refresh failure now says the database action is confirmed and instructs reload; it no longer misreports a committed financial action as failed.
+- REGRESSION COVERAGE ADDED: backend test suite checks the approve/reject/mark-paid UI state transitions and separate refresh-error handling.
+- SOURCE OBSERVED / NOT CHANGED: the backend user/balance endpoint currently executes admin_adjustment_atomic immediately for an administrator with financial_adjustment.request; there is no separate approval RPC or approval UI. The endpoint is not exposed in the current AdminPage UI and financial writes remain fail-closed unless cutover flags are explicitly enabled. Do not silently convert this to two-person approval or enable it without an explicit business-rule decision.
+- Implementation branch: fix/post-merge-db-bootstrap-seconds-20261106; latest observed head: 21dacf90fac3b48bf461707da1442ca35afbc95f. PR #50 remains Draft/open/unmerged.
+- Exact-head CI runs started: backend 42256946796, frontend 42256946623, PostgreSQL schema 42256946955. Await all three conclusions before acceptance.
+- No hosted Supabase writes, real financial operations, merge, or deployment. Trading page layout unchanged.
