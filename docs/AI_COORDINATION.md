@@ -2212,3 +2212,10 @@ Application branch inspected: `feat/btcbox-web3-auth-20261105` at `741c709d818cb
 - Corrective commit `10186811d10fe9737a348f34ff6b33de9dd66fde` aligns the policy-versioning documentation consistency test with the Super Admin/delegated Admin contract and uses the explicit ordinary-admin provisioning restriction wording.
 - Final exact-SHA backend CI run is pending. No test pass is claimed yet.
 - No runtime RBAC code, SQL migration, admin UI, Supabase write, financial cutover, merge, or deployment occurred.
+
+
+### FINAL EXACT-SHA CI RESULT
+- Feature SHA `10186811d10fe9737a348f34ff6b33de9dd66fde` — GitHub Actions backend CI run `42141050137` completed `success` at `2026-11-06T01:02:37Z`.
+- All job steps succeeded: dependency install, unified site build, backend tests, fail-closed deployment configuration validation, and unified output/preserved entrypoint verification.
+- Earlier failed run `42140915024` on `d22d964e0d4864d24dd6bd3eedc300970c641f23` was corrected; it had 254/256 tests passing and failed only stale doc-contract assertions. The final exact SHA above is the passing result.
+- This verifies source/build/test contracts only, not runtime Supabase RBAC behavior. No isolated staging, migration, administrator account, role grant, financial operation, merge, or deployment was performed.
