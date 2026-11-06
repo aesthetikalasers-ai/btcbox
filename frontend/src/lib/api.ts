@@ -628,9 +628,11 @@ export interface AdminSession {
 export interface AdminUserRecord {
   uid: string;
   email: string;
-  kyc: string;
+  kyc_status?: string;
+  kyc?: { status?: string };
   frozen: boolean;
-  balances: Record<string, AccountBalance>;
+  total_usdt?: string | number;
+  balances?: Record<string, AccountBalance>;
 }
 export interface AdminWithdrawalRecord {
   id: string;
