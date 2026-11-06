@@ -64,7 +64,7 @@ function statusVariant(status: string): "default" | "outline" | "destructive" {
 }
 
 export function AdminPage() {
-  const { status: authStatus, getAccessToken } = useAuth();
+  const { status: authStatus, getAccessToken, signOut } = useAuth();
   const [token, setToken] = useState("");
   const [session, setSession] = useState<AdminSession | null>(null);
   const [tab, setTab] = useState<Tab>("overview");
@@ -277,7 +277,7 @@ export function AdminPage() {
   return <div className="mx-auto w-full max-w-7xl space-y-5 p-4 md:p-6">
     <div className="flex flex-wrap items-start justify-between gap-3">
       <div><p className="text-xs font-semibold uppercase tracking-[0.18em] text-brand-text-muted">BTCBOX / CONTROL CENTER</p><h1 className="mt-1 text-2xl font-bold text-brand-text">Administrator Console</h1><p className="mt-1 text-sm text-brand-text-muted">{session.is_super_admin ? "Super Administrator" : "Role-based administrator"} · {session.user_id}</p></div>
-      <Badge variant="outline">{session.is_super_admin ? "SUPER ADMIN" : "ACTIVE ADMIN"}</Badge>
+      <div className="flex items-center gap-2"><Badge variant="outline">{session.is_super_admin ? "SUPER ADMIN" : "ACTIVE ADMIN"}</Badge><Button size="sm" variant="outline" onClick={() => void signOut()}>Sign out</Button></div>
     </div>
     <div className="flex flex-wrap gap-2 border-b border-brand-border pb-3">
       {allowedTabs.map(item => <Button key={item.id} size="sm" variant={tab === item.id ? "default" : "outline"} onClick={() => { setTab(item.id); setError(""); setNotice(""); }}>{item.label}</Button>)}
