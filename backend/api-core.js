@@ -2268,7 +2268,7 @@ async function handleRequest(event, context) {
       if (!response.ok) throw new Error('market provider HTTP ' + response.status);
       return response.json();
     };
-    const normalize = (base, ticker, source) => {
+    const normalize = (base, ticker, source, providerTs = null) => {
       const price = Number(ticker.price);
       const high = Number(ticker.high);
       const low = Number(ticker.low);
