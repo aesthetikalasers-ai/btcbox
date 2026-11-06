@@ -1,7 +1,7 @@
 import { Link, useParams } from "react-router-dom";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { RefreshCw, TrendingUp, TrendingDown, Clock3, ShieldAlert, Send, MessageCircle } from "lucide-react";
-import { ApiError, getAccount, getOrders, getMarkets, getSpotMarketPairs, getKlines, getOrderBook, getTradingStatus, submitSpotOrder, cancelSpotOrder, getSecondsPositions, getSecondsPolicy, submitSecondsOrder, settleSecondsPosition, getSupportMessages, sendSupportMessage, getDepositAddress, getSavedCryptoAddresses, getSelectedCryptoAddress, getWithdrawalConfig, submitWithdrawal, getEarnCatalog, submitEarnAction, type EarnProduct, type EarnPosition, type SavedCryptoAddress, type AccountBalance, type AccountSnapshot, type OrderRecord, type MarketTicker, type MarketCandle, type OrderBookSnapshot, type SpotMarketPair, type TradingStatus, type SecondsPositionsSnapshot, type SecondsOrderInput, type SecondsPolicyResponse, type SupportMessage, type SelectedCryptoAddress, type WithdrawalConfig, type WithdrawalRecord, submitKyc } from "../../lib/api";
+import { ApiError, getAccount, getOrders, getMarkets, getSpotMarketPairs, getKlines, getOrderBook, getTradingStatus, submitSpotOrder, cancelSpotOrder, getSecondsPositions, getSecondsPolicy, submitSecondsOrder, settleSecondsPosition, getSupportMessages, sendSupportMessage, getDepositAddress, getSavedCryptoAddresses, getSelectedCryptoAddress, getWithdrawalConfig, submitWithdrawal, getEarnCatalog, submitEarnAction, type EarnProduct, type EarnPosition, type SavedCryptoAddress, type AccountBalance, type AccountSnapshot, type DepositRecord, type OrderRecord, type MarketTicker, type MarketCandle, type OrderBookSnapshot, type SpotMarketPair, type TradingStatus, type SecondsPositionsSnapshot, type SecondsOrderInput, type SecondsPolicyResponse, type SupportMessage, type SelectedCryptoAddress, type WithdrawalConfig, type WithdrawalRecord, submitKyc } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
 
 import type { ReactNode } from "react";
@@ -685,6 +685,10 @@ export function SupportPage(){
 const depositNetworks:Record<string,string[]>={BTC:["BTC"],ETH:["ERC20"],USDT:["TRC20","ERC20","BEP20"],SOL:["SOL"],BNB:["BEP20"],USDC:["ERC20"]};
 export function DepositPage(){
  const {t}=useI18n();
+ const [depositHistory,setDepositHistory]=useState<DepositRecord[]>([]);
+ const [historyLoading,setHistoryLoading]=useState(true);
+ const [historyError,setHistoryError]=useState("");
+ const [historyReload,setHistoryReload]=useState(0);
  const [coin,setCoin]=useState("USDT");
  const [network,setNetwork]=useState("TRC20");
  const [address,setAddress]=useState("");
@@ -700,6 +704,17 @@ export function DepositPage(){
   }).finally(()=>{if(!controller.signal.aborted)setLoading(false);});
   return ()=>controller.abort();
  },[coin,network,reload]);
+ useEffect(()=>{
+  const controller=new AbortController();
+  setHistoryLoading(true);setHistoryError("");
+  getAccount(controller.signal).then(snapshot=>{
+   if(!controller.signal.aborted)setDepositHistory(Array.isArray(snapshot.deposits)?snapshot.deposits:[]);
+  }).catch(reason=>{
+   if(reason instanceof Error&&reason.name==="AbortError")return;
+   if(!controller.signal.aborted)setHistoryError(reason instanceof Error?reason.message:"Deposit history is temporarily unavailable.");
+  }).finally(()=>{if(!controller.signal.aborted)setHistoryLoading(false);});
+  return ()=>controller.abort();
+ },[historyReload]);
  const changeCoin=(next:string)=>{setCoin(next);setNetwork(depositNetworks[next][0]);};
  return <PageFrame eyebrow="BTCBOX / WALLET" title="Deposit" description="View the deposit address configured by BTCBOX for the selected asset and network. BTCBOX staff verify incoming transfers and manually credit the account.">
   <Card className="border-brand-border bg-brand-surface"><CardHeader><CardTitle>{t("Deposit address")}</CardTitle><CardDescription>{t("Always verify the asset and network before sending funds.")}</CardDescription></CardHeader><CardContent className="space-y-4">
@@ -708,6 +723,12 @@ export function DepositPage(){
    :error?<div className="rounded-xl border border-amber-400/30 p-4"><p className="text-sm text-amber-200" role="alert">{error}</p><Button className="mt-3" size="sm" variant="outline" onClick={()=>setReload(n=>n+1)}>{t("Try again")}</Button></div>
    :<div className="space-y-2"><p className="text-xs font-semibold uppercase tracking-wide text-brand-text-muted">{coin} · {network}</p><div className="break-all rounded-xl border border-brand-border bg-brand-surface-2 p-4 font-mono text-sm">{address}</div><Button variant="outline" size="sm" onClick={()=>navigator.clipboard?.writeText(address)}>{t("Copy address")}</Button></div>}
    <div className="rounded-xl border border-amber-400/20 bg-amber-400/5 p-4 text-sm text-brand-text-secondary"><p className="font-semibold text-amber-200">{t("Important")}</p><p className="mt-1">{t("Send only the selected asset on the selected network. Sending unsupported assets or using another network may result in permanent loss. After the transfer, BTCBOX staff verify receipt and manually credit the account. This page does not create a deposit order or automatically credit funds.")}</p></div>
+  </CardContent></Card>
+  <Card className="border-brand-border bg-brand-surface"><CardHeader><div className="flex flex-wrap items-center justify-between gap-3"><div><CardTitle>{t("Deposit history")}</CardTitle><CardDescription>{t("Track deposits verified and credited by BTCBOX staff.")}</CardDescription></div><Button size="sm" variant="outline" disabled={historyLoading} onClick={()=>setHistoryReload(value=>value+1)}><RefreshCw className={"mr-2 h-4 w-4 "+(historyLoading?"animate-spin":"")}/>{t("Refresh")}</Button></div></CardHeader><CardContent className="space-y-2">
+   {historyLoading?<p className="text-sm text-brand-text-muted" role="status">{t("Loading deposit history…")}</p>
+   :historyError?<p className="text-sm text-rose-300" role="alert">{historyError}</p>
+   :depositHistory.length?depositHistory.map(item=><div key={item.id} className="flex flex-wrap items-start justify-between gap-3 rounded-xl border border-brand-border p-3"><div className="min-w-0"><p className="font-semibold">{item.amount} {item.coin} · {item.network||"—"}</p><p className="mt-1 text-xs text-brand-text-muted">{item.time||"—"}</p>{item.reference||item.txid?<p className="mt-1 break-all text-xs text-brand-text-muted">{t("Reference")}: {item.reference||item.txid}</p>:null}</div><Badge variant="outline" className={item.status==="confirmed"?"border-emerald-500/30 text-emerald-400":item.status==="rejected"?"border-rose-500/30 text-rose-300":"border-amber-500/30 text-amber-300"}>{item.status}</Badge></div>)
+   :<p className="rounded-xl border border-dashed border-brand-border p-5 text-sm text-brand-text-muted">{t("No deposit records have been returned for this account.")}</p>}
   </CardContent></Card>
  </PageFrame>;
 }
