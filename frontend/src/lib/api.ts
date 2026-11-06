@@ -8,6 +8,8 @@ export interface MarketTicker {
   source: string;
   /** Server snapshot time (Unix seconds), not an exchange event timestamp. */
   snapshotTs?: number;
+  /** Exchange/provider event time (Unix seconds), when supplied by the provider. */
+  providerTs?: number;
 }
 
 export interface MarketCandle {
@@ -22,7 +24,7 @@ export interface MarketCandle {
 interface MarketResponse {
   ok: boolean;
   markets?: MarketTicker[];
-  data?: Record<string, { ts?: number; source?: string }>;
+  data?: Record<string, { ts?: number; providerTs?: number | null; source?: string }>;
   msg?: string;
   code?: string;
 }
@@ -109,6 +111,7 @@ export async function getMarkets(signal?: AbortSignal): Promise<MarketTicker[]> 
     return {
       ...item,
       snapshotTs: Number.isFinite(snapshot?.ts) && Number(snapshot?.ts) > 0 ? Number(snapshot?.ts) : undefined,
+      providerTs: Number.isFinite(snapshot?.providerTs) && Number(snapshot?.providerTs) > 0 ? Number(snapshot?.providerTs) : undefined,
       source: typeof snapshot?.source === "string" ? snapshot.source : item.source,
     };
   });
