@@ -347,14 +347,23 @@ export function AdminPage() {
       }
     } finally { setBusy(false); }
   };
+  const refreshWithdrawalQueue = async (confirmedAction: string) => {
+    try {
+      const snapshot = await getAdminWithdrawals(token);
+      setWithdrawals(snapshot.withdrawals || []);
+    } catch {
+      setError(confirmedAction + " The database action is confirmed; the queue could not refresh. Reload this tab before taking another action.");
+    }
+  };
   const approveWithdrawal = async (id: string) => {
     if (!token) return;
     setBusy(true); setError(""); setNotice("");
     try {
       await adminApproveWithdrawal(token, id);
+      setWithdrawals(current => current.map(item => item.id === id ? { ...item, status: "approved" } : item));
       setNotice("Withdrawal approved. Staff must still transfer the funds manually.");
-      setWithdrawals((await getAdminWithdrawals(token)).withdrawals || []);
-    } catch (reason) { setError(reason instanceof Error ? reason.message : "Approval failed."); }
+      await refreshWithdrawalQueue("Withdrawal approval confirmed.");
+    } catch (reason) { setError(reason instanceof Error ? reason.message : "Approval was not confirmed."); }
     finally { setBusy(false); }
   };
   const rejectWithdrawal = async (id: string) => {
@@ -364,9 +373,10 @@ export function AdminPage() {
     setBusy(true); setError(""); setNotice("");
     try {
       await adminRejectWithdrawal(token, id, reasonText.trim());
+      setWithdrawals(current => current.filter(item => item.id !== id));
       setNotice("Withdrawal rejected.");
-      setWithdrawals((await getAdminWithdrawals(token)).withdrawals || []);
-    } catch (reason) { setError(reason instanceof Error ? reason.message : "Rejection failed."); }
+      await refreshWithdrawalQueue("Withdrawal rejection and refund confirmed.");
+    } catch (reason) { setError(reason instanceof Error ? reason.message : "Rejection was not confirmed."); }
     finally { setBusy(false); }
   };
   const markPaid = async (id: string) => {
@@ -376,9 +386,10 @@ export function AdminPage() {
     setBusy(true); setError(""); setNotice("");
     try {
       const result = await adminMarkWithdrawalPaid(token, { id, reference, note: "Staff manually transferred funds." });
-      setNotice(result.duplicate ? "This payout reference was already recorded." : "Manual payout completion recorded.");
-      setWithdrawals((await getAdminWithdrawals(token)).withdrawals || []);
+      setWithdrawals(current => current.filter(item => item.id !== id));
       setPayoutReferences((current) => ({ ...current, [id]: "" }));
+      setNotice(result.duplicate ? "This payout reference was already recorded." : "Manual payout completion recorded.");
+      await refreshWithdrawalQueue("Manual payout completion confirmed.");
     } catch (reason) { setError(reason instanceof Error ? reason.message : "Payout completion was not confirmed."); }
     finally { setBusy(false); }
   };
