@@ -6059,3 +6059,5 @@ The prior withdrawal UI audit statement claiming the active BTCBOX admin route w
 
 - Additional Admin Panel cross-check: the current `frontend/src/features/admin/AdminPage.tsx` includes the manual-credit workflow under user detail, required receipt/TxID reference, stable idempotency key, balance/history refresh and deposit read/review permission gates. Backend uses `admin_manual_deposit_atomic` and fails closed while financial writes are disabled; no production write testing was done. Existing manual-credit and deposit-reference tests cover these contracts.
 - Vercel domain lookup confirms `btcboxcdt.vercel.app` belongs to the `btcboxcdt` project, but the project still reports `live:false` and latest deployment `ERROR`; deployment remains paused.
+
+- Auth branch cross-check: `feat/btcbox-react-google-auth-20261105` removes username/password and wallet UI but still exposes Supabase email/password login, registration and reset. It does not meet the user's Google-only/no-email-auth requirement; do not port it.
