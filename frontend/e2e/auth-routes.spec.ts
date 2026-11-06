@@ -54,11 +54,18 @@ test("unauthenticated customer is redirected from a protected route", async ({ p
 });
 
 test("administrator route requires a verified administrator identity", async ({ page }) => {
+  const adminRequests: string[] = [];
+  page.on("request", (request) => {
+    if (new URL(request.url()).pathname.startsWith("/api/admin/")) adminRequests.push(request.method());
+  });
+
   await page.goto("/admin");
 
   await expect(page).toHaveURL("http://127.0.0.1:4173/admin");
   await expect(page.getByRole("heading", { name: "Welcome back" })).toBeVisible();
   await expect(page.getByText("Continue with email")).toBeVisible();
+  // No administrator API, including the session verifier, may run without a Supabase identity.
+  expect(adminRequests).toEqual([]);
 });
 
 test("assets, orders and KYC remain behind the authenticated account gate", async ({ page }) => {
@@ -114,6 +121,27 @@ test("authenticated assets page renders only the mocked account balances", async
   await expect(page.getByText("USDT", { exact: true })).toBeVisible();
   await expect(page.getByText("0.002", { exact: true })).toBeVisible();
   await expect(page.getByText("125.5 USDT", { exact: true })).toHaveCount(0);
+});
+
+
+const authenticatedKycFixture = {
+  ...authenticatedAccountFixture,
+  kyc: { status: "pending", name: "QA Example", id_type: "passport", id_number: "E2E-123456" },
+};
+
+test("authenticated KYC page renders the read-only pending review state", async ({ page }) => {
+  await page.route("**/api/account", async (route) => {
+    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(authenticatedKycFixture) });
+  });
+
+  await page.goto("/kyc");
+
+  await expect(page.getByRole("heading", { name: "Identity verification" })).toBeVisible();
+  await expect(page.getByText("Current status")).toBeVisible();
+  await expect(page.getByText("pending", { exact: true }).first()).toBeVisible();
+  await expect(page.getByText("QA Example", { exact: true })).toBeVisible();
+  await expect(page.getByText("••••3456", { exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Submit for review" })).toHaveCount(0);
 });
 
 test("authenticated order history renders read-only mocked order rows", async ({ page }) => {
