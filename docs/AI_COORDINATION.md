@@ -2314,3 +2314,15 @@ Application branch inspected: `feat/btcbox-web3-auth-20261105` at `741c709d818cb
 
 ### Conflict resolution
 - This section supersedes any older coordination text that describes V161 as the current terminal baseline or mandates three-person seconds-policy approval. When older notes conflict, follow V211 and the single-Super-Admin model above.
+
+
+## Integration reconciliation refresh — 2026-11-06
+
+- Detailed current source/branch/route/build/CI reconciliation recorded in `docs/INTEGRATION_RECONCILIATION_2026-11-06.md`.
+- Audit report commit: `2f94d4f8e1a2a4aa1cb5a5ff715d5a4ff8d468a0` on `chore/shared-ai-coordination`.
+- Current main observed at `14a8e361fd928626d4e350a03698135f0c49ceea`; coordination HEAD before this report was `06e1b635724cbbcd4ff44e14814e3ee868f1cb98`.
+- Current comprehensive implementation candidate: `feat/btcbox-web3-auth-20261105` at `fbfb96ee26ff8bce6637f2ca11cbf21f0644c928`; GitHub compare reports 374 ahead / 0 behind main. Exact-SHA GitHub Actions run `42144478167` passed; Vercel status failed only due deployment rate limiting. This candidate is not merge-ready and has not been independently browser-QA'd.
+- No open PRs were returned by GitHub at refresh. Do not create a broad merge until candidate diff and route-level QA are complete.
+- V211 source path remains unverified; no trading page edits are authorized until the exact approved source/snapshot is identified.
+- User reports all test Auth users cleared; Supabase was not queried during this audit. Do not delete business schema/configuration or migration history.
+- No main merge, production deployment, Supabase write, or destructive operation occurred.
