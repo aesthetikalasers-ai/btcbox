@@ -3125,3 +3125,12 @@ The prior withdrawal UI audit statement claiming the active BTCBOX admin route w
 - SOURCE OBSERVED: the withdrawal RPC remains status/audit-only after staff has transferred funds; it does not broadcast funds or debit the ledger a second time. Existing SQL contract requires approved status, rejects blank references, and enforces exact replay/conflicting-reference behavior.
 - NOT VERIFIED: browser E2E, hosted Supabase/Auth/Storage setup, real network payouts, and production deployment.
 - No hosted database write, real financial operation, merge to `main`, or deployment was performed.
+
+
+## Manual payout reference defense-in-depth follow-up — CI pending — 2026-11-06 UTC
+
+- The payout reference hardening now applies at three layers: Admin input max length 160; API rejects blank/overlength/control characters; canonical PostgreSQL RPC independently rejects blank/overlength/control characters via POSIX `[[:cntrl:]]` matching.
+- Source/test head: `8c60bd9d5d955f3f13ecc09d2d20dfd7abe91c0c`. SQL change commit: `6696a812d30ed1742081f94575d9ceca2d78440d`.
+- PostgreSQL schema CI run 90 is running for the SQL commit. Exact-head backend/frontend CI for the final test commit is not yet verified.
+- Previous source/UI/test head `58d0350538db98d104631df475f2002807d7f42c` passed backend CI 528 and frontend CI 392; PostgreSQL schema CI 89 also passed on that earlier head.
+- No hosted database write, real financial operation, merge, or deployment was performed.
