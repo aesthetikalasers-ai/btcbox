@@ -3186,3 +3186,17 @@ The prior withdrawal UI audit statement claiming the active BTCBOX admin route w
 - PR #50 description was refreshed to current head, 23-file SQL inventory, canonical app roots, exact prior CI evidence and remaining release gates. PR remains Draft, open, unmerged.
 - Vercel status on the previous exact head reported account build-rate-limit failure. No deployment was initiated.
 - Next batch: obtain exact-head CI results for `ebcab45c2c40105e59fa81ff030be32a86ac4c6a`; then continue source-level route/API contract audit and add isolated browser E2E coverage without using hosted financial writes.
+
+
+## KYC aspect-ratio follow-up — exact-head CI passed — 2026-11-06 UTC
+
+- Exact consolidated implementation head: `ebcab45c2c40105e59fa81ff030be32a86ac4c6a`; branch is 180 commits ahead / 0 behind main.
+- SOURCE FIX: browser KYC image compression now shrinks width and height proportionally by 0.82 on each retry, avoiding aspect-ratio distortion from independent 700 px minimum clamps.
+- EXACT-HEAD TEST PASSED:
+  - Backend CI run 545: unified build, **329/329 tests**, fail-closed preflight and output/entrypoint checks passed.
+  - Frontend CI run 409: lint and Vite production build passed.
+  - PostgreSQL schema CI run 110: all 23 canonical SQL files applied to disposable PostgreSQL 16; schema/RLS/grants checks passed; transaction ended with `ROLLBACK`.
+- GitHub combined status for this SHA reports the Vercel check as success; this is not treated as production release evidence. No production deployment was initiated.
+- PR #50 remains Draft, open, unmerged; its description now reflects the exact current SHA and validation evidence.
+- Still NOT VERIFIED: hosted Supabase/Auth/Storage setup, first Super Admin provisioning, real KYC upload/signed preview, browser/mobile E2E, live market provider/dynamic price protection, real network deposits/payouts, and KYC retention/deletion policy.
+- No hosted database write, real financial operation, merge to main or production deployment occurred.
