@@ -3143,6 +3143,7 @@ async function handleRequest(event, context) {
           return json({ ok: false, msg: 'Financial data temporarily unavailable. Please try again later.', code: 'FINANCIAL_READ_UNAVAILABLE' }, 503);
         }
       } else {
+        safeUser.financial_balance_source = 'legacy_state_retention_limited';
         if (canReadDeposits) {
           safeUser.deposit_history = Array.isArray(u.deposits) ? u.deposits.slice(-20).reverse() : [];
           safeUser.deposit_history_source = 'legacy_state_retention_limited';
