@@ -2275,7 +2275,7 @@ async function handleRequest(event, context) {
       const chg = Number(ticker.chg);
       const vol = Number(ticker.vol);
       if (![price, high, low, chg, vol].every(Number.isFinite) || price <= 0 || high <= 0 || low <= 0 || vol < 0) return null;
-      return { sym: base, price, chg, high, low, vol, ts: now, source };
+      return { sym: base, price, chg, high, low, vol, ts: now, providerTs, source };
     };
     const marketsByBase = {};
     let coinbaseAvailable = false;
@@ -2287,12 +2287,16 @@ async function handleRequest(event, context) {
         const productId = base + '-USDT';
         if (!enabled.has(productId)) return null;
         try {
-          const stats = await fetchJson('https://api.exchange.coinbase.com/products/' + productId + '/stats');
-          const price = Number(stats.last);
+          const [ticker, stats] = await Promise.all([
+            fetchJson('https://api.exchange.coinbase.com/products/' + productId + '/ticker'),
+            fetchJson('https://api.exchange.coinbase.com/products/' + productId + '/stats')
+          ]);
+          const price = Number(ticker.price);
           const open = Number(stats.open);
           const baseVolume = Number(stats.volume);
+          const providerTs = typeof ticker.time === 'string' ? Math.floor(Date.parse(ticker.time) / 1000) : null;
           if (!finitePositive(price) || !finitePositive(open) || !finitePositive(stats.high) || !finitePositive(stats.low) || !Number.isFinite(baseVolume) || baseVolume < 0) return null;
-          return normalize(base, { price, high: Number(stats.high), low: Number(stats.low), chg: (price - open) / open * 100, vol: baseVolume * price }, 'coinbase');
+          return normalize(base, { price, high: Number(stats.high), low: Number(stats.low), chg: (price - open) / open * 100, vol: baseVolume * price }, 'coinbase', Number.isFinite(providerTs) && providerTs > 0 ? providerTs : null);
         } catch (_) { return null; }
       }));
       coinbaseRows.forEach(row => { if (row) marketsByBase[row.sym] = row; });
@@ -2312,7 +2316,9 @@ async function handleRequest(event, context) {
           if (!t) return;
           const price = Number(t.lastPrice), high = Number(t.highPrice24h), low = Number(t.lowPrice24h);
           const chg = Number(t.price24hPcnt) * 100, vol = Number(t.turnover24h);
-          const row = normalize(base, { price, high, low, chg, vol }, 'bybit');
+          const providerTimeMs = Number(payload.time);
+          const providerTs = Number.isFinite(providerTimeMs) && providerTimeMs > 0 ? Math.floor(providerTimeMs / 1000) : null;
+          const row = normalize(base, { price, high, low, chg, vol }, 'bybit', providerTs);
           if (row) marketsByBase[base] = row;
         });
       } catch (_) {
@@ -2327,7 +2333,7 @@ async function handleRequest(event, context) {
       return { sym: row.sym, price: row.price, chg: row.chg, high: row.high, low: row.low, vol: (row.vol / 1e9).toFixed(2) + 'B', source: row.source };
     });
     const dataObj = {};
-    out.forEach(row => { dataObj[row.sym] = { price: row.price, chg: row.chg, high: row.high, low: row.low, vol: marketsByBase[row.sym].vol, ts: snapshotTs, source: row.source }; });
+    out.forEach(row => { dataObj[row.sym] = { price: row.price, chg: row.chg, high: row.high, low: row.low, vol: marketsByBase[row.sym].vol, ts: snapshotTs, providerTs: marketsByBase[row.sym].providerTs, source: row.source }; });
     if (!out.length) return json({ ok: false, code: 'MARKET_DATA_UNAVAILABLE', msg: 'Market data unavailable.', markets: [], data: {}, source: coinbaseAvailable ? 'coinbase_partial' : 'unavailable' }, 503);
     // Public market snapshots contain no user data. Allow short shared-cache reuse
     // so free serverless plans do not fetch every provider for every browser poll.
