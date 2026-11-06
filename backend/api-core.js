@@ -615,15 +615,7 @@ function validateAdminPasswordStrength(pass) {
   if (weakList.indexOf(pass.toLowerCase()) >= 0) return false;
   return true;
 }
-// 启动时（冷启动模块加载）校验 ADMIN_PASS 强度；弱密码直接抛错拒绝启动。
-// 未设置 ADMIN_PASS 时管理后台不可用但不阻止启动。
-(function adminPassStartupCheck() {
-  const p = process.env.ADMIN_PASS;
-  if (p && !validateAdminPasswordStrength(p)) {
-    console.error('[admin-auth] startup blocked: ADMIN_PASS is too weak (require >=12 chars with upper/lower case, digit and symbol). Refusing to start.');
-    throw new Error('ADMIN_PASS_TOO_WEAK');
-  }
-})();
+// Shared Basic Auth is retired. ADMIN_USER / ADMIN_PASS are not used by admin API requests.
 
 // ===== 持久化安全计数器（纯函数，操作普通 counters 对象；由调用方写入 btcbox_state 持久化）=====
 // 关键路径（登录/资金密码/admin）的失败计数持久化到 btcbox_state.security_counters，
@@ -2852,7 +2844,7 @@ async function handleRequest(event, context) {
       if (!reason) return json({ ok: false, msg: 'Please provide a rejection reason.' }, 400);
       u.kyc.status = 'rejected';
       u.kyc.reject_reason = reason;
-      u.kyc.reviewed_by = 'admin';
+      u.kyc.reviewed_by = adminUserId;
       u.kyc.reviewed_at = nowStr();
       await auditAdmin('kyc_reject', u.uid, reason, adminUserId);
       await saveDB(db);
