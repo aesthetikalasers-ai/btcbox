@@ -1,0 +1,70 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+: "${DATABASE_URL:?DATABASE_URL must point to the disposable CI PostgreSQL service}"
+
+# Supabase-managed roles and auth schema are supplied by the isolated CI harness.
+psql "$DATABASE_URL" -v ON_ERROR_STOP=1 <<'SQL'
+DO $roles$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='anon') THEN EXECUTE 'CREATE ROLE anon NOLOGIN'; END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='authenticated') THEN EXECUTE 'CREATE ROLE authenticated NOLOGIN'; END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='service_role') THEN EXECUTE 'CREATE ROLE service_role NOLOGIN BYPASSRLS'; END IF;
+END
+$roles$;
+CREATE SCHEMA IF NOT EXISTS auth;
+CREATE TABLE IF NOT EXISTS auth.users (id uuid PRIMARY KEY);
+CREATE SCHEMA IF NOT EXISTS extensions;
+CREATE EXTENSION IF NOT EXISTS pgcrypto WITH SCHEMA extensions;
+SQL
+
+# This is an isolated, disposable local PostgreSQL instance in CI. The production
+# bootstrap guard remains unchanged and remote hosts still require owner approval.
+BTCBOX_BOOTSTRAP_CONFIRM=YES bash backend/scripts/bootstrap-empty-database.sh
+
+psql "$DATABASE_URL" -v ON_ERROR_STOP=1 <<'SQL'
+DO $verify$
+DECLARE
+  v_accounts regclass := to_regclass('public.financial_accounts');
+  v_cancel_requests regclass := to_regclass('public.financial_matching_cancel_requests');
+  v_admin_members regclass := to_regclass('private.admin_memberships');
+  v_proc regprocedure;
+BEGIN
+  IF v_accounts IS NULL OR v_cancel_requests IS NULL OR v_admin_members IS NULL THEN
+    RAISE EXCEPTION 'required BTCBOX tables were not installed';
+  END IF;
+  IF NOT (SELECT relrowsecurity FROM pg_class WHERE oid=v_accounts) THEN
+    RAISE EXCEPTION 'financial_accounts must have RLS enabled';
+  END IF;
+  IF NOT (SELECT relrowsecurity FROM pg_class WHERE oid=v_cancel_requests) THEN
+    RAISE EXCEPTION 'financial_matching_cancel_requests must have RLS enabled';
+  END IF;
+  IF NOT (SELECT relrowsecurity FROM pg_class WHERE oid=v_admin_members) THEN
+    RAISE EXCEPTION 'private.admin_memberships must have RLS enabled';
+  END IF;
+
+  v_proc := to_regprocedure('public.admin_manual_deposit_atomic(text,text,text,text,numeric,text,text,text,text)');
+  IF v_proc IS NULL OR NOT has_function_privilege('service_role',v_proc,'EXECUTE')
+     OR has_function_privilege('anon',v_proc,'EXECUTE')
+     OR has_function_privilege('authenticated',v_proc,'EXECUTE') THEN
+    RAISE EXCEPTION 'manual deposit RPC grants are not service-role-only';
+  END IF;
+
+  v_proc := to_regprocedure('public.cancel_limit_order_matching_v1(text,text,text)');
+  IF v_proc IS NULL OR NOT has_function_privilege('service_role',v_proc,'EXECUTE')
+     OR has_function_privilege('anon',v_proc,'EXECUTE')
+     OR has_function_privilege('authenticated',v_proc,'EXECUTE') THEN
+    RAISE EXCEPTION 'spot cancel RPC grants are not service-role-only';
+  END IF;
+
+  v_proc := to_regprocedure('public.settle_seconds_position_v1(text,text,text,text,text,numeric,text,timestamptz)');
+  IF v_proc IS NULL OR NOT has_function_privilege('service_role',v_proc,'EXECUTE')
+     OR has_function_privilege('anon',v_proc,'EXECUTE')
+     OR has_function_privilege('authenticated',v_proc,'EXECUTE') THEN
+    RAISE EXCEPTION 'Seconds settlement RPC grants are not service-role-only';
+  END IF;
+END
+$verify$;
+
+SELECT 'BTCBOX PostgreSQL schema bootstrap and RLS/grant verification passed' AS result;
+SQL
