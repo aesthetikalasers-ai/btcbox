@@ -6061,3 +6061,8 @@ The prior withdrawal UI audit statement claiming the active BTCBOX admin route w
 - Vercel domain lookup confirms `btcboxcdt.vercel.app` belongs to the `btcboxcdt` project, but the project still reports `live:false` and latest deployment `ERROR`; deployment remains paused.
 
 - Auth branch cross-check: `feat/btcbox-react-google-auth-20261105` removes username/password and wallet UI but still exposes Supabase email/password login, registration and reset. It does not meet the user's Google-only/no-email-auth requirement; do not port it.
+
+- Google + wallet public auth UI batch: `AuthPages.tsx` now presents Google OAuth and a unified Connect wallet chooser (Ethereum/EVM + Solana), removes public email/password and BTCBOX username/password forms, retains optional backend-requested 2FA challenge and existing callback handling, and adds Phantom/Coinbase Wallet mobile links. Regression test asserts forbidden legacy controls are absent.
+- Backend wallet identity validation accepts only Supabase-verified Ethereum or Solana claims with valid address formats. Supabase Web3 provider enablement itself is NOT VERIFIED; no live wallet auth was attempted.
+- CI branch coverage fixed: unified branch added to backend/frontend push triggers; backend workflow now watches `AuthPages.tsx`. Build/test-only CI runs `42309363348` (backend) and `42309363409` (frontend) were running on `aa42ea2a7e4e798687fb9b208b5a36bdde2da389`; record final conclusions after completion.
+- Detailed changes, commits and resume point: `docs/FRONTEND-MARKET-PREVIEW-BATCH-2026-11-07.md`.
