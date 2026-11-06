@@ -130,3 +130,12 @@ Implementation branch: `feat/btcbox-web3-auth-20261105`.
 - Exact candidate head after this batch: `32a14b6a27a5da259fd61f3e8d483776016963d0`; GitHub compare against `403fc12d679b11590e5eaf5c8e8aaae15f33d99a` reports 3 commits ahead / 0 behind and exactly one changed path: `frontend/src/features/pages/Pages.tsx` (37 additions, 3 deletions).
 - Source re-fetch at the exact head confirms the auth hook import and profile implementation are present. No GitHub Actions run was returned by the PR-run-only lookup; combined status reports only Vercel failure due the existing Hobby build-rate-limit target. Therefore this batch is SOURCE OBSERVED, not TEST PASSED. TypeScript/build and browser behavior remain NOT VERIFIED.
 - No merge, PR, production deployment, Supabase write, or financial transaction occurred.
+
+
+## Follow-up UI truthfulness fix — Seconds capability label — 2026-11-06 (UTC+8)
+
+- On `feat/btcbox-web3-auth-20261105`, corrected the Trade Hub Seconds card to state that real open-position/settled-history viewing is available while new order entry remains disabled. This removes the misleading blanket `API integration pending` label.
+- Commit: `ed115174b193dd71132195ff148f9afd5bfd22c5`.
+- Exact-head source re-fetch confirms the updated copy. Compare from `403fc12d679b11590e5eaf5c8e8aaae15f33d99a`: 4 commits ahead / 0 behind, one path changed (`frontend/src/features/pages/Pages.tsx`).
+- Combined status still reports only the existing Vercel Hobby build-rate-limit failure. No GitHub Actions test result is available for this exact SHA; build/test/browser validation remains NOT VERIFIED.
+- No trade-order functionality or V211 layout was changed; no financial writes, merge, or deployment.
