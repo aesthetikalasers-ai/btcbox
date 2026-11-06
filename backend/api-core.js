@@ -3282,6 +3282,7 @@ async function handleRequest(event, context) {
       if (!wdId || wdId.length > 100) return json({ ok: false, msg: 'Withdrawal record ID is invalid.' }, 400);
       if (!reference) return json({ ok: false, code: 'PAYOUT_REFERENCE_REQUIRED', msg: 'TxID / payout reference is required.' }, 400);
       if (reference.length > 160 || note.length > 300) return json({ ok: false, msg: 'Payout reference or note is too long.' }, 400);
+      if (/[\u0000-\u001f\u007f]/.test(reference)) return json({ ok: false, code: 'PAYOUT_REFERENCE_INVALID', msg: 'Payout reference cannot contain control characters.' }, 400);
       if (!supabaseStorageConfigured()) return json({ ok: false, code: 'FINANCIAL_RPC_NOT_CONFIGURED', msg: 'Financial database is not configured. Payout status was not changed.' }, 503);
       const adminId = adminUserId;
       if (!adminId) return json({ ok: false, code: 'ADMIN_ACTOR_NOT_CONFIGURED', msg: 'Administrator audit identity not configured. Payout status was not changed.' }, 503);
