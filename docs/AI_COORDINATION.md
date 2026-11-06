@@ -3145,3 +3145,17 @@ The prior withdrawal UI audit statement claiming the active BTCBOX admin route w
 - Exact-head CI is pending; do not mark this follow-up validated until backend, frontend and PostgreSQL schema CI for the final SHA are checked.
 - Prior full payout-reference hardening SHA `8c60bd9d5d955f3f13ecc09d2d20dfd7abe91c0c` passed backend CI 529, frontend CI 393 and PostgreSQL schema CI 91.
 - No hosted database write, real financial operation, merge, or deployment was performed.
+
+
+## Seconds configurable max-stake alignment — exact-head CI passed — 2026-11-06 UTC
+
+- Continued on consolidated branch `fix/post-merge-db-bootstrap-seconds-20261106`, Draft PR #50. Exact final source/test SHA: `c118941bef26ec0bf7fa307cbcc9d84b5ab87a9a`.
+- SOURCE FIX: removed the legacy API hard cap of 1,000,000,000,000 USDT from `POST /api/seconds/order`. The endpoint still rejects missing, invalid, zero and negative amounts; the active PostgreSQL Seconds policy now remains the authoritative maximum-stake validator, consistent with the admin-editable `max_stake` setting.
+- TEST ADDED/UPDATED: `seconds-server-authoritative-rules.test.js` asserts the order route has no fixed 1e12 cap; `seconds-policy-versioning.test.js` asserts the same policy contract and retains the decimal precision/positive-amount checks. An initial CI attempt exposed one stale test assertion expecting the retired hard cap; that assertion was corrected before final validation.
+- EXACT-HEAD CI PASSED on `c118941bef26ec0bf7fa307cbcc9d84b5ab87a9`:
+  - Backend CI run 532: unified build, **325/325 tests**, fail-closed preflight and output/entrypoint checks passed.
+  - Frontend CI run 396: lint and production build passed.
+  - PostgreSQL schema CI run 94: all canonical SQL files applied to disposable PostgreSQL 16; RLS/grants and financial lifecycle integration assertions passed; integration transaction ended with `ROLLBACK`.
+- Existing Seconds policy behavior verified from source/SQL: admin can configure duration list, min/max stake, payout (minimum 85%, no fixed 100% ceiling), optional per-user exposure and optional unfinished-position count; each opened position snapshots the active payout policy and settles using that immutable snapshot. Blank count/exposure means no additional configured cap.
+- NOT VERIFIED: hosted Supabase application of canonical SQL, live price-provider connectivity, browser E2E, real financial operation or production release.
+- No hosted database write, real financial operation, merge to `main`, or production deployment was performed.
