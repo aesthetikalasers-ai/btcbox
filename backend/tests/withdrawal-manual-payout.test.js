@@ -12,6 +12,8 @@ const sql = fs.readFileSync(path.join(root, 'supabase', 'sql', '0027_withdrawal_
 test('manual payout API rejects a missing TxID/reference and enforces bounded input', () => {
   assert.ok(api.includes("if (!reference) return json({ ok: false, code: 'PAYOUT_REFERENCE_REQUIRED'"));
   assert.ok(api.includes('reference.length > 160 || note.length > 300'));
+  assert.ok(api.includes("PAYOUT_REFERENCE_INVALID"));
+  assert.ok(api.includes("/[\\u0000-\\u001f\\u007f]/.test(reference)"));
   assert.ok(api.includes("sub === 'withdraw/mark-paid'"));
 });
 
