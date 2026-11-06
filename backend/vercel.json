@@ -43,8 +43,12 @@
       "destination": "/legacy-index.html?auth_callback=1"
     },
     {
+      "source": "/admin.html",
+      "destination": "/index.html"
+    },
+    {
       "source": "/admin",
-      "destination": "/admin.html"
+      "destination": "/index.html"
     },
     {
       "source": "/oauth/consent",
