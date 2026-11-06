@@ -44,9 +44,17 @@ type AuthContextValue = {
   finishOAuth: () => Promise<void>;
   verifyTwoFactor: (code: string) => Promise<void>;
   signOut: () => Promise<void>;
+  getAccessToken: () => Promise<string | null>;
   clearError: () => void;
 };
 const AuthContext = createContext<AuthContextValue | null>(null);
+
+function isAdminAuthFlow() {
+  return typeof window !== "undefined" && (
+    window.location.pathname.startsWith("/admin") ||
+    new URLSearchParams(window.location.search).get("next") === "/admin"
+  );
+}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const clientRef = useRef<SupabaseClient | null>(null);
@@ -87,6 +95,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const setSignedIn = useCallback(async () => {
+    if (isAdminAuthFlow()) {
+      const client = clientRef.current;
+      if (!client) throw new Error("Authentication is still initializing.");
+      const { data, error: userError } = await client.auth.getUser();
+      if (userError || !data.user) throw userError || new Error("Supabase administrator identity is unavailable.");
+      setEmail(data.user.email || "");
+      setNeedsCredentials(false);
+      setTempToken("");
+      setStatus("authenticated");
+      return;
+    }
     const account = await getAccount();
     setEmail(account.email || "");
     setNeedsCredentials(!account.username || account.has_login_password !== true);
@@ -95,6 +114,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const acceptSupabaseSession = useCallback(async (accessToken: string) => {
+    if (isAdminAuthFlow()) { await setSignedIn(); return; }
     if (exchangeLock.current) return;
     exchangeLock.current = true;
     try {
@@ -357,7 +377,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!clientRef.current) throw new Error("Authentication is still initializing. Please try again.");
       const { error: authError } = await clientRef.current.auth.signInWithOAuth({
         provider: "google",
-        options: { redirectTo: window.location.origin + "/auth/react-callback", queryParams: { prompt: "select_account" } },
+        options: { redirectTo: window.location.origin + (isAdminAuthFlow() ? "/auth/react-callback?next=%2Fadmin" : "/auth/react-callback"), queryParams: { prompt: "select_account" } },
       });
       if (authError) throw authError;
     } catch (cause) {
@@ -560,6 +580,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } finally { setBusy(false); }
   }, [setSignedIn, tempToken]);
 
+  const getAccessToken = useCallback(async (): Promise<string | null> => {
+    const client = clientRef.current;
+    if (!client) return null;
+    const { data, error: sessionError } = await client.auth.getSession();
+    if (sessionError) throw sessionError;
+    return data.session?.access_token || null;
+  }, []);
+
   const signOut = useCallback(async () => {
     setBusy(true); setError("");
     try {
@@ -582,10 +610,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const value = useMemo(() => ({
     status, email, busy, error, notice, googleEnabled, identityLinkSourceVerified, identityLinkNeedsTwoFactor, completeIdentityLinkReauthTwoFactor, needsCredentials, credentialRecoveryReady, credentialRecoveryNeedsTwoFactor, ethereumWallets, signInWithGoogle, reauthenticateIdentityLinkWithGoogle, reauthenticateIdentityLinkWithWeb3, linkGoogleIdentity, linkWeb3Identity, signInWithUsername, setBtcboxCredentials, reauthenticateCredentialsWithGoogle, reauthenticateCredentialsWithWeb3, completeCredentialRecoveryTwoFactor, recoverBtcboxPassword, signInWithWeb3, signInWithEmail, signUpWithEmail,
-    requestPasswordReset, completePasswordRecovery, finishOAuth, verifyTwoFactor, signOut,
+    requestPasswordReset, completePasswordRecovery, finishOAuth, verifyTwoFactor, signOut, getAccessToken,
     clearError: () => setError(""),
   }), [status, email, busy, error, notice, googleEnabled, identityLinkSourceVerified, identityLinkNeedsTwoFactor, completeIdentityLinkReauthTwoFactor, needsCredentials, credentialRecoveryReady, credentialRecoveryNeedsTwoFactor, ethereumWallets, signInWithGoogle, linkGoogleIdentity, linkWeb3Identity, signInWithUsername, setBtcboxCredentials, reauthenticateCredentialsWithGoogle, reauthenticateCredentialsWithWeb3, completeCredentialRecoveryTwoFactor, recoverBtcboxPassword, signInWithWeb3, signInWithEmail, signUpWithEmail,
-    requestPasswordReset, completePasswordRecovery, finishOAuth, verifyTwoFactor, signOut, reauthenticateIdentityLinkWithGoogle, reauthenticateIdentityLinkWithWeb3]);
+    requestPasswordReset, completePasswordRecovery, finishOAuth, verifyTwoFactor, signOut, getAccessToken, reauthenticateIdentityLinkWithGoogle, reauthenticateIdentityLinkWithWeb3]);
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
