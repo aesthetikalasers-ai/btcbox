@@ -3081,3 +3081,19 @@ The prior withdrawal UI audit statement claiming the active BTCBOX admin route w
 - The KYC Storage prerequisite remains manual and NOT VERIFIED: private bucket `kyc-documents`, 512 KiB max, JPEG/PNG/WebP only, no public/customer policies. No hosted bucket or database setting was changed.
 - Still NOT VERIFIED: hosted Supabase/Auth bootstrap, real Storage upload/signed-preview, browser E2E, KYC retention/deletion policy, live market provider connectivity, real network deposit/payout and production release.
 - No merge to `main`, hosted database write, financial operation or production deployment was performed.
+
+## KYC privacy boundary and document lifecycle hardening — CI passed — 2026-11-06 UTC
+
+- Continued on the existing Draft PR #50 branch `fix/post-merge-db-bootstrap-seconds-20261106`; no branch switch or merge.
+- SOURCE FIX: `GET /api/admin/user?uid=` is protected by general `users.read`, so its returned `safeUser.kyc` now contains only `status`. It no longer returns the full identity number, document object path, or KYC evidence metadata to admins who do not have the separate `kyc.read` permission. The dedicated KYC review queue remains behind `kyc.read`.
+- SOURCE FIX: signed preview and deletion helpers enforce exact user ownership of the object key (UID directory + generated UUID filename + supported extension). The admin preview call passes the target UID into the ownership check.
+- SOURCE FIX: rejected applicants may resubmit. The API uploads and persists the replacement first, then attempts deletion of the previous user-owned image. If persistence fails, it attempts to remove the new unreferenced image and leaves the previous evidence intact.
+- No automatic document deletion after approval/rejection was added. Retention duration and legal deletion requirements remain an explicit release-policy decision.
+- Backend source/test commit: `4e22d10006651bb4249051dd118f106286780678`. Documentation follow-up commit: `2e979cfd92065e79cb36b2cc7ebdda3114df0dfd`.
+- EXACT SOURCE/TEST SHA CI PASSED:
+  - Backend CI run 519: unified build, **322/322 tests**, fail-closed preflight and output/entrypoint checks passed.
+  - Frontend CI run 383: lint, TypeScript compilation and Vite production build passed.
+  - PostgreSQL schema CI run 80: all 22 canonical SQL files applied to disposable PostgreSQL 16; RLS/grants and financial lifecycle integration checks passed; transaction ended with `ROLLBACK`.
+- Vercel check remains failed due to the account build-rate limit. No deployment was attempted.
+- Still NOT VERIFIED: hosted private Storage bucket setup, real upload/signed preview, KYC retention policy, hosted Supabase/Auth bootstrap, first Super Admin provisioning, browser E2E, live market provider, real network deposit/payout.
+- No hosted DB write, real financial operation, merge to `main`, or production deployment was performed.
