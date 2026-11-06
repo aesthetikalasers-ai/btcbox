@@ -2499,6 +2499,73 @@ async function handleRequest(event, context) {
     if (sub === 'session' && method === 'GET') {
       return json({ ok: true, user_id: adminUserId, status: adminMembership.status, is_super_admin: adminMembership.is_super_admin === true, permissions: Array.isArray(adminMembership.permissions) ? adminMembership.permissions : [] });
     }
+    // Super Admin-only delegated administrator management. The caller UUID is
+    // always derived from the verified Supabase Auth identity above.
+    if (sub === 'admins' && method === 'GET') {
+      if (adminMembership.is_super_admin !== true) return json({ ok: false, code: 'SUPER_ADMIN_REQUIRED', msg: 'Only the Super Admin can manage administrators.' }, 403);
+      try {
+        const base = String(process.env.SUPABASE_URL || '').replace(/\\/+$/, '');
+        if (!base || !supabaseStorageConfigured()) throw new Error('Admin membership store unavailable');
+        const response = await fetch(base + '/rest/v1/rpc/admin_list_memberships_v1', {
+          method: 'POST', headers: supabaseHeaders(),
+          body: JSON.stringify({ p_actor_user_id: adminUserId }),
+          signal: AbortSignal.timeout(5000)
+        });
+        const result = await response.json().catch(() => null);
+        if (!response.ok || !result || result.ok !== true || !Array.isArray(result.admins)) {
+          return json({ ok: false, code: 'ADMIN_LIST_UNAVAILABLE', msg: 'Administrator list is temporarily unavailable.' }, 503);
+        }
+        return json({ ok: true, admins: result.admins });
+      } catch (_) {
+        return json({ ok: false, code: 'ADMIN_LIST_UNAVAILABLE', msg: 'Administrator list is temporarily unavailable.' }, 503);
+      }
+    }
+    if (sub === 'admins/manage' && method === 'POST') {
+      if (adminMembership.is_super_admin !== true) return json({ ok: false, code: 'SUPER_ADMIN_REQUIRED', msg: 'Only the Super Admin can manage administrators.' }, 403);
+      const targetUserId = String(body.target_user_id || '').toLowerCase();
+      const action = String(body.action || '');
+      const reason = typeof body.reason === 'string' ? body.reason.trim() : '';
+      const requestId = String(body.request_id || '');
+      const expectedRevision = Number(body.expected_revision);
+      const permissions = body.permissions;
+      const validUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+      const allowedActions = ['provision','set_permissions','suspend','reactivate','revoke'];
+      if (!validUuid.test(targetUserId) || !allowedActions.includes(action) ||
+          !Number.isSafeInteger(expectedRevision) || expectedRevision < 0 ||
+          !Array.isArray(permissions) || permissions.some((item) => typeof item !== 'string') ||
+          reason.length < 1 || reason.length > 500 ||
+          !/^[A-Za-z0-9_-]{16,100}$/.test(requestId)) {
+        return json({ ok: false, code: 'ADMIN_CHANGE_INVALID', msg: 'Administrator change details are invalid.' }, 400);
+      }
+      const normalizedPermissions = [...permissions].sort();
+      const requestHash = crypto.createHash('sha256').update(JSON.stringify({
+        target_user_id: targetUserId, expected_revision: expectedRevision,
+        action, permissions: normalizedPermissions, reason
+      })).digest('hex');
+      try {
+        const base = String(process.env.SUPABASE_URL || '').replace(/\\/+$/, '');
+        if (!base || !supabaseStorageConfigured()) throw new Error('Admin membership store unavailable');
+        const response = await fetch(base + '/rest/v1/rpc/admin_manage_membership_v1', {
+          method: 'POST', headers: supabaseHeaders(),
+          body: JSON.stringify({
+            p_actor_user_id: adminUserId, p_target_user_id: targetUserId,
+            p_expected_revision: expectedRevision, p_action: action,
+            p_permissions: normalizedPermissions, p_reason: reason,
+            p_request_id: requestId, p_request_hash: requestHash
+          }),
+          signal: AbortSignal.timeout(5000)
+        });
+        const result = await response.json().catch(() => null);
+        if (!response.ok || !result || result.ok !== true) {
+          const status = response.status === 400 || response.status === 409 ? 409 : 503;
+          return json({ ok: false, code: status === 409 ? 'ADMIN_CHANGE_REJECTED' : 'ADMIN_CHANGE_UNAVAILABLE', msg: status === 409 ? 'Administrator change was rejected. Refresh the membership and review the requested action.' : 'Administrator change could not be confirmed. Refresh the administrator list before retrying.' }, status);
+        }
+        return json({ ok: true, result });
+      } catch (_) {
+        return json({ ok: false, code: 'ADMIN_CHANGE_UNAVAILABLE', msg: 'Administrator change could not be confirmed. Refresh the administrator list before retrying.' }, 503);
+      }
+    }
+
     const requiredPermission = (function(route, verb) {
       if (route === 'stats' && verb === 'GET') return 'dashboard.read';
       if (route === 'users' && verb === 'GET') return 'users.read';
