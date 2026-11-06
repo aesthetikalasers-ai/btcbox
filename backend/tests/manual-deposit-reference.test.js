@@ -50,3 +50,16 @@ test('financial account snapshot reads normalized deposit history instead of leg
   assert.ok(sql.includes("'deposits', v_deposits"));
   assert.ok(sql.includes("'reference', coalesce(reference, '')"));
 });
+
+test('deposit page displays account snapshot history and refreshes it independently of address lookup', () => {
+  const pages = read('frontend/src/features/pages/Pages.tsx');
+  const start = pages.indexOf('export function DepositPage()');
+  const end = pages.indexOf('export function EarnPage()', start);
+  assert.ok(start >= 0 && end > start);
+  const block = pages.slice(start, end);
+  assert.ok(block.includes('getAccount(controller.signal)'));
+  assert.ok(block.includes('snapshot.deposits'));
+  assert.ok(block.includes('Deposit history'));
+  assert.ok(block.includes('item.reference||item.txid'));
+  assert.ok(block.includes('historyReload'));
+});
