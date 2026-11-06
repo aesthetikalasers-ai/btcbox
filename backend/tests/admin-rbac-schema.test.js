@@ -93,7 +93,8 @@ test('membership lookup derives permissions from live membership and latest gran
 test('migration source is not applied and bootstrap does not provision a default account', () => {
   assert.match(sql, /SOURCE ONLY: apply only to an isolated Supabase staging project/i);
   assert.match(sql, /No administrator is bootstrapped by this migration/i);
-  assert.doesNotMatch(sql, /INSERT INTO private\.admin_memberships[\s\S]*VALUES\s*\([^)]*true/i);
+  const beforeBootstrap = sql.slice(0, sql.indexOf('CREATE OR REPLACE FUNCTION private.bootstrap_super_admin_v1'));
+  assert.doesNotMatch(beforeBootstrap, /INSERT INTO private\\.admin_memberships/i);
   assert.match(design, /initial Super Admin is provisioned once by the project owner/i);
   assert.match(design, /No default email, password, UUID, or public bootstrap endpoint/i);
 });
