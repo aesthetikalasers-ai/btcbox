@@ -49,6 +49,13 @@ type AuthContextValue = {
 };
 const AuthContext = createContext<AuthContextValue | null>(null);
 
+function isAdminAuthFlow() {
+  return typeof window !== "undefined" && (
+    window.location.pathname.startsWith("/admin") ||
+    new URLSearchParams(window.location.search).get("next") === "/admin"
+  );
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const clientRef = useRef<SupabaseClient | null>(null);
   const [status, setStatus] = useState<AuthStatus>("loading");
@@ -86,11 +93,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     window.dispatchEvent(new Event("eip6963:requestProvider"));
     return () => window.removeEventListener("eip6963:announceProvider", onAnnounceProvider);
   }, []);
-
-  const isAdminAuthFlow = () => typeof window !== "undefined" && (
-    window.location.pathname.startsWith("/admin") ||
-    new URLSearchParams(window.location.search).get("next") === "/admin"
-  );
 
   const setSignedIn = useCallback(async () => {
     if (isAdminAuthFlow()) {
