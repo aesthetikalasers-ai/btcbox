@@ -3254,3 +3254,10 @@ The prior withdrawal UI audit statement claiming the active BTCBOX admin route w
 - NOT VERIFIED: authenticated account hydration, balances, order-history rows, KYC status retrieval, authenticated admin read-only data loading, and KYC review queue rendering. The current auth fixture only establishes the signed-out boundary; do not label these authenticated flows tested.
 - No merge, production deployment, hosted DB write, real financial action, or trading-layout change occurred.
 - NEXT ACTION: run exact-head frontend/backend/PostgreSQL CI, then extend authenticated browser coverage only after confirming the actual auth-provider session fixture contract. Keep admin/KYC/financial mutation actions mocked or blocked.
+
+## E2E fixture correction — 2026-11-06
+
+- First expanded Playwright run at `9d05cb977db07537e624e8dc18c6ab1bd01a69ad`: 10 passed, 2 failed (the signed-out `/me` assertion failed in both desktop and mobile).
+- Failure analysis from the CI log: the test incorrectly expected zero `GET /api/account` calls. SOURCE OBSERVED in `frontend/src/lib/auth.tsx`: AuthProvider intentionally probes the read-only account endpoint once during startup to restore a pre-existing cookie session, before falling back to anonymous Supabase session state. The page then correctly renders the signed-out prompt. This is expected session-bootstrap behavior, not a private-data leak or product regression.
+- Corrected the test to require exactly one read-only GET probe and renamed the test to describe the actual behavior. Correction commit: `c28d8ccb44321db3beb4fd5d652d5eea61f5909d`.
+- Exact-head CI for the correction is pending; previous failed frontend run must not be called passed. Backend and PostgreSQL schema CI passed on the prior test-only commit.
