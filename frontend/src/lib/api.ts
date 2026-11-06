@@ -6,6 +6,8 @@ export interface MarketTicker {
   low: number;
   vol: string;
   source: string;
+  /** Server snapshot time (Unix seconds), not an exchange event timestamp. */
+  snapshotTs?: number;
 }
 
 export interface MarketCandle {
@@ -20,6 +22,7 @@ export interface MarketCandle {
 interface MarketResponse {
   ok: boolean;
   markets?: MarketTicker[];
+  data?: Record<string, { ts?: number; source?: string }>;
   msg?: string;
   code?: string;
 }
@@ -101,7 +104,14 @@ export async function getMarkets(signal?: AbortSignal): Promise<MarketTicker[]> 
     Number.isFinite(item.high) && item.high > 0 &&
     Number.isFinite(item.low) && item.low > 0 &&
     typeof item.vol === "string"
-  );
+  ).map(item => {
+    const snapshot = payload.data?.[item.sym];
+    return {
+      ...item,
+      snapshotTs: Number.isFinite(snapshot?.ts) && Number(snapshot?.ts) > 0 ? Number(snapshot?.ts) : undefined,
+      source: typeof snapshot?.source === "string" ? snapshot.source : item.source,
+    };
+  });
 }
 
 export async function getKlines(
