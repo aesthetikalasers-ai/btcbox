@@ -79,6 +79,7 @@ FILES=(
   0026_admin_rbac_private_store_v1.sql
   0027_withdrawal_manual_payout_completion_v1.sql
   0028_admin_rbac_service_rpc_wrappers_v1.sql
+  0029_withdrawal_fee_quote_idempotency_v1.sql
 )
 
 echo "[info] Bootstrapping a fresh BTCBOX schema with ${#FILES[@]} canonical SQL files."
