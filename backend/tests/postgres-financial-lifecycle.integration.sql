@@ -236,6 +236,29 @@ BEGIN
   IF v_result->>'replayed'<>'true' THEN
     RAISE EXCEPTION 'admin spot market exact replay was not idempotent: %',v_result;
   END IF;
+
+  -- Rule changes must not reinterpret the still-open resting order.
+  v_failed := false;
+  BEGIN
+    PERFORM public.admin_set_spot_market_v1(
+      '00000000-0000-4000-8000-000000000001',
+      'BTC','USDT',true,2,0.001,0.001,1,NULL,NULL,
+      'attempt precision change while a resting order exists',
+      'spot-market-rule-change-0001',repeat('e',64)
+    );
+  EXCEPTION WHEN OTHERS THEN
+    v_failed := true;
+  END;
+  IF NOT v_failed THEN
+    RAISE EXCEPTION 'admin spot market changed price tick while resting orders existed';
+  END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM public.financial_matching_markets
+    WHERE base_asset='BTC' AND quote_asset='USDT' AND enabled=true AND price_tick=1
+  ) THEN
+    RAISE EXCEPTION 'rejected spot rule change modified the active market';
+  END IF;
+
   v_failed := false;
   BEGIN
     PERFORM public.admin_set_spot_market_v1(
