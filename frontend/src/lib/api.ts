@@ -342,6 +342,99 @@ export async function getSecondsPositions(signal?: AbortSignal): Promise<Seconds
   return payload;
 }
 
+export interface SecondsPolicySnapshot {
+  policy_id: string;
+  policy_version: number;
+  symbols: string[];
+  durations_sec: number[];
+  min_stake: number | string;
+  max_stake: number | string;
+  payout_bps: number;
+  per_user_open_exposure: number | string | null;
+}
+export interface SecondsPolicyResponse {
+  policy: SecondsPolicySnapshot;
+  actions_enabled: boolean;
+}
+export async function getSecondsPolicy(signal?: AbortSignal): Promise<SecondsPolicyResponse> {
+  const payload = await readAuthenticated<SecondsPolicyResponse & { ok: true }>("seconds/policy", signal);
+  const policy = payload.policy;
+  if (!policy || typeof policy.policy_id !== "string" ||
+      !Number.isSafeInteger(policy.policy_version) || policy.policy_version <= 0 ||
+      !Array.isArray(policy.symbols) || !policy.symbols.length ||
+      !policy.symbols.every((symbol) => ["BTC", "ETH", "SOL", "BNB"].includes(symbol)) ||
+      !Array.isArray(policy.durations_sec) || !policy.durations_sec.length ||
+      !policy.durations_sec.every((duration) => [30, 60, 300, 900].includes(duration)) ||
+      !Number.isFinite(Number(policy.min_stake)) || Number(policy.min_stake) <= 0 ||
+      !Number.isFinite(Number(policy.max_stake)) || Number(policy.max_stake) < Number(policy.min_stake) ||
+      !Number.isInteger(policy.payout_bps) || policy.payout_bps < 8500 || policy.payout_bps > 10000 ||
+      (policy.per_user_open_exposure !== null && (!Number.isFinite(Number(policy.per_user_open_exposure)) || Number(policy.per_user_open_exposure) <= 0)) ||
+      typeof payload.actions_enabled !== "boolean") {
+    throw new ApiError("BTCBOX returned an invalid seconds policy.", 502, "INVALID_SECONDS_POLICY");
+  }
+  return payload;
+}
+
+export interface SecondsOrderInput {
+  request_id: string;
+  symbol: string;
+  direction: "up" | "down";
+  duration_sec: number;
+  amount: string;
+}
+export interface SecondsOrderResult {
+  position_id: string;
+  symbol: string;
+  direction: "up" | "down";
+  amount: number | string;
+  duration_sec: number;
+  open_price: number;
+  settle_at: number;
+  duplicate: boolean;
+}
+export async function submitSecondsOrder(input: SecondsOrderInput): Promise<SecondsOrderResult> {
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE_URL}/seconds/order`, {
+      method: "POST", credentials: "include",
+      headers: { Accept: "application/json", "Content-Type": "application/json" },
+      cache: "no-store", body: JSON.stringify(input),
+    });
+  } catch {
+    throw new ApiError("Order result is unconfirmed. Keep the same request ID and check open positions before retrying.", 0, "NETWORK_ERROR");
+  }
+  const payload = await response.json().catch(() => null) as (SecondsOrderResult & { ok?: boolean; msg?: string; code?: string; need_login?: boolean }) | null;
+  if (!response.ok || !payload || payload.ok !== true ||
+      typeof payload.position_id !== "string" || !/^SC[A-Fa-f0-9]{30}$/.test(payload.position_id) ||
+      !["BTC", "ETH", "SOL", "BNB"].includes(payload.symbol) ||
+      (payload.direction !== "up" && payload.direction !== "down") ||
+      !Number.isFinite(Number(payload.amount)) || Number(payload.amount) <= 0 ||
+      ![30, 60, 300, 900].includes(payload.duration_sec) ||
+      !Number.isFinite(payload.open_price) || payload.open_price <= 0 ||
+      !Number.isSafeInteger(payload.settle_at) || payload.settle_at <= 0) {
+    throw new ApiError(payload?.msg || "Order was not confirmed. Check open positions before retrying.", payload?.need_login ? 401 : response.status, payload?.code);
+  }
+  return payload;
+}
+
+export async function settleSecondsPosition(input: { position_id: string; symbol: string; request_id: string }): Promise<{ settled: boolean; duplicate: boolean }> {
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE_URL}/seconds/settle`, {
+      method: "POST", credentials: "include",
+      headers: { Accept: "application/json", "Content-Type": "application/json" },
+      cache: "no-store", body: JSON.stringify(input),
+    });
+  } catch {
+    throw new ApiError("Settlement is not yet confirmed. The position remains visible until the server confirms its result.", 0, "NETWORK_ERROR");
+  }
+  const payload = await response.json().catch(() => null) as { ok?: boolean; settled?: boolean; duplicate?: boolean; need_login?: boolean; msg?: string; code?: string } | null;
+  if (!response.ok || !payload || payload.ok !== true || typeof payload.settled !== "boolean") {
+    throw new ApiError(payload?.msg || "Settlement is not yet confirmed. Refresh the position later.", payload?.need_login ? 401 : response.status, payload?.code);
+  }
+  return { settled: payload.settled, duplicate: !!payload.duplicate };
+}
+
 export async function logout(): Promise<void> {
   let response: Response;
   try {

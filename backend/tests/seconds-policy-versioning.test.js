@@ -65,7 +65,8 @@ test('policy snapshot cannot be rewritten and the client cannot control payout o
 test('migration is additive and does not open financial cutover or modify legacy positions', () => {
   assert.match(migration, /ADD COLUMN IF NOT EXISTS policy_id/i);
   assert.match(migration, /ADD COLUMN IF NOT EXISTS payout_bps_snapshot/i);
-  assert.doesNotMatch(migration, /UPDATE public\.seconds_contract_positions[\s\S]*?SET[\s\S]*?policy_id/i);
+  const positionUpdates = migration.match(/UPDATE public\.seconds_contract_positions\b[\s\S]*?;/gi) || [];
+  assert.ok(positionUpdates.every((statement) => !/\bpolicy_id\b/i.test(statement)), 'existing positions must not be backfilled with a new policy snapshot');
   assert.doesNotMatch(migration, /financialWritesEnabled|FINANCIAL_CUTOVER_ENABLED/i);
 });
 
