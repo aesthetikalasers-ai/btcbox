@@ -168,3 +168,37 @@ export function SecondsPage(){
   </>}
  </div>;
 }
+
+
+export function KycPage(){
+ const {t}=useI18n();
+ const [account,setAccount]=useState<AccountSnapshot|null>(null);
+ const [loading,setLoading]=useState(true);
+ const [error,setError]=useState("");
+ const [reload,setReload]=useState(0);
+ useEffect(()=>{
+  const controller=new AbortController();
+  setLoading(true);setError("");
+  getAccount(controller.signal).then(setAccount).catch((reason:unknown)=>{
+   if(reason instanceof Error&&reason.name==="AbortError")return;
+   setError(reason instanceof Error?reason.message:"Verification status is temporarily unavailable.");
+  }).finally(()=>{if(!controller.signal.aborted)setLoading(false);});
+  return ()=>controller.abort();
+ },[reload]);
+ const status=String(account?.kyc?.status||"not_submitted").toLowerCase();
+ const label=status.replace(/[_-]+/g," ");
+ const submitted=["pending","processing","under_review","approved","verified","rejected","failed"].includes(status);
+ const tone=["approved","verified"].includes(status)?"border-emerald-500/30 text-emerald-400":["rejected","failed"].includes(status)?"border-rose-500/30 text-rose-300":"border-amber-500/30 text-amber-300";
+ return <PageFrame eyebrow="BTCBOX / ACCOUNT" title="Identity verification" description="Review the verification status returned by your authenticated BTCBOX account.">
+  {loading?<Card className="border-brand-border bg-brand-surface"><CardContent className="p-6 text-sm text-brand-text-muted" role="status">{t("Loading verification status…")}</CardContent></Card>
+  :error?<Card className="border-rose-500/30 bg-brand-surface"><CardContent className="flex flex-wrap items-center justify-between gap-3 p-5"><p className="text-sm text-rose-300" role="alert">{error}</p><Button size="sm" variant="outline" onClick={()=>setReload(n=>n+1)}>{t("Try again")}</Button></CardContent></Card>
+  :account?<Card className="border-brand-border bg-brand-surface"><CardContent className="grid gap-4 p-5 sm:grid-cols-2 sm:p-6">
+   <div className="sm:col-span-2 flex flex-wrap items-center justify-between gap-3"><div><p className="text-xs text-brand-text-muted">{t("Current status")}</p><p className="mt-1 text-lg font-semibold capitalize">{t(label)}</p></div><Badge variant="outline" className={tone}>{t(label)}</Badge></div>
+   <div><p className="text-xs text-brand-text-muted">{t("Applicant name")}</p><p className="mt-1 font-medium">{account.kyc?.name||"—"}</p></div>
+   <div><p className="text-xs text-brand-text-muted">{t("Document type")}</p><p className="mt-1 font-medium">{account.kyc?.id_type||"—"}</p></div>
+   <div className="sm:col-span-2"><p className="text-xs text-brand-text-muted">{t("Document number")}</p><p className="mt-1 break-all font-mono text-sm">{account.kyc?.id_number?"••••"+account.kyc.id_number.slice(-4):"—"}</p></div>
+   <div className="sm:col-span-2 border-t border-brand-border pt-3"><p className="text-sm text-brand-text-muted">{submitted?t("Your verification record is on file. Contact support if you need to correct or update the submission."):t("No verification submission is recorded on your account yet. Submission is not enabled in this frontend build.")}</p></div>
+   <div className="sm:col-span-2 flex flex-wrap gap-2"><Button asChild variant="outline"><Link to="/support">{t("Contact support")}</Link></Button><Button size="sm" variant="ghost" onClick={()=>setReload(n=>n+1)}>{t("Refresh status")}</Button></div>
+  </CardContent></Card>:null}
+ </PageFrame>;
+}
