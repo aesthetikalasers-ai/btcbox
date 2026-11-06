@@ -40,8 +40,6 @@ A role may map to one or more permission keys, but the database/API must check t
 
 For every policy version that becomes active:
 - Policy transitions require the relevant current permission. The Super Admin may author, review and activate a policy without a three-person separation requirement.
-- An author cannot review or activate the same policy version.
-- A reviewer cannot activate the same policy version.
 - A rejected draft cannot be activated; changes after review create a new immutable draft revision and require review again.
 - An administrator's permission can be revoked between stages; the permission must be rechecked at the time of each transition.
 - Emergency suspension, if later required, must be a separate audited operation with narrowly scoped permission and explicit behavior for already-open positions. Do not invent it as a side effect of ordinary policy edits.

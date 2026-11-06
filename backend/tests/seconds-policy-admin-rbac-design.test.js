@@ -88,7 +88,7 @@ test('RBAC database contract defines immutable identity, permission, review, tra
     'administrator security audit',
     'canonical content SHA-256',
     'expected membership and policy revisions',
-    'author, reviewer, and activator must all differ'
+    'Super Admin may author, review and activate a policy without a three-person separation requirement'
   ]) assert.ok(design.toLowerCase().includes(phrase.toLowerCase()), 'missing contract phrase: ' + phrase);
 });
 
