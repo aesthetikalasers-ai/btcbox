@@ -3232,13 +3232,14 @@ async function handleRequest(event, context) {
           if (!Object.prototype.hasOwnProperty.call(allowedDepositKeys, key)) return json({ ok: false, msg: 'Unsupported deposit network configuration found.' }, 400);
           if (typeof updates[key] !== 'string') return json({ ok: false, msg: 'Invalid deposit address format: ' + key }, 400);
           const value = updates[key].trim();
+          const currentValue = typeof (db.deposit_addresses || {})[key] === 'string' ? db.deposit_addresses[key].trim() : '';
           // Empty values deliberately clear/disable an address (fail-closed).
           // This also lets admins save fee settings before every network is configured.
-          if (!value) { changedKeys.push(key); continue; }
+          if (!value) { if (currentValue !== '') changedKeys.push(key); continue; }
           if (/PLACEHOLDER|TPLACEHOLDER/i.test(value) || !allowedDepositKeys[key](value)) {
             return json({ ok: false, msg: 'Invalid deposit address format: ' + key }, 400);
           }
-          changedKeys.push(key);
+          if (currentValue !== value) changedKeys.push(key);
         }
       }
       if (updates !== undefined) db.deposit_addresses = Object.assign({}, db.deposit_addresses, Object.fromEntries(Object.keys(updates).map(function (key) { return [key, updates[key].trim()]; })));
@@ -3251,8 +3252,8 @@ async function handleRequest(event, context) {
           if (!Object.prototype.hasOwnProperty.call(DEFAULT_WITHDRAWAL_FEES, coin)) return json({ ok: false, msg: 'Unsupported withdrawal fee asset.' }, 400);
           const value = typeof feeUpdates[coin] === 'string' ? parseMoneyInput(feeUpdates[coin].trim()) : null;
           if (value === null || compareMoney(value, '1000000000000') > 0) return json({ ok: false, msg: 'Invalid withdrawal fee: ' + coin }, 400);
+          if (nextFees[coin] !== value) changedFeeKeys.push(coin);
           nextFees[coin] = value;
-          changedFeeKeys.push(coin);
         }
         db.withdrawal_fees = nextFees;
       }
