@@ -3134,3 +3134,14 @@ The prior withdrawal UI audit statement claiming the active BTCBOX admin route w
 - PostgreSQL schema CI run 90 is running for the SQL commit. Exact-head backend/frontend CI for the final test commit is not yet verified.
 - Previous source/UI/test head `58d0350538db98d104631df475f2002807d7f42c` passed backend CI 528 and frontend CI 392; PostgreSQL schema CI 89 also passed on that earlier head.
 - No hosted database write, real financial operation, merge, or deployment was performed.
+
+
+## Withdrawal completed-state idempotent replay fix — CI pending — 2026-11-06 UTC
+
+- Review of the full request → freeze → approve/reject → staff manual payout flow found a safe-retry API contract gap: after a withdrawal is marked `completed`, replaying the original create request correctly returns the existing DB row, but the API status allowlist omitted `completed` and incorrectly returned `FINANCIAL_RPC_FAILED`.
+- Fixed the customer withdrawal create/replay response validator to accept `completed` as a valid persisted state. The replay still returns the original row and `duplicate: true`; no second freeze, debit, payout, or transfer occurs.
+- Added regression coverage in `backend/tests/withdrawal-audit-contract.test.js` for accepting the completed state on replay.
+- API change commit: `b14314ec3f47236a0d1e52acb4bd67dcb2e6eb5a`; final source/test head: `00a42db0493b48b9eb1712e9240d5e96fff7ac94`.
+- Exact-head CI is pending; do not mark this follow-up validated until backend, frontend and PostgreSQL schema CI for the final SHA are checked.
+- Prior full payout-reference hardening SHA `8c60bd9d5d955f3f13ecc09d2d20dfd7abe91c0c` passed backend CI 529, frontend CI 393 and PostgreSQL schema CI 91.
+- No hosted database write, real financial operation, merge, or deployment was performed.
