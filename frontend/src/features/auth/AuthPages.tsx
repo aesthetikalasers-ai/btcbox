@@ -120,13 +120,13 @@ export function AuthPage({ mode, redirectTo }: { mode: "login" | "register"; red
 }
 
 export function AuthCallbackPage() {
-  const { finishOAuth, status, error, busy } = useAuth();
+  const { finishOAuth, status, needsCredentials, error, busy } = useAuth();
   const navigate = useNavigate();
   useEffect(() => { if (status !== "loading" && status !== "authenticated" && status !== "two-factor") void finishOAuth(); }, [finishOAuth, status]);
   useEffect(() => {
-    if (status === "authenticated") navigate("/home", { replace: true });
+    if (status === "authenticated") navigate(needsCredentials ? "/account-setup" : "/home", { replace: true });
     else if (status === "two-factor") navigate("/login", { replace: true });
-  }, [status, navigate]);
+  }, [status, needsCredentials, navigate]);
   return <div className="mx-auto flex min-h-[60vh] max-w-lg flex-col items-center justify-center gap-3 p-6 text-center">
     <div className="h-6 w-6 animate-spin rounded-full border-2 border-white/20 border-t-brand-accent" />
     <p className="text-sm text-brand-text-secondary">{error || (busy ? "Completing secure sign-in…" : "Finishing sign-in…")}</p>
