@@ -2702,3 +2702,37 @@ The user explicitly simplified the required business process. Do not expand it i
 - Live function inventory does not contain `mark_withdrawal_paid_atomic`; the 0023 SQL also defines `read_withdrawal_history_v1`, which is absent from the live function inventory.
 - Therefore the manually approved-then-record-paid withdrawal completion flow in source SQL 0023 is not active in the hosted DB either. Do not report manual payout completion as production-ready.
 - SQL 0023 is a numbered operational script, not a timestamped file in `supabase/migrations/`; no production changes were made.
+
+
+## Withdrawal migration and admin UI compatibility audit — 2026-11-06
+
+### SOURCE OBSERVED
+- Re-fetched the coordination branch before this batch. Its head is `daa3344d68f03ad329017f7c112132a653d9133d`; the feature branch remains `fix/manual-withdrawal-rpc-compat-20261106` at `3ad91a456f6f5bee3d190efd0bbc66e8637519d9`.
+- The feature API already contains:
+  - `POST /api/admin/withdraw/mark-paid`, which calls `mark_withdrawal_paid_atomic` after the manual transfer and requires the financial-write gate plus configured admin actor;
+  - `GET /api/withdrawals`, which calls `read_withdrawal_history_v1`;
+  - `GET /api/admin/withdrawals`, which calls `read_admin_withdrawal_snapshot_v1`;
+  - `POST /api/admin/withdraw/approve` and `/reject`, which call `review_withdrawal_atomic`.
+- The currently loaded BTCBOX SPA still registers `admin` as `Admin view loading…`; its `admin.html` shell has no payout/TxID form. The loaded `app-core.js` has no call to the manual mark-paid route or payout-reference UI. Thus the payout endpoint exists in backend source but is not wired into the active BTCBOX admin UI.
+- A separate `admin-panel/` React application exists in the repository, but its withdrawal page is an older independent client using `js-api-client`, legacy statuses (`CREATED/DONE/REJECTED/CANCELED`), and a legacy accept/reject flow. It does not implement the current `approved -> manually transfer -> mark-paid with reference` contract. Do not treat it as integrated or reuse it without an explicit contract port and route/build ownership verification.
+- `backend/scripts/run_migrations.sh` applies every numbered `backend/supabase/sql/0001_*.sql` … `0025_*.sql` in lexical order to the supplied DATABASE_URL; it is documented for local/test PostgreSQL only.
+- Migration compatibility blocker found in source:
+  - `0002_financial_ledger_v1.sql` creates `public.withdrawal_requests`.
+  - `0003_financial_lifecycle_v2.sql` extends `public.withdrawal_requests` and defines its lifecycle RPCs.
+  - `0022_withdrawal_admin_review_status_v1.sql` instead redefines `create_withdrawal_atomic` against `public.withdrawals` and columns `withdrawal_id/request_hash`, a different schema/contract. The current ordered migration document labels 0022 as part of the sequence but does not reconcile this mismatch.
+  - `0023_withdrawal_manual_payout_completion_v1.sql` returns to `public.withdrawal_requests`, adds payout fields, and expects `financial_audit_log`.
+- The numbered migration runner therefore cannot be assumed to execute cleanly end-to-end. Do not run it against production or staging until 0022's provenance and compatibility are resolved. Do not silently skip/rename 0022 or invent a replacement migration.
+- Existing live read-only evidence from the prior batch remains: production lacks the four payout columns and the three payout/history functions; no live migration was applied in this batch. A new read-only SQL probe attempt was blocked before execution, so no new live state is claimed here.
+
+### NOT VERIFIED / BLOCKERS
+- Whether `public.withdrawals` exists in the current hosted database and whether 0022 was ever applied anywhere.
+- Whether the 0022 file is an abandoned legacy script, an intended alternate schema, or a wrongly numbered migration.
+- PostgreSQL compilation/execution of 0022/0023 and the full 0001–0025 chain; no isolated PostgreSQL runtime is available.
+- Actual active admin UI integration, since the SPA admin route remains a placeholder.
+
+### NEXT
+1. Recover the origin/commit history of 0022 and compare it with 0002/0003, the current live schema, and the old backup branch. Establish whether 0022 is obsolete or needs a safe forward correction; preserve its history as evidence.
+2. Reconcile the migration-order document and runner so there is one explicitly validated, dependency-correct path. Do not replay 0001–0023 on the hosted database.
+3. Port the manual payout action into the actual BTCBOX admin SPA only after confirming the permitted file ownership and route contract; show approved withdrawals, destination/asset/amount, manual transfer status, required TxID/reference, note, loading/error/success, and duplicate-safe refresh. Keep imported legacy admin-panel code out of the runtime unless deliberately integrated.
+4. Obtain a no-cost isolated PostgreSQL execution path, then execute/compile the relevant migrations and test approve/reject/refund, manual payout completion, same-reference retry, conflicting-reference rejection, and audit-log invariants.
+5. Keep production unchanged; no apply_migration, migration repair, db push, financial writes, merge, or deployment without explicit approval.
