@@ -17,6 +17,7 @@ on:
       - 'backend/supabase/sql/**'
       - 'backend/scripts/bootstrap-empty-database.sh'
       - 'backend/scripts/test-postgres-schema-bootstrap.sh'
+      - 'backend/tests/postgres-financial-lifecycle.integration.sql'
       - '.github/workflows/btcbox-postgres-schema-ci.yml'
 
 permissions:
