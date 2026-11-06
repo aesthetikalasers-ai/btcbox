@@ -162,3 +162,54 @@ This section is a provisioning contract only. It does not create administrator a
 - Auth lookup, membership lookup, audit storage, or database transaction failure denies the operation.
 - Initial bootstrap is unavailable after first provisioning; break-glass grants are temporary, audited, and cannot bypass policy separation of duties.
 
+
+
+## 12. Concrete database contract for the first isolated-staging migration
+
+This section is a schema/API contract, not executable SQL. It must be translated into a generated migration and tested on an isolated Supabase staging project before any production consideration.
+
+### 12.1 Private objects and immutable attribution
+
+The first migration must create and secure these objects in the non-exposed private schema:
+
+- administrator memberships: one row per Auth UUID, explicit pending/active/suspended/revoked state, positive monotonic revision, provisioned timestamp, and no cascade deletion of historical attribution;
+- permission grant events: append-only grant/revoke/expiry events keyed by Auth UUID and allowlisted permission key, with grantor UUID, reason, ticket/change reference, creation time, and optional expiry; current permissions are derived from events and live membership state;
+- policy review decisions: immutable decision bound to policy UUID, exact policy version, canonical content SHA-256, reviewer Auth UUID, decision (approved/rejected), reason, and timestamp; one decision for a version, with a changed draft represented by a new version;
+- transition idempotency: request ID, actor UUID, action, target policy/version, expected revision, canonical request hash, committed response, and timestamp; same actor/request ID with a different action, target, revision, or hash conflicts;
+- administrator security audit: append-only event with actor UUID, exact permission, action, target, before/after snapshots, reason, ticket reference, request ID/hash, prior/new revision, and server timestamp.
+
+Membership and grant events must not be keyed by email or username. Foreign keys to auth.users should preserve historical actor attribution; user deletion must not cascade-delete membership history or audit events. A missing Auth user or disabled Auth identity must fail closed at request time.
+
+### 12.2 Permission and transition invariants
+
+- Permission keys are a closed enum: seconds_policy.read, seconds_policy.draft, seconds_policy.review, seconds_policy.activate, seconds_policy.retire, and separately scoped administrator-provisioning permissions. Unknown values and wildcard grants are rejected.
+- A membership must be active and the exact permission unexpired at the time of every request and again inside the authoritative transition transaction.
+- Grant/revoke events increment membership revision. Policy transition requests carry expected membership and policy revisions; stale revisions conflict rather than silently applying.
+- Draft creation stores a complete canonical policy snapshot and content hash. Review binds to that exact hash. Any content change creates a new version and requires a new review.
+- Approval and activation are separate transactions by distinct UUIDs. Author, reviewer, and activator must all differ for one activated version. Rejection is terminal for that version.
+- Activation atomically checks the review, all three identities, current permissions, expected active-pointer revision, effective-time overlap, and request idempotency; then moves the pointer and appends the audit event. Any audit failure rolls back the pointer transition.
+- Retirement closes future eligibility only. It never rewrites existing position snapshots or changes settlement of open positions.
+
+### 12.3 PostgREST invocation boundary
+
+The private schema remains absent from Supabase Data API exposed schemas. Because the current backend invokes database RPCs through Supabase REST, a private function cannot simply be assumed callable at /rest/v1/rpc.
+
+Preferred invocation contract:
+- keep all tables and authoritative transition functions in the private schema;
+- if the backend continues to use PostgREST, provide only a narrowly scoped public-schema SECURITY INVOKER wrapper whose EXECUTE privilege is revoked from PUBLIC, anon, and authenticated and granted only to service_role;
+- grant service_role only the minimum private-schema USAGE and function EXECUTE required by that wrapper; do not grant direct table DML;
+- wrapper arguments must not include an authoritative actor UUID. The trusted backend supplies a validated Auth subject to the private transition function, and the private function rechecks live membership and permissions;
+- if this privilege boundary cannot be demonstrated with catalog queries and adversarial tests, use a separately authenticated direct database connection rather than exposing the private schema.
+
+Do not create a public SECURITY DEFINER wrapper or add private to exposed schemas merely to make the REST call work. Any wrapper must be reviewed for default PUBLIC EXECUTE, schema USAGE, role inheritance, and SECURITY INVOKER behavior.
+
+### 12.4 Migration acceptance matrix
+
+The isolated-staging migration is not accepted until catalog and behavior tests prove:
+- private schema is not Data API exposed; PUBLIC/anon/authenticated have no USAGE or table/function privileges;
+- service_role cannot directly INSERT/UPDATE/DELETE membership, grant, review, transition, audit, policy, or active-pointer rows;
+- only the intended service-role wrapper is executable through PostgREST; browser roles cannot execute it;
+- wrapper and private transition both reject caller-supplied actor spoofing, invalid Auth subjects, disabled membership, revoked/expired permissions, and permission-store/audit failures;
+- concurrent draft/review/activation attempts serialize correctly and stale revisions conflict;
+- duplicate idempotency returns one committed response/audit event, while mismatched payloads conflict;
+- no operation can collapse author/reviewer/activator identities or alter an open position's policy snapshot.

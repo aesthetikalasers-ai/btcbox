@@ -79,3 +79,25 @@ test('administrator permission data remains outside browser-accessible Data API 
   assert.match(design, /revoke table\/schema privileges from/i);
   assert.match(design, /frontend receives only permission-filtered presentation data/i);
 });
+
+
+test('RBAC database contract defines immutable identity, permission, review, transition and audit records', () => {
+  for (const phrase of [
+    'administrator memberships',
+    'permission grant events',
+    'policy review decisions',
+    'transition idempotency',
+    'administrator security audit',
+    'canonical content SHA-256',
+    'expected membership and policy revisions',
+    'author, reviewer, and activator must all differ'
+  ]) assert.ok(design.toLowerCase().includes(phrase.toLowerCase()), 'missing contract phrase: ' + phrase);
+});
+
+test('private RBAC schema remains unexposed and PostgREST wrapper cannot become a public security-definer endpoint', () => {
+  assert.match(design, /private schema remains absent from Supabase Data API exposed schemas/i);
+  assert.match(design, /SECURITY INVOKER wrapper/i);
+  assert.match(design, /EXECUTE privilege is revoked from PUBLIC, anon, and authenticated/i);
+  assert.match(design, /Do not create a public SECURITY DEFINER wrapper/i);
+  assert.match(design, /do not grant direct table DML/i);
+});
