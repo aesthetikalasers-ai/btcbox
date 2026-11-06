@@ -1,6 +1,6 @@
 # BTCBOX Seconds Policy Administration — Identity, RBAC and Approval Contract
 
-Status: source security contract for the React Admin API and Seconds policy governance. Supabase Auth/RBAC middleware and the React Admin Console are implemented in source; Seconds policy mutation lifecycle remains gated and not implemented.
+Status: source security contract for the React Admin API and Seconds policy governance. Supabase Auth/RBAC, delegated-admin management, and an atomic Seconds policy version-and-activate API/editor are implemented in source; hosted schema activation and runtime verification remain pending.
 Scope: shared administrator identity/permissions plus seconds-contract policy management.
 
 ## 1. Current-state boundary
@@ -338,3 +338,12 @@ The React Admin source exposes `/admin` outside the customer AppLayout, obtains 
 - The request hash must cover the actor, target, action, exact sorted permission set, reason, request ID and expected revision.
 - The owner-bootstrap audit row is explicitly attributed as `owner_bootstrap` without fabricating an administrator actor UUID or a self-created membership record.
 - The append-only trigger function itself has PUBLIC/browser/service-role EXECUTE revoked; only trigger invocation by table writes is needed.
+
+
+## 14. Current implementation checkpoint — 2026-11-06
+
+- SOURCE IMPLEMENTED: Super Admin-only delegated administrator listing and lifecycle endpoints are connected to the private membership store through service-role-only RPC wrappers. The API derives actor identity from the verified Supabase Auth user, computes a canonical request hash, and uses the database's revision/idempotency/audit transaction.
+- SOURCE IMPLEMENTED: the React Admin Console includes administrator provisioning from an existing BTCBOX user, explicit allowlisted permission selection, permission updates, suspension, reactivation, and revocation. Ordinary Admins do not receive this tab or the API authority.
+- SOURCE IMPLEMENTED: the React Admin Console includes a Seconds policy editor for symbols, durations, minimum/maximum stake, payout rate, and optional per-user exposure. The backend checks the live `seconds_policy.manage` grant and calls an atomic database RPC that creates an immutable policy version, switches the active pointer, appends audit, and records idempotency in one transaction.
+- Product rule preserved: 85% is the minimum payout rate; the schema and API impose no fixed upper ceiling. Existing open positions retain their immutable policy snapshots.
+- NOT VERIFIED: PostgreSQL compilation/execution of the new RPC source, full empty-database bootstrap, frontend TypeScript build, Node test execution, and browser end-to-end behavior. The connected hosted database was not changed; no Super Admin was provisioned and no policy was activated.
