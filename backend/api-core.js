@@ -2509,6 +2509,7 @@ async function handleRequest(event, context) {
     if (!adminAuthResult) {
       return json({ ok: false, code: 'ADMIN_UNAUTHENTICATED', msg: 'A verified Supabase Auth bearer token is required.' }, 401);
     }
+    const adminActorId = String(adminAuthResult.user.id);
     const sub = path.slice(6);
     if (sub === 'session' && method === 'GET') {
       return json({ ok: true, user_id: adminAuthResult.user.id, status: adminAuthResult.membership.status, is_super_admin: adminAuthResult.membership.is_super_admin === true, permissions: Array.isArray(adminAuthResult.membership.permissions) ? adminAuthResult.membership.permissions : [] });
@@ -2630,7 +2631,7 @@ async function handleRequest(event, context) {
         id: 'AL' + Date.now() + crypto.randomBytes(8).toString('hex'),
         action: String(action),
         uid: String(uid || ''),
-        by: 'admin',
+        by: adminActorId,
         time: nowStr(),
         detail: redactAdminAuditDetail(detail),
         postgres_sync_status: supabaseStorageConfigured() ? 'pending' : 'local_only'
@@ -2666,7 +2667,7 @@ async function handleRequest(event, context) {
         if (!Number.isFinite(delta) || delta === 0 || Math.abs(delta) > 1e12 || !Number.isSafeInteger(Math.round(delta * 1e8)) || (mode !== 'adjust' && delta < 0)) return json({ ok: false, msg: 'Invalid operation amount. Freeze/unfreeze amounts must be positive.' }, 400);
         if (!/^[A-Za-z0-9_-]{16,100}$/.test(requestId)) return json({ ok: false, code: 'IDEMPOTENCY_KEY_REQUIRED', msg: 'A valid operation ID is required. Balance was unchanged.' }, 400);
         if (reason.length < 5) return json({ ok: false, msg: 'Please provide an adjustment reason of at least 5 characters. Balance was unchanged.' }, 400);
-        const adminId = String(process.env.ADMIN_USER || '').trim();
+        const adminId = adminActorId;
         if (!adminId) return json({ ok: false, code: 'ADMIN_ACTOR_NOT_CONFIGURED', msg: 'Administrator audit identity not configured. Balance was unchanged.' }, 503);
         // Canonical decimal text must match PostgreSQL numeric::text when hashing the RPC payload.
         const canonicalDecimal = function (n) { return (n < 0 ? '-' : '') + Math.abs(n).toFixed(8).replace(/\.?0+$/, ''); };
