@@ -20,6 +20,8 @@ test('admin user detail removes raw finance histories before permission-scoped p
     assert.ok(route.includes('delete safeUser.' + field), field + ' must not leak through users.read');
   }
   assert.ok(route.includes("hasAdminPermission(adminMembership, 'deposits.read')"));
+  assert.ok(route.includes('delete safeUser.balances'));
+  assert.ok(route.includes('delete safeUser.financial_balance_source'));
   assert.ok(route.includes("hasAdminPermission(adminMembership, 'withdrawals.read')"));
 });
 

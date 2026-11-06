@@ -3142,6 +3142,9 @@ async function handleRequest(event, context) {
       delete safeUser.withdrawals;
       delete safeUser.earn_records;
       delete safeUser.support_messages;
+      // Balances are financial data too; remove the copied legacy snapshot before permission-scoped projection.
+      delete safeUser.balances;
+      delete safeUser.financial_balance_source;
       // KYC evidence and full identity numbers require the separate kyc.read permission.
       // The general users.read detail endpoint exposes only the current verification state.
       safeUser.kyc = { status: String(u.kyc && u.kyc.status || 'unsubmitted') };
