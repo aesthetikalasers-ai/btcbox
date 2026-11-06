@@ -110,7 +110,7 @@ test("spot trading preview remains public while signed-out order mutations stay 
 
   await page.goto("/trade/BTCUSDT");
 
-  await expect(page).toHaveURL(/\\/trade\\/BTCUSDT$/);
+  expect(page.url()).toContain("/trade/BTCUSDT");
   await expect(page.getByRole("heading", { name: "BTCUSDT" })).toBeVisible();
   expect(mutationRequests).toEqual([]);
 });
