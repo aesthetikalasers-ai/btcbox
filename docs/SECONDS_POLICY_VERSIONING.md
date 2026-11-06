@@ -69,7 +69,7 @@ Settlement must calculate profit from the position snapshot, not by reading the 
 
 - Policy lookup and validation happen inside the transactional order RPC; do not rely only on API-layer validation.
 - RPC execution remains service_role-only; anon/authenticated receive no direct table access.
-- Admin writes require the existing verified admin identity plus explicit seconds-policy permission, recent-auth/CSRF or request-nonce protection, idempotency, and optimistic revision matching.
+- Admin writes require an individually validated administrator identity, explicit seconds-policy permission, recent-auth/request-nonce protection, idempotency, optimistic revision matching, and the three-distinct-actor author/reviewer/activator separation described in `docs/SECONDS_POLICY_ADMIN_RBAC.md`.
 - Separate create-draft, approve/schedule, activate, and retire transitions. No direct arbitrary UPDATE endpoint.
 - Require a non-empty change reason and append an audit event in the same transaction as every state transition.
 - Enforce per-user open exposure and one-open-position constraints in the database, not only in React.
