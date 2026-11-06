@@ -142,8 +142,57 @@ test('secCounter: 5 次失败后锁定 15 分钟，成功后重置', () => {
 test('parseMoneyInput: 拒绝 number 类型，仅接受 string', () => {
   assert.equal(_test.parseMoneyInput(123.45), null, 'number 类型拒绝');
   assert.equal(_test.parseMoneyInput(0), null, 'number 0 拒绝');
-  assert.equal(_test.parseMoneyInput('123.45'), 123.45, 'string 合法');
-  assert.equal(_test.parseMoneyInput('0'), 0, 'string 0 合法');
+  assert.equal(_test.parseMoneyInput('123.45'), '123.45', 'string 合法且保持十进制文本');
+  assert.equal(_test.parseMoneyInput('0'), '0', 'string 0 合法');
+  assert.equal(_test.parseMoneyInput('1.230000'), '1.23', '移除无意义尾随零');
+  assert.equal(_test.parseMoneyInput('9007199254740993.000000000000000001'), '9007199254740993.000000000000000001', '超过 JS 安全整数范围仍保持精确');
+  assert.equal(_test.parseMoneyInput('1e3'), null, '科学计数法拒绝');
+  assert.equal(_test.parseMoneyInput('1.1234567890123456789'), null, '超过 18 位小数拒绝');
   assert.equal(_test.parseMoneyInput('abc'), null, '非法 string 拒绝');
   assert.equal(_test.parseMoneyInput('-5'), null, '负数拒绝');
+});
+test('money decimal helpers compare and add without floating-point rounding', () => {
+  assert.equal(_test.compareMoney('0.000000000000000009', '0.000000000000000010'), -1);
+  assert.equal(_test.compareMoney('9007199254740993.000000000000000001', '9007199254740993'), 1);
+  assert.equal(_test.addMoney('0.1', '0.2'), '0.3');
+  assert.equal(_test.addMoney('1.000000000000000001', '0.000000000000000009'), '1.00000000000000001');
+});
+test('frontend financial adapters preserve decimal-string request contracts', () => {
+  const fs = require('node:fs');
+  const appCore = fs.readFileSync(path.join(__dirname, '..', 'assets/js/app-core.js'), 'utf8');
+  const assetsView = fs.readFileSync(path.join(__dirname, '..', 'assets/js/views-assets.js'), 'utf8');
+  const tradingView = fs.readFileSync(path.join(__dirname, '..', 'assets/js/views-trading.js'), 'utf8');
+  const spotView = fs.readFileSync(path.join(__dirname, '..', 'assets/js/views-trade.js'), 'utf8');
+  const apiCore = fs.readFileSync(path.join(__dirname, '..', 'api-core.js'), 'utf8');
+  assert.ok(appCore.includes("amount:'0'"), 'deposit address query sends a string zero');
+  assert.ok(appCore.includes('amount:String(p.amount)'), 'withdraw and earn adapter payloads stringify amount fields');
+  assert.ok(appCore.includes('amount:String(o.amount)'), 'seconds order adapter stringifies amount');
+  assert.ok(assetsView.includes('amount:amtRaw'), 'withdraw and earn views pass original decimal input');
+  assert.ok(tradingView.includes('amount:amtRaw'), 'seconds view passes original decimal input');
+  assert.ok(appCore.includes('qty:String(o.qty), price:String(o.price)'), 'spot adapter preserves decimal strings');
+  assert.ok(spotView.includes('qty:amountRaw,price'), 'spot form passes original quantity text');
+  assert.ok(spotView.includes('const price=priceRaw;'), 'spot form passes original price text');
+  assert.ok(apiCore.includes('const qty = parseMoneyInput(body.qty);'), 'spot API parses quantity as decimal text');
+  assert.ok(apiCore.includes("const price = parseMoneyInput(body.price === undefined || body.price === null || body.price === '' ? '0' : body.price);"), 'spot API parses price as decimal text');
+  assert.ok(!apiCore.includes('const qty = Number(body.qty);'), 'spot API must not convert quantity to binary float');
+  assert.ok(!apiCore.includes('const price = Number(body.price || 0);'), 'spot API must not convert price to binary float');
+});
+
+
+// The chain verifier migration is not wired to an ingestion worker yet.
+// Keep user-submitted deposit intents fail-closed until a trusted verifier exists.
+test('deposit API rejects user-submitted amounts and keeps account credit staff-controlled', () => {
+  const fs = require('node:fs');
+  const src = fs.readFileSync(path.join(__dirname, '..', 'api-core.js'), 'utf8');
+  const start = src.indexOf("if (path === 'deposit' && method === 'POST')");
+  const end = src.indexOf("\n  // ---------- POST /api/withdraw ----------", start);
+  assert.ok(start >= 0, 'deposit route must exist');
+  assert.ok(end > start, 'deposit route boundary must exist');
+  const route = src.slice(start, end);
+  assert.match(route, /compareMoney\(amount, '0'\) <= 0/);
+  assert.match(route, /staff verify incoming transfers and manually credit the account/i);
+  assert.match(route, /}, 403\)/);
+  assert.ok(!route.includes('verify_and_credit_deposit_atomic'));
+  assert.ok(!route.includes('deposit_records'));
+  assert.ok(!src.includes('verify_and_credit_deposit_atomic'));
 });

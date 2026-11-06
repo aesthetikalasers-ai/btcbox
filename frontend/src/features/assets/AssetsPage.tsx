@@ -4,7 +4,7 @@ import { ArrowDownToLine, ArrowUpFromLine, RefreshCw, Wallet } from "lucide-reac
 import { Badge } from "../../components/ui/badge";
 import { Button } from "../../components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/card";
-import { ApiError, getAccount, type AccountSnapshot } from "../../lib/api";
+import { ApiError, getAccount, type AccountBalance, type AccountSnapshot } from "../../lib/api";
 import { useI18n } from "../../lib/i18n";
 
 function amount(value: number | string | undefined) {
@@ -47,7 +47,7 @@ export function AssetsPage() {
     return () => controller.abort();
   }, []);
 
-  const balances = account?.balances ? Object.entries(account.balances) : [];
+  const balances = account?.balances ? Object.entries(account.balances) as Array<[string, AccountBalance]> : [];
 
   return (
     <div className="mx-auto flex w-full max-w-[1200px] min-w-0 flex-col gap-5 p-3 sm:p-4 md:p-6 lg:p-8">

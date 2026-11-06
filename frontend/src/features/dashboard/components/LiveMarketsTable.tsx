@@ -1,3 +1,6 @@
+import { useMemo } from "react";
+import { Search } from "lucide-react";
+import { useSearchParams } from "react-router-dom";
 import { TokenIcon } from "../../../components/ui/TokenIcon";
 import { Card } from "./Card";
 import type { MarketTicker } from "../../../lib/api";
@@ -33,6 +36,12 @@ export function LiveMarketsTable({ markets, loading, error }: {
 }) {
   const { t, language } = useI18n();
   const numberLocale = numberLocales[language];
+  const [searchParams, setSearchParams] = useSearchParams();
+  const query = (searchParams.get("q") || "").trim().toLowerCase();
+  const visibleMarkets = useMemo(() => markets.filter((item) => {
+    if (!query) return true;
+    return item.sym.toLowerCase().includes(query) || (names[item.sym] || "").toLowerCase().includes(query);
+  }), [markets, query]);
   return (
     <Card className="flex flex-col overflow-hidden px-0 py-0">
       <div className="flex items-center justify-between gap-3 border-b border-brand-border px-4 py-4 md:px-6">
@@ -41,8 +50,14 @@ export function LiveMarketsTable({ markets, loading, error }: {
           <p className="mt-1 text-xs text-brand-text-muted">{t("Live prices from the BTCBOX market service")}</p>
         </div>
         <span className="shrink-0 rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-2 text-xs font-semibold text-brand-text-secondary">
-          {loading ? t("Loading…") : `${markets.length} ${t("pairs")}`}
+          {loading ? t("Loading…") : `${visibleMarkets.length} ${t("pairs")}`}
         </span>
+      </div>
+      <div className="border-b border-brand-border px-4 py-3 md:px-6">
+        <label className="relative block">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-brand-text-muted" />
+          <input type="search" aria-label={t("Search BTCBOX")} placeholder={t("Search")} value={searchParams.get("q") || ""} onChange={(event) => setSearchParams(event.target.value ? { q: event.target.value } : {})} className="h-11 w-full rounded-xl border border-brand-border bg-brand-surface px-3 pl-10 text-sm text-brand-text placeholder:text-brand-text-muted focus:border-brand-accent focus:outline-none" />
+        </label>
       </div>
       {error ? (
         <div className="px-5 py-10 text-center">
@@ -53,12 +68,12 @@ export function LiveMarketsTable({ markets, loading, error }: {
         <div className="space-y-3 px-5 py-8" aria-label="Loading markets">
           {Array.from({ length: 5 }).map((_, index) => <div key={index} className="h-12 animate-pulse rounded-xl bg-white/[0.05]" />)}
         </div>
-      ) : markets.length === 0 ? (
+      ) : visibleMarkets.length === 0 ? (
         <div className="px-5 py-10 text-center text-sm text-brand-text-muted">{t("No market pairs are currently available.")}</div>
       ) : (
         <>
           <div className="divide-y divide-brand-border/70 sm:hidden">
-            {markets.map((item) => (
+            {visibleMarkets.map((item) => (
               <div key={item.sym} className="flex min-h-[76px] items-center justify-between gap-3 px-4 py-3 transition-colors active:bg-brand-surface-hover">
                 <div className="flex min-w-0 items-center gap-3">
                   <TokenIcon symbol={item.sym} className="h-9 w-9 shrink-0" />
@@ -81,7 +96,7 @@ export function LiveMarketsTable({ markets, loading, error }: {
                   <th key={label} className="whitespace-nowrap px-4 py-3 text-xs font-semibold text-brand-text-muted md:px-6">{t(label)}</th>
                 )}
               </tr></thead>
-              <tbody>{markets.map((item) => (
+              <tbody>{visibleMarkets.map((item) => (
                 <tr key={item.sym} className="border-b border-brand-border/50 transition-colors last:border-0 hover:bg-brand-surface-hover">
                   <td className="h-16 whitespace-nowrap px-4 py-2 md:px-6">
                     <div className="flex items-center gap-3">

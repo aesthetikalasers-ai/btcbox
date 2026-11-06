@@ -39,22 +39,119 @@ function getPublishableKey() {
 // supabase-login call does not pay an extra round trip. Returns true / false, or
 // null if the status cannot be determined (settings endpoint unreachable).
 let _googleProviderCache = { value: null, expiresAt: 0 };
-// Google-only identity boundary. Authorization uses server-verified app_metadata and linked identities,
-// never user_metadata or a provider value supplied by the browser.
-function isGoogleOnlySupabaseIdentity(identity) {
-  if (!identity || typeof identity !== 'object') return false;
+// Accept only one server-verified Supabase identity. Mixed/linked identities are
+// deliberately rejected until an explicit, audited account-linking flow exists.
+function getSingleSupabaseAuthProvider(identity) {
+  if (!identity || typeof identity !== 'object') return null;
   const appMetadata = identity.app_metadata && typeof identity.app_metadata === 'object' ? identity.app_metadata : {};
+  const provider = String(appMetadata.provider || '').toLowerCase();
   const providers = Array.isArray(appMetadata.providers) ? appMetadata.providers.map(p => String(p || '').toLowerCase()) : [];
   const identities = Array.isArray(identity.identities) ? identity.identities : [];
-  return appMetadata.provider === 'google' && providers.length === 1 && providers[0] === 'google' &&
-    identities.length === 1 && identities[0] && identities[0].provider === 'google';
+  if (!['google', 'email', 'web3'].includes(provider) || providers.length !== 1 || providers[0] !== provider) return null;
+  if (identities.length !== 1 || !identities[0] || String(identities[0].provider || '').toLowerCase() !== provider) return null;
+  return provider;
 }
+function getSupabaseWalletIdentity(identity) {
+  if (!identity || typeof identity !== 'object' || getSingleSupabaseAuthProvider(identity) !== 'web3') return null;
+  const walletIdentity = Array.isArray(identity.identities) ? identity.identities[0] : null;
+  const identityData = walletIdentity && walletIdentity.identity_data && typeof walletIdentity.identity_data === 'object' ? walletIdentity.identity_data : {};
+  const claims = identityData.custom_claims && typeof identityData.custom_claims === 'object' ? identityData.custom_claims : {};
+  const chain = String(claims.chain || '').toLowerCase();
+  const address = String(claims.address || '').trim();
+  if (chain === 'ethereum' && /^0x[a-fA-F0-9]{40}$/.test(address)) return { chain, address: address.toLowerCase() };
+  if (chain === 'solana' && /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(address)) return { chain, address };
+  return null;
+}
+function normalizeWalletIdentityAddress(chain, address) {
+  const network = String(chain || '').toLowerCase();
+  const value = String(address || '').trim();
+  if (network === 'ethereum' && /^0x[a-fA-F0-9]{40}$/.test(value)) return value.toLowerCase();
+  if (network === 'solana' && /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(value)) return value;
+  return null;
+}
+function isSameWalletIdentity(left, right) {
+  if (!left || !right) return false;
+  const leftChain = String(left.chain || '').toLowerCase();
+  const rightChain = String(right.chain || '').toLowerCase();
+  if (!leftChain || leftChain !== rightChain) return false;
+  const leftAddress = normalizeWalletIdentityAddress(leftChain, left.address);
+  const rightAddress = normalizeWalletIdentityAddress(rightChain, right.address);
+  return !!leftAddress && leftAddress === rightAddress;
+}
+
+function isPositivePostgresBigintString(value) {
+  return typeof value === 'string' && /^[1-9][0-9]{0,18}$/.test(value) &&
+    (value.length < 19 || value <= '9223372036854775807');
+}
+
+function redactAdminAuditDetail(value) {
+  return String(value || '').slice(0, 300)
+    .replace(/(["']?(?:password|passwd|(?:access|refresh|auth|session)[_ -]?token|[a-z0-9]+[_ -]token|token|authorization|bearer|secret|client[_ -]?secret|(?:service[_ -]?role|api|private)[_ -]?key|seed[_ -]?phrase|mnemonic|recovery[_ -]?codes?|id[_ -]?number|otp|totp[_ -]?secret)["']?\s*[:=]\s*)("(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|[^,}\s]+)/ig, '$1"[redacted]"')
+    .replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/ig, '[email]')
+    .replace(/0x[a-fA-F0-9]{40}/g, '[wallet address]')
+    .replace(/T[1-9A-HJ-NP-Za-km-z]{33}/g, '[wallet address]')
+    .slice(0, 300);
+}
+
 function isValidAuthEmail(value) {
   return typeof value === 'string' && /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(value);
 }
 function isSupabaseUserId(value) {
   return typeof value === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
 }
+
+// Read auth_time from a JWT only after the exact token has been accepted by
+// Supabase's /auth/v1/user endpoint. The external verification authenticates
+// the signed claims; this helper deliberately performs no local trust decision.
+function getVerifiedSupabaseAuthTime(accessToken) {
+  if (typeof accessToken !== 'string') return null;
+  const parts = accessToken.split('.');
+  if (parts.length !== 3 || !parts[1]) return null;
+  try {
+    const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString('utf8'));
+    const value = Number(payload && payload.auth_time);
+    const subject = String(payload && payload.sub || '');
+    if (!Number.isFinite(value) || value <= 0 || !isSupabaseUserId(subject)) return null;
+    return { auth_time: value, subject: subject };
+  } catch (_) {
+    return null;
+  }
+}
+
+// BTCBOX credentials are independent of Supabase email/password. Passwords are
+// stored only as PBKDF2-HMAC-SHA256 hashes with a per-account random salt.
+const BTCBOX_PASSWORD_ITERATIONS = 600000;
+const BTCBOX_PASSWORD_KEYLEN = 32;
+const BTCBOX_PASSWORD_DUMMY_SALT = 'btcbox-username-login-dummy-salt-v1';
+function normalizeBtcboxUsername(value) {
+  return typeof value === 'string' ? value.trim().toLowerCase() : '';
+}
+function validateBtcboxUsername(value) {
+  return typeof value === 'string' && /^[a-z0-9][a-z0-9_]{2,23}$/.test(value);
+}
+function validateBtcboxLoginPassword(value) {
+  return typeof value === 'string' && value.length >= 12 && value.length <= 128 && !/[\x00-\x1f\x7f]/.test(value);
+}
+function hashBtcboxLoginPassword(password, salt) {
+  return crypto.pbkdf2Sync(password, salt, BTCBOX_PASSWORD_ITERATIONS, BTCBOX_PASSWORD_KEYLEN, 'sha256').toString('hex');
+}
+function verifyBtcboxLoginPassword(user, supplied) {
+  if (!user || typeof supplied !== 'string' || !user.login_password_hash || !user.login_password_salt ||
+      user.login_password_algo !== 'pbkdf2-sha256-600000') return false;
+  const actual = Buffer.from(hashBtcboxLoginPassword(supplied, user.login_password_salt), 'hex');
+  const expected = Buffer.from(String(user.login_password_hash), 'hex');
+  return actual.length === expected.length && actual.length === BTCBOX_PASSWORD_KEYLEN && crypto.timingSafeEqual(actual, expected);
+}
+function isSupabaseIdentityLinked(user, supabaseUserId) {
+  return !!user && (String(user.supabase_user_id || '') === supabaseUserId ||
+    (Array.isArray(user.supabase_user_ids) && user.supabase_user_ids.includes(supabaseUserId)));
+}
+function getUserLinkedIdentityIds(user) {
+  return Array.from(new Set([String(user && user.supabase_user_id || ''), ...(
+    Array.isArray(user && user.supabase_user_ids) ? user.supabase_user_ids : []
+  )].filter(Boolean)));
+}
+
 
 async function detectGoogleProviderEnabled() {
   const now = Date.now();
@@ -262,10 +359,50 @@ async function readAdminWithdrawalSnapshot() {
   if (!response.ok) throw new Error('Admin withdrawal read failed');
   const result = await response.json();
   if (!result || result.ok !== true || !Array.isArray(result.withdrawals) ||
-      !Number.isSafeInteger(result.pending_count) || result.pending_count < 0) {
+      !Number.isSafeInteger(result.pending_count) || result.pending_count < 0 ||
+      !Number.isSafeInteger(result.pending_admin_review_count) || result.pending_admin_review_count < 0 ||
+      result.pending_admin_review_count > result.pending_count) {
     throw new Error('Admin withdrawal response invalid');
   }
   return result;
+}
+async function readAdminAuditLogPage(params) {
+  if (!supabaseStorageConfigured()) throw new Error('Canonical administrator audit storage unavailable');
+  const limit = params.limit;
+  const query = new URLSearchParams({
+    select: 'id::text,actor_id,subject_user_id,action,reason,created_at',
+    order: 'id.desc',
+    limit: String(limit + 1)
+  });
+  if (params.before) query.set('id', 'lt.' + params.before);
+  if (params.action) query.set('action', 'eq.' + params.action);
+  if (params.uid) query.set('subject_user_id', 'eq.' + params.uid);
+  const base = process.env.SUPABASE_URL.replace(/\/+$/, '');
+  const response = await fetch(base + '/rest/v1/financial_audit_log?' + query.toString(), {
+    method: 'GET', headers: supabaseHeaders()
+  });
+  if (!response.ok) throw new Error('Canonical administrator audit read failed');
+  const rows = await response.json();
+  if (!Array.isArray(rows) || rows.some(function (row) {
+    return !row || !isPositivePostgresBigintString(row.id) ||
+      typeof row.action !== 'string' || typeof row.created_at !== 'string';
+  })) throw new Error('Canonical administrator audit response invalid');
+  const hasMore = rows.length > limit;
+  const page = rows.slice(0, limit).map(function (row) {
+    return {
+      id: String(row.id),
+      action: String(row.action).slice(0, 100),
+      uid: String(row.subject_user_id || '').slice(0, 100),
+      by: String(row.actor_id || '').slice(0, 80),
+      time: String(row.created_at).slice(0, 40),
+      detail: redactAdminAuditDetail(row.reason || ''),
+      postgres_sync_status: 'synced'
+    };
+  });
+  return {
+    logs: page,
+    next_before: hasMore && page.length ? page[page.length - 1].id : null
+  };
 }
 function attachRevision(db, revision) {
   Object.defineProperty(db, '_revision', { value: Number(revision || 0), writable: true, configurable: true, enumerable: false });
@@ -405,23 +542,56 @@ function verifyFundPassword(user, supplied) {
 
 function genToken() { return crypto.randomBytes(32).toString('hex'); }
 function nowStr() { return new Date().toISOString().slice(0, 19).replace('T', ' '); }
-// ===== 速率限制（内存滑动窗口；单实例内有效，降低暴力破解风险）=====
-const _rateBuckets = new Map();
-function clientIp(event) {
-  const h = event.headers || {};
-  return String(h['x-nf-client-connection-ip'] || h['x-forwarded-for'] || h['X-Forwarded-For'] || 'unknown').split(',')[0].trim();
-}
-function rateCheck(key, max, windowMs) {
-  const now = Date.now();
-  let b = _rateBuckets.get(key);
-  if (!b || b.resetAt <= now) { b = { count: 0, resetAt: now + windowMs }; _rateBuckets.set(key, b); }
-  b.count += 1;
-  if (b.count > max) {
-    const retryAfter = Math.ceil((b.resetAt - now) / 1000);
-    return { limited: true, retryAfter: retryAfter };
+// ===== 持久化共享限流：跨 serverless 实例的数据库原子计数 =====
+const RATE_LIMIT_POLICIES = Object.freeze({
+  login_2fa: { limit: 20, windowSeconds: 900 },
+  credential_reauth: { limit: 8, windowSeconds: 900 },
+  identity_link_reauth: { limit: 8, windowSeconds: 900 },
+  identity_link_target: { limit: 10, windowSeconds: 900 },
+  credential_recover: { limit: 5, windowSeconds: 900 },
+  twofa_setup_password: { limit: 10, windowSeconds: 900 },
+  twofa_setup_confirm: { limit: 10, windowSeconds: 900 },
+  twofa_disable: { limit: 10, windowSeconds: 900 },
+  seconds_order: { limit: 30, windowSeconds: 300 },
+  seconds_settle: { limit: 60, windowSeconds: 300 },
+  password_change: { limit: 10, windowSeconds: 900 },
+  fund_password_change: { limit: 10, windowSeconds: 900 }
+});
+async function rateCheckShared(scope, subject) {
+  const policy = RATE_LIMIT_POLICIES[scope];
+  const secret = String(process.env.BTCBOX_RATE_LIMIT_HMAC_SECRET || '');
+  if (!policy || Buffer.byteLength(secret, 'utf8') < 32 ||
+      typeof subject !== 'string' || !subject || subject.length > 256 ||
+      !supabaseStorageConfigured()) return { unavailable: true };
+  const keyHash = crypto.createHmac('sha256', secret)
+    .update('btcbox-rate-limit-v1|' + scope + '|' + subject, 'utf8').digest('hex');
+  const base = String(process.env.SUPABASE_URL || '').replace(/\/+$/, '');
+  try {
+    const response = await fetch(base + '/rest/v1/rpc/btcbox_rate_limit_consume_v1', {
+      method: 'POST', headers: supabaseHeaders(),
+      body: JSON.stringify({ p_scope: scope, p_key_hash: keyHash }),
+      signal: AbortSignal.timeout(4000)
+    });
+    const result = await response.json().catch(() => null);
+    if (!response.ok || !result || typeof result !== 'object' || Array.isArray(result) ||
+        result.ok !== true || typeof result.allowed !== 'boolean' || result.limit !== policy.limit ||
+        !Number.isSafeInteger(result.count) || result.count < 1 || result.count > 1000000 ||
+        !Number.isSafeInteger(result.remaining) || result.remaining !== Math.max(0, policy.limit - result.count) ||
+        !Number.isSafeInteger(result.retry_after_seconds) || result.retry_after_seconds < 1 ||
+        result.retry_after_seconds > policy.windowSeconds ||
+        result.window_seconds !== policy.windowSeconds ||
+        !Number.isSafeInteger(result.window_start) || result.window_start < 0 ||
+        result.window_start % policy.windowSeconds !== 0 ||
+        (result.allowed && result.count > policy.limit) || (!result.allowed && result.count <= policy.limit)) {
+      return { unavailable: true };
+    }
+    return { limited: !result.allowed, retryAfter: result.retry_after_seconds };
+  } catch (_) {
+    return { unavailable: true };
   }
-  if (_rateBuckets.size > 5000) { const cutoff = now; for (const [k, v] of _rateBuckets) { if (v.resetAt <= cutoff) _rateBuckets.delete(k); } }
-  return { limited: false };
+}
+function rateLimitUnavailableJson() {
+  return json({ ok: false, code: 'RATE_LIMIT_UNAVAILABLE', msg: 'Security checks are temporarily unavailable. Please try again later.' }, 503);
 }
 function rateLimitedJson(retryAfter) {
   return json({ ok: false, code: 'RATE_LIMITED', msg: 'Too many requests. Please try again later.', retry_after: retryAfter }, 429, { 'Retry-After': String(retryAfter) });
@@ -496,9 +666,12 @@ function withdrawalRequiresAdminReview(user, coin, amount, usdtValue, thresholdU
 }
 // 估算提现金额的 USDT 等值；价格不可用时返回 null（调用方应保守视为大额，强制审核）。
 function estimateUsdtValue(coin, amount, prices) {
-  if (coin === 'USDT' || coin === 'USDC') return amount;
+  // Review-threshold estimate only; authoritative ledger amounts remain decimal strings.
+  const numericAmount = Number(amount);
+  if (!Number.isFinite(numericAmount)) return null;
+  if (coin === 'USDT' || coin === 'USDC') return numericAmount;
   const p = prices && prices[coin + 'USDT'];
-  if (p && Number.isFinite(Number(p))) return amount * Number(p);
+  if (p && Number.isFinite(Number(p))) return numericAmount * Number(p);
   return null;
 }
 // All API status messages are natively English. User-authored content and data
@@ -538,7 +711,7 @@ function getSessionRecord(db, event) {
   const session = token && db.sessions[token];
   if (!session) return null;
   const createdAt = Number(session.created_at);
-  if (!Number.isFinite(createdAt) || createdAt <= 0 || Date.now() - createdAt > SESSION_MAX_AGE_MS) return null;
+  if (!Number.isFinite(createdAt) || createdAt <= 0 || createdAt > Date.now() + 60 * 1000 || Date.now() - createdAt > SESSION_MAX_AGE_MS) return null;
   const user = db.users[session.uid] || null;
   return user ? { token: token, session: session, user: user } : null;
 }
@@ -635,21 +808,39 @@ function base32Decode(s) {
   for (let i = 0; i + 8 <= bits.length; i += 8) bytes.push(parseInt(bits.slice(i, i + 8), 2));
   return Buffer.from(bytes);
 }
-function totpVerify(secret, code) {
+function totpMatchStep(secret, code) {
   try {
+    if (typeof code !== 'string' || !/^\d{6}$/.test(code)) return null;
     const key = base32Decode(secret);
     const counter = Math.floor(Date.now() / 1000 / 30);
+    let matchedStep = null;
     for (let offset = -1; offset <= 1; offset++) {
+      const step = counter + offset;
+      if (step < 0) continue;
       const buf = Buffer.alloc(8);
-      buf.writeBigInt64BE(BigInt(counter + offset));
+      buf.writeBigInt64BE(BigInt(step));
       const hmac = crypto.createHmac('sha1', key).update(buf).digest();
       const o = hmac[hmac.length - 1] & 0x0f;
       const binCode = ((hmac[o] & 0x7f) << 24) | (hmac[o + 1] << 16) | (hmac[o + 2] << 8) | hmac[o + 3];
       const expected = (binCode % 1000000).toString().padStart(6, '0');
-      if (expected === code) return true;
+      // If a rare six-digit collision matches multiple adjacent steps, consume the newest.
+      if (expected === code) matchedStep = step;
     }
+    return matchedStep;
   } catch (e) { }
-  return false;
+  return null;
+}
+function totpVerify(secret, code) { return totpMatchStep(secret, code) !== null; }
+// Persist the matched 30-second counter with the protected state change.
+// State CAS makes concurrent requests using the same step mutually exclusive.
+function consumeTotpStep(user, code) {
+  const step = totpMatchStep(user && user.twofa_secret, code);
+  if (step === null) return false;
+  const previous = user.twofa_last_used_step;
+  if (previous !== undefined && previous !== null && !Number.isSafeInteger(previous)) return false;
+  if (Number.isSafeInteger(previous) && step <= previous) return false;
+  user.twofa_last_used_step = step;
+  return true;
 }
 // Parse user-supplied financial amounts strictly; parseFloat('1abc') must never become 1.
 // Return a masked identity number for ordinary account responses.
@@ -678,13 +869,33 @@ function maskIdentityNumber(value) {
 }
 
 function parseMoneyInput(value) {
-  // 仅接受 string（服务端解析为精确数值）；拒绝 number 类型，避免 JS 浮点精度污染金额。
-  if (typeof value === 'number') return null;
+  // Keep monetary values as canonical decimal strings. Never pass them through IEEE-754.
   if (typeof value !== 'string') return null;
   const raw = value.trim();
-  if (!/^(?:0|[1-9]\d*)(?:\.\d{1,18})?$/.test(raw)) return null;
-  const amount = Number(raw);
-  return Number.isFinite(amount) && amount >= 0 ? amount : null;
+  if (raw.length > 64 || !/^(?:0|[1-9]\d*)(?:\.\d{1,18})?$/.test(raw)) return null;
+  const parts = raw.split('.');
+  const fraction = (parts[1] || '').replace(/0+$/, '');
+  return fraction ? parts[0] + '.' + fraction : parts[0];
+}
+function moneyScaledInteger(value, scale) {
+  const parts = String(value).split('.');
+  return BigInt(parts[0]) * (10n ** BigInt(scale)) + BigInt(((parts[1] || '').padEnd(scale, '0')) || '0');
+}
+function compareMoney(a, b) {
+  const pa = String(a).split('.'), pb = String(b).split('.');
+  const scale = Math.max((pa[1] || '').length, (pb[1] || '').length);
+  const ai = moneyScaledInteger(a, scale), bi = moneyScaledInteger(b, scale);
+  return ai < bi ? -1 : ai > bi ? 1 : 0;
+}
+function addMoney(a, b) {
+  const pa = String(a).split('.'), pb = String(b).split('.');
+  const scale = Math.max((pa[1] || '').length, (pb[1] || '').length);
+  const sum = moneyScaledInteger(a, scale) + moneyScaledInteger(b, scale);
+  const digits = sum.toString().padStart(scale + 1, '0');
+  if (!scale) return digits;
+  const whole = digits.slice(0, -scale);
+  const fraction = digits.slice(-scale).replace(/0+$/, '');
+  return fraction ? whole + '.' + fraction : whole;
 }
 
 function genTotpSecret() {
@@ -709,6 +920,27 @@ async function handleRequest(event, context) {
   try {
   // Public, read-only deployment preflight. Reports booleans only; never returns keys or secrets.
   // Keep this before loadDB so Auth can be diagnosed even if financial persistence is unavailable.
+  // Public, read-only configuration for the React Supabase Auth client.
+  // This route intentionally runs before loadDB and only exposes the public anon/publishable key.
+  if (path === 'auth-client-config' && method === 'GET') {
+    const authUrl = String(process.env.SUPABASE_AUTH_URL || '').trim().replace(/\/+$/, '');
+    const publishableKey = getPublishableKey();
+    let validAuthUrl = false;
+    try {
+      const parsed = new URL(authUrl);
+      validAuthUrl = parsed.protocol === 'https:' && parsed.hostname.endsWith('.supabase.co');
+    } catch (_) { validAuthUrl = false; }
+    if (!validAuthUrl || !publishableKey) {
+      return json({ ok: false, code: 'AUTH_CLIENT_CONFIG_UNAVAILABLE', msg: 'Authentication is not configured.' }, 503);
+    }
+    const googleEnabled = await detectGoogleProviderEnabled();
+    return json({
+      ok: true,
+      supabase_url: authUrl,
+      publishable_key: publishableKey,
+      google_enabled: googleEnabled
+    }, 200);
+  }
   if (path === 'auth-health' && method === 'GET') {
     const authUrl = String(process.env.SUPABASE_AUTH_URL || '').replace(/\/+$/, '');
     const authKey = getPublishableKey();
@@ -782,12 +1014,53 @@ async function handleRequest(event, context) {
     return json({ ok: false, code: 'GOOGLE_ONLY_AUTH', msg: 'Please create your BTCBOX account with Google sign-in.' }, 403);
   }
 
-  // ---------- POST /api/login — disabled: BTCBOX uses Google-only Supabase identity ----------
+  // ---------- POST /api/login — BTCBOX username + password ----------
   if (path === 'login' && method === 'POST') {
-    return json({ ok: false, code: 'GOOGLE_ONLY_AUTH', msg: 'Please sign in with Google.' }, 403);
+    const username = normalizeBtcboxUsername(body.username);
+    const password = typeof body.password === 'string' ? body.password : '';
+    if (!db.security_counters) db.security_counters = {};
+    const now = Date.now();
+    const ipKey = 'login_ip:' + clientIp(event);
+    const usernameKey = 'login_username:' + crypto.createHash('sha256').update(username || 'invalid').digest('hex');
+    const ipLock = secCounterIsLocked(db.security_counters, ipKey, now);
+    const usernameLock = secCounterIsLocked(db.security_counters, usernameKey, now);
+    if (ipLock.locked || usernameLock.locked) return rateLimitedJson(Math.max(ipLock.retryAfter || 0, usernameLock.retryAfter || 0));
+    secCounterRecordFailure(db.security_counters, ipKey, 20, 15 * 60 * 1000, now);
+    secCounterRecordFailure(db.security_counters, usernameKey, 10, 15 * 60 * 1000, now);
+    try { await saveDB(db); }
+    catch (_) { return json({ ok: false, code: 'PERSISTENCE_UNAVAILABLE', msg: 'Authentication is temporarily unavailable. Please try again.' }, 503); }
+
+    const user = validateBtcboxUsername(username)
+      ? Object.values(db.users).find(function (candidate) { return normalizeBtcboxUsername(candidate.username_normalized || candidate.username) === username; })
+      : null;
+    // Perform the same expensive derivation for unknown usernames to reduce timing-based enumeration.
+    const salt = user && user.login_password_salt ? user.login_password_salt : BTCBOX_PASSWORD_DUMMY_SALT;
+    const actual = Buffer.from(hashBtcboxLoginPassword(password, salt), 'hex');
+    const expected = Buffer.from(user && user.login_password_hash || '0'.repeat(BTCBOX_PASSWORD_KEYLEN * 2), 'hex');
+    const passwordMatches = actual.length === expected.length && crypto.timingSafeEqual(actual, expected);
+    if (!user || !user.login_password_hash || !passwordMatches) {
+      return json({ ok: false, code: 'INVALID_CREDENTIALS', msg: 'Username or password is incorrect.' }, 401);
+    }
+    if (user.frozen) return json({ ok: false, code: 'ACCOUNT_FROZEN', msg: 'Account frozen. Please contact support.' }, 403);
+    secCounterReset(db.security_counters, ipKey);
+    secCounterReset(db.security_counters, usernameKey);
+    if (user.twofa_enabled) {
+      const tempToken = genToken();
+      db.temp_tokens = db.temp_tokens || {};
+      db.temp_tokens[tempToken] = { uid: user.uid, exp: Date.now() + 10 * 60 * 1000, auth_method: 'username_password_2fa' };
+      try { await saveDB(db); }
+      catch (_) { return json({ ok: false, code: 'PERSISTENCE_UNAVAILABLE', msg: 'Authentication is temporarily unavailable. Please try again.' }, 503); }
+      return json({ ok: false, require_2fa: true, temp_token: tempToken }, 200);
+    }
+    user.last_login = nowStr();
+    const token = genToken();
+    db.sessions[token] = { uid: user.uid, email: user.email || '', created_at: Date.now(), auth_method: 'username_password' };
+    try { await saveDB(db); }
+    catch (_) { return json({ ok: false, code: 'PERSISTENCE_UNAVAILABLE', msg: 'Authentication is temporarily unavailable. Please try again.' }, 503); }
+    return json({ ok: true, uid: user.uid }, 200, setCookieHeader(token));
   }
 
-  // ---------- POST /api/supabase-login (Supabase-verified Google OAuth only) ----------
+  // ---------- POST /api/supabase-login (Supabase-verified single-provider identity) ----------
   if ((path === 'supabase-login' || path === 'google-login') && method === 'POST') {
     // 登录路径持久化限流（按 IP，20 次/15 分钟），计数存 btcbox_state，跨实例共享。
     if (!db.security_counters) db.security_counters = {};
@@ -795,16 +1068,12 @@ async function handleRequest(event, context) {
     const loginRl = secCounterIsLocked(db.security_counters, loginKey, Date.now());
     if (loginRl.locked) return rateLimitedJson(loginRl.retryAfter);
     secCounterRecordFailure(db.security_counters, loginKey, 20, 15 * 60 * 1000, Date.now());
-    try { await saveDB(db); } catch (e) { console.warn('[login-rl] persist failed (best-effort):', e.message); }
+    try { await saveDB(db); } catch (e) { console.warn('[login-rl] persist failed:', e.message); return json({ ok: false, code: 'SECURITY_STATE_UNAVAILABLE', msg: 'Authentication is temporarily unavailable. Please try again.' }, 503); }
     const accessToken = typeof body.supabase_access_token === 'string' ? body.supabase_access_token : '';
     const supabaseUrl = String(process.env.SUPABASE_AUTH_URL || '').replace(/\/$/, '');
     const supabaseKey = getPublishableKey();
     if (!supabaseUrl || !supabaseKey) {
       return json({ ok: false, msg: 'Authentication service is not configured on the server.' }, 503);
-    }
-    const googleEnabled = await detectGoogleProviderEnabled();
-    if (googleEnabled !== true) {
-      return json({ ok: false, code: 'GOOGLE_PROVIDER_UNAVAILABLE', msg: 'Google sign-in is temporarily unavailable. Please try again later.' }, 503);
     }
     if (!accessToken || accessToken.length > 16384) {
       return json({ ok: false, msg: 'Invalid session. Please sign in again.' }, 401);
@@ -821,35 +1090,63 @@ async function handleRequest(event, context) {
       return json({ ok: false, msg: 'Authentication service temporarily unavailable. Please try again later.' }, 503);
     }
     const email = String(identity && identity.email || '').trim().toLowerCase();
-    const confirmed = !!(identity && (identity.email_confirmed_at || identity.confirmed_at));
     const supabaseUserId = String(identity && identity.id || '').trim();
-    if (!isValidAuthEmail(email) || !confirmed || !isSupabaseUserId(supabaseUserId)) {
-      return json({ ok: false, code: 'INVALID_SUPABASE_IDENTITY', msg: 'The verified Google account could not be confirmed. Please sign in again.' }, 403);
+    if (!isSupabaseUserId(supabaseUserId)) {
+      return json({ ok: false, code: 'INVALID_SUPABASE_IDENTITY', msg: 'The verified account identity could not be confirmed. Please sign in again.' }, 403);
     }
-    if (!isGoogleOnlySupabaseIdentity(identity)) {
-      return json({ ok: false, code: 'GOOGLE_ONLY_AUTH', msg: 'Please use a Google account to sign in to BTCBOX.' }, 403);
+    const authProvider = getSingleSupabaseAuthProvider(identity);
+    if (!authProvider) {
+      return json({ ok: false, code: 'AUTH_PROVIDER_NOT_ALLOWED', msg: 'This account uses multiple or unsupported sign-in methods. Please contact support.' }, 403);
     }
-    const authProviders = ['google'];
-    let user = Object.values(db.users).find(function (u) { return String(u.email || '').trim().toLowerCase() === email; });
-    if (user && String(user.supabase_user_id || '') !== supabaseUserId) {
-      return json({ ok: false, code: user.supabase_user_id ? 'SUPABASE_IDENTITY_MISMATCH' : 'SUPABASE_IDENTITY_LINK_REQUIRED', msg: 'This email is already associated with another BTCBOX identity. Please contact support.' }, 409);
+    const walletIdentity = authProvider === 'web3' ? getSupabaseWalletIdentity(identity) : null;
+    const confirmed = !!(identity && (identity.email_confirmed_at || identity.confirmed_at));
+    if (authProvider === 'web3' ? !walletIdentity : (!isValidAuthEmail(email) || !confirmed)) {
+      return json({ ok: false, code: 'INVALID_SUPABASE_IDENTITY', msg: 'The verified sign-in identity could not be confirmed. Please sign in again.' }, 403);
+    }
+    if (authProvider === 'google' && await detectGoogleProviderEnabled() !== true) {
+      return json({ ok: false, code: 'GOOGLE_PROVIDER_UNAVAILABLE', msg: 'Google sign-in is temporarily unavailable. Please try again later.' }, 503);
+    }
+    const authProviders = [authProvider];
+    // Resolve the internal account by the server-verified Supabase UUID first.
+    // Wallet identities have no email; never synthesize one or link by wallet metadata.
+    let user = Object.values(db.users).find(function (u) { return isSupabaseIdentityLinked(u, supabaseUserId); });
+    if (!user && email) user = Object.values(db.users).find(function (u) { return String(u.email || '').trim().toLowerCase() === email; });
+    if (user && !isSupabaseIdentityLinked(user, supabaseUserId)) {
+      return json({ ok: false, code: 'SUPABASE_IDENTITY_MISMATCH', msg: 'This identity is already associated with another BTCBOX account. Please contact support.' }, 409);
+    }
+    if (walletIdentity) {
+      const walletOwner = Object.values(db.users).find(function (candidate) {
+        const wallets = Array.isArray(candidate.wallet_identities) ? candidate.wallet_identities : [];
+        return wallets.some(function (item) { return isSameWalletIdentity(item, walletIdentity); }) ||
+          isSameWalletIdentity({ chain: candidate.wallet_chain, address: candidate.wallet_address }, walletIdentity);
+      });
+      if (walletOwner && (!user || walletOwner.uid !== user.uid)) {
+        return json({ ok: false, code: 'IDENTITY_IN_USE', msg: 'This wallet is already associated with another BTCBOX account.' }, 409);
+      }
     }
     if (user && user.frozen) return json({ ok: false, code: 'ACCOUNT_FROZEN', msg: 'Account frozen. Please contact support.' }, 403);
-    // Preserve the existing account's second factor for Google sign-ins.
+    // Preserve the existing account's second factor for all Supabase sign-ins.
     // The temporary token can only be exchanged through /api/login/2fa and never creates a session by itself.
     if (user && user.twofa_enabled) {
       const tempToken = genToken();
       db.temp_tokens = db.temp_tokens || {};
-      db.temp_tokens[tempToken] = { uid: user.uid, exp: Date.now() + 10 * 60 * 1000 };
+      db.temp_tokens[tempToken] = { uid: user.uid, exp: Date.now() + 10 * 60 * 1000, auth_method: authProvider === 'web3' ? 'supabase_web3_2fa' : 'supabase_google_2fa' };
       secCounterReset(db.security_counters, loginKey);
-      await saveDB(db);
+      try { await saveDB(db); }
+      catch (_) { return json({ ok: false, code: 'PERSISTENCE_UNAVAILABLE', msg: 'Authentication is temporarily unavailable. Please try again.' }, 503); }
       return json({ ok: false, require_2fa: true, temp_token: tempToken }, 200);
     }
     if (!user) {
       const uid = String(db.next_uid++);
       const salt = genSalt();
       user = {
-        uid: uid, email: email, email_verified: true, supabase_user_id: supabaseUserId, auth_providers: authProviders, addresses: [], address_audit: [],
+        uid: uid, email: email || '', email_verified: authProvider !== 'web3', supabase_user_id: supabaseUserId,
+        supabase_user_ids: [supabaseUserId],
+        auth_identities: [{ supabase_user_id: supabaseUserId, provider: authProvider,
+          email: email || '', wallet_address: walletIdentity ? walletIdentity.address : '', wallet_chain: walletIdentity ? walletIdentity.chain : '', linked_at: nowStr() }],
+        wallet_identities: walletIdentity ? [{ address: walletIdentity.address, chain: walletIdentity.chain, supabase_user_id: supabaseUserId, linked_at: nowStr() }] : [],
+        auth_providers: authProviders,
+        wallet_address: walletIdentity ? walletIdentity.address : '', wallet_chain: walletIdentity ? walletIdentity.chain : '', addresses: [], address_audit: [],
         password_hash: hashPassword(genToken(), salt), salt: salt,
         fund_password: '', twofa_secret: '', twofa_enabled: false,
         kyc: { status: 'unsubmitted', name: '', id_type: 'id_card', id_number: '', submitted_at: '' },
@@ -858,14 +1155,29 @@ async function handleRequest(event, context) {
       };
       db.users[uid] = user;
     } else {
-      user.email_verified = true;
+      if (email) user.email_verified = true;
+      user.supabase_user_ids = getUserLinkedIdentityIds(user);
+      if (!user.supabase_user_ids.includes(supabaseUserId)) user.supabase_user_ids.push(supabaseUserId);
+      user.auth_identities = Array.isArray(user.auth_identities) ? user.auth_identities : [];
+      if (!user.auth_identities.some(function (item) { return item && item.supabase_user_id === supabaseUserId; })) {
+        user.auth_identities.push({ supabase_user_id: supabaseUserId, provider: authProvider, email: email || '',
+          wallet_address: walletIdentity ? walletIdentity.address : '', wallet_chain: walletIdentity ? walletIdentity.chain : '', linked_at: nowStr() });
+      }
+      if (walletIdentity) {
+        user.wallet_identities = Array.isArray(user.wallet_identities) ? user.wallet_identities : [];
+        if (!user.wallet_identities.some(function (item) { return isSameWalletIdentity(item, walletIdentity); })) {
+          user.wallet_identities.push({ address: walletIdentity.address, chain: walletIdentity.chain, supabase_user_id: supabaseUserId, linked_at: nowStr() });
+        }
+        if (!user.wallet_address) { user.wallet_address = walletIdentity.address; user.wallet_chain = walletIdentity.chain; }
+      }
       user.auth_providers = Array.from(new Set([].concat(user.auth_providers || [], authProviders)));
     }
     user.last_login = nowStr();
     const token = genToken();
-    db.sessions[token] = { uid: user.uid, email: email, created_at: Date.now() };
+    db.sessions[token] = { uid: user.uid, email: email, created_at: Date.now(), auth_method: authProvider === 'web3' ? 'supabase_web3' : 'supabase_google' };
     secCounterReset(db.security_counters, loginKey);
-    await saveDB(db);
+    try { await saveDB(db); }
+    catch (_) { return json({ ok: false, code: 'PERSISTENCE_UNAVAILABLE', msg: 'Authentication is temporarily unavailable. Please try again.' }, 503); }
     return json({ ok: true, uid: user.uid }, 200, setCookieHeader(token));
   }
 
@@ -883,18 +1195,43 @@ async function handleRequest(event, context) {
     const tt = body.temp_token || '';
     const code = body.code || '';
     db.temp_tokens = db.temp_tokens || {};
-    const rec = db.temp_tokens[tt];
-    if (!rec || rec.exp < Date.now()) return json({ ok: false, msg: 'Session expired. Please sign in again.' });
+    const rec = typeof tt === 'string' && tt ? db.temp_tokens[tt] : null;
+    const expiresAt = Number(rec && rec.exp);
+    if (!rec || !Number.isFinite(expiresAt) || expiresAt <= Date.now()) {
+      if (rec) {
+        delete db.temp_tokens[tt];
+        try { await saveDB(db); }
+        catch (_) { return json({ ok: false, code: 'PERSISTENCE_UNAVAILABLE', msg: 'Authentication is temporarily unavailable. Please try again.' }, 503); }
+      }
+      return json({ ok: false, code: 'TWOFA_CHALLENGE_EXPIRED', msg: 'Session expired. Please sign in again.' }, 401);
+    }
     const u2 = db.users[rec.uid];
-    if (!u2) return json({ ok: false, msg: 'User not found.' });
-    if (u2.frozen) { delete db.temp_tokens[tt]; await saveDB(db); return json({ ok: false, code: 'ACCOUNT_FROZEN', msg: 'Account frozen. Please contact support.' }, 403); }
-    { const rl = rateCheck('2fa:' + u2.uid, 20, 15 * 60 * 1000); if (rl.limited) return rateLimitedJson(rl.retryAfter); }
-    if (!totpVerify(u2.twofa_secret, code)) return json({ ok: false, msg: 'Invalid 2FA code.' });
+    if (!u2) {
+      delete db.temp_tokens[tt];
+      try { await saveDB(db); }
+      catch (_) { return json({ ok: false, code: 'PERSISTENCE_UNAVAILABLE', msg: 'Authentication is temporarily unavailable. Please try again.' }, 503); }
+      return json({ ok: false, code: 'USER_NOT_FOUND', msg: 'User not found.' }, 401);
+    }
+    if (!u2.twofa_enabled || !u2.twofa_secret) {
+      delete db.temp_tokens[tt];
+      try { await saveDB(db); }
+      catch (_) { return json({ ok: false, code: 'PERSISTENCE_UNAVAILABLE', msg: 'Authentication is temporarily unavailable. Please try again.' }, 503); }
+      return json({ ok: false, code: 'TWOFA_NOT_ENABLED', msg: 'Two-factor authentication is no longer enabled. Please sign in again.' }, 401);
+    }
+    if (u2.frozen) {
+      delete db.temp_tokens[tt];
+      try { await saveDB(db); }
+      catch (_) { return json({ ok: false, code: 'PERSISTENCE_UNAVAILABLE', msg: 'Authentication is temporarily unavailable. Please try again.' }, 503); }
+      return json({ ok: false, code: 'ACCOUNT_FROZEN', msg: 'Account frozen. Please contact support.' }, 403);
+    }
+    { const rl = await rateCheckShared('login_2fa', String(u2.uid)); if (rl.unavailable) return rateLimitUnavailableJson(); if (rl.limited) return rateLimitedJson(rl.retryAfter); }
+    if (!consumeTotpStep(u2, String(code))) return json({ ok: false, msg: 'Invalid or already-used 2FA code.' });
     delete db.temp_tokens[tt];
     u2.last_login = nowStr();
     const token2 = genToken();
-    db.sessions[token2] = { uid: u2.uid, email: u2.email, created_at: Date.now() };
-    await saveDB(db);
+    db.sessions[token2] = { uid: u2.uid, email: u2.email, created_at: Date.now(), auth_method: rec.auth_method || 'username_password_2fa' };
+    try { await saveDB(db); }
+    catch (_) { return json({ ok: false, code: 'PERSISTENCE_UNAVAILABLE', msg: 'Authentication is temporarily unavailable. Please try again.' }, 503); }
     return json({ ok: true }, 200, setCookieHeader(token2));
   }
 
@@ -922,7 +1259,7 @@ async function handleRequest(event, context) {
     }
     try {
       const intervalBybit = { '1m':'1', '3m':'3', '5m':'5', '15m':'15', '30m':'30', '1h':'60', '2h':'120', '4h':'240', '1d':'D' }[interval];
-      const payload = await timeoutFetchJson('https://api.bybit.com/v5/market/kline?category=spot&symbol=' + encodeURIComponent(symbol) + '&interval=' + encodeURIComponent(intervalBybit) + '&limit=100');
+      const payload = await timeoutFetchJson('https://api.bybit.com/v5/market/kline?category=spot&symbol=' + encodeURIComponent(symbol) + '&interval=' + encodeURIComponent(intervalBybit) + '&limit=300');
       const rows = payload && payload.result && payload.result.list;
       if (!Array.isArray(rows)) throw new Error('invalid Bybit candles');
       const raw = rows.filter(k => Array.isArray(k) && k.length >= 6 && k.slice(0, 6).every(v => Number.isFinite(Number(v))))
@@ -960,6 +1297,353 @@ async function handleRequest(event, context) {
   // ---------- 以下接口需要登录 ----------
   const user = getUser(db, event);
 
+  // ---------- POST /api/auth/link-identity/reauth ----------
+  // Freshly prove control of an identity already linked to this BTCBOX account.
+  if (path === 'auth/link-identity/reauth' && method === 'POST') {
+    if (!user) return json({ ok: false, msg: 'Not signed in.', need_login: true }, 401);
+    if (user.frozen) return json({ ok: false, code: 'ACCOUNT_FROZEN', msg: 'Account frozen. Please contact support.' }, 403);
+    const sessionRecord = getSessionRecord(db, event);
+    if (!sessionRecord || sessionRecord.user.uid !== user.uid) return json({ ok: false, msg: 'Please sign in again.', need_login: true }, 401);
+    const reauthLimit = await rateCheckShared('identity_link_reauth', String(user.uid));
+    if (reauthLimit.unavailable) return rateLimitUnavailableJson();
+    if (reauthLimit.limited) return rateLimitedJson(reauthLimit.retryAfter);
+    const accessToken = typeof body.supabase_access_token === 'string' ? body.supabase_access_token : '';
+    const supabaseUrl = String(process.env.SUPABASE_AUTH_URL || process.env.SUPABASE_URL || '').replace(/\/$/, '');
+    const supabaseKey = getPublishableKey();
+    if (!supabaseUrl || !supabaseKey) return json({ ok: false, code: 'AUTH_SERVICE_UNAVAILABLE', msg: 'Authentication service is not configured.' }, 503);
+    if (!accessToken || accessToken.length > 16384) return json({ ok: false, code: 'INVALID_SUPABASE_IDENTITY', msg: 'Please verify a linked sign-in method.' }, 401);
+    let identity;
+    try {
+      const verifyResponse = await fetch(supabaseUrl + '/auth/v1/user', {
+        method: 'GET', headers: { 'apikey': supabaseKey, 'Authorization': 'Bearer ' + accessToken, 'Accept': 'application/json' }
+      });
+      if (!verifyResponse.ok) return json({ ok: false, code: 'INVALID_SUPABASE_IDENTITY', msg: 'The sign-in identity could not be verified.' }, 401);
+      identity = await verifyResponse.json();
+    } catch (_) {
+      return json({ ok: false, code: 'AUTH_SERVICE_UNAVAILABLE', msg: 'Authentication service temporarily unavailable.' }, 503);
+    }
+    const sourceId = String(identity && identity.id || '').trim();
+    const claims = getVerifiedSupabaseAuthTime(accessToken);
+    const nowSeconds = Math.floor(Date.now() / 1000);
+    const authTime = claims && claims.auth_time;
+    const provider = getSingleSupabaseAuthProvider(identity);
+    const walletIdentity = provider === 'web3' ? getSupabaseWalletIdentity(identity) : null;
+    const email = String(identity && identity.email || '').trim().toLowerCase();
+    const confirmed = !!(identity && (identity.email_confirmed_at || identity.confirmed_at));
+    if (!isSupabaseUserId(sourceId) || !claims || claims.subject !== sourceId ||
+        !Number.isFinite(authTime) || authTime > nowSeconds + 60 || nowSeconds - authTime > 5 * 60 ||
+        !['google', 'web3'].includes(provider) ||
+        (provider === 'google' && (!confirmed || !isValidAuthEmail(email))) ||
+        (provider === 'web3' && !walletIdentity)) {
+      return json({ ok: false, code: 'RECENT_REAUTH_REQUIRED', msg: 'Please freshly verify a sign-in method already connected to this BTCBOX account.' }, 403);
+    }
+    if (!isSupabaseIdentityLinked(user, sourceId)) {
+      return json({ ok: false, code: 'IDENTITY_NOT_LINKED', msg: 'The verified sign-in method is not connected to this BTCBOX account.' }, 403);
+    }
+    if (provider === 'google' && await detectGoogleProviderEnabled() !== true) {
+      return json({ ok: false, code: 'GOOGLE_PROVIDER_UNAVAILABLE', msg: 'Google sign-in is temporarily unavailable.' }, 503);
+    }
+    if (user.twofa_enabled) {
+      const code = typeof body.twofa_code === 'string' ? body.twofa_code : '';
+      if (!code) return json({ ok: false, code: 'TWO_FACTOR_REQUIRED', msg: 'Enter your authenticator code to continue.' }, 403);
+      if (!consumeTotpStep(user, code)) return json({ ok: false, code: 'TWO_FACTOR_INVALID', msg: 'The authenticator code is incorrect or already used.' }, 403);
+    }
+    sessionRecord.session.identity_link_reauth = {
+      purpose: 'identity_link',
+      supabase_user_id: sourceId,
+      auth_time: authTime,
+      verified_at: Date.now()
+    };
+    try { await saveDB(db); }
+    catch (e) {
+      if (e && e.message === 'Persistent storage write conflict') return json({ ok: false, code: 'ACCOUNT_UPDATE_CONFLICT', msg: 'Your account changed at the same time. Please retry verification.' }, 409);
+      return json({ ok: false, code: 'PERSISTENCE_UNAVAILABLE', msg: 'Verification could not be saved. Please try again.' }, 503);
+    }
+    return json({ ok: true, expires_in_seconds: 300 });
+  }
+
+  // ---------- POST /api/account/credentials/reauth ----------
+  // A recent BTCBOX cookie alone is not proof of a recent Google/wallet
+  // re-authentication. Verify the linked Supabase identity and its signed auth_time.
+  if (path === 'account/credentials/reauth' && method === 'POST') {
+    if (!user) return json({ ok: false, msg: 'Not signed in.', need_login: true }, 401);
+    if (user.frozen) return json({ ok: false, code: 'ACCOUNT_FROZEN', msg: 'Account frozen. Please contact support.' }, 403);
+    const reauthLimit = await rateCheckShared('credential_reauth', String(user.uid));
+    if (reauthLimit.unavailable) return rateLimitUnavailableJson();
+    if (reauthLimit.limited) return rateLimitedJson(reauthLimit.retryAfter);
+    const sessionRecord = getSessionRecord(db, event);
+    if (!sessionRecord || sessionRecord.user.uid !== user.uid) return json({ ok: false, msg: 'Please sign in again.', need_login: true }, 401);
+    const accessToken = typeof body.supabase_access_token === 'string' ? body.supabase_access_token : '';
+    const supabaseUrl = String(process.env.SUPABASE_AUTH_URL || process.env.SUPABASE_URL || '').replace(/\/$/, '');
+    const supabaseKey = getPublishableKey();
+    if (!supabaseUrl || !supabaseKey) return json({ ok: false, code: 'AUTH_SERVICE_UNAVAILABLE', msg: 'Authentication service is not configured.' }, 503);
+    if (!accessToken || accessToken.length > 16384) return json({ ok: false, code: 'INVALID_SUPABASE_IDENTITY', msg: 'Please verify a linked sign-in method.' }, 401);
+    let identity;
+    try {
+      const verifyResponse = await fetch(supabaseUrl + '/auth/v1/user', {
+        method: 'GET', headers: { 'apikey': supabaseKey, 'Authorization': 'Bearer ' + accessToken, 'Accept': 'application/json' }
+      });
+      if (!verifyResponse.ok) return json({ ok: false, code: 'INVALID_SUPABASE_IDENTITY', msg: 'The sign-in identity could not be verified.' }, 401);
+      identity = await verifyResponse.json();
+    } catch (_) {
+      return json({ ok: false, code: 'AUTH_SERVICE_UNAVAILABLE', msg: 'Authentication service temporarily unavailable.' }, 503);
+    }
+    const linkedId = String(identity && identity.id || '').trim();
+    const claims = getVerifiedSupabaseAuthTime(accessToken);
+    const nowSeconds = Math.floor(Date.now() / 1000);
+    const authTime = claims && claims.auth_time;
+    const provider = getSingleSupabaseAuthProvider(identity);
+    const walletIdentity = provider === 'web3' ? getSupabaseWalletIdentity(identity) : null;
+    const confirmed = !!(identity && (identity.email_confirmed_at || identity.confirmed_at));
+    if (!isSupabaseUserId(linkedId) || !claims || claims.subject !== linkedId ||
+        !Number.isFinite(authTime) || authTime > nowSeconds + 60 || nowSeconds - authTime > 5 * 60 ||
+        !['google', 'web3'].includes(provider) ||
+        (provider === 'google' && (!confirmed || !isValidAuthEmail(String(identity.email || '').trim().toLowerCase()))) ||
+        (provider === 'web3' && !walletIdentity)) {
+      return json({ ok: false, code: 'RECENT_REAUTH_REQUIRED', msg: 'Please complete a fresh Google or wallet verification, then try again.' }, 403);
+    }
+    if (!isSupabaseIdentityLinked(user, linkedId)) {
+      return json({ ok: false, code: 'IDENTITY_NOT_LINKED', msg: 'Verify a Google account or wallet already linked to this BTCBOX account.' }, 403);
+    }
+    if (user.twofa_enabled) {
+      const twoFactorCode = typeof body.twofa_code === 'string' ? body.twofa_code : '';
+      if (!twoFactorCode) return json({ ok: false, code: 'TWO_FACTOR_REQUIRED', msg: 'Enter your authenticator code to continue.' }, 403);
+      if (!consumeTotpStep(user, twoFactorCode)) return json({ ok: false, code: 'TWO_FACTOR_INVALID', msg: 'The authenticator code is incorrect or already used.' }, 403);
+    }
+    sessionRecord.session.credential_reauth = {
+      purpose: 'credential_recovery',
+      supabase_user_id: linkedId,
+      auth_time: authTime,
+      verified_at: Date.now()
+    };
+    try { await saveDB(db); }
+    catch (e) {
+      if (e && e.message === 'Persistent storage write conflict') return json({ ok: false, code: 'ACCOUNT_UPDATE_CONFLICT', msg: 'Your account changed at the same time. Please retry verification.' }, 409);
+      return json({ ok: false, code: 'PERSISTENCE_UNAVAILABLE', msg: 'Verification could not be saved. Please try again.' }, 503);
+    }
+    return json({ ok: true, recovery_window_seconds: 300 });
+  }
+
+  // ---------- POST /api/account/credentials/recover ----------
+  // One short-lived server-side re-auth marker authorizes one password reset.
+  if (path === 'account/credentials/recover' && method === 'POST') {
+    if (!user) return json({ ok: false, msg: 'Not signed in.', need_login: true }, 401);
+    if (user.frozen) return json({ ok: false, code: 'ACCOUNT_FROZEN', msg: 'Account frozen. Please contact support.' }, 403);
+    const recoverLimit = await rateCheckShared('credential_recover', String(user.uid));
+    if (recoverLimit.unavailable) return rateLimitUnavailableJson();
+    if (recoverLimit.limited) return rateLimitedJson(recoverLimit.retryAfter);
+    const sessionRecord = getSessionRecord(db, event);
+    const verified = sessionRecord && sessionRecord.session && sessionRecord.session.credential_reauth;
+    const verifiedAt = Number(verified && verified.verified_at);
+    const linkedId = String(verified && verified.supabase_user_id || '');
+    if (!sessionRecord || sessionRecord.user.uid !== user.uid || !Number.isFinite(verifiedAt) ||
+        Date.now() - verifiedAt < 0 || Date.now() - verifiedAt > 5 * 60 * 1000 ||
+        !verified || verified.purpose !== 'credential_recovery' ||
+        !Number.isFinite(Number(verified.auth_time)) ||
+        Number(verified.auth_time) > Date.now() / 1000 + 60 ||
+        Date.now() / 1000 - Number(verified.auth_time) > 5 * 60 ||
+        !isSupabaseIdentityLinked(user, linkedId)) {
+      return json({ ok: false, code: 'RECENT_REAUTH_REQUIRED', msg: 'Please verify a linked Google account or wallet again before resetting your password.' }, 403);
+    }
+    const password = typeof body.password === 'string' ? body.password : '';
+    if (!validateBtcboxLoginPassword(password)) return json({ ok: false, code: 'PASSWORD_INVALID', msg: 'Password must be 12–128 characters and cannot contain control characters.' }, 400);
+    const suppliedUsername = body.username === undefined || body.username === null || body.username === ''
+      ? '' : normalizeBtcboxUsername(body.username);
+    if (suppliedUsername && !validateBtcboxUsername(suppliedUsername)) {
+      return json({ ok: false, code: 'USERNAME_INVALID', msg: 'Username must be 3–24 characters and use lowercase letters, numbers, or underscores.' }, 400);
+    }
+    if (!user.username && !suppliedUsername) {
+      return json({ ok: false, code: 'USERNAME_REQUIRED', msg: 'Set a BTCBOX username before resetting your password.' }, 400);
+    }
+    if (suppliedUsername) {
+      const duplicate = Object.values(db.users).find(function (candidate) {
+        return candidate.uid !== user.uid && normalizeBtcboxUsername(candidate.username_normalized || candidate.username) === suppliedUsername;
+      });
+      if (duplicate) return json({ ok: false, code: 'USERNAME_TAKEN', msg: 'This username is already in use. Please choose another.' }, 409);
+      user.username = suppliedUsername;
+      user.username_normalized = suppliedUsername;
+    }
+    user.login_password_salt = genSalt();
+    user.login_password_hash = hashBtcboxLoginPassword(password, user.login_password_salt);
+    user.login_password_algo = 'pbkdf2-sha256-600000';
+    user.credentials_updated_at = nowStr();
+    // Password recovery revokes other BTCBOX sessions and outstanding 2FA login tokens.
+    Object.keys(db.sessions || {}).forEach(function (token) {
+      if (token !== sessionRecord.token && db.sessions[token] && db.sessions[token].uid === user.uid) delete db.sessions[token];
+    });
+    Object.keys(db.temp_tokens || {}).forEach(function (token) {
+      if (db.temp_tokens[token] && db.temp_tokens[token].uid === user.uid) delete db.temp_tokens[token];
+    });
+    // A credential reset invalidates every account-scoped reauthentication proof.
+    delete sessionRecord.session.credential_reauth;
+    delete sessionRecord.session.identity_link_reauth;
+    try { await saveDB(db); }
+    catch (e) {
+      if (e && e.message === 'Persistent storage write conflict') return json({ ok: false, code: 'ACCOUNT_UPDATE_CONFLICT', msg: 'Your account changed at the same time. Please retry.' }, 409);
+      return json({ ok: false, code: 'PERSISTENCE_UNAVAILABLE', msg: 'Your password could not be saved. Please try again.' }, 503);
+    }
+    return json({ ok: true, username: user.username, has_login_password: true });
+  }
+
+  // ---------- POST /api/account/credentials ----------
+  // Credentials belong to the existing internal account; this never creates a second user.
+  if (path === 'account/credentials' && method === 'POST') {
+    if (!user) return json({ ok: false, msg: 'Not signed in.', need_login: true }, 401);
+    if (user.frozen) return json({ ok: false, code: 'ACCOUNT_FROZEN', msg: 'Account frozen. Please contact support.' }, 403);
+    const currentSessionRecord = getSessionRecord(db, event);
+    if (!currentSessionRecord || currentSessionRecord.user.uid !== user.uid) {
+      return json({ ok: false, code: 'REAUTH_REQUIRED', msg: 'Your session is no longer valid. Please sign in again.' }, 403);
+    }
+    const username = normalizeBtcboxUsername(body.username);
+    const password = typeof body.password === 'string' ? body.password : '';
+    const currentPassword = typeof body.current_password === 'string' ? body.current_password : '';
+    if (!validateBtcboxUsername(username)) return json({ ok: false, code: 'USERNAME_INVALID', msg: 'Username must be 3–24 characters and use lowercase letters, numbers, or underscores.' }, 400);
+    if (!validateBtcboxLoginPassword(password)) return json({ ok: false, code: 'PASSWORD_INVALID', msg: 'Password must be 12–128 characters and cannot contain control characters.' }, 400);
+    const hasCredentials = !!(user.login_password_hash && user.login_password_salt && user.login_password_algo === 'pbkdf2-sha256-600000');
+    if (hasCredentials && !verifyBtcboxLoginPassword(user, currentPassword)) {
+      return json({ ok: false, code: 'CURRENT_PASSWORD_INVALID', msg: 'Current BTCBOX password is incorrect.' }, 403);
+    }
+    if (!hasCredentials) {
+      const createdAt = Number(currentSessionRecord.session && currentSessionRecord.session.created_at);
+      if (!Number.isFinite(createdAt) || Date.now() - createdAt > 5 * 60 * 1000) {
+        return json({ ok: false, code: 'REAUTH_REQUIRED', msg: 'Please sign in again before setting your BTCBOX username and password.' }, 403);
+      }
+    }
+    const duplicate = Object.values(db.users).find(function (candidate) {
+      return candidate.uid !== user.uid && normalizeBtcboxUsername(candidate.username_normalized || candidate.username) === username;
+    });
+    if (duplicate) return json({ ok: false, code: 'USERNAME_TAKEN', msg: 'This username is already in use. Please choose another.' }, 409);
+    user.username = username;
+    user.username_normalized = username;
+    user.login_password_salt = genSalt();
+    user.login_password_hash = hashBtcboxLoginPassword(password, user.login_password_salt);
+    user.login_password_algo = 'pbkdf2-sha256-600000';
+    user.credentials_updated_at = nowStr();
+    // Credential changes invalidate every other session while preserving this request's session.
+    Object.keys(db.sessions || {}).forEach(function (token) {
+      const session = db.sessions[token];
+      if (token !== currentSessionRecord.token && session && session.uid === user.uid) delete db.sessions[token];
+    });
+    // Even the preserved current session must not retain stale account reauthentication proofs.
+    delete currentSessionRecord.session.credential_reauth;
+    delete currentSessionRecord.session.identity_link_reauth;
+    // A credential change also invalidates outstanding second-factor login challenges.
+    Object.keys(db.temp_tokens || {}).forEach(function (token) {
+      if (db.temp_tokens[token] && db.temp_tokens[token].uid === user.uid) delete db.temp_tokens[token];
+    });
+    try { await saveDB(db); }
+    catch (e) {
+      if (e && e.message === 'Persistent storage write conflict') return json({ ok: false, code: 'ACCOUNT_UPDATE_CONFLICT', msg: 'Your account changed at the same time. Please reload and try again.' }, 409);
+      return json({ ok: false, code: 'PERSISTENCE_UNAVAILABLE', msg: 'Account settings could not be saved. Please try again.' }, 503);
+    }
+    return json({ ok: true, username: user.username, has_login_password: true });
+  }
+
+  // ---------- POST /api/auth/link-identity ----------
+  // The current BTCBOX session proves control of the account; the second verified
+  // Supabase access token proves control of the identity being added.
+  if (path === 'auth/link-identity' && method === 'POST') {
+    if (!user) return json({ ok: false, msg: 'Not signed in.', need_login: true }, 401);
+    if (user.frozen) return json({ ok: false, code: 'ACCOUNT_FROZEN', msg: 'Account frozen. Please contact support.' }, 403);
+    const sessionRecord = getSessionRecord(db, event);
+    const marker = sessionRecord && sessionRecord.session && sessionRecord.session.identity_link_reauth;
+    const markerAge = Date.now() - Number(marker && marker.verified_at);
+    if (!sessionRecord || sessionRecord.user.uid !== user.uid ||
+        !marker || marker.purpose !== 'identity_link' ||
+        !isSupabaseIdentityLinked(user, String(marker.supabase_user_id || '')) ||
+        !Number.isFinite(markerAge) || markerAge < 0 || markerAge > 5 * 60 * 1000 ||
+        !Number.isFinite(Number(marker.auth_time)) ||
+        Date.now() / 1000 - Number(marker.auth_time) > 5 * 60 ||
+        Number(marker.auth_time) > Date.now() / 1000 + 60) {
+      return json({ ok: false, code: 'REAUTH_REQUIRED', msg: 'Please freshly verify a sign-in method already connected to this BTCBOX account.' }, 403);
+    }
+    const targetLimit = await rateCheckShared('identity_link_target', String(user.uid));
+    if (targetLimit.unavailable) return rateLimitUnavailableJson();
+    if (targetLimit.limited) return rateLimitedJson(targetLimit.retryAfter);
+    const accessToken = typeof body.supabase_access_token === 'string' ? body.supabase_access_token : '';
+    const supabaseUrl = String(process.env.SUPABASE_AUTH_URL || process.env.SUPABASE_URL || '').replace(/\/$/, '');
+    const supabaseKey = getPublishableKey();
+    if (!supabaseUrl || !supabaseKey) return json({ ok: false, code: 'AUTH_SERVICE_UNAVAILABLE', msg: 'Authentication service is not configured.' }, 503);
+    if (!accessToken || accessToken.length > 16384) return json({ ok: false, code: 'INVALID_SUPABASE_IDENTITY', msg: 'The identity to link could not be verified.' }, 401);
+    let identity;
+    try {
+      const verifyResponse = await fetch(supabaseUrl + '/auth/v1/user', {
+        method: 'GET', headers: { 'apikey': supabaseKey, 'Authorization': 'Bearer ' + accessToken, 'Accept': 'application/json' }
+      });
+      if (!verifyResponse.ok) return json({ ok: false, code: 'INVALID_SUPABASE_IDENTITY', msg: 'The identity to link could not be verified.' }, 401);
+      identity = await verifyResponse.json();
+    } catch (_) {
+      return json({ ok: false, code: 'AUTH_SERVICE_UNAVAILABLE', msg: 'Authentication service temporarily unavailable.' }, 503);
+    }
+    const linkedId = String(identity && identity.id || '').trim();
+    const targetClaims = getVerifiedSupabaseAuthTime(accessToken);
+    const targetNowSeconds = Math.floor(Date.now() / 1000);
+    const targetAuthTime = targetClaims && targetClaims.auth_time;
+    const linkedEmail = String(identity && identity.email || '').trim().toLowerCase();
+    const provider = getSingleSupabaseAuthProvider(identity);
+    const walletIdentity = provider === 'web3' ? getSupabaseWalletIdentity(identity) : null;
+    const confirmed = !!(identity && (identity.email_confirmed_at || identity.confirmed_at));
+    if (!isSupabaseUserId(linkedId) || !targetClaims || targetClaims.subject !== linkedId ||
+        !Number.isFinite(targetAuthTime) || targetAuthTime > targetNowSeconds + 60 ||
+        targetNowSeconds - targetAuthTime > 5 * 60 ||
+        !['google', 'web3'].includes(provider) ||
+        (provider === 'google' && (!isValidAuthEmail(linkedEmail) || !confirmed)) ||
+        (provider === 'web3' && !walletIdentity)) {
+      return json({ ok: false, code: 'RECENT_TARGET_REAUTH_REQUIRED', msg: 'Please freshly verify the Google account or wallet you want to link.' }, 403);
+    }
+    if (String(marker.supabase_user_id) === linkedId) {
+      return json({ ok: false, code: 'IDENTITY_LINK_SOURCE_TARGET_SAME', msg: 'Choose a different sign-in method to link.' }, 409);
+    }
+    if (provider === 'google' && await detectGoogleProviderEnabled() !== true) {
+      return json({ ok: false, code: 'GOOGLE_PROVIDER_UNAVAILABLE', msg: 'Google sign-in is temporarily unavailable.' }, 503);
+    }
+    if (isSupabaseIdentityLinked(user, linkedId)) return json({ ok: false, code: 'IDENTITY_ALREADY_LINKED', msg: 'This identity is already linked to your BTCBOX account.' }, 409);
+    const conflict = Object.values(db.users).find(function (candidate) {
+      if (candidate.uid === user.uid) return false;
+      if (isSupabaseIdentityLinked(candidate, linkedId)) return true;
+      if (provider === 'google' && linkedEmail && String(candidate.email || '').trim().toLowerCase() === linkedEmail) return true;
+      if (walletIdentity) {
+        const wallets = Array.isArray(candidate.wallet_identities) ? candidate.wallet_identities : [];
+        return wallets.some(function (item) { return isSameWalletIdentity(item, walletIdentity); }) ||
+          isSameWalletIdentity({ chain: candidate.wallet_chain, address: candidate.wallet_address }, walletIdentity);
+      }
+      return false;
+    });
+    if (conflict) return json({ ok: false, code: 'IDENTITY_IN_USE', msg: 'This identity is already associated with another BTCBOX account. Sign in to that account instead.' }, 409);
+
+    user.supabase_user_ids = getUserLinkedIdentityIds(user);
+    user.supabase_user_ids.push(linkedId);
+    user.auth_identities = Array.isArray(user.auth_identities) ? user.auth_identities : [];
+    if (user.supabase_user_id && !user.auth_identities.some(function (item) { return item && item.supabase_user_id === user.supabase_user_id; })) {
+      const primaryProvider = Array.isArray(user.auth_providers) && user.auth_providers.length === 1 ? user.auth_providers[0] : 'unknown';
+      user.auth_identities.push({ supabase_user_id: user.supabase_user_id, provider: primaryProvider,
+        email: user.email || '', wallet_address: user.wallet_address || '', wallet_chain: user.wallet_chain || '', linked_at: user.created_at || nowStr() });
+    }
+    user.auth_identities.push({ supabase_user_id: linkedId, provider: provider, email: linkedEmail || '',
+      wallet_address: walletIdentity ? walletIdentity.address : '', wallet_chain: walletIdentity ? walletIdentity.chain : '', linked_at: nowStr() });
+    if (walletIdentity) {
+      user.wallet_identities = Array.isArray(user.wallet_identities) ? user.wallet_identities : [];
+      const walletAlreadyRecorded = user.wallet_identities.some(function (item) {
+        return isSameWalletIdentity(item, walletIdentity);
+      }) || isSameWalletIdentity({ chain: user.wallet_chain, address: user.wallet_address }, walletIdentity);
+      if (!walletAlreadyRecorded) {
+        user.wallet_identities.push({ address: walletIdentity.address, chain: walletIdentity.chain, supabase_user_id: linkedId, linked_at: nowStr() });
+      }
+      if (!user.wallet_address) { user.wallet_address = walletIdentity.address; user.wallet_chain = walletIdentity.chain; }
+    }
+    if (provider === 'google' && !user.email) user.email = linkedEmail;
+    user.auth_providers = Array.from(new Set([].concat(user.auth_providers || [], [provider])));
+    delete sessionRecord.session.identity_link_reauth;
+    try { await saveDB(db); }
+    catch (e) {
+      if (e && e.message === 'Persistent storage write conflict') return json({ ok: false, code: 'ACCOUNT_UPDATE_CONFLICT', msg: 'Your account changed at the same time. Please reload and try again.' }, 409);
+      return json({ ok: false, code: 'PERSISTENCE_UNAVAILABLE', msg: 'Identity could not be linked. Please try again.' }, 503);
+    }
+    return json({ ok: true, linked_identities: user.auth_identities.map(function (item) {
+      return { provider: item.provider || 'unknown', wallet_address: item.wallet_address || '', wallet_chain: item.wallet_chain || '', linked_at: item.linked_at || '' };
+    }) });
+  }
+
   // ---------- POST /api/2fa/enable ----------
   // Never disclose an already-enabled TOTP secret to a session-only caller.
   // Local-password accounts must re-enter that password; OAuth/magic-link accounts
@@ -974,12 +1658,16 @@ async function handleRequest(event, context) {
         return json({ ok: false, code: 'REAUTH_REQUIRED', msg: 'Please sign in again before enabling two-factor authentication.' }, 403);
       }
     } else {
-      { const rl = rateCheck('2fa-setup-password:' + user.uid, 10, 15 * 60 * 1000); if (rl.limited) return rateLimitedJson(rl.retryAfter); }
+      { const rl = await rateCheckShared('twofa_setup_password', String(user.uid)); if (rl.unavailable) return rateLimitUnavailableJson(); if (rl.limited) return rateLimitedJson(rl.retryAfter); }
       const currentPassword = String(body.current_password || '');
       if (!currentPassword || hashPassword(currentPassword, user.salt) !== user.password_hash) return json({ ok: false, code: 'REAUTH_FAILED', msg: 'The current login password is incorrect.' }, 403);
     }
-    if (!user.twofa_secret) user.twofa_secret = genTotpSecret();
-    await saveDB(db);
+    if (!user.twofa_secret) { user.twofa_secret = genTotpSecret(); delete user.twofa_last_used_step; }
+    try { await saveDB(db); }
+    catch (e) {
+      if (e && e.message === 'Persistent storage write conflict') return json({ ok: false, code: 'ACCOUNT_UPDATE_CONFLICT', msg: 'Your account changed at the same time. Please reload and try again.' }, 409);
+      return json({ ok: false, code: 'PERSISTENCE_UNAVAILABLE', msg: 'Two-factor setup could not be saved. Please try again.' }, 503);
+    }
     return json({ ok: true, secret: user.twofa_secret, enabled: false });
   }
   // ---------- POST /api/2fa/confirm ----------
@@ -987,21 +1675,51 @@ async function handleRequest(event, context) {
     if (!user) return json({ ok: false, msg: 'Not signed in.', need_login: true }, 401);
     if (user.twofa_enabled) return json({ ok: false, code: 'TWOFA_ALREADY_ENABLED', msg: 'Two-factor authentication is already enabled.' }, 409);
     if (!user.twofa_secret) return json({ ok: false, code: 'TWOFA_SETUP_REQUIRED', msg: 'Please start the two-factor authentication setup first.' }, 400);
-    { const rl = rateCheck('2fa-setup-confirm:' + user.uid, 10, 15 * 60 * 1000); if (rl.limited) return rateLimitedJson(rl.retryAfter); }
-    if (!totpVerify(user.twofa_secret, String(body.code || ''))) return json({ ok: false, msg: 'Invalid verification code.' }, 403);
+    const currentSessionRecord = getSessionRecord(db, event);
+    if (!currentSessionRecord || currentSessionRecord.user.uid !== user.uid) return json({ ok: false, code: 'REAUTH_REQUIRED', msg: 'Your session is no longer valid. Please sign in again.' }, 403);
+    { const rl = await rateCheckShared('twofa_setup_confirm', String(user.uid)); if (rl.unavailable) return rateLimitUnavailableJson(); if (rl.limited) return rateLimitedJson(rl.retryAfter); }
+    if (!consumeTotpStep(user, String(body.code || ''))) return json({ ok: false, msg: 'Invalid or already-used verification code.' }, 403);
     user.twofa_enabled = true;
-    await saveDB(db);
+    // Enabling a second factor invalidates sessions and pending login challenges issued before enrollment.
+    Object.keys(db.sessions || {}).forEach(function (token) {
+      const session = db.sessions[token];
+      if (token !== currentSessionRecord.token && session && session.uid === user.uid) delete db.sessions[token];
+    });
+    Object.keys(db.temp_tokens || {}).forEach(function (token) {
+      if (db.temp_tokens[token] && db.temp_tokens[token].uid === user.uid) delete db.temp_tokens[token];
+    });
+    try { await saveDB(db); }
+    catch (e) {
+      if (e && e.message === 'Persistent storage write conflict') return json({ ok: false, code: 'ACCOUNT_UPDATE_CONFLICT', msg: 'Your account changed at the same time. Please reload and try again.' }, 409);
+      return json({ ok: false, code: 'PERSISTENCE_UNAVAILABLE', msg: 'Two-factor authentication could not be enabled. Please try again.' }, 503);
+    }
     return json({ ok: true, msg: 'Two-factor authentication enabled.' });
   }
   // ---------- POST /api/2fa/disable ----------
   if (path === '2fa/disable' && method === 'POST') {
     if (!user) return json({ ok: false, msg: 'Not signed in.', need_login: true }, 401);
     if (!user.twofa_enabled || !user.twofa_secret) return json({ ok: false, code: 'TWOFA_NOT_ENABLED', msg: 'Two-factor authentication is not enabled.' }, 409);
-    { const rl = rateCheck('2fa-disable:' + user.uid, 10, 15 * 60 * 1000); if (rl.limited) return rateLimitedJson(rl.retryAfter); }
-    if (!totpVerify(user.twofa_secret, String(body.code || ''))) return json({ ok: false, msg: 'Invalid verification code.' }, 403);
+    const currentSessionRecord = getSessionRecord(db, event);
+    if (!currentSessionRecord || currentSessionRecord.user.uid !== user.uid) return json({ ok: false, code: 'REAUTH_REQUIRED', msg: 'Your session is no longer valid. Please sign in again.' }, 403);
+    { const rl = await rateCheckShared('twofa_disable', String(user.uid)); if (rl.unavailable) return rateLimitUnavailableJson(); if (rl.limited) return rateLimitedJson(rl.retryAfter); }
+    if (!consumeTotpStep(user, String(body.code || ''))) return json({ ok: false, msg: 'Invalid or already-used verification code.' }, 403);
     user.twofa_enabled = false;
     user.twofa_secret = ''; // Rotate the secret on next enrollment; do not retain a disabled factor.
-    await saveDB(db);
+    delete user.twofa_last_used_step;
+    // Removing a second factor invalidates other active sessions; retain only this verified session.
+    Object.keys(db.sessions || {}).forEach(function (token) {
+      const session = db.sessions[token];
+      if (token !== currentSessionRecord.token && session && session.uid === user.uid) delete db.sessions[token];
+    });
+    // Pending second-step challenges are no longer valid after the factor is disabled.
+    Object.keys(db.temp_tokens || {}).forEach(function (token) {
+      if (db.temp_tokens[token] && db.temp_tokens[token].uid === user.uid) delete db.temp_tokens[token];
+    });
+    try { await saveDB(db); }
+    catch (e) {
+      if (e && e.message === 'Persistent storage write conflict') return json({ ok: false, code: 'ACCOUNT_UPDATE_CONFLICT', msg: 'Your account changed at the same time. Please reload and try again.' }, 409);
+      return json({ ok: false, code: 'PERSISTENCE_UNAVAILABLE', msg: 'Two-factor authentication could not be disabled. Please try again.' }, 503);
+    }
     return json({ ok: true, msg: 'Two-factor authentication disabled.' });
   }
 
@@ -1028,7 +1746,12 @@ async function handleRequest(event, context) {
     const total = totalUsdt(accountBalances, livePrices);
     return json({
       ok: true,
-      uid: user.uid, email: user.email,
+      uid: user.uid, email: user.email || '', username: user.username || '', has_login_password: !!user.login_password_hash,
+      auth_providers: Array.isArray(user.auth_providers) ? user.auth_providers : [],
+      linked_identities: (Array.isArray(user.auth_identities) ? user.auth_identities : []).map(function (item) {
+        return { provider: item.provider || 'unknown', wallet_address: item.wallet_address || '', wallet_chain: item.wallet_chain || '', linked_at: item.linked_at || '' };
+      }),
+      wallet_address: user.wallet_address || '', wallet_chain: user.wallet_chain || '',
       // Do not serialize the full identity number to an ordinary user session.
       // Keep the existing id_number field for UI compatibility, but expose only its masked form.
       kyc: {
@@ -1040,7 +1763,7 @@ async function handleRequest(event, context) {
         reviewed_at: user.kyc && user.kyc.reviewed_at || '',
         reject_reason: user.kyc && user.kyc.reject_reason || ''
       },
-      kyc_level: user.kyc.status === 'approved' ? 2 : (user.kyc.status === 'pending' ? 1 : 0),
+      kyc_level: user.kyc && user.kyc.status === 'approved' ? 2 : (user.kyc && user.kyc.status === 'pending' ? 1 : 0),
       balances: compatBalances,
       totalUsdt: total,
       total_usdt: total,
@@ -1145,11 +1868,11 @@ async function handleRequest(event, context) {
     if (!user) return json({ ok: false, msg: 'Not signed in.', need_login: true });
     const coin = body.coin || 'USDT';
     const network = body.network || 'TRC20';
-    const parsedAmount = body.amount === undefined || body.amount === null || body.amount === '' ? 0 : parseMoneyInput(body.amount);
+    const parsedAmount = body.amount === undefined || body.amount === null || body.amount === '' ? '0' : parseMoneyInput(body.amount);
     if (parsedAmount === null) return json({ ok: false, msg: 'Invalid amount format.' }, 400);
     const amount = parsedAmount;
     // amount <= 0 时为查询地址模式，仅返回充值地址，不入账
-    if (amount <= 0) {
+    if (compareMoney(amount, '0') <= 0) {
       const key = coin + '-' + network;
       const legacyKey = key === 'BTC-BTC' ? 'BTC-Bitcoin' : (key === 'SOL-SOL' ? 'SOL-Solana' : '');
       const addr = db.deposit_addresses[key] || (legacyKey && db.deposit_addresses[legacyKey]) || '';
@@ -1157,7 +1880,19 @@ async function handleRequest(event, context) {
       return json({ ok: true, address: addr, msg: 'Deposit address.' });
     }
     // Fail closed: user-supplied requests must never credit balances without verified chain data.
-    return json({ ok: false, msg: 'Operation failed: deposits are credited only after on-chain confirmation.' }, 403);
+    return json({ ok: false, msg: 'User-submitted deposit amounts are not accepted. BTCBOX staff verify incoming transfers and manually credit the account.' }, 403);
+  }
+
+  // ---------- GET /api/withdrawal/config ----------
+  // Expose only the public withdrawal form contract and fail-closed availability.
+  if (path === 'withdrawal/config' && method === 'GET') {
+    if (!user) return json({ ok: false, msg: 'Not signed in.', need_login: true }, 401);
+    return json({
+      ok: true,
+      actions_enabled: financialWritesEnabled() && manualDepositRpcEnabled() && supabaseStorageConfigured(),
+      fees: { USDT: 1.0, BTC: 0.0001, ETH: 0.001, SOL: 0.01, BNB: 0.0005, USDC: 1.0 },
+      allowed_networks: { BTC:['BTC'], ETH:['ERC20'], USDT:['TRC20','ERC20','BEP20'], SOL:['SOL'], BNB:['BEP20'], USDC:['ERC20'] }
+    });
   }
 
   // ---------- POST /api/withdraw ----------
@@ -1178,7 +1913,7 @@ async function handleRequest(event, context) {
     // PostgreSQL is the sole idempotency authority for withdrawals. Do not consult
     // the legacy state document for a replay decision; it may be stale after cutover.
     if (!addr) return json({ ok: false, msg: 'Please enter a withdrawal address.' }, 400);
-    if (amount === null || amount <= 0 || amount > 1e12) return json({ ok: false, msg: 'Invalid amount.' }, 400);
+    if (amount === null || compareMoney(amount, '0') <= 0 || compareMoney(amount, '1000000000000') > 0) return json({ ok: false, msg: 'Invalid amount.' }, 400);
     const allowedNetworks = { BTC:['BTC'], ETH:['ERC20'], USDT:['TRC20','ERC20','BEP20'], SOL:['SOL'], BNB:['BEP20'], USDC:['ERC20'] };
     if (!allowedNetworks[coin] || allowedNetworks[coin].indexOf(network) < 0) return json({ok:false,msg:'Operation failed: coin and network do not match.'},400);
     let addressValid = false;
@@ -1193,9 +1928,9 @@ async function handleRequest(event, context) {
     if (!addrCheck.allowed) return json({ ok: false, code: addrCheck.code, msg: addrCheck.msg }, 403);
     const supportedFees = { USDT: 1.0, BTC: 0.0001, ETH: 0.001, SOL: 0.01, BNB: 0.0005, USDC: 1.0 };
     if (!Object.prototype.hasOwnProperty.call(supportedFees, coin)) return json({ ok: false, msg: 'Operation failed: withdrawals for this coin are not supported.' }, 400);
-    const fee = supportedFees[coin];
-    const totalDebit = amount + fee;
-    if (!Number.isFinite(totalDebit) || totalDebit <= 0) return json({ ok: false, msg: 'Invalid amount.' }, 400);
+    const fee = String(supportedFees[coin]);
+    const totalDebit = addMoney(amount, fee);
+    if (compareMoney(totalDebit, '0') <= 0) return json({ ok: false, msg: 'Invalid amount.' }, 400);
     // 首次提现 / 大额提现（USDT 等值超阈值，价格不可用时保守视为大额）→ 强制人工审核 pending_admin_review。
     const thresholdUsdt = Number(process.env.WITHDRAWAL_LARGE_THRESHOLD_USDT) || 1000;
     const usdtValue = estimateUsdtValue(coin, amount, livePriceCache.prices);
@@ -1213,13 +1948,17 @@ async function handleRequest(event, context) {
     }
     if (!verifyFundPassword(user, fundPassword)) {
       secCounterRecordFailure(db.security_counters, lockKey, 5, 15 * 60 * 1000, Date.now());
-      try { await saveDB(db); } catch (e) { console.warn('[fundpwd-lock] persist failed (best-effort):', e.message); }
+      try { await saveDB(db); } catch (e) { console.warn('[fundpwd-lock] persist failed:', e.message); return json({ ok: false, code: 'SECURITY_STATE_UNAVAILABLE', msg: 'Withdrawal security checks are temporarily unavailable. Please try again.' }, 503); }
       return json({ ok: false, code: 'FUND_PASSWORD_INVALID', msg: 'Incorrect fund password, or no fund password is set. Please set one in Security Center first.' }, 403);
     }
     secCounterReset(db.security_counters, lockKey);
-    try { await saveDB(db); } catch (e) { console.warn('[fundpwd-lock] reset persist failed (best-effort):', e.message); }
+    try { await saveDB(db); } catch (e) { console.warn('[fundpwd-lock] reset persist failed:', e.message); return json({ ok: false, code: 'SECURITY_STATE_UNAVAILABLE', msg: 'Withdrawal security checks are temporarily unavailable. Please try again.' }, 503); }
     if (user.twofa_enabled && !/^\d{6}$/.test(String(body.twofa_code || ''))) return json({ ok: false, code: 'TWOFA_REQUIRED', msg: 'Two-factor authentication is enabled on this account. Please enter your 2FA code.' }, 400);
-    if (user.twofa_enabled && !totpVerify(user.twofa_secret, String(body.twofa_code || ''))) return json({ ok: false, code: 'TWOFA_INVALID', msg: 'Invalid 2FA code.' }, 403);
+    if (user.twofa_enabled && !consumeTotpStep(user, String(body.twofa_code || ''))) return json({ ok: false, code: 'TWOFA_INVALID', msg: 'Invalid or already-used 2FA code.' }, 403);
+    if (user.twofa_enabled) {
+      try { await saveDB(db); }
+      catch (e) { return json({ ok: false, code: 'SECURITY_STATE_UNAVAILABLE', msg: 'Withdrawal security checks are temporarily unavailable. Please try again.' }, 503); }
+    }
     // 输入与安全校验全部通过后再检查资金切开关；RPC 错误 fail-closed，绝不回退 Blobs。
     if (!financialWritesEnabled()) return json({ ok: false, code: 'FINANCIAL_CUTOVER_INCOMPLETE', msg: 'Financial ledger cutover is incomplete. Withdrawal was not submitted and your balance was unchanged.' }, 503);
     const withdrawalId = 'W' + Date.now() + crypto.randomBytes(8).toString('hex');
@@ -1235,11 +1974,11 @@ async function handleRequest(event, context) {
             p_request_id: requestId, p_request_hash: requestHash, p_require_admin_review: requireAdminReview })
         });
         const result = await rpc.json().catch(() => null);
-        if (!rpc.ok || !result || result.ok !== true || !result.withdrawal_id) {
+        if (!rpc.ok || !result || result.ok !== true || !result.withdrawal_id || !['pending', 'pending_admin_review', 'approved', 'rejected', 'broadcast', 'failed'].includes(result.status) || typeof result.require_admin_review !== 'boolean') {
           const insufficient = rpc.status === 400 && /insufficient funds/i.test(JSON.stringify(result));
           return json({ ok: false, code: insufficient ? 'INSUFFICIENT_FUNDS' : 'FINANCIAL_RPC_FAILED', msg: insufficient ? 'Insufficient available balance (including fees).' : 'Withdrawal request was not confirmed by the database. Please check your operation history before retrying.' }, insufficient ? 400 : 503);
         }
-        return json({ ok: true, duplicate: !!result.duplicate, withdrawal_id: result.withdrawal_id, status: result.status, require_admin_review: requireAdminReview, msg: result.duplicate ? 'This withdrawal request has already been received. Do not submit it again.' : (requireAdminReview ? 'Withdrawal request submitted and flagged for admin review.' : 'Withdrawal request submitted. Funds will be sent after review.') });
+        return json({ ok: true, duplicate: result.duplicate === true, withdrawal_id: result.withdrawal_id, status: result.status, require_admin_review: result.require_admin_review, msg: result.duplicate === true ? 'This withdrawal request has already been received. Do not submit it again.' : (result.require_admin_review ? 'Withdrawal request submitted and flagged for admin review.' : 'Withdrawal request submitted. Funds will be sent after review.') });
       } catch (e) {
         return json({ ok: false, code: 'FINANCIAL_RPC_UNAVAILABLE', msg: 'Financial database temporarily unavailable. Withdrawal is unconfirmed. Please check your operation history before retrying.' }, 503);
       }
@@ -1334,15 +2073,15 @@ async function handleRequest(event, context) {
     const symbol = String(body.symbol || 'BTCUSDT').toUpperCase();
     const side = String(body.side || 'buy').toLowerCase();
     const type = String(body.type || body.order_type || 'limit').toLowerCase();
-    const qty = Number(body.qty);
-    const price = Number(body.price || 0);
+    const qty = parseMoneyInput(body.qty);
+    const price = parseMoneyInput(body.price === undefined || body.price === null || body.price === '' ? '0' : body.price);
     const pair = matchingPairFromSymbol(symbol);
     if (!pair) return json({ ok: false, msg: 'Operation failed: this trading pair is not supported.' }, 400);
     if (!['buy','sell'].includes(side)) return json({ ok: false, msg: 'Operation failed: invalid trade direction.' }, 400);
     // Market orders are intentionally rejected until a separately bounded market-order policy exists.
     if (type !== 'limit') return json({ ok: false, code: 'ORDER_TYPE_UNSUPPORTED', msg: 'Only limit orders are currently supported.' }, 400);
-    if (!Number.isFinite(qty) || qty <= 0 || qty > 1e12) return json({ ok: false, msg: 'Operation failed: invalid quantity.' }, 400);
-    if (!Number.isFinite(price) || price <= 0 || price > 1e15) return json({ ok: false, msg: 'Operation failed: invalid limit price.' }, 400);
+    if (qty === null || compareMoney(qty, '0') <= 0 || compareMoney(qty, '1000000000000') > 0) return json({ ok: false, msg: 'Operation failed: invalid quantity.' }, 400);
+    if (price === null || compareMoney(price, '0') <= 0 || compareMoney(price, '1000000000000000') > 0) return json({ ok: false, msg: 'Operation failed: invalid limit price.' }, 400);
     const clientOrderId = String(body.client_order_id || body.request_id || '').trim();
     if (!/^[A-Za-z0-9_-]{16,100}$/.test(clientOrderId)) return json({ ok: false, code: 'IDEMPOTENCY_KEY_REQUIRED', msg: 'Please provide a valid client_order_id (16-100 characters).' }, 400);
     if (!matchingEngineEnabled()) {
@@ -1352,7 +2091,7 @@ async function handleRequest(event, context) {
     try {
       const result = await matchingRpc('submit_limit_order_matching_v1', {
         p_order_id: orderId, p_user_id: String(user.uid), p_base_asset: pair[0], p_quote_asset: pair[1],
-        p_side: side, p_price: String(price), p_quantity: String(qty), p_client_order_id: clientOrderId
+        p_side: side, p_price: price, p_quantity: qty, p_client_order_id: clientOrderId
       });
       return json({ ok: true, duplicate: !!result.duplicate, order_id: result.order_id || orderId,
         status: result.status, price: result.price, quantity: result.quantity,
@@ -1383,6 +2122,31 @@ async function handleRequest(event, context) {
     }
   }
 
+  // ---------- GET /api/earn/products ----------
+  // The active catalog is read from PostgreSQL; never substitute frontend seed data.
+  if (path === 'earn/products' && method === 'GET') {
+    if (!user) return json({ ok: false, msg: 'Not signed in.', need_login: true }, 401);
+    if (!supabaseStorageConfigured()) return json({ ok: false, code: 'EARN_CATALOG_UNAVAILABLE', msg: 'Earn products are temporarily unavailable.' }, 503);
+    try {
+      const base = process.env.SUPABASE_URL.replace(/\/+$/, '');
+      const query = 'select=product_id,asset,product_type,apy_percent,term_days,early_fee_percent,amount_scale,active,updated_at&active=eq.true&order=asset.asc,term_days.asc';
+      const response = await fetch(base + '/rest/v1/earn_product_catalog?' + query, {
+        method: 'GET', headers: supabaseHeaders(), signal: AbortSignal.timeout(8000)
+      });
+      if (!response.ok) return json({ ok: false, code: 'EARN_CATALOG_UNAVAILABLE', msg: 'Earn products are temporarily unavailable.' }, 503);
+      const rows = await response.json();
+      if (!Array.isArray(rows) || rows.some(function (item) {
+        return !item || typeof item.product_id !== 'string' || typeof item.asset !== 'string' ||
+          !['demand', 'fixed'].includes(item.product_type) || !Number.isFinite(Number(item.apy_percent)) ||
+          !Number.isInteger(Number(item.term_days)) || !Number.isFinite(Number(item.early_fee_percent)) ||
+          !Number.isInteger(Number(item.amount_scale)) || item.active !== true;
+      })) return json({ ok: false, code: 'EARN_CATALOG_INVALID', msg: 'Earn product data is invalid.' }, 503);
+      return json({ ok: true, products: rows, actions_enabled: financialWritesEnabled() && supabaseStorageConfigured() });
+    } catch (e) {
+      return json({ ok: false, code: 'EARN_CATALOG_UNAVAILABLE', msg: 'Earn products are temporarily unavailable.' }, 503);
+    }
+  }
+
   // ---------- POST /api/earn ----------
   if (path === 'earn' && method === 'POST') {
     if (!user) return json({ ok: false, msg: 'Not signed in.', need_login: true }, 401);
@@ -1398,7 +2162,7 @@ async function handleRequest(event, context) {
     if (action === 'subscribe') {
       if (!/^[A-Za-z0-9_-]{16,100}$/.test(requestId)) return json({ ok: false, code: 'IDEMPOTENCY_KEY_REQUIRED', msg: 'A valid subscription request ID is required.' }, 400);
       const amount = parseMoneyInput(body.amount);
-      if (amount === null || amount <= 0 || amount > 1e12) return json({ ok: false, msg: 'Invalid amount.' }, 400);
+      if (amount === null || compareMoney(amount, '0') <= 0 || compareMoney(amount, '1000000000000') > 0) return json({ ok: false, msg: 'Invalid amount.' }, 400);
       const productId = String(body.product_id || 'flex_USDT');
       const products = new Set(['demand','flex_USDT','flex_BTC','flex_ETH','fixed30','fixed90','fixed180']);
       if (!products.has(productId)) return json({ ok: false, msg: 'This earn product is not supported.' }, 400);
@@ -1438,7 +2202,8 @@ async function handleRequest(event, context) {
   if (path === 'seconds/order' && method === 'POST') {
     if (!user) return json({ ok: false, msg: 'Not signed in.', need_login: true }, 401);
     if (user.frozen) return json({ ok: false, msg: 'This account is frozen and cannot open short-term contracts.', code: 'ACCOUNT_FROZEN' }, 403);
-    const rl = rateCheck('seconds:order:' + String(user.uid), 30, 5 * 60 * 1000);
+    const rl = await rateCheckShared('seconds_order', String(user.uid));
+    if (rl.unavailable) return rateLimitUnavailableJson();
     if (rl.limited) return rateLimitedJson(rl.retryAfter);
     if (!financialWritesEnabled()) {
       return json({ ok: false, code: 'FINANCIAL_CUTOVER_INCOMPLETE', msg: 'Short-term contracts are unavailable until financial cutover is complete. No funds were frozen and no position was created.' }, 503);
@@ -1451,19 +2216,25 @@ async function handleRequest(event, context) {
     if (!SECONDS_ALLOWED_SYMBOLS.has(symbol)) return json({ ok: false, msg: 'This trading pair is not supported for short-term contracts.' }, 400);
     if (!['up', 'down'].includes(direction)) return json({ ok: false, msg: 'Invalid trade direction.' }, 400);
     if (!SECONDS_ALLOWED_DURATIONS.has(durationSec)) return json({ ok: false, msg: 'Invalid contract duration.' }, 400);
-    if (amount === null || amount <= 0 || amount > 1e12) return json({ ok: false, msg: 'Invalid investment amount.' }, 400);
+    if (amount === null || compareMoney(amount, '0') <= 0 || compareMoney(amount, '1000000000000') > 0) return json({ ok: false, msg: 'Invalid investment amount.' }, 400);
     if (!/^[A-Za-z0-9_-]{16,100}$/.test(requestId)) return json({ ok: false, code: 'IDEMPOTENCY_KEY_REQUIRED', msg: 'A valid request ID (16-100 characters) is required.' }, 400);
-    let ref;
-    try { ref = await fetchSecondsReferencePrice(symbol); }
-    catch (_) { return json({ ok: false, code: 'REFERENCE_PRICE_UNAVAILABLE', msg: 'The reference price is currently unavailable. No order was created.' }, 503); }
     const positionId = 'SC' + crypto.createHash('sha256').update(String(user.uid) + '|' + requestId).digest('hex').slice(0, 30);
     const requestHash = crypto.createHash('sha256').update(JSON.stringify({ user_id: String(user.uid), symbol, direction, amount: String(amount), duration_sec: durationSec, request_id: requestId })).digest('hex');
+    // Existing requests can be replayed from persisted state without a live feed.
+    // The database still rejects a genuinely new order when no valid price exists.
+    let ref = null;
+    try { ref = await fetchSecondsReferencePrice(symbol); } catch (_) { /* replay lookup may still succeed */ }
     const base = process.env.SUPABASE_URL.replace(/\/+$/, '');
     try {
-      const rpc = await fetch(base + '/rest/v1/rpc/submit_seconds_order_v1', { method: 'POST', headers: supabaseHeaders(), body: JSON.stringify({ p_position_id: positionId, p_user_id: String(user.uid), p_symbol: symbol, p_direction: direction, p_amount: String(amount), p_duration_sec: durationSec, p_open_price: String(ref.price), p_request_id: requestId, p_request_hash: requestHash }) });
+      const rpc = await fetch(base + '/rest/v1/rpc/submit_seconds_order_v1', { method: 'POST', headers: supabaseHeaders(), body: JSON.stringify({ p_position_id: positionId, p_user_id: String(user.uid), p_symbol: symbol, p_direction: direction, p_amount: String(amount), p_duration_sec: durationSec, p_open_price: ref ? String(ref.price) : null, p_request_id: requestId, p_request_hash: requestHash }) });
       const result = await rpc.json().catch(() => null);
-      if (!rpc.ok || !result || result.ok !== true || !result.position_id) return json({ ok: false, code: 'FINANCIAL_RPC_FAILED', msg: 'The database did not confirm the contract order. Funds were not changed; verify the order status before retrying.', duplicate: !!(result && result.duplicate) }, rpc.status === 400 ? 400 : 503);
-      return json({ ok: true, server_now: Date.now(), duplicate: !!result.duplicate, position_id: result.position_id, symbol: symbol, direction: direction, amount: amount, duration_sec: durationSec, open_price: ref.price, open_price_source: ref.source, settle_at: Math.floor(Date.now() / 1000) + durationSec, msg: result.duplicate ? 'This order request has already been processed. Do not submit it again.' : 'Position opened successfully. Funds have been reserved.' });
+      if (result && result.ok === false && result.code === 'REFERENCE_PRICE_REQUIRED' && !ref) return json({ ok: false, code: 'REFERENCE_PRICE_UNAVAILABLE', msg: 'The reference price is currently unavailable. No new order was created.' }, 503);
+      if (!rpc.ok || !result || result.ok !== true || !result.position_id) return json({ ok: false, code: 'FINANCIAL_RPC_FAILED', msg: 'The database did not confirm the contract order. Verify the position status before retrying.', duplicate: !!(result && result.duplicate) }, rpc.status === 400 ? 400 : 503);
+      const settleAt = Number(result.settle_at);
+      if (!Number.isSafeInteger(settleAt) || settleAt <= 0) return json({ ok: false, code: 'FINANCIAL_RPC_INVALID_RESPONSE', msg: 'The database response did not include a valid settlement time. The order status is unconfirmed; check your positions before retrying.' }, 503);
+      const storedOpenPrice = Number(result.open_price);
+      if (!Number.isFinite(storedOpenPrice) || storedOpenPrice <= 0) return json({ ok: false, code: 'FINANCIAL_RPC_INVALID_RESPONSE', msg: 'The database response did not include the confirmed opening price. Check your positions before retrying.' }, 503);
+      return json({ ok: true, server_now: Date.now(), duplicate: !!result.duplicate, position_id: result.position_id, symbol: symbol, direction: direction, amount: amount, duration_sec: durationSec, open_price: storedOpenPrice, open_price_source: result.duplicate ? 'stored_reference' : ref.source, settle_at: settleAt, msg: result.duplicate ? 'This order request has already been processed. Do not submit it again.' : 'Position opened successfully. Funds have been reserved.' });
     } catch (e) { return json({ ok: false, code: 'FINANCIAL_RPC_UNAVAILABLE', msg: 'The financial database is unavailable. The order is unconfirmed and funds were not changed.' }, 503); }
   }
 
@@ -1471,7 +2242,8 @@ async function handleRequest(event, context) {
   if (path === 'seconds/settle' && method === 'POST') {
     if (!user) return json({ ok: false, msg: 'Not signed in.', need_login: true }, 401);
     if (user.frozen) return json({ ok: false, msg: 'This account is frozen.', code: 'ACCOUNT_FROZEN' }, 403);
-    const rl = rateCheck('seconds:settle:' + String(user.uid), 60, 5 * 60 * 1000);
+    const rl = await rateCheckShared('seconds_settle', String(user.uid));
+    if (rl.unavailable) return rateLimitUnavailableJson();
     if (rl.limited) return rateLimitedJson(rl.retryAfter);
     if (!financialWritesEnabled()) {
       return json({ ok: false, code: 'FINANCIAL_CUTOVER_INCOMPLETE', msg: 'Short-term contracts are unavailable until financial cutover is complete. This position was not settled.' }, 503);
@@ -1493,7 +2265,15 @@ async function handleRequest(event, context) {
     try {
       const rpc = await fetch(base + '/rest/v1/rpc/settle_seconds_position_v1', { method: 'POST', headers: supabaseHeaders(), body: JSON.stringify({ p_position_id: positionId, p_user_id: String(user.uid), p_request_id: requestId, p_request_hash: requestHash, p_symbol: symbol, p_settle_price: String(settleRef.price), p_settle_price_source: settleRef.source, p_settle_price_ts: new Date().toISOString() }) });
       const result = await rpc.json().catch(() => null);
-      if (!rpc.ok || !result || result.ok !== true) return json({ ok: false, code: 'FINANCIAL_RPC_FAILED', msg: result && result.msg ? result.msg : 'The database did not confirm settlement. Please try again later.', duplicate: !!(result && result.duplicate), settled: !!(result && result.settled) }, rpc.status === 400 ? 400 : 503);
+      if (!rpc.ok || !result || result.ok !== true) {
+        const conflictCode = result && ['IDEMPOTENCY_CONFLICT','POSITION_ALREADY_SETTLED'].includes(result.code) ? result.code : '';
+        const conflictMessage = conflictCode === 'POSITION_ALREADY_SETTLED'
+          ? 'This position was already settled by a different request. Refresh your history; do not retry with a new request ID.'
+          : 'This settlement request ID was reused with different parameters. Refresh your position history before retrying.';
+        return json({ ok: false, code: conflictCode || 'FINANCIAL_RPC_FAILED',
+          msg: conflictCode ? conflictMessage : (result && result.msg ? result.msg : 'The database did not confirm settlement. Please try again later.'),
+          duplicate: !!(result && result.duplicate), settled: !!(result && result.settled) }, conflictCode ? 409 : (rpc.status === 400 ? 400 : 503));
+      }
       return json({ ok: true, duplicate: !!result.duplicate, position_id: positionId, settled: result.settled !== false, win: result.win, tie: result.tie, pnl: result.pnl, settle_price: result.settle_price, msg: result.duplicate ? 'This settlement request has already been processed.' : (result.settled === false ? 'This position has not reached maturity and cannot be settled yet.' : 'Settlement completed.') });
     } catch (e) { return json({ ok: false, code: 'FINANCIAL_RPC_UNAVAILABLE', msg: 'The financial database is unavailable. Settlement remains unconfirmed.' }, 503); }
   }
@@ -1539,11 +2319,11 @@ async function handleRequest(event, context) {
   // ---------- POST /api/settings/password ----------
   if (path === 'settings/password' && method === 'POST') {
     if (!user) return json({ ok: false, msg: 'Not signed in.', need_login: true }, 401);
-    { const rl = rateCheck('password-change:' + user.uid, 10, 15 * 60 * 1000); if (rl.limited) return rateLimitedJson(rl.retryAfter); }
+    { const rl = await rateCheckShared('password_change', String(user.uid)); if (rl.unavailable) return rateLimitUnavailableJson(); if (rl.limited) return rateLimitedJson(rl.retryAfter); }
     if (Array.isArray(user.auth_providers) && user.auth_providers.length) return json({ ok: false, code: 'SUPABASE_AUTH_MANAGED', msg: 'This account is managed by Supabase Auth. Please update your sign-in credentials through the trusted Supabase Auth password recovery flow.' }, 409);
     if (!body.old_password || hashPassword(String(body.old_password), user.salt) !== user.password_hash) return json({ ok: false, code: 'REAUTH_FAILED', msg: 'The current password is incorrect.' }, 403);
     if ((body.new_password || '').length < 6) return json({ ok: false, msg: 'New password must be at least 6 characters.' }, 400);
-    if (user.twofa_enabled && (!/^\d{6}$/.test(String(body.twofa_code || '')) || !totpVerify(user.twofa_secret, String(body.twofa_code || '')))) return json({ ok: false, code: 'TWOFA_REQUIRED', msg: 'Two-factor authentication is enabled on this account. Please enter your 2FA code.' }, 403);
+    if (user.twofa_enabled && (!/^\d{6}$/.test(String(body.twofa_code || '')) || !consumeTotpStep(user, String(body.twofa_code || '')))) return json({ ok: false, code: 'TWOFA_REQUIRED', msg: 'Two-factor authentication is enabled on this account. Please enter your 2FA code.' }, 403);
     user.salt = genSalt();
     user.password_hash = hashPassword(body.new_password, user.salt);
     // A password change invalidates every existing session, not only the browser
@@ -1556,7 +2336,7 @@ async function handleRequest(event, context) {
   // ---------- POST /api/settings/fundpwd ----------
   if (path === 'settings/fundpwd' && method === 'POST') {
     if (!user) return json({ ok: false, msg: 'Not signed in.', need_login: true }, 401);
-    { const rl = rateCheck('fundpwd-change:' + user.uid, 10, 15 * 60 * 1000); if (rl.limited) return rateLimitedJson(rl.retryAfter); }
+    { const rl = await rateCheckShared('fund_password_change', String(user.uid)); if (rl.unavailable) return rateLimitUnavailableJson(); if (rl.limited) return rateLimitedJson(rl.retryAfter); }
     const pwd = String(body.fund_password || '');
     const fpValid = validateFundPassword(pwd);
     if (!fpValid.ok) return json({ ok: false, code: 'FUND_PASSWORD_FORMAT', msg: fpValid.msg }, 400);
@@ -1565,11 +2345,11 @@ async function handleRequest(event, context) {
       // Supabase OAuth/magic-link users do not have a usable local password hash.
       // Require an already-enabled TOTP factor rather than silently downgrading to session-only authorization.
       if (!user.twofa_enabled || !user.twofa_secret) return json({ ok: false, code: 'FUND_PASSWORD_REAUTH_REQUIRED', msg: 'Enable two-factor authentication before setting or changing your fund password.' }, 403);
-      if (!/^\d{6}$/.test(code) || !totpVerify(user.twofa_secret, code)) return json({ ok: false, code: 'TWOFA_INVALID', msg: 'Invalid 2FA code.' }, 403);
+      if (!/^\d{6}$/.test(code) || !consumeTotpStep(user, code)) return json({ ok: false, code: 'TWOFA_INVALID', msg: 'Invalid 2FA code.' }, 403);
     } else {
       const currentPassword = String(body.current_password || '');
       if (!currentPassword || hashPassword(currentPassword, user.salt) !== user.password_hash) return json({ ok: false, code: 'REAUTH_FAILED', msg: 'The current login password is incorrect.' }, 403);
-      if (user.twofa_enabled && (!/^\d{6}$/.test(code) || !totpVerify(user.twofa_secret, code))) return json({ ok: false, code: 'TWOFA_INVALID', msg: 'Invalid 2FA code.' }, 403);
+      if (user.twofa_enabled && (!/^\d{6}$/.test(code) || !consumeTotpStep(user, code))) return json({ ok: false, code: 'TWOFA_INVALID', msg: 'Invalid 2FA code.' }, 403);
     }
     const fundSalt = genSalt();
     user.fund_password_salt = fundSalt;
@@ -1638,32 +2418,89 @@ async function handleRequest(event, context) {
         const padSupplied = Buffer.alloc(padLen, 0); supplied.copy(padSupplied);
         const padExpected = Buffer.alloc(padLen, 0); expected.copy(padExpected);
         const match = crypto.timingSafeEqual(padSupplied, padExpected) && supplied.length === expected.length;
-        if (match) { secCounterReset(db.security_counters, lockKey); try { await saveDB(db); } catch (e) { } return true; }
+        if (match) { secCounterReset(db.security_counters, lockKey); try { await saveDB(db); } catch (e) { console.warn('[admin-lock] reset persist failed:', e.message); return { persistenceUnavailable: true }; } return true; }
       }
     } catch (e) { }
     // 认证失败：持久化记录失败计数（5 次锁 15 分钟）。
     secCounterRecordFailure(db.security_counters, lockKey, 5, 15 * 60 * 1000, Date.now());
-    try { await saveDB(db); } catch (e) { console.warn('[admin-lock] persist failed (best-effort):', e.message); }
+    try { await saveDB(db); } catch (e) { console.warn('[admin-lock] persist failed:', e.message); return { persistenceUnavailable: true }; }
     return null;
   }
+  // Durable outbox delivery: state and pending audit event are saved together.
+  // PostgreSQL appends are idempotent by event ID, so a lost response or failed
+  // post-append CAS can be retried without creating a duplicate audit row.
+  async function flushAdminAuditOutbox() {
+    if (!supabaseStorageConfigured()) return { pending: false, persistenceUnavailable: false };
+    const pending = (Array.isArray(db.audit_logs) ? db.audit_logs : []).filter(function (entry) {
+      return entry && entry.postgres_sync_status === 'pending';
+    });
+    if (!pending.length) return { pending: false, persistenceUnavailable: false };
+    const base = String(process.env.SUPABASE_URL || '').replace(/\/+$/, '');
+    if (!base) return { pending: true, persistenceUnavailable: false };
+    let changed = false;
+    // Bound each request's work; concurrent admin requests can safely retry the
+    // same stable event IDs because the append RPC is idempotent.
+    const batch = pending.slice(0, 10);
+    await Promise.all(batch.map(async function (entry) {
+      const safeDetail = redactAdminAuditDetail(entry.detail);
+      if (safeDetail !== String(entry.detail || '')) {
+        entry.detail = safeDetail;
+        changed = true;
+      }
+      try {
+        const response = await fetch(base + '/rest/v1/rpc/append_admin_audit_log', {
+          method: 'POST', headers: supabaseHeaders(),
+          body: JSON.stringify({
+            p_event_id: String(entry.id),
+            p_action: String(entry.action || ''),
+            p_uid: String(entry.uid || ''),
+            p_by: String(entry.by || 'admin'),
+            p_detail: safeDetail
+          }),
+          signal: AbortSignal.timeout(4000)
+        });
+        const result = await response.json().catch(() => null);
+        if (response.ok && result === true) {
+          entry.postgres_sync_status = 'synced';
+          entry.postgres_synced_at = nowStr();
+          changed = true;
+        }
+      } catch (_) {
+        // Keep the durable outbox entry pending; the next admin request retries it.
+      }
+    }));
+    if (changed) {
+      try { await saveDB(db); }
+      catch (_) { return { pending: true, persistenceUnavailable: true }; }
+    }
+    return {
+      pending: db.audit_logs.some(function (entry) { return entry && entry.postgres_sync_status === 'pending'; }),
+      persistenceUnavailable: false
+    };
+  }
+
   if (path.startsWith('admin/')) {
     const adminAuthResult = await adminAuth();
+    if (adminAuthResult && adminAuthResult.persistenceUnavailable) return json({ ok: false, code: 'SECURITY_STATE_UNAVAILABLE', msg: 'Administrator authentication is temporarily unavailable. Please try again.' }, 503);
     if (adminAuthResult && adminAuthResult.rateLimited) return rateLimitedJson(adminAuthResult.retryAfter);
     if (!adminAuthResult) {
       return json({ ok: false, msg: 'Administrator authentication failed.' }, 401, { 'WWW-Authenticate': 'Basic realm="BTCBOX Admin"' });
     }
+    const priorAuditFlush = await flushAdminAuditOutbox();
+    if (priorAuditFlush.persistenceUnavailable) return json({ ok: false, code: 'AUDIT_OUTBOX_STATE_UNAVAILABLE', msg: 'Administrator audit delivery state could not be saved. Please retry.' }, 503);
     const sub = path.slice(6); // 去掉 admin/ 前缀
 
     // GET /api/admin/stats
     if (sub === 'stats' && method === 'GET') {
       const users = Object.values(db.users);
-      let pendingWd = users.reduce(function (s, u) { return s + (Array.isArray(u.withdrawals) ? u.withdrawals.filter(function (w) { return w.status === 'pending' || w.status === 'approved_pending_broadcast'; }).length : 0); }, 0);
+      let pendingWd = users.reduce(function (s, u) { return s + (Array.isArray(u.withdrawals) ? u.withdrawals.filter(function (w) { return w.status === 'pending' || w.status === 'pending_admin_review' || w.status === 'approved_pending_broadcast'; }).length : 0); }, 0);
+      let pendingAdminReviewWd = users.reduce(function (s, u) { return s + (Array.isArray(u.withdrawals) ? u.withdrawals.filter(function (w) { return w.status === 'pending_admin_review'; }).length : 0); }, 0);
       if (financialPostgresReadsEnabled()) {
-        try { pendingWd = (await readAdminWithdrawalSnapshot()).pending_count; }
+        try { const withdrawalSnapshot = await readAdminWithdrawalSnapshot(); pendingWd = withdrawalSnapshot.pending_count; pendingAdminReviewWd = withdrawalSnapshot.pending_admin_review_count; }
         catch (e) { return json({ ok: false, msg: 'Financial data temporarily unavailable. Please try again later.', code: 'FINANCIAL_READ_UNAVAILABLE' }, 503); }
       }
       const pendingKyc = users.filter(function (u) { return u.kyc && u.kyc.status === 'pending'; }).length;
-      return json({ ok: true, total_users: users.length, pending_withdrawals: pendingWd, pending_kyc: pendingKyc, deposit_addresses: safeDepositAddresses(db.deposit_addresses), announcement: db.announcement || '' });
+      return json({ ok: true, total_users: users.length, pending_withdrawals: pendingWd, pending_admin_review_withdrawals: pendingAdminReviewWd, pending_kyc: pendingKyc, deposit_addresses: safeDepositAddresses(db.deposit_addresses), announcement: db.announcement || '' });
     }
 
     // GET /api/admin/users?search=
@@ -1682,6 +2519,24 @@ async function handleRequest(event, context) {
         const balances = normalizedBalances ? (normalizedBalances[String(u.uid)] || {}) : (u.balances || {});
         return { uid: u.uid, email: u.email || '', kyc_status: (u.kyc && u.kyc.status) || 'unverified', total_usdt: totalUsdt(balances, livePriceCache.prices), created_at: u.created_at || '', frozen: !!u.frozen, twofa: !!u.twofa_enabled };
       }) });
+    }
+
+    // GET /api/admin/kyc — return only the minimum fields needed for review.
+    // Never expose id_number, auth secrets, credentials, or raw user records.
+    if (sub === 'kyc' && method === 'GET') {
+      const applications = Object.values(db.users || {}).filter(function (u) {
+        return u && u.kyc && u.kyc.status === 'pending';
+      }).map(function (u) {
+        return {
+          uid: String(u.uid || ''),
+          email: String(u.email || ''),
+          name: String(u.kyc.name || ''),
+          id_type: String(u.kyc.id_type || ''),
+          status: 'pending',
+          submitted_at: String(u.kyc.submitted_at || '')
+        };
+      }).sort(function (a, b) { return a.submitted_at < b.submitted_at ? 1 : -1; }).slice(0, 200);
+      return json({ ok: true, kycs: applications, source: 'btcbox_state' });
     }
 
     // GET /api/admin/user?uid=
@@ -1712,21 +2567,39 @@ async function handleRequest(event, context) {
       return json({ ok: true, user: safeUser });
     }
 
-    // All privileged account changes are auditable and validated server-side.
-    // 审计日志双写：JSON blob（兼容旧读取路径）+ PostgreSQL append-only 表（fire-and-forget，失败告警回退）。
-    function auditAdmin(action, uid, detail) {
+    // Stage the audit event in the same CAS document as the business mutation.
+    // PostgreSQL delivery happens only after that durable state write succeeds.
+    async function auditAdmin(action, uid, detail) {
       if (!Array.isArray(db.audit_logs)) db.audit_logs = [];
-      db.audit_logs.push({ id: 'AL' + Date.now() + crypto.randomBytes(3).toString('hex'), action: action, uid: String(uid || ''), by: 'admin', time: nowStr(), detail: String(detail || '').slice(0, 300) });
-      if (db.audit_logs.length > 5000) db.audit_logs = db.audit_logs.slice(-5000);
-      if (supabaseStorageConfigured()) {
-        const base = String(process.env.SUPABASE_URL || '').replace(/\/+$/, '');
-        if (base) {
-          fetch(base + '/rest/v1/rpc/append_admin_audit_log', {
-            method: 'POST', headers: supabaseHeaders(),
-            body: JSON.stringify({ p_action: String(action), p_uid: String(uid || ''), p_by: 'admin', p_detail: String(detail || '').slice(0, 300) })
-          }).catch(function (e) { console.warn('[audit-log] PG append failed (JSON blob fallback):', e.message); });
-        }
+      const pendingCount = db.audit_logs.filter(function (entry) {
+        return entry && entry.postgres_sync_status === 'pending';
+      }).length;
+      // Never discard unsynced audit events or let an unavailable PostgreSQL
+      // sink grow the state document without bound. The caller has not saved
+      // its business mutation yet, so throwing here keeps that mutation uncommitted.
+      if (pendingCount >= 5000) {
+        const error = new Error('Admin audit outbox is full');
+        error.code = 'ADMIN_AUDIT_OUTBOX_FULL';
+        throw error;
       }
+      const event = {
+        id: 'AL' + Date.now() + crypto.randomBytes(8).toString('hex'),
+        action: String(action),
+        uid: String(uid || ''),
+        by: 'admin',
+        time: nowStr(),
+        detail: redactAdminAuditDetail(detail),
+        postgres_sync_status: supabaseStorageConfigured() ? 'pending' : 'local_only'
+      };
+      db.audit_logs.push(event);
+      const pending = db.audit_logs.filter(function (entry) { return entry && entry.postgres_sync_status === 'pending'; });
+      const nonPending = db.audit_logs.filter(function (entry) { return !entry || entry.postgres_sync_status !== 'pending'; });
+      const retainedLimit = Math.max(0, 5000 - pending.length);
+      // slice(-0) is slice(0), which keeps every historical row. Handle a full
+      // pending queue explicitly so non-pending history cannot grow unbounded.
+      const retained = retainedLimit > 0 ? nonPending.slice(-retainedLimit) : [];
+      db.audit_logs = retained.concat(pending).sort(function (a, b) { return String(a.time || '').localeCompare(String(b.time || '')); });
+      return event.id;
     }
 
     // POST /api/admin/user/balance 调整余额
@@ -1791,9 +2664,10 @@ async function handleRequest(event, context) {
       if (!!u.frozen === frozen) return json({ ok: false, code: 'ACCOUNT_STATE_UNCHANGED', msg: frozen ? 'Account is already frozen.' : 'Account is already active.' }, 409);
       u.frozen = frozen;
       u.frozen_reason = frozen ? reason : '';
-      auditAdmin(frozen ? 'user_freeze' : 'user_unfreeze', u.uid, reason);
+      await auditAdmin(frozen ? 'user_freeze' : 'user_unfreeze', u.uid, reason);
       await saveDB(db);
-      return json({ ok: true, msg: u.frozen ? 'Account frozen.' : 'Account unfrozen.' });
+      const auditFlush = await flushAdminAuditOutbox();
+      return json({ ok: true, audit_sync_pending: auditFlush.pending, msg: u.frozen ? 'Account frozen.' : 'Account unfrozen.' });
     }
 
     // POST /api/admin/user/reset-pwd
@@ -1806,9 +2680,10 @@ async function handleRequest(event, context) {
       u.salt = genSalt();
       u.password_hash = hashPassword(newPassword, u.salt);
       Object.keys(db.sessions || {}).forEach(function (token) { if (db.sessions[token].uid === u.uid) delete db.sessions[token]; });
-      auditAdmin('user_password_reset', u.uid, 'Admin reset login password; existing sessions invalidated.');
+      await auditAdmin('user_password_reset', u.uid, 'Admin reset login password; existing sessions invalidated.');
       await saveDB(db);
-      return json({ ok: true, msg: 'Password has been reset. The user must sign in again.' });
+      const auditFlush = await flushAdminAuditOutbox();
+      return json({ ok: true, audit_sync_pending: auditFlush.pending, msg: 'Password has been reset. The user must sign in again.' });
     }
 
     // POST /api/admin/user/reset-email
@@ -1822,9 +2697,10 @@ async function handleRequest(event, context) {
       if (duplicate) return json({ ok: false, msg: 'This email is already used by another account.' }, 409);
       const previousEmail = u.email;
       u.email = newEmail;
-      auditAdmin('user_email_change', u.uid, JSON.stringify({ from: previousEmail, to: newEmail }));
+      await auditAdmin('user_email_change', u.uid, JSON.stringify({ from: previousEmail, to: newEmail }));
       await saveDB(db);
-      return json({ ok: true, msg: 'Email updated successfully.' });
+      const auditFlush = await flushAdminAuditOutbox();
+      return json({ ok: true, audit_sync_pending: auditFlush.pending, msg: 'Email updated successfully.' });
     }
 
     // POST /api/admin/deposit/confirm — explicit administrator manual credit.
@@ -1910,6 +2786,36 @@ async function handleRequest(event, context) {
       return json({ ok: false, code: 'FINANCIAL_CUTOVER_INCOMPLETE', msg: 'Financial ledger cutover is incomplete. Withdrawal was not rejected or refunded and funds were unchanged.' }, 503);
     }
 
+    // POST /api/admin/withdraw/mark-paid — staff has already sent the funds manually.
+    // This is a status/audit confirmation only; it never broadcasts or debits funds.
+    if (sub === 'withdraw/mark-paid' && method === 'POST') {
+      if (!financialWritesEnabled()) return json({ ok: false, code: 'FINANCIAL_CUTOVER_INCOMPLETE', msg: 'Financial ledger cutover is incomplete. Payout status was not changed.' }, 503);
+      const wdId = String(body.id || '').trim();
+      const reference = String(body.reference || '').trim();
+      const note = String(body.note || '').trim();
+      if (!wdId || wdId.length > 100) return json({ ok: false, msg: 'Withdrawal record ID is invalid.' }, 400);
+      if (!reference) return json({ ok: false, code: 'PAYOUT_REFERENCE_REQUIRED', msg: 'TxID / payout reference is required.' }, 400);
+      if (reference.length > 160 || note.length > 300) return json({ ok: false, msg: 'Payout reference or note is too long.' }, 400);
+      if (!supabaseStorageConfigured()) return json({ ok: false, code: 'FINANCIAL_RPC_NOT_CONFIGURED', msg: 'Financial database is not configured. Payout status was not changed.' }, 503);
+      const adminId = String(process.env.ADMIN_USER || '').trim();
+      if (!adminId) return json({ ok: false, code: 'ADMIN_ACTOR_NOT_CONFIGURED', msg: 'Administrator audit identity not configured. Payout status was not changed.' }, 503);
+      try {
+        const rpc = await fetch(process.env.SUPABASE_URL.replace(/\/+$/, '') + '/rest/v1/rpc/mark_withdrawal_paid_atomic', {
+          method: 'POST', headers: supabaseHeaders(),
+          body: JSON.stringify({ p_withdrawal_id: wdId, p_admin_id: adminId, p_reference: reference, p_note: note })
+        });
+        const result = await rpc.json().catch(() => null);
+        if (!rpc.ok || !result || result.ok !== true || result.status !== 'completed') {
+          return json({ ok: false, code: 'FINANCIAL_RPC_FAILED', msg: 'Manual payout completion was not confirmed. Check the withdrawal record before retrying.' }, rpc.status === 400 ? 400 : 503);
+        }
+        return json({ ok: true, duplicate: !!result.duplicate, withdrawal_id: result.withdrawal_id, status: result.status,
+          payout_reference: result.payout_reference || '', paid_at: result.paid_at || null,
+          msg: result.duplicate ? 'This withdrawal was already marked as paid.' : 'Manual payout completion recorded.' });
+      } catch (e) {
+        return json({ ok: false, code: 'FINANCIAL_RPC_UNAVAILABLE', msg: 'Financial database temporarily unavailable. Payout status is unconfirmed; check the withdrawal record before retrying.' }, 503);
+      }
+    }
+
     if (sub === 'kyc/approve' && method === 'POST') {
       const u = db.users[body.uid];
       if (!u) return json({ ok: false, msg: 'User not found.' }, 404);
@@ -1925,9 +2831,10 @@ async function handleRequest(event, context) {
       u.kyc.reviewed_at = nowStr();
       u.kyc.reject_reason = '';
       u.kyc.review_reason = override ? reason : 'Approved pending identity verification application.';
-      auditAdmin(override ? 'kyc_approve_exception' : 'kyc_approve', u.uid, override ? reason : 'Admin approved pending identity verification application.');
+      await auditAdmin(override ? 'kyc_approve_exception' : 'kyc_approve', u.uid, override ? reason : 'Admin approved pending identity verification application.');
       await saveDB(db);
-      return json({ ok: true, msg: override ? 'KYC approved via admin exception; reason recorded.' : 'KYC approved.' });
+      const auditFlush = await flushAdminAuditOutbox();
+      return json({ ok: true, audit_sync_pending: auditFlush.pending, msg: override ? 'KYC approved via admin exception; reason recorded.' : 'KYC approved.' });
     }
 
     // POST /api/admin/kyc/reject
@@ -1942,9 +2849,10 @@ async function handleRequest(event, context) {
       u.kyc.reject_reason = reason;
       u.kyc.reviewed_by = 'admin';
       u.kyc.reviewed_at = nowStr();
-      auditAdmin('kyc_reject', u.uid, reason);
+      await auditAdmin('kyc_reject', u.uid, reason);
       await saveDB(db);
-      return json({ ok: true, msg: 'KYC rejected.' });
+      const auditFlush = await flushAdminAuditOutbox();
+      return json({ ok: true, audit_sync_pending: auditFlush.pending, msg: 'KYC rejected.' });
     }
 
     // POST /api/admin/push 推送站内信
@@ -1962,18 +2870,23 @@ async function handleRequest(event, context) {
           u.support_messages.push({ id: 'M' + Date.now() + crypto.randomBytes(3).toString('hex'), from: 'admin', content: content, time: nowStr() });
         });
       }
-      auditAdmin('admin_push_message', body.uid || 'all', JSON.stringify({ target: body.uid ? 'single_user' : 'all_users', length: content.length }));
+      await auditAdmin('admin_push_message', body.uid || 'all', JSON.stringify({ target: body.uid ? 'single_user' : 'all_users', length: content.length }));
       await saveDB(db);
-      return json({ ok: true, msg: 'Message sent.' });
+      const auditFlush = await flushAdminAuditOutbox();
+      return json({ ok: true, audit_sync_pending: auditFlush.pending, msg: 'Message sent.' });
     }
 
     // POST /api/admin/support/reply 回复客服
     if (sub === 'support/reply' && method === 'POST') {
       const u = db.users[body.uid];
       if (!u) return json({ ok: false, msg: 'User not found.' });
-      u.support_messages.push({ id: 'M' + Date.now(), from: 'admin', content: body.content || '', time: nowStr() });
+      if (!Array.isArray(u.support_messages)) u.support_messages = [];
+      const supportMessage = { id: 'M' + Date.now() + crypto.randomBytes(3).toString('hex'), from: 'admin', content: body.content || '', time: nowStr() };
+      u.support_messages.push(supportMessage);
+      await auditAdmin('support_reply', u.uid, JSON.stringify({ message_id: supportMessage.id, length: String(body.content || '').length }));
       await saveDB(db);
-      return json({ ok: true, msg: 'Reply sent.' });
+      const auditFlush = await flushAdminAuditOutbox();
+      return json({ ok: true, audit_sync_pending: auditFlush.pending, msg: 'Reply sent.' });
     }
 
     // GET /api/admin/addresses — sensitive fields visible only to authenticated admin
@@ -2019,28 +2932,68 @@ async function handleRequest(event, context) {
         }
       } else return json({ok:false,msg:'Unknown operation.'},400);
       if(!Array.isArray(target.address_audit)) target.address_audit=[];
-      target.address_audit.push({id:'L'+Date.now(),action:action,address_id:body.id,by:'admin',time:nowStr(),detail:String(body.reason||'').slice(0,200)});
-      if(!Array.isArray(db.audit_logs)) db.audit_logs=[];
-      db.audit_logs.push({id:'AL'+Date.now(),action:'address_'+action,uid:target.uid,address_id:body.id,by:'admin',time:nowStr(),detail:String(body.reason||'').slice(0,200)});
+      target.address_audit.push({id:'L'+Date.now()+crypto.randomBytes(3).toString('hex'),action:action,address_id:body.id,by:'admin',time:nowStr(),detail:String(body.reason||'').slice(0,200)});
+      await auditAdmin('address_'+action, target.uid, JSON.stringify({ address_id: body.id, reason: String(body.reason || '').slice(0, 200) }));
       await saveDB(db);
-      return json({ok:true,msg:'Submitted successfully.'});
+      const auditFlush = await flushAdminAuditOutbox();
+      return json({ok:true,audit_sync_pending:auditFlush.pending,msg:'Submitted successfully.'});
     }
     if (sub === 'audit-logs' && method === 'GET') {
       const params = event.queryStringParameters || {};
       const limitValue = Number(params.limit || 100);
       const limit = Math.max(1, Math.min(200, Number.isFinite(limitValue) ? Math.floor(limitValue) : 100));
-      const actionFilter = String(params.action || '').trim().slice(0, 100);
-      const uidFilter = String(params.uid || '').trim().slice(0, 100);
-      const before = String(params.before || '').trim().slice(0, 100);
+      const actionFilter = String(params.action || '').trim();
+      const uidFilter = String(params.uid || '').trim();
+      const before = String(params.before || '').trim();
+      if (actionFilter.length > 100 || (actionFilter && !/^[A-Za-z0-9_.:-]{1,100}$/.test(actionFilter))) return json({ ok: false, code: 'AUDIT_ACTION_FILTER_INVALID', msg: 'Audit action filter is invalid.' }, 400);
+      if (uidFilter.length > 100 || (uidFilter && !/^[A-Za-z0-9_:-]{1,100}$/.test(uidFilter))) return json({ ok: false, code: 'AUDIT_UID_FILTER_INVALID', msg: 'Audit user filter is invalid.' }, 400);
+      if (before && !isPositivePostgresBigintString(before)) return json({ ok: false, code: 'AUDIT_CURSOR_INVALID', msg: 'Audit page cursor is invalid.' }, 400);
+
+      // Explicit opt-in switches the viewer to the canonical append-only PostgreSQL
+      // audit table. Never silently fall back to the retention-limited state document.
+      if (process.env.ADMIN_AUDIT_POSTGRES_READS_ENABLED === '1') {
+        try {
+          const result = await readAdminAuditLogPage({ limit, action: actionFilter, uid: uidFilter, before });
+          return json({
+            ok: true,
+            source: 'postgres_financial_audit_log',
+            completeness: 'postgres_canonical',
+            logs: result.logs,
+            next_before: result.next_before
+          });
+        } catch (e) {
+          return json({ ok: false, code: 'ADMIN_AUDIT_READ_UNAVAILABLE', msg: 'Canonical administrator audit history is temporarily unavailable. No incomplete fallback was shown.' }, 503);
+        }
+      }
+
       let logs = (Array.isArray(db.audit_logs) ? db.audit_logs : []).slice().reverse();
       if (actionFilter) logs = logs.filter(function (entry) { return String(entry.action || '') === actionFilter; });
       if (uidFilter) logs = logs.filter(function (entry) { return String(entry.uid || '') === uidFilter; });
       if (before) {
         const beforeIndex = logs.findIndex(function (entry) { return String(entry.id || '') === before; });
-        if (beforeIndex >= 0) logs = logs.slice(beforeIndex + 1);
+        if (beforeIndex < 0) return json({ ok: false, code: 'AUDIT_CURSOR_NOT_FOUND', msg: 'Audit page cursor is no longer available. Refresh the log list.' }, 400);
+        logs = logs.slice(beforeIndex + 1);
       }
-      const page = logs.slice(0, limit);
-      return json({ ok: true, logs: page, next_before: page.length === limit ? String(page[page.length - 1].id || '') : null });
+      const hasMore = logs.length > limit;
+      const page = logs.slice(0, limit).map(function (entry) {
+        const safeDetail = redactAdminAuditDetail(entry.detail);
+        return {
+          id: String(entry.id || ''),
+          action: String(entry.action || '').slice(0, 100),
+          uid: String(entry.uid || '').slice(0, 100),
+          by: String(entry.by || 'admin').slice(0, 80),
+          time: String(entry.time || '').slice(0, 40),
+          detail: safeDetail,
+          postgres_sync_status: ['synced', 'pending', 'local_only'].includes(entry.postgres_sync_status) ? entry.postgres_sync_status : 'unknown'
+        };
+      });
+      return json({
+        ok: true,
+        source: 'btcbox_state',
+        completeness: 'state_document_retention_limited',
+        logs: page,
+        next_before: hasMore && page.length ? String(page[page.length - 1].id || '') : null
+      });
     }
 
     // GET /api/admin/config
@@ -2079,9 +3032,10 @@ async function handleRequest(event, context) {
         if (body.announcement.length > 2000) return json({ ok: false, msg: 'Announcement cannot exceed 2,000 characters.' }, 400);
         db.announcement = body.announcement.trim();
       }
-      auditAdmin('system_config_update', 'system', JSON.stringify({ deposit_address_keys: changedKeys, announcement_updated: typeof body.announcement === 'string' }));
+      await auditAdmin('system_config_update', 'system', JSON.stringify({ deposit_address_keys: changedKeys, announcement_updated: typeof body.announcement === 'string' }));
       await saveDB(db);
-      return json({ ok: true, msg: 'Configuration updated.', deposit_addresses: safeDepositAddresses(db.deposit_addresses), announcement: db.announcement });
+      const auditFlush = await flushAdminAuditOutbox();
+      return json({ ok: true, audit_sync_pending: auditFlush.pending, msg: 'Configuration updated.', deposit_addresses: safeDepositAddresses(db.deposit_addresses), announcement: db.announcement });
     }
 
 
@@ -2103,7 +3057,7 @@ async function handleRequest(event, context) {
       const list = [];
       Object.values(db.users).forEach(function (u) {
         (Array.isArray(u.withdrawals) ? u.withdrawals : []).forEach(function (w) {
-          if (w.status === 'pending' || w.status === 'approved_pending_broadcast') list.push({ id: w.id, uid: u.uid, email: u.email, coin: w.coin, amount: w.amount, fee: w.fee || 0, network: w.network, address: w.address, status: w.status, txid: w.txid || '', time: w.time });
+          if (w.status === 'pending' || w.status === 'pending_admin_review' || w.status === 'approved_pending_broadcast') list.push({ id: w.id, uid: u.uid, email: u.email, coin: w.coin, amount: w.amount, fee: w.fee || 0, network: w.network, address: w.address, status: w.status, require_admin_review: w.status === 'pending_admin_review', txid: w.txid || '', time: w.time });
         });
       });
       list.sort(function (a, b) { return (a.time < b.time) ? 1 : -1; });
@@ -2164,6 +3118,9 @@ async function handleRequest(event, context) {
     if (e && e.message === 'Persistent storage write conflict') {
       return json({ ok: false, msg: 'Data changed recently. Please refresh and try again.', code: 'STORAGE_CONFLICT' }, 409);
     }
+    if (e && e.code === 'ADMIN_AUDIT_OUTBOX_FULL') {
+      return json({ ok: false, msg: 'Administrator audit storage is temporarily backed up. No change was saved; please retry later.', code: 'ADMIN_AUDIT_OUTBOX_FULL' }, 503);
+    }
     // Do not expose internal storage, provider, or database error details to clients.
     return json({ ok: false, msg: 'Service temporarily unavailable. Please try again later.', code: 'INTERNAL_ERROR' }, 500);
   }
@@ -2188,9 +3145,12 @@ exports._test = {
   validateFundPassword: validateFundPassword,
   validateAdminPasswordStrength: validateAdminPasswordStrength,
   parseMoneyInput: parseMoneyInput,
+  compareMoney: compareMoney,
+  addMoney: addMoney,
   withdrawalAddressCheck: withdrawalAddressCheck,
   withdrawalRequiresAdminReview: withdrawalRequiresAdminReview,
   estimateUsdtValue: estimateUsdtValue,
+  redactAdminAuditDetail: redactAdminAuditDetail,
   secCounterIsLocked: secCounterIsLocked,
   secCounterRecordFailure: secCounterRecordFailure,
   secCounterReset: secCounterReset,

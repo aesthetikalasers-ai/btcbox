@@ -1,0 +1,42 @@
+'use strict';
+
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+
+const root = path.resolve(__dirname, '..');
+const api = fs.readFileSync(path.join(root, 'api-core.js'), 'utf8');
+const sql = fs.readFileSync(path.join(root, 'supabase', 'sql', '0027_withdrawal_manual_payout_completion_v1.sql'), 'utf8');
+
+test('manual payout API rejects a missing TxID/reference and enforces bounded input', () => {
+  assert.ok(api.includes("if (!reference) return json({ ok: false, code: 'PAYOUT_REFERENCE_REQUIRED'"));
+  assert.ok(api.includes('reference.length > 160 || note.length > 300'));
+  assert.ok(api.includes("sub === 'withdraw/mark-paid'"));
+});
+
+test('manual payout completion requires the financial cutover and configured service RPC', () => {
+  assert.ok(api.includes("if (!financialWritesEnabled()) return json({ ok: false, code: 'FINANCIAL_CUTOVER_INCOMPLETE'"));
+  assert.ok(api.includes("mark_withdrawal_paid_atomic"));
+  assert.ok(api.includes("p_reference: reference"));
+});
+
+test('database RPC independently rejects blank references and permits only approved withdrawals', () => {
+  assert.ok(sql.includes("coalesce(btrim(p_reference),'')=''"));
+  assert.ok(sql.includes("IF v_w.status<>'approved' THEN"));
+  assert.ok(sql.includes("withdrawal must be approved before manual payout completion"));
+});
+
+test('manual payout exact retries are idempotent and conflicting references fail', () => {
+  assert.ok(sql.includes("IF v_w.status='completed' THEN"));
+  assert.ok(sql.includes("coalesce(v_w.payout_reference,'')<>v_ref"));
+  assert.ok(sql.includes("'duplicate',true"));
+});
+
+test('manual payout completion is audit/status-only and does not apply another ledger debit', () => {
+  assert.ok(sql.includes("'withdrawal_manual_payout_completed'"));
+  assert.ok(sql.includes('payout_reference',));
+  assert.ok(!sql.includes('apply_financial_operation'));
+  assert.ok(sql.includes('REVOKE ALL ON FUNCTION public.mark_withdrawal_paid_atomic'));
+  assert.ok(sql.includes('TO service_role'));
+});

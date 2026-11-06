@@ -307,16 +307,16 @@ const apiAdapter = {
   // ACCOUNT -> POST /api/addresses
   async addAddress(p){ return apiFetch('/addresses',{method:'POST',body:p}); },
   // ACCOUNT -> POST /api/deposit {coin,network,amount:0} -> deposit address (query mode; amount>0 is 403)
-  async deposit(p){ return apiFetch('/deposit',{method:'POST',body:{coin:p.coin||'USDT', network:p.network||'TRC20', amount:0}}); },
+  async deposit(p){ return apiFetch('/deposit',{method:'POST',body:{coin:p.coin||'USDT', network:p.network||'TRC20', amount:'0'}}); },
   // ACCOUNT -> POST /api/withdraw {coin,amount,address,network,request_id(16-80),fund_password,twofa_code?}
   async withdraw(p){
-    const body={coin:p.coin, amount:p.amount, address:p.address, network:p.network, request_id:p.request_id||uid(), fund_password:p.fund_password};
+    const body={coin:p.coin, amount:String(p.amount), address:p.address, network:p.network, request_id:p.request_id||uid(), fund_password:p.fund_password};
     if(p.twofa_code) body.twofa_code=p.twofa_code;
     return apiFetch('/withdraw',{method:'POST',body:body});
   },
-  // TRADE -> POST /api/order {symbol(BTCUSDT),side(BUY/SELL),type(limit),qty(number),price,client_order_id(16+),request_id}
+  // TRADE -> POST /api/order {symbol(BTCUSDT),side(BUY/SELL),type(limit),qty/price(decimal strings),client_order_id(16+),request_id}
   async placeOrder(o){
-    const body={symbol:o.symbol, side:String(o.side||'').toUpperCase(), type:String(o.type||'limit').toLowerCase(), qty:Number(o.qty), price:Number(o.price), client_order_id:o.client_order_id||uid(), request_id:o.request_id||uid()};
+    const body={symbol:o.symbol, side:String(o.side||'').toUpperCase(), type:String(o.type||'limit').toLowerCase(), qty:String(o.qty), price:String(o.price), client_order_id:o.client_order_id||uid(), request_id:o.request_id||uid()};
     return apiFetch('/order',{method:'POST',body:body});
   },
   // TRADE -> POST /api/order/cancel {order_id,client_cancel_id(16+),request_id}
@@ -347,7 +347,7 @@ const apiAdapter = {
   async captcha(){ try{ const r=await apiFetch('/captcha',{method:'POST',body:{},skipAuthRedirect:true}); return r; }catch(e){ return {ok:false, code:'VERIFICATION_UNAVAILABLE', msg:'Captcha unavailable — treated as optional'}; } },
   // SECONDS -> POST /api/seconds/order {symbol(bare base e.g. BTC/ETH/SOL/BNB),direction,duration_sec,amount,request_id(16+)}
   async secondsOrder(o){
-    const r=await apiFetch('/seconds/order',{method:'POST',body:{symbol:o.symbol, direction:o.direction, duration_sec:o.duration_sec||o.duration, amount:o.amount, request_id:o.request_id||uid()}});
+    const r=await apiFetch('/seconds/order',{method:'POST',body:{symbol:o.symbol, direction:o.direction, duration_sec:o.duration_sec||o.duration, amount:String(o.amount), request_id:o.request_id||uid()}});
     if(r.ok){
       r.position={position_id:r.position_id, symbol:r.symbol, direction:r.direction, amount:r.amount, duration_sec:r.duration_sec, open_price:r.open_price, settle_at:r.settle_at, status:'open'};
       await this.secondsPositionsGet();
@@ -370,7 +370,7 @@ const apiAdapter = {
   // EARN -> POST /api/earn {action subscribe|redeem,request_id,amount,product_id,record_id?}
   async earn(p){
     const body={action:p.action||'subscribe', request_id:p.request_id||uid()};
-    if(p.amount!=null) body.amount=p.amount;
+    if(p.amount!=null) body.amount=String(p.amount);
     if(p.product_id) body.product_id=p.product_id;
     if(p.record_id) body.record_id=p.record_id;
     return apiFetch('/earn',{method:'POST',body:body});
@@ -425,6 +425,8 @@ const apiAdapter = {
   async adminStats(){ return adminFetch('/admin/stats'); },
   // ADMIN -> GET /api/admin/users?search=
   async adminUsers(q){ return adminFetch('/admin/users'+(q?'?search='+encodeURIComponent(q):'')); },
+  // ADMIN -> GET /api/admin/kyc (redacted pending applications)
+  async adminKyc(){ return adminFetch('/admin/kyc'); },
   // ADMIN -> GET /api/admin/user?uid=
   async adminUser(id){ return adminFetch('/admin/user?uid='+encodeURIComponent(id)); },
   // ADMIN -> POST /api/admin/user/balance {uid,coin,delta,mode,request_id(16+),reason}
@@ -439,16 +441,20 @@ const apiAdapter = {
   async adminConfirmDeposit(p){ return adminFetch('/admin/deposit/confirm',{method:'POST',body:{uid:p.uid, coin:p.coin, amount:p.amount, reference:p.reference, note:p.note, idempotency_key:p.idempotency_key||uid()}}); },
   // ADMIN -> POST /api/admin/withdraw/approve {id}
   async adminApproveWithdraw(id){ return adminFetch('/admin/withdraw/approve',{method:'POST',body:{id:id}}); },
+  // ADMIN -> POST /api/admin/withdraw/mark-paid {id,reference,note?}
+  async adminMarkWithdrawPaid(p){ return adminFetch('/admin/withdraw/mark-paid',{method:'POST',body:{id:p.id,reference:p.reference||'',note:p.note||''}}); },
   // ADMIN -> POST /api/admin/withdraw/reject {id,reason?} (extra)
   async adminRejectWithdraw(p){ return adminFetch('/admin/withdraw/reject',{method:'POST',body:{id:p.id, reason:p.reason}}); },
   // ADMIN -> POST /api/admin/kyc/approve {uid,admin_override?,reason?} (extra)
   async adminApproveKyc(p){ return adminFetch('/admin/kyc/approve',{method:'POST',body:{uid:p.uid, admin_override:!!p.admin_override, reason:p.reason}}); },
   // ADMIN -> POST /api/admin/kyc/reject {uid,reason}
-  async adminRejectKyc(p){ return adminFetch('/admin/kyc/reject',{method:'POST',body:{uid:p.uid, reason:p.reason||'Rejected by admin'}}); },
+  async adminRejectKyc(p){ return adminFetch('/admin/kyc/reject',{method:'POST',body:{uid:p.uid, reason:p.reason}}); },
   // ADMIN -> POST /api/admin/push {content,uid?}
   async adminPush(p){ return adminFetch('/admin/push',{method:'POST',body:{content:p.content, uid:p.uid}}); },
   // ADMIN -> POST /api/admin/support/reply {uid,content}
   async adminSupportReply(p){ return adminFetch('/admin/support/reply',{method:'POST',body:{uid:p.uid, content:p.content}}); },
+  // ADMIN -> GET /api/admin/audit-logs?limit=&before=&action=&uid=
+  async adminAuditLogs(params){ var q=new URLSearchParams(); if(params&&params.limit)q.set('limit',String(params.limit)); if(params&&params.before)q.set('before',String(params.before)); if(params&&params.action)q.set('action',String(params.action)); if(params&&params.uid)q.set('uid',String(params.uid)); return adminFetch('/admin/audit-logs'+(q.toString()?'?'+q.toString():'')); },
   // ADMIN -> GET /api/admin/addresses
   async adminAddresses(){ return adminFetch('/admin/addresses'); },
   // ADMIN -> GET /api/admin/withdrawals
