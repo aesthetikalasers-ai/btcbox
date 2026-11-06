@@ -34,7 +34,7 @@ test("login route renders username and email sign-in", async ({ page }) => {
   await page.goto("/login");
 
   await expect(page.getByRole("heading", { name: "Welcome back" })).toBeVisible();
-  await expect(page.getByText("BTCBOX username")).toBeVisible();
+  await expect(page.getByText("BTCBOX username", { exact: true })).toBeVisible();
   await expect(page.getByText("Continue with email")).toBeVisible();
 });
 
