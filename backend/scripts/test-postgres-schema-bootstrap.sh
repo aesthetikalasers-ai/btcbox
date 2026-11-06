@@ -56,6 +56,14 @@ BEGIN
   IF NOT (SELECT relrowsecurity FROM pg_class WHERE oid=v_admin_members) THEN
     RAISE EXCEPTION 'private.admin_memberships must have RLS enabled';
   END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conrelid='public.seconds_contract_positions'::regclass
+      AND conname='seconds_contract_positions_duration_sec_positive'
+      AND pg_get_constraintdef(oid) ILIKE '%duration_sec > 0%'
+  ) THEN
+    RAISE EXCEPTION 'Seconds position duration must be governed by positive active-policy values';
+  END IF;
   IF NOT (SELECT relrowsecurity FROM pg_class WHERE oid=v_market_requests) THEN
     RAISE EXCEPTION 'private.spot_market_request_idempotency must have RLS enabled';
   END IF;
