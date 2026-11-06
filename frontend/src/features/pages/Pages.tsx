@@ -193,7 +193,8 @@ export function SpotTradingPage(){
     setError(pairResult.reason instanceof Error?pairResult.reason.message:"Spot-market catalogue is unavailable.");
    }
    if(accountResult.status==="fulfilled")setAccountUid(accountResult.value.uid);
-   else setError(accountResult.reason instanceof Error?accountResult.reason.message:"Account identity is unavailable.");
+   else if(!(accountResult.reason instanceof ApiError&&accountResult.reason.code==="AUTH_REQUIRED"))
+    setError(accountResult.reason instanceof Error?accountResult.reason.message:"Account identity is unavailable.");
    if(marketResult.status==="fulfilled"){
     const marketBase=symbol.endsWith("USDT")?symbol.slice(0,-4):symbol;
     const selected=marketResult.value.find(item=>item.sym.toUpperCase()===marketBase)||null;
