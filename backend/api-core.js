@@ -514,6 +514,7 @@ function defaultDB() {
       "BNB-BEP20": depositAddressFromEnv("BNB-BEP20"),
       "USDC-ERC20": depositAddressFromEnv("USDC-ERC20"),
     },
+    withdrawal_fees: Object.assign({}, DEFAULT_WITHDRAWAL_FEES),
     captcha: {},
   };
 }
@@ -746,6 +747,19 @@ function safeDepositAddresses(addresses) {
     if ((typeof raw !== 'string' || !raw.trim()) && legacyKey) raw = source[legacyKey];
     const value = typeof raw === 'string' ? raw.trim() : '';
     result[key] = value && !/PLACEHOLDER/i.test(value) ? value : '';
+  }
+  return result;
+}
+
+const DEFAULT_WITHDRAWAL_FEES = Object.freeze({
+  USDT: '1', BTC: '0.0001', ETH: '0.001', SOL: '0.01', BNB: '0.0005', USDC: '1'
+});
+function safeWithdrawalFees(fees) {
+  const source = fees && typeof fees === 'object' && !Array.isArray(fees) ? fees : {};
+  const result = Object.assign({}, DEFAULT_WITHDRAWAL_FEES);
+  for (const coin of Object.keys(DEFAULT_WITHDRAWAL_FEES)) {
+    const value = typeof source[coin] === 'string' ? parseMoneyInput(source[coin]) : null;
+    if (value !== null && compareMoney(value, '1000000000000') <= 0) result[coin] = value;
   }
   return result;
 }
@@ -1897,7 +1911,7 @@ async function handleRequest(event, context) {
     return json({
       ok: true,
       actions_enabled: financialWritesEnabled() && manualDepositRpcEnabled() && supabaseStorageConfigured(),
-      fees: { USDT: 1.0, BTC: 0.0001, ETH: 0.001, SOL: 0.01, BNB: 0.0005, USDC: 1.0 },
+      fees: safeWithdrawalFees(db.withdrawal_fees),
       allowed_networks: { BTC:['BTC'], ETH:['ERC20'], USDT:['TRC20','ERC20','BEP20'], SOL:['SOL'], BNB:['BEP20'], USDC:['ERC20'] }
     });
   }
@@ -1933,9 +1947,9 @@ async function handleRequest(event, context) {
     const cooldownMs = (Number(process.env.WITHDRAWAL_ADDRESS_COOLDOWN_HOURS) || 24) * 3600 * 1000;
     const addrCheck = withdrawalAddressCheck(user, addr, coin, network, Date.now(), cooldownMs);
     if (!addrCheck.allowed) return json({ ok: false, code: addrCheck.code, msg: addrCheck.msg }, 403);
-    const supportedFees = { USDT: 1.0, BTC: 0.0001, ETH: 0.001, SOL: 0.01, BNB: 0.0005, USDC: 1.0 };
+    const supportedFees = safeWithdrawalFees(db.withdrawal_fees);
     if (!Object.prototype.hasOwnProperty.call(supportedFees, coin)) return json({ ok: false, msg: 'Operation failed: withdrawals for this coin are not supported.' }, 400);
-    const fee = String(supportedFees[coin]);
+    const fee = supportedFees[coin];
     const totalDebit = addMoney(amount, fee);
     if (compareMoney(totalDebit, '0') <= 0) return json({ ok: false, msg: 'Invalid amount.' }, 400);
     // 首次提现 / 大额提现（USDT 等值超阈值，价格不可用时保守视为大额）→ 强制人工审核 pending_admin_review。
@@ -3184,7 +3198,7 @@ async function handleRequest(event, context) {
 
     // GET /api/admin/config
     if (sub === 'config' && method === 'GET') {
-      return json({ ok: true, deposit_addresses: safeDepositAddresses(db.deposit_addresses), announcement: db.announcement || '' });
+      return json({ ok: true, deposit_addresses: safeDepositAddresses(db.deposit_addresses), withdrawal_fees: safeWithdrawalFees(db.withdrawal_fees), announcement: db.announcement || '' });
     }
 
     // POST /api/admin/config 更新充值地址和公告。只接受已知网络且格式有效的地址，
@@ -3214,14 +3228,28 @@ async function handleRequest(event, context) {
         }
       }
       if (updates !== undefined) db.deposit_addresses = Object.assign({}, db.deposit_addresses, Object.fromEntries(Object.keys(updates).map(function (key) { return [key, updates[key].trim()]; })));
+      const feeUpdates = body.withdrawal_fees;
+      const changedFeeKeys = [];
+      if (feeUpdates !== undefined) {
+        if (!feeUpdates || typeof feeUpdates !== 'object' || Array.isArray(feeUpdates)) return json({ ok: false, msg: 'Invalid withdrawal fee configuration format.' }, 400);
+        const nextFees = safeWithdrawalFees(db.withdrawal_fees);
+        for (const coin of Object.keys(feeUpdates)) {
+          if (!Object.prototype.hasOwnProperty.call(DEFAULT_WITHDRAWAL_FEES, coin)) return json({ ok: false, msg: 'Unsupported withdrawal fee asset.' }, 400);
+          const value = typeof feeUpdates[coin] === 'string' ? parseMoneyInput(feeUpdates[coin].trim()) : null;
+          if (value === null || compareMoney(value, '1000000000000') > 0) return json({ ok: false, msg: 'Invalid withdrawal fee: ' + coin }, 400);
+          nextFees[coin] = value;
+          changedFeeKeys.push(coin);
+        }
+        db.withdrawal_fees = nextFees;
+      }
       if (typeof body.announcement === 'string') {
         if (body.announcement.length > 2000) return json({ ok: false, msg: 'Announcement cannot exceed 2,000 characters.' }, 400);
         db.announcement = body.announcement.trim();
       }
-      await auditAdmin('system_config_update', 'system', JSON.stringify({ deposit_address_keys: changedKeys, announcement_updated: typeof body.announcement === 'string' }), adminUserId);
+      await auditAdmin('system_config_update', 'system', JSON.stringify({ deposit_address_keys: changedKeys, withdrawal_fee_assets: changedFeeKeys, announcement_updated: typeof body.announcement === 'string' }), adminUserId);
       await saveDB(db);
       const auditFlush = await flushAdminAuditOutbox();
-      return json({ ok: true, audit_sync_pending: auditFlush.pending, msg: 'Configuration updated.', deposit_addresses: safeDepositAddresses(db.deposit_addresses), announcement: db.announcement });
+      return json({ ok: true, audit_sync_pending: auditFlush.pending, msg: 'Configuration updated.', deposit_addresses: safeDepositAddresses(db.deposit_addresses), withdrawal_fees: safeWithdrawalFees(db.withdrawal_fees), announcement: db.announcement });
     }
 
 
