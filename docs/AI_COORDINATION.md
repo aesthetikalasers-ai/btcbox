@@ -1972,3 +1972,13 @@ Application branch inspected: `feat/btcbox-web3-auth-20261105` at `741c709d818cb
 ### NEXT
 - Review/approve administrator enrollment and the three-distinct-actor separation model.
 - After approval, implement the identity/permission data model and private transition RPCs additively, then validate in isolated staging before exposing API/UI.
+
+
+## Seconds policy source-contract reconciliation — 2026-11-06 (UTC+8)
+
+- SOURCE OBSERVED: re-read feature branch `feat/btcbox-web3-auth-20261105` at `23ddb41c2866a6ae8c0ec557eb427b94b77ca30b`, coordination branch at `19719fe0ffdd9fc39cc162bb7962970fa46403b4`, migration `0025_seconds_policy_versioning_v1.sql`, and the policy/RBAC specifications.
+- FINDING: `docs/SECONDS_POLICY_VERSIONING.md` still claimed current SQL positions did not carry policy version/payout snapshots, although migration 0025 source adds those nullable columns and the order/settlement RPCs write/read the snapshot. The document also blurred target governance design with the narrower migration 0025 implementation.
+- PATCHED: corrected the versioning specification to distinguish source-only migration behavior from live database state, list the actual policy/active-pointer/audit tables and grants, describe order/settlement snapshot behavior, and explicitly enumerate the missing administrator membership, review/activation, write-RPC, idempotency, and UI layers.
+- ADDED: `backend/tests/seconds-policy-versioning-doc-consistency.test.js` guards the documentation against contradicting migration 0025 and asserts the current service-role read-only/browser-role-denied privilege contract.
+- TEST STATUS: regression tests are committed as source but have not been executed locally in this tool session. Exact-head GitHub Actions evidence must be checked before calling the batch CI-verified.
+- SAFETY: no Supabase SQL was executed, no migration was applied, no admin roles/users were provisioned, no financial writes, merge, or Vercel deployment occurred. Deployment pause and financial fail-closed state remain unchanged.
