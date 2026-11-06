@@ -2597,7 +2597,7 @@ async function handleRequest(event, context) {
 
     // Stage the audit event in the same CAS document as the business mutation.
     // PostgreSQL delivery happens only after that durable state write succeeds.
-    async function auditAdmin(action, uid, detail) {
+    async function auditAdmin(action, uid, detail, actorId) {
       if (!Array.isArray(db.audit_logs)) db.audit_logs = [];
       const pendingCount = db.audit_logs.filter(function (entry) {
         return entry && entry.postgres_sync_status === 'pending';
@@ -2614,7 +2614,7 @@ async function handleRequest(event, context) {
         id: 'AL' + Date.now() + crypto.randomBytes(8).toString('hex'),
         action: String(action),
         uid: String(uid || ''),
-        by: 'admin',
+        by: String(actorId || 'admin'),
         time: nowStr(),
         detail: redactAdminAuditDetail(detail),
         postgres_sync_status: supabaseStorageConfigured() ? 'pending' : 'local_only'
@@ -2692,7 +2692,7 @@ async function handleRequest(event, context) {
       if (!!u.frozen === frozen) return json({ ok: false, code: 'ACCOUNT_STATE_UNCHANGED', msg: frozen ? 'Account is already frozen.' : 'Account is already active.' }, 409);
       u.frozen = frozen;
       u.frozen_reason = frozen ? reason : '';
-      await auditAdmin(frozen ? 'user_freeze' : 'user_unfreeze', u.uid, reason);
+      await auditAdmin(frozen ? 'user_freeze' : 'user_unfreeze', u.uid, reason, adminUserId);
       await saveDB(db);
       const auditFlush = await flushAdminAuditOutbox();
       return json({ ok: true, audit_sync_pending: auditFlush.pending, msg: u.frozen ? 'Account frozen.' : 'Account unfrozen.' });
@@ -2708,7 +2708,7 @@ async function handleRequest(event, context) {
       u.salt = genSalt();
       u.password_hash = hashPassword(newPassword, u.salt);
       Object.keys(db.sessions || {}).forEach(function (token) { if (db.sessions[token].uid === u.uid) delete db.sessions[token]; });
-      await auditAdmin('user_password_reset', u.uid, 'Admin reset login password; existing sessions invalidated.');
+      await auditAdmin('user_password_reset', u.uid, 'Admin reset login password; existing sessions invalidated.', adminUserId);
       await saveDB(db);
       const auditFlush = await flushAdminAuditOutbox();
       return json({ ok: true, audit_sync_pending: auditFlush.pending, msg: 'Password has been reset. The user must sign in again.' });
@@ -2725,7 +2725,7 @@ async function handleRequest(event, context) {
       if (duplicate) return json({ ok: false, msg: 'This email is already used by another account.' }, 409);
       const previousEmail = u.email;
       u.email = newEmail;
-      await auditAdmin('user_email_change', u.uid, JSON.stringify({ from: previousEmail, to: newEmail }));
+      await auditAdmin('user_email_change', u.uid, JSON.stringify({ from: previousEmail, to: newEmail }), adminUserId);
       await saveDB(db);
       const auditFlush = await flushAdminAuditOutbox();
       return json({ ok: true, audit_sync_pending: auditFlush.pending, msg: 'Email updated successfully.' });
@@ -2752,7 +2752,7 @@ async function handleRequest(event, context) {
         return json({ ok: false, msg: 'Invalid deposit amount. Must be a valid number greater than 0.' }, 400);
       }
       if (!/^[A-Za-z0-9_-]{16,100}$/.test(idempotencyKey)) return json({ ok: false, msg: 'Invalid credit request ID. Please try again.' }, 400);
-      const adminId = String(process.env.ADMIN_USER || '').trim();
+      const adminId = adminUserId;
       if (!adminId) return json({ ok: false, code: 'ADMIN_ACTOR_NOT_CONFIGURED', msg: 'Administrator audit identity not configured. Manual credit was not executed.' }, 503);
       const amountText = String(body.amount).trim();
       const requestHash = crypto.createHash('sha256').update([adminId, uid, coin, amountText, reference, note].join('|')).digest('hex');
@@ -2775,7 +2775,7 @@ async function handleRequest(event, context) {
       if (!wdId || wdId.length > 100) return json({ ok: false, msg: 'Withdrawal record ID is invalid' }, 400);
       if (manualDepositRpcEnabled()) {
         if (!supabaseStorageConfigured()) return json({ ok: false, code: 'FINANCIAL_RPC_NOT_CONFIGURED', msg: 'Financial database not configured. Withdrawal was not reviewed.' }, 503);
-        const adminId = String(process.env.ADMIN_USER || '').trim();
+        const adminId = adminUserId;
         if (!adminId) return json({ ok: false, code: 'ADMIN_ACTOR_NOT_CONFIGURED', msg: 'Administrator audit identity not configured. Withdrawal was not reviewed.' }, 503);
         try {
           const rpc = await fetch(process.env.SUPABASE_URL.replace(/\/+$/, '') + '/rest/v1/rpc/review_withdrawal_atomic', {
@@ -2797,7 +2797,7 @@ async function handleRequest(event, context) {
       if (!wdId || wdId.length > 100) return json({ ok: false, msg: 'Withdrawal record ID is invalid' }, 400);
       if (manualDepositRpcEnabled()) {
         if (!supabaseStorageConfigured()) return json({ ok: false, code: 'FINANCIAL_RPC_NOT_CONFIGURED', msg: 'Financial database not configured. Withdrawal was not rejected or refunded.' }, 503);
-        const adminId = String(process.env.ADMIN_USER || '').trim();
+        const adminId = adminUserId;
         if (!adminId) return json({ ok: false, code: 'ADMIN_ACTOR_NOT_CONFIGURED', msg: 'Administrator audit identity not configured. Withdrawal was not rejected or refunded.' }, 503);
         const reason = String(body.reason || 'Admin rejected withdrawal.').trim().slice(0, 200) || 'Admin rejected withdrawal.';
         try {
@@ -2825,7 +2825,7 @@ async function handleRequest(event, context) {
       if (!reference) return json({ ok: false, code: 'PAYOUT_REFERENCE_REQUIRED', msg: 'TxID / payout reference is required.' }, 400);
       if (reference.length > 160 || note.length > 300) return json({ ok: false, msg: 'Payout reference or note is too long.' }, 400);
       if (!supabaseStorageConfigured()) return json({ ok: false, code: 'FINANCIAL_RPC_NOT_CONFIGURED', msg: 'Financial database is not configured. Payout status was not changed.' }, 503);
-      const adminId = String(process.env.ADMIN_USER || '').trim();
+      const adminId = adminUserId;
       if (!adminId) return json({ ok: false, code: 'ADMIN_ACTOR_NOT_CONFIGURED', msg: 'Administrator audit identity not configured. Payout status was not changed.' }, 503);
       try {
         const rpc = await fetch(process.env.SUPABASE_URL.replace(/\/+$/, '') + '/rest/v1/rpc/mark_withdrawal_paid_atomic', {
@@ -2855,11 +2855,11 @@ async function handleRequest(event, context) {
       if (override && !reason) return json({ ok: false, code: 'ADMIN_REASON_REQUIRED', msg: 'A reason is required for admin exception approval.' }, 400);
       if (status === 'pending' && override && !reason) return json({ ok: false, code: 'ADMIN_REASON_REQUIRED', msg: 'A reason is required for admin exception approval.' }, 400);
       u.kyc.status = 'approved';
-      u.kyc.reviewed_by = 'admin';
+      u.kyc.reviewed_by = adminUserId;
       u.kyc.reviewed_at = nowStr();
       u.kyc.reject_reason = '';
       u.kyc.review_reason = override ? reason : 'Approved pending identity verification application.';
-      await auditAdmin(override ? 'kyc_approve_exception' : 'kyc_approve', u.uid, override ? reason : 'Admin approved pending identity verification application.');
+      await auditAdmin(override ? 'kyc_approve_exception' : 'kyc_approve', u.uid, override ? reason : 'Admin approved pending identity verification application.', adminUserId);
       await saveDB(db);
       const auditFlush = await flushAdminAuditOutbox();
       return json({ ok: true, audit_sync_pending: auditFlush.pending, msg: override ? 'KYC approved via admin exception; reason recorded.' : 'KYC approved.' });
@@ -2877,7 +2877,7 @@ async function handleRequest(event, context) {
       u.kyc.reject_reason = reason;
       u.kyc.reviewed_by = 'admin';
       u.kyc.reviewed_at = nowStr();
-      await auditAdmin('kyc_reject', u.uid, reason);
+      await auditAdmin('kyc_reject', u.uid, reason, adminUserId);
       await saveDB(db);
       const auditFlush = await flushAdminAuditOutbox();
       return json({ ok: true, audit_sync_pending: auditFlush.pending, msg: 'KYC rejected.' });
@@ -2898,7 +2898,7 @@ async function handleRequest(event, context) {
           u.support_messages.push({ id: 'M' + Date.now() + crypto.randomBytes(3).toString('hex'), from: 'admin', content: content, time: nowStr() });
         });
       }
-      await auditAdmin('admin_push_message', body.uid || 'all', JSON.stringify({ target: body.uid ? 'single_user' : 'all_users', length: content.length }));
+      await auditAdmin('admin_push_message', body.uid || 'all', JSON.stringify({ target: body.uid ? 'single_user' : 'all_users', length: content.length }), adminUserId);
       await saveDB(db);
       const auditFlush = await flushAdminAuditOutbox();
       return json({ ok: true, audit_sync_pending: auditFlush.pending, msg: 'Message sent.' });
@@ -2911,7 +2911,7 @@ async function handleRequest(event, context) {
       if (!Array.isArray(u.support_messages)) u.support_messages = [];
       const supportMessage = { id: 'M' + Date.now() + crypto.randomBytes(3).toString('hex'), from: 'admin', content: body.content || '', time: nowStr() };
       u.support_messages.push(supportMessage);
-      await auditAdmin('support_reply', u.uid, JSON.stringify({ message_id: supportMessage.id, length: String(body.content || '').length }));
+      await auditAdmin('support_reply', u.uid, JSON.stringify({ message_id: supportMessage.id, length: String(body.content || '').length }), adminUserId);
       await saveDB(db);
       const auditFlush = await flushAdminAuditOutbox();
       return json({ ok: true, audit_sync_pending: auditFlush.pending, msg: 'Reply sent.' });
@@ -2961,7 +2961,7 @@ async function handleRequest(event, context) {
       } else return json({ok:false,msg:'Unknown operation.'},400);
       if(!Array.isArray(target.address_audit)) target.address_audit=[];
       target.address_audit.push({id:'L'+Date.now()+crypto.randomBytes(3).toString('hex'),action:action,address_id:body.id,by:'admin',time:nowStr(),detail:String(body.reason||'').slice(0,200)});
-      await auditAdmin('address_'+action, target.uid, JSON.stringify({ address_id: body.id, reason: String(body.reason || '').slice(0, 200) }));
+      await auditAdmin('address_'+action, target.uid, JSON.stringify({ address_id: body.id, reason: String(body.reason || '').slice(0, 200) }), adminUserId);
       await saveDB(db);
       const auditFlush = await flushAdminAuditOutbox();
       return json({ok:true,audit_sync_pending:auditFlush.pending,msg:'Submitted successfully.'});
@@ -3060,7 +3060,7 @@ async function handleRequest(event, context) {
         if (body.announcement.length > 2000) return json({ ok: false, msg: 'Announcement cannot exceed 2,000 characters.' }, 400);
         db.announcement = body.announcement.trim();
       }
-      await auditAdmin('system_config_update', 'system', JSON.stringify({ deposit_address_keys: changedKeys, announcement_updated: typeof body.announcement === 'string' }));
+      await auditAdmin('system_config_update', 'system', JSON.stringify({ deposit_address_keys: changedKeys, announcement_updated: typeof body.announcement === 'string' }), adminUserId);
       await saveDB(db);
       const auditFlush = await flushAdminAuditOutbox();
       return json({ ok: true, audit_sync_pending: auditFlush.pending, msg: 'Configuration updated.', deposit_addresses: safeDepositAddresses(db.deposit_addresses), announcement: db.announcement });
