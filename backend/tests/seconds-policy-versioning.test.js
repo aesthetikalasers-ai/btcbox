@@ -40,7 +40,7 @@ test('new order RPC resolves the active backend policy and snapshots it atomical
   assert.match(fn, /financial_ledger/);
   assert.match(fn, /policy_version/);
   assert.match(migration, /max_open_positions_per_user integer/);
-  assert.match(migration, /CHECK \\(0 < ALL\\(durations_sec\\)\\)/);
+  assert.ok(migration.includes('CHECK (0 < ALL(durations_sec))') || migration.includes('CONSTRAINT seconds_contract_policies_durations_positive CHECK (0 < ALL(durations_sec))'));
 });
 
 test('settlement uses position payout snapshot and preserves legacy 85 percent fallback', () => {
