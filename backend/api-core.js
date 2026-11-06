@@ -317,6 +317,37 @@ async function readFinancialAccountSnapshot(userId) {
   return result;
 }
 
+async function readSpotMarketCatalog() {
+  if (!supabaseStorageConfigured()) throw new Error('Spot market catalogue unavailable');
+  const base = String(process.env.SUPABASE_URL || '').replace(/\\/+$/, '');
+  if (!base) throw new Error('Spot market catalogue unavailable');
+  const response = await fetch(base + '/rest/v1/rpc/read_spot_market_snapshot_v1', {
+    method: 'POST', headers: supabaseHeaders(), body: '{}', signal: AbortSignal.timeout(5000)
+  });
+  const result = await response.json().catch(() => null);
+  if (!response.ok || !result || result.ok !== true || !Array.isArray(result.markets)) {
+    throw new Error('Spot market catalogue read failed');
+  }
+  return result.markets.map(market => {
+    if (!market || typeof market.base_asset !== 'string' || typeof market.quote_asset !== 'string' ||
+        typeof market.enabled !== 'boolean' || !SUPPORTED_LEDGER_ASSETS.has(market.base_asset) ||
+        !SUPPORTED_LEDGER_ASSETS.has(market.quote_asset) || market.quote_asset !== 'USDT') {
+      throw new Error('Spot market catalogue contains an unsupported pair');
+    }
+    return {
+      base_asset: market.base_asset,
+      quote_asset: market.quote_asset,
+      enabled: market.enabled,
+      price_tick: String(market.price_tick),
+      quantity_step: String(market.quantity_step),
+      min_quantity: String(market.min_quantity),
+      min_notional: String(market.min_notional),
+      min_limit_price: market.min_limit_price == null ? null : String(market.min_limit_price),
+      max_limit_price: market.max_limit_price == null ? null : String(market.max_limit_price),
+    };
+  });
+}
+
 // Keep this list aligned with spot pair support, manual-deposit assets, and admin asset controls.
 const SUPPORTED_LEDGER_ASSETS = new Set([
   'USDT', 'USDC', 'BTC', 'ETH', 'SOL', 'BNB',
@@ -1262,6 +1293,14 @@ async function handleRequest(event, context) {
     const interval = (event.queryStringParameters && event.queryStringParameters.interval) || '1m';
     if (!/^[A-Z0-9]{5,20}$/.test(symbol) || !symbol.endsWith('USDT') || symbol.length <= 4 || !['1m','3m','5m','15m','30m','1h','2h','4h','1d'].includes(interval)) return json({ ok: false, msg: 'Invalid USDT symbol or interval' }, 400);
     const base = symbol.slice(0, -4);
+    try {
+      const catalog = await readSpotMarketCatalog();
+      if (!catalog.some(market => market.enabled && market.base_asset === base && market.quote_asset === 'USDT')) {
+        return json({ ok: false, code: 'SPOT_MARKET_DISABLED', msg: 'This spot market is not enabled.', klines: [], data: [] }, 404);
+      }
+    } catch (_) {
+      return json({ ok: false, code: 'MARKET_CATALOG_UNAVAILABLE', msg: 'Spot market catalogue is temporarily unavailable.', klines: [], data: {} }, 503);
+    }
     const coinbaseGranularity = { '1m': 60, '5m': 300, '15m': 900, '1h': 3600, '1d': 86400 }[interval];
     const timeoutFetchJson = async url => {
       const res = await fetch(url, { signal: AbortSignal.timeout(5000), headers: { 'Accept': 'application/json' } });
@@ -1296,6 +1335,14 @@ async function handleRequest(event, context) {
     const symbol = ((event.queryStringParameters && event.queryStringParameters.symbol) || 'BTCUSDT').toUpperCase();
     if (!/^[A-Z0-9]{5,20}$/.test(symbol) || !symbol.endsWith('USDT') || symbol.length <= 4) return json({ ok: false, msg: 'Invalid USDT symbol' }, 400);
     const base = symbol.slice(0, -4);
+    try {
+      const catalog = await readSpotMarketCatalog();
+      if (!catalog.some(market => market.enabled && market.base_asset === base && market.quote_asset === 'USDT')) {
+        return json({ ok: false, code: 'SPOT_MARKET_DISABLED', msg: 'This spot market is not enabled.', bids: [], asks: [] }, 404);
+      }
+    } catch (_) {
+      return json({ ok: false, code: 'MARKET_CATALOG_UNAVAILABLE', msg: 'Spot market catalogue is temporarily unavailable.', bids: [], asks: [] }, 503);
+    }
     const timeoutFetchJson = async url => {
       const res = await fetch(url, { signal: AbortSignal.timeout(5000), headers: { 'Accept': 'application/json' } });
       if (!res.ok) throw new Error('market provider HTTP ' + res.status);
@@ -2017,12 +2064,30 @@ async function handleRequest(event, context) {
     return json({ ok: false, code: 'FINANCIAL_CUTOVER_INCOMPLETE', msg: 'Financial ledger cutover is incomplete. Withdrawal was not submitted and your balance was unchanged.' }, 503);
   }
 
+  // ---------- GET /api/market/pairs ----------
+  // Public catalogue exposes only enabled, operator-configured USDT pairs.
+  if (path === 'market/pairs' && method === 'GET') {
+    try {
+      const markets = await readSpotMarketCatalog();
+      return json({ ok: true, markets: markets.filter(market => market.enabled) });
+    } catch (_) {
+      return json({ ok: false, code: 'MARKET_CATALOG_UNAVAILABLE', msg: 'Spot market catalogue is temporarily unavailable.', markets: [] }, 503);
+    }
+  }
+
   // ---------- GET /api/market ----------
   if (path === 'market' && method === 'GET') {
     // Coinbase is the primary source. Bybit is used only for symbols whose Coinbase
     // product/statistics are unavailable. Both sources are explicitly restricted to
     // BASE-USDT spot pairs so USDT and USD quotes are never silently mixed.
-    const bases = ['BTC', 'ETH', 'SOL', 'BNB', 'XRP', 'DOGE', 'ADA', 'AVAX', 'LINK', 'DOT', 'TRX', 'MATIC', 'LTC', 'BCH', 'NEAR', 'UNI', 'ATOM', 'ETC'];
+    let bases;
+    try {
+      const catalog = await readSpotMarketCatalog();
+      bases = [...new Set(catalog.filter(market => market.enabled && market.quote_asset === 'USDT').map(market => market.base_asset))];
+    } catch (_) {
+      return json({ ok: false, code: 'MARKET_CATALOG_UNAVAILABLE', msg: 'Spot market catalogue is temporarily unavailable.', markets: [], data: {} }, 503);
+    }
+    if (!bases.length) return json({ ok: true, markets: [], data: {}, source: 'configured_empty' });
     const now = Math.floor(Date.now() / 1000);
     const finitePositive = value => Number.isFinite(Number(value)) && Number(value) > 0;
     const fetchJson = async url => {
