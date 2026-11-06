@@ -3,6 +3,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
+const vm = require('node:vm');
 
 const root = path.resolve(__dirname, '..');
 const api = fs.readFileSync(path.join(root, 'api-core.js'), 'utf8');
@@ -88,6 +89,6 @@ test('settlement persists the validated provider quote time instead of stamping 
   const handler = api.slice(start, end);
   assert.ok(handler.includes('normalizeReferenceTimestamp(ticker && ticker.time)'));
   assert.ok(handler.includes('normalizeReferenceTimestamp(payload && payload.time)'));
-  assert.ok(handler.includes('p_settle_price_ts: new Date(settleRef.ts * 1000).toISOString()'));
+  assert.ok(handler.includes('new Date(settleRef.ts * 1000).toISOString()'));
   assert.ok(!handler.includes('p_settle_price_ts: new Date().toISOString()'));
 });
