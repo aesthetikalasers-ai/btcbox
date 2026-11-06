@@ -5,7 +5,6 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const root = path.join(__dirname, '..');
-const boot = fs.readFileSync(path.join(root, 'assets/js/boot.js'), 'utf8');
 const app = fs.readFileSync(path.join(root, 'assets/js/app-core.js'), 'utf8');
 const apiCore = fs.readFileSync(path.join(root, 'api-core.js'), 'utf8');
 const reactApp = fs.readFileSync(path.resolve(root, '../frontend/src/App.tsx'), 'utf8');
