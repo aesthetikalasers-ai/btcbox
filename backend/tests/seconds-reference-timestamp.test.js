@@ -33,7 +33,7 @@ test('Seconds settlement persists the provider event timestamp, never a fabricat
   const end = source.indexOf("// ---------- GET /api/seconds/positions ----------", start);
   assert.ok(start >= 0 && end > start);
   const handler = source.slice(start, end);
-  assert.match(handler, /p_settle_price_ts: new Date\(settleRef\.ts \* 1000\)\.toISOString\(\)/);
+  assert.match(handler, /new Date\\(settleRef\\.ts \\* 1000\\)\\.toISOString\\(\\)/);
   assert.doesNotMatch(handler, /p_settle_price_ts: new Date\(\)\.toISOString\(\)/);
   assert.match(source, /normalizeReferenceTimestamp\(ticker && ticker\.time\)/);
   assert.match(source, /normalizeReferenceTimestamp\(payload && payload\.time\)/);
