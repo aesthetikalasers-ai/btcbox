@@ -43,3 +43,14 @@ test('ordinary membership cannot self-assert Super Admin through extra permissio
   assert.equal(canManageAdministrators(forged), false);
   assert.equal(hasAdminPermission(forged, 'system_config.write'), false);
 });
+
+
+test('admin read routes and balance adjustments require their own explicit permissions', () => {
+  const apiSource = require('node:fs').readFileSync(require('node:path').join(__dirname, '..', 'api-core.js'), 'utf8');
+  assert.match(apiSource, /withdrawals: 'withdrawals\.read', orders: 'orders\.read', 'support\/messages': 'support\.read'/);
+  assert.match(apiSource, /'user\/balance': 'financial_adjustment\.request'/);
+  assert.ok(ADMIN_PERMISSION_KEYS.includes('withdrawals.read'));
+  assert.ok(ADMIN_PERMISSION_KEYS.includes('orders.read'));
+  assert.ok(ADMIN_PERMISSION_KEYS.includes('support.read'));
+  assert.ok(ADMIN_PERMISSION_KEYS.includes('financial_adjustment.request'));
+});
