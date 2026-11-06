@@ -27,7 +27,10 @@ def expected_migrations():
     for path in SQL_DIR.glob("*.sql"):
         match = MIGRATION_RE.match(path.name)
         if match:
-            items.append((int(match.group(1)), path.name))
+            number = int(match.group(1))
+            if number in RETIRED_SEQUENCE_NUMBERS:
+                continue
+            items.append((number, path.name))
     return sorted(items)
 
 
