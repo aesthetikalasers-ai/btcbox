@@ -2342,3 +2342,15 @@ Application branch inspected: `feat/btcbox-web3-auth-20261105` at `741c709d818cb
 - On `feat/btcbox-web3-auth-20261105`, added authenticated, read-only Orders and Assets pages backed by existing `getOrders` and `getAccount` clients; protected the orders route; implemented loading/error/retry/empty states and accurate valuation-completeness display.
 - Candidate head at report time: `403fc12d679b11590e5eaf5c8e8aaae15f33d99a`. CI run `42149902764` was still in progress; prior CI caught and identified a literal escaped newline syntax issue in App.tsx, corrected in this head. Await final CI result before claiming validation.
 - No merge, PR, deployment, Supabase write, or financial transaction.
+
+
+## Implementation batch — authenticated My Account profile — 2026-11-06 (UTC+8)
+
+- Continued on `feat/btcbox-web3-auth-20261105`, starting from candidate `403fc12d679b11590e5eaf5c8e8aaae15f33d99a`.
+- Implemented the `/me` account overview in `frontend/src/features/pages/Pages.tsx` using the existing authenticated `getAccount(signal)` client and `useAuth()` session state.
+- Authenticated users now see the backend-returned username/email, KYC status, 2FA status, linked sign-in providers, and a partially masked BTCBOX UID. Unauthenticated users retain sign-in/register links. Loading, request error/retry, and abort cleanup are included.
+- No new endpoint, mock profile, balance mutation, financial write, or trading-page change was introduced. The V211 trading terminal was not touched.
+- Commits: `645c2221ea01afe566daa92973403d5bb8cb79f2` (profile implementation), `32a14b6a27a5da259fd61f3e8d483776016963d0` (session-hook import correction).
+- Exact candidate head after this batch: `32a14b6a27a5da259fd61f3e8d483776016963d0`; GitHub compare against `403fc12d679b11590e5eaf5c8e8aaae15f33d99a` reports 3 commits ahead / 0 behind and exactly one changed path: `frontend/src/features/pages/Pages.tsx` (37 additions, 3 deletions).
+- Source re-fetch at the exact head confirms the auth hook import and profile implementation are present. No GitHub Actions run was returned by the PR-run-only lookup; combined status reports only Vercel failure due the existing Hobby build-rate-limit target. Therefore this batch is SOURCE OBSERVED, not TEST PASSED. TypeScript/build and browser behavior remain NOT VERIFIED.
+- No merge, PR, production deployment, Supabase write, or financial transaction occurred.
