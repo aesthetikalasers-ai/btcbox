@@ -1,6 +1,6 @@
 # BTCBOX AI Coordination
 
-Last refreshed: 2026-11-05 (UTC+8)
+Last refreshed: 2026-11-06 (UTC)
 Repository: `avali9308-code/btcboxcdt`
 Coordination branch: `chore/shared-ai-coordination`
 Observed baseline: `main` at/including merge commit `93a236e4a3ed6c9edd2003ac1068a89161015511` (PR #20, read-only account/orders API).
@@ -22,6 +22,20 @@ Observed baseline: `main` at/including merge commit `93a236e4a3ed6c9edd2003ac106
 8. Prioritize mobile usability and accessible touch targets, but do not change core trading behavior or layout without explicit approval.
 9. Keep deployment automation paused until the user authorizes release readiness. Do not trigger deployments during audit.
 10. Classify findings as SOURCE OBSERVED, REPRODUCED, TEST PASSED, or NOT VERIFIED.
+
+## Current canonical status — supersedes earlier checkpoints (2026-11-06 UTC)
+
+- Main baseline: `fa4513701af75b4c4cb39d60a3df08f07d632af4`.
+- Active consolidated branch: `fix/post-merge-db-bootstrap-seconds-20261106`.
+- Draft PR #50 head: `bf4ff9b09800b4dde885b84ab2e79124b5791ac9`; 91 commits ahead / 0 behind main; mergeable, not merged. Keep Draft until owner approval.
+- Canonical fresh-database SQL inventory is **22 files**. `0008_financial_matching_engine_v1.sql` is the sole spot order write path. The old `0008_financial_spot_trade_v3.sql` direct-fill implementation was removed; sequence `0009` is intentionally retired. Legacy optional sequence numbers `0015`–`0020` remain excluded.
+- Backend CI run 462 on the exact head passed unified build, **310/310 tests**, fail-closed deployment preflight and output/entrypoint checks. Frontend CI run 326 passed lint and production build.
+- PostgreSQL schema CI run 11 on the exact same head passed against a disposable PostgreSQL 16 service: all 22 canonical SQL files applied; RLS and service-role-only RPC grants verified; financial lifecycle integration assertions passed inside a transaction that ended with `ROLLBACK`.
+- Runtime integration assertions exercised: manual deposit first credit/exact replay/payload conflict; withdrawal amount+fee freeze, fee-snapshot replay after fee change, approve, reject/refund, manual paid completion without a second ledger debit; spot maker/taker matching, exact cancel replay and same-key/different-order conflict; Seconds active-policy payout snapshot, maturity settlement, exact replay and conflicting-hash rejection.
+- This materially upgrades prior source-only evidence: the fresh schema and these SQL RPC paths now have disposable-PostgreSQL runtime evidence. It does **not** certify hosted Supabase configuration or live market-provider connectivity.
+- Still NOT VERIFIED: hosted Supabase installation, first Super Admin provisioning against real Auth users, browser E2E, live price feed/provider connectivity, real network deposits/payouts, and production launch.
+- Still incomplete product requirements: KYC document-image upload plus secure evidence storage/review; admin-editable spot-pair/currency catalogue and market enable/disable controls. Do not claim these are complete.
+- No hosted database write/bootstrap, real financial operation, production deployment or merge to main was performed.
 
 ## Repository observations at refresh
 
