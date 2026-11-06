@@ -42,7 +42,6 @@ export function AdminPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [retry, setRetry] = useState(0);
-  const [busy, setBusy] = useState(false);
   const active = TABS.find((item) => item.id === tab) || TABS[0];
 
   const load = useCallback(async (signal?: AbortSignal) => {
@@ -76,17 +75,6 @@ export function AdminPage() {
     return Array.isArray(raw) ? raw.filter((item): item is AdminRow => !!item && typeof item === "object") : [];
   }, [active.key, payload]);
 
-  const runAction = async (path: string, body: Record<string, unknown>) => {
-    setBusy(true); setError("");
-    try {
-      const token = await getSupabaseAccessToken();
-      await requestAdmin(token, path, { method: "POST", body });
-      await load();
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Administrator action was not confirmed.");
-    } finally { setBusy(false); }
-  };
-
   if (status !== "authenticated") return <div className="mx-auto max-w-4xl p-6 text-sm text-brand-text-muted">Sign in with an authorized administrator account to open the BTCBOX Admin Console.</div>;
 
   return <div className="mx-auto flex w-full max-w-[1600px] min-w-0 flex-col gap-5 p-3 sm:p-5 lg:p-7">
@@ -96,7 +84,7 @@ export function AdminPage() {
     </div>
     <div className="flex gap-2 overflow-x-auto pb-1">
       {TABS.map((item) => <Button key={item.id} size="sm" variant={tab === item.id ? "default" : "outline"} className="shrink-0" onClick={() => { setTab(item.id); setPayload(null); }}>{item.label}</Button>)}
-      <Button size="sm" variant="ghost" className="ml-auto shrink-0" disabled={loading || busy} onClick={() => setRetry((n) => n + 1)}>Refresh</Button>
+      <Button size="sm" variant="ghost" className="ml-auto shrink-0" disabled={loading} onClick={() => setRetry((n) => n + 1)}>Refresh</Button>
     </div>
     {error ? <Card className="border-rose-500/30 bg-brand-surface"><CardContent className="flex flex-wrap items-center justify-between gap-3 p-4"><p className="text-sm text-rose-300" role="alert">{error}</p><Button size="sm" variant="outline" onClick={() => setRetry((n) => n + 1)}>Retry</Button></CardContent></Card> : null}
     {loading ? <Card className="border-brand-border bg-brand-surface"><CardContent className="p-6 text-sm text-brand-text-muted" role="status">Loading authorized administrator data…</CardContent></Card> : null}
