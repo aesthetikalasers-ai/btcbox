@@ -23,7 +23,8 @@ test('policy API requires an authenticated user and validates policy bounds befo
   assert.match(handler, /if \(!user\)/);
   assert.match(handler, /read_active_seconds_policy_v1/);
   assert.match(handler, /SECONDS_ALLOWED_SYMBOLS/);
-  assert.match(handler, /SECONDS_ALLOWED_DURATIONS/);
+  assert.match(handler, /Number\.isSafeInteger\(Number\(duration\)\) && Number\(duration\) > 0/);
+  assert.match(handler, /max_open_positions_per_user/);
   assert.match(handler, /payout_bps/);
   assert.match(handler, /actions_enabled: financialWritesEnabled\(\)/);
 });
