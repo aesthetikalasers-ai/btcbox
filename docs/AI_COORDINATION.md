@@ -2560,3 +2560,43 @@ The user explicitly simplified the required business process. Do not expand it i
 - Supabase CLI changelog refreshed: v3 (released 2026-11-02; changelog entry 2026-11-04) defaults database commands to local, requires explicit `--remote` for hosted targets, and asks for confirmation before hosted mutations. Official migration guide confirms this. References: https://supabase.com/changelog/supabase-cli-v3 and https://supabase.com/docs/guides/local-development/cli/migrating-to-v3.
 - No source code, test, migration, production schema, deployment, or merge changed in this batch. The previous `settle_at` API forwarding fix remains in source but its regression test is still NOT RUN. Feature branch remains 24 ahead / 0 behind main.
 - NEXT IMPLEMENTATION ORDER: (1) obtain a working local/non-deploying CLI environment; (2) generate a forward migration using `supabase migration new`; (3) in that migration drop only `seconds_contract_positions_one_open_per_user_idx` and replace `settle_seconds_position_v1` so same request ID + same hash returns duplicate, same ID + different hash returns `IDEMPOTENCY_CONFLICT`, and any different request ID on an already-settled position returns `POSITION_ALREADY_SETTLED`; (4) update API error mapping and add tests for all three cases; (5) run Node tests and isolated database concurrency/independent-settlement tests. Keep all account/ledger/idempotency locks and constraints. Reconcile migration history before any hosted apply. Do not merge/deploy or change V211.
+
+
+## Seconds settlement idempotency and unlimited open-position repair candidate — 2026-11-06
+
+### SOURCE OBSERVED / IMPLEMENTED IN FEATURE BRANCH
+- Re-read this coordination entry before implementation. The active BTCBOX feature branch is `fix/manual-withdrawal-rpc-compat-20261106`; its latest remote head after this batch is `40f1d0aaf8bbd8a36be82fa2040fce58f8100fb3`. Compare against main `18a354a9e8e1d0365e240c7c44eda4a18d62ce07`: 30 ahead / 0 behind. No merge or deployment.
+- Created the forward migration using Supabase CLI v3 `supabase migration new seconds_unlimited_open_positions_and_settlement_idempotency_v1`; generated timestamp: `20261106041624`. The timestamped migration is in `backend/supabase/migrations/`. An identical numbered mirror `backend/supabase/sql/0024_seconds_unlimited_open_positions_and_settlement_idempotency_v1.sql` keeps the existing local/docker SQL runner sequence continuous.
+- The migration drops only `public.seconds_contract_positions_one_open_per_user_idx`. It does not delete or rewrite positions and does not remove the independent position/request/operation/ledger uniqueness constraints.
+- The replacement `settle_seconds_position_v1` now returns duplicate success only for the same settled position + same request ID + same request hash; same request ID with a different hash returns `IDEMPOTENCY_CONFLICT`; a different request ID against an already-settled position returns `POSITION_ALREADY_SETTLED`.
+- The settlement function retains the position-row `FOR UPDATE` lock, USDT account-row `FOR UPDATE` lock, atomic financial operation/ledger writes, and existing settlement calculation. The 85% calculation remains hard-coded and is explicitly queued for the policy-configuration batch; this migration does not claim to implement configurable payout rates.
+- `backend/api-core.js` now preserves settlement business error codes and maps idempotency/already-settled conflicts to HTTP 409 rather than collapsing them into `FINANCIAL_RPC_FAILED`.
+- Source audit confirms `GET /api/seconds/positions` returns the full `open[]` result and `assets/js/views-trading.js` renders the open array with `list.map`; no single-open frontend truncation was found.
+- Added regression tests for migration semantics, preservation of locks/unique guards, API error mapping, and full open-array rendering.
+
+### TEST EVIDENCE
+- Ran `cd backend && npm test` in a non-deploying Vercel sandbox on the edited source: **92 tests passed, 0 failed**.
+- Ran the focused Seconds tests: **8 passed, 0 failed**.
+- Ran `python3 scripts/check_migration_status.py --offline`: numbered SQL migrations are continuous from 0001 through 0024.
+- Ran `git diff --check`: no whitespace errors.
+- After the code was committed to the feature branch through GitHub, verified the remote Git blob SHA matches the exact locally tested content for all six implementation/test files:
+  - `backend/api-core.js`: `4caa953083a73e715e8257d98698f61466a0e3f4`
+  - timestamped migration: `ea1856b7e6c9006de5a6a718373f81d56d2724aa`
+  - numbered SQL mirror: `ea1856b7e6c9006de5a6a718373f81d56d2724aa`
+  - migration-order doc: `472d839de7f4e2d5ee5a78e5359ae75cedb283c4`
+  - migration regression test: `23095feff252fe3e590af452cd709c25610509c6`
+  - settlement/API/open-array regression test: `d2717e7ae8f717c6294c64212b6da54376507cda`
+- GitHub workflow lookup for latest feature commit returned no PR-triggered workflow runs. Do not describe this as GitHub CI passing.
+
+### NOT VERIFIED / RELEASE BLOCKERS
+- Sandbox has no Docker or `psql`; local PostgreSQL execution, PL/pgSQL compilation, isolated concurrent multi-position submissions, concurrent per-position settlement, and balance/ledger invariant tests were NOT RUN.
+- Live Supabase project `zlozsutefnmgwwzrlipt` was only queried read-only. No migration was applied, no financial write was run, and no deployment or merge occurred. The live single-open-position partial unique index therefore remains active; multiple open positions are NOT yet enabled in the hosted database.
+- Live migration history still contains only `20261102133555` and `20261103062716` while the live schema contains older financial/Seconds objects. Migration-history drift remains unresolved. Do not run hosted `db push`, `apply_migration`, or `migration repair` until each existing SQL migration is reconciled against actual schema effects.
+- Supabase CLI v3 defaults database commands to local; hosted targeting requires explicit `--remote` and hosted mutations require confirmation. References: https://supabase.com/changelog/supabase-cli-v3 and https://supabase.com/docs/guides/local-development/cli/migrating-to-v3.
+
+### NEXT BATCH
+1. Build the small, backend-authoritative Seconds policy settings surface in admin: enabled state, allowed durations, min/max order amount, and configurable payout/profit ratio with 85% as the minimum. Avoid unnecessary UID/asset/manual fields.
+2. Persist policy version and the effective duration/amount/payout terms onto each newly opened position; later admin changes must not alter in-flight positions. No preset outcomes or client-side settlement authority.
+3. Add an admin read-only queue for all open Seconds positions; verify pagination/visibility for multiple positions. Existing user-facing open-array rendering is already present.
+4. Add isolated PostgreSQL tests for multiple concurrent positions, same/different open request IDs, per-position settlement idempotency, concurrent balance locking, and no duplicate ledger postings.
+5. Reconcile migration-history drift before any hosted migration application. No production DDL, real financial writes, merge, or deployment without explicit approval. Preserve V211 trading layout.
