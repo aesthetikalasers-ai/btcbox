@@ -118,6 +118,58 @@ export async function getKlines(
 }
 
 
+export interface TradingStatus {
+  spot_order_entry_enabled: boolean;
+  spot_cancel_enabled: boolean;
+  supported_order_types: string[];
+}
+export async function getTradingStatus(signal?: AbortSignal): Promise<TradingStatus> {
+  const response = await fetch(`${API_BASE_URL}/trading/status`, { credentials: "include", cache: "no-store", signal, headers: { Accept: "application/json" } });
+  const payload = await response.json().catch(() => null) as (TradingStatus & { ok?: boolean; msg?: string; code?: string }) | null;
+  if (!response.ok || !payload || payload.ok !== true || typeof payload.spot_order_entry_enabled !== "boolean" || typeof payload.spot_cancel_enabled !== "boolean" || !Array.isArray(payload.supported_order_types)) {
+    throw new ApiError(payload?.msg || "Spot trading capability status is unavailable.", response.status, payload?.code);
+  }
+  return payload;
+}
+export interface OrderBookSnapshot { source: string; bids: Array<[string,string]>; asks: Array<[string,string]>; }
+export async function getOrderBook(symbol = "BTCUSDT", signal?: AbortSignal): Promise<OrderBookSnapshot> {
+  const query = new URLSearchParams({ symbol });
+  const response = await fetch(`${API_BASE_URL}/depth?${query.toString()}`, { credentials: "include", cache: "no-store", signal, headers: { Accept: "application/json" } });
+  const payload = await response.json().catch(() => null) as (OrderBookSnapshot & { ok?: boolean; msg?: string; code?: string }) | null;
+  if (!response.ok || !payload || payload.ok !== true || !Array.isArray(payload.bids) || !Array.isArray(payload.asks)) {
+    throw new ApiError(payload?.msg || "Order book data is temporarily unavailable.", response.status, payload?.code);
+  }
+  return payload;
+}
+export interface SpotOrderInput { symbol: string; side: "buy" | "sell"; type: "limit"; qty: string; price: string; client_order_id: string; }
+export interface SpotOrderResult { order_id: string; status: string; price: number | string; quantity: number | string; remaining_quantity?: number | string; duplicate: boolean; }
+export async function submitSpotOrder(input: SpotOrderInput): Promise<SpotOrderResult> {
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE_URL}/order`, { method: "POST", credentials: "include", cache: "no-store", headers: { Accept: "application/json", "Content-Type": "application/json" }, body: JSON.stringify(input) });
+  } catch {
+    throw new ApiError("Order result is unconfirmed. Keep the same request ID and check order history before retrying.", 0, "NETWORK_ERROR");
+  }
+  const payload = await response.json().catch(() => null) as (SpotOrderResult & { ok?: boolean; need_login?: boolean; msg?: string; code?: string }) | null;
+  if (!response.ok || !payload || payload.ok !== true || typeof payload.order_id !== "string" || typeof payload.status !== "string") {
+    throw new ApiError(payload?.msg || "Spot order was not confirmed. Check order history before retrying.", payload?.need_login ? 401 : response.status, payload?.code);
+  }
+  return payload;
+}
+export async function cancelSpotOrder(input: { order_id: string; client_cancel_id: string }): Promise<{ order_id: string; status: string; duplicate: boolean }> {
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE_URL}/order/cancel`, { method: "POST", credentials: "include", cache: "no-store", headers: { Accept: "application/json", "Content-Type": "application/json" }, body: JSON.stringify(input) });
+  } catch {
+    throw new ApiError("Cancel result is unconfirmed. Keep the same request ID and refresh order history before retrying.", 0, "NETWORK_ERROR");
+  }
+  const payload = await response.json().catch(() => null) as { ok?: boolean; order_id?: string; status?: string; duplicate?: boolean; need_login?: boolean; msg?: string; code?: string } | null;
+  if (!response.ok || !payload || payload.ok !== true || typeof payload.order_id !== "string" || typeof payload.status !== "string") {
+    throw new ApiError(payload?.msg || "Order cancellation was not confirmed.", payload?.need_login ? 401 : response.status, payload?.code);
+  }
+  return { order_id: payload.order_id, status: payload.status, duplicate: !!payload.duplicate };
+}
+
 export interface AccountBalance {
   free: number | string;
   frozen: number | string;
