@@ -2200,6 +2200,34 @@ async function handleRequest(event, context) {
   // The client never mutates BTCBOX.account.balances directly; it refreshes
   // from /api/account after each confirmed operation.
 
+  // ---------- GET /api/seconds/policy ----------
+  if (path === 'seconds/policy' && method === 'GET') {
+    if (!user) return json({ ok: false, msg: 'Not signed in.', need_login: true }, 401);
+    if (!supabaseStorageConfigured()) {
+      return json({ ok: false, code: 'SECONDS_POLICY_UNAVAILABLE', msg: 'Short-term contract policy is temporarily unavailable.' }, 503);
+    }
+    const base = process.env.SUPABASE_URL.replace(/\/+$/, '');
+    try {
+      const rpc = await fetch(base + '/rest/v1/rpc/read_active_seconds_policy_v1', {
+        method: 'POST', headers: supabaseHeaders(), body: '{}'
+      });
+      const result = await rpc.json().catch(() => null);
+      const policy = result && result.policy;
+      const validPolicy = policy && Number.isSafeInteger(Number(policy.policy_version)) && Number(policy.policy_version) > 0 &&
+        Array.isArray(policy.symbols) && policy.symbols.length > 0 && policy.symbols.every((symbol) => SECONDS_ALLOWED_SYMBOLS.has(symbol)) &&
+        Array.isArray(policy.durations_sec) && policy.durations_sec.length > 0 && policy.durations_sec.every((duration) => SECONDS_ALLOWED_DURATIONS.has(Number(duration))) &&
+        compareMoney(policy.min_stake, '0') > 0 && compareMoney(policy.max_stake, policy.min_stake) >= 0 &&
+        Number.isSafeInteger(Number(policy.payout_bps)) && Number(policy.payout_bps) >= 8500 &&
+        (policy.per_user_open_exposure == null || compareMoney(policy.per_user_open_exposure, '0') > 0);
+      if (!rpc.ok || !result || result.ok !== true || !validPolicy) {
+        return json({ ok: false, code: 'SECONDS_POLICY_UNAVAILABLE', msg: 'Short-term contract policy is not configured or is invalid.' }, 503);
+      }
+      return json({ ok: true, policy, actions_enabled: financialWritesEnabled() });
+    } catch (_) {
+      return json({ ok: false, code: 'SECONDS_POLICY_UNAVAILABLE', msg: 'Short-term contract policy is temporarily unavailable.' }, 503);
+    }
+  }
+
   // ---------- POST /api/seconds/order ----------
   if (path === 'seconds/order' && method === 'POST') {
     if (!user) return json({ ok: false, msg: 'Not signed in.', need_login: true }, 401);
