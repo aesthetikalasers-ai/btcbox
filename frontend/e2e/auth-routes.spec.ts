@@ -109,10 +109,13 @@ test("authenticated assets page renders only the mocked account balances", async
   await page.goto("/assets");
 
   await expect(page.getByRole("heading", { name: "Assets" })).toBeVisible();
-  await expect(page.getByText("125.5 USDT", { exact: true })).toBeVisible();
+  // Incomplete valuation must never be displayed as a complete account total.
+  await expect(page.getByText("Complete valuation is unavailable; no partial total is presented as a complete balance.")).toBeVisible();
+  await expect(page.getByText("125.5", { exact: true })).toBeVisible();
   await expect(page.getByText("USDT", { exact: true })).toBeVisible();
   await expect(page.getByText("0.002", { exact: true })).toBeVisible();
-  await expect(page.getByText("Partial valuation")).toBeVisible();
+  await expect(page.getByText("Unpriced assets: BTC")).toBeVisible();
+  await expect(page.getByText("125.5 USDT", { exact: true })).toHaveCount(0);
 });
 
 test("authenticated order history renders read-only mocked order rows", async ({ page }) => {
