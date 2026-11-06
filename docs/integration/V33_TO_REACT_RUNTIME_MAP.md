@@ -1,12 +1,12 @@
 # BTCBOX runtime integration map — 2026-11-06
 
-Status: source audit / integration boundary. This document is not a claim that V33 business features are already integrated.
+Status: active integration ledger. This file separates implemented runtime work from source references and unverified items.
 
 ## Canonical target and exact source heads
 
 - Target repository: `avali9308-code/btcboxcdt`.
 - Target integration branch: `integration/btcbox-runtime-integration-20261106`.
-- Target branch currently has the same 16-commit delta as `recovery/btcbox-all-sources-20261106`, based on `main` at `14a8e361fd928626d4e350a03698135f0c49ceea`.
+- Target baseline: `main` at `14a8e361fd928626d4e350a03698135f0c49ceea`.
 - V33 business source: `avali9308-code/btcbox-v33`, branch `fix/manual-withdrawal-rpc-compat-20261106`; inspected API core blob `8141b52382888bc7a37a61b948c47d60fc08bff8`, account view blob `a6f9681cc907f8ae776ace7cde388139ae273c5e`, trading view blob `ad63fafcecf5748cc5525d5586405fce7bd56d9c`.
 - Template source pins are recorded in `docs/recovery/RESTORATION_AUDIT.md`. They are source references, not runtime imports.
 
@@ -14,9 +14,12 @@ Status: source audit / integration boundary. This document is not a claim that V
 
 - Customer runtime is React 19 + Vite under `frontend/`.
 - `backend/package.json` orchestrates Vite build then `backend/scripts/build-site.js` assembles the public output and retains legacy admin/OAuth resources.
-- `frontend/src/App.tsx` currently routes Seconds, spot order-entry, Orders, Deposit, Withdraw, Login, Register, KYC, Support and Settings to generic placeholder sections.
-- `frontend/src/lib/api.ts` exposes market, kline, account, orders and logout functions; it does not yet expose the seconds-policy/positions/order/settlement client methods.
-- `backend/api-core.js` already contains seconds order, settle and positions handlers, but the current target snapshot does not contain the V33 `admin/seconds-policy` handler or the V33 manual withdrawal `withdraw/mark-paid` completion handler.
+- `frontend/src/lib/api.ts` already exposes authenticated `getAccount()` and `getOrders()`.
+- Implemented in this integration branch:
+  - `/orders` now loads authenticated order records through `getOrders()`; includes loading, empty, sign-in-required, error and manual refresh states. It is read-only and creates no sample data.
+  - `/assets` now loads authenticated balances through `getAccount()`; displays available/frozen balances and only shows the total USDT valuation when the API marks valuation complete. Unpriced assets are called out; no seeded balances.
+- Still generic placeholder sections: Seconds, spot order-entry, Deposit, Withdraw, Earn, Login, Register, KYC, Support and Settings.
+- `backend/api-core.js` already contains seconds order, settle and positions handlers, but the current target snapshot does not contain the V33 `admin/seconds-policy` handler or V33 manual withdrawal `withdraw/mark-paid` completion handler.
 - The legacy target admin shell is not the intended finished React admin console. Do not treat the legacy Basic Auth shell as the final individual-admin-identity and role-based admin system.
 
 ## Business source mapping
@@ -43,33 +46,35 @@ Status: source audit / integration boundary. This document is not a claim that V
 
 ## Ordered implementation batches
 
-### Batch 1 — React customer routes
-- Implement Seconds page using target API contracts after adding response-shape tests for policy, open positions, history, order intent and settlement.
-- Replace the placeholder Orders page with authenticated read-only orders using existing `getOrders`.
-- Connect account/asset views to existing `getAccount`; keep unpriced assets explicit and never show seeded balances.
-- Keep spot trading, deposit and withdrawal actions disabled until their exact API contracts and safe interaction states are verified.
+### Batch 1 — customer read paths and trading
+- [x] Replace Orders placeholder with authenticated read-only order history.
+- [x] Replace Assets placeholder with authenticated balance view; hide total valuation unless complete.
+- [ ] Implement Seconds page using target API contracts after response-shape tests for policy, open positions, history, order intent and settlement.
+- [ ] Connect account/profile page; keep private identity details scoped to authenticated response.
+- [ ] Keep spot order-entry, deposit and withdrawal actions disabled until exact API contracts and safe interaction states are verified.
 
 ### Batch 2 — financial workflows
-- Add the simple manual deposit user instructions/address view, driven by admin-configured network address; do not create pending deposit orders.
-- Add withdrawal request/status view only after target API/table contract review; staff records manual payout reference after transfer.
-- Port the V33 manual-credit and payout-completion behavior to the target's canonical schema/RPCs, not its legacy JSON state.
+- [ ] Add simple manual deposit instructions/address view, driven by admin-configured network address; do not create pending deposit orders.
+- [ ] Add withdrawal request/status view only after target API/table contract review; staff records manual payout reference after transfer.
+- [ ] Port V33 manual-credit and payout-completion behavior to target canonical schema/RPCs, not its legacy JSON state.
 
 ### Batch 3 — React admin
-- Build a dedicated authenticated admin route and role-aware shell.
-- Add user lookup, balances (read-only until approved), deposit address configuration, manual credit, withdrawal review/manual payout reference, KYC, seconds policy, support, and audit-log screens.
-- Use selected user + selected asset row to bind UID/coin automatically. Require explicit confirmation and display unknown-result/reconciliation states.
-- Keep financial mutation controls visibly disabled while cutover flags remain off.
+- [ ] Build a dedicated authenticated admin route and role-aware shell.
+- [ ] Add user lookup, balances (read-only until approved), deposit address configuration, manual credit, withdrawal review/manual payout reference, KYC, seconds policy, support, and audit-log screens.
+- [ ] Use selected user + selected asset row to bind UID/coin automatically. Require explicit confirmation and display unknown-result/reconciliation states.
+- [ ] Keep financial mutation controls visibly disabled while cutover flags remain off.
 
 ### Batch 4 — proof and release readiness
-- Run canonical frontend typecheck/build, backend Node tests, SQL bootstrap in an isolated PostgreSQL instance, and API contract tests with isolated fixtures.
-- Verify responsive layouts and keyboard/accessibility behavior.
-- Record exact branch SHA and reproducible test output. No merge, production deployment, or V33 deletion until all required capabilities are integrated and verified and the user approves release.
+- [ ] Run canonical frontend typecheck/build, backend Node tests, SQL bootstrap in isolated PostgreSQL, and API contract tests with isolated fixtures.
+- [ ] Verify responsive layouts and keyboard/accessibility behavior.
+- [ ] Record exact branch SHA and reproducible test output. No merge, production deployment, or V33 deletion until all required capabilities are integrated and verified and the user approves release.
 
 ## Current evidence classification
 
-- SOURCE OBSERVED: target branch is 16 commits ahead of main and 0 behind; this is the restored source checkpoint, not proof of runtime integration.
-- SOURCE OBSERVED: target React routes listed above are placeholders; current API client has five request functions.
+- SOURCE OBSERVED: integration branch compares to main as 19 commits ahead / 0 behind at the latest comparison; main baseline is `14a8e361fd928626d4e350a03698135f0c49ceea`.
+- IMPLEMENTED (source only): Orders and Assets React routes are connected to existing authenticated read APIs; no runtime test has yet been run.
 - SOURCE OBSERVED: target API core already contains seconds order/settle/positions handlers; V33 adds the admin seconds-policy contract and manual withdrawal payout completion handler.
 - SOURCE OBSERVED: V33 contains manual deposit credit route for USDT/BTC/ETH/SOL/BNB/USDC, eight deposit network keys, and manual payout reference validation.
-- NOT VERIFIED: full recursive submodule checkout, React build/typecheck, backend tests, isolated PostgreSQL bootstrap/RPC execution, browser QA, and end-to-end Supabase connectivity.
-- NOT DONE: no business code from V33 has yet been declared integrated by this document.
+- NOT VERIFIED: frontend typecheck/build, backend tests, isolated PostgreSQL bootstrap/RPC execution, browser QA, and end-to-end Supabase connectivity.
+- CI STATUS: GitHub combined status for latest checked app commit `194bb06bafc782098b0efc3ee66116b356b18f5b` reports only a Vercel `build-rate-limit` failure; GitHub Actions returned no workflow runs. This is not a code test result.
+- NOT DONE: no V33 business logic has yet been declared fully integrated; no merge, production deployment, database write, or destructive action occurred.
