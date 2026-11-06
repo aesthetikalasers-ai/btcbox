@@ -17,7 +17,7 @@ function PageFrame({eyebrow,title,description,children}:{eyebrow:string;title:st
 }
 export function TradeHubPage(){
  const {t}=useI18n();
- const products=[{title:"Spot",desc:"Buy and sell supported digital assets at market or limit prices.",to:"/trade/BTCUSDT",icon:ChartNoAxesCombined,state:"API integration pending"},{title:"Seconds",desc:"Review your actual open positions and settled history. New order entry is not enabled yet.",to:"/seconds",icon:ArrowLeftRight,state:"Positions & history available"}];
+ const products=[{title:"Spot",desc:"Buy and sell supported digital assets at market or limit prices.",to:"/trade/BTCUSDT",icon:ChartNoAxesCombined,state:"API integration pending"},{title:"Seconds",desc:"Place policy-driven positions with independent timers and server-side settlement.",to:"/seconds",icon:ArrowLeftRight,state:"Policy-driven order entry"}];
  return <PageFrame eyebrow="BTCBOX / TRADE" title="Choose your trading mode" description="Trading interfaces are being connected to BTCBOX's existing order and position services."><div className="grid gap-4 md:grid-cols-2">{products.map(({title,desc,to,icon:Icon,state})=><Card key={title} className="border-brand-border bg-brand-surface"><CardHeader><div className="mb-2 flex h-12 w-12 items-center justify-center rounded-2xl border border-brand-accent/20 bg-brand-accent/10 text-brand-text-secondary"><Icon className="h-5 w-5"/></div><CardTitle>{t(title)}</CardTitle><CardDescription>{t(desc)}</CardDescription></CardHeader><CardContent className="flex flex-wrap items-center justify-between gap-3"><Badge variant="outline" className="max-w-full whitespace-normal text-center leading-tight border-amber-400/25 bg-amber-400/5 text-amber-200">{t(state)}</Badge><Button asChild size="sm" variant="secondary" className="shrink-0"><Link to={to}>{t("Open")} <ArrowUpRight className="h-4 w-4"/></Link></Button></CardContent></Card>)}</div><Card className="border-dashed border-brand-border bg-transparent"><CardContent className="flex min-w-0 flex-wrap items-center gap-3 p-4 sm:p-5"><LockKeyhole className="h-5 w-5 shrink-0 text-brand-text-muted"/><div className="min-w-0 flex-1"><p className="text-sm font-semibold">{t("Futures")}</p><p className="text-sm break-words text-brand-text-muted">{t("Coming soon — no supported futures service is registered in the current backend.")}</p></div><Badge variant="secondary" className="shrink-0">{t("Unavailable")}</Badge></CardContent></Card></PageFrame>;
 }
 export function AssetsPage(){
@@ -163,6 +163,7 @@ export function SecondsPage(){
   setLoading(true);setError("");setPolicyError("");
   Promise.allSettled([getAccount(controller.signal),getSecondsPositions(controller.signal),getSecondsPolicy(controller.signal)]).then(([accountResult,positionsResult,policyResult])=>{
    if(controller.signal.aborted)return;
+   let restoredIntent:SecondsOrderInput|null=null;
    if(accountResult.status==="fulfilled"){
     const nextUid=accountResult.value.uid;
     setUid(nextUid);
@@ -173,17 +174,21 @@ export function SecondsPage(){
       if(saved&&typeof saved.request_id==="string"&&/^[A-Za-z0-9_-]{16,100}$/.test(saved.request_id)&&
          ["BTC","ETH","SOL","BNB"].includes(saved.symbol)&&(saved.direction==="up"||saved.direction==="down")&&
          [30,60,300,900].includes(saved.duration_sec)&&typeof saved.amount==="string"){
-       setPendingIntent(saved);
+       restoredIntent=saved;
       }else window.localStorage.removeItem("btcbox.seconds.pending.v1."+nextUid);
-     }else setPendingIntent(null);
-    }catch{setPendingIntent(null);}
+     }
+    }catch{restoredIntent=null;}
    }else setError(accountResult.reason instanceof Error?accountResult.reason.message:"Account identity is unavailable.");
+   setPendingIntent(restoredIntent);
+   if(restoredIntent){setSymbol(restoredIntent.symbol);setDirection(restoredIntent.direction);setDuration(restoredIntent.duration_sec);setAmount(restoredIntent.amount);}
    if(positionsResult.status==="fulfilled")setSnapshot(positionsResult.value);
    else setError(positionsResult.reason instanceof Error?positionsResult.reason.message:"Seconds positions are temporarily unavailable.");
    if(policyResult.status==="fulfilled"){
     setPolicy(policyResult.value);
-    setSymbol(current=>policyResult.value.policy.symbols.includes(current)?current:policyResult.value.policy.symbols[0]);
-    setDuration(current=>policyResult.value.policy.durations_sec.includes(current)?current:policyResult.value.policy.durations_sec[0]);
+    if(!restoredIntent){
+     setSymbol(current=>policyResult.value.policy.symbols.includes(current)?current:policyResult.value.policy.symbols[0]);
+     setDuration(current=>policyResult.value.policy.durations_sec.includes(current)?current:policyResult.value.policy.durations_sec[0]);
+    }
    }else{
     setPolicy(null);
     setPolicyError(policyResult.reason instanceof Error?policyResult.reason.message:"Seconds policy is unavailable.");
