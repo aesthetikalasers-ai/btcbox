@@ -319,7 +319,7 @@ async function readFinancialAccountSnapshot(userId) {
 
 async function readSpotMarketCatalog() {
   if (!supabaseStorageConfigured()) throw new Error('Spot market catalogue unavailable');
-  const base = String(process.env.SUPABASE_URL || '').replace(/\\/+$/, '');
+  const base = String(process.env.SUPABASE_URL || '').replace(/\/+$/, '');
   if (!base) throw new Error('Spot market catalogue unavailable');
   const response = await fetch(base + '/rest/v1/rpc/read_spot_market_snapshot_v1', {
     method: 'POST', headers: supabaseHeaders(), body: '{}', signal: AbortSignal.timeout(5000)
