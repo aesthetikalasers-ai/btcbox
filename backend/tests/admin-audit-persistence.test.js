@@ -79,7 +79,10 @@ test('canonical PostgreSQL audit reader is cutover-aware, keyset-paginated, reda
   assert.match(reader, /query\.set\('action', 'eq\.' \+ params\.action\)/);
   assert.match(reader, /query\.set\('subject_user_id', 'eq\.' \+ params\.uid\)/);
   assert.match(reader, /redactAdminAuditDetail\(row\.reason \|\| ''\)/);
-  assert.doesNotMatch(reader, /metadata/);
+  assert.match(reader, /metadata/);
+  assert.match(reader, /object_type,object_id,reason,metadata/);
+  assert.match(reader, /formatAdminAuditDetail\\(row\\)/);
+  assert.doesNotMatch(reader, /metadata:\\s*row\\.metadata/);
   assert.match(source, /ADMIN_AUDIT_POSTGRES_READS_ENABLED === '1'/);
   assert.ok(source.includes("const postgresAuditReadsRequired =\n        process.env.ADMIN_AUDIT_POSTGRES_READS_ENABLED === '1' ||\n        financialPostgresReadsEnabled();"));
   const routeStart = source.indexOf("if (sub === 'audit-logs' && method === 'GET')");
@@ -251,4 +254,44 @@ test('admin audit viewer exposes canonical versus retention-limited source compl
   assert.ok(admin.includes('"State file · limited"'));
   assert.ok(admin.includes('Do not treat this list as a complete financial audit record.'));
   assert.ok(admin.includes('Audit source is not confirmed.'));
+});
+
+
+test('canonical audit details expose safe financial metadata without leaking destinations or raw metadata', () => {
+  const start = source.indexOf('function redactAdminAuditDetail(value)');
+  const end = source.indexOf('function isValidAuthEmail(value)', start);
+  assert.ok(start >= 0 && end > start);
+  const helpers = require('node:vm').runInNewContext(source.slice(start, end) + '\\n({ safeAdminAuditMetadata, formatAdminAuditDetail })');
+  const metadata = {
+    asset: 'USDT',
+    amount: '5.00000000',
+    reference: '0x' + 'a'.repeat(64),
+    operation_id: 'operation-123',
+    destination: 'TQn9Y2khEsLJW1ChVWFMSMeRDow5KcbLSE',
+    wallet: '0x' + 'b'.repeat(40),
+    email: 'private@example.com',
+    arbitrary_secret: 'must-not-appear',
+    oversized: 'x'.repeat(161)
+  };
+  const safe = helpers.safeAdminAuditMetadata(metadata);
+  assert.deepEqual(JSON.parse(JSON.stringify(safe)), {
+    asset: 'USDT',
+    amount: '5.00000000',
+    reference: '0x' + 'a'.repeat(64),
+    operation_id: 'operation-123'
+  });
+  const detail = helpers.formatAdminAuditDetail({
+    reason: 'Manual credit verified',
+    object_type: 'deposit',
+    object_id: 'MD123',
+    metadata
+  });
+  assert.ok(detail.includes('asset=USDT'));
+  assert.ok(detail.includes('amount=5.00000000'));
+  assert.ok(detail.includes('reference=0x' + 'a'.repeat(64)));
+  assert.ok(detail.includes('deposit:MD123'));
+  assert.ok(!detail.includes('TQn9Y2khEsLJW1ChVWFMSMeRDow5KcbLSE'));
+  assert.ok(!detail.includes('private@example.com'));
+  assert.ok(!detail.includes('must-not-appear'));
+  assert.ok(detail.length <= 300);
 });
