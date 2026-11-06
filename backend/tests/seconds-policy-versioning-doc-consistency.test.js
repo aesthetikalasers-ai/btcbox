@@ -12,7 +12,7 @@ const spec = fs.readFileSync(path.resolve(root, '../docs/SECONDS_POLICY_VERSIONI
 const rbac = fs.readFileSync(path.resolve(root, '../docs/SECONDS_POLICY_ADMIN_RBAC.md'), 'utf8');
 
 test('policy documentation accurately separates source implementation from hosted database state', () => {
-  assert.match(spec, /source implementation exists on the integration branch/i);
+  assert.match(spec, /implemented in the integration branch source/i);
   assert.match(spec, /hosted database application and runtime PostgreSQL verification are NOT VERIFIED/i);
   assert.match(spec, /0028_admin_rbac_service_rpc_wrappers_v1\.sql/);
   assert.match(spec, /Separate draft\/review\/scheduled activation\/retirement endpoints are not implemented/i);
@@ -41,9 +41,9 @@ test('policy and admin RPCs enforce private storage, live permission, atomic aud
 });
 
 test('Super Admin can complete policy changes alone; no three-person workflow is claimed', () => {
-  assert.match(rbac, /Super Admin.*without a three-person workflow/i);
+  assert.match(rbac, /Super Admin may complete the policy change alone/i);
   assert.match(rbac, /no three-person or distinct-author\/reviewer\/activator requirement applies/i);
   assert.match(rbac, /seconds_policy\.manage/);
-  assert.match(rbac, /verified Supabase Auth identity/i);
+  assert.match(rbac, /backend validates the token with Supabase Auth/i);
   assert.match(rbac, /Initial Super Admin bootstrap is a one-time owner-controlled database operation/i);
 });
