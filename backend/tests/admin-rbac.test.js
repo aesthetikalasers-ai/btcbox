@@ -69,3 +69,18 @@ test('delegated administrator routes are restricted to the verified Super Admin 
   const manageRoute = apiSource.slice(apiSource.indexOf("if (sub === 'admins/manage'"), apiSource.indexOf('const requiredPermission'));
   assert.ok(!manageRoute.includes('body.actor_user_id'));
 });
+
+
+test('manual credit intent is account-scoped, reload-safe, and never stores credentials', () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const admin = fs.readFileSync(path.resolve(__dirname, '../../frontend/src/features/admin/AdminPage.tsx'), 'utf8');
+  assert.ok(admin.includes('btcbox.admin.manual-credit.v1.'));
+  assert.ok(admin.includes('window.localStorage.setItem(storageKey, JSON.stringify(intent))'));
+  assert.ok(admin.includes('window.localStorage.getItem(key)'));
+  assert.ok(admin.includes('idempotency_key: stableRequestId'));
+  assert.ok(admin.includes('creditPendingInvalid'));
+  assert.ok(admin.includes('if (!creditAccepted && reason instanceof ApiError'));
+  assert.ok(!admin.includes('fund_password') && !admin.includes('twofa_code'));
+  assert.ok(admin.includes('if (!/^(?:0|[1-9]\\d*)(?:\\.\\d{1,18})?$/.test(amount) || /^0(?:\\.0*)?$/.test(amount))'));
+});
