@@ -16,6 +16,7 @@ function extractFunction(name, context = {}) {
 const normalize = extractFunction('normalizeBtcboxUsername');
 const validUsername = extractFunction('validateBtcboxUsername');
 const validPassword = extractFunction('validateBtcboxLoginPassword');
+const authProvider = extractFunction('getSingleSupabaseAuthProvider');
 const linked = extractFunction('isSupabaseIdentityLinked');
 const linkedIds = extractFunction('getUserLinkedIdentityIds');
 const validSupabaseId = extractFunction('isSupabaseUserId');
@@ -39,6 +40,21 @@ test('BTCBOX login password policy rejects short, oversized and control-characte
   assert.equal(validPassword('safe\nunsafe-password'), false);
   assert.equal(validPassword(null), false);
 });
+test('Supabase sign-in accepts Google and Web3 identities but rejects email identities', () => {
+  const identity = (provider) => ({
+    app_metadata: { provider, providers: [provider] },
+    identities: [{ provider }],
+  });
+  assert.equal(authProvider(identity('google')), 'google');
+  assert.equal(authProvider(identity('web3')), 'web3');
+  assert.equal(authProvider(identity('email')), null);
+  assert.equal(authProvider({
+    app_metadata: { provider: 'google', providers: ['google', 'email'] },
+    identities: [{ provider: 'google' }, { provider: 'email' }],
+  }), null);
+  assert.equal(authProvider({ app_metadata: { provider: 'web3', providers: ['web3'] }, identities: [] }), null);
+});
+
 
 test('Supabase identity lookup accepts legacy primary IDs and explicitly linked IDs only', () => {
   const user = { supabase_user_id: 'primary-id', supabase_user_ids: ['primary-id', 'linked-id'] };
