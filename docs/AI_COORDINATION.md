@@ -2296,3 +2296,21 @@ Application branch inspected: `feat/btcbox-web3-auth-20261105` at `741c709d818cb
 - The private schema is intentionally not exposed to PostgREST. The service-role function grants alone do not make private RPCs callable through REST. Before integration, choose and test a trusted invocation path (dedicated direct DB connection or a narrowly reviewed SECURITY INVOKER public wrapper) without exposing private schema or granting direct table DML.
 - The trusted backend must validate Supabase Auth first and derive actor UUID from the Auth response; never trust a caller-supplied actor ID. The SQL transition functions rely on that trusted-server boundary.
 - Do not apply `0026` to production. Next step is isolated-staging SQL/catalog/adversarial validation, then a parallel API integration and tests; preserve legacy Basic Auth until that new path is proven. No merge to main or production deployment.
+
+## Current user decisions — authoritative correction (2026-11-06 UTC+8)
+
+### Professional trading terminal layout
+- The current approved professional trading terminal baseline is **V211**. V161 is historical context only and must not be treated as the current layout baseline.
+- Future trading-page work must preserve V211's approved structure and visual direction. Do not revert to V161 or to the older simplified page.
+- The user has authorized necessary, carefully scoped trading-page layout/interaction refinements; make one bounded change at a time and inspect it before proceeding. Do not infer permission for a wholesale redesign or changes to trading/financial business logic.
+- Before any trading-page edit, inspect the actual V211 source/snapshot and record the exact path/commit evidence. If V211 cannot be positively identified in the repository, stop and report the missing source rather than guessing what V211 contains.
+
+### Administrator authority model
+- The authoritative product model is one owner-controlled **Super Admin** with all backend administrator permissions.
+- Super Admin alone may create, configure, suspend, reactivate, and revoke ordinary Admin accounts and their explicit allowlisted permissions. Ordinary Admins cannot manage administrators or elevate their own permissions.
+- Do **not** require three distinct people as author, reviewer, and activator. Mandatory three-person/separation-of-duties approval is superseded and is not a product requirement.
+- Preserve technical safeguards: validated Supabase Auth identity, live server-side membership/permission checks, immutable policy versions/snapshots where relevant, revision checks, idempotency, transactional audit, and fail-closed financial controls. These safeguards do not reintroduce a multi-person approval requirement.
+- Staging remains mandatory before applying database migrations, provisioning live administrators, or activating runtime RBAC against Supabase. No production database experiments.
+
+### Conflict resolution
+- This section supersedes any older coordination text that describes V161 as the current terminal baseline or mandates three-person seconds-policy approval. When older notes conflict, follow V211 and the single-Super-Admin model above.
