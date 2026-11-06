@@ -1917,3 +1917,20 @@ Application branch inspected: `feat/btcbox-web3-auth-20261105` at `741c709d818cb
 - Resolve the actual business minimum stake from the approved product configuration before treating the numeric precision floor as the commercial minimum.
 - Continue admin actor/RBAC design before any policy draft/activation write route or editor is added.
 - Keep financial cutover closed; no merge/deploy until the exact migration chain, RPC invariants, and CI evidence are independently verified.
+
+
+## Seconds stake-boundary source verification — 2026-11-06
+
+### IMPLEMENTED (source only)
+- Re-read coordination HEAD `d8e42b4f112a83f6277f4a788a48ad13283edfc3` and feature HEAD `048d3c224baf089751cecc9d7a98d39c5d329c1c`.
+- Inspected the live source order handler, decimal parser, authoritative-rules test and historical `0014` / `0015` migrations.
+- Confirmed the existing API has no separate commercial minimum stake: it rejects null/non-positive amounts, caps at 1,000,000,000,000, accepts up to 18 fractional decimal places, and keeps money as decimal strings / BigInt comparisons rather than IEEE-754.
+- Therefore the seeded policy minimum `0.000000000000000001` represents the smallest positive amount representable by the current `numeric(38,18)` schema and API parser; it is not evidence of a commercial minimum chosen by product management.
+- Added source-level regression coverage for this boundary and the seeded max/payout baseline.
+- Feature commit: `5594e7450977a76423bc4cd7398c0f2beaed10b4`; test blob: `dcda51dea6833c6bebc8435242a0710460df7176`.
+
+### NOT VERIFIED / NEXT
+- No Node test run or CI workflow result is available for the new commit; source assertions remain unexecuted.
+- Supabase currently reports no database branches for project `zlozsutefnmgwwzrlipt`; no isolated staging branch was available in the read-only branch inventory. Do not run migrations against the production project as a substitute.
+- Next batch: obtain a separately provisioned staging database or approved development branch; validate the complete prerequisite chain and execute SQL tests there. Continue admin identity/RBAC design separately; do not create write endpoints using the shared Basic Auth actor.
+- No production schema/data changed, no financial cutover, merge or deployment.
