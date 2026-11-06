@@ -3028,3 +3028,17 @@ The prior withdrawal UI audit statement claiming the active BTCBOX admin route w
 - The subsequent `0335bef...` documentation-only commit updates the Admin Spot Market API handoff and does not change the tested source code.
 - Still NOT VERIFIED: hosted Supabase installation, first Super Admin provisioning against real Auth users, browser E2E for the new Admin panel, live market-price/provider connectivity, real network deposits/payouts and production release. KYC document-image upload and secure evidence storage/review remain incomplete.
 - No hosted DB write/bootstrap, real financial operation, production deployment or merge to `main` was performed.
+
+## Latest spot market concurrency and resting-order safety batch — 2026-11-06 12:41 UTC
+
+- Current PR #50 exact head: `b17847aaaa79de8a8b4d52a7279537b3d5a438ee`; based on main `fa4513701af75b4c4cb39d60a3df08f07d632af4`; 119 commits ahead / 0 behind. PR remains Draft, open, mergeable and unmerged.
+- SOURCE GAP: spot order submission read enabled-market rules before acquiring the per-market advisory lock. An admin market update could race with a submission, allowing a request to continue using stale rules after the admin transition.
+- FIXED in `backend/supabase/sql/0008_financial_matching_engine_v1.sql`: order submission now acquires a user-scoped client-order request lock and then the per-market lock before reading current market rules. Existing request identity is replayed before checking current enabled state, so an exact retry still returns the committed order after a market pause.
+- FIXED in `backend/supabase/sql/0028_admin_rbac_service_rpc_wrappers_v1.sql`: admin market changes acquire the same per-market advisory lock. Changes to tick, quantity step, minimum quantity/notional or absolute price bounds are rejected while open/partially filled orders remain. Enable/disable-only transitions remain available; users can still cancel resting orders while the market is paused.
+- Added PostgreSQL integration checks proving that a rule change is rejected without mutating the market while a resting order exists, and that an exact committed order retry still replays after the pair is disabled. Static tests verify lock ordering and the rule guard. Updated `docs/ADMIN_SPOT_MARKET_API.md`.
+- TEST PASSED on exact head `b17847aaaa79de8a8b4d52a7279537b3d5a438ee`:
+  - Backend CI run `42219441921`: unified build, **316/316 tests**, fail-closed preflight and output/entrypoint checks passed.
+  - Frontend CI run `42219441986`: lint and production build passed.
+  - PostgreSQL schema CI run `42219442171`: all 22 canonical SQL files applied to disposable PostgreSQL 16; RLS/grants verified; manual deposit, withdrawal fee/review/payout, spot matching/cancel/admin market, market-rule lock/guard, post-pause exact replay, and 85%/92% Seconds snapshot/settlement checks passed. Integration transaction ended with `ROLLBACK`.
+- Still NOT VERIFIED: hosted Supabase installation, first Super Admin provisioning against real Auth users, browser E2E for Admin Spot Markets and broader flows, live market-price/provider connectivity, real network deposits/payouts and production release. KYC document-image upload and secure evidence storage/review remain incomplete.
+- No hosted database write/bootstrap, real financial operation, production deployment or merge to `main` was performed.
