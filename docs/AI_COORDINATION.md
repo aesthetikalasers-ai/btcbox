@@ -2881,3 +2881,15 @@ The prior withdrawal UI audit statement claiming the active BTCBOX admin route w
 - TEST PASSED: latest head `d5d736ce8497755ec1b1897253f66b1b991f438e` completed backend CI run 384 (unified build, Node tests, fail-closed preflight, output/entrypoint checks) and frontend CI run 248 (lint and build). This is GitHub Actions evidence for this exact SHA; it does not validate hosted PostgreSQL execution or browser E2E.
 - NOT VERIFIED: PostgreSQL execution of the SQL migrations, full bootstrap against a disposable empty PostgreSQL instance, browser end-to-end flows, and live Supabase connectivity.
 - Safety unchanged: no hosted database write/bootstrap, financial cutover enablement, merge to `main`, or deployment was performed. All financial writes and matching remain fail-closed during QA.
+
+## Post-merge follow-up checkpoint — 2026-11-06 (UTC)
+
+- GitHub reports PR #49 was merged at 2026-11-06 11:08 UTC to main as merge commit `fa4513701af75b4c4cb39d60a3df08f07d632af4`. This merge was not initiated by the assistant.
+- Follow-up source changes were transferred onto a new branch based on that main SHA: `fix/post-merge-db-bootstrap-seconds-20261106`, draft PR #50.
+- Latest PR #50 head: `62b49f68e17c44fbd5f842eabefdbde75194b458`.
+- Fixed empty-database bootstrap escaped shell variables and remote-host substring matching. Added regression coverage for real variable expansion, remote URLs containing a misleading localhost query string, and exact SQL-file allowlist parity.
+- Fixed the inverted policy symbol allowlist predicate in `0028_admin_rbac_service_rpc_wrappers_v1.sql`; added regression coverage.
+- Reconciled migration and Seconds policy/RBAC docs with source reality. The shipped policy operation is one atomic create-and-activate action; Super Admin can perform it alone; no three-person requirement.
+- Latest SHA CI passed: backend run 400 with 301/301 tests, unified build, fail-closed preflight and entrypoint checks; frontend run 264 with lint/build.
+- NOT VERIFIED: SQL chain execution against a disposable empty PostgreSQL instance; hosted Supabase schema installation; first Super Admin provisioning; browser E2E.
+- No hosted database write/bootstrap, production deployment or further main merge was performed. PR #50 remains Draft.
