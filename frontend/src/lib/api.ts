@@ -843,6 +843,20 @@ export interface AdminConfig {
   withdrawal_fees: Record<string, string>;
   announcement: string;
 }
+export interface AdminSpotMarket {
+  base_asset: string;
+  quote_asset: string;
+  enabled: boolean;
+  price_tick: string | number;
+  quantity_step: string | number;
+  min_quantity: string | number;
+  min_notional: string | number;
+  min_limit_price?: string | number | null;
+  max_limit_price?: string | number | null;
+  maker_fee_rate?: string | number;
+  taker_fee_rate?: string | number;
+  updated_at?: string;
+}
 export interface AdminKycRecord {
   uid: string;
   email: string;
@@ -908,6 +922,17 @@ export async function getAdminWithdrawals(token: string, signal?: AbortSignal) {
 }
 export async function getAdminConfig(token: string, signal?: AbortSignal) {
   return adminRequest<AdminConfig & { ok: true }>(token, "admin/config", { signal });
+}
+export async function getAdminSpotMarkets(token: string, signal?: AbortSignal) {
+  return adminRequest<{ ok: true; markets: AdminSpotMarket[] }>(token, "admin/spot-markets", { signal });
+}
+export async function saveAdminSpotMarket(token: string, input: {
+  base_asset: string; quote_asset: string; enabled: boolean;
+  price_tick: string; quantity_step: string; min_quantity: string; min_notional: string;
+  min_limit_price: string | null; max_limit_price: string | null;
+  reason: string; request_id: string;
+}) {
+  return adminRequest<{ ok: true; market: AdminSpotMarket; replayed?: boolean }>(token, "admin/spot-markets", { method: "POST", body: input });
 }
 export async function getAdminSecondsPolicy(token: string, signal?: AbortSignal) {
   return adminRequest<{ ok: true; policy: SecondsPolicySnapshot }>(token, "admin/seconds-policy", { signal });
