@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 import { useEffect, useState, type FormEvent } from "react";
 import { RefreshCw, TrendingUp, TrendingDown, Clock3, ShieldAlert, Send, MessageCircle } from "lucide-react";
-import { ApiError, getAccount, getOrders, getSecondsPositions, getSupportMessages, sendSupportMessage, getDepositAddress, getSavedCryptoAddresses, getSelectedCryptoAddress, getWithdrawalConfig, submitWithdrawal, getEarnCatalog, submitEarnAction, type EarnProduct, type EarnPosition, type SavedCryptoAddress, type AccountBalance, type AccountSnapshot, type OrderRecord, type SecondsPositionsSnapshot, type SupportMessage, type SelectedCryptoAddress, type WithdrawalConfig } from "../../lib/api";
+import { ApiError, getAccount, getOrders, getSecondsPositions, getSupportMessages, sendSupportMessage, getDepositAddress, getSavedCryptoAddresses, getSelectedCryptoAddress, getWithdrawalConfig, submitWithdrawal, getEarnCatalog, submitEarnAction, type EarnProduct, type EarnPosition, type SavedCryptoAddress, type AccountBalance, type AccountSnapshot, type OrderRecord, type SecondsPositionsSnapshot, type SupportMessage, type SelectedCryptoAddress, type WithdrawalConfig, type WithdrawalRecord } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
 
 import type { ReactNode } from "react";
@@ -474,6 +474,11 @@ export function WithdrawPage(){
      <Button type="submit" disabled={!canSubmit}>{submitting?t("Submitting…"):requestId?t("Retry same request"):t("Submit for staff review")}</Button>
      {requestId?<p className="break-all text-xs text-amber-300">{t("Request result is not yet confirmed. Keep this form unchanged and retry with the same request ID.")} · {requestId}</p>:null}
     </form>}
+   </CardContent></Card>
+
+   <Card className="border-brand-border bg-brand-surface"><CardHeader><CardTitle>{t("Withdrawal history")}</CardTitle><CardDescription>{t("Track staff review and manual payout completion. Approval does not mean the transfer has been sent.")}</CardDescription></CardHeader><CardContent className="space-y-2">
+    {account?.withdrawals?.length?account.withdrawals.slice().reverse().map((item:WithdrawalRecord)=> <div key={item.id} className="flex flex-wrap items-start justify-between gap-3 rounded-xl border border-brand-border p-3"><div className="min-w-0"><p className="font-semibold">{item.amount} {item.coin} · {item.network||"—"}</p><p className="mt-1 break-all text-xs text-brand-text-muted">{item.address||"—"}</p><p className="mt-1 text-xs text-brand-text-muted">{item.time||item.paid_at||"—"}</p>{item.payout_reference||item.txid?<p className="mt-1 break-all text-xs text-brand-text-muted">TxID / reference: {item.payout_reference||item.txid}</p>:null}</div><Badge variant={item.status==="completed"?"outline":item.status==="rejected"?"destructive":"secondary"}>{item.status}</Badge></div>)
+    :<p className="rounded-xl border border-dashed border-brand-border p-5 text-sm text-brand-text-muted">{t("No withdrawal requests have been returned for this account.")}</p>}
    </CardContent></Card>
 
    <Card className="border-brand-border bg-brand-surface"><CardHeader><CardTitle>{t("Saved crypto addresses")}</CardTitle><CardDescription>{t("Full addresses are only retrieved for the address selected for withdrawal.")}</CardDescription></CardHeader><CardContent className="space-y-2">
