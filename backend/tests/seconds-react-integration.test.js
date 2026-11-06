@@ -10,30 +10,40 @@ const page = read('frontend/src/features/pages/Pages.tsx');
 const app = read('frontend/src/App.tsx');
 const backend = fs.readFileSync(path.join(root, 'api-core.js'), 'utf8');
 
-test('React seconds page reads authenticated positions with strict response validation', () => {
+test('React Seconds page loads the server policy and validates the complete positions snapshot', () => {
+  assert.match(api, /export async function getSecondsPolicy\(signal\?: AbortSignal\)/);
+  assert.match(api, /readAuthenticated<SecondsPolicyResponse.*>\("seconds\/policy", signal\)/);
+  assert.match(api, /INVALID_SECONDS_POLICY/);
   assert.match(api, /export async function getSecondsPositions\(signal\?: AbortSignal\)/);
-  assert.match(api, /readAuthenticated<SecondsPositionsSnapshot.*>\("seconds\/positions", signal\)/);
   assert.match(api, /INVALID_SECONDS_POSITIONS_RESPONSE/);
-  assert.match(api, /INVALID_SECONDS_CUTOVER_RESPONSE/);
   assert.match(api, /payload\.open\.every\(isSecondsPosition\)/);
-  assert.match(api, /payload\.history\.every/);
+  assert.match(page, /getSecondsPolicy\(controller\.signal\)/);
 });
 
-test('seconds React route is authenticated and read-only while cutover is incomplete', () => {
+test('React Seconds order entry persists a stable request and retries only the same intent until confirmed', () => {
   assert.match(app, /<Route path="\/seconds" element=\{<ProtectedAccountRoute><SecondsPage \/><\/ProtectedAccountRoute>\}/);
-  assert.match(page, /snapshot\?\.cutover_incomplete/);
-  assert.match(page, /empty response does not mean you have no positions/i);
-  assert.match(page, /No orders can be placed or settled from this page/);
-  assert.doesNotMatch(page, /fetch\([^\n]*seconds\/(order|settle)/);
-  assert.doesNotMatch(api, /fetch\([^\n]*seconds\/(order|settle)/);
+  assert.match(api, /export async function submitSecondsOrder/);
+  assert.match(page, /btcbox\.seconds\.pending\.v1\./);
+  assert.match(page, /window\.crypto\.randomUUID\(\)/);
+  assert.match(page, /Retry same request/);
+  assert.match(page, /const confirmed=latest\.open\.some/);
+  assert.match(page, /policy\?\.actions_enabled/);
+  assert.doesNotMatch(page, /No orders can be placed or settled from this page/);
 });
 
-test('seconds backend continues to fail closed for financial writes', () => {
+test('each mature position is settled independently by the server endpoint', () => {
+  assert.match(api, /export async function settleSecondsPosition/);
+  assert.match(page, /snapshot\.open\.map\(position=>/);
+  assert.match(page, /request_id:"settle_"\+position\.position_id/);
+  assert.match(backend, /if \(path === 'seconds\/settle' && method === 'POST'\)/);
+  assert.match(backend, /fetchSecondsReferencePrice\(symbol\)/);
+});
+
+test('Seconds order and settlement writes remain fail-closed behind backend financial cutover', () => {
   const order = backend.indexOf("if (path === 'seconds/order' && method === 'POST')");
   const settle = backend.indexOf("if (path === 'seconds/settle' && method === 'POST')");
   const positions = backend.indexOf("if (path === 'seconds/positions' && method === 'GET')");
   assert.ok(order >= 0 && settle > order && positions > settle);
   assert.match(backend.slice(order, settle), /if \(!financialWritesEnabled\(\)\)/);
   assert.match(backend.slice(settle, positions), /if \(!financialWritesEnabled\(\)\)/);
-  assert.match(backend.slice(positions, positions + 1000), /cutover_incomplete: true/);
 });
