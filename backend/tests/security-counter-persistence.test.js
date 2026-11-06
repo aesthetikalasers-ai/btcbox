@@ -28,17 +28,16 @@ test('withdrawal fund-password failure and reset counters fail closed before fin
   assert.ok(route.indexOf('reset persist failed') < route.indexOf('financialWritesEnabled()'));
 });
 
-test('administrator authentication fails closed if lockout counter persistence fails', () => {
+test('administrator authentication fails closed when Supabase identity or membership lookup fails', () => {
   const start = source.indexOf('async function adminAuth()');
-  const end = source.indexOf("\n  if (path.startsWith('admin/'))", start);
+  const end = source.indexOf("\\n  if (path.startsWith('admin/'))", start);
   assert.ok(start >= 0 && end > start);
   const auth = source.slice(start, end);
-  assert.match(auth, /persistenceUnavailable: true/);
-  assert.match(auth, /\[admin-lock\] reset persist failed:/);
-  assert.match(auth, /\[admin-lock\] persist failed:/);
-  assert.doesNotMatch(auth, /persist failed \(best-effort\)/);
-  const routeStart = end;
-  const route = source.slice(routeStart, routeStart + 900);
-  assert.match(route, /adminAuthResult\.persistenceUnavailable/);
-  assert.match(route, /code: 'SECURITY_STATE_UNAVAILABLE'/);
+  assert.match(auth, /authorizeSupabaseAdmin/);
+  assert.match(auth, /if \(!delegated\.ok\)/);
+  assert.match(auth, /delegated\.status/);
+  assert.doesNotMatch(auth, /ADMIN_USER|ADMIN_PASS|Basic /);
+  const route = source.slice(end, end + 1200);
+  assert.match(route, /ADMIN_UNAUTHENTICATED/);
+  assert.match(route, /status === 503/);
 });
