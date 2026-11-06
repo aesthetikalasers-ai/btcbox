@@ -2228,3 +2228,23 @@ Application branch inspected: `feat/btcbox-web3-auth-20261105` at `741c709d818cb
 - Feature commit: `6dfd82cfb69b1a39e7acc2666366309219733398`. This remains a design/source-contract milestone only; no runtime authorization code, admin UI, database schema, migration, membership, or grant has been implemented.
 - Financial permissions do not bypass existing backend cutover flags, transaction RPCs, balance invariants, idempotency, security checks, or audit.
 - Exact-SHA backend CI is pending; no result is claimed until completion. No Supabase writes, merge, or production deployment.
+
+
+## Runtime RBAC policy-helper foundation — 2026-11-06 (UTC+8)
+
+### Product authority model (supersedes earlier contradictory notes)
+- One owner-controlled Super Admin has all backend admin permissions and is the only authority allowed to provision ordinary Admin accounts and grant/change/suspend/revoke their permissions.
+- Ordinary Admins receive explicit permissions from the closed allowlist only. They cannot manage administrators or change Super Admin authority.
+- Super Admin can complete seconds-policy management without a mandatory three-person author/reviewer/activator process.
+- Any older notes in this document requiring two-person bootstrap, three-person policy approval, or requiring all RBAC work to wait for staging are superseded as product requirements. Staging remains mandatory before database migrations, live administrator provisioning, or runtime activation against Supabase.
+
+### Implemented source in feature branch
+- Feature commit: `dd009a154a4dca8cdc2093f78e8bcd366a17d1e3`.
+- Added `backend/admin-rbac.js` with a closed permission catalogue, strict normalization (unknown, wildcard, malformed, duplicate values rejected), active-membership checks, Super Admin full permission behavior, and exclusive administrator-management capability.
+- Added `backend/tests/admin-rbac.test.js` covering allowlist integrity, grant normalization, Super Admin access, least-privilege Admin access, suspended/revoked fail-closed behavior, and resistance to request-shaped role fields.
+- The module is intentionally a pure policy-helper layer. It does NOT authenticate tokens, load membership from a protected database, expose routes, provision users, persist grants, or replace the legacy shared Basic Auth admin login. It must only be called with membership data obtained from a trusted server-side source after trusted Auth validation.
+- Existing admin routes are unchanged in this batch. No financial permissions bypass transaction/cutover controls.
+
+### Validation / release boundary
+- Exact-SHA GitHub Actions run lookup currently returns zero runs for `dd009a154a4dca8cdc2093f78e8bcd366a17d1e3`; tests have not been executed in CI yet. No pass claimed.
+- No Supabase database writes, migration, live admin account, permission grants, merge to main, or production deployment.
