@@ -2503,10 +2503,11 @@ async function handleRequest(event, context) {
     if (adminAuthResult && adminAuthResult.authMode === 'supabase') {
       const permissionByRoute = {
         stats: 'dashboard.read',
-        users: 'users.read', user: 'users.read', 'user/balance': 'users.read',
+        users: 'users.read', user: 'users.read', 'user/balance': 'financial_adjustment.request',
         'user/freeze': 'users.freeze', 'user/reset-pwd': 'users.manage', 'user/reset-email': 'users.manage',
         kyc: 'kyc.read', 'kyc/approve': 'kyc.review', 'kyc/reject': 'kyc.review',
         'deposit/confirm': 'deposits.review',
+        withdrawals: 'withdrawals.read', orders: 'orders.read', 'support/messages': 'support.read',
         'withdraw/approve': 'withdrawals.review', 'withdraw/reject': 'withdrawals.review', 'withdraw/mark-paid': 'withdrawals.review',
         push: 'announcements.manage', 'support/reply': 'support.reply',
         addresses: 'deposits.read', 'address/manage': 'system_config.write',
