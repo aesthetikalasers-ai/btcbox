@@ -47,3 +47,14 @@ test('Super Admin can complete policy changes alone; no three-person workflow is
   assert.match(rbac, /backend validates the token with Supabase Auth/i);
   assert.match(rbac, /Initial Super Admin bootstrap is a one-time owner-controlled database operation/i);
 });
+
+test('PostgreSQL lifecycle coverage proves old and new positions use their own payout snapshots', () => {
+  const lifecycle = fs.readFileSync(path.join(root, 'tests/postgres-financial-lifecycle.integration.sql'), 'utf8');
+  assert.match(migration, /v_payout_bps:=coalesce\(v_pos\.payout_bps_snapshot,8500\)/i);
+  assert.match(migration, /round\(v_pos\.amount\*v_payout_bps\/10000,18\)/i);
+  assert.match(lifecycle, /Raise the payout rate for new positions/i);
+  assert.match(lifecycle, /v_payout_bps<>8500/);
+  assert.match(lifecycle, /v_payout_bps<>9200/);
+  assert.match(lifecycle, /pnl\)::numeric<>9\.2/);
+  assert.match(lifecycle, /available<>117\.7/);
+});
