@@ -87,7 +87,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => window.removeEventListener("eip6963:announceProvider", onAnnounceProvider);
   }, []);
 
+  const isAdminAuthFlow = () => typeof window !== "undefined" && (
+    window.location.pathname.startsWith("/admin") ||
+    new URLSearchParams(window.location.search).get("next") === "/admin"
+  );
+
   const setSignedIn = useCallback(async () => {
+    if (isAdminAuthFlow()) {
+      const client = clientRef.current;
+      if (!client) throw new Error("Authentication is still initializing.");
+      const { data, error: userError } = await client.auth.getUser();
+      if (userError || !data.user) throw userError || new Error("Supabase administrator identity is unavailable.");
+      setEmail(data.user.email || "");
+      setNeedsCredentials(false);
+      setTempToken("");
+      setStatus("authenticated");
+      return;
+    }
     const account = await getAccount();
     setEmail(account.email || "");
     setNeedsCredentials(!account.username || account.has_login_password !== true);
@@ -96,6 +112,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const acceptSupabaseSession = useCallback(async (accessToken: string) => {
+    if (isAdminAuthFlow()) { await setSignedIn(); return; }
     if (exchangeLock.current) return;
     exchangeLock.current = true;
     try {
@@ -358,7 +375,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!clientRef.current) throw new Error("Authentication is still initializing. Please try again.");
       const { error: authError } = await clientRef.current.auth.signInWithOAuth({
         provider: "google",
-        options: { redirectTo: window.location.origin + "/auth/react-callback", queryParams: { prompt: "select_account" } },
+        options: { redirectTo: window.location.origin + (isAdminAuthFlow() ? "/auth/react-callback?next=%2Fadmin" : "/auth/react-callback"), queryParams: { prompt: "select_account" } },
       });
       if (authError) throw authError;
     } catch (cause) {
