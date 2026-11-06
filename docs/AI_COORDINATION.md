@@ -2001,3 +2001,19 @@ Application branch inspected: `feat/btcbox-web3-auth-20261105` at `741c709d818cb
 - Before runtime implementation, obtain an isolated staging database and approve the initial administrator enrollment procedure, exact permission grantors, and recovery operators.
 - Inspect existing schema privileges/exposed schemas and the complete prerequisite migration chain in that isolated environment; then create the governance migration through the supported Supabase CLI workflow.
 - Keep shared Basic Auth admin behavior unchanged and do not expose seconds-policy writes until verified identity, permission lookup, transition RPCs, and audit atomicity pass isolated tests.
+
+## Seconds policy migration SQL syntax correction — 2026-11-06 (UTC+8)
+
+### IMPLEMENTED (source only)
+- Re-read feature HEAD `904547a8dfbbb842a58be71ae3d7910f10f23c90` and coordination HEAD `1966033fc61a211f86c2645aeb860a6f6fe8070f`; inspected migration `0025_seconds_policy_versioning_v1.sql` and its existing Node source tests.
+- Found a missing statement terminator after the active-policy SELECT in `submit_seconds_order_v1`. The PL/pgSQL `IF NOT FOUND` branch followed the SELECT without a semicolon, making the migration source syntactically invalid.
+- Added the missing semicolon without changing policy lookup semantics, transaction ordering, financial ledger behavior, or policy snapshot logic.
+- Added a regression source assertion that the active-policy SELECT terminates before the `IF NOT FOUND` branch.
+
+### NOT VERIFIED
+- This is a static source correction. No PostgreSQL parser, isolated staging database, Node test run, or CI workflow result is available in this turn; therefore SQL runtime validity is NOT VERIFIED.
+- No migration was applied, no production or staging database was modified, no financial write/cutover, merge, or deployment occurred.
+
+### NEXT
+- Obtain an isolated Supabase development branch or separately provisioned staging project before executing any migration.
+- Inspect the exact prerequisite migration chain and validate migration 0025 with PostgreSQL, then test order/settlement and ledger invariants. Do not use production as a substitute for staging.
