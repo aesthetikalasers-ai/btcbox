@@ -2849,3 +2849,14 @@ The prior withdrawal UI audit statement claiming the active BTCBOX admin route w
 - The first PR #29 CI run failed because several existing tests still imported the retired `0015` SQL artifact, the migration checker treated retired sequence 15 as a missing file, and the isolated API harness did not map the new admin helper imports.
 - Updated the Seconds server-authoritative test to validate the current policy RPC in `0025`, marked sequence 15 as intentionally retired in the static checker, aligned the settlement prerequisite wording, and synchronized the isolated API test harness with the admin helper imports.
 - These are test/validation corrections only; no database operation or production change was performed. CI must rerun on the new exact PR head before merge.
+
+
+## 2026-11-06 consolidated platform integration candidate
+
+- Consolidates the recovered customer React routes, Supabase Auth, verified administrator identity/RBAC, React admin console, manual financial operations, Seconds active policy read, multi-position order entry, and per-position server settlement.
+- The admin console uses the verified Supabase identity and permission-filtered APIs; user manual credit is initiated from a selected user record, not by manually typing a UID.
+- Seconds order entry reads the active backend policy, persists a per-user idempotent request intent, renders all concurrent open positions, and requests server settlement for each mature position. The backend retains trusted price sampling and ledger writes.
+- Seconds payout policy enforces an 85% floor only; it does not impose a fixed 100% ceiling. Existing positions retain the policy snapshot captured at order creation.
+- The admin UI currently covers overview, user search, manual credit, deposit addresses, withdrawals/manual payout reference, KYC, support, audit, and system config. Dedicated Seconds policy editing and administrator-membership management remain not implemented; do not represent those as complete.
+- No database reset, production database write, real financial operation, or production deployment was performed.
+- Candidate merge gates: exact-head frontend/backend CI, isolated fresh-schema validation, and browser QA.
