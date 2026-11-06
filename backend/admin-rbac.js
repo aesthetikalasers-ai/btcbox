@@ -16,23 +16,17 @@ const ADMIN_PERMISSION_KEYS = Object.freeze([
   'financial_audit.read', 'financial_adjustment.request'
 ]);
 const ADMIN_PERMISSION_SET = new Set(ADMIN_PERMISSION_KEYS);
-
 function normalizeAdminPermissionSet(input) {
   if (!Array.isArray(input)) return { ok: false, code: 'INVALID_PERMISSION_SET', permissions: [] };
-  const normalized = [];
-  const seen = new Set();
+  const normalized = [], seen = new Set();
   for (const item of input) {
-    if (typeof item !== 'string' || !ADMIN_PERMISSION_SET.has(item)) {
-      return { ok: false, code: 'UNKNOWN_ADMIN_PERMISSION', permissions: [] };
-    }
+    if (typeof item !== 'string' || !ADMIN_PERMISSION_SET.has(item)) return { ok: false, code: 'UNKNOWN_ADMIN_PERMISSION', permissions: [] };
     if (seen.has(item)) return { ok: false, code: 'DUPLICATE_ADMIN_PERMISSION', permissions: [] };
-    seen.add(item);
-    normalized.push(item);
+    seen.add(item); normalized.push(item);
   }
   normalized.sort();
   return { ok: true, permissions: normalized };
 }
-
 // membership must originate from the protected server-side store after the
 // request's Supabase Auth token has been verified by the trusted Auth server.
 function hasAdminPermission(membership, permission) {

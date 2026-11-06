@@ -128,6 +128,12 @@ export interface AccountBalance {
 export interface AccountSnapshot {
   uid: string;
   email: string;
+  username?: string;
+  has_login_password?: boolean;
+  auth_providers?: string[];
+  linked_identities?: Array<{ provider: string; wallet_address?: string; wallet_chain?: string; linked_at?: string }>;
+  wallet_address?: string;
+  wallet_chain?: "ethereum" | "solana" | "";
   balances: Record<string, AccountBalance>;
   totalUsdt: number;
   valuation_complete: boolean;
@@ -193,6 +199,62 @@ export async function getOrders(signal?: AbortSignal): Promise<OrderRecord[]> {
   return payload.orders;
 }
 
+
+export interface SecondsPosition {
+  position_id: string;
+  symbol: string;
+  direction: "up" | "down";
+  amount: number | string;
+  duration_sec: number;
+  open_price: number | string;
+  settle_at: number;
+}
+export interface SecondsHistoryRecord extends SecondsPosition {
+  settle_price: number | string;
+  pnl: number | string;
+  win: boolean;
+  tie: boolean;
+  settled_at: number;
+}
+export interface SecondsPositionsSnapshot {
+  server_now: number;
+  open: SecondsPosition[];
+  history: SecondsHistoryRecord[];
+  cutover_incomplete?: boolean;
+}
+function isSecondsPosition(value: unknown): value is SecondsPosition {
+  if (!value || typeof value !== "object") return false;
+  const item = value as Record<string, unknown>;
+  return typeof item.position_id === "string" && /^SC[A-Fa-f0-9]{30}$/.test(item.position_id) &&
+    typeof item.symbol === "string" && ["BTC", "ETH", "SOL", "BNB"].includes(item.symbol) &&
+    (item.direction === "up" || item.direction === "down") &&
+    (typeof item.amount === "string" || (typeof item.amount === "number" && Number.isFinite(item.amount))) &&
+    Number.isFinite(Number(item.amount)) && Number(item.amount) > 0 &&
+    [30, 60, 300, 900].includes(Number(item.duration_sec)) &&
+    (typeof item.open_price === "string" || (typeof item.open_price === "number" && Number.isFinite(item.open_price))) &&
+    Number.isFinite(Number(item.open_price)) && Number(item.open_price) > 0 &&
+    Number.isSafeInteger(item.settle_at) && Number(item.settle_at) > 0;
+}
+export async function getSecondsPositions(signal?: AbortSignal): Promise<SecondsPositionsSnapshot> {
+  const payload = await readAuthenticated<SecondsPositionsSnapshot & { ok: true }>("seconds/positions", signal);
+  if (!Number.isFinite(payload.server_now) || payload.server_now <= 0 ||
+      !Array.isArray(payload.open) || !Array.isArray(payload.history) ||
+      (payload.cutover_incomplete !== undefined && typeof payload.cutover_incomplete !== "boolean") ||
+      !payload.open.every(isSecondsPosition) ||
+      !payload.history.every((item) => isSecondsPosition(item) &&
+        (typeof item.settle_price === "string" || (typeof item.settle_price === "number" && Number.isFinite(item.settle_price))) &&
+        Number.isFinite(Number(item.settle_price)) && Number(item.settle_price) > 0 &&
+        (typeof item.pnl === "string" || (typeof item.pnl === "number" && Number.isFinite(item.pnl))) &&
+        Number.isFinite(Number(item.pnl)) && typeof item.win === "boolean" &&
+        typeof item.tie === "boolean" && Number.isSafeInteger(item.settled_at) && item.settled_at > 0)) {
+    throw new ApiError("BTCBOX returned an invalid seconds-position response.", 502, "INVALID_SECONDS_POSITIONS_RESPONSE");
+  }
+  if (payload.cutover_incomplete === true && (payload.open.length || payload.history.length)) {
+    throw new ApiError("BTCBOX returned inconsistent seconds cutover status.", 502, "INVALID_SECONDS_CUTOVER_RESPONSE");
+  }
+  return payload;
+}
+
 export async function logout(): Promise<void> {
   let response: Response;
   try {
@@ -208,5 +270,138 @@ export async function logout(): Promise<void> {
   const payload = await response.json().catch(() => null) as { ok?: boolean; msg?: string; code?: string } | null;
   if (!response.ok || !payload || payload.ok !== true) {
     throw new ApiError(payload?.msg || "Sign out could not be confirmed.", response.status, payload?.code);
+  }
+}
+
+
+export interface AuthClientConfig {
+  ok: true;
+  supabase_url: string;
+  publishable_key: string;
+  google_enabled: boolean | null;
+}
+
+export async function getAuthClientConfig(signal?: AbortSignal): Promise<AuthClientConfig> {
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE_URL}/auth-client-config`, {
+      method: "GET", credentials: "include", headers: { Accept: "application/json" },
+      cache: "no-store", signal,
+    });
+  } catch (error) {
+    if (error instanceof Error && error.name === "AbortError") throw error;
+    throw new ApiError("Unable to reach BTCBOX authentication service.", 0, "NETWORK_ERROR");
+  }
+  const payload = await response.json().catch(() => null) as (AuthClientConfig & { msg?: string; code?: string }) | null;
+  if (!response.ok || !payload || payload.ok !== true || !payload.supabase_url || !payload.publishable_key) {
+    throw new ApiError(payload?.msg || "Google sign-in is not configured.", response.status, payload?.code);
+  }
+  return payload;
+}
+
+export interface SupabaseLoginResult {
+  ok: boolean;
+  require_2fa?: boolean;
+  temp_token?: string;
+  uid?: string;
+  msg?: string;
+  code?: string;
+}
+
+export async function exchangeSupabaseSession(accessToken: string): Promise<SupabaseLoginResult> {
+  const response = await fetch(`${API_BASE_URL}/supabase-login`, {
+    method: "POST", credentials: "include",
+    headers: { Accept: "application/json", "Content-Type": "application/json" },
+    cache: "no-store", body: JSON.stringify({ supabase_access_token: accessToken }),
+  });
+  const payload = await response.json().catch(() => null) as SupabaseLoginResult | null;
+  if (!response.ok || !payload) throw new ApiError(payload?.msg || "BTCBOX sign-in failed.", response.status, payload?.code);
+  if (payload.require_2fa) return payload;
+  if (payload.ok !== true) throw new ApiError(payload.msg || "BTCBOX sign-in failed.", response.status, payload.code);
+  return payload;
+}
+
+export async function loginWithUsername(username: string, password: string): Promise<SupabaseLoginResult> {
+  const response = await fetch(`${API_BASE_URL}/login`, {
+    method: "POST", credentials: "include",
+    headers: { Accept: "application/json", "Content-Type": "application/json" },
+    cache: "no-store", body: JSON.stringify({ username, password }),
+  });
+  const payload = await response.json().catch(() => null) as SupabaseLoginResult | null;
+  if (!response.ok || !payload) throw new ApiError(payload?.msg || "BTCBOX sign-in failed.", response.status, payload?.code);
+  if (payload.require_2fa) return payload;
+  if (payload.ok !== true) throw new ApiError(payload.msg || "Username or password is incorrect.", response.status, payload.code);
+  return payload;
+}
+
+export async function setBtcboxCredentials(username: string, password: string, currentPassword?: string): Promise<void> {
+  const response = await fetch(`${API_BASE_URL}/account/credentials`, {
+    method: "POST", credentials: "include",
+    headers: { Accept: "application/json", "Content-Type": "application/json" },
+    cache: "no-store", body: JSON.stringify({ username, password, current_password: currentPassword || "" }),
+  });
+  const payload = await response.json().catch(() => null) as { ok?: boolean; msg?: string; code?: string } | null;
+  if (!response.ok || !payload || payload.ok !== true) {
+    throw new ApiError(payload?.msg || "BTCBOX credentials could not be saved.", response.status, payload?.code);
+  }
+}
+
+export async function reauthenticateBtcboxCredentials(accessToken: string, twoFactorCode = ""): Promise<void> {
+  const response = await fetch(`${API_BASE_URL}/account/credentials/reauth`, {
+    method: "POST", credentials: "include",
+    headers: { Accept: "application/json", "Content-Type": "application/json" },
+    cache: "no-store", body: JSON.stringify({ supabase_access_token: accessToken, twofa_code: twoFactorCode }),
+  });
+  const payload = await response.json().catch(() => null) as { ok?: boolean; msg?: string; code?: string } | null;
+  if (!response.ok || !payload || payload.ok !== true) {
+    throw new ApiError(payload?.msg || "Recent identity verification could not be confirmed.", response.status, payload?.code);
+  }
+}
+
+export async function recoverBtcboxCredentials(password: string): Promise<void> {
+  const response = await fetch(`${API_BASE_URL}/account/credentials/recover`, {
+    method: "POST", credentials: "include",
+    headers: { Accept: "application/json", "Content-Type": "application/json" },
+    cache: "no-store", body: JSON.stringify({ password }),
+  });
+  const payload = await response.json().catch(() => null) as { ok?: boolean; msg?: string; code?: string } | null;
+  if (!response.ok || !payload || payload.ok !== true) {
+    throw new ApiError(payload?.msg || "BTCBOX password could not be reset.", response.status, payload?.code);
+  }
+}
+
+export async function reauthenticateIdentityForLink(accessToken: string, twoFactorCode = ""): Promise<void> {
+  const response = await fetch(`${API_BASE_URL}/auth/link-identity/reauth`, {
+    method: "POST", credentials: "include",
+    headers: { Accept: "application/json", "Content-Type": "application/json" },
+    cache: "no-store", body: JSON.stringify({ supabase_access_token: accessToken, twofa_code: twoFactorCode }),
+  });
+  const payload = await response.json().catch(() => null) as { ok?: boolean; msg?: string; code?: string } | null;
+  if (!response.ok || !payload || payload.ok !== true) {
+    throw new ApiError(payload?.msg || "Existing sign-in method could not be reverified.", response.status, payload?.code);
+  }
+}
+
+export async function linkSupabaseIdentity(accessToken: string): Promise<void> {
+  const response = await fetch(`${API_BASE_URL}/auth/link-identity`, {
+    method: "POST", credentials: "include",
+    headers: { Accept: "application/json", "Content-Type": "application/json" },
+    cache: "no-store", body: JSON.stringify({ supabase_access_token: accessToken }),
+  });
+  const payload = await response.json().catch(() => null) as { ok?: boolean; msg?: string; code?: string } | null;
+  if (!response.ok || !payload || payload.ok !== true) {
+    throw new ApiError(payload?.msg || "Identity could not be linked.", response.status, payload?.code);
+  }
+}
+
+export async function completeLogin2fa(tempToken: string, code: string): Promise<void> {
+  const response = await fetch(`${API_BASE_URL}/login/2fa`, {
+    method: "POST", credentials: "include",
+    headers: { Accept: "application/json", "Content-Type": "application/json" },
+    cache: "no-store", body: JSON.stringify({ temp_token: tempToken, code }),
+  });
+  const payload = await response.json().catch(() => null) as { ok?: boolean; msg?: string; code?: string } | null;
+  if (!response.ok || !payload || payload.ok !== true) {
+    throw new ApiError(payload?.msg || "The verification code was not accepted.", response.status, payload?.code);
   }
 }

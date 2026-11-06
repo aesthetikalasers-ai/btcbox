@@ -2,7 +2,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { ADMIN_PERMISSION_KEYS, normalizeAdminPermissionSet, hasAdminPermission, canManageAdministrators } = require('../admin-rbac');
-
 test('permission catalogue is closed, unique, and excludes administrator-management grants', () => {
   assert.equal(new Set(ADMIN_PERMISSION_KEYS).size, ADMIN_PERMISSION_KEYS.length);
   assert.ok(ADMIN_PERMISSION_KEYS.includes('users.read'));
