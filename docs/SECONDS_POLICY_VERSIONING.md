@@ -16,7 +16,7 @@ The existing order/settlement path remains unchanged until the schema, RPC integ
 - Durations: 30, 60, 300, 900 seconds.
 - Direction: up or down.
 - Stake: positive; API hard ceiling currently 1,000,000,000,000.
-- Winning profit: 85% of stake; tie returns stake; loss loses stake.
+- Winning profit: currently 85% of stake; future policy versions may configure 85%–100%; tie returns stake; loss loses stake.
 - Current SQL positions do not carry a policy version or payout snapshot.
 
 These values document current source behavior only. They are not a proposal to increase limits or alter commercial terms. A future admin policy must be seeded from a reviewed baseline and must never silently broaden these values.
@@ -32,7 +32,7 @@ Append-only policy versions, one row per immutable version:
 - symbols TEXT[] (validated against the server-supported symbol registry)
 - durations_sec INTEGER[] (validated against the server-supported duration registry)
 - min_stake NUMERIC(38,18), max_stake NUMERIC(38,18)
-- payout_bps INTEGER (0..10000; 8500 represents current 85%)
+- payout_bps INTEGER (8500..10000; 8500 is the minimum, 10000 is the maximum; values are per policy version)
 - per_user_open_exposure NUMERIC(38,18)
 - effective_from TIMESTAMPTZ, effective_until TIMESTAMPTZ nullable
 - created_by, approved_by (authenticated admin subject IDs)
@@ -40,7 +40,7 @@ Append-only policy versions, one row per immutable version:
 - change_reason TEXT (required and bounded)
 - optimistic revision/version token
 
-Constraints: min_stake > 0; max_stake >= min_stake; payout_bps between 0 and 10000; effective_until > effective_from when present. Prevent overlapping active windows. Exactly one policy may be active at a given instant. A policy version is immutable after activation; edits create a new version.
+Constraints: min_stake > 0; max_stake >= min_stake; payout_bps between 8500 and 10000 (85% minimum, 100% maximum); effective_until > effective_from when present. Prevent overlapping active windows. Exactly one policy may be active at a given instant. A policy version is immutable after activation; edits create a new version.
 
 ### seconds_contract_policy_audit
 
@@ -63,7 +63,7 @@ Add nullable fields to seconds_contract_positions for legacy compatibility:
 
 New orders must atomically resolve the active policy at database time, validate symbol/duration/stake/exposure against it, and persist its ID/version/payout snapshot with the position in the same transaction as the reserve. Legacy positions with NULL policy fields retain their existing settlement behavior; they must never be backfilled with a guessed policy.
 
-Settlement must calculate profit from the position snapshot, not by reading the currently active policy. For the existing baseline, payout_bps_snapshot=8500 must produce the same 0.85 stake profit. A later policy change must not change any open position's payout, duration, stake, or settlement terms.
+Settlement must calculate profit from the position snapshot, not by reading the currently active policy. The configured payout_bps_snapshot must be between 8500 and 10000. 8500 produces 0.85 stake profit; higher versions may increase that profit up to 1.00 stake. Later policy changes never change an already-open position's payout, duration, stake, or settlement terms. A later policy change must not change any open position's payout, duration, stake, or settlement terms.
 
 ## Required database and API controls
 

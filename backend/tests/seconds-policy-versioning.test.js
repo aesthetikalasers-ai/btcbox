@@ -120,3 +120,19 @@ test('seed minimum is the numeric precision floor, not an invented commercial mi
   assert.doesNotMatch(handler, /compareMoney\(amount,\s*'(?!0(?:'|\.))/);
   assert.match(api, /raw\.length > 64 \|\| !\/\^\(\?:0\|\[1-9\]\\d\*\)\(\?:\\\.\\d\{1,18\}\)\?\$\//);
 });
+
+
+test('policy payout is configurable only from the 85 percent floor through 100 percent', () => {
+  assert.match(migration, /payout_bps integer NOT NULL CHECK \(payout_bps BETWEEN 8500 AND 10000\)/i);
+  assert.match(migration, /payout_bps_snapshot IS NULL OR payout_bps_snapshot BETWEEN 8500 AND 10000/i);
+  assert.match(migration, /8500,/);
+  assert.match(migration, /coalesce\(v_pos\.payout_bps_snapshot,8500\)/i);
+  const orderStart = migration.indexOf('CREATE OR REPLACE FUNCTION public.submit_seconds_order_v1');
+  const settleStart = migration.indexOf('CREATE OR REPLACE FUNCTION public.settle_seconds_position_v1');
+  const orderFn = migration.slice(orderStart, settleStart);
+  const settleFn = migration.slice(settleStart);
+  assert.match(orderFn, /v_policy\.payout_bps/);
+  assert.match(orderFn, /payout_bps_snapshot/);
+  assert.match(settleFn, /v_pos\.payout_bps_snapshot/);
+  assert.match(settleFn, /v_pos\.amount\*v_payout_bps\/10000/);
+});

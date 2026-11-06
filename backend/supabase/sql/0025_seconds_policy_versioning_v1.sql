@@ -1,6 +1,7 @@
 -- BTCBOX seconds policy versioning v1.
 -- Additive/source-only migration. Apply ONLY in isolated staging after review.
--- This migration preserves existing positions and the current 85% payout baseline.
+-- 85% is the minimum configurable winning-profit rate; future policy versions may raise it up to 100%.
+-- Existing positions retain their immutable snapshot or legacy 85% fallback.
 -- It does not enable financial cutover or create administrator write endpoints.
 
 CREATE TABLE IF NOT EXISTS public.seconds_contract_policies (
@@ -10,7 +11,7 @@ CREATE TABLE IF NOT EXISTS public.seconds_contract_policies (
   durations_sec integer[] NOT NULL CHECK (cardinality(durations_sec) > 0),
   min_stake numeric(38,18) NOT NULL CHECK (min_stake > 0),
   max_stake numeric(38,18) NOT NULL CHECK (max_stake >= min_stake),
-  payout_bps integer NOT NULL CHECK (payout_bps BETWEEN 0 AND 10000),
+  payout_bps integer NOT NULL CHECK (payout_bps BETWEEN 8500 AND 10000),
   per_user_open_exposure numeric(38,18),
   effective_from timestamptz NOT NULL,
   effective_until timestamptz,
@@ -63,7 +64,7 @@ ALTER TABLE public.seconds_contract_positions
 
 ALTER TABLE public.seconds_contract_positions
   ADD CONSTRAINT seconds_positions_payout_bps_snapshot_check
-  CHECK (payout_bps_snapshot IS NULL OR payout_bps_snapshot BETWEEN 0 AND 10000);
+  CHECK (payout_bps_snapshot IS NULL OR payout_bps_snapshot BETWEEN 8500 AND 10000);
 
 -- Policy records and position terms are immutable after insertion.
 CREATE OR REPLACE FUNCTION public.prevent_seconds_policy_mutation_v1()
