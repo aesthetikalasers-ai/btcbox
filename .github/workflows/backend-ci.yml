@@ -64,7 +64,8 @@ jobs:
         run: |
           test -f backend/dist/index.html
           test -f backend/dist/legacy-index.html
-          test -f backend/dist/admin.html
+          test ! -f backend/dist/admin.html
+          grep -q '<Route path="/admin" element={<AdminPage />} />' frontend/src/App.tsx
           test -d backend/dist/frontend-assets
           grep -q '/frontend-assets/' backend/dist/index.html
           test -f 'backend/api/[...path].js'
