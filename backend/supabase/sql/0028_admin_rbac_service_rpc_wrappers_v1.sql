@@ -11,6 +11,18 @@ AS $$
   SELECT private.admin_get_membership_v1(p_actor_user_id);
 $$;
 
+CREATE OR REPLACE FUNCTION public.admin_list_memberships_v1(p_actor_user_id uuid)
+RETURNS jsonb
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = ''
+AS $
+  SELECT private.admin_list_memberships_v1(p_actor_user_id);
+$;
+
+REVOKE ALL ON FUNCTION public.admin_list_memberships_v1(uuid) FROM PUBLIC,anon,authenticated,service_role;
+GRANT EXECUTE ON FUNCTION public.admin_list_memberships_v1(uuid) TO service_role;
+
 CREATE OR REPLACE FUNCTION public.admin_manage_membership_v1(
   p_actor_user_id uuid,
   p_target_user_id uuid,
