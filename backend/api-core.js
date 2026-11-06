@@ -3075,19 +3075,6 @@ async function handleRequest(event, context) {
       return json({ ok: true, audit_sync_pending: auditFlush.pending, msg: 'Message sent.' });
     }
 
-    // POST /api/admin/support/reply 回复客服
-    if (sub === 'support/reply' && method === 'POST') {
-      const u = db.users[body.uid];
-      if (!u) return json({ ok: false, msg: 'User not found.' });
-      if (!Array.isArray(u.support_messages)) u.support_messages = [];
-      const supportMessage = { id: 'M' + Date.now() + crypto.randomBytes(3).toString('hex'), from: 'admin', content: body.content || '', time: nowStr() };
-      u.support_messages.push(supportMessage);
-      await auditAdmin('support_reply', u.uid, JSON.stringify({ message_id: supportMessage.id, length: String(body.content || '').length }), adminUserId);
-      await saveDB(db);
-      const auditFlush = await flushAdminAuditOutbox();
-      return json({ ok: true, audit_sync_pending: auditFlush.pending, msg: 'Reply sent.' });
-    }
-
     // GET /api/admin/addresses — sensitive fields visible only to authenticated admin
     if (sub === 'addresses' && method === 'GET') {
       const list=[];
