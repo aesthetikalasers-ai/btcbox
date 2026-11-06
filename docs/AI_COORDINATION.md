@@ -5886,3 +5886,28 @@ The prior withdrawal UI audit statement claiming the active BTCBOX admin route w
 - Exact source commits: initial SQL bridge `e261f7eded6c70b3d62900a13b9a0537ba53f6ef`; CI trigger `a073f333ff074ecf16290379ddf5e88a6932d0bf`; corrected SQL bodies `ccab9a84f579ec25e75e6e449673d9a8b4a860c5`; regression test update `c9b7da035c6546194d8048789e2ba49791675ce0`.
 - KYC lifecycle review: existing code intentionally retains approved/rejected evidence and does not delete it. This remains blocked on the owner's explicit retention/deletion policy; do not invent a duration, delete real documents, or enable hosted KYC storage before policy approval.
 - NEXT: wait for and inspect exact-head backend, frontend and empty-PostgreSQL CI; then review full role provisioning UI and KYC rejection/resubmission edge cases. If the SQL suite fails, fix the migration in the disposable CI environment only. No production DB, financial cutover, merge, or deployment.
+
+
+## Delegated administrator identity mapping — 2026-11-07
+
+### SOURCE OBSERVED
+- The Admin Panel's delegated-administrator candidate selector previously submitted `user.uid`, which is BTCBOX's internal sequential account key (created from `db.next_uid++`), as `target_user_id`.
+- The protected SQL membership function correctly requires `target_user_id` to exist in `auth.users`; the API also correctly validates a UUID. The previous selector therefore could not provision a normal BTCBOX user because the internal UID and Supabase Auth UUID are different identifiers.
+- BTCBOX account records already retain the primary Supabase identity as `supabase_user_id` (and linked identities in `supabase_user_ids`).
+
+### IMPLEMENTED
+- The Super Admin's user-list response now includes `admin_auth_user_id`, sourced from the primary `supabase_user_id` (with first linked ID as legacy fallback). Non-Super-Admin responses receive an empty value; the raw linked-ID array is never serialized.
+- The Admin Panel candidate selector now filters for UUID-shaped Auth IDs and submits that Auth UUID while continuing to show the BTCBOX internal UID as a human-readable account reference.
+- Extended `AdminUserRecord` and added `backend/tests/admin-provisioning-identity.test.js` for response disclosure, candidate selection, and target-user contract checks.
+- Code commit: `bf1bf3704c2de107b7e491e2d73dcdc54ebc90ba` (parent `9257324d45af4bdce4b2f283e4cee07366614fb2`).
+
+### VERIFICATION
+- SOURCE CHECK PASSED: re-fetched the exact commit's API response, frontend selector and regression test; the selector value is now `admin_auth_user_id`, not `uid`.
+- GitHub Actions started for this exact PR head: backend run `42289098844`, frontend run `42289098919`, PostgreSQL schema run `42289098841`. All were `in_progress` at the time of this entry; no test pass is claimed yet.
+- Vercel status still reports `build-rate-limit`; this is a platform quota failure, not a code-build result. No deployment was initiated.
+- NOT VERIFIED: hosted Supabase Auth identity coverage for legacy accounts, runtime provisioning against isolated Supabase staging, and browser E2E of the full Super Admin workflow.
+
+### NEXT
+- Wait for exact-head backend/frontend/PostgreSQL CI results and fix any failures.
+- Validate with isolated Supabase staging only after a safe test identity and environment are available. Do not create or change hosted/production administrator memberships during QA.
+- No merge, deployment, production database operation, or financial transaction was performed.
