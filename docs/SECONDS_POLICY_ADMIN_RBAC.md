@@ -1,350 +1,55 @@
-# BTCBOX Seconds Policy Administration — Identity, RBAC and Approval Contract
+# BTCBOX Seconds Policy Administration — Identity and RBAC Contract
 
-Status: source security contract for the React Admin API and Seconds policy governance. Supabase Auth/RBAC, delegated-admin management, and an atomic Seconds policy version-and-activate API/editor are implemented in source; hosted schema activation and runtime verification remain pending.
-Scope: shared administrator identity/permissions plus seconds-contract policy management.
+Status: source implementation exists on the integration branch. Hosted schema installation, initial Super Admin provisioning and end-to-end runtime verification remain pending.
 
-## 1. Current-state boundary
+## Identity and permission model
 
-The earlier admin API used one shared `ADMIN_USER` / `ADMIN_PASS` Basic Auth credential. The current React Admin API uses a verified Supabase Auth Bearer token and a live server-side membership/permission lookup. The authenticated actor is the validated Supabase Auth UUID, not a caller-supplied username or request field.
+- Admin API requests use a Supabase Auth Bearer token. The backend validates the token with Supabase Auth and derives the actor UUID from the returned authenticated user; caller-supplied actor IDs, roles, email or user metadata are not authorization evidence.
+- Membership and delegated permissions live in the private schema created by `0026_admin_rbac_private_store_v1.sql`.
+- Membership and permissions are checked server-side for sensitive requests. Suspended, revoked, unknown or unavailable membership fails closed.
+- Super Admin is a separate membership flag. An active Super Admin receives every permission in the permission catalog and can manage delegated administrators and Seconds policy without a three-person workflow.
+- Ordinary administrators receive only explicitly granted permissions. Seconds policy editing requires `seconds_policy.manage`; reading requires `seconds_policy.read`.
+- The browser does not write private tables or policy tables directly. The backend calls narrow service-role-only public RPC wrappers.
 
-Therefore:
-- Do not expose seconds-policy create, edit, approve, activate, schedule, retire, or delete routes under the current Basic Auth gate.
-- Do not accept `actor_id`, `role`, `approved_by`, or `activated_by` from request JSON as proof of identity or authority.
-- Do not infer an admin role from customer `user_metadata`, browser state, local storage, email text, or an unverified JWT payload.
-- Do not reintroduce shared Basic Auth as a fallback for the React Admin API; all admin mutations must derive actor identity from the verified Supabase Auth UUID.
+## Implemented administrator lifecycle
 
-## 2. Proposed administrator identity
+`0026_admin_rbac_private_store_v1.sql` creates the private membership, permission catalog, append-only permission events, security audit and request-idempotency store. `0028_admin_rbac_service_rpc_wrappers_v1.sql` exposes narrow PostgREST wrappers with execution granted only to `service_role`.
 
-Use a dedicated administrator identity mapped to a Supabase Auth user:
-- The request must carry a valid Supabase access token in the Authorization Bearer header.
-- The backend must validate the token with the trusted Supabase Auth server (for example, the Auth `getUser` endpoint) before using its subject. Decoding a JWT locally without signature/issuer/audience/expiry verification is not sufficient.
-- The canonical actor is the validated Auth user UUID (`sub` / returned user ID), never a caller-supplied actor field.
-- Keep administrator membership and permissions in a private, non-Data-API-exposed schema/table, keyed by Auth user UUID. Read the current membership/permission state server-side for every sensitive action so revocation is not delayed by stale JWT role claims.
-- Do not use mutable `user_metadata` for authorization. Do not rely solely on `app_metadata` claims for immediate revocation.
-- Unknown, disabled, suspended, or unavailable identity/permission state fails closed.
+The initial Super Admin bootstrap is a one-time owner-controlled database operation:
+1. The intended administrator first registers/signs in so an exact row exists in `auth.users`.
+2. The project owner verifies the Auth UUID out of band.
+3. The owner invokes `private.bootstrap_super_admin_v1` from a PostgreSQL owner session (`session_user = postgres`) with a reason and change reference.
+4. The function refuses if a Super Admin already exists and appends an owner-bootstrap audit event.
 
-The current source integration applies verified Supabase Auth and route-specific RBAC to the Admin API family. The Seconds policy read and mutation routes use the dedicated transactional version-and-activate RPC; runtime database bootstrap and isolated PostgreSQL verification remain pending.
+This bootstrap is not exposed as an API. It does not create a customer or Auth account. No initial Super Admin has been provisioned merely by adding the SQL source.
 
-## 3. Least-privilege permissions
+After bootstrap, the Super Admin can provision, change permissions, suspend, reactivate and revoke delegated administrators. The database RPC verifies that the acting membership is an active Super Admin, verifies the target Auth user exists, prevents self-change and Super Admin modification, checks optimistic revision and idempotency, and appends audit events transactionally.
 
-Use explicit permission keys, not a broad `is_admin` boolean:
-- `seconds_policy.read`: read current and historical policy summaries.
-- `seconds_policy.draft`: create a new draft policy version.
-- `seconds_policy.review`: approve or reject a submitted draft.
-- `seconds_policy.activate`: activate an already-approved version or schedule its effective time.
-- `seconds_policy.retire`: retire a policy according to the defined effective-time and open-position rules.
+## Implemented Seconds policy transition
 
-A role may map to one or more permission keys, but the database/API must check the specific permission for every operation. No policy mutation permission is implied by access to the existing admin console.
+- `GET /api/admin/seconds-policy` requires `seconds_policy.read`.
+- `POST /api/admin/seconds-policy` requires `seconds_policy.manage`.
+- The API derives the actor UUID from verified Auth, canonicalizes and hashes the request, and calls `public.admin_set_seconds_policy_v1`.
+- The SQL transition rechecks live membership permission, request ID/hash, expected active policy version and policy bounds. It creates a new immutable policy version, moves the active pointer, appends the policy audit and stores the replay response in one transaction.
+- Payout is constrained to a minimum of 8500 bps (85%) with no fixed upper ceiling. Durations are positive integer seconds. Optional exposure and open-position limits are supported.
+- A policy change is one atomic create-and-activate action. Separate draft, reviewer, schedule and retirement APIs are not part of the current implementation.
+- The Super Admin may complete the policy change alone. No three-person or distinct-author/reviewer/activator requirement applies.
 
-## 4. Separation of duties
+## Security invariants
 
-For every policy version that becomes active:
-- Policy transitions require the relevant current permission. The Super Admin may author, review and activate a policy without a three-person separation requirement.
-- A rejected draft cannot be activated; changes after review create a new immutable draft revision and require review again.
-- An administrator's permission can be revoked between stages; the permission must be rechecked at the time of each transition.
-- Emergency suspension, if later required, must be a separate audited operation with narrowly scoped permission and explicit behavior for already-open positions. Do not invent it as a side effect of ordinary policy edits.
+- No shared Basic Auth fallback for the React Admin API.
+- No authorization from browser state, customer metadata or caller-provided actor/role fields.
+- Private schema tables are not directly accessible to `anon`, `authenticated` or `service_role`; trusted service execution is through narrow functions.
+- Money-moving and policy transitions require database-side validation, bounded reason, request idempotency and audit in the same transaction.
+- Identical retries replay the stored response; mismatched request hashes conflict.
+- Stale policy versions are rejected. Refresh is required before retrying a changed policy.
+- Missing Auth, permission state, policy storage or audit persistence fails closed.
 
-The Super Admin may complete the full lifecycle alone. No three-person or three-actor separation requirement is imposed. Ordinary Admins remain limited to their explicit permissions; any optional review step must not block the Super Admin from authoring, reviewing and activating a policy alone.
+## Remaining verification
 
-## 5. Policy lifecycle and immutable versions
+- The SQL chain has not yet been executed against a disposable empty PostgreSQL database.
+- Owner bootstrap and first Super Admin enrollment have not been performed.
+- Real Supabase Auth-to-PostgREST integration and browser E2E have not been proven.
+- No hosted database write, production deployment or main-branch merge is authorized by this document.
 
-Recommended lifecycle:
-1. Draft: author submits a complete candidate version with a reason and expected base version.
-2. Review: the Super Admin may review the exact immutable draft hash/version, including a draft they authored; a separate reviewer is not mandatory.
-3. Activation: the Super Admin may activate the approved version, immediately or at a validated future effective time.
-4. Retirement: a separately authorized action closes future eligibility without rewriting positions already opened under the policy.
-
-Every edit creates a new draft/version. Never UPDATE an activated policy row in place. The active pointer transition, effective-window conflict check, audit append, request-idempotency record, and optimistic revision check must commit atomically.
-
-A policy must contain the full approved terms: symbol allowlist, duration allowlist, min/max stake, payout basis points (85%–100% with 85% minimum), exposure cap, effective time, and any other settlement-relevant term. Missing/unknown active policy fails closed for new orders. The frontend is a display/editor only; the database RPC is authoritative.
-
-## 6. API contract before implementation
-
-Current/proposed route family:
-- `GET /api/admin/seconds-policy`: authenticated read is implemented in source; requires `seconds_policy.read`.
-- `GET /api/admin/seconds-policy`: requires `seconds_policy.read` and returns the active policy/version through the trusted server RPC.
-- `POST /api/admin/seconds-policy`: requires `seconds_policy.manage`, expected policy version, reason, idempotency request ID, and the full policy payload; the server calls the atomic version-and-activate RPC.
-- `POST /api/admin/seconds-policy/drafts`: create immutable draft; requires `seconds_policy.draft`.
-- `POST /api/admin/seconds-policy/drafts/:id/review`: approve/reject exact draft; requires `seconds_policy.review`.
-- `POST /api/admin/seconds-policy/:id/activate`: activate/schedule approved version; requires `seconds_policy.activate`.
-- `POST /api/admin/seconds-policy/:id/retire`: retire version; requires `seconds_policy.retire`.
-
-Every mutation must:
-- Derive actor ID from validated Supabase Auth identity; reject caller-provided actor/role fields.
-- Require a bounded non-empty reason, a high-entropy request ID/idempotency key, and an expected revision/version.
-- Bind idempotency to actor, action, object, expected revision, and canonical request hash.
-- Reject duplicate request IDs with mismatched payloads and stale revisions.
-- Recheck permission and separation-of-duties inside the authoritative database transition, not only in React or a preliminary API check.
-- Return committed policy version, new revision, audit event ID, and effective time.
-- Fail closed if Auth, permission lookup, audit persistence, or database transaction is unavailable.
-
-Do not expose arbitrary PATCH/PUT/DELETE for policy rows. Use narrowly scoped transition RPCs in a private schema, revoke default PUBLIC execution, and grant execution only to the trusted server role. Review any SECURITY DEFINER function carefully: fixed search_path, strict identity/permission checks, no client execution, and no bypass of actor separation.
-
-## 7. Audit requirements
-
-Append an audit event in the same database transaction as each successful state transition. Record:
-- validated actor UUID and permission used;
-- action and target policy ID/version;
-- before/after canonical policy snapshots (secrets and unrelated personal data excluded);
-- reason, request ID, request hash, prior/new revision, and server timestamp;
-- author/reviewer/activator identity references.
-
-Audit rows are append-only. A failed or rolled-back transition must not leave a success audit event. A lost response followed by retry must return the same committed result without duplicating the transition or audit event.
-
-## 8. Admin UI behavior
-
-The UI exposes policy controls only after the read/write APIs and server-side authorization checks; keep them unavailable when the backend denies the required permission:
-- Read-only current policy and version history first.
-- Draft editor validates inputs for usability, but never acts as the authority.
-- Review view shows the exact candidate diff, author, reason, and effective time.
-- Activation view shows reviewer identity and requires explicit confirmation.
-- Users without a permission do not see an actionable control; direct API calls are still rejected server-side.
-- Loading, validation, conflict, unauthorized, unavailable, and success states must be explicit.
-- No frontend control may write directly to policy tables or use the Supabase service-role key.
-
-## 9. Required acceptance tests
-
-- Invalid/expired/wrong-issuer token, unknown admin, disabled admin, and permission-store outage all fail closed.
-- Caller-supplied actor ID or role cannot influence authorization or audit identity.
-- User-editable metadata cannot grant administrator permissions.
-- Super Admin can complete the policy lifecycle alone; ordinary Admins are limited to their explicit current grants.
-- Permission revocation between draft, review, and activation is honored.
-- A rejected or stale draft cannot be activated.
-- Concurrent activation/effective-window conflicts are rejected transactionally.
-- Missing reason, nonce/idempotency key, or expected revision is rejected.
-- Duplicate identical requests replay the committed result; mismatched duplicates conflict.
-- Policy transition and audit append commit or roll back together.
-- Existing open positions retain their policy/payout snapshots after later policy activation or retirement.
-- All tests run against an isolated staging database; financial cutover remains closed.
-
-## 10. Rollout gates and explicit non-goals
-
-Source implementation is present for verified Supabase Auth, live membership lookup, owner-only initial Super Admin bootstrap, delegated-admin provisioning, and Seconds policy version/activation. Hosted schema bootstrap and runtime verification remain separate release gates.
-
-The initial Super Admin bootstrap function and delegated-admin/Seconds policy source are implemented. This document does not execute the bootstrap, apply SQL to a hosted database, enable financial writes, merge, or deploy.
-
-## 11. Administrator enrollment, permission lifecycle and recovery
-
-The owner-only initial bootstrap is implemented in `backend/supabase/sql/0026_admin_rbac_private_store_v1.sql` as `private.bootstrap_super_admin_v1(uuid,text,text)`. It can only run when `session_user='postgres'`, requires an existing Supabase Auth UUID, records an owner-bootstrap audit event, and refuses to run after a Super Admin already exists.
-
-### Enrollment and initial bootstrap
-- No self-service administrator registration, automatic promotion, or role inference from email domain is allowed.
-- An administrator must first have an existing Supabase Auth account. Provisioning is keyed by the exact Auth UUID obtained from a trusted Auth user lookup; email is a human-readable review attribute, never the authorization key.
-- The initial bootstrap is one explicit project-owner SQL Editor operation against the verified empty project. Supply the exact existing Auth UUID, a bounded reason, and a change reference. A second approver is not a product requirement; the database function itself enforces postgres-only execution, existing Auth identity, one-time use, and an append-only owner-bootstrap audit event. Do not ship a default administrator UUID, email allowlist, shared password, or public bootstrap endpoint.
-- The bootstrap function remains inaccessible to API roles and is guarded by the existence of a Super Admin. Further grants use the normal audited Super Admin workflow.
-- A normal delegated administrator starts disabled with no permissions until a separate grant is committed. The one-time owner bootstrap is the only path that creates the initial active Super Admin. Supabase account existence alone grants no BTCBOX administrator access.
-
-### Permission grant, change and revocation
-- Model membership state separately from permission grants. Suggested states: pending, active, suspended, revoked. Suggested permission records contain the exact permission key, grantor Auth UUID, reason, change/ticket reference, created timestamp, and optional expiry.
-- Grant/revoke operations require an authorized grantor, reason, expected membership revision, idempotency key, and atomic append-only audit event. A grantor cannot grant permissions to themselves or approve their own elevation.
-- Revocation and suspension take effect on the next sensitive request: perform a live server-side membership/permission lookup on every policy transition. Do not cache grants in browser state, long-lived server memory, JWT claims, or a stale session.
-- Deleting or disabling a Supabase Auth user must not silently leave an active BTCBOX membership. Disable/revoke the BTCBOX membership first; reject requests if Auth identity lookup or membership status cannot be confirmed.
-- Permission names are an allowlisted enum. Unknown permission keys, wildcard grants, implicit inheritance, and client-supplied role names are rejected.
-
-### Emergency recovery and break-glass
-- Break-glass is not a normal API role and must never bypass Supabase Auth validation, actor attribution, the Super Admin's explicit policy lifecycle authority, or append-only audit.
-- If all administrators are locked out, recovery is performed only by the project owner through a separately authenticated, out-of-band database operation in an isolated/reviewed change window. Require two-person approval where operationally possible, an incident/change identifier, exact Auth UUIDs, a bounded temporary grant, and a written reason.
-- The recovery grant expires automatically and is followed by a mandatory review of every action taken during the window, rotation/revocation of any temporary access, and a new two-person audit record. No permanent hidden super-admin or reusable bypass token is permitted.
-- If audit persistence is unavailable, emergency policy mutations remain blocked. Recovery may restore access administration, but it must not activate a seconds policy or enable financial cutover.
-
-### Database and Data API boundary
-- Keep membership, permission, provisioning history, idempotency, and audit objects in a dedicated non-exposed schema (proposed name: `private`). Explicitly verify the project's exposed-schema configuration; do not assume a `public` table is private merely because a current default changed.
-- Enable RLS as defense in depth, revoke table/schema privileges from `PUBLIC`, `anon`, and `authenticated`, and grant only the minimum server-side role access required. Do not grant the browser role membership reads.
-- Keep service credentials server-side. The frontend receives only permission-filtered presentation data and cannot grant, revoke, or edit administrator permissions directly.
-- Preserve historical actor UUIDs and audit records when an administrator is suspended or revoked; do not cascade-delete attribution history.
-
-### Provisioning acceptance checks
-- New Auth users are not administrators unless a separately audited membership grant exists.
-- Email changes, user-editable metadata changes, and JWT role-claim changes do not alter membership or permissions.
-- Self-grant, self-elevation, unknown permission, wildcard permission, expired grant, suspended membership, and revoked membership are rejected.
-- Permission revocation is honored on the next request, including between draft, review, and activation.
-- Duplicate grant/revoke requests replay one committed result; mismatched idempotency payloads conflict.
-- Auth lookup, membership lookup, audit storage, or database transaction failure denies the operation.
-- Initial bootstrap is unavailable after first provisioning; break-glass grants are temporary, audited, and cannot bypass policy separation of duties.
-
-
-
-## 12. Concrete database contract for the first isolated-staging migration
-
-This section is a schema/API contract, not executable SQL. It must be translated into a generated migration and tested on an isolated Supabase staging project before any production consideration.
-
-### 12.1 Private objects and immutable attribution
-
-The first migration must create and secure these objects in the non-exposed private schema:
-
-- administrator memberships: one row per Auth UUID, explicit pending/active/suspended/revoked state, positive monotonic revision, provisioned timestamp, and no cascade deletion of historical attribution;
-- permission grant events: append-only grant/revoke/expiry events keyed by Auth UUID and allowlisted permission key, with grantor UUID, reason, ticket/change reference, creation time, and optional expiry; current permissions are derived from events and live membership state;
-- policy review decisions: immutable decision bound to policy UUID, exact policy version, canonical content SHA-256, reviewer Auth UUID, decision (approved/rejected), reason, and timestamp; one decision for a version, with a changed draft represented by a new version;
-- transition idempotency: request ID, actor UUID, action, target policy/version, expected revision, canonical request hash, committed response, and timestamp; same actor/request ID with a different action, target, revision, or hash conflicts;
-- administrator security audit: append-only event with actor UUID, exact permission, action, target, before/after snapshots, reason, ticket reference, request ID/hash, prior/new revision, and server timestamp.
-
-Membership and grant events must not be keyed by email or username. Foreign keys to auth.users should preserve historical actor attribution; user deletion must not cascade-delete membership history or audit events. A missing Auth user or disabled Auth identity must fail closed at request time.
-
-### 12.2 Permission and transition invariants
-
-- Permission keys are a closed enum: seconds_policy.read, seconds_policy.draft, seconds_policy.review, seconds_policy.activate, seconds_policy.retire, and separately scoped administrator-provisioning permissions. Unknown values and wildcard grants are rejected.
-- A membership must be active and the exact permission unexpired at the time of every request and again inside the authoritative transition transaction.
-- Grant/revoke events increment membership revision. Policy transition requests carry expected membership and policy revisions; stale revisions conflict rather than silently applying.
-- Draft creation stores a complete canonical policy snapshot and content hash. Review binds to that exact hash. Any content change creates a new version and requires a new review.
-- Approval and activation are separate auditable transitions when the acting administrator's grants require them; the Super Admin may complete the full lifecycle alone. Rejection is terminal for that version.
-- Activation atomically checks the acting identity's current permission (or protected Super Admin authority), expected active-pointer revision, effective-time overlap, and request idempotency; then moves the pointer and appends the audit event. Any audit failure rolls back the pointer transition.
-- Retirement closes future eligibility only. It never rewrites existing position snapshots or changes settlement of open positions.
-
-### 12.3 PostgREST invocation boundary
-
-The private schema remains absent from Supabase Data API exposed schemas. Because the current backend invokes database RPCs through Supabase REST, a private function cannot simply be assumed callable at /rest/v1/rpc.
-
-Preferred invocation contract:
-- keep all tables and authoritative transition functions in the private schema;
-- if the backend continues to use PostgREST, provide only a narrowly scoped public-schema SECURITY INVOKER wrapper whose EXECUTE privilege is revoked from PUBLIC, anon, and authenticated and granted only to service_role;
-- grant service_role only the minimum private-schema USAGE and function EXECUTE required by that wrapper; do not grant direct table DML;
-- wrapper arguments must not include an authoritative actor UUID. The trusted backend supplies a validated Auth subject to the private transition function, and the private function rechecks live membership and permissions;
-- if this privilege boundary cannot be demonstrated with catalog queries and adversarial tests, use a separately authenticated direct database connection rather than exposing the private schema.
-
-Do not create a public SECURITY DEFINER wrapper or add private to exposed schemas merely to make the REST call work. Any wrapper must be reviewed for default PUBLIC EXECUTE, schema USAGE, role inheritance, and SECURITY INVOKER behavior.
-
-### 12.4 Migration acceptance matrix
-
-The isolated-staging migration is not accepted until catalog and behavior tests prove:
-- private schema is not Data API exposed; PUBLIC/anon/authenticated have no USAGE or table/function privileges;
-- service_role cannot directly INSERT/UPDATE/DELETE membership, grant, review, transition, audit, policy, or active-pointer rows;
-- only the intended service-role wrapper is executable through PostgREST; browser roles cannot execute it;
-- wrapper and private transition both reject caller-supplied actor spoofing, invalid Auth subjects, disabled membership, revoked/expired permissions, and permission-store/audit failures;
-- concurrent draft/review/activation attempts serialize correctly and stale revisions conflict;
-- duplicate idempotency returns one committed response/audit event, while mismatched payloads conflict;
-- Super Admin may complete policy transitions alone; ordinary Admins remain limited to explicit grants, and no operation may alter an open position's policy snapshot.
-
-
-## 13. Product decision — single super administrator with delegated administrators
-
-This section records the product owner's decision and supersedes conflicting approval/bootstrap language in Sections 4, 9, 11, 12.2 and 12.4.
-
-### 13.1 Administrator model
-
-- There is one owner-controlled Super Admin authority. The Super Admin has every BTCBOX admin permission, including user/account operations, financial review capabilities, system configuration, seconds-policy read/draft/review/activate/retire, administrator creation, permission assignment, suspension and revocation.
-- The Super Admin can create or provision ordinary Admin accounts from existing, verified Supabase Auth users. Ordinary Admins cannot create or promote administrators. No public self-registration or automatic promotion is allowed.
-- The Super Admin assigns each Admin an explicit set of allowlisted permissions. Permissions are configurable and may be changed, suspended or revoked by the Super Admin at any time.
-- Ordinary Admins can perform only the operations covered by their current grants. They cannot create or promote administrators, grant permissions, grant themselves permissions, alter Super Admin authority, or change the Super Admin identity.
-- Administrator management is reserved to the Super Admin; it is not a delegable permission. Ordinary Admins cannot obtain it through a wildcard, role label, user metadata, request body, or UI manipulation.
-- The Super Admin may perform the complete seconds-policy lifecycle alone. A three-distinct-person author/reviewer/activator rule is not required. Policy changes remain versioned, reasoned, permission-checked and audited.
-
-### 13.2 Super Admin bootstrap and protection
-
-- The initial Super Admin is provisioned once by the project owner through a private, out-of-band operation using the exact UUID of an existing Supabase Auth user. No default email, password, UUID, or public bootstrap endpoint is shipped.
-- The Super Admin authority is represented by a protected server-side membership/authority record, not a user-editable metadata claim or a caller-supplied role.
-- No ordinary Admin can create, replace, suspend, revoke, or modify the Super Admin. Changing the Super Admin requires a separate owner-controlled out-of-band recovery/change procedure.
-- If the Super Admin identity is unavailable, recovery is owner-controlled and audited. Do not add a hidden permanent backdoor or a public break-glass route.
-
-### 13.3 Permission assignment and enforcement
-
-- Use a closed permission allowlist, grouped by product area (for example users, KYC, deposits, withdrawals, orders, support, announcements, system configuration, and seconds policy). The Super Admin receives all permissions implicitly from the protected authority record; ordinary Admins receive explicit grants only.
-- Every sensitive request validates the Supabase Auth token with the trusted Auth server, derives the actor UUID from that validated identity, and reads current membership and grants server-side. A stale JWT, browser state, email address, user_metadata, app_metadata, or caller-provided role is never sufficient authority.
-- Grant, change, suspension and revocation operations record the Super Admin actor UUID, target Auth UUID, exact permission set, reason, request ID, timestamps and before/after state in append-only audit history. Revocation takes effect on the next sensitive request.
-- Permission changes are atomic and idempotent. A repeated identical request returns the committed result; a reused request ID with different content conflicts. Unknown permissions and wildcard grants are rejected.
-- The Super Admin cannot be modified through ordinary administrator-management APIs. Ordinary Admins cannot call those APIs even if they forge the UI or request payload.
-
-### 13.4 UI and rollout
-
-- The admin console presents a dedicated Super Admin area for creating/provisioning admins, viewing their status, assigning permission checkboxes/groups, editing grants, and suspending or revoking access.
-- Ordinary Admins see only modules and actions allowed by their current permissions. Hiding controls is a usability feature only; every API endpoint independently enforces authorization.
-- The first implementation remains source/design-only until an isolated Supabase staging project is available. Do not apply migrations or create a live Super Admin against production as part of this batch.
-- This decision does not enable financial cutover, perform deposits/withdrawals, change existing shared Basic Auth routes, merge to main, or deploy.
-
-### 13.5 Acceptance criteria
-
-- The protected Super Admin can perform every admin operation and can create ordinary Admins and assign/revoke their allowlisted permissions.
-- An ordinary Admin with no relevant grant is denied; an Admin with a specific grant is allowed only that scope.
-- Ordinary Admins cannot self-grant, grant another Admin, create an Admin, or alter Super Admin authority.
-- Tampered role fields, user-editable metadata, email changes, stale JWT claims and direct API calls cannot elevate privileges.
-- Revocation is effective on the next sensitive request; Auth or permission-store failure fails closed.
-- Every administrator lifecycle and permission change is attributable and append-only audited.
-- No three-person approval requirement is imposed on Super Admin policy changes.
-
-
-## 14. Initial backend permission catalogue
-
-This is the initial allowlist for ordinary Admin grants. The Super Admin receives all capabilities from the protected Super Admin authority and does not need individual grants. These keys are a closed enum; do not accept arbitrary strings, wildcard values, or implicit role inheritance.
-
-| Permission key | Scope |
-| --- | --- |
-| dashboard.read | Read operational dashboard and aggregate status |
-| users.read | Search and view user profiles |
-| users.manage | Update permitted non-security user fields |
-| users.freeze | Freeze or unfreeze accounts under the approved account policy |
-| kyc.read | View KYC submissions and review queue |
-| kyc.review | Approve or reject KYC submissions |
-| deposits.read | View deposit requests and status |
-| deposits.review | Review deposit confirmations; does not itself authorize ledger posting outside the approved financial workflow |
-| withdrawals.read | View withdrawal requests and status |
-| withdrawals.review | Review withdrawal requests; does not bypass financial cutover, security checks, or transaction settlement controls |
-| orders.read | View orders, positions, and order history |
-| support.read | View customer support conversations |
-| support.reply | Reply to customer support conversations |
-| support.manage | Assign, categorize, and close support cases |
-| announcements.read | View announcements and delivery status |
-| announcements.manage | Create, edit, publish, or retire announcements |
-| system_config.read | Read operational configuration |
-| system_config.write | Change allowlisted operational configuration with reason and audit |
-| seconds_policy.read | Read current and historical seconds-contract policy |
-| seconds_policy.manage | Create and activate policy versions, subject to policy validation, immutable snapshots and audit |
-| financial_audit.read | Read financial audit records; sensitive fields remain masked by default |
-| financial_adjustment.request | Submit a reviewed balance-adjustment request, not post arbitrary ledger rows |
-
-Administrator provisioning and permission assignment are deliberately absent from the ordinary grant catalogue. Only the Super Admin can list, create, modify, suspend, revoke, or grant permissions to Admin accounts. A separate owner-controlled procedure changes Super Admin authority.
-
-High-impact financial operations remain independently gated by backend cutover flags, transaction RPCs, idempotency, balance invariants, security checks and audit persistence. An Admin permission never bypasses those controls, and a UI permission never substitutes for server authorization.
-
-
-## 15. Private administrator store v1 — source implementation contract
-
-This source-only migration implements the first storage layer for the single Super Admin / delegated Admin product decision. It does not apply itself and does not create the first administrator.
-
-### Objects
-- `private.admin_memberships`: Auth UUID primary key, active/suspended/revoked state, protected Super Admin flag, monotonic revision, timestamps and creator UUID. A partial unique index permits at most one Super Admin.
-- `private.admin_permission_catalog`: closed seed list matching the backend permission helper.
-- `private.admin_permission_events`: append-only grant/revoke events; current permissions are derived from the latest event for each permission and live membership status.
-- `private.admin_security_audit`: append-only actor/target/action/reason/request-hash/before/after history.
-- `private.admin_request_idempotency`: actor + request ID primary key, request hash and committed response.
-
-### Functions and privilege boundary
-- `private.bootstrap_super_admin_v1`: owner-only one-time SQL operation; EXECUTE granted only to `postgres`. It requires an existing Auth UUID, a reason and change reference, refuses a second Super Admin, and creates an audit event. It is not an HTTP endpoint.
-- `private.admin_get_membership_v1`: trusted backend lookup after Supabase Auth verification; returns active status, revision and current allowlisted permissions.
-- `private.admin_manage_membership_v1`: trusted-server transition requiring an active Super Admin actor. It provisions an existing Auth user, replaces explicit grants, suspends/reactivates/revokes ordinary Admins, rejects self-management and any Super Admin target, increments revision, writes grant/revoke events, idempotency and audit atomically.
-- The service role has private schema USAGE and EXECUTE on the two runtime functions only. It has no direct table DML. PUBLIC/anon/authenticated have no schema/table/function access. Tables have RLS enabled as defense in depth. The private schema must remain absent from Data API exposed schemas.
-- SECURITY DEFINER is confined to private functions and two narrowly scoped public PostgREST wrappers with an empty search_path and fully qualified private-function calls. The wrappers revoke EXECUTE from PUBLIC, anon, authenticated and service_role before granting EXECUTE only to service_role. The private schema remains unexposed and no direct table DML is granted.
-
-### Important integration boundary
-The SQL functions trust the actor UUID passed by the trusted backend. The future route MUST first call the Supabase Auth user endpoint, derive the actor UUID from that verified response, ignore actor/role fields in request JSON, and only then call the private RPC using the server-held service credential. Never expose the service credential. The backend must compute a canonical SHA-256 request hash and stable request ID. A private schema RPC is not automatically callable through PostgREST unless private is exposed; do not expose it. The integration uses narrowly reviewed public SECURITY DEFINER wrappers solely as PostgREST transport to the private functions. Each wrapper uses an empty search_path, fully qualified private function names, and EXECUTE is granted only to service_role; the HTTP layer verifies the caller's Supabase Auth token and checks live membership/permissions before invoking them. Do not expose the private schema or grant direct table DML.
-
-### Bootstrap and safety
-The migration seeds only permission definitions. It does not create a Super Admin, ordinary Admin, permission grant, or default account. Initial Super Admin bootstrap is a separate owner-controlled SQL operation against an isolated staging environment, using an exact verified Auth UUID. No self-service bootstrap, default email, password, or hidden recovery account exists. Ordinary APIs cannot modify the Super Admin identity.
-
-### Validation status
-The SQL remains source-only. No PostgreSQL parser or isolated staging database was available for execution, so SQL runtime/catalog behavior is NOT yet validated. Do not apply this migration to production. Before enabling administrator access, validate SQL on isolated staging, verify actual role/function privileges and exposed-schema configuration, and test concurrent/idempotent membership operations.
-
-
-
-
-The React Admin source exposes `/admin` outside the customer AppLayout, obtains a short-lived Supabase access token from AuthContext, and sends it only in Bearer authorization headers. The backend verifies the token, loads current membership through the service-role-only RPC wrapper, checks route permissions, and attributes audit events to the verified Auth UUID. The UI covers overview, user lookup/manual credit, deposit-address configuration, withdrawal review/manual payout, KYC, audit, orders and support. Administrator provisioning/permission-management UI and the Seconds policy editor remain follow-up work.
-
-### 15.1 Source review corrections
-- Bootstrap audit attribution is explicitly marked `owner_bootstrap` with no fabricated administrator actor UUID; the target Auth UUID remains separately recorded.
-- Permission replacement writes a complete grant/revoke snapshot for every catalogue key, so removing a permission actually revokes it rather than leaving an older grant active.
-- A transaction-scoped advisory lock serializes the same actor/request-id before idempotency lookup, preventing concurrent identical retries from racing into duplicate mutations.
-- Permission-event ordering uses an identity sequence as a deterministic tie-breaker for events created in the same timestamp resolution window.
-
-
-### 15.2 Optimistic revision and source-only hardening
-- Every delegated-admin mutation carries `p_expected_revision`. Provisioning requires revision 0; all later changes must match the current membership revision or fail as stale.
-- The request hash must cover the actor, target, action, exact sorted permission set, reason, request ID and expected revision.
-- The owner-bootstrap audit row is explicitly attributed as `owner_bootstrap` without fabricating an administrator actor UUID or a self-created membership record.
-- The append-only trigger function itself has PUBLIC/browser/service-role EXECUTE revoked; only trigger invocation by table writes is needed.
-
-
-## 14. Current implementation checkpoint — 2026-11-06
-
-- SOURCE IMPLEMENTED: Super Admin-only delegated administrator listing and lifecycle endpoints are connected to the private membership store through service-role-only RPC wrappers. The API derives actor identity from the verified Supabase Auth user, computes a canonical request hash, and uses the database's revision/idempotency/audit transaction.
-- SOURCE IMPLEMENTED: the React Admin Console includes administrator provisioning from an existing BTCBOX user, explicit allowlisted permission selection, permission updates, suspension, reactivation, and revocation. Ordinary Admins do not receive this tab or the API authority.
-- SOURCE IMPLEMENTED: the React Admin Console includes a Seconds policy editor for symbols, custom positive-second durations, minimum/maximum stake, payout rate, optional per-user exposure, and an optional maximum number of unfinished positions per user. The backend checks the live `seconds_policy.manage` grant and calls an atomic database RPC that creates an immutable policy version, switches the active pointer, appends audit, and records idempotency in one transaction. The order RPC enforces the active policy's duration, unfinished-position count and exposure limit while locking the user's USDT account.
-- Product rule preserved: 85% is the minimum payout rate; the schema and API impose no fixed upper ceiling. Existing open positions retain their immutable policy snapshots.
-- NOT VERIFIED: PostgreSQL compilation/execution of the new RPC source, full empty-database bootstrap, frontend TypeScript build, Node test execution, and browser end-to-end behavior. The connected hosted database was not changed; no Super Admin was provisioned and no policy was activated.
+Run the complete ordered SQL chain against an isolated empty database before any hosted installation. Verify privileges, bootstrap, delegated-admin lifecycle, Super Admin policy changes, concurrency, idempotent replay and audit atomicity. Keep financial cutover disabled until separate approval.
