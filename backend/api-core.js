@@ -2743,7 +2743,8 @@ async function handleRequest(event, context) {
       const requestId = String(body.request_id || '');
       const assetPattern = /^[A-Z0-9]{2,16}$/;
       const decimal = /^(?:0|[1-9]\d{0,19})(?:\.\d{1,18})?$/;
-      if (!assetPattern.test(baseAsset) || !assetPattern.test(quoteAsset) || baseAsset === quoteAsset ||
+      if (!assetPattern.test(baseAsset) || !assetPattern.test(quoteAsset) ||
+          !SUPPORTED_LEDGER_ASSETS.has(baseAsset) || !SUPPORTED_LEDGER_ASSETS.has(quoteAsset) || baseAsset === quoteAsset ||
           typeof enabled !== 'boolean' || !decimal.test(priceTick) || Number(priceTick) <= 0 ||
           !decimal.test(quantityStep) || Number(quantityStep) <= 0 ||
           !decimal.test(minQuantity) || Number(minQuantity) <= 0 ||
