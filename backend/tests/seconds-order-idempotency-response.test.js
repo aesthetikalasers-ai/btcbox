@@ -13,8 +13,8 @@ test('seconds order RPC returns the persisted opening price on both new orders a
   const end = migration.indexOf('CREATE OR REPLACE FUNCTION public.settle_seconds_position_v1', start);
   assert.ok(start >= 0 && end > start);
   const orderRpc = migration.slice(start, end);
-  assert.match(orderRpc, /'duplicate',true[\\s\\S]*?'open_price',v_existing\\.open_price/);
-  assert.match(orderRpc, /'duplicate',false[\\s\\S]*?'open_price',p_open_price/);
+  assert.match(orderRpc, /'duplicate',true[\s\S]*?'open_price',v_existing\.open_price/);
+  assert.match(orderRpc, /'duplicate',false[\s\S]*?'open_price',p_open_price/);
 });
 
 test('seconds order API displays the database-confirmed opening price instead of a fresh feed sample on replay', () => {
@@ -22,8 +22,8 @@ test('seconds order API displays the database-confirmed opening price instead of
   const end = api.indexOf('// ---------- POST /api/seconds/settle ----------', start);
   assert.ok(start >= 0 && end > start);
   const handler = api.slice(start, end);
-  assert.match(handler, /const storedOpenPrice = Number\\(result\\.open_price\\)/);
+  assert.match(handler, /const storedOpenPrice = Number\(result\.open_price\)/);
   assert.match(handler, /open_price: storedOpenPrice/);
-  assert.match(handler, /result\\.duplicate \\? 'stored_reference' : ref\\.source/);
-  assert.doesNotMatch(handler, /open_price: ref\\.price/);
+  assert.match(handler, /result\.duplicate \? 'stored_reference' : ref\.source/);
+  assert.doesNotMatch(handler, /open_price: ref\.price/);
 });
