@@ -3348,3 +3348,7 @@ The prior withdrawal UI audit statement claiming the active BTCBOX admin route w
 - Updated `docs/SECONDS_POLICY_VERSIONING.md` to describe source timestamp and retry behavior.
 - Implementation head at coordination update: `cf1ac33013c6ab22be9d13f4536ed73b8dbaa9f6`. Exact-head frontend/backend/PostgreSQL CI must be checked before claiming acceptance.
 - No hosted Supabase changes, real funds operations, merge, or deployment. PR #50 remains Draft/open. Trading page layout unchanged.
+
+
+- Follow-up verification on 2026-11-07: added direct helper-level regression tests for stale/future/missing/malformed quote timestamps and settlement timestamp persistence in `backend/tests/seconds-server-authoritative-rules.test.js`. The same behavior is also covered by `backend/tests/seconds-reference-timestamp.test.js` on the current PR head.
+- Current PR #50 head observed: `00823fa51917d2ab261114aae370dd155960634d`. Exact-head CI runs currently in progress: backend `42249641052`, frontend `42249641135`, PostgreSQL `42249641096`. Recheck before claiming acceptance.
