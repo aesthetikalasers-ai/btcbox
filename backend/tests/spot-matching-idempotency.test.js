@@ -12,7 +12,7 @@ const api = fs.readFileSync(path.join(root, 'api-core.js'), 'utf8');
 test('spot cancel persists user-scoped request identity and binds it to one order', () => {
   assert.match(migration, /CREATE TABLE IF NOT EXISTS public\.financial_matching_cancel_requests/i);
   assert.match(migration, /PRIMARY KEY\s*\(user_id, client_cancel_id\)/i);
-  assert.match(migration, /request_hash text NOT NULL CHECK \(request_hash ~ '\^\[0-9a-f\]\{64\}\$'\)/i);
+  assert.match(migration, /request_hash text NOT NULL CHECK \(length\(request_hash\)=64 and request_hash !~ '\[\^0-9a-f\]'\)/i);
   const start = migration.indexOf('create or replace function public.cancel_limit_order_matching_v1');
   const end = migration.indexOf('revoke all on function public.submit_limit_order_matching_v1', start);
   assert.ok(start >= 0 && end > start, 'cancel RPC must be present before its grants');
