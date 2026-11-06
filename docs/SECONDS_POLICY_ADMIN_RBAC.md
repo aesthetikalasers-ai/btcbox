@@ -39,7 +39,7 @@ A role may map to one or more permission keys, but the database/API must check t
 ## 4. Separation of duties
 
 For every policy version that becomes active:
-- The author, reviewer, and activator must be three distinct validated administrator subjects.
+- Policy transitions require the relevant current permission. The Super Admin may author, review and activate a policy without a three-person separation requirement.
 - An author cannot review or activate the same policy version.
 - A reviewer cannot activate the same policy version.
 - A rejected draft cannot be activated; changes after review create a new immutable draft revision and require review again.
@@ -107,7 +107,7 @@ The UI should expose policy controls only after read/write APIs and server-side 
 - Invalid/expired/wrong-issuer token, unknown admin, disabled admin, and permission-store outage all fail closed.
 - Caller-supplied actor ID or role cannot influence authorization or audit identity.
 - User-editable metadata cannot grant administrator permissions.
-- Author/reviewer/activator identity collisions are rejected.
+- Super Admin can complete the policy lifecycle alone; ordinary Admins are limited to their explicit current grants.
 - Permission revocation between draft, review, and activation is honored.
 - A rejected or stale draft cannot be activated.
 - Concurrent activation/effective-window conflicts are rejected transactionally.
@@ -186,8 +186,8 @@ Membership and grant events must not be keyed by email or username. Foreign keys
 - A membership must be active and the exact permission unexpired at the time of every request and again inside the authoritative transition transaction.
 - Grant/revoke events increment membership revision. Policy transition requests carry expected membership and policy revisions; stale revisions conflict rather than silently applying.
 - Draft creation stores a complete canonical policy snapshot and content hash. Review binds to that exact hash. Any content change creates a new version and requires a new review.
-- Approval and activation are separate transactions by distinct UUIDs. Author, reviewer, and activator must all differ for one activated version. Rejection is terminal for that version.
-- Activation atomically checks the review, all three identities, current permissions, expected active-pointer revision, effective-time overlap, and request idempotency; then moves the pointer and appends the audit event. Any audit failure rolls back the pointer transition.
+- Approval and activation are separate auditable transitions when the acting administrator's grants require them; the Super Admin may complete the full lifecycle alone. Rejection is terminal for that version.
+- Activation atomically checks the acting identity's current permission (or protected Super Admin authority), expected active-pointer revision, effective-time overlap, and request idempotency; then moves the pointer and appends the audit event. Any audit failure rolls back the pointer transition.
 - Retirement closes future eligibility only. It never rewrites existing position snapshots or changes settlement of open positions.
 
 ### 12.3 PostgREST invocation boundary
@@ -212,4 +212,50 @@ The isolated-staging migration is not accepted until catalog and behavior tests 
 - wrapper and private transition both reject caller-supplied actor spoofing, invalid Auth subjects, disabled membership, revoked/expired permissions, and permission-store/audit failures;
 - concurrent draft/review/activation attempts serialize correctly and stale revisions conflict;
 - duplicate idempotency returns one committed response/audit event, while mismatched payloads conflict;
-- no operation can collapse author/reviewer/activator identities or alter an open position's policy snapshot.
+- Super Admin may complete policy transitions alone; ordinary Admins remain limited to explicit grants, and no operation may alter an open position's policy snapshot.
+
+
+## 13. Product decision — single super administrator with delegated administrators
+
+This section records the product owner's decision and supersedes conflicting approval/bootstrap language in Sections 4, 9, 11, 12.2 and 12.4.
+
+### 13.1 Administrator model
+
+- There is one owner-controlled Super Admin authority. The Super Admin has every BTCBOX admin permission, including user/account operations, financial review capabilities, system configuration, seconds-policy read/draft/review/activate/retire, administrator creation, permission assignment, suspension and revocation.
+- The Super Admin can create or provision ordinary Admin accounts from existing, verified Supabase Auth users. No public self-registration or automatic promotion is allowed.
+- The Super Admin assigns each Admin an explicit set of allowlisted permissions. Permissions are configurable and may be changed, suspended or revoked by the Super Admin at any time.
+- Ordinary Admins can perform only the operations covered by their current grants. They cannot create or promote administrators, grant permissions, grant themselves permissions, alter Super Admin authority, or change the Super Admin identity.
+- Administrator management is reserved to the Super Admin; it is not a delegable permission. Ordinary Admins cannot obtain it through a wildcard, role label, user metadata, request body, or UI manipulation.
+- The Super Admin may perform the complete seconds-policy lifecycle alone. A three-distinct-person author/reviewer/activator rule is not required. Policy changes remain versioned, reasoned, permission-checked and audited.
+
+### 13.2 Super Admin bootstrap and protection
+
+- The initial Super Admin is provisioned once by the project owner through a private, out-of-band operation using the exact UUID of an existing Supabase Auth user. No default email, password, UUID, or public bootstrap endpoint is shipped.
+- The Super Admin authority is represented by a protected server-side membership/authority record, not a user-editable metadata claim or a caller-supplied role.
+- No ordinary Admin can create, replace, suspend, revoke, or modify the Super Admin. Changing the Super Admin requires a separate owner-controlled out-of-band recovery/change procedure.
+- If the Super Admin identity is unavailable, recovery is owner-controlled and audited. Do not add a hidden permanent backdoor or a public break-glass route.
+
+### 13.3 Permission assignment and enforcement
+
+- Use a closed permission allowlist, grouped by product area (for example users, KYC, deposits, withdrawals, orders, support, announcements, system configuration, and seconds policy). The Super Admin receives all permissions implicitly from the protected authority record; ordinary Admins receive explicit grants only.
+- Every sensitive request validates the Supabase Auth token with the trusted Auth server, derives the actor UUID from that validated identity, and reads current membership and grants server-side. A stale JWT, browser state, email address, user_metadata, app_metadata, or caller-provided role is never sufficient authority.
+- Grant, change, suspension and revocation operations record the Super Admin actor UUID, target Auth UUID, exact permission set, reason, request ID, timestamps and before/after state in append-only audit history. Revocation takes effect on the next sensitive request.
+- Permission changes are atomic and idempotent. A repeated identical request returns the committed result; a reused request ID with different content conflicts. Unknown permissions and wildcard grants are rejected.
+- The Super Admin cannot be modified through ordinary administrator-management APIs. Ordinary Admins cannot call those APIs even if they forge the UI or request payload.
+
+### 13.4 UI and rollout
+
+- The admin console presents a dedicated Super Admin area for creating/provisioning admins, viewing their status, assigning permission checkboxes/groups, editing grants, and suspending or revoking access.
+- Ordinary Admins see only modules and actions allowed by their current permissions. Hiding controls is a usability feature only; every API endpoint independently enforces authorization.
+- The first implementation remains source/design-only until an isolated Supabase staging project is available. Do not apply migrations or create a live Super Admin against production as part of this batch.
+- This decision does not enable financial cutover, perform deposits/withdrawals, change existing shared Basic Auth routes, merge to main, or deploy.
+
+### 13.5 Acceptance criteria
+
+- The protected Super Admin can perform every admin operation and can create ordinary Admins and assign/revoke their allowlisted permissions.
+- An ordinary Admin with no relevant grant is denied; an Admin with a specific grant is allowed only that scope.
+- Ordinary Admins cannot self-grant, grant another Admin, create an Admin, or alter Super Admin authority.
+- Tampered role fields, user-editable metadata, email changes, stale JWT claims and direct API calls cannot elevate privileges.
+- Revocation is effective on the next sensitive request; Auth or permission-store failure fails closed.
+- Every administrator lifecycle and permission change is attributable and append-only audited.
+- No three-person approval requirement is imposed on Super Admin policy changes.

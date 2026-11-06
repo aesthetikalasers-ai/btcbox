@@ -28,10 +28,8 @@ test('seconds policy RBAC design requires a validated Supabase subject and serve
   assert.match(design, /Do not use mutable `user_metadata`/i);
 });
 
-test('seconds policy activation requires three distinct actors and immutable reviewed versions', () => {
-  assert.match(design, /author, reviewer, and activator must be three distinct/i);
-  assert.match(design, /An author cannot review or activate/i);
-  assert.match(design, /A reviewer cannot activate/i);
+test('seconds policy versions remain immutable while Super Admin can complete the lifecycle alone', () => {
+  assert.match(design, /Super Admin may author, review and activate a policy without a three-person separation requirement/i);
   assert.match(design, /Every edit creates a new draft\/version/i);
   assert.match(design, /active pointer transition, effective-window conflict check, audit append, request-idempotency record, and optimistic revision check must commit atomically/i);
 });
@@ -100,4 +98,22 @@ test('private RBAC schema remains unexposed and PostgREST wrapper cannot become 
   assert.match(design, /EXECUTE privilege is revoked from PUBLIC, anon, and authenticated/i);
   assert.match(design, /Do not create a public SECURITY DEFINER wrapper/i);
   assert.match(design, /do not grant direct table DML/i);
+});
+
+
+test('Super Admin has full authority and exclusively manages delegated administrator permissions', () => {
+  assert.match(design, /Super Admin has every BTCBOX admin permission/i);
+  assert.match(design, /Super Admin can create or provision ordinary Admin accounts/i);
+  assert.match(design, /assigns each Admin an explicit set of allowlisted permissions/i);
+  assert.match(design, /Ordinary Admins cannot create or promote administrators/i);
+  assert.match(design, /Administrator management is reserved to the Super Admin/i);
+  assert.match(design, /The Super Admin may perform the complete seconds-policy lifecycle alone/i);
+  assert.match(design, /Every sensitive request validates the Supabase Auth token/i);
+  assert.match(design, /Revocation takes effect on the next sensitive request/i);
+  assert.match(design, /No three-person approval requirement is imposed/i);
+});
+
+test('Super Admin authority cannot be changed through ordinary administrator APIs', () => {
+  assert.match(design, /No ordinary Admin can create, replace, suspend, revoke, or modify the Super Admin/i);
+  assert.match(design, /Changing the Super Admin requires a separate owner-controlled out-of-band recovery\/change procedure/i);
 });
