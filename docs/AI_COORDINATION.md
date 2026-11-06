@@ -2270,3 +2270,29 @@ Application branch inspected: `feat/btcbox-web3-auth-20261105` at `741c709d818cb
 - Exact-SHA Vercel combined status: `success` (preview check). No production deployment was requested or initiated.
 - This is still an isolated identity-verification helper only. It is NOT wired into admin routes, does not load protected membership/grants, does not create the private admin store or bootstrap Super Admin, and does not replace legacy Basic Auth. No SQL migration, Supabase database write, live admin provisioning, permission grant, merge to main, or production deployment occurred.
 - Next safe batch: design and test the protected private-schema membership/grant storage contract and Super Admin owner-controlled bootstrap; keep it source-only until an isolated staging database exists. Then connect verified Auth UUID -> live membership lookup -> closed permission helper in a parallel admin API surface, without breaking current Basic Auth until migration is tested.
+
+
+## Private delegated-admin storage source — 2026-11-06 (UTC+8)
+
+### Implemented on feature branch
+- Re-read coordination HEAD `2fc3e43126452276972a8b3be3a1eba468bcef5a` and feature HEAD `5e8d008e43887d8228e1962157e0c048e5ad9006` before this batch.
+- Added source-only SQL `backend/supabase/sql/0026_admin_rbac_private_store_v1.sql`:
+  - non-exposed `private` schema; membership keyed by Supabase Auth UUID; one-Super-Admin partial unique index;
+  - closed permission catalogue matching `backend/admin-rbac.js`;
+  - append-only permission grant/revoke events and security audit;
+  - revisioned memberships, expected-revision checks, request-hash idempotency and transaction-scoped duplicate-request serialization;
+  - owner-only one-time `postgres` SQL bootstrap (no default user or HTTP bootstrap route);
+  - trusted-server-only membership lookup and Super-Admin-only provision/set-permissions/suspend/reactivate/revoke transition functions;
+  - RLS enabled, PUBLIC/anon/authenticated/service_role table DML revoked; service_role receives only private schema USAGE and narrowly scoped function EXECUTE.
+- Updated `docs/SECONDS_POLICY_ADMIN_RBAC.md` to record the schema, invocation boundary, optimistic revision requirement and product-owner bootstrap model. Updated stale source guard wording that contradicted the one-owner Super Admin decision.
+- Added `backend/tests/admin-rbac-schema.test.js` for private schema/RLS/privilege boundaries, closed permission catalogue, bootstrap protection, append-only audit, revision checks, idempotency, Super Admin-only management and source-only rollout.
+- Feature commit: `fbfb96ee26ff8bce6637f2ca11cbf21f0644c928`. Compare API against prior feature HEAD `5e8d008e43887d8228e1962157e0c048e5ad9006` confirms exactly four paths changed: the new SQL source, new schema source tests, RBAC design doc, and the existing RBAC design test.
+- Exact-SHA backend CI run `42144478167` completed `success`: unified site build, all backend tests, fail-closed configuration validation, preserved output/entrypoint checks and cleanup passed.
+- Exact-SHA Vercel combined status: `failure` with the known Hobby build-rate-limit upgrade target. This is not a GitHub CI failure; no plan or project setting was changed.
+
+### Hard rollout boundary / not yet validated
+- The SQL migration was NOT applied to any Supabase database. No isolated staging database was available; SQL parser/runtime/catalog/role behavior and concurrency have NOT been validated against PostgreSQL.
+- No Super Admin or ordinary Admin was provisioned; no permission was granted; no existing Basic Auth route was changed; no API route or admin UI was connected.
+- The private schema is intentionally not exposed to PostgREST. The service-role function grants alone do not make private RPCs callable through REST. Before integration, choose and test a trusted invocation path (dedicated direct DB connection or a narrowly reviewed SECURITY INVOKER public wrapper) without exposing private schema or granting direct table DML.
+- The trusted backend must validate Supabase Auth first and derive actor UUID from the Auth response; never trust a caller-supplied actor ID. The SQL transition functions rely on that trusted-server boundary.
+- Do not apply `0026` to production. Next step is isolated-staging SQL/catalog/adversarial validation, then a parallel API integration and tests; preserve legacy Basic Auth until that new path is proven. No merge to main or production deployment.
