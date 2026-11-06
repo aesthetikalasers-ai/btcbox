@@ -18,7 +18,7 @@ function stringArray(source, expression, label) {
 
 test('backend deposit-address response preserves every address configured by the admin UI', () => {
   const start = api.indexOf('function safeDepositAddresses(addresses) {');
-  const end = api.indexOf('function totalUsdt(', start);
+  const end = api.indexOf('\n\nconst DEFAULT_WITHDRAWAL_FEES', start);
   assert.ok(start >= 0 && end > start, 'safeDepositAddresses helper must exist');
   const safeDepositAddresses = vm.runInNewContext('(' + api.slice(start, end).trim() + ')');
   const configured = {
