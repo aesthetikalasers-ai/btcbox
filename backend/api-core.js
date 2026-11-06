@@ -3069,21 +3069,27 @@ async function handleRequest(event, context) {
       let list = Object.values(db.users);
       if (q) list = list.filter(function (u) { return String(u.email || '').toLowerCase().indexOf(q) > -1 || String(u.uid || '').toLowerCase().indexOf(q) > -1; });
       list = list.slice(0, 200);
+      const canReadFinancialAudit = hasAdminPermission(adminMembership, 'financial_audit.read');
       let normalizedBalances = null;
-      if (financialPostgresReadsEnabled()) {
+      if (canReadFinancialAudit && financialPostgresReadsEnabled()) {
         try { normalizedBalances = await readAdminAccountBalances(list.map(function (u) { return String(u.uid); })); }
         catch (e) { return json({ ok: false, msg: 'Financial data temporarily unavailable. Please try again later.', code: 'FINANCIAL_READ_UNAVAILABLE' }, 503); }
       }
-      // When PostgreSQL is the source of truth, request prices for those exact
-      // normalized ledger assets rather than stale/empty legacy JSON balances.
-      const priceBases = list.flatMap(function (u) {
-        const balances = normalizedBalances ? (normalizedBalances[String(u.uid)] || {}) : (u.balances || {});
-        return Object.keys(balances);
-      });
-      try { await getLiveUsdtPrices(priceBases); } catch (_) {}
+      // Financial aggregates are not part of the general users.read projection.
+      if (canReadFinancialAudit) {
+        const priceBases = list.flatMap(function (u) {
+          const balances = normalizedBalances ? (normalizedBalances[String(u.uid)] || {}) : (u.balances || {});
+          return Object.keys(balances);
+        });
+        try { await getLiveUsdtPrices(priceBases); } catch (_) {}
+      }
       return json({ ok: true, users: list.map(function (u) {
-        const balances = normalizedBalances ? (normalizedBalances[String(u.uid)] || {}) : (u.balances || {});
-        return { uid: u.uid, email: u.email || '', admin_auth_user_id: adminMembership.is_super_admin === true ? String(u.supabase_user_id || (Array.isArray(u.supabase_user_ids) ? u.supabase_user_ids[0] : '') || '') : '', kyc_status: (u.kyc && u.kyc.status) || 'unverified', total_usdt: totalUsdt(balances, livePriceCache.prices), created_at: u.created_at || '', frozen: !!u.frozen, twofa: !!u.twofa_enabled };
+        const record = { uid: u.uid, email: u.email || '', admin_auth_user_id: adminMembership.is_super_admin === true ? String(u.supabase_user_id || (Array.isArray(u.supabase_user_ids) ? u.supabase_user_ids[0] : '') || '') : '', kyc_status: (u.kyc && u.kyc.status) || 'unverified', created_at: u.created_at || '', frozen: !!u.frozen, twofa: !!u.twofa_enabled };
+        if (canReadFinancialAudit) {
+          const balances = normalizedBalances ? (normalizedBalances[String(u.uid)] || {}) : (u.balances || {});
+          record.total_usdt = totalUsdt(balances, livePriceCache.prices);
+        }
+        return record;
       }) });
     }
 

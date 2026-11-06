@@ -89,3 +89,15 @@ test('account balances and their source are withheld unless the caller has depos
   assert.ok(admin.includes('Balance details require the deposits.read permission.'));
   assert.match(admin, /hasPermission\("deposits.read"\) \? <Badge/);
 });
+
+test('admin user search only returns financial balance aggregates to financial_audit.read', () => {
+  const start = api.indexOf("if (sub === 'users' && method === 'GET')");
+  const end = api.indexOf("// GET /api/admin/kyc", start);
+  assert.ok(start >= 0 && end > start);
+  const route = api.slice(start, end);
+  assert.ok(route.includes("hasAdminPermission(adminMembership, 'financial_audit.read')"));
+  assert.ok(route.includes('if (canReadFinancialAudit && financialPostgresReadsEnabled())'));
+  assert.ok(route.includes('if (canReadFinancialAudit) {'));
+  assert.ok(route.includes('record.total_usdt = totalUsdt(balances, livePriceCache.prices)'));
+  assert.ok(!route.includes('return { uid: u.uid, email: u.email || \'\', admin_auth_user_id:'));
+});
