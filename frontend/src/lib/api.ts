@@ -371,7 +371,7 @@ function isSecondsPosition(value: unknown): value is SecondsPosition {
     (item.direction === "up" || item.direction === "down") &&
     (typeof item.amount === "string" || (typeof item.amount === "number" && Number.isFinite(item.amount))) &&
     Number.isFinite(Number(item.amount)) && Number(item.amount) > 0 &&
-    Number.isSafeInteger(item.duration_sec) && Number(item.duration_sec) > 0 &&
+    Number.isSafeInteger(Number(item.duration_sec)) && Number(item.duration_sec) > 0 &&
     (typeof item.open_price === "string" || (typeof item.open_price === "number" && Number.isFinite(item.open_price))) &&
     Number.isFinite(Number(item.open_price)) && Number(item.open_price) > 0 &&
     Number.isSafeInteger(item.settle_at) && Number(item.settle_at) > 0;
