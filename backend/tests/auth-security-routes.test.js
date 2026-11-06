@@ -120,7 +120,12 @@ function harness(marker = {}, options = {}) {
   const mod = { exports: {} };
   const factory = vm.runInThisContext('(function(require,module,exports,process,Buffer,fetch,AbortSignal,URL,console){' +
     source + '\nexports.__testHandleRequest = handleRequest;\n})');
-  factory(require, mod, mod.exports, { env }, Buffer, fetchMock, AbortSignal, URL, { warn() {}, error() {} });
+  const testRequire = (id) => {
+    if (id === './admin-auth') return require('../admin-auth');
+    if (id === './admin-rbac') return require('../admin-rbac');
+    return require(id);
+  };
+  factory(testRequire, mod, mod.exports, { env }, Buffer, fetchMock, AbortSignal, URL, { warn() {}, error() {} });
   return {
     run: async (route, body = {}, cookie = sessionToken, method = 'POST') => {
       const result = await mod.exports.__testHandleRequest({
