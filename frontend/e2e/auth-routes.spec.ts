@@ -76,6 +76,24 @@ test("assets, orders and KYC remain behind the authenticated account gate", asyn
   }
 });
 
+test("signed-out customer routes never issue financial or account mutations", async ({ page }) => {
+  const mutationRequests: string[] = [];
+  page.on("request", (request) => {
+    const url = new URL(request.url());
+    if (url.pathname.startsWith("/api/") && ["POST", "PUT", "PATCH", "DELETE"].includes(request.method())) {
+      mutationRequests.push(request.method() + " " + url.pathname);
+    }
+  });
+
+  for (const path of ["/deposit", "/withdraw", "/assets", "/orders", "/kyc", "/seconds", "/support", "/settings", "/earn", "/trade/BTCUSDT"]) {
+    await page.goto(path);
+    await expect(page).toHaveURL(/\/login$/);
+    await expect(page.getByRole("heading", { name: "Welcome back" })).toBeVisible();
+  }
+
+  expect(mutationRequests).toEqual([]);
+});
+
 test("account overview stays signed out after the auth session bootstrap check", async ({ page }) => {
   const privateAccountRequests: string[] = [];
   page.on("request", (request) => {
