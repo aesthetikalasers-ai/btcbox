@@ -6074,3 +6074,5 @@ The prior withdrawal UI audit statement claiming the active BTCBOX admin route w
 - Follow-up: market API now emits per-symbol server snapshot time after provider fetch completion; frontend propagates it as `snapshotTs` and labels it “Snapshot checked” (not exchange event time). Auth page entry points now expose Google only; wallet controls/deep links removed. Existing 2FA verification remains.
 - CI evidence: backend run `42310573294` at intermediate test commit `c966aa0` failed 1/400 because an older assertion expected “Last update”; that assertion has been updated. Latest exact-head CI must be checked before declaring tests passed.
 - Details: `docs/FRONTEND-MARKET-PREVIEW-BATCH-2026-11-07.md`.
+
+- CI: Backend run `42310916938` at `7d5ed8f` passed unified build, 401/401 tests, fail-closed preflight, and output/entrypoint checks. Frontend run `42310911601` at `0394a88` passed install, lint, and build; browser smoke test was still running at last check. See `docs/FRONTEND-MARKET-PREVIEW-BATCH-2026-11-07.md`.
