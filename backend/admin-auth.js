@@ -57,4 +57,49 @@ async function verifySupabaseAccessToken(options = {}) {
   }
 }
 
-module.exports = Object.freeze({ readBearerToken, resolveAuthConfig, verifySupabaseAccessToken });
+
+async function loadAdminMembership(options = {}) {
+  const env = options.env || process.env;
+  const fetchImpl = options.fetchImpl || globalThis.fetch;
+  const userId = String(options.userId || '').toLowerCase();
+  const baseUrl = String(env.SUPABASE_URL || '').trim().replace(/\\/+$/, '');
+  const serviceKey = String(env.SUPABASE_SERVICE_ROLE_KEY || env.SUPABASE_SECRET_KEY || '').trim();
+  if (!USER_ID_RE.test(userId) || !/^https:\\/\\//i.test(baseUrl) || !serviceKey || /\\s/.test(serviceKey) || typeof fetchImpl !== 'function') {
+    return { ok: false, code: 'ADMIN_MEMBERSHIP_UNAVAILABLE', status: 503 };
+  }
+  try {
+    const response = await fetchImpl(baseUrl + '/rest/v1/rpc/admin_get_membership_v1', {
+      method: 'POST',
+      headers: { apikey: serviceKey, Authorization: 'Bearer ' + serviceKey, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ p_actor_user_id: userId }),
+      signal: AbortSignal.timeout(5000)
+    });
+    if (!response.ok) return { ok: false, code: 'ADMIN_MEMBERSHIP_UNAVAILABLE', status: 503 };
+    const membership = await response.json();
+    if (!membership || membership.found !== true || membership.active !== true || String(membership.user_id || '').toLowerCase() !== userId) {
+      return { ok: false, code: 'ADMIN_FORBIDDEN', status: 403 };
+    }
+    if (!Array.isArray(membership.permissions) || membership.permissions.some((p) => typeof p !== 'string')) {
+      return { ok: false, code: 'ADMIN_MEMBERSHIP_INVALID', status: 503 };
+    }
+    return { ok: true, membership: Object.freeze({
+      user_id: userId,
+      status: 'active',
+      is_super_admin: membership.is_super_admin === true,
+      revision: Number(membership.revision || 0),
+      permissions: Object.freeze([...membership.permissions])
+    }) };
+  } catch (_) {
+    return { ok: false, code: 'ADMIN_MEMBERSHIP_UNAVAILABLE', status: 503 };
+  }
+}
+
+async function authorizeSupabaseAdmin(options = {}) {
+  const identity = await verifySupabaseAccessToken(options);
+  if (!identity.ok) return identity;
+  const membership = await loadAdminMembership({ env: options.env, fetchImpl: options.fetchImpl, userId: identity.user.id });
+  if (!membership.ok) return membership;
+  return { ok: true, user: identity.user, membership: membership.membership };
+}
+
+module.exports = Object.freeze({ readBearerToken, resolveAuthConfig, verifySupabaseAccessToken, loadAdminMembership, authorizeSupabaseAdmin });
