@@ -29,3 +29,10 @@ test('admin manual credit UI and API require the same reference field', () => {
   assert.ok(admin.includes('reference,'));
   assert.ok(api.includes('reference: string; note?: string; idempotency_key: string'));
 });
+
+
+test('manual deposit SQL preserves the full 160-character UI/API reference limit', () => {
+  const sql = read('backend/supabase/sql/0007_financial_admin_manual_deposit_v1.sql');
+  assert.ok(sql.includes("v_reference text := left(btrim(coalesce(p_reference, '')), 160)"));
+  assert.ok(!sql.includes("v_reference text := left(btrim(coalesce(p_reference, '')), 120)"));
+});
