@@ -4,6 +4,7 @@ import { Button } from "../../components/ui/Button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/Card";
 import { useAuth } from "../../lib/auth";
 import {
+  ApiError,
   adminApproveKyc,
   adminApproveWithdrawal,
   adminManualCredit,
@@ -77,6 +78,7 @@ export function AdminPage() {
   const [creditAmount, setCreditAmount] = useState<Record<string, string>>({});
   const [creditReference, setCreditReference] = useState<Record<string, string>>({});
   const [creditNote, setCreditNote] = useState<Record<string, string>>({});
+  const [creditRequestIds, setCreditRequestIds] = useState<Record<string, string>>({});
   const [withdrawals, setWithdrawals] = useState<AdminWithdrawalRecord[]>([]);
   const [payoutReferences, setPayoutReferences] = useState<Record<string, string>>({});
   const [config, setConfig] = useState<AdminConfig>({ deposit_addresses: {}, announcement: "" });
@@ -156,6 +158,7 @@ export function AdminPage() {
       setCreditAmount({});
       setCreditReference({});
       setCreditNote({});
+      setCreditRequestIds({});
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "User account could not be loaded.");
     } finally { setBusy(false); }
@@ -170,17 +173,24 @@ export function AdminPage() {
       return;
     }
     setBusy(true); setError(""); setNotice("");
+    const stableRequestId = creditRequestIds[coin] || window.crypto.randomUUID();
+    setCreditRequestIds(current => ({ ...current, [coin]: stableRequestId }));
+    setBusy(true); setError(""); setNotice("");
     try {
       const result = await adminManualCredit(token, {
         uid: selectedUser.uid, coin, amount,
         reference: creditReference[coin] || "",
         note: creditNote[coin] || "",
-        idempotency_key: window.crypto.randomUUID(),
+        idempotency_key: stableRequestId,
       });
       setNotice(result.duplicate ? "This manual credit was already recorded." : "Manual credit recorded and audit event submitted.");
+      setCreditRequestIds(current => { const next = { ...current }; delete next[coin]; return next; });
       await selectUser(selectedUser.uid);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "Manual credit was not confirmed.");
+      if (reason instanceof ApiError && reason.status >= 400 && reason.status < 500) {
+        setCreditRequestIds(current => { const next = { ...current }; delete next[coin]; return next; });
+      }
     } finally { setBusy(false); }
   };
 
@@ -291,10 +301,10 @@ export function AdminPage() {
           <p className="mb-3 text-sm font-semibold">{selectedUser.email} · <span className="font-mono">{selectedUser.uid}</span></p>
           <div className="space-y-3">{assets.map(coin=><form key={coin} className="rounded-xl border border-brand-border p-3" onSubmit={event=>void manualCredit(event,coin)}>
             <div className="mb-2 flex items-center justify-between"><span className="font-semibold">{coin}</span><span className="text-xs text-brand-text-muted">Available: {asText(selectedUser.balances?.[coin]?.free ?? "0")}</span></div>
-            <input value={creditAmount[coin]||""} onChange={event=>setCreditAmount(current=>({...current,[coin]:event.target.value}))} placeholder="Verified amount received" className="mb-2 w-full rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-2 text-sm text-brand-text" inputMode="decimal"/>
-            <input value={creditReference[coin]||""} onChange={event=>setCreditReference(current=>({...current,[coin]:event.target.value}))} placeholder="TxID / reference (optional)" className="mb-2 w-full rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-2 text-sm text-brand-text"/>
-            <input value={creditNote[coin]||""} onChange={event=>setCreditNote(current=>({...current,[coin]:event.target.value}))} placeholder="Note (optional)" className="mb-2 w-full rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-2 text-sm text-brand-text"/>
-            <Button type="submit" size="sm" disabled={busy || !hasPermission("deposits.review")}>Confirm manual credit</Button>
+            <input disabled={!!creditRequestIds[coin]||busy} value={creditAmount[coin]||""} onChange={event=>setCreditAmount(current=>({...current,[coin]:event.target.value}))} placeholder="Verified amount received" className="mb-2 w-full rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-2 text-sm text-brand-text" inputMode="decimal"/>
+            <input disabled={!!creditRequestIds[coin]||busy} value={creditReference[coin]||""} onChange={event=>setCreditReference(current=>({...current,[coin]:event.target.value}))} placeholder="TxID / reference (optional)" className="mb-2 w-full rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-2 text-sm text-brand-text"/>
+            <input disabled={!!creditRequestIds[coin]||busy} value={creditNote[coin]||""} onChange={event=>setCreditNote(current=>({...current,[coin]:event.target.value}))} placeholder="Note (optional)" className="mb-2 w-full rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-2 text-sm text-brand-text"/>
+            <Button type="submit" size="sm" disabled={busy || !hasPermission("deposits.review")}>{creditRequestIds[coin] ? "Retry same credit request" : "Confirm manual credit"}</Button>
           </form>)}</div>
         </>}
       </CardContent></Card>
