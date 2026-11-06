@@ -105,3 +105,11 @@ Safety: no merge, deployment, production database access, financial writes, or r
 - Frontend CI run `42310911601`, source commit `0394a88d5607f31ab04938e7db3fcd4183c6a586`: npm install, lint, and production build passed; desktop/mobile route smoke-test step was still running at the last inspection. Do not mark the full frontend CI successful until that step completes.
 - The earlier backend failures were actionable stale assertions / an omitted normalize argument, both corrected in subsequent commits. Latest successful backend run includes the provider event timestamp changes and Google-only UI/test changes.
 - CI results apply to the source commits above. Documentation-only commits after those runs do not alter application source.
+
+## Deployment cross-check — 2026-11-07
+
+- The latest Vercel production deployment observed is `dpl_2cAQrbFQbTouccNyccnYZfY7P89e`, source `main` commit `361be5c395fef85d11b52b67884122dab0d8e7c6`, state `ERROR`. It was not created by this work batch.
+- The corrected Vercel install command is confirmed effective: Vercel ran `npm install` successfully from the configured backend root; the backend build then installed 134 frontend packages, ran `tsc -b && vite build`, and transformed 1,769 modules successfully.
+- The remaining Vercel failure is later in `npm run build && npm test`: Vercel build log reports `# tests 356`, `# pass 350`, `# fail 6`, and `BUILD_UTILS_SPAWN_1`. This is a different blocker from the prior nested `frontend/package.json` ENOENT.
+- GitHub Actions for the same main SHA `361be5c` show backend CI, frontend CI, and PostgreSQL schema CI all successful. This Vercel-vs-GitHub test discrepancy remains unexplained; full failing test names were not present in the 100-event Vercel log response.
+- Do not deploy or merge the unified branch to try to resolve this. Next step is to reproduce the six Vercel-environment test failures using the exact main commit and its Vercel environment/config, then reconcile the difference.
