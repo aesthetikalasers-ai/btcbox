@@ -2833,3 +2833,15 @@ The prior withdrawal UI audit statement claiming the active BTCBOX admin route w
 - FIX PREPARED in PR #35: route permissions now explicitly map to `withdrawals.read`, `orders.read`, `support.read`; balance adjustment requires `financial_adjustment.request`. Regression assertions added. PR head `90baa0d4098e5f26be455dc391cf2164e933beb7`; CI pending at time of this note. No merge yet.
 - No hosted database write, migration apply/reset, financial transaction, Vercel deployment, or V211 trading-terminal change occurred in this batch.
 - Remaining source gap: the React app still has no actual Admin Console route/view. Backend admin endpoints and Supabase Auth/RBAC middleware exist; the current `/admin` legacy shell still needs a functional UI. Before implementing, the auth context needs a short-lived in-memory access-token accessor (never local/session storage) or another explicit secure bearer-token handoff.
+
+
+## Integration batch — React Admin Console and withdrawal history — 2026-11-06 (UTC+8)
+
+- PR #35 merged after exact-head backend CI SUCCESS at `90baa0d4098e5f26be455dc391cf2164e933beb7`; merge commit `9b1384730f48afd06c7dfc9df4d0a16a0dad0e58`. Admin route authorization now maps GET withdrawals/orders/support messages to their explicit read permissions. Balance adjustment now requires `financial_adjustment.request`, not the weaker `users.read`.
+- PR #36 is the current React admin/customer workflow integration candidate: `https://github.com/avali9308-code/btcboxcdt/pull/36`.
+- PR #36 adds an on-demand AuthContext accessor for the active Supabase access token. The token remains in the Supabase session client and is returned only to the caller; no custom local/session storage or URL persistence is introduced.
+- PR #36 adds `frontend/src/lib/admin-api.ts` (Bearer-authenticated calls to existing `/api/admin/*` endpoints), a protected `/admin` React route, and a read-only Admin Console for overview, users, withdrawals, orders, KYC queue, and support messages. Server-side Supabase identity and RBAC remain authoritative. Mutating admin controls are deliberately not yet exposed in this first UI batch.
+- PR #36 also types the existing account withdrawal-history payload and displays per-request status, destination, network, date, and manual payout reference/TxID on the customer Withdraw page. The page already submits staff-reviewed requests through the existing API; deposit page already accurately states configured address + staff verification + manual credit, with no automatic credit.
+- Latest PR #36 head after withdrawal-history addition: `395546f96bb354e3f3dc8f3ba9ec5752f6fc1483`. Frontend and backend CI were in progress at the time of this note.
+- No database write, migration apply/reset, financial transaction, Vercel deployment, or V211 trading-terminal change occurred.
+- Remaining admin UI work: add tested manual deposit credit by selected user row, withdrawal approve/reject/manual-paid actions with mandatory reference, KYC decisions, and support replies; each action must match existing endpoint contract and surface fail-closed responses without claiming success.
