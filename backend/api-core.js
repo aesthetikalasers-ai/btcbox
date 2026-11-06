@@ -2789,6 +2789,7 @@ async function handleRequest(event, context) {
       if (route === 'config' && verb === 'POST') return 'system_config.write';
       if (route === 'seconds-policy' && verb === 'GET') return 'seconds_policy.read';
       if (route === 'seconds-policy' && verb === 'POST') return 'seconds_policy.manage';
+      if (route === 'seconds-positions' && verb === 'GET') return 'seconds_policy.read';
       return null;
     })(sub, method);
     if (!requiredPermission) return json({ ok: false, code: 'ADMIN_ROUTE_NOT_FOUND', msg: 'Administrator route not found.' }, 404);
@@ -2813,6 +2814,26 @@ async function handleRequest(event, context) {
         return json({ ok: true, policy: result.policy });
       } catch (_) {
         return json({ ok: false, code: 'SECONDS_POLICY_UNAVAILABLE', msg: 'Seconds policy is temporarily unavailable.' }, 503);
+      }
+    }
+    // Read-only queue for current open positions. Identity and permission are
+    // checked above by Supabase Auth/RBAC and rechecked inside the database RPC.
+    if (sub === 'seconds-positions' && method === 'GET') {
+      try {
+        const base = String(process.env.SUPABASE_URL || '').replace(/\\/+$/, '');
+        if (!base || !supabaseStorageConfigured()) throw new Error('Seconds position store unavailable');
+        const response = await fetch(base + '/rest/v1/rpc/admin_read_seconds_open_positions_v1', {
+          method: 'POST', headers: supabaseHeaders(),
+          body: JSON.stringify({ p_actor_user_id: adminUserId }),
+          signal: AbortSignal.timeout(5000)
+        });
+        const result = await response.json().catch(() => null);
+        if (!response.ok || !result || result.ok !== true || !Array.isArray(result.positions)) {
+          return json({ ok: false, code: 'SECONDS_POSITIONS_UNAVAILABLE', msg: 'Open Seconds positions are temporarily unavailable.' }, 503);
+        }
+        return json({ ok: true, ...result });
+      } catch (_) {
+        return json({ ok: false, code: 'SECONDS_POSITIONS_UNAVAILABLE', msg: 'Open Seconds positions are temporarily unavailable.' }, 503);
       }
     }
     if (sub === 'seconds-policy' && method === 'POST') {
