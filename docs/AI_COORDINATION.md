@@ -3042,3 +3042,18 @@ The prior withdrawal UI audit statement claiming the active BTCBOX admin route w
   - PostgreSQL schema CI run `42219442171`: all 22 canonical SQL files applied to disposable PostgreSQL 16; RLS/grants verified; manual deposit, withdrawal fee/review/payout, spot matching/cancel/admin market, market-rule lock/guard, post-pause exact replay, and 85%/92% Seconds snapshot/settlement checks passed. Integration transaction ended with `ROLLBACK`.
 - Still NOT VERIFIED: hosted Supabase installation, first Super Admin provisioning against real Auth users, browser E2E for Admin Spot Markets and broader flows, live market-price/provider connectivity, real network deposits/payouts and production release. KYC document-image upload and secure evidence storage/review remain incomplete.
 - No hosted database write/bootstrap, real financial operation, production deployment or merge to `main` was performed.
+
+## Latest user-facing spot catalogue integration — 2026-11-06 12:52 UTC
+
+- Current PR #50 exact head: `ab9d2fb900c7f9928de44bb597548cd5a1d489ba`; based on main `fa4513701af75b4c4cb39d60a3df08f07d632af4`; 137 commits ahead / 0 behind. PR remains Draft, open, mergeable and unmerged.
+- Added public `GET /api/market/pairs` backed by the same PostgreSQL spot-market catalogue used by Admin. It returns enabled supported USDT pairs only; it does not expose the service-role credential or administrative fee fields.
+- `GET /api/market` now derives its external ticker request set from enabled catalogue pairs rather than a hardcoded symbol list. Empty catalogue returns an empty list, not fabricated symbols. Candle and depth routes reject disabled/unconfigured pairs with `SPOT_MARKET_DISABLED`.
+- Admin market creation now restricts quote currency to USDT at UI, API and PostgreSQL RPC boundaries. The supported base-asset list remains aligned with the financial ledger.
+- Trade Hub now builds spot-market links from the public configured catalogue. Spot Trading page checks the selected pair before enabling new orders, resets the pair gate closed during reload, and still allows an already-persisted exact pending order request to be retried after that market is paused, so an ambiguous committed order can be reconciled.
+- Added `backend/tests/spot-market-catalog.test.js`, extended admin market tests, and extended disposable PostgreSQL integration to reject non-USDT quote pairs. Updated `docs/ADMIN_SPOT_MARKET_API.md`.
+- TEST PASSED on exact current head `ab9d2fb900c7f9928de44bb597548cd5a1d489ba`:
+  - Backend CI run `42220815151`: unified build, **319/319 tests**, fail-closed preflight and output/entrypoint checks passed.
+  - Frontend CI run `42220815130`: lint and production build passed.
+  - PostgreSQL schema CI run `42220815173`: all 22 canonical SQL files applied to disposable PostgreSQL 16; RLS/grants verified; financial lifecycle, 85%/92% Seconds snapshots, spot market concurrency/disabled-pair catalogue and idempotency assertions passed; integration transaction ended with `ROLLBACK`.
+- Still NOT VERIFIED: hosted Supabase installation, first Super Admin provisioning against real Auth users, browser E2E for the Admin Spot Markets panel/Trade Hub, live market-price provider connectivity, real network deposits/payouts and production release. KYC document-image upload and secure evidence storage/review remain incomplete.
+- No hosted database write/bootstrap, real financial operation, production deployment or merge to `main` was performed.
