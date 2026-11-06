@@ -50,7 +50,7 @@ test('admin read routes and balance adjustments require their own explicit permi
   assert.match(apiSource, /route === 'withdrawals' && verb === 'GET'.*return 'withdrawals\.read'/);
   assert.match(apiSource, /route === 'orders' && verb === 'GET'.*return 'orders\.read'/);
   assert.match(apiSource, /route === 'support\/messages' && verb === 'GET'.*return 'support\.read'/);
-  assert.match(apiSource, /'user\/balance': 'financial_adjustment\.request'/);
+  assert.match(apiSource, /route === 'user\/balance' && verb === 'POST'.*return 'financial_adjustment\.request'/);
   assert.ok(ADMIN_PERMISSION_KEYS.includes('withdrawals.read'));
   assert.ok(ADMIN_PERMISSION_KEYS.includes('orders.read'));
   assert.ok(ADMIN_PERMISSION_KEYS.includes('support.read'));
