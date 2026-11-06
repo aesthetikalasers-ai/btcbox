@@ -2598,6 +2598,77 @@ async function handleRequest(event, context) {
     const priorAuditFlush = await flushAdminAuditOutbox();
     if (priorAuditFlush.persistenceUnavailable) return json({ ok: false, code: 'AUDIT_OUTBOX_STATE_UNAVAILABLE', msg: 'Administrator audit delivery state could not be saved. Please retry.' }, 503);
 
+    // Seconds policy is read and changed through versioned PostgreSQL RPCs.
+    if (sub === 'seconds-policy' && method === 'GET') {
+      try {
+        const base = String(process.env.SUPABASE_URL || '').replace(/\\/+$/, '');
+        if (!base || !supabaseStorageConfigured()) throw new Error('Seconds policy store unavailable');
+        const response = await fetch(base + '/rest/v1/rpc/read_active_seconds_policy_v1', {
+          method: 'POST', headers: supabaseHeaders(), body: '{}', signal: AbortSignal.timeout(5000)
+        });
+        const result = await response.json().catch(() => null);
+        if (!response.ok || !result || result.ok !== true || !result.policy) {
+          return json({ ok: false, code: 'SECONDS_POLICY_UNAVAILABLE', msg: 'Seconds policy is temporarily unavailable.' }, 503);
+        }
+        return json({ ok: true, policy: result.policy });
+      } catch (_) {
+        return json({ ok: false, code: 'SECONDS_POLICY_UNAVAILABLE', msg: 'Seconds policy is temporarily unavailable.' }, 503);
+      }
+    }
+    if (sub === 'seconds-policy' && method === 'POST') {
+      const expectedVersion = Number(body.expected_policy_version);
+      const symbols = body.symbols;
+      const durations = body.durations_sec;
+      const minStake = String(body.min_stake ?? '').trim();
+      const maxStake = String(body.max_stake ?? '').trim();
+      const payoutBps = Number(body.payout_bps);
+      const exposureRaw = body.per_user_open_exposure;
+      const exposure = exposureRaw === null || exposureRaw === undefined || exposureRaw === '' ? null : String(exposureRaw).trim();
+      const reason = typeof body.reason === 'string' ? body.reason.trim() : '';
+      const requestId = String(body.request_id || '');
+      const decimal = /^(?:0|[1-9]\\d*)(?:\\.\\d{1,18})?$/;
+      const allowedSymbols = ['BTC','ETH','SOL','BNB'];
+      const allowedDurations = [30,60,300,900];
+      if (!Number.isSafeInteger(expectedVersion) || expectedVersion < 1 ||
+          !Array.isArray(symbols) || !symbols.length || symbols.some((v) => !allowedSymbols.includes(v)) || new Set(symbols).size !== symbols.length ||
+          !Array.isArray(durations) || !durations.length || durations.some((v) => !allowedDurations.includes(v)) || new Set(durations).size !== durations.length ||
+          !decimal.test(minStake) || Number(minStake) <= 0 || !decimal.test(maxStake) || Number(maxStake) < Number(minStake) ||
+          !Number.isSafeInteger(payoutBps) || payoutBps < 8500 ||
+          (exposure !== null && (!decimal.test(exposure) || Number(exposure) <= 0)) ||
+          !reason || reason.length > 500 || !/^[A-Za-z0-9_-]{16,100}$/.test(requestId)) {
+        return json({ ok: false, code: 'SECONDS_POLICY_CHANGE_INVALID', msg: 'Seconds policy values are invalid. The minimum payout rate is 85%; there is no fixed upper limit.' }, 400);
+      }
+      const normalized = {
+        expected_policy_version: expectedVersion, symbols: [...symbols].sort(), durations_sec: [...durations].sort((a,b)=>a-b),
+        min_stake: minStake, max_stake: maxStake, payout_bps: payoutBps,
+        per_user_open_exposure: exposure, reason
+      };
+      const requestHash = crypto.createHash('sha256').update(JSON.stringify(normalized)).digest('hex');
+      try {
+        const base = String(process.env.SUPABASE_URL || '').replace(/\\/+$/, '');
+        if (!base || !supabaseStorageConfigured()) throw new Error('Seconds policy store unavailable');
+        const response = await fetch(base + '/rest/v1/rpc/admin_set_seconds_policy_v1', {
+          method: 'POST', headers: supabaseHeaders(),
+          body: JSON.stringify({
+            p_actor_user_id: adminUserId, p_expected_policy_version: expectedVersion,
+            p_symbols: normalized.symbols, p_durations_sec: normalized.durations_sec,
+            p_min_stake: minStake, p_max_stake: maxStake, p_payout_bps: payoutBps,
+            p_per_user_open_exposure: exposure, p_reason: reason,
+            p_request_id: requestId, p_request_hash: requestHash
+          }),
+          signal: AbortSignal.timeout(7000)
+        });
+        const result = await response.json().catch(() => null);
+        if (!response.ok || !result || result.ok !== true || !result.policy) {
+          const status = response.status === 400 || response.status === 409 ? 409 : 503;
+          return json({ ok: false, code: status === 409 ? 'SECONDS_POLICY_CHANGE_REJECTED' : 'SECONDS_POLICY_CHANGE_UNAVAILABLE', msg: status === 409 ? 'Seconds policy update was rejected. Refresh the active policy and try again.' : 'Seconds policy update could not be confirmed. Refresh before retrying.' }, status);
+        }
+        return json({ ok: true, policy: result.policy, replayed: result.replayed === true });
+      } catch (_) {
+        return json({ ok: false, code: 'SECONDS_POLICY_CHANGE_UNAVAILABLE', msg: 'Seconds policy update could not be confirmed. Refresh before retrying.' }, 503);
+      }
+    }
+
     // GET /api/admin/stats
     if (sub === 'stats' && method === 'GET') {
       const users = Object.values(db.users);
