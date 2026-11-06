@@ -295,32 +295,45 @@ export function EarnPage(){
  const [busy,setBusy]=useState(false);
  const [error,setError]=useState("");
  const [actionMessage,setActionMessage]=useState("");
+ const [requestIds,setRequestIds]=useState<Record<string,string>>({});
  const [reload,setReload]=useState(0);
  useEffect(()=>{
   const controller=new AbortController();
   setLoading(true);setError("");
-  Promise.all([getAccount(controller.signal),getEarnCatalog(controller.signal)]).then(([account,catalog])=>{
-   setProducts(catalog.products);
-   setPositions(Array.isArray(account.earn_records)?account.earn_records:[]);
-   setActionsEnabled(catalog.actions_enabled);
-   setSelectedProduct(current=>catalog.products.some(p=>p.product_id===current)?current:(catalog.products[0]?.product_id||""));
-  }).catch((reason:unknown)=>{
-   if(reason instanceof Error&&reason.name==="AbortError")return;
-   setError(reason instanceof Error?reason.message:"Earn data is temporarily unavailable.");
+  Promise.allSettled([getAccount(controller.signal),getEarnCatalog(controller.signal)]).then(([accountResult,catalogResult])=>{
+   const issues:string[]=[];
+   if(accountResult.status==="fulfilled")setPositions(Array.isArray(accountResult.value.earn_records)?accountResult.value.earn_records:[]);
+   else issues.push(accountResult.reason instanceof Error?accountResult.reason.message:"Earn positions are unavailable.");
+   if(catalogResult.status==="fulfilled"){
+    setProducts(catalogResult.value.products);
+    setActionsEnabled(catalogResult.value.actions_enabled);
+    setSelectedProduct(current=>catalogResult.value.products.some(p=>p.product_id===current)?current:(catalogResult.value.products[0]?.product_id||""));
+   }else{
+    setProducts([]);setActionsEnabled(false);
+    issues.push(catalogResult.reason instanceof Error?catalogResult.reason.message:"Earn products are unavailable.");
+   }
+   setError(issues.join(" "));
   }).finally(()=>{if(!controller.signal.aborted)setLoading(false);});
   return ()=>controller.abort();
  },[reload]);
  const selected=products.find(item=>item.product_id===selectedProduct);
+ const requestIdFor=(key:string)=>requestIds[key]||crypto.randomUUID();
  const number=(value:number|string|undefined)=>{const n=Number(value);return Number.isFinite(n)?n.toLocaleString(undefined,{maximumFractionDigits:10}):"—";};
  const operate=async(event:FormEvent<HTMLFormElement>)=>{
   event.preventDefault();
   if(!selected||!actionsEnabled||busy)return;
   const parsed=Number(amount);
+  const decimals=amount.includes(".")?amount.split(".")[1].length:0;
   if(!Number.isFinite(parsed)||parsed<=0){setError("Enter an amount greater than zero.");return;}
+  if(decimals>selected.amount_scale){setError(`This product supports at most ${selected.amount_scale} decimal places.`);return;}
+  const requestKey=`subscribe:${selected.product_id}:${amount.trim()}`;
+  const requestId=requestIdFor(requestKey);
+  setRequestIds(current=>({...current,[requestKey]:requestId}));
   setBusy(true);setError("");setActionMessage("");
   try{
-   const result=await submitEarnAction("subscribe",{request_id:crypto.randomUUID(),product_id:selected.product_id,amount:amount.trim()});
+   const result=await submitEarnAction("subscribe",{request_id:requestId,product_id:selected.product_id,amount:amount.trim()});
    setActionMessage(result.duplicate?"This request was already processed.":"Subscription confirmed by BTCBOX.");
+   setRequestIds(current=>{const next={...current};delete next[requestKey];return next;});
    setAmount("");
    setReload(n=>n+1);
   }catch(reason){
@@ -329,10 +342,14 @@ export function EarnPage(){
  };
  const redeem=async(position:EarnPosition)=>{
   if(!actionsEnabled||busy)return;
+  const requestKey=`redeem:${position.id}`;
+  const requestId=requestIdFor(requestKey);
+  setRequestIds(current=>({...current,[requestKey]:requestId}));
   setBusy(true);setError("");setActionMessage("");
   try{
-   const result=await submitEarnAction("redeem",{request_id:crypto.randomUUID(),record_id:position.id});
+   const result=await submitEarnAction("redeem",{request_id:requestId,record_id:position.id});
    setActionMessage(result.duplicate?"This redemption request was already processed.":"Redemption confirmed by BTCBOX.");
+   setRequestIds(current=>{const next={...current};delete next[requestKey];return next;});
    setReload(n=>n+1);
   }catch(reason){
    setError(reason instanceof Error?reason.message:"Redemption was not confirmed. Check your Earn history before retrying.");
@@ -341,9 +358,8 @@ export function EarnPage(){
  return <PageFrame eyebrow="BTCBOX / WEALTH" title="Earn" description="Live Earn products, account positions and database-calculated interest from BTCBOX. Rates and terms are controlled by the backend.">
   <div className="flex flex-wrap items-center justify-between gap-3"><Badge variant="outline" className="border-brand-border">{t("Live product catalog")}</Badge><Button size="sm" variant="outline" disabled={loading||busy} onClick={()=>setReload(n=>n+1)}><RefreshCw className={"mr-2 h-4 w-4 "+(loading?"animate-spin":"")}/>{t("Refresh")}</Button></div>
   {loading?<Card className="border-brand-border bg-brand-surface"><CardContent className="p-5 text-sm text-brand-text-muted" role="status">{t("Loading Earn products and positions…")}</CardContent></Card>
-  :error&&!products.length?<Card className="border-rose-500/30 bg-brand-surface"><CardContent className="flex flex-wrap items-center justify-between gap-3 p-5"><p className="text-sm text-rose-300" role="alert">{error}</p><Button size="sm" variant="outline" onClick={()=>setReload(n=>n+1)}>{t("Try again")}</Button></CardContent></Card>
   :<>
-   {error?<p className="rounded-xl border border-rose-500/30 p-3 text-sm text-rose-300" role="alert">{error}</p>:null}
+   {error?<div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-rose-500/30 p-3"><p className="text-sm text-rose-300" role="alert">{error}</p><Button size="sm" variant="outline" onClick={()=>setReload(n=>n+1)}>{t("Try again")}</Button></div>:null}
    {actionMessage?<p className="rounded-xl border border-emerald-500/30 p-3 text-sm text-emerald-300" role="status">{actionMessage}</p>:null}
    {!actionsEnabled?<Card className="border-amber-400/25 bg-brand-surface"><CardContent className="p-4"><Badge variant="outline" className="border-amber-400/30 text-amber-200">{t("Operations not enabled")}</Badge><p className="mt-2 text-sm text-brand-text-secondary">{t("You can review the live product catalog and your positions. Subscribe and redeem will become available after the financial ledger and database controls are verified and enabled. No funds can be moved now.")}</p></CardContent></Card>:null}
    <section className="space-y-3"><h2 className="type-section-title">{t("Available products")}</h2>
