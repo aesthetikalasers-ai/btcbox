@@ -68,7 +68,7 @@ test('membership management requires active Super Admin and rejects self-managem
 });
 
 test('permission writes reject unknown, duplicate, wildcard, and malformed permission sets', () => {
-  assert.match(sql, /JOIN private\.admin_permission_catalog USING\(permission_key\)/i);
+  assert.match(sql, /JOIN private\.admin_permission_catalog c USING\(permission_key\)/i);
   assert.match(sql, /unknown or duplicate permission key/i);
   assert.match(sql, /provision\/reactivate requires explicit permissions/i);
   assert.match(sql, /suspend\/revoke cannot carry permissions/i);
@@ -96,7 +96,7 @@ test('membership lookup derives permissions from live membership and latest gran
 
 test('migration source is not applied and bootstrap does not provision a default account', () => {
   assert.match(sql, /SOURCE ONLY: apply only to an isolated Supabase staging project/i);
-  assert.match(sql, /No administrator is bootstrapped by this migration/i);
+  assert.match(sql, /it does not create an admin/i);
   const beforeBootstrap = sql.slice(0, sql.indexOf('CREATE OR REPLACE FUNCTION private.bootstrap_super_admin_v1'));
   assert.doesNotMatch(beforeBootstrap, /INSERT INTO private\.admin_memberships/i);
   assert.match(design, /initial Super Admin is provisioned once by the project owner/i);
