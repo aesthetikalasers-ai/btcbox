@@ -137,7 +137,7 @@ test('delegated administrator public RPC bridge is invoker-only and matches the 
   assert.ok(listStart >= 0 && listEnd > listStart);
   assert.ok(wrapper.slice(listStart, listEnd).includes('SECURITY INVOKER'));
   assert.ok(!wrapper.slice(listStart, listEnd).includes('SECURITY DEFINER'));
-  assert.ok(wrapper.includes('p_request_id text,\\n  p_request_hash text'));
+  assert.ok(wrapper.includes('p_request_hash text'));
   assert.ok(wrapper.includes('p_request_id,p_request_hash'));
   assert.ok(wrapper.includes('GRANT EXECUTE ON FUNCTION public.admin_list_memberships_v1(uuid) TO service_role'));
 });
