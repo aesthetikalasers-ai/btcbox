@@ -1,6 +1,6 @@
 # Financial SQL migration order and cutover gates
 
-> **编号约定（phase2）**: 本目录下迁移已统一重命名为 `0001_xxx.sql` … `0022_xxx.sql`，按编号升序应用即可。`0001_btcbox_state_cas.sql` 为基础，`0002–0015` 为有序业务 RPC，`0016` 为可选自动化链上验证，`0017–0020` 为 staging/对账，`0021` 为管理员审计日志 append-only 表，`0022` 为提现人工审核状态扩展。用 `scripts/check_migration_status.py` 校验编号连续性与已应用状态。
+> **编号约定（phase2）**: 本目录下迁移已统一重命名为 `0001_xxx.sql` … `0022_xxx.sql`，按编号升序应用即可。`0001_btcbox_state_cas.sql` 为基础，`0002–0014` 为有序业务 RPC；旧 `0015` 单用户单未完成订单限制已废弃，`0016` 为可选自动化链上验证，`0017–0020` 为 staging/对账，`0021` 为管理员审计日志 append-only 表，`0022` 为提现人工审核状态扩展。用 `scripts/check_migration_status.py` 校验编号连续性与已应用状态。
 
 
 Apply these migrations to a dedicated staging project in dependency order. These files are migrations, not read-only reports; audit scripts and staging drill outputs are not migrations. Complete the checks before production cutover.
@@ -18,7 +18,6 @@ Apply these migrations to a dedicated staging project in dependency order. These
 11. `financial_admin_read_api_v1.sql`
 12. `financial_admin_account_read_api_v1.sql`
 13. `financial_seconds_contracts_v1.sql` — creates the Seconds lifecycle RPCs and extends the financial operation type constraint.
-14. `financial_seconds_one_open_position_v1.sql` — apply after #13; adds a partial unique index for one open position per user and maps concurrent conflicts to `OPEN_POSITION_EXISTS`. It fails closed if duplicate open positions already exist.
 
 The lifecycle `confirm_deposit_atomic` RPC is intentionally fail-closed and cannot credit a deposit without trusted verification. The intended deposit-credit path for the current manual-review business model is the separately audited `admin_manual_deposit_atomic` RPC; manual credits must use the separately audited `admin_manual_deposit_atomic` RPC. The `financial_deposit_chain_verification_v3.sql` is optional when the deployment does not enable automated chain verification, but it is required before enabling that automated verification path.
 
@@ -58,7 +57,7 @@ withdrawal creation, approval, rejection/refund, and the administrator review qu
 The numbered SQL files added after the original 0001–0022 sequence are separate prepared migrations; their presence in Git does not mean they are installed in any database.
 
 15. `0023_btcbox_shared_rate_limit_v1.sql` — creates the server-side shared fixed-window limiter. Apply before enabling API routes that call `btcbox_rate_limit_consume_v1`; it denies browser-role table access and grants the RPC to the server role only.
-16. `0024_seconds_settlement_idempotency_v1.sql` — replaces the Seconds settlement RPC with request-hash idempotency. Requires the Seconds tables/RPCs from `0014_financial_seconds_contracts_v1.sql` and the one-open-position invariant from `0015_financial_seconds_one_open_position_v1.sql`; validate the ledger invariants in isolated staging.
+16. `0024_seconds_settlement_idempotency_v1.sql` — replaces the Seconds settlement RPC with request-hash idempotency. Requires only the Seconds tables/RPCs from `0014_financial_seconds_contracts_v1.sql`; multiple simultaneous open positions per user are supported and no per-user open-position unique index is permitted.
 17. `0025_seconds_policy_versioning_v1.sql` — adds immutable versioned policy, active pointer, append-only policy audit, and per-position payout/policy snapshots. Apply only after the Seconds base and settlement-idempotency migrations have been validated. It does not implement administrator policy authoring/approval/activation APIs and does not enable financial cutover.
 18. `0026_admin_rbac_private_store_v1.sql` — creates the private administrator membership, permission-event, security-audit and request-idempotency store. It seeds permission definitions only; it does not create an administrator. Super Admin provisioning is a separate owner-controlled operation, and the API must verify Supabase Auth and load membership before these permissions are effective.
 19. `0027_withdrawal_manual_payout_completion_v1.sql` — adds staff-paid completion after an approved withdrawal. A non-empty TxID/reference is mandatory; the RPC is idempotent for the same reference, rejects a conflicting reference, changes status and appends audit only, and does not broadcast or debit funds again. It preserves the pending/review/approved states from `0022`.
