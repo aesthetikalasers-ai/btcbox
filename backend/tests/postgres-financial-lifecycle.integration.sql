@@ -30,6 +30,7 @@ $$;
 DO $financial_tests$
 DECLARE
   v_result jsonb;
+  v_snapshot jsonb;
   v_hash text;
   v_balance numeric;
   v_frozen numeric;
@@ -80,6 +81,17 @@ BEGIN
   SELECT available INTO v_balance FROM public.financial_accounts
   WHERE user_id='long-reference-user' AND asset='USDT';
   IF v_balance<>5 THEN RAISE EXCEPTION 'long-reference retry credited funds twice: %',v_balance; END IF;
+
+  v_snapshot := public.read_financial_account_snapshot_v1('long-reference-user');
+  IF jsonb_array_length(v_snapshot->'deposits')<>1 THEN
+    RAISE EXCEPTION 'account snapshot did not return exactly one manual deposit: %',v_snapshot->'deposits';
+  END IF;
+  IF v_snapshot->'deposits'->0->>'status'<>'confirmed' OR
+     v_snapshot->'deposits'->0->>'reference'<>repeat('R',130) OR
+     (v_snapshot->'deposits'->0->>'amount')::numeric<>5 OR
+     v_snapshot->'balances'->'USDT'->>'free'<>'5' THEN
+    RAISE EXCEPTION 'account snapshot deposit history and balance do not match: %',v_snapshot;
+  END IF;
 
   v_failed := false;
   BEGIN
