@@ -45,7 +45,7 @@ declare
   v_hash text;
   v_op_id uuid;
   v_available numeric;
-  v_reference text := left(btrim(coalesce(p_reference, '')), 120);
+  v_reference text := left(btrim(coalesce(p_reference, '')), 160);
   v_note text := left(btrim(coalesce(p_note, '')), 300);
 begin
   if coalesce(p_deposit_id, '') = '' or coalesce(p_admin_id, '') = '' or
