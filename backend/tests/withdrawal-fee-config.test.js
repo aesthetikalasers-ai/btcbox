@@ -10,17 +10,26 @@ const api = fs.readFileSync(path.join(root, 'api-core.js'), 'utf8');
 const apiTypes = fs.readFileSync(path.resolve(root, '../frontend/src/lib/api.ts'), 'utf8');
 const admin = fs.readFileSync(path.resolve(root, '../frontend/src/features/admin/AdminPage.tsx'), 'utf8');
 const pages = fs.readFileSync(path.resolve(root, '../frontend/src/features/pages/Pages.tsx'), 'utf8');
+const withdrawalSql = fs.readFileSync(path.join(root, 'supabase/sql/0029_withdrawal_fee_quote_idempotency_v1.sql'), 'utf8');
 
 test('withdrawal fees are configurable in admin and the same server values are used for user quote and debit', () => {
   assert.match(api, /const DEFAULT_WITHDRAWAL_FEES = Object\.freeze\(\{[\s\S]*?USDT: '1'[\s\S]*?BTC: '0\.0001'[\s\S]*?USDC: '1'/);
   assert.ok(api.includes('fees: safeWithdrawalFees(db.withdrawal_fees)'));
   assert.ok(api.includes('const supportedFees = safeWithdrawalFees(db.withdrawal_fees)'));
   assert.ok(api.includes('const fee = supportedFees[coin]'));
-  assert.ok(api.includes('body.expected_fee !== undefined'));
-  assert.ok(api.includes('compareMoney(expectedFee, fee) !== 0'));
+  assert.ok(api.includes('body.expected_fee === undefined ? fee : parseMoneyInput(body.expected_fee)'));
+  assert.ok(api.includes('p_expected_fee: String(expectedFee)'));
   assert.ok(api.includes('WITHDRAWAL_FEE_CHANGED'));
   assert.ok(pages.includes('expected_fee:String(config?.fees[intent.coin] ?? "")'));
   assert.ok(pages.includes('reason.code==="WITHDRAWAL_FEE_CHANGED"'));
+  const duplicateAt = withdrawalSql.indexOf('if found then');
+  const quoteCheckAt = withdrawalSql.indexOf('if p_expected_fee is distinct from p_fee then');
+  assert.ok(duplicateAt >= 0 && quoteCheckAt > duplicateAt, 'idempotent replay must be checked before the current fee quote');
+  assert.ok(withdrawalSql.includes("'fee', v_existing.fee"));
+  assert.ok(!withdrawalSql.includes('v_existing.fee is distinct from p_fee'));
+  assert.ok(!withdrawalSql.includes('v_existing.require_admin_review is distinct from p_require_admin_review'));
+  assert.ok(api.includes("[String(user.uid), coin, network, String(amount), addr, requestId].join('|')"),
+    'request hash must bind caller intent, not a mutable server fee');
   assert.ok(!api.includes('const supportedFees = { USDT: 1.0'));
 });
 
