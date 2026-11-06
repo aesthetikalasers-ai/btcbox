@@ -65,11 +65,12 @@ test('admin route uses verified Supabase Auth identity and server-side role perm
   assert.ok(app.includes('window.supabaseClient.auth.signInWithPassword'));
   assert.ok(app.includes('async function getAdminAccessToken()'));
   assert.ok(apiCore.includes("require('./admin-auth')"));
-  assert.ok(apiCore.includes('verifySupabaseAccessToken'));
+  assert.ok(apiCore.includes('authorizeSupabaseAdmin'));
   assert.ok(apiCore.includes('admin_get_membership_v1'));
   assert.ok(apiCore.includes('hasAdminPermission'));
   assert.ok(apiCore.includes('ADMIN_PERMISSION_DENIED'));
   assert.ok(!apiCore.includes('WWW-Authenticate: Basic realm="BTCBOX Admin"'));
+  assert.ok(!apiCore.includes("authHeader.startsWith('Basic ')"));
 });
 
 
