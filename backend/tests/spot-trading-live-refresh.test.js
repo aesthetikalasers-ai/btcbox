@@ -82,11 +82,13 @@ test('spot UI labels server snapshot time and does not substitute browser receip
 
 const authPage = fs.readFileSync(path.resolve(__dirname, '../../frontend/src/features/auth/AuthPages.tsx'), 'utf8');
 
-test('sign-in and registration pages expose Google only, with no wallet or email login controls', () => {
+test('sign-in and registration pages expose username, Google and Web3 without email auth', () => {
   assert.ok(authPage.includes('Continue with Google'));
   assert.ok(authPage.includes('signInWithGoogle'));
-  assert.ok(!authPage.includes('Connect wallet'));
-  assert.ok(!authPage.includes('signInWithWeb3'));
+  assert.ok(authPage.includes('Connect Ethereum wallet'));
+  assert.ok(authPage.includes('Connect Solana wallet'));
+  assert.ok(authPage.includes('signInWithWeb3'));
+  assert.ok(authPage.includes('Sign in with username'));
   assert.ok(!authPage.includes('Continue with email'));
-  assert.ok(!authPage.includes('Sign in with username'));
+  assert.ok(!authPage.includes('Register with email'));
 });
