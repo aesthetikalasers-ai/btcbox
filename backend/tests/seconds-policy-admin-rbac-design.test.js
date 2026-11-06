@@ -51,19 +51,19 @@ test('admin documentation describes verified Auth, private RBAC and owner-only b
   assert.ok(design.includes('backend validates the token with Supabase Auth'));
   assert.ok(design.includes('derives the actor UUID from the returned authenticated user'));
   assert.ok(design.includes('Membership and delegated permissions live in the private schema'));
-  assert.ok(design.includes('Initial Super Admin bootstrap is a one-time owner-controlled database operation'));
+  assert.ok(design.includes('initial Super Admin bootstrap is a one-time owner-controlled database operation'));
   assert.ok(design.includes('No initial Super Admin has been provisioned merely by adding the SQL source'));
 });
 
 test('Super Admin can make one atomic policy change without a three-person workflow', () => {
   assert.ok(design.includes('Super Admin may complete the policy change alone'));
-  assert.ok(design.includes('no three-person approval is required'));
+  assert.ok(design.includes('without a three-person workflow'));
   assert.ok(design.includes('one atomic create-and-activate action'));
   assert.ok(design.includes('seconds_policy.manage'));
 });
 
 test('React policy editor uses the authenticated API and does not write policy tables directly', () => {
-  assert.ok(admin.includes('saveAdminSecondsPolicy(token')));
+  assert.ok(admin.includes('saveAdminSecondsPolicy(token'));
   assert.ok(admin.includes('hasPermission("seconds_policy.manage")'));
   assert.ok(admin.includes('expected_policy_version: secondsPolicy.policy_version'));
   assert.ok(admin.includes('window.crypto.randomUUID()'));
