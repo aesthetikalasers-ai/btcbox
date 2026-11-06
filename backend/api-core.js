@@ -280,6 +280,22 @@ async function matchingRpc(name, payload) {
 // price itself from the same trusted feeds as /api/market; client-supplied
 // prices are never trusted for balance-affecting operations.
 const SECONDS_ALLOWED_SYMBOLS = new Set(['BTC', 'ETH', 'SOL', 'BNB']);
+function normalizeReferenceTimestamp(value, nowMs) {
+  const now = Number.isFinite(nowMs) ? nowMs : Date.now();
+  let timestampMs;
+  if (typeof value === 'string' && !/^\\d+$/.test(value)) {
+    timestampMs = Date.parse(value);
+  } else {
+    const numeric = Number(value);
+    // Both supported providers expose epoch milliseconds in their ticker payloads.
+    timestampMs = Number.isFinite(numeric) && numeric >= 1000000000000 ? numeric : NaN;
+  }
+  if (!Number.isFinite(timestampMs) || timestampMs <= 0) return null;
+  const ageMs = now - timestampMs;
+  if (ageMs > 120000 || ageMs < -5000) return null;
+  return Math.floor(timestampMs / 1000);
+}
+
 async function fetchSecondsReferencePrice(symbol) {
   if (!SECONDS_ALLOWED_SYMBOLS.has(symbol)) throw new Error('symbol unsupported');
   const fetchJson = async url => {
@@ -290,16 +306,18 @@ async function fetchSecondsReferencePrice(symbol) {
   try {
     const ticker = await fetchJson('https://api.exchange.coinbase.com/products/' + symbol + '-USDT/ticker');
     const price = Number(ticker && ticker.price);
-    if (Number.isFinite(price) && price > 0) return { price: price, source: 'coinbase', ts: Math.floor(Date.now() / 1000) };
+    const ts = normalizeReferenceTimestamp(ticker && ticker.time);
+    if (Number.isFinite(price) && price > 0 && ts !== null) return { price: price, source: 'coinbase', ts: ts };
   } catch (_) { /* fall through to Bybit */ }
   try {
     const payload = await fetchJson('https://api.bybit.com/v5/market/tickers?category=spot&symbol=' + symbol + 'USDT');
     const list = payload && payload.result && payload.result.list;
     const ticker = Array.isArray(list) && list[0];
     const price = Number(ticker && ticker.lastPrice);
-    if (Number.isFinite(price) && price > 0) return { price: price, source: 'bybit', ts: Math.floor(Date.now() / 1000) };
+    const ts = normalizeReferenceTimestamp(payload && payload.time);
+    if (Number.isFinite(price) && price > 0 && ts !== null) return { price: price, source: 'bybit', ts: ts };
   } catch (_) { /* fall through */ }
-  throw new Error('reference price unavailable');
+  throw new Error('reference price unavailable or stale');
 }
 
 async function readFinancialAccountSnapshot(userId) {
@@ -2491,7 +2509,7 @@ async function handleRequest(event, context) {
     try { settleRef = await fetchSecondsReferencePrice(symbol); }
     catch (_) { return json({ ok: false, code: 'REFERENCE_PRICE_UNAVAILABLE', msg: 'The settlement reference price is unavailable. The position remains unsettled; please try again later.' }, 503); }
     try {
-      const rpc = await fetch(base + '/rest/v1/rpc/settle_seconds_position_v1', { method: 'POST', headers: supabaseHeaders(), body: JSON.stringify({ p_position_id: positionId, p_user_id: String(user.uid), p_request_id: requestId, p_request_hash: requestHash, p_symbol: symbol, p_settle_price: String(settleRef.price), p_settle_price_source: settleRef.source, p_settle_price_ts: new Date().toISOString() }) });
+      const rpc = await fetch(base + '/rest/v1/rpc/settle_seconds_position_v1', { method: 'POST', headers: supabaseHeaders(), body: JSON.stringify({ p_position_id: positionId, p_user_id: String(user.uid), p_request_id: requestId, p_request_hash: requestHash, p_symbol: symbol, p_settle_price: String(settleRef.price), p_settle_price_source: settleRef.source, p_settle_price_ts: new Date(settleRef.ts * 1000).toISOString() }) });
       const result = await rpc.json().catch(() => null);
       if (!rpc.ok || !result || result.ok !== true) {
         const conflictCode = result && ['IDEMPOTENCY_CONFLICT','POSITION_ALREADY_SETTLED'].includes(result.code) ? result.code : '';
@@ -3704,6 +3722,7 @@ exports._test = {
   withdrawalRequiresAdminReview: withdrawalRequiresAdminReview,
   estimateUsdtValue: estimateUsdtValue,
   redactAdminAuditDetail: redactAdminAuditDetail,
+  normalizeReferenceTimestamp: normalizeReferenceTimestamp,
   secCounterIsLocked: secCounterIsLocked,
   secCounterRecordFailure: secCounterRecordFailure,
   secCounterReset: secCounterReset,
