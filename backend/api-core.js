@@ -95,6 +95,37 @@ function redactAdminAuditDetail(value) {
     .slice(0, 300);
 }
 
+function safeAdminAuditMetadata(value) {
+  const allowed = [
+    'asset', 'amount', 'fee', 'network', 'reference', 'payout_reference',
+    'operation_id', 'idempotency_key', 'status', 'side', 'base_asset',
+    'quote_asset', 'price', 'quantity', 'remaining_quantity'
+  ];
+  const safe = {};
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return safe;
+  for (const key of allowed) {
+    const item = value[key];
+    if (typeof item === 'string') {
+      const text = item.trim();
+      if (text && text.length <= 160 && !/[\\x00-\\x1f\\x7f]/.test(text)) safe[key] = text;
+    } else if (typeof item === 'number' && Number.isFinite(item)) {
+      safe[key] = String(item);
+    }
+  }
+  return safe;
+}
+
+function formatAdminAuditDetail(row) {
+  const reason = redactAdminAuditDetail(row && row.reason || '').slice(0, 80);
+  const metadata = safeAdminAuditMetadata(row && row.metadata);
+  const metadataText = redactAdminAuditDetail(Object.keys(metadata)
+    .map(key => key + '=' + metadata[key]).join(', ')).slice(0, 150);
+  const objectType = typeof (row && row.object_type) === 'string' ? row.object_type.slice(0, 24) : '';
+  const objectId = typeof (row && row.object_id) === 'string' ? row.object_id.slice(0, 32) : '';
+  const objectText = objectType && objectId ? objectType + ':' + objectId : objectType || objectId;
+  return redactAdminAuditDetail([reason, metadataText, objectText].filter(Boolean).join(' · '));
+}
+
 function isValidAuthEmail(value) {
   return typeof value === 'string' && /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(value);
 }
@@ -428,7 +459,7 @@ async function readAdminAuditLogPage(params) {
   if (!supabaseStorageConfigured()) throw new Error('Canonical administrator audit storage unavailable');
   const limit = params.limit;
   const query = new URLSearchParams({
-    select: 'id::text,actor_id,subject_user_id,action,reason,created_at',
+    select: 'id::text,actor_id,subject_user_id,action,object_type,object_id,reason,metadata,created_at',
     order: 'id.desc',
     limit: String(limit + 1)
   });
@@ -453,7 +484,7 @@ async function readAdminAuditLogPage(params) {
       uid: String(row.subject_user_id || '').slice(0, 100),
       by: String(row.actor_id || '').slice(0, 80),
       time: String(row.created_at).slice(0, 40),
-      detail: redactAdminAuditDetail(row.reason || ''),
+      detail: formatAdminAuditDetail(row),
       postgres_sync_status: 'synced'
     };
   });
