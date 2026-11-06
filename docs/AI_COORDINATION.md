@@ -2893,3 +2893,13 @@ The prior withdrawal UI audit statement claiming the active BTCBOX admin route w
 - Latest SHA CI passed: backend run 400 with 301/301 tests, unified build, fail-closed preflight and entrypoint checks; frontend run 264 with lint/build.
 - NOT VERIFIED: SQL chain execution against a disposable empty PostgreSQL instance; hosted Supabase schema installation; first Super Admin provisioning; browser E2E.
 - No hosted database write/bootstrap, production deployment or further main merge was performed. PR #50 remains Draft.
+
+## Financial admin asset-alignment audit — 2026-11-06 (UTC)
+
+- SOURCE OBSERVED on PR #50 branch `fix/post-merge-db-bootstrap-seconds-20261106`: the React admin deposit-address selector and backend `defaultDB()/mergeDepositAddresses()` defined eight networks/assets, including `BNB-BEP20` and `USDC-ERC20`, but `safeDepositAddresses()` returned only six keys. Those two configured addresses were silently dropped from API responses.
+- SOURCE OBSERVED: the React admin asset selector and manual-credit API supported USDT, BTC, ETH, SOL, BNB and USDC. The normalized admin balance reader accepted only USDT, BTC, ETH and SOL. In addition, the spot symbol map supports XRP, DOGE, ADA, AVAX, LINK, DOT, TRX, LTC, BCH, NEAR, UNI, ATOM and ETC. A valid ledger row for any rejected asset caused the entire admin balance read (and therefore the admin users list) to fail closed with HTTP 503.
+- FIXED on PR #50 branch: backend deposit-address response now preserves all eight configured address keys. Added a closed `SUPPORTED_LEDGER_ASSETS` set covering the six admin deposit assets and every base asset in the current spot-pair map; normalized admin balance validation now uses that shared catalogue.
+- Added `backend/tests/admin-asset-config-contract.test.js` to exercise the address sanitizer against every admin UI address key and assert the complete supported asset catalogue is accepted by the admin balance reader.
+- Latest branch head after these changes: `e88ce9514f5cfa50bdb1f50dea0701bafadd78d9`; PR #50 remains Draft and unmerged. Backend and frontend GitHub Actions for this SHA were observed in progress at the time of this checkpoint; do not mark the new regression test passed until the runs complete.
+- Scope: `backend/api-core.js` and new admin asset/config regression test only, in addition to the existing PR #50 delta. Main remains `fa4513701af75b4c4cb39d60a3df08f07d632af4`.
+- NOT VERIFIED: SQL migrations against disposable PostgreSQL, hosted Supabase state, first Super Admin provisioning, and browser E2E. No hosted database write, financial operation, merge, or deployment was performed.
