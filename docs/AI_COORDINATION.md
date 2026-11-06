@@ -2203,3 +2203,12 @@ Application branch inspected: `feat/btcbox-web3-auth-20261105` at `741c709d818cb
 - A follow-up source correction removes stale three-person assertions and contradictory author/reviewer bullets. The policy versioning, reasons, idempotency, revision checks, immutable open-position snapshots, and fail-closed behavior remain.
 - Scope is documentation and static source-guard only. Runtime administrator APIs, administrator UI, RBAC migration, initial Super Admin provisioning, and permission grants are NOT IMPLEMENTED. No Supabase writes or migration, merge, or production deployment occurred.
 - GitHub Actions push run for the exact final SHA is being checked; no pass is claimed until completed. Isolated Supabase staging remains unavailable.
+
+
+## Super Admin model source-guard CI repair — 2026-11-06 (UTC+8)
+
+- The first CI run for the initial Super Admin contract commit `b694f74b7cc3da5a7d9783ae7af589f85846b2e0` exposed two stale source assertions: one expected the older three-distinct-actor model, and another expected a wording variant for ordinary-admin provisioning.
+- Follow-up commit `d22d964e0d4864d24dd6bd3eedc300970c641f23` removed stale three-person assertion strings and outdated author/reviewer restrictions, but CI run `42140915024` still failed two documentation-contract assertions (254/256 tests passed). The unified site build succeeded; backend tests failed, so later fail-closed/output checks were skipped.
+- Corrective commit `10186811d10fe9737a348f34ff6b33de9dd66fde` aligns the policy-versioning documentation consistency test with the Super Admin/delegated Admin contract and uses the explicit ordinary-admin provisioning restriction wording.
+- Final exact-SHA backend CI run is pending. No test pass is claimed yet.
+- No runtime RBAC code, SQL migration, admin UI, Supabase write, financial cutover, merge, or deployment occurred.
