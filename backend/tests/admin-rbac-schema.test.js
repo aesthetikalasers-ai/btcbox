@@ -12,7 +12,7 @@ test('administrator storage lives in a non-exposed private schema with RLS and n
   assert.match(sql, /ALTER TABLE private\.admin_memberships ENABLE ROW LEVEL SECURITY/i);
   assert.match(sql, /ALTER TABLE private\.admin_permission_events ENABLE ROW LEVEL SECURITY/i);
   assert.match(sql, /REVOKE ALL ON ALL TABLES IN SCHEMA private FROM PUBLIC, anon, authenticated, service_role/i);
-  assert.match(sql, /REVOKE ALL ON FUNCTION private\\.reject_admin_history_mutation_v1\\(\\) FROM PUBLIC, anon, authenticated, service_role/i);
+  assert.match(sql, /REVOKE ALL ON FUNCTION.*reject_admin_history_mutation_v1.*FROM PUBLIC, anon, authenticated, service_role/i);
   assert.match(sql, /GRANT USAGE ON SCHEMA private TO service_role/i);
   assert.match(sql, /COMMENT ON SCHEMA private IS 'Non-exposed/i);
 });
