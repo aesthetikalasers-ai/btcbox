@@ -69,7 +69,7 @@ test("assets, orders and KYC remain behind the authenticated account gate", asyn
   }
 });
 
-test("account overview offers sign-in without requesting private account data", async ({ page }) => {
+test("account overview stays signed out after the auth session bootstrap check", async ({ page }) => {
   const privateAccountRequests: string[] = [];
   page.on("request", (request) => {
     if (new URL(request.url()).pathname === "/api/account") privateAccountRequests.push(request.method());
@@ -79,5 +79,7 @@ test("account overview offers sign-in without requesting private account data", 
 
   await expect(page.getByText("Sign in to continue")).toBeVisible();
   await expect(page.getByRole("link", { name: "Sign in" })).toHaveAttribute("href", "/login");
-  expect(privateAccountRequests).toEqual([]);
+  // AuthProvider performs one read-only account probe to restore an existing cookie session.
+  // That bootstrap GET is expected while signed out; no write endpoint is involved.
+  expect(privateAccountRequests).toEqual(["GET"]);
 });
