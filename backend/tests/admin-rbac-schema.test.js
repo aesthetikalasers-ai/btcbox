@@ -44,6 +44,8 @@ test('grant and audit history is append-only and all membership state is revisio
   assert.match(sql, /actor_kind text NOT NULL DEFAULT 'admin'/i);
   assert.match(sql, /'owner_bootstrap',NULL,p_auth_user_id,'provision'/i);
   assert.match(sql, /revision=revision\+1/i);
+  assert.match(sql, /p_expected_revision<>v_target\\.revision/i);
+  assert.match(sql, /p_expected_revision<>0/i);
   assert.match(sql, /membership_revision bigint NOT NULL/i);\n  assert.match(sql, /event_id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY/i);
 });
 
