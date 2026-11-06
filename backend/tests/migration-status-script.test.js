@@ -83,7 +83,27 @@ test('fresh database bootstrap expands safety variables and includes every canon
   assert.ok(bootstrap.includes('$' + '{DATABASE_URL:-}'), 'DATABASE_URL must be expanded');
   assert.ok(bootstrap.includes('$' + '{BTCBOX_BOOTSTRAP_CONFIRM:-}'), 'bootstrap confirmation must be expanded');
   assert.ok(bootstrap.includes('$' + '{BTCBOX_ALLOW_REMOTE_BOOTSTRAP:-}'), 'remote approval must be expanded');
-  assert.ok(!bootstrap.includes('\\$' + '{'), 'shell variable expansions must not be escaped');
+  assert.ok(!bootstrap.includes('\\
+  const syntax = spawnSync('bash', ['-n', bootstrapPath], { encoding: 'utf8' });
+  assert.equal(syntax.status, 0, syntax.stderr);
+  const sqlDir = path.join(root, 'supabase', 'sql');
+  const actual = fs.readdirSync(sqlDir).filter(name => /^\d{4}_.+\.sql$/.test(name)).sort();
+  const block = bootstrap.match(/FILES=\(([\s\S]*?)\n\)/);
+  assert.ok(block, 'bootstrap SQL allowlist must exist');
+  const configured = [...block[1].matchAll(/\b(\d{4}_[A-Za-z0-9_-]+\.sql)\b/g)].map(match => match[1]).sort();
+  assert.deepEqual(configured, actual, 'bootstrap must include each canonical SQL file exactly once');
+  assert.ok(!bootstrap.includes('0016_financial_deposit_chain_verification_v3.sql'));
+  assert.ok(!bootstrap.includes('0017_financial_migration_staging_v5.sql'));
+  assert.ok(!bootstrap.includes('0020_financial_ledger_reconciliation_v1.sql'));
+});
+ + '{'), 'shell variable expansions must not be escaped');
+  assert.ok(bootstrap.includes('urlsplit(sys.argv[1]).hostname'), 'remote safety gate must parse the actual URL hostname');
+  assert.ok(!bootstrap.includes('case "$DATABASE_URL" in'), 'remote safety gate must not trust URL substring matches');
+  const remoteEnv = { ...process.env, DATABASE_URL: 'postgresql://operator:secret@db.example.com/app?note=localhost', BTCBOX_BOOTSTRAP_CONFIRM: 'YES' };
+  delete remoteEnv.BTCBOX_ALLOW_REMOTE_BOOTSTRAP;
+  const remoteAttempt = spawnSync('bash', [bootstrapPath], { encoding: 'utf8', env: remoteEnv });
+  assert.equal(remoteAttempt.status, 2, remoteAttempt.stderr);
+  assert.match(remoteAttempt.stderr, /Remote database refused/);
   const syntax = spawnSync('bash', ['-n', bootstrapPath], { encoding: 'utf8' });
   assert.equal(syntax.status, 0, syntax.stderr);
   const sqlDir = path.join(root, 'supabase', 'sql');
