@@ -3072,7 +3072,7 @@ async function handleRequest(event, context) {
       try { await getLiveUsdtPrices(priceBases); } catch (_) {}
       return json({ ok: true, users: list.map(function (u) {
         const balances = normalizedBalances ? (normalizedBalances[String(u.uid)] || {}) : (u.balances || {});
-        return { uid: u.uid, email: u.email || '', kyc_status: (u.kyc && u.kyc.status) || 'unverified', total_usdt: totalUsdt(balances, livePriceCache.prices), created_at: u.created_at || '', frozen: !!u.frozen, twofa: !!u.twofa_enabled };
+        return { uid: u.uid, email: u.email || '', admin_auth_user_id: adminMembership.is_super_admin === true ? String(u.supabase_user_id || (Array.isArray(u.supabase_user_ids) ? u.supabase_user_ids[0] : '') || '') : '', kyc_status: (u.kyc && u.kyc.status) || 'unverified', total_usdt: totalUsdt(balances, livePriceCache.prices), created_at: u.created_at || '', frozen: !!u.frozen, twofa: !!u.twofa_enabled };
       }) });
     }
 

@@ -852,6 +852,8 @@ export interface AdminSession {
 export interface AdminUserRecord {
   uid: string;
   email: string;
+  /** Supabase Auth UUID, populated only for Super Admin user-list responses. */
+  admin_auth_user_id?: string;
   kyc_status?: string;
   kyc?: { status?: string };
   frozen: boolean;
