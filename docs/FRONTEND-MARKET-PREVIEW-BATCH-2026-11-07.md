@@ -81,3 +81,8 @@ Safety: no merge, deployment, production database access, financial writes, or r
 2. Confirm Supabase Web3 providers are enabled for Ethereum and Solana; do not infer enablement from the frontend buttons.
 3. Run preview-only login/register smoke tests for Google, Ethereum wallet and Solana wallet; do not use production accounts or real funds.
 4. Review `AccountSetupPage.tsx`: new Google/wallet identities may be routed there when the backend reports missing BTCBOX credentials. Decide whether this onboarding is still needed; do not remove account credential/recovery APIs without a separate migration plan.
+
+### CI follow-up
+- Backend CI run `42309363348` on `aa42ea2a7e4e798687fb9b208b5a36bdde2da389` initially failed because an older `backend/tests/spot-trading-api.test.js` still asserted that the spot preview route must be protected. This was a stale test contract contradicting the approved public-preview behavior; it was updated to assert the public route instead.
+- Backend CI rerun `42309521968` on `1a1e93a78bfd2f5ef5d931796fabf5f11fc8428d` completed SUCCESS, including unified build, backend test suite, fail-closed preflight, and output checks.
+- Frontend CI run `42309363409` on `aa42ea2a7e4e798687fb9b208b5a36bdde2da389`: install, lint, build and Chromium installation passed; desktop/mobile Playwright route smoke tests were still running at last check.
