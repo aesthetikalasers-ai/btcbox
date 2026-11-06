@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { RefreshCw, TrendingUp, TrendingDown, Clock3, ShieldAlert, Send, MessageCircle } from "lucide-react";
-import { ApiError, getAccount, getOrders, getSecondsPositions, getSupportMessages, sendSupportMessage, getDepositAddress, getSavedCryptoAddresses, getSelectedCryptoAddress, getWithdrawalConfig, submitWithdrawal, getEarnCatalog, submitEarnAction, type EarnProduct, type EarnPosition, type SavedCryptoAddress, type AccountBalance, type AccountSnapshot, type OrderRecord, type SecondsPositionsSnapshot, type SupportMessage, type SelectedCryptoAddress, type WithdrawalConfig, type WithdrawalRecord } from "../../lib/api";
+import { ApiError, getAccount, getOrders, getSecondsPositions, getSecondsPolicy, submitSecondsOrder, settleSecondsPosition, getSupportMessages, sendSupportMessage, getDepositAddress, getSavedCryptoAddresses, getSelectedCryptoAddress, getWithdrawalConfig, submitWithdrawal, getEarnCatalog, submitEarnAction, type EarnProduct, type EarnPosition, type SavedCryptoAddress, type AccountBalance, type AccountSnapshot, type OrderRecord, type SecondsPositionsSnapshot, type SecondsOrderInput, type SecondsPolicyResponse, type SupportMessage, type SelectedCryptoAddress, type WithdrawalConfig, type WithdrawalRecord } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
 
 import type { ReactNode } from "react";
@@ -136,39 +136,182 @@ export function SectionPage({title,description}:{title:string;description:string
 export function SecondsPage(){
  const {t}=useI18n();
  const [snapshot,setSnapshot]=useState<SecondsPositionsSnapshot|null>(null);
+ const [policy,setPolicy]=useState<SecondsPolicyResponse|null>(null);
+ const [uid,setUid]=useState("");
  const [loading,setLoading]=useState(true);
  const [error,setError]=useState("");
+ const [policyError,setPolicyError]=useState("");
+ const [notice,setNotice]=useState("");
  const [reload,setReload]=useState(0);
+ const [symbol,setSymbol]=useState("BTC");
+ const [direction,setDirection]=useState<"up"|"down">("up");
+ const [duration,setDuration]=useState(30);
+ const [amount,setAmount]=useState("");
+ const [pendingIntent,setPendingIntent]=useState<SecondsOrderInput|null>(null);
+ const [submitting,setSubmitting]=useState(false);
+ const [clockNow,setClockNow]=useState(Date.now());
+ const settling=useRef(new Set<string>());
+ const storageKey=uid?"btcbox.seconds.pending.v1."+uid:"";
+
+ useEffect(()=>{
+  const timer=window.setInterval(()=>setClockNow(Date.now()),1000);
+  return ()=>window.clearInterval(timer);
+ },[]);
+
  useEffect(()=>{
   const controller=new AbortController();
-  setLoading(true);setError("");
-  getSecondsPositions(controller.signal).then(setSnapshot).catch((reason:unknown)=>{
-   if(reason instanceof Error && reason.name==="AbortError")return;
-   setError(reason instanceof Error?reason.message:"Seconds positions are temporarily unavailable.");
+  setLoading(true);setError("");setPolicyError("");
+  Promise.allSettled([getAccount(controller.signal),getSecondsPositions(controller.signal),getSecondsPolicy(controller.signal)]).then(([accountResult,positionsResult,policyResult])=>{
+   if(controller.signal.aborted)return;
+   let restoredIntent:SecondsOrderInput|null=null;
+   if(accountResult.status==="fulfilled"){
+    const nextUid=accountResult.value.uid;
+    setUid(nextUid);
+    try{
+     const raw=window.localStorage.getItem("btcbox.seconds.pending.v1."+nextUid);
+     if(raw){
+      const saved=JSON.parse(raw) as SecondsOrderInput;
+      if(saved&&typeof saved.request_id==="string"&&/^[A-Za-z0-9_-]{16,100}$/.test(saved.request_id)&&
+         ["BTC","ETH","SOL","BNB"].includes(saved.symbol)&&(saved.direction==="up"||saved.direction==="down")&&
+         [30,60,300,900].includes(saved.duration_sec)&&typeof saved.amount==="string"){
+       restoredIntent=saved;
+      }else window.localStorage.removeItem("btcbox.seconds.pending.v1."+nextUid);
+     }
+    }catch{restoredIntent=null;}
+   }else setError(accountResult.reason instanceof Error?accountResult.reason.message:"Account identity is unavailable.");
+   setPendingIntent(restoredIntent);
+   if(restoredIntent){setSymbol(restoredIntent.symbol);setDirection(restoredIntent.direction);setDuration(restoredIntent.duration_sec);setAmount(restoredIntent.amount);}
+   if(positionsResult.status==="fulfilled")setSnapshot(positionsResult.value);
+   else setError(positionsResult.reason instanceof Error?positionsResult.reason.message:"Seconds positions are temporarily unavailable.");
+   if(policyResult.status==="fulfilled"){
+    setPolicy(policyResult.value);
+    if(!restoredIntent){
+     setSymbol(current=>policyResult.value.policy.symbols.includes(current)?current:policyResult.value.policy.symbols[0]);
+     setDuration(current=>policyResult.value.policy.durations_sec.includes(current)?current:policyResult.value.policy.durations_sec[0]);
+    }
+   }else{
+    setPolicy(null);
+    setPolicyError(policyResult.reason instanceof Error?policyResult.reason.message:"Seconds policy is unavailable.");
+   }
   }).finally(()=>{if(!controller.signal.aborted)setLoading(false);});
   return ()=>controller.abort();
  },[reload]);
+
+ const refresh=()=>setReload(value=>value+1);
+ const clearPending=()=>{
+  if(storageKey){try{window.localStorage.removeItem(storageKey);}catch{}}
+  setPendingIntent(null);
+ };
+ const submit=async(event?:FormEvent<HTMLFormElement>)=>{
+  event?.preventDefault();
+  if(submitting||!uid||!policy?.actions_enabled||!policy.policy)return;
+  let intent=pendingIntent;
+  if(!intent){
+   const numeric=Number(amount);
+   if(!Number.isFinite(numeric)||numeric<Number(policy.policy.min_stake)||numeric>Number(policy.policy.max_stake)){
+    setError(t("Enter an amount within the active backend policy limits."));return;
+   }
+   intent={request_id:window.crypto.randomUUID().replace(/-/g,""),symbol,direction,duration_sec:duration,amount:amount.trim()};
+   try{window.localStorage.setItem(storageKey,JSON.stringify(intent));}
+   catch{setError(t("This browser cannot safely save the order request. No order was sent."));return;}
+   setPendingIntent(intent);
+  }
+  setSubmitting(true);setError("");setNotice("");
+  try{
+   const result=await submitSecondsOrder(intent);
+   const latest=await getSecondsPositions();
+   const confirmed=latest.open.some(item=>item.position_id===result.position_id)||latest.history.some(item=>item.position_id===result.position_id);
+   if(!confirmed){
+    setSnapshot(latest);
+    setError(t("The order response arrived, but the positions list has not confirmed it. Do not create another order; retry this same request."));
+    return;
+   }
+   setSnapshot(latest);
+   clearPending();
+   setAmount("");
+   setNotice(result.duplicate?t("This order was already received and has been confirmed."):t("Order confirmed. Funds are reserved and the position has its own settlement time."));
+  }catch(reason){
+   if(reason instanceof ApiError&&((reason.status>=400&&reason.status<500)||['FINANCIAL_CUTOVER_INCOMPLETE','REFERENCE_PRICE_UNAVAILABLE'].includes(reason.code||''))){
+    clearPending();
+    setError(reason.message);
+   }else{
+    setError(reason instanceof Error?reason.message:t("Order status is unconfirmed. Keep this request and retry only with the same request ID."));
+   }
+  }finally{setSubmitting(false);}
+ };
+
+ useEffect(()=>{
+  if(!policy?.actions_enabled||!snapshot?.open.length)return;
+  const timers=snapshot.open.map(position=>{
+   const delay=Math.max(0,position.settle_at*1000-Date.now());
+   return window.setTimeout(async()=>{
+    if(settling.current.has(position.position_id))return;
+    settling.current.add(position.position_id);
+    try{
+     const result=await settleSecondsPosition({
+      position_id:position.position_id,
+      symbol:position.symbol,
+      request_id:"settle_"+position.position_id
+     });
+     if(result.settled)setReload(value=>value+1);
+     else window.setTimeout(()=>setReload(value=>value+1),5000);
+    }catch{
+     window.setTimeout(()=>setReload(value=>value+1),10000);
+    }finally{settling.current.delete(position.position_id);}
+   },Math.min(delay,2147483000));
+  });
+  return ()=>timers.forEach(timer=>window.clearTimeout(timer));
+ },[policy?.actions_enabled,snapshot?.open]);
+
  const money=(value:number|string)=>{const parsed=Number(value);return Number.isFinite(parsed)?parsed.toLocaleString(undefined,{maximumFractionDigits:8}):"—";};
  const date=(seconds:number)=>new Date(seconds*1000).toLocaleString();
  const positionCard=(item:SecondsPositionsSnapshot["open"][number],history=false)=>{
   const directionUp=item.direction==="up";
   const historyItem=history?item as SecondsPositionsSnapshot["history"][number]:null;
+  const secondsLeft=Math.max(0,Math.ceil((item.settle_at*1000-clockNow)/1000));
   return <Card key={item.position_id} className="min-w-0 border-brand-border bg-brand-surface"><CardContent className="grid gap-3 p-4 sm:p-5">
    <div className="flex flex-wrap items-center justify-between gap-2"><div className="flex items-center gap-2"><span className="font-semibold">{item.symbol}/USDT</span><Badge variant="outline" className={directionUp?"border-emerald-500/30 text-emerald-400":"border-rose-500/30 text-rose-400"}>{directionUp?<TrendingUp className="mr-1 h-3.5 w-3.5"/>:<TrendingDown className="mr-1 h-3.5 w-3.5"/>}{directionUp?t("Up"):t("Down")}</Badge></div><span className="text-xs text-brand-text-muted">{item.duration_sec}s</span></div>
-   <div className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-3"><div><p className="text-xs text-brand-text-muted">{t("Amount")}</p><p className="mt-1 font-semibold tabular-nums">{money(item.amount)} USDT</p></div><div><p className="text-xs text-brand-text-muted">{t("Open price")}</p><p className="mt-1 font-semibold tabular-nums">{money(item.open_price)}</p></div>{historyItem?<div><p className="text-xs text-brand-text-muted">{t("Close price")}</p><p className="mt-1 font-semibold tabular-nums">{money(historyItem.settle_price)}</p></div>:<div><p className="text-xs text-brand-text-muted">{t("Settlement time")}</p><p className="mt-1 font-medium">{date(item.settle_at)}</p></div>}</div>
-   {historyItem?<div className="flex flex-wrap items-center justify-between gap-2 border-t border-brand-border pt-3 text-xs"><span className="text-brand-text-muted">{date(historyItem.settled_at)}</span><span className={Number(historyItem.pnl)>0?"font-semibold text-emerald-400":Number(historyItem.pnl)<0?"font-semibold text-rose-400":"font-semibold text-brand-text-secondary"}>{historyItem.win?t("Win"):historyItem.tie?t("Tie"):t("Loss")} · {Number(historyItem.pnl)>0?"+":""}{money(historyItem.pnl)} USDT</span></div>:<div className="flex items-center gap-2 border-t border-brand-border pt-3 text-xs text-brand-text-muted"><Clock3 className="h-3.5 w-3.5"/>{t("Position is open. Trading actions are not enabled in this view.")}</div>}
+   <div className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-3"><div><p className="text-xs text-brand-text-muted">{t("Amount")}</p><p className="mt-1 font-semibold tabular-nums">{money(item.amount)} USDT</p></div><div><p className="text-xs text-brand-text-muted">{t("Open price")}</p><p className="mt-1 font-semibold tabular-nums">{money(item.open_price)}</p></div>{historyItem?<div><p className="text-xs text-brand-text-muted">{t("Close price")}</p><p className="mt-1 font-semibold tabular-nums">{money(historyItem.settle_price)}</p></div>:<div><p className="text-xs text-brand-text-muted">{t("Time remaining")}</p><p className="mt-1 font-medium tabular-nums">{secondsLeft>0?secondsLeft+"s":t("Settlement pending")}</p></div>}</div>
+   {historyItem?<div className="flex flex-wrap items-center justify-between gap-2 border-t border-brand-border pt-3 text-xs"><span className="text-brand-text-muted">{date(historyItem.settled_at)}</span><span className={Number(historyItem.pnl)>0?"font-semibold text-emerald-400":Number(historyItem.pnl)<0?"font-semibold text-rose-400":"font-semibold text-brand-text-secondary"}>{historyItem.win?t("Win"):historyItem.tie?t("Tie"):t("Loss")} · {Number(historyItem.pnl)>0?"+":""}{money(historyItem.pnl)} USDT</span></div>:<div className="flex items-center gap-2 border-t border-brand-border pt-3 text-xs text-brand-text-muted"><Clock3 className="h-3.5 w-3.5"/>{t("Each position settles independently using the server reference price.")}</div>}
   </CardContent></Card>;
  };
+ const activePolicy=policy?.policy;
+ const canSubmit=!!activePolicy&&!!policy?.actions_enabled&&!!snapshot&&!snapshot.cutover_incomplete&&!loading&&!submitting&&!pendingIntent&&
+  activePolicy.symbols.includes(symbol)&&activePolicy.durations_sec.includes(duration)&&
+  Number.isFinite(Number(amount))&&Number(amount)>=Number(activePolicy.min_stake)&&Number(amount)<=Number(activePolicy.max_stake);
  return <div className="mx-auto flex w-full max-w-[1200px] flex-col gap-5 p-3 sm:p-4 md:p-6 lg:p-8">
-  <div className="flex flex-wrap items-start justify-between gap-3"><div><p className="mb-1 text-xs font-bold uppercase tracking-[.18em] text-brand-text-secondary">{t("BTCBOX / TRADE")}</p><h1 className="type-page-title text-brand-text">{t("Seconds contracts")}</h1><p className="type-body mt-2 max-w-2xl text-brand-text-secondary">{t("View your actual open seconds positions and settled history. No orders can be placed or settled from this page.")}</p></div><Button variant="outline" size="sm" disabled={loading} onClick={()=>setReload((value)=>value+1)}><RefreshCw className={"mr-2 h-4 w-4 "+(loading?"animate-spin":"")}/>{t("Refresh")}</Button></div>
-  {loading?<Card className="border-brand-border bg-brand-surface"><CardContent className="p-6 text-sm text-brand-text-muted" role="status">{t("Loading positions…")}</CardContent></Card>:error?<Card className="border-rose-500/30 bg-brand-surface"><CardContent className="flex flex-wrap items-center justify-between gap-3 p-5"><p className="text-sm text-rose-300" role="alert">{error}</p><Button size="sm" variant="outline" onClick={()=>setReload((value)=>value+1)}>{t("Try again")}</Button></CardContent></Card>:snapshot?.cutover_incomplete?<Card className="border-amber-500/30 bg-brand-surface"><CardContent className="flex items-start gap-3 p-5"><ShieldAlert className="mt-0.5 h-5 w-5 shrink-0 text-amber-400"/><div><p className="font-semibold text-amber-300">{t("Seconds service is not available yet")}</p><p className="mt-1 text-sm text-brand-text-secondary">{t("Financial cutover is incomplete. Position data is intentionally withheld; an empty response does not mean you have no positions.")}</p></div></CardContent></Card>:<>
-   <div className="flex flex-wrap gap-2"><Badge variant="outline" className="border-brand-border">{t("Read-only mode")}</Badge><Badge variant="outline" className="border-brand-border">{t("Live account data")}</Badge></div>
-   <section className="space-y-3"><div className="flex items-center justify-between"><h2 className="type-section-title">{t("Open positions")}</h2><span className="text-xs text-brand-text-muted">{snapshot?.open.length||0}</span></div>{snapshot?.open.length?snapshot.open.map((item)=>positionCard(item)): <Card className="border-brand-border bg-brand-surface"><CardContent className="p-5 text-sm text-brand-text-muted">{t("No open seconds positions were returned by the account service.")}</CardContent></Card>}</section>
-   <section className="space-y-3"><div className="flex items-center justify-between"><h2 className="type-section-title">{t("History")}</h2><span className="text-xs text-brand-text-muted">{snapshot?.history.length||0}</span></div>{snapshot?.history.length?snapshot.history.map((item)=>positionCard(item,true)):<Card className="border-brand-border bg-brand-surface"><CardContent className="p-5 text-sm text-brand-text-muted">{t("No settled seconds positions were returned by the account service.")}</CardContent></Card>}</section>
-  </>}
+  <div className="flex flex-wrap items-start justify-between gap-3"><div><p className="mb-1 text-xs font-bold uppercase tracking-[.18em] text-brand-text-secondary">{t("BTCBOX / TRADE")}</p><h1 className="type-page-title text-brand-text">{t("Seconds contracts")}</h1><p className="type-body mt-2 max-w-2xl text-brand-text-secondary">{t("Place orders under the active BTCBOX policy. Every position has its own frozen amount, timer and server-side settlement.")}</p></div><Button variant="outline" size="sm" disabled={loading} onClick={refresh}><RefreshCw className={"mr-2 h-4 w-4 "+(loading?"animate-spin":"")}/>{t("Refresh")}</Button></div>
+  <Card className="border-brand-border bg-brand-surface"><CardHeader><CardTitle>{t("Active contract policy")}</CardTitle><CardDescription>{activePolicy?t("Policy version")+" "+activePolicy.policy_version:t("The active backend policy has not been loaded.")}</CardDescription></CardHeader><CardContent className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+   <div><p className="text-xs text-brand-text-muted">{t("Winning profit rate")}</p><p className="mt-1 font-semibold text-brand-text">{activePolicy?(activePolicy.payout_bps/100).toFixed(2)+"%": "—"}</p></div>
+   <div><p className="text-xs text-brand-text-muted">{t("Minimum amount")}</p><p className="mt-1 font-semibold text-brand-text">{activePolicy?money(activePolicy.min_stake)+" USDT":"—"}</p></div>
+   <div><p className="text-xs text-brand-text-muted">{t("Maximum amount")}</p><p className="mt-1 font-semibold text-brand-text">{activePolicy?money(activePolicy.max_stake)+" USDT":"—"}</p></div>
+   <div><p className="text-xs text-brand-text-muted">{t("Open exposure limit")}</p><p className="mt-1 font-semibold text-brand-text">{activePolicy?.per_user_open_exposure==null?t("No aggregate cap configured"):money(activePolicy.per_user_open_exposure)+" USDT"}</p></div>
+  </CardContent></Card>
+  {policyError?<Card className="border-amber-500/30 bg-brand-surface"><CardContent className="p-4 text-sm text-amber-200" role="alert">{policyError}</CardContent></Card>:null}
+  {policy&&!policy.actions_enabled?<Card className="border-amber-500/30 bg-brand-surface"><CardContent className="p-4 text-sm text-amber-200" role="status">{t("Order entry is currently disabled by the backend financial cutover switch. No funds can be reserved until the required services are enabled.")}</CardContent></Card>:null}
+  {error?<Card className="border-rose-500/30 bg-brand-surface"><CardContent className="p-4 text-sm text-rose-300" role="alert">{error}</CardContent></Card>:null}
+  {notice?<Card className="border-emerald-500/30 bg-brand-surface"><CardContent className="p-4 text-sm text-emerald-300" role="status">{notice}</CardContent></Card>:null}
+  <Card className="border-brand-border bg-brand-surface"><CardHeader><CardTitle>{t("New position")}</CardTitle><CardDescription>{t("The backend validates every order against the active policy and reserves funds atomically.")}</CardDescription></CardHeader><CardContent>
+   <form onSubmit={submit} className="grid gap-4 md:grid-cols-2">
+    <label className="space-y-1.5 text-sm"><span className="text-brand-text-muted">{t("Market")}</span><select value={symbol} onChange={event=>setSymbol(event.target.value)} disabled={!activePolicy||!!pendingIntent} className="w-full rounded-xl border border-brand-border bg-brand-surface-2 p-3 text-brand-text">{(activePolicy?.symbols||[]).map(item=><option key={item} value={item}>{item}/USDT</option>)}</select></label>
+    <label className="space-y-1.5 text-sm"><span className="text-brand-text-muted">{t("Duration")}</span><select value={duration} onChange={event=>setDuration(Number(event.target.value))} disabled={!activePolicy||!!pendingIntent} className="w-full rounded-xl border border-brand-border bg-brand-surface-2 p-3 text-brand-text">{(activePolicy?.durations_sec||[]).map(item=><option key={item} value={item}>{item}s</option>)}</select></label>
+    <label className="space-y-1.5 text-sm"><span className="text-brand-text-muted">{t("Amount (USDT)")}</span><input inputMode="decimal" type="number" min={activePolicy?String(activePolicy.min_stake):undefined} max={activePolicy?String(activePolicy.max_stake):undefined} step="any" value={pendingIntent?.amount??amount} onChange={event=>setAmount(event.target.value)} disabled={!activePolicy||!!pendingIntent} className="w-full rounded-xl border border-brand-border bg-brand-surface-2 p-3 text-brand-text" placeholder={activePolicy?String(activePolicy.min_stake):"—"}/></label>
+    <div className="space-y-1.5 text-sm"><span className="text-brand-text-muted">{t("Direction")}</span><div className="grid grid-cols-2 gap-2"><Button type="button" variant={direction==="up"?"default":"outline"} disabled={!!pendingIntent} onClick={()=>setDirection("up")}><TrendingUp className="mr-2 h-4 w-4"/>{t("Up")}</Button><Button type="button" variant={direction==="down"?"default":"outline"} disabled={!!pendingIntent} onClick={()=>setDirection("down")}><TrendingDown className="mr-2 h-4 w-4"/>{t("Down")}</Button></div></div>
+    <div className="flex flex-wrap items-center justify-between gap-3 md:col-span-2">
+     <p className="text-xs text-brand-text-muted">{t("Minimum payout is 85%; the active backend policy may configure a higher rate.")}</p>
+     <Button type="submit" disabled={submitting||!policy?.actions_enabled||(!pendingIntent&&!canSubmit)}>{submitting?t("Submitting…"):pendingIntent?t("Retry same request"):t("Open position")}</Button>
+    </div>
+   </form>
+   {pendingIntent?<div className="mt-4 rounded-xl border border-amber-500/30 p-3 text-sm text-amber-200">{t("A previous request is awaiting confirmation. Do not create another order. Retrying uses the exact same request ID and order details.")}</div>:null}
+  </CardContent></Card>
+  <section className="space-y-3"><div className="flex items-center justify-between gap-3"><h2 className="type-section-title text-brand-text">{t("Open positions")} ({snapshot?.open.length||0})</h2><span className="text-xs text-brand-text-muted">{t("Each position is tracked and settled independently.")}</span></div>
+   {loading?<Card className="border-brand-border bg-brand-surface"><CardContent className="p-6 text-sm text-brand-text-muted" role="status">{t("Loading positions…")}</CardContent></Card>:snapshot?.open.length?<div className="grid gap-3 md:grid-cols-2">{snapshot.open.map(item=>positionCard(item))}</div>:<Card className="border-brand-border bg-brand-surface"><CardContent className="p-6 text-sm text-brand-text-muted">{snapshot?.cutover_incomplete?t("Seconds positions will appear when the backend financial cutover is ready."):t("No open positions.")}</CardContent></Card>}
+  </section>
+  <section className="space-y-3"><h2 className="type-section-title text-brand-text">{t("Contract history")}</h2>
+   {snapshot?.history.length?<div className="grid gap-3 md:grid-cols-2">{snapshot.history.map(item=>positionCard(item,true))}</div>:<Card className="border-brand-border bg-brand-surface"><CardContent className="p-6 text-sm text-brand-text-muted">{t("No settled positions yet.")}</CardContent></Card>}
+  </section>
  </div>;
 }
-
 
 export function KycPage(){
  const {t}=useI18n();
