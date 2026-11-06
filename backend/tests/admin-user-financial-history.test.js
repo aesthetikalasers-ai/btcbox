@@ -63,3 +63,16 @@ test('deposit history UI never exposes it to a user without deposits.read', () =
   assert.ok(panel.includes('selectedUser.deposit_history'));
   assert.ok(panel.includes('Source: PostgreSQL ledger'));
 });
+
+test('admin user detail never exposes Supabase Auth UUIDs or linked provider identity records', () => {
+  const start = api.indexOf("if (sub === 'user' && method === 'GET')");
+  const end = api.indexOf('// Stage the audit event', start);
+  assert.ok(start >= 0 && end > start);
+  const route = api.slice(start, end);
+  for (const field of ['supabase_user_id', 'supabase_user_ids', 'auth_identities', 'auth_providers']) {
+    assert.ok(route.includes('delete safeUser.' + field), field + ' must not leak through users.read');
+  }
+  assert.ok(!admin.includes('selectedUser.supabase_user_id'));
+  assert.ok(!admin.includes('selectedUser.supabase_user_ids'));
+  assert.ok(!admin.includes('selectedUser.auth_identities'));
+});

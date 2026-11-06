@@ -3128,6 +3128,11 @@ async function handleRequest(event, context) {
       delete safeUser.fund_password_salt;
       safeUser.fund_password = !!(u.fund_password_hash || u.fund_password);
       delete safeUser.sessions;
+      // Auth UUIDs and linked provider identity records are internal authentication data, not Admin user-detail fields.
+      delete safeUser.supabase_user_id;
+      delete safeUser.supabase_user_ids;
+      delete safeUser.auth_identities;
+      delete safeUser.auth_providers;
       delete safeUser.twofa_secret;
       delete safeUser.totp_secret;
       delete safeUser.recovery_codes;
