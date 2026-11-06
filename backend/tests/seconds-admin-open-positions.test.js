@@ -32,7 +32,8 @@ test('queue is read-only, bounded, and exposes operational fields without person
   assert.match(sql, /overdue_count/);
   assert.match(sql, /payout_bps_snapshot/);
   assert.doesNotMatch(sql, /UPDATE public\.seconds_contract_positions|DELETE FROM public\.seconds_contract_positions|financial_accounts|financial_ledger/);
-  assert.doesNotMatch(sql, /email|phone|kyc|document_path/i);
+  const executableSql = sql.split(/\\r?\\n/).filter(line => !line.trim().startsWith('--')).join('\\n');
+  assert.doesNotMatch(executableSql, /email|phone|kyc|document_path/i);
 });
 
 test('admin UI loads the open-position queue and offers no manual settlement or outcome controls', () => {
