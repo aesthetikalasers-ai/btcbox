@@ -857,7 +857,7 @@ export interface AdminUserRecord {
   frozen: boolean;
   total_usdt?: string | number;
   balances?: Record<string, AccountBalance>;
-  financial_balance_source?: string;
+  financial_balance_source?: "postgres_financial_ledger" | "legacy_state_retention_limited";
   deposit_history?: DepositRecord[];
   deposit_history_source?: "postgres_financial_ledger" | "legacy_state_retention_limited";
   withdrawal_history?: WithdrawalRecord[];
