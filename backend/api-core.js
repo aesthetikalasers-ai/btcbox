@@ -2637,7 +2637,6 @@ async function handleRequest(event, context) {
       const requestId = String(body.request_id || '');
       const decimal = /^(?:0|[1-9]\\d*)(?:\\.\\d{1,18})?$/;
       const allowedSymbols = ['BTC','ETH','SOL','BNB'];
-      const allowedDurations = [30,60,300,900];
       if (!Number.isSafeInteger(expectedVersion) || expectedVersion < 1 ||
           !Array.isArray(symbols) || !symbols.length || symbols.some((v) => !allowedSymbols.includes(v)) || new Set(symbols).size !== symbols.length ||
           !Array.isArray(durations) || !durations.length || durations.some((v) => !Number.isSafeInteger(v) || v <= 0) || new Set(durations).size !== durations.length ||
