@@ -77,7 +77,9 @@ test('migration order document records prepared Seconds migrations and their pre
   const rateLimit = orderDoc.indexOf('0023_btcbox_shared_rate_limit_v1.sql');
   const settlement = orderDoc.indexOf('0024_seconds_settlement_idempotency_v1.sql');
   const policy = orderDoc.indexOf('0025_seconds_policy_versioning_v1.sql');
-  assert.ok(rateLimit >= 0 && settlement > rateLimit && policy > settlement);
+  const adminRbac = orderDoc.indexOf('0026_admin_rbac_private_store_v1.sql');
+  const manualPayout = orderDoc.indexOf('0027_withdrawal_manual_payout_completion_v1.sql');
+  assert.ok(rateLimit >= 0 && settlement > rateLimit && policy > settlement && adminRbac > policy && manualPayout > adminRbac);
   assert.match(orderDoc, /requires the Seconds tables\/RPCs from/i);
   assert.match(orderDoc, /Apply only after the Seconds base and settlement-idempotency migrations/i);
   assert.match(orderDoc, /timestamp registry versions directly with four-digit filenames/i);
