@@ -3468,9 +3468,15 @@ async function handleRequest(event, context) {
       if (uidFilter.length > 100 || (uidFilter && !/^[A-Za-z0-9_:-]{1,100}$/.test(uidFilter))) return json({ ok: false, code: 'AUDIT_UID_FILTER_INVALID', msg: 'Audit user filter is invalid.' }, 400);
       if (before && !isPositivePostgresBigintString(before)) return json({ ok: false, code: 'AUDIT_CURSOR_INVALID', msg: 'Audit page cursor is invalid.' }, 400);
 
-      // Explicit opt-in switches the viewer to the canonical append-only PostgreSQL
-      // audit table. Never silently fall back to the retention-limited state document.
-      if (process.env.ADMIN_AUDIT_POSTGRES_READS_ENABLED === '1') {
+      // When normalized financial reads are active, financial mutations and the
+      // customer balance/history views are sourced from PostgreSQL. The audit viewer
+      // must then use that same canonical append-only table automatically; otherwise
+      // a successful ledger credit/debit could be invisible in the admin audit page.
+      // The explicit audit flag remains available for audit-only cutover.
+      const postgresAuditReadsRequired =
+        process.env.ADMIN_AUDIT_POSTGRES_READS_ENABLED === '1' ||
+        financialPostgresReadsEnabled();
+      if (postgresAuditReadsRequired) {
         try {
           const result = await readAdminAuditLogPage({ limit, action: actionFilter, uid: uidFilter, before });
           return json({
