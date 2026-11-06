@@ -30,6 +30,8 @@ test('Seconds policy RPC creates an immutable version, atomically activates it, 
   assert.ok(sql.includes('FUNCTION public.admin_set_seconds_policy_v1'));
   assert.ok(sql.includes('seconds_policy.manage'));
   assert.ok(sql.includes('p_payout_bps < 8500'));
+  assert.ok(sql.includes("OR NOT (p_symbols <@ ARRAY['BTC','ETH','SOL','BNB']::text[])") , 'valid symbol subsets must pass the allowlist check');
+  assert.ok(!sql.includes("OR p_symbols <@ ARRAY['BTC','ETH','SOL','BNB']::text[]"), 'do not reject valid symbol subsets');
   assert.ok(!sql.includes('p_payout_bps > 10000'));
   assert.ok(sql.includes('UPDATE public.seconds_contract_policy_active'));
   assert.ok(sql.includes('INSERT INTO public.seconds_contract_policy_audit'));
