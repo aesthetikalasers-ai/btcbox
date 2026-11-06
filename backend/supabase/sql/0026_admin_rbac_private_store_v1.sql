@@ -209,7 +209,7 @@ RETURNS jsonb
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = pg_catalog, private
-AS $
+AS $fn$
 DECLARE
   v_admins jsonb;
 BEGIN
@@ -245,7 +245,7 @@ BEGIN
 
   RETURN jsonb_build_object('ok',true,'admins',v_admins);
 END;
-$;
+$fn$;
 
 REVOKE ALL ON FUNCTION private.admin_list_memberships_v1(uuid) FROM PUBLIC, anon, authenticated, service_role;
 GRANT EXECUTE ON FUNCTION private.admin_list_memberships_v1(uuid) TO service_role;
