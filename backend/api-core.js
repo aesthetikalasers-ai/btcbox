@@ -2850,6 +2850,12 @@ async function handleRequest(event, context) {
     if (!hasAdminPermission(adminMembership, requiredPermission)) {
       return json({ ok: false, code: 'ADMIN_PERMISSION_DENIED', permission: requiredPermission, msg: 'Your administrator role does not allow this action.' }, 403);
     }
+    // A financial adjustment request is not an approval workflow. The current
+    // RPC applies the ledger mutation immediately, so keep this endpoint closed
+    // until a separately authorized maker-checker queue is implemented.
+    if (sub === 'user/balance' && method === 'POST') {
+      return json({ ok: false, code: 'FINANCIAL_ADJUSTMENT_APPROVAL_REQUIRED', msg: 'Direct administrator balance adjustments are disabled. Use the verified deposit workflow or wait for the dual-approval adjustment queue.' }, 409);
+    }
     const priorAuditFlush = await flushAdminAuditOutbox();
     if (priorAuditFlush.persistenceUnavailable) return json({ ok: false, code: 'AUDIT_OUTBOX_STATE_UNAVAILABLE', msg: 'Administrator audit delivery state could not be saved. Please retry.' }, 503);
 
