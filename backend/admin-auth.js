@@ -62,9 +62,9 @@ async function loadAdminMembership(options = {}) {
   const env = options.env || process.env;
   const fetchImpl = options.fetchImpl || globalThis.fetch;
   const userId = String(options.userId || '').toLowerCase();
-  const baseUrl = String(env.SUPABASE_URL || '').trim().replace(/\\/+$/, '');
+  const baseUrl = String(env.SUPABASE_URL || '').trim().replace(/\/+$/, '');
   const serviceKey = String(env.SUPABASE_SERVICE_ROLE_KEY || env.SUPABASE_SECRET_KEY || '').trim();
-  if (!USER_ID_RE.test(userId) || !/^https:\\/\\//i.test(baseUrl) || !serviceKey || /\\s/.test(serviceKey) || typeof fetchImpl !== 'function') {
+  if (!USER_ID_RE.test(userId) || !/^https:\/\//i.test(baseUrl) || !serviceKey || /\s/.test(serviceKey) || typeof fetchImpl !== 'function') {
     return { ok: false, code: 'ADMIN_MEMBERSHIP_UNAVAILABLE', status: 503 };
   }
   try {
