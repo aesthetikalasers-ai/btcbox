@@ -76,7 +76,8 @@ test('manual credit refreshes the normalized admin balance and canonical audit r
   const userRoute = backend.slice(userStart, userEnd);
   assert.match(userRoute, /if \(financialPostgresReadsEnabled\(\)\)/);
   assert.match(userRoute, /readFinancialAccountSnapshot\(String\(u\.uid\)\)/);
-  assert.match(userRoute, /safeUser\.balances = normalized\.balances \|\| \{\}/);\n  assert.match(userRoute, /financial_balance_source = 'postgres_financial_ledger'/);
+  assert.match(userRoute, /safeUser\.balances = normalized\.balances \|\| \{\}/);
+  assert.match(userRoute, /financial_balance_source = 'postgres_financial_ledger'/);
 
   const creditStart = admin.indexOf('const manualCredit = async');
   const creditEnd = admin.indexOf('const refreshWithdrawalQueue', creditStart);
