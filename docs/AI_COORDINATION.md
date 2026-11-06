@@ -3352,3 +3352,7 @@ The prior withdrawal UI audit statement claiming the active BTCBOX admin route w
 
 - Follow-up verification on 2026-11-07: added direct helper-level regression tests for stale/future/missing/malformed quote timestamps and settlement timestamp persistence in `backend/tests/seconds-server-authoritative-rules.test.js`. The same behavior is also covered by `backend/tests/seconds-reference-timestamp.test.js` on the current PR head.
 - Current PR #50 head observed: `00823fa51917d2ab261114aae370dd155960634d`. Exact-head CI runs currently in progress: backend `42249641052`, frontend `42249641135`, PostgreSQL `42249641096`. Recheck before claiming acceptance.
+
+
+- CI diagnosis on prior PR head `00823fa51917d2ab261114aae370dd155960634d`: PostgreSQL schema CI `42249641096` passed; frontend CI `42249641135` was still running at last check; backend CI `42249641052` failed 2 tests in a duplicate timestamp test block added to `seconds-server-authoritative-rules.test.js` (missing `vm` import and overly literal handler string assertions). The dedicated `seconds-reference-timestamp.test.js` already covers the behavior correctly using exported `_test.normalizeReferenceTimestamp`.
+- FIX COMMITTED: removed the redundant duplicate block from `seconds-server-authoritative-rules.test.js` at implementation head `a2954c6bc3524b7643e39b475543b4f882f4df41`. Await exact-head CI before acceptance.
