@@ -1880,7 +1880,7 @@ async function handleRequest(event, context) {
       return json({ ok: true, address: addr, msg: 'Deposit address.' });
     }
     // Fail closed: user-supplied requests must never credit balances without verified chain data.
-    return json({ ok: false, msg: 'Operation failed: deposits are credited only after on-chain confirmation.' }, 403);
+    return json({ ok: false, msg: 'User-submitted deposit amounts are not accepted. BTCBOX staff verify incoming transfers and manually credit the account.' }, 403);
   }
 
   // ---------- POST /api/withdraw ----------
