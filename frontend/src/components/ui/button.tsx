@@ -8,7 +8,7 @@ const variants = cva(
   {
     variants: {
       variant: {
-        default: "bg-primary text-primary-foreground shadow-[0_6px_18px_rgba(56,165,255,0.2)] hover:brightness-110 hover:shadow-[0_8px_22px_rgba(56,165,255,0.28)]",
+        default: "bg-primary text-primary-foreground shadow-sm hover:brightness-105",
         destructive: "bg-destructive text-white shadow-sm hover:brightness-110",
         outline: "border border-brand-border bg-brand-surface text-brand-text hover:border-brand-accent/50 hover:bg-brand-surface-hover",
         secondary: "border border-brand-border bg-brand-surface-2 text-brand-text hover:border-brand-accent/30 hover:bg-brand-surface-hover",
