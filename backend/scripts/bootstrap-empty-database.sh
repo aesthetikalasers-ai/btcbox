@@ -81,6 +81,7 @@ FILES=(
   0029_withdrawal_fee_quote_idempotency_v1.sql
   0030_seconds_admin_open_positions_read_v1.sql
   0031_seconds_policy_duration_alignment_v1.sql
+  0032_admin_audit_log_filter_indexes_v1.sql
 )
 
 echo "[info] Bootstrapping a fresh BTCBOX schema with ${#FILES[@]} canonical SQL files."
