@@ -68,6 +68,8 @@ test('admin finance settings can save withdrawal fees while unconfigured deposit
   const end = api.indexOf("if (sub === 'withdrawals' && method === 'GET')", start);
   assert.ok(start >= 0 && end > start);
   const route = api.slice(start, end);
+  assert.ok(route.includes("if (typeof updates[key] !== 'string') return json({ ok: false, msg: 'Invalid deposit address format: ' + key }, 400)"),
+    'non-string values must not be interpreted as an intentional clear');
   assert.ok(route.includes("if (!value) { changedKeys.push(key); continue; }"),
     'blank deposit address values must remain fail-closed but must not block other finance settings');
   assert.ok(route.includes("return json({ ok: false, msg: 'Invalid deposit address format: ' + key }, 400)"),
