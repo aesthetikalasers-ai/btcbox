@@ -2146,3 +2146,30 @@ Application branch inspected: `feat/btcbox-web3-auth-20261105` at `741c709d818cb
 ### NEXT
 - Retrieve the final status and job logs for backend workflow run 42139779249; repair any failing source guard before moving on.
 - Obtain isolated Supabase staging before applying migration 0025 or testing the financial RPC. Keep policy write APIs/UI and all financial cutover flags disabled.
+
+
+## Seconds policy RBAC implementation-readiness review — 2026-11-06 (UTC+8)
+
+### REVIEWED SOURCE / EXISTING SECURITY PERIMETER
+- Re-read shared coordination branch and current feature head 6ef4a5344fedfea667fec4226093bb0a247c02ed.
+- Reviewed docs/SECONDS_POLICY_ADMIN_RBAC.md, backend/tests/seconds-policy-admin-rbac-design.test.js, backend/tests/supabase-privilege-contract.test.js, backend/tests/seconds-policy-versioning.test.js, backend/api-core.js, and migration 0025.
+- Current adminAuth() accepts one shared ADMIN_USER / ADMIN_PASS Basic Auth identity. It is not attributable to separate human administrators. Existing admin audit records using the configured username or generic admin cannot satisfy three-person policy approval.
+- Existing 0025 policy tables are in public but RLS-enabled and revoked from PUBLIC/anon/authenticated; service_role has SELECT on policy and active-pointer tables but no direct INSERT/UPDATE/DELETE. Order/settlement RPCs are service-role-only. This is the current source contract, not proof of the live database catalog.
+- Existing policy audit action enum covers seed/draft_created/activated/retired only. It is not a complete administrator membership, permission grant/revocation, review/rejection, idempotency, or security-event ledger.
+- The active pointer has no approved administrator transition API/RPC. Do not use service_role direct table writes as a substitute for reviewed policy transitions.
+- The current source test explicitly prevents seconds-policy routes from being added under the shared Basic Auth perimeter. Keep that guard.
+
+### REQUIRED ADDITIVE DATA MODEL BEFORE RUNTIME POLICY ADMIN
+- Dedicated private, non-Data-API schema objects are required for administrator membership, permission grants, policy review decisions, transition idempotency, and administrator security audit. Keep existing public policy rows inaccessible to browser roles.
+- Membership must key to validated Supabase Auth UUID, have an explicit lifecycle state and monotonically increasing revision. Permission grants must use a strict allowlist and retain grantor UUID, reason, ticket/change reference, timestamps, and optional expiry. No email, metadata, caller-supplied role, or shared Basic Auth username may be the authority key.
+- Policy review must bind the reviewer to the exact immutable policy ID/version and canonical content hash. Any edit creates a new immutable version and invalidates earlier review.
+- Transition requests must bind actor UUID, action, target policy/version, expected membership/policy revision, request ID, and canonical request hash. Identical retries replay the original result; mismatched retries conflict.
+- A private transition function must revalidate live membership and the exact permission inside the same transaction as state transition and append-only audit. It must enforce distinct author/reviewer/activator UUIDs, revision checks, effective-window conflict checks, and atomic rollback on audit failure.
+- Do not create a public SECURITY DEFINER endpoint. If SECURITY DEFINER is genuinely required for a private transition, pin search_path, qualify every object, revoke PUBLIC/anon/authenticated execution, grant only to the trusted server role, and independently review owner/bypass-RLS behavior.
+- Administrator enrollment/bootstrap is separate from policy lifecycle. No public bootstrap route; first provisioning is owner-controlled and two-person approved, then bootstrap is disabled. Recovery grants are temporary, audited, and cannot activate policies or open financial cutover.
+- The frontend remains read-only until the complete authenticated API exists; it must not write policy tables or receive service credentials.
+
+### IMPLEMENTATION GATE / NEXT WORK
+- This pass is a source review and implementation-readiness contract only. No SQL migration, API route, admin UI, administrator membership, permission grant, or production setting was created or changed.
+- The repo's only connected Supabase project has no isolated staging branch/environment available in the reviewed state. Do not apply migration 0025 or build privileged transition functions against production.
+- Next safe implementation step is to obtain an isolated Supabase staging project, then create and validate a dedicated private-schema RBAC migration and transition RPCs there. Until then, keep the policy write surface absent and financial cutover closed.
