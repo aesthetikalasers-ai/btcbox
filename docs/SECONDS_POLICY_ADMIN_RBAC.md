@@ -257,3 +257,37 @@ This section records the product owner's decision and supersedes conflicting app
 - Revocation is effective on the next sensitive request; Auth or permission-store failure fails closed.
 - Every administrator lifecycle and permission change is attributable and append-only audited.
 - No three-person approval requirement is imposed on Super Admin policy changes.
+
+
+## 14. Initial backend permission catalogue
+
+This is the initial allowlist for ordinary Admin grants. The Super Admin receives all capabilities from the protected Super Admin authority and does not need individual grants. These keys are a closed enum; do not accept arbitrary strings, wildcard values, or implicit role inheritance.
+
+| Permission key | Scope |
+| --- | --- |
+| dashboard.read | Read operational dashboard and aggregate status |
+| users.read | Search and view user profiles |
+| users.manage | Update permitted non-security user fields |
+| users.freeze | Freeze or unfreeze accounts under the approved account policy |
+| kyc.read | View KYC submissions and review queue |
+| kyc.review | Approve or reject KYC submissions |
+| deposits.read | View deposit requests and status |
+| deposits.review | Review deposit confirmations; does not itself authorize ledger posting outside the approved financial workflow |
+| withdrawals.read | View withdrawal requests and status |
+| withdrawals.review | Review withdrawal requests; does not bypass financial cutover, security checks, or transaction settlement controls |
+| orders.read | View orders, positions, and order history |
+| support.read | View customer support conversations |
+| support.reply | Reply to customer support conversations |
+| support.manage | Assign, categorize, and close support cases |
+| announcements.read | View announcements and delivery status |
+| announcements.manage | Create, edit, publish, or retire announcements |
+| system_config.read | Read operational configuration |
+| system_config.write | Change allowlisted operational configuration with reason and audit |
+| seconds_policy.read | Read current and historical seconds-contract policy |
+| seconds_policy.manage | Create and activate policy versions, subject to policy validation, immutable snapshots and audit |
+| financial_audit.read | Read financial audit records; sensitive fields remain masked by default |
+| financial_adjustment.request | Submit a reviewed balance-adjustment request, not post arbitrary ledger rows |
+
+Administrator provisioning and permission assignment are deliberately absent from the ordinary grant catalogue. Only the Super Admin can list, create, modify, suspend, revoke, or grant permissions to Admin accounts. A separate owner-controlled procedure changes Super Admin authority.
+
+High-impact financial operations remain independently gated by backend cutover flags, transaction RPCs, idempotency, balance invariants, security checks and audit persistence. An Admin permission never bypasses those controls, and a UI permission never substitutes for server authorization.

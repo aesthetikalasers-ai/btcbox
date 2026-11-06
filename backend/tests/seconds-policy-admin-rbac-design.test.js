@@ -117,3 +117,20 @@ test('Super Admin authority cannot be changed through ordinary administrator API
   assert.match(design, /No ordinary Admin can create, replace, suspend, revoke, or modify the Super Admin/i);
   assert.match(design, /Changing the Super Admin requires a separate owner-controlled out-of-band recovery\/change procedure/i);
 });
+
+
+test('ordinary Admin permissions are a closed module-level allowlist and never include admin provisioning', () => {
+  for (const key of [
+    'dashboard.read', 'users.read', 'users.manage', 'users.freeze',
+    'kyc.read', 'kyc.review', 'deposits.read', 'deposits.review',
+    'withdrawals.read', 'withdrawals.review', 'orders.read',
+    'support.read', 'support.reply', 'support.manage',
+    'announcements.read', 'announcements.manage',
+    'system_config.read', 'system_config.write',
+    'seconds_policy.read', 'seconds_policy.manage',
+    'financial_audit.read', 'financial_adjustment.request'
+  ]) assert.ok(design.includes(key), 'missing permission key: ' + key);
+  assert.match(design, /Administrator provisioning and permission assignment are deliberately absent from the ordinary grant catalogue/i);
+  assert.match(design, /Only the Super Admin can list, create, modify, suspend, revoke, or grant permissions to Admin accounts/i);
+  assert.match(design, /An Admin permission never bypasses those controls/i);
+});
