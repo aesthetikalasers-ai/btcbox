@@ -62,3 +62,35 @@ test('unknown admin routes and insufficient permissions fail closed before route
   const audit = api.indexOf('const priorAuditFlush = await flushAdminAuditOutbox()', start);
   assert.ok(start >= 0 && unknown > start && denied > unknown && audit > denied);
 });
+
+
+test('direct admin balance adjustment is blocked until a dual-approval workflow exists', () => {
+  const gate = api.indexOf("if (sub === 'user/balance' && method === 'POST') {", api.indexOf('const requiredPermission ='));
+  const outbox = api.indexOf('const priorAuditFlush = await flushAdminAuditOutbox()', gate);
+  const mutation = api.indexOf("// POST /api/admin/user/balance", outbox);
+  assert.ok(gate >= 0 && outbox > gate && mutation > outbox);
+  const guard = api.slice(gate, outbox);
+  assert.ok(guard.includes("code: 'FINANCIAL_ADJUSTMENT_APPROVAL_REQUIRED'"));
+  assert.ok(guard.includes('Direct administrator balance adjustments are disabled.'));
+  assert.ok(guard.includes('dual-approval adjustment queue'));
+  assert.ok(!guard.includes('admin_adjustment_atomic'));
+});
+
+test('admin role editor does not offer the unapproved immediate financial adjustment permission', () => {
+  const admin = require('node:fs').readFileSync(require('node:path').resolve(__dirname, '../../frontend/src/features/admin/AdminPage.tsx'), 'utf8');
+  assert.ok(!admin.includes('["financial_adjustment.request","Request financial adjustment"]'));
+  assert.ok(admin.includes('Manual deposit credit'));
+});
+
+
+test('manual deposit credit requires both review authority and deposit-history read access', () => {
+  const permissionStart = api.indexOf('const requiredPermission = (function(route, verb)');
+  const extraGate = api.indexOf("if (sub === 'deposit/confirm' && method === 'POST' &&", permissionStart);
+  const outbox = api.indexOf('const priorAuditFlush = await flushAdminAuditOutbox()', extraGate);
+  assert.ok(extraGate > permissionStart && outbox > extraGate);
+  const gate = api.slice(extraGate, outbox);
+  assert.ok(gate.includes("hasAdminPermission(adminMembership, 'deposits.read')"));
+  assert.ok(gate.includes("permission: 'deposits.read'"));
+  const admin = require('node:fs').readFileSync(require('node:path').resolve(__dirname, '../../frontend/src/features/admin/AdminPage.tsx'), 'utf8');
+  assert.ok(admin.includes('!hasPermission("deposits.review") || !hasPermission("deposits.read")'));
+});

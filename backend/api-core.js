@@ -90,9 +90,40 @@ function redactAdminAuditDetail(value) {
   return String(value || '').slice(0, 300)
     .replace(/(["']?(?:password|passwd|(?:access|refresh|auth|session)[_ -]?token|[a-z0-9]+[_ -]token|token|authorization|bearer|secret|client[_ -]?secret|(?:service[_ -]?role|api|private)[_ -]?key|seed[_ -]?phrase|mnemonic|recovery[_ -]?codes?|id[_ -]?number|otp|totp[_ -]?secret)["']?\s*[:=]\s*)("(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|[^,}\s]+)/ig, '$1"[redacted]"')
     .replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/ig, '[email]')
-    .replace(/0x[a-fA-F0-9]{40}/g, '[wallet address]')
+    .replace(/0x[a-fA-F0-9]{40}(?![a-fA-F0-9])/g, '[wallet address]')
     .replace(/T[1-9A-HJ-NP-Za-km-z]{33}/g, '[wallet address]')
     .slice(0, 300);
+}
+
+function safeAdminAuditMetadata(value) {
+  const allowed = [
+    'asset', 'amount', 'fee', 'network', 'reference', 'payout_reference',
+    'operation_id', 'idempotency_key', 'status', 'side', 'base_asset',
+    'quote_asset', 'price', 'quantity', 'remaining_quantity'
+  ];
+  const safe = {};
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return safe;
+  for (const key of allowed) {
+    const item = value[key];
+    if (typeof item === 'string') {
+      const text = item.trim();
+      if (text && text.length <= 160 && !/[\x00-\x1f\x7f]/.test(text)) safe[key] = text;
+    } else if (typeof item === 'number' && Number.isFinite(item)) {
+      safe[key] = String(item);
+    }
+  }
+  return safe;
+}
+
+function formatAdminAuditDetail(row) {
+  const reason = redactAdminAuditDetail(row && row.reason || '').slice(0, 80);
+  const metadata = safeAdminAuditMetadata(row && row.metadata);
+  const metadataText = redactAdminAuditDetail(Object.keys(metadata)
+    .map(key => key + '=' + metadata[key]).join(', ')).slice(0, 150);
+  const objectType = typeof (row && row.object_type) === 'string' ? row.object_type.slice(0, 24) : '';
+  const objectId = typeof (row && row.object_id) === 'string' ? row.object_id.slice(0, 32) : '';
+  const objectText = objectType && objectId ? objectType + ':' + objectId : objectType || objectId;
+  return redactAdminAuditDetail([reason, metadataText, objectText].filter(Boolean).join(' · '));
 }
 
 function isValidAuthEmail(value) {
@@ -428,7 +459,7 @@ async function readAdminAuditLogPage(params) {
   if (!supabaseStorageConfigured()) throw new Error('Canonical administrator audit storage unavailable');
   const limit = params.limit;
   const query = new URLSearchParams({
-    select: 'id::text,actor_id,subject_user_id,action,reason,created_at',
+    select: 'id::text,actor_id,subject_user_id,action,object_type,object_id,reason,metadata,created_at',
     order: 'id.desc',
     limit: String(limit + 1)
   });
@@ -453,7 +484,7 @@ async function readAdminAuditLogPage(params) {
       uid: String(row.subject_user_id || '').slice(0, 100),
       by: String(row.actor_id || '').slice(0, 80),
       time: String(row.created_at).slice(0, 40),
-      detail: redactAdminAuditDetail(row.reason || ''),
+      detail: formatAdminAuditDetail(row),
       postgres_sync_status: 'synced'
     };
   });
@@ -917,6 +948,17 @@ function consumeTotpStep(user, code) {
 // Parse user-supplied financial amounts strictly; parseFloat('1abc') must never become 1.
 // Return a masked identity number for ordinary account responses.
 // Full KYC identifiers remain server-side and are never serialized to the user API.
+function kycSubmissionBlock(status) {
+  const normalized = String(status || '').trim().toLowerCase();
+  if (normalized === 'approved' || normalized === 'verified') {
+    return { code: 'KYC_ALREADY_APPROVED', msg: 'Identity verification already approved. No need to resubmit.' };
+  }
+  if (['pending', 'processing', 'under_review'].includes(normalized)) {
+    return { code: 'KYC_ALREADY_PENDING', msg: 'Identity verification is under review. Please do not resubmit.' };
+  }
+  return null;
+}
+
 function validateKycSubmission(body) {
   const name = String(body && body.name || '').trim();
   const idType = String(body && body.id_type || 'id_card').trim();
@@ -2017,8 +2059,8 @@ async function handleRequest(event, context) {
   // ---------- POST /api/kyc ----------
   if (path === 'kyc' && method === 'POST') {
     if (!user) return json({ ok: false, msg: 'Not signed in.', need_login: true }, 401);
-    if (user.kyc && user.kyc.status === 'approved') return json({ ok: false, code: 'KYC_ALREADY_APPROVED', msg: 'Identity verification already approved. No need to resubmit.' }, 409);
-    if (user.kyc && user.kyc.status === 'pending') return json({ ok: false, code: 'KYC_ALREADY_PENDING', msg: 'Identity verification is under review. Please do not resubmit.' }, 409);
+    const submissionBlock = kycSubmissionBlock(user.kyc && user.kyc.status);
+    if (submissionBlock) return json({ ok: false, ...submissionBlock }, 409);
     const submission = validateKycSubmission(body);
     if (!submission.ok) return json({ ok: false, code: 'KYC_INVALID_INPUT', msg: submission.msg }, 400);
     const image = validateKycImage(body);
@@ -2819,6 +2861,18 @@ async function handleRequest(event, context) {
     if (!hasAdminPermission(adminMembership, requiredPermission)) {
       return json({ ok: false, code: 'ADMIN_PERMISSION_DENIED', permission: requiredPermission, msg: 'Your administrator role does not allow this action.' }, 403);
     }
+    // A financial adjustment request is not an approval workflow. The current
+    // RPC applies the ledger mutation immediately, so keep this endpoint closed
+    // until a separately authorized maker-checker queue is implemented.
+    if (sub === 'user/balance' && method === 'POST') {
+      return json({ ok: false, code: 'FINANCIAL_ADJUSTMENT_APPROVAL_REQUIRED', msg: 'Direct administrator balance adjustments are disabled. Use the verified deposit workflow or wait for the dual-approval adjustment queue.' }, 409);
+    }
+    // Manual credit operators must also be allowed to inspect deposit history
+    // so the existing receipt/ledger record can be checked before crediting.
+    if (sub === 'deposit/confirm' && method === 'POST' &&
+        !hasAdminPermission(adminMembership, 'deposits.read')) {
+      return json({ ok: false, code: 'ADMIN_PERMISSION_DENIED', permission: 'deposits.read', msg: 'Deposit history read permission is required before manual credit.' }, 403);
+    }
     const priorAuditFlush = await flushAdminAuditOutbox();
     if (priorAuditFlush.persistenceUnavailable) return json({ ok: false, code: 'AUDIT_OUTBOX_STATE_UNAVAILABLE', msg: 'Administrator audit delivery state could not be saved. Please retry.' }, 503);
 
@@ -3015,21 +3069,27 @@ async function handleRequest(event, context) {
       let list = Object.values(db.users);
       if (q) list = list.filter(function (u) { return String(u.email || '').toLowerCase().indexOf(q) > -1 || String(u.uid || '').toLowerCase().indexOf(q) > -1; });
       list = list.slice(0, 200);
+      const canReadFinancialAudit = hasAdminPermission(adminMembership, 'financial_audit.read');
       let normalizedBalances = null;
-      if (financialPostgresReadsEnabled()) {
+      if (canReadFinancialAudit && financialPostgresReadsEnabled()) {
         try { normalizedBalances = await readAdminAccountBalances(list.map(function (u) { return String(u.uid); })); }
         catch (e) { return json({ ok: false, msg: 'Financial data temporarily unavailable. Please try again later.', code: 'FINANCIAL_READ_UNAVAILABLE' }, 503); }
       }
-      // When PostgreSQL is the source of truth, request prices for those exact
-      // normalized ledger assets rather than stale/empty legacy JSON balances.
-      const priceBases = list.flatMap(function (u) {
-        const balances = normalizedBalances ? (normalizedBalances[String(u.uid)] || {}) : (u.balances || {});
-        return Object.keys(balances);
-      });
-      try { await getLiveUsdtPrices(priceBases); } catch (_) {}
+      // Financial aggregates are not part of the general users.read projection.
+      if (canReadFinancialAudit) {
+        const priceBases = list.flatMap(function (u) {
+          const balances = normalizedBalances ? (normalizedBalances[String(u.uid)] || {}) : (u.balances || {});
+          return Object.keys(balances);
+        });
+        try { await getLiveUsdtPrices(priceBases); } catch (_) {}
+      }
       return json({ ok: true, users: list.map(function (u) {
-        const balances = normalizedBalances ? (normalizedBalances[String(u.uid)] || {}) : (u.balances || {});
-        return { uid: u.uid, email: u.email || '', kyc_status: (u.kyc && u.kyc.status) || 'unverified', total_usdt: totalUsdt(balances, livePriceCache.prices), created_at: u.created_at || '', frozen: !!u.frozen, twofa: !!u.twofa_enabled };
+        const record = { uid: u.uid, email: u.email || '', admin_auth_user_id: adminMembership.is_super_admin === true ? String(u.supabase_user_id || (Array.isArray(u.supabase_user_ids) ? u.supabase_user_ids[0] : '') || '') : '', kyc_status: (u.kyc && u.kyc.status) || 'unverified', created_at: u.created_at || '', frozen: !!u.frozen, twofa: !!u.twofa_enabled };
+        if (canReadFinancialAudit) {
+          const balances = normalizedBalances ? (normalizedBalances[String(u.uid)] || {}) : (u.balances || {});
+          record.total_usdt = totalUsdt(balances, livePriceCache.prices);
+        }
+        return record;
       }) });
     }
 
@@ -3074,20 +3134,57 @@ async function handleRequest(event, context) {
       delete safeUser.fund_password_salt;
       safeUser.fund_password = !!(u.fund_password_hash || u.fund_password);
       delete safeUser.sessions;
+      // Auth UUIDs and linked provider identity records are internal authentication data, not Admin user-detail fields.
+      delete safeUser.supabase_user_id;
+      delete safeUser.supabase_user_ids;
+      delete safeUser.auth_identities;
+      delete safeUser.auth_providers;
       delete safeUser.twofa_secret;
       delete safeUser.totp_secret;
       delete safeUser.recovery_codes;
+      // Do not let the broad users.read permission expose raw financial histories.
+      // Each history is projected separately under its matching read permission.
+      delete safeUser.deposits;
+      delete safeUser.withdrawals;
+      delete safeUser.earn_records;
+      delete safeUser.support_messages;
+      // Balances are financial data too; remove the copied legacy snapshot before permission-scoped projection.
+      delete safeUser.balances;
+      delete safeUser.financial_balance_source;
       // KYC evidence and full identity numbers require the separate kyc.read permission.
       // The general users.read detail endpoint exposes only the current verification state.
       safeUser.kyc = { status: String(u.kyc && u.kyc.status || 'unsubmitted') };
       safeUser.kyc_status = safeUser.kyc.status;
+      const canReadDeposits = hasAdminPermission(adminMembership, 'deposits.read');
+      const canReadWithdrawals = hasAdminPermission(adminMembership, 'withdrawals.read');
       if (financialPostgresReadsEnabled()) {
         try {
-          const normalized = await readAdminAccountBalances([String(u.uid)]);
-          safeUser.balances = normalized[String(u.uid)] || {};
-          safeUser.financial_balance_source = 'postgres_financial_ledger';
+          const normalized = await readFinancialAccountSnapshot(String(u.uid));
+          if (canReadDeposits) {
+            safeUser.balances = normalized.balances || {};
+            safeUser.financial_balance_source = 'postgres_financial_ledger';
+          }
+          if (canReadDeposits) {
+            safeUser.deposit_history = normalized.deposits.slice(0, 20);
+            safeUser.deposit_history_source = 'postgres_financial_ledger';
+          }
+          if (canReadWithdrawals) {
+            safeUser.withdrawal_history = normalized.withdrawals.slice(0, 20);
+            safeUser.withdrawal_history_source = 'postgres_financial_ledger';
+          }
         } catch (e) {
           return json({ ok: false, msg: 'Financial data temporarily unavailable. Please try again later.', code: 'FINANCIAL_READ_UNAVAILABLE' }, 503);
+        }
+      } else {
+        if (canReadDeposits) {
+          safeUser.financial_balance_source = 'legacy_state_retention_limited';
+          safeUser.balances = u.balances || {};
+          safeUser.deposit_history = Array.isArray(u.deposits) ? u.deposits.slice(-20).reverse() : [];
+          safeUser.deposit_history_source = 'legacy_state_retention_limited';
+        }
+        if (canReadWithdrawals) {
+          safeUser.withdrawal_history = Array.isArray(u.withdrawals) ? u.withdrawals.slice(-20).reverse() : [];
+          safeUser.withdrawal_history_source = 'legacy_state_retention_limited';
         }
       }
       return json({ ok: true, user: safeUser });
@@ -3468,9 +3565,15 @@ async function handleRequest(event, context) {
       if (uidFilter.length > 100 || (uidFilter && !/^[A-Za-z0-9_:-]{1,100}$/.test(uidFilter))) return json({ ok: false, code: 'AUDIT_UID_FILTER_INVALID', msg: 'Audit user filter is invalid.' }, 400);
       if (before && !isPositivePostgresBigintString(before)) return json({ ok: false, code: 'AUDIT_CURSOR_INVALID', msg: 'Audit page cursor is invalid.' }, 400);
 
-      // Explicit opt-in switches the viewer to the canonical append-only PostgreSQL
-      // audit table. Never silently fall back to the retention-limited state document.
-      if (process.env.ADMIN_AUDIT_POSTGRES_READS_ENABLED === '1') {
+      // When normalized financial reads are active, financial mutations and the
+      // customer balance/history views are sourced from PostgreSQL. The audit viewer
+      // must then use that same canonical append-only table automatically; otherwise
+      // a successful ledger credit/debit could be invisible in the admin audit page.
+      // The explicit audit flag remains available for audit-only cutover.
+      const postgresAuditReadsRequired =
+        process.env.ADMIN_AUDIT_POSTGRES_READS_ENABLED === '1' ||
+        financialPostgresReadsEnabled();
+      if (postgresAuditReadsRequired) {
         try {
           const result = await readAdminAuditLogPage({ limit, action: actionFilter, uid: uidFilter, before });
           return json({
@@ -3720,6 +3823,7 @@ exports._test = {
   getPublishableKey: getPublishableKey,
   validateFundPassword: validateFundPassword,
   validateAdminPasswordStrength: validateAdminPasswordStrength,
+  kycSubmissionBlock: kycSubmissionBlock,
   parseMoneyInput: parseMoneyInput,
   compareMoney: compareMoney,
   addMoney: addMoney,

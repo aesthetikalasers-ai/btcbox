@@ -91,5 +91,31 @@ test('confirmed KYC review is not reported as failed when the pending queue refr
   const handler = admin.slice(start, end);
   assert.match(handler, /await adminApproveKyc[\s\S]*?setKyc\(current => current\.filter\(item => item\.uid !== uid\)\)/);
   assert.match(handler, /KYC review is confirmed; the queue could not refresh/);
-  assert.match(handler, /catch \(reason\).*KYC review was not confirmed/);
+  assert.match(handler, /catch \(reason\) \{[\s\S]*?KYC review was not confirmed/);
+});
+
+
+test('administrator rejection uses the centered in-app dialog, never a browser prompt', () => {
+  assert.ok(admin.includes('setReviewDialog({ kind: "kyc", uid })'));
+  assert.ok(admin.includes('setReviewDialog({ kind: "withdrawal", id })'));
+  assert.ok(admin.includes('role="dialog"'));
+  assert.ok(admin.includes('aria-modal="true"'));
+  assert.ok(admin.includes('await adminRejectKyc(token, target.uid, reasonText)'));
+  assert.ok(admin.includes('await adminRejectWithdrawal(token, target.id, reasonText)'));
+  assert.ok(!admin.includes('window.prompt('));
+  assert.ok(!admin.includes('window.confirm('));
+  assert.ok(!admin.includes('window.alert('));
+});
+
+
+test('KYC resubmission is blocked for all in-review and approved status aliases, but allowed after rejection', () => {
+  const { kycSubmissionBlock } = require('../api-core')._test;
+  for (const status of ['pending', 'processing', 'under_review', ' APPROVED ', 'verified']) {
+    const result = kycSubmissionBlock(status);
+    assert.ok(result, 'submission must be blocked for ' + status);
+    assert.equal(result.code, ['approved', 'verified'].includes(status.trim().toLowerCase()) ? 'KYC_ALREADY_APPROVED' : 'KYC_ALREADY_PENDING');
+  }
+  for (const status of ['rejected', 'failed', 'not_submitted', '', null, undefined]) {
+    assert.equal(kycSubmissionBlock(status), null, 'resubmission should remain available for ' + status);
+  }
 });

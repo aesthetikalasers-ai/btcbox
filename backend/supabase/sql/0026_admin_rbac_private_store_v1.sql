@@ -441,3 +441,42 @@ GRANT EXECUTE ON FUNCTION public.admin_get_membership_v1(uuid) TO service_role;
 
 COMMENT ON FUNCTION public.admin_get_membership_v1(uuid) IS
   'Trusted-backend-only bridge to private administrator membership. Requires server-verified Auth UUID; never callable by anon/authenticated clients.';
+
+-- PostgREST bridges for delegated administrator management. The API calls
+-- /rest/v1/rpc/<function>, so these public wrappers are required even though
+-- the implementation and all tables remain in the unexposed private schema.
+-- Only the trusted backend service_role may execute either bridge.
+CREATE OR REPLACE FUNCTION public.admin_list_memberships_v1(p_actor_user_id uuid)
+RETURNS jsonb
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = pg_catalog, private
+AS 'SELECT private.admin_list_memberships_v1($1)';
+
+REVOKE ALL ON FUNCTION public.admin_list_memberships_v1(uuid) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.admin_list_memberships_v1(uuid) TO service_role;
+
+COMMENT ON FUNCTION public.admin_list_memberships_v1(uuid) IS
+  'Trusted-backend-only bridge to the private Super Admin delegated-membership list.';
+
+CREATE OR REPLACE FUNCTION public.admin_manage_membership_v1(
+  p_actor_user_id uuid,
+  p_target_user_id uuid,
+  p_expected_revision bigint,
+  p_action text,
+  p_permissions text[],
+  p_reason text,
+  p_request_id text,
+  p_request_hash text
+) RETURNS jsonb
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = pg_catalog, private
+AS 'SELECT private.admin_manage_membership_v1($1,$2,$3,$4,$5,$6,$7,$8)';
+
+REVOKE ALL ON FUNCTION public.admin_manage_membership_v1(uuid,uuid,bigint,text,text[],text,text,text) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.admin_manage_membership_v1(uuid,uuid,bigint,text,text[],text,text,text) TO service_role;
+
+COMMENT ON FUNCTION public.admin_manage_membership_v1(uuid,uuid,bigint,text,text[],text,text,text) IS
+  'Trusted-backend-only bridge to atomic private delegated-admin lifecycle; actor UUID must come from verified Supabase Auth.';
+

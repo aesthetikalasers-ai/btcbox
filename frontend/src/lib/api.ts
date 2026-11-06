@@ -852,11 +852,18 @@ export interface AdminSession {
 export interface AdminUserRecord {
   uid: string;
   email: string;
+  /** Supabase Auth UUID, populated only for Super Admin user-list responses. */
+  admin_auth_user_id?: string;
   kyc_status?: string;
   kyc?: { status?: string };
   frozen: boolean;
   total_usdt?: string | number;
   balances?: Record<string, AccountBalance>;
+  financial_balance_source?: "postgres_financial_ledger" | "legacy_state_retention_limited";
+  deposit_history?: DepositRecord[];
+  deposit_history_source?: "postgres_financial_ledger" | "legacy_state_retention_limited";
+  withdrawal_history?: WithdrawalRecord[];
+  withdrawal_history_source?: "postgres_financial_ledger" | "legacy_state_retention_limited";
 }
 export interface AdminWithdrawalRecord {
   id: string;

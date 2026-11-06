@@ -63,3 +63,38 @@ test('deposit page displays account snapshot history and refreshes it independen
   assert.ok(block.includes('item.reference||item.txid'));
   assert.ok(block.includes('historyReload'));
 });
+
+
+test('manual credit refreshes the normalized admin balance and canonical audit reads follow financial cutover', () => {
+  const backend = read('backend/api-core.js');
+  const admin = read('frontend/src/features/admin/AdminPage.tsx');
+  const sql = read('backend/supabase/sql/0007_financial_admin_manual_deposit_v1.sql');
+
+  const userStart = backend.indexOf("if (sub === 'user' && method === 'GET')");
+  const userEnd = backend.indexOf('// Stage the audit event', userStart);
+  assert.ok(userStart >= 0 && userEnd > userStart);
+  const userRoute = backend.slice(userStart, userEnd);
+  assert.match(userRoute, /if \(financialPostgresReadsEnabled\(\)\)/);
+  assert.match(userRoute, /readFinancialAccountSnapshot\(String\(u\.uid\)\)/);
+  assert.match(userRoute, /safeUser\.balances = normalized\.balances \|\| \{\}/);
+  assert.match(userRoute, /financial_balance_source = 'postgres_financial_ledger'/);
+
+  const creditStart = admin.indexOf('const manualCredit = async');
+  const creditEnd = admin.indexOf('const refreshWithdrawalQueue', creditStart);
+  assert.ok(creditStart >= 0 && creditEnd > creditStart);
+  const creditHandler = admin.slice(creditStart, creditEnd);
+  assert.match(creditHandler, /await adminManualCredit\(token/);
+  assert.match(creditHandler, /await selectUser\(selectedUser\.uid\)/);
+
+  assert.match(sql, /apply_financial_operation/);
+  assert.match(sql, /insert into public\.deposit_records/i);
+  assert.match(sql, /insert into public\.financial_audit_log/i);
+
+  const auditStart = backend.indexOf("if (sub === 'audit-logs' && method === 'GET')");
+  const auditEnd = backend.indexOf('// GET /api/admin/config', auditStart);
+  assert.ok(auditStart >= 0 && auditEnd > auditStart);
+  const auditRoute = backend.slice(auditStart, auditEnd);
+  assert.match(auditRoute, /financialPostgresReadsEnabled\(\)/);
+  assert.match(auditRoute, /completeness: 'postgres_canonical'/);
+  assert.ok(auditRoute.includes('No incomplete fallback was shown.'));
+});

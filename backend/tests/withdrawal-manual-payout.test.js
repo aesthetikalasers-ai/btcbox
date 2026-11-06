@@ -70,7 +70,7 @@ test('admin withdrawal mutations preserve confirmed UI state when queue refresh 
   assert.ok(start >= 0 && end > start);
   const handlers = pages.slice(start, end);
   assert.match(handlers, /setWithdrawals\(current => current\.map\(item => item\.id === id \? \{ \.\.\.item, status: "approved" \} : item\)\);[\s\S]*?await refreshWithdrawalQueue\("Withdrawal approval confirmed\."\)/);
-  assert.match(handlers, /setWithdrawals\(current => current\.filter\(item => item\.id !== id\)\);[\s\S]*?await refreshWithdrawalQueue\("Withdrawal rejection and refund confirmed\."\)/);
+  assert.match(handlers, /setWithdrawals\(current => current\.filter\(item => item\.id !== target\.id\)\);[\s\S]*?await refreshWithdrawalQueue\("Withdrawal rejection and refund confirmed\."\)/);
   assert.match(handlers, /setNotice\(result\.duplicate[\s\S]*?await refreshWithdrawalQueue\("Manual payout completion confirmed\."\)/);
   assert.match(handlers, /The database action is confirmed; the queue could not refresh/);
 });
