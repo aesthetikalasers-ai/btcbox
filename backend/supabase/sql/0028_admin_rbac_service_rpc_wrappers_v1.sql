@@ -16,9 +16,9 @@ RETURNS jsonb
 LANGUAGE sql
 SECURITY DEFINER
 SET search_path = ''
-AS $
+AS $fn$
   SELECT private.admin_list_memberships_v1(p_actor_user_id);
-$;
+$fn$;
 
 REVOKE ALL ON FUNCTION public.admin_list_memberships_v1(uuid) FROM PUBLIC,anon,authenticated,service_role;
 GRANT EXECUTE ON FUNCTION public.admin_list_memberships_v1(uuid) TO service_role;
