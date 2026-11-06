@@ -99,15 +99,15 @@ test('migration source is not applied and bootstrap does not provision a default
   assert.match(sql, /it does not create an admin/i);
   const beforeBootstrap = sql.slice(0, sql.indexOf('CREATE OR REPLACE FUNCTION private.bootstrap_super_admin_v1'));
   assert.doesNotMatch(beforeBootstrap, /INSERT INTO private\.admin_memberships/i);
-  assert.match(design, /Initial Super Admin bootstrap is a one-time, owner-controlled database operation/i);
+  assert.match(design, /initial Super Admin bootstrap is a one-time owner-controlled database operation/i);
   assert.match(design, /It is not a public API or self-service promotion/i);
 });
 
 test('design supersedes old two-person bootstrap and three-person approval requirements', () => {
   assert.match(design, /Super Admin may complete the policy change alone/i);
-  assert.match(design, /no three-person approval is required/i);
+  assert.match(design, /without a three-person workflow/i);
   assert.match(design, /No three-person or distinct-author\/reviewer\/activator requirement applies/i);
-  assert.match(design, /project owner then verifies the exact Auth UUID/i);
+  assert.match(design, /project owner verifies the Auth UUID out of band/i);
   assert.doesNotMatch(design, /two separately authenticated approvers/i);
 });
 
