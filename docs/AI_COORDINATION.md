@@ -2832,3 +2832,13 @@ The prior withdrawal UI audit statement claiming the active BTCBOX admin route w
 - Legacy Basic Auth remains as a compatibility path until the existing admin console is migrated to Supabase Auth; it does not receive delegated-role permission checks. Remove it after the admin UI migration is complete.
 - No database was reset or written, no production deployment was triggered, and no financial operations were executed.
 - Validation pending: backend CI and frontend CI on the PR head; independent route-level QA and a fresh-schema dry run remain not verified.
+
+
+## 2026-11-06 integration batch: remove the obsolete Seconds one-open rule
+
+- Source-observed conflict: the active Seconds policy RPC in `0025_seconds_policy_versioning_v1.sql` still mapped a per-user partial unique index to `OPEN_POSITION_EXISTS`, and the repository retained both numbered and duplicate one-open-position SQL artifacts plus a test that required the restriction.
+- Removed the obsolete single-open SQL artifacts and their contradictory test; removed the archived concatenated one-shot migration runner to prevent accidental reuse of stale schema instructions.
+- Updated the active Seconds policy RPC so unique violations are treated only as request/idempotency conflicts; no per-user open-position uniqueness rule remains. The backend policy's optional `per_user_open_exposure` remains the configurable risk boundary, not an order-count limit.
+- Updated settlement dependency notes so the Seconds settlement idempotency SQL depends on the core Seconds schema, not the retired single-open rule.
+- Added `seconds-unlimited-open-positions.test.js` to guard the intended behavior and the complete open-position array response.
+- No database was reset or written. The fresh empty-database schema is still a separate deliverable; do not apply old numbered migrations as a prerequisite.
