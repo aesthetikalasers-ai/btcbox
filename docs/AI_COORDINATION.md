@@ -3389,3 +3389,12 @@ The prior withdrawal UI audit statement claiming the active BTCBOX admin route w
 - Latest implementation head after the assertion correction: `946b657842689dfcc49a70dfdb88fff9bd948b29`. Exact-head backend CI `42268111757` passed; PostgreSQL schema CI `42268111465` passed (24 canonical SQL files plus rollback-only financial lifecycle integration); frontend CI `42268111795` passed lint, Vite build, Chromium installation and desktop/mobile Playwright route smoke tests. All three exact-head workflows passed.
 - PR #50 remains Draft/open/unmerged. No hosted Supabase writes, real financial operations, merge, or deployment. Trading page layout unchanged.
 - No hosted Supabase writes, real financial operations, merge, or deployment. Trading page layout unchanged.
+
+
+## Admin KYC/support mutation and queue-refresh separation — 2026-11-07
+
+- SOURCE OBSERVED: `reviewKyc` and `replySupport` performed the committed mutation and then fetched the refreshed queue inside the same outer try/catch. A failed follow-up GET could therefore report an already-committed KYC decision or support reply as a failed mutation.
+- FIX COMMITTED: after successful KYC review, remove the reviewed application locally and refresh in a nested read-only try/catch. After successful support reply, clear the submitted draft/request ID and refresh separately. Read failures now explicitly state that the mutation is confirmed and the view must be reloaded; they no longer misreport the mutation as failed.
+- REGRESSION COVERAGE ADDED: `kyc-flow.test.js` and `admin-support-reply.test.js` assert the confirmed-mutation/local-state behavior and separate refresh failure messaging.
+- Implementation branch head: `73367233a5f4d37e828cb124f03f3eff84a10a2c`; PR #50 remains Draft/open/unmerged. Exact-head backend CI `42268517067`, PostgreSQL schema CI `42268516996`, and frontend CI `42268517177` are in progress; await all three before acceptance.
+- No hosted Supabase writes, real KYC decisions, real funds operations, merge, or deployment. Trading page layout unchanged.
