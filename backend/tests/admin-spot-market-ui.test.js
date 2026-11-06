@@ -31,5 +31,6 @@ test('Spot-market editor is constrained to supported ledger assets and keeps fee
   assert.match(backend, /SUPPORTED_LEDGER_ASSETS\.has\(baseAsset\)/);
   assert.match(backend, /SUPPORTED_LEDGER_ASSETS\.has\(quoteAsset\)/);
   assert.match(admin, /maker\/taker fees stay at zero until fee movements are implemented atomically/i);
+  assert.match(admin, /value="USDT" readOnly disabled/);
   assert.match(admin, /Market orders remain disabled/);
 });
