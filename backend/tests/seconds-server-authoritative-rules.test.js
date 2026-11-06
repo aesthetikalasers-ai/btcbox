@@ -71,7 +71,7 @@ test('reference quote timestamps reject stale, future, missing and malformed pro
   const start = api.indexOf('function normalizeReferenceTimestamp');
   const end = api.indexOf('async function fetchSecondsReferencePrice', start);
   assert.ok(start >= 0 && end > start, 'reference timestamp normalizer must exist');
-  const normalize = vm.runInNewContext(api.slice(start, end) + '\\nnormalizeReferenceTimestamp;');
+  const normalize = vm.runInNewContext(api.slice(start, end) + '\nnormalizeReferenceTimestamp;');
   const now = 1_800_000_000_000;
   assert.equal(normalize(now - 15_000, now), Math.floor((now - 15_000) / 1000));
   assert.equal(normalize(new Date(now - 60_000).toISOString(), now), Math.floor((now - 60_000) / 1000));
