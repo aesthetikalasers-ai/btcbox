@@ -3225,3 +3225,15 @@ The prior withdrawal UI audit statement claiming the active BTCBOX admin route w
 - CI STATUS: browser CI result for exact head `ee6ab2eb8e3060dd9fa345636ba59bbf2196f8ed` is pending/not yet visible through the current workflow-run query. Do not claim the Playwright tests passed until an exact-head GitHub Actions result is available. Existing earlier backend and PostgreSQL checks remain recorded at `ebcab45c2c40105e59fa81ff030be32a86ac4c6a`; they are not being represented as rerun on this new head.
 - No customer trading page layout change, hosted database write, real financial operation, merge or deployment occurred.
 - Next: confirm exact-head frontend/browser CI. If it passes, expand smoke coverage to account hydration and non-mutating dashboard reads; keep all financial submit actions mocked or disabled.
+
+## Browser smoke suite exact-head verification — 2026-11-06 UTC
+
+- Follow-up correction: the first Playwright run on `ee6ab2eb8e3060dd9fa345636ba59bbf2196f8ed` found an ambiguous text locator (two matching "BTCBOX username" strings). The app itself rendered correctly; the test was tightened to use exact text matching.
+- Final exact implementation head: `2da76b37eb25b0f121d2474b6fc218a1b27b56d3`; final CI exact-head SHA validated: `2da76b37eb25b0f121d2474b6fc218a1b27b56d3`.
+- Frontend CI run 417 (run ID `42234125211`): **passed**. TypeScript lint and Vite production build passed; Playwright browser suite passed **8/8** tests across Desktop Chromium and Pixel 7 mobile Chromium.
+- Playwright coverage: login form, registration form, unauthenticated protected-route redirect, and administrator login gate. All four cases passed in both viewport projects.
+- Backend CI run 552 (run ID `42234125236`): **passed**; unified frontend/backend build, backend tests and fail-closed preflight passed.
+- PostgreSQL schema CI run 117 (run ID `42234125250`): **passed**; all canonical SQL files bootstrapped in disposable PostgreSQL and schema/RLS/grants checks passed.
+- Browser suite uses mocked API auth configuration and unauthenticated account response; synthetic Supabase origin is blocked. No hosted Supabase identity, hosted database, customer data or financial write was used.
+- PR #50 remains Draft, open, unmerged. No production deployment or hosted database write was performed. Spot trading layout remains unchanged.
+- Next: extend read-only browser smoke coverage to account hydration/dashboard data with mocked fixtures. Keep financial submit operations mocked and never send real funds during browser verification.
