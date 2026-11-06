@@ -2080,3 +2080,27 @@ Application branch inspected: `feat/btcbox-web3-auth-20261105` at `741c709d818cb
 - Keep the Hobby plan and Vercel project/team settings unchanged; do not upgrade, transfer projects, cancel deployments, or create another deployment without the user's explicit approval.
 - Avoid unnecessary pushes that trigger repeated Vercel builds. First obtain the exact current GitHub Actions push-run result through a workflow-runs listing capability, then reconcile the Vercel build-rate-limit status with the plan's actual usage/limit information.
 - Do not merge, deploy, modify production settings, or change financial cutover flags. The TypeScript failure above is historical evidence; the exact current commit remains without a matching Vercel deployment in the inspected history.
+
+
+## CI recovery and exact-commit verification — 2026-11-06 (UTC+8)
+
+### Failure evidence from prior feature commit
+- Retrieved GitHub Actions push run `42137012101` for feature commit `80dde835ec58b8f0ca62fab51c4d4f545de73376`. The unified build succeeded; backend tests failed (238 total, 233 passed, 5 failed), causing later fail-closed checks to be skipped.
+- The five failures were test-contract defects, not a demonstrated runtime regression:
+  1. RBAC design test resolved `../../docs` outside the repository checkout; corrected to `../docs`.
+  2. Policy doc-consistency test had the same incorrect docs path for both specifications.
+  3. Policy versioning test prohibited every `FOR UPDATE` in the order RPC, including the intentional idempotent replay lock. Narrowed the assertion to the active-policy lookup only; replay locking remains separately asserted.
+  4. Minimum-stake test's broad negative regex also matched the valid maximum-stake check. Narrowed it to reject only a hard-coded numeric-floor comparison in the API handler.
+  5. Server-authoritative settlement test used a market-route delimiter that appears before the settlement handler. Corrected the section boundary to the next seconds-positions route.
+- No financial SQL, API business logic, payout rules, cutover flags, or production database objects were changed in this repair.
+
+### Repair and successful verification
+- Feature commit: `c351c9de1671a93004d7ddda0021df5441672bee`, parent `80dde835ec58b8f0ca62fab51c4d4f545de73376`.
+- Changed only four backend test files: `seconds-policy-admin-rbac-design.test.js`, `seconds-policy-versioning-doc-consistency.test.js`, `seconds-policy-versioning.test.js`, and `seconds-server-authoritative-rules.test.js`.
+- Exact GitHub Actions push run `42138365542` for that SHA completed with conclusion `success` at `2026-11-06T00:39:34Z`. All steps succeeded: dependency install, unified site build, backend tests, fail-closed deployment configuration validation, unified output verification, and preserved entrypoint verification.
+- Exact commit's GitHub combined status reports `Vercel – btcboxcdt` = `success`, target `https://vercel.com/fuyao999/btcboxcdt/5cXWxiFrTSTiehvjZ3NdhK6QEUhq`. This supersedes the earlier build-rate-limit failure status on commit `80dde...`; no plan upgrade or project transfer was made.
+- This is source/CI verification only. No Supabase migration was applied, no staging database was created, and no merge or production cutover/deployment was performed.
+
+### Next
+- Continue from feature SHA `c351c9de1671a93004d7ddda0021df5441672bee`.
+- With build and test gates green, proceed to the next backend integration review and identify any remaining source-only vs live-staging gaps. Keep financial writes and policy activation disabled until isolated staging and explicit approval.
