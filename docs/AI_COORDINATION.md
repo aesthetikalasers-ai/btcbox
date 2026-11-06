@@ -2194,3 +2194,12 @@ Application branch inspected: `feat/btcbox-web3-auth-20261105` at `741c709d818cb
 ### NEXT
 - Isolated Supabase staging is still a hard prerequisite. Before implementation, validate the actual Data API exposed-schema setting and PostgREST role behavior; then generate a migration through the pinned Supabase CLI workflow and run catalog/adversarial tests against staging.
 - Keep seconds policy write surface absent and all financial cutover flags closed until the full runtime identity, RBAC, separation-of-duties, and atomic audit path is proven.
+
+
+## Super Admin / delegated Admin model — implementation contract updated 2026-11-06 (UTC+8)
+
+- User clarified the intended admin model: one Super Admin has all permissions and can create ordinary Admins and configure their permissions. The former mandatory three-person author/reviewer/activator workflow is not part of the product requirement.
+- Feature commit `d22d964e0d4864d24dd6bd3eedc300970c641f23` updates `docs/SECONDS_POLICY_ADMIN_RBAC.md` and `backend/tests/seconds-policy-admin-rbac-design.test.js`. It records the Super Admin as the only administrator-provisioning authority, ordinary Admins as explicit least-privilege permission holders, protected Super Admin authority, live Auth/permission validation, and append-only audit.
+- A follow-up source correction removes stale three-person assertions and contradictory author/reviewer bullets. The policy versioning, reasons, idempotency, revision checks, immutable open-position snapshots, and fail-closed behavior remain.
+- Scope is documentation and static source-guard only. Runtime administrator APIs, administrator UI, RBAC migration, initial Super Admin provisioning, and permission grants are NOT IMPLEMENTED. No Supabase writes or migration, merge, or production deployment occurred.
+- GitHub Actions push run for the exact final SHA is being checked; no pass is claimed until completed. Isolated Supabase staging remains unavailable.
