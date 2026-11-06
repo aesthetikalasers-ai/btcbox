@@ -1866,7 +1866,7 @@ async function handleRequest(event, context) {
 
   // ---------- POST /api/deposit ----------
   if (path === 'deposit' && method === 'POST') {
-    if (!user) return json({ ok: false, msg: 'Not signed in.', need_login: true });
+    if (!user) return json({ ok: false, msg: 'Not signed in.', need_login: true }, 401);
     const coin = body.coin || 'USDT';
     const network = body.network || 'TRC20';
     const parsedAmount = body.amount === undefined || body.amount === null || body.amount === '' ? '0' : parseMoneyInput(body.amount);
