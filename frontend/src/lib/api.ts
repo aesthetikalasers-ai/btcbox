@@ -951,6 +951,9 @@ export async function getAdminOrders(token: string, signal?: AbortSignal) {
 export async function getAdminSupportMessages(token: string, signal?: AbortSignal) {
   return adminRequest<{ ok: true; messages: SupportMessage[] }>(token, "admin/support/messages", { signal });
 }
-export async function adminReplySupport(token: string, uid: string, content: string) {
-  return adminRequest<{ ok: true }>(token, "admin/support/reply", { method: "POST", body: { uid, content } });
+export async function adminReplySupport(token: string, uid: string, content: string, requestId: string) {
+  return adminRequest<{ ok: true; duplicate?: boolean; message_id?: string; audit_sync_pending?: boolean }>(token, "admin/support/reply", {
+    method: "POST",
+    body: { uid, content, request_id: requestId },
+  });
 }
