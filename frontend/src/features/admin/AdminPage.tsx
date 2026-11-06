@@ -42,6 +42,7 @@ import {
   type AdminWithdrawalRecord,
 } from "../../lib/api";
 
+type ReviewDialogState = { kind: "withdrawal"; id: string } | { kind: "kyc"; uid: string };
 type Tab = "overview" | "users" | "deposits" | "withdrawals" | "kyc" | "audit" | "orders" | "support" | "admins" | "seconds" | "markets";
 const tabs: Array<{ id: Tab; label: string; permission: string }> = [
   { id: "overview", label: "Overview", permission: "dashboard.read" },
@@ -97,6 +98,8 @@ export function AdminPage() {
   const [creditPendingInvalid, setCreditPendingInvalid] = useState<Record<string, boolean>>({});
   const [withdrawals, setWithdrawals] = useState<AdminWithdrawalRecord[]>([]);
   const [payoutReferences, setPayoutReferences] = useState<Record<string, string>>({});
+  const [reviewDialog, setReviewDialog] = useState<ReviewDialogState | null>(null);
+  const [reviewReason, setReviewReason] = useState("");
   const [config, setConfig] = useState<AdminConfig>({
     deposit_addresses: {},
     withdrawal_fees: { USDT: "1", BTC: "0.0001", ETH: "0.001", SOL: "0.01", BNB: "0.0005", USDC: "1" },
@@ -366,19 +369,46 @@ export function AdminPage() {
     } catch (reason) { setError(reason instanceof Error ? reason.message : "Approval was not confirmed."); }
     finally { setBusy(false); }
   };
-  const rejectWithdrawal = async (id: string) => {
-    if (!token) return;
-    const reasonText = window.prompt("Reason for rejecting this withdrawal:");
-    if (!reasonText?.trim()) return;
+  const rejectWithdrawal = (id: string) => {
+    setReviewDialog({ kind: "withdrawal", id });
+    setReviewReason("");
+    setError("");
+    setNotice("");
+  };
+
+  const confirmReviewRejection = async () => {
+    if (!token || !reviewDialog) return;
+    const reasonText = reviewReason.trim();
+    if (!reasonText) {
+      setError("A rejection reason is required.");
+      return;
+    }
+    const target = reviewDialog;
     setBusy(true); setError(""); setNotice("");
     try {
-      await adminRejectWithdrawal(token, id, reasonText.trim());
-      setWithdrawals(current => current.filter(item => item.id !== id));
-      setNotice("Withdrawal rejected.");
-      await refreshWithdrawalQueue("Withdrawal rejection and refund confirmed.");
-    } catch (reason) { setError(reason instanceof Error ? reason.message : "Rejection was not confirmed."); }
-    finally { setBusy(false); }
+      if (target.kind === "withdrawal") {
+        await adminRejectWithdrawal(token, target.id, reasonText);
+        setWithdrawals(current => current.filter(item => item.id !== target.id));
+        setNotice("Withdrawal rejected and refund confirmed.");
+        setReviewDialog(null);
+        setReviewReason("");
+        await refreshWithdrawalQueue("Withdrawal rejection and refund confirmed.");
+      } else {
+        await adminRejectKyc(token, target.uid, reasonText);
+        setKyc(current => current.filter(item => item.uid !== target.uid));
+        setNotice("KYC rejected.");
+        setReviewDialog(null);
+        setReviewReason("");
+        try { setKyc((await getAdminKyc(token)).kycs || []); }
+        catch { setError("KYC review is confirmed; the queue could not refresh. Reload this tab before reviewing another application."); }
+      }
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "Rejection was not confirmed.");
+    } finally {
+      setBusy(false);
+    }
   };
+
   const markPaid = async (id: string) => {
     if (!token) return;
     const reference = (payoutReferences[id] || "").trim();
@@ -407,18 +437,25 @@ export function AdminPage() {
 
   const reviewKyc = async (uid: string, approved: boolean) => {
     if (!token) return;
-    const reasonText = approved ? "" : (window.prompt("Reason for rejecting this KYC application:") || "");
-    if (!approved && !reasonText.trim()) return;
+    if (!approved) {
+      setReviewDialog({ kind: "kyc", uid });
+      setReviewReason("");
+      setError("");
+      setNotice("");
+      return;
+    }
     setBusy(true); setError(""); setNotice("");
     try {
-      if (approved) await adminApproveKyc(token, uid);
-      else await adminRejectKyc(token, uid, reasonText.trim());
+      await adminApproveKyc(token, uid);
       setKyc(current => current.filter(item => item.uid !== uid));
-      setNotice(approved ? "KYC approved." : "KYC rejected.");
+      setNotice("KYC approved.");
       try { setKyc((await getAdminKyc(token)).kycs || []); }
       catch { setError("KYC review is confirmed; the queue could not refresh. Reload this tab before reviewing another application."); }
-    } catch (reason) { setError(reason instanceof Error ? reason.message : "KYC review was not confirmed."); }
-    finally { setBusy(false); }
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "KYC review was not confirmed.");
+    } finally {
+      setBusy(false);
+    }
   };
 
   const replySupport = async (uid: string) => {
@@ -639,6 +676,51 @@ export function AdminPage() {
         <textarea value={adminReason} onChange={event=>setAdminReason(event.target.value)} rows={2} maxLength={500} placeholder="Required reason for this administrator change" className="w-full rounded-lg border border-brand-border bg-brand-surface-2 p-3 text-sm text-brand-text"/>
         <Button block disabled={busy||!adminTargetUserId||(!adminMemberships.some(item=>item.user_id===adminTargetUserId)&&!adminPermissions.length)||!adminReason.trim()} onClick={()=>{const existing=adminMemberships.find(item=>item.user_id===adminTargetUserId);void submitAdminMembershipChange(existing?"set_permissions":"provision",adminTargetUserId,existing?.revision||0,adminPermissions);}}>{adminMemberships.some(item=>item.user_id===adminTargetUserId)?"Save permissions":"Provision administrator"}</Button>
       </CardContent></Card>
+    </div> : null}
+    {reviewDialog ? <div
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/75 p-4"
+      role="presentation"
+      onMouseDown={event => { if (event.target === event.currentTarget && !busy) { setReviewDialog(null); setReviewReason(""); } }}
+    >
+      <section
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="review-dialog-title"
+        aria-describedby="review-dialog-description"
+        className="w-full max-w-lg rounded-xl border border-brand-border bg-brand-surface p-5 shadow-2xl"
+      >
+        <div className="mb-4">
+          <h2 id="review-dialog-title" className="text-lg font-semibold text-brand-text">
+            {reviewDialog.kind === "withdrawal" ? "Reject withdrawal" : "Reject KYC application"}
+          </h2>
+          <p id="review-dialog-description" className="mt-1 text-sm text-brand-text-muted">
+            {reviewDialog.kind === "withdrawal"
+              ? "The rejection and refund will be recorded together. Enter the reason for the audit record."
+              : "Enter the reason that will be recorded with this KYC decision."}
+          </p>
+        </div>
+        <label className="block space-y-2 text-sm">
+          <span className="font-medium text-brand-text">Rejection reason <span className="text-rose-400">*</span></span>
+          <textarea
+            autoFocus
+            value={reviewReason}
+            onChange={event => setReviewReason(event.target.value)}
+            rows={4}
+            maxLength={300}
+            disabled={busy}
+            placeholder="Enter a clear reason (up to 300 characters)"
+            className="w-full resize-y rounded-lg border border-brand-border bg-brand-surface-2 p-3 text-brand-text outline-none focus:border-brand-accent"
+          />
+          <span className="block text-right text-xs text-brand-text-muted">{reviewReason.length}/300</span>
+        </label>
+        {error ? <p role="alert" className="mt-3 text-sm text-rose-300">{error}</p> : null}
+        <div className="mt-5 flex flex-col-reverse justify-end gap-2 sm:flex-row">
+          <Button type="button" variant="outline" disabled={busy} onClick={() => { setReviewDialog(null); setReviewReason(""); }}>Cancel</Button>
+          <Button type="button" variant="destructive" disabled={busy || !reviewReason.trim()} onClick={() => void confirmReviewRejection()}>
+            {busy ? "Submitting…" : "Confirm rejection"}
+          </Button>
+        </div>
+      </section>
     </div> : null}
   </div>;
 }
