@@ -275,7 +275,7 @@ export function SecondsPage(){
       const saved=JSON.parse(raw) as SecondsOrderInput;
       if(saved&&typeof saved.request_id==="string"&&/^[A-Za-z0-9_-]{16,100}$/.test(saved.request_id)&&
          ["BTC","ETH","SOL","BNB"].includes(saved.symbol)&&(saved.direction==="up"||saved.direction==="down")&&
-         [30,60,300,900].includes(saved.duration_sec)&&typeof saved.amount==="string"){
+         Number.isSafeInteger(saved.duration_sec)&&saved.duration_sec>0&&typeof saved.amount==="string"){
        restoredIntent=saved;
       }else window.localStorage.removeItem("btcbox.seconds.pending.v1."+nextUid);
      }
