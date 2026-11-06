@@ -17,29 +17,29 @@ The script does not clear or overwrite an existing schema. It is not idempotent 
 
 The current canonical source inventory is:
 
-1.1. `0001_btcbox_state_cas.sql`
-2.2. `0002_financial_ledger_v1.sql`
-3.3. `0003_financial_lifecycle_v2.sql`
-4.4. `0004_financial_admin_adjustment_v1.sql`
-5.5. `0005_financial_earn_redemption_idempotency_v4.sql`
-6.6. `0006_financial_earn_policy_v5.sql`
-7.7. `0007_financial_admin_manual_deposit_v1.sql`
-8.9. `0009_financial_matching_engine_v1.sql`
-9.10. `0010_financial_read_api_v1.sql`
-10.11. `0011_financial_read_api_earn_v1.sql`
-11.12. `0012_financial_admin_read_api_v1.sql`
-12.13. `0013_financial_admin_account_read_api_v1.sql`
-13.14. `0014_financial_seconds_contracts_v1.sql`
-14.15. `0021_admin_audit_log_append_only_v1.sql`
-15.16. `0022_withdrawal_admin_review_status_v1.sql`
-16.17. `0023_btcbox_shared_rate_limit_v1.sql`
-17.18. `0024_seconds_settlement_idempotency_v1.sql`
-18.19. `0025_seconds_policy_versioning_v1.sql`
-19.20. `0026_admin_rbac_private_store_v1.sql`
-20.21. `0027_withdrawal_manual_payout_completion_v1.sql`
-21.22. `0028_admin_rbac_service_rpc_wrappers_v1.sql`
-22.23. `0029_withdrawal_fee_quote_idempotency_v1.sql`
-23.
+1. `0001_btcbox_state_cas.sql`
+2. `0002_financial_ledger_v1.sql`
+3. `0003_financial_lifecycle_v2.sql`
+4. `0004_financial_admin_adjustment_v1.sql`
+5. `0005_financial_earn_redemption_idempotency_v4.sql`
+6. `0006_financial_earn_policy_v5.sql`
+7. `0007_financial_admin_manual_deposit_v1.sql`
+8. `0009_financial_matching_engine_v1.sql`
+9. `0010_financial_read_api_v1.sql`
+10. `0011_financial_read_api_earn_v1.sql`
+11. `0012_financial_admin_read_api_v1.sql`
+12. `0013_financial_admin_account_read_api_v1.sql`
+13. `0014_financial_seconds_contracts_v1.sql`
+14. `0021_admin_audit_log_append_only_v1.sql`
+15. `0022_withdrawal_admin_review_status_v1.sql`
+16. `0023_btcbox_shared_rate_limit_v1.sql`
+17. `0024_seconds_settlement_idempotency_v1.sql`
+18. `0025_seconds_policy_versioning_v1.sql`
+19. `0026_admin_rbac_private_store_v1.sql`
+20. `0027_withdrawal_manual_payout_completion_v1.sql`
+21. `0028_admin_rbac_service_rpc_wrappers_v1.sql`
+22. `0029_withdrawal_fee_quote_idempotency_v1.sql`
+
 The retired `0008_financial_spot_trade_v3.sql` direct-fill RPC was removed: it bypassed the order book and was not called by the API. `0009_financial_matching_engine_v1.sql` is the only supported spot write path. The bootstrap test compares the allowlist to the actual numbered SQL files so a newly added migration cannot silently be omitted.
 
 ## Intentionally excluded legacy/optional material
