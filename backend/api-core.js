@@ -3151,8 +3151,10 @@ async function handleRequest(event, context) {
       if (financialPostgresReadsEnabled()) {
         try {
           const normalized = await readFinancialAccountSnapshot(String(u.uid));
-          safeUser.balances = normalized.balances || {};
-          safeUser.financial_balance_source = 'postgres_financial_ledger';
+          if (canReadDeposits) {
+            safeUser.balances = normalized.balances || {};
+            safeUser.financial_balance_source = 'postgres_financial_ledger';
+          }
           if (canReadDeposits) {
             safeUser.deposit_history = normalized.deposits.slice(0, 20);
             safeUser.deposit_history_source = 'postgres_financial_ledger';
@@ -3165,8 +3167,9 @@ async function handleRequest(event, context) {
           return json({ ok: false, msg: 'Financial data temporarily unavailable. Please try again later.', code: 'FINANCIAL_READ_UNAVAILABLE' }, 503);
         }
       } else {
-        safeUser.financial_balance_source = 'legacy_state_retention_limited';
         if (canReadDeposits) {
+          safeUser.financial_balance_source = 'legacy_state_retention_limited';
+          safeUser.balances = u.balances || {};
           safeUser.deposit_history = Array.isArray(u.deposits) ? u.deposits.slice(-20).reverse() : [];
           safeUser.deposit_history_source = 'legacy_state_retention_limited';
         }

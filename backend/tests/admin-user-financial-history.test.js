@@ -76,3 +76,14 @@ test('admin user detail never exposes Supabase Auth UUIDs or linked provider ide
   assert.ok(!admin.includes('selectedUser.supabase_user_ids'));
   assert.ok(!admin.includes('selectedUser.auth_identities'));
 });
+
+test('account balances and their source are withheld unless the caller has deposits.read', () => {
+  const start = api.indexOf("if (sub === 'user' && method === 'GET')");
+  const end = api.indexOf('// Stage the audit event', start);
+  const route = api.slice(start, end);
+  assert.match(route, /if \(canReadDeposits\)\s*\{\s*safeUser\.balances = normalized\.balances \|\| \{\};\s*safeUser\.financial_balance_source = 'postgres_financial_ledger';/);
+  assert.match(route, /if \(canReadDeposits\)\s*\{\s*safeUser\.financial_balance_source = 'legacy_state_retention_limited';\s*safeUser\.balances = u\.balances \|\| \{\};/);
+  assert.ok(!route.includes('safeUser.balances = normalized.balances || {};\n          safeUser.financial_balance_source'));
+  assert.ok(admin.includes('Balance details require the deposits.read permission.'));
+  assert.match(admin, /hasPermission\("deposits.read"\) \? <Badge/);
+});
