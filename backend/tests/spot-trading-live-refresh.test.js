@@ -37,3 +37,26 @@ test('spot trading page shows last successful market update and a stale-feed war
   assert.ok(page.includes('marketFeedWarning'));
   assert.ok(page.includes('showing the last confirmed data'));
 });
+
+const app = fs.readFileSync(path.resolve(__dirname, '../../frontend/src/App.tsx'), 'utf8');
+const dashboard = fs.readFileSync(path.resolve(__dirname, '../../frontend/src/features/dashboard/Dashboard.tsx'), 'utf8');
+const marketTable = fs.readFileSync(path.resolve(__dirname, '../../frontend/src/features/dashboard/components/LiveMarketsTable.tsx'), 'utf8');
+
+test('spot market preview route is public while account and order APIs remain separately gated', () => {
+  assert.ok(app.includes('<Route path="/trade/:symbol" element={<SpotTradingPage />} />'));
+  assert.ok(!app.includes('<Route path="/trade/:symbol" element={<ProtectedAccountRoute>'));
+  assert.ok(page.includes('accountResult.reason.code==="AUTH_REQUIRED"'));
+  assert.ok(page.includes('getOrders(controller.signal)'));
+});
+
+test('public market overview polls at 15 seconds and prevents overlapping refreshes', () => {
+  assert.ok(dashboard.includes('window.setInterval(loadMarkets, 15000)'));
+  assert.ok(dashboard.includes('if (refreshing || controller.signal.aborted) return;'));
+  assert.ok(dashboard.includes('refreshing = true;'));
+  assert.ok(dashboard.includes('refreshing = false;'));
+});
+
+test('market table preserves last confirmed prices and displays a stale-feed warning', () => {
+  assert.ok(marketTable.includes('error && markets.length > 0'));
+  assert.ok(marketTable.includes('Showing the last confirmed market data.'));
+});
