@@ -40,7 +40,7 @@ The current canonical source inventory is:
 21. `0028_admin_rbac_service_rpc_wrappers_v1.sql`
 22. `0029_withdrawal_fee_quote_idempotency_v1.sql`
 
-The retired `0008_financial_spot_trade_v3.sql` direct-fill RPC was removed: it bypassed the order book and was not called by the API. `0009_financial_matching_engine_v1.sql` is the only supported spot write path. The bootstrap test compares the allowlist to the actual numbered SQL files so a newly added migration cannot silently be omitted.
+The legacy `0008_financial_spot_trade_v3.sql` direct-fill RPC was removed because it bypassed the order book and was not called by the API. The durable matching engine now occupies `0008_financial_matching_engine_v1.sql` and is the only supported spot write path. Sequence `0009` is retired and intentionally omitted; the offline migration checker explicitly recognizes retired slots `0009` and `0015`–`0020`. The bootstrap allowlist contains only live numbered SQL files and is tested against the actual source inventory.
 
 ## Intentionally excluded legacy/optional material
 
