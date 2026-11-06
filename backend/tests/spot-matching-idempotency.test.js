@@ -6,7 +6,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 
 const root = path.resolve(__dirname, '..');
-const migration = fs.readFileSync(path.join(root, 'supabase/sql/0009_financial_matching_engine_v1.sql'), 'utf8');
+const migration = fs.readFileSync(path.join(root, 'supabase/sql/0008_financial_matching_engine_v1.sql'), 'utf8');
 const api = fs.readFileSync(path.join(root, 'api-core.js'), 'utf8');
 
 test('spot cancel persists user-scoped request identity and binds it to one order', () => {
