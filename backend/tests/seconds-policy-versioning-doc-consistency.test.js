@@ -33,7 +33,9 @@ test('policy source privileges are read-only for service_role and deny browser r
 
 test('administrator identity and transition governance remain a separate unimplemented layer', () => {
   assert.match(spec, /individually authenticated admin actors, role\/membership tables/i);
-  assert.match(rbac, /three distinct/i);
+  assert.match(rbac, /Super Admin has every BTCBOX admin permission/i);
+  assert.match(rbac, /Ordinary Admins cannot create or promote administrators/i);
+  assert.match(rbac, /No three-person approval requirement is imposed/i);
   assert.match(rbac, /validated Auth user UUID/i);
   assert.match(spec, /No policy write path exists/i);
 });

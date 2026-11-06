@@ -220,7 +220,7 @@ This section records the product owner's decision and supersedes conflicting app
 ### 13.1 Administrator model
 
 - There is one owner-controlled Super Admin authority. The Super Admin has every BTCBOX admin permission, including user/account operations, financial review capabilities, system configuration, seconds-policy read/draft/review/activate/retire, administrator creation, permission assignment, suspension and revocation.
-- The Super Admin can create or provision ordinary Admin accounts from existing, verified Supabase Auth users. No public self-registration or automatic promotion is allowed.
+- The Super Admin can create or provision ordinary Admin accounts from existing, verified Supabase Auth users. Ordinary Admins cannot create or promote administrators. No public self-registration or automatic promotion is allowed.
 - The Super Admin assigns each Admin an explicit set of allowlisted permissions. Permissions are configurable and may be changed, suspended or revoked by the Super Admin at any time.
 - Ordinary Admins can perform only the operations covered by their current grants. They cannot create or promote administrators, grant permissions, grant themselves permissions, alter Super Admin authority, or change the Super Admin identity.
 - Administrator management is reserved to the Super Admin; it is not a delegable permission. Ordinary Admins cannot obtain it through a wildcard, role label, user metadata, request body, or UI manipulation.
