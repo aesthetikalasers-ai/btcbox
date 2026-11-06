@@ -43,8 +43,8 @@ const tabs: Array<{ id: Tab; label: string; permission: string }> = [
   { id: "support", label: "Support", permission: "support.read" },
 ];
 const depositAddressKeys = [
-  "USDT_TRC20", "USDT_ERC20", "USDT_BEP20", "BTC_BTC",
-  "ETH_ERC20", "SOL_SOL", "BNB_BEP20", "USDC_ERC20",
+  "USDT-TRC20", "USDT-ERC20", "USDT-BEP20", "BTC-BTC",
+  "ETH-ERC20", "SOL-SOL", "BNB-BEP20", "USDC-ERC20",
 ];
 const assets = ["USDT", "BTC", "ETH", "SOL", "BNB", "USDC"];
 
@@ -294,7 +294,7 @@ export function AdminPage() {
     {!loading && tab === "users" ? <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(360px,0.9fr)]">
       <Card><CardHeader><CardTitle>Users</CardTitle><CardDescription>Search a user, then select an asset row for staff manual credit.</CardDescription></CardHeader><CardContent>
         <form className="mb-3 flex gap-2" onSubmit={event => { event.preventDefault(); void loadTab(); }}><input value={search} onChange={event => setSearch(event.target.value)} placeholder="Search UID or email" className="min-w-0 flex-1 rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-2 text-sm text-brand-text"/><Button size="sm" type="submit">Search</Button></form>
-        <div className="overflow-x-auto"><table className="w-full min-w-[520px] text-left text-sm"><thead><tr className="border-b border-brand-border text-xs text-brand-text-muted"><th className="p-2">UID</th><th className="p-2">Email</th><th className="p-2">KYC</th><th className="p-2">Status</th><th className="p-2"></th></tr></thead><tbody>{users.map(user=><tr key={user.uid} className="border-b border-brand-border/60"><td className="p-2 font-mono text-xs">{user.uid}</td><td className="p-2">{user.email}</td><td className="p-2">{user.kyc}</td><td className="p-2"><Badge variant={user.frozen?"destructive":"outline"}>{user.frozen?"Frozen":"Active"}</Badge></td><td className="p-2"><Button size="sm" variant="outline" onClick={()=>void selectUser(user.uid)}>Open</Button></td></tr>)}</tbody></table></div>
+        <div className="overflow-x-auto"><table className="w-full min-w-[520px] text-left text-sm"><thead><tr className="border-b border-brand-border text-xs text-brand-text-muted"><th className="p-2">UID</th><th className="p-2">Email</th><th className="p-2">KYC</th><th className="p-2">Status</th><th className="p-2"></th></tr></thead><tbody>{users.map(user=><tr key={user.uid} className="border-b border-brand-border/60"><td className="p-2 font-mono text-xs">{user.uid}</td><td className="p-2">{user.email}</td><td className="p-2">{user.kyc_status || user.kyc?.status || "—"}</td><td className="p-2"><Badge variant={user.frozen?"destructive":"outline"}>{user.frozen?"Frozen":"Active"}</Badge></td><td className="p-2"><Button size="sm" variant="outline" onClick={()=>void selectUser(user.uid)}>Open</Button></td></tr>)}</tbody></table></div>
       </CardContent></Card>
       <Card><CardHeader><CardTitle>Manual credit</CardTitle><CardDescription>UID and asset are bound by the selected user and asset row. No pending deposit order is created.</CardDescription></CardHeader><CardContent>
         {!selectedUser ? <p className="text-sm text-brand-text-muted">Select a user to load their current balances.</p> : <>
