@@ -44,6 +44,12 @@ test('deposit address lookup requires authentication and user-supplied amounts n
   const route = api.slice(start, end);
   assert.ok(route.includes("need_login: true }, 401"));
   assert.ok(route.includes('User-submitted deposit amounts are not accepted'));
+  const adminCreditStart = api.indexOf("if (sub === 'deposit/confirm' && method === 'POST')");
+  const adminCreditEnd = api.indexOf("if (sub === 'withdraw/approve'", adminCreditStart);
+  const adminCredit = api.slice(adminCreditStart, adminCreditEnd);
+  assert.ok(adminCredit.includes('parseMoneyInput(body.amount)'));
+  assert.ok(adminCredit.includes("compareMoney(amountText, '1000000000000')"));
+  assert.ok(!adminCredit.includes('Number(body.amount)'));
   assert.ok(route.includes('Deposit address.'));
   assert.ok(!route.includes('apply_financial_operation'));
 });
