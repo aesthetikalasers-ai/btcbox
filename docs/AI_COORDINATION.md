@@ -2860,3 +2860,5 @@ The prior withdrawal UI audit statement claiming the active BTCBOX admin route w
 - The admin UI currently covers overview, user search, manual credit, deposit addresses, withdrawals/manual payout reference, KYC, support, audit, and system config. Dedicated Seconds policy editing and administrator-membership management remain not implemented; do not represent those as complete.
 - No database reset, production database write, real financial operation, or production deployment was performed.
 - Candidate merge gates: exact-head frontend/backend CI, isolated fresh-schema validation, and browser QA.
+
+- Deployment routing was corrected so `/admin` and `/admin.html` resolve to the React SPA entry; the legacy static `admin.html` source is no longer copied into the public build.
