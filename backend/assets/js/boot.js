@@ -2,6 +2,8 @@
 "use strict";
 /* ---------- boot ---------- */
 async function boot(){
+  const isAdminEntry = /^\/admin(?:\.html)?\/?$/.test(location.pathname) || location.hash === '#/admin';
+  window.BTCBOX_ADMIN_MODE = isAdminEntry;
   bindTopbar();
   startTicker();
   await Auth.init();
@@ -21,7 +23,7 @@ async function boot(){
         toast('Password recovery is not available. Please continue with Google sign-in.','warn');
       }
       // If a Supabase session exists but no local cookie, exchange token for local cookie
-      if(session && session.access_token && !isRecoveryCallback){
+      if(session && session.access_token && !isRecoveryCallback && !isAdminEntry){
         try{
           accountProbe = await apiAdapter.account();
           if(!accountProbe || !accountProbe.ok){
@@ -37,7 +39,7 @@ async function boot(){
       // Listen for token refresh / sign-out events
       try{
         window.supabaseClient.auth.onAuthStateChange(function(event, sess){
-          if(event==='SIGNED_OUT'){
+          if(event==='SIGNED_OUT' && !isAdminEntry){
             if(state.user && typeof rememberLoginReturn==='function') rememberLoginReturn(location.hash);
             state.user=null;state.accountLoaded=false;state.balances={};state.orders=[];state.trades=[];state.secondsPositions={open:[],history:[]};state.kyc={level:0,status:'unverified'};state.settings.twofa=false;state.settings.fundPwdSet=false;state.supportMsgs=[];state.adminAuth=null;
             try{ location.hash='#/login'; }catch(e){}
@@ -48,7 +50,7 @@ async function boot(){
   }catch(e){}
   // Reuse a successful session probe; retry only when the earlier probe did not establish the account.
   try{
-    const ar = accountProbe && accountProbe.ok ? accountProbe : await apiAdapter.account();
+    const ar = isAdminEntry ? null : (accountProbe && accountProbe.ok ? accountProbe : await apiAdapter.account());
     if(ar && ar.ok && ar.email){
       const ae=$('#avatar-email'); if(ae)ae.textContent=ar.email;
       const al=$('#avatar-letter'); if(al)al.textContent=(ar.email[0]||'?').toUpperCase();
@@ -57,7 +59,7 @@ async function boot(){
   // OAuth callback (Google): ?auth_callback=1 or hash carries access_token/type=oauth — once a local session exists, redirect into the app (otherwise fall through to login)
   try{
     const _cbqp=new URLSearchParams(location.search);
-    const _isAuthCallback=!isRecoveryCallback && (_cbqp.get('auth_callback')==='1' || /access_token=/.test(location.hash) || /type=oauth/.test(location.hash));
+    const _isAuthCallback=!isAdminEntry && !isRecoveryCallback && (_cbqp.get('auth_callback')==='1' || /access_token=/.test(location.hash) || /type=oauth/.test(location.hash));
     if(_isAuthCallback && state.user){
       var _rt=consumeOAuthReturnTarget();
       if(_rt){ location.replace(_rt); }
