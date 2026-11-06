@@ -5,7 +5,7 @@
 CREATE OR REPLACE FUNCTION public.admin_get_membership_v1(p_actor_user_id uuid)
 RETURNS jsonb
 LANGUAGE sql
-SECURITY DEFINER
+SECURITY INVOKER
 SET search_path = ''
 AS $$
   SELECT private.admin_get_membership_v1(p_actor_user_id);
@@ -14,7 +14,7 @@ $$;
 CREATE OR REPLACE FUNCTION public.admin_list_memberships_v1(p_actor_user_id uuid)
 RETURNS jsonb
 LANGUAGE sql
-SECURITY DEFINER
+SECURITY INVOKER
 SET search_path = ''
 AS $fn$
   SELECT private.admin_list_memberships_v1(p_actor_user_id);
@@ -34,7 +34,7 @@ CREATE OR REPLACE FUNCTION public.admin_manage_membership_v1(
   p_request_hash text
 ) RETURNS jsonb
 LANGUAGE sql
-SECURITY DEFINER
+SECURITY INVOKER
 SET search_path = ''
 AS $$
   SELECT private.admin_manage_membership_v1(
@@ -71,7 +71,7 @@ CREATE TABLE IF NOT EXISTS private.seconds_policy_request_idempotency (
 ALTER TABLE private.seconds_policy_request_idempotency ENABLE ROW LEVEL SECURITY;
 REVOKE ALL ON private.seconds_policy_request_idempotency FROM PUBLIC,anon,authenticated,service_role;
 
-CREATE OR REPLACE FUNCTION public.admin_set_seconds_policy_v1(
+CREATE OR REPLACE FUNCTION private.admin_set_seconds_policy_v1(
   p_actor_user_id uuid,
   p_expected_policy_version bigint,
   p_symbols text[],
@@ -180,10 +180,42 @@ BEGIN
 END;
 $$;
 
+REVOKE ALL ON FUNCTION private.admin_set_seconds_policy_v1(uuid,bigint,text[],integer[],numeric,numeric,integer,numeric,text,text,text)
+  FROM PUBLIC,anon,authenticated,service_role;
+GRANT EXECUTE ON FUNCTION private.admin_set_seconds_policy_v1(uuid,bigint,text[],integer[],numeric,numeric,integer,numeric,text,text,text)
+  TO service_role;
+
+COMMENT ON FUNCTION private.admin_set_seconds_policy_v1(uuid,bigint,text[],integer[],numeric,numeric,integer,numeric,text,text,text) IS
+  'Trusted backend only. Atomically versions and activates a Seconds policy after live seconds_policy.manage authorization; 8500 bps is a floor with no fixed ceiling.';
+
+
+-- Public PostgREST bridge is SECURITY INVOKER. service_role has only private-schema
+-- USAGE and EXECUTE on this transition function, never direct table DML.
+CREATE OR REPLACE FUNCTION public.admin_set_seconds_policy_v1(
+  p_actor_user_id uuid,
+  p_expected_policy_version bigint,
+  p_symbols text[],
+  p_durations_sec integer[],
+  p_min_stake numeric,
+  p_max_stake numeric,
+  p_payout_bps integer,
+  p_per_user_open_exposure numeric,
+  p_reason text,
+  p_request_id text,
+  p_request_hash text
+) RETURNS jsonb
+LANGUAGE sql
+SECURITY INVOKER
+SET search_path = ''
+AS $wrap$
+  SELECT private.admin_set_seconds_policy_v1(
+    p_actor_user_id,p_expected_policy_version,p_symbols,p_durations_sec,
+    p_min_stake,p_max_stake,p_payout_bps,p_per_user_open_exposure,
+    p_reason,p_request_id,p_request_hash
+  );
+$wrap$;
+
 REVOKE ALL ON FUNCTION public.admin_set_seconds_policy_v1(uuid,bigint,text[],integer[],numeric,numeric,integer,numeric,text,text,text)
   FROM PUBLIC,anon,authenticated,service_role;
 GRANT EXECUTE ON FUNCTION public.admin_set_seconds_policy_v1(uuid,bigint,text[],integer[],numeric,numeric,integer,numeric,text,text,text)
   TO service_role;
-
-COMMENT ON FUNCTION public.admin_set_seconds_policy_v1(uuid,bigint,text[],integer[],numeric,numeric,integer,numeric,text,text,text) IS
-  'Trusted backend only. Atomically versions and activates a Seconds policy after live seconds_policy.manage authorization; 8500 bps is a floor with no fixed ceiling.';
