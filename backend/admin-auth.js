@@ -1,6 +1,6 @@
 'use strict';
 
-// Supabase Auth identity verification for the future delegated-admin API.
+// Supabase Auth identity verification for delegated-admin API requests.
 // This module deliberately does not decode JWT claims or infer administrator
 // roles. Membership and permissions must be loaded separately from protected
 // server-side storage after this function returns the canonical Auth user UUID.
