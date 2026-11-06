@@ -2017,3 +2017,29 @@ Application branch inspected: `feat/btcbox-web3-auth-20261105` at `741c709d818cb
 ### NEXT
 - Obtain an isolated Supabase development branch or separately provisioned staging project before executing any migration.
 - Inspect the exact prerequisite migration chain and validate migration 0025 with PostgreSQL, then test order/settlement and ledger invariants. Do not use production as a substitute for staging.
+
+## Supabase live database and migration-order audit — 2026-11-06 (UTC+8)
+
+### READ-ONLY LIVE OBSERVATIONS
+- Queried Supabase project `zlozsutefnmgwwzrlipt` through read-only project inventory tools. Migration registry currently returns only timestamp versions `20261102133555` and `20261103062716`; development branch inventory is empty.
+- Live `public.seconds_contract_positions` does not contain the migration-0025 policy snapshot columns (`policy_id`, `policy_version`, `payout_bps_snapshot`, `policy_snapshot`). The versioned policy tables are not present in the table inventory. Therefore migration 0025 is NOT installed in the observed live schema.
+- This project records timestamp migration versions, while repository SQL uses four-digit filenames. Existing `backend/tests/migration-status-script.test.js` explicitly rejects direct timestamp-to-four-digit comparisons. Do not map these registries by string ordering or claim that source files 0001–0025 are installed.
+- The live Seconds schema includes the base position table and current legacy columns. Repository source dependencies are: 0014 creates Seconds lifecycle; 0015 adds the one-open-position guard; 0024 replaces settlement with request-hash idempotency; 0025 adds policy versioning/snapshots. These prepared source migrations require isolated validation before application.
+- Supabase table inventory reports RLS enabled on 14 public tables but no policies for those tables in Security Advisor. A read-only privilege query showed `anon` and `authenticated` have no SELECT/INSERT privileges on those public tables; `service_role` has the expected server-side table privileges (mostly DML, catalog read-only). This is not evidence of browser access, but RLS-without-policies remains an incomplete access-policy posture that must be reviewed before any direct client grants.
+- Security Advisor reports RLS disabled on `private.btcbox_state_pre_test_cleanup_backup` and `private.btcbox_auth_test_users_backup`. A read-only privilege check found `private` schema USAGE and table privileges are false for `anon`, `authenticated`, and `service_role`; current API-role access was not observed. Keep these backups inaccessible; decide with the owner whether to enable RLS with no client policies or retain them under an explicitly verified owner-only access model. Do not auto-apply the advisor's suggested RLS-only SQL because it may change intended owner workflows.
+- Security Advisor also reports Supabase Auth leaked-password protection disabled. This is a project setting requiring owner review, not changed in this batch.
+
+### SOURCE DOCUMENTATION UPDATED
+- Updated `backend/supabase/sql/MIGRATION-ORDER-AND-CUTOVER.md` to include prepared migrations 0023 (shared rate limiter), 0024 (Seconds settlement idempotency), and 0025 (Seconds policy versioning), their dependencies, and the timestamp-registry mapping warning.
+- Added a source test guarding the documented ordering and dependency notes.
+- No SQL was executed except read-only catalog SELECTs. No database DDL/DML, migration application, settings changes, secret reads, financial writes, cutover, merge, or deployment occurred.
+
+### VALIDATION STATUS
+- Live database observations are read-only evidence from 2026-11-06; they are not proof of every migration's historical application path.
+- New Node test source was added but not executed. No CI run or PostgreSQL staging validation is claimed.
+- The two private backup tables' RLS finding remains open; the 14 public no-policy findings remain a review item, with anon/authenticated table privileges confirmed absent in the observed query.
+
+### NEXT
+- Do not apply migration 0025 to production. Obtain an isolated staging project, map timestamp migration history to actual schema, apply the reviewed ordered chain there, and validate SQL/RPC/ledger invariants.
+- Review the two private backup tables' retention and owner-only access model; separately review the 14 public RLS tables before granting any browser-role access.
+- Review and enable leaked-password protection through the owner-approved Auth settings workflow.
