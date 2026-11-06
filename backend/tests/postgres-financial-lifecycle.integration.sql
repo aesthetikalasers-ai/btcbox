@@ -1,0 +1,267 @@
+-- Disposable PostgreSQL integration checks for the four financial write paths.
+-- The caller wraps this file in a transaction and rolls it back after assertions.
+
+BEGIN;
+
+CREATE OR REPLACE FUNCTION pg_temp.test_credit(
+  p_deposit_id text,
+  p_user_id text,
+  p_asset text,
+  p_amount numeric,
+  p_request_id text,
+  p_reference text,
+  p_note text
+) RETURNS jsonb
+LANGUAGE plpgsql
+AS $$
+DECLARE
+  v_hash text;
+BEGIN
+  v_hash := encode(extensions.digest(
+    concat_ws('|','admin-ci',p_user_id,p_asset,p_amount::text,
+      coalesce(p_reference,''),coalesce(p_note,'')), 'sha256'
+  ), 'hex');
+  RETURN public.admin_manual_deposit_atomic(
+    p_deposit_id,'admin-ci',p_user_id,p_asset,p_amount,p_request_id,v_hash,p_reference,p_note
+  );
+END;
+$$;
+
+DO $financial_tests$
+DECLARE
+  v_result jsonb;
+  v_hash text;
+  v_balance numeric;
+  v_frozen numeric;
+  v_ledger_before bigint;
+  v_ledger_after bigint;
+  v_failed boolean;
+  v_trade_count integer;
+  v_position_id text := 'SC' || repeat('0',30);
+  v_open_request_id text := 'seconds-open-request-0001';
+  v_settle_request_id text := 'seconds-settle-request-0001';
+  v_settle_hash text;
+  v_payout_bps integer;
+BEGIN
+  -- 1) Manual deposit: exact retry is a no-op; same key with changed payload conflicts.
+  v_result := pg_temp.test_credit(
+    'MD-CI-0001','deposit-user','USDT',100,'deposit-ci-request-0001','deposit-ref-ci-1','postgres-ci'
+  );
+  IF v_result->>'ok'<>'true' OR v_result->>'duplicate'<>'false' THEN
+    RAISE EXCEPTION 'first manual deposit failed: %',v_result;
+  END IF;
+  v_result := pg_temp.test_credit(
+    'MD-CI-0002','deposit-user','USDT',100,'deposit-ci-request-0001','deposit-ref-ci-1','postgres-ci'
+  );
+  IF v_result->>'ok'<>'true' OR v_result->>'duplicate'<>'true' THEN
+    RAISE EXCEPTION 'manual deposit exact retry was not idempotent: %',v_result;
+  END IF;
+  SELECT available INTO v_balance FROM public.financial_accounts
+  WHERE user_id='deposit-user' AND asset='USDT';
+  IF v_balance<>100 THEN RAISE EXCEPTION 'manual deposit credited more than once: %',v_balance; END IF;
+
+  v_failed := false;
+  BEGIN
+    PERFORM pg_temp.test_credit(
+      'MD-CI-0003','deposit-user','USDT',101,'deposit-ci-request-0001','deposit-ref-ci-1','postgres-ci'
+    );
+  EXCEPTION WHEN OTHERS THEN
+    v_failed := true;
+  END;
+  IF NOT v_failed THEN RAISE EXCEPTION 'manual deposit accepted same request ID with changed amount'; END IF;
+
+  -- 2) Withdrawal: freeze, approve, mark paid without a second debit, and reject/refund.
+  v_hash := encode(extensions.digest(
+    'deposit-user|USDT|TRC20|10|T12345678|withdrawal-ci-request-0001','sha256'
+  ),'hex');
+  v_result := public.create_withdrawal_atomic(
+    'WD-CI-0001','deposit-user','USDT','TRC20',10,1,'T12345678',
+    'withdrawal-ci-request-0001',v_hash,false,1
+  );
+  IF v_result->>'ok'<>'true' OR v_result->>'duplicate'<>'false' THEN
+    RAISE EXCEPTION 'withdrawal creation failed: %',v_result;
+  END IF;
+
+  -- Current fee changed to 2, but the exact old request must replay its stored fee of 1.
+  v_result := public.create_withdrawal_atomic(
+    'WD-CI-RETRY','deposit-user','USDT','TRC20',10,2,'T12345678',
+    'withdrawal-ci-request-0001',v_hash,false,2
+  );
+  IF v_result->>'duplicate'<>'true' OR (v_result->>'fee')::numeric<>1 THEN
+    RAISE EXCEPTION 'withdrawal retry did not preserve its original fee snapshot: %',v_result;
+  END IF;
+
+  SELECT available,frozen INTO v_balance,v_frozen FROM public.financial_accounts
+  WHERE user_id='deposit-user' AND asset='USDT';
+  IF v_balance<>89 OR v_frozen<>11 THEN
+    RAISE EXCEPTION 'withdrawal freeze mismatch: available %, frozen %',v_balance,v_frozen;
+  END IF;
+
+  v_result := public.review_withdrawal_atomic('WD-CI-0001','admin-ci',true,'postgres-ci approve');
+  IF v_result->>'status'<>'approved' OR v_result->>'duplicate'<>'false' THEN
+    RAISE EXCEPTION 'withdrawal approval failed: %',v_result;
+  END IF;
+  v_result := public.review_withdrawal_atomic('WD-CI-0001','admin-ci',true,'postgres-ci approve');
+  IF v_result->>'status'<>'approved' OR v_result->>'duplicate'<>'true' THEN
+    RAISE EXCEPTION 'withdrawal approval retry was not idempotent: %',v_result;
+  END IF;
+
+  SELECT count(*) INTO v_ledger_before FROM public.financial_ledger WHERE user_id='deposit-user';
+  v_result := public.mark_withdrawal_paid_atomic('WD-CI-0001','admin-ci','txid-ci-0001','postgres-ci payout');
+  IF v_result->>'status'<>'completed' OR v_result->>'duplicate'<>'false' THEN
+    RAISE EXCEPTION 'manual payout completion failed: %',v_result;
+  END IF;
+  v_result := public.mark_withdrawal_paid_atomic('WD-CI-0001','admin-ci','txid-ci-0001','postgres-ci payout');
+  IF v_result->>'status'<>'completed' OR v_result->>'duplicate'<>'true' THEN
+    RAISE EXCEPTION 'manual payout retry was not idempotent: %',v_result;
+  END IF;
+  SELECT count(*) INTO v_ledger_after FROM public.financial_ledger WHERE user_id='deposit-user';
+  IF v_ledger_after<>v_ledger_before THEN
+    RAISE EXCEPTION 'mark-paid incorrectly created another financial ledger movement';
+  END IF;
+  SELECT available,frozen INTO v_balance,v_frozen FROM public.financial_accounts
+  WHERE user_id='deposit-user' AND asset='USDT';
+  IF v_balance<>89 OR v_frozen<>0 THEN
+    RAISE EXCEPTION 'manual payout changed balance after approval: available %, frozen %',v_balance,v_frozen;
+  END IF;
+
+  PERFORM pg_temp.test_credit(
+    'MD-CI-0004','reject-user','USDT',20,'deposit-ci-request-0002','deposit-ref-ci-2','postgres-ci'
+  );
+  v_hash := encode(extensions.digest(
+    'reject-user|USDT|TRC20|5|T87654321|withdrawal-ci-request-0002','sha256'
+  ),'hex');
+  v_result := public.create_withdrawal_atomic(
+    'WD-CI-0002','reject-user','USDT','TRC20',5,1,'T87654321',
+    'withdrawal-ci-request-0002',v_hash,false,1
+  );
+  IF v_result->>'ok'<>'true' THEN RAISE EXCEPTION 'rejected withdrawal creation failed: %',v_result; END IF;
+  v_result := public.review_withdrawal_atomic('WD-CI-0002','admin-ci',false,'postgres-ci reject');
+  IF v_result->>'status'<>'rejected' THEN RAISE EXCEPTION 'withdrawal rejection failed: %',v_result; END IF;
+  SELECT available,frozen INTO v_balance,v_frozen FROM public.financial_accounts
+  WHERE user_id='reject-user' AND asset='USDT';
+  IF v_balance<>20 OR v_frozen<>0 THEN
+    RAISE EXCEPTION 'withdrawal rejection did not refund exactly once: available %, frozen %',v_balance,v_frozen;
+  END IF;
+
+  -- 3) Spot: match at maker price, then cancel with durable request-key binding.
+  PERFORM pg_temp.test_credit(
+    'MD-CI-0005','spot-seller','BTC',1,'deposit-ci-request-0003','deposit-ref-ci-3','postgres-ci'
+  );
+  PERFORM pg_temp.test_credit(
+    'MD-CI-0006','spot-buyer','USDT',20000,'deposit-ci-request-0004','deposit-ref-ci-4','postgres-ci'
+  );
+  INSERT INTO public.financial_matching_markets(
+    base_asset,quote_asset,enabled,price_tick,quantity_step,min_quantity,min_notional
+  ) VALUES('BTC','USDT',true,1,0.001,0.001,1)
+  ON CONFLICT(base_asset,quote_asset) DO UPDATE SET enabled=true;
+
+  v_result := public.submit_limit_order_matching_v1(
+    'SPOT-SELL-0001','spot-seller','BTC','USDT','sell',10000,0.1,'spot-sell-request-0001'
+  );
+  IF v_result->>'ok'<>'true' THEN RAISE EXCEPTION 'spot maker order failed: %',v_result; END IF;
+  v_result := public.submit_limit_order_matching_v1(
+    'SPOT-BUY-0001','spot-buyer','BTC','USDT','buy',10000,0.1,'spot-buy-request-0001'
+  );
+  IF v_result->>'ok'<>'true' THEN RAISE EXCEPTION 'spot taker order failed: %',v_result; END IF;
+
+  SELECT count(*) INTO v_trade_count FROM public.financial_matching_trades
+  WHERE pair_key='BTC/USDT';
+  IF v_trade_count<>1 THEN RAISE EXCEPTION 'spot matching did not create exactly one trade: %',v_trade_count; END IF;
+  IF NOT EXISTS (SELECT 1 FROM public.financial_matching_orders WHERE id='SPOT-SELL-0001' AND status='filled')
+     OR NOT EXISTS (SELECT 1 FROM public.financial_matching_orders WHERE id='SPOT-BUY-0001' AND status='filled') THEN
+    RAISE EXCEPTION 'spot matching did not close both fully-filled orders';
+  END IF;
+  SELECT available INTO v_balance FROM public.financial_accounts
+  WHERE user_id='spot-buyer' AND asset='BTC';
+  IF v_balance<>0.1 THEN RAISE EXCEPTION 'spot buyer did not receive base asset: %',v_balance; END IF;
+  SELECT available INTO v_balance FROM public.financial_accounts
+  WHERE user_id='spot-seller' AND asset='USDT';
+  IF v_balance<>1000 THEN RAISE EXCEPTION 'spot seller did not receive quote asset: %',v_balance; END IF;
+
+  v_result := public.submit_limit_order_matching_v1(
+    'SPOT-CANCEL-0001','spot-buyer','BTC','USDT','buy',9000,0.05,'spot-cancel-order-0001'
+  );
+  IF v_result->>'ok'<>'true' THEN RAISE EXCEPTION 'spot cancellable order creation failed: %',v_result; END IF;
+  v_result := public.cancel_limit_order_matching_v1('spot-buyer','SPOT-CANCEL-0001','spot-cancel-request-0001');
+  IF v_result->>'duplicate'<>'false' OR v_result->>'status'<>'cancelled' THEN
+    RAISE EXCEPTION 'first spot cancellation failed: %',v_result;
+  END IF;
+  v_result := public.cancel_limit_order_matching_v1('spot-buyer','SPOT-CANCEL-0001','spot-cancel-request-0001');
+  IF v_result->>'duplicate'<>'true' OR v_result->>'status'<>'cancelled' THEN
+    RAISE EXCEPTION 'spot cancellation replay failed: %',v_result;
+  END IF;
+
+  v_result := public.submit_limit_order_matching_v1(
+    'SPOT-CANCEL-0002','spot-buyer','BTC','USDT','buy',9000,0.05,'spot-cancel-order-0002'
+  );
+  IF v_result->>'ok'<>'true' THEN RAISE EXCEPTION 'second spot cancellable order creation failed: %',v_result; END IF;
+  v_failed := false;
+  BEGIN
+    PERFORM public.cancel_limit_order_matching_v1('spot-buyer','SPOT-CANCEL-0002','spot-cancel-request-0001');
+  EXCEPTION WHEN OTHERS THEN
+    v_failed := true;
+  END;
+  IF NOT v_failed THEN RAISE EXCEPTION 'spot cancellation key was reused for a different order'; END IF;
+  SELECT available,frozen INTO v_balance,v_frozen FROM public.financial_accounts
+  WHERE user_id='spot-buyer' AND asset='USDT';
+  IF v_balance<>18550 OR v_frozen<>450 THEN
+    RAISE EXCEPTION 'conflicting spot cancel changed reserved funds: available %, frozen %',v_balance,v_frozen;
+  END IF;
+
+  -- 4) Seconds: reserve, snapshot payout policy, settle after maturity, exact replay.
+  PERFORM pg_temp.test_credit(
+    'MD-CI-0007','seconds-user','USDT',100,'deposit-ci-request-0005','deposit-ref-ci-5','postgres-ci'
+  );
+  v_hash := encode(extensions.digest(
+    'seconds-user|BTC|up|10|30|'||v_open_request_id,'sha256'
+  ),'hex');
+  v_result := public.submit_seconds_order_v1(
+    v_position_id,'seconds-user','BTC','up',10,30,100,v_open_request_id,v_hash
+  );
+  IF v_result->>'ok'<>'true' OR v_result->>'duplicate'<>'false' THEN
+    RAISE EXCEPTION 'Seconds order submission failed: %',v_result;
+  END IF;
+  v_result := public.submit_seconds_order_v1(
+    v_position_id,'seconds-user','BTC','up',10,30,NULL,v_open_request_id,v_hash
+  );
+  IF v_result->>'ok'<>'true' OR v_result->>'duplicate'<>'true' THEN
+    RAISE EXCEPTION 'Seconds order replay did not return persisted position: %',v_result;
+  END IF;
+
+  UPDATE public.seconds_contract_positions
+  SET settle_at=clock_timestamp()-interval '1 second'
+  WHERE position_id=v_position_id;
+  SELECT payout_bps_snapshot INTO v_payout_bps
+  FROM public.seconds_contract_positions WHERE position_id=v_position_id;
+  IF v_payout_bps<>8500 THEN RAISE EXCEPTION 'Seconds order did not snapshot the active payout policy: %',v_payout_bps; END IF;
+
+  v_settle_hash := encode(extensions.digest(v_settle_request_id||'|'||v_position_id,'sha256'),'hex');
+  v_result := public.settle_seconds_position_v1(
+    v_position_id,'seconds-user',v_settle_request_id,v_settle_hash,
+    'BTC',110,'coinbase',clock_timestamp()
+  );
+  IF v_result->>'settled'<>'true' OR v_result->>'win'<>'true' OR (v_result->>'pnl')::numeric<>8.5 THEN
+    RAISE EXCEPTION 'Seconds settlement did not use the 85% policy snapshot: %',v_result;
+  END IF;
+  SELECT available,frozen INTO v_balance,v_frozen FROM public.financial_accounts
+  WHERE user_id='seconds-user' AND asset='USDT';
+  IF v_balance<>108.5 OR v_frozen<>0 THEN
+    RAISE EXCEPTION 'Seconds settlement balance mismatch: available %, frozen %',v_balance,v_frozen;
+  END IF;
+  v_result := public.settle_seconds_position_v1(
+    v_position_id,'seconds-user',v_settle_request_id,v_settle_hash,
+    'BTC',110,'coinbase',clock_timestamp()
+  );
+  IF v_result->>'duplicate'<>'true' THEN RAISE EXCEPTION 'Seconds settlement replay was not idempotent: %',v_result; END IF;
+  v_result := public.settle_seconds_position_v1(
+    v_position_id,'seconds-user',v_settle_request_id,encode(extensions.digest('conflicting-settlement','sha256'),'hex'),
+    'BTC',110,'coinbase',clock_timestamp()
+  );
+  IF v_result->>'code'<>'IDEMPOTENCY_CONFLICT' THEN
+    RAISE EXCEPTION 'Seconds settlement accepted a conflicting request hash: %',v_result;
+  END IF;
+END
+$financial_tests$;
+
+ROLLBACK;
