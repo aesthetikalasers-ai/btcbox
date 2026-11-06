@@ -3159,3 +3159,17 @@ The prior withdrawal UI audit statement claiming the active BTCBOX admin route w
 - Existing Seconds policy behavior verified from source/SQL: admin can configure duration list, min/max stake, payout (minimum 85%, no fixed 100% ceiling), optional per-user exposure and optional unfinished-position count; each opened position snapshots the active payout policy and settles using that immutable snapshot. Blank count/exposure means no additional configured cap.
 - NOT VERIFIED: hosted Supabase application of canonical SQL, live price-provider connectivity, browser E2E, real financial operation or production release.
 - No hosted database write, real financial operation, merge to `main`, or production deployment was performed.
+
+
+## Seconds administrator open-position queue — exact-head CI passed — 2026-11-06 UTC
+
+- Consolidated branch: `fix/post-merge-db-bootstrap-seconds-20261106`; Draft PR #50 remains open. Exact final source/test SHA: `b0784a5bcd5ce0287a98370980495a3829952e16`.
+- Added canonical SQL `0030_seconds_admin_open_positions_read_v1.sql`: a bounded read-only admin RPC returns at most 100 earliest-to-mature open positions, total open count/exposure, overdue count and policy snapshot fields. It rechecks active membership and `seconds_policy.read` inside PostgreSQL. It cannot update positions, settle contracts, change outcomes or write financial accounts/ledger.
+- Added `GET /api/admin/seconds-positions`, protected by verified Supabase Auth and `seconds_policy.read`; the database independently checks the same authority. Queue data is operational only (position ID, user UUID, market, direction, amount, duration, prices, maturity, payout snapshot and policy version); no email, phone, KYC or account-balance details are exposed.
+- Admin Seconds tab now displays open position count, total exposure, positions past maturity awaiting server settlement, and a refreshable read-only queue. No manual settlement or outcome override control was added; positions remain subject to the existing server price/time settlement path.
+- Fresh-database bootstrap now includes SQL 0030. `MIGRATION-ORDER-AND-CUTOVER.md` documents the new 23-file canonical bootstrap order. Added backend regression tests for API/RBAC, database recheck, bounded/read-only data exposure, and migration inventory.
+- EXACT-HEAD CI PASSED on `b0784a5bcd5ce0287a98370980495a3829952e16`:
+  - Backend CI run 544: **329/329 tests passed**, unified build and fail-closed preflight passed.
+  - Frontend CI run 408: lint and production build passed.
+  - PostgreSQL schema CI run 109: all 23 canonical SQL files applied successfully to disposable PostgreSQL; schema/RLS/grants checks passed.
+- NOT VERIFIED: hosted Supabase migration application, browser E2E with a provisioned administrator, live price-provider behavior, real financial operations or production release. No hosted database write, merge to `main`, or deployment was performed.
