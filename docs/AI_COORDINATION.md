@@ -3113,3 +3113,15 @@ The prior withdrawal UI audit statement claiming the active BTCBOX admin route w
 - Vercel status remains failed due to the account build-rate limit; no production deployment was attempted.
 - Still NOT VERIFIED: hosted private KYC Storage bucket setup and real upload/preview, hosted Supabase/Auth bootstrap and first Super Admin provisioning, customer/admin browser E2E, live market provider, real network deposit/payout, and KYC retention/deletion policy.
 - No hosted database write, real financial operation, merge to `main`, or production deployment was performed.
+
+
+## Manual withdrawal payout evidence hardening — CI running — 2026-11-06 UTC
+
+- Continued on consolidated branch `fix/post-merge-db-bootstrap-seconds-20261106`, Draft PR #50. Exact current source/test head: `58d0350538db98d104631df475f2002807d7f42c`.
+- SOURCE FIX: the staff manual payout completion API already required a non-empty TxID/reference and limited it to 160 characters. It now also rejects ASCII control characters (including NUL, CR/LF and DEL) with `PAYOUT_REFERENCE_INVALID`; this keeps audit evidence single-line and safe to process.
+- SOURCE FIX: Admin → Withdrawals payout reference input now has `maxLength={160}`, matching the server-side limit.
+- TEST ADDED: `backend/tests/withdrawal-manual-payout.test.js` now asserts the API's control-character rejection contract.
+- CI on exact SHA is currently running: frontend CI run 392 and backend CI run 528. Previous passing baseline before this change: frontend run 389 and backend run 525 on earlier SHA `cc97c04319649a09a8f79864f024a398d8938b47`. Do not call the new batch fully validated until exact-head runs complete.
+- SOURCE OBSERVED: the withdrawal RPC remains status/audit-only after staff has transferred funds; it does not broadcast funds or debit the ledger a second time. Existing SQL contract requires approved status, rejects blank references, and enforces exact replay/conflicting-reference behavior.
+- NOT VERIFIED: browser E2E, hosted Supabase/Auth/Storage setup, real network payouts, and production deployment.
+- No hosted database write, real financial operation, merge to `main`, or deployment was performed.
