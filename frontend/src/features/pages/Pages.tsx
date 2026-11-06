@@ -198,10 +198,12 @@ export function SpotTradingPage(){
    if(marketResult.status==="fulfilled"){
     const marketBase=symbol.endsWith("USDT")?symbol.slice(0,-4):symbol;
     const selected=marketResult.value.find(item=>item.sym.toUpperCase()===marketBase)||null;
-    setTicker(selected);
-    setMarketUpdatedAt(Date.now());
-    setMarketFeedWarning("");
-    if(selected)setPrice(current=>current||String(selected.price));
+    if(selected){
+     setTicker(selected);
+     setMarketUpdatedAt(selected.snapshotTs?selected.snapshotTs*1000:null);
+     setMarketFeedWarning("");
+     setPrice(current=>current||String(selected.price));
+    }else setMarketFeedWarning("Market snapshot is missing for this pair; showing the last confirmed data.");
    }else setError(marketResult.reason instanceof Error?marketResult.reason.message:"Live market data is unavailable.");
    if(candleResult.status==="fulfilled")setCandles(candleResult.value);
    if(bookResult.status==="fulfilled")setBook(bookResult.value);
@@ -228,8 +230,10 @@ export function SpotTradingPage(){
     if(marketResult.status==="fulfilled"){
      const marketBase=symbol.endsWith("USDT")?symbol.slice(0,-4):symbol;
      const selected=marketResult.value.find(item=>item.sym.toUpperCase()===marketBase)||null;
-     setTicker(selected);
-     setMarketUpdatedAt(Date.now());
+     if(selected){
+      setTicker(selected);
+      setMarketUpdatedAt(selected.snapshotTs?selected.snapshotTs*1000:null);
+     }else failed=true;
     }else failed=true;
     if(bookResult.status==="fulfilled")setBook(bookResult.value);
     else failed=true;
@@ -360,7 +364,7 @@ export function SpotTradingPage(){
  const openOrders=orders.filter(item=>["open","partially_filled","partially-filled","pending"].includes(String(item.status||"").toLowerCase()));
  const asks=(book?.asks||[]).slice(0,8).slice().reverse();const bids=(book?.bids||[]).slice(0,8);
  return <PageFrame eyebrow="BTCBOX / SPOT" title={symbol} description="Live market data and a server-authoritative limit-order workflow. Orders are never simulated in the browser.">
-  <div className="flex flex-wrap items-center justify-between gap-3"><div className="flex items-center gap-3"><Badge variant="outline">{t("Spot market")}</Badge><span className="text-xs text-brand-text-muted">{book?.source||ticker?.source||"—"}</span><span className="text-xs text-brand-text-muted">{marketUpdatedAt? t("Last update")+": "+new Date(marketUpdatedAt).toLocaleTimeString():t("Waiting for live data")}</span></div><Button size="sm" variant="outline" disabled={loading||busy} onClick={()=>setReload(value=>value+1)}><RefreshCw className={"mr-2 h-4 w-4 "+(loading?"animate-spin":"")}/>{t("Refresh")}</Button></div>
+  <div className="flex flex-wrap items-center justify-between gap-3"><div className="flex items-center gap-3"><Badge variant="outline">{t("Spot market")}</Badge><span className="text-xs text-brand-text-muted">{book?.source||ticker?.source||"—"}</span><span className="text-xs text-brand-text-muted">{marketUpdatedAt? t("Snapshot checked")+": "+new Date(marketUpdatedAt).toLocaleTimeString():t("Waiting for live data")}</span></div><Button size="sm" variant="outline" disabled={loading||busy} onClick={()=>setReload(value=>value+1)}><RefreshCw className={"mr-2 h-4 w-4 "+(loading?"animate-spin":"")}/>{t("Refresh")}</Button></div>
   {error?<div role="alert" className="rounded-xl border border-rose-500/30 bg-rose-500/5 p-3 text-sm text-rose-300">{error}</div>:null}{marketFeedWarning?<div role="status" className="rounded-xl border border-amber-500/25 bg-amber-500/5 p-3 text-sm text-amber-200">{marketFeedWarning}</div>:null}{notice?<div role="status" className="rounded-xl border border-emerald-500/25 bg-emerald-500/5 p-3 text-sm text-emerald-300">{notice}</div>:null}
   <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
    <div className="min-w-0 space-y-4">
