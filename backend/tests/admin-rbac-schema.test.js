@@ -100,7 +100,7 @@ test('migration source is not applied and bootstrap does not provision a default
   const beforeBootstrap = sql.slice(0, sql.indexOf('CREATE OR REPLACE FUNCTION private.bootstrap_super_admin_v1'));
   assert.doesNotMatch(beforeBootstrap, /INSERT INTO private\.admin_memberships/i);
   assert.match(design, /initial Super Admin bootstrap is a one-time owner-controlled database operation/i);
-  assert.match(design, /It is not a public API or self-service promotion/i);
+  assert.match(design, /This bootstrap is not exposed as an API/i);
 });
 
 test('design supersedes old two-person bootstrap and three-person approval requirements', () => {
