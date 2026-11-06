@@ -125,20 +125,6 @@ export interface AccountBalance {
   valuation_available?: boolean;
 }
 
-export interface WithdrawalRecord {
-  id: string;
-  coin: string;
-  amount: number | string;
-  fee?: number | string;
-  network?: string;
-  address?: string;
-  status: string;
-  time?: string;
-  txid?: string;
-  payout_reference?: string;
-  paid_at?: string;
-}
-
 export interface AccountSnapshot {
   uid: string;
   email: string;
@@ -155,7 +141,6 @@ export interface AccountSnapshot {
   kyc: { status: string; name?: string; id_type?: string; id_number?: string };
   twofa_enabled: boolean;
   earn_records?: EarnPosition[];
-  withdrawals?: WithdrawalRecord[];
 }
 
 export interface OrderRecord {
@@ -631,4 +616,131 @@ export async function getDepositAddress(coin: string, network: string, signal?: 
     throw new ApiError(payload?.msg || "Deposit address is not available for this network.", payload?.need_login ? 401 : response.status, payload?.code);
   }
   return payload.address;
+}
+
+
+export interface AdminSession {
+  user_id: string;
+  status: "active";
+  is_super_admin: boolean;
+  permissions: string[];
+}
+export interface AdminUserRecord {
+  uid: string;
+  email: string;
+  kyc_status?: string;
+  kyc?: { status?: string };
+  frozen: boolean;
+  total_usdt?: string | number;
+  balances?: Record<string, AccountBalance>;
+}
+export interface AdminWithdrawalRecord {
+  id: string;
+  uid: string;
+  coin: string;
+  amount: string;
+  fee: string;
+  network: string;
+  address: string;
+  status: string;
+  payout_reference?: string;
+  paid_at?: string | null;
+}
+export interface AdminConfig {
+  deposit_addresses: Record<string, string>;
+  announcement: string;
+}
+export interface AdminKycRecord {
+  uid: string;
+  email: string;
+  name: string;
+  id_type: string;
+  status: string;
+  submitted_at: string;
+}
+export interface AdminAuditRecord {
+  id: string;
+  time: string;
+  action: string;
+  uid: string;
+  by: string;
+  detail: string;
+  postgres_sync_status: string;
+}
+async function adminRequest<T>(token: string, path: string, options: { method?: string; body?: unknown; signal?: AbortSignal } = {}): Promise<T> {
+  if (!token || token.length < 20) throw new ApiError("Administrator Supabase session is missing.", 401, "ADMIN_AUTH_REQUIRED");
+  let response: Response;
+  try {
+    response = await fetch(\`\${API_BASE_URL}/\${path}\`, {
+      method: options.method || "GET",
+      credentials: "include",
+      cache: "no-store",
+      signal: options.signal,
+      headers: { Accept: "application/json", Authorization: \`Bearer \${token}\`, ...(options.body === undefined ? {} : { "Content-Type": "application/json" }) },
+      ...(options.body === undefined ? {} : { body: JSON.stringify(options.body) }),
+    });
+  } catch {
+    throw new ApiError("Administrator request could not reach BTCBOX.", 0, "NETWORK_ERROR");
+  }
+  const payload = await response.json().catch(() => null);
+  if (!response.ok || !payload || payload.ok !== true) {
+    throw new ApiError(payload?.msg || "Administrator request was not accepted.", response.status, payload?.code);
+  }
+  return payload as T;
+}
+export async function getAdminSession(token: string, signal?: AbortSignal) {
+  return adminRequest<AdminSession & { ok: true }>(token, "admin/session", { signal });
+}
+export async function getAdminStats(token: string, signal?: AbortSignal) {
+  return adminRequest<{ ok: true; total_users: number; pending_withdrawals: number; pending_admin_review_withdrawals: number; pending_kyc: number; deposit_addresses: Record<string, string>; announcement: string }>(token, "admin/stats", { signal });
+}
+export async function getAdminUsers(token: string, search = "", signal?: AbortSignal) {
+  const query = search.trim() ? \`?search=\${encodeURIComponent(search.trim())}\` : "";
+  return adminRequest<{ ok: true; users: AdminUserRecord[] }>(token, \`admin/users\${query}\`, { signal });
+}
+export async function getAdminUser(token: string, uid: string, signal?: AbortSignal) {
+  return adminRequest<{ ok: true; user: AdminUserRecord }>(token, \`admin/user?uid=\${encodeURIComponent(uid)}\`, { signal });
+}
+export async function getAdminWithdrawals(token: string, signal?: AbortSignal) {
+  return adminRequest<{ ok: true; withdrawals: AdminWithdrawalRecord[]; pending_count?: number; pending_admin_review_count?: number }>(token, "admin/withdrawals", { signal });
+}
+export async function getAdminConfig(token: string, signal?: AbortSignal) {
+  return adminRequest<AdminConfig & { ok: true }>(token, "admin/config", { signal });
+}
+export async function saveAdminConfig(token: string, config: AdminConfig) {
+  return adminRequest<AdminConfig & { ok: true; audit_sync_pending?: boolean }>(token, "admin/config", { method: "POST", body: config });
+}
+export async function adminManualCredit(token: string, input: { uid: string; coin: string; amount: string; reference?: string; note?: string; idempotency_key: string }) {
+  return adminRequest<{ ok: true; duplicate?: boolean; balance?: AccountBalance; audit_sync_pending?: boolean }>(token, "admin/deposit/confirm", { method: "POST", body: input });
+}
+export async function adminApproveWithdrawal(token: string, id: string) {
+  return adminRequest<{ ok: true; status: string; audit_sync_pending?: boolean }>(token, "admin/withdraw/approve", { method: "POST", body: { id } });
+}
+export async function adminRejectWithdrawal(token: string, id: string, reason: string) {
+  return adminRequest<{ ok: true; status: string; audit_sync_pending?: boolean }>(token, "admin/withdraw/reject", { method: "POST", body: { id, reason } });
+}
+export async function adminMarkWithdrawalPaid(token: string, input: { id: string; reference: string; note?: string }) {
+  return adminRequest<{ ok: true; status: string; duplicate: boolean; payout_reference: string; paid_at: string | null }>(token, "admin/withdraw/mark-paid", { method: "POST", body: input });
+}
+export async function getAdminKyc(token: string, signal?: AbortSignal) {
+  return adminRequest<{ ok: true; kycs: AdminKycRecord[] }>(token, "admin/kyc", { signal });
+}
+export async function adminApproveKyc(token: string, uid: string, reason = "") {
+  return adminRequest<{ ok: true }>(token, "admin/kyc/approve", { method: "POST", body: { uid, reason } });
+}
+export async function adminRejectKyc(token: string, uid: string, reason: string) {
+  return adminRequest<{ ok: true }>(token, "admin/kyc/reject", { method: "POST", body: { uid, reason } });
+}
+export async function getAdminAuditLogs(token: string, limit = 50, signal?: AbortSignal) {
+  const query = new URLSearchParams({ limit: String(limit) });
+  return adminRequest<{ ok: true; logs: AdminAuditRecord[]; next_before?: string | null; source?: string; completeness?: string }>(token, \`admin/audit-logs?\${query.toString()}\`, { signal });
+}
+export async function getAdminOrders(token: string, signal?: AbortSignal) {
+  return adminRequest<{ ok: true; orders: OrderRecord[]; source?: string }>(token, "admin/orders", { signal });
+}
+export async function getAdminSupportMessages(token: string, signal?: AbortSignal) {
+  return adminRequest<{ ok: true; messages: SupportMessage[] }>(token, "admin/support/messages", { signal });
+}
+export async function adminReplySupport(token: string, uid: string, content: string) {
+  return adminRequest<{ ok: true }>(token, "admin/support/reply", { method: "POST", body: { uid, content } });
 }
