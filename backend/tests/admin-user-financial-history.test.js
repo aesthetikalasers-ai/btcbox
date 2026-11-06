@@ -29,6 +29,8 @@ test('canonical user detail reuses one PostgreSQL account snapshot and scopes ea
   const route = api.slice(start, end);
   assert.ok(route.includes('readFinancialAccountSnapshot(String(u.uid))'));
   assert.ok(route.includes('safeUser.balances = normalized.balances || {}'));
+  assert.ok(route.includes("safeUser.financial_balance_source = 'postgres_financial_ledger'"));
+  assert.ok(route.includes("safeUser.financial_balance_source = 'legacy_state_retention_limited'"));
   assert.ok(route.includes('safeUser.deposit_history = normalized.deposits.slice(0, 20)'));
   assert.ok(route.includes('safeUser.withdrawal_history = normalized.withdrawals.slice(0, 20)'));
   assert.ok(route.includes("safeUser.deposit_history_source = 'postgres_financial_ledger'"));
@@ -44,6 +46,8 @@ test('admin UI displays deposit history source, amount, status, network, referen
   assert.ok(apiTypes.includes('deposit_history_source?: "postgres_financial_ledger" | "legacy_state_retention_limited"'));
   assert.ok(admin.includes('hasPermission("deposits.read") ? <section'));
   assert.ok(admin.includes('Deposit history'));
+  assert.ok(admin.includes('Balances: PostgreSQL ledger'));
+  assert.ok(admin.includes('Balances: legacy state · limited'));
   assert.ok(admin.includes('Source: PostgreSQL ledger'));
   assert.ok(admin.includes('Source: legacy state · limited'));
   assert.ok(admin.includes('item.coin} · {item.network || "—"}'));
