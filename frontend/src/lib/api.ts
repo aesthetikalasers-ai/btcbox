@@ -839,6 +839,7 @@ export interface AdminMembershipChangeResult { action: AdminMembershipAction; ta
 
 export interface AdminConfig {
   deposit_addresses: Record<string, string>;
+  withdrawal_fees: Record<string, string>;
   announcement: string;
 }
 export interface AdminKycRecord {
