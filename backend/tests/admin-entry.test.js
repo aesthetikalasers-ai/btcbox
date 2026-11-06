@@ -156,7 +156,7 @@ test('KYC approval and rejection persist reviewer, timestamp, decision reason, a
   const approve = apiCore.slice(approveStart, rejectStart);
   const reject = apiCore.slice(rejectStart, pushStart);
   for (const route of [approve, reject]) {
-    assert.ok(route.includes("u.kyc.reviewed_by = 'admin'"));
+    assert.ok(route.includes("u.kyc.reviewed_by = adminUserId"));
     assert.ok(route.includes("u.kyc.reviewed_at = nowStr()"));
     assert.ok(route.includes("await auditAdmin("));
     assert.ok(route.includes("await saveDB(db)"));
@@ -165,7 +165,7 @@ test('KYC approval and rejection persist reviewer, timestamp, decision reason, a
   }
   assert.ok(approve.includes("u.kyc.review_reason = override ? reason"));
   assert.ok(reject.includes("u.kyc.reject_reason = reason"));
-  assert.ok(reject.includes("await auditAdmin('kyc_reject', u.uid, reason)"));
+  assert.ok(reject.includes("await auditAdmin('kyc_reject', u.uid, reason, adminUserId)"));
 });
 
 
