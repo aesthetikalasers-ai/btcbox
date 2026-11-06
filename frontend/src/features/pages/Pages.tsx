@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { RefreshCw, TrendingUp, TrendingDown, Clock3, ShieldAlert } from "lucide-react";
 import { getAccount, getOrders, getSecondsPositions, type AccountBalance, type AccountSnapshot, type OrderRecord, type SecondsPositionsSnapshot } from "../../lib/api";
+import { useAuth } from "../../lib/auth";
 
 import type { ReactNode } from "react";
 import { ArrowUpRight, LockKeyhole, Wallet, ChartNoAxesCombined, ArrowLeftRight } from "lucide-react";
