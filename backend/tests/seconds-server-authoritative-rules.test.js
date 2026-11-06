@@ -86,8 +86,8 @@ test('settlement persists the validated provider quote time instead of stamping 
   const start = api.indexOf("if (path === 'seconds/settle' && method === 'POST')");
   const end = api.indexOf("// ---------- GET /api/seconds/positions ----------", start);
   const handler = api.slice(start, end);
-  assert.match(handler, /normalizeReferenceTimestamp\(ticker && ticker\\.time\)/);
-  assert.match(handler, /normalizeReferenceTimestamp\(payload && payload\\.time\)/);
-  assert.match(handler, /p_settle_price_ts: new Date\(settleRef\\.ts \\* 1000\)\\.toISOString\(\)/);
-  assert.doesNotMatch(handler, /p_settle_price_ts: new Date\(\)\\.toISOString\(\)/);
+  assert.ok(handler.includes('normalizeReferenceTimestamp(ticker && ticker.time)'));
+  assert.ok(handler.includes('normalizeReferenceTimestamp(payload && payload.time)'));
+  assert.ok(handler.includes('p_settle_price_ts: new Date(settleRef.ts * 1000).toISOString()'));
+  assert.ok(!handler.includes('p_settle_price_ts: new Date().toISOString()'));
 });
