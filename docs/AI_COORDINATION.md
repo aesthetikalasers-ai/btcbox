@@ -6066,3 +6066,5 @@ The prior withdrawal UI audit statement claiming the active BTCBOX admin route w
 - Backend wallet identity validation accepts only Supabase-verified Ethereum or Solana claims with valid address formats. Supabase Web3 provider enablement itself is NOT VERIFIED; no live wallet auth was attempted.
 - CI branch coverage fixed: unified branch added to backend/frontend push triggers; backend workflow now watches `AuthPages.tsx`. Build/test-only CI runs `42309363348` (backend) and `42309363409` (frontend) were running on `aa42ea2a7e4e798687fb9b208b5a36bdde2da389`; record final conclusions after completion.
 - Detailed changes, commits and resume point: `docs/FRONTEND-MARKET-PREVIEW-BATCH-2026-11-07.md`.
+
+- CI follow-up: backend run `42309363348` exposed a stale spot-route assertion; updated `backend/tests/spot-trading-api.test.js` to assert the approved public preview route. Backend run `42309521968` on `1a1e93a78bfd2f5ef5d931796fabf5f11fc8428d` passed build, tests, fail-closed preflight and output checks. Frontend run `42309363409` passed install/lint/build/Chromium setup; Playwright desktop/mobile route smoke tests were still running at last check.
