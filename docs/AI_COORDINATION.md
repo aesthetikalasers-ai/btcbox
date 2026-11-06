@@ -2600,3 +2600,47 @@ The user explicitly simplified the required business process. Do not expand it i
 3. Add an admin read-only queue for all open Seconds positions; verify pagination/visibility for multiple positions. Existing user-facing open-array rendering is already present.
 4. Add isolated PostgreSQL tests for multiple concurrent positions, same/different open request IDs, per-position settlement idempotency, concurrent balance locking, and no duplicate ledger postings.
 5. Reconcile migration-history drift before any hosted migration application. No production DDL, real financial writes, merge, or deployment without explicit approval. Preserve V211 trading layout.
+
+
+## Seconds configurable policy, immutable payout snapshots, and independent multi-position UI — 2026-11-06
+
+### SOURCE OBSERVED / IMPLEMENTED
+- This entry supersedes the earlier feature-head reference `40f1d0aaf8bbd8a36be82fa2040fce58f8100fb3`. Current feature branch: `fix/manual-withdrawal-rpc-compat-20261106`, HEAD `3ad91a456f6f5bee3d190efd0bbc66e8637519d9`. Compared with main `18a354a9e8e1d0365e240c7c44eda4a18d62ce07`: 32 ahead / 0 behind. No merge or deployment.
+- Generated the next timestamped migration using Supabase CLI `supabase migration new seconds_policy_snapshot_and_admin_queue_v1`: `20261106042714_seconds_policy_snapshot_and_admin_queue_v1.sql`. Added the identical numbered runner copy `0025_seconds_policy_snapshot_and_admin_queue_v1.sql`; migration numbering is now continuous through 0025.
+- Added `public.seconds_contract_policy` with administrator-editable enabled state, unique allowed durations, min/max USDT order amount, and payout rate. Defaults are 30/60/300/900 seconds, min 1 USDT, max 1e12 USDT, payout 0.85. The DB/API enforce payout >= 0.85 (85%); no hard-coded upper payout ceiling is imposed beyond the numeric column's precision.
+- Replaced the order RPC to lock/read one coherent policy version (`FOR SHARE`), validate enabled/duration/amount server-side, preserve the account `FOR UPDATE` lock and atomic operation/ledger writes, and snapshot `policy_version` + `payout_rate` on each new position. Existing `duration_sec` and `amount` fields preserve the effective terms selected for that position.
+- Replaced the settlement RPC to calculate winning PnL from the position's stored `payout_rate`, not the latest administrator setting. A policy change therefore affects new positions only.
+- Added server-side policy read/update RPCs, an admin-only policy API, and a read-only paginated admin open-position queue RPC/API. Policy table RLS is enabled; table access and function execution are limited to `service_role`, called only from server-side API routes behind the existing admin authentication gate.
+- User seconds UI now fetches backend policy, renders admin-selected durations and amount bounds, and fails closed if policy is unavailable or the global financial-write gate is off. The hard-coded one-open-position UI gate and obsolete one-open rule text were removed. Confirmed open positions can coexist; a single unresolved request ID still blocks duplicate submissions until reconciled.
+- Replaced the single countdown with independent per-position countdown labels and per-position settlement locks/attempt tracking. The admin queue shows all open positions with pagination; a failed queue read is explicitly shown as unavailable rather than falsely displaying zero orders.
+- Seconds order amount is now carried as a validated decimal string from the UI through the API to the numeric RPC parameter, avoiding JS floating-point serialization changes and allowing the database policy to be authoritative for the max amount.
+- No changes to the V211 spot trading page layout.
+
+### TEST / SOURCE EVIDENCE
+- Exact tested feature HEAD: `3ad91a456f6f5bee3d190efd0bbc66e8637519d9`.
+- `cd backend && npm test`: **101 passed, 0 failed**.
+- `npm run build`: passed; public build created in local `dist/` only, generated artifacts restored afterward.
+- `node --check` passed for `api-core.js`, `assets/js/app-core.js`, `assets/js/views-account.js`, and `assets/js/views-trading.js`.
+- `python3 scripts/check_migration_status.py --offline`: migration numbering continuous through 0025.
+- `git diff --check`: passed; working tree clean.
+- Remote Git blob IDs match the exact tested local files:
+  - `backend/api-core.js`: `91acaf19944642cc3023ff9ea59aa3865ca72ac7`
+  - `backend/assets/js/app-core.js`: `c4406077df08029d876e56d5fee1dd8005c22e7d`
+  - `backend/assets/js/views-account.js`: `670b8bf6df3ebba715840f9a5b3dd90881771b33`
+  - `backend/assets/js/views-trading.js`: `ad63fafcecf5748cc5525d5586405fce7bd56d9c`
+  - timestamped migration and numbered mirror: `b071d0f30275d9a4f39605628042020338b21ebe`
+  - migration-order document: `dadf667cfe95db41053d5a7a578135fde2bcd5bd`
+  - policy regression tests: `9ebd6c0c6af7a097954868807f2e0c757dfed0da`
+- GitHub combined status contained no checks and workflow-run lookup returned no runs. Do not describe this as GitHub CI passing.
+
+### LIVE DATABASE / RELEASE BLOCKERS
+- Read-only live query on project `zlozsutefnmgwwzrlipt` confirms `seconds_contract_policy` does NOT exist yet, and `seconds_contract_positions_one_open_per_user_idx` still exists. Live migration history still contains only `20261102133555` and `20261103062716`.
+- No production DDL, migration application, financial write, merge, or deployment was performed. Multi-position ordering and configurable policy are implemented in the feature branch only; they are NOT active in the hosted database.
+- Sandbox still has neither Docker nor `psql`. PostgreSQL compilation, migration execution, concurrent multi-position open/settlement, account/ledger invariants, and live end-to-end tests were NOT run.
+- Migration-history drift remains a release blocker. Do not use hosted `db push`, `migration repair`, or `apply_migration` until every pre-existing SQL migration has been reconciled with the actual live schema and the user explicitly approves hosted application.
+
+### NEXT BATCH
+1. Obtain a non-production PostgreSQL/Supabase test environment or a working local runtime; execute and compile migrations 0024/0025 in sequence.
+2. Add database integration/concurrency tests for multiple simultaneous opens by one user, different request IDs, same request ID retries, concurrent settlement of separate positions, same-position settlement idempotency, and exact available/frozen/ledger invariants.
+3. Reconcile the two-row live migration history with existing live schema and repository migration contents without inserting fake history rows.
+4. Only after integration evidence and explicit approval, plan the hosted migration cutover. No production DDL, real financial writes, merge, or deployment without approval. Preserve V211.
