@@ -40,6 +40,26 @@ test("login route renders Google and wallet sign-in entry points", async ({ page
   await expect(page.getByText("Solana", { exact: true })).toBeVisible();
 });
 
+test("Google sign-in button is shown when the public auth config enables Google", async ({ page }) => {
+  await page.route("**/api/auth-client-config", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        ok: true,
+        supabase_url: "https://btcbox-e2e.invalid",
+        publishable_key: "e2e-anon-key-not-valid-for-production",
+        google_enabled: true,
+      }),
+    });
+  });
+
+  await page.goto("/login");
+
+  await expect(page.getByRole("button", { name: "Continue with Google" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Connect wallet" })).toBeVisible();
+});
+
 test("registration route renders account creation form", async ({ page }) => {
   await page.goto("/register");
 
