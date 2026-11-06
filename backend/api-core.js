@@ -2820,7 +2820,7 @@ async function handleRequest(event, context) {
     // checked above by Supabase Auth/RBAC and rechecked inside the database RPC.
     if (sub === 'seconds-positions' && method === 'GET') {
       try {
-        const base = String(process.env.SUPABASE_URL || '').replace(/\\/+$/, '');
+        const base = String(process.env.SUPABASE_URL || '').replace(/\/+$/, '');
         if (!base || !supabaseStorageConfigured()) throw new Error('Seconds position store unavailable');
         const response = await fetch(base + '/rest/v1/rpc/admin_read_seconds_open_positions_v1', {
           method: 'POST', headers: supabaseHeaders(),
