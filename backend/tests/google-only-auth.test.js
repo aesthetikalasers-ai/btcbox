@@ -160,6 +160,7 @@ test('React public auth page exposes Google and wallet entry points without lega
   assert.ok(!pages.includes('Sign in with username'));
   assert.ok(!pages.includes('Sign in with email'));
   assert.ok(!pages.includes('Register with email'));
+  for (const forbidden of ['Continue with email', 'BTCBOX username', 'Forgot password?', 'signInWithEmail', 'signUpWithEmail']) assert.ok(!pages.includes(forbidden), 'public auth page must not expose ' + forbidden);
   assert.ok(auth.includes('signInWithEmail'));
   assert.ok(auth.includes('signUpWithEmail'));
   assert.ok(pages.includes('Connect wallet'));
