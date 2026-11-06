@@ -25,6 +25,8 @@ Implemented source:
 - The active policy version is checked optimistically. A stale editor must refresh rather than overwrite a newer policy.
 - New Seconds orders read the active policy inside the transaction that reserves funds and snapshot policy ID/version/payout terms on the position. Existing positions retain their snapshots.
 - Missing active policy, unavailable policy storage, invalid server price or policy violation fails closed for new orders.
+- Settlement reference prices must carry the provider event timestamp: Coinbase ticker `time` or Bybit response `time`. Missing, malformed, older-than-120-second, or more-than-5-second-future timestamps are rejected; request receipt time is never substituted for exchange event time.
+- A settlement retry first checks the persisted position and request-key/hash binding. An already-settled exact retry returns its stored result even when both quote providers are unavailable. A matured open position still requires a fresh, valid provider quote before any ledger movement; a quote outage leaves it unsettled.
 
 ## Administrator authority
 
