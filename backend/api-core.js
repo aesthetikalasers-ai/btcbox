@@ -2116,7 +2116,7 @@ async function handleRequest(event, context) {
     if (!user) return json({ ok: false, msg: 'Not signed in.', need_login: true }, 401);
     if (!supabaseStorageConfigured()) return json({ ok: false, code: 'EARN_CATALOG_UNAVAILABLE', msg: 'Earn products are temporarily unavailable.' }, 503);
     try {
-      const base = process.env.SUPABASE_URL.replace(/\\/+$/, '');
+      const base = process.env.SUPABASE_URL.replace(/\/+$/, '');
       const query = 'select=product_id,asset,product_type,apy_percent,term_days,early_fee_percent,amount_scale,active,updated_at&active=eq.true&order=asset.asc,term_days.asc';
       const response = await fetch(base + '/rest/v1/earn_product_catalog?' + query, {
         method: 'GET', headers: supabaseHeaders(), signal: AbortSignal.timeout(8000)
