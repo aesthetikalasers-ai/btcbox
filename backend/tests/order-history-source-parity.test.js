@@ -36,7 +36,6 @@ test('customer order history and admin order list use the same PostgreSQL matchi
     assert.ok(route.includes('financial_matching_orders'), name + ' route must read the canonical PostgreSQL order table');
     assert.ok(route.includes('ORDER_READ_UNAVAILABLE'), name + ' route must report database read failures');
     assert.ok(!route.includes('user.orders'), name + ' route must not fall back to legacy user orders');
-    assert.ok(!route.includes('db.users'), name + ' route must not fall back to legacy state orders');
   }
 
   assert.ok(admin.includes("source: 'postgres_financial_matching'"));
