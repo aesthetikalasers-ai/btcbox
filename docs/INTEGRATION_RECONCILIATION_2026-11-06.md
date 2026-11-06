@@ -237,3 +237,14 @@ Required next work: minimal manual workflow only—user deposit record/history i
 ### Supabase migration 0023 transactional smoke test
 - Ran migration 0023 in a PostgreSQL transaction, inserted a synthetic approved withdrawal, invoked `mark_withdrawal_paid_atomic` for first completion and same-reference idempotent retry, and called `read_withdrawal_history_v1`. No SQL/RPC error occurred.
 - Rolled back the transaction. Follow-up query confirmed 0 persisted synthetic withdrawal rows and 0 persisted payout metadata columns. This verifies SQL/RPC execution paths without applying the migration or retaining data; migration 0023 remains unapplied.
+
+
+## Manual deposit credit + admin hydration + green preview — 2026-11-06 (UTC+8)
+
+- Production feature branch HEAD: `755ebc51f158eae5d1f104253b4bac97f9abe967` (17 ahead / 0 behind `main` at `18a354a9e8e1d0365e240c7c44eda4a18d62ce07`).
+- Added a direct admin manual-credit form to the existing deposits tab. Staff enter UID, asset, amount actually received, optional chain reference and note; the UI confirms manual receipt verification and calls the existing audited/idempotent `adminConfirmDeposit` API. The customer deposit page remains address-display-only and continues to explain that staff verify receipt and credit manually.
+- Admin user tab now fetches `GET /api/admin/users` and maps `kyc_status` / `total_usdt` instead of expecting stale `kyc` / `balances.USDT` fields. This provides the UID needed by the manual credit form.
+- Restored withdrawal guidance in the customer page for the already-enforced address binding and 24-hour cooldown, plus first/large withdrawal review. Updated the stale frontend tests to match the configured-address/manual-verification business rule and current admin UI.
+- Vercel Preview deployment `dpl_5hS2oWZoufCFaxMTGKBqscGrdPsv` is `READY`; build output reports 87/87 Node tests passed (0 failed). Preview URL: `https://btcbox-v33-eksdw4zcz-box-2753.vercel.app`. No browser E2E was run and this is not a production deployment.
+- Migration 0023 remains unapplied. Prior SQL/RPC validation was rolled back and left no persistent test rows or DDL. No production env changes, database writes, real funds operations, merge, or production deployment occurred.
+- Next batch: safe authenticated preview read-only checks for admin UID lookup, deposit address configuration display, withdrawal queue/history; then confirm admin actor configuration and cutover prerequisites before seeking explicit production-change approval. Matching engine stays off.
