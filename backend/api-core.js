@@ -339,7 +339,7 @@ async function readAdminAccountBalances(userIds) {
       // This UI currently supports only these ledger assets. Reject unexpected
       // asset keys rather than silently passing malformed/unsupported balances
       // into valuation and admin controls.
-      if (!['USDT', 'BTC', 'ETH', 'SOL'].includes(asset)) throw new Error('Admin account balance response invalid');
+      if (!['USDT', 'BTC', 'ETH', 'SOL', 'BNB', 'USDC'].includes(asset)) throw new Error('Admin account balance response invalid');
       const b = assets[asset];
       if (!b || !Number.isFinite(b.free) || !Number.isFinite(b.frozen) || b.free < 0 || b.frozen < 0) throw new Error('Admin account balance response invalid');
     }
@@ -731,11 +731,27 @@ function emptyBalances() {
     USDC: { free: 0, frozen: 0 },
   };
 }
+function normalizeAdminBalances(raw) {
+  const normalized = emptyBalances();
+  const source = raw && typeof raw === 'object' && !Array.isArray(raw) ? raw : {};
+  for (const asset of Object.keys(normalized)) {
+    const value = source[asset];
+    if (value && typeof value === 'object' && !Array.isArray(value)) {
+      const free = Number(value.free ?? value.available ?? value.available_balance ?? value.balance ?? 0);
+      const frozen = Number(value.frozen ?? value.locked ?? value.hold ?? 0);
+      normalized[asset] = { free: Number.isFinite(free) && free >= 0 ? free : 0, frozen: Number.isFinite(frozen) && frozen >= 0 ? frozen : 0 };
+    } else {
+      const free = Number(value || 0);
+      normalized[asset] = { free: Number.isFinite(free) && free >= 0 ? free : 0, frozen: 0 };
+    }
+  }
+  return normalized;
+}
 function safeDepositAddresses(addresses) {
   const source = addresses && typeof addresses === 'object' && !Array.isArray(addresses) ? addresses : {};
   const result = {};
   const legacyKeys = { 'BTC-BTC': 'BTC-Bitcoin', 'SOL-SOL': 'SOL-Solana' };
-  for (const key of ['USDT-TRC20', 'USDT-ERC20', 'USDT-BEP20', 'BTC-BTC', 'ETH-ERC20', 'SOL-SOL']) {
+  for (const key of ['USDT-TRC20', 'USDT-ERC20', 'USDT-BEP20', 'BTC-BTC', 'ETH-ERC20', 'SOL-SOL', 'BNB-BEP20', 'USDC-ERC20']) {
     const legacyKey = legacyKeys[key];
     let raw = source[key];
     if ((typeof raw !== 'string' || !raw.trim()) && legacyKey) raw = source[legacyKey];
@@ -2582,6 +2598,7 @@ async function handleRequest(event, context) {
       delete safeUser.twofa_secret;
       delete safeUser.totp_secret;
       delete safeUser.recovery_codes;
+      safeUser.balances = normalizeAdminBalances(safeUser.balances);
       if (financialPostgresReadsEnabled()) {
         try {
           const normalized = await readAdminAccountBalances([String(u.uid)]);
