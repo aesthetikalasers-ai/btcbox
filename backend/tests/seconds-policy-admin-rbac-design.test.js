@@ -26,14 +26,16 @@ test('seconds policy routes use verified Supabase identity and explicit read/wri
 
 test('Seconds policy RPC creates an immutable version, atomically activates it, and audits the actor', () => {
   const sql = fs.readFileSync(path.join(root, 'supabase/sql/0028_admin_rbac_service_rpc_wrappers_v1.sql'), 'utf8');
-  assert.match(sql, /FUNCTION public\\.admin_set_seconds_policy_v1/i);
+  assert.ok(sql.includes('FUNCTION private.admin_set_seconds_policy_v1'));
+  assert.ok(sql.includes('FUNCTION public.admin_set_seconds_policy_v1'));
   assert.match(sql, /seconds_policy\\.manage/i);
-  assert.match(sql, /p_payout_bps < 8500/i);
+  assert.ok(sql.includes('p_payout_bps < 8500'));
   assert.doesNotMatch(sql, /p_payout_bps > 10000/i);
-  assert.match(sql, /UPDATE public\\.seconds_contract_policy_active/i);
-  assert.match(sql, /INSERT INTO public\\.seconds_contract_policy_audit/i);
-  assert.match(sql, /seconds_policy_request_idempotency/i);
-  assert.match(sql, /stale seconds policy version/i);
+  assert.ok(sql.includes('UPDATE public.seconds_contract_policy_active'));
+  assert.ok(sql.includes('INSERT INTO public.seconds_contract_policy_audit'));
+  assert.ok(sql.includes('seconds_policy_request_idempotency'));
+  assert.ok(sql.includes('stale seconds policy version'));
+  assert.ok(sql.includes('max_open_positions_per_user'));
 });
 
 test('seconds policy RBAC design requires a validated Supabase subject and server-side permission lookup', () => {
