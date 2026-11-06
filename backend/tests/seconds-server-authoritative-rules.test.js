@@ -7,7 +7,7 @@ const path = require('node:path');
 const root = path.resolve(__dirname, '..');
 const api = fs.readFileSync(path.join(root, 'api-core.js'), 'utf8');
 const initialMigration = fs.readFileSync(path.join(root, 'supabase/sql/0014_financial_seconds_contracts_v1.sql'), 'utf8');
-const oneOpenMigration = fs.readFileSync(path.join(root, 'supabase/sql/0015_financial_seconds_one_open_position_v1.sql'), 'utf8');
+const policyMigration = fs.readFileSync(path.join(root, 'supabase/sql/0025_seconds_policy_versioning_v1.sql'), 'utf8');
 const settlementMigration = fs.readFileSync(path.join(root, 'supabase/sql/0024_seconds_settlement_idempotency_v1.sql'), 'utf8');
 
 test('seconds order boundaries are enforced by the server, not accepted from client policy fields', () => {
@@ -26,7 +26,7 @@ test('seconds order boundaries are enforced by the server, not accepted from cli
 });
 
 test('database RPC independently constrains contract symbol, direction, duration and positive stake', () => {
-  for (const sql of [initialMigration, oneOpenMigration]) {
+  for (const sql of [initialMigration, policyMigration]) {
     assert.match(sql, /p_symbol NOT IN \('BTC','ETH','SOL','BNB'\)/i);
     assert.match(sql, /p_direction NOT IN \('up','down'\)/i);
     assert.match(sql, /p_duration_sec NOT IN \(30,60,300,900\)/i);
