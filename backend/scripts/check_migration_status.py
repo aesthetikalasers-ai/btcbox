@@ -17,7 +17,8 @@ from pathlib import Path
 SQL_DIR = Path(__file__).resolve().parent.parent / "supabase" / "sql"
 MIGRATION_RE = re.compile(r"^(\d{4})_.+\.sql$")
 LEDGER_VERSION_RE = re.compile(r"^\d{4}$")
-RETIRED_SEQUENCE_NUMBERS = {15}  # Retired single-open-position restriction; intentionally not a current migration.
+# 0015 was deliberately retired with the obsolete one-open-position restriction.
+RETIRED_SEQUENCE_NUMBERS = {15}
 
 
 def expected_migrations():
@@ -50,7 +51,10 @@ def validate_expected(expected):
         if duplicates:
             print(f"[FAIL] Duplicate sequence numbers: {duplicates}", file=sys.stderr)
         return 2
-    print("[OK] Local migration filename sequence is continuous.")
+    retired = sorted(number for number in RETIRED_SEQUENCE_NUMBERS if numbers[0] <= number <= numbers[-1] and number not in numbers)
+    if retired:
+        print(f"[INFO] Retired sequence numbers intentionally omitted: {retired}")
+    print("[OK] Local migration filename sequence is valid.")
     return 0
 
 
