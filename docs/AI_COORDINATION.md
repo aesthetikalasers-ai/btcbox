@@ -3069,3 +3069,15 @@ The prior withdrawal UI audit statement claiming the active BTCBOX admin route w
 - TEST OBSERVED on preceding code head `7701a532b4d7c525b9a3f1e2754f7c6cbca7708c`: frontend CI run 379 passed lint/build; PostgreSQL schema CI run 76 passed. Backend CI run 515 failed only because the pre-existing `kyc-flow.test.js` asserted the old text-only call signature; that assertion was updated in `e161a8077014ff959de47c7fedbda6e23f34c6f4`. CI for the corrected exact head is NOT YET VERIFIED.
 - NOT VERIFIED: hosted private bucket creation/configuration, real Storage upload and signed download, browser E2E, image retention/deletion policy, and production use. Do not upload real identity documents during QA.
 - No hosted Supabase write/configuration, financial operation, merge to `main`, or production deployment was performed.
+
+## KYC evidence batch — exact-head CI passed — 2026-11-06 UTC
+
+- Corrected the existing KYC flow test contract to require the image payload. The resulting exact consolidated PR #50 head is `e161a8077014ff959de47c7fedbda6e23f34c6f4` (147 commits ahead / 0 behind `main` `fa4513701af75b4c4cb39d60a3df08f07d632af4`).
+- TEST PASSED on that exact SHA:
+  - Backend CI run 517: unified build, **322/322 tests**, fail-closed preflight and output/entrypoint checks passed.
+  - Frontend CI run 381: lint, TypeScript compilation and Vite production build passed.
+  - PostgreSQL schema CI run 78: all 22 canonical SQL files applied to disposable PostgreSQL 16; RLS/grants and financial lifecycle assertions passed; integration transaction ended with `ROLLBACK`.
+- PR #50 body was refreshed with the exact current head, included KYC evidence scope, exact CI evidence and remaining release gates. PR remains Draft, open and unmerged.
+- The KYC Storage prerequisite remains manual and NOT VERIFIED: private bucket `kyc-documents`, 512 KiB max, JPEG/PNG/WebP only, no public/customer policies. No hosted bucket or database setting was changed.
+- Still NOT VERIFIED: hosted Supabase/Auth bootstrap, real Storage upload/signed-preview, browser E2E, KYC retention/deletion policy, live market provider connectivity, real network deposit/payout and production release.
+- No merge to `main`, hosted database write, financial operation or production deployment was performed.
