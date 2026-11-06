@@ -2217,7 +2217,7 @@ async function handleRequest(event, context) {
         Array.isArray(policy.symbols) && policy.symbols.length > 0 && policy.symbols.every((symbol) => SECONDS_ALLOWED_SYMBOLS.has(symbol)) &&
         Array.isArray(policy.durations_sec) && policy.durations_sec.length > 0 && policy.durations_sec.every((duration) => SECONDS_ALLOWED_DURATIONS.has(Number(duration))) &&
         compareMoney(policy.min_stake, '0') > 0 && compareMoney(policy.max_stake, policy.min_stake) >= 0 &&
-        Number.isInteger(Number(policy.payout_bps)) && Number(policy.payout_bps) >= 8500 && Number(policy.payout_bps) <= 10000 &&
+        Number.isInteger(Number(policy.payout_bps)) && Number(policy.payout_bps) >= 8500 && 
         (policy.per_user_open_exposure == null || compareMoney(policy.per_user_open_exposure, '0') > 0);
       if (!rpc.ok || !result || result.ok !== true || !validPolicy) {
         return json({ ok: false, code: 'SECONDS_POLICY_UNAVAILABLE', msg: 'Short-term contract policy is not configured or is invalid.' }, 503);
