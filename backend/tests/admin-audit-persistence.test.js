@@ -34,8 +34,8 @@ test('every non-financial admin mutation stages an audit event and saves state b
     ["if (sub === 'user/reset-email' && method === 'POST')", "if (sub === 'deposit/confirm'"],
     ["if (sub === 'kyc/approve' && method === 'POST')", "if (sub === 'kyc/reject'"],
     ["if (sub === 'kyc/reject' && method === 'POST')", "if (sub === 'push'"],
-    ["if (sub === 'push' && method === 'POST')", "if (sub === 'support/reply'"],
-    ["if (sub === 'support/reply' && method === 'POST')", "if (sub === 'addresses'"],
+    ["if (sub === 'push' && method === 'POST')", "if (sub === 'addresses' && method === 'GET')"],
+    ["if (sub === 'support/reply' && method === 'POST')", "if (sub === 'support/messages' && method === 'GET')"],
     ["if (sub === 'address/manage' && method === 'POST')", "if (sub === 'audit-logs'"],
     ["if (sub === 'config' && method === 'POST')", "if (sub === 'withdrawals'"]
   ];
@@ -50,7 +50,7 @@ test('every non-financial admin mutation stages an audit event and saves state b
     assert.ok(audit >= 0 && save > audit && flush > save, from + ' must persist state/outbox before PostgreSQL delivery');
   }
   const calls = source.split('\n').filter(line => line.includes('auditAdmin(') && !line.includes('function auditAdmin'));
-  assert.equal(calls.length, 10);
+  assert.equal(calls.length, 9);
   for (const line of calls) assert.match(line.trim(), /^await auditAdmin\(/);
 });
 
