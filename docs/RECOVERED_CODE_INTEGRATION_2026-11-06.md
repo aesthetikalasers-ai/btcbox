@@ -97,13 +97,13 @@ The following source code has now been copied or reconciled into this target bra
 - The PR is mergeable at the last check, but it is intentionally draft and must not be merged yet.
 - GitHub Actions backend and frontend workflows were triggered and were still running at the last check.
 - Vercel reported `build-rate-limit`; this is a platform rate limit, not a passing or failing source test.
-- No local build, PostgreSQL migration execution or browser QA has been performed in this recovery session.
+- GitHub Actions passed at earlier integration snapshots: frontend TypeScript/Vite build and backend unified build passed; Node regression suite passed 281/281 at SHA `84f11a11bff5e45a4bb6049b5177bad2f41dcdcf`. Newer admin-console/auth changes require another CI pass. No PostgreSQL migration execution or browser QA has been performed in this recovery session.
 
 ## Important unfinished integration work
 
-- The admin API still authenticates with the legacy Basic Auth middleware. The Supabase Auth verifier and RBAC helpers/schema have been recovered but are not wired into the admin request path. Do not call the independent admin identity system complete.
-- The modern React admin console and the user-facing withdrawal request form remain unfinished. The restored withdrawal page is read-only; the backend submission path remains fail-closed until the ledger cutover is verified.
+- The admin API now verifies Supabase Auth bearer tokens, loads an active membership through the service-only RPC wrapper, and checks route-specific permissions. The legacy admin entry now uses Supabase email/Google sign-in and skips customer-account exchange on the admin path. The new React `/admin` console includes overview, users/manual credit, deposit-address configuration, withdrawals/manual payout, KYC, audit, orders and support tabs.
+- The React withdrawal request form now selects a saved address, derives asset/network from that address, requires fund password and 2FA when enabled, and uses a stable request ID for uncertain retries. The server exposes a fail-closed `actions_enabled` flag; the form remains disabled until the financial ledger cutover is enabled. There is not yet a customer address-book creation form or administrator membership-management UI.
 - The spot order-entry page remains a scaffold; the Seconds customer page is read-only and does not submit or settle positions.
 - The new 0027 migration has not been applied or executed in PostgreSQL. The full 0001–0027 chain must be run in an isolated database; production remains untouched.
-- The manual deposit confirmation endpoint remains gated by the financial cutover flags. The user-facing deposit page only reads configured addresses; it does not create a pending deposit order.
+- The manual deposit confirmation endpoint remains gated by the financial cutover flags. Both the React admin console and the legacy admin entry now expose per-user, per-asset manual credit; UID and asset are bound by the selected user and asset row. The user-facing deposit page only reads configured addresses; it does not create a pending deposit order.
 - `frontend/vendor/strata-pro` and `frontend/vendor/shadcn-fintech` are Git submodule pins to full upstream repositories, not vendored copies inside the BTCBOX runtime. Their design language has been adapted into BTCBOX components, but upstream app pages have not all been copied into the runtime.
