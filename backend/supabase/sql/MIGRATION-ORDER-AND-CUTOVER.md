@@ -2,7 +2,7 @@
 
 > **Current setup decision:** the BTCBOX database is treated as a new empty database with no customer records. Do not import legacy balances, run staging/quarantine workflows, or perform a historical data migration. Use `backend/scripts/bootstrap-empty-database.sh` for the one-time fresh-schema install. It requires explicit confirmation, refuses an existing BTCBOX schema, and runs only the canonical operational SQL list. It does not write to a database during source validation.
 
-> **Excluded from the fresh operational setup:** `0016` automated chain verification (the product uses staff-verified manual credit), `0017`–`0019` legacy staging/import/reconciliation, and `0020` read-only ledger diagnostics. The manual deposit path is `admin_manual_deposit_atomic`; no user-created pending deposit or automatic chain watcher is part of this workflow.
+> **Excluded from the fresh operational setup:** `0016`–`0019` obsolete chain-verification and legacy staging/import SQL have been deleted; the read-only `0020` ledger diagnostic has been moved to `backend/supabase/diagnostics/financial-ledger-integrity.sql`. The manual deposit path is `admin_manual_deposit_atomic`; no user-created pending deposit or automatic chain watcher is part of this workflow.
 
 > **编号约定（phase2）**: 本目录下迁移已统一重命名为 `0001_xxx.sql` … `0022_xxx.sql`，按编号升序应用即可。`0001_btcbox_state_cas.sql` 为基础，`0002–0014` 为有序业务 RPC；旧 `0015` 单用户单未完成订单限制已废弃，`0016` 为可选自动化链上验证，`0017–0020` 为 staging/对账，`0021` 为管理员审计日志 append-only 表，`0022` 为提现人工审核状态扩展。用 `scripts/check_migration_status.py` 校验编号连续性与已应用状态。
 
@@ -25,7 +25,7 @@ Apply these migrations to a dedicated staging project in dependency order. These
 
 The lifecycle `confirm_deposit_atomic` RPC is intentionally fail-closed and cannot credit a deposit without trusted verification. The intended deposit-credit path for the current manual-review business model is the separately audited `admin_manual_deposit_atomic` RPC; manual credits must use the separately audited `admin_manual_deposit_atomic` RPC. The `financial_deposit_chain_verification_v3.sql` is optional when the deployment does not enable automated chain verification, but it is required before enabling that automated verification path.
 
-The `financial_migration_staging_v5.sql` quarantine table and the `financial_migration_staging_reconciliation_v6.sql`, `financial_migration_reconciliation_v4.sql`, and `financial_ledger_reconciliation_v1.sql` files are staging/import or read-only reconciliation steps, not part of the ordered operational RPC sequence above. Run them only in the documented staging workflow.
+Legacy staging/import SQL has been removed because this project has no customer data to import. The read-only ledger integrity query is retained separately at `backend/supabase/diagnostics/financial-ledger-integrity.sql` and is never part of the bootstrap.
 
 Before cutover:
 
