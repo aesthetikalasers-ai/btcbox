@@ -11,7 +11,7 @@ const Dashboard = lazy(() => import("./features/dashboard/Dashboard").then((m) =
 const TradeHubPage = lazy(() => import("./features/pages/Pages").then((m) => ({ default: m.TradeHubPage })));
 const AssetsPage = lazy(() => import("./features/pages/Pages").then((m) => ({ default: m.AssetsPage })));
 const MyPage = lazy(() => import("./features/pages/Pages").then((m) => ({ default: m.MyPage })));
-const SectionPage = lazy(() => import("./features/pages/Pages").then((m) => ({ default: m.SectionPage })));
+const SectionPage = lazy(() => import("./features/pages/Pages").then((m) => ({ default: m.SectionPage })));\nconst OrdersPage = lazy(() => import("./features/pages/Pages").then((m) => ({ default: m.OrdersPage })));
 const SecondsPage = lazy(() => import("./features/pages/Pages").then((m) => ({ default: m.SecondsPage })));
 
 function ProtectedAccountRoute({ children }: { children: ReactNode }) { const { status } = useAuth(); if (status === "loading") return <RouteLoading />; if (status !== "authenticated") return <Navigate to="/login" replace />; return <>{children}</>; }
@@ -36,7 +36,7 @@ export default function App() {
     <Route path="/trade/:symbol" element={<SectionPage title="Spot trading" description="The BTCBOX order-entry interface will connect to the existing spot order API after its request and response contract is verified." />} />
     <Route path="/seconds" element={<ProtectedAccountRoute><SecondsPage /></ProtectedAccountRoute>} />
     <Route path="/assets" element={<ProtectedAccountRoute><AssetsPage /></ProtectedAccountRoute>} /><Route path="/me" element={<MyPage />} />
-    <Route path="/orders" element={<SectionPage title="Orders" description="Order history will load from the authenticated BTCBOX account API. No sample order records are displayed." />} />
+    <Route path="/orders" element={<ProtectedAccountRoute><OrdersPage /></ProtectedAccountRoute>} />
     <Route path="/deposit" element={<SectionPage title="Deposit" description="Deposit address selection and pending-deposit workflow are not connected in this frontend preview." />} />
     <Route path="/withdraw" element={<SectionPage title="Withdraw" description="Withdrawal review and confirmation will use the existing backend contract; no transaction can be submitted from this preview." />} />
     <Route path="/earn" element={<SectionPage title="Earn" description="Earn products and redemption actions will be connected to the existing backend after API contract verification." />} />
