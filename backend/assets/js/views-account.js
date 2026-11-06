@@ -709,6 +709,40 @@ VIEWS.admin.afterRender = function(){
       var configForm=$('#admin-config-form');if(configForm)configForm.onsubmit=function(event){event.preventDefault();saveAdminConfig($('#admin-config-save'));};
       return;
     }
+    async function showAccountPanel(accountUid,account){
+      var panel=$('#admin-user-account-panel');
+      if(!panel)return;
+      var balances=account.balances&&typeof account.balances==='object'?account.balances:{};
+      var assets=['USDT','BTC','ETH','SOL','BNB','USDC'];
+      panel.innerHTML='<div class="va-card"><div class="va-card-head"><div><div class="va-card-title">用户账户资产</div><div style="font-size:12px;color:var(--text-muted);margin-top:4px">'+escapeHtml(account.email||'')+' · UID '+escapeHtml(accountUid)+'</div></div><button type="button" class="au-account-close" style="background:none;border:0;color:var(--text-secondary);cursor:pointer">收起</button></div><div class="va-card-body"><div class="va-info" style="margin-bottom:14px">先核实该币种、该网络的实际到账，再从对应资产行人工上分。用户 UID 和币种由当前用户与资产行自动绑定，无需手动填写，也不会创建待审核充值订单。</div>'+
+        assets.map(function(coin){
+          var b=balances[coin]||{free:0,frozen:0};
+          var free=Number(b.free||0),frozen=Number(b.frozen||0);
+          return '<div class="va-card" style="padding:12px;margin:10px 0"><div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap"><div><b>'+coin+'</b><div style="font-size:12px;color:var(--text-muted);margin-top:4px">可用 '+fmt(free,coin==='USDT'||coin==='USDC'?2:8)+' · 冻结 '+fmt(frozen,coin==='USDT'||coin==='USDC'?2:8)+'</div></div><button type="button" class="au-credit-open btn btn-primary" data-coin="'+coin+'" style="padding:8px 12px">人工上分</button></div><form class="au-credit-form" data-coin="'+coin+'" style="display:none;margin-top:12px" autocomplete="off"><div class="va-field"><label class="auth-label">实际到账金额 ('+coin+')</label><input class="auth-input au-credit-amount" type="text" inputmode="decimal" maxlength="40" required placeholder="输入核实到账金额"></div><div class="va-field"><label class="auth-label">TxID / 转账参考号（可选）</label><input class="auth-input au-credit-reference" maxlength="160" placeholder="交易哈希或转账参考号"></div><div class="va-field"><label class="auth-label">备注（可选）</label><input class="auth-input au-credit-note" maxlength="300" placeholder="人工核对说明"></div><button type="submit" class="btn btn-primary" style="padding:10px 16px">确认给此用户上分</button></form></div>';
+        }).join('')+'</div></div>';
+      $('.au-account-close').forEach(function(b){b.onclick=function(){panel.innerHTML='';};});
+      $('.au-credit-open').forEach(function(b){b.onclick=function(){var form=b.closest('.va-card').querySelector('.au-credit-form');if(form)form.style.display=form.style.display==='none'?'block':'none';};});
+      $('.au-credit-form').forEach(function(form){form.onsubmit=async function(event){
+        event.preventDefault();
+        var coin=form.dataset.coin;
+        var amountText=String(form.querySelector('.au-credit-amount').value||'').trim();
+        var reference=String(form.querySelector('.au-credit-reference').value||'').trim();
+        var note=String(form.querySelector('.au-credit-note').value||'').trim();
+        if(!/^(?:0|[1-9]\d*)(?:\.\d{1,18})?$/.test(amountText)||Number(amountText)<=0){toast('请输入有效的实际到账金额。','err');return;}
+        var requestKey=form.dataset.requestId||(form.dataset.requestId=uid());
+        var confirmed=await confirmAdminAction('确认人工上分','<b>用户：</b>'+escapeHtml(account.email||accountUid)+'<br><b>UID：</b>'+escapeHtml(accountUid)+'<br><b>币种：</b>'+escapeHtml(coin)+'<br><b>到账金额：</b>'+escapeHtml(amountText)+'<br><b>交易参考：</b>'+escapeHtml(reference||'—')+'<br><b>备注：</b>'+escapeHtml(note||'—')+'<br><br>请确认已核实实际到账。');
+        if(!confirmed)return;
+        var button=form.querySelector('button[type="submit"]');
+        await runAdminAction(button,()=>apiAdapter.adminConfirmDeposit({uid:accountUid,coin:coin,amount:amountText,reference:reference,note:note,idempotency_key:requestKey}),'已人工上分');
+        if(button.textContent==='已人工上分'){
+          var refreshed=await apiAdapter.adminUser(accountUid);
+          if(refreshed&&refreshed.ok&&refreshed.user)await showAccountPanel(accountUid,refreshed.user);
+          var list=await apiAdapter.adminUsers();
+          if(list&&list.ok&&Array.isArray(list.users)){state.admin.users=list.users;render('users',true);}
+        }
+      };});
+    }
+
     if(tab==='audit'){
       var auditLogs=state.admin.auditLogs||[];
       var rows=auditLogs.map(function(entry){
@@ -730,9 +764,11 @@ VIEWS.admin.afterRender = function(){
       if(!state.admin.users||!state.admin.users.length){$('#admin-body').innerHTML=emptyState('暂无用户数据','服务器当前没有返回用户记录。');return;}
       $('#admin-body').innerHTML='<table style="width:100%;border-collapse:collapse;min-width:640px"><thead><tr><th class="th">UID</th><th class="th">邮箱</th><th class="th">KYC</th><th class="th">状态</th><th class="th" style="text-align:right">余额 (USDT)</th><th class="th">操作</th></tr></thead><tbody>'+
         state.admin.users.map(function(u){
-          return '<tr class="trow"><td class="td num" style="font-size:12px">'+escapeHtml(u.uid)+'</td><td class="td">'+escapeHtml(u.email)+'</td><td class="td" style="text-transform:capitalize;color:'+(u.kyc==='verified'?'var(--up)':u.kyc==='pending'?'var(--warning)':'var(--text-muted)')+'">'+escapeHtml(u.kyc)+'</td><td class="td">'+(u.frozen?'<span style="color:var(--down);font-weight:600">已冻结</span>':'<span style="color:var(--up)">正常</span>')+'</td><td class="td num" style="text-align:right">'+fmt(u.balances.USDT,2)+'</td><td class="td"><button class="au-freeze" data-uid="'+escapeHtml(u.uid)+'" data-f="'+(u.frozen?0:1)+'" style="color:'+(u.frozen?'var(--up)':'var(--down)')+';font-size:12px;font-weight:600;margin-right:10px;background:none;border:none;cursor:pointer">'+(u.frozen?'解冻':'冻结')+'</button></td></tr>';
+          return '<tr class="trow"><td class="td num" style="font-size:12px">'+escapeHtml(u.uid)+'</td><td class="td">'+escapeHtml(u.email)+'</td><td class="td" style="text-transform:capitalize;color:'+(u.kyc==='verified'?'var(--up)':u.kyc==='pending'?'var(--warning)':'var(--text-muted)')+'">'+escapeHtml(u.kyc)+'</td><td class="td">'+(u.frozen?'<span style="color:var(--down);font-weight:600">已冻结</span>':'<span style="color:var(--up)">正常</span>')+'</td><td class="td num" style="text-align:right">'+fmt(u.balances.USDT,2)+'</td><td class="td"><button class="au-account" data-uid="'+escapeHtml(u.uid)+'" style="color:var(--brand-bright);font-size:12px;font-weight:600;margin-right:10px;background:none;border:none;cursor:pointer">账户资产 / 人工上分</button><button class="au-freeze" data-uid="'+escapeHtml(u.uid)+'" data-f="'+(u.frozen?0:1)+'" style="color:'+(u.frozen?'var(--up)':'var(--down)')+';font-size:12px;font-weight:600;margin-right:10px;background:none;border:none;cursor:pointer">'+(u.frozen?'解冻':'冻结')+'</button></td></tr>';
         }).join('')+'</tbody></table>';
-      $$('.au-freeze').forEach(function(b){b.onclick=async function(){
+      $('#admin-body').insertAdjacentHTML('beforeend','<div id="admin-user-account-panel" style="padding:12px"></div>');
+      $('.au-account').forEach(function(b){b.onclick=async function(){var panel=$('#admin-user-account-panel');if(panel)panel.innerHTML='<div class="va-info">正在读取该用户资产…</div>';var result=await apiAdapter.adminUser(b.dataset.uid);if(!result||!result.ok||!result.user){if(panel)panel.innerHTML=emptyState('账户资产暂时不可用',(result&&(result.msg||result.error))||'请检查管理员权限和财务数据连接。');return;}await showAccountPanel(b.dataset.uid,result.user);};});
+      $('.au-freeze').forEach(function(b){b.onclick=async function(){
         var freeze=b.dataset.f==='1';
         var ok=await confirmAdminAction(freeze?'确认冻结用户':'确认解冻用户','<b>用户 UID：</b>'+escapeHtml(b.dataset.uid)+'<br><b>操作：</b>'+(freeze?'冻结账户（禁止登录与交易）':'解冻账户（恢复正常）'));
         if(!ok)return;
