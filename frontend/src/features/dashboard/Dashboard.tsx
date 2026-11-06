@@ -24,19 +24,25 @@ export function Dashboard() {
 
   useEffect(() => {
     const controller = new AbortController();
+    let refreshing = false;
     const loadMarkets = () => {
+      if (refreshing || controller.signal.aborted) return;
+      refreshing = true;
       getMarkets(controller.signal).then((rows) => {
+        if (controller.signal.aborted) return;
         setMarkets(rows);
         setError("");
       }).catch((reason: unknown) => {
         if (reason instanceof Error && reason.name === "AbortError") return;
+        // Keep the last confirmed rows visible while the provider is unavailable.
         setError(reason instanceof Error ? reason.message : "Market data is unavailable.");
       }).finally(() => {
+        refreshing = false;
         if (!controller.signal.aborted) setLoading(false);
       });
     };
     loadMarkets();
-    const refreshId = window.setInterval(loadMarkets, 30000);
+    const refreshId = window.setInterval(loadMarkets, 15000);
     return () => { window.clearInterval(refreshId); controller.abort(); };
   }, []);
 
