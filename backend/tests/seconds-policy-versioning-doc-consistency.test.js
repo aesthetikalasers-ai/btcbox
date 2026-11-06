@@ -6,6 +6,7 @@ const path = require('node:path');
 
 const root = path.resolve(__dirname, '..');
 const migration = fs.readFileSync(path.join(root, 'supabase/sql/0025_seconds_policy_versioning_v1.sql'), 'utf8');
+const durationAlignment = fs.readFileSync(path.join(root, 'supabase/sql/0031_seconds_policy_duration_alignment_v1.sql'), 'utf8');
 const rbacSql = fs.readFileSync(path.join(root, 'supabase/sql/0026_admin_rbac_private_store_v1.sql'), 'utf8');
 const policyRpc = fs.readFileSync(path.join(root, 'supabase/sql/0028_admin_rbac_service_rpc_wrappers_v1.sql'), 'utf8');
 const spec = fs.readFileSync(path.resolve(root, '../docs/SECONDS_POLICY_VERSIONING.md'), 'utf8');
@@ -16,6 +17,12 @@ test('policy documentation accurately separates source implementation from hoste
   assert.match(spec, /hosted database application and runtime PostgreSQL verification are NOT VERIFIED/i);
   assert.match(spec, /0028_admin_rbac_service_rpc_wrappers_v1\.sql/);
   assert.match(spec, /Separate draft\/review\/scheduled activation\/retirement endpoints are not implemented/i);
+});
+
+test('active policy durations are not contradicted by the base position constraint', () => {
+  assert.match(durationAlignment, /DROP CONSTRAINT IF EXISTS seconds_contract_positions_duration_sec_check/i);
+  assert.match(durationAlignment, /CHECK \(duration_sec > 0\)/i);
+  assert.match(spec, /0031_seconds_policy_duration_alignment_v1\.sql/);
 });
 
 test('policy migration creates immutable versions and snapshots payout terms on positions', () => {
