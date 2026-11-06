@@ -5,7 +5,7 @@ import { I18nProvider } from "./lib/i18n";
 
 const Dashboard = lazy(() => import("./features/dashboard/Dashboard").then((m) => ({ default: m.Dashboard })));
 const TradeHubPage = lazy(() => import("./features/pages/Pages").then((m) => ({ default: m.TradeHubPage })));
-const AssetsPage = lazy(() => import("./features/pages/Pages").then((m) => ({ default: m.AssetsPage })));
+const AssetsPage = lazy(() => import("./features/assets/AssetsPage").then((m) => ({ default: m.AssetsPage })));
 const MyPage = lazy(() => import("./features/pages/Pages").then((m) => ({ default: m.MyPage })));
 const SectionPage = lazy(() => import("./features/pages/Pages").then((m) => ({ default: m.SectionPage })));
 const OrdersPage = lazy(() => import("./features/orders/OrdersPage").then((m) => ({ default: m.OrdersPage })));
