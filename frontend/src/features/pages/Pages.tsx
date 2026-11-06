@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 import { useEffect, useState, type FormEvent } from "react";
 import { RefreshCw, TrendingUp, TrendingDown, Clock3, ShieldAlert, Send, MessageCircle } from "lucide-react";
-import { getAccount, getOrders, getSecondsPositions, getSupportMessages, sendSupportMessage, type AccountBalance, type AccountSnapshot, type OrderRecord, type SecondsPositionsSnapshot, type SupportMessage } from "../../lib/api";
+import { getAccount, getOrders, getSecondsPositions, getSupportMessages, sendSupportMessage, getDepositAddress, getSavedCryptoAddresses, type SavedCryptoAddress, type AccountBalance, type AccountSnapshot, type OrderRecord, type SecondsPositionsSnapshot, type SupportMessage } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
 
 import type { ReactNode } from "react";
@@ -249,5 +249,68 @@ export function SupportPage(){
    <div className="flex flex-wrap items-center justify-between gap-3"><span className="text-xs text-brand-text-muted">{draft.length}/2000</span><Button type="submit" disabled={sending||!draft.trim()||draft.trim().length>2000}><Send className="mr-2 h-4 w-4"/>{sending?t("Sending…"):t("Send message")}</Button></div>
    {sendError?<p className="text-sm text-rose-300" role="alert">{sendError}</p>:null}
   </form></CardContent></Card>
+ </PageFrame>;
+}
+
+
+const depositNetworks:Record<string,string[]>={BTC:["BTC"],ETH:["ERC20"],USDT:["TRC20","ERC20","BEP20"],SOL:["SOL"],BNB:["BEP20"],USDC:["ERC20"]};
+export function DepositPage(){
+ const {t}=useI18n();
+ const [coin,setCoin]=useState("USDT");
+ const [network,setNetwork]=useState("TRC20");
+ const [address,setAddress]=useState("");
+ const [loading,setLoading]=useState(false);
+ const [error,setError]=useState("");
+ const [reload,setReload]=useState(0);
+ useEffect(()=>{
+  const controller=new AbortController();
+  setAddress("");setError("");setLoading(true);
+  getDepositAddress(coin,network,controller.signal).then(setAddress).catch(reason=>{
+   if(reason instanceof Error&&reason.name==="AbortError")return;
+   setError(reason instanceof Error?reason.message:"Deposit address is unavailable.");
+  }).finally(()=>{if(!controller.signal.aborted)setLoading(false);});
+  return ()=>controller.abort();
+ },[coin,network,reload]);
+ const changeCoin=(next:string)=>{setCoin(next);setNetwork(depositNetworks[next][0]);};
+ return <PageFrame eyebrow="BTCBOX / WALLET" title="Deposit" description="View the deposit address configured by BTCBOX for the selected asset and network. Deposits are credited only after on-chain confirmation.">
+  <Card className="border-brand-border bg-brand-surface"><CardHeader><CardTitle>{t("Deposit address")}</CardTitle><CardDescription>{t("Always verify the asset and network before sending funds.")}</CardDescription></CardHeader><CardContent className="space-y-4">
+   <div className="grid gap-3 sm:grid-cols-2"><label className="space-y-1.5 text-sm"><span className="text-brand-text-muted">{t("Asset")}</span><select value={coin} onChange={e=>changeCoin(e.target.value)} className="w-full rounded-xl border border-brand-border bg-brand-surface-2 p-3 text-brand-text">{Object.keys(depositNetworks).map(x=><option key={x}>{x}</option>)}</select></label><label className="space-y-1.5 text-sm"><span className="text-brand-text-muted">{t("Network")}</span><select value={network} onChange={e=>setNetwork(e.target.value)} className="w-full rounded-xl border border-brand-border bg-brand-surface-2 p-3 text-brand-text">{depositNetworks[coin].map(x=><option key={x}>{x}</option>)}</select></label></div>
+   {loading?<p className="rounded-xl border border-brand-border p-4 text-sm text-brand-text-muted" role="status">{t("Loading configured deposit address…")}</p>
+   :error?<div className="rounded-xl border border-amber-400/30 p-4"><p className="text-sm text-amber-200" role="alert">{error}</p><Button className="mt-3" size="sm" variant="outline" onClick={()=>setReload(n=>n+1)}>{t("Try again")}</Button></div>
+   :<div className="space-y-2"><p className="text-xs font-semibold uppercase tracking-wide text-brand-text-muted">{coin} · {network}</p><div className="break-all rounded-xl border border-brand-border bg-brand-surface-2 p-4 font-mono text-sm">{address}</div><Button variant="outline" size="sm" onClick={()=>navigator.clipboard?.writeText(address)}>{t("Copy address")}</Button></div>}
+   <div className="rounded-xl border border-amber-400/20 bg-amber-400/5 p-4 text-sm text-brand-text-secondary"><p className="font-semibold text-amber-200">{t("Important")}</p><p className="mt-1">{t("Send only the selected asset on the selected network. Sending unsupported assets or using another network may result in permanent loss. Do not submit a manual deposit amount; account credit requires verified blockchain confirmation.")}</p></div>
+  </CardContent></Card>
+ </PageFrame>;
+}
+
+export function WithdrawPage(){
+ const {t}=useI18n();
+ const [account,setAccount]=useState<AccountSnapshot|null>(null);
+ const [addresses,setAddresses]=useState<SavedCryptoAddress[]>([]);
+ const [loading,setLoading]=useState(true);
+ const [error,setError]=useState("");
+ const [reload,setReload]=useState(0);
+ useEffect(()=>{
+  const controller=new AbortController();
+  setLoading(true);setError("");
+  Promise.all([getAccount(controller.signal),getSavedCryptoAddresses(controller.signal)]).then(([snapshot,book])=>{setAccount(snapshot);setAddresses(book);}).catch(reason=>{
+   if(reason instanceof Error&&reason.name==="AbortError")return;
+   setError(reason instanceof Error?reason.message:"Wallet data is temporarily unavailable.");
+  }).finally(()=>{if(!controller.signal.aborted)setLoading(false);});
+  return ()=>controller.abort();
+ },[reload]);
+ return <PageFrame eyebrow="BTCBOX / WALLET" title="Withdraw" description="Review your available assets and saved withdrawal addresses. Withdrawal submission remains disabled until the financial ledger cutover is approved and verified.">
+  {loading?<Card className="border-brand-border bg-brand-surface"><CardContent className="p-5 text-sm text-brand-text-muted" role="status">{t("Loading wallet and saved addresses…")}</CardContent></Card>
+  :error?<Card className="border-rose-500/30 bg-brand-surface"><CardContent className="flex flex-wrap items-center justify-between gap-3 p-5"><p className="text-sm text-rose-300" role="alert">{error}</p><Button size="sm" variant="outline" onClick={()=>setReload(n=>n+1)}>{t("Try again")}</Button></CardContent></Card>
+  :<>
+   <Card className="border-brand-border bg-brand-surface"><CardHeader><CardTitle>{t("Available balances")}</CardTitle><CardDescription>{account?.valuation_complete?t("Estimated total value"):t("Some asset prices are unavailable; total valuation is incomplete.")}</CardDescription></CardHeader><CardContent className="space-y-2">
+    {Object.entries(account?.balances||{}).map(([asset,balance])=><div key={asset} className="flex items-center justify-between gap-3 rounded-lg border border-brand-border p-3"><span className="font-semibold">{asset}</span><div className="text-right text-sm"><p>{String(balance.free??"0")} {asset}</p><p className="text-xs text-brand-text-muted">{t("Frozen")}: {String(balance.frozen??"0")}</p></div></div>)}
+   </CardContent></Card>
+   <Card className="border-brand-border bg-brand-surface"><CardHeader><CardTitle>{t("Saved crypto addresses")}</CardTitle><CardDescription>{t("Full addresses are not exposed in this list. Contact support to change or unblock an address.")}</CardDescription></CardHeader><CardContent className="space-y-2">
+    {addresses.length?addresses.map(item=><div key={item.id} className="rounded-xl border border-brand-border p-3"><div className="flex flex-wrap items-center justify-between gap-2"><span className="font-semibold">{item.coin} · {item.network}</span><Badge variant={item.blocked||item.unbound?"destructive":"outline"}>{item.blocked?"Blocked":item.unbound?"Unbound":"Saved"}</Badge></div><p className="mt-2 break-all font-mono text-sm text-brand-text-muted">{item.address}</p>{item.note?<p className="mt-1 text-xs text-brand-text-muted">{item.note}</p>:null}</div>)
+    :<p className="rounded-xl border border-dashed border-brand-border p-5 text-sm text-brand-text-muted">{t("No saved crypto withdrawal addresses were found.")}</p>}
+   </CardContent></Card>
+  </>}
+  <Card className="border-amber-400/25 bg-brand-surface"><CardContent className="p-5"><Badge variant="outline" className="border-amber-400/30 text-amber-200">{t("Submission disabled")}</Badge><p className="mt-3 text-sm text-brand-text-secondary">{t("The backend currently rejects withdrawal requests while financial ledger cutover is incomplete. No funds can be withdrawn from this page. We have intentionally not exposed a submit action, so this page cannot accidentally create a financial request.")}</p><Button asChild className="mt-3" variant="outline" size="sm"><Link to="/support">{t("Contact support")}</Link></Button></CardContent></Card>
  </PageFrame>;
 }
