@@ -27,6 +27,17 @@ test('Admin Panel delegated membership mutations have a matching public PostgRES
   assert.ok(sql.includes("AS 'SELECT private.admin_manage_membership_v1($1,$2,$3,$4,$5,$6,$7,$8)';"));
 });
 
+test('public PostgREST bridges are SECURITY DEFINER functions with a fixed search path', () => {
+  for (const name of ['public.admin_list_memberships_v1', 'public.admin_manage_membership_v1']) {
+    const start = sql.indexOf('CREATE OR REPLACE FUNCTION ' + name);
+    const end = sql.indexOf('REVOKE ALL ON FUNCTION ' + name, start);
+    assert.ok(start >= 0 && end > start);
+    const definition = sql.slice(start, end);
+    assert.ok(definition.includes('SECURITY DEFINER'));
+    assert.ok(definition.includes('SET search_path = pg_catalog, private'));
+  }
+});
+
 test('delegated administrator bridges are executable only by the trusted backend role', () => {
   for (const signature of [
     'public.admin_list_memberships_v1(uuid)',
