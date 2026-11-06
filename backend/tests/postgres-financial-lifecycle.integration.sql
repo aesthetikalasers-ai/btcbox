@@ -364,9 +364,11 @@ BEGIN
   END IF;
   v_result := public.settle_seconds_position_v1(
     v_position_id,'seconds-user',v_settle_request_id,v_settle_hash,
-    'BTC',110,'coinbase',clock_timestamp()
+    'BTC',NULL,NULL,NULL
   );
-  IF v_result->>'duplicate'<>'true' THEN RAISE EXCEPTION 'Seconds settlement replay was not idempotent: %',v_result; END IF;
+  IF v_result->>'duplicate'<>'true' OR v_result->>'settled'<>'true' THEN
+    RAISE EXCEPTION 'Seconds settlement replay required a live quote after completion: %',v_result;
+  END IF;
   v_result := public.settle_seconds_position_v1(
     v_position_id,'seconds-user',v_settle_request_id,encode(extensions.digest('conflicting-settlement','sha256'),'hex'),
     'BTC',110,'coinbase',clock_timestamp()
