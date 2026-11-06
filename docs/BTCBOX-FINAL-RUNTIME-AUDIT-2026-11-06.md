@@ -49,6 +49,10 @@ Repository comparison shows `integration/btcbox-complete-final-v3-20261106` dive
 - Kept existing backend business logic untouched.
 - Kept the newer frontend runtime as the deployment target rather than deleting the legacy source immediately.
 
+## REPRODUCED — Vercel preview build
+
+The first preview build of this reconciliation branch failed before compilation because the frontend has no `frontend/package-lock.json`, while the deployment install command used `npm ci`. The failure was corrected by switching the Vercel install command to `npm --prefix frontend install`.
+
 ## NOT VERIFIED
 
 - Hosted Vercel deployment after this commit.
