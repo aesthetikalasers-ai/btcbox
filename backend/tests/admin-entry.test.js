@@ -58,10 +58,23 @@ test('dedicated /admin URL defaults to the admin route before SPA boot', () => {
   assert.ok(admin.includes('/assets/js/boot.js'));
 });
 
-test('admin route is reachable without a customer session but still uses Basic Auth APIs', () => {
-  assert.ok(app.includes("const GUEST_PUBLIC_ROUTES = new Set(['home','markets','trade','tradehub','kline','seconds','help','404','admin']);"));
-  assert.ok(app.includes("const HIDE_NAV = {login:true,register:true,kline:true,admin:true};"));
-  assert.ok(app.includes("if(isAdmin && state.adminAuth) headers['Authorization']='Basic '+state.adminAuth;"));
+test('React admin console uses verified Supabase identity and route permissions outside the customer shell', () => {
+  const reactApp = fs.readFileSync(path.join(root, '..', '..', 'frontend/src/App.tsx'), 'utf8');
+  const reactAdmin = fs.readFileSync(path.join(root, '..', '..', 'frontend/src/features/admin/AdminPage.tsx'), 'utf8');
+  const adminAuthModule = fs.readFileSync(path.join(root, 'admin-auth.js'), 'utf8');
+  assert.ok(reactApp.includes('<Route path="/admin" element={<AdminPage />} />'));
+  assert.ok(reactApp.includes('<Route path="/*" element={<CustomerRoutes />} />'));
+  assert.ok(reactAdmin.includes('getAdminSession'));
+  assert.ok(reactAdmin.includes('hasPermission'));
+  assert.ok(reactAdmin.includes('adminManualCredit'));
+  assert.ok(reactAdmin.includes('adminMarkWithdrawalPaid'));
+  assert.ok(apiCore.includes('authorizeSupabaseAdmin'));
+  assert.ok(apiCore.includes("sub === 'session' && method === 'GET'"));
+  assert.ok(apiCore.includes('ADMIN_PERMISSION_DENIED'));
+  assert.ok(adminAuthModule.includes('verifySupabaseAccessToken'));
+  assert.ok(adminAuthModule.includes('loadAdminMembership'));
+  assert.doesNotMatch(apiCore, /authHeader\.startsWith\('Basic '/);
+  assert.doesNotMatch(apiCore, /WWW-Authenticate: Basic realm="BTCBOX Admin"/);
 });
 
 
