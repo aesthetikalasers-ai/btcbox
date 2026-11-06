@@ -6083,3 +6083,27 @@ The prior withdrawal UI audit statement claiming the active BTCBOX admin route w
 - Current-state correction (2026-11-07): current unified-branch `AuthPages.tsx` is Google-only (email/password, username/password and wallet entry points are absent); earlier notes describing those controls are historical and superseded. The latest app-source commit is `84603e7150db06c6861e4667fb7a4c55f70f4f2d`, current branch HEAD at inspection is docs-only `b49b021ba1f4a22fc6896a9124409137e864e6d9`. Frontend CI `42311253408` on `84603e7` had install/lint/build green while Chromium setup and Playwright were still pending. Backend CI `42310916938` on `7d5ed8f` passed 401/401 backend tests and fail-closed preflight; no backend source changes followed that tested source commit.
 - Market timestamps: `snapshotTs` is server response snapshot time; `providerTs` is only supplied when the provider returns a normalized event time (Bybit fallback). Coinbase stats lack an exchange event timestamp, so do not represent server snapshot time as provider event time.
 - Admin manual credit re-audit passed source-contract checks for receipt reference, bounded decimal, stable idempotency request, permission gating, atomic audited RPC, and canonical history refresh. No production financial write was performed.
+
+## Authentication contract correction — 2026-11-07 (supersedes prior Google-only wording)
+
+The owner explicitly confirmed the required BTCBOX sign-in methods:
+- BTCBOX username + password login.
+- Google OAuth login.
+- Wallet login (Web3; currently implemented through Supabase Web3 identity for Ethereum and Solana).
+- No email registration, email/password login, or email OTP/recovery.
+
+Account creation is initiated through Google or wallet identity verification. A new identity without BTCBOX credentials is routed to Account Setup to choose a unique BTCBOX username and password; this does not create an email registration flow. Existing username/password accounts use the BTCBOX /api/login endpoint.
+
+Source observations:
+- frontend/src/lib/auth.tsx already had username login, Google OAuth, and Supabase Web3 sign-in functions; email sign-in/sign-up and email password-recovery functions have now been removed from the React auth provider.
+- frontend/src/features/auth/AuthPages.tsx now exposes username/password on login, Google OAuth, Ethereum wallet and Solana wallet entry points; registration exposes Google and wallet identity creation, then routes users who need credentials to Account Setup.
+- backend/api-core.js already implements BTCBOX username/password login using PBKDF2-HMAC-SHA256 (600,000 iterations), constant-time comparison, IP/username rate limits, frozen-account rejection, session issuance and optional 2FA.
+- The Supabase session exchange verifies the identity with /auth/v1/user, accepts only a single Google or Web3 provider, validates wallet chain/address, and rejects duplicate wallet ownership. Email identities are now rejected by the server-side provider allowlist.
+- backend/api/register remains disabled; this is intentional. Usernames/passwords are set after Google or wallet identity verification, not by email registration.
+- Regression coverage was updated in frontend/e2e/auth-routes.spec.ts, backend/tests/account-credentials.test.js, and backend/tests/google-only-auth.test.js.
+
+Verification status:
+- SOURCE OBSERVED: all three requested authentication paths have front-end and/or backend implementation paths in source after this batch.
+- NOT VERIFIED: successful real Google OAuth, live Ethereum/Solana wallet signatures, new-user provisioning, username collision behavior against a live isolated database, and production auth-provider settings. Do not claim these runtime flows are end-to-end verified.
+- CI for the new branch head must be checked after these commits. The previously green frontend CI run tested the obsolete Google-only UI and is not evidence for this change.
+- No production database, auth settings, merge, or deployment was changed.
