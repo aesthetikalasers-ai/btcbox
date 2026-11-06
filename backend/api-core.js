@@ -2142,7 +2142,7 @@ async function handleRequest(event, context) {
             p_request_id: requestId, p_request_hash: requestHash, p_require_admin_review: requireAdminReview, p_expected_fee: String(expectedFee) })
         });
         const result = await rpc.json().catch(() => null);
-        if (!rpc.ok || !result || result.ok !== true || !result.withdrawal_id || !['pending', 'pending_admin_review', 'approved', 'rejected', 'broadcast', 'failed'].includes(result.status) || typeof result.require_admin_review !== 'boolean') {
+        if (!rpc.ok || !result || result.ok !== true || !result.withdrawal_id || !['pending', 'pending_admin_review', 'approved', 'rejected', 'broadcast', 'failed', 'completed'].includes(result.status) || typeof result.require_admin_review !== 'boolean') {
           const rpcErrorText = JSON.stringify(result || {});
           const feeChanged = /withdrawal fee changed/i.test(rpcErrorText);
           const insufficient = rpc.status === 400 && /insufficient funds/i.test(rpcErrorText);
