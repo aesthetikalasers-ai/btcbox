@@ -2907,7 +2907,7 @@ async function handleRequest(event, context) {
       const idempotencyKey = String(body.idempotency_key || '').trim();
       const u = db.users[uid];
       if (!u) return json({ ok: false, msg: 'User not found.' }, 404);
-      if (!['USDT', 'BTC', 'ETH', 'SOL'].includes(coin)) return json({ ok: false, msg: 'Coin not supported.' }, 400);
+      if (!['USDT', 'BTC', 'ETH', 'SOL', 'BNB', 'USDC'].includes(coin)) return json({ ok: false, msg: 'Coin not supported.' }, 400);
       if (amountText === null || compareMoney(amountText, '0') <= 0 || compareMoney(amountText, '1000000000000') > 0 || !/^\d+(?:\.\d{1,12})?$/.test(String(body.amount || '').trim())) {
         return json({ ok: false, msg: 'Invalid deposit amount. Must be a valid number greater than 0.' }, 400);
       }
