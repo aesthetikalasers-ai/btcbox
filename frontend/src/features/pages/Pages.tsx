@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 import { useEffect, useState, type FormEvent } from "react";
 import { RefreshCw, TrendingUp, TrendingDown, Clock3, ShieldAlert, Send, MessageCircle } from "lucide-react";
-import { getAccount, getOrders, getSecondsPositions, getSupportMessages, sendSupportMessage, getDepositAddress, getSavedCryptoAddresses, getEarnCatalog, submitEarnAction, type EarnProduct, type EarnPosition, type SavedCryptoAddress, type AccountBalance, type AccountSnapshot, type OrderRecord, type SecondsPositionsSnapshot, type SupportMessage } from "../../lib/api";
+import { ApiError, getAccount, getOrders, getSecondsPositions, getSupportMessages, sendSupportMessage, getDepositAddress, getSavedCryptoAddresses, getSelectedCryptoAddress, getWithdrawalConfig, submitWithdrawal, getEarnCatalog, submitEarnAction, type EarnProduct, type EarnPosition, type SavedCryptoAddress, type AccountBalance, type AccountSnapshot, type OrderRecord, type SecondsPositionsSnapshot, type SupportMessage, type SelectedCryptoAddress, type WithdrawalConfig } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
 
 import type { ReactNode } from "react";
@@ -380,30 +380,106 @@ export function WithdrawPage(){
  const {t}=useI18n();
  const [account,setAccount]=useState<AccountSnapshot|null>(null);
  const [addresses,setAddresses]=useState<SavedCryptoAddress[]>([]);
+ const [config,setConfig]=useState<WithdrawalConfig|null>(null);
+ const [selectedId,setSelectedId]=useState("");
+ const [selectedAddress,setSelectedAddress]=useState<SelectedCryptoAddress|null>(null);
+ const [amount,setAmount]=useState("");
+ const [fundPassword,setFundPassword]=useState("");
+ const [twofaCode,setTwofaCode]=useState("");
  const [loading,setLoading]=useState(true);
+ const [submitting,setSubmitting]=useState(false);
  const [error,setError]=useState("");
+ const [actionMessage,setActionMessage]=useState("");
+ const [requestId,setRequestId]=useState("");
  const [reload,setReload]=useState(0);
+
  useEffect(()=>{
   const controller=new AbortController();
   setLoading(true);setError("");
-  Promise.all([getAccount(controller.signal),getSavedCryptoAddresses(controller.signal)]).then(([snapshot,book])=>{setAccount(snapshot);setAddresses(book);}).catch(reason=>{
-   if(reason instanceof Error&&reason.name==="AbortError")return;
-   setError(reason instanceof Error?reason.message:"Wallet data is temporarily unavailable.");
-  }).finally(()=>{if(!controller.signal.aborted)setLoading(false);});
+  Promise.all([getAccount(controller.signal),getSavedCryptoAddresses(controller.signal),getWithdrawalConfig(controller.signal)])
+   .then(([snapshot,book,withdrawalConfig])=>{
+    if(controller.signal.aborted)return;
+    setAccount(snapshot);setAddresses(book);setConfig(withdrawalConfig);
+    const usable=book.filter(item=>!item.blocked&&!item.unbound);
+    setSelectedId(current=>usable.some(item=>item.id===current)?current:(usable[0]?.id||""));
+   })
+   .catch(reason=>{
+    if(reason instanceof Error&&reason.name==="AbortError")return;
+    if(!controller.signal.aborted)setError(reason instanceof Error?reason.message:"Wallet data is temporarily unavailable.");
+   })
+   .finally(()=>{if(!controller.signal.aborted)setLoading(false);});
   return ()=>controller.abort();
  },[reload]);
- return <PageFrame eyebrow="BTCBOX / WALLET" title="Withdraw" description="Review your available assets and saved withdrawal addresses. Withdrawal submission remains disabled until the financial ledger cutover is approved and verified.">
+
+ useEffect(()=>{
+  if(!selectedId){setSelectedAddress(null);return;}
+  const controller=new AbortController();
+  setSelectedAddress(null);
+  getSelectedCryptoAddress(selectedId,controller.signal).then(value=>{
+   if(!controller.signal.aborted)setSelectedAddress(value);
+  }).catch(reason=>{
+   if(reason instanceof Error&&reason.name==="AbortError")return;
+   if(!controller.signal.aborted)setError(reason instanceof Error?reason.message:"Selected withdrawal address is unavailable.");
+  });
+  return ()=>controller.abort();
+ },[selectedId]);
+
+ const usableAddresses=addresses.filter(item=>!item.blocked&&!item.unbound);
+ const balance=selectedAddress&&account?.balances?account.balances[selectedAddress.coin]:undefined;
+ const fee=selectedAddress&&config?Number(config.fees[selectedAddress.coin]??0):0;
+ const available=Number(balance?.free??0);
+ const parsedAmount=Number(amount);
+ const canSubmit=!!config?.actions_enabled&&!!selectedAddress&&Number.isFinite(parsedAmount)&&parsedAmount>0&&parsedAmount<=available&&!!fundPassword.trim()&&(!account?.twofa_enabled||/^\d{6}$/.test(twofaCode))&&!submitting&&!loading;
+
+ const submit=async(event:FormEvent<HTMLFormElement>)=>{
+  event.preventDefault();
+  if(!canSubmit||!selectedAddress)return;
+  const stableRequestId=requestId||window.crypto.randomUUID();
+  setRequestId(stableRequestId);setSubmitting(true);setError("");setActionMessage("");
+  try{
+   const result=await submitWithdrawal({
+    request_id:stableRequestId,coin:selectedAddress.coin,network:selectedAddress.network,
+    amount:amount.trim(),address:selectedAddress.address,fund_password:fundPassword,
+    ...(account?.twofa_enabled?{twofa_code:twofaCode}:{})
+   });
+   setActionMessage(result.duplicate?t("This withdrawal request was already received."):result.require_admin_review?t("Withdrawal submitted for staff review."):t("Withdrawal submitted and is awaiting staff processing."));
+   setRequestId("");setAmount("");setFundPassword("");setTwofaCode("");
+   setReload(value=>value+1);
+  }catch(reason){
+   setError(reason instanceof Error?reason.message:"Withdrawal result is unconfirmed. Keep this request unchanged and retry with the same request ID.");
+   if(reason instanceof ApiError&&reason.status>=400&&reason.status<500)setRequestId("");
+  }finally{setSubmitting(false);}
+ };
+
+ return <PageFrame eyebrow="BTCBOX / WALLET" title="Withdraw" description="Choose a saved address and submit a withdrawal request. BTCBOX staff review requests and manually transfer approved withdrawals.">
   {loading?<Card className="border-brand-border bg-brand-surface"><CardContent className="p-5 text-sm text-brand-text-muted" role="status">{t("Loading wallet and saved addresses…")}</CardContent></Card>
-  :error?<Card className="border-rose-500/30 bg-brand-surface"><CardContent className="flex flex-wrap items-center justify-between gap-3 p-5"><p className="text-sm text-rose-300" role="alert">{error}</p><Button size="sm" variant="outline" onClick={()=>setReload(n=>n+1)}>{t("Try again")}</Button></CardContent></Card>
+  :error&&!account?<Card className="border-rose-500/30 bg-brand-surface"><CardContent className="flex flex-wrap items-center justify-between gap-3 p-5"><p className="text-sm text-rose-300" role="alert">{error}</p><Button size="sm" variant="outline" onClick={()=>setReload(n=>n+1)}>{t("Try again")}</Button></CardContent></Card>
   :<>
    <Card className="border-brand-border bg-brand-surface"><CardHeader><CardTitle>{t("Available balances")}</CardTitle><CardDescription>{account?.valuation_complete?t("Estimated total value"):t("Some asset prices are unavailable; total valuation is incomplete.")}</CardDescription></CardHeader><CardContent className="space-y-2">
-    {(Object.entries(account?.balances||{}) as Array<[string, AccountBalance]>).map(([asset,balance])=><div key={asset} className="flex items-center justify-between gap-3 rounded-lg border border-brand-border p-3"><span className="font-semibold">{asset}</span><div className="text-right text-sm"><p>{String(balance.free??"0")} {asset}</p><p className="text-xs text-brand-text-muted">{t("Frozen")}: {String(balance.frozen??"0")}</p></div></div>)}
+    {(Object.entries(account?.balances||{}) as Array<[string,AccountBalance]>).map(([asset,row])=><div key={asset} className="flex items-center justify-between gap-3 rounded-lg border border-brand-border p-3"><span className="font-semibold">{asset}</span><div className="text-right text-sm"><p>{String(row.free??"0")} {asset}</p><p className="text-xs text-brand-text-muted">{t("Frozen")}: {String(row.frozen??"0")}</p></div></div>)}
    </CardContent></Card>
-   <Card className="border-brand-border bg-brand-surface"><CardHeader><CardTitle>{t("Saved crypto addresses")}</CardTitle><CardDescription>{t("Full addresses are not exposed in this list. Contact support to change or unblock an address.")}</CardDescription></CardHeader><CardContent className="space-y-2">
+
+   <Card className="border-brand-border bg-brand-surface"><CardHeader><CardTitle>{t("Submit withdrawal")}</CardTitle><CardDescription>{t("Select a saved address. Asset and network are taken from that address; staff review and manually pay approved requests.")}</CardDescription></CardHeader><CardContent>
+    {usableAddresses.length===0?<div className="rounded-xl border border-dashed border-brand-border p-5 text-sm text-brand-text-muted">{t("No eligible saved withdrawal addresses are available. Add an address to your address book or contact support.")}</div>
+    :<form className="space-y-3" onSubmit={submit}>
+     <label className="block space-y-1.5 text-sm"><span className="text-brand-text-muted">{t("Saved withdrawal address")}</span><select value={selectedId} disabled={!!requestId||submitting} onChange={event=>{setSelectedId(event.target.value);setError("");}} className="w-full rounded-xl border border-brand-border bg-brand-surface-2 p-3 text-brand-text">{usableAddresses.map(item=><option key={item.id} value={item.id}>{item.coin} · {item.network} · {item.address}</option>)}</select></label>
+     {selectedAddress?<div className="rounded-lg border border-brand-border bg-brand-surface-2 p-3 text-xs text-brand-text-muted"><p>{t("Selected destination")}: {selectedAddress.coin} · {selectedAddress.network}</p><p className="mt-1 break-all font-mono">{selectedAddress.address.length>18?selectedAddress.address.slice(0,8)+"…"+selectedAddress.address.slice(-8):selectedAddress.address}</p></div>:<p className="text-xs text-brand-text-muted">{t("Loading selected address…")}</p>}
+     <label className="block space-y-1.5 text-sm"><span className="text-brand-text-muted">{t("Amount")} {selectedAddress ? "(" + selectedAddress.coin + ")" : ""}</span><input inputMode="decimal" value={amount} disabled={!!requestId||submitting} onChange={event=>setAmount(event.target.value)} placeholder="0.00" className="w-full rounded-xl border border-brand-border bg-brand-surface-2 p-3 text-brand-text"/></label>
+     {selectedAddress?<div className="grid grid-cols-2 gap-3 rounded-lg border border-brand-border p-3 text-sm"><div><p className="text-xs text-brand-text-muted">{t("Available")}</p><p className="mt-1 tabular-nums">{available.toLocaleString(undefined,{maximumFractionDigits:10})} {selectedAddress.coin}</p></div><div><p className="text-xs text-brand-text-muted">{t("Withdrawal fee")}</p><p className="mt-1 tabular-nums">{Number.isFinite(fee)?fee:"—"} {selectedAddress.coin}</p></div></div>:null}
+     <label className="block space-y-1.5 text-sm"><span className="text-brand-text-secondary">{t("Fund password")}</span><input type="password" autoComplete="current-password" value={fundPassword} disabled={!!requestId||submitting} onChange={event=>setFundPassword(event.target.value)} className="w-full rounded-xl border border-brand-border bg-brand-surface-2 p-3 text-brand-text" required/></label>
+     {account?.twofa_enabled?<label className="block space-y-1.5 text-sm"><span className="text-brand-text-secondary">{t("Two-factor code")}</span><input inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={twofaCode} disabled={!!requestId||submitting} onChange={event=>setTwofaCode(event.target.value.replace(/\D/g,"").slice(0,6))} className="w-full rounded-xl border border-brand-border bg-brand-surface-2 p-3 text-brand-text" required/></label>:null}
+     {config&&!config.actions_enabled?<div className="rounded-xl border border-amber-400/25 bg-amber-400/5 p-4 text-sm text-brand-text-secondary"><Badge variant="outline" className="border-amber-400/30 text-amber-200">{t("Withdrawals temporarily unavailable")}</Badge><p className="mt-2">{t("The financial ledger cutover has not been enabled. You can review your wallet, but no withdrawal request can be submitted yet.")}</p></div>:null}
+     {error?<p role="alert" className="text-sm text-rose-300">{error}</p>:null}
+     {actionMessage?<p role="status" className="text-sm text-emerald-300">{actionMessage}</p>:null}
+     <Button type="submit" disabled={!canSubmit}>{submitting?t("Submitting…"):requestId?t("Retry same request"):t("Submit for staff review")}</Button>
+     {requestId?<p className="break-all text-xs text-amber-300">{t("Request result is not yet confirmed. Keep this form unchanged and retry with the same request ID.")} · {requestId}</p>:null}
+    </form>}
+   </CardContent></Card>
+
+   <Card className="border-brand-border bg-brand-surface"><CardHeader><CardTitle>{t("Saved crypto addresses")}</CardTitle><CardDescription>{t("Full addresses are only retrieved for the address selected for withdrawal.")}</CardDescription></CardHeader><CardContent className="space-y-2">
     {addresses.length?addresses.map(item=><div key={item.id} className="rounded-xl border border-brand-border p-3"><div className="flex flex-wrap items-center justify-between gap-2"><span className="font-semibold">{item.coin} · {item.network}</span><Badge variant={item.blocked||item.unbound?"destructive":"outline"}>{item.blocked?"Blocked":item.unbound?"Unbound":"Saved"}</Badge></div><p className="mt-2 break-all font-mono text-sm text-brand-text-muted">{item.address}</p>{item.note?<p className="mt-1 text-xs text-brand-text-muted">{item.note}</p>:null}</div>)
     :<p className="rounded-xl border border-dashed border-brand-border p-5 text-sm text-brand-text-muted">{t("No saved crypto withdrawal addresses were found.")}</p>}
    </CardContent></Card>
   </>}
-  <Card className="border-amber-400/25 bg-brand-surface"><CardContent className="p-5"><Badge variant="outline" className="border-amber-400/30 text-amber-200">{t("Submission disabled")}</Badge><p className="mt-3 text-sm text-brand-text-secondary">{t("The backend currently rejects withdrawal requests while financial ledger cutover is incomplete. No funds can be withdrawn from this page. We have intentionally not exposed a submit action, so this page cannot accidentally create a financial request.")}</p><Button asChild className="mt-3" variant="outline" size="sm"><Link to="/support">{t("Contact support")}</Link></Button></CardContent></Card>
  </PageFrame>;
 }
