@@ -39,6 +39,7 @@ The current canonical source inventory is:
 20. `0026_admin_rbac_private_store_v1.sql`
 21. `0027_withdrawal_manual_payout_completion_v1.sql`
 22. `0028_admin_rbac_service_rpc_wrappers_v1.sql`
+23. `0029_withdrawal_fee_quote_idempotency_v1.sql`
 
 The bootstrap test compares the allowlist to the actual numbered SQL files so a newly added migration cannot silently be omitted.
 
@@ -59,6 +60,7 @@ Manual deposits follow the chosen half-manual workflow: staff verifies the trans
 - `0026` adds the private admin membership/permission store, Super Admin bootstrap and delegated-admin lifecycle.
 - `0027` adds staff-paid completion for an already approved withdrawal; it records the payout reference and status/audit transition without broadcasting or debiting a second time.
 - `0028` adds service-role-only PostgREST wrappers for admin membership and atomic Seconds policy version activation.
+- `0029` extends the withdrawal create RPC with an expected-fee quote check that runs only after the request-id replay lookup. Existing requests replay their originally stored fee across later admin fee changes; new requests with stale quotes are rejected before funds are reserved.
 
 ## Admin bootstrap and financial safety
 
