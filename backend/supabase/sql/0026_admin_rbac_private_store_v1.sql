@@ -451,9 +451,7 @@ RETURNS jsonb
 LANGUAGE sql
 SECURITY DEFINER
 SET search_path = pg_catalog, private
-AS $
-  SELECT private.admin_list_memberships_v1(p_actor_user_id);
-$;
+AS 'SELECT private.admin_list_memberships_v1($1)';
 
 REVOKE ALL ON FUNCTION public.admin_list_memberships_v1(uuid) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.admin_list_memberships_v1(uuid) TO service_role;
@@ -474,12 +472,7 @@ CREATE OR REPLACE FUNCTION public.admin_manage_membership_v1(
 LANGUAGE sql
 SECURITY DEFINER
 SET search_path = pg_catalog, private
-AS $
-  SELECT private.admin_manage_membership_v1(
-    p_actor_user_id,p_target_user_id,p_expected_revision,p_action,
-    p_permissions,p_reason,p_request_id,p_request_hash
-  );
-$;
+AS 'SELECT private.admin_manage_membership_v1($1,$2,$3,$4,$5,$6,$7,$8)';
 
 REVOKE ALL ON FUNCTION public.admin_manage_membership_v1(uuid,uuid,bigint,text,text[],text,text,text) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.admin_manage_membership_v1(uuid,uuid,bigint,text,text[],text,text,text) TO service_role;
