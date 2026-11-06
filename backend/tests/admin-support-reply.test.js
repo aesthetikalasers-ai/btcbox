@@ -6,8 +6,8 @@ const path = require('node:path');
 
 const root = path.resolve(__dirname, '..');
 const api = fs.readFileSync(path.join(root, 'api-core.js'), 'utf8');
-const client = fs.readFileSync(path.resolve(root, '../../frontend/src/lib/api.ts'), 'utf8');
-const admin = fs.readFileSync(path.resolve(root, '../../frontend/src/features/admin/AdminPage.tsx'), 'utf8');
+const client = fs.readFileSync(path.resolve(root, '../frontend/src/lib/api.ts'), 'utf8');
+const admin = fs.readFileSync(path.resolve(root, '../frontend/src/features/admin/AdminPage.tsx'), 'utf8');
 
 test('admin support replies are permission-gated, persisted, audited and idempotent', () => {
   assert.ok(api.includes("route === 'support/reply' && verb === 'POST'"));
