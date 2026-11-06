@@ -283,12 +283,14 @@ const SECONDS_ALLOWED_SYMBOLS = new Set(['BTC', 'ETH', 'SOL', 'BNB']);
 function normalizeReferenceTimestamp(value, nowMs) {
   const now = Number.isFinite(nowMs) ? nowMs : Date.now();
   let timestampMs;
-  if (typeof value === 'string' && !/^\\d+$/.test(value)) {
+  const numeric = typeof value === 'number' || (typeof value === 'string' && value.trim() !== '')
+    ? Number(value) : NaN;
+  if (Number.isFinite(numeric) && numeric >= 1000000000000) {
+    timestampMs = numeric;
+  } else if (typeof value === 'string') {
     timestampMs = Date.parse(value);
   } else {
-    const numeric = Number(value);
-    // Both supported providers expose epoch milliseconds in their ticker payloads.
-    timestampMs = Number.isFinite(numeric) && numeric >= 1000000000000 ? numeric : NaN;
+    timestampMs = NaN;
   }
   if (!Number.isFinite(timestampMs) || timestampMs <= 0) return null;
   const ageMs = now - timestampMs;
