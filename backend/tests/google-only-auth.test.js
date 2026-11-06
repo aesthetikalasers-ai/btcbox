@@ -95,7 +95,6 @@ test('React Google auth uses the template flow without legacy registration conse
   assert.ok(provider.includes('redirectTo: window.location.origin + "/auth/react-callback"'));
   assert.ok(provider.includes('callbackParams.has("error_code")'));
   assert.ok(provider.includes('callbackParams.has("error_description")'));
-  assert.ok(provider.includes('callbackParams.get("flow") === "recovery"'));
   assert.ok(provider.includes('exchangeSupabaseSession'));
   assert.ok(provider.includes('completeLogin2fa'));
   assert.ok(provider.includes('clientRef.current?.auth.signOut()'));
@@ -131,7 +130,7 @@ test('React auth server endpoints retain exact POST contracts and legacy callbac
 });
 
 
-test('React public auth page exposes Google-only sign-in without legacy password or wallet entry points', () => {
+test('React public auth page exposes username, Google and wallet sign-in without email auth', () => {
   const backend = read('api-core.js');
   const auth = read('../frontend/src/lib/auth.tsx');
   const pages = read('../frontend/src/features/auth/AuthPages.tsx');
@@ -140,7 +139,7 @@ test('React public auth page exposes Google-only sign-in without legacy password
   const security = read('../frontend/src/features/account/AccountSecurityPage.tsx');
   const app = read('../frontend/src/App.tsx');
   assert.ok(backend.includes('function getSingleSupabaseAuthProvider(identity)'));
-  assert.ok(backend.includes("['google', 'email', 'web3'].includes(provider)"));
+  assert.ok(backend.includes("['google', 'web3'].includes(provider)"));
   assert.ok(backend.includes('getSupabaseWalletIdentity(identity)'));
   assert.ok(backend.includes("if (!user && email) user = Object.values(db.users).find"));
   assert.ok(backend.includes("const authProviders = [authProvider]"));
@@ -148,24 +147,16 @@ test('React public auth page exposes Google-only sign-in without legacy password
   assert.ok(backend.includes("path === 'auth/link-identity' && method === 'POST'"));
   assert.ok(auth.includes('signInWithUsername'));
   assert.ok(auth.includes('setBtcboxCredentials'));
-  assert.ok(auth.includes('linkSupabaseIdentity'));
   assert.ok(auth.includes('linkGoogleIdentity'));
   assert.ok(auth.includes('linkWeb3Identity'));
-  assert.ok(auth.includes('signUp({'));
-  assert.ok(auth.includes('resetPasswordForEmail'));
-  assert.ok(auth.includes('updateUser({ password })'));
+  assert.ok(!auth.includes('signInWithEmail') && !auth.includes('signUpWithEmail'));
+  assert.ok(!auth.includes('requestPasswordReset') && !auth.includes('completePasswordRecovery'));
   assert.ok(auth.includes('flowType: "pkce"'));
-  assert.ok(!pages.includes('Sign in with username'));
-  assert.ok(!pages.includes('Sign in with email'));
-  assert.ok(!pages.includes('Register with email'));
-  for (const forbidden of ['Connect wallet', 'Ethereum / EVM', 'Solana', 'signInWithWeb3', 'phantom.app/ul/browse/', 'go.cb-w.com/dapp?cb_url=']) assert.ok(!pages.includes(forbidden), 'public auth page must not expose ' + forbidden);
-  for (const forbidden of ['Continue with email', 'BTCBOX username', 'Forgot password?', 'signInWithEmail', 'signUpWithEmail']) assert.ok(!pages.includes(forbidden), 'public auth page must not expose ' + forbidden);
-  assert.ok(auth.includes('signInWithEmail'));
-  assert.ok(auth.includes('signUpWithEmail'));
+  for (const required of ['Sign in with username', 'Continue with Google', 'Connect Ethereum wallet', 'Connect Solana wallet']) assert.ok(pages.includes(required), 'auth page must expose ' + required);
+  for (const forbidden of ['Continue with email', 'Email registration', 'Email sign-in']) assert.ok(!pages.includes(forbidden), 'auth page must not expose ' + forbidden);
   assert.ok(auth.includes('eip6963:announceProvider'));
   assert.ok(auth.includes('eip6963:requestProvider'));
   assert.ok(auth.includes('getInjectedSolanaWallet'));
-
   assert.ok(provider.includes('signInWithWeb3({ chain, statement, ...(wallet ? { wallet } : {}) } as Parameters<'));
   assert.ok(backend.includes("authProvider === 'web3' ? !walletIdentity"));
   assert.ok(backend.includes("email: email || ''"));
@@ -178,11 +169,8 @@ test('React public auth page exposes Google-only sign-in without legacy password
   assert.ok(security.includes('Link Solana wallet'));
   assert.ok(app.includes('AccountSetupGate'));
   assert.ok(app.includes('AccountSecurityPage'));
-  assert.ok(pages.includes('Choose a new password'));
   assert.ok(!pages.includes('Terms of Service'));
 });
-
-
 test('React auth callback is single-flight under StrictMode effect replay', () => {
   const auth = read('../frontend/src/lib/auth.tsx');
   assert.ok(auth.includes('const callbackLock = useRef(false)'));
