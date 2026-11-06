@@ -83,3 +83,20 @@ The user's approved professional trading terminal baseline is V211. This audit h
 ## User/account/database note
 
 The user reports that all test Auth users have been cleared. This audit did not re-query Supabase Auth, and therefore records this as user-confirmed rather than independently verified. Clearing Auth users does not imply deleting business tables, policy/catalog data, migration history or audit structures. Preserve those.
+
+
+## Candidate ancestry cross-check — follow-up
+
+GitHub pairwise comparisons confirm the selected candidate is a fast-forward descendant of:
+- `feat/btcbox-react-google-auth-20261105` (`5598a54dac689d6d4e6a7482e3311d0d5e7f8b1b`);
+- `feat/btcbox-strata-theme-batch-20261105` (`0b93b1a5c77aaff5420ab1bbdf2f5c9eec5f88de`);
+- `fix/btcbox-no-fake-market-data-20261105` (`39c1a970bec240cd2f1c77aa063fff0c7c130ce2`);
+- `feat/btcbox-ui-i18n-mobile-20261105` (`8c8c75e65852cef9b403c6df341509b25d01486d), already merged to main through PR #21).
+
+The candidate is therefore not missing those accumulated auth/theme/no-fake-data/mobile-i18n commit histories. The template migration branch is different: it has 24 commits not in the candidate and the two branches diverged from merge-base `93a236e4a3ed6c9edd2003ac1068a89161015511`. Candidate tree inspection confirms it does not contain `.gitmodules` or `frontend/vendor/*`; the pinned complete upstream template submodules remain only on the old template branch and must be reviewed as a separate source asset, not merged wholesale.
+
+Further source inspection on candidate `fbfb96e`:
+- `SecondsPage` exists and reads actual open/history position snapshots, displays loading/error/cutover-incomplete states, and explicitly disables placing/settling orders in that view. This is a read-only page, not a complete seconds trading flow.
+- `backend/assets/js/app-core.js` still uses Basic Auth for admin endpoints; no `VIEWS.admin` implementation was found. Admin UI is still missing in this SPA snapshot.
+- Candidate `frontend/src/App.tsx` still uses SectionPage for spot order entry, orders, deposits, withdrawals, Earn, KYC and support. Authentication/account security and read-only seconds positions are implemented further than main, but those workflows remain incomplete.
+- V211 remains unlocated; the existing legacy trade view must not be assumed to equal V211.
