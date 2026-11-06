@@ -3296,3 +3296,11 @@ The prior withdrawal UI audit statement claiming the active BTCBOX admin route w
 - The existing admin authorization suite already verifies Supabase Auth identity first, server-side membership lookup second, inactive/mismatched membership fail-closed, and per-route read permissions. No synthetic admin identity is being fabricated.
 - No hosted Supabase calls, private document reads, database writes, financial mutations, merge, or deployment were performed. Trading page layout unchanged. PR #50 remains Draft/open/unmerged.
 - NEXT: verify exact-head CI for the KYC privacy regression commit; then continue with focused review of admin queue response schemas and financial lifecycle/API consistency without using real admin or customer credentials.
+
+
+## KYC privacy test assertion correction — 2026-11-06
+
+- First KYC privacy-test commit 3c083727888cbf3490b07d70d16e6f10122aae3b: backend run 42240827103 executed 333 tests, 332 passed and 1 failed. The sole failure was a brittle source assertion expecting object-property colons for shorthand response properties document_url and document_preview_error; the production handler returns these as valid object shorthand. This was a test assertion mismatch, not a runtime/API failure.
+- Corrected the assertion to match the actual object shorthand syntax in commit 17c4714c6a4acbbb5edbafd77ade30c4f792163e. New exact-head runs: frontend 42240994240, backend 42240994268, PostgreSQL schema 42240994372; all pending at time of recording.
+- Prior exact-head frontend/browser evidence remains valid only for 555bbab04f2d5246219fd4108bba4bf0bede5814: 18/18 Playwright passed. Prior schema run 42240826792 on 3c083727888cbf3490b07d70d16e6f10122aae3b passed, but do not carry it forward to the corrected SHA.
+- Continue to block merge/deploy until exact-head CI is green. No production writes or financial operations.
