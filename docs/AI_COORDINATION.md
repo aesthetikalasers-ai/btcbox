@@ -6026,3 +6026,20 @@ The prior withdrawal UI audit statement claiming the active BTCBOX admin route w
   **42303540899** success; PR-triggered backend **42303573419** success; frontend
   CI **42303573493** (temp draft PR #57) verified. PostgreSQL CI path-skipped (no
   SQL change this batch).
+
+## 2026-11-07 — Phase 2 batch 3: KYC already-reviewed 409 UX + Playwright smoke green
+
+- KYC approve retry returning 409 `KYC_EXCEPTION_REQUIRED` (first attempt
+  succeeded but response lost) is now surfaced in the Admin Panel as a confirmed
+  notice + queue refresh via the generalized `isAlreadyProcessed` helper (now
+  covers WITHDRAWAL_ALREADY_PROCESSED, KYC_EXCEPTION_REQUIRED, and status 409).
+  Regression test in `admin-api-contract.test.js`. Commit `36bcc71`.
+- Verified Earn subscribe/redeem and Seconds open/settle already use stable
+  deterministic request ids retained across retries (idempotent); admin support
+  reply likewise. No change needed.
+- Playwright e2e smoke (`frontend/e2e/auth-routes.spec.ts`) runs **20/20 green**
+  locally (desktop + mobile chromium), covering /login, /register, /admin,
+  /assets, /orders, /kyc, /deposit, /withdraw, /seconds, /support, /settings,
+  /earn, /trade/BTCUSDT, /me.
+- CI: Backend workflow_dispatch + temp draft PR #58 on `36bcc71`; Frontend CI
+  via PR #58. PostgreSQL path-skipped (no SQL change this batch).
