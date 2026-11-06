@@ -1,14 +1,14 @@
 # Seconds Contract Policy Versioning
 
-Status: design specification only; not an executable migration.
+Status: design specification plus source-only migration contract; no live migration/runtime acceptance is implied.
 Owner: BTCBOX backend/business integration.
 Scope: seconds-contract product policy. Perpetual futures are explicitly out of scope.
 
 ## Authority
 
-The backend and database are authoritative. The browser may display the policy returned by an authenticated read endpoint, but may not decide or override symbols, direction, duration, stake limits, payout, reference price, maturity, settlement outcome, exposure caps, or activation time.
+The backend and database are authoritative. The browser may display policy returned by an authenticated read endpoint, but may not decide or override symbols, direction, duration, stake limits, payout, reference price, maturity, settlement outcome, exposure caps, or activation time.
 
-The existing order/settlement path remains unchanged until the schema, RPC integration, admin authorization, audit trail, staging migration, and QA gates below are complete.
+The existing order/settlement path remains unchanged until schema deployment, RPC integration, administrator authorization, audit trail, isolated staging migration, and QA gates are complete.
 
 ## Baseline values (source-observed; not a new approval)
 
@@ -16,83 +16,63 @@ The existing order/settlement path remains unchanged until the schema, RPC integ
 - Durations: 30, 60, 300, 900 seconds.
 - Direction: up or down.
 - Stake: positive; API hard ceiling currently 1,000,000,000,000.
-- Winning profit: currently 85% of stake; future policy versions may configure 85%–100%; tie returns stake; loss loses stake.
-- Current SQL positions do not carry a policy version or payout snapshot.
+- Winning profit: policy minimum 85% (8500 bps), configurable up to 100% (10000 bps); tie returns stake; loss loses stake.
+- These values document current source behavior only. They are not approval to increase limits or alter commercial terms.
 
-These values document current source behavior only. They are not a proposal to increase limits or alter commercial terms. A future admin policy must be seeded from a reviewed baseline and must never silently broaden these values.
+## Current source implementation boundary (migration 0025)
 
-## Target data model
+The feature branch contains `backend/supabase/sql/0025_seconds_policy_versioning_v1.sql`. This is a source artifact only; its presence in Git does not prove it has been applied to any Supabase database.
 
-### seconds_contract_policies
+That migration currently defines:
+- `public.seconds_contract_policies`: immutable policy content rows with version, symbols, durations, min/max stake, payout (8500–10000 bps), optional per-user exposure, effective window, reason, and text `created_by`.
+- `public.seconds_contract_policy_active`: a singleton active-policy pointer.
+- `public.seconds_contract_policy_audit`: append-only seed/draft-created/activated/retired audit vocabulary.
+- Nullable `policy_id`, `policy_version`, `payout_bps_snapshot`, and `policy_snapshot` columns on `public.seconds_contract_positions`.
+- `submit_seconds_order_v1` reads the active policy, checks policy symbol/duration/stake/exposure, and stores the policy/payout snapshot in the same transaction as the order reserve.
+- `settle_seconds_position_v1` calculates winning profit from the stored payout snapshot; legacy NULL snapshots retain the 85% fallback; tie returns principal.
 
-Append-only policy versions, one row per immutable version:
-- id UUID primary key
-- version BIGINT unique, monotonically increasing
-- status: draft | scheduled | active | retired
-- symbols TEXT[] (validated against the server-supported symbol registry)
-- durations_sec INTEGER[] (validated against the server-supported duration registry)
-- min_stake NUMERIC(38,18), max_stake NUMERIC(38,18)
-- payout_bps INTEGER (8500..10000; 8500 is the minimum, 10000 is the maximum; values are per policy version)
-- per_user_open_exposure NUMERIC(38,18)
-- effective_from TIMESTAMPTZ, effective_until TIMESTAMPTZ nullable
-- created_by, approved_by (authenticated admin subject IDs)
-- created_at, activated_at
-- change_reason TEXT (required and bounded)
-- optimistic revision/version token
+The migration enables RLS and revokes table access from PUBLIC/anon/authenticated. It grants service_role SELECT on policy and active-pointer tables, but revokes service_role INSERT/UPDATE/DELETE on policy, active-pointer, and audit tables. The order/settlement RPCs remain service_role-only and SECURITY INVOKER.
 
-Constraints: min_stake > 0; max_stake >= min_stake; payout_bps between 8500 and 10000 (85% minimum, 100% maximum); effective_until > effective_from when present. Prevent overlapping active windows. Exactly one policy may be active at a given instant. A policy version is immutable after activation; edits create a new version.
+**Not implemented by migration 0025:** individually authenticated admin actors, role/membership tables, draft/review/activation transition APIs, three-person separation of duties, admin policy-write RPCs, idempotency records for admin transitions, or a policy editor UI. The existing `created_by` and audit `actor_id` are text fields and are not proof of a validated Supabase Auth subject.
 
-### seconds_contract_policy_audit
+## Future governance data model
 
-Append-only audit events:
-- id UUID primary key
-- policy_id UUID
-- action, actor_id, actor_role
-- before_snapshot and after_snapshot JSONB
-- reason, request_id, created_at
-
-No UPDATE/DELETE permission for application roles. Audit values must exclude secrets and personal data not needed for accountability.
-
-### Position snapshot
-
-Add nullable fields to seconds_contract_positions for legacy compatibility:
-- policy_id UUID
-- policy_version BIGINT
-- payout_bps_snapshot INTEGER
-- policy_snapshot JSONB (only settlement-relevant immutable terms)
-
-New orders must atomically resolve the active policy at database time, validate symbol/duration/stake/exposure against it, and persist its ID/version/payout snapshot with the position in the same transaction as the reserve. Legacy positions with NULL policy fields retain their existing settlement behavior; they must never be backfilled with a guessed policy.
-
-Settlement must calculate profit from the position snapshot, not by reading the currently active policy. The configured payout_bps_snapshot must be between 8500 and 10000. 8500 produces 0.85 stake profit; higher versions may increase that profit up to 1.00 stake. Later policy changes never change an already-open position's payout, duration, stake, or settlement terms. A later policy change must not change any open position's payout, duration, stake, or settlement terms.
+The following is a target extension, not a description of the current migration:
+- Keep policy content immutable; every edit creates a new policy version.
+- Store administrator membership and permissions in a private, non-Data-API schema. Canonical actor IDs must be UUIDs derived from a server-validated Supabase Auth user, never caller-supplied role/actor fields.
+- Store exact-version review decisions and admin mutation idempotency/revision records separately from immutable policy content.
+- Use distinct author, reviewer, and activator identities. No single identity may occupy more than one of those roles for a version.
+- Add narrowly scoped database transition operations only after privilege design review. SECURITY DEFINER is not a default: if required to bridge table grants, keep the function in a non-exposed schema, fix search_path, revoke default PUBLIC execution, grant only the trusted server role, and enforce actor/permission/separation checks inside the transaction.
+- Prevent overlapping effective windows and stale concurrent activation; append audit events atomically with every successful transition.
 
 ## Required database and API controls
 
-- Policy lookup and validation happen inside the transactional order RPC; do not rely only on API-layer validation.
-- RPC execution remains service_role-only; anon/authenticated receive no direct table access.
-- Admin writes require an individually validated administrator identity, explicit seconds-policy permission, recent-auth/request-nonce protection, idempotency, optimistic revision matching, and the three-distinct-actor author/reviewer/activator separation described in `docs/SECONDS_POLICY_ADMIN_RBAC.md`.
-- Separate create-draft, approve/schedule, activate, and retire transitions. No direct arbitrary UPDATE endpoint.
-- Require a non-empty change reason and append an audit event in the same transaction as every state transition.
+- Policy lookup and validation happen inside the transactional order RPC; API-only validation is insufficient.
+- anon/authenticated receive no direct policy-table access. The current migration grants service_role read-only access; no policy write path exists.
+- Admin writes require an individually validated administrator identity, explicit seconds-policy permission, idempotency, optimistic revision matching, and the three-distinct-actor separation described in `docs/SECONDS_POLICY_ADMIN_RBAC.md`.
+- Separate create-draft, review, activate, and retire transitions. No arbitrary PATCH/PUT/DELETE policy-row endpoint.
+- Require a non-empty change reason and append an audit event in the same transaction as each successful state transition.
 - Enforce per-user open exposure and one-open-position constraints in the database, not only in React.
-- Do not allow editing or deleting activated policy versions, audit rows, or position snapshots.
-- Policy read API is authenticated; admin mutation API is role-gated and returns the committed version and audit ID.
-- Unknown/expired/missing active policy fails closed for new orders. It must not synthesize a default policy at runtime.
+- Do not edit/delete policy versions, audit rows, or position snapshots.
+- Policy read API must be authenticated; admin mutation API must be server-authorized and return committed version and audit ID.
+- Missing/expired active policy fails closed for new orders; never synthesize a default policy at runtime.
 
 ## Rollout sequence
 
-1. Review this specification and explicitly approve the business baseline and administrator permission model.
-2. Add an additive migration in a dedicated feature branch. Keep all new policy fields nullable for existing positions.
-3. Add immutable policy version/audit tables, constraints, grants, and database-side active-policy resolver.
-4. Update order RPC to atomically validate and snapshot the active policy; update settlement RPC to use only the stored snapshot. Preserve legacy NULL-snapshot settlement behavior.
-5. Add admin API with authorization, nonce/idempotency, optimistic concurrency and append-only audit. Do not expose UI before API tests pass.
-6. Add read-only policy preview to admin; then add draft/review/activation controls only after independent security review.
-7. Apply migration only to isolated staging. Test rollback strategy, concurrency, effective-time boundaries, historical position settlement, replay, and financial ledger invariants.
-8. Keep all financial cutover flags closed until staging evidence is complete and the user separately authorizes release.
+1. Review and approve the business baseline, administrator enrollment, permission model, and emergency recovery process.
+2. Design the additive governance schema and transition RPCs against the exact existing migration 0025 contract; inspect namespace and privilege collisions first.
+3. Generate migration files through the supported Supabase CLI workflow; do not hand-invent migration filenames.
+4. Add admin API with verified identity, authorization, nonce/idempotency, optimistic concurrency, separation of duties, and atomic audit.
+5. Add read-only policy preview; expose draft/review/activation UI only after backend authorization tests pass.
+6. Apply only to isolated staging after explicit approval. Test concurrency, effective-time boundaries, historical position settlement, replay, and financial ledger invariants.
+7. Keep all financial cutover flags closed until staging evidence is complete and the user separately authorizes release.
 
 ## Acceptance tests required before enabling policy writes
 
 - Invalid symbols, durations, stake bounds, exposure, and unknown policy versions are rejected by the database RPC.
 - Concurrent activation cannot create overlapping active policies.
-- Stale revision, duplicate request, unauthorized role, missing nonce, and missing change reason are rejected.
+- Stale revision, duplicate request, unauthorized role, missing idempotency key, and missing change reason are rejected.
+- Author/reviewer/activator collisions and revoked permissions are rejected at transition time.
 - Audit record and policy transition commit or roll back together.
 - New positions store the exact active version and payout snapshot.
 - Policy changes do not change existing open positions or their settlement result.
@@ -102,4 +82,4 @@ Settlement must calculate profit from the position snapshot, not by reading the 
 
 ## Explicit non-goals
 
-This specification does not create or apply a migration, change the current 85% payout, raise or lower stake limits, enable financial writes, expose a policy editor, or authorize a merge/deployment.
+This specification does not create or apply a migration, create admin users or permissions, change the current 85% minimum, raise or lower stake limits, enable financial writes, expose a policy editor, or authorize a merge/deployment.
