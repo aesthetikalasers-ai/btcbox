@@ -317,7 +317,13 @@ async function readFinancialAccountSnapshot(userId) {
   return result;
 }
 
-async function readAdminAccountBalances(userIds) {
+async // Keep this list aligned with spot pair support, manual-deposit assets, and admin asset controls.
+const SUPPORTED_LEDGER_ASSETS = new Set([
+  'USDT', 'USDC', 'BTC', 'ETH', 'SOL', 'BNB',
+  'XRP', 'DOGE', 'ADA', 'AVAX', 'LINK', 'DOT', 'TRX', 'LTC', 'BCH', 'NEAR', 'UNI', 'ATOM', 'ETC',
+]);
+
+function readAdminAccountBalances(userIds) {
   if (!supabaseStorageConfigured()) throw new Error('Financial database unavailable');
   if (!Array.isArray(userIds) || userIds.length > 200 || userIds.some(function (id) { return typeof id !== 'string' || !id || id.length > 128; })) {
     throw new Error('Admin account identity list invalid');
@@ -335,10 +341,10 @@ async function readAdminAccountBalances(userIds) {
     const assets = result.accounts[uid];
     if (!userIds.includes(uid) || !assets || typeof assets !== 'object' || Array.isArray(assets)) throw new Error('Admin account balance response invalid');
     for (const asset of Object.keys(assets)) {
-      // This UI currently supports only these ledger assets. Reject unexpected
-      // asset keys rather than silently passing malformed/unsupported balances
-      // into valuation and admin controls.
-      if (!['USDT', 'BTC', 'ETH', 'SOL'].includes(asset)) throw new Error('Admin account balance response invalid');
+      // Validate against the complete BTCBOX ledger asset catalogue. Spot markets
+      // and manual deposits include more assets than the original four-asset UI;
+      // rejecting those valid rows made the entire admin user list fail with 503.
+      if (!SUPPORTED_LEDGER_ASSETS.has(asset)) throw new Error('Admin account balance response invalid');
       const b = assets[asset];
       if (!b || !Number.isFinite(b.free) || !Number.isFinite(b.frozen) || b.free < 0 || b.frozen < 0) throw new Error('Admin account balance response invalid');
     }
@@ -734,7 +740,7 @@ function safeDepositAddresses(addresses) {
   const source = addresses && typeof addresses === 'object' && !Array.isArray(addresses) ? addresses : {};
   const result = {};
   const legacyKeys = { 'BTC-BTC': 'BTC-Bitcoin', 'SOL-SOL': 'SOL-Solana' };
-  for (const key of ['USDT-TRC20', 'USDT-ERC20', 'USDT-BEP20', 'BTC-BTC', 'ETH-ERC20', 'SOL-SOL']) {
+  for (const key of ['USDT-TRC20', 'USDT-ERC20', 'USDT-BEP20', 'BTC-BTC', 'ETH-ERC20', 'SOL-SOL', 'BNB-BEP20', 'USDC-ERC20']) {
     const legacyKey = legacyKeys[key];
     let raw = source[key];
     if ((typeof raw !== 'string' || !raw.trim()) && legacyKey) raw = source[legacyKey];
