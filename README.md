@@ -18,7 +18,15 @@ npm run build --prefix backend
 npm test --prefix backend
 ```
 
-The backend build installs/builds the Vite app, then assembles the public output through `backend/scripts/build-site.js`. The frontend can also be checked independently:
+The backend build installs/builds the Vite app, then assembles the public output through `backend/scripts/build-site.js`. For the currently empty Supabase database, use the one-time fresh-schema bootstrap only after an isolated PostgreSQL dry run and explicit owner approval:
+
+```sh
+DATABASE_URL=postgresql://... BTCBOX_BOOTSTRAP_CONFIRM=YES npm run bootstrap:empty-db --prefix backend
+```
+
+For a remote Supabase target, also set `BTCBOX_ALLOW_REMOTE_BOOTSTRAP=YES` only after confirming the exact project and empty schema. The bootstrap refuses existing BTCBOX tables, excludes legacy import/staging SQL and automated chain verification, and does not run as part of CI.
+
+The frontend can also be checked independently:
 
 ```sh
 npm install --prefix frontend
