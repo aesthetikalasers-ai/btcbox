@@ -46,6 +46,8 @@ export function VolumeChart({ candles = [] }: { candles?: MarketCandle[] }) {
         borderColor: 'rgba(255, 255, 255, 0.05)',
         timeVisible: false,
       },
+      handleScroll: { vertTouchDrag: false, horzTouchDrag: true },
+      handleScale: { pinch: true },
       rightPriceScale: {
         borderColor: 'rgba(255, 255, 255, 0.05)',
       },
@@ -74,7 +76,7 @@ export function VolumeChart({ candles = [] }: { candles?: MarketCandle[] }) {
   return (
     <Card className="flex h-[320px] min-w-0 flex-col sm:h-[340px] md:h-[400px]">
       <CardHeader title="BTC/USDT trading volume">
-        <div className="flex bg-brand-surface-2 rounded-lg p-0.5 border border-brand-border-subtle shadow-[inset_0_1px_1px_rgba(0,0,0,0.3)]">
+        <div className="flex max-w-full gap-0.5 overflow-x-auto rounded-lg border border-brand-border-subtle bg-brand-surface-2 p-0.5 shadow-[inset_0_1px_1px_rgba(0,0,0,0.3)] custom-scrollbar">
           {RANGES.map(r => (
             <button
               key={r}
