@@ -23,7 +23,7 @@ Use a dedicated administrator identity mapped to a Supabase Auth user:
 - Do not use mutable `user_metadata` for authorization. Do not rely solely on `app_metadata` claims for immediate revocation.
 - Unknown, disabled, suspended, or unavailable identity/permission state fails closed.
 
-The current source integration applies verified Supabase Auth and route-specific RBAC to the Admin API family. Seconds-policy mutation remains unavailable until its dedicated transactional lifecycle RPCs and tests are complete.
+The current source integration applies verified Supabase Auth and route-specific RBAC to the Admin API family. The Seconds policy read and mutation routes use the dedicated transactional version-and-activate RPC; runtime database bootstrap and isolated PostgreSQL verification remain pending.
 
 ## 3. Least-privilege permissions
 
@@ -62,7 +62,8 @@ A policy must contain the full approved terms: symbol allowlist, duration allowl
 
 Current/proposed route family:
 - `GET /api/admin/seconds-policy`: authenticated read is implemented in source; requires `seconds_policy.read`.
-- `POST /api/admin/seconds-policy`: permission is reserved as `seconds_policy.manage`; policy mutation remains unavailable until the complete transactional lifecycle RPC is implemented and tested.
+- `GET /api/admin/seconds-policy`: requires `seconds_policy.read` and returns the active policy/version through the trusted server RPC.
+- `POST /api/admin/seconds-policy`: requires `seconds_policy.manage`, expected policy version, reason, idempotency request ID, and the full policy payload; the server calls the atomic version-and-activate RPC.
 - `POST /api/admin/seconds-policy/drafts`: create immutable draft; requires `seconds_policy.draft`.
 - `POST /api/admin/seconds-policy/drafts/:id/review`: approve/reject exact draft; requires `seconds_policy.review`.
 - `POST /api/admin/seconds-policy/:id/activate`: activate/schedule approved version; requires `seconds_policy.activate`.
@@ -92,7 +93,7 @@ Audit rows are append-only. A failed or rolled-back transition must not leave a 
 
 ## 8. Admin UI behavior
 
-The UI should expose policy controls only after read/write APIs and server-side authorization are complete:
+The UI exposes policy controls only after the read/write APIs and server-side authorization checks; keep them unavailable when the backend denies the required permission:
 - Read-only current policy and version history first.
 - Draft editor validates inputs for usability, but never acts as the authority.
 - Review view shows the exact candidate diff, author, reason, and effective time.
