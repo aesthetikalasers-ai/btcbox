@@ -58,10 +58,18 @@ test('dedicated /admin URL defaults to the admin route before SPA boot', () => {
   assert.ok(admin.includes('/assets/js/boot.js'));
 });
 
-test('admin route is reachable without a customer session but still uses Basic Auth APIs', () => {
+test('admin route uses verified Supabase Auth identity and server-side role permissions without a customer cookie', () => {
   assert.ok(app.includes("const GUEST_PUBLIC_ROUTES = new Set(['home','markets','trade','tradehub','kline','seconds','help','404','admin']);"));
   assert.ok(app.includes("const HIDE_NAV = {login:true,register:true,kline:true,admin:true};"));
-  assert.ok(app.includes("if(isAdmin && state.adminAuth) headers['Authorization']='Basic '+state.adminAuth;"));
+  assert.ok(app.includes("if(isAdmin && opts.adminAccessToken) headers['Authorization']='Bearer '+opts.adminAccessToken;"));
+  assert.ok(app.includes('window.supabaseClient.auth.signInWithPassword'));
+  assert.ok(app.includes('async function getAdminAccessToken()'));
+  assert.ok(apiCore.includes("require('./admin-auth')"));
+  assert.ok(apiCore.includes('verifySupabaseAccessToken'));
+  assert.ok(apiCore.includes('admin_get_membership_v1'));
+  assert.ok(apiCore.includes('hasAdminPermission'));
+  assert.ok(apiCore.includes('ADMIN_PERMISSION_DENIED'));
+  assert.ok(!apiCore.includes('WWW-Authenticate: Basic realm="BTCBOX Admin"'));
 });
 
 
@@ -74,7 +82,7 @@ test('admin console hydrates only supported read APIs and maps canonical user fi
   assert.match(accountView, /state\.admin\.withdrawals=results\[1\]\.value\.withdrawals/);
 });
 
-test('admin console includes admin-review withdrawals and keeps unsupported deposit queue disabled', () => {
+test('admin console supports manual credit by selected user and does not create pending deposit orders', () => {
   assert.match(accountView, /w\\.status==='pending'\\|\\|w\\.status==='pending_admin_review'/);
   assert.match(accountView, /尚无管理员充值列表读取接口/);
 });
