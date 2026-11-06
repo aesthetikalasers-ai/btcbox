@@ -81,8 +81,8 @@ test('canonical PostgreSQL audit reader is cutover-aware, keyset-paginated, reda
   assert.match(reader, /redactAdminAuditDetail\(row\.reason \|\| ''\)/);
   assert.match(reader, /metadata/);
   assert.match(reader, /object_type,object_id,reason,metadata/);
-  assert.match(reader, /formatAdminAuditDetail\\(row\\)/);
-  assert.doesNotMatch(reader, /metadata:\\s*row\\.metadata/);
+  assert.ok(reader.includes('formatAdminAuditDetail(row)'));
+  assert.ok(!reader.includes('metadata: row.metadata'));
   assert.match(source, /ADMIN_AUDIT_POSTGRES_READS_ENABLED === '1'/);
   assert.ok(source.includes("const postgresAuditReadsRequired =\n        process.env.ADMIN_AUDIT_POSTGRES_READS_ENABLED === '1' ||\n        financialPostgresReadsEnabled();"));
   const routeStart = source.indexOf("if (sub === 'audit-logs' && method === 'GET')");
@@ -261,7 +261,7 @@ test('canonical audit details expose safe financial metadata without leaking des
   const start = source.indexOf('function redactAdminAuditDetail(value)');
   const end = source.indexOf('function isValidAuthEmail(value)', start);
   assert.ok(start >= 0 && end > start);
-  const helpers = require('node:vm').runInNewContext(source.slice(start, end) + '\\n({ safeAdminAuditMetadata, formatAdminAuditDetail })');
+  const helpers = require('node:vm').runInNewContext(source.slice(start, end) + '\n({ safeAdminAuditMetadata, formatAdminAuditDetail })');
   const metadata = {
     asset: 'USDT',
     amount: '5.00000000',
