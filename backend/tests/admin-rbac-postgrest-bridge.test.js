@@ -13,7 +13,7 @@ test('Admin Panel list endpoint has a public PostgREST bridge to the private mem
   assert.ok(api.includes('/rest/v1/rpc/admin_list_memberships_v1'));
   assert.ok(sql.includes('CREATE OR REPLACE FUNCTION private.admin_list_memberships_v1(p_actor_user_id uuid)'));
   assert.ok(sql.includes('CREATE OR REPLACE FUNCTION public.admin_list_memberships_v1(p_actor_user_id uuid)'));
-  assert.ok(sql.includes('SELECT private.admin_list_memberships_v1(p_actor_user_id)'));
+  assert.ok(sql.includes("AS 'SELECT private.admin_list_memberships_v1($1)';"));
 });
 
 test('Admin Panel delegated membership mutations have a matching public PostgREST bridge and exact RPC contract', () => {
