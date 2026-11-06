@@ -44,7 +44,7 @@ test('grant and audit history is append-only and all membership state is revisio
   assert.match(sql, /actor_kind text NOT NULL DEFAULT 'admin'/i);
   assert.match(sql, /'owner_bootstrap',NULL,p_auth_user_id,'provision'/i);
   assert.match(sql, /revision=revision\+1/i);
-  assert.match(sql, /membership_revision bigint NOT NULL/i);
+  assert.match(sql, /membership_revision bigint NOT NULL/i);\n  assert.match(sql, /event_id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY/i);
 });
 
 test('service role can execute narrowly scoped functions but has no direct table DML', () => {
