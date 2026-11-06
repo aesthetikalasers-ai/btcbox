@@ -948,12 +948,27 @@ function consumeTotpStep(user, code) {
 // Parse user-supplied financial amounts strictly; parseFloat('1abc') must never become 1.
 // Return a masked identity number for ordinary account responses.
 // Full KYC identifiers remain server-side and are never serialized to the user API.
+// Canonical KYC status aliases. Legacy/imported records may use 'processing' /
+// 'under_review' for in-review and 'verified' for approved. Every read path must
+// treat these aliases consistently so users are never stuck in a state the admin
+// review queue cannot see or the submission guard blocks without an escape route.
+const KYC_IN_REVIEW_STATUSES = ['pending', 'processing', 'under_review'];
+const KYC_APPROVED_STATUSES = ['approved', 'verified'];
+function normalizeKycStatus(status) {
+  return String(status || '').trim().toLowerCase();
+}
+function isKycInReview(status) {
+  return KYC_IN_REVIEW_STATUSES.includes(normalizeKycStatus(status));
+}
+function isKycApproved(status) {
+  return KYC_APPROVED_STATUSES.includes(normalizeKycStatus(status));
+}
 function kycSubmissionBlock(status) {
-  const normalized = String(status || '').trim().toLowerCase();
-  if (normalized === 'approved' || normalized === 'verified') {
+  const normalized = normalizeKycStatus(status);
+  if (isKycApproved(normalized)) {
     return { code: 'KYC_ALREADY_APPROVED', msg: 'Identity verification already approved. No need to resubmit.' };
   }
-  if (['pending', 'processing', 'under_review'].includes(normalized)) {
+  if (isKycInReview(normalized)) {
     return { code: 'KYC_ALREADY_PENDING', msg: 'Identity verification is under review. Please do not resubmit.' };
   }
   return null;
@@ -1974,7 +1989,7 @@ async function handleRequest(event, context) {
         reviewed_at: user.kyc && user.kyc.reviewed_at || '',
         reject_reason: user.kyc && user.kyc.reject_reason || ''
       },
-      kyc_level: user.kyc && user.kyc.status === 'approved' ? 2 : (user.kyc && user.kyc.status === 'pending' ? 1 : 0),
+      kyc_level: user.kyc && isKycApproved(user.kyc.status) ? 2 : (user.kyc && isKycInReview(user.kyc.status) ? 1 : 0),
       balances: compatBalances,
       totalUsdt: total,
       total_usdt: total,
@@ -3095,9 +3110,12 @@ async function handleRequest(event, context) {
 
     // GET /api/admin/kyc — return only the minimum fields needed for review.
     // Never expose id_number, auth secrets, credentials, or raw user records.
+    // Include every in-review alias ('pending' plus legacy 'processing' /
+    // 'under_review') so imported records are never invisible to reviewers while
+    // the customer-side submission guard blocks resubmission.
     if (sub === 'kyc' && method === 'GET') {
       const pendingUsers = Object.values(db.users || {}).filter(function (u) {
-        return u && u.kyc && u.kyc.status === 'pending';
+        return u && u.kyc && isKycInReview(u.kyc.status);
       }).sort(function (a, b) { return String(a.kyc.submitted_at || '') < String(b.kyc.submitted_at || '') ? 1 : -1; }).slice(0, 200);
       const applications = await Promise.all(pendingUsers.map(async function (u) {
         let document_url = '';
@@ -3111,7 +3129,7 @@ async function handleRequest(event, context) {
           email: String(u.email || ''),
           name: String(u.kyc.name || ''),
           id_type: String(u.kyc.id_type || ''),
-          status: 'pending',
+          status: normalizeKycStatus(u.kyc.status),
           submitted_at: String(u.kyc.submitted_at || ''),
           document_url,
           document_preview_error,
@@ -3448,13 +3466,15 @@ async function handleRequest(event, context) {
       const u = db.users[body.uid];
       if (!u) return json({ ok: false, msg: 'User not found.' }, 404);
       if (!u.kyc || typeof u.kyc !== 'object') u.kyc = {};
-      const status = String(u.kyc.status || 'unsubmitted');
+      const status = normalizeKycStatus(u.kyc.status);
       const override = body.admin_override === true;
       const reason = String(body.reason || '').trim().slice(0, 300);
-      if (status !== 'pending' && !override) return json({ ok: false, code: 'KYC_EXCEPTION_REQUIRED', msg: 'Only pending applications can be approved directly. Other states require the admin exception flow with a reason.' }, 409);
-      if (status === 'pending' && !u.kyc.document_path && !override) return json({ ok: false, code: 'KYC_DOCUMENT_REQUIRED', msg: 'A stored identity document image is required before approval.' }, 409);
+      // Accept every in-review alias (pending / processing / under_review) as a
+      // normal approval target. Only non-in-review states (already approved,
+      // rejected, etc.) require the admin exception flow with a reason.
+      if (!isKycInReview(status) && !override) return json({ ok: false, code: 'KYC_EXCEPTION_REQUIRED', msg: 'Only applications awaiting review can be approved directly. Other states require the admin exception flow with a reason.' }, 409);
+      if (isKycInReview(status) && !u.kyc.document_path && !override) return json({ ok: false, code: 'KYC_DOCUMENT_REQUIRED', msg: 'A stored identity document image is required before approval.' }, 409);
       if (override && !reason) return json({ ok: false, code: 'ADMIN_REASON_REQUIRED', msg: 'A reason is required for admin exception approval.' }, 400);
-      if (status === 'pending' && override && !reason) return json({ ok: false, code: 'ADMIN_REASON_REQUIRED', msg: 'A reason is required for admin exception approval.' }, 400);
       u.kyc.status = 'approved';
       u.kyc.reviewed_by = adminUserId;
       u.kyc.reviewed_at = nowStr();
@@ -3824,6 +3844,11 @@ exports._test = {
   validateFundPassword: validateFundPassword,
   validateAdminPasswordStrength: validateAdminPasswordStrength,
   kycSubmissionBlock: kycSubmissionBlock,
+  normalizeKycStatus: normalizeKycStatus,
+  isKycInReview: isKycInReview,
+  isKycApproved: isKycApproved,
+  KYC_IN_REVIEW_STATUSES: KYC_IN_REVIEW_STATUSES,
+  KYC_APPROVED_STATUSES: KYC_APPROVED_STATUSES,
   parseMoneyInput: parseMoneyInput,
   compareMoney: compareMoney,
   addMoney: addMoney,
