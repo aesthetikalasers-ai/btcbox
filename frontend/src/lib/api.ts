@@ -755,6 +755,7 @@ export async function submitWithdrawal(input: {
   amount: string;
   address: string;
   fund_password: string;
+  expected_fee?: string;
   twofa_code?: string;
 }): Promise<WithdrawalSubmissionResult> {
   let response: Response;
