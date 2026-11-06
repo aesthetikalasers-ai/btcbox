@@ -89,3 +89,12 @@ Safety: no merge, deployment, production database access, financial writes, or r
 
 - Frontend CI follow-up: run `42309855968` on `19d2075aac3c9812b08e85441b5151381e6042ba` passed install, lint, build, Chromium setup and all desktop/mobile route smoke tests. A further runtime assertion was added to verify that the Google button appears when `google_enabled=true`; latest run `42310007202` on `4f4b64917b1c1d0cea5575a71222fdbe7dd87313` also completed SUCCESS across install, lint, build and desktop/mobile Playwright smoke tests.
 - One earlier E2E run failed because the existing browser tests still expected email/username login and treated `/trade/BTCUSDT` as protected. Those assertions were updated to match the Google + wallet public auth UI and public market-preview requirement. The corrected run passed.
+
+## Follow-up implementation — 2026-11-07
+
+- Backend `/api/market` now sets per-symbol `data[symbol].ts` after provider responses complete. It is explicitly a server snapshot timestamp, NOT an exchange event timestamp; Coinbase 24h stats do not provide a per-ticker event timestamp.
+- Frontend `getMarkets()` now carries this value as `MarketTicker.snapshotTs` and preserves the provider source from the per-symbol payload.
+- Spot trading UI now displays “Snapshot checked” using the server timestamp; it no longer labels browser response-receipt time as the market update time. If a symbol is absent from a successful response, the last confirmed ticker is retained and a stale warning is shown.
+- Auth page entry points now expose Google only. Removed wallet-connect controls and wallet-specific mobile deep links. The existing 2FA verification state remains available; no email login UI was added.
+- Added source-contract tests for snapshot timestamp propagation and Google-only sign-in UI. The earlier 400-test backend run on commit `c966aa0` had 399 pass / 1 fail because an existing assertion still expected the old label “Last update”; the assertion has now been corrected to “Snapshot checked”.
+- CI on subsequent commits is the required verification. Do not claim these latest changes passed until the exact current branch-head runs complete.
