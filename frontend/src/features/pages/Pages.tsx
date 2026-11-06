@@ -430,7 +430,7 @@ export function KycPage(){
  const [reload,setReload]=useState(0);
  useEffect(()=>{
   const controller=new AbortController();setLoading(true);setError("");
-  getAccount(controller.signal).then(data=>{setAccount(data);setName(current=>current||data.kyc?.name||"");setIdType(current=>data.kyc?.id_type==="passport"||data.kyc?.id_type==="driver_license"?data.kyc.id_type:current);setIdNumber(current=>current||data.kyc?.id_number||"");}).catch((reason:unknown)=>{
+  getAccount(controller.signal).then(data=>{setAccount(data);setName(current=>current||data.kyc?.name||"");setIdType(current=>data.kyc?.id_type==="passport"||data.kyc?.id_type==="driver_license"?data.kyc.id_type:current);}).catch((reason:unknown)=>{
    if(reason instanceof Error&&reason.name==="AbortError")return;
    setError(reason instanceof Error?reason.message:"Verification status is temporarily unavailable.");
   }).finally(()=>{if(!controller.signal.aborted)setLoading(false);});
