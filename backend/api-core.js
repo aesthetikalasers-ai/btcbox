@@ -966,7 +966,10 @@ async function createSignedKycDocumentUrl(path) {
   });
   const payload = await response.json().catch(() => null);
   if (!response.ok || !payload || typeof payload.signedURL !== 'string' || !payload.signedURL) throw new Error('KYC document preview is unavailable');
-  return new URL(payload.signedURL, base + '/storage/v1/').toString();
+  const signedPath = payload.signedURL.startsWith('/storage/v1/')
+    ? payload.signedURL
+    : '/storage/v1/' + payload.signedURL.replace(/^\\/+/, '');
+  return new URL(signedPath, base).toString();
 }
 
 async function deleteKycDocument(path) {
