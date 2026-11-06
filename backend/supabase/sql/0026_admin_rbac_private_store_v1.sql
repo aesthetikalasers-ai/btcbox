@@ -45,7 +45,7 @@ CREATE UNIQUE INDEX admin_memberships_single_super_admin_idx
 -- Immutable grant/revoke events. Current grants are the latest event per
 -- (target, permission); membership status is checked separately on every read.
 CREATE TABLE private.admin_permission_events (
-  event_id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  event_id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   target_user_id uuid NOT NULL,
   permission_key text NOT NULL REFERENCES private.admin_permission_catalog(permission_key),
   event_type text NOT NULL CHECK (event_type IN ('grant','revoke')),
@@ -60,9 +60,11 @@ CREATE INDEX admin_permission_events_latest_idx
 
 CREATE TABLE private.admin_security_audit (
   audit_id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  actor_user_id uuid NOT NULL,
+  actor_kind text NOT NULL DEFAULT 'admin' CHECK (actor_kind IN ('admin','owner_bootstrap')),
+  actor_user_id uuid,
   target_user_id uuid NOT NULL,
   action text NOT NULL CHECK (action IN ('provision','set_permissions','suspend','reactivate','revoke')),
+  CHECK ((actor_kind='admin' AND actor_user_id IS NOT NULL) OR (actor_kind='owner_bootstrap' AND actor_user_id IS NULL)),
   reason text NOT NULL CHECK (length(btrim(reason)) BETWEEN 1 AND 500),
   request_id text NOT NULL,
   request_hash text NOT NULL CHECK (request_hash ~ '^[0-9a-f]{64}$'),
@@ -143,10 +145,10 @@ BEGIN
   VALUES(p_auth_user_id,'active',true,1,p_auth_user_id);
 
   INSERT INTO private.admin_security_audit(
-    actor_user_id,target_user_id,action,reason,request_id,request_hash,
+    actor_kind,actor_user_id,target_user_id,action,reason,request_id,request_hash,
     before_snapshot,after_snapshot
   ) VALUES (
-    p_auth_user_id,p_auth_user_id,'provision',
+    'owner_bootstrap',NULL,p_auth_user_id,'provision',
     btrim(p_reason) || ' [owner bootstrap: ' || btrim(p_change_reference) || ']',
     'bootstrap-' || replace(gen_random_uuid()::text,'-',''),
     repeat('0',64),NULL,
@@ -228,10 +230,273 @@ DECLARE
 BEGIN
   IF p_actor_user_id IS NULL OR p_target_user_id IS NULL
      OR p_actor_user_id=p_target_user_id
-     OR p_action NOT IN ('provision','set_permissions','suspend','reactivate','revoke')
+     OR p_action IS NULL OR p_action NOT IN ('provision','set_permissions','suspend','reactivate','revoke')
      OR length(btrim(coalesce(p_reason,''))) NOT BETWEEN 1 AND 500
-     OR p_request_id !~ '^[A-Za-z0-9_-]{16,100}$'
-     OR p_request_hash !~ '^[0-9a-f]{64}$'
+     OR p_request_id IS NULL OR p_request_id !~ '^[A-Za-z0-9_-]{16,100}
+     OR coalesce(array_length(p_permissions,1),0)>64 THEN
+    RAISE EXCEPTION 'invalid administrator change request';
+  END IF;
+
+  SELECT * INTO v_actor FROM private.admin_memberships
+    WHERE user_id=p_actor_user_id AND status='active' AND is_super_admin=true
+    FOR UPDATE;
+  IF NOT FOUND THEN RAISE EXCEPTION 'Super Admin authority required'; END IF;
+
+  PERFORM pg_catalog.pg_advisory_xact_lock(
+    pg_catalog.hashtextextended(p_actor_user_id::text || ':' || p_request_id, 0)
+  );
+  SELECT * INTO v_existing FROM private.admin_request_idempotency
+    WHERE actor_user_id=p_actor_user_id AND request_id=p_request_id;
+  IF FOUND THEN
+    IF v_existing.request_hash<>p_request_hash THEN
+      RAISE EXCEPTION 'idempotency conflict';
+    END IF;
+    RETURN v_existing.response || jsonb_build_object('replayed',true);
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM auth.users u WHERE u.id=p_target_user_id) THEN
+    RAISE EXCEPTION 'target Auth user does not exist';
+  END IF;
+  IF EXISTS (SELECT 1 FROM private.admin_memberships
+      WHERE user_id=p_target_user_id AND is_super_admin=true) THEN
+    RAISE EXCEPTION 'Super Admin authority cannot be changed through this API';
+  END IF;
+
+  SELECT coalesce(array_agg(DISTINCT permission_key ORDER BY permission_key),'{}'::text[])
+    INTO v_allowed FROM unnest(coalesce(p_permissions,'{}'::text[])) permission_key
+    JOIN private.admin_permission_catalog USING(permission_key);
+  IF cardinality(v_allowed) <> cardinality(coalesce(p_permissions,'{}'::text[])) THEN
+    RAISE EXCEPTION 'unknown or duplicate permission key';
+  END IF;
+  IF p_action IN ('suspend','revoke') AND cardinality(v_allowed)<>0 THEN
+    RAISE EXCEPTION 'suspend/revoke cannot carry permissions';
+  END IF;
+  IF p_action IN ('provision','reactivate') AND cardinality(v_allowed)=0 THEN
+    RAISE EXCEPTION 'provision/reactivate requires explicit permissions';
+  END IF;
+
+  SELECT * INTO v_target FROM private.admin_memberships
+    WHERE user_id=p_target_user_id FOR UPDATE;
+  IF FOUND THEN
+    v_before:=jsonb_build_object('status',v_target.status,'revision',v_target.revision);
+  ELSE
+    v_before:=NULL;
+  END IF;
+
+  IF p_action='provision' THEN
+    IF FOUND THEN RAISE EXCEPTION 'administrator membership already exists'; END IF;
+    INSERT INTO private.admin_memberships(user_id,status,is_super_admin,revision,created_by)
+      VALUES(p_target_user_id,'active',false,1,p_actor_user_id)
+      RETURNING revision INTO v_revision;
+  ELSE
+    IF NOT FOUND THEN RAISE EXCEPTION 'administrator membership not found'; END IF;
+    IF v_target.is_super_admin OR v_target.status='revoked' THEN
+      RAISE EXCEPTION 'target administrator cannot be modified';
+    END IF;
+    IF p_action='set_permissions' AND v_target.status NOT IN ('active','suspended') THEN
+      RAISE EXCEPTION 'invalid membership state';
+    ELSIF p_action='suspend' AND v_target.status<>'active' THEN
+      RAISE EXCEPTION 'only active administrators can be suspended';
+    ELSIF p_action='reactivate' AND v_target.status<>'suspended' THEN
+      RAISE EXCEPTION 'only suspended administrators can be reactivated';
+    ELSIF p_action='revoke' AND v_target.status NOT IN ('active','suspended') THEN
+      RAISE EXCEPTION 'invalid membership state';
+    END IF;
+
+    UPDATE private.admin_memberships
+      SET status=CASE
+        WHEN p_action='suspend' THEN 'suspended'
+        WHEN p_action='reactivate' THEN 'active'
+        WHEN p_action='revoke' THEN 'revoked'
+        ELSE status END,
+        revision=revision+1,updated_at=clock_timestamp()
+      WHERE user_id=p_target_user_id
+      RETURNING revision INTO v_revision;
+  END IF;
+
+  IF p_action IN ('provision','set_permissions','reactivate') THEN
+    -- Record a complete desired permission snapshot: omitted grants become
+    -- explicit revoke events, so set_permissions really replaces the grant set.
+    INSERT INTO private.admin_permission_events(
+      target_user_id,permission_key,event_type,actor_user_id,reason,request_id,membership_revision
+    )
+    SELECT p_target_user_id,c.permission_key,
+      CASE WHEN c.permission_key=ANY(v_allowed) THEN 'grant' ELSE 'revoke' END,
+      p_actor_user_id,btrim(p_reason),p_request_id,v_revision
+    FROM private.admin_permission_catalog c;
+  ELSIF p_action IN ('suspend','revoke') THEN
+    INSERT INTO private.admin_permission_events(
+      target_user_id,permission_key,event_type,actor_user_id,reason,request_id,membership_revision
+    )
+    SELECT p_target_user_id,permission_key,'revoke',p_actor_user_id,btrim(p_reason),p_request_id,v_revision
+    FROM private.admin_permission_catalog;
+  END IF;
+
+  v_after:=jsonb_build_object(
+    'status',CASE
+      WHEN p_action='suspend' THEN 'suspended'
+      WHEN p_action='revoke' THEN 'revoked'
+      ELSE 'active' END,
+    'revision',v_revision,'permissions',to_jsonb(v_allowed)
+  );
+  INSERT INTO private.admin_security_audit(
+    actor_kind,actor_user_id,target_user_id,action,reason,request_id,request_hash,before_snapshot,after_snapshot
+  ) VALUES (
+    'admin',p_actor_user_id,p_target_user_id,p_action,btrim(p_reason),p_request_id,p_request_hash,v_before,v_after
+  );
+
+  v_response:=jsonb_build_object(
+    'ok',true,'action',p_action,'target_user_id',p_target_user_id,
+    'revision',v_revision,'permissions',to_jsonb(v_allowed)
+  );
+  INSERT INTO private.admin_request_idempotency(actor_user_id,request_id,request_hash,response)
+    VALUES(p_actor_user_id,p_request_id,p_request_hash,v_response);
+
+  RETURN v_response || jsonb_build_object('replayed',false);
+END;
+$$;
+
+REVOKE ALL ON FUNCTION private.bootstrap_super_admin_v1(uuid,text,text) FROM PUBLIC, anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION private.admin_get_membership_v1(uuid) FROM PUBLIC, anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION private.admin_manage_membership_v1(uuid,uuid,text,text[],text,text,text) FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION private.bootstrap_super_admin_v1(uuid,text,text) TO postgres;
+GRANT EXECUTE ON FUNCTION private.admin_get_membership_v1(uuid) TO service_role;
+GRANT EXECUTE ON FUNCTION private.admin_manage_membership_v1(uuid,uuid,text,text[],text,text,text) TO service_role;
+
+COMMENT ON SCHEMA private IS 'Non-exposed BTCBOX administrator identity, grants, and audit storage. Never add to Data API exposed schemas.';
+COMMENT ON FUNCTION private.bootstrap_super_admin_v1(uuid,text,text) IS 'Owner-only one-time Super Admin bootstrap; never expose through HTTP/PostgREST.';
+COMMENT ON FUNCTION private.admin_manage_membership_v1(uuid,uuid,text,text[],text,text,text) IS 'Trusted-server-only Super Admin delegated-admin lifecycle transition; actor UUID must come from verified Supabase Auth.';
+
+     OR p_request_hash IS NULL OR p_request_hash !~ '^[0-9a-f]{64}
+     OR coalesce(array_length(p_permissions,1),0)>64 THEN
+    RAISE EXCEPTION 'invalid administrator change request';
+  END IF;
+
+  SELECT * INTO v_actor FROM private.admin_memberships
+    WHERE user_id=p_actor_user_id AND status='active' AND is_super_admin=true
+    FOR UPDATE;
+  IF NOT FOUND THEN RAISE EXCEPTION 'Super Admin authority required'; END IF;
+
+  SELECT * INTO v_existing FROM private.admin_request_idempotency
+    WHERE actor_user_id=p_actor_user_id AND request_id=p_request_id;
+  IF FOUND THEN
+    IF v_existing.request_hash<>p_request_hash THEN
+      RAISE EXCEPTION 'idempotency conflict';
+    END IF;
+    RETURN v_existing.response || jsonb_build_object('replayed',true);
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM auth.users u WHERE u.id=p_target_user_id) THEN
+    RAISE EXCEPTION 'target Auth user does not exist';
+  END IF;
+  IF EXISTS (SELECT 1 FROM private.admin_memberships
+      WHERE user_id=p_target_user_id AND is_super_admin=true) THEN
+    RAISE EXCEPTION 'Super Admin authority cannot be changed through this API';
+  END IF;
+
+  SELECT coalesce(array_agg(DISTINCT permission_key ORDER BY permission_key),'{}'::text[])
+    INTO v_allowed FROM unnest(coalesce(p_permissions,'{}'::text[])) permission_key
+    JOIN private.admin_permission_catalog USING(permission_key);
+  IF cardinality(v_allowed) <> cardinality(coalesce(p_permissions,'{}'::text[])) THEN
+    RAISE EXCEPTION 'unknown or duplicate permission key';
+  END IF;
+  IF p_action IN ('suspend','revoke') AND cardinality(v_allowed)<>0 THEN
+    RAISE EXCEPTION 'suspend/revoke cannot carry permissions';
+  END IF;
+  IF p_action IN ('provision','reactivate') AND cardinality(v_allowed)=0 THEN
+    RAISE EXCEPTION 'provision/reactivate requires explicit permissions';
+  END IF;
+
+  SELECT * INTO v_target FROM private.admin_memberships
+    WHERE user_id=p_target_user_id FOR UPDATE;
+  IF FOUND THEN
+    v_before:=jsonb_build_object('status',v_target.status,'revision',v_target.revision);
+  ELSE
+    v_before:=NULL;
+  END IF;
+
+  IF p_action='provision' THEN
+    IF FOUND THEN RAISE EXCEPTION 'administrator membership already exists'; END IF;
+    INSERT INTO private.admin_memberships(user_id,status,is_super_admin,revision,created_by)
+      VALUES(p_target_user_id,'active',false,1,p_actor_user_id)
+      RETURNING revision INTO v_revision;
+  ELSE
+    IF NOT FOUND THEN RAISE EXCEPTION 'administrator membership not found'; END IF;
+    IF v_target.is_super_admin OR v_target.status='revoked' THEN
+      RAISE EXCEPTION 'target administrator cannot be modified';
+    END IF;
+    IF p_action='set_permissions' AND v_target.status NOT IN ('active','suspended') THEN
+      RAISE EXCEPTION 'invalid membership state';
+    ELSIF p_action='suspend' AND v_target.status<>'active' THEN
+      RAISE EXCEPTION 'only active administrators can be suspended';
+    ELSIF p_action='reactivate' AND v_target.status<>'suspended' THEN
+      RAISE EXCEPTION 'only suspended administrators can be reactivated';
+    ELSIF p_action='revoke' AND v_target.status NOT IN ('active','suspended') THEN
+      RAISE EXCEPTION 'invalid membership state';
+    END IF;
+
+    UPDATE private.admin_memberships
+      SET status=CASE
+        WHEN p_action='suspend' THEN 'suspended'
+        WHEN p_action='reactivate' THEN 'active'
+        WHEN p_action='revoke' THEN 'revoked'
+        ELSE status END,
+        revision=revision+1,updated_at=clock_timestamp()
+      WHERE user_id=p_target_user_id
+      RETURNING revision INTO v_revision;
+  END IF;
+
+  IF p_action IN ('provision','set_permissions','reactivate') THEN
+    FOREACH v_permission IN ARRAY v_allowed LOOP
+      INSERT INTO private.admin_permission_events(
+        target_user_id,permission_key,event_type,actor_user_id,reason,request_id,membership_revision
+      ) VALUES (
+        p_target_user_id,v_permission,'grant',p_actor_user_id,btrim(p_reason),p_request_id,v_revision
+      );
+    END LOOP;
+  ELSIF p_action IN ('suspend','revoke') THEN
+    INSERT INTO private.admin_permission_events(
+      target_user_id,permission_key,event_type,actor_user_id,reason,request_id,membership_revision
+    )
+    SELECT p_target_user_id,permission_key,'revoke',p_actor_user_id,btrim(p_reason),p_request_id,v_revision
+    FROM private.admin_permission_catalog;
+  END IF;
+
+  v_after:=jsonb_build_object(
+    'status',CASE
+      WHEN p_action='suspend' THEN 'suspended'
+      WHEN p_action='revoke' THEN 'revoked'
+      ELSE 'active' END,
+    'revision',v_revision,'permissions',to_jsonb(v_allowed)
+  );
+  INSERT INTO private.admin_security_audit(
+    actor_user_id,target_user_id,action,reason,request_id,request_hash,before_snapshot,after_snapshot
+  ) VALUES (
+    p_actor_user_id,p_target_user_id,p_action,btrim(p_reason),p_request_id,p_request_hash,v_before,v_after
+  );
+
+  v_response:=jsonb_build_object(
+    'ok',true,'action',p_action,'target_user_id',p_target_user_id,
+    'revision',v_revision,'permissions',to_jsonb(v_allowed)
+  );
+  INSERT INTO private.admin_request_idempotency(actor_user_id,request_id,request_hash,response)
+    VALUES(p_actor_user_id,p_request_id,p_request_hash,v_response);
+
+  RETURN v_response || jsonb_build_object('replayed',false);
+END;
+$$;
+
+REVOKE ALL ON FUNCTION private.bootstrap_super_admin_v1(uuid,text,text) FROM PUBLIC, anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION private.admin_get_membership_v1(uuid) FROM PUBLIC, anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION private.admin_manage_membership_v1(uuid,uuid,text,text[],text,text,text) FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION private.bootstrap_super_admin_v1(uuid,text,text) TO postgres;
+GRANT EXECUTE ON FUNCTION private.admin_get_membership_v1(uuid) TO service_role;
+GRANT EXECUTE ON FUNCTION private.admin_manage_membership_v1(uuid,uuid,text,text[],text,text,text) TO service_role;
+
+COMMENT ON SCHEMA private IS 'Non-exposed BTCBOX administrator identity, grants, and audit storage. Never add to Data API exposed schemas.';
+COMMENT ON FUNCTION private.bootstrap_super_admin_v1(uuid,text,text) IS 'Owner-only one-time Super Admin bootstrap; never expose through HTTP/PostgREST.';
+COMMENT ON FUNCTION private.admin_manage_membership_v1(uuid,uuid,text,text[],text,text,text) IS 'Trusted-server-only Super Admin delegated-admin lifecycle transition; actor UUID must come from verified Supabase Auth.';
+
      OR coalesce(array_length(p_permissions,1),0)>64 THEN
     RAISE EXCEPTION 'invalid administrator change request';
   END IF;

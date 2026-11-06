@@ -41,6 +41,8 @@ test('grant and audit history is append-only and all membership state is revisio
   assert.match(sql, /CREATE TABLE private\.admin_security_audit/i);
   assert.match(sql, /BEFORE UPDATE OR DELETE ON private\.admin_permission_events/i);
   assert.match(sql, /BEFORE UPDATE OR DELETE ON private\.admin_security_audit/i);
+  assert.match(sql, /actor_kind text NOT NULL DEFAULT 'admin'/i);
+  assert.match(sql, /'owner_bootstrap',NULL,p_auth_user_id,'provision'/i);
   assert.match(sql, /revision=revision\+1/i);
   assert.match(sql, /membership_revision bigint NOT NULL/i);
 });
@@ -71,6 +73,9 @@ test('permission writes reject unknown, duplicate, wildcard, and malformed permi
 test('grant, revoke, membership revision, idempotency and audit commit in one transition function', () => {
   assert.match(sql, /CREATE TABLE private\.admin_request_idempotency/i);
   assert.match(sql, /idempotency conflict/i);
+  assert.match(sql, /pg_advisory_xact_lock/i);
+  assert.match(sql, /complete desired permission snapshot/i);
+  assert.match(sql, /CASE WHEN c\.permission_key=ANY\(v_allowed\) THEN 'grant' ELSE 'revoke' END/i);
   assert.match(sql, /INSERT INTO private\.admin_permission_events/i);
   assert.match(sql, /INSERT INTO private\.admin_security_audit/i);
   assert.match(sql, /INSERT INTO private\.admin_request_idempotency/i);

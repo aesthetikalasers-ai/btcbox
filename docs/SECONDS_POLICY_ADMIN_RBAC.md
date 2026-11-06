@@ -319,3 +319,10 @@ The migration seeds only permission definitions. It does not create a Super Admi
 
 ### Validation status
 This batch adds migration source and static contract tests only. No PostgreSQL parser or isolated staging database was available for execution, so SQL runtime/catalog behavior is NOT yet validated. Do not apply this migration to production. The next integration stage must validate SQL on isolated staging, verify actual role/function privileges and exposed-schema configuration, and test concurrent/idempotent operations before any route is connected.
+
+
+### 15.1 Source review corrections
+- Bootstrap audit attribution is explicitly marked `owner_bootstrap` with no fabricated administrator actor UUID; the target Auth UUID remains separately recorded.
+- Permission replacement writes a complete grant/revoke snapshot for every catalogue key, so removing a permission actually revokes it rather than leaving an older grant active.
+- A transaction-scoped advisory lock serializes the same actor/request-id before idempotency lookup, preventing concurrent identical retries from racing into duplicate mutations.
+- Permission-event ordering uses an identity sequence as a deterministic tie-breaker for events created in the same timestamp resolution window.
