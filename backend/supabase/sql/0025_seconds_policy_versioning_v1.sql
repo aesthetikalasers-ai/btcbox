@@ -21,9 +21,17 @@ CREATE TABLE IF NOT EXISTS public.seconds_contract_policies (
   created_at timestamptz NOT NULL DEFAULT clock_timestamp(),
   CHECK (effective_until IS NULL OR effective_until > effective_from),
   CHECK (symbols <@ ARRAY['BTC','ETH','SOL','BNB']::text[]),
-  CHECK (0 < ALL(durations_sec)),
+  CONSTRAINT seconds_contract_policies_durations_positive CHECK (0 < ALL(durations_sec)),
   CHECK (per_user_open_exposure IS NULL OR per_user_open_exposure > 0)
 );
+
+-- Replace the retired fixed-duration allowlist with a positive-integer policy list.
+ALTER TABLE public.seconds_contract_policies
+  DROP CONSTRAINT IF EXISTS seconds_contract_policies_durations_sec_check;
+ALTER TABLE public.seconds_contract_policies
+  DROP CONSTRAINT IF EXISTS seconds_contract_policies_durations_positive;
+ALTER TABLE public.seconds_contract_policies
+  ADD CONSTRAINT seconds_contract_policies_durations_positive CHECK (0 < ALL(durations_sec));
 
 -- The active pointer is separate from immutable policy content.
 CREATE TABLE IF NOT EXISTS public.seconds_contract_policy_active (
