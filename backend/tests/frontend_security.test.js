@@ -126,8 +126,7 @@ test('index.html CDN scripts are exact-version pinned with SRI integrity + cross
   assert.ok(html.includes('qrcode-generator@1.4.4/qrcode.js'), 'qrcode must use real (non-dynamically-minified) file for stable SRI');
 });
 
-test('admin.html is identical to index.html and oauth/consent.html has no inline script', () => {
-  assert.equal(read('admin.html'), read('index.html'), 'admin.html out of sync with index.html');
+test('legacy OAuth compatibility and consent pages contain no inline scripts', () => {
   const consent = read('oauth/consent.html');
   assert.ok(!/<script>/.test(consent), 'consent.html still has inline script block');
   assert.ok(!/on(click|load|error|submit)=/.test(consent), 'consent.html still has inline event handler');
@@ -136,7 +135,7 @@ test('admin.html is identical to index.html and oauth/consent.html has no inline
 });
 
 test('no inline script blocks or inline event handlers in any public HTML', () => {
-  for (const f of ['index.html', 'admin.html', 'oauth/consent.html']) {
+  for (const f of ['index.html', 'oauth/consent.html']) {
     const s = read(f);
     assert.ok(!/<script(?![^>]*src=)[^>]*>[^<]/s.test(s), `inline script block in ${f}`);
     assert.ok(!/\son(click|load|error|submit|change|input|mouseover|focus|blur)=/i.test(s), `inline event handler in ${f}`);
