@@ -3273,3 +3273,16 @@ The prior withdrawal UI audit statement claiming the active BTCBOX admin route w
 - NOT VERIFIED: authenticated KYC state rendering, administrator read-only queue data, and authenticated session restoration through real Supabase OAuth. These remain separate tasks.
 - No merge, production deployment, hosted DB write, real financial action, or trading-layout change occurred.
 - NEXT ACTION: validate exact-head CI, then cover KYC read-only state and admin read-only queue using source-verified endpoint/response shapes and mutation-denying mocks.
+
+
+## Authenticated KYC status and anonymous administrator boundary tests — 2026-11-06
+
+- The asset-page fixture assertion was corrected to match the actual AccountSnapshot and AssetsPage contract: incomplete valuation must not be represented as a complete total, while individual balances remain visible.
+- Exact-head validation for 9841c3d58cebc471a771a00fa22ba528944cd910: frontend CI run 427 (42237075993) passed with Playwright 16/16; backend CI run 556 (42237076063) passed; PostgreSQL schema CI run 121 (42237075975) passed.
+- Added a synthetic authenticated KYC fixture and read-only /kyc coverage for pending review state, applicant name, masked document number, and absence of resubmission controls while pending.
+- Strengthened anonymous /admin route coverage to assert that no /api/admin/* endpoint (including administrator session verification) is requested without a Supabase identity. No administrator identity is fabricated.
+- Current implementation commit: 555bbab04f2d5246219fd4108bba4bf0bede5814.
+- Exact-head CI: backend run 42237466757 passed; PostgreSQL schema run 42237466717 passed; frontend run 42237467012 is still in progress at the Chromium installation step. Do not claim this commit's browser tests passed until the frontend run completes.
+- All browser data remains synthetic; no real Supabase Auth, hosted database, private KYC storage, financial write, or real administrator operation is used. Trading page layout is unchanged.
+- PR #50 remains Draft/open/unmerged. No merge or production deployment was performed.
+- NEXT: confirm frontend run 42237467012; if successful, proceed to read-only admin API contract coverage only where endpoint/response shapes can be grounded without forging an admin session. Keep actual admin queue data and OAuth restoration marked unverified until a real authorized test identity is available.
