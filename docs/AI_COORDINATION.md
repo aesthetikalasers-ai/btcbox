@@ -5919,3 +5919,17 @@ The prior withdrawal UI audit statement claiming the active BTCBOX admin route w
 - Exact corrected-head backend CI run `42289313884`: **passed, 374/374 tests**, unified build and fail-closed preflight.
 - Exact corrected-head PostgreSQL schema CI run `42289313983`: **passed**, all canonical SQL migrations applied to an empty disposable PostgreSQL database.
 - Exact corrected-head frontend CI run `42289313921`: **passed**, including lint, Vite build, Chromium setup, and desktop/mobile Playwright route smoke tests. All three GitHub Actions suites passed for application-code head `d017c8bdc3ccebd9337410d3e513ce41a8fdb5b2`; the later coordination-only PR head is `f718332b7e388f3d8f7dda7b2cea5e96a4c4a5cb`.
+
+
+### 2026-11-07 — KYC legacy-status resubmission guard
+- Role: 2号 AI — Web App + Admin Panel. Continued in Draft PR #51; no merge or deployment.
+- DEFECT FOUND: The customer KYC page already treated `processing`, `under_review`, and `verified` as locked states, but the API submission guard only blocked exact `pending` and `approved`. Legacy/imported records using these aliases could therefore be resubmitted, replacing evidence while still under review or after verification.
+- FIXED: added a shared server-side `kycSubmissionBlock` status normalizer. It blocks `pending/processing/under_review` as in-review and `approved/verified` as approved; `rejected/failed/not_submitted` remain eligible for the existing resubmission flow. The guard runs before new document upload and record replacement.
+- REGRESSION TEST: added coverage for all locked aliases, case/whitespace normalization, and allowed rejected/failed/unsubmitted states.
+- Code commit: `feed31301d44f4231eeafabca86e7abee722d24f`.
+- EXACT-HEAD BACKEND CI run `42291352612`: **passed, 375/375 tests**, unified build and fail-closed preflight.
+- EXACT-HEAD FRONTEND CI run `42291352569`: **passed**, lint, Vite build, Chromium and **20/20** desktop/mobile Playwright route smoke tests.
+- EXACT-HEAD PostgreSQL schema CI run `42291352599`: **passed**, all canonical SQL migrations applied to an empty disposable PostgreSQL database.
+- This batch changes no SQL schema; the PostgreSQL suite was run regardless and passed. Vercel remains subject to the existing `build-rate-limit` platform status; no deployment was attempted.
+- NEXT: continue cross-checking Admin role visibility against user-detail projections and the canonical order/ledger read paths; run hosted Auth/Storage workflows only in isolated staging after test credentials are available. KYC retention/deletion remains an owner-policy decision; no duration is invented and no documents are deleted.
+- No production DB operation, financial transaction, merge, or deployment was performed.
