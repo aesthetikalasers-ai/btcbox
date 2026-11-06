@@ -2219,3 +2219,12 @@ Application branch inspected: `feat/btcbox-web3-auth-20261105` at `741c709d818cb
 - All job steps succeeded: dependency install, unified site build, backend tests, fail-closed deployment configuration validation, and unified output/preserved entrypoint verification.
 - Earlier failed run `42140915024` on `d22d964e0d4864d24dd6bd3eedc300970c641f23` was corrected; it had 254/256 tests passing and failed only stale doc-contract assertions. The final exact SHA above is the passing result.
 - This verifies source/build/test contracts only, not runtime Supabase RBAC behavior. No isolated staging, migration, administrator account, role grant, financial operation, merge, or deployment was performed.
+
+
+## Delegated administrator permission catalogue — 2026-11-06 (UTC+8)
+
+- Added an initial closed permission-key catalogue to `docs/SECONDS_POLICY_ADMIN_RBAC.md` for dashboard, users, KYC, deposits, withdrawals, orders, support, announcements, system configuration, seconds policy, financial audit, and reviewed balance-adjustment requests.
+- Added static assertions for the allowlisted module permissions and the rule that administrator provisioning/permission assignment is reserved exclusively to the Super Admin.
+- Feature commit: `6dfd82cfb69b1a39e7acc2666366309219733398`. This remains a design/source-contract milestone only; no runtime authorization code, admin UI, database schema, migration, membership, or grant has been implemented.
+- Financial permissions do not bypass existing backend cutover flags, transaction RPCs, balance invariants, idempotency, security checks, or audit.
+- Exact-SHA backend CI is pending; no result is claimed until completion. No Supabase writes, merge, or production deployment.
