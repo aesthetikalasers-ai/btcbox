@@ -367,7 +367,7 @@ export async function getSecondsPolicy(signal?: AbortSignal): Promise<SecondsPol
       !policy.durations_sec.every((duration) => [30, 60, 300, 900].includes(duration)) ||
       !Number.isFinite(Number(policy.min_stake)) || Number(policy.min_stake) <= 0 ||
       !Number.isFinite(Number(policy.max_stake)) || Number(policy.max_stake) < Number(policy.min_stake) ||
-      !Number.isInteger(policy.payout_bps) || policy.payout_bps < 8500 || policy.payout_bps > 10000 ||
+      !Number.isInteger(policy.payout_bps) || policy.payout_bps < 8500 ||
       (policy.per_user_open_exposure !== null && (!Number.isFinite(Number(policy.per_user_open_exposure)) || Number(policy.per_user_open_exposure) <= 0)) ||
       typeof payload.actions_enabled !== "boolean") {
     throw new ApiError("BTCBOX returned an invalid seconds policy.", 502, "INVALID_SECONDS_POLICY");
