@@ -41,6 +41,7 @@ test('admin fee writes validate supported assets and decimal amounts before audi
   for (const contract of [
     'body.withdrawal_fees', 'DEFAULT_WITHDRAWAL_FEES', 'parseMoneyInput',
     'compareMoney(value, \'1000000000000\')', 'changedFeeKeys',
+    'if (nextFees[coin] !== value) changedFeeKeys.push(coin)',
     "auditAdmin('system_config_update'", 'await saveDB(db)'
   ]) assert.ok(route.includes(contract), 'missing configurable fee persistence contract: ' + contract);
   assert.ok(api.includes('withdrawal_fees: safeWithdrawalFees(db.withdrawal_fees)'));
