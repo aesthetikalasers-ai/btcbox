@@ -68,6 +68,9 @@ test('admin route uses verified Supabase Auth identity and server-side role perm
   assert.ok(apiCore.includes('authorizeSupabaseAdmin'));
   assert.ok(apiCore.includes('admin_get_membership_v1'));
   assert.ok(apiCore.includes('hasAdminPermission'));
+  assert.ok(apiCore.includes("sub === 'session' && method === 'GET'"));
+  assert.ok(apiCore.includes("orders: 'orders.read'"));
+  assert.ok(apiCore.includes("'support/messages': 'support.read'"));
   assert.ok(apiCore.includes('ADMIN_PERMISSION_DENIED'));
   assert.ok(!apiCore.includes('WWW-Authenticate: Basic realm="BTCBOX Admin"'));
   assert.ok(!apiCore.includes("authHeader.startsWith('Basic ')"));
