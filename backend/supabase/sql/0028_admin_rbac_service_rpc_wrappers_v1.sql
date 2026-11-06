@@ -224,3 +224,198 @@ REVOKE ALL ON FUNCTION public.admin_set_seconds_policy_v1(uuid,bigint,text[],int
   FROM PUBLIC,anon,authenticated,service_role;
 GRANT EXECUTE ON FUNCTION public.admin_set_seconds_policy_v1(uuid,bigint,text[],integer[],numeric,numeric,integer,numeric,integer,text,text,text)
   TO service_role;
+
+
+-- Admin-managed spot pair rules. The service role can call only this audited,
+-- permission-checked transition; it never receives direct market-table DML.
+CREATE TABLE IF NOT EXISTS private.spot_market_request_idempotency (
+  actor_user_id uuid NOT NULL,
+  request_id text NOT NULL CHECK (request_id ~ '^[A-Za-z0-9_-]{16,100}$'),
+  request_hash text NOT NULL CHECK (request_hash ~ '^[0-9a-f]{64}$'),
+  response jsonb NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT clock_timestamp(),
+  PRIMARY KEY(actor_user_id,request_id)
+);
+ALTER TABLE private.spot_market_request_idempotency ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON private.spot_market_request_idempotency FROM PUBLIC,anon,authenticated,service_role;
+
+CREATE OR REPLACE FUNCTION private.admin_set_spot_market_v1(
+  p_actor_user_id uuid,
+  p_base_asset text,
+  p_quote_asset text,
+  p_enabled boolean,
+  p_price_tick numeric,
+  p_quantity_step numeric,
+  p_min_quantity numeric,
+  p_min_notional numeric,
+  p_min_limit_price numeric,
+  p_max_limit_price numeric,
+  p_reason text,
+  p_request_id text,
+  p_request_hash text
+) RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+  v_membership jsonb;
+  v_existing private.spot_market_request_idempotency%rowtype;
+  v_market public.financial_matching_markets%rowtype;
+  v_before jsonb;
+  v_after jsonb;
+  v_response jsonb;
+BEGIN
+  IF p_actor_user_id IS NULL
+     OR coalesce(p_base_asset,'') !~ '^[A-Z0-9]{2,16}$'
+     OR coalesce(p_quote_asset,'') !~ '^[A-Z0-9]{2,16}$'
+     OR p_base_asset=p_quote_asset
+     OR p_enabled IS NULL
+     OR p_price_tick IS NULL OR p_price_tick<=0
+     OR p_quantity_step IS NULL OR p_quantity_step<=0
+     OR p_min_quantity IS NULL OR p_min_quantity<=0
+     OR p_min_notional IS NULL OR p_min_notional<0
+     OR (p_min_limit_price IS NOT NULL AND p_min_limit_price<=0)
+     OR (p_max_limit_price IS NOT NULL AND p_max_limit_price<=0)
+     OR (p_min_limit_price IS NOT NULL AND p_max_limit_price IS NOT NULL
+         AND p_min_limit_price>p_max_limit_price)
+     OR length(btrim(coalesce(p_reason,''))) NOT BETWEEN 1 AND 500
+     OR p_request_id IS NULL OR p_request_id !~ '^[A-Za-z0-9_-]{16,100}$'
+     OR p_request_hash IS NULL OR p_request_hash !~ '^[0-9a-f]{64}$' THEN
+    RAISE EXCEPTION 'invalid spot market configuration';
+  END IF;
+
+  v_membership := private.admin_get_membership_v1(p_actor_user_id);
+  IF coalesce((v_membership->>'found')::boolean,false) IS NOT TRUE
+     OR NOT (coalesce(v_membership->'permissions','[]'::jsonb) ? 'system_config.write') THEN
+    RAISE EXCEPTION 'system config write permission required';
+  END IF;
+
+  PERFORM pg_advisory_xact_lock(
+    hashtextextended(p_actor_user_id::text || ':' || p_request_id,0)
+  );
+  SELECT * INTO v_existing
+  FROM private.spot_market_request_idempotency
+  WHERE actor_user_id=p_actor_user_id AND request_id=p_request_id;
+  IF FOUND THEN
+    IF v_existing.request_hash<>p_request_hash THEN
+      RAISE EXCEPTION 'spot market idempotency payload mismatch';
+    END IF;
+    RETURN v_existing.response || jsonb_build_object('replayed',true);
+  END IF;
+
+  SELECT jsonb_build_object(
+    'base_asset',base_asset,'quote_asset',quote_asset,'enabled',enabled,
+    'price_tick',price_tick,'quantity_step',quantity_step,'min_quantity',min_quantity,
+    'min_notional',min_notional,'min_limit_price',min_limit_price,
+    'max_limit_price',max_limit_price,'maker_fee_rate',maker_fee_rate,
+    'taker_fee_rate',taker_fee_rate
+  ) INTO v_before
+  FROM public.financial_matching_markets
+  WHERE base_asset=p_base_asset AND quote_asset=p_quote_asset
+  FOR UPDATE;
+
+  INSERT INTO public.financial_matching_markets(
+    base_asset,quote_asset,enabled,price_tick,quantity_step,min_quantity,
+    min_notional,min_limit_price,max_limit_price
+  ) VALUES (
+    p_base_asset,p_quote_asset,p_enabled,p_price_tick,p_quantity_step,p_min_quantity,
+    p_min_notional,p_min_limit_price,p_max_limit_price
+  )
+  ON CONFLICT(base_asset,quote_asset) DO UPDATE SET
+    enabled=EXCLUDED.enabled,
+    price_tick=EXCLUDED.price_tick,
+    quantity_step=EXCLUDED.quantity_step,
+    min_quantity=EXCLUDED.min_quantity,
+    min_notional=EXCLUDED.min_notional,
+    min_limit_price=EXCLUDED.min_limit_price,
+    max_limit_price=EXCLUDED.max_limit_price,
+    updated_at=clock_timestamp()
+  RETURNING * INTO v_market;
+
+  v_after := jsonb_build_object(
+    'base_asset',v_market.base_asset,'quote_asset',v_market.quote_asset,
+    'enabled',v_market.enabled,'price_tick',v_market.price_tick,
+    'quantity_step',v_market.quantity_step,'min_quantity',v_market.min_quantity,
+    'min_notional',v_market.min_notional,'min_limit_price',v_market.min_limit_price,
+    'max_limit_price',v_market.max_limit_price,
+    'maker_fee_rate',v_market.maker_fee_rate,'taker_fee_rate',v_market.taker_fee_rate,
+    'updated_at',v_market.updated_at
+  );
+
+  INSERT INTO public.financial_audit_log(
+    actor_id,subject_user_id,action,object_type,object_id,reason,metadata
+  ) VALUES (
+    p_actor_user_id::text,NULL,'admin_spot_market_updated','spot_market',
+    p_base_asset||'/'||p_quote_asset,btrim(p_reason),
+    jsonb_build_object('before',coalesce(v_before,'null'::jsonb),'after',v_after,'request_id',p_request_id)
+  );
+
+  v_response := jsonb_build_object('ok',true,'market',v_after,'replayed',false);
+  INSERT INTO private.spot_market_request_idempotency(actor_user_id,request_id,request_hash,response)
+  VALUES(p_actor_user_id,p_request_id,p_request_hash,v_response);
+  RETURN v_response;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION private.admin_set_spot_market_v1(uuid,text,text,boolean,numeric,numeric,numeric,numeric,numeric,numeric,text,text,text)
+  FROM PUBLIC,anon,authenticated,service_role;
+GRANT EXECUTE ON FUNCTION private.admin_set_spot_market_v1(uuid,text,text,boolean,numeric,numeric,numeric,numeric,numeric,numeric,text,text,text)
+  TO service_role;
+
+CREATE OR REPLACE FUNCTION public.admin_set_spot_market_v1(
+  p_actor_user_id uuid,
+  p_base_asset text,
+  p_quote_asset text,
+  p_enabled boolean,
+  p_price_tick numeric,
+  p_quantity_step numeric,
+  p_min_quantity numeric,
+  p_min_notional numeric,
+  p_min_limit_price numeric,
+  p_max_limit_price numeric,
+  p_reason text,
+  p_request_id text,
+  p_request_hash text
+) RETURNS jsonb
+LANGUAGE sql
+SECURITY INVOKER
+SET search_path = ''
+AS $wrap$
+  SELECT private.admin_set_spot_market_v1(
+    p_actor_user_id,p_base_asset,p_quote_asset,p_enabled,p_price_tick,
+    p_quantity_step,p_min_quantity,p_min_notional,p_min_limit_price,p_max_limit_price,
+    p_reason,p_request_id,p_request_hash
+  );
+$wrap$;
+
+REVOKE ALL ON FUNCTION public.admin_set_spot_market_v1(uuid,text,text,boolean,numeric,numeric,numeric,numeric,numeric,numeric,text,text,text)
+  FROM PUBLIC,anon,authenticated,service_role;
+GRANT EXECUTE ON FUNCTION public.admin_set_spot_market_v1(uuid,text,text,boolean,numeric,numeric,numeric,numeric,numeric,numeric,text,text,text)
+  TO service_role;
+
+CREATE OR REPLACE FUNCTION public.read_spot_market_snapshot_v1()
+RETURNS jsonb
+LANGUAGE sql
+SECURITY INVOKER
+SET search_path = ''
+AS $read$
+  SELECT jsonb_build_object(
+    'ok',true,
+    'markets',coalesce(jsonb_agg(jsonb_build_object(
+      'base_asset',base_asset,'quote_asset',quote_asset,'enabled',enabled,
+      'price_tick',price_tick,'quantity_step',quantity_step,'min_quantity',min_quantity,
+      'min_notional',min_notional,'min_limit_price',min_limit_price,
+      'max_limit_price',max_limit_price,'maker_fee_rate',maker_fee_rate,
+      'taker_fee_rate',taker_fee_rate,'updated_at',updated_at
+    ) ORDER BY base_asset,quote_asset),'[]'::jsonb)
+  )
+  FROM public.financial_matching_markets;
+$read$;
+
+REVOKE ALL ON FUNCTION public.read_spot_market_snapshot_v1()
+  FROM PUBLIC,anon,authenticated,service_role;
+GRANT EXECUTE ON FUNCTION public.read_spot_market_snapshot_v1() TO service_role;
+
+COMMENT ON FUNCTION public.admin_set_spot_market_v1(uuid,text,text,boolean,numeric,numeric,numeric,numeric,numeric,numeric,text,text,text) IS
+  'Trusted backend only. Requires active system_config.write membership; atomically upserts spot market rules and appends audit/idempotency records.';
