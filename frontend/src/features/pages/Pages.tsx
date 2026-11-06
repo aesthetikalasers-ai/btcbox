@@ -695,7 +695,8 @@ export function WithdrawPage(){
  const [submitting,setSubmitting]=useState(false);
  const [error,setError]=useState("");
  const [actionMessage,setActionMessage]=useState("");
- const [requestId,setRequestId]=useState("");
+ const [pendingIntent,setPendingIntent]=useState<{version:1;request_id:string;address_id:string;coin:string;network:string;amount:string;address:string;created_at:number}|null>(null);
+ const [pendingIntentInvalid,setPendingIntentInvalid]=useState(false);
  const [reload,setReload]=useState(0);
 
  useEffect(()=>{
@@ -706,7 +707,17 @@ export function WithdrawPage(){
     if(controller.signal.aborted)return;
     setAccount(snapshot);setAddresses(book);setConfig(withdrawalConfig);
     const usable=book.filter(item=>!item.blocked&&!item.unbound);
-    setSelectedId(current=>usable.some(item=>item.id===current)?current:(usable[0]?.id||""));
+    const storageKey="btcbox.withdraw.pending.v1."+snapshot.uid;
+    try{
+     const raw=window.localStorage.getItem(storageKey);
+     if(raw){
+      const saved=JSON.parse(raw);
+      const savedAddress=book.find(item=>item.id===saved?.address_id);
+      if(saved&&saved.version===1&&typeof saved.request_id==="string"&&/^[A-Za-z0-9_-]{16,100}$/.test(saved.request_id)&&typeof saved.amount==="string"&&typeof saved.address==="string"&&savedAddress&&!savedAddress.blocked&&!savedAddress.unbound&&savedAddress.coin===saved.coin&&savedAddress.network===saved.network&&savedAddress.address===saved.address){
+       setPendingIntent(saved);setSelectedId(saved.address_id);setAmount(saved.amount);
+      }else{setPendingIntentInvalid(true);setError("A saved withdrawal request cannot be matched to its original destination. Contact support before creating another withdrawal.");}
+     }else{setPendingIntent(null);setPendingIntentInvalid(false);setSelectedId(current=>usable.some(item=>item.id===current)?current:(usable[0]?.id||""));}
+    }catch{setPendingIntentInvalid(true);setError("A saved withdrawal request could not be read. Do not submit another withdrawal until its status is checked.");}
    })
    .catch(reason=>{
     if(reason instanceof Error&&reason.name==="AbortError")return;
