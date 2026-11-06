@@ -61,7 +61,6 @@ Manual deposits follow the chosen half-manual workflow: staff verifies the trans
 - `0027` adds staff-paid completion for an already approved withdrawal; it records the payout reference and status/audit transition without broadcasting or debiting a second time.
 - `0028` adds service-role-only PostgREST wrappers for admin membership and atomic Seconds policy version activation.
 - `0029` makes withdrawal fee quotes replay-safe: existing requests retain their stored fee and review snapshot, while new requests must match the current server quote.
-- `0029` extends the withdrawal create RPC with an expected-fee quote check that runs only after the request-id replay lookup. Existing requests replay their originally stored fee across later admin fee changes; new requests with stale quotes are rejected before funds are reserved.
 
 ## Admin bootstrap and financial safety
 
