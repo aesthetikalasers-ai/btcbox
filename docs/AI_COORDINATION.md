@@ -2926,3 +2926,16 @@ The prior withdrawal UI audit statement claiming the active BTCBOX admin route w
 - TEST PASSED on exact head: backend GitHub Actions run 410 — unified build, **304/304 tests**, fail-closed preflight and output/entrypoint checks; frontend run 274 — lint and build. Run IDs: `42212550440` and `42212550392`.
 - KYC scope clarification: current UI/API submit and review identity text fields (name, document type and number), but no document-image upload or secure evidence-storage/review path was found. Do not describe document evidence review as implemented.
 - NOT VERIFIED: full SQL execution against a disposable empty PostgreSQL database; hosted Supabase schema installation; first Super Admin bootstrap; browser E2E and live provider connectivity. No hosted DB write, real financial operation, production deployment or merge to `main` was performed.
+
+## Configurable withdrawal-fee batch — verified — 2026-11-06 (UTC)
+
+- SOURCE GAP: withdrawal fees were hard-coded in both `/api/withdrawal/config` and the actual `POST /api/withdraw` debit calculation; admin configuration exposed only deposit addresses and announcements. Staff could not adjust fees from the admin UI.
+- FIXED: added a validated `withdrawal_fees` setting for USDT, BTC, ETH, SOL, BNB and USDC. Defaults preserve the existing schedule; admin may change each fee or set it to zero. Invalid, negative, overlong, over-precision or unsupported values are rejected before persistence.
+- The admin finance-configuration form now edits both deposit addresses and withdrawal fees. The API persists fee changes through the existing audited admin-config save path.
+- The customer `withdrawal/config` endpoint and actual withdrawal creation both read the same normalized server-side fee schedule. Existing pending withdrawals retain the fee recorded when submitted.
+- The retained legacy withdrawal view now fetches the authoritative server fee schedule and disables review/MAX until it has loaded; this prevents stale default fee values from being shown as confirmed.
+- Regression test `backend/tests/withdrawal-fee-config.test.js` verifies shared fee source, admin validation/audit persistence and UI controls; `backend/tests/smoke.test.js` checks the legacy view fails closed until live fees load.
+- Verified PR #50 head: `9c27a70bb5d7d3e2659f78b1b5d08a7ab0dd0f01`; 39 commits ahead / 0 behind `main` at `fa4513701af75b4c4cb39d60a3df08f07d632af4`. PR #50 remains Draft, unmerged and mergeable.
+- TEST PASSED on exact head: backend GitHub Actions run 417 — unified build, **307/307 tests**, fail-closed preflight and output/entrypoint checks; frontend run 281 — lint and build. Run IDs: `42213362566` and `42213362689`.
+- NOT VERIFIED: SQL chain execution against a disposable empty PostgreSQL database; hosted Supabase schema installation; first Super Admin bootstrap; browser E2E and live provider connectivity. KYC currently handles identity text fields only; document-image upload and secure evidence storage are not implemented.
+- No hosted DB write/bootstrap, real financial transaction, production deployment or merge to `main` was performed.
