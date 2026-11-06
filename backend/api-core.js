@@ -90,7 +90,7 @@ function redactAdminAuditDetail(value) {
   return String(value || '').slice(0, 300)
     .replace(/(["']?(?:password|passwd|(?:access|refresh|auth|session)[_ -]?token|[a-z0-9]+[_ -]token|token|authorization|bearer|secret|client[_ -]?secret|(?:service[_ -]?role|api|private)[_ -]?key|seed[_ -]?phrase|mnemonic|recovery[_ -]?codes?|id[_ -]?number|otp|totp[_ -]?secret)["']?\s*[:=]\s*)("(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|[^,}\s]+)/ig, '$1"[redacted]"')
     .replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/ig, '[email]')
-    .replace(/0x[a-fA-F0-9]{40}/g, '[wallet address]')
+    .replace(/0x[a-fA-F0-9]{40}(?![a-fA-F0-9])/g, '[wallet address]')
     .replace(/T[1-9A-HJ-NP-Za-km-z]{33}/g, '[wallet address]')
     .slice(0, 300);
 }
