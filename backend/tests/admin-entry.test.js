@@ -56,9 +56,15 @@ test('admin audit detail redaction handles escaped quotes and plural credential 
   assert.ok(!output.includes('key-123'));
 });
 
-test('dedicated /admin URL defaults to the admin route before SPA boot', () => {
-  assert.ok(boot.includes("if(!location.hash) location.hash = /^\\/admin(?:\\.html)?\\/?$/.test(location.pathname) ? '#/admin' : '#/home';"));
-  assert.ok(admin.includes('/assets/js/boot.js'));
+test('dedicated /admin URL is routed to the React SPA instead of the legacy static admin page', () => {
+  const vercel = JSON.parse(fs.readFileSync(path.join(root, 'vercel.json'), 'utf8'));
+  const buildSite = fs.readFileSync(path.join(root, 'scripts/build-site.js'), 'utf8');
+  assert.ok(vercel.rewrites.some((route) => route.source === '/admin' && route.destination === '/index.html'));
+  assert.ok(vercel.rewrites.some((route) => route.source === '/admin.html' && route.destination === '/index.html'));
+  assert.ok(buildSite.includes("const allowedFiles = ['index.html'];"));
+  assert.ok(!buildSite.includes("const allowedFiles = ['index.html', 'admin.html'];"));
+  assert.ok(reactApp.includes('<Route path="/admin" element={<AdminPage />} />'));
+  assert.ok(admin.includes('/assets/js/boot.js'), 'legacy admin source remains archived but is not published');
 });
 
 test('React admin route uses verified Supabase Auth identity and server-side role permissions', () => {
