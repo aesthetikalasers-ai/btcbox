@@ -66,7 +66,7 @@ test('administrator KYC queue returns a strict review-safe allowlist, never the 
   const end = api.indexOf("// GET /api/admin/user?uid=", start);
   assert.ok(start >= 0 && end > start);
   const route = api.slice(start, end);
-  for (const field of ['uid:', 'email:', 'name:', 'id_type:', "status: 'pending'", 'submitted_at:', 'document_url:', 'document_preview_error:', 'document_uploaded:']) {
+  for (const field of ['uid:', 'email:', 'name:', 'id_type:', "status: 'pending'", 'submitted_at:', 'document_url,', 'document_preview_error,', 'document_uploaded:']) {
     assert.ok(route.includes(field), 'KYC review response must include ' + field);
   }
   assert.ok(!route.includes('id_number:'));
