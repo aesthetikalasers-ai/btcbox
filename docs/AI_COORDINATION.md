@@ -3261,3 +3261,15 @@ The prior withdrawal UI audit statement claiming the active BTCBOX admin route w
 - Failure analysis from the CI log: the test incorrectly expected zero `GET /api/account` calls. SOURCE OBSERVED in `frontend/src/lib/auth.tsx`: AuthProvider intentionally probes the read-only account endpoint once during startup to restore a pre-existing cookie session, before falling back to anonymous Supabase session state. The page then correctly renders the signed-out prompt. This is expected session-bootstrap behavior, not a private-data leak or product regression.
 - Corrected the test to require exactly one read-only GET probe and renamed the test to describe the actual behavior. Correction commit: `c28d8ccb44321db3beb4fd5d652d5eea61f5909d`.
 - Exact-head CI for the correction is pending; previous failed frontend run must not be called passed. Backend and PostgreSQL schema CI passed on the prior test-only commit.
+
+## Authenticated customer read-only browser coverage — 2026-11-06
+
+- The corrected prior browser batch at `c28d8ccb44321db3beb4fd5d652d5eea61f5909d` passed all three required CI workflows: frontend `42235769715`, backend `42235769768`, PostgreSQL schema `42235769835`.
+- Added isolated Playwright fixtures and coverage for authenticated `/assets` and `/orders` pages in implementation commit `c9e95eb581c9a331641ba5fc59464fd117c365a3`.
+- Fixture contract follows source-observed AuthProvider behavior: a successful `GET /api/account` snapshot must include a username and `has_login_password: true` to avoid the account-setup gate. Assets fixture covers balances and valuation state; order fixture covers a read-only order-history row.
+- The order fixture only responds to GET; non-GET calls to the mocked order endpoint are rejected with 405. These tests do not execute order placement, cancellation, deposits, withdrawals, or any other financial mutation.
+- Browser data is synthetic and uses `.invalid` email / synthetic user ID. No Supabase hosted Auth, database, KYC storage, or production account data is accessed.
+- Exact-head frontend/backend/PostgreSQL CI for `c9e95eb581c9a331641ba5fc59464fd117c365a3` is pending; do not carry forward green status from the parent SHA.
+- NOT VERIFIED: authenticated KYC state rendering, administrator read-only queue data, and authenticated session restoration through real Supabase OAuth. These remain separate tasks.
+- No merge, production deployment, hosted DB write, real financial action, or trading-layout change occurred.
+- NEXT ACTION: validate exact-head CI, then cover KYC read-only state and admin read-only queue using source-verified endpoint/response shapes and mutation-denying mocks.
