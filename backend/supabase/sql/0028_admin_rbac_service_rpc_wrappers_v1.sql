@@ -103,7 +103,7 @@ DECLARE
 BEGIN
   IF p_actor_user_id IS NULL OR p_expected_policy_version IS NULL OR p_expected_policy_version < 1
      OR coalesce(array_length(p_symbols,1),0) < 1 OR coalesce(array_length(p_durations_sec,1),0) < 1
-     OR p_symbols <@ ARRAY['BTC','ETH','SOL','BNB']::text[]
+     OR NOT (p_symbols <@ ARRAY['BTC','ETH','SOL','BNB']::text[])
      OR NOT (0 < ALL(p_durations_sec))
      OR p_min_stake IS NULL OR p_min_stake <= 0
      OR p_max_stake IS NULL OR p_max_stake < p_min_stake
