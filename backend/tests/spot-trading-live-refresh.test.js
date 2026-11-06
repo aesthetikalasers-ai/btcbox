@@ -65,7 +65,11 @@ const backend = fs.readFileSync(path.resolve(__dirname, '../api-core.js'), 'utf8
 
 test('market API carries per-symbol server snapshot time separately from provider event time', () => {
   assert.ok(backend.includes('const snapshotTs = Math.floor(Date.now() / 1000)'));
-  assert.ok(backend.includes('ts: snapshotTs, source: row.source'));
+  assert.ok(backend.includes('ts: snapshotTs, providerTs: marketsByBase[row.sym].providerTs, source: row.source'));
+  assert.ok(backend.includes("products/' + productId + '/ticker'"));
+  assert.ok(backend.includes('Date.parse(ticker.time)'));
+  assert.ok(backend.includes('Math.floor(providerTimeMs / 1000)'));
+  assert.ok(api.includes('providerTs?: number'));
   assert.ok(api.includes('snapshotTs?: number'));
   assert.ok(api.includes('snapshotTs: Number.isFinite(snapshot?.ts)'));
 });
