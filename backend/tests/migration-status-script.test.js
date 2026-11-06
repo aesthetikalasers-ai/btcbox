@@ -70,3 +70,15 @@ test('migration checker refuses to compare timestamp ledger versions with four-d
     fs.rmSync(tempDir, { recursive: true, force: true });
   }
 });
+
+test('migration order document records prepared Seconds migrations and their prerequisites', () => {
+  const fs = require('node:fs');
+  const orderDoc = fs.readFileSync(path.join(__dirname, '..', 'supabase/sql/MIGRATION-ORDER-AND-CUTOVER.md'), 'utf8');
+  const rateLimit = orderDoc.indexOf('0023_btcbox_shared_rate_limit_v1.sql');
+  const settlement = orderDoc.indexOf('0024_seconds_settlement_idempotency_v1.sql');
+  const policy = orderDoc.indexOf('0025_seconds_policy_versioning_v1.sql');
+  assert.ok(rateLimit >= 0 && settlement > rateLimit && policy > settlement);
+  assert.match(orderDoc, /requires the Seconds tables\/RPCs from/i);
+  assert.match(orderDoc, /Apply only after the Seconds base and settlement-idempotency migrations/i);
+  assert.match(orderDoc, /timestamp registry versions directly with four-digit filenames/i);
+});
