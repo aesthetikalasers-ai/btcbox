@@ -2895,3 +2895,20 @@ The prior withdrawal UI audit statement claiming the active BTCBOX admin route w
 - PR #51: Draft, open, based on `fix/post-merge-db-bootstrap-seconds-20261106`; no merge to `main`. PR #50 remains Draft.
 - Vercel status on the child PR reports `build-rate-limit` / upgrade-to-Pro. This is a hosting preview/build-rate-limit status, not a GitHub Actions test failure. No production deployment or financial operation was initiated.
 - NEXT: independent review of the updated audit metadata allowlist and permissions; confirm runtime configuration uses canonical financial reads before treating the audit list as complete; then continue Web App/Admin Panel integration against the same parent baseline.
+
+
+### 2026-11-07 — next batch: admin user financial history and adjustment guard
+
+- Role: 2号 AI — Web App + Admin Panel. Dependent follow-up remains Draft PR #51 against parent PR #50's exact implementation head `73367233a5f4d37e828cb124f03f3eff84a10a2c`.
+- Additional source audit found the Admin user detail endpoint cloned the legacy user record and only removed credentials/KYC secrets. That broad `users.read` projection could also carry raw deposit, withdrawal, Earn and support-message arrays.
+- FIXED IN SOURCE: remove raw `deposits`, `withdrawals`, `earn_records`, and `support_messages` from the generic user-detail projection. When normalized financial reads are enabled, the backend reuses the canonical `read_financial_account_snapshot_v1` RPC for balances and history. Deposit history is projected only when the verified membership also has `deposits.read`; withdrawal history only with `withdrawals.read`. When normalized reads are disabled, permitted histories are explicitly marked `legacy_state_retention_limited`.
+- FIXED IN SOURCE: Admin user detail UI displays deposit asset/network, amount, status, TxID/receipt reference and time, with an explicit PostgreSQL versus retention-limited legacy source label. The view is hidden without `deposits.read`.
+- FINANCIAL CONTROL GAP: permission `financial_adjustment.request` was mapped to `admin_adjustment_atomic`, which applies an immediate ledger mutation and has no approval queue. This conflicts with the permission's "request" semantics and lacks maker-checker control.
+- SAFETY FIX: the direct `POST /api/admin/user/balance` endpoint now fails closed with `FINANCIAL_ADJUSTMENT_APPROVAL_REQUIRED` before any mutation until a dual-approval workflow is implemented. The misleading permission option was removed from the Admin role editor. The existing verified manual-deposit RPC path is unchanged. Do not re-enable this endpoint by changing only a feature flag.
+- REGRESSION TESTS: added `backend/tests/admin-user-financial-history.test.js` for permission-scoped projections, legacy-array non-disclosure, UI source labels; extended `manual-deposit-reference.test.js` and `admin-route-permissions.test.js` for snapshot reuse and adjustment guard.
+- EXACT-HEAD APPLICATION SHA: `e5f81fc535383b97ad2cea311deeb58c125d01c8`.
+- BACKEND CI run `42285954538`: success; 362 tests passed, 0 failed; unified build, fail-closed preflight, output/entrypoint checks passed.
+- FRONTEND CI run `42285954504`: success; lint, Vite build, Chromium install and 20/20 desktop/mobile route smoke tests passed.
+- PostgreSQL schema CI was not rerun because this batch changes no SQL migration/bootstrap files. Parent baseline `73367233a5f4d37e828cb124f03f3eff84a10a2c` previously passed empty-database PostgreSQL CI run `42268516996`. A fresh database-level rerun remains a release gate after any future SQL changes.
+- Vercel check remains `build-rate-limit`; no deployment was initiated. No hosted database operation, real funds operation, financial cutover change, merge, or production deployment occurred.
+- NEXT: independently review the new user-detail field projection against every Admin role; verify Super Admin bootstrap and delegated-role provisioning in a disposable Supabase project; test real Supabase Auth/RBAC and private KYC Storage on staging; continue order/ledger reconciliation and complete a full browser workflow with a disposable account before any release decision.
