@@ -5918,4 +5918,4 @@ The prior withdrawal UI audit statement claiming the active BTCBOX admin route w
 - Corrected the test paths to `../frontend` in commit `d017c8bdc3ccebd9337410d3e513ce41a8fdb5b2`.
 - Exact corrected-head backend CI run `42289313884`: **passed, 374/374 tests**, unified build and fail-closed preflight.
 - Exact corrected-head PostgreSQL schema CI run `42289313983`: **passed**, all canonical SQL migrations applied to an empty disposable PostgreSQL database.
-- Exact corrected-head frontend CI run `42289313921`: lint and Vite build passed; desktop/mobile Playwright route smoke test was still running when this entry was written. Do not claim full frontend CI until its final conclusion is successful.
+- Exact corrected-head frontend CI run `42289313921`: **passed**, including lint, Vite build, Chromium setup, and desktop/mobile Playwright route smoke tests. All three GitHub Actions suites passed for application-code head `d017c8bdc3ccebd9337410d3e513ce41a8fdb5b2`; the later coordination-only PR head is `f718332b7e388f3d8f7dda7b2cea5e96a4c4a5cb`.
