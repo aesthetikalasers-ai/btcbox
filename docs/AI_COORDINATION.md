@@ -3363,8 +3363,8 @@ The prior withdrawal UI audit statement claiming the active BTCBOX admin route w
 - SOURCE OBSERVED: the manual-credit UI and API accept verified receipt references up to 160 characters (AdminPage.tsx, api-core.js), but 0007_financial_admin_manual_deposit_v1.sql truncated the reference to 120 characters before recomputing the request hash. A valid 121–160 character reference therefore failed SQL hash verification.
 - FIX COMMITTED: aligned the SQL normalization limit to 160 characters, matching the UI/API contract. The reference remains trimmed and is used consistently for request hashing, persistence, and uniqueness checks.
 - REGRESSION COVERAGE ADDED: source contract test asserts the 160-character SQL limit; disposable PostgreSQL lifecycle integration submits a 130-character reference, checks the credit and balance, then replays the exact request and verifies no second credit.
-- Implementation branch: fix/post-merge-db-bootstrap-seconds-20261106; latest observed head: 12f9039066bfa702d8c8e369028a5ce7a27c0f2a. PR #50 remains Draft/open/unmerged.
-- Exact-head CI for this batch is NOT YET VERIFIED: the GitHub workflow lookup did not return runs for this SHA at the time of this update. Do not infer success from earlier workflow runs.
+- Implementation branch: fix/post-merge-db-bootstrap-seconds-20261106; latest observed head after the subsequent withdrawal-state fix: 21dacf90fac3b48bf461707da1442ca35afbc95f. PR #50 remains Draft/open/unmerged.
+- Exact-head CI on 21dacf90fac3b48bf461707da1442ca35afbc95f: backend run 42256946796 passed; PostgreSQL schema run 42256946955 passed; frontend run 42256946623 passed (lint, Vite build, Chromium install, desktop/mobile Playwright route smoke tests). All three passed on the same exact implementation SHA.
 - No hosted Supabase writes, real financial operations, merge, or deployment. Trading page layout unchanged.
 
 
