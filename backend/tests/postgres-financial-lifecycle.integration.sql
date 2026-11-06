@@ -217,6 +217,21 @@ BEGIN
     'disposable PostgreSQL integration test',
     'CI-TEST-ONLY'
   );
+  v_failed := false;
+  BEGIN
+    PERFORM public.admin_set_spot_market_v1(
+      '00000000-0000-4000-8000-000000000001',
+      'BTC','USDC',true,1,0.001,0.001,1,NULL,NULL,
+      'reject non-USDT quote pair in disposable test',
+      'spot-market-non-usdt-quote-0001',repeat('f',64)
+    );
+  EXCEPTION WHEN OTHERS THEN
+    v_failed := true;
+  END;
+  IF NOT v_failed THEN
+    RAISE EXCEPTION 'admin spot market accepted an unsupported non-USDT quote pair';
+  END IF;
+
   v_result := public.admin_set_spot_market_v1(
     '00000000-0000-4000-8000-000000000001',
     'BTC','USDT',true,1,0.001,0.001,1,NULL,NULL,
