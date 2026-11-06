@@ -582,7 +582,7 @@ export async function getAuthClientConfig(signal?: AbortSignal): Promise<AuthCli
   }
   const payload = await response.json().catch(() => null) as (AuthClientConfig & { msg?: string; code?: string }) | null;
   if (!response.ok || !payload || payload.ok !== true || !payload.supabase_url || !payload.publishable_key) {
-    throw new ApiError(payload?.msg || "Google sign-in is not configured.", response.status, payload?.code);
+    throw new ApiError(payload?.msg || "BTCBOX authentication is not configured.", response.status, payload?.code);
   }
   return payload;
 }
