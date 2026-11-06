@@ -44,7 +44,7 @@ test('seconds policy RBAC design requires a validated Supabase subject and serve
   assert.ok(design.includes('validate the token with the trusted Supabase Auth server'));
   assert.ok(design.includes('canonical actor is the validated Auth user UUID'));
   assert.ok(design.includes('private, non-Data-API-exposed schema/table'));
-  assert.ok(design.includes('read the current membership/permission state server-side for every sensitive action'));
+  assert.ok(design.includes('Read the current membership/permission state server-side for every sensitive action'));
   assert.ok(design.includes('Do not use mutable user_metadata'));
 });
 
@@ -63,5 +63,5 @@ test('every policy mutation contract requires reason, idempotency, optimistic re
 
 test('policy editor is explicitly gated on backend authorization and cannot write policy tables directly', () => {
   assert.ok(design.includes('seconds_policy.manage'));
-  assert.ok(design.includes('The React editor must not call table REST endpoints'));
+  assert.ok(design.includes('No frontend control may write directly to policy tables'));
 });
