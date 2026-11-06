@@ -105,6 +105,6 @@ test('design supersedes old two-person bootstrap and three-person approval requi
   assert.match(design, /supersedes conflicting approval\/bootstrap language/i);
   assert.match(design, /The Super Admin may perform the complete seconds-policy lifecycle alone/i);
   assert.match(design, /No three-person approval requirement is imposed/i);
-  assert.match(design, /one owner-controlled, out-of-band operation/i);
+  assert.match(design, /The initial Super Admin is provisioned once by the project owner through a private, out-of-band operation/i);
   assert.doesNotMatch(design.slice(design.indexOf('## 13. Product decision'), design.length), /two separately authenticated approvers/i);
 });
