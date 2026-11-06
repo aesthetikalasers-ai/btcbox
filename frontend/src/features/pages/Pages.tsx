@@ -190,7 +190,7 @@ export function SpotTradingPage(){
  const submitOrder=async(event:FormEvent<HTMLFormElement>)=>{
   event.preventDefault();
   if(!tradingStatus?.spot_order_entry_enabled){setError("Spot order execution is currently disabled by server policy. No order was placed.");return;}
-  if(!/^(?:0|[1-9]\\d*)(?:\\.\\d{1,18})?$/.test(quantity)||Number(quantity)<=0||!/^(?:0|[1-9]\\d*)(?:\\.\\d{1,18})?$/.test(price)||Number(price)<=0){setError("Enter a valid limit price and quantity.");return;}
+  if(!/^(?:0|[1-9]\d*)(?:\.\d{1,18})?$/.test(quantity)||Number(quantity)<=0||!/^(?:0|[1-9]\d*)(?:\.\d{1,18})?$/.test(price)||Number(price)<=0){setError("Enter a valid limit price and quantity.");return;}
   const requestId=pendingRequestId||window.crypto.randomUUID();
   setPendingRequestId(requestId);setBusy(true);setError("");setNotice("");
   try{
