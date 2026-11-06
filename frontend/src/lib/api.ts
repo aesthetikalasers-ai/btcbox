@@ -200,6 +200,19 @@ export interface AccountBalance {
   valuation_available?: boolean;
 }
 
+export interface DepositRecord {
+  id: string;
+  coin: string;
+  amount: number | string;
+  network?: string;
+  status: string;
+  time?: string;
+  confirmed_at?: string | null;
+  txid?: string;
+  reference?: string;
+  source?: string;
+}
+
 export interface WithdrawalRecord {
   id: string;
   coin: string;
@@ -230,6 +243,7 @@ export interface AccountSnapshot {
   kyc: { status: string; name?: string; id_type?: string; id_number?: string; reject_reason?: string; };
   twofa_enabled: boolean;
   earn_records?: EarnPosition[];
+  deposits?: DepositRecord[];
   withdrawals?: WithdrawalRecord[];
 }
 
