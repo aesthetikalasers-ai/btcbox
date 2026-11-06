@@ -118,3 +118,14 @@ test('public delegated-admin wrapper forwards the request hash expected by the p
   assert.match(wrapper, /p_request_id,p_request_hash/i);
   assert.doesNotMatch(wrapper, /p_target_status/);
 });
+
+
+test('delegated administrator listing is Super Admin-only and exposes permission snapshots without table access', () => {
+  assert.match(sql, /FUNCTION private\\.admin_list_memberships_v1\\(p_actor_user_id uuid\\)/i);
+  assert.match(sql, /status='active' AND is_super_admin=true/i);
+  assert.match(sql, /DISTINCT ON \\(e\\.permission_key\\)/i);
+  assert.match(sql, /GRANT EXECUTE ON FUNCTION private\\.admin_list_memberships_v1\\(uuid\\) TO service_role/i);
+  const wrapper = fs.readFileSync(path.resolve(__dirname, '../supabase/sql/0028_admin_rbac_service_rpc_wrappers_v1.sql'), 'utf8');
+  assert.match(wrapper, /FUNCTION public\\.admin_list_memberships_v1\\(p_actor_user_id uuid\\)/i);
+  assert.match(wrapper, /GRANT EXECUTE ON FUNCTION public\\.admin_list_memberships_v1\\(uuid\\) TO service_role/i);
+});
