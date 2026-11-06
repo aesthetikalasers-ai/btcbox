@@ -2842,3 +2842,10 @@ The prior withdrawal UI audit statement claiming the active BTCBOX admin route w
 - Updated settlement dependency notes so the Seconds settlement idempotency SQL depends on the core Seconds schema, not the retired single-open rule.
 - Added `seconds-unlimited-open-positions.test.js` to guard the intended behavior and the complete open-position array response.
 - No database was reset or written. The fresh empty-database schema is still a separate deliverable; do not apply old numbered migrations as a prerequisite.
+
+
+## CI correction for unlimited Seconds positions batch
+
+- The first PR #29 CI run failed because several existing tests still imported the retired `0015` SQL artifact, the migration checker treated retired sequence 15 as a missing file, and the isolated API harness did not map the new admin helper imports.
+- Updated the Seconds server-authoritative test to validate the current policy RPC in `0025`, marked sequence 15 as intentionally retired in the static checker, aligned the settlement prerequisite wording, and synchronized the isolated API test harness with the admin helper imports.
+- These are test/validation corrections only; no database operation or production change was performed. CI must rerun on the new exact PR head before merge.
