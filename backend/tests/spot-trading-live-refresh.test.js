@@ -33,7 +33,7 @@ test('spot trading live refresh never overwrites the customer-edited limit price
 
 test('spot trading page shows last successful market update and a stale-feed warning', () => {
   assert.ok(page.includes('marketUpdatedAt'));
-  assert.ok(page.includes('Last update'));
+  assert.ok(page.includes('Snapshot checked'));
   assert.ok(page.includes('marketFeedWarning'));
   assert.ok(page.includes('showing the last confirmed data'));
 });
@@ -74,4 +74,15 @@ test('spot UI labels server snapshot time and does not substitute browser receip
   assert.ok(page.includes('t("Snapshot checked")'));
   assert.ok(page.includes('selected.snapshotTs?selected.snapshotTs*1000:null'));
   assert.ok(!page.includes('setMarketUpdatedAt(Date.now())'));
+});
+
+const authPage = fs.readFileSync(path.resolve(__dirname, '../../frontend/src/features/auth/AuthPages.tsx'), 'utf8');
+
+test('sign-in and registration pages expose Google only, with no wallet or email login controls', () => {
+  assert.ok(authPage.includes('Continue with Google'));
+  assert.ok(authPage.includes('signInWithGoogle'));
+  assert.ok(!authPage.includes('Connect wallet'));
+  assert.ok(!authPage.includes('signInWithWeb3'));
+  assert.ok(!authPage.includes('Continue with email'));
+  assert.ok(!authPage.includes('Sign in with username'));
 });
