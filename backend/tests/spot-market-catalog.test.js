@@ -38,5 +38,6 @@ test('user Trade Hub links only to configured pairs and Spot order submission ch
   assert.match(pages, /pair\.base_asset\+pair\.quote_asset/);
   assert.match(pages, /pair\.base_asset===base&&pair\.quote_asset==="USDT"/);
   assert.match(pages, /if\(!spotPairEnabled\)/);
+  assert.match(pages, /setSpotPairEnabled\(false\);setTradingStatus\(null\)/);
   assert.match(pages, /!spotPairEnabled\|\|!tradingStatus\?\.spot_order_entry_enabled/);
 });
