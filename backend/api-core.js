@@ -1883,6 +1883,18 @@ async function handleRequest(event, context) {
     return json({ ok: false, msg: 'User-submitted deposit amounts are not accepted. BTCBOX staff verify incoming transfers and manually credit the account.' }, 403);
   }
 
+  // ---------- GET /api/withdrawal/config ----------
+  // Expose only the public withdrawal form contract and fail-closed availability.
+  if (path === 'withdrawal/config' && method === 'GET') {
+    if (!user) return json({ ok: false, msg: 'Not signed in.', need_login: true }, 401);
+    return json({
+      ok: true,
+      actions_enabled: financialWritesEnabled() && manualDepositRpcEnabled() && supabaseStorageConfigured(),
+      fees: { USDT: 1.0, BTC: 0.0001, ETH: 0.001, SOL: 0.01, BNB: 0.0005, USDC: 1.0 },
+      allowed_networks: { BTC:['BTC'], ETH:['ERC20'], USDT:['TRC20','ERC20','BEP20'], SOL:['SOL'], BNB:['BEP20'], USDC:['ERC20'] }
+    });
+  }
+
   // ---------- POST /api/withdraw ----------
   if (path === 'withdraw' && method === 'POST') {
     if (!user) return json({ ok: false, msg: 'Not signed in.', need_login: true }, 401);
