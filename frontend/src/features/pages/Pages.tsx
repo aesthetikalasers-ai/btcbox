@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 import { useEffect, useState, type FormEvent } from "react";
 import { RefreshCw, TrendingUp, TrendingDown, Clock3, ShieldAlert, Send, MessageCircle } from "lucide-react";
-import { getAccount, getOrders, getSecondsPositions, getSupportMessages, sendSupportMessage, getDepositAddress, getSavedCryptoAddresses, type SavedCryptoAddress, type AccountBalance, type AccountSnapshot, type OrderRecord, type SecondsPositionsSnapshot, type SupportMessage } from "../../lib/api";
+import { getAccount, getOrders, getSecondsPositions, getSupportMessages, sendSupportMessage, getDepositAddress, getSavedCryptoAddresses, getEarnCatalog, submitEarnAction, type EarnProduct, type EarnPosition, type SavedCryptoAddress, type AccountBalance, type AccountSnapshot, type OrderRecord, type SecondsPositionsSnapshot, type SupportMessage } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
 
 import type { ReactNode } from "react";
@@ -282,6 +282,83 @@ export function DepositPage(){
   </CardContent></Card>
  </PageFrame>;
 }
+
+
+export function EarnPage(){
+ const {t}=useI18n();
+ const [products,setProducts]=useState<EarnProduct[]>([]);
+ const [positions,setPositions]=useState<EarnPosition[]>([]);
+ const [actionsEnabled,setActionsEnabled]=useState(false);
+ const [selectedProduct,setSelectedProduct]=useState("");
+ const [amount,setAmount]=useState("");
+ const [loading,setLoading]=useState(true);
+ const [busy,setBusy]=useState(false);
+ const [error,setError]=useState("");
+ const [actionMessage,setActionMessage]=useState("");
+ const [reload,setReload]=useState(0);
+ useEffect(()=>{
+  const controller=new AbortController();
+  setLoading(true);setError("");
+  Promise.all([getAccount(controller.signal),getEarnCatalog(controller.signal)]).then(([account,catalog])=>{
+   setProducts(catalog.products);
+   setPositions(Array.isArray(account.earn_records)?account.earn_records:[]);
+   setActionsEnabled(catalog.actions_enabled);
+   setSelectedProduct(current=>catalog.products.some(p=>p.product_id===current)?current:(catalog.products[0]?.product_id||""));
+  }).catch((reason:unknown)=>{
+   if(reason instanceof Error&&reason.name==="AbortError")return;
+   setError(reason instanceof Error?reason.message:"Earn data is temporarily unavailable.");
+  }).finally(()=>{if(!controller.signal.aborted)setLoading(false);});
+  return ()=>controller.abort();
+ },[reload]);
+ const selected=products.find(item=>item.product_id===selectedProduct);
+ const number=(value:number|string|undefined)=>{const n=Number(value);return Number.isFinite(n)?n.toLocaleString(undefined,{maximumFractionDigits:10}):"—";};
+ const operate=async(event:FormEvent<HTMLFormElement>)=>{
+  event.preventDefault();
+  if(!selected||!actionsEnabled||busy)return;
+  const parsed=Number(amount);
+  if(!Number.isFinite(parsed)||parsed<=0){setError("Enter an amount greater than zero.");return;}
+  setBusy(true);setError("");setActionMessage("");
+  try{
+   const result=await submitEarnAction("subscribe",{request_id:crypto.randomUUID(),product_id:selected.product_id,amount:amount.trim()});
+   setActionMessage(result.duplicate?"This request was already processed.":"Subscription confirmed by BTCBOX.");
+   setAmount("");
+   setReload(n=>n+1);
+  }catch(reason){
+   setError(reason instanceof Error?reason.message:"Earn subscription was not confirmed. Check your Earn history before retrying.");
+  }finally{setBusy(false);}
+ };
+ const redeem=async(position:EarnPosition)=>{
+  if(!actionsEnabled||busy)return;
+  setBusy(true);setError("");setActionMessage("");
+  try{
+   const result=await submitEarnAction("redeem",{request_id:crypto.randomUUID(),record_id:position.id});
+   setActionMessage(result.duplicate?"This redemption request was already processed.":"Redemption confirmed by BTCBOX.");
+   setReload(n=>n+1);
+  }catch(reason){
+   setError(reason instanceof Error?reason.message:"Redemption was not confirmed. Check your Earn history before retrying.");
+  }finally{setBusy(false);}
+ };
+ return <PageFrame eyebrow="BTCBOX / WEALTH" title="Earn" description="Live Earn products, account positions and database-calculated interest from BTCBOX. Rates and terms are controlled by the backend.">
+  <div className="flex flex-wrap items-center justify-between gap-3"><Badge variant="outline" className="border-brand-border">{t("Live product catalog")}</Badge><Button size="sm" variant="outline" disabled={loading||busy} onClick={()=>setReload(n=>n+1)}><RefreshCw className={"mr-2 h-4 w-4 "+(loading?"animate-spin":"")}/>{t("Refresh")}</Button></div>
+  {loading?<Card className="border-brand-border bg-brand-surface"><CardContent className="p-5 text-sm text-brand-text-muted" role="status">{t("Loading Earn products and positions…")}</CardContent></Card>
+  :error&&!products.length?<Card className="border-rose-500/30 bg-brand-surface"><CardContent className="flex flex-wrap items-center justify-between gap-3 p-5"><p className="text-sm text-rose-300" role="alert">{error}</p><Button size="sm" variant="outline" onClick={()=>setReload(n=>n+1)}>{t("Try again")}</Button></CardContent></Card>
+  :<>
+   {error?<p className="rounded-xl border border-rose-500/30 p-3 text-sm text-rose-300" role="alert">{error}</p>:null}
+   {actionMessage?<p className="rounded-xl border border-emerald-500/30 p-3 text-sm text-emerald-300" role="status">{actionMessage}</p>:null}
+   {!actionsEnabled?<Card className="border-amber-400/25 bg-brand-surface"><CardContent className="p-4"><Badge variant="outline" className="border-amber-400/30 text-amber-200">{t("Operations not enabled")}</Badge><p className="mt-2 text-sm text-brand-text-secondary">{t("You can review the live product catalog and your positions. Subscribe and redeem will become available after the financial ledger and database controls are verified and enabled. No funds can be moved now.")}</p></CardContent></Card>:null}
+   <section className="space-y-3"><h2 className="type-section-title">{t("Available products")}</h2>
+    {products.length?products.map(product=><Card key={product.product_id} className="border-brand-border bg-brand-surface"><CardContent className="grid gap-3 p-4 sm:grid-cols-[1fr_auto_auto] sm:items-center"><div><p className="font-semibold">{product.asset} · {product.product_type==="demand"?t("Flexible"):t("Fixed term")}</p><p className="mt-1 text-xs text-brand-text-muted">{product.term_days===0?t("Withdraw according to flexible-product rules"):`${product.term_days} ${t("days")}`} · {t("Early redemption fee")}: {number(product.early_fee_percent)}%</p></div><div><p className="text-xs text-brand-text-muted">{t("Annual rate")}</p><p className="text-lg font-semibold tabular-nums">{number(product.apy_percent)}%</p></div><Button size="sm" variant={selectedProduct===product.product_id?"default":"outline"} onClick={()=>setSelectedProduct(product.product_id)}>{selectedProduct===product.product_id?t("Selected"):t("Select")}</Button></CardContent></Card>)
+    :<Card className="border-brand-border bg-brand-surface"><CardContent className="p-5 text-sm text-brand-text-muted">{t("No active Earn products are currently returned by the backend.")}</CardContent></Card>}
+   </section>
+   {products.length?<Card className="border-brand-border bg-brand-surface"><CardHeader><CardTitle>{t("Subscribe")}</CardTitle><CardDescription>{t("Your available balance and product limits are validated by the financial database.")}</CardDescription></CardHeader><CardContent><form className="space-y-3" onSubmit={operate}><label className="block space-y-1.5 text-sm"><span className="text-brand-text-muted">{t("Product")}</span><select value={selectedProduct} onChange={e=>setSelectedProduct(e.target.value)} className="w-full rounded-xl border border-brand-border bg-brand-surface-2 p-3 text-brand-text">{products.map(product=><option key={product.product_id} value={product.product_id}>{product.asset} · {product.product_type==="demand"?t("Flexible"):`${product.term_days} ${t("days fixed")}`}</option>)}</select></label><label className="block space-y-1.5 text-sm"><span className="text-brand-text-muted">{t("Amount")} ({selected?.asset||""})</span><input inputMode="decimal" value={amount} onChange={e=>setAmount(e.target.value)} placeholder="0.00" className="w-full rounded-xl border border-brand-border bg-brand-surface-2 p-3 text-brand-text" /></label><Button type="submit" disabled={!actionsEnabled||busy||!selected}>{busy?t("Processing…"):t("Subscribe")}</Button></form></CardContent></Card>:null}
+   <section className="space-y-3"><h2 className="type-section-title">{t("My Earn positions")}</h2>
+    {positions.length?positions.map(position=><Card key={position.id} className="border-brand-border bg-brand-surface"><CardContent className="space-y-3 p-4"><div className="flex flex-wrap items-center justify-between gap-2"><div><p className="font-semibold">{position.product||position.product_id}</p><p className="text-xs text-brand-text-muted">{position.type==="flexible"?t("Flexible"):t("Fixed")} · {number(position.apy)}% {t("APY")}</p></div><Badge variant={position.status==="持有中"||position.status==="active"?"outline":"secondary"}>{position.status}</Badge></div><div className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-3"><div><p className="text-xs text-brand-text-muted">{t("Principal")}</p><p className="mt-1 tabular-nums">{number(position.amount)}</p></div><div><p className="text-xs text-brand-text-muted">{t("Estimated interest")}</p><p className="mt-1 tabular-nums">{number(position.expected_interest)}</p></div><div><p className="text-xs text-brand-text-muted">{t("End / maturity")}</p><p className="mt-1">{position.end||"—"}</p></div></div>{position.status==="持有中"||position.status==="active"?<Button size="sm" variant="outline" disabled={!actionsEnabled||busy} onClick={()=>redeem(position)}>{t("Redeem")}</Button>:null}</CardContent></Card>)
+    :<Card className="border-brand-border bg-brand-surface"><CardContent className="p-5 text-sm text-brand-text-muted">{t("No Earn positions were returned for this account.")}</CardContent></Card>}
+   </section>
+  </>}
+ </PageFrame>;
+}
+
 
 export function WithdrawPage(){
  const {t}=useI18n();
