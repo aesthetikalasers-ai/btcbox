@@ -278,6 +278,25 @@ BEGIN
     RAISE EXCEPTION 'Seconds order replay did not return persisted position: %',v_result;
   END IF;
 
+  -- Change the active policy after this position opened. Its 85% snapshot must remain immutable.
+  v_result := public.admin_set_seconds_policy_v1(
+    '00000000-0000-4000-8000-000000000001',
+    1,
+    ARRAY['BTC','ETH','SOL','BNB']::text[],
+    ARRAY[30,60,300,900]::integer[],
+    0.000000000000000001,
+    1000000000000,
+    9200,
+    NULL,
+    NULL,
+    'Raise the payout rate for new positions in disposable PostgreSQL test',
+    'seconds-policy-request-0001',
+    repeat('d',64)
+  );
+  IF v_result->>'ok'<>'true' OR v_result->'policy'->>'payout_bps'<>'9200' THEN
+    RAISE EXCEPTION 'Seconds policy update to 92%% failed: %',v_result;
+  END IF;
+
   UPDATE public.seconds_contract_positions
   SET settle_at=clock_timestamp()-interval '1 second'
   WHERE position_id=v_position_id;
@@ -310,7 +329,50 @@ BEGIN
   IF v_result->>'code'<>'IDEMPOTENCY_CONFLICT' THEN
     RAISE EXCEPTION 'Seconds settlement accepted a conflicting request hash: %',v_result;
   END IF;
-  RAISE NOTICE 'BTCBOX deposit, withdrawal, spot, admin-market and Seconds RPC integration checks passed';
+
+  -- A position opened after the policy change must snapshot 92%, not inherit 85%.
+  v_result := public.submit_seconds_order_v1(
+    'SC111111111111111111111111111111','seconds-user','BTC','up',10,30,100,
+    'seconds-open-request-0002',
+    encode(extensions.digest('seconds-user|BTC|up|10|30|seconds-open-request-0002','sha256'),'hex')
+  );
+  IF v_result->>'ok'<>'true' OR v_result->>'duplicate'<>'false' THEN
+    RAISE EXCEPTION 'Seconds order under updated policy failed: %',v_result;
+  END IF;
+  UPDATE public.seconds_contract_positions
+  SET settle_at=clock_timestamp()-interval '1 second'
+  WHERE position_id='SC111111111111111111111111111111';
+  SELECT payout_bps_snapshot INTO v_payout_bps
+  FROM public.seconds_contract_positions
+  WHERE position_id='SC111111111111111111111111111111';
+  IF v_payout_bps<>9200 THEN
+    RAISE EXCEPTION 'new Seconds position did not snapshot 92%% payout: %',v_payout_bps;
+  END IF;
+  v_result := public.settle_seconds_position_v1(
+    'SC111111111111111111111111111111','seconds-user',
+    'seconds-settle-request-0002',
+    encode(extensions.digest('seconds-settle-request-0002|SC111111111111111111111111111111','sha256'),'hex'),
+    'BTC',110,'coinbase',clock_timestamp()
+  );
+  IF v_result->>'settled'<>'true' OR v_result->>'win'<>'true'
+     OR (v_result->>'pnl')::numeric<>9.2 THEN
+    RAISE EXCEPTION 'Seconds settlement did not use the new 92%% snapshot: %',v_result;
+  END IF;
+  SELECT available,frozen INTO v_balance,v_frozen FROM public.financial_accounts
+  WHERE user_id='seconds-user' AND asset='USDT';
+  IF v_balance<>117.7 OR v_frozen<>0 THEN
+    RAISE EXCEPTION 'updated-policy Seconds settlement balance mismatch: available %, frozen %',v_balance,v_frozen;
+  END IF;
+  v_result := public.settle_seconds_position_v1(
+    'SC111111111111111111111111111111','seconds-user',
+    'seconds-settle-request-0002',
+    encode(extensions.digest('seconds-settle-request-0002|SC111111111111111111111111111111','sha256'),'hex'),
+    'BTC',110,'coinbase',clock_timestamp()
+  );
+  IF v_result->>'duplicate'<>'true' THEN
+    RAISE EXCEPTION 'updated-policy Seconds settlement replay was not idempotent: %',v_result;
+  END IF;
+  RAISE NOTICE 'BTCBOX deposit, withdrawal, spot, admin-market and multi-policy Seconds RPC integration checks passed';
 END
 $financial_tests$;
 
