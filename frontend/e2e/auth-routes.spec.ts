@@ -60,3 +60,24 @@ test("administrator route requires a verified administrator identity", async ({ 
   await expect(page.getByRole("heading", { name: "Welcome back" })).toBeVisible();
   await expect(page.getByText("Continue with email")).toBeVisible();
 });
+
+test("assets, orders and KYC remain behind the authenticated account gate", async ({ page }) => {
+  for (const path of ["/assets", "/orders", "/kyc"]) {
+    await page.goto(path);
+    await expect(page).toHaveURL(/\/login$/);
+    await expect(page.getByRole("heading", { name: "Welcome back" })).toBeVisible();
+  }
+});
+
+test("account overview offers sign-in without requesting private account data", async ({ page }) => {
+  const privateAccountRequests: string[] = [];
+  page.on("request", (request) => {
+    if (new URL(request.url()).pathname === "/api/account") privateAccountRequests.push(request.method());
+  });
+
+  await page.goto("/me");
+
+  await expect(page.getByText("Sign in to continue")).toBeVisible();
+  await expect(page.getByRole("link", { name: "Sign in" })).toHaveAttribute("href", "/login");
+  expect(privateAccountRequests).toEqual([]);
+});
