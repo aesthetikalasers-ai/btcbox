@@ -280,7 +280,6 @@ async function matchingRpc(name, payload) {
 // price itself from the same trusted feeds as /api/market; client-supplied
 // prices are never trusted for balance-affecting operations.
 const SECONDS_ALLOWED_SYMBOLS = new Set(['BTC', 'ETH', 'SOL', 'BNB']);
-const SECONDS_ALLOWED_DURATIONS = new Set([30, 60, 300, 900]);
 async function fetchSecondsReferencePrice(symbol) {
   if (!SECONDS_ALLOWED_SYMBOLS.has(symbol)) throw new Error('symbol unsupported');
   const fetchJson = async url => {
