@@ -241,3 +241,14 @@ test('admin audit retention handles a zero non-pending capacity without slice(-0
   assert.match(stage, /const retained = retainedLimit > 0 \? nonPending\.slice\(-retainedLimit\) : \[\]/);
   assert.doesNotMatch(stage, /\.slice\(-Math\.max\(0, 5000 - pending\.length\)\)/);
 });
+
+
+test('admin audit viewer exposes canonical versus retention-limited source completeness', () => {
+  const admin = fs.readFileSync(path.resolve(root, '../frontend/src/features/admin/AdminPage.tsx'), 'utf8');
+  assert.ok(admin.includes('setAuditSource(snapshot.source || "unknown")'));
+  assert.ok(admin.includes('setAuditCompleteness(snapshot.completeness || "unknown")'));
+  assert.ok(admin.includes('"PostgreSQL canonical"'));
+  assert.ok(admin.includes('"State file · limited"'));
+  assert.ok(admin.includes('Do not treat this list as a complete financial audit record.'));
+  assert.ok(admin.includes('Audit source is not confirmed.'));
+});
