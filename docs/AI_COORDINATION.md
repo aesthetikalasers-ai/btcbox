@@ -3304,3 +3304,14 @@ The prior withdrawal UI audit statement claiming the active BTCBOX admin route w
 - Corrected the assertion to match the actual object shorthand syntax in commit 17c4714c6a4acbbb5edbafd77ade30c4f792163e. New exact-head runs: frontend 42240994240, backend 42240994268, PostgreSQL schema 42240994372; all pending at time of recording.
 - Prior exact-head frontend/browser evidence remains valid only for 555bbab04f2d5246219fd4108bba4bf0bede5814: 18/18 Playwright passed. Prior schema run 42240826792 on 3c083727888cbf3490b07d70d16e6f10122aae3b passed, but do not carry it forward to the corrected SHA.
 - Continue to block merge/deploy until exact-head CI is green. No production writes or financial operations.
+
+
+## KYC privacy regression suite — exact-head verification complete — 2026-11-06
+
+- Corrected implementation head: 17c4714c6a4acbbb5edbafd77ade30c4f792163e.
+- Backend CI run 560 (42240994268): PASS, 333/333 Node tests; includes three KYC privacy regression tests.
+- PostgreSQL schema CI run 125 (42240994372): PASS against the disposable empty PostgreSQL bootstrap.
+- Frontend CI run 433 (42240994240): PASS, 20/20 Playwright desktop/mobile tests, plus lint and production build.
+- Therefore all three code/test workflows passed on the exact same implementation SHA. The separate Vercel status context continues to report a Hobby build-rate-limit failure; it is not a failing code/test workflow and no deployment was attempted.
+- PR #50 remains Draft/open/unmerged. No hosted Supabase writes, real KYC file reads, financial mutations, merge, or production deployment. Trading page layout unchanged.
+- NEXT: continue with a focused cross-layer audit of the admin queue response contracts (KYC, withdrawals, orders, audit) and user-facing manual deposit/withdrawal states. Only make evidence-backed changes, then repeat exact-head CI.
