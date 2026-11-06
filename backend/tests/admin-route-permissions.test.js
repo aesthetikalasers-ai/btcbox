@@ -81,3 +81,16 @@ test('admin role editor does not offer the unapproved immediate financial adjust
   assert.ok(!admin.includes('["financial_adjustment.request","Request financial adjustment"]'));
   assert.ok(admin.includes('Manual deposit credit'));
 });
+
+
+test('manual deposit credit requires both review authority and deposit-history read access', () => {
+  const permissionStart = api.indexOf('const requiredPermission = (function(route, verb)');
+  const extraGate = api.indexOf("if (sub === 'deposit/confirm' && method === 'POST' &&", permissionStart);
+  const outbox = api.indexOf('const priorAuditFlush = await flushAdminAuditOutbox()', extraGate);
+  assert.ok(extraGate > permissionStart && outbox > extraGate);
+  const gate = api.slice(extraGate, outbox);
+  assert.ok(gate.includes("hasAdminPermission(adminMembership, 'deposits.read')"));
+  assert.ok(gate.includes("permission: 'deposits.read'"));
+  const admin = require('node:fs').readFileSync(require('node:path').resolve(__dirname, '../../frontend/src/features/admin/AdminPage.tsx'), 'utf8');
+  assert.ok(admin.includes('!hasPermission("deposits.review") || !hasPermission("deposits.read")'));
+});
