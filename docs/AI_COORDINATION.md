@@ -3377,3 +3377,13 @@ The prior withdrawal UI audit statement claiming the active BTCBOX admin route w
 - Implementation branch: fix/post-merge-db-bootstrap-seconds-20261106; latest observed head: 21dacf90fac3b48bf461707da1442ca35afbc95f. PR #50 remains Draft/open/unmerged.
 - Exact-head CI runs started: backend 42256946796, frontend 42256946623, PostgreSQL schema 42256946955. Await all three conclusions before acceptance.
 - No hosted Supabase writes, real financial operations, merge, or deployment. Trading page layout unchanged.
+
+
+## Canonical deposit history in account snapshot — 2026-11-07
+
+- SOURCE OBSERVED: `admin_manual_deposit_atomic` persists each staff-verified credit in `public.deposit_records` and the financial ledger. However, `read_financial_account_snapshot_v1` returned only balances, withdrawals and Earn positions. `/api/account` therefore continued returning legacy `user.deposits` even when balances and withdrawals had switched to the normalized PostgreSQL snapshot. The customer Deposit page had no history panel.
+- FIX COMMITTED: extended canonical read RPC `0011_financial_read_api_earn_v1.sql` to return the latest 20 normalized deposit records (asset, amount, network, status, created/confirmed timestamps, chain txid, staff receipt reference and source). `/api/account` validates this array and selects it whenever financial PostgreSQL reads are enabled; legacy deposits remain only on the non-cutover path.
+- FRONTEND INTEGRATION: added a typed `DepositRecord` contract and a customer Deposit history panel with independent loading/error/refresh state. It displays amount, asset/network, status, timestamp and the receipt/transaction reference. Address retrieval remains independent, so history-read failure does not hide the configured deposit address.
+- REGRESSION COVERAGE: source contract tests verify SQL/API/UI wiring; disposable PostgreSQL lifecycle integration asserts that a 130-character manual-credit reference appears once in account snapshot history and the returned USDT free balance equals the same credited amount after an exact retry.
+- Implementation branch `fix/post-merge-db-bootstrap-seconds-20261106`; exact head `92419d64de2773d76363e28f14f7d3c0a61322ce`. PR #50 remains Draft/open/unmerged. Exact-head backend CI `42267819727`, PostgreSQL schema CI `42267819660`, and frontend CI `42267819630` are in progress; do not mark accepted until all three finish successfully.
+- No hosted Supabase writes, real financial operations, merge, or deployment. Trading page layout unchanged.
