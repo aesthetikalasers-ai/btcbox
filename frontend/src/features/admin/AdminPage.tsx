@@ -86,6 +86,7 @@ export function AdminPage() {
   const [creditReference, setCreditReference] = useState<Record<string, string>>({});
   const [creditNote, setCreditNote] = useState<Record<string, string>>({});
   const [creditRequestIds, setCreditRequestIds] = useState<Record<string, string>>({});
+  const [creditPendingInvalid, setCreditPendingInvalid] = useState<Record<string, boolean>>({});
   const [withdrawals, setWithdrawals] = useState<AdminWithdrawalRecord[]>([]);
   const [payoutReferences, setPayoutReferences] = useState<Record<string, string>>({});
   const [config, setConfig] = useState<AdminConfig>({ deposit_addresses: {}, announcement: "" });
@@ -190,6 +191,38 @@ export function AdminPage() {
 
   useEffect(() => { void loadTab(); }, [loadTab]);
 
+  useEffect(() => {
+    if (!session?.user_id || !selectedUser?.uid) return;
+    const amounts: Record<string,string> = {};
+    const references: Record<string,string> = {};
+    const notes: Record<string,string> = {};
+    const requestIds: Record<string,string> = {};
+    const invalid: Record<string,boolean> = {};
+    for (const coin of assets) {
+      const key = "btcbox.admin.manual-credit.v1." + session.user_id + "." + selectedUser.uid + "." + coin;
+      try {
+        const raw = window.localStorage.getItem(key);
+        if (!raw) continue;
+        const saved = JSON.parse(raw);
+        if (saved && saved.version === 1 && saved.actor_id === session.user_id && saved.target_uid === selectedUser.uid && saved.coin === coin &&
+            typeof saved.request_id === "string" && /^[A-Za-z0-9_-]{16,100}$/.test(saved.request_id) &&
+            typeof saved.amount === "string" && /^(?:0|[1-9]\d*)(?:\.\d{1,18})?$/.test(saved.amount) &&
+            typeof saved.reference === "string" && typeof saved.note === "string") {
+          amounts[coin] = saved.amount;
+          references[coin] = saved.reference;
+          notes[coin] = saved.note;
+          requestIds[coin] = saved.request_id;
+        } else invalid[coin] = true;
+      } catch { invalid[coin] = true; }
+    }
+    setCreditAmount(amounts);
+    setCreditReference(references);
+    setCreditNote(notes);
+    setCreditRequestIds(requestIds);
+    setCreditPendingInvalid(invalid);
+  }, [session?.user_id, selectedUser?.uid]);
+
+
   const selectUser = async (uid: string) => {
     if (!token) return;
     setBusy(true); setError(""); setNotice("");
@@ -208,15 +241,38 @@ export function AdminPage() {
   const manualCredit = async (event: FormEvent<HTMLFormElement>, coin: string) => {
     event.preventDefault();
     if (!token || !selectedUser) return;
+    if (creditPendingInvalid[coin]) {
+      setError("A saved manual-credit request is unreadable. Check the user's ledger before creating another credit.");
+      return;
+    }
     const amount = (creditAmount[coin] || "").trim();
-    if (!/^(?:0|[1-9]\d*)(?:\.\d{1,18})?$/.test(amount) || Number(amount) <= 0) {
+    if (!/^(?:0|[1-9]\d*)(?:\.\d{1,18})?$/.test(amount) || /^0(?:\.0*)?$/.test(amount)) {
       setError("Enter the verified amount received.");
       return;
     }
+    if (!session?.user_id) {
+      setError("The authenticated administrator identity is unavailable. No credit was sent.");
+      return;
+    }
+    const storageKey = "btcbox.admin.manual-credit.v1." + session.user_id + "." + selectedUser.uid + "." + coin;
+    let stableRequestId = creditRequestIds[coin];
+    if (!stableRequestId) {
+      stableRequestId = window.crypto.randomUUID();
+      const intent = {
+        version: 1, actor_id: session.user_id, target_uid: selectedUser.uid, coin,
+        request_id: stableRequestId, amount,
+        reference: creditReference[coin] || "", note: creditNote[coin] || "",
+        created_at: Date.now(),
+      };
+      try { window.localStorage.setItem(storageKey, JSON.stringify(intent)); }
+      catch {
+        setError("This browser cannot safely save the manual-credit request. No credit was sent.");
+        return;
+      }
+      setCreditRequestIds(current => ({ ...current, [coin]: stableRequestId! }));
+    }
     setBusy(true); setError(""); setNotice("");
-    const stableRequestId = creditRequestIds[coin] || window.crypto.randomUUID();
-    setCreditRequestIds(current => ({ ...current, [coin]: stableRequestId }));
-    setBusy(true); setError(""); setNotice("");
+    let creditAccepted = false;
     try {
       const result = await adminManualCredit(token, {
         uid: selectedUser.uid, coin, amount,
@@ -224,17 +280,20 @@ export function AdminPage() {
         note: creditNote[coin] || "",
         idempotency_key: stableRequestId,
       });
-      setNotice(result.duplicate ? "This manual credit was already recorded." : "Manual credit recorded and audit event submitted.");
+      creditAccepted = true;
+      try { window.localStorage.removeItem(storageKey); } catch {}
       setCreditRequestIds(current => { const next = { ...current }; delete next[coin]; return next; });
+      setCreditPendingInvalid(current => { const next = { ...current }; delete next[coin]; return next; });
+      setNotice(result.duplicate ? "This manual credit was already recorded." : "Manual credit recorded and audit event submitted.");
       await selectUser(selectedUser.uid);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "Manual credit was not confirmed.");
-      if (reason instanceof ApiError && reason.status >= 400 && reason.status < 500) {
+      if (!creditAccepted && reason instanceof ApiError && reason.status >= 400 && reason.status < 500 && reason.status !== 409) {
+        try { window.localStorage.removeItem(storageKey); } catch {}
         setCreditRequestIds(current => { const next = { ...current }; delete next[coin]; return next; });
       }
     } finally { setBusy(false); }
   };
-
   const approveWithdrawal = async (id: string) => {
     if (!token) return;
     setBusy(true); setError(""); setNotice("");
@@ -382,10 +441,10 @@ export function AdminPage() {
           <p className="mb-3 text-sm font-semibold">{selectedUser.email} · <span className="font-mono">{selectedUser.uid}</span></p>
           <div className="space-y-3">{assets.map(coin=><form key={coin} className="rounded-xl border border-brand-border p-3" onSubmit={event=>void manualCredit(event,coin)}>
             <div className="mb-2 flex items-center justify-between"><span className="font-semibold">{coin}</span><span className="text-xs text-brand-text-muted">Available: {asText(selectedUser.balances?.[coin]?.free ?? "0")}</span></div>
-            <input disabled={!!creditRequestIds[coin]||busy} value={creditAmount[coin]||""} onChange={event=>setCreditAmount(current=>({...current,[coin]:event.target.value}))} placeholder="Verified amount received" className="mb-2 w-full rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-2 text-sm text-brand-text" inputMode="decimal"/>
-            <input disabled={!!creditRequestIds[coin]||busy} value={creditReference[coin]||""} onChange={event=>setCreditReference(current=>({...current,[coin]:event.target.value}))} placeholder="TxID / reference (optional)" className="mb-2 w-full rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-2 text-sm text-brand-text"/>
-            <input disabled={!!creditRequestIds[coin]||busy} value={creditNote[coin]||""} onChange={event=>setCreditNote(current=>({...current,[coin]:event.target.value}))} placeholder="Note (optional)" className="mb-2 w-full rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-2 text-sm text-brand-text"/>
-            <Button type="submit" size="sm" disabled={busy || !hasPermission("deposits.review")}>{creditRequestIds[coin] ? "Retry same credit request" : "Confirm manual credit"}</Button>
+            <input disabled={!!creditRequestIds[coin]||!!creditPendingInvalid[coin]||busy} value={creditAmount[coin]||""} onChange={event=>setCreditAmount(current=>({...current,[coin]:event.target.value}))} placeholder="Verified amount received" className="mb-2 w-full rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-2 text-sm text-brand-text" inputMode="decimal"/>
+            <input disabled={!!creditRequestIds[coin]||!!creditPendingInvalid[coin]||busy} value={creditReference[coin]||""} onChange={event=>setCreditReference(current=>({...current,[coin]:event.target.value}))} placeholder="TxID / reference (optional)" className="mb-2 w-full rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-2 text-sm text-brand-text"/>
+            <input disabled={!!creditRequestIds[coin]||!!creditPendingInvalid[coin]||busy} value={creditNote[coin]||""} onChange={event=>setCreditNote(current=>({...current,[coin]:event.target.value}))} placeholder="Note (optional)" className="mb-2 w-full rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-2 text-sm text-brand-text"/>
+            <Button type="submit" size="sm" disabled={busy || !!creditPendingInvalid[coin] || !hasPermission("deposits.review")}>{creditRequestIds[coin] ? "Retry same credit request" : "Confirm manual credit"}</Button>
           </form>)}</div>
         </>}
       </CardContent></Card>
