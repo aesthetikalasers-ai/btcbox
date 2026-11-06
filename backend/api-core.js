@@ -2769,7 +2769,7 @@ async function handleRequest(event, context) {
         return json({ ok: false, msg: 'Invalid deposit amount. Must be a valid number greater than 0.' }, 400);
       }
       if (!/^[A-Za-z0-9_-]{16,100}$/.test(idempotencyKey)) return json({ ok: false, msg: 'Invalid credit request ID. Please try again.' }, 400);
-      const adminId = String(process.env.ADMIN_USER || '').trim();
+      const adminId = adminActorId;
       if (!adminId) return json({ ok: false, code: 'ADMIN_ACTOR_NOT_CONFIGURED', msg: 'Administrator audit identity not configured. Manual credit was not executed.' }, 503);
       const amountText = String(body.amount).trim();
       const requestHash = crypto.createHash('sha256').update([adminId, uid, coin, amountText, reference, note].join('|')).digest('hex');
@@ -2792,7 +2792,7 @@ async function handleRequest(event, context) {
       if (!wdId || wdId.length > 100) return json({ ok: false, msg: 'Withdrawal record ID is invalid' }, 400);
       if (manualDepositRpcEnabled()) {
         if (!supabaseStorageConfigured()) return json({ ok: false, code: 'FINANCIAL_RPC_NOT_CONFIGURED', msg: 'Financial database not configured. Withdrawal was not reviewed.' }, 503);
-        const adminId = String(process.env.ADMIN_USER || '').trim();
+        const adminId = adminActorId;
         if (!adminId) return json({ ok: false, code: 'ADMIN_ACTOR_NOT_CONFIGURED', msg: 'Administrator audit identity not configured. Withdrawal was not reviewed.' }, 503);
         try {
           const rpc = await fetch(process.env.SUPABASE_URL.replace(/\/+$/, '') + '/rest/v1/rpc/review_withdrawal_atomic', {
@@ -2814,7 +2814,7 @@ async function handleRequest(event, context) {
       if (!wdId || wdId.length > 100) return json({ ok: false, msg: 'Withdrawal record ID is invalid' }, 400);
       if (manualDepositRpcEnabled()) {
         if (!supabaseStorageConfigured()) return json({ ok: false, code: 'FINANCIAL_RPC_NOT_CONFIGURED', msg: 'Financial database not configured. Withdrawal was not rejected or refunded.' }, 503);
-        const adminId = String(process.env.ADMIN_USER || '').trim();
+        const adminId = adminActorId;
         if (!adminId) return json({ ok: false, code: 'ADMIN_ACTOR_NOT_CONFIGURED', msg: 'Administrator audit identity not configured. Withdrawal was not rejected or refunded.' }, 503);
         const reason = String(body.reason || 'Admin rejected withdrawal.').trim().slice(0, 200) || 'Admin rejected withdrawal.';
         try {
@@ -2842,7 +2842,7 @@ async function handleRequest(event, context) {
       if (!reference) return json({ ok: false, code: 'PAYOUT_REFERENCE_REQUIRED', msg: 'TxID / payout reference is required.' }, 400);
       if (reference.length > 160 || note.length > 300) return json({ ok: false, msg: 'Payout reference or note is too long.' }, 400);
       if (!supabaseStorageConfigured()) return json({ ok: false, code: 'FINANCIAL_RPC_NOT_CONFIGURED', msg: 'Financial database is not configured. Payout status was not changed.' }, 503);
-      const adminId = String(process.env.ADMIN_USER || '').trim();
+      const adminId = adminActorId;
       if (!adminId) return json({ ok: false, code: 'ADMIN_ACTOR_NOT_CONFIGURED', msg: 'Administrator audit identity not configured. Payout status was not changed.' }, 503);
       try {
         const rpc = await fetch(process.env.SUPABASE_URL.replace(/\/+$/, '') + '/rest/v1/rpc/mark_withdrawal_paid_atomic', {
