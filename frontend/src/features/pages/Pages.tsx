@@ -160,7 +160,8 @@ export function SpotTradingPage(){
    if(controller.signal.aborted)return;
    const [marketResult,candleResult,bookResult,statusResult,ordersResult]=results;
    if(marketResult.status==="fulfilled"){
-    const selected=marketResult.value.find(item=>item.sym.toUpperCase()===symbol)||null;
+    const marketBase=symbol.endsWith("USDT")?symbol.slice(0,-4):symbol;
+    const selected=marketResult.value.find(item=>item.sym.toUpperCase()===marketBase)||null;
     setTicker(selected);
     if(selected)setPrice(current=>current||String(selected.price));
    }else setError(marketResult.reason instanceof Error?marketResult.reason.message:"Live market data is unavailable.");
