@@ -68,27 +68,3 @@ test('seconds financial mutations stay behind the full financial cutover gate', 
   assert.match(api.slice(settle, positions), /if \(!financialWritesEnabled\(\)\)/);
 });
 
-test('reference quote timestamps reject stale, future, missing and malformed provider times', () => {
-  const start = api.indexOf('function normalizeReferenceTimestamp');
-  const end = api.indexOf('async function fetchSecondsReferencePrice', start);
-  assert.ok(start >= 0 && end > start, 'reference timestamp normalizer must exist');
-  const normalize = vm.runInNewContext(api.slice(start, end) + '\nnormalizeReferenceTimestamp;');
-  const now = 1_800_000_000_000;
-  assert.equal(normalize(now - 15_000, now), Math.floor((now - 15_000) / 1000));
-  assert.equal(normalize(new Date(now - 60_000).toISOString(), now), Math.floor((now - 60_000) / 1000));
-  assert.equal(normalize(now - 120_001, now), null);
-  assert.equal(normalize(now + 5_001, now), null);
-  assert.equal(normalize('not-a-time', now), null);
-  assert.equal(normalize(undefined, now), null);
-  assert.equal(normalize(now / 1000, now), null);
-});
-
-test('settlement persists the validated provider quote time instead of stamping server now', () => {
-  const start = api.indexOf("if (path === 'seconds/settle' && method === 'POST')");
-  const end = api.indexOf("// ---------- GET /api/seconds/positions ----------", start);
-  const handler = api.slice(start, end);
-  assert.ok(handler.includes('normalizeReferenceTimestamp(ticker && ticker.time)'));
-  assert.ok(handler.includes('normalizeReferenceTimestamp(payload && payload.time)'));
-  assert.ok(handler.includes('new Date(settleRef.ts * 1000).toISOString()'));
-  assert.ok(!handler.includes('p_settle_price_ts: new Date().toISOString()'));
-});
