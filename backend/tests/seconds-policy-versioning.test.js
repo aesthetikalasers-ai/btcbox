@@ -124,7 +124,7 @@ test('seed minimum is the numeric precision floor, not an invented commercial mi
   assert.ok(start >= 0 && end > start);
   const handler = api.slice(start, end);
   assert.match(handler, /amount === null \|\| compareMoney\(amount, '0'\) <= 0/);
-  assert.match(handler, /compareMoney\(amount, '1000000000000'\) > 0/);
+  assert.doesNotMatch(handler, /1000000000000/); // Admin policy, not an API constant, defines the maximum stake.
   assert.doesNotMatch(handler, /compareMoney\(amount,\s*'0\.000000000000000001'/);
   assert.match(api, /raw\.length > 64 \|\| !\/\^\(\?:0\|\[1-9\]\\d\*\)\(\?:\\\.\\d\{1,18\}\)\?\$\//);
 });
