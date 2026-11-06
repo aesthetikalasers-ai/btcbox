@@ -94,6 +94,7 @@ export function AdminPage() {
   const [orders, setOrders] = useState<Array<Record<string, unknown>>>([]);
   const [support, setSupport] = useState<Array<Record<string, unknown>>>([]);
   const [supportReply, setSupportReply] = useState<Record<string, string>>({});
+  const [supportReplyRequestIds, setSupportReplyRequestIds] = useState<Record<string, string>>({});
   const [adminMemberships, setAdminMemberships] = useState<Array<{user_id:string;status:"active"|"suspended"|"revoked";revision:number;permissions:string[];created_at?:string;updated_at?:string}>>([]);
   const [adminCandidates, setAdminCandidates] = useState<AdminUserRecord[]>([]);
   const [adminSearch, setAdminSearch] = useState("");
@@ -299,11 +300,14 @@ export function AdminPage() {
     if (!token) return;
     const content = (supportReply[uid] || "").trim();
     if (!content) return;
+    const requestId = supportReplyRequestIds[uid] || window.crypto.randomUUID();
+    setSupportReplyRequestIds((current) => ({ ...current, [uid]: requestId }));
     setBusy(true); setError(""); setNotice("");
     try {
-      await adminReplySupport(token, uid, content);
-      setNotice("Support reply sent.");
+      const result = await adminReplySupport(token, uid, content, requestId);
+      setNotice(result.audit_sync_pending ? "Support reply sent; audit delivery is pending." : "Support reply sent.");
       setSupportReply((current) => ({ ...current, [uid]: "" }));
+      setSupportReplyRequestIds((current) => { const next = { ...current }; delete next[uid]; return next; });
       setSupport((await getAdminSupportMessages(token)).messages || []);
     } catch (reason) { setError(reason instanceof Error ? reason.message : "Support reply failed."); }
     finally { setBusy(false); }
@@ -401,7 +405,7 @@ export function AdminPage() {
 
     {!loading && tab === "orders" ? <Card><CardHeader><CardTitle>Orders</CardTitle><CardDescription>Read-only operational view.</CardDescription></CardHeader><CardContent><div className="overflow-x-auto"><table className="w-full min-w-[700px] text-left text-sm"><thead><tr className="border-b border-brand-border text-xs text-brand-text-muted"><th className="p-2">ID</th><th className="p-2">User</th><th className="p-2">Symbol</th><th className="p-2">Side</th><th className="p-2">Status</th><th className="p-2">Created</th></tr></thead><tbody>{orders.map((item,index)=><tr key={asText(item.id)||index} className="border-b border-brand-border/60"><td className="p-2 font-mono text-xs">{asText(item.id)}</td><td className="p-2">{asText(item.uid||item.user_id)}</td><td className="p-2">{asText(item.symbol)}</td><td className="p-2">{asText(item.side)}</td><td className="p-2">{asText(item.status)}</td><td className="p-2">{formatDate(item.created_at||item.time)}</td></tr>)}</tbody></table></div></CardContent></Card> : null}
 
-    {!loading && tab === "support" ? <Card><CardHeader><CardTitle>Support messages</CardTitle></CardHeader><CardContent className="space-y-3">{support.map((item,index)=>{const uid=asText(item.uid||item.user_id);return <div key={asText(item.id)||index} className="rounded-xl border border-brand-border p-3"><p className="text-xs text-brand-text-muted">{uid} · {formatDate(item.created_at||item.time)}</p><p className="mt-2 whitespace-pre-wrap text-sm">{asText(item.content||item.message)}</p><textarea value={supportReply[uid]||""} onChange={event=>setSupportReply(current=>({...current,[uid]:event.target.value}))} rows={2} className="mt-3 w-full rounded-lg border border-brand-border bg-brand-surface-2 p-2 text-sm text-brand-text" placeholder="Reply to customer"/><Button size="sm" className="mt-2" disabled={busy||!supportReply[uid]?.trim()||!hasPermission("support.reply")} onClick={()=>void replySupport(uid)}>Send reply</Button></div>;})}</CardContent></Card> : null}
+    {!loading && tab === "support" ? <Card><CardHeader><CardTitle>Support messages</CardTitle></CardHeader><CardContent className="space-y-3">{support.map((item,index)=>{const uid=asText(item.uid||item.user_id);return <div key={asText(item.id)||index} className="rounded-xl border border-brand-border p-3"><p className="text-xs text-brand-text-muted">{uid} · {formatDate(item.created_at||item.time)}</p><p className="mt-2 whitespace-pre-wrap text-sm">{asText(item.content||item.message)}</p><textarea value={supportReply[uid]||""} onChange={event=>{setSupportReply(current=>({...current,[uid]:event.target.value}));setSupportReplyRequestIds(current=>({...current,[uid]:window.crypto.randomUUID()}));}} rows={2} className="mt-3 w-full rounded-lg border border-brand-border bg-brand-surface-2 p-2 text-sm text-brand-text" placeholder="Reply to customer"/><Button size="sm" className="mt-2" disabled={busy||!supportReply[uid]?.trim()||!hasPermission("support.reply")} onClick={()=>void replySupport(uid)}>Send reply</Button></div>;})}</CardContent></Card> : null}
     {!loading && tab === "seconds" && secondsPolicy ? <Card><CardHeader><CardTitle>Seconds contract policy</CardTitle><CardDescription>Changes create and activate a new immutable policy version. Existing open positions keep their original policy snapshot. 85% is the minimum payout rate; no fixed upper limit is imposed.</CardDescription></CardHeader><CardContent className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2"><Badge variant="outline">Active version {secondsPolicy.policy_version}</Badge><span className="text-xs text-brand-text-muted">Policy ID · {secondsPolicy.policy_id}</span></div>
       <div><p className="mb-2 text-sm font-semibold">Supported markets</p><div className="flex flex-wrap gap-2">{["BTC","ETH","SOL","BNB"].map(symbol=><label key={symbol} className="flex items-center gap-2 rounded-lg border border-brand-border px-3 py-2 text-sm"><input type="checkbox" checked={secondsSymbols.includes(symbol)} disabled={busy||!hasPermission("seconds_policy.manage")} onChange={event=>setSecondsSymbols(current=>event.target.checked?[...current,symbol]:current.filter(item=>item!==symbol))}/>{symbol}</label>)}</div></div>
