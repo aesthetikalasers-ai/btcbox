@@ -1895,3 +1895,25 @@ Application branch inspected: `feat/btcbox-web3-auth-20261105` at `741c709d818cb
 - Re-fetched feature branch and changed files. Source checks are present; workflow lookup for the latest feature commit returned no runs. Node test execution and PostgreSQL parsing/application are not verified.
 - No database migration was applied to staging or production. No balances, positions, orders or ledger rows changed; financial cutover remains closed. No merge or deployment.
 - Next: obtain an actual PostgreSQL staging validation path; review admin identity/RBAC design; only then add read/write policy management endpoints.
+
+
+## Seconds policy and settlement regression coverage — 2026-11-06
+
+### IMPLEMENTED (source only)
+- Re-read coordination HEAD `edd309b06dd946bc7a05a9aca1b196fe39e7c8a3` and feature HEAD `fde1e6f7e9d272b41bacfd69b6e9e0cfbe77274f`.
+- Compared `0025_seconds_policy_versioning_v1.sql` settlement RPC against the historical `0024_seconds_settlement_idempotency_v1.sql` implementation and confirmed the revised function retains owner-scoped position locking, maturity checks, settlement-price timestamp checks, request-hash idempotency, frozen-balance invariant, financial operation, account update, ledger append, and final position update. The new function additionally calculates payout from the position snapshot and retains 8500 bps fallback for legacy NULL snapshots.
+- Confirmed the order RPC resolves idempotent replay before active-policy lookup, preserving replay semantics if the active policy later changes.
+- Added source-level assertions for replay ordering, settlement/ledger invariants, service-role-only RPC execution, and non-client-writable policy tables.
+- Feature commit: `048d3c224baf089751cecc9d7a98d39c5d329c1c`; changed test blob: `51f5f922050531233ff6e66341ea71cb9f813d24`.
+
+### DATABASE / VALIDATION OBSERVATIONS
+- Supabase project inventory identifies project ref `zlozsutefnmgwwzrlipt`; read-only migration history returned only versions `20261102133555` and `20261103062716`. This list does not establish that the application SQL files `0014` through `0025` have been applied; their status remains unverified.
+- No production SQL query or DDL was executed. No staging branch was created. No migration applied.
+- Workflow lookup for feature commit `048d3c224baf089751cecc9d7a98d39c5d329c1c` returned no runs. Tests are source assertions only; Node execution and PostgreSQL runtime verification remain NOT VERIFIED.
+
+### NEXT
+- Secure a separately identified staging database or approved Supabase development branch before attempting SQL execution.
+- Verify migration prerequisites `financial_ledger_v1`, `0014`, `0015`, and `0024` in that isolated environment; the repository file list and current migration registry are not sufficient proof of schema state.
+- Resolve the actual business minimum stake from the approved product configuration before treating the numeric precision floor as the commercial minimum.
+- Continue admin actor/RBAC design before any policy draft/activation write route or editor is added.
+- Keep financial cutover closed; no merge/deploy until the exact migration chain, RPC invariants, and CI evidence are independently verified.
