@@ -229,10 +229,7 @@ export function AdminPage() {
     try {
       const result = await getAdminUser(token, uid);
       setSelectedUser(result.user);
-      setCreditAmount({});
-      setCreditReference({});
-      setCreditNote({});
-      setCreditRequestIds({});
+
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "User account could not be loaded.");
     } finally { setBusy(false); }
