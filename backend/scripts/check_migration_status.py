@@ -17,7 +17,8 @@ from pathlib import Path
 SQL_DIR = Path(__file__).resolve().parent.parent / "supabase" / "sql"
 MIGRATION_RE = re.compile(r"^(\d{4})_.+\.sql$")
 LEDGER_VERSION_RE = re.compile(r"^\d{4}$")
-# 0015 was deliberately retired with the obsolete one-open-position restriction.\nRETIRED_SEQUENCE_NUMBERS = {15}
+# 0015 was deliberately retired with the obsolete one-open-position restriction.
+RETIRED_SEQUENCE_NUMBERS = {15}
 
 
 def expected_migrations():
