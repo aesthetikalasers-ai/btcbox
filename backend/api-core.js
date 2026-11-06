@@ -331,7 +331,7 @@ async function readFinancialAccountSnapshot(userId) {
   });
   if (!response.ok) throw new Error('Financial account read failed');
   const result = await response.json();
-  if (!result || result.ok !== true || !result.balances || !Array.isArray(result.withdrawals) || !Array.isArray(result.earn_records)) {
+  if (!result || result.ok !== true || !result.balances || !Array.isArray(result.withdrawals) || !Array.isArray(result.deposits) || !Array.isArray(result.earn_records)) {
     throw new Error('Financial account response invalid');
   }
   return result;
@@ -1939,7 +1939,7 @@ async function handleRequest(event, context) {
       valuation_complete: unpricedAssets.length === 0,
       unpriced_assets: unpricedAssets,
       orders: user.orders.slice(-50),
-      deposits: user.deposits.slice(-20),
+      deposits: financialSnapshot ? financialSnapshot.deposits : user.deposits.slice(-20),
       withdrawals: financialSnapshot ? financialSnapshot.withdrawals : user.withdrawals.slice(-20),
       earn_records: financialSnapshot ? financialSnapshot.earn_records : user.earn_records,
       fund_password_set: !!(user.fund_password_hash || user.fund_password),
