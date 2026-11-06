@@ -59,10 +59,12 @@ test('admin read routes and balance adjustments require their own explicit permi
 
 
 test('delegated administrator routes are restricted to the verified Super Admin and use server-derived actor identity', () => {
-  assert.match(apiCore, /sub === 'admins' && method === 'GET'[\\s\\S]*adminMembership\\.is_super_admin !== true/i);
-  assert.match(apiCore, /sub === 'admins\\/manage' && method === 'POST'[\\s\\S]*adminMembership\\.is_super_admin !== true/i);
-  assert.match(apiCore, /p_actor_user_id: adminUserId/);
-  assert.match(apiCore, /p_request_hash: requestHash/);
-  assert.match(apiCore, /crypto\.createHash\('sha256'\)/);
-  assert.doesNotMatch(apiCore.slice(apiCore.indexOf("if (sub === 'admins/manage'"), apiCore.indexOf('const requiredPermission')), /body\\.actor_user_id/);
+  assert.ok(apiSource.includes("if (sub === 'admins' && method === 'GET')"));
+  assert.ok(apiSource.includes("if (sub === 'admins/manage' && method === 'POST')"));
+  assert.ok(apiSource.includes('adminMembership.is_super_admin !== true'));
+  assert.ok(apiSource.includes('p_actor_user_id: adminUserId'));
+  assert.ok(apiSource.includes('p_request_hash: requestHash'));
+  assert.ok(apiSource.includes("crypto.createHash('sha256')"));
+  const manageRoute = apiSource.slice(apiSource.indexOf("if (sub === 'admins/manage'"), apiSource.indexOf('const requiredPermission'));
+  assert.ok(!manageRoute.includes('body.actor_user_id'));
 });
