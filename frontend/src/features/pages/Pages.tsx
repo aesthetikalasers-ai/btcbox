@@ -276,7 +276,7 @@ export function SecondsPage(){
   </CardContent></Card>;
  };
  const activePolicy=policy?.policy;
- const canSubmit=!!activePolicy&&!!policy?.actions_enabled&&!loading&&!submitting&&!pendingIntent&&
+ const canSubmit=!!activePolicy&&!!policy?.actions_enabled&&!!snapshot&&!snapshot.cutover_incomplete&&!loading&&!submitting&&!pendingIntent&&
   activePolicy.symbols.includes(symbol)&&activePolicy.durations_sec.includes(duration)&&
   Number.isFinite(Number(amount))&&Number(amount)>=Number(activePolicy.min_stake)&&Number(amount)<=Number(activePolicy.max_stake);
  return <div className="mx-auto flex w-full max-w-[1200px] flex-col gap-5 p-3 sm:p-4 md:p-6 lg:p-8">
@@ -299,7 +299,7 @@ export function SecondsPage(){
     <div className="space-y-1.5 text-sm"><span className="text-brand-text-muted">{t("Direction")}</span><div className="grid grid-cols-2 gap-2"><Button type="button" variant={direction==="up"?"default":"outline"} disabled={!!pendingIntent} onClick={()=>setDirection("up")}><TrendingUp className="mr-2 h-4 w-4"/>{t("Up")}</Button><Button type="button" variant={direction==="down"?"default":"outline"} disabled={!!pendingIntent} onClick={()=>setDirection("down")}><TrendingDown className="mr-2 h-4 w-4"/>{t("Down")}</Button></div></div>
     <div className="flex flex-wrap items-center justify-between gap-3 md:col-span-2">
      <p className="text-xs text-brand-text-muted">{t("Minimum payout is 85%; the active backend policy may configure a higher rate.")}</p>
-     <Button type="submit" disabled={!canSubmit&& !pendingIntent||submitting}>{submitting?t("Submitting…"):pendingIntent?t("Retry same request"):t("Open position")}</Button>
+     <Button type="submit" disabled={submitting||!policy?.actions_enabled||(!pendingIntent&&!canSubmit)}>{submitting?t("Submitting…"):pendingIntent?t("Retry same request"):t("Open position")}</Button>
     </div>
    </form>
    {pendingIntent?<div className="mt-4 rounded-xl border border-amber-500/30 p-3 text-sm text-amber-200">{t("A previous request is awaiting confirmation. Do not create another order. Retrying uses the exact same request ID and order details.")}</div>:null}
