@@ -270,6 +270,7 @@ BEGIN
      OR coalesce(p_base_asset,'') !~ '^[A-Z0-9]{2,16}$'
      OR coalesce(p_quote_asset,'') !~ '^[A-Z0-9]{2,16}$'
      OR p_base_asset=p_quote_asset
+     OR p_quote_asset<>'USDT'
      OR p_enabled IS NULL
      OR p_price_tick IS NULL OR p_price_tick<=0
      OR p_quantity_step IS NULL OR p_quantity_step<=0
