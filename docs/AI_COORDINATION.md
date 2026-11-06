@@ -2877,3 +2877,19 @@ The prior withdrawal UI audit statement claiming the active BTCBOX admin route w
 - NOT VERIFIED: new branch CI, exact-head frontend build, Node tests, and independent browser QA are pending. The new changes are source-observed only until exact-head checks complete.
 - SAFETY: no hosted database reads/writes were initiated in this batch; no financial operation, merge to `main`, production deployment, secret/config change, or financial cutover flag change was performed.
 - NEXT: run Backend, PostgreSQL schema and Frontend CI on the dependent draft PR; review exact-head results; then continue checking whether every audited admin mutation has a matching canonical event and whether the admin/user views expose the same confirmed financial state.
+
+
+### 2026-11-07 verification addendum — exact-head audit
+
+- Latest tested code head: `8098c9594fd2804e52fe4ed7dd847f141c96786f`. A documentation-only follow-up may advance the branch tip without changing tested application code.
+- Additional gap found: the canonical audit reader selected only actor/action/reason and omitted `object_type`, `object_id`, and financial `metadata`. The admin UI therefore could not show amount, asset, receipt/TxID, or operation identifiers even when the database held them.
+- FIXED IN SOURCE: canonical audit reads now select object identity and metadata, then render only an explicit allowlist (`asset`, `amount`, `fee`, `network`, `reference`, `payout_reference`, `operation_id`, `idempotency_key`, order fields). Raw metadata, wallet destinations, email addresses, and unknown keys are not returned. The audit UI now displays whether the source is PostgreSQL canonical, state-file retention-limited, or unknown.
+- FIXED IN SOURCE: wallet redaction now matches an exact 40-hex Ethereum address, not the first 40 characters of a 64-hex transaction hash. Wallet addresses remain masked; full transaction hashes can be displayed as audit references.
+- Additional refresh audit found one more false-failure path in delegated administrator membership changes. The membership mutation is now confirmed separately from the subsequent list refresh; refresh failure no longer reports that the membership mutation itself failed.
+- EXACT-HEAD BACKEND CI: run `42280711553`, success. Build, 355 Node tests (355 passed / 0 failed), fail-closed preflight, and output/entrypoint checks all passed.
+- EXACT-HEAD FRONTEND CI: run `42280711526`, success. Lint, Vite build, Chromium installation, and desktop/mobile route smoke tests all passed.
+- POSTGRESQL EMPTY-DATABASE CI: run `42268516996`, success on the parent integration baseline `73367233a5f4d37e828cb124f03f3eff84a10a2c`. This follow-up changes no SQL migration or PostgreSQL bootstrap file, so the schema suite was not duplicated on the child PR.
+- Parent PR #50 description still states `21dacf90fac3b48bf461707da1442ca35afbc95f` as its exact head, while its implementation branch currently resolves to `73367233a5f4d37e828cb124f03f3eff84a10a2c` (the base SHA of PR #51). Treat the SHA in PR #50's description as stale until its owner updates it.
+- PR #51: Draft, open, based on `fix/post-merge-db-bootstrap-seconds-20261106`; no merge to `main`. PR #50 remains Draft.
+- Vercel status on the child PR reports `build-rate-limit` / upgrade-to-Pro. This is a hosting preview/build-rate-limit status, not a GitHub Actions test failure. No production deployment or financial operation was initiated.
+- NEXT: independent review of the updated audit metadata allowlist and permissions; confirm runtime configuration uses canonical financial reads before treating the audit list as complete; then continue Web App/Admin Panel integration against the same parent baseline.
