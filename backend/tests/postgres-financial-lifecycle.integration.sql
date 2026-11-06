@@ -280,6 +280,13 @@ BEGIN
   IF v_result->'market'->>'enabled'<>'false' THEN
     RAISE EXCEPTION 'admin spot market disable did not persist: %',v_result;
   END IF;
+  -- A previously committed order must replay even after the market is paused.
+  v_result := public.submit_limit_order_matching_v1(
+    'SPOT-SELL-0001','spot-seller','BTC','USDT','sell',10000,0.1,'spot-sell-request-0001'
+  );
+  IF v_result->>'duplicate'<>'true' OR v_result->>'status'<>'filled' THEN
+    RAISE EXCEPTION 'exact spot order retry failed after market pause: %',v_result;
+  END IF;
 
   -- 5) Seconds: reserve, snapshot payout policy, settle after maturity, exact replay.
   PERFORM pg_temp.test_credit(
