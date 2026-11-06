@@ -1950,6 +1950,14 @@ async function handleRequest(event, context) {
     const supportedFees = safeWithdrawalFees(db.withdrawal_fees);
     if (!Object.prototype.hasOwnProperty.call(supportedFees, coin)) return json({ ok: false, msg: 'Operation failed: withdrawals for this coin are not supported.' }, 400);
     const fee = supportedFees[coin];
+    // A displayed fee can become stale while the form is open. Require the
+    // caller's quoted fee to match the current server schedule before reserving funds.
+    if (body.expected_fee !== undefined) {
+      const expectedFee = parseMoneyInput(body.expected_fee);
+      if (expectedFee === null || compareMoney(expectedFee, fee) !== 0) {
+        return json({ ok: false, code: 'WITHDRAWAL_FEE_CHANGED', msg: 'The withdrawal fee changed. Refresh the current fee and review the request again.' }, 409);
+      }
+    }
     const totalDebit = addMoney(amount, fee);
     if (compareMoney(totalDebit, '0') <= 0) return json({ ok: false, msg: 'Invalid amount.' }, 400);
     // 首次提现 / 大额提现（USDT 等值超阈值，价格不可用时保守视为大额）→ 强制人工审核 pending_admin_review。
