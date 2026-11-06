@@ -6,6 +6,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../..
 import { Input } from "../../components/ui/input";
 import { useAuth } from "../../lib/auth";
 
+function postAuthDestination(needsCredentials: boolean) {
+  if (typeof window !== "undefined" && (
+    window.location.pathname.startsWith("/admin") ||
+    new URLSearchParams(window.location.search).get("next") === "/admin"
+  )) return "/admin";
+  return needsCredentials ? "/account-setup" : "/home";
+}
+
 export function AuthPage({ mode }: { mode: "login" | "register" }) {
   const { status, needsCredentials, busy, error, notice, googleEnabled, ethereumWallets, signInWithGoogle, signInWithWeb3, signInWithUsername, signInWithEmail, signUpWithEmail, requestPasswordReset, verifyTwoFactor, clearError } = useAuth();
   const [username, setUsername] = useState("");
