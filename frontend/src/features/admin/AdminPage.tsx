@@ -370,6 +370,16 @@ export function AdminPage() {
       setError(confirmedAction + " The database action is confirmed; the queue could not refresh. Reload this tab before taking another action.");
     }
   };
+  // A 409 WITHDRAWAL_ALREADY_PROCESSED means the operation actually succeeded on
+  // the first (response-lost) attempt; a retry must be surfaced as a confirmed
+  // notice, not as a red failure, and the queue should be refreshed.
+  const isAlreadyProcessed = (reason: unknown): reason is ApiError =>
+    reason instanceof ApiError && (reason.code === "WITHDRAWAL_ALREADY_PROCESSED" || reason.status === 409);
+  const handleAlreadyProcessed = (message: string) => {
+    setNotice(message);
+    setError("");
+    void refreshWithdrawalQueue(message + " ");
+  };
   const approveWithdrawal = async (id: string) => {
     if (!token) return;
     setBusy(true); setError(""); setNotice("");
@@ -378,7 +388,10 @@ export function AdminPage() {
       setWithdrawals(current => current.map(item => item.id === id ? { ...item, status: "approved" } : item));
       setNotice("Withdrawal approved. Staff must still transfer the funds manually.");
       await refreshWithdrawalQueue("Withdrawal approval confirmed.");
-    } catch (reason) { setError(reason instanceof Error ? reason.message : "Approval was not confirmed."); }
+    } catch (reason) {
+      if (isAlreadyProcessed(reason)) { handleAlreadyProcessed("Withdrawal was already approved on a previous attempt. No duplicate charge was made."); }
+      else { setError(reason instanceof Error ? reason.message : "Approval was not confirmed."); }
+    }
     finally { setBusy(false); }
   };
   const rejectWithdrawal = (id: string) => {
@@ -415,7 +428,12 @@ export function AdminPage() {
         catch { setError("KYC review is confirmed; the queue could not refresh. Reload this tab before reviewing another application."); }
       }
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "Rejection was not confirmed.");
+      if (target.kind === "withdrawal" && isAlreadyProcessed(reason)) {
+        setReviewDialog(null); setReviewReason("");
+        handleAlreadyProcessed("Withdrawal was already reviewed on a previous attempt. No duplicate refund was issued.");
+      } else {
+        setError(reason instanceof Error ? reason.message : "Rejection was not confirmed.");
+      }
     } finally {
       setBusy(false);
     }
