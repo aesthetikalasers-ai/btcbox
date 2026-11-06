@@ -941,7 +941,7 @@ function validateKycImage(body) {
 
 async function uploadKycDocument(userId, image) {
   if (!supabaseStorageConfigured()) throw new Error('KYC document storage is unavailable');
-  const base = String(process.env.SUPABASE_URL || '').replace(/\\/+$/, '');
+  const base = String(process.env.SUPABASE_URL || '').replace(/\/+$/, '');
   const path = String(userId) + '/' + crypto.randomUUID() + '.' + image.extension;
   const objectPath = path.split('/').map(encodeURIComponent).join('/');
   const response = await fetch(base + '/storage/v1/object/' + KYC_STORAGE_BUCKET + '/' + objectPath, {
@@ -958,7 +958,7 @@ async function createSignedKycDocumentUrl(path) {
   if (!supabaseStorageConfigured() || typeof path !== 'string' || !path || path.length > 300 || path.startsWith('/') || path.includes('..')) {
     throw new Error('KYC document is unavailable');
   }
-  const base = String(process.env.SUPABASE_URL || '').replace(/\\/+$/, '');
+  const base = String(process.env.SUPABASE_URL || '').replace(/\/+$/, '');
   const objectPath = path.split('/').map(encodeURIComponent).join('/');
   const response = await fetch(base + '/storage/v1/object/sign/' + KYC_STORAGE_BUCKET + '/' + objectPath, {
     method: 'POST', headers: supabaseHeaders(), body: JSON.stringify({ expiresIn: 300 }),
@@ -971,7 +971,7 @@ async function createSignedKycDocumentUrl(path) {
 
 async function deleteKycDocument(path) {
   if (!supabaseStorageConfigured() || typeof path !== 'string' || !path) return;
-  const base = String(process.env.SUPABASE_URL || '').replace(/\\/+$/, '');
+  const base = String(process.env.SUPABASE_URL || '').replace(/\/+$/, '');
   await fetch(base + '/storage/v1/object/' + KYC_STORAGE_BUCKET, {
     method: 'DELETE', headers: supabaseHeaders(), body: JSON.stringify({ prefixes: [path] }),
     signal: AbortSignal.timeout(5000)
