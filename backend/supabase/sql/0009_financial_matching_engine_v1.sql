@@ -97,10 +97,20 @@ grant select, insert on public.financial_matching_trades to service_role;
 -- against another order and an exact retry returns the original outcome.
 create table if not exists public.financial_matching_cancel_requests (
   user_id text not null,
-  client_cancel_id text not null check (client_cancel_id ~ '^[A-Za-z0-9_-]{16,100}
+  client_cancel_id text not null check (length(client_cancel_id) between 16 and 100 and client_cancel_id !~ '[^A-Za-z0-9_-]'),
+  order_id text not null,
+  request_hash text not null check (length(request_hash)=64 and request_hash !~ '[^0-9a-f]'),
+  response jsonb not null,
+  created_at timestamptz not null default now(),
+  primary key (user_id, client_cancel_id)
+);
+alter table public.financial_matching_cancel_requests enable row level security;
+revoke all on public.financial_matching_cancel_requests from public, anon, authenticated;
+grant select, insert on public.financial_matching_cancel_requests to service_role;
+
+create or replace function public.submit_limit_order_matching_v1(
   p_order_id text, p_user_id text, p_base_asset text, p_quote_asset text,
-  p_side text, p_price numeric, p_quantity numeric, p_client_order_id text
-) returns jsonb
+  p_side text, p_price numeric, p_quantity numeric, p_client_order_id text) returns jsonb
 language plpgsql security invoker set search_path = ''
 as $$
 declare
