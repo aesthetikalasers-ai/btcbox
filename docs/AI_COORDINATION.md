@@ -2939,3 +2939,15 @@ The prior withdrawal UI audit statement claiming the active BTCBOX admin route w
 - TEST PASSED on exact head: backend GitHub Actions run 417 — unified build, **307/307 tests**, fail-closed preflight and output/entrypoint checks; frontend run 281 — lint and build. Run IDs: `42213362566` and `42213362689`.
 - NOT VERIFIED: SQL chain execution against a disposable empty PostgreSQL database; hosted Supabase schema installation; first Super Admin bootstrap; browser E2E and live provider connectivity. KYC currently handles identity text fields only; document-image upload and secure evidence storage are not implemented.
 - No hosted DB write/bootstrap, real financial transaction, production deployment or merge to `main` was performed.
+
+
+## Spot cancellation idempotency and fresh-schema completeness — 2026-11-06 (UTC)
+
+- Verified PR #50 current head: `9d53306ec4b85939915ccf35f923565e9abe4bd0`, based on main `fa4513701af75b4c4cb39d60a3df08f07d632af4`; 57 commits ahead / 0 behind. PR #50 remains Draft and unmerged.
+- SOURCE GAP: `cancel_limit_order_matching_v1` accepted `client_cancel_id` but did not persist a user-scoped mapping from that key to the target order/payload. State-based duplicate handling prevented a second release for an already-cancelled order, but did not explicitly reject reuse of the same key against another order.
+- FIXED in `backend/supabase/sql/0009_financial_matching_engine_v1.sql`: added RLS-protected `financial_matching_cancel_requests`; serialize first-use keys with a transaction advisory lock; bind each key to user/order hash; replay exact requests from the stored response; reject same-key/different-order payloads; store the result in the same transaction as reserve release and ledger write. Existing already-cancelled orders can be acknowledged without a second release.
+- Added `backend/tests/spot-matching-idempotency.test.js` for SQL key binding, replay-before-balance-mutation, cancelled/filled state handling and API forwarding.
+- Found the canonical SQL inventory had grown to 23 files with `0029_withdrawal_fee_quote_idempotency_v1.sql`, but the migration documentation still said 22. Updated bootstrap allowlist and migration-order documentation to include all 23 files and describe the fee-quote replay rule.
+- TEST PASSED on exact head: backend GitHub Actions run 425 at `579d4af1cdedc661aa3ac1e8a733bbbe105eed35` and latest backend run 427 at `9d53306ec4b85939915ccf35f923565e9abe4bd0`; latest backend build and **309/309 tests** passed, including fail-closed preflight. Latest frontend run for `9d53306ec4b85939915ccf35f923565e9abe4bd0` was still in progress at this checkpoint; do not mark it passed until completed.
+- NOT VERIFIED: PostgreSQL execution of all 23 SQL files, including actual concurrent cancellation/replay transactions; disposable empty-database bootstrap; hosted Supabase installation; first Super Admin provisioning; browser E2E; live provider connectivity. Source tests are not runtime financial certification.
+- No hosted DB write/bootstrap, real financial operation, production deployment or merge to `main` was performed.
