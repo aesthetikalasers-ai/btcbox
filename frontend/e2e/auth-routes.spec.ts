@@ -30,19 +30,24 @@ test.beforeEach(async ({ page }) => {
   await page.route("https://btcbox-e2e.invalid/**", (route) => route.abort());
 });
 
-test("login route renders username and email sign-in", async ({ page }) => {
+test("login route renders Google and wallet sign-in entry points", async ({ page }) => {
   await page.goto("/login");
 
   await expect(page.getByRole("heading", { name: "Welcome back" })).toBeVisible();
-  await expect(page.getByText("BTCBOX username", { exact: true })).toBeVisible();
-  await expect(page.getByText("Continue with email")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Connect wallet" })).toBeVisible();
+  await page.getByRole("button", { name: "Connect wallet" }).click();
+  await expect(page.getByText("Ethereum / EVM")).toBeVisible();
+  await expect(page.getByText("Solana", { exact: true })).toBeVisible();
 });
 
 test("registration route renders account creation form", async ({ page }) => {
   await page.goto("/register");
 
   await expect(page.getByRole("heading", { name: "Create your BTCBOX account" })).toBeVisible();
-  await expect(page.getByText("Register with email")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Connect wallet" })).toBeVisible();
+  await page.getByRole("button", { name: "Connect wallet" }).click();
+  await expect(page.getByText("Ethereum / EVM")).toBeVisible();
+  await expect(page.getByText("Solana", { exact: true })).toBeVisible();
   await expect(page.getByRole("link", { name: "Sign in" })).toHaveAttribute("href", "/login");
 });
 
@@ -63,7 +68,7 @@ test("administrator route requires a verified administrator identity", async ({ 
 
   await expect(page).toHaveURL("http://127.0.0.1:4173/admin");
   await expect(page.getByRole("heading", { name: "Welcome back" })).toBeVisible();
-  await expect(page.getByText("Continue with email")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Connect wallet" })).toBeVisible();
   // No administrator API, including the session verifier, may run without a Supabase identity.
   expect(adminRequests).toEqual([]);
 });
@@ -85,12 +90,28 @@ test("signed-out customer routes never issue financial or account mutations", as
     }
   });
 
-  for (const path of ["/deposit", "/withdraw", "/assets", "/orders", "/kyc", "/seconds", "/support", "/settings", "/earn", "/trade/BTCUSDT"]) {
+  for (const path of ["/deposit", "/withdraw", "/assets", "/orders", "/kyc", "/seconds", "/support", "/settings", "/earn"]) {
     await page.goto(path);
     await expect(page).toHaveURL(/\/login$/);
     await expect(page.getByRole("heading", { name: "Welcome back" })).toBeVisible();
   }
 
+  expect(mutationRequests).toEqual([]);
+});
+
+test("spot trading preview remains public while signed-out order mutations stay blocked", async ({ page }) => {
+  const mutationRequests: string[] = [];
+  page.on("request", (request) => {
+    const url = new URL(request.url());
+    if (url.pathname.startsWith("/api/") && ["POST", "PUT", "PATCH", "DELETE"].includes(request.method())) {
+      mutationRequests.push(request.method() + " " + url.pathname);
+    }
+  });
+
+  await page.goto("/trade/BTCUSDT");
+
+  await expect(page).toHaveURL(/\\/trade\\/BTCUSDT$/);
+  await expect(page.getByRole("heading", { name: "BTCUSDT" })).toBeVisible();
   expect(mutationRequests).toEqual([]);
 });
 
