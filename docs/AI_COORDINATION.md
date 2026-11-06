@@ -5948,3 +5948,14 @@ The prior withdrawal UI audit statement claiming the active BTCBOX admin route w
 - EXACT-HEAD frontend CI run `42291739115`: lint and Vite build passed; Chromium setup / desktop-mobile smoke suite was still running at the time this entry was written. No full frontend pass is claimed yet.
 - No SQL migrations changed. No hosted Supabase Auth/Storage writes, KYC document deletion, production DB operation, financial transaction, merge, or deployment occurred.
 - NEXT: confirm exact-head frontend CI; continue checking Admin role projections and user/admin order/ledger source alignment. KYC retention/deletion still requires owner policy approval; do not invent a duration.
+
+
+### 2026-11-07 — Admin financial balance projection hardening
+- Role: 2号 AI — Web App + Admin Panel. Continued in Draft PR #51.
+- FINDING 1: `GET /api/admin/user` cloned the complete legacy user record before adding permission-scoped PostgreSQL balance fields. Even after the explicit balance assignment was gated, a pre-existing `balances` object could remain in the clone. Fixed by deleting inherited `balances` and `financial_balance_source` before projecting fields; balances and their source are now attached only when the caller has `deposits.read`, matching the existing manual-credit UI and deposit review permission model. The UI hides balance values/source and explains the missing permission when `deposits.read` is absent.
+- FINDING 2: `GET /api/admin/users` exposed `total_usdt` to every `users.read` administrator and unnecessarily read account balances/prices for all such requests. Fixed by requiring the existing `financial_audit.read` permission before querying financial balances/prices or including the aggregate field. No new RBAC permission was added.
+- Regression coverage added in `backend/tests/admin-user-financial-history.test.js` for inherited-balance stripping, detail projection gating, and aggregate gating on the user list.
+- Commits: `c7d88b7b98554ca7150c5291a4c688ea1a66e734`, `bf44da41f7a2e7b19bca6b34b78ae7f61bcbf89a`, `e0b192f5749f30934257bb69966dc114bf7b9cc7`.
+- Exact-head CI for `e0b192f5749f30934257bb69966dc114bf7b9cc7`: Backend run `42293160614`, Frontend run `42293160750`, PostgreSQL schema run `42293160618`; all were running when this note was authored. No pass is claimed until final conclusions are successful.
+- No schema change, merge, deployment, production database operation, or financial transaction. PR #51 remains Draft.
+- NEXT: after CI passes, continue auditing permission-scoped KYC identity evidence, order/customer history parity and audit-event coverage. Hosted Supabase workflows remain staging-only.
