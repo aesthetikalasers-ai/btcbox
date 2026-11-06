@@ -44,6 +44,14 @@ test('admin error feedback surfaces server codes and the refresh-after-confirmed
   // failed. Verified for KYC review; withdrawal queue uses the same helper.
   assert.ok(adminPage.includes('KYC review is confirmed; the queue could not refresh'));
   assert.ok(adminPage.includes('The database action is confirmed; the queue could not refresh'));
+  // A 409 WITHDRAWAL_ALREADY_PROCESSED on a retry (first attempt's response was
+  // lost) is surfaced as a confirmed notice + queue refresh, never as a red
+  // failure, for both approve and reject paths.
+  assert.ok(adminPage.includes('isAlreadyProcessed'));
+  assert.ok(adminPage.includes('WITHDRAWAL_ALREADY_PROCESSED'));
+  assert.ok(adminPage.includes('already approved on a previous attempt'));
+  assert.ok(adminPage.includes('already reviewed on a previous attempt'));
+  assert.ok(adminPage.includes('handleAlreadyProcessed'));
   // ApiError carries the server code so callers can distinguish 409/400/503.
   assert.ok(client.includes('class ApiError') || client.includes('ApiError'));
   assert.ok(client.includes('payload?.code'));
