@@ -2703,12 +2703,18 @@ async function handleRequest(event, context) {
       let list = Object.values(db.users);
       if (q) list = list.filter(function (u) { return String(u.email || '').toLowerCase().indexOf(q) > -1 || String(u.uid || '').toLowerCase().indexOf(q) > -1; });
       list = list.slice(0, 200);
-      try { await getLiveUsdtPrices(list.flatMap(function (u) { return Object.keys(u.balances || {}); })); } catch (_) {}
       let normalizedBalances = null;
       if (financialPostgresReadsEnabled()) {
         try { normalizedBalances = await readAdminAccountBalances(list.map(function (u) { return String(u.uid); })); }
         catch (e) { return json({ ok: false, msg: 'Financial data temporarily unavailable. Please try again later.', code: 'FINANCIAL_READ_UNAVAILABLE' }, 503); }
       }
+      // When PostgreSQL is the source of truth, request prices for those exact
+      // normalized ledger assets rather than stale/empty legacy JSON balances.
+      const priceBases = list.flatMap(function (u) {
+        const balances = normalizedBalances ? (normalizedBalances[String(u.uid)] || {}) : (u.balances || {});
+        return Object.keys(balances);
+      });
+      try { await getLiveUsdtPrices(priceBases); } catch (_) {}
       return json({ ok: true, users: list.map(function (u) {
         const balances = normalizedBalances ? (normalizedBalances[String(u.uid)] || {}) : (u.balances || {});
         return { uid: u.uid, email: u.email || '', kyc_status: (u.kyc && u.kyc.status) || 'unverified', total_usdt: totalUsdt(balances, livePriceCache.prices), created_at: u.created_at || '', frozen: !!u.frozen, twofa: !!u.twofa_enabled };
