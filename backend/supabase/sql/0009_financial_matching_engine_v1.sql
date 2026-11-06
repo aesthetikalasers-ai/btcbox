@@ -276,7 +276,8 @@ declare
   v_op uuid;
   v_available numeric(38,18);
   v_frozen numeric(38,18);
-  v_hash text;
+  v_request_hash text;
+  v_operation_hash text;
   v_response jsonb;
 begin
   if coalesce(p_user_id,'')='' or coalesce(p_order_id,'')='' or
@@ -284,14 +285,14 @@ begin
     raise exception 'invalid cancel request';
   end if;
 
-  v_hash := encode(extensions.digest(p_user_id||':'||p_order_id,'sha256'),'hex');
+  v_request_hash := encode(extensions.digest(p_user_id||':'||p_order_id,'sha256'),'hex');
   -- Serialize a user's request key before looking up or changing any order.
   perform pg_advisory_xact_lock(hashtextextended(p_user_id||':'||p_client_cancel_id,0));
   select * into v_cancel
   from public.financial_matching_cancel_requests
   where user_id=p_user_id and client_cancel_id=p_client_cancel_id;
   if found then
-    if v_cancel.order_id<>p_order_id or v_cancel.request_hash<>v_hash then
+    if v_cancel.order_id<>p_order_id or v_cancel.request_hash<>v_request_hash then
       raise exception 'cancel idempotency key payload mismatch';
     end if;
     return v_cancel.response || jsonb_build_object('duplicate',true);
@@ -309,17 +310,17 @@ begin
   if v_order.status='cancelled' then
     v_response := jsonb_build_object('ok',true,'duplicate',true,'order_id',p_order_id,'status','cancelled');
     insert into public.financial_matching_cancel_requests(user_id,client_cancel_id,order_id,request_hash,response)
-    values(p_user_id,p_client_cancel_id,p_order_id,v_hash,v_response);
+    values(p_user_id,p_client_cancel_id,p_order_id,v_request_hash,v_response);
     return v_response;
   end if;
   if v_order.status='filled' then raise exception 'filled order cannot be cancelled'; end if;
 
   perform 1 from public.financial_accounts
   where user_id=p_user_id and asset=v_order.reserve_asset for update;
-  v_hash := encode(extensions.digest(concat_ws(':',p_user_id,p_order_id,v_order.reserved_remaining::text),'sha256'),'hex');
+  v_operation_hash := encode(extensions.digest(concat_ws(':',p_user_id,p_order_id,v_order.reserved_remaining::text),'sha256'),'hex');
   insert into public.financial_operations(idempotency_key,user_id,asset,operation_type,request_hash,metadata)
   values ('spot-cancel-'||encode(extensions.digest(p_user_id||':'||p_client_cancel_id,'sha256'),'hex'),
-    p_user_id,v_order.reserve_asset,'spot_order_cancel',v_hash,
+    p_user_id,v_order.reserve_asset,'spot_order_cancel',v_operation_hash,
     jsonb_build_object('order_id',p_order_id,'released',v_order.reserved_remaining))
   returning id into v_op;
 
@@ -340,7 +341,7 @@ begin
   v_response := jsonb_build_object('ok',true,'duplicate',false,'order_id',p_order_id,'status','cancelled');
   insert into public.financial_matching_cancel_requests(user_id,client_cancel_id,order_id,request_hash,response)
   values(p_user_id,p_client_cancel_id,p_order_id,
-    encode(extensions.digest(p_user_id||':'||p_order_id,'sha256'),'hex'),v_response);
+    v_request_hash,v_response);
   return v_response;
 end;
 $$;
