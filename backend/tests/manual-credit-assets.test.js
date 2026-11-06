@@ -11,14 +11,11 @@ const depositSql = fs.readFileSync(path.join(root, 'supabase/sql/0007_financial_
 
 test('manual credit supports every asset exposed in the admin asset selector', () => {
   const supported = ['USDT', 'BTC', 'ETH', 'SOL', 'BNB', 'USDC'];
-  const allowlist = api.match(/if \(!\[([^\]]+)\]\.includes\(coin\)\)/);
-  assert.ok(allowlist, 'backend manual-credit allowlist must exist');
+  assert.ok(api.includes("if (!['USDT', 'BTC', 'ETH', 'SOL', 'BNB', 'USDC'].includes(coin))"));
   for (const asset of supported) {
-    assert.ok(allowlist[1].includes("'" + asset + "'"), 'backend is missing ' + asset);
     assert.ok(admin.includes('"' + asset + '"'), 'admin selector is missing ' + asset);
   }
-  assert.ok(depositSql.includes("coalesce(p_asset, '') !~ '^[A-Z0-9]{2,16}  assert.ok(api.includes("route === 'deposit/confirm' && verb === 'POST'"));
-});
-"));
+  assert.ok(depositSql.includes("coalesce(p_asset, '') !~"));
+  assert.ok(depositSql.includes('[A-Z0-9]{2,16}'));
   assert.ok(api.includes("route === 'deposit/confirm' && verb === 'POST'"));
 });
