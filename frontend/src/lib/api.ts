@@ -201,7 +201,7 @@ export interface AccountBalance {
 }
 
 export interface DepositRecord {
-  id: string;
+  id?: string;
   coin: string;
   amount: number | string;
   network?: string;
