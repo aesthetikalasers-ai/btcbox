@@ -1,6 +1,8 @@
 // BTCBOX shared API handler for Vercel Node Functions.
 // Persistent state and financial records require Supabase; no Netlify Blobs fallback.
 const crypto = require('crypto');
+const { authorizeSupabaseAdmin } = require('./admin-auth');
+const { hasAdminPermission } = require('./admin-rbac');
 
 const SESSION_COOKIE = 'session_token';
 const PBKDF2_ITER = 100000;
@@ -2396,6 +2398,11 @@ async function handleRequest(event, context) {
   // 管理员认证：timingSafeEqual 保留；失败计数持久化到 btcbox_state（5 次/15 分钟锁）。
   async function adminAuth() {
     const authHeader = event.headers && (event.headers.authorization || event.headers.Authorization);
+    if (authHeader && /^Bearer /i.test(authHeader)) {
+      const delegated = await authorizeSupabaseAdmin({ authorization: authHeader });
+      if (!delegated.ok) return { authError: delegated };
+      return { authMode: 'supabase', user: delegated.user, membership: delegated.membership };
+    }
     if (!authHeader || !authHeader.startsWith('Basic ')) return null;
     if (!db.security_counters) db.security_counters = {};
     const lockKey = 'admin_fail:' + clientIp(event);
@@ -2481,6 +2488,10 @@ async function handleRequest(event, context) {
 
   if (path.startsWith('admin/')) {
     const adminAuthResult = await adminAuth();
+    if (adminAuthResult && adminAuthResult.authError) {
+      const failure = adminAuthResult.authError;
+      return json({ ok: false, code: failure.code, msg: failure.status === 403 ? 'Administrator access is not enabled for this account.' : failure.status === 401 ? 'Please sign in again.' : 'Administrator authentication is temporarily unavailable.' }, failure.status || 503);
+    }
     if (adminAuthResult && adminAuthResult.persistenceUnavailable) return json({ ok: false, code: 'SECURITY_STATE_UNAVAILABLE', msg: 'Administrator authentication is temporarily unavailable. Please try again.' }, 503);
     if (adminAuthResult && adminAuthResult.rateLimited) return rateLimitedJson(adminAuthResult.retryAfter);
     if (!adminAuthResult) {
@@ -2489,6 +2500,23 @@ async function handleRequest(event, context) {
     const priorAuditFlush = await flushAdminAuditOutbox();
     if (priorAuditFlush.persistenceUnavailable) return json({ ok: false, code: 'AUDIT_OUTBOX_STATE_UNAVAILABLE', msg: 'Administrator audit delivery state could not be saved. Please retry.' }, 503);
     const sub = path.slice(6); // 去掉 admin/ 前缀
+    if (adminAuthResult && adminAuthResult.authMode === 'supabase') {
+      const permissionByRoute = {
+        stats: 'dashboard.read',
+        users: 'users.read', user: 'users.read', 'user/balance': 'users.read',
+        'user/freeze': 'users.freeze', 'user/reset-pwd': 'users.manage', 'user/reset-email': 'users.manage',
+        kyc: 'kyc.read', 'kyc/approve': 'kyc.review', 'kyc/reject': 'kyc.review',
+        'deposit/confirm': 'deposits.review',
+        'withdraw/approve': 'withdrawals.review', 'withdraw/reject': 'withdrawals.review', 'withdraw/mark-paid': 'withdrawals.review',
+        push: 'announcements.manage', 'support/reply': 'support.reply',
+        addresses: 'deposits.read', 'address/manage': 'system_config.write',
+        'audit-logs': 'financial_audit.read', config: method === 'GET' ? 'system_config.read' : 'system_config.write'
+      };
+      const requiredPermission = permissionByRoute[sub];
+      if (!requiredPermission || !hasAdminPermission(adminAuthResult.membership, requiredPermission)) {
+        return json({ ok: false, code: 'ADMIN_PERMISSION_DENIED', msg: 'Your administrator account does not have permission for this operation.' }, 403);
+      }
+    }
 
     // GET /api/admin/stats
     if (sub === 'stats' && method === 'GET') {

@@ -2,7 +2,7 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { readBearerToken, resolveAuthConfig, verifySupabaseAccessToken } = require('../admin-auth');
+const { readBearerToken, resolveAuthConfig, verifySupabaseAccessToken, loadAdminMembership, authorizeSupabaseAdmin } = require('../admin-auth');
 
 const USER_ID = '123e4567-e89b-42d3-a456-426614174000';
 const ENV = {
@@ -89,4 +89,65 @@ test('network errors fail closed without leaking token details', async () => {
     fetchImpl: async () => { throw new Error('upstream failure'); }
   });
   assert.deepEqual(result, { ok: false, code: 'AUTH_VERIFICATION_UNAVAILABLE', status: 503 });
+});
+
+
+test('admin membership is loaded only through the service-role RPC using the verified Auth UUID', async () => {
+  let request;
+  const result = await loadAdminMembership({
+    userId: USER_ID,
+    env: { SUPABASE_URL: ENV.SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY: 'service_role_test_key' },
+    fetchImpl: async (url, init) => {
+      request = { url, init };
+      return { ok: true, status: 200, json: async () => ({
+        found: true, active: true, user_id: USER_ID, is_super_admin: true, revision: 1,
+        permissions: ['dashboard.read', 'users.read']
+      }) };
+    }
+  });
+  assert.equal(result.ok, true);
+  assert.equal(result.membership.is_super_admin, true);
+  assert.equal(request.url, 'https://example.supabase.co/rest/v1/rpc/admin_get_membership_v1');
+  assert.equal(request.init.headers.Authorization, 'Bearer service_role_test_key');
+  assert.deepEqual(JSON.parse(request.init.body), { p_actor_user_id: USER_ID });
+});
+
+test('admin membership fails closed for inactive or mismatched identities', async () => {
+  for (const payload of [
+    { found: false, active: false },
+    { found: true, active: true, user_id: '123e4567-e89b-42d3-a456-426614174001', permissions: [] }
+  ]) {
+    const result = await loadAdminMembership({
+      userId: USER_ID,
+      env: { SUPABASE_URL: ENV.SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY: 'service_role_test_key' },
+      fetchImpl: async () => ({ ok: true, status: 200, json: async () => payload })
+    });
+    assert.equal(result.ok, false);
+    assert.equal(result.status, 403);
+  }
+});
+
+test('Supabase administrator authorization verifies Auth first, then checks server-side membership', async () => {
+  const calls = [];
+  const result = await authorizeSupabaseAdmin({
+    authorization: AUTH,
+    env: { ...ENV, SUPABASE_SERVICE_ROLE_KEY: 'service_role_test_key' },
+    fetchImpl: async (url, init) => {
+      calls.push({ url, init });
+      if (url.endsWith('/auth/v1/user')) {
+        return { ok: true, status: 200, json: async () => ({ id: USER_ID, user_metadata: { is_super_admin: true } }) };
+      }
+      return { ok: true, status: 200, json: async () => ({
+        found: true, active: true, user_id: USER_ID, is_super_admin: false, revision: 3,
+        permissions: ['dashboard.read']
+      }) };
+    }
+  });
+  assert.equal(result.ok, true);
+  assert.equal(result.user.id, USER_ID);
+  assert.equal(result.membership.is_super_admin, false);
+  assert.deepEqual(calls.map((call) => call.url), [
+    'https://example.supabase.co/auth/v1/user',
+    'https://example.supabase.co/rest/v1/rpc/admin_get_membership_v1'
+  ]);
 });

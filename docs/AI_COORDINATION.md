@@ -2821,3 +2821,14 @@ The prior withdrawal UI audit statement claiming the active BTCBOX admin route w
 - Updated the migration-order guide, Vercel deployment instructions, and pre-release checklist so the staging-only scripts are not represented as routine operational migrations.
 - Added `backend/tests/migration-runner-boundaries.test.js` to guard the skip boundary and ensure the diagnostic scripts remain read-only.
 - NOT VERIFIED: shell execution against PostgreSQL, full operational migration chain, staging import/reconciliation, Node tests/build. No production DB write, migration repair/apply, financial flag change, merge, or deployment.
+
+
+## 2026-11-06 integration batch: delegated administrator authentication
+
+- Working branch: `integration/btcbox-next-batch-20261106`, created from the current `main` after PR #26 was merged.
+- Source-observed baseline: the React Supabase Auth provider already contains Ethereum/Solana wallet identity and account-linking flows; the web3 branch's auth provider and account security page are byte-identical to current main. Do not copy these again.
+- Source-observed gap: `backend/api-core.js` still protects all `/api/admin/*` routes with shared Basic Auth, while `backend/admin-auth.js`, `backend/admin-rbac.js`, and the private membership schema existed but were not wired into the API.
+- Implemented on this branch: Supabase Auth token verification followed by server-side membership lookup; route-to-permission enforcement for all current admin endpoints; service-role-only public RPC bridge that keeps the underlying `private` schema unexposed; unit tests for membership verification and fail-closed behavior.
+- Legacy Basic Auth remains as a compatibility path until the existing admin console is migrated to Supabase Auth; it does not receive delegated-role permission checks. Remove it after the admin UI migration is complete.
+- No database was reset or written, no production deployment was triggered, and no financial operations were executed.
+- Validation pending: backend CI and frontend CI on the PR head; independent route-level QA and a fresh-schema dry run remain not verified.
