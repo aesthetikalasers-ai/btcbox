@@ -2444,7 +2444,7 @@ async function handleRequest(event, context) {
     if (!SECONDS_ALLOWED_SYMBOLS.has(symbol)) return json({ ok: false, msg: 'This trading pair is not supported for short-term contracts.' }, 400);
     if (!['up', 'down'].includes(direction)) return json({ ok: false, msg: 'Invalid trade direction.' }, 400);
     if (!Number.isSafeInteger(durationSec) || durationSec <= 0) return json({ ok: false, msg: 'Invalid contract duration.' }, 400);
-    if (amount === null || compareMoney(amount, '0') <= 0 || compareMoney(amount, '1000000000000') > 0) return json({ ok: false, msg: 'Invalid investment amount.' }, 400);
+    if (amount === null || compareMoney(amount, '0') <= 0) return json({ ok: false, msg: 'Invalid investment amount.' }, 400);
     if (!/^[A-Za-z0-9_-]{16,100}$/.test(requestId)) return json({ ok: false, code: 'IDEMPOTENCY_KEY_REQUIRED', msg: 'A valid request ID (16-100 characters) is required.' }, 400);
     const positionId = 'SC' + crypto.createHash('sha256').update(String(user.uid) + '|' + requestId).digest('hex').slice(0, 30);
     const requestHash = crypto.createHash('sha256').update(JSON.stringify({ user_id: String(user.uid), symbol, direction, amount: String(amount), duration_sec: durationSec, request_id: requestId })).digest('hex');
