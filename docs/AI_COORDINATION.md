@@ -2783,3 +2783,11 @@ The prior withdrawal UI audit statement claiming the active BTCBOX admin route w
 
 - Issue #3: https://github.com/avali9308-code/btcbox-v33/issues/3. Source inspection found numbered migration 0022 references `public.withdrawals`, while 0002/0003 establish `public.withdrawal_requests` and 0023 uses `public.withdrawal_requests`. The numbered runner executes all these files in order.
 - Classification: SOURCE OBSERVED; PostgreSQL runtime failure NOT REPRODUCED. Keep production DB untouched; do not skip/renumber migrations. Resolve against canonical schema and prove the full sequence in isolated PostgreSQL before cutover.
+
+
+## BTCBOX V33 — withdrawal migration 0022 reconciliation — 2026-11-06
+
+- Issue #3: https://github.com/avali9308-code/btcbox-v33/issues/3. Provenance checked: 0022 first appears in archive-extraction commit `05da31097802d012aa79b2976386ddce5f92757c` and is absent from its parent. No prior file history exists in this repo.
+- Source resolution: 0002/0003 establish canonical `withdrawal_requests` and the single pending -> approved/rejected manual review flow. The active API calls the canonical nine-argument RPC; every withdrawal is manually reviewed. 0023 adds manual payout completion on that same table.
+- 0022 now acts as an explicit compatibility checkpoint; it verifies the canonical table/status column and does not create a parallel schema, RPC overload, or second review state. It remains in the numbered runner sequence. Regression test file added; static source audit 12/12 passed.
+- NOT RUN: Node tests/build or PostgreSQL runtime/full migration chain. No production DB writes, migration apply, financial flag changes, merge or deployment. Keep Issue #3 open until isolated runtime proof is obtained.
