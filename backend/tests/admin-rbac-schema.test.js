@@ -110,3 +110,11 @@ test('design supersedes old two-person bootstrap and three-person approval requi
   assert.match(design, /The initial Super Admin is provisioned once by the project owner through a private, out-of-band operation/i);
   assert.doesNotMatch(design.slice(design.indexOf('## 13. Product decision'), design.length), /two separately authenticated approvers/i);
 });
+
+
+test('public delegated-admin wrapper forwards the request hash expected by the private RPC', () => {
+  const wrapper = fs.readFileSync(path.resolve(__dirname, '../supabase/sql/0028_admin_rbac_service_rpc_wrappers_v1.sql'), 'utf8');
+  assert.match(wrapper, /p_request_id text,\\s*p_request_hash text/i);
+  assert.match(wrapper, /p_request_id,p_request_hash/i);
+  assert.doesNotMatch(wrapper, /p_target_status/);
+});
