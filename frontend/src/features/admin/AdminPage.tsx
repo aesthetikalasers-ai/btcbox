@@ -22,21 +22,24 @@ import {
   getAdminSession,
   getAdminStats,
   getAdminSecondsPolicy,
+  getAdminSpotMarkets,
   getAdminSupportMessages,
   getAdminUser,
   getAdminUsers,
   getAdminWithdrawals,
   saveAdminConfig,
   saveAdminSecondsPolicy,
+  saveAdminSpotMarket,
   type AdminAuditRecord,
   type AdminConfig,
   type AdminKycRecord,
   type AdminSession,
+  type AdminSpotMarket,
   type AdminUserRecord,
   type AdminWithdrawalRecord,
 } from "../../lib/api";
 
-type Tab = "overview" | "users" | "deposits" | "withdrawals" | "kyc" | "audit" | "orders" | "support" | "admins" | "seconds";
+type Tab = "overview" | "users" | "deposits" | "withdrawals" | "kyc" | "audit" | "orders" | "support" | "admins" | "seconds" | "markets";
 const tabs: Array<{ id: Tab; label: string; permission: string }> = [
   { id: "overview", label: "Overview", permission: "dashboard.read" },
   { id: "users", label: "Users & manual credit", permission: "users.read" },
@@ -47,6 +50,7 @@ const tabs: Array<{ id: Tab; label: string; permission: string }> = [
   { id: "orders", label: "Orders", permission: "orders.read" },
   { id: "support", label: "Support", permission: "support.read" },
   { id: "seconds", label: "Seconds policy", permission: "seconds_policy.read" },
+  { id: "markets", label: "Spot markets", permission: "system_config.read" },
 ];
 const adminPermissionOptions = [["dashboard.read","Dashboard"],["users.read","Read users"],["users.manage","Manage users"],["users.freeze","Freeze accounts"],["kyc.read","Read KYC"],["kyc.review","Review KYC"],["deposits.read","Read deposits"],["deposits.review","Manual deposit credit"],["withdrawals.read","Read withdrawals"],["withdrawals.review","Review and mark paid"],["orders.read","Read orders"],["support.read","Read support"],["support.reply","Reply to support"],["support.manage","Manage support"],["announcements.read","Read announcements"],["announcements.manage","Manage announcements"],["system_config.read","Read system configuration"],["system_config.write","Edit system configuration"],["seconds_policy.read","Read Seconds policy"],["seconds_policy.manage","Manage Seconds policy"],["financial_audit.read","Read financial audit"],["financial_adjustment.request","Request financial adjustment"]] as const;
 const depositAddressKeys = [
@@ -108,6 +112,13 @@ export function AdminPage() {
   const [adminReason, setAdminReason] = useState("");
   const [adminRequestId, setAdminRequestId] = useState("");
   const [adminRequestKey, setAdminRequestKey] = useState("");
+  const [spotMarkets, setSpotMarkets] = useState<AdminSpotMarket[]>([]);
+  const [spotMarketDraft, setSpotMarketDraft] = useState({
+    base_asset: "BTC", quote_asset: "USDT", enabled: true,
+    price_tick: "0.01", quantity_step: "0.000001", min_quantity: "0.000001",
+    min_notional: "1", min_limit_price: "", max_limit_price: "", reason: "",
+  });
+  const [spotMarketRequestId, setSpotMarketRequestId] = useState("");
   const [secondsPolicy, setSecondsPolicy] = useState<{policy_id:string;policy_version:number;symbols:string[];durations_sec:number[];min_stake:number|string;max_stake:number|string;payout_bps:number;per_user_open_exposure:number|string|null;max_open_positions_per_user:number|null}|null>(null);
   const [secondsSymbols, setSecondsSymbols] = useState<string[]>([]);
   const [secondsDurations, setSecondsDurations] = useState<number[]>([]);
@@ -168,6 +179,26 @@ export function AdminPage() {
       if (tab === "overview") setStats(await getAdminStats(token));
       if (tab === "users") setUsers((await getAdminUsers(token, search)).users);
       if (tab === "deposits") setConfig(await getAdminConfig(token));
+      if (tab === "markets") {
+        const result = await getAdminSpotMarkets(token);
+        setSpotMarkets(result.markets || []);
+        const pendingKey = "btcbox.admin.spot-market.v1." + session.user_id;
+        try {
+          const raw = window.localStorage.getItem(pendingKey);
+          if (raw) {
+            const saved = JSON.parse(raw);
+            if (saved && saved.version === 1 && saved.actor_id === session.user_id &&
+                typeof saved.request_id === "string" && /^[A-Za-z0-9_-]{16,100}$/.test(saved.request_id) &&
+                saved.draft && typeof saved.draft.base_asset === "string" && typeof saved.draft.quote_asset === "string" &&
+                typeof saved.draft.reason === "string") {
+              setSpotMarketDraft(saved.draft);
+              setSpotMarketRequestId(saved.request_id);
+            }
+          }
+        } catch {
+          setError("A saved spot-market update could not be read. Check the market list before creating another update.");
+        }
+      }
       if (tab === "withdrawals") setWithdrawals((await getAdminWithdrawals(token)).withdrawals || []);
       if (tab === "kyc") setKyc((await getAdminKyc(token)).kycs || []);
       if (tab === "audit") setAudit((await getAdminAuditLogs(token)).logs || []);
@@ -373,6 +404,72 @@ export function AdminPage() {
     finally { setBusy(false); }
   };
 
+  const saveSpotMarket = async () => {
+    if (!token || !session?.user_id || !hasPermission("system_config.write")) return;
+    const draft = {
+      base_asset: spotMarketDraft.base_asset.trim().toUpperCase(),
+      quote_asset: spotMarketDraft.quote_asset.trim().toUpperCase(),
+      enabled: spotMarketDraft.enabled,
+      price_tick: spotMarketDraft.price_tick.trim(),
+      quantity_step: spotMarketDraft.quantity_step.trim(),
+      min_quantity: spotMarketDraft.min_quantity.trim(),
+      min_notional: spotMarketDraft.min_notional.trim(),
+      min_limit_price: spotMarketDraft.min_limit_price.trim(),
+      max_limit_price: spotMarketDraft.max_limit_price.trim(),
+      reason: spotMarketDraft.reason.trim(),
+    };
+    const decimal = /^(?:0|[1-9]\\d{0,19})(?:\\.\\d{1,18})?$/;
+    const asset = /^[A-Z0-9]{2,16}$/;
+    if (!asset.test(draft.base_asset) || !asset.test(draft.quote_asset) || draft.base_asset === draft.quote_asset ||
+        !decimal.test(draft.price_tick) || Number(draft.price_tick) <= 0 ||
+        !decimal.test(draft.quantity_step) || Number(draft.quantity_step) <= 0 ||
+        !decimal.test(draft.min_quantity) || Number(draft.min_quantity) <= 0 ||
+        !decimal.test(draft.min_notional) ||
+        (draft.min_limit_price && (!decimal.test(draft.min_limit_price) || Number(draft.min_limit_price) <= 0)) ||
+        (draft.max_limit_price && (!decimal.test(draft.max_limit_price) || Number(draft.max_limit_price) <= 0)) ||
+        (draft.min_limit_price && draft.max_limit_price && Number(draft.min_limit_price) > Number(draft.max_limit_price)) ||
+        !draft.reason || draft.reason.length > 500) {
+      setError("Check the pair, positive tick/step/minimums, optional price bounds and required reason.");
+      return;
+    }
+    const storageKey = "btcbox.admin.spot-market.v1." + session.user_id;
+    let requestId = spotMarketRequestId;
+    if (!requestId) {
+      requestId = window.crypto.randomUUID();
+      try {
+        window.localStorage.setItem(storageKey, JSON.stringify({
+          version: 1, actor_id: session.user_id, request_id: requestId, draft,
+          created_at: Date.now(),
+        }));
+      } catch {
+        setError("This browser cannot safely save the spot-market request. No update was sent.");
+        return;
+      }
+      setSpotMarketRequestId(requestId);
+    }
+    setBusy(true); setError(""); setNotice("");
+    try {
+      const result = await saveAdminSpotMarket(token, {
+        ...draft,
+        min_limit_price: draft.min_limit_price || null,
+        max_limit_price: draft.max_limit_price || null,
+        request_id: requestId,
+      });
+      try { window.localStorage.removeItem(storageKey); } catch {}
+      setSpotMarketRequestId("");
+      setSpotMarketDraft(current => ({ ...current, reason: "" }));
+      setNotice(result.replayed ? "This spot-market update was already saved." : "Spot-market configuration saved.");
+      try {
+        const refreshed = await getAdminSpotMarkets(token);
+        setSpotMarkets(refreshed.markets || []);
+      } catch {
+        setError("The market update was saved, but the list could not be refreshed. Retry loading the Spot markets tab.");
+      }
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "Spot-market update could not be confirmed. Retry the same saved request.");
+    } finally { setBusy(false); }
+  };
+
   const saveSecondsPolicy = async () => {
     if (!token || !secondsPolicy || !hasPermission("seconds_policy.manage")) return;
     const reason = secondsReason.trim();
@@ -467,6 +564,21 @@ export function AdminPage() {
     {!loading && tab === "orders" ? <Card><CardHeader><CardTitle>Orders</CardTitle><CardDescription>Read-only operational view.</CardDescription></CardHeader><CardContent><div className="overflow-x-auto"><table className="w-full min-w-[700px] text-left text-sm"><thead><tr className="border-b border-brand-border text-xs text-brand-text-muted"><th className="p-2">ID</th><th className="p-2">User</th><th className="p-2">Symbol</th><th className="p-2">Side</th><th className="p-2">Status</th><th className="p-2">Created</th></tr></thead><tbody>{orders.map((item,index)=><tr key={asText(item.id)||index} className="border-b border-brand-border/60"><td className="p-2 font-mono text-xs">{asText(item.id)}</td><td className="p-2">{asText(item.uid||item.user_id)}</td><td className="p-2">{asText(item.symbol)}</td><td className="p-2">{asText(item.side)}</td><td className="p-2">{asText(item.status)}</td><td className="p-2">{formatDate(item.created_at||item.time)}</td></tr>)}</tbody></table></div></CardContent></Card> : null}
 
     {!loading && tab === "support" ? <Card><CardHeader><CardTitle>Support messages</CardTitle></CardHeader><CardContent className="space-y-3">{support.map((item,index)=>{const uid=asText(item.uid||item.user_id);return <div key={asText(item.id)||index} className="rounded-xl border border-brand-border p-3"><p className="text-xs text-brand-text-muted">{uid} · {formatDate(item.created_at||item.time)}</p><p className="mt-2 whitespace-pre-wrap text-sm">{asText(item.content||item.message)}</p><textarea value={supportReply[uid]||""} onChange={event=>{setSupportReply(current=>({...current,[uid]:event.target.value}));setSupportReplyRequestIds(current=>({...current,[uid]:window.crypto.randomUUID()}));}} rows={2} className="mt-3 w-full rounded-lg border border-brand-border bg-brand-surface-2 p-2 text-sm text-brand-text" placeholder="Reply to customer"/><Button size="sm" className="mt-2" disabled={busy||!supportReply[uid]?.trim()||!hasPermission("support.reply")} onClick={()=>void replySupport(uid)}>Send reply</Button></div>;})}</CardContent></Card> : null}
+    {!loading && tab === "markets" ? <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(340px,0.9fr)]">
+      <Card><CardHeader><CardTitle>Spot market catalogue</CardTitle><CardDescription>Only enabled pairs accept limit orders. Market orders remain disabled; maker/taker fees stay at zero until fee movements are implemented atomically.</CardDescription></CardHeader><CardContent className="space-y-3">
+        {spotMarkets.length ? <div className="overflow-x-auto"><table className="w-full min-w-[620px] text-left text-sm"><thead><tr className="border-b border-brand-border text-xs text-brand-text-muted"><th className="p-2">Pair</th><th className="p-2">Status</th><th className="p-2">Tick / step</th><th className="p-2">Min quantity / notional</th><th className="p-2"></th></tr></thead><tbody>{spotMarkets.map(market=><tr key={market.base_asset + "/" + market.quote_asset} className="border-b border-brand-border/60"><td className="p-2 font-semibold">{market.base_asset}/{market.quote_asset}</td><td className="p-2"><Badge variant={market.enabled ? "default" : "outline"}>{market.enabled ? "Enabled" : "Disabled"}</Badge></td><td className="p-2 text-xs tabular-nums">{asText(market.price_tick)} / {asText(market.quantity_step)}</td><td className="p-2 text-xs tabular-nums">{asText(market.min_quantity)} / {asText(market.min_notional)}</td><td className="p-2"><Button size="sm" variant="outline" disabled={busy || !!spotMarketRequestId || !hasPermission("system_config.write")} onClick={()=>setSpotMarketDraft({base_asset:market.base_asset,quote_asset:market.quote_asset,enabled:market.enabled,price_tick:String(market.price_tick),quantity_step:String(market.quantity_step),min_quantity:String(market.min_quantity),min_notional:String(market.min_notional),min_limit_price:market.min_limit_price==null?"":String(market.min_limit_price),max_limit_price:market.max_limit_price==null?"":String(market.max_limit_price),reason:""})}>Edit</Button></td></tr>)}</tbody></table></div> : <p className="text-sm text-brand-text-muted">No spot pairs have been configured yet.</p>}
+        <Button size="sm" variant="outline" disabled={busy || !!spotMarketRequestId || !hasPermission("system_config.write")} onClick={()=>setSpotMarketDraft({base_asset:"",quote_asset:"USDT",enabled:false,price_tick:"0.01",quantity_step:"0.000001",min_quantity:"0.000001",min_notional:"1",min_limit_price:"",max_limit_price:"",reason:""})}>Add market pair</Button>
+      </CardContent></Card>
+      <Card><CardHeader><CardTitle>Market parameters</CardTitle><CardDescription>Changes are permission-checked, request-ID protected and audited by PostgreSQL. Existing orders keep their accepted terms.</CardDescription></CardHeader><CardContent className="space-y-3">
+        {spotMarketRequestId ? <p role="status" className="rounded-lg border border-amber-500/30 p-3 text-xs text-amber-300">A previous request is unconfirmed. Retry the exact same update; fields are locked to prevent changing the payload.</p> : null}
+        <div className="grid grid-cols-2 gap-3"><label className="space-y-1 text-sm"><span>Base asset</span><input value={spotMarketDraft.base_asset} disabled={busy||!!spotMarketRequestId||!hasPermission("system_config.write")} onChange={event=>setSpotMarketDraft(current=>({...current,base_asset:event.target.value.toUpperCase()}))} maxLength={16} className="w-full rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-2 text-brand-text"/></label><label className="space-y-1 text-sm"><span>Quote asset</span><input value={spotMarketDraft.quote_asset} disabled={busy||!!spotMarketRequestId||!hasPermission("system_config.write")} onChange={event=>setSpotMarketDraft(current=>({...current,quote_asset:event.target.value.toUpperCase()}))} maxLength={16} className="w-full rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-2 text-brand-text"/></label></div>
+        <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={spotMarketDraft.enabled} disabled={busy||!!spotMarketRequestId||!hasPermission("system_config.write")} onChange={event=>setSpotMarketDraft(current=>({...current,enabled:event.target.checked}))}/>Enable this market</label>
+        <div className="grid grid-cols-2 gap-3">{[["price_tick","Price tick"],["quantity_step","Quantity step"],["min_quantity","Minimum quantity"],["min_notional","Minimum notional"]].map(([key,label])=><label key={key} className="space-y-1 text-sm"><span>{label}</span><input value={spotMarketDraft[key as keyof typeof spotMarketDraft] as string} disabled={busy||!!spotMarketRequestId||!hasPermission("system_config.write")} onChange={event=>setSpotMarketDraft(current=>({...current,[key]:event.target.value}))} inputMode="decimal" className="w-full rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-2 text-brand-text"/></label>)}</div>
+        <div className="grid grid-cols-2 gap-3"><label className="space-y-1 text-sm"><span>Minimum limit price (optional)</span><input value={spotMarketDraft.min_limit_price} disabled={busy||!!spotMarketRequestId||!hasPermission("system_config.write")} onChange={event=>setSpotMarketDraft(current=>({...current,min_limit_price:event.target.value}))} inputMode="decimal" className="w-full rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-2 text-brand-text"/></label><label className="space-y-1 text-sm"><span>Maximum limit price (optional)</span><input value={spotMarketDraft.max_limit_price} disabled={busy||!!spotMarketRequestId||!hasPermission("system_config.write")} onChange={event=>setSpotMarketDraft(current=>({...current,max_limit_price:event.target.value}))} inputMode="decimal" className="w-full rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-2 text-brand-text"/></label></div>
+        <label className="block space-y-1 text-sm"><span>Reason (required)</span><textarea value={spotMarketDraft.reason} disabled={busy||!!spotMarketRequestId||!hasPermission("system_config.write")} onChange={event=>setSpotMarketDraft(current=>({...current,reason:event.target.value}))} rows={2} maxLength={500} className="w-full rounded-lg border border-brand-border bg-brand-surface-2 p-3 text-brand-text"/></label>
+        {hasPermission("system_config.write") ? <Button block disabled={busy||!spotMarketDraft.reason.trim()} onClick={()=>void saveSpotMarket()}>{spotMarketRequestId ? "Retry same update" : "Save market settings"}</Button> : <p className="text-sm text-brand-text-muted">Your administrator role is read-only for spot markets.</p>}
+      </CardContent></Card>
+    </div> : null}
     {!loading && tab === "seconds" && secondsPolicy ? <Card><CardHeader><CardTitle>Seconds contract policy</CardTitle><CardDescription>Changes create and activate a new immutable policy version. Existing open positions keep their original policy snapshot. 85% is the minimum payout rate; no fixed upper limit is imposed.</CardDescription></CardHeader><CardContent className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2"><Badge variant="outline">Active version {secondsPolicy.policy_version}</Badge><span className="text-xs text-brand-text-muted">Policy ID · {secondsPolicy.policy_id}</span></div>
       <div><p className="mb-2 text-sm font-semibold">Supported markets</p><div className="flex flex-wrap gap-2">{["BTC","ETH","SOL","BNB"].map(symbol=><label key={symbol} className="flex items-center gap-2 rounded-lg border border-brand-border px-3 py-2 text-sm"><input type="checkbox" checked={secondsSymbols.includes(symbol)} disabled={busy||!hasPermission("seconds_policy.manage")} onChange={event=>setSecondsSymbols(current=>event.target.checked?[...current,symbol]:current.filter(item=>item!==symbol))}/>{symbol}</label>)}</div></div>
