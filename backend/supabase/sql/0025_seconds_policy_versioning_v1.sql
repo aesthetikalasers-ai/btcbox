@@ -171,7 +171,8 @@ BEGIN
       RETURN jsonb_build_object('ok',false,'code','IDEMPOTENCY_CONFLICT');
     END IF;
     RETURN jsonb_build_object('ok',true,'duplicate',true,'position_id',v_existing.position_id,
-      'status',v_existing.status,'settle_at',extract(epoch from v_existing.settle_at)::bigint);
+      'status',v_existing.status,'open_price',v_existing.open_price,
+      'settle_at',extract(epoch from v_existing.settle_at)::bigint);
   END IF;
 
   SELECT p.* INTO v_policy
@@ -236,7 +237,8 @@ BEGIN
   );
 
   RETURN jsonb_build_object('ok',true,'duplicate',false,'position_id',p_position_id,
-    'policy_version',v_policy.policy_version,'settle_at',extract(epoch from v_settle_at)::bigint);
+    'open_price',p_open_price,'policy_version',v_policy.policy_version,
+    'settle_at',extract(epoch from v_settle_at)::bigint);
 EXCEPTION WHEN unique_violation THEN
   GET STACKED DIAGNOSTICS v_constraint_name=CONSTRAINT_NAME;
   IF v_constraint_name='seconds_contract_positions_one_open_per_user_idx' THEN

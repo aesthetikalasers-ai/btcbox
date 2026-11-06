@@ -2193,7 +2193,9 @@ async function handleRequest(event, context) {
       if (!rpc.ok || !result || result.ok !== true || !result.position_id) return json({ ok: false, code: 'FINANCIAL_RPC_FAILED', msg: 'The database did not confirm the contract order. Verify the position status before retrying.', duplicate: !!(result && result.duplicate) }, rpc.status === 400 ? 400 : 503);
       const settleAt = Number(result.settle_at);
       if (!Number.isSafeInteger(settleAt) || settleAt <= 0) return json({ ok: false, code: 'FINANCIAL_RPC_INVALID_RESPONSE', msg: 'The database response did not include a valid settlement time. The order status is unconfirmed; check your positions before retrying.' }, 503);
-      return json({ ok: true, server_now: Date.now(), duplicate: !!result.duplicate, position_id: result.position_id, symbol: symbol, direction: direction, amount: amount, duration_sec: durationSec, open_price: ref.price, open_price_source: ref.source, settle_at: settleAt, msg: result.duplicate ? 'This order request has already been processed. Do not submit it again.' : 'Position opened successfully. Funds have been reserved.' });
+      const storedOpenPrice = Number(result.open_price);
+      if (!Number.isFinite(storedOpenPrice) || storedOpenPrice <= 0) return json({ ok: false, code: 'FINANCIAL_RPC_INVALID_RESPONSE', msg: 'The database response did not include the confirmed opening price. Check your positions before retrying.' }, 503);
+      return json({ ok: true, server_now: Date.now(), duplicate: !!result.duplicate, position_id: result.position_id, symbol: symbol, direction: direction, amount: amount, duration_sec: durationSec, open_price: storedOpenPrice, open_price_source: result.duplicate ? 'stored_reference' : ref.source, settle_at: settleAt, msg: result.duplicate ? 'This order request has already been processed. Do not submit it again.' : 'Position opened successfully. Funds have been reserved.' });
     } catch (e) { return json({ ok: false, code: 'FINANCIAL_RPC_UNAVAILABLE', msg: 'The financial database is unavailable. The order is unconfirmed and funds were not changed.' }, 503); }
   }
 
