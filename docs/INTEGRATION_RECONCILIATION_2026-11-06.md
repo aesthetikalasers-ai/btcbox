@@ -195,3 +195,17 @@ Implementation branch: `feat/btcbox-web3-auth-20261105`.
 - Package scripts declare npm run lint as tsc --noEmit and npm run build as tsc -b && vite build. These were not executed here. No PR-triggered Actions run was returned; combined status only reports Vercel Hobby build-rate-limit failure. TypeScript, build and browser QA remain NOT VERIFIED.
 - No Supabase migration/write, financial operation, merge, deployment, or V211 trading layout change occurred. The previously observed live migration history did not include 0006 and 0011, so actual live catalog/position read availability is not verified; these migrations require review and explicit staging/production rollout.
 - The Earn SQL/API contract processes subscription and redemption atomically; no manual approval state exists for Earn. The wider semi-manual model remains a requirement for admin-reviewed workflows such as first-time and high-value withdrawals.
+
+
+## User-confirmed simplified semi-manual funds workflow — 2026-11-06
+
+User's explicit direction: keep deposit/withdraw simple and semi-manual. For deposits, admin configures the address for each asset/network; the user transfers to that address; staff manually verifies receipt and manually credits the user's balance. For withdrawals, user submits a request; admin reviews the request status; after approval, staff manually sends funds externally and records the payout as paid/completed. Approval is not payout completion.
+
+Source audit:
+- Existing admin address configuration is `GET/POST /api/admin/config`.
+- User `POST /api/deposit` amount 0 only returns the configured address; positive amount is rejected. There is no user deposit request/history route in this source.
+- Existing admin manual credit endpoint `POST /api/admin/deposit/confirm` calls `admin_manual_deposit_atomic`, but it is disabled until financial cutover is enabled.
+- User withdrawal endpoint `POST /api/withdraw` already validates user, amount, saved destination, fund password/optional 2FA, idempotency and calls `create_withdrawal_atomic`, but fails closed while cutover is incomplete.
+- Admin `POST /api/admin/withdraw/approve` and `reject` call `review_withdrawal_atomic`. Approval explicitly says no chain broadcast occurred. No completed/manual-payout action was identified in this audit.
+- Current frontend deposit page only shows the configured address and incorrectly describes credit as on-chain confirmation. Current withdrawal page is read-only and does not expose submission.
+Required next work: minimal manual workflow only—user deposit record/history is optional and not required by current user direction; manual admin credit after external verification; user withdrawal request; admin pending/approve/reject; manual payout completion with reference/hash and visible status. No chain scanner, automatic payout, automatic broadcast, or multi-stage approval machinery.
