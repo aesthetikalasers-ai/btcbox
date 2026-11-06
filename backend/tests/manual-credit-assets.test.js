@@ -17,6 +17,8 @@ test('manual credit supports every asset exposed in the admin asset selector', (
     assert.ok(allowlist[1].includes("'" + asset + "'"), 'backend is missing ' + asset);
     assert.ok(admin.includes('"' + asset + '"'), 'admin selector is missing ' + asset);
   }
-  assert.match(depositSql, /p_asset\) !~ '\^\[A-Z0-9\]\{2,16\}\$'/);
+  assert.ok(depositSql.includes("coalesce(p_asset, '') !~ '^[A-Z0-9]{2,16}  assert.ok(api.includes("route === 'deposit/confirm' && verb === 'POST'"));
+});
+"));
   assert.ok(api.includes("route === 'deposit/confirm' && verb === 'POST'"));
 });
