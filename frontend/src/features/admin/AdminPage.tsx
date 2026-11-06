@@ -6,7 +6,7 @@ import { Input } from "../../components/ui/input";
 import { useAuth } from "../../lib/auth";
 import { requestAdmin, type AdminPayload } from "../../lib/admin-api";
 
-type AdminTab = "overview" | "users" | "withdrawals" | "orders" | "kyc" | "support";
+type AdminTab = "overview" | "users" | "withdrawals" | "orders" | "kyc" | "support" | "config";
 type AdminRow = Record<string, unknown>;
 const TABS: Array<{ id: AdminTab; label: string; endpoint: string; key: string }> = [
   { id: "overview", label: "Overview", endpoint: "stats", key: "" },
@@ -15,6 +15,7 @@ const TABS: Array<{ id: AdminTab; label: string; endpoint: string; key: string }
   { id: "orders", label: "Orders", endpoint: "orders", key: "orders" },
   { id: "kyc", label: "KYC review", endpoint: "kyc", key: "kycs" },
   { id: "support", label: "Support", endpoint: "support/messages", key: "messages" },
+  { id: "config", label: "Configuration", endpoint: "config", key: "deposit_addresses" },
 ];
 function valueOf(row: AdminRow, keys: string[]): string {
   for (const key of keys) {
@@ -51,6 +52,8 @@ export function AdminPage() {
   const [creditNote, setCreditNote] = useState("");
   const [payoutReferences, setPayoutReferences] = useState<Record<string, string>>({});
   const [supportDrafts, setSupportDrafts] = useState<Record<string, string>>({});
+  const [depositAddresses, setDepositAddresses] = useState<Record<string, string>>({});
+  const [announcement, setAnnouncement] = useState("");
   const active = TABS.find((item) => item.id === tab) || TABS[0];
 
   const load = useCallback(async (signal?: AbortSignal) => {
@@ -104,6 +107,19 @@ export function AdminPage() {
     if (confirmed) { setCreditAmount(""); setCreditReference(""); setCreditNote(""); setCreditUser(null); }
   };
 
+  useEffect(() => {
+    if (tab !== "config" || !payload) return;
+    const raw = payload.deposit_addresses && typeof payload.deposit_addresses === "object"
+      ? payload.deposit_addresses as Record<string, unknown> : {};
+    setDepositAddresses(Object.fromEntries(Object.entries(raw).map(([key, value]) => [key, String(value || "")])));
+    setAnnouncement(typeof payload.announcement === "string" ? payload.announcement : "");
+  }, [tab, payload]);
+
+  const submitConfig = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    await performAction("config", { deposit_addresses: depositAddresses, announcement }, "Deposit address configuration saved by server.");
+  };
+
   const rows = useMemo(() => {
     const raw = payload && active.key ? payload[active.key] : [];
     return Array.isArray(raw) ? raw.filter((item): item is AdminRow => !!item && typeof item === "object") : [];
@@ -130,6 +146,11 @@ export function AdminPage() {
       ].map(([label, value]) => <Card key={String(label)} className="border-brand-border bg-brand-surface"><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-brand-text-muted">{label}</CardTitle></CardHeader><CardContent><p className="text-2xl font-semibold tabular-nums text-brand-text">{value === undefined ? "—" : String(value)}</p></CardContent></Card>)}
       <Card className="border-brand-border bg-brand-surface sm:col-span-2 xl:col-span-4"><CardHeader><CardTitle className="text-sm">Configured deposit addresses</CardTitle></CardHeader><CardContent><div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">{Object.entries((payload.deposit_addresses && typeof payload.deposit_addresses === "object" ? payload.deposit_addresses : {}) as Record<string, unknown>).map(([network, address]) => <div key={network} className="min-w-0 rounded-lg border border-brand-border p-3"><p className="text-xs text-brand-text-muted">{network}</p><p className="mt-1 break-all text-sm text-brand-text">{String(address || "Not configured")}</p></div>)}</div></CardContent></Card>
     </div> : null}
+    {!loading && tab === "config" && payload ? <Card className="border-brand-border bg-brand-surface"><CardHeader><CardTitle>Deposit address configuration</CardTitle><p className="text-sm text-brand-text-muted">Only valid addresses for the selected network are accepted by the backend. Changes affect the address shown on the customer Deposit page.</p></CardHeader><CardContent><form className="space-y-4" onSubmit={submitConfig}>
+      <div className="grid gap-3 sm:grid-cols-2">{Object.entries(depositAddresses).map(([network,address])=><label key={network} className="min-w-0 space-y-1 text-sm"><span className="text-brand-text-muted">{network}</span><input value={address} onChange={e=>setDepositAddresses(current=>({...current,[network]:e.target.value}))} required className="w-full rounded-xl border border-brand-border bg-brand-surface-2 p-3 font-mono text-xs text-brand-text"/></label>)}</div>
+      <label className="block space-y-1 text-sm"><span className="text-brand-text-muted">Platform announcement</span><textarea rows={3} maxLength={2000} value={announcement} onChange={e=>setAnnouncement(e.target.value)} className="w-full rounded-xl border border-brand-border bg-brand-surface-2 p-3 text-sm text-brand-text"/></label>
+      <Button type="submit" disabled={actionBusy||!Object.values(depositAddresses).every(value=>value.trim())}>Save configuration</Button>
+    </form></CardContent></Card> : null}
     {!loading && tab === "users" ? <div className="flex flex-col gap-3">
       <div className="max-w-md"><Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search by email or UID" /></div>
       <div className="overflow-x-auto rounded-xl border border-brand-border"><table className="w-full min-w-[760px] text-left text-sm"><thead className="bg-brand-surface-2 text-xs uppercase tracking-wide text-brand-text-muted"><tr>{["UID","Email","KYC","Total USDT","Frozen","Created","Action"].map(x=><th key={x} className="px-4 py-3">{x}</th>)}</tr></thead><tbody>{rows.map((row,index)=><tr key={String(row.uid||index)} className="border-t border-brand-border/70"><td className="px-4 py-3">{valueOf(row,["uid"])}</td><td className="px-4 py-3">{valueOf(row,["email"])}</td><td className="px-4 py-3">{valueOf(row,["kyc_status"])}</td><td className="px-4 py-3">{valueOf(row,["total_usdt"])}</td><td className="px-4 py-3">{row.frozen===true?"Yes":"No"}</td><td className="px-4 py-3">{valueOf(row,["created_at"])}</td><td className="px-4 py-3"><Button size="sm" variant="outline" disabled={actionBusy} onClick={()=>setCreditUser(row)}>Manual credit</Button></td></tr>)}</tbody></table></div>
