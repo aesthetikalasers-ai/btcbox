@@ -2965,3 +2965,9 @@ The prior withdrawal UI audit statement claiming the active BTCBOX admin route w
 - TEST PASSED on exact head: backend GitHub Actions run 445 — unified build, **310/310 tests**, fail-closed preflight and output/entrypoint checks; frontend run 309 — lint and build. Run IDs: `42214936652` and `42214936659`.
 - NOT VERIFIED: applying all 23 SQL files to disposable empty PostgreSQL; hosted Supabase installation; first Super Admin bootstrap; browser E2E and live provider connectivity. KYC remains text-field submission/review only; document-image evidence upload and secure storage are not implemented.
 - No hosted DB write/bootstrap, real financial operation, production deployment or merge to `main` was performed.
+
+## Remaining admin configuration gaps — 2026-11-06 (UTC)
+
+- Current AdminPage tabs include dashboard/users/deposits/withdrawals/KYC/audit/orders/support/admins/Seconds; there is no market-management tab or API route to enable/disable spot pairs from the admin UI.
+- Supported spot pairs and the six manual withdrawal/deposit assets remain source-defined. The new admin fee editor changes withdrawal fees only; it does not yet provide an editable currency catalogue or spot-market enable/disable controls.
+- Keep these as explicit remaining requirements under the user's operational configuration scope. Do not describe admin currency/market switches as complete. Seconds policy parameters and withdrawal fees are editable; spot market catalogue/availability controls are not.
