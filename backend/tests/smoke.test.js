@@ -11,10 +11,12 @@ const { execFileSync } = require('node:child_process');
 const root = path.resolve(__dirname, '..');
 const read = (p) => fs.readFileSync(path.join(root, p), 'utf8');
 
-test('build-site.js produces the React root and legacy OAuth entry without a legacy admin shell', () => {
+test('build-site.js publishes the React root and consent assets without legacy SPA entries', () => {
   execFileSync('node', [path.join(root, 'scripts', 'build-site.js')], { cwd: root, stdio: 'ignore' });
   assert.ok(fs.existsSync(path.join(root, 'dist', 'index.html')));
-  assert.ok(fs.existsSync(path.join(root, 'dist', 'legacy-index.html')));
+  assert.ok(fs.existsSync(path.join(root, 'dist', 'index.html')));
+  assert.ok(fs.readFileSync(path.join(root, 'dist', 'index.html'), 'utf8').includes('/frontend-assets/'));
+  assert.ok(!fs.existsSync(path.join(root, 'dist', 'legacy-index.html')));
   assert.ok(!fs.existsSync(path.join(root, 'dist', 'admin.html')));
   assert.ok(fs.existsSync(path.join(root, 'dist', 'assets', 'js', 'app-core.js')));
   assert.ok(fs.existsSync(path.join(root, 'dist', 'assets', 'css', 'tokens.css')));
@@ -56,8 +58,8 @@ test('asset bundle contains router + VIEWS registry + all view batches', () => {
   }
 });
 
-test('legacy OAuth document is copied from index and no admin shell is published', () => {
-  assert.equal(fs.readFileSync(path.join(root, 'dist', 'legacy-index.html'), 'utf8'), read('index.html'));
+test('public output contains no retired legacy customer/admin shell', () => {
+  assert.ok(!fs.existsSync(path.join(root, 'dist', 'legacy-index.html')));
   assert.ok(!fs.existsSync(path.join(root, 'dist', 'admin.html')));
 });
 
