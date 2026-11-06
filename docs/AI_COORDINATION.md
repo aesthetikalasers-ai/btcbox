@@ -6107,3 +6107,12 @@ Verification status:
 - NOT VERIFIED: successful real Google OAuth, live Ethereum/Solana wallet signatures, new-user provisioning, username collision behavior against a live isolated database, and production auth-provider settings. Do not claim these runtime flows are end-to-end verified.
 - CI for the new branch head must be checked after these commits. The previously green frontend CI run tested the obsolete Google-only UI and is not evidence for this change.
 - No production database, auth settings, merge, or deployment was changed.
+## Authentication batch verification update — 2026-11-07
+
+- Frontend CI run 42314537379 passed on source SHA 80731237b1f58d5097563521a9524e1f0d060c8c: npm install, lint, build, Chromium install, and desktop/mobile Playwright route smoke tests all completed successfully.
+- Backend CI run 42314790953 passed on source SHA 62250b00bae0d7eac20bede9adf98e69c4137e85: backend build and all 402 tests passed; deployment preflight completed successfully.
+- An earlier backend run failed because stale Google-only assertions remained in google-only-auth.test.js, google-only-identity.test.js, and spot-trading-live-refresh.test.js. Those assertions were corrected to the owner-approved username/Google/Web3 contract; the latest backend run above is green.
+- The latest code commit at the time of this note is 62250b00bae0d7eac20bede9adf98e69c4137e85. Documentation updates may advance the branch head without changing the tested application source.
+- SOURCE OBSERVED + TEST PASSED: username login UI and endpoint contracts, Google UI flow, Ethereum/Solana wallet entry points, email-provider rejection, frontend build/lint/browser route smoke tests, and backend 402-test suite.
+- NOT VERIFIED: live Supabase Google provider configuration, real wallet signature challenge on mobile/desktop wallets, fresh account creation against isolated Supabase, and full account setup with a newly provisioned wallet identity.
+- Production deployment remains paused. No production database/auth settings were changed.
