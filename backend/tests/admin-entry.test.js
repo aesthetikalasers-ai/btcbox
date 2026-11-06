@@ -222,8 +222,8 @@ test('admin console exposes read-only order and support inbox views with escaped
 
 test('public build excludes the retired legacy admin shell while retaining the React admin route', () => {
   const buildSite = fs.readFileSync(path.resolve(root, 'scripts/build-site.js'), 'utf8');
-  assert.match(buildSite, /const allowedFiles = \['index\.html'\]/);
-  assert.doesNotMatch(buildSite, /const allowedFiles = \[[^\]]*admin\.html/);
+  assert.ok(buildSite.includes("const allowedFiles = ['index.html']"));
+  assert.ok(!buildSite.includes("'admin.html'"));
   assert.ok(reactApp.includes('<Route path="/admin" element={<AdminPage />} />'));
   assert.ok(reactAdminPage.includes('getSupabaseAccessToken'));
 });
