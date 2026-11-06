@@ -194,6 +194,23 @@ export function SpotTradingPage(){
  },[accountUid,symbol,pendingStorageKey]);
 
  useEffect(()=>{
+  if(!accountUid)return;
+  const restored:Record<string,string>={};
+  for(const order of orders){
+   const orderId=String(order.order_id??order.id??"");
+   if(!orderId)continue;
+   const key="btcbox.spot.cancel.v1."+accountUid+"."+orderId;
+   try{
+    const requestId=window.localStorage.getItem(key);
+    const status=String(order.status||"").toLowerCase();
+    if(["cancelled","canceled","rejected","filled","completed"].includes(status)){window.localStorage.removeItem(key);continue;}
+    if(requestId&&/^[A-Za-z0-9_-]{16,100}$/.test(requestId))restored[orderId]=requestId;
+   }catch{restored[orderId]="storage_unavailable";}
+  }
+  setCancelRequestIds(restored);
+ },[accountUid,orders]);
+
+ useEffect(()=>{
   const node=chartContainer.current;
   if(!node||!candles.length)return;
   const chart=createChart(node,{width:node.clientWidth,height:320,layout:{background:{type:ColorType.Solid,color:"#111820"},textColor:"#9aa8b7"},grid:{vertLines:{color:"#26313d"},horzLines:{color:"#26313d"}},rightPriceScale:{borderColor:"#26313d"},timeScale:{borderColor:"#26313d",timeVisible:true,secondsVisible:false}});
@@ -240,14 +257,36 @@ export function SpotTradingPage(){
  };
  const cancelOrder=async(order:OrderRecord)=>{
   const orderId=String(order.order_id??order.id??"");if(!orderId)return;
-  const requestId=cancelRequestIds[orderId]||window.crypto.randomUUID();
-  setCancelRequestIds(current=>({...current,[orderId]:requestId}));setBusy(true);setError("");setNotice("");
+  if(!accountUid){setError("Account identity is unavailable. Cancellation was not sent.");return;}
+  const storageKey="btcbox.spot.cancel.v1."+accountUid+"."+orderId;
+  let requestId=cancelRequestIds[orderId];
+  if(requestId==="storage_unavailable"){setError("This browser cannot safely restore the cancellation request. Refresh order history before retrying.");return;}
+  if(!requestId){
+   requestId=window.crypto.randomUUID();
+   try{window.localStorage.setItem(storageKey,requestId);}
+   catch{setError("This browser cannot safely save the cancellation request. No cancellation was sent.");return;}
+   setCancelRequestIds(current=>({...current,[orderId]:requestId!}));
+  }
+  setBusy(true);setError("");setNotice("");
+  let cancelAccepted=false;
   try{
    const result=await cancelSpotOrder({order_id:orderId,client_cancel_id:requestId});
-   setNotice(result.duplicate?"This cancellation was already recorded.":"Order cancellation confirmed.");
-   setCancelRequestIds(current=>{const next={...current};delete next[orderId];return next;});setReload(value=>value+1);
-  }catch(reason){setError(reason instanceof Error?reason.message:"Cancellation result is unconfirmed. Refresh order history before retrying.");if(reason instanceof ApiError&&(reason.status===400||reason.status===401||reason.status===403))setCancelRequestIds(current=>{const next={...current};delete next[orderId];return next;});}
-  finally{setBusy(false);}
+   cancelAccepted=true;
+   const latest=await getOrders();
+   setOrders(latest);
+   const updated=latest.find(item=>String(item.order_id??item.id??"")===orderId);
+   const status=String(updated?.status||"").toLowerCase();
+   if(!["cancelled","canceled","rejected"].includes(status)){setError("The cancellation response arrived, but order history has not confirmed the final status. Retry only with the same request ID.");return;}
+   try{window.localStorage.removeItem(storageKey);}catch{}
+   setCancelRequestIds(current=>{const next={...current};delete next[orderId];return next;});
+   setNotice(result.duplicate?"This cancellation was already recorded and confirmed.":"Order cancellation confirmed in order history.");
+  }catch(reason){
+   setError(reason instanceof Error?reason.message:"Cancellation result is unconfirmed. Refresh order history and retry only with the same request ID.");
+   if(!cancelAccepted&&reason instanceof ApiError&&reason.status>=400&&reason.status<500&&reason.status!==409){
+    try{window.localStorage.removeItem(storageKey);}catch{}
+    setCancelRequestIds(current=>{const next={...current};delete next[orderId];return next;});
+   }
+  }finally{setBusy(false);}
  };
  const amountText=(value:unknown)=>value===null||value===undefined||value===""?"—":Number.isFinite(Number(value))?Number(value).toLocaleString(undefined,{maximumFractionDigits:8}):String(value);
  const openOrders=orders.filter(item=>["open","partially_filled","partially-filled","pending"].includes(String(item.status||"").toLowerCase()));
@@ -713,7 +752,7 @@ export function WithdrawPage(){
      if(raw){
       const saved=JSON.parse(raw);
       const savedAddress=book.find(item=>item.id===saved?.address_id);
-      if(saved&&saved.version===1&&typeof saved.request_id==="string"&&/^[A-Za-z0-9_-]{16,100}$/.test(saved.request_id)&&typeof saved.amount==="string"&&typeof saved.address==="string"&&savedAddress&&!savedAddress.blocked&&!savedAddress.unbound&&savedAddress.coin===saved.coin&&savedAddress.network===saved.network&&savedAddress.address===saved.address){
+      if(saved&&saved.version===1&&typeof saved.request_id==="string"&&/^[A-Za-z0-9_-]{16,100}$/.test(saved.request_id)&&typeof saved.amount==="string"&&typeof saved.address==="string"&&savedAddress&&!savedAddress.blocked&&!savedAddress.unbound&&savedAddress.coin===saved.coin&&savedAddress.network===saved.network){
        setPendingIntent(saved);setSelectedId(saved.address_id);setAmount(saved.amount);
       }else{setPendingIntentInvalid(true);setError("A saved withdrawal request cannot be matched to its original destination. Contact support before creating another withdrawal.");}
      }else{setPendingIntent(null);setPendingIntentInvalid(false);setSelectedId(current=>usable.some(item=>item.id===current)?current:(usable[0]?.id||""));}
