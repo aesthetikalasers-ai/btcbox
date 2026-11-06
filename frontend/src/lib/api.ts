@@ -222,6 +222,8 @@ export interface OrderRecord {
   status?: string;
   created_at?: string;
   updated_at?: string;
+  remaining_quantity?: number | string;
+  client_order_id?: string;
 }
 
 async function readAuthenticated<T>(path: string, signal?: AbortSignal): Promise<T> {
