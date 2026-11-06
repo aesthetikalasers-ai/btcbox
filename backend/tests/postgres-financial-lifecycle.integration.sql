@@ -328,7 +328,7 @@ BEGIN
     '00000000-0000-4000-8000-000000000001',
     1,
     ARRAY['BTC','ETH','SOL','BNB']::text[],
-    ARRAY[30,60,300,900]::integer[],
+    ARRAY[30,60,120,300,900]::integer[],
     0.000000000000000001,
     1000000000000,
     9200,
@@ -377,9 +377,9 @@ BEGIN
 
   -- A position opened after the policy change must snapshot 92%, not inherit 85%.
   v_result := public.submit_seconds_order_v1(
-    'SC111111111111111111111111111111','seconds-user','BTC','up',10,30,100,
+    'SC111111111111111111111111111111','seconds-user','BTC','up',10,120,100,
     'seconds-open-request-0002',
-    encode(extensions.digest('seconds-user|BTC|up|10|30|seconds-open-request-0002','sha256'),'hex')
+    encode(extensions.digest('seconds-user|BTC|up|10|120|seconds-open-request-0002','sha256'),'hex')
   );
   IF v_result->>'ok'<>'true' OR v_result->>'duplicate'<>'false' THEN
     RAISE EXCEPTION 'Seconds order under updated policy failed: %',v_result;
