@@ -455,8 +455,8 @@ export async function getSavedCryptoAddresses(signal?: AbortSignal): Promise<Sav
   if (!Array.isArray(payload.addresses)) throw new ApiError("BTCBOX returned an invalid address book.", 502, "INVALID_ADDRESS_BOOK");
   return payload.addresses.filter((item) => item && item.type === "crypto" &&
     typeof item.id === "string" && typeof item.coin === "string" &&
-    typeof item.network === "string" && typeof item.address === "string" &&
-    typeof item.blocked === "boolean" && typeof item.unbound === "boolean");
+    typeof item.network === "string" && typeof item.address === "string")
+    .map((item) => ({ ...item, blocked: item.blocked === true, unbound: item.unbound === true }));
 }
 export async function getDepositAddress(coin: string, network: string, signal?: AbortSignal): Promise<string> {
   const normalizedCoin = coin.trim().toUpperCase();
