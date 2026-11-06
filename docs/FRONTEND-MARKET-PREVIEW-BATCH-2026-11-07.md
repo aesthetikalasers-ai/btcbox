@@ -39,3 +39,12 @@ Safety: no merge, deployment, production database access, financial writes, or r
 3. Propagate provider timestamps from `/api/market` through `getMarkets` to the UI; label receipt time separately from provider time.
 4. Reconcile Google-only auth UI changes from the user's actual source/commit without overwriting them.
 5. Continue Admin Panel review workflow integration after market-preview verification.
+
+## Additional Admin Panel audit — 2026-11-07
+
+- SOURCE OBSERVED: `frontend/src/features/admin/AdminPage.tsx` is an implemented Admin Panel, not the old loading placeholder. It has separate overview, users/manual-credit, deposit-address/config, withdrawals, KYC, audit, orders, support, admin-membership, Seconds policy, and spot-market tabs.
+- SOURCE OBSERVED: manual credit is wired from the user detail screen to `POST /api/admin/deposit/confirm`; the UI requires a transaction hash/receipt reference, stores a stable idempotency request locally, refreshes the selected user after confirmation, and displays deposit history with source metadata.
+- SOURCE OBSERVED: manual-credit action buttons are gated by both `deposits.read` and `deposits.review`; backend endpoint requires the audited atomic `admin_manual_deposit_atomic` RPC and fails closed while `financialWritesEnabled()` is false. This preserves the current no-financial-write QA boundary.
+- SOURCE OBSERVED: existing tests `manual-credit-assets.test.js` and `manual-deposit-reference.test.js` cover supported assets, mandatory reference, SQL reference length, canonical ledger history and audit wiring.
+- NOT VERIFIED: the admin manual-credit path has not been run against an isolated database fixture or live admin session in this batch. Do not test it against production funds.
+- Vercel project domain lookup confirms `btcboxcdt.vercel.app` is assigned to project `prj_rmwOE9q0XyZ3BikpxX2FzDt2VjKK`; however, the project still reports `live:false` and its latest deployment remains `ERROR` at `dpl_ELZ73yuhyU15pytc9UmRV4B5VcpZ`. No deployment was created.
