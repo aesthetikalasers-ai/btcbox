@@ -24,7 +24,7 @@ The current canonical source inventory is:
 5. `0005_financial_earn_redemption_idempotency_v4.sql`
 6. `0006_financial_earn_policy_v5.sql`
 7. `0007_financial_admin_manual_deposit_v1.sql`
-8. `0009_financial_matching_engine_v1.sql`
+8. `0008_financial_matching_engine_v1.sql`
 9. `0010_financial_read_api_v1.sql`
 10. `0011_financial_read_api_earn_v1.sql`
 11. `0012_financial_admin_read_api_v1.sql`
@@ -50,7 +50,7 @@ Manual deposits follow the chosen half-manual workflow: staff verifies the trans
 
 ## Key dependency and behavior notes
 
-- `0001`–`0007` establish the state/CAS, financial ledger and lifecycle RPCs, admin adjustment and manual credit; `0009` is the sole canonical spot limit-order matching engine; `0010`–`0014` establish financial read APIs and the Seconds base schema.
+- `0001`–`0007` establish the state/CAS, financial ledger and lifecycle RPCs, admin adjustment and manual credit; `0008` is the sole canonical spot limit-order matching engine; `0010`–`0014` establish financial read APIs and the Seconds base schema.
 - `0021` extends the canonical financial audit contract; it must not create a second competing audit-log schema.
 - `0022` extends the existing withdrawal review/request contract.
 - `0023` adds shared server-side rate limiting before routes that consume its RPC.
