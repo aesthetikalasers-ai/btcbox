@@ -98,6 +98,7 @@ test('withdrawal and earn options use the backend financial contract', () => {
   assert.ok(frontend.includes("fetch('/api/withdrawal/config'"));
   assert.ok(frontend.includes('withdrawalFeeConfigReady'));
   assert.ok(frontend.includes("$('#wd-next').disabled=!withdrawalFeeConfigReady"));
+  assert.ok(frontend.includes('expected_fee:String(WITHDRAW_FEES[withdrawalIntent.coin])'));
   assert.ok(backend.includes("BTC:['BTC']") && backend.includes("SOL:['SOL']") && backend.includes("BNB:['BEP20']"));
   assert.ok(backend.includes('const supportedFees = safeWithdrawalFees(db.withdrawal_fees)'));
   assert.ok(backend.includes('const fee = supportedFees[coin]'));
