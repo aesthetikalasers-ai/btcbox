@@ -2873,11 +2873,11 @@ The prior withdrawal UI audit statement claiming the active BTCBOX admin route w
 
 ## Unified integration checkpoint — 2026-11-06 (UTC+8)
 
-- Active consolidated implementation remains PR #49 on `integration/btcbox-unified-current-main-20261106`; latest observed head: `1c9f6ee802927499ef6d5dc3bc5e2c6ba434a425`. PR remains draft and unmerged.
+- Active consolidated implementation remains PR #49 on `integration/btcbox-unified-current-main-20261106`; latest observed head: `d5d736ce8497755ec1b1897253f66b1b991f438e`. PR remains draft and unmerged.
 - SOURCE IMPLEMENTED: administrator support replies now have a `support.reply`-gated POST route, persist into the customer's existing support conversation, stage an audit event, and use a persisted request ID for exact retry idempotency. Added `backend/tests/admin-support-reply.test.js`.
 - SOURCE IMPLEMENTED: manual-credit backend asset allowlist now matches the six assets displayed in the admin asset selector (USDT, BTC, ETH, SOL, BNB, USDC). Added `backend/tests/manual-credit-assets.test.js`.
 - SOURCE IMPLEMENTED: admin audit persistence regression expectation was updated for the new support-reply audited mutation.
 - TEST PASSED on preceding head: backend unified build, Node tests, fail-closed preflight and published-entrypoint checks all completed successfully on run 382; frontend lint/build completed successfully on run 245. These runs predate the latest spot pending-intent hardening commit.
-- IN PROGRESS: latest head `1c9f6ee802927499ef6d5dc3bc5e2c6ba434a425` has backend CI run 383 and frontend CI run 247 underway; do not claim latest-head CI passed until both conclude.
+- IN PROGRESS: latest head `d5d736ce8497755ec1b1897253f66b1b991f438e` has backend CI run 384 and frontend CI run 248 underway; frontend lint passed and frontend build is running, while backend build is running. Do not claim latest-head CI passed until both conclude.
 - NOT VERIFIED: PostgreSQL execution of the SQL migrations, full bootstrap against a disposable empty PostgreSQL instance, browser end-to-end flows, and live Supabase connectivity.
 - Safety unchanged: no hosted database write/bootstrap, financial cutover enablement, merge to `main`, or deployment was performed. All financial writes and matching remain fail-closed during QA.
