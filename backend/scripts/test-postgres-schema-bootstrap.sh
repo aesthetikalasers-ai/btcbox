@@ -31,6 +31,7 @@ DECLARE
   v_spot_trades regclass := to_regclass('public.financial_matching_trades');
   v_cancel_requests regclass := to_regclass('public.financial_matching_cancel_requests');
   v_admin_members regclass := to_regclass('private.admin_memberships');
+  v_market_requests regclass := to_regclass('private.spot_market_request_idempotency');
   v_proc regprocedure;
 BEGIN
   IF v_accounts IS NULL OR v_withdrawals IS NULL OR v_spot_orders IS NULL
@@ -54,6 +55,9 @@ BEGIN
   END IF;
   IF NOT (SELECT relrowsecurity FROM pg_class WHERE oid=v_admin_members) THEN
     RAISE EXCEPTION 'private.admin_memberships must have RLS enabled';
+  END IF;
+  IF NOT (SELECT relrowsecurity FROM pg_class WHERE oid=v_market_requests) THEN
+    RAISE EXCEPTION 'private.spot_market_request_idempotency must have RLS enabled';
   END IF;
 
   v_proc := to_regprocedure('public.admin_manual_deposit_atomic(text,text,text,text,numeric,text,text,text,text)');
@@ -96,6 +100,20 @@ BEGIN
      OR has_function_privilege('anon',v_proc,'EXECUTE')
      OR has_function_privilege('authenticated',v_proc,'EXECUTE') THEN
     RAISE EXCEPTION 'spot cancel RPC grants are not service-role-only';
+  END IF;
+
+  v_proc := to_regprocedure('public.admin_set_spot_market_v1(uuid,text,text,boolean,numeric,numeric,numeric,numeric,numeric,numeric,text,text,text)');
+  IF v_proc IS NULL OR NOT has_function_privilege('service_role',v_proc,'EXECUTE')
+     OR has_function_privilege('anon',v_proc,'EXECUTE')
+     OR has_function_privilege('authenticated',v_proc,'EXECUTE') THEN
+    RAISE EXCEPTION 'spot market admin RPC grants are not service-role-only';
+  END IF;
+
+  v_proc := to_regprocedure('public.read_spot_market_snapshot_v1()');
+  IF v_proc IS NULL OR NOT has_function_privilege('service_role',v_proc,'EXECUTE')
+     OR has_function_privilege('anon',v_proc,'EXECUTE')
+     OR has_function_privilege('authenticated',v_proc,'EXECUTE') THEN
+    RAISE EXCEPTION 'spot market read RPC grants are not service-role-only';
   END IF;
 
   v_proc := to_regprocedure('public.settle_seconds_position_v1(text,text,text,text,text,numeric,text,timestamptz)');
