@@ -2666,3 +2666,32 @@ The user explicitly simplified the required business process. Do not expand it i
 2. Run migration 0024 then 0025 against an isolated database and verify exact retry, hash conflict, different-request conflict, multiple simultaneous opens, independent concurrent settlement, and ledger/account invariants.
 3. Reconcile the live two-row migration history against every pre-existing migration's actual schema effects before proposing any hosted cutover. Never fabricate migration history entries.
 4. Keep the hosted multi-position feature and configurable payout policy marked NOT ACTIVE until a reviewed, approved migration is applied. Preserve V211; no merge or deployment.
+
+
+## Further live-schema / migration provenance audit — 2026-11-06
+
+### Environment discovery
+- Re-read this coordination file at blob `84b9eab736fa44f8428a04d45755426966b71017` before continuing.
+- Supabase account currently lists only production project `zlozsutefnmgwwzrlipt`; `list_branches` returns no development branches. No isolated PostgreSQL test target is currently available. No branch/project was created and no cost was incurred.
+- Feature branch remains `fix/manual-withdrawal-rpc-compat-20261106`; no source-code commit was made in this batch.
+
+### Migration provenance
+- Current `backend/supabase/migrations/` contains only the timestamped 0024 and 0025 migrations:
+  - `20261106041624_seconds_unlimited_open_positions_and_settlement_idempotency_v1.sql`
+  - `20261106042714_seconds_policy_snapshot_and_admin_queue_v1.sql`
+- The operational baseline `0001`–`0023` exists only in `backend/supabase/sql/` as numbered SQL scripts, not as timestamped CLI migrations in the current migrations directory. The migration order document describes those as ordered operational scripts and separately identifies 0024/0025 as timestamped CLI migrations.
+- Live DB has the baseline operational tables/functions/indexes (including seconds contracts and the one-open-position index), which align with the numbered SQL baseline; it has no policy table and still has the pre-0024 index/function behavior.
+- Live migration history has two records (`20261102133555`, `20261103062716`) whose timestamped files are not present in the current migrations directory. This is an orphaned/unmatched history situation; the present evidence does NOT establish which historical files were applied or whether their effects are still present. Do not mark them reverted/applied or synthesize missing files until provenance is recovered.
+- The numbered SQL scripts 0001–0023 must not be replayed against the live database: their core objects already exist. Their presence explains why schema can exist without corresponding timestamped CLI history; it does not authorize reapplication.
+
+### Live security posture — READ ONLY
+- All 15 public base tables inspected have RLS enabled; none has FORCE RLS. The `private` backup tables are not in the exposed public schema.
+- `pg_policies` returned no public/private policies. For public tables, the inspected table grants show service_role privileges only; no anon/authenticated table grants were returned. With RLS enabled and no policies, browser roles remain default-denied at the row-policy layer; service_role is the intended server-side access path.
+- Two live triggers were observed: confirmed-deposit immutability and earn-position snapshot immutability.
+- This was read-only inspection; no grants, policies, triggers, tables, functions, or indexes were changed.
+
+### Next
+1. Recover the provenance/content of the two orphaned timestamped history records from Git history or deployment artifacts before any history repair.
+2. Keep 0001–0023 as a reviewed baseline, not an instruction to replay on the already-provisioned live database.
+3. Find a no-cost isolated PostgreSQL execution path; the account currently has no Supabase dev branch. Do not create a paid branch/project without explicit cost acceptance.
+4. Compile and execute 0024 then 0025 only in isolated PostgreSQL, run concurrency/idempotency and ledger invariants, then prepare—but do not execute—a production cutover plan.
