@@ -24,10 +24,7 @@ for (const name of allowedFiles) {
   fs.copyFileSync(src, path.join(out, name));
 }
 
-// Keep the original BTCBOX SPA available for the existing OAuth callback
-// while the new React frontend's Supabase callback flow is being integrated.
-fs.copyFileSync(path.join(root, 'index.html'), path.join(out, 'legacy-index.html'));
-
+// The React SPA is the only customer/admin application entry. OAuth callbacks are redirected to its React callback route.
 for (const name of allowedDirs) {
   const src = path.join(root, name);
   if (!fs.existsSync(src) || !fs.statSync(src).isDirectory()) {
@@ -59,4 +56,4 @@ if (!html.includes('/frontend-assets/')) {
 fs.copyFileSync(frontendIndex, path.join(out, 'index.html'));
 fs.cpSync(frontendAssets, path.join(out, 'frontend-assets'), { recursive: true });
 
-console.log('BTCBOX unified public build created in dist/ (React customer/admin app + legacy OAuth assets).');
+console.log('BTCBOX unified public build created in dist/ (React customer/admin app + retained OAuth consent assets).');
