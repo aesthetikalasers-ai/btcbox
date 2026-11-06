@@ -3001,3 +3001,15 @@ The prior withdrawal UI audit statement claiming the active BTCBOX admin route w
 - This is disposable PostgreSQL runtime evidence, not hosted Supabase certification. Still NOT VERIFIED: hosted Supabase setup, first Super Admin provisioning with real Auth identities, browser E2E, live price feed connectivity and production release.
 - Still incomplete product scope: KYC document-image upload/secure evidence storage/review; editable admin spot-pair/currency catalogue and market enable/disable controls. Do not claim these are complete.
 - No hosted database write/bootstrap, real financial operation, production deployment or merge to `main` was performed.
+
+
+## Latest follow-up: admin spot-market controls API and full PostgreSQL RPC test — 2026-11-06 12:25 UTC
+
+- Supersedes the immediately previous `bf4ff9b...` checkpoint. Current PR #50 head is `ef66c2710b63edae5208ffc8a1c9927c7848bb5d`, based on main `fa4513701af75b4c4cb39d60a3df08f07d632af4`; PR is Draft, open, mergeable and unmerged (99 commits ahead, 0 behind).
+- Added admin spot-market API: `GET /api/admin/spot-markets` requires `system_config.read`; `POST` requires `system_config.write`. Backend derives actor UUID from verified Supabase Auth, validates numeric precision, and calls service-role-only PostgreSQL RPCs. The database independently checks active membership/permission, serializes request IDs, rejects payload reuse, upserts pair rules and appends before/after audit records.
+- Added `docs/ADMIN_SPOT_MARKET_API.md` as the Interaction Team handoff. The Admin UI panel is not yet implemented; market fee editing stays disabled until fee charging/crediting is atomic.
+- Replaced the obsolete direct-fill spot migration with `0008_financial_matching_engine_v1.sql`; removed the former direct-fill SQL. Sequence `0009` is intentionally retired and the migration-status checker explicitly recognizes that gap. Canonical bootstrap inventory remains 22 SQL files.
+- Backend CI run 470 passed on the exact head: unified build and **312/312 tests**, fail-closed preflight and output checks.
+- Frontend CI run 334 passed lint and production build on the exact head.
+- PostgreSQL schema CI run 23 passed on the exact head using disposable PostgreSQL 16: all 22 SQL files applied; RLS and service-role grants checked; transaction-scoped RPC tests passed for deposit, withdrawal fee replay/approval/rejection/manual payout, spot matching/cancellation, admin spot-market permission/audit/idempotency, and Seconds policy snapshot/settlement replay/conflict. The integration transaction was rolled back.
+- Still NOT VERIFIED: hosted Supabase install, first Super Admin provisioning against real Auth users, browser E2E, live market feed/provider connectivity, and production release. KYC document upload/secure evidence storage/review remains incomplete. No production or hosted financial writes, deployment or merge to main occurred.
