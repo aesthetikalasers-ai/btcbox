@@ -313,6 +313,90 @@ export function SecondsPage(){
  </div>;
 }
 
+export function KycPage(){
+ const {t}=useI18n();
+ const [account,setAccount]=useState<AccountSnapshot|null>(null);
+ const [loading,setLoading]=useState(true);
+ const [error,setError]=useState("");
+ const [reload,setReload]=useState(0);
+ useEffect(()=>{
+  const controller=new AbortController();
+  setLoading(true);setError("");
+  getAccount(controller.signal).then(setAccount).catch((reason:unknown)=>{
+   if(reason instanceof Error&&reason.name==="AbortError")return;
+   setError(reason instanceof Error?reason.message:"Verification status is temporarily unavailable.");
+  }).finally(()=>{if(!controller.signal.aborted)setLoading(false);});
+  return ()=>controller.abort();
+ },[reload]);
+ const status=String(account?.kyc?.status||"not_submitted").toLowerCase();
+ const label=status.replace(/[_-]+/g," ");
+ const submitted=["pending","processing","under_review","approved","verified","rejected","failed"].includes(status);
+ const tone=["approved","verified"].includes(status)?"border-emerald-500/30 text-emerald-400":["rejected","failed"].includes(status)?"border-rose-500/30 text-rose-300":"border-amber-500/30 text-amber-300";
+ return <PageFrame eyebrow="BTCBOX / ACCOUNT" title="Identity verification" description="Review the verification status returned by your authenticated BTCBOX account.">
+  {loading?<Card className="border-brand-border bg-brand-surface"><CardContent className="p-6 text-sm text-brand-text-muted" role="status">{t("Loading verification status…")}</CardContent></Card>
+  :error?<Card className="border-rose-500/30 bg-brand-surface"><CardContent className="flex flex-wrap items-center justify-between gap-3 p-5"><p className="text-sm text-rose-300" role="alert">{error}</p><Button size="sm" variant="outline" onClick={()=>setReload(n=>n+1)}>{t("Try again")}</Button></CardContent></Card>
+  :account?<Card className="border-brand-border bg-brand-surface"><CardContent className="grid gap-4 p-5 sm:grid-cols-2 sm:p-6">
+   <div className="sm:col-span-2 flex flex-wrap items-center justify-between gap-3"><div><p className="text-xs text-brand-text-muted">{t("Current status")}</p><p className="mt-1 text-lg font-semibold capitalize">{t(label)}</p></div><Badge variant="outline" className={tone}>{t(label)}</Badge></div>
+   <div><p className="text-xs text-brand-text-muted">{t("Applicant name")}</p><p className="mt-1 font-medium">{account.kyc?.name||"—"}</p></div>
+   <div><p className="text-xs text-brand-text-muted">{t("Document type")}</p><p className="mt-1 font-medium">{account.kyc?.id_type||"—"}</p></div>
+   <div className="sm:col-span-2"><p className="text-xs text-brand-text-muted">{t("Document number")}</p><p className="mt-1 break-all font-mono text-sm">{account.kyc?.id_number?"••••"+account.kyc.id_number.slice(-4):"—"}</p></div>
+   <div className="sm:col-span-2 border-t border-brand-border pt-3"><p className="text-sm text-brand-text-muted">{submitted?t("Your verification record is on file. Contact support if you need to correct or update the submission."):t("No verification submission is recorded on your account yet. Submission is not enabled in this frontend build.")}</p></div>
+   <div className="sm:col-span-2 flex flex-wrap gap-2"><Button asChild variant="outline"><Link to="/support">{t("Contact support")}</Link></Button><Button size="sm" variant="ghost" onClick={()=>setReload(n=>n+1)}>{t("Refresh status")}</Button></div>
+  </CardContent></Card>:null}
+ </PageFrame>;
+}
+
+
+export function SupportPage(){
+ const {t}=useI18n();
+ const [messages,setMessages]=useState<SupportMessage[]>([]);
+ const [draft,setDraft]=useState("");
+ const [loading,setLoading]=useState(true);
+ const [sending,setSending]=useState(false);
+ const [error,setError]=useState("");
+ const [sendError,setSendError]=useState("");
+ const [reload,setReload]=useState(0);
+ useEffect(()=>{
+  const controller=new AbortController();
+  setLoading(true);setError("");
+  getSupportMessages(controller.signal).then(setMessages).catch((reason:unknown)=>{
+   if(reason instanceof Error&&reason.name==="AbortError")return;
+   setError(reason instanceof Error?reason.message:"Support conversation is temporarily unavailable.");
+  }).finally(()=>{if(!controller.signal.aborted)setLoading(false);});
+  return ()=>controller.abort();
+ },[reload]);
+ const submit=async(event:FormEvent<HTMLFormElement>)=>{
+  event.preventDefault();
+  const message=draft.trim();
+  if(!message||sending)return;
+  setSending(true);setSendError("");
+  try{
+   await sendSupportMessage(message);
+   setDraft("");
+   setReload(n=>n+1);
+  }catch(reason){
+   setSendError(reason instanceof Error?reason.message:"Message could not be sent. Please try again.");
+  }finally{setSending(false);}
+ };
+ const date=(raw:string)=>{const parsed=new Date(raw);return Number.isNaN(parsed.getTime())?raw:parsed.toLocaleString();};
+ return <PageFrame eyebrow="BTCBOX / HELP CENTER" title="Customer support" description="Send a message to the BTCBOX support team and review replies in your account conversation.">
+  <div className="flex items-center justify-between gap-3"><Badge variant="outline" className="border-brand-border"><MessageCircle className="mr-1.5 h-3.5 w-3.5"/>{t("Private account conversation")}</Badge><Button size="sm" variant="outline" disabled={loading} onClick={()=>setReload(n=>n+1)}><RefreshCw className={"mr-2 h-4 w-4 "+(loading?"animate-spin":"")}/>{t("Refresh")}</Button></div>
+  {loading?<Card className="border-brand-border bg-brand-surface"><CardContent className="p-6 text-sm text-brand-text-muted" role="status">{t("Loading support conversation…")}</CardContent></Card>
+  :error?<Card className="border-rose-500/30 bg-brand-surface"><CardContent className="flex flex-wrap items-center justify-between gap-3 p-5"><p className="text-sm text-rose-300" role="alert">{error}</p><Button size="sm" variant="outline" onClick={()=>setReload(n=>n+1)}>{t("Try again")}</Button></CardContent></Card>
+  :<Card className="border-brand-border bg-brand-surface"><CardHeader><CardTitle>{t("Conversation")}</CardTitle><CardDescription>{messages.length} {t("messages · newest 50 available")}</CardDescription></CardHeader><CardContent className="space-y-3">
+   {messages.length?messages.map(message=><div key={message.id} className={"flex "+(message.from==="user"?"justify-end":"justify-start")}><div className={"max-w-[92%] rounded-2xl border p-3 sm:max-w-[80%] "+(message.from==="user"?"border-brand-accent/25 bg-brand-accent/10":"border-brand-border bg-brand-surface-2")}><div className="mb-1 flex flex-wrap items-center gap-2 text-[11px] text-brand-text-muted"><span className="font-semibold uppercase">{message.from==="user"?t("You"):t("BTCBOX support")}</span><span>{date(message.time)}</span></div><p className="whitespace-pre-wrap break-words text-sm">{message.content}</p></div></div>)
+   :<div className="rounded-xl border border-dashed border-brand-border px-4 py-10 text-center"><MessageCircle className="mx-auto mb-3 h-6 w-6 text-brand-text-muted"/><p className="font-semibold">{t("No messages yet")}</p><p className="mt-1 text-sm text-brand-text-muted">{t("Send a message below to start a conversation with support.")}</p></div>}
+  </CardContent></Card>}
+  <Card className="border-brand-border bg-brand-surface"><CardHeader><CardTitle>{t("Send a message")}</CardTitle><CardDescription>{t("Do not send passwords, two-factor codes, or wallet recovery phrases.")}</CardDescription></CardHeader><CardContent><form className="space-y-3" onSubmit={submit}>
+   <textarea value={draft} onChange={event=>setDraft(event.target.value)} maxLength={2000} rows={4} placeholder={t("Describe how we can help…")} aria-label={t("Support message")} className="w-full resize-y rounded-xl border border-brand-border bg-brand-surface-2 p-3 text-sm text-brand-text outline-none placeholder:text-brand-text-muted focus:border-brand-accent/60" disabled={sending}/>
+   <div className="flex flex-wrap items-center justify-between gap-3"><span className="text-xs text-brand-text-muted">{draft.length}/2000</span><Button type="submit" disabled={sending||!draft.trim()||draft.trim().length>2000}><Send className="mr-2 h-4 w-4"/>{sending?t("Sending…"):t("Send message")}</Button></div>
+   {sendError?<p className="text-sm text-rose-300" role="alert">{sendError}</p>:null}
+  </form></CardContent></Card>
+ </PageFrame>;
+}
+
+
+const depositNetworks:Record<string,string[]>={BTC:["BTC"],ETH:["ERC20"],USDT:["TRC20","ERC20","BEP20"],SOL:["SOL"],BNB:["BEP20"],USDC:["ERC20"]};
 export function DepositPage(){
  const {t}=useI18n();
  const [coin,setCoin]=useState("USDT");
