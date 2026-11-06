@@ -547,6 +547,7 @@ VIEWS.withdraw.afterRender = function(){
     try{
       r=await apiAdapter.withdraw({coin:withdrawalIntent.coin,amount:amtRaw,address:withdrawalIntent.address,
         network:withdrawalIntent.network,request_id:withdrawalIntent.request_id,
+        expected_fee:String(WITHDRAW_FEES[withdrawalIntent.coin]),
         fund_password:$('#wd-fundpwd').value,twofa_code:$('#wd-2fa').value||undefined});
       withdrawalOutcomeUnknown=isWdOutcomeUnknown(r);
       if(withdrawalOutcomeUnknown){
