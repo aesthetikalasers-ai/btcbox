@@ -24,7 +24,7 @@ test('Admin Panel delegated membership mutations have a matching public PostgRES
     'p_actor_user_id uuid', 'p_target_user_id uuid', 'p_expected_revision bigint',
     'p_action text', 'p_permissions text[]', 'p_reason text', 'p_request_id text', 'p_request_hash text'
   ]) assert.ok(sql.includes(arg), 'missing SQL bridge argument ' + arg);
-  assert.ok(sql.includes('SELECT private.admin_manage_membership_v1('));
+  assert.ok(sql.includes("AS 'SELECT private.admin_manage_membership_v1($1,$2,$3,$4,$5,$6,$7,$8)';"));
 });
 
 test('delegated administrator bridges are executable only by the trusted backend role', () => {
