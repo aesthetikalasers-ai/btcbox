@@ -821,6 +821,7 @@ export interface AdminMembershipRecord {
   permissions: string[];
 }
 export type AdminMembershipAction = "provision" | "set_permissions" | "suspend" | "reactivate" | "revoke";
+export interface AdminMembershipChangeResult { action: AdminMembershipAction; target_user_id: string; revision: number; status: string; permissions: string[]; replayed?: boolean; }
 
 export interface AdminConfig {
   deposit_addresses: Record<string, string>;
@@ -874,7 +875,7 @@ export async function manageAdminMembership(token: string, input: {
   target_user_id: string; expected_revision: number; action: AdminMembershipAction;
   permissions: string[]; reason: string; request_id: string;
 }) {
-  return adminRequest<{ ok: true; result: AdminMembershipRecord & { action: AdminMembershipAction; replayed?: boolean } }>(token, "admin/admins/manage", { method: "POST", body: input });
+  return adminRequest<{ ok: true; result: AdminMembershipChangeResult }>(token, "admin/admins/manage", { method: "POST", body: input });
 }
 export async function getAdminStats(token: string, signal?: AbortSignal) {
   return adminRequest<{ ok: true; total_users: number; pending_withdrawals: number; pending_admin_review_withdrawals: number; pending_kyc: number; deposit_addresses: Record<string, string>; announcement: string }>(token, "admin/stats", { signal });
