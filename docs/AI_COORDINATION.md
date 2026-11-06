@@ -5933,3 +5933,18 @@ The prior withdrawal UI audit statement claiming the active BTCBOX admin route w
 - This batch changes no SQL schema; the PostgreSQL suite was run regardless and passed. Vercel remains subject to the existing `build-rate-limit` platform status; no deployment was attempted.
 - NEXT: continue cross-checking Admin role visibility against user-detail projections and the canonical order/ledger read paths; run hosted Auth/Storage workflows only in isolated staging after test credentials are available. KYC retention/deletion remains an owner-policy decision; no duration is invented and no documents are deleted.
 - No production DB operation, financial transaction, merge, or deployment was performed.
+
+
+### 2026-11-07 — KYC legacy-state guard and Admin Auth identity projection
+- Role: 2号 AI — Web App + Admin Panel. Changes remain in Draft PR #51.
+- KYC DEFECT: Customer UI locked `processing`, `under_review`, and `verified`, while the server only blocked exact `pending` and `approved`. Legacy/imported status aliases could bypass the UI and overwrite an in-review/verified submission.
+- KYC FIX: added server-side status normalization and a shared submission guard. In-review aliases return `KYC_ALREADY_PENDING`; approved aliases return `KYC_ALREADY_APPROVED`; rejected/failed/unsubmitted remain eligible for the existing resubmission workflow. The guard executes before uploading or replacing evidence.
+- KYC REGRESSION: exact-head backend run `42291352612` passed **375/375** tests; frontend run `42291352569` passed lint/build and **20/20** desktop/mobile Playwright smoke tests; PostgreSQL run `42291352599` passed empty-database schema bootstrap.
+- ADMIN PRIVACY DEFECT: Admin `users.read` detail route cloned the user record and removed passwords/session secrets, but still retained Supabase Auth UUID fields and linked provider identity metadata. The Admin UI does not consume these fields.
+- ADMIN PRIVACY FIX: user detail projection now removes `supabase_user_id`, `supabase_user_ids`, `auth_identities`, and `auth_providers` before returning the record. Added regression assertions and confirmed the Admin UI has no dependency on those properties.
+- Code commit: `1483eb7821f098387bebfc52e3b2a44990e46488`; KYC source/test commit: `feed31301d44f4231eeafabca86e7abee722d24f`.
+- EXACT-HEAD BACKEND CI run `42291739085`: **passed, 376/376 tests**, unified build and fail-closed preflight.
+- EXACT-HEAD PostgreSQL schema CI run `42291739078`: **passed**, all canonical migrations applied to an empty disposable PostgreSQL database.
+- EXACT-HEAD frontend CI run `42291739115`: lint and Vite build passed; Chromium setup / desktop-mobile smoke suite was still running at the time this entry was written. No full frontend pass is claimed yet.
+- No SQL migrations changed. No hosted Supabase Auth/Storage writes, KYC document deletion, production DB operation, financial transaction, merge, or deployment occurred.
+- NEXT: confirm exact-head frontend CI; continue checking Admin role projections and user/admin order/ledger source alignment. KYC retention/deletion still requires owner policy approval; do not invent a duration.
