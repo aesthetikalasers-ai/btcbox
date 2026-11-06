@@ -106,3 +106,17 @@ test('policy RPC execution remains service-role-only and policy tables are not c
   assert.match(migration, /REVOKE ALL ON FUNCTION public\.settle_seconds_position_v1\([\s\S]*?FROM public, anon, authenticated/i);
   assert.match(migration, /GRANT EXECUTE ON FUNCTION public\.settle_seconds_position_v1\([\s\S]*?TO service_role/i);
 });
+
+
+test('seed minimum is the numeric precision floor, not an invented commercial minimum', () => {
+  assert.match(migration, /min_stake numeric\(38,18\) NOT NULL CHECK \(min_stake > 0\)/i);
+  assert.match(migration, /0\.000000000000000001,[\s\S]*?1000000000000,[\s\S]*?8500/);
+  const start = api.indexOf("if (path === 'seconds/order' && method === 'POST')");
+  const end = api.indexOf('// ---------- POST /api/seconds/settle ----------', start);
+  assert.ok(start >= 0 && end > start);
+  const handler = api.slice(start, end);
+  assert.match(handler, /amount === null \|\| compareMoney\(amount, '0'\) <= 0/);
+  assert.match(handler, /compareMoney\(amount, '1000000000000'\) > 0/);
+  assert.doesNotMatch(handler, /compareMoney\(amount,\s*'(?!0(?:'|\.))/);
+  assert.match(api, /raw\.length > 64 \|\| !\/\^\(\?:0\|\[1-9\]\\d\*\)\(\?:\\\.\\d\{1,18\}\)\?\$\//);
+});
