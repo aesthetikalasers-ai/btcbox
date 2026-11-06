@@ -745,28 +745,43 @@ export function WithdrawPage(){
  const fee=selectedAddress&&config?Number(config.fees[selectedAddress.coin]??0):0;
  const available=Number(balance?.free??0);
  const parsedAmount=Number(amount);
- const canSubmit=!!config?.actions_enabled&&!!selectedAddress&&Number.isFinite(parsedAmount)&&parsedAmount>0&&parsedAmount<=available&&!!fundPassword.trim()&&(!account?.twofa_enabled||/^\d{6}$/.test(twofaCode))&&!submitting&&!loading;
+ const pendingStorageKey=account?.uid?"btcbox.withdraw.pending.v1."+account.uid:"";
+ const clearPending=()=>{if(pendingStorageKey){try{window.localStorage.removeItem(pendingStorageKey);}catch{}}setPendingIntent(null);setPendingIntentInvalid(false);};
+ const canSubmit=!!config?.actions_enabled&&!pendingIntentInvalid&&!!selectedAddress&&Number.isFinite(parsedAmount)&&parsedAmount>0&&parsedAmount<=available&&!!fundPassword.trim()&&(!account?.twofa_enabled||/^\d{6}$/.test(twofaCode))&&!submitting&&!loading;
 
  const submit=async(event:FormEvent<HTMLFormElement>)=>{
   event.preventDefault();
   if(!canSubmit||!selectedAddress)return;
-  const stableRequestId=requestId||window.crypto.randomUUID();
-  setRequestId(stableRequestId);setSubmitting(true);setError("");setActionMessage("");
+  let intent=pendingIntent;
+  if(!intent){
+   intent={version:1,request_id:window.crypto.randomUUID(),address_id:selectedId,coin:selectedAddress.coin,network:selectedAddress.network,amount:amount.trim(),address:selectedAddress.address,created_at:Date.now()};
+   if(!pendingStorageKey){setError("Account identity is unavailable. No withdrawal was sent.");return;}
+   try{window.localStorage.setItem(pendingStorageKey,JSON.stringify(intent));}
+   catch{setError("This browser cannot safely save the withdrawal request. No withdrawal was sent.");return;}
+   setPendingIntent(intent);
+  }
+  if(intent.address_id!==selectedId||intent.address!==selectedAddress.address||intent.coin!==selectedAddress.coin||intent.network!==selectedAddress.network){setError("The saved withdrawal destination no longer matches. Contact support before retrying.");setPendingIntentInvalid(true);return;}
+  setSubmitting(true);setError("");setActionMessage("");
+  let requestAccepted=false;
   try{
    const result=await submitWithdrawal({
-    request_id:stableRequestId,coin:selectedAddress.coin,network:selectedAddress.network,
-    amount:amount.trim(),address:selectedAddress.address,fund_password:fundPassword,
+    request_id:intent.request_id,coin:intent.coin,network:intent.network,
+    amount:intent.amount,address:intent.address,fund_password:fundPassword,
     ...(account?.twofa_enabled?{twofa_code:twofaCode}:{})
    });
-   setActionMessage(result.duplicate?t("This withdrawal request was already received."):result.require_admin_review?t("Withdrawal submitted for staff review."):t("Withdrawal submitted and is awaiting staff processing."));
-   setRequestId("");setAmount("");setFundPassword("");setTwofaCode("");
+   requestAccepted=true;
+   const latest=await getAccount();
+   setAccount(latest);
+   const confirmed=(latest.withdrawals||[]).some(item=>item.id===result.withdrawal_id);
+   if(!confirmed){setError("The withdrawal response arrived, but account history has not confirmed it. Keep this request and retry only with the same ID.");return;}
+   clearPending();setAmount("");setFundPassword("");setTwofaCode("");
+   setActionMessage(result.duplicate?t("This withdrawal request was already received and confirmed."):result.require_admin_review?t("Withdrawal submitted for staff review."):t("Withdrawal submitted and is awaiting staff processing."));
    setReload(value=>value+1);
   }catch(reason){
    setError(reason instanceof Error?reason.message:"Withdrawal result is unconfirmed. Keep this request unchanged and retry with the same request ID.");
-   if(reason instanceof ApiError&&reason.status>=400&&reason.status<500)setRequestId("");
+   if(!requestAccepted&&reason instanceof ApiError&&reason.status>=400&&reason.status<500&&reason.status!==409)clearPending();
   }finally{setSubmitting(false);}
  };
-
  return <PageFrame eyebrow="BTCBOX / WALLET" title="Withdraw" description="Choose a saved address and submit a withdrawal request. BTCBOX staff review requests and manually transfer approved withdrawals.">
   {loading?<Card className="border-brand-border bg-brand-surface"><CardContent className="p-5 text-sm text-brand-text-muted" role="status">{t("Loading wallet and saved addresses…")}</CardContent></Card>
   :error&&!account?<Card className="border-rose-500/30 bg-brand-surface"><CardContent className="flex flex-wrap items-center justify-between gap-3 p-5"><p className="text-sm text-rose-300" role="alert">{error}</p><Button size="sm" variant="outline" onClick={()=>setReload(n=>n+1)}>{t("Try again")}</Button></CardContent></Card>
