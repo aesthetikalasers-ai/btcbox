@@ -8,17 +8,32 @@ const root = path.resolve(__dirname, '..');
 const api = fs.readFileSync(path.join(root, 'api-core.js'), 'utf8');
 const design = fs.readFileSync(path.resolve(root, '../docs/SECONDS_POLICY_ADMIN_RBAC.md'), 'utf8');
 
-test('seconds policy write routes remain unavailable until dedicated policy lifecycle RPCs are wired', () => {
+test('seconds policy routes use verified Supabase identity and explicit read/write permissions', () => {
   const authStart = api.indexOf('async function adminAuth()');
   const authEnd = api.indexOf('async function flushAdminAuditOutbox()', authStart);
   assert.ok(authStart >= 0 && authEnd > authStart);
   const auth = api.slice(authStart, authEnd);
   assert.match(auth, /authorizeSupabaseAdmin/);
   assert.doesNotMatch(auth, /Basic |ADMIN_USER|ADMIN_PASS/);
-  assert.match(api, /if \(path\.startsWith\('admin\/'\)\)/);
+  assert.match(api, /if \\(path\\.startsWith\\('admin\\/'\\)\\)/);
   assert.match(api, /route === 'seconds-policy' && verb === 'GET'/);
   assert.match(api, /route === 'seconds-policy' && verb === 'POST'/);
-  assert.doesNotMatch(api, /if \(sub === 'seconds-policy' && method === 'POST'\)/);
+  assert.match(api, /if \\(sub === 'seconds-policy' && method === 'GET'\\)/);
+  assert.match(api, /if \\(sub === 'seconds-policy' && method === 'POST'\\)/);
+  assert.match(api, /p_actor_user_id: adminUserId/);
+  assert.match(api, /p_request_hash: requestHash/);
+});
+
+test('Seconds policy RPC creates an immutable version, atomically activates it, and audits the actor', () => {
+  const sql = fs.readFileSync(path.join(root, 'supabase/sql/0028_admin_rbac_service_rpc_wrappers_v1.sql'), 'utf8');
+  assert.match(sql, /FUNCTION public\\.admin_set_seconds_policy_v1/i);
+  assert.match(sql, /seconds_policy\\.manage/i);
+  assert.match(sql, /p_payout_bps < 8500/i);
+  assert.doesNotMatch(sql, /p_payout_bps > 10000/i);
+  assert.match(sql, /UPDATE public\\.seconds_contract_policy_active/i);
+  assert.match(sql, /INSERT INTO public\\.seconds_contract_policy_audit/i);
+  assert.match(sql, /seconds_policy_request_idempotency/i);
+  assert.match(sql, /stale seconds policy version/i);
 });
 
 test('seconds policy RBAC design requires a validated Supabase subject and server-side permission lookup', () => {
