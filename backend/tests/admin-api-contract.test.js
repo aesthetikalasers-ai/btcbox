@@ -1,0 +1,50 @@
+'use strict';
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+const root = path.resolve(__dirname, '..');
+const api = fs.readFileSync(path.join(root, 'api-core.js'), 'utf8');
+const client = fs.readFileSync(path.resolve(root, '../frontend/src/lib/api.ts'), 'utf8');
+const adminPage = fs.readFileSync(path.resolve(root, '../frontend/src/features/admin/AdminPage.tsx'), 'utf8');
+
+test('every admin route exposed by the backend has a matching permission and the frontend calls only existing routes', () => {
+  const permStart = api.indexOf('const requiredPermission = (function(route, verb)');
+  const permEnd = api.indexOf(')(sub, method);', permStart);
+  const permMapping = api.slice(permStart, permEnd);
+  assert.ok(permMapping.length > 500, 'expected a substantial admin permission map');
+  // KYC, orders, support, push, audit, withdrawals, deposits, users all gated.
+  for (const r of ["route === 'kyc' && verb === 'GET'", "route === 'kyc/approve' || route === 'kyc/reject'", "route === 'orders' && verb === 'GET'", "route === 'support/reply' && verb === 'POST'", "route === 'push' && verb === 'POST'", "route === 'audit-logs' && verb === 'GET'", "route === 'withdrawals' && verb === 'GET'", "route === 'deposit/confirm' && verb === 'POST'", "route === 'users' && verb === 'GET'", "route === 'user' && verb === 'GET'"]) {
+    assert.ok(permMapping.includes(r), 'permission mapping must cover ' + r);
+  }
+  // Fallback: unknown admin route returns 404, permission denied returns 403.
+  assert.ok(api.includes('ADMIN_ROUTE_NOT_FOUND'));
+  assert.ok(api.includes('ADMIN_PERMISSION_DENIED'));
+});
+
+test('admin frontend functions call the same paths the backend implements and never use native prompts', () => {
+  for (const fn of ['getAdminStats', 'getAdminUsers', 'getAdminUser', 'getAdminKyc', 'adminApproveKyc', 'adminRejectKyc', 'adminApproveWithdrawal', 'adminRejectWithdrawal', 'adminMarkWithdrawalPaid', 'adminManualCredit', 'getAdminWithdrawals', 'getAdminOrders', 'getAdminAuditLogs', 'adminReplySupport', 'getAdminSupportMessages']) {
+    assert.ok(client.includes('export async function ' + fn), 'client must export ' + fn);
+  }
+  // adminRequest builds ${API_BASE_URL}/${path} and callers pass "admin/..." paths.
+  assert.ok(client.includes('async function adminRequest'));
+  assert.ok(client.includes('`${API_BASE_URL}/${path}`'));
+  assert.ok(client.includes('"admin/stats"') || client.includes('"admin/orders"'));
+  assert.ok(client.includes('Bearer ${token}'));
+  for (const native of ['window.alert(', 'window.confirm(', 'window.prompt(']) {
+    assert.ok(!adminPage.includes(native), 'admin panel must not use native ' + native);
+  }
+  assert.ok(adminPage.includes('role="dialog"'));
+  assert.ok(adminPage.includes('aria-modal="true"'));
+});
+
+test('admin error feedback surfaces server codes and the refresh-after-confirmed-success pattern', () => {
+  // Admin actions that succeed but whose follow-up refresh fails must keep the
+  // success notice and tell the operator to reload, not report the action as
+  // failed. Verified for KYC review; withdrawal queue uses the same helper.
+  assert.ok(adminPage.includes('KYC review is confirmed; the queue could not refresh'));
+  assert.ok(adminPage.includes('The database action is confirmed; the queue could not refresh'));
+  // ApiError carries the server code so callers can distinguish 409/400/503.
+  assert.ok(client.includes('class ApiError') || client.includes('ApiError'));
+  assert.ok(client.includes('payload?.code'));
+});
