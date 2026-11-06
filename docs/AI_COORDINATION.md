@@ -2849,3 +2849,15 @@ The prior withdrawal UI audit statement claiming the active BTCBOX admin route w
 - The first PR #29 CI run failed because several existing tests still imported the retired `0015` SQL artifact, the migration checker treated retired sequence 15 as a missing file, and the isolated API harness did not map the new admin helper imports.
 - Updated the Seconds server-authoritative test to validate the current policy RPC in `0025`, marked sequence 15 as intentionally retired in the static checker, aligned the settlement prerequisite wording, and synchronized the isolated API test harness with the admin helper imports.
 - These are test/validation corrections only; no database operation or production change was performed. CI must rerun on the new exact PR head before merge.
+
+
+## 2026-11-06 integration batch: React Seconds order entry and server policy read
+
+- Added a service-role-only `read_active_seconds_policy_v1` RPC. The private policy tables remain unavailable to browser roles.
+- Added authenticated `GET /api/seconds/policy`, which validates the active symbols, durations, stake bounds, payout floor, and optional exposure limit, and returns the backend financial-cutover state.
+- Added typed frontend clients for active policy, order submission, and settlement.
+- Replaced the React Seconds read-only placeholder with policy-driven order entry. A request ID and exact payload are persisted per authenticated user; an unresolved request can only be retried with the same ID and payload until the positions endpoint confirms it.
+- Each open position displays its own remaining time. At maturity, the client asks the server to settle that specific position with a deterministic idempotency key; the server still samples the trusted reference price and applies the ledger transaction.
+- The page renders every open position and settled history row; no per-user order-count cap was introduced. Backend policy may still set an aggregate exposure boundary.
+- Financial writes remain disabled unless the existing backend cutover switch is enabled. No database was reset or written and no live financial operation or deployment was executed.
+- Validation pending: frontend build, backend tests, and independent browser QA on the exact PR head.
