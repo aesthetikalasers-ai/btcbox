@@ -4,14 +4,14 @@ Status: source-only SQL inventory and bootstrap instructions. The files are not 
 
 ## Canonical fresh-schema bootstrap
 
-Use `backend/scripts/bootstrap-empty-database.sh` only against a verified empty BTCBOX schema. The script:
+Use `backend/scripts/bootstrap-empty-database.sh` only against a verified empty BTCBOX schema. The Docker first-init hook (`backend/scripts/docker-init-migrations.sh`) must apply the same exact canonical filename allowlist. Both are fresh-database bootstraps, not upgrade paths. The script:
 - requires `DATABASE_URL` and `BTCBOX_BOOTSTRAP_CONFIRM=YES`;
 - parses the URL hostname and refuses remote targets unless `BTCBOX_ALLOW_REMOTE_BOOTSTRAP=YES` is explicitly supplied;
 - checks that no BTCBOX-owned tables already exist before applying SQL;
 - applies the 25 canonical SQL files explicitly allowlisted in `backend/scripts/bootstrap-empty-database.sh`; excluded legacy/optional files and read-only diagnostics are not applied;
 - stops on the first SQL error and never prints the database URL.
 
-The script does not clear or overwrite an existing schema. It is not idempotent by design: a second run sees the installed BTCBOX tables and refuses. Do not run it against a production database without a separately approved maintenance operation.
+The scripts do not clear or overwrite an existing schema. They are not incremental migration runners: Docker's init hook only runs for a new empty data directory, and `run_migrations.sh` is a compatibility alias for the guarded empty-database bootstrap. A persisted Docker volume is not upgraded automatically. Do not run either bootstrap against a production database or an existing data volume; a separate versioned, data-preserving upgrade process is required.
 
 ## Exact source migration order
 
