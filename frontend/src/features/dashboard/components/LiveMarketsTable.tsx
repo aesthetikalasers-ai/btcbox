@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { Search } from "lucide-react";
-import { Link, useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router-dom";
 import { TokenIcon } from "../../../components/ui/TokenIcon";
 import { Card } from "./Card";
 import type { MarketTicker } from "../../../lib/api";
@@ -38,11 +38,8 @@ export function LiveMarketsTable({ markets, loading, error }: {
   const numberLocale = numberLocales[language];
   const [searchParams, setSearchParams] = useSearchParams();
   const query = (searchParams.get("q") || "").trim().toLowerCase();
-  const latestSnapshotTs = markets.reduce((latest, item) => Math.max(latest, item.snapshotTs || 0), 0);
-  const snapshotAgeSeconds = latestSnapshotTs > 0 ? Math.max(0, Math.floor(Date.now() / 1000 - latestSnapshotTs)) : null;
-  const snapshotStale = snapshotAgeSeconds !== null && snapshotAgeSeconds > 90;
-  const feedError = error || (snapshotStale ? "The market service snapshot is older than 90 seconds. Quotes are hidden until a fresh snapshot arrives." : "");
-  const displayMarkets = feedError ? [] : markets;
+  const displayMarkets = error ? [] : markets;
+  const latestSnapshotTs = displayMarkets.reduce((latest, item) => Math.max(latest, item.snapshotTs || 0), 0);
   const latestProviderMarket = displayMarkets.reduce<MarketTicker | null>((latest, item) =>
     (item.providerTs || 0) > (latest?.providerTs || 0) ? item : latest, null);
   const providerTimestamp = latestProviderMarket?.providerTs || 0;
@@ -63,14 +60,14 @@ export function LiveMarketsTable({ markets, loading, error }: {
       <div className="flex items-center justify-between gap-3 border-b border-brand-border px-4 py-4 md:px-6">
         <div className="min-w-0">
           <h2 className="text-[15px] font-semibold tracking-tight text-brand-text">{t("Spot markets")}</h2>
-          <p className="mt-1 text-xs text-brand-text-muted">{t("Live prices from the BTCBOX market service")}</p>
-          <p className="mt-1 text-[11px] text-brand-text-muted" aria-label={snapshotTime ? `Server snapshot ${snapshotTime}` : "Server snapshot time unavailable"}>{snapshotTime ? `Server snapshot · ${snapshotTime} · ${snapshotAgeSeconds}s ago` : "Server snapshot time unavailable"}</p>
-          <p className="mt-1 text-[11px] text-brand-text-muted" aria-label={providerTime ? `Provider snapshot ${providerSource || "source unavailable"} at ${providerTime}, ${providerAgeSeconds} seconds old` : "Provider timestamp unavailable"}>
+          <p className="mt-1 text-xs text-brand-text-muted">{t("BTCBOX spot market data")}</p>
+          {displayMarkets.length > 0 ? <p className="mt-1 text-[11px] text-brand-text-muted" aria-label={`Server snapshot ${snapshotTime || "time unavailable"}`}>{snapshotTime ? `Server snapshot · ${snapshotTime}` : "Server snapshot time unavailable"}</p> : null}
+          {displayMarkets.length > 0 ? <p className="mt-1 text-[11px] text-brand-text-muted" aria-label={providerTime ? `Provider snapshot ${providerSource || "source unavailable"} at ${providerTime}, ${providerAgeSeconds} seconds old` : "Provider timestamp unavailable"}>
             {providerTime ? `Provider snapshot · ${providerSource || "source unavailable"} · ${providerTime} · ${providerAgeSeconds}s ago` : "Provider timestamp unavailable"}
-          </p>
+          </p> : null}
         </div>
         <span className="shrink-0 rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-2 text-xs font-semibold text-brand-text-secondary">
-          {loading ? t("Loading…") : feedError ? t("Unavailable") : `${visibleMarkets.length} ${t("pairs")}`}
+          {loading ? t("Loading…") : error ? t("Unavailable") : `${visibleMarkets.length} ${t("pairs")}`}
         </span>
       </div>
       <div className="border-b border-brand-border px-4 py-3 md:px-6">
@@ -79,10 +76,10 @@ export function LiveMarketsTable({ markets, loading, error }: {
           <input type="search" aria-label={t("Search BTCBOX")} placeholder={t("Search")} value={searchParams.get("q") || ""} onChange={(event) => setSearchParams(event.target.value ? { q: event.target.value } : {})} className="h-11 w-full rounded-xl border border-brand-border bg-brand-surface px-3 pl-10 text-sm text-brand-text placeholder:text-brand-text-muted focus:border-brand-accent focus:outline-none" />
         </label>
       </div>
-      {feedError && displayMarkets.length === 0 ? (
+      {error && displayMarkets.length === 0 ? (
         <div className="px-5 py-10 text-center">
           <p className="text-sm font-semibold text-brand-text">{t("Market feed unavailable")}</p>
-          <p className="mt-2 break-words text-sm text-brand-text-muted">{feedError}</p>
+          <p className="mt-2 break-words text-sm text-brand-text-muted">{error}</p>
         </div>
       ) : loading && displayMarkets.length === 0 ? (
         <div className="space-y-3 px-5 py-8" aria-label="Loading markets">
@@ -94,7 +91,7 @@ export function LiveMarketsTable({ markets, loading, error }: {
         <>
           <div className="divide-y divide-brand-border/70 sm:hidden">
             {visibleMarkets.map((item) => (
-              <Link key={item.sym} to={`/trade/${item.sym}`} aria-label={`${item.sym} spot trading`} className="flex min-h-[76px] items-center justify-between gap-3 px-4 py-3 transition-colors hover:bg-brand-surface-hover active:bg-brand-surface-hover">
+              <div key={item.sym} className="flex min-h-[76px] items-center justify-between gap-3 px-4 py-3 transition-colors active:bg-brand-surface-hover">
                 <div className="flex min-w-0 items-center gap-3">
                   <TokenIcon symbol={item.sym} className="h-9 w-9 shrink-0" />
                   <div className="min-w-0">
@@ -106,7 +103,7 @@ export function LiveMarketsTable({ markets, loading, error }: {
                   <span className="type-body font-bold tabular-nums text-brand-text">{price(item.price, numberLocale)}</span>
                   <Change value={item.chg} locale={numberLocale} />
                 </div>
-              </Link>
+              </div>
             ))}
           </div>
           <div className="hidden w-full overflow-x-auto sm:block">
@@ -121,9 +118,7 @@ export function LiveMarketsTable({ markets, loading, error }: {
                   <td className="h-16 whitespace-nowrap px-4 py-2 md:px-6">
                     <div className="flex items-center gap-3">
                       <TokenIcon symbol={item.sym} className="h-8 w-8" />
-                      <Link to={`/trade/${item.sym}`} aria-label={`${item.sym} spot trading`} className="group min-w-0 rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent">
-                        <p className="text-sm font-semibold text-brand-text group-hover:text-brand-accent">{names[item.sym] || item.sym}</p><p className="text-xs text-brand-text-muted">{item.sym}/USDT</p>
-                      </Link>
+                      <div><p className="text-sm font-semibold text-brand-text">{names[item.sym] || item.sym}</p><p className="text-xs text-brand-text-muted">{item.sym}/USDT</p></div>
                     </div>
                   </td>
                   <td className="whitespace-nowrap px-4 type-body font-semibold tabular-nums text-brand-text md:px-6">{price(item.price, numberLocale)}</td>
