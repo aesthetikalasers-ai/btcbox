@@ -10,10 +10,10 @@ import { useI18n } from "../../lib/i18n";
 function amount(value: number | string | undefined) {
   if (typeof value === "string") {
     const normalized = value.trim();
-    const match = normalized.match(/^(-?)(\\d+)(?:\\.(\\d+))?$/);
+    const match = normalized.match(/^(-?)(\d+)(?:\\.(\d+))?$/);
     if (!match) return "—";
     const [, sign, integer, fraction] = match;
-    const grouped = integer.replace(/\\B(?=(\\d{3})+(?!\\d))/g, ",");
+    const grouped = integer.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
     return sign + grouped + (fraction ? "." + fraction : "");
   }
   if (value === undefined) return "0";

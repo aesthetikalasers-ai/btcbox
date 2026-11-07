@@ -24,8 +24,8 @@ test('manual credit supports every asset exposed in the admin asset selector', (
 test('asset balance display preserves decimal strings without IEEE-754 conversion', () => {
   const assets = fs.readFileSync(path.resolve(__dirname, '../../frontend/src/features/assets/AssetsPage.tsx'), 'utf8');
   assert.ok(assets.includes('if (typeof value === "string") {'));
-  assert.ok(assets.includes('const match = normalized.match(/^(-?)(\\\\d+)(?:\\\\.(\\\\d+))?$/);'));
-  assert.ok(assets.includes('const grouped = integer.replace(/\\\\B(?=(\\\\d{3})+(?!\\\\d))/g, ",");'));
+  assert.ok(assets.includes('const match = normalized.match(/^(-?)(\\d+)(?:\\.(\\d+))?$/);'));
+  assert.ok(assets.includes('const grouped = integer.replace(/\\B(?=(\\d{3})+(?!\\d))/g, ",");'));
   assert.ok(assets.includes('return sign + grouped + (fraction ? "." + fraction : "");'));
   assert.ok(!assets.includes('const parsed = Number(value ?? 0);'));
 });

@@ -6603,3 +6603,11 @@ Current branch HEAD at note creation: `51c302a96f069876e438321d3597501fcbc26b54`
 - This corrects stale test expectations; no application runtime behavior, API contract, balances, valuation, or financial logic changed.
 - Previous exact-head CI: Backend success; PostgreSQL schema success; Frontend failed only in this same asset assertion on desktop and mobile (74 other browser checks passed). New exact-head CI must complete before this batch is considered validated.
 - No merge, deployment, or production database operation.
+
+
+## Assets decimal-string formatter root-cause correction — 2026-11-08 (2号 AI)
+- Correction to the prior 18ca9de CI diagnosis: the updated browser assertion was not merely stale. The source formatter regex had doubled backslashes in regex literals (`\\\\d`, `\\\\B`), so decimal-string balances did not match and rendered as an em dash. The earlier source-contract test repeated the same escaping mistake and therefore passed while the UI was broken.
+- Corrected the regex literals to use actual digit/non-word-boundary escapes; corrected the source-contract test to assert the executable regex rather than the over-escaped text. This restores exact decimal-string rendering (including trailing zeroes) and integer grouping without Number conversion.
+- The existing desktop/mobile browser regression now checks available `125.50`, frozen `10.00`, and fractional BTC `0.002`, while confirming the incomplete total valuation remains hidden.
+- This is a display-only bug fix; no account API, balances, valuation, ledger, database, or trading behavior changed. Exact-head CI is required before marking validated.
+- No merge, deployment, or production database operation.
