@@ -141,5 +141,9 @@ export function Dashboard() {
         <Button asChild><Link to="/register">{t("Create account")}</Link></Button>
       </div>
     </section>
+    <footer className="px-1 pb-2 text-[11px] leading-5 text-brand-text-muted">
+      TradingView Lightweight Charts™ Copyright (с) 2025 TradingView, Inc.{" "}
+      <a href="https://www.tradingview.com/" target="_blank" rel="noreferrer" className="underline underline-offset-2 hover:text-brand-text-secondary">https://www.tradingview.com/</a>
+    </footer>
   </div>;
 }
