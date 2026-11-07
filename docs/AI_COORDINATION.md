@@ -6477,3 +6477,5 @@ Current branch HEAD at note creation: `51c302a96f069876e438321d3597501fcbc26b54`
 - Commits: `92f7f48`, `e535141`, `4091008`. Final-head CI pending. No deployment or merge.
 
 - CI wiring gap fixed: backend workflow previously allowed push runs on the unified branch but omitted it from PR target branches. Added `work/btcbox-unified-20261104` to backend `pull_request.branches` so backend changes in draft integration PRs are tested. Commit: `e66111e`. Verify the run starts on this PR head.
+
+- Backend CI now confirms the test-only admin secret isolates the deployment environment issue; build passed and 410/411 tests passed. Remaining failure was an outdated KYC source assertion that did not include the new secure-preview-error approval block. Updated test expectation to match the intended fail-closed UI (commit `ddd6f92`); rerun pending.
