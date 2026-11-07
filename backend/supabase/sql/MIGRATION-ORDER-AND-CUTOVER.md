@@ -88,3 +88,16 @@ Source CI verifies migration inventory, shell syntax, bootstrap safety gates and
 - preserve evidence and the exact SQL/source SHA.
 
 Never infer live migration state by comparing timestamp registry versions with four-digit source filenames. `backend/scripts/check_migration_status.py` intentionally refuses that unsafe comparison without an explicit reviewed mapping.
+
+## Read-only migration reconciliation evidence
+
+Before preparing a staging upgrade, capture a schema-only evidence report from an isolated clone:
+
+```bash
+python3 scripts/audit_migration_mapping.py --source-only > migration-source-manifest.json
+STAGING_DATABASE_URL='postgresql://…' python3 scripts/audit_migration_mapping.py > staging-schema-evidence.json
+```
+
+Install `requirements-postgres-staging.txt` in the isolated audit environment first. The database mode opens a read-only transaction and records the timestamp ledger, canonical source SHA-256 hashes, table/column/constraint/index inventory, function signatures/security settings, and schema/function privilege facts. It does not return application rows, user identifiers, balances, credential values, session data, or secrets. It refuses the known production project reference and ignores `DATABASE_URL`; only `STAGING_DATABASE_URL` is accepted.
+
+The output deliberately remains `MANUAL_REVIEW_REQUIRED`. It is evidence for a human-reviewed migration mapping, not an automatic timestamp-to-four-digit mapping algorithm, migration runner, backup tool, or production authorization. Preserve the JSON reports with the staging change record and review source SHA, ledger versions, and catalog differences together before selecting any pending SQL.
