@@ -115,6 +115,7 @@ export function AdminPage() {
   const auditPageRequestRef = useRef(0);
   const tabLoadRequestRef = useRef(0);
   const kycRefreshLockRef = useRef(false);
+  const withdrawalQueueRequestRef = useRef(0);
   const [auditSource, setAuditSource] = useState("unknown");
   const [auditCompleteness, setAuditCompleteness] = useState("unknown");
   const [orders, setOrders] = useState<Array<Record<string, unknown>>>([]);
@@ -475,32 +476,38 @@ export function AdminPage() {
     } finally { manualCreditLocksRef.current[coin] = false; setBusy(false); }
   };
   const refreshWithdrawalQueue = async (confirmedAction: string) => {
+    const requestId = ++withdrawalQueueRequestRef.current;
     setReviewQueueLoading(true);
     setWithdrawals([]);
     try {
       const snapshot = await getAdminWithdrawals(token);
+      if (requestId !== withdrawalQueueRequestRef.current) return;
       setWithdrawals(snapshot.withdrawals || []);
       setError("");
       setNotice(confirmedAction);
     } catch {
+      if (requestId !== withdrawalQueueRequestRef.current) return;
       setWithdrawals([]);
       setError(confirmedAction + " The queue could not refresh. Reload this tab before taking another action.");
     } finally {
-      setReviewQueueLoading(false);
+      if (requestId === withdrawalQueueRequestRef.current) setReviewQueueLoading(false);
     }
   };
   const refreshWithdrawalQueueManually = async () => {
     if (!token) return;
+    const requestId = ++withdrawalQueueRequestRef.current;
     setReviewQueueLoading(true); setWithdrawals([]); setError(""); setNotice("");
     try {
       const snapshot = await getAdminWithdrawals(token);
+      if (requestId !== withdrawalQueueRequestRef.current) return;
       setWithdrawals(snapshot.withdrawals || []);
       setNotice("Withdrawal queue refreshed.");
     } catch (reason) {
+      if (requestId !== withdrawalQueueRequestRef.current) return;
       setWithdrawals([]);
       setError(reason instanceof Error ? reason.message : "Withdrawal review queue could not be refreshed.");
     } finally {
-      setReviewQueueLoading(false);
+      if (requestId === withdrawalQueueRequestRef.current) setReviewQueueLoading(false);
     }
   };
   const loadOlderAuditRecords = async () => {

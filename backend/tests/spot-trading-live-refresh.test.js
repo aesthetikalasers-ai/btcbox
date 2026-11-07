@@ -299,3 +299,15 @@ test('admin KYC manual refresh is protected against duplicate in-flight requests
   assert.ok(refresh.indexOf('kycRefreshLockRef.current = true;') < refresh.indexOf('await getAdminKyc(token)'));
   assert.ok(refresh.includes('kycRefreshLockRef.current = false;'));
 });
+
+
+test('admin withdrawal queue ignores out-of-order refresh responses', () => {
+  const admin = fs.readFileSync(path.resolve(__dirname, '../../frontend/src/features/admin/AdminPage.tsx'), 'utf8');
+  assert.ok(admin.includes('const withdrawalQueueRequestRef = useRef(0);'));
+  const start = admin.indexOf('const refreshWithdrawalQueue = async');
+  const end = admin.indexOf('const loadOlderAuditRecords', start);
+  const refresh = admin.slice(start, end);
+  assert.equal((refresh.match(/const requestId = \\+\\+withdrawalQueueRequestRef.current;/g) || []).length, 2);
+  assert.equal((refresh.match(/requestId !== withdrawalQueueRequestRef.current/g) || []).length, 4);
+  assert.equal((refresh.match(/requestId === withdrawalQueueRequestRef.current/g) || []).length, 2);
+});
