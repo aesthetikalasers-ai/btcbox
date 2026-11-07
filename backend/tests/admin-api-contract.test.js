@@ -58,7 +58,7 @@ test('admin error feedback surfaces server codes and the refresh-after-confirmed
   // Admin actions that succeed but whose follow-up refresh fails must keep the
   // success notice and tell the operator to reload, not report the action as
   // failed. Verified for KYC review; withdrawal queue uses the same helper.
-  assert.ok(adminPage.includes('KYC review is confirmed; the queue could not refresh'));
+  assert.ok(adminPage.includes('setError(successMessage + " The queue could not refresh. Reload this tab before reviewing another application."'));
   const refreshStart = adminPage.indexOf('const refreshWithdrawalQueue = async (confirmedAction: string)');
   const refreshEnd = adminPage.indexOf('const refreshWithdrawalQueueManually = async', refreshStart);
   assert.ok(refreshStart >= 0 && refreshEnd > refreshStart);
@@ -82,4 +82,26 @@ test('admin error feedback surfaces server codes and the refresh-after-confirmed
   // ApiError carries the server code so callers can distinguish 409/400/503.
   assert.ok(client.includes('class ApiError') || client.includes('ApiError'));
   assert.ok(client.includes('payload?.code'));
+});
+
+
+test('spot-market admin accepts ordinary decimal tick and quantity values without escaped-backslash literals', () => {
+  const expected = 'const decimal = /^(?:0|[1-9]\\d{0,19})(?:\\.\\d{1,18})?$/;';
+  assert.ok(adminPage.includes(expected), 'spot-market validation must use executable digit and decimal-point escapes');
+  const decimal = /^(?:0|[1-9]\d{0,19})(?:\.\d{1,18})?$/;
+  for (const value of ['0.01', '0.000001', '1', '125.50', '10000000000000000000']) {
+    assert.match(value, decimal, 'expected accepted decimal: ' + value);
+  }
+  for (const value of ['.01', '01.00', '1e-6', '1.1234567890123456789', '1\\d']) {
+    assert.doesNotMatch(value, decimal, 'expected rejected decimal: ' + value);
+  }
+});
+
+
+test('withdrawal and KYC review actions use synchronous per-record locks', () => {
+  assert.ok(adminPage.includes('const reviewActionLocksRef = useRef<Record<string, boolean>>({})'));
+  assert.ok(adminPage.includes('if (!token || reviewActionLocksRef.current[lockKey]) return;'));
+  assert.ok(adminPage.includes('reviewActionLocksRef.current[lockKey] = false'));
+  assert.ok(adminPage.includes('if (reviewActionLocksRef.current[actionLockKey]) return;'));
+  assert.ok(adminPage.includes('reviewActionLocksRef.current[actionLockKey] = false'));
 });
