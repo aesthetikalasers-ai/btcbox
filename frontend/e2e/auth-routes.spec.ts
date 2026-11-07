@@ -735,3 +735,58 @@ test("public preview landing page is available signed out with market data and r
   expect(dimensions.content).toBeLessThanOrEqual(dimensions.viewport);
   expect(mutations).toEqual([]);
 });
+
+
+test("Admin user-detail failure clears the previously selected user's financial panel", async ({ page }) => {
+  await installAdminE2EIdentity(page);
+  await page.route("**/api/admin/session", route => route.fulfill({
+    status: 200, contentType: "application/json",
+    body: JSON.stringify({
+      ok: true, user_id: "e2e-admin-001", status: "active", is_super_admin: false,
+      permissions: ["users.read", "deposits.read", "deposits.review"],
+    }),
+  }));
+  await page.route("**/api/admin/users**", route => route.fulfill({
+    status: 200, contentType: "application/json",
+    body: JSON.stringify({ ok: true, users: [
+      { uid: "e2e-user-001", email: "first@example.invalid", frozen: false },
+      { uid: "e2e-user-002", email: "second@example.invalid", frozen: false },
+    ] }),
+  }));
+  let detailReads = 0;
+  await page.route("**/api/admin/user?**", async route => {
+    detailReads += 1;
+    if (detailReads === 1) {
+      await route.fulfill({
+        status: 200, contentType: "application/json",
+        body: JSON.stringify({ ok: true, user: {
+          uid: "e2e-user-001", email: "first@example.invalid", frozen: false,
+          financial_balance_source: "postgres_financial_ledger",
+          deposit_history_source: "postgres_financial_ledger",
+          balances: { USDT: { free: "250.00", frozen: "0", usdt: "250.00", valuation_available: true } },
+          deposit_history: [{ id: "E2E-DEPOSIT-001", coin: "USDT", network: "TRC20", amount: "250.00", status: "completed", reference: "E2E-TX-FIRST", time: "2026-11-07T01:00:00.000Z" }],
+        } }),
+      });
+      return;
+    }
+    await route.fulfill({
+      status: 503, contentType: "application/json",
+      body: JSON.stringify({ ok: false, code: "USER_DETAIL_UNAVAILABLE", msg: "User account could not be loaded." }),
+    });
+  });
+
+  await page.goto("/admin");
+  await page.getByRole("button", { name: "Users & manual credit", exact: true }).click();
+  await page.getByRole("button", { name: "Open", exact: true }).first().click();
+  await expect(page.getByText("first@example.invalid")).toBeVisible();
+  await expect(page.getByText("E2E-DEPOSIT-001")).toBeVisible();
+  await expect(page.getByText("e2e-user-001", { exact: true })).toBeVisible();
+
+  await page.getByRole("button", { name: "Open", exact: true }).nth(1).click();
+  await expect(page.getByRole("alert")).toContainText("User account could not be loaded.");
+  await expect(page.getByText("E2E-DEPOSIT-001")).toHaveCount(0);
+  await expect(page.getByText("first@example.invalid")).toHaveCount(0);
+  await expect(page.getByText("e2e-user-001", { exact: true })).toHaveCount(0);
+  await expect(page.getByText("Select a user to load their current balances.")).toBeVisible();
+  expect(detailReads).toBe(2);
+});
