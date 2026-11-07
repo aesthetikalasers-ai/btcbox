@@ -1035,3 +1035,21 @@ test("Admin rapid user selection ignores an older detail response", async ({ pag
   await expect(page.getByText("Available: 111.00")).toHaveCount(0);
   expect(detailReads).toBe(2);
 });
+
+test("public preview distinguishes server snapshot time from upstream provider time", async ({ page }) => {
+  const now = Math.floor(Date.now() / 1000);
+  await page.route("**/api/market", route => route.fulfill({
+    status: 200,
+    contentType: "application/json",
+    body: JSON.stringify({
+      ok: true,
+      markets: [{ sym: "BTC", price: 65000, chg: 1.2, high: 66000, low: 64000, vol: "1000000", source: "coinbase" }],
+      data: { BTC: { ts: now, providerTs: now - 90, source: "coinbase" } },
+    }),
+  }));
+
+  await page.goto("/home");
+
+  await expect(page.getByText(/Server snapshot ·/)).toBeVisible();
+  await expect(page.getByText(/Provider snapshot · coinbase · .* · 90s ago/)).toBeVisible();
+});
