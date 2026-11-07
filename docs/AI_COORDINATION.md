@@ -3659,3 +3659,8 @@ The prior withdrawal UI audit statement claiming the active BTCBOX admin route w
 - Fix commit `1ad512fc23c471ca443255b0e0d1650d2702bbe6` scopes the assertion to the approval-action cell and explicitly asserts that the raw backend preview error is absent. Application behavior is unchanged.
 - Await exact-head CI for `1ad512fc23c471ca443255b0e0d1650d2702bbe6`; do not accept until all steps pass.
 - PR #65 remains Draft/open; no merge, deployment, hosted DB writes or real financial operations. Browser visual QA remains NOT VERIFIED.
+
+
+- Exact-head verification refresh — 2026-11-08: CI run `42404408542` passed all steps for `1ad512fc23c471ca443255b0e0d1650d2702bbe6` (install, lint, production build, Chromium, desktop/mobile route smoke tests).
+- Latest source head `b74a805f4c3be9c7ab897bf1bc9ba698e7881360`: customer Assets and Orders pages now preserve the last confirmed account snapshot/history on transient refresh errors; private data is still cleared on explicit `AUTH_REQUIRED`. No API, financial, or order behavior changed. Exact-head CI run `42405325759` is in progress; acceptance pending all steps.
+- Source audit observations: unknown customer/admin order statuses remain non-success; unknown deposit and withdrawal statuses remain warning; spot trading controls fail closed when server trading status is unavailable. Browser visual QA remains NOT VERIFIED. PR #65 remains Draft/open; no merge, deployment, hosted DB writes, or real financial operations.
