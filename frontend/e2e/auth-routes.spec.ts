@@ -301,6 +301,7 @@ test("username login submits BTCBOX credentials to the username endpoint and sur
 
 test("first verified Google or wallet identity can set username and password on the same BTCBOX account", async ({ page }) => {
   const credentialRequests: Array<{ username?: string; password?: string; current_password?: string }> = [];
+  let credentialsSaved = false;
   await page.route("**/api/account", async (route) => {
     await route.fulfill({
       status: 200,
@@ -309,8 +310,8 @@ test("first verified Google or wallet identity can set username and password on 
         ok: true,
         uid: "e2e-new-identity",
         email: "",
-        username: "",
-        has_login_password: false,
+        username: credentialsSaved ? "new_user_01" : "",
+        has_login_password: credentialsSaved,
         balances: {},
         unpriced_assets: [],
         kyc: { status: "not_submitted" },
@@ -320,6 +321,7 @@ test("first verified Google or wallet identity can set username and password on 
   });
   await page.route("**/api/account/credentials", async (route) => {
     credentialRequests.push(route.request().postDataJSON());
+    credentialsSaved = true;
     await route.fulfill({
       status: 200,
       contentType: "application/json",
