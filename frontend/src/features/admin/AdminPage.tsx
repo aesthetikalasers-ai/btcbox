@@ -110,6 +110,7 @@ export function AdminPage() {
   const [audit, setAudit] = useState<AdminAuditRecord[]>([]);
   const [auditNextBefore, setAuditNextBefore] = useState<string | null>(null);
   const [auditPageLoading, setAuditPageLoading] = useState(false);
+  const auditPageRequestRef = useRef(0);
   const [auditSource, setAuditSource] = useState("unknown");
   const [auditCompleteness, setAuditCompleteness] = useState("unknown");
   const [orders, setOrders] = useState<Array<Record<string, unknown>>>([]);
@@ -213,6 +214,8 @@ export function AdminPage() {
 
   const loadTab = useCallback(async () => {
     if (!token || !session) return;
+    const auditRequestId = ++auditPageRequestRef.current;
+    setAuditPageLoading(false);
     setLoading(true);
     setError("");
     try {
@@ -255,10 +258,12 @@ export function AdminPage() {
         setAuditSource("unknown");
         setAuditCompleteness("unknown");
         const snapshot = await getAdminAuditLogs(token);
-        setAudit(snapshot.logs || []);
-        setAuditNextBefore(snapshot.source === "postgres_financial_audit_log" ? snapshot.next_before || null : null);
-        setAuditSource(snapshot.source || "unknown");
-        setAuditCompleteness(snapshot.completeness || "unknown");
+        if (auditRequestId === auditPageRequestRef.current) {
+          setAudit(snapshot.logs || []);
+          setAuditNextBefore(snapshot.source === "postgres_financial_audit_log" ? snapshot.next_before || null : null);
+          setAuditSource(snapshot.source || "unknown");
+          setAuditCompleteness(snapshot.completeness || "unknown");
+        }
       }
       if (tab === "orders") {
         const snapshot = await getAdminOrders(token);
@@ -439,10 +444,12 @@ export function AdminPage() {
   const loadOlderAuditRecords = async () => {
     if (!token || !auditNextBefore || auditPageLoading) return;
     const cursor = auditNextBefore;
+    const requestId = ++auditPageRequestRef.current;
     setAuditPageLoading(true);
     setError("");
     try {
       const snapshot = await getAdminAuditLogs(token, 50, undefined, cursor);
+      if (requestId !== auditPageRequestRef.current || cursor !== auditNextBefore) return;
       const nextSource = snapshot.source || "unknown";
       const nextCompleteness = snapshot.completeness || "unknown";
       if (nextSource !== auditSource || nextCompleteness !== auditCompleteness) {
@@ -458,7 +465,7 @@ export function AdminPage() {
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "Older audit records could not be loaded.");
     } finally {
-      setAuditPageLoading(false);
+      if (requestId === auditPageRequestRef.current) setAuditPageLoading(false);
     }
   };
 
