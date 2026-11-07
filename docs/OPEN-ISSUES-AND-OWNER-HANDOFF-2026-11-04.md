@@ -422,3 +422,13 @@ Registration and the signed-out preview/home page are now the first pages to com
 
 - CI integration finding: existing Core contract tests assert the Admin UI's refresh-after-confirmed-payout call pattern. Kept that call shape and re-applied the exact duplicate-reference notice after queue refresh, so both the established contract and improved operator feedback are preserved. No Core source/test changes.
 - Follow-up: `be2b47513b18f961e96a5d97c2b99b6aec10b3c9`.
+
+
+## Admin user-detail selection isolation — 2026-11-07
+
+- 2号 AI cross-reviewed the Admin Users / manual-credit panel against the per-user deposit history and ledger-source labels.
+- FOUND: selecting a second user left the previously selected user's detail panel mounted while the next `admin/user` GET was pending. If that read failed, the old user's balances, deposit history and manual-credit form remained visible even though the operator had attempted to open another user.
+- FIXED: clear the selected user before issuing the next detail request. A failed read now leaves the explicit “Select a user…” state and no prior user's balance/deposit evidence or manual-credit controls.
+- REGRESSION: Playwright loads one user's ledger-backed balance and deposit history, then simulates a 503 for the next user's detail request; it asserts the previous deposit ID and balance row disappear and the read error is visible.
+- Scope: frontend selection state and E2E only. No deposit API, ledger, database, idempotency key, credit behavior, or production configuration changed.
+- Verification: exact-head CI pending; no merge, deployment, production DB write, or real financial operation performed.
