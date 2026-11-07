@@ -6250,3 +6250,9 @@ Current branch HEAD at note creation: `51c302a96f069876e438321d3597501fcbc26b54`
 - 320px Playwright coverage verifies price and limit order priority, chart/depth hidden by default, chart canvas rendering when opened, both drawer open/close interactions, distinct provider provenance, and no horizontal overflow.
 - Frontend CI run 42321826347 at bb6183557b9048734382c3f4cac75d8fbc8b5a7c: SUCCESS — lint, build and desktop/mobile Playwright route smoke all passed (32 tests).
 - No trade execution, matching, settlement, account balance or financial backend behavior changed. No production deploy.
+
+## 2026-11-07 continuation — wallet provider failure behavior
+
+- Added isolated Playwright coverage for unavailable EVM and Solana injected wallet providers. Both paths must surface a visible authentication error and must not call BTCBOX Supabase-session exchange endpoints without a wallet-backed Supabase session.
+- Frontend CI run 42322062375 at 24017400371e46cb200fbe37867c5190ee5f1080: SUCCESS — lint, build and 34 desktop/mobile route tests passed.
+- Real wallet signing and Supabase provider enablement remain unverified on physical devices; this test covers the no-provider failure path only.
