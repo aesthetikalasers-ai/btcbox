@@ -264,3 +264,23 @@ Important: source-level implementation is not proof of live Supabase provider co
 - Admin E2E covers withdrawal queue refresh failure without false financial confirmation or any mutation request, and blocks KYC approval when document upload/secure preview is absent.
 - Exact code/test head: `8967f936520470cd0a624efc718012dc615e26e2`. Push CI `42329063335`: SUCCESS — lint/build and 40 Playwright tests (20 desktop + 20 mobile). Backend PR CI `42329067130`: SUCCESS — 411/411 tests, unified build, fail-closed preflight and output checks. Frontend PR CI `42329067115`: SUCCESS — lint/build and 40 desktop/mobile tests.
 - No production database, funds, real orders, merge or deployment touched.
+
+
+## 2026-11-07 continuation — restore original mature UI palette and integrate BTCBOX brand
+
+### User decision
+- User rejected forcing the earlier proposed near-monochrome BTCBOX palette, stating that it made the interface too plain.
+- Follow the original mature UI foundation palette and its visual language; adapt the BTCBOX brand rather than redesigning the source system into a flat black/white look.
+- LOGO should be integrated into the interface rather than appearing as a pasted image.
+
+### Changes committed to `work/btcbox-unified-20261104`
+- `frontend/src/index.css`: restored the mature UI foundation's deep navy / blue accent palette (surface hierarchy, cool-neutral text, blue focus/interaction state, green profit and red-pink loss semantics); preserved the existing font imports, typography utilities and responsive base rules.
+- `frontend/src/components/BrandLogo.tsx`: added a reusable inline SVG/vector BTCBOX mark with a typographic wordmark and optional EXCHANGE label.
+- `frontend/src/components/layout/Sidebar.tsx`: replaced the CSS-only diamond placeholder with the shared vector brand component.
+- `frontend/src/components/layout/Topbar.tsx`: added a compact wordmark in the mobile header so the brand remains visible when the desktop sidebar is hidden.
+- Commits: `dc48ca58409ccc19c68c7601663e59a5cc915fce` (brand component), `b8466acaa2a6a28e7ed7a67abeb58de0d6c58f4b` (palette), `764fb3330b437aaa6872850b9f8ad6e84bb094cf` (sidebar), `98da5054da084298c323be91da981a4963d81908` (mobile topbar).
+
+### Scope and verification
+- No trading/order execution, account, authentication, backend, database, financial, or deployment behavior was changed.
+- Source edits are committed to the unified collaboration branch. Build, lint, Playwright, and visual browser QA for the latest head are PENDING until CI results are checked.
+- Remaining visual QA: compare mobile and desktop surfaces against the original mature UI foundation; inspect brand mark proportions, header/sidebar alignment, focus states, chart colors, profit/loss contrast, and Admin visual consistency. Do not claim full-site visual completion until these checks pass.
