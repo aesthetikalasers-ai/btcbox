@@ -120,6 +120,8 @@ test('withdrawal submit handler synchronously blocks concurrent duplicate browse
   assert.ok(withdrawPage.includes('const submitLockRef=useRef(false)'));
   assert.ok(withdrawPage.includes('submitLockRef.current)return'));
   assert.ok(withdrawPage.includes('submitLockRef.current=true'));
+  assert.ok(withdrawPage.includes('window.crypto.randomUUID()'));
+  assert.ok(withdrawPage.includes('Secure withdrawal request IDs are unavailable in this browser.'));
   assert.ok(withdrawPage.includes('finally{submitLockRef.current=false;setSubmitting(false);}'));
 });
 
