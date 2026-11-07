@@ -6558,3 +6558,11 @@ Current branch HEAD at note creation: `51c302a96f069876e438321d3597501fcbc26b54`
 - No production database operations, merge, or deployment were performed.
 
 - Follow-up CI found one existing support-reply contract test still expected the old literal refresh-failure message. Updated the assertion to match the new success-message-preserving fail-closed refresh behavior. Commit: `d3c682792348bfa25cc15d5e393f9b8532e3a9d9`.
+
+
+## Admin manual-credit selection race — 2026-11-08 (2号 AI)
+- Found that a confirmed manual credit always called `selectUser(targetUid)` after its asynchronous POST. If the operator selected another user while the credit request was in flight, the old completion could unexpectedly replace the current detail view.
+- Fixed by capturing the selected UID and detail-request generation at submission time; the post-credit refresh now runs only if that same user selection is still current. The credit remains bound to the original target UID and is never redirected to the newly selected account.
+- Added a source-contract regression test for the selection-generation guard.
+- Frontend/Admin UI and regression test only. No credit API, ledger, database, authentication, or production data changed.
+- Exact-head CI pending. No merge or deployment.

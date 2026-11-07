@@ -365,3 +365,16 @@ test('admin support queue ignores stale initial loads and duplicate replies per 
   assert.ok(reply.includes('await getAdminSupportMessages(token)'));
   assert.ok(reply.includes('window.crypto.randomUUID()'));
 });
+
+
+test('admin manual-credit completion does not replace a newer selected user', () => {
+  const admin = fs.readFileSync(path.resolve(__dirname, '../../frontend/src/features/admin/AdminPage.tsx'), 'utf8');
+  const start = admin.indexOf('const manualCredit = async');
+  const end = admin.indexOf('const refreshWithdrawalQueue =', start);
+  const flow = admin.slice(start, end);
+  assert.ok(start >= 0 && end > start);
+  assert.ok(flow.includes('const selectedUid = selectedUser.uid;'));
+  assert.ok(flow.includes('const selectedUserRequestId = userDetailRequestRef.current;'));
+  assert.ok(flow.includes('userDetailRequestRef.current === selectedUserRequestId && selectedUser?.uid === selectedUid'));
+  assert.ok(flow.includes('await selectUser(selectedUid);'));
+});

@@ -435,6 +435,8 @@ export function AdminPage() {
       setError("A saved manual-credit request is unreadable. Check the user's ledger before creating another credit.");
       return;
     }
+    const selectedUid = selectedUser.uid;
+    const selectedUserRequestId = userDetailRequestRef.current;
     const amount = (creditAmount[coin] || "").trim();
     if (!/^(?:0|[1-9]\d*)(?:\.\d{1,18})?$/.test(amount) || /^0(?:\.0*)?$/.test(amount)) {
       setError("Enter the verified amount received.");
@@ -487,7 +489,11 @@ export function AdminPage() {
       setCreditRequestIds(current => { const next = { ...current }; delete next[coin]; return next; });
       setCreditPendingInvalid(current => { const next = { ...current }; delete next[coin]; return next; });
       setNotice(result.duplicate ? "This manual credit was already recorded." : "Manual credit recorded and audit event submitted.");
-      await selectUser(selectedUser.uid);
+      // A completed credit must not steal focus from a different user selected
+      // while the request was in flight. Refresh only the still-current detail.
+      if (userDetailRequestRef.current === selectedUserRequestId && selectedUser?.uid === selectedUid) {
+        await selectUser(selectedUid);
+      }
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "Manual credit was not confirmed.");
       if (!creditAccepted && reason instanceof ApiError && reason.status >= 400 && reason.status < 500 && reason.status !== 409) {
