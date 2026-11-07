@@ -88,3 +88,5 @@ Source CI verifies SQL inventory, shell syntax, bootstrap safety gates and sourc
 - preserve evidence and the exact SQL/source SHA.
 
 Never infer live database state from source filenames or migration version labels. Do not run a migration, bootstrap, or hosted database write as part of source review.
+
+Never infer live database state by comparing timestamp registry versions with four-digit source filenames. Do not run a migration, bootstrap, or hosted database write as part of source review.

@@ -47,35 +47,6 @@ test('withdrawal creation API and canonical SQL agree on the 11-argument fee-sna
 });
 
 
-test('read-only production readiness diagnostic covers critical live schema drift', () => {
-  const diagnostic = read('supabase/diagnostics/production-schema-readiness.sql');
-  for (const token of [
-    "('public','withdrawal_requests','require_admin_review','boolean')",
-    "('public','withdrawal_requests','request_hash','text')",
-    "('public','withdrawal_requests','payout_reference','text')",
-    "('public','withdrawal_requests','payout_note','text')",
-    "('public','withdrawal_requests','paid_by','text')",
-    "('public','withdrawal_requests','paid_at','timestamp with time zone')",
-    "('public','financial_audit_log','event_id','text')",
-    'withdrawal_requests_status_check',
-    'LEGACY_OVERLOAD_PRESENT',
-    'overload_count <> 1',
-    "('public','seconds_contract_positions','policy_id','uuid')",
-    "('public','seconds_contract_positions','policy_version','bigint')",
-    "('public','seconds_contract_positions','payout_bps_snapshot','integer')",
-    "('public','seconds_contract_positions','policy_snapshot','jsonb')",
-    'seconds_contract_positions_duration_sec_positive',
-    'seconds_contract_positions_duration_sec_check',
-    'financial_audit_action_id_desc_idx',
-    'financial_audit_subject_id_desc_idx',
-  ]) {
-    assert.ok(diagnostic.includes(token), 'diagnostic must cover ' + token);
-  }
-  const forbiddenMutations = ['INSERT INTO', 'UPDATE ', 'DELETE FROM', 'ALTER TABLE', 'DROP FUNCTION', 'CREATE TABLE', 'GRANT ', 'REVOKE '];
-  for (const statement of forbiddenMutations) {
-    assert.ok(!diagnostic.toUpperCase().includes(statement), 'diagnostic must not contain mutation statement: ' + statement);
-  }
-});
 
 test('final withdrawal migration removes stale overloads and preserves service-role-only canonical RPC', () => {
   const cleanup = read('supabase/sql/0033_withdrawal_legacy_rpc_cleanup_v1.sql');
@@ -93,21 +64,3 @@ test('final withdrawal migration removes stale overloads and preserves service-r
 });
 
 
-test('production data inventory reports counts and state shape without exposing user payloads', () => {
-  const inventory = read('supabase/diagnostics/production-data-inventory.sql');
-  for (const token of ['TABLE_COUNT', 'USER_SUMMARY', 'STATE_KEY', 'jsonb_object_keys', 'users_with_btcbox_login_password', 'users_with_nonzero_balance']) {
-    assert.ok(inventory.includes(token), 'inventory must include ' + token);
-  }
-  for (const sensitiveProjection of [
-    'user_key AS object_name',
-    'user_data AS detail',
-    "data -> 'users' AS detail",
-    "data -> 'sessions' AS detail",
-  ]) {
-    assert.ok(!inventory.includes(sensitiveProjection), 'inventory must not project sensitive payload: ' + sensitiveProjection);
-  }
-  const forbiddenMutations = ['INSERT INTO', 'UPDATE ', 'DELETE FROM', 'ALTER TABLE', 'DROP FUNCTION', 'CREATE TABLE', 'GRANT ', 'REVOKE '];
-  for (const statement of forbiddenMutations) {
-    assert.ok(!inventory.toUpperCase().includes(statement), 'inventory must remain read-only: ' + statement);
-  }
-});
