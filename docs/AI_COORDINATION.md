@@ -6346,3 +6346,13 @@ Current branch HEAD at note creation: `51c302a96f069876e438321d3597501fcbc26b54`
 - TEST ADDED: public-preview Playwright coverage now asserts that the server snapshot indicator is visible when the API fixture includes a server timestamp.
 - Commits: `23b5fb8b10ce176c449e5803dc914fc3d65b8751` (UI); `a421c57382435d0f49f278a53b9d5a32a2b0a5b2` (browser regression).
 - NOT VERIFIED: exact-commit CI, real upstream timestamp freshness, deployed UI, and screenshot-based visual review. No auth/backend contract, database, financial action, merge or deployment changed.
+
+
+## Admin review queue reload safety — 2026-11-07
+
+- 2号 AI cross-reviewed the existing semi-manual Admin Panel withdrawal and KYC queues. Manual refresh failures already retain the last confirmed rows with an explicit error; this is intentional for an operator-initiated refresh and is covered by existing read-only failure tests.
+- FOUND: when navigating away from a review tab and returning, the tab loader previously retained the prior queue state if the new initial GET failed. That could redisplay stale withdrawal/KYC rows after a failed tab reload.
+- FIXED: clear the respective withdrawal/KYC row state before a tab-level queue fetch. If that fetch fails, the prior review actions are no longer available from stale rows. Manual refresh behavior remains unchanged and continues to retain last-confirmed rows with a visible error.
+- TEST ADDED: Admin E2E loads a withdrawal row, switches to KYC, then simulates a 503 when returning to Withdrawals; it asserts the stale row and Approve action are absent and the queue error is visible.
+- Commits: d23218081fbbd9d993ef3280f4933ab1cc349d65 (Admin queue state); 8a834cc1b5734b5a0259b54457e3d92ce7649815 (E2E regression).
+- Verification pending: frontend CI for latest code/test SHA. No finance API semantics, manual payout workflow, backend, production DB, merge or deployment changed.
