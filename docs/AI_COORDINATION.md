@@ -6503,3 +6503,6 @@ Current branch HEAD at note creation: `51c302a96f069876e438321d3597501fcbc26b54`
 - Commit: `4362d2589ae1c81c4ba4a5be585aa4b526a97c37`. Fresh PR CI pending.
 - Vercel status is blocked by the free-plan daily deployment cap (`api-deployments-free-per-day`); no deployment was retried. Automated viewport tests do not replace manual screenshot or live-provider verification.
 - No production changes, merge, or deployment.
+
+
+- Regression follow-up: first CI run `42357749939` exposed an E2E locator defect, not a UI defect: the test selected the hidden duplicate market-row representation. Replaced it with a locator constrained to visible paragraphs. Fix commit `ad7073ed1639be40f79bfd777d28fac9b1ee170f`; rerun exact-head CI before acceptance.
