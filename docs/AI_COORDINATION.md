@@ -6613,3 +6613,12 @@ Current branch HEAD at note creation: `51c302a96f069876e438321d3597501fcbc26b54`
 - No merge, deployment, or production database operation.
 
 - Follow-up source inspection caught one remaining doubled escape before the decimal-point literal in the regex; corrected that to a single escaped dot as well. The existing source-contract assertion already checks the correctly escaped decimal-point pattern. The final regex now matches normal decimal strings end-to-end (for example `125.50`).
+
+## Exact-head CI validation — 2026-11-08 (2号 AI)
+
+- Rechecked branch `work/2ai-production-readiness-20261107` at exact HEAD `e0c29c48c349e17f1bc4cea936b1d6e6aaf9ad9a`.
+- Frontend CI run `42396173023`: completed successfully (build and browser test job).
+- Backend CI run `42396173084`: completed successfully.
+- PostgreSQL schema CI run `42396173092`: completed successfully.
+- This supersedes the earlier “exact-head CI pending” notes above for the asset decimal-string formatter correction and the preceding Admin/dashboard batches. The browser regression now validates the corrected decimal-string formatter on desktop and mobile.
+- PR #64 remains open and unmerged. No production deployment, production database operation, or merge was performed.
