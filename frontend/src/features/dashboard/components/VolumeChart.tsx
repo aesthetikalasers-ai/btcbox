@@ -20,21 +20,21 @@ export function VolumeChart({ candles = [] }: { candles?: MarketCandle[] }) {
       layout: {
         attributionLogo: false,
         background: { type: ColorType.Solid, color: 'transparent' },
-        textColor: 'rgba(255, 255, 255, 0.38)',
-        fontSize: 11,
+        textColor: '#9AADC5',
+        fontSize: 12,
         fontFamily: 'Inter',
       },
       grid: {
-        vertLines: { color: 'rgba(255, 255, 255, 0.02)', style: 4 },
+        vertLines: { color: 'rgba(148, 180, 220, 0.065)', style: 4 },
         horzLines: { color: 'rgba(255, 255, 255, 0.02)', style: 4 }, 
       },
       crosshair: {
         mode: 1,
         vertLine: {
-          color: 'rgba(255, 255, 255, 0.15)',
+          color: 'rgba(148, 180, 220, 0.28)',
           width: 1,
           style: 3,
-          labelBackgroundColor: '#101113',
+          labelBackgroundColor: '#192A42',
         },
         horzLine: {
           color: 'rgba(255, 255, 255, 0.15)',
@@ -44,7 +44,7 @@ export function VolumeChart({ candles = [] }: { candles?: MarketCandle[] }) {
         },
       },
       timeScale: {
-        borderColor: 'rgba(255, 255, 255, 0.05)',
+        borderColor: 'rgba(148, 180, 220, 0.14)',
         timeVisible: false,
       },
       handleScroll: { vertTouchDrag: false, horzTouchDrag: true },
@@ -96,8 +96,8 @@ export function VolumeChart({ candles = [] }: { candles?: MarketCandle[] }) {
       </CardHeader>
       
       <div className="mb-4 flex min-w-0 shrink-0 flex-wrap items-baseline gap-x-3 gap-y-2">
-        <span className="text-2xl font-semibold leading-none tracking-tight sm:text-[32px]">{latestCandle ? latestCandle.volume.toLocaleString("en-US", { maximumFractionDigits: 2 }) : "No market data"}</span>
-        <div className="min-w-0 break-words text-[12px] font-medium text-brand-text-muted">
+        <span className="type-price text-brand-text">{latestCandle ? latestCandle.volume.toLocaleString("en-US", { maximumFractionDigits: 2 }) : "No market data"}</span>
+        <div className="min-w-0 break-words text-[13px] font-medium text-brand-text-muted">
           {latestCandle ? "Latest 1h candle · BTC/USDT" : "Waiting for market data"}
         </div>
       </div>
