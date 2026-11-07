@@ -193,3 +193,14 @@ Important: source-level implementation is not proof of live Supabase provider co
 ### Test follow-up — 2026-11-07
 - Frontend CI run 42319186017: username-login E2E passed; first-credential setup E2E failed on desktop and mobile because the new mocked `/api/account` fixture omitted required `unpriced_assets`, causing account bootstrap validation to fail before the setup screen rendered. This was a test-fixture defect, not evidence of a production auth regression.
 - Added `unpriced_assets: []` to the fixture in commit 1d066f5f6050e4c47d061528dd1d6fe4bd3afbe2. Awaiting the rerun; do not mark the test green until CI confirms.
+
+### Authentication regression batch — verification completed 2026-11-07
+
+- Username login browser contract test passed (request payload + safe rejection UI).
+- First-time username/password setup passed on desktop and mobile; fixture now models the account snapshot before and after credentials are saved so the setup gate is exercised accurately.
+- Google OAuth cancellation callback test passed; user receives a visible error and return-to-login path, with no BTCBOX session creation.
+- Backend wallet claim tests cover EVM address normalization, Solana base58 address acceptance, malformed EVM/Solana addresses and unsupported chain rejection.
+- Frontend CI run 42321032193 at 00581b5ab1bc10697ce01f447b91d21d17f0372e: SUCCESS (lint/build + desktop/mobile Playwright).
+- Backend CI run 42321114844 at 863576598db9414669798ff917f389ccb8eb8892: SUCCESS (411 tests + unified build/preflight).
+- Test-only failures and fixes: 2598d7e failed because the account fixture omitted required unpriced_assets; 1d066f5 corrected it; 00581b5 made the account response reflect persisted credentials; bfd5056 added OAuth cancellation coverage; d77126f initially used an unsuitable cross-realm strict assertion; 8635765 corrected the assertion and passed CI.
+- Live Google provider enablement/redirect allowlist and real EVM/Solana wallet signature flows remain NOT VERIFIED. Do not claim production authentication is live solely from isolated CI. No deployment or production data change.
