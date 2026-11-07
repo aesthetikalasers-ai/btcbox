@@ -6183,3 +6183,11 @@ Current branch HEAD at note creation: `51c302a96f069876e438321d3597501fcbc26b54`
 - Vercel status remains build-rate-limit failure; this does not prove backend test failure. GitHub Actions workflow-run lookup returned no PR-triggered runs for the test commit. Push workflow execution result remains unverified.
 - No production provider setting, financial database, live account, merge, or deployment was touched.
 - Next: inspect admin audit visibility and the market response cache/provider behavior; obtain backend CI on exact source commits when Actions reports a result.
+
+## 2026-11-07 continuation — manual payout audit cross-check
+
+- Reviewed `0027_withdrawal_manual_payout_completion_v1.sql`, `withdraw/mark-paid` API handler, and existing manual payout tests.
+- Confirmed source-level invariants: only approved withdrawals can be marked completed; a non-empty payout reference is required; exact retries do not append a second audit row; conflicting references fail; completion is status/audit-only and does not broadcast or debit again.
+- Added regression assertions for verified admin actor, withdrawal subject, payout reference, paid_by/paid_at and duplicate-audit prevention. Commit: `8e41700b213bc30aba86b3e31bd441db9676ea7a`.
+- Tests remain NOT VERIFIED on the new commit; do not infer pass from static source review. No production DB or deployment action.
+- Continue directly with public market cache and spot trade preview parity review.
