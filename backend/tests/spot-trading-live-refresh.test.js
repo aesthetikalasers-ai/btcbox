@@ -316,10 +316,12 @@ test('admin withdrawal queue ignores out-of-order refresh responses', () => {
 test('admin KYC refresh responses cannot overwrite a newer post-review queue snapshot', () => {
   const admin = fs.readFileSync(path.resolve(__dirname, '../../frontend/src/features/admin/AdminPage.tsx'), 'utf8');
   assert.ok(admin.includes('const kycQueueRequestRef = useRef(0);'));
-  const refresh = admin.slice(admin.indexOf('const refreshKycQueue = async'), admin.indexOf('// A 409 WITHDRAWAL_ALREADY_PROCESSED'));
+  const refreshStart = admin.indexOf('const refreshKycQueue = async');
+  const refreshEnd = admin.indexOf('const refreshKycQueueAfterReview = async', refreshStart);
+  const refresh = admin.slice(refreshStart, refreshEnd);
   assert.ok(refresh.includes('const requestId = ++kycQueueRequestRef.current;'));
   assert.ok(refresh.includes('if (requestId !== kycQueueRequestRef.current) return;'));
-  assert.ok(refresh.includes('const refreshKycQueueAfterReview = async (successMessage: string)'));
-  assert.ok(refresh.includes('await refreshKycQueueAfterReview("KYC approved.");'));
-  assert.ok(refresh.includes('await refreshKycQueueAfterReview("KYC rejected.");'));
+  assert.ok(admin.includes('const refreshKycQueueAfterReview = async (successMessage: string)'));
+  assert.ok(admin.includes('await refreshKycQueueAfterReview("KYC approved.");'));
+  assert.ok(admin.includes('await refreshKycQueueAfterReview("KYC rejected.");'));
 });
