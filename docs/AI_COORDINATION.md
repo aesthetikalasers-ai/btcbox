@@ -3618,3 +3618,9 @@ The prior withdrawal UI audit statement claiming the active BTCBOX admin route w
 - Trade Hub Futures-card removal `8b1355c8bc4abd057b13b8e520bbd29b323d0cd1` CI run `42398790818`: install/lint/build/Chromium passed; route smoke failed because the existing E2E test asserted that the unsupported Futures card remained visible. This exposed a stale test contract, not an application build or runtime failure.
 - E2E correction `0ec0bb9628b74a455956b3c01cdc9faf6bd97380`: trade chooser test now asserts unavailable Futures/Unavailable labels are absent, while still verifying Spot, Seconds, BTC/USDT and Earn entry behavior. Await exact-head CI; do not accept until all steps pass.
 - No merge, deployment, hosted database writes or real financial operations. Browser visual QA remains NOT VERIFIED.
+
+
+- Latest customer-facing data-state batch `8b60f13a3381697202cf2212157ea012e4ec33b8` (`fix(market): avoid claiming live feed when no markets are returned`): the public dashboard now reports the market feed unavailable when the market API succeeds with an empty market list, rather than falsely displaying “Live market feed”. Added a browser regression test for the empty-list response and renamed two internal E2E test titles to remove “preview” terminology. No market data, API, trading, or financial behavior changed.
+- Exact-head CI run `42400928603` for `8b60f13a3381697202cf2212157ea012e4ec33b8`: npm install passed; lint was in progress at refresh; production build, Chromium, and desktop/mobile route smoke tests pending. Do not accept until all steps pass.
+- Previous exact-head `0ec0bb9628b74a455956b3c01cdc9faf6bd97380`, run `42399058606`, passed install, lint, production build, Chromium installation, and desktop/mobile route smoke tests.
+- PR #65 remains Draft/open. Independent browser visual QA remains NOT VERIFIED. No merge, deployment, hosted database writes, or real financial operations.
