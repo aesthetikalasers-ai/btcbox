@@ -329,7 +329,10 @@ export function AdminPage() {
     }
   }, [token, session, tab, search, adminSearch]);
 
-  useEffect(() => { void loadTab(); }, [loadTab]);
+  useEffect(() => {
+    void loadTab();
+    return () => { tabLoadRequestRef.current += 1; };
+  }, [loadTab]);
 
   useEffect(() => {
     if (!session?.user_id || !selectedUser?.uid) return;
