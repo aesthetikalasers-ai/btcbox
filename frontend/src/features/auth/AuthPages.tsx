@@ -11,7 +11,7 @@ export function AuthPage({ mode, redirectTo }: { mode: "login" | "register"; red
   const {
     status, needsCredentials, busy, error, notice, googleEnabled, ethereumWallets,
     signInWithGoogle, signInWithUsername, signInWithWeb3, signInWithEmail, signUpWithEmail,
-    requestPasswordReset, completePasswordRecovery, verifyTwoFactor, clearError,
+    requestPasswordReset, verifyTwoFactor, clearError,
   } = useAuth();
   const [username, setUsername] = useState("");
   const [emailAddress, setEmailAddress] = useState("");

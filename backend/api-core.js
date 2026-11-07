@@ -1337,7 +1337,7 @@ async function handleRequest(event, context) {
     if (user && user.twofa_enabled) {
       const tempToken = genToken();
       db.temp_tokens = db.temp_tokens || {};
-      db.temp_tokens[tempToken] = { uid: user.uid, exp: Date.now() + 10 * 60 * 1000, auth_method: authProvider === 'web3' ? 'supabase_web3_2fa' : 'supabase_google_2fa' };
+      db.temp_tokens[tempToken] = { uid: user.uid, exp: Date.now() + 10 * 60 * 1000, auth_method: authProvider === 'web3' ? 'supabase_web3_2fa' : authProvider === 'email' ? 'supabase_email_2fa' : 'supabase_google_2fa' };
       secCounterReset(db.security_counters, loginKey);
       try { await saveDB(db); }
       catch (_) { return json({ ok: false, code: 'PERSISTENCE_UNAVAILABLE', msg: 'Authentication is temporarily unavailable. Please try again.' }, 503); }
@@ -1381,7 +1381,7 @@ async function handleRequest(event, context) {
     }
     user.last_login = nowStr();
     const token = genToken();
-    db.sessions[token] = { uid: user.uid, email: email, created_at: Date.now(), auth_method: authProvider === 'web3' ? 'supabase_web3' : 'supabase_google' };
+    db.sessions[token] = { uid: user.uid, email: email, created_at: Date.now(), auth_method: authProvider === 'web3' ? 'supabase_web3' : authProvider === 'email' ? 'supabase_email' : 'supabase_google' };
     secCounterReset(db.security_counters, loginKey);
     try { await saveDB(db); }
     catch (_) { return json({ ok: false, code: 'PERSISTENCE_UNAVAILABLE', msg: 'Authentication is temporarily unavailable. Please try again.' }, 503); }

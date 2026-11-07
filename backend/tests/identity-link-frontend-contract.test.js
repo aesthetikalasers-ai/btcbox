@@ -20,11 +20,14 @@ test('identity linking requires source reauthentication before target proof', ()
   assert.ok(page.includes('!identityLinkSourceVerified'));
 });
 
-test('source identity proof supports Google TOTP challenge and Web3 wallet proof', () => {
+test('source identity proof supports verified Email/Google and Web3 wallet methods with account TOTP', () => {
   assert.ok(auth.includes('identityLinkNeedsTwoFactor'));
   assert.ok(auth.includes('pendingIdentityLinkToken'));
   assert.ok(auth.includes('completeIdentityLinkReauthTwoFactor'));
   assert.ok(auth.includes('reauthenticateIdentityLinkWithWeb3'));
+  const backend = fs.readFileSync(path.join(__dirname, '..', 'api-core.js'), 'utf8');
+  assert.ok(backend.includes("!['google', 'email', 'web3'].includes(provider)"));
+  assert.ok(backend.includes("(provider === 'google' || provider === 'email') && (!confirmed || !isValidAuthEmail(email))"));
   assert.ok(auth.includes('Reverify my existing BTCBOX sign-in identity'));
   assert.ok(page.includes('Confirm existing identity'));
   assert.ok(page.includes('Authenticator code (required when account 2FA is enabled)'));
