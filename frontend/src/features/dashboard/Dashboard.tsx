@@ -38,8 +38,10 @@ export function Dashboard() {
         setError("");
       }).catch((reason: unknown) => {
         if (reason instanceof Error && reason.name === "AbortError") return;
-        // Keep the last confirmed rows visible while the provider is unavailable.
-        setError("Market data is temporarily unavailable. The last confirmed market values remain visible.");
+        // Do not leave old quotes on screen as if they were current.
+        setMarkets([]);
+        setMarkets([]);
+        setError("Market data is temporarily unavailable. Please try again shortly.");
       }).finally(() => {
         refreshing = false;
         if (!controller.signal.aborted) setLoading(false);
@@ -78,8 +80,8 @@ export function Dashboard() {
     return () => { window.clearInterval(refreshId); controller.abort(); };
   }, [volumeInterval]);
 
-  return <div className="tone-market mx-auto flex w-full max-w-[1600px] min-w-0 flex-col gap-5 p-3 sm:gap-6 sm:p-5 lg:p-7">
-    <section className="relative isolate overflow-hidden rounded-2xl border border-brand-border bg-gradient-to-br from-brand-surface via-brand-surface to-[#18191c] p-5 sm:p-7 lg:p-9">
+  return <div className="mx-auto flex w-full max-w-[1600px] min-w-0 flex-col gap-5 p-3 sm:gap-6 sm:p-5 lg:p-7">
+    <section className="relative isolate overflow-hidden rounded-2xl border border-brand-border bg-gradient-to-br from-brand-surface via-brand-surface to-[#102a48] p-5 sm:p-7 lg:p-9">
       <div className="pointer-events-none absolute -right-16 -top-24 -z-10 h-72 w-72 rounded-full bg-brand-accent/15 blur-3xl" />
       <div className="relative grid items-center gap-7 lg:grid-cols-[minmax(0,1fr)_minmax(220px,.55fr)]">
         <div className="min-w-0">
@@ -114,7 +116,7 @@ export function Dashboard() {
         <p className="type-body mt-1.5 text-brand-text-secondary">{t("Live spot prices and 24-hour market movement.")}</p>
       </div>
       <Badge variant="outline" className="border-brand-accent/30 bg-brand-accent/10 px-3 py-1 text-brand-text-secondary">
-        {loading ? t("Connecting") : error || markets.length === 0 ? t("Feed unavailable") : t("Live market feed")}
+        {loading ? t("Connecting") : error ? t("Feed unavailable") : t("Live market feed")}
       </Badge>
     </div>
     <LiveMarketsTable markets={markets} loading={loading} error={error} />
@@ -141,9 +143,5 @@ export function Dashboard() {
         <Button asChild><Link to="/register">{t("Create account")}</Link></Button>
       </div>
     </section>
-    <footer className="px-1 pb-2 text-[11px] leading-5 text-brand-text-muted">
-      TradingView Lightweight Charts™ Copyright (с) 2025 TradingView, Inc.{" "}
-      <a href="https://www.tradingview.com/" target="_blank" rel="noreferrer" className="underline underline-offset-2 hover:text-brand-text-secondary">https://www.tradingview.com/</a>
-    </footer>
   </div>;
 }
