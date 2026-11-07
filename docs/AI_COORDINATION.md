@@ -3598,3 +3598,12 @@ The prior withdrawal UI audit statement claiming the active BTCBOX admin route w
 - CI refresh: run `42396732168` for exact head `2271707c6f7697935ec9b434888a681fef827b51` has now passed all steps, including desktop/mobile route smoke tests. Latest head `32d76e9186f155353f4acdc39cadd9313dbd21d2`, run `42396837182`, has install, lint, production build and Chromium passed; desktop/mobile route smoke tests remain in progress at this refresh.
 
 - Exact-head CI refresh: run `42396837182` passed all steps for `32d76e9186f155353f4acdc39cadd9313dbd21d2`. Follow-up copy-only commit `011a58dfbfdb2094b2ee12abe7e37ed37bf12af2` removes the remaining user-visible implementation detail from the spot-trading page description; its exact-head run `42397102116` is in progress (install pending at last check). Do not accept until its complete CI passes.
+
+
+## Release-readiness copy hygiene — 2026-11-08
+
+- Exact customer-facing cleanup was previously committed on PR #65: removed Preview badge/internal API warning/unconnected notification placeholder; removed sample/simulated wording from order empty states; replaced "coming soon" and internal database/ledger jargon with clear service availability language; removed generic preview/scaffold text. Commits `5fd6bc0dd8151c33ea1aef6fe1401bda4b180627`, `2271707c6f7697935ec9b434888a681fef827b51`, `32d76e9186f155353f4acdc39cadd9313dbd21d2`, and `011a58dfbfdb2094b2ee12abe7e37ed37bf12af2`.
+- Exact-head CI run `42397102116` for `011a58dfbfdb2094b2ee12abe7e37ed37bf12af2` passed install, lint, production build, Chromium and desktop/mobile route smoke tests.
+- Latest cleanup commit `6f40ce54dfb62b4c6f30abe21c656a1003ef78eb`: removed unused Preview/Scaffold/Chart-preview translation entries from six supported locales; added a release policy forbidding customer-visible demo accounts, simulated activity, preview/scaffold labels and placeholder actions. Unsupported services must remain honestly unavailable and disabled. No runtime behavior, API, auth, market data or financial logic changed.
+- Exact-head CI run `42398622038` is in progress (install passed, lint running; build/Chromium/desktop-mobile smoke pending). Do not accept before all checks pass.
+- Independent browser visual QA remains NOT VERIFIED. No merge, deployment, hosted database writes or real financial operations.
