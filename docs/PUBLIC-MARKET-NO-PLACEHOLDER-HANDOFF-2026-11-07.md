@@ -23,11 +23,14 @@ The public website must not present demo wording, simulated market values, zero-
 - Public Markets lists only pairs with a positive quote from the current successful provider response. An empty list shows a concise feed-unavailable state rather than zero rows.
 - Home market cards and pair counts update when the provider refresh completes and exclude unavailable quotes.
 - Trade headers use validated quote formatters; unavailable order-book/recent-trade messages no longer mention simulated data or backend implementation details.
+- Vite dashboard now clears stale market rows on refresh failure; the market table suppresses quotes whenever its feed reports an error and removes the stale-data banner/metadata from that state.
+- Customer-facing copy no longer describes orders as sample/simulated or says they are never simulated in the browser; empty order history uses ordinary account wording.
+- Added Playwright coverage for a real quote followed by a failed refresh and for an empty market response, plus source-contract checks for customer-facing wording.
 - Added regression coverage for invalid/empty provider payloads, missing pairs, and public UI placeholder suppression.
 
 ## Verification
 - Source review and branch diff performed.
-- Automated tests have been added but are **NOT YET RUN** on this branch at handoff creation.
+- Automated tests have been added. Exact-head backend and frontend CI are **PENDING** after the latest Vite follow-up commits.
 - Browser/visual QA, live provider freshness in Preview, and production runtime behavior remain **NOT VERIFIED**.
 - CI must pass on the exact PR head before this batch is accepted.
 - Do not interpret source-level changes as proof that the live provider is currently healthy.
