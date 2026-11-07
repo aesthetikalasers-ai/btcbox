@@ -18,6 +18,7 @@ export function VolumeChart({ candles = [] }: { candles?: MarketCandle[] }) {
 
     const chart = createChart(chartContainerRef.current, {
       layout: {
+        attributionLogo: false,
         background: { type: ColorType.Solid, color: 'transparent' },
         textColor: 'rgba(255, 255, 255, 0.38)',
         fontSize: 11,
