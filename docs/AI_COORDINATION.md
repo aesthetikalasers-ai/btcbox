@@ -6526,3 +6526,12 @@ Current branch HEAD at note creation: `51c302a96f069876e438321d3597501fcbc26b54`
 
 
 - Documentation correction in this follow-up: `backend/supabase/sql/MIGRATION-ORDER-AND-CUTOVER.md` previously claimed the hosted project database was empty and misstated the canonical bootstrap count as 24. Updated it to state that the connected hosted project contains pre-existing BTCBOX state/data, the empty-schema bootstrap is not applicable, and the canonical source inventory is 25 SQL files. No SQL was applied.
+
+
+## Admin review queue concurrency hardening (2026-11-08, 2号 AI)
+- Added monotonically increasing request IDs to both automatic/manual withdrawal queue refresh paths. Older responses and their finally handlers cannot overwrite a newer queue snapshot or clear its loading state.
+- Added KYC queue request sequencing shared by manual refresh and post-approval/post-rejection reloads. A pre-review read cannot restore an already-reviewed application after the newer post-review snapshot.
+- Added source-level regression coverage in `backend/tests/spot-trading-live-refresh.test.js` for out-of-order withdrawal and KYC queue refresh handling.
+- Commits: `9952eaaa79cf9e77be8e53c34d7b8e92a5383f5e`, `22efd4e4582d5a11b3a6c43181160798f8b4e13e`, `73a8d0e3910f8e23ad26392be2d4b13d709adef4`.
+- Exact latest head at documentation update: pending confirmation after this doc commit. GitHub Actions were still running on the preceding code head; no pass is claimed here.
+- No production database operation, merge, or deployment was performed. Vercel remains blocked by the account build-rate limit.
