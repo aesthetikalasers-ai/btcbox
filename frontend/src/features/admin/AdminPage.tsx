@@ -363,7 +363,7 @@ export function AdminPage() {
       }
     } catch (reason) {
       if (requestId === tabLoadRequestRef.current) {
-        setError("Administrator data could not be loaded. Refresh this section and try again.");
+        setError(tab === "audit" ? "Audit log is temporarily unavailable." : tab === "withdrawals" ? "Withdrawal review queue could not be refreshed. Reload this tab before taking another action." : tab === "kyc" ? "KYC review queue could not be refreshed. Refresh before reviewing another application." : "Administrator data could not be loaded. Refresh this section and try again.");
       }
     } finally {
       if (requestId === tabLoadRequestRef.current) setLoading(false);
