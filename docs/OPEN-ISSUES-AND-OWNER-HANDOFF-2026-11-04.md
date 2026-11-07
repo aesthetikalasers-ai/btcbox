@@ -384,3 +384,13 @@ Registration and the signed-out preview/home page are now the first pages to com
 - Added a public-preview browser assertion that the server snapshot indicator is present when the market API returns its timestamp.
 - Commits: `23b5fb8b10ce176c449e5803dc914fc3d65b8751` (UI); `a421c57382435d0f49f278a53b9d5a32a2b0a5b2` (E2E).
 - Verification pending: frontend CI for the exact latest source/test SHA, plus screenshot-based visual QA. Real upstream freshness and deployed behavior remain NOT VERIFIED. No merge, deployment, production DB/auth change or financial operation.
+
+
+## 2026-11-07 continuation — Admin queue stale-state safety
+
+- Cross-reviewed frontend/src/features/admin/AdminPage.tsx and existing Admin E2E coverage. Manual refresh failure behavior intentionally retains last confirmed rows with an explicit error; no change to that workflow.
+- Found a different failure mode on tab navigation: withdrawal/KYC rows from the previous load remained in component state when the next tab-level queue GET failed. After the loading state ended, stale rows and review actions could reappear.
+- Fixed tab-level loading to clear the corresponding queue before requesting a new snapshot. A failed initial/re-entry load now leaves no stale actionable rows visible; manual refresh still preserves its last confirmed snapshot and displays the refresh error.
+- Added E2E regression: load a pending withdrawal, navigate to KYC, return with a simulated 503, and assert stale withdrawal ID and Approve action are absent while the error is visible.
+- Commits: d23218081fbbd9d993ef3280f4933ab1cc349d65 (Admin UI); 8a834cc1b5734b5a0259b54457e3d92ce7649815 (browser test).
+- Exact-commit CI pending. No backend finance API, DB, payout semantics, production setting, merge or deployment changed.
