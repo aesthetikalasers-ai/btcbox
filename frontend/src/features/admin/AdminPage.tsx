@@ -793,7 +793,7 @@ export function AdminPage() {
       <Badge variant="outline">{session.is_super_admin ? "SUPER ADMIN" : "ACTIVE ADMIN"}</Badge>
     </div>
     <div className="flex gap-2 overflow-x-auto border-b border-brand-border pb-3">
-      {allowedTabs.map(item => <Button key={item.id} size="sm" variant={tab === item.id ? "default" : "outline"} className={cn("shrink-0 whitespace-nowrap",tab === item.id ? "shadow-sm shadow-brand-accent/10" : "border-brand-border-strong bg-brand-surface-2/40 text-brand-text-secondary hover:border-brand-accent/30 hover:text-brand-text")} onClick={() => { setTab(item.id); setError(""); setNotice(""); }}>{item.label}</Button>)}
+      {allowedTabs.map(item => <Button key={item.id} size="sm" variant={tab === item.id ? "default" : "outline"} className={tab === item.id ? "shrink-0 whitespace-nowrap shadow-sm shadow-brand-accent/10" : "shrink-0 whitespace-nowrap border-brand-border-strong bg-brand-surface-2/40 text-brand-text-secondary hover:border-brand-accent/30 hover:text-brand-text"} onClick={() => { setTab(item.id); setError(""); setNotice(""); }}>{item.label}</Button>)}
     </div>
     {error ? <div role="alert" className="rounded-xl border border-brand-danger/25 bg-brand-danger/[0.06] p-3 text-sm text-brand-danger">{error}</div> : null}
     {notice ? <div role="status" className="rounded-xl border border-brand-success/25 bg-brand-success/[0.06] p-3 text-sm text-brand-success">{notice}</div> : null}
