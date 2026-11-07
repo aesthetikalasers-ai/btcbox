@@ -6198,3 +6198,12 @@ Current branch HEAD at note creation: `51c302a96f069876e438321d3597501fcbc26b54`
 - Reduced the market endpoint's shared cache from max-age=2 / s-maxage=5 / stale-while-revalidate=3 to max-age=0 / s-maxage=2 / stale-while-revalidate=1. A small shared cache remains to limit provider load; no stale upstream fallback was introduced.
 - Added a source-contract regression test. Commits: `e2898dddb7b3a556a3e59ad531b9b72f8c700dda`, `1ff6d48da611f6a1679179d931a4832a3ab936b6`.
 - Live provider and deployed behavior remain NOT VERIFIED; no production deploy.
+
+## 2026-11-07 continuation — spot market consistency
+
+- Trade UI now identifies ticker, order-book and chart providers separately, so Coinbase/Bybit source divergence is visible rather than hidden by one combined label.
+- Depth response/client validates positive numeric price and size, sorts sides correctly, caps 20 levels, rejects malformed empty sides and includes server snapshot/provider timestamps.
+- K-line client retains source, validates OHLC relationships and surfaces failed refreshes while retaining the last confirmed chart.
+- Regression assertions added to `backend/tests/spot-market-catalog.test.js`; tests and browser build are NOT VERIFIED in this environment.
+- Commits: `ae544a241fc0d8fcd93f94b55bafe998788cb045`, `f9c20505a739864dc85881b0fc64232ade8d2bd4`, `9d280a5774560ffcd4579ff4da3e32794fc6423d`, `36d71cc080ff72582a92ac7d0fac668001a21c29`, `17114ab149f1b9c897b8d657d2f8d51c769d39a5`, `3081a36532d481cb83ddae409c1366047d6f2ca3`, `08fabb8c8566f4527160d184c014443acc2a477c`, `38a4f8f3b1f52f72d026c6b976917aa5dd01a89a`.
+- No production deploy or real order activity. Continue with CI status and responsive/auth route checks.
