@@ -10,6 +10,7 @@ const tradeView = fs.readFileSync(path.join(root, 'assets/js/views-trade.js'), '
 const core = fs.readFileSync(path.join(root, 'assets/js/app-core.js'), 'utf8');
 const customerPages = fs.readFileSync(path.resolve(root, '../frontend/src/features/pages/Pages.tsx'), 'utf8');
 const liveMarketsTable = fs.readFileSync(path.resolve(root, '../frontend/src/features/dashboard/components/LiveMarketsTable.tsx'), 'utf8');
+const ordersPage = fs.readFileSync(path.resolve(root, '../frontend/src/features/orders/OrdersPage.tsx'), 'utf8');
 
 test('public market list renders only positive quotes from an available feed', () => {
   assert.match(marketView, /PAIRS\.filter\(sym=>!state\.marketUnavailable&&market\[sym\]&&Number\(market\[sym\]\.price\)>0\)/);
@@ -40,6 +41,7 @@ test('customer-facing pages do not advertise simulated orders or sample order hi
   assert.doesNotMatch(customerPages, /Orders are never simulated in the browser/i);
   assert.match(customerPages, /No orders are available for this account yet/);
   assert.doesNotMatch(customerPages, /Integration pending|This page is scaffolded|in this preview/i);
+  assert.doesNotMatch(ordersPage, /No sample orders are generated/i);
 });
 
 test('Vite dashboard does not keep stale quotes visible after a refresh error', () => {
