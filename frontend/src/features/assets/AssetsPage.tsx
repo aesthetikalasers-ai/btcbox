@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { ArrowDownToLine, ArrowUpFromLine, RefreshCw, Wallet } from "lucide-react";
 import { Badge } from "../../components/ui/badge";
@@ -18,17 +18,19 @@ export function AssetsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [signedOut, setSignedOut] = useState(false);
+  const requestIdRef = useRef(0);
 
   async function load(signal?: AbortSignal) {
+    const requestId = ++requestIdRef.current;
     setLoading(true);
     setError("");
     setSignedOut(false);
     try {
       const snapshot = await getAccount(signal);
-      if (!signal?.aborted) setAccount(snapshot);
+      if (!signal?.aborted && requestId === requestIdRef.current) setAccount(snapshot);
     } catch (reason) {
       if (reason instanceof Error && reason.name === "AbortError") return;
-      if (signal?.aborted) return;
+      if (signal?.aborted || requestId !== requestIdRef.current) return;
       setAccount(null);
       if (reason instanceof ApiError && reason.code === "AUTH_REQUIRED") {
         setSignedOut(true);
@@ -37,7 +39,7 @@ export function AssetsPage() {
         setError(reason instanceof Error ? reason.message : t("Account data is temporarily unavailable."));
       }
     } finally {
-      if (!signal?.aborted) setLoading(false);
+      if (!signal?.aborted && requestId === requestIdRef.current) setLoading(false);
     }
   }
 
