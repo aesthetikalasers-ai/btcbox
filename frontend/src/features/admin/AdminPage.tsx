@@ -268,16 +268,28 @@ export function AdminPage() {
         }
       }
       if (tab === "withdrawals") {
+        const queueRequestId = ++withdrawalQueueRequestRef.current;
         setWithdrawals([]);
-        const snapshot = await getAdminWithdrawals(token);
-        if (requestId !== tabLoadRequestRef.current) return;
-        setWithdrawals(snapshot.withdrawals || []);
+        try {
+          const snapshot = await getAdminWithdrawals(token);
+          if (requestId !== tabLoadRequestRef.current || queueRequestId !== withdrawalQueueRequestRef.current) return;
+          setWithdrawals(snapshot.withdrawals || []);
+        } catch (reason) {
+          if (requestId !== tabLoadRequestRef.current || queueRequestId !== withdrawalQueueRequestRef.current) return;
+          throw reason;
+        }
       }
       if (tab === "kyc") {
+        const queueRequestId = ++kycQueueRequestRef.current;
         setKyc([]);
-        const snapshot = await getAdminKyc(token);
-        if (requestId !== tabLoadRequestRef.current) return;
-        setKyc(snapshot.kycs || []);
+        try {
+          const snapshot = await getAdminKyc(token);
+          if (requestId !== tabLoadRequestRef.current || queueRequestId !== kycQueueRequestRef.current) return;
+          setKyc(snapshot.kycs || []);
+        } catch (reason) {
+          if (requestId !== tabLoadRequestRef.current || queueRequestId !== kycQueueRequestRef.current) return;
+          throw reason;
+        }
       }
       if (tab === "audit") {
         // Never leave a previously loaded audit snapshot visible while a new
