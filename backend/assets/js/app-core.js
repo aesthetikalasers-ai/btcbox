@@ -319,7 +319,13 @@ async function refreshMarket(){
 async function refreshDepth(){
   const sym=state.currentPair; if(!sym) return;
   const r=await apiAdapter.depth(sym);
-  if(r.ok){ state.depthCache={sym:sym, bids:r.bids, asks:r.asks, ts:Date.now()}; const ob=$('#orderbook'); if(ob && location.hash.indexOf('/trade')>=0) ob.innerHTML=renderOrderbook(sym); }
+  if(r.ok){
+    state.depthCache={sym:sym,bids:r.bids,asks:r.asks,ts:Date.now()};
+    const ob=$('#orderbook');if(ob&&location.hash.indexOf('/trade')>=0)ob.innerHTML=renderOrderbook(sym);
+  }else if(state.depthCache&&state.depthCache.sym===sym){
+    state.depthCache=null;
+    const ob=$('#orderbook');if(ob&&location.hash.indexOf('/trade')>=0)ob.innerHTML=renderOrderbook(sym);
+  }
 }
 
 /* ---------- apiAdapter (live backend — 46 contract + 5 extra admin endpoints) ---------- */
