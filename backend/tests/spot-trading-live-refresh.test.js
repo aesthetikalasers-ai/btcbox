@@ -344,3 +344,24 @@ test('admin initial KYC and withdrawal tab loads cannot overwrite a newer queue 
     assert.ok(branch.includes('await ' + getter + '(token)'));
   }
 });
+
+test('admin support queue ignores stale initial loads and duplicate replies per customer', () => {
+  const admin = fs.readFileSync(path.resolve(__dirname, '../../frontend/src/features/admin/AdminPage.tsx'), 'utf8');
+  assert.ok(admin.includes('const supportQueueRequestRef = useRef(0);'));
+  assert.ok(admin.includes('const supportReplyLocksRef = useRef<Record<string, boolean>>({});'));
+  const loadStart = admin.indexOf('const loadTab = useCallback');
+  const loadEnd = admin.indexOf('useEffect(() => {\n    void loadTab();', loadStart);
+  const load = admin.slice(loadStart, loadEnd);
+  const supportStart = load.indexOf('if (tab === "support")');
+  const supportEnd = load.indexOf('if (tab === "seconds")', supportStart);
+  const supportLoad = load.slice(supportStart, supportEnd);
+  assert.ok(supportLoad.includes('const queueRequestId = ++supportQueueRequestRef.current;'));
+  assert.ok(supportLoad.includes('queueRequestId !== supportQueueRequestRef.current'));
+  const replyStart = admin.indexOf('const replySupport = async');
+  const replyEnd = admin.indexOf('const saveSpotMarket', replyStart);
+  const reply = admin.slice(replyStart, replyEnd);
+  assert.ok(reply.includes('supportReplyLocksRef.current[uid]'));
+  assert.ok(reply.includes('const queueRequestId = ++supportQueueRequestRef.current;'));
+  assert.ok(reply.includes('await getAdminSupportMessages(token)'));
+  assert.ok(reply.includes('window.crypto.randomUUID()'));
+});
