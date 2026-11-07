@@ -47,6 +47,28 @@ test("login route exposes email/password, BTCBOX username, Google and wallet sig
   await expect(page.getByRole("button", { name: "Connect Solana wallet" })).toBeVisible();
 });
 
+test("email login is verified by Supabase before any BTCBOX session is created", async ({ page }) => {
+  let passwordGrantRequests = 0;
+  const btcboxExchanges: string[] = [];
+  await page.route("https://btcbox-e2e.invalid/auth/v1/token?grant_type=password", async route => {
+    passwordGrantRequests += 1;
+    await route.fulfill({
+      status: 400, contentType: "application/json",
+      body: JSON.stringify({ code: "invalid_credentials", message: "Invalid login credentials" }),
+    });
+  });
+  page.on("request", request => {
+    if (new URL(request.url()).pathname === "/api/supabase-login") btcboxExchanges.push(request.method());
+  });
+  await page.goto("/login");
+  await page.getByLabel("Email address").fill("member@example.invalid");
+  await page.getByLabel("Email password").fill("IncorrectPassword123!");
+  await page.getByRole("button", { name: "Sign in with email" }).click();
+  await expect(page.getByRole("alert")).toContainText("Invalid login credentials");
+  expect(passwordGrantRequests).toBe(1);
+  expect(btcboxExchanges).toEqual([]);
+});
+
 test("Google sign-in button is shown when the public auth config enables Google", async ({ page }) => {
   await page.route("**/api/auth-client-config", async (route) => {
     await route.fulfill({

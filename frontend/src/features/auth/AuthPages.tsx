@@ -157,9 +157,9 @@ export function AuthPage({ mode, redirectTo }: { mode: "login" | "register"; red
                 </label>
                 <label className="block space-y-1.5 text-sm">
                   <span className="text-brand-text-secondary">Email password</span>
-                  <Input type="password" value={emailPassword} onChange={event => setEmailPassword(event.target.value)} autoComplete={mode === "login" ? "current-password" : "new-password"} minLength={8} maxLength={128} placeholder="Enter your password" required />
+                  <Input type="password" value={emailPassword} onChange={event => setEmailPassword(event.target.value)} autoComplete={mode === "login" ? "current-password" : "new-password"} minLength={mode === "register" ? 8 : 1} maxLength={128} placeholder="Enter your password" required />
                 </label>
-                <Button type="submit" className="w-full" variant="outline" disabled={busy || status !== "anonymous" || !emailAddress.trim() || emailPassword.length < 8}>
+                <Button type="submit" className="w-full" variant="outline" disabled={busy || status !== "anonymous" || !emailAddress.trim() || (mode === "register" ? emailPassword.length < 8 : !emailPassword)}>
                   {busy ? "Please wait…" : mode === "login" ? "Sign in with email" : "Create account with email"}
                 </Button>
                 {mode === "login" && <button type="button" className="min-h-11 text-sm font-medium text-brand-text-secondary underline underline-offset-4 disabled:opacity-50" disabled={busy || !emailAddress.trim()} onClick={() => void requestPasswordReset(emailAddress).catch(() => {})}>Forgot password?</button>}
