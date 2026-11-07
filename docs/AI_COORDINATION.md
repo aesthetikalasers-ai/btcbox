@@ -3651,3 +3651,11 @@ The prior withdrawal UI audit statement claiming the active BTCBOX admin route w
 - Fix commit `eb197ef8a178ac35e2409fb175a89344807a1f53`: KYC preview E2E now expects the safe generic preview message; admin tab-load failures retain contextual safe copy for audit, withdrawals and KYC, with a generic fallback for other tabs. No backend exception text is re-exposed.
 - Exact-head CI run `42404222154` for `eb197ef8a178ac35e2409fb175a89344807a1f53` is in progress. Do not accept until install, lint, production build, Chromium and desktop/mobile route smoke tests all pass.
 - PR #65 remains Draft/open; no merge, deployment, hosted database writes or financial operations. Browser visual QA remains NOT VERIFIED.
+
+
+## KYC safe-preview assertion selector correction — 2026-11-08
+
+- Exact-head CI `42404222154` for `eb197ef8a178ac35e2409fb175a89344807a1f53`: install, lint, production build and Chromium passed; desktop/mobile route smoke ran 68 passed and 2 failed. Both failures were the same KYC E2E assertion using a non-unique text locator after the safe message correctly appeared in the document cell and approval warning.
+- Fix commit `1ad512fc23c471ca443255b0e0d1650d2702bbe6` scopes the assertion to the approval-action cell and explicitly asserts that the raw backend preview error is absent. Application behavior is unchanged.
+- Await exact-head CI for `1ad512fc23c471ca443255b0e0d1650d2702bbe6`; do not accept until all steps pass.
+- PR #65 remains Draft/open; no merge, deployment, hosted DB writes or real financial operations. Browser visual QA remains NOT VERIFIED.
