@@ -91,6 +91,31 @@ table_inventory AS (
   LEFT JOIN pg_namespace n ON n.nspname = r.schema_name
   LEFT JOIN pg_class c ON c.relnamespace = n.oid
     AND c.relname = r.table_name AND c.relkind IN ('r','p')
+),
+required_columns(schema_name, table_name, column_name, expected_type) AS (
+  VALUES
+    ('public','withdrawal_requests','require_admin_review','boolean'),
+    ('public','withdrawal_requests','request_hash','text'),
+    ('public','seconds_contract_positions','policy_id','uuid'),
+    ('public','seconds_contract_positions','policy_version','bigint'),
+    ('public','seconds_contract_positions','payout_bps_snapshot','integer'),
+    ('public','seconds_contract_positions','policy_snapshot','jsonb')
+),
+column_inventory AS (
+  SELECT r.*, c.data_type
+  FROM required_columns r
+  LEFT JOIN information_schema.columns c
+    ON c.table_schema=r.schema_name AND c.table_name=r.table_name AND c.column_name=r.column_name
+),
+required_indexes(index_name, table_name) AS (
+  VALUES
+    ('financial_audit_action_id_desc_idx','financial_audit_log'),
+    ('financial_audit_subject_id_desc_idx','financial_audit_log')
+),
+index_inventory AS (
+  SELECT r.index_name, r.table_name, i.indexname
+  FROM required_indexes r
+  LEFT JOIN pg_indexes i ON i.schemaname='public' AND i.tablename=r.table_name AND i.indexname=r.index_name
 )
 SELECT 'RPC'::text AS category,
        name AS object_name,
@@ -117,6 +142,48 @@ SELECT 'TABLE'::text AS category,
                         relrowsecurity, anon_select, authenticated_select, service_role_select)
        END AS detail
 FROM table_inventory
+
+UNION ALL
+
+SELECT 'COLUMN'::text AS category,
+       format('%I.%I.%I', schema_name, table_name, column_name) AS object_name,
+       CASE WHEN data_type IS NULL THEN 'MISSING'
+            WHEN data_type <> expected_type THEN 'TYPE_MISMATCH'
+            ELSE 'PRESENT' END AS status,
+       format('Expected type=%s; installed type=%s', expected_type, coalesce(data_type,'<missing>')) AS detail
+FROM column_inventory
+
+UNION ALL
+
+SELECT 'INDEX'::text AS category,
+       index_name AS object_name,
+       CASE WHEN indexname IS NULL THEN 'MISSING' ELSE 'PRESENT' END AS status,
+       format('Expected on public.%I', table_name) AS detail
+FROM index_inventory
+
+UNION ALL
+
+SELECT 'CONSTRAINT'::text AS category,
+       'public.seconds_contract_positions.duration_sec' AS object_name,
+       CASE WHEN EXISTS (
+              SELECT 1 FROM pg_constraint
+              WHERE conrelid='public.seconds_contract_positions'::regclass
+                AND conname='seconds_contract_positions_duration_sec_positive'
+            ) THEN 'PRESENT'
+            WHEN EXISTS (
+              SELECT 1 FROM pg_constraint
+              WHERE conrelid='public.seconds_contract_positions'::regclass
+                AND conname='seconds_contract_positions_duration_sec_check'
+            ) THEN 'LEGACY_FIXED_ALLOWLIST'
+            ELSE 'MISSING' END AS status,
+       coalesce((
+         SELECT pg_get_constraintdef(oid)
+         FROM pg_constraint
+         WHERE conrelid='public.seconds_contract_positions'::regclass
+           AND conname IN ('seconds_contract_positions_duration_sec_check',
+                           'seconds_contract_positions_duration_sec_positive')
+         ORDER BY conname LIMIT 1
+       ), 'No expected duration constraint found') AS detail
 
 UNION ALL
 
