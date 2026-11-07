@@ -102,15 +102,21 @@ test('spot UI labels server snapshot time and does not substitute browser receip
 
 const authPage = fs.readFileSync(path.resolve(__dirname, '../../frontend/src/features/auth/AuthPages.tsx'), 'utf8');
 
-test('sign-in and registration pages expose username, Google and Web3 without email auth', () => {
+test('sign-in and registration pages expose Supabase Email/Password and Google auth', () => {
   assert.ok(authPage.includes('Continue with Google'));
   assert.ok(authPage.includes('signInWithGoogle'));
   assert.ok(authPage.includes('Connect Ethereum wallet'));
   assert.ok(authPage.includes('Connect Solana wallet'));
   assert.ok(authPage.includes('signInWithWeb3'));
   assert.ok(authPage.includes('Sign in with username'));
-  assert.ok(!authPage.includes('Continue with email'));
-  assert.ok(!authPage.includes('Register with email'));
+  assert.ok(authPage.includes('Sign in with email'));
+  assert.ok(authPage.includes('Register with email'));
+  assert.ok(authPage.includes('Create account with email'));
+  assert.ok(authPage.includes('Forgot password?'));
+  assert.ok(authPage.includes('signInWithEmail'));
+  assert.ok(authPage.includes('signUpWithEmail'));
+  assert.ok(authPage.includes('requestPasswordReset'));
+  assert.ok(authPage.includes('completePasswordRecovery'));
 });
 
 const withdrawStart = pages.indexOf('export function WithdrawPage()');
