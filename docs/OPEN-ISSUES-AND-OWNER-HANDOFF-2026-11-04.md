@@ -518,3 +518,5 @@ Registration and the signed-out preview/home page are now the first pages to com
 - Test isolation commit: `4091008d2b4212a69f61db9c03a7376f1ad762fd`.
 - TEST STATUS: fresh frontend/backend CI for the final branch head is pending. Do not infer that the other five Vercel test failures have the same root cause until the backend CI result identifies them.
 - Release pause remains in force. No Vercel environment setting, deployment, production database, authentication provider, real order or financial record was changed.
+
+- CI wiring finding: `.github/workflows/backend-ci.yml` had a push trigger for the unified collaboration branch but omitted that branch from its `pull_request.branches` allowlist. A backend test change in a draft PR targeting the unified branch therefore would not receive the required backend CI. Added the unified branch to the PR trigger list (commit `e66111e480327c70f69ee9b2be7b51909dc6653a`). Confirm the backend workflow starts on the updated PR head before treating test isolation as verified.
