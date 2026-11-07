@@ -50,7 +50,7 @@ export function AssetsPage() {
   const balances = account?.balances ? Object.entries(account.balances) as Array<[string, AccountBalance]> : [];
 
   return (
-    <div className="mx-auto flex w-full max-w-[1200px] min-w-0 flex-col gap-5 p-3 sm:p-4 md:p-6 lg:p-8">
+    <div className="tone-assets mx-auto flex w-full max-w-[1200px] min-w-0 flex-col gap-5 p-3 sm:p-4 md:p-6 lg:p-8">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <p className="mb-1 text-xs font-bold uppercase tracking-[.18em] text-brand-text-secondary">{t("BTCBOX / WALLET")}</p>
