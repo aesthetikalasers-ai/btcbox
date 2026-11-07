@@ -6173,3 +6173,13 @@ Current branch HEAD at note creation: `51c302a96f069876e438321d3597501fcbc26b54`
 - The valid reason is forwarded to the existing atomic SQL RPC; no ledger, refund, state-transition, permission, or production behavior was otherwise changed.
 - Backend CI workflow is configured to run on pushes to this branch for backend changes. Await an actual successful run before marking TEST PASSED. No local test execution was performed through this GitHub API-only workflow.
 - Next: inspect withdrawal RPC behavior under terminal-state retries and audit visibility; then investigate market provider fallback/freshness. Keep merge/deployment/production DB and live funds operations paused.
+
+
+## Continuation checkpoint — withdrawal audit + market freshness (2026-11-07)
+
+- Withdrawal API: backend now rejects a blank rejection reason and rejects overlong/control-character reasons before calling the existing atomic refund/review RPC. Frontend already enforced a reason; this closes the direct-API gap. Commits: `d2e13fe`, `ee7e1e6`, `cd2ab80`.
+- Market API: Bybit fallback rows now require a provider response timestamp within 60 seconds old / 15 seconds future. Coinbase's last-trade timestamp is intentionally not subjected to this response-age test. Commits: `b19331f`, `a09834e`.
+- Tests added in `backend/tests/admin-api-contract.test.js` and `backend/tests/spot-market-catalog.test.js`. Source diffs and test assertions have been reviewed, but no exact-commit test pass has been observed; do not mark TEST PASSED.
+- Vercel status remains build-rate-limit failure; this does not prove backend test failure. GitHub Actions workflow-run lookup returned no PR-triggered runs for the test commit. Push workflow execution result remains unverified.
+- No production provider setting, financial database, live account, merge, or deployment was touched.
+- Next: inspect admin audit visibility and the market response cache/provider behavior; obtain backend CI on exact source commits when Actions reports a result.
