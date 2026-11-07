@@ -6375,3 +6375,7 @@ Current branch HEAD at note creation: `51c302a96f069876e438321d3597501fcbc26b54`
 - FIXED: duplicate-reference success notice is no longer overwritten by the generic queue-refresh notice.
 - E2E: simulate a 503 after the first payout request, reload the page, assert the exact reference is restored, retry, return an idempotent duplicate success, and assert the completed status.
 - Scope: Admin frontend recovery and test only. No payout RPC, financial API contract, DB, ledger or production setting changed.
+
+
+- Additional identity isolation: restored payout drafts replace in-memory drafts when the authenticated administrator changes, preventing one operator's unsent reference from appearing in another operator's session.
+- Latest UI safety follow-up: `8d75ce111e06ca8a7f7fca64bb4e755c1e1724b6`.
