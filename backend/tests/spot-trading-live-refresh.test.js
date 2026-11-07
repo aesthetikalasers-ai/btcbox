@@ -378,3 +378,13 @@ test('admin manual-credit completion does not replace a newer selected user', ()
   assert.ok(flow.includes('userDetailRequestRef.current === selectedUserRequestId && selectedUser?.uid === selectedUid'));
   assert.ok(flow.includes('await selectUser(selectedUid);'));
 });
+
+
+test('admin candidate searches ignore out-of-order responses and tab-load results', () => {
+  const admin = fs.readFileSync(path.resolve(__dirname, '../../frontend/src/features/admin/AdminPage.tsx'), 'utf8');
+  assert.ok(admin.includes('const adminCandidatesRequestRef = useRef(0);'));
+  assert.ok(admin.includes('const candidatesRequestId = ++adminCandidatesRequestRef.current;'));
+  assert.ok(admin.includes('if (candidatesRequestId === adminCandidatesRequestRef.current) setAdminCandidates(userResult.users || []);'));
+  assert.ok(admin.includes('const requestId=++adminCandidatesRequestRef.current;setAdminCandidates([]);setError("");'));
+  assert.ok(admin.includes('if(requestId===adminCandidatesRequestRef.current)setAdminCandidates(result.users||[]);'));
+});

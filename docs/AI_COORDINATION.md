@@ -6566,3 +6566,11 @@ Current branch HEAD at note creation: `51c302a96f069876e438321d3597501fcbc26b54`
 - Added a source-contract regression test for the selection-generation guard.
 - Frontend/Admin UI and regression test only. No credit API, ledger, database, authentication, or production data changed.
 - Exact-head CI pending. No merge or deployment.
+
+
+## Admin delegated-user search race — 2026-11-08 (2号 AI)
+- Fixed Admin > delegated administrators candidate search so a slower earlier query cannot overwrite the results of a newer query.
+- Admin-tab initial candidate loading now shares a request-generation guard with manual searches; a late initial tab response cannot replace a newer manual search result.
+- The candidate list is cleared while a manual search is pending and only the latest request may publish results or errors.
+- Added a regression source-contract test. No admin membership, authentication, role, or database behavior was changed.
+- Exact-head CI pending; no merge or deployment.
