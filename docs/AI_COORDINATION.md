@@ -6148,3 +6148,10 @@ Admin KYC conflict handling:
 - Frontend CI run `42315614500` completed SUCCESS on source commit `06ddef81192a72b5717125f59b069ac1a478dca6`: npm install, lint, build, Chromium installation, and all 24 desktop/mobile Playwright route smoke tests passed (12 desktop + 12 mobile).
 
 Current branch HEAD at note creation: `51c302a96f069876e438321d3597501fcbc26b54`. No merge, deployment, production database change, or live financial operation was performed.
+
+## Latest continuation record — 2026-11-07 (Admin KYC evidence gate)
+
+- Current batch commits on `work/btcbox-unified-20261104`: `7fe5a5ea214b3633107a9276cd604554e6df4ae7` (disable KYC approval without an uploaded document and working signed preview); `8b452412ed5e6a3f560bfd01426ec117da4a773a` (regression test); `f7f02459e2985b90fcc0eefe564f822ba43bc007` (handoff evidence).
+- The KYC exception override remains backend-only. Do not expose it as a normal approval action: it can bypass the normal document gate and requires an explicit reason/audit trail. Escalate any decision to broaden that policy to the owner.
+- Next: run backend KYC/admin tests and frontend lint/build/desktop-mobile route smoke tests against the resulting branch head; then continue withdrawal audit/idempotency and market provider freshness review.
+- No merge, deployment, production database change, or live financial action was performed.
