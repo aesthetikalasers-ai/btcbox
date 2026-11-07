@@ -523,7 +523,8 @@ test("Admin KYC approval remains disabled without an uploaded document and secur
   await expect(page.getByRole("button", { name: "Approve" }).nth(0)).toBeDisabled();
   await expect(page.getByRole("button", { name: "Approve" }).nth(1)).toBeDisabled();
   await expect(page.getByText("Identity document upload is required before approval.")).toBeVisible();
-  await expect(page.getByText("Document preview unavailable; refresh the queue before approval.")).toBeVisible();
+  await expect(page.getByRole("cell", { name: "Approve Reject Document" }).getByRole("paragraph")).toContainText("Document preview unavailable; refresh the queue before approval.");
+  await expect(page.getByText("Secure document preview could not be generated")).toHaveCount(0);
   await expect(page.getByRole("link", { name: "Open secure image" })).toHaveCount(0);
 
   await page.getByRole("button", { name: "Refresh queue" }).click();
