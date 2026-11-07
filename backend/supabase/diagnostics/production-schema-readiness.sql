@@ -1,12 +1,10 @@
 -- BTCBOX production/staging schema readiness diagnostic (READ ONLY).
 -- Run in Supabase SQL Editor using a read-only/operator session.
--- This file contains SELECT statements only: it does not create, alter, grant,
--- revoke, seed, or modify any application data.
+-- SELECT statements only: no schema, privilege, or application-data mutations.
 --
--- IMPORTANT:
--- - A PRESENT result proves catalog presence only, not business correctness.
--- - A MISSING result blocks enabling dependent API features/cutover flags.
--- - Never run the empty-database bootstrap against a database with existing BTCBOX data.
+-- PRESENT proves catalog presence only, not business correctness.
+-- MISSING or unsafe privilege results block dependent feature/cutover activation.
+-- Never run the empty-database bootstrap against a database with existing BTCBOX data.
 
 WITH required_functions(name) AS (
   VALUES
@@ -35,22 +33,11 @@ function_inventory AS (
          coalesce(bool_or(has_function_privilege('authenticated', p.oid, 'EXECUTE')), false) AS authenticated_execute
   FROM required_functions r
   LEFT JOIN pg_proc p ON p.proname = r.name
+    AND p.pronamespace IN (SELECT oid FROM pg_namespace WHERE nspname IN ('public','private'))
   LEFT JOIN pg_namespace n ON n.oid = p.pronamespace
-                          AND n.nspname IN ('public', 'private')
   GROUP BY r.name
-)
-SELECT 'RPC'::text AS category,
-       name AS object_name,
-       CASE WHEN overload_count = 0 THEN 'MISSING'
-            WHEN NOT service_role_execute THEN 'PRESENT_BUT_SERVICE_ROLE_CANNOT_EXECUTE'
-            WHEN anon_execute OR authenticated_execute THEN 'PRESENT_BUT_PUBLICLY_EXECUTABLE'
-            ELSE 'PRESENT_SERVICE_ROLE_ONLY' END AS status,
-       coalesce(signatures, 'No public/private signature found') AS detail
-FROM function_inventory
-
-UNION ALL
-
-WITH required_tables(schema_name, table_name) AS (
+),
+required_tables(schema_name, table_name) AS (
   VALUES
     ('public','btcbox_state'),
     ('public','financial_accounts'),
@@ -71,28 +58,40 @@ WITH required_tables(schema_name, table_name) AS (
     ('private','admin_permission_events'),
     ('private','admin_security_audit'),
     ('private','admin_request_idempotency')
+),
+table_inventory AS (
+  SELECT r.schema_name, r.table_name, c.oid, c.relrowsecurity,
+         CASE WHEN c.oid IS NOT NULL THEN has_table_privilege('anon', c.oid, 'SELECT') END AS anon_select,
+         CASE WHEN c.oid IS NOT NULL THEN has_table_privilege('authenticated', c.oid, 'SELECT') END AS authenticated_select,
+         CASE WHEN c.oid IS NOT NULL THEN has_table_privilege('service_role', c.oid, 'SELECT') END AS service_role_select
+  FROM required_tables r
+  LEFT JOIN pg_namespace n ON n.nspname = r.schema_name
+  LEFT JOIN pg_class c ON c.relnamespace = n.oid
+    AND c.relname = r.table_name AND c.relkind IN ('r','p')
 )
+SELECT 'RPC'::text AS category,
+       name AS object_name,
+       CASE WHEN overload_count = 0 THEN 'MISSING'
+            WHEN NOT service_role_execute THEN 'PRESENT_BUT_SERVICE_ROLE_CANNOT_EXECUTE'
+            WHEN anon_execute OR authenticated_execute THEN 'PRESENT_BUT_PUBLICLY_EXECUTABLE'
+            ELSE 'PRESENT_SERVICE_ROLE_ONLY' END AS status,
+       coalesce(signatures, 'No public/private signature found') AS detail
+FROM function_inventory
+
+UNION ALL
+
 SELECT 'TABLE'::text AS category,
-       format('%I.%I', r.schema_name, r.table_name) AS object_name,
-       CASE WHEN c.oid IS NULL THEN 'MISSING'
-            WHEN NOT c.relrowsecurity THEN 'PRESENT_RLS_DISABLED'
-            WHEN r.schema_name = 'private'
-                 AND (has_table_privilege('anon', c.oid, 'SELECT')
-                   OR has_table_privilege('authenticated', c.oid, 'SELECT'))
+       format('%I.%I', schema_name, table_name) AS object_name,
+       CASE WHEN oid IS NULL THEN 'MISSING'
+            WHEN NOT relrowsecurity THEN 'PRESENT_RLS_DISABLED'
+            WHEN schema_name = 'private' AND (anon_select OR authenticated_select)
               THEN 'PRESENT_PRIVATE_BUT_BROWSER_SELECT_GRANTED'
             ELSE 'PRESENT_RLS_ENABLED' END AS status,
-       CASE WHEN c.oid IS NULL THEN 'Required table is absent'
+       CASE WHEN oid IS NULL THEN 'Required table is absent'
             ELSE format('RLS=%s; anon SELECT=%s; authenticated SELECT=%s; service_role SELECT=%s',
-                        c.relrowsecurity,
-                        has_table_privilege('anon', c.oid, 'SELECT'),
-                        has_table_privilege('authenticated', c.oid, 'SELECT'),
-                        has_table_privilege('service_role', c.oid, 'SELECT'))
+                        relrowsecurity, anon_select, authenticated_select, service_role_select)
        END AS detail
-FROM required_tables r
-LEFT JOIN pg_namespace n ON n.nspname = r.schema_name
-LEFT JOIN pg_class c ON c.relnamespace = n.oid
-                    AND c.relname = r.table_name
-                    AND c.relkind IN ('r','p')
+FROM table_inventory
 
 UNION ALL
 
