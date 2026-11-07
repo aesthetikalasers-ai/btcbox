@@ -3442,7 +3442,7 @@ async function handleRequest(event, context) {
         if (!adminId) return json({ ok: false, code: 'ADMIN_ACTOR_NOT_CONFIGURED', msg: 'Administrator audit identity not configured. Withdrawal was not rejected or refunded.' }, 503);
         const reason = String(body.reason || '').trim();
         if (!reason) return json({ ok: false, code: 'WITHDRAWAL_REJECTION_REASON_REQUIRED', msg: 'A rejection reason is required.' }, 400);
-        if (reason.length > 200 || /[\\u0000-\\u001f\\u007f]/.test(reason)) return json({ ok: false, code: 'WITHDRAWAL_REJECTION_REASON_INVALID', msg: 'Rejection reason must be 1–200 characters without control characters.' }, 400);
+        if (reason.length > 200 || /[\u0000-\u001f\u007f]/.test(reason)) return json({ ok: false, code: 'WITHDRAWAL_REJECTION_REASON_INVALID', msg: 'Rejection reason must be 1–200 characters without control characters.' }, 400);
         try {
           const rpc = await fetch(process.env.SUPABASE_URL.replace(/\/+$/, '') + '/rest/v1/rpc/review_withdrawal_atomic', {
             method: 'POST', headers: supabaseHeaders(),
