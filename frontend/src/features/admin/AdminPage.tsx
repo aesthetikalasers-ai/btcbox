@@ -102,6 +102,46 @@ export function AdminPage() {
   const [payoutReferences, setPayoutReferences] = useState<Record<string, string>>({});
   const [reviewDialog, setReviewDialog] = useState<ReviewDialogState | null>(null);
   const [reviewReason, setReviewReason] = useState("");
+  const reviewDialogRef = useRef<HTMLElement | null>(null);
+  const busyRef = useRef(busy);
+  busyRef.current = busy;
+
+  useEffect(() => {
+    if (!reviewDialog) return;
+    const dialog = reviewDialogRef.current;
+    const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const focusableSelector = 'button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
+    const focusFirst = () => {
+      const controls = dialog?.querySelectorAll<HTMLElement>(focusableSelector);
+      (controls?.[0] || dialog)?.focus();
+    };
+    focusFirst();
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        if (!busyRef.current) { setReviewDialog(null); setReviewReason(""); }
+        event.preventDefault();
+        return;
+      }
+      if (event.key !== "Tab" || !dialog) return;
+      const controls = Array.from(dialog.querySelectorAll<HTMLElement>(focusableSelector));
+      if (!controls.length) { event.preventDefault(); dialog.focus(); return; }
+      const first = controls[0];
+      const last = controls[controls.length - 1];
+      if (event.shiftKey && (document.activeElement === first || !dialog.contains(document.activeElement))) {
+        event.preventDefault(); last.focus();
+      } else if (!event.shiftKey && (document.activeElement === last || !dialog.contains(document.activeElement))) {
+        event.preventDefault(); first.focus();
+      }
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+      document.body.style.overflow = previousOverflow;
+      previousFocus?.focus();
+    };
+  }, [reviewDialog]);
   const [config, setConfig] = useState<AdminConfig>({
     deposit_addresses: {},
     withdrawal_fees: { USDT: "1", BTC: "0.0001", ETH: "0.001", SOL: "0.01", BNB: "0.0005", USDC: "1" },
@@ -894,11 +934,13 @@ export function AdminPage() {
       onMouseDown={event => { if (event.target === event.currentTarget && !busy) { setReviewDialog(null); setReviewReason(""); } }}
     >
       <section
+        ref={reviewDialogRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby="review-dialog-title"
         aria-describedby="review-dialog-description"
-        className="max-h-[calc(100dvh-2rem)] w-full max-w-lg overflow-y-auto rounded-xl border border-brand-border bg-brand-surface p-5 shadow-2xl"
+        tabIndex={-1}
+        className="max-h-[calc(100dvh-2rem)] w-full max-w-lg overflow-y-auto rounded-2xl border border-brand-border bg-brand-surface p-5 shadow-2xl outline-none"
       >
         <div className="mb-4">
           <h2 id="review-dialog-title" className="text-lg font-semibold text-brand-text">
@@ -920,14 +962,14 @@ export function AdminPage() {
             maxLength={300}
             disabled={busy}
             placeholder="Enter a clear reason (up to 300 characters)"
-            className="w-full resize-y rounded-lg border border-brand-border bg-brand-surface-2 p-3 text-brand-text outline-none transition-colors focus:border-brand-accent/60 focus-visible:ring-2 focus-visible:ring-brand-accent/25"
+            className="min-h-24 w-full resize-y rounded-xl border border-brand-border bg-brand-surface-2 p-3 text-brand-text outline-none transition-colors focus:border-brand-accent/60 focus-visible:ring-2 focus-visible:ring-brand-accent/25"
           />
           <span className="block text-right text-xs text-brand-text-muted">{reviewReason.length}/300</span>
         </label>
         {error ? <p role="alert" className="mt-3 text-sm text-brand-danger">{error}</p> : null}
         <div className="mt-5 flex flex-col-reverse justify-end gap-2 sm:flex-row">
-          <Button type="button" variant="outline" disabled={busy} onClick={() => { setReviewDialog(null); setReviewReason(""); }}>Cancel</Button>
-          <Button type="button" variant="destructive" disabled={busy || !reviewReason.trim()} onClick={() => void confirmReviewRejection()}>
+          <Button type="button" size="default" variant="outline" disabled={busy} onClick={() => { setReviewDialog(null); setReviewReason(""); }}>Cancel</Button>
+          <Button type="button" size="default" variant="destructive" disabled={busy || !reviewReason.trim()} onClick={() => void confirmReviewRejection()}>
             {busy ? "Submitting…" : "Confirm rejection"}
           </Button>
         </div>
