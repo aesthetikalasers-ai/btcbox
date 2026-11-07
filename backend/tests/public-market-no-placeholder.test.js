@@ -47,3 +47,8 @@ test('Vite dashboard does not keep stale quotes visible after a refresh error', 
   assert.doesNotMatch(liveMarketsTable, /Showing the last confirmed market data/);
   assert.match(liveMarketsTable, /error && displayMarkets\.length === 0/);
 });
+
+test('order book cache is cleared when the live depth feed fails', () => {
+  assert.match(core, /else if\(state\.depthCache&&state\.depthCache\.sym===sym\)/);
+  assert.match(core, /state\.depthCache=null/);
+});
