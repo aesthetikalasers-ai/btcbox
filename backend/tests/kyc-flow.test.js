@@ -94,7 +94,7 @@ test('administrator cannot approve KYC without an uploaded, reviewable document 
   const end = admin.indexOf('{!loading && tab === "audit"', start);
   assert.ok(start >= 0 && end > start, 'KYC queue must render');
   const queue = admin.slice(start, end);
-  assert.match(queue, /disabled=\{busy\|\|!hasPermission\("kyc\.review"\)\|\|!item\.document_uploaded\|\|!item\.document_url\}/);
+  assert.match(queue, /disabled=\{busy\|\|!hasPermission\("kyc\.review"\)\|\|!item\.document_uploaded\|\|!item\.document_url\|\|!!item\.document_preview_error\}/);
   assert.ok(queue.includes('Identity document upload is required before approval.'));
   assert.ok(queue.includes('Document preview unavailable; refresh the queue before approval.'));
   // Rejection remains available to authorized reviewers even when evidence is missing.
