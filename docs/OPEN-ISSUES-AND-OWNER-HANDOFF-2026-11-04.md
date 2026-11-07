@@ -484,3 +484,6 @@ Registration and the signed-out preview/home page are now the first pages to com
 
 - Audit pagination follow-up: guarded cursor-page requests against tab changes/re-entry. A delayed older page is ignored after a fresh audit snapshot is loaded. Regression test covers the out-of-order page response.
 - Commits: `28c3df8`, `4fa93a5`. Exact-head CI pending.
+
+
+- Added the audit event ID to the Admin audit table for direct reconciliation with the canonical audit record. Clarified that Operator ID is the recorded actor identifier, not a display name. E2E covers the visible ID. Commits: `cb8a45d`, `95de3cc`.
