@@ -33,7 +33,7 @@ test.beforeEach(async ({ page }) => {
 test("login route exposes username/password, Google and wallet sign-in", async ({ page }) => {
   await page.goto("/login");
 
-  await expect(page.getByRole("heading", { name: "Welcome back" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Welcome back", exact: true })).toBeVisible();
   await expect(page.getByLabel("Username")).toBeVisible();
   await expect(page.getByLabel("Password")).toBeVisible();
   await expect(page.getByText("Google sign-in is temporarily unavailable.")).toBeVisible();
@@ -89,7 +89,7 @@ test("registration route offers Google and wallet identity creation without emai
   await page.goto("/register");
 
   await expect(page.getByRole("heading", { name: "Create your BTCBOX account" })).toBeVisible();
-  await expect(page.getByText(/set a BTCBOX username and password after verification/i)).toBeVisible();
+  await expect(page.getByText(/After verification, you will create your BTCBOX username and password/i)).toBeVisible();
   await expect(page.getByRole("button", { name: "Connect Ethereum wallet" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Connect Solana wallet" })).toBeVisible();
   await expect(page.getByLabel(/email/i)).toHaveCount(0);
@@ -100,7 +100,7 @@ test("unauthenticated customer is redirected from a protected route", async ({ p
   await page.goto("/withdraw");
 
   await expect(page).toHaveURL(/\/login$/);
-  await expect(page.getByRole("heading", { name: "Welcome back" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Welcome back", exact: true })).toBeVisible();
 });
 
 test("administrator route requires a verified administrator identity", async ({ page }) => {
@@ -112,7 +112,7 @@ test("administrator route requires a verified administrator identity", async ({ 
   await page.goto("/admin");
 
   await expect(page).toHaveURL("http://127.0.0.1:4173/admin");
-  await expect(page.getByRole("heading", { name: "Welcome back" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Welcome back", exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Connect Ethereum wallet" })).toBeVisible();
   // No administrator API, including the session verifier, may run without a Supabase identity.
   expect(adminRequests).toEqual([]);
@@ -122,7 +122,7 @@ test("assets, orders and KYC remain behind the authenticated account gate", asyn
   for (const path of ["/assets", "/orders", "/kyc"]) {
     await page.goto(path);
     await expect(page).toHaveURL(/\/login$/);
-    await expect(page.getByRole("heading", { name: "Welcome back" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Welcome back", exact: true })).toBeVisible();
   }
 });
 
@@ -138,7 +138,7 @@ test("signed-out customer routes never issue financial or account mutations", as
   for (const path of ["/deposit", "/withdraw", "/assets", "/orders", "/kyc", "/seconds", "/support", "/settings", "/earn"]) {
     await page.goto(path);
     await expect(page).toHaveURL(/\/login$/);
-    await expect(page.getByRole("heading", { name: "Welcome back" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Welcome back", exact: true })).toBeVisible();
   }
 
   expect(mutationRequests).toEqual([]);
@@ -529,7 +529,7 @@ test("trade chooser exposes the backend-enabled products and keeps unsupported f
   // The Earn entrance is public; personal positions and any financial action remain login-gated.
   await earnEntry.click();
   await expect(page).toHaveURL(/\/login$/);
-  await expect(page.getByRole("heading", { name: "Welcome back" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Welcome back", exact: true })).toBeVisible();
 });
 
 
