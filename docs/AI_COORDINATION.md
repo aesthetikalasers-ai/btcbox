@@ -6290,3 +6290,11 @@ Current branch HEAD at note creation: `51c302a96f069876e438321d3597501fcbc26b54`
 - The approved baseline is the existing mature UI foundation source palette: deep navy surfaces, restrained blue interaction/accent states, readable cool-neutral text, and distinct profit/loss semantics. Preserve the original spacing, hierarchy, typography and responsive behavior unless an evidence-based defect requires adjustment.
 - Brand treatment should be integrated rather than pasted: use a reusable inline-vector BTCBOX mark and wordmark; maintain consistent sizing/alignment across desktop sidebar and mobile header. Do not substitute a bitmap logo as the only branding treatment.
 - This is approval for visual/brand implementation only. It does not authorize changes to trading, settlement, account, authentication, financial rules, production data, merge, or deployment.
+
+
+## Priority update — registration and public preview first (2026-11-07)
+
+- User directed that the registration page and public preview page take priority ahead of the remaining page-wide visual polish.
+- Registration remains Google + supported wallet identity creation (Ethereum/Solana), followed by BTCBOX username/password setup after identity verification. Do not add email registration.
+- The signed-out public preview is the customer `/home` market landing page. It must remain accessible without login, display only provider-backed market data, and provide clear register/sign-in/trading discovery paths.
+- Use the original mature UI palette and component language; keep responsive desktop/mobile layouts. No auth provider, market API contract, trading, account or financial behavior changes are authorized by this visual task.
