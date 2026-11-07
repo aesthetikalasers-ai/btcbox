@@ -6,6 +6,7 @@ const widths = [320, 360, 375, 390, 430, 768, 1024, 1440];
 const routes = ["/login", "/register", "/home", "/markets", "/trade/BTCUSDT", "/trade-hub", "/assets", "/support", "/admin"];
 
 test("responsive visual QA captures key customer and admin entry routes without horizontal page overflow", async ({ page }) => {
+  test.setTimeout(180_000);
   test.skip(test.info().project.name !== "desktop-chromium", "The desktop Chromium project iterates the full viewport matrix.");
   const output = path.resolve(process.cwd(), "test-results/visual-qa");
   fs.mkdirSync(output, { recursive: true });
@@ -64,7 +65,8 @@ test("responsive visual QA captures key customer and admin entry routes without 
     for (const width of widths) {
       await page.setViewportSize({ width, height: 900 });
       await page.goto(routePath, { waitUntil: "domcontentloaded" });
-      await expect(page.locator("body")).toBeVisible();
+      await expect(page.locator("#root")).not.toBeEmpty();
+      expect(new URL(page.url()).pathname).toBe(routePath);
       await page.evaluate(() => document.fonts.ready);
       const dimensions = await page.evaluate(() => ({
         viewport: window.innerWidth,
