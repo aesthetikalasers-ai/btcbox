@@ -60,9 +60,12 @@ required_tables(schema_name, table_name) AS (
     ('public','btcbox_state'),
     ('public','financial_accounts'),
     ('public','financial_ledger'),
+    ('public','financial_operations'),
     ('public','financial_audit_log'),
     ('public','deposit_records'),
     ('public','withdrawal_requests'),
+    ('public','earn_product_catalog'),
+    ('public','earn_positions'),
     ('public','financial_matching_markets'),
     ('public','financial_matching_orders'),
     ('public','financial_matching_trades'),
@@ -75,7 +78,9 @@ required_tables(schema_name, table_name) AS (
     ('private','admin_memberships'),
     ('private','admin_permission_events'),
     ('private','admin_security_audit'),
-    ('private','admin_request_idempotency')
+    ('private','admin_request_idempotency'),
+    ('private','seconds_policy_request_idempotency'),
+    ('private','spot_market_request_idempotency')
 ),
 table_inventory AS (
   SELECT r.schema_name, r.table_name, c.oid, c.relrowsecurity,
