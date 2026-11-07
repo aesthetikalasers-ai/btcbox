@@ -3607,3 +3607,8 @@ The prior withdrawal UI audit statement claiming the active BTCBOX admin route w
 - Latest cleanup commit `6f40ce54dfb62b4c6f30abe21c656a1003ef78eb`: removed unused Preview/Scaffold/Chart-preview translation entries from six supported locales; added a release policy forbidding customer-visible demo accounts, simulated activity, preview/scaffold labels and placeholder actions. Unsupported services must remain honestly unavailable and disabled. No runtime behavior, API, auth, market data or financial logic changed.
 - Exact-head CI run `42398622038` is in progress (install passed, lint running; build/Chromium/desktop-mobile smoke pending). Do not accept before all checks pass.
 - Independent browser visual QA remains NOT VERIFIED. No merge, deployment, hosted database writes or real financial operations.
+
+
+- Exact-head CI run `42398622038` for `6f40ce54dfb62b4c6f30abe21c656a1003ef78eb` passed install, lint, production build, Chromium and desktop/mobile route smoke tests.
+- Customer-facing Trade Hub refinement `8b1355c8bc4abd057b13b8e520bbd29b323d0cd1`: removed the Futures card because the service is not implemented/available; no longer advertise a dead-end feature to customers. Retained the existing Spot, Seconds and Earn entry points. No business logic, API, routes, or financial workflows changed.
+- Exact-head CI run `42398790818` is in_progress/pending. Do not accept until all checks pass. Browser visual QA remains NOT VERIFIED; no merge or deployment.
