@@ -220,10 +220,12 @@ test("authenticated assets page renders only the mocked account balances", async
 
   await expect(page.getByRole("heading", { name: "Assets" })).toBeVisible();
   // The individual balances remain visible, but an incomplete valuation must not be shown as a total.
-  await expect(page.getByText("125.5", { exact: true })).toBeVisible();
+  // Decimal strings retain their exact fractional precision, including trailing zeroes.
+  await expect(page.getByText("125.50", { exact: true })).toBeVisible();
+  await expect(page.getByText("10.00", { exact: true })).toBeVisible();
   await expect(page.getByText("USDT", { exact: true })).toBeVisible();
   await expect(page.getByText("0.002", { exact: true })).toBeVisible();
-  await expect(page.getByText("125.5 USDT", { exact: true })).toHaveCount(0);
+  await expect(page.getByText("125.50 USDT", { exact: true })).toHaveCount(0);
 });
 
 

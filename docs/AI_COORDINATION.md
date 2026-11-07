@@ -6595,3 +6595,11 @@ Current branch HEAD at note creation: `51c302a96f069876e438321d3597501fcbc26b54`
 - Added per-chart in-flight guards for liquidity and volume candle polling. Slow requests are not duplicated; failed non-abort reads clear the corresponding chart data, and effect cleanup still aborts the active request.
 - Added a regression source-contract test. Read-only public market display only; no quote source, market API, order flow, or trading logic changed.
 - Exact-head CI pending; no merge or deployment.
+
+
+## Assets decimal-string browser regression — 2026-11-08 (2号 AI)
+- Latest frontend CI build and lint passed, but the desktop and mobile Playwright asset-page checks failed because the fixture supplied the exact decimal string `125.50` while the browser test expected `125.5`.
+- The Assets page formatter intentionally preserves backend decimal-string precision, including trailing fractional zeroes. Updated the browser expectation to `125.50`, added a frozen-balance assertion for `10.00`, and retained the assertion that an incomplete valuation must not render a total.
+- This corrects stale test expectations; no application runtime behavior, API contract, balances, valuation, or financial logic changed.
+- Previous exact-head CI: Backend success; PostgreSQL schema success; Frontend failed only in this same asset assertion on desktop and mobile (74 other browser checks passed). New exact-head CI must complete before this batch is considered validated.
+- No merge, deployment, or production database operation.
