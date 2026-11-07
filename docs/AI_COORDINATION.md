@@ -6424,3 +6424,14 @@ Current branch HEAD at note creation: `51c302a96f069876e438321d3597501fcbc26b54`
 - Root cause was an over-broad test assertion: it expected the previously selected user's email to disappear from the entire page, although that user correctly remains in the directory table. The assertion was checking directory visibility, not stale selected-detail state.
 - Corrected the regression to assert that the earlier user remains in the directory while the stale `Available: 111.00` balance never replaces the latest user's `Available: 222.00` detail. This retains the out-of-order response regression without incorrectly hiding directory data.
 - Follow-up test commit: `dab5f6dee6ea6f1196f0afe172f5d95cc4d3170c`. New exact-head CI must pass before marking verified.
+
+
+## Admin KYC preview fail-closed and deposit record traceability — 2026-11-07 (2号 AI)
+
+- FOUND: KYC approval was disabled when the document was absent or the secure URL was missing, but a response carrying both a URL and `document_preview_error` could still expose an approval action while the UI preferred the link and ignored the preview failure.
+- FIXED: a non-empty `document_preview_error` now suppresses the secure-image link and disables Approve even if `document_uploaded` and `document_url` are present. Reject remains available to an authorized reviewer; no approval mutation is sent by the UI.
+- REGRESSION: KYC E2E covers both missing upload and uploaded-but-preview-failed records, verifies both Approve buttons remain disabled, and verifies no secure-image link is exposed.
+- FOUND: Admin per-user deposit history displayed amount/status/reference/time but omitted the source record ID, making it harder to correlate a row with ledger and support evidence.
+- IMPROVED: show the deposit record ID as a separate read-only column and assert it in the existing user-detail E2E. The ID remains optional and displays an em dash when absent.
+- Scope: Admin presentation and Playwright only. No KYC API decision policy, deposit API, ledger, DB schema, or financial mutation changed.
+- Commits: `11a13c5` (KYC preview fail-closed), `feaf362` (KYC preview regression), `0a9cfb1` (deposit record ID), `0ef84b5` (deposit ID assertion). Exact-head CI pending.
