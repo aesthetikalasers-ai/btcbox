@@ -1,19 +1,19 @@
 # BTCBOX fresh database bootstrap and SQL reference
 
-Status: source-only SQL inventory and bootstrap instructions. The files are not proof of a hosted database installation. The connected hosted project has pre-existing BTCBOX state/data; this empty-schema bootstrap must not be run against it. Any hosted migration requires a separately reviewed, data-preserving reconciliation plan and explicit owner approval.
+Status: source-only SQL inventory and fresh-database bootstrap instructions. The owner has stated that the current Supabase database is empty and has no users. Plan against a fresh empty database; do not add legacy-user migration, production-data inventory, or historical cutover work to this project.
 
 ## Canonical fresh-schema bootstrap
 
-Use `backend/scripts/bootstrap-empty-database.sh` only against a verified empty BTCBOX schema. The Docker first-init hook (`backend/scripts/docker-init-migrations.sh`) must apply the same exact canonical filename allowlist. Both are fresh-database bootstraps, not upgrade paths. The script:
+Use `backend/scripts/bootstrap-empty-database.sh` only against a verified empty BTCBOX schema. The Docker first-init hook (`backend/scripts/docker-init-migrations.sh`) applies the same canonical filename allowlist. Both are fresh-database bootstraps, not upgrade paths. The script:
 - requires `DATABASE_URL` and `BTCBOX_BOOTSTRAP_CONFIRM=YES`;
 - parses the URL hostname and refuses remote targets unless `BTCBOX_ALLOW_REMOTE_BOOTSTRAP=YES` is explicitly supplied;
 - checks that no BTCBOX-owned tables already exist before applying SQL;
-- applies the 26 canonical SQL files explicitly allowlisted in `backend/scripts/bootstrap-empty-database.sh`; excluded legacy/optional files and read-only diagnostics are not applied;
+- applies the 26 canonical SQL files explicitly allowlisted in `backend/scripts/bootstrap-empty-database.sh`;
 - stops on the first SQL error and never prints the database URL.
 
-The scripts do not clear or overwrite an existing schema. They are not incremental migration runners: Docker's init hook only runs for a new empty data directory, and `run_migrations.sh` is a compatibility alias for the guarded empty-database bootstrap. A persisted Docker volume is not upgraded automatically. Do not run either bootstrap against a production database or an existing data volume; a separate versioned, data-preserving upgrade process is required.
+The scripts do not clear or overwrite an existing schema. They are not incremental migration runners: Docker's init hook only runs for a new empty data directory, and `run_migrations.sh` is a compatibility alias for the guarded empty-database bootstrap. A persisted Docker volume is not upgraded automatically. Do not run either bootstrap against production or an existing data volume without separate explicit owner approval.
 
-## Exact source migration order
+## Exact source SQL order
 
 The current canonical source inventory is:
 
@@ -79,25 +79,12 @@ All financial writes and matching remain fail-closed during source QA. Applying 
 
 ## Validation and release gates
 
-Source CI verifies migration inventory, shell syntax, bootstrap safety gates and source-level RPC contracts. It does not execute PostgreSQL DDL. Before any hosted install:
-- create or use a disposable empty PostgreSQL/Supabase environment;
+Source CI verifies SQL inventory, shell syntax, bootstrap safety gates and source-level RPC contracts. It does not execute PostgreSQL DDL. Before any authorized hosted install:
+- use a disposable empty PostgreSQL/Supabase environment;
 - apply all 26 files in the exact order above and stop on any error;
 - verify function signatures, RLS, grants, service-role-only execution and private schema exposure;
 - bootstrap the intended Super Admin and test delegated admin permissions;
 - test manual credit, withdrawal approval/payout completion, spot order idempotency and Seconds order/settlement concurrency/replay without enabling production financial cutover;
 - preserve evidence and the exact SQL/source SHA.
 
-Never infer live migration state by comparing timestamp registry versions with four-digit source filenames. `backend/scripts/check_migration_status.py` intentionally refuses that unsafe comparison without an explicit reviewed mapping.
-
-## Read-only migration reconciliation evidence
-
-Before preparing a staging upgrade, capture a schema-only evidence report from an isolated clone:
-
-```bash
-python3 scripts/audit_migration_mapping.py --source-only > migration-source-manifest.json
-STAGING_DATABASE_URL='postgresql://…' python3 scripts/audit_migration_mapping.py > staging-schema-evidence.json
-```
-
-Install `requirements-postgres-staging.txt` in the isolated audit environment first. The database mode opens a read-only transaction and records the timestamp ledger, canonical source SHA-256 hashes, table/column/constraint/index inventory, function signatures/security settings, and schema/function privilege facts. It does not return application rows, user identifiers, balances, credential values, session data, or secrets. It refuses the known production project reference and ignores `DATABASE_URL`; only `STAGING_DATABASE_URL` is accepted.
-
-The output deliberately remains `MANUAL_REVIEW_REQUIRED`. It is evidence for a human-reviewed migration mapping, not an automatic timestamp-to-four-digit mapping algorithm, migration runner, backup tool, or production authorization. Preserve the JSON reports with the staging change record and review source SHA, ledger versions, and catalog differences together before selecting any pending SQL.
+Never infer live database state from source filenames or migration version labels. Do not run a migration, bootstrap, or hosted database write as part of source review.
