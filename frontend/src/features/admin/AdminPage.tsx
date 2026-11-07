@@ -181,6 +181,29 @@ export function AdminPage() {
     return () => { active = false; };
   }, [authStatus, refreshTokenAndSession]);
 
+  useEffect(() => {
+    if (!session?.user_id) return;
+    const prefix = "btcbox.admin.payout-reference.v1." + session.user_id + ".";
+    const restored: Record<string, string> = {};
+    try {
+      for (let index = 0; index < window.localStorage.length; index += 1) {
+        const key = window.localStorage.key(index);
+        if (!key || !key.startsWith(prefix)) continue;
+        const saved = JSON.parse(window.localStorage.getItem(key) || "null");
+        const withdrawalId = key.slice(prefix.length);
+        if (saved && saved.version === 1 && saved.actor_id === session.user_id &&
+            saved.withdrawal_id === withdrawalId && typeof saved.reference === "string" &&
+            saved.reference.length > 0 && saved.reference.length <= 160 &&
+            !/[\\u0000-\\u001f\\u007f]/.test(saved.reference)) {
+          restored[withdrawalId] = saved.reference;
+        }
+      }
+      setPayoutReferences(current => ({ ...restored, ...current }));
+    } catch {
+      setError("A saved payout reference could not be read. Check the withdrawal status and chain transaction before entering a new reference.");
+    }
+  }, [session?.user_id]);
+
   const allowedTabs = useMemo(() => [...tabs.filter((item) => hasPermission(item.permission)), ...(session?.is_super_admin ? [{ id: "admins" as Tab, label: "Administrators", permission: "super_admin.only" }] : [])], [hasPermission, session]);
   useEffect(() => {
     if (allowedTabs.length && !allowedTabs.some((item) => item.id === tab)) setTab(allowedTabs[0].id);
@@ -485,16 +508,35 @@ export function AdminPage() {
   const markPaid = async (id: string) => {
     if (!token) return;
     const reference = (payoutReferences[id] || "").trim();
-    if (!reference) { setError("TxID / payout reference is required."); return; }
+    if (!reference || reference.length > 160 || /[\\u0000-\\u001f\\u007f]/.test(reference)) {
+      setError("Enter a valid TxID / payout reference (1–160 characters).");
+      return;
+    }
+    if (!session?.user_id) {
+      setError("The authenticated administrator identity is unavailable. No payout update was sent.");
+      return;
+    }
+    const storageKey = "btcbox.admin.payout-reference.v1." + session.user_id + "." + id;
+    try {
+      window.localStorage.setItem(storageKey, JSON.stringify({
+        version: 1, actor_id: session.user_id, withdrawal_id: id, reference,
+      }));
+    } catch {
+      setError("This browser cannot safely save the payout reference. No payout update was sent.");
+      return;
+    }
     setBusy(true); setError(""); setNotice("");
     try {
       const result = await adminMarkWithdrawalPaid(token, { id, reference, note: "Staff manually transferred funds." });
+      try { window.localStorage.removeItem(storageKey); } catch {}
       setWithdrawals(current => current.filter(item => item.id !== id));
-      setPayoutReferences((current) => ({ ...current, [id]: "" }));
+      setPayoutReferences(current => { const next = { ...current }; delete next[id]; return next; });
       setNotice(result.duplicate ? "This payout reference was already recorded." : "Manual payout completion recorded.");
       await refreshWithdrawalQueue("Manual payout completion confirmed.");
-    } catch (reason) { setError(reason instanceof Error ? reason.message : "Payout completion was not confirmed."); }
-    finally { setBusy(false); }
+    } catch (reason) {
+      setError((reason instanceof Error ? reason.message : "Payout completion was not confirmed.") +
+        " The same reference has been saved. Verify the transaction and withdrawal history before retrying.");
+    } finally { setBusy(false); }
   };
 
   const saveAddresses = async (event: FormEvent<HTMLFormElement>) => {
