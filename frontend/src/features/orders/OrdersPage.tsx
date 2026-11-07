@@ -42,7 +42,7 @@ export function OrdersPage() {
         setSignedOut(true);
         setError(t("Sign in to view your order history."));
       } else {
-        setError(reason instanceof Error ? reason.message : t("Order history is temporarily unavailable."));
+        setError(t("Order history is temporarily unavailable."));
       }
     } finally {
       if (!signal?.aborted) setLoading(false);

@@ -26,7 +26,7 @@ export function TradeHubPage(){
   const controller=new AbortController();
   getSpotMarketPairs(controller.signal).then(setSpotPairs).catch(reason=>{
    if(reason instanceof Error&&reason.name==="AbortError")return;
-   setPairsError(reason instanceof Error?reason.message:"Spot-market catalogue is unavailable.");
+   setPairsError(t("Spot-market catalogue is unavailable."));
   }).finally(()=>{if(!controller.signal.aborted)setPairsLoading(false);});
   return ()=>controller.abort();
  },[]);
@@ -56,7 +56,7 @@ export function AssetsPage(){
   setLoading(true);setError("");
   getAccount(controller.signal).then(setAccount).catch((reason:unknown)=>{
    if(reason instanceof Error && reason.name==="AbortError")return;
-   setError(reason instanceof Error?reason.message:"Account balances are temporarily unavailable.");
+   setError(t("Account balances are temporarily unavailable."));
   }).finally(()=>{if(!controller.signal.aborted)setLoading(false);});
   return ()=>controller.abort();
  },[reload]);
@@ -90,7 +90,7 @@ export function MyPage(){
   setLoading(true);setError("");
   getAccount(controller.signal).then(setAccount).catch((reason:unknown)=>{
    if(reason instanceof Error&&reason.name==="AbortError")return;
-   setError(reason instanceof Error?reason.message:"Account profile is temporarily unavailable.");
+   setError(t("Account profile is temporarily unavailable."));
   }).finally(()=>{if(!controller.signal.aborted)setLoading(false);});
   return ()=>controller.abort();
  },[status,reload]);
@@ -123,7 +123,7 @@ export function OrdersPage(){
   setLoading(true);setError("");
   getOrders(controller.signal).then(setOrders).catch((reason:unknown)=>{
    if(reason instanceof Error && reason.name==="AbortError")return;
-   setError(reason instanceof Error?reason.message:"Order history is temporarily unavailable.");
+   setError(t("Order history is temporarily unavailable."));
   }).finally(()=>{if(!controller.signal.aborted)setLoading(false);});
   return ()=>controller.abort();
  },[reload]);
@@ -197,11 +197,11 @@ export function SpotTradingPage(){
     if(!enabled)setError("This spot market is not enabled by BTCBOX operators.");
    }else{
     setSpotPairEnabled(false);
-    setError(pairResult.reason instanceof Error?pairResult.reason.message:"Spot-market catalogue is unavailable.");
+    setError(t("Spot-market catalogue is unavailable."));
    }
    if(accountResult.status==="fulfilled")setAccountUid(accountResult.value.uid);
    else if(!(accountResult.reason instanceof ApiError&&accountResult.reason.code==="AUTH_REQUIRED"))
-    setError(accountResult.reason instanceof Error?accountResult.reason.message:"Account identity is unavailable.");
+    setError(t("Account identity is unavailable."));
    if(marketResult.status==="fulfilled"){
     const marketBase=symbol.endsWith("USDT")?symbol.slice(0,-4):symbol;
     const selected=marketResult.value.find(item=>item.sym.toUpperCase()===marketBase)||null;
@@ -211,14 +211,14 @@ export function SpotTradingPage(){
      setMarketFeedWarning("");
      setPrice(current=>current||String(selected.price));
     }else setMarketFeedWarning("Market snapshot is missing for this pair; showing the last confirmed data.");
-   }else setError(marketResult.reason instanceof Error?marketResult.reason.message:"Live market data is unavailable.");
+   }else setError(t("Live market data is unavailable."));
    if(candleResult.status==="fulfilled"){setCandles(candleResult.value);setChartFeedWarning("");}
    else setChartFeedWarning("Chart refresh is unavailable; showing the last confirmed candles.");
    if(bookResult.status==="fulfilled")setBook(bookResult.value);
    if(statusResult.status==="fulfilled")setTradingStatus(statusResult.value);
    else setTradingStatus(null);
    if(ordersResult.status==="fulfilled")setOrders(ordersResult.value);
-   else if(ordersResult.reason instanceof ApiError && ordersResult.reason.code!=="AUTH_REQUIRED")setError(ordersResult.reason.message);
+   else if(ordersResult.reason instanceof ApiError && ordersResult.reason.code!=="AUTH_REQUIRED")setError(t("Order history is temporarily unavailable."));
   }).finally(()=>{if(!controller.signal.aborted)setLoading(false);});
   return ()=>controller.abort();
  },[symbol,reload]);
@@ -329,7 +329,7 @@ export function SpotTradingPage(){
    setPendingIntent(null);setPendingIntentInvalid(false);setQuantity("");
    setNotice(result.duplicate?"This order request was already recorded and confirmed.":"Limit order accepted and confirmed in order history.");
   }catch(reason){
-   setError(reason instanceof Error?reason.message:"Order result is unconfirmed. Keep the same request ID and check orders before retrying.");
+   setError(t("Order result is unconfirmed. Keep the same request ID and check orders before retrying."));
    if(!orderAccepted&&reason instanceof ApiError&&(reason.status===400||reason.status===401||reason.status===403||reason.code==="MATCHING_ENGINE_UNAVAILABLE")){
     try{window.localStorage.removeItem(pendingStorageKey);}catch{}
     setPendingIntent(null);setPendingIntentInvalid(false);
@@ -362,7 +362,7 @@ export function SpotTradingPage(){
    setCancelRequestIds(current=>{const next={...current};delete next[orderId];return next;});
    setNotice(result.duplicate?"This cancellation was already recorded and confirmed.":"Order cancellation confirmed in order history.");
   }catch(reason){
-   setError(reason instanceof Error?reason.message:"Cancellation result is unconfirmed. Refresh order history and retry only with the same request ID.");
+   setError(t("Cancellation result is unconfirmed. Refresh order history and retry only with the same request ID."));
    if(!cancelAccepted&&reason instanceof ApiError&&reason.status>=400&&reason.status<500&&reason.status!==409){
     try{window.localStorage.removeItem(storageKey);}catch{}
     setCancelRequestIds(current=>{const next={...current};delete next[orderId];return next;});
@@ -439,11 +439,11 @@ export function SecondsPage(){
       }else window.localStorage.removeItem("btcbox.seconds.pending.v1."+nextUid);
      }
     }catch{restoredIntent=null;}
-   }else setError(accountResult.reason instanceof Error?accountResult.reason.message:"Account identity is unavailable.");
+   }else setError(t("Account identity is unavailable."));
    setPendingIntent(restoredIntent);
    if(restoredIntent){setSymbol(restoredIntent.symbol);setDirection(restoredIntent.direction);setDuration(restoredIntent.duration_sec);setAmount(restoredIntent.amount);}
    if(positionsResult.status==="fulfilled")setSnapshot(positionsResult.value);
-   else setError(positionsResult.reason instanceof Error?positionsResult.reason.message:"Seconds positions are temporarily unavailable.");
+   else setError(t("Seconds positions are temporarily unavailable."));
    if(policyResult.status==="fulfilled"){
     setPolicy(policyResult.value);
     if(!restoredIntent){
@@ -452,7 +452,7 @@ export function SecondsPage(){
     }
    }else{
     setPolicy(null);
-    setPolicyError(policyResult.reason instanceof Error?policyResult.reason.message:"Seconds policy is unavailable.");
+    setPolicyError(t("Seconds policy is unavailable."));
    }
   }).finally(()=>{if(!controller.signal.aborted)setLoading(false);});
   return ()=>controller.abort();
@@ -494,9 +494,9 @@ export function SecondsPage(){
   }catch(reason){
    if(reason instanceof ApiError&&((reason.status>=400&&reason.status<500)||['FINANCIAL_CUTOVER_INCOMPLETE','REFERENCE_PRICE_UNAVAILABLE'].includes(reason.code||''))){
     clearPending();
-    setError(reason.message);
+    setError(t("The order could not be confirmed. Check your order status before retrying."));
    }else{
-    setError(reason instanceof Error?reason.message:t("Order status is unconfirmed. Keep this request and retry only with the same request ID."));
+    setError(t("Order status is unconfirmed. Keep this request and retry only with the same request ID."));
    }
   }finally{setSubmitting(false);}
  };
@@ -637,7 +637,7 @@ export function KycPage(){
   const controller=new AbortController();setLoading(true);setError("");
   getAccount(controller.signal).then(data=>{setAccount(data);setName(current=>current||data.kyc?.name||"");setIdType(current=>data.kyc?.id_type==="passport"||data.kyc?.id_type==="driver_license"?data.kyc.id_type:current);}).catch((reason:unknown)=>{
    if(reason instanceof Error&&reason.name==="AbortError")return;
-   setError(reason instanceof Error?reason.message:"Verification status is temporarily unavailable.");
+   setError(t("Verification status is temporarily unavailable."));
   }).finally(()=>{if(!controller.signal.aborted)setLoading(false);});
   return ()=>controller.abort();
  },[reload]);
@@ -658,7 +658,7 @@ export function KycPage(){
    setNotice(t("Verification details and document image submitted securely for staff review."));
    setReload(value=>value+1);
   }
-  catch(reason){setSubmitError(reason instanceof Error?reason.message:t("Verification submission could not be confirmed. Refresh your status before retrying."));}
+  catch(reason){setSubmitError(t("Verification submission could not be confirmed. Refresh your status before retrying."));}
   finally{setSubmitting(false);}
  };
  return <PageFrame eyebrow="BTCBOX / ACCOUNT" title="Identity verification" description="Submit your identity details and a clear document image, then track the review result returned by your authenticated BTCBOX account.">
@@ -702,7 +702,7 @@ export function SupportPage(){
   setLoading(true);setError("");
   getSupportMessages(controller.signal).then(setMessages).catch((reason:unknown)=>{
    if(reason instanceof Error&&reason.name==="AbortError")return;
-   setError(reason instanceof Error?reason.message:"Support conversation is temporarily unavailable.");
+   setError(t("Support conversation is temporarily unavailable."));
   }).finally(()=>{if(!controller.signal.aborted)setLoading(false);});
   return ()=>controller.abort();
  },[reload]);
@@ -719,7 +719,7 @@ export function SupportPage(){
    setPendingRequestId("");
    setReload(n=>n+1);
   }catch(reason){
-   setSendError(reason instanceof Error?reason.message:"Message could not be sent. Please try again.");
+   setSendError(t("Message could not be sent. Please try again."));
   }finally{setSending(false);}
  };
  const date=(raw:string)=>{const parsed=new Date(raw);return Number.isNaN(parsed.getTime())?raw:parsed.toLocaleString();};
@@ -759,7 +759,7 @@ export function DepositPage(){
   setAddress("");setError("");setLoading(true);
   getDepositAddress(coin,network,controller.signal).then(setAddress).catch(reason=>{
    if(reason instanceof Error&&reason.name==="AbortError")return;
-   setError(reason instanceof Error?reason.message:"Deposit address is unavailable.");
+   setError(t("Deposit address is unavailable."));
   }).finally(()=>{if(!controller.signal.aborted)setLoading(false);});
   return ()=>controller.abort();
  },[coin,network,reload]);
@@ -770,7 +770,7 @@ export function DepositPage(){
    if(!controller.signal.aborted)setDepositHistory(Array.isArray(snapshot.deposits)?snapshot.deposits:[]);
   }).catch(reason=>{
    if(reason instanceof Error&&reason.name==="AbortError")return;
-   if(!controller.signal.aborted)setHistoryError(reason instanceof Error?reason.message:"Deposit history is temporarily unavailable.");
+   if(!controller.signal.aborted)setHistoryError(t("Deposit history is temporarily unavailable."));
   }).finally(()=>{if(!controller.signal.aborted)setHistoryLoading(false);});
   return ()=>controller.abort();
  },[historyReload]);
@@ -813,14 +813,14 @@ export function EarnPage(){
   Promise.allSettled([getAccount(controller.signal),getEarnCatalog(controller.signal)]).then(([accountResult,catalogResult])=>{
    const issues:string[]=[];
    if(accountResult.status==="fulfilled")setPositions(Array.isArray(accountResult.value.earn_records)?accountResult.value.earn_records:[]);
-   else issues.push(accountResult.reason instanceof Error?accountResult.reason.message:"Earn positions are unavailable.");
+   else issues.push(t("Earn positions are unavailable."));
    if(catalogResult.status==="fulfilled"){
     setProducts(catalogResult.value.products);
     setActionsEnabled(catalogResult.value.actions_enabled);
     setSelectedProduct(current=>catalogResult.value.products.some(p=>p.product_id===current)?current:(catalogResult.value.products[0]?.product_id||""));
    }else{
     setProducts([]);setActionsEnabled(false);
-    issues.push(catalogResult.reason instanceof Error?catalogResult.reason.message:"Earn products are unavailable.");
+    issues.push(t("Earn products are unavailable."));
    }
    setError(issues.join(" "));
   }).finally(()=>{if(!controller.signal.aborted)setLoading(false);});
@@ -847,7 +847,7 @@ export function EarnPage(){
    setAmount("");
    setReload(n=>n+1);
   }catch(reason){
-   setError(reason instanceof Error?reason.message:"Earn subscription was not confirmed. Check your Earn history before retrying.");
+   setError(t("Earn subscription was not confirmed. Check your Earn history before retrying."));
   }finally{setBusy(false);}
  };
  const redeem=async(position:EarnPosition)=>{
@@ -862,7 +862,7 @@ export function EarnPage(){
    setRequestIds(current=>{const next={...current};delete next[requestKey];return next;});
    setReload(n=>n+1);
   }catch(reason){
-   setError(reason instanceof Error?reason.message:"Redemption was not confirmed. Check your Earn history before retrying.");
+   setError(t("Redemption was not confirmed. Check your Earn history before retrying."));
   }finally{setBusy(false);}
  };
  return <PageFrame eyebrow="BTCBOX / WEALTH" title="Earn" description="Live Earn products, account positions and database-calculated interest from BTCBOX. Rates and terms are controlled by the backend.">
@@ -926,7 +926,7 @@ export function WithdrawPage(){
    })
    .catch(reason=>{
     if(reason instanceof Error&&reason.name==="AbortError")return;
-    if(!controller.signal.aborted)setError(reason instanceof Error?reason.message:"Wallet data is temporarily unavailable.");
+    if(!controller.signal.aborted)setError(t("Wallet data is temporarily unavailable."));
    })
    .finally(()=>{if(!controller.signal.aborted)setLoading(false);});
   return ()=>controller.abort();
@@ -940,7 +940,7 @@ export function WithdrawPage(){
    if(!controller.signal.aborted)setSelectedAddress(value);
   }).catch(reason=>{
    if(reason instanceof Error&&reason.name==="AbortError")return;
-   if(!controller.signal.aborted)setError(reason instanceof Error?reason.message:"Selected withdrawal address is unavailable.");
+   if(!controller.signal.aborted)setError(t("Selected withdrawal address is unavailable."));
   });
   return ()=>controller.abort();
  },[selectedId]);
@@ -984,7 +984,7 @@ export function WithdrawPage(){
    setActionMessage(result.duplicate?t("This withdrawal request was already received and confirmed."):result.require_admin_review?t("Withdrawal submitted for staff review."):t("Withdrawal submitted and is awaiting staff processing."));
    setReload(value=>value+1);
   }catch(reason){
-   setError(reason instanceof Error?reason.message:"Withdrawal result is unconfirmed. Keep this request unchanged and retry with the same request ID.");
+   setError(t("Withdrawal result is unconfirmed. Keep this request unchanged and retry with the same request ID."));
    if(!requestAccepted&&reason instanceof ApiError&&reason.code==="WITHDRAWAL_FEE_CHANGED"){
     clearPending();
     try{setConfig(await getWithdrawalConfig());}catch{}
