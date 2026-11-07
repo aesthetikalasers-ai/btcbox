@@ -152,3 +152,10 @@ A fresh read-only query of `supabase_migrations.schema_migrations` returned only
 - `20261103062716`
 
 These are timestamp-form versions and do not map directly to the repository's four-digit migration filenames. No source-to-ledger mapping has been established. The hosted database must not be assumed to have applied any numbered SQL file solely from these two timestamps.
+
+
+Further read-only checks of the withdrawal and audit contracts confirmed:
+- `withdrawal_requests.payout_reference`, `payout_note`, `paid_by`, and `paid_at` are also absent. The production status CHECK remains the legacy set `pending/approved/rejected/broadcast/failed`, omitting `pending_admin_review` and `completed`.
+- `financial_audit_log.event_id` is absent, so the append-only idempotent audit outbox contract from migration 0021 is not installed.
+- Together with the missing `require_admin_review` and `request_hash`, this means the current manual payout completion and fee-quote replay workflow cannot be safely enabled against the live withdrawal table.
+- The diagnostic was expanded to report all these exact columns and the withdrawal status constraint; it was re-executed successfully as read-only SQL after the update.
