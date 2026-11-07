@@ -100,3 +100,11 @@ test('order book snapshots normalize provider levels and expose source-specific 
   assert.ok(pages.includes('t("Ticker"): {ticker?.source||"—"}'));
   assert.ok(pages.includes('t("Order book"): {book?.source||"—"}'));
 });
+
+test('spot chart preserves provider provenance and rejects impossible OHLC ranges', () => {
+  assert.ok(api.includes('candle.high >= Math.max(candle.open, candle.close, candle.low)'));
+  assert.ok(api.includes('candle.low <= Math.min(candle.open, candle.close, candle.high)'));
+  assert.ok(api.includes('source: typeof payload.source === "string" ? payload.source : undefined'));
+  assert.ok(pages.includes('t("Chart")}: {candles[0]?.source||"—"}'));
+  assert.ok(pages.includes('setChartFeedWarning("Chart refresh is unavailable; showing the last confirmed candles.")'));
+});
