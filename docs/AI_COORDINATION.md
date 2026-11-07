@@ -6191,3 +6191,10 @@ Current branch HEAD at note creation: `51c302a96f069876e438321d3597501fcbc26b54`
 - Added regression assertions for verified admin actor, withdrawal subject, payout reference, paid_by/paid_at and duplicate-audit prevention. Commit: `8e41700b213bc30aba86b3e31bd441db9676ea7a`.
 - Tests remain NOT VERIFIED on the new commit; do not infer pass from static source review. No production DB or deployment action.
 - Continue directly with public market cache and spot trade preview parity review.
+
+## 2026-11-07 continuation — public market freshness
+
+- Verified the spot trade UI polls market/depth every 15 seconds, browser fetches bypass local cache, and backend market requests fetch upstream ticker data rather than serving the declared but unused in-memory price cache.
+- Reduced the market endpoint's shared cache from max-age=2 / s-maxage=5 / stale-while-revalidate=3 to max-age=0 / s-maxage=2 / stale-while-revalidate=1. A small shared cache remains to limit provider load; no stale upstream fallback was introduced.
+- Added a source-contract regression test. Commits: `e2898dddb7b3a556a3e59ad531b9b72f8c700dda`, `1ff6d48da611f6a1679179d931a4832a3ab936b6`.
+- Live provider and deployed behavior remain NOT VERIFIED; no production deploy.
