@@ -213,7 +213,7 @@ export function SpotTradingPage(){
     }else setMarketFeedWarning("Market snapshot is missing for this pair; showing the last confirmed data.");
    }else setError(marketResult.reason instanceof Error?marketResult.reason.message:"Live market data is unavailable.");
    if(candleResult.status==="fulfilled"){setCandles(candleResult.value);setChartFeedWarning("");}
-   else setChartFeedWarning("Chart refresh is unavailable; showing the last confirmed candles.");
+   else{setCandles([]);setChartFeedWarning("Chart data is temporarily unavailable.");}
    if(bookResult.status==="fulfilled")setBook(bookResult.value);
    if(statusResult.status==="fulfilled")setTradingStatus(statusResult.value);
    else setTradingStatus(null);
@@ -241,11 +241,11 @@ export function SpotTradingPage(){
      if(selected){
       setTicker(selected);
       setMarketUpdatedAt(selected.snapshotTs?selected.snapshotTs*1000:null);
-     }else failed=true;
-    }else failed=true;
+     }else{setTicker(null);setMarketUpdatedAt(null);setPrice("");failed=true;}
+    }else{setTicker(null);setMarketUpdatedAt(null);setPrice("");failed=true;}
     if(bookResult.status==="fulfilled")setBook(bookResult.value);
-    else failed=true;
-    setMarketFeedWarning(failed?"Live market refresh is temporarily unavailable; showing the last confirmed data.":"");
+    else{setBook(null);failed=true;}
+    setMarketFeedWarning(failed?"Live market data is temporarily unavailable.":"");
    }).finally(()=>{refreshing=false;});
   };
   const refreshId=window.setInterval(refreshMarketData,15000);
@@ -761,9 +761,11 @@ export function DepositPage(){
  useEffect(()=>{
   const controller=new AbortController();
   setAddress("");setError("");setLoading(true);
-  getDepositAddress(coin,network,controller.signal).then(setAddress).catch(reason=>{
+  getDepositAddress(coin,network,controller.signal).then(value=>{
+   if(!controller.signal.aborted)setAddress(value);
+  }).catch(reason=>{
    if(reason instanceof Error&&reason.name==="AbortError")return;
-   setError(reason instanceof Error?reason.message:"Deposit address is unavailable.");
+   if(!controller.signal.aborted){setAddress("");setError(reason instanceof Error?reason.message:"Deposit address is unavailable.");}
   }).finally(()=>{if(!controller.signal.aborted)setLoading(false);});
   return ()=>controller.abort();
  },[coin,network,reload]);
@@ -784,7 +786,7 @@ export function DepositPage(){
    <div className="grid gap-3 sm:grid-cols-2"><label className="space-y-1.5 text-sm"><span className="text-brand-text-muted">{t("Asset")}</span><select value={coin} onChange={e=>changeCoin(e.target.value)} className="w-full rounded-xl border border-brand-border bg-brand-surface-2 p-3 text-brand-text">{Object.keys(depositNetworks).map(x=><option key={x}>{x}</option>)}</select></label><label className="space-y-1.5 text-sm"><span className="text-brand-text-muted">{t("Network")}</span><select value={network} onChange={e=>setNetwork(e.target.value)} className="w-full rounded-xl border border-brand-border bg-brand-surface-2 p-3 text-brand-text">{depositNetworks[coin].map(x=><option key={x}>{x}</option>)}</select></label></div>
    {loading?<p className="rounded-xl border border-brand-border p-4 text-sm text-brand-text-muted" role="status">{t("Loading configured deposit address…")}</p>
    :error?<div className="rounded-xl border border-amber-400/30 p-4"><p className="text-sm text-amber-200" role="alert">{error}</p><Button className="mt-3" size="sm" variant="outline" onClick={()=>setReload(n=>n+1)}>{t("Try again")}</Button></div>
-   :<div className="space-y-2"><p className="text-xs font-semibold uppercase tracking-wide text-brand-text-muted">{coin} · {network}</p><div className="break-all rounded-xl border border-brand-border bg-brand-surface-2 p-4 font-mono text-sm">{address}</div><Button variant="outline" size="sm" onClick={()=>navigator.clipboard?.writeText(address)}>{t("Copy address")}</Button></div>}
+   :<div className="space-y-2"><p className="text-xs font-semibold uppercase tracking-wide text-brand-text-muted">{coin} · {network}</p><div className="break-all rounded-xl border border-brand-border bg-brand-surface-2 p-4 font-mono text-sm">{address}</div><Button variant="outline" size="sm" disabled={!address} onClick={()=>navigator.clipboard?.writeText(address)}>{t("Copy address")}</Button></div>}
    <div className="rounded-xl border border-amber-400/20 bg-amber-400/5 p-4 text-sm text-brand-text-secondary"><p className="font-semibold text-amber-200">{t("Important")}</p><p className="mt-1">{t("Send only the selected asset on the selected network. Sending unsupported assets or using another network may result in permanent loss. After the transfer, BTCBOX staff verify receipt and manually credit the account. This page does not create a deposit order or automatically credit funds.")}</p></div>
   </CardContent></Card>
   <Card className="border-brand-border bg-brand-surface"><CardHeader><div className="flex flex-wrap items-center justify-between gap-3"><div><CardTitle>{t("Deposit history")}</CardTitle><CardDescription>{t("Track deposits verified and credited by BTCBOX staff.")}</CardDescription></div><Button size="sm" variant="outline" disabled={historyLoading} onClick={()=>setHistoryReload(value=>value+1)}><RefreshCw className={"mr-2 h-4 w-4 "+(historyLoading?"animate-spin":"")}/>{t("Refresh")}</Button></div></CardHeader><CardContent className="space-y-2">
@@ -929,7 +931,10 @@ export function WithdrawPage(){
    })
    .catch(reason=>{
     if(reason instanceof Error&&reason.name==="AbortError")return;
-    if(!controller.signal.aborted)setError(reason instanceof Error?reason.message:"Wallet data is temporarily unavailable.");
+    if(!controller.signal.aborted){
+    setAccount(null);setAddresses([]);setConfig(null);setSelectedAddress(null);
+    setError(reason instanceof Error?reason.message:"Wallet data is temporarily unavailable.");
+   }
    })
    .finally(()=>{if(!controller.signal.aborted)setLoading(false);});
   return ()=>controller.abort();
@@ -943,7 +948,7 @@ export function WithdrawPage(){
    if(!controller.signal.aborted)setSelectedAddress(value);
   }).catch(reason=>{
    if(reason instanceof Error&&reason.name==="AbortError")return;
-   if(!controller.signal.aborted)setError(reason instanceof Error?reason.message:"Selected withdrawal address is unavailable.");
+   if(!controller.signal.aborted){setSelectedAddress(null);setError(reason instanceof Error?reason.message:"Selected withdrawal address is unavailable.");}
   });
   return ()=>controller.abort();
  },[selectedId]);
