@@ -87,15 +87,10 @@ export function MyPage(){
   if(status==="loading"){setLoading(true);return;}
   if(status!=="authenticated"){setAccount(null);setLoading(false);setError("");return;}
   const controller=new AbortController();
-  setLoading(true);setAccount(null);setError("");
-  getAccount(controller.signal).then(snapshot=>{
-   if(!controller.signal.aborted)setAccount(snapshot);
-  }).catch((reason:unknown)=>{
+  setLoading(true);setError("");
+  getAccount(controller.signal).then(setAccount).catch((reason:unknown)=>{
    if(reason instanceof Error&&reason.name==="AbortError")return;
-   if(!controller.signal.aborted){
-    setAccount(null);
-    setError(reason instanceof Error?reason.message:"Account profile is temporarily unavailable.");
-   }
+   setError(reason instanceof Error?reason.message:"Account profile is temporarily unavailable.");
   }).finally(()=>{if(!controller.signal.aborted)setLoading(false);});
   return ()=>controller.abort();
  },[status,reload]);
@@ -125,10 +120,9 @@ export function OrdersPage(){
  const [reload,setReload]=useState(0);
  useEffect(()=>{
   const controller=new AbortController();
-  setLoading(true);setOrders([]);setError("");
+  setLoading(true);setError("");
   getOrders(controller.signal).then(setOrders).catch((reason:unknown)=>{
    if(reason instanceof Error && reason.name==="AbortError")return;
-   if(!controller.signal.aborted)setOrders([]);
    setError(reason instanceof Error?reason.message:"Order history is temporarily unavailable.");
   }).finally(()=>{if(!controller.signal.aborted)setLoading(false);});
   return ()=>controller.abort();
@@ -184,41 +178,16 @@ export function SpotTradingPage(){
  const [cancelRequestIds,setCancelRequestIds]=useState<Record<string,string>>({});
  const [reload,setReload]=useState(0);
  const [marketUpdatedAt,setMarketUpdatedAt]=useState<number|null>(null);
- const [marketClockNow,setMarketClockNow]=useState(Date.now());
  const [marketFeedWarning,setMarketFeedWarning]=useState("");
  const [chartFeedWarning,setChartFeedWarning]=useState("");
  const [mobilePanel,setMobilePanel]=useState<"chart"|"orderbook"|null>(null);
  const chartContainer=useRef<HTMLDivElement|null>(null);
  const base=symbol.endsWith("USDT")?symbol.slice(0,-4):"BTC";
  const pendingStorageKey=accountUid?"btcbox.spot.pending.v1."+accountUid+"."+symbol:"";
- const marketSnapshotStale=!!ticker&&(!marketUpdatedAt||marketClockNow-marketUpdatedAt>90_000);
- const displayTicker=marketSnapshotStale?null:ticker;
- const orderBookSnapshotStale=!!book&&(!book.snapshotTs||marketClockNow-book.snapshotTs*1000>90_000);
- const displayBook=orderBookSnapshotStale?null:book;
- const effectiveMarketFeedWarning=marketFeedWarning||(marketSnapshotStale?t("Market snapshot is older than 90 seconds. Quotes and new order entry are disabled until fresh data arrives."):orderBookSnapshotStale?t("Order book snapshot is older than 90 seconds. Depth levels are hidden until fresh data arrives."):"");
-
- useEffect(()=>{
-  if(!ticker||marketSnapshotStale){
-   if(!ticker||price===String(ticker.price))setPrice("");
-  }
- },[ticker,marketSnapshotStale,price]);
-
- useEffect(()=>{
-  const timer=window.setInterval(()=>setMarketClockNow(Date.now()),5000);
-  return ()=>window.clearInterval(timer);
- },[]);
-
- useEffect(()=>{
-  if(!mobilePanel)return;
-  const closeOnEscape=(event:KeyboardEvent)=>{if(event.key==="Escape")setMobilePanel(null);};
-  window.addEventListener("keydown",closeOnEscape);
-  return ()=>window.removeEventListener("keydown",closeOnEscape);
- },[mobilePanel]);
 
  useEffect(()=>{
   const controller=new AbortController();
   setLoading(true);setError("");setSpotPairEnabled(false);setTradingStatus(null);
-  setTicker(null);setCandles([]);setBook(null);setMarketUpdatedAt(null);setMarketFeedWarning("");setChartFeedWarning("");setPrice("");
   Promise.allSettled([getSpotMarketPairs(controller.signal),getMarkets(controller.signal),getKlines(symbol,"1h",controller.signal),getOrderBook(symbol,controller.signal),getTradingStatus(controller.signal),getOrders(controller.signal),getAccount(controller.signal)]).then(results=>{
    if(controller.signal.aborted)return;
    const [pairResult,marketResult,candleResult,bookResult,statusResult,ordersResult,accountResult]=results;
@@ -241,12 +210,11 @@ export function SpotTradingPage(){
      setMarketUpdatedAt(selected.snapshotTs?selected.snapshotTs*1000:null);
      setMarketFeedWarning("");
      setPrice(current=>current||String(selected.price));
-    }else{setTicker(null);setMarketUpdatedAt(null);setPrice("");setMarketFeedWarning("Market data is temporarily unavailable for this pair.");}
-   }else{setTicker(null);setMarketUpdatedAt(null);setPrice("");setError(marketResult.reason instanceof Error?marketResult.reason.message:"Live market data is unavailable.");}
+    }else setMarketFeedWarning("Market snapshot is missing for this pair; showing the last confirmed data.");
+   }else setError(marketResult.reason instanceof Error?marketResult.reason.message:"Live market data is unavailable.");
    if(candleResult.status==="fulfilled"){setCandles(candleResult.value);setChartFeedWarning("");}
-   else{setCandles([]);setChartFeedWarning("Chart data is temporarily unavailable.");}
+   else setChartFeedWarning("Chart refresh is unavailable; showing the last confirmed candles.");
    if(bookResult.status==="fulfilled")setBook(bookResult.value);
-   else setBook(null);
    if(statusResult.status==="fulfilled")setTradingStatus(statusResult.value);
    else setTradingStatus(null);
    if(ordersResult.status==="fulfilled")setOrders(ordersResult.value);
@@ -273,11 +241,11 @@ export function SpotTradingPage(){
      if(selected){
       setTicker(selected);
       setMarketUpdatedAt(selected.snapshotTs?selected.snapshotTs*1000:null);
-     }else{setTicker(null);setMarketUpdatedAt(null);failed=true;}
-    }else{setTicker(null);setMarketUpdatedAt(null);failed=true;}
+     }else failed=true;
+    }else failed=true;
     if(bookResult.status==="fulfilled")setBook(bookResult.value);
-    else{setBook(null);failed=true;}
-    setMarketFeedWarning(failed?"Live market data is temporarily unavailable.":"");
+    else failed=true;
+    setMarketFeedWarning(failed?"Live market refresh is temporarily unavailable; showing the last confirmed data.":"");
    }).finally(()=>{refreshing=false;});
   };
   const refreshId=window.setInterval(refreshMarketData,15000);
@@ -337,7 +305,6 @@ export function SpotTradingPage(){
  const submitOrder=async(event:FormEvent<HTMLFormElement>)=>{
   event.preventDefault();
   if(pendingIntentInvalid){setError("A saved spot order request must be reconciled before another order can be placed.");return;}
-  if((!ticker||marketSnapshotStale)&&!pendingIntent){setError("A fresh timestamped market snapshot is required before placing a new order. No order was sent.");return;}
   if(!spotPairEnabled&&!pendingIntent){setError("This spot pair is not enabled by BTCBOX operators. No order was sent.");return;}
   if(!tradingStatus?.spot_order_entry_enabled&&!pendingIntent){setError("Spot order execution is currently disabled by server policy. No order was placed.");return;}
   let intent=pendingIntent;
@@ -404,22 +371,21 @@ export function SpotTradingPage(){
  };
  const amountText=(value:unknown)=>value===null||value===undefined||value===""?"—":Number.isFinite(Number(value))?Number(value).toLocaleString(undefined,{maximumFractionDigits:8}):String(value);
  const openOrders=orders.filter(item=>["open","partially_filled","partially-filled","pending"].includes(String(item.status||"").toLowerCase()));
- const asks=(displayBook?.asks||[]).slice(0,8).slice().reverse();const bids=(displayBook?.bids||[]).slice(0,8);
+ const asks=(book?.asks||[]).slice(0,8).slice().reverse();const bids=(book?.bids||[]).slice(0,8);
  return <PageFrame eyebrow="BTCBOX / SPOT" title={symbol} description="Live market data and server-validated limit-order entry.">
-  <div className="flex flex-wrap items-center justify-between gap-3"><div className="flex items-center gap-3"><Badge variant="outline">{t("Spot market")}</Badge><span className="text-xs text-brand-text-muted">{t("Ticker")}: {displayTicker?.source||"—"} · {t("Order book")}: {displayBook?.source||"—"} · {t("Chart")}: {candles[0]?.source||"—"}</span><span className="text-xs text-brand-text-muted">{marketUpdatedAt? (displayTicker?.providerTs?t("Provider update")+": "+new Date(displayTicker.providerTs*1000).toLocaleTimeString()+" · ":"")+t("Snapshot checked")+": "+new Date(marketUpdatedAt).toLocaleTimeString():t("Waiting for live data")}</span></div><Button size="sm" variant="outline" disabled={loading||busy} onClick={()=>setReload(value=>value+1)}><RefreshCw className={"mr-2 h-4 w-4 "+(loading?"animate-spin":"")}/>{t("Refresh")}</Button></div>
-  {error?<div role="alert" className="rounded-xl border border-rose-500/30 bg-rose-500/5 p-3 text-sm text-rose-300">{error}</div>:null}{effectiveMarketFeedWarning?<div role="status" className="rounded-xl border border-amber-500/25 bg-amber-500/5 p-3 text-sm text-amber-200">{effectiveMarketFeedWarning}</div>:null}{chartFeedWarning?<div role="status" className="rounded-xl border border-amber-500/25 bg-amber-500/5 p-3 text-sm text-amber-200">{chartFeedWarning}</div>:null}{notice?<div role="status" className="rounded-xl border border-emerald-500/25 bg-emerald-500/5 p-3 text-sm text-emerald-300">{notice}</div>:null}
-      <Card className="border-brand-border bg-brand-surface"><CardContent className="grid grid-cols-2 gap-4 p-4 sm:grid-cols-4"><div><p className="text-xs text-brand-text-muted">{t("Last price")}</p><p className="mt-1 text-xl font-semibold tabular-nums">{displayTicker?amountText(displayTicker.price):"—"} <span className="text-xs text-brand-text-muted">USDT</span></p></div><div><p className="text-xs text-brand-text-muted">{t("24h change")}</p><p className={"mt-1 font-semibold tabular-nums "+(Number(ticker?.chg||0)>=0?"text-profit":"text-loss")}>{displayTicker?Number(displayTicker.chg).toFixed(2)+"%":"—"}</p></div><div><p className="text-xs text-brand-text-muted">{t("24h high")}</p><p className="mt-1 font-medium tabular-nums">{displayTicker?amountText(displayTicker.high):"—"}</p></div><div><p className="text-xs text-brand-text-muted">{t("24h low")}</p><p className="mt-1 font-medium tabular-nums">{displayTicker?amountText(displayTicker.low):"—"}</p></div></CardContent></Card>
-  {mobilePanel?<button type="button" aria-label={t("Close market panel")} className="fixed inset-0 z-30 bg-black/60 xl:hidden" onClick={()=>setMobilePanel(null)}/>:null}
+  <div className="flex flex-wrap items-center justify-between gap-3"><div className="flex items-center gap-3"><Badge variant="outline">{t("Spot market")}</Badge><span className="text-xs text-brand-text-muted">{t("Ticker")}: {ticker?.source||"—"} · {t("Order book")}: {book?.source||"—"} · {t("Chart")}: {candles[0]?.source||"—"}</span><span className="text-xs text-brand-text-muted">{marketUpdatedAt? (ticker?.providerTs?t("Provider update")+": "+new Date(ticker.providerTs*1000).toLocaleTimeString()+" · ":"")+t("Snapshot checked")+": "+new Date(marketUpdatedAt).toLocaleTimeString():t("Waiting for live data")}</span></div><Button size="sm" variant="outline" disabled={loading||busy} onClick={()=>setReload(value=>value+1)}><RefreshCw className={"mr-2 h-4 w-4 "+(loading?"animate-spin":"")}/>{t("Refresh")}</Button></div>
+  {error?<div role="alert" className="rounded-xl border border-rose-500/30 bg-rose-500/5 p-3 text-sm text-rose-300">{error}</div>:null}{marketFeedWarning?<div role="status" className="rounded-xl border border-amber-500/25 bg-amber-500/5 p-3 text-sm text-amber-200">{marketFeedWarning}</div>:null}{chartFeedWarning?<div role="status" className="rounded-xl border border-amber-500/25 bg-amber-500/5 p-3 text-sm text-amber-200">{chartFeedWarning}</div>:null}{notice?<div role="status" className="rounded-xl border border-emerald-500/25 bg-emerald-500/5 p-3 text-sm text-emerald-300">{notice}</div>:null}
+      <Card className="border-brand-border bg-brand-surface"><CardContent className="grid grid-cols-2 gap-4 p-4 sm:grid-cols-4"><div><p className="text-xs text-brand-text-muted">{t("Last price")}</p><p className="mt-1 text-xl font-semibold tabular-nums">{ticker?amountText(ticker.price):"—"} <span className="text-xs text-brand-text-muted">USDT</span></p></div><div><p className="text-xs text-brand-text-muted">{t("24h change")}</p><p className={"mt-1 font-semibold tabular-nums "+(Number(ticker?.chg||0)>=0?"text-profit":"text-loss")}>{ticker?Number(ticker.chg).toFixed(2)+"%":"—"}</p></div><div><p className="text-xs text-brand-text-muted">{t("24h high")}</p><p className="mt-1 font-medium tabular-nums">{ticker?amountText(ticker.high):"—"}</p></div><div><p className="text-xs text-brand-text-muted">{t("24h low")}</p><p className="mt-1 font-medium tabular-nums">{ticker?amountText(ticker.low):"—"}</p></div></CardContent></Card>
   <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
    <div className="min-w-0 order-2 space-y-4 xl:order-1">
 
-    <Card role={mobilePanel==="chart"?"dialog":undefined} aria-modal={mobilePanel==="chart"?"true":undefined} aria-label={t("Price chart")} className={"border-brand-border bg-brand-surface "+(mobilePanel==="chart"?"fixed inset-x-0 bottom-0 z-40 max-h-[72dvh] overflow-y-auto rounded-b-none pb-[env(safe-area-inset-bottom)] shadow-2xl xl:static xl:max-h-none xl:overflow-visible xl:rounded-xl xl:pb-0 xl:shadow-none":"hidden xl:block")}><CardHeader className="flex flex-row items-start justify-between gap-3"><div><CardTitle>{t("Price chart")}</CardTitle><CardDescription>{t("1-hour candles returned by the live market data provider.")}</CardDescription></div><Button type="button" size="sm" variant="outline" className="xl:hidden" onClick={()=>setMobilePanel(null)}>{t("Close")}</Button></CardHeader><CardContent><div ref={chartContainer} className="min-h-[320px] w-full">{!candles.length&&!loading?<p className="p-5 text-sm text-brand-text-muted">{t("No verified candle data is available for this market.")}</p>:null}</div></CardContent></Card>
+    <Card className={"border-brand-border bg-brand-surface "+(mobilePanel==="chart"?"fixed inset-x-0 bottom-0 z-40 max-h-[72dvh] overflow-y-auto rounded-b-none pb-[env(safe-area-inset-bottom)] shadow-2xl xl:static xl:max-h-none xl:overflow-visible xl:rounded-xl xl:pb-0 xl:shadow-none":"hidden xl:block")}><CardHeader className="flex flex-row items-start justify-between gap-3"><div><CardTitle>{t("Price chart")}</CardTitle><CardDescription>{t("1-hour candles returned by the live market data provider.")}</CardDescription></div><Button type="button" size="sm" variant="outline" className="xl:hidden" onClick={()=>setMobilePanel(null)}>{t("Close")}</Button></CardHeader><CardContent><div ref={chartContainer} className="min-h-[320px] w-full">{!candles.length&&!loading?<p className="p-5 text-sm text-brand-text-muted">{t("No verified candle data is available for this market.")}</p>:null}</div></CardContent></Card>
     <Card className="border-brand-border bg-brand-surface"><CardHeader><CardTitle>{t("Open orders")}</CardTitle><CardDescription>{t("Only authenticated order records are shown. Cancellation is sent to the matching service.")}</CardDescription></CardHeader><CardContent className="space-y-2">{openOrders.length?openOrders.map((item,index)=>{const id=String(item.order_id??item.id??index);return <div key={id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-brand-border p-3"><div><p className="font-semibold">{item.symbol||symbol} · {item.side||"—"}</p><p className="mt-1 text-xs text-brand-text-muted">{t("Price")} {amountText(item.price)} · {t("Remaining")} {amountText(item.remaining_quantity??item.quantity)}</p><Badge variant="outline">{item.status}</Badge></div><Button size="sm" variant="outline" disabled={busy||!tradingStatus?.spot_cancel_enabled} onClick={()=>void cancelOrder(item)}>{cancelRequestIds[id]?t("Retry cancel"):t("Cancel")}</Button></div>;}):<p className="rounded-lg border border-dashed border-brand-border p-4 text-sm text-brand-text-muted">{t("No open spot orders were returned.")}</p>}</CardContent></Card>
    </div>
    <div className="order-1 space-y-4 xl:order-2">
-    <Card className="border-brand-border bg-brand-surface"><CardHeader><CardTitle>{t("Limit order")}</CardTitle><CardDescription>{t("Only limit orders are supported by the current matching contract.")}</CardDescription></CardHeader><CardContent className="space-y-3"><div className="grid grid-cols-2 gap-2"><Button variant={side==="buy"?"default":"outline"} onClick={()=>setSide("buy")} disabled={busy||!!pendingIntent||pendingIntentInvalid}>{t("Buy")}</Button><Button variant={side==="sell"?"destructive":"outline"} onClick={()=>setSide("sell")} disabled={busy||!!pendingIntent}>{t("Sell")}</Button></div><form className="space-y-3" onSubmit={event=>void submitOrder(event)}><label className="block space-y-1 text-sm"><span>{t("Limit price (USDT)")}</span><input value={price} onChange={event=>setPrice(event.target.value)} disabled={busy||!!pendingIntent} inputMode="decimal" className="w-full rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-3 text-brand-text" required/></label><label className="block space-y-1 text-sm"><span>{t("Quantity") } · {base}</span><input value={quantity} onChange={event=>setQuantity(event.target.value)} disabled={busy||!!pendingIntent} inputMode="decimal" className="w-full rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-3 text-brand-text" required/></label><p className="text-xs text-brand-text-muted">{t("Estimated total")}: {price&&quantity&&Number(price)>0&&Number(quantity)>0?amountText(Number(price)*Number(quantity))+" USDT":"—"}</p>{!tradingStatus?.spot_order_entry_enabled?<div className="rounded-lg border border-amber-400/25 bg-amber-400/5 p-3 text-xs text-amber-200">{t("Spot order execution is disabled by server policy. No order can be placed until the matching engine is approved and enabled.")}</div>:null}{pendingIntent?<p className="break-all text-xs text-amber-300">{t("Unconfirmed request ID. Keep the form unchanged and retry with the same ID.")} · {pendingIntent.client_order_id}</p>:null}<Button block type="submit" disabled={busy||pendingIntentInvalid||(!ticker||marketSnapshotStale)&&!pendingIntent||(!spotPairEnabled&&!pendingIntent)||(!tradingStatus?.spot_order_entry_enabled&&!pendingIntent)||!price||!quantity}>{busy?t("Submitting…"):pendingIntent?t("Retry same order"):side==="buy"?t("Place buy limit order"):t("Place sell limit order")}</Button></form></CardContent></Card>
+    <Card className="border-brand-border bg-brand-surface"><CardHeader><CardTitle>{t("Limit order")}</CardTitle><CardDescription>{t("Only limit orders are supported by the current matching contract.")}</CardDescription></CardHeader><CardContent className="space-y-3"><div className="grid grid-cols-2 gap-2"><Button variant={side==="buy"?"default":"outline"} onClick={()=>setSide("buy")} disabled={busy||!!pendingIntent||pendingIntentInvalid}>{t("Buy")}</Button><Button variant={side==="sell"?"destructive":"outline"} onClick={()=>setSide("sell")} disabled={busy||!!pendingIntent}>{t("Sell")}</Button></div><form className="space-y-3" onSubmit={event=>void submitOrder(event)}><label className="block space-y-1 text-sm"><span>{t("Limit price (USDT)")}</span><input value={price} onChange={event=>setPrice(event.target.value)} disabled={busy||!!pendingIntent} inputMode="decimal" className="w-full rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-3 text-brand-text" required/></label><label className="block space-y-1 text-sm"><span>{t("Quantity") } · {base}</span><input value={quantity} onChange={event=>setQuantity(event.target.value)} disabled={busy||!!pendingIntent} inputMode="decimal" className="w-full rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-3 text-brand-text" required/></label><p className="text-xs text-brand-text-muted">{t("Estimated total")}: {price&&quantity&&Number(price)>0&&Number(quantity)>0?amountText(Number(price)*Number(quantity))+" USDT":"—"}</p>{!tradingStatus?.spot_order_entry_enabled?<div className="rounded-lg border border-amber-400/25 bg-amber-400/5 p-3 text-xs text-amber-200">{t("Spot order execution is disabled by server policy. No order can be placed until the matching engine is approved and enabled.")}</div>:null}{pendingIntent?<p className="break-all text-xs text-amber-300">{t("Unconfirmed request ID. Keep the form unchanged and retry with the same ID.")} · {pendingIntent.client_order_id}</p>:null}<Button block type="submit" disabled={busy||pendingIntentInvalid||(!spotPairEnabled&&!pendingIntent)||(!tradingStatus?.spot_order_entry_enabled&&!pendingIntent)||!price||!quantity}>{busy?t("Submitting…"):pendingIntent?t("Retry same order"):side==="buy"?t("Place buy limit order"):t("Place sell limit order")}</Button></form></CardContent></Card>
     <div className="grid grid-cols-2 gap-2 xl:hidden"><Button type="button" size="sm" variant={mobilePanel==="orderbook"?"default":"outline"} aria-pressed={mobilePanel==="orderbook"} onClick={()=>setMobilePanel(current=>current==="orderbook"?null:"orderbook")}>{t("Order book")}</Button><Button type="button" size="sm" variant={mobilePanel==="chart"?"default":"outline"} aria-pressed={mobilePanel==="chart"} onClick={()=>setMobilePanel(current=>current==="chart"?null:"chart")}>{t("Chart")}</Button></div>
-    <Card role={mobilePanel==="orderbook"?"dialog":undefined} aria-modal={mobilePanel==="orderbook"?"true":undefined} aria-label={t("Order book")} className={"border-brand-border bg-brand-surface "+(mobilePanel==="orderbook"?"fixed inset-x-0 bottom-0 z-40 max-h-[72dvh] overflow-y-auto rounded-b-none pb-[env(safe-area-inset-bottom)] shadow-2xl xl:static xl:max-h-none xl:overflow-visible xl:rounded-xl xl:pb-0 xl:shadow-none":"hidden xl:block")}><CardHeader className="flex flex-row items-start justify-between gap-3"><div><CardTitle>{t("Order book")}</CardTitle><CardDescription>{displayBook?.source||(orderBookSnapshotStale?t("Order book snapshot unavailable"):t("Live market depth"))}</CardDescription></div><Button type="button" size="sm" variant="outline" className="xl:hidden" onClick={()=>setMobilePanel(null)}>{t("Close")}</Button></CardHeader><CardContent className="space-y-3"><div className="grid grid-cols-2 gap-3"><div><p className="mb-2 text-xs font-semibold text-loss">{t("Asks")}</p>{asks.length?asks.map((row,index)=><div key={index} className="flex justify-between gap-2 py-1 text-xs tabular-nums"><span className="text-loss">{amountText(row[0])}</span><span className="text-brand-text-muted">{amountText(row[1])}</span></div>):<p className="text-xs text-brand-text-muted">—</p>}</div><div><p className="mb-2 text-xs font-semibold text-profit">{t("Bids")}</p>{bids.length?bids.map((row,index)=><div key={index} className="flex justify-between gap-2 py-1 text-xs tabular-nums"><span className="text-profit">{amountText(row[0])}</span><span className="text-brand-text-muted">{amountText(row[1])}</span></div>):<p className="text-xs text-brand-text-muted">—</p>}</div></div></CardContent></Card>
+    <Card className={"border-brand-border bg-brand-surface "+(mobilePanel==="orderbook"?"fixed inset-x-0 bottom-0 z-40 max-h-[72dvh] overflow-y-auto rounded-b-none pb-[env(safe-area-inset-bottom)] shadow-2xl xl:static xl:max-h-none xl:overflow-visible xl:rounded-xl xl:pb-0 xl:shadow-none":"hidden xl:block")}><CardHeader className="flex flex-row items-start justify-between gap-3"><div><CardTitle>{t("Order book")}</CardTitle><CardDescription>{book?.source||t("Live market depth")}</CardDescription></div><Button type="button" size="sm" variant="outline" className="xl:hidden" onClick={()=>setMobilePanel(null)}>{t("Close")}</Button></CardHeader><CardContent className="space-y-3"><div className="grid grid-cols-2 gap-3"><div><p className="mb-2 text-xs font-semibold text-loss">{t("Asks")}</p>{asks.length?asks.map((row,index)=><div key={index} className="flex justify-between gap-2 py-1 text-xs tabular-nums"><span className="text-loss">{amountText(row[0])}</span><span className="text-brand-text-muted">{amountText(row[1])}</span></div>):<p className="text-xs text-brand-text-muted">—</p>}</div><div><p className="mb-2 text-xs font-semibold text-profit">{t("Bids")}</p>{bids.length?bids.map((row,index)=><div key={index} className="flex justify-between gap-2 py-1 text-xs tabular-nums"><span className="text-profit">{amountText(row[0])}</span><span className="text-brand-text-muted">{amountText(row[1])}</span></div>):<p className="text-xs text-brand-text-muted">—</p>}</div></div></CardContent></Card>
    </div>
   </div>
  </PageFrame>;
@@ -668,10 +634,10 @@ export function KycPage(){
  const [notice,setNotice]=useState("");
  const [reload,setReload]=useState(0);
  useEffect(()=>{
-  const controller=new AbortController();setLoading(true);setAccount(null);setError("");
+  const controller=new AbortController();setLoading(true);setError("");
   getAccount(controller.signal).then(data=>{setAccount(data);setName(current=>current||data.kyc?.name||"");setIdType(current=>data.kyc?.id_type==="passport"||data.kyc?.id_type==="driver_license"?data.kyc.id_type:current);}).catch((reason:unknown)=>{
    if(reason instanceof Error&&reason.name==="AbortError")return;
-   if(!controller.signal.aborted){setAccount(null);setError(reason instanceof Error?reason.message:"Verification status is temporarily unavailable.");}
+   setError(reason instanceof Error?reason.message:"Verification status is temporarily unavailable.");
   }).finally(()=>{if(!controller.signal.aborted)setLoading(false);});
   return ()=>controller.abort();
  },[reload]);
@@ -731,21 +697,19 @@ export function SupportPage(){
  const [sendError,setSendError]=useState("");
  const [reload,setReload]=useState(0);
  const [pendingRequestId,setPendingRequestId]=useState<string>("");
- const {status}=useAuth();
  useEffect(()=>{
-  if(status!=="authenticated"){setMessages([]);setLoading(false);return;}
   const controller=new AbortController();
-  setLoading(true);setMessages([]);setError("");
+  setLoading(true);setError("");
   getSupportMessages(controller.signal).then(setMessages).catch((reason:unknown)=>{
    if(reason instanceof Error&&reason.name==="AbortError")return;
-   if(!controller.signal.aborted){setMessages([]);setError(reason instanceof Error?reason.message:"Support conversation is temporarily unavailable.");}
+   setError(reason instanceof Error?reason.message:"Support conversation is temporarily unavailable.");
   }).finally(()=>{if(!controller.signal.aborted)setLoading(false);});
   return ()=>controller.abort();
- },[reload,status]);
+ },[reload]);
  const submit=async(event:FormEvent<HTMLFormElement>)=>{
   event.preventDefault();
   const message=draft.trim();
-  if(status!=="authenticated"||!message||sending)return;
+  if(!message||sending)return;
   const requestId=pendingRequestId||("MSG"+crypto.randomUUID().replace(/-/g,"")).slice(0,64);
   if(!pendingRequestId)setPendingRequestId(requestId);
   setSending(true);setSendError("");
@@ -759,9 +723,6 @@ export function SupportPage(){
   }finally{setSending(false);}
  };
  const date=(raw:string)=>{const parsed=new Date(raw);return Number.isNaN(parsed.getTime())?raw:parsed.toLocaleString();};
- if(status!=="authenticated")return <PageFrame eyebrow="BTCBOX / HELP CENTER" title="Customer support" description="Find help and contact BTCBOX support.">
-  <Card className="border-brand-border bg-brand-surface"><CardHeader><CardTitle>BTCBOX Help Center</CardTitle><CardDescription>Public support information is available without signing in.</CardDescription></CardHeader><CardContent className="space-y-3 text-sm text-brand-text-secondary"><p>For account-specific questions, deposit or withdrawal reviews, and private conversation history, sign in to your BTCBOX account first.</p><Button asChild><Link to="/login">Sign in to contact support</Link></Button></CardContent></Card>
- </PageFrame>;
  return <PageFrame eyebrow="BTCBOX / HELP CENTER" title="Customer support" description="Send a message to the BTCBOX support team and review replies in your account conversation.">
   <div className="flex items-center justify-between gap-3"><Badge variant="outline" className="border-brand-border"><MessageCircle className="mr-1.5 h-3.5 w-3.5"/>{t("Private account conversation")}</Badge><Button size="sm" variant="outline" disabled={loading} onClick={()=>setReload(n=>n+1)}><RefreshCw className={"mr-2 h-4 w-4 "+(loading?"animate-spin":"")}/>{t("Refresh")}</Button></div>
   {loading?<Card className="border-brand-border bg-brand-surface"><CardContent className="p-6 text-sm text-brand-text-muted" role="status">{t("Loading support conversation…")}</CardContent></Card>
@@ -792,47 +753,33 @@ export function DepositPage(){
  const [loading,setLoading]=useState(false);
  const [error,setError]=useState("");
  const [reload,setReload]=useState(0);
- const [copyMessage,setCopyMessage]=useState("");
- const copyAddress=async()=>{
-  if(!address)return;
-  try{
-   if(!navigator.clipboard?.writeText)throw new Error("Clipboard access is unavailable.");
-   await navigator.clipboard.writeText(address);
-   setCopyMessage("Deposit address copied.");
-  }catch{
-   setCopyMessage("Could not copy the address. Select and copy it manually.");
-  }
- };
  useEffect(()=>{
   const controller=new AbortController();
-  setAddress("");setError("");setCopyMessage("");setLoading(true);
-  getDepositAddress(coin,network,controller.signal).then(value=>{
-   if(!controller.signal.aborted)setAddress(value);
-  }).catch(reason=>{
+  setAddress("");setError("");setLoading(true);
+  getDepositAddress(coin,network,controller.signal).then(setAddress).catch(reason=>{
    if(reason instanceof Error&&reason.name==="AbortError")return;
-   if(!controller.signal.aborted){setAddress("");setError(reason instanceof Error?reason.message:"Deposit address is unavailable.");}
+   setError(reason instanceof Error?reason.message:"Deposit address is unavailable.");
   }).finally(()=>{if(!controller.signal.aborted)setLoading(false);});
   return ()=>controller.abort();
  },[coin,network,reload]);
  useEffect(()=>{
   const controller=new AbortController();
-  setHistoryLoading(true);setDepositHistory([]);setHistoryError("");
+  setHistoryLoading(true);setHistoryError("");
   getAccount(controller.signal).then(snapshot=>{
    if(!controller.signal.aborted)setDepositHistory(Array.isArray(snapshot.deposits)?snapshot.deposits:[]);
   }).catch(reason=>{
    if(reason instanceof Error&&reason.name==="AbortError")return;
-   if(!controller.signal.aborted){setDepositHistory([]);setHistoryError(reason instanceof Error?reason.message:"Deposit history is temporarily unavailable.");}
+   if(!controller.signal.aborted)setHistoryError(reason instanceof Error?reason.message:"Deposit history is temporarily unavailable.");
   }).finally(()=>{if(!controller.signal.aborted)setHistoryLoading(false);});
   return ()=>controller.abort();
  },[historyReload]);
- const changeCoin=(next:string)=>{setAddress("");setError("");setCopyMessage("");setCoin(next);setNetwork(depositNetworks[next][0]);};
- const changeNetwork=(next:string)=>{setAddress("");setError("");setCopyMessage("");setNetwork(next);};
+ const changeCoin=(next:string)=>{setCoin(next);setNetwork(depositNetworks[next][0]);};
  return <PageFrame eyebrow="BTCBOX / WALLET" title="Deposit" description="View the deposit address configured by BTCBOX for the selected asset and network. BTCBOX staff verify incoming transfers and manually credit the account.">
   <Card className="border-brand-border bg-brand-surface"><CardHeader><CardTitle>{t("Deposit address")}</CardTitle><CardDescription>{t("Always verify the asset and network before sending funds.")}</CardDescription></CardHeader><CardContent className="space-y-4">
-   <div className="grid gap-3 sm:grid-cols-2"><label className="space-y-1.5 text-sm"><span className="text-brand-text-muted">{t("Asset")}</span><select value={coin} onChange={e=>changeCoin(e.target.value)} className="w-full rounded-xl border border-brand-border bg-brand-surface-2 p-3 text-brand-text">{Object.keys(depositNetworks).map(x=><option key={x}>{x}</option>)}</select></label><label className="space-y-1.5 text-sm"><span className="text-brand-text-muted">{t("Network")}</span><select value={network} onChange={e=>changeNetwork(e.target.value)} className="w-full rounded-xl border border-brand-border bg-brand-surface-2 p-3 text-brand-text">{depositNetworks[coin].map(x=><option key={x}>{x}</option>)}</select></label></div>
+   <div className="grid gap-3 sm:grid-cols-2"><label className="space-y-1.5 text-sm"><span className="text-brand-text-muted">{t("Asset")}</span><select value={coin} onChange={e=>changeCoin(e.target.value)} className="w-full rounded-xl border border-brand-border bg-brand-surface-2 p-3 text-brand-text">{Object.keys(depositNetworks).map(x=><option key={x}>{x}</option>)}</select></label><label className="space-y-1.5 text-sm"><span className="text-brand-text-muted">{t("Network")}</span><select value={network} onChange={e=>setNetwork(e.target.value)} className="w-full rounded-xl border border-brand-border bg-brand-surface-2 p-3 text-brand-text">{depositNetworks[coin].map(x=><option key={x}>{x}</option>)}</select></label></div>
    {loading?<p className="rounded-xl border border-brand-border p-4 text-sm text-brand-text-muted" role="status">{t("Loading configured deposit address…")}</p>
    :error?<div className="rounded-xl border border-amber-400/30 p-4"><p className="text-sm text-amber-200" role="alert">{error}</p><Button className="mt-3" size="sm" variant="outline" onClick={()=>setReload(n=>n+1)}>{t("Try again")}</Button></div>
-   :<div className="space-y-2"><p className="text-xs font-semibold uppercase tracking-wide text-brand-text-muted">{coin} · {network}</p><div className="break-all rounded-xl border border-brand-border bg-brand-surface-2 p-4 font-mono text-sm">{address}</div><Button variant="outline" size="sm" disabled={!address} onClick={copyAddress}>{t("Copy address")}</Button>{copyMessage?<p className="text-xs text-brand-text-muted" role="status" aria-live="polite">{t(copyMessage)}</p>:null}</div>}
+   :<div className="space-y-2"><p className="text-xs font-semibold uppercase tracking-wide text-brand-text-muted">{coin} · {network}</p><div className="break-all rounded-xl border border-brand-border bg-brand-surface-2 p-4 font-mono text-sm">{address}</div><Button variant="outline" size="sm" onClick={()=>navigator.clipboard?.writeText(address)}>{t("Copy address")}</Button></div>}
    <div className="rounded-xl border border-amber-400/20 bg-amber-400/5 p-4 text-sm text-brand-text-secondary"><p className="font-semibold text-amber-200">{t("Important")}</p><p className="mt-1">{t("Send only the selected asset on the selected network. Sending unsupported assets or using another network may result in permanent loss. After the transfer, BTCBOX staff verify receipt and manually credit the account. This page does not create a deposit order or automatically credit funds.")}</p></div>
   </CardContent></Card>
   <Card className="border-brand-border bg-brand-surface"><CardHeader><div className="flex flex-wrap items-center justify-between gap-3"><div><CardTitle>{t("Deposit history")}</CardTitle><CardDescription>{t("Track deposits verified and credited by BTCBOX staff.")}</CardDescription></div><Button size="sm" variant="outline" disabled={historyLoading} onClick={()=>setHistoryReload(value=>value+1)}><RefreshCw className={"mr-2 h-4 w-4 "+(historyLoading?"animate-spin":"")}/>{t("Refresh")}</Button></div></CardHeader><CardContent className="space-y-2">
@@ -953,12 +900,11 @@ export function WithdrawPage(){
  const [actionMessage,setActionMessage]=useState("");
  const [pendingIntent,setPendingIntent]=useState<{version:1;request_id:string;address_id:string;coin:string;network:string;amount:string;address:string;created_at:number}|null>(null);
  const [pendingIntentInvalid,setPendingIntentInvalid]=useState(false);
- const submitLockRef=useRef(false);
  const [reload,setReload]=useState(0);
 
  useEffect(()=>{
   const controller=new AbortController();
-  setLoading(true);setAccount(null);setAddresses([]);setConfig(null);setSelectedAddress(null);setError("");
+  setLoading(true);setError("");
   Promise.all([getAccount(controller.signal),getSavedCryptoAddresses(controller.signal),getWithdrawalConfig(controller.signal)])
    .then(([snapshot,book,withdrawalConfig])=>{
     if(controller.signal.aborted)return;
@@ -978,10 +924,7 @@ export function WithdrawPage(){
    })
    .catch(reason=>{
     if(reason instanceof Error&&reason.name==="AbortError")return;
-    if(!controller.signal.aborted){
-    setAccount(null);setAddresses([]);setConfig(null);setSelectedAddress(null);
-    setError(reason instanceof Error?reason.message:"Wallet data is temporarily unavailable.");
-   }
+    if(!controller.signal.aborted)setError(reason instanceof Error?reason.message:"Wallet data is temporarily unavailable.");
    })
    .finally(()=>{if(!controller.signal.aborted)setLoading(false);});
   return ()=>controller.abort();
@@ -995,7 +938,7 @@ export function WithdrawPage(){
    if(!controller.signal.aborted)setSelectedAddress(value);
   }).catch(reason=>{
    if(reason instanceof Error&&reason.name==="AbortError")return;
-   if(!controller.signal.aborted){setSelectedAddress(null);setError(reason instanceof Error?reason.message:"Selected withdrawal address is unavailable.");}
+   if(!controller.signal.aborted)setError(reason instanceof Error?reason.message:"Selected withdrawal address is unavailable.");
   });
   return ()=>controller.abort();
  },[selectedId]);
@@ -1011,20 +954,16 @@ export function WithdrawPage(){
 
  const submit=async(event:FormEvent<HTMLFormElement>)=>{
   event.preventDefault();
-  if(!canSubmit||!selectedAddress||submitLockRef.current)return;
-  submitLockRef.current=true;
+  if(!canSubmit||!selectedAddress)return;
   let intent=pendingIntent;
   if(!intent){
-   let requestId:string;
-   try{requestId=window.crypto.randomUUID();}
-   catch{setError("Secure withdrawal request IDs are unavailable in this browser. No withdrawal was sent.");submitLockRef.current=false;return;}
-   intent={version:1,request_id:requestId,address_id:selectedId,coin:selectedAddress.coin,network:selectedAddress.network,amount:amount.trim(),address:selectedAddress.address,created_at:Date.now()};
-   if(!pendingStorageKey){setError("Account identity is unavailable. No withdrawal was sent.");submitLockRef.current=false;return;}
+   intent={version:1,request_id:window.crypto.randomUUID(),address_id:selectedId,coin:selectedAddress.coin,network:selectedAddress.network,amount:amount.trim(),address:selectedAddress.address,created_at:Date.now()};
+   if(!pendingStorageKey){setError("Account identity is unavailable. No withdrawal was sent.");return;}
    try{window.localStorage.setItem(pendingStorageKey,JSON.stringify(intent));}
-   catch{setError("This browser cannot safely save the withdrawal request. No withdrawal was sent.");submitLockRef.current=false;return;}
+   catch{setError("This browser cannot safely save the withdrawal request. No withdrawal was sent.");return;}
    setPendingIntent(intent);
   }
-  if(intent.address_id!==selectedId||intent.address!==selectedAddress.address||intent.coin!==selectedAddress.coin||intent.network!==selectedAddress.network){setError("The saved withdrawal destination no longer matches. Contact support before retrying.");setPendingIntentInvalid(true);submitLockRef.current=false;return;}
+  if(intent.address_id!==selectedId||intent.address!==selectedAddress.address||intent.coin!==selectedAddress.coin||intent.network!==selectedAddress.network){setError("The saved withdrawal destination no longer matches. Contact support before retrying.");setPendingIntentInvalid(true);return;}
   setSubmitting(true);setError("");setActionMessage("");
   let requestAccepted=false;
   try{
@@ -1049,7 +988,7 @@ export function WithdrawPage(){
     try{setConfig(await getWithdrawalConfig());}catch{}
     setError("The withdrawal fee changed. The latest fee has been refreshed. Review the request and submit again.");
    }else if(!requestAccepted&&reason instanceof ApiError&&reason.status>=400&&reason.status<500&&reason.status!==409)clearPending();
-  }finally{submitLockRef.current=false;setSubmitting(false);}
+  }finally{setSubmitting(false);}
  };
  return <PageFrame eyebrow="BTCBOX / WALLET" title="Withdraw" description="Choose a saved address and submit a withdrawal request. BTCBOX staff review requests and manually transfer approved withdrawals.">
   {loading?<Card className="border-brand-border bg-brand-surface"><CardContent className="p-5 text-sm text-brand-text-muted" role="status">{t("Loading wallet and saved addresses…")}</CardContent></Card>
