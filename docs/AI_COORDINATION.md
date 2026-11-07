@@ -6556,3 +6556,5 @@ Current branch HEAD at note creation: `51c302a96f069876e438321d3597501fcbc26b54`
 - Deposit operations currently expose an audited manual-credit endpoint but no separate deposit-review queue read API in the frontend client contract. Do not invent a queue or present manual credits as verified deposits; keep the existing user-selected, reference-required manual-credit workflow until the Core/API owner supplies a read contract.
 - Latest support change CI is pending; do not claim it passed until checks for the exact latest head complete.
 - No production database operations, merge, or deployment were performed.
+
+- Follow-up CI found one existing support-reply contract test still expected the old literal refresh-failure message. Updated the assertion to match the new success-message-preserving fail-closed refresh behavior. Commit: `d3c682792348bfa25cc15d5e393f9b8532e3a9d9`.
