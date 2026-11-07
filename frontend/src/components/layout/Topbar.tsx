@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Search, Bell, User, Radio, Menu, Languages } from "lucide-react";
+import { Search, Bell, User, Menu, Languages } from "lucide-react";
 import { useI18n, type Language } from "../../lib/i18n";
 import { BrandLogo } from "../BrandLogo";
 
@@ -33,10 +33,6 @@ export function Topbar({ onMenuClick, menuOpen = false }: { onMenuClick?: () => 
         </button>
       </div>
       <div className="flex shrink-0 items-center gap-1 sm:gap-3">
-        <div className="hidden items-center gap-1.5 rounded-full border border-brand-border bg-brand-surface px-3 py-2 sm:flex">
-          <Radio className="h-3.5 w-3.5 text-profit" />
-          <span className="text-xs font-semibold text-brand-text">{t("Preview")}</span>
-        </div>
         <label className="flex h-11 items-center gap-1.5 rounded-xl border border-brand-border bg-brand-surface px-2 text-brand-text-secondary sm:px-2.5">
           <Languages className="h-4 w-4 shrink-0" />
           <select aria-label={t("Language")} value={language} onChange={(event) => setLanguage(event.target.value as Language)} className="w-[74px] bg-transparent text-xs font-semibold text-brand-text outline-none sm:w-[88px]">
