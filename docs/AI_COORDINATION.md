@@ -1,13 +1,14 @@
 # BTCBOX AI Coordination
 
-Last refreshed: 2026-11-05 (UTC+8)
+Last refreshed: 2026-11-07 (UTC+8)
 Repository: `avali9308-code/btcboxcdt`
-Coordination branch: `chore/shared-ai-coordination`
+Active integration branch: `work/btcbox-unified-20261104`
+Coordination record: this document is historical baseline plus appended current-batch evidence; do not treat the 2026-11-05 branch inventory as current.
 Observed baseline: `main` at/including merge commit `93a236e4a3ed6c9edd2003ac1068a89161015511` (PR #20, read-only account/orders API).
 
 ## Roles and boundaries
 
-- Single-owner execution: ChatGPT is the sole active operator for repository audit, implementation, integration, testing, and coordination. Do not create parallel AI/team workstreams or wait for external AI handoffs.
+- Current assignment: ChatGPT is 2号 AI, responsible for Web App + Admin Panel implementation, integration, responsive UX and independent cross-checks. 1号 AI owns Core backend; 3号 AI owns architecture, API contracts and cross-module integration. Read the latest unified-branch handoff before acting; do not overwrite another owner's work.
 - The user is the final approver for merges to `main`, production deployment, destructive operations, and material business-rule changes.
 
 ## Mandatory operating rules
@@ -6306,3 +6307,12 @@ Current branch HEAD at note creation: `51c302a96f069876e438321d3597501fcbc26b54`
 - Frontend CI run `42331547336`: SUCCESS — install, lint, build and 44 desktop/mobile Playwright tests passed.
 - Backend CI run `42331547350`: SUCCESS — unified build, 411/411 backend tests, fail-closed deployment preflight and preserved entrypoint checks passed.
 - Automated coverage includes 320px registration and signed-out public preview routes; this is not a substitute for manual visual review on physical devices.
+
+
+## 2026-11-07 active unified-branch continuation
+
+- Active branch confirmed from PR #59: `work/btcbox-unified-20261104`; PR #59 remains OPEN / DRAFT / NOT MERGED, base `fix/post-merge-db-bootstrap-seconds-20261106`.
+- Current assignment is 2号 AI (Web App + Admin Panel). The 2026-11-05 branch inventory and historical baseline above are retained as historical evidence, not current branch state.
+- Registration and signed-out public preview are the immediate UI priorities. The current implementation uses Google + Ethereum/Solana wallet identity creation, then BTCBOX username/password setup; username/password remains available for login. Email registration/login is not added.
+- Preserve the mature deep-navy/blue visual foundation selected by the user; do not force the previously proposed monochrome black/green palette. Use the reusable vector `BrandLogo` component rather than a raster logo pasted into the page.
+- No merge, deployment, production DB/auth configuration, financial write or real order action without explicit owner approval.
