@@ -703,15 +703,12 @@ function validateAdminPasswordStrength(pass) {
   if (weakList.indexOf(pass.toLowerCase()) >= 0) return false;
   return true;
 }
-// 启动时（冷启动模块加载）校验 ADMIN_PASS 强度；弱密码直接抛错拒绝启动。
-// 未设置 ADMIN_PASS 时管理后台不可用但不阻止启动。
-(function adminPassStartupCheck() {
-  const p = process.env.ADMIN_PASS;
-  if (p && !validateAdminPasswordStrength(p)) {
-    console.error('[admin-auth] startup blocked: ADMIN_PASS is too weak (require >=12 chars with upper/lower case, digit and symbol). Refusing to start.');
-    throw new Error('ADMIN_PASS_TOO_WEAK');
-  }
-})();
+// Admin authentication is Supabase Auth + server-side membership/RBAC.
+// ADMIN_PASS belongs to the retired legacy password-login path and is not read
+// by any active admin route. A stale legacy environment variable must not make
+// the current API process fail during cold start or test-module import.
+// Keep validateAdminPasswordStrength exported for compatibility with tooling,
+// but do not use ADMIN_PASS as an application-wide startup gate.
 
 // ===== 持久化安全计数器（纯函数，操作普通 counters 对象；由调用方写入 btcbox_state 持久化）=====
 // 关键路径（登录/资金密码/admin）的失败计数持久化到 btcbox_state.security_counters，
