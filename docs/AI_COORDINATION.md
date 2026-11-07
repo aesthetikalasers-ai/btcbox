@@ -6510,3 +6510,15 @@ Current branch HEAD at note creation: `51c302a96f069876e438321d3597501fcbc26b54`
 
 - FINAL CI — frontend run `42357960746` passed **68/68 desktop/mobile Playwright tests** after fixing the hidden duplicate-row locator. npm install, lint, build and Chromium setup passed. Backend run `42357960745` passed unified build, tests, fail-closed preflight and output/entrypoint checks.
 - Vercel's separate status remains blocked by the free-plan daily deployment cap. No deployment was attempted. Manual screenshot and live-provider checks remain pending.
+
+
+## 2号 AI — stale market/depth UI batch — 2026-11-08
+
+- Branch: `work/2ai-market-stale-state-20261108` (branched from `work/btcbox-unified-20261104` at `f9c33e48c9d5e0b76ab6eea2ef3c2f222a76e824`).
+- SOURCE OBSERVED: the static `backend/assets/js/app-core.js` polling loop kept last-successful ticker values in the DOM after a failed `/api/market` response, so stale prices could continue looking current. Market polling could also overlap when a request exceeded its 3-second interval.
+- FIXED: failed market snapshots now invalidate displayed price/change/high/low/volume values and mark source unavailable; live price/change nodes render `—` when no positive confirmed price exists. Market refresh is single-flight to prevent out-of-order overlapping responses.
+- FIXED: depth polling is single-flight; a failed depth refresh clears the matching cached book and exposes an explicit unavailable state rather than leaving the previous book visible or saying it is still loading.
+- TEST ADDED: `backend/tests/spot-market-catalog.test.js` checks stale ticker invalidation, single-flight guards, depth cache clearing, and the explicit unavailable order-book message.
+- NOT VERIFIED: exact-branch backend test/build CI and live upstream outage/recovery behavior. No real order, financial operation, production data, merge, or deployment was performed.
+- Scope note: these edits are in the static backend app under `btcboxcdt/backend`; the coordination baseline separately identifies `btcbox-v33` as a distinct deployed Vercel project/repository. Production app/repository alignment remains an explicit integration check before release.
+- Next: inspect Admin manual-review flows in the canonical app/repository, verify asset/order state refresh paths, then run the full backend test/build and browser smoke suite. Keep deployment paused.
