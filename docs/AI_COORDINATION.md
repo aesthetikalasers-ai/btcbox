@@ -6316,3 +6316,13 @@ Current branch HEAD at note creation: `51c302a96f069876e438321d3597501fcbc26b54`
 - Registration and signed-out public preview are the immediate UI priorities. The current implementation uses Google + Ethereum/Solana wallet identity creation, then BTCBOX username/password setup; username/password remains available for login. Email registration/login is not added.
 - Preserve the mature deep-navy/blue visual foundation selected by the user; do not force the previously proposed monochrome black/green palette. Use the reusable vector `BrandLogo` component rather than a raster logo pasted into the page.
 - No merge, deployment, production DB/auth configuration, financial write or real order action without explicit owner approval.
+
+
+## 2026-11-07 auth shell / mobile preview continuation
+
+- 2号 AI continued the registration and signed-out public preview work on `work/btcbox-unified-20261104` / Draft PR #59.
+- Confirmed the customer routes previously mounted login, registration, account setup and OAuth callback inside the full `AppLayout`, which injected the global topbar and mobile bottom navigation into the dedicated auth screens. The auth screens already supplied their own brand/market links, causing duplicated chrome and reducing available mobile viewport height.
+- Auth-flow routes are now rendered without the trading app shell; public customer routes retain the normal sidebar/topbar/bottom navigation. Auth and account-setup viewport heights now use the full standalone viewport.
+- The signed-out home preview's hero logo is hidden at mobile widths where the topbar already provides the BTCBOX brand mark; it remains visible when the topbar brand mark is not shown.
+- E2E assertions now verify no global banner/navigation on login and registration, and verify the mobile preview keeps its topbar navigation while avoiding a duplicated hero brand mark.
+- No authentication methods, provider contracts, market API contracts, order/financial logic, production settings, merge or deployment were changed.
