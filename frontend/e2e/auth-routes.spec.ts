@@ -504,3 +504,28 @@ test("Admin KYC approval remains disabled without an uploaded document and secur
   await expect(page.getByRole("status")).toContainText("KYC review queue refreshed.");
   expect(adminMutations).toEqual([]);
 });
+
+test("trade chooser exposes the backend-enabled products and keeps unsupported futures unavailable", async ({ page }) => {
+  await page.route("**/api/market/pairs", route => route.fulfill({
+    status: 200,
+    contentType: "application/json",
+    body: JSON.stringify({ ok: true, markets: [{
+      base_asset: "BTC", quote_asset: "USDT", enabled: true,
+      price_tick: "0.01", quantity_step: "0.00001", min_quantity: "0.00001", min_notional: "5",
+    }] }),
+  }));
+
+  await page.goto("/trade-hub");
+  await expect(page.getByRole("heading", { name: "Choose your trading mode" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "BTC/USDT" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Seconds" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Earn", exact: true })).toBeVisible();
+  await expect(page.getByText("Futures", { exact: true })).toBeVisible();
+  await expect(page.getByText("Unavailable", { exact: true })).toBeVisible();
+  await expect(page.locator('a[href="/earn"]')).toBeVisible();
+
+  // The Earn entrance is public; personal positions and any financial action remain login-gated.
+  await page.locator('a[href="/earn"]').click();
+  await expect(page).toHaveURL(/\\/login$/);
+  await expect(page.getByRole("heading", { name: "Welcome back" })).toBeVisible();
+});
