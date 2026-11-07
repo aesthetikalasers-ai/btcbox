@@ -103,3 +103,31 @@ test('fresh database bootstrap expands safety variables and includes every canon
   assert.ok(!bootstrap.includes('0017_financial_migration_staging_v5.sql'));
   assert.ok(!bootstrap.includes('0020_financial_ledger_reconciliation_v1.sql'));
 });
+
+
+test('Docker first-init and guarded empty-database bootstrap use the exact canonical SQL inventory', () => {
+  const root = path.resolve(__dirname, '..');
+  const scripts = [
+    path.join(root, 'scripts', 'bootstrap-empty-database.sh'),
+    path.join(root, 'scripts', 'docker-init-migrations.sh'),
+  ];
+  const inventories = scripts.map((scriptPath) => {
+    const source = fs.readFileSync(scriptPath, 'utf8');
+    const block = source.split('FILES=(')[1]?.split(LF + ')')[0];
+    assert.ok(block, 'migration FILES allowlist missing in ' + scriptPath);
+    const configured = block.split(LF).map(line => line.trim())
+      .filter(line => line.endsWith('.sql')).map(line => line.replace(/,$/, '')).sort();
+    const syntax = spawnSync('bash', ['-n', scriptPath], { encoding: 'utf8' });
+    assert.equal(syntax.status, 0, syntax.stderr);
+    return configured;
+  });
+  assert.deepEqual(inventories[1], inventories[0], 'Docker init must not drift from guarded canonical bootstrap');
+  const sqlDir = path.join(root, 'supabase', 'sql');
+  const actual = fs.readdirSync(sqlDir)
+    .filter(name => name.endsWith('.sql') && /^[0-9]{4}_/.test(name)).sort();
+  assert.deepEqual(inventories[0], actual, 'both bootstrap paths must apply every canonical SQL file exactly once');
+  assert.ok(!inventories[1].includes('0008_financial_spot_trade_v3.sql'));
+  assert.ok(!inventories[1].includes('0009_financial_matching_engine_v1.sql'));
+  assert.ok(inventories[1].includes('0008_financial_matching_engine_v1.sql'));
+  assert.ok(inventories[1].includes('0032_admin_audit_log_filter_indexes_v1.sql'));
+});
