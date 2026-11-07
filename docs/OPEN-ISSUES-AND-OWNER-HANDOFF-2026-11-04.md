@@ -480,3 +480,7 @@ Registration and the signed-out preview/home page are now the first pages to com
 - Confirmed from `0011_financial_read_api_earn_v1.sql` that account snapshot returns only the latest 20 deposits. Admin now labels the section “Deposit history · latest 20” and points staff to audit log for broader financial event trail.
 - Added E2E coverage for canonical pagination, unsupported legacy cursor suppression, and latest-20 disclosure.
 - Commits: `0bf6425`, `662d676`, `fbc04a0`, `3986341`, `f51f17a`. Frontend-only changes; no production/financial operations. Exact-head CI pending.
+
+
+- Audit pagination follow-up: guarded cursor-page requests against tab changes/re-entry. A delayed older page is ignored after a fresh audit snapshot is loaded. Regression test covers the out-of-order page response.
+- Commits: `28c3df8`, `4fa93a5`. Exact-head CI pending.
