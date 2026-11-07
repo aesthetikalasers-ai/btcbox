@@ -6231,3 +6231,13 @@ Current branch HEAD at note creation: `51c302a96f069876e438321d3597501fcbc26b54`
 - Added Playwright contract coverage for username/password login submission + safe rejection, and first-time username/password setup on the same existing account. Commit: 2598d7ef901e7bea36036d6381e3d2126838c525.
 - NOT VERIFIED: live Supabase Google provider configuration, wallet provider availability on real devices, Google OAuth redirect allowlist, and end-to-end login against the hosted backend. Browser CI for the new tests is pending.
 - No email registration or email/password auth added. No production DB, real funds, order execution, merge or deployment touched.
+
+## 2026-11-07 continuation — authentication regression verification
+
+- Username/password login browser test passed: verifies the exact BTCBOX username endpoint payload and visible generic invalid-credentials feedback.
+- First-time credential setup browser test passed on desktop and mobile after the fixture was corrected to satisfy the account snapshot contract and reflect persisted credentials on the subsequent account reload.
+- OAuth cancellation callback browser test passed: displays a clear cancellation message and a return-to-login path without issuing a BTCBOX session.
+- Frontend CI run 42321032193 at 00581b5ab1bc10697ce01f447b91d21d17f0372e: SUCCESS — lint, build, Chromium install and desktop/mobile route smoke tests passed.
+- Backend wallet-identity regression verifies EVM lowercase normalization, valid Solana base58 address acceptance, malformed addresses and unsupported chains. Backend CI run 42321114844 at 863576598db9414669798ff917f389ccb8eb8892: SUCCESS — 411 backend tests and unified build/preflight passed.
+- Earlier test-only failures were diagnosed from Actions logs and corrected: missing account fixture field; fixture not reflecting saved credentials; and cross-VM object assertion semantics. No production authentication behavior was weakened.
+- Remaining NOT VERIFIED: live Supabase Google provider/redirect configuration and real injected wallet sign-in on physical devices. No production deployment, DB mutation, merge, or real financial operation.
