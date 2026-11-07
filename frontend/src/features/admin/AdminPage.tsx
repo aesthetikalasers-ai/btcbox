@@ -214,8 +214,14 @@ export function AdminPage() {
           setError("A saved spot-market update could not be read. Check the market list before creating another update.");
         }
       }
-      if (tab === "withdrawals") setWithdrawals((await getAdminWithdrawals(token)).withdrawals || []);
-      if (tab === "kyc") setKyc((await getAdminKyc(token)).kycs || []);
+      if (tab === "withdrawals") {
+        setWithdrawals([]);
+        setWithdrawals((await getAdminWithdrawals(token)).withdrawals || []);
+      }
+      if (tab === "kyc") {
+        setKyc([]);
+        setKyc((await getAdminKyc(token)).kycs || []);
+      }
       if (tab === "audit") {
         const snapshot = await getAdminAuditLogs(token);
         setAudit(snapshot.logs || []);
