@@ -435,6 +435,8 @@ export function AdminPage() {
   const refreshKycQueue = async () => {
     if (!token) return;
     setReviewQueueLoading(true); setError(""); setNotice("");
+    // A failed refresh must not leave an older KYC decision queue actionable.
+    setKyc([]);
     try {
       const snapshot = await getAdminKyc(token);
       setKyc(snapshot.kycs || []);
