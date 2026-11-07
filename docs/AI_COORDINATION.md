@@ -6651,3 +6651,8 @@ Current branch HEAD at note creation: `51c302a96f069876e438321d3597501fcbc26b54`
 - The trading page now requires a timestamped server snapshot no older than 90 seconds before displaying the ticker as current or accepting a new order. A small freshness clock re-evaluates the age while the page remains open; existing idempotent pending-order retries remain available for reconciliation.
 - Added a Playwright regression with an expired server snapshot and enabled server order policy; it verifies the quote is hidden and new order entry is disabled.
 - No backend API, matching engine, financial logic, or account state changed. Exact-head CI pending. No merge, deployment, or production DB operation.
+
+
+- CI feedback on the first spot-trading freshness commit found one existing source-contract test that still expected the pre-change ticker source expression. Updated the assertion to the freshness-gated display expression and added explicit checks for ticker and order-entry freshness gates.
+- Extended the same protection to timestamped order-book depth: stale or untimestamped depth levels are now hidden, with a clear unavailable state. The Playwright fixture now uses an expired depth snapshot and verifies stale bid/ask prices are not rendered.
+- Backend CI failure was limited to the outdated frontend-source assertion; PostgreSQL schema CI passed. The corrected exact-head run is pending.

@@ -96,8 +96,12 @@ test('order book snapshots normalize provider levels and expose source-specific 
   assert.ok(route.includes('snapshotTs: Math.floor(Date.now() / 1000), providerTs'));
   assert.ok(api.includes('const normalizeLevels = (rows: unknown[])'));
   assert.ok(api.includes('INVALID_ORDER_BOOK'));
-  assert.ok(pages.includes('t("Ticker")}: {ticker?.source||"—"}'));
-  assert.ok(pages.includes('t("Order book")}: {book?.source||"—"}'));
+  assert.ok(pages.includes('t("Ticker")}: {displayTicker?.source||"—"}'));
+  assert.ok(pages.includes('const marketSnapshotStale=!!ticker&&(!marketUpdatedAt||marketClockNow-marketUpdatedAt>90_000)'));
+  assert.ok(pages.includes('(!ticker||marketSnapshotStale)&&!pendingIntent'));
+  assert.ok(pages.includes('const orderBookSnapshotStale=!!book&&(!book.snapshotTs||marketClockNow-book.snapshotTs*1000>90_000)'));
+  assert.ok(pages.includes('const displayBook=orderBookSnapshotStale?null:book'));
+  assert.ok(pages.includes('t("Order book")}: {displayBook?.source||"—"}'));
 });
 
 test('spot chart preserves provider provenance and rejects impossible OHLC ranges', () => {

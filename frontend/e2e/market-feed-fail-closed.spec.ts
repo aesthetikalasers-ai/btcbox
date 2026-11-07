@@ -115,7 +115,7 @@ test("spot trading hides expired quotes and blocks new orders until a fresh snap
   }));
   await page.route("**/api/depth?**", route => route.fulfill({
     status: 200, contentType: "application/json",
-    body: JSON.stringify({ ok: true, source: "provider", bids: [["64999", "1"]], asks: [["65001", "1"]] }),
+    body: JSON.stringify({ ok: true, source: "provider", snapshotTs: 1, bids: [["64999", "1"]], asks: [["65001", "1"]] }),
   }));
   await page.route("**/api/trading/status", route => route.fulfill({
     status: 200, contentType: "application/json",
@@ -134,5 +134,7 @@ test("spot trading hides expired quotes and blocks new orders until a fresh snap
 
   await expect(page.getByText(/Market snapshot is older than 90 seconds/i)).toBeVisible();
   await expect(page.getByText("65,000", { exact: false })).toHaveCount(0);
+  await expect(page.getByText("64,999", { exact: false })).toHaveCount(0);
+  await expect(page.getByText("65,001", { exact: false })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Place buy limit order" })).toBeDisabled();
 });
