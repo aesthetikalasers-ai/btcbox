@@ -312,6 +312,7 @@ test("first verified Google or wallet identity can set username and password on 
         username: "",
         has_login_password: false,
         balances: {},
+        unpriced_assets: [],
         kyc: { status: "not_submitted" },
         twofa_enabled: false,
       }),
