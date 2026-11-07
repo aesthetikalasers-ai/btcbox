@@ -48,11 +48,11 @@ export function AuthPage({ mode, redirectTo }: { mode: "login" | "register"; red
   </>;
 
   return <main className="tone-support relative mx-auto flex min-h-[100dvh] w-full max-w-[1120px] items-center px-3 py-6 sm:px-6 sm:py-10 lg:px-8">
-    <div className="pointer-events-none absolute inset-x-8 top-8 -z-10 h-64 rounded-full bg-brand-accent/10 blur-3xl" />
+    <div className="pointer-events-none absolute inset-x-8 top-8 -z-10 h-64 rounded-full bg-brand-cyan/10 blur-3xl" />
     <div className="grid w-full items-center gap-6 lg:grid-cols-[minmax(0,1.05fr)_minmax(380px,.95fr)] lg:gap-12">
       <section className="hidden min-w-0 flex-col justify-center lg:flex">
         <Link to="/home" className="mb-12 w-fit"><BrandLogo /></Link>
-        <p className="mb-4 flex items-center gap-2 text-xs font-bold uppercase tracking-[.2em] text-brand-accent"><span className="h-1.5 w-1.5 rounded-full bg-profit" /> Digital asset exchange</p>
+        <p className="mb-4 flex items-center gap-2 text-xs font-bold uppercase tracking-[.2em] text-brand-cyan"><span className="h-1.5 w-1.5 rounded-full bg-brand-success" /> Digital asset exchange</p>
         <h1 className="max-w-[560px] text-4xl font-semibold leading-[1.12] tracking-tight text-brand-text xl:text-5xl">
           {registering ? "A clearer way to enter the digital asset market." : "Welcome back to your market."}
         </h1>
@@ -62,13 +62,13 @@ export function AuthPage({ mode, redirectTo }: { mode: "login" | "register"; red
             : "Access your BTCBOX account with your username, Google account or supported crypto wallet."}
         </p>
         <div className="mt-9 grid max-w-[520px] gap-3 sm:grid-cols-2">
-          <div className="rounded-xl border border-brand-border bg-brand-surface/80 p-4">
-            <ChartNoAxesCombined className="mb-3 h-5 w-5 text-brand-accent" />
+          <div className="rounded-xl border border-brand-border bg-gradient-to-br from-brand-surface via-brand-surface to-brand-cyan/[0.035] p-4">
+            <ChartNoAxesCombined className="mb-3 h-5 w-5 text-brand-cyan" />
             <p className="text-sm font-semibold text-brand-text">Public market access</p>
             <p className="mt-1 text-xs leading-5 text-brand-text-muted">Explore market information before signing in.</p>
           </div>
-          <div className="rounded-xl border border-brand-border bg-brand-surface/80 p-4">
-            <ShieldCheck className="mb-3 h-5 w-5 text-profit" />
+          <div className="rounded-xl border border-brand-border bg-gradient-to-br from-brand-surface via-brand-surface to-brand-success/[0.035] p-4">
+            <ShieldCheck className="mb-3 h-5 w-5 text-brand-success" />
             <p className="text-sm font-semibold text-brand-text">Account-first controls</p>
             <p className="mt-1 text-xs leading-5 text-brand-text-muted">Personal assets and account actions stay protected.</p>
           </div>
@@ -83,10 +83,10 @@ export function AuthPage({ mode, redirectTo }: { mode: "login" | "register"; red
           <Link to="/home" aria-label="BTCBOX home"><BrandLogo compact /></Link>
           <Link to="/markets" className="inline-flex min-h-10 items-center gap-1.5 px-2 text-xs font-semibold text-brand-text-secondary hover:text-brand-text">Explore markets <ArrowRight className="h-3.5 w-3.5" /></Link>
         </div>
-        <Card className="w-full border-brand-border bg-brand-surface shadow-2xl shadow-black/20">
+        <Card className="w-full border-brand-border bg-brand-surface shadow-2xl shadow-black/20 ring-1 ring-white/[0.025]">
           <CardHeader className="gap-3 px-5 pb-3 pt-6 sm:px-8 sm:pt-8">
             <div className="flex items-center gap-2">
-              <span className="flex h-10 w-10 items-center justify-center rounded-xl border border-brand-accent/20 bg-brand-accent/10 text-brand-accent">
+              <span className="flex h-10 w-10 items-center justify-center rounded-xl border border-brand-cyan/20 bg-brand-cyan/10 text-brand-cyan">
                 {status === "two-factor" ? <ShieldCheck className="h-5 w-5" /> : registering ? <Globe2 className="h-5 w-5" /> : <LockKeyhole className="h-5 w-5" />}
               </span>
               <span className="text-xs font-semibold uppercase tracking-[.16em] text-brand-text-muted">{registering ? "Join BTCBOX" : "Secure access"}</span>
