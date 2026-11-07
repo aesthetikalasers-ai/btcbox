@@ -29,7 +29,7 @@ export function AccountSecurityPage() {
     return () => { active = false; };
   }, [status, notice]);
 
-  if (status === "loading") return <div className="mx-auto flex min-h-[40vh] items-center justify-center text-sm text-brand-text-muted">Loading account security…</div>;
+  if (status === "loading") return <div role="status" aria-live="polite" className="mx-auto flex min-h-[40vh] items-center justify-center text-sm text-brand-text-muted">Loading account security…</div>;
   if (status !== "authenticated") return <Navigate to="/login" replace />;
 
   const identities = account?.linked_identities || [];
@@ -66,29 +66,29 @@ export function AccountSecurityPage() {
         <div className="space-y-3 rounded-xl border border-brand-teal/20 bg-brand-teal/[0.035] p-3 sm:p-4">
           <p className="text-sm font-medium text-brand-text">Step 1 · Verify an existing method</p>
           <div className="grid gap-2 sm:grid-cols-2">
-            {hasGoogle && <Button variant="outline" disabled={busy || !googleEnabled || identityLinkSourceVerified} onClick={() => void reauthenticateIdentityLinkWithGoogle()}>Verify existing Google</Button>}
-            {hasEthereum && <Button variant="outline" disabled={busy || identityLinkSourceVerified} onClick={() => ethereumWallets.length > 1 ? setShowSourceEthereumWallets(value => !value) : void reauthenticateIdentityLinkWithWeb3("ethereum", twoFactorCode, ethereumWallets[0]?.provider)}>Verify existing Ethereum wallet</Button>}
-            {hasSolana && <Button variant="outline" disabled={busy || identityLinkSourceVerified} onClick={() => void reauthenticateIdentityLinkWithWeb3("solana", twoFactorCode)}>Verify existing Solana wallet</Button>}
+            {hasGoogle && <Button variant="outline" aria-busy={busy} disabled={busy || !googleEnabled || identityLinkSourceVerified} onClick={() => void reauthenticateIdentityLinkWithGoogle()}>Verify existing Google</Button>}
+            {hasEthereum && <Button variant="outline" aria-busy={busy} disabled={busy || identityLinkSourceVerified} onClick={() => ethereumWallets.length > 1 ? setShowSourceEthereumWallets(value => !value) : void reauthenticateIdentityLinkWithWeb3("ethereum", twoFactorCode, ethereumWallets[0]?.provider)}>Verify existing Ethereum wallet</Button>}
+            {hasSolana && <Button variant="outline" aria-busy={busy} disabled={busy || identityLinkSourceVerified} onClick={() => void reauthenticateIdentityLinkWithWeb3("solana", twoFactorCode)}>Verify existing Solana wallet</Button>}
           </div>
-          {showSourceEthereumWallets && <div className="space-y-2">{ethereumWallets.map(wallet => <Button key={wallet.info.uuid} variant="outline" className="w-full justify-start" disabled={busy} onClick={() => { setShowSourceEthereumWallets(false); void reauthenticateIdentityLinkWithWeb3("ethereum", twoFactorCode, wallet.provider); }}><Wallet className="h-4 w-4"/>{wallet.info.name}</Button>)}</div>}
+          {showSourceEthereumWallets && <div className="space-y-2">{ethereumWallets.map(wallet => <Button key={wallet.info.uuid} variant="outline" className="w-full justify-start" aria-busy={busy} disabled={busy} onClick={() => { setShowSourceEthereumWallets(false); void reauthenticateIdentityLinkWithWeb3("ethereum", twoFactorCode, wallet.provider); }}><Wallet className="h-4 w-4"/>{wallet.info.name}</Button>)}</div>}
           {account?.twofa_enabled && <label className="block space-y-1.5 text-sm"><span className="text-brand-text-secondary">Authenticator code (required when account 2FA is enabled)</span><Input value={twoFactorCode} onChange={event => setTwoFactorCode(event.target.value.replace(/\D/g, "").slice(0, 6))} inputMode="numeric" autoComplete="one-time-code" maxLength={6} placeholder="Enter your 2FA code" /></label>}
-          {identityLinkNeedsTwoFactor && <form className="space-y-2" onSubmit={async event => { event.preventDefault(); try { await completeIdentityLinkReauthTwoFactor(twoFactorCode); setTwoFactorCode(""); } catch { /* AuthProvider displays the safe error. */ } }}>
+          {identityLinkNeedsTwoFactor && <form className="space-y-2" aria-busy={busy} onSubmit={async event => { event.preventDefault(); try { await completeIdentityLinkReauthTwoFactor(twoFactorCode); setTwoFactorCode(""); } catch { /* AuthProvider displays the safe error. */ } }}>
             <p className="text-sm text-brand-text-secondary">Google identity confirmed. Enter your authenticator code to complete this step.</p>
-            <Button type="submit" className="w-full" disabled={busy || twoFactorCode.length !== 6}>Confirm existing identity</Button>
+            <Button type="submit" className="w-full" aria-busy={busy} disabled={busy || twoFactorCode.length !== 6}>Confirm existing identity</Button>
           </form>}
           {identityLinkSourceVerified && <p role="status" className="text-sm text-profit">Existing identity verified. Continue to step 2.</p>}
         </div>
         <div className="space-y-3 rounded-xl border border-brand-cyan/20 bg-brand-cyan/[0.025] p-3 sm:p-4">
           <p className="text-sm font-medium text-brand-text">Step 2 · Verify the new method</p>
           <div className="grid gap-3 sm:grid-cols-2">
-            <Button variant="outline" disabled={busy || !identityLinkSourceVerified || !googleEnabled || hasGoogle} onClick={() => void linkGoogleIdentity()}><Link2 className="h-4 w-4"/>{hasGoogle ? "Google connected" : "Link Google"}</Button>
-            <Button variant="outline" disabled={busy || !identityLinkSourceVerified || hasEthereum} onClick={() => ethereumWallets.length > 1 ? setShowLinkEthereumWallets(value => !value) : void linkWeb3Identity("ethereum", ethereumWallets[0]?.provider)}><Wallet className="h-4 w-4"/>{hasEthereum ? "Ethereum connected" : "Link Ethereum wallet"}</Button>
-            <Button variant="outline" disabled={busy || !identityLinkSourceVerified || hasSolana} onClick={() => void linkWeb3Identity("solana")}><Wallet className="h-4 w-4"/>{hasSolana ? "Solana connected" : "Link Solana wallet"}</Button>
+            <Button variant="outline" aria-busy={busy} disabled={busy || !identityLinkSourceVerified || !googleEnabled || hasGoogle} onClick={() => void linkGoogleIdentity()}><Link2 className="h-4 w-4"/>{hasGoogle ? "Google connected" : "Link Google"}</Button>
+            <Button variant="outline" aria-busy={busy} disabled={busy || !identityLinkSourceVerified || hasEthereum} onClick={() => ethereumWallets.length > 1 ? setShowLinkEthereumWallets(value => !value) : void linkWeb3Identity("ethereum", ethereumWallets[0]?.provider)}><Wallet className="h-4 w-4"/>{hasEthereum ? "Ethereum connected" : "Link Ethereum wallet"}</Button>
+            <Button variant="outline" aria-busy={busy} disabled={busy || !identityLinkSourceVerified || hasSolana} onClick={() => void linkWeb3Identity("solana")}><Wallet className="h-4 w-4"/>{hasSolana ? "Solana connected" : "Link Solana wallet"}</Button>
           </div>
         </div>
         {showLinkEthereumWallets && <div className="col-span-full space-y-2 rounded-lg border border-brand-border bg-brand-surface-2 p-3">
           <p className="text-sm font-medium text-brand-text">Choose the Ethereum wallet to link</p>
-          {ethereumWallets.map(wallet => <Button key={wallet.info.uuid} variant="outline" className="w-full justify-start" disabled={busy} onClick={() => { setShowLinkEthereumWallets(false); void linkWeb3Identity("ethereum", wallet.provider); }}><Wallet className="h-4 w-4"/>{wallet.info.name}</Button>)}
+          {ethereumWallets.map(wallet => <Button key={wallet.info.uuid} variant="outline" className="w-full justify-start" aria-busy={busy} disabled={busy} onClick={() => { setShowLinkEthereumWallets(false); void linkWeb3Identity("ethereum", wallet.provider); }}><Wallet className="h-4 w-4"/>{wallet.info.name}</Button>)}
         </div>}
       </CardContent>
     </Card>
@@ -96,7 +96,7 @@ export function AccountSecurityPage() {
       <CardHeader className="border-b border-brand-border/70 bg-brand-warning/[0.035]"><CardTitle className="text-base">Reset BTCBOX password</CardTitle><CardDescription>Verify a Google account or wallet already connected to this BTCBOX account. A fresh verification opens a five-minute reset window.</CardDescription></CardHeader>
       <CardContent className="space-y-3">
         {credentialRecoveryReady ? (
-          <form className="space-y-3" onSubmit={async (event: FormEvent<HTMLFormElement>) => {
+          <form className="space-y-3" aria-busy={busy} onSubmit={async (event: FormEvent<HTMLFormElement>) => {
             event.preventDefault();
             if (newPassword !== confirmNewPassword) return;
             try {
@@ -108,27 +108,27 @@ export function AccountSecurityPage() {
             <label className="block space-y-1.5 text-sm"><span className="text-brand-text-secondary">New BTCBOX password</span><Input type="password" value={newPassword} onChange={event => setNewPassword(event.target.value)} autoComplete="new-password" minLength={12} maxLength={128} placeholder="At least 12 characters" required /></label>
             <label className="block space-y-1.5 text-sm"><span className="text-brand-text-secondary">Confirm new password</span><Input type="password" value={confirmNewPassword} onChange={event => setConfirmNewPassword(event.target.value)} autoComplete="new-password" minLength={12} maxLength={128} placeholder="Enter it again" required /></label>
             {confirmNewPassword && newPassword !== confirmNewPassword && <p className="text-sm text-loss">Passwords do not match.</p>}
-            <Button type="submit" className="w-full" disabled={busy || newPassword.length < 12 || newPassword !== confirmNewPassword}>Save new password</Button>
+            <Button type="submit" className="w-full" aria-busy={busy} disabled={busy || newPassword.length < 12 || newPassword !== confirmNewPassword}>Save new password</Button>
           </form>
         ) : credentialRecoveryNeedsTwoFactor ? (
-          <form className="space-y-3" onSubmit={async event => {
+          <form className="space-y-3" aria-busy={busy} onSubmit={async event => {
             event.preventDefault();
             try { await completeCredentialRecoveryTwoFactor(twoFactorCode); setTwoFactorCode(""); }
             catch { /* AuthProvider displays the safe error. */ }
           }}>
             <label className="block space-y-1.5 text-sm"><span className="text-brand-text-secondary">Authenticator code</span><Input value={twoFactorCode} onChange={event => setTwoFactorCode(event.target.value.replace(/\D/g, "").slice(0, 6))} inputMode="numeric" autoComplete="one-time-code" maxLength={6} placeholder="Enter your 2FA code" required /></label>
-            <Button type="submit" className="w-full" disabled={busy || twoFactorCode.length < 6}>Verify and continue</Button>
+            <Button type="submit" className="w-full" aria-busy={busy} disabled={busy || twoFactorCode.length < 6}>Verify and continue</Button>
           </form>
         ) : (
           <div className="space-y-3">
             {account?.twofa_enabled && <label className="block space-y-1.5 text-sm"><span className="text-brand-text-secondary">Authenticator code (required for wallet verification)</span><Input value={twoFactorCode} onChange={event => setTwoFactorCode(event.target.value.replace(/\D/g, "").slice(0, 6))} inputMode="numeric" autoComplete="one-time-code" maxLength={6} placeholder="Enter your 2FA code" /></label>}
             <div className="grid gap-3 sm:grid-cols-2">
-              {hasGoogle && <Button variant="outline" disabled={busy || !googleEnabled} onClick={() => void reauthenticateCredentialsWithGoogle()}>Verify with Google</Button>}
-              {hasEthereum && <Button variant="outline" disabled={busy || (account?.twofa_enabled === true && twoFactorCode.length < 6)} onClick={() => ethereumWallets.length > 1 ? setShowRecoveryEthereumWallets(value => !value) : void reauthenticateCredentialsWithWeb3("ethereum", twoFactorCode, ethereumWallets[0]?.provider)}>Verify Ethereum wallet</Button>}
-              {hasSolana && <Button variant="outline" disabled={busy || (account?.twofa_enabled === true && twoFactorCode.length < 6)} onClick={() => void reauthenticateCredentialsWithWeb3("solana", twoFactorCode)}>Verify Solana wallet</Button>}
+              {hasGoogle && <Button variant="outline" aria-busy={busy} disabled={busy || !googleEnabled} onClick={() => void reauthenticateCredentialsWithGoogle()}>Verify with Google</Button>}
+              {hasEthereum && <Button variant="outline" aria-busy={busy} disabled={busy || (account?.twofa_enabled === true && twoFactorCode.length < 6)} onClick={() => ethereumWallets.length > 1 ? setShowRecoveryEthereumWallets(value => !value) : void reauthenticateCredentialsWithWeb3("ethereum", twoFactorCode, ethereumWallets[0]?.provider)}>Verify Ethereum wallet</Button>}
+              {hasSolana && <Button variant="outline" aria-busy={busy} disabled={busy || (account?.twofa_enabled === true && twoFactorCode.length < 6)} onClick={() => void reauthenticateCredentialsWithWeb3("solana", twoFactorCode)}>Verify Solana wallet</Button>}
               {showRecoveryEthereumWallets && <div className="col-span-full space-y-2 rounded-lg border border-brand-border bg-brand-surface-2 p-3">
                 <p className="text-sm font-medium text-brand-text">Choose the linked Ethereum wallet</p>
-                {ethereumWallets.map(wallet => <Button key={wallet.info.uuid} variant="outline" className="w-full justify-start" disabled={busy || (account?.twofa_enabled === true && twoFactorCode.length < 6)} onClick={() => { setShowRecoveryEthereumWallets(false); void reauthenticateCredentialsWithWeb3("ethereum", twoFactorCode, wallet.provider); }}><Wallet className="h-4 w-4"/>{wallet.info.name}</Button>)}
+                {ethereumWallets.map(wallet => <Button key={wallet.info.uuid} variant="outline" className="w-full justify-start" aria-busy={busy} disabled={busy || (account?.twofa_enabled === true && twoFactorCode.length < 6)} onClick={() => { setShowRecoveryEthereumWallets(false); void reauthenticateCredentialsWithWeb3("ethereum", twoFactorCode, wallet.provider); }}><Wallet className="h-4 w-4"/>{wallet.info.name}</Button>)}
               </div>}
               {!hasGoogle && !hasEthereum && !hasSolana && <p className="text-sm text-brand-text-muted">No linked Google account or wallet is available for password recovery. Contact support before changing your sign-in methods.</p>}
             </div>
