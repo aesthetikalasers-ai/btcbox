@@ -6402,3 +6402,17 @@ Current branch HEAD at note creation: `51c302a96f069876e438321d3597501fcbc26b54`
 - Extended the audit E2E to assert both identity column labels and the synthetic operator/affected-user cells.
 - CI previously exposed two E2E fixture/locator assumptions in the audit reload and user-detail isolation tests; those tests were made deterministic before adding the identity assertions. Latest exact-head CI is pending.
 - No backend, audit schema, permissions, financial operations, production database, merge or deployment action performed by 2号 AI.
+
+
+## Admin queue race and evidence-refresh isolation — 2026-11-07 (2号 AI)
+
+- Repository check: PR #59 was merged by the repository owner on 2026-11-07 into `fix/post-merge-db-bootstrap-seconds-20261106`; the collaboration branch continues at its own HEAD. No deployment or production database action was performed by this batch.
+- FOUND: Admin user-detail reads could complete out of order. A slow response for an earlier user selection could overwrite a newer user's detail panel, even after the old panel was cleared before each request.
+- FIXED: sequence the user-detail requests with a component ref; only the latest selection may update user data, surface its error, or release the busy state.
+- REGRESSION: Playwright delays the first user-detail response, loads the second user first, then releases the first response and verifies the second user's balance remains selected.
+- FOUND: manual KYC queue refresh retained the previously loaded review rows when the new read failed, leaving stale evidence rows and approval controls available after a refresh error.
+- FIXED: clear the KYC queue before manual refresh. If the request fails, no stale KYC evidence or approval action remains visible; the read error is shown.
+- REGRESSION: KYC E2E now loads an incomplete evidence row, simulates a 503 on manual refresh, and verifies the stale user row and Approve button disappear. No financial/admin mutation is sent.
+- Scope: frontend state isolation and Playwright only. No KYC decision rules, financial APIs, ledger, database schema, authentication, or production settings changed.
+- Commits: `c806372` (latest-user response guard), `bda8639` (out-of-order response test), `6b5810f` (KYC fail-closed refresh), `ef50db2` (KYC refresh regression).
+- Verification: exact-head CI queued/running at handoff; do not mark the batch fully verified until both frontend and backend workflows finish.
