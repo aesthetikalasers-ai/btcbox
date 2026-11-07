@@ -436,6 +436,7 @@ async function installAdminE2EIdentity(page: import("@playwright/test").Page) {
 test("Admin withdrawal refresh failure stays a read-only error and cannot imply a financial action", async ({ page }) => {
   await installAdminE2EIdentity(page);
   let queueReads = 0;
+  let failNextQueueRead = false;
   const adminMutations: string[] = [];
   page.on("request", request => {
     const url = new URL(request.url());
@@ -445,21 +446,22 @@ test("Admin withdrawal refresh failure stays a read-only error and cannot imply 
   });
   await page.route("**/api/admin/withdrawals", async route => {
     queueReads += 1;
-    if (queueReads === 1) {
+    if (failNextQueueRead) {
+      failNextQueueRead = false;
       await route.fulfill({
-        status: 200,
+        status: 503,
         contentType: "application/json",
-        body: JSON.stringify({ ok: true, withdrawals: [{
-          id: "E2E-WITHDRAWAL-001", uid: "e2e-user-001", coin: "USDT", amount: "25.00",
-          fee: "1.00", network: "TRC20", address: "T-E2E-DESTINATION", status: "approved",
-        }] }),
+        body: JSON.stringify({ ok: false, code: "QUEUE_UNAVAILABLE", msg: "Withdrawal review queue could not be refreshed." }),
       });
       return;
     }
     await route.fulfill({
-      status: 503,
+      status: 200,
       contentType: "application/json",
-      body: JSON.stringify({ ok: false, code: "QUEUE_UNAVAILABLE", msg: "Withdrawal review queue could not be refreshed." }),
+      body: JSON.stringify({ ok: true, withdrawals: [{
+        id: "E2E-WITHDRAWAL-001", uid: "e2e-user-001", coin: "USDT", amount: "25.00",
+        fee: "1.00", network: "TRC20", address: "T-E2E-DESTINATION", status: "approved",
+      }] }),
     });
   });
 
@@ -468,6 +470,7 @@ test("Admin withdrawal refresh failure stays a read-only error and cannot imply 
   await expect(page.getByText("E2E-WITHDRAWAL-001")).toBeVisible();
   await expect(page.getByRole("button", { name: "Mark paid" })).toBeDisabled();
 
+  failNextQueueRead = true;
   await page.getByRole("button", { name: "Refresh queue" }).click();
   await expect(page.getByRole("alert")).toContainText("Withdrawal review queue could not be refreshed.");
   await expect(page.getByRole("alert")).not.toContainText("confirmed");
@@ -805,23 +808,25 @@ test("Admin audit reload failure clears stale records and resets source confiden
 test("Admin queue reload failure never leaves stale withdrawal actions visible", async ({ page }) => {
   await installAdminE2EIdentity(page);
   let queueReads = 0;
+  let failNextQueueRead = false;
   await page.route("**/api/admin/withdrawals", async route => {
     queueReads += 1;
-    if (queueReads === 1) {
+    if (failNextQueueRead) {
+      failNextQueueRead = false;
       await route.fulfill({
-        status: 200,
+        status: 503,
         contentType: "application/json",
-        body: JSON.stringify({ ok: true, withdrawals: [{
-          id: "E2E-STALE-WITHDRAWAL", uid: "e2e-user-002", coin: "USDT", amount: "40.00",
-          fee: "1.00", network: "TRC20", address: "T-E2E-STALE", status: "pending",
-        }] }),
+        body: JSON.stringify({ ok: false, code: "QUEUE_UNAVAILABLE", msg: "Withdrawal review queue could not be refreshed." }),
       });
       return;
     }
     await route.fulfill({
-      status: 503,
+      status: 200,
       contentType: "application/json",
-      body: JSON.stringify({ ok: false, code: "QUEUE_UNAVAILABLE", msg: "Withdrawal review queue could not be refreshed." }),
+      body: JSON.stringify({ ok: true, withdrawals: [{
+        id: "E2E-STALE-WITHDRAWAL", uid: "e2e-user-002", coin: "USDT", amount: "40.00",
+        fee: "1.00", network: "TRC20", address: "T-E2E-STALE", status: "pending",
+      }] }),
     });
   });
   await page.route("**/api/admin/kyc", route => route.fulfill({
@@ -836,6 +841,7 @@ test("Admin queue reload failure never leaves stale withdrawal actions visible",
 
   await page.getByRole("button", { name: "KYC", exact: true }).click();
   await expect(page.getByRole("heading", { name: "KYC review" })).toBeVisible();
+  failNextQueueRead = true;
   await page.getByRole("button", { name: "Withdrawals", exact: true }).click();
 
   await expect(page.getByRole("alert")).toContainText("Withdrawal review queue could not be refreshed.");
@@ -1034,4 +1040,129 @@ test("Admin rapid user selection ignores an older detail response", async ({ pag
   await expect(page.getByRole("cell", { name: "slow@example.invalid" })).toBeVisible();
   await expect(page.getByText("Available: 111.00")).toHaveCount(0);
   expect(detailReads).toBe(2);
+});
+
+test("public preview distinguishes server snapshot time from upstream provider time", async ({ page }) => {
+  const now = Math.floor(Date.now() / 1000);
+  await page.route("**/api/market", route => route.fulfill({
+    status: 200,
+    contentType: "application/json",
+    body: JSON.stringify({
+      ok: true,
+      markets: [{ sym: "BTC", price: 65000, chg: 1.2, high: 66000, low: 64000, vol: "1000000", source: "coinbase" }],
+      data: { BTC: { ts: now, providerTs: now - 90, source: "coinbase" } },
+    }),
+  }));
+
+  await page.goto("/home");
+
+  await expect(page.getByText(/Server snapshot ·/)).toBeVisible();
+  await expect(page.getByText(/Provider snapshot · coinbase · .* · [0-9]+s ago/)).toBeVisible();
+});
+
+test("Admin ignores a withdrawal queue response from a tab opened earlier", async ({ page }) => {
+  await installAdminE2EIdentity(page);
+  let withdrawalReads = 0;
+  let releaseOlder: (() => void) | null = null;
+  await page.route("**/api/admin/withdrawals", async route => {
+    withdrawalReads += 1;
+    if (withdrawalReads === 1) {
+      await new Promise<void>(resolve => { releaseOlder = resolve; });
+      await route.fulfill({
+        status: 200, contentType: "application/json",
+        body: JSON.stringify({ ok: true, withdrawals: [{
+          id: "E2E-WITHDRAWAL-STALE", uid: "e2e-old-user", coin: "USDT",
+          amount: "10.00", fee: "1.00", network: "TRC20",
+          address: "T-OLD", status: "approved",
+        }] }),
+      });
+      return;
+    }
+    await route.fulfill({
+      status: 200, contentType: "application/json",
+      body: JSON.stringify({ ok: true, withdrawals: [{
+        id: "E2E-WITHDRAWAL-CURRENT", uid: "e2e-current-user", coin: "USDT",
+        amount: "20.00", fee: "1.00", network: "TRC20",
+        address: "T-CURRENT", status: "approved",
+      }] }),
+    });
+  });
+  await page.route("**/api/admin/kyc", route => route.fulfill({
+    status: 200, contentType: "application/json",
+    body: JSON.stringify({ ok: true, kycs: [] }),
+  }));
+
+  await page.goto("/admin");
+  await expect.poll(() => releaseOlder !== null).toBe(true);
+  await page.getByRole("button", { name: "KYC", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "KYC review" })).toBeVisible();
+  await page.getByRole("button", { name: "Withdrawals", exact: true }).click();
+  await expect(page.getByText("E2E-WITHDRAWAL-CURRENT")).toBeVisible();
+  releaseOlder?.();
+  await expect(page.getByText("E2E-WITHDRAWAL-STALE")).toHaveCount(0);
+  await expect(page.getByText("E2E-WITHDRAWAL-CURRENT")).toBeVisible();
+  expect(withdrawalReads).toBeGreaterThanOrEqual(2);
+});
+
+
+test("registration layout adapts from mobile to desktop without losing the identity choices", async ({ page }) => {
+  for (const viewport of [
+    { width: 320, height: 780 },
+    { width: 390, height: 844 },
+    { width: 768, height: 900 },
+    { width: 1440, height: 1000 },
+  ]) {
+    await page.setViewportSize(viewport);
+    await page.goto("/register");
+    await expect(page.getByRole("heading", { name: "Create your BTCBOX account" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Connect Ethereum wallet" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Connect Solana wallet" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Sign in" })).toHaveAttribute("href", "/login");
+    await expect(page.getByLabel(/email/i)).toHaveCount(0);
+    await expect(page.getByLabel("Username")).toHaveCount(0);
+    const dimensions = await page.evaluate(() => ({
+      viewport: document.documentElement.clientWidth,
+      content: document.documentElement.scrollWidth,
+    }));
+    expect(dimensions.content, `registration overflow at ${viewport.width}px`).toBeLessThanOrEqual(dimensions.viewport);
+    if (viewport.width >= 1024) {
+      await expect(page.getByRole("heading", { name: "A clearer way to enter the digital asset market." })).toBeVisible();
+    }
+  }
+});
+
+test("public market preview remains responsive across mobile, tablet and desktop widths", async ({ page }) => {
+  await page.route("**/api/market", route => route.fulfill({
+    status: 200,
+    contentType: "application/json",
+    body: JSON.stringify({
+      ok: true,
+      markets: [{ sym: "BTC", price: 65000, chg: 1.2, high: 66000, low: 64000, vol: "1000000", source: "coinbase" }],
+      data: { BTC: { ts: Math.floor(Date.now() / 1000), providerTs: Math.floor(Date.now() / 1000), source: "coinbase" } },
+    }),
+  }));
+  await page.route("**/api/kline?**", route => route.fulfill({
+    status: 200,
+    contentType: "application/json",
+    body: JSON.stringify({ ok: true, source: "coinbase", klines: [{ time: Date.now(), open: 64900, high: 65100, low: 64800, close: 65000, volume: 12 }] }),
+  }));
+
+  for (const viewport of [
+    { width: 320, height: 780 },
+    { width: 375, height: 812 },
+    { width: 768, height: 900 },
+    { width: 1024, height: 900 },
+    { width: 1440, height: 1000 },
+  ]) {
+    await page.setViewportSize(viewport);
+    await page.goto("/home");
+    await expect(page.getByRole("heading", { name: "Explore the market. Trade with confidence." })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Market overview" })).toBeVisible();
+    await expect(page.locator("p:visible").filter({ hasText: "BTC/USDT" }).first()).toBeVisible();
+    const dimensions = await page.evaluate(() => ({
+      viewport: document.documentElement.clientWidth,
+      content: document.documentElement.scrollWidth,
+    }));
+    expect(dimensions.content, `public preview overflow at ${viewport.width}px`).toBeLessThanOrEqual(dimensions.viewport);
+  }
 });

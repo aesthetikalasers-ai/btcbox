@@ -6452,3 +6452,61 @@ Current branch HEAD at note creation: `51c302a96f069876e438321d3597501fcbc26b54`
 
 
 - Audit traceability: the Admin audit table now exposes the canonical event ID as its own column. The operator field remains explicitly described as the recorded actor identifier, not a human-readable display name; this avoids presenting UUIDs as verified staff names. E2E asserts the event ID column and canonical event ID value. Commits: `cb8a45d`, `95de3cc`.
+
+## 2026-11-07 — 2号 AI public market provenance batch
+
+- Dedicated branch: `work/ai2-integration-batch-20261107` from the active unified collaboration branch.
+- The public market UI now distinguishes server snapshot time from provider timestamp/source and shows elapsed provider age; absent provider time remains explicitly unavailable.
+- Added a Playwright regression fixture with intentionally different server and provider timestamps.
+- Commits: `6ed1954`, `86b24d2`, `c00ecb7`. Exact-head CI and screenshot QA pending.
+- No merge, deploy, production DB/auth change, real order, or financial write. Continue the existing release pause.
+
+## 2026-11-07 — 2号 AI Admin tab response isolation
+
+- Found stale Admin tab/search GET responses could overwrite a newer view because the shared loader lacked a request sequence guard outside audit pagination.
+- Added a latest-request guard across Admin tab reads, errors and loading-state release; added a delayed-withdrawals response Playwright regression.
+- Commits: `fc09aa7`, `6e206e4`. Exact-head CI pending.
+- Frontend/test-only. No backend, financial, auth, database, production configuration, merge or deployment action.
+
+## 2026-11-07 — 2号 AI deployment test isolation follow-up
+
+- Inspected latest production deployment logs: frontend build succeeded; backend test command failed with 350/356 pass. One confirmed process failure was `tests/api-routing.test.js` inheriting a weak Vercel `ADMIN_PASS` and throwing `ADMIN_PASS_TOO_WEAK` during module load.
+- Added a strong test-only `ADMIN_PASS` before importing the API adapter in that test file. This does not change runtime policy or Vercel settings. Five other reported failures remain unclassified until backend CI logs are available.
+- Fixed an over-escaped provider-age Playwright matcher; lint/build had passed, but the first E2E run exposed the matcher defect.
+- Admin tab effect cleanup now invalidates prior outstanding reads.
+- Commits: `92f7f48`, `e535141`, `4091008`. Final-head CI pending. No deployment or merge.
+
+- CI wiring gap fixed: backend workflow previously allowed push runs on the unified branch but omitted it from PR target branches. Added `work/btcbox-unified-20261104` to backend `pull_request.branches` so backend changes in draft integration PRs are tested. Commit: `e66111e`. Verify the run starts on this PR head.
+
+- Backend CI now confirms the test-only admin secret isolates the deployment environment issue; build passed and 410/411 tests passed. Remaining failure was an outdated KYC source assertion that did not include the new secure-preview-error approval block. Updated test expectation to match the intended fail-closed UI (commit `ddd6f92`); rerun pending.
+
+- Backend CI `42356561473` passed all 411 tests plus unified build, fail-closed preflight and output checks.
+- Frontend CI `42356454539` exited success but reported 2 flaky tests that passed on retry. Stabilized the Admin stale-queue fixture for repeated initial reads and relaxed the new test's exact GET count. Commit: `94ba7a9`. Fresh exact-head frontend CI pending.
+
+- Escalation to 1号/Core owner: production Vercel has a weak `ADMIN_PASS` and `api-core.js` throws at module import, which can prevent the shared catch-all API adapter from starting. The test-only override in `api-routing.test.js` fixes only test isolation, not runtime. Before release, the authorized environment owner must set a compliant strong secret, or Core owner must scope the fail-closed guard to admin authentication rather than crashing shared API startup. 2号 did not change production secrets or weaken policy.
+
+- Frontend CI `42356699699` succeeded with 62 passed, but two Admin queue tests were flaky on first attempt and passed on retry because fixtures used GET counts while the app can issue repeated initial reads. Converted those failures to explicit action-triggered flags (commits `a0fab6b`, `7662bba`). Fresh exact-head CI pending; target zero flaky cases.
+
+- Latest backend CI `42356891197` passed: unified build, 411/411 backend tests, deployment preflight and output checks.
+- Latest frontend CI `42356891195` has passed install/lint/build/Chromium setup; Playwright desktop/mobile route tests remain in progress. Do not claim completion until final job status is success.
+- PR #61 remains draft/open; no merge or deployment.
+
+- Final CI green: frontend `42356891195` passed **64/64 desktop/mobile Playwright tests** with no flaky retries; backend `42356891197` passed **411/411 tests**, unified build, fail-closed preflight and output checks.
+- PR #61 stays open/draft. No merge or deployment. Production weak `ADMIN_PASS` runtime blocker and manual visual/live-provider Preview checks remain unresolved.
+
+
+## 2号 AI — registration and public preview responsive QA — 2026-11-07
+
+- Registration source review confirmed Google/Ethereum/Solana identity verification first, followed by BTCBOX username/password setup at `/account-setup`. No email registration/OTP was introduced. Username/password, Google and wallet sign-in remain on login.
+- Public `/home`, `/markets`, and `/trade/:symbol` routes remain available signed out; private account routes remain gated.
+- Added Playwright coverage for registration at 320/390/768/1440 px and public preview at 320/375/768/1024/1440 px, including core content and no document-level horizontal overflow.
+- Commit: `4362d2589ae1c81c4ba4a5be585aa4b526a97c37`. Fresh PR CI pending.
+- Vercel status is blocked by the free-plan daily deployment cap (`api-deployments-free-per-day`); no deployment was retried. Automated viewport tests do not replace manual screenshot or live-provider verification.
+- No production changes, merge, or deployment.
+
+
+- Regression follow-up: first CI run `42357749939` exposed an E2E locator defect, not a UI defect: the test selected the hidden duplicate market-row representation. Replaced it with a locator constrained to visible paragraphs. Fix commit `ad7073ed1639be40f79bfd777d28fac9b1ee170f`; rerun exact-head CI before acceptance.
+
+
+- FINAL CI — frontend run `42357960746` passed **68/68 desktop/mobile Playwright tests** after fixing the hidden duplicate-row locator. npm install, lint, build and Chromium setup passed. Backend run `42357960745` passed unified build, tests, fail-closed preflight and output/entrypoint checks.
+- Vercel's separate status remains blocked by the free-plan daily deployment cap. No deployment was attempted. Manual screenshot and live-provider checks remain pending.

@@ -4,6 +4,9 @@ const assert = require('node:assert/strict');
 const path = require('node:path');
 const fs = require('node:fs');
 const { Readable } = require('node:stream');
+// API-routing tests use an isolated test-only credential so a weak deployment
+// secret cannot prevent unrelated route-adapter tests from loading the module.
+process.env.ADMIN_PASS = 'BTCBOX-Test-Only-Admin-Pass-2026!';
 const adapter = require('../api-adapter.js');
 const catchAll = require('../api/[...path].js');
 const routes = ['login/2fa','addresses/select','order/cancel','seconds/order','seconds/settle','seconds/positions','settings/password','settings/fundpwd','2fa/enable','2fa/confirm','2fa/disable','support/chat','support/messages','chat/unread','admin/stats','admin/users','admin/user','admin/addresses','admin/withdrawals','admin/orders','admin/support/messages','admin/config','admin/audit-logs'];
