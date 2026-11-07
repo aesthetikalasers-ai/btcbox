@@ -16,7 +16,7 @@ function amount(value: number | string | undefined) {
     const grouped = integer.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
     return sign + grouped + (fraction ? "." + fraction : "");
   }
-  if (value === undefined) return "0";
+  if (value === undefined || value === null) return "—";
   return Number.isFinite(value) ? value.toLocaleString(undefined, { maximumFractionDigits: 8 }) : "—";
 }
 

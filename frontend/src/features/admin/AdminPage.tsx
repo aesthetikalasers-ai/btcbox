@@ -86,6 +86,7 @@ export function AdminPage() {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const payoutSubmitLockRef = useRef(false);
+  const reviewActionLocksRef = useRef<Record<string, boolean>>({});
   const manualCreditLocksRef = useRef<Record<string, boolean>>({});
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -616,7 +617,9 @@ export function AdminPage() {
     void refreshWithdrawalQueue(message + " ");
   };
   const approveWithdrawal = async (id: string) => {
-    if (!token) return;
+    const lockKey = "withdrawal:" + id;
+    if (!token || reviewActionLocksRef.current[lockKey]) return;
+    reviewActionLocksRef.current[lockKey] = true;
     setBusy(true); setError(""); setNotice("");
     try {
       await adminApproveWithdrawal(token, id);
@@ -627,7 +630,7 @@ export function AdminPage() {
       if (isAlreadyProcessed(reason)) { handleAlreadyProcessed("Withdrawal was already approved on a previous attempt. No duplicate charge was made."); }
       else { setError(reason instanceof Error ? reason.message : "Approval was not confirmed."); }
     }
-    finally { setBusy(false); }
+    finally { reviewActionLocksRef.current[lockKey] = false; setBusy(false); }
   };
   const rejectWithdrawal = (id: string) => {
     setReviewDialog({ kind: "withdrawal", id });
@@ -644,6 +647,9 @@ export function AdminPage() {
       return;
     }
     const target = reviewDialog;
+    const actionLockKey = target.kind === "withdrawal" ? "withdrawal:" + target.id : "kyc:" + target.uid;
+    if (reviewActionLocksRef.current[actionLockKey]) return;
+    reviewActionLocksRef.current[actionLockKey] = true;
     setBusy(true); setError(""); setNotice("");
     try {
       if (target.kind === "withdrawal") {
@@ -667,6 +673,7 @@ export function AdminPage() {
         setError(reason instanceof Error ? reason.message : "Rejection was not confirmed.");
       }
     } finally {
+      reviewActionLocksRef.current[actionLockKey] = false;
       setBusy(false);
     }
   };

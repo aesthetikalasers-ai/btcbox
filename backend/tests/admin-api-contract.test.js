@@ -96,3 +96,12 @@ test('spot-market admin accepts ordinary decimal tick and quantity values withou
     assert.doesNotMatch(value, decimal, 'expected rejected decimal: ' + value);
   }
 });
+
+
+test('withdrawal and KYC review actions use synchronous per-record locks', () => {
+  assert.ok(adminPage.includes('const reviewActionLocksRef = useRef<Record<string, boolean>>({})'));
+  assert.ok(adminPage.includes('if (!token || reviewActionLocksRef.current[lockKey]) return;'));
+  assert.ok(adminPage.includes('reviewActionLocksRef.current[lockKey] = false'));
+  assert.ok(adminPage.includes('if (reviewActionLocksRef.current[actionLockKey]) return;'));
+  assert.ok(adminPage.includes('reviewActionLocksRef.current[actionLockKey] = false'));
+});

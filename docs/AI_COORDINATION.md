@@ -6660,3 +6660,12 @@ Current branch HEAD at note creation: `51c302a96f069876e438321d3597501fcbc26b54`
 
 - Additional stale-price cleanup: when a ticker becomes stale or disappears, the form clears the price that was auto-filled from the old ticker. This prevents a stale quote from remaining visible inside the editable limit-price input even though the summary quote is hidden. A manually edited price is preserved when a ticker exists; new order submission remains blocked until a fresh timestamped quote returns.
 - Extended the Playwright regression to assert the stale auto-filled limit price is cleared.
+
+
+## Asset response validation and Admin review double-submit guard — 2026-11-08 (2号 AI)
+
+- Authenticated account reads now validate every returned asset row: each asset must have explicit, non-negative `free` and `frozen` amounts in supported numeric form. Missing/malformed fields reject the account response instead of silently rendering an incomplete financial snapshot.
+- Asset formatting now renders absent values as `—`, never as a fabricated zero.
+- Admin withdrawal approval and KYC/withdrawal rejection now use synchronous per-record locks, preventing rapid repeated clicks from dispatching duplicate review requests before React state updates. Existing server idempotency and confirmed-result refresh behavior remain in place.
+- Added source-contract regression checks for malformed account balances and review action locks.
+- No balance, ledger, payout, KYC decision, or database data was changed. CI pending; PR #64 remains open and unmerged, with no production deployment.
