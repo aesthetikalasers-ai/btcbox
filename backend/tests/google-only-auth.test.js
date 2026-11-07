@@ -20,7 +20,7 @@ test('React login and registration expose the approved BTCBOX authentication met
   assert.ok(authPage.includes('Continue with Google'));
   assert.ok(authPage.includes('Connect Ethereum wallet'));
   assert.ok(authPage.includes('Connect Solana wallet'));
-  assert.ok(authPage.includes('set a BTCBOX username and password after verification'));
+  assert.ok(authPage.includes('After verification, you will create your BTCBOX username and password.'));
   for (const forbidden of ['signInWithEmail(', 'signUpWithEmail(', 'Email registration', 'Email sign-in']) {
     assert.ok(!authPage.includes(forbidden), 'BTCBOX auth page must not expose ' + forbidden);
   }
