@@ -6449,3 +6449,6 @@ Current branch HEAD at note creation: `51c302a96f069876e438321d3597501fcbc26b54`
 
 - Additional cross-review: audit pagination can remain in flight while an operator leaves and reopens the tab. Added a request-generation guard so an older page cannot append into a newly loaded snapshot; E2E deliberately delays the older page, reopens the tab, then releases the stale response and verifies it is ignored.
 - Commits: `28c3df8` (stale-page response guard), `4fa93a5` (tab-switch race regression). Exact-head CI pending.
+
+
+- Audit traceability: the Admin audit table now exposes the canonical event ID as its own column. The operator field remains explicitly described as the recorded actor identifier, not a human-readable display name; this avoids presenting UUIDs as verified staff names. E2E asserts the event ID column and canonical event ID value. Commits: `cb8a45d`, `95de3cc`.
