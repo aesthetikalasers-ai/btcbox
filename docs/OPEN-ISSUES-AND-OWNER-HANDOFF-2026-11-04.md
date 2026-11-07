@@ -284,3 +284,11 @@ Important: source-level implementation is not proof of live Supabase provider co
 - No trading/order execution, account, authentication, backend, database, financial, or deployment behavior was changed.
 - Source edits are committed to the unified collaboration branch. Build, lint, Playwright, and visual browser QA for the latest head are PENDING until CI results are checked.
 - Remaining visual QA: compare mobile and desktop surfaces against the original mature UI foundation; inspect brand mark proportions, header/sidebar alignment, focus states, chart colors, profit/loss contrast, and Admin visual consistency. Do not claim full-site visual completion until these checks pass.
+
+
+### Visual palette / brand CI verification — 2026-11-07
+- Frontend CI run `42330608347` on source commit `98da5054da084298c323be91da981a4963d81908`: SUCCESS. npm install, lint, build, Chromium install, and desktop/mobile route smoke tests all passed.
+- Backend CI run `42330608528` on the same source commit: SUCCESS. Unified site build, all backend tests, fail-closed deployment configuration validation, and unified output/preserved-entrypoint checks all passed.
+- PR #59 remains OPEN / DRAFT / NOT MERGED. Current PR head after the documentation updates: `1edf89c82d4e1cb01de51507454b38d56da97567`.
+- CI success verifies build and automated route smoke tests for the source commit; it is not a substitute for human visual review on actual devices or a deployed preview. Full-site desktop/mobile visual acceptance remains pending.
+- No merge, production deployment, database write, financial action, or auth configuration change was performed.
