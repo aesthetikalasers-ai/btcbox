@@ -61,3 +61,34 @@ test('delegated admin HTTP routes derive actor identity from verified auth and e
   assert.ok(manageRoute.includes('p_actor_user_id: adminUserId'));
   assert.ok(!manageRoute.includes('p_actor_user_id: body.'));
 });
+
+test('final Admin PostgREST RPC wrappers are invoker-only and service-role-only', () => {
+  const wrappers = fs.readFileSync(path.join(root, 'supabase/sql/0028_admin_rbac_service_rpc_wrappers_v1.sql'), 'utf8');
+  const contracts = [
+    ['public.admin_get_membership_v1', 'public.admin_get_membership_v1(uuid)'],
+    ['public.admin_list_memberships_v1', 'public.admin_list_memberships_v1(uuid)'],
+    ['public.admin_manage_membership_v1', 'public.admin_manage_membership_v1(uuid,uuid,bigint,text,text[],text,text,text)'],
+    ['public.admin_set_seconds_policy_v1', 'public.admin_set_seconds_policy_v1(uuid,bigint,text[],integer[],numeric,numeric,integer,numeric,integer,text,text,text)'],
+    ['public.admin_set_spot_market_v1', 'public.admin_set_spot_market_v1(uuid,text,text,boolean,numeric,numeric,numeric,numeric,numeric,numeric,text,text,text)'],
+    ['public.read_spot_market_snapshot_v1', 'public.read_spot_market_snapshot_v1()']
+  ];
+
+  for (const [name, signature] of contracts) {
+    const start = wrappers.indexOf('CREATE OR REPLACE FUNCTION ' + name);
+    const revoke = wrappers.indexOf('REVOKE ALL ON FUNCTION ' + signature, start);
+    const grant = wrappers.indexOf('GRANT EXECUTE ON FUNCTION ' + signature, revoke);
+    assert.ok(start >= 0 && revoke > start && grant > revoke, 'missing final wrapper privilege contract for ' + name);
+
+    const definition = wrappers.slice(start, revoke);
+    assert.match(definition, /SECURITY INVOKER/i, name + ' must execute with invoker privileges');
+    assert.match(definition, /SET search_path = ''/i, name + ' must use an empty search_path');
+    assert.doesNotMatch(definition, /SECURITY DEFINER/i, name + ' must not elevate privileges');
+
+    const privilegeBlock = wrappers.slice(revoke, wrappers.indexOf(';', grant) + 1);
+    assert.match(privilegeBlock, /FROM PUBLIC,\s*anon,\s*authenticated,\s*service_role/i,
+      name + ' must revoke inherited/default execute privileges');
+    assert.match(privilegeBlock, /TO service_role/i, name + ' must grant execute only to service_role');
+    assert.doesNotMatch(privilegeBlock, /TO (PUBLIC|anon|authenticated)\b/i,
+      name + ' must not grant browser-role execution');
+  }
+});
