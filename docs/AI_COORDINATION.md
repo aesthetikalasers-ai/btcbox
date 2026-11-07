@@ -3515,3 +3515,12 @@ The prior withdrawal UI audit statement claiming the active BTCBOX admin route w
 - Latest batch `50e55ae771916cd00c98f7fe21c3df9aa635e68f` (2026-11-07): financial withdrawal and KYC review actions are now disabled while their review queue is refreshing, including payout-reference entry, preventing stale queue rows from being actioned during a refresh. Admin success/error announcements now expose explicit live-region semantics; all seven admin data-table scrollers are keyboard focusable and labelled, and the customer Orders table is keyboard-scrollable on mobile. No API calls, operation handlers, permissions, request IDs, financial rules or settlement behavior changed. Trading page layout unchanged.
 - Exact-head frontend CI run `42389232096` for `50e55ae771916cd00c98f7fe21c3df9aa635e68f` is running; npm install is in progress. Do not accept this batch until install, lint, production build, Chromium and desktop/mobile route smoke tests all pass.
 - No merge, deployment, hosted database writes or real financial operations. Independent browser visual QA at actual mobile/tablet/desktop viewport sizes remains NOT VERIFIED.
+
+
+## Customer account mobile action sizing — 2026-11-07
+
+- FIX COMMITTED: visual PR #65 head `f77b3b0c3bf0e91ed247dd17bbe8434e3db15e0e`.
+- `frontend/src/features/assets/AssetsPage.tsx` and `frontend/src/features/orders/OrdersPage.tsx`: refresh actions now use the shared 44px default touch target and expand to full width on narrow screens; `aria-busy` reflects in-flight refresh state. Sign-in recovery actions use the same 44px target and mobile full-width treatment.
+- No account/order API, financial logic, navigation destination, or data behavior changed. Trading page untouched.
+- Exact-head CI has not yet appeared in the commit workflow lookup; do not accept until exact-head install, lint, production build, Chromium and desktop/mobile route smoke tests all pass.
+- Independent browser visual QA remains NOT VERIFIED. No merge, deployment, hosted database writes or real financial operations.
