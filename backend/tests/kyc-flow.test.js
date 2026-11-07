@@ -106,8 +106,9 @@ test('confirmed KYC review is not reported as failed when the pending queue refr
   const end = admin.indexOf('const replySupport = async', start);
   assert.ok(start >= 0 && end > start);
   const handler = admin.slice(start, end);
-  assert.match(handler, /await adminApproveKyc[\s\S]*?setKyc\(current => current\.filter\(item => item\.uid !== uid\)\)/);
-  assert.match(handler, /KYC review is confirmed; the queue could not refresh/);
+  assert.match(handler, /await adminApproveKyc\(token, uid\);[\s\S]*?await refreshKycQueueAfterReview\("KYC approved\."\);/);
+  assert.match(admin, /const refreshKycQueueAfterReview = async \(successMessage: string\)/);
+  assert.match(admin, /setError\(successMessage \+ " The queue could not refresh\./);
   assert.match(handler, /catch \(reason\) \{[\s\S]*?KYC review was not confirmed/);
 });
 
