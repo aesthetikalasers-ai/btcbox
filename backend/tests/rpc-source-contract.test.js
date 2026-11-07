@@ -45,3 +45,24 @@ test('withdrawal creation API and canonical SQL agree on the 11-argument fee-sna
   assert.match(signature[1], /p_require_admin_review\s+boolean/i);
   assert.match(signature[1], /p_expected_fee\s+numeric/i);
 });
+
+
+test('read-only production readiness diagnostic covers critical live schema drift', () => {
+  const diagnostic = read('supabase/diagnostics/production-schema-readiness.sql');
+  for (const token of [
+    "('public','withdrawal_requests','require_admin_review','boolean')",
+    "('public','withdrawal_requests','request_hash','text')",
+    "('public','seconds_contract_positions','policy_id','uuid')",
+    "('public','seconds_contract_positions','policy_version','bigint')",
+    "('public','seconds_contract_positions','payout_bps_snapshot','integer')",
+    "('public','seconds_contract_positions','policy_snapshot','jsonb')",
+    'seconds_contract_positions_duration_sec_positive',
+    'seconds_contract_positions_duration_sec_check',
+    'financial_audit_action_id_desc_idx',
+    'financial_audit_subject_id_desc_idx',
+  ]) {
+    assert.ok(diagnostic.includes(token), 'diagnostic must cover ' + token);
+  }
+  assert.doesNotMatch(diagnostic, /\\b(?:INSERT|UPDATE|DELETE|ALTER|DROP|CREATE|GRANT|REVOKE)\\s+(?:INTO|TABLE|FUNCTION|INDEX|SCHEMA|ON|ALL|EXECUTE)?/i,
+    'production readiness diagnostic must remain read-only');
+});
