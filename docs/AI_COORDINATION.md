@@ -6467,3 +6467,11 @@ Current branch HEAD at note creation: `51c302a96f069876e438321d3597501fcbc26b54`
 - Added a latest-request guard across Admin tab reads, errors and loading-state release; added a delayed-withdrawals response Playwright regression.
 - Commits: `fc09aa7`, `6e206e4`. Exact-head CI pending.
 - Frontend/test-only. No backend, financial, auth, database, production configuration, merge or deployment action.
+
+## 2026-11-07 — 2号 AI deployment test isolation follow-up
+
+- Inspected latest production deployment logs: frontend build succeeded; backend test command failed with 350/356 pass. One confirmed process failure was `tests/api-routing.test.js` inheriting a weak Vercel `ADMIN_PASS` and throwing `ADMIN_PASS_TOO_WEAK` during module load.
+- Added a strong test-only `ADMIN_PASS` before importing the API adapter in that test file. This does not change runtime policy or Vercel settings. Five other reported failures remain unclassified until backend CI logs are available.
+- Fixed an over-escaped provider-age Playwright matcher; lint/build had passed, but the first E2E run exposed the matcher defect.
+- Admin tab effect cleanup now invalidates prior outstanding reads.
+- Commits: `92f7f48`, `e535141`, `4091008`. Final-head CI pending. No deployment or merge.
