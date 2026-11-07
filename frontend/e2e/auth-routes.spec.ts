@@ -281,6 +281,10 @@ test("spot preview keeps provider provenance visible and fits a 320px mobile vie
   await page.getByRole("button", { name: "Chart", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Price chart" })).toBeVisible();
   await expect(page.locator("div.fixed.inset-x-0.bottom-0")).toBeVisible();
+  await page.getByRole("button", { name: "Close", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Price chart" })).toBeHidden();
+  await page.getByRole("button", { name: "Chart", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Price chart" })).toBeVisible();
   await page.getByRole("button", { name: "Order book", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Price chart" })).toBeHidden();
   await expect(page.getByRole("heading", { name: "Order book" })).toBeVisible();
