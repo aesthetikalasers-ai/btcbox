@@ -3536,3 +3536,14 @@ The prior withdrawal UI audit statement claiming the active BTCBOX admin route w
 
 
 - Follow-up lint repair: `7a49b74f225e2453732cb470723ebed7ed19cdde` fixes a JSX conditional closing-brace typo in the new deposit clipboard status markup, identified by exact-head CI run `42389855834` at `Pages.tsx:785`. That run failed during TypeScript lint before build/browser steps; this repair must receive its own full exact-head CI. Do not accept the failed intermediate head.
+
+
+## Auth and sidebar mobile accessibility — 2026-11-07
+
+- FIX COMMITTED: visual PR #65 head `f89f46c37124304f1b53e37db0d1cdb873262a78`.
+- `frontend/src/features/auth/AuthPages.tsx`: sign-in error dismissal and mobile market/back navigation links now have 44px minimum touch targets and visible keyboard focus; username and two-factor forms expose `aria-busy`, as do OAuth and wallet sign-in actions while auth is in flight.
+- `frontend/src/components/layout/Sidebar.tsx`: secondary navigation targets now meet the 44px minimum; primary and secondary navigation links expose visible keyboard focus rings.
+- No authentication flow, identity verification, API contract, permissions, financial behavior, or trading-page layout changed.
+- Exact-head frontend CI run `42391112107` is in progress (npm install started); do not accept until install, lint, production build, Chromium and desktop/mobile route smoke tests all pass.
+- Previous exact-head `7a49b74f225e2453732cb470723ebed7ed19cdde`, run `42390004975`, passed all five workflow stages including desktop/mobile route smoke tests.
+- Independent browser visual QA remains NOT VERIFIED. No merge, deployment, hosted database writes or real financial operations.
