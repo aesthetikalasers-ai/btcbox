@@ -56,7 +56,7 @@ export function LiveMarketsTable({ markets, loading, error }: {
   }), [markets, query]);
   return (
     <Card className="flex flex-col overflow-hidden px-0 py-0">
-      <div className="flex items-center justify-between gap-3 border-b border-brand-border px-4 py-4 md:px-6">
+      <div className="flex items-center justify-between gap-3 border-b border-brand-border bg-gradient-to-r from-brand-cyan/[0.045] via-transparent to-transparent px-4 py-4 md:px-6">
         <div className="min-w-0">
           <h2 className="text-[15px] font-semibold tracking-tight text-brand-text">{t("Spot markets")}</h2>
           <p className="mt-1 text-xs text-brand-text-muted">{t("Live prices from the BTCBOX market service")}</p>
@@ -65,18 +65,18 @@ export function LiveMarketsTable({ markets, loading, error }: {
             {providerTime ? `Provider snapshot · ${providerSource || "source unavailable"} · ${providerTime} · ${providerAgeSeconds}s ago` : "Provider timestamp unavailable"}
           </p>
         </div>
-        <span className="shrink-0 rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-2 text-xs font-semibold text-brand-text-secondary">
+        <span className="shrink-0 rounded-lg border border-brand-cyan/20 bg-brand-cyan/[0.06] px-3 py-2 text-xs font-semibold text-brand-cyan tabular-nums">
           {loading ? t("Loading…") : `${visibleMarkets.length} ${t("pairs")}`}
         </span>
       </div>
       <div className="border-b border-brand-border px-4 py-3 md:px-6">
         <label className="relative block">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-brand-text-muted" />
-          <input type="search" aria-label={t("Search BTCBOX")} placeholder={t("Search")} value={searchParams.get("q") || ""} onChange={(event) => setSearchParams(event.target.value ? { q: event.target.value } : {})} className="h-11 w-full rounded-xl border border-brand-border bg-brand-surface px-3 pl-10 text-sm text-brand-text placeholder:text-brand-text-muted focus:border-brand-accent focus:outline-none" />
+          <input type="search" aria-label={t("Search BTCBOX")} placeholder={t("Search")} value={searchParams.get("q") || ""} onChange={(event) => setSearchParams(event.target.value ? { q: event.target.value } : {})} className="h-11 w-full rounded-xl border border-brand-border bg-brand-surface px-3 pl-10 text-sm text-brand-text placeholder:text-brand-text-muted transition-colors focus:border-brand-cyan/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-cyan/25" />
         </label>
       </div>
       {error && markets.length > 0 ? (
-        <div className="border-b border-amber-500/20 bg-amber-500/5 px-4 py-2 text-xs text-amber-200" role="status">
+        <div className="border-b border-brand-warning/20 bg-brand-warning/[0.06] px-4 py-2 text-xs text-brand-warning" role="status">
           {t("Live refresh unavailable. Showing the last confirmed market data.")} {error}
         </div>
       ) : null}
@@ -114,7 +114,7 @@ export function LiveMarketsTable({ markets, loading, error }: {
             <table className="w-full min-w-[700px] border-collapse text-left">
               <thead><tr className="border-b border-brand-border bg-brand-surface-2/70">
                 {["Asset", "Last price", "24h change", "24h volume", "24h high", "24h low"].map((label) =>
-                  <th key={label} className="whitespace-nowrap px-4 py-3 text-xs font-semibold text-brand-text-muted md:px-6">{t(label)}</th>
+                  <th key={label} className="whitespace-nowrap px-4 py-3 text-[11px] font-bold uppercase tracking-[.08em] text-brand-text-muted md:px-6">{t(label)}</th>
                 )}
               </tr></thead>
               <tbody>{visibleMarkets.map((item) => (

@@ -14,7 +14,7 @@ function display(value: unknown, fallback = "—") {
 
 function statusVariant(status: string) {
   const value = status.toLowerCase();
-  if (["filled", "completed", "success", "closed"].includes(value)) return "default" as const;
+  if (["filled", "completed", "success", "closed"].includes(value)) return "success" as const;
   if (["cancelled", "canceled", "rejected", "failed"].includes(value)) return "destructive" as const;
   return "outline" as const;
 }
@@ -110,8 +110,8 @@ export function OrdersPage() {
                       <td className="px-4 py-3 font-semibold text-brand-text">{display(order.symbol)}</td>
                       <td className="px-4 py-3"><span className={side.toLowerCase() === "buy" ? "text-profit" : side.toLowerCase() === "sell" ? "text-loss" : "text-brand-text-secondary"}>{t(side)}</span></td>
                       <td className="px-4 py-3 text-brand-text-secondary">{display(order.type)}</td>
-                      <td className="px-4 py-3 font-mono tabular-nums">{display(order.price)}</td>
-                      <td className="px-4 py-3 font-mono tabular-nums">{display(order.quantity ?? order.amount)}</td>
+                      <td className="px-4 py-3 font-mono tabular-nums text-brand-text">{display(order.price)}</td>
+                      <td className="px-4 py-3 font-mono tabular-nums text-brand-text-secondary">{display(order.quantity ?? order.amount)}</td>
                       <td className="px-4 py-3"><Badge variant={statusVariant(display(order.status, "unknown"))}>{t(display(order.status, "Unknown"))}</Badge></td>
                       <td className="px-4 py-3 text-xs text-brand-text-muted">{display(order.created_at)}</td>
                     </tr>;

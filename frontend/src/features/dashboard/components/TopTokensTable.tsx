@@ -11,7 +11,7 @@ export function TopTokensTable({ markets = [] }: { markets?: MarketTicker[] }) {
   const { t } = useI18n();
   return (
     <Card className="flex flex-col overflow-hidden px-0 py-0">
-      <div className="border-b border-brand-border px-4 py-4 md:px-6">
+      <div className="border-b border-brand-border bg-gradient-to-r from-brand-cyan/[0.045] via-transparent to-transparent px-4 py-4 md:px-6">
         <h2 className="text-[15px] font-semibold tracking-tight text-brand-text">{t("Top tokens")}</h2>
         <p className="mt-1 text-xs text-brand-text-muted">{t("Live market data supplied by BTCBOX")}</p>
       </div>
@@ -21,7 +21,7 @@ export function TopTokensTable({ markets = [] }: { markets?: MarketTicker[] }) {
         <div className="overflow-x-auto">
           <table className="w-full min-w-[620px] border-collapse text-left">
             <thead><tr className="border-b border-brand-border bg-brand-surface-2/70">
-              {["Asset", "Last price", "24h change", "24h volume"].map((label) => <th key={label} className="whitespace-nowrap px-4 py-3 text-xs font-semibold text-brand-text-muted md:px-6">{t(label)}</th>)}
+              {["Asset", "Last price", "24h change", "24h volume"].map((label) => <th key={label} className="whitespace-nowrap px-4 py-3 text-[11px] font-bold uppercase tracking-[.08em] text-brand-text-muted md:px-6">{t(label)}</th>)}
             </tr></thead>
             <tbody>{markets.map((item) => (
               <tr key={item.sym} className="border-b border-brand-border/50 last:border-0 hover:bg-brand-surface-hover">
