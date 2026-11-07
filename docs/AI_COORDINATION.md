@@ -6575,3 +6575,5 @@ Current branch HEAD at note creation: `51c302a96f069876e438321d3597501fcbc26b54`
 
 
 - CI follow-up: backend run `42413457662` caught a syntax error in the new source-contract test regex (not an application-code failure). Replaced the brittle regex with literal source assertions. Corrected test commit: `feede10fb984272f3ed49ad657d9ed23bcc5e1ff`; exact-head backend/frontend CI runs `42413548546` and `42413548554` are running.
+
+- Exact-head verification after the assertion correction: backend run `42413624133` PASSED unified build, all backend tests, fail-closed preflight and output/entrypoint checks. Frontend run `42413624143`: npm install, lint, production build and Chromium installation PASSED; desktop/mobile route smoke tests are still running.
