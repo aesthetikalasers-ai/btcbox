@@ -658,7 +658,7 @@ export function KycPage(){
    setNotice(t("Verification details and document image submitted securely for staff review."));
    setReload(value=>value+1);
   }
-  catch(reason){setSubmitError(t("Verification submission could not be confirmed. Refresh your status before retrying."));}
+  catch{setSubmitError(t("Verification submission could not be confirmed. Refresh your status before retrying."));}
   finally{setSubmitting(false);}
  };
  return <PageFrame eyebrow="BTCBOX / ACCOUNT" title="Identity verification" description="Submit your identity details and a clear document image, then track the review result returned by your authenticated BTCBOX account.">
