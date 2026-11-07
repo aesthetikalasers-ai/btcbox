@@ -39,3 +39,26 @@ test("public dashboard never renders zero-filled placeholder market rows", async
   await expect(page.getByText("0.00", { exact: true })).toHaveCount(0);
   await expect(page.getByText(/65,?000\.00/)).toHaveCount(0);
 });
+
+test("a live public market pair opens its spot trading page", async ({ page }) => {
+  await page.route("**/api/market", route => route.fulfill({
+    status: 200,
+    contentType: "application/json",
+    body: JSON.stringify({
+      ok: true,
+      markets: [{ sym: "BTCUSDT", price: 65000, chg: 1.25, high: 66000, low: 64000, vol: "1200", source: "provider" }],
+      data: { BTCUSDT: { ts: 1794086400, providerTs: 1794086390, source: "provider" } },
+    }),
+  }));
+  await page.route("**/api/kline?**", route => route.fulfill({
+    status: 200,
+    contentType: "application/json",
+    body: JSON.stringify({ ok: true, source: "provider", klines: [] }),
+  }));
+
+  await page.goto("/markets");
+  const pair = page.getByRole("link", { name: "BTCUSDT spot trading" });
+  await expect(pair).toBeVisible();
+  await pair.click();
+  await expect(page).toHaveURL(/\/trade\/BTCUSDT$/);
+});
