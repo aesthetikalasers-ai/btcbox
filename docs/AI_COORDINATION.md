@@ -6265,3 +6265,10 @@ Current branch HEAD at note creation: `51c302a96f069876e438321d3597501fcbc26b54`
 - Frontend CI run 42322366989 at 3e15087f7952f05d3022f61be3f62ee14af1f8bc: SUCCESS (lint/build/desktop-mobile route suite).
 - Follow-up corrected the manual withdrawal refresh failure message so it cannot reuse the post-action confirmation wording. Frontend CI run 42322432342 at c7366273d51526bca32135766908ba1160d8fcf7: SUCCESS (lint/build/desktop-mobile route suite).
 - No changes to deposit ledger writes, withdrawal execution/settlement, KYC backend decisions, production DB or deployment.
+
+## 2026-11-07 continuation — Admin browser QA
+
+- Continued single-owner repository execution as required by this document; no external AI handoff or parallel workstream.
+- Added two isolated Playwright Admin cases: withdrawal queue refresh failure must remain read-only and must not imply a confirmed financial action; KYC approval remains disabled without an uploaded document and secure preview URL.
+- Tests use a synthetic Supabase browser session and intercepted API fixtures only; no real identity, production API, financial write, database or deployment is used.
+- New test commit: `d42c2fdbc5de26be937ead020e147abdd0930432`. CI status pending at note creation; do not mark these new cases passed until the exact SHA completes desktop/mobile runs.
