@@ -1506,16 +1506,27 @@ async function handleRequest(event, context) {
       if (!res.ok) throw new Error('market provider HTTP ' + res.status);
       return res.json();
     };
+    const normalizeLevels = rows => rows
+      .filter(row => Array.isArray(row) && row.length >= 2 && Number.isFinite(Number(row[0])) && Number(row[0]) > 0 && Number.isFinite(Number(row[1])) && Number(row[1]) > 0)
+      .map(row => [String(row[0]), String(row[1])]);
+    const response = (source, bids, asks, providerTs = null) => {
+      const normalizedBids = normalizeLevels(bids).sort((left, right) => Number(right[0]) - Number(left[0])).slice(0, 20);
+      const normalizedAsks = normalizeLevels(asks).sort((left, right) => Number(left[0]) - Number(right[0])).slice(0, 20);
+      if (!normalizedBids.length || !normalizedAsks.length) throw new Error('empty or malformed order book');
+      return json({ ok: true, source, snapshotTs: Math.floor(Date.now() / 1000), providerTs, bids: normalizedBids, asks: normalizedAsks });
+    };
     try {
       const book = await timeoutFetchJson('https://api.exchange.coinbase.com/products/' + encodeURIComponent(base + '-USDT') + '/book?level=2');
       if (!Array.isArray(book.bids) || !Array.isArray(book.asks)) throw new Error('invalid Coinbase order book');
-      return json({ ok: true, source: 'coinbase', bids: book.bids.slice(0, 20).map(x => [String(x[0]), String(x[1])]), asks: book.asks.slice(0, 20).map(x => [String(x[0]), String(x[1])]) });
+      return response('coinbase', book.bids, book.asks);
     } catch (_) {
       try {
         const payload = await timeoutFetchJson('https://api.bybit.com/v5/market/orderbook?category=spot&symbol=' + encodeURIComponent(symbol) + '&limit=20');
         const book = payload && payload.result;
         if (!book || !Array.isArray(book.b) || !Array.isArray(book.a)) throw new Error('invalid Bybit order book');
-        return json({ ok: true, source: 'bybit', bids: book.b.slice(0, 20), asks: book.a.slice(0, 20) });
+        const providerTimeMs = Number(payload.time);
+        const providerTs = Number.isFinite(providerTimeMs) && providerTimeMs > 0 ? Math.floor(providerTimeMs / 1000) : null;
+        return response('bybit', book.b, book.a, providerTs);
       } catch (_) { return json({ ok: false, code: 'DEPTH_DATA_UNAVAILABLE', msg: 'Order book data unavailable.', bids: [], asks: [] }, 503); }
     }
   }
