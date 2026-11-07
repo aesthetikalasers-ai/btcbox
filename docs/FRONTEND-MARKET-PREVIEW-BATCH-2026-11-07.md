@@ -155,6 +155,6 @@ Admin KYC conflict handling:
 - `frontend/src/features/admin/AdminPage.tsx` now classifies only the explicit `WITHDRAWAL_ALREADY_PROCESSED` code as a confirmed withdrawal retry. KYC 409 responses remain actionable errors and are shown to the operator; dead KYC duplicate-success handling was removed.
 - `backend/tests/admin-api-contract.test.js` now guards against treating generic 409 or KYC exception-required responses as confirmed success.
 - Backend CI run `42315626395` passed 403/403 tests and deployment preflight on source commit `51c302a96f069876e438321d3597501fcbc26b54`.
-- Frontend CI run `42315614500` on source commit `06ddef81192a72b5717125f59b069ac1a478dca6`: install, lint, build and Chromium installation passed; desktop/mobile route smoke tests were still running at the time this note was written. Check the final conclusion before reporting full frontend CI success.
+- Frontend CI run `42315614500` completed SUCCESS on source commit `06ddef81192a72b5717125f59b069ac1a478dca6`: npm install, lint, build, Chromium installation, and all 24 desktop/mobile Playwright route smoke tests passed (12 desktop + 12 mobile).
 
 Current branch HEAD at note creation: `51c302a96f069876e438321d3597501fcbc26b54`. No merge, deployment, production database change, or live financial operation was performed.
