@@ -3547,3 +3547,14 @@ The prior withdrawal UI audit statement claiming the active BTCBOX admin route w
 - Exact-head frontend CI run `42391112107` is in progress (npm install started); do not accept until install, lint, production build, Chromium and desktop/mobile route smoke tests all pass.
 - Previous exact-head `7a49b74f225e2453732cb470723ebed7ed19cdde`, run `42390004975`, passed all five workflow stages including desktop/mobile route smoke tests.
 - Independent browser visual QA remains NOT VERIFIED. No merge, deployment, hosted database writes or real financial operations.
+
+
+## Account setup and OAuth callback feedback — 2026-11-07
+
+- FIX COMMITTED: visual PR #65 head `8a760615f9037288eefb0e1dc30474360548b55a`.
+- `frontend/src/features/auth/AccountSetupPage.tsx`: credential setup form and submit button expose `aria-busy` while the authenticated credential-setting request is in flight.
+- `frontend/src/features/auth/AuthPages.tsx`: OAuth callback progress/error text now uses polite status/assertive alert live-region semantics, and the return-to-sign-in link uses a 44px touch target with visible keyboard focus.
+- No credential policy, authentication API, identity verification, account behavior, financial rule or trading-page layout changed.
+- Exact-head frontend CI run `42391311929` is queued. Do not accept until install, lint, production build, Chromium and desktop/mobile route smoke tests pass.
+- Previous exact-head `f89f46c37124304f1b53e37db0d1cdb873262a78`, CI run `42391112107`, passed all five stages including desktop/mobile route smoke tests.
+- Independent browser visual QA remains NOT VERIFIED. No merge, deployment, hosted database writes or real financial operations.
