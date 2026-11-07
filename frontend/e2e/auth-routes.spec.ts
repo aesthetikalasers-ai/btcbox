@@ -34,6 +34,8 @@ test("login route exposes username/password, Google and wallet sign-in", async (
   await page.goto("/login");
 
   await expect(page.getByRole("heading", { name: "Welcome back", exact: true })).toBeVisible();
+  await expect(page.getByRole("banner")).toHaveCount(0);
+  await expect(page.getByRole("navigation", { name: "Primary navigation" })).toHaveCount(0);
   await expect(page.getByLabel("Username")).toBeVisible();
   await expect(page.getByLabel("Password")).toBeVisible();
   await expect(page.getByText("Google sign-in is temporarily unavailable.")).toBeVisible();
@@ -89,6 +91,8 @@ test("registration route offers Google and wallet identity creation without emai
   await page.goto("/register");
 
   await expect(page.getByRole("heading", { name: "Create your BTCBOX account" })).toBeVisible();
+  await expect(page.getByRole("banner")).toHaveCount(0);
+  await expect(page.getByRole("navigation", { name: "Primary navigation" })).toHaveCount(0);
   await expect(page.getByText(/After verification, you will create your BTCBOX username and password/i)).toBeVisible();
   await expect(page.getByRole("button", { name: "Connect Ethereum wallet" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Connect Solana wallet" })).toBeVisible();
@@ -538,6 +542,8 @@ test("registration experience stays clear and usable on a narrow mobile viewport
   await page.goto("/register");
 
   await expect(page.getByRole("heading", { name: "Create your BTCBOX account" })).toBeVisible();
+  await expect(page.getByRole("banner")).toHaveCount(0);
+  await expect(page.getByRole("navigation", { name: "Primary navigation" })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Connect Ethereum wallet" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Connect Solana wallet" })).toBeVisible();
   await expect(page.getByText(/No email registration is required/i)).toBeVisible();
