@@ -450,6 +450,8 @@ export function AdminPage() {
   };
   const refreshWithdrawalQueue = async (confirmedAction: string) => {
     setReviewQueueLoading(true);
+    // Never leave actionable stale withdrawal rows visible after a refresh starts.
+    setWithdrawals([]);
     try {
       const snapshot = await getAdminWithdrawals(token);
       setWithdrawals(snapshot.withdrawals || []);
@@ -464,6 +466,8 @@ export function AdminPage() {
   const refreshWithdrawalQueueManually = async () => {
     if (!token) return;
     setReviewQueueLoading(true); setError(""); setNotice("");
+    // A failed manual refresh must not preserve an old, potentially actionable queue.
+    setWithdrawals([]);
     try {
       const snapshot = await getAdminWithdrawals(token);
       setWithdrawals(snapshot.withdrawals || []);
