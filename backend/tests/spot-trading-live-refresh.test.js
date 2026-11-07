@@ -31,11 +31,27 @@ test('spot trading live refresh never overwrites the customer-edited limit price
   assert.ok(page.includes('setPrice(current=>current||String(selected.price))'));
 });
 
-test('spot trading page shows last successful market update and a stale-feed warning', () => {
+test('spot trading clears stale ticker, order book, and candles when live refresh fails', () => {
   assert.ok(page.includes('marketUpdatedAt'));
   assert.ok(page.includes('Snapshot checked'));
   assert.ok(page.includes('marketFeedWarning'));
-  assert.ok(page.includes('showing the last confirmed data'));
+  const startRefresh = page.indexOf('const refreshMarketData=');
+  const endRefresh = page.indexOf('const refreshId=window.setInterval', startRefresh);
+  const refresh = page.slice(startRefresh, endRefresh);
+  assert.ok(refresh.includes('setTicker(null)'));
+  assert.ok(refresh.includes('setMarketUpdatedAt(null)'));
+  assert.ok(refresh.includes('setBook(null)'));
+  assert.ok(refresh.includes('Live market data is temporarily unavailable.'));
+  assert.ok(page.includes('setCandles([])'));
+  assert.ok(!page.includes('showing the last confirmed data'));
+});
+
+test('switching spot pairs clears the previous pair snapshot and edited limit price', () => {
+  const initialLoad = page.slice(page.indexOf('useEffect(()=>{'), page.indexOf('},[symbol,reload])'));
+  assert.ok(initialLoad.includes('setTicker(null)'));
+  assert.ok(initialLoad.includes('setCandles([])'));
+  assert.ok(initialLoad.includes('setBook(null)'));
+  assert.ok(initialLoad.includes('setPrice("")'));
 });
 
 const app = fs.readFileSync(path.resolve(__dirname, '../../frontend/src/App.tsx'), 'utf8');
