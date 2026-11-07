@@ -325,3 +325,22 @@ test('admin KYC refresh responses cannot overwrite a newer post-review queue sna
   assert.ok(admin.includes('await refreshKycQueueAfterReview("KYC approved.");'));
   assert.ok(admin.includes('await refreshKycQueueAfterReview("KYC rejected.");'));
 });
+
+test('admin initial KYC and withdrawal tab loads cannot overwrite a newer queue refresh', () => {
+  const admin = fs.readFileSync(path.resolve(__dirname, '../../frontend/src/features/admin/AdminPage.tsx'), 'utf8');
+  const loadStart = admin.indexOf('const loadTab = useCallback');
+  const loadEnd = admin.indexOf('useEffect(() => {\n    void loadTab();', loadStart);
+  assert.ok(loadStart >= 0 && loadEnd > loadStart);
+  const load = admin.slice(loadStart, loadEnd);
+  for (const [tab, ref, getter] of [
+    ['withdrawals', 'withdrawalQueueRequestRef', 'getAdminWithdrawals'],
+    ['kyc', 'kycQueueRequestRef', 'getAdminKyc'],
+  ]) {
+    const start = load.indexOf('if (tab === "' + tab + '")');
+    const end = load.indexOf('if (tab === "', start + 1);
+    const branch = load.slice(start, end > start ? end : load.length);
+    assert.ok(branch.includes('const queueRequestId = ++' + ref + '.current;'));
+    assert.ok(branch.includes('queueRequestId !== ' + ref + '.current'));
+    assert.ok(branch.includes('await ' + getter + '(token)'));
+  }
+});
