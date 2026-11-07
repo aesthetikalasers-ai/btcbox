@@ -37,7 +37,7 @@ export function AccountSecurityPage() {
   const hasEthereum = account?.wallet_chain === "ethereum" || identities.some((identity) => identity.provider === "web3" && identity.wallet_chain === "ethereum");
   const hasSolana = account?.wallet_chain === "solana" || identities.some((identity) => identity.provider === "web3" && identity.wallet_chain === "solana");
 
-  return <div className="mx-auto w-full max-w-3xl space-y-5 p-4 pb-24 sm:p-6">
+  return <div className="tone-support mx-auto w-full max-w-3xl space-y-5 p-4 pb-24 sm:p-6">
     <div className="flex items-center gap-3"><ShieldCheck className="h-6 w-6 text-brand-text-secondary"/><div><h1 className="text-xl font-semibold text-brand-text">Account security</h1><p className="text-sm text-brand-text-muted">Manage the sign-in methods connected to one BTCBOX account.</p></div></div>
     {(error || loadError) && <p role="alert" className="rounded-lg border border-loss/30 bg-loss/10 p-3 text-sm text-loss">{error || loadError}</p>}
     {notice && <p role="status" className="rounded-lg border border-brand-border bg-brand-surface-2 p-3 text-sm text-brand-text-secondary">{notice}</p>}
