@@ -6416,3 +6416,11 @@ Current branch HEAD at note creation: `51c302a96f069876e438321d3597501fcbc26b54`
 - Scope: frontend state isolation and Playwright only. No KYC decision rules, financial APIs, ledger, database schema, authentication, or production settings changed.
 - Commits: `c806372` (latest-user response guard), `bda8639` (out-of-order response test), `6b5810f` (KYC fail-closed refresh), `ef50db2` (KYC refresh regression).
 - Verification: exact-head CI queued/running at handoff; do not mark the batch fully verified until both frontend and backend workflows finish.
+
+
+## Admin rapid-selection E2E assertion correction — 2026-11-07
+
+- Exact-head frontend CI run `42347244241` completed with 52 Playwright cases passing and 2 failures (desktop/mobile variants of the same test); lint and production build passed.
+- Root cause was an over-broad test assertion: it expected the previously selected user's email to disappear from the entire page, although that user correctly remains in the directory table. The assertion was checking directory visibility, not stale selected-detail state.
+- Corrected the regression to assert that the earlier user remains in the directory while the stale `Available: 111.00` balance never replaces the latest user's `Available: 222.00` detail. This retains the out-of-order response regression without incorrectly hiding directory data.
+- Follow-up test commit: `dab5f6dee6ea6f1196f0afe172f5d95cc4d3170c`. New exact-head CI must pass before marking verified.
