@@ -471,3 +471,12 @@ Registration and the signed-out preview/home page are now the first pages to com
 - Deposit reconciliation: per-user deposit history now shows the optional source record ID separately from the TxID/reference, improving traceability without changing backend semantics. E2E asserts the record ID is visible.
 - Commits: `11a13c5`, `feaf362`, `0a9cfb1`, `0ef84b5`.
 - Scope: frontend rendering/tests only; no backend financial contract, ledger, DB, or production setting changed. Exact-head CI pending.
+
+
+## Admin audit pagination and deposit-history scope — 2026-11-07 (2号 AI)
+
+- Added canonical PostgreSQL audit cursor pagination (“Load older records”), deduplication, and source/completeness consistency guard. API already supported `before`/`next_before`; UI now consumes it.
+- Legacy state audit IDs use `AL...`, but backend currently validates all `before` cursors as positive PostgreSQL bigints before the legacy branch. The UI therefore intentionally hides pagination for legacy state and labels that source as retention-limited; backend fix belongs to Core owner if legacy pagination is required.
+- Confirmed from `0011_financial_read_api_earn_v1.sql` that account snapshot returns only the latest 20 deposits. Admin now labels the section “Deposit history · latest 20” and points staff to audit log for broader financial event trail.
+- Added E2E coverage for canonical pagination, unsupported legacy cursor suppression, and latest-20 disclosure.
+- Commits: `0bf6425`, `662d676`, `fbc04a0`, `3986341`, `f51f17a`. Frontend-only changes; no production/financial operations. Exact-head CI pending.
