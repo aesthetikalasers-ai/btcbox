@@ -142,3 +142,14 @@ test('My account page clears stale profile data when its authenticated refresh f
   assert.ok(myPage.includes('setAccount(null);'));
   assert.ok(myPage.includes('Account profile is temporarily unavailable.'));
 });
+
+const adminPage = fs.readFileSync(path.resolve(__dirname, '../../frontend/src/features/admin/AdminPage.tsx'), 'utf8');
+
+test('admin withdrawal review hides stale actionable queue data when refresh fails', () => {
+  const refreshStart = adminPage.indexOf('const refreshWithdrawalQueue =');
+  const refreshEnd = adminPage.indexOf('const loadOlderAuditRecords', refreshStart);
+  const refresh = adminPage.slice(refreshStart, refreshEnd);
+  assert.ok(refreshStart >= 0 && refreshEnd > refreshStart);
+  assert.equal((refresh.match(/setWithdrawals\(\[\]\)/g) || []).length, 2);
+  assert.ok(refresh.includes('The queue could not refresh. Reload this tab before taking another action.'));
+});
