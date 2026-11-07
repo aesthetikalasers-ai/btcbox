@@ -13,15 +13,15 @@ One repository execution path is active at a time. Re-read this file before star
 
 - **Active candidate:** PR #67
 - **Branch:** `integration/btcbox-mainline-consolidation-20261108`
-- **Verified head:** `e328e5097992dd280835f1c31e9a3baf3559389f`
+- **Verified head:** `bde68fdb102916d18571f94840f1c5fc8489bcbf`
 - **Base:** `main` at `2a3810da1aef2c0c7c58df0cfdb059a212eeb0d6`
 - **State:** Draft / open / not merged
 - **Exact-head CI:** PASS
-  - Backend: `42413932582`
-  - PostgreSQL schema: `42413932591`
-  - Frontend: `42413932564`
+  - Backend: `42416545729`
+  - PostgreSQL schema: `42416545771`
+  - Frontend: `42416545736`
 
-The three CI workflows above completed successfully on the exact PR #67 head. A separate Vercel status check reports a deployment rate limit; this is not a code-test failure and must not trigger a deployment retry.
+The three CI workflows above completed successfully on the exact PR #67 head. Frontend CI passed lint/build and 80 desktop/mobile Playwright tests. A previous frontend run exposed a stale fixed timestamp in the live-market E2E fixture; the fixture now uses the current timestamp and the exact current head passes.
 
 ## 3. A2 disposition — absorbed, not a separate active lane
 
@@ -52,7 +52,7 @@ PR #67 is the sole integration candidate. New fixes discovered during final revi
 
 ## 5. Remaining active work — one ordered queue
 
-1. Review PR #67's final diff against `main`; check for accidental omissions, duplicate behavior, and regressions across frontend/backend contracts.
+1. Continue final PR #67 diff review against `main`; the first pass removed two out-of-scope production diagnostics, aligned the SQL guide with the empty-database direction, and corrected a stale live-market E2E timestamp. Continue checking for omissions, duplicate behavior, and frontend/backend contract regressions.
 2. Run independent browser visual QA at 320/360/375/390/430px, tablet, and desktop. Automated route smoke tests do not count as screenshot-based visual acceptance.
 3. Verify hosted Supabase configuration and authenticated staging behavior only when authorized test credentials/environment are available. Do not write to production.
 4. Record final exact SHA, test evidence, and unresolved findings here. Keep PR #67 Draft until all required verification is complete.
