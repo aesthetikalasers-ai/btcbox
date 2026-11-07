@@ -59,7 +59,14 @@ test('admin error feedback surfaces server codes and the refresh-after-confirmed
   // success notice and tell the operator to reload, not report the action as
   // failed. Verified for KYC review; withdrawal queue uses the same helper.
   assert.ok(adminPage.includes('KYC review is confirmed; the queue could not refresh'));
-  assert.ok(adminPage.includes('The database action is confirmed; the queue could not refresh'));
+  const refreshStart = adminPage.indexOf('const refreshWithdrawalQueue = async (confirmedAction: string)');
+  const refreshEnd = adminPage.indexOf('const refreshWithdrawalQueueManually = async', refreshStart);
+  assert.ok(refreshStart >= 0 && refreshEnd > refreshStart);
+  const refreshHandler = adminPage.slice(refreshStart, refreshEnd);
+  assert.ok(refreshHandler.includes('setError(confirmedAction + " The queue could not refresh.'));
+  assert.ok(adminPage.includes('await refreshWithdrawalQueue("Withdrawal approval confirmed.")'));
+  assert.ok(adminPage.includes('await refreshWithdrawalQueue("Withdrawal rejection and refund confirmed.")'));
+  assert.ok(adminPage.includes('await refreshWithdrawalQueue("Manual payout completion confirmed.")'));
   // A 409 WITHDRAWAL_ALREADY_PROCESSED on a retry (first attempt's response was
   // lost) is surfaced as a confirmed notice + queue refresh, never as a red
   // failure, for both approve and reject paths.
