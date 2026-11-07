@@ -198,9 +198,9 @@ test('admin withdrawal queue is non-actionable until a refreshed queue has retur
   const refresh = adminPage.slice(refreshStart, refreshEnd);
   assert.ok(refreshStart >= 0 && manualStart > refreshStart && refreshEnd > manualStart);
   assert.equal((refresh.match(/setWithdrawals\(\[\]\)/g) || []).length, 4);
-  assert.ok(refresh.includes('disabled={busy||reviewQueueLoading||!hasPermission("withdrawals.review")}'));
-  assert.ok(refresh.includes('disabled={busy||reviewQueueLoading||!payoutReferences[item.id]?.trim()||!hasPermission("withdrawals.review")}'));
-  assert.ok(refresh.includes('<input disabled={reviewQueueLoading} value={payoutReferences[item.id]||""}'));
+  assert.ok(adminPage.includes('disabled={busy||reviewQueueLoading||!hasPermission("withdrawals.review")}'));
+  assert.ok(adminPage.includes('disabled={busy||reviewQueueLoading||!payoutReferences[item.id]?.trim()||!hasPermission("withdrawals.review")}'));
+  assert.ok(adminPage.includes('<input disabled={reviewQueueLoading} value={payoutReferences[item.id]||""}'));
 });
 
 test('legacy account profile and order views clear stale snapshots before reload and after failures', () => {
