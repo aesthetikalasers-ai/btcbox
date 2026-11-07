@@ -25,6 +25,8 @@ export function Dashboard() {
   const volumeRange = useDashboardStore((state) => state.volumeRange);
   const liquidityInterval = LIQUIDITY_INTERVALS[liquidityRange] || "5m";
   const volumeInterval = VOLUME_INTERVALS[volumeRange] || "1h";
+  const latestMarketSnapshotTs = markets.reduce((latest, item) => Math.max(latest, item.snapshotTs || 0), 0);
+  const marketSnapshotStale = latestMarketSnapshotTs > 0 && Date.now() / 1000 - latestMarketSnapshotTs > 90;
 
   useEffect(() => {
     const controller = new AbortController();
@@ -40,8 +42,7 @@ export function Dashboard() {
         if (reason instanceof Error && reason.name === "AbortError") return;
         // Do not leave old quotes on screen as if they were current.
         setMarkets([]);
-        setMarkets([]);
-        setError("Market data is temporarily unavailable. Please try again shortly.");
+        setError(reason instanceof Error ? reason.message : "Market data is unavailable.");
       }).finally(() => {
         refreshing = false;
         if (!controller.signal.aborted) setLoading(false);
@@ -54,12 +55,17 @@ export function Dashboard() {
 
   useEffect(() => {
     const controller = new AbortController();
-    const load = () => getKlines("BTCUSDT", liquidityInterval, controller.signal).then((rows) => {
-      if (!controller.signal.aborted) setLiquidityCandles(rows);
-    }).catch((reason: unknown) => {
-      if (reason instanceof Error && reason.name === "AbortError") return;
-      if (!controller.signal.aborted) setLiquidityCandles([]);
-    });
+    let refreshing = false;
+    const load = () => {
+      if (refreshing || controller.signal.aborted) return;
+      refreshing = true;
+      void getKlines("BTCUSDT", liquidityInterval, controller.signal).then((rows) => {
+        if (!controller.signal.aborted) setLiquidityCandles(rows);
+      }).catch((reason: unknown) => {
+        if (reason instanceof Error && reason.name === "AbortError") return;
+        if (!controller.signal.aborted) setLiquidityCandles([]);
+      }).finally(() => { refreshing = false; });
+    };
     setLiquidityCandles([]);
     load();
     const refreshId = window.setInterval(load, 60000);
@@ -68,12 +74,17 @@ export function Dashboard() {
 
   useEffect(() => {
     const controller = new AbortController();
-    const load = () => getKlines("BTCUSDT", volumeInterval, controller.signal).then((rows) => {
-      if (!controller.signal.aborted) setVolumeCandles(rows);
-    }).catch((reason: unknown) => {
-      if (reason instanceof Error && reason.name === "AbortError") return;
-      if (!controller.signal.aborted) setVolumeCandles([]);
-    });
+    let refreshing = false;
+    const load = () => {
+      if (refreshing || controller.signal.aborted) return;
+      refreshing = true;
+      void getKlines("BTCUSDT", volumeInterval, controller.signal).then((rows) => {
+        if (!controller.signal.aborted) setVolumeCandles(rows);
+      }).catch((reason: unknown) => {
+        if (reason instanceof Error && reason.name === "AbortError") return;
+        if (!controller.signal.aborted) setVolumeCandles([]);
+      }).finally(() => { refreshing = false; });
+    };
     setVolumeCandles([]);
     load();
     const refreshId = window.setInterval(load, 60000);
@@ -116,7 +127,7 @@ export function Dashboard() {
         <p className="type-body mt-1.5 text-brand-text-secondary">{t("Live spot prices and 24-hour market movement.")}</p>
       </div>
       <Badge variant="outline" className="border-brand-accent/30 bg-brand-accent/10 px-3 py-1 text-brand-text-secondary">
-        {loading ? t("Connecting") : error ? t("Feed unavailable") : t("Live market feed")}
+        {loading ? t("Connecting") : error ? t("Feed unavailable") : marketSnapshotStale ? t("Snapshot stale") : t("Live market feed")}
       </Badge>
     </div>
     <LiveMarketsTable markets={markets} loading={loading} error={error} />
@@ -143,5 +154,9 @@ export function Dashboard() {
         <Button asChild><Link to="/register">{t("Create account")}</Link></Button>
       </div>
     </section>
+    <footer className="px-1 pb-2 text-[11px] leading-5 text-brand-text-muted">
+      TradingView Lightweight Charts™ Copyright (с) 2025 TradingView, Inc.{" "}
+      <a href="https://www.tradingview.com/" target="_blank" rel="noreferrer" className="underline underline-offset-2 hover:text-brand-text-secondary">https://www.tradingview.com/</a>
+    </footer>
   </div>;
 }
