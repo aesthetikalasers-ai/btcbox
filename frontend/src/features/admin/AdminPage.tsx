@@ -85,6 +85,7 @@ export function AdminPage() {
   const [tab, setTab] = useState<Tab>("overview");
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
+  const payoutSubmitLockRef = useRef(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [stats, setStats] = useState<Record<string, unknown> | null>(null);
@@ -589,7 +590,7 @@ export function AdminPage() {
   };
 
   const markPaid = async (id: string) => {
-    if (!token) return;
+    if (!token || payoutSubmitLockRef.current) return;
     const reference = (payoutReferences[id] || "").trim();
     if (!reference || reference.length > 160 || /[\u0000-\u001f\u007f]/.test(reference)) {
       setError("Enter a valid TxID / payout reference (1–160 characters).");
@@ -608,6 +609,7 @@ export function AdminPage() {
       setError("This browser cannot safely save the payout reference. No payout update was sent.");
       return;
     }
+    payoutSubmitLockRef.current = true;
     setBusy(true); setError(""); setNotice("");
     try {
       const result = await adminMarkWithdrawalPaid(token, { id, reference, note: "Staff manually transferred funds." });
@@ -620,7 +622,7 @@ export function AdminPage() {
     } catch (reason) {
       setError((reason instanceof Error ? reason.message : "Payout completion was not confirmed.") +
         " The same reference has been saved. Verify the transaction and withdrawal history before retrying.");
-    } finally { setBusy(false); }
+    } finally { payoutSubmitLockRef.current = false; setBusy(false); }
   };
 
   const saveAddresses = async (event: FormEvent<HTMLFormElement>) => {
