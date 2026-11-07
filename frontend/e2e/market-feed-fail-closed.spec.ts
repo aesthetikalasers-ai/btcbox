@@ -92,6 +92,7 @@ test("public dashboard hides quotes from an expired server market snapshot", asy
 
 
 test("spot trading hides expired quotes and blocks new orders until a fresh snapshot arrives", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
   await page.route("**/api/market/pairs", route => route.fulfill({
     status: 200,
     contentType: "application/json",
@@ -138,4 +139,9 @@ test("spot trading hides expired quotes and blocks new orders until a fresh snap
   await expect(page.getByText("64,999", { exact: false })).toHaveCount(0);
   await expect(page.getByText("65,001", { exact: false })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Place buy limit order" })).toBeDisabled();
+  await page.getByRole("button", { name: "Order book" }).click();
+  await expect(page.getByRole("dialog", { name: "Order book" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Close market panel" })).toBeVisible();
+  await page.getByRole("button", { name: "Close market panel" }).click();
+  await expect(page.getByRole("dialog", { name: "Order book" })).toHaveCount(0);
 });

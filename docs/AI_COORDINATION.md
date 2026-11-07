@@ -6669,3 +6669,11 @@ Current branch HEAD at note creation: `51c302a96f069876e438321d3597501fcbc26b54`
 - Admin withdrawal approval and KYC/withdrawal rejection now use synchronous per-record locks, preventing rapid repeated clicks from dispatching duplicate review requests before React state updates. Existing server idempotency and confirmed-result refresh behavior remain in place.
 - Added source-contract regression checks for malformed account balances and review action locks.
 - No balance, ledger, payout, KYC decision, or database data was changed. CI pending; PR #64 remains open and unmerged, with no production deployment.
+
+
+## Mobile spot workstation drawer usability — 2026-11-08 (2号 AI)
+
+- Added a dimmed backdrop behind the mobile chart/order-book bottom drawer, with tap-outside and Escape-key dismissal.
+- Exposed the active drawer as an accessible modal dialog with a specific label; preserved the existing bottom safe-area padding and 72dvh height limit.
+- Extended the mobile stale-market Playwright flow to open and dismiss the order-book drawer while confirming expired depth remains hidden.
+- No market data, order, or financial behavior changed. CI pending.
