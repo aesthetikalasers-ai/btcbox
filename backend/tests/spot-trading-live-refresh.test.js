@@ -218,3 +218,26 @@ test('legacy account profile and order views clear stale snapshots before reload
   assert.ok(legacyOrders.indexOf('setOrders([])') < legacyOrders.indexOf('getOrders(controller.signal)'));
   assert.ok(legacyOrders.includes('if(!controller.signal.aborted)setOrders([]);'));
 });
+
+test('withdrawal, KYC and support views clear stale private records before account refresh', () => {
+  const withdrawStart = pages.indexOf('export function WithdrawPage()');
+  const withdrawEnd = pages.indexOf('export function ', withdrawStart + 25);
+  const withdraw = pages.slice(withdrawStart, withdrawEnd > withdrawStart ? withdrawEnd : undefined);
+  const withdrawLoad = withdraw.slice(withdraw.indexOf('const controller=new AbortController()'));
+  assert.ok(withdrawLoad.indexOf('setAccount(null)') >= 0);
+  assert.ok(withdrawLoad.indexOf('setAddresses([])') >= 0);
+  assert.ok(withdrawLoad.indexOf('setConfig(null)') >= 0);
+  assert.ok(withdrawLoad.indexOf('setAccount(null)') < withdrawLoad.indexOf('Promise.all('));
+
+  const kycStart = pages.indexOf('export function KycPage()');
+  const kycEnd = pages.indexOf('export function ', kycStart + 25);
+  const kyc = pages.slice(kycStart, kycEnd > kycStart ? kycEnd : undefined);
+  assert.ok(kyc.includes('setAccount(null);setError('));
+  assert.ok(kyc.includes('if(!controller.signal.aborted){setAccount(null);setError('));
+
+  const supportStart = pages.indexOf('export function SupportPage()');
+  const supportEnd = pages.indexOf('export function ', supportStart + 25);
+  const support = pages.slice(supportStart, supportEnd > supportStart ? supportEnd : undefined);
+  assert.ok(support.includes('setLoading(true);setMessages([]);setError("")'));
+  assert.ok(support.includes('if(!controller.signal.aborted){setMessages([]);setError('));
+});
