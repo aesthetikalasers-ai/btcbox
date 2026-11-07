@@ -10,7 +10,7 @@ on:
       - '.github/workflows/backend-ci.yml'
       - '.github/workflows/frontend-ci.yml'
   pull_request:
-    branches: [main, 'feat/btcbox-web3-auth-20261105', 'fix/post-merge-db-bootstrap-seconds-20261106']
+    branches: [main, 'feat/btcbox-web3-auth-20261105', 'fix/post-merge-db-bootstrap-seconds-20261106', 'work/btcbox-unified-20261104']
     paths:
       - 'backend/**'
       - 'frontend/src/lib/auth.tsx'
