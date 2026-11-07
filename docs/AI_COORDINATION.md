@@ -3672,3 +3672,27 @@ The prior withdrawal UI audit statement claiming the active BTCBOX admin route w
 - Exact-head CI for account stale-data source fix `b74a805f4c3be9c7ab897bf1bc9ba698e7881360`, run `42405325759`, passed all checks. Its follow-up regression-test head `fdf75259adf10a20547d2af9f6319b61c4dae45e` has CI run `42405652778` still running at this update; latest head supersedes it and has its own run above.
 
 - Test-fixture correction head `b6660489bb61703ef7493b2d4e2743b6cc13958b`: stale-data E2E fixtures now allow all initial hydration reads and simulate failure only after the user explicitly clicks Refresh. Previous runs `42405652778` and `42405818800` failed only these newly added tests because React StrictMode can repeat initial reads; the production build/lint passed. This is test setup correction, not a source regression. Exact-head CI run `42406019693` is queued/in progress; acceptance pending.
+
+
+## Current repository progress scan — 2026-11-08 03:30 UTC+8
+
+### Exact verified frontend state
+- PR #65 head `b6660489bb61703ef7493b2d4e2743b6cc13958b`, CI run `42406019693`: PASS — install, lint, production build, Chromium install, desktop/mobile route smoke tests. PR #65 remains Draft/open, 26 changed files, 694 additions / 455 deletions, no submitted review threads.
+- PR #65 targets `work/btcbox-unified-20261104` at `f9c33e48c9d5e0b76ab6eea2ef3c2f222a76e824`, not main. Current main is `2a3810da1aef2c0c7c58df0cfdb059a212eeb0d6`; unified work branch is exactly 2 commits behind main (main-only commits `b06b8e2a13fba9144198db957fbcf66c3feec437` and `2a3810da1aef2c0c7c58df0cfdb059a212eeb0d6`). PR #65 head compares to main as 82 ahead / 2 behind; merge base is the unified branch head. Integrate and verify those two main commits before any merge/release decision.
+- PR #64 targets main, head `f4a449bde40c3000c0a698363a058edd850e0b60`; exact-head frontend, unified backend/preflight, and empty-PostgreSQL checks (runs `42405012608`, `42405012607`, `42405012554`) all PASS. PR remains open, not merged. Its description contains a historical production inventory reporting three internal users; this conflicts with the owner's later statement that the current Supabase database/users were cleared. Treat that inventory as historical, not current truth; do not run migrations or production writes from that report.
+- PR #63 targets unified branch, head `60fb943ba731fe2afce7e012dd6ce4df1692ddca`; latest recorded frontend/backend checks pass (runs `42362782648`, `42362782531`). Its market fail-closed changes are not yet integrated into main by this PR.
+- PRs #42 and #44 are duplicate open PRs with identical head SHA `6f6ab07bef986466f96d3cff7e26caa00444559c`, identical 27-commit/16-file scope, both target main and both report mergeable=false. PR #45 also targets main and reports mergeable=false. PR #19 is stale and mergeable=false. Do not merge these independently; consolidate/compare unique diffs first.
+
+### Vercel source/deployment snapshot
+- Vercel project `btcboxcdt` reports framework `vite`, domains `btcboxcdt.vercel.app`, `btcboxcdt-box-2753.vercel.app`, and `btcboxcdt-git-main-box-2753.vercel.app`.
+- Latest deployment record `dpl_9UuieuGcM7BtuzZp5cKWygneik71` is target `production`, state `READY`, aliases include `btcboxcdt.vercel.app`, and source is main SHA `2a3810da1aef2c0c7c58df0cfdb059a212eeb0d6`. Project metadata simultaneously reports `live:false`; reconcile this flag with domain/runtime behavior before declaring the service live. This scan did not initiate a deployment.
+- Several preceding production deployment records for main are ERROR; the latest record is READY. No conclusion about user-facing runtime correctness without independent browser QA.
+
+### Release blockers / next order
+1. Reconcile unified branch with the two main-only commits and confirm PR #65's correct target/base before any merge.
+2. Consolidate duplicate/stale integration PRs (#42/#44/#45/#19) and avoid parallel overlapping merges; inspect unique file diffs and exact CI for each candidate.
+3. Confirm Vercel project live flag, canonical root/build settings, domain response and actual production browser behavior; keep deployment automation/production changes under owner approval.
+4. Run independent browser visual QA at real viewport sizes and authenticated staging-only business-flow checks. No fabricated data, live financial writes, database resets, or production migrations.
+5. Reconcile PR #64 historical inventory claims against the owner's current empty-database state before using its production inventory or migration plan.
+
+- Browser visual QA remains NOT VERIFIED. No merge, production DB write, real financial operation or deployment was performed by this scan.
