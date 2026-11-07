@@ -697,7 +697,9 @@ export function SupportPage(){
  const [sendError,setSendError]=useState("");
  const [reload,setReload]=useState(0);
  const [pendingRequestId,setPendingRequestId]=useState<string>("");
+ const {status}=useAuth();
  useEffect(()=>{
+  if(status!=="authenticated"){setMessages([]);setLoading(false);return;}
   const controller=new AbortController();
   setLoading(true);setError("");
   getSupportMessages(controller.signal).then(setMessages).catch((reason:unknown)=>{
@@ -705,11 +707,11 @@ export function SupportPage(){
    setError(reason instanceof Error?reason.message:"Support conversation is temporarily unavailable.");
   }).finally(()=>{if(!controller.signal.aborted)setLoading(false);});
   return ()=>controller.abort();
- },[reload]);
+ },[reload,status]);
  const submit=async(event:FormEvent<HTMLFormElement>)=>{
   event.preventDefault();
   const message=draft.trim();
-  if(!message||sending)return;
+  if(status!=="authenticated"||!message||sending)return;
   const requestId=pendingRequestId||("MSG"+crypto.randomUUID().replace(/-/g,"")).slice(0,64);
   if(!pendingRequestId)setPendingRequestId(requestId);
   setSending(true);setSendError("");
@@ -723,6 +725,9 @@ export function SupportPage(){
   }finally{setSending(false);}
  };
  const date=(raw:string)=>{const parsed=new Date(raw);return Number.isNaN(parsed.getTime())?raw:parsed.toLocaleString();};
+ if(status!=="authenticated")return <PageFrame eyebrow="BTCBOX / HELP CENTER" title="Customer support" description="Find help and contact BTCBOX support.">
+  <Card className="border-brand-border bg-brand-surface"><CardHeader><CardTitle>BTCBOX Help Center</CardTitle><CardDescription>Public support information is available without signing in.</CardDescription></CardHeader><CardContent className="space-y-3 text-sm text-brand-text-secondary"><p>For account-specific questions, deposit or withdrawal reviews, and private conversation history, sign in to your BTCBOX account first.</p><Button asChild><Link to="/login">Sign in to contact support</Link></Button></CardContent></Card>
+ </PageFrame>;
  return <PageFrame eyebrow="BTCBOX / HELP CENTER" title="Customer support" description="Send a message to the BTCBOX support team and review replies in your account conversation.">
   <div className="flex items-center justify-between gap-3"><Badge variant="outline" className="border-brand-border"><MessageCircle className="mr-1.5 h-3.5 w-3.5"/>{t("Private account conversation")}</Badge><Button size="sm" variant="outline" disabled={loading} onClick={()=>setReload(n=>n+1)}><RefreshCw className={"mr-2 h-4 w-4 "+(loading?"animate-spin":"")}/>{t("Refresh")}</Button></div>
   {loading?<Card className="border-brand-border bg-brand-surface"><CardContent className="p-6 text-sm text-brand-text-muted" role="status">{t("Loading support conversation…")}</CardContent></Card>
