@@ -6452,3 +6452,11 @@ Current branch HEAD at note creation: `51c302a96f069876e438321d3597501fcbc26b54`
 
 
 - Audit traceability: the Admin audit table now exposes the canonical event ID as its own column. The operator field remains explicitly described as the recorded actor identifier, not a human-readable display name; this avoids presenting UUIDs as verified staff names. E2E asserts the event ID column and canonical event ID value. Commits: `cb8a45d`, `95de3cc`.
+
+## 2026-11-07 — 2号 AI public market provenance batch
+
+- Dedicated branch: `work/ai2-integration-batch-20261107` from the active unified collaboration branch.
+- The public market UI now distinguishes server snapshot time from provider timestamp/source and shows elapsed provider age; absent provider time remains explicitly unavailable.
+- Added a Playwright regression fixture with intentionally different server and provider timestamps.
+- Commits: `6ed1954`, `86b24d2`, `c00ecb7`. Exact-head CI and screenshot QA pending.
+- No merge, deploy, production DB/auth change, real order, or financial write. Continue the existing release pause.
