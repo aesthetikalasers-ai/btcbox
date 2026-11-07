@@ -139,13 +139,28 @@ test("signed-out customer routes never issue financial or account mutations", as
     }
   });
 
-  for (const path of ["/deposit", "/withdraw", "/assets", "/orders", "/kyc", "/seconds", "/support", "/settings", "/earn"]) {
+  for (const path of ["/deposit", "/withdraw", "/assets", "/orders", "/kyc", "/seconds", "/settings", "/earn"]) {
     await page.goto(path);
     await expect(page).toHaveURL(/\/login$/);
     await expect(page.getByRole("heading", { name: "Welcome back", exact: true })).toBeVisible();
   }
 
   expect(mutationRequests).toEqual([]);
+});
+
+test("support help center is public while private conversation APIs remain untouched when signed out", async ({ page }) => {
+  const privateSupportRequests: string[] = [];
+  page.on("request", (request) => {
+    const url = new URL(request.url());
+    if (url.pathname.startsWith("/api/support")) privateSupportRequests.push(request.method() + " " + url.pathname);
+  });
+
+  await page.goto("/support");
+
+  await expect(page).toHaveURL(/\/support$/);
+  await expect(page.getByRole("heading", { name: "Customer support" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Sign in to contact support" })).toHaveAttribute("href", "/login");
+  expect(privateSupportRequests).toEqual([]);
 });
 
 test("spot trading preview remains public while signed-out order mutations stay blocked", async ({ page }) => {
