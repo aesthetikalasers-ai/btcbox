@@ -89,6 +89,18 @@ test('KYC document previews are private, owner-scoped and short-lived', () => {
   assert.ok(api.includes("signedUrl.origin !== new URL(base).origin"));
 });
 
+test('administrator cannot approve KYC without an uploaded, reviewable document preview', () => {
+  const start = admin.indexOf('{!loading && tab === "kyc"');
+  const end = admin.indexOf('{!loading && tab === "audit"', start);
+  assert.ok(start >= 0 && end > start, 'KYC queue must render');
+  const queue = admin.slice(start, end);
+  assert.match(queue, /disabled=\{busy\|\|!hasPermission\("kyc\.review"\)\|\|!item\.document_uploaded\|\|!item\.document_url\}/);
+  assert.ok(queue.includes('Identity document upload is required before approval.'));
+  assert.ok(queue.includes('Document preview unavailable; refresh the queue before approval.'));
+  // Rejection remains available to authorized reviewers even when evidence is missing.
+  assert.match(queue, /variant="outline" disabled=\{busy\|\|!hasPermission\("kyc\.review"\)\} onClick=\{\(\)=>void reviewKyc\(item\.uid,false\)\}/);
+});
+
 test('confirmed KYC review is not reported as failed when the pending queue refresh fails', () => {
   const start = admin.indexOf('const reviewKyc = async (uid: string, approved: boolean)');
   const end = admin.indexOf('const replySupport = async', start);
