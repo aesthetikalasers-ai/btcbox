@@ -3696,3 +3696,28 @@ The prior withdrawal UI audit statement claiming the active BTCBOX admin route w
 5. Reconcile PR #64 historical inventory claims against the owner's current empty-database state before using its production inventory or migration plan.
 
 - Browser visual QA remains NOT VERIFIED. No merge, production DB write, real financial operation or deployment was performed by this scan.
+
+
+## Repository scan refresh — 2026-11-08 04:05 UTC+8
+
+### Verified current state
+- PR #65 head `b6660489bb61703ef7493b2d4e2743b6cc13958b`, Draft/open, targets `work/btcbox-unified-20261104` at `f9c33e48c9d5e0b76ab6eea2ef3c2f222a76e824`; 26 changed files. Exact-head CI run `42406019693` PASSED: install, lint, production build, Chromium install, desktop/mobile route smoke tests.
+- PR #65 has no submitted reviews and no review threads. It is not merged.
+- Current `main` is `2a3810da1aef2c0c7c58df0cfdb059a212eeb0d6`; unified target branch is `f9c33e48c9d5e0b76ab6eea2ef3c2f222a76e824`, exactly 2 commits behind main. Main-only commits: `b06b8e2a13fba9144198db957fbcf66c3feec437` (empty deployment-trigger commit, no files) and `2a3810da1aef2c0c7c58df0cfdb059a212eeb0d6` (backend API startup no longer blocks on retired `ADMIN_PASS`; regression test added).
+- PR #65 compared with main is 82 commits ahead / 2 behind, with 26 changed files. Its base is the unified work branch, not main; do not describe it as main-ready.
+- PR #64 (`f4a449bde40c3000c0a698363a058edd850e0b60`) remains open against main; frontend, backend/preflight and PostgreSQL schema CI runs `42405012608`, `42405012607`, `42405012554` all passed.
+- PR #63 (`60fb943ba731fe2afce7e012dd6ce4df1692ddca`) remains open against unified branch; recorded frontend/backend CI runs `42362782648`, `42362782531` passed.
+- PRs #42 and #44 are duplicate submissions with identical head `6f6ab07bef986466f96d3cff7e26caa00444559c`, identical 16-file diffs, both non-mergeable. PR #45 is another non-mergeable overlapping integration candidate. PR #19 is also non-mergeable and overlaps the customer-facing shell and page files.
+- File overlap scan: PR #63 and PR #64 share 14 files; PR #64 and PR #65 share 10; PR #63 and PR #65 share 6; PR #42/#44 and PR #45 share 16. These are not safe to merge independently without consolidation and retesting.
+
+### Current implementation progress
+- PR #65 consolidates the frontend visual system, customer/admin responsive and accessibility refinements, chart attribution, safe customer-facing error messages, empty market-feed accuracy, and recent business-state corrections.
+- Latest changes preserve last-confirmed Assets/Orders data on transient refresh failures (but clear private data on AUTH_REQUIRED), and keep withdrawal `approved` in warning/pending until actual manual payout is recorded as `completed`.
+- The stale-data refresh E2E fixtures were corrected to fail only after explicit Refresh, accounting for React StrictMode initial hydration reads.
+
+### Next integration sequence — do not merge/deploy yet
+1. Reconcile the unified branch with current main's two commits, especially the real backend startup fix; verify exact tree and conflict-free integration.
+2. Consolidate PR #63, #64, #65 into one reviewed candidate because their changed files overlap; keep #42/#44 duplicates and #45/#19 out of independent merges until unique changes are identified.
+3. Re-run all frontend, backend, PostgreSQL disposable-schema and desktop/mobile E2E suites on the consolidated exact SHA.
+4. Perform independent browser visual QA on real responsive viewports and confirm production app behavior separately. This remains NOT VERIFIED.
+5. Keep merge, production deployment, hosted database writes, real deposits/withdrawals/orders, and destructive actions blocked pending owner approval.
