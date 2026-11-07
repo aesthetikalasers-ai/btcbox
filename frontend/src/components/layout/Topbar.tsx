@@ -15,7 +15,7 @@ export function Topbar({ onMenuClick, menuOpen = false }: { onMenuClick?: () => 
   };
 
   return (
-    <header className="relative z-30 flex h-16 shrink-0 items-center justify-between gap-2 border-b border-brand-border bg-brand-bg/95 px-3 backdrop-blur-xl sm:px-4 md:px-6">
+    <header className="relative z-30 flex h-16 shrink-0 items-center justify-between gap-2 border-b border-brand-border bg-brand-bg/95 shadow-[0_1px_0_rgba(54,199,223,0.035)] px-3 backdrop-blur-xl sm:px-4 md:px-6">
       <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
         {onMenuClick && (
           <button type="button" aria-label={menuOpen ? t("Close navigation") : t("Open navigation")} aria-expanded={menuOpen} aria-controls="mobile-navigation" onClick={onMenuClick} className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-brand-text-secondary transition-colors hover:bg-brand-surface-hover hover:text-brand-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent lg:hidden">
@@ -35,7 +35,7 @@ export function Topbar({ onMenuClick, menuOpen = false }: { onMenuClick?: () => 
       <div className="flex shrink-0 items-center gap-1 sm:gap-3">
         <div className="hidden items-center gap-1.5 rounded-full border border-brand-border bg-brand-surface px-3 py-2 sm:flex">
           <Radio className="h-3.5 w-3.5 text-profit" />
-          <span className="text-xs font-semibold text-brand-text">{t("Preview")}</span>
+          <span className="text-xs font-semibold text-brand-cyan">{t("Preview")}</span>
         </div>
         <label className="flex h-11 items-center gap-1.5 rounded-xl border border-brand-border bg-brand-surface px-2 text-brand-text-secondary sm:px-2.5">
           <Languages className="h-4 w-4 shrink-0" />
