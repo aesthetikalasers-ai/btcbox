@@ -6622,3 +6622,10 @@ Current branch HEAD at note creation: `51c302a96f069876e438321d3597501fcbc26b54`
 - PostgreSQL schema CI run `42396173092`: completed successfully.
 - This supersedes the earlier “exact-head CI pending” notes above for the asset decimal-string formatter correction and the preceding Admin/dashboard batches. The browser regression now validates the corrected decimal-string formatter on desktop and mobile.
 - PR #64 remains open and unmerged. No production deployment, production database operation, or merge was performed.
+
+
+## Public market stale-snapshot fail-closed display — 2026-11-08 (2号 AI)
+- Found the public markets table could continue presenting a successful API response as a live feed even when the server snapshot timestamp was more than 90 seconds old. Provider timestamps are not used for this decision because Coinbase last-trade time and Bybit response time have different semantics.
+- Added a 90-second freshness check using only the server snapshot timestamp. When an available timestamp exceeds the threshold, the dashboard labels the feed as stale and the markets table hides quotes with a clear unavailable message until a fresh snapshot arrives. The table now displays the server snapshot age for transparency.
+- Removed an unreachable error-rendering branch that checked for non-empty markets after the same error had already forced that list to empty.
+- Presentation-only fail-closed behavior; no market provider, quote source, API contract, order execution, or financial logic changed. CI pending for this exact commit. No merge or deployment.

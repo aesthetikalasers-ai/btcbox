@@ -25,6 +25,8 @@ export function Dashboard() {
   const volumeRange = useDashboardStore((state) => state.volumeRange);
   const liquidityInterval = LIQUIDITY_INTERVALS[liquidityRange] || "5m";
   const volumeInterval = VOLUME_INTERVALS[volumeRange] || "1h";
+  const latestMarketSnapshotTs = markets.reduce((latest, item) => Math.max(latest, item.snapshotTs || 0), 0);
+  const marketSnapshotStale = latestMarketSnapshotTs > 0 && Date.now() / 1000 - latestMarketSnapshotTs > 90;
 
   useEffect(() => {
     const controller = new AbortController();
@@ -125,7 +127,7 @@ export function Dashboard() {
         <p className="type-body mt-1.5 text-brand-text-secondary">{t("Live spot prices and 24-hour market movement.")}</p>
       </div>
       <Badge variant="outline" className="border-brand-accent/30 bg-brand-accent/10 px-3 py-1 text-brand-text-secondary">
-        {loading ? t("Connecting") : error ? t("Feed unavailable") : t("Live market feed")}
+        {loading ? t("Connecting") : error ? t("Feed unavailable") : marketSnapshotStale ? t("Snapshot stale") : t("Live market feed")}
       </Badge>
     </div>
     <LiveMarketsTable markets={markets} loading={loading} error={error} />

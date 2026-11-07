@@ -38,8 +38,11 @@ export function LiveMarketsTable({ markets, loading, error }: {
   const numberLocale = numberLocales[language];
   const [searchParams, setSearchParams] = useSearchParams();
   const query = (searchParams.get("q") || "").trim().toLowerCase();
-  const displayMarkets = error ? [] : markets;
-  const latestSnapshotTs = displayMarkets.reduce((latest, item) => Math.max(latest, item.snapshotTs || 0), 0);
+  const latestSnapshotTs = markets.reduce((latest, item) => Math.max(latest, item.snapshotTs || 0), 0);
+  const snapshotAgeSeconds = latestSnapshotTs > 0 ? Math.max(0, Math.floor(Date.now() / 1000 - latestSnapshotTs)) : null;
+  const snapshotStale = snapshotAgeSeconds !== null && snapshotAgeSeconds > 90;
+  const feedError = error || (snapshotStale ? "The market service snapshot is older than 90 seconds. Quotes are hidden until a fresh snapshot arrives." : "");
+  const displayMarkets = feedError ? [] : markets;
   const latestProviderMarket = displayMarkets.reduce<MarketTicker | null>((latest, item) =>
     (item.providerTs || 0) > (latest?.providerTs || 0) ? item : latest, null);
   const providerTimestamp = latestProviderMarket?.providerTs || 0;
@@ -61,7 +64,7 @@ export function LiveMarketsTable({ markets, loading, error }: {
         <div className="min-w-0">
           <h2 className="text-[15px] font-semibold tracking-tight text-brand-text">{t("Spot markets")}</h2>
           <p className="mt-1 text-xs text-brand-text-muted">{t("Live prices from the BTCBOX market service")}</p>
-          <p className="mt-1 text-[11px] text-brand-text-muted" aria-label={snapshotTime ? `Server snapshot ${snapshotTime}` : "Server snapshot time unavailable"}>{snapshotTime ? `Server snapshot · ${snapshotTime}` : "Server snapshot time unavailable"}</p>
+          <p className="mt-1 text-[11px] text-brand-text-muted" aria-label={snapshotTime ? `Server snapshot ${snapshotTime}` : "Server snapshot time unavailable"}>{snapshotTime ? `Server snapshot · ${snapshotTime} · ${snapshotAgeSeconds}s ago` : "Server snapshot time unavailable"}</p>
           <p className="mt-1 text-[11px] text-brand-text-muted" aria-label={providerTime ? `Provider snapshot ${providerSource || "source unavailable"} at ${providerTime}, ${providerAgeSeconds} seconds old` : "Provider timestamp unavailable"}>
             {providerTime ? `Provider snapshot · ${providerSource || "source unavailable"} · ${providerTime} · ${providerAgeSeconds}s ago` : "Provider timestamp unavailable"}
           </p>
@@ -76,12 +79,7 @@ export function LiveMarketsTable({ markets, loading, error }: {
           <input type="search" aria-label={t("Search BTCBOX")} placeholder={t("Search")} value={searchParams.get("q") || ""} onChange={(event) => setSearchParams(event.target.value ? { q: event.target.value } : {})} className="h-11 w-full rounded-xl border border-brand-border bg-brand-surface px-3 pl-10 text-sm text-brand-text placeholder:text-brand-text-muted focus:border-brand-accent focus:outline-none" />
         </label>
       </div>
-      {error && displayMarkets.length > 0 ? (
-        <div className="border-b border-amber-500/20 bg-amber-500/5 px-4 py-2 text-xs text-amber-200" role="status">
-          {t("Market data is temporarily unavailable.")} {error}
-        </div>
-      ) : null}
-      {error && displayMarkets.length === 0 ? (
+      {feedError && displayMarkets.length === 0 ? (
         <div className="px-5 py-10 text-center">
           <p className="text-sm font-semibold text-brand-text">{t("Market feed unavailable")}</p>
           <p className="mt-2 break-words text-sm text-brand-text-muted">{error}</p>
