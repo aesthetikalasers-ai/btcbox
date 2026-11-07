@@ -39,6 +39,7 @@ test('customer-facing pages do not advertise simulated orders or sample order hi
   assert.doesNotMatch(customerPages, /No sample or simulated orders are shown/i);
   assert.doesNotMatch(customerPages, /Orders are never simulated in the browser/i);
   assert.match(customerPages, /No orders are available for this account yet/);
+  assert.doesNotMatch(customerPages, /Integration pending|This page is scaffolded|in this preview/i);
 });
 
 test('Vite dashboard does not keep stale quotes visible after a refresh error', () => {
