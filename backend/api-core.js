@@ -2318,6 +2318,9 @@ async function handleRequest(event, context) {
           const chg = Number(t.price24hPcnt) * 100, vol = Number(t.turnover24h);
           const providerTimeMs = Number(payload.time);
           const providerTs = Number.isFinite(providerTimeMs) && providerTimeMs > 0 ? Math.floor(providerTimeMs / 1000) : null;
+          // Bybit's timestamp is the response timestamp, so unlike Coinbase's
+          // last-trade time it can be checked for snapshot freshness.
+          if (providerTs === null || providerTs > now + 15 || now - providerTs > 60) return;
           const row = normalize(base, { price, high, low, chg, vol }, 'bybit', providerTs);
           if (row) marketsByBase[base] = row;
         });
