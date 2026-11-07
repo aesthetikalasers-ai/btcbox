@@ -642,10 +642,10 @@ export function KycPage(){
  const [notice,setNotice]=useState("");
  const [reload,setReload]=useState(0);
  useEffect(()=>{
-  const controller=new AbortController();setLoading(true);setError("");
+  const controller=new AbortController();setLoading(true);setAccount(null);setError("");
   getAccount(controller.signal).then(data=>{setAccount(data);setName(current=>current||data.kyc?.name||"");setIdType(current=>data.kyc?.id_type==="passport"||data.kyc?.id_type==="driver_license"?data.kyc.id_type:current);}).catch((reason:unknown)=>{
    if(reason instanceof Error&&reason.name==="AbortError")return;
-   setError(reason instanceof Error?reason.message:"Verification status is temporarily unavailable.");
+   if(!controller.signal.aborted){setAccount(null);setError(reason instanceof Error?reason.message:"Verification status is temporarily unavailable.");}
   }).finally(()=>{if(!controller.signal.aborted)setLoading(false);});
   return ()=>controller.abort();
  },[reload]);
@@ -709,10 +709,10 @@ export function SupportPage(){
  useEffect(()=>{
   if(status!=="authenticated"){setMessages([]);setLoading(false);return;}
   const controller=new AbortController();
-  setLoading(true);setError("");
+  setLoading(true);setMessages([]);setError("");
   getSupportMessages(controller.signal).then(setMessages).catch((reason:unknown)=>{
    if(reason instanceof Error&&reason.name==="AbortError")return;
-   setError(reason instanceof Error?reason.message:"Support conversation is temporarily unavailable.");
+   if(!controller.signal.aborted){setMessages([]);setError(reason instanceof Error?reason.message:"Support conversation is temporarily unavailable.");}
   }).finally(()=>{if(!controller.signal.aborted)setLoading(false);});
   return ()=>controller.abort();
  },[reload,status]);
@@ -932,7 +932,7 @@ export function WithdrawPage(){
 
  useEffect(()=>{
   const controller=new AbortController();
-  setLoading(true);setError("");
+  setLoading(true);setAccount(null);setAddresses([]);setConfig(null);setSelectedAddress(null);setError("");
   Promise.all([getAccount(controller.signal),getSavedCryptoAddresses(controller.signal),getWithdrawalConfig(controller.signal)])
    .then(([snapshot,book,withdrawalConfig])=>{
     if(controller.signal.aborted)return;
