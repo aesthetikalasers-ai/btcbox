@@ -204,3 +204,13 @@ Important: source-level implementation is not proof of live Supabase provider co
 - Backend CI run 42321114844 at 863576598db9414669798ff917f389ccb8eb8892: SUCCESS (411 tests + unified build/preflight).
 - Test-only failures and fixes: 2598d7e failed because the account fixture omitted required unpriced_assets; 1d066f5 corrected it; 00581b5 made the account response reflect persisted credentials; bfd5056 added OAuth cancellation coverage; d77126f initially used an unsuitable cross-realm strict assertion; 8635765 corrected the assertion and passed CI.
 - Live Google provider enablement/redirect allowlist and real EVM/Solana wallet signature flows remain NOT VERIFIED. Do not claim production authentication is live solely from isolated CI. No deployment or production data change.
+
+## Mobile spot workstation — implementation and verification 2026-11-07
+
+- Reordered mobile spot experience: ticker/price summary first, limit-order entry immediately after; long chart and order-book content no longer pushes order entry down the page.
+- Chart and order book are mobile bottom drawers with 72dvh max height, safe-area padding and explicit Close controls. Desktop remains side-by-side.
+- Chart initialization is deferred while hidden/zero-width and runs when the chart drawer opens; resize observer tracks its actual visible width.
+- Added 320px E2E assertions for the above-the-fold priority, drawer default state, chart canvas render, chart/depth open-close, source labels and horizontal overflow.
+- CI run 42321826347 at bb6183557b9048734382c3f4cac75d8fbc8b5a7c: SUCCESS; 32 desktop/mobile route tests passed; lint and build passed.
+- Files changed: frontend/src/features/pages/Pages.tsx and frontend/e2e/auth-routes.spec.ts. Main code commits: 1b77262b (reorder + toggles), 73ecc2c8 (price summary moved above the grid), 16496e2a (bottom drawer styling), 4103b146 (close controls), 046fc466 (visible-width chart initialization); final regression sequence: bb618355.
+- No financial logic or production environment touched.
