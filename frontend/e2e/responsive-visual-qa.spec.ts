@@ -7,12 +7,12 @@ const routes = [
   { path: "/login", heading: "Welcome back" },
   { path: "/register", heading: "Create your BTCBOX account" },
   { path: "/home", heading: "Explore the market. Trade with confidence." },
-  { path: "/markets", heading: "Explore the market. Trade with confidence." },
+  { path: "/markets", heading: "Market overview" },
   { path: "/trade/BTCUSDT", heading: "BTCUSDT" },
   { path: "/trade-hub", heading: "Choose your trading mode" },
   { path: "/assets", heading: "Assets" },
   { path: "/support", heading: "Customer support" },
-  { path: "/admin", heading: "Welcome back" },
+  { path: "/orders", heading: "Orders" },
 ];
 
 test("responsive visual QA captures key customer and admin entry routes without horizontal page overflow", async ({ page }) => {
@@ -55,6 +55,10 @@ test("responsive visual QA captures key customer and admin entry routes without 
       await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ ok: true, klines: [] }) });
       return;
     }
+    if (pathname === "/api/support/messages") {
+      await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ ok: true, messages: [] }) });
+      return;
+    }
     if (pathname === "/api/orders") {
       await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ ok: true, orders: [] }) });
       return;
@@ -66,7 +70,7 @@ test("responsive visual QA captures key customer and admin entry routes without 
       return;
     }
     await route.fulfill({ status: 503, contentType: "application/json", body: JSON.stringify({
-      ok: false, code: "VISUAL_QA_ISOLATED", msg: "Service unavailable in isolated visual QA.",
+      ok: false, code: "VISUAL_QA_ISOLATED", msg: "This service is temporarily unavailable.",
     }) });
   });
   await page.route("https://btcbox-e2e.invalid/**", route => route.abort());
@@ -79,6 +83,7 @@ test("responsive visual QA captures key customer and admin entry routes without 
       await expect(page.locator("#root")).not.toBeEmpty();
       expect(new URL(page.url()).pathname).toBe(routePath);
       await expect(page.getByRole("heading", { name: route.heading, exact: true })).toBeVisible({ timeout: 15000 });
+      if (routePath === "/markets") await expect(page.getByRole("heading", { name: "Explore the market. Trade with confidence.", exact: true })).toHaveCount(0);
       await page.waitForLoadState("networkidle");
       await page.evaluate(() => document.fonts.ready);
       const dimensions = await page.evaluate(() => ({

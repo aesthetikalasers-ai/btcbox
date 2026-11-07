@@ -110,7 +110,7 @@ export function AuthPage({ mode, redirectTo }: { mode: "login" | "register"; red
                 ? "Enter your authenticator code to finish signing in."
                 : registering
                   ? "Register with your email address or Google account. Confirm your email to activate secure access."
-                  : "Sign in with your BTCBOX username, Google account or crypto wallet."}
+                  : "Sign in with your email, BTCBOX username, Google account or supported crypto wallet."}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4 px-5 pb-6 sm:px-8 sm:pb-8">

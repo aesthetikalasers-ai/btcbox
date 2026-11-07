@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { ArrowRight, ArrowUpRight, ChartNoAxesCombined, ShieldCheck, Wallet } from "lucide-react";
 import { LiquidityChart } from "./components/LiquidityChart";
 import { VolumeChart } from "./components/VolumeChart";
@@ -16,6 +16,7 @@ const VOLUME_INTERVALS: Record<string, string> = { "1d": "5m", "7d": "1h", "30d"
 
 export function Dashboard() {
   const { t } = useI18n();
+  const isMarketsPage = useLocation().pathname === "/markets";
   const [markets, setMarkets] = useState<MarketTicker[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -92,7 +93,7 @@ export function Dashboard() {
   }, [volumeInterval]);
 
   return <div className="mx-auto flex w-full max-w-[1600px] min-w-0 flex-col gap-5 p-3 sm:gap-6 sm:p-5 lg:p-7">
-    <section className="relative isolate overflow-hidden rounded-2xl border border-brand-border bg-gradient-to-br from-brand-surface via-brand-surface to-[#102a48] p-5 sm:p-7 lg:p-9">
+    <section className={`${isMarketsPage ? "hidden " : ""}relative isolate overflow-hidden rounded-2xl border border-brand-border bg-gradient-to-br from-brand-surface via-brand-surface to-[#102a48] p-5 sm:p-7 lg:p-9`}>
       <div className="pointer-events-none absolute -right-16 -top-24 -z-10 h-72 w-72 rounded-full bg-brand-accent/15 blur-3xl" />
       <div className="relative grid items-center gap-7 lg:grid-cols-[minmax(0,1fr)_minmax(220px,.55fr)]">
         <div className="min-w-0">
