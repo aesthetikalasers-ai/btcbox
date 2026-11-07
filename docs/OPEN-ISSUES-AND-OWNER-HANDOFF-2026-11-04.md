@@ -538,3 +538,15 @@ Registration and the signed-out preview/home page are now the first pages to com
 - FINAL VERIFICATION — backend CI run `42356891197`: SUCCESS. Unified build passed, **411/411 backend tests passed**, fail-closed deployment preflight passed, and preserved output/entrypoint checks passed.
 - The source/test batch is CI-green on branch `work/ai2-integration-batch-20261107`. PR #61 remains OPEN / DRAFT / NOT MERGED. No production deployment, production environment edit, database write, financial operation, or real order was performed.
 - STILL BLOCKED FOR RELEASE: production Vercel `ADMIN_PASS` remains weak as observed in the latest failed production build logs. Test isolation does not fix runtime. Manual desktop/mobile visual review and live upstream freshness on an authorized Preview remain pending.
+
+
+## 2号 AI — registration and public preview responsive regression batch — 2026-11-07
+
+- Source review confirmed `/register` starts with Google/Ethereum/Solana identity verification; `/account-setup` is where the user creates BTCBOX username/password. No email registration or email OTP was introduced. `/login` continues to expose username/password plus Google and wallet sign-in.
+- Public `/home`, `/markets`, and `/trade/:symbol` routes remain available without an account; private account/financial routes remain guarded.
+- Added Playwright breakpoint regression coverage for registration at 320/390/768/1440 px and public preview at 320/375/768/1024/1440 px. Assertions cover core identity choices, desktop registration hero, public market content and document-level horizontal overflow.
+- Commit: `4362d2589ae1c81c4ba4a5be585aa4b526a97c37`.
+- Fresh frontend CI for this commit is pending. Previous exact-head Actions runs passed 411/411 backend tests and 64/64 frontend tests.
+- GitHub commit status shows the Vercel check failing because the free plan reached its daily deployment limit (`api-deployments-free-per-day`). This is not a Playwright failure. No deployment retry or alternate deployment was attempted.
+- Manual desktop/mobile screenshot review and live upstream freshness remain unverified; automated viewport assertions are not visual acceptance.
+- Frontend E2E/docs only. No auth/backend/financial API, ledger, database, production environment, real account, real order, merge or deployment change.
