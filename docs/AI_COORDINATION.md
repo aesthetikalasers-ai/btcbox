@@ -3667,3 +3667,6 @@ The prior withdrawal UI audit statement claiming the active BTCBOX admin route w
 
 - Exact-head CI run `42405325759` for `b74a805f4c3be9c7ab897bf1bc9ba698e7881360` passed install, lint, production build, Chromium, and desktop/mobile route smoke tests.
 - Follow-up head `fdf75259adf10a20547d2af9f6319b61c4dae45e` adds isolated Playwright regression coverage proving Assets and Orders retain the last confirmed data after a transient refresh failure and do not expose backend error details. Exact-head CI run `42405652778` is in_progress; acceptance pending full completion.
+
+- Latest business-state refinement head `5fd678aa531eef908f492ea69a18ba18b6eccd4c`: in the administrator withdrawal queue, `approved` is now warning/pending until staff record the actual manual payout as `completed`; a Playwright regression assertion verifies the distinction. No payout handler, permission, financial ledger or API behavior changed. Exact-head CI run `42405818800` is in progress; do not accept until all steps pass.
+- Exact-head CI for account stale-data source fix `b74a805f4c3be9c7ab897bf1bc9ba698e7881360`, run `42405325759`, passed all checks. Its follow-up regression-test head `fdf75259adf10a20547d2af9f6319b61c4dae45e` has CI run `42405652778` still running at this update; latest head supersedes it and has its own run above.
