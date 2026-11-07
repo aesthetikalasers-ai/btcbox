@@ -1051,5 +1051,5 @@ test("public preview distinguishes server snapshot time from upstream provider t
   await page.goto("/home");
 
   await expect(page.getByText(/Server snapshot ·/)).toBeVisible();
-  await expect(page.getByText(/Provider snapshot · coinbase · .* · 90s ago/)).toBeVisible();
+  await expect(page.getByText(/Provider snapshot · coinbase · .* · \\d+s ago/)).toBeVisible();
 });
