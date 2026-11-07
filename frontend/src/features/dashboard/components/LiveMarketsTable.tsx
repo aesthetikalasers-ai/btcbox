@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { Search } from "lucide-react";
-import { useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { TokenIcon } from "../../../components/ui/TokenIcon";
 import { Card } from "./Card";
 import type { MarketTicker } from "../../../lib/api";
@@ -96,7 +96,7 @@ export function LiveMarketsTable({ markets, loading, error }: {
         <>
           <div className="divide-y divide-brand-border/70 sm:hidden">
             {visibleMarkets.map((item) => (
-              <div key={item.sym} className="flex min-h-[76px] items-center justify-between gap-3 px-4 py-3 transition-colors active:bg-brand-surface-hover">
+              <Link key={item.sym} to={`/trade/${item.sym}`} aria-label={`${item.sym} spot trading`} className="flex min-h-[76px] items-center justify-between gap-3 px-4 py-3 transition-colors hover:bg-brand-surface-hover active:bg-brand-surface-hover">
                 <div className="flex min-w-0 items-center gap-3">
                   <TokenIcon symbol={item.sym} className="h-9 w-9 shrink-0" />
                   <div className="min-w-0">
@@ -108,7 +108,7 @@ export function LiveMarketsTable({ markets, loading, error }: {
                   <span className="type-body font-bold tabular-nums text-brand-text">{price(item.price, numberLocale)}</span>
                   <Change value={item.chg} locale={numberLocale} />
                 </div>
-              </div>
+              </Link>
             ))}
           </div>
           <div className="hidden w-full overflow-x-auto sm:block">
@@ -123,7 +123,9 @@ export function LiveMarketsTable({ markets, loading, error }: {
                   <td className="h-16 whitespace-nowrap px-4 py-2 md:px-6">
                     <div className="flex items-center gap-3">
                       <TokenIcon symbol={item.sym} className="h-8 w-8" />
-                      <div><p className="text-sm font-semibold text-brand-text">{names[item.sym] || item.sym}</p><p className="text-xs text-brand-text-muted">{item.sym}/USDT</p></div>
+                      <Link to={`/trade/${item.sym}`} className="group min-w-0 rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent">
+                        <p className="text-sm font-semibold text-brand-text group-hover:text-brand-accent">{names[item.sym] || item.sym}</p><p className="text-xs text-brand-text-muted">{item.sym}/USDT</p>
+                      </Link>
                     </div>
                   </td>
                   <td className="whitespace-nowrap px-4 type-body font-semibold tabular-nums text-brand-text md:px-6">{price(item.price, numberLocale)}</td>
