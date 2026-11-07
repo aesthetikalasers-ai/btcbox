@@ -6326,3 +6326,14 @@ Current branch HEAD at note creation: `51c302a96f069876e438321d3597501fcbc26b54`
 - The signed-out home preview's hero logo is hidden at mobile widths where the topbar already provides the BTCBOX brand mark; it remains visible when the topbar brand mark is not shown.
 - E2E assertions now verify no global banner/navigation on login and registration, and verify the mobile preview keeps its topbar navigation while avoiding a duplicated hero brand mark.
 - No authentication methods, provider contracts, market API contracts, order/financial logic, production settings, merge or deployment were changed.
+
+
+## 2026-11-07 auth-shell / preview verification result
+
+- Final tested source/test SHA: `4e0695afae911c670214703a819de2618036aaeb`.
+- Frontend CI run `42333471864`: SUCCESS — npm install, lint, build and `44/44` desktop/mobile Playwright tests passed.
+- Backend CI run `42333471866`: SUCCESS — unified build, `411/411` backend tests, fail-closed deployment preflight and preserved output checks passed.
+- The first test run caught an assertion that incorrectly required a responsive topbar logo link to be visible in both project viewport configurations. The app code was not at fault; removed that breakpoint-sensitive assertion while retaining checks for the header, mobile navigation and hidden duplicate hero mark. The rerun passed all 44 tests.
+- The auth-route assertions passed in desktop and mobile projects: no global banner or primary navigation is rendered on login/registration. Public preview assertions passed with the normal app header/navigation and no horizontal overflow or signed-out financial mutations.
+- Latest PR #59 remains OPEN / DRAFT / NOT MERGED. No production deployment, DB/auth configuration change, or financial action was performed.
+- Manual screenshot-based visual acceptance is still pending; CI browser tests are not claimed as physical-device visual approval.
