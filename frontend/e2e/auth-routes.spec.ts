@@ -280,9 +280,11 @@ test("spot preview keeps provider provenance visible and fits a 320px mobile vie
   await expect(page.getByRole("heading", { name: "Order book" })).toBeHidden();
   await page.getByRole("button", { name: "Chart", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Price chart" })).toBeVisible();
+  await expect(page.locator("div.fixed.inset-x-0.bottom-0")).toBeVisible();
   await page.getByRole("button", { name: "Order book", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Price chart" })).toBeHidden();
   await expect(page.getByRole("heading", { name: "Order book" })).toBeVisible();
+  await expect(page.locator("div.fixed.inset-x-0.bottom-0")).toBeVisible();
   await expect(page.getByText(/Chart refresh is unavailable/)).toHaveCount(0);
   const dimensions = await page.evaluate(() => ({ viewport: document.documentElement.clientWidth, content: document.documentElement.scrollWidth }));
   expect(dimensions.content).toBeLessThanOrEqual(dimensions.viewport);
