@@ -58,6 +58,6 @@ test('order book cache is cleared when the live depth feed fails', () => {
 });
 
 test('customer navigation contains no preview or API-verification banners', () => {
-  assert.doesNotMatch(topbar, /t\("Preview"\)/);
+  assert.doesNotMatch(topbar, /Preview/);
   assert.doesNotMatch(sidebar, /Preview · API verification pending/);
 });
