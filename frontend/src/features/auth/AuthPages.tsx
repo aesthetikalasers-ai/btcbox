@@ -47,7 +47,7 @@ export function AuthPage({ mode, redirectTo }: { mode: "login" | "register"; red
     </Button>
   </>;
 
-  return <main className="relative mx-auto flex min-h-[100dvh] w-full max-w-[1120px] items-center px-3 py-6 sm:px-6 sm:py-10 lg:px-8">
+  return <main className="tone-support relative mx-auto flex min-h-[100dvh] w-full max-w-[1120px] items-center px-3 py-6 sm:px-6 sm:py-10 lg:px-8">
     <div className="pointer-events-none absolute inset-x-8 top-8 -z-10 h-64 rounded-full bg-brand-accent/10 blur-3xl" />
     <div className="grid w-full items-center gap-6 lg:grid-cols-[minmax(0,1.05fr)_minmax(380px,.95fr)] lg:gap-12">
       <section className="hidden min-w-0 flex-col justify-center lg:flex">
