@@ -11,16 +11,16 @@ test('deposit history clears the previous snapshot and refreshes when the page b
   const end = pages.indexOf('export function EarnPage', start);
   assert.ok(start >= 0 && end > start);
   const source = pages.slice(start, end);
-  assert.match(source, /setHistoryLoading\(true\);setHistoryError\("");setDepositHistory\(\[\]\)/);
-  assert.match(source, /document\.addEventListener\("visibilitychange",refreshWhenVisible\)/);
-  assert.match(source, /getAccount\(controller\.signal\)/);
+  assert.ok(source.includes('setHistoryLoading(true);setHistoryError("");setDepositHistory([])'));
+  assert.ok(source.includes('document.addEventListener("visibilitychange",refreshWhenVisible)'));
+  assert.ok(source.includes('getAccount(controller.signal)'));
 });
 
 test('withdrawal balances and history are reloaded on return without retaining old account snapshots', () => {
   const start = pages.indexOf('export function WithdrawPage');
   assert.ok(start >= 0);
   const source = pages.slice(start);
-  assert.match(source, /setLoading\(true\);setError\("");setAccount\(null\);setAddresses\(\[\]\);setConfig\(null\)/);
-  assert.match(source, /document\.addEventListener\("visibilitychange",refreshWhenVisible\)/);
-  assert.match(source, /getAccount\(controller\.signal\)/);
+  assert.ok(source.includes('setLoading(true);setError("");setAccount(null);setAddresses([]);setConfig(null)'));
+  assert.ok(source.includes('document.addEventListener("visibilitychange",refreshWhenVisible)'));
+  assert.ok(source.includes('getAccount(controller.signal)'));
 });
