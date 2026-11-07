@@ -727,6 +727,7 @@ test("Admin audit log loads older canonical pages without mixing sources", async
   await page.goto("/admin");
   await page.getByRole("button", { name: "Audit log", exact: true }).click();
   await expect(page.getByText("Newer audit fixture")).toBeVisible();
+  await expect(page.getByRole("cell", { name: "E2E-AUDIT-NEWER" })).toBeVisible();
   await expect(page.getByText("PostgreSQL canonical")).toBeVisible();
   await page.getByRole("button", { name: "Load older records" }).click();
   await expect(page.getByText("Older audit fixture")).toBeVisible();
@@ -784,6 +785,7 @@ test("Admin audit reload failure clears stale records and resets source confiden
   await expect(page.getByRole("heading", { name: "Financial audit log" })).toBeVisible();
   await expect(page.getByText("E2E audit fixture")).toBeVisible();
   await expect(page.getByText("PostgreSQL canonical")).toBeVisible();
+  await expect(page.getByRole("columnheader", { name: "Event ID" })).toBeVisible();
   await expect(page.getByRole("columnheader", { name: "Operator ID" })).toBeVisible();
   await expect(page.getByRole("columnheader", { name: "Affected user UID" })).toBeVisible();
   await expect(page.getByRole("cell", { name: "e2e-admin-001" })).toBeVisible();
