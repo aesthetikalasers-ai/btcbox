@@ -18,6 +18,35 @@ WITH table_counts(table_name, row_count) AS (
   UNION ALL SELECT 'financial_matching_trades', count(*) FROM public.financial_matching_trades
   UNION ALL SELECT 'seconds_contract_positions', count(*) FROM public.seconds_contract_positions
 ),
+users AS (
+  SELECT u.value AS user_data
+  FROM public.btcbox_state s
+  CROSS JOIN LATERAL jsonb_each(s.data -> 'users') AS u(user_key,value)
+  WHERE s.id='main'
+),
+user_balance_slots AS (
+  SELECT u.user_data,
+         b.balance ->> 'free' AS free_amount,
+         b.balance ->> 'frozen' AS frozen_amount
+  FROM users u
+  CROSS JOIN LATERAL jsonb_each(u.user_data -> 'balances') AS b(asset,balance)
+),
+user_summary AS (
+  SELECT
+    (SELECT count(*) FROM users) AS total_users,
+    (SELECT count(*) FROM users WHERE nullif(user_data ->> 'username','') IS NOT NULL) AS users_with_username,
+    (SELECT count(*) FROM users WHERE nullif(user_data ->> 'login_password_hash','') IS NOT NULL) AS users_with_btcbox_login_password,
+    (SELECT count(*) FROM users WHERE nullif(user_data ->> 'supabase_user_id','') IS NOT NULL) AS users_with_supabase_link,
+    (SELECT count(*) FROM users WHERE jsonb_typeof(user_data -> 'wallet_identities')='array'
+      AND jsonb_array_length(user_data -> 'wallet_identities')>0) AS users_with_wallet_link,
+    (SELECT count(DISTINCT user_data) FROM user_balance_slots
+      WHERE coalesce(free_amount,'0')::numeric<>0 OR coalesce(frozen_amount,'0')::numeric<>0) AS users_with_nonzero_balance,
+    (SELECT coalesce(sum(jsonb_array_length(user_data -> 'deposits')),0) FROM users) AS embedded_deposit_records,
+    (SELECT coalesce(sum(jsonb_array_length(user_data -> 'withdrawals')),0) FROM users) AS embedded_withdrawal_records,
+    (SELECT coalesce(sum(jsonb_array_length(user_data -> 'orders')),0) FROM users) AS embedded_order_records,
+    (SELECT coalesce(sum(jsonb_array_length(user_data -> 'earn_records')),0) FROM users) AS embedded_earn_records,
+    (SELECT coalesce(sum(jsonb_array_length(user_data -> 'support_messages')),0) FROM users) AS embedded_support_messages
+),
 state_keys AS (
   SELECT k.key AS top_level_key,
          jsonb_typeof(s.data -> k.key) AS value_type,
@@ -37,6 +66,15 @@ SELECT 'TABLE_COUNT'::text AS category,
        table_name AS object_name,
        row_count::text AS detail
 FROM table_counts
+UNION ALL
+SELECT 'USER_SUMMARY'::text AS category,
+       'users' AS object_name,
+       format('total=%s; usernames=%s; BTCBOX login passwords=%s; Supabase links=%s; wallet links=%s; users with nonzero balances=%s; embedded deposits=%s; withdrawals=%s; orders=%s; earn records=%s; support messages=%s',
+         total_users, users_with_username, users_with_btcbox_login_password,
+         users_with_supabase_link, users_with_wallet_link, users_with_nonzero_balance,
+         embedded_deposit_records, embedded_withdrawal_records, embedded_order_records,
+         embedded_earn_records, embedded_support_messages) AS detail
+FROM user_summary
 UNION ALL
 SELECT 'STATE_KEY'::text AS category,
        top_level_key AS object_name,
