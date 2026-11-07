@@ -482,14 +482,9 @@ export function AdminPage() {
       try { setKyc((await getAdminKyc(token)).kycs || []); }
       catch { setError("KYC review is confirmed; the queue could not refresh. Reload this tab before reviewing another application."); }
     } catch (reason) {
-      if (isAlreadyProcessed(reason)) {
-        setNotice("KYC application was already reviewed on a previous attempt.");
-        setError("");
-        try { setKyc((await getAdminKyc(token)).kycs || []); }
-        catch { setError("KYC review is confirmed; the queue could not refresh. Reload this tab before reviewing another application."); }
-      } else {
-        setError(reason instanceof Error ? reason.message : "KYC review was not confirmed.");
-      }
+      // KYC 409 responses include actionable states such as missing documents
+      // and exception approval requirements; they are not proof of a prior success.
+      setError(reason instanceof Error ? reason.message : "KYC review was not confirmed.");
     } finally {
       setBusy(false);
     }
