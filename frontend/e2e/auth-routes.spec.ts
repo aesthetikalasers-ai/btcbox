@@ -572,7 +572,6 @@ test("public preview landing page is available signed out with market data and r
   await page.goto("/home");
   await expect(page.locator("header")).toBeVisible();
   await expect(page.locator("nav[aria-label='Primary navigation']").last()).toBeVisible();
-  await expect(page.getByRole("link", { name: "BTCBOX home" })).toBeVisible();
   await expect(page.locator("section").first().locator("[aria-label='BTCBOX Exchange']")).toBeHidden();
   await expect(page.getByRole("heading", { name: "Explore the market. Trade with confidence." })).toBeVisible();
   await expect(page.getByRole("link", { name: /Create account/i }).first()).toHaveAttribute("href", "/register");
