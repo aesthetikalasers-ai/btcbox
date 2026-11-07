@@ -17,6 +17,7 @@ const normalize = extractFunction('normalizeBtcboxUsername');
 const validUsername = extractFunction('validateBtcboxUsername');
 const validPassword = extractFunction('validateBtcboxLoginPassword');
 const authProvider = extractFunction('getSingleSupabaseAuthProvider');
+const walletIdentity = extractFunction('getSupabaseWalletIdentity', { getSingleSupabaseAuthProvider: authProvider });
 const linked = extractFunction('isSupabaseIdentityLinked');
 const linkedIds = extractFunction('getUserLinkedIdentityIds');
 const validSupabaseId = extractFunction('isSupabaseUserId');
@@ -55,6 +56,18 @@ test('Supabase sign-in accepts Google and Web3 identities but rejects email iden
   assert.equal(authProvider({ app_metadata: { provider: 'web3', providers: ['web3'] }, identities: [] }), null);
 });
 
+
+test('Supabase Web3 identity validates EVM and Solana address formats independently', () => {
+  const makeIdentity = (chain, address) => ({
+    app_metadata: { provider: 'web3', providers: ['web3'] },
+    identities: [{ provider: 'web3', identity_data: { custom_claims: { chain, address } } }],
+  });
+  assert.deepEqual(walletIdentity(makeIdentity('ethereum', '0x' + 'A'.repeat(40))), { chain: 'ethereum', address: '0x' + 'a'.repeat(40) });
+  assert.deepEqual(walletIdentity(makeIdentity('solana', 'So11111111111111111111111111111111111111112')), { chain: 'solana', address: 'So11111111111111111111111111111111111111112' });
+  assert.equal(walletIdentity(makeIdentity('ethereum', '0x1234')), null);
+  assert.equal(walletIdentity(makeIdentity('solana', '0'.repeat(32))), null);
+  assert.equal(walletIdentity(makeIdentity('polygon', '0x' + 'a'.repeat(40))), null);
+});
 
 test('Supabase identity lookup accepts legacy primary IDs and explicitly linked IDs only', () => {
   const user = { supabase_user_id: 'primary-id', supabase_user_ids: ['primary-id', 'linked-id'] };
