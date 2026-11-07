@@ -86,6 +86,7 @@ export function AdminPage() {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const payoutSubmitLockRef = useRef(false);
+  const manualCreditLocksRef = useRef<Record<string, boolean>>({});
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [stats, setStats] = useState<Record<string, unknown> | null>(null);
@@ -390,7 +391,7 @@ export function AdminPage() {
 
   const manualCredit = async (event: FormEvent<HTMLFormElement>, coin: string) => {
     event.preventDefault();
-    if (!token || !selectedUser) return;
+    if (!token || !selectedUser || manualCreditLocksRef.current[coin]) return;
     if (creditPendingInvalid[coin]) {
       setError("A saved manual-credit request is unreadable. Check the user's ledger before creating another credit.");
       return;
@@ -409,10 +410,16 @@ export function AdminPage() {
       setError("The authenticated administrator identity is unavailable. No credit was sent.");
       return;
     }
+    manualCreditLocksRef.current[coin] = true;
     const storageKey = "btcbox.admin.manual-credit.v1." + session.user_id + "." + selectedUser.uid + "." + coin;
     let stableRequestId = creditRequestIds[coin];
     if (!stableRequestId) {
-      stableRequestId = window.crypto.randomUUID();
+      try { stableRequestId = window.crypto.randomUUID(); }
+      catch {
+        manualCreditLocksRef.current[coin] = false;
+        setError("Secure manual-credit request IDs are unavailable in this browser. No credit was sent.");
+        return;
+      }
       const intent = {
         version: 1, actor_id: session.user_id, target_uid: selectedUser.uid, coin,
         request_id: stableRequestId, amount,
@@ -421,6 +428,7 @@ export function AdminPage() {
       };
       try { window.localStorage.setItem(storageKey, JSON.stringify(intent)); }
       catch {
+        manualCreditLocksRef.current[coin] = false;
         setError("This browser cannot safely save the manual-credit request. No credit was sent.");
         return;
       }
@@ -447,7 +455,7 @@ export function AdminPage() {
         try { window.localStorage.removeItem(storageKey); } catch {}
         setCreditRequestIds(current => { const next = { ...current }; delete next[coin]; return next; });
       }
-    } finally { setBusy(false); }
+    } finally { manualCreditLocksRef.current[coin] = false; setBusy(false); }
   };
   const refreshWithdrawalQueue = async (confirmedAction: string) => {
     setReviewQueueLoading(true);
