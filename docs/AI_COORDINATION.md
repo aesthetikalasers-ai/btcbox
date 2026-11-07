@@ -6460,3 +6460,10 @@ Current branch HEAD at note creation: `51c302a96f069876e438321d3597501fcbc26b54`
 - Added a Playwright regression fixture with intentionally different server and provider timestamps.
 - Commits: `6ed1954`, `86b24d2`, `c00ecb7`. Exact-head CI and screenshot QA pending.
 - No merge, deploy, production DB/auth change, real order, or financial write. Continue the existing release pause.
+
+## 2026-11-07 — 2号 AI Admin tab response isolation
+
+- Found stale Admin tab/search GET responses could overwrite a newer view because the shared loader lacked a request sequence guard outside audit pagination.
+- Added a latest-request guard across Admin tab reads, errors and loading-state release; added a delayed-withdrawals response Playwright regression.
+- Commits: `fc09aa7`, `6e206e4`. Exact-head CI pending.
+- Frontend/test-only. No backend, financial, auth, database, production configuration, merge or deployment action.
