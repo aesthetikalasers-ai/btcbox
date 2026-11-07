@@ -33,6 +33,7 @@ DECLARE
   v_admin_members regclass := to_regclass('private.admin_memberships');
   v_market_requests regclass := to_regclass('private.spot_market_request_idempotency');
   v_proc regprocedure;
+  v_signature text;
 BEGIN
   IF v_accounts IS NULL OR v_withdrawals IS NULL OR v_spot_orders IS NULL
      OR v_spot_trades IS NULL OR v_cancel_requests IS NULL OR v_admin_members IS NULL THEN
@@ -165,8 +166,8 @@ BEGIN
       RAISE EXCEPTION 'public Admin PostgREST wrapper must be SECURITY INVOKER: %',v_signature;
     END IF;
     IF NOT EXISTS (
-      SELECT 1 FROM pg_proc p, unnest(coalesce(p.proconfig,ARRAY[]::text[])) setting
-      WHERE p.oid=v_proc AND setting='search_path=""'
+      SELECT 1 FROM pg_proc p, unnest(coalesce(p.proconfig,ARRAY[]::text[])) AS cfg(setting)
+      WHERE p.oid=v_proc AND cfg.setting='search_path=""'
     ) THEN
       RAISE EXCEPTION 'public Admin PostgREST wrapper must pin an empty search_path: %',v_signature;
     END IF;
@@ -176,7 +177,7 @@ BEGIN
     'private.admin_get_membership_v1(uuid)',
     'private.admin_list_memberships_v1(uuid)',
     'private.admin_manage_membership_v1(uuid,uuid,bigint,text,text[],text,text,text)',
-    'private.admin_set_seconds_policy_v1(uuid,bigint,text[],integer[],numeric,integer,numeric,integer,text,text,text)',
+    'private.admin_set_seconds_policy_v1(uuid,bigint,text[],integer[],numeric,numeric,integer,numeric,integer,text,text,text)',
     'private.admin_set_spot_market_v1(uuid,text,text,boolean,numeric,numeric,numeric,numeric,numeric,numeric,text,text,text)'
   ] LOOP
     v_proc := to_regprocedure(v_signature);
