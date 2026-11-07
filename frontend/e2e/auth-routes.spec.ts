@@ -487,15 +487,25 @@ test("Admin KYC approval remains disabled without an uploaded document and secur
   await page.route("**/api/admin/withdrawals", route => route.fulfill({
     status: 200, contentType: "application/json", body: JSON.stringify({ ok: true, withdrawals: [] }),
   }));
-  await page.route("**/api/admin/kyc", route => route.fulfill({
-    status: 200,
-    contentType: "application/json",
-    body: JSON.stringify({ ok: true, kycs: [{
-      uid: "e2e-user-kyc-001", email: "kyc-user@example.invalid", name: "QA KYC User",
-      id_type: "passport", status: "pending", submitted_at: "2026-11-06T10:00:00.000Z",
-      document_uploaded: false, document_url: undefined, document_preview_error: "Document image missing",
-    }] }),
-  }));
+  let kycReads = 0;
+  await page.route("**/api/admin/kyc", async route => {
+    kycReads += 1;
+    if (kycReads > 1) {
+      await route.fulfill({
+        status: 503, contentType: "application/json",
+        body: JSON.stringify({ ok: false, code: "KYC_UNAVAILABLE", msg: "KYC review queue could not be refreshed." }),
+      });
+      return;
+    }
+    await route.fulfill({
+      status: 200, contentType: "application/json",
+      body: JSON.stringify({ ok: true, kycs: [{
+        uid: "e2e-user-kyc-001", email: "kyc-user@example.invalid", name: "QA KYC User",
+        id_type: "passport", status: "pending", submitted_at: "2026-11-06T10:00:00.000Z",
+        document_uploaded: false, document_url: undefined, document_preview_error: "Document image missing",
+      }] }),
+    });
+  });
 
   await page.goto("/admin");
   await page.getByRole("button", { name: "KYC", exact: true }).click();
@@ -505,7 +515,10 @@ test("Admin KYC approval remains disabled without an uploaded document and secur
   await expect(page.getByText("Identity document upload is required before approval.")).toBeVisible();
 
   await page.getByRole("button", { name: "Refresh queue" }).click();
-  await expect(page.getByRole("status")).toContainText("KYC review queue refreshed.");
+  await expect(page.getByRole("alert")).toContainText("KYC review queue could not be refreshed.");
+  await expect(page.getByText("QA KYC User")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Approve" })).toHaveCount(0);
+  expect(kycReads).toBeGreaterThanOrEqual(2);
   expect(adminMutations).toEqual([]);
 });
 
