@@ -976,7 +976,10 @@ export function WithdrawPage(){
   submitLockRef.current=true;
   let intent=pendingIntent;
   if(!intent){
-   intent={version:1,request_id:window.crypto.randomUUID(),address_id:selectedId,coin:selectedAddress.coin,network:selectedAddress.network,amount:amount.trim(),address:selectedAddress.address,created_at:Date.now()};
+   let requestId:string;
+   try{requestId=window.crypto.randomUUID();}
+   catch{setError("Secure withdrawal request IDs are unavailable in this browser. No withdrawal was sent.");submitLockRef.current=false;return;}
+   intent={version:1,request_id:requestId,address_id:selectedId,coin:selectedAddress.coin,network:selectedAddress.network,amount:amount.trim(),address:selectedAddress.address,created_at:Date.now()};
    if(!pendingStorageKey){setError("Account identity is unavailable. No withdrawal was sent.");submitLockRef.current=false;return;}
    try{window.localStorage.setItem(pendingStorageKey,JSON.stringify(intent));}
    catch{setError("This browser cannot safely save the withdrawal request. No withdrawal was sent.");submitLockRef.current=false;return;}
