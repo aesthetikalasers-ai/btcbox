@@ -6522,3 +6522,10 @@ Current branch HEAD at note creation: `51c302a96f069876e438321d3597501fcbc26b54`
 - NOT VERIFIED: exact-branch backend test/build CI and live upstream outage/recovery behavior. No real order, financial operation, production data, merge, or deployment was performed.
 - Scope note: these edits are in the static backend app under `btcboxcdt/backend`; the coordination baseline separately identifies `btcbox-v33` as a distinct deployed Vercel project/repository. Production app/repository alignment remains an explicit integration check before release.
 - Next: inspect Admin manual-review flows in the canonical app/repository, verify asset/order state refresh paths, then run the full backend test/build and browser smoke suite. Keep deployment paused.
+
+### Admin withdrawal queue stale-state follow-up — 2026-11-08
+
+- SOURCE OBSERVED: manual and post-action withdrawal queue refreshes left the previously loaded rows in component state while the request was pending; a failed refresh could leave stale review actions visible alongside a warning.
+- FIXED: both refresh paths now clear the old withdrawal rows before requesting a fresh snapshot. If the read fails, the page shows the error without retaining actionable stale records.
+- TEST ADDED: `backend/tests/admin-api-contract.test.js` checks that both refresh paths clear rows before calling the API.
+- NOT VERIFIED: exact-branch CI/browser behavior; no withdrawal approval, rejection, payout, or financial mutation was performed.
