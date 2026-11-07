@@ -214,3 +214,9 @@ Important: source-level implementation is not proof of live Supabase provider co
 - CI run 42321826347 at bb6183557b9048734382c3f4cac75d8fbc8b5a7c: SUCCESS; 32 desktop/mobile route tests passed; lint and build passed.
 - Files changed: frontend/src/features/pages/Pages.tsx and frontend/e2e/auth-routes.spec.ts. Main code commits: 1b77262b (reorder + toggles), 73ecc2c8 (price summary moved above the grid), 16496e2a (bottom drawer styling), 4103b146 (close controls), 046fc466 (visible-width chart initialization); final regression sequence: bb618355.
 - No financial logic or production environment touched.
+
+### Wallet provider failure regression — 2026-11-07
+
+- Added E2E coverage for unavailable injected Ethereum and Solana providers. Each must show a visible error and must not call the BTCBOX Supabase-session exchange endpoint without a verified wallet session.
+- Frontend CI run 42322062375 at 24017400371e46cb200fbe37867c5190ee5f1080: SUCCESS; lint/build passed and all 34 desktop/mobile route tests passed.
+- This is an isolated provider-unavailable test, not a real wallet signature test. Live EVM/Solana signing, Supabase Web3 provider configuration and real device compatibility remain NOT VERIFIED.
