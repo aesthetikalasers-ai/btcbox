@@ -42,7 +42,7 @@ The inventory now covers all 26 literal PostgREST RPC dependencies found in the 
 | `submit_seconds_order_v1` | PRESENT — expected arity 9; service_role only |
 | `subscribe_earn_atomic` | PRESENT — expected arity 7; service_role only |
 
-Result: 11 of 26 required RPCs are missing, one exists with an incompatible signature, and 14 have the expected argument count with service_role-only EXECUTE. In particular, the live `create_withdrawal_atomic` is the older 9-argument version, while the current API sends the fee snapshot contract introduced by migration `0029` (11 arguments including `p_require_admin_review` and `p_expected_fee`). The route remains fail-closed while financial cutover flags are disabled, but the RPC mismatch must be reconciled before any withdrawal cutover.
+Result: 11 of 26 required RPCs are missing, one exists with an incompatible signature, and 14 have the expected argument count with service_role-only EXECUTE. The latest table inventory has 13 required tables present with RLS enabled and no anon/authenticated SELECT grants, and 11 required tables missing (including the admin, Seconds policy, shared rate-limit and policy-idempotency tables). In particular, the live `create_withdrawal_atomic` is the older 9-argument version, while the current API sends the fee snapshot contract introduced by migration `0029` (11 arguments including `p_require_admin_review` and `p_expected_fee`). The route remains fail-closed while financial cutover flags are disabled, but the RPC mismatch must be reconciled before any withdrawal cutover.
 
 
 ## Confirmed table/schema inventory
@@ -52,12 +52,15 @@ Present with RLS enabled and no anon/authenticated SELECT grant in the checked s
 - `public.deposit_records`
 - `public.financial_accounts`
 - `public.financial_ledger`
+- `public.financial_operations`
 - `public.financial_audit_log`
 - `public.financial_matching_markets`
 - `public.financial_matching_orders`
 - `public.financial_matching_trades`
 - `public.seconds_contract_positions`
 - `public.withdrawal_requests`
+- `public.earn_positions`
+- `public.earn_product_catalog`
 
 Missing in the checked set:
 - `public.btcbox_rate_limits`
@@ -69,6 +72,8 @@ Missing in the checked set:
 - `private.admin_permission_events`
 - `private.admin_security_audit`
 - `private.admin_request_idempotency`
+- `private.seconds_policy_request_idempotency`
+- `private.spot_market_request_idempotency`
 
 The `private` schema exists, but service_role does not currently have USAGE. anon and authenticated also do not have USAGE. Do not grant access as an ad hoc patch: apply the reviewed private-schema migration and narrow grants in their intended order after staging validation.
 
@@ -115,3 +120,12 @@ The migration commands remain fresh-database bootstraps, not safe hosted upgrade
 - Backend CI on code commit `90c3b5b724944291286924202b1a64ffbce6ef2f`: PASS (unified build, full backend test suite, fail-closed preflight).
 - PostgreSQL schema CI and frontend CI for the newest audit/doc head were still running at the time this note was written; check the exact latest head before treating them as passed.
 - The Vercel status check reports the existing `build-rate-limit` / plan deployment cap. No Vercel deployment was requested or triggered by this batch.
+
+
+## Migration ledger evidence
+
+A fresh read-only query of `supabase_migrations.schema_migrations` returned only:
+- `20261102133555`
+- `20261103062716`
+
+These are timestamp-form versions and do not map directly to the repository's four-digit migration filenames. No source-to-ledger mapping has been established. The hosted database must not be assumed to have applied any numbered SQL file solely from these two timestamps.
