@@ -101,3 +101,11 @@ test('manual payout audit binds the verified actor, withdrawal subject and payou
   assert.ok(sql.includes('paid_by=p_admin_id'));
   assert.ok(sql.includes('paid_at=clock_timestamp()'));
 });
+
+test('admin manual payout handler blocks concurrent duplicate submissions synchronously', () => {
+  const admin = fs.readFileSync(path.resolve(__dirname, '../../frontend/src/features/admin/AdminPage.tsx'), 'utf8');
+  assert.ok(admin.includes('const payoutSubmitLockRef = useRef(false)'));
+  assert.ok(admin.includes('if (!token || payoutSubmitLockRef.current) return;'));
+  assert.ok(admin.includes('payoutSubmitLockRef.current = true;'));
+  assert.ok(admin.includes('finally { payoutSubmitLockRef.current = false; setBusy(false); }'));
+});
