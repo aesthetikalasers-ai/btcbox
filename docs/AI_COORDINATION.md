@@ -6529,3 +6529,10 @@ Current branch HEAD at note creation: `51c302a96f069876e438321d3597501fcbc26b54`
 - FIXED: both refresh paths now clear the old withdrawal rows before requesting a fresh snapshot. If the read fails, the page shows the error without retaining actionable stale records.
 - TEST ADDED: `backend/tests/admin-api-contract.test.js` checks that both refresh paths clear rows before calling the API.
 - NOT VERIFIED: exact-branch CI/browser behavior; no withdrawal approval, rejection, payout, or financial mutation was performed.
+
+### CI result — market/depth + withdrawal queue batch — 2026-11-08
+
+- Backend CI run `42409262198` on code/test head `497c3ef1f8cea1cc4b893c91cc7d78bfed07bd15`: SUCCESS. Unified build, backend test suite, fail-closed preflight and output/entrypoint checks passed.
+- Frontend CI run `42409262067` on the same code/test head: lint and build PASSED; Chromium installation and desktop/mobile route smoke tests were still running at the time of this update.
+- The current branch head advances to `9ccfb4a7878f0f4ba09ca486e5bf3671a85a805f` with coordination-only documentation after the tested code/test head. No application code changed after the passing backend build/tests or frontend lint/build.
+- Browser E2E remains NOT VERIFIED until the smoke-test job completes. Vercel deployment status is not used as a code-test signal; deployment remains paused.
