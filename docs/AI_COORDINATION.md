@@ -6544,3 +6544,15 @@ Current branch HEAD at note creation: `51c302a96f069876e438321d3597501fcbc26b54`
 - Added a regression contract test for initial-load versus refresh races. Commit: `dbca1001d0dcc61a031c8387ebe34c06c64ddd30`.
 - Latest branch head at this update: `dbca1001d0dcc61a031c8387ebe34c06c64ddd30`. CI for this exact head has not yet returned results; do not treat previous failed CI as current validation.
 - No production database operations, merge, or deployment were performed. Vercel build-rate-limit remains a separate deployment-account limitation.
+
+## Support queue and reply reliability — 2026-11-08
+
+- Admin support initial loads now share a monotonically increasing queue request ID with manual refresh and post-reply reloads. Late responses from an earlier tab load cannot replace a newer support snapshot.
+- Added a fail-closed manual support queue refresh: old messages are cleared while loading and remain cleared if the read fails.
+- Support replies now use a per-customer in-flight lock to prevent duplicate submissions, retain the idempotency request ID after uncertain failures, and fail safely if secure browser UUID generation is unavailable.
+- After a confirmed reply, the UI clears the old queue and reloads it under a fresh request ID; if that reload fails, the UI reports that the reply was sent but requires a reload before another reply.
+- Added source-contract regression coverage for support queue request sequencing, per-customer reply locking, and secure request IDs.
+- Commits: `30e40a22f1855275c6ff429603568849a3203725`, `317437fed261bd9adab8324f59b51a2915e832b8`.
+- Deposit operations currently expose an audited manual-credit endpoint but no separate deposit-review queue read API in the frontend client contract. Do not invent a queue or present manual credits as verified deposits; keep the existing user-selected, reference-required manual-credit workflow until the Core/API owner supplies a read contract.
+- Latest support change CI is pending; do not claim it passed until checks for the exact latest head complete.
+- No production database operations, merge, or deployment were performed.
