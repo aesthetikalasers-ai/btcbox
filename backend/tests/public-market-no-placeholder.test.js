@@ -47,9 +47,11 @@ test('customer-facing pages do not advertise simulated orders or sample order hi
 });
 
 test('Vite dashboard does not keep stale quotes visible after a refresh error', () => {
-  assert.match(liveMarketsTable, /const displayMarkets = error \? \[\] : markets/);
+  assert.match(liveMarketsTable, /const feedError = error \|\| \(snapshotStale \?/);
+  assert.match(liveMarketsTable, /const displayMarkets = feedError \? \[\] : markets/);
+  assert.match(liveMarketsTable, /feedError && displayMarkets\.length === 0/);
+  assert.match(liveMarketsTable, /snapshotAgeSeconds > 90/);
   assert.doesNotMatch(liveMarketsTable, /Showing the last confirmed market data/);
-  assert.match(liveMarketsTable, /error && displayMarkets\.length === 0/);
 });
 
 test('order book cache is cleared when the live depth feed fails', () => {

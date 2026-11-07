@@ -6630,3 +6630,5 @@ Current branch HEAD at note creation: `51c302a96f069876e438321d3597501fcbc26b54`
 - Removed an unreachable error-rendering branch that checked for non-empty markets after the same error had already forced that list to empty.
 - Added a Playwright regression that returns a valid-looking BTC quote with an expired server snapshot timestamp and asserts the stale badge/reason appear while the price and trading link are hidden.
 - Presentation-only fail-closed behavior; no market provider, quote source, API contract, order execution, or financial logic changed. CI pending for this exact commit. No merge or deployment.
+
+- Follow-up CI on the stale-snapshot change exposed two older source-contract assertions that hard-coded the previous `error ? [] : markets` expression. Updated both tests to assert the new combined API-error/server-snapshot-expiry gate and the 90-second freshness threshold; no runtime code change in this follow-up. CI pending.
