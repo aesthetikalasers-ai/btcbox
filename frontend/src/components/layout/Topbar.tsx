@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Search, Bell, User, Menu, Languages } from "lucide-react";
+import { Search, User, Menu, Languages } from "lucide-react";
 import { useI18n, type Language } from "../../lib/i18n";
 import { BrandLogo } from "../BrandLogo";
 
@@ -39,9 +39,6 @@ export function Topbar({ onMenuClick, menuOpen = false }: { onMenuClick?: () => 
             <option value="en">English</option><option value="ja">日本語</option><option value="zh-CN">简体中文</option><option value="es">Español</option><option value="vi">Tiếng Việt</option><option value="it">Italiano</option><option value="pt">Português</option>
           </select>
         </label>
-        <button type="button" aria-label={t("Notifications unavailable")} title={t("Notifications are not connected yet")} disabled className="flex h-11 w-11 cursor-not-allowed items-center justify-center rounded-xl text-brand-text-muted opacity-55">
-          <Bell className="h-[18px] w-[18px]" />
-        </button>
         <Link to="/me" aria-label={t("My")} className="flex h-11 w-11 items-center justify-center rounded-xl border border-brand-border bg-brand-surface text-brand-text-secondary transition-colors hover:border-brand-accent/40 hover:text-brand-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent">
           <User className="h-[18px] w-[18px]" />
         </Link>
