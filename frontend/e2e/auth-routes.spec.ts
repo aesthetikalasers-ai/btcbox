@@ -509,6 +509,48 @@ test("Admin KYC approval remains disabled without an uploaded document and secur
   expect(adminMutations).toEqual([]);
 });
 
+test("Admin queue reload failure never leaves stale withdrawal actions visible", async ({ page }) => {
+  await installAdminE2EIdentity(page);
+  let queueReads = 0;
+  await page.route("**/api/admin/withdrawals", async route => {
+    queueReads += 1;
+    if (queueReads === 1) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ ok: true, withdrawals: [{
+          id: "E2E-STALE-WITHDRAWAL", uid: "e2e-user-002", coin: "USDT", amount: "40.00",
+          fee: "1.00", network: "TRC20", address: "T-E2E-STALE", status: "pending",
+        }] }),
+      });
+      return;
+    }
+    await route.fulfill({
+      status: 503,
+      contentType: "application/json",
+      body: JSON.stringify({ ok: false, code: "QUEUE_UNAVAILABLE", msg: "Withdrawal review queue could not be refreshed." }),
+    });
+  });
+  await page.route("**/api/admin/kyc", route => route.fulfill({
+    status: 200,
+    contentType: "application/json",
+    body: JSON.stringify({ ok: true, kycs: [] }),
+  }));
+
+  await page.goto("/admin");
+  await expect(page.getByRole("heading", { name: "Withdrawal queue" })).toBeVisible();
+  await expect(page.getByText("E2E-STALE-WITHDRAWAL")).toBeVisible();
+
+  await page.getByRole("button", { name: "KYC", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "KYC review" })).toBeVisible();
+  await page.getByRole("button", { name: "Withdrawals", exact: true }).click();
+
+  await expect(page.getByRole("alert")).toContainText("Withdrawal review queue could not be refreshed.");
+  await expect(page.getByText("E2E-STALE-WITHDRAWAL")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Approve" })).toHaveCount(0);
+  expect(queueReads).toBeGreaterThanOrEqual(2);
+});
+
 test("trade chooser exposes the backend-enabled products and keeps unsupported futures unavailable", async ({ page }) => {
   await page.route("**/api/market/pairs", route => route.fulfill({
     status: 200,
