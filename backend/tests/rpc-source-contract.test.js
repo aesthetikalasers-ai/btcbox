@@ -72,3 +72,16 @@ test('read-only production readiness diagnostic covers critical live schema drif
   assert.doesNotMatch(diagnostic, /\\b(?:INSERT|UPDATE|DELETE|ALTER|DROP|CREATE|GRANT|REVOKE)\\s+(?:INTO|TABLE|FUNCTION|INDEX|SCHEMA|ON|ALL|EXECUTE)?/i,
     'production readiness diagnostic must remain read-only');
 });
+
+
+test('final withdrawal migration removes stale overloads and preserves service-role-only canonical RPC', () => {
+  const cleanup = read('supabase/sql/0033_withdrawal_legacy_rpc_cleanup_v1.sql');
+  assert.match(cleanup, /DROP FUNCTION IF EXISTS public\\.create_withdrawal_atomic\\s*\\(\\s*text,\\s*text,\\s*text,\\s*text,\\s*numeric,\\s*numeric,\\s*text,\\s*text,\\s*text\\s*\\)/i);
+  assert.match(cleanup, /to_regprocedure\\(\\s*'public\\.create_withdrawal_atomic\\(text,text,text,text,numeric,numeric,text,text,text,boolean,numeric\\)'/i);
+  assert.match(cleanup, /v_overloads <> 1/);
+  assert.match(cleanup, /has_function_privilege\\('service_role', v_function, 'EXECUTE'\\)/);
+  assert.match(cleanup, /has_function_privilege\\('anon', v_function, 'EXECUTE'\\)/);
+  assert.match(cleanup, /has_function_privilege\\('authenticated', v_function, 'EXECUTE'\\)/);
+  assert.doesNotMatch(cleanup, /\\b(?:INSERT|UPDATE|DELETE)\\s+INTO\\s+public\\.(?:withdrawal_requests|financial_ledger|financial_accounts)/i,
+    'withdrawal overload cleanup must not alter financial rows');
+});
