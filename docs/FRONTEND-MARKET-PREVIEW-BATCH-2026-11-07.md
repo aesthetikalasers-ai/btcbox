@@ -143,3 +143,18 @@ Admin review re-audit:
 - Frontend preserves confirmed action state if the subsequent queue refresh fails and handles already-processed retries without repeating the financial action.
 - KYC rejection requires a reason; direct approval checks in-review state and requires a stored document unless the explicit exception path supplies a reason.
 - These are source/test-contract observations. No live admin session or production financial operation was executed.
+## Follow-up batch — 2026-11-07: market semantics and Admin KYC conflict handling
+
+Market timestamp contract:
+- `frontend/src/lib/api.ts` now documents `providerTs` accurately: Coinbase supplies a last-trade timestamp; Bybit supplies a provider response timestamp. `snapshotTs` remains the BTCBOX server snapshot timestamp.
+- `backend/tests/spot-market-catalog.test.js` now asserts the provider-specific timestamp sources and the separate server snapshot timestamp.
+- Backend CI run `42315401002` passed 403/403 tests on source commit `936d5baf435aa2ca25f1e95117f6cc2c62941f41`; frontend CI run `42315396247` passed install, lint, build, Chromium install, and desktop/mobile route smoke tests on source commit `8d86ceceb62a32e5feabdebc56523ec320e73b73`.
+
+Admin KYC conflict handling:
+- Found a false-positive classification: the Admin Panel treated every HTTP 409 and `KYC_EXCEPTION_REQUIRED` as evidence that a KYC action had already succeeded. That could mask actionable server responses such as missing identity documents or a requirement for exception approval.
+- `frontend/src/features/admin/AdminPage.tsx` now classifies only the explicit `WITHDRAWAL_ALREADY_PROCESSED` code as a confirmed withdrawal retry. KYC 409 responses remain actionable errors and are shown to the operator; dead KYC duplicate-success handling was removed.
+- `backend/tests/admin-api-contract.test.js` now guards against treating generic 409 or KYC exception-required responses as confirmed success.
+- Backend CI run `42315626395` passed 403/403 tests and deployment preflight on source commit `51c302a96f069876e438321d3597501fcbc26b54`.
+- Frontend CI run `42315614500` on source commit `06ddef81192a72b5717125f59b069ac1a478dca6`: install, lint, build and Chromium installation passed; desktop/mobile route smoke tests were still running at the time this note was written. Check the final conclusion before reporting full frontend CI success.
+
+Current branch HEAD at note creation: `51c302a96f069876e438321d3597501fcbc26b54`. No merge, deployment, production database change, or live financial operation was performed.
