@@ -3630,3 +3630,15 @@ The prior withdrawal UI audit statement claiming the active BTCBOX admin route w
 - Exact-head CI run `42401324392` for `6d353fcd4dc8ffa085e359073f7200e9d1456198`: install, lint and production build passed; Chromium installation was in progress at refresh; desktop/mobile route smoke tests pending. Previous parent-head run `42401282544` had install/lint/build/Chromium pass and desktop/mobile smoke tests in progress. Do not accept until the latest exact-head run completes every step.
 - Latest confirmed predecessor `8b60f13a3381697202cf2212157ea012e4ec33b8`, run `42400928603`, passed all CI steps including desktop/mobile route smoke tests.
 - PR #65 remains Draft/open. Independent browser visual QA remains NOT VERIFIED. No merge, deployment, hosted database writes or real financial operations.
+
+
+## Customer-facing error-safety follow-up — 2026-11-08
+
+- PR #65 source head: `208ae1cd13b1ca8fd258b31705ff86da9c4fdf0a`.
+- Additional customer/admin error-safety sweep replaced raw exception message rendering in the dashboard market loader, administrator session/data/user/financial/review/configuration/support/market/policy/membership flows, administrator Seconds queue refresh, and Account Security loading with contextual safe messages. Existing transaction uncertainty and same-request retry safeguards remain.
+- KYC administrator document-preview failures now show a generic operational message instead of rendering the raw backend preview error string. The underlying preview availability checks and approval gating remain unchanged.
+- Source scan of the 10 customer/admin feature files found no remaining direct exception `.message` rendering in those scanned paths. User-facing demo/preview/sample/coming-soon wording scan found no matching text in the scanned customer pages; the KYC source field name remains internal and is not rendered.
+- Orders status semantics reviewed: known completed states are success, cancelled/failed states destructive, pending/open states warning, and unknown states outline or warning; unknown is not shown as success.
+- Exact-head CI run `42403653482` for `208ae1cd13b1ca8fd258b31705ff86da9c4fdf0a`: install and lint passed; production build was in progress at refresh. Chromium and desktop/mobile route smoke tests pending. Do not accept until all steps pass.
+- Previous exact-head `6d353fcd4dc8ffa085e359073f7200e9d1456198`, CI `42401324392`, passed install, lint, production build, Chromium, and desktop/mobile route smoke tests.
+- Independent browser visual QA at actual device sizes remains NOT VERIFIED. PR #65 remains Draft/open; no merge, deployment, hosted DB writes or real financial operations.
