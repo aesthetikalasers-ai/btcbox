@@ -6549,3 +6549,14 @@ Current branch HEAD at note creation: `51c302a96f069876e438321d3597501fcbc26b54`
 - No API contract or Core financial behavior changed. No real funds, database writes, merge, or deployment performed.
 - CI for this exact commit: backend run `42412628579`, frontend run `42412628647`; both were in progress at the time of this note. Do not claim tests passed until completed.
 - Admin manual credit remains staff-confirmed credit from a selected user's detail; no independent pending-deposit queue endpoint was found in the React API client. Do not invent such a queue in the frontend.
+
+
+### KYC confirmed-action feedback regression fix — 2026-11-08
+
+- Exact-head CI exposed one stale source assertion in `backend/tests/kyc-flow.test.js`: it expected an older inline success/error string after KYC approve/reject follow-up reads had been moved into the guarded `refreshKycQueue` helper.
+- Cross-check found a user-facing edge case worth fixing rather than only changing the test: after a confirmed KYC decision, a failed queue refresh cleared the queue (correctly) but also cleared the confirmation notice, which could make the operator uncertain whether the decision succeeded.
+- FIXED: `refreshKycQueue(confirmedAction)` now preserves a clear confirmed-action notice when the review mutation succeeded but its follow-up read failed; generic manual refresh failures still show the read error. The queue remains empty on failure, and stale responses remain ignored.
+- TEST UPDATED: the KYC flow regression now verifies the review handler delegates to the guarded refresh helper and that the helper distinguishes confirmed-action refresh failures from ordinary refresh failures.
+- CI before fix: backend run `42412713747` failed 1/414 tests (413 passed); frontend run `42412713753` passed build. The sole backend failure was the outdated KYC assertion. New exact-head CI is required before marking this fix verified.
+- Commits: Admin fix `fd12a405598ab616a459a7f4ecbb11867d19e92a`; KYC test update `c58307deb7e55b55d7b61e5236e224a59d8302a8`.
+- No KYC decision, withdrawal, payout, manual credit, production DB write, merge or deployment was performed.
