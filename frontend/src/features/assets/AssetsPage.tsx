@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { ArrowDownToLine, ArrowUpFromLine, RefreshCw, Wallet } from "lucide-react";
 import { Badge } from "../../components/ui/badge";
@@ -18,17 +18,24 @@ export function AssetsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [signedOut, setSignedOut] = useState(false);
+  const requestIdRef = useRef(0);
+  const controllerRef = useRef<AbortController | null>(null);
 
-  async function load(signal?: AbortSignal) {
+  async function load() {
+    controllerRef.current?.abort();
+    const controller = new AbortController();
+    controllerRef.current = controller;
+    const requestId = ++requestIdRef.current;
     setLoading(true);
     setError("");
     setSignedOut(false);
+    setAccount(null);
     try {
-      const snapshot = await getAccount(signal);
-      if (!signal?.aborted) setAccount(snapshot);
+      const snapshot = await getAccount(controller.signal);
+      if (!controller.signal.aborted && requestId === requestIdRef.current) setAccount(snapshot);
     } catch (reason) {
       if (reason instanceof Error && reason.name === "AbortError") return;
-      if (signal?.aborted) return;
+      if (controller.signal.aborted || requestId !== requestIdRef.current) return;
       setAccount(null);
       if (reason instanceof ApiError && reason.code === "AUTH_REQUIRED") {
         setSignedOut(true);
@@ -37,14 +44,26 @@ export function AssetsPage() {
         setError(reason instanceof Error ? reason.message : t("Account data is temporarily unavailable."));
       }
     } finally {
-      if (!signal?.aborted) setLoading(false);
+      if (requestId === requestIdRef.current) {
+        setLoading(false);
+        controllerRef.current = null;
+      }
     }
   }
 
   useEffect(() => {
-    const controller = new AbortController();
-    void load(controller.signal);
-    return () => controller.abort();
+    void load();
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === "visible") void load();
+    };
+    window.addEventListener("focus", refreshWhenVisible);
+    document.addEventListener("visibilitychange", refreshWhenVisible);
+    return () => {
+      requestIdRef.current += 1;
+      controllerRef.current?.abort();
+      window.removeEventListener("focus", refreshWhenVisible);
+      document.removeEventListener("visibilitychange", refreshWhenVisible);
+    };
   }, []);
 
   const balances = account?.balances ? Object.entries(account.balances) as Array<[string, AccountBalance]> : [];
