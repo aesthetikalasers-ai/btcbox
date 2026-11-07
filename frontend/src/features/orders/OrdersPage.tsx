@@ -37,11 +37,12 @@ export function OrdersPage() {
     } catch (reason) {
       if (reason instanceof Error && reason.name === "AbortError") return;
       if (signal?.aborted) return;
-      setOrders([]);
       if (reason instanceof ApiError && reason.code === "AUTH_REQUIRED") {
+        setOrders([]);
         setSignedOut(true);
         setError(t("Sign in to view your order history."));
       } else {
+        // Preserve the last confirmed history during a transient refresh failure.
         setError(t("Order history is temporarily unavailable."));
       }
     } finally {

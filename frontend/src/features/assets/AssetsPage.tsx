@@ -29,11 +29,12 @@ export function AssetsPage() {
     } catch (reason) {
       if (reason instanceof Error && reason.name === "AbortError") return;
       if (signal?.aborted) return;
-      setAccount(null);
       if (reason instanceof ApiError && reason.code === "AUTH_REQUIRED") {
+        setAccount(null);
         setSignedOut(true);
         setError(t("Sign in to view your assets."));
       } else {
+        // Preserve the last confirmed balances during a transient refresh failure.
         setError(t("Account data is temporarily unavailable."));
       }
     } finally {
