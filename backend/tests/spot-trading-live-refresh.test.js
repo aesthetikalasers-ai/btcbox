@@ -307,7 +307,7 @@ test('admin withdrawal queue ignores out-of-order refresh responses', () => {
   const start = admin.indexOf('const refreshWithdrawalQueue = async');
   const end = admin.indexOf('const loadOlderAuditRecords', start);
   const refresh = admin.slice(start, end);
-  assert.equal((refresh.match(/const requestId = \\+\\+withdrawalQueueRequestRef.current;/g) || []).length, 2);
+  assert.equal((refresh.match(/const requestId = \+\+withdrawalQueueRequestRef.current;/g) || []).length, 2);
   assert.equal((refresh.match(/requestId !== withdrawalQueueRequestRef.current/g) || []).length, 4);
   assert.equal((refresh.match(/requestId === withdrawalQueueRequestRef.current/g) || []).length, 2);
 });
