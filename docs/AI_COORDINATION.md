@@ -3398,3 +3398,14 @@ The prior withdrawal UI audit statement claiming the active BTCBOX admin route w
 - REGRESSION COVERAGE ADDED: `kyc-flow.test.js` and `admin-support-reply.test.js` assert the confirmed-mutation/local-state behavior and separate refresh failure messaging.
 - Implementation branch head: `73367233a5f4d37e828cb124f03f3eff84a10a2c`; PR #50 remains Draft/open/unmerged. Exact-head backend CI `42268517067`, PostgreSQL schema CI `42268516996`, and frontend CI `42268517177` all passed. Frontend passed lint, Vite build, Chromium installation and desktop/mobile Playwright route smoke tests.
 - No hosted Supabase writes, real KYC decisions, real funds operations, merge, or deployment. Trading page layout unchanged.
+
+
+## UI visual batch refresh — 2026-11-07
+
+- Active visual PR: #65, branch `fix/hide-lightweight-chart-attribution-20261107`, base `work/btcbox-unified-20261104`.
+- Latest observed source head: `c316fa02c0c6dc0faa00a58e16a94c86b65cc755`.
+- SOURCE OBSERVED: visual updates cover shared semantic tokens/page tones, chart attribution and chart colors, navigation focus/selection, market tables, admin status/form feedback, deposit/withdrawal panels, support conversation/composer, account security, asset balances, order history, and credential setup presentation.
+- SOURCE OBSERVED: CI run `42384808810` for account-security head `c6074765c67951348d35651f2b44ff74a470d71a` completed successfully, including install, lint, build, Chromium install, and desktop/mobile route smoke tests.
+- SOURCE OBSERVED: latest CI run `42384966763` for head `c316fa02c0c6dc0faa00a58e16a94c86b65cc755` was in progress at refresh (dependency install running); preceding run `42384936596` for `4bb691c966048fe2d6519c5ad4590afaa7b2ad97` had install/lint passed and build in progress.
+- NOT VERIFIED: independent browser visual review at target mobile/tablet/desktop widths; CI route smoke tests are not a substitute for visual QA.
+- Release boundary unchanged: PR remains Draft; no merge, production deployment, database writes, or real financial operations.
