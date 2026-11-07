@@ -3482,3 +3482,12 @@ The prior withdrawal UI audit statement claiming the active BTCBOX admin route w
 - Previous exact-head CI for `0d92b4fbb9f9e1069e7d644ee15c273b8a1d71c4` run `42387234575`: install, lint, production build and Chromium passed; desktop/mobile route smoke tests were still running at this update.
 - Exact-head CI for `c5e9f244a96ab213bfc06bc97f91dce5986c14e0` had not yet appeared. Do not mark this batch accepted until its own full workflow passes.
 - Independent browser visual QA remains NOT VERIFIED. No merge, deployment, hosted database writes or real financial operations. Trading page layout unchanged.
+
+
+## Seconds queue status semantics correction — 2026-11-07
+
+- FIX COMMITTED: visual PR #65 head `6db3d6ac4cf635f17d342cf0b4b3bf2adc238c99`.
+- In `frontend/src/features/admin/AdminPage.tsx`, an open Seconds position that has reached maturity but is still awaiting authoritative server settlement now uses the warning status color instead of destructive red. It is overdue/pending, not a confirmed failure; staff still cannot force a result or release frozen funds.
+- Previous head `c5e9f244a96ab213bfc06bc97f91dce5986c14e0`, frontend CI run `42387341827`: install, lint, production build and Chromium passed; desktop/mobile route smoke tests were in progress at this update.
+- Exact-head CI for `6db3d6ac4cf635f17d342cf0b4b3bf2adc238c99` had not yet appeared. Do not mark accepted until its full workflow passes.
+- No API, SQL, settlement behavior, database writes, merge or deployment. Trading page layout unchanged; independent visual QA remains NOT VERIFIED.
