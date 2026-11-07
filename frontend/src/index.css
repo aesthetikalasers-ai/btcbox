@@ -10,6 +10,7 @@
   --color-brand-surface-2:#17263b;
   --color-brand-surface-hover:rgba(88,166,255,.08);
   --color-brand-border:rgba(148,180,220,.16);
+  --color-brand-border-strong:var(--border-strong);
   --color-brand-border-subtle:rgba(148,180,220,.10);
   --color-brand-text:#f4f8ff;
   --color-brand-text-secondary:rgba(224,235,250,.76);
