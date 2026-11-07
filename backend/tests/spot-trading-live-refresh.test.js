@@ -263,3 +263,13 @@ test('admin read tabs clear stale operational snapshots before refresh', () => {
   assert.ok(seconds.includes('setSecondsOpenSummary(null);'));
   assert.ok(seconds.includes('setSecondsOpenPositions([]);'));
 });
+
+test('admin deposit configuration never substitutes example withdrawal fees for unreadable live config', () => {
+  const admin = fs.readFileSync(path.resolve(__dirname, '../../frontend/src/features/admin/AdminPage.tsx'), 'utf8');
+  const configInit = admin.slice(admin.indexOf('const [config, setConfig]'), admin.indexOf('const [kyc, setKyc]'));
+  assert.ok(configInit.includes('withdrawal_fees: {}'));
+  assert.ok(!configInit.includes('USDT: "1"'));
+  const depositLoad = admin.slice(admin.indexOf('if (tab === "deposits")'), admin.indexOf('if (tab === "markets")'));
+  assert.ok(depositLoad.includes('setConfig({ deposit_addresses: {}, withdrawal_fees: {}, announcement: "" });'));
+  assert.ok(!depositLoad.includes('USDT: "1"'));
+});

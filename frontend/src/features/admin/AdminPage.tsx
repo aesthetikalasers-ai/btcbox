@@ -105,7 +105,7 @@ export function AdminPage() {
   const [reviewReason, setReviewReason] = useState("");
   const [config, setConfig] = useState<AdminConfig>({
     deposit_addresses: {},
-    withdrawal_fees: { USDT: "1", BTC: "0.0001", ETH: "0.001", SOL: "0.01", BNB: "0.0005", USDC: "1" },
+    withdrawal_fees: {},
     announcement: "",
   });
   const [kyc, setKyc] = useState<AdminKycRecord[]>([]);
@@ -235,7 +235,7 @@ export function AdminPage() {
         setUsers(snapshot.users);
       }
       if (tab === "deposits") {
-        setConfig({ deposit_addresses: {}, withdrawal_fees: { USDT: "1", BTC: "0.0001", ETH: "0.001", SOL: "0.01", BNB: "0.0005", USDC: "1" }, announcement: "" });
+        setConfig({ deposit_addresses: {}, withdrawal_fees: {}, announcement: "" });
         const snapshot = await getAdminConfig(token);
         if (requestId !== tabLoadRequestRef.current) return;
         setConfig(snapshot);
