@@ -266,8 +266,8 @@ test('financial write and matching gates require explicit opt-in and examples de
     assert.ok(env.includes(name + '=0'), name + ' must default to disabled in .env.example');
   }
   assert.ok(preflight.includes("process.env[name] !== '0'"), 'preflight must reject unset or malformed financial flags');
-  assert.ok(env.includes('ADMIN_USER=') && env.includes('ADMIN_PASS='));
-  assert.ok(!env.includes('ADMIN_PASS=feiji123456'), 'example must not ship a default admin password');
+  assert.ok(env.includes('# 管理员身份由 Supabase Auth + 数据库 RBAC 管理'), 'environment example must document the active RBAC model');
+  assert.ok(!/^ADMIN_USER=/m.test(env) && !/^ADMIN_PASS=/m.test(env), 'legacy admin credentials must not be reintroduced as environment requirements');
 });
 
 test('legacy python admin ships no default credentials and does not persist admin password', () => {
