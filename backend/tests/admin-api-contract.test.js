@@ -83,3 +83,13 @@ test('admin error feedback surfaces server codes and the refresh-after-confirmed
   assert.ok(client.includes('class ApiError') || client.includes('ApiError'));
   assert.ok(client.includes('payload?.code'));
 });
+
+
+test('withdrawal review refresh clears stale actionable rows before requesting a new snapshot', () => {
+  const refreshStart = adminPage.indexOf('const refreshWithdrawalQueue = async (confirmedAction: string)');
+  const manualStart = adminPage.indexOf('const refreshWithdrawalQueueManually = async');
+  const olderAuditStart = adminPage.indexOf('const loadOlderAuditRecords = async', manualStart);
+  assert.ok(refreshStart >= 0 && manualStart > refreshStart && olderAuditStart > manualStart);
+  assert.ok(adminPage.slice(refreshStart, manualStart).indexOf('setWithdrawals([])') < adminPage.slice(refreshStart, manualStart).indexOf('getAdminWithdrawals(token)'));
+  assert.ok(adminPage.slice(manualStart, olderAuditStart).indexOf('setWithdrawals([])') < adminPage.slice(manualStart, olderAuditStart).indexOf('getAdminWithdrawals(token)'));
+});
