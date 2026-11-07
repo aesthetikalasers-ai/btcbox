@@ -16,6 +16,8 @@ test("public dashboard shows an unavailable state and no quote values when the m
 
   await expect(page.getByText("Preview", { exact: true })).toHaveCount(0);
   await expect(page.getByText("Preview · API verification pending", { exact: true })).toHaveCount(0);
+  await expect(page.getByText(/TradingView Lightweight Charts™ Copyright/)).toBeVisible();
+  await expect(page.getByRole("link", { name: "https://www.tradingview.com/" })).toHaveAttribute("href", "https://www.tradingview.com/");
   await expect(page.getByText(/Market feed unavailable/i).first()).toBeVisible();
   await expect(page.getByText(/65,?000\.00/)).toHaveCount(0);
   await expect(page.getByText("0.00", { exact: true })).toHaveCount(0);
