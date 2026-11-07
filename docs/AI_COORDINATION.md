@@ -6365,3 +6365,13 @@ Current branch HEAD at note creation: `51c302a96f069876e438321d3597501fcbc26b54`
 - REGRESSION: Playwright now loads a canonical audit fixture, navigates away, forces the next audit read to fail, and asserts that the old event and canonical source label are absent.
 - Scope: frontend presentation/state only. No audit schema, API contract, financial behavior, database, or production configuration changed.
 - Manual-credit review: source inspection confirms the current UI persists an actor/target/asset-scoped idempotency request before submission and reuses it after network/5xx/409 uncertainty. Do not generate a replacement request ID for an unconfirmed credit; verify the user's ledger before resolving ambiguous outcomes.
+
+
+## Admin manual payout retry recovery — 2026-11-07
+
+- REVIEWED backend contract/test: exact manual payout retries with the same reference are idempotent; a conflicting reference for an already completed withdrawal is rejected. The operation records payout status/audit metadata and does not apply another ledger debit.
+- FINDING: the Admin UI did not persist the payout TxID/reference before POST. If the response was lost and the administrator refreshed the page, the approved withdrawal could return with a blank input, inviting entry of a different reference.
+- FIXED: persist only the non-secret TxID/reference in actor + withdrawal-scoped localStorage before sending; restore it on the next Admin session; remove it only after a confirmed API response. If persistence is unavailable, do not send the payout mutation. If the response is ambiguous, retain the same reference and tell the operator to verify chain/history before retrying.
+- FIXED: duplicate-reference success notice is no longer overwritten by the generic queue-refresh notice.
+- E2E: simulate a 503 after the first payout request, reload the page, assert the exact reference is restored, retry, return an idempotent duplicate success, and assert the completed status.
+- Scope: Admin frontend recovery and test only. No payout RPC, financial API contract, DB, ledger or production setting changed.
