@@ -70,7 +70,7 @@ export function LiveMarketsTable({ markets, loading, error }: {
           </p>
         </div>
         <span className="shrink-0 rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-2 text-xs font-semibold text-brand-text-secondary">
-          {loading ? t("Loading…") : error ? t("Unavailable") : `${visibleMarkets.length} ${t("pairs")}`}
+          {loading ? t("Loading…") : feedError ? t("Unavailable") : `${visibleMarkets.length} ${t("pairs")}`}
         </span>
       </div>
       <div className="border-b border-brand-border px-4 py-3 md:px-6">
@@ -82,7 +82,7 @@ export function LiveMarketsTable({ markets, loading, error }: {
       {feedError && displayMarkets.length === 0 ? (
         <div className="px-5 py-10 text-center">
           <p className="text-sm font-semibold text-brand-text">{t("Market feed unavailable")}</p>
-          <p className="mt-2 break-words text-sm text-brand-text-muted">{error}</p>
+          <p className="mt-2 break-words text-sm text-brand-text-muted">{feedError}</p>
         </div>
       ) : loading && displayMarkets.length === 0 ? (
         <div className="space-y-3 px-5 py-8" aria-label="Loading markets">
