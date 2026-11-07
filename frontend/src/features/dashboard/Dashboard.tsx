@@ -39,7 +39,7 @@ export function Dashboard() {
       }).catch((reason: unknown) => {
         if (reason instanceof Error && reason.name === "AbortError") return;
         // Keep the last confirmed rows visible while the provider is unavailable.
-        setError(reason instanceof Error ? reason.message : "Market data is unavailable.");
+        setError("Market data is temporarily unavailable. The last confirmed market values remain visible.");
       }).finally(() => {
         refreshing = false;
         if (!controller.signal.aborted) setLoading(false);

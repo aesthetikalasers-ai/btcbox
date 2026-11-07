@@ -221,7 +221,7 @@ export function AdminPage() {
     let active = true;
     setLoading(true);
     refreshTokenAndSession().catch((reason) => {
-      if (active) setError(reason instanceof Error ? reason.message : "Administrator access could not be verified.");
+      if (active) setError("Administrator access could not be verified. Check your sign-in and administrator membership.");
     }).finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
   }, [authStatus, refreshTokenAndSession]);
@@ -352,7 +352,7 @@ export function AdminPage() {
           setSecondsQueueError("");
         } catch (queueError) {
           if (requestId !== tabLoadRequestRef.current) return;
-          setSecondsQueueError(queueError instanceof Error ? queueError.message : "Open Seconds positions are temporarily unavailable.");
+          setSecondsQueueError("Open Seconds positions are temporarily unavailable.");
         }
       }
       if (tab === "admins" && session.is_super_admin) {
@@ -363,7 +363,7 @@ export function AdminPage() {
       }
     } catch (reason) {
       if (requestId === tabLoadRequestRef.current) {
-        setError(reason instanceof Error ? reason.message : "Could not load administrator data.");
+        setError("Administrator data could not be loaded. Refresh this section and try again.");
       }
     } finally {
       if (requestId === tabLoadRequestRef.current) setLoading(false);
@@ -421,7 +421,7 @@ export function AdminPage() {
 
     } catch (reason) {
       if (requestId === userDetailRequestRef.current) {
-        setError(reason instanceof Error ? reason.message : "User account could not be loaded.");
+        setError("User account could not be loaded. Refresh the user list and try again.");
       }
     } finally {
       if (requestId === userDetailRequestRef.current) setBusy(false);
@@ -482,7 +482,7 @@ export function AdminPage() {
       setNotice(result.duplicate ? "This manual credit was already recorded." : "Manual credit recorded and audit event submitted.");
       await selectUser(selectedUser.uid);
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "Manual credit was not confirmed.");
+      setError("Manual credit was not confirmed. Verify the account ledger before retrying the saved request.");
       if (!creditAccepted && reason instanceof ApiError && reason.status >= 400 && reason.status < 500 && reason.status !== 409) {
         try { window.localStorage.removeItem(storageKey); } catch {}
         setCreditRequestIds(current => { const next = { ...current }; delete next[coin]; return next; });
@@ -510,7 +510,7 @@ export function AdminPage() {
       setWithdrawals(snapshot.withdrawals || []);
       setNotice("Withdrawal queue refreshed.");
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "Withdrawal review queue could not be refreshed.");
+      setError("Withdrawal review queue could not be refreshed. Reload this tab before taking another action.");
     } finally {
       setReviewQueueLoading(false);
     }
@@ -537,7 +537,7 @@ export function AdminPage() {
       });
       setAuditNextBefore(snapshot.next_before || null);
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "Older audit records could not be loaded.");
+      setError("Older audit records could not be loaded. Refresh the Audit log and try again.");
     } finally {
       if (requestId === auditPageRequestRef.current) setAuditPageLoading(false);
     }
@@ -553,7 +553,7 @@ export function AdminPage() {
       setKyc(snapshot.kycs || []);
       setNotice("KYC review queue refreshed.");
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "KYC review queue could not be refreshed.");
+      setError("KYC review queue could not be refreshed. Refresh before reviewing another application.");
     } finally {
       setReviewQueueLoading(false);
     }
@@ -578,7 +578,7 @@ export function AdminPage() {
       await refreshWithdrawalQueue("Withdrawal approval confirmed.");
     } catch (reason) {
       if (isAlreadyProcessed(reason)) { handleAlreadyProcessed("Withdrawal was already approved on a previous attempt. No duplicate charge was made."); }
-      else { setError(reason instanceof Error ? reason.message : "Approval was not confirmed."); }
+      else { setError("Withdrawal approval was not confirmed. Refresh the queue and verify its status before retrying."); }
     }
     finally { setBusy(false); }
   };
@@ -620,7 +620,7 @@ export function AdminPage() {
         setReviewDialog(null); setReviewReason("");
         handleAlreadyProcessed("Withdrawal was already reviewed on a previous attempt. No duplicate refund was issued.");
       } else {
-        setError(reason instanceof Error ? reason.message : "Rejection was not confirmed.");
+        setError("The review decision was not confirmed. Refresh the queue and verify its status before retrying.");
       }
     } finally {
       setBusy(false);
@@ -657,7 +657,7 @@ export function AdminPage() {
       await refreshWithdrawalQueue("Manual payout completion confirmed.");
       if (result.duplicate) setNotice("This payout reference was already recorded.");
     } catch (reason) {
-      setError((reason instanceof Error ? reason.message : "Payout completion was not confirmed.") +
+      setError(("Payout completion was not confirmed.") +
         " The same reference has been saved. Verify the transaction and withdrawal history before retrying.");
     } finally { setBusy(false); }
   };
@@ -669,7 +669,7 @@ export function AdminPage() {
     try {
       await saveAdminConfig(token, config);
       setNotice("Finance configuration saved.");
-    } catch (reason) { setError(reason instanceof Error ? reason.message : "Configuration was not saved."); }
+    } catch (reason) { setError("Finance configuration was not saved. Refresh the settings and try again."); }
     finally { setBusy(false); }
   };
 
@@ -692,7 +692,7 @@ export function AdminPage() {
     } catch (reason) {
       // KYC 409 responses include actionable states such as missing documents
       // and exception approval requirements; they are not proof of a prior success.
-      setError(reason instanceof Error ? reason.message : "KYC review was not confirmed.");
+      setError("KYC review was not confirmed. Refresh the queue and verify the application status before retrying.");
     } finally {
       setBusy(false);
     }
@@ -712,7 +712,7 @@ export function AdminPage() {
       setSupportReplyRequestIds((current) => { const next = { ...current }; delete next[uid]; return next; });
       try { setSupport((await getAdminSupportMessages(token)).messages || []); }
       catch { setError("Support reply is confirmed; the conversation could not refresh. Reload this tab to view the sent reply."); }
-    } catch (reason) { setError(reason instanceof Error ? reason.message : "Support reply failed."); }
+    } catch (reason) { setError("Support reply could not be confirmed. Check the conversation before retrying."); }
     finally { setBusy(false); }
   };
 
@@ -778,7 +778,7 @@ export function AdminPage() {
         setError("The market update was saved, but the list could not be refreshed. Retry loading the Spot markets tab.");
       }
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "Spot-market update could not be confirmed. Retry the same saved request.");
+      setError("Spot-market update could not be confirmed. Refresh the market list and retry only with the same saved request.");
     } finally { setBusy(false); }
   };
 
@@ -797,7 +797,7 @@ export function AdminPage() {
       const result = await saveAdminSecondsPolicy(token, { expected_policy_version: secondsPolicy.policy_version, symbols: secondsSymbols, durations_sec: secondsDurations, min_stake: secondsMinStake, max_stake: secondsMaxStake, payout_bps: payoutBps, per_user_open_exposure: secondsExposure.trim() || null, max_open_positions_per_user: maxOpenPositions, reason, request_id: requestId });
       setSecondsPolicy(result.policy); setSecondsRequestId(""); setSecondsRequestKey(""); setSecondsReason("");
       setNotice(result.replayed ? "This Seconds policy update was already activated." : "New Seconds policy version activated.");
-    } catch (reason) { setError(reason instanceof Error ? reason.message : "Seconds policy update could not be confirmed. Refresh before retrying."); }
+    } catch (reason) { setError("Seconds policy update could not be confirmed. Refresh the active policy before retrying."); }
     finally { setBusy(false); }
   };
 
@@ -819,7 +819,7 @@ export function AdminPage() {
       } catch {
         setError("Administrator change is confirmed; the list could not refresh. Reload this tab before taking another action.");
       }
-    } catch (reason) { setError(reason instanceof Error ? reason.message : "Administrator change could not be confirmed. Refresh before retrying."); }
+    } catch (reason) { setError("Administrator change could not be confirmed. Refresh the membership list before retrying."); }
     finally { setBusy(false); }
   };
 
@@ -921,7 +921,7 @@ export function AdminPage() {
         {adminMemberships.length ? adminMemberships.map(item=><div key={item.user_id} className="rounded-xl border border-brand-border p-3"><div className="flex flex-wrap items-start justify-between gap-2"><div><p className="font-mono text-xs text-brand-text">{item.user_id}</p><p className="mt-1 text-xs text-brand-text-muted">Revision {item.revision} · {formatDate(item.updated_at||item.created_at)}</p></div><Badge variant={statusVariant(item.status)}>{item.status}</Badge></div><p className="mt-2 break-words text-xs text-brand-text-muted">{item.permissions.join(" · ") || "No permissions"}</p><div className="mt-3 flex flex-wrap gap-2"><Button size="default" variant="outline" disabled={busy||item.status==="revoked"} aria-label={`Edit permissions for administrator ${item.user_id}`} onClick={()=>{setAdminTargetUserId(item.user_id);setAdminPermissions(item.permissions);setAdminReason("");setAdminRequestId("");setAdminRequestKey("");}}>Edit permissions</Button>{item.status==="active"?<Button size="default" variant="outline" disabled={busy} aria-label={`Suspend administrator ${item.user_id}`} onClick={()=>void submitAdminMembershipChange("suspend",item.user_id,item.revision,[])}>Suspend</Button>:null}{item.status==="suspended"?<Button size="default" variant="outline" disabled={busy} aria-label={`Reactivate administrator ${item.user_id}`} onClick={()=>void submitAdminMembershipChange("reactivate",item.user_id,item.revision,item.permissions)}>Reactivate</Button>:null}{item.status!=="revoked"?<Button size="default" variant="destructive" disabled={busy} aria-label={`Revoke administrator ${item.user_id}`} onClick={()=>void submitAdminMembershipChange("revoke",item.user_id,item.revision,[])}>Revoke</Button>:null}</div></div>) : <p className="text-sm text-brand-text-muted">No delegated administrators have been provisioned.</p>}
       </CardContent></Card>
       <Card><CardHeader><CardTitle>{adminMemberships.some(item=>item.user_id===adminTargetUserId)?"Edit administrator permissions":"Provision administrator"}</CardTitle><CardDescription>Select an existing BTCBOX user. The database verifies that the target UUID belongs to a real Supabase Auth user.</CardDescription></CardHeader><CardContent className="space-y-3">
-        <form className="flex gap-2" onSubmit={event=>{event.preventDefault();void getAdminUsers(token,adminSearch).then(result=>setAdminCandidates(result.users||[])).catch(reason=>setError(reason instanceof Error?reason.message:"User search failed."));}}><input value={adminSearch} onChange={event=>setAdminSearch(event.target.value)} placeholder="Search user email or UID" className="min-h-11 min-w-0 flex-1 rounded-xl border border-brand-border bg-brand-surface-2 px-3 py-2 text-sm text-brand-text transition-colors focus:border-brand-accent/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent/25"/><Button size="default" type="submit" variant="outline">Search</Button></form>
+        <form className="flex gap-2" onSubmit={event=>{event.preventDefault();void getAdminUsers(token,adminSearch).then(result=>setAdminCandidates(result.users||[])).catch(reason=>setError("User search failed. Check the search term and refresh the user list."));}}><input value={adminSearch} onChange={event=>setAdminSearch(event.target.value)} placeholder="Search user email or UID" className="min-h-11 min-w-0 flex-1 rounded-xl border border-brand-border bg-brand-surface-2 px-3 py-2 text-sm text-brand-text transition-colors focus:border-brand-accent/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent/25"/><Button size="default" type="submit" variant="outline">Search</Button></form>
         <select value={adminTargetUserId} onChange={event=>{const value=event.target.value;setAdminTargetUserId(value);const found=adminMemberships.find(item=>item.user_id===value);setAdminPermissions(found?.permissions||[]);setAdminRequestId("");setAdminRequestKey("");}} className="min-h-11 w-full rounded-xl border border-brand-border bg-brand-surface-2 px-3 py-2 text-sm text-brand-text transition-colors focus:border-brand-accent/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent/25"><option value="">Select an Auth-linked user</option>{adminCandidates.filter(user=>/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(user.admin_auth_user_id||"")&&!adminMemberships.some(item=>item.user_id===user.admin_auth_user_id)).map(user=><option key={user.uid} value={user.admin_auth_user_id}>{user.email} · BTCBOX UID {user.uid}</option>)}{adminMemberships.some(item=>item.user_id===adminTargetUserId)?<option value={adminTargetUserId}>{adminTargetUserId}</option>:null}</select>
         <div className="grid gap-2 sm:grid-cols-2">{adminPermissionOptions.map(([key,label])=><label key={key} className="flex min-h-11 cursor-pointer items-center gap-3 rounded-xl border border-brand-border bg-brand-surface-2/35 px-3 py-2 text-sm transition-colors hover:border-brand-accent/30 hover:bg-brand-surface-hover"><input className="h-4 w-4 shrink-0" type="checkbox" checked={adminPermissions.includes(key)} onChange={event=>setAdminPermissions(current=>event.target.checked?[...current,key]:current.filter(item=>item!==key))}/><span>{label}</span></label>)}</div>
         <textarea aria-label="Required reason for this administrator change" value={adminReason} onChange={event=>setAdminReason(event.target.value)} rows={3} maxLength={500} placeholder="Required reason for this administrator change" className="min-h-24 w-full resize-y rounded-xl border border-brand-border bg-brand-surface-2 p-3 text-sm text-brand-text transition-colors focus:border-brand-accent/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent/25"/>
