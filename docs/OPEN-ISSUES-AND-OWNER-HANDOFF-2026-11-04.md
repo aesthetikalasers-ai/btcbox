@@ -414,4 +414,4 @@ Registration and the signed-out preview/home page are now the first pages to com
 - Duplicate success notice now survives queue refresh.
 - E2E covers first POST 503 -> browser reload -> exact reference restoration -> same-reference duplicate success -> completed queue state.
 - No backend/financial contract, ledger, DB, production configuration, merge or deployment changes.
-- Commits: `c1fc1fb103064d10b04347ce5960bce4396d02d5` initial UI, `ed4bcf7211eb959e2bf8d6c9e4dd8f8599046a81` notice, `fe00e0d2b0518c9703e7a7e0ba78af499de3d316` validation, `6a5078bf98a7bfba43aeaba8d234feb657fd72b8` E2E initial, `3b7f05f1103034ba43aeaba8d234feb657fd72b8` E2E assertion.
+- Commits: `c1fc1fb103064d10b04347ce5960bce4396d02d5` initial UI, `ed4bcf7211eb959e2bf8d6c9e4dd8f8599046a81` notice, `fe00e0d2b0518c9703e7a7e0ba78af499de3d316` validation, `6a5078bf98a7bfba541332b59268ad375cc8f20e` E2E initial, `3b7f05f1103034ba43aeaba8d234feb657fd72b8` E2E assertion.
