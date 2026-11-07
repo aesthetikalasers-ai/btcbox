@@ -577,6 +577,7 @@ test("public preview landing page is available signed out with market data and r
   await expect(page.getByRole("link", { name: /Create account/i }).first()).toHaveAttribute("href", "/register");
   await expect(page.getByRole("heading", { name: "Market overview" })).toBeVisible();
   await expect(page.getByText(/Live market feed|Connecting/)).toBeVisible();
+  await expect(page.getByText(/Server snapshot/)).toBeVisible();
   await expect(page.getByText("BTC/USDT", { exact: true }).first()).toBeVisible();
   const dimensions = await page.evaluate(() => ({ viewport: document.documentElement.clientWidth, content: document.documentElement.scrollWidth }));
   expect(dimensions.content).toBeLessThanOrEqual(dimensions.viewport);
