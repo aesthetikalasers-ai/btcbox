@@ -795,3 +795,63 @@ test("Admin user-detail failure clears the previously selected user's financial 
   await expect(page.getByText("Select a user to load their current balances.")).toBeVisible();
   expect(detailReads).toBe(2);
 });
+
+
+test("Admin rapid user selection ignores an older detail response", async ({ page }) => {
+  await installAdminE2EIdentity(page);
+  await page.route("**/api/admin/session", route => route.fulfill({
+    status: 200, contentType: "application/json",
+    body: JSON.stringify({
+      ok: true, user_id: "e2e-admin-001", status: "active", is_super_admin: false,
+      permissions: ["users.read", "deposits.read", "deposits.review"],
+    }),
+  }));
+  await page.route("**/api/admin/users**", route => route.fulfill({
+    status: 200, contentType: "application/json",
+    body: JSON.stringify({ ok: true, users: [
+      { uid: "e2e-user-slow", email: "slow@example.invalid", frozen: false },
+      { uid: "e2e-user-fast", email: "fast@example.invalid", frozen: false },
+    ] }),
+  }));
+  let detailReads = 0;
+  let releaseSlow: (() => void) | null = null;
+  await page.route("**/api/admin/user?**", async route => {
+    detailReads += 1;
+    if (detailReads === 1) {
+      await new Promise<void>(resolve => { releaseSlow = resolve; });
+      await route.fulfill({
+        status: 200, contentType: "application/json",
+        body: JSON.stringify({ ok: true, user: {
+          uid: "e2e-user-slow", email: "slow@example.invalid", frozen: false,
+          financial_balance_source: "postgres_financial_ledger",
+          balances: { USDT: { free: "111.00", frozen: "0", usdt: "111.00", valuation_available: true } },
+        } }),
+      });
+      return;
+    }
+    await route.fulfill({
+      status: 200, contentType: "application/json",
+      body: JSON.stringify({ ok: true, user: {
+        uid: "e2e-user-fast", email: "fast@example.invalid", frozen: false,
+        financial_balance_source: "postgres_financial_ledger",
+        balances: { USDT: { free: "222.00", frozen: "0", usdt: "222.00", valuation_available: true } },
+      } }),
+    });
+  });
+
+  await page.goto("/admin");
+  await page.getByRole("button", { name: "Users & manual credit", exact: true }).click();
+  await page.getByRole("button", { name: "Open", exact: true }).first().click();
+  await expect.poll(() => detailReads).toBe(1);
+  await page.getByRole("button", { name: "Open", exact: true }).nth(1).click();
+  await expect(page.getByText("fast@example.invalid")).toBeVisible();
+  await expect(page.getByText("Available: 222.00")).toBeVisible();
+
+  if (!releaseSlow) throw new Error("The first user detail request did not start.");
+  releaseSlow();
+  await expect(page.getByText("fast@example.invalid")).toBeVisible();
+  await expect(page.getByText("Available: 222.00")).toBeVisible();
+  await expect(page.getByText("slow@example.invalid")).toHaveCount(0);
+  await expect(page.getByText("Available: 111.00")).toHaveCount(0);
+  expect(detailReads).toBe(2);
+});
