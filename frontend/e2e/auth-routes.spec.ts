@@ -1051,7 +1051,7 @@ test("public preview distinguishes server snapshot time from upstream provider t
   await page.goto("/home");
 
   await expect(page.getByText(/Server snapshot ·/)).toBeVisible();
-  await expect(page.getByText(/Provider snapshot · coinbase · .* · \\d+s ago/)).toBeVisible();
+  await expect(page.getByText(/Provider snapshot · coinbase · .* · [0-9]+s ago/)).toBeVisible();
 });
 
 test("Admin ignores a withdrawal queue response from a tab opened earlier", async ({ page }) => {
