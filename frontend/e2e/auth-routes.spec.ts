@@ -37,7 +37,7 @@ test("login route exposes email/password, BTCBOX username, Google and wallet sig
   await expect(page.getByRole("banner")).toHaveCount(0);
   await expect(page.getByRole("navigation", { name: "Primary navigation" })).toHaveCount(0);
   await expect(page.getByLabel("Username")).toBeVisible();
-  await expect(page.getByLabel("Password")).toBeVisible();
+  await expect(page.getByLabel("Password", { exact: true })).toBeVisible();
   await expect(page.getByLabel("Email address")).toBeVisible();
   await expect(page.getByLabel("Email password")).toBeVisible();
   await expect(page.getByRole("button", { name: "Sign in with email" })).toBeVisible();
@@ -414,7 +414,7 @@ test("username login submits BTCBOX credentials to the username endpoint and sur
 
   await page.goto("/login");
   await page.getByLabel("Username").fill("qa_user");
-  await page.getByLabel("Password").fill("a-secure-test-password");
+  await page.getByLabel("Password", { exact: true }).fill("a-secure-test-password");
   await page.getByRole("button", { name: "Sign in with username" }).click();
 
   await expect(page.getByRole("alert")).toContainText("Username or password is incorrect.");
