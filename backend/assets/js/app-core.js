@@ -57,6 +57,7 @@ const state = {
   admin: { users:[], deposits:[], withdrawals:[], kycs:[] },
   adminAuth: null, // base64(user:pass) for HTTP Basic Auth on admin endpoints (independent of user cookie)
   depthCache: null, // {sym,bids,asks} from real /api/depth polling
+  depthUnavailable: true, // no order-book snapshot has been confirmed yet
   depthTimer: null,
   marketUnavailable: true, // until first successful /api/market poll
   currentPair: 'BTCUSDT',
@@ -311,9 +312,11 @@ async function refreshDepth(){
     const r=await apiAdapter.depth(sym);
     if(r.ok){
       state.depthCache={sym:sym,bids:r.bids,asks:r.asks,ts:Date.now()};
+      state.depthUnavailable=false;
       const ob=$('#orderbook'); if(ob && location.hash.indexOf('/trade')>=0 && state.currentPair===sym) ob.innerHTML=renderOrderbook(sym);
-    } else if(state.depthCache&&state.depthCache.sym===sym){
-      state.depthCache=null;
+    } else {
+      state.depthUnavailable=true;
+      if(state.depthCache&&state.depthCache.sym===sym) state.depthCache=null;
       const ob=$('#orderbook'); if(ob && location.hash.indexOf('/trade')>=0 && state.currentPair===sym) ob.innerHTML=renderOrderbook(sym);
     }
   } finally {
