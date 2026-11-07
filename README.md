@@ -41,6 +41,7 @@ The React/Vite application is the only customer and administrator application pu
 ## Safety and release rules
 
 - Never use fabricated market prices, balances, order history, or candles as live data.
+- Never expose demo accounts, simulated customer activity, preview/scaffold labels, or placeholder actions in the customer release. If a service is not implemented or enabled, state that it is unavailable and keep its actions disabled.
 - Financial posting, deposits, withdrawals, order placement, matching, and settlement must remain fail-closed in QA.
 - Use isolated test fixtures for financial workflow tests; do not write test transactions to the hosted production database.
 - Do not merge to `main`, change production configuration, or deploy without explicit user approval.
