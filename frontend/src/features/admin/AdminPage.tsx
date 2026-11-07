@@ -327,6 +327,9 @@ export function AdminPage() {
   const selectUser = async (uid: string) => {
     if (!token) return;
     setBusy(true); setError(""); setNotice("");
+    // A failed user-detail read must never leave another user's balances or
+    // manual-credit controls on screen as if they belonged to the new selection.
+    setSelectedUser(null);
     try {
       const result = await getAdminUser(token, uid);
       setSelectedUser(result.user);
