@@ -326,3 +326,17 @@ Registration and the signed-out preview/home page are now the first pages to com
 - Confirm public market data error/empty states remain clear and no signed-out route emits financial mutations.
 - Backend auth configuration, live Google provider configuration, real wallet signature flow, and production deployment are outside this UI-only batch and remain unverified.
 - No merge, deployment, production DB/auth setting, or financial action was performed.
+
+
+### Verification result — 2026-11-07
+
+- The first CI pass exposed stale assertions rather than product logic defects:
+  - Backend test `google-only-auth.test.js` asserted an obsolete registration sentence. Updated it to assert the new copy's unchanged meaning: username/password are created after Google or wallet identity verification.
+  - Frontend E2E tests used a partial "Welcome back" heading locator, which became ambiguous after the new split-screen hero was added. Updated those checks to exact heading matching.
+  - Registration E2E copy assertion updated to the new visible sentence.
+- Verified latest tested source SHA: `2e5c0401812d39be1bec055718d66b63f96c2734`.
+- Frontend CI `42331547336`: SUCCESS; install, lint, build and **44/44 desktop/mobile Playwright tests** passed.
+- Backend CI `42331547350`: SUCCESS; **411/411 backend tests** passed, unified build and fail-closed preflight succeeded.
+- New preview landing E2E and 320px registration E2E both passed on desktop and mobile projects.
+- The test suite confirms no horizontal overflow at 320px for these flows and no signed-out financial mutation requests in the public preview route.
+- Manual visual review at common phone widths and desktop sizes remains pending; no production deployment or merge has been performed.
