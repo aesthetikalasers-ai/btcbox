@@ -11,6 +11,8 @@ const core = fs.readFileSync(path.join(root, 'assets/js/app-core.js'), 'utf8');
 const customerPages = fs.readFileSync(path.resolve(root, '../frontend/src/features/pages/Pages.tsx'), 'utf8');
 const liveMarketsTable = fs.readFileSync(path.resolve(root, '../frontend/src/features/dashboard/components/LiveMarketsTable.tsx'), 'utf8');
 const ordersPage = fs.readFileSync(path.resolve(root, '../frontend/src/features/orders/OrdersPage.tsx'), 'utf8');
+const topbar = fs.readFileSync(path.resolve(root, '../frontend/src/components/layout/Topbar.tsx'), 'utf8');
+const sidebar = fs.readFileSync(path.resolve(root, '../frontend/src/components/layout/Sidebar.tsx'), 'utf8');
 
 test('public market list renders only positive quotes from an available feed', () => {
   assert.match(marketView, /PAIRS\.filter\(sym=>!state\.marketUnavailable&&market\[sym\]&&Number\(market\[sym\]\.price\)>0\)/);
@@ -53,4 +55,9 @@ test('Vite dashboard does not keep stale quotes visible after a refresh error', 
 test('order book cache is cleared when the live depth feed fails', () => {
   assert.match(core, /else if\(state\.depthCache&&state\.depthCache\.sym===sym\)/);
   assert.match(core, /state\.depthCache=null/);
+});
+
+test('customer navigation contains no preview or API-verification banners', () => {
+  assert.doesNotMatch(topbar, /t\("Preview"\)/);
+  assert.doesNotMatch(sidebar, /Preview · API verification pending/);
 });
