@@ -6506,3 +6506,7 @@ Current branch HEAD at note creation: `51c302a96f069876e438321d3597501fcbc26b54`
 
 
 - Regression follow-up: first CI run `42357749939` exposed an E2E locator defect, not a UI defect: the test selected the hidden duplicate market-row representation. Replaced it with a locator constrained to visible paragraphs. Fix commit `ad7073ed1639be40f79bfd777d28fac9b1ee170f`; rerun exact-head CI before acceptance.
+
+
+- FINAL CI — frontend run `42357960746` passed **68/68 desktop/mobile Playwright tests** after fixing the hidden duplicate-row locator. npm install, lint, build and Chromium setup passed. Backend run `42357960745` passed unified build, tests, fail-closed preflight and output/entrypoint checks.
+- Vercel's separate status remains blocked by the free-plan daily deployment cap. No deployment was attempted. Manual screenshot and live-provider checks remain pending.
