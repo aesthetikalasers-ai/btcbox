@@ -6337,3 +6337,12 @@ Current branch HEAD at note creation: `51c302a96f069876e438321d3597501fcbc26b54`
 - The auth-route assertions passed in desktop and mobile projects: no global banner or primary navigation is rendered on login/registration. Public preview assertions passed with the normal app header/navigation and no horizontal overflow or signed-out financial mutations.
 - Latest PR #59 remains OPEN / DRAFT / NOT MERGED. No production deployment, DB/auth configuration change, or financial action was performed.
 - Manual screenshot-based visual acceptance is still pending; CI browser tests are not claimed as physical-device visual approval.
+
+
+## Public market snapshot visibility — 2026-11-07
+
+- 2号 AI reviewed the public `/home` market preview and its `getMarkets` response mapping. Each ticker already carries `snapshotTs` from the backend server snapshot timestamp, distinct from the provider timestamp.
+- FIXED: the public market table now displays the latest confirmed server snapshot time, or explicitly states that snapshot time is unavailable. This makes retained last-confirmed rows easier to assess when the refresh warning is shown and avoids implying that provider event time and server snapshot time are interchangeable.
+- TEST ADDED: public-preview Playwright coverage now asserts that the server snapshot indicator is visible when the API fixture includes a server timestamp.
+- Commits: `23b5fb8b10ce176c449e5803dc914fc3d65b8751` (UI); `a421c57382435d0f49f278a53b9d5a32a2b0a5b2` (browser regression).
+- NOT VERIFIED: exact-commit CI, real upstream timestamp freshness, deployed UI, and screenshot-based visual review. No auth/backend contract, database, financial action, merge or deployment changed.
