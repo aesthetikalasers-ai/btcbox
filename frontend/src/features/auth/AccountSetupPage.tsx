@@ -27,7 +27,7 @@ export function AccountSetupPage() {
     catch { /* AuthProvider displays the safe error. */ }
   };
 
-  return <div className="mx-auto flex min-h-[calc(100dvh-150px)] w-full max-w-[520px] items-center justify-center p-4 sm:p-6">
+  return <div className="mx-auto flex min-h-[100dvh] w-full max-w-[520px] items-center justify-center p-4 sm:p-6">
     <Card className="w-full border-brand-border bg-brand-surface shadow-xl">
       <CardHeader className="gap-3 text-center">
         <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl border border-brand-border bg-brand-surface-2"><ShieldCheck className="h-6 w-6 text-brand-text-secondary"/></div>
