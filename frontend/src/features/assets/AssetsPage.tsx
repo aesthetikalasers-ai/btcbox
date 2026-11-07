@@ -23,6 +23,7 @@ export function AssetsPage() {
   async function load(signal?: AbortSignal) {
     const requestId = ++requestIdRef.current;
     setLoading(true);
+    setAccount(null);
     setError("");
     setSignedOut(false);
     try {
