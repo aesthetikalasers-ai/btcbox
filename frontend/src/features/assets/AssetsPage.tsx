@@ -64,8 +64,8 @@ export function AssetsPage() {
 
       {error && <Card className="border-brand-danger/25 bg-brand-danger/[0.035]"><CardContent className="flex flex-wrap items-center justify-between gap-3 p-4"><p className="type-body-compact text-brand-text-secondary" role="alert">{error}</p>{signedOut && <Button asChild size="sm"><Link to="/login">{t("Sign in")}</Link></Button>}</CardContent></Card>}
 
-      <Card className="border-brand-border bg-brand-surface">
-        <CardHeader>
+      <Card className="overflow-hidden border-brand-teal/20 bg-brand-surface shadow-sm">
+        <CardHeader className="bg-gradient-to-br from-brand-teal/[0.09] via-brand-surface to-brand-surface">
           <CardDescription>{t("Estimated total value")}</CardDescription>
           <CardTitle className="type-display tabular-nums">{loading ? "—" : account?.valuation_complete ? `${amount(account.totalUsdt)} USDT` : "—"}</CardTitle>
           {account && <div className="flex flex-wrap items-center gap-2 pt-1"><Badge variant={account.valuation_complete ? "success" : "warning"}>{t(account.valuation_complete ? "Valuation complete" : "Partial valuation")}</Badge>{!account.valuation_complete && <span className="type-meta text-brand-text-muted">{t("Some assets do not have a verified USDT valuation.")}</span>}</div>}

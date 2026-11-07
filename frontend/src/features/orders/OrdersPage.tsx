@@ -69,7 +69,7 @@ export function OrdersPage() {
       </div>
 
       {error && (
-        <Card className="border-brand-border bg-brand-surface">
+        <Card className="border-brand-danger/25 bg-brand-danger/[0.035]">
           <CardContent className="flex flex-wrap items-center justify-between gap-3 p-4">
             <p className="type-body-compact text-brand-text-secondary" role="alert">{error}</p>
             {signedOut && <Button asChild size="sm"><Link to="/login">{t("Sign in")} <ArrowUpRight className="ml-1 h-4 w-4" /></Link></Button>}
@@ -78,7 +78,7 @@ export function OrdersPage() {
       )}
 
       <Card className="border-brand-border bg-brand-surface">
-        <CardHeader>
+        <CardHeader className="border-b border-brand-border/70 bg-brand-violet/[0.035]">
           <CardTitle>{t("Order history")}</CardTitle>
           <CardDescription>{t("Only records returned by the authenticated API are shown. No sample orders are generated.")}</CardDescription>
         </CardHeader>
