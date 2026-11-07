@@ -531,7 +531,9 @@ export function AdminPage() {
       try { window.localStorage.removeItem(storageKey); } catch {}
       setWithdrawals(current => current.filter(item => item.id !== id));
       setPayoutReferences(current => { const next = { ...current }; delete next[id]; return next; });
-      await refreshWithdrawalQueue(result.duplicate ? "This payout reference was already recorded." : "Manual payout completion recorded.");
+      setNotice(result.duplicate ? "This payout reference was already recorded." : "Manual payout completion recorded.");
+      await refreshWithdrawalQueue("Manual payout completion confirmed.");
+      if (result.duplicate) setNotice("This payout reference was already recorded.");
     } catch (reason) {
       setError((reason instanceof Error ? reason.message : "Payout completion was not confirmed.") +
         " The same reference has been saved. Verify the transaction and withdrawal history before retrying.");
