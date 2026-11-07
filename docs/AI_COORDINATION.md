@@ -3432,3 +3432,10 @@ The prior withdrawal UI audit statement claiming the active BTCBOX admin route w
 - NEXT: continue page-by-page polish for mobile/tablet and interaction states using the pinned templates' patterns; maintain API/financial behavior and the locked trading layout.
 - NOT VERIFIED: independent browser visual review at 320/360/375/390/430px, tablet and desktop viewports. Automated route smoke tests are not a substitute for visual QA.
 - Release boundary unchanged: PR #65 remains Draft/open; no merge, deployment, hosted DB writes or real financial operations.
+
+
+## Latest exact-head visual CI refresh — 2026-11-07
+
+- PR #65 exact source head `9b9662bed509517dd9b89f8e288bebfc099661d7` now has frontend CI run `42386157147`: dependency install, lint, production build and Chromium installation passed; desktop/mobile route smoke tests were still running at the time of this update.
+- Parent head `c07063ace42b00e92c1595b34defe019aedb7389`, run `42386036929`, completed successfully including desktop/mobile route smoke tests.
+- PR #65 remains Draft/open and unmerged. Independent browser visual QA remains NOT VERIFIED. No deployment, hosted DB write or real financial operation.
