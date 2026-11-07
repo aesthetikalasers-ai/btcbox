@@ -12,7 +12,7 @@ const routes = [
   { path: "/trade-hub", heading: "Choose your trading mode" },
   { path: "/assets", heading: "Assets" },
   { path: "/support", heading: "Customer support" },
-  { path: "/admin", heading: "Administrator Console" },
+  { path: "/admin", heading: "Welcome back" },
 ];
 
 test("responsive visual QA captures key customer and admin entry routes without horizontal page overflow", async ({ page }) => {
