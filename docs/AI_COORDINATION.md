@@ -6528,3 +6528,12 @@ Current branch HEAD at note creation: `51c302a96f069876e438321d3597501fcbc26b54`
 - Removed customer-visible wording that described orders as “sample or simulated” and “never simulated in the browser”; replaced it with ordinary account/market copy.
 - Added Playwright regressions for a successful quote followed by a failed refresh and for empty market responses; added a source-contract test preventing simulation wording in customer pages.
 - PR #63 now includes these Vite changes as well as the backend view/adapter fixes. Exact-head frontend/backend CI and browser QA remain pending; no production deployment or financial/DB operation.
+
+
+## 2026-11-07 — 2号 AI final visible-copy cleanup
+
+- Removed the visible “Preview” status pill from the top bar and “Preview · API verification pending” banner from the sidebar.
+- Replaced the customer-facing “Integration pending / scaffolded / in this preview” section placeholder with a neutral “Unavailable” state.
+- Removed remaining customer-facing “sample/simulated orders” copy from both Orders page implementations.
+- Backend market depth cache is now cleared when the current order-book provider refresh fails, instead of continuing to display an old book.
+- Regression tests cover these visible-copy rules and stale depth clearing. Latest PR head is d80ce66; exact-head CI is queued/running. No merge or deployment has been performed.
