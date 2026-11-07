@@ -1,98 +1,178 @@
 @import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+JP:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;600;700&family=Noto+Sans+Khmer:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap");
 @import "tailwindcss";
 
+/*
+ * BTCBOX institutional dark design system.
+ * Visual source: Strata Pro's restrained dark palette + shadcn-fintech's
+ * semantic token architecture. Financial states remain explicit.
+ */
 @theme {
-  --font-sans:"Inter","Noto Sans JP","Noto Sans SC","Noto Sans Khmer",ui-sans-serif,system-ui,sans-serif;
-  --font-mono:"JetBrains Mono",ui-monospace,monospace;
-  --color-brand-bg:#080d18;
-  --color-brand-sidebar:#0b1220;
-  --color-brand-surface:#101b2c;
-  --color-brand-surface-2:#17263b;
-  --color-brand-surface-hover:rgba(88,166,255,.08);
-  --color-brand-border:rgba(148,180,220,.16);
-  --color-brand-border-subtle:rgba(148,180,220,.10);
-  --color-brand-text:#f4f8ff;
-  --color-brand-text-secondary:rgba(224,235,250,.76);
-  --color-brand-text-muted:rgba(190,207,231,.62);
-  --color-brand-accent:#38a5ff;
-  --color-gold:#f59e0b;
-  --color-profit:#20c982;
-  --color-loss:#ff647c;
-  --color-background:var(--background);
-  --color-foreground:var(--foreground);
-  --color-card:var(--card);
-  --color-card-foreground:var(--card-foreground);
-  --color-popover:var(--popover);
-  --color-popover-foreground:var(--popover-foreground);
-  --color-primary:var(--primary);
-  --color-primary-foreground:var(--primary-foreground);
-  --color-secondary:var(--secondary);
-  --color-secondary-foreground:var(--secondary-foreground);
-  --color-muted:var(--muted);
-  --color-muted-foreground:var(--muted-foreground);
-  --color-accent:var(--accent);
-  --color-accent-foreground:var(--accent-foreground);
-  --color-destructive:var(--destructive);
-  --color-border:var(--border);
-  --color-input:var(--input);
-  --color-ring:var(--ring);
+  --font-sans: "Inter", "Noto Sans JP", "Noto Sans SC", "Noto Sans Khmer", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+
+  --color-brand-bg: #090909;
+  --color-brand-sidebar: #0b0b0c;
+  --color-brand-surface: #101113;
+  --color-brand-surface-2: #141518;
+  --color-brand-surface-hover: rgba(255, 255, 255, .025);
+  --color-brand-border: rgba(255, 255, 255, .05);
+  --color-brand-border-subtle: rgba(255, 255, 255, .03);
+  --color-brand-border-strong: var(--border-strong);
+  --color-brand-text: #f4f4f5;
+  --color-brand-text-secondary: rgba(255, 255, 255, .62);
+  --color-brand-text-muted: rgba(255, 255, 255, .38);
+  --color-brand-accent: #d4d4d8;
+
+  /* Legacy route accent aliases now resolve to a restrained neutral scale. */
+  --color-brand-cyan: #d4d4d8;
+  --color-brand-teal: #a1a1aa;
+  --color-brand-violet: #d4d4d8;
+  --color-brand-indigo: #a1a1aa;
+  --color-brand-orange: #f59e0b;
+  --color-brand-info: #a1a1aa;
+  --color-brand-warning: #f59e0b;
+  --color-brand-success: #22c55e;
+  --color-brand-danger: #ef4444;
+  --color-profit: #22c55e;
+  --color-loss: #ef4444;
+  --color-gold: #f59e0b;
+
+  --color-chart-1: #d4d4d8;
+  --color-chart-2: #22c55e;
+  --color-chart-3: #a1a1aa;
+  --color-chart-4: #f59e0b;
+  --color-chart-5: #52525b;
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
 }
 
-:root{
-  color-scheme:dark;
-  --background:#080d18;
-  --foreground:#f4f8ff;
-  --card:#101b2c;
-  --card-foreground:#f4f8ff;
-  --popover:#101b2c;
-  --popover-foreground:#f4f8ff;
-  --primary:#38a5ff;
-  --primary-foreground:#06101e;
-  --secondary:#17263b;
-  --secondary-foreground:#f4f8ff;
-  --muted:#17263b;
-  --muted-foreground:#b3c4da;
-  --accent:#1d3858;
-  --accent-foreground:#f4f8ff;
-  --destructive:#ff647c;
-  --border:rgba(148,180,220,.16);
-  --input:rgba(148,180,220,.22);
-  --ring:#38a5ff;
+:root {
+  color-scheme: dark;
+  --background: #090909;
+  --foreground: #f4f4f5;
+  --card: #101113;
+  --card-foreground: #f4f4f5;
+  --popover: #141518;
+  --popover-foreground: #f4f4f5;
+  --primary: #e4e4e7;
+  --primary-foreground: #090909;
+  --secondary: #18191c;
+  --secondary-foreground: #f4f4f5;
+  --muted: #18191c;
+  --muted-foreground: rgba(255, 255, 255, .52);
+  --accent: #232428;
+  --accent-foreground: #f4f4f5;
+  --destructive: #ef4444;
+  --border: rgba(255, 255, 255, .05);
+  --input: rgba(255, 255, 255, .10);
+  --ring: #a1a1aa;
+
+  --brand-accent: #d4d4d8;
+  --brand-success: #22c55e;
+  --brand-danger: #ef4444;
+  --brand-warning: #f59e0b;
+  --brand-info: #a1a1aa;
+  --surface-raised: #18191c;
+  --surface-overlay: #202126;
+  --border-strong: rgba(255, 255, 255, .12);
+  --text-high: #f4f4f5;
+  --text-medium: rgba(255, 255, 255, .72);
+  --text-low: rgba(255, 255, 255, .42);
 }
 
-*{box-sizing:border-box}
-html,body,#root{width:100%;min-height:100%;margin:0}
-html,body{overflow-x:clip}
-body{@apply bg-brand-bg text-brand-text antialiased;font-size:15px;min-width:320px;line-height:1.55}
-button,input,select,textarea{font:inherit}
-button{touch-action:manipulation}
-:focus-visible{outline:2px solid var(--ring);outline-offset:2px}
-::-webkit-scrollbar{width:6px;height:6px}
-::-webkit-scrollbar-track{background:transparent}
-::-webkit-scrollbar-thumb{background:rgba(148,180,220,.22);border-radius:999px}
-::-webkit-scrollbar-thumb:hover{background:rgba(148,180,220,.38)}
+* { box-sizing: border-box; }
+html, body, #root { width: 100%; min-height: 100%; margin: 0; }
+html, body { overflow-x: clip; }
+body {
+  @apply bg-brand-bg text-brand-text antialiased;
+  font-size: 15px;
+  min-width: 320px;
+  line-height: 1.55;
+}
+button, input, select, textarea { font: inherit; }
+button { touch-action: manipulation; }
+input:not([type="checkbox"]):not([type="radio"]), select { min-height: 44px; }
+textarea { min-height: 104px; }
+input[type="checkbox"], input[type="radio"] { accent-color: var(--brand-accent); }
+a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
+:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(255,255,255,.10); border-radius: 999px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,.20); }
 
-@media(max-width:640px){
-  body{font-size:15px}
-  button{min-height:40px}
-  input,select,textarea{font-size:16px!important}
+@media (max-width: 640px) {
+  body { font-size: 15px; }
+  button { min-height: 44px; }
+  input, select, textarea { font-size: 16px !important; }
 }
 
-@layer utilities{
-  .custom-scrollbar::-webkit-scrollbar{height:4px;width:4px}
-  .custom-scrollbar::-webkit-scrollbar-thumb{background:rgba(255,255,255,.1);border-radius:999px}
-  .custom-scrollbar::-webkit-scrollbar-track{background:transparent}
+@layer utilities {
+  .custom-scrollbar::-webkit-scrollbar { height: 4px; width: 4px; }
+  .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255,255,255,.10); border-radius: 999px; }
+  .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
 }
 
 @layer components {
-  .type-display{font-size:clamp(1.75rem,5vw,2.25rem);line-height:1.12;font-weight:750;letter-spacing:-.045em;font-variant-numeric:tabular-nums}
-  .type-page-title{font-size:clamp(1.375rem,3.5vw,1.625rem);line-height:1.2;font-weight:750;letter-spacing:-.035em}
-  .type-section-title{font-size:1rem;line-height:1.35;font-weight:700;letter-spacing:-.015em}
-  .type-card-title{font-size:.9375rem;line-height:1.4;font-weight:650}
-  .type-body{font-size:.9375rem;line-height:1.55}
-  .type-body-compact{font-size:.875rem;line-height:1.5}
-  .type-label{font-size:.8125rem;line-height:1.4;font-weight:600}
-  .type-meta{font-size:.75rem;line-height:1.45}
-  .type-micro{font-size:.6875rem;line-height:1.4}
-  .type-price{font-size:clamp(1.25rem,4vw,1.75rem);line-height:1.15;font-weight:700;letter-spacing:-.035em;font-variant-numeric:tabular-nums}
+  .type-display { font-size: clamp(1.875rem, 5vw, 2.5rem); line-height: 1.08; font-weight: 750; letter-spacing: -.045em; font-variant-numeric: tabular-nums; }
+  .type-page-title { font-size: clamp(1.5rem, 3.5vw, 1.875rem); line-height: 1.18; font-weight: 750; letter-spacing: -.035em; }
+  .type-section-title { font-size: 1.0625rem; line-height: 1.35; font-weight: 700; letter-spacing: -.015em; }
+  .type-card-title { font-size: 1rem; line-height: 1.4; font-weight: 650; }
+  .type-body { font-size: .9375rem; line-height: 1.6; }
+  .type-body-compact { font-size: .875rem; line-height: 1.55; }
+  .type-label { font-size: .8125rem; line-height: 1.45; font-weight: 600; }
+  .type-meta { font-size: .78125rem; line-height: 1.45; }
+  .type-micro { font-size: .71875rem; line-height: 1.4; }
+  .type-price { font-size: clamp(1.375rem, 4vw, 1.875rem); line-height: 1.15; font-weight: 700; letter-spacing: -.035em; font-variant-numeric: tabular-nums; }
+}
+
+/* Page identity is expressed through hierarchy and layout, not rainbow accents. */
+.tone-market,
+.tone-trading,
+.tone-assets,
+.tone-orders,
+.tone-earn,
+.tone-support,
+.tone-admin {
+  --page-accent: var(--brand-accent);
+  --page-accent-soft: rgba(255, 255, 255, .055);
+}
+.page-accent { color: var(--page-accent, var(--brand-accent)); }
+.page-accent-surface { background: var(--page-accent-soft, rgba(255,255,255,.055)); }
+
+.tone-market .type-page-title,
+.tone-trading .type-page-title,
+.tone-assets .type-page-title,
+.tone-orders .type-page-title,
+.tone-earn .type-page-title,
+.tone-support .type-page-title,
+.tone-admin .type-page-title {
+  border-left: 2px solid rgba(255,255,255,.28);
+  padding-left: .75rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    scroll-behavior: auto !important;
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+  }
 }
