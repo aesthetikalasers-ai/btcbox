@@ -88,9 +88,14 @@ export function MyPage(){
   if(status!=="authenticated"){setAccount(null);setLoading(false);setError("");return;}
   const controller=new AbortController();
   setLoading(true);setError("");
-  getAccount(controller.signal).then(setAccount).catch((reason:unknown)=>{
+  getAccount(controller.signal).then(snapshot=>{
+   if(!controller.signal.aborted)setAccount(snapshot);
+  }).catch((reason:unknown)=>{
    if(reason instanceof Error&&reason.name==="AbortError")return;
-   setError(reason instanceof Error?reason.message:"Account profile is temporarily unavailable.");
+   if(!controller.signal.aborted){
+    setAccount(null);
+    setError(reason instanceof Error?reason.message:"Account profile is temporarily unavailable.");
+   }
   }).finally(()=>{if(!controller.signal.aborted)setLoading(false);});
   return ()=>controller.abort();
  },[status,reload]);
