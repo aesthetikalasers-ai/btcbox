@@ -10,9 +10,12 @@ import { useAuth } from "../../lib/auth";
 export function AuthPage({ mode, redirectTo }: { mode: "login" | "register"; redirectTo?: string }) {
   const {
     status, needsCredentials, busy, error, notice, googleEnabled, ethereumWallets,
-    signInWithGoogle, signInWithUsername, signInWithWeb3, verifyTwoFactor, clearError,
+    signInWithGoogle, signInWithUsername, signInWithWeb3, signInWithEmail, signUpWithEmail,
+    requestPasswordReset, completePasswordRecovery, verifyTwoFactor, clearError,
   } = useAuth();
   const [username, setUsername] = useState("");
+  const [emailAddress, setEmailAddress] = useState("");
+  const [emailPassword, setEmailPassword] = useState("");
   const [password, setPassword] = useState("");
   const [verifyCode, setVerifyCode] = useState("");
   const [verifyBusy, setVerifyBusy] = useState(false);
@@ -30,6 +33,14 @@ export function AuthPage({ mode, redirectTo }: { mode: "login" | "register"; red
     event.preventDefault();
     try { await signInWithUsername(username, password); }
     catch { /* AuthProvider displays the safe error. */ }
+  };
+
+  const submitEmail = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    try {
+      if (mode === "login") await signInWithEmail(emailAddress, emailPassword);
+      else await signUpWithEmail(emailAddress, emailPassword);
+    } catch { /* AuthProvider displays the safe error. */ }
   };
 
   const walletButtons = <>
@@ -58,8 +69,8 @@ export function AuthPage({ mode, redirectTo }: { mode: "login" | "register"; red
         </h1>
         <p className="mt-5 max-w-[480px] text-base leading-7 text-brand-text-secondary">
           {registering
-            ? "Create your BTCBOX identity with Google or a supported wallet, then set your own username and password."
-            : "Access your BTCBOX account with your username, Google account or supported crypto wallet."}
+            ? "Create your BTCBOX account with email or Google, then confirm your email address or complete Google verification."
+            : "Access your BTCBOX account with email, username, Google or a supported crypto wallet."}
         </p>
         <div className="mt-9 grid max-w-[520px] gap-3 sm:grid-cols-2">
           <div className="rounded-xl border border-brand-border bg-gradient-to-br from-brand-surface via-brand-surface to-brand-cyan/[0.035] p-4">
@@ -98,7 +109,7 @@ export function AuthPage({ mode, redirectTo }: { mode: "login" | "register"; red
               {status === "two-factor"
                 ? "Enter your authenticator code to finish signing in."
                 : registering
-                  ? "Choose Google or a supported crypto wallet. After verification, you will create your BTCBOX username and password."
+                  ? "Register with your email address or Google account. Confirm your email to activate secure access."
                   : "Sign in with your BTCBOX username, Google account or crypto wallet."}
             </CardDescription>
           </CardHeader>
@@ -136,9 +147,27 @@ export function AuthPage({ mode, redirectTo }: { mode: "login" | "register"; red
 
               {mode === "login" && <div className="relative py-1">
                 <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-brand-border" /></div>
-                <div className="relative flex justify-center"><span className="bg-brand-surface px-3 text-xs text-brand-text-muted">OR CONTINUE WITH</span></div>
+                <div className="relative flex justify-center"><span className="bg-brand-surface px-3 text-xs text-brand-text-muted">OR CONTINUE WITH EMAIL</span></div>
               </div>}
-
+              <form className="space-y-3 rounded-xl border border-brand-border bg-brand-surface-2 p-4" aria-busy={busy} onSubmit={submitEmail}>
+                <p className="text-sm font-semibold text-brand-text">{mode === "login" ? "Continue with email" : "Register with email"}</p>
+                <label className="block space-y-1.5 text-sm">
+                  <span className="text-brand-text-secondary">Email address</span>
+                  <Input type="email" value={emailAddress} onChange={event => setEmailAddress(event.target.value)} autoComplete="email" maxLength={254} placeholder="you@example.com" required />
+                </label>
+                <label className="block space-y-1.5 text-sm">
+                  <span className="text-brand-text-secondary">Email password</span>
+                  <Input type="password" value={emailPassword} onChange={event => setEmailPassword(event.target.value)} autoComplete={mode === "login" ? "current-password" : "new-password"} minLength={8} maxLength={128} placeholder="Enter your password" required />
+                </label>
+                <Button type="submit" className="w-full" variant="outline" disabled={busy || status !== "anonymous" || !emailAddress.trim() || emailPassword.length < 8}>
+                  {busy ? "Please wait…" : mode === "login" ? "Sign in with email" : "Create account with email"}
+                </Button>
+                {mode === "login" && <button type="button" className="min-h-11 text-sm font-medium text-brand-text-secondary underline underline-offset-4 disabled:opacity-50" disabled={busy || !emailAddress.trim()} onClick={() => void requestPasswordReset(emailAddress).catch(() => {})}>Forgot password?</button>}
+              </form>
+              <div className="relative py-1">
+                <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-brand-border" /></div>
+                <div className="relative flex justify-center"><span className="bg-brand-surface px-3 text-xs text-brand-text-muted">{mode === "login" ? "OR CONTINUE WITH GOOGLE" : "OR SIGN UP WITH GOOGLE"}</span></div>
+              </div>
               {googleEnabled
                 ? <Button type="button" className="w-full" size="lg" aria-busy={busy} disabled={busy || status !== "anonymous"} onClick={() => void signInWithGoogle()}>
                     <Chrome className="mr-2 h-5 w-5" /> Continue with Google
@@ -146,7 +175,6 @@ export function AuthPage({ mode, redirectTo }: { mode: "login" | "register"; red
                 : <div className="rounded-lg border border-brand-border bg-brand-surface-2 p-3 text-sm text-brand-text-muted" role="status">Google sign-in is temporarily unavailable.</div>}
 
               <div className="space-y-2">{walletButtons}</div>
-              {registering && <p className="rounded-lg bg-brand-surface-2 px-3 py-2.5 text-xs leading-5 text-brand-text-muted">No email registration is required. Your BTCBOX username and password are created after identity verification.</p>}
             </>}
 
             <div className="border-t border-brand-border pt-4 text-center text-sm text-brand-text-secondary">
@@ -164,13 +192,49 @@ export function AuthPage({ mode, redirectTo }: { mode: "login" | "register"; red
 }
 
 export function AuthCallbackPage() {
-  const { finishOAuth, status, needsCredentials, error, busy } = useAuth();
+  const { finishOAuth, status, needsCredentials, error, busy, completePasswordRecovery } = useAuth();
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [recoveryError, setRecoveryError] = useState("");
   const navigate = useNavigate();
-  useEffect(() => { if (status !== "loading" && status !== "authenticated" && status !== "two-factor") void finishOAuth(); }, [finishOAuth, status]);
+  useEffect(() => {
+    if (status !== "loading" && status !== "authenticated" && status !== "two-factor" && status !== "password-recovery") void finishOAuth();
+  }, [finishOAuth, status]);
   useEffect(() => {
     if (status === "authenticated") navigate(needsCredentials ? "/account-setup" : "/home", { replace: true });
     else if (status === "two-factor") navigate("/login", { replace: true });
   }, [status, needsCredentials, navigate]);
+  const submitRecovery = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setRecoveryError("");
+    if (newPassword.length < 8 || newPassword.length > 128) {
+      setRecoveryError("Use a password between 8 and 128 characters.");
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setRecoveryError("The passwords do not match.");
+      return;
+    }
+    try { await completePasswordRecovery(newPassword); }
+    catch (cause) { setRecoveryError(cause instanceof Error ? cause.message : "Password could not be updated."); }
+  };
+  if (status === "password-recovery") return <main className="tone-support mx-auto flex min-h-[100dvh] w-full max-w-[520px] items-center px-3 py-8 sm:px-6">
+    <Card className="w-full border-brand-border bg-brand-surface shadow-2xl shadow-black/20">
+      <CardHeader className="gap-3 px-5 pt-7 sm:px-8">
+        <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-brand-cyan/20 bg-brand-cyan/10 text-brand-cyan"><LockKeyhole className="h-5 w-5" /></div>
+        <CardTitle className="text-2xl">Reset your password</CardTitle>
+        <CardDescription>Choose a new password for your BTCBOX email account.</CardDescription>
+      </CardHeader>
+      <CardContent className="px-5 pb-7 sm:px-8">
+        <form className="space-y-3" aria-busy={busy} onSubmit={submitRecovery}>
+          <label className="block space-y-1.5 text-sm"><span className="text-brand-text-secondary">New password</span><Input type="password" value={newPassword} onChange={event => setNewPassword(event.target.value)} autoComplete="new-password" minLength={8} maxLength={128} required /></label>
+          <label className="block space-y-1.5 text-sm"><span className="text-brand-text-secondary">Confirm new password</span><Input type="password" value={confirmPassword} onChange={event => setConfirmPassword(event.target.value)} autoComplete="new-password" minLength={8} maxLength={128} required /></label>
+          {(recoveryError || error) && <p role="alert" className="rounded-lg border border-loss/30 bg-loss/10 p-3 text-sm text-loss">{recoveryError || error}</p>}
+          <Button type="submit" className="w-full" disabled={busy || newPassword.length < 8 || newPassword !== confirmPassword}>{busy ? "Updating password…" : "Update password"}</Button>
+        </form>
+      </CardContent>
+    </Card>
+  </main>;
   return <div className="tone-support mx-auto flex min-h-[60vh] max-w-lg flex-col items-center justify-center gap-3 p-6 text-center">
     <div className="h-6 w-6 animate-spin rounded-full border-2 border-white/20 border-t-brand-accent" />
     <p role={error ? "alert" : "status"} aria-live={error ? "assertive" : "polite"} className="text-sm text-brand-text-secondary">{error || (busy ? "Completing secure sign-in…" : "Finishing sign-in…")}</p>

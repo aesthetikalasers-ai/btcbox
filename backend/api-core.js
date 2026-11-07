@@ -49,7 +49,7 @@ function getSingleSupabaseAuthProvider(identity) {
   const provider = String(appMetadata.provider || '').toLowerCase();
   const providers = Array.isArray(appMetadata.providers) ? appMetadata.providers.map(p => String(p || '').toLowerCase()) : [];
   const identities = Array.isArray(identity.identities) ? identity.identities : [];
-  if (!['google', 'web3'].includes(provider) || providers.length !== 1 || providers[0] !== provider) return null;
+  if (!['google', 'email', 'web3'].includes(provider) || providers.length !== 1 || providers[0] !== provider) return null;
   if (identities.length !== 1 || !identities[0] || String(identities[0].provider || '').toLowerCase() !== provider) return null;
   return provider;
 }
