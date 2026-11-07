@@ -1,6 +1,6 @@
 # BTCBOX fresh database bootstrap and SQL reference
 
-Status: source-only SQL inventory and bootstrap instructions. The files are not proof of a hosted database installation. The user has confirmed the project database is empty; this workflow creates a fresh BTCBOX schema and is not a legacy-data migration.
+Status: source-only SQL inventory and bootstrap instructions. The files are not proof of a hosted database installation. The connected hosted project has pre-existing BTCBOX state/data; this empty-schema bootstrap must not be run against it. Any hosted migration requires a separately reviewed, data-preserving reconciliation plan and explicit owner approval.
 
 ## Canonical fresh-schema bootstrap
 
@@ -8,7 +8,7 @@ Use `backend/scripts/bootstrap-empty-database.sh` only against a verified empty 
 - requires `DATABASE_URL` and `BTCBOX_BOOTSTRAP_CONFIRM=YES`;
 - parses the URL hostname and refuses remote targets unless `BTCBOX_ALLOW_REMOTE_BOOTSTRAP=YES` is explicitly supplied;
 - checks that no BTCBOX-owned tables already exist before applying SQL;
-- applies the 24 canonical SQL files explicitly allowlisted in `backend/scripts/bootstrap-empty-database.sh`; excluded legacy/optional files and read-only diagnostics are not applied;
+- applies the 25 canonical SQL files explicitly allowlisted in `backend/scripts/bootstrap-empty-database.sh`; excluded legacy/optional files and read-only diagnostics are not applied;
 - stops on the first SQL error and never prints the database URL.
 
 The script does not clear or overwrite an existing schema. It is not idempotent by design: a second run sees the installed BTCBOX tables and refuses. Do not run it against a production database without a separately approved maintenance operation.
@@ -79,7 +79,7 @@ All financial writes and matching remain fail-closed during source QA. Applying 
 
 Source CI verifies migration inventory, shell syntax, bootstrap safety gates and source-level RPC contracts. It does not execute PostgreSQL DDL. Before any hosted install:
 - create or use a disposable empty PostgreSQL/Supabase environment;
-- apply all 24 files in the exact order above and stop on any error;
+- apply all 25 files in the exact order above and stop on any error;
 - verify function signatures, RLS, grants, service-role-only execution and private schema exposure;
 - bootstrap the intended Super Admin and test delegated admin permissions;
 - test manual credit, withdrawal approval/payout completion, spot order idempotency and Seconds order/settlement concurrency/replay without enabling production financial cutover;
