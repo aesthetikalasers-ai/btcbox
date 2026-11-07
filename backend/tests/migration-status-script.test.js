@@ -64,13 +64,17 @@ test('migration order document records the prepared Seconds migration dependenci
   const rbacWrappers = orderDoc.indexOf('0028_admin_rbac_service_rpc_wrappers_v1.sql');
   const feeIdempotency = orderDoc.indexOf('0029_withdrawal_fee_quote_idempotency_v1.sql');
   const secondsAdminQueue = orderDoc.indexOf('0030_seconds_admin_open_positions_read_v1.sql');
-  assert.ok(rateLimit >= 0 && settlement > rateLimit && policy > settlement && adminRbac > policy && manualPayout > adminRbac && rbacWrappers > manualPayout && feeIdempotency > rbacWrappers && secondsAdminQueue > feeIdempotency);
+  const durationAlignment = orderDoc.indexOf('0031_seconds_policy_duration_alignment_v1.sql');
+  const auditIndexes = orderDoc.indexOf('0032_admin_audit_log_filter_indexes_v1.sql');
+  const withdrawalCleanup = orderDoc.indexOf('0033_withdrawal_legacy_rpc_cleanup_v1.sql');
+  assert.ok(rateLimit >= 0 && settlement > rateLimit && policy > settlement && adminRbac > policy && manualPayout > adminRbac && rbacWrappers > manualPayout && feeIdempotency > rbacWrappers && secondsAdminQueue > feeIdempotency && durationAlignment > secondsAdminQueue && auditIndexes > durationAlignment && withdrawalCleanup > auditIndexes);
   assert.ok(orderDoc.includes('depends on the Seconds base schema in'));
   assert.ok(orderDoc.includes('adds Seconds settlement request-hash idempotency'));
   assert.ok(orderDoc.includes('withdrawal fee quotes replay-safe'));
   assert.ok(orderDoc.includes('retain their stored fee'));
   assert.ok(orderDoc.includes('bounded, read-only administrator queue for open Seconds positions'));
   assert.ok(orderDoc.includes('timestamp registry versions with four-digit source filenames'));
+  assert.ok(orderDoc.includes('exactly one 11-argument service-role-only function remains'));
 });
 
 test('fresh database bootstrap expands safety variables and includes every canonical SQL file', () => {
@@ -102,4 +106,33 @@ test('fresh database bootstrap expands safety variables and includes every canon
   assert.ok(!bootstrap.includes('0016_financial_deposit_chain_verification_v3.sql'));
   assert.ok(!bootstrap.includes('0017_financial_migration_staging_v5.sql'));
   assert.ok(!bootstrap.includes('0020_financial_ledger_reconciliation_v1.sql'));
+});
+
+
+test('Docker first-init and guarded empty-database bootstrap use the exact canonical SQL inventory', () => {
+  const root = path.resolve(__dirname, '..');
+  const scripts = [
+    path.join(root, 'scripts', 'bootstrap-empty-database.sh'),
+    path.join(root, 'scripts', 'docker-init-migrations.sh'),
+  ];
+  const inventories = scripts.map((scriptPath) => {
+    const source = fs.readFileSync(scriptPath, 'utf8');
+    const block = source.split('FILES=(')[1]?.split(LF + ')')[0];
+    assert.ok(block, 'migration FILES allowlist missing in ' + scriptPath);
+    const configured = block.split(LF).map(line => line.trim())
+      .filter(line => line.endsWith('.sql')).map(line => line.replace(/,$/, '')).sort();
+    const syntax = spawnSync('bash', ['-n', scriptPath], { encoding: 'utf8' });
+    assert.equal(syntax.status, 0, syntax.stderr);
+    return configured;
+  });
+  assert.deepEqual(inventories[1], inventories[0], 'Docker init must not drift from guarded canonical bootstrap');
+  const sqlDir = path.join(root, 'supabase', 'sql');
+  const actual = fs.readdirSync(sqlDir)
+    .filter(name => name.endsWith('.sql') && /^[0-9]{4}_/.test(name)).sort();
+  assert.deepEqual(inventories[0], actual, 'both bootstrap paths must apply every canonical SQL file exactly once');
+  assert.ok(!inventories[1].includes('0008_financial_spot_trade_v3.sql'));
+  assert.ok(!inventories[1].includes('0009_financial_matching_engine_v1.sql'));
+  assert.ok(inventories[1].includes('0008_financial_matching_engine_v1.sql'));
+  assert.ok(inventories[1].includes('0032_admin_audit_log_filter_indexes_v1.sql'));
+  assert.ok(inventories[1].includes('0033_withdrawal_legacy_rpc_cleanup_v1.sql'));
 });
