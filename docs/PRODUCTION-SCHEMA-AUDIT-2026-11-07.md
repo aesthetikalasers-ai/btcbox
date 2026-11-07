@@ -97,3 +97,21 @@ At the latest observed PR head before this audit note:
 - PostgreSQL schema source CI: PASS.
 - Frontend lint/build and desktop/mobile route smoke tests: PASS.
 - PR #64 remains open and unmerged. New commits must be validated on the exact latest head before merge.
+
+## Migration bootstrap consistency finding — 2026-11-07
+
+The local Docker first-init hook was independently maintaining a stale SQL allowlist. Before this batch it referenced the retired `0008_financial_spot_trade_v3.sql` and `0009_financial_matching_engine_v1.sql` names and stopped at `0028`, omitting canonical `0029`–`0032`. This meant Docker first-init could not reproduce the canonical schema used by the guarded empty-database bootstrap.
+
+Fixed in PR #64:
+- `backend/scripts/docker-init-migrations.sh` now uses the same 25-file allowlist as `bootstrap-empty-database.sh`, with per-file existence checks and stop-on-error behavior.
+- `backend/docker-compose.yml` now accurately states that initialization happens only for a new empty Docker data volume. Existing volumes are not upgraded automatically.
+- `backend/tests/migration-status-script.test.js` compares both allowlists byte-for-byte by filename against the actual numbered SQL inventory and runs shell syntax checks.
+- `backend/tests/rpc-source-contract.test.js` ensures active backend RPC call sites have canonical SQL definitions and checks the 11-argument withdrawal fee-snapshot contract.
+
+The migration commands remain fresh-database bootstraps, not safe hosted upgrade runners. A persistent Docker volume and the hosted Supabase project still require a separate versioned, data-preserving migration plan.
+
+## Current validation snapshot
+
+- Backend CI on code commit `90c3b5b724944291286924202b1a64ffbce6ef2f`: PASS (unified build, full backend test suite, fail-closed preflight).
+- PostgreSQL schema CI and frontend CI for the newest audit/doc head were still running at the time this note was written; check the exact latest head before treating them as passed.
+- The Vercel status check reports the existing `build-rate-limit` / plan deployment cap. No Vercel deployment was requested or triggered by this batch.
