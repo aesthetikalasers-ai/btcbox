@@ -3451,3 +3451,15 @@ The prior withdrawal UI audit statement claiming the active BTCBOX admin route w
 - CI run `42386656276` is running for this exact head. Earlier run `42386568911` failed at TypeScript lint because the first responsive-tab implementation referenced an undeclared `cn` helper; this was corrected in the current head by using a direct conditional class string. Do not mark the current head accepted until its own lint/build/Chromium/desktop-mobile route tests finish successfully.
 - NOT VERIFIED: independent browser visual QA at actual 320/360/375/390/430px, tablet and desktop widths.
 - Release boundary unchanged: PR #65 remains Draft/open; no merge, deployment, hosted DB writes or real financial operations. Trading page layout and API/business behavior remain unchanged.
+
+
+## Brand wordmark and admin finance workflow polish — 2026-11-07
+
+- USER REQUEST: enlarge the standalone BTCBOX brand wordmark while leaving its icon and EXCHANGE label unchanged; continue the next business-facing batch.
+- PR #65 commit: `89544b2e888366db661887d8c94c0dd4b49dea8d`.
+- `frontend/src/components/BrandLogo.tsx`: BTCBOX wordmark alone increased one step (compact 16px→18px; regular 18px→20px); icon dimensions and EXCHANGE badge remain unchanged.
+- `frontend/src/features/admin/AdminPage.tsx`: finance configuration fields use larger 44px touch targets and responsive address-field columns; withdrawal queue action controls wrap rather than overflow on narrow screens; withdrawal and KYC queue table headers/row hover states gain consistent hierarchy. No API calls, handlers, permissions, financial business rules or manual payout behavior changed.
+- Exact-head CI run `42386894015` is queued for `89544b2e888366db661887d8c94c0dd4b49dea8d`; do not mark accepted until its lint/build/Chromium/desktop-mobile route checks pass.
+- Previous exact-head `73c15b7dc303b92678394e46c602e3d3900bfd41`, run `42386656276`, completed successfully including install/lint/build/Chromium/desktop-mobile route smoke tests.
+- NOT VERIFIED: independent browser visual QA at 320/360/375/390/430px, tablet and desktop viewports.
+- PR #65 remains Draft/open; no merge, deployment, database writes or real financial operations. Trading page locked layout preserved.
