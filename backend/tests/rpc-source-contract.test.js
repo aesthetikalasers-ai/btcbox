@@ -52,6 +52,12 @@ test('read-only production readiness diagnostic covers critical live schema drif
   for (const token of [
     "('public','withdrawal_requests','require_admin_review','boolean')",
     "('public','withdrawal_requests','request_hash','text')",
+    "('public','withdrawal_requests','payout_reference','text')",
+    "('public','withdrawal_requests','payout_note','text')",
+    "('public','withdrawal_requests','paid_by','text')",
+    "('public','withdrawal_requests','paid_at','timestamp with time zone')",
+    "('public','financial_audit_log','event_id','text')",
+    'withdrawal_requests_status_check',
     "('public','seconds_contract_positions','policy_id','uuid')",
     "('public','seconds_contract_positions','policy_version','bigint')",
     "('public','seconds_contract_positions','payout_bps_snapshot','integer')",
