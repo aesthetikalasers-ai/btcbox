@@ -3567,3 +3567,14 @@ The prior withdrawal UI audit statement claiming the active BTCBOX admin route w
 - No identity-linking flow, password-recovery policy, authentication/API behavior, permission, financial rule or trading-page layout changed.
 - Exact-head CI has not yet appeared. The prior head `8a760615f9037288eefb0e1dc30474360548b55a` CI run `42391311929` had install, lint, production build and Chromium passed; desktop/mobile route smoke tests were still running at last check. Do not accept until the current head's full CI passes.
 - Independent browser visual QA remains NOT VERIFIED. No merge, deployment, hosted database writes or real financial operations.
+
+
+## Market and mobile navigation accessibility — 2026-11-08
+
+- FIX COMMITTED: visual PR #65 head `22099472b4b7174c28e182847af9be0c78c9e100`.
+- `frontend/src/components/layout/BottomNav.tsx`: mobile bottom-navigation links now have a consistent visible keyboard focus ring with a sidebar-offset contrast surface.
+- `frontend/src/features/dashboard/components/LiveMarketsTable.tsx`: market search focus is visible; initial market skeleton uses a polite live status for assistive technology.
+- `frontend/src/features/dashboard/components/TopTokensTable.tsx`: horizontal overflow table is now a labelled, keyboard-focusable region with visible focus feedback.
+- No market data, search semantics, pricing, API, chart, trading, financial logic or locked trading-page layout changed.
+- Exact-head CI for `22099472b4b7174c28e182847af9be0c78c9e100` has not yet appeared. Previous exact-head `3f00d49e9cbda45e2fd83ace95f81041833eadb1`, CI run `42391435864`, passed install, lint, production build, Chromium and desktop/mobile route smoke tests.
+- Independent browser visual QA remains NOT VERIFIED. No merge, deployment, hosted database writes or real financial operations.
