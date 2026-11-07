@@ -159,3 +159,21 @@ Further read-only checks of the withdrawal and audit contracts confirmed:
 - `financial_audit_log.event_id` is absent, so the append-only idempotent audit outbox contract from migration 0021 is not installed.
 - Together with the missing `require_admin_review` and `request_hash`, this means the current manual payout completion and fee-quote replay workflow cannot be safely enabled against the live withdrawal table.
 - The diagnostic was expanded to report all these exact columns and the withdrawal status constraint; it was re-executed successfully as read-only SQL after the update.
+
+
+## New source-side correction — withdrawal RPC overload cleanup
+
+The migration chain revealed why a live catalog can retain the original 9-argument `create_withdrawal_atomic` even though the current source expects 11 arguments:
+- `0003_financial_lifecycle_v2.sql` creates the original 9-argument function.
+- `0022_withdrawal_admin_review_status_v1.sql` removes that 9-argument overload and installs a 10-argument function.
+- `0029_withdrawal_fee_quote_idempotency_v1.sql` removes the 10-argument function and installs the 11-argument fee-snapshot function, but does not independently remove a lingering 9-argument overload if the earlier migration was skipped or the hosted history is inconsistent.
+
+Added canonical migration `0033_withdrawal_legacy_rpc_cleanup_v1.sql`:
+- Explicitly removes both legacy 9- and 10-argument overloads.
+- Fails closed unless the 11-argument canonical function already exists.
+- Asserts exactly one `create_withdrawal_atomic` overload remains.
+- Asserts EXECUTE is granted to `service_role` and not to `anon` or `authenticated`.
+- Does not update or delete withdrawal rows, financial accounts, ledger entries, or balances.
+- Included in both guarded empty-database and Docker first-init allowlists; migration-order documentation and regression tests were updated accordingly.
+
+This is a source-chain correction only. It has not been run against the hosted production database. It must be applied only after the complete prerequisite chain has been mapped and rehearsed on a data-preserving staging copy.
