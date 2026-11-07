@@ -3612,3 +3612,9 @@ The prior withdrawal UI audit statement claiming the active BTCBOX admin route w
 - Exact-head CI run `42398622038` for `6f40ce54dfb62b4c6f30abe21c656a1003ef78eb` passed install, lint, production build, Chromium and desktop/mobile route smoke tests.
 - Customer-facing Trade Hub refinement `8b1355c8bc4abd057b13b8e520bbd29b323d0cd1`: removed the Futures card because the service is not implemented/available; no longer advertise a dead-end feature to customers. Retained the existing Spot, Seconds and Earn entry points. No business logic, API, routes, or financial workflows changed.
 - Exact-head CI run `42398790818` is in_progress/pending. Do not accept until all checks pass. Browser visual QA remains NOT VERIFIED; no merge or deployment.
+
+
+- Customer-facing market error cleanup `de56046d61d30c7cc5565debe0ff7fba7f112c3a`: provider/backend exception text is no longer shown directly to customers in the live-market table. Empty-feed failures use a concise localized retry message; stale-feed warnings retain the last-confirmed-data wording. Added translations across all seven supported locales. No API, data, market calculations or financial behavior changed.
+- Trade Hub Futures-card removal `8b1355c8bc4abd057b13b8e520bbd29b323d0cd1` CI run `42398790818`: install/lint/build/Chromium passed; route smoke failed because the existing E2E test asserted that the unsupported Futures card remained visible. This exposed a stale test contract, not an application build or runtime failure.
+- E2E correction `0ec0bb9628b74a455956b3c01cdc9faf6bd97380`: trade chooser test now asserts unavailable Futures/Unavailable labels are absent, while still verifying Spot, Seconds, BTC/USDT and Earn entry behavior. Await exact-head CI; do not accept until all steps pass.
+- No merge, deployment, hosted database writes or real financial operations. Browser visual QA remains NOT VERIFIED.
