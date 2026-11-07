@@ -273,3 +273,10 @@ test('admin deposit configuration never substitutes example withdrawal fees for 
   assert.ok(depositLoad.includes('setConfig({ deposit_addresses: {}, withdrawal_fees: {}, announcement: "" });'));
   assert.ok(!depositLoad.includes('USDT: "1"'));
 });
+
+test('admin overview does not retain an old dashboard snapshot during a failed refresh', () => {
+  const admin = fs.readFileSync(path.resolve(__dirname, '../../frontend/src/features/admin/AdminPage.tsx'), 'utf8');
+  const overview = admin.slice(admin.indexOf('if (tab === "overview")'), admin.indexOf('if (tab === "users")'));
+  assert.ok(overview.indexOf('setStats(null)') >= 0);
+  assert.ok(overview.indexOf('setStats(null)') < overview.indexOf('await getAdminStats(token)'));
+});

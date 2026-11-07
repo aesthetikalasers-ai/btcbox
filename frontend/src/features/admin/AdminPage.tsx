@@ -224,6 +224,7 @@ export function AdminPage() {
     setError("");
     try {
       if (tab === "overview") {
+        setStats(null);
         const snapshot = await getAdminStats(token);
         if (requestId !== tabLoadRequestRef.current) return;
         setStats(snapshot);
