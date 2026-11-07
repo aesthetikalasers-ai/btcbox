@@ -455,3 +455,11 @@ Registration and the signed-out preview/home page are now the first pages to com
 - Scope: frontend state isolation and Playwright only. No KYC decision rules, financial APIs, ledger, database schema, authentication, or production settings changed.
 - Commits: `c806372` (latest-user response guard), `bda8639` (out-of-order response test), `6b5810f` (KYC fail-closed refresh), `ef50db2` (KYC refresh regression).
 - Verification: exact-head CI queued/running at handoff; do not mark the batch fully verified until both frontend and backend workflows finish.
+
+
+## Admin rapid-selection test assertion correction — 2026-11-07 (2号 AI)
+
+- CI run `42347244241`: lint/build passed; 52 Playwright cases passed; desktop and mobile variants of the rapid-selection test failed on the same invalid assertion.
+- The old test incorrectly expected the first user's email to disappear from the whole page. That email correctly remains in the Users directory after selection changes; the meaningful stale-state assertion is that the first user's balance (`111.00`) does not replace the latest user's balance (`222.00`).
+- Corrected the test to keep the directory row visible and assert the stale balance is absent. Commit: `dab5f6dee6ea6f1196f0afe172f5d95cc4d3170c`.
+- Awaiting exact-head CI. No production or backend financial operation.
