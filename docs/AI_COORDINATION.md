@@ -3409,3 +3409,15 @@ The prior withdrawal UI audit statement claiming the active BTCBOX admin route w
 - SOURCE OBSERVED: latest CI run `42384966763` for head `c316fa02c0c6dc0faa00a58e16a94c86b65cc755` was in progress at refresh (dependency install running); preceding run `42384936596` for `4bb691c966048fe2d6519c5ad4590afaa7b2ad97` had install/lint passed and build in progress.
 - NOT VERIFIED: independent browser visual review at target mobile/tablet/desktop widths; CI route smoke tests are not a substitute for visual QA.
 - Release boundary unchanged: PR remains Draft; no merge, production deployment, database writes, or real financial operations.
+
+
+## Visual system correction — exact template palette alignment — 2026-11-07
+
+- USER DIRECTION: stop extending the previous route-by-route cyan/teal/violet/indigo/orange accent scheme. Use the pinned template sources' complete visual language consistently across remaining pages, shared interactions and mobile details.
+- SOURCE OBSERVED: pinned Strata Pro commit `a3f79d0237c68faddc877f8c1b00afece2fbbae8` defines the institutional-dark base palette: background `#090909`, sidebar `#0B0B0C`, surface `#101113`, raised surface `#141518`, subtle white borders (`rgba(255,255,255,.05)` / `.03`), primary text `#F4F4F5`, secondary white at `.62`, muted white at `.38`, profit `#22C55E`, loss `#EF4444`, warning/gold `#F59E0B`. Its components use restrained neutral active states and subtle layered shadows rather than rainbow page colors.
+- SOURCE OBSERVED: pinned shadcn-fintech commit `a905058c75a840896d27a16991f2e7cc1ca06f3f` supplies semantic tokens for background/foreground, card/popover, primary/secondary/muted/accent/destructive, border/input/ring, charts and sidebar, plus a consistent radius scale.
+- FIX COMMITTED: visual PR #65 head `879e24a343030b02b906daa2ac70e219754600ce` replaces the previous multi-hue route accent values with a Strata-aligned neutral palette, retains explicit success/danger/warning/info semantic colors, and updates shared button/input/card primitives for subtle hover/focus/pressed states, layered depth and mobile touch targets. Changed files: `frontend/src/index.css`, `frontend/src/components/ui/button.tsx`, `frontend/src/components/ui/input.tsx`, `frontend/src/components/ui/card.tsx`.
+- EXACT-HEAD CI run `42385542668` started for `879e24a343030b02b906daa2ac70e219754600ce`; dependency install passed and lint was running at this update. Build, Chromium install and desktop/mobile route smoke tests remain pending.
+- NEXT: continue route-by-route visual consistency, interaction feedback and responsive refinements against the actual Strata/shadcn source patterns. Do not import mock data, demo auth or simulated financial operations. Preserve the locked trading layout and all API/business contracts.
+- NOT VERIFIED: independent browser visual QA at target 320/360/375/390/430px, tablet and desktop sizes. CI route smoke tests are not a substitute for visual QA.
+- Release boundary unchanged: PR #65 remains Draft/open; no merge, deployment, hosted database writes or real financial operations.
