@@ -6435,3 +6435,13 @@ Current branch HEAD at note creation: `51c302a96f069876e438321d3597501fcbc26b54`
 - IMPROVED: show the deposit record ID as a separate read-only column and assert it in the existing user-detail E2E. The ID remains optional and displays an em dash when absent.
 - Scope: Admin presentation and Playwright only. No KYC API decision policy, deposit API, ledger, DB schema, or financial mutation changed.
 - Commits: `11a13c5` (KYC preview fail-closed), `feaf362` (KYC preview regression), `0a9cfb1` (deposit record ID), `0ef84b5` (deposit ID assertion). Exact-head CI pending.
+
+
+## Admin audit history pagination and deposit-history completeness labels — 2026-11-07 (2号 AI)
+
+- FOUND: Admin audit API already returns `next_before` and accepts a `before` cursor, but the UI only loaded the first 50 events. Added cursor-based “Load older records” for canonical PostgreSQL audit pages, deduplicating by event ID and refusing to append pages if source/completeness changes.
+- Cross-check: canonical audit cursor is a positive PostgreSQL bigint and is supported by `readAdminAuditLogPage`. Legacy state audit IDs are generated as `AL...` strings, while the shared route currently validates `before` using the PostgreSQL-bigint validator before selecting the legacy branch. Therefore the UI intentionally does not expose cursor pagination for `btcbox_state`; it explicitly labels this retention-limited source instead of offering a button that would fail.
+- FOUND: the account snapshot SQL returns only the 20 most recent deposit records. The Admin panel previously titled this simply “Deposit history”, which could imply full history. It now says “Deposit history · latest 20” and directs staff to the audit log for the wider financial event trail.
+- Regression coverage: canonical two-page audit fetch, no pagination for a legacy `AL...` cursor, and explicit latest-20 note in user detail.
+- Scope: frontend UI/API query parameter/tests/docs. No backend code, financial contract, ledger, database, production setting, or real account data changed.
+- Commits: `0bf6425` (audit API cursor), `662d676` (Admin pagination), `fbc04a0` (canonical pagination E2E), `3986341` (source and history limits), `f51f17a` (legacy cursor and deposit limit E2E). Exact-head CI pending.
