@@ -21,9 +21,9 @@ export function BrandLogo({ compact = false, showExchange = true, className }: B
       <span className="flex min-w-0 items-center gap-1.5 whitespace-nowrap">
         <span className={cn(
           "bg-gradient-to-b from-white to-sky-200 bg-clip-text font-bold tracking-tight text-transparent",
-          compact ? "text-base" : "text-lg"
+          compact ? "text-lg" : "text-xl"
         )}>BTCBOX</span>
-        {showExchange && <span className="rounded border border-brand-accent/30 bg-brand-accent/10 px-1.5 py-0.5 text-[9px] font-bold tracking-wider text-sky-200">EXCHANGE</span>}
+        {showExchange && <span className="rounded border border-brand-accent/30 bg-brand-accent/10 px-1.5 py-0.5 text-[9px] font-bold tracking-wider text-brand-accent">EXCHANGE</span>}
       </span>
     </span>
   );
