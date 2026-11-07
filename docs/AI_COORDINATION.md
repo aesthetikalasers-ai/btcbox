@@ -3642,3 +3642,12 @@ The prior withdrawal UI audit statement claiming the active BTCBOX admin route w
 - Exact-head CI run `42403653482` for `208ae1cd13b1ca8fd258b31705ff86da9c4fdf0a`: install and lint passed; production build was in progress at refresh. Chromium and desktop/mobile route smoke tests pending. Do not accept until all steps pass.
 - Previous exact-head `6d353fcd4dc8ffa085e359073f7200e9d1456198`, CI `42401324392`, passed install, lint, production build, Chromium, and desktop/mobile route smoke tests.
 - Independent browser visual QA at actual device sizes remains NOT VERIFIED. PR #65 remains Draft/open; no merge, deployment, hosted DB writes or real financial operations.
+
+
+## Admin regression-test alignment — 2026-11-08
+
+- Previous exact-head CI `42403653482` for `208ae1cd13b1ca8fd258b31705ff86da9c4fdf0a` failed only in desktop/mobile E2E: 64 passed, 6 failed. Install, lint, production build and Chromium installation passed.
+- Failure evidence from job log: tests still expected raw KYC document preview errors, and generic admin tab-load errors did not match the tab-specific safe messages expected for audit and withdrawals.
+- Fix commit `eb197ef8a178ac35e2409fb175a89344807a1f53`: KYC preview E2E now expects the safe generic preview message; admin tab-load failures retain contextual safe copy for audit, withdrawals and KYC, with a generic fallback for other tabs. No backend exception text is re-exposed.
+- Exact-head CI run `42404222154` for `eb197ef8a178ac35e2409fb175a89344807a1f53` is in progress. Do not accept until install, lint, production build, Chromium and desktop/mobile route smoke tests all pass.
+- PR #65 remains Draft/open; no merge, deployment, hosted database writes or financial operations. Browser visual QA remains NOT VERIFIED.
