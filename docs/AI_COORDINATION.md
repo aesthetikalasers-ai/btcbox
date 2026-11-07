@@ -3578,3 +3578,13 @@ The prior withdrawal UI audit statement claiming the active BTCBOX admin route w
 - No market data, search semantics, pricing, API, chart, trading, financial logic or locked trading-page layout changed.
 - Exact-head CI for `22099472b4b7174c28e182847af9be0c78c9e100` has not yet appeared. Previous exact-head `3f00d49e9cbda45e2fd83ace95f81041833eadb1`, CI run `42391435864`, passed install, lint, production build, Chromium and desktop/mobile route smoke tests.
 - Independent browser visual QA remains NOT VERIFIED. No merge, deployment, hosted database writes or real financial operations.
+
+
+## Mobile market accessibility and drawer keyboard close — 2026-11-08
+
+- FIX COMMITTED: visual PR #65 latest source head `18b17f1c490578517e2a308f851fe5ce0f64f60e`.
+- `frontend/src/components/layout/BottomNav.tsx`, `frontend/src/features/dashboard/components/LiveMarketsTable.tsx`, `frontend/src/features/dashboard/components/TopTokensTable.tsx` at parent `22099472b4b7174c28e182847af9be0c78c9e100`: visible keyboard focus for mobile bottom navigation and market search; polite live loading status; labelled keyboard-focusable Top Tokens horizontal scroll region.
+- Exact-head CI run `42392226938` for `22099472b4b7174c28e182847af9be0c78c9e100` passed install, lint, production build, Chromium and desktop/mobile route smoke tests.
+- `frontend/src/components/layout/AppLayout.tsx`: mobile navigation drawer now closes with Escape; backdrop explicitly uses `type=button`. No navigation destination, trading layout or business behavior changed.
+- Exact-head CI for `18b17f1c490578517e2a308f851fe5ce0f64f60e` has not yet appeared. Do not accept until its full CI passes.
+- Independent browser visual QA remains NOT VERIFIED. No merge, deployment, hosted database writes or real financial operations.
