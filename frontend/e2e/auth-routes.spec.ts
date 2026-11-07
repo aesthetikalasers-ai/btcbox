@@ -1183,3 +1183,61 @@ test("public market landing page remains responsive across mobile, tablet and de
     expect(dimensions.content, `public preview overflow at ${viewport.width}px`).toBeLessThanOrEqual(dimensions.viewport);
   }
 });
+
+
+test("assets page preserves the last confirmed balances when refresh temporarily fails", async ({ page }) => {
+  let accountReads = 0;
+  await page.route("**/api/account", async (route) => {
+    accountReads += 1;
+    if (accountReads <= 2) {
+      await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(authenticatedAccountFixture) });
+      return;
+    }
+    await route.fulfill({ status: 503, contentType: "application/json", body: JSON.stringify({ ok: false, msg: "internal provider detail" }) });
+  });
+
+  await page.goto("/assets");
+  await expect(page.getByText("125.5", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Refresh" }).click();
+  await expect(page.getByRole("alert")).toContainText("Account data is temporarily unavailable.");
+  await expect(page.getByText("125.5", { exact: true })).toBeVisible();
+  await expect(page.getByText("internal provider detail")).toHaveCount(0);
+});
+
+test("orders page preserves the last confirmed order when refresh temporarily fails", async ({ page }) => {
+  let orderReads = 0;
+  await page.route("**/api/account", async (route) => {
+    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(authenticatedAccountFixture) });
+  });
+  await page.route("**/api/orders", async (route) => {
+    orderReads += 1;
+    if (orderReads === 1) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          ok: true,
+          orders: [{
+            order_id: "E2E-STALE-ORDER-001",
+            symbol: "BTC/USDT",
+            side: "buy",
+            type: "limit",
+            price: "65000.00",
+            quantity: "0.001",
+            status: "open",
+            created_at: "2026-11-06T10:00:00Z",
+          }],
+        }),
+      });
+      return;
+    }
+    await route.fulfill({ status: 503, contentType: "application/json", body: JSON.stringify({ ok: false, msg: "internal order provider detail" }) });
+  });
+
+  await page.goto("/orders");
+  await expect(page.getByText("E2E-STALE-ORDER-001")).toBeVisible();
+  await page.getByRole("button", { name: "Refresh" }).click();
+  await expect(page.getByRole("alert")).toContainText("Order history is temporarily unavailable.");
+  await expect(page.getByText("E2E-STALE-ORDER-001")).toBeVisible();
+  await expect(page.getByText("internal order provider detail")).toHaveCount(0);
+});
