@@ -278,3 +278,65 @@ test("spot preview keeps provider provenance visible and fits a 320px mobile vie
   const dimensions = await page.evaluate(() => ({ viewport: document.documentElement.clientWidth, content: document.documentElement.scrollWidth }));
   expect(dimensions.content).toBeLessThanOrEqual(dimensions.viewport);
 });
+
+test("username login submits BTCBOX credentials to the username endpoint and surfaces rejection", async ({ page }) => {
+  let submitted: { username?: string; password?: string } | null = null;
+  await page.route("**/api/login", async (route) => {
+    submitted = route.request().postDataJSON();
+    await route.fulfill({
+      status: 401,
+      contentType: "application/json",
+      body: JSON.stringify({ ok: false, code: "INVALID_CREDENTIALS", msg: "Username or password is incorrect." }),
+    });
+  });
+
+  await page.goto("/login");
+  await page.getByLabel("Username").fill("qa_user");
+  await page.getByLabel("Password").fill("a-secure-test-password");
+  await page.getByRole("button", { name: "Sign in with username" }).click();
+
+  await expect(page.getByRole("alert")).toContainText("Username or password is incorrect.");
+  expect(submitted).toEqual({ username: "qa_user", password: "a-secure-test-password" });
+});
+
+test("first verified Google or wallet identity can set username and password on the same BTCBOX account", async ({ page }) => {
+  const credentialRequests: Array<{ username?: string; password?: string; current_password?: string }> = [];
+  await page.route("**/api/account", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        ok: true,
+        uid: "e2e-new-identity",
+        email: "",
+        username: "",
+        has_login_password: false,
+        balances: {},
+        kyc: { status: "not_submitted" },
+        twofa_enabled: false,
+      }),
+    });
+  });
+  await page.route("**/api/account/credentials", async (route) => {
+    credentialRequests.push(route.request().postDataJSON());
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ ok: true, username: "new_user_01", has_login_password: true }),
+    });
+  });
+
+  await page.goto("/account-setup");
+  await expect(page.getByRole("heading", { name: "Set up your BTCBOX account" })).toBeVisible();
+  await page.getByLabel("Choose a username").fill("new_user_01");
+  await page.getByLabel("Create a password").fill("a-secure-test-password");
+  await page.getByLabel("Confirm password").fill("a-secure-test-password");
+  await page.getByRole("button", { name: "Save BTCBOX credentials" }).click();
+
+  await expect(page).toHaveURL(/\/home$/);
+  expect(credentialRequests).toEqual([{
+    username: "new_user_01",
+    password: "a-secure-test-password",
+    current_password: "",
+  }]);
+});
