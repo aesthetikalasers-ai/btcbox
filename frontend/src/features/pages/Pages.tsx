@@ -909,6 +909,7 @@ export function WithdrawPage(){
  const [actionMessage,setActionMessage]=useState("");
  const [pendingIntent,setPendingIntent]=useState<{version:1;request_id:string;address_id:string;coin:string;network:string;amount:string;address:string;created_at:number}|null>(null);
  const [pendingIntentInvalid,setPendingIntentInvalid]=useState(false);
+ const submitLockRef=useRef(false);
  const [reload,setReload]=useState(0);
 
  useEffect(()=>{
@@ -966,16 +967,17 @@ export function WithdrawPage(){
 
  const submit=async(event:FormEvent<HTMLFormElement>)=>{
   event.preventDefault();
-  if(!canSubmit||!selectedAddress)return;
+  if(!canSubmit||!selectedAddress||submitLockRef.current)return;
+  submitLockRef.current=true;
   let intent=pendingIntent;
   if(!intent){
    intent={version:1,request_id:window.crypto.randomUUID(),address_id:selectedId,coin:selectedAddress.coin,network:selectedAddress.network,amount:amount.trim(),address:selectedAddress.address,created_at:Date.now()};
-   if(!pendingStorageKey){setError("Account identity is unavailable. No withdrawal was sent.");return;}
+   if(!pendingStorageKey){setError("Account identity is unavailable. No withdrawal was sent.");submitLockRef.current=false;return;}
    try{window.localStorage.setItem(pendingStorageKey,JSON.stringify(intent));}
-   catch{setError("This browser cannot safely save the withdrawal request. No withdrawal was sent.");return;}
+   catch{setError("This browser cannot safely save the withdrawal request. No withdrawal was sent.");submitLockRef.current=false;return;}
    setPendingIntent(intent);
   }
-  if(intent.address_id!==selectedId||intent.address!==selectedAddress.address||intent.coin!==selectedAddress.coin||intent.network!==selectedAddress.network){setError("The saved withdrawal destination no longer matches. Contact support before retrying.");setPendingIntentInvalid(true);return;}
+  if(intent.address_id!==selectedId||intent.address!==selectedAddress.address||intent.coin!==selectedAddress.coin||intent.network!==selectedAddress.network){setError("The saved withdrawal destination no longer matches. Contact support before retrying.");setPendingIntentInvalid(true);submitLockRef.current=false;return;}
   setSubmitting(true);setError("");setActionMessage("");
   let requestAccepted=false;
   try{
@@ -1000,7 +1002,7 @@ export function WithdrawPage(){
     try{setConfig(await getWithdrawalConfig());}catch{}
     setError("The withdrawal fee changed. The latest fee has been refreshed. Review the request and submit again.");
    }else if(!requestAccepted&&reason instanceof ApiError&&reason.status>=400&&reason.status<500&&reason.status!==409)clearPending();
-  }finally{setSubmitting(false);}
+  }finally{submitLockRef.current=false;setSubmitting(false);}
  };
  return <PageFrame eyebrow="BTCBOX / WALLET" title="Withdraw" description="Choose a saved address and submit a withdrawal request. BTCBOX staff review requests and manually transfer approved withdrawals.">
   {loading?<Card className="border-brand-border bg-brand-surface"><CardContent className="p-5 text-sm text-brand-text-muted" role="status">{t("Loading wallet and saved addresses…")}</CardContent></Card>
