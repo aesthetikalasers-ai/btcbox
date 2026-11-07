@@ -117,6 +117,8 @@ export function AdminPage() {
   const kycRefreshLockRef = useRef(false);
   const kycQueueRequestRef = useRef(0);
   const withdrawalQueueRequestRef = useRef(0);
+  const supportQueueRequestRef = useRef(0);
+  const supportReplyLocksRef = useRef<Record<string, boolean>>({});
   const [auditSource, setAuditSource] = useState("unknown");
   const [auditCompleteness, setAuditCompleteness] = useState("unknown");
   const [orders, setOrders] = useState<Array<Record<string, unknown>>>([]);
@@ -315,10 +317,16 @@ export function AdminPage() {
         setOrdersSource(snapshot.source || "unknown");
       }
       if (tab === "support") {
+        const queueRequestId = ++supportQueueRequestRef.current;
         setSupport([]);
-        const snapshot = await getAdminSupportMessages(token);
-        if (requestId !== tabLoadRequestRef.current) return;
-        setSupport((snapshot.messages || []) as unknown as Array<Record<string, unknown>>);
+        try {
+          const snapshot = await getAdminSupportMessages(token);
+          if (requestId !== tabLoadRequestRef.current || queueRequestId !== supportQueueRequestRef.current) return;
+          setSupport((snapshot.messages || []) as unknown as Array<Record<string, unknown>>);
+        } catch (reason) {
+          if (requestId !== tabLoadRequestRef.current || queueRequestId !== supportQueueRequestRef.current) return;
+          throw reason;
+        }
       }
       if (tab === "seconds") {
         setSecondsPolicy(null);
@@ -719,22 +727,56 @@ export function AdminPage() {
     }
   };
 
-  const replySupport = async (uid: string) => {
+  const refreshSupportQueue = async () => {
     if (!token) return;
+    const requestId = ++supportQueueRequestRef.current;
+    setSupport([]); setError(""); setNotice("");
+    try {
+      const snapshot = await getAdminSupportMessages(token);
+      if (requestId !== supportQueueRequestRef.current) return;
+      setSupport((snapshot.messages || []) as unknown as Array<Record<string, unknown>>);
+      setNotice("Support queue refreshed.");
+    } catch (reason) {
+      if (requestId !== supportQueueRequestRef.current) return;
+      setSupport([]);
+      setError(reason instanceof Error ? reason.message : "Support queue could not be refreshed.");
+    }
+  };
+
+  const replySupport = async (uid: string) => {
+    if (!token || supportReplyLocksRef.current[uid]) return;
     const content = (supportReply[uid] || "").trim();
     if (!content) return;
-    const requestId = supportReplyRequestIds[uid] || window.crypto.randomUUID();
-    setSupportReplyRequestIds((current) => ({ ...current, [uid]: requestId }));
+    let requestId = supportReplyRequestIds[uid];
+    if (!requestId) {
+      try { requestId = window.crypto.randomUUID(); }
+      catch {
+        setError("Secure support reply request IDs are unavailable in this browser. No reply was sent.");
+        return;
+      }
+      setSupportReplyRequestIds((current) => ({ ...current, [uid]: requestId }));
+    }
+    supportReplyLocksRef.current[uid] = true;
     setBusy(true); setError(""); setNotice("");
     try {
       const result = await adminReplySupport(token, uid, content, requestId);
-      setNotice(result.audit_sync_pending ? "Support reply sent; audit delivery is pending." : "Support reply sent.");
       setSupportReply((current) => ({ ...current, [uid]: "" }));
       setSupportReplyRequestIds((current) => { const next = { ...current }; delete next[uid]; return next; });
-      try { setSupport((await getAdminSupportMessages(token)).messages || []); }
-      catch { setError("Support reply is confirmed; the conversation could not refresh. Reload this tab to view the sent reply."); }
+      const successMessage = result.audit_sync_pending ? "Support reply sent; audit delivery is pending." : "Support reply sent.";
+      const queueRequestId = ++supportQueueRequestRef.current;
+      setSupport([]);
+      try {
+        const snapshot = await getAdminSupportMessages(token);
+        if (queueRequestId !== supportQueueRequestRef.current) return;
+        setSupport((snapshot.messages || []) as unknown as Array<Record<string, unknown>>);
+        setNotice(successMessage);
+      } catch {
+        if (queueRequestId !== supportQueueRequestRef.current) return;
+        setSupport([]);
+        setError(successMessage + " The conversation could not refresh. Reload this tab before replying again.");
+      }
     } catch (reason) { setError(reason instanceof Error ? reason.message : "Support reply failed."); }
-    finally { setBusy(false); }
+    finally { supportReplyLocksRef.current[uid] = false; setBusy(false); }
   };
 
   const saveSpotMarket = async () => {
@@ -907,7 +949,7 @@ export function AdminPage() {
 
     {!loading && tab === "orders" ? <Card><CardHeader><div className="flex flex-wrap items-start justify-between gap-2"><div><CardTitle>Orders</CardTitle><CardDescription>{ordersSource === "postgres_financial_matching" ? "Customer order history and this administrator view use the canonical PostgreSQL matching orders." : ordersSource === "legacy_state" ? "Legacy state fallback is active because matching-engine mode was not requested." : "Order data source is not confirmed."}</CardDescription></div><Badge variant={ordersSource === "postgres_financial_matching" ? "default" : "destructive"}>{ordersSource === "postgres_financial_matching" ? "Source: PostgreSQL matching" : ordersSource === "legacy_state" ? "Source: legacy state" : "Source: unknown"}</Badge></div></CardHeader><CardContent><div className="overflow-x-auto"><table className="w-full min-w-[700px] text-left text-sm"><thead><tr className="border-b border-brand-border text-xs text-brand-text-muted"><th className="p-2">ID</th><th className="p-2">User</th><th className="p-2">Symbol</th><th className="p-2">Side</th><th className="p-2">Status</th><th className="p-2">Created</th></tr></thead><tbody>{orders.map((item,index)=><tr key={asText(item.id)||index} className="border-b border-brand-border/60"><td className="p-2 font-mono text-xs">{asText(item.id)}</td><td className="p-2">{asText(item.uid||item.user_id)}</td><td className="p-2">{asText(item.symbol)}</td><td className="p-2">{asText(item.side)}</td><td className="p-2">{asText(item.status)}</td><td className="p-2">{formatDate(item.created_at||item.time)}</td></tr>)}</tbody></table></div></CardContent></Card> : null}
 
-    {!loading && tab === "support" ? <Card><CardHeader><CardTitle>Support messages</CardTitle></CardHeader><CardContent className="space-y-3">{support.map((item,index)=>{const uid=asText(item.uid||item.user_id);return <div key={asText(item.id)||index} className="rounded-xl border border-brand-border p-3"><p className="text-xs text-brand-text-muted">{uid} · {formatDate(item.created_at||item.time)}</p><p className="mt-2 whitespace-pre-wrap text-sm">{asText(item.content||item.message)}</p><textarea value={supportReply[uid]||""} onChange={event=>{setSupportReply(current=>({...current,[uid]:event.target.value}));setSupportReplyRequestIds(current=>({...current,[uid]:window.crypto.randomUUID()}));}} rows={2} className="mt-3 w-full rounded-lg border border-brand-border bg-brand-surface-2 p-2 text-sm text-brand-text" placeholder="Reply to customer"/><Button size="sm" className="mt-2" disabled={busy||!supportReply[uid]?.trim()||!hasPermission("support.reply")} onClick={()=>void replySupport(uid)}>Send reply</Button></div>;})}</CardContent></Card> : null}
+    {!loading && tab === "support" ? <Card><CardHeader className="flex flex-row items-center justify-between"><CardTitle>Support messages</CardTitle><Button size="sm" variant="outline" disabled={busy} onClick={()=>void refreshSupportQueue()}>Refresh queue</Button></CardHeader><CardContent className="space-y-3">{support.map((item,index)=>{const uid=asText(item.uid||item.user_id);return <div key={asText(item.id)||index} className="rounded-xl border border-brand-border p-3"><p className="text-xs text-brand-text-muted">{uid} · {formatDate(item.created_at||item.time)}</p><p className="mt-2 whitespace-pre-wrap text-sm">{asText(item.content||item.message)}</p><textarea value={supportReply[uid]||""} onChange={event=>{setSupportReply(current=>({...current,[uid]:event.target.value}));try { setSupportReplyRequestIds(current=>({...current,[uid]:window.crypto.randomUUID()})); } catch { setError("Secure support reply request IDs are unavailable in this browser. No reply was sent."); }}} rows={2} className="mt-3 w-full rounded-lg border border-brand-border bg-brand-surface-2 p-2 text-sm text-brand-text" placeholder="Reply to customer"/><Button size="sm" className="mt-2" disabled={busy||!supportReply[uid]?.trim()||!hasPermission("support.reply")} onClick={()=>void replySupport(uid)}>Send reply</Button></div>;})}</CardContent></Card> : null}
     {!loading && tab === "markets" ? <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(340px,0.9fr)]">
       <Card><CardHeader><CardTitle>Spot market catalogue</CardTitle><CardDescription>Only enabled pairs accept limit orders. Market orders remain disabled; maker/taker fees stay at zero until fee movements are implemented atomically.</CardDescription></CardHeader><CardContent className="space-y-3">
         {spotMarkets.length ? <div className="overflow-x-auto"><table className="w-full min-w-[620px] text-left text-sm"><thead><tr className="border-b border-brand-border text-xs text-brand-text-muted"><th className="p-2">Pair</th><th className="p-2">Status</th><th className="p-2">Tick / step</th><th className="p-2">Min quantity / notional</th><th className="p-2"></th></tr></thead><tbody>{spotMarkets.map(market=><tr key={market.base_asset + "/" + market.quote_asset} className="border-b border-brand-border/60"><td className="p-2 font-semibold">{market.base_asset}/{market.quote_asset}</td><td className="p-2"><Badge variant={market.enabled ? "default" : "outline"}>{market.enabled ? "Enabled" : "Disabled"}</Badge></td><td className="p-2 text-xs tabular-nums">{asText(market.price_tick)} / {asText(market.quantity_step)}</td><td className="p-2 text-xs tabular-nums">{asText(market.min_quantity)} / {asText(market.min_notional)}</td><td className="p-2"><Button size="sm" variant="outline" disabled={busy || !!spotMarketRequestId || !hasPermission("system_config.write")} onClick={()=>setSpotMarketDraft({base_asset:market.base_asset,quote_asset:market.quote_asset,enabled:market.enabled,price_tick:String(market.price_tick),quantity_step:String(market.quantity_step),min_quantity:String(market.min_quantity),min_notional:String(market.min_notional),min_limit_price:market.min_limit_price==null?"":String(market.min_limit_price),max_limit_price:market.max_limit_price==null?"":String(market.max_limit_price),reason:""})}>Edit</Button></td></tr>)}</tbody></table></div> : <p className="text-sm text-brand-text-muted">No spot pairs have been configured yet.</p>}
