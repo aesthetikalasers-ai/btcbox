@@ -584,6 +584,41 @@ test("Admin payout retry restores the exact TxID after an ambiguous response and
   expect(withdrawalReads).toBeGreaterThanOrEqual(2);
 });
 
+test("Admin legacy audit snapshot does not offer an unsupported cursor", async ({ page }) => {
+  await installAdminE2EIdentity(page);
+  await page.route("**/api/admin/audit-logs?**", route => route.fulfill({
+    status: 200, contentType: "application/json",
+    body: JSON.stringify({
+      ok: true, source: "btcbox_state", completeness: "state_document_retention_limited",
+      logs: [{
+        id: "AL1730950000abcdef", time: "2026-11-07T10:00:00.000Z",
+        by: "e2e-admin-001", action: "manual_deposit_confirmed",
+        uid: "e2e-user-legacy", detail: "Legacy audit fixture", postgres_sync_status: "local_only",
+      }],
+      next_before: "AL1730950000abcdef",
+    }),
+  }));
+  await page.route("**/api/admin/kyc", route => route.fulfill({
+    status: 200, contentType: "application/json", body: JSON.stringify({ ok: true, kycs: [] }),
+  }));
+  await page.route("**/api/admin/withdrawals", route => route.fulfill({
+    status: 200, contentType: "application/json", body: JSON.stringify({ ok: true, withdrawals: [] }),
+  }));
+  await page.route("**/api/admin/session", route => route.fulfill({
+    status: 200, contentType: "application/json",
+    body: JSON.stringify({
+      ok: true, user_id: "e2e-admin-001", status: "active", is_super_admin: false,
+      permissions: ["withdrawals.read", "kyc.read", "financial_audit.read"],
+    }),
+  }));
+
+  await page.goto("/admin");
+  await page.getByRole("button", { name: "Audit log", exact: true }).click();
+  await expect(page.getByText("Legacy audit fixture")).toBeVisible();
+  await expect(page.getByText("Legacy snapshot pagination is unavailable; this source is retention-limited.")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Load older records" })).toHaveCount(0);
+});
+
 test("Admin audit log loads older canonical pages without mixing sources", async ({ page }) => {
   await installAdminE2EIdentity(page);
   let auditReads = 0;
@@ -861,6 +896,7 @@ test("Admin user-detail failure clears the previously selected user's financial 
   await expect(page.getByRole("cell", { name: "first@example.invalid" })).toBeVisible();
   await expect(page.getByText("E2E-DEPOSIT-001")).toBeVisible();
   await expect(page.getByText("E2E-TX-FIRST")).toBeVisible();
+  await expect(page.getByText("The account snapshot returns the 20 most recent deposits. Use the Audit log for the wider financial event trail.")).toBeVisible();
   await expect(page.getByRole("cell", { name: "e2e-user-001" })).toBeVisible();
 
   await page.getByRole("button", { name: "Open", exact: true }).nth(1).click();
