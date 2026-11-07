@@ -57,12 +57,12 @@ export function AssetsPage() {
           <h1 className="type-page-title text-brand-text">{t("Assets")}</h1>
           <p className="type-body mt-2 text-brand-text-secondary">{t("Balances from your authenticated BTCBOX account.")}</p>
         </div>
-        <Button variant="outline" size="sm" onClick={() => void load()} disabled={loading}>
+        <Button variant="outline" size="default" className="w-full sm:w-auto" onClick={() => void load()} disabled={loading} aria-busy={loading}>
           <RefreshCw className={`mr-2 h-4 w-4 ${loading ? "animate-spin" : ""}`} />{t("Refresh")}
         </Button>
       </div>
 
-      {error && <Card className="border-brand-danger/25 bg-brand-danger/[0.035]"><CardContent className="flex flex-wrap items-center justify-between gap-3 p-4"><p className="type-body-compact text-brand-text-secondary" role="alert">{error}</p>{signedOut && <Button asChild size="sm"><Link to="/login">{t("Sign in")}</Link></Button>}</CardContent></Card>}
+      {error && <Card className="border-brand-danger/25 bg-brand-danger/[0.035]"><CardContent className="flex flex-wrap items-center justify-between gap-3 p-4"><p className="type-body-compact text-brand-text-secondary" role="alert">{error}</p>{signedOut && <Button asChild size="default" className="w-full sm:w-auto"><Link to="/login">{t("Sign in")}</Link></Button>}</CardContent></Card>}
 
       <Card className="overflow-hidden border-brand-border bg-brand-surface shadow-sm">
         <CardHeader className="border-b border-brand-border/70 bg-brand-surface-2/45">
