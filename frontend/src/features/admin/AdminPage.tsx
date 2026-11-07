@@ -786,7 +786,7 @@ export function AdminPage() {
   if (loading && !session) return <div className="mx-auto max-w-7xl p-6"><Card><CardContent className="p-8 text-sm text-brand-text-muted">Verifying administrator identity…</CardContent></Card></div>;
   if (!session) return <div className="mx-auto max-w-3xl p-6"><Card><CardHeader><CardTitle>BTCBOX Administrator</CardTitle><CardDescription>Administrator access requires a verified Supabase Auth identity with an active BTCBOX administrator membership.</CardDescription></CardHeader><CardContent><p className="text-sm text-rose-300">{error || "Administrator membership was not found."}</p></CardContent></Card></div>;
 
-  return <div className="mx-auto w-full max-w-7xl space-y-5 p-4 md:p-6">
+  return <div className="tone-admin mx-auto w-full max-w-7xl space-y-5 p-4 md:p-6">
     <div className="flex flex-wrap items-start justify-between gap-3">
       <div><p className="text-xs font-semibold uppercase tracking-[0.18em] text-brand-text-muted">BTCBOX / CONTROL CENTER</p><h1 className="mt-1 text-2xl font-bold text-brand-text">Administrator Console</h1><p className="mt-1 text-sm text-brand-text-muted">{session.is_super_admin ? "Super Administrator" : "Role-based administrator"} · {session.user_id}</p></div>
       <Badge variant="outline">{session.is_super_admin ? "SUPER ADMIN" : "ACTIVE ADMIN"}</Badge>
