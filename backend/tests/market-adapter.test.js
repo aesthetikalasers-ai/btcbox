@@ -113,3 +113,28 @@ test('timestamps accept plausible Unix seconds, use response fallback and preser
   applyMarket({ data: { ETH: { price: 3000, ts: 'invalid' } } });
   assert.equal(market.ETHUSDT.ts, 0);
 });
+
+test('market adapter accepts only positive prices from the current response', () => {
+  const { market, applyMarket } = createMarket();
+  Object.assign(market.BTCUSDT, { price: 65000, chg: 2, high: 66000, low: 64000, vol: 900, ts: nowSeconds() - 5 });
+  const accepted = applyMarket({ markets: [
+    { sym: 'BTC', price: 0, chg: 0 },
+    { sym: 'ETH', price: null, chg: 1 },
+    { sym: 'SOL', price: 'NaN', chg: 2 },
+    { sym: 'BNB', price: 610, chg: -0.5, high: 620, low: 600, vol: 100, ts: nowSeconds() }
+  ] });
+  assert.equal(accepted, 1);
+  assert.equal(market.BTCUSDT.price, 0, 'a pair omitted from the current provider response must not retain an old quote');
+  assert.equal(market.ETHUSDT.price, 0);
+  assert.equal(market.SOLUSDT.price, 0);
+  assert.equal(market.BNBUSDT.price, 610);
+});
+
+test('an empty or invalid provider response clears all previous market quotes', () => {
+  const { market, applyMarket } = createMarket();
+  market.BTCUSDT.price = 65000;
+  market.ETHUSDT.price = 3200;
+  assert.equal(applyMarket({ markets: [{ sym: 'BTC', price: 0 }, { sym: 'ETH', price: '' }] }), 0);
+  assert.equal(market.BTCUSDT.price, 0);
+  assert.equal(market.ETHUSDT.price, 0);
+});
