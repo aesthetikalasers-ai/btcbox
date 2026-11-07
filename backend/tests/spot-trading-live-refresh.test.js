@@ -150,7 +150,7 @@ test('admin withdrawal review hides stale actionable queue data when refresh fai
   const refreshEnd = adminPage.indexOf('const loadOlderAuditRecords', refreshStart);
   const refresh = adminPage.slice(refreshStart, refreshEnd);
   assert.ok(refreshStart >= 0 && refreshEnd > refreshStart);
-  assert.equal((refresh.match(/setWithdrawals\(\[\]\)/g) || []).length, 2);
+  assert.equal((refresh.match(/setWithdrawals\(\[\]\)/g) || []).length, 4);
   assert.ok(refresh.includes('The queue could not refresh. Reload this tab before taking another action.'));
 });
 
@@ -197,7 +197,7 @@ test('admin withdrawal queue is non-actionable until a refreshed queue has retur
   const refreshEnd = adminPage.indexOf('const loadOlderAuditRecords', manualStart);
   const refresh = adminPage.slice(refreshStart, refreshEnd);
   assert.ok(refreshStart >= 0 && manualStart > refreshStart && refreshEnd > manualStart);
-  assert.equal((refresh.match(/setWithdrawals\\(\\[\\]\\)/g) || []).length, 2);
+  assert.equal((refresh.match(/setWithdrawals\(\[\]\)/g) || []).length, 4);
   assert.ok(refresh.includes('disabled={busy||reviewQueueLoading||!hasPermission("withdrawals.review")}'));
   assert.ok(refresh.includes('disabled={busy||reviewQueueLoading||!payoutReferences[item.id]?.trim()||!hasPermission("withdrawals.review")}'));
   assert.ok(refresh.includes('<input disabled={reviewQueueLoading} value={payoutReferences[item.id]||""}'));
