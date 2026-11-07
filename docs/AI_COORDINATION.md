@@ -6510,3 +6510,16 @@ Current branch HEAD at note creation: `51c302a96f069876e438321d3597501fcbc26b54`
 
 - FINAL CI — frontend run `42357960746` passed **68/68 desktop/mobile Playwright tests** after fixing the hidden duplicate-row locator. npm install, lint, build and Chromium setup passed. Backend run `42357960745` passed unified build, tests, fail-closed preflight and output/entrypoint checks.
 - Vercel's separate status remains blocked by the free-plan daily deployment cap. No deployment was attempted. Manual screenshot and live-provider checks remain pending.
+
+
+## 2026-11-07 — 2号 AI production readiness follow-up (PR #64)
+
+- Branch: `work/2ai-production-readiness-20261107`; PR #64 targets `main`. Latest recorded code SHA before this note: `2415e39534368110e8708053901a14f2f3349758`.
+- FIXED: deployment preflight no longer requires obsolete `ADMIN_USER` / `ADMIN_PASS`; the sample environment documents Supabase Auth + database RBAC. Financial cutover flags remain explicitly fail-closed at `0`.
+- CI FINDING: first backend run failed one stale source assertion in `backend/tests/smoke.test.js` which required the removed legacy admin variables in `.env.example`. Updated the assertion to require the current RBAC documentation and reject reintroduction of those legacy variables.
+- CI FINDING: first frontend E2E run failed because `frontend/e2e/auth-routes.spec.ts` still expected `/support` to redirect to login. The route is intentionally public, but its account conversation is private.
+- FIXED: public `/support` now renders a public Help Center and sign-in entry for signed-out users. Support conversation GET/POST calls are made only after `useAuth().status === "authenticated"`; the submit handler also refuses anonymous sends. E2E now asserts the public route and that signed-out users do not touch private support APIs.
+- CI: backend workflow run `42377687895` completed success (unified build, backend tests, preflight and output checks). Frontend run `42377687910` had lint/build/Chromium setup pass; Playwright route tests were still running at this note. Do not mark frontend CI green until final job conclusion is success.
+- DB source audit: the canonical SQL inventory contains 25 ordered files (`0001`–`0032` with retired gaps explicitly documented). The bootstrap script is explicitly for a verified empty BTCBOX schema and is not an existing-data migration. Do not run it against the live project.
+- Hosted DB migration registry currently returns only timestamp versions `20261102133555` and `20261103062716`; do not equate these with the four-digit SQL source filenames. A read-only function catalog query found `public.review_withdrawal_atomic(text,text,boolean,text)` only among the 12 queried required RPC names; the other queried admin/RBAC, shared rate-limit, spot-market and Seconds functions were absent. Reconcile the full function/table inventory before preparing any live migration.
+- No production DDL/DML, migration, financial flag change, merge or Vercel deployment was performed. Owner approval and a backed-up, reviewed legacy-data migration plan are still required for production schema changes.
