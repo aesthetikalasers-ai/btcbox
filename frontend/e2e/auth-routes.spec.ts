@@ -63,6 +63,28 @@ test("Google sign-in button is shown when the public auth config enables Google"
   await expect(page.getByRole("button", { name: "Connect Solana wallet" })).toBeVisible();
 });
 
+test("wallet sign-in failures remain visible and never create a BTCBOX session without a wallet provider", async ({ page }) => {
+  const btcboxSessionExchanges: string[] = [];
+  page.on("request", request => {
+    const pathname = new URL(request.url()).pathname;
+    if (pathname === "/api/supabase-login" || pathname === "/api/google-login") {
+      btcboxSessionExchanges.push(pathname);
+    }
+  });
+
+  await page.goto("/login");
+  await page.getByRole("button", { name: "Connect Ethereum wallet" }).click();
+  await expect(page.getByRole("alert")).toBeVisible();
+  await expect(page.getByRole("alert")).not.toBeEmpty();
+  expect(btcboxSessionExchanges).toEqual([]);
+
+  await page.goto("/login");
+  await page.getByRole("button", { name: "Connect Solana wallet" }).click();
+  await expect(page.getByRole("alert")).toBeVisible();
+  await expect(page.getByRole("alert")).not.toBeEmpty();
+  expect(btcboxSessionExchanges).toEqual([]);
+});
+
 test("registration route offers Google and wallet identity creation without email registration", async ({ page }) => {
   await page.goto("/register");
 
