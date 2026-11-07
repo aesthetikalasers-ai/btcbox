@@ -394,3 +394,13 @@ Registration and the signed-out preview/home page are now the first pages to com
 - Added E2E regression: load a pending withdrawal, navigate to KYC, return with a simulated 503, and assert stale withdrawal ID and Approve action are absent while the error is visible.
 - Commits: d23218081fbbd9d993ef3280f4933ab1cc349d65 (Admin UI); 8a834cc1b5734b5a0259b54457e3d92ce7649815 (browser test).
 - Exact-commit CI pending. No backend finance API, DB, payout semantics, production setting, merge or deployment changed.
+
+
+## Admin audit reload regression — 2026-11-07
+
+- Finding: audit-tab re-entry previously retained old rows and canonical-source/completeness labels while the next GET was pending; on failure, stale evidence remained visible.
+- Fix: clear the audit snapshot and reset provenance/completeness to unknown before every tab-level GET; successful empty snapshots now render an explicit empty state.
+- E2E: canonical fixture -> navigate to KYC -> force second audit GET to return 503; assert prior audit ID disappears and source confidence resets.
+- Frontend-only state/display change; no financial API, ledger, database, or auth contract changes.
+- Manual-credit path inspected: browser-persisted request ID is reused on ambiguous network/server responses. Preserve that behavior; no real credit or production write tests were performed.
+- Commits: `90da39877976130d306ec0b0488ce40e5349bcaf` (UI), `647923bc0aee7f7d3a76dd220259aa37b69fd8a4` (E2E).
