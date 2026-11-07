@@ -109,3 +109,16 @@ test('admin manual payout handler blocks concurrent duplicate submissions synchr
   assert.ok(admin.includes('payoutSubmitLockRef.current = true;'));
   assert.ok(admin.includes('finally { payoutSubmitLockRef.current = false; setBusy(false); }'));
 });
+
+test('admin manual credit uses a per-asset synchronous lock and fails closed without secure request IDs', () => {
+  const admin = fs.readFileSync(path.resolve(__dirname, '../../frontend/src/features/admin/AdminPage.tsx'), 'utf8');
+  const start = admin.indexOf('const manualCredit = async');
+  const end = admin.indexOf('const refreshWithdrawalQueue', start);
+  const handler = admin.slice(start, end);
+  assert.ok(start >= 0 && end > start);
+  assert.ok(handler.includes('manualCreditLocksRef.current[coin]'));
+  assert.ok(handler.includes('manualCreditLocksRef.current[coin] = true'));
+  assert.ok(handler.includes('window.crypto.randomUUID()'));
+  assert.ok(handler.includes('Secure manual-credit request IDs are unavailable in this browser.'));
+  assert.ok(handler.includes('finally { manualCreditLocksRef.current[coin] = false; setBusy(false); }'));
+});
