@@ -48,7 +48,8 @@ test('manual payout completion is audit/status-only and does not apply another l
 test('React withdrawal intent persists only non-secret request fields and retries with the same ID', () => {
   const pages = fs.readFileSync(path.resolve(__dirname, '../../frontend/src/features/pages/Pages.tsx'), 'utf8');
   assert.ok(pages.includes('btcbox.withdraw.pending.v1.'));
-  const intentStart = pages.indexOf('intent={version:1,request_id:window.crypto.randomUUID()');
+  const requestIdStart = pages.indexOf('requestId=window.crypto.randomUUID()');
+  const intentStart = pages.indexOf('intent={version:1,request_id:requestId', requestIdStart);
   const intentEnd = pages.indexOf('};', intentStart);
   assert.ok(intentStart >= 0 && intentEnd > intentStart);
   const intent = pages.slice(intentStart, intentEnd);
