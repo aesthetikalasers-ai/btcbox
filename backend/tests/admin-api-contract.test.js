@@ -38,6 +38,22 @@ test('admin frontend functions call the same paths the backend implements and ne
   assert.ok(adminPage.includes('aria-modal="true"'));
 });
 
+
+test('withdrawal rejection API requires a bounded, non-control-character audit reason', () => {
+  const start = api.indexOf("if (sub === 'withdraw/reject' && method === 'POST')");
+  const end = api.indexOf("// POST /api/admin/withdraw/mark-paid", start);
+  assert.ok(start >= 0 && end > start, 'withdrawal reject route must exist');
+  const route = api.slice(start, end);
+  assert.match(route, /const reason = String\(body\.reason \|\| ''\)\.trim\(\)/);
+  assert.ok(route.includes("WITHDRAWAL_REJECTION_REASON_REQUIRED"));
+  assert.ok(route.includes("WITHDRAWAL_REJECTION_REASON_INVALID"));
+  assert.match(route, /reason\.length > 200 \|\| \/\[\\u0000-\\u001f\\u007f\]\/\.test\(reason\)/);
+  assert.match(route, /p_reason: reason/);
+  assert.doesNotMatch(route, /Admin rejected withdrawal\./);
+  // The operator UI already requires a non-empty reason before sending.
+  assert.ok(adminPage.includes('A rejection reason is required.'));
+});
+
 test('admin error feedback surfaces server codes and the refresh-after-confirmed-success pattern', () => {
   // Admin actions that succeed but whose follow-up refresh fails must keep the
   // success notice and tell the operator to reload, not report the action as
