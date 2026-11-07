@@ -1158,7 +1158,7 @@ test("public market preview remains responsive across mobile, tablet and desktop
     await page.goto("/home");
     await expect(page.getByRole("heading", { name: "Explore the market. Trade with confidence." })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Market overview" })).toBeVisible();
-    await expect(page.getByText("BTC/USDT", { exact: true }).first()).toBeVisible();
+    await expect(page.locator("p:visible").filter({ hasText: /^BTC\\/USDT$/ }).first()).toBeVisible();
     const dimensions = await page.evaluate(() => ({
       viewport: document.documentElement.clientWidth,
       content: document.documentElement.scrollWidth,
