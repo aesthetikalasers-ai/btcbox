@@ -6493,3 +6493,13 @@ Current branch HEAD at note creation: `51c302a96f069876e438321d3597501fcbc26b54`
 
 - Final CI green: frontend `42356891195` passed **64/64 desktop/mobile Playwright tests** with no flaky retries; backend `42356891197` passed **411/411 tests**, unified build, fail-closed preflight and output checks.
 - PR #61 stays open/draft. No merge or deployment. Production weak `ADMIN_PASS` runtime blocker and manual visual/live-provider Preview checks remain unresolved.
+
+
+## 2号 AI — registration and public preview responsive QA — 2026-11-07
+
+- Registration source review confirmed Google/Ethereum/Solana identity verification first, followed by BTCBOX username/password setup at `/account-setup`. No email registration/OTP was introduced. Username/password, Google and wallet sign-in remain on login.
+- Public `/home`, `/markets`, and `/trade/:symbol` routes remain available signed out; private account routes remain gated.
+- Added Playwright coverage for registration at 320/390/768/1440 px and public preview at 320/375/768/1024/1440 px, including core content and no document-level horizontal overflow.
+- Commit: `4362d2589ae1c81c4ba4a5be585aa4b526a97c37`. Fresh PR CI pending.
+- Vercel status is blocked by the free-plan daily deployment cap (`api-deployments-free-per-day`); no deployment was retried. Automated viewport tests do not replace manual screenshot or live-provider verification.
+- No production changes, merge, or deployment.
