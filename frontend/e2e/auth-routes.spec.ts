@@ -509,6 +509,63 @@ test("Admin KYC approval remains disabled without an uploaded document and secur
   expect(adminMutations).toEqual([]);
 });
 
+test("Admin audit reload failure clears stale records and resets source confidence", async ({ page }) => {
+  await installAdminE2EIdentity(page);
+  let auditReads = 0;
+  await page.route("**/api/admin/audit-logs?**", async route => {
+    auditReads += 1;
+    if (auditReads === 1) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          ok: true, source: "postgres_financial_audit_log", completeness: "postgres_canonical",
+          logs: [{
+            id: "E2E-STALE-AUDIT", time: "2026-11-07T01:00:00.000Z",
+            by: "e2e-admin-001", action: "manual_deposit_confirmed",
+            uid: "e2e-user-001", detail: "E2E audit fixture", postgres_sync_status: "synced",
+          }],
+        }),
+      });
+      return;
+    }
+    await route.fulfill({
+      status: 503,
+      contentType: "application/json",
+      body: JSON.stringify({ ok: false, code: "AUDIT_UNAVAILABLE", msg: "Audit log is temporarily unavailable." }),
+    });
+  });
+  await page.route("**/api/admin/kyc", route => route.fulfill({
+    status: 200, contentType: "application/json", body: JSON.stringify({ ok: true, kycs: [] }),
+  }));
+  await page.route("**/api/admin/withdrawals", route => route.fulfill({
+    status: 200, contentType: "application/json", body: JSON.stringify({ ok: true, withdrawals: [] }),
+  }));
+  await page.route("**/api/admin/session", async route => route.fulfill({
+    status: 200,
+    contentType: "application/json",
+    body: JSON.stringify({
+      ok: true, user_id: "e2e-admin-001", status: "active", is_super_admin: false,
+      permissions: ["withdrawals.read", "kyc.read", "financial_audit.read"],
+    }),
+  }));
+
+  await page.goto("/admin");
+  await page.getByRole("button", { name: "Audit log", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Financial audit log" })).toBeVisible();
+  await expect(page.getByText("E2E-STALE-AUDIT")).toBeVisible();
+  await expect(page.getByText("PostgreSQL canonical")).toBeVisible();
+
+  await page.getByRole("button", { name: "KYC", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "KYC review" })).toBeVisible();
+  await page.getByRole("button", { name: "Audit log", exact: true }).click();
+
+  await expect(page.getByRole("alert")).toContainText("Audit log is temporarily unavailable.");
+  await expect(page.getByText("E2E-STALE-AUDIT")).toHaveCount(0);
+  await expect(page.getByText("Source unknown")).toBeVisible();
+  expect(auditReads).toBeGreaterThanOrEqual(2);
+});
+
 test("Admin queue reload failure never leaves stale withdrawal actions visible", async ({ page }) => {
   await installAdminE2EIdentity(page);
   let queueReads = 0;
