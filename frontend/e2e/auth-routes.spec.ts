@@ -436,6 +436,7 @@ async function installAdminE2EIdentity(page: import("@playwright/test").Page) {
 test("Admin withdrawal refresh failure stays a read-only error and cannot imply a financial action", async ({ page }) => {
   await installAdminE2EIdentity(page);
   let queueReads = 0;
+  let failNextQueueRead = false;
   const adminMutations: string[] = [];
   page.on("request", request => {
     const url = new URL(request.url());
@@ -445,21 +446,22 @@ test("Admin withdrawal refresh failure stays a read-only error and cannot imply 
   });
   await page.route("**/api/admin/withdrawals", async route => {
     queueReads += 1;
-    if (queueReads === 1) {
+    if (failNextQueueRead) {
+      failNextQueueRead = false;
       await route.fulfill({
-        status: 200,
+        status: 503,
         contentType: "application/json",
-        body: JSON.stringify({ ok: true, withdrawals: [{
-          id: "E2E-WITHDRAWAL-001", uid: "e2e-user-001", coin: "USDT", amount: "25.00",
-          fee: "1.00", network: "TRC20", address: "T-E2E-DESTINATION", status: "approved",
-        }] }),
+        body: JSON.stringify({ ok: false, code: "QUEUE_UNAVAILABLE", msg: "Withdrawal review queue could not be refreshed." }),
       });
       return;
     }
     await route.fulfill({
-      status: 503,
+      status: 200,
       contentType: "application/json",
-      body: JSON.stringify({ ok: false, code: "QUEUE_UNAVAILABLE", msg: "Withdrawal review queue could not be refreshed." }),
+      body: JSON.stringify({ ok: true, withdrawals: [{
+        id: "E2E-WITHDRAWAL-001", uid: "e2e-user-001", coin: "USDT", amount: "25.00",
+        fee: "1.00", network: "TRC20", address: "T-E2E-DESTINATION", status: "approved",
+      }] }),
     });
   });
 
