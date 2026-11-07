@@ -45,6 +45,23 @@ test('user Trade Hub links only to configured pairs and Spot order submission ch
   assert.ok(pages.includes('(!spotPairEnabled&&!pendingIntent)||(!tradingStatus?.spot_order_entry_enabled&&!pendingIntent)'));
 });
 
+
+test('Bybit fallback rejects missing, stale, and implausibly future response timestamps', () => {
+  const marketStart = backend.indexOf("if (path === 'market' && method === 'GET')");
+  const klineStart = backend.indexOf("if (path === 'kline' && method === 'GET')", marketStart);
+  const route = backend.slice(marketStart, klineStart);
+  const bybitStart = route.indexOf("const missingBases = bases.filter");
+  const bybitEnd = route.indexOf("const snapshotTs =", bybitStart);
+  const fallback = route.slice(bybitStart, bybitEnd);
+  assert.ok(fallback.includes("providerTs === null || providerTs > now + 15 || now - providerTs > 60"));
+  assert.ok(fallback.indexOf('providerTs === null') < fallback.indexOf('normalize(base'));
+  // Coinbase's timestamp is last-trade time, not response time; do not apply
+  // the Bybit response-age gate to it because quiet markets can have old trades.
+  const coinbase = route.slice(0, bybitStart);
+  assert.ok(coinbase.includes("Date.parse(ticker.time) / 1000"));
+  assert.ok(!coinbase.includes('now - providerTs > 60'));
+});
+
 test('market timestamps distinguish server snapshot time from provider-specific timestamps', () => {
   const marketStart = backend.indexOf("if (path === 'market' && method === 'GET')");
   const klineStart = backend.indexOf("if (path === 'kline' && method === 'GET')", marketStart);
