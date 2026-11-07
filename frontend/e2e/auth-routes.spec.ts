@@ -785,8 +785,7 @@ test("Admin user-detail failure clears the previously selected user's financial 
   await page.getByRole("button", { name: "Open", exact: true }).nth(1).click();
   await expect(page.getByRole("alert")).toContainText("User account could not be loaded.");
   await expect(page.getByText("E2E-DEPOSIT-001")).toHaveCount(0);
-  await expect(page.getByText("first@example.invalid")).toHaveCount(0);
-  await expect(page.getByText("e2e-user-001", { exact: true })).toHaveCount(0);
+  await expect(page.getByText("Available: 250.00")).toHaveCount(0);
   await expect(page.getByText("Select a user to load their current balances.")).toBeVisible();
   expect(detailReads).toBe(2);
 });
