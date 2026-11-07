@@ -6155,3 +6155,11 @@ Current branch HEAD at note creation: `51c302a96f069876e438321d3597501fcbc26b54`
 - The KYC exception override remains backend-only. Do not expose it as a normal approval action: it can bypass the normal document gate and requires an explicit reason/audit trail. Escalate any decision to broaden that policy to the owner.
 - Next: run backend KYC/admin tests and frontend lint/build/desktop-mobile route smoke tests against the resulting branch head; then continue withdrawal audit/idempotency and market provider freshness review.
 - No merge, deployment, production database change, or live financial action was performed.
+
+
+## Verification status for KYC evidence-gate commits — 2026-11-07
+
+- The GitHub commit-status API reports only the Vercel context for commits `7fe5a5e`, `8b45241`, and `7817fc2`; that context is FAILURE with Vercel's `upgradeToPro=build-rate-limit` URL. This is an account/build-quota block, not a test assertion result.
+- No backend test or frontend CI result has yet been produced for the KYC evidence-gate source commit. Do not label this batch TEST PASSED until those suites run on the exact source SHA.
+- Prior successful backend/frontend runs listed in the earlier ledger belong to earlier commits and do not verify these new changes.
+- Release remains blocked: no merge or deployment.
