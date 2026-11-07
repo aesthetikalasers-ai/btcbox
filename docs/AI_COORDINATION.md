@@ -6536,3 +6536,16 @@ Current branch HEAD at note creation: `51c302a96f069876e438321d3597501fcbc26b54`
 - Frontend CI run `42409262067` on the same code/test head: lint and build PASSED; Chromium installation and desktop/mobile route smoke tests were still running at the time of this update.
 - The current branch head advances to `9ccfb4a7878f0f4ba09ca486e5bf3671a85a805f` with coordination-only documentation after the tested code/test head. No application code changed after the passing backend build/tests or frontend lint/build.
 - Browser E2E remains NOT VERIFIED until the smoke-test job completes. Vercel deployment status is not used as a code-test signal; deployment remains paused.
+
+
+## 2号 AI — 2026-11-08 Admin review queue concurrency batch
+
+- Branch: `work/2ai-market-stale-state-20261108`.
+- Latest batch commit: `6d05b5e793ab2eab6a98f2d5daa4040c6bbcd049`.
+- `frontend/src/features/admin/AdminPage.tsx`: added independent request sequence guards for withdrawal and KYC queue refreshes. Superseded responses no longer replace a newer queue or clear the newer request's loading state. Refresh errors keep the actionable queue empty.
+- KYC approve/reject follow-up reads now use the same guarded refresh helper, preserving a confirmed-action notice on successful refresh and reporting a refresh failure separately from the already-confirmed review action.
+- `backend/tests/admin-api-contract.test.js`: added source-contract coverage for independent request IDs, stale-response rejection, and unified KYC refresh after approve/reject.
+- Source review confirmed UI action controls already gate manual credit, KYC review and withdrawal review with their corresponding permission keys; backend routes also have explicit permission mapping tests. KYC approval remains disabled if required document metadata/preview is missing.
+- No API contract or Core financial behavior changed. No real funds, database writes, merge, or deployment performed.
+- CI for this exact commit: backend run `42412628579`, frontend run `42412628647`; both were in progress at the time of this note. Do not claim tests passed until completed.
+- Admin manual credit remains staff-confirmed credit from a selected user's detail; no independent pending-deposit queue endpoint was found in the React API client. Do not invent such a queue in the frontend.
