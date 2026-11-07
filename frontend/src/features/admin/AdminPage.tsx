@@ -108,6 +108,8 @@ export function AdminPage() {
   });
   const [kyc, setKyc] = useState<AdminKycRecord[]>([]);
   const [audit, setAudit] = useState<AdminAuditRecord[]>([]);
+  const [auditNextBefore, setAuditNextBefore] = useState<string | null>(null);
+  const [auditPageLoading, setAuditPageLoading] = useState(false);
   const [auditSource, setAuditSource] = useState("unknown");
   const [auditCompleteness, setAuditCompleteness] = useState("unknown");
   const [orders, setOrders] = useState<Array<Record<string, unknown>>>([]);
@@ -249,10 +251,12 @@ export function AdminPage() {
         // Never leave a previously loaded audit snapshot visible while a new
         // read is pending or after that read fails.
         setAudit([]);
+        setAuditNextBefore(null);
         setAuditSource("unknown");
         setAuditCompleteness("unknown");
         const snapshot = await getAdminAuditLogs(token);
         setAudit(snapshot.logs || []);
+        setAuditNextBefore(snapshot.next_before || null);
         setAuditSource(snapshot.source || "unknown");
         setAuditCompleteness(snapshot.completeness || "unknown");
       }
@@ -432,6 +436,32 @@ export function AdminPage() {
       setReviewQueueLoading(false);
     }
   };
+  const loadOlderAuditRecords = async () => {
+    if (!token || !auditNextBefore || auditPageLoading) return;
+    const cursor = auditNextBefore;
+    setAuditPageLoading(true);
+    setError("");
+    try {
+      const snapshot = await getAdminAuditLogs(token, 50, undefined, cursor);
+      const nextSource = snapshot.source || "unknown";
+      const nextCompleteness = snapshot.completeness || "unknown";
+      if (nextSource !== auditSource || nextCompleteness !== auditCompleteness) {
+        setError("Audit source changed while loading older records. Refresh the Audit log before continuing.");
+        setAuditNextBefore(null);
+        return;
+      }
+      setAudit(current => {
+        const seen = new Set(current.map(item => item.id));
+        return [...current, ...(snapshot.logs || []).filter(item => !seen.has(item.id))];
+      });
+      setAuditNextBefore(snapshot.next_before || null);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "Older audit records could not be loaded.");
+    } finally {
+      setAuditPageLoading(false);
+    }
+  };
+
   const refreshKycQueue = async () => {
     if (!token) return;
     setReviewQueueLoading(true); setError(""); setNotice("");
@@ -771,7 +801,7 @@ export function AdminPage() {
 
     {!loading && tab === "kyc" ? <Card><CardHeader><div className="flex flex-wrap items-center justify-between gap-3"><CardTitle>KYC review</CardTitle><Button size="sm" variant="outline" disabled={reviewQueueLoading || busy} onClick={()=>void refreshKycQueue()}>{reviewQueueLoading ? "Refreshing…" : "Refresh queue"}</Button></div></CardHeader><CardContent><div className="overflow-x-auto"><table className="w-full min-w-[700px] text-left text-sm"><thead><tr className="border-b border-brand-border text-xs text-brand-text-muted"><th className="p-2">User</th><th className="p-2">Name</th><th className="p-2">Document</th><th className="p-2">Status</th><th className="p-2">Submitted</th><th className="p-2">Action</th></tr></thead><tbody>{kyc.map(item=><tr key={item.uid} className="border-b border-brand-border/60"><td className="p-2">{item.uid}<div className="text-xs text-brand-text-muted">{item.email}</div></td><td className="p-2">{item.name}</td><td className="p-2">{item.id_type}<div className="mt-1 text-xs">{item.document_url&&!item.document_preview_error?<a href={item.document_url} target="_blank" rel="noreferrer" className="text-brand-accent underline underline-offset-2">Open secure image</a>:<span className="text-brand-text-muted">{item.document_preview_error||"Document image missing"}</span>}</div></td><td className="p-2">{item.status}</td><td className="p-2">{formatDate(item.submitted_at)}</td><td className="space-x-2 p-2"><Button size="sm" disabled={busy||!hasPermission("kyc.review")||!item.document_uploaded||!item.document_url||!!item.document_preview_error} onClick={()=>void reviewKyc(item.uid,true)}>Approve</Button><Button size="sm" variant="outline" disabled={busy||!hasPermission("kyc.review")} onClick={()=>void reviewKyc(item.uid,false)}>Reject</Button>{!item.document_uploaded||!item.document_url||item.document_preview_error?<p className="mt-1 text-xs text-amber-300">{!item.document_uploaded?"Identity document upload is required before approval.":"Document preview unavailable; refresh the queue before approval."}</p>:null}</td></tr>)}</tbody></table></div></CardContent></Card> : null}
 
-    {!loading && tab === "audit" ? <Card><CardHeader><div className="flex flex-wrap items-start justify-between gap-2"><div><CardTitle>Financial audit log</CardTitle><CardDescription>{auditCompleteness === "postgres_canonical" ? "Canonical append-only PostgreSQL history. Financial operations and account history use the same database source." : auditCompleteness === "state_document_retention_limited" ? "Retention-limited state-file history. Do not treat this list as a complete financial audit record." : "Audit source is not confirmed. Do not treat this list as complete until the source is verified."}</CardDescription></div><Badge variant={auditCompleteness === "postgres_canonical" ? "default" : "destructive"}>{auditSource === "postgres_financial_audit_log" ? "PostgreSQL canonical" : auditSource === "btcbox_state" ? "State file · limited" : "Source unknown"}</Badge></div></CardHeader><CardContent><div className="overflow-x-auto"><table className="w-full min-w-[800px] text-left text-sm"><thead><tr className="border-b border-brand-border text-xs text-brand-text-muted"><th className="p-2">Time</th><th className="p-2">Operator ID</th><th className="p-2">Action</th><th className="p-2">Affected user UID</th><th className="p-2">Sync</th><th className="p-2">Detail</th></tr></thead><tbody>{audit.length ? audit.map((item,index)=><tr key={item.id||index} className="border-b border-brand-border/60"><td className="p-2">{formatDate(item.time)}</td><td className="p-2 font-mono text-xs">{item.by}</td><td className="p-2">{item.action}</td><td className="p-2">{item.uid}</td><td className="p-2">{item.postgres_sync_status}</td><td className="max-w-[280px] break-all p-2 text-xs">{item.detail}</td></tr>) : <tr><td colSpan={6} className="p-6 text-center text-sm text-brand-text-muted">No audit records are available in this snapshot.</td></tr>}</tbody></table></div></CardContent></Card> : null}
+    {!loading && tab === "audit" ? <Card><CardHeader><div className="flex flex-wrap items-start justify-between gap-2"><div><CardTitle>Financial audit log</CardTitle><CardDescription>{auditCompleteness === "postgres_canonical" ? "Canonical append-only PostgreSQL history. Financial operations and account history use the same database source." : auditCompleteness === "state_document_retention_limited" ? "Retention-limited state-file history. Do not treat this list as a complete financial audit record." : "Audit source is not confirmed. Do not treat this list as complete until the source is verified."}</CardDescription></div><Badge variant={auditCompleteness === "postgres_canonical" ? "default" : "destructive"}>{auditSource === "postgres_financial_audit_log" ? "PostgreSQL canonical" : auditSource === "btcbox_state" ? "State file · limited" : "Source unknown"}</Badge></div></CardHeader><CardContent><div className="overflow-x-auto"><table className="w-full min-w-[800px] text-left text-sm"><thead><tr className="border-b border-brand-border text-xs text-brand-text-muted"><th className="p-2">Time</th><th className="p-2">Operator ID</th><th className="p-2">Action</th><th className="p-2">Affected user UID</th><th className="p-2">Sync</th><th className="p-2">Detail</th></tr></thead><tbody>{audit.length ? audit.map((item,index)=><tr key={item.id||index} className="border-b border-brand-border/60"><td className="p-2">{formatDate(item.time)}</td><td className="p-2 font-mono text-xs">{item.by}</td><td className="p-2">{item.action}</td><td className="p-2">{item.uid}</td><td className="p-2">{item.postgres_sync_status}</td><td className="max-w-[280px] break-all p-2 text-xs">{item.detail}</td></tr>) : <tr><td colSpan={6} className="p-6 text-center text-sm text-brand-text-muted">No audit records are available in this snapshot.</td></tr>}</tbody></table></div><div className="mt-4 flex flex-wrap items-center justify-between gap-3"><p className="text-xs text-brand-text-muted">Showing {audit.length} records from this source snapshot.</p>{auditNextBefore ? <Button type="button" variant="outline" disabled={auditPageLoading} onClick={()=>void loadOlderAuditRecords()}>{auditPageLoading ? "Loading older records..." : "Load older records"}</Button> : <span className="text-xs text-brand-text-muted">No older records in this snapshot.</span>}</div></CardContent></Card> : null}
 
     {!loading && tab === "orders" ? <Card><CardHeader><div className="flex flex-wrap items-start justify-between gap-2"><div><CardTitle>Orders</CardTitle><CardDescription>{ordersSource === "postgres_financial_matching" ? "Customer order history and this administrator view use the canonical PostgreSQL matching orders." : ordersSource === "legacy_state" ? "Legacy state fallback is active because matching-engine mode was not requested." : "Order data source is not confirmed."}</CardDescription></div><Badge variant={ordersSource === "postgres_financial_matching" ? "default" : "destructive"}>{ordersSource === "postgres_financial_matching" ? "Source: PostgreSQL matching" : ordersSource === "legacy_state" ? "Source: legacy state" : "Source: unknown"}</Badge></div></CardHeader><CardContent><div className="overflow-x-auto"><table className="w-full min-w-[700px] text-left text-sm"><thead><tr className="border-b border-brand-border text-xs text-brand-text-muted"><th className="p-2">ID</th><th className="p-2">User</th><th className="p-2">Symbol</th><th className="p-2">Side</th><th className="p-2">Status</th><th className="p-2">Created</th></tr></thead><tbody>{orders.map((item,index)=><tr key={asText(item.id)||index} className="border-b border-brand-border/60"><td className="p-2 font-mono text-xs">{asText(item.id)}</td><td className="p-2">{asText(item.uid||item.user_id)}</td><td className="p-2">{asText(item.symbol)}</td><td className="p-2">{asText(item.side)}</td><td className="p-2">{asText(item.status)}</td><td className="p-2">{formatDate(item.created_at||item.time)}</td></tr>)}</tbody></table></div></CardContent></Card> : null}
 
