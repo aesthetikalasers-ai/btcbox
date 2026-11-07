@@ -25,8 +25,6 @@ export function Dashboard() {
   const volumeRange = useDashboardStore((state) => state.volumeRange);
   const liquidityInterval = LIQUIDITY_INTERVALS[liquidityRange] || "5m";
   const volumeInterval = VOLUME_INTERVALS[volumeRange] || "1h";
-  const latestMarketSnapshotTs = markets.reduce((latest, item) => Math.max(latest, item.snapshotTs || 0), 0);
-  const marketSnapshotStale = latestMarketSnapshotTs > 0 && Date.now() / 1000 - latestMarketSnapshotTs > 90;
 
   useEffect(() => {
     const controller = new AbortController();
@@ -40,9 +38,8 @@ export function Dashboard() {
         setError("");
       }).catch((reason: unknown) => {
         if (reason instanceof Error && reason.name === "AbortError") return;
-        // Do not leave old quotes on screen as if they were current.
-        setMarkets([]);
-        setError(reason instanceof Error ? reason.message : "Market data is unavailable.");
+        // Keep the last confirmed rows visible while the provider is unavailable.
+        setError("Market data is temporarily unavailable. The last confirmed market values remain visible.");
       }).finally(() => {
         refreshing = false;
         if (!controller.signal.aborted) setLoading(false);
@@ -55,17 +52,12 @@ export function Dashboard() {
 
   useEffect(() => {
     const controller = new AbortController();
-    let refreshing = false;
-    const load = () => {
-      if (refreshing || controller.signal.aborted) return;
-      refreshing = true;
-      void getKlines("BTCUSDT", liquidityInterval, controller.signal).then((rows) => {
-        if (!controller.signal.aborted) setLiquidityCandles(rows);
-      }).catch((reason: unknown) => {
-        if (reason instanceof Error && reason.name === "AbortError") return;
-        if (!controller.signal.aborted) setLiquidityCandles([]);
-      }).finally(() => { refreshing = false; });
-    };
+    const load = () => getKlines("BTCUSDT", liquidityInterval, controller.signal).then((rows) => {
+      if (!controller.signal.aborted) setLiquidityCandles(rows);
+    }).catch((reason: unknown) => {
+      if (reason instanceof Error && reason.name === "AbortError") return;
+      if (!controller.signal.aborted) setLiquidityCandles([]);
+    });
     setLiquidityCandles([]);
     load();
     const refreshId = window.setInterval(load, 60000);
@@ -74,25 +66,20 @@ export function Dashboard() {
 
   useEffect(() => {
     const controller = new AbortController();
-    let refreshing = false;
-    const load = () => {
-      if (refreshing || controller.signal.aborted) return;
-      refreshing = true;
-      void getKlines("BTCUSDT", volumeInterval, controller.signal).then((rows) => {
-        if (!controller.signal.aborted) setVolumeCandles(rows);
-      }).catch((reason: unknown) => {
-        if (reason instanceof Error && reason.name === "AbortError") return;
-        if (!controller.signal.aborted) setVolumeCandles([]);
-      }).finally(() => { refreshing = false; });
-    };
+    const load = () => getKlines("BTCUSDT", volumeInterval, controller.signal).then((rows) => {
+      if (!controller.signal.aborted) setVolumeCandles(rows);
+    }).catch((reason: unknown) => {
+      if (reason instanceof Error && reason.name === "AbortError") return;
+      if (!controller.signal.aborted) setVolumeCandles([]);
+    });
     setVolumeCandles([]);
     load();
     const refreshId = window.setInterval(load, 60000);
     return () => { window.clearInterval(refreshId); controller.abort(); };
   }, [volumeInterval]);
 
-  return <div className="mx-auto flex w-full max-w-[1600px] min-w-0 flex-col gap-5 p-3 sm:gap-6 sm:p-5 lg:p-7">
-    <section className="relative isolate overflow-hidden rounded-2xl border border-brand-border bg-gradient-to-br from-brand-surface via-brand-surface to-[#102a48] p-5 sm:p-7 lg:p-9">
+  return <div className="tone-market mx-auto flex w-full max-w-[1600px] min-w-0 flex-col gap-5 p-3 sm:gap-6 sm:p-5 lg:p-7">
+    <section className="relative isolate overflow-hidden rounded-2xl border border-brand-border bg-gradient-to-br from-brand-surface via-brand-surface to-[#18191c] p-5 sm:p-7 lg:p-9">
       <div className="pointer-events-none absolute -right-16 -top-24 -z-10 h-72 w-72 rounded-full bg-brand-accent/15 blur-3xl" />
       <div className="relative grid items-center gap-7 lg:grid-cols-[minmax(0,1fr)_minmax(220px,.55fr)]">
         <div className="min-w-0">
@@ -127,7 +114,7 @@ export function Dashboard() {
         <p className="type-body mt-1.5 text-brand-text-secondary">{t("Live spot prices and 24-hour market movement.")}</p>
       </div>
       <Badge variant="outline" className="border-brand-accent/30 bg-brand-accent/10 px-3 py-1 text-brand-text-secondary">
-        {loading ? t("Connecting") : error ? t("Feed unavailable") : marketSnapshotStale ? t("Snapshot stale") : t("Live market feed")}
+        {loading ? t("Connecting") : error || markets.length === 0 ? t("Feed unavailable") : t("Live market feed")}
       </Badge>
     </div>
     <LiveMarketsTable markets={markets} loading={loading} error={error} />
