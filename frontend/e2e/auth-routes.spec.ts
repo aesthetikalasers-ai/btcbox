@@ -468,6 +468,7 @@ test("Admin withdrawal refresh failure stays a read-only error and cannot imply 
   await expect(page.getByText("E2E-WITHDRAWAL-001")).toBeVisible();
   await expect(page.getByRole("button", { name: "Mark paid" })).toBeDisabled();
 
+  failNextQueueRead = true;
   await page.getByRole("button", { name: "Refresh queue" }).click();
   await expect(page.getByRole("alert")).toContainText("Withdrawal review queue could not be refreshed.");
   await expect(page.getByRole("alert")).not.toContainText("confirmed");
@@ -805,23 +806,25 @@ test("Admin audit reload failure clears stale records and resets source confiden
 test("Admin queue reload failure never leaves stale withdrawal actions visible", async ({ page }) => {
   await installAdminE2EIdentity(page);
   let queueReads = 0;
+  let failNextQueueRead = false;
   await page.route("**/api/admin/withdrawals", async route => {
     queueReads += 1;
-    if (queueReads <= 2) {
+    if (failNextQueueRead) {
+      failNextQueueRead = false;
       await route.fulfill({
-        status: 200,
+        status: 503,
         contentType: "application/json",
-        body: JSON.stringify({ ok: true, withdrawals: [{
-          id: "E2E-STALE-WITHDRAWAL", uid: "e2e-user-002", coin: "USDT", amount: "40.00",
-          fee: "1.00", network: "TRC20", address: "T-E2E-STALE", status: "pending",
-        }] }),
+        body: JSON.stringify({ ok: false, code: "QUEUE_UNAVAILABLE", msg: "Withdrawal review queue could not be refreshed." }),
       });
       return;
     }
     await route.fulfill({
-      status: 503,
+      status: 200,
       contentType: "application/json",
-      body: JSON.stringify({ ok: false, code: "QUEUE_UNAVAILABLE", msg: "Withdrawal review queue could not be refreshed." }),
+      body: JSON.stringify({ ok: true, withdrawals: [{
+        id: "E2E-STALE-WITHDRAWAL", uid: "e2e-user-002", coin: "USDT", amount: "40.00",
+        fee: "1.00", network: "TRC20", address: "T-E2E-STALE", status: "pending",
+      }] }),
     });
   });
   await page.route("**/api/admin/kyc", route => route.fulfill({
@@ -836,6 +839,7 @@ test("Admin queue reload failure never leaves stale withdrawal actions visible",
 
   await page.getByRole("button", { name: "KYC", exact: true }).click();
   await expect(page.getByRole("heading", { name: "KYC review" })).toBeVisible();
+  failNextQueueRead = true;
   await page.getByRole("button", { name: "Withdrawals", exact: true }).click();
 
   await expect(page.getByRole("alert")).toContainText("Withdrawal review queue could not be refreshed.");
