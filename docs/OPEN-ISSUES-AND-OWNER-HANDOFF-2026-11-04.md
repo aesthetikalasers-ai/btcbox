@@ -404,3 +404,14 @@ Registration and the signed-out preview/home page are now the first pages to com
 - Frontend-only state/display change; no financial API, ledger, database, or auth contract changes.
 - Manual-credit path inspected: browser-persisted request ID is reused on ambiguous network/server responses. Preserve that behavior; no real credit or production write tests were performed.
 - Commits: `90da39877976130d306ec0b0488ce40e5349bcaf` (UI), `647923bc0aee7f7d3a76dd220259aa37b69fd8a4` (E2E).
+
+
+## Admin payout TxID recovery — 2026-11-07
+
+- Backend contract checked via `backend/tests/withdrawal-manual-payout.test.js`: exact same-reference retries are idempotent; conflicting references after completion fail; manual payout completion is audit/status-only and does not apply another ledger debit.
+- Frontend issue: after an ambiguous payout POST (e.g. network/5xx), reloading Admin lost the typed TxID/reference, although the withdrawal could still be approved in the queue. This risked staff entering a different reference on retry.
+- Fix: persist non-secret payout reference in localStorage scoped by admin actor and withdrawal ID before sending; restore on session load; clear only after API confirmation. Fail closed if local persistence fails. Ambiguous result keeps same reference and displays verify-before-retry guidance.
+- Duplicate success notice now survives queue refresh.
+- E2E covers first POST 503 -> browser reload -> exact reference restoration -> same-reference duplicate success -> completed queue state.
+- No backend/financial contract, ledger, DB, production configuration, merge or deployment changes.
+- Commits: `c1fc1fb103064d10b04347ce5960bce4396d02d5` initial UI, `ed4bcf7211eb959e2bf8d6c9e4dd8f8599046a81` notice, `fe00e0d2b0518c9703e7a7e0ba78af499de3d316` validation, `6a5078bf98a7bfba43aeaba8d234feb657fd72b8` E2E initial, `3b7f05f1103034ba43aeaba8d234feb657fd72b8` E2E assertion.
