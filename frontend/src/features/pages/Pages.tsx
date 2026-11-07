@@ -765,9 +765,20 @@ export function DepositPage(){
  const [loading,setLoading]=useState(false);
  const [error,setError]=useState("");
  const [reload,setReload]=useState(0);
+ const [copyMessage,setCopyMessage]=useState("");
+ const copyAddress=async()=>{
+  if(!address)return;
+  try{
+   if(!navigator.clipboard?.writeText)throw new Error("Clipboard access is unavailable.");
+   await navigator.clipboard.writeText(address);
+   setCopyMessage("Deposit address copied.");
+  }catch{
+   setCopyMessage("Could not copy the address. Select and copy it manually.");
+  }
+ };
  useEffect(()=>{
   const controller=new AbortController();
-  setAddress("");setError("");setLoading(true);
+  setAddress("");setError("");setCopyMessage("");setLoading(true);
   getDepositAddress(coin,network,controller.signal).then(value=>{
    if(!controller.signal.aborted)setAddress(value);
   }).catch(reason=>{
@@ -787,13 +798,14 @@ export function DepositPage(){
   }).finally(()=>{if(!controller.signal.aborted)setHistoryLoading(false);});
   return ()=>controller.abort();
  },[historyReload]);
- const changeCoin=(next:string)=>{setCoin(next);setNetwork(depositNetworks[next][0]);};
+ const changeCoin=(next:string)=>{setAddress("");setError("");setCopyMessage("");setCoin(next);setNetwork(depositNetworks[next][0]);};
+ const changeNetwork=(next:string)=>{setAddress("");setError("");setCopyMessage("");setNetwork(next);};
  return <PageFrame eyebrow="BTCBOX / WALLET" title="Deposit" description="View the deposit address configured by BTCBOX for the selected asset and network. BTCBOX staff verify incoming transfers and manually credit the account.">
   <Card className="border-brand-border bg-brand-surface"><CardHeader><CardTitle>{t("Deposit address")}</CardTitle><CardDescription>{t("Always verify the asset and network before sending funds.")}</CardDescription></CardHeader><CardContent className="space-y-4">
-   <div className="grid gap-3 sm:grid-cols-2"><label className="space-y-1.5 text-sm"><span className="text-brand-text-muted">{t("Asset")}</span><select value={coin} onChange={e=>changeCoin(e.target.value)} className="w-full rounded-xl border border-brand-border bg-brand-surface-2 p-3 text-brand-text">{Object.keys(depositNetworks).map(x=><option key={x}>{x}</option>)}</select></label><label className="space-y-1.5 text-sm"><span className="text-brand-text-muted">{t("Network")}</span><select value={network} onChange={e=>setNetwork(e.target.value)} className="w-full rounded-xl border border-brand-border bg-brand-surface-2 p-3 text-brand-text">{depositNetworks[coin].map(x=><option key={x}>{x}</option>)}</select></label></div>
+   <div className="grid gap-3 sm:grid-cols-2"><label className="space-y-1.5 text-sm"><span className="text-brand-text-muted">{t("Asset")}</span><select value={coin} onChange={e=>changeCoin(e.target.value)} className="w-full rounded-xl border border-brand-border bg-brand-surface-2 p-3 text-brand-text">{Object.keys(depositNetworks).map(x=><option key={x}>{x}</option>)}</select></label><label className="space-y-1.5 text-sm"><span className="text-brand-text-muted">{t("Network")}</span><select value={network} onChange={e=>changeNetwork(e.target.value)} className="w-full rounded-xl border border-brand-border bg-brand-surface-2 p-3 text-brand-text">{depositNetworks[coin].map(x=><option key={x}>{x}</option>)}</select></label></div>
    {loading?<p className="rounded-xl border border-brand-border p-4 text-sm text-brand-text-muted" role="status">{t("Loading configured deposit address…")}</p>
    :error?<div className="rounded-xl border border-amber-400/30 p-4"><p className="text-sm text-amber-200" role="alert">{error}</p><Button className="mt-3" size="sm" variant="outline" onClick={()=>setReload(n=>n+1)}>{t("Try again")}</Button></div>
-   :<div className="space-y-2"><p className="text-xs font-semibold uppercase tracking-wide text-brand-text-muted">{coin} · {network}</p><div className="break-all rounded-xl border border-brand-border bg-brand-surface-2 p-4 font-mono text-sm">{address}</div><Button variant="outline" size="sm" disabled={!address} onClick={()=>navigator.clipboard?.writeText(address)}>{t("Copy address")}</Button></div>}
+   :<div className="space-y-2"><p className="text-xs font-semibold uppercase tracking-wide text-brand-text-muted">{coin} · {network}</p><div className="break-all rounded-xl border border-brand-border bg-brand-surface-2 p-4 font-mono text-sm">{address}</div><Button variant="outline" size="sm" disabled={!address} onClick={copyAddress}>{t("Copy address")}</Button>{copyMessage?<p className="text-xs text-brand-text-muted" role="status" aria-live="polite">{t(copyMessage)}</p>:null}</div>}
    <div className="rounded-xl border border-amber-400/20 bg-amber-400/5 p-4 text-sm text-brand-text-secondary"><p className="font-semibold text-amber-200">{t("Important")}</p><p className="mt-1">{t("Send only the selected asset on the selected network. Sending unsupported assets or using another network may result in permanent loss. After the transfer, BTCBOX staff verify receipt and manually credit the account. This page does not create a deposit order or automatically credit funds.")}</p></div>
   </CardContent></Card>
   <Card className="border-brand-border bg-brand-surface"><CardHeader><div className="flex flex-wrap items-center justify-between gap-3"><div><CardTitle>{t("Deposit history")}</CardTitle><CardDescription>{t("Track deposits verified and credited by BTCBOX staff.")}</CardDescription></div><Button size="sm" variant="outline" disabled={historyLoading} onClick={()=>setHistoryReload(value=>value+1)}><RefreshCw className={"mr-2 h-4 w-4 "+(historyLoading?"animate-spin":"")}/>{t("Refresh")}</Button></div></CardHeader><CardContent className="space-y-2">
