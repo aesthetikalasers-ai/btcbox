@@ -182,3 +182,20 @@ This is a source-chain correction only. It has not been run against the hosted p
 ## Diagnostic hardening follow-up
 
 The production readiness query was executed again after adding overload-count detection. The current live result is unchanged: `create_withdrawal_atomic` is still the old 9-argument function and is reported as `SIGNATURE_MISMATCH`. The diagnostic now also emits `LEGACY_OVERLOAD_PRESENT` if a future database has the expected function but retains any additional overload, rather than treating a matching arity as sufficient. This query remains SELECT-only and has again completed successfully against the connected project.
+
+
+## Production data preservation baseline — verified by count-only SQL
+
+A second privacy-safe diagnostic was added at `backend/supabase/diagnostics/production-data-inventory.sql`. It returns table counts, top-level JSON key/type/count metadata and aggregate user setup counts only; it does not return user IDs, balances, addresses, tokens, sessions, or row payloads. It was executed successfully against the connected project.
+
+Observed baseline:
+- `btcbox_state`: one row, revision 29; 3 internal users, 8 configured deposit-address entries, 3 sessions, 0 temporary tokens, 0 embedded audit rows.
+- `earn_product_catalog`: 7 rows.
+- Normalized financial tables checked (accounts, operations, ledger, audit, deposits, withdrawals, Earn positions, matching markets/orders/trades, Seconds positions): all currently 0 rows.
+- The three state users have 18 asset balance slots (six assets each); every free/frozen amount is zero. Their embedded deposits, withdrawals, orders, Earn records, support messages, addresses and address-audit arrays are all empty.
+- 2 of 3 users have Supabase identity links; 0 have a BTCBOX username, username-login credential, or linked wallet. The third user remains an unlinked account requiring owner-reviewed identity reconciliation; never auto-merge it by email or metadata.
+- The state JSON contains credential/security-related fields; no values were read. Encrypted backup handling and strict staging access controls remain mandatory.
+
+Important: normalized finance tables being empty does not make the state document disposable. Preserve the complete `btcbox_state` row/revision, all three user records, provider mappings, deposit-address configuration, UID counter, announcement, and the 7 existing Earn products. Do not seed fake ledger balances. Migration `0006` uses `ON CONFLICT (product_id) DO NOTHING` for the seven Earn catalog IDs, but compare existing product definitions before staging upgrade.
+
+The detailed preservation and staging sequence is recorded in `docs/PRODUCTION-DATA-PRESERVING-MIGRATION-PLAN-2026-11-07.md`.
