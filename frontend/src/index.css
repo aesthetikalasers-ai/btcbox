@@ -23,13 +23,13 @@
   --color-brand-text-muted: rgba(255, 255, 255, .38);
   --color-brand-accent: #d4d4d8;
 
-  /* Legacy route accent aliases now resolve to a restrained neutral scale. */
-  --color-brand-cyan: #d4d4d8;
-  --color-brand-teal: #a1a1aa;
-  --color-brand-violet: #d4d4d8;
-  --color-brand-indigo: #a1a1aa;
+  /* Restrained semantic accents: neutral surfaces, distinct functional color. */
+  --color-brand-cyan: #38bdf8;
+  --color-brand-teal: #2dd4bf;
+  --color-brand-violet: #a78bfa;
+  --color-brand-indigo: #818cf8;
   --color-brand-orange: #f59e0b;
-  --color-brand-info: #a1a1aa;
+  --color-brand-info: #60a5fa;
   --color-brand-warning: #f59e0b;
   --color-brand-success: #22c55e;
   --color-brand-danger: #ef4444;
@@ -84,7 +84,7 @@
   --input: rgba(255, 255, 255, .10);
   --ring: #a1a1aa;
 
-  --brand-accent: #d4d4d8;
+  --brand-accent: #38bdf8;
   --brand-success: #22c55e;
   --brand-danger: #ef4444;
   --brand-warning: #f59e0b;
@@ -143,19 +143,16 @@ a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
   .type-price { font-size: clamp(1.375rem, 4vw, 1.875rem); line-height: 1.15; font-weight: 700; letter-spacing: -.035em; font-variant-numeric: tabular-nums; }
 }
 
-/* Page identity is expressed through hierarchy and layout, not rainbow accents. */
-.tone-market,
-.tone-trading,
-.tone-assets,
-.tone-orders,
-.tone-earn,
-.tone-support,
-.tone-admin {
-  --page-accent: var(--brand-accent);
-  --page-accent-soft: rgba(255, 255, 255, .055);
-}
+/* Page identity uses restrained semantic accents over the shared dark surfaces. */
+.tone-market { --page-accent: #38bdf8; --page-accent-soft: rgba(56,189,248,.10); }
+.tone-trading { --page-accent: #a78bfa; --page-accent-soft: rgba(167,139,250,.10); }
+.tone-assets { --page-accent: #2dd4bf; --page-accent-soft: rgba(45,212,191,.10); }
+.tone-orders { --page-accent: #60a5fa; --page-accent-soft: rgba(96,165,250,.10); }
+.tone-earn { --page-accent: #fbbf24; --page-accent-soft: rgba(251,191,36,.10); }
+.tone-support { --page-accent: #818cf8; --page-accent-soft: rgba(129,140,248,.10); }
+.tone-admin { --page-accent: #c084fc; --page-accent-soft: rgba(192,132,252,.10); }
 .page-accent { color: var(--page-accent, var(--brand-accent)); }
-.page-accent-surface { background: var(--page-accent-soft, rgba(255,255,255,.055)); }
+.page-accent-surface { background: var(--page-accent-soft, rgba(56,189,248,.08)); }
 
 .tone-market .type-page-title,
 .tone-trading .type-page-title,
@@ -164,7 +161,7 @@ a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
 .tone-earn .type-page-title,
 .tone-support .type-page-title,
 .tone-admin .type-page-title {
-  border-left: 2px solid rgba(255,255,255,.28);
+  border-left: 2px solid var(--page-accent, var(--brand-accent));
   padding-left: .75rem;
 }
 
