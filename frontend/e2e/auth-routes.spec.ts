@@ -1053,3 +1053,47 @@ test("public preview distinguishes server snapshot time from upstream provider t
   await expect(page.getByText(/Server snapshot ·/)).toBeVisible();
   await expect(page.getByText(/Provider snapshot · coinbase · .* · \\d+s ago/)).toBeVisible();
 });
+
+test("Admin ignores a withdrawal queue response from a tab opened earlier", async ({ page }) => {
+  await installAdminE2EIdentity(page);
+  let withdrawalReads = 0;
+  let releaseOlder: (() => void) | null = null;
+  await page.route("**/api/admin/withdrawals", async route => {
+    withdrawalReads += 1;
+    if (withdrawalReads === 1) {
+      await new Promise<void>(resolve => { releaseOlder = resolve; });
+      await route.fulfill({
+        status: 200, contentType: "application/json",
+        body: JSON.stringify({ ok: true, withdrawals: [{
+          id: "E2E-WITHDRAWAL-STALE", uid: "e2e-old-user", coin: "USDT",
+          amount: "10.00", fee: "1.00", network: "TRC20",
+          address: "T-OLD", status: "approved",
+        }] }),
+      });
+      return;
+    }
+    await route.fulfill({
+      status: 200, contentType: "application/json",
+      body: JSON.stringify({ ok: true, withdrawals: [{
+        id: "E2E-WITHDRAWAL-CURRENT", uid: "e2e-current-user", coin: "USDT",
+        amount: "20.00", fee: "1.00", network: "TRC20",
+        address: "T-CURRENT", status: "approved",
+      }] }),
+    });
+  });
+  await page.route("**/api/admin/kyc", route => route.fulfill({
+    status: 200, contentType: "application/json",
+    body: JSON.stringify({ ok: true, kycs: [] }),
+  }));
+
+  await page.goto("/admin");
+  await expect.poll(() => releaseOlder !== null).toBe(true);
+  await page.getByRole("button", { name: "KYC", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "KYC review" })).toBeVisible();
+  await page.getByRole("button", { name: "Withdrawals", exact: true }).click();
+  await expect(page.getByText("E2E-WITHDRAWAL-CURRENT")).toBeVisible();
+  releaseOlder?.();
+  await expect(page.getByText("E2E-WITHDRAWAL-STALE")).toHaveCount(0);
+  await expect(page.getByText("E2E-WITHDRAWAL-CURRENT")).toBeVisible();
+  expect(withdrawalReads).toBe(2);
+});
