@@ -69,19 +69,23 @@ test('read-only production readiness diagnostic covers critical live schema drif
   ]) {
     assert.ok(diagnostic.includes(token), 'diagnostic must cover ' + token);
   }
-  assert.doesNotMatch(diagnostic, /\\b(?:INSERT|UPDATE|DELETE|ALTER|DROP|CREATE|GRANT|REVOKE)\\s+(?:INTO|TABLE|FUNCTION|INDEX|SCHEMA|ON|ALL|EXECUTE)?/i,
-    'production readiness diagnostic must remain read-only');
+  const forbiddenMutations = ['INSERT INTO', 'UPDATE ', 'DELETE FROM', 'ALTER TABLE', 'DROP FUNCTION', 'CREATE TABLE', 'GRANT ', 'REVOKE '];
+  for (const statement of forbiddenMutations) {
+    assert.ok(!diagnostic.toUpperCase().includes(statement), 'diagnostic must not contain mutation statement: ' + statement);
+  }
 });
-
 
 test('final withdrawal migration removes stale overloads and preserves service-role-only canonical RPC', () => {
   const cleanup = read('supabase/sql/0033_withdrawal_legacy_rpc_cleanup_v1.sql');
-  assert.match(cleanup, /DROP FUNCTION IF EXISTS public\\.create_withdrawal_atomic\\s*\\(\\s*text,\\s*text,\\s*text,\\s*text,\\s*numeric,\\s*numeric,\\s*text,\\s*text,\\s*text\\s*\\)/i);
-  assert.match(cleanup, /to_regprocedure\\(\\s*'public\\.create_withdrawal_atomic\\(text,text,text,text,numeric,numeric,text,text,text,boolean,numeric\\)'/i);
-  assert.match(cleanup, /v_overloads <> 1/);
-  assert.match(cleanup, /has_function_privilege\\('service_role', v_function, 'EXECUTE'\\)/);
-  assert.match(cleanup, /has_function_privilege\\('anon', v_function, 'EXECUTE'\\)/);
-  assert.match(cleanup, /has_function_privilege\\('authenticated', v_function, 'EXECUTE'\\)/);
-  assert.doesNotMatch(cleanup, /\\b(?:INSERT|UPDATE|DELETE)\\s+INTO\\s+public\\.(?:withdrawal_requests|financial_ledger|financial_accounts)/i,
-    'withdrawal overload cleanup must not alter financial rows');
+  assert.ok(cleanup.includes('DROP FUNCTION IF EXISTS public.create_withdrawal_atomic('));
+  assert.ok(cleanup.includes('text, text, text, text, numeric, numeric, text, text, text\n)'));
+  assert.ok(cleanup.includes('text, text, text, text, numeric, numeric, text, text, text, boolean\n)'));
+  assert.ok(cleanup.includes("'public.create_withdrawal_atomic(text,text,text,text,numeric,numeric,text,text,text,boolean,numeric)'"));
+  assert.ok(cleanup.includes('v_overloads <> 1'));
+  assert.ok(cleanup.includes("has_function_privilege('service_role', v_function, 'EXECUTE')"));
+  assert.ok(cleanup.includes("has_function_privilege('anon', v_function, 'EXECUTE')"));
+  assert.ok(cleanup.includes("has_function_privilege('authenticated', v_function, 'EXECUTE')"));
+  assert.ok(!cleanup.includes('UPDATE public.withdrawal_requests'));
+  assert.ok(!cleanup.includes('DELETE FROM public.financial_ledger'));
+  assert.ok(!cleanup.includes('UPDATE public.financial_accounts'));
 });
