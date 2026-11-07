@@ -6486,3 +6486,7 @@ Current branch HEAD at note creation: `51c302a96f069876e438321d3597501fcbc26b54`
 - Escalation to 1号/Core owner: production Vercel has a weak `ADMIN_PASS` and `api-core.js` throws at module import, which can prevent the shared catch-all API adapter from starting. The test-only override in `api-routing.test.js` fixes only test isolation, not runtime. Before release, the authorized environment owner must set a compliant strong secret, or Core owner must scope the fail-closed guard to admin authentication rather than crashing shared API startup. 2号 did not change production secrets or weaken policy.
 
 - Frontend CI `42356699699` succeeded with 62 passed, but two Admin queue tests were flaky on first attempt and passed on retry because fixtures used GET counts while the app can issue repeated initial reads. Converted those failures to explicit action-triggered flags (commits `a0fab6b`, `7662bba`). Fresh exact-head CI pending; target zero flaky cases.
+
+- Latest backend CI `42356891197` passed: unified build, 411/411 backend tests, deployment preflight and output checks.
+- Latest frontend CI `42356891195` has passed install/lint/build/Chromium setup; Playwright desktop/mobile route tests remain in progress. Do not claim completion until final job status is success.
+- PR #61 remains draft/open; no merge or deployment.
