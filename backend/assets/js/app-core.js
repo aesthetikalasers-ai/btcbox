@@ -290,17 +290,17 @@ function clearMarketQuotes(){
   PAIRS.forEach(sym=>{const quote=market[sym];if(!quote)return;quote.price=0;quote.chg=0;quote.high=0;quote.low=0;quote.vol=0;quote.ts=0;});
 }
 function updateLivePriceEls(){
-  $('[data-live-price]').forEach(el=>{
+  $$('[data-live-price]').forEach(el=>{
     const sym=el.getAttribute('data-live-price'), quote=market[sym];
     el.textContent=!state.marketUnavailable&&quote&&Number(quote.price)>0?fmtPrice(quote.price,sym.replace('USDT','')):'—';
   });
-  $('[data-live-chg]').forEach(el=>{
+  $$('[data-live-chg]').forEach(el=>{
     const sym=el.getAttribute('data-live-chg'), quote=market[sym];
     if(state.marketUnavailable||!quote||!(Number(quote.price)>0)){el.textContent='—';el.style.color='var(--text-muted)';return;}
     const change=Number(quote.chg)||0;el.textContent=pct(change);el.style.color=change>=0?'var(--up)':'var(--down)';
   });
-  $('[data-live-high]').forEach(el=>{const sym=el.getAttribute('data-live-high'),quote=market[sym];el.textContent=!state.marketUnavailable&&quote&&Number(quote.high)>0?fmtPrice(quote.high,sym.replace('USDT','')):'—';});
-  $('[data-live-low]').forEach(el=>{const sym=el.getAttribute('data-live-low'),quote=market[sym];el.textContent=!state.marketUnavailable&&quote&&Number(quote.low)>0?fmtPrice(quote.low,sym.replace('USDT','')):'—';});
+  $$('[data-live-high]').forEach(el=>{const sym=el.getAttribute('data-live-high'),quote=market[sym];el.textContent=!state.marketUnavailable&&quote&&Number(quote.high)>0?fmtPrice(quote.high,sym.replace('USDT','')):'—';});
+  $$('[data-live-low]').forEach(el=>{const sym=el.getAttribute('data-live-low'),quote=market[sym];el.textContent=!state.marketUnavailable&&quote&&Number(quote.low)>0?fmtPrice(quote.low,sym.replace('USDT','')):'—';});
 }
 async function refreshMarket(){
   const r=await apiFetch('/market');
