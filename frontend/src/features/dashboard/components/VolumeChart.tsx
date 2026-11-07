@@ -56,14 +56,14 @@ export function VolumeChart({ candles = [] }: { candles?: MarketCandle[] }) {
     });
 
     const series = chart.addSeries(HistogramSeries, {
-      color: '#22C55E',
+      color: '#20c982',
       base: 0,
       priceFormat: {
         type: 'volume',
       },
     });
 
-    series.setData(candles.map(c => ({ time: Math.floor(c.time / 1000) as import('lightweight-charts').UTCTimestamp, value: c.volume, color: c.close >= c.open ? 'rgba(34, 197, 94, 0.8)' : 'rgba(239, 68, 68, 0.8)' })));
+    series.setData(candles.map(c => ({ time: Math.floor(c.time / 1000) as import('lightweight-charts').UTCTimestamp, value: c.volume, color: c.close >= c.open ? 'rgba(32, 201, 130, 0.8)' : 'rgba(255, 100, 124, 0.8)' })));
     
     const bars = { '1d': 24, '7d': 168, '30d': 720 }[activeRange] || 24;
     const totalBars = candles.length;
@@ -85,7 +85,7 @@ export function VolumeChart({ candles = [] }: { candles?: MarketCandle[] }) {
               className={cn(
                 "min-h-9 px-2 py-1 text-[12px] font-medium rounded-md transition-all duration-200 cursor-pointer active:scale-[0.95] sm:px-2.5",
                 activeRange === r 
-                  ? "bg-brand-surface-2 text-brand-text shadow-[0_1px_2px_rgba(0,0,0,0.5),inset_0_1px_1px_rgba(255,255,255,0.02)] border border-brand-border-subtle" 
+                  ? "border border-brand-cyan/25 bg-brand-cyan/10 text-brand-cyan shadow-[0_1px_2px_rgba(0,0,0,0.25)]" 
                   : "text-brand-text-muted hover:text-brand-text-secondary hover:bg-brand-surface-hover"
               )}
             >

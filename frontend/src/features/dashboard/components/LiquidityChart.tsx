@@ -58,13 +58,13 @@ export function LiquidityChart({ candles = [] }: { candles?: MarketCandle[] }) {
     });
 
     const series = chart.addSeries(CandlestickSeries, {
-        upColor: '#22C55E',
-        downColor: '#EF4444',
-        borderUpColor: '#22C55E',
-        borderDownColor: '#EF4444',
+        upColor: '#20c982',
+        downColor: '#ff647c',
+        borderUpColor: '#20c982',
+        borderDownColor: '#ff647c',
         borderVisible: true,
-        wickUpColor: '#22C55E',
-        wickDownColor: '#EF4444',
+        wickUpColor: '#20c982',
+        wickDownColor: '#ff647c',
     });
 
     series.setData(candles.map(c => ({ time: Math.floor(c.time / 1000) as import('lightweight-charts').UTCTimestamp, open: c.open, high: c.high, low: c.low, close: c.close })));
@@ -84,7 +84,7 @@ export function LiquidityChart({ candles = [] }: { candles?: MarketCandle[] }) {
         },
     });
     
-    volumeSeries.setData(candles.map(c => ({ time: Math.floor(c.time / 1000) as import('lightweight-charts').UTCTimestamp, value: c.volume, color: c.close >= c.open ? 'rgba(34, 197, 94, 0.15)' : 'rgba(239, 68, 68, 0.15)' })));
+    volumeSeries.setData(candles.map(c => ({ time: Math.floor(c.time / 1000) as import('lightweight-charts').UTCTimestamp, value: c.volume, color: c.close >= c.open ? 'rgba(32, 201, 130, 0.15)' : 'rgba(255, 100, 124, 0.15)' })));
     
     const bars = { '1h': 1, '6h': 6, '24h': 24, '7d': 168, '30d': 720 }[activeRange] || 24;
     const totalBars = candles.length;
@@ -106,7 +106,7 @@ export function LiquidityChart({ candles = [] }: { candles?: MarketCandle[] }) {
               className={cn(
                 "min-h-9 px-2 py-1 text-[12px] font-medium rounded-md transition-all duration-200 cursor-pointer active:scale-[0.95] sm:px-2.5",
                 activeRange === r 
-                  ? "bg-brand-surface-2 text-brand-text shadow-[0_1px_2px_rgba(0,0,0,0.5),inset_0_1px_1px_rgba(255,255,255,0.02)]" 
+                  ? "border border-brand-cyan/25 bg-brand-cyan/10 text-brand-cyan shadow-[0_1px_2px_rgba(0,0,0,0.25)]" 
                   : "text-brand-text-muted hover:text-brand-text-secondary hover:bg-brand-surface-hover"
               )}
             >
