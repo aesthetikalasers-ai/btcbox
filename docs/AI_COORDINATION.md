@@ -6640,3 +6640,6 @@ Current branch HEAD at note creation: `51c302a96f069876e438321d3597501fcbc26b54`
 - Corrected the regex to use executable digit and decimal-point escapes. Added a backend source-contract regression that checks the exact regex and representative accepted/rejected values.
 - Scope is limited to Admin UI input validation; no market configuration API, market listing, price tick rules on the server, order execution, or financial state was changed.
 - Exact-head CI is pending for this correction. PR #64 remains open and unmerged; no deployment or production database operation.
+
+
+- Test-fixture follow-up: changed the expected regex source literal to a normal escaped JavaScript string so the Node test file itself parses cleanly while still comparing the exact one-backslash regex source. CI rerun required.
