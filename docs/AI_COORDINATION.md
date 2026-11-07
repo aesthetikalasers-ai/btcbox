@@ -6379,3 +6379,7 @@ Current branch HEAD at note creation: `51c302a96f069876e438321d3597501fcbc26b54`
 
 - Additional identity isolation: restored payout drafts replace in-memory drafts when the authenticated administrator changes, preventing one operator's unsent reference from appearing in another operator's session.
 - Latest UI safety follow-up: `8d75ce111e06ca8a7f7fca64bb4e755c1e1724b6`.
+
+
+- CI cross-check caught two existing frontend-source assertions in Core-owned contract tests that expected the prior payout notice call shape. Preserved their intended refresh-after-success contract while keeping the duplicate-reference notice visible after refresh; no backend test/schema or API contract change required.
+- Follow-up commit: `be2b47513b18f961e96a5d97c2b99b6aec10b3c9`. Backend CI rerun required.
