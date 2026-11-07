@@ -292,3 +292,37 @@ Important: source-level implementation is not proof of live Supabase provider co
 - PR #59 remains OPEN / DRAFT / NOT MERGED. Current PR head after the documentation updates: `1edf89c82d4e1cb01de51507454b38d56da97567`.
 - CI success verifies build and automated route smoke tests for the source commit; it is not a substitute for human visual review on actual devices or a deployed preview. Full-site desktop/mobile visual acceptance remains pending.
 - No merge, production deployment, database write, financial action, or auth configuration change was performed.
+
+
+## 2026-11-07 — registration page and public preview priority batch
+
+### User priority
+Registration and the signed-out preview/home page are now the first pages to complete before broad visual polish on the rest of the application.
+
+### Implemented on `work/btcbox-unified-20261104`
+- `frontend/src/features/auth/AuthPages.tsx`
+  - Reworked login/register presentation into a responsive split layout with integrated vector BTCBOX brand mark, clear registration method explanation, and a desktop brand/value panel.
+  - Registration continues to offer Google and Ethereum/Solana wallet identity creation only; the user sets BTCBOX username/password after identity verification.
+  - Kept existing auth handlers, two-factor flow, disabled-provider messaging, account redirect behavior, and login username/password path intact.
+  - Added public-market navigation and made it explicit that public market information does not require signing in.
+- `frontend/src/features/dashboard/Dashboard.tsx`
+  - Turned the signed-out `/home` route into a public market preview landing page with a branded hero, register/trading CTAs, public market access explanation, account-protection explanation, provider-backed market table and chart sections, and a bottom sign-in/register CTA.
+  - Did not introduce mock prices, sample balances, or fake market statistics. Existing market API reads remain the source for market content.
+- `frontend/src/lib/i18n.tsx`
+  - Added the new public preview copy in all seven supported locales (English, Japanese, Simplified Chinese, Spanish, Vietnamese, Italian and Portuguese).
+- `frontend/e2e/auth-routes.spec.ts`
+  - Added 320px mobile registration coverage and a signed-out public preview test asserting market content, registration entry point, no horizontal overflow and no financial mutation requests.
+
+### Commits
+- `ff13534415cc1bf538cac9d9b4275ae21c8a8ed2` — registration/login presentation
+- `7d28541435b4e72fe4e926e826777afca986d2fb` — public preview landing page
+- `a377d87d165986b2100f284411c72fdd6f14d6e8` — mobile and public preview E2E coverage
+- `9f59a718aac0a7ef55780682b9762cb788092fa0` — seven-locale preview copy
+- `05a4f09577b78c18aead06fa3a156a7c68c3a58f` — precise public market pair assertion
+
+### Pending verification
+- Frontend CI (lint, build, Chromium desktop/mobile route tests) is required on the latest source SHA.
+- Manual visual QA still required at 320/360/390/430px and desktop widths, including Google disabled/enabled states, installed wallet list and no-wallet-provider fallback.
+- Confirm public market data error/empty states remain clear and no signed-out route emits financial mutations.
+- Backend auth configuration, live Google provider configuration, real wallet signature flow, and production deployment are outside this UI-only batch and remain unverified.
+- No merge, deployment, production DB/auth setting, or financial action was performed.
