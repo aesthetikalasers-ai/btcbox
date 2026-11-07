@@ -202,3 +202,19 @@ test('admin withdrawal queue is non-actionable until a refreshed queue has retur
   assert.ok(refresh.includes('disabled={busy||reviewQueueLoading||!payoutReferences[item.id]?.trim()||!hasPermission("withdrawals.review")}'));
   assert.ok(refresh.includes('<input disabled={reviewQueueLoading} value={payoutReferences[item.id]||""}'));
 });
+
+test('legacy account profile and order views clear stale snapshots before reload and after failures', () => {
+  const myStart = pages.indexOf('export function MyPage()');
+  const myEnd = pages.indexOf('export function ', myStart + 25);
+  const myPage = pages.slice(myStart, myEnd > myStart ? myEnd : undefined);
+  const profileLoad = myPage.slice(myPage.indexOf('const controller=new AbortController()'));
+  assert.ok(profileLoad.indexOf('setAccount(null)') >= 0);
+  assert.ok(profileLoad.indexOf('setAccount(null)') < profileLoad.indexOf('getAccount(controller.signal)'));
+
+  const ordersStart = pages.indexOf('export function OrdersPage()');
+  const ordersEnd = pages.indexOf('export function ', ordersStart + 25);
+  const legacyOrders = pages.slice(ordersStart, ordersEnd > ordersStart ? ordersEnd : undefined);
+  assert.ok(legacyOrders.indexOf('setOrders([])') >= 0);
+  assert.ok(legacyOrders.indexOf('setOrders([])') < legacyOrders.indexOf('getOrders(controller.signal)'));
+  assert.ok(legacyOrders.includes('if(!controller.signal.aborted)setOrders([]);'));
+});
