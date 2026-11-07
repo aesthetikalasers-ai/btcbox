@@ -74,3 +74,13 @@ test('market timestamps distinguish server snapshot time from provider-specific 
   assert.ok(api.includes('Server snapshot time (Unix seconds), not an exchange event timestamp.'));
   assert.ok(api.includes('not a universal exchange-event timestamp.'));
 });
+
+test('public ticker snapshots use a short shared-cache window and clients bypass browser cache', () => {
+  const marketStart = backend.indexOf("if (path === 'market' && method === 'GET')");
+  const klineStart = backend.indexOf("if (path === 'kline' && method === 'GET')", marketStart);
+  assert.ok(marketStart >= 0 && klineStart > marketStart);
+  const route = backend.slice(marketStart, klineStart);
+  assert.ok(route.includes("'Cache-Control': 'public, max-age=0, s-maxage=2, stale-while-revalidate=1'"));
+  assert.ok(api.includes('cache: "no-store"'));
+  assert.ok(pages.includes('window.setInterval(refreshMarketData,15000)'));
+});
