@@ -364,3 +364,14 @@ Registration and the signed-out preview/home page are now the first pages to com
 - Commits: `b1fcb2c` (auth route shell), `0dade52` (auth viewport), `b7e2fd5` (account setup viewport), `23379eb` (auth shell E2E), `c09c69c` (mobile preview logo hierarchy), `3abf1ec` (preview shell E2E).
 - CI was triggered for latest code/test SHA `3abf1ec5cbccdf6c1795de4f74306c2643e3ad54`; record final status after completion. Previous run on SHA `378039745bfc9f22557cdbdd60590a62faeeb9a5` passed frontend lint/build + 44/44 Playwright tests and backend 411/411 tests.
 - NOT VERIFIED: screenshot-based manual visual review on a physical browser/device remains pending; automated E2E does not substitute for visual acceptance. No merge, deployment, production DB/auth configuration or financial operation was performed.
+
+
+## 2026-11-07 auth-shell / preview verification result
+
+- Final tested source/test SHA: `4e0695afae911c670214703a819de2618036aaeb`.
+- Frontend CI run `42333471864`: SUCCESS — npm install, lint, build and `44/44` desktop/mobile Playwright tests passed.
+- Backend CI run `42333471866`: SUCCESS — unified build, `411/411` backend tests, fail-closed deployment preflight and preserved output checks passed.
+- The first test run caught an assertion that incorrectly required a responsive topbar logo link to be visible in both project viewport configurations. The app code was not at fault; removed that breakpoint-sensitive assertion while retaining checks for the header, mobile navigation and hidden duplicate hero mark. The rerun passed all 44 tests.
+- The auth-route assertions passed in desktop and mobile projects: no global banner or primary navigation is rendered on login/registration. Public preview assertions passed with the normal app header/navigation and no horizontal overflow or signed-out financial mutations.
+- Latest PR #59 remains OPEN / DRAFT / NOT MERGED. No production deployment, DB/auth configuration change, or financial action was performed.
+- Manual screenshot-based visual acceptance is still pending; CI browser tests are not claimed as physical-device visual approval.
