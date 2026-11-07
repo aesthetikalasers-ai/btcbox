@@ -892,7 +892,7 @@ test("registration experience stays clear and usable on a narrow mobile viewport
   expect(dimensions.content).toBeLessThanOrEqual(dimensions.viewport);
 });
 
-test("public preview landing page is available signed out with market data and registration entry points", async ({ page }) => {
+test("public landing page is available signed out with market data and registration entry points", async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 780 });
   const mutations: string[] = [];
   page.on("request", request => {
@@ -925,6 +925,22 @@ test("public preview landing page is available signed out with market data and r
   expect(mutations).toEqual([]);
 });
 
+
+test("empty market response never advertises a live market feed", async ({ page }) => {
+  await page.route("**/api/market", route => route.fulfill({
+    status: 200, contentType: "application/json",
+    body: JSON.stringify({ ok: true, markets: [], data: {} }),
+  }));
+  await page.route("**/api/kline?**", route => route.fulfill({
+    status: 200, contentType: "application/json",
+    body: JSON.stringify({ ok: true, source: "coinbase", klines: [] }),
+  }));
+
+  await page.goto("/home");
+  await expect(page.getByRole("heading", { name: "Market overview" })).toBeVisible();
+  await expect(page.getByText("Feed unavailable", { exact: true })).toBeVisible();
+  await expect(page.getByText("Live market feed", { exact: true })).toHaveCount(0);
+});
 
 test("Admin user-detail failure clears the previously selected user's financial panel", async ({ page }) => {
   await installAdminE2EIdentity(page);
@@ -1131,7 +1147,7 @@ test("registration layout adapts from mobile to desktop without losing the ident
   }
 });
 
-test("public market preview remains responsive across mobile, tablet and desktop widths", async ({ page }) => {
+test("public market landing page remains responsive across mobile, tablet and desktop widths", async ({ page }) => {
   await page.route("**/api/market", route => route.fulfill({
     status: 200,
     contentType: "application/json",

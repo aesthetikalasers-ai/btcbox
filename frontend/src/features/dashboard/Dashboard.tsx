@@ -114,7 +114,7 @@ export function Dashboard() {
         <p className="type-body mt-1.5 text-brand-text-secondary">{t("Live spot prices and 24-hour market movement.")}</p>
       </div>
       <Badge variant="outline" className="border-brand-accent/30 bg-brand-accent/10 px-3 py-1 text-brand-text-secondary">
-        {loading ? t("Connecting") : error ? t("Feed unavailable") : t("Live market feed")}
+        {loading ? t("Connecting") : error || markets.length === 0 ? t("Feed unavailable") : t("Live market feed")}
       </Badge>
     </div>
     <LiveMarketsTable markets={markets} loading={loading} error={error} />
