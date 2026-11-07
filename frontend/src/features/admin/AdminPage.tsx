@@ -231,6 +231,7 @@ export function AdminPage() {
       }
       if (tab === "users") {
         setUsers([]);
+        setSelectedUser(null);
         const snapshot = await getAdminUsers(token, search);
         if (requestId !== tabLoadRequestRef.current) return;
         setUsers(snapshot.users);
