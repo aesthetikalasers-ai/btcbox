@@ -3439,3 +3439,15 @@ The prior withdrawal UI audit statement claiming the active BTCBOX admin route w
 - PR #65 exact source head `9b9662bed509517dd9b89f8e288bebfc099661d7` now has frontend CI run `42386157147`: dependency install, lint, production build and Chromium installation passed; desktop/mobile route smoke tests were still running at the time of this update.
 - Parent head `c07063ace42b00e92c1595b34defe019aedb7389`, run `42386036929`, completed successfully including desktop/mobile route smoke tests.
 - PR #65 remains Draft/open and unmerged. Independent browser visual QA remains NOT VERIFIED. No deployment, hosted DB write or real financial operation.
+
+
+## Remaining page visual normalization — 2026-11-07
+
+- USER DIRECTION: continue the Strata Pro + shadcn-fintech visual system across remaining pages, interaction feedback and mobile details; do not return to route-specific accent colors.
+- FIX COMMITTED: visual PR #65 removes remaining cyan/teal/violet/indigo styling from customer workspace pages. Support, deposit and withdrawal surfaces use the shared neutral surface/border treatment; focus rings use the neutral accent; explicit financial success/danger/warning semantics remain intact.
+- FIX COMMITTED: administrator search/configuration inputs use the shared neutral focus style; administrator tab navigation now scrolls horizontally with non-wrapping tab labels on narrow screens.
+- FIX COMMITTED: topbar focus states use the neutral accent; the not-yet-connected notifications control is hidden on narrow mobile widths to preserve space for the essential menu/search/language/account controls.
+- CURRENT VISUAL PR #65 HEAD: `73c15b7dc303b92678394e46c602e3d3900bfd41`.
+- CI run `42386656276` is running for this exact head. Earlier run `42386568911` failed at TypeScript lint because the first responsive-tab implementation referenced an undeclared `cn` helper; this was corrected in the current head by using a direct conditional class string. Do not mark the current head accepted until its own lint/build/Chromium/desktop-mobile route tests finish successfully.
+- NOT VERIFIED: independent browser visual QA at actual 320/360/375/390/430px, tablet and desktop widths.
+- Release boundary unchanged: PR #65 remains Draft/open; no merge, deployment, hosted DB writes or real financial operations. Trading page layout and API/business behavior remain unchanged.
