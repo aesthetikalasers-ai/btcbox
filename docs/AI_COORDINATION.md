@@ -6560,3 +6560,15 @@ Current branch HEAD at note creation: `51c302a96f069876e438321d3597501fcbc26b54`
 - CI before fix: backend run `42412713747` failed 1/414 tests (413 passed); frontend run `42412713753` passed build. The sole backend failure was the outdated KYC assertion. New exact-head CI is required before marking this fix verified.
 - Commits: Admin fix `fd12a405598ab616a459a7f4ecbb11867d19e92a`; KYC test update `c58307deb7e55b55d7b61e5236e224a59d8302a8`.
 - No KYC decision, withdrawal, payout, manual credit, production DB write, merge or deployment was performed.
+
+
+## 2号 AI — account and manual-review confirmation freshness — 2026-11-08
+
+- FOUND: after a successful Admin manual credit, `manualCredit` called `selectUser` to reload the selected user's balance and ledger history. `selectUser` cleared the success notice immediately, and a failed detail read could leave the operator without a clear confirmation that the credit itself had already been accepted.
+- FIXED: selected-user refresh now accepts a confirmed-action message. A successful credit keeps its confirmation visible while the detail reload runs; if the detail read fails, the UI retains the confirmed credit notice and separately says user details could not refresh. The idempotency request cleanup and financial API are unchanged.
+- FOUND: the Deposit history panel retained its previous records during a manual refresh and after returning to the visible page; Withdraw loaded account balances/history only on initial mount or explicit post-submit reload.
+- FIXED: Deposit history now clears the prior snapshot during refresh and reloads when the page becomes visible. Withdraw now reloads account balances, saved-address metadata and withdrawal configuration on visibility return, clearing the prior account snapshot while the read is pending so stale balances/history are not presented as current.
+- TESTS ADDED/UPDATED: Admin manual-credit confirmation regression in `backend/tests/admin-api-contract.test.js`; new `backend/tests/account-page-freshness.test.js` covers deposit/withdraw snapshot invalidation and visibility refresh.
+- Files: `frontend/src/features/admin/AdminPage.tsx`, `frontend/src/features/pages/Pages.tsx`, `backend/tests/admin-api-contract.test.js`, `backend/tests/account-page-freshness.test.js`.
+- Commits: Admin UI `cb3ef78b29feb73d7c30e2e561b9a2ac6486aa53`; deposit/withdraw pages `2df8ecaf0b5b2d6bc4e13f2cb93b91b809d532b1`; Admin regression `91eda8b4baa643396d118650ea0ac3cb09f4ffe1`; account freshness tests `28b2d9935cf9675084cd90fccbb249e2ccb0e6bc`.
+- Boundary: no balance, ledger, withdrawal, deposit or payout API behavior changed; no real credit, order, withdrawal, production database write, merge or deployment performed. Exact-head CI is required.
