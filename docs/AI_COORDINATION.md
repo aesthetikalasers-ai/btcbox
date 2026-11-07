@@ -6356,3 +6356,12 @@ Current branch HEAD at note creation: `51c302a96f069876e438321d3597501fcbc26b54`
 - TEST ADDED: Admin E2E loads a withdrawal row, switches to KYC, then simulates a 503 when returning to Withdrawals; it asserts the stale row and Approve action are absent and the queue error is visible.
 - Commits: d23218081fbbd9d993ef3280f4933ab1cc349d65 (Admin queue state); 8a834cc1b5734b5a0259b54457e3d92ce7649815 (E2E regression).
 - Verification pending: frontend CI for latest code/test SHA. No finance API semantics, manual payout workflow, backend, production DB, merge or deployment changed.
+
+
+## Admin audit snapshot reload safety — 2026-11-07
+
+- SOURCE OBSERVED: entering the Audit tab fetched a new snapshot but retained the previous audit rows and source/completeness labels until success. A failed re-entry could therefore leave stale audit events and stale "PostgreSQL canonical" confidence visible.
+- FIXED: clear prior audit rows and reset source/completeness to unknown before requesting a new tab snapshot; show an explicit empty-snapshot row when a successful response contains no events.
+- REGRESSION: Playwright now loads a canonical audit fixture, navigates away, forces the next audit read to fail, and asserts that the old event and canonical source label are absent.
+- Scope: frontend presentation/state only. No audit schema, API contract, financial behavior, database, or production configuration changed.
+- Manual-credit review: source inspection confirms the current UI persists an actor/target/asset-scoped idempotency request before submission and reuses it after network/5xx/409 uncertainty. Do not generate a replacement request ID for an unconfirmed credit; verify the user's ledger before resolving ambiguous outcomes.
