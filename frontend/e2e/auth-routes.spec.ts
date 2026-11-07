@@ -526,6 +526,6 @@ test("trade chooser exposes the backend-enabled products and keeps unsupported f
 
   // The Earn entrance is public; personal positions and any financial action remain login-gated.
   await page.locator('a[href="/earn"]').click();
-  await expect(page).toHaveURL(/\\/login$/);
+  await expect(page).toHaveURL(/\/login$/);
   await expect(page.getByRole("heading", { name: "Welcome back" })).toBeVisible();
 });
