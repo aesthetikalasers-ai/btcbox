@@ -515,12 +515,14 @@ test("Admin payout retry restores the exact TxID after an ambiguous response and
   let withdrawalReads = 0;
   await page.route("**/api/admin/withdrawals", async route => {
     withdrawalReads += 1;
+    const completed = payoutAttempts >= 2;
     await route.fulfill({
       status: 200, contentType: "application/json",
       body: JSON.stringify({ ok: true, withdrawals: [{
         id: "E2E-PAYOUT-RETRY-001", uid: "e2e-user-payout", coin: "USDT",
         amount: "25.00", fee: "1.00", network: "TRC20",
-        address: "T-E2E-PAYOUT", status: "approved",
+        address: "T-E2E-PAYOUT", status: completed ? "completed" : "approved",
+        payout_reference: completed ? "0xE2E-PAYOUT-TX-REFERENCE" : undefined,
       }] }),
     });
   });
@@ -555,6 +557,7 @@ test("Admin payout retry restores the exact TxID after an ambiguous response and
   await expect(page.getByPlaceholder("Required TxID / reference")).toHaveValue("0xE2E-PAYOUT-TX-REFERENCE");
   await page.getByRole("button", { name: "Mark paid" }).click();
   await expect(page.getByRole("status")).toContainText("This payout reference was already recorded.");
+  await expect(page.getByText("completed", { exact: true })).toBeVisible();
   expect(payoutAttempts).toBe(2);
   expect(withdrawalReads).toBeGreaterThanOrEqual(2);
 });
