@@ -584,6 +584,72 @@ test("Admin payout retry restores the exact TxID after an ambiguous response and
   expect(withdrawalReads).toBeGreaterThanOrEqual(2);
 });
 
+test("Admin ignores an older audit page response after leaving and reopening the tab", async ({ page }) => {
+  await installAdminE2EIdentity(page);
+  let auditReads = 0;
+  let releaseOlder: (() => void) | null = null;
+  await page.route("**/api/admin/audit-logs?**", async route => {
+    auditReads += 1;
+    const before = new URL(route.request().url()).searchParams.get("before");
+    if (before === "9001") {
+      await new Promise<void>(resolve => { releaseOlder = resolve; });
+      await route.fulfill({
+        status: 200, contentType: "application/json",
+        body: JSON.stringify({
+          ok: true, source: "postgres_financial_audit_log", completeness: "postgres_canonical",
+          logs: [{
+            id: "E2E-AUDIT-STALE-OLDER", time: "2026-11-05T10:00:00.000Z",
+            by: "e2e-admin-001", action: "manual_deposit_confirmed",
+            uid: "e2e-user-stale", detail: "Stale older page response", postgres_sync_status: "synced",
+          }],
+          next_before: null,
+        }),
+      });
+      return;
+    }
+    await route.fulfill({
+      status: 200, contentType: "application/json",
+      body: JSON.stringify({
+        ok: true, source: "postgres_financial_audit_log", completeness: "postgres_canonical",
+        logs: [{
+          id: auditReads === 1 ? "E2E-AUDIT-INITIAL" : "E2E-AUDIT-REOPENED",
+          time: "2026-11-07T10:00:00.000Z", by: "e2e-admin-001",
+          action: "manual_deposit_confirmed", uid: "e2e-user-new",
+          detail: auditReads === 1 ? "Initial audit page" : "Reopened audit page",
+          postgres_sync_status: "synced",
+        }],
+        next_before: auditReads === 1 ? "9001" : "8001",
+      }),
+    });
+  });
+  await page.route("**/api/admin/kyc", route => route.fulfill({
+    status: 200, contentType: "application/json", body: JSON.stringify({ ok: true, kycs: [] }),
+  }));
+  await page.route("**/api/admin/withdrawals", route => route.fulfill({
+    status: 200, contentType: "application/json", body: JSON.stringify({ ok: true, withdrawals: [] }),
+  }));
+  await page.route("**/api/admin/session", route => route.fulfill({
+    status: 200, contentType: "application/json",
+    body: JSON.stringify({
+      ok: true, user_id: "e2e-admin-001", status: "active", is_super_admin: false,
+      permissions: ["withdrawals.read", "kyc.read", "financial_audit.read"],
+    }),
+  }));
+
+  await page.goto("/admin");
+  await page.getByRole("button", { name: "Audit log", exact: true }).click();
+  await expect(page.getByText("Initial audit page")).toBeVisible();
+  await page.getByRole("button", { name: "Load older records" }).click();
+  await expect.poll(() => releaseOlder !== null).toBe(true);
+  await page.getByRole("button", { name: "KYC", exact: true }).click();
+  await page.getByRole("button", { name: "Audit log", exact: true }).click();
+  await expect(page.getByText("Reopened audit page")).toBeVisible();
+  releaseOlder?.();
+  await expect(page.getByText("Stale older page response")).toHaveCount(0);
+  await expect(page.getByText("Reopened audit page")).toBeVisible();
+  expect(auditReads).toBe(3);
+});
+
 test("Admin legacy audit snapshot does not offer an unsupported cursor", async ({ page }) => {
   await installAdminE2EIdentity(page);
   await page.route("**/api/admin/audit-logs?**", route => route.fulfill({
