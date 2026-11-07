@@ -114,8 +114,8 @@ export function AdminPage() {
     document.body.style.overflow = "hidden";
     const focusableSelector = 'button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
     const focusFirst = () => {
-      const controls = dialog?.querySelectorAll<HTMLElement>(focusableSelector);
-      (controls?.[0] || dialog)?.focus();
+      const controls = dialog ? Array.from(dialog.querySelectorAll(focusableSelector)) as HTMLElement[] : [];
+      (controls[0] || dialog)?.focus();
     };
     focusFirst();
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -125,7 +125,7 @@ export function AdminPage() {
         return;
       }
       if (event.key !== "Tab" || !dialog) return;
-      const controls = Array.from(dialog.querySelectorAll<HTMLElement>(focusableSelector));
+      const controls = Array.from(dialog.querySelectorAll(focusableSelector)) as HTMLElement[];
       if (!controls.length) { event.preventDefault(); dialog.focus(); return; }
       const first = controls[0];
       const last = controls[controls.length - 1];
