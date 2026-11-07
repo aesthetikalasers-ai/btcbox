@@ -3463,3 +3463,13 @@ The prior withdrawal UI audit statement claiming the active BTCBOX admin route w
 - Previous exact-head `73c15b7dc303b92678394e46c602e3d3900bfd41`, run `42386656276`, completed successfully including install/lint/build/Chromium/desktop-mobile route smoke tests.
 - NOT VERIFIED: independent browser visual QA at 320/360/375/390/430px, tablet and desktop viewports.
 - PR #65 remains Draft/open; no merge, deployment, database writes or real financial operations. Trading page locked layout preserved.
+
+
+## Admin and order workflow responsive polish — 2026-11-07
+
+- USER DIRECTION: continue batch implementation without repeated confirmation; preserve the locked trading layout and existing financial/business rules.
+- FIX COMMITTED: visual PR #65 head `0d92b4fbb9f9e1069e7d644ee15c273b8a1d71c4`.
+- `frontend/src/features/admin/AdminPage.tsx`: normalized administrator search, policy duration and configuration text inputs to minimum 44px height with consistent rounded surfaces; review rejection dialog is height-constrained and internally scrollable on short mobile viewports. These are presentation-only changes; handlers, permissions, API contracts and financial behavior are unchanged.
+- `frontend/src/features/orders/OrdersPage.tsx`: removed the remaining violet route tint in favor of the shared neutral raised surface; pending/open/partially-filled/processing/submitted statuses now use warning semantics, cancelled/rejected/failed/expired use destructive, completed/filled remain success, and unknown values remain outline. Added clearer sticky table header and row hover feedback.
+- Exact-head frontend CI for `0d92b4fbb9f9e1069e7d644ee15c273b8a1d71c4` had not yet appeared when this note was written. Do not mark this batch accepted until install, lint, production build, Chromium and desktop/mobile route smoke tests pass.
+- Independent browser visual QA at 320/360/375/390/430px, tablet and desktop remains NOT VERIFIED. No merge, deployment, hosted database writes or real financial operations. Trading page layout unchanged.
