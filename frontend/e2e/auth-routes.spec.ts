@@ -243,3 +243,38 @@ test("authenticated order history renders read-only mocked order rows", async ({
   await expect(page.getByText("65000.00")).toBeVisible();
   await expect(page.getByText("open", { exact: true })).toBeVisible();
 });
+
+test("spot preview keeps provider provenance visible and fits a 320px mobile viewport", async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 780 });
+  await page.route("**/api/market/pairs", route => route.fulfill({
+    status: 200, contentType: "application/json",
+    body: JSON.stringify({ ok: true, markets: [{ base_asset: "BTC", quote_asset: "USDT", enabled: true, price_tick: "0.01", quantity_step: "0.00001", min_quantity: "0.00001", min_notional: "5" }] }),
+  }));
+  await page.route("**/api/market", route => route.fulfill({
+    status: 200, contentType: "application/json",
+    body: JSON.stringify({ ok: true, markets: [{ sym: "BTC", price: 65000, chg: 1.2, high: 66000, low: 64000, vol: "1000000", source: "coinbase" }], data: { BTC: { ts: Math.floor(Date.now() / 1000), providerTs: Math.floor(Date.now() / 1000), source: "coinbase" } } }),
+  }));
+  await page.route("**/api/kline?**", route => route.fulfill({
+    status: 200, contentType: "application/json",
+    body: JSON.stringify({ ok: true, source: "coinbase", klines: [{ time: Date.now(), open: 64900, high: 65100, low: 64800, close: 65000, volume: 12 }] }),
+  }));
+  await page.route("**/api/depth?**", route => route.fulfill({
+    status: 200, contentType: "application/json",
+    body: JSON.stringify({ ok: true, source: "bybit", snapshotTs: Math.floor(Date.now() / 1000), bids: [["64999", "1.2"]], asks: [["65001", "0.8"]] }),
+  }));
+  await page.route("**/api/trading/status", route => route.fulfill({
+    status: 200, contentType: "application/json",
+    body: JSON.stringify({ ok: true, spot_order_entry_enabled: false, spot_cancel_enabled: false, supported_order_types: [] }),
+  }));
+  await page.route("**/api/orders", route => route.fulfill({
+    status: 401, contentType: "application/json",
+    body: JSON.stringify({ ok: false, need_login: true, code: "AUTH_REQUIRED", msg: "Please sign in to continue." }),
+  }));
+
+  await page.goto("/trade/BTCUSDT");
+  await expect(page.getByRole("heading", { name: "BTCUSDT" })).toBeVisible();
+  await expect(page.getByText("Ticker: coinbase · Order book: bybit · Chart: coinbase")).toBeVisible();
+  await expect(page.getByText(/Chart refresh is unavailable/)).toHaveCount(0);
+  const dimensions = await page.evaluate(() => ({ viewport: document.documentElement.clientWidth, content: document.documentElement.scrollWidth }));
+  expect(dimensions.content).toBeLessThanOrEqual(dimensions.viewport);
+});
