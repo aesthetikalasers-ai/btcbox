@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { Badge } from "../../components/ui/badge";
 import { Button } from "../../components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/card";
@@ -324,19 +324,25 @@ export function AdminPage() {
   }, [session?.user_id, selectedUser?.uid]);
 
 
+  const userDetailRequestRef = useRef(0);
   const selectUser = async (uid: string) => {
     if (!token) return;
+    const requestId = ++userDetailRequestRef.current;
     setBusy(true); setError(""); setNotice("");
     // A failed user-detail read must never leave another user's balances or
     // manual-credit controls on screen as if they belonged to the new selection.
     setSelectedUser(null);
     try {
       const result = await getAdminUser(token, uid);
-      setSelectedUser(result.user);
+      if (requestId === userDetailRequestRef.current) setSelectedUser(result.user);
 
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "User account could not be loaded.");
-    } finally { setBusy(false); }
+      if (requestId === userDetailRequestRef.current) {
+        setError(reason instanceof Error ? reason.message : "User account could not be loaded.");
+      }
+    } finally {
+      if (requestId === userDetailRequestRef.current) setBusy(false);
+    }
   };
 
   const manualCredit = async (event: FormEvent<HTMLFormElement>, coin: string) => {
