@@ -14,7 +14,7 @@ function display(value: unknown, fallback = "—") {
 
 function statusVariant(status: string) {
   const value = status.toLowerCase();
-  if (["filled", "completed", "success", "closed"].includes(value)) return "default" as const;
+  if (["filled", "completed", "success", "closed"].includes(value)) return "success" as const;
   if (["cancelled", "canceled", "rejected", "failed"].includes(value)) return "destructive" as const;
   return "outline" as const;
 }
