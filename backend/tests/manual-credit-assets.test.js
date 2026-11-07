@@ -19,3 +19,25 @@ test('manual credit supports every asset exposed in the admin asset selector', (
   assert.ok(depositSql.includes('[A-Z0-9]{2,16}'));
   assert.ok(api.includes("route === 'deposit/confirm' && verb === 'POST'"));
 });
+
+
+test('asset balance display preserves decimal strings without IEEE-754 conversion', () => {
+  const assets = fs.readFileSync(path.resolve(__dirname, '../../frontend/src/features/assets/AssetsPage.tsx'), 'utf8');
+  assert.ok(assets.includes('if (typeof value === "string") {'));
+  assert.ok(assets.includes('const match = normalized.match(/^(-?)(\\d+)(?:\\.(\\d+))?$/);'));
+  assert.ok(assets.includes('const grouped = integer.replace(/\\B(?=(\\d{3})+(?!\\d))/g, ",");'));
+  assert.ok(assets.includes('return sign + grouped + (fraction ? "." + fraction : "");'));
+  assert.ok(!assets.includes('const parsed = Number(value ?? 0);'));
+});
+
+
+test('asset balances fail closed when a free/frozen field is missing', () => {
+  const client = fs.readFileSync(path.resolve(__dirname, '../../frontend/src/lib/api.ts'), 'utf8');
+  const page = fs.readFileSync(path.resolve(__dirname, '../../frontend/src/features/assets/AssetsPage.tsx'), 'utf8');
+  assert.ok(client.includes('const validBalances = !!payload.balances'));
+  assert.ok(client.includes('validAmount((balance as AccountBalance).free)'));
+  assert.ok(client.includes('validAmount((balance as AccountBalance).frozen)'));
+  assert.ok(client.includes('INVALID_ACCOUNT_RESPONSE'));
+  assert.ok(page.includes('if (value === undefined || value === null) return "—";'));
+  assert.ok(!page.includes('if (value === undefined) return "0";'));
+});
