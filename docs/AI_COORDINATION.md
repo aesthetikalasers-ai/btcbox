@@ -6214,3 +6214,10 @@ Current branch HEAD at note creation: `51c302a96f069876e438321d3597501fcbc26b54`
 - Commit `27782f4bd589ee84d133c3862e32bf63568c874d`; source-contract assertion correction `a4404e287e9fcdaa4b88a9522a817d36a9cfb95d`.
 - Browser test not executed here; do not mark pass. Vercel check remains rate-limited and no Actions run for the current commits has yet been confirmed.
 - Continue with route/auth and mobile regression review; no production deployment.
+
+## 2026-11-07 CI results
+
+- Backend CI `42318730474` at `1b472aff19232f02295079a86f76096881ceeb46`: SUCCESS — unified build, backend tests, deployment-config preflight and preserved entrypoints all passed.
+- Frontend CI `42318554054` at `27782f4bd589ee84d133c3862e32bf63568c874d`: SUCCESS — lint, build, Chromium and desktop/mobile route smoke tests passed, including the new 320px spot preview test.
+- The earlier backend red run was caused by an incorrect test slice boundary and is fixed; the earlier frontend red run was caused by missing KlineResponse source typing and is fixed.
+- Vercel deployment check still reports rate limit only; production deployment remains paused. No real funds, live orders or production DB were touched.
