@@ -6241,3 +6241,12 @@ Current branch HEAD at note creation: `51c302a96f069876e438321d3597501fcbc26b54`
 - Backend wallet-identity regression verifies EVM lowercase normalization, valid Solana base58 address acceptance, malformed addresses and unsupported chains. Backend CI run 42321114844 at 863576598db9414669798ff917f389ccb8eb8892: SUCCESS — 411 backend tests and unified build/preflight passed.
 - Earlier test-only failures were diagnosed from Actions logs and corrected: missing account fixture field; fixture not reflecting saved credentials; and cross-VM object assertion semantics. No production authentication behavior was weakened.
 - Remaining NOT VERIFIED: live Supabase Google provider/redirect configuration and real injected wallet sign-in on physical devices. No production deployment, DB mutation, merge, or real financial operation.
+
+## 2026-11-07 continuation — mobile spot workstation
+
+- Mobile spot layout now keeps the market price summary first and the limit-order form immediately after it; chart and order-book panels are not allowed to push the primary buy/sell form below long chart content.
+- At mobile widths, chart and order book are opened as bottom-anchored drawers (max-height 72dvh), with safe-area bottom padding and explicit Close controls. Desktop retains the side-by-side chart/order-book workstation layout.
+- Chart creation waits until its container has a non-zero width; opening the mobile chart drawer re-runs chart setup and ResizeObserver keeps it responsive.
+- 320px Playwright coverage verifies price and limit order priority, chart/depth hidden by default, chart canvas rendering when opened, both drawer open/close interactions, distinct provider provenance, and no horizontal overflow.
+- Frontend CI run 42321826347 at bb6183557b9048734382c3f4cac75d8fbc8b5a7c: SUCCESS — lint, build and desktop/mobile Playwright route smoke all passed (32 tests).
+- No trade execution, matching, settlement, account balance or financial backend behavior changed. No production deploy.
