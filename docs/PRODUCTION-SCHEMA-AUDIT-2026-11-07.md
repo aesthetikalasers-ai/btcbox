@@ -11,7 +11,9 @@
 
 ## Confirmed RPC inventory
 
-The diagnostic checked the 12 RPC names required by the current source/API contract:
+The inventory was expanded after tracing every literal `/rest/v1/rpc/` call plus both dynamic `matchingRpc(...)` call sites in the active API handler and the administrator-auth module. This supersedes the initial 12-name sample.
+
+The diagnostic checks all 26 literal PostgREST RPC dependencies found in the active backend request handlers (`backend/api-core.js` and `backend/admin-auth.js`), including both matching-engine calls.
 
 | RPC | Live catalog result |
 |---|---|
@@ -28,7 +30,7 @@ The diagnostic checked the 12 RPC names required by the current source/API contr
 | `read_spot_market_snapshot_v1` | MISSING |
 | `review_withdrawal_atomic` | PRESENT — `public.review_withdrawal_atomic(text,text,boolean,text)`, executable by service_role only |
 
-Result: 11 of 12 checked RPCs are absent. This is a confirmed live catalog observation, not an inference from migration filenames.
+Result: the complete live catalog result is recorded in the table above. This is a confirmed catalog observation, not an inference from migration filenames. The earlier 12-function subset was incomplete and is superseded by this 26-function inventory.
 
 ## Confirmed table/schema inventory
 
