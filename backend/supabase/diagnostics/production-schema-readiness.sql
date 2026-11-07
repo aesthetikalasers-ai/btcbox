@@ -54,6 +54,38 @@ function_inventory AS (
     AND p.pronamespace IN (SELECT oid FROM pg_namespace WHERE nspname IN ('public','private'))
   LEFT JOIN pg_namespace n ON n.oid = p.pronamespace
   GROUP BY r.name, r.expected_arity
+),
+required_tables(schema_name, table_name) AS (
+  VALUES
+    ('public','btcbox_state'),
+    ('public','financial_accounts'),
+    ('public','financial_ledger'),
+    ('public','financial_audit_log'),
+    ('public','deposit_records'),
+    ('public','withdrawal_requests'),
+    ('public','financial_matching_markets'),
+    ('public','financial_matching_orders'),
+    ('public','financial_matching_trades'),
+    ('public','seconds_contract_positions'),
+    ('public','seconds_contract_policies'),
+    ('public','seconds_contract_policy_active'),
+    ('public','seconds_contract_policy_audit'),
+    ('public','btcbox_rate_limits'),
+    ('private','admin_permission_catalog'),
+    ('private','admin_memberships'),
+    ('private','admin_permission_events'),
+    ('private','admin_security_audit'),
+    ('private','admin_request_idempotency')
+),
+table_inventory AS (
+  SELECT r.schema_name, r.table_name, c.oid, c.relrowsecurity,
+         CASE WHEN c.oid IS NOT NULL THEN has_table_privilege('anon', c.oid, 'SELECT') END AS anon_select,
+         CASE WHEN c.oid IS NOT NULL THEN has_table_privilege('authenticated', c.oid, 'SELECT') END AS authenticated_select,
+         CASE WHEN c.oid IS NOT NULL THEN has_table_privilege('service_role', c.oid, 'SELECT') END AS service_role_select
+  FROM required_tables r
+  LEFT JOIN pg_namespace n ON n.nspname = r.schema_name
+  LEFT JOIN pg_class c ON c.relnamespace = n.oid
+    AND c.relname = r.table_name AND c.relkind IN ('r','p')
 )
 SELECT 'RPC'::text AS category,
        name AS object_name,
