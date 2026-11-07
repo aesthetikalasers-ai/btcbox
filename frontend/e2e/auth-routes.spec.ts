@@ -531,3 +531,45 @@ test("trade chooser exposes the backend-enabled products and keeps unsupported f
   await expect(page).toHaveURL(/\/login$/);
   await expect(page.getByRole("heading", { name: "Welcome back" })).toBeVisible();
 });
+
+
+test("registration experience stays clear and usable on a narrow mobile viewport", async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 780 });
+  await page.goto("/register");
+
+  await expect(page.getByRole("heading", { name: "Create your BTCBOX account" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Connect Ethereum wallet" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Connect Solana wallet" })).toBeVisible();
+  await expect(page.getByText(/No email registration is required/i)).toBeVisible();
+  const dimensions = await page.evaluate(() => ({ viewport: document.documentElement.clientWidth, content: document.documentElement.scrollWidth }));
+  expect(dimensions.content).toBeLessThanOrEqual(dimensions.viewport);
+});
+
+test("public preview landing page is available signed out with market data and registration entry points", async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 780 });
+  const mutations: string[] = [];
+  page.on("request", request => {
+    const url = new URL(request.url());
+    if (url.pathname.startsWith("/api/") && ["POST", "PUT", "PATCH", "DELETE"].includes(request.method())) {
+      mutations.push(request.method() + " " + url.pathname);
+    }
+  });
+  await page.route("**/api/market", route => route.fulfill({
+    status: 200, contentType: "application/json",
+    body: JSON.stringify({ ok: true, markets: [{ sym: "BTC", price: 65000, chg: 1.2, high: 66000, low: 64000, vol: "1000000", source: "coinbase" }], data: { BTC: { ts: Math.floor(Date.now() / 1000), providerTs: Math.floor(Date.now() / 1000), source: "coinbase" } } }),
+  }));
+  await page.route("**/api/kline?**", route => route.fulfill({
+    status: 200, contentType: "application/json",
+    body: JSON.stringify({ ok: true, source: "coinbase", klines: [{ time: Date.now(), open: 64900, high: 65100, low: 64800, close: 65000, volume: 12 }] }),
+  }));
+
+  await page.goto("/home");
+  await expect(page.getByRole("heading", { name: "Explore the market. Trade with confidence." })).toBeVisible();
+  await expect(page.getByRole("link", { name: /Create account/i }).first()).toHaveAttribute("href", "/register");
+  await expect(page.getByRole("heading", { name: "Market overview" })).toBeVisible();
+  await expect(page.getByText(/Live market feed|Connecting/)).toBeVisible();
+  await expect(page.getByText("BTC", { exact: true }).first()).toBeVisible();
+  const dimensions = await page.evaluate(() => ({ viewport: document.documentElement.clientWidth, content: document.documentElement.scrollWidth }));
+  expect(dimensions.content).toBeLessThanOrEqual(dimensions.viewport);
+  expect(mutations).toEqual([]);
+});
