@@ -1188,18 +1188,18 @@ test("public market landing page remains responsive across mobile, tablet and de
 
 
 test("assets page preserves the last confirmed balances when refresh temporarily fails", async ({ page }) => {
-  let accountReads = 0;
+  let failRefresh = false;
   await page.route("**/api/account", async (route) => {
-    accountReads += 1;
-    if (accountReads <= 2) {
-      await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(authenticatedAccountFixture) });
+    if (failRefresh) {
+      await route.fulfill({ status: 503, contentType: "application/json", body: JSON.stringify({ ok: false, msg: "internal provider detail" }) });
       return;
     }
-    await route.fulfill({ status: 503, contentType: "application/json", body: JSON.stringify({ ok: false, msg: "internal provider detail" }) });
+    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(authenticatedAccountFixture) });
   });
 
   await page.goto("/assets");
   await expect(page.getByText("125.5", { exact: true })).toBeVisible();
+  failRefresh = true;
   await page.getByRole("button", { name: "Refresh" }).click();
   await expect(page.getByRole("alert")).toContainText("Account data is temporarily unavailable.");
   await expect(page.getByText("125.5", { exact: true })).toBeVisible();
@@ -1207,13 +1207,12 @@ test("assets page preserves the last confirmed balances when refresh temporarily
 });
 
 test("orders page preserves the last confirmed order when refresh temporarily fails", async ({ page }) => {
-  let orderReads = 0;
+  let failRefresh = false;
   await page.route("**/api/account", async (route) => {
     await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(authenticatedAccountFixture) });
   });
   await page.route("**/api/orders", async (route) => {
-    orderReads += 1;
-    if (orderReads === 1) {
+    if (!failRefresh) {
       await route.fulfill({
         status: 200,
         contentType: "application/json",
@@ -1238,6 +1237,7 @@ test("orders page preserves the last confirmed order when refresh temporarily fa
 
   await page.goto("/orders");
   await expect(page.getByText("E2E-STALE-ORDER-001")).toBeVisible();
+  failRefresh = true;
   await page.getByRole("button", { name: "Refresh" }).click();
   await expect(page.getByRole("alert")).toContainText("Order history is temporarily unavailable.");
   await expect(page.getByText("E2E-STALE-ORDER-001")).toBeVisible();
