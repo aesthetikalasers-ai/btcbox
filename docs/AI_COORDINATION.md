@@ -3473,3 +3473,12 @@ The prior withdrawal UI audit statement claiming the active BTCBOX admin route w
 - `frontend/src/features/orders/OrdersPage.tsx`: removed the remaining violet route tint in favor of the shared neutral raised surface; pending/open/partially-filled/processing/submitted statuses now use warning semantics, cancelled/rejected/failed/expired use destructive, completed/filled remain success, and unknown values remain outline. Added clearer sticky table header and row hover feedback.
 - Exact-head frontend CI for `0d92b4fbb9f9e1069e7d644ee15c273b8a1d71c4` had not yet appeared when this note was written. Do not mark this batch accepted until install, lint, production build, Chromium and desktop/mobile route smoke tests pass.
 - Independent browser visual QA at 320/360/375/390/430px, tablet and desktop remains NOT VERIFIED. No merge, deployment, hosted database writes or real financial operations. Trading page layout unchanged.
+
+
+## Wallet and asset balance responsive polish — 2026-11-07
+
+- FIX COMMITTED: visual PR #65 head `c5e9f244a96ab213bfc06bc97f91dce5986c14e0`.
+- `frontend/src/features/assets/AssetsPage.tsx`: replaced remaining teal/cyan page-specific tints with shared neutral raised/surface layers; balance rows now use two columns on narrow screens (asset label spans the row, available/frozen values share the next row) and three columns at wider breakpoints. Account API, valuation completeness, displayed values and deposit/withdraw navigation are unchanged.
+- Previous exact-head CI for `0d92b4fbb9f9e1069e7d644ee15c273b8a1d71c4` run `42387234575`: install, lint, production build and Chromium passed; desktop/mobile route smoke tests were still running at this update.
+- Exact-head CI for `c5e9f244a96ab213bfc06bc97f91dce5986c14e0` had not yet appeared. Do not mark this batch accepted until its own full workflow passes.
+- Independent browser visual QA remains NOT VERIFIED. No merge, deployment, hosted database writes or real financial operations. Trading page layout unchanged.
