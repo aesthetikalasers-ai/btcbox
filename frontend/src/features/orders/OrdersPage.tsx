@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { ArrowUpRight, ClipboardList, RefreshCw } from "lucide-react";
 import { Badge } from "../../components/ui/badge";
@@ -25,20 +25,17 @@ export function OrdersPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [signedOut, setSignedOut] = useState(false);
-  const requestIdRef = useRef(0);
 
   async function load(signal?: AbortSignal) {
-    const requestId = ++requestIdRef.current;
     setLoading(true);
-    setOrders([]);
     setError("");
     setSignedOut(false);
     try {
       const rows = await getOrders(signal);
-      if (!signal?.aborted && requestId === requestIdRef.current) setOrders(rows);
+      if (!signal?.aborted) setOrders(rows);
     } catch (reason) {
       if (reason instanceof Error && reason.name === "AbortError") return;
-      if (signal?.aborted || requestId !== requestIdRef.current) return;
+      if (signal?.aborted) return;
       setOrders([]);
       if (reason instanceof ApiError && reason.code === "AUTH_REQUIRED") {
         setSignedOut(true);
@@ -47,7 +44,7 @@ export function OrdersPage() {
         setError(reason instanceof Error ? reason.message : t("Order history is temporarily unavailable."));
       }
     } finally {
-      if (!signal?.aborted && requestId === requestIdRef.current) setLoading(false);
+      if (!signal?.aborted) setLoading(false);
     }
   }
 
@@ -83,7 +80,7 @@ export function OrdersPage() {
       <Card className="border-brand-border bg-brand-surface">
         <CardHeader>
           <CardTitle>{t("Order history")}</CardTitle>
-          <CardDescription>{t("Order history displays records returned by your authenticated account.")}</CardDescription>
+          <CardDescription>{t("Only order records returned by the authenticated account service are shown.")}</CardDescription>
         </CardHeader>
         <CardContent className="p-0">
           {loading ? (
