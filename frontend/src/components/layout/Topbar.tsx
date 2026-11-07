@@ -2,6 +2,7 @@ import { useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Search, Bell, User, Radio, Menu, Languages } from "lucide-react";
 import { useI18n, type Language } from "../../lib/i18n";
+import { BrandLogo } from "../BrandLogo";
 
 export function Topbar({ onMenuClick, menuOpen = false }: { onMenuClick?: () => void; menuOpen?: boolean }) {
   const { language, setLanguage, t } = useI18n();
@@ -21,6 +22,7 @@ export function Topbar({ onMenuClick, menuOpen = false }: { onMenuClick?: () => 
             <Menu className="h-5 w-5" />
           </button>
         )}
+        <Link to="/home" aria-label="BTCBOX home" className="min-w-0 sm:hidden"><BrandLogo compact showExchange={false} /></Link>
         <form onSubmit={submitSearch} role="search" className="relative hidden min-w-0 max-[480px]:hidden sm:block">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-brand-text-muted" />
           <input type="search" aria-label={t("Search BTCBOX")} value={search} onChange={(event) => setSearch(event.target.value)} placeholder={t("Search")} className="h-11 w-[min(30vw,190px)] rounded-xl border border-brand-border bg-brand-surface px-3 pl-10 pr-3 text-sm text-brand-text placeholder:text-brand-text-muted focus:border-brand-accent focus:outline-none md:w-[240px]" />

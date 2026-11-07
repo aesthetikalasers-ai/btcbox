@@ -72,5 +72,31 @@ test('admin withdrawal mutations preserve confirmed UI state when queue refresh 
   assert.match(handlers, /setWithdrawals\(current => current\.map\(item => item\.id === id \? \{ \.\.\.item, status: "approved" \} : item\)\);[\s\S]*?await refreshWithdrawalQueue\("Withdrawal approval confirmed\."\)/);
   assert.match(handlers, /setWithdrawals\(current => current\.filter\(item => item\.id !== target\.id\)\);[\s\S]*?await refreshWithdrawalQueue\("Withdrawal rejection and refund confirmed\."\)/);
   assert.match(handlers, /setNotice\(result\.duplicate[\s\S]*?await refreshWithdrawalQueue\("Manual payout completion confirmed\."\)/);
-  assert.match(handlers, /The database action is confirmed; the queue could not refresh/);
+  assert.match(handlers, /const refreshWithdrawalQueue = async \(confirmedAction: string\)[\s\S]*?setError\(confirmedAction \+ " The queue could not refresh/);
+});
+
+test('manual payout audit binds the verified actor, withdrawal subject and payout reference exactly once', () => {
+  const completedBranchStart = sql.indexOf("IF v_w.status='completed' THEN");
+  const approvedGuard = sql.indexOf("IF v_w.status<>'approved' THEN", completedBranchStart);
+  assert.ok(completedBranchStart >= 0 && approvedGuard > completedBranchStart);
+  const retryBranch = sql.slice(completedBranchStart, approvedGuard);
+  assert.ok(retryBranch.includes("'duplicate',true"));
+  assert.ok(!retryBranch.includes('financial_audit_log'), 'an exact retry must not append a second audit event');
+
+  const updateAt = sql.indexOf("UPDATE public.withdrawal_requests");
+  const auditAt = sql.indexOf("INSERT INTO public.financial_audit_log(", updateAt);
+  const auditEnd = sql.indexOf("RETURN jsonb_build_object(", auditAt);
+  assert.ok(updateAt >= 0 && auditAt > updateAt && auditEnd > auditAt);
+  const auditInsert = sql.slice(auditAt, auditEnd);
+  for (const fragment of [
+    'actor_id,subject_user_id,action,object_type,object_id,reason,metadata',
+    'p_admin_id,v_w.user_id',
+    "'withdrawal_manual_payout_completed'",
+    "'withdrawal',v_w.id,v_note",
+    "'asset',v_w.asset",
+    "'amount',v_w.amount",
+    "'payout_reference',v_ref",
+  ]) assert.ok(auditInsert.includes(fragment), 'audit insert must include ' + fragment);
+  assert.ok(sql.includes('paid_by=p_admin_id'));
+  assert.ok(sql.includes('paid_at=clock_timestamp()'));
 });

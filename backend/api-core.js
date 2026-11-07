@@ -49,7 +49,7 @@ function getSingleSupabaseAuthProvider(identity) {
   const provider = String(appMetadata.provider || '').toLowerCase();
   const providers = Array.isArray(appMetadata.providers) ? appMetadata.providers.map(p => String(p || '').toLowerCase()) : [];
   const identities = Array.isArray(identity.identities) ? identity.identities : [];
-  if (!['google', 'email', 'web3'].includes(provider) || providers.length !== 1 || providers[0] !== provider) return null;
+  if (!['google', 'web3'].includes(provider) || providers.length !== 1 || providers[0] !== provider) return null;
   if (identities.length !== 1 || !identities[0] || String(identities[0].provider || '').toLowerCase() !== provider) return null;
   return provider;
 }
@@ -1506,16 +1506,27 @@ async function handleRequest(event, context) {
       if (!res.ok) throw new Error('market provider HTTP ' + res.status);
       return res.json();
     };
+    const normalizeLevels = rows => rows
+      .filter(row => Array.isArray(row) && row.length >= 2 && Number.isFinite(Number(row[0])) && Number(row[0]) > 0 && Number.isFinite(Number(row[1])) && Number(row[1]) > 0)
+      .map(row => [String(row[0]), String(row[1])]);
+    const response = (source, bids, asks, providerTs = null) => {
+      const normalizedBids = normalizeLevels(bids).sort((left, right) => Number(right[0]) - Number(left[0])).slice(0, 20);
+      const normalizedAsks = normalizeLevels(asks).sort((left, right) => Number(left[0]) - Number(right[0])).slice(0, 20);
+      if (!normalizedBids.length || !normalizedAsks.length) throw new Error('empty or malformed order book');
+      return json({ ok: true, source, snapshotTs: Math.floor(Date.now() / 1000), providerTs, bids: normalizedBids, asks: normalizedAsks });
+    };
     try {
       const book = await timeoutFetchJson('https://api.exchange.coinbase.com/products/' + encodeURIComponent(base + '-USDT') + '/book?level=2');
       if (!Array.isArray(book.bids) || !Array.isArray(book.asks)) throw new Error('invalid Coinbase order book');
-      return json({ ok: true, source: 'coinbase', bids: book.bids.slice(0, 20).map(x => [String(x[0]), String(x[1])]), asks: book.asks.slice(0, 20).map(x => [String(x[0]), String(x[1])]) });
+      return response('coinbase', book.bids, book.asks);
     } catch (_) {
       try {
         const payload = await timeoutFetchJson('https://api.bybit.com/v5/market/orderbook?category=spot&symbol=' + encodeURIComponent(symbol) + '&limit=20');
         const book = payload && payload.result;
         if (!book || !Array.isArray(book.b) || !Array.isArray(book.a)) throw new Error('invalid Bybit order book');
-        return json({ ok: true, source: 'bybit', bids: book.b.slice(0, 20), asks: book.a.slice(0, 20) });
+        const providerTimeMs = Number(payload.time);
+        const providerTs = Number.isFinite(providerTimeMs) && providerTimeMs > 0 ? Math.floor(providerTimeMs / 1000) : null;
+        return response('bybit', book.b, book.a, providerTs);
       } catch (_) { return json({ ok: false, code: 'DEPTH_DATA_UNAVAILABLE', msg: 'Order book data unavailable.', bids: [], asks: [] }, 503); }
     }
   }
@@ -2268,14 +2279,14 @@ async function handleRequest(event, context) {
       if (!response.ok) throw new Error('market provider HTTP ' + response.status);
       return response.json();
     };
-    const normalize = (base, ticker, source) => {
+    const normalize = (base, ticker, source, providerTs = null) => {
       const price = Number(ticker.price);
       const high = Number(ticker.high);
       const low = Number(ticker.low);
       const chg = Number(ticker.chg);
       const vol = Number(ticker.vol);
       if (![price, high, low, chg, vol].every(Number.isFinite) || price <= 0 || high <= 0 || low <= 0 || vol < 0) return null;
-      return { sym: base, price, chg, high, low, vol, ts: now, source };
+      return { sym: base, price, chg, high, low, vol, ts: now, providerTs, source };
     };
     const marketsByBase = {};
     let coinbaseAvailable = false;
@@ -2287,12 +2298,16 @@ async function handleRequest(event, context) {
         const productId = base + '-USDT';
         if (!enabled.has(productId)) return null;
         try {
-          const stats = await fetchJson('https://api.exchange.coinbase.com/products/' + productId + '/stats');
-          const price = Number(stats.last);
+          const [ticker, stats] = await Promise.all([
+            fetchJson('https://api.exchange.coinbase.com/products/' + productId + '/ticker'),
+            fetchJson('https://api.exchange.coinbase.com/products/' + productId + '/stats')
+          ]);
+          const price = Number(ticker.price);
           const open = Number(stats.open);
           const baseVolume = Number(stats.volume);
+          const providerTs = typeof ticker.time === 'string' ? Math.floor(Date.parse(ticker.time) / 1000) : null;
           if (!finitePositive(price) || !finitePositive(open) || !finitePositive(stats.high) || !finitePositive(stats.low) || !Number.isFinite(baseVolume) || baseVolume < 0) return null;
-          return normalize(base, { price, high: Number(stats.high), low: Number(stats.low), chg: (price - open) / open * 100, vol: baseVolume * price }, 'coinbase');
+          return normalize(base, { price, high: Number(stats.high), low: Number(stats.low), chg: (price - open) / open * 100, vol: baseVolume * price }, 'coinbase', Number.isFinite(providerTs) && providerTs > 0 ? providerTs : null);
         } catch (_) { return null; }
       }));
       coinbaseRows.forEach(row => { if (row) marketsByBase[row.sym] = row; });
@@ -2312,24 +2327,32 @@ async function handleRequest(event, context) {
           if (!t) return;
           const price = Number(t.lastPrice), high = Number(t.highPrice24h), low = Number(t.lowPrice24h);
           const chg = Number(t.price24hPcnt) * 100, vol = Number(t.turnover24h);
-          const row = normalize(base, { price, high, low, chg, vol }, 'bybit');
+          const providerTimeMs = Number(payload.time);
+          const providerTs = Number.isFinite(providerTimeMs) && providerTimeMs > 0 ? Math.floor(providerTimeMs / 1000) : null;
+          // Bybit's timestamp is the response timestamp, so unlike Coinbase's
+          // last-trade time it can be checked for snapshot freshness.
+          if (providerTs === null || providerTs > now + 15 || now - providerTs > 60) return;
+          const row = normalize(base, { price, high, low, chg, vol }, 'bybit', providerTs);
           if (row) marketsByBase[base] = row;
         });
       } catch (_) {
         // Keep valid Coinbase rows; do not invent prices for missing symbols.
       }
     }
+    // This is the server snapshot time after provider responses have been received,
+    // not an exchange event timestamp (Coinbase stats has no event-time field).
+    const snapshotTs = Math.floor(Date.now() / 1000);
     const out = bases.filter(base => marketsByBase[base]).map(base => {
       const row = marketsByBase[base];
       return { sym: row.sym, price: row.price, chg: row.chg, high: row.high, low: row.low, vol: (row.vol / 1e9).toFixed(2) + 'B', source: row.source };
     });
     const dataObj = {};
-    out.forEach(row => { dataObj[row.sym] = { price: row.price, chg: row.chg, high: row.high, low: row.low, vol: marketsByBase[row.sym].vol, ts: now, source: row.source }; });
+    out.forEach(row => { dataObj[row.sym] = { price: row.price, chg: row.chg, high: row.high, low: row.low, vol: marketsByBase[row.sym].vol, ts: snapshotTs, providerTs: marketsByBase[row.sym].providerTs, source: row.source }; });
     if (!out.length) return json({ ok: false, code: 'MARKET_DATA_UNAVAILABLE', msg: 'Market data unavailable.', markets: [], data: {}, source: coinbaseAvailable ? 'coinbase_partial' : 'unavailable' }, 503);
     // Public market snapshots contain no user data. Allow short shared-cache reuse
     // so free serverless plans do not fetch every provider for every browser poll.
     // Authenticated/private/financial endpoints retain the default no-store policy.
-    return json({ ok: true, markets: out, data: dataObj, source: missingBases.length ? 'coinbase_primary_bybit_fallback' : 'coinbase' }, 200, { 'Cache-Control': 'public, max-age=2, s-maxage=5, stale-while-revalidate=3' });
+    return json({ ok: true, markets: out, data: dataObj, source: missingBases.length ? 'coinbase_primary_bybit_fallback' : 'coinbase' }, 200, { 'Cache-Control': 'public, max-age=0, s-maxage=2, stale-while-revalidate=1' });
   }
 
   // Public capability snapshot. Financial order writes remain fail-closed unless
@@ -3431,7 +3454,9 @@ async function handleRequest(event, context) {
         if (!supabaseStorageConfigured()) return json({ ok: false, code: 'FINANCIAL_RPC_NOT_CONFIGURED', msg: 'Financial database not configured. Withdrawal was not rejected or refunded.' }, 503);
         const adminId = adminUserId;
         if (!adminId) return json({ ok: false, code: 'ADMIN_ACTOR_NOT_CONFIGURED', msg: 'Administrator audit identity not configured. Withdrawal was not rejected or refunded.' }, 503);
-        const reason = String(body.reason || 'Admin rejected withdrawal.').trim().slice(0, 200) || 'Admin rejected withdrawal.';
+        const reason = String(body.reason || '').trim();
+        if (!reason) return json({ ok: false, code: 'WITHDRAWAL_REJECTION_REASON_REQUIRED', msg: 'A rejection reason is required.' }, 400);
+        if (reason.length > 200 || /[\u0000-\u001f\u007f]/.test(reason)) return json({ ok: false, code: 'WITHDRAWAL_REJECTION_REASON_INVALID', msg: 'Rejection reason must be 1–200 characters without control characters.' }, 400);
         try {
           const rpc = await fetch(process.env.SUPABASE_URL.replace(/\/+$/, '') + '/rest/v1/rpc/review_withdrawal_atomic', {
             method: 'POST', headers: supabaseHeaders(),

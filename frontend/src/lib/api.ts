@@ -6,6 +6,10 @@ export interface MarketTicker {
   low: number;
   vol: string;
   source: string;
+  /** Server snapshot time (Unix seconds), not an exchange event timestamp. */
+  snapshotTs?: number;
+  /** Provider-supplied timestamp (Unix seconds): Coinbase last-trade time or Bybit response time; not a universal exchange-event timestamp. */
+  providerTs?: number;
 }
 
 export interface MarketCandle {
@@ -15,17 +19,20 @@ export interface MarketCandle {
   low: number;
   close: number;
   volume: number;
+  source?: string;
 }
 
 interface MarketResponse {
   ok: boolean;
   markets?: MarketTicker[];
+  data?: Record<string, { ts?: number; providerTs?: number | null; source?: string }>;
   msg?: string;
   code?: string;
 }
 
 interface KlineResponse {
   ok: boolean;
+  source?: string;
   klines?: MarketCandle[];
   msg?: string;
   code?: string;
@@ -101,7 +108,15 @@ export async function getMarkets(signal?: AbortSignal): Promise<MarketTicker[]> 
     Number.isFinite(item.high) && item.high > 0 &&
     Number.isFinite(item.low) && item.low > 0 &&
     typeof item.vol === "string"
-  );
+  ).map(item => {
+    const snapshot = payload.data?.[item.sym];
+    return {
+      ...item,
+      snapshotTs: Number.isFinite(snapshot?.ts) && Number(snapshot?.ts) > 0 ? Number(snapshot?.ts) : undefined,
+      providerTs: Number.isFinite(snapshot?.providerTs) && Number(snapshot?.providerTs) > 0 ? Number(snapshot?.providerTs) : undefined,
+      source: typeof snapshot?.source === "string" ? snapshot.source : item.source,
+    };
+  });
 }
 
 export async function getKlines(
@@ -136,8 +151,10 @@ export async function getKlines(
     Number.isFinite(candle.high) && candle.high > 0 &&
     Number.isFinite(candle.low) && candle.low > 0 &&
     Number.isFinite(candle.close) && candle.close > 0 &&
-    Number.isFinite(candle.volume) && candle.volume >= 0
-  );
+    Number.isFinite(candle.volume) && candle.volume >= 0 &&
+    candle.high >= Math.max(candle.open, candle.close, candle.low) &&
+    candle.low <= Math.min(candle.open, candle.close, candle.high)
+  ).map(candle => ({ ...candle, source: typeof payload.source === "string" ? payload.source : undefined }));
 }
 
 
@@ -154,7 +171,7 @@ export async function getTradingStatus(signal?: AbortSignal): Promise<TradingSta
   }
   return payload;
 }
-export interface OrderBookSnapshot { source: string; bids: Array<[string,string]>; asks: Array<[string,string]>; }
+export interface OrderBookSnapshot { source: string; snapshotTs?: number; providerTs?: number | null; bids: Array<[string,string]>; asks: Array<[string,string]>; }
 export async function getOrderBook(symbol = "BTCUSDT", signal?: AbortSignal): Promise<OrderBookSnapshot> {
   const query = new URLSearchParams({ symbol });
   const response = await fetch(`${API_BASE_URL}/depth?${query.toString()}`, { credentials: "include", cache: "no-store", signal, headers: { Accept: "application/json" } });
@@ -162,7 +179,16 @@ export async function getOrderBook(symbol = "BTCUSDT", signal?: AbortSignal): Pr
   if (!response.ok || !payload || payload.ok !== true || !Array.isArray(payload.bids) || !Array.isArray(payload.asks)) {
     throw new ApiError(payload?.msg || "Order book data is temporarily unavailable.", response.status, payload?.code);
   }
-  return payload;
+  const normalizeLevels = (rows: unknown[]): Array<[string, string]> => rows
+    .filter((row): row is [string | number, string | number] =>
+      Array.isArray(row) && row.length >= 2 &&
+      Number.isFinite(Number(row[0])) && Number(row[0]) > 0 &&
+      Number.isFinite(Number(row[1])) && Number(row[1]) > 0)
+    .map(row => [String(row[0]), String(row[1])]);
+  const bids = normalizeLevels(payload.bids).sort((left, right) => Number(right[0]) - Number(left[0])).slice(0, 20);
+  const asks = normalizeLevels(payload.asks).sort((left, right) => Number(left[0]) - Number(right[0])).slice(0, 20);
+  if (!bids.length || !asks.length) throw new ApiError("Order book data is malformed or empty.", response.status, "INVALID_ORDER_BOOK");
+  return { ...payload, bids, asks };
 }
 export interface SpotOrderInput { symbol: string; side: "buy" | "sell"; type: "limit"; qty: string; price: string; client_order_id: string; }
 export interface SpotOrderResult { order_id: string; status: string; price: number | string; quantity: number | string; remaining_quantity?: number | string; duplicate: boolean; }
@@ -569,7 +595,7 @@ export async function getAuthClientConfig(signal?: AbortSignal): Promise<AuthCli
   }
   const payload = await response.json().catch(() => null) as (AuthClientConfig & { msg?: string; code?: string }) | null;
   if (!response.ok || !payload || payload.ok !== true || !payload.supabase_url || !payload.publishable_key) {
-    throw new ApiError(payload?.msg || "Google sign-in is not configured.", response.status, payload?.code);
+    throw new ApiError(payload?.msg || "BTCBOX authentication is not configured.", response.status, payload?.code);
   }
   return payload;
 }

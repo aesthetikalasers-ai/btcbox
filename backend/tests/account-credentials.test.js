@@ -16,6 +16,8 @@ function extractFunction(name, context = {}) {
 const normalize = extractFunction('normalizeBtcboxUsername');
 const validUsername = extractFunction('validateBtcboxUsername');
 const validPassword = extractFunction('validateBtcboxLoginPassword');
+const authProvider = extractFunction('getSingleSupabaseAuthProvider');
+const walletIdentity = extractFunction('getSupabaseWalletIdentity', { getSingleSupabaseAuthProvider: authProvider });
 const linked = extractFunction('isSupabaseIdentityLinked');
 const linkedIds = extractFunction('getUserLinkedIdentityIds');
 const validSupabaseId = extractFunction('isSupabaseUserId');
@@ -38,6 +40,33 @@ test('BTCBOX login password policy rejects short, oversized and control-characte
   assert.equal(validPassword('x'.repeat(129)), false);
   assert.equal(validPassword('safe\nunsafe-password'), false);
   assert.equal(validPassword(null), false);
+});
+test('Supabase sign-in accepts Google and Web3 identities but rejects email identities', () => {
+  const identity = (provider) => ({
+    app_metadata: { provider, providers: [provider] },
+    identities: [{ provider }],
+  });
+  assert.equal(authProvider(identity('google')), 'google');
+  assert.equal(authProvider(identity('web3')), 'web3');
+  assert.equal(authProvider(identity('email')), null);
+  assert.equal(authProvider({
+    app_metadata: { provider: 'google', providers: ['google', 'email'] },
+    identities: [{ provider: 'google' }, { provider: 'email' }],
+  }), null);
+  assert.equal(authProvider({ app_metadata: { provider: 'web3', providers: ['web3'] }, identities: [] }), null);
+});
+
+
+test('Supabase Web3 identity validates EVM and Solana address formats independently', () => {
+  const makeIdentity = (chain, address) => ({
+    app_metadata: { provider: 'web3', providers: ['web3'] },
+    identities: [{ provider: 'web3', identity_data: { custom_claims: { chain, address } } }],
+  });
+  assert.equal(JSON.stringify(walletIdentity(makeIdentity('ethereum', '0x' + 'A'.repeat(40)))), JSON.stringify({ chain: 'ethereum', address: '0x' + 'a'.repeat(40) }));
+  assert.equal(JSON.stringify(walletIdentity(makeIdentity('solana', 'So11111111111111111111111111111111111111112'))), JSON.stringify({ chain: 'solana', address: 'So11111111111111111111111111111111111111112' }));
+  assert.equal(walletIdentity(makeIdentity('ethereum', '0x1234')), null);
+  assert.equal(walletIdentity(makeIdentity('solana', '0'.repeat(32))), null);
+  assert.equal(walletIdentity(makeIdentity('polygon', '0x' + 'a'.repeat(40))), null);
 });
 
 test('Supabase identity lookup accepts legacy primary IDs and explicitly linked IDs only', () => {

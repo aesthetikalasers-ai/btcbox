@@ -2,10 +2,11 @@ name: BTCBOX backend CI
 
 on:
   push:
-    branches: [main, 'feat/btcbox-web3-auth-20261105', 'fix/post-merge-db-bootstrap-seconds-20261106']
+    branches: [main, 'feat/btcbox-web3-auth-20261105', 'fix/post-merge-db-bootstrap-seconds-20261106', 'work/btcbox-unified-20261104']
     paths:
       - 'backend/**'
       - 'frontend/src/lib/auth.tsx'
+      - 'frontend/src/features/auth/AuthPages.tsx'
       - '.github/workflows/backend-ci.yml'
       - '.github/workflows/frontend-ci.yml'
   pull_request:

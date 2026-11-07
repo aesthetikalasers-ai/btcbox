@@ -33,7 +33,62 @@ test('spot trading live refresh never overwrites the customer-edited limit price
 
 test('spot trading page shows last successful market update and a stale-feed warning', () => {
   assert.ok(page.includes('marketUpdatedAt'));
-  assert.ok(page.includes('Last update'));
+  assert.ok(page.includes('Snapshot checked'));
   assert.ok(page.includes('marketFeedWarning'));
   assert.ok(page.includes('showing the last confirmed data'));
+});
+
+const app = fs.readFileSync(path.resolve(__dirname, '../../frontend/src/App.tsx'), 'utf8');
+const dashboard = fs.readFileSync(path.resolve(__dirname, '../../frontend/src/features/dashboard/Dashboard.tsx'), 'utf8');
+const marketTable = fs.readFileSync(path.resolve(__dirname, '../../frontend/src/features/dashboard/components/LiveMarketsTable.tsx'), 'utf8');
+
+test('spot market preview route is public while account and order APIs remain separately gated', () => {
+  assert.ok(app.includes('<Route path="/trade/:symbol" element={<SpotTradingPage />} />'));
+  assert.ok(!app.includes('<Route path="/trade/:symbol" element={<ProtectedAccountRoute>'));
+  assert.ok(page.includes('accountResult.reason.code==="AUTH_REQUIRED"'));
+  assert.ok(page.includes('getOrders(controller.signal)'));
+});
+
+test('public market overview polls at 15 seconds and prevents overlapping refreshes', () => {
+  assert.ok(dashboard.includes('window.setInterval(loadMarkets, 15000)'));
+  assert.ok(dashboard.includes('if (refreshing || controller.signal.aborted) return;'));
+  assert.ok(dashboard.includes('refreshing = true;'));
+  assert.ok(dashboard.includes('refreshing = false;'));
+});
+
+test('market table preserves last confirmed prices and displays a stale-feed warning', () => {
+  assert.ok(marketTable.includes('error && markets.length > 0'));
+  assert.ok(marketTable.includes('Showing the last confirmed market data.'));
+});
+const api = fs.readFileSync(path.resolve(__dirname, '../../frontend/src/lib/api.ts'), 'utf8');
+const backend = fs.readFileSync(path.resolve(__dirname, '../api-core.js'), 'utf8');
+
+test('market API carries per-symbol server snapshot time separately from provider event time', () => {
+  assert.ok(backend.includes('const snapshotTs = Math.floor(Date.now() / 1000)'));
+  assert.ok(backend.includes('ts: snapshotTs, providerTs: marketsByBase[row.sym].providerTs, source: row.source'));
+  assert.ok(backend.includes("products/' + productId + '/ticker'"));
+  assert.ok(backend.includes('Date.parse(ticker.time)'));
+  assert.ok(backend.includes('Math.floor(providerTimeMs / 1000)'));
+  assert.ok(api.includes('providerTs?: number'));
+  assert.ok(api.includes('snapshotTs?: number'));
+  assert.ok(api.includes('snapshotTs: Number.isFinite(snapshot?.ts)'));
+});
+
+test('spot UI labels server snapshot time and does not substitute browser receipt time', () => {
+  assert.ok(page.includes('t("Snapshot checked")'));
+  assert.ok(page.includes('selected.snapshotTs?selected.snapshotTs*1000:null'));
+  assert.ok(!page.includes('setMarketUpdatedAt(Date.now())'));
+});
+
+const authPage = fs.readFileSync(path.resolve(__dirname, '../../frontend/src/features/auth/AuthPages.tsx'), 'utf8');
+
+test('sign-in and registration pages expose username, Google and Web3 without email auth', () => {
+  assert.ok(authPage.includes('Continue with Google'));
+  assert.ok(authPage.includes('signInWithGoogle'));
+  assert.ok(authPage.includes('Connect Ethereum wallet'));
+  assert.ok(authPage.includes('Connect Solana wallet'));
+  assert.ok(authPage.includes('signInWithWeb3'));
+  assert.ok(authPage.includes('Sign in with username'));
+  assert.ok(!authPage.includes('Continue with email'));
+  assert.ok(!authPage.includes('Register with email'));
 });

@@ -5,7 +5,7 @@ import { ApiError, getAccount, getOrders, getMarkets, getSpotMarketPairs, getKli
 import { useAuth } from "../../lib/auth";
 
 import type { ReactNode } from "react";
-import { ArrowUpRight, LockKeyhole, Wallet, ChartNoAxesCombined, ArrowLeftRight } from "lucide-react";
+import { ArrowUpRight, LockKeyhole, Wallet, ChartNoAxesCombined, ArrowLeftRight, Sprout } from "lucide-react";
 import { Badge } from "../../components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
@@ -29,15 +29,20 @@ export function TradeHubPage(){
   }).finally(()=>{if(!controller.signal.aborted)setPairsLoading(false);});
   return ()=>controller.abort();
  },[]);
- return <PageFrame eyebrow="BTCBOX / TRADE" title="Choose your trading mode" description="Choose an operator-enabled BTCBOX spot market or policy-driven seconds contract. Market data, order status and settlement rules come from the backend.">
-  <div className="grid gap-4 md:grid-cols-2">
-   {spotPairs.map(pair=><Card key={pair.base_asset+"/"+pair.quote_asset} className="border-brand-border bg-brand-surface"><CardHeader><div className="mb-2 flex h-12 w-12 items-center justify-center rounded-2xl border border-brand-accent/20 bg-brand-accent/10 text-brand-text-secondary"><ChartNoAxesCombined className="h-5 w-5"/></div><CardTitle>{pair.base_asset}/{pair.quote_asset}</CardTitle><CardDescription>{t("Place supported limit orders against the BTCBOX spot matching service.")}</CardDescription></CardHeader><CardContent className="flex flex-wrap items-center justify-between gap-3"><Badge variant="outline">{t("Enabled")}</Badge><Button asChild size="sm" variant="secondary" className="shrink-0"><Link to={"/trade/"+pair.base_asset+pair.quote_asset}>{t("Open")} <ArrowUpRight className="h-4 w-4"/></Link></Button></CardContent></Card>)}
+ return <PageFrame eyebrow="BTCBOX / TRADE" title="Choose your trading mode" description="Choose a BTCBOX trading service. Supported markets and product availability are returned by the backend.">
+  <div className="grid gap-4 sm:grid-cols-2">
+   <Card className="border-brand-border bg-brand-surface"><CardHeader><div className="mb-2 flex h-12 w-12 items-center justify-center rounded-2xl border border-brand-accent/20 bg-brand-accent/10 text-brand-text-secondary"><ChartNoAxesCombined className="h-5 w-5"/></div><CardTitle>{t("Spot")}</CardTitle><CardDescription>{t("Buy and sell supported digital assets at market or limit prices.")}</CardDescription></CardHeader><CardContent className="flex flex-wrap items-center justify-between gap-3"><Badge variant="outline">{t("Enabled")}</Badge><Button asChild size="sm" variant="secondary" className="shrink-0"><Link to="/markets">{t("Open")} <ArrowUpRight className="h-4 w-4"/></Link></Button></CardContent></Card>
+   <Card className="border-brand-border bg-brand-surface"><CardHeader><div className="mb-2 flex h-12 w-12 items-center justify-center rounded-2xl border border-brand-accent/20 bg-brand-accent/10 text-brand-text-secondary"><ArrowLeftRight className="h-5 w-5"/></div><CardTitle>{t("Seconds")}</CardTitle><CardDescription>{t("Place policy-driven positions with independent timers and server-side settlement.")}</CardDescription></CardHeader><CardContent className="flex flex-wrap items-center justify-between gap-3"><Badge variant="outline">{t("Policy-driven order entry")}</Badge><Button asChild size="sm" variant="secondary" className="shrink-0"><Link to="/seconds">{t("Open")} <ArrowUpRight className="h-4 w-4"/></Link></Button></CardContent></Card>
+   <Card className="border-brand-border bg-brand-surface"><CardHeader><div className="mb-2 flex h-12 w-12 items-center justify-center rounded-2xl border border-brand-accent/20 bg-brand-accent/10 text-brand-text-secondary"><Sprout className="h-5 w-5"/></div><CardTitle>{t("Earn")}</CardTitle><CardDescription>{t("Review live Earn products and your positions. Subscribe and redeem are available only when backend financial controls are enabled.")}</CardDescription></CardHeader><CardContent className="flex flex-wrap items-center justify-between gap-3"><Badge variant="outline">{t("Live product catalog")}</Badge><Button asChild size="sm" variant="secondary" className="shrink-0"><Link to="/earn">{t("Open")} <ArrowUpRight className="h-4 w-4"/></Link></Button></CardContent></Card>
+   <Card className="border-dashed border-brand-border bg-transparent"><CardHeader><div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-brand-border text-brand-text-muted"><LockKeyhole className="h-5 w-5"/></div><CardTitle>{t("Futures")}</CardTitle><CardDescription>{t("Coming soon — no supported futures service is registered in the current backend.")}</CardDescription></CardHeader><CardContent><Badge variant="secondary">{t("Unavailable")}</Badge></CardContent></Card>
+  </div>
+  <section className="space-y-3">
+   <div className="flex flex-wrap items-center justify-between gap-3"><h2 className="type-section-title">{t("Spot markets")}</h2>{!pairsLoading&&!pairsError?<span className="text-xs text-brand-text-muted">{spotPairs.length} {t("pairs")}</span>:null}</div>
    {pairsLoading?<Card className="border-brand-border bg-brand-surface"><CardContent className="p-5 text-sm text-brand-text-muted" role="status">{t("Loading configured spot markets…")}</CardContent></Card>:null}
    {!pairsLoading&&!pairsError&&!spotPairs.length?<Card className="border-dashed border-brand-border bg-transparent"><CardContent className="p-5 text-sm text-brand-text-muted">{t("No spot markets are currently enabled. Please check again later.")}</CardContent></Card>:null}
    {pairsError?<Card className="border-rose-500/30 bg-brand-surface"><CardContent className="p-5 text-sm text-rose-300" role="alert">{pairsError}</CardContent></Card>:null}
-   <Card className="border-brand-border bg-brand-surface"><CardHeader><div className="mb-2 flex h-12 w-12 items-center justify-center rounded-2xl border border-brand-accent/20 bg-brand-accent/10 text-brand-text-secondary"><ArrowLeftRight className="h-5 w-5"/></div><CardTitle>{t("Seconds")}</CardTitle><CardDescription>{t("Place policy-driven positions with independent timers and server-side settlement.")}</CardDescription></CardHeader><CardContent className="flex flex-wrap items-center justify-between gap-3"><Badge variant="outline">{t("Policy-driven order entry")}</Badge><Button asChild size="sm" variant="secondary" className="shrink-0"><Link to="/seconds">{t("Open")} <ArrowUpRight className="h-4 w-4"/></Link></Button></CardContent></Card>
-  </div>
-  <Card className="border-dashed border-brand-border bg-transparent"><CardContent className="flex min-w-0 flex-wrap items-center gap-3 p-4 sm:p-5"><LockKeyhole className="h-5 w-5 shrink-0 text-brand-text-muted"/><div className="min-w-0 flex-1"><p className="text-sm font-semibold">{t("Futures")}</p><p className="text-sm break-words text-brand-text-muted">{t("Coming soon — no supported futures service is registered in the current backend.")}</p></div><Badge variant="secondary" className="shrink-0">{t("Unavailable")}</Badge></CardContent></Card>
+   {spotPairs.length?<div className="grid gap-3 sm:grid-cols-2">{spotPairs.map(pair=><Card key={pair.base_asset+"/"+pair.quote_asset} className="border-brand-border bg-brand-surface"><CardHeader><CardTitle>{pair.base_asset}/{pair.quote_asset}</CardTitle><CardDescription>{t("Place supported limit orders against the BTCBOX spot matching service.")}</CardDescription></CardHeader><CardContent className="flex flex-wrap items-center justify-between gap-3"><Badge variant="outline">{t("Enabled")}</Badge><Button asChild size="sm" variant="secondary" className="shrink-0"><Link to={"/trade/"+pair.base_asset+pair.quote_asset}>{t("Open")} <ArrowUpRight className="h-4 w-4"/></Link></Button></CardContent></Card>)}</div>:null}
+  </section>
  </PageFrame>;
 }
 export function AssetsPage(){
@@ -174,6 +179,8 @@ export function SpotTradingPage(){
  const [reload,setReload]=useState(0);
  const [marketUpdatedAt,setMarketUpdatedAt]=useState<number|null>(null);
  const [marketFeedWarning,setMarketFeedWarning]=useState("");
+ const [chartFeedWarning,setChartFeedWarning]=useState("");
+ const [mobilePanel,setMobilePanel]=useState<"chart"|"orderbook"|null>(null);
  const chartContainer=useRef<HTMLDivElement|null>(null);
  const base=symbol.endsWith("USDT")?symbol.slice(0,-4):"BTC";
  const pendingStorageKey=accountUid?"btcbox.spot.pending.v1."+accountUid+"."+symbol:"";
@@ -193,16 +200,20 @@ export function SpotTradingPage(){
     setError(pairResult.reason instanceof Error?pairResult.reason.message:"Spot-market catalogue is unavailable.");
    }
    if(accountResult.status==="fulfilled")setAccountUid(accountResult.value.uid);
-   else setError(accountResult.reason instanceof Error?accountResult.reason.message:"Account identity is unavailable.");
+   else if(!(accountResult.reason instanceof ApiError&&accountResult.reason.code==="AUTH_REQUIRED"))
+    setError(accountResult.reason instanceof Error?accountResult.reason.message:"Account identity is unavailable.");
    if(marketResult.status==="fulfilled"){
     const marketBase=symbol.endsWith("USDT")?symbol.slice(0,-4):symbol;
     const selected=marketResult.value.find(item=>item.sym.toUpperCase()===marketBase)||null;
-    setTicker(selected);
-    setMarketUpdatedAt(Date.now());
-    setMarketFeedWarning("");
-    if(selected)setPrice(current=>current||String(selected.price));
+    if(selected){
+     setTicker(selected);
+     setMarketUpdatedAt(selected.snapshotTs?selected.snapshotTs*1000:null);
+     setMarketFeedWarning("");
+     setPrice(current=>current||String(selected.price));
+    }else setMarketFeedWarning("Market snapshot is missing for this pair; showing the last confirmed data.");
    }else setError(marketResult.reason instanceof Error?marketResult.reason.message:"Live market data is unavailable.");
-   if(candleResult.status==="fulfilled")setCandles(candleResult.value);
+   if(candleResult.status==="fulfilled"){setCandles(candleResult.value);setChartFeedWarning("");}
+   else setChartFeedWarning("Chart refresh is unavailable; showing the last confirmed candles.");
    if(bookResult.status==="fulfilled")setBook(bookResult.value);
    if(statusResult.status==="fulfilled")setTradingStatus(statusResult.value);
    else setTradingStatus(null);
@@ -227,8 +238,10 @@ export function SpotTradingPage(){
     if(marketResult.status==="fulfilled"){
      const marketBase=symbol.endsWith("USDT")?symbol.slice(0,-4):symbol;
      const selected=marketResult.value.find(item=>item.sym.toUpperCase()===marketBase)||null;
-     setTicker(selected);
-     setMarketUpdatedAt(Date.now());
+     if(selected){
+      setTicker(selected);
+      setMarketUpdatedAt(selected.snapshotTs?selected.snapshotTs*1000:null);
+     }else failed=true;
     }else failed=true;
     if(bookResult.status==="fulfilled")setBook(bookResult.value);
     else failed=true;
@@ -238,9 +251,10 @@ export function SpotTradingPage(){
   const refreshId=window.setInterval(refreshMarketData,15000);
   const candleId=window.setInterval(()=>{
    getKlines(symbol,"1h",controller.signal).then(rows=>{
-    if(!controller.signal.aborted)setCandles(rows);
+    if(!controller.signal.aborted){setCandles(rows);setChartFeedWarning("");}
    }).catch(reason=>{
     if(reason instanceof Error&&reason.name==="AbortError")return;
+    if(!controller.signal.aborted)setChartFeedWarning("Chart refresh is unavailable; showing the last confirmed candles.");
    });
   },60000);
   return ()=>{window.clearInterval(refreshId);window.clearInterval(candleId);controller.abort();};
@@ -278,7 +292,7 @@ export function SpotTradingPage(){
 
  useEffect(()=>{
   const node=chartContainer.current;
-  if(!node||!candles.length)return;
+  if(!node||!candles.length||node.clientWidth<=0)return;
   const chart=createChart(node,{width:node.clientWidth,height:320,layout:{background:{type:ColorType.Solid,color:"#111820"},textColor:"#9aa8b7"},grid:{vertLines:{color:"#26313d"},horzLines:{color:"#26313d"}},rightPriceScale:{borderColor:"#26313d"},timeScale:{borderColor:"#26313d",timeVisible:true,secondsVisible:false}});
   const series=chart.addSeries(CandlestickSeries,{upColor:"#0ecb81",downColor:"#f6465d",borderVisible:false,wickUpColor:"#0ecb81",wickDownColor:"#f6465d"});
   series.setData(candles.map(item=>({time:Math.floor(item.time/1000) as UTCTimestamp,open:item.open,high:item.high,low:item.low,close:item.close})).sort((a,b)=>Number(a.time)-Number(b.time)));
@@ -286,7 +300,7 @@ export function SpotTradingPage(){
   const observer=new ResizeObserver(entries=>{const width=entries[0]?.contentRect.width;if(width)chart.applyOptions({width:Math.floor(width)});});
   observer.observe(node);
   return ()=>{observer.disconnect();chart.remove();};
- },[candles]);
+ },[candles,mobilePanel]);
 
  const submitOrder=async(event:FormEvent<HTMLFormElement>)=>{
   event.preventDefault();
@@ -359,17 +373,19 @@ export function SpotTradingPage(){
  const openOrders=orders.filter(item=>["open","partially_filled","partially-filled","pending"].includes(String(item.status||"").toLowerCase()));
  const asks=(book?.asks||[]).slice(0,8).slice().reverse();const bids=(book?.bids||[]).slice(0,8);
  return <PageFrame eyebrow="BTCBOX / SPOT" title={symbol} description="Live market data and a server-authoritative limit-order workflow. Orders are never simulated in the browser.">
-  <div className="flex flex-wrap items-center justify-between gap-3"><div className="flex items-center gap-3"><Badge variant="outline">{t("Spot market")}</Badge><span className="text-xs text-brand-text-muted">{book?.source||ticker?.source||"—"}</span><span className="text-xs text-brand-text-muted">{marketUpdatedAt? t("Last update")+": "+new Date(marketUpdatedAt).toLocaleTimeString():t("Waiting for live data")}</span></div><Button size="sm" variant="outline" disabled={loading||busy} onClick={()=>setReload(value=>value+1)}><RefreshCw className={"mr-2 h-4 w-4 "+(loading?"animate-spin":"")}/>{t("Refresh")}</Button></div>
-  {error?<div role="alert" className="rounded-xl border border-rose-500/30 bg-rose-500/5 p-3 text-sm text-rose-300">{error}</div>:null}{marketFeedWarning?<div role="status" className="rounded-xl border border-amber-500/25 bg-amber-500/5 p-3 text-sm text-amber-200">{marketFeedWarning}</div>:null}{notice?<div role="status" className="rounded-xl border border-emerald-500/25 bg-emerald-500/5 p-3 text-sm text-emerald-300">{notice}</div>:null}
+  <div className="flex flex-wrap items-center justify-between gap-3"><div className="flex items-center gap-3"><Badge variant="outline">{t("Spot market")}</Badge><span className="text-xs text-brand-text-muted">{t("Ticker")}: {ticker?.source||"—"} · {t("Order book")}: {book?.source||"—"} · {t("Chart")}: {candles[0]?.source||"—"}</span><span className="text-xs text-brand-text-muted">{marketUpdatedAt? (ticker?.providerTs?t("Provider update")+": "+new Date(ticker.providerTs*1000).toLocaleTimeString()+" · ":"")+t("Snapshot checked")+": "+new Date(marketUpdatedAt).toLocaleTimeString():t("Waiting for live data")}</span></div><Button size="sm" variant="outline" disabled={loading||busy} onClick={()=>setReload(value=>value+1)}><RefreshCw className={"mr-2 h-4 w-4 "+(loading?"animate-spin":"")}/>{t("Refresh")}</Button></div>
+  {error?<div role="alert" className="rounded-xl border border-rose-500/30 bg-rose-500/5 p-3 text-sm text-rose-300">{error}</div>:null}{marketFeedWarning?<div role="status" className="rounded-xl border border-amber-500/25 bg-amber-500/5 p-3 text-sm text-amber-200">{marketFeedWarning}</div>:null}{chartFeedWarning?<div role="status" className="rounded-xl border border-amber-500/25 bg-amber-500/5 p-3 text-sm text-amber-200">{chartFeedWarning}</div>:null}{notice?<div role="status" className="rounded-xl border border-emerald-500/25 bg-emerald-500/5 p-3 text-sm text-emerald-300">{notice}</div>:null}
+      <Card className="border-brand-border bg-brand-surface"><CardContent className="grid grid-cols-2 gap-4 p-4 sm:grid-cols-4"><div><p className="text-xs text-brand-text-muted">{t("Last price")}</p><p className="mt-1 text-xl font-semibold tabular-nums">{ticker?amountText(ticker.price):"—"} <span className="text-xs text-brand-text-muted">USDT</span></p></div><div><p className="text-xs text-brand-text-muted">{t("24h change")}</p><p className={"mt-1 font-semibold tabular-nums "+(Number(ticker?.chg||0)>=0?"text-profit":"text-loss")}>{ticker?Number(ticker.chg).toFixed(2)+"%":"—"}</p></div><div><p className="text-xs text-brand-text-muted">{t("24h high")}</p><p className="mt-1 font-medium tabular-nums">{ticker?amountText(ticker.high):"—"}</p></div><div><p className="text-xs text-brand-text-muted">{t("24h low")}</p><p className="mt-1 font-medium tabular-nums">{ticker?amountText(ticker.low):"—"}</p></div></CardContent></Card>
   <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
-   <div className="min-w-0 space-y-4">
-    <Card className="border-brand-border bg-brand-surface"><CardContent className="grid grid-cols-2 gap-4 p-4 sm:grid-cols-4"><div><p className="text-xs text-brand-text-muted">{t("Last price")}</p><p className="mt-1 text-xl font-semibold tabular-nums">{ticker?amountText(ticker.price):"—"} <span className="text-xs text-brand-text-muted">USDT</span></p></div><div><p className="text-xs text-brand-text-muted">{t("24h change")}</p><p className={"mt-1 font-semibold tabular-nums "+(Number(ticker?.chg||0)>=0?"text-profit":"text-loss")}>{ticker?Number(ticker.chg).toFixed(2)+"%":"—"}</p></div><div><p className="text-xs text-brand-text-muted">{t("24h high")}</p><p className="mt-1 font-medium tabular-nums">{ticker?amountText(ticker.high):"—"}</p></div><div><p className="text-xs text-brand-text-muted">{t("24h low")}</p><p className="mt-1 font-medium tabular-nums">{ticker?amountText(ticker.low):"—"}</p></div></CardContent></Card>
-    <Card className="border-brand-border bg-brand-surface"><CardHeader><CardTitle>{t("Price chart")}</CardTitle><CardDescription>{t("1-hour candles returned by the live market data provider.")}</CardDescription></CardHeader><CardContent><div ref={chartContainer} className="min-h-[320px] w-full">{!candles.length&&!loading?<p className="p-5 text-sm text-brand-text-muted">{t("No verified candle data is available for this market.")}</p>:null}</div></CardContent></Card>
+   <div className="min-w-0 order-2 space-y-4 xl:order-1">
+
+    <Card className={"border-brand-border bg-brand-surface "+(mobilePanel==="chart"?"fixed inset-x-0 bottom-0 z-40 max-h-[72dvh] overflow-y-auto rounded-b-none pb-[env(safe-area-inset-bottom)] shadow-2xl xl:static xl:max-h-none xl:overflow-visible xl:rounded-xl xl:pb-0 xl:shadow-none":"hidden xl:block")}><CardHeader className="flex flex-row items-start justify-between gap-3"><div><CardTitle>{t("Price chart")}</CardTitle><CardDescription>{t("1-hour candles returned by the live market data provider.")}</CardDescription></div><Button type="button" size="sm" variant="outline" className="xl:hidden" onClick={()=>setMobilePanel(null)}>{t("Close")}</Button></CardHeader><CardContent><div ref={chartContainer} className="min-h-[320px] w-full">{!candles.length&&!loading?<p className="p-5 text-sm text-brand-text-muted">{t("No verified candle data is available for this market.")}</p>:null}</div></CardContent></Card>
     <Card className="border-brand-border bg-brand-surface"><CardHeader><CardTitle>{t("Open orders")}</CardTitle><CardDescription>{t("Only authenticated order records are shown. Cancellation is sent to the matching service.")}</CardDescription></CardHeader><CardContent className="space-y-2">{openOrders.length?openOrders.map((item,index)=>{const id=String(item.order_id??item.id??index);return <div key={id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-brand-border p-3"><div><p className="font-semibold">{item.symbol||symbol} · {item.side||"—"}</p><p className="mt-1 text-xs text-brand-text-muted">{t("Price")} {amountText(item.price)} · {t("Remaining")} {amountText(item.remaining_quantity??item.quantity)}</p><Badge variant="outline">{item.status}</Badge></div><Button size="sm" variant="outline" disabled={busy||!tradingStatus?.spot_cancel_enabled} onClick={()=>void cancelOrder(item)}>{cancelRequestIds[id]?t("Retry cancel"):t("Cancel")}</Button></div>;}):<p className="rounded-lg border border-dashed border-brand-border p-4 text-sm text-brand-text-muted">{t("No open spot orders were returned.")}</p>}</CardContent></Card>
    </div>
-   <div className="space-y-4">
+   <div className="order-1 space-y-4 xl:order-2">
     <Card className="border-brand-border bg-brand-surface"><CardHeader><CardTitle>{t("Limit order")}</CardTitle><CardDescription>{t("Only limit orders are supported by the current matching contract.")}</CardDescription></CardHeader><CardContent className="space-y-3"><div className="grid grid-cols-2 gap-2"><Button variant={side==="buy"?"default":"outline"} onClick={()=>setSide("buy")} disabled={busy||!!pendingIntent||pendingIntentInvalid}>{t("Buy")}</Button><Button variant={side==="sell"?"destructive":"outline"} onClick={()=>setSide("sell")} disabled={busy||!!pendingIntent}>{t("Sell")}</Button></div><form className="space-y-3" onSubmit={event=>void submitOrder(event)}><label className="block space-y-1 text-sm"><span>{t("Limit price (USDT)")}</span><input value={price} onChange={event=>setPrice(event.target.value)} disabled={busy||!!pendingIntent} inputMode="decimal" className="w-full rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-3 text-brand-text" required/></label><label className="block space-y-1 text-sm"><span>{t("Quantity") } · {base}</span><input value={quantity} onChange={event=>setQuantity(event.target.value)} disabled={busy||!!pendingIntent} inputMode="decimal" className="w-full rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-3 text-brand-text" required/></label><p className="text-xs text-brand-text-muted">{t("Estimated total")}: {price&&quantity&&Number(price)>0&&Number(quantity)>0?amountText(Number(price)*Number(quantity))+" USDT":"—"}</p>{!tradingStatus?.spot_order_entry_enabled?<div className="rounded-lg border border-amber-400/25 bg-amber-400/5 p-3 text-xs text-amber-200">{t("Spot order execution is disabled by server policy. No order can be placed until the matching engine is approved and enabled.")}</div>:null}{pendingIntent?<p className="break-all text-xs text-amber-300">{t("Unconfirmed request ID. Keep the form unchanged and retry with the same ID.")} · {pendingIntent.client_order_id}</p>:null}<Button block type="submit" disabled={busy||pendingIntentInvalid||(!spotPairEnabled&&!pendingIntent)||(!tradingStatus?.spot_order_entry_enabled&&!pendingIntent)||!price||!quantity}>{busy?t("Submitting…"):pendingIntent?t("Retry same order"):side==="buy"?t("Place buy limit order"):t("Place sell limit order")}</Button></form></CardContent></Card>
-    <Card className="border-brand-border bg-brand-surface"><CardHeader><CardTitle>{t("Order book")}</CardTitle><CardDescription>{book?.source||t("Live market depth")}</CardDescription></CardHeader><CardContent className="space-y-3"><div className="grid grid-cols-2 gap-3"><div><p className="mb-2 text-xs font-semibold text-loss">{t("Asks")}</p>{asks.length?asks.map((row,index)=><div key={index} className="flex justify-between gap-2 py-1 text-xs tabular-nums"><span className="text-loss">{amountText(row[0])}</span><span className="text-brand-text-muted">{amountText(row[1])}</span></div>):<p className="text-xs text-brand-text-muted">—</p>}</div><div><p className="mb-2 text-xs font-semibold text-profit">{t("Bids")}</p>{bids.length?bids.map((row,index)=><div key={index} className="flex justify-between gap-2 py-1 text-xs tabular-nums"><span className="text-profit">{amountText(row[0])}</span><span className="text-brand-text-muted">{amountText(row[1])}</span></div>):<p className="text-xs text-brand-text-muted">—</p>}</div></div></CardContent></Card>
+    <div className="grid grid-cols-2 gap-2 xl:hidden"><Button type="button" size="sm" variant={mobilePanel==="orderbook"?"default":"outline"} aria-pressed={mobilePanel==="orderbook"} onClick={()=>setMobilePanel(current=>current==="orderbook"?null:"orderbook")}>{t("Order book")}</Button><Button type="button" size="sm" variant={mobilePanel==="chart"?"default":"outline"} aria-pressed={mobilePanel==="chart"} onClick={()=>setMobilePanel(current=>current==="chart"?null:"chart")}>{t("Chart")}</Button></div>
+    <Card className={"border-brand-border bg-brand-surface "+(mobilePanel==="orderbook"?"fixed inset-x-0 bottom-0 z-40 max-h-[72dvh] overflow-y-auto rounded-b-none pb-[env(safe-area-inset-bottom)] shadow-2xl xl:static xl:max-h-none xl:overflow-visible xl:rounded-xl xl:pb-0 xl:shadow-none":"hidden xl:block")}><CardHeader className="flex flex-row items-start justify-between gap-3"><div><CardTitle>{t("Order book")}</CardTitle><CardDescription>{book?.source||t("Live market depth")}</CardDescription></div><Button type="button" size="sm" variant="outline" className="xl:hidden" onClick={()=>setMobilePanel(null)}>{t("Close")}</Button></CardHeader><CardContent className="space-y-3"><div className="grid grid-cols-2 gap-3"><div><p className="mb-2 text-xs font-semibold text-loss">{t("Asks")}</p>{asks.length?asks.map((row,index)=><div key={index} className="flex justify-between gap-2 py-1 text-xs tabular-nums"><span className="text-loss">{amountText(row[0])}</span><span className="text-brand-text-muted">{amountText(row[1])}</span></div>):<p className="text-xs text-brand-text-muted">—</p>}</div><div><p className="mb-2 text-xs font-semibold text-profit">{t("Bids")}</p>{bids.length?bids.map((row,index)=><div key={index} className="flex justify-between gap-2 py-1 text-xs tabular-nums"><span className="text-profit">{amountText(row[0])}</span><span className="text-brand-text-muted">{amountText(row[1])}</span></div>):<p className="text-xs text-brand-text-muted">—</p>}</div></div></CardContent></Card>
    </div>
   </div>
  </PageFrame>;

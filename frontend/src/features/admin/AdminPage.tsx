@@ -97,6 +97,7 @@ export function AdminPage() {
   const [creditRequestIds, setCreditRequestIds] = useState<Record<string, string>>({});
   const [creditPendingInvalid, setCreditPendingInvalid] = useState<Record<string, boolean>>({});
   const [withdrawals, setWithdrawals] = useState<AdminWithdrawalRecord[]>([]);
+  const [reviewQueueLoading, setReviewQueueLoading] = useState(false);
   const [payoutReferences, setPayoutReferences] = useState<Record<string, string>>({});
   const [reviewDialog, setReviewDialog] = useState<ReviewDialogState | null>(null);
   const [reviewReason, setReviewReason] = useState("");
@@ -180,6 +181,29 @@ export function AdminPage() {
     return () => { active = false; };
   }, [authStatus, refreshTokenAndSession]);
 
+  useEffect(() => {
+    if (!session?.user_id) return;
+    const prefix = "btcbox.admin.payout-reference.v1." + session.user_id + ".";
+    const restored: Record<string, string> = {};
+    try {
+      for (let index = 0; index < window.localStorage.length; index += 1) {
+        const key = window.localStorage.key(index);
+        if (!key || !key.startsWith(prefix)) continue;
+        const saved = JSON.parse(window.localStorage.getItem(key) || "null");
+        const withdrawalId = key.slice(prefix.length);
+        if (saved && saved.version === 1 && saved.actor_id === session.user_id &&
+            saved.withdrawal_id === withdrawalId && typeof saved.reference === "string" &&
+            saved.reference.length > 0 && saved.reference.length <= 160 &&
+            !/[\u0000-\u001f\u007f]/.test(saved.reference)) {
+          restored[withdrawalId] = saved.reference;
+        }
+      }
+      setPayoutReferences(restored);
+    } catch {
+      setError("A saved payout reference could not be read. Check the withdrawal status and chain transaction before entering a new reference.");
+    }
+  }, [session?.user_id]);
+
   const allowedTabs = useMemo(() => [...tabs.filter((item) => hasPermission(item.permission)), ...(session?.is_super_admin ? [{ id: "admins" as Tab, label: "Administrators", permission: "super_admin.only" }] : [])], [hasPermission, session]);
   useEffect(() => {
     if (allowedTabs.length && !allowedTabs.some((item) => item.id === tab)) setTab(allowedTabs[0].id);
@@ -213,9 +237,20 @@ export function AdminPage() {
           setError("A saved spot-market update could not be read. Check the market list before creating another update.");
         }
       }
-      if (tab === "withdrawals") setWithdrawals((await getAdminWithdrawals(token)).withdrawals || []);
-      if (tab === "kyc") setKyc((await getAdminKyc(token)).kycs || []);
+      if (tab === "withdrawals") {
+        setWithdrawals([]);
+        setWithdrawals((await getAdminWithdrawals(token)).withdrawals || []);
+      }
+      if (tab === "kyc") {
+        setKyc([]);
+        setKyc((await getAdminKyc(token)).kycs || []);
+      }
       if (tab === "audit") {
+        // Never leave a previously loaded audit snapshot visible while a new
+        // read is pending or after that read fails.
+        setAudit([]);
+        setAuditSource("unknown");
+        setAuditCompleteness("unknown");
         const snapshot = await getAdminAuditLogs(token);
         setAudit(snapshot.logs || []);
         setAuditSource(snapshot.source || "unknown");
@@ -292,6 +327,9 @@ export function AdminPage() {
   const selectUser = async (uid: string) => {
     if (!token) return;
     setBusy(true); setError(""); setNotice("");
+    // A failed user-detail read must never leave another user's balances or
+    // manual-credit controls on screen as if they belonged to the new selection.
+    setSelectedUser(null);
     try {
       const result = await getAdminUser(token, uid);
       setSelectedUser(result.user);
@@ -363,18 +401,49 @@ export function AdminPage() {
     } finally { setBusy(false); }
   };
   const refreshWithdrawalQueue = async (confirmedAction: string) => {
+    setReviewQueueLoading(true);
     try {
       const snapshot = await getAdminWithdrawals(token);
       setWithdrawals(snapshot.withdrawals || []);
+      setError("");
+      setNotice(confirmedAction);
     } catch {
-      setError(confirmedAction + " The database action is confirmed; the queue could not refresh. Reload this tab before taking another action.");
+      setError(confirmedAction + " The queue could not refresh. Reload this tab before taking another action.");
+    } finally {
+      setReviewQueueLoading(false);
+    }
+  };
+  const refreshWithdrawalQueueManually = async () => {
+    if (!token) return;
+    setReviewQueueLoading(true); setError(""); setNotice("");
+    try {
+      const snapshot = await getAdminWithdrawals(token);
+      setWithdrawals(snapshot.withdrawals || []);
+      setNotice("Withdrawal queue refreshed.");
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "Withdrawal review queue could not be refreshed.");
+    } finally {
+      setReviewQueueLoading(false);
+    }
+  };
+  const refreshKycQueue = async () => {
+    if (!token) return;
+    setReviewQueueLoading(true); setError(""); setNotice("");
+    try {
+      const snapshot = await getAdminKyc(token);
+      setKyc(snapshot.kycs || []);
+      setNotice("KYC review queue refreshed.");
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "KYC review queue could not be refreshed.");
+    } finally {
+      setReviewQueueLoading(false);
     }
   };
   // A 409 WITHDRAWAL_ALREADY_PROCESSED means the operation actually succeeded on
   // the first (response-lost) attempt; a retry must be surfaced as a confirmed
   // notice, not as a red failure, and the queue should be refreshed.
   const isAlreadyProcessed = (reason: unknown): reason is ApiError =>
-    reason instanceof ApiError && (reason.code === "WITHDRAWAL_ALREADY_PROCESSED" || reason.code === "KYC_EXCEPTION_REQUIRED" || reason.status === 409);
+    reason instanceof ApiError && reason.code === "WITHDRAWAL_ALREADY_PROCESSED";
   const handleAlreadyProcessed = (message: string) => {
     setNotice(message);
     setError("");
@@ -442,16 +511,36 @@ export function AdminPage() {
   const markPaid = async (id: string) => {
     if (!token) return;
     const reference = (payoutReferences[id] || "").trim();
-    if (!reference) { setError("TxID / payout reference is required."); return; }
+    if (!reference || reference.length > 160 || /[\u0000-\u001f\u007f]/.test(reference)) {
+      setError("Enter a valid TxID / payout reference (1–160 characters).");
+      return;
+    }
+    if (!session?.user_id) {
+      setError("The authenticated administrator identity is unavailable. No payout update was sent.");
+      return;
+    }
+    const storageKey = "btcbox.admin.payout-reference.v1." + session.user_id + "." + id;
+    try {
+      window.localStorage.setItem(storageKey, JSON.stringify({
+        version: 1, actor_id: session.user_id, withdrawal_id: id, reference,
+      }));
+    } catch {
+      setError("This browser cannot safely save the payout reference. No payout update was sent.");
+      return;
+    }
     setBusy(true); setError(""); setNotice("");
     try {
       const result = await adminMarkWithdrawalPaid(token, { id, reference, note: "Staff manually transferred funds." });
+      try { window.localStorage.removeItem(storageKey); } catch {}
       setWithdrawals(current => current.filter(item => item.id !== id));
-      setPayoutReferences((current) => ({ ...current, [id]: "" }));
+      setPayoutReferences(current => { const next = { ...current }; delete next[id]; return next; });
       setNotice(result.duplicate ? "This payout reference was already recorded." : "Manual payout completion recorded.");
       await refreshWithdrawalQueue("Manual payout completion confirmed.");
-    } catch (reason) { setError(reason instanceof Error ? reason.message : "Payout completion was not confirmed."); }
-    finally { setBusy(false); }
+      if (result.duplicate) setNotice("This payout reference was already recorded.");
+    } catch (reason) {
+      setError((reason instanceof Error ? reason.message : "Payout completion was not confirmed.") +
+        " The same reference has been saved. Verify the transaction and withdrawal history before retrying.");
+    } finally { setBusy(false); }
   };
 
   const saveAddresses = async (event: FormEvent<HTMLFormElement>) => {
@@ -482,14 +571,9 @@ export function AdminPage() {
       try { setKyc((await getAdminKyc(token)).kycs || []); }
       catch { setError("KYC review is confirmed; the queue could not refresh. Reload this tab before reviewing another application."); }
     } catch (reason) {
-      if (isAlreadyProcessed(reason)) {
-        setNotice("KYC application was already reviewed on a previous attempt.");
-        setError("");
-        try { setKyc((await getAdminKyc(token)).kycs || []); }
-        catch { setError("KYC review is confirmed; the queue could not refresh. Reload this tab before reviewing another application."); }
-      } else {
-        setError(reason instanceof Error ? reason.message : "KYC review was not confirmed.");
-      }
+      // KYC 409 responses include actionable states such as missing documents
+      // and exception approval requirements; they are not proof of a prior success.
+      setError(reason instanceof Error ? reason.message : "KYC review was not confirmed.");
     } finally {
       setBusy(false);
     }
@@ -675,11 +759,11 @@ export function AdminPage() {
       <Button type="submit" disabled={busy || !hasPermission("system_config.write")}>Save configuration</Button>
     </form></CardContent></Card> : null}
 
-    {!loading && tab === "withdrawals" ? <Card><CardHeader><CardTitle>Withdrawal queue</CardTitle><CardDescription>Approve or reject requests. After staff actually transfer funds, mark paid with the TxID/reference.</CardDescription></CardHeader><CardContent><div className="overflow-x-auto"><table className="w-full min-w-[900px] text-left text-sm"><thead><tr className="border-b border-brand-border text-xs text-brand-text-muted"><th className="p-2">ID</th><th className="p-2">User</th><th className="p-2">Asset / amount</th><th className="p-2">Network / destination</th><th className="p-2">Status</th><th className="p-2">Action</th></tr></thead><tbody>{withdrawals.map(item=><tr key={item.id} className="border-b border-brand-border/60 align-top"><td className="p-2 font-mono text-xs">{item.id}</td><td className="p-2">{item.uid}</td><td className="p-2">{item.coin} {item.amount}<div className="text-xs text-brand-text-muted">Fee {item.fee}</div></td><td className="max-w-[260px] break-all p-2">{item.network}<div className="text-xs text-brand-text-muted">{item.address}</div></td><td className="p-2"><Badge variant={statusVariant(item.status)}>{item.status}</Badge></td><td className="min-w-[220px] space-y-2 p-2">{item.status==="pending"||item.status==="pending_admin_review"?<><Button size="sm" disabled={busy||!hasPermission("withdrawals.review")} onClick={()=>void approveWithdrawal(item.id)}>Approve</Button><Button size="sm" variant="outline" disabled={busy||!hasPermission("withdrawals.review")} onClick={()=>void rejectWithdrawal(item.id)}>Reject</Button></>:item.status==="approved"?<><input value={payoutReferences[item.id]||""} onChange={event=>setPayoutReferences(current=>({...current,[item.id]:event.target.value}))} placeholder="Required TxID / reference" maxLength={160} className="w-full rounded-lg border border-brand-border bg-brand-surface-2 px-2 py-2 text-xs text-brand-text"/><Button size="sm" disabled={busy||!payoutReferences[item.id]?.trim()||!hasPermission("withdrawals.review")} onClick={()=>void markPaid(item.id)}>Mark paid</Button></>:<span className="text-xs text-brand-text-muted">{item.payout_reference||"—"}</span>}</td></tr>)}</tbody></table></div></CardContent></Card> : null}
+    {!loading && tab === "withdrawals" ? <Card><CardHeader><div className="flex flex-wrap items-start justify-between gap-3"><div><CardTitle>Withdrawal queue</CardTitle><CardDescription>Approve or reject requests. After staff actually transfer funds, mark paid with the TxID/reference.</CardDescription></div><Button size="sm" variant="outline" disabled={reviewQueueLoading || busy} onClick={()=>void refreshWithdrawalQueueManually()}>{reviewQueueLoading ? "Refreshing…" : "Refresh queue"}</Button></div></CardHeader><CardContent><div className="overflow-x-auto"><table className="w-full min-w-[900px] text-left text-sm"><thead><tr className="border-b border-brand-border text-xs text-brand-text-muted"><th className="p-2">ID</th><th className="p-2">User</th><th className="p-2">Asset / amount</th><th className="p-2">Network / destination</th><th className="p-2">Status</th><th className="p-2">Action</th></tr></thead><tbody>{withdrawals.map(item=><tr key={item.id} className="border-b border-brand-border/60 align-top"><td className="p-2 font-mono text-xs">{item.id}</td><td className="p-2">{item.uid}</td><td className="p-2">{item.coin} {item.amount}<div className="text-xs text-brand-text-muted">Fee {item.fee}</div></td><td className="max-w-[260px] break-all p-2">{item.network}<div className="text-xs text-brand-text-muted">{item.address}</div></td><td className="p-2"><Badge variant={statusVariant(item.status)}>{item.status}</Badge></td><td className="min-w-[220px] space-y-2 p-2">{item.status==="pending"||item.status==="pending_admin_review"?<><Button size="sm" disabled={busy||!hasPermission("withdrawals.review")} onClick={()=>void approveWithdrawal(item.id)}>Approve</Button><Button size="sm" variant="outline" disabled={busy||!hasPermission("withdrawals.review")} onClick={()=>void rejectWithdrawal(item.id)}>Reject</Button></>:item.status==="approved"?<><input value={payoutReferences[item.id]||""} onChange={event=>setPayoutReferences(current=>({...current,[item.id]:event.target.value}))} placeholder="Required TxID / reference" maxLength={160} className="w-full rounded-lg border border-brand-border bg-brand-surface-2 px-2 py-2 text-xs text-brand-text"/><Button size="sm" disabled={busy||!payoutReferences[item.id]?.trim()||!hasPermission("withdrawals.review")} onClick={()=>void markPaid(item.id)}>Mark paid</Button></>:<span className="text-xs text-brand-text-muted">{item.payout_reference||"—"}</span>}</td></tr>)}</tbody></table></div></CardContent></Card> : null}
 
-    {!loading && tab === "kyc" ? <Card><CardHeader><CardTitle>KYC review</CardTitle></CardHeader><CardContent><div className="overflow-x-auto"><table className="w-full min-w-[700px] text-left text-sm"><thead><tr className="border-b border-brand-border text-xs text-brand-text-muted"><th className="p-2">User</th><th className="p-2">Name</th><th className="p-2">Document</th><th className="p-2">Status</th><th className="p-2">Submitted</th><th className="p-2">Action</th></tr></thead><tbody>{kyc.map(item=><tr key={item.uid} className="border-b border-brand-border/60"><td className="p-2">{item.uid}<div className="text-xs text-brand-text-muted">{item.email}</div></td><td className="p-2">{item.name}</td><td className="p-2">{item.id_type}<div className="mt-1 text-xs">{item.document_url?<a href={item.document_url} target="_blank" rel="noreferrer" className="text-brand-accent underline underline-offset-2">Open secure image</a>:<span className="text-brand-text-muted">{item.document_preview_error||"Document image missing"}</span>}</div></td><td className="p-2">{item.status}</td><td className="p-2">{formatDate(item.submitted_at)}</td><td className="space-x-2 p-2"><Button size="sm" disabled={busy||!hasPermission("kyc.review")} onClick={()=>void reviewKyc(item.uid,true)}>Approve</Button><Button size="sm" variant="outline" disabled={busy||!hasPermission("kyc.review")} onClick={()=>void reviewKyc(item.uid,false)}>Reject</Button></td></tr>)}</tbody></table></div></CardContent></Card> : null}
+    {!loading && tab === "kyc" ? <Card><CardHeader><div className="flex flex-wrap items-center justify-between gap-3"><CardTitle>KYC review</CardTitle><Button size="sm" variant="outline" disabled={reviewQueueLoading || busy} onClick={()=>void refreshKycQueue()}>{reviewQueueLoading ? "Refreshing…" : "Refresh queue"}</Button></div></CardHeader><CardContent><div className="overflow-x-auto"><table className="w-full min-w-[700px] text-left text-sm"><thead><tr className="border-b border-brand-border text-xs text-brand-text-muted"><th className="p-2">User</th><th className="p-2">Name</th><th className="p-2">Document</th><th className="p-2">Status</th><th className="p-2">Submitted</th><th className="p-2">Action</th></tr></thead><tbody>{kyc.map(item=><tr key={item.uid} className="border-b border-brand-border/60"><td className="p-2">{item.uid}<div className="text-xs text-brand-text-muted">{item.email}</div></td><td className="p-2">{item.name}</td><td className="p-2">{item.id_type}<div className="mt-1 text-xs">{item.document_url?<a href={item.document_url} target="_blank" rel="noreferrer" className="text-brand-accent underline underline-offset-2">Open secure image</a>:<span className="text-brand-text-muted">{item.document_preview_error||"Document image missing"}</span>}</div></td><td className="p-2">{item.status}</td><td className="p-2">{formatDate(item.submitted_at)}</td><td className="space-x-2 p-2"><Button size="sm" disabled={busy||!hasPermission("kyc.review")||!item.document_uploaded||!item.document_url} onClick={()=>void reviewKyc(item.uid,true)}>Approve</Button><Button size="sm" variant="outline" disabled={busy||!hasPermission("kyc.review")} onClick={()=>void reviewKyc(item.uid,false)}>Reject</Button>{!item.document_uploaded||!item.document_url?<p className="mt-1 text-xs text-amber-300">{item.document_uploaded?"Document preview unavailable; refresh the queue before approval.":"Identity document upload is required before approval."}</p>:null}</td></tr>)}</tbody></table></div></CardContent></Card> : null}
 
-    {!loading && tab === "audit" ? <Card><CardHeader><div className="flex flex-wrap items-start justify-between gap-2"><div><CardTitle>Financial audit log</CardTitle><CardDescription>{auditCompleteness === "postgres_canonical" ? "Canonical append-only PostgreSQL history. Financial operations and account history use the same database source." : auditCompleteness === "state_document_retention_limited" ? "Retention-limited state-file history. Do not treat this list as a complete financial audit record." : "Audit source is not confirmed. Do not treat this list as complete until the source is verified."}</CardDescription></div><Badge variant={auditCompleteness === "postgres_canonical" ? "default" : "destructive"}>{auditSource === "postgres_financial_audit_log" ? "PostgreSQL canonical" : auditSource === "btcbox_state" ? "State file · limited" : "Source unknown"}</Badge></div></CardHeader><CardContent><div className="overflow-x-auto"><table className="w-full min-w-[800px] text-left text-sm"><thead><tr className="border-b border-brand-border text-xs text-brand-text-muted"><th className="p-2">Time</th><th className="p-2">Actor</th><th className="p-2">Action</th><th className="p-2">User</th><th className="p-2">Sync</th><th className="p-2">Detail</th></tr></thead><tbody>{audit.map((item,index)=><tr key={item.id||index} className="border-b border-brand-border/60"><td className="p-2">{formatDate(item.time)}</td><td className="p-2 font-mono text-xs">{item.by}</td><td className="p-2">{item.action}</td><td className="p-2">{item.uid}</td><td className="p-2">{item.postgres_sync_status}</td><td className="max-w-[280px] break-all p-2 text-xs">{item.detail}</td></tr>)}</tbody></table></div></CardContent></Card> : null}
+    {!loading && tab === "audit" ? <Card><CardHeader><div className="flex flex-wrap items-start justify-between gap-2"><div><CardTitle>Financial audit log</CardTitle><CardDescription>{auditCompleteness === "postgres_canonical" ? "Canonical append-only PostgreSQL history. Financial operations and account history use the same database source." : auditCompleteness === "state_document_retention_limited" ? "Retention-limited state-file history. Do not treat this list as a complete financial audit record." : "Audit source is not confirmed. Do not treat this list as complete until the source is verified."}</CardDescription></div><Badge variant={auditCompleteness === "postgres_canonical" ? "default" : "destructive"}>{auditSource === "postgres_financial_audit_log" ? "PostgreSQL canonical" : auditSource === "btcbox_state" ? "State file · limited" : "Source unknown"}</Badge></div></CardHeader><CardContent><div className="overflow-x-auto"><table className="w-full min-w-[800px] text-left text-sm"><thead><tr className="border-b border-brand-border text-xs text-brand-text-muted"><th className="p-2">Time</th><th className="p-2">Actor</th><th className="p-2">Action</th><th className="p-2">User</th><th className="p-2">Sync</th><th className="p-2">Detail</th></tr></thead><tbody>{audit.length ? audit.map((item,index)=><tr key={item.id||index} className="border-b border-brand-border/60"><td className="p-2">{formatDate(item.time)}</td><td className="p-2 font-mono text-xs">{item.by}</td><td className="p-2">{item.action}</td><td className="p-2">{item.uid}</td><td className="p-2">{item.postgres_sync_status}</td><td className="max-w-[280px] break-all p-2 text-xs">{item.detail}</td></tr>) : <tr><td colSpan={6} className="p-6 text-center text-sm text-brand-text-muted">No audit records are available in this snapshot.</td></tr>}</tbody></table></div></CardContent></Card> : null}
 
     {!loading && tab === "orders" ? <Card><CardHeader><div className="flex flex-wrap items-start justify-between gap-2"><div><CardTitle>Orders</CardTitle><CardDescription>{ordersSource === "postgres_financial_matching" ? "Customer order history and this administrator view use the canonical PostgreSQL matching orders." : ordersSource === "legacy_state" ? "Legacy state fallback is active because matching-engine mode was not requested." : "Order data source is not confirmed."}</CardDescription></div><Badge variant={ordersSource === "postgres_financial_matching" ? "default" : "destructive"}>{ordersSource === "postgres_financial_matching" ? "Source: PostgreSQL matching" : ordersSource === "legacy_state" ? "Source: legacy state" : "Source: unknown"}</Badge></div></CardHeader><CardContent><div className="overflow-x-auto"><table className="w-full min-w-[700px] text-left text-sm"><thead><tr className="border-b border-brand-border text-xs text-brand-text-muted"><th className="p-2">ID</th><th className="p-2">User</th><th className="p-2">Symbol</th><th className="p-2">Side</th><th className="p-2">Status</th><th className="p-2">Created</th></tr></thead><tbody>{orders.map((item,index)=><tr key={asText(item.id)||index} className="border-b border-brand-border/60"><td className="p-2 font-mono text-xs">{asText(item.id)}</td><td className="p-2">{asText(item.uid||item.user_id)}</td><td className="p-2">{asText(item.symbol)}</td><td className="p-2">{asText(item.side)}</td><td className="p-2">{asText(item.status)}</td><td className="p-2">{formatDate(item.created_at||item.time)}</td></tr>)}</tbody></table></div></CardContent></Card> : null}
 

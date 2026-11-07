@@ -19,7 +19,7 @@ const isValidAuthEmail = extractFunction('isValidAuthEmail');
 const getSupabaseWalletIdentity = extractFunction('getSupabaseWalletIdentity', { getSingleSupabaseAuthProvider });
 const isSupabaseUserId = extractFunction('isSupabaseUserId');
 
-test('only one server-verified Google, email or Web3 Supabase identity is accepted', () => {
+test('only one server-verified Google or Web3 Supabase identity is accepted', () => {
   const google = {
     app_metadata: { provider: 'google', providers: ['google'] },
     identities: [{ provider: 'google' }],
@@ -34,7 +34,7 @@ test('only one server-verified Google, email or Web3 Supabase identity is accept
     app_metadata: { provider: 'email', providers: ['email'] },
     identities: [{ provider: 'email' }],
     user_metadata: { provider: 'google' }
-  }), 'email', 'user-editable metadata must not override the server-verified email provider');
+  }), null, 'email identities are not an enabled BTCBOX sign-in method');
   assert.equal(getSingleSupabaseAuthProvider({
     app_metadata: { provider: 'google', providers: ['google', 'email'] },
     identities: [{ provider: 'google' }, { provider: 'email' }]

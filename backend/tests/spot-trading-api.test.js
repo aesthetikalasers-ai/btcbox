@@ -49,7 +49,8 @@ test('React spot terminal uses real market, candle, order book, order and capabi
   assert.ok(pages.includes('getOrderBook(symbol'));
   assert.ok(pages.includes('submitSpotOrder('));
   assert.ok(pages.includes('cancelSpotOrder('));
-  assert.ok(app.includes('<Route path="/trade/:symbol" element={<ProtectedAccountRoute><SpotTradingPage /></ProtectedAccountRoute>} />'));
+  assert.ok(app.includes('<Route path="/trade/:symbol" element={<SpotTradingPage />} />'), 'spot market preview route must be public');
+  assert.ok(!app.includes('<Route path="/trade/:symbol" element={<ProtectedAccountRoute>'), 'order placement is gated by authenticated APIs, not by the public preview route');
 });
 
 

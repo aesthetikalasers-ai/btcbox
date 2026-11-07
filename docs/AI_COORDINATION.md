@@ -1,13 +1,14 @@
 # BTCBOX AI Coordination
 
-Last refreshed: 2026-11-05 (UTC+8)
+Last refreshed: 2026-11-07 (UTC+8)
 Repository: `avali9308-code/btcboxcdt`
-Coordination branch: `chore/shared-ai-coordination`
+Active integration branch: `work/btcbox-unified-20261104`
+Coordination record: this document is historical baseline plus appended current-batch evidence; do not treat the 2026-11-05 branch inventory as current.
 Observed baseline: `main` at/including merge commit `93a236e4a3ed6c9edd2003ac1068a89161015511` (PR #20, read-only account/orders API).
 
 ## Roles and boundaries
 
-- Single-owner execution: ChatGPT is the sole active operator for repository audit, implementation, integration, testing, and coordination. Do not create parallel AI/team workstreams or wait for external AI handoffs.
+- Current assignment: ChatGPT is 2号 AI, responsible for Web App + Admin Panel implementation, integration, responsive UX and independent cross-checks. 1号 AI owns Core backend; 3号 AI owns architecture, API contracts and cross-module integration. Read the latest unified-branch handoff before acting; do not overwrite another owner's work.
 - The user is the final approver for merges to `main`, production deployment, destructive operations, and material business-rule changes.
 
 ## Mandatory operating rules
@@ -6043,3 +6044,352 @@ The prior withdrawal UI audit statement claiming the active BTCBOX admin route w
   /earn, /trade/BTCUSDT, /me.
 - CI: Backend workflow_dispatch + temp draft PR #58 on `36bcc71`; Frontend CI
   via PR #58. PostgreSQL path-skipped (no SQL change this batch).
+
+
+## Frontend public-market preview batch — 2026-11-07
+
+- Implemented public `/trade/:symbol` route access; private account/order endpoints remain authenticated by their API handlers.
+- Anonymous account `AUTH_REQUIRED` no longer turns the spot preview into a page-wide error.
+- Public market overview refresh now polls every 15 seconds with an in-flight guard; last confirmed ticker rows remain visible during provider errors with an explicit stale-feed warning.
+- Added source-contract regression assertions in `backend/tests/spot-trading-live-refresh.test.js`.
+- Commits: `06586c56e5286cec63ebab8f64b2a5a9224692e3`, `19b143136b28bbb7e565ab134a1732d0ae80043c`, `0ef183b58f7e83984ce08baad8dea63603f22271`, `7d4bd7d92a172364254ae75feb6a78e8f67c3b91`, `4be2b4b7462f89ce0f210ba6730e34b073f5683b`.
+- TEST NOT YET RUN on these commits. Prior successful CI at `abe8bedc922e2d5cf2d1e6e2755ebb25c15d7117` is historical evidence only.
+- NOT VERIFIED: browser end-to-end, frontend build/typecheck on this head, public preview on deployed hostname, and provider data freshness.
+- Auth mismatch remains open: inspected `AuthPages.tsx` still contains email/password, username/password and wallet sign-in options despite the user's report that Google-only adjustment was made. Do not overwrite; locate the intended adjustment first.
+- Detailed evidence and resume steps: `docs/FRONTEND-MARKET-PREVIEW-BATCH-2026-11-07.md`.
+
+- Additional Admin Panel cross-check: the current `frontend/src/features/admin/AdminPage.tsx` includes the manual-credit workflow under user detail, required receipt/TxID reference, stable idempotency key, balance/history refresh and deposit read/review permission gates. Backend uses `admin_manual_deposit_atomic` and fails closed while financial writes are disabled; no production write testing was done. Existing manual-credit and deposit-reference tests cover these contracts.
+- Vercel domain lookup confirms `btcboxcdt.vercel.app` belongs to the `btcboxcdt` project, but the project still reports `live:false` and latest deployment `ERROR`; deployment remains paused.
+
+- Auth branch cross-check: `feat/btcbox-react-google-auth-20261105` removes username/password and wallet UI but still exposes Supabase email/password login, registration and reset. It does not meet the user's Google-only/no-email-auth requirement; do not port it.
+
+- Google + wallet public auth UI batch: `AuthPages.tsx` now presents Google OAuth and a unified Connect wallet chooser (Ethereum/EVM + Solana), removes public email/password and BTCBOX username/password forms, retains optional backend-requested 2FA challenge and existing callback handling, and adds Phantom/Coinbase Wallet mobile links. Regression test asserts forbidden legacy controls are absent.
+- Backend wallet identity validation accepts only Supabase-verified Ethereum or Solana claims with valid address formats. Supabase Web3 provider enablement itself is NOT VERIFIED; no live wallet auth was attempted.
+- CI branch coverage fixed: unified branch added to backend/frontend push triggers; backend workflow now watches `AuthPages.tsx`. Build/test-only CI runs `42309363348` (backend) and `42309363409` (frontend) were running on `aa42ea2a7e4e798687fb9b208b5a36bdde2da389`; record final conclusions after completion.
+- Detailed changes, commits and resume point: `docs/FRONTEND-MARKET-PREVIEW-BATCH-2026-11-07.md`.
+
+- CI follow-up: backend run `42309363348` exposed a stale spot-route assertion; updated `backend/tests/spot-trading-api.test.js` to assert the approved public preview route. Backend run `42309521968` on `1a1e93a78bfd2f5ef5d931796fabf5f11fc8428d` passed build, tests, fail-closed preflight and output checks. Frontend run `42309363409` passed install/lint/build/Chromium setup; Playwright desktop/mobile route smoke tests were still running at last check.
+
+- Frontend browser verification: after updating stale E2E assertions that expected email/username auth and a protected spot route, run `42309855968` passed all desktop/mobile route smoke tests. Added explicit Google-enabled runtime button coverage; latest run `42310007202` on `4f4b64917b1c1d0cea5575a71222fdbe7dd87313` passed install, lint, build, Chromium setup and all desktop/mobile Playwright tests.
+
+- Follow-up: market API now emits per-symbol server snapshot time after provider fetch completion; frontend propagates it as `snapshotTs` and labels it “Snapshot checked” (not exchange event time). Auth page entry points now expose Google only; wallet controls/deep links removed. Existing 2FA verification remains.
+- CI evidence: backend run `42310573294` at intermediate test commit `c966aa0` failed 1/400 because an older assertion expected “Last update”; that assertion has been updated. Latest exact-head CI must be checked before declaring tests passed.
+- Details: `docs/FRONTEND-MARKET-PREVIEW-BATCH-2026-11-07.md`.
+
+- CI: Backend run `42310916938` at `7d5ed8f` passed unified build, 401/401 tests, fail-closed preflight, and output/entrypoint checks. Frontend run `42310911601` at `0394a88` passed install, lint, and build; browser smoke test was still running at last check. See `docs/FRONTEND-MARKET-PREVIEW-BATCH-2026-11-07.md`.
+
+- Deployment cross-check: latest Vercel production deploy `dpl_2cAQrbFQbTouccNyccnYZfY7P89e` on main `361be5c` confirms `npm install` and frontend build now succeed, but Vercel's `npm test` reports 350/356 pass and 6 failures. GitHub backend/frontend/PostgreSQL CI for that same main SHA report success; investigate environment/test discrepancy without deploying the unified branch. Detailed record is in `docs/FRONTEND-MARKET-PREVIEW-BATCH-2026-11-07.md`.
+
+
+- Current-state correction (2026-11-07): current unified-branch `AuthPages.tsx` is Google-only (email/password, username/password and wallet entry points are absent); earlier notes describing those controls are historical and superseded. The latest app-source commit is `84603e7150db06c6861e4667fb7a4c55f70f4f2d`, current branch HEAD at inspection is docs-only `b49b021ba1f4a22fc6896a9124409137e864e6d9`. Frontend CI `42311253408` on `84603e7` had install/lint/build green while Chromium setup and Playwright were still pending. Backend CI `42310916938` on `7d5ed8f` passed 401/401 backend tests and fail-closed preflight; no backend source changes followed that tested source commit.
+- Market timestamps: `snapshotTs` is server response snapshot time; `providerTs` is only supplied when the provider returns a normalized event time (Bybit fallback). Coinbase stats lack an exchange event timestamp, so do not represent server snapshot time as provider event time.
+- Admin manual credit re-audit passed source-contract checks for receipt reference, bounded decimal, stable idempotency request, permission gating, atomic audited RPC, and canonical history refresh. No production financial write was performed.
+
+## Authentication contract correction — 2026-11-07 (supersedes prior Google-only wording)
+
+The owner explicitly confirmed the required BTCBOX sign-in methods:
+- BTCBOX username + password login.
+- Google OAuth login.
+- Wallet login (Web3; currently implemented through Supabase Web3 identity for Ethereum and Solana).
+- No email registration, email/password login, or email OTP/recovery.
+
+Account creation is initiated through Google or wallet identity verification. A new identity without BTCBOX credentials is routed to Account Setup to choose a unique BTCBOX username and password; this does not create an email registration flow. Existing username/password accounts use the BTCBOX /api/login endpoint.
+
+Source observations:
+- frontend/src/lib/auth.tsx already had username login, Google OAuth, and Supabase Web3 sign-in functions; email sign-in/sign-up and email password-recovery functions have now been removed from the React auth provider.
+- frontend/src/features/auth/AuthPages.tsx now exposes username/password on login, Google OAuth, Ethereum wallet and Solana wallet entry points; registration exposes Google and wallet identity creation, then routes users who need credentials to Account Setup.
+- backend/api-core.js already implements BTCBOX username/password login using PBKDF2-HMAC-SHA256 (600,000 iterations), constant-time comparison, IP/username rate limits, frozen-account rejection, session issuance and optional 2FA.
+- The Supabase session exchange verifies the identity with /auth/v1/user, accepts only a single Google or Web3 provider, validates wallet chain/address, and rejects duplicate wallet ownership. Email identities are now rejected by the server-side provider allowlist.
+- backend/api/register remains disabled; this is intentional. Usernames/passwords are set after Google or wallet identity verification, not by email registration.
+- Regression coverage was updated in frontend/e2e/auth-routes.spec.ts, backend/tests/account-credentials.test.js, and backend/tests/google-only-auth.test.js.
+
+Verification status:
+- SOURCE OBSERVED: all three requested authentication paths have front-end and/or backend implementation paths in source after this batch.
+- NOT VERIFIED: successful real Google OAuth, live Ethereum/Solana wallet signatures, new-user provisioning, username collision behavior against a live isolated database, and production auth-provider settings. Do not claim these runtime flows are end-to-end verified.
+- CI for the new branch head must be checked after these commits. The previously green frontend CI run tested the obsolete Google-only UI and is not evidence for this change.
+- No production database, auth settings, merge, or deployment was changed.
+## Authentication batch verification update — 2026-11-07
+
+- Frontend CI run 42314537379 passed on source SHA 80731237b1f58d5097563521a9524e1f0d060c8c: npm install, lint, build, Chromium install, and desktop/mobile Playwright route smoke tests all completed successfully.
+- Backend CI run 42314790953 passed on source SHA 62250b00bae0d7eac20bede9adf98e69c4137e85: backend build and all 402 tests passed; deployment preflight completed successfully.
+- An earlier backend run failed because stale Google-only assertions remained in google-only-auth.test.js, google-only-identity.test.js, and spot-trading-live-refresh.test.js. Those assertions were corrected to the owner-approved username/Google/Web3 contract; the latest backend run above is green.
+- The latest code commit at the time of this note is 62250b00bae0d7eac20bede9adf98e69c4137e85. Documentation updates may advance the branch head without changing the tested application source.
+- SOURCE OBSERVED + TEST PASSED: username login UI and endpoint contracts, Google UI flow, Ethereum/Solana wallet entry points, email-provider rejection, frontend build/lint/browser route smoke tests, and backend 402-test suite.
+- NOT VERIFIED: live Supabase Google provider configuration, real wallet signature challenge on mobile/desktop wallets, fresh account creation against isolated Supabase, and full account setup with a newly provisioned wallet identity.
+- Production deployment remains paused. No production database/auth settings were changed.
+## Current source reconciliation — 2026-11-07 (supersedes earlier Google-only status)
+
+Re-read the current unified-branch source at the start of this batch. The current authentication UI and provider expose all three owner-approved methods: BTCBOX username/password, Google OAuth, and Ethereum/Solana Web3 wallet sign-in. Email sign-in, email registration, and email password-reset methods are not exposed by the React auth provider. The prior Google-only statements above are historical and superseded.
+
+Market timestamp semantic clarification:
+- `snapshotTs` is generated by the BTCBOX server after provider responses complete.
+- `providerTs` is provider-supplied but is not one universal kind of exchange event timestamp: Coinbase `ticker.time` is the last-trade timestamp; Bybit top-level `payload.time` is the provider response timestamp.
+- Frontend type comments and regression coverage now explicitly preserve this distinction. Do not label every `providerTs` value as an exchange trade/event timestamp.
+- This source-level contract does not establish that live provider data is always fresh. Runtime freshness, upstream outages, and live production market display remain unverified.
+
+Admin review re-audit:
+- Withdrawal approval changes review state only; staff must separately transfer funds and then record the TxID/reference using the manual payout completion action.
+- Withdrawal rejection requires a reason and uses the atomic database review RPC; the database transaction records the refund and audit together.
+- Manual payout completion requires a bounded TxID/reference and is status/audit confirmation only; it does not broadcast or debit funds again.
+- Frontend preserves confirmed action state if the subsequent queue refresh fails and handles already-processed retries without repeating the financial action.
+- KYC rejection requires a reason; direct approval checks in-review state and requires a stored document unless the explicit exception path supplies a reason.
+- These are source/test-contract observations. No live admin session or production financial operation was executed.
+## Follow-up batch — 2026-11-07: market semantics and Admin KYC conflict handling
+
+Market timestamp contract:
+- `frontend/src/lib/api.ts` now documents `providerTs` accurately: Coinbase supplies a last-trade timestamp; Bybit supplies a provider response timestamp. `snapshotTs` remains the BTCBOX server snapshot timestamp.
+- `backend/tests/spot-market-catalog.test.js` now asserts the provider-specific timestamp sources and the separate server snapshot timestamp.
+- Backend CI run `42315401002` passed 403/403 tests on source commit `936d5baf435aa2ca25f1e95117f6cc2c62941f41`; frontend CI run `42315396247` passed install, lint, build, Chromium install, and desktop/mobile route smoke tests on source commit `8d86ceceb62a32e5feabdebc56523ec320e73b73`.
+
+Admin KYC conflict handling:
+- Found a false-positive classification: the Admin Panel treated every HTTP 409 and `KYC_EXCEPTION_REQUIRED` as evidence that a KYC action had already succeeded. That could mask actionable server responses such as missing identity documents or a requirement for exception approval.
+- `frontend/src/features/admin/AdminPage.tsx` now classifies only the explicit `WITHDRAWAL_ALREADY_PROCESSED` code as a confirmed withdrawal retry. KYC 409 responses remain actionable errors and are shown to the operator; dead KYC duplicate-success handling was removed.
+- `backend/tests/admin-api-contract.test.js` now guards against treating generic 409 or KYC exception-required responses as confirmed success.
+- Backend CI run `42315626395` passed 403/403 tests and deployment preflight on source commit `51c302a96f069876e438321d3597501fcbc26b54`.
+- Frontend CI run `42315614500` completed SUCCESS on source commit `06ddef81192a72b5717125f59b069ac1a478dca6`: npm install, lint, build, Chromium installation, and all 24 desktop/mobile Playwright route smoke tests passed (12 desktop + 12 mobile).
+
+Current branch HEAD at note creation: `51c302a96f069876e438321d3597501fcbc26b54`. No merge, deployment, production database change, or live financial operation was performed.
+
+## Latest continuation record — 2026-11-07 (Admin KYC evidence gate)
+
+- Current batch commits on `work/btcbox-unified-20261104`: `7fe5a5ea214b3633107a9276cd604554e6df4ae7` (disable KYC approval without an uploaded document and working signed preview); `8b452412ed5e6a3f560bfd01426ec117da4a773a` (regression test); `f7f02459e2985b90fcc0eefe564f822ba43bc007` (handoff evidence).
+- The KYC exception override remains backend-only. Do not expose it as a normal approval action: it can bypass the normal document gate and requires an explicit reason/audit trail. Escalate any decision to broaden that policy to the owner.
+- Next: run backend KYC/admin tests and frontend lint/build/desktop-mobile route smoke tests against the resulting branch head; then continue withdrawal audit/idempotency and market provider freshness review.
+- No merge, deployment, production database change, or live financial action was performed.
+
+
+## Verification status for KYC evidence-gate commits — 2026-11-07
+
+- The GitHub commit-status API reports only the Vercel context for commits `7fe5a5e`, `8b45241`, and `7817fc2`; that context is FAILURE with Vercel's `upgradeToPro=build-rate-limit` URL. This is an account/build-quota block, not a test assertion result.
+- No backend test or frontend CI result has yet been produced for the KYC evidence-gate source commit. Do not label this batch TEST PASSED until those suites run on the exact source SHA.
+- Prior successful backend/frontend runs listed in the earlier ledger belong to earlier commits and do not verify these new changes.
+- Release remains blocked: no merge or deployment.
+
+
+## Continuation checkpoint — withdrawal rejection reason hardening (2026-11-07)
+
+- Branch: `work/btcbox-unified-20261104`.
+- Commits: `d2e13fe` (API requires actual rejection reason), `ee7e1e6` (API contract regression test), `cd2ab80` (correct control-character matcher), `de97dad` (handoff note).
+- Review finding: front-end already enforced a reason, but backend silently substituted a generic reason for direct API requests. This is now fail-closed at the API boundary: blank reason => 400 `WITHDRAWAL_REJECTION_REASON_REQUIRED`; over 200 chars/control characters => 400 `WITHDRAWAL_REJECTION_REASON_INVALID`.
+- The valid reason is forwarded to the existing atomic SQL RPC; no ledger, refund, state-transition, permission, or production behavior was otherwise changed.
+- Backend CI workflow is configured to run on pushes to this branch for backend changes. Await an actual successful run before marking TEST PASSED. No local test execution was performed through this GitHub API-only workflow.
+- Next: inspect withdrawal RPC behavior under terminal-state retries and audit visibility; then investigate market provider fallback/freshness. Keep merge/deployment/production DB and live funds operations paused.
+
+
+## Continuation checkpoint — withdrawal audit + market freshness (2026-11-07)
+
+- Withdrawal API: backend now rejects a blank rejection reason and rejects overlong/control-character reasons before calling the existing atomic refund/review RPC. Frontend already enforced a reason; this closes the direct-API gap. Commits: `d2e13fe`, `ee7e1e6`, `cd2ab80`.
+- Market API: Bybit fallback rows now require a provider response timestamp within 60 seconds old / 15 seconds future. Coinbase's last-trade timestamp is intentionally not subjected to this response-age test. Commits: `b19331f`, `a09834e`.
+- Tests added in `backend/tests/admin-api-contract.test.js` and `backend/tests/spot-market-catalog.test.js`. Source diffs and test assertions have been reviewed, but no exact-commit test pass has been observed; do not mark TEST PASSED.
+- Vercel status remains build-rate-limit failure; this does not prove backend test failure. GitHub Actions workflow-run lookup returned no PR-triggered runs for the test commit. Push workflow execution result remains unverified.
+- No production provider setting, financial database, live account, merge, or deployment was touched.
+- Next: inspect admin audit visibility and the market response cache/provider behavior; obtain backend CI on exact source commits when Actions reports a result.
+
+## 2026-11-07 continuation — manual payout audit cross-check
+
+- Reviewed `0027_withdrawal_manual_payout_completion_v1.sql`, `withdraw/mark-paid` API handler, and existing manual payout tests.
+- Confirmed source-level invariants: only approved withdrawals can be marked completed; a non-empty payout reference is required; exact retries do not append a second audit row; conflicting references fail; completion is status/audit-only and does not broadcast or debit again.
+- Added regression assertions for verified admin actor, withdrawal subject, payout reference, paid_by/paid_at and duplicate-audit prevention. Commit: `8e41700b213bc30aba86b3e31bd441db9676ea7a`.
+- Tests remain NOT VERIFIED on the new commit; do not infer pass from static source review. No production DB or deployment action.
+- Continue directly with public market cache and spot trade preview parity review.
+
+## 2026-11-07 continuation — public market freshness
+
+- Verified the spot trade UI polls market/depth every 15 seconds, browser fetches bypass local cache, and backend market requests fetch upstream ticker data rather than serving the declared but unused in-memory price cache.
+- Reduced the market endpoint's shared cache from max-age=2 / s-maxage=5 / stale-while-revalidate=3 to max-age=0 / s-maxage=2 / stale-while-revalidate=1. A small shared cache remains to limit provider load; no stale upstream fallback was introduced.
+- Added a source-contract regression test. Commits: `e2898dddb7b3a556a3e59ad531b9b72f8c700dda`, `1ff6d48da611f6a1679179d931a4832a3ab936b6`.
+- Live provider and deployed behavior remain NOT VERIFIED; no production deploy.
+
+## 2026-11-07 continuation — spot market consistency
+
+- Trade UI now identifies ticker, order-book and chart providers separately, so Coinbase/Bybit source divergence is visible rather than hidden by one combined label.
+- Depth response/client validates positive numeric price and size, sorts sides correctly, caps 20 levels, rejects malformed empty sides and includes server snapshot/provider timestamps.
+- K-line client retains source, validates OHLC relationships and surfaces failed refreshes while retaining the last confirmed chart.
+- Regression assertions added to `backend/tests/spot-market-catalog.test.js`; tests and browser build are NOT VERIFIED in this environment.
+- Commits: `ae544a241fc0d8fcd93f94b55bafe998788cb045`, `f9c20505a739864dc85881b0fc64232ade8d2bd4`, `9d280a5774560ffcd4579ff4da3e32794fc6423d`, `36d71cc080ff72582a92ac7d0fac668001a21c29`, `17114ab149f1b9c897b8d657d2f8d51c769d39a5`, `3081a36532d481cb83ddae409c1366047d6f2ca3`, `08fabb8c8566f4527160d184c014443acc2a477c`, `38a4f8f3b1f52f72d026c6b976917aa5dd01a89a`.
+- No production deploy or real order activity. Continue with CI status and responsive/auth route checks.
+
+## 2026-11-07 continuation — mobile spot preview
+
+- Added an isolated Playwright case at 320px width for the public spot preview. It stubs market, candles, depth and trading status, checks separate ticker/order-book/chart providers and verifies document width does not exceed viewport width.
+- Commit `27782f4bd589ee84d133c3862e32bf63568c874d`; source-contract assertion correction `a4404e287e9fcdaa4b88a9522a817d36a9cfb95d`.
+- Browser test not executed here; do not mark pass. Vercel check remains rate-limited and no Actions run for the current commits has yet been confirmed.
+- Continue with route/auth and mobile regression review; no production deployment.
+
+## 2026-11-07 CI results
+
+- Backend CI `42318730474` at `1b472aff19232f02295079a86f76096881ceeb46`: SUCCESS — unified build, backend tests, deployment-config preflight and preserved entrypoints all passed.
+- Frontend CI `42318554054` at `27782f4bd589ee84d133c3862e32bf63568c874d`: SUCCESS — lint, build, Chromium and desktop/mobile route smoke tests passed, including the new 320px spot preview test.
+- The earlier backend red run was caused by an incorrect test slice boundary and is fixed; the earlier frontend red run was caused by missing KlineResponse source typing and is fixed.
+- Vercel deployment check still reports rate limit only; production deployment remains paused. No real funds, live orders or production DB were touched.
+
+## 2026-11-07 continuation — authentication route coverage
+
+- SOURCE OBSERVED: BTCBOX username/password are stored as salted PBKDF2-SHA256 hashes (600,000 iterations), not plaintext; verification uses crypto.timingSafeEqual. Username login applies persistent IP and normalized-username lockouts and returns a generic invalid-credentials message.
+- SOURCE OBSERVED: first-time credential setup attaches username/password to the currently authenticated BTCBOX user; it does not create a second account. Setup requires a session created within five minutes. Duplicate usernames are rejected before persistence.
+- SOURCE OBSERVED: Google OAuth uses Supabase PKCE and a dedicated callback; backend identity exchange verifies the Supabase user. Wallet login uses Supabase Web3 sign-in and requires an access-token session before exchanging it with BTCBOX. UI supports EIP-6963 Ethereum providers and injected Solana providers.
+- SOURCE OBSERVED: credential recovery requires a fresh, linked Google or wallet identity, short-lived server-side proof, and configured TOTP where enabled. Password reset revokes other BTCBOX sessions and outstanding login challenges.
+- Added Playwright contract coverage for username/password login submission + safe rejection, and first-time username/password setup on the same existing account. Commit: 2598d7ef901e7bea36036d6381e3d2126838c525.
+- NOT VERIFIED: live Supabase Google provider configuration, wallet provider availability on real devices, Google OAuth redirect allowlist, and end-to-end login against the hosted backend. Browser CI for the new tests is pending.
+- No email registration or email/password auth added. No production DB, real funds, order execution, merge or deployment touched.
+
+## 2026-11-07 continuation — authentication regression verification
+
+- Username/password login browser test passed: verifies the exact BTCBOX username endpoint payload and visible generic invalid-credentials feedback.
+- First-time credential setup browser test passed on desktop and mobile after the fixture was corrected to satisfy the account snapshot contract and reflect persisted credentials on the subsequent account reload.
+- OAuth cancellation callback browser test passed: displays a clear cancellation message and a return-to-login path without issuing a BTCBOX session.
+- Frontend CI run 42321032193 at 00581b5ab1bc10697ce01f447b91d21d17f0372e: SUCCESS — lint, build, Chromium install and desktop/mobile route smoke tests passed.
+- Backend wallet-identity regression verifies EVM lowercase normalization, valid Solana base58 address acceptance, malformed addresses and unsupported chains. Backend CI run 42321114844 at 863576598db9414669798ff917f389ccb8eb8892: SUCCESS — 411 backend tests and unified build/preflight passed.
+- Earlier test-only failures were diagnosed from Actions logs and corrected: missing account fixture field; fixture not reflecting saved credentials; and cross-VM object assertion semantics. No production authentication behavior was weakened.
+- Remaining NOT VERIFIED: live Supabase Google provider/redirect configuration and real injected wallet sign-in on physical devices. No production deployment, DB mutation, merge, or real financial operation.
+
+## 2026-11-07 continuation — mobile spot workstation
+
+- Mobile spot layout now keeps the market price summary first and the limit-order form immediately after it; chart and order-book panels are not allowed to push the primary buy/sell form below long chart content.
+- At mobile widths, chart and order book are opened as bottom-anchored drawers (max-height 72dvh), with safe-area bottom padding and explicit Close controls. Desktop retains the side-by-side chart/order-book workstation layout.
+- Chart creation waits until its container has a non-zero width; opening the mobile chart drawer re-runs chart setup and ResizeObserver keeps it responsive.
+- 320px Playwright coverage verifies price and limit order priority, chart/depth hidden by default, chart canvas rendering when opened, both drawer open/close interactions, distinct provider provenance, and no horizontal overflow.
+- Frontend CI run 42321826347 at bb6183557b9048734382c3f4cac75d8fbc8b5a7c: SUCCESS — lint, build and desktop/mobile Playwright route smoke all passed (32 tests).
+- No trade execution, matching, settlement, account balance or financial backend behavior changed. No production deploy.
+
+## 2026-11-07 continuation — wallet provider failure behavior
+
+- Added isolated Playwright coverage for unavailable EVM and Solana injected wallet providers. Both paths must surface a visible authentication error and must not call BTCBOX Supabase-session exchange endpoints without a wallet-backed Supabase session.
+- Frontend CI run 42322062375 at 24017400371e46cb200fbe37867c5190ee5f1080: SUCCESS — lint, build and 34 desktop/mobile route tests passed.
+- Real wallet signing and Supabase provider enablement remain unverified on physical devices; this test covers the no-provider failure path only.
+
+## 2026-11-07 continuation — Admin semi-manual review queues
+
+- Cross-checked the existing Admin Panel workflow before extending it: deposit receipt verification and manual ledger credit remain under Users; withdrawal approval is separate from staff's actual manual transfer and requires a TxID/reference to mark paid; KYC approval is disabled unless the document upload and secure preview URL are both present; rejection requires an operator reason.
+- Added explicit Refresh queue controls to Withdrawals and KYC so staff can fetch newly submitted items without leaving the tab or reloading the whole Admin Panel.
+- Refresh state is isolated from action busy state. A manual refresh failure reports only a refresh error and cannot falsely claim a financial/admin action was confirmed. Post-action refresh retains the distinct "action confirmed, queue refresh failed" messaging.
+- Frontend CI run 42322366989 at 3e15087f7952f05d3022f61be3f62ee14af1f8bc: SUCCESS (lint/build/desktop-mobile route suite).
+- Follow-up corrected the manual withdrawal refresh failure message so it cannot reuse the post-action confirmation wording. Frontend CI run 42322432342 at c7366273d51526bca32135766908ba1160d8fcf7: SUCCESS (lint/build/desktop-mobile route suite).
+- No changes to deposit ledger writes, withdrawal execution/settlement, KYC backend decisions, production DB or deployment.
+
+## 2026-11-07 continuation — Admin browser QA
+
+- Continued single-owner repository execution as required by this document; no external AI handoff or parallel workstream.
+- Added two isolated Playwright Admin cases: withdrawal queue refresh failure must remain read-only and must not imply a confirmed financial action; KYC approval remains disabled without an uploaded document and secure preview URL.
+- Tests use a synthetic Supabase browser session and intercepted API fixtures only; no real identity, production API, financial write, database or deployment is used.
+- New test commit: `d42c2fdbc5de26be937ead020e147abdd0930432`. Push CI run `42328415525` completed SUCCESS: lint, build and all 38 desktop/mobile Playwright tests passed (19 desktop + 19 mobile), including both new Admin cases. Backend PR run `42328419228` completed SUCCESS with 411/411 tests, build, preflight and output checks; frontend PR run `42328419231` completed SUCCESS with lint, build and browser tests.
+
+## 2026-11-07 continuation — trading mode chooser and Admin QA
+
+- Reorganized Trade Hub so the four requested modes are visible first: Spot, Seconds, Earn, and Futures. Futures remains explicitly unavailable because no supported futures service is registered; no simulated contract entry was added.
+- Moved the backend-returned spot pair list below the mode cards so a long pair list cannot push Seconds/Earn/Futures below the fold. Spot catalogue errors and empty states remain explicit; no pairs are fabricated.
+- Added an Earn entry to the mode chooser and translated its copy for all seven supported frontend locales. The Earn page remains account-gated; subscribe/redeem stay disabled unless backend financial controls report enabled.
+- Playwright now verifies all mode cards, an actual mocked backend-enabled spot pair, unsupported Futures state, and the Earn route's authentication gate.
+- Admin Playwright checks remain isolated to mocked identities/API responses and verify withdrawal refresh failures do not imply financial success or issue mutation requests, and KYC approval stays disabled without document evidence.
+- Exact code/test head: `8967f936520470cd0a624efc718012dc615e26e2`. Push CI `42329063335`: SUCCESS — lint, build and 40 desktop/mobile tests (20 desktop + 20 mobile). Backend PR CI `42329067130`: SUCCESS — unified build, 411/411 backend tests, fail-closed preflight and output checks. Frontend PR CI `42329067115`: SUCCESS — lint, build and 40 desktop/mobile tests.
+- No real funds, live orders, production database writes, merge or deployment performed.
+
+
+## Visual direction update — 2026-11-07
+
+- User explicitly superseded the earlier proposal to force a near-monochrome black/white/green BTCBOX palette. Follow the original mature UI foundation palette and component language instead; do not flatten the design into a single dark slab.
+- The approved baseline is the existing mature UI foundation source palette: deep navy surfaces, restrained blue interaction/accent states, readable cool-neutral text, and distinct profit/loss semantics. Preserve the original spacing, hierarchy, typography and responsive behavior unless an evidence-based defect requires adjustment.
+- Brand treatment should be integrated rather than pasted: use a reusable inline-vector BTCBOX mark and wordmark; maintain consistent sizing/alignment across desktop sidebar and mobile header. Do not substitute a bitmap logo as the only branding treatment.
+- This is approval for visual/brand implementation only. It does not authorize changes to trading, settlement, account, authentication, financial rules, production data, merge, or deployment.
+
+
+## Priority update — registration and public preview first (2026-11-07)
+
+- User directed that the registration page and public preview page take priority ahead of the remaining page-wide visual polish.
+- Registration remains Google + supported wallet identity creation (Ethereum/Solana), followed by BTCBOX username/password setup after identity verification. Do not add email registration.
+- The signed-out public preview is the customer `/home` market landing page. It must remain accessible without login, display only provider-backed market data, and provide clear register/sign-in/trading discovery paths.
+- Use the original mature UI palette and component language; keep responsive desktop/mobile layouts. No auth provider, market API contract, trading, account or financial behavior changes are authorized by this visual task.
+
+
+## Registration / public preview CI evidence — 2026-11-07
+
+- Tested source commit: `2e5c0401812d39be1bec055718d66b63f96c2734`.
+- Frontend CI run `42331547336`: SUCCESS — install, lint, build and 44 desktop/mobile Playwright tests passed.
+- Backend CI run `42331547350`: SUCCESS — unified build, 411/411 backend tests, fail-closed deployment preflight and preserved entrypoint checks passed.
+- Automated coverage includes 320px registration and signed-out public preview routes; this is not a substitute for manual visual review on physical devices.
+
+
+## 2026-11-07 active unified-branch continuation
+
+- Active branch confirmed from PR #59: `work/btcbox-unified-20261104`; PR #59 remains OPEN / DRAFT / NOT MERGED, base `fix/post-merge-db-bootstrap-seconds-20261106`.
+- Current assignment is 2号 AI (Web App + Admin Panel). The 2026-11-05 branch inventory and historical baseline above are retained as historical evidence, not current branch state.
+- Registration and signed-out public preview are the immediate UI priorities. The current implementation uses Google + Ethereum/Solana wallet identity creation, then BTCBOX username/password setup; username/password remains available for login. Email registration/login is not added.
+- Preserve the mature deep-navy/blue visual foundation selected by the user; do not force the previously proposed monochrome black/green palette. Use the reusable vector `BrandLogo` component rather than a raster logo pasted into the page.
+- No merge, deployment, production DB/auth configuration, financial write or real order action without explicit owner approval.
+
+
+## 2026-11-07 auth shell / mobile preview continuation
+
+- 2号 AI continued the registration and signed-out public preview work on `work/btcbox-unified-20261104` / Draft PR #59.
+- Confirmed the customer routes previously mounted login, registration, account setup and OAuth callback inside the full `AppLayout`, which injected the global topbar and mobile bottom navigation into the dedicated auth screens. The auth screens already supplied their own brand/market links, causing duplicated chrome and reducing available mobile viewport height.
+- Auth-flow routes are now rendered without the trading app shell; public customer routes retain the normal sidebar/topbar/bottom navigation. Auth and account-setup viewport heights now use the full standalone viewport.
+- The signed-out home preview's hero logo is hidden at mobile widths where the topbar already provides the BTCBOX brand mark; it remains visible when the topbar brand mark is not shown.
+- E2E assertions now verify no global banner/navigation on login and registration, and verify the mobile preview keeps its topbar navigation while avoiding a duplicated hero brand mark.
+- No authentication methods, provider contracts, market API contracts, order/financial logic, production settings, merge or deployment were changed.
+
+
+## 2026-11-07 auth-shell / preview verification result
+
+- Final tested source/test SHA: `4e0695afae911c670214703a819de2618036aaeb`.
+- Frontend CI run `42333471864`: SUCCESS — npm install, lint, build and `44/44` desktop/mobile Playwright tests passed.
+- Backend CI run `42333471866`: SUCCESS — unified build, `411/411` backend tests, fail-closed deployment preflight and preserved output checks passed.
+- The first test run caught an assertion that incorrectly required a responsive topbar logo link to be visible in both project viewport configurations. The app code was not at fault; removed that breakpoint-sensitive assertion while retaining checks for the header, mobile navigation and hidden duplicate hero mark. The rerun passed all 44 tests.
+- The auth-route assertions passed in desktop and mobile projects: no global banner or primary navigation is rendered on login/registration. Public preview assertions passed with the normal app header/navigation and no horizontal overflow or signed-out financial mutations.
+- Latest PR #59 remains OPEN / DRAFT / NOT MERGED. No production deployment, DB/auth configuration change, or financial action was performed.
+- Manual screenshot-based visual acceptance is still pending; CI browser tests are not claimed as physical-device visual approval.
+
+
+## Public market snapshot visibility — 2026-11-07
+
+- 2号 AI reviewed the public `/home` market preview and its `getMarkets` response mapping. Each ticker already carries `snapshotTs` from the backend server snapshot timestamp, distinct from the provider timestamp.
+- FIXED: the public market table now displays the latest confirmed server snapshot time, or explicitly states that snapshot time is unavailable. This makes retained last-confirmed rows easier to assess when the refresh warning is shown and avoids implying that provider event time and server snapshot time are interchangeable.
+- TEST ADDED: public-preview Playwright coverage now asserts that the server snapshot indicator is visible when the API fixture includes a server timestamp.
+- Commits: `23b5fb8b10ce176c449e5803dc914fc3d65b8751` (UI); `a421c57382435d0f49f278a53b9d5a32a2b0a5b2` (browser regression).
+- NOT VERIFIED: exact-commit CI, real upstream timestamp freshness, deployed UI, and screenshot-based visual review. No auth/backend contract, database, financial action, merge or deployment changed.
+
+
+## Admin review queue reload safety — 2026-11-07
+
+- 2号 AI cross-reviewed the existing semi-manual Admin Panel withdrawal and KYC queues. Manual refresh failures already retain the last confirmed rows with an explicit error; this is intentional for an operator-initiated refresh and is covered by existing read-only failure tests.
+- FOUND: when navigating away from a review tab and returning, the tab loader previously retained the prior queue state if the new initial GET failed. That could redisplay stale withdrawal/KYC rows after a failed tab reload.
+- FIXED: clear the respective withdrawal/KYC row state before a tab-level queue fetch. If that fetch fails, the prior review actions are no longer available from stale rows. Manual refresh behavior remains unchanged and continues to retain last-confirmed rows with a visible error.
+- TEST ADDED: Admin E2E loads a withdrawal row, switches to KYC, then simulates a 503 when returning to Withdrawals; it asserts the stale row and Approve action are absent and the queue error is visible.
+- Commits: d23218081fbbd9d993ef3280f4933ab1cc349d65 (Admin queue state); 8a834cc1b5734b5a0259b54457e3d92ce7649815 (E2E regression).
+- Verification pending: frontend CI for latest code/test SHA. No finance API semantics, manual payout workflow, backend, production DB, merge or deployment changed.
+
+
+## Admin audit snapshot reload safety — 2026-11-07
+
+- SOURCE OBSERVED: entering the Audit tab fetched a new snapshot but retained the previous audit rows and source/completeness labels until success. A failed re-entry could therefore leave stale audit events and stale "PostgreSQL canonical" confidence visible.
+- FIXED: clear prior audit rows and reset source/completeness to unknown before requesting a new tab snapshot; show an explicit empty-snapshot row when a successful response contains no events.
+- REGRESSION: Playwright now loads a canonical audit fixture, navigates away, forces the next audit read to fail, and asserts that the old event and canonical source label are absent.
+- Scope: frontend presentation/state only. No audit schema, API contract, financial behavior, database, or production configuration changed.
+- Manual-credit review: source inspection confirms the current UI persists an actor/target/asset-scoped idempotency request before submission and reuses it after network/5xx/409 uncertainty. Do not generate a replacement request ID for an unconfirmed credit; verify the user's ledger before resolving ambiguous outcomes.
+
+
+## Admin manual payout retry recovery — 2026-11-07
+
+- REVIEWED backend contract/test: exact manual payout retries with the same reference are idempotent; a conflicting reference for an already completed withdrawal is rejected. The operation records payout status/audit metadata and does not apply another ledger debit.
+- FINDING: the Admin UI did not persist the payout TxID/reference before POST. If the response was lost and the administrator refreshed the page, the approved withdrawal could return with a blank input, inviting entry of a different reference.
+- FIXED: persist only the non-secret TxID/reference in actor + withdrawal-scoped localStorage before sending; restore it on the next Admin session; remove it only after a confirmed API response. If persistence is unavailable, do not send the payout mutation. If the response is ambiguous, retain the same reference and tell the operator to verify chain/history before retrying.
+- FIXED: duplicate-reference success notice is no longer overwritten by the generic queue-refresh notice.
+- E2E: simulate a 503 after the first payout request, reload the page, assert the exact reference is restored, retry, return an idempotent duplicate success, and assert the completed status.
+- Scope: Admin frontend recovery and test only. No payout RPC, financial API contract, DB, ledger or production setting changed.
+
+
+- Additional identity isolation: restored payout drafts replace in-memory drafts when the authenticated administrator changes, preventing one operator's unsent reference from appearing in another operator's session.
+- Latest UI safety follow-up: `8d75ce111e06ca8a7f7fca64bb4e755c1e1724b6`.
+
+
+- CI cross-check caught two existing frontend-source assertions in Core-owned contract tests that expected the prior payout notice call shape. Preserved their intended refresh-after-success contract while keeping the duplicate-reference notice visible after refresh; no backend test/schema or API contract change required.
+- Follow-up commit: `be2b47513b18f961e96a5d97c2b99b6aec10b3c9`. Backend CI rerun required.
+
+
+## Admin user-detail selection isolation — 2026-11-07
+
+- 2号 AI cross-reviewed the Admin Users / manual-credit panel against the per-user deposit history and ledger-source labels.
+- FOUND: selecting a second user left the previously selected user's detail panel mounted while the next `admin/user` GET was pending. If that read failed, the old user's balances, deposit history and manual-credit form remained visible even though the operator had attempted to open another user.
+- FIXED: clear the selected user before issuing the next detail request. A failed read now leaves the explicit “Select a user…” state and no prior user's balance/deposit evidence or manual-credit controls.
+- REGRESSION: Playwright loads one user's ledger-backed balance and deposit history, then simulates a 503 for the next user's detail request; it asserts the previous deposit ID and balance row disappear and the read error is visible.
+- Scope: frontend selection state and E2E only. No deposit API, ledger, database, idempotency key, credit behavior, or production configuration changed.
+- Verification: exact-head CI pending; no merge, deployment, production DB write, or real financial operation performed.
