@@ -61,7 +61,8 @@ No new A2 work is pending. No new visual palette batch, generic page restyling, 
 
 ## 6. Release and safety boundary
 
-- Do not merge to `main`, deploy, or resume automatic deployment without the owner's explicit approval.
+- Do not merge to `main`, trigger a production deployment, or resume automatic production deployment without the owner's explicit approval.
+- Vercel automatically completed the current PR preview deployment; it is a preview only, not a production release. Do not use preview success as visual acceptance.
 - Do not write to hosted/production Supabase, reset databases, or run destructive SQL.
 - Do not perform real deposits, withdrawals, trades, settlement, KYC decisions, or financial ledger writes.
 - The current database is treated as empty per the owner's latest direction; do not spend time on legacy-user migration or historical production-inventory claims.
