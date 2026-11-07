@@ -127,8 +127,8 @@ VIEWS.trade = function(params){
       '<div class="card chart-card">'+
         '<div class="chart-header">'+
           '<div class="pair-title">'+base+'/USDT</div>'+
-          '<div><div class="num price-big" style="color:'+(s.chg>=0?'var(--up)':'var(--down)')+'" data-live-price="'+state.currentPair+'">'+fmtPrice(s.price,base)+'</div><div class="num chg-small" style="color:'+(s.chg>=0?'var(--up)':'var(--down)')+'" data-live-chg="'+state.currentPair+'">'+pct(s.chg)+'</div></div>'+
-          '<div class="hl"><div>24h High <span class="num">'+fmtPrice(s.high,base)+'</span></div><div>24h Low <span class="num">'+fmtPrice(s.low,base)+'</span></div></div>'+
+          '<div><div class="num price-big" style="color:'+(s.chg>=0?'var(--up)':'var(--down)')+'" data-live-price="'+state.currentPair+'">'+marketPriceText(s,base)+'</div><div class="num chg-small" style="color:'+(s.chg>=0?'var(--up)':'var(--down)')+'" data-live-chg="'+state.currentPair+'">'+marketChangeText(s)+'</div></div>'+
+          '<div class="hl"><div>24h High <span class="num">'+(Number(s.high)>0?fmtPrice(s.high,base):'—')+'</span></div><div>24h Low <span class="num">'+(Number(s.low)>0?fmtPrice(s.low,base):'—')+'</span></div></div>'+
           '<div class="spacer"></div>'+
           '<div id="tf-switch" class="tf-switch">'+tfBtns+'</div>'+
         '</div>'+
