@@ -3,7 +3,17 @@ import fs from "node:fs";
 import path from "node:path";
 
 const widths = [320, 360, 375, 390, 430, 768, 1024, 1440];
-const routes = ["/login", "/register", "/home", "/markets", "/trade/BTCUSDT", "/trade-hub", "/assets", "/support", "/admin"];
+const routes = [
+  { path: "/login", heading: "Welcome back" },
+  { path: "/register", heading: "Create your BTCBOX account" },
+  { path: "/home", heading: "Explore the market. Trade with confidence." },
+  { path: "/markets", heading: "Explore the market. Trade with confidence." },
+  { path: "/trade/BTCUSDT", heading: "BTCUSDT" },
+  { path: "/trade-hub", heading: "Choose your trading mode" },
+  { path: "/assets", heading: "Assets" },
+  { path: "/support", heading: "Customer support" },
+  { path: "/admin", heading: "Administrator Console" },
+];
 
 test("responsive visual QA captures key customer and admin entry routes without horizontal page overflow", async ({ page }) => {
   test.setTimeout(180_000);
@@ -61,12 +71,15 @@ test("responsive visual QA captures key customer and admin entry routes without 
   });
   await page.route("https://btcbox-e2e.invalid/**", route => route.abort());
 
-  for (const routePath of routes) {
+  for (const route of routes) {
+    const routePath = route.path;
     for (const width of widths) {
       await page.setViewportSize({ width, height: 900 });
       await page.goto(routePath, { waitUntil: "domcontentloaded" });
       await expect(page.locator("#root")).not.toBeEmpty();
       expect(new URL(page.url()).pathname).toBe(routePath);
+      await expect(page.getByRole("heading", { name: route.heading, exact: true })).toBeVisible({ timeout: 15000 });
+      await page.waitForLoadState("networkidle");
       await page.evaluate(() => document.fonts.ready);
       const dimensions = await page.evaluate(() => ({
         viewport: window.innerWidth,
