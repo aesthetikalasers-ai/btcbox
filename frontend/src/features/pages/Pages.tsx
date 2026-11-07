@@ -287,7 +287,7 @@ export function SpotTradingPage(){
 
  useEffect(()=>{
   const node=chartContainer.current;
-  if(!node||!candles.length)return;
+  if(!node||!candles.length||node.clientWidth<=0)return;
   const chart=createChart(node,{width:node.clientWidth,height:320,layout:{background:{type:ColorType.Solid,color:"#111820"},textColor:"#9aa8b7"},grid:{vertLines:{color:"#26313d"},horzLines:{color:"#26313d"}},rightPriceScale:{borderColor:"#26313d"},timeScale:{borderColor:"#26313d",timeVisible:true,secondsVisible:false}});
   const series=chart.addSeries(CandlestickSeries,{upColor:"#0ecb81",downColor:"#f6465d",borderVisible:false,wickUpColor:"#0ecb81",wickDownColor:"#f6465d"});
   series.setData(candles.map(item=>({time:Math.floor(item.time/1000) as UTCTimestamp,open:item.open,high:item.high,low:item.low,close:item.close})).sort((a,b)=>Number(a.time)-Number(b.time)));
@@ -295,7 +295,7 @@ export function SpotTradingPage(){
   const observer=new ResizeObserver(entries=>{const width=entries[0]?.contentRect.width;if(width)chart.applyOptions({width:Math.floor(width)});});
   observer.observe(node);
   return ()=>{observer.disconnect();chart.remove();};
- },[candles]);
+ },[candles,mobilePanel]);
 
  const submitOrder=async(event:FormEvent<HTMLFormElement>)=>{
   event.preventDefault();
