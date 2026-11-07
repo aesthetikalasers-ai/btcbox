@@ -69,7 +69,7 @@ export function AuthPage({ mode, redirectTo }: { mode: "login" | "register"; red
         </h1>
         <p className="mt-5 max-w-[480px] text-base leading-7 text-brand-text-secondary">
           {registering
-            ? "Create your BTCBOX account with email or Google, then confirm your email address or complete Google verification."
+            ? "Create your BTCBOX account with email or Google, verify your identity, and complete your account setup."
             : "Access your BTCBOX account with email, username, Google or a supported crypto wallet."}
         </p>
         <div className="mt-9 grid max-w-[520px] gap-3 sm:grid-cols-2">
@@ -109,7 +109,7 @@ export function AuthPage({ mode, redirectTo }: { mode: "login" | "register"; red
               {status === "two-factor"
                 ? "Enter your authenticator code to finish signing in."
                 : registering
-                  ? "Register with your email address or Google account. Confirm your email to activate secure access."
+                  ? "Verify your email address or Google identity, then complete your BTCBOX account setup."
                   : "Sign in with your email, BTCBOX username, Google account or supported crypto wallet."}
             </CardDescription>
           </CardHeader>

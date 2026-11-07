@@ -124,7 +124,7 @@ export function Dashboard() {
     <div className="flex flex-wrap items-end justify-between gap-3">
       <div className="min-w-0">
         <p className="mb-1 text-xs font-bold uppercase tracking-[.18em] text-brand-text-muted">{t("BTCBOX / MARKETS")}</p>
-        <h2 className="type-page-title text-brand-text">{t("Market overview")}</h2>
+        {isMarketsPage ? <h1 className="type-page-title text-brand-text">{t("Market overview")}</h1> : <h2 className="type-page-title text-brand-text">{t("Market overview")}</h2>}
         <p className="type-body mt-1.5 text-brand-text-secondary">{t("Live spot prices and 24-hour market movement.")}</p>
       </div>
       <Badge variant="outline" className="border-brand-accent/30 bg-brand-accent/10 px-3 py-1 text-brand-text-secondary">
