@@ -565,9 +565,10 @@ test("Admin payout retry restores the exact TxID after an ambiguous response and
 test("Admin audit reload failure clears stale records and resets source confidence", async ({ page }) => {
   await installAdminE2EIdentity(page);
   let auditReads = 0;
+  let failNextAuditRead = false;
   await page.route("**/api/admin/audit-logs?**", async route => {
     auditReads += 1;
-    if (auditReads === 1) {
+    if (!failNextAuditRead) {
       await route.fulfill({
         status: 200,
         contentType: "application/json",
@@ -608,6 +609,7 @@ test("Admin audit reload failure clears stale records and resets source confiden
   await expect(page.getByRole("heading", { name: "Financial audit log" })).toBeVisible();
   await expect(page.getByText("E2E-STALE-AUDIT")).toBeVisible();
   await expect(page.getByText("PostgreSQL canonical")).toBeVisible();
+  failNextAuditRead = true;
 
   await page.getByRole("button", { name: "KYC", exact: true }).click();
   await expect(page.getByRole("heading", { name: "KYC review" })).toBeVisible();
@@ -778,7 +780,7 @@ test("Admin user-detail failure clears the previously selected user's financial 
   await page.goto("/admin");
   await page.getByRole("button", { name: "Users & manual credit", exact: true }).click();
   await page.getByRole("button", { name: "Open", exact: true }).first().click();
-  await expect(page.getByText("first@example.invalid")).toBeVisible();
+  await expect(page.getByRole("cell", { name: "first@example.invalid" })).toBeVisible();
   await expect(page.getByText("E2E-DEPOSIT-001")).toBeVisible();
   await expect(page.getByText("e2e-user-001", { exact: true })).toBeVisible();
 
