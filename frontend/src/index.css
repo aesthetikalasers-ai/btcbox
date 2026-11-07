@@ -171,3 +171,15 @@ button{touch-action:manipulation}
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
 }
+
+/* Route-level accent rails create page identity without changing layout or financial state colors. */
+.tone-market .type-page-title,
+.tone-trading .type-page-title,
+.tone-assets .type-page-title,
+.tone-orders .type-page-title,
+.tone-earn .type-page-title,
+.tone-support .type-page-title,
+.tone-admin .type-page-title {
+  border-left: 3px solid var(--page-accent);
+  padding-left: .75rem;
+}
