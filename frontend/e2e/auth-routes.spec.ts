@@ -799,7 +799,7 @@ test("Admin user-detail failure clears the previously selected user's financial 
   await page.getByRole("button", { name: "Open", exact: true }).first().click();
   await expect(page.getByRole("cell", { name: "first@example.invalid" })).toBeVisible();
   await expect(page.getByText("E2E-TX-FIRST")).toBeVisible();
-  await expect(page.getByText("e2e-user-001", { exact: true })).toBeVisible();
+  await expect(page.getByRole("cell", { name: "e2e-user-001" })).toBeVisible();
 
   await page.getByRole("button", { name: "Open", exact: true }).nth(1).click();
   await expect(page.getByRole("alert")).toContainText("User account could not be loaded.");
@@ -862,7 +862,7 @@ test("Admin rapid user selection ignores an older detail response", async ({ pag
 
   if (!releaseSlow) throw new Error("The first user detail request did not start.");
   releaseSlow();
-  await expect(page.getByText("fast@example.invalid")).toBeVisible();
+  await expect(page.getByRole("cell", { name: "fast@example.invalid" })).toBeVisible();
   await expect(page.getByText("Available: 222.00")).toBeVisible();
   await expect(page.getByText("slow@example.invalid")).toHaveCount(0);
   await expect(page.getByText("Available: 111.00")).toHaveCount(0);
