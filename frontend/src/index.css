@@ -29,7 +29,7 @@
   --color-brand-violet: #d4d4d8;
   --color-brand-indigo: #a1a1aa;
   --color-brand-orange: #f59e0b;
-  --color-brand-info: #60a5fa;
+  --color-brand-info: #a1a1aa;
   --color-brand-warning: #f59e0b;
   --color-brand-success: #22c55e;
   --color-brand-danger: #ef4444;
@@ -41,7 +41,7 @@
   --color-chart-2: #22c55e;
   --color-chart-3: #a1a1aa;
   --color-chart-4: #f59e0b;
-  --color-chart-5: #60a5fa;
+  --color-chart-5: #52525b;
 
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -88,7 +88,7 @@
   --brand-success: #22c55e;
   --brand-danger: #ef4444;
   --brand-warning: #f59e0b;
-  --brand-info: #60a5fa;
+  --brand-info: #a1a1aa;
   --surface-raised: #18191c;
   --surface-overlay: #202126;
   --border-strong: rgba(255, 255, 255, .12);
@@ -108,6 +108,10 @@ body {
 }
 button, input, select, textarea { font: inherit; }
 button { touch-action: manipulation; }
+input:not([type="checkbox"]):not([type="radio"]), select { min-height: 44px; }
+textarea { min-height: 104px; }
+input[type="checkbox"], input[type="radio"] { accent-color: var(--brand-accent); }
+a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
 :focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }

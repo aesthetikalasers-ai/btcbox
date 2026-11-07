@@ -4,11 +4,11 @@ import { cn } from "../../lib/utils";
 import { useI18n } from "../../lib/i18n";
 
 const items = [
-  { to: "/home", label: "Home", icon: House, active: "text-brand-cyan" },
-  { to: "/markets", label: "Markets", icon: ChartNoAxesCombined, active: "text-brand-cyan" },
-  { to: "/trade-hub", label: "Trade", icon: ArrowLeftRight, active: "text-brand-info" },
-  { to: "/assets", label: "Assets", icon: Wallet, active: "text-brand-teal" },
-  { to: "/me", label: "My", icon: UserRound, active: "text-brand-indigo" },
+  { to: "/home", label: "Home", icon: House, active: "bg-white/[0.045] text-brand-text" },
+  { to: "/markets", label: "Markets", icon: ChartNoAxesCombined, active: "bg-white/[0.045] text-brand-text" },
+  { to: "/trade-hub", label: "Trade", icon: ArrowLeftRight, active: "bg-white/[0.045] text-brand-text" },
+  { to: "/assets", label: "Assets", icon: Wallet, active: "bg-white/[0.045] text-brand-text" },
+  { to: "/me", label: "My", icon: UserRound, active: "bg-white/[0.045] text-brand-text" },
 ];
 
 export function BottomNav() {
