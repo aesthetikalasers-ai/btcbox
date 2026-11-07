@@ -340,3 +340,14 @@ Registration and the signed-out preview/home page are now the first pages to com
 - New preview landing E2E and 320px registration E2E both passed on desktop and mobile projects.
 - The test suite confirms no horizontal overflow at 320px for these flows and no signed-out financial mutation requests in the public preview route.
 - Manual visual review at common phone widths and desktop sizes remains pending; no production deployment or merge has been performed.
+
+
+## 2026-11-07 continuation — registration / public-preview source QA
+
+- Re-read the unified-branch registration page, signed-out dashboard, BrandLogo, sidebar, mobile topbar, design tokens, E2E spec and package scripts at PR #59 head `92b1b714c0b36b0ffecd6a27ae0d6ddbc40351e1`.
+- SOURCE OBSERVED: the user-approved auth entry points are present in the registration UI (Google, Ethereum wallet and Solana wallet); username/password remains on the login route; registration does not offer email. Account credentials are created after identity verification.
+- SOURCE OBSERVED: the public dashboard reads markets and BTC/USDT candles through existing API functions, refreshes market rows, and renders explicit feed / no-chart-data states. No synthetic market prices or balances were introduced in this UI.
+- SOURCE OBSERVED: the BTCBOX mark is rendered as inline SVG plus a typographic wordmark through the shared `BrandLogo` component and is reused in the sidebar, mobile topbar, auth page and preview hero.
+- FIXED: a source-level review found the authenticator-code input used an over-escaped regular expression (`/\\D/g`), which would not strip non-digits as intended. Corrected it to `/\D/g` in `frontend/src/features/auth/AuthPages.tsx` (commit `227eb0c7d18148011c57922e1070a8666a7b185c`).
+- NOT VERIFIED: actual rendered visual QA on a browser/device. BrowserAct could not be installed in this runtime because the required Python download failed at network/DNS resolution. The existing CI Playwright route suite is the automated browser evidence; it does not substitute for screenshot-based visual acceptance.
+- NEXT: verify CI for the exact latest source SHA, then continue with screenshot-based desktop/mobile review when a browser runtime is available. No merge, deploy, production DB/auth, or financial operation was performed.
