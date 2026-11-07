@@ -503,6 +503,11 @@ test("Admin KYC approval remains disabled without an uploaded document and secur
         uid: "e2e-user-kyc-001", email: "kyc-user@example.invalid", name: "QA KYC User",
         id_type: "passport", status: "pending", submitted_at: "2026-11-06T10:00:00.000Z",
         document_uploaded: false, document_url: undefined, document_preview_error: "Document image missing",
+      }, {
+        uid: "e2e-user-kyc-002", email: "preview-failed@example.invalid", name: "Preview Failed User",
+        id_type: "national_id", status: "pending", submitted_at: "2026-11-06T11:00:00.000Z",
+        document_uploaded: true, document_url: "https://storage.example.invalid/signed/kyc-document",
+        document_preview_error: "Secure document preview could not be generated",
       }] }),
     });
   });
@@ -511,8 +516,12 @@ test("Admin KYC approval remains disabled without an uploaded document and secur
   await page.getByRole("button", { name: "KYC", exact: true }).click();
   await expect(page.getByRole("heading", { name: "KYC review" })).toBeVisible();
   await expect(page.getByText("QA KYC User")).toBeVisible();
-  await expect(page.getByRole("button", { name: "Approve" })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Approve" })).toHaveCount(2);
+  await expect(page.getByRole("button", { name: "Approve" }).nth(0)).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Approve" }).nth(1)).toBeDisabled();
   await expect(page.getByText("Identity document upload is required before approval.")).toBeVisible();
+  await expect(page.getByText("Secure document preview could not be generated")).toBeVisible();
+  await expect(page.getByRole("link", { name: "Open secure image" })).toHaveCount(0);
 
   await page.getByRole("button", { name: "Refresh queue" }).click();
   await expect(page.getByRole("alert")).toContainText("KYC review queue could not be refreshed.");
