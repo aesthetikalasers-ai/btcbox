@@ -89,3 +89,50 @@ test("public dashboard hides quotes from an expired server market snapshot", asy
   await expect(page.getByText("65,000.00", { exact: true })).toHaveCount(0);
   await expect(page.getByRole("link", { name: "BTCUSDT spot trading" })).toHaveCount(0);
 });
+
+
+test("spot trading hides expired quotes and blocks new orders until a fresh snapshot arrives", async ({ page }) => {
+  await page.route("**/api/market/pairs", route => route.fulfill({
+    status: 200,
+    contentType: "application/json",
+    body: JSON.stringify({ ok: true, markets: [{
+      base_asset: "BTC", quote_asset: "USDT", enabled: true,
+      price_tick: "0.01", quantity_step: "0.000001", min_quantity: "0.000001", min_notional: "1",
+    }] }),
+  }));
+  await page.route("**/api/market", route => route.fulfill({
+    status: 200,
+    contentType: "application/json",
+    body: JSON.stringify({
+      ok: true,
+      markets: [{ sym: "BTC", price: 65000, chg: 1.25, high: 66000, low: 64000, vol: "1200", source: "provider" }],
+      data: { BTC: { ts: 1, providerTs: 1, source: "provider" } },
+    }),
+  }));
+  await page.route("**/api/kline?**", route => route.fulfill({
+    status: 200, contentType: "application/json",
+    body: JSON.stringify({ ok: true, source: "provider", klines: [] }),
+  }));
+  await page.route("**/api/depth?**", route => route.fulfill({
+    status: 200, contentType: "application/json",
+    body: JSON.stringify({ ok: true, source: "provider", bids: [["64999", "1"]], asks: [["65001", "1"]] }),
+  }));
+  await page.route("**/api/trading/status", route => route.fulfill({
+    status: 200, contentType: "application/json",
+    body: JSON.stringify({ ok: true, spot_order_entry_enabled: true, spot_cancel_enabled: true, supported_order_types: ["limit"] }),
+  }));
+  await page.route("**/api/orders", route => route.fulfill({
+    status: 401, contentType: "application/json",
+    body: JSON.stringify({ ok: false, need_login: true, msg: "Sign in to view orders." }),
+  }));
+  await page.route("**/api/account", route => route.fulfill({
+    status: 401, contentType: "application/json",
+    body: JSON.stringify({ ok: false, need_login: true, msg: "Sign in to view assets." }),
+  }));
+
+  await page.goto("/trade/BTCUSDT");
+
+  await expect(page.getByText(/Market snapshot is older than 90 seconds/i)).toBeVisible();
+  await expect(page.getByText("65,000", { exact: false })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Place buy limit order" })).toBeDisabled();
+});

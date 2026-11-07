@@ -6643,3 +6643,11 @@ Current branch HEAD at note creation: `51c302a96f069876e438321d3597501fcbc26b54`
 
 
 - Test-fixture follow-up: changed the expected regex source literal to a normal escaped JavaScript string so the Node test file itself parses cleanly while still comparing the exact one-backslash regex source. CI rerun required.
+
+
+## Spot trading stale-snapshot protection — 2026-11-08 (2号 AI)
+
+- Extended the public-market freshness rule to the individual spot trading page. A successful API response could otherwise leave an old quote visible on the order-entry screen even though the public dashboard already hid expired snapshots.
+- The trading page now requires a timestamped server snapshot no older than 90 seconds before displaying the ticker as current or accepting a new order. A small freshness clock re-evaluates the age while the page remains open; existing idempotent pending-order retries remain available for reconciliation.
+- Added a Playwright regression with an expired server snapshot and enabled server order policy; it verifies the quote is hidden and new order entry is disabled.
+- No backend API, matching engine, financial logic, or account state changed. Exact-head CI pending. No merge, deployment, or production DB operation.
