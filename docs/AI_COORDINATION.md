@@ -6632,3 +6632,11 @@ Current branch HEAD at note creation: `51c302a96f069876e438321d3597501fcbc26b54`
 - Presentation-only fail-closed behavior; no market provider, quote source, API contract, order execution, or financial logic changed. CI pending for this exact commit. No merge or deployment.
 
 - Follow-up CI on the stale-snapshot change exposed two older source-contract assertions that hard-coded the previous `error ? [] : markets` expression. Updated both tests to assert the new combined API-error/server-snapshot-expiry gate and the 90-second freshness threshold; no runtime code change in this follow-up. CI pending.
+
+
+## Admin spot-market decimal validation correction — 2026-11-08 (2号 AI)
+
+- Cross-checked the Admin Panel spot-market configuration form after the market freshness batch. Its decimal validator contained doubled backslashes in a JavaScript regex literal, so ordinary values such as `0.01`, `0.000001`, and `1.25` were interpreted as literal backslash sequences and rejected.
+- Corrected the regex to use executable digit and decimal-point escapes. Added a backend source-contract regression that checks the exact regex and representative accepted/rejected values.
+- Scope is limited to Admin UI input validation; no market configuration API, market listing, price tick rules on the server, order execution, or financial state was changed.
+- Exact-head CI is pending for this correction. PR #64 remains open and unmerged; no deployment or production database operation.

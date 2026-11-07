@@ -806,7 +806,7 @@ export function AdminPage() {
       max_limit_price: spotMarketDraft.max_limit_price.trim(),
       reason: spotMarketDraft.reason.trim(),
     };
-    const decimal = /^(?:0|[1-9]\\d{0,19})(?:\\.\\d{1,18})?$/;
+    const decimal = /^(?:0|[1-9]\d{0,19})(?:\.\d{1,18})?$/;
     const asset = /^[A-Z0-9]{2,16}$/;
     if (!asset.test(draft.base_asset) || !asset.test(draft.quote_asset) || draft.base_asset === draft.quote_asset ||
         !decimal.test(draft.price_tick) || Number(draft.price_tick) <= 0 ||

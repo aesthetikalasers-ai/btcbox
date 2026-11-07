@@ -83,3 +83,16 @@ test('admin error feedback surfaces server codes and the refresh-after-confirmed
   assert.ok(client.includes('class ApiError') || client.includes('ApiError'));
   assert.ok(client.includes('payload?.code'));
 });
+
+
+test('spot-market admin accepts ordinary decimal tick and quantity values without escaped-backslash literals', () => {
+  const expected = String.raw\`const decimal = /^(?:0|[1-9]\d{0,19})(?:\.\d{1,18})?$/;\`;
+  assert.ok(adminPage.includes(expected), 'spot-market validation must use executable digit and decimal-point escapes');
+  const decimal = /^(?:0|[1-9]\d{0,19})(?:\.\d{1,18})?$/;
+  for (const value of ['0.01', '0.000001', '1', '125.50', '10000000000000000000']) {
+    assert.match(value, decimal, 'expected accepted decimal: ' + value);
+  }
+  for (const value of ['.01', '01.00', '1e-6', '1.1234567890123456789', '1\\\\d']) {
+    assert.doesNotMatch(value, decimal, 'expected rejected decimal: ' + value);
+  }
+});
