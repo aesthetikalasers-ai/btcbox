@@ -111,6 +111,7 @@ test('spot chart preserves provider provenance and rejects impossible OHLC range
 
 test('legacy static market polling never presents a failed or overlapping ticker snapshot as live', () => {
   const appCore = fs.readFileSync(path.join(root, 'assets/js/app-core.js'), 'utf8');
+  const tradeView = fs.readFileSync(path.join(root, 'assets/js/views-trade.js'), 'utf8');
   assert.ok(appCore.includes('if(state.marketRefreshInFlight) return;'));
   assert.ok(appCore.includes('state.marketRefreshInFlight=true;'));
   assert.ok(appCore.includes('state.marketRefreshInFlight=false;'));
@@ -118,4 +119,7 @@ test('legacy static market polling never presents a failed or overlapping ticker
   assert.ok(appCore.includes("el.textContent='—'"));
   assert.ok(appCore.includes('if(!sym||state.depthRefreshInFlight) return;'));
   assert.ok(appCore.includes('state.depthCache=null;'));
+  assert.ok(appCore.includes('state.depthUnavailable=true;'));
+  assert.ok(tradeView.includes('state.depthUnavailable?\'Order book unavailable'));
+  assert.ok(tradeView.includes('Market data unavailable — orderbook hidden (no simulated data).'));
 });
