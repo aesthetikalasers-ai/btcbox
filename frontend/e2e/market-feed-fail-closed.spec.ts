@@ -43,13 +43,14 @@ test("public dashboard never renders zero-filled placeholder market rows", async
 });
 
 test("a live public market pair opens its spot trading page", async ({ page }) => {
+  const currentSnapshotTs = Math.floor(Date.now() / 1000);
   await page.route("**/api/market", route => route.fulfill({
     status: 200,
     contentType: "application/json",
     body: JSON.stringify({
       ok: true,
       markets: [{ sym: "BTCUSDT", price: 65000, chg: 1.25, high: 66000, low: 64000, vol: "1200", source: "provider" }],
-      data: { BTCUSDT: { ts: 1794086400, providerTs: 1794086390, source: "provider" } },
+      data: { BTCUSDT: { ts: currentSnapshotTs, providerTs: currentSnapshotTs, source: "provider" } },
     }),
   }));
   await page.route("**/api/kline?**", route => route.fulfill({
