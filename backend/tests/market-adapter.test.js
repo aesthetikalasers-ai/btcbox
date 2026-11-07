@@ -86,15 +86,15 @@ test('malformed and unsupported symbols are rejected before market mutation', ()
   assert.equal(market.BTCUSDT.price, 0);
 });
 
-test('NaN, infinity, empty and invalid negative numeric fields never overwrite valid values', () => {
+test('an invalid incoming price never leaves an old quote looking current', () => {
   const { market, applyMarket } = createMarket();
   Object.assign(market.BTCUSDT, { price: 10, chg: 2, high: 12, low: 8, vol: 50, ts: nowSeconds() });
-  applyMarket({ data: { BTC: {
+  assert.equal(applyMarket({ data: { BTC: {
     price: NaN, chg: Infinity, high: -1, low: 0, vol: '-Infinity'
-  } } });
+  } } }), 0);
   assert.deepEqual(
     [market.BTCUSDT.price, market.BTCUSDT.chg, market.BTCUSDT.high, market.BTCUSDT.low, market.BTCUSDT.vol],
-    [10, 2, 12, 8, 50]
+    [0, 0, 0, 0, 0]
   );
 });
 
