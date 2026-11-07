@@ -389,3 +389,118 @@ test("OAuth callback cancellation returns a visible recovery path without creati
   await expect(page.getByRole("link", { name: "Return to sign in" })).toHaveAttribute("href", "/login");
   await expect(page).toHaveURL(/\/auth\/react-callback\?/);
 });
+
+async function installAdminE2EIdentity(page: import("@playwright/test").Page) {
+  // Supabase JS persists a session under sb-<project-ref>-auth-token.
+  // Seed only a synthetic E2E identity; all API traffic is intercepted below.
+  await page.addInitScript(() => {
+    localStorage.setItem("sb-btcbox-e2e-auth-token", JSON.stringify({
+      access_token: "e2e-admin-access-token",
+      token_type: "bearer",
+      expires_in: 3600,
+      expires_at: Math.floor(Date.now() / 1000) + 3600,
+      refresh_token: "e2e-admin-refresh-token",
+      user: {
+        id: "e2e-admin-001",
+        aud: "authenticated",
+        role: "authenticated",
+        email: "admin@example.invalid",
+        app_metadata: { provider: "google", providers: ["google"] },
+        user_metadata: {},
+        created_at: "2026-11-01T00:00:00.000Z",
+      },
+    }));
+  });
+  await page.route("**/api/account", async route => route.fulfill({
+    status: 200,
+    contentType: "application/json",
+    body: JSON.stringify(authenticatedAccountFixture),
+  }));
+  await page.route("**/api/admin/session", async route => route.fulfill({
+    status: 200,
+    contentType: "application/json",
+    body: JSON.stringify({
+      ok: true,
+      user_id: "e2e-admin-001",
+      status: "active",
+      is_super_admin: false,
+      permissions: ["withdrawals.read", "withdrawals.review", "kyc.read", "kyc.review"],
+    }),
+  }));
+}
+
+test("Admin withdrawal refresh failure stays a read-only error and cannot imply a financial action", async ({ page }) => {
+  await installAdminE2EIdentity(page);
+  let queueReads = 0;
+  const adminMutations: string[] = [];
+  page.on("request", request => {
+    const url = new URL(request.url());
+    if (url.pathname.startsWith("/api/admin/") && ["POST", "PUT", "PATCH", "DELETE"].includes(request.method())) {
+      adminMutations.push(request.method() + " " + url.pathname);
+    }
+  });
+  await page.route("**/api/admin/withdrawals", async route => {
+    queueReads += 1;
+    if (queueReads === 1) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ ok: true, withdrawals: [{
+          id: "E2E-WITHDRAWAL-001", uid: "e2e-user-001", coin: "USDT", amount: "25.00",
+          fee: "1.00", network: "TRC20", address: "T-E2E-DESTINATION", status: "approved",
+        }] }),
+      });
+      return;
+    }
+    await route.fulfill({
+      status: 503,
+      contentType: "application/json",
+      body: JSON.stringify({ ok: false, code: "QUEUE_UNAVAILABLE", msg: "Withdrawal review queue could not be refreshed." }),
+    });
+  });
+
+  await page.goto("/admin");
+  await expect(page.getByRole("heading", { name: "Withdrawal queue" })).toBeVisible();
+  await expect(page.getByText("E2E-WITHDRAWAL-001")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Mark paid" })).toBeDisabled();
+
+  await page.getByRole("button", { name: "Refresh queue" }).click();
+  await expect(page.getByRole("alert")).toContainText("Withdrawal review queue could not be refreshed.");
+  await expect(page.getByRole("alert")).not.toContainText("confirmed");
+  expect(queueReads).toBe(2);
+  expect(adminMutations).toEqual([]);
+});
+
+test("Admin KYC approval remains disabled without an uploaded document and secure preview", async ({ page }) => {
+  await installAdminE2EIdentity(page);
+  const adminMutations: string[] = [];
+  page.on("request", request => {
+    const url = new URL(request.url());
+    if (url.pathname.startsWith("/api/admin/") && ["POST", "PUT", "PATCH", "DELETE"].includes(request.method())) {
+      adminMutations.push(request.method() + " " + url.pathname);
+    }
+  });
+  await page.route("**/api/admin/withdrawals", route => route.fulfill({
+    status: 200, contentType: "application/json", body: JSON.stringify({ ok: true, withdrawals: [] }),
+  }));
+  await page.route("**/api/admin/kyc", route => route.fulfill({
+    status: 200,
+    contentType: "application/json",
+    body: JSON.stringify({ ok: true, kycs: [{
+      uid: "e2e-user-kyc-001", email: "kyc-user@example.invalid", name: "QA KYC User",
+      id_type: "passport", status: "pending", submitted_at: "2026-11-06T10:00:00.000Z",
+      document_uploaded: false, document_url: undefined, document_preview_error: "Document image missing",
+    }] }),
+  }));
+
+  await page.goto("/admin");
+  await page.getByRole("button", { name: "KYC", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "KYC review" })).toBeVisible();
+  await expect(page.getByText("QA KYC User")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Approve" })).toBeDisabled();
+  await expect(page.getByText("Identity document upload is required before approval.")).toBeVisible();
+
+  await page.getByRole("button", { name: "Refresh queue" }).click();
+  await expect(page.getByRole("status")).toContainText("KYC review queue refreshed.");
+  expect(adminMutations).toEqual([]);
+});
