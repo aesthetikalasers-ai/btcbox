@@ -6256,3 +6256,12 @@ Current branch HEAD at note creation: `51c302a96f069876e438321d3597501fcbc26b54`
 - Added isolated Playwright coverage for unavailable EVM and Solana injected wallet providers. Both paths must surface a visible authentication error and must not call BTCBOX Supabase-session exchange endpoints without a wallet-backed Supabase session.
 - Frontend CI run 42322062375 at 24017400371e46cb200fbe37867c5190ee5f1080: SUCCESS — lint, build and 34 desktop/mobile route tests passed.
 - Real wallet signing and Supabase provider enablement remain unverified on physical devices; this test covers the no-provider failure path only.
+
+## 2026-11-07 continuation — Admin semi-manual review queues
+
+- Cross-checked the existing Admin Panel workflow before extending it: deposit receipt verification and manual ledger credit remain under Users; withdrawal approval is separate from staff's actual manual transfer and requires a TxID/reference to mark paid; KYC approval is disabled unless the document upload and secure preview URL are both present; rejection requires an operator reason.
+- Added explicit Refresh queue controls to Withdrawals and KYC so staff can fetch newly submitted items without leaving the tab or reloading the whole Admin Panel.
+- Refresh state is isolated from action busy state. A manual refresh failure reports only a refresh error and cannot falsely claim a financial/admin action was confirmed. Post-action refresh retains the distinct "action confirmed, queue refresh failed" messaging.
+- Frontend CI run 42322366989 at 3e15087f7952f05d3022f61be3f62ee14af1f8bc: SUCCESS (lint/build/desktop-mobile route suite).
+- Follow-up corrected the manual withdrawal refresh failure message so it cannot reuse the post-action confirmation wording. Frontend CI run 42322432342 at c7366273d51526bca32135766908ba1160d8fcf7: SUCCESS (lint/build/desktop-mobile route suite).
+- No changes to deposit ledger writes, withdrawal execution/settlement, KYC backend decisions, production DB or deployment.
