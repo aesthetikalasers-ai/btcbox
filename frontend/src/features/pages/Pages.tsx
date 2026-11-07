@@ -188,6 +188,7 @@ export function SpotTradingPage(){
  useEffect(()=>{
   const controller=new AbortController();
   setLoading(true);setError("");setSpotPairEnabled(false);setTradingStatus(null);
+  setTicker(null);setCandles([]);setBook(null);setMarketUpdatedAt(null);setMarketFeedWarning("");setChartFeedWarning("");
   Promise.allSettled([getSpotMarketPairs(controller.signal),getMarkets(controller.signal),getKlines(symbol,"1h",controller.signal),getOrderBook(symbol,controller.signal),getTradingStatus(controller.signal),getOrders(controller.signal),getAccount(controller.signal)]).then(results=>{
    if(controller.signal.aborted)return;
    const [pairResult,marketResult,candleResult,bookResult,statusResult,ordersResult,accountResult]=results;
@@ -210,11 +211,12 @@ export function SpotTradingPage(){
      setMarketUpdatedAt(selected.snapshotTs?selected.snapshotTs*1000:null);
      setMarketFeedWarning("");
      setPrice(current=>current||String(selected.price));
-    }else setMarketFeedWarning("Market snapshot is missing for this pair; showing the last confirmed data.");
-   }else setError(marketResult.reason instanceof Error?marketResult.reason.message:"Live market data is unavailable.");
+    }else{setTicker(null);setMarketUpdatedAt(null);setPrice("");setMarketFeedWarning("Market data is temporarily unavailable for this pair.");}
+   }else{setTicker(null);setMarketUpdatedAt(null);setPrice("");setError(marketResult.reason instanceof Error?marketResult.reason.message:"Live market data is unavailable.");}
    if(candleResult.status==="fulfilled"){setCandles(candleResult.value);setChartFeedWarning("");}
    else{setCandles([]);setChartFeedWarning("Chart data is temporarily unavailable.");}
    if(bookResult.status==="fulfilled")setBook(bookResult.value);
+   else setBook(null);
    if(statusResult.status==="fulfilled")setTradingStatus(statusResult.value);
    else setTradingStatus(null);
    if(ordersResult.status==="fulfilled")setOrders(ordersResult.value);
