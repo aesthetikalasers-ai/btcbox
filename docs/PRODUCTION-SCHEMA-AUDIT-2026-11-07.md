@@ -118,7 +118,7 @@ The migration commands remain fresh-database bootstraps, not safe hosted upgrade
 ## Current validation snapshot
 
 - Backend CI on code commit `90c3b5b724944291286924202b1a64ffbce6ef2f`: PASS (unified build, full backend test suite, fail-closed preflight).
-- PostgreSQL schema CI and frontend CI for the newest audit/doc head were still running at the time this note was written; check the exact latest head before treating them as passed.
+- PostgreSQL schema CI run `42378617945` and frontend CI run `42378617992` subsequently completed successfully. Backend CI run `42378617958` also completed successfully. These checks include the Docker/bootstrap parity test and active RPC source-contract test at code commit `90c3b5b724944291286924202b1a64ffbce6ef2f`; later commits changed only the read-only diagnostic SQL and documentation, and the latest diagnostic SQL was executed successfully against the connected project.
 - The Vercel status check reports the existing `build-rate-limit` / plan deployment cap. No Vercel deployment was requested or triggered by this batch.
 
 
