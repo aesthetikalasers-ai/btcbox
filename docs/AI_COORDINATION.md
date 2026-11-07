@@ -6482,3 +6482,5 @@ Current branch HEAD at note creation: `51c302a96f069876e438321d3597501fcbc26b54`
 
 - Backend CI `42356561473` passed all 411 tests plus unified build, fail-closed preflight and output checks.
 - Frontend CI `42356454539` exited success but reported 2 flaky tests that passed on retry. Stabilized the Admin stale-queue fixture for repeated initial reads and relaxed the new test's exact GET count. Commit: `94ba7a9`. Fresh exact-head frontend CI pending.
+
+- Escalation to 1号/Core owner: production Vercel has a weak `ADMIN_PASS` and `api-core.js` throws at module import, which can prevent the shared catch-all API adapter from starting. The test-only override in `api-routing.test.js` fixes only test isolation, not runtime. Before release, the authorized environment owner must set a compliant strong secret, or Core owner must scope the fail-closed guard to admin authentication rather than crashing shared API startup. 2号 did not change production secrets or weaken policy.
