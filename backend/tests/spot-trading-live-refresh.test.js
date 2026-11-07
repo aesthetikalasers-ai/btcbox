@@ -173,3 +173,32 @@ test('deposit address copy reports clipboard success and failure without silent 
   assert.ok(deposit.includes('setCopyMessage("Could not copy the address. Select and copy it manually.")'));
   assert.ok(deposit.includes('onClick={copyAddress}'));
 });
+
+test('asset and order snapshots are cleared before a refresh can return stale account data', () => {
+  const assets = fs.readFileSync(path.resolve(__dirname, '../../frontend/src/features/assets/AssetsPage.tsx'), 'utf8');
+  const orders = fs.readFileSync(path.resolve(__dirname, '../../frontend/src/features/orders/OrdersPage.tsx'), 'utf8');
+  const assetLoad = assets.slice(assets.indexOf('async function load'), assets.indexOf('useEffect', assets.indexOf('async function load')));
+  const orderLoad = orders.slice(orders.indexOf('async function load'), orders.indexOf('useEffect', orders.indexOf('async function load')));
+  assert.ok(assetLoad.indexOf('setAccount(null)') >= 0 && assetLoad.indexOf('setAccount(null)') < assetLoad.indexOf('await getAccount'));
+  assert.ok(orderLoad.indexOf('setOrders([])') >= 0 && orderLoad.indexOf('setOrders([])') < orderLoad.indexOf('await getOrders'));
+});
+
+test('deposit history is hidden while a new authenticated account snapshot is loading', () => {
+  const start = pages.indexOf('export function DepositPage()');
+  const end = pages.indexOf('export function ', start + 30);
+  const deposit = pages.slice(start, end > start ? end : undefined);
+  assert.ok(deposit.indexOf('setDepositHistory([])') >= 0);
+  assert.ok(deposit.indexOf('setDepositHistory([])') < deposit.indexOf('getAccount(controller.signal)'));
+});
+
+test('admin withdrawal queue is non-actionable until a refreshed queue has returned', () => {
+  const refreshStart = adminPage.indexOf('const refreshWithdrawalQueue =');
+  const manualStart = adminPage.indexOf('const refreshWithdrawalQueueManually', refreshStart);
+  const refreshEnd = adminPage.indexOf('const loadOlderAuditRecords', manualStart);
+  const refresh = adminPage.slice(refreshStart, refreshEnd);
+  assert.ok(refreshStart >= 0 && manualStart > refreshStart && refreshEnd > manualStart);
+  assert.equal((refresh.match(/setWithdrawals\\(\\[\\]\\)/g) || []).length, 2);
+  assert.ok(refresh.includes('disabled={busy||reviewQueueLoading||!hasPermission("withdrawals.review")}'));
+  assert.ok(refresh.includes('disabled={busy||reviewQueueLoading||!payoutReferences[item.id]?.trim()||!hasPermission("withdrawals.review")}'));
+  assert.ok(refresh.includes('<input disabled={reviewQueueLoading} value={payoutReferences[item.id]||""}'));
+});
