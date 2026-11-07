@@ -289,3 +289,13 @@ test('admin user search refresh clears the previous selected user before loading
   assert.ok(users.indexOf('setSelectedUser(null)') > users.indexOf('setUsers([])'));
   assert.ok(users.indexOf('setSelectedUser(null)') < users.indexOf('await getAdminUsers(token, search)'));
 });
+
+
+test('admin KYC manual refresh is protected against duplicate in-flight requests', () => {
+  const admin = fs.readFileSync(path.resolve(__dirname, '../../frontend/src/features/admin/AdminPage.tsx'), 'utf8');
+  assert.ok(admin.includes('const kycRefreshLockRef = useRef(false);'));
+  const refresh = admin.slice(admin.indexOf('const refreshKycQueue = async'), admin.indexOf('// A 409 WITHDRAWAL_ALREADY_PROCESSED'));
+  assert.ok(refresh.includes('if (!token || kycRefreshLockRef.current) return;'));
+  assert.ok(refresh.indexOf('kycRefreshLockRef.current = true;') < refresh.indexOf('await getAdminKyc(token)'));
+  assert.ok(refresh.includes('kycRefreshLockRef.current = false;'));
+});

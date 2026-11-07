@@ -114,6 +114,7 @@ export function AdminPage() {
   const [auditPageLoading, setAuditPageLoading] = useState(false);
   const auditPageRequestRef = useRef(0);
   const tabLoadRequestRef = useRef(0);
+  const kycRefreshLockRef = useRef(false);
   const [auditSource, setAuditSource] = useState("unknown");
   const [auditCompleteness, setAuditCompleteness] = useState("unknown");
   const [orders, setOrders] = useState<Array<Record<string, unknown>>>([]);
@@ -531,7 +532,8 @@ export function AdminPage() {
   };
 
   const refreshKycQueue = async () => {
-    if (!token) return;
+    if (!token || kycRefreshLockRef.current) return;
+    kycRefreshLockRef.current = true;
     setReviewQueueLoading(true); setError(""); setNotice("");
     // A failed refresh must not leave an older KYC decision queue actionable.
     setKyc([]);
@@ -542,6 +544,7 @@ export function AdminPage() {
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "KYC review queue could not be refreshed.");
     } finally {
+      kycRefreshLockRef.current = false;
       setReviewQueueLoading(false);
     }
   };
