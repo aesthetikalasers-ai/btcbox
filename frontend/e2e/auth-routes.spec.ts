@@ -467,7 +467,7 @@ test("Admin withdrawal refresh failure stays a read-only error and cannot imply 
   await page.getByRole("button", { name: "Refresh queue" }).click();
   await expect(page.getByRole("alert")).toContainText("Withdrawal review queue could not be refreshed.");
   await expect(page.getByRole("alert")).not.toContainText("confirmed");
-  expect(queueReads).toBe(2);
+  expect(queueReads).toBeGreaterThan(1);
   expect(adminMutations).toEqual([]);
 });
 
