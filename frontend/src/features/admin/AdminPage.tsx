@@ -369,20 +369,26 @@ export function AdminPage() {
 
 
   const userDetailRequestRef = useRef(0);
-  const selectUser = async (uid: string) => {
+  const selectUser = async (uid: string, confirmedAction?: string) => {
     if (!token) return;
     const requestId = ++userDetailRequestRef.current;
-    setBusy(true); setError(""); setNotice("");
+    setBusy(true); setError(""); setNotice(confirmedAction || "");
     // A failed user-detail read must never leave another user's balances or
     // manual-credit controls on screen as if they belonged to the new selection.
     setSelectedUser(null);
     try {
       const result = await getAdminUser(token, uid);
-      if (requestId === userDetailRequestRef.current) setSelectedUser(result.user);
-
+      if (requestId === userDetailRequestRef.current) {
+        setSelectedUser(result.user);
+        if (confirmedAction) setNotice(confirmedAction);
+      }
     } catch (reason) {
       if (requestId === userDetailRequestRef.current) {
-        setError(reason instanceof Error ? reason.message : "User account could not be loaded.");
+        if (confirmedAction) {
+          setNotice(confirmedAction + " User details could not refresh. Reload this user before taking another action.");
+        } else {
+          setError(reason instanceof Error ? reason.message : "User account could not be loaded.");
+        }
       }
     } finally {
       if (requestId === userDetailRequestRef.current) setBusy(false);
@@ -440,8 +446,10 @@ export function AdminPage() {
       try { window.localStorage.removeItem(storageKey); } catch {}
       setCreditRequestIds(current => { const next = { ...current }; delete next[coin]; return next; });
       setCreditPendingInvalid(current => { const next = { ...current }; delete next[coin]; return next; });
-      setNotice(result.duplicate ? "This manual credit was already recorded." : "Manual credit recorded and audit event submitted.");
-      await selectUser(selectedUser.uid);
+      const confirmedAction = result.duplicate
+        ? "This manual credit was already recorded."
+        : "Manual credit recorded and audit event submitted.";
+      await selectUser(selectedUser.uid, confirmedAction);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "Manual credit was not confirmed.");
       if (!creditAccepted && reason instanceof ApiError && reason.status >= 400 && reason.status < 500 && reason.status !== 409) {
