@@ -79,6 +79,29 @@ The `private` schema exists, but service_role does not currently have USAGE. ano
 
 Two private backup tables were also previously found without RLS. The current catalog check confirms anon/authenticated do not have SELECT privileges on them; the private schema is not usable by those roles. Keep them private and do not expose the schema. Review whether those backup tables are still needed and retain them until an owner-approved retention/cleanup decision.
 
+## Additional live column, constraint and index drift — verified 2026-11-07
+
+The expanded read-only diagnostic now checks exact columns, constraints and indexes in addition to RPCs/tables/roles. The latest run against the connected hosted project returned:
+
+| Required object | Live result | Why it matters |
+|---|---|---|
+| `withdrawal_requests.require_admin_review boolean` | MISSING | The current 11-argument withdrawal RPC reads/writes the review-mode snapshot and returns it on idempotent replay. |
+| `withdrawal_requests.request_hash text` | MISSING | The current withdrawal RPC verifies replay payload identity against the stored hash. |
+| `seconds_contract_positions.policy_id uuid` | MISSING | New Seconds positions must reference the immutable policy version. |
+| `seconds_contract_positions.policy_version bigint` | MISSING | Position history must retain the policy version active at entry. |
+| `seconds_contract_positions.payout_bps_snapshot integer` | MISSING | Settlement must use the payout snapshot attached to the position. |
+| `seconds_contract_positions.policy_snapshot jsonb` | MISSING | Position terms must remain auditable and immutable. |
+| `seconds_contract_positions_duration_sec_positive` | MISSING | New schema expects policy-driven durations with a positive-only table constraint. |
+| Legacy `seconds_contract_positions_duration_sec_check` | PRESENT | Still hard-limits durations to 30/60/300/900 seconds. |
+| `financial_audit_action_id_desc_idx` | MISSING | Admin audit action-filter path from migration 0032 is absent. |
+| `financial_audit_subject_id_desc_idx` | MISSING | Admin audit subject-filter path from migration 0032 is absent. |
+
+This is direct catalog evidence. It means the production Seconds database is still on the pre-policy schema even though the active SQL source has immutable policy snapshots and policy-driven duration validation. Do not broaden duration rules or enable Seconds cutover until the policy tables, immutable snapshot columns, policy read/write RPCs and associated constraints are migrated and tested together.
+
+The 0029 source migration defines the 11-argument withdrawal RPC but its cleanup clause drops the 10-argument overload, not the observed legacy 9-argument overload. A future migration should explicitly reconcile the old 9-argument signature and install the 11-argument contract in a single reviewed change. Do not edit an already-applied migration in place or simply drop the production function ad hoc: first establish migration history, dependency checks and staging behavior.
+
+The 0032 audit indexes are performance support, not a financial correctness blocker by themselves; their absence should be fixed before the admin audit page is expected to scale, but must not be conflated with the missing security/RBAC dependencies.
+
 ## Release impact
 
 - Current Vercel preflight validates environment configuration and financial flags; it does not prove that the hosted schema/RPC dependencies exist.
