@@ -6475,3 +6475,5 @@ Current branch HEAD at note creation: `51c302a96f069876e438321d3597501fcbc26b54`
 - Fixed an over-escaped provider-age Playwright matcher; lint/build had passed, but the first E2E run exposed the matcher defect.
 - Admin tab effect cleanup now invalidates prior outstanding reads.
 - Commits: `92f7f48`, `e535141`, `4091008`. Final-head CI pending. No deployment or merge.
+
+- CI wiring gap fixed: backend workflow previously allowed push runs on the unified branch but omitted it from PR target branches. Added `work/btcbox-unified-20261104` to backend `pull_request.branches` so backend changes in draft integration PRs are tested. Commit: `e66111e`. Verify the run starts on this PR head.
