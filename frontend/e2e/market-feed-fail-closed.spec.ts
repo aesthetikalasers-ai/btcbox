@@ -14,7 +14,7 @@ test("public dashboard shows an unavailable state and no quote values when the m
 
   await page.goto("/home");
 
-  await expect(page.getByText(/Market feed unavailable/i)).toBeVisible();
+  await expect(page.getByText(/Market feed unavailable/i).first()).toBeVisible();
   await expect(page.getByText(/65,?000\.00/)).toHaveCount(0);
   await expect(page.getByText("0.00", { exact: true })).toHaveCount(0);
 });
