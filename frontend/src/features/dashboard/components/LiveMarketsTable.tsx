@@ -60,14 +60,14 @@ export function LiveMarketsTable({ markets, loading, error }: {
       <div className="flex items-center justify-between gap-3 border-b border-brand-border px-4 py-4 md:px-6">
         <div className="min-w-0">
           <h2 className="text-[15px] font-semibold tracking-tight text-brand-text">{t("Spot markets")}</h2>
-          <p className="mt-1 text-xs text-brand-text-muted">{t("Live prices from the BTCBOX market service")}</p>
-          <p className="mt-1 text-[11px] text-brand-text-muted" aria-label={snapshotTime ? `Server snapshot ${snapshotTime}` : "Server snapshot time unavailable"}>{snapshotTime ? `Server snapshot · ${snapshotTime}` : "Server snapshot time unavailable"}</p>
-          <p className="mt-1 text-[11px] text-brand-text-muted" aria-label={providerTime ? `Provider snapshot ${providerSource || "source unavailable"} at ${providerTime}, ${providerAgeSeconds} seconds old` : "Provider timestamp unavailable"}>
+          <p className="mt-1 text-xs text-brand-text-muted">{t("BTCBOX spot market data")}</p>
+          {displayMarkets.length > 0 ? <p className="mt-1 text-[11px] text-brand-text-muted" aria-label={`Server snapshot ${snapshotTime || "time unavailable"}`}>{snapshotTime ? `Server snapshot · ${snapshotTime}` : "Server snapshot time unavailable"}</p> : null}
+          {displayMarkets.length > 0 ? <p className="mt-1 text-[11px] text-brand-text-muted" aria-label={providerTime ? `Provider snapshot ${providerSource || "source unavailable"} at ${providerTime}, ${providerAgeSeconds} seconds old` : "Provider timestamp unavailable"}>
             {providerTime ? `Provider snapshot · ${providerSource || "source unavailable"} · ${providerTime} · ${providerAgeSeconds}s ago` : "Provider timestamp unavailable"}
-          </p>
+          </p> : null}
         </div>
         <span className="shrink-0 rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-2 text-xs font-semibold text-brand-text-secondary">
-          {loading ? t("Loading…") : `${visibleMarkets.length} ${t("pairs")}`}
+          {loading ? t("Loading…") : error ? t("Unavailable") : `${visibleMarkets.length} ${t("pairs")}`}
         </span>
       </div>
       <div className="border-b border-brand-border px-4 py-3 md:px-6">
