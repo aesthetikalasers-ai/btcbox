@@ -6581,3 +6581,10 @@ Current branch HEAD at note creation: `51c302a96f069876e438321d3597501fcbc26b54`
 - A manual refresh clears the prior snapshot while loading; only the newest request can publish rows, summary, errors, or loading completion. Leaving the Seconds tab invalidates pending queue reads.
 - Added a regression source-contract test. Read-only queue only; no settlement, positions, balances, or financial logic changed.
 - Exact-head CI pending; no merge or deployment.
+
+
+## User asset balance precision display — 2026-11-08 (2号 AI)
+- Found the Assets page converted backend decimal-string balances to JavaScript Number before display. This can lose precision for large balances and small crypto fractions even though the API contract supports string values.
+- Updated string balance formatting to group the integer part without numeric conversion and preserve the exact fractional digits returned by the account service. Numeric values retain the existing locale formatter; invalid strings display an em dash rather than a fabricated zero.
+- Added a regression source-contract test. Presentation-only; no account API, valuation, balance, ledger, or financial calculation changed.
+- Exact-head CI pending; no merge or deployment.
