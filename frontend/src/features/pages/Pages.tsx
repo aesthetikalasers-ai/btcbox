@@ -174,6 +174,7 @@ export function SpotTradingPage(){
  const [reload,setReload]=useState(0);
  const [marketUpdatedAt,setMarketUpdatedAt]=useState<number|null>(null);
  const [marketFeedWarning,setMarketFeedWarning]=useState("");
+ const [chartFeedWarning,setChartFeedWarning]=useState("");
  const chartContainer=useRef<HTMLDivElement|null>(null);
  const base=symbol.endsWith("USDT")?symbol.slice(0,-4):"BTC";
  const pendingStorageKey=accountUid?"btcbox.spot.pending.v1."+accountUid+"."+symbol:"";
@@ -205,7 +206,8 @@ export function SpotTradingPage(){
      setPrice(current=>current||String(selected.price));
     }else setMarketFeedWarning("Market snapshot is missing for this pair; showing the last confirmed data.");
    }else setError(marketResult.reason instanceof Error?marketResult.reason.message:"Live market data is unavailable.");
-   if(candleResult.status==="fulfilled")setCandles(candleResult.value);
+   if(candleResult.status==="fulfilled"){setCandles(candleResult.value);setChartFeedWarning("");}
+   else setChartFeedWarning("Chart refresh is unavailable; showing the last confirmed candles.");
    if(bookResult.status==="fulfilled")setBook(bookResult.value);
    if(statusResult.status==="fulfilled")setTradingStatus(statusResult.value);
    else setTradingStatus(null);
@@ -243,9 +245,10 @@ export function SpotTradingPage(){
   const refreshId=window.setInterval(refreshMarketData,15000);
   const candleId=window.setInterval(()=>{
    getKlines(symbol,"1h",controller.signal).then(rows=>{
-    if(!controller.signal.aborted)setCandles(rows);
+    if(!controller.signal.aborted){setCandles(rows);setChartFeedWarning("");}
    }).catch(reason=>{
     if(reason instanceof Error&&reason.name==="AbortError")return;
+    if(!controller.signal.aborted)setChartFeedWarning("Chart refresh is unavailable; showing the last confirmed candles.");
    });
   },60000);
   return ()=>{window.clearInterval(refreshId);window.clearInterval(candleId);controller.abort();};
@@ -364,8 +367,8 @@ export function SpotTradingPage(){
  const openOrders=orders.filter(item=>["open","partially_filled","partially-filled","pending"].includes(String(item.status||"").toLowerCase()));
  const asks=(book?.asks||[]).slice(0,8).slice().reverse();const bids=(book?.bids||[]).slice(0,8);
  return <PageFrame eyebrow="BTCBOX / SPOT" title={symbol} description="Live market data and a server-authoritative limit-order workflow. Orders are never simulated in the browser.">
-  <div className="flex flex-wrap items-center justify-between gap-3"><div className="flex items-center gap-3"><Badge variant="outline">{t("Spot market")}</Badge><span className="text-xs text-brand-text-muted">{t("Ticker")}: {ticker?.source||"—"} · {t("Order book")}: {book?.source||"—"}</span><span className="text-xs text-brand-text-muted">{marketUpdatedAt? (ticker?.providerTs?t("Provider update")+": "+new Date(ticker.providerTs*1000).toLocaleTimeString()+" · ":"")+t("Snapshot checked")+": "+new Date(marketUpdatedAt).toLocaleTimeString():t("Waiting for live data")}</span></div><Button size="sm" variant="outline" disabled={loading||busy} onClick={()=>setReload(value=>value+1)}><RefreshCw className={"mr-2 h-4 w-4 "+(loading?"animate-spin":"")}/>{t("Refresh")}</Button></div>
-  {error?<div role="alert" className="rounded-xl border border-rose-500/30 bg-rose-500/5 p-3 text-sm text-rose-300">{error}</div>:null}{marketFeedWarning?<div role="status" className="rounded-xl border border-amber-500/25 bg-amber-500/5 p-3 text-sm text-amber-200">{marketFeedWarning}</div>:null}{notice?<div role="status" className="rounded-xl border border-emerald-500/25 bg-emerald-500/5 p-3 text-sm text-emerald-300">{notice}</div>:null}
+  <div className="flex flex-wrap items-center justify-between gap-3"><div className="flex items-center gap-3"><Badge variant="outline">{t("Spot market")}</Badge><span className="text-xs text-brand-text-muted">{t("Ticker")}: {ticker?.source||"—"} · {t("Order book")}: {book?.source||"—"} · {t("Chart")}: {candles[0]?.source||"—"}</span><span className="text-xs text-brand-text-muted">{marketUpdatedAt? (ticker?.providerTs?t("Provider update")+": "+new Date(ticker.providerTs*1000).toLocaleTimeString()+" · ":"")+t("Snapshot checked")+": "+new Date(marketUpdatedAt).toLocaleTimeString():t("Waiting for live data")}</span></div><Button size="sm" variant="outline" disabled={loading||busy} onClick={()=>setReload(value=>value+1)}><RefreshCw className={"mr-2 h-4 w-4 "+(loading?"animate-spin":"")}/>{t("Refresh")}</Button></div>
+  {error?<div role="alert" className="rounded-xl border border-rose-500/30 bg-rose-500/5 p-3 text-sm text-rose-300">{error}</div>:null}{marketFeedWarning?<div role="status" className="rounded-xl border border-amber-500/25 bg-amber-500/5 p-3 text-sm text-amber-200">{marketFeedWarning}</div>:null}{chartFeedWarning?<div role="status" className="rounded-xl border border-amber-500/25 bg-amber-500/5 p-3 text-sm text-amber-200">{chartFeedWarning}</div>:null}{notice?<div role="status" className="rounded-xl border border-emerald-500/25 bg-emerald-500/5 p-3 text-sm text-emerald-300">{notice}</div>:null}
   <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
    <div className="min-w-0 space-y-4">
     <Card className="border-brand-border bg-brand-surface"><CardContent className="grid grid-cols-2 gap-4 p-4 sm:grid-cols-4"><div><p className="text-xs text-brand-text-muted">{t("Last price")}</p><p className="mt-1 text-xl font-semibold tabular-nums">{ticker?amountText(ticker.price):"—"} <span className="text-xs text-brand-text-muted">USDT</span></p></div><div><p className="text-xs text-brand-text-muted">{t("24h change")}</p><p className={"mt-1 font-semibold tabular-nums "+(Number(ticker?.chg||0)>=0?"text-profit":"text-loss")}>{ticker?Number(ticker.chg).toFixed(2)+"%":"—"}</p></div><div><p className="text-xs text-brand-text-muted">{t("24h high")}</p><p className="mt-1 font-medium tabular-nums">{ticker?amountText(ticker.high):"—"}</p></div><div><p className="text-xs text-brand-text-muted">{t("24h low")}</p><p className="mt-1 font-medium tabular-nums">{ticker?amountText(ticker.low):"—"}</p></div></CardContent></Card>
