@@ -463,3 +463,11 @@ Registration and the signed-out preview/home page are now the first pages to com
 - The old test incorrectly expected the first user's email to disappear from the whole page. That email correctly remains in the Users directory after selection changes; the meaningful stale-state assertion is that the first user's balance (`111.00`) does not replace the latest user's balance (`222.00`).
 - Corrected the test to keep the directory row visible and assert the stale balance is absent. Commit: `dab5f6dee6ea6f1196f0afe172f5d95cc4d3170c`.
 - Awaiting exact-head CI. No production or backend financial operation.
+
+
+## Admin KYC preview and deposit-history traceability — 2026-11-07 (2号 AI)
+
+- KYC edge case: if `document_preview_error` was non-empty alongside `document_uploaded=true` and a `document_url`, the Admin UI still rendered the link and enabled Approve. Updated it to suppress the link and disable approval on any preview error; regression covers both missing upload and failed secure preview.
+- Deposit reconciliation: per-user deposit history now shows the optional source record ID separately from the TxID/reference, improving traceability without changing backend semantics. E2E asserts the record ID is visible.
+- Commits: `11a13c5`, `feaf362`, `0a9cfb1`, `0ef84b5`.
+- Scope: frontend rendering/tests only; no backend financial contract, ledger, DB, or production setting changed. Exact-head CI pending.
