@@ -351,3 +351,16 @@ Registration and the signed-out preview/home page are now the first pages to com
 - FIXED: a source-level review found the authenticator-code input used an over-escaped regular expression (`/\\D/g`), which would not strip non-digits as intended. Corrected it to `/\D/g` in `frontend/src/features/auth/AuthPages.tsx` (commit `227eb0c7d18148011c57922e1070a8666a7b185c`).
 - NOT VERIFIED: actual rendered visual QA on a browser/device. BrowserAct could not be installed in this runtime because the required Python download failed at network/DNS resolution. The existing CI Playwright route suite is the automated browser evidence; it does not substitute for screenshot-based visual acceptance.
 - NEXT: verify CI for the exact latest source SHA, then continue with screenshot-based desktop/mobile review when a browser runtime is available. No merge, deploy, production DB/auth, or financial operation was performed.
+
+
+## 2026-11-07 continuation — standalone auth layout and preview hierarchy
+
+- Reviewed `frontend/src/App.tsx`, `AuthPages.tsx`, `AccountSetupPage.tsx`, `Dashboard.tsx`, `Topbar.tsx`, `BottomNav.tsx`, `Sidebar.tsx`, `BrandLogo.tsx`, design tokens and the route E2E suite.
+- FINDING: login, registration, account setup and OAuth callback were mounted inside the full customer `AppLayout`. This placed the global trading header and mobile bottom navigation around dedicated auth screens that already render their own BTCBOX identity and public-market links.
+- FIX: `frontend/src/App.tsx` now renders `/login`, `/register`, `/account-setup` and `/auth/react-callback` outside `AppLayout`. Public market and trading routes retain the normal application shell.
+- FIX: `AuthPages.tsx` and `AccountSetupPage.tsx` use the full standalone viewport height rather than subtracting the global header height.
+- FIX: `Dashboard.tsx` hides the hero's duplicate brand mark at mobile widths where the topbar already displays the BTCBOX logo; tablet/desktop still show the hero brand mark.
+- TEST: `frontend/e2e/auth-routes.spec.ts` now asserts login/register have no global header or primary nav, and the mobile public preview retains its topbar and navigation without duplicate hero branding.
+- Commits: `b1fcb2c` (auth route shell), `0dade52` (auth viewport), `b7e2fd5` (account setup viewport), `23379eb` (auth shell E2E), `c09c69c` (mobile preview logo hierarchy), `3abf1ec` (preview shell E2E).
+- CI was triggered for latest code/test SHA `3abf1ec5cbccdf6c1795de4f74306c2643e3ad54`; record final status after completion. Previous run on SHA `378039745bfc9f22557cdbdd60590a62faeeb9a5` passed frontend lint/build + 44/44 Playwright tests and backend 411/411 tests.
+- NOT VERIFIED: screenshot-based manual visual review on a physical browser/device remains pending; automated E2E does not substitute for visual acceptance. No merge, deployment, production DB/auth configuration or financial operation was performed.
