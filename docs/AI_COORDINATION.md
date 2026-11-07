@@ -3558,3 +3558,12 @@ The prior withdrawal UI audit statement claiming the active BTCBOX admin route w
 - Exact-head frontend CI run `42391311929` is queued. Do not accept until install, lint, production build, Chromium and desktop/mobile route smoke tests pass.
 - Previous exact-head `f89f46c37124304f1b53e37db0d1cdb873262a78`, CI run `42391112107`, passed all five stages including desktop/mobile route smoke tests.
 - Independent browser visual QA remains NOT VERIFIED. No merge, deployment, hosted database writes or real financial operations.
+
+
+## Account security action feedback — 2026-11-07
+
+- FIX COMMITTED: visual PR #65 head `3f00d49e9cbda45e2fd83ace95f81041833eadb1`.
+- `frontend/src/features/account/AccountSecurityPage.tsx`: initial account-security loading is announced through a polite live status; the three credential/identity forms expose `aria-busy`; all 15 busy-controlled identity verification, linking and password-recovery actions expose their in-flight state.
+- No identity-linking flow, password-recovery policy, authentication/API behavior, permission, financial rule or trading-page layout changed.
+- Exact-head CI has not yet appeared. The prior head `8a760615f9037288eefb0e1dc30474360548b55a` CI run `42391311929` had install, lint, production build and Chromium passed; desktop/mobile route smoke tests were still running at last check. Do not accept until the current head's full CI passes.
+- Independent browser visual QA remains NOT VERIFIED. No merge, deployment, hosted database writes or real financial operations.
