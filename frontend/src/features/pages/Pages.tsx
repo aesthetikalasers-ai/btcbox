@@ -764,7 +764,7 @@ export function DepositPage(){
  },[coin,network,reload]);
  useEffect(()=>{
   const controller=new AbortController();
-  setHistoryLoading(true);setHistoryError("");
+  setHistoryLoading(true);setHistoryError("");setDepositHistory([]);
   getAccount(controller.signal).then(snapshot=>{
    if(!controller.signal.aborted)setDepositHistory(Array.isArray(snapshot.deposits)?snapshot.deposits:[]);
   }).catch(reason=>{
@@ -773,6 +773,11 @@ export function DepositPage(){
   }).finally(()=>{if(!controller.signal.aborted)setHistoryLoading(false);});
   return ()=>controller.abort();
  },[historyReload]);
+ useEffect(()=>{
+  const refreshWhenVisible=()=>{if(document.visibilityState==="visible")setHistoryReload(value=>value+1);};
+  document.addEventListener("visibilitychange",refreshWhenVisible);
+  return ()=>document.removeEventListener("visibilitychange",refreshWhenVisible);
+ },[]);
  const changeCoin=(next:string)=>{setCoin(next);setNetwork(depositNetworks[next][0]);};
  return <PageFrame eyebrow="BTCBOX / WALLET" title="Deposit" description="View the deposit address configured by BTCBOX for the selected asset and network. BTCBOX staff verify incoming transfers and manually credit the account.">
   <Card className="border-brand-border bg-brand-surface"><CardHeader><CardTitle>{t("Deposit address")}</CardTitle><CardDescription>{t("Always verify the asset and network before sending funds.")}</CardDescription></CardHeader><CardContent className="space-y-4">
@@ -904,7 +909,7 @@ export function WithdrawPage(){
 
  useEffect(()=>{
   const controller=new AbortController();
-  setLoading(true);setError("");
+  setLoading(true);setError("");setAccount(null);setAddresses([]);setConfig(null);setSelectedAddress(null);
   Promise.all([getAccount(controller.signal),getSavedCryptoAddresses(controller.signal),getWithdrawalConfig(controller.signal)])
    .then(([snapshot,book,withdrawalConfig])=>{
     if(controller.signal.aborted)return;
@@ -929,6 +934,11 @@ export function WithdrawPage(){
    .finally(()=>{if(!controller.signal.aborted)setLoading(false);});
   return ()=>controller.abort();
  },[reload]);
+ useEffect(()=>{
+  const refreshWhenVisible=()=>{if(document.visibilityState==="visible")setReload(value=>value+1);};
+  document.addEventListener("visibilitychange",refreshWhenVisible);
+  return ()=>document.removeEventListener("visibilitychange",refreshWhenVisible);
+ },[]);
 
  useEffect(()=>{
   if(!selectedId){setSelectedAddress(null);return;}
