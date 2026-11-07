@@ -84,3 +84,19 @@ test('public ticker snapshots use a short shared-cache window and clients bypass
   assert.ok(api.includes('cache: "no-store"'));
   assert.ok(pages.includes('window.setInterval(refreshMarketData,15000)'));
 });
+
+test('order book snapshots normalize provider levels and expose source-specific freshness', () => {
+  const depthStart = backend.indexOf("if (path === 'depth' && method === 'GET')");
+  const authBoundary = backend.indexOf('// ---------- 以下接口需要登录 ----------', depthStart);
+  const route = backend.slice(depthStart, authBoundary);
+  assert.ok(route.includes('const normalizeLevels = rows => rows'));
+  assert.ok(route.includes('Number(row[0]) > 0'));
+  assert.ok(route.includes('Number(row[1]) > 0'));
+  assert.ok(route.includes('sort((left, right) => Number(right[0]) - Number(left[0]))'));
+  assert.ok(route.includes('sort((left, right) => Number(left[0]) - Number(right[0]))'));
+  assert.ok(route.includes('snapshotTs: Math.floor(Date.now() / 1000), providerTs'));
+  assert.ok(api.includes('const normalizeLevels = (rows: unknown[])'));
+  assert.ok(api.includes('INVALID_ORDER_BOOK'));
+  assert.ok(pages.includes('t("Ticker"): {ticker?.source||"—"}'));
+  assert.ok(pages.includes('t("Order book"): {book?.source||"—"}'));
+});
