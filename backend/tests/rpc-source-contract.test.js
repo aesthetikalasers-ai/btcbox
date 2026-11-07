@@ -91,3 +91,23 @@ test('final withdrawal migration removes stale overloads and preserves service-r
   assert.ok(!cleanup.includes('DELETE FROM public.financial_ledger'));
   assert.ok(!cleanup.includes('UPDATE public.financial_accounts'));
 });
+
+
+test('production data inventory reports counts and state shape without exposing user payloads', () => {
+  const inventory = read('supabase/diagnostics/production-data-inventory.sql');
+  for (const token of ['TABLE_COUNT', 'USER_SUMMARY', 'STATE_KEY', 'jsonb_object_keys', 'users_with_btcbox_login_password', 'users_with_nonzero_balance']) {
+    assert.ok(inventory.includes(token), 'inventory must include ' + token);
+  }
+  for (const sensitiveProjection of [
+    'user_key AS object_name',
+    'user_data AS detail',
+    "data -> 'users' AS detail",
+    "data -> 'sessions' AS detail",
+  ]) {
+    assert.ok(!inventory.includes(sensitiveProjection), 'inventory must not project sensitive payload: ' + sensitiveProjection);
+  }
+  const forbiddenMutations = ['INSERT INTO', 'UPDATE ', 'DELETE FROM', 'ALTER TABLE', 'DROP FUNCTION', 'CREATE TABLE', 'GRANT ', 'REVOKE '];
+  for (const statement of forbiddenMutations) {
+    assert.ok(!inventory.toUpperCase().includes(statement), 'inventory must remain read-only: ' + statement);
+  }
+});
