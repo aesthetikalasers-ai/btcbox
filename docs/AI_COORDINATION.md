@@ -3624,3 +3624,9 @@ The prior withdrawal UI audit statement claiming the active BTCBOX admin route w
 - Exact-head CI run `42400928603` for `8b60f13a3381697202cf2212157ea012e4ec33b8`: npm install passed; lint was in progress at refresh; production build, Chromium, and desktop/mobile route smoke tests pending. Do not accept until all steps pass.
 - Previous exact-head `0ec0bb9628b74a455956b3c01cdc9faf6bd97380`, run `42399058606`, passed install, lint, production build, Chromium installation, and desktop/mobile route smoke tests.
 - PR #65 remains Draft/open. Independent browser visual QA remains NOT VERIFIED. No merge, deployment, hosted database writes, or real financial operations.
+
+
+- Latest customer error-safety batch: `8d929434a2c23346c8a141ce14c035a171f44cbf` sanitizes backend exception text across Trade Hub, Assets, account profile, Orders, Spot, Seconds, KYC, Support, Deposit, Earn and Withdraw pages. Customer-facing messages now use the existing concise scenario-specific copy; request IDs, pending/uncertain transaction warnings, API behavior, and financial workflows are unchanged. Follow-up `6d353fcd4dc8ffa085e359073f7200e9d1456198` removes an unused catch binding found during review.
+- Exact-head CI run `42401324392` for `6d353fcd4dc8ffa085e359073f7200e9d1456198`: install, lint and production build passed; Chromium installation was in progress at refresh; desktop/mobile route smoke tests pending. Previous parent-head run `42401282544` had install/lint/build/Chromium pass and desktop/mobile smoke tests in progress. Do not accept until the latest exact-head run completes every step.
+- Latest confirmed predecessor `8b60f13a3381697202cf2212157ea012e4ec33b8`, run `42400928603`, passed all CI steps including desktop/mobile route smoke tests.
+- PR #65 remains Draft/open. Independent browser visual QA remains NOT VERIFIED. No merge, deployment, hosted database writes or real financial operations.
