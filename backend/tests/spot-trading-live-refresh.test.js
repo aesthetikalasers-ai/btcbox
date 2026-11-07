@@ -388,3 +388,14 @@ test('admin candidate searches ignore out-of-order responses and tab-load result
   assert.ok(admin.includes('const requestId=++adminCandidatesRequestRef.current;setAdminCandidates([]);setError("");'));
   assert.ok(admin.includes('if(requestId===adminCandidatesRequestRef.current)setAdminCandidates(result.users||[]);'));
 });
+
+
+test('admin Seconds queue ignores stale initial and manual refresh responses', () => {
+  const admin = fs.readFileSync(path.resolve(__dirname, '../../frontend/src/features/admin/AdminPage.tsx'), 'utf8');
+  assert.ok(admin.includes('const secondsQueueRequestRef = useRef(0);'));
+  assert.ok(admin.includes('if (tab !== "seconds") secondsQueueRequestRef.current += 1;'));
+  assert.ok(admin.includes('secondsQueueRequestId !== secondsQueueRequestRef.current'));
+  assert.ok(admin.includes('const requestId = ++secondsQueueRequestRef.current; setSecondsQueueLoading(true); setSecondsOpenPositions([]); setSecondsOpenSummary(null);'));
+  assert.ok(admin.includes('if (requestId !== secondsQueueRequestRef.current) return; setSecondsOpenPositions(result.positions);'));
+  assert.ok(admin.includes('if (requestId === secondsQueueRequestRef.current) setSecondsQueueLoading(false);'));
+});

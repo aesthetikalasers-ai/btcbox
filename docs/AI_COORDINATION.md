@@ -6574,3 +6574,10 @@ Current branch HEAD at note creation: `51c302a96f069876e438321d3597501fcbc26b54`
 - The candidate list is cleared while a manual search is pending and only the latest request may publish results or errors.
 - Added a regression source-contract test. No admin membership, authentication, role, or database behavior was changed.
 - Exact-head CI pending; no merge or deployment.
+
+
+## Admin Seconds queue refresh ordering — 2026-11-08 (2号 AI)
+- Added a shared request generation for the initial Seconds open-position snapshot and the manual Refresh queue action.
+- A manual refresh clears the prior snapshot while loading; only the newest request can publish rows, summary, errors, or loading completion. Leaving the Seconds tab invalidates pending queue reads.
+- Added a regression source-contract test. Read-only queue only; no settlement, positions, balances, or financial logic changed.
+- Exact-head CI pending; no merge or deployment.

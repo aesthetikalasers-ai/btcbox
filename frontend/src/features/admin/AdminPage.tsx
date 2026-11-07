@@ -116,6 +116,7 @@ export function AdminPage() {
   const tabLoadRequestRef = useRef(0);
   const userDetailRequestRef = useRef(0);
   const adminCandidatesRequestRef = useRef(0);
+  const secondsQueueRequestRef = useRef(0);
   const kycRefreshLockRef = useRef(false);
   const kycQueueRequestRef = useRef(0);
   const withdrawalQueueRequestRef = useRef(0);
@@ -225,6 +226,7 @@ export function AdminPage() {
   const loadTab = useCallback(async () => {
     const requestId = ++tabLoadRequestRef.current;
     if (tab !== "users") userDetailRequestRef.current += 1;
+    if (tab !== "seconds") secondsQueueRequestRef.current += 1;
     if (!token || !session) return;
     const auditRequestId = ++auditPageRequestRef.current;
     setAuditPageLoading(false);
@@ -344,14 +346,15 @@ export function AdminPage() {
         setSecondsPayoutPercent((result.policy.payout_bps / 100).toString());
         setSecondsExposure(result.policy.per_user_open_exposure === null ? "" : String(result.policy.per_user_open_exposure));
         setSecondsMaxOpenPositions(result.policy.max_open_positions_per_user === null ? "" : String(result.policy.max_open_positions_per_user));
+        const secondsQueueRequestId = ++secondsQueueRequestRef.current;
         try {
           const queue = await getAdminSecondsOpenPositions(token);
-          if (requestId !== tabLoadRequestRef.current) return;
+          if (requestId !== tabLoadRequestRef.current || secondsQueueRequestId !== secondsQueueRequestRef.current) return;
           setSecondsOpenPositions(queue.positions);
           setSecondsOpenSummary(queue);
           setSecondsQueueError("");
         } catch (queueError) {
-          if (requestId !== tabLoadRequestRef.current) return;
+          if (requestId !== tabLoadRequestRef.current || secondsQueueRequestId !== secondsQueueRequestRef.current) return;
           setSecondsOpenPositions([]);
           setSecondsOpenSummary(null);
           setSecondsQueueError(queueError instanceof Error ? queueError.message : "Open Seconds positions are temporarily unavailable.");
@@ -983,7 +986,7 @@ export function AdminPage() {
       <label className="block space-y-1 text-sm"><span>Reason for policy change (required)</span><textarea value={secondsReason} disabled={busy||!hasPermission("seconds_policy.manage")} onChange={event=>setSecondsReason(event.target.value)} rows={2} maxLength={500} className="w-full rounded-lg border border-brand-border bg-brand-surface-2 p-3 text-brand-text" placeholder="Explain why these rules are changing"/></label>
       {hasPermission("seconds_policy.manage")?<Button block disabled={busy||!secondsReason.trim()} onClick={()=>void saveSecondsPolicy()}>Create and activate new policy version</Button>:<p className="text-sm text-brand-text-muted">Your administrator role is read-only for Seconds policy.</p>}
     </CardContent></Card> : null}
-    {!loading && tab === "seconds" ? <Card><CardHeader><div className="flex flex-wrap items-center justify-between gap-2"><div><CardTitle>Open Seconds positions</CardTitle><CardDescription>Read-only live queue. Due positions remain visible until the server confirms settlement; staff cannot force a result or manually release frozen funds here.</CardDescription></div><Button size="sm" variant="outline" disabled={secondsQueueLoading || !token} onClick={() => { if (!token) return; setSecondsQueueLoading(true); void getAdminSecondsOpenPositions(token).then(result => { setSecondsOpenPositions(result.positions); setSecondsOpenSummary(result); setSecondsQueueError(""); }).catch(reason => setSecondsQueueError(reason instanceof Error ? reason.message : "Open Seconds positions are temporarily unavailable.")).finally(() => setSecondsQueueLoading(false)); }}>{secondsQueueLoading ? "Refreshing…" : "Refresh queue"}</Button></div></CardHeader><CardContent className="space-y-3">
+    {!loading && tab === "seconds" ? <Card><CardHeader><div className="flex flex-wrap items-center justify-between gap-2"><div><CardTitle>Open Seconds positions</CardTitle><CardDescription>Read-only live queue. Due positions remain visible until the server confirms settlement; staff cannot force a result or manually release frozen funds here.</CardDescription></div><Button size="sm" variant="outline" disabled={secondsQueueLoading || !token} onClick={() => { if (!token) return; const requestId = ++secondsQueueRequestRef.current; setSecondsQueueLoading(true); setSecondsOpenPositions([]); setSecondsOpenSummary(null); setSecondsQueueError(""); void getAdminSecondsOpenPositions(token).then(result => { if (requestId !== secondsQueueRequestRef.current) return; setSecondsOpenPositions(result.positions); setSecondsOpenSummary(result); }).catch(reason => { if (requestId === secondsQueueRequestRef.current) { setSecondsOpenPositions([]); setSecondsOpenSummary(null); setSecondsQueueError(reason instanceof Error ? reason.message : "Open Seconds positions are temporarily unavailable."); } }).finally(() => { if (requestId === secondsQueueRequestRef.current) setSecondsQueueLoading(false); }); }}>{secondsQueueLoading ? "Refreshing…" : "Refresh queue"}</Button></div></CardHeader><CardContent className="space-y-3">
       {secondsQueueError ? <p role="alert" className="rounded-lg border border-brand-border p-3 text-sm text-brand-text-muted">{secondsQueueError}</p> : null}
       {secondsOpenSummary ? <div className="grid gap-2 sm:grid-cols-3"><div className="rounded-lg border border-brand-border p-3"><p className="text-xs text-brand-text-muted">Open positions</p><p className="mt-1 text-lg font-semibold">{secondsOpenSummary.total_open_count}</p></div><div className="rounded-lg border border-brand-border p-3"><p className="text-xs text-brand-text-muted">Open exposure · USDT</p><p className="mt-1 text-lg font-semibold">{Number(secondsOpenSummary.total_open_exposure).toLocaleString(undefined,{maximumFractionDigits:8})}</p></div><div className="rounded-lg border border-brand-border p-3"><p className="text-xs text-brand-text-muted">Past maturity, not yet settled</p><p className="mt-1 text-lg font-semibold">{secondsOpenSummary.overdue_count}</p></div></div> : null}
       {secondsOpenSummary?.truncated ? <p className="text-xs text-brand-text-muted">Showing the earliest 100 open positions. Summary totals include all open positions.</p> : null}
