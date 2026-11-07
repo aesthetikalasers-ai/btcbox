@@ -11,26 +11,39 @@
 
 ## Confirmed RPC inventory
 
-The inventory was expanded after tracing every literal `/rest/v1/rpc/` call plus both dynamic `matchingRpc(...)` call sites in the active API handler and the administrator-auth module. This supersedes the initial 12-name sample.
-
-The diagnostic checks all 26 literal PostgREST RPC dependencies found in the active backend request handlers (`backend/api-core.js` and `backend/admin-auth.js`), including both matching-engine calls.
+The inventory now covers all 26 literal PostgREST RPC dependencies found in the active backend request handlers (`backend/api-core.js` and `backend/admin-auth.js`), including both dynamic matching-engine call sites. The diagnostic checks function presence, expected argument count, and role EXECUTE grants. It prints installed identity argument signatures for review; matching arity is not a substitute for reviewing argument names/types and response semantics.
 
 | RPC | Live catalog result |
 |---|---|
+| `admin_adjustment_atomic` | PRESENT — expected arity 8; service_role only |
 | `admin_get_membership_v1` | MISSING |
 | `admin_list_memberships_v1` | MISSING |
 | `admin_manage_membership_v1` | MISSING |
+| `admin_manual_deposit_atomic` | PRESENT — expected arity 9; service_role only |
 | `admin_read_seconds_open_positions_v1` | MISSING |
 | `admin_set_seconds_policy_v1` | MISSING |
 | `admin_set_spot_market_v1` | MISSING |
 | `append_admin_audit_log` | MISSING |
 | `btcbox_rate_limit_consume_v1` | MISSING |
+| `btcbox_save_state` | PRESENT — expected arity 2; service_role only |
+| `cancel_limit_order_matching_v1` | PRESENT — expected arity 3; service_role only |
+| `create_withdrawal_atomic` | <strong> SIGNATURE MISMATCH — production has 9 args; current API/migration require 11 </strong> |
 | `mark_withdrawal_paid_atomic` | MISSING |
 | `read_active_seconds_policy_v1` | MISSING |
+| `read_admin_account_balances_v1` | PRESENT — expected arity 1; service_role only |
+| `read_admin_withdrawal_snapshot_v1` | PRESENT — expected arity 0; service_role only |
+| `read_financial_account_snapshot_v1` | PRESENT — expected arity 1; service_role only |
+| `read_seconds_positions_v1` | PRESENT — expected arity 1; service_role only |
 | `read_spot_market_snapshot_v1` | MISSING |
-| `review_withdrawal_atomic` | PRESENT — `public.review_withdrawal_atomic(text,text,boolean,text)`, executable by service_role only |
+| `redeem_earn_atomic` | PRESENT — expected arity 4; service_role only |
+| `review_withdrawal_atomic` | PRESENT — expected arity 4; service_role only |
+| `settle_seconds_position_v1` | PRESENT — expected arity 8; service_role only |
+| `submit_limit_order_matching_v1` | PRESENT — expected arity 8; service_role only |
+| `submit_seconds_order_v1` | PRESENT — expected arity 9; service_role only |
+| `subscribe_earn_atomic` | PRESENT — expected arity 7; service_role only |
 
-Result: the complete live catalog result is recorded in the table above. This is a confirmed catalog observation, not an inference from migration filenames. The earlier 12-function subset was incomplete and is superseded by this 26-function inventory.
+Result: 11 of 26 required RPCs are missing, one exists with an incompatible signature, and 14 have the expected argument count with service_role-only EXECUTE. In particular, the live `create_withdrawal_atomic` is the older 9-argument version, while the current API sends the fee snapshot contract introduced by migration `0029` (11 arguments including `p_require_admin_review` and `p_expected_fee`). The route remains fail-closed while financial cutover flags are disabled, but the RPC mismatch must be reconciled before any withdrawal cutover.
+
 
 ## Confirmed table/schema inventory
 
