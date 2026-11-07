@@ -6272,3 +6272,13 @@ Current branch HEAD at note creation: `51c302a96f069876e438321d3597501fcbc26b54`
 - Added two isolated Playwright Admin cases: withdrawal queue refresh failure must remain read-only and must not imply a confirmed financial action; KYC approval remains disabled without an uploaded document and secure preview URL.
 - Tests use a synthetic Supabase browser session and intercepted API fixtures only; no real identity, production API, financial write, database or deployment is used.
 - New test commit: `d42c2fdbc5de26be937ead020e147abdd0930432`. Push CI run `42328415525` completed SUCCESS: lint, build and all 38 desktop/mobile Playwright tests passed (19 desktop + 19 mobile), including both new Admin cases. Backend PR run `42328419228` completed SUCCESS with 411/411 tests, build, preflight and output checks; frontend PR run `42328419231` completed SUCCESS with lint, build and browser tests.
+
+## 2026-11-07 continuation — trading mode chooser and Admin QA
+
+- Reorganized Trade Hub so the four requested modes are visible first: Spot, Seconds, Earn, and Futures. Futures remains explicitly unavailable because no supported futures service is registered; no simulated contract entry was added.
+- Moved the backend-returned spot pair list below the mode cards so a long pair list cannot push Seconds/Earn/Futures below the fold. Spot catalogue errors and empty states remain explicit; no pairs are fabricated.
+- Added an Earn entry to the mode chooser and translated its copy for all seven supported frontend locales. The Earn page remains account-gated; subscribe/redeem stay disabled unless backend financial controls report enabled.
+- Playwright now verifies all mode cards, an actual mocked backend-enabled spot pair, unsupported Futures state, and the Earn route's authentication gate.
+- Admin Playwright checks remain isolated to mocked identities/API responses and verify withdrawal refresh failures do not imply financial success or issue mutation requests, and KYC approval stays disabled without document evidence.
+- Exact code/test head: `8967f936520470cd0a624efc718012dc615e26e2`. Push CI `42329063335`: SUCCESS — lint, build and 40 desktop/mobile tests (20 desktop + 20 mobile). Backend PR CI `42329067130`: SUCCESS — unified build, 411/411 backend tests, fail-closed preflight and output checks. Frontend PR CI `42329067115`: SUCCESS — lint, build and 40 desktop/mobile tests.
+- No real funds, live orders, production database writes, merge or deployment performed.
