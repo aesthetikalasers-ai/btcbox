@@ -620,7 +620,7 @@ test("Admin audit reload failure clears stale records and resets source confiden
   await page.goto("/admin");
   await page.getByRole("button", { name: "Audit log", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Financial audit log" })).toBeVisible();
-  await expect(page.getByText("E2E-STALE-AUDIT")).toBeVisible();
+  await expect(page.getByText("E2E audit fixture")).toBeVisible();
   await expect(page.getByText("PostgreSQL canonical")).toBeVisible();
   await expect(page.getByRole("columnheader", { name: "Operator ID" })).toBeVisible();
   await expect(page.getByRole("columnheader", { name: "Affected user UID" })).toBeVisible();
@@ -633,7 +633,7 @@ test("Admin audit reload failure clears stale records and resets source confiden
   await page.getByRole("button", { name: "Audit log", exact: true }).click();
 
   await expect(page.getByRole("alert")).toContainText("Audit log is temporarily unavailable.");
-  await expect(page.getByText("E2E-STALE-AUDIT")).toHaveCount(0);
+  await expect(page.getByText("E2E audit fixture")).toHaveCount(0);
   await expect(page.getByText("Source unknown")).toBeVisible();
   expect(auditReads).toBeGreaterThanOrEqual(2);
 });
@@ -798,12 +798,12 @@ test("Admin user-detail failure clears the previously selected user's financial 
   await page.getByRole("button", { name: "Users & manual credit", exact: true }).click();
   await page.getByRole("button", { name: "Open", exact: true }).first().click();
   await expect(page.getByRole("cell", { name: "first@example.invalid" })).toBeVisible();
-  await expect(page.getByText("E2E-DEPOSIT-001")).toBeVisible();
+  await expect(page.getByText("E2E-TX-FIRST")).toBeVisible();
   await expect(page.getByText("e2e-user-001", { exact: true })).toBeVisible();
 
   await page.getByRole("button", { name: "Open", exact: true }).nth(1).click();
   await expect(page.getByRole("alert")).toContainText("User account could not be loaded.");
-  await expect(page.getByText("E2E-DEPOSIT-001")).toHaveCount(0);
+  await expect(page.getByText("E2E-TX-FIRST")).toHaveCount(0);
   await expect(page.getByText("Available: 250.00")).toHaveCount(0);
   await expect(page.getByText("Select a user to load their current balances.")).toBeVisible();
   expect(detailReads).toBe(2);
@@ -857,7 +857,7 @@ test("Admin rapid user selection ignores an older detail response", async ({ pag
   await page.getByRole("button", { name: "Open", exact: true }).first().click();
   await expect.poll(() => detailReads).toBe(1);
   await page.getByRole("button", { name: "Open", exact: true }).nth(1).click();
-  await expect(page.getByText("fast@example.invalid")).toBeVisible();
+  await expect(page.getByRole("cell", { name: "fast@example.invalid" })).toBeVisible();
   await expect(page.getByText("Available: 222.00")).toBeVisible();
 
   if (!releaseSlow) throw new Error("The first user detail request did not start.");
