@@ -6656,3 +6656,7 @@ Current branch HEAD at note creation: `51c302a96f069876e438321d3597501fcbc26b54`
 - CI feedback on the first spot-trading freshness commit found one existing source-contract test that still expected the pre-change ticker source expression. Updated the assertion to the freshness-gated display expression and added explicit checks for ticker and order-entry freshness gates.
 - Extended the same protection to timestamped order-book depth: stale or untimestamped depth levels are now hidden, with a clear unavailable state. The Playwright fixture now uses an expired depth snapshot and verifies stale bid/ask prices are not rendered.
 - Backend CI failure was limited to the outdated frontend-source assertion; PostgreSQL schema CI passed. The corrected exact-head run is pending.
+
+
+- Additional stale-price cleanup: when a ticker becomes stale or disappears, the form clears the price that was auto-filled from the old ticker. This prevents a stale quote from remaining visible inside the editable limit-price input even though the summary quote is hidden. A manually edited price is preserved when a ticker exists; new order submission remains blocked until a fresh timestamped quote returns.
+- Extended the Playwright regression to assert the stale auto-filled limit price is cleared.

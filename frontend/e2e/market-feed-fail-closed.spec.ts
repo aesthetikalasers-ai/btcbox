@@ -134,6 +134,7 @@ test("spot trading hides expired quotes and blocks new orders until a fresh snap
 
   await expect(page.getByText(/Market snapshot is older than 90 seconds/i)).toBeVisible();
   await expect(page.getByText("65,000", { exact: false })).toHaveCount(0);
+  await expect(page.getByLabel("Limit price (USDT)")).toHaveValue("");
   await expect(page.getByText("64,999", { exact: false })).toHaveCount(0);
   await expect(page.getByText("65,001", { exact: false })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Place buy limit order" })).toBeDisabled();

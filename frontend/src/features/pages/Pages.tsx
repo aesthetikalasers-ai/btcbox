@@ -198,6 +198,12 @@ export function SpotTradingPage(){
  const effectiveMarketFeedWarning=marketFeedWarning||(marketSnapshotStale?t("Market snapshot is older than 90 seconds. Quotes and new order entry are disabled until fresh data arrives."):orderBookSnapshotStale?t("Order book snapshot is older than 90 seconds. Depth levels are hidden until fresh data arrives."):"");
 
  useEffect(()=>{
+  if(!ticker||marketSnapshotStale){
+   if(!ticker||price===String(ticker.price))setPrice("");
+  }
+ },[ticker,marketSnapshotStale,price]);
+
+ useEffect(()=>{
   const timer=window.setInterval(()=>setMarketClockNow(Date.now()),5000);
   return ()=>window.clearInterval(timer);
  },[]);
