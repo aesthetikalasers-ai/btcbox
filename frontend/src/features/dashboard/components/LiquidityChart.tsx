@@ -22,21 +22,21 @@ export function LiquidityChart({ candles = [] }: { candles?: MarketCandle[] }) {
       layout: {
         attributionLogo: false,
         background: { type: ColorType.Solid, color: 'transparent' },
-        textColor: '#9AADC5',
+        textColor: 'rgba(255,255,255,0.62)',
         fontSize: 12,
         fontFamily: 'Inter',
       },
       grid: {
-        vertLines: { color: 'rgba(148, 180, 220, 0.065)', style: 4 },
+        vertLines: { color: 'rgba(255, 255, 255, 0.025)', style: 4 },
         horzLines: { color: 'rgba(255, 255, 255, 0.02)', style: 4 }, 
       },
       crosshair: {
         mode: 1,
         vertLine: {
-          color: 'rgba(148, 180, 220, 0.28)',
+          color: 'rgba(255, 255, 255, 0.15)',
           width: 1,
           style: 3,
-          labelBackgroundColor: '#192A42',
+          labelBackgroundColor: '#141518',
         },
         horzLine: {
           color: 'rgba(255, 255, 255, 0.15)',
@@ -46,7 +46,7 @@ export function LiquidityChart({ candles = [] }: { candles?: MarketCandle[] }) {
         },
       },
       timeScale: {
-        borderColor: 'rgba(148, 180, 220, 0.14)',
+        borderColor: 'rgba(255, 255, 255, 0.05)',
         timeVisible: true,
       },
       handleScroll: { vertTouchDrag: false, horzTouchDrag: true },
@@ -58,13 +58,13 @@ export function LiquidityChart({ candles = [] }: { candles?: MarketCandle[] }) {
     });
 
     const series = chart.addSeries(CandlestickSeries, {
-        upColor: '#20c982',
-        downColor: '#ff647c',
-        borderUpColor: '#20c982',
-        borderDownColor: '#ff647c',
+        upColor: '#22c55e',
+        downColor: '#ef4444',
+        borderUpColor: '#22c55e',
+        borderDownColor: '#ef4444',
         borderVisible: true,
-        wickUpColor: '#20c982',
-        wickDownColor: '#ff647c',
+        wickUpColor: '#22c55e',
+        wickDownColor: '#ef4444',
     });
 
     series.setData(candles.map(c => ({ time: Math.floor(c.time / 1000) as import('lightweight-charts').UTCTimestamp, open: c.open, high: c.high, low: c.low, close: c.close })));
@@ -84,7 +84,7 @@ export function LiquidityChart({ candles = [] }: { candles?: MarketCandle[] }) {
         },
     });
     
-    volumeSeries.setData(candles.map(c => ({ time: Math.floor(c.time / 1000) as import('lightweight-charts').UTCTimestamp, value: c.volume, color: c.close >= c.open ? 'rgba(32, 201, 130, 0.15)' : 'rgba(255, 100, 124, 0.15)' })));
+    volumeSeries.setData(candles.map(c => ({ time: Math.floor(c.time / 1000) as import('lightweight-charts').UTCTimestamp, value: c.volume, color: c.close >= c.open ? 'rgba(34, 197, 94, 0.15)' : 'rgba(239, 68, 68, 0.15)' })));
     
     const bars = { '1h': 1, '6h': 6, '24h': 24, '7d': 168, '30d': 720 }[activeRange] || 24;
     const totalBars = candles.length;

@@ -76,7 +76,7 @@ export function LiveMarketsTable({ markets, loading, error }: {
         </label>
       </div>
       {error && markets.length > 0 ? (
-        <div className="border-b border-amber-500/20 bg-amber-500/5 px-4 py-2 text-xs text-amber-200" role="status">
+        <div className="border-b border-brand-warning/20 bg-brand-warning/[0.05] px-4 py-2 text-xs text-brand-warning" role="status">
           {t("Live refresh unavailable. Showing the last confirmed market data.")} {error}
         </div>
       ) : null}
