@@ -3731,3 +3731,17 @@ The prior withdrawal UI audit statement claiming the active BTCBOX admin route w
 - PR #64 contains historical production-inventory/migration-planning material. The owner has since stated the Supabase database is empty and there are no users, and has explicitly rejected spending time on legacy migration. Treat those inventory/migration claims as historical context only; do not run migrations, schema resets, production SQL writes, or use old-user preservation as a blocker. Fresh-schema CI passed, but any real database bootstrap remains separately gated.
 - Current next action: build one reviewed integration candidate from current `main`, retain the PR #64 Supabase-RBAC preflight correction and passing fresh-PostgreSQL schema work, reconcile PR #63 market fail-closed behavior against the React customer app (avoid duplicate legacy static-page work if not shipped), then manually port PR #65 visual/accessibility/error-safety work across overlapping files. Run backend, frontend, fresh PostgreSQL schema and desktop/mobile E2E suites on one exact SHA.
 - Browser visual QA at real mobile/tablet/desktop viewports remains NOT VERIFIED. No merge, deployment, production DB writes, real deposits/withdrawals/orders, or destructive actions were performed.
+
+## Mainline consolidation batch 1 — 2026-11-08
+
+- Created dedicated candidate from current `main` at `2a3810da1aef2c0c7c58df0cfdb059a212eeb0d6`: `integration/btcbox-mainline-consolidation-20261108`.
+- Existing Draft PR #67 was found for this exact branch and reused; no duplicate PR was created. Current exact head: `78ea98d8417bd7e4828ddbb7f207208909757cae`. PR #67 targets main and remains Draft/open.
+- Consolidated selected PR #63/#64/#65 deltas without merging their stale/overlapping branches independently:
+  - Supabase Auth + database RBAC deployment preflight; remove legacy ADMIN_USER/ADMIN_PASS startup/deploy assumptions.
+  - Empty-database bootstrap guard, canonical withdrawal RPC cleanup SQL and migration-order docs.
+  - Manual deposit credit, withdrawal payout, KYC, support, spot catalogue, RBAC and RPC contract tests.
+  - Market feed fail-closed behavior so missing/invalid provider quotes do not remain presented as current.
+  - Frontend visual token foundation, shared shell/navigation, chart styles, account/auth/admin/assets/orders responsive and safe-state refinements.
+- Exact-head CI started: backend run `42413760165`; disposable PostgreSQL schema run `42413760258`; frontend lint/build/desktop-mobile E2E run `42413760299`. At checkpoint all three were in progress; do not report pass until complete.
+- The owner has stated the current database is empty and rejected legacy migration work; historical production-data inventory/migration documents from PR #64 were not imported.
+- No hosted DB writes/bootstrap, real financial operations, merge to main, or deployment. Hosted Supabase config, first Super Admin provisioning and independent visual QA remain NOT VERIFIED.
