@@ -126,6 +126,7 @@ SELECT 'RPC'::text AS category,
        name AS object_name,
        CASE WHEN overload_count = 0 THEN 'MISSING'
             WHEN matching_arity_count = 0 THEN 'SIGNATURE_MISMATCH'
+            WHEN overload_count <> 1 THEN 'LEGACY_OVERLOAD_PRESENT'
             WHEN NOT service_role_execute THEN 'PRESENT_BUT_SERVICE_ROLE_CANNOT_EXECUTE'
             WHEN anon_execute OR authenticated_execute THEN 'PRESENT_BUT_PUBLICLY_EXECUTABLE'
             ELSE 'PRESENT_SERVICE_ROLE_ONLY' END AS status,
