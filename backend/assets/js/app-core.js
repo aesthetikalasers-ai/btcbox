@@ -230,6 +230,7 @@ function applyMarket(r){
   const supported=new Set(PAIRS);
   const nowSeconds=Math.floor(Date.now()/1000);
   let acceptedQuotes=0;
+  const seenQuotes=new Set();
   const normalizeSymbol=raw=>{
     if(typeof raw!=='string') return null;
     let base=raw.trim().toUpperCase();
@@ -269,6 +270,7 @@ function applyMarket(r){
     if(typeof record.source==='string'&&record.source.trim()) next.source=record.source.trim();
     else if(typeof r.source==='string'&&r.source.trim()) next.source=r.source.trim();
     market[normalized.sym]=next;
+    seenQuotes.add(normalized.sym);
     acceptedQuotes++;
   };
   if(r.data&&typeof r.data==='object'&&!Array.isArray(r.data)){
@@ -277,7 +279,15 @@ function applyMarket(r){
   if(Array.isArray(r.markets)){
     r.markets.forEach(record=>{if(record) applyRecord(record.sym,record);});
   }
+  PAIRS.forEach(sym=>{
+    if(seenQuotes.has(sym))return;
+    const quote=market[sym];if(!quote)return;
+    quote.price=0;quote.chg=0;quote.high=0;quote.low=0;quote.vol=0;quote.ts=0;
+  });
   return acceptedQuotes;
+}
+function clearMarketQuotes(){
+  PAIRS.forEach(sym=>{const quote=market[sym];if(!quote)return;quote.price=0;quote.chg=0;quote.high=0;quote.low=0;quote.vol=0;quote.ts=0;});
 }
 function updateLivePriceEls(){
   $('[data-live-price]').forEach(el=>{
@@ -296,7 +306,7 @@ async function refreshMarket(){
   if(accepted>0){
     state.marketUnavailable=false;hideNetError();updateLivePriceEls();
   }else{
-    state.marketUnavailable=true;updateLivePriceEls();
+    state.marketUnavailable=true;clearMarketQuotes();updateLivePriceEls();
     showNetError((r&&r.msg)?r.msg:'Market data is temporarily unavailable.',refreshMarket);
   }
   if(typeof window!=='undefined'){
