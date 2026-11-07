@@ -3500,3 +3500,13 @@ The prior withdrawal UI audit statement claiming the active BTCBOX admin route w
 - All changes are presentational/accessibility semantics only. No handlers, permission checks, API contracts, request IDs, financial controls or settlement logic changed.
 - Exact-head frontend CI run 42387821656 for `65b72802167ac7279359fb9d5ba73e1decd2f780` was in progress at update time. Do not mark accepted until install, lint, production build, Chromium and desktop/mobile route smoke tests pass.
 - No merge, deployment, database writes or real financial operations. Trading page layout unchanged; independent browser visual QA remains NOT VERIFIED.
+
+
+## Admin review dialog and delegated permissions accessibility — 2026-11-07
+
+- FIX COMMITTED: visual PR #65 head `19695c93dbd64a1e9ddcc334fcf2c9b840ce3d4a`.
+- `frontend/src/features/admin/AdminPage.tsx`: rejection dialog now sets initial focus, traps keyboard Tab navigation, supports Escape close only while idle, restores the previously focused element, and locks background scrolling while open. The reason textarea and Cancel/Confirm actions have larger touch targets. The dialog remains non-dismissible while a submission is in progress.
+- Delegated administrator membership controls now use 44px action buttons with per-user accessible labels; permission checkbox rows have larger hit areas and visible hover feedback; reason field is larger and labelled. Suspended maps to warning and revoked maps to destructive, while unknown statuses remain outline.
+- No admin permission model, membership operation, revision/optimistic concurrency checks, API contract, financial logic or settlement behavior changed.
+- CI run `42388077929` for intermediate `52c0c91285b8217ef96baba2dc2314da263117b1` and `42388152190` for intermediate `21d5adc91234dfc1d733b8c75517df7a4b6ecacb` both failed at TypeScript lint because focusable DOM controls were inferred as unknown. The explicit `HTMLElement[]` typing fix is in `19695c93dbd64a1e9ddcc334fcf2c9b840ce3d4a`; exact-head CI run `42388194580` was in progress at this update.
+- Do not mark accepted until exact-head install, lint, production build, Chromium and desktop/mobile route smoke tests pass. No merge, deployment, database writes or real financial operations. Trading page layout unchanged; independent browser visual QA remains NOT VERIFIED.
