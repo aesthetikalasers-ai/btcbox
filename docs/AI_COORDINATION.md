@@ -6282,3 +6282,11 @@ Current branch HEAD at note creation: `51c302a96f069876e438321d3597501fcbc26b54`
 - Admin Playwright checks remain isolated to mocked identities/API responses and verify withdrawal refresh failures do not imply financial success or issue mutation requests, and KYC approval stays disabled without document evidence.
 - Exact code/test head: `8967f936520470cd0a624efc718012dc615e26e2`. Push CI `42329063335`: SUCCESS — lint, build and 40 desktop/mobile tests (20 desktop + 20 mobile). Backend PR CI `42329067130`: SUCCESS — unified build, 411/411 backend tests, fail-closed preflight and output checks. Frontend PR CI `42329067115`: SUCCESS — lint, build and 40 desktop/mobile tests.
 - No real funds, live orders, production database writes, merge or deployment performed.
+
+
+## Visual direction update — 2026-11-07
+
+- User explicitly superseded the earlier proposal to force a near-monochrome black/white/green BTCBOX palette. Follow the original mature UI foundation palette and component language instead; do not flatten the design into a single dark slab.
+- The approved baseline is the existing mature UI foundation source palette: deep navy surfaces, restrained blue interaction/accent states, readable cool-neutral text, and distinct profit/loss semantics. Preserve the original spacing, hierarchy, typography and responsive behavior unless an evidence-based defect requires adjustment.
+- Brand treatment should be integrated rather than pasted: use a reusable inline-vector BTCBOX mark and wordmark; maintain consistent sizing/alignment across desktop sidebar and mobile header. Do not substitute a bitmap logo as the only branding treatment.
+- This is approval for visual/brand implementation only. It does not authorize changes to trading, settlement, account, authentication, financial rules, production data, merge, or deployment.
