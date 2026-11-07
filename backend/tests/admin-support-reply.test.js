@@ -36,5 +36,6 @@ test('confirmed support reply is not reported as failed when the conversation re
   assert.ok(start >= 0 && end > start);
   const handler = admin.slice(start, end);
   assert.match(handler, /await adminReplySupport\(token, uid, content, requestId\)[\s\S]*?setSupportReply\(\(current\) => \(\{ \.\.\.current, \[uid\]: "" \}\)\)/);
-  assert.match(handler, /Support reply is confirmed; the conversation could not refresh/);
+  assert.match(handler, /const successMessage = result\.audit_sync_pending/);
+  assert.match(handler, /setError\(successMessage \+ " The conversation could not refresh\./);
 });
