@@ -3421,3 +3421,14 @@ The prior withdrawal UI audit statement claiming the active BTCBOX admin route w
 - NEXT: continue route-by-route visual consistency, interaction feedback and responsive refinements against the actual Strata/shadcn source patterns. Do not import mock data, demo auth or simulated financial operations. Preserve the locked trading layout and all API/business contracts.
 - NOT VERIFIED: independent browser visual QA at target 320/360/375/390/430px, tablet and desktop sizes. CI route smoke tests are not a substitute for visual QA.
 - Release boundary unchanged: PR #65 remains Draft/open; no merge, deployment, hosted database writes or real financial operations.
+
+
+## Visual system implementation follow-up — 2026-11-07
+
+- CURRENT VISUAL PR #65 HEAD: `9b9662bed509517dd9b89f8e288bebfc099661d7`.
+- FIX COMMITTED since the palette correction: normalized raw Tailwind emerald/rose/amber state classes in customer pages and admin feedback to `brand-success` / `brand-danger` / `brand-warning`; aligned spot candlestick chart colors with Strata green/red; changed chart backgrounds, grids, labels and crosshairs to subtle neutral layers; neutralized dashboard hero and topbar tint; changed sidebar/bottom-nav active states to Strata-style neutral selection; standardized mobile form control minimum sizes; stacked three administrator configuration grids on small screens; corrected deposit-address load errors to danger rather than warning; aligned the exchange badge to neutral brand accent.
+- Changed files across the visual batches: `frontend/src/index.css`, shared button/input/card, sidebar/bottom navigation/topbar/brand logo, dashboard and chart components, `Pages.tsx`, and `AdminPage.tsx`.
+- Exact-head CI has not yet appeared for `9b9662bed509517dd9b89f8e288bebfc099661d7`. Parent head `c07063ace42b00e92c1595b34defe019aedb7389` run `42386036929` passed install/lint/build/Chromium and had desktop/mobile route smoke tests in progress at last check. Earlier visual heads `879e24a343030b02b906daa2ac70e219754600ce`, `d945136798f325400afa0cf6f78b32dd3dc63ae0`, `9a63e2643c170d924ef1725a05db07b8a6a359b7`, and `9ff975a0393491a40dda398db195290fde542136` all completed frontend CI successfully.
+- NEXT: continue page-by-page polish for mobile/tablet and interaction states using the pinned templates' patterns; maintain API/financial behavior and the locked trading layout.
+- NOT VERIFIED: independent browser visual review at 320/360/375/390/430px, tablet and desktop viewports. Automated route smoke tests are not a substitute for visual QA.
+- Release boundary unchanged: PR #65 remains Draft/open; no merge, deployment, hosted DB writes or real financial operations.
