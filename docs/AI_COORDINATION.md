@@ -3533,3 +3533,6 @@ The prior withdrawal UI audit statement claiming the active BTCBOX admin route w
 - No API, support message request-ID, withdrawal request-ID/idempotency, staff review, manual payout, deposit verification or crediting behavior changed. Trading page untouched.
 - Prior exact-head CI for `f77b3b0c3bf0e91ed247dd17bbe8434e3db15e0e` passed all steps in run `42389672293`: install, lint, production build, Chromium and desktop/mobile route smoke tests. New head `7342306e1b2ba157112ace0071295e291dccd381` requires its own exact-head CI before acceptance.
 - Independent browser visual QA remains NOT VERIFIED. No merge, deployment, hosted database writes or real financial operations.
+
+
+- Follow-up lint repair: `7a49b74f225e2453732cb470723ebed7ed19cdde` fixes a JSX conditional closing-brace typo in the new deposit clipboard status markup, identified by exact-head CI run `42389855834` at `Pages.tsx:785`. That run failed during TypeScript lint before build/browser steps; this repair must receive its own full exact-head CI. Do not accept the failed intermediate head.
