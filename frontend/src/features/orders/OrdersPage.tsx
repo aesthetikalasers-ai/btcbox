@@ -81,7 +81,7 @@ export function OrdersPage() {
       <Card className="border-brand-border bg-brand-surface">
         <CardHeader className="border-b border-brand-border/70 bg-brand-surface-2/45">
           <CardTitle>{t("Order history")}</CardTitle>
-          <CardDescription>{t("Only records returned by the authenticated API are shown. No sample orders are generated.")}</CardDescription>
+          <CardDescription>{t("Your recent orders and their current status.")}</CardDescription>
         </CardHeader>
         <CardContent className="p-0">
           {loading ? (
