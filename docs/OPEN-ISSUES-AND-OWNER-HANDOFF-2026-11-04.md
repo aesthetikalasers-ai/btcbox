@@ -168,3 +168,24 @@ Important: source-level implementation is not proof of live Supabase provider co
 - An earlier backend failure was a test-boundary assertion mistake (the K-line route is earlier in the file than the ticker route), not a product-code failure; corrected in `1b472aff19232f02295079a86f76096881ceeb46`, after which backend CI passed.
 - Frontend failures before `38a4f8f3b1f52f72d026c6b976917aa5dd01a89a` were due to the KlineResponse type missing the new `source` field; type corrected and frontend CI passed.
 - Vercel status remains a separate deployment rate limit (retry in 24 hours); deployment remains paused by project instruction. No production deployment.
+
+## Authentication audit and browser regression — 2026-11-07
+
+### SOURCE OBSERVED
+- BTCBOX username/password are internal credentials on the existing BTCBOX account, not a separate email-auth account. Passwords are salted PBKDF2-SHA256 hashes with 600,000 iterations and timing-safe comparison; username login has persistent IP + username rate limiting.
+- First credential setup requires a fresh authenticated session (maximum five minutes), validates username uniqueness, and writes the credentials to the same account. The route does not create a second user.
+- Google OAuth uses Supabase PKCE. The callback exchanges the authorization code for a session and the backend verifies the Supabase identity before issuing the BTCBOX session.
+- EVM and Solana sign-in use Supabase Web3 sign-in; the frontend requires an access-token session before exchanging it with BTCBOX. EVM discovery uses EIP-6963; Solana detection supports injected Phantom/Brave/standard providers.
+- Credential recovery is gated by a fresh linked Google/wallet identity and short-lived server-side proof; TOTP is required when enabled. Password recovery revokes other BTCBOX sessions and pending 2FA login tokens.
+
+### CHANGES
+- Added Playwright test for username/password login request contract and visible invalid-credential rejection.
+- Added Playwright test for first-time username/password setup, confirming the request stays attached to the authenticated BTCBOX account.
+- Test commit: 2598d7ef901e7bea36036d6381e3d2126838c525.
+- Coordination evidence commit: 0b854bd7dd71815402d18dc63523523fcd711f37.
+
+### NOT VERIFIED / NEXT
+- Live Google provider enablement and redirect URI allowlist in Supabase.
+- Wallet sign-in on actual injected EVM and Solana wallets/devices; local E2E currently tests UI and API contracts, not real wallet signatures.
+- End-to-end login against hosted backend and the newly added Playwright tests' CI result.
+- Next batch: inspect backend Supabase identity exchange for Google/Web3 provider parity; add isolated wallet-provider cancellation/unavailable tests and callback failure/retry tests. Do not change the email-auth exclusion, real financial paths, production DB or deployment state.
