@@ -6611,3 +6611,5 @@ Current branch HEAD at note creation: `51c302a96f069876e438321d3597501fcbc26b54`
 - The existing desktop/mobile browser regression now checks available `125.50`, frozen `10.00`, and fractional BTC `0.002`, while confirming the incomplete total valuation remains hidden.
 - This is a display-only bug fix; no account API, balances, valuation, ledger, database, or trading behavior changed. Exact-head CI is required before marking validated.
 - No merge, deployment, or production database operation.
+
+- Follow-up source inspection caught one remaining doubled escape before the decimal-point literal in the regex; corrected that to a single escaped dot as well. The existing source-contract assertion already checks the correctly escaped decimal-point pattern. The final regex now matches normal decimal strings end-to-end (for example `125.50`).
