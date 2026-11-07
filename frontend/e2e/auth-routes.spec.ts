@@ -864,7 +864,8 @@ test("Admin rapid user selection ignores an older detail response", async ({ pag
   releaseSlow();
   await expect(page.getByRole("cell", { name: "fast@example.invalid" })).toBeVisible();
   await expect(page.getByText("Available: 222.00")).toBeVisible();
-  await expect(page.getByText("slow@example.invalid")).toHaveCount(0);
+  // The earlier user remains in the directory; only the selected detail panel must stay on the newer user.
+  await expect(page.getByRole("cell", { name: "slow@example.invalid" })).toBeVisible();
   await expect(page.getByText("Available: 111.00")).toHaveCount(0);
   expect(detailReads).toBe(2);
 });
