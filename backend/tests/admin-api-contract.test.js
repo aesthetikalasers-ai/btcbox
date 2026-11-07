@@ -114,3 +114,16 @@ test('admin review queues ignore stale overlapping refresh responses', () => {
   assert.ok(adminPage.includes('await refreshKycQueue("KYC approved.")'));
   assert.ok(adminPage.includes('await refreshKycQueue("KYC rejected.")'));
 });
+
+
+test('manual credit confirmation remains visible when the selected user detail refresh fails', () => {
+  const selectStart = adminPage.indexOf('const selectUser = async (uid: string, confirmedAction?: string)');
+  const creditStart = adminPage.indexOf('const manualCredit = async', selectStart);
+  const creditEnd = adminPage.indexOf('const refreshWithdrawalQueue', creditStart);
+  assert.ok(selectStart >= 0 && creditStart > selectStart && creditEnd > creditStart);
+  const selection = adminPage.slice(selectStart, creditStart);
+  const credit = adminPage.slice(creditStart, creditEnd);
+  assert.match(selection, /setNotice\(confirmedAction \|\| ""\)/);
+  assert.match(selection, /if \(confirmedAction\) \{[\s\S]*?setNotice\(confirmedAction \+ " User details could not refresh/);
+  assert.match(credit, /const confirmedAction = result\.duplicate[\s\S]*?await selectUser\(selectedUser\.uid, confirmedAction\)/);
+});
