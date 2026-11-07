@@ -38,8 +38,9 @@ export function LiveMarketsTable({ markets, loading, error }: {
   const numberLocale = numberLocales[language];
   const [searchParams, setSearchParams] = useSearchParams();
   const query = (searchParams.get("q") || "").trim().toLowerCase();
-  const latestSnapshotTs = markets.reduce((latest, item) => Math.max(latest, item.snapshotTs || 0), 0);
-  const latestProviderMarket = markets.reduce<MarketTicker | null>((latest, item) =>
+  const displayMarkets = error ? [] : markets;
+  const latestSnapshotTs = displayMarkets.reduce((latest, item) => Math.max(latest, item.snapshotTs || 0), 0);
+  const latestProviderMarket = displayMarkets.reduce<MarketTicker | null>((latest, item) =>
     (item.providerTs || 0) > (latest?.providerTs || 0) ? item : latest, null);
   const providerTimestamp = latestProviderMarket?.providerTs || 0;
   const providerSource = (latestProviderMarket?.source || "").replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 32);
@@ -50,10 +51,10 @@ export function LiveMarketsTable({ markets, loading, error }: {
     ? new Intl.DateTimeFormat(numberLocale, { hour: "2-digit", minute: "2-digit", second: "2-digit" }).format(new Date(providerTimestamp * 1000))
     : "";
   const providerAgeSeconds = providerTimestamp > 0 ? Math.max(0, Math.floor(Date.now() / 1000 - providerTimestamp)) : null;
-  const visibleMarkets = useMemo(() => markets.filter((item) => {
+  const visibleMarkets = useMemo(() => displayMarkets.filter((item) => {
     if (!query) return true;
     return item.sym.toLowerCase().includes(query) || (names[item.sym] || "").toLowerCase().includes(query);
-  }), [markets, query]);
+  }), [displayMarkets, query]);
   return (
     <Card className="flex flex-col overflow-hidden px-0 py-0">
       <div className="flex items-center justify-between gap-3 border-b border-brand-border px-4 py-4 md:px-6">
