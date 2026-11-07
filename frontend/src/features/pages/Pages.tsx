@@ -243,8 +243,8 @@ export function SpotTradingPage(){
      if(selected){
       setTicker(selected);
       setMarketUpdatedAt(selected.snapshotTs?selected.snapshotTs*1000:null);
-     }else{setTicker(null);setMarketUpdatedAt(null);setPrice("");failed=true;}
-    }else{setTicker(null);setMarketUpdatedAt(null);setPrice("");failed=true;}
+     }else{setTicker(null);setMarketUpdatedAt(null);failed=true;}
+    }else{setTicker(null);setMarketUpdatedAt(null);failed=true;}
     if(bookResult.status==="fulfilled")setBook(bookResult.value);
     else{setBook(null);failed=true;}
     setMarketFeedWarning(failed?"Live market data is temporarily unavailable.":"");
