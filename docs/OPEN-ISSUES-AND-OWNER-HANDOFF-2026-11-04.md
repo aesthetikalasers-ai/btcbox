@@ -160,3 +160,11 @@ Important: source-level implementation is not proof of live Supabase provider co
 - Commit: `27782f4bd589ee84d133c3862e32bf63568c874d`.
 - Follow-up corrected source-contract test strings for the three provider labels: `a4404e287e9fcdaa4b88a9522a817d36a9cfb95d`.
 - Browser test has not run in this environment. Current visible commit status still reports only Vercel's deployment rate limit; no corresponding GitHub Actions result has been observed yet.
+
+## CI verification update — 2026-11-07
+
+- Backend CI run `42318730474` on `1b472aff19232f02295079a86f76096881ceeb46`: SUCCESS. Unified site build, all backend tests, fail-closed deployment configuration validation, and preserved-entrypoint verification all passed. This run includes the depth normalization and chart source/OHLC changes and the corrected cache-window regression test.
+- Frontend CI run `42318554054` on `27782f4bd589ee84d133c3862e32bf63568c874d`: SUCCESS. Lint, build, Chromium install, and desktop/mobile route smoke tests passed, including the newly added 320px spot preview test.
+- An earlier backend failure was a test-boundary assertion mistake (the K-line route is earlier in the file than the ticker route), not a product-code failure; corrected in `1b472aff19232f02295079a86f76096881ceeb46`, after which backend CI passed.
+- Frontend failures before `38a4f8f3b1f52f72d026c6b976917aa5dd01a89a` were due to the KlineResponse type missing the new `source` field; type corrected and frontend CI passed.
+- Vercel status remains a separate deployment rate limit (retry in 24 hours); deployment remains paused by project instruction. No production deployment.
