@@ -3524,3 +3524,12 @@ The prior withdrawal UI audit statement claiming the active BTCBOX admin route w
 - No account/order API, financial logic, navigation destination, or data behavior changed. Trading page untouched.
 - Exact-head CI has not yet appeared in the commit workflow lookup; do not accept until exact-head install, lint, production build, Chromium and desktop/mobile route smoke tests all pass.
 - Independent browser visual QA remains NOT VERIFIED. No merge, deployment, hosted database writes or real financial operations.
+
+
+## Wallet and support mobile action feedback — 2026-11-07
+
+- FIX COMMITTED: visual PR #65 head `7342306e1b2ba157112ace0071295e291dccd381`.
+- `frontend/src/features/pages/Pages.tsx`: deposit address copy now reports success or failure in an accessible live status instead of silently attempting the clipboard API. Deposit history refresh/retry, support refresh/retry, and withdrawal retry actions use 44px shared button targets; support send and withdrawal submit actions expand to full width on narrow screens. Refresh controls expose `aria-busy` where applicable.
+- No API, support message request-ID, withdrawal request-ID/idempotency, staff review, manual payout, deposit verification or crediting behavior changed. Trading page untouched.
+- Prior exact-head CI for `f77b3b0c3bf0e91ed247dd17bbe8434e3db15e0e` passed all steps in run `42389672293`: install, lint, production build, Chromium and desktop/mobile route smoke tests. New head `7342306e1b2ba157112ace0071295e291dccd381` requires its own exact-head CI before acceptance.
+- Independent browser visual QA remains NOT VERIFIED. No merge, deployment, hosted database writes or real financial operations.
