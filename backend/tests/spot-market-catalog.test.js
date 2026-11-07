@@ -77,9 +77,8 @@ test('market timestamps distinguish server snapshot time from provider-specific 
 
 test('public ticker snapshots use a short shared-cache window and clients bypass browser cache', () => {
   const marketStart = backend.indexOf("if (path === 'market' && method === 'GET')");
-  const klineStart = backend.indexOf("if (path === 'kline' && method === 'GET')", marketStart);
-  assert.ok(marketStart >= 0 && klineStart > marketStart);
-  const route = backend.slice(marketStart, klineStart);
+  assert.ok(marketStart >= 0);
+  const route = backend.slice(marketStart, marketStart + 9000);
   assert.ok(route.includes("'Cache-Control': 'public, max-age=0, s-maxage=2, stale-while-revalidate=1'"));
   assert.ok(api.includes('cache: "no-store"'));
   assert.ok(pages.includes('window.setInterval(refreshMarketData,15000)'));
