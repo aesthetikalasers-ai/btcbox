@@ -574,6 +574,8 @@ test("Admin payout retry restores the exact TxID after an ambiguous response and
 
   await page.goto("/admin");
   await expect(page.getByRole("heading", { name: "Withdrawal queue" })).toBeVisible();
+  // Approved means staff review passed, not that funds have been sent; only completed is success.
+  await expect(page.getByText("approved", { exact: true })).toHaveClass(/text-brand-warning/);
   await page.getByPlaceholder("Required TxID / reference").fill("0xE2E-PAYOUT-TX-REFERENCE");
   await page.getByRole("button", { name: "Mark paid" }).click();
   await expect(page.getByRole("alert")).toContainText("The same reference has been saved.");
