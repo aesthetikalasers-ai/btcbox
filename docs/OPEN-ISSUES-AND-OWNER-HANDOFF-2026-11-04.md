@@ -498,3 +498,12 @@ Registration and the signed-out preview/home page are now the first pages to com
 - TEST STATUS: exact-head CI not yet triggered/verified. No local build result is claimed. Browser screenshot/physical-device visual QA remains pending.
 - LIMITATION: displaying upstream timestamp improves provenance visibility but does not prove that production provider data is fresh or changing. Live provider freshness and deployment behavior still require isolated Preview verification when release testing is authorized.
 - SAFETY: no auth, API contract, backend, database, funds, orders, production configuration, merge, or deployment changes.
+
+## 2号 AI — Admin tab response race batch — 2026-11-07
+
+- SOURCE OBSERVED: Admin `loadTab` requests for users, withdrawals, KYC, audit, orders, support, markets, deposits, seconds policy and administrator lists could resolve after a newer tab/search request. Existing audit pagination and user-detail selection had local guards, but the shared tab loader did not guard every read response.
+- FIXED: introduced a monotonically increasing tab-load request ID. Only the latest tab/search load may update its corresponding snapshot, surface its load error, or clear the shared loading state. Applied guards after awaited responses across the tab loader; retained the separate audit pagination guard and the existing manual refresh behavior.
+- REGRESSION: Playwright delays the first withdrawals GET, switches to KYC, re-enters withdrawals and receives a newer queue, then releases the older response; asserts the stale withdrawal ID cannot replace the latest queue.
+- Commits: `fc09aa75e86c59db717041b107adb9bfd44c9c3f` (Admin UI); `6e206e429a8508386c3e908cac8a3b8814ff6e5d` (E2E).
+- TEST STATUS: exact-head CI pending. No local build or screenshot QA claimed.
+- Scope: Admin frontend request lifecycle and synthetic Playwright fixtures only. No backend finance API, permissions, ledger, database, authentication or production setting changed; no real financial operations.
