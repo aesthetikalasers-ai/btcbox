@@ -553,3 +553,8 @@ Registration and the signed-out preview/home page are now the first pages to com
 
 
 - CI follow-up: first responsive-suite run `42357749939` passed install, lint, build, Chromium setup and the registration breakpoint test. The preview breakpoint test failed on a locator selecting the hidden duplicate mobile/desktop market row in the DOM; no app overflow or missing market content was reported. Replaced it with a visible-paragraph locator (`p:visible` + `BTC/USDT`). Fix commit: `ad7073ed1639be40f79bfd777d28fac9b1ee170f`. Fresh exact-head frontend CI required; do not mark the responsive batch accepted until it passes.
+
+
+- FINAL RESPONSIVE CI — frontend run `42357960746` completed SUCCESS on the responsive-test fix: npm install, TypeScript lint, production build, Chromium setup, and **68/68 desktop/mobile Playwright tests passed**. The new registration and public-preview breakpoint tests passed on both projects. The earlier 66-pass/2-fail run was the test-selector defect described above; corrected and verified with no retries reported in the final log.
+- FINAL BACKEND CI — run `42357960745` completed SUCCESS: unified build, backend test suite, fail-closed preflight, and output/entrypoint checks all passed.
+- The Vercel status remains separate and blocked by the free-plan daily deployment cap. No deploy was attempted. Manual screenshot review and live provider freshness remain pending; do not claim production visual/live-feed acceptance.
