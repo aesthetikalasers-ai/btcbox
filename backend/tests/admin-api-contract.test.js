@@ -105,3 +105,10 @@ test('withdrawal and KYC review actions use synchronous per-record locks', () =>
   assert.ok(adminPage.includes('if (reviewActionLocksRef.current[actionLockKey]) return;'));
   assert.ok(adminPage.includes('reviewActionLocksRef.current[actionLockKey] = false'));
 });
+
+test('deposit address tab visibility matches the backend deposits.read route contract', () => {
+  const tab = adminPage.match(/\{ id: "deposits", label: "Deposit addresses", permission: "([^"]+)" \}/);
+  assert.ok(tab, 'deposit address tab must be present');
+  assert.equal(tab[1], 'deposits.read');
+  assert.ok(api.includes("if (route === 'addresses' && verb === 'GET') return 'deposits.read';"));
+});

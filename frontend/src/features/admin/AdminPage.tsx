@@ -47,7 +47,7 @@ type Tab = "overview" | "users" | "deposits" | "withdrawals" | "kyc" | "audit" |
 const tabs: Array<{ id: Tab; label: string; permission: string }> = [
   { id: "overview", label: "Overview", permission: "dashboard.read" },
   { id: "users", label: "Users & manual credit", permission: "users.read" },
-  { id: "deposits", label: "Deposit addresses", permission: "system_config.read" },
+  { id: "deposits", label: "Deposit addresses", permission: "deposits.read" },
   { id: "withdrawals", label: "Withdrawals", permission: "withdrawals.read" },
   { id: "kyc", label: "KYC", permission: "kyc.read" },
   { id: "audit", label: "Audit log", permission: "financial_audit.read" },
