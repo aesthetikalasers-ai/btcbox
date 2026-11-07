@@ -6519,3 +6519,12 @@ Current branch HEAD at note creation: `51c302a96f069876e438321d3597501fcbc26b54`
 - Fixed provider parsing to accept only positive prices from the current response, clear missing/failed quotes, update all visible quote/stat elements, and hide unsupported/empty rows on Home and Markets. Trade headers now show unavailable values rather than formatting zero. Removed public-facing simulation/backend-internal wording from unavailable states.
 - Added market-adapter and public UI regression tests. Exact-head CI, browser QA, and live-provider Preview verification are pending; do not mark accepted until CI passes. No production deployment, environment change, database write, or real financial operation.
 - Detailed handoff: `docs/PUBLIC-MARKET-NO-PLACEHOLDER-HANDOFF-2026-11-07.md`.
+
+
+## 2026-11-07 — 2号 AI Vite public UI copy and stale-market follow-up
+
+- Vercel project lookup for btcboxcdt reports framework `vite`; the same repository also contains the backend static app. The batch therefore covers both the backend market adapter/views and the Vite customer-facing dashboard/pages, rather than assuming the legacy HTML view is the only active UI.
+- Vite dashboard previously retained last confirmed quote rows after a market refresh error while labelling the table as live. It now clears market rows on refresh failure, and the table itself suppresses any quote rows whenever an error is present. Unavailable state is explicit and does not show stale snapshot/provider metadata or a misleading zero-pair count.
+- Removed customer-visible wording that described orders as “sample or simulated” and “never simulated in the browser”; replaced it with ordinary account/market copy.
+- Added Playwright regressions for a successful quote followed by a failed refresh and for empty market responses; added a source-contract test preventing simulation wording in customer pages.
+- PR #63 now includes these Vite changes as well as the backend view/adapter fixes. Exact-head frontend/backend CI and browser QA remain pending; no production deployment or financial/DB operation.
