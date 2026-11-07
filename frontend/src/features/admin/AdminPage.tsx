@@ -198,7 +198,7 @@ export function AdminPage() {
           restored[withdrawalId] = saved.reference;
         }
       }
-      setPayoutReferences(current => ({ ...restored, ...current }));
+      setPayoutReferences(restored);
     } catch {
       setError("A saved payout reference could not be read. Check the withdrawal status and chain transaction before entering a new reference.");
     }
