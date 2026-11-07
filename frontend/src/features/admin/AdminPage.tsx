@@ -374,7 +374,7 @@ export function AdminPage() {
   // the first (response-lost) attempt; a retry must be surfaced as a confirmed
   // notice, not as a red failure, and the queue should be refreshed.
   const isAlreadyProcessed = (reason: unknown): reason is ApiError =>
-    reason instanceof ApiError && (reason.code === "WITHDRAWAL_ALREADY_PROCESSED" || reason.code === "KYC_EXCEPTION_REQUIRED" || reason.status === 409);
+    reason instanceof ApiError && reason.code === "WITHDRAWAL_ALREADY_PROCESSED";
   const handleAlreadyProcessed = (message: string) => {
     setNotice(message);
     setError("");
