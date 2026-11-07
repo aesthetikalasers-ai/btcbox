@@ -97,7 +97,7 @@ export function OrdersPage() {
               <p className="type-body-compact mt-2 max-w-md text-brand-text-muted">{t(signedOut ? "Your private order history is available after you sign in." : error ? "Refresh after the account service is available. Your order records have not been changed." : "When you place an order, its status and details will appear here.")}</p>
             </div>
           ) : (
-            <div className="custom-scrollbar overflow-x-auto" aria-label={t("Order history table")}>
+            <div role="region" tabIndex={0} aria-label={t("Scrollable order history table")} className="custom-scrollbar overflow-x-auto rounded-b-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-accent/40">
               <table className="w-full min-w-[760px] text-left text-sm">
                 <thead className="sticky top-0 z-10 border-y border-brand-border bg-brand-surface-2 text-[11px] font-semibold uppercase tracking-[.08em] text-brand-text-muted">
                   <tr>{["Order", "Pair", "Side", "Type", "Price", "Quantity", "Status", "Created"].map((label) => <th key={label} className="whitespace-nowrap px-4 py-3 font-semibold">{t(label)}</th>)}</tr>
