@@ -114,6 +114,7 @@ export function AdminPage() {
   const [auditPageLoading, setAuditPageLoading] = useState(false);
   const auditPageRequestRef = useRef(0);
   const tabLoadRequestRef = useRef(0);
+  const userDetailRequestRef = useRef(0);
   const kycRefreshLockRef = useRef(false);
   const kycQueueRequestRef = useRef(0);
   const withdrawalQueueRequestRef = useRef(0);
@@ -222,6 +223,7 @@ export function AdminPage() {
 
   const loadTab = useCallback(async () => {
     const requestId = ++tabLoadRequestRef.current;
+    if (tab !== "users") userDetailRequestRef.current += 1;
     if (!token || !session) return;
     const auditRequestId = ++auditPageRequestRef.current;
     setAuditPageLoading(false);
@@ -235,6 +237,7 @@ export function AdminPage() {
         setStats(snapshot);
       }
       if (tab === "users") {
+        userDetailRequestRef.current += 1;
         setUsers([]);
         setSelectedUser(null);
         const snapshot = await getAdminUsers(token, search);
@@ -407,7 +410,6 @@ export function AdminPage() {
   }, [session?.user_id, selectedUser?.uid]);
 
 
-  const userDetailRequestRef = useRef(0);
   const selectUser = async (uid: string) => {
     if (!token) return;
     const requestId = ++userDetailRequestRef.current;
