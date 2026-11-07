@@ -53,12 +53,17 @@ export function Dashboard() {
 
   useEffect(() => {
     const controller = new AbortController();
-    const load = () => getKlines("BTCUSDT", liquidityInterval, controller.signal).then((rows) => {
-      if (!controller.signal.aborted) setLiquidityCandles(rows);
-    }).catch((reason: unknown) => {
-      if (reason instanceof Error && reason.name === "AbortError") return;
-      if (!controller.signal.aborted) setLiquidityCandles([]);
-    });
+    let refreshing = false;
+    const load = () => {
+      if (refreshing || controller.signal.aborted) return;
+      refreshing = true;
+      void getKlines("BTCUSDT", liquidityInterval, controller.signal).then((rows) => {
+        if (!controller.signal.aborted) setLiquidityCandles(rows);
+      }).catch((reason: unknown) => {
+        if (reason instanceof Error && reason.name === "AbortError") return;
+        if (!controller.signal.aborted) setLiquidityCandles([]);
+      }).finally(() => { refreshing = false; });
+    };
     setLiquidityCandles([]);
     load();
     const refreshId = window.setInterval(load, 60000);
@@ -67,12 +72,17 @@ export function Dashboard() {
 
   useEffect(() => {
     const controller = new AbortController();
-    const load = () => getKlines("BTCUSDT", volumeInterval, controller.signal).then((rows) => {
-      if (!controller.signal.aborted) setVolumeCandles(rows);
-    }).catch((reason: unknown) => {
-      if (reason instanceof Error && reason.name === "AbortError") return;
-      if (!controller.signal.aborted) setVolumeCandles([]);
-    });
+    let refreshing = false;
+    const load = () => {
+      if (refreshing || controller.signal.aborted) return;
+      refreshing = true;
+      void getKlines("BTCUSDT", volumeInterval, controller.signal).then((rows) => {
+        if (!controller.signal.aborted) setVolumeCandles(rows);
+      }).catch((reason: unknown) => {
+        if (reason instanceof Error && reason.name === "AbortError") return;
+        if (!controller.signal.aborted) setVolumeCandles([]);
+      }).finally(() => { refreshing = false; });
+    };
     setVolumeCandles([]);
     load();
     const refreshId = window.setInterval(load, 60000);

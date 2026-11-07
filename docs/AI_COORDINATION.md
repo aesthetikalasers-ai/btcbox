@@ -6588,3 +6588,10 @@ Current branch HEAD at note creation: `51c302a96f069876e438321d3597501fcbc26b54`
 - Updated string balance formatting to group the integer part without numeric conversion and preserve the exact fractional digits returned by the account service. Numeric values retain the existing locale formatter; invalid strings display an em dash rather than a fabricated zero.
 - Added a regression source-contract test. Presentation-only; no account API, valuation, balance, ledger, or financial calculation changed.
 - Exact-head CI pending; no merge or deployment.
+
+
+## Public dashboard candle polling overlap — 2026-11-08 (2号 AI)
+- Found both historical BTC/USDT chart effects polled every 60 seconds without an in-flight guard. A slow provider response could overlap the next poll and allow older candle data to resolve after a newer request.
+- Added per-chart in-flight guards for liquidity and volume candle polling. Slow requests are not duplicated; failed non-abort reads clear the corresponding chart data, and effect cleanup still aborts the active request.
+- Added a regression source-contract test. Read-only public market display only; no quote source, market API, order flow, or trading logic changed.
+- Exact-head CI pending; no merge or deployment.
