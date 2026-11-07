@@ -609,6 +609,10 @@ test("Admin audit reload failure clears stale records and resets source confiden
   await expect(page.getByRole("heading", { name: "Financial audit log" })).toBeVisible();
   await expect(page.getByText("E2E-STALE-AUDIT")).toBeVisible();
   await expect(page.getByText("PostgreSQL canonical")).toBeVisible();
+  await expect(page.getByRole("columnheader", { name: "Operator ID" })).toBeVisible();
+  await expect(page.getByRole("columnheader", { name: "Affected user UID" })).toBeVisible();
+  await expect(page.getByRole("cell", { name: "e2e-admin-001" })).toBeVisible();
+  await expect(page.getByRole("cell", { name: "e2e-user-001" })).toBeVisible();
   failNextAuditRead = true;
 
   await page.getByRole("button", { name: "KYC", exact: true }).click();
