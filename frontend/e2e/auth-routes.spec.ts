@@ -517,12 +517,13 @@ test("trade chooser exposes the backend-enabled products and keeps unsupported f
 
   await page.goto("/trade-hub");
   await expect(page.getByRole("heading", { name: "Choose your trading mode" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "BTC/USDT" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Spot", exact: true })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Seconds" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "BTC/USDT" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Earn", exact: true })).toBeVisible();
   await expect(page.getByText("Futures", { exact: true })).toBeVisible();
   await expect(page.getByText("Unavailable", { exact: true })).toBeVisible();
-  const earnEntry = page.getByRole("link", { name: "Open" }).last();
+  const earnEntry = page.getByRole("link", { name: "Open" }).nth(2);
   await expect(earnEntry).toHaveAttribute("href", "/earn");
 
   // The Earn entrance is public; personal positions and any financial action remain login-gated.
