@@ -116,7 +116,7 @@ export function AuthPage({ mode, redirectTo }: { mode: "login" | "register"; red
             }}>
               <label className="block space-y-2 text-sm">
                 <span className="text-brand-text-secondary">Authenticator code</span>
-                <Input value={verifyCode} onChange={event => setVerifyCode(event.target.value.replace(/\\D/g, "").slice(0, 8))} inputMode="numeric" autoComplete="one-time-code" placeholder="Enter code" required />
+                <Input value={verifyCode} onChange={event => setVerifyCode(event.target.value.replace(/\D/g, "").slice(0, 8))} inputMode="numeric" autoComplete="one-time-code" placeholder="Enter code" required />
               </label>
               <Button type="submit" className="w-full" disabled={verifyBusy || verifyCode.length < 6}>{verifyBusy ? "Verifying…" : "Verify and continue"}</Button>
             </form> : <>
