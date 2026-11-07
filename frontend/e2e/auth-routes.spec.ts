@@ -341,3 +341,11 @@ test("first verified Google or wallet identity can set username and password on 
     current_password: "",
   }]);
 });
+
+test("OAuth callback cancellation returns a visible recovery path without creating a BTCBOX session", async ({ page }) => {
+  await page.goto("/auth/react-callback?error=access_denied&error_description=Google%20sign-in%20was%20cancelled");
+
+  await expect(page.getByText("Google sign-in was cancelled")).toBeVisible();
+  await expect(page.getByRole("link", { name: "Return to sign in" })).toHaveAttribute("href", "/login");
+  await expect(page).toHaveURL(/\/auth\/react-callback\?/);
+});
