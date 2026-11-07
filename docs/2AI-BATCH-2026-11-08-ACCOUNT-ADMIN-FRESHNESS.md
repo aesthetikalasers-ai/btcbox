@@ -31,3 +31,5 @@ No real KYC decision, manual credit, withdrawal, payout, order, production datab
 - Backend run `42413457662` caught malformed regex syntax in the new test file. Replaced the regex with literal source assertions; application code was not implicated.
 - Corrected test commit: `feede10fb984272f3ed49ad657d9ed23bcc5e1ff`.
 - Exact-head CI: backend `42413548546`, frontend `42413548554`; both running at note update.
+
+- Exact-head verification after the assertion correction: backend run `42413624133` PASSED unified build, all backend tests, fail-closed preflight and output/entrypoint checks. Frontend run `42413624143`: npm install, lint, production build and Chromium installation PASSED; desktop/mobile route smoke tests are still running.
