@@ -152,3 +152,11 @@ Important: source-level implementation is not proof of live Supabase provider co
 - Commits: `ae544a241fc0d8fcd93f94b55bafe998788cb045` (depth API), `f9c20505a739864dc85881b0fc64232ade8d2bd4` (depth client), `9d280a5774560ffcd4579ff4da3e32794fc6423d` (provider labels), `36d71cc080ff72582a92ac7d0fac668001a21c29` (depth regression), `17114ab149f1b9c897b8d657d2f8d51c769d39a5` (candle source/OHLC validation), `3081a36532d481cb83ddae409c1366047d6f2ca3` (chart warning/source UI), `08fabb8c8566f4527160d184c014443acc2a477c` (chart regression), `38a4f8f3b1f52f72d026c6b976917aa5dd01a89a` (K-line response typing).
 - Verification status: static source cross-check and regression assertions committed; test/build/browser execution on these commits remains NOT VERIFIED. No production deploy or real order activity.
 - Next continuation: run/check CI on the current head; then address route-level auth behavior and responsive trade UI issues without changing execution/settlement logic.
+
+## Mobile spot preview regression coverage — 2026-11-07
+
+- Added a 320px Playwright spot-preview case with isolated market/catalogue/K-line/depth/trading-status fixtures.
+- The test asserts distinct Coinbase ticker / Bybit order-book / Coinbase chart provenance, no chart-refresh warning on successful fixture data, and no horizontal document overflow at 320px.
+- Commit: `27782f4bd589ee84d133c3862e32bf63568c874d`.
+- Follow-up corrected source-contract test strings for the three provider labels: `a4404e287e9fcdaa4b88a9522a817d36a9cfb95d`.
+- Browser test has not run in this environment. Current visible commit status still reports only Vercel's deployment rate limit; no corresponding GitHub Actions result has been observed yet.
