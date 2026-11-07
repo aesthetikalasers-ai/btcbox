@@ -8,18 +8,32 @@
 
 WITH required_functions(name) AS (
   VALUES
+    ('admin_adjustment_atomic'),
     ('admin_get_membership_v1'),
     ('admin_list_memberships_v1'),
     ('admin_manage_membership_v1'),
+    ('admin_manual_deposit_atomic'),
     ('admin_read_seconds_open_positions_v1'),
     ('admin_set_seconds_policy_v1'),
     ('admin_set_spot_market_v1'),
     ('append_admin_audit_log'),
     ('btcbox_rate_limit_consume_v1'),
+    ('btcbox_save_state'),
+    ('cancel_limit_order_matching_v1'),
+    ('create_withdrawal_atomic'),
     ('mark_withdrawal_paid_atomic'),
     ('read_active_seconds_policy_v1'),
+    ('read_admin_account_balances_v1'),
+    ('read_admin_withdrawal_snapshot_v1'),
+    ('read_financial_account_snapshot_v1'),
+    ('read_seconds_positions_v1'),
     ('read_spot_market_snapshot_v1'),
-    ('review_withdrawal_atomic')
+    ('redeem_earn_atomic'),
+    ('review_withdrawal_atomic'),
+    ('settle_seconds_position_v1'),
+    ('submit_limit_order_matching_v1'),
+    ('submit_seconds_order_v1'),
+    ('subscribe_earn_atomic')
 ),
 function_inventory AS (
   SELECT r.name,
