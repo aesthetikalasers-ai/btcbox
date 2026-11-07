@@ -3491,3 +3491,12 @@ The prior withdrawal UI audit statement claiming the active BTCBOX admin route w
 - Previous head `c5e9f244a96ab213bfc06bc97f91dce5986c14e0`, frontend CI run `42387341827`: install, lint, production build and Chromium passed; desktop/mobile route smoke tests were in progress at this update.
 - Exact-head CI for `6db3d6ac4cf635f17d342cf0b4b3bf2adc238c99` had not yet appeared. Do not mark accepted until its full workflow passes.
 - No API, SQL, settlement behavior, database writes, merge or deployment. Trading page layout unchanged; independent visual QA remains NOT VERIFIED.
+
+
+## Admin input, support reply and status semantics batch — 2026-11-07
+
+- FIX COMMITTED: visual PR #65 head `65b72802167ac7279359fb9d5ba73e1decd2f780`.
+- `frontend/src/features/admin/AdminPage.tsx`: normalized remaining administrator form text/select controls to at least 44px high with consistent rounded surfaces; longer policy/reason textareas receive a 96px minimum writing area. Support reply now has a per-customer accessible label, a larger touch-friendly writing area and a full-width mobile send action. Admin section controls are 44px high, expose `aria-pressed`, and the horizontal section strip has contained scrolling. Status variants classify filled/settled as success; cancelled/canceled/expired as destructive; open/partially-filled/overdue as warning; unknown statuses remain outline.
+- All changes are presentational/accessibility semantics only. No handlers, permission checks, API contracts, request IDs, financial controls or settlement logic changed.
+- Exact-head frontend CI run 42387821656 for `65b72802167ac7279359fb9d5ba73e1decd2f780` was in progress at update time. Do not mark accepted until install, lint, production build, Chromium and desktop/mobile route smoke tests pass.
+- No merge, deployment, database writes or real financial operations. Trading page layout unchanged; independent browser visual QA remains NOT VERIFIED.
