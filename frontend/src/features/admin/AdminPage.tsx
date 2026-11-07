@@ -456,6 +456,7 @@ export function AdminPage() {
       setError("");
       setNotice(confirmedAction);
     } catch {
+      setWithdrawals([]);
       setError(confirmedAction + " The queue could not refresh. Reload this tab before taking another action.");
     } finally {
       setReviewQueueLoading(false);
@@ -469,6 +470,7 @@ export function AdminPage() {
       setWithdrawals(snapshot.withdrawals || []);
       setNotice("Withdrawal queue refreshed.");
     } catch (reason) {
+      setWithdrawals([]);
       setError(reason instanceof Error ? reason.message : "Withdrawal review queue could not be refreshed.");
     } finally {
       setReviewQueueLoading(false);
