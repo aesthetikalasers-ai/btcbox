@@ -276,18 +276,49 @@ function applyMarket(r){
   }
 }
 function updateLivePriceEls(){
-  $$('[data-live-price]').forEach(el=>{ const sym=el.getAttribute('data-live-price'); if(market[sym]&&market[sym].price){ el.textContent=fmtPrice(market[sym].price, sym.replace('USDT','')); } });
-  $$('[data-live-chg]').forEach(el=>{ const sym=el.getAttribute('data-live-chg'); if(market[sym]){ const c=market[sym].chg; el.textContent=pct(c); el.style.color=c>=0?'var(--up)':'var(--down)'; } });
+  $$('[data-live-price]').forEach(el=>{
+    const sym=el.getAttribute('data-live-price'), price=Number(market[sym]&&market[sym].price);
+    el.textContent=Number.isFinite(price)&&price>0?fmtPrice(price,sym.replace('USDT','')):'—';
+  });
+  $$('[data-live-chg]').forEach(el=>{
+    const sym=el.getAttribute('data-live-chg'), price=Number(market[sym]&&market[sym].price);
+    if(!Number.isFinite(price)||price<=0){el.textContent='—';return;}
+    const c=Number(market[sym].chg)||0; el.textContent=pct(c); el.style.color=c>=0?'var(--up)':'var(--down)';
+  });
 }
 async function refreshMarket(){
-  const r=await apiFetch('/market');
-  if(r.ok && (r.data||r.markets)){ state.marketUnavailable=false; hideNetError(); applyMarket(r); updateLivePriceEls(); }
-  else { state.marketUnavailable=true; showNetError((r&&r.msg)?r.msg:'Market data unavailable (backend 503). Prices are NOT simulated.', refreshMarket); }
+  if(state.marketRefreshInFlight) return;
+  state.marketRefreshInFlight=true;
+  try{
+    const r=await apiFetch('/market');
+    if(r.ok && (r.data||r.markets)){
+      state.marketUnavailable=false; hideNetError(); applyMarket(r); updateLivePriceEls();
+    } else {
+      // A failed snapshot must not leave the last successful ticker looking live.
+      state.marketUnavailable=true;
+      Object.keys(market).forEach(sym=>{market[sym].price=0;market[sym].chg=0;market[sym].high=0;market[sym].low=0;market[sym].vol=0;market[sym].source='unavailable';});
+      updateLivePriceEls();
+      showNetError((r&&r.msg)?r.msg:'Market data unavailable (backend 503). Prices are NOT simulated.', refreshMarket);
+    }
+  } finally {
+    state.marketRefreshInFlight=false;
+  }
 }
 async function refreshDepth(){
-  const sym=state.currentPair; if(!sym) return;
-  const r=await apiAdapter.depth(sym);
-  if(r.ok){ state.depthCache={sym:sym, bids:r.bids, asks:r.asks, ts:Date.now()}; const ob=$('#orderbook'); if(ob && location.hash.indexOf('/trade')>=0) ob.innerHTML=renderOrderbook(sym); }
+  const sym=state.currentPair; if(!sym||state.depthRefreshInFlight) return;
+  state.depthRefreshInFlight=true;
+  try{
+    const r=await apiAdapter.depth(sym);
+    if(r.ok){
+      state.depthCache={sym:sym,bids:r.bids,asks:r.asks,ts:Date.now()};
+      const ob=$('#orderbook'); if(ob && location.hash.indexOf('/trade')>=0 && state.currentPair===sym) ob.innerHTML=renderOrderbook(sym);
+    } else if(state.depthCache&&state.depthCache.sym===sym){
+      state.depthCache=null;
+      const ob=$('#orderbook'); if(ob && location.hash.indexOf('/trade')>=0 && state.currentPair===sym) ob.innerHTML=renderOrderbook(sym);
+    }
+  } finally {
+    state.depthRefreshInFlight=false;
+  }
 }
 
 /* ---------- apiAdapter (live backend — 46 contract + 5 extra admin endpoints) ---------- */
