@@ -532,7 +532,12 @@ export function AdminPage() {
     } catch (reason) {
       if (requestId === kycQueueRequestRef.current) {
         setKyc([]);
-        setError(reason instanceof Error ? reason.message : "KYC review queue could not be refreshed.");
+        if (confirmedAction !== "KYC review queue refreshed.") {
+          setNotice(`${confirmedAction} The queue could not refresh. Reload this tab to view the latest queue.`);
+          setError("");
+        } else {
+          setError(reason instanceof Error ? reason.message : "KYC review queue could not be refreshed.");
+        }
       }
     } finally {
       if (requestId === kycQueueRequestRef.current) setReviewQueueLoading(false);
