@@ -522,10 +522,11 @@ test("trade chooser exposes the backend-enabled products and keeps unsupported f
   await expect(page.getByRole("heading", { name: "Earn", exact: true })).toBeVisible();
   await expect(page.getByText("Futures", { exact: true })).toBeVisible();
   await expect(page.getByText("Unavailable", { exact: true })).toBeVisible();
-  await expect(page.locator('a[href="/earn"]')).toBeVisible();
+  const earnEntry = page.getByRole("link", { name: "Open" }).last();
+  await expect(earnEntry).toHaveAttribute("href", "/earn");
 
   // The Earn entrance is public; personal positions and any financial action remain login-gated.
-  await page.locator('a[href="/earn"]').click();
+  await earnEntry.click();
   await expect(page).toHaveURL(/\/login$/);
   await expect(page.getByRole("heading", { name: "Welcome back" })).toBeVisible();
 });
