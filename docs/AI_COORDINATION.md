@@ -6535,3 +6535,12 @@ Current branch HEAD at note creation: `51c302a96f069876e438321d3597501fcbc26b54`
 - Commits: `9952eaaa79cf9e77be8e53c34d7b8e92a5383f5e`, `22efd4e4582d5a11b3a6c43181160798f8b4e13e`, `73a8d0e3910f8e23ad26392be2d4b13d709adef4`.
 - Exact latest head at documentation update: pending confirmation after this doc commit. GitHub Actions were still running on the preceding code head; no pass is claimed here.
 - No production database operation, merge, or deployment was performed. Vercel remains blocked by the account build-rate limit.
+
+## Admin review queue race and CI contract follow-up — 2026-11-08
+
+- Exact-head CI on prior commit `72d7cdc989663fc4ca5b0a01eec5c6e9f5bbf479` exposed three stale source-contract assertions in `admin-api-contract.test.js`, `kyc-flow.test.js`, and `spot-trading-live-refresh.test.js`. The source implementation already used the shared post-review refresh helper; tests still expected the earlier inline queue-removal/error wording or scoped helper calls to the wrong block.
+- Updated those tests to assert the actual confirmed-action refresh contract and KYC queue request sequencing. Commits: `245d67064ff2a342a5d69cec370c47bc93ece209`, `3e0fc675fd5d5172653e9aa1d2a447f0cfb0a774`, `ea229327b9543ed8948fded6ccd02caeb2f8d5b2`.
+- Additional source review found a real race: the initial KYC/withdrawal tab load was guarded by the tab request ID but not by the queue request ID, so an older initial response could overwrite a newer manual/post-review refresh. Initial loads now increment the same queue request sequence and guard both success and failure paths. Commit: `0a17dc8de3d561ab468364f44b3b4736a214a1d8`.
+- Added a regression contract test for initial-load versus refresh races. Commit: `dbca1001d0dcc61a031c8387ebe34c06c64ddd30`.
+- Latest branch head at this update: `dbca1001d0dcc61a031c8387ebe34c06c64ddd30`. CI for this exact head has not yet returned results; do not treat previous failed CI as current validation.
+- No production database operations, merge, or deployment were performed. Vercel build-rate-limit remains a separate deployment-account limitation.
