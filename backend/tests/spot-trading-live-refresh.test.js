@@ -241,3 +241,25 @@ test('withdrawal, KYC and support views clear stale private records before accou
   assert.ok(support.includes('setLoading(true);setMessages([]);setError("")'));
   assert.ok(support.includes('if(!controller.signal.aborted){setMessages([]);setError('));
 });
+
+
+test('admin read tabs clear stale operational snapshots before refresh', () => {
+  const admin = fs.readFileSync(path.resolve(__dirname, '../../frontend/src/features/admin/AdminPage.tsx'), 'utf8');
+  const expected = [
+    ['if (tab === "users")', 'setUsers([]);'],
+    ['if (tab === "deposits")', 'setConfig({ deposit_addresses: {},'],
+    ['if (tab === "markets")', 'setSpotMarkets([]);'],
+    ['if (tab === "orders")', 'setOrders([]);'],
+    ['if (tab === "support")', 'setSupport([]);'],
+    ['if (tab === "seconds")', 'setSecondsOpenPositions([]);'],
+    ['if (tab === "admins" && session.is_super_admin)', 'setAdminMemberships([]);'],
+  ];
+  for (const [branch, clear] of expected) {
+    const start = admin.indexOf(branch);
+    assert.ok(start >= 0, branch + ' branch exists');
+    assert.ok(admin.indexOf(clear, start) > start, branch + ' clears its previous snapshot before loading');
+  }
+  const seconds = admin.slice(admin.indexOf('if (tab === "seconds")'), admin.indexOf('if (tab === "admins"'));
+  assert.ok(seconds.includes('setSecondsOpenSummary(null);'));
+  assert.ok(seconds.includes('setSecondsOpenPositions([]);'));
+});

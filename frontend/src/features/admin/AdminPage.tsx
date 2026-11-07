@@ -229,16 +229,19 @@ export function AdminPage() {
         setStats(snapshot);
       }
       if (tab === "users") {
+        setUsers([]);
         const snapshot = await getAdminUsers(token, search);
         if (requestId !== tabLoadRequestRef.current) return;
         setUsers(snapshot.users);
       }
       if (tab === "deposits") {
+        setConfig({ deposit_addresses: {}, withdrawal_fees: { USDT: "1", BTC: "0.0001", ETH: "0.001", SOL: "0.01", BNB: "0.0005", USDC: "1" }, announcement: "" });
         const snapshot = await getAdminConfig(token);
         if (requestId !== tabLoadRequestRef.current) return;
         setConfig(snapshot);
       }
       if (tab === "markets") {
+        setSpotMarkets([]);
         const result = await getAdminSpotMarkets(token);
         if (requestId !== tabLoadRequestRef.current) return;
         setSpotMarkets(result.markets || []);
@@ -287,17 +290,24 @@ export function AdminPage() {
         }
       }
       if (tab === "orders") {
+        setOrders([]);
+        setOrdersSource("unknown");
         const snapshot = await getAdminOrders(token);
         if (requestId !== tabLoadRequestRef.current) return;
         setOrders((snapshot.orders || []) as unknown as Array<Record<string, unknown>>);
         setOrdersSource(snapshot.source || "unknown");
       }
       if (tab === "support") {
+        setSupport([]);
         const snapshot = await getAdminSupportMessages(token);
         if (requestId !== tabLoadRequestRef.current) return;
         setSupport((snapshot.messages || []) as unknown as Array<Record<string, unknown>>);
       }
       if (tab === "seconds") {
+        setSecondsPolicy(null);
+        setSecondsOpenPositions([]);
+        setSecondsOpenSummary(null);
+        setSecondsQueueError("");
         const result = await getAdminSecondsPolicy(token);
         if (requestId !== tabLoadRequestRef.current) return;
         setSecondsPolicy(result.policy); setSecondsSymbols(result.policy.symbols); setSecondsDurations(result.policy.durations_sec);
@@ -313,10 +323,14 @@ export function AdminPage() {
           setSecondsQueueError("");
         } catch (queueError) {
           if (requestId !== tabLoadRequestRef.current) return;
+          setSecondsOpenPositions([]);
+          setSecondsOpenSummary(null);
           setSecondsQueueError(queueError instanceof Error ? queueError.message : "Open Seconds positions are temporarily unavailable.");
         }
       }
       if (tab === "admins" && session.is_super_admin) {
+        setAdminMemberships([]);
+        setAdminCandidates([]);
         const [membershipResult, userResult] = await Promise.all([getAdminMemberships(token), getAdminUsers(token, adminSearch)]);
         if (requestId !== tabLoadRequestRef.current) return;
         setAdminMemberships(membershipResult.admins || []);
