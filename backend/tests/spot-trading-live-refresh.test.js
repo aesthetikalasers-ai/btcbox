@@ -153,3 +153,23 @@ test('admin withdrawal review hides stale actionable queue data when refresh fai
   assert.equal((refresh.match(/setWithdrawals\(\[\]\)/g) || []).length, 2);
   assert.ok(refresh.includes('The queue could not refresh. Reload this tab before taking another action.'));
 });
+
+test('deposit destination is cleared immediately when asset or network changes', () => {
+  const start = pages.indexOf('export function DepositPage()');
+  const end = pages.indexOf('export function ', start + 30);
+  const deposit = pages.slice(start, end > start ? end : undefined);
+  assert.ok(start >= 0 && deposit.length > 0);
+  assert.ok(deposit.includes('const changeCoin=(next:string)=>{setAddress("");setError("");setCopyMessage("");'));
+  assert.ok(deposit.includes('const changeNetwork=(next:string)=>{setAddress("");setError("");setCopyMessage("");'));
+  assert.ok(deposit.includes('onChange={e=>changeNetwork(e.target.value)}'));
+});
+
+test('deposit address copy reports clipboard success and failure without silent no-op', () => {
+  const start = pages.indexOf('export function DepositPage()');
+  const end = pages.indexOf('export function ', start + 30);
+  const deposit = pages.slice(start, end > start ? end : undefined);
+  assert.ok(deposit.includes('if(!navigator.clipboard?.writeText)throw new Error("Clipboard access is unavailable.")'));
+  assert.ok(deposit.includes('setCopyMessage("Deposit address copied.")'));
+  assert.ok(deposit.includes('setCopyMessage("Could not copy the address. Select and copy it manually.")'));
+  assert.ok(deposit.includes('onClick={copyAddress}'));
+});
