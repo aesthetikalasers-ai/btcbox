@@ -375,3 +375,12 @@ Registration and the signed-out preview/home page are now the first pages to com
 - The auth-route assertions passed in desktop and mobile projects: no global banner or primary navigation is rendered on login/registration. Public preview assertions passed with the normal app header/navigation and no horizontal overflow or signed-out financial mutations.
 - Latest PR #59 remains OPEN / DRAFT / NOT MERGED. No production deployment, DB/auth configuration change, or financial action was performed.
 - Manual screenshot-based visual acceptance is still pending; CI browser tests are not claimed as physical-device visual approval.
+
+
+## 2026-11-07 continuation — public market snapshot timestamp
+
+- Source cross-check confirmed `getMarkets()` maps the backend `data[symbol].ts` value into `MarketTicker.snapshotTs`; this is the server snapshot time and is intentionally distinct from `providerTs`.
+- The public `LiveMarketsTable` now displays the latest server snapshot time for the returned rows, or an explicit unavailable label when no server timestamp is supplied. Existing refresh-error behavior remains: last confirmed rows may remain visible only with the warning that live refresh is unavailable.
+- Added a public-preview browser assertion that the server snapshot indicator is present when the market API returns its timestamp.
+- Commits: `23b5fb8b10ce176c449e5803dc914fc3d65b8751` (UI); `a421c57382435d0f49f278a53b9d5a32a2b0a5b2` (E2E).
+- Verification pending: frontend CI for the exact latest source/test SHA, plus screenshot-based visual QA. Real upstream freshness and deployed behavior remain NOT VERIFIED. No merge, deployment, production DB/auth change or financial operation.
