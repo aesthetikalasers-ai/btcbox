@@ -107,3 +107,15 @@ test('spot chart preserves provider provenance and rejects impossible OHLC range
   assert.ok(pages.includes('t("Chart")}: {candles[0]?.source||"—"}'));
   assert.ok(pages.includes('setChartFeedWarning("Chart refresh is unavailable; showing the last confirmed candles.")'));
 });
+
+
+test('legacy static market polling never presents a failed or overlapping ticker snapshot as live', () => {
+  const appCore = fs.readFileSync(path.join(root, 'assets/js/app-core.js'), 'utf8');
+  assert.ok(appCore.includes('if(state.marketRefreshInFlight) return;'));
+  assert.ok(appCore.includes('state.marketRefreshInFlight=true;'));
+  assert.ok(appCore.includes('state.marketRefreshInFlight=false;'));
+  assert.ok(appCore.includes("market[sym].source='unavailable'"));
+  assert.ok(appCore.includes("el.textContent='—'"));
+  assert.ok(appCore.includes('if(!sym||state.depthRefreshInFlight) return;'));
+  assert.ok(appCore.includes('state.depthCache=null;'));
+});
