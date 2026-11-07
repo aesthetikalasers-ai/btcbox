@@ -487,3 +487,14 @@ Registration and the signed-out preview/home page are now the first pages to com
 
 
 - Added the audit event ID to the Admin audit table for direct reconciliation with the canonical audit record. Clarified that Operator ID is the recorded actor identifier, not a display name. E2E covers the visible ID. Commits: `cb8a45d`, `95de3cc`.
+
+## 2号 AI — public market provenance batch — 2026-11-07
+
+- Branch: `work/ai2-integration-batch-20261107`, based on the current `work/btcbox-unified-20261104` collaboration branch. No merge or deployment.
+- SOURCE OBSERVED: the public dashboard polls `GET /api/market` every 15 seconds and the market API maps both server snapshot time (`ts`) and provider timestamp (`providerTs`) into `MarketTicker`. The existing public table showed only server snapshot time, which could be mistaken for the upstream market-event/response time.
+- FIXED: public market table now displays the newest available provider timestamp separately from the server snapshot timestamp, including sanitized provider source and elapsed seconds. If provider timestamp is absent, it explicitly says unavailable; it does not substitute server time.
+- REGRESSION: appended Playwright coverage with distinct server/provider timestamps and asserts both labels are present. Age assertion is clock-boundary tolerant.
+- Commits: `6ed1954458e8cc0e8d5478c10cd03897a97efcba` (UI); `86b24d2dec1490e6a98bafe9bfd380a66d200908` (E2E); `c00ecb75f114e96a105e36b53f6113a164210ba5` (stable age assertion).
+- TEST STATUS: exact-head CI not yet triggered/verified. No local build result is claimed. Browser screenshot/physical-device visual QA remains pending.
+- LIMITATION: displaying upstream timestamp improves provenance visibility but does not prove that production provider data is fresh or changing. Live provider freshness and deployment behavior still require isolated Preview verification when release testing is authorized.
+- SAFETY: no auth, API contract, backend, database, funds, orders, production configuration, merge, or deployment changes.
