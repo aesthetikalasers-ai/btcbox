@@ -39,7 +39,9 @@ function RouteLoading() {
   return <div className="mx-auto flex min-h-[240px] w-full max-w-[1200px] items-center justify-center p-6" role="status" aria-live="polite"><div className="flex items-center gap-3 text-sm text-brand-text-muted"><span className="h-4 w-4 animate-spin rounded-full border-2 border-white/15 border-t-brand-accent" />Loading BTCBOX…</div></div>;
 }
 function CustomerRoutes() {
-  return <AppLayout><AccountSetupGate><Suspense fallback={<RouteLoading />}><Routes>
+  const location = useLocation();
+  const isStandaloneAuthRoute = ["/login", "/register", "/account-setup", "/auth/react-callback"].includes(location.pathname);
+  const content = <AccountSetupGate><Suspense fallback={<RouteLoading />}><Routes>
     <Route path="/home" element={<Dashboard />} /><Route path="/markets" element={<Dashboard />} />
     <Route path="/trade-hub" element={<TradeHubPage />} /><Route path="/trade" element={<Navigate to="/trade-hub" replace />} />
     <Route path="/trade/:symbol" element={<SpotTradingPage />} />
@@ -54,7 +56,8 @@ function CustomerRoutes() {
     <Route path="/support" element={<ProtectedAccountRoute><SupportPage /></ProtectedAccountRoute>} />
     <Route path="/settings" element={<ProtectedAccountRoute><AccountSecurityPage /></ProtectedAccountRoute>} />
     <Route path="*" element={<Navigate to="/home" replace />} />
-  </Routes></Suspense></AccountSetupGate></AppLayout>;
+  </Routes></Suspense></AccountSetupGate>;
+  return isStandaloneAuthRoute ? content : <AppLayout>{content}</AppLayout>;
 }
 export default function App() {
   return <I18nProvider><Suspense fallback={<RouteLoading />}><Routes>
