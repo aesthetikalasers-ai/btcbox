@@ -6221,3 +6221,13 @@ Current branch HEAD at note creation: `51c302a96f069876e438321d3597501fcbc26b54`
 - Frontend CI `42318554054` at `27782f4bd589ee84d133c3862e32bf63568c874d`: SUCCESS — lint, build, Chromium and desktop/mobile route smoke tests passed, including the new 320px spot preview test.
 - The earlier backend red run was caused by an incorrect test slice boundary and is fixed; the earlier frontend red run was caused by missing KlineResponse source typing and is fixed.
 - Vercel deployment check still reports rate limit only; production deployment remains paused. No real funds, live orders or production DB were touched.
+
+## 2026-11-07 continuation — authentication route coverage
+
+- SOURCE OBSERVED: BTCBOX username/password are stored as salted PBKDF2-SHA256 hashes (600,000 iterations), not plaintext; verification uses crypto.timingSafeEqual. Username login applies persistent IP and normalized-username lockouts and returns a generic invalid-credentials message.
+- SOURCE OBSERVED: first-time credential setup attaches username/password to the currently authenticated BTCBOX user; it does not create a second account. Setup requires a session created within five minutes. Duplicate usernames are rejected before persistence.
+- SOURCE OBSERVED: Google OAuth uses Supabase PKCE and a dedicated callback; backend identity exchange verifies the Supabase user. Wallet login uses Supabase Web3 sign-in and requires an access-token session before exchanging it with BTCBOX. UI supports EIP-6963 Ethereum providers and injected Solana providers.
+- SOURCE OBSERVED: credential recovery requires a fresh, linked Google or wallet identity, short-lived server-side proof, and configured TOTP where enabled. Password reset revokes other BTCBOX sessions and outstanding login challenges.
+- Added Playwright contract coverage for username/password login submission + safe rejection, and first-time username/password setup on the same existing account. Commit: 2598d7ef901e7bea36036d6381e3d2126838c525.
+- NOT VERIFIED: live Supabase Google provider configuration, wallet provider availability on real devices, Google OAuth redirect allowlist, and end-to-end login against the hosted backend. Browser CI for the new tests is pending.
+- No email registration or email/password auth added. No production DB, real funds, order execution, merge or deployment touched.
