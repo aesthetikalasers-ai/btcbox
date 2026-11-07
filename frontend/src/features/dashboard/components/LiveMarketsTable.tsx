@@ -77,13 +77,13 @@ export function LiveMarketsTable({ markets, loading, error }: {
       </div>
       {error && markets.length > 0 ? (
         <div className="border-b border-brand-warning/20 bg-brand-warning/[0.05] px-4 py-2 text-xs text-brand-warning" role="status">
-          {t("Live refresh unavailable. Showing the last confirmed market data.")} {error}
+          {t("Live refresh unavailable. Showing the last confirmed market data.")}
         </div>
       ) : null}
       {error && markets.length === 0 ? (
         <div className="px-5 py-10 text-center">
           <p className="text-sm font-semibold text-brand-text">{t("Market feed unavailable")}</p>
-          <p className="mt-2 break-words text-sm text-brand-text-muted">{error}</p>
+          <p className="mt-2 text-sm text-brand-text-muted">{t("Market data is temporarily unavailable. Please try again shortly.")}</p>
         </div>
       ) : loading && markets.length === 0 ? (
         <div role="status" aria-live="polite" className="space-y-3 px-5 py-8" aria-label="Loading markets">
