@@ -19,6 +19,7 @@ export interface MarketCandle {
   low: number;
   close: number;
   volume: number;
+  source?: string;
 }
 
 interface MarketResponse {
@@ -149,8 +150,10 @@ export async function getKlines(
     Number.isFinite(candle.high) && candle.high > 0 &&
     Number.isFinite(candle.low) && candle.low > 0 &&
     Number.isFinite(candle.close) && candle.close > 0 &&
-    Number.isFinite(candle.volume) && candle.volume >= 0
-  );
+    Number.isFinite(candle.volume) && candle.volume >= 0 &&
+    candle.high >= Math.max(candle.open, candle.close, candle.low) &&
+    candle.low <= Math.min(candle.open, candle.close, candle.high)
+  ).map(candle => ({ ...candle, source: typeof payload.source === "string" ? payload.source : undefined }));
 }
 
 
