@@ -1105,8 +1105,9 @@ export async function adminApproveKyc(token: string, uid: string, reason = "") {
 export async function adminRejectKyc(token: string, uid: string, reason: string) {
   return adminRequest<{ ok: true }>(token, "admin/kyc/reject", { method: "POST", body: { uid, reason } });
 }
-export async function getAdminAuditLogs(token: string, limit = 50, signal?: AbortSignal) {
+export async function getAdminAuditLogs(token: string, limit = 50, signal?: AbortSignal, before?: string | null) {
   const query = new URLSearchParams({ limit: String(limit) });
+  if (before) query.set("before", before);
   return adminRequest<{ ok: true; logs: AdminAuditRecord[]; next_before?: string | null; source?: string; completeness?: string }>(token, `admin/audit-logs?${query.toString()}`, { signal });
 }
 export async function getAdminOrders(token: string, signal?: AbortSignal) {
