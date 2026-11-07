@@ -18,7 +18,7 @@ export function TopTokensTable({ markets = [] }: { markets?: MarketTicker[] }) {
       {markets.length === 0 ? (
         <div className="px-5 py-10 text-center text-sm text-brand-text-muted">{t("No live market data is available.")}</div>
       ) : (
-        <div className="overflow-x-auto">
+        <div role="region" aria-label={t("Top token market data")} tabIndex={0} className="overflow-x-auto focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-accent/60">
           <table className="w-full min-w-[620px] border-collapse text-left">
             <thead><tr className="border-b border-brand-border bg-brand-surface-2/70">
               {["Asset", "Last price", "24h change", "24h volume"].map((label) => <th key={label} className="whitespace-nowrap px-4 py-3 text-xs font-semibold text-brand-text-muted md:px-6">{t(label)}</th>)}
