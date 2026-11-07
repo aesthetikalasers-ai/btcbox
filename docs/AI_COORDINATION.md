@@ -6572,3 +6572,6 @@ Current branch HEAD at note creation: `51c302a96f069876e438321d3597501fcbc26b54`
 - Files: `frontend/src/features/admin/AdminPage.tsx`, `frontend/src/features/pages/Pages.tsx`, `backend/tests/admin-api-contract.test.js`, `backend/tests/account-page-freshness.test.js`.
 - Commits: Admin UI `cb3ef78b29feb73d7c30e2e561b9a2ac6486aa53`; deposit/withdraw pages `2df8ecaf0b5b2d6bc4e13f2cb93b91b809d532b1`; Admin regression `91eda8b4baa643396d118650ea0ac3cb09f4ffe1`; account freshness tests `28b2d9935cf9675084cd90fccbb249e2ccb0e6bc`.
 - Boundary: no balance, ledger, withdrawal, deposit or payout API behavior changed; no real credit, order, withdrawal, production database write, merge or deployment performed. Exact-head CI is required.
+
+
+- CI follow-up: backend run `42413457662` caught a syntax error in the new source-contract test regex (not an application-code failure). Replaced the brittle regex with literal source assertions. Corrected test commit: `feede10fb984272f3ed49ad657d9ed23bcc5e1ff`; exact-head backend/frontend CI runs `42413548546` and `42413548554` are running.
