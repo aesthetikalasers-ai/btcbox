@@ -1103,3 +1103,66 @@ test("Admin ignores a withdrawal queue response from a tab opened earlier", asyn
   await expect(page.getByText("E2E-WITHDRAWAL-CURRENT")).toBeVisible();
   expect(withdrawalReads).toBeGreaterThanOrEqual(2);
 });
+
+
+test("registration layout adapts from mobile to desktop without losing the identity choices", async ({ page }) => {
+  for (const viewport of [
+    { width: 320, height: 780 },
+    { width: 390, height: 844 },
+    { width: 768, height: 900 },
+    { width: 1440, height: 1000 },
+  ]) {
+    await page.setViewportSize(viewport);
+    await page.goto("/register");
+    await expect(page.getByRole("heading", { name: "Create your BTCBOX account" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Connect Ethereum wallet" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Connect Solana wallet" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Sign in" })).toHaveAttribute("href", "/login");
+    await expect(page.getByLabel(/email/i)).toHaveCount(0);
+    await expect(page.getByLabel("Username")).toHaveCount(0);
+    const dimensions = await page.evaluate(() => ({
+      viewport: document.documentElement.clientWidth,
+      content: document.documentElement.scrollWidth,
+    }));
+    expect(dimensions.content, `registration overflow at ${viewport.width}px`).toBeLessThanOrEqual(dimensions.viewport);
+    if (viewport.width >= 1024) {
+      await expect(page.getByRole("heading", { name: "A clearer way to enter the digital asset market." })).toBeVisible();
+    }
+  }
+});
+
+test("public market preview remains responsive across mobile, tablet and desktop widths", async ({ page }) => {
+  await page.route("**/api/market", route => route.fulfill({
+    status: 200,
+    contentType: "application/json",
+    body: JSON.stringify({
+      ok: true,
+      markets: [{ sym: "BTC", price: 65000, chg: 1.2, high: 66000, low: 64000, vol: "1000000", source: "coinbase" }],
+      data: { BTC: { ts: Math.floor(Date.now() / 1000), providerTs: Math.floor(Date.now() / 1000), source: "coinbase" } },
+    }),
+  }));
+  await page.route("**/api/kline?**", route => route.fulfill({
+    status: 200,
+    contentType: "application/json",
+    body: JSON.stringify({ ok: true, source: "coinbase", klines: [{ time: Date.now(), open: 64900, high: 65100, low: 64800, close: 65000, volume: 12 }] }),
+  }));
+
+  for (const viewport of [
+    { width: 320, height: 780 },
+    { width: 375, height: 812 },
+    { width: 768, height: 900 },
+    { width: 1024, height: 900 },
+    { width: 1440, height: 1000 },
+  ]) {
+    await page.setViewportSize(viewport);
+    await page.goto("/home");
+    await expect(page.getByRole("heading", { name: "Explore the market. Trade with confidence." })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Market overview" })).toBeVisible();
+    await expect(page.getByText("BTC/USDT", { exact: true }).first()).toBeVisible();
+    const dimensions = await page.evaluate(() => ({
+      viewport: document.documentElement.clientWidth,
+      content: document.documentElement.scrollWidth,
+    }));
+    expect(dimensions.content, `public preview overflow at ${viewport.width}px`).toBeLessThanOrEqual(dimensions.viewport);
+  }
+});
