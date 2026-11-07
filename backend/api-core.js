@@ -1566,8 +1566,8 @@ async function handleRequest(event, context) {
     const confirmed = !!(identity && (identity.email_confirmed_at || identity.confirmed_at));
     if (!isSupabaseUserId(sourceId) || !claims || claims.subject !== sourceId ||
         !Number.isFinite(authTime) || authTime > nowSeconds + 60 || nowSeconds - authTime > 5 * 60 ||
-        !['google', 'web3'].includes(provider) ||
-        (provider === 'google' && (!confirmed || !isValidAuthEmail(email))) ||
+        !['google', 'email', 'web3'].includes(provider) ||
+        ((provider === 'google' || provider === 'email') && (!confirmed || !isValidAuthEmail(email))) ||
         (provider === 'web3' && !walletIdentity)) {
       return json({ ok: false, code: 'RECENT_REAUTH_REQUIRED', msg: 'Please freshly verify a sign-in method already connected to this BTCBOX account.' }, 403);
     }

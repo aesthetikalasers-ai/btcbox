@@ -181,7 +181,7 @@ test('Google, Email and Web3 login persist 2FA challenges and authenticated sess
   const success = route.indexOf("return json({ ok: true, uid: user.uid }, 200, setCookieHeader(token))", session);
   assert.ok(session > createAccount && save > session && success > save);
   assert.match(route.slice(save, success), /PERSISTENCE_UNAVAILABLE/);
-  assert.match(route, /auth_method: authProvider === 'web3' \? 'supabase_web3' : 'supabase_google'/);
+  assert.match(route, /auth_method: authProvider === 'web3' \? 'supabase_web3' : authProvider === 'email' \? 'supabase_email' : 'supabase_google'/);
 });
 
 
