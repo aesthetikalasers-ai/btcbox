@@ -194,7 +194,7 @@ export function AdminPage() {
         if (saved && saved.version === 1 && saved.actor_id === session.user_id &&
             saved.withdrawal_id === withdrawalId && typeof saved.reference === "string" &&
             saved.reference.length > 0 && saved.reference.length <= 160 &&
-            !/[\\u0000-\\u001f\\u007f]/.test(saved.reference)) {
+            !/[\u0000-\u001f\u007f]/.test(saved.reference)) {
           restored[withdrawalId] = saved.reference;
         }
       }
@@ -508,7 +508,7 @@ export function AdminPage() {
   const markPaid = async (id: string) => {
     if (!token) return;
     const reference = (payoutReferences[id] || "").trim();
-    if (!reference || reference.length > 160 || /[\\u0000-\\u001f\\u007f]/.test(reference)) {
+    if (!reference || reference.length > 160 || /[\u0000-\u001f\u007f]/.test(reference)) {
       setError("Enter a valid TxID / payout reference (1–160 characters).");
       return;
     }
