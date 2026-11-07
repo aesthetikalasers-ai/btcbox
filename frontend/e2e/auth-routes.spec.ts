@@ -509,6 +509,56 @@ test("Admin KYC approval remains disabled without an uploaded document and secur
   expect(adminMutations).toEqual([]);
 });
 
+test("Admin payout retry restores the exact TxID after an ambiguous response and reload", async ({ page }) => {
+  await installAdminE2EIdentity(page);
+  let payoutAttempts = 0;
+  let withdrawalReads = 0;
+  await page.route("**/api/admin/withdrawals", async route => {
+    withdrawalReads += 1;
+    await route.fulfill({
+      status: 200, contentType: "application/json",
+      body: JSON.stringify({ ok: true, withdrawals: [{
+        id: "E2E-PAYOUT-RETRY-001", uid: "e2e-user-payout", coin: "USDT",
+        amount: "25.00", fee: "1.00", network: "TRC20",
+        address: "T-E2E-PAYOUT", status: "approved",
+      }] }),
+    });
+  });
+  await page.route("**/api/admin/withdraw/mark-paid", async route => {
+    payoutAttempts += 1;
+    const body = route.request().postDataJSON();
+    if (payoutAttempts === 1) {
+      await route.fulfill({
+        status: 503, contentType: "application/json",
+        body: JSON.stringify({ ok: false, code: "UPSTREAM_UNAVAILABLE", msg: "Payout result is temporarily unavailable." }),
+      });
+      return;
+    }
+    expect(body).toMatchObject({ id: "E2E-PAYOUT-RETRY-001", reference: "0xE2E-PAYOUT-TX-REFERENCE" });
+    await route.fulfill({
+      status: 200, contentType: "application/json",
+      body: JSON.stringify({
+        ok: true, status: "completed", duplicate: true,
+        payout_reference: "0xE2E-PAYOUT-TX-REFERENCE", paid_at: "2026-11-07T02:00:00.000Z",
+      }),
+    });
+  });
+
+  await page.goto("/admin");
+  await expect(page.getByRole("heading", { name: "Withdrawal queue" })).toBeVisible();
+  await page.getByPlaceholder("Required TxID / reference").fill("0xE2E-PAYOUT-TX-REFERENCE");
+  await page.getByRole("button", { name: "Mark paid" }).click();
+  await expect(page.getByRole("alert")).toContainText("The same reference has been saved.");
+
+  await page.reload();
+  await expect(page.getByRole("heading", { name: "Withdrawal queue" })).toBeVisible();
+  await expect(page.getByPlaceholder("Required TxID / reference")).toHaveValue("0xE2E-PAYOUT-TX-REFERENCE");
+  await page.getByRole("button", { name: "Mark paid" }).click();
+  await expect(page.getByRole("status")).toContainText("This payout reference was already recorded.");
+  expect(payoutAttempts).toBe(2);
+  expect(withdrawalReads).toBeGreaterThanOrEqual(2);
+});
+
 test("Admin audit reload failure clears stale records and resets source confidence", async ({ page }) => {
   await installAdminE2EIdentity(page);
   let auditReads = 0;
