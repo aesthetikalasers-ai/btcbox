@@ -87,7 +87,7 @@ export function MyPage(){
   if(status==="loading"){setLoading(true);return;}
   if(status!=="authenticated"){setAccount(null);setLoading(false);setError("");return;}
   const controller=new AbortController();
-  setLoading(true);setError("");
+  setLoading(true);setAccount(null);setError("");
   getAccount(controller.signal).then(snapshot=>{
    if(!controller.signal.aborted)setAccount(snapshot);
   }).catch((reason:unknown)=>{
@@ -125,9 +125,10 @@ export function OrdersPage(){
  const [reload,setReload]=useState(0);
  useEffect(()=>{
   const controller=new AbortController();
-  setLoading(true);setError("");
+  setLoading(true);setOrders([]);setError("");
   getOrders(controller.signal).then(setOrders).catch((reason:unknown)=>{
    if(reason instanceof Error && reason.name==="AbortError")return;
+   if(!controller.signal.aborted)setOrders([]);
    setError(reason instanceof Error?reason.message:"Order history is temporarily unavailable.");
   }).finally(()=>{if(!controller.signal.aborted)setLoading(false);});
   return ()=>controller.abort();
