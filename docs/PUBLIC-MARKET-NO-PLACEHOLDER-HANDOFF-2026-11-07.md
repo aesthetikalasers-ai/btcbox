@@ -25,6 +25,9 @@ The public website must not present demo wording, simulated market values, zero-
 - Trade headers use validated quote formatters; unavailable order-book/recent-trade messages no longer mention simulated data or backend implementation details.
 - Vite dashboard now clears stale market rows on refresh failure; the market table suppresses quotes whenever its feed reports an error and removes the stale-data banner/metadata from that state.
 - Customer-facing copy no longer describes orders as sample/simulated or says they are never simulated in the browser; empty order history uses ordinary account wording.
+- Removed visible Preview and API-verification-pending badges from the customer navigation, and replaced scaffolded/in-preview section copy with a neutral unavailable state.
+- Removed remaining sample-order wording from the alternate Orders page.
+- Backend order-book cache is cleared when the current depth provider refresh fails.
 - Added Playwright coverage for a real quote followed by a failed refresh and for an empty market response, plus source-contract checks for customer-facing wording.
 - Added regression coverage for invalid/empty provider payloads, missing pairs, and public UI placeholder suppression.
 
