@@ -31,11 +31,11 @@ test("public dashboard removes confirmed quotes when the live feed becomes unava
   }));
 
   await page.goto("/home");
-  await expect(page.getByText("65000.00", { exact: true })).toBeVisible();
+  await expect(page.getByText(/65,?000\.00/)).toBeVisible();
   await page.clock.fastForward(15000);
 
   await expect(page.getByText("Market feed unavailable", { exact: true })).toBeVisible();
-  await expect(page.getByText("65000.00", { exact: true })).toHaveCount(0);
+  await expect(page.getByText(/65,?000\.00/)).toHaveCount(0);
   await expect(page.getByText("Live refresh unavailable. Showing the last confirmed market data.")).toHaveCount(0);
   expect(marketRequests).toBeGreaterThanOrEqual(2);
 });
@@ -56,5 +56,5 @@ test("public dashboard never renders zero-filled placeholder market rows", async
 
   await expect(page.getByText("No market pairs are currently available.")).toBeVisible();
   await expect(page.getByText("0.00", { exact: true })).toHaveCount(0);
-  await expect(page.getByText("65000.00", { exact: true })).toHaveCount(0);
+  await expect(page.getByText(/65,?000\.00/)).toHaveCount(0);
 });
