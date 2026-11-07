@@ -118,7 +118,7 @@ VIEWS.trade = function(params){
       '<div class="mp-stats" aria-label="24 hour market statistics">'+
         '<div><span>24h Change</span><b class="num" style="color:'+(s.chg>=0?'var(--up)':'var(--down)')+'" data-live-chg="'+state.currentPair+'">'+marketChangeText(s)+'</b></div>'+
         '<div><span>24h High</span><b class="num" data-live-high="'+state.currentPair+'">'+(Number(s.high)>0?fmtPrice(s.high,base):'—')+'</b></div>'+
-        '<div><span>24h Low</span><b class="num" data-live-low="'+state.currentPair+'">'+(Number(s.low)>0?fmtPrice(s.low,base):'—')+'</b></div>'
+        '<div><span>24h Low</span><b class="num" data-live-low="'+state.currentPair+'">'+(Number(s.low)>0?fmtPrice(s.low,base):'—')+'</b></div>'+
       '</div>'+
     '</div>'+
     /* desktop top workspace: pairs | chart | orderbook | form */
