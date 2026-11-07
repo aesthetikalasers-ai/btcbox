@@ -33,6 +33,7 @@ DECLARE
   v_admin_members regclass := to_regclass('private.admin_memberships');
   v_market_requests regclass := to_regclass('private.spot_market_request_idempotency');
   v_proc regprocedure;
+  v_signature text;
 BEGIN
   IF v_accounts IS NULL OR v_withdrawals IS NULL OR v_spot_orders IS NULL
      OR v_spot_trades IS NULL OR v_cancel_requests IS NULL OR v_admin_members IS NULL THEN
@@ -130,6 +131,63 @@ BEGIN
      OR has_function_privilege('authenticated',v_proc,'EXECUTE') THEN
     RAISE EXCEPTION 'Seconds settlement RPC grants are not service-role-only';
   END IF;
+
+  -- Verify the final post-0028 RBAC bridge state, not the intermediate
+  -- SECURITY DEFINER wrappers created by migration 0026.
+  IF NOT has_schema_privilege('service_role','private','USAGE')
+     OR has_schema_privilege('anon','private','USAGE')
+     OR has_schema_privilege('authenticated','private','USAGE') THEN
+    RAISE EXCEPTION 'private schema USAGE must be granted only to service_role';
+  END IF;
+
+  IF has_table_privilege('service_role','private.admin_memberships','SELECT')
+     OR has_table_privilege('service_role','private.admin_memberships','INSERT')
+     OR has_table_privilege('service_role','private.admin_memberships','UPDATE')
+     OR has_table_privilege('service_role','private.admin_memberships','DELETE') THEN
+    RAISE EXCEPTION 'service_role must not have direct private membership table access';
+  END IF;
+
+  FOREACH v_signature IN ARRAY ARRAY[
+    'public.admin_get_membership_v1(uuid)',
+    'public.admin_list_memberships_v1(uuid)',
+    'public.admin_manage_membership_v1(uuid,uuid,bigint,text,text[],text,text,text)',
+    'public.admin_set_seconds_policy_v1(uuid,bigint,text[],integer[],numeric,numeric,integer,numeric,integer,text,text,text)',
+    'public.admin_set_spot_market_v1(uuid,text,text,boolean,numeric,numeric,numeric,numeric,numeric,numeric,text,text,text)',
+    'public.read_spot_market_snapshot_v1()'
+  ] LOOP
+    v_proc := to_regprocedure(v_signature);
+    IF v_proc IS NULL
+       OR NOT has_function_privilege('service_role',v_proc,'EXECUTE')
+       OR has_function_privilege('anon',v_proc,'EXECUTE')
+       OR has_function_privilege('authenticated',v_proc,'EXECUTE') THEN
+      RAISE EXCEPTION 'Admin PostgREST wrapper grants are not service-role-only: %',v_signature;
+    END IF;
+    IF (SELECT prosecdef FROM pg_proc WHERE oid=v_proc) THEN
+      RAISE EXCEPTION 'public Admin PostgREST wrapper must be SECURITY INVOKER: %',v_signature;
+    END IF;
+    IF NOT EXISTS (
+      SELECT 1 FROM pg_proc p, unnest(coalesce(p.proconfig,ARRAY[]::text[])) AS cfg(setting)
+      WHERE p.oid=v_proc AND cfg.setting='search_path=""'
+    ) THEN
+      RAISE EXCEPTION 'public Admin PostgREST wrapper must pin an empty search_path: %',v_signature;
+    END IF;
+  END LOOP;
+
+  FOREACH v_signature IN ARRAY ARRAY[
+    'private.admin_get_membership_v1(uuid)',
+    'private.admin_list_memberships_v1(uuid)',
+    'private.admin_manage_membership_v1(uuid,uuid,bigint,text,text[],text,text,text)',
+    'private.admin_set_seconds_policy_v1(uuid,bigint,text[],integer[],numeric,numeric,integer,numeric,integer,text,text,text)',
+    'private.admin_set_spot_market_v1(uuid,text,text,boolean,numeric,numeric,numeric,numeric,numeric,numeric,text,text,text)'
+  ] LOOP
+    v_proc := to_regprocedure(v_signature);
+    IF v_proc IS NULL
+       OR NOT has_function_privilege('service_role',v_proc,'EXECUTE')
+       OR has_function_privilege('anon',v_proc,'EXECUTE')
+       OR has_function_privilege('authenticated',v_proc,'EXECUTE') THEN
+      RAISE EXCEPTION 'private Admin function grants are not service-role-only: %',v_signature;
+    END IF;
+  END LOOP;
 END
 $verify$;
 
