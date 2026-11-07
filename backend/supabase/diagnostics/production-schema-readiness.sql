@@ -96,6 +96,11 @@ required_columns(schema_name, table_name, column_name, expected_type) AS (
   VALUES
     ('public','withdrawal_requests','require_admin_review','boolean'),
     ('public','withdrawal_requests','request_hash','text'),
+    ('public','withdrawal_requests','payout_reference','text'),
+    ('public','withdrawal_requests','payout_note','text'),
+    ('public','withdrawal_requests','paid_by','text'),
+    ('public','withdrawal_requests','paid_at','timestamp with time zone'),
+    ('public','financial_audit_log','event_id','text'),
     ('public','seconds_contract_positions','policy_id','uuid'),
     ('public','seconds_contract_positions','policy_version','bigint'),
     ('public','seconds_contract_positions','payout_bps_snapshot','integer'),
@@ -184,6 +189,30 @@ SELECT 'CONSTRAINT'::text AS category,
                            'seconds_contract_positions_duration_sec_positive')
          ORDER BY conname LIMIT 1
        ), 'No expected duration constraint found') AS detail
+
+UNION ALL
+
+SELECT 'CONSTRAINT'::text AS category,
+       'public.withdrawal_requests.withdrawal_requests_status_check' AS object_name,
+       CASE WHEN EXISTS (
+         SELECT 1 FROM pg_constraint
+         WHERE conrelid='public.withdrawal_requests'::regclass
+           AND conname='withdrawal_requests_status_check'
+           AND pg_get_constraintdef(oid) LIKE '%pending_admin_review%'
+           AND pg_get_constraintdef(oid) LIKE '%completed%'
+       ) THEN 'PRESENT'
+       WHEN EXISTS (
+         SELECT 1 FROM pg_constraint
+         WHERE conrelid='public.withdrawal_requests'::regclass
+           AND conname='withdrawal_requests_status_check'
+       ) THEN 'LEGACY_STATUS_SET'
+       ELSE 'MISSING' END AS status,
+       coalesce((
+         SELECT pg_get_constraintdef(oid)
+         FROM pg_constraint
+         WHERE conrelid='public.withdrawal_requests'::regclass
+           AND conname='withdrawal_requests_status_check'
+       ),'No withdrawal status constraint found') AS detail
 
 UNION ALL
 
