@@ -6445,3 +6445,7 @@ Current branch HEAD at note creation: `51c302a96f069876e438321d3597501fcbc26b54`
 - Regression coverage: canonical two-page audit fetch, no pagination for a legacy `AL...` cursor, and explicit latest-20 note in user detail.
 - Scope: frontend UI/API query parameter/tests/docs. No backend code, financial contract, ledger, database, production setting, or real account data changed.
 - Commits: `0bf6425` (audit API cursor), `662d676` (Admin pagination), `fbc04a0` (canonical pagination E2E), `3986341` (source and history limits), `f51f17a` (legacy cursor and deposit limit E2E). Exact-head CI pending.
+
+
+- Additional cross-review: audit pagination can remain in flight while an operator leaves and reopens the tab. Added a request-generation guard so an older page cannot append into a newly loaded snapshot; E2E deliberately delays the older page, reopens the tab, then releases the stale response and verifies it is ignored.
+- Commits: `28c3df8` (stale-page response guard), `4fa93a5` (tab-switch race regression). Exact-head CI pending.
