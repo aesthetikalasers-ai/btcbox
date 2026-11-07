@@ -2341,7 +2341,7 @@ async function handleRequest(event, context) {
     // Public market snapshots contain no user data. Allow short shared-cache reuse
     // so free serverless plans do not fetch every provider for every browser poll.
     // Authenticated/private/financial endpoints retain the default no-store policy.
-    return json({ ok: true, markets: out, data: dataObj, source: missingBases.length ? 'coinbase_primary_bybit_fallback' : 'coinbase' }, 200, { 'Cache-Control': 'public, max-age=2, s-maxage=5, stale-while-revalidate=3' });
+    return json({ ok: true, markets: out, data: dataObj, source: missingBases.length ? 'coinbase_primary_bybit_fallback' : 'coinbase' }, 200, { 'Cache-Control': 'public, max-age=0, s-maxage=2, stale-while-revalidate=1' });
   }
 
   // Public capability snapshot. Financial order writes remain fail-closed unless
