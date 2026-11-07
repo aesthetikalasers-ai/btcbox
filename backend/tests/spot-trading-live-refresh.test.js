@@ -130,3 +130,13 @@ test('withdrawal retry preserves its idempotency key and saved intent before sen
   assert.ok(withdrawPage.includes('request_id:intent.request_id'));
   assert.ok(withdrawPage.includes('Keep this request unchanged and retry with the same request ID.'));
 });
+
+test('My account page clears stale profile data when its authenticated refresh fails', () => {
+  const myStart = pages.indexOf('export function MyPage()');
+  const myEnd = pages.indexOf('export function ', myStart + 25);
+  const myPage = pages.slice(myStart, myEnd > myStart ? myEnd : undefined);
+  assert.ok(myStart >= 0);
+  assert.ok(myPage.includes('if(!controller.signal.aborted){'));
+  assert.ok(myPage.includes('setAccount(null);'));
+  assert.ok(myPage.includes('Account profile is temporarily unavailable.'));
+});
