@@ -177,3 +177,8 @@ Added canonical migration `0033_withdrawal_legacy_rpc_cleanup_v1.sql`:
 - Included in both guarded empty-database and Docker first-init allowlists; migration-order documentation and regression tests were updated accordingly.
 
 This is a source-chain correction only. It has not been run against the hosted production database. It must be applied only after the complete prerequisite chain has been mapped and rehearsed on a data-preserving staging copy.
+
+
+## Diagnostic hardening follow-up
+
+The production readiness query was executed again after adding overload-count detection. The current live result is unchanged: `create_withdrawal_atomic` is still the old 9-argument function and is reported as `SIGNATURE_MISMATCH`. The diagnostic now also emits `LEGACY_OVERLOAD_PRESENT` if a future database has the expected function but retains any additional overload, rather than treating a matching arity as sufficient. This query remains SELECT-only and has again completed successfully against the connected project.
