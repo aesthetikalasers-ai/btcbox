@@ -254,3 +254,13 @@ Important: source-level implementation is not proof of live Supabase provider co
 - KYC case: synthetic pending application has no uploaded document or secure preview URL; Approve remains disabled, refresh is read-only, and no Admin mutation request is sent.
 - All test API calls are intercepted; no production identity, financial write, Supabase database, merge or deployment is used.
 - Commit: `d42c2fdbc5de26be937ead020e147abdd0930432`. Push CI run `42328415525` completed SUCCESS: lint, build and all 38 desktop/mobile Playwright tests passed (19 desktop + 19 mobile), including both new Admin cases. Backend PR run `42328419228` completed SUCCESS with 411/411 tests, build, preflight and output checks; frontend PR run `42328419231` completed SUCCESS with lint, build and browser tests.
+
+## 2026-11-07 continuation — trading mode chooser and Admin QA
+
+- Trade Hub now presents four mode categories first: Spot, Seconds, Earn, and Futures. Futures is marked unavailable because the current backend does not register a supported futures service.
+- Backend-enabled spot pairs are displayed in a separate section below the category cards, with explicit loading/error/empty states; no synthetic markets are used.
+- Added Earn to the chooser and translated the new copy in all seven supported frontend locales. Earn account positions remain protected; subscribe/redeem continue to obey backend financial controls.
+- Added Playwright coverage for mode cards, a backend-provided BTC/USDT pair, Futures unavailable state, and Earn login gate.
+- Admin E2E covers withdrawal queue refresh failure without false financial confirmation or any mutation request, and blocks KYC approval when document upload/secure preview is absent.
+- Exact code/test head: `8967f936520470cd0a624efc718012dc615e26e2`. Push CI `42329063335`: SUCCESS — lint/build and 40 Playwright tests (20 desktop + 20 mobile). Backend PR CI `42329067130`: SUCCESS — 411/411 tests, unified build, fail-closed preflight and output checks. Frontend PR CI `42329067115`: SUCCESS — lint/build and 40 desktop/mobile tests.
+- No production database, funds, real orders, merge or deployment touched.
