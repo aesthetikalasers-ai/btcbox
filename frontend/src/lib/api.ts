@@ -32,6 +32,7 @@ interface MarketResponse {
 
 interface KlineResponse {
   ok: boolean;
+  source?: string;
   klines?: MarketCandle[];
   msg?: string;
   code?: string;
