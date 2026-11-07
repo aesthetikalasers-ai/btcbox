@@ -2,6 +2,8 @@
 
 ## Scope and safety
 
+- Diagnostic source blob: `backend/supabase/diagnostics/production-schema-readiness.sql` (blob `6c258b3824c102ec5c9b6d9312be6b70a5675ffb`).
+
 - Role: 2号 AI (Web App + Admin Panel / production-readiness cross-check).
 - Target inspected: connected BTCBOX Supabase project, using catalog-only `SELECT` queries.
 - No DDL, DML, grants, revokes, migration, bootstrap, financial flag change, or production deployment was executed.
