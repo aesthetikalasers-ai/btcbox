@@ -418,3 +418,7 @@ Registration and the signed-out preview/home page are now the first pages to com
 
 
 - Operator isolation follow-up: payout drafts are replaced (not merged) when the authenticated admin identity changes, so an unsent reference from a previous operator cannot leak into the next operator's UI. Commit: `8d75ce111e06ca8a7f7fca64bb4e755c1e1724b6`.
+
+
+- CI integration finding: existing Core contract tests assert the Admin UI's refresh-after-confirmed-payout call pattern. Kept that call shape and re-applied the exact duplicate-reference notice after queue refresh, so both the established contract and improved operator feedback are preserved. No Core source/test changes.
+- Follow-up: `be2b47513b18f961e96a5d97c2b99b6aec10b3c9`.
