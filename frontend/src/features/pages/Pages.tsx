@@ -789,7 +789,7 @@ export function DepositPage(){
  },[coin,network,reload]);
  useEffect(()=>{
   const controller=new AbortController();
-  setHistoryLoading(true);setHistoryError("");
+  setHistoryLoading(true);setDepositHistory([]);setHistoryError("");
   getAccount(controller.signal).then(snapshot=>{
    if(!controller.signal.aborted)setDepositHistory(Array.isArray(snapshot.deposits)?snapshot.deposits:[]);
   }).catch(reason=>{
