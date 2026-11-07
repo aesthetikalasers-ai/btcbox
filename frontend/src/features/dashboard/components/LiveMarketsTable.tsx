@@ -123,7 +123,7 @@ export function LiveMarketsTable({ markets, loading, error }: {
                   <td className="h-16 whitespace-nowrap px-4 py-2 md:px-6">
                     <div className="flex items-center gap-3">
                       <TokenIcon symbol={item.sym} className="h-8 w-8" />
-                      <Link to={`/trade/${item.sym}`} className="group min-w-0 rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent">
+                      <Link to={`/trade/${item.sym}`} aria-label={`${item.sym} spot trading`} className="group min-w-0 rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent">
                         <p className="text-sm font-semibold text-brand-text group-hover:text-brand-accent">{names[item.sym] || item.sym}</p><p className="text-xs text-brand-text-muted">{item.sym}/USDT</p>
                       </Link>
                     </div>
