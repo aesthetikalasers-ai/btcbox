@@ -550,3 +550,6 @@ Registration and the signed-out preview/home page are now the first pages to com
 - GitHub commit status shows the Vercel check failing because the free plan reached its daily deployment limit (`api-deployments-free-per-day`). This is not a Playwright failure. No deployment retry or alternate deployment was attempted.
 - Manual desktop/mobile screenshot review and live upstream freshness remain unverified; automated viewport assertions are not visual acceptance.
 - Frontend E2E/docs only. No auth/backend/financial API, ledger, database, production environment, real account, real order, merge or deployment change.
+
+
+- CI follow-up: first responsive-suite run `42357749939` passed install, lint, build, Chromium setup and the registration breakpoint test. The preview breakpoint test failed on a locator selecting the hidden duplicate mobile/desktop market row in the DOM; no app overflow or missing market content was reported. Replaced it with a visible-paragraph locator (`p:visible` + `BTC/USDT`). Fix commit: `ad7073ed1639be40f79bfd777d28fac9b1ee170f`. Fresh exact-head frontend CI required; do not mark the responsive batch accepted until it passes.
