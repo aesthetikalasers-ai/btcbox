@@ -6207,3 +6207,10 @@ Current branch HEAD at note creation: `51c302a96f069876e438321d3597501fcbc26b54`
 - Regression assertions added to `backend/tests/spot-market-catalog.test.js`; tests and browser build are NOT VERIFIED in this environment.
 - Commits: `ae544a241fc0d8fcd93f94b55bafe998788cb045`, `f9c20505a739864dc85881b0fc64232ade8d2bd4`, `9d280a5774560ffcd4579ff4da3e32794fc6423d`, `36d71cc080ff72582a92ac7d0fac668001a21c29`, `17114ab149f1b9c897b8d657d2f8d51c769d39a5`, `3081a36532d481cb83ddae409c1366047d6f2ca3`, `08fabb8c8566f4527160d184c014443acc2a477c`, `38a4f8f3b1f52f72d026c6b976917aa5dd01a89a`.
 - No production deploy or real order activity. Continue with CI status and responsive/auth route checks.
+
+## 2026-11-07 continuation — mobile spot preview
+
+- Added an isolated Playwright case at 320px width for the public spot preview. It stubs market, candles, depth and trading status, checks separate ticker/order-book/chart providers and verifies document width does not exceed viewport width.
+- Commit `27782f4bd589ee84d133c3862e32bf63568c874d`; source-contract assertion correction `a4404e287e9fcdaa4b88a9522a817d36a9cfb95d`.
+- Browser test not executed here; do not mark pass. Vercel check remains rate-limited and no Actions run for the current commits has yet been confirmed.
+- Continue with route/auth and mobile regression review; no production deployment.
