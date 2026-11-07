@@ -115,6 +115,7 @@ export function AdminPage() {
   const auditPageRequestRef = useRef(0);
   const tabLoadRequestRef = useRef(0);
   const kycRefreshLockRef = useRef(false);
+  const kycQueueRequestRef = useRef(0);
   const withdrawalQueueRequestRef = useRef(0);
   const [auditSource, setAuditSource] = useState("unknown");
   const [auditCompleteness, setAuditCompleteness] = useState("unknown");
@@ -540,19 +541,35 @@ export function AdminPage() {
 
   const refreshKycQueue = async () => {
     if (!token || kycRefreshLockRef.current) return;
+    const requestId = ++kycQueueRequestRef.current;
     kycRefreshLockRef.current = true;
     setReviewQueueLoading(true); setError(""); setNotice("");
     // A failed refresh must not leave an older KYC decision queue actionable.
     setKyc([]);
     try {
       const snapshot = await getAdminKyc(token);
+      if (requestId !== kycQueueRequestRef.current) return;
       setKyc(snapshot.kycs || []);
       setNotice("KYC review queue refreshed.");
     } catch (reason) {
+      if (requestId !== kycQueueRequestRef.current) return;
       setError(reason instanceof Error ? reason.message : "KYC review queue could not be refreshed.");
     } finally {
       kycRefreshLockRef.current = false;
-      setReviewQueueLoading(false);
+      if (requestId === kycQueueRequestRef.current) setReviewQueueLoading(false);
+    }
+  };
+  const refreshKycQueueAfterReview = async (successMessage: string) => {
+    const requestId = ++kycQueueRequestRef.current;
+    setKyc([]);
+    try {
+      const snapshot = await getAdminKyc(token);
+      if (requestId !== kycQueueRequestRef.current) return;
+      setKyc(snapshot.kycs || []);
+      setNotice(successMessage);
+    } catch {
+      if (requestId !== kycQueueRequestRef.current) return;
+      setError(successMessage + " The queue could not refresh. Reload this tab before reviewing another application.");
     }
   };
   // A 409 WITHDRAWAL_ALREADY_PROCESSED means the operation actually succeeded on
@@ -605,12 +622,9 @@ export function AdminPage() {
         await refreshWithdrawalQueue("Withdrawal rejection and refund confirmed.");
       } else {
         await adminRejectKyc(token, target.uid, reasonText);
-        setKyc(current => current.filter(item => item.uid !== target.uid));
-        setNotice("KYC rejected.");
         setReviewDialog(null);
         setReviewReason("");
-        try { setKyc((await getAdminKyc(token)).kycs || []); }
-        catch { setError("KYC review is confirmed; the queue could not refresh. Reload this tab before reviewing another application."); }
+        await refreshKycQueueAfterReview("KYC rejected.");
       }
     } catch (reason) {
       if (target.kind === "withdrawal" && isAlreadyProcessed(reason)) {
@@ -683,10 +697,7 @@ export function AdminPage() {
     setBusy(true); setError(""); setNotice("");
     try {
       await adminApproveKyc(token, uid);
-      setKyc(current => current.filter(item => item.uid !== uid));
-      setNotice("KYC approved.");
-      try { setKyc((await getAdminKyc(token)).kycs || []); }
-      catch { setError("KYC review is confirmed; the queue could not refresh. Reload this tab before reviewing another application."); }
+      await refreshKycQueueAfterReview("KYC approved.");
     } catch (reason) {
       // KYC 409 responses include actionable states such as missing documents
       // and exception approval requirements; they are not proof of a prior success.
