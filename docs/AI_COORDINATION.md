@@ -6298,3 +6298,11 @@ Current branch HEAD at note creation: `51c302a96f069876e438321d3597501fcbc26b54`
 - Registration remains Google + supported wallet identity creation (Ethereum/Solana), followed by BTCBOX username/password setup after identity verification. Do not add email registration.
 - The signed-out public preview is the customer `/home` market landing page. It must remain accessible without login, display only provider-backed market data, and provide clear register/sign-in/trading discovery paths.
 - Use the original mature UI palette and component language; keep responsive desktop/mobile layouts. No auth provider, market API contract, trading, account or financial behavior changes are authorized by this visual task.
+
+
+## Registration / public preview CI evidence — 2026-11-07
+
+- Tested source commit: `2e5c0401812d39be1bec055718d66b63f96c2734`.
+- Frontend CI run `42331547336`: SUCCESS — install, lint, build and 44 desktop/mobile Playwright tests passed.
+- Backend CI run `42331547350`: SUCCESS — unified build, 411/411 backend tests, fail-closed deployment preflight and preserved entrypoint checks passed.
+- Automated coverage includes 320px registration and signed-out public preview routes; this is not a substitute for manual visual review on physical devices.
