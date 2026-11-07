@@ -171,7 +171,7 @@ export function AuthCallbackPage() {
     if (status === "authenticated") navigate(needsCredentials ? "/account-setup" : "/home", { replace: true });
     else if (status === "two-factor") navigate("/login", { replace: true });
   }, [status, needsCredentials, navigate]);
-  return <div className="mx-auto flex min-h-[60vh] max-w-lg flex-col items-center justify-center gap-3 p-6 text-center">
+  return <div className="tone-support mx-auto flex min-h-[60vh] max-w-lg flex-col items-center justify-center gap-3 p-6 text-center">
     <div className="h-6 w-6 animate-spin rounded-full border-2 border-white/20 border-t-brand-accent" />
     <p className="text-sm text-brand-text-secondary">{error || (busy ? "Completing secure sign-in…" : "Finishing sign-in…")}</p>
     {error && <Link to="/login" className="text-sm underline">Return to sign in</Link>}
