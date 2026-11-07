@@ -111,6 +111,7 @@ export function AdminPage() {
   const [auditNextBefore, setAuditNextBefore] = useState<string | null>(null);
   const [auditPageLoading, setAuditPageLoading] = useState(false);
   const auditPageRequestRef = useRef(0);
+  const tabLoadRequestRef = useRef(0);
   const [auditSource, setAuditSource] = useState("unknown");
   const [auditCompleteness, setAuditCompleteness] = useState("unknown");
   const [orders, setOrders] = useState<Array<Record<string, unknown>>>([]);
@@ -213,17 +214,31 @@ export function AdminPage() {
   }, [allowedTabs, tab]);
 
   const loadTab = useCallback(async () => {
+    const requestId = ++tabLoadRequestRef.current;
     if (!token || !session) return;
     const auditRequestId = ++auditPageRequestRef.current;
     setAuditPageLoading(false);
     setLoading(true);
     setError("");
     try {
-      if (tab === "overview") setStats(await getAdminStats(token));
-      if (tab === "users") setUsers((await getAdminUsers(token, search)).users);
-      if (tab === "deposits") setConfig(await getAdminConfig(token));
+      if (tab === "overview") {
+        const snapshot = await getAdminStats(token);
+        if (requestId !== tabLoadRequestRef.current) return;
+        setStats(snapshot);
+      }
+      if (tab === "users") {
+        const snapshot = await getAdminUsers(token, search);
+        if (requestId !== tabLoadRequestRef.current) return;
+        setUsers(snapshot.users);
+      }
+      if (tab === "deposits") {
+        const snapshot = await getAdminConfig(token);
+        if (requestId !== tabLoadRequestRef.current) return;
+        setConfig(snapshot);
+      }
       if (tab === "markets") {
         const result = await getAdminSpotMarkets(token);
+        if (requestId !== tabLoadRequestRef.current) return;
         setSpotMarkets(result.markets || []);
         const pendingKey = "btcbox.admin.spot-market.v1." + session.user_id;
         try {
@@ -244,11 +259,15 @@ export function AdminPage() {
       }
       if (tab === "withdrawals") {
         setWithdrawals([]);
-        setWithdrawals((await getAdminWithdrawals(token)).withdrawals || []);
+        const snapshot = await getAdminWithdrawals(token);
+        if (requestId !== tabLoadRequestRef.current) return;
+        setWithdrawals(snapshot.withdrawals || []);
       }
       if (tab === "kyc") {
         setKyc([]);
-        setKyc((await getAdminKyc(token)).kycs || []);
+        const snapshot = await getAdminKyc(token);
+        if (requestId !== tabLoadRequestRef.current) return;
+        setKyc(snapshot.kycs || []);
       }
       if (tab === "audit") {
         // Never leave a previously loaded audit snapshot visible while a new
@@ -258,7 +277,7 @@ export function AdminPage() {
         setAuditSource("unknown");
         setAuditCompleteness("unknown");
         const snapshot = await getAdminAuditLogs(token);
-        if (auditRequestId === auditPageRequestRef.current) {
+        if (requestId === tabLoadRequestRef.current && auditRequestId === auditPageRequestRef.current) {
           setAudit(snapshot.logs || []);
           setAuditNextBefore(snapshot.source === "postgres_financial_audit_log" ? snapshot.next_before || null : null);
           setAuditSource(snapshot.source || "unknown");
@@ -267,12 +286,18 @@ export function AdminPage() {
       }
       if (tab === "orders") {
         const snapshot = await getAdminOrders(token);
+        if (requestId !== tabLoadRequestRef.current) return;
         setOrders((snapshot.orders || []) as unknown as Array<Record<string, unknown>>);
         setOrdersSource(snapshot.source || "unknown");
       }
-      if (tab === "support") setSupport(((await getAdminSupportMessages(token)).messages || []) as unknown as Array<Record<string, unknown>>);
+      if (tab === "support") {
+        const snapshot = await getAdminSupportMessages(token);
+        if (requestId !== tabLoadRequestRef.current) return;
+        setSupport((snapshot.messages || []) as unknown as Array<Record<string, unknown>>);
+      }
       if (tab === "seconds") {
         const result = await getAdminSecondsPolicy(token);
+        if (requestId !== tabLoadRequestRef.current) return;
         setSecondsPolicy(result.policy); setSecondsSymbols(result.policy.symbols); setSecondsDurations(result.policy.durations_sec);
         setSecondsMinStake(String(result.policy.min_stake)); setSecondsMaxStake(String(result.policy.max_stake));
         setSecondsPayoutPercent((result.policy.payout_bps / 100).toString());
@@ -280,22 +305,27 @@ export function AdminPage() {
         setSecondsMaxOpenPositions(result.policy.max_open_positions_per_user === null ? "" : String(result.policy.max_open_positions_per_user));
         try {
           const queue = await getAdminSecondsOpenPositions(token);
+          if (requestId !== tabLoadRequestRef.current) return;
           setSecondsOpenPositions(queue.positions);
           setSecondsOpenSummary(queue);
           setSecondsQueueError("");
         } catch (queueError) {
+          if (requestId !== tabLoadRequestRef.current) return;
           setSecondsQueueError(queueError instanceof Error ? queueError.message : "Open Seconds positions are temporarily unavailable.");
         }
       }
       if (tab === "admins" && session.is_super_admin) {
         const [membershipResult, userResult] = await Promise.all([getAdminMemberships(token), getAdminUsers(token, adminSearch)]);
+        if (requestId !== tabLoadRequestRef.current) return;
         setAdminMemberships(membershipResult.admins || []);
         setAdminCandidates(userResult.users || []);
       }
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "Could not load administrator data.");
+      if (requestId === tabLoadRequestRef.current) {
+        setError(reason instanceof Error ? reason.message : "Could not load administrator data.");
+      }
     } finally {
-      setLoading(false);
+      if (requestId === tabLoadRequestRef.current) setLoading(false);
     }
   }, [token, session, tab, search, adminSearch]);
 
