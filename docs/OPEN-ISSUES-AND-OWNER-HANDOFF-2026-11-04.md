@@ -220,3 +220,11 @@ Important: source-level implementation is not proof of live Supabase provider co
 - Added E2E coverage for unavailable injected Ethereum and Solana providers. Each must show a visible error and must not call the BTCBOX Supabase-session exchange endpoint without a verified wallet session.
 - Frontend CI run 42322062375 at 24017400371e46cb200fbe37867c5190ee5f1080: SUCCESS; lint/build passed and all 34 desktop/mobile route tests passed.
 - This is an isolated provider-unavailable test, not a real wallet signature test. Live EVM/Solana signing, Supabase Web3 provider configuration and real device compatibility remain NOT VERIFIED.
+
+## Admin semi-manual review queue — 2026-11-07
+
+- Existing workflow retained: staff verify a deposit receipt/transaction reference and manually credit the selected user's asset row; withdrawal requests are approved/rejected first, actual transfer is staff-operated, and Mark paid requires TxID/reference; KYC approval remains blocked unless uploaded document and secure preview URL are present; rejection requires a reason.
+- Added explicit refresh buttons to Withdrawal and KYC queues for staff to load newly submitted requests while staying in the review tab.
+- Refresh indicator is independent from action busy state. Manual refresh failures no longer display language that implies an action was confirmed; post-action queue refresh failures retain the confirmation context.
+- AdminPage changes are frontend-only; no financial route, ledger, approval decision, transfer or settlement semantics changed.
+- CI run 42322366989 at 3e15087f7952f05d3022f61be3f62ee14af1f8bc: SUCCESS. Follow-up correction commit c7366273d51526bca32135766908ba1160d8fcf7; CI run 42322432342: SUCCESS.
