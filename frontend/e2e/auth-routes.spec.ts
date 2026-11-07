@@ -584,6 +584,58 @@ test("Admin payout retry restores the exact TxID after an ambiguous response and
   expect(withdrawalReads).toBeGreaterThanOrEqual(2);
 });
 
+test("Admin audit log loads older canonical pages without mixing sources", async ({ page }) => {
+  await installAdminE2EIdentity(page);
+  let auditReads = 0;
+  const requestedUrls: string[] = [];
+  await page.route("**/api/admin/audit-logs?**", async route => {
+    auditReads += 1;
+    requestedUrls.push(route.request().url());
+    const olderPage = new URL(route.request().url()).searchParams.has("before");
+    await route.fulfill({
+      status: 200, contentType: "application/json",
+      body: JSON.stringify({
+        ok: true, source: "postgres_financial_audit_log", completeness: "postgres_canonical",
+        logs: olderPage ? [{
+          id: "E2E-AUDIT-OLDER", time: "2026-11-06T10:00:00.000Z",
+          by: "e2e-admin-001", action: "manual_deposit_confirmed",
+          uid: "e2e-user-older", detail: "Older audit fixture", postgres_sync_status: "synced",
+        }] : [{
+          id: "E2E-AUDIT-NEWER", time: "2026-11-07T10:00:00.000Z",
+          by: "e2e-admin-001", action: "manual_deposit_confirmed",
+          uid: "e2e-user-newer", detail: "Newer audit fixture", postgres_sync_status: "synced",
+        }],
+        next_before: olderPage ? null : "9001",
+      }),
+    });
+  });
+  await page.route("**/api/admin/kyc", route => route.fulfill({
+    status: 200, contentType: "application/json", body: JSON.stringify({ ok: true, kycs: [] }),
+  }));
+  await page.route("**/api/admin/withdrawals", route => route.fulfill({
+    status: 200, contentType: "application/json", body: JSON.stringify({ ok: true, withdrawals: [] }),
+  }));
+  await page.route("**/api/admin/session", route => route.fulfill({
+    status: 200, contentType: "application/json",
+    body: JSON.stringify({
+      ok: true, user_id: "e2e-admin-001", status: "active", is_super_admin: false,
+      permissions: ["withdrawals.read", "kyc.read", "financial_audit.read"],
+    }),
+  }));
+
+  await page.goto("/admin");
+  await page.getByRole("button", { name: "Audit log", exact: true }).click();
+  await expect(page.getByText("Newer audit fixture")).toBeVisible();
+  await expect(page.getByText("PostgreSQL canonical")).toBeVisible();
+  await page.getByRole("button", { name: "Load older records" }).click();
+  await expect(page.getByText("Older audit fixture")).toBeVisible();
+  await expect(page.getByText("Newer audit fixture")).toBeVisible();
+  await expect(page.getByText("Showing 2 records from this source snapshot.")).toBeVisible();
+  await expect(page.getByText("No older records in this snapshot.")).toBeVisible();
+  expect(auditReads).toBe(2);
+  expect(requestedUrls[1]).toContain("before=9001");
+});
+
 test("Admin audit reload failure clears stale records and resets source confidence", async ({ page }) => {
   await installAdminE2EIdentity(page);
   let auditReads = 0;
