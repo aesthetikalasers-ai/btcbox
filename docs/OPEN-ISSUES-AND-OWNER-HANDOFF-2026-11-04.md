@@ -507,3 +507,14 @@ Registration and the signed-out preview/home page are now the first pages to com
 - Commits: `fc09aa75e86c59db717041b107adb9bfd44c9c3f` (Admin UI); `6e206e429a8508386c3e908cac8a3b8814ff6e5d` (E2E).
 - TEST STATUS: exact-head CI pending. No local build or screenshot QA claimed.
 - Scope: Admin frontend request lifecycle and synthetic Playwright fixtures only. No backend finance API, permissions, ledger, database, authentication or production setting changed; no real financial operations.
+
+## 2号 AI — deployment test isolation follow-up — 2026-11-07
+
+- Vercel source-observed latest production deployment: `dpl_2cAQrbFQbTouccNyccnYZfY7P89e`, commit `361be5c395fef85d11b52b67884122dab0d8e7c6`, state ERROR. Frontend Vite build completed successfully; backend `npm test` exited 1 (350/356 passed, 6 failed).
+- Retrieved the failing log segment: `backend/tests/api-routing.test.js` loads `api-adapter.js` / `api-core.js` while the inherited Vercel `ADMIN_PASS` fails the startup-strength check, raising `ADMIN_PASS_TOO_WEAK`. This is a test-process environment isolation issue; it is not evidence that the public frontend build failed.
+- FIXED in this branch: set a strong, explicitly test-only `ADMIN_PASS` inside `backend/tests/api-routing.test.js` before requiring the adapter. This is confined to that test worker and does not alter Vercel settings, runtime credentials, or the production password-strength policy.
+- Also fixed the first frontend CI run's Playwright regex over-escaping for the provider-age assertion. The initial lint/build passed; route E2E failed only on that assertion matcher. Commit: `92f7f48c78e16a5fdecb387fcd98f0839dfddb7b`.
+- Admin tab-load cleanup now invalidates outstanding requests as soon as the effect is cleaned up. Commit: `e5351418e694592702a0c612b6467148dd0066e2`.
+- Test isolation commit: `4091008d2b4212a69f61db9c03a7376f1ad762fd`.
+- TEST STATUS: fresh frontend/backend CI for the final branch head is pending. Do not infer that the other five Vercel test failures have the same root cause until the backend CI result identifies them.
+- Release pause remains in force. No Vercel environment setting, deployment, production database, authentication provider, real order or financial record was changed.
