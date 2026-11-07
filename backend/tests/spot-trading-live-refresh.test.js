@@ -110,3 +110,23 @@ test('sign-in and registration pages expose username, Google and Web3 without em
   assert.ok(!authPage.includes('Continue with email'));
   assert.ok(!authPage.includes('Register with email'));
 });
+
+const withdrawStart = pages.indexOf('export function WithdrawPage()');
+const withdrawEnd = pages.indexOf('export function ', withdrawStart + 30);
+const withdrawPage = pages.slice(withdrawStart, withdrawEnd > withdrawStart ? withdrawEnd : undefined);
+
+test('withdrawal submit handler synchronously blocks concurrent duplicate browser submissions', () => {
+  assert.ok(withdrawStart >= 0 && withdrawPage.length > 0);
+  assert.ok(withdrawPage.includes('const submitLockRef=useRef(false)'));
+  assert.ok(withdrawPage.includes('submitLockRef.current)return'));
+  assert.ok(withdrawPage.includes('submitLockRef.current=true'));
+  assert.ok(withdrawPage.includes('finally{submitLockRef.current=false;setSubmitting(false);}'));
+});
+
+test('withdrawal retry preserves its idempotency key and saved intent before sending', () => {
+  const persist = withdrawPage.indexOf('window.localStorage.setItem(pendingStorageKey,JSON.stringify(intent))');
+  const send = withdrawPage.indexOf('submitWithdrawal({');
+  assert.ok(persist >= 0 && send > persist);
+  assert.ok(withdrawPage.includes('request_id:intent.request_id'));
+  assert.ok(withdrawPage.includes('Keep this request unchanged and retry with the same request ID.'));
+});
