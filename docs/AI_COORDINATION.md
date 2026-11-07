@@ -6163,3 +6163,13 @@ Current branch HEAD at note creation: `51c302a96f069876e438321d3597501fcbc26b54`
 - No backend test or frontend CI result has yet been produced for the KYC evidence-gate source commit. Do not label this batch TEST PASSED until those suites run on the exact source SHA.
 - Prior successful backend/frontend runs listed in the earlier ledger belong to earlier commits and do not verify these new changes.
 - Release remains blocked: no merge or deployment.
+
+
+## Continuation checkpoint — withdrawal rejection reason hardening (2026-11-07)
+
+- Branch: `work/btcbox-unified-20261104`.
+- Commits: `d2e13fe` (API requires actual rejection reason), `ee7e1e6` (API contract regression test), `cd2ab80` (correct control-character matcher), `de97dad` (handoff note).
+- Review finding: front-end already enforced a reason, but backend silently substituted a generic reason for direct API requests. This is now fail-closed at the API boundary: blank reason => 400 `WITHDRAWAL_REJECTION_REASON_REQUIRED`; over 200 chars/control characters => 400 `WITHDRAWAL_REJECTION_REASON_INVALID`.
+- The valid reason is forwarded to the existing atomic SQL RPC; no ledger, refund, state-transition, permission, or production behavior was otherwise changed.
+- Backend CI workflow is configured to run on pushes to this branch for backend changes. Await an actual successful run before marking TEST PASSED. No local test execution was performed through this GitHub API-only workflow.
+- Next: inspect withdrawal RPC behavior under terminal-state retries and audit visibility; then investigate market provider fallback/freshness. Keep merge/deployment/production DB and live funds operations paused.
