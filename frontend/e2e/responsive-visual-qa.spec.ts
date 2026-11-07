@@ -84,6 +84,7 @@ test("responsive visual QA captures key customer and admin entry routes without 
       expect(new URL(page.url()).pathname).toBe(routePath);
       await expect(page.getByRole("heading", { name: route.heading, exact: true })).toBeVisible({ timeout: 15000 });
       if (routePath === "/markets") await expect(page.getByRole("heading", { name: "Explore the market. Trade with confidence.", exact: true })).toHaveCount(0);
+      if (routePath === "/home" || routePath === "/markets") await expect(page.getByText("No markets enabled", { exact: true })).toBeVisible();
       if (routePath === "/trade-hub") await expect(page.getByTestId("spot-availability")).toHaveText("Unavailable");
       await page.waitForLoadState("networkidle");
       await page.evaluate(() => document.fonts.ready);
