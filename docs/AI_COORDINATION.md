@@ -6393,3 +6393,12 @@ Current branch HEAD at note creation: `51c302a96f069876e438321d3597501fcbc26b54`
 - REGRESSION: Playwright loads one user's ledger-backed balance and deposit history, then simulates a 503 for the next user's detail request; it asserts the previous deposit ID and balance row disappear and the read error is visible.
 - Scope: frontend selection state and E2E only. No deposit API, ledger, database, idempotency key, credit behavior, or production configuration changed.
 - Verification: exact-head CI pending; no merge, deployment, production DB write, or real financial operation performed.
+
+
+## Admin audit identity clarity — 2026-11-07
+
+- Cross-check found the audit table used generic “Actor” and “User” headers while the values are administrator identity and affected BTCBOX UID. This can obscure which UUID is the operator versus the customer affected by the event.
+- Updated the UI headers to “Operator ID” and “Affected user UID”; the stored `by` and `uid` values and API contract remain unchanged.
+- Extended the audit E2E to assert both identity column labels and the synthetic operator/affected-user cells.
+- CI previously exposed two E2E fixture/locator assumptions in the audit reload and user-detail isolation tests; those tests were made deterministic before adding the identity assertions. Latest exact-head CI is pending.
+- No backend, audit schema, permissions, financial operations, production database, merge or deployment action performed by 2号 AI.
