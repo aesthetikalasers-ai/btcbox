@@ -807,6 +807,7 @@ test("Admin user-detail failure clears the previously selected user's financial 
   await page.getByRole("button", { name: "Users & manual credit", exact: true }).click();
   await page.getByRole("button", { name: "Open", exact: true }).first().click();
   await expect(page.getByRole("cell", { name: "first@example.invalid" })).toBeVisible();
+  await expect(page.getByText("E2E-DEPOSIT-001")).toBeVisible();
   await expect(page.getByText("E2E-TX-FIRST")).toBeVisible();
   await expect(page.getByRole("cell", { name: "e2e-user-001" })).toBeVisible();
 
