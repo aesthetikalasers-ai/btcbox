@@ -188,7 +188,7 @@ export function SpotTradingPage(){
  useEffect(()=>{
   const controller=new AbortController();
   setLoading(true);setError("");setSpotPairEnabled(false);setTradingStatus(null);
-  setTicker(null);setCandles([]);setBook(null);setMarketUpdatedAt(null);setMarketFeedWarning("");setChartFeedWarning("");
+  setTicker(null);setCandles([]);setBook(null);setMarketUpdatedAt(null);setMarketFeedWarning("");setChartFeedWarning("");setPrice("");
   Promise.allSettled([getSpotMarketPairs(controller.signal),getMarkets(controller.signal),getKlines(symbol,"1h",controller.signal),getOrderBook(symbol,controller.signal),getTradingStatus(controller.signal),getOrders(controller.signal),getAccount(controller.signal)]).then(results=>{
    if(controller.signal.aborted)return;
    const [pairResult,marketResult,candleResult,bookResult,statusResult,ordersResult,accountResult]=results;
