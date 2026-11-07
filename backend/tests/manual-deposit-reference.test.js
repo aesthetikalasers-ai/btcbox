@@ -84,7 +84,7 @@ test('manual credit refreshes the normalized admin balance and canonical audit r
   assert.ok(creditStart >= 0 && creditEnd > creditStart);
   const creditHandler = admin.slice(creditStart, creditEnd);
   assert.match(creditHandler, /await adminManualCredit\(token/);
-  assert.match(creditHandler, /await selectUser\(selectedUser\.uid\)/);
+  assert.match(creditHandler, /await selectUser\(selectedUser\.uid, confirmedAction\)/);
 
   assert.match(sql, /apply_financial_operation/);
   assert.match(sql, /insert into public\.deposit_records/i);
