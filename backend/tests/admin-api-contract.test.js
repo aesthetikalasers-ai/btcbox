@@ -51,7 +51,7 @@ test('admin error feedback surfaces server codes and the refresh-after-confirmed
   assert.ok(adminPage.includes('WITHDRAWAL_ALREADY_PROCESSED'));
   assert.ok(adminPage.includes('already approved on a previous attempt'));
   assert.ok(adminPage.includes('already reviewed on a previous attempt'));
-  assert.ok(adminPage.includes('KYC application was already reviewed on a previous attempt'));
+  assert.ok(adminPage.includes('KYC 409 responses include actionable states'));
   assert.ok(adminPage.includes('reason.code === "WITHDRAWAL_ALREADY_PROCESSED"'));
   assert.ok(!adminPage.includes('KYC_EXCEPTION_REQUIRED'), 'KYC exception-required conflicts must remain actionable errors, not success notices');
   assert.ok(!adminPage.includes('reason.status === 409'), 'HTTP 409 alone does not prove a prior action completed');
