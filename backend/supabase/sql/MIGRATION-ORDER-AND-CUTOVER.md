@@ -9,6 +9,7 @@ Use `backend/scripts/bootstrap-empty-database.sh` only against a verified empty 
 - parses the URL hostname and refuses remote targets unless `BTCBOX_ALLOW_REMOTE_BOOTSTRAP=YES` is explicitly supplied;
 - checks that no BTCBOX-owned tables already exist before applying SQL;
 - applies the 26 canonical SQL files explicitly allowlisted in `backend/scripts/bootstrap-empty-database.sh`;
+- creates the schema only; the first API request atomically inserts the empty `btcbox_state` singleton through `btcbox_save_state` at revision 0, with no demo users or balances;
 - stops on the first SQL error and never prints the database URL.
 
 The scripts do not clear or overwrite an existing schema. They are not incremental migration runners: Docker's init hook only runs for a new empty data directory, and `run_migrations.sh` is a compatibility alias for the guarded empty-database bootstrap. A persisted Docker volume is not upgraded automatically. Do not run either bootstrap against production or an existing data volume without separate explicit owner approval.
