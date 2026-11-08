@@ -13,10 +13,10 @@ One repository execution path is active at a time. Re-read this file before star
 
 - **Active candidate:** PR #67
 - **Branch:** `integration/btcbox-mainline-consolidation-20261108`
-- **Current candidate head:** `60e7a697cf1b1b5a0f24e0d6d065203e88e7b575`
+- **Current candidate head:** `57170c221cd9761411ad84d5e9730b60089256fb`
 - **Base:** `main` at `2a3810da1aef2c0c7c58df0cfdb059a212eeb0d6`
 - **State:** Draft / open / not merged
-- **Latest exact-current-head CI:** IN PROGRESS for `60e7a697cf1b1b5a0f24e0d6d065203e88e7b575`: Backend `42478834585`, PostgreSQL schema bootstrap `42478834486`, Frontend `42478834569`. Earlier green results are historical for their respective SHAs only.
+- **Latest exact-current-head CI:** IN PROGRESS for `60e7a697cf1b1b5a0f24e0d6d065203e88e7b575`: Backend `42479149265`, PostgreSQL schema bootstrap `42479149276`, Frontend `42479149277`. Earlier green results are historical for their respective SHAs only.
 
 The previous fully green source head `8b54cf128ccd4861eedd1fae602846c92849f835` also passed Backend `42436694163`, PostgreSQL schema `42436693919`, and Frontend `42436694030`. Current head adds a documentation-only correction to the owner bootstrap guide; the full exact-head CI has now passed.
 
@@ -779,5 +779,5 @@ Safety/ownership:
 - Security Advisor reports 25 INFO-level `rls_enabled_no_policy` notices. This matches the service-role-only design: direct grant inspection confirmed no browser-role table privileges. Do not add permissive RLS policies merely to silence these notices.
 - Performance Advisor now reports no duplicate index; migration `0034` removed the redundant `financial_audit_subject_created_idx`, retaining the equivalent original `financial_audit_subject_time_idx`. Remaining INFO notices: nine unindexed foreign keys and 18 currently unused indexes on an empty/no-traffic database. Review against actual query paths before adding/removing indexes; no speculative index changes made.
 - No Auth provider settings, OAuth secrets, or service-role runtime credentials were exposed by the management connector. Real Email/Google sign-in, API-level authenticated financial route tests, Super Admin bootstrap and real financial flows remain NOT VERIFIED. Do not seed fake users or execute financial transactions to simulate readiness.
-- PR #67 candidate includes the new migration/bootstrap/test/doc changes and the backend workflow filter update. Latest exact-head CI is pending/in progress as recorded above. PR #71 remains Draft at `5f13802dadd8f023ebc1df04e26728a0786e7eba`; its new malformed-policy identifier test was added, but no exact-head PR-triggered workflow run has yet been observed. Do not call the CI issue resolved until a run is visible and passes.
+- PR #67 candidate includes the new migration/bootstrap/test/doc changes and the backend workflow filter update. Latest exact-head CI is pending/in progress as recorded above. PR #71's Seconds policy readiness guard and regression tests were absorbed into PR #67; PR #71 was closed unmerged as superseded, with a traceable comment. The guard now checks active policy readiness before both order and settlement RPCs. PR #67 exact-head CI is running on the absorbed code.
 - No production database write, production Auth change, financial operation, merge or deployment was performed.
