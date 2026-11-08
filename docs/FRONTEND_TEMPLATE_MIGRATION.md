@@ -79,3 +79,16 @@ The upstream repositories are pinned as Git submodules. This establishes source 
 - No default-language switch is made by this audit; it records the prerequisite work so the application is not released with accidental mixed-language UI.
 
 - Strata Pro dashboard card surface port: the BTCBOX dashboard's shared chart/market Card now uses the upstream 16px/20px radius, restrained inset highlight, subtle border and deeper layered shadow. The BTCBOX live market table, provider-backed candles, empty/error states and all market API behavior remain the source of truth; upstream static token/demo data and its nonfunctional volume selector are intentionally not copied.
+
+
+## Product-grade localization and financial terminology standard
+
+BTCBOX localization is a complete language system per locale, not a literal translation pass. Every supported locale must have its own natural, consistent terminology, sentence structure, tone, number/date conventions and UI copy. Do not mix source-language fragments into a localized sentence or reproduce English syntax unnaturally.
+
+- Financially necessary industry terms may remain in their recognized form where that is the professional convention for the target market (examples include Spot, Limit Order, Market Order, Maker, Taker, API, BTC, ETH and USDT). Do not preserve English merely for convenience.
+- For each locale, maintain a reviewed terminology glossary with canonical labels, approved abbreviations, contextual definitions, prohibited variants and first-use explanatory guidance where needed.
+- Preserve canonical asset tickers, protocol/network names, order identifiers, API field names and legally/technically significant identifiers. Localize their surrounding explanation and user guidance.
+- Use locale-native phrasing for navigation, forms, validation, success/error/warning messages, empty/loading/unavailable states, risk disclosures, notifications and help content. Consistency applies across customer and admin surfaces.
+- Never alter financial meaning, risk level, fees, precision, timestamps, order states or API contracts during translation. Ambiguous source copy must be resolved against product behavior before translation, not guessed.
+- Require per-locale completeness checks (no missing dictionary keys), terminology checks and native-language review. Test long labels, line wrapping, tables, dialogs and mobile touch targets at supported viewport widths.
+- Japanese is the intended first-visit default; English remains available and user selection persists. Do not enable Japanese-first until all user-visible routes and dynamic messages pass completeness and UI review. Other locales must also remain internally consistent rather than falling back unpredictably to English.
