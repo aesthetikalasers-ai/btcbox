@@ -1,6 +1,6 @@
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { dirname, resolve } from "node:path";
+import { dirname, resolve, extname } from "node:path";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const source = readFileSync(resolve(root, "src/lib/i18n.tsx"), "utf8");
@@ -28,31 +28,52 @@ function readLocale(locale) {
   if (end < 0) throw new Error("Unterminated locale dictionary: " + locale);
   const body = source.slice(bodyStart, end);
   const keys = [];
-  const pattern = /(?:^|,)\s*(?:"((?:\\.|[^"\\])*)"|([A-Za-z_$][\w$]*))\s*:/gm;
+  const invalid = [];
+  const pattern = /(?:^|,)\s*("(?:\\.|[^"\\])*"|[A-Za-z_$][\w$]*)\s*:\s*([^,\n]+),?/gm;
   for (const match of body.matchAll(pattern)) {
-    keys.push(match[1] ? JSON.parse('"' + match[1] + '"') : match[2]);
+    const rawKey = match[1];
+    const key = rawKey.startsWith('"') ? JSON.parse(rawKey) : rawKey;
+    keys.push(key);
+    if (match[2].trim() === "undefined" || match[2].trim() === "null") invalid.push(key);
   }
-  return keys;
+  return { keys, invalid };
+}
+
+function walk(directory) {
+  return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
+    const path = resolve(directory, entry.name);
+    if (entry.isDirectory()) return walk(path);
+    return [path];
+  });
 }
 
 const dictionaries = Object.fromEntries(locales.map((locale) => [locale, readLocale(locale)]));
-const canonical = new Set(dictionaries.en);
+const canonical = new Set(dictionaries.en.keys);
 let failed = false;
 
 for (const locale of locales) {
-  const keys = dictionaries[locale];
+  const { keys, invalid } = dictionaries[locale];
   const duplicates = keys.filter((key, index) => keys.indexOf(key) !== index);
   const missing = [...canonical].filter((key) => !keys.includes(key));
-  console.log(locale + ": " + keys.length + " keys; " + missing.length + " missing; " + duplicates.length + " duplicate");
-  if (duplicates.length) {
-    failed = true;
-    console.error("  Duplicate keys: " + duplicates.slice(0, 12).join(" | "));
-  }
-  if (missing.length) {
-    failed = true;
-    console.error("  Missing keys: " + missing.slice(0, 20).join(" | "));
-  }
+  console.log(locale + ": " + keys.length + " keys; " + missing.length + " missing; " + duplicates.length + " duplicate; " + invalid.length + " invalid values");
+  if (duplicates.length || missing.length || invalid.length) failed = true;
+  if (duplicates.length) console.error("  Duplicate keys: " + duplicates.slice(0, 12).join(" | "));
+  if (missing.length) console.error("  Missing keys: " + missing.slice(0, 20).join(" | "));
+  if (invalid.length) console.error("  Invalid values: " + invalid.slice(0, 20).join(" | "));
+}
+
+const usedKeys = new Set();
+const callPattern = /\bt\(\s*(["'])(.*?)\1\s*\)/gs;
+for (const path of walk(resolve(root, "src")).filter((path) => [".ts", ".tsx", ".js", ".jsx"].includes(extname(path)))) {
+  const code = readFileSync(path, "utf8");
+  for (const match of code.matchAll(callPattern)) usedKeys.add(match[2]);
+}
+const missingUsed = [...usedKeys].filter((key) => !canonical.has(key));
+console.log("Static t() calls: " + usedKeys.size + "; keys absent from English dictionary: " + missingUsed.length);
+if (missingUsed.length) {
+  failed = true;
+  console.error("  Unregistered t() keys: " + missingUsed.slice(0, 40).join(" | "));
 }
 
 if (failed) process.exitCode = 1;
-else console.log("All locale dictionaries match the English source-key set.");
+else console.log("All locale dictionaries and static translation calls are complete.");
