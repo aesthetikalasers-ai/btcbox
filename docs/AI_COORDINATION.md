@@ -600,3 +600,14 @@ Safety/ownership:
 - PR #67 remains Draft/open/unmerged. No production deployment, Vercel configuration change, hosted Supabase write, or financial operation was initiated.
 
 - Follow-up UI batch advanced candidate to `e2a70744668614bdb63b1259f26d931406ff2a88`: My Account quick links now carry separate semantic tones for verification, orders, support, and settings. The route targets and account data flow are unchanged. Exact-head CI pending.
+
+
+## 9. Navigation, wallet and account-security visual continuation — 2026-11-08
+
+- Candidate PR #67 advanced to `e75d39a3408348a7d2171b7494e86b3fa4b88706`; PR remains Draft/open/unmerged.
+- Desktop Sidebar navigation now uses distinct semantic active states and icon tiles for market, trade, assets, account, orders, Earn and support routes. Mobile BottomNav mirrors the cyan/violet/teal/blue route identity while retaining existing routes, keyboard focus treatment, touch target sizing and responsive shell geometry.
+- Assets page now has three real-data summary cards (estimated account value, number of returned assets, valuation completeness). Asset rows include the existing TokenIcon and restrained semantic edge accents. No synthetic total is calculated when valuation is incomplete; unpriced assets remain disclosed.
+- Account Security overview cards now use separate semantic surfaces for linked sign-in methods, 2FA and BTCBOX password status. Account snapshot and all auth/identity-link/recovery actions are unchanged.
+- Migration ledger updated. These are presentation refinements; they do not constitute full upstream template migration. The Spot trading layout and API contract remain untouched; no demo/mock financial values introduced.
+- Exact-head CI for `e75d39a...`: no PR-triggered check-runs/workflow-runs were visible at the immediate post-push query. Do not mark green until GitHub Actions reports completed results. Latest preceding SHA `84cee8afffbe2d980a8652f5c55ea262b4d7c797` also had no visible PR-triggered checks at query time; prior earlier-head checks are historical only.
+- No merge, production deployment, Vercel setting changes, hosted Supabase writes, or financial operations.
