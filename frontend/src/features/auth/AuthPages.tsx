@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { ArrowLeft, ArrowRight, Chrome, KeyRound, ShieldCheck, Wallet, ChartNoAxesCombined, Globe2, LockKeyhole } from "lucide-react";
+import { ArrowLeft, ArrowRight, KeyRound, ShieldCheck, Wallet, ChartNoAxesCombined, Globe2, LockKeyhole } from "lucide-react";
 import { Button } from "../../components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/card";
 import { Input } from "../../components/ui/input";
@@ -21,6 +21,7 @@ export function AuthPage({ mode, redirectTo }: { mode: "login" | "register"; red
   const [password, setPassword] = useState("");
   const [verifyCode, setVerifyCode] = useState("");
   const [verifyBusy, setVerifyBusy] = useState(false);
+  const [walletMenuOpen, setWalletMenuOpen] = useState(false);
   const navigate = useNavigate();
   const registering = mode === "register";
 
@@ -45,19 +46,38 @@ export function AuthPage({ mode, redirectTo }: { mode: "login" | "register"; red
     } catch { /* AuthProvider displays the safe error. */ }
   };
 
-  const walletButtons = <>
+  const walletButtons = <div className="mt-2 grid gap-2" role="group" aria-label={t("Connect Ethereum wallet")}>
     {ethereumWallets.length > 0
       ? ethereumWallets.map((wallet) => (
-        <Button key={wallet.info.uuid} type="button" variant="outline" className="min-h-12 w-full justify-start" aria-busy={busy} disabled={busy || status !== "anonymous"} onClick={() => void signInWithWeb3("ethereum", wallet.provider)}>
+        <Button key={wallet.info.uuid} type="button" variant="outline" className="min-h-11 w-full justify-start" aria-busy={busy} disabled={busy || status !== "anonymous"} onClick={() => void signInWithWeb3("ethereum", wallet.provider)}>
           <Wallet className="mr-2 h-4 w-4" /> {t("Continue with {wallet}").replace("{wallet}", wallet.info.name)}
         </Button>
       ))
-      : <Button type="button" variant="outline" className="min-h-12 w-full justify-start" aria-busy={busy} disabled={busy || status !== "anonymous"} onClick={() => void signInWithWeb3("ethereum")}>
+      : <Button type="button" variant="outline" className="min-h-11 w-full justify-start" aria-busy={busy} disabled={busy || status !== "anonymous"} onClick={() => void signInWithWeb3("ethereum")}>
         <Wallet className="mr-2 h-4 w-4" /> {t("Connect Ethereum wallet")}
       </Button>}
-    <Button type="button" variant="outline" className="min-h-12 w-full justify-start" aria-busy={busy} disabled={busy || status !== "anonymous"} onClick={() => void signInWithWeb3("solana")}>
+    <Button type="button" variant="outline" className="min-h-11 w-full justify-start" aria-busy={busy} disabled={busy || status !== "anonymous"} onClick={() => void signInWithWeb3("solana")}>
       <Wallet className="mr-2 h-4 w-4" /> {t("Connect Solana wallet")}
     </Button>
+  </div>;
+
+  const identityButtons = <>
+    <div className="grid grid-cols-2 gap-3 max-[360px]:grid-cols-1" data-testid="auth-provider-buttons">
+      <Button type="button" variant="outline" className="h-12 min-h-12 w-full justify-center gap-2 px-3" aria-busy={busy} disabled={!googleEnabled || busy || status !== "anonymous"} title={!googleEnabled ? t("Google sign-in is temporarily unavailable.") : undefined} onClick={() => void signInWithGoogle()}>
+        <svg aria-hidden="true" viewBox="0 0 48 48" className="h-5 w-5 shrink-0">
+          <path fill="#4285F4" d="M43.6 24.5c0-1.4-.1-2.8-.4-4.1H24v7.8h11c-.5 2.5-1.9 4.6-4 6l6.4 5c3.8-3.5 6.2-8.6 6.2-14.7z"/>
+          <path fill="#34A853" d="M24 44c5.5 0 10.1-1.8 13.4-4.8l-6.4-5c-1.8 1.2-4.1 2-7 2-5.4 0-10-3.7-11.6-8.6l-6.6 5.1C9.1 39.3 16 44 24 44z"/>
+          <path fill="#FBBC05" d="M12.4 27.6c-.4-1.2-.7-2.4-.7-3.6s.2-2.5.7-3.6l-6.6-5.1C4.5 18 3.5 20.9 3.5 24s1 6 2.3 8.7l6.6-5.1z"/>
+          <path fill="#EA4335" d="M24 11.4c3 0 5.7 1 7.8 3l5.8-5.8C34.1 5.3 29.5 3.5 24 3.5 16 3.5 9.1 8.2 5.8 15.3l6.6 5.1c1.6-4.9 6.2-9 11.6-9z"/>
+        </svg>
+        <span className="truncate">{t("Google")}</span>
+      </Button>
+      <Button type="button" variant="outline" className="h-12 min-h-12 w-full justify-center gap-2 px-3" aria-expanded={walletMenuOpen} aria-controls="auth-wallet-options" aria-busy={busy} disabled={busy || status !== "anonymous"} onClick={() => setWalletMenuOpen(open => !open)}>
+        <Wallet className="h-5 w-5 shrink-0" /> <span>{t("Wallet")}</span>
+      </Button>
+    </div>
+    {!googleEnabled && <p className="text-xs text-brand-text-muted" role="status">{t("Google sign-in is temporarily unavailable.")}</p>}
+    {walletMenuOpen && <div id="auth-wallet-options">{walletButtons}</div>}
   </>;
 
   return <main className="tone-support relative mx-auto flex min-h-[100dvh] w-full max-w-[1120px] items-center px-3 py-6 sm:px-6 sm:py-10 lg:px-8">
@@ -148,10 +168,8 @@ export function AuthPage({ mode, redirectTo }: { mode: "login" | "register"; red
                 </Button>
               </form>}
 
-              {mode === "login" && <div className="relative py-1">
-                <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-brand-border" /></div>
-                <div className="relative flex justify-center"><span className="bg-brand-surface px-3 text-xs text-brand-text-muted">{t("OR CONTINUE WITH EMAIL")}</span></div>
-              </div>}
+              {mode === "login" && identityButtons}
+
               <form className="space-y-3 rounded-xl border border-brand-border bg-brand-surface-2 p-4" aria-busy={busy} onSubmit={submitEmail}>
                 <p className="text-sm font-semibold text-brand-text">{mode === "login" ? t("Continue with email") : t("Register with email")}</p>
                 <label className="block space-y-1.5 text-sm">
@@ -167,17 +185,8 @@ export function AuthPage({ mode, redirectTo }: { mode: "login" | "register"; red
                 </Button>
                 {mode === "login" && <button type="button" className="min-h-11 text-sm font-medium text-brand-text-secondary underline underline-offset-4 disabled:opacity-50" disabled={busy || !emailAddress.trim()} onClick={() => void requestPasswordReset(emailAddress).catch(() => {})}>{t("Forgot password?")}</button>}
               </form>
-              <div className="relative py-1">
-                <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-brand-border" /></div>
-                <div className="relative flex justify-center"><span className="bg-brand-surface px-3 text-xs text-brand-text-muted">{mode === "login" ? t("OR CONTINUE WITH GOOGLE") : t("OR SIGN UP WITH GOOGLE")}</span></div>
-              </div>
-              {googleEnabled
-                ? <Button type="button" className="min-h-12 w-full" size="lg" aria-busy={busy} disabled={busy || status !== "anonymous"} onClick={() => void signInWithGoogle()}>
-                    <Chrome className="mr-2 h-5 w-5" /> {t("Continue with Google")}
-                  </Button>
-                : <div className="rounded-lg border border-brand-border bg-brand-surface-2 p-3 text-sm text-brand-text-muted" role="status">{t("Google sign-in is temporarily unavailable.")}</div>}
 
-              <div className="space-y-2">{walletButtons}</div>
+              {mode === "register" && identityButtons}
             </>}
 
             <div className="border-t border-brand-border pt-4 text-center text-sm text-brand-text-secondary">
