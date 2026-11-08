@@ -78,6 +78,10 @@ Do not put a service-role key in the browser. Private tables remain unavailable 
 
 All financial writes and matching remain fail-closed during source QA. Applying SQL does not itself authorize enabling deposits, withdrawals, spot matching, Seconds orders or settlement.
 
+## Read-only hosted schema diagnostic
+
+`backend/supabase/diagnostics/hosted-schema-contract-readonly.sql` is a SELECT-only diagnostic for comparing critical PR #67 tables/functions and the current state counts with the connected hosted database. It does not mutate schema or data and deliberately reports missing objects instead of attempting to bootstrap them. Run it only for inspection; a missing-object result is a release blocker, not permission to run the fresh-schema bootstrap against a non-empty project.
+
 ## Validation and release gates
 
 Source CI verifies SQL inventory, shell syntax, bootstrap safety gates and source-level RPC contracts. It does not execute PostgreSQL DDL. Before any authorized hosted install:
