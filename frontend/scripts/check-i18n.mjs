@@ -55,4 +55,4 @@ for (const locale of locales) {
 }
 
 if (failed) process.exitCode = 1;
-else console.log("All locale dictionaries match the Japanese source-key set.");
+else console.log("All locale dictionaries match the English source-key set.");
