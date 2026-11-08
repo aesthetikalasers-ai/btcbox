@@ -1005,6 +1005,37 @@ const dictionaries: Record<Language, Dictionary> = {
     "Historical BTC/USDT candles from market providers.": "Candles históricos BTC/USDT dos provedores de mercado.",
     "No chart data": "Não há dados do gráfico",
   }
+
+};
+
+const missingTranslationWarnings = new Set<string>();
+
+const supplementalDictionaries: Partial<Record<Language, Dictionary>> = {
+  ja: {
+    "Live account data": "リアルタイム口座データ",
+    "assets": "資産",
+    "Loading account balances…": "口座残高を読み込み中…",
+    "Wallet overview": "ウォレット概要",
+    "Estimated account value": "推定口座評価額",
+    "All listed assets have a returned valuation.": "一覧に表示されたすべての資産について評価額を取得しました。",
+    "Complete valuation is unavailable; no partial total is presented as a complete balance.": "完全な評価額を取得できないため、不完全な合計額を確定残高として表示していません。",
+    "Assets returned by your account": "アカウントから取得した資産",
+    "Valuation status": "評価状況",
+    "Complete": "完了",
+    "Partial / unavailable": "一部 / 利用不可",
+    "Unpriced assets are excluded from complete valuation.": "価格を取得できない資産は完全な評価額に含まれません。",
+    "Your assets": "保有資産",
+    "In orders": "注文中",
+    "USDT value": "USDT換算額",
+    "No asset balances were returned by the account service.": "アカウントサービスから資産残高が返されませんでした。",
+    "Read-only history": "閲覧専用履歴",
+    "records": "件",
+    "Loading orders…": "注文を読み込み中…",
+    "No orders returned": "注文データがありません",
+    "No orders are available for this account yet.": "このアカウントにはまだ注文がありません。",
+    "Created": "作成日時",
+    "Order ID": "注文ID",
+  },
 };
 
 type I18nValue = { language: Language; setLanguage: (language: Language) => void; t: (value: string) => string };
@@ -1023,7 +1054,22 @@ export function I18nProvider({ children }: { children: ReactNode }) {
     setLanguageState(next);
     if (typeof window !== "undefined") window.localStorage.setItem("btcbox-language", next);
   };
-  const value = useMemo(() => ({ language, setLanguage, t: (text: string) => dictionaries[language][text] || text }), [language]);
+  const value = useMemo(() => ({
+    language,
+    setLanguage,
+    t: (text: string) => {
+      const translated = supplementalDictionaries[language]?.[text] ?? dictionaries[language][text];
+      if (translated !== undefined) return translated;
+      if (import.meta.env.DEV) {
+        const warningKey = `${language}:${text}`;
+        if (!missingTranslationWarnings.has(warningKey)) {
+          missingTranslationWarnings.add(warningKey);
+          console.warn(`[BTCBOX i18n] Missing ${language} translation:`, text);
+        }
+      }
+      return text;
+    },
+  }), [language]);
   return <I18nContext.Provider value={value}>{children}</I18nContext.Provider>;
 }
 
