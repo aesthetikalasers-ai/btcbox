@@ -13,10 +13,10 @@ One repository execution path is active at a time. Re-read this file before star
 
 - **Active candidate:** PR #67
 - **Branch:** `integration/btcbox-mainline-consolidation-20261108`
-- **Current candidate head:** `095761cc8e597bbe44e815af3da6e2a6c6d971ee`
+- **Current candidate head:** `0bb7f060e6319b822b2cffb78ab523917fea90f1`
 - **Base:** `main` at `2a3810da1aef2c0c7c58df0cfdb059a212eeb0d6`
 - **State:** Draft / open / not merged
-- **Latest exact-current-head CI:** For `095761cc8e597bbe44e815af3da6e2a6c6d971ee`, Backend `42485428844` PASS and PostgreSQL schema `42485428748` PASS; Frontend `42485428791` is running Chromium installation and desktop/mobile route smoke tests. This head adds a withdrawal fee/review-threshold idempotency regression assertion only.
+- **Latest exact-current-head CI:** For `0bb7f060e6319b822b2cffb78ab523917fea90f1`, Backend `42486052474` PASS and PostgreSQL schema `42486052438` PASS; Frontend `42486052434` is running desktop/mobile route smoke tests. This head includes withdrawal replay regression coverage, five new financial-write rate-limit scopes, the additive `0037` migration, and rate-limit-secret deployment preflight.
 
 The previous fully green source head `8b54cf128ccd4861eedd1fae602846c92849f835` also passed Backend `42436694163`, PostgreSQL schema `42436693919`, and Frontend `42436694030`. Current head adds a documentation-only correction to the owner bootstrap guide; the full exact-head CI has now passed.
 
@@ -881,3 +881,19 @@ Safety/ownership:
 - The API request hash is asserted to bind user, asset, network, amount, destination and request ID, while excluding mutable fee configuration.
 - Test-only commit: `095761cc8e597bbe44e815af3da6e2a6c6d971ee`. Exact-head Backend CI `42485428844` PASS; PostgreSQL schema CI `42485428748` PASS; Frontend CI `42485428791` still running. No production or Staging database writes, financial RPC calls, merge or deployment.
 - Language PR #72 remains at `40a0a543a67bb6d1874638894badeab914a3ed0f` with its previously reported frontend CI failure; language-owned files were not modified.
+
+
+## 31. Customer financial write rate limiting — 2026-11-08
+
+- Source review found the shared fixed-window limiter was used by 12 protected routes but not by customer-facing withdrawal creation, Spot order/cancel, or Earn subscribe/redeem. The database RPC explicitly rejected unknown scopes, so adding API-only policies would have failed closed.
+- Added five matched API/database scopes:
+  - `withdraw_create`: 5 requests / 900 seconds.
+  - `spot_order`: 30 requests / 300 seconds.
+  - `spot_cancel`: 60 requests / 300 seconds.
+  - `earn_subscribe`: 10 requests / 900 seconds.
+  - `earn_redeem`: 20 requests / 900 seconds.
+- Added additive migration `0037_financial_write_rate_limit_scopes_v1.sql`; updated both guarded fresh-database bootstrap allowlists, migration order/count (now 30 canonical SQL files), shared-rate-limit regression tests, and API-to-SQL source contract tests.
+- Added `BTCBOX_RATE_LIMIT_HMAC_SECRET` to `backend/.env.example`; deployment preflight now requires at least 32 bytes and the backend CI uses a CI-only dummy value. No real secret was added.
+- Exact candidate head: `0bb7f060e6319b822b2cffb78ab523917fea90f1`. Backend CI `42486052474` PASS; PostgreSQL schema CI `42486052438` PASS; Frontend CI `42486052434` still running.
+- Applied migration `0037_financial_write_rate_limit_scopes_v1` to isolated free Staging project `gnwsygxshqceunihguwe`. SELECT-only post-apply verification confirmed all 17 allowed scopes, function body/policy values, service_role EXECUTE=true, anon/authenticated EXECUTE=false, and zero rows in `btcbox_rate_limits`. No rate-limit test rows or financial data were inserted.
+- No production database write, production Auth change, financial operation, merge or deployment. PR #67 remains Draft/open/unmerged.
