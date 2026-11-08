@@ -132,3 +132,59 @@ test('Spot cancellation API and SQL preserve request identity and exact-replay b
   assert.match(matchingSql, /RETURN v_cancel\.response \|\| jsonb_build_object\('duplicate',true\)/i);
   assert.match(matchingSql, /INSERT INTO public\.financial_matching_cancel_requests\(user_id,client_cancel_id,order_id,request_hash,response\)/i);
 });
+
+
+test('Earn subscribe and redeem API payloads match canonical RPC signatures and replay hashes', () => {
+  const api = read('api-core.js');
+  const lifecycle = read('supabase/sql/0003_financial_lifecycle_v2.sql');
+  const redemption = read('supabase/sql/0005_financial_earn_redemption_idempotency_v4.sql');
+
+  const subscribe = lifecycle.match(/create\s+or\s+replace\s+function\s+public\.subscribe_earn_atomic\s*\(([\s\S]*?)\)\s*returns/i);
+  assert.ok(subscribe, 'canonical Earn subscription RPC must exist');
+  assert.deepEqual(subscribe[1].split(',').map(part => part.trim().split(/\s+/)[0].toLowerCase()), [
+    'p_position_id', 'p_user_id', 'p_product_id', 'p_asset', 'p_principal', 'p_request_id', 'p_request_hash',
+  ]);
+  assert.match(api, /p_position_id:\s*positionId[\s\S]*?p_user_id:\s*String\(user\.uid\)[\s\S]*?p_product_id:\s*productId[\s\S]*?p_asset:\s*asset[\s\S]*?p_principal:\s*String\(amount\)[\s\S]*?p_request_id:\s*requestId[\s\S]*?p_request_hash:\s*requestHash/);
+  assert.match(api, /JSON\.stringify\(\{ user_id: String\(user\.uid\), product_id: productId, asset, amount: String\(amount\), request_id: requestId \}\)/);
+  assert.match(lifecycle, /request_idempotency_key\s*=\s*p_request_id/i);
+  assert.match(lifecycle, /subscribe_request_hash\s*=\s*p_request_hash/i);
+
+  const redeem = redemption.match(/create\s+or\s+replace\s+function\s+public\.redeem_earn_atomic\s*\(([\s\S]*?)\)\s*returns/i);
+  assert.ok(redeem, 'canonical Earn redemption RPC must exist');
+  assert.deepEqual(redeem[1].split(',').map(part => part.trim().split(/\s+/)[0].toLowerCase()), [
+    'p_position_id', 'p_user_id', 'p_request_id', 'p_request_hash',
+  ]);
+  assert.match(api, /p_position_id:\s*positionId[\s\S]*?p_user_id:\s*String\(user\.uid\)[\s\S]*?p_request_id:\s*requestId[\s\S]*?p_request_hash:\s*requestHash/);
+  assert.match(api, /JSON\.stringify\(\{ user_id: String\(user\.uid\), position_id: positionId, request_id: requestId \}\)/);
+  assert.match(redemption, /redeem_request_hash\s+IS DISTINCT FROM\s+p_request_hash/i);
+});
+
+test('admin manual deposit API payload and request hash match the canonical atomic credit RPC', () => {
+  const api = read('api-core.js');
+  const sql = read('supabase/sql/0007_financial_admin_manual_deposit_v1.sql');
+  const signature = sql.match(/create\s+or\s+replace\s+function\s+public\.admin_manual_deposit_atomic\s*\(([\s\S]*?)\)\s*returns/i);
+  assert.ok(signature, 'canonical manual deposit RPC must exist');
+  assert.deepEqual(signature[1].split(',').map(part => part.trim().split(/\s+/)[0].toLowerCase()), [
+    'p_deposit_id', 'p_admin_id', 'p_user_id', 'p_asset', 'p_amount',
+    'p_request_id', 'p_request_hash', 'p_reference', 'p_note',
+  ]);
+  assert.match(api, /p_deposit_id:\s*depositId[\s\S]*?p_admin_id:\s*adminId[\s\S]*?p_user_id:\s*uid[\s\S]*?p_asset:\s*coin[\s\S]*?p_amount:\s*amountText[\s\S]*?p_request_id:\s*idempotencyKey[\s\S]*?p_request_hash:\s*requestHash[\s\S]*?p_reference:\s*reference[\s\S]*?p_note:\s*note/);
+  assert.match(api, /\[adminId, uid, coin, amountText, reference, note\]\.join\('\|'\)/);
+  assert.match(sql, /concat_ws\('\|',\s*p_admin_id,\s*p_user_id,\s*p_asset,\s*p_amount::text,\s*v_reference,\s*v_note\)/i);
+  assert.match(sql, /on conflict \(idempotency_key\) do nothing/i);
+});
+
+test('Seconds settlement API and canonical SQL align on trusted quote provenance and idempotency', () => {
+  const api = read('api-core.js');
+  const sql = read('supabase/sql/0024_seconds_settlement_idempotency_v1.sql');
+  const signature = sql.match(/create\s+or\s+replace\s+function\s+public\.settle_seconds_position_v1\s*\(([\s\S]*?)\)\s*returns/i);
+  assert.ok(signature, 'canonical Seconds settlement RPC must exist');
+  assert.deepEqual(signature[1].split(',').map(part => part.trim().split(/\s+/)[0].toLowerCase()), [
+    'p_position_id', 'p_user_id', 'p_request_id', 'p_request_hash',
+    'p_symbol', 'p_settle_price', 'p_settle_price_source', 'p_settle_price_ts',
+  ]);
+  assert.match(api, /p_position_id:\s*positionId[\s\S]*?p_user_id:\s*String\(user\.uid\)[\s\S]*?p_request_id:\s*requestId[\s\S]*?p_request_hash:\s*requestHash[\s\S]*?p_symbol:\s*symbol[\s\S]*?p_settle_price:\s*settleRef\s*\?\s*String\(settleRef\.price\)\s*:\s*null[\s\S]*?p_settle_price_source:\s*settleRef\s*\?\s*settleRef\.source\s*:\s*null[\s\S]*?p_settle_price_ts:\s*settleRef\s*\?\s*new Date\(settleRef\.ts\s*\*\s*1000\)\.toISOString\(\)\s*:\s*null/);
+  assert.match(sql, /settle_request_hash\s+IS DISTINCT FROM\s+p_request_hash/i);
+  assert.match(sql, /p_settle_price_source[\s\S]*?NOT IN\s*\('coinbase','bybit'\)/i);
+  assert.match(sql, /p_settle_price_ts\s*<\s*v_pos\.settle_at/i);
+});
