@@ -791,3 +791,13 @@ Safety/ownership:
 - PR #67 exact head `60e7a697cf1b1b5a0f24e0d6d065203e88e7b575`: Backend CI run 1158 PASS, PostgreSQL schema CI run 485 PASS, Frontend CI run 1197 PASS.
 - PR #71 exact head `5f13802dadd8f023ebc1df04e26728a0786e7eba` CI run 1149 failed in backend tests. Logs show the isolated auth route test harness's `testRequire` did not map the new `./seconds-policy-readiness` module, causing MODULE_NOT_FOUND in auth-security-routes tests; build succeeded. Fixed the harness mapping and committed `aec7cdf64561475bbfbd7553706e699ec8d00e1a`. PR #71 was found closed without merge and reopened as Draft; exact-head CI for the fix has not yet appeared. Do not mark PR #71 verified until fresh backend CI passes.
 - No production project writes, Auth provider changes, financial operations, merges, or deployments performed.
+
+
+## 21. Reconciled integration status — 2026-11-08
+
+- Re-read PR #67 directly. Its actual current head is `c2065d39afc42dbf0c2bf2f7223a7453af8ae8e0` (the earlier section-20 head `60e7a697...` is historical, not current).
+- Exact-current-head CI for `c2065d39afc42dbf0c2bf2f7223a7453af8ae8e0` is now fully green: Backend run `42479320273` (run 1165), PostgreSQL schema run `42479320338` (run 488), and Frontend run `42479320367` (run 1200), all completed / success.
+- PR #67 changed-file inventory confirms `backend/seconds-policy-readiness.js`, its tests, and the auth route harness mapping are included in the sole integration candidate. PR #71 is therefore superseded; do not treat its separate branch as an active lane or require its independent CI. Close it unmerged after this reconciliation.
+- The integration-branch locale dictionary now contains both `Google` and `Wallet` keys. This confirms those strings exist in the dictionary source, but does not by itself establish complete seven-locale coverage or make PR #70 independently mergeable. Recheck each locale's actual values and whether PR #70's visual changes are already represented in PR #67 before changing PR #70 state.
+- Clarification: Staging `private.bootstrap_super_admin_v1` is intentionally owner-controlled. Its function body rejects callers unless `session_user = 'postgres'`; EXECUTE being false for `service_role`, `anon`, and `authenticated` is expected and must not be loosened. First-admin bootstrap must use the database-owner path after the intended Auth identity exists.
+- PR #67 remains Draft/open/unmerged. Green CI validates this exact source SHA only; it does not close hosted-schema drift, real Email/Google OAuth verification, admin bootstrap, or financial acceptance. No merge, production deployment, hosted database write, or financial action was performed.
