@@ -122,3 +122,5 @@ BTCBOX localization is a complete language system per locale, not a literal tran
 - Added a browser regression test for Japanese login copy, locale selection and persistence on the standalone authentication route. It verifies translated labels and the disabled-Google state while asserting that the username/password sign-in controls remain available.
 
 - Account setup page now uses shared Japanese i18n for verified Google/wallet onboarding, username/password requirements, validation, save state and credential ownership copy. Credential creation, password policy, auth state and navigation are unchanged.
+
+- Account Security page Japanese localization: account-security summary, linked identity methods, 2FA status, two-step identity linking and password recovery copy now use shared i18n. The page structure, reauthentication requirements, two-factor checks, identity proof sequence and password reset flow are unchanged.
