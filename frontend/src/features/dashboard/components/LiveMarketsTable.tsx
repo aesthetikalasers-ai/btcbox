@@ -14,6 +14,9 @@ const names: Record<string, string> = {
   ATOM: "Cosmos", ETC: "Ethereum Classic",
 };
 
+const numberLocales: Record<Language, string> = {
+  en: "en-US", ja: "ja-JP", "zh-CN": "zh-CN", es: "es-ES", pt: "pt-PT", it: "it-IT", de: "de-DE",
+};
 const price = (value: number, locale: string) => new Intl.NumberFormat(locale, {
   minimumFractionDigits: 2,
   maximumFractionDigits: value >= 1 ? 4 : 8,
