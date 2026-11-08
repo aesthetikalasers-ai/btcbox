@@ -5,7 +5,15 @@ import { Badge } from "../../components/ui/badge";
 import { Button } from "../../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
 import { ApiError, getOrders, type OrderRecord } from "../../lib/api";
-import { useI18n } from "../../lib/i18n";
+import { useI18n, type Language } from "../../lib/i18n";
+
+const dateLocales: Record<Language, string> = { en: "en-US", ja: "ja-JP", "zh-CN": "zh-CN", es: "es-ES", pt: "pt-PT", it: "it-IT", de: "de-DE" };
+
+function formatDate(value: unknown, locale: string) {
+  if (value === null || value === undefined || value === "") return "—";
+  const date = new Date(String(value));
+  return Number.isNaN(date.getTime()) ? String(value) : new Intl.DateTimeFormat(locale, { dateStyle: "medium", timeStyle: "short" }).format(date);
+}
 
 function display(value: unknown, fallback = "—") {
   if (value === null || value === undefined || value === "") return fallback;
@@ -20,7 +28,8 @@ function statusVariant(status: string) {
 }
 
 export function OrdersPage() {
-  const { t } = useI18n();
+  const { t, language } = useI18n();
+  const dateLocale = dateLocales[language];
   const [orders, setOrders] = useState<OrderRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -134,7 +143,7 @@ export function OrdersPage() {
                       <td className="px-4 py-3 font-mono tabular-nums">{display(order.price)}</td>
                       <td className="px-4 py-3 font-mono tabular-nums">{display(order.quantity ?? order.amount)}</td>
                       <td className="px-4 py-3"><Badge variant={statusVariant(display(order.status, "unknown"))}>{t(display(order.status, "Unknown"))}</Badge></td>
-                      <td className="px-4 py-3 text-xs text-brand-text-muted">{display(order.created_at)}</td>
+                      <td className="px-4 py-3 text-xs text-brand-text-muted">{formatDate(order.created_at, dateLocale)}</td>
                     </tr>;
                   })}
                 </tbody>
