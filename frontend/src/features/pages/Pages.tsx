@@ -173,7 +173,7 @@ export function MyPage(){
 
 
 export function OrdersPage(){
- const {t}=useI18n();
+ const {t,language}=useI18n();
  const [orders,setOrders]=useState<OrderRecord[]>([]);
  const [loading,setLoading]=useState(true);
  const [error,setError]=useState("");
@@ -189,7 +189,7 @@ export function OrdersPage(){
   return ()=>controller.abort();
  },[reload]);
  const value=(raw:unknown)=>raw===null||raw===undefined||raw===""?"—":String(raw);
- const date=(raw?:string)=>{if(!raw)return "—";const parsed=new Date(raw);return Number.isNaN(parsed.getTime())?raw:parsed.toLocaleString();};
+ const date=(raw?:string)=>{if(!raw)return "—";const parsed=new Date(raw);return Number.isNaN(parsed.getTime())?raw:parsed.toLocaleString(localeTags[language]);};
  const statusTone=(status?:string)=>{
   const normalized=String(status||"").toLowerCase();
   if(["filled","completed","success","settled"].includes(normalized))return "border-emerald-500/30 text-emerald-400";
@@ -219,7 +219,7 @@ export function OrdersPage(){
 export function SpotTradingPage(){
  const {symbol:routeSymbol}=useParams();
  const symbol=(routeSymbol||"BTCUSDT").toUpperCase();
- const {t}=useI18n();
+ const {t,language}=useI18n();
  const [ticker,setTicker]=useState<MarketTicker|null>(null);
  const [spotPairEnabled,setSpotPairEnabled]=useState(false);
  const [candles,setCandles]=useState<MarketCandle[]>([]);
@@ -457,7 +457,7 @@ export function SpotTradingPage(){
    }
   }finally{setBusy(false);}
  };
- const amountText=(value:unknown)=>value===null||value===undefined||value===""?"—":Number.isFinite(Number(value))?Number(value).toLocaleString(undefined,{maximumFractionDigits:8}):String(value);
+ const amountText=(value:unknown)=>value===null||value===undefined||value===""?"—":Number.isFinite(Number(value))?Number(value).toLocaleString(localeTags[language],{maximumFractionDigits:8}):String(value);
  const openOrders=orders.filter(item=>["open","partially_filled","partially-filled","pending"].includes(String(item.status||"").toLowerCase()));
  const asks=(displayBook?.asks||[]).slice(0,8).slice().reverse();const bids=(displayBook?.bids||[]).slice(0,8);
  return <PageFrame eyebrow="BTCBOX / SPOT" title={symbol} description="Live market data and server-validated limit-order entry.">
@@ -484,7 +484,7 @@ export function SectionPage({title,description}:{title:string;description:string
 
 
 export function SecondsPage(){
- const {t}=useI18n();
+ const {t,language}=useI18n();
  const [snapshot,setSnapshot]=useState<SecondsPositionsSnapshot|null>(null);
  const [policy,setPolicy]=useState<SecondsPolicyResponse|null>(null);
  const [uid,setUid]=useState("");
@@ -613,8 +613,8 @@ export function SecondsPage(){
   return ()=>timers.forEach(timer=>window.clearTimeout(timer));
  },[policy?.actions_enabled,snapshot?.open]);
 
- const money=(value:number|string)=>{const parsed=Number(value);return Number.isFinite(parsed)?parsed.toLocaleString(undefined,{maximumFractionDigits:8}):"—";};
- const date=(seconds:number)=>new Date(seconds*1000).toLocaleString();
+ const money=(value:number|string)=>{const parsed=Number(value);return Number.isFinite(parsed)?parsed.toLocaleString(localeTags[language],{maximumFractionDigits:8}):"—";};
+ const date=(seconds:number)=>new Date(seconds*1000).toLocaleString(localeTags[language]);
  const positionCard=(item:SecondsPositionsSnapshot["open"][number],history=false)=>{
   const directionUp=item.direction==="up";
   const historyItem=history?item as SecondsPositionsSnapshot["history"][number]:null;
@@ -782,7 +782,7 @@ export function KycPage(){
 
 
 export function SupportPage(){
- const {t}=useI18n();
+ const {t,language}=useI18n();
  const [messages,setMessages]=useState<SupportMessage[]>([]);
  const [draft,setDraft]=useState("");
  const [loading,setLoading]=useState(true);
@@ -818,7 +818,7 @@ export function SupportPage(){
    setSendError(reason instanceof Error?reason.message:"Message could not be sent. Please try again.");
   }finally{setSending(false);}
  };
- const date=(raw:string)=>{const parsed=new Date(raw);return Number.isNaN(parsed.getTime())?raw:parsed.toLocaleString();};
+ const date=(raw:string)=>{const parsed=new Date(raw);return Number.isNaN(parsed.getTime())?raw:parsed.toLocaleString(localeTags[language]);};
  if(status!=="authenticated")return <PageFrame eyebrow={t("BTCBOX / HELP CENTER")} title={t("Customer support")} description={t("Find help and contact BTCBOX support.")}>
   <Card className="overflow-hidden border-brand-indigo/25 bg-brand-surface ring-1 ring-brand-indigo/[0.04]"><div className="h-1 bg-gradient-to-r from-brand-indigo via-brand-cyan to-brand-teal"/><CardHeader className="bg-gradient-to-br from-brand-indigo/[0.07] via-brand-surface to-brand-surface"><div className="flex items-center gap-3"><span className="flex h-11 w-11 items-center justify-center rounded-xl bg-brand-indigo/10 text-brand-indigo"><Headset className="h-5 w-5"/></span><div><CardTitle>{t("BTCBOX Help Center")}</CardTitle><CardDescription>{t("Public support information is available without signing in.")}</CardDescription></div></div></CardHeader><CardContent className="space-y-3 text-sm text-brand-text-secondary"><p>{t("For account-specific questions, deposit or withdrawal reviews, and private conversation history, sign in to your BTCBOX account first.")}</p><Button asChild><Link to="/login">{t("Sign in to contact support")}</Link></Button></CardContent></Card>
  </PageFrame>;
@@ -911,7 +911,7 @@ export function DepositPage(){
 
 
 export function EarnPage(){
- const {t}=useI18n();
+ const {t,language}=useI18n();
  const [products,setProducts]=useState<EarnProduct[]>([]);
  const [positions,setPositions]=useState<EarnPosition[]>([]);
  const [actionsEnabled,setActionsEnabled]=useState(false);
@@ -944,7 +944,7 @@ export function EarnPage(){
  },[reload]);
  const selected=products.find(item=>item.product_id===selectedProduct);
  const requestIdFor=(key:string)=>requestIds[key]||crypto.randomUUID();
- const number=(value:number|string|undefined)=>{const n=Number(value);return Number.isFinite(n)?n.toLocaleString(undefined,{maximumFractionDigits:10}):"—";};
+ const number=(value:number|string|undefined)=>{const n=Number(value);return Number.isFinite(n)?n.toLocaleString(localeTags[language],{maximumFractionDigits:10}):"—";};
  const operate=async(event:FormEvent<HTMLFormElement>)=>{
   event.preventDefault();
   if(!selected||!actionsEnabled||busy)return;
@@ -1004,7 +1004,7 @@ export function EarnPage(){
 
 
 export function WithdrawPage(){
- const {t}=useI18n();
+ const {t,language}=useI18n();
  const [account,setAccount]=useState<AccountSnapshot|null>(null);
  const [addresses,setAddresses]=useState<SavedCryptoAddress[]>([]);
  const [config,setConfig]=useState<WithdrawalConfig|null>(null);
@@ -1139,7 +1139,7 @@ export function WithdrawPage(){
      <label className="block space-y-1.5 text-sm"><span className="text-brand-text-muted">{t("Saved withdrawal address")}</span><select value={selectedId} disabled={!!pendingIntent||pendingIntentInvalid||submitting} onChange={event=>{setSelectedId(event.target.value);setError("");}} className="h-12 w-full rounded-xl border border-brand-border bg-brand-surface-2 px-3 py-3 text-sm text-brand-text outline-none transition-colors focus:border-brand-accent/60 focus:ring-2 focus:ring-brand-accent/15">{usableAddresses.map(item=><option key={item.id} value={item.id}>{item.coin} · {item.network} · {item.address}</option>)}</select></label>
      {selectedAddress?<div className="rounded-xl border border-brand-border bg-brand-surface-2/70 p-4 text-xs leading-5 text-brand-text-muted"><p>{t("Selected destination")}: {selectedAddress.coin} · {selectedAddress.network}</p><p className="mt-1 break-all font-mono">{selectedAddress.address.length>18?selectedAddress.address.slice(0,8)+"…"+selectedAddress.address.slice(-8):selectedAddress.address}</p></div>:<p className="text-xs text-brand-text-muted">{t("Loading selected address…")}</p>}
      <label className="block space-y-1.5 text-sm"><span className="text-brand-text-muted">{t("Amount")} {selectedAddress ? "(" + selectedAddress.coin + ")" : ""}</span><input inputMode="decimal" value={amount} disabled={!!pendingIntent||pendingIntentInvalid||submitting} onChange={event=>setAmount(event.target.value)} placeholder="0.00" className="min-h-12 w-full rounded-xl border border-brand-border bg-brand-surface-2 px-3 py-3 text-brand-text outline-none transition-colors focus:border-brand-violet/60 focus:ring-2 focus:ring-brand-violet/15"/></label>
-     {selectedAddress?<div className="grid grid-cols-2 gap-3 rounded-xl border border-brand-border bg-brand-surface-2/50 p-4 text-sm"><div><p className="text-xs text-brand-text-muted">{t("Available")}</p><p className="mt-1 tabular-nums">{available.toLocaleString(undefined,{maximumFractionDigits:10})} {selectedAddress.coin}</p></div><div><p className="text-xs text-brand-text-muted">{t("Withdrawal fee")}</p><p className="mt-1 tabular-nums">{Number.isFinite(fee)?fee:"—"} {selectedAddress.coin}</p></div></div>:null}
+     {selectedAddress?<div className="grid grid-cols-2 gap-3 rounded-xl border border-brand-border bg-brand-surface-2/50 p-4 text-sm"><div><p className="text-xs text-brand-text-muted">{t("Available")}</p><p className="mt-1 tabular-nums">{available.toLocaleString(localeTags[language],{maximumFractionDigits:10})} {selectedAddress.coin}</p></div><div><p className="text-xs text-brand-text-muted">{t("Withdrawal fee")}</p><p className="mt-1 tabular-nums">{Number.isFinite(fee)?fee.toLocaleString(localeTags[language],{maximumFractionDigits:10}):"—"} {selectedAddress.coin}</p></div></div>:null}
      <label className="block space-y-1.5 text-sm"><span className="text-brand-text-secondary">{t("Fund password")}</span><input type="password" autoComplete="current-password" value={fundPassword} disabled={submitting} onChange={event=>setFundPassword(event.target.value)} className="min-h-12 w-full rounded-xl border border-brand-border bg-brand-surface-2 px-3 py-3 text-brand-text outline-none transition-colors focus:border-brand-violet/60 focus:ring-2 focus:ring-brand-violet/15" required/></label>
      {account?.twofa_enabled?<label className="block space-y-1.5 text-sm"><span className="text-brand-text-secondary">{t("Two-factor code")}</span><input inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={twofaCode} disabled={submitting} onChange={event=>setTwofaCode(event.target.value.replace(/\D/g,"").slice(0,6))} className="min-h-12 w-full rounded-xl border border-brand-border bg-brand-surface-2 px-3 py-3 text-brand-text outline-none transition-colors focus:border-brand-violet/60 focus:ring-2 focus:ring-brand-violet/15" required/></label>:null}
      {config&&!config.actions_enabled?<div className="rounded-xl border border-amber-400/25 bg-amber-400/5 p-4 text-sm text-brand-text-secondary"><Badge variant="outline" className="border-amber-400/30 text-amber-200">{t("Withdrawals temporarily unavailable")}</Badge><p className="mt-2">{t("The financial ledger cutover has not been enabled. You can review your wallet, but no withdrawal request can be submitted yet.")}</p></div>:null}
