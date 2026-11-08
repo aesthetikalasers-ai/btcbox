@@ -4,13 +4,16 @@ import { dirname, resolve, extname } from "node:path";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const source = readFileSync(resolve(root, "src/lib/i18n.tsx"), "utf8");
-const locales = ["en", "ja", "zh-CN", "es", "vi", "it", "pt"];
+const locales = ["en", "ja", "zh-CN", "es", "pt", "it", "de"];
+const preservedLegacyLocales = ["vi"];
+const allLocales = [...locales, ...preservedLegacyLocales];
 const markers = {
   en: "  en: {",
   ja: "  ja: {",
   "zh-CN": '  "zh-CN": {',
   es: "  es: {",
   vi: "  vi: {",
+  de: "  de: {",
   it: "  it: {",
   pt: "  pt: {",
 };
@@ -47,7 +50,7 @@ function walk(directory) {
   });
 }
 
-const dictionaries = Object.fromEntries(locales.map((locale) => [locale, readLocale(locale)]));
+const dictionaries = Object.fromEntries(allLocales.map((locale) => [locale, readLocale(locale)]));
 const canonical = new Set(dictionaries.en.keys);
 let failed = false;
 
@@ -68,6 +71,8 @@ for (const path of walk(resolve(root, "src")).filter((path) => [".ts", ".tsx", "
   const code = readFileSync(path, "utf8");
   for (const match of code.matchAll(callPattern)) usedKeys.add(match[2]);
 }
+const legacy = dictionaries.vi;
+console.log("vi (preserved legacy): " + legacy.keys.length + " keys; " + [...canonical].filter((key) => !legacy.keys.includes(key)).length + " missing from official source baseline");
 const missingUsed = [...usedKeys].filter((key) => !canonical.has(key));
 console.log("Static t() calls: " + usedKeys.size + "; keys absent from English dictionary: " + missingUsed.length);
 if (missingUsed.length) {
