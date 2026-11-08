@@ -16,7 +16,7 @@ One repository execution path is active at a time. Re-read this file before star
 - **Current candidate head:** `c2065d39afc42dbf0c2bf2f7223a7453af8ae8e0`
 - **Base:** `main` at `2a3810da1aef2c0c7c58df0cfdb059a212eeb0d6`
 - **State:** Draft / open / not merged
-- **Latest exact-current-head CI:** IN PROGRESS for `60e7a697cf1b1b5a0f24e0d6d065203e88e7b575`: Backend `42479320273`, PostgreSQL schema bootstrap `42479320338`, Frontend `42479320367`. Earlier green results are historical for their respective SHAs only.
+- **Latest exact-current-head CI:** PASS for `c2065d39afc42dbf0c2bf2f7223a7453af8ae8e0`: Backend `42479320273`, PostgreSQL schema bootstrap `42479320338`, Frontend `42479320367` (all completed / success). The similarly numbered runs belong to this exact SHA; no current-head CI remains in progress.
 
 The previous fully green source head `8b54cf128ccd4861eedd1fae602846c92849f835` also passed Backend `42436694163`, PostgreSQL schema `42436693919`, and Frontend `42436694030`. Current head adds a documentation-only correction to the owner bootstrap guide; the full exact-head CI has now passed.
 
@@ -808,3 +808,14 @@ Safety/ownership:
 - A stricter dictionary-key check corrected section 21: the integration-branch `i18n.tsx` contains the words “Google” and “Wallet” inside other translated phrases, but does NOT currently define standalone translation keys `"Google"` and `"Wallet"`. Seven-locale coverage for these two button labels is therefore NOT VERIFIED / still missing.
 - PR #70's equal-width Google/Wallet side-by-side entry buttons and responsive 320–1440px tests are NOT yet present in PR #67. Direct source comparison shows the PR #70 AuthPages implementation contains the new two-button row and wallet chooser; PR #67 still has the previous stacked Google and wallet controls. Keep PR #70 Draft and do not merge it against its stale base (`58ca4cb...`) until the language owner adds both exact keys in all seven locales and the changes are rebased/replayed onto the current PR #67 head with fresh exact-head Frontend CI.
 - PR #71 is now closed unmerged as superseded; its Seconds readiness guard and regression coverage are already in PR #67. No independent PR #71 CI is required.
+
+
+## 23. Staging API/RPC inventory and privilege cross-check — 2026-11-08
+
+- Re-read the current integration source `backend/api-core.js` and `backend/admin-auth.js`. Extracted 26 distinct PostgREST RPC names used by active API call sites, including the matching-engine dynamic RPC helper.
+- Ran SELECT-only catalog checks against isolated free Staging project `gnwsygxshqceunihguwe`. All 26 expected RPC names resolve in the public/private schemas. The checked signatures include the 11-argument `create_withdrawal_atomic` fee-snapshot contract, Seconds order/settlement, Earn subscribe/redeem, Spot submit/cancel, manual deposit, withdrawal review/payout, state CAS, rate-limit, and admin RBAC/policy calls.
+- For every resolved API RPC name in this inventory, `service_role` has EXECUTE and both `anon` and `authenticated` have EXECUTE=false. No browser-role function grants were introduced. Public wrappers are SECURITY INVOKER with empty search_path; private RBAC implementation routines retain their SECURITY DEFINER boundary and restricted search_path. Admin wrapper names appear in both public/private namespaces by design; the two namespace implementations are not treated as duplicate overloads in one schema.
+- This was a catalog/signature inventory only. It did not invoke RPCs, create users, modify Staging data, or perform financial writes. It does not prove end-to-end authenticated behavior, request replay behavior under concurrent traffic, or hosted production schema parity.
+- Staging currently has no Auth users, no normalized financial accounts/operations/ledger, no deposits/withdrawals/Earn positions, and no enabled Spot markets; the active Earn catalogue has seven products and the Seconds policy/active pointer exist. Therefore real authenticated financial execution remains NOT VERIFIED and must remain gated.
+- Language-team completion was deliberately bypassed for this batch so non-language API/database/security work can continue independently. PR #70 remains Draft and is not included in PR #67; its exact `Google`/`Wallet` locale keys and responsive auth-entry changes remain a separate pending integration item.
+- PR #67 remains Draft/open/unmerged. No production database write, merge, deployment, Auth-provider mutation, or financial operation was performed.
