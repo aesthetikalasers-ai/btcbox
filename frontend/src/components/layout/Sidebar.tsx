@@ -58,7 +58,7 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
                 <span className={cn("flex h-7 w-7 shrink-0 items-center justify-center rounded-lg", to === "/earn" ? "bg-brand-orange/10 text-brand-orange" : to === "/support" ? "bg-brand-indigo/10 text-brand-indigo" : "bg-brand-info/10 text-brand-info")}><Icon className="h-4 w-4" /></span>
                 <span className="min-w-0 break-words">{t(label)}</span>
               </NavLink>
-            ))}}
+            ))}
           </div>
         </div>
       </nav>
