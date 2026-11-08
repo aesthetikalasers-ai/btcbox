@@ -264,3 +264,25 @@ test('withdrawal review and manual payout preserve locked state transitions and 
   assert.match(payout, /insert into public\.financial_audit_log/i);
   assert.doesNotMatch(payout, /apply_financial_operation|insert into public\.financial_ledger/i, 'manual payout completion records the external payout and must not debit the ledger a second time');
 });
+
+
+test('customer financial write routes consume bounded shared server-side rate limits', () => {
+  const api = read('api-core.js');
+  const migration = read('supabase/sql/0037_financial_write_rate_limit_scopes_v1.sql');
+  const scopes = [
+    ['withdraw_create', 5, 900],
+    ['spot_order', 30, 300],
+    ['spot_cancel', 60, 300],
+    ['earn_subscribe', 10, 900],
+    ['earn_redeem', 20, 900],
+  ];
+  for (const [scope, limit, windowSeconds] of scopes) {
+    assert.match(api, new RegExp(scope + ':\\s*\\{\\s*limit:\\s*' + limit + ',\\s*windowSeconds:\\s*' + windowSeconds));
+    assert.match(api, new RegExp("rateCheckShared\\('" + scope + "',\\s*String\\(user\\.uid\\)\\)"),
+      scope + ' route must use the authenticated user as its rate-limit subject');
+    assert.match(migration, new RegExp("when '" + scope + "' then v_limit := " + limit + '; v_window_seconds := ' + windowSeconds + ';'));
+    assert.ok(migration.includes("'" + scope + "'"), scope + ' must be allowed by the persisted scope constraint');
+  }
+  assert.match(api, /if \(rl\.unavailable\) return rateLimitUnavailableJson\(\)/);
+  assert.match(api, /if \(rl\.limited\) return rateLimitedJson\(rl\.retryAfter\)/);
+});
