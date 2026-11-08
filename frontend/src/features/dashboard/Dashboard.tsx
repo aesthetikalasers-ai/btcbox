@@ -26,6 +26,7 @@ export function Dashboard() {
   const volumeRange = useDashboardStore((state) => state.volumeRange);
   const liquidityInterval = LIQUIDITY_INTERVALS[liquidityRange] || "5m";
   const volumeInterval = VOLUME_INTERVALS[volumeRange] || "1h";
+  const btcMarket = markets.find((item) => item.sym === "BTC");
   const latestMarketSnapshotTs = markets.reduce((latest, item) => Math.max(latest, item.snapshotTs || 0), 0);
   const hasMarketSnapshotTime = markets.length > 0 && markets.every((item) => Number.isFinite(item.snapshotTs) && (item.snapshotTs || 0) > 0);
   const marketSnapshotStale = hasMarketSnapshotTime && markets.some((item) => Date.now() / 1000 - (item.snapshotTs || 0) > 90);
@@ -133,6 +134,23 @@ export function Dashboard() {
         {t(marketFeedStatus)}
       </Badge>
     </div>
+    <section aria-label={t("Bitcoin market summary")} className="grid gap-3 sm:grid-cols-3">
+      <div className="min-w-0 rounded-xl border border-brand-border bg-brand-surface p-4 ring-1 ring-white/[0.02] sm:p-5">
+        <div className="flex items-center justify-between gap-2"><p className="type-meta font-semibold uppercase tracking-wide text-brand-text-muted">{t("BTC/USDT last price")}</p><span className="h-2 w-2 rounded-full bg-brand-cyan"/></div>
+        <p className="mt-3 truncate text-xl font-semibold tracking-tight tabular-nums text-brand-text sm:text-2xl">{loading ? "—" : btcMarket ? btcMarket.price.toLocaleString(undefined,{maximumFractionDigits:8}) : "—"}</p>
+        <p className="type-meta mt-1 text-brand-text-muted">{btcMarket ? t("Latest price returned by BTCBOX") : t("Live BTC quote unavailable")}</p>
+      </div>
+      <div className="min-w-0 rounded-xl border border-brand-border bg-brand-surface p-4 ring-1 ring-white/[0.02] sm:p-5">
+        <div className="flex items-center justify-between gap-2"><p className="type-meta font-semibold uppercase tracking-wide text-brand-text-muted">{t("BTC 24h change")}</p><span className={"h-2 w-2 rounded-full "+(btcMarket ? btcMarket.chg >= 0 ? "bg-profit" : "bg-loss" : "bg-brand-text-muted")}/></div>
+        <p className={"mt-3 truncate text-xl font-semibold tracking-tight tabular-nums sm:text-2xl "+(btcMarket ? btcMarket.chg >= 0 ? "text-profit" : "text-loss" : "text-brand-text")}>{loading || !btcMarket ? "—" : (btcMarket.chg > 0 ? "+" : "") + btcMarket.chg.toFixed(2) + "%"}</p>
+        <p className="type-meta mt-1 text-brand-text-muted">{t("24-hour change from the live market feed")}</p>
+      </div>
+      <div className="min-w-0 rounded-xl border border-brand-border bg-brand-surface p-4 ring-1 ring-white/[0.02] sm:p-5">
+        <div className="flex items-center justify-between gap-2"><p className="type-meta font-semibold uppercase tracking-wide text-brand-text-muted">{t("BTC 24h volume")}</p><span className="h-2 w-2 rounded-full bg-brand-violet"/></div>
+        <p className="mt-3 truncate text-xl font-semibold tracking-tight tabular-nums text-brand-text sm:text-2xl">{loading || !btcMarket ? "—" : btcMarket.vol + " USDT"}</p>
+        <p className="type-meta mt-1 text-brand-text-muted">{t("Reported 24-hour trading volume")}</p>
+      </div>
+    </section>
     <LiveMarketsTable markets={markets} loading={loading} error={error} />
     <div className="flex items-center justify-between gap-3 px-1 pt-1">
       <div>
