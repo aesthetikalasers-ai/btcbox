@@ -3,6 +3,7 @@ import { Badge } from "../../components/ui/badge";
 import { Button } from "../../components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/card";
 import { useAuth } from "../../lib/auth";
+import { useI18n } from "../../lib/i18n";
 import { AuthPage } from "../auth/AuthPages";
 import {
   ApiError,
@@ -79,6 +80,7 @@ function statusVariant(status: string): "default" | "outline" | "destructive" {
 }
 
 export function AdminPage() {
+  const { t } = useI18n();
   const { status: authStatus, getSupabaseAccessToken } = useAuth();
   const [token, setToken] = useState("");
   const [session, setSession] = useState<AdminSession | null>(null);
@@ -171,7 +173,7 @@ export function AdminPage() {
     if (!accessToken) {
       setToken("");
       setSession(null);
-      setError("Sign in with your BTCBOX administrator Supabase identity.");
+      setError(t("Sign in with your BTCBOX administrator Supabase identity."));
       setLoading(false);
       return;
     }
@@ -185,13 +187,13 @@ export function AdminPage() {
     if (authStatus === "loading") return;
     if (authStatus !== "authenticated") {
       setLoading(false);
-      setError("Sign in with your BTCBOX administrator Supabase identity.");
+      setError(t("Sign in with your BTCBOX administrator Supabase identity."));
       return;
     }
     let active = true;
     setLoading(true);
     refreshTokenAndSession().catch((reason) => {
-      if (active) setError(reason instanceof Error ? reason.message : "Administrator access could not be verified.");
+      if (active) setError(reason instanceof Error ? reason.message : t("Administrator access could not be verified."));
     }).finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
   }, [authStatus, refreshTokenAndSession]);
@@ -916,7 +918,7 @@ export function AdminPage() {
       <Badge variant="outline">{session.is_super_admin ? "SUPER ADMIN" : "ACTIVE ADMIN"}</Badge>
     </div>
     <div className="flex max-w-full gap-2 overflow-x-auto border-b border-brand-border pb-3">
-      {allowedTabs.map(item => <Button key={item.id} size="sm" variant={tab === item.id ? "default" : "outline"} onClick={() => { setTab(item.id); setError(""); setNotice(""); }}>{item.label}</Button>)}
+      {allowedTabs.map(item => <Button key={item.id} size="sm" variant={tab === item.id ? "default" : "outline"} onClick={() => { setTab(item.id); setError(""); setNotice(""); }}>{t(item.label)}</Button>)}</div>
     </div>
     {error ? <div role="alert" className="rounded-xl border border-rose-500/30 bg-rose-500/5 p-3 text-sm text-rose-300">{error}</div> : null}
     {notice ? <div role="status" className="rounded-xl border border-emerald-500/25 bg-emerald-500/5 p-3 text-sm text-emerald-300">{notice}</div> : null}
@@ -1006,7 +1008,7 @@ export function AdminPage() {
       <Card><CardHeader><CardTitle>{adminMemberships.some(item=>item.user_id===adminTargetUserId)?"Edit administrator permissions":"Provision administrator"}</CardTitle><CardDescription>Select an existing BTCBOX user. The database verifies that the target UUID belongs to a real Supabase Auth user.</CardDescription></CardHeader><CardContent className="space-y-3">
         <form className="flex gap-2" onSubmit={event=>{event.preventDefault();if(!token)return;const requestId=++adminCandidatesRequestRef.current;setAdminCandidates([]);setError("");void getAdminUsers(token,adminSearch).then(result=>{if(requestId===adminCandidatesRequestRef.current)setAdminCandidates(result.users||[]);}).catch(reason=>{if(requestId===adminCandidatesRequestRef.current)setError(reason instanceof Error?reason.message:"User search failed.");});}}><input value={adminSearch} onChange={event=>setAdminSearch(event.target.value)} placeholder="Search user email or UID" className="h-11 min-w-0 flex-1 rounded-xl border border-brand-border bg-brand-surface-2 px-3 py-2 text-sm text-brand-text outline-none transition-colors focus:border-brand-accent/60 focus:ring-2 focus:ring-brand-accent/15"/><Button size="sm" type="submit" variant="outline">Search</Button></form>
         <select value={adminTargetUserId} onChange={event=>{const value=event.target.value;setAdminTargetUserId(value);const found=adminMemberships.find(item=>item.user_id===value);setAdminPermissions(found?.permissions||[]);setAdminRequestId("");setAdminRequestKey("");}} className="w-full rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-2 text-sm text-brand-text"><option value="">Select an Auth-linked user</option>{adminCandidates.filter(user=>/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(user.admin_auth_user_id||"")&&!adminMemberships.some(item=>item.user_id===user.admin_auth_user_id)).map(user=><option key={user.uid} value={user.admin_auth_user_id}>{user.email} · BTCBOX UID {user.uid}</option>)}{adminMemberships.some(item=>item.user_id===adminTargetUserId)?<option value={adminTargetUserId}>{adminTargetUserId}</option>:null}</select>
-        <div className="grid gap-2 sm:grid-cols-2">{adminPermissionOptions.map(([key,label])=><label key={key} className="flex items-center gap-2 rounded-lg border border-brand-border p-2 text-xs"><input type="checkbox" checked={adminPermissions.includes(key)} onChange={event=>setAdminPermissions(current=>event.target.checked?[...current,key]:current.filter(item=>item!==key))}/><span>{label}</span></label>)}</div>
+        <div className="grid gap-2 sm:grid-cols-2">{adminPermissionOptions.map(([key,label])=><label key={key} className="flex items-center gap-2 rounded-lg border border-brand-border p-2 text-xs"><input type="checkbox" checked={adminPermissions.includes(key)} onChange={event=>setAdminPermissions(current=>event.target.checked?[...current,key]:current.filter(item=>item!==key))}/><span>{t(label)}</span></label>)}</div>
         <textarea value={adminReason} onChange={event=>setAdminReason(event.target.value)} rows={2} maxLength={500} placeholder="Required reason for this administrator change" className="w-full rounded-lg border border-brand-border bg-brand-surface-2 p-3 text-sm text-brand-text"/>
         <Button block disabled={busy||!adminTargetUserId||(!adminMemberships.some(item=>item.user_id===adminTargetUserId)&&!adminPermissions.length)||!adminReason.trim()} onClick={()=>{const existing=adminMemberships.find(item=>item.user_id===adminTargetUserId);void submitAdminMembershipChange(existing?"set_permissions":"provision",adminTargetUserId,existing?.revision||0,adminPermissions);}}>{adminMemberships.some(item=>item.user_id===adminTargetUserId)?"Save permissions":"Provision administrator"}</Button>
       </CardContent></Card>
