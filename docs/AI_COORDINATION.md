@@ -729,3 +729,9 @@ Safety/ownership:
 
 
 - Exact-head CI completion for candidate `4d9d315d6d002ec3742f105b2cbe58a471dad743`: Frontend `42471644419` PASS, including install, lint, production build, Chromium install, desktop/mobile route smoke tests and responsive visual QA screenshot upload; Backend `42471644368` PASS; PostgreSQL empty-schema bootstrap `42471644417` PASS. This is exact-head validation only; PR #67 remains Draft/open/unmerged.
+
+
+- Candidate advanced to `6358d17052da4466e13533c1fab14a6a07012b78`: `AuthPage` and `AuthCallbackPage` now route static login, registration, Google/wallet, 2FA and password-recovery copy through shared i18n. Japanese dictionary covers all 68 static auth `t()` keys, plus common known auth outcome messages; a compact language selector is available on the standalone auth card. Supabase/BTCBOX auth calls, validation, session transitions and redirects unchanged.
+- Added Playwright regression coverage for switching the login screen to Japanese, verifying localized labels/disabled Google state and persistence after reload.
+- Remaining localization gap: unknown dynamic provider/backend error text cannot be translated reliably until source error codes are normalized; `AccountSecurityPage`, `AccountSetupPage` and `AdminPage` still require a full locale pass. Other locales' auth dictionary copy must also be completed before enabling all locale selectors as production-complete.
+- Exact-head CI for `6358d17052da4466e13533c1fab14a6a07012b78` started: Frontend `42472204533`, Backend `42472204529`, PostgreSQL `42472204614`; all were in progress at this update.
