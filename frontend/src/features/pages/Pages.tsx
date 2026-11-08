@@ -286,7 +286,7 @@ export function SpotTradingPage(){
     if(!controller.signal.aborted){setCandles(rows);setChartFeedWarning("");}
    }).catch(reason=>{
     if(reason instanceof Error&&reason.name==="AbortError")return;
-    if(!controller.signal.aborted)setChartFeedWarning("Chart refresh is unavailable; showing the last confirmed candles.");
+    if(!controller.signal.aborted){setCandles([]);setChartFeedWarning("Chart data is temporarily unavailable.");}
    });
   },60000);
   return ()=>{window.clearInterval(refreshId);window.clearInterval(candleId);controller.abort();};
