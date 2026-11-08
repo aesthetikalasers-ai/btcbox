@@ -509,3 +509,12 @@ Safety/ownership:
 - Exact-head checks for `65a64ecf78de23f7e6b3ef517fcf9ac1d6124111` were queued when checked: frontend build, empty PostgreSQL bootstrap, and unified backend/build/test/fail-closed workflow. Do not claim these as passed until completion.
 - The previous Assets-page commit `e8353298b88da84b3699c8c97ecca84933360299` had empty PostgreSQL bootstrap and unified backend/build/test workflows pass; its frontend build/route smoke check was still in progress at the last check. This is not current-head CI evidence.
 - No hosted Supabase DDL/writes, production deployment, merge, financial operation, or locked Spot layout change.
+
+
+### Current-head CI checkpoint — 2026-11-08
+
+- Reverified PR #67 exact head: `65a64ecf78de23f7e6b3ef517fcf9ac1d6124111`; PR remains Draft/open/unmerged.
+- Current exact-head unified Backend/build/test/fail-closed workflow `42462391538`: PASS.
+- Current exact-head empty PostgreSQL bootstrap workflow `42462391527`: PASS.
+- Current exact-head Frontend build workflow `42462391537`: npm install, lint, production build and Chromium installation passed; desktop/mobile route smoke tests were still in progress. Responsive visual screenshot upload had not started. Do not claim full Frontend CI pass until the route smoke test and workflow complete.
+- Shared coordination document now records single-operator ownership and both visual adaptation batches. Candidate branch and shared coordination branch remain separate; do not confuse their SHAs.
