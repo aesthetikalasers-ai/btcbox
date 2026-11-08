@@ -1,7 +1,11 @@
-import { createContext, useContext, useMemo, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 
 export type Language = "en" | "ja" | "zh-CN" | "es" | "vi" | "it" | "pt";
 type Dictionary = Record<string, string>;
+
+export const localeTags: Record<Language, string> = {
+  en: "en-US", ja: "ja-JP", "zh-CN": "zh-CN", es: "es-ES", vi: "vi-VN", it: "it-IT", pt: "pt-PT",
+};
 
 const dictionaries: Record<Language, Dictionary> = {
   en: {
@@ -262,10 +266,13 @@ export function I18nProvider({ children }: { children: ReactNode }) {
     const saved = typeof window !== "undefined" ? window.localStorage.getItem("btcbox-language") : null;
     return saved === "en" || saved === "ja" || saved === "zh-CN" || saved === "es" || saved === "vi" || saved === "it" || saved === "pt" ? saved : "en";
   });
+  useEffect(() => {
+    document.documentElement.lang = language;
+  }, [language]);
+
   const setLanguage = (next: Language) => {
     setLanguageState(next);
     if (typeof window !== "undefined") window.localStorage.setItem("btcbox-language", next);
-    document.documentElement.lang = next;
   };
   const value = useMemo(() => ({ language, setLanguage, t: (text: string) => dictionaries[language][text] || text }), [language]);
   return <I18nContext.Provider value={value}>{children}</I18nContext.Provider>;

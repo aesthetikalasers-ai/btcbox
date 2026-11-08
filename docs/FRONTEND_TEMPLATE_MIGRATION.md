@@ -92,3 +92,5 @@ BTCBOX localization is a complete language system per locale, not a literal tran
 - Never alter financial meaning, risk level, fees, precision, timestamps, order states or API contracts during translation. Ambiguous source copy must be resolved against product behavior before translation, not guessed.
 - Require per-locale completeness checks (no missing dictionary keys), terminology checks and native-language review. Test long labels, line wrapping, tables, dialogs and mobile touch targets at supported viewport widths.
 - Japanese is the intended first-visit default; English remains available and user selection persists. Do not enable Japanese-first until all user-visible routes and dynamic messages pass completeness and UI review. Other locales must also remain internally consistent rather than falling back unpredictably to English.
+
+- Locale formatting consistency batch: shared `localeTags` now drives both live market and top-token price formatting, and the document `lang` attribute follows the active persisted language on initial provider mount and subsequent changes. No language default changed; financial values and precision remain unchanged.

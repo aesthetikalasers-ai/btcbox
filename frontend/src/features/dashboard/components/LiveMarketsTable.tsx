@@ -4,7 +4,7 @@ import { Link, useSearchParams } from "react-router-dom";
 import { TokenIcon } from "../../../components/ui/TokenIcon";
 import { Card } from "./Card";
 import type { MarketTicker } from "../../../lib/api";
-import { useI18n, type Language } from "../../../lib/i18n";
+import { useI18n, localeTags } from "../../../lib/i18n";
 
 const names: Record<string, string> = {
   BTC: "Bitcoin", ETH: "Ethereum", SOL: "Solana", BNB: "BNB",
@@ -12,10 +12,6 @@ const names: Record<string, string> = {
   LINK: "Chainlink", DOT: "Polkadot", TRX: "TRON", LTC: "Litecoin",
   BCH: "Bitcoin Cash", NEAR: "NEAR Protocol", UNI: "Uniswap",
   ATOM: "Cosmos", ETC: "Ethereum Classic",
-};
-
-const numberLocales: Record<Language, string> = {
-  en: "en-US", ja: "ja-JP", "zh-CN": "zh-CN", es: "es-ES", vi: "vi-VN", it: "it-IT", pt: "pt-PT",
 };
 
 const price = (value: number, locale: string) => new Intl.NumberFormat(locale, {
@@ -35,7 +31,7 @@ export function LiveMarketsTable({ markets, loading, error }: {
   error: string;
 }) {
   const { t, language } = useI18n();
-  const numberLocale = numberLocales[language];
+  const numberLocale = localeTags[language];
   const [searchParams, setSearchParams] = useSearchParams();
   const query = (searchParams.get("q") || "").trim().toLowerCase();
   const latestSnapshotTs = markets.reduce((latest, item) => Math.max(latest, item.snapshotTs || 0), 0);
