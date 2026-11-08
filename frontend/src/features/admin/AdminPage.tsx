@@ -173,7 +173,7 @@ export function AdminPage() {
     if (!accessToken) {
       setToken("");
       setSession(null);
-      setError("Sign in with your BTCBOX administrator Supabase identity.");
+      setError(t("Sign in with your BTCBOX administrator Supabase identity."));
       setLoading(false);
       return;
     }
@@ -187,7 +187,7 @@ export function AdminPage() {
     if (authStatus === "loading") return;
     if (authStatus !== "authenticated") {
       setLoading(false);
-      setError("Sign in with your BTCBOX administrator Supabase identity.");
+      setError(t("Sign in with your BTCBOX administrator Supabase identity."));
       return;
     }
     let active = true;
@@ -217,7 +217,7 @@ export function AdminPage() {
       }
       setPayoutReferences(restored);
     } catch {
-      setError("A saved payout reference could not be read. Check the withdrawal status and chain transaction before entering a new reference.");
+      setError(t("A saved payout reference could not be read. Check the withdrawal status and chain transaction before entering a new reference."));
     }
   }, [session?.user_id]);
 
@@ -275,7 +275,7 @@ export function AdminPage() {
             }
           }
         } catch {
-          setError("A saved spot-market update could not be read. Check the market list before creating another update.");
+          setError(t("A saved spot-market update could not be read. Check the market list before creating another update."));
         }
       }
       if (tab === "withdrawals") {
@@ -449,16 +449,16 @@ export function AdminPage() {
     const selectedUserRequestId = userDetailRequestRef.current;
     const amount = (creditAmount[coin] || "").trim();
     if (!/^(?:0|[1-9]\d*)(?:\.\d{1,18})?$/.test(amount) || /^0(?:\.0*)?$/.test(amount)) {
-      setError("Enter the verified amount received.");
+      setError(t("Enter the verified amount received."));
       return;
     }
     const reference = (creditReference[coin] || "").trim();
     if (!reference || reference.length > 160 || /[\u0000-\u001f\u007f]/.test(reference)) {
-      setError("Enter the verified transaction hash or receipt reference before crediting.");
+      setError(t("Enter the verified transaction hash or receipt reference before crediting."));
       return;
     }
     if (!session?.user_id) {
-      setError("The authenticated administrator identity is unavailable. No credit was sent.");
+      setError(t("The authenticated administrator identity is unavailable. No credit was sent."));
       return;
     }
     manualCreditLocksRef.current[coin] = true;
@@ -468,7 +468,7 @@ export function AdminPage() {
       try { stableRequestId = window.crypto.randomUUID(); }
       catch {
         manualCreditLocksRef.current[coin] = false;
-        setError("Secure manual-credit request IDs are unavailable in this browser. No credit was sent.");
+        setError(t("Secure manual-credit request IDs are unavailable in this browser. No credit was sent."));
         return;
       }
       const intent = {
@@ -480,7 +480,7 @@ export function AdminPage() {
       try { window.localStorage.setItem(storageKey, JSON.stringify(intent)); }
       catch {
         manualCreditLocksRef.current[coin] = false;
-        setError("This browser cannot safely save the manual-credit request. No credit was sent.");
+        setError(t("This browser cannot safely save the manual-credit request. No credit was sent."));
         return;
       }
       setCreditRequestIds(current => ({ ...current, [coin]: stableRequestId! }));
@@ -538,7 +538,7 @@ export function AdminPage() {
       const snapshot = await getAdminWithdrawals(token);
       if (requestId !== withdrawalQueueRequestRef.current) return;
       setWithdrawals(snapshot.withdrawals || []);
-      setNotice("Withdrawal queue refreshed.");
+      setNotice(t("Withdrawal queue refreshed."));
     } catch (reason) {
       if (requestId !== withdrawalQueueRequestRef.current) return;
       setWithdrawals([]);
@@ -559,7 +559,7 @@ export function AdminPage() {
       const nextSource = snapshot.source || "unknown";
       const nextCompleteness = snapshot.completeness || "unknown";
       if (nextSource !== auditSource || nextCompleteness !== auditCompleteness) {
-        setError("Audit source changed while loading older records. Refresh the Audit log before continuing.");
+        setError(t("Audit source changed while loading older records. Refresh the Audit log before continuing."));
         setAuditNextBefore(null);
         return;
       }
@@ -586,7 +586,7 @@ export function AdminPage() {
       const snapshot = await getAdminKyc(token);
       if (requestId !== kycQueueRequestRef.current) return;
       setKyc(snapshot.kycs || []);
-      setNotice("KYC review queue refreshed.");
+      setNotice(t("KYC review queue refreshed."));
     } catch (reason) {
       if (requestId !== kycQueueRequestRef.current) return;
       setError(reason instanceof Error ? reason.message : "KYC review queue could not be refreshed.");
@@ -626,8 +626,8 @@ export function AdminPage() {
     try {
       await adminApproveWithdrawal(token, id);
       setWithdrawals(current => current.map(item => item.id === id ? { ...item, status: "approved" } : item));
-      setNotice("Withdrawal approved. Staff must still transfer the funds manually.");
-      await refreshWithdrawalQueue("Withdrawal approval confirmed.");
+      setNotice(t("Withdrawal approved. Staff must still transfer the funds manually."));
+      await refreshWithdrawalQueue(t("Withdrawal approval confirmed."));
     } catch (reason) {
       if (isAlreadyProcessed(reason)) { handleAlreadyProcessed("Withdrawal was already approved on a previous attempt. No duplicate charge was made."); }
       else { setError(reason instanceof Error ? reason.message : "Approval was not confirmed."); }
@@ -645,7 +645,7 @@ export function AdminPage() {
     if (!token || !reviewDialog) return;
     const reasonText = reviewReason.trim();
     if (!reasonText) {
-      setError("A rejection reason is required.");
+      setError(t("A rejection reason is required."));
       return;
     }
     const target = reviewDialog;
@@ -657,15 +657,15 @@ export function AdminPage() {
       if (target.kind === "withdrawal") {
         await adminRejectWithdrawal(token, target.id, reasonText);
         setWithdrawals(current => current.filter(item => item.id !== target.id));
-        setNotice("Withdrawal rejected and refund confirmed.");
+        setNotice(t("Withdrawal rejected and refund confirmed."));
         setReviewDialog(null);
         setReviewReason("");
-        await refreshWithdrawalQueue("Withdrawal rejection and refund confirmed.");
+        await refreshWithdrawalQueue(t("Withdrawal rejection and refund confirmed."));
       } else {
         await adminRejectKyc(token, target.uid, reasonText);
         setReviewDialog(null);
         setReviewReason("");
-        await refreshKycQueueAfterReview("KYC rejected.");
+        await refreshKycQueueAfterReview(t("KYC rejected."));
       }
     } catch (reason) {
       if (target.kind === "withdrawal" && isAlreadyProcessed(reason)) {
@@ -684,11 +684,11 @@ export function AdminPage() {
     if (!token || payoutSubmitLockRef.current) return;
     const reference = (payoutReferences[id] || "").trim();
     if (!reference || reference.length > 160 || /[\u0000-\u001f\u007f]/.test(reference)) {
-      setError("Enter a valid TxID / payout reference (1–160 characters).");
+      setError(t("Enter a valid TxID / payout reference (1–160 characters)."));
       return;
     }
     if (!session?.user_id) {
-      setError("The authenticated administrator identity is unavailable. No payout update was sent.");
+      setError(t("The authenticated administrator identity is unavailable. No payout update was sent."));
       return;
     }
     const storageKey = "btcbox.admin.payout-reference.v1." + session.user_id + "." + id;
@@ -697,7 +697,7 @@ export function AdminPage() {
         version: 1, actor_id: session.user_id, withdrawal_id: id, reference,
       }));
     } catch {
-      setError("This browser cannot safely save the payout reference. No payout update was sent.");
+      setError(t("This browser cannot safely save the payout reference. No payout update was sent."));
       return;
     }
     payoutSubmitLockRef.current = true;
@@ -708,8 +708,8 @@ export function AdminPage() {
       setWithdrawals(current => current.filter(item => item.id !== id));
       setPayoutReferences(current => { const next = { ...current }; delete next[id]; return next; });
       setNotice(result.duplicate ? "This payout reference was already recorded." : "Manual payout completion recorded.");
-      await refreshWithdrawalQueue("Manual payout completion confirmed.");
-      if (result.duplicate) setNotice("This payout reference was already recorded.");
+      await refreshWithdrawalQueue(t("Manual payout completion confirmed."));
+      if (result.duplicate) setNotice(t("This payout reference was already recorded."));
     } catch (reason) {
       setError((reason instanceof Error ? reason.message : "Payout completion was not confirmed.") +
         " The same reference has been saved. Verify the transaction and withdrawal history before retrying.");
@@ -722,7 +722,7 @@ export function AdminPage() {
     setBusy(true); setError(""); setNotice("");
     try {
       await saveAdminConfig(token, config);
-      setNotice("Finance configuration saved.");
+      setNotice(t("Finance configuration saved."));
     } catch (reason) { setError(reason instanceof Error ? reason.message : "Configuration was not saved."); }
     finally { setBusy(false); }
   };
@@ -739,7 +739,7 @@ export function AdminPage() {
     setBusy(true); setError(""); setNotice("");
     try {
       await adminApproveKyc(token, uid);
-      await refreshKycQueueAfterReview("KYC approved.");
+      await refreshKycQueueAfterReview(t("KYC approved."));
     } catch (reason) {
       // KYC 409 responses include actionable states such as missing documents
       // and exception approval requirements; they are not proof of a prior success.
@@ -757,7 +757,7 @@ export function AdminPage() {
       const snapshot = await getAdminSupportMessages(token);
       if (requestId !== supportQueueRequestRef.current) return;
       setSupport((snapshot.messages || []) as unknown as Array<Record<string, unknown>>);
-      setNotice("Support queue refreshed.");
+      setNotice(t("Support queue refreshed."));
     } catch (reason) {
       if (requestId !== supportQueueRequestRef.current) return;
       setSupport([]);
@@ -773,7 +773,7 @@ export function AdminPage() {
     if (!requestId) {
       try { requestId = window.crypto.randomUUID(); }
       catch {
-        setError("Secure support reply request IDs are unavailable in this browser. No reply was sent.");
+        setError(t("Secure support reply request IDs are unavailable in this browser. No reply was sent."));
         return;
       }
       setSupportReplyRequestIds((current) => ({ ...current, [uid]: requestId }));
@@ -826,7 +826,7 @@ export function AdminPage() {
         (draft.max_limit_price && (!decimal.test(draft.max_limit_price) || Number(draft.max_limit_price) <= 0)) ||
         (draft.min_limit_price && draft.max_limit_price && Number(draft.min_limit_price) > Number(draft.max_limit_price)) ||
         !draft.reason || draft.reason.length > 500) {
-      setError("Check the pair, positive tick/step/minimums, optional price bounds and required reason.");
+      setError(t("Check the pair, positive tick/step/minimums, optional price bounds and required reason."));
       return;
     }
     const storageKey = "btcbox.admin.spot-market.v1." + session.user_id;
@@ -839,7 +839,7 @@ export function AdminPage() {
           created_at: Date.now(),
         }));
       } catch {
-        setError("This browser cannot safely save the spot-market request. No update was sent.");
+        setError(t("This browser cannot safely save the spot-market request. No update was sent."));
         return;
       }
       setSpotMarketRequestId(requestId);
@@ -860,7 +860,7 @@ export function AdminPage() {
         const refreshed = await getAdminSpotMarkets(token);
         setSpotMarkets(refreshed.markets || []);
       } catch {
-        setError("The market update was saved, but the list could not be refreshed. Retry loading the Spot markets tab.");
+        setError(t("The market update was saved, but the list could not be refreshed. Retry loading the Spot markets tab."));
       }
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "Spot-market update could not be confirmed. Retry the same saved request.");
@@ -873,7 +873,7 @@ export function AdminPage() {
     const payoutBps = Math.round(Number(secondsPayoutPercent) * 100);
     const maxOpenPositions = secondsMaxOpenPositions.trim() === "" ? null : Number(secondsMaxOpenPositions);
     if (!reason || !secondsSymbols.length || !secondsDurations.length || !Number.isFinite(payoutBps) || payoutBps < 8500 || (maxOpenPositions !== null && (!Number.isSafeInteger(maxOpenPositions) || maxOpenPositions <= 0))) {
-      setError("Enter a reason, at least one market and duration, and a payout rate of at least 85%."); return;
+      setError(t("Enter a reason, at least one market and duration, and a payout rate of at least 85%.")); return;
     }
     const requestKey = JSON.stringify({ expected_policy_version: secondsPolicy.policy_version, symbols: [...secondsSymbols].sort(), durations_sec: [...secondsDurations].sort((a,b)=>a-b), min_stake: secondsMinStake, max_stake: secondsMaxStake, payout_bps: payoutBps, per_user_open_exposure: secondsExposure.trim() || null, max_open_positions_per_user: maxOpenPositions, reason });
     const requestId = secondsRequestId && secondsRequestKey === requestKey ? secondsRequestId : window.crypto.randomUUID();
@@ -889,7 +889,7 @@ export function AdminPage() {
   const submitAdminMembershipChange = async (action: "provision" | "set_permissions" | "suspend" | "reactivate" | "revoke", targetUserId: string, expectedRevision: number, permissions: string[]) => {
     if (!token || !session?.is_super_admin || !targetUserId) return;
     const reason = adminReason.trim();
-    if (!reason) { setError("A reason is required for every administrator change."); return; }
+    if (!reason) { setError(t("A reason is required for every administrator change.")); return; }
     const requestKey = JSON.stringify({ action, targetUserId, expectedRevision, permissions: [...permissions].sort(), reason });
     const requestId = adminRequestId && adminRequestKey === requestKey ? adminRequestId : window.crypto.randomUUID();
     setAdminRequestKey(requestKey); setAdminRequestId(requestId); setBusy(true); setError(""); setNotice("");
@@ -902,7 +902,7 @@ export function AdminPage() {
         const refreshed = await getAdminMemberships(token);
         setAdminMemberships(refreshed.admins || []);
       } catch {
-        setError("Administrator change is confirmed; the list could not refresh. Reload this tab before taking another action.");
+        setError(t("Administrator change is confirmed; the list could not refresh. Reload this tab before taking another action."));
       }
     } catch (reason) { setError(reason instanceof Error ? reason.message : "Administrator change could not be confirmed. Refresh before retrying."); }
     finally { setBusy(false); }
@@ -971,7 +971,7 @@ export function AdminPage() {
 
     {!loading && tab === "orders" ? <Card><CardHeader><div className="flex flex-wrap items-start justify-between gap-2"><div><CardTitle>{t("Orders")}</CardTitle><CardDescription>{ordersSource === "postgres_financial_matching" ? t("Customer order history and this administrator view use the canonical PostgreSQL matching orders.") : ordersSource === "legacy_state" ? t("Legacy state fallback is active because matching-engine mode was not requested.") : t("Order data source is not confirmed.")}</CardDescription></div><Badge variant={ordersSource === "postgres_financial_matching" ? "default" : "destructive"}>{ordersSource === "postgres_financial_matching" ? t("Source: PostgreSQL matching") : ordersSource === "legacy_state" ? t("Source: legacy state") : t("Source: unknown")}</Badge></div></CardHeader><CardContent><div className="overflow-x-auto"><table className="w-full min-w-[700px] text-left text-sm"><thead><tr className="border-b border-brand-border text-xs text-brand-text-muted"><th className="p-2">{t("ID")}</th><th className="p-2">{t("User")}</th><th className="p-2">{t("Symbol")}</th><th className="p-2">{t("Side")}</th><th className="p-2">{t("Status")}</th><th className="p-2">{t("Created")}</th></tr></thead><tbody>{orders.map((item,index)=><tr key={asText(item.id)||index} className="border-b border-brand-border/60"><td className="p-2 font-mono text-xs">{asText(item.id)}</td><td className="p-2">{asText(item.uid||item.user_id)}</td><td className="p-2">{asText(item.symbol)}</td><td className="p-2">{asText(item.side)}</td><td className="p-2">{asText(item.status)}</td><td className="p-2">{formatDate(item.created_at||item.time)}</td></tr>)}</tbody></table></div></CardContent></Card> : null}
 
-    {!loading && tab === "support" ? <Card><CardHeader className="flex flex-row items-center justify-between"><CardTitle>{t("Support messages")}</CardTitle><Button size="sm" variant="outline" disabled={busy} onClick={()=>void refreshSupportQueue()}>{t("Refresh queue")}</Button></CardHeader><CardContent className="space-y-3">{support.map((item,index)=>{const uid=asText(item.uid||item.user_id);return <div key={asText(item.id)||index} className="rounded-xl border border-brand-border p-3"><p className="text-xs text-brand-text-muted">{uid} · {formatDate(item.created_at||item.time)}</p><p className="mt-2 whitespace-pre-wrap text-sm">{asText(item.content||item.message)}</p><textarea value={supportReply[uid]||""} onChange={event=>{setSupportReply(current=>({...current,[uid]:event.target.value}));try { setSupportReplyRequestIds(current=>({...current,[uid]:window.crypto.randomUUID()})); } catch { setError("Secure support reply request IDs are unavailable in this browser. No reply was sent."); }}} rows={2} className="mt-3 w-full rounded-lg border border-brand-border bg-brand-surface-2 p-2 text-sm text-brand-text" placeholder={t("Reply to customer")}/><Button size="sm" className="mt-2" disabled={busy||!supportReply[uid]?.trim()||!hasPermission("support.reply")} onClick={()=>void replySupport(uid)}>{t("Send reply")}</Button></div>;})}</CardContent></Card> : null}
+    {!loading && tab === "support" ? <Card><CardHeader className="flex flex-row items-center justify-between"><CardTitle>{t("Support messages")}</CardTitle><Button size="sm" variant="outline" disabled={busy} onClick={()=>void refreshSupportQueue()}>{t("Refresh queue")}</Button></CardHeader><CardContent className="space-y-3">{support.map((item,index)=>{const uid=asText(item.uid||item.user_id);return <div key={asText(item.id)||index} className="rounded-xl border border-brand-border p-3"><p className="text-xs text-brand-text-muted">{uid} · {formatDate(item.created_at||item.time)}</p><p className="mt-2 whitespace-pre-wrap text-sm">{asText(item.content||item.message)}</p><textarea value={supportReply[uid]||""} onChange={event=>{setSupportReply(current=>({...current,[uid]:event.target.value}));try { setSupportReplyRequestIds(current=>({...current,[uid]:window.crypto.randomUUID()})); } catch { setError(t("Secure support reply request IDs are unavailable in this browser. No reply was sent.")); }}} rows={2} className="mt-3 w-full rounded-lg border border-brand-border bg-brand-surface-2 p-2 text-sm text-brand-text" placeholder={t("Reply to customer")}/><Button size="sm" className="mt-2" disabled={busy||!supportReply[uid]?.trim()||!hasPermission("support.reply")} onClick={()=>void replySupport(uid)}>{t("Send reply")}</Button></div>;})}</CardContent></Card> : null}
     {!loading && tab === "markets" ? <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(340px,0.9fr)]">
       <Card><CardHeader><CardTitle>{t("Spot market catalogue")}</CardTitle><CardDescription>{t("Only enabled pairs accept limit orders. Market orders remain disabled; maker/taker fees stay at zero until fee movements are implemented atomically.")}</CardDescription></CardHeader><CardContent className="space-y-3">
         {spotMarkets.length ? <div className="overflow-x-auto"><table className="w-full min-w-[620px] text-left text-sm"><thead><tr className="border-b border-brand-border text-xs text-brand-text-muted"><th className="p-2">{t("Pair")}</th><th className="p-2">{t("Status")}</th><th className="p-2">{t("Tick / step")}</th><th className="p-2">{t("Min quantity / notional")}</th><th className="p-2"></th></tr></thead><tbody>{spotMarkets.map(market=><tr key={market.base_asset + "/" + market.quote_asset} className="border-b border-brand-border/60"><td className="p-2 font-semibold">{market.base_asset}/{market.quote_asset}</td><td className="p-2"><Badge variant={market.enabled ? "default" : "outline"}>{market.enabled ? t("Enabled") : t("Disabled")}</Badge></td><td className="p-2 text-xs tabular-nums">{asText(market.price_tick)} / {asText(market.quantity_step)}</td><td className="p-2 text-xs tabular-nums">{asText(market.min_quantity)} / {asText(market.min_notional)}</td><td className="p-2"><Button size="sm" variant="outline" disabled={busy || !!spotMarketRequestId || !hasPermission("system_config.write")} onClick={()=>setSpotMarketDraft({base_asset:market.base_asset,quote_asset:market.quote_asset,enabled:market.enabled,price_tick:String(market.price_tick),quantity_step:String(market.quantity_step),min_quantity:String(market.min_quantity),min_notional:String(market.min_notional),min_limit_price:market.min_limit_price==null?"":String(market.min_limit_price),max_limit_price:market.max_limit_price==null?"":String(market.max_limit_price),reason:""})}>{t("Edit")}</Button></td></tr>)}</tbody></table></div> : <p className="text-sm text-brand-text-muted">{t("No spot pairs have been configured yet.")}</p>}
