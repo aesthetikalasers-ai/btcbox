@@ -13,10 +13,10 @@ One repository execution path is active at a time. Re-read this file before star
 
 - **Active candidate:** PR #67
 - **Branch:** `integration/btcbox-mainline-consolidation-20261108`
-- **Current candidate head:** `48a2f90a4bdab4a98daa2950d3e09856bb147b90`
+- **Current candidate head:** `bcf160ef911d59f9a054d6f105873529f27ec4ed`
 - **Base:** `main` at `2a3810da1aef2c0c7c58df0cfdb059a212eeb0d6`
 - **State:** Draft / open / not merged
-- **Latest exact-current-head CI:** all three workflows were IN PROGRESS at last check for `48a2f90a4bdab4a98daa2950d3e09856bb147b90`: Backend `42482389501`, PostgreSQL schema `42482389538`, Frontend `42482389508`. Prior exact-head `876dc5bc...` had Backend PASS but PostgreSQL schema failed because PostgreSQL 16 does not recognize MAINTAIN; the migration was made version-gated and is being revalidated.
+- **Latest exact-current-head CI:** all three workflows were IN PROGRESS at last check for `bcf160ef911d59f9a054d6f105873529f27ec4ed`: Backend `42482471023`, PostgreSQL schema `42482471026`, Frontend `42482470948`. Prior head `48a2f90a...` confirmed PostgreSQL schema PASS (`42482389538`), while Backend failed only because the 0035 regression assertion was accidentally changed to expect the 0036 MAINTAIN statement; the assertion was corrected in the current head.
 
 The previous fully green source head `8b54cf128ccd4861eedd1fae602846c92849f835` also passed Backend `42436694163`, PostgreSQL schema `42436693919`, and Frontend `42436694030`. Current head adds a documentation-only correction to the owner bootstrap guide; the full exact-head CI has now passed.
 
@@ -853,3 +853,9 @@ Safety/ownership:
 - Updated migration 0036 to execute the MAINTAIN revokes dynamically only when server_version_num >= 170000. PostgreSQL 16 therefore skips the unsupported privilege operation; PostgreSQL 17 applies it. Staging was already successfully hardened by the equivalent direct statements before this portability correction.
 - Updated the migration regression test to assert the version guard and default-privilege revocation. Candidate head 48a2f90a4bdab4a98daa2950d3e09856bb147b90 has Backend `42482389501`, PostgreSQL schema `42482389538`, and Frontend `42482389508` running; do not mark the migration fully verified until all complete successfully.
 - PR #67 remains Draft/open/unmerged; no production writes, financial operations, merge, or deployment.
+## 28. Migration regression assertion correction — 2026-11-08
+
+- Backend CI on head 48a2f90a... exposed a test-only mismatch: the 0035 test incorrectly expected the MAINTAIN default-ACL statement, which belongs to 0036. Restored the 0035 assertion to check its DELETE/TRUNCATE/REFERENCES/TRIGGER revokes; the separate 0036 test checks the version-gated MAINTAIN revoke.
+- PostgreSQL schema CI on 48a2f90a... passed, confirming the version-gated 0036 migration bootstraps successfully on PostgreSQL 16.
+- Corrected candidate head is bcf160ef911d59f9a054d6f105873529f27ec4ed. Exact-head Backend `42482471023`, PostgreSQL schema `42482471026`, and Frontend `42482470948` are running; wait for all three before marking this batch green.
+- No business implementation changed in this correction. PR #67 remains Draft/open/unmerged; no production writes or deployment.
