@@ -106,3 +106,5 @@ BTCBOX localization is a complete language system per locale, not a literal tran
 - Japanese-first terminology batch: completed native Japanese copy for the Trade Hub's Spot, Seconds, Earn and Futures availability/status surfaces. Operational availability wording preserves backend fail-closed semantics; Spot, Seconds, Earn and Futures remain recognized product terms where useful. No order execution behavior changed.
 
 - Japanese account-center and KYC copy batch: added native Japanese for My Account profile/security summaries and the identity-verification form, document guidance, submission/confirmation states and privacy warnings. No identity verification rules, document handling, account APIs or authentication behavior changed.
+
+- Japanese Spot screen copy batch: translated all 35 missing static keys for the existing SpotTradingPage, including stale ticker/order-book warnings, chart provenance, open-order states, limit-order labels and fail-closed execution messaging. This is copy-only localization; the locked Spot layout, component structure, order/API contract and execution gates were not changed.
