@@ -66,3 +66,14 @@ The upstream repositories are pinned as Git submodules. This establishes source 
 - Orders/account-setup follow-up: Orders history now has a clearer branded history header, table hierarchy and mobile-card hover affordance; its records, status mapping, loading/error/empty states and route behavior are unchanged. Account setup now shares the branded secure-access shell, cyan identity-verification accent and consistent primary action with the sign-in experience. Username/password constraints, credential API, navigation and authentication state transitions are unchanged.
 
 - Auth-page finishing batch: login/register and password-recovery panels now share the branded cyan/indigo/success accent system and stronger card hierarchy; all auth inputs and full-width provider actions have consistent 48px touch height. Username/email/Google/wallet/2FA/password-recovery providers, Supabase auth/session flow, validation rules and navigation are unchanged. No Clerk or demo identity flow introduced.
+
+
+## Japanese-first localization audit — 2026-11-08
+
+- The runtime already has a seven-language selector and a shared React i18n provider in `frontend/src/lib/i18n.tsx`; the current initial language is English and the persisted preference key is `btcbox-language`.
+- Japanese translations exist, but coverage is partial. Missing Japanese dictionary entries currently fall back to the English source string, so changing the default immediately would produce mixed-language screens.
+- The shared dashboard/market table already formats numbers and timestamps with `ja-JP` when Japanese is selected. The language preference is already user-selectable in the Topbar.
+- The business-pages module contains hundreds of translation call sites, while the current AuthPages module does not use the shared translation function. These areas need a deliberate Japanese copy pass; Admin and all status/error/empty/loading messages also require coverage review.
+- Required sequence before switching the default: (1) inventory all visible customer/admin strings and dynamic API-facing messages; (2) add reviewed Japanese translations and remove hard-coded UI copy from auth/layout/business pages; (3) verify 100% key coverage with a test that fails on missing Japanese keys; (4) set first-visit default to `ja`, persist explicit user selection, and set `document.documentElement.lang` on initial render; (5) run desktop/mobile route smoke tests and inspect Japanese text wrapping, button widths and table overflow.
+- Keep English available. Do not change API contracts, auth/session behavior, financial rules, number precision, or the locked Spot page layout as part of localization.
+- No default-language switch is made by this audit; it records the prerequisite work so the application is not released with accidental mixed-language UI.
