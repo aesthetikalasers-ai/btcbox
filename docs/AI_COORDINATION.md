@@ -13,7 +13,7 @@ One repository execution path is active at a time. Re-read this file before star
 
 - **Active candidate:** PR #67
 - **Branch:** `integration/btcbox-mainline-consolidation-20261108`
-- **Current candidate head:** `0bb7f060e6319b822b2cffb78ab523917fea90f1`
+- **Current candidate head:** `770c1186e8042ed995bd8f9affd1902074a603a1`
 - **Base:** `main` at `2a3810da1aef2c0c7c58df0cfdb059a212eeb0d6`
 - **State:** Draft / open / not merged
 - **Latest exact-current-head CI:** For `0bb7f060e6319b822b2cffb78ab523917fea90f1`, Backend `42486052474` PASS and PostgreSQL schema `42486052438` PASS; Frontend `42486052434` is running desktop/mobile route smoke tests. This head includes withdrawal replay regression coverage, five new financial-write rate-limit scopes, the additive `0037` migration, and rate-limit-secret deployment preflight.
@@ -897,3 +897,32 @@ Safety/ownership:
 - Exact candidate head: `0bb7f060e6319b822b2cffb78ab523917fea90f1`. Backend CI `42486052474` PASS; PostgreSQL schema CI `42486052438` PASS; Frontend CI `42486052434` still running.
 - Applied migration `0037_financial_write_rate_limit_scopes_v1` to isolated free Staging project `gnwsygxshqceunihguwe`. SELECT-only post-apply verification confirmed all 17 allowed scopes, function body/policy values, service_role EXECUTE=true, anon/authenticated EXECUTE=false, and zero rows in `btcbox_rate_limits`. No rate-limit test rows or financial data were inserted.
 - No production database write, production Auth change, financial operation, merge or deployment. PR #67 remains Draft/open/unmerged.
+
+
+## 32. Auth provider integration and first-withdrawal review guard — 2026-11-08
+
+- Replayed PR #70's exact two file blobs into PR #67 without modifying language-owned files:
+  - `frontend/src/features/auth/AuthPages.tsx` blob `cc39ce3483b06ca24124adb0a8336971ac189787`.
+  - `frontend/e2e/auth-routes.spec.ts` blob `93e610b8e64130794d9d8aaafcb274eed2ce9294`.
+- The Auth UI now exposes equal-size Google and Wallet entries, Google first, with the wallet providers revealed through the Wallet control; responsive behavior is covered at 320, 360, 375, 390, 768 and 1440px. The exact file blobs match PR #70. PR #70 was closed unmerged as superseded; its changes now live only on PR #67.
+- Updated backend static auth assertions from the old `Continue with Google` label to the exact `Google` / `Wallet` provider labels.
+- Found a first-withdrawal review trust-boundary defect: the API previously decided whether the user had a successful withdrawal from the legacy `btcbox_state` user snapshot, while the authoritative financial history is in PostgreSQL. A stale legacy snapshot could incorrectly suppress mandatory first-withdrawal review.
+- Added `0038_withdrawal_first_successful_review_guard_v1.sql` and changed the API to pass only the large-value / unavailable-price review requirement. PostgreSQL now independently forces `pending_admin_review` when it has no prior successful withdrawal for that user; exact replay still returns the stored review snapshot.
+- Updated both guarded fresh-database bootstrap allowlists, migration order (31 canonical SQL files), migration inventory test and RPC source-contract regression test.
+- Applied migration `0038_withdrawal_first_successful_review_guard_v1` to isolated free Staging project `gnwsygxshqceunihguwe`. SELECT-only catalog verification confirmed the exact 11-argument function, `service_role` EXECUTE=true and `anon`/`authenticated` EXECUTE=false.
+- Executed a Staging-only transaction test: no prior successful withdrawal forced `pending_admin_review`; after a simulated completed withdrawal, a low-value second request remained `pending`. The entire test transaction was rolled back; subsequent SELECT confirmed zero withdrawal requests, financial operations, ledger entries and financial accounts.
+- Exact PR #67 candidate head: `770c1186e8042ed995bd8f9affd1902074a603a1`. Backend CI `42487215118` PASS; PostgreSQL schema CI `42487215088` PASS; Frontend CI `42487215133` PASS (93 passed, one intentionally skipped mobile duplicate of the desktop-only viewport-matrix test). Responsive visual QA artifact uploaded by GitHub Actions. PR #67 remains Draft/open/unmerged.
+- Language PR #72 remains unchanged at `40a0a543a67bb6d1874638894badeab914a3ed0f`; its prior Frontend CI `42484610315` fails the i18n checker due 20 duplicate keys in each of six translated locales and missing exact `Google` / `Wallet` keys. The language owner was asked to fix the dictionary and rebase onto the current PR #67 head. No language-owned file was modified.
+
+## 33. Production business and schema readiness recheck — 2026-11-08 (read-only)
+
+- Production project `zlozsutefnmgwwzrlipt` remains a non-empty legacy hosted project, not a verified clean canonical-schema installation. Read-only counts: Auth users 0; `btcbox_state` rows 1; active Earn products 7; enabled Spot markets 0; financial accounts, operations, ledger entries, deposits, withdrawals, Earn positions and Seconds positions all 0.
+- Production migration registry still contains only two timestamped entries. Do not run the fresh-database bootstrap or apply the full canonical inventory to production; a reviewed additive upgrade/cutover plan is still required.
+- Production schema checks found these required canonical objects absent: private Admin membership/permission tables; versioned Seconds policy tables and `read_active_seconds_policy_v1()`; `read_spot_market_snapshot_v1()`; current 11-argument `create_withdrawal_atomic(...)`; `mark_withdrawal_paid_atomic(...)`; and `btcbox_rate_limit_consume_v1(...)`. Some older Spot, Earn, Seconds and admin review/manual-credit RPCs do exist, so this is schema drift, not a blank database.
+- The Spot market table exists but has zero enabled rows. Spot cannot be released until approved market definitions, precision/minimum rules and live catalog snapshot are populated and verified.
+- There are zero Supabase Auth users and no canonical Admin membership store. Initial owner-only Super Admin bootstrap cannot occur until a real Auth user exists and its UUID is owner-verified.
+- Deposit API rejects customer-submitted amounts; staff manual credit requires a verified transaction hash or auditable receipt reference. No automated chain watcher/confirmation Edge Function is installed (Edge Functions list is empty). If automatic on-chain deposits are required, chain provider/indexer integration and confirmation/reorg handling remain unimplemented.
+- Withdrawal review and payout are manual. Approval does not broadcast to a chain; staff mark-paid records an external payout reference. Automated custody/signing/broadcast and chain reconciliation are not implemented. Do not describe withdrawals as automatically processed.
+- Security Advisor still marks two private backup tables Critical because RLS is disabled. Direct catalog checks show `private` schema USAGE=false and SELECT/INSERT privileges=false for `anon`, `authenticated` and `service_role`; this is evidence that those roles currently lack direct access, not a reason to dismiss the Advisor. Keep the finding open and do not auto-apply the Advisor SQL without an explicit security decision.
+- Shared-rate-limit HMAC secret presence/rotation in production Vercel environment remains unverified. Preflight requires `BTCBOX_RATE_LIMIT_HMAC_SECRET` with at least 32 bytes; no real secret is stored in the repository or chat.
+- No production database writes, Auth changes, financial operations, migration application, merge or deployment were performed during this recheck.
