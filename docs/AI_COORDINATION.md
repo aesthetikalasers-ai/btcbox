@@ -554,3 +554,12 @@ Safety/ownership:
 - Latest candidate SHA `811cf2a5b0965b71cdca88b33a65c06ec101c147`. Exact-head CI at checkpoint: build: in_progress; empty-postgres-bootstrap: in_progress; Unified frontend/backend build, tests, and fail-closed preflight: in_progress.
 - A checkout cleanup warning references two pre-existing gitlinks under `references/` without matching entries in `.gitmodules`; both gitlinks also exist on `main`. They were not removed or rewritten because they are existing reference archives, not runtime dependencies for this UI batch.
 - No merge, deployment, hosted Supabase DDL/write, financial operation, or locked Spot layout/API change.
+
+
+### Earn page visual adaptation — 2026-11-08
+
+- Candidate head: `c7e279febe3725388a580fcbac051bdac366c03b` (PR #67 Draft/open/unmerged).
+- `frontend/src/features/pages/Pages.tsx` Earn catalog now presents live backend products as responsive fintech cards with asset identity, flexible/fixed term, catalog APY, term and early-redemption fee. The subscribe panel has matching card/input treatment.
+- All product/rate/term values remain sourced from `getEarnCatalog()`; positions and interest remain sourced from the authenticated account snapshot. No mock products, invented APY, synthetic balances or changed subscribe/redeem behavior were added. Existing backend action enablement and request-id idempotency remain intact.
+- Exact-head CI checkpoint: empty-postgres-bootstrap: in_progress; build: in_progress; Unified frontend/backend build, tests, and fail-closed preflight: in_progress.
+- Visual migration remains in progress; no merge, deployment, hosted Supabase writes, financial operation, or Spot page layout/API change.
