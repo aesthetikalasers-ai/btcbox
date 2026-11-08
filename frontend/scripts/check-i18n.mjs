@@ -27,12 +27,14 @@ let supplementalDictionariesNode;
 let accountDictionariesNode;
 let adminDictionariesNode;
 let customerDictionariesNode;
+let authMessageDictionariesNode;
 function findDictionaries(node) {
   if (ts.isVariableDeclaration(node) && node.name.getText(i18nFile) === "dictionaries") dictionariesNode = node.initializer;
   if (ts.isVariableDeclaration(node) && node.name.getText(i18nFile) === "supplementalDictionaries") supplementalDictionariesNode = node.initializer;
   if (ts.isVariableDeclaration(node) && node.name.getText(i18nFile) === "accountDictionaries") accountDictionariesNode = node.initializer;
   if (ts.isVariableDeclaration(node) && node.name.getText(i18nFile) === "adminDictionaries") adminDictionariesNode = node.initializer;
   if (ts.isVariableDeclaration(node) && node.name.getText(i18nFile) === "customerDictionaries") customerDictionariesNode = node.initializer;
+  if (ts.isVariableDeclaration(node) && node.name.getText(i18nFile) === "authMessageDictionaries") authMessageDictionariesNode = node.initializer;
   ts.forEachChild(node, findDictionaries);
 }
 findDictionaries(i18nFile);
@@ -54,7 +56,7 @@ for (const localeProperty of dictionariesNode.properties) {
   }
   dictionaries.set(locale, keys);
 }
-for (const supplementalNode of [supplementalDictionariesNode, accountDictionariesNode, adminDictionariesNode, customerDictionariesNode]) {
+for (const supplementalNode of [supplementalDictionariesNode, accountDictionariesNode, adminDictionariesNode, customerDictionariesNode, authMessageDictionariesNode]) {
   if (!supplementalNode || !ts.isObjectLiteralExpression(supplementalNode)) continue;
   for (const localeProperty of supplementalNode.properties) {
     if (!ts.isPropertyAssignment(localeProperty) || !ts.isObjectLiteralExpression(localeProperty.initializer)) continue;
