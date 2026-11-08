@@ -29,7 +29,7 @@ function readLocale(locale) {
   const body = source.slice(bodyStart, end);
   const keys = [];
   const invalid = [];
-  const pattern = /(?:^|,)\s*("(?:\\.|[^"\\])*"|[A-Za-z_$][\w$]*)\s*:\s*("(?:\\.|[^"\\])*"|undefined|null)\s*,?/gm;
+  const pattern = /(?:^|,)\s*("(?:\\.|[^"\\])*"|[A-Za-z_$][\w$]*)\s*:\s*("(?:\\.|[^"\\])*"|undefined|null)/gm;
   for (const match of body.matchAll(pattern)) {
     const rawKey = match[1];
     const key = rawKey.startsWith('"') ? JSON.parse(rawKey) : rawKey;
