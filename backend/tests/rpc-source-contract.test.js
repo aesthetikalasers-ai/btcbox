@@ -101,9 +101,10 @@ test('Seconds order API and canonical SQL preserve the request-hash replay contr
   assert.match(api, /JSON\.stringify\(\{ user_id: String\(user\.uid\), symbol, direction, amount: String\(amount\), duration_sec: durationSec, request_id: requestId \}\)/);
   assert.match(secondsSql, /v_existing\.open_request_hash\s*<>\s*p_request_hash/i);
   assert.match(secondsSql, /WHERE open_request_id=p_request_id/i);
+  const secondsOrderBody = secondsSql.slice(signature.index).toLowerCase();
   assert.ok(
-    secondsSql.toLowerCase().indexOf('where open_request_id=p_request_id') < secondsSql.toLowerCase().indexOf('select * into v_policy'),
-    'idempotent replay lookup must happen before resolving the active policy'
+    secondsOrderBody.indexOf('where open_request_id=p_request_id') < secondsOrderBody.indexOf('select * into v_policy'),
+    'idempotent replay lookup must happen before resolving the active policy within submit_seconds_order_v1'
   );
 });
 
