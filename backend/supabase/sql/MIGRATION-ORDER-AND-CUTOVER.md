@@ -1,6 +1,6 @@
 # BTCBOX fresh database bootstrap and SQL reference
 
-Status: source-only SQL inventory and fresh-database bootstrap instructions. The owner has stated that the current Supabase database is empty and has no users. Plan against a fresh empty database; do not add legacy-user migration, production-data inventory, or historical cutover work to this project.
+Status: source-only SQL inventory and fresh-database bootstrap instructions. The product/schema design target is a fresh database with no customer accounts; do not add legacy-user migration or historical production-data migration work. This design assumption is NOT a statement that the currently connected hosted Supabase project is empty: read-only verification on 2026-11-08 found one `public.btcbox_state` row (revision 29, containing three legacy state users and three sessions), seven active Earn catalog rows, and two private test-backup tables. Supabase Auth itself currently has zero users. Treat the connected hosted project as an existing, non-empty environment and do not run the fresh bootstrap against it.
 
 ## Canonical fresh-schema bootstrap
 
@@ -88,6 +88,6 @@ Source CI verifies SQL inventory, shell syntax, bootstrap safety gates and sourc
 - test manual credit, withdrawal approval/payout completion, spot order idempotency and Seconds order/settlement concurrency/replay without enabling production financial cutover;
 - preserve evidence and the exact SQL/source SHA.
 
-Never infer live database state from source filenames or migration version labels. Do not run a migration, bootstrap, or hosted database write as part of source review.
+Never infer live database state from source filenames or migration version labels. The currently connected hosted project has not been bootstrapped to this canonical schema and has existing state/catalog/test-backup records. Do not run a migration, bootstrap, or hosted database write as part of source review.
 
 Never infer live database state by comparing timestamp registry versions with four-digit source filenames. Do not run a migration, bootstrap, or hosted database write as part of source review.
