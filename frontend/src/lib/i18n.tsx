@@ -6811,6 +6811,13 @@ const dictionaries: Record<StoredLocale, Dictionary> = {
     "Only order records returned by the authenticated account service are shown.": "Es werden nur Orderdatensätze angezeigt, die vom authentifizierten Kontodienst zurückgegeben wurden.",
     "Policy-driven order entry": "Richtlinienbasierte Orderaufgabe",
     "Place supported limit orders against the BTCBOX spot matching service.": "Geben Sie unterstützte Limit-Orders über den BTCBOX-Spot-Matching-Dienst auf.",
+    "OR CONTINUE WITH": "Oder fortfahren mit",
+    "No email registration is required. Your BTCBOX username and password are created after identity verification.": "Eine E-Mail-Registrierung ist nicht erforderlich. Erstellen Sie Benutzername und Passwort nach der Identitätsprüfung.",
+    "Create your BTCBOX identity with Google or a supported wallet, then set your own username and password.": "Erstellen Sie Ihr BTCBOX-Konto mit Google oder einer unterstützten Wallet und legen Sie Benutzername und Passwort fest.",
+    "Access your BTCBOX account with your username, Google account or supported crypto wallet.": "Melden Sie sich mit Benutzername, Google-Konto oder unterstützter Wallet bei BTCBOX an.",
+    "Choose Google or a supported crypto wallet. After verification, you will create your BTCBOX username and password.": "Wählen Sie Google oder eine unterstützte Wallet. Nach der Verifizierung erstellen Sie Ihren BTCBOX-Benutzernamen und Ihr Passwort.",
+    "Sign in with your BTCBOX username, Google account or crypto wallet.": "Melden Sie sich mit Ihrem BTCBOX-Benutzernamen, Google-Konto oder einer Wallet an.",
+    "Administrator access could not be verified": "Der Administratorzugriff konnte nicht verifiziert werden.",
   }
 };
 
@@ -6839,13 +6846,6 @@ export function I18nProvider({ children }: { children: ReactNode }) {
   });
   useEffect(() => {
     document.documentElement.lang = localeTags[language];
-    "OR CONTINUE WITH": "Oder fortfahren mit",
-    "No email registration is required. Your BTCBOX username and password are created after identity verification.": "Eine E-Mail-Registrierung ist nicht erforderlich. Erstellen Sie Benutzername und Passwort nach der Identitätsprüfung.",
-    "Create your BTCBOX identity with Google or a supported wallet, then set your own username and password.": "Erstellen Sie Ihr BTCBOX-Konto mit Google oder einer unterstützten Wallet und legen Sie Benutzername und Passwort fest.",
-    "Access your BTCBOX account with your username, Google account or supported crypto wallet.": "Melden Sie sich mit Benutzername, Google-Konto oder unterstützter Wallet bei BTCBOX an.",
-    "Choose Google or a supported crypto wallet. After verification, you will create your BTCBOX username and password.": "Wählen Sie Google oder eine unterstützte Wallet. Nach der Verifizierung erstellen Sie Ihren BTCBOX-Benutzernamen und Ihr Passwort.",
-    "Sign in with your BTCBOX username, Google account or crypto wallet.": "Melden Sie sich mit Ihrem BTCBOX-Benutzernamen, Google-Konto oder einer Wallet an.",
-    "Administrator access could not be verified": "Der Administratorzugriff konnte nicht verifiziert werden.",
   }, [language]);
 
   const setLanguage = (next: Language) => {
