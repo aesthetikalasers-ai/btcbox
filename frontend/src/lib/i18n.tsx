@@ -879,6 +879,7 @@ const dictionaries: Record<StoredLocale, Dictionary> = {
     "Access your BTCBOX account with your username, Google account or supported crypto wallet.": "Access your BTCBOX account with your username, Google account or supported crypto wallet.",
     "Choose Google or a supported crypto wallet. After verification, you will create your BTCBOX username and password.": "Choose Google or a supported crypto wallet. After verification, you will create your BTCBOX username and password.",
     "Sign in with your BTCBOX username, Google account or crypto wallet.": "Sign in with your BTCBOX username, Google account or crypto wallet.",
+    "Administrator access could not be verified": "Administrator access could not be verified.",
   },
   ja: {
     "BTCBOX / OPEN MARKET":"BTCBOX / 公開市場",
@@ -1720,6 +1721,7 @@ const dictionaries: Record<StoredLocale, Dictionary> = {
     "Access your BTCBOX account with your username, Google account or supported crypto wallet.": "ユーザー名、Googleアカウント、または対応ウォレットでBTCBOXにログインできます。",
     "Choose Google or a supported crypto wallet. After verification, you will create your BTCBOX username and password.": "Googleまたは対応ウォレットを選択してください。認証後、BTCBOXのユーザー名とパスワードを作成します。",
     "Sign in with your BTCBOX username, Google account or crypto wallet.": "BTCBOXのユーザー名、Googleアカウント、または暗号資産ウォレットでログインします。",
+    "Administrator access could not be verified": "管理者権限を確認できませんでした。",
   },
   "zh-CN": {
     "BTCBOX / OPEN MARKET":"BTCBOX / 公开市场",
@@ -2561,6 +2563,7 @@ const dictionaries: Record<StoredLocale, Dictionary> = {
     "Access your BTCBOX account with your username, Google account or supported crypto wallet.": "使用用户名、Google 账户或支持的钱包登录 BTCBOX。",
     "Choose Google or a supported crypto wallet. After verification, you will create your BTCBOX username and password.": "选择 Google 或支持的钱包。验证通过后，创建 BTCBOX 用户名和密码。",
     "Sign in with your BTCBOX username, Google account or crypto wallet.": "使用 BTCBOX 用户名、Google 账户或加密钱包登录。",
+    "Administrator access could not be verified": "无法验证管理员权限。",
   },
   es: {
     "BTCBOX / OPEN MARKET":"BTCBOX / MERCADO ABIERTO",
@@ -3402,6 +3405,7 @@ const dictionaries: Record<StoredLocale, Dictionary> = {
     "Access your BTCBOX account with your username, Google account or supported crypto wallet.": "Accede a BTCBOX con tu nombre de usuario, cuenta de Google o wallet compatible.",
     "Choose Google or a supported crypto wallet. After verification, you will create your BTCBOX username and password.": "Elige Google o una wallet compatible. Tras verificarla, crearás tu usuario y contraseña de BTCBOX.",
     "Sign in with your BTCBOX username, Google account or crypto wallet.": "Inicia sesión con tu usuario de BTCBOX, cuenta de Google o wallet.",
+    "Administrator access could not be verified": "No se pudo verificar el acceso de administrador.",
   },
   vi: {
     "BTCBOX / OPEN MARKET":"BTCBOX / THỊ TRƯỜNG MỞ",
@@ -4243,6 +4247,7 @@ const dictionaries: Record<StoredLocale, Dictionary> = {
     "Access your BTCBOX account with your username, Google account or supported crypto wallet.": "Đăng nhập BTCBOX bằng tên người dùng, tài khoản Google hoặc ví được hỗ trợ.",
     "Choose Google or a supported crypto wallet. After verification, you will create your BTCBOX username and password.": "Chọn Google hoặc ví được hỗ trợ. Sau khi xác minh, bạn sẽ tạo tên người dùng và mật khẩu BTCBOX.",
     "Sign in with your BTCBOX username, Google account or crypto wallet.": "Đăng nhập bằng tên người dùng BTCBOX, tài khoản Google hoặc ví tiền mã hóa.",
+    "Administrator access could not be verified": "Không thể xác minh quyền quản trị viên.",
   },
   it: {
     "BTCBOX / OPEN MARKET":"BTCBOX / MERCATO APERTO",
@@ -5084,6 +5089,7 @@ const dictionaries: Record<StoredLocale, Dictionary> = {
     "Access your BTCBOX account with your username, Google account or supported crypto wallet.": "Accedi a BTCBOX con il tuo nome utente, account Google o wallet supportato.",
     "Choose Google or a supported crypto wallet. After verification, you will create your BTCBOX username and password.": "Scegli Google o un wallet supportato. Dopo la verifica, crea il tuo nome utente e la password BTCBOX.",
     "Sign in with your BTCBOX username, Google account or crypto wallet.": "Accedi con il nome utente BTCBOX, l'account Google o un wallet.",
+    "Administrator access could not be verified": "Impossibile verificare l'accesso amministratore.",
   },
   pt: {
     "BTCBOX / OPEN MARKET":"BTCBOX / MERCADO ABERTO",
@@ -5924,6 +5930,7 @@ const dictionaries: Record<StoredLocale, Dictionary> = {
     "Access your BTCBOX account with your username, Google account or supported crypto wallet.": "Aceda à BTCBOX com o seu nome de utilizador, conta Google ou carteira compatível.",
     "Choose Google or a supported crypto wallet. After verification, you will create your BTCBOX username and password.": "Escolha o Google ou uma carteira compatível. Após a verificação, criará o seu utilizador e a palavra-passe BTCBOX.",
     "Sign in with your BTCBOX username, Google account or crypto wallet.": "Inicie sessão com o utilizador BTCBOX, conta Google ou carteira.",
+    "Administrator access could not be verified": "Não foi possível verificar o acesso de administrador.",
   },
 
   de: {
@@ -6838,6 +6845,7 @@ export function I18nProvider({ children }: { children: ReactNode }) {
     "Access your BTCBOX account with your username, Google account or supported crypto wallet.": "Melden Sie sich mit Benutzername, Google-Konto oder unterstützter Wallet bei BTCBOX an.",
     "Choose Google or a supported crypto wallet. After verification, you will create your BTCBOX username and password.": "Wählen Sie Google oder eine unterstützte Wallet. Nach der Verifizierung erstellen Sie Ihren BTCBOX-Benutzernamen und Ihr Passwort.",
     "Sign in with your BTCBOX username, Google account or crypto wallet.": "Melden Sie sich mit Ihrem BTCBOX-Benutzernamen, Google-Konto oder einer Wallet an.",
+    "Administrator access could not be verified": "Der Administratorzugriff konnte nicht verifiziert werden.",
   }, [language]);
 
   const setLanguage = (next: Language) => {
