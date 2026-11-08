@@ -13,10 +13,10 @@ One repository execution path is active at a time. Re-read this file before star
 
 - **Active candidate:** PR #67
 - **Branch:** `integration/btcbox-mainline-consolidation-20261108`
-- **Current candidate head:** `bcf160ef911d59f9a054d6f105873529f27ec4ed`
+- **Current candidate head:** `9cae5b546489b0dc33e0db0ef867d88e9c7c30f0`
 - **Base:** `main` at `2a3810da1aef2c0c7c58df0cfdb059a212eeb0d6`
 - **State:** Draft / open / not merged
-- **Latest exact-current-head CI:** Backend `42482471023` PASS and PostgreSQL schema `42482471026` PASS for `bcf160ef911d59f9a054d6f105873529f27ec4ed`; Frontend `42482470948` remained IN PROGRESS (Chromium installation) at last check. Prior head `48a2f90a...` confirmed PostgreSQL schema PASS; its Backend test assertion was corrected in the current head.
+- **Latest exact-current-head CI:** For `9cae5b546489b0dc33e0db0ef867d88e9c7c30f0`, Backend `42484842881` PASS and PostgreSQL schema `42484842925` PASS; Frontend `42484842915` is still running desktop/mobile route smoke tests. The previous head `2c536d6017f886757975c3e52f2a4154b02c5306` exposed a test-file regex syntax error; it was corrected in the current head.
 
 The previous fully green source head `8b54cf128ccd4861eedd1fae602846c92849f835` also passed Backend `42436694163`, PostgreSQL schema `42436693919`, and Frontend `42436694030`. Current head adds a documentation-only correction to the owner bootstrap guide; the full exact-head CI has now passed.
 
@@ -60,7 +60,7 @@ PR #67 is the sole integration candidate. New fixes discovered during final revi
 
 ## 5. Remaining active work — one ordered queue
 
-1. PR #67 remains the sole integration candidate. Latest head `60e7a697cf1b1b5a0f24e0d6d065203e88e7b575`; exact-head Backend, PostgreSQL schema and Frontend CI are in progress. Do not alter the locked trading-page layout.
+1. PR #67 remains the sole integration candidate. Latest head `9cae5b546489b0dc33e0db0ef867d88e9c7c30f0`; exact-head Backend and PostgreSQL schema CI pass, Frontend desktop/mobile smoke tests are in progress. Do not alter the locked trading-page layout.
 2. Isolated Supabase Staging project `gnwsygxshqceunihguwe` is created at $0/month in `us-east-1`; the fresh schema has 27 registered migrations installed successfully. See section 19 for exact verification and remaining limits.
 3. Real Email/Google provider configuration and authenticated end-to-end flows remain NOT VERIFIED. Admin bootstrap is not run because no Auth user exists; it requires the intended owner-controlled Auth identity.
 4. Financial cutover flags remain fail-closed. No real spot orders, Seconds positions, Earn subscriptions/redemptions, deposits, withdrawals or settlement have been executed. Keep PR #67 Draft until Auth, API and financial acceptance gates are independently verified and the owner authorizes release.
@@ -859,3 +859,15 @@ Safety/ownership:
 - PostgreSQL schema CI on 48a2f90a... passed, confirming the version-gated 0036 migration bootstraps successfully on PostgreSQL 16.
 - Corrected candidate head is bcf160ef911d59f9a054d6f105873529f27ec4ed. Exact-head Backend `42482471023`, PostgreSQL schema `42482471026`, and Frontend `42482470948` are running; wait for all three before marking this batch green.
 - No business implementation changed in this correction. PR #67 remains Draft/open/unmerged; no production writes or deployment.
+
+## 29. API lifecycle contract coverage and language integration reconciliation — 2026-11-08
+
+- Re-read this coordination document before the batch. PR #67 remains the only integration candidate; its latest source head is `9cae5b546489b0dc33e0db0ef867d88e9c7c30f0`.
+- Added three source-contract regression groups to `backend/tests/rpc-source-contract.test.js`: Spot limit-order submit argument parity and client-order replay/reserve ordering; administrator audit outbox API compatibility with SQL defaulted parameters; and withdrawal review/manual payout row-lock, state-transition, audit and no-second-ledger-debit invariants.
+- The first test commit `2c536d6017f886757975c3e52f2a4154b02c5306` failed Backend CI because one newly authored test regex had invalid JavaScript syntax. This was a test-only failure; it was corrected and a further route assertion aligned to the actual fetch-based API call. Do not treat the failed test head as accepted.
+- Current head `9cae5b546489b0dc33e0db0ef867d88e9c7c30f0`: Backend CI `42484842881` PASS; PostgreSQL schema CI `42484842925` PASS; Frontend CI `42484842915` still running the desktop/mobile route smoke tests. Await Frontend completion before marking the batch fully green.
+- A suspected `append_admin_audit_log` parameter mismatch was disproved: the canonical SQL defines six parameters, with the final four defaulted (including `p_meta jsonb DEFAULT '{}'`). SELECT-only Staging catalog verification confirms `pronargs=6`, `pronargdefaults=4`, service_role EXECUTE=true, anon/authenticated EXECUTE=false. No API or database change was made for this false alarm.
+- Language PR #72 (`work/btcbox-i18n-completion-20261108-v2`, head `40a0a543a67bb6d1874638894badeab914a3ed0f`) was discovered and reviewed. Its frontend CI `42484610315` failed the new i18n checker: English 872 keys, no duplicates; each of ja/zh-CN/es/vi/it/pt reports 892 keys and 20 duplicate keys. Exact standalone `Google` and `Wallet` keys were not found in that branch's locale dictionaries. A coordination comment was posted on PR #72 with these findings and a request to fix duplicates, add the two keys in all seven locales, and rebase/replay onto the current PR #67 head. Language-owned files were not edited by this workstream.
+- PR #72 base SHA is stale (`c2065d39afc42dbf0c2bf2f7223a7453af8ae8e0`); PR #67 has advanced. PR #70 remains Draft and based on an older base SHA (`58ca4cb4cdc1c5c9c5cec42b4b2c1b213089da32`); do not merge either PR until language completion, base reconciliation and fresh exact-head CI.
+- Vercel bot reported its free daily preview-deployment quota exhausted on PR #72. This is not a GitHub Actions CI failure and no manual deployment was performed. Continue relying on GitHub CI; do not trigger unnecessary previews.
+- No production DB writes, Auth changes, financial operations, merge, or deployment occurred.
