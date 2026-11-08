@@ -46,7 +46,7 @@ export function AuthPage({ mode, redirectTo }: { mode: "login" | "register"; red
     } catch { /* AuthProvider displays the safe error. */ }
   };
 
-  const walletButtons = <div className="mt-2 grid gap-2" role="group" aria-label={t("Connect Ethereum wallet")}>
+  const walletButtons = <div className="mt-2 grid gap-2" role="group" aria-label={t("Wallet")}>
     {ethereumWallets.length > 0
       ? ethereumWallets.map((wallet) => (
         <Button key={wallet.info.uuid} type="button" variant="outline" className="min-h-11 w-full justify-start" aria-busy={busy} disabled={busy || status !== "anonymous"} onClick={() => void signInWithWeb3("ethereum", wallet.provider)}>
