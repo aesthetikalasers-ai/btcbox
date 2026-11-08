@@ -182,7 +182,7 @@ export function AdminPage() {
     let active = true;
     setLoading(true);
     refreshTokenAndSession().catch((reason) => {
-      if (active) setError(reason instanceof Error ? reason.message : t("Administrator access could not be verified."));
+      if (active) setError(reason instanceof Error ? reason.message : t("Administrator access could not be verified"));
     }).finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
   }, [authStatus, refreshTokenAndSession]);
