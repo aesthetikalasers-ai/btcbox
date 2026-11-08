@@ -875,6 +875,10 @@ const dictionaries: Record<StoredLocale, Dictionary> = {
     "Place supported limit orders against the BTCBOX spot matching service.": "Place supported limit orders against the BTCBOX spot matching service.",
     "OR CONTINUE WITH": "OR CONTINUE WITH",
     "No email registration is required. Your BTCBOX username and password are created after identity verification.": "No email registration is required. Your BTCBOX username and password are created after identity verification.",
+    "Create your BTCBOX identity with Google or a supported wallet, then set your own username and password.": "Create your BTCBOX identity with Google or a supported wallet, then set your own username and password.",
+    "Access your BTCBOX account with your username, Google account or supported crypto wallet.": "Access your BTCBOX account with your username, Google account or supported crypto wallet.",
+    "Choose Google or a supported crypto wallet. After verification, you will create your BTCBOX username and password.": "Choose Google or a supported crypto wallet. After verification, you will create your BTCBOX username and password.",
+    "Sign in with your BTCBOX username, Google account or crypto wallet.": "Sign in with your BTCBOX username, Google account or crypto wallet.",
   },
   ja: {
     "BTCBOX / OPEN MARKET":"BTCBOX / 公開市場",
@@ -1712,6 +1716,10 @@ const dictionaries: Record<StoredLocale, Dictionary> = {
     "Place supported limit orders against the BTCBOX spot matching service.": "BTCBOX現物マッチングサービスでサポートされている指値注文を発注します。",
     "OR CONTINUE WITH": "または次の方法で続行",
     "No email registration is required. Your BTCBOX username and password are created after identity verification.": "メール登録は不要です。本人確認後、BTCBOXのユーザー名とパスワードを作成します。",
+    "Create your BTCBOX identity with Google or a supported wallet, then set your own username and password.": "Googleまたは対応ウォレットでBTCBOXアカウントを作成し、ユーザー名とパスワードを設定します。",
+    "Access your BTCBOX account with your username, Google account or supported crypto wallet.": "ユーザー名、Googleアカウント、または対応ウォレットでBTCBOXにログインできます。",
+    "Choose Google or a supported crypto wallet. After verification, you will create your BTCBOX username and password.": "Googleまたは対応ウォレットを選択してください。認証後、BTCBOXのユーザー名とパスワードを作成します。",
+    "Sign in with your BTCBOX username, Google account or crypto wallet.": "BTCBOXのユーザー名、Googleアカウント、または暗号資産ウォレットでログインします。",
   },
   "zh-CN": {
     "BTCBOX / OPEN MARKET":"BTCBOX / 公开市场",
@@ -2549,6 +2557,10 @@ const dictionaries: Record<StoredLocale, Dictionary> = {
     "Place supported limit orders against the BTCBOX spot matching service.": "通过 BTCBOX 现货撮合服务提交受支持的限价订单。",
     "OR CONTINUE WITH": "或使用以下方式继续",
     "No email registration is required. Your BTCBOX username and password are created after identity verification.": "无需邮箱注册。身份验证通过后即可创建 BTCBOX 用户名和密码。",
+    "Create your BTCBOX identity with Google or a supported wallet, then set your own username and password.": "使用 Google 或支持的钱包创建 BTCBOX 账户，然后设置用户名和密码。",
+    "Access your BTCBOX account with your username, Google account or supported crypto wallet.": "使用用户名、Google 账户或支持的钱包登录 BTCBOX。",
+    "Choose Google or a supported crypto wallet. After verification, you will create your BTCBOX username and password.": "选择 Google 或支持的钱包。验证通过后，创建 BTCBOX 用户名和密码。",
+    "Sign in with your BTCBOX username, Google account or crypto wallet.": "使用 BTCBOX 用户名、Google 账户或加密钱包登录。",
   },
   es: {
     "BTCBOX / OPEN MARKET":"BTCBOX / MERCADO ABIERTO",
@@ -3386,6 +3398,10 @@ const dictionaries: Record<StoredLocale, Dictionary> = {
     "Place supported limit orders against the BTCBOX spot matching service.": "Envía órdenes limitadas compatibles a través del servicio de emparejamiento spot de BTCBOX.",
     "OR CONTINUE WITH": "O continúa con",
     "No email registration is required. Your BTCBOX username and password are created after identity verification.": "No necesitas registrarte por correo. Crea tu usuario y contraseña tras verificar tu identidad.",
+    "Create your BTCBOX identity with Google or a supported wallet, then set your own username and password.": "Crea tu cuenta BTCBOX con Google o una wallet compatible y configura tu nombre de usuario y contraseña.",
+    "Access your BTCBOX account with your username, Google account or supported crypto wallet.": "Accede a BTCBOX con tu nombre de usuario, cuenta de Google o wallet compatible.",
+    "Choose Google or a supported crypto wallet. After verification, you will create your BTCBOX username and password.": "Elige Google o una wallet compatible. Tras verificarla, crearás tu usuario y contraseña de BTCBOX.",
+    "Sign in with your BTCBOX username, Google account or crypto wallet.": "Inicia sesión con tu usuario de BTCBOX, cuenta de Google o wallet.",
   },
   vi: {
     "BTCBOX / OPEN MARKET":"BTCBOX / THỊ TRƯỜNG MỞ",
@@ -4223,6 +4239,10 @@ const dictionaries: Record<StoredLocale, Dictionary> = {
     "Place supported limit orders against the BTCBOX spot matching service.": "Đặt các lệnh giới hạn được hỗ trợ thông qua dịch vụ khớp lệnh giao ngay BTCBOX.",
     "OR CONTINUE WITH": "HOẶC TIẾP TỤC VỚI",
     "No email registration is required. Your BTCBOX username and password are created after identity verification.": "Không cần đăng ký email. Tạo tên người dùng và mật khẩu sau khi xác minh danh tính.",
+    "Create your BTCBOX identity with Google or a supported wallet, then set your own username and password.": "Tạo tài khoản BTCBOX bằng Google hoặc ví được hỗ trợ, sau đó đặt tên người dùng và mật khẩu.",
+    "Access your BTCBOX account with your username, Google account or supported crypto wallet.": "Đăng nhập BTCBOX bằng tên người dùng, tài khoản Google hoặc ví được hỗ trợ.",
+    "Choose Google or a supported crypto wallet. After verification, you will create your BTCBOX username and password.": "Chọn Google hoặc ví được hỗ trợ. Sau khi xác minh, bạn sẽ tạo tên người dùng và mật khẩu BTCBOX.",
+    "Sign in with your BTCBOX username, Google account or crypto wallet.": "Đăng nhập bằng tên người dùng BTCBOX, tài khoản Google hoặc ví tiền mã hóa.",
   },
   it: {
     "BTCBOX / OPEN MARKET":"BTCBOX / MERCATO APERTO",
@@ -5060,6 +5080,10 @@ const dictionaries: Record<StoredLocale, Dictionary> = {
     "Place supported limit orders against the BTCBOX spot matching service.": "Invia ordini limite supportati tramite il servizio di matching spot BTCBOX.",
     "OR CONTINUE WITH": "Oppure continua con",
     "No email registration is required. Your BTCBOX username and password are created after identity verification.": "Non serve registrarsi via e-mail. Crea nome utente e password dopo la verifica.",
+    "Create your BTCBOX identity with Google or a supported wallet, then set your own username and password.": "Crea il tuo account BTCBOX con Google o un wallet supportato, quindi imposta nome utente e password.",
+    "Access your BTCBOX account with your username, Google account or supported crypto wallet.": "Accedi a BTCBOX con il tuo nome utente, account Google o wallet supportato.",
+    "Choose Google or a supported crypto wallet. After verification, you will create your BTCBOX username and password.": "Scegli Google o un wallet supportato. Dopo la verifica, crea il tuo nome utente e la password BTCBOX.",
+    "Sign in with your BTCBOX username, Google account or crypto wallet.": "Accedi con il nome utente BTCBOX, l'account Google o un wallet.",
   },
   pt: {
     "BTCBOX / OPEN MARKET":"BTCBOX / MERCADO ABERTO",
@@ -5896,6 +5920,10 @@ const dictionaries: Record<StoredLocale, Dictionary> = {
     "Place supported limit orders against the BTCBOX spot matching service.": "Envie ordens limitadas suportadas através do serviço de correspondência spot da BTCBOX.",
     "OR CONTINUE WITH": "Ou continuar com",
     "No email registration is required. Your BTCBOX username and password are created after identity verification.": "Não é necessário registar-se por e-mail. Crie o seu utilizador e palavra-passe após a verificação.",
+    "Create your BTCBOX identity with Google or a supported wallet, then set your own username and password.": "Crie a sua conta BTCBOX com o Google ou uma carteira compatível e defina o nome de utilizador e a palavra-passe.",
+    "Access your BTCBOX account with your username, Google account or supported crypto wallet.": "Aceda à BTCBOX com o seu nome de utilizador, conta Google ou carteira compatível.",
+    "Choose Google or a supported crypto wallet. After verification, you will create your BTCBOX username and password.": "Escolha o Google ou uma carteira compatível. Após a verificação, criará o seu utilizador e a palavra-passe BTCBOX.",
+    "Sign in with your BTCBOX username, Google account or crypto wallet.": "Inicie sessão com o utilizador BTCBOX, conta Google ou carteira.",
   },
 
   de: {
@@ -6806,6 +6834,10 @@ export function I18nProvider({ children }: { children: ReactNode }) {
     document.documentElement.lang = localeTags[language];
     "OR CONTINUE WITH": "Oder fortfahren mit",
     "No email registration is required. Your BTCBOX username and password are created after identity verification.": "Eine E-Mail-Registrierung ist nicht erforderlich. Erstellen Sie Benutzername und Passwort nach der Identitätsprüfung.",
+    "Create your BTCBOX identity with Google or a supported wallet, then set your own username and password.": "Erstellen Sie Ihr BTCBOX-Konto mit Google oder einer unterstützten Wallet und legen Sie Benutzername und Passwort fest.",
+    "Access your BTCBOX account with your username, Google account or supported crypto wallet.": "Melden Sie sich mit Benutzername, Google-Konto oder unterstützter Wallet bei BTCBOX an.",
+    "Choose Google or a supported crypto wallet. After verification, you will create your BTCBOX username and password.": "Wählen Sie Google oder eine unterstützte Wallet. Nach der Verifizierung erstellen Sie Ihren BTCBOX-Benutzernamen und Ihr Passwort.",
+    "Sign in with your BTCBOX username, Google account or crypto wallet.": "Melden Sie sich mit Ihrem BTCBOX-Benutzernamen, Google-Konto oder einer Wallet an.",
   }, [language]);
 
   const setLanguage = (next: Language) => {
