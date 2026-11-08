@@ -40,3 +40,12 @@ Status: source references consolidated into the integration candidate; full runt
 ## Consolidation status
 
 The upstream repositories are pinned as Git submodules. This establishes source availability only; it does not mean their pages/components are already integrated into the BTCBOX runtime. Runtime porting and real BTCBOX data/auth wiring remain required.
+
+
+## Runtime porting ledger — 2026-11-08
+
+- The candidate runtime remains Vite + React; upstream submodules are reference sources, not runtime imports.
+- Dashboard / Markets already consumes BTCBOX market endpoints and provider-backed chart candles. The latest UI batch adds distinct semantic accent surfaces to the three BTC summary metrics while retaining live-data-only values and existing responsive geometry.
+- Account Security, Assets, and Orders have prior BTCBOX-backed visual/responsive adaptations; these are partial page ports, not evidence that the full shadcn-fintech page compositions have been ported.
+- Still pending: complete navigation/shell composition pass, full shadcn-fintech account/settings/auth/transaction/support page ports, deeper Strata Pro dashboard/market component ports, and a single consolidated desktop/mobile visual acceptance pass.
+- No Next.js app router, Clerk, demo data, or mock financial values are introduced by this batch. The locked Spot trading-page layout and API contract are untouched.
