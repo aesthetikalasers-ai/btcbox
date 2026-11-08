@@ -3,6 +3,7 @@ import { Badge } from "../../components/ui/badge";
 import { Button } from "../../components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/card";
 import { useAuth } from "../../lib/auth";
+import { useI18n } from "../../lib/i18n";
 import { AuthPage } from "../auth/AuthPages";
 import {
   ApiError,
@@ -80,6 +81,7 @@ function statusVariant(status: string): "default" | "outline" | "destructive" {
 
 export function AdminPage() {
   const { status: authStatus, getSupabaseAccessToken } = useAuth();
+  const { t } = useI18n();
   const [token, setToken] = useState("");
   const [session, setSession] = useState<AdminSession | null>(null);
   const [tab, setTab] = useState<Tab>("overview");
@@ -907,16 +909,16 @@ export function AdminPage() {
   };
 
   if (authStatus === "anonymous" || authStatus === "two-factor" || authStatus === "password-recovery") return <div className="mx-auto max-w-3xl p-4 md:p-6"><AuthPage mode="login" redirectTo="/admin" /></div>;
-  if (loading && !session) return <div className="mx-auto max-w-7xl p-6"><Card><CardContent className="p-8 text-sm text-brand-text-muted">Verifying administrator identity…</CardContent></Card></div>;
-  if (!session) return <div className="mx-auto max-w-3xl p-6"><Card><CardHeader><CardTitle>BTCBOX Administrator</CardTitle><CardDescription>Administrator access requires a verified Supabase Auth identity with an active BTCBOX administrator membership.</CardDescription></CardHeader><CardContent><p className="text-sm text-rose-300">{error || "Administrator membership was not found."}</p></CardContent></Card></div>;
+  if (loading && !session) return <div className="mx-auto max-w-7xl p-6"><Card><CardContent className="p-8 text-sm text-brand-text-muted">{t("Verifying administrator identity…")}</CardContent></Card></div>;
+  if (!session) return <div className="mx-auto max-w-3xl p-6"><Card><CardHeader><CardTitle>{t("BTCBOX Administrator")}</CardTitle><CardDescription>{t("Administrator access requires a verified Supabase Auth identity with an active BTCBOX administrator membership.")}</CardDescription></CardHeader><CardContent><p className="text-sm text-rose-300">{error || t("Administrator membership was not found.")}</p></CardContent></Card></div>;
 
   return <div className="tone-admin mx-auto w-full max-w-[1600px] space-y-5 p-3 sm:p-5 lg:p-7">
     <div className="flex flex-wrap items-start justify-between gap-3 rounded-2xl border border-brand-border bg-[radial-gradient(ellipse_at_top_left,rgba(192,132,252,.10),transparent_52%),linear-gradient(135deg,var(--color-brand-surface),var(--color-brand-bg))] p-5 sm:items-center sm:p-6">
-      <div><p className="type-meta font-semibold uppercase tracking-[0.18em] text-brand-violet">BTCBOX / CONTROL CENTER</p><h1 className="mt-1 text-2xl font-bold tracking-tight text-brand-text sm:text-3xl">Administrator Console</h1><p className="mt-1 text-sm text-brand-text-muted">{session.is_super_admin ? "Super Administrator" : "Role-based administrator"} · {session.user_id}</p></div>
-      <Badge variant="outline">{session.is_super_admin ? "SUPER ADMIN" : "ACTIVE ADMIN"}</Badge>
+      <div><p className="type-meta font-semibold uppercase tracking-[0.18em] text-brand-violet">BTCBOX / CONTROL CENTER</p><h1 className="mt-1 text-2xl font-bold tracking-tight text-brand-text sm:text-3xl">{t("Administrator Console")}</h1><p className="mt-1 text-sm text-brand-text-muted">{session.is_super_admin ? t("Super Administrator") : t("Role-based administrator")} · {session.user_id}</p></div>
+      <Badge variant="outline">{session.is_super_admin ? t("SUPER ADMIN") : t("ACTIVE ADMIN")}</Badge>
     </div>
     <div className="flex max-w-full gap-2 overflow-x-auto border-b border-brand-border pb-3">
-      {allowedTabs.map(item => <Button key={item.id} size="sm" variant={tab === item.id ? "default" : "outline"} onClick={() => { setTab(item.id); setError(""); setNotice(""); }}>{item.label}</Button>)}
+      {allowedTabs.map(item => <Button key={item.id} size="sm" variant={tab === item.id ? "default" : "outline"} onClick={() => { setTab(item.id); setError(""); setNotice(""); }}>{t(item.label)}</Button>)}
     </div>
     {error ? <div role="alert" className="rounded-xl border border-rose-500/30 bg-rose-500/5 p-3 text-sm text-rose-300">{error}</div> : null}
     {notice ? <div role="status" className="rounded-xl border border-emerald-500/25 bg-emerald-500/5 p-3 text-sm text-emerald-300">{notice}</div> : null}
@@ -926,15 +928,15 @@ export function AdminPage() {
       {[
         ["Total users", stats.total_users], ["Pending withdrawals", stats.pending_withdrawals],
         ["Pending KYC", stats.pending_kyc], ["Review queue", stats.pending_admin_review_withdrawals],
-      ].map(([label, value], index) => <Card key={String(label)} className="overflow-hidden border-brand-border bg-brand-surface ring-1 ring-white/[0.025]"><div className={"h-1 "+(index===0?"bg-brand-cyan":index===1?"bg-brand-warning":index===2?"bg-brand-violet":"bg-brand-teal")}/><CardContent className="p-4 sm:p-5"><p className="type-meta font-semibold uppercase tracking-wide text-brand-text-muted">{label}</p><p className="mt-2 text-2xl font-bold tracking-tight tabular-nums text-brand-text sm:text-3xl">{asText(value)}</p></CardContent></Card>)}
+      ].map(([label, value], index) => <Card key={String(label)} className="overflow-hidden border-brand-border bg-brand-surface ring-1 ring-white/[0.025]"><div className={"h-1 "+(index===0?"bg-brand-cyan":index===1?"bg-brand-warning":index===2?"bg-brand-violet":"bg-brand-teal")}/><CardContent className="p-4 sm:p-5"><p className="type-meta font-semibold uppercase tracking-wide text-brand-text-muted">{t(String(label))}</p><p className="mt-2 text-2xl font-bold tracking-tight tabular-nums text-brand-text sm:text-3xl">{asText(value)}</p></CardContent></Card>)}
     </div> : null}
 
     {!loading && tab === "users" ? <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(360px,0.9fr)]">
-      <Card><CardHeader><CardTitle>Users</CardTitle><CardDescription>Search a user, then select an asset row for staff manual credit.</CardDescription></CardHeader><CardContent>
-        <form className="mb-3 flex gap-2" onSubmit={event => { event.preventDefault(); void loadTab(); }}><input value={search} onChange={event => setSearch(event.target.value)} placeholder="Search UID or email" className="h-11 min-w-0 flex-1 rounded-xl border border-brand-border bg-brand-surface-2 px-3 py-2 text-sm text-brand-text outline-none transition-colors focus:border-brand-accent/60 focus:ring-2 focus:ring-brand-accent/15"/><Button size="sm" type="submit">Search</Button></form>
-        <div className="overflow-x-auto"><table className="w-full min-w-[520px] text-left text-sm"><thead><tr className="border-b border-brand-border text-xs text-brand-text-muted"><th className="p-2">UID</th><th className="p-2">Email</th><th className="p-2">KYC</th><th className="p-2">Status</th><th className="p-2"></th></tr></thead><tbody>{users.map(user=><tr key={user.uid} className="border-b border-brand-border/60"><td className="p-2 font-mono text-xs">{user.uid}</td><td className="p-2">{user.email}</td><td className="p-2">{user.kyc_status || user.kyc?.status || "—"}</td><td className="p-2"><Badge variant={user.frozen?"destructive":"outline"}>{user.frozen?"Frozen":"Active"}</Badge></td><td className="p-2"><Button size="sm" variant="outline" onClick={()=>void selectUser(user.uid)}>Open</Button></td></tr>)}</tbody></table></div>
+      <Card><CardHeader><CardTitle>{t("Users")}</CardTitle><CardDescription>{t("Search a user, then select an asset row for staff manual credit.")}</CardDescription></CardHeader><CardContent>
+        <form className="mb-3 flex gap-2" onSubmit={event => { event.preventDefault(); void loadTab(); }}><input value={search} onChange={event => setSearch(event.target.value)} placeholder={t("Search UID or email")} className="h-11 min-w-0 flex-1 rounded-xl border border-brand-border bg-brand-surface-2 px-3 py-2 text-sm text-brand-text outline-none transition-colors focus:border-brand-accent/60 focus:ring-2 focus:ring-brand-accent/15"/><Button size="sm" type="submit">{t("Search")}</Button></form>
+        <div className="overflow-x-auto"><table className="w-full min-w-[520px] text-left text-sm"><thead><tr className="border-b border-brand-border text-xs text-brand-text-muted"><th className="p-2">{t("UID")}</th><th className="p-2">{t("Email")}</th><th className="p-2">{t("KYC")}</th><th className="p-2">{t("Status")}</th><th className="p-2"></th></tr></thead><tbody>{users.map(user=><tr key={user.uid} className="border-b border-brand-border/60"><td className="p-2 font-mono text-xs">{user.uid}</td><td className="p-2">{user.email}</td><td className="p-2">{user.kyc_status || user.kyc?.status || "—"}</td><td className="p-2"><Badge variant={user.frozen?"destructive":"outline"}>{user.frozen?t("Frozen"):t("Active")}</Badge></td><td className="p-2"><Button size="sm" variant="outline" onClick={()=>void selectUser(user.uid)}>{t("Open")}</Button></td></tr>)}</tbody></table></div>
       </CardContent></Card>
-      <Card><CardHeader><CardTitle>Manual credit</CardTitle><CardDescription>UID and asset are bound by the selected user and asset row. No pending deposit order is created.</CardDescription></CardHeader><CardContent>
+      <Card><CardHeader><CardTitle>{t("Manual credit")}</CardTitle><CardDescription>UID and asset are bound by the selected user and asset row. No pending deposit order is created.</CardDescription></CardHeader><CardContent>
         {!selectedUser ? <p className="text-sm text-brand-text-muted">Select a user to load their current balances.</p> : <>
           <div className="mb-3 flex flex-wrap items-center justify-between gap-2"><p className="text-sm font-semibold">{selectedUser.email} · <span className="font-mono">{selectedUser.uid}</span></p>{hasPermission("deposits.read") ? <Badge variant="outline">{selectedUser.financial_balance_source === "postgres_financial_ledger" ? "Balances: PostgreSQL ledger" : selectedUser.financial_balance_source === "legacy_state_retention_limited" ? "Balances: legacy state · limited" : "Balances: source unknown"}</Badge> : null}</div>
           {!hasPermission("deposits.read") ? <p className="text-sm text-brand-text-muted">Balance details require the deposits.read permission.</p> : <div className="space-y-3">{assets.map(coin=><form key={coin} className="rounded-xl border border-brand-border p-3" onSubmit={event=>void manualCredit(event,coin)}>
