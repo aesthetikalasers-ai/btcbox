@@ -53,6 +53,7 @@ jobs:
           SUPABASE_SERVICE_ROLE_KEY: ci_dummy_service_role_key_not_a_real_secret
           SUPABASE_AUTH_URL: https://ci-shape-check.supabase.co
           SUPABASE_AUTH_PUBLISHABLE_KEY: sb_publishable_ci_shape_check_dummy
+          BTCBOX_RATE_LIMIT_HMAC_SECRET: ci-only-dummy-rate-limit-secret-with-more-than-32-bytes
           ADMIN_USER: ci-shape-check-admin
           ADMIN_PASS: CI-Only-Strong-Dummy-Password-123!
           FINANCIAL_POSTGRES_RPC_ENABLED: '0'
