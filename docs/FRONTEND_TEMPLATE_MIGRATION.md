@@ -120,3 +120,5 @@ BTCBOX localization is a complete language system per locale, not a literal tran
 - Auth dynamic-message localization: known BTCBOX/Supabase auth outcomes (credential failures, email verification, wallet/Google verification, password recovery, session expiry and sign-out) now map through the active locale dictionary in the auth UI. Unknown provider/server messages remain unchanged rather than being guessed; these require source error-code normalization before enabling Japanese-first globally.
 
 - Added a browser regression test for Japanese login copy, locale selection and persistence on the standalone authentication route. It verifies translated labels and the disabled-Google state while asserting that the username/password sign-in controls remain available.
+
+- Account setup page now uses shared Japanese i18n for verified Google/wallet onboarding, username/password requirements, validation, save state and credential ownership copy. Credential creation, password policy, auth state and navigation are unchanged.
