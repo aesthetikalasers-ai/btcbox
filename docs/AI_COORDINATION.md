@@ -13,13 +13,13 @@ One repository execution path is active at a time. Re-read this file before star
 
 - **Active candidate:** PR #67
 - **Branch:** `integration/btcbox-mainline-consolidation-20261108`
-- **Current candidate head:** `3d7f96352b214b386be410ab619b043898fef6c2`
+- **Current candidate head:** `07e0cf66ab5e86a73da10e9972791767d7a2a18f`
 - **Base:** `main` at `2a3810da1aef2c0c7c58df0cfdb059a212eeb0d6`
 - **State:** Draft / open / not merged
-- **Exact-current-head CI:** PASS on `3d7f96352b214b386be410ab619b043898fef6c2`.
-  - Backend: `42456223737` — PASS.
-  - PostgreSQL schema: `42456223768` — PASS.
-  - Frontend: `42456223776` — PASS; responsive screenshot artifact `13607642852` was downloaded and inspected.
+- **Latest exact-current-head CI:** PASS on `07e0cf66ab5e86a73da10e9972791767d7a2a18f`.
+  - Backend: `42457650357` — PASS.
+  - PostgreSQL schema: `42457650540` — PASS.
+  - Frontend: `42457650430` — PASS.
   - Earlier CI runs on `54d9b552...`, `df6cf43...`, and `1594084...` are historical and are not current-head evidence.
 
 The previous fully green source head `8b54cf128ccd4861eedd1fae602846c92849f835` also passed Backend `42436694163`, PostgreSQL schema `42436693919`, and Frontend `42436694030`. Current head adds a documentation-only correction to the owner bootstrap guide; the full exact-head CI has now passed.
@@ -366,3 +366,14 @@ Safety/ownership:
 - Template submodules remain pinned source references only; no runtime migration yet. This means the user's full Strata Pro + Shadcn Fintech frontend migration is still outstanding and consolidation is not complete.
 - No tests were run. Comprehensive audit remains deferred until consolidation is assembled.
 - No merge, deploy, Vercel change, hosted Supabase write, financial operation, or locked Spot layout change.
+
+
+### Candidate baseline and business integration reconnaissance — 2026-11-08 15:43 +08
+
+- Re-read this coordination document before the batch and rechecked GitHub PR #67 and its branch metadata. The live branch and PR head are both `07e0cf66ab5e86a73da10e9972791767d7a2a18f`; the earlier top-level SHA `3d7f963...` was stale and is corrected above. PR #67 remains Draft/open/unmerged; base `main` remains `2a3810da1aef2c0c7c58df0cfdb059a212eeb0d6`.
+- Exact-head workflow runs for `07e0cf66...`: Backend `42457650357` PASS; PostgreSQL schema `42457650540` PASS; Frontend `42457650430` PASS. This confirms CI only, not hosted staging or visual owner acceptance.
+- Business/API reconnaissance on the candidate: `frontend/src/lib/api.ts` exposes real BTCBOX service calls for markets, candles, order book, spot order submit/cancel, authenticated account/assets, Earn catalog/actions, orders, Seconds policy/positions/orders, KYC, support, deposit addresses, withdrawal configuration/submission, and admin operations. The customer route page source calls these service methods rather than embedding sample business records in the reviewed sections.
+- A targeted source scan of `frontend/src/features/pages/Pages.tsx` and `frontend/src/lib/api.ts` found no TODO/FIXME/mock/demo/fake/sample-data markers in the scanned lines. The only explicit “Coming soon” result was the Futures card, which correctly labels the service unavailable because no supported Futures backend is registered. This is a targeted scan, not the deferred comprehensive audit.
+- The app remains a Vite/React runtime with React Router. The pinned Strata Pro and Shadcn Fintech gitlinks are still source inputs, not evidence of runtime page/component migration. Full template porting remains outstanding and belongs to Visual Team for page/layout/component ownership; Business Team continues to own API/auth/session/data contracts and will validate the team's integration against the real service surface.
+- No runtime source code was changed in this reconnaissance batch because the inspected customer-page calls already target the real API layer and no safe, isolated business defect was established from the targeted scan. Do not create a speculative/no-op code commit. Next: continue the 3号 contract review across account, deposits/withdrawals, Earn, Seconds, support, and admin API implementations; record only reproducible contract defects, while visual runtime migration proceeds under its owning team.
+- No merge, production deployment, Vercel configuration change, hosted Supabase write, financial operation, or locked Spot layout change was performed.
