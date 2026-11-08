@@ -478,3 +478,12 @@ Safety/ownership:
 - New exact candidate head: `f46073860a5412bd0d70a2119d27568a2faadfe0`. PR #67 remains Draft/open/unmerged.
 - Exact-head checks for `f46073860a5412bd0d70a2119d27568a2faadfe0` were visible as in progress: unified Backend/build/test run `42462027466`, PostgreSQL bootstrap run `42462027505`, and frontend build run `42462027577`. No pass is claimed until they complete.
 - The earlier `bd258b3` Backend failure is superseded by the corrected test commit; do not treat its result as evidence for the current head.
+
+
+### Corrected payout RBAC CI update — 2026-11-08
+
+- Rechecked exact candidate SHA `f46073860a5412bd0d70a2119d27568a2faadfe0`.
+- Unified Backend/build/test workflow `42462027466`: completed successfully.
+- Empty PostgreSQL bootstrap workflow `42462027505`: completed successfully.
+- Frontend build workflow `42462027577`: still in progress at this check.
+- The prior backend failure on `bd258b3` was resolved by updating the route-permission contract test; current-head backend suite is green. Frontend is the only remaining CI check for this commit.
