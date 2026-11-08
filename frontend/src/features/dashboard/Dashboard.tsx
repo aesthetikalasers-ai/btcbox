@@ -139,19 +139,19 @@ export function Dashboard() {
         <span aria-hidden="true" className="absolute inset-y-0 left-0 w-1 bg-brand-cyan"/>
         <div className="flex items-center justify-between gap-2 pl-1"><p className="type-meta font-semibold uppercase tracking-wide text-brand-text-muted">{t("BTC/USDT last price")}</p><span className="h-2 w-2 rounded-full bg-brand-cyan shadow-[0_0_12px_var(--color-brand-cyan)]"/></div>
         <p className="mt-3 truncate text-xl font-semibold tracking-tight tabular-nums text-brand-text sm:text-2xl">{loading ? "—" : btcMarket ? btcMarket.price.toLocaleString(undefined,{maximumFractionDigits:8}) : "—"}</p>
-        <p className="type-meta mt-1 text-brand-text-muted">{btcMarket ? t("Latest price returned by BTCBOX") : t("Live BTC quote unavailable")}</p>
+        
       </div>
       <div className="relative min-w-0 overflow-hidden rounded-xl border border-brand-teal/25 bg-gradient-to-br from-brand-teal/[0.075] via-brand-surface to-brand-surface p-4 ring-1 ring-brand-teal/[0.06] sm:p-5">
         <span aria-hidden="true" className="absolute inset-y-0 left-0 w-1 bg-brand-teal"/>
         <div className="flex items-center justify-between gap-2 pl-1"><p className="type-meta font-semibold uppercase tracking-wide text-brand-text-muted">{t("BTC 24h change")}</p><span className={"h-2 w-2 rounded-full "+(btcMarket ? btcMarket.chg >= 0 ? "bg-profit" : "bg-loss" : "bg-brand-text-muted")}/></div>
         <p className={"mt-3 truncate text-xl font-semibold tracking-tight tabular-nums sm:text-2xl "+(btcMarket ? btcMarket.chg >= 0 ? "text-profit" : "text-loss" : "text-brand-text")}>{loading || !btcMarket ? "—" : (btcMarket.chg > 0 ? "+" : "") + btcMarket.chg.toFixed(2) + "%"}</p>
-        <p className="type-meta mt-1 text-brand-text-muted">{t("24-hour change from the live market feed")}</p>
+        
       </div>
       <div className="relative min-w-0 overflow-hidden rounded-xl border border-brand-violet/25 bg-gradient-to-br from-brand-violet/[0.075] via-brand-surface to-brand-surface p-4 ring-1 ring-brand-violet/[0.06] sm:p-5">
         <span aria-hidden="true" className="absolute inset-y-0 left-0 w-1 bg-brand-violet"/>
         <div className="flex items-center justify-between gap-2 pl-1"><p className="type-meta font-semibold uppercase tracking-wide text-brand-text-muted">{t("BTC 24h volume")}</p><span className="h-2 w-2 rounded-full bg-brand-violet shadow-[0_0_12px_var(--color-brand-violet)]"/></div>
         <p className="mt-3 truncate text-xl font-semibold tracking-tight tabular-nums text-brand-text sm:text-2xl">{loading || !btcMarket ? "—" : btcMarket.vol + " USDT"}</p>
-        <p className="type-meta mt-1 text-brand-text-muted">{t("Reported 24-hour trading volume")}</p>
+        
       </div>
     </section>
     <LiveMarketsTable markets={markets} loading={loading} error={error} />
