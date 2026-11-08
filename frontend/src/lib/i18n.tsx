@@ -5968,7 +5968,7 @@ const dictionaries: Record<StoredLocale, Dictionary> = {
     "Server snapshot": "Server-Snapshot",
     "Provider snapshot": "Anbieter-Snapshot",
     "source unavailable": "Quelle nicht verfügbar",
-    "seconds ago": "Sekunden zuvor",
+    "seconds ago": " Sek. zuvor",
     "Server snapshot time unavailable": "Zeitpunkt des Server-Snapshots nicht verfügbar",
     "Provider timestamp unavailable": "Zeitstempel des Anbieters nicht verfügbar",
     "The market service snapshot is older than 90 seconds. Quotes are hidden until a fresh snapshot arrives.": "Der Snapshot des Marktdienstes ist älter als 90 Sekunden. Kurse werden ausgeblendet, bis ein aktueller Snapshot verfügbar ist.",
