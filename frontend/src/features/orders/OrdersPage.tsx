@@ -80,10 +80,10 @@ export function OrdersPage() {
         </Card>
       )}
 
-      <Card className="border-t-2 border-t-[var(--page-accent)] border-brand-border bg-brand-surface">
-        <CardHeader>
-          <CardTitle>{t("Order history")}</CardTitle>
-          <CardDescription>{t("Order history displays records returned by your authenticated account.")}</CardDescription>
+      <Card className="overflow-hidden border-t-2 border-t-[var(--page-accent)] border-brand-border bg-brand-surface ring-1 ring-white/[0.025]"><div className="h-1 bg-gradient-to-r from-brand-cyan/80 via-brand-violet/70 to-brand-success/70"/>
+        <CardHeader className="border-b border-brand-border bg-brand-surface-2/50 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-3"><span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--page-accent)]/10 text-[var(--page-accent)]"><ClipboardList className="h-5 w-5"/></span><div><CardTitle>{t("Order history")}</CardTitle>
+          <CardDescription>{t("Order history displays records returned by your authenticated account.")}</CardDescription></div></div>
         </CardHeader>
         <CardContent className="p-0">
           {loading ? (
@@ -104,7 +104,7 @@ export function OrdersPage() {
                 {orders.map((order, index) => {
                   const id = display(order.order_id ?? order.id, `#${index + 1}`);
                   const side = display(order.side);
-                  return <Card key={id} className="border-l-2 border-l-[var(--page-accent)] border-brand-border bg-brand-surface-2/50 ring-1 ring-white/[0.025]">
+                  return <Card key={id} className="border-l-2 border-l-[var(--page-accent)] border-brand-border bg-brand-surface-2/50 ring-1 ring-white/[0.025] transition-all hover:border-brand-cyan/30 hover:bg-brand-surface-2/80">
                     <CardContent className="space-y-3 p-4">
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0"><p className="font-semibold text-brand-text">{display(order.symbol)}</p><p className="mt-1 truncate font-mono text-[11px] text-brand-text-muted">{id}</p></div>
@@ -121,14 +121,14 @@ export function OrdersPage() {
               </div>
               <div className="hidden custom-scrollbar overflow-x-auto md:block">
               <table className="w-full min-w-[760px] text-left text-sm">
-                <thead className="border-y border-brand-border bg-brand-surface-2 text-xs uppercase tracking-wide text-brand-text-muted">
+                <thead className="border-y border-brand-border bg-brand-surface-2/90 text-[11px] uppercase tracking-[.12em] text-brand-text-muted">
                   <tr>{["Order", "Pair", "Side", "Type", "Price", "Quantity", "Status", "Created"].map((label) => <th key={label} className="px-4 py-3 font-semibold">{t(label)}</th>)}</tr>
                 </thead>
                 <tbody>
                   {orders.map((order, index) => {
                     const id = display(order.order_id ?? order.id, `#${index + 1}`);
                     const side = display(order.side);
-                    return <tr key={id} className="border-b border-brand-border last:border-0 hover:bg-brand-surface-hover">
+                    return <tr key={id} className="border-b border-brand-border/80 last:border-0 transition-colors hover:bg-brand-surface-hover">
                       <td className="max-w-[180px] truncate px-4 py-3 font-mono text-xs text-brand-text-secondary">{id}</td>
                       <td className="px-4 py-3 font-semibold text-brand-text">{display(order.symbol)}</td>
                       <td className="px-4 py-3"><span className={side.toLowerCase() === "buy" ? "text-profit" : side.toLowerCase() === "sell" ? "text-loss" : "text-brand-text-secondary"}>{t(side)}</span></td>
