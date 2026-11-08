@@ -775,14 +775,6 @@ function withdrawalAddressCheck(user, addr, coin, network, now, cooldownMs) {
   }
   return { allowed: true, bound: bound };
 }
-// 首次提现（历史无成功提现）或大额（USDT 等值超阈值）→ 强制人工审核 pending_admin_review。
-function withdrawalRequiresAdminReview(user, coin, amount, usdtValue, thresholdUsdt) {
-  const history = Array.isArray(user && user.withdrawals) ? user.withdrawals : [];
-  const hasSuccess = history.some(function (w) { return w && (w.status === 'completed' || w.status === 'success' || w.status === 'approved' || w.status === 'broadcast'); });
-  if (!hasSuccess) return true;
-  if (Number.isFinite(usdtValue) && usdtValue > thresholdUsdt) return true;
-  return false;
-}
 // 估算提现金额的 USDT 等值；价格不可用时返回 null（调用方应保守视为大额，强制审核）。
 function estimateUsdtValue(coin, amount, prices) {
   // Review-threshold estimate only; authoritative ledger amounts remain decimal strings.
