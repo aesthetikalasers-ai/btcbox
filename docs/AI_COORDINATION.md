@@ -13,7 +13,7 @@ One repository execution path is active at a time. Re-read this file before star
 
 - **Active candidate:** PR #67
 - **Branch:** `integration/btcbox-mainline-consolidation-20261108`
-- **Current candidate head:** `770c1186e8042ed995bd8f9affd1902074a603a1`
+- **Current candidate head:** `7e56e221ff1baa512d97be4d092136a98dc16902`
 - **Base:** `main` at `2a3810da1aef2c0c7c58df0cfdb059a212eeb0d6`
 - **State:** Draft / open / not merged
 - **Latest exact-current-head CI:** For `0bb7f060e6319b822b2cffb78ab523917fea90f1`, Backend `42486052474` PASS and PostgreSQL schema `42486052438` PASS; Frontend `42486052434` is running desktop/mobile route smoke tests. This head includes withdrawal replay regression coverage, five new financial-write rate-limit scopes, the additive `0037` migration, and rate-limit-secret deployment preflight.
@@ -911,8 +911,8 @@ Safety/ownership:
 - Updated both guarded fresh-database bootstrap allowlists, migration order (31 canonical SQL files), migration inventory test and RPC source-contract regression test.
 - Applied migration `0038_withdrawal_first_successful_review_guard_v1` to isolated free Staging project `gnwsygxshqceunihguwe`. SELECT-only catalog verification confirmed the exact 11-argument function, `service_role` EXECUTE=true and `anon`/`authenticated` EXECUTE=false.
 - Executed a Staging-only transaction test: no prior successful withdrawal forced `pending_admin_review`; after a simulated completed withdrawal, a low-value second request remained `pending`. The entire test transaction was rolled back; subsequent SELECT confirmed zero withdrawal requests, financial operations, ledger entries and financial accounts.
-- Exact PR #67 candidate head: `770c1186e8042ed995bd8f9affd1902074a603a1`. Backend CI `42487215118` PASS; PostgreSQL schema CI `42487215088` PASS; Frontend CI `42487215133` PASS (93 passed, one intentionally skipped mobile duplicate of the desktop-only viewport-matrix test). Responsive visual QA artifact uploaded by GitHub Actions. PR #67 remains Draft/open/unmerged.
-- Language PR #72 remains unchanged at `40a0a543a67bb6d1874638894badeab914a3ed0f`; its prior Frontend CI `42484610315` fails the i18n checker due 20 duplicate keys in each of six translated locales and missing exact `Google` / `Wallet` keys. The language owner was asked to fix the dictionary and rebase onto the current PR #67 head. No language-owned file was modified.
+- Exact PR #67 candidate head: `7e56e221ff1baa512d97be4d092136a98dc16902`. Backend CI `42487848387` PASS; PostgreSQL schema CI `42487848436` PASS; Frontend CI `42487848440` PASS (93 passed, one intentionally skipped mobile duplicate of the desktop-only viewport-matrix test). Responsive visual QA artifact uploaded by GitHub Actions. PR #67 remains Draft/open/unmerged.
+- Language PR #72 remains unchanged at `40a0a543a67bb6d1874638894badeab914a3ed0f`; its prior Frontend CI `42484610315` fails the i18n checker due 20 duplicate keys in each of six translated locales and missing exact `Google` / `Wallet` keys. The language owner was asked to fix the dictionary and rebase onto the current PR #67 head. No language-owned file was modified. The user also requires Japanese as the new-visitor default while honoring a previously saved supported locale; this was added to the language handoff. English-based Playwright suites will be pinned to an explicit English preference, with a separate clean-context test for the Japanese default.
 
 ## 33. Production business and schema readiness recheck — 2026-11-08 (read-only)
 
@@ -926,3 +926,14 @@ Safety/ownership:
 - Security Advisor still marks two private backup tables Critical because RLS is disabled. Direct catalog checks show `private` schema USAGE=false and SELECT/INSERT privileges=false for `anon`, `authenticated` and `service_role`; this is evidence that those roles currently lack direct access, not a reason to dismiss the Advisor. Keep the finding open and do not auto-apply the Advisor SQL without an explicit security decision.
 - Shared-rate-limit HMAC secret presence/rotation in production Vercel environment remains unverified. Preflight requires `BTCBOX_RATE_LIMIT_HMAC_SECRET` with at least 32 bytes; no real secret is stored in the repository or chat.
 - No production database writes, Auth changes, financial operations, migration application, merge or deployment were performed during this recheck.
+
+
+## 34. First-withdrawal review cleanup and current integration status — 2026-11-08
+
+- Removed the obsolete `withdrawalRequiresAdminReview` helper and its `_test` export after the first-withdrawal decision moved fully into PostgreSQL. The backend test now checks conservative USDT-value estimation; the database source-contract test and Staging rollback test cover first-withdrawal review. This avoids leaving an attractive but unsafe legacy-state helper available for future reuse.
+- The first attempt to remove the helper left a stale `_test` export and correctly failed Backend CI at `d32f0d2ff04ffa5568d5b7126c64644cb8db7576`. The export and old unit test were then corrected; do not treat that failed head as accepted.
+- Current exact PR #67 head: `7e56e221ff1baa512d97be4d092136a98dc16902`. Backend CI `42487848387` PASS; PostgreSQL schema CI `42487848436` PASS; Frontend CI `42487848440` PASS (93 passed, one intentionally skipped mobile duplicate). PR #67 remains Draft/open/unmerged.
+- Auth UI and E2E source files remain byte-identical to the now-closed-unmerged PR #70 source blobs. No language-owned file has been changed.
+- Language PR #72 is still at `40a0a543a67bb6d1874638894badeab914a3ed0f`; the language owner has received the exact duplicate-key list, the missing `Google`/`Wallet` keys, and the Japanese-default requirement. A fresh integration target must be fetched before replay because PR #67 is moving.
+- Production hosted schema diagnostic was refined: `public.create_withdrawal_atomic` currently exposes only a 9-argument signature, while the current API requires 11 arguments. The hosted `submit_seconds_order_v1` remains the older fixed-duration implementation ([30, 60, 300, 900]) and the obsolete one-open-position unique index `seconds_contract_positions_one_open_per_user_idx` still exists. The current canonical migrations remove the fixed-duration restriction and the one-open index; production must not be enabled against the old schema.
+- Staging migration registry now confirms 31 canonical migrations through `0038_withdrawal_first_successful_review_guard_v1`. Production migration registry remains only two timestamped records; no production migration was applied.
