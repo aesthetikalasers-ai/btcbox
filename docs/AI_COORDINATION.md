@@ -710,3 +710,8 @@ Safety/ownership:
 - Exact-head CI for `2ed0e1e253419256a90def6ed7fb1b9da66e3275`: Backend `42471156823` PASS; PostgreSQL bootstrap `42471156837` PASS; Frontend `42471156838` has install, lint, production build and Chromium install PASS; desktop/mobile route smoke tests still in progress, screenshot upload pending.
 - The earlier syntax failure on `1a610fd...` was fixed in `da837d7...`; the corrected subsequent exact-head run is the one being tracked here.
 - No merge, deployment, hosted Supabase writes, financial operations or Spot layout/API changes.
+
+
+- Candidate advanced to `be692e11d334bba0e62055f2e25047270f65c9df`: added 42 Japanese strings for My Account profile/security and KYC identity-verification instructions/statuses. Translation-only; no auth, KYC submission, document handling or account API behavior changed.
+- Updated Japanese static-key scan across `Pages.tsx`: TradeHubPage 0 missing; MyPage 0; KycPage 0; generic SectionPage 0. Remaining active-page gaps: SpotTradingPage 35, SecondsPage 45, SupportPage 14, DepositPage 13, EarnPage 34, WithdrawPage 29. Duplicate legacy Assets/Orders components remain in Pages.tsx but active standalone AssetsPage/OrdersPage and Dashboard have zero missing keys for their current static translation calls.
+- Exact-head CI for `be692e11d334bba0e62055f2e25047270f65c9df` started: Frontend `42471376969`, Backend `42471376859`, PostgreSQL `42471376761`; all in progress at this update. Do not reuse prior-head results as final acceptance.
