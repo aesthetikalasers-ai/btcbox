@@ -5877,14 +5877,12 @@ const dictionaries: Record<StoredLocale, Dictionary> = {
     "Administrator Supabase session is missing.": "Falta a sessão Supabase do administrador.",
     "Administrator request could not reach BTCBOX.": "O pedido do administrador não conseguiu aceder à BTCBOX.",
     "BTCBOX returned an invalid open Seconds position queue.": "A BTCBOX devolveu uma fila de posições Seconds abertas inválida.",
-  },
-
     "Some assets do not have a verified USDT valuation.": "Alguns ativos não têm uma avaliação em USDT verificada.",
     "BTCBOX spot market data": "Dados do mercado spot BTCBOX",
     "Only order records returned by the authenticated account service are shown.": "São apresentados apenas os registos de ordens devolvidos pelo serviço de conta autenticado.",
     "Policy-driven order entry": "Envio de ordens com base na política",
     "Place supported limit orders against the BTCBOX spot matching service.": "Envie ordens limitadas suportadas através do serviço de correspondência spot da BTCBOX.",
-  }
+  },
 
   de: {
     "BTCBOX / OPEN MARKET": "BTCBOX / OFFENER MARKT",
