@@ -45,6 +45,7 @@ test("login route exposes email/password, BTCBOX username, Google and wallet sig
   await expect(page.getByRole("button", { name: "Google" })).toBeDisabled();
   await expect(page.getByText("Google sign-in is temporarily unavailable.")).toBeVisible();
   await page.getByRole("button", { name: "Wallet" }).click();
+  await expect(page.getByRole("group", { name: "Wallet" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Connect Ethereum wallet" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Connect Solana wallet" })).toBeVisible();
 });
