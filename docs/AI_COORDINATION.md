@@ -113,6 +113,13 @@ Further RPC/source cross-checks against the hosted project:
 - Current backend source gates financial writes/matching on exact `'1'` values for the required flags plus Supabase storage configuration. Hosted runtime flag values were not inspected, so live state remains NOT VERIFIED.
 - Supabase development branch listing is empty; no existing hosted staging branch is available. Do not create a paid branch or new project without explicit owner approval.
 
+Repeatable diagnostic and documentation correction — 2026-11-08:
+- Added `backend/supabase/diagnostics/hosted-schema-contract-readonly.sql` to PR #67. It contains SELECT-only object-existence, aggregate state-count, and private-backup RLS/grant checks; no INSERT/UPDATE/DELETE/DDL statements.
+- Executed each diagnostic query against hosted project `zlozsutefnmgwwzrlipt`. It reproduced the missing admin/Seconds/cancel-idempotency objects, confirmed the three expected Spot RPCs are present, and returned the same aggregate state counts without reading individual user/session records.
+- Corrected `backend/supabase/sql/MIGRATION-ORDER-AND-CUTOVER.md`: the product/schema target remains fresh with no customer accounts, but the connected hosted project is non-empty and explicitly ineligible for the fresh bootstrap.
+- Corrected this coordination document's release boundary to distinguish fresh-schema design from the actual hosted database. No hosted DDL or data writes were made.
+- Current PR #67 head after diagnostic/docs additions: `da4125424270ab5231a363a5627487ee3db5253b`. Backend CI `42450389952` passed; PostgreSQL schema CI `42450389963` and Frontend CI `42450389966` were still running at last check.
+
 This read-only verification supersedes the earlier statement that no Supabase management access was available. It does NOT change the no-hosted-writes/no-merge/no-production-deploy boundary.
 
 ## 6. Release and safety boundary
