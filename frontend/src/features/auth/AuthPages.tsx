@@ -170,63 +170,76 @@ export function AuthPage({ mode, redirectTo }: { mode: "login" | "register"; red
 
               {mode === "login" && identityButtons}
 
-              <form className="space-y-3 rounded-xl border border-brand-border bg-brand-surface-2 p-4" aria-busy={busy} onSubmit={submitEmail}>
+              <form className="space-y-2.5 rounded-xl border border-brand-border bg-brand-surface-2 p-3.5" aria-busy={busy} onSubmit={submitEmail}>
                 <p className="text-sm font-semibold text-brand-text">{mode === "login" ? t("Continue with email") : t("Register with email")}</p>
-                <label className="block space-y-1.5 text-sm">
-                  <span className="text-brand-text-secondary">{t("Email address")}</span>
-                  <Input className="h-12" type="email" value={emailAddress} onChange={event => setEmailAddress(event.target.value)} autoComplete="email" maxLength={254} placeholder="you@example.com" required />
+                <label className="block space-y-1 text-sm">
+                  <span className="text-xs font-medium text-brand-text-secondary">{t("Email address")}</span>
+                  <Input className="h-11" type="email" value={emailAddress} onChange={event => setEmailAddress(event.target.value)} autoComplete="email" maxLength={254} placeholder="you@example.com" required />
                 </label>
-                <label className="block space-y-1.5 text-sm">
-                  <span className="text-brand-text-secondary">{t("Email password")}</span>
-                  <Input className="h-12" type="password" value={emailPassword} onChange={event => setEmailPassword(event.target.value)} autoComplete={mode === "login" ? "current-password" : "new-password"} minLength={registering ? 10 : 1} maxLength={128} placeholder={registering ? t("Use 10+ chars with upper, lower, number & symbol") : t("Enter your password")} required />
-                </label>
-                {registering && emailPassword.length > 0 && (() => {
-                  let score = 0;
-                  if (emailPassword.length >= 10) score++;
-                  if (emailPassword.length >= 14) score++;
-                  if (/[a-z]/.test(emailPassword) && /[A-Z]/.test(emailPassword)) score++;
-                  if (/\d/.test(emailPassword)) score++;
-                  if (/[^A-Za-z0-9]/.test(emailPassword)) score++;
-                  const levels = [t("Very weak"), t("Weak"), t("Fair"), t("Good"), t("Strong"), t("Very strong")];
-                  const colors = ["#ef4444", "#f97316", "#f59e0b", "#eab308", "#84cc16", "#22c55e"];
-                  const label = levels[Math.min(score, 5)];
-                  const color = colors[Math.min(score, 5)];
-                  return (
-                    <div className="space-y-1.5" aria-live="polite">
-                      <div className="flex gap-1">
-                        {[0,1,2,3,4].map(i => (
-                          <div key={i} className="h-1.5 flex-1 rounded-full transition-colors duration-200" style={{ backgroundColor: i < Math.ceil(score/5*5) && score > 0 ? color : "rgba(148,163,184,0.15)" }} />
-                        ))}
-                      </div>
-                      <p className="text-xs" style={{ color }}>{t("Password strength")}: {label}</p>
-                    </div>
-                  );
-                })()}
-                {registering && (
-                  <label className="block space-y-1.5 text-sm">
-                    <span className="text-brand-text-secondary">{t("Confirm password")}</span>
-                    <Input className="h-12" type="password" value={confirmPassword} onChange={event => setConfirmPassword(event.target.value)} autoComplete="new-password" minLength={10} maxLength={128} placeholder={t("Re-enter your password")} required />
-                    {confirmPassword.length > 0 && confirmPassword !== emailPassword && (
-                      <p className="text-xs text-loss" role="alert">{t("Passwords do not match.")}</p>
-                    )}
+                {registering ? (
+                  <div className="grid grid-cols-2 gap-2.5">
+                    <label className="block space-y-1 text-sm">
+                      <span className="text-xs font-medium text-brand-text-secondary">{t("Email password")}</span>
+                      <Input className="h-11" type="password" value={emailPassword} onChange={event => setEmailPassword(event.target.value)} autoComplete="new-password" minLength={10} maxLength={128} placeholder={t("Use 10+ chars with upper, lower, number & symbol")} required />
+                    </label>
+                    <label className="block space-y-1 text-sm">
+                      <span className="text-xs font-medium text-brand-text-secondary">{t("Confirm password")}</span>
+                      <Input className="h-11" type="password" value={confirmPassword} onChange={event => setConfirmPassword(event.target.value)} autoComplete="new-password" minLength={10} maxLength={128} placeholder={t("Re-enter your password")} required />
+                    </label>
+                  </div>
+                ) : (
+                  <label className="block space-y-1 text-sm">
+                    <span className="text-xs font-medium text-brand-text-secondary">{t("Email password")}</span>
+                    <Input className="h-11" type="password" value={emailPassword} onChange={event => setEmailPassword(event.target.value)} autoComplete="current-password" minLength={1} maxLength={128} placeholder={t("Enter your password")} required />
                   </label>
                 )}
                 {registering && (
-                  <label className="flex cursor-pointer items-start gap-2.5 text-xs leading-5 text-brand-text-secondary">
-                    <input type="checkbox" checked={termsAgreed} onChange={e => setTermsAgreed(e.target.checked)} className="mt-0.5 h-4 w-4 shrink-0 cursor-pointer rounded border-brand-border accent-brand-cyan" required />
+                  <div className="flex items-center gap-2" aria-live="polite">
+                    <div className="flex flex-1 gap-1">
+                      {[0,1,2,3,4].map(i => {
+                        let score = 0;
+                        if (emailPassword.length >= 10) score++;
+                        if (emailPassword.length >= 14) score++;
+                        if (/[a-z]/.test(emailPassword) && /[A-Z]/.test(emailPassword)) score++;
+                        if (/\d/.test(emailPassword)) score++;
+                        if (/[^A-Za-z0-9]/.test(emailPassword)) score++;
+                        const colors = ["#ef4444", "#f97316", "#f59e0b", "#eab308", "#84cc16", "#22c55e"];
+                        const color = colors[Math.min(score, 5)];
+                        const levels = [t("Very weak"), t("Weak"), t("Fair"), t("Good"), t("Strong"), t("Very strong")];
+                        const label = levels[Math.min(score, 5)];
+                        return (
+                          <div key={i} className="h-1 flex-1 rounded-full transition-colors duration-200" style={{ backgroundColor: emailPassword.length > 0 && i < Math.max(1, Math.ceil(score / 5 * 5)) ? color : "rgba(148,163,184,0.15)" }} data-label={i === 4 ? label : ""} data-color={i === 4 ? color : ""} />
+                        );
+                      })}
+                    </div>
+                    {emailPassword.length > 0 && (() => {
+                      let score = 0;
+                      if (emailPassword.length >= 10) score++;
+                      if (emailPassword.length >= 14) score++;
+                      if (/[a-z]/.test(emailPassword) && /[A-Z]/.test(emailPassword)) score++;
+                      if (/\d/.test(emailPassword)) score++;
+                      if (/[^A-Za-z0-9]/.test(emailPassword)) score++;
+                      const colors = ["#ef4444", "#f97316", "#f59e0b", "#eab308", "#84cc16", "#22c55e"];
+                      const levels = [t("Very weak"), t("Weak"), t("Fair"), t("Good"), t("Strong"), t("Very strong")];
+                      return <span className="text-[11px] font-medium whitespace-nowrap" style={{ color: colors[Math.min(score, 5)] }}>{levels[Math.min(score, 5)]}</span>;
+                    })()}
+                  </div>
+                )}
+                {registering && confirmPassword.length > 0 && confirmPassword !== emailPassword && (
+                  <p className="text-[11px] text-loss -mt-1" role="alert">{t("Passwords do not match.")}</p>
+                )}
+                {registering && (
+                  <label className="flex cursor-pointer items-start gap-2 text-[11px] leading-4 text-brand-text-secondary">
+                    <input type="checkbox" checked={termsAgreed} onChange={e => setTermsAgreed(e.target.checked)} className="mt-0.5 h-3.5 w-3.5 shrink-0 cursor-pointer rounded border-brand-border accent-brand-cyan" required />
                     <span>
-                      {t("I agree to the")}{" "}
-                      <a href="/terms" target="_blank" rel="noopener noreferrer" className="font-semibold text-brand-accent underline-offset-2 hover:underline">{t("Terms of Service")}</a>{" "}
-                      {t("and")}{" "}
-                      <a href="/privacy" target="_blank" rel="noopener noreferrer" className="font-semibold text-brand-accent underline-offset-2 hover:underline">{t("Privacy Policy")}</a>.
-                      {" "}{t("I understand digital asset trading involves significant risk.")}
+                      {t("I agree to the")} <a href="/terms" target="_blank" rel="noopener noreferrer" className="font-semibold text-brand-accent underline-offset-2 hover:underline">{t("Terms of Service")}</a> {t("and")} <a href="/privacy" target="_blank" rel="noopener noreferrer" className="font-semibold text-brand-accent underline-offset-2 hover:underline">{t("Privacy Policy")}</a>
                     </span>
                   </label>
                 )}
-                <Button type="submit" className="min-h-12 w-full" variant="outline" disabled={busy || status !== "anonymous" || !emailAddress.trim() || (registering ? (emailPassword.length < 10 || emailPassword !== confirmPassword || !termsAgreed) : !emailPassword)}>
+                <Button type="submit" className="min-h-11 w-full" variant="outline" disabled={busy || status !== "anonymous" || !emailAddress.trim() || (registering ? (emailPassword.length < 10 || emailPassword !== confirmPassword || !termsAgreed) : !emailPassword)}>
                   {busy ? t("Please wait…") : mode === "login" ? t("Sign in with email") : t("Create account with email")}
                 </Button>
-                {mode === "login" && <button type="button" className="min-h-11 text-sm font-medium text-brand-text-secondary underline underline-offset-4 disabled:opacity-50" disabled={busy || !emailAddress.trim()} onClick={() => void requestPasswordReset(emailAddress).catch(() => {})}>{t("Forgot password?")}</button>}
+                {mode === "login" && <button type="button" className="min-h-10 text-xs font-medium text-brand-text-secondary underline underline-offset-4 disabled:opacity-50" disabled={busy || !emailAddress.trim()} onClick={() => void requestPasswordReset(emailAddress).catch(() => {})}>{t("Forgot password?")}</button>}
               </form>
 
               {mode === "register" && identityButtons}
