@@ -344,10 +344,13 @@ test("authenticated order history renders read-only mocked order rows", async ({
 
   await expect(page.getByRole("heading", { name: "Orders" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Order history" })).toBeVisible();
-  await expect(page.getByText("E2E-ORDER-001")).toBeVisible();
-  await expect(page.getByText("BTC/USDT")).toBeVisible();
-  await expect(page.getByText("65000.00")).toBeVisible();
-  await expect(page.getByText("open", { exact: true })).toBeVisible();
+  // Responsive order cards and the desktop table share the same live row data.
+  // Filter hidden responsive counterpart elements so both viewport projects assert
+  // the rendered representation rather than failing Playwright strict mode.
+  await expect(page.getByText("E2E-ORDER-001", { exact: true }).filter({ visible: true })).toBeVisible();
+  await expect(page.getByText("BTC/USDT", { exact: true }).filter({ visible: true })).toBeVisible();
+  await expect(page.getByText("65000.00", { exact: true }).filter({ visible: true })).toBeVisible();
+  await expect(page.getByText("open", { exact: true }).filter({ visible: true })).toBeVisible();
 });
 
 test("spot preview keeps provider provenance visible and fits a 320px mobile viewport", async ({ page }) => {
