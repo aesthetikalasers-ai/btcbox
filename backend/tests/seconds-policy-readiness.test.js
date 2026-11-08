@@ -72,17 +72,19 @@ test('rejects a policy with missing version or unsafe duration', async () => {
   assert.equal(ready, false);
 });
 
-test('rejects an invalid active policy identifier before querying policy rows', async () => {
-  let calls = 0;
-  const ready = await hasActiveVersionedSecondsPolicy({
-    env,
-    fetchImpl: async () => {
-      calls += 1;
-      return response([{ policy_id: 'not-a-uuid' }]);
-    }
-  });
-  assert.equal(ready, false);
-  assert.equal(calls, 1);
+test('rejects malformed active policy identifiers before querying policy rows', async () => {
+  for (const policy_id of ['not-a-uuid', '']) {
+    let calls = 0;
+    const ready = await hasActiveVersionedSecondsPolicy({
+      env,
+      fetchImpl: async () => {
+        calls += 1;
+        return response([{ policy_id }]);
+      }
+    });
+    assert.equal(ready, false);
+    assert.equal(calls, 1);
+  }
 });
 
 test('fails closed on policy query errors and network exceptions', async () => {
