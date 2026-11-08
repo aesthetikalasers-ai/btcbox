@@ -98,3 +98,5 @@ BTCBOX localization is a complete language system per locale, not a literal tran
 - Added an isolated browser regression test for language selection: switching to Japanese updates the HTML language metadata and Japanese navigation labels, then survives a full page reload. The test does not change the default locale or touch account/financial state.
 
 - Localized the dashboard Top tokens panel and market snapshot metadata across all seven supported locales, including source labels and relative-age units. Numeric formatting uses the shared locale map; asset tickers and USDT remain canonical financial identifiers.
+
+- Localized the market-feed stale-snapshot warning in all seven locales and localized the loading-state accessible label. The stale-data fail-closed behavior and 90-second threshold are unchanged.

@@ -31,6 +31,7 @@ const dictionaries: Record<Language, Dictionary> = {
     "seconds ago": "s ago",
     "Server snapshot time unavailable": "Server snapshot time unavailable",
     "Provider timestamp unavailable": "Provider timestamp unavailable",
+    "The market service snapshot is older than 90 seconds. Quotes are hidden until a fresh snapshot arrives.": "The market service snapshot is older than 90 seconds. Quotes are hidden until a fresh snapshot arrives.",
   },
   ja: {
     "BTCBOX / OPEN MARKET":"BTCBOX / 公開市場",
@@ -80,6 +81,7 @@ const dictionaries: Record<Language, Dictionary> = {
     "seconds ago": "秒前",
     "Server snapshot time unavailable": "サーバー時刻を取得できません",
     "Provider timestamp unavailable": "データ提供元の時刻を取得できません",
+    "The market service snapshot is older than 90 seconds. Quotes are hidden until a fresh snapshot arrives.": "マーケットサービスのスナップショットは90秒以上前のものです。最新データを受信するまで価格を非表示にします。",
   },
   "zh-CN": {
     "BTCBOX / OPEN MARKET":"BTCBOX / 公开市场",
@@ -129,6 +131,7 @@ const dictionaries: Record<Language, Dictionary> = {
     "seconds ago": "秒前",
     "Server snapshot time unavailable": "无法获取服务器快照时间",
     "Provider timestamp unavailable": "无法获取数据源时间",
+    "The market service snapshot is older than 90 seconds. Quotes are hidden until a fresh snapshot arrives.": "行情服务快照已超过 90 秒。收到最新快照前将隐藏报价。",
   },
   es: {
     "BTCBOX / OPEN MARKET":"BTCBOX / MERCADO ABIERTO",
@@ -178,6 +181,7 @@ const dictionaries: Record<Language, Dictionary> = {
     "seconds ago": " s atrás",
     "Server snapshot time unavailable": "Hora de instantánea del servidor no disponible",
     "Provider timestamp unavailable": "Hora del proveedor no disponible",
+    "The market service snapshot is older than 90 seconds. Quotes are hidden until a fresh snapshot arrives.": "La instantánea del servicio de mercado tiene más de 90 segundos. Las cotizaciones se ocultan hasta recibir una instantánea nueva.",
   },
   vi: {
     "BTCBOX / OPEN MARKET":"BTCBOX / THỊ TRƯỜNG MỞ",
@@ -227,6 +231,7 @@ const dictionaries: Record<Language, Dictionary> = {
     "seconds ago": " giây trước",
     "Server snapshot time unavailable": "Không có thời gian bản ghi máy chủ",
     "Provider timestamp unavailable": "Không có thời gian từ nhà cung cấp",
+    "The market service snapshot is older than 90 seconds. Quotes are hidden until a fresh snapshot arrives.": "Bản ghi của dịch vụ thị trường đã cũ hơn 90 giây. Giá sẽ được ẩn cho đến khi nhận được bản ghi mới.",
   },
   it: {
     "BTCBOX / OPEN MARKET":"BTCBOX / MERCATO APERTO",
@@ -276,6 +281,7 @@ const dictionaries: Record<Language, Dictionary> = {
     "seconds ago": " s fa",
     "Server snapshot time unavailable": "Orario dello snapshot del server non disponibile",
     "Provider timestamp unavailable": "Orario del provider non disponibile",
+    "The market service snapshot is older than 90 seconds. Quotes are hidden until a fresh snapshot arrives.": "Lo snapshot del servizio di mercato ha più di 90 secondi. Le quotazioni restano nascoste finché non arriva uno snapshot aggiornato.",
   },
   pt: {
     "BTCBOX / OPEN MARKET":"BTCBOX / MERCADO ABERTO",
@@ -325,6 +331,7 @@ const dictionaries: Record<Language, Dictionary> = {
     "seconds ago": " s atrás",
     "Server snapshot time unavailable": "Horário do instantâneo do servidor indisponível",
     "Provider timestamp unavailable": "Horário do provedor indisponível",
+    "The market service snapshot is older than 90 seconds. Quotes are hidden until a fresh snapshot arrives.": "O instantâneo do serviço de mercado tem mais de 90 segundos. As cotações ficam ocultas até a chegada de um novo instantâneo.",
   }
 };
 

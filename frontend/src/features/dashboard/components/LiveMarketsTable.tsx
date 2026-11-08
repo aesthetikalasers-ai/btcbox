@@ -37,7 +37,7 @@ export function LiveMarketsTable({ markets, loading, error }: {
   const latestSnapshotTs = markets.reduce((latest, item) => Math.max(latest, item.snapshotTs || 0), 0);
   const snapshotAgeSeconds = latestSnapshotTs > 0 ? Math.max(0, Math.floor(Date.now() / 1000 - latestSnapshotTs)) : null;
   const snapshotStale = snapshotAgeSeconds !== null && snapshotAgeSeconds > 90;
-  const feedError = error || (snapshotStale ? "The market service snapshot is older than 90 seconds. Quotes are hidden until a fresh snapshot arrives." : "");
+  const feedError = error || (snapshotStale ? t("The market service snapshot is older than 90 seconds. Quotes are hidden until a fresh snapshot arrives.") : "");
   const displayMarkets = feedError ? [] : markets;
   const latestProviderMarket = displayMarkets.reduce<MarketTicker | null>((latest, item) =>
     (item.providerTs || 0) > (latest?.providerTs || 0) ? item : latest, null);
@@ -81,7 +81,7 @@ export function LiveMarketsTable({ markets, loading, error }: {
           <p className="mt-2 break-words text-sm text-brand-text-muted">{feedError}</p>
         </div>
       ) : loading && displayMarkets.length === 0 ? (
-        <div className="space-y-3 px-5 py-8" aria-label="Loading markets">
+        <div className="space-y-3 px-5 py-8" aria-label={t("Loading markets")}>
           {Array.from({ length: 5 }).map((_, index) => <div key={index} className="h-12 animate-pulse rounded-xl bg-white/[0.05]" />)}
         </div>
       ) : visibleMarkets.length === 0 ? (
