@@ -5,7 +5,8 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const api = fs.readFileSync(path.join(__dirname, '..', 'api-core.js'), 'utf8');
-const migration = fs.readFileSync(path.join(__dirname, '..', 'supabase', 'sql', '0037_financial_write_rate_limit_scopes_v1.sql'), 'utf8');
+const migration = fs.readFileSync(path.join(__dirname, '..', 'supabase', 'sql', '0023_btcbox_shared_rate_limit_v1.sql'), 'utf8');
+const extensionMigration = fs.readFileSync(path.join(__dirname, '..', 'supabase', 'sql', '0037_financial_write_rate_limit_scopes_v1.sql'), 'utf8');
 
 const policies = {
   login_2fa: [20, 900],
@@ -28,12 +29,12 @@ const policies = {
 };
 
 test('shared limiter has an explicit policy and async call site for all seventeen protected routes', () => {
-  const tableScopeCheck = migration.match(/scope text not null check \(scope in \(([\s\S]*?)\)\)/);
+  const tableScopeCheck = extensionMigration.match(/CHECK \(scope IN \(([\s\S]*?)\)\)/);
   assert.ok(tableScopeCheck, 'rate-limit table must constrain scope values');
   for (const [scope, [limit, seconds]] of Object.entries(policies)) {
     assert.match(api, new RegExp(scope + ': \\{ limit: ' + limit + ', windowSeconds: ' + seconds + ' \\}'));
     assert.ok(api.includes("await rateCheckShared('" + scope + "',"), scope + ' must use the shared limiter');
-    assert.ok(migration.includes("when '" + scope + "' then"), scope + ' must be accepted by the database RPC');
+    assert.ok(extensionMigration.includes("when '" + scope + "' then"), scope + ' must be accepted by the database RPC');
     assert.ok(tableScopeCheck[1].includes("'" + scope + "'"), scope + ' must be accepted by the table CHECK constraint');
   }
   assert.equal((api.match(/await rateCheckShared\(/g) || []).length, 17);
