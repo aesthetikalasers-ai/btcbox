@@ -16,7 +16,7 @@ function collectFiles(directory) {
   return fs.readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
     const fullPath = path.join(directory, entry.name);
     if (entry.isDirectory()) return collectFiles(fullPath);
-    return /\\.tsx?$/.test(entry.name) && fullPath !== i18nPath ? [fullPath] : [];
+    return /\.tsx?$/.test(entry.name) && fullPath !== i18nPath ? [fullPath] : [];
   });
 }
 
