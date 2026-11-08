@@ -72,7 +72,7 @@ const missingUsed = [...usedKeys].filter((key) => !canonical.has(key));
 console.log("Static t() calls: " + usedKeys.size + "; keys absent from English dictionary: " + missingUsed.length);
 if (missingUsed.length) {
   failed = true;
-  console.error("  Unregistered t() keys: " + missingUsed.slice(0, 40).join(" | "));
+  console.error("  Unregistered t() keys: " + missingUsed.slice(0, 100).join(" | "));
 }
 
 if (failed) process.exitCode = 1;
