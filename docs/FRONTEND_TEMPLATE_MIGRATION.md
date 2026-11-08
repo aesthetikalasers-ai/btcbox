@@ -102,3 +102,5 @@ BTCBOX localization is a complete language system per locale, not a literal tran
 - Localized the market-feed stale-snapshot warning in all seven locales and localized the loading-state accessible label. The stale-data fail-closed behavior and 90-second threshold are unchanged.
 
 - Completed first full locale-copy pass for Dashboard, Assets and Orders labels/status text in all seven supported locales. Financial identifiers and exact numeric values remain unchanged; common operational labels (available/frozen, price/quantity, valuation status) now have consistent locale entries.
+
+- Japanese-first terminology batch: completed native Japanese copy for the Trade Hub's Spot, Seconds, Earn and Futures availability/status surfaces. Operational availability wording preserves backend fail-closed semantics; Spot, Seconds, Earn and Futures remain recognized product terms where useful. No order execution behavior changed.
