@@ -13,10 +13,10 @@ One repository execution path is active at a time. Re-read this file before star
 
 - **Active candidate:** PR #67
 - **Branch:** `integration/btcbox-mainline-consolidation-20261108`
-- **Current candidate head:** `876dc5bc6767f2a3b6af6a0b7e98235023e50815`
+- **Current candidate head:** `48a2f90a4bdab4a98daa2950d3e09856bb147b90`
 - **Base:** `main` at `2a3810da1aef2c0c7c58df0cfdb059a212eeb0d6`
 - **State:** Draft / open / not merged
-- **Latest exact-current-head CI:** all three workflows were IN PROGRESS at last check for `876dc5bc6767f2a3b6af6a0b7e98235023e50815`: Backend `42482298700`, PostgreSQL schema `42482298619`, Frontend `42482298627`. Previous head `c2065d39afc42dbf0c2bf2f7223a7453af8ae8e0` passed all three workflows.
+- **Latest exact-current-head CI:** all three workflows were IN PROGRESS at last check for `48a2f90a4bdab4a98daa2950d3e09856bb147b90`: Backend `42482389501`, PostgreSQL schema `42482389538`, Frontend `42482389508`. Prior exact-head `876dc5bc...` had Backend PASS but PostgreSQL schema failed because PostgreSQL 16 does not recognize MAINTAIN; the migration was made version-gated and is being revalidated.
 
 The previous fully green source head `8b54cf128ccd4861eedd1fae602846c92849f835` also passed Backend `42436694163`, PostgreSQL schema `42436693919`, and Frontend `42436694030`. Current head adds a documentation-only correction to the owner bootstrap guide; the full exact-head CI has now passed.
 
@@ -847,3 +847,9 @@ Safety/ownership:
 - Current PR #67 head `876dc5bc6767f2a3b6af6a0b7e98235023e50815` includes this follow-up and the expanded API contract tests. Backend, PostgreSQL schema, and Frontend exact-head CI were running at last check (`42482298700`, `42482298619`, `42482298627`).
 - Supabase `supabase_admin` default ACL remains separately broad; current hardening covers postgres-owned custom migration objects. Assess platform-owned object creation separately; do not claim all possible future object owners are covered.
 - No production database write, merge, deployment, or financial operation was performed.
+## 27. PostgreSQL 16/17 migration compatibility correction — 2026-11-08
+
+- Exact-head PostgreSQL schema CI on 876dc5bc... exposed that disposable CI uses PostgreSQL 16 while Staging uses PostgreSQL 17. PostgreSQL 16 rejects the MAINTAIN privilege token even though Staging PostgreSQL 17 supports it.
+- Updated migration 0036 to execute the MAINTAIN revokes dynamically only when server_version_num >= 170000. PostgreSQL 16 therefore skips the unsupported privilege operation; PostgreSQL 17 applies it. Staging was already successfully hardened by the equivalent direct statements before this portability correction.
+- Updated the migration regression test to assert the version guard and default-privilege revocation. Candidate head 48a2f90a4bdab4a98daa2950d3e09856bb147b90 has Backend `42482389501`, PostgreSQL schema `42482389538`, and Frontend `42482389508` running; do not mark the migration fully verified until all complete successfully.
+- PR #67 remains Draft/open/unmerged; no production writes, financial operations, merge, or deployment.
