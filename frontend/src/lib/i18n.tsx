@@ -1069,6 +1069,7 @@ const dictionaries: Record<Language, Dictionary> = {
     "Available balance": "利用可能残高",
     "Order submitted": "注文を送信しました",
     "Order submission failed": "注文の送信に失敗しました",
+    "Loading BTCBOX…": "BTCBOXを読み込み中…",
   },
   "zh-CN": {
     "BTCBOX / OPEN MARKET":"BTCBOX / 公开市场",
@@ -1584,6 +1585,7 @@ const dictionaries: Record<Language, Dictionary> = {
     "Authentication is still initializing. Reload and try again.": "身份验证仍在初始化，请刷新页面后重试。",
     "Enter your authenticator code to finish verifying your existing Google sign-in method.": "输入身份验证器代码，以完成现有 Google 登录方式的验证。",
     "The Google identity has been linked to this BTCBOX account.": "Google 身份已关联到此 BTCBOX 账户。",
+    "Loading BTCBOX…": "正在加载 BTCBOX…",
   },
   es: {
     "BTCBOX / OPEN MARKET":"BTCBOX / MERCADO ABIERTO",
@@ -2099,6 +2101,7 @@ const dictionaries: Record<Language, Dictionary> = {
     "Authentication is still initializing. Reload and try again.": "La autenticación todavía se está inicializando. Recarga e inténtalo de nuevo.",
     "Enter your authenticator code to finish verifying your existing Google sign-in method.": "Introduce el código del autenticador para terminar de verificar tu método de inicio de sesión de Google existente.",
     "The Google identity has been linked to this BTCBOX account.": "La identidad de Google se ha vinculado a esta cuenta BTCBOX.",
+    "Loading BTCBOX…": "Cargando BTCBOX…",
   },
   vi: {
     "BTCBOX / OPEN MARKET":"BTCBOX / THỊ TRƯỜNG MỞ",
@@ -2614,6 +2617,7 @@ const dictionaries: Record<Language, Dictionary> = {
     "Authentication is still initializing. Reload and try again.": "Hệ thống xác thực vẫn đang khởi tạo. Hãy tải lại trang và thử lại.",
     "Enter your authenticator code to finish verifying your existing Google sign-in method.": "Nhập mã ứng dụng xác thực để hoàn tất xác minh phương thức đăng nhập Google hiện có.",
     "The Google identity has been linked to this BTCBOX account.": "Danh tính Google đã được liên kết với tài khoản BTCBOX này.",
+    "Loading BTCBOX…": "Đang tải BTCBOX…",
   },
   it: {
     "BTCBOX / OPEN MARKET":"BTCBOX / MERCATO APERTO",
@@ -3129,6 +3133,7 @@ const dictionaries: Record<Language, Dictionary> = {
     "Authentication is still initializing. Reload and try again.": "L'autenticazione è ancora in fase di inizializzazione. Ricarica e riprova.",
     "Enter your authenticator code to finish verifying your existing Google sign-in method.": "Inserisci il codice dell'autenticatore per completare la verifica del metodo di accesso Google esistente.",
     "The Google identity has been linked to this BTCBOX account.": "L'identità Google è stata collegata a questo account BTCBOX.",
+    "Loading BTCBOX…": "Caricamento di BTCBOX…",
   },
   pt: {
     "BTCBOX / OPEN MARKET":"BTCBOX / MERCADO ABERTO",
