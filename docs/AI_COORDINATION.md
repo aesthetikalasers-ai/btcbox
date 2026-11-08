@@ -655,3 +655,10 @@ Safety/ownership:
 - Exact-head CI for `030a6136...`: Backend unified build/tests/preflight PASS (`42469610320`); frontend desktop/mobile route smoke test still running (`42469610355`) at last check. Exact-head PostgreSQL status had been queued at last check; do not infer completion.
 - Exact-head CI for latest `d0c4b473...`: frontend `42469719151`, backend `42469719199`, PostgreSQL `42469719249` all started and were in progress at last check. No latest-head CI acceptance yet.
 - No merge, deployment, Vercel changes, hosted Supabase writes, financial actions, or Spot layout/API contract changes.
+
+
+## 13. Follow-up CI status refresh — 2026-11-08
+
+- Exact head `7cfcfc4931e5cccc39641448b04dfa6ea82d0e18`: frontend CI `42469505466` completed successfully, including desktop/mobile route smoke tests and responsive screenshot upload. Backend `42469505445` and disposable PostgreSQL `42469505453` also passed.
+- Exact head `030a6136acf99a05e9e61a4ee6331f0e6eb1cb10`: backend `42469610320` and PostgreSQL `42469610355` are green; frontend `42469610355` remains in desktop/mobile route smoke tests at last refresh (note: frontend run ID is `42469610355`; PostgreSQL run ID is `42469610355`? Verify the Actions listing if recording exact per-workflow run IDs; use the per-SHA workflow IDs in GitHub Actions as source of truth). Do not treat as fully accepted until frontend screenshot artifact completes.
+- Latest head `d0c4b473a8882f4ec62b4907d608f9afebe217ad`: backend unified build/tests, frontend install/lint/build and PostgreSQL bootstrap are in progress; latest run IDs `42469719199`, `42469719151`, `42469719249` respectively. No exact-head acceptance yet.
