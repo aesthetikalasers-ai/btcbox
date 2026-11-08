@@ -13,10 +13,10 @@ One repository execution path is active at a time. Re-read this file before star
 
 - **Active candidate:** PR #67
 - **Branch:** `integration/btcbox-mainline-consolidation-20261108`
-- **Current candidate head:** `3924f4f3f0b7e190bb1f09a9ad904f50fc69286f`
+- **Current candidate head:** `532f556968c505c0b1f63cab72c1ff6dbb03295b`
 - **Base:** `main` at `2a3810da1aef2c0c7c58df0cfdb059a212eeb0d6`
 - **State:** Draft / open / not merged
-- **Latest exact-current-head CI:** Backend `42481952409` PASS; PostgreSQL schema `42481952323` and Frontend `42481952345` were IN PROGRESS at last check for `3924f4f3f0b7e190bb1f09a9ad904f50fc69286f`. Prior head `c2065d39afc42dbf0c2bf2f7223a7453af8ae8e0` passed all three workflows (`42479320273`, `42479320338`, `42479320367`).
+- **Latest exact-current-head CI:** all three workflows were IN PROGRESS at last check for `532f556968c505c0b1f63cab72c1ff6dbb03295b`: Backend `42482089282`, PostgreSQL schema `42482089210`, Frontend `42482089212`. Previous head `3924f4f3f0b7e190bb1f09a9ad904f50fc69286f` passed Backend `42481952409` and PostgreSQL schema `42481952323`; its Frontend run `42481952345` was still in progress at last check. Earlier head `c2065d39afc42dbf0c2bf2f7223a7453af8ae8e0` passed all three workflows.
 
 The previous fully green source head `8b54cf128ccd4861eedd1fae602846c92849f835` also passed Backend `42436694163`, PostgreSQL schema `42436693919`, and Frontend `42436694030`. Current head adds a documentation-only correction to the owner bootstrap guide; the full exact-head CI has now passed.
 
@@ -830,3 +830,11 @@ Safety/ownership:
 - Remaining ACL note: Staging also reports a separate supabase_admin default table ACL with broad default grants. The current migration intentionally changes only the postgres-owned custom-migration default ACL; whether platform-owned future tables can be created by supabase_admin must be assessed separately before changing that role's defaults.
 - Staging Security Advisor reports 25 tables with RLS enabled and no policies at INFO level. Direct privilege inspection shows no browser-role table grants; this service-role-only model must not be weakened by adding broad policies just to silence the advisory. Performance Advisor reports nine unindexed foreign keys and 18 unused indexes in this fresh, near-empty Staging environment; review actual query paths and production-like load before adding or removing indexes.
 - PR #67 remains Draft/open/unmerged. No production DB write, merge, deployment, or financial operation was performed.
+
+## 25. Expanded financial API source-contract coverage — 2026-11-08
+
+- Extended backend/tests/rpc-source-contract.test.js with API-to-canonical-SQL signature and payload assertions for Earn subscribe/redeem, administrator manual deposit, and Seconds settlement.
+- The new assertions verify the exact named RPC arguments, request-hash payload normalization, Earn request replay binding, manual-credit idempotency key and hash construction, and settlement price source/timestamp/maturity checks.
+- This supplements the existing withdrawal fee-snapshot, admin membership, Seconds order/policy, and Spot cancellation source-contract tests. It remains static source-contract coverage, not live financial execution.
+- New candidate head: 532f556968c505c0b1f63cab72c1ff6dbb03295b. Exact-head Backend, PostgreSQL schema, and Frontend CI were running at last check; do not mark the added tests verified until all three complete successfully.
+- PR #67 remains Draft/open/unmerged. No hosted financial RPC was invoked, no production DB write or deployment was performed.
