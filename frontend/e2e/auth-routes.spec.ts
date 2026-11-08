@@ -1267,3 +1267,22 @@ test("language preference updates the document locale and persists across reload
   await expect(page.getByRole("combobox", { name: "言語" })).toHaveValue("ja");
   await expect(page.getByRole("navigation", { name: "メインナビゲーション" }).getByRole("link", { name: "ホーム" })).toBeVisible();
 });
+
+
+test("login screen switches to native Japanese copy without changing authentication controls", async ({ page }) => {
+  await page.goto("/login");
+  const language = page.getByRole("combobox", { name: "Language" });
+  await language.selectOption("ja");
+
+  await expect(page.locator("html")).toHaveAttribute("lang", "ja");
+  await expect(page.getByRole("heading", { name: "お帰りなさい", exact: true })).toBeVisible();
+  await expect(page.getByLabel("ユーザー名")).toBeVisible();
+  await expect(page.getByLabel("パスワード", { exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "ユーザー名でログイン" })).toBeVisible();
+  await expect(page.getByText("Googleログインは一時的に利用できません。")).toBeVisible();
+
+  await page.reload();
+  await expect(page.locator("html")).toHaveAttribute("lang", "ja");
+  await expect(page.getByRole("combobox", { name: "言語" })).toHaveValue("ja");
+  await expect(page.getByRole("heading", { name: "お帰りなさい", exact: true })).toBeVisible();
+});
