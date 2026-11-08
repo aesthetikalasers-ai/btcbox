@@ -13,13 +13,13 @@ One repository execution path is active at a time. Re-read this file before star
 
 - **Active candidate:** PR #67
 - **Branch:** `integration/btcbox-mainline-consolidation-20261108`
-- **Current candidate head:** `724d871c9f9f5e3a4df0ce2b7ea78e46164f7082`
+- **Current candidate head:** `df6cf43d28194911a4dbebcdcdb1989c9ccf6ded`
 - **Base:** `main` at `2a3810da1aef2c0c7c58df0cfdb059a212eeb0d6`
 - **State:** Draft / open / not merged
-- **Exact-current-head CI:** PASS on `724d871c9f9f5e3a4df0ce2b7ea78e46164f7082`.
-  - Backend: `42450472668` — PASS.
-  - PostgreSQL schema: `42450472665` — PASS.
-  - Frontend: `42450472705` — PASS; the build job completed successfully with no failed steps.
+- **Exact-current-head CI:** PASS on `df6cf43d28194911a4dbebcdcdb1989c9ccf6ded`.
+  - Backend: `42453532346` — PASS; full backend test job completed successfully.
+  - PostgreSQL schema: `42453532347` — PASS; canonical SQL applied to disposable PostgreSQL.
+  - Frontend: `42453532383` — PASS; lint, build, Chromium setup, desktop/mobile route smoke tests, and responsive screenshot upload completed successfully.
   - Previous exact-head CI on `1594084189befe103c978b2d7ce6dc65eaf5a451` also passed, but is historical and not the current candidate head.
 
 The previous fully green source head `8b54cf128ccd4861eedd1fae602846c92849f835` also passed Backend `42436694163`, PostgreSQL schema `42436693919`, and Frontend `42436694030`. Current head adds a documentation-only correction to the owner bootstrap guide; the full exact-head CI has now passed.
@@ -169,3 +169,11 @@ API-to-SQL source contract cross-check — 2026-11-08:
 Coordination document correction — 2026-11-08:
 - Updated the top-level candidate SHA and exact-head CI block to `724d871c9f9f5e3a4df0ce2b7ea78e46164f7082` and its three passing workflow runs. The older `159408...` evidence remains historical only.
 - A source inspection found that `backend/tests/rpc-source-contract.test.js` inventories active RPC names and has a detailed signature assertion for withdrawal creation, but does not currently assert parameter/signature parity or request-hash normalization for admin membership, Seconds policy, Seconds order, and matching cancellation. Treat this as a potential regression-coverage improvement, not as a runtime defect; verify team file ownership and existing test conventions before changing it.
+
+
+RPC source-contract regression coverage — 2026-11-08:
+- Added regression tests in `backend/tests/rpc-source-contract.test.js` for Admin membership wrapper parameter parity, normalized permission ordering and private request-hash replay; Seconds order RPC parameter parity and request-hash replay ordering; Seconds policy canonical sorting/hash construction; and Spot cancellation request identity, order binding, mismatch rejection, and exact replay response.
+- Two test-only assertion corrections were made after CI exposed overly broad SQL-file search scope and an incorrect matcher for the PL/pgSQL `SELECT p.* INTO v_policy` form. No backend business implementation or hosted database was changed.
+- Final test-source commit: `df6cf43d28194911a4dbebcdcdb1989c9ccf6ded`.
+- Exact-head Backend CI `42453532346`, PostgreSQL schema CI `42453532347`, and Frontend CI `42453532383` all completed successfully.
+- PR #67 remains Draft / open / not merged. The owner's merge authorization is noted, but the documented release gate remains unmet: hosted schema reconciliation and authenticated Email/Google staging verification are NOT VERIFIED. Do not merge until those prerequisites are completed or the owner explicitly revises the release gate after reviewing the risk.
