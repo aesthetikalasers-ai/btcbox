@@ -13,10 +13,10 @@ One repository execution path is active at a time. Re-read this file before star
 
 - **Active candidate:** PR #67
 - **Branch:** `integration/btcbox-mainline-consolidation-20261108`
-- **Current candidate head:** `c2065d39afc42dbf0c2bf2f7223a7453af8ae8e0`
+- **Current candidate head:** `3924f4f3f0b7e190bb1f09a9ad904f50fc69286f`
 - **Base:** `main` at `2a3810da1aef2c0c7c58df0cfdb059a212eeb0d6`
 - **State:** Draft / open / not merged
-- **Latest exact-current-head CI:** PASS for `c2065d39afc42dbf0c2bf2f7223a7453af8ae8e0`: Backend `42479320273`, PostgreSQL schema bootstrap `42479320338`, Frontend `42479320367` (all completed / success). The similarly numbered runs belong to this exact SHA; no current-head CI remains in progress.
+- **Latest exact-current-head CI:** Backend `42481952409` PASS; PostgreSQL schema `42481952323` and Frontend `42481952345` were IN PROGRESS at last check for `3924f4f3f0b7e190bb1f09a9ad904f50fc69286f`. Prior head `c2065d39afc42dbf0c2bf2f7223a7453af8ae8e0` passed all three workflows (`42479320273`, `42479320338`, `42479320367`).
 
 The previous fully green source head `8b54cf128ccd4861eedd1fae602846c92849f835` also passed Backend `42436694163`, PostgreSQL schema `42436693919`, and Frontend `42436694030`. Current head adds a documentation-only correction to the owner bootstrap guide; the full exact-head CI has now passed.
 
@@ -819,3 +819,14 @@ Safety/ownership:
 - Staging currently has no Auth users, no normalized financial accounts/operations/ledger, no deposits/withdrawals/Earn positions, and no enabled Spot markets; the active Earn catalogue has seven products and the Seconds policy/active pointer exist. Therefore real authenticated financial execution remains NOT VERIFIED and must remain gated.
 - Language-team completion was deliberately bypassed for this batch so non-language API/database/security work can continue independently. PR #70 remains Draft and is not included in PR #67; its exact `Google`/`Wallet` locale keys and responsive auth-entry changes remain a separate pending integration item.
 - PR #67 remains Draft/open/unmerged. No production database write, merge, deployment, Auth-provider mutation, or financial operation was performed.
+
+## 24. Service-role privilege minimization — 2026-11-08
+
+- A SELECT-only Staging privilege audit found Supabase default table ACLs had granted service_role DELETE, TRUNCATE, REFERENCES, and TRIGGER on multiple public tables, despite the API's financial writes being routed through RPCs. No anon or authenticated table grants were present.
+- Scanned all public/private PL/pgSQL function definitions for direct DELETE/TRUNCATE. The only current delete statement is the bounded expired-row cleanup in public.btcbox_rate_limit_cleanup_v1; no function uses TRUNCATE.
+- Added canonical migration 0035_service_role_privilege_minimization_v1.sql to PR #67. It revokes DELETE, TRUNCATE, REFERENCES, and TRIGGER from service_role on all public tables, then grants DELETE only on public.btcbox_rate_limits. Existing SELECT/INSERT/UPDATE privileges remain unchanged because current SECURITY INVOKER RPCs require them. The migration also narrows those default privileges for future postgres-owned public tables.
+- Applied migration 0035 successfully to isolated free Staging. Post-apply SELECT-only verification shows the only remaining one of those four privilege types is DELETE on public.btcbox_rate_limits; the cleanup RPC remains executable by service_role. No financial data, Auth users, or demo records were written.
+- Updated both guarded fresh-database bootstrap allowlists, the migration-order guide, and migration inventory regression coverage to include 0035. Backend CI for candidate head 3924f4f3f0b7e190bb1f09a9ad904f50fc69286f passed (42481952409); PostgreSQL and Frontend exact-head workflows were still running at last check.
+- Remaining ACL note: Staging also reports a separate supabase_admin default table ACL with broad default grants. The current migration intentionally changes only the postgres-owned custom-migration default ACL; whether platform-owned future tables can be created by supabase_admin must be assessed separately before changing that role's defaults.
+- Staging Security Advisor reports 25 tables with RLS enabled and no policies at INFO level. Direct privilege inspection shows no browser-role table grants; this service-role-only model must not be weakened by adding broad policies just to silence the advisory. Performance Advisor reports nine unindexed foreign keys and 18 unused indexes in this fresh, near-empty Staging environment; review actual query paths and production-like load before adding or removing indexes.
+- PR #67 remains Draft/open/unmerged. No production DB write, merge, deployment, or financial operation was performed.
