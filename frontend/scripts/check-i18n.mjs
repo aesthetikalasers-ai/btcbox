@@ -18,19 +18,19 @@ const markers = {
 function readLocale(locale) {
   const marker = markers[locale];
   const start = source.indexOf(marker);
-  if (start < 0) throw new Error(`Missing locale dictionary: ${locale}`);
+  if (start < 0) throw new Error(\`Missing locale dictionary: \${locale}\`);
   const bodyStart = start + marker.length;
   const nextLocaleStart = locales
     .map((name) => source.indexOf(markers[name], bodyStart))
     .filter((index) => index >= 0)
     .sort((a, b) => a - b)[0];
-  const end = nextLocaleStart ?? source.indexOf("\n};", bodyStart);
-  if (end < 0) throw new Error(`Unterminated locale dictionary: ${locale}`);
+  const end = nextLocaleStart ?? source.indexOf("\\n};", bodyStart);
+  if (end < 0) throw new Error(\`Unterminated locale dictionary: \${locale}\`);
   const body = source.slice(bodyStart, end);
   const keys = [];
-  const pattern = /(?:^|,)\\s*(?:"((?:\\\\.|[^"\\\\])*)"|([A-Za-z_$][\\w$]*))\\s*:/gm;
+  const pattern = /(?:^|,)\s*(?:"((?:\\.|[^"\\])*)"|([A-Za-z_$][\w$]*))\s*:/gm;
   for (const match of body.matchAll(pattern)) {
-    keys.push(match[1] ? JSON.parse(`"${match[1]}"`) : match[2]);
+    keys.push(match[1] ? JSON.parse(\`"\${match[1]}"\`) : match[2]);
   }
   return keys;
 }
@@ -43,14 +43,14 @@ for (const locale of locales) {
   const keys = dictionaries[locale];
   const duplicates = keys.filter((key, index) => keys.indexOf(key) !== index);
   const missing = locale === "en" ? [] : [...canonical].filter((key) => !keys.includes(key));
-  console.log(`${locale}: ${keys.length} keys; ${missing.length} missing; ${duplicates.length} duplicate`);
+  console.log(\`\${locale}: \${keys.length} keys; \${missing.length} missing; \${duplicates.length} duplicate\`);
   if (duplicates.length) {
     failed = true;
-    console.error(`  Duplicate keys: ${duplicates.slice(0, 12).join(" | ")}`);
+    console.error(\`  Duplicate keys: \${duplicates.slice(0, 12).join(" | ")}\`);
   }
   if (missing.length) {
     failed = true;
-    console.error(`  Missing keys: ${missing.slice(0, 20).join(" | ")}`);
+    console.error(\`  Missing keys: \${missing.slice(0, 20).join(" | ")}\`);
   }
 }
 
