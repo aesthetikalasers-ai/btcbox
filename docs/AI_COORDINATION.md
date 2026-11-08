@@ -541,3 +541,16 @@ Safety/ownership:
 - `frontend/src/features/dashboard/Dashboard.tsx` now includes responsive BTC/USDT summary cards for the last price, 24-hour percentage change and 24-hour volume. Values are derived only from the actual BTC ticker returned by `getMarkets()`; while loading or when BTC quote is unavailable, the page displays an em dash rather than seeded values. No trade controls, chart source, market API, or Spot page layout was changed.
 - Exact-head checks at this checkpoint: empty-postgres-bootstrap: in_progress; build: in_progress; Unified frontend/backend build, tests, and fail-closed preflight: in_progress.
 - Current candidate includes the responsive order card test selector fix, account/security/KYC/wallet visual adaptation and the live market summary cards. Full acceptance remains pending exact-head CI and final responsive review.
+
+
+### Wallet and market visual adaptation continuation — 2026-11-08
+
+- Current PR #67 head: `811cf2a5b0965b71cdca88b33a65c06ec101c147`; PR remains Draft/open/unmerged.
+- `frontend/src/features/pages/Pages.tsx`:
+  - Withdrawal available balances are presented as responsive asset cards with TokenIcon and actual free/frozen amounts from the BTCBOX account snapshot.
+  - Withdrawal form, selected destination, fee summary, pending request messaging, history and saved-address panels received consistent card/input styling. Existing request ID retry semantics, staff-review notice, fee-change handling, fund-password and 2FA checks are unchanged.
+  - Deposit address selection, address display/copy affordance and staff-verified deposit history received consistent fintech styling. The manual-credit warning remains visible; no automatic credit or deposit-order behavior was added.
+- `frontend/src/features/dashboard/Dashboard.tsx` adds BTC/USDT price, 24h change and 24h volume summary cards using only the live BTC ticker returned by `getMarkets()`; unavailable/loading values remain blank placeholders, not sample figures.
+- Latest candidate SHA `811cf2a5b0965b71cdca88b33a65c06ec101c147`. Exact-head CI at checkpoint: build: in_progress; empty-postgres-bootstrap: in_progress; Unified frontend/backend build, tests, and fail-closed preflight: in_progress.
+- A checkout cleanup warning references two pre-existing gitlinks under `references/` without matching entries in `.gitmodules`; both gitlinks also exist on `main`. They were not removed or rewritten because they are existing reference archives, not runtime dependencies for this UI batch.
+- No merge, deployment, hosted Supabase DDL/write, financial operation, or locked Spot layout/API change.
