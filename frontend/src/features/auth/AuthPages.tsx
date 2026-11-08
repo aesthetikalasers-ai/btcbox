@@ -166,6 +166,7 @@ export function AuthPage({ mode, redirectTo }: { mode: "login" | "register"; red
 }
 
 export function AuthCallbackPage() {
+  const { t } = useI18n();
   const { finishOAuth, status, needsCredentials, error, busy } = useAuth();
   const navigate = useNavigate();
   useEffect(() => { if (status !== "loading" && status !== "authenticated" && status !== "two-factor") void finishOAuth(); }, [finishOAuth, status]);
