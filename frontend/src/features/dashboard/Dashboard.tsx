@@ -134,7 +134,7 @@ export function Dashboard() {
         {t(marketFeedStatus)}
       </Badge>
     </div>
-    <section aria-label={t("Bitcoin market summary")} className="grid gap-3 sm:grid-cols-3">
+    {(btcMarket || loading) && <section aria-label={t("Bitcoin market summary")} className="grid gap-3 sm:grid-cols-3">
       <div className="relative min-w-0 overflow-hidden rounded-xl border border-brand-cyan/25 bg-gradient-to-br from-brand-cyan/[0.075] via-brand-surface to-brand-surface p-4 ring-1 ring-brand-cyan/[0.06] sm:p-5">
         <span aria-hidden="true" className="absolute inset-y-0 left-0 w-1 bg-brand-cyan"/>
         <div className="flex items-center justify-between gap-2 pl-1"><p className="type-meta font-semibold uppercase tracking-wide text-brand-text-muted">{t("BTC/USDT last price")}</p><span className="h-2 w-2 rounded-full bg-brand-cyan shadow-[0_0_12px_var(--color-brand-cyan)]"/></div>
@@ -153,7 +153,7 @@ export function Dashboard() {
         <p className="mt-3 truncate text-xl font-semibold tracking-tight tabular-nums text-brand-text sm:text-2xl">{loading || !btcMarket ? "—" : btcMarket.vol + " USDT"}</p>
         
       </div>
-    </section>
+    </section>}
     <LiveMarketsTable markets={markets} loading={loading} error={error} />
     <div className="flex items-center justify-between gap-3 px-1 pt-1">
       <div>
