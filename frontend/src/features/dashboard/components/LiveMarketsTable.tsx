@@ -60,9 +60,9 @@ export function LiveMarketsTable({ markets, loading, error }: {
         <div className="min-w-0">
           <h2 className="text-[15px] font-semibold tracking-tight text-brand-text">{t("Spot markets")}</h2>
           <p className="mt-1 text-xs text-brand-text-muted">{t("Live prices from the BTCBOX market service")}</p>
-          <p className="mt-1 text-[11px] text-brand-text-muted" aria-label={snapshotTime ? `Server snapshot ${snapshotTime}` : "Server snapshot time unavailable"}>{snapshotTime ? `Server snapshot · ${snapshotTime} · ${snapshotAgeSeconds}s ago` : "Server snapshot time unavailable"}</p>
-          <p className="mt-1 text-[11px] text-brand-text-muted" aria-label={providerTime ? `Provider snapshot ${providerSource || "source unavailable"} at ${providerTime}, ${providerAgeSeconds} seconds old` : "Provider timestamp unavailable"}>
-            {providerTime ? `Provider snapshot · ${providerSource || "source unavailable"} · ${providerTime} · ${providerAgeSeconds}s ago` : "Provider timestamp unavailable"}
+          <p className="mt-1 text-[11px] text-brand-text-muted" aria-label={snapshotTime ? `${t("Server snapshot")} ${snapshotTime}` : t("Server snapshot time unavailable")}>{snapshotTime ? `${t("Server snapshot")} · ${snapshotTime} · ${snapshotAgeSeconds}${t("seconds ago")}` : t("Server snapshot time unavailable")}</p>
+          <p className="mt-1 text-[11px] text-brand-text-muted" aria-label={providerTime ? `${t("Provider snapshot")} ${providerSource || t("source unavailable")} ${providerTime}, ${providerAgeSeconds}${t("seconds ago")}` : t("Provider timestamp unavailable")}>
+            {providerTime ? `${t("Provider snapshot")} · ${providerSource || t("source unavailable")} · ${providerTime} · ${providerAgeSeconds}${t("seconds ago")}` : t("Provider timestamp unavailable")}
           </p>
         </div>
         <span className="shrink-0 rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-2 text-xs font-semibold text-brand-text-secondary">

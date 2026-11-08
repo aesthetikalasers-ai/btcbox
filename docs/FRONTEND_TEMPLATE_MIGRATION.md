@@ -96,3 +96,5 @@ BTCBOX localization is a complete language system per locale, not a literal tran
 - Locale formatting consistency batch: shared `localeTags` now drives both live market and top-token price formatting, and the document `lang` attribute follows the active persisted language on initial provider mount and subsequent changes. No language default changed; financial values and precision remain unchanged.
 
 - Added an isolated browser regression test for language selection: switching to Japanese updates the HTML language metadata and Japanese navigation labels, then survives a full page reload. The test does not change the default locale or touch account/financial state.
+
+- Localized the dashboard Top tokens panel and market snapshot metadata across all seven supported locales, including source labels and relative-age units. Numeric formatting uses the shared locale map; asset tickers and USDT remain canonical financial identifiers.
