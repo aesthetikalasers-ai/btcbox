@@ -24,9 +24,11 @@ const i18nText = fs.readFileSync(i18nPath, "utf8");
 const i18nFile = ts.createSourceFile(i18nPath, i18nText, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
 let dictionariesNode;
 let supplementalDictionariesNode;
+let accountDictionariesNode;
 function findDictionaries(node) {
   if (ts.isVariableDeclaration(node) && node.name.getText(i18nFile) === "dictionaries") dictionariesNode = node.initializer;
   if (ts.isVariableDeclaration(node) && node.name.getText(i18nFile) === "supplementalDictionaries") supplementalDictionariesNode = node.initializer;
+  if (ts.isVariableDeclaration(node) && node.name.getText(i18nFile) === "accountDictionaries") accountDictionariesNode = node.initializer;
   ts.forEachChild(node, findDictionaries);
 }
 findDictionaries(i18nFile);
@@ -48,8 +50,9 @@ for (const localeProperty of dictionariesNode.properties) {
   }
   dictionaries.set(locale, keys);
 }
-if (supplementalDictionariesNode && ts.isObjectLiteralExpression(supplementalDictionariesNode)) {
-  for (const localeProperty of supplementalDictionariesNode.properties) {
+for (const supplementalNode of [supplementalDictionariesNode, accountDictionariesNode]) {
+  if (!supplementalNode || !ts.isObjectLiteralExpression(supplementalNode)) continue;
+  for (const localeProperty of supplementalNode.properties) {
     if (!ts.isPropertyAssignment(localeProperty) || !ts.isObjectLiteralExpression(localeProperty.initializer)) continue;
     const locale = propertyName(localeProperty.name);
     if (!locale) continue;
