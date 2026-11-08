@@ -67,7 +67,8 @@ test('migration order document records the prepared Seconds migration dependenci
   const durationAlignment = orderDoc.indexOf('0031_seconds_policy_duration_alignment_v1.sql');
   const auditIndexes = orderDoc.indexOf('0032_admin_audit_log_filter_indexes_v1.sql');
   const withdrawalCleanup = orderDoc.indexOf('0033_withdrawal_legacy_rpc_cleanup_v1.sql');
-  assert.ok(rateLimit >= 0 && settlement > rateLimit && policy > settlement && adminRbac > policy && manualPayout > adminRbac && rbacWrappers > manualPayout && feeIdempotency > rbacWrappers && secondsAdminQueue > feeIdempotency && durationAlignment > secondsAdminQueue && auditIndexes > durationAlignment && withdrawalCleanup > auditIndexes);
+  const auditDuplicateCleanup = orderDoc.indexOf('0034_financial_audit_duplicate_index_cleanup_v1.sql');
+  assert.ok(rateLimit >= 0 && settlement > rateLimit && policy > settlement && adminRbac > policy && manualPayout > adminRbac && rbacWrappers > manualPayout && feeIdempotency > rbacWrappers && secondsAdminQueue > feeIdempotency && durationAlignment > secondsAdminQueue && auditIndexes > durationAlignment && withdrawalCleanup > auditIndexes && auditDuplicateCleanup > withdrawalCleanup);
   assert.ok(orderDoc.includes('depends on the Seconds base schema in'));
   assert.ok(orderDoc.includes('adds Seconds settlement request-hash idempotency'));
   assert.ok(orderDoc.includes('withdrawal fee quotes replay-safe'));
@@ -135,4 +136,5 @@ test('Docker first-init and guarded empty-database bootstrap use the exact canon
   assert.ok(inventories[1].includes('0008_financial_matching_engine_v1.sql'));
   assert.ok(inventories[1].includes('0032_admin_audit_log_filter_indexes_v1.sql'));
   assert.ok(inventories[1].includes('0033_withdrawal_legacy_rpc_cleanup_v1.sql'));
+  assert.ok(inventories[1].includes('0034_financial_audit_duplicate_index_cleanup_v1.sql'));
 });
