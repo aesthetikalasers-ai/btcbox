@@ -6,7 +6,7 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const source = readFileSync(resolve(root, "src/lib/i18n.tsx"), "utf8");
 const locales = ["en", "ja", "zh-CN", "es", "pt", "it", "de"];
 const preservedLegacyLocales = ["vi"];
-const allLocales = [...locales, ...preservedLegacyLocales];
+const allLocales = ["en", "ja", "zh-CN", "es", "vi", "it", "pt", "de"];
 const markers = {
   en: "  en: {",
   ja: "  ja: {",
@@ -23,7 +23,7 @@ function readLocale(locale) {
   const start = source.indexOf(marker);
   if (start < 0) throw new Error("Missing locale dictionary: " + locale);
   const bodyStart = start + marker.length;
-  const nextLocaleStart = locales
+  const nextLocaleStart = allLocales
     .map((name) => source.indexOf(markers[name], bodyStart))
     .filter((index) => index >= 0)
     .sort((a, b) => a - b)[0];
