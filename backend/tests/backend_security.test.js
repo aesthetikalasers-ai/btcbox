@@ -93,12 +93,10 @@ test('withdrawalAddressCheck: 已绑定且过冷却期允许；新绑定 24h 内
   assert.equal(r.code, 'ADDRESS_COOLDOWN');
 });
 
-test('withdrawalRequiresAdminReview: 首次提现/大额强制人工审核', () => {
-  const noHistory = { withdrawals: [] };
-  assert.equal(_test.withdrawalRequiresAdminReview(noHistory, 'USDT', 10, 10, 1000), true, '首次提现必须审核');
-  const hasSuccess = { withdrawals: [{ status: 'completed' }] };
-  assert.equal(_test.withdrawalRequiresAdminReview(hasSuccess, 'USDT', 10, 10, 1000), false, '小额非首次不审核');
-  assert.equal(_test.withdrawalRequiresAdminReview(hasSuccess, 'USDT', 5000, 5000, 1000), true, '超阈值大额审核');
+test('withdrawal review value estimate stays conservative when the reference quote is unavailable', () => {
+  assert.equal(_test.estimateUsdtValue('USDT', '10', {}), 10);
+  assert.equal(_test.estimateUsdtValue('USDC', '12.5', {}), 12.5);
+  assert.equal(_test.estimateUsdtValue('BTC', '1', {}), null, 'missing price must defer to mandatory database review');
 });
 
 // ========== High#4: 资金密码强度 + 持久化锁定 ==========
