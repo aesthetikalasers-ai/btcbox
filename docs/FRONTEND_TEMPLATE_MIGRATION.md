@@ -49,3 +49,5 @@ The upstream repositories are pinned as Git submodules. This establishes source 
 - Account Security, Assets, and Orders have prior BTCBOX-backed visual/responsive adaptations; these are partial page ports, not evidence that the full shadcn-fintech page compositions have been ported.
 - Still pending: complete navigation/shell composition pass, full shadcn-fintech account/settings/auth/transaction/support page ports, deeper Strata Pro dashboard/market component ports, and a single consolidated desktop/mobile visual acceptance pass.
 - No Next.js app router, Clerk, demo data, or mock financial values are introduced by this batch. The locked Spot trading-page layout and API contract are untouched.
+
+- My Account quick-navigation cards now use distinct semantic accents for verification, orders, support, and settings. Routes and their existing BTCBOX-backed page behavior are unchanged.
