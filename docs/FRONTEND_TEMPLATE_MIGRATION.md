@@ -110,3 +110,5 @@ BTCBOX localization is a complete language system per locale, not a literal tran
 - Japanese Spot screen copy batch: translated all 35 missing static keys for the existing SpotTradingPage, including stale ticker/order-book warnings, chart provenance, open-order states, limit-order labels and fail-closed execution messaging. This is copy-only localization; the locked Spot layout, component structure, order/API contract and execution gates were not changed.
 
 - Japanese Seconds page copy batch: added native Japanese for policy status, order confirmation/idempotency warnings, payout and exposure limits, position lifecycle, independent settlement, and history/empty states. The backend policy gates, request IDs, fund reservation and settlement logic are unchanged.
+
+- Japanese Support and Deposit copy batch: localized private conversation states, support safety guidance, deposit address/network labels, deposit-history labels and the full deposit-risk warning. Existing private-message request IDs, address masking, manual deposit verification and crediting behavior are unchanged.
