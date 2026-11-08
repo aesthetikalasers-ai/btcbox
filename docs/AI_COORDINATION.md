@@ -121,7 +121,7 @@ This read-only verification supersedes the earlier statement that no Supabase ma
 - Vercel automatically completed the current PR preview deployment; it is a preview only, not a production release. Do not use preview success as visual acceptance.
 - Do not write to hosted/production Supabase, reset databases, or run destructive SQL.
 - Do not perform real deposits, withdrawals, trades, settlement, KYC decisions, or financial ledger writes.
-- The current database is treated as empty per the owner's latest direction; do not spend time on legacy-user migration or historical production-inventory claims.
+- The product/schema design target is a fresh database with no customer accounts; do not spend time on legacy-user migration. This does NOT mean the connected hosted Supabase project is empty: read-only inspection found a state singleton at revision 29 (three legacy state users and three sessions), seven active Earn catalog rows, and two private test-backup tables. Supabase Auth has zero users. Do not bootstrap, reset, or clear the hosted project on the assumption that it is empty.
 - Preserve the locked trading-page layout and all existing API, authentication, permission, and financial contracts.
 - Mark evidence accurately: SOURCE OBSERVED, REPRODUCED, TEST PASSED, or NOT VERIFIED. Never describe automated route tests as independent visual QA.
 
