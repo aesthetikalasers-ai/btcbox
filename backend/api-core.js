@@ -2220,7 +2220,9 @@ async function handleRequest(event, context) {
     // 首次提现 / 大额提现（USDT 等值超阈值，价格不可用时保守视为大额）→ 强制人工审核 pending_admin_review。
     const thresholdUsdt = Number(process.env.WITHDRAWAL_LARGE_THRESHOLD_USDT) || 1000;
     const usdtValue = estimateUsdtValue(coin, amount, livePriceCache.prices);
-    const requireAdminReview = withdrawalRequiresAdminReview(user, coin, amount, usdtValue === null ? Infinity : usdtValue, thresholdUsdt);
+    // The database independently enforces first-successful-withdrawal review from its own history.
+    // The API only adds the large-value / unavailable-price review requirement.
+    const requireAdminReview = usdtValue === null || usdtValue > thresholdUsdt;
     // 资金密码校验（≥8 位含字母+数字）+ 持久化错误计数锁定（5 次错误锁 15 分钟，计数存 btcbox_state）。
     const fundPassword = String(body.fund_password || '');
     const fpValid = validateFundPassword(fundPassword);
