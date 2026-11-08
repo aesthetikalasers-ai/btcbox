@@ -675,3 +675,6 @@ Safety/ownership:
 - Localization must be completed and coverage-tested before changing the default to Japanese; retain English as a selectable language. Audit recorded in `docs/FRONTEND_TEMPLATE_MIGRATION.md`. No default-language switch has been made.
 - Exact-head CI for `d9c681392501c444e070eaa25b3144231e420d1f` started: Frontend `42470197271`, Backend `42470197262`, PostgreSQL `42470197272`. All three were in progress at this update; no PASS claim until each exact-head run completes.
 - No merge, deployment, Vercel changes, hosted Supabase writes, financial actions, or Spot layout/API changes.
+
+
+- CI status refresh for exact candidate `d9c681392501c444e070eaa25b3144231e420d1f`: Backend `42470197262` PASS; PostgreSQL disposable-schema bootstrap `42470197272` PASS. Frontend `42470197271`: install, lint, production build and Chromium install PASS; desktop/mobile route smoke tests remain in progress and screenshot upload is pending. Candidate remains unaccepted until the frontend run completes successfully.
