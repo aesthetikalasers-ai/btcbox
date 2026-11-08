@@ -17,7 +17,8 @@ test('legacy static auth support files remain valid JavaScript', () => {
 test('React login and registration expose the approved BTCBOX authentication methods', () => {
   const authPage = fs.readFileSync(path.resolve(root, '..', 'frontend/src/features/auth/AuthPages.tsx'), 'utf8');
   assert.ok(authPage.includes('signInWithUsername'));
-  assert.ok(authPage.includes('Continue with Google'));
+  assert.ok(authPage.includes('Google'));
+  assert.ok(authPage.includes('Wallet'));
   assert.ok(authPage.includes('Connect Ethereum wallet'));
   assert.ok(authPage.includes('Connect Solana wallet'));
   assert.ok(authPage.includes('signInWithEmail'));
@@ -91,7 +92,7 @@ test('React Supabase email confirmation and Google OAuth use the isolated templa
   const provider = read('../frontend/src/lib/auth.tsx');
   assert.ok(app.includes('path="/auth/react-callback"'));
   assert.ok(app.includes('<AuthPage mode="register" />'));
-  assert.ok(auth.includes('Continue with Google'));
+  assert.ok(auth.includes('Google'));
   assert.ok(!auth.includes('reg-terms') && !auth.includes('Terms of Service'));
   assert.ok(provider.includes('flowType: "pkce"'));
   assert.ok(provider.includes('redirectTo: window.location.origin + "/auth/react-callback"'));
@@ -154,7 +155,7 @@ test('React auth preserves Supabase email and Google alongside existing username
   assert.ok(auth.includes('signInWithEmail') && auth.includes('signUpWithEmail'));
   assert.ok(auth.includes('requestPasswordReset') && auth.includes('completePasswordRecovery'));
   assert.ok(auth.includes('flowType: "pkce"'));
-  for (const required of ['Sign in with username', 'Sign in with email', 'Create account with email', 'Forgot password?', 'Continue with Google', 'Connect Ethereum wallet', 'Connect Solana wallet']) assert.ok(pages.includes(required), 'auth page must expose ' + required);
+  for (const required of ['Sign in with username', 'Sign in with email', 'Create account with email', 'Forgot password?', 'Google', 'Connect Ethereum wallet', 'Connect Solana wallet']) assert.ok(pages.includes(required), 'auth page must expose ' + required);
   assert.ok(!pages.includes('No email registration is required'));
   assert.ok(auth.includes('eip6963:announceProvider'));
   assert.ok(auth.includes('eip6963:requestProvider'));
