@@ -60,8 +60,8 @@ export function AuthPage({ mode, redirectTo }: { mode: "login" | "register"; red
         </h1>
         <p className="mt-5 max-w-[480px] text-base leading-7 text-brand-text-secondary">
           {registering
-            ? "Create your BTCBOX identity with Google or a supported wallet, then set your own username and password."
-            : "Access your BTCBOX account with your username, Google account or supported crypto wallet."}
+            ? t("Create your BTCBOX identity with Google or a supported wallet, then set your own username and password.")
+            : t("Access your BTCBOX account with your username, Google account or supported crypto wallet.")}
         </p>
         <div className="mt-9 grid max-w-[520px] gap-3 sm:grid-cols-2">
           <div className="rounded-xl border border-brand-border bg-brand-surface/80 p-4">
@@ -100,8 +100,8 @@ export function AuthPage({ mode, redirectTo }: { mode: "login" | "register"; red
               {status === "two-factor"
                 ? t("Enter your authenticator code to finish signing in.")
                 : registering
-                  ? "Choose Google or a supported crypto wallet. After verification, you will create your BTCBOX username and password."
-                  : "Sign in with your BTCBOX username, Google account or crypto wallet."}
+                  ? t("Choose Google or a supported crypto wallet. After verification, you will create your BTCBOX username and password.")
+                  : t("Sign in with your BTCBOX username, Google account or crypto wallet.")}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4 px-5 pb-6 sm:px-8 sm:pb-8">
@@ -138,7 +138,7 @@ export function AuthPage({ mode, redirectTo }: { mode: "login" | "register"; red
 
               {mode === "login" && <div className="relative py-1">
                 <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-brand-border" /></div>
-                <div className="relative flex justify-center"><span className="bg-brand-surface px-3 text-xs text-brand-text-muted">OR CONTINUE WITH</span></div>
+                <div className="relative flex justify-center"><span className="bg-brand-surface px-3 text-xs text-brand-text-muted">{t("OR CONTINUE WITH")}</span></div>
               </div>}
 
               {googleEnabled
@@ -148,7 +148,7 @@ export function AuthPage({ mode, redirectTo }: { mode: "login" | "register"; red
                 : <div className="rounded-lg border border-brand-border bg-brand-surface-2 p-3 text-sm text-brand-text-muted" role="status">{t("Google sign-in is temporarily unavailable.")}</div>}
 
               <div className="space-y-2">{walletButtons}</div>
-              {registering && <p className="rounded-lg bg-brand-surface-2 px-3 py-2.5 text-xs leading-5 text-brand-text-muted">No email registration is required. Your BTCBOX username and password are created after identity verification.</p>}
+              {registering && <p className="rounded-lg bg-brand-surface-2 px-3 py-2.5 text-xs leading-5 text-brand-text-muted">{t("No email registration is required. Your BTCBOX username and password are created after identity verification.")}</p>}
             </>}
 
             <div className="border-t border-brand-border pt-4 text-center text-sm text-brand-text-secondary">
