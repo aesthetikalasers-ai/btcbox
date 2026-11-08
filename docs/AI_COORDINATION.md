@@ -13,7 +13,7 @@ One repository execution path is active at a time. Re-read this file before star
 
 - **Active candidate:** PR #67
 - **Branch:** `integration/btcbox-mainline-consolidation-20261108`
-- **Current candidate head:** `030a6136acf99a05e9e61a4ee6331f0e6eb1cb10`
+- **Current candidate head:** `d0c4b473a8882f4ec62b4907d608f9afebe217ad`
 - **Base:** `main` at `2a3810da1aef2c0c7c58df0cfdb059a212eeb0d6`
 - **State:** Draft / open / not merged
 - **Latest exact-current-head CI:** PENDING for `e2a70744668614bdb63b1259f26d931406ff2a88` (Dashboard metric surfaces + My Account quick-link semantic surfaces). Earlier head `99269ee580006a54446e35920ec945257f1d2c72`: unified frontend/backend/preflight PASS (`42468524161`), PostgreSQL bootstrap PASS (`42468524162`), Frontend build `42468524189` still running at last check. Prior head `d875faed3ed93e8ec0d0f69847b0e4a9fee32397` had all three workflow suites PASS; those results are historical for that SHA only.
@@ -645,4 +645,13 @@ Safety/ownership:
 - Account setup: shares branded secure-access shell and cyan identity verification treatment with AuthPage; username/password validation, credential API and auth routing unchanged.
 - Exact-head CI for `7cfcfc49...`: Backend unified build/tests/preflight and PostgreSQL disposable bootstrap PASS (`42469505445`, `42469505453`). Frontend build/lint/Chromium passed and desktop/mobile route smoke tests were still running at last check (`42469505466`); screenshot upload pending.
 - Exact-head CI for latest `030a6136...`: frontend run `42469610355` and backend run `42469610320` started/queued; install and unified build were still running. PostgreSQL exact-head check was queued at last check. Do not inherit prior-head checks as acceptance.
+- No merge, deployment, Vercel changes, hosted Supabase writes, financial actions, or Spot layout/API contract changes.
+
+
+## 12. Auth and recovery UI finishing batch — 2026-11-08
+
+- Candidate PR #67 advanced from `030a6136acf99a05e9e61a4ee6331f0e6eb1cb10` to `d0c4b473a8882f4ec62b4907d608f9afebe217ad`. PR remains Draft/open/unmerged.
+- Login/register and password-recovery cards now share a branded cyan/indigo/success accent system, stronger card hierarchy and consistent 48px input/provider-action targets. Existing username/email/Google/wallet/2FA/password-recovery providers, Supabase auth/session flow, validation and navigation are unchanged; no Clerk/demo identity flow added.
+- Exact-head CI for `030a6136...`: Backend unified build/tests/preflight PASS (`42469610320`); frontend desktop/mobile route smoke test still running (`42469610355`) at last check. Exact-head PostgreSQL status had been queued at last check; do not infer completion.
+- Exact-head CI for latest `d0c4b473...`: frontend `42469719151`, backend `42469719199`, PostgreSQL `42469719249` all started and were in progress at last check. No latest-head CI acceptance yet.
 - No merge, deployment, Vercel changes, hosted Supabase writes, financial actions, or Spot layout/API contract changes.
