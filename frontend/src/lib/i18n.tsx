@@ -567,6 +567,7 @@ const dictionaries: Record<Language, Dictionary> = {
     "Choose the linked Ethereum wallet": "連携済みのEthereumウォレットを選択",
     "No linked Google account or wallet is available for password recovery. Contact support before changing your sign-in methods.": "パスワード再設定に利用できるGoogleアカウントまたはウォレットが連携されていません。ログイン方法を変更する前にサポートへお問い合わせください。",
     "If linking reports that your sign-in is no longer recent, sign out and sign back in, then retry. Identity linking never moves balances or merges two existing BTCBOX accounts.": "連携時にログインの有効性が不足していると表示された場合は、一度ログアウトして再ログインし、もう一度お試しください。本人情報の連携によって残高が移動したり、既存のBTCBOXアカウントが統合されたりすることはありません。",
+    "BTCBOX password": "BTCBOXパスワード",
   },
   "zh-CN": {
     "BTCBOX / OPEN MARKET":"BTCBOX / 公开市场",

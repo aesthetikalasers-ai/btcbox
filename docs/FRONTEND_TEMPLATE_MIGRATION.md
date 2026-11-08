@@ -124,3 +124,5 @@ BTCBOX localization is a complete language system per locale, not a literal tran
 - Account setup page now uses shared Japanese i18n for verified Google/wallet onboarding, username/password requirements, validation, save state and credential ownership copy. Credential creation, password policy, auth state and navigation are unchanged.
 
 - Account Security page Japanese localization: account-security summary, linked identity methods, 2FA status, two-step identity linking and password recovery copy now use shared i18n. The page structure, reauthentication requirements, two-factor checks, identity proof sequence and password reset flow are unchanged.
+
+- Completed the remaining Account Security static label key: `BTCBOX password` now has its Japanese canonical label. The active customer-facing static `t()` key audit is clear across Dashboard, Assets, Orders, Trade Hub, Spot, Seconds, My Account, KYC, Support, Deposit, Earn, Withdraw, Account Setup, Auth and Account Security. Admin console and unknown dynamic provider messages remain outstanding.
