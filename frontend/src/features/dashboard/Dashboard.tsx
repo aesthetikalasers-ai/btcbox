@@ -8,6 +8,7 @@ import { Badge } from "../../components/ui/badge";
 import { Button } from "../../components/ui/button";
 import { getKlines, getMarkets, type MarketCandle, type MarketTicker } from "../../lib/api";
 import { useI18n } from "../../lib/i18n";
+import { useAuth } from "../../lib/auth";
 import { useDashboardStore } from "./dashboard.data";
 import { BrandLogo } from "../../components/BrandLogo";
 
@@ -16,6 +17,8 @@ const VOLUME_INTERVALS: Record<string, string> = { "1d": "5m", "7d": "1h", "30d"
 
 export function Dashboard() {
   const { t } = useI18n();
+  const { status: authStatus } = useAuth();
+  const signedIn = authStatus === "authenticated";
   const isMarketsPage = useLocation().pathname === "/markets";
   const [markets, setMarkets] = useState<MarketTicker[]>([]);
   const [loading, setLoading] = useState(true);
@@ -104,17 +107,23 @@ export function Dashboard() {
   }, [volumeInterval]);
 
   return <div className="tone-market mx-auto flex w-full max-w-[1600px] min-w-0 flex-col gap-5 p-3 sm:gap-6 sm:p-5 lg:p-7">
-    <section className={`${isMarketsPage ? "hidden " : ""}relative isolate overflow-hidden rounded-2xl border border-brand-border bg-gradient-to-br from-brand-surface via-brand-surface to-[#102a48] p-5 sm:p-7 lg:p-9`}>
+    <section className={`${isMarketsPage ? "hidden " : ""}relative isolate overflow-hidden rounded-2xl border border-brand-border bg-gradient-to-br from-brand-surface via-brand-surface to-[#102a48] p-4 sm:p-6 lg:p-7`}>
       <div className="pointer-events-none absolute -right-16 -top-24 -z-10 h-72 w-72 rounded-full bg-brand-accent/15 blur-3xl" />
-      <div className="relative grid items-center gap-7 lg:grid-cols-[minmax(0,1fr)_minmax(220px,.55fr)]">
+      <div className="relative grid items-center gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(220px,.55fr)]">
         <div className="min-w-0">
-          <div className="mb-5 flex items-center gap-2"><BrandLogo compact className="hidden sm:inline-flex" /><Badge variant="outline" className="border-brand-accent/30 bg-brand-accent/10 text-brand-text-secondary">Digital asset exchange</Badge></div>
+          <div className="mb-3 flex items-center gap-2"><BrandLogo compact className="hidden sm:inline-flex" /><Badge variant="outline" className="border-brand-accent/30 bg-brand-accent/10 text-brand-text-secondary">Digital asset exchange</Badge></div>
           <p className="mb-2 text-xs font-bold uppercase tracking-[.18em] text-brand-accent">{t("BTCBOX / OPEN MARKET")}</p>
-          <h1 className="max-w-[680px] text-3xl font-semibold leading-tight tracking-tight text-brand-text sm:text-4xl lg:text-5xl">{t("Explore the market. Trade with confidence.")}</h1>
-          <p className="mt-4 max-w-[620px] text-sm leading-6 text-brand-text-secondary sm:text-base sm:leading-7">{t("Discover live digital asset markets, review price movements and explore BTCBOX trading services. Public market information is available without signing in.")}</p>
-          <div className="mt-6 flex flex-wrap gap-3">
-            <Button asChild size="lg"><Link to="/register">{t("Create account")} <ArrowUpRight className="h-4 w-4" /></Link></Button>
-            <Button asChild variant="outline" size="lg"><Link to="/trade-hub">{t("Explore trading")} <ArrowRight className="h-4 w-4" /></Link></Button>
+          <h1 className="max-w-[680px] text-2xl font-semibold leading-tight tracking-tight text-brand-text sm:text-3xl lg:text-4xl">{t("Explore the market. Trade with confidence.")}</h1>
+          <p className="mt-3 max-w-[620px] text-sm leading-6 text-brand-text-secondary sm:text-base sm:leading-7">{t("Discover live digital asset markets, review price movements and explore BTCBOX trading services. Public market information is available without signing in.")}</p>
+          <div className="mt-5 flex flex-wrap gap-3">
+            {signedIn ? (<>
+              <Button asChild size="lg"><Link to="/trade-hub">{t("Start trading")} <ArrowUpRight className="h-4 w-4" /></Link></Button>
+              <Button asChild variant="outline" size="lg"><Link to="/assets">{t("Assets")}</Link></Button>
+            </>) : (<>
+              <Button asChild size="lg"><Link to="/register">{t("Create account")} <ArrowUpRight className="h-4 w-4" /></Link></Button>
+              <Button asChild variant="outline" size="lg"><Link to="/login">{t("Sign in")}</Link></Button>
+              <Button asChild variant="ghost" size="lg"><Link to="/markets">{t("View markets")} <ArrowRight className="h-4 w-4" /></Link></Button>
+            </>)}
           </div>
         </div>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">

@@ -12,13 +12,10 @@ export function AuthPage({ mode, redirectTo }: { mode: "login" | "register"; red
   const { t, language, setLanguage } = useI18n();
   const {
     status, needsCredentials, busy, error, notice, googleEnabled, walletEnabled, ethereumWallets,
-    signInWithGoogle, signInWithUsername, signInWithWeb3, signInWithEmail, signUpWithEmail,
-    requestPasswordReset, verifyTwoFactor, clearError,
+    signInWithGoogle, signInWithUsername, signInWithWeb3,
+    verifyTwoFactor, clearError,
   } = useAuth();
   const [username, setUsername] = useState("");
-  const [emailAddress, setEmailAddress] = useState("");
-  const [emailPassword, setEmailPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
   const [password, setPassword] = useState("");
   const [verifyCode, setVerifyCode] = useState("");
   const [verifyBusy, setVerifyBusy] = useState(false);
@@ -44,13 +41,6 @@ export function AuthPage({ mode, redirectTo }: { mode: "login" | "register"; red
     catch { /* AuthProvider displays the safe error. */ }
   };
 
-  const submitEmail = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    try {
-      if (mode === "login") await signInWithEmail(emailAddress, emailPassword);
-      else await signUpWithEmail(emailAddress, emailPassword);
-    } catch { /* AuthProvider displays the safe error. */ }
-  };
 
   const walletButtons = <div className="mt-2 grid gap-2" role="group" aria-label={t("Wallet")}>
     {ethereumWallets.length > 0
@@ -98,8 +88,8 @@ export function AuthPage({ mode, redirectTo }: { mode: "login" | "register"; red
         </h1>
         <p className="mt-5 max-w-[480px] text-base leading-7 text-brand-text-secondary">
           {registering
-            ? t("Create your BTCBOX account with email or Google, verify your identity, and complete your account setup.")
-            : t("Access your BTCBOX account with email, username, Google or a supported crypto wallet.")}
+            ? t("Create your BTCBOX account with Google or your wallet, then complete your account setup.")
+            : t("Access your BTCBOX account with your username, Google or a supported crypto wallet.")}
         </p>
         <div className="mt-9 grid max-w-[520px] gap-3 sm:grid-cols-2">
           <div className="rounded-xl border border-brand-border bg-gradient-to-br from-brand-surface via-brand-surface to-brand-cyan/[0.035] p-4">
@@ -138,7 +128,7 @@ export function AuthPage({ mode, redirectTo }: { mode: "login" | "register"; red
             {(status === "two-factor" || registering) && <CardDescription className="max-w-[380px] text-sm leading-6 text-brand-text-muted">
               {status === "two-factor"
                 ? t("Enter your authenticator code to finish signing in.")
-                : t("Verify your email address or Google identity, then complete your BTCBOX account setup.")}
+                : t("Sign in with Google or connect your wallet, then complete your BTCBOX account setup.")}
             </CardDescription>}
             {status !== "two-factor" && <div data-testid="auth-mode-switcher" className="grid grid-cols-2 rounded-xl border border-brand-border bg-brand-surface-2 p-1 text-sm font-semibold">
               <Link to="/login" className={`flex min-h-10 items-center justify-center rounded-lg transition-colors ${!registering ? "bg-brand-accent text-white shadow-sm" : "text-brand-text-secondary hover:text-brand-text"}`}>{t("Sign in")}</Link>
@@ -178,70 +168,6 @@ export function AuthPage({ mode, redirectTo }: { mode: "login" | "register"; red
               </form>}
 
               {identityButtons}
-
-              <form className="space-y-2.5 rounded-xl border border-brand-border bg-brand-surface-2 p-3.5" aria-busy={busy} onSubmit={submitEmail}>
-                <p className="text-sm font-semibold text-brand-text">{mode === "login" ? t("Continue with email") : t("Register with email")}</p>
-                <label className="block space-y-1 text-sm">
-                  <span className="text-xs font-medium text-brand-text-secondary">{t("Email address")}</span>
-                  <Input className="h-11" type="email" value={emailAddress} onChange={event => setEmailAddress(event.target.value)} autoComplete="email" maxLength={254} placeholder="you@example.com" required />
-                </label>
-                {registering ? (
-                  <div className="grid grid-cols-2 gap-2.5">
-                    <label className="block space-y-1 text-sm">
-                      <span className="text-xs font-medium text-brand-text-secondary">{t("Email password")}</span>
-                      <Input className="h-11" type="password" value={emailPassword} onChange={event => setEmailPassword(event.target.value)} autoComplete="new-password" minLength={10} maxLength={128} placeholder={t("Use 10+ chars with upper, lower, number & symbol")} required />
-                    </label>
-                    <label className="block space-y-1 text-sm">
-                      <span className="text-xs font-medium text-brand-text-secondary">{t("Confirm password")}</span>
-                      <Input className="h-11" type="password" value={confirmPassword} onChange={event => setConfirmPassword(event.target.value)} autoComplete="new-password" minLength={10} maxLength={128} placeholder={t("Re-enter your password")} required />
-                    </label>
-                  </div>
-                ) : (
-                  <label className="block space-y-1 text-sm">
-                    <span className="text-xs font-medium text-brand-text-secondary">{t("Email password")}</span>
-                    <Input className="h-11" type="password" value={emailPassword} onChange={event => setEmailPassword(event.target.value)} autoComplete="current-password" minLength={1} maxLength={128} placeholder={t("Enter your password")} required />
-                  </label>
-                )}
-                {registering && (
-                  <div className="flex items-center gap-2" aria-live="polite">
-                    <div className="flex flex-1 gap-1">
-                      {[0,1,2,3,4].map(i => {
-                        let score = 0;
-                        if (emailPassword.length >= 10) score++;
-                        if (emailPassword.length >= 14) score++;
-                        if (/[a-z]/.test(emailPassword) && /[A-Z]/.test(emailPassword)) score++;
-                        if (/\d/.test(emailPassword)) score++;
-                        if (/[^A-Za-z0-9]/.test(emailPassword)) score++;
-                        const colors = ["#ef4444", "#f97316", "#f59e0b", "#eab308", "#84cc16", "#22c55e"];
-                        const color = colors[Math.min(score, 5)];
-                        const levels = [t("Very weak"), t("Weak"), t("Fair"), t("Good"), t("Strong"), t("Very strong")];
-                        const label = levels[Math.min(score, 5)];
-                        return (
-                          <div key={i} className="h-1 flex-1 rounded-full transition-colors duration-200" style={{ backgroundColor: emailPassword.length > 0 && i < Math.max(1, Math.ceil(score / 5 * 5)) ? color : "rgba(148,163,184,0.15)" }} data-label={i === 4 ? label : ""} data-color={i === 4 ? color : ""} />
-                        );
-                      })}
-                    </div>
-                    {emailPassword.length > 0 && (() => {
-                      let score = 0;
-                      if (emailPassword.length >= 10) score++;
-                      if (emailPassword.length >= 14) score++;
-                      if (/[a-z]/.test(emailPassword) && /[A-Z]/.test(emailPassword)) score++;
-                      if (/\d/.test(emailPassword)) score++;
-                      if (/[^A-Za-z0-9]/.test(emailPassword)) score++;
-                      const colors = ["#ef4444", "#f97316", "#f59e0b", "#eab308", "#84cc16", "#22c55e"];
-                      const levels = [t("Very weak"), t("Weak"), t("Fair"), t("Good"), t("Strong"), t("Very strong")];
-                      return <span className="text-[11px] font-medium whitespace-nowrap" style={{ color: colors[Math.min(score, 5)] }}>{levels[Math.min(score, 5)]}</span>;
-                    })()}
-                  </div>
-                )}
-                {registering && confirmPassword.length > 0 && confirmPassword !== emailPassword && (
-                  <p className="text-[11px] text-loss -mt-1" role="alert">{t("Passwords do not match.")}</p>
-                )}
-                <Button type="submit" className="min-h-11 w-full" variant="outline" disabled={busy || status !== "anonymous" || !emailAddress.trim() || (registering ? (emailPassword.length < 10 || emailPassword !== confirmPassword) : !emailPassword)}>
-                  {busy ? t("Please wait…") : mode === "login" ? t("Sign in with email") : t("Create account with email")}
-                </Button>
-                {mode === "login" && <button type="button" className="min-h-10 text-xs font-medium text-brand-text-secondary underline underline-offset-4 disabled:opacity-50" disabled={busy || !emailAddress.trim()} onClick={() => void requestPasswordReset(emailAddress).catch(() => {})}>{t("Forgot password?")}</button>}
-              </form>
 
             </>}
 

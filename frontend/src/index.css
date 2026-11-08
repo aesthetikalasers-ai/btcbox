@@ -14,14 +14,14 @@
   --color-brand-sidebar: #0b0b0c;
   --color-brand-surface: #101113;
   --color-brand-surface-2: #141518;
-  --color-brand-surface-hover: rgba(255, 255, 255, .025);
-  --color-brand-border: rgba(255, 255, 255, .05);
+  --color-brand-surface-hover: rgba(255, 255, 255, .05);
+  --color-brand-border: rgba(255, 255, 255, .09);
   --color-brand-border-subtle: rgba(255, 255, 255, .03);
   --color-brand-border-strong: var(--border-strong);
   --color-brand-text: #f4f4f5;
-  --color-brand-text-secondary: rgba(255, 255, 255, .62);
-  --color-brand-text-muted: rgba(255, 255, 255, .38);
-  --color-brand-accent: #d4d4d8;
+  --color-brand-text-secondary: rgba(255, 255, 255, .76);
+  --color-brand-text-muted: rgba(255, 255, 255, .54);
+  --color-brand-accent: #38bdf8;
 
   /* Restrained semantic accents: neutral surfaces, distinct functional color. */
   --color-brand-cyan: #38bdf8;
