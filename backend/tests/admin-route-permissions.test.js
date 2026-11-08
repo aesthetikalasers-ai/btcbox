@@ -25,8 +25,8 @@ test('every read/write admin API contract is mapped to an explicit least-privile
     ["kyc/approve", "POST", "kyc.review"],
     ["kyc/reject", "POST", "kyc.review"],
     ["deposit/confirm", "POST", "deposits.review"],
-    ["addresses", "GET", "deposits.read"],
-    ["address/manage", "POST", "system_config.write"],
+    ["addresses", "GET", "payout_addresses.read_sensitive"],
+    ["address/manage", "POST", "payout_addresses.manage"],
     ["withdrawals", "GET", "withdrawals.read"],
     ["orders", "GET", "orders.read"],
     ["support/messages", "GET", "support.read"],
@@ -53,6 +53,8 @@ test('every read/write admin API contract is mapped to an explicit least-privile
       `Missing permission mapping: ${method} admin/${route} -> ${permission}`);
   }
   assert.ok(resolver.includes("if (['withdraw/approve','withdraw/reject','withdraw/mark-paid'].includes(route) && verb === 'POST') return 'withdrawals.review';"));
+  assert.ok(!resolver.includes("if (route === 'addresses' && verb === 'GET') return 'deposits.read';"));
+  assert.ok(!resolver.includes("if (route === 'address/manage' && verb === 'POST') return 'system_config.write';"));
 });
 
 test('unknown admin routes and insufficient permissions fail closed before route handlers', () => {
