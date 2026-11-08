@@ -286,3 +286,18 @@ test('customer financial write routes consume bounded shared server-side rate li
   assert.match(api, /if \(rl\.unavailable\) return rateLimitUnavailableJson\(\)/);
   assert.match(api, /if \(rl\.limited\) return rateLimitedJson\(rl\.retryAfter\)/);
 });
+
+
+test('first successful withdrawal always requires review based on PostgreSQL history', () => {
+  const api = read('api-core.js');
+  const migration = read('supabase/sql/0038_withdrawal_first_successful_review_guard_v1.sql');
+  assert.match(api, /const requireAdminReview = usdtValue === null \|\| usdtValue > thresholdUsdt/);
+  assert.doesNotMatch(api, /const requireAdminReview = withdrawalRequiresAdminReview\(/,
+    'legacy btcbox_state withdrawal history must not decide the first PostgreSQL withdrawal review');
+  assert.match(migration, /v_require_admin_review := p_require_admin_review OR NOT EXISTS/i);
+  assert.match(migration, /from public\.withdrawal_requests[\s\S]*?where user_id = p_user_id[\s\S]*?status in \('completed', 'success', 'approved', 'broadcast'\)/i);
+  assert.match(migration, /v_status := case when v_require_admin_review then 'pending_admin_review' else 'pending' end/i);
+  assert.match(migration, /require_admin_review, request_hash[\s\S]*?v_require_admin_review/);
+  assert.match(migration, /'require_admin_review', v_require_admin_review/);
+  assert.match(migration, /grant execute on function public\.create_withdrawal_atomic\([\s\S]*?to service_role/i);
+});
