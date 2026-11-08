@@ -79,6 +79,14 @@ test('migration order document records the prepared Seconds migration dependenci
   assert.ok(orderDoc.includes('exactly one 11-argument service-role-only function remains'));
 });
 
+test('existing-schema upgrades are kept outside the fresh-bootstrap SQL inventory', () => {
+  const root = path.resolve(__dirname, '..');
+  const canonicalDir = path.join(root, 'supabase', 'sql');
+  const existingSchemaUpgrade = path.join(root, 'supabase', 'existing-schema-upgrades', '0039_existing_schema_market_catalog_upgrade_v1.sql');
+  assert.equal(fs.existsSync(existingSchemaUpgrade), true);
+  assert.equal(fs.existsSync(path.join(canonicalDir, '0039_existing_schema_market_catalog_upgrade_v1.sql')), false);
+});
+
 test('fresh database bootstrap expands safety variables and includes every canonical SQL file', () => {
   const root = path.resolve(__dirname, '..');
   const bootstrapPath = path.join(root, 'scripts', 'bootstrap-empty-database.sh');
