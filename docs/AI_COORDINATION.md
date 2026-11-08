@@ -518,3 +518,18 @@ Safety/ownership:
 - Current exact-head empty PostgreSQL bootstrap workflow `42462391527`: PASS.
 - Current exact-head Frontend build workflow `42462391537`: npm install, lint, production build and Chromium installation passed; desktop/mobile route smoke tests were still in progress. Responsive visual screenshot upload had not started. Do not claim full Frontend CI pass until the route smoke test and workflow complete.
 - Shared coordination document now records single-operator ownership and both visual adaptation batches. Candidate branch and shared coordination branch remain separate; do not confuse their SHAs.
+
+
+### Single-operator visual migration batch — account, KYC and wallet pages — 2026-11-08
+
+- Current PR #67 candidate: `4d84a3d0faecaac1adc9b85a5f05e5d6609e02bf` (Draft/open/unmerged).
+- Continued actual runtime migration of Shadcn Fintech page composition into the existing Vite/React application; no Next.js router, Clerk, seed data or template fake financial actions were introduced.
+- `frontend/src/features/account/AccountSecurityPage.tsx`: added a responsive security overview showing live account identity-link count, BTCBOX 2FA state and password state; refined account-center hero and card surfaces. Existing identity-link/re-authentication/recovery handlers and form conditions remain unchanged.
+- `frontend/src/features/pages/Pages.tsx`:
+  - My account page now has live KYC/2FA/linked-provider metric cards, a structured account profile card and descriptive service action cards.
+  - KYC page now uses a status-led responsive verification summary, keeps document numbers masked, preserves rejection notes, and restyles the submission form without changing its validation, image compression or authenticated submit call.
+  - Withdrawal balances now use responsive asset cards with the existing free/frozen figures from the authenticated account snapshot; no values are synthesized.
+  - Deposit address and deposit history cards received consistent fintech surface and responsive input styling; address/network selection and manual-credit warning remain unchanged.
+- Previous desktop/mobile order-history smoke test failure on SHA `65a64ecf78de23f7e6b3ef517fcf9ac1d6124111` was a Playwright strict-locator collision: mobile card and desktop table intentionally share the same row data, including the hidden responsive counterpart. Updated the E2E assertions to filter visible elements on SHA `6d22ef579a346ec17f31256594889b7f8b4187bc`; later page changes are based on that fix.
+- Latest candidate SHA `4d84a3d0faecaac1adc9b85a5f05e5d6609e02bf`; exact-head checks observed at checkpoint: empty-postgres-bootstrap: in_progress; Unified frontend/backend build, tests, and fail-closed preflight: in_progress; build: in_progress.
+- No production deployment, PR merge, hosted Supabase DDL/write, financial operation, or Spot layout/API change.
