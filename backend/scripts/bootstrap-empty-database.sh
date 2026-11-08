@@ -86,6 +86,7 @@ FILES=(
   0034_financial_audit_duplicate_index_cleanup_v1.sql
   0035_service_role_privilege_minimization_v1.sql
   0036_service_role_maintain_privilege_revoke_v1.sql
+  0037_financial_write_rate_limit_scopes_v1.sql
 )
 
 echo "[info] Bootstrapping a fresh BTCBOX schema with ${#FILES[@]} canonical SQL files."
