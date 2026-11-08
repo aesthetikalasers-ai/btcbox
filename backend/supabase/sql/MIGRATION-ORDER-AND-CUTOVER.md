@@ -8,7 +8,7 @@ Use `backend/scripts/bootstrap-empty-database.sh` only against a verified empty 
 - requires `DATABASE_URL` and `BTCBOX_BOOTSTRAP_CONFIRM=YES`;
 - parses the URL hostname and refuses remote targets unless `BTCBOX_ALLOW_REMOTE_BOOTSTRAP=YES` is explicitly supplied;
 - checks that no BTCBOX-owned tables already exist before applying SQL;
-- applies the 28 canonical SQL files explicitly allowlisted in `backend/scripts/bootstrap-empty-database.sh`;
+- applies the 29 canonical SQL files explicitly allowlisted in `backend/scripts/bootstrap-empty-database.sh`;
 - creates the schema only; the first API request atomically inserts the empty `btcbox_state` singleton through `btcbox_save_state` at revision 0, with no demo users or balances;
 - stops on the first SQL error and never prints the database URL.
 
@@ -46,6 +46,7 @@ The current canonical source inventory is:
 26. `0033_withdrawal_legacy_rpc_cleanup_v1.sql`
 27. `0034_financial_audit_duplicate_index_cleanup_v1.sql`
 28. `0035_service_role_privilege_minimization_v1.sql`
+29. `0036_service_role_maintain_privilege_revoke_v1.sql`
 
 The legacy `0008_financial_spot_trade_v3.sql` direct-fill RPC was removed because it bypassed the order book and was not called by the API. The durable matching engine now occupies `0008_financial_matching_engine_v1.sql` and is the only supported spot write path. Sequence `0009` is retired and intentionally omitted; the offline migration checker explicitly recognizes retired slots `0009` and `0015`–`0020`. The bootstrap allowlist contains only live numbered SQL files and is tested against the actual source inventory.
 
