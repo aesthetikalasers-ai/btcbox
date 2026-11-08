@@ -58,10 +58,10 @@ export function OrdersPage() {
   }, []);
 
   return (
-    <div className="mx-auto flex w-full max-w-[1200px] min-w-0 flex-col gap-5 p-3 sm:p-4 md:p-6 lg:p-8">
+    <div className="tone-orders mx-auto flex w-full max-w-[1200px] min-w-0 flex-col gap-5 p-3 sm:p-4 md:p-6 lg:p-8">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <p className="mb-1 text-xs font-bold uppercase tracking-[.18em] text-brand-text-secondary">{t("BTCBOX / ACCOUNT")}</p>
+          <p className="page-accent mb-1 text-xs font-bold uppercase tracking-[.18em]">{t("BTCBOX / ACCOUNT")}</p>
           <h1 className="type-page-title text-brand-text">{t("Orders")}</h1>
           <p className="type-body mt-2 text-brand-text-secondary">{t("Your order history from the authenticated BTCBOX account service.")}</p>
         </div>
@@ -80,7 +80,7 @@ export function OrdersPage() {
         </Card>
       )}
 
-      <Card className="border-brand-border bg-brand-surface">
+      <Card className="border-t-2 border-t-[var(--page-accent)] border-brand-border bg-brand-surface">
         <CardHeader>
           <CardTitle>{t("Order history")}</CardTitle>
           <CardDescription>{t("Order history displays records returned by your authenticated account.")}</CardDescription>
@@ -94,7 +94,7 @@ export function OrdersPage() {
             </div>
           ) : orders.length === 0 ? (
             <div className="flex flex-col items-center px-5 py-12 text-center">
-              <ClipboardList className="mb-3 h-9 w-9 text-brand-text-muted" />
+              <ClipboardList className="mb-3 h-9 w-9 page-accent" />
               <p className="type-card-title text-brand-text">{t(signedOut ? "Sign in required" : error ? "Orders could not be loaded" : "No orders yet")}</p>
               <p className="type-body-compact mt-2 max-w-md text-brand-text-muted">{t(signedOut ? "Your private order history is available after you sign in." : error ? "Refresh after the account service is available. Your order records have not been changed." : "When you place an order, its status and details will appear here.")}</p>
             </div>
@@ -104,7 +104,7 @@ export function OrdersPage() {
                 {orders.map((order, index) => {
                   const id = display(order.order_id ?? order.id, `#${index + 1}`);
                   const side = display(order.side);
-                  return <Card key={id} className="border-brand-border bg-brand-surface-2/50 ring-1 ring-white/[0.025]">
+                  return <Card key={id} className="border-l-2 border-l-[var(--page-accent)] border-brand-border bg-brand-surface-2/50 ring-1 ring-white/[0.025]">
                     <CardContent className="space-y-3 p-4">
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0"><p className="font-semibold text-brand-text">{display(order.symbol)}</p><p className="mt-1 truncate font-mono text-[11px] text-brand-text-muted">{id}</p></div>
