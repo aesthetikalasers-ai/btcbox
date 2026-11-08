@@ -18,9 +18,14 @@ function PageFrame({eyebrow,title,description,children}:{eyebrow:string;title:st
 }
 export function TradeHubPage(){
  const {t}=useI18n();
+ const {status}=useAuth();
  const [spotPairs,setSpotPairs]=useState<SpotMarketPair[]>([]);
  const [pairsLoading,setPairsLoading]=useState(true);
  const [pairsError,setPairsError]=useState("");
+ const [tradingStatus,setTradingStatus]=useState<TradingStatus|null>(null);
+ const [tradingStatusError,setTradingStatusError]=useState("");
+ const [secondsAvailability,setSecondsAvailability]=useState<"loading"|"sign-in"|"enabled"|"read-only"|"unavailable">("loading");
+ const [earnAvailability,setEarnAvailability]=useState<"loading"|"sign-in"|"enabled"|"read-only"|"empty"|"unavailable">("loading");
  useEffect(()=>{
   const controller=new AbortController();
   getSpotMarketPairs(controller.signal).then(setSpotPairs).catch(reason=>{
@@ -29,13 +34,41 @@ export function TradeHubPage(){
   }).finally(()=>{if(!controller.signal.aborted)setPairsLoading(false);});
   return ()=>controller.abort();
  },[]);
+ useEffect(()=>{
+  const controller=new AbortController();
+  setTradingStatus(null);setTradingStatusError("");
+  getTradingStatus(controller.signal).then(snapshot=>{
+   if(!controller.signal.aborted)setTradingStatus(snapshot);
+  }).catch(reason=>{
+   if(reason instanceof Error&&reason.name==="AbortError")return;
+   if(!controller.signal.aborted)setTradingStatusError(reason instanceof Error?reason.message:"Spot execution status is unavailable.");
+  });
+  if(status==="loading"){
+   setSecondsAvailability("loading");setEarnAvailability("loading");
+  }else if(status!=="authenticated"){
+   setSecondsAvailability("sign-in");setEarnAvailability("sign-in");
+  }else{
+   setSecondsAvailability("loading");setEarnAvailability("loading");
+   Promise.allSettled([getSecondsPolicy(controller.signal),getEarnCatalog(controller.signal)]).then(([seconds,earn])=>{
+    if(controller.signal.aborted)return;
+    setSecondsAvailability(seconds.status==="fulfilled"?(seconds.value.actions_enabled?"enabled":"read-only"):"unavailable");
+    setEarnAvailability(earn.status==="rejected"?"unavailable":earn.value.products.length===0?"empty":earn.value.actions_enabled?"enabled":"read-only");
+   });
+  }
+  return ()=>controller.abort();
+ },[status]);
+ const spotExecutionEnabled=tradingStatus?.spot_order_entry_enabled===true;
+ const spotBadge=pairsLoading?"Checking markets":pairsError?"Markets unavailable":!spotPairs.length?"No markets":tradingStatusError?"Execution unavailable":tradingStatus===null?"Checking execution":spotExecutionEnabled?"Order entry enabled":"Read-only";
+ const spotDescription=pairsLoading?t("Checking backend-enabled spot markets."):pairsError?t("Spot availability cannot be confirmed. Order entry remains unavailable."):!spotPairs.length?t("No spot markets are currently enabled. Spot order entry remains unavailable."):tradingStatusError?t("Markets are listed, but execution status cannot be confirmed. Order entry remains unavailable."):tradingStatus===null?t("Checking server-side order execution status."):spotExecutionEnabled?t("Place server-validated limit orders on configured spot pairs."):t("Configured markets are visible, but spot order execution is disabled by server policy.");
+ const secondsDescription=secondsAvailability==="sign-in"?t("Sign in to check the active Seconds policy and availability."):secondsAvailability==="loading"?t("Checking the active backend Seconds policy."):secondsAvailability==="unavailable"?t("Seconds policy is unavailable. New positions remain disabled."):secondsAvailability==="read-only"?t("The policy is configured, but new positions are disabled by backend financial controls."):t("Place policy-driven positions with independent timers and server-side settlement.");
+ const secondsBadge=secondsAvailability==="sign-in"?t("Sign in required"):secondsAvailability==="loading"?t("Checking policy"):secondsAvailability==="unavailable"?t("Policy unavailable"):secondsAvailability==="read-only"?t("Actions disabled"):t("Order entry enabled");
+ const earnDescription=earnAvailability==="sign-in"?t("Sign in to view the Earn catalog and your positions."):earnAvailability==="loading"?t("Checking the backend Earn catalog."):earnAvailability==="unavailable"?t("Earn catalog is unavailable. No product availability is assumed."):earnAvailability==="empty"?t("No Earn products are currently available."):earnAvailability==="read-only"?t("Earn products are listed, but subscribe and redeem actions are disabled by backend financial controls."):t("Review available Earn products and manage positions.");
+ const earnBadge=earnAvailability==="sign-in"?t("Sign in required"):earnAvailability==="loading"?t("Checking catalog"):earnAvailability==="unavailable"?t("Catalog unavailable"):earnAvailability==="empty"?t("No products"):earnAvailability==="read-only"?t("Read-only"):t("Products available");
  return <PageFrame eyebrow="BTCBOX / TRADE" title="Choose your trading mode" description="Choose a BTCBOX trading service. Supported markets and product availability are returned by the backend.">
   <div className="grid gap-4 sm:grid-cols-2">
-   <Card className="border-brand-border bg-brand-surface"><CardHeader><div className="mb-2 flex h-12 w-12 items-center justify-center rounded-2xl border border-brand-accent/20 bg-brand-accent/10 text-brand-text-secondary"><ChartNoAxesCombined className="h-5 w-5"/></div><CardTitle>{t("Spot")}</CardTitle><CardDescription>{pairsLoading ? t("Checking backend-enabled spot markets.") : pairsError ? t("Spot availability cannot be confirmed. Order entry remains unavailable.") : spotPairs.length ? t("Buy and sell supported digital assets at market or limit prices.") : t("No spot markets are currently enabled. Spot order entry remains unavailable.")}</CardDescription></CardHeader><CardContent className="flex flex-wrap items-center justify-between gap-3"><Badge data-testid="spot-availability" variant={spotPairs.length ? "outline" : "secondary"}>{pairsLoading ? t("Checking availability") : pairsError ? t("Availability unavailable") : spotPairs.length ? t("Enabled") : t("Unavailable")}</Badge><Button asChild size="sm" variant="secondary" className="shrink-0"><Link to="/markets">{t("View markets")} <ArrowUpRight className="h-4 w-4"/></Link></Button></CardContent></Card>
-   <Card className="border-brand-border bg-brand-surface"><CardHeader><div className="mb-2 flex h-12 w-12 items-center justify-center rounded-2xl border border-brand-accent/20 bg-brand-accent/10 text-brand-text-secondary"><ArrowLeftRight className="h-5 w-5"/></div><CardTitle>{t("Seconds")}</CardTitle><CardDescription>{t("Place policy-driven positions with independent timers and server-side settlement.")}</CardDescription></CardHeader><CardContent className="flex flex-wrap items-center justify-between gap-3"><Badge variant="outline">{t("Policy-driven order entry")}</Badge><Button asChild size="sm" variant="secondary" className="shrink-0"><Link to="/seconds">{t("Open")} <ArrowUpRight className="h-4 w-4"/></Link></Button></CardContent></Card>
-   <Card className="border-brand-border bg-brand-surface"><CardHeader><div className="mb-2 flex h-12 w-12 items-center justify-center rounded-2xl border border-brand-accent/20 bg-brand-accent/10 text-brand-text-secondary"><Sprout className="h-5 w-5"/></div><CardTitle>{t("Earn")}</CardTitle><CardDescription>{t("Review live Earn products and your positions. Subscribe and redeem are available only when backend financial controls are enabled.")}</CardDescription></CardHeader><CardContent className="flex flex-wrap items-center justify-between gap-3"><Badge variant="outline">{t("Live product catalog")}</Badge><Button asChild size="sm" variant="secondary" className="shrink-0"><Link to="/earn">{t("Open")} <ArrowUpRight className="h-4 w-4"/></Link></Button></CardContent></Card>
-   <Card className="border-dashed border-brand-border bg-transparent"><CardHeader><div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-brand-border text-brand-text-muted"><LockKeyhole className="h-5 w-5"/></div><CardTitle>{t("Futures")}</CardTitle><CardDescription>{t("Coming soon — no supported futures service is registered in the current backend.")}</CardDescription></CardHeader><CardContent><Badge variant="secondary">{t("Unavailable")}</Badge></CardContent></Card>
-  </div>
+   <Card className="border-brand-border bg-brand-surface"><CardHeader><div className="mb-2 flex h-12 w-12 items-center justify-center rounded-2xl border border-brand-accent/20 bg-brand-accent/10 text-brand-text-secondary"><ChartNoAxesCombined className="h-5 w-5"/></div><CardTitle>{t("Spot")}</CardTitle><CardDescription>{spotDescription}</CardDescription></CardHeader><CardContent className="flex flex-wrap items-center justify-between gap-3"><Badge data-testid="spot-availability" variant={spotExecutionEnabled?"outline":"secondary"}>{t(spotBadge)}</Badge><Button asChild size="sm" variant="secondary" className="shrink-0"><Link to="/markets">{t("View markets")} <ArrowUpRight className="h-4 w-4"/></Link></Button></CardContent></Card>
+   <Card className="border-brand-border bg-brand-surface"><CardHeader><div className="mb-2 flex h-12 w-12 items-center justify-center rounded-2xl border border-brand-accent/20 bg-brand-accent/10 text-brand-text-secondary"><ArrowLeftRight className="h-5 w-5"/></div><CardTitle>{t("Seconds")}</CardTitle><CardDescription>{secondsDescription}</CardDescription></CardHeader><CardContent className="flex flex-wrap items-center justify-between gap-3"><Badge variant={secondsAvailability==="enabled"?"outline":"secondary"}>{secondsBadge}</Badge><Button asChild size="sm" variant="secondary" className="shrink-0"><Link to="/seconds">{status==="authenticated"?t("Open"):t("Sign in to view")} <ArrowUpRight className="h-4 w-4"/></Link></Button></CardContent></Card>
+   <Card className="border-brand-border bg-brand-surface"><CardHeader><div className="mb-2 flex h-12 w-12 items-center justify-center rounded-2xl border border-brand-accent/20 bg-brand-accent/10 text-brand-text-secondary"><Sprout className="h-5 w-5"/></div><CardTitle>{t("Earn")}</CardTitle><CardDescription>{earnDescription}</CardDescription></CardHeader><CardContent className="flex flex-wrap items-center justify-between gap-3"><Badge variant={earnAvailability==="enabled"?"outline":"secondary"}>{earnBadge}</Badge><Button asChild size="sm" variant="secondary" className="shrink-0"><Link to="/earn">{status==="authenticated"?t("Open"):t("Sign in to view")} <ArrowUpRight className="h-4 w-4"/></Link></Button></CardContent></Card>
   <section className="space-y-3">
    <div className="flex flex-wrap items-center justify-between gap-3"><h2 className="type-section-title">{t("Spot markets")}</h2>{!pairsLoading&&!pairsError?<span className="text-xs text-brand-text-muted">{spotPairs.length} {t("pairs")}</span>:null}</div>
    {pairsLoading?<Card className="border-brand-border bg-brand-surface"><CardContent className="p-5 text-sm text-brand-text-muted" role="status">{t("Loading configured spot markets…")}</CardContent></Card>:null}

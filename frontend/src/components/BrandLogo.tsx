@@ -3,10 +3,11 @@ import { cn } from "../lib/utils";
 type BrandLogoProps = {
   compact?: boolean;
   showExchange?: boolean;
+  hideNameBelow?: boolean;
   className?: string;
 };
 
-export function BrandLogo({ compact = false, showExchange = true, className }: BrandLogoProps) {
+export function BrandLogo({ compact = false, showExchange = true, hideNameBelow = false, className }: BrandLogoProps) {
   return (
     <span className={cn("inline-flex min-w-0 items-center gap-2.5", className)} aria-label="BTCBOX Exchange">
       <span className={cn(
@@ -18,7 +19,7 @@ export function BrandLogo({ compact = false, showExchange = true, className }: B
           <path d="M17 45 L50 68 L97 25 L50 80 L21 55 Z" fill="currentColor" className="text-white" />
         </svg>
       </span>
-      <span className="flex min-w-0 items-center gap-1.5 whitespace-nowrap">
+      <span className={cn("flex min-w-0 items-center gap-1.5 whitespace-nowrap", hideNameBelow && "max-[480px]:hidden")}>
         <span className={cn(
           "bg-gradient-to-b from-white to-sky-200 bg-clip-text font-bold tracking-tight text-transparent",
           compact ? "text-lg" : "text-xl"
