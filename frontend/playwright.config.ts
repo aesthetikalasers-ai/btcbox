@@ -9,6 +9,16 @@ export default defineConfig({
   reporter: "list",
   use: {
     baseURL: "http://127.0.0.1:4173",
+    // Existing E2E assertions use English copy. Pin the test baseline explicitly
+    // so the product can safely default new visitors to Japanese without making
+    // every route test depend on the browser's implicit language preference.
+    storageState: {
+      cookies: [],
+      origins: [{
+        origin: "http://127.0.0.1:4173",
+        localStorage: [{ name: "btcbox-language", value: "en" }],
+      }],
+    },
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
   },
