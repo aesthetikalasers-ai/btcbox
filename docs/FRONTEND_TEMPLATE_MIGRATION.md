@@ -108,3 +108,5 @@ BTCBOX localization is a complete language system per locale, not a literal tran
 - Japanese account-center and KYC copy batch: added native Japanese for My Account profile/security summaries and the identity-verification form, document guidance, submission/confirmation states and privacy warnings. No identity verification rules, document handling, account APIs or authentication behavior changed.
 
 - Japanese Spot screen copy batch: translated all 35 missing static keys for the existing SpotTradingPage, including stale ticker/order-book warnings, chart provenance, open-order states, limit-order labels and fail-closed execution messaging. This is copy-only localization; the locked Spot layout, component structure, order/API contract and execution gates were not changed.
+
+- Japanese Seconds page copy batch: added native Japanese for policy status, order confirmation/idempotency warnings, payout and exposure limits, position lifecycle, independent settlement, and history/empty states. The backend policy gates, request IDs, fund reservation and settlement logic are unchanged.
