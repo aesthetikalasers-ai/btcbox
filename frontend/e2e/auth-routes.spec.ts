@@ -286,6 +286,22 @@ const authenticatedAccountFixture = {
   twofa_enabled: false,
 };
 
+test("authenticated My account keeps profile hierarchy concise", async ({ page }) => {
+  await page.route("**/api/account", async (route) => {
+    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(authenticatedAccountFixture) });
+  });
+
+  await page.goto("/me");
+
+  await expect(page.getByRole("heading", { name: "My account" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Account profile" })).toBeVisible();
+  await expect(page.getByText("Manage your profile, verification, security and support.", { exact: true })).toHaveCount(0);
+  await expect(page.getByText("Your BTCBOX identity and account-level security details.", { exact: true })).toHaveCount(0);
+  await expect(page.getByText("Identity review status", { exact: true })).toHaveCount(0);
+  await expect(page.getByText("Account protection", { exact: true })).toHaveCount(0);
+  await expect(page.getByRole("main").getByRole("link", { name: "Orders" })).toHaveAttribute("href", "/orders");
+});
+
 test("authenticated assets page renders only the mocked account balances", async ({ page }) => {
   await page.route("**/api/account", async (route) => {
     await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(authenticatedAccountFixture) });

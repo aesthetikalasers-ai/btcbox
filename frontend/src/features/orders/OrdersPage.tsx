@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { ArrowUpRight, ClipboardList, RefreshCw } from "lucide-react";
 import { Badge } from "../../components/ui/badge";
 import { Button } from "../../components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
 import { ApiError, getOrders, type OrderRecord } from "../../lib/api";
 import { useI18n } from "../../lib/i18n";
 
@@ -63,7 +63,6 @@ export function OrdersPage() {
         <div>
           <p className="page-accent mb-1 text-xs font-bold uppercase tracking-[.18em]">{t("BTCBOX / ACCOUNT")}</p>
           <h1 className="type-page-title text-brand-text">{t("Orders")}</h1>
-          <p className="type-body mt-2 text-brand-text-secondary">{t("Your order history from the authenticated BTCBOX account service.")}</p>
         </div>
         <Button variant="outline" size="sm" onClick={() => void load()} disabled={loading}>
           <RefreshCw className={`mr-2 h-4 w-4 ${loading ? "animate-spin" : ""}`} />
@@ -82,8 +81,7 @@ export function OrdersPage() {
 
       <Card className="overflow-hidden border-t-2 border-t-[var(--page-accent)] border-brand-border bg-brand-surface ring-1 ring-white/[0.025]"><div className="h-1 bg-gradient-to-r from-brand-cyan/80 via-brand-violet/70 to-brand-success/70"/>
         <CardHeader className="border-b border-brand-border bg-brand-surface-2/50 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-3"><span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--page-accent)]/10 text-[var(--page-accent)]"><ClipboardList className="h-5 w-5"/></span><div><CardTitle>{t("Order history")}</CardTitle>
-          <CardDescription>{t("Order history displays records returned by your authenticated account.")}</CardDescription></div></div>
+          <div className="flex items-center gap-3"><span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--page-accent)]/10 text-[var(--page-accent)]"><ClipboardList className="h-5 w-5"/></span><CardTitle>{t("Order history")}</CardTitle></div>
         </CardHeader>
         <CardContent className="p-0">
           {loading ? (
@@ -92,7 +90,7 @@ export function OrdersPage() {
               <div className="h-12 animate-pulse rounded bg-brand-surface-2" />
               <div className="h-12 animate-pulse rounded bg-brand-surface-2" />
             </div>
-          ) : orders.length === 0 ? (
+          ) : orders.length === 0 && !error && !signedOut ? (
             <div className="flex flex-col items-center px-5 py-12 text-center">
               <ClipboardList className="mb-3 h-9 w-9 page-accent" />
               <p className="type-card-title text-brand-text">{t(signedOut ? "Sign in required" : error ? "Orders could not be loaded" : "No orders yet")}</p>
