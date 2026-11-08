@@ -13,18 +13,19 @@ One repository execution path is active at a time. Re-read this file before star
 
 - **Active candidate:** PR #67
 - **Branch:** `integration/btcbox-mainline-consolidation-20261108`
-- **Verified head:** `8b54cf128ccd4861eedd1fae602846c92849f835`
+- **Current candidate head:** `1594084189befe103c978b2d7ce6dc65eaf5a451`
 - **Base:** `main` at `2a3810da1aef2c0c7c58df0cfdb059a212eeb0d6`
 - **State:** Draft / open / not merged
-- **Exact-head CI:** PASS
-  - Backend: `42436694163`
-  - PostgreSQL schema: `42436693919`
-  - Frontend: `42436694030`
+- **Current-head CI:** Backend and PostgreSQL schema PASS; Frontend still in progress.
+  - Backend: `42449102047` — PASS
+  - PostgreSQL schema: `42449102051` — PASS
+  - Frontend: `42449102014` — IN PROGRESS (lint/build and Chromium setup passed; desktop/mobile route smoke tests running).
 
-Exact-head evidence on `8b54cf128ccd4861eedd1fae602846c92849f835`:
+Previous fully green source head `8b54cf128ccd4861eedd1fae602846c92849f835`:
 - Backend `42436694163`: PASS — all 464 backend tests passed; deployment preflight passed with all financial cutover flags explicitly disabled. Preflight checks configuration shape only; it does not connect to hosted Supabase.
 - PostgreSQL schema `42436693919`: PASS — canonical empty-database SQL applied successfully to disposable PostgreSQL.
 - Frontend `42436694030`: PASS — lint/build and 87 desktop/mobile Playwright tests passed. The workflow generated 72 responsive screenshots across 320/360/375/390/430/768/1024/1440px and nine customer routes; automated horizontal-overflow checks passed.
+- The only source change on current head `1594084189befe103c978b2d7ce6dc65eaf5a451` is a documentation correction aligning the owner bootstrap guide with the React app's Google OAuth and Email/password flows. Actual provider enablement remains NOT VERIFIED.
 
 Final-review corrections now included:
 - Removed two out-of-scope production inventory/readiness SQL diagnostics and aligned the SQL guide with the empty-database direction.
@@ -107,6 +108,14 @@ Authentication and release verification:
 - Hosted runtime environment variables and financial cutover flags were not inspected. CI/preflight evidence only confirms the PR's test configuration with financial flags explicitly disabled.
 - The PR's Super Admin bootstrap doc is owner-controlled and requires an existing Auth UUID. Do not run it; there is currently no Auth user and the required private RBAC schema/function is absent.
 - Current hosted market state has zero enabled Spot markets; Earn catalog has seven active rows, but Seconds policy schema is absent. Do not advertise real execution as available.
+
+
+Further RPC/source cross-checks against the hosted project:
+- The live `public.submit_seconds_order_v1` definition does not reference the versioned Seconds policy tables, and `public.seconds_contract_positions` still has the legacy fixed-duration CHECK constraint `duration_sec = ANY (ARRAY[30,60,300,900])`. This differs from canonical SQL `0025`/`0031`; policy-versioned Seconds execution is NOT VERIFIED.
+- The live `public.cancel_limit_order_matching_v1` accepts `p_client_cancel_id` but does not use the canonical `financial_matching_cancel_requests` table. The expected table is absent; the current function uses a derived `financial_operations.idempotency_key`, which does not implement the full canonical request-hash replay contract.
+- The live project still contains legacy `public.execute_spot_trade_atomic` (service_role EXECUTE only; no anon/authenticated EXECUTE). Current PR backend source does not reference this direct-fill RPC; the canonical SQL inventory intentionally removed it. Do not invoke or delete it during read-only review. Keep all financial cutover flags disabled.
+- Current backend source gates financial writes/matching on exact `'1'` values for the required flags plus Supabase storage configuration. Hosted runtime flag values were not inspected, so live state remains NOT VERIFIED.
+- Supabase development branch listing is empty; no existing hosted staging branch is available. Do not create a paid branch or new project without explicit owner approval.
 
 This read-only verification supersedes the earlier statement that no Supabase management access was available. It does NOT change the no-hosted-writes/no-merge/no-production-deploy boundary.
 
