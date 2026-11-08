@@ -13,7 +13,7 @@ One repository execution path is active at a time. Re-read this file before star
 
 - **Active candidate:** PR #67
 - **Branch:** `integration/btcbox-mainline-consolidation-20261108`
-- **Current candidate head:** `44d9e5009f752687d7857d455ab4834669205248`
+- **Current candidate head:** `030a6136acf99a05e9e61a4ee6331f0e6eb1cb10`
 - **Base:** `main` at `2a3810da1aef2c0c7c58df0cfdb059a212eeb0d6`
 - **State:** Draft / open / not merged
 - **Latest exact-current-head CI:** PENDING for `e2a70744668614bdb63b1259f26d931406ff2a88` (Dashboard metric surfaces + My Account quick-link semantic surfaces). Earlier head `99269ee580006a54446e35920ec945257f1d2c72`: unified frontend/backend/preflight PASS (`42468524161`), PostgreSQL bootstrap PASS (`42468524162`), Frontend build `42468524189` still running at last check. Prior head `d875faed3ed93e8ec0d0f69847b0e4a9fee32397` had all three workflow suites PASS; those results are historical for that SHA only.
@@ -635,3 +635,14 @@ Safety/ownership:
 - Support follow-up head `44d9e500...` was pushed after the `a23c5b8...` workflow began, so its own exact-head CI is not yet visible. Do not transfer the preceding SHA's green checks to this newer head.
 - Navigation correction head `05cc95e7...` completed desktop/mobile route smoke tests and responsive screenshot upload successfully; its backend, frontend build and PostgreSQL checks all completed successfully.
 - No merge, deployment, Vercel changes, hosted Supabase writes, financial operations, or Spot layout/API changes.
+
+
+## 11. Earn, Orders and account-setup visual batches — 2026-11-08
+
+- Candidate PR #67 advanced from `44d9e5009f752687d7857d455ab4834669205248` to `7cfcfc4931e5cccc39641448b04dfa6ea82d0e18` (Earn), then `030a6136acf99a05e9e61a4ee6331f0e6eb1cb10` (Orders and account setup). PR remains Draft/open/unmerged.
+- Earn page: live catalog, returned position and active position summary counts; product/APY cards; subscription panel; consistent 48px form controls; improved position metric surfaces. Counts only use backend-returned catalog and authenticated account records. Subscribe/redeem action behavior, amount precision checks, request IDs and backend action gate unchanged. No transaction submitted.
+- Orders page: strengthened history header, table heading hierarchy and mobile-card hover treatment. Existing API, status mapping, responsive table/card split, and loading/error/empty states unchanged.
+- Account setup: shares branded secure-access shell and cyan identity verification treatment with AuthPage; username/password validation, credential API and auth routing unchanged.
+- Exact-head CI for `7cfcfc49...`: Backend unified build/tests/preflight and PostgreSQL disposable bootstrap PASS (`42469505445`, `42469505453`). Frontend build/lint/Chromium passed and desktop/mobile route smoke tests were still running at last check (`42469505466`); screenshot upload pending.
+- Exact-head CI for latest `030a6136...`: frontend run `42469610355` and backend run `42469610320` started/queued; install and unified build were still running. PostgreSQL exact-head check was queued at last check. Do not inherit prior-head checks as acceptance.
+- No merge, deployment, Vercel changes, hosted Supabase writes, financial actions, or Spot layout/API contract changes.
