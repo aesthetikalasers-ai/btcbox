@@ -139,6 +139,7 @@ test('Docker first-init and guarded empty-database bootstrap use the exact canon
   assert.ok(inventories[1].includes('0033_withdrawal_legacy_rpc_cleanup_v1.sql'));
   assert.ok(inventories[1].includes('0034_financial_audit_duplicate_index_cleanup_v1.sql'));
   assert.ok(inventories[1].includes('0035_service_role_privilege_minimization_v1.sql'));
+  assert.ok(inventories[1].includes('0036_service_role_maintain_privilege_revoke_v1.sql'));
 });
 
 
@@ -148,4 +149,11 @@ test('service-role privilege hardening keeps only rate-limit cleanup DELETE acce
   assert.match(migration, /GRANT DELETE ON TABLE public\.btcbox_rate_limits TO service_role/i);
   assert.match(migration, /ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public[\s\S]*?REVOKE DELETE, TRUNCATE, REFERENCES, TRIGGER ON TABLES FROM service_role/i);
   assert.doesNotMatch(migration, /GRANT DELETE ON TABLE public\.(?!btcbox_rate_limits)/i);
+});
+
+
+test('PostgreSQL 17 MAINTAIN privilege is removed from service_role defaults and existing public tables', () => {
+  const migration = fs.readFileSync(path.join(__dirname, '..', 'supabase', 'sql', '0036_service_role_maintain_privilege_revoke_v1.sql'), 'utf8');
+  assert.match(migration, /REVOKE MAINTAIN ON ALL TABLES IN SCHEMA public FROM service_role/i);
+  assert.match(migration, /ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public[\s\S]*?REVOKE MAINTAIN ON TABLES FROM service_role/i);
 });
