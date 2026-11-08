@@ -5,7 +5,7 @@ import { ApiError, getAccount, getOrders, getMarkets, getSpotMarketPairs, getKli
 import { useAuth } from "../../lib/auth";
 
 import type { ReactNode } from "react";
-import { ArrowUpRight, LockKeyhole, Wallet, ChartNoAxesCombined, ArrowLeftRight, Sprout, BadgeCheck, ShieldCheck } from "lucide-react";
+import { ArrowUpRight, LockKeyhole, Wallet, ChartNoAxesCombined, ArrowLeftRight, Sprout, BadgeCheck, ShieldCheck, Headset } from "lucide-react";
 import { Badge } from "../../components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
@@ -135,7 +135,12 @@ export function MyPage(){
   }).finally(()=>{if(!controller.signal.aborted)setLoading(false);});
   return ()=>controller.abort();
  },[status,reload]);
- const links=[{title:"Verification",to:"/kyc"},{title:"Orders",to:"/orders"},{title:"Support",to:"/support"},{title:"Settings",to:"/settings"}];
+ const links=[
+  {title:"Verification",description:"Review your identity verification status.",to:"/kyc",icon:BadgeCheck},
+  {title:"Orders",description:"View your recent and historical orders.",to:"/orders",icon:ChartNoAxesCombined},
+  {title:"Support",description:"Contact the BTCBOX support team.",to:"/support",icon:Headset},
+  {title:"Settings",description:"Manage sign-in methods and account security.",to:"/settings",icon:ShieldCheck},
+ ];
  return <PageFrame eyebrow="BTCBOX / ACCOUNT" title="My account" description="Manage your profile, verification, security and support.">
   {status!=="authenticated"?<Card className="border-brand-border bg-brand-surface"><CardContent className="flex flex-col items-start gap-3 p-6"><div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-brand-accent/20 bg-brand-accent/10 text-brand-text-secondary"><LockKeyhole className="h-5 w-5"/></div><div><p className="type-card-title">{t("Sign in to continue")}</p><p className="type-body-compact mt-1 text-brand-text-muted">{t("Sign in to view your BTCBOX account profile.")}</p></div><div className="flex w-full flex-wrap gap-2 sm:w-auto"><Button asChild className="min-w-[112px] flex-1 sm:flex-none"><Link to="/login">{t("Sign in")}</Link></Button><Button asChild variant="outline" className="min-w-[112px] flex-1 sm:flex-none"><Link to="/register">{t("Create account")}</Link></Button></div></CardContent></Card>
   :loading?<Card className="border-brand-border bg-brand-surface"><CardContent className="p-6 text-sm text-brand-text-muted" role="status">{t("Loading account profile…")}</CardContent></Card>
@@ -156,7 +161,7 @@ export function MyPage(){
     </CardContent>
    </Card>
   </div>:null}
-  <div className="grid gap-3 sm:grid-cols-2">{links.map(x=><Link key={x.to} to={x.to} className="rounded-xl border border-brand-border bg-brand-surface p-4 text-sm font-semibold transition-colors hover:border-brand-accent/40 hover:bg-brand-surface-2">{t(x.title)}<ArrowUpRight className="ml-2 inline h-4 w-4 text-brand-text-secondary"/></Link>)}</div>
+  <div className="grid gap-3 sm:grid-cols-2">{links.map(({title,description,to,icon:Icon})=><Link key={to} to={to} className="group flex min-w-0 items-center gap-3 rounded-xl border border-brand-border bg-brand-surface p-4 ring-1 ring-white/[0.02] transition-all hover:-translate-y-0.5 hover:border-brand-accent/30 hover:bg-brand-surface-2"><span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-brand-accent/10 text-brand-accent"><Icon className="h-5 w-5"/></span><span className="min-w-0 flex-1"><span className="block text-sm font-semibold text-brand-text">{t(title)}</span><span className="mt-1 block text-xs leading-5 text-brand-text-muted">{t(description)}</span></span><ArrowUpRight className="h-4 w-4 shrink-0 text-brand-text-muted transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-brand-text"/></Link>)}</div>
  </PageFrame>;
 }
 
