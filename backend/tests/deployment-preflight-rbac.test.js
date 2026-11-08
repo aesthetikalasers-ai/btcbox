@@ -14,6 +14,7 @@ function runPreflight(overrides = {}) {
     SUPABASE_SERVICE_ROLE_KEY: 'server-only-test-key',
     SUPABASE_AUTH_URL: 'https://example.supabase.co',
     SUPABASE_AUTH_PUBLISHABLE_KEY: 'sb_publishable_test_key',
+    BTCBOX_RATE_LIMIT_HMAC_SECRET: 'test-only-rate-limit-hmac-secret-at-least-32-bytes',
     FINANCIAL_POSTGRES_RPC_ENABLED: '0',
     FINANCIAL_POSTGRES_FULL_CUTOVER_APPROVED: '0',
     FINANCIAL_POSTGRES_READS_ENABLED: '0',
@@ -33,6 +34,14 @@ test('deployment preflight accepts Supabase Auth + RBAC without legacy ADMIN_USE
   assert.equal(result.status, 0, result.stderr + result.stdout);
   assert.match(result.stdout, /Preflight passed/);
   assert.doesNotMatch(result.stdout, /admin credentials are configured|ADMIN_PASS/);
+});
+
+test('deployment preflight rejects a missing or short shared rate-limit HMAC secret', () => {
+  const missing = runPreflight({ BTCBOX_RATE_LIMIT_HMAC_SECRET: '' });
+  assert.equal(missing.status, 1, missing.stderr + missing.stdout);
+  assert.match(missing.stdout, /shared rate-limit HMAC secret is at least 32 bytes/);
+  const short = runPreflight({ BTCBOX_RATE_LIMIT_HMAC_SECRET: 'too-short' });
+  assert.equal(short.status, 1, short.stderr + short.stdout);
 });
 
 test('deployment preflight still fails closed when a financial flag is not explicitly disabled', () => {
