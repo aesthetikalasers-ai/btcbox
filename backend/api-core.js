@@ -671,6 +671,11 @@ const RATE_LIMIT_POLICIES = Object.freeze({
   twofa_disable: { limit: 10, windowSeconds: 900 },
   seconds_order: { limit: 30, windowSeconds: 300 },
   seconds_settle: { limit: 60, windowSeconds: 300 },
+  withdraw_create: { limit: 5, windowSeconds: 900 },
+  spot_order: { limit: 30, windowSeconds: 300 },
+  spot_cancel: { limit: 60, windowSeconds: 300 },
+  earn_subscribe: { limit: 10, windowSeconds: 900 },
+  earn_redeem: { limit: 20, windowSeconds: 900 },
   password_change: { limit: 10, windowSeconds: 900 },
   fund_password_change: { limit: 10, windowSeconds: 900 }
 });
@@ -2177,6 +2182,7 @@ async function handleRequest(event, context) {
     // Enforce account freeze on every financial write, not only at login. Existing
     // sessions remain valid after an administrator freezes an account.
     if (user.frozen) return json({ ok: false, msg: 'Account frozen. Withdrawals are not available. Please contact support.', code: 'ACCOUNT_FROZEN' }, 403);
+    { const rl = await rateCheckShared('withdraw_create', String(user.uid)); if (rl.unavailable) return rateLimitUnavailableJson(); if (rl.limited) return rateLimitedJson(rl.retryAfter); }
     const coin = String(body.coin || 'USDT').trim().toUpperCase();
     const amount = parseMoneyInput(body.amount);
     const addr = String(body.address || '').trim();
@@ -2393,6 +2399,7 @@ async function handleRequest(event, context) {
     // Never simulate fills: an unavailable or unapproved engine must fail closed.
     if (!user) return json({ ok: false, msg: 'Not signed in.', need_login: true }, 401);
     if (user.frozen) return json({ ok: false, msg: 'Account frozen. Trading is not available. Please contact support.', code: 'ACCOUNT_FROZEN' }, 403);
+    { const rl = await rateCheckShared('spot_order', String(user.uid)); if (rl.unavailable) return rateLimitUnavailableJson(); if (rl.limited) return rateLimitedJson(rl.retryAfter); }
     const symbol = String(body.symbol || 'BTCUSDT').toUpperCase();
     const side = String(body.side || 'buy').toLowerCase();
     const type = String(body.type || body.order_type || 'limit').toLowerCase();
@@ -2433,6 +2440,7 @@ async function handleRequest(event, context) {
     const cancelId = String(body.client_cancel_id || body.request_id || '').trim();
     if (!orderId || orderId.length > 128) return json({ ok: false, code: 'INVALID_ORDER_ID', msg: 'Invalid order ID.' }, 400);
     if (!/^[A-Za-z0-9_-]{16,100}$/.test(cancelId)) return json({ ok: false, code: 'IDEMPOTENCY_KEY_REQUIRED', msg: 'Please provide a valid client_cancel_id (16-100 characters).' }, 400);
+    { const rl = await rateCheckShared('spot_cancel', String(user.uid)); if (rl.unavailable) return rateLimitUnavailableJson(); if (rl.limited) return rateLimitedJson(rl.retryAfter); }
     if (!matchingEngineEnabled()) return json({ ok: false, code: 'MATCHING_ENGINE_UNAVAILABLE', msg: 'Matching engine cutover is not approved. Cancel was not executed.' }, 503);
     try {
       const result = await matchingRpc('cancel_limit_order_matching_v1', {
@@ -2489,6 +2497,7 @@ async function handleRequest(event, context) {
       const productId = String(body.product_id || 'flex_USDT');
       const products = new Set(['demand','flex_USDT','flex_BTC','flex_ETH','fixed30','fixed90','fixed180']);
       if (!products.has(productId)) return json({ ok: false, msg: 'This earn product is not supported.' }, 400);
+      { const rl = await rateCheckShared('earn_subscribe', String(user.uid)); if (rl.unavailable) return rateLimitUnavailableJson(); if (rl.limited) return rateLimitedJson(rl.retryAfter); }
       const asset = productId.endsWith('_BTC') ? 'BTC' : productId.endsWith('_ETH') ? 'ETH' : 'USDT';
       const positionId = 'EP' + crypto.createHash('sha256').update(String(user.uid) + '|' + requestId).digest('hex').slice(0, 32);
       const requestHash = crypto.createHash('sha256').update(JSON.stringify({ user_id: String(user.uid), product_id: productId, asset, amount: String(amount), request_id: requestId })).digest('hex');
@@ -2503,6 +2512,7 @@ async function handleRequest(event, context) {
       const positionId = String(body.record_id || '').trim();
       if (!positionId || positionId.length > 128) return json({ ok: false, msg: 'Invalid record ID.' }, 400);
       if (!/^[A-Za-z0-9_-]{16,100}$/.test(requestId)) return json({ ok: false, code: 'IDEMPOTENCY_KEY_REQUIRED', msg: 'A valid redemption request ID is required.' }, 400);
+      { const rl = await rateCheckShared('earn_redeem', String(user.uid)); if (rl.unavailable) return rateLimitUnavailableJson(); if (rl.limited) return rateLimitedJson(rl.retryAfter); }
       const requestHash = crypto.createHash('sha256').update(JSON.stringify({ user_id: String(user.uid), position_id: positionId, request_id: requestId })).digest('hex');
       try {
         const rpc = await fetch(base + '/rest/v1/rpc/redeem_earn_atomic', { method: 'POST', headers: supabaseHeaders(), body: JSON.stringify({ p_position_id: positionId, p_user_id: String(user.uid), p_request_id: requestId, p_request_hash: requestHash }) });
