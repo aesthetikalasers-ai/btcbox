@@ -873,6 +873,8 @@ const dictionaries: Record<StoredLocale, Dictionary> = {
     "Only order records returned by the authenticated account service are shown.": "Only order records returned by the authenticated account service are shown.",
     "Policy-driven order entry": "Policy-driven order entry",
     "Place supported limit orders against the BTCBOX spot matching service.": "Place supported limit orders against the BTCBOX spot matching service.",
+    "OR CONTINUE WITH": "OR CONTINUE WITH",
+    "No email registration is required. Your BTCBOX username and password are created after identity verification.": "No email registration is required. Your BTCBOX username and password are created after identity verification.",
   },
   ja: {
     "BTCBOX / OPEN MARKET":"BTCBOX / 公開市場",
@@ -1708,6 +1710,8 @@ const dictionaries: Record<StoredLocale, Dictionary> = {
     "Only order records returned by the authenticated account service are shown.": "認証済みアカウントサービスから返された注文記録のみ表示されます。",
     "Policy-driven order entry": "ポリシーに基づく注文入力",
     "Place supported limit orders against the BTCBOX spot matching service.": "BTCBOX現物マッチングサービスでサポートされている指値注文を発注します。",
+    "OR CONTINUE WITH": "または次の方法で続行",
+    "No email registration is required. Your BTCBOX username and password are created after identity verification.": "メール登録は不要です。本人確認後、BTCBOXのユーザー名とパスワードを作成します。",
   },
   "zh-CN": {
     "BTCBOX / OPEN MARKET":"BTCBOX / 公开市场",
@@ -2543,6 +2547,8 @@ const dictionaries: Record<StoredLocale, Dictionary> = {
     "Only order records returned by the authenticated account service are shown.": "仅显示经身份验证的账户服务返回的订单记录。",
     "Policy-driven order entry": "按政策规则下单",
     "Place supported limit orders against the BTCBOX spot matching service.": "通过 BTCBOX 现货撮合服务提交受支持的限价订单。",
+    "OR CONTINUE WITH": "或使用以下方式继续",
+    "No email registration is required. Your BTCBOX username and password are created after identity verification.": "无需邮箱注册。身份验证通过后即可创建 BTCBOX 用户名和密码。",
   },
   es: {
     "BTCBOX / OPEN MARKET":"BTCBOX / MERCADO ABIERTO",
@@ -3378,6 +3384,8 @@ const dictionaries: Record<StoredLocale, Dictionary> = {
     "Only order records returned by the authenticated account service are shown.": "Solo se muestran los registros de órdenes devueltos por el servicio de cuenta autenticado.",
     "Policy-driven order entry": "Creación de órdenes según la política",
     "Place supported limit orders against the BTCBOX spot matching service.": "Envía órdenes limitadas compatibles a través del servicio de emparejamiento spot de BTCBOX.",
+    "OR CONTINUE WITH": "O continúa con",
+    "No email registration is required. Your BTCBOX username and password are created after identity verification.": "No necesitas registrarte por correo. Crea tu usuario y contraseña tras verificar tu identidad.",
   },
   vi: {
     "BTCBOX / OPEN MARKET":"BTCBOX / THỊ TRƯỜNG MỞ",
@@ -4213,6 +4221,8 @@ const dictionaries: Record<StoredLocale, Dictionary> = {
     "Only order records returned by the authenticated account service are shown.": "Chỉ hiển thị các bản ghi lệnh do dịch vụ tài khoản đã xác thực trả về.",
     "Policy-driven order entry": "Đặt lệnh theo chính sách",
     "Place supported limit orders against the BTCBOX spot matching service.": "Đặt các lệnh giới hạn được hỗ trợ thông qua dịch vụ khớp lệnh giao ngay BTCBOX.",
+    "OR CONTINUE WITH": "HOẶC TIẾP TỤC VỚI",
+    "No email registration is required. Your BTCBOX username and password are created after identity verification.": "Không cần đăng ký email. Tạo tên người dùng và mật khẩu sau khi xác minh danh tính.",
   },
   it: {
     "BTCBOX / OPEN MARKET":"BTCBOX / MERCATO APERTO",
@@ -5048,6 +5058,8 @@ const dictionaries: Record<StoredLocale, Dictionary> = {
     "Only order records returned by the authenticated account service are shown.": "Vengono mostrati solo i record degli ordini restituiti dal servizio account autenticato.",
     "Policy-driven order entry": "Inserimento ordini basato sulle policy",
     "Place supported limit orders against the BTCBOX spot matching service.": "Invia ordini limite supportati tramite il servizio di matching spot BTCBOX.",
+    "OR CONTINUE WITH": "Oppure continua con",
+    "No email registration is required. Your BTCBOX username and password are created after identity verification.": "Non serve registrarsi via e-mail. Crea nome utente e password dopo la verifica.",
   },
   pt: {
     "BTCBOX / OPEN MARKET":"BTCBOX / MERCADO ABERTO",
@@ -5882,6 +5894,8 @@ const dictionaries: Record<StoredLocale, Dictionary> = {
     "Only order records returned by the authenticated account service are shown.": "São apresentados apenas os registos de ordens devolvidos pelo serviço de conta autenticado.",
     "Policy-driven order entry": "Envio de ordens com base na política",
     "Place supported limit orders against the BTCBOX spot matching service.": "Envie ordens limitadas suportadas através do serviço de correspondência spot da BTCBOX.",
+    "OR CONTINUE WITH": "Ou continuar com",
+    "No email registration is required. Your BTCBOX username and password are created after identity verification.": "Não é necessário registar-se por e-mail. Crie o seu utilizador e palavra-passe após a verificação.",
   },
 
   de: {
@@ -6790,6 +6804,8 @@ export function I18nProvider({ children }: { children: ReactNode }) {
   });
   useEffect(() => {
     document.documentElement.lang = localeTags[language];
+    "OR CONTINUE WITH": "Oder fortfahren mit",
+    "No email registration is required. Your BTCBOX username and password are created after identity verification.": "Eine E-Mail-Registrierung ist nicht erforderlich. Erstellen Sie Benutzername und Passwort nach der Identitätsprüfung.",
   }, [language]);
 
   const setLanguage = (next: Language) => {
