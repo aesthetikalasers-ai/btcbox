@@ -6063,7 +6063,7 @@ export function I18nProvider({ children }: { children: ReactNode }) {
     return saved === "en" || saved === "ja" || saved === "zh-CN" || saved === "es" || saved === "it" || saved === "pt" || saved === "de" ? saved : "en";
   });
   useEffect(() => {
-    document.documentElement.lang = language;
+    document.documentElement.lang = localeTags[language];
   }, [language]);
 
   const setLanguage = (next: Language) => {
