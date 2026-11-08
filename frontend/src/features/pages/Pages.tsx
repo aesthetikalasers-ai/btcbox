@@ -314,13 +314,17 @@ export function SpotTradingPage(){
  // public ticker and order book fresh independently without reloading the form
  // or overwriting a price the customer is currently editing.
  useEffect(()=>{
-  const controller=new AbortController();
+  // Per-request AbortController + timeout: a hung fetch must never leave
+  // `refreshing` stuck true (which froze the ticker/order book permanently).
+  let cancelled=false;
   let refreshing=false;
   const refreshMarketData=()=>{
-   if(refreshing||controller.signal.aborted)return;
+   if(refreshing||cancelled)return;
    refreshing=true;
+   const controller=new AbortController();
+   const timeoutId=window.setTimeout(()=>controller.abort(),10000);
    Promise.allSettled([getMarkets(controller.signal),getOrderBook(symbol,controller.signal)]).then(([marketResult,bookResult])=>{
-    if(controller.signal.aborted)return;
+    if(cancelled)return;
     let failed=false;
     if(marketResult.status==="fulfilled"){
      const marketBase=symbol.endsWith("USDT")?symbol.slice(0,-4):symbol;
@@ -333,18 +337,21 @@ export function SpotTradingPage(){
     if(bookResult.status==="fulfilled")setBook(bookResult.value);
     else{setBook(null);failed=true;}
     setMarketFeedWarning(failed?"Live market data is temporarily unavailable.":"");
-   }).finally(()=>{refreshing=false;});
+   }).finally(()=>{window.clearTimeout(timeoutId);refreshing=false;});
   };
-  const refreshId=window.setInterval(refreshMarketData,15000);
+  const refreshId=window.setInterval(refreshMarketData,5000);
   const candleId=window.setInterval(()=>{
-   getKlines(symbol,"1h",controller.signal).then(rows=>{
-    if(!controller.signal.aborted){setCandles(rows);setChartFeedWarning("");}
+   if(cancelled)return;
+   const candleController=new AbortController();
+   const candleTimeout=window.setTimeout(()=>candleController.abort(),15000);
+   getKlines(symbol,"1h",candleController.signal).then(rows=>{
+    if(!cancelled){setCandles(rows);setChartFeedWarning("");}
    }).catch(reason=>{
     if(reason instanceof Error&&reason.name==="AbortError")return;
-    if(!controller.signal.aborted){setCandles([]);setChartFeedWarning("Chart data is temporarily unavailable.");}
-   });
+    if(!cancelled){setCandles([]);setChartFeedWarning("Chart data is temporarily unavailable.");}
+   }).finally(()=>window.clearTimeout(candleTimeout));
   },60000);
-  return ()=>{window.clearInterval(refreshId);window.clearInterval(candleId);controller.abort();};
+  return ()=>{cancelled=true;window.clearInterval(refreshId);window.clearInterval(candleId);};
  },[symbol]);
 
  useEffect(()=>{

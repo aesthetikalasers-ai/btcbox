@@ -174,3 +174,15 @@ a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
     transition-duration: .01ms !important;
   }
 }
+
+/* Live price flash: replays on remount (keyed by price value) */
+@keyframes priceFlashUp {
+  0% { background-color: rgba(14,203,129,.30); color: #0ecb81; }
+  100% { background-color: transparent; }
+}
+@keyframes priceFlashDown {
+  0% { background-color: rgba(246,70,93,.30); color: #f6465d; }
+  100% { background-color: transparent; }
+}
+.price-flash-up { animation: priceFlashUp .9s ease-out; border-radius: 6px; padding: 0 4px; margin: 0 -4px; }
+.price-flash-down { animation: priceFlashDown .9s ease-out; border-radius: 6px; padding: 0 4px; margin: 0 -4px; }

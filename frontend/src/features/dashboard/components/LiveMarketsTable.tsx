@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { Search } from "lucide-react";
 import { Link, useSearchParams } from "react-router-dom";
 import { TokenIcon } from "../../../components/ui/TokenIcon";
@@ -39,6 +39,26 @@ export function LiveMarketsTable({ markets, loading, error }: {
 }) {
   const { t, language } = useI18n();
   const numberLocale = localeTags[language];
+  // Price-flash detection: read previous prices during render (StrictMode-safe),
+  // commit the new prices only after paint so the next diff still compares correctly.
+  const prevPricesRef = useRef<Record<string, number>>({});
+  const flashMap = useMemo(() => {
+    const map: Record<string, "up" | "down"> = {};
+    for (const item of markets) {
+      const prev = prevPricesRef.current[item.sym];
+      if (prev !== undefined && prev !== item.price) map[item.sym] = item.price > prev ? "up" : "down";
+    }
+    return map;
+  }, [markets]);
+  useEffect(() => {
+    const next: Record<string, number> = {};
+    for (const item of markets) next[item.sym] = item.price;
+    prevPricesRef.current = next;
+  }, [markets]);
+  const flashClassOf = (sym: string) => {
+    const dir = flashMap[sym];
+    return dir === "up" ? "price-flash-up" : dir === "down" ? "price-flash-down" : "";
+  };
   const [searchParams, setSearchParams] = useSearchParams();
   const query = (searchParams.get("q") || "").trim().toLowerCase();
   const latestSnapshotTs = markets.reduce((latest, item) => Math.max(latest, item.snapshotTs || 0), 0);
@@ -108,7 +128,7 @@ export function LiveMarketsTable({ markets, loading, error }: {
                   </div>
                 </div>
                 <div className="flex shrink-0 flex-col items-end gap-1.5">
-                  <span className="text-base font-bold tabular-nums text-brand-text">{price(item.price, numberLocale)}</span>
+                  <span key={item.price} className={"text-base font-bold tabular-nums text-brand-text "+flashClassOf(item.sym)}>{price(item.price, numberLocale)}</span>
                   <Change value={item.chg} locale={numberLocale} />
                 </div>
               </Link>
@@ -131,7 +151,7 @@ export function LiveMarketsTable({ markets, loading, error }: {
                       </Link>
                     </div>
                   </td>
-                  <td className="whitespace-nowrap px-4 text-base font-semibold tabular-nums text-brand-text md:px-6">{price(item.price, numberLocale)}</td>
+                  <td className="whitespace-nowrap px-4 text-base font-semibold tabular-nums text-brand-text md:px-6"><span key={item.price} className={flashClassOf(item.sym)}>{price(item.price, numberLocale)}</span></td>
                   <td className="whitespace-nowrap px-4 md:px-6"><Change value={item.chg} locale={numberLocale} /></td>
                   <td className="whitespace-nowrap px-4 text-sm tabular-nums text-brand-text-secondary md:px-6">{formatCompact(item.vol, numberLocale)} USDT</td>
                   <td className="whitespace-nowrap px-4 text-sm tabular-nums text-brand-text-secondary md:px-6">{price(item.high, numberLocale)}</td>

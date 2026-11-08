@@ -33,28 +33,36 @@ export function Dashboard() {
   const marketFeedStatus = loading ? "Connecting" : error ? "Feed unavailable" : !markets.length ? "No markets enabled" : !hasMarketSnapshotTime ? "Snapshot time unavailable" : marketSnapshotStale ? "Snapshot stale" : "Live market feed";
 
   useEffect(() => {
-    const controller = new AbortController();
+    // A fresh AbortController per poll attempt: a timed-out or unmount-aborted
+    // request must never poison later polls. The shared-controller pattern that
+    // preceded this could leave `refreshing` stuck true forever if one fetch
+    // hung (no client timeout), freezing all prices on screen.
+    let cancelled = false;
     let refreshing = false;
     const loadMarkets = () => {
-      if (refreshing || controller.signal.aborted) return;
+      if (refreshing || cancelled) return;
       refreshing = true;
+      const controller = new AbortController();
+      const timeoutId = window.setTimeout(() => controller.abort(), 10000);
       getMarkets(controller.signal).then((rows) => {
-        if (controller.signal.aborted) return;
+        if (cancelled) return;
         setMarkets(rows);
         setError("");
       }).catch((reason: unknown) => {
+        if (cancelled) return;
         if (reason instanceof Error && reason.name === "AbortError") return;
         // Do not leave old quotes on screen as if they were current.
         setMarkets([]);
         setError(reason instanceof Error ? reason.message : "Market data is unavailable.");
       }).finally(() => {
+        window.clearTimeout(timeoutId);
         refreshing = false;
-        if (!controller.signal.aborted) setLoading(false);
+        if (!cancelled) setLoading(false);
       });
     };
     loadMarkets();
-    const refreshId = window.setInterval(loadMarkets, 15000);
-    return () => { window.clearInterval(refreshId); controller.abort(); };
+    const refreshId = window.setInterval(loadMarkets, 5000);
+    return () => { cancelled = true; window.clearInterval(refreshId); };
   }, []);
 
   useEffect(() => {
@@ -150,7 +158,7 @@ export function Dashboard() {
       <div className="relative min-w-0 overflow-hidden rounded-xl border border-brand-violet/25 bg-gradient-to-br from-brand-violet/[0.075] via-brand-surface to-brand-surface p-4 ring-1 ring-brand-violet/[0.06] sm:p-5">
         <span aria-hidden="true" className="absolute inset-y-0 left-0 w-1 bg-brand-violet"/>
         <div className="flex items-center justify-between gap-2 pl-1"><p className="type-meta font-semibold uppercase tracking-wide text-brand-text-muted">{t("BTC 24h volume")}</p><span className="h-2 w-2 rounded-full bg-brand-violet shadow-[0_0_12px_var(--color-brand-violet)]"/></div>
-        <p className="mt-3 truncate text-xl font-semibold tracking-tight tabular-nums text-brand-text sm:text-2xl">{loading || !btcMarket ? "—" : btcMarket.vol + " USDT"}</p>
+        <p className="mt-3 truncate text-xl font-semibold tracking-tight tabular-nums text-brand-text sm:text-2xl">{loading || !btcMarket ? "—" : Number(btcMarket.vol).toLocaleString(undefined, { notation: "compact", maximumFractionDigits: 2 }) + " USDT"}</p>
         
       </div>
     </section>}

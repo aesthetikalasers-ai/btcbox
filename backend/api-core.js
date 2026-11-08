@@ -2378,7 +2378,7 @@ async function handleRequest(event, context) {
     const snapshotTs = Math.floor(Date.now() / 1000);
     const out = bases.filter(base => marketsByBase[base]).map(base => {
       const row = marketsByBase[base];
-      return { sym: row.sym, price: row.price, chg: row.chg, high: row.high, low: row.low, vol: (row.vol / 1e9).toFixed(2) + 'B', source: row.source };
+      return { sym: row.sym, price: row.price, chg: row.chg, high: row.high, low: row.low, vol: Number.isFinite(row.vol) && row.vol >= 0 ? String(row.vol) : '0', source: row.source };
     });
     const dataObj = {};
     out.forEach(row => { dataObj[row.sym] = { price: row.price, chg: row.chg, high: row.high, low: row.low, vol: marketsByBase[row.sym].vol, ts: snapshotTs, providerTs: marketsByBase[row.sym].providerTs, source: row.source }; });
