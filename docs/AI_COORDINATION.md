@@ -664,3 +664,14 @@ Safety/ownership:
 - Latest head `d0c4b473a8882f4ec62b4907d608f9afebe217ad`: backend unified build/tests, frontend install/lint/build and PostgreSQL bootstrap are in progress; latest run IDs `42469719199`, `42469719151`, `42469719249` respectively. No exact-head acceptance yet.
 
 - Latest exact-head refresh for `d0c4b473...`: backend unified build/tests/preflight PASS (`42469719199`); disposable PostgreSQL bootstrap PASS (`42469719249`); frontend install, lint, production build and Chromium install PASS, desktop/mobile route smoke tests still running and screenshot upload pending (`42469719151`). This is partial success, not complete frontend acceptance.
+
+
+## 14. Dashboard source-port and Japanese-first localization audit — 2026-11-08
+
+- Candidate PR #67 exact head advanced to `d9c681392501c444e070eaa25b3144231e420d1f`; PR remains Draft/open/unmerged.
+- Strata Pro dashboard source was compared at pinned upstream commit `a3f79d0237c68faddc877f8c1b00afece2fbbae8`. Its static top-token fixture and inert 24-hour selector were deliberately not copied because BTCBOX already has a live provider-backed market table, real API candles, search, stale-data handling and explicit empty/error states.
+- Ported the Strata Pro dashboard Card surface treatment (16px/20px radius, subtle border/inset highlight and layered shadow) into `frontend/src/features/dashboard/components/Card.tsx`; only dashboard/market shared cards are affected. Spot trading layout/API contract unchanged.
+- Japanese-first audit: shared i18n already supports seven languages, a language selector and persisted preference; first-visit default is currently English. Japanese dictionary coverage is partial, `Pages.tsx` has hundreds of translated call sites, and `AuthPages.tsx` does not yet use the shared translation function. Missing keys fall back to English, so switching default now would create mixed-language UI.
+- Localization must be completed and coverage-tested before changing the default to Japanese; retain English as a selectable language. Audit recorded in `docs/FRONTEND_TEMPLATE_MIGRATION.md`. No default-language switch has been made.
+- Exact-head CI for `d9c681392501c444e070eaa25b3144231e420d1f` started: Frontend `42470197271`, Backend `42470197262`, PostgreSQL `42470197272`. All three were in progress at this update; no PASS claim until each exact-head run completes.
+- No merge, deployment, Vercel changes, hosted Supabase writes, financial actions, or Spot layout/API changes.
