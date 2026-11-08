@@ -339,3 +339,15 @@ Safety/ownership:
 - No runtime template page migration has been performed in this batch. Pinned template source inputs remain available in candidate.
 - No tests have been run for this commit; exact-head CI is required before treating the change as validated. Comprehensive audit remains deferred until consolidation is assembled.
 - No merge, deploy, Vercel change, hosted Supabase write, financial operation, or locked Spot layout change.
+
+
+### PR #65 UI/test reconciliation — batch 3 (2026-11-08)
+
+- Reconfirmed candidate branch HEAD remains `07e0cf66ab5e86a73da10e9972791767d7a2a18f`; PR #67 remains Draft/open/unmerged.
+- Compared six shared UI paths against PR #65: `BottomNav.tsx`, `badge.tsx`, `button.tsx`, `card.tsx`, and `input.tsx` have identical blob SHAs on both branches. No duplicate code transplant was needed. `BrandLogo.tsx` differs: candidate retains the newer `hideNameBelow` responsive behavior absent from PR #65; keep candidate implementation.
+- Rechecked `AppLayout.tsx`: previously verified identical blob SHA on both branches. Its current structure is not a PR #65-only contribution.
+- Compared E2E test names in `frontend/e2e/auth-routes.spec.ts`: PR #65 has 37 tests, candidate has 38. Candidate uniquely contains the newer Supabase email/password login, email registration, mailbox confirmation and recovery tests. PR #65-only tests include older assertions that email registration is absent and login uses username/password + wallet-only identity; these conflict with the current approved Supabase Email/Google auth direction and must NOT be copied. Candidate also already contains newer versions of market responsiveness, public preview and supported trade chooser coverage.
+- This batch intentionally makes no runtime code commit because the inspected PR #65-only code was either already identical, superseded by candidate behavior, or incompatible with the current auth contract. Avoid creating no-op commits or regressing auth coverage.
+- PR #65's remaining meaningful differences still require focused review: Topbar (candidate's unavailable-notifications behavior retained), Pages.tsx and business-heavy feature pages, account/auth/admin/assets/dashboard/orders pages, i18n and chart components. Preserve candidate contracts; inspect each logical change before any transplant.
+- No tests were run. This is source-diff analysis only, not validation. Full audit remains deferred until consolidation is assembled.
+- No merge, deploy, Vercel change, hosted Supabase write, financial operation, or locked Spot layout change.
