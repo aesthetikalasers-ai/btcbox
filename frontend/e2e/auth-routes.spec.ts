@@ -189,6 +189,8 @@ test("administrator route requires a verified administrator identity", async ({ 
 
   await expect(page).toHaveURL("http://127.0.0.1:4173/admin");
   await expect(page.getByRole("heading", { name: "Welcome back", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Wallet" })).toBeVisible();
+  await page.getByRole("button", { name: "Wallet" }).click();
   await expect(page.getByRole("button", { name: "Connect Ethereum wallet" })).toBeVisible();
   // No administrator API, including the session verifier, may run without a Supabase identity.
   expect(adminRequests).toEqual([]);
@@ -1286,7 +1288,7 @@ test("Google and Wallet provider entries have matching dimensions and responsive
     expect(wallet).not.toBeNull();
     expect(Math.abs(google!.height - wallet!.height)).toBeLessThanOrEqual(1);
     expect(Math.abs(google!.width - wallet!.width)).toBeLessThanOrEqual(1);
-    if (viewport.width <= 360) {
+    if (viewport.width < 360) {
       expect(wallet!.y).toBeGreaterThan(google!.y);
     } else {
       expect(Math.abs(google!.y - wallet!.y)).toBeLessThanOrEqual(1);
