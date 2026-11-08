@@ -103,7 +103,8 @@ test('spot UI labels server snapshot time and does not substitute browser receip
 const authPage = fs.readFileSync(path.resolve(__dirname, '../../frontend/src/features/auth/AuthPages.tsx'), 'utf8');
 
 test('sign-in and registration pages expose Supabase Email/Password and Google auth', () => {
-  assert.ok(authPage.includes('Continue with Google'));
+  assert.ok(authPage.includes('Google'));
+  assert.ok(authPage.includes('Wallet'));
   assert.ok(authPage.includes('signInWithGoogle'));
   assert.ok(authPage.includes('Connect Ethereum wallet'));
   assert.ok(authPage.includes('Connect Solana wallet'));
