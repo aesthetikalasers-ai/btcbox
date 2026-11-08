@@ -244,3 +244,39 @@ Exact-head visual QA follow-through — 2026-11-08:
 - Verified page identity accents now render (market cyan, trading violet, assets teal, orders blue, support indigo); mobile route screenshots remain within viewport and the locked Spot page structure is preserved. This is screenshot inspection, not owner visual acceptance.
 - Remaining visual gap: semantic color is still concentrated in page eyebrow/title accents and a few icon/status treatments; Assets and Orders content surfaces remain predominantly neutral. The Strata Pro dark surface system is present, but the full Shadcn Fintech semantic component treatment is not yet complete. Record this as a bounded Interaction Team follow-up; coordinator must not take over Interaction-owned component files. Next visual task should apply restrained page-accent surfaces to relevant summary cards, section markers, and empty states, without changing page geometry, trading layout, APIs, or financial behavior.
 - No hosted Supabase writes, production deployment, Vercel changes, or merge were performed. PR #67 remains Draft.
+
+
+## Owner direction correction — complete source-template migration is the active visual requirement (2026-11-08)
+
+This section supersedes the earlier “bounded Interaction Team follow-up” at the end of this document that proposed only adding accent surfaces to summary cards, section markers, and empty states. That narrow task is NOT the owner's requested deliverable and must not be used as the active visual scope.
+
+The owner has explicitly confirmed **three rounds of direction**, not one:
+1. First approval: bring the complete Strata Pro and shadcn-fintech source experiences into BTCBOX rather than continuing piecemeal repairs to the old frontend.
+2. Second approval: assemble those complete source experiences into a coherent new BTCBOX frontend that connects to BTCBOX's real backend, auth, APIs, and business logic; remove template demo/mock behavior.
+3. Third follow-up (2026-11-07): use the source templates' own complete visual system across ALL remaining pages, including their full color/semantic system, typography, component treatments, interaction feedback, and responsive/mobile details—not merely borrow a palette or add isolated accent treatments.
+
+Required intended scope:
+- Strata Pro is the complete reference/source experience for trading and market-facing pages.
+- shadcn-fintech is the complete reference/source experience for account, authentication, assets, security, settings, and other applicable workspace/admin surfaces.
+- Port/adapt full page structures, navigation, reusable components, typography, surfaces, semantic colors, form states, feedback states, and responsive behavior. This is a source-template migration/adaptation, not a token-only redesign.
+- Remove all template demo data, mock market data, seeded balances, simulated transactions, and template auth/business behavior. Connect real BTCBOX Supabase Auth, APIs, and business contracts.
+- Preserve BTCBOX's existing backend/business rules and the locked Spot trading-page layout and its existing interfaces. Do not change that layout without explicit owner approval.
+- Verify desktop/tablet/mobile behavior and meaningful loading/empty/error/success states. CI screenshots alone do not constitute owner visual acceptance.
+
+Verified repository evidence at this correction:
+- Branch `feat/btcbox-unified-template-migration-20261105` EXISTS. Its recursive Git tree is `6af0210b6b2716cf5d0310fa3b7384d33bf8e808` and contains `docs/COMPLETE_UI_TEMPLATE_SOURCES.md`, `docs/FRONTEND_TEMPLATE_MIGRATION.md`, `frontend/vendor/shadcn-fintech`, and `frontend/vendor/strata-pro`. This establishes that vendor paths exist on that branch; the contents, provenance/license terms, completeness, and actual integration status still need inspection before claiming the templates have been fully migrated.
+- PR #65 is Draft/open on branch `fix/hide-lightweight-chart-attribution-20261107`, based on `work/btcbox-unified-20261104`, head `52615eead3b232be9ad37abe3e4b3a01ed264d80`. Its description describes visual-system reuse and responsive polish, and is not evidence that the complete template source experiences were integrated.
+- PR #67 remains the sole integration candidate, Draft/open/unmerged, head `3d7f96352b214b386be410ab619b043898fef6c2`. Its latest recorded CI/screenshot inspection is technical verification only, not completion or owner visual acceptance of the three-round migration requirement.
+- Earlier PR #65 visual commits, including baseline `9b9662bed509517dd9b89f8e288bebfc099661d7`, and subsequent selective absorption into PR #67 must be treated as partial historical work. Do not count them as full template migration.
+
+Execution order (mandatory before further visual implementation):
+1. Inspect and record the actual contents, git modes/submodule status, source provenance, and license notes for both vendor directories on `feat/btcbox-unified-template-migration-20261105`; read both migration/source docs.
+2. Compare that branch against PR #67 and current frontend route/component inventory. Produce one page-by-page source-to-BTCBOX migration matrix that distinguishes PRESENT / PARTIAL / MISSING / BLOCKED, with exact paths and commits.
+3. Identify which team owns each target file. The coordinator records gaps and routes implementation to the owning team; do not overwrite another team's files.
+4. Continue implementation in the single active integration path only after the matrix and ownership are recorded. Do not create another parallel visual branch.
+5. Remove demo/mock dependencies and wire BTCBOX real services while preserving backend contracts and locked trading layout.
+6. Run exact-head lint/build/tests and responsive route screenshots; inspect screenshots against the actual source references. Mark owner visual acceptance as NOT VERIFIED until the owner has reviewed/accepted it.
+
+Process guardrail: before every new batch, read this coordination file and the current candidate/branch metadata; after every batch, update this file with exact branch, SHA, paths, evidence, ownership, status, blockers, and next action. Never start implementation from conversational memory alone. Do not report a task complete based only on a prior PR description, a branch name, or a CI PASS.
+
+No merge, production deployment, Vercel changes, hosted Supabase writes, financial operations, or locked Spot layout changes are authorized by this correction.
