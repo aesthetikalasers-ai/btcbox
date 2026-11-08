@@ -16,7 +16,7 @@ One repository execution path is active at a time. Re-read this file before star
 - **Current candidate head:** `bcf160ef911d59f9a054d6f105873529f27ec4ed`
 - **Base:** `main` at `2a3810da1aef2c0c7c58df0cfdb059a212eeb0d6`
 - **State:** Draft / open / not merged
-- **Latest exact-current-head CI:** all three workflows were IN PROGRESS at last check for `bcf160ef911d59f9a054d6f105873529f27ec4ed`: Backend `42482471023`, PostgreSQL schema `42482471026`, Frontend `42482470948`. Prior head `48a2f90a...` confirmed PostgreSQL schema PASS (`42482389538`), while Backend failed only because the 0035 regression assertion was accidentally changed to expect the 0036 MAINTAIN statement; the assertion was corrected in the current head.
+- **Latest exact-current-head CI:** Backend `42482471023` PASS and PostgreSQL schema `42482471026` PASS for `bcf160ef911d59f9a054d6f105873529f27ec4ed`; Frontend `42482470948` remained IN PROGRESS (Chromium installation) at last check. Prior head `48a2f90a...` confirmed PostgreSQL schema PASS; its Backend test assertion was corrected in the current head.
 
 The previous fully green source head `8b54cf128ccd4861eedd1fae602846c92849f835` also passed Backend `42436694163`, PostgreSQL schema `42436693919`, and Frontend `42436694030`. Current head adds a documentation-only correction to the owner bootstrap guide; the full exact-head CI has now passed.
 
