@@ -44,6 +44,26 @@ test('withdrawal creation API and canonical SQL agree on the 11-argument fee-sna
   assert.equal(argumentCount, 11, 'withdrawal SQL signature must include require-review and expected-fee arguments');
   assert.match(signature[1], /p_require_admin_review\s+boolean/i);
   assert.match(signature[1], /p_expected_fee\s+numeric/i);
+
+  // An exact retry must replay the original withdrawal even after the fee
+  // schedule or admin-review threshold changes. The advisory lock also protects
+  // the absent-row first-use race across concurrent server instances.
+  const lockAt = withdrawalMigration.indexOf('pg_catalog.pg_advisory_xact_lock');
+  const lookupAt = withdrawalMigration.indexOf('where request_id = p_request_id');
+  const replayAt = withdrawalMigration.indexOf('if found then', lookupAt);
+  const currentFeeCheckAt = withdrawalMigration.indexOf('if p_expected_fee is distinct from p_fee then');
+  const freezeAt = withdrawalMigration.indexOf('public.apply_financial_operation', currentFeeCheckAt);
+  assert.ok(lockAt >= 0 && lockAt < lookupAt, 'withdrawal request key must be serialized before replay lookup');
+  assert.ok(lookupAt < replayAt && replayAt < currentFeeCheckAt && currentFeeCheckAt < freezeAt,
+    'existing requests must replay before current fee validation or any new balance freeze');
+  const replayBlock = withdrawalMigration.slice(replayAt, currentFeeCheckAt);
+  for (const field of ['user_id', 'asset', 'network', 'amount', 'destination', 'request_hash']) {
+    assert.match(replayBlock, new RegExp('v_existing\\.' + field + '\\s+is\\s+distinct\\s+from'), 'replay must bind original ' + field);
+  }
+  assert.doesNotMatch(replayBlock, /v_existing\\.(?:fee|require_admin_review)\\s+is\\s+distinct\\s+from/i,
+    'fee and review threshold are server snapshots and must not invalidate an exact retry');
+  assert.match(api, /\[String\(user\.uid\), coin, network, String\(amount\), addr, requestId\]\.join\('\|'\)/,
+    'request hash must bind user, asset, network, amount, destination and request ID without mutable fee configuration');
 });
 
 
