@@ -36,12 +36,13 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
         <div className="space-y-1">
           {primary.map(({ to, label, icon: Icon }) => (
             <NavLink key={to} to={to} onClick={onClose} className={({ isActive }) => cn(
-              "flex min-h-11 h-auto min-w-0 items-center gap-3 rounded-xl border px-3 py-2 text-sm font-semibold leading-tight transition-colors",
+              "group flex min-h-11 h-auto min-w-0 items-center gap-3 rounded-xl border px-3 py-2 text-sm font-semibold leading-tight transition-all duration-200",
               focusRing,
-              isActive ? "border-brand-accent/25 bg-brand-accent/10 text-white shadow-[inset_3px_0_0_0_var(--color-brand-accent)]" : "border-transparent text-brand-text-secondary hover:bg-brand-surface-hover hover:text-brand-text",
+              isActive ? (to === "/trade-hub" ? "border-brand-violet/25 bg-brand-violet/[0.09] text-brand-text shadow-[inset_3px_0_0_0_var(--color-brand-violet)]" : to === "/assets" ? "border-brand-teal/25 bg-brand-teal/[0.08] text-brand-text shadow-[inset_3px_0_0_0_var(--color-brand-teal)]" : to === "/me" ? "border-brand-info/25 bg-brand-info/[0.08] text-brand-text shadow-[inset_3px_0_0_0_var(--color-brand-info)]" : "border-brand-cyan/25 bg-brand-cyan/[0.08] text-brand-text shadow-[inset_3px_0_0_0_var(--color-brand-cyan)]") : "border-transparent text-brand-text-secondary hover:bg-brand-surface-hover hover:text-brand-text",
             )}>
-              <Icon className="h-[18px] w-[18px] shrink-0 opacity-90" />
+              <span className={cn("flex h-8 w-8 shrink-0 items-center justify-center rounded-lg", to === "/trade-hub" ? "bg-brand-violet/10 text-brand-violet" : to === "/assets" ? "bg-brand-teal/10 text-brand-teal" : to === "/me" ? "bg-brand-info/10 text-brand-info" : "bg-brand-cyan/10 text-brand-cyan")}><Icon className="h-[17px] w-[17px] opacity-95" /></span>
               <span className="min-w-0 break-words">{t(label)}</span>
+              <span aria-hidden="true" className={cn("ml-auto h-1.5 w-1.5 shrink-0 rounded-full opacity-0 transition-opacity", isActive && "opacity-100", to === "/trade-hub" ? "bg-brand-violet" : to === "/assets" ? "bg-brand-teal" : to === "/me" ? "bg-brand-info" : "bg-brand-cyan")} />
             </NavLink>
           ))}
         </div>
@@ -50,14 +51,14 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
           <div className="space-y-1">
             {secondary.map(({ to, label, icon: Icon }) => (
               <NavLink key={to} to={to} onClick={onClose} className={({ isActive }) => cn(
-                "flex min-h-11 h-auto min-w-0 items-center gap-3 rounded-xl border border-transparent px-3 py-2 text-[13px] font-semibold leading-tight transition-colors",
+                "group flex min-h-11 h-auto min-w-0 items-center gap-3 rounded-xl border px-3 py-2 text-[13px] font-semibold leading-tight transition-all duration-200",
                 focusRing,
-                isActive ? "bg-brand-surface-2 text-brand-text" : "text-brand-text-secondary hover:bg-brand-surface-hover hover:text-brand-text",
+                isActive ? (to === "/earn" ? "border-brand-orange/20 bg-brand-orange/[0.07] text-brand-text" : to === "/support" ? "border-brand-indigo/20 bg-brand-indigo/[0.07] text-brand-text" : "border-brand-info/20 bg-brand-info/[0.07] text-brand-text") : "border-transparent text-brand-text-secondary hover:bg-brand-surface-hover hover:text-brand-text",
               )}>
-                <Icon className="h-4 w-4 shrink-0" />
+                <span className={cn("flex h-7 w-7 shrink-0 items-center justify-center rounded-lg", to === "/earn" ? "bg-brand-orange/10 text-brand-orange" : to === "/support" ? "bg-brand-indigo/10 text-brand-indigo" : "bg-brand-info/10 text-brand-info")}><Icon className="h-4 w-4" /></span>
                 <span className="min-w-0 break-words">{t(label)}</span>
               </NavLink>
-            ))}
+            ))}}
           </div>
         </div>
       </nav>
