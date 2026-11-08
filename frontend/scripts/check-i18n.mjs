@@ -58,7 +58,8 @@ for (const locale of locales) {
   const { keys, invalid } = dictionaries[locale];
   const duplicates = keys.filter((key, index) => keys.indexOf(key) !== index);
   const missing = [...canonical].filter((key) => !keys.includes(key));
-  console.log(locale + ": " + keys.length + " keys; " + missing.length + " missing; " + duplicates.length + " duplicate; " + invalid.length + " invalid values");
+  const coverage = canonical.size ? ((keys.length - duplicates.length) / canonical.size * 100).toFixed(1) : "0.0";
+  console.log(locale + ": " + keys.length + " keys; " + coverage + "% coverage; " + missing.length + " missing; " + duplicates.length + " duplicate; " + invalid.length + " invalid values");
   if (duplicates.length || missing.length || invalid.length) failed = true;
   if (duplicates.length) console.error("  Duplicate keys: " + duplicates.slice(0, 12).join(" | "));
   if (missing.length) console.error("  Missing keys: " + missing.slice(0, 20).join(" | "));
