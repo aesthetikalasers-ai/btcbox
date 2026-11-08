@@ -153,3 +153,13 @@ Exact-head CI completion — 2026-11-08:
 - Frontend CI `42450472705`: completed / success; the `build` job completed successfully with no failed steps.
 - These are exact-head automated CI results only. They do not validate hosted Auth provider settings, hosted schema parity, production flags, live financial execution, or independent visual acceptance.
 - PR #67 remains a draft integration candidate. No merge, production deployment, hosted database write, or trading-page layout change was performed.
+
+
+API-to-SQL source contract cross-check — 2026-11-08:
+- Inspected `backend/api-core.js` against source SQL `0026_admin_rbac_private_store_v1.sql`, `0028_admin_rbac_service_rpc_wrappers_v1.sql`, `0025_seconds_policy_versioning_v1.sql`, `0031_seconds_policy_duration_alignment_v1.sql`, and `0008_financial_matching_engine_v1.sql` on the integration branch.
+- Admin membership API computes a SHA-256 request hash from the normalized target user, expected revision, action, sorted permission snapshot, and reason, then forwards the same request ID/hash to `admin_manage_membership_v1`; SQL persists the pair under `(actor_user_id, request_id)` and rejects a same-key/different-hash replay.
+- Seconds policy API normalizes/sorts symbols and durations and hashes the expected version, policy values, limits, and reason before calling `admin_set_seconds_policy_v1`; SQL uses the actor/request ID pair for replay and rejects hash mismatch.
+- Seconds order API supplies a deterministic request ID, request hash, and positive reference price to `submit_seconds_order_v1`; the canonical SQL performs replay lookup before requiring a current reference price, then resolves the active immutable policy for new orders.
+- Spot cancel API forwards `client_cancel_id`; canonical SQL `0008` persists cancellation identity in `financial_matching_cancel_requests` keyed by `(user_id, client_cancel_id)`, checks order ID and request hash on replay, and returns the stored response for an exact retry. The live hosted function still lacks this canonical table, as already recorded above.
+- This was a source inspection only. It does not close hosted schema drift or prove live RPC behavior. No code or hosted database was changed in this cross-check.
+- The exact-head CI results recorded above remain the latest verified results for PR #67 SHA `724d871c9f9f5e3a4df0ce2b7ea78e46164f7082`.
