@@ -13,15 +13,14 @@ One repository execution path is active at a time. Re-read this file before star
 
 - **Active candidate:** PR #67
 - **Branch:** `integration/btcbox-mainline-consolidation-20261108`
-- **Current candidate head:** `54d9b552a83eccfabc9fdf4a155ac9f2e072caae`
+- **Current candidate head:** `3d7f96352b214b386be410ab619b043898fef6c2`
 - **Base:** `main` at `2a3810da1aef2c0c7c58df0cfdb059a212eeb0d6`
 - **State:** Draft / open / not merged
-- **Exact-current-head CI:** PASS on `54d9b552a83eccfabc9fdf4a155ac9f2e072caae`.
-  - Backend: `42453956475` — PASS; build, full backend tests, fail-closed deployment configuration preflight, and unified output checks completed successfully.
-  - PostgreSQL schema: `42453956455` — PASS; all canonical SQL files applied to disposable PostgreSQL.
-  - Frontend: `42453956535` — PASS; lint, build, Chromium setup, desktop/mobile route smoke tests, and responsive screenshot upload completed successfully.
-  - The earlier `df6cf43...` CI runs `42453532346`, `42453532347`, and `42453532383` remain historical, not the current-head evidence.
-  - Previous exact-head CI on `1594084189befe103c978b2d7ce6dc65eaf5a451` also passed, but is historical and not the current candidate head.
+- **Exact-current-head CI:** PASS on `3d7f96352b214b386be410ab619b043898fef6c2`.
+  - Backend: `42456223737` — PASS.
+  - PostgreSQL schema: `42456223768` — PASS.
+  - Frontend: `42456223776` — PASS; responsive screenshot artifact `13607642852` was downloaded and inspected.
+  - Earlier CI runs on `54d9b552...`, `df6cf43...`, and `1594084...` are historical and are not current-head evidence.
 
 The previous fully green source head `8b54cf128ccd4861eedd1fae602846c92849f835` also passed Backend `42436694163`, PostgreSQL schema `42436693919`, and Frontend `42436694030`. Current head adds a documentation-only correction to the owner bootstrap guide; the full exact-head CI has now passed.
 
@@ -236,3 +235,12 @@ Visual correction CI refresh — 2026-11-08:
 - Exact-head PostgreSQL schema CI `42456223768`: PASS.
 - Exact-head Frontend CI `42456223776`: install, lint, production build, and Chromium installation PASS; desktop/mobile route smoke tests were still running at this refresh. Responsive screenshot upload is pending.
 - Current candidate head remains `3d7f96352b214b386be410ab619b043898fef6c2`. Do not mark visual acceptance complete until the frontend workflow passes and the new screenshot artifact is inspected.
+
+
+Exact-head visual QA follow-through — 2026-11-08:
+- Re-fetched PR #67 and confirmed current head `3d7f96352b214b386be410ab619b043898fef6c2`, Draft/open/unmerged.
+- Exact-head workflows all completed successfully: Backend `42456223737`, PostgreSQL schema `42456223768`, Frontend `42456223776`.
+- Downloaded responsive visual artifact `13607642852` from Frontend run `42456223776` (artifact SHA-256 reported by GitHub: `7316d0b676bdc1eecc814029df371b4dbe655e4ec6afc88055151e1de9fb21c5`). Inspected desktop 1440px and mobile 390px screenshots for home, markets, assets, orders, support, Trade Hub, and Spot.
+- Verified page identity accents now render (market cyan, trading violet, assets teal, orders blue, support indigo); mobile route screenshots remain within viewport and the locked Spot page structure is preserved. This is screenshot inspection, not owner visual acceptance.
+- Remaining visual gap: semantic color is still concentrated in page eyebrow/title accents and a few icon/status treatments; Assets and Orders content surfaces remain predominantly neutral. The Strata Pro dark surface system is present, but the full Shadcn Fintech semantic component treatment is not yet complete. Record this as a bounded Interaction Team follow-up; coordinator must not take over Interaction-owned component files. Next visual task should apply restrained page-accent surfaces to relevant summary cards, section markers, and empty states, without changing page geometry, trading layout, APIs, or financial behavior.
+- No hosted Supabase writes, production deployment, Vercel changes, or merge were performed. PR #67 remains Draft.
