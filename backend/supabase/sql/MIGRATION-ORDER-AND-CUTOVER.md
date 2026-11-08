@@ -8,7 +8,7 @@ Use `backend/scripts/bootstrap-empty-database.sh` only against a verified empty 
 - requires `DATABASE_URL` and `BTCBOX_BOOTSTRAP_CONFIRM=YES`;
 - parses the URL hostname and refuses remote targets unless `BTCBOX_ALLOW_REMOTE_BOOTSTRAP=YES` is explicitly supplied;
 - checks that no BTCBOX-owned tables already exist before applying SQL;
-- applies the 26 canonical SQL files explicitly allowlisted in `backend/scripts/bootstrap-empty-database.sh`;
+- applies the 27 canonical SQL files explicitly allowlisted in `backend/scripts/bootstrap-empty-database.sh`;
 - creates the schema only; the first API request atomically inserts the empty `btcbox_state` singleton through `btcbox_save_state` at revision 0, with no demo users or balances;
 - stops on the first SQL error and never prints the database URL.
 
@@ -44,6 +44,7 @@ The current canonical source inventory is:
 24. `0031_seconds_policy_duration_alignment_v1.sql`
 25. `0032_admin_audit_log_filter_indexes_v1.sql`
 26. `0033_withdrawal_legacy_rpc_cleanup_v1.sql`
+27. `0034_financial_audit_duplicate_index_cleanup_v1.sql`
 
 The legacy `0008_financial_spot_trade_v3.sql` direct-fill RPC was removed because it bypassed the order book and was not called by the API. The durable matching engine now occupies `0008_financial_matching_engine_v1.sql` and is the only supported spot write path. Sequence `0009` is retired and intentionally omitted; the offline migration checker explicitly recognizes retired slots `0009` and `0015`–`0020`. The bootstrap allowlist contains only live numbered SQL files and is tested against the actual source inventory.
 
@@ -69,6 +70,7 @@ Manual deposits follow the chosen half-manual workflow: staff verifies the trans
 - `0031` removes the obsolete fixed Seconds position-duration allowlist; positive duration values are now governed by the active immutable policy, matching the admin policy RPC.
 - `0032` adds two non-destructive indexes on `public.financial_audit_log` — `(action, id desc)` and `(subject_user_id, id desc)` — matching the admin audit-logs query access paths (filtered by action or subject, ordered by id desc). Safe to re-run via `IF NOT EXISTS`.
 - `0033` removes any lingering 9- or 10-argument `create_withdrawal_atomic` overload after `0029`, then asserts that exactly one 11-argument service-role-only function remains. It does not alter withdrawal rows or balances.
+- `0034` removes the duplicate `(subject_user_id, created_at DESC)` index introduced by `0021`; the equivalent `financial_audit_subject_time_idx` from `0002` is retained.
 
 ## Admin bootstrap and financial safety
 
@@ -86,7 +88,7 @@ All financial writes and matching remain fail-closed during source QA. Applying 
 
 Source CI verifies SQL inventory, shell syntax, bootstrap safety gates and source-level RPC contracts. It does not execute PostgreSQL DDL. Before any authorized hosted install:
 - use a disposable empty PostgreSQL/Supabase environment;
-- apply all 26 files in the exact order above and stop on any error;
+- apply all 27 files in the exact order above and stop on any error;
 - verify function signatures, RLS, grants, service-role-only execution and private schema exposure;
 - bootstrap the intended Super Admin and test delegated admin permissions;
 - test manual credit, withdrawal approval/payout completion, spot order idempotency and Seconds order/settlement concurrency/replay without enabling production financial cutover;
