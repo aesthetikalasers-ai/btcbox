@@ -168,7 +168,7 @@ API-to-SQL source contract cross-check — 2026-11-08:
 
 Coordination document correction — 2026-11-08:
 - Updated the top-level candidate SHA and exact-head CI block to `724d871c9f9f5e3a4df0ce2b7ea78e46164f7082` and its three passing workflow runs. The older `159408...` evidence remains historical only.
-- A source inspection found that `backend/tests/rpc-source-contract.test.js` inventories active RPC names and has a detailed signature assertion for withdrawal creation, but does not currently assert parameter/signature parity or request-hash normalization for admin membership, Seconds policy, Seconds order, and matching cancellation. Treat this as a potential regression-coverage improvement, not as a runtime defect; verify team file ownership and existing test conventions before changing it.
+- A source inspection found that `backend/tests/rpc-source-contract.test.js` lacked parameter/signature parity and request-hash normalization assertions for admin membership, Seconds policy, Seconds order, and matching cancellation. This coverage gap was resolved in commit `df6cf43d28194911a4dbebcdcdb1989c9ccf6ded`; exact-head Backend, PostgreSQL schema, and Frontend CI all passed. This was a test-coverage improvement, not a confirmed runtime defect.
 
 
 RPC source-contract regression coverage — 2026-11-08:
