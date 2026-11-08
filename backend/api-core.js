@@ -3951,7 +3951,6 @@ exports._test = {
   compareMoney: compareMoney,
   addMoney: addMoney,
   withdrawalAddressCheck: withdrawalAddressCheck,
-  withdrawalRequiresAdminReview: withdrawalRequiresAdminReview,
   estimateUsdtValue: estimateUsdtValue,
   redactAdminAuditDetail: redactAdminAuditDetail,
   normalizeReferenceTimestamp: normalizeReferenceTimestamp,
