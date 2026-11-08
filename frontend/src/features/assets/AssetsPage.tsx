@@ -6,6 +6,7 @@ import { Button } from "../../components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/card";
 import { ApiError, getAccount, type AccountBalance, type AccountSnapshot } from "../../lib/api";
 import { useI18n } from "../../lib/i18n";
+import { TokenIcon } from "../../components/ui/TokenIcon";
 
 function amount(value: number | string | undefined) {
   if (typeof value === "string") {
@@ -75,26 +76,38 @@ export function AssetsPage() {
 
       {error && <Card className="border-brand-border bg-brand-surface"><CardContent className="flex flex-wrap items-center justify-between gap-3 p-4"><p className="type-body-compact text-brand-text-secondary" role="alert">{error}</p>{signedOut && <Button asChild size="sm"><Link to="/login">{t("Sign in")}</Link></Button>}</CardContent></Card>}
 
-      <Card className="border-brand-border bg-brand-surface">
-        <CardHeader>
-          <CardDescription>{t("Estimated total value")}</CardDescription>
-          <CardTitle className="type-display tabular-nums">{loading ? "—" : account?.valuation_complete ? `${amount(account.totalUsdt)} USDT` : "—"}</CardTitle>
-          {account && <div className="flex flex-wrap items-center gap-2 pt-1"><Badge variant={account.valuation_complete ? "outline" : "secondary"}>{t(account.valuation_complete ? "Valuation complete" : "Partial valuation")}</Badge>{!account.valuation_complete && <span className="type-meta text-brand-text-muted">{t("Some assets do not have a verified USDT valuation.")}</span>}</div>}
-        </CardHeader>
-        <CardContent className="flex flex-wrap gap-2">
+      <div className="grid gap-3 sm:grid-cols-3">
+        <Card className="border-brand-border bg-brand-surface ring-1 ring-white/[0.025]">
+          <CardContent className="flex items-center gap-3 p-4">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-accent/10 text-brand-accent"><Wallet className="h-5 w-5"/></span>
+            <div className="min-w-0"><p className="type-meta text-brand-text-muted">{t("Estimated total value")}</p><p className="mt-1 truncate text-lg font-semibold tracking-tight tabular-nums text-brand-text">{loading ? "—" : account?.valuation_complete ? amount(account.totalUsdt) + " USDT" : "—"}</p><Badge className="mt-1" variant={account?.valuation_complete ? "outline" : "secondary"}>{loading ? t("Loading") : account?.valuation_complete ? t("Valuation complete") : t("Valuation incomplete")}</Badge></div>
+          </CardContent>
+        </Card>
+        <Card className="border-brand-border bg-brand-surface ring-1 ring-white/[0.025]">
+          <CardContent className="flex items-center gap-3 p-4">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-cyan/10 text-brand-cyan"><Wallet className="h-5 w-5"/></span>
+            <div className="min-w-0"><p className="type-meta text-brand-text-muted">{t("Assets held")}</p><p className="mt-1 text-lg font-semibold tabular-nums text-brand-text">{loading ? "—" : balances.length}</p><p className="type-meta text-brand-text-muted">{t("Asset rows returned by BTCBOX")}</p></div>
+          </CardContent>
+        </Card>
+        <Card className="border-brand-border bg-brand-surface ring-1 ring-white/[0.025]">
+          <CardContent className="flex items-center gap-3 p-4">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-warning/10 text-brand-warning"><ShieldCheck className="h-5 w-5"/></span>
+            <div className="min-w-0"><p className="type-meta text-brand-text-muted">{t("Unpriced assets")}</p><p className="mt-1 text-lg font-semibold tabular-nums text-brand-text">{loading ? "—" : account?.unpriced_assets?.length ?? 0}</p><p className="type-meta text-brand-text-muted">{t("Assets without verified USDT value")}</p></div>
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div><h2 className="type-section-title text-brand-text">{t("Asset balances")}</h2><p className="type-meta mt-1 text-brand-text-muted">{t("Available and frozen amounts returned by the account service.")}</p></div>
+        <div className="flex flex-wrap gap-2">
           <Button asChild variant="secondary"><Link to="/deposit"><ArrowDownToLine className="mr-2 h-4 w-4"/>{t("Deposit")}</Link></Button>
           <Button asChild variant="outline"><Link to="/withdraw"><ArrowUpFromLine className="mr-2 h-4 w-4"/>{t("Withdraw")}</Link></Button>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
-      <Card className="border-brand-border bg-brand-surface">
-        <CardHeader><CardTitle>{t("Asset balances")}</CardTitle><CardDescription>{t("Available and frozen amounts returned by the account service.")}</CardDescription></CardHeader>
-        <CardContent className="p-0">
-          {loading ? <div className="space-y-3 p-5" role="status" aria-live="polite"><div className="h-4 w-1/3 animate-pulse rounded bg-brand-surface-2"/><div className="h-12 animate-pulse rounded bg-brand-surface-2"/><div className="h-12 animate-pulse rounded bg-brand-surface-2"/></div>
-          : balances.length ? <div className="divide-y divide-brand-border">{balances.map(([coin, balance])=><div key={coin} className="grid grid-cols-3 gap-3 px-4 py-4 sm:px-5"><div className="min-w-0"><p className="font-semibold text-brand-text">{coin}</p><p className="type-meta text-brand-text-muted">{t("Asset")}</p></div><div className="min-w-0 text-right"><p className="font-mono tabular-nums text-brand-text">{amount(balance.free)}</p><p className="type-meta text-brand-text-muted">{t("Available")}</p></div><div className="min-w-0 text-right"><p className="font-mono tabular-nums text-brand-text-secondary">{amount(balance.frozen)}</p><p className="type-meta text-brand-text-muted">{t("Frozen")}</p></div></div>)}</div>
-          : <div className="flex flex-col items-center px-5 py-12 text-center"><Wallet className="mb-3 h-9 w-9 text-brand-text-muted"/><p className="type-card-title text-brand-text">{t(signedOut ? "Sign in required" : error ? "Assets could not be loaded" : "No asset balances")}</p><p className="type-body-compact mt-2 max-w-md text-brand-text-muted">{t(signedOut ? "Your private balances are available after you sign in." : error ? "Refresh after the account service is available. No balance values have been fabricated." : "No balance rows were returned for this account.")}</p></div>}
-        </CardContent>
-      </Card>
+      {loading ? <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3" role="status" aria-live="polite"><div className="h-36 animate-pulse rounded-xl bg-brand-surface-2"/><div className="h-36 animate-pulse rounded-xl bg-brand-surface-2"/><div className="h-36 animate-pulse rounded-xl bg-brand-surface-2"/></div>
+      : balances.length ? <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">{balances.map(([coin, balance], index)=><Card key={coin} className="group relative overflow-hidden border-brand-border bg-brand-surface ring-1 ring-white/[0.025] transition-colors hover:border-brand-accent/25"><div className={"absolute inset-y-0 left-0 w-1 " + (index % 3 === 0 ? "bg-brand-cyan" : index % 3 === 1 ? "bg-brand-violet" : "bg-brand-teal")}/><CardContent className="p-4 pl-5"><div className="flex items-center gap-3"><TokenIcon symbol={coin} className="h-10 w-10"/><div className="min-w-0"><p className="font-semibold text-brand-text">{coin}</p><p className="type-meta text-brand-text-muted">{t("BTCBOX asset balance")}</p></div><Badge className="ml-auto" variant="outline">{t("Asset")}</Badge></div><div className="mt-5 grid grid-cols-2 gap-3"><div className="min-w-0 rounded-lg bg-brand-surface-2/80 p-3"><p className="type-meta text-brand-text-muted">{t("Available")}</p><p className="mt-1 break-all font-mono text-sm font-semibold tabular-nums text-brand-text">{amount(balance.free)}</p></div><div className="min-w-0 rounded-lg bg-brand-surface-2/80 p-3"><p className="type-meta text-brand-text-muted">{t("Frozen")}</p><p className="mt-1 break-all font-mono text-sm font-semibold tabular-nums text-brand-text-secondary">{amount(balance.frozen)}</p></div></div></CardContent></Card>)}</div>
+      : <Card className="border-brand-border bg-brand-surface"><CardContent className="flex flex-col items-center px-5 py-12 text-center"><Wallet className="mb-3 h-9 w-9 text-brand-text-muted"/><p className="type-card-title text-brand-text">{t(signedOut ? "Sign in required" : error ? "Assets could not be loaded" : "No asset balances")}</p><p className="type-body-compact mt-2 max-w-md text-brand-text-muted">{t(signedOut ? "Your private balances are available after you sign in." : error ? "Refresh after the account service is available. No balance values have been fabricated." : "No balance rows were returned for this account.")}</p></CardContent></Card>}
 
       {account?.unpriced_assets?.length ? <p className="type-meta text-brand-text-muted">{t("Unpriced assets")}: {account.unpriced_assets.join(", ")}</p> : null}
     </div>
