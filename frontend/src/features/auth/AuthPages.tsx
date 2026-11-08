@@ -59,7 +59,7 @@ export function AuthPage({ mode, redirectTo }: { mode: "login" | "register"; red
     <Button type="button" variant="outline" className="min-h-11 w-full justify-start" aria-busy={busy} disabled={busy || status !== "anonymous"} onClick={() => void signInWithWeb3("solana")}>
       <Wallet className="mr-2 h-4 w-4" /> {t("Connect Solana wallet")}
     </Button>
-  </>;
+  </div>;
 
   const identityButtons = <>
     <div className="grid grid-cols-2 gap-3 max-[360px]:grid-cols-1" data-testid="auth-provider-buttons">
