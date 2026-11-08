@@ -84,3 +84,35 @@ where n.nspname = 'private'
   )
   and c.relkind in ('r','p')
 order by c.relname;
+
+
+-- RPC privilege and legacy-contract check. Function bodies are not returned.
+select
+  n.nspname as schema_name,
+  p.proname as function_name,
+  pg_get_function_identity_arguments(p.oid) as arguments,
+  p.prosecdef as security_definer,
+  p.proconfig as function_settings,
+  has_function_privilege('anon', p.oid, 'EXECUTE') as anon_execute,
+  has_function_privilege('authenticated', p.oid, 'EXECUTE') as authenticated_execute,
+  has_function_privilege('service_role', p.oid, 'EXECUTE') as service_role_execute
+from pg_proc p
+join pg_namespace n on n.oid = p.pronamespace
+where n.nspname = 'public'
+  and p.proname in (
+    'submit_limit_order_matching_v1',
+    'cancel_limit_order_matching_v1',
+    'submit_seconds_order_v1',
+    'execute_spot_trade_atomic'
+  )
+order by p.proname, pg_get_function_identity_arguments(p.oid);
+
+-- Seconds duration constraints: the canonical versioned-policy schema must not
+-- retain the legacy fixed [30,60,300,900] allowlist.
+select
+  conname,
+  pg_get_constraintdef(oid) as constraint_definition
+from pg_constraint
+where conrelid = to_regclass('public.seconds_contract_positions')
+  and pg_get_constraintdef(oid) ilike '%duration_sec%'
+order by conname;
