@@ -188,3 +188,58 @@ test('Seconds settlement API and canonical SQL align on trusted quote provenance
   assert.match(sql, /p_settle_price_source[\s\S]*?NOT IN\s*\('coinbase','bybit'\)/i);
   assert.match(sql, /p_settle_price_ts\s*<\s*v_pos\.settle_at/i);
 });
+
+
+test('Spot limit-order API and matching SQL preserve client idempotency and atomic reserve contract', () => {
+  const api = read('api-core.js');
+  const sql = read('supabase/sql/0008_financial_matching_engine_v1.sql');
+  const signature = sql.match(/create\\s+(?:or\\s+replace\\s+)?function\\s+public\\.submit_limit_order_matching_v1\\s*\\(([\\s\\S]*?)\\)\\s*returns/i);
+  assert.ok(signature, 'canonical Spot matching submit RPC must exist');
+  assert.deepEqual(signature[1].split(',').map(part => part.trim().split(/\\s+/)[0].toLowerCase()), [
+    'p_order_id', 'p_user_id', 'p_base_asset', 'p_quote_asset',
+    'p_side', 'p_price', 'p_quantity', 'p_client_order_id',
+  ]);
+  assert.match(api, /clientOrderId\\s*=\\s*String\\(body\\.client_order_id\\s*\\|\\|\\s*body\\.request_id\\s*\\|\\|\\s*''\\)\\.trim\\(\\)/);
+  assert.match(api, /if\\s*\\(!\\/\\^\\[A-Za-z0-9_-\\]\\{16,100\\}\\\\\\$\\/\\.test\\(clientOrderId\\)\\)/);
+  assert.match(api, /if\\s*\\(!matchingEngineEnabled\\(\\)\\)[\\s\\S]{0,260}MATCHING_ENGINE_UNAVAILABLE/);
+  assert.match(api, /matchingRpc\\(\\s*'submit_limit_order_matching_v1'\\s*,\\s*\\{[\\s\\S]*?p_order_id:\\s*orderId[\\s\\S]*?p_user_id:\\s*String\\(user\\.uid\\)[\\s\\S]*?p_base_asset:\\s*pair\\[0\\][\\s\\S]*?p_quote_asset:\\s*pair\\[1\\][\\s\\S]*?p_side:\\s*side[\\s\\S]*?p_price:\\s*price[\\s\\S]*?p_quantity:\\s*qty[\\s\\S]*?p_client_order_id:\\s*clientOrderId/);
+  assert.match(sql, /pg_advisory_xact_lock\\(hashtextextended\\('spot-order:'\\|\\|p_user_id\\|\\|':'\\|\\|p_client_order_id,\\s*0\\)\\)/i);
+  assert.match(sql, /select\\s+\\*\\s+into\\s+v_existing[\\s\\S]*?where\\s+user_id=p_user_id\\s+and\\s+client_order_id=p_client_order_id[\\s\\S]*?if\\s+found\\s+then[\\s\\S]*?client order id payload mismatch[\\s\\S]*?duplicate',true/i);
+  assert.ok(sql.indexOf('client order id payload mismatch') < sql.indexOf('market disabled or unconfigured'), 'exact retries must be resolved before current market availability checks');
+  assert.match(sql, /insert into public\\.financial_operations\\(idempotency_key,user_id,asset,operation_type,request_hash,metadata\\)[\\s\\S]*?spot_order_reserve/);
+  assert.match(sql, /update public\\.financial_accounts[\\s\\S]*?available=available-v_reserve, frozen=frozen\\+v_reserve/);
+});
+
+test('administrator audit outbox API matches the SQL RPC default-argument contract', () => {
+  const api = read('api-core.js');
+  const sql = read('supabase/sql/0021_admin_audit_log_append_only_v1.sql');
+  const signature = sql.match(/create\\s+or\\s+replace\\s+function\\s+public\\.append_admin_audit_log\\s*\\(([\\s\\S]*?)\\)\\s*returns/i);
+  assert.ok(signature, 'append-only administrator audit RPC must exist');
+  assert.match(signature[1], /p_event_id\\s+text\\s*,\\s*p_action\\s+text/i);
+  assert.match(signature[1], /p_uid\\s+text\\s+default\\s+''/i);
+  assert.match(signature[1], /p_by\\s+text\\s+default\\s+'admin'/i);
+  assert.match(signature[1], /p_detail\\s+text\\s+default\\s+''/i);
+  assert.match(signature[1], /p_meta\\s+jsonb\\s+default\\s+'\\{\\}'::jsonb/i);
+  assert.match(api, /fetch\\(base\\s*\\+\\s*'\\/rest\\/v1\\/rpc\\/append_admin_audit_log'[\\s\\S]*?p_event_id:\\s*String\\(entry\\.id\\)[\\s\\S]*?p_action:\\s*String\\(entry\\.action\\s*\\|\\|\\s*''\\)[\\s\\S]*?p_uid:\\s*String\\(entry\\.uid\\s*\\|\\|\\s*''\\)[\\s\\S]*?p_by:\\s*String\\(entry\\.by\\s*\\|\\|\\s*'admin'\\)[\\s\\S]*?p_detail:\\s*safeDetail/);
+  assert.match(sql, /p_meta\\s+is\\s+null\\s+or\\s+jsonb_typeof\\(p_meta\\)\\s*<>\\s*'object'/i);
+  assert.match(sql, /on conflict\\s*\\(event_id\\)[\\s\\S]*?do nothing/i);
+  assert.match(sql, /v_existing\\.metadata\\s+is distinct from\\s+p_meta/i);
+});
+
+test('withdrawal review and manual payout preserve locked state transitions and audit without chain broadcast', () => {
+  const api = read('api-core.js');
+  const review = read('supabase/sql/0022_withdrawal_admin_review_status_v1.sql');
+  const payout = read('supabase/sql/0027_withdrawal_manual_payout_completion_v1.sql');
+  assert.match(api, /rpc\\('review_withdrawal_atomic'[\\s\\S]*?p_withdrawal_id:\\s*wdId[\\s\\S]*?p_admin_id:\\s*adminId[\\s\\S]*?p_approve:\\s*true/);
+  assert.match(review, /where\\s+id\\s*=\\s*p_withdrawal_id\\s+for update/i);
+  assert.match(review, /if\\s+v_w\\.status\\s+not\\s+in\\s*\\('pending',\\s*'pending_admin_review'\\)/i);
+  assert.match(review, /'withdraw-review:'\\s*\\|\\|\\s*v_w\\.id/i);
+  assert.match(review, /insert into public\\.financial_audit_log/i);
+  assert.match(api, /rpc\\/mark_withdrawal_paid_atomic'[\\s\\S]*?p_withdrawal_id:\\s*wdId[\\s\\S]*?p_admin_id:\\s*adminId[\\s\\S]*?p_reference:\\s*reference[\\s\\S]*?p_note:\\s*note/);
+  assert.match(payout, /where\\s+id\\s*=\\s*p_withdrawal_id\\s+for update/i);
+  assert.match(payout, /if\\s+v_w\\.status\\s*=\\s*'completed'[\\s\\S]*?payout_reference[\\s\\S]*?duplicate',true/i);
+  assert.match(payout, /if\\s+v_w\\.status\\s*<>\\s*'approved'[\\s\\S]*?withdrawal must be approved/i);
+  assert.match(payout, /set status='completed',[\\s\\S]*?payout_reference=v_ref,[\\s\\S]*?paid_by=p_admin_id,[\\s\\S]*?paid_at=clock_timestamp/i);
+  assert.match(payout, /insert into public\\.financial_audit_log/i);
+  assert.doesNotMatch(payout, /apply_financial_operation|insert into public\\.financial_ledger/i, 'manual payout completion records the external payout and must not debit the ledger a second time');
+});
