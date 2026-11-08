@@ -42,7 +42,9 @@ test("login route exposes email/password, BTCBOX username, Google and wallet sig
   await expect(page.getByLabel("Email password")).toBeVisible();
   await expect(page.getByRole("button", { name: "Sign in with email" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Forgot password?" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Google" })).toBeDisabled();
   await expect(page.getByText("Google sign-in is temporarily unavailable.")).toBeVisible();
+  await page.getByRole("button", { name: "Wallet" }).click();
   await expect(page.getByRole("button", { name: "Connect Ethereum wallet" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Connect Solana wallet" })).toBeVisible();
 });
@@ -85,7 +87,9 @@ test("Google sign-in button is shown when the public auth config enables Google"
 
   await page.goto("/login");
 
-  await expect(page.getByRole("button", { name: "Continue with Google" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Google" })).toBeEnabled();
+  await expect(page.getByRole("button", { name: "Wallet" })).toBeVisible();
+  await page.getByRole("button", { name: "Wallet" }).click();
   await expect(page.getByRole("button", { name: "Connect Ethereum wallet" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Connect Solana wallet" })).toBeVisible();
   await expect(page.getByLabel("Email address")).toBeVisible();
@@ -102,12 +106,14 @@ test("wallet sign-in failures remain visible and never create a BTCBOX session w
   });
 
   await page.goto("/login");
+  await page.getByRole("button", { name: "Wallet" }).click();
   await page.getByRole("button", { name: "Connect Ethereum wallet" }).click();
   await expect(page.getByRole("alert")).toBeVisible();
   await expect(page.getByRole("alert")).not.toBeEmpty();
   expect(btcboxSessionExchanges).toEqual([]);
 
   await page.goto("/login");
+  await page.getByRole("button", { name: "Wallet" }).click();
   await page.getByRole("button", { name: "Connect Solana wallet" }).click();
   await expect(page.getByRole("alert")).toBeVisible();
   await expect(page.getByRole("alert")).not.toBeEmpty();
@@ -123,6 +129,9 @@ test("registration route offers Supabase email registration, Google and optional
   await expect(page.getByLabel("Email address")).toBeVisible();
   await expect(page.getByLabel("Email password")).toBeVisible();
   await expect(page.getByRole("button", { name: "Create account with email" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Google" })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Wallet" })).toBeVisible();
+  await page.getByRole("button", { name: "Wallet" }).click();
   await expect(page.getByRole("button", { name: "Connect Ethereum wallet" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Connect Solana wallet" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Sign in" })).toHaveAttribute("href", "/login");
@@ -968,6 +977,8 @@ test("registration experience stays clear and usable on a narrow mobile viewport
   await expect(page.getByRole("heading", { name: "Create your BTCBOX account" })).toBeVisible();
   await expect(page.getByRole("banner")).toHaveCount(0);
   await expect(page.getByRole("navigation", { name: "Primary navigation" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Wallet" })).toBeVisible();
+  await page.getByRole("button", { name: "Wallet" }).click();
   await expect(page.getByRole("button", { name: "Connect Ethereum wallet" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Connect Solana wallet" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Create account with email" })).toBeVisible();
@@ -1199,6 +1210,8 @@ test("registration layout adapts from mobile to desktop without losing the ident
     await page.setViewportSize(viewport);
     await page.goto("/register");
     await expect(page.getByRole("heading", { name: "Create your BTCBOX account" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Wallet" })).toBeVisible();
+    await page.getByRole("button", { name: "Wallet" }).click();
     await expect(page.getByRole("button", { name: "Connect Ethereum wallet" })).toBeVisible();
     await expect(page.getByRole("button", { name: "Connect Solana wallet" })).toBeVisible();
     await expect(page.getByRole("link", { name: "Sign in" })).toHaveAttribute("href", "/login");
@@ -1252,6 +1265,37 @@ test("public market preview remains responsive across mobile, tablet and desktop
   }
 });
 
+
+
+test("Google and Wallet provider entries have matching dimensions and responsive layout", async ({ page }) => {
+  for (const viewport of [
+    { width: 320, height: 780 },
+    { width: 360, height: 780 },
+    { width: 375, height: 812 },
+    { width: 390, height: 844 },
+    { width: 768, height: 900 },
+    { width: 1440, height: 1000 },
+  ]) {
+    await page.setViewportSize(viewport);
+    await page.goto("/register");
+    const entries = page.getByTestId("auth-provider-buttons").getByRole("button");
+    await expect(entries).toHaveCount(2);
+    const google = await entries.nth(0).boundingBox();
+    const wallet = await entries.nth(1).boundingBox();
+    expect(google).not.toBeNull();
+    expect(wallet).not.toBeNull();
+    expect(Math.abs(google!.height - wallet!.height)).toBeLessThanOrEqual(1);
+    expect(Math.abs(google!.width - wallet!.width)).toBeLessThanOrEqual(1);
+    if (viewport.width <= 360) {
+      expect(wallet!.y).toBeGreaterThan(google!.y);
+    } else {
+      expect(Math.abs(google!.y - wallet!.y)).toBeLessThanOrEqual(1);
+      expect(wallet!.x).toBeGreaterThan(google!.x);
+    }
+    const dimensions = await page.evaluate(() => ({ viewport: document.documentElement.clientWidth, content: document.documentElement.scrollWidth }));
+    expect(dimensions.content).toBeLessThanOrEqual(dimensions.viewport);
+  }
+});
 
 test("language preference updates the document locale and persists across reloads", async ({ page }) => {
   await page.goto("/home");
