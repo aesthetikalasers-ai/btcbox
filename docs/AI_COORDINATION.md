@@ -13,10 +13,10 @@ One repository execution path is active at a time. Re-read this file before star
 
 - **Active candidate:** PR #67
 - **Branch:** `integration/btcbox-mainline-consolidation-20261108`
-- **Current candidate head:** `9cae5b546489b0dc33e0db0ef867d88e9c7c30f0`
+- **Current candidate head:** `095761cc8e597bbe44e815af3da6e2a6c6d971ee`
 - **Base:** `main` at `2a3810da1aef2c0c7c58df0cfdb059a212eeb0d6`
 - **State:** Draft / open / not merged
-- **Latest exact-current-head CI:** For `9cae5b546489b0dc33e0db0ef867d88e9c7c30f0`, Backend `42484842881` PASS and PostgreSQL schema `42484842925` PASS; Frontend `42484842915` is still running desktop/mobile route smoke tests. The previous head `2c536d6017f886757975c3e52f2a4154b02c5306` exposed a test-file regex syntax error; it was corrected in the current head.
+- **Latest exact-current-head CI:** For `095761cc8e597bbe44e815af3da6e2a6c6d971ee`, Backend `42485428844` PASS and PostgreSQL schema `42485428748` PASS; Frontend `42485428791` is running Chromium installation and desktop/mobile route smoke tests. This head adds a withdrawal fee/review-threshold idempotency regression assertion only.
 
 The previous fully green source head `8b54cf128ccd4861eedd1fae602846c92849f835` also passed Backend `42436694163`, PostgreSQL schema `42436693919`, and Frontend `42436694030`. Current head adds a documentation-only correction to the owner bootstrap guide; the full exact-head CI has now passed.
 
@@ -871,3 +871,13 @@ Safety/ownership:
 - PR #72 base SHA is stale (`c2065d39afc42dbf0c2bf2f7223a7453af8ae8e0`); PR #67 has advanced. PR #70 remains Draft and based on an older base SHA (`58ca4cb4cdc1c5c9c5cec42b4b2c1b213089da32`); do not merge either PR until language completion, base reconciliation and fresh exact-head CI.
 - Vercel bot reported its free daily preview-deployment quota exhausted on PR #72. This is not a GitHub Actions CI failure and no manual deployment was performed. Continue relying on GitHub CI; do not trigger unnecessary previews.
 - No production DB writes, Auth changes, financial operations, merge, or deployment occurred.
+
+
+## 30. Withdrawal replay regression hardening — 2026-11-08
+
+- Added a regression assertion to `backend/tests/rpc-source-contract.test.js` on PR #67.
+- The assertion locks in the canonical `0029_withdrawal_fee_quote_idempotency_v1.sql` order: advisory request-key lock, existing-request lookup, exact payload binding, replay return, then current fee validation and new financial freeze.
+- It explicitly protects the intended rule that an existing request's stored fee and admin-review threshold are immutable server snapshots; a later fee schedule or review-threshold change must not invalidate an exact retry.
+- The API request hash is asserted to bind user, asset, network, amount, destination and request ID, while excluding mutable fee configuration.
+- Test-only commit: `095761cc8e597bbe44e815af3da6e2a6c6d971ee`. Exact-head Backend CI `42485428844` PASS; PostgreSQL schema CI `42485428748` PASS; Frontend CI `42485428791` still running. No production or Staging database writes, financial RPC calls, merge or deployment.
+- Language PR #72 remains at `40a0a543a67bb6d1874638894badeab914a3ed0f` with its previously reported frontend CI failure; language-owned files were not modified.
