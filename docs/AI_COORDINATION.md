@@ -13,10 +13,10 @@ One repository execution path is active at a time. Re-read this file before star
 
 - **Active candidate:** PR #67
 - **Branch:** `integration/btcbox-mainline-consolidation-20261108`
-- **Current candidate head:** `d0c4b473a8882f4ec62b4907d608f9afebe217ad`
+- **Current candidate head:** `60e7a697cf1b1b5a0f24e0d6d065203e88e7b575`
 - **Base:** `main` at `2a3810da1aef2c0c7c58df0cfdb059a212eeb0d6`
 - **State:** Draft / open / not merged
-- **Latest exact-current-head CI:** PENDING for `e2a70744668614bdb63b1259f26d931406ff2a88` (Dashboard metric surfaces + My Account quick-link semantic surfaces). Earlier head `99269ee580006a54446e35920ec945257f1d2c72`: unified frontend/backend/preflight PASS (`42468524161`), PostgreSQL bootstrap PASS (`42468524162`), Frontend build `42468524189` still running at last check. Prior head `d875faed3ed93e8ec0d0f69847b0e4a9fee32397` had all three workflow suites PASS; those results are historical for that SHA only.
+- **Latest exact-current-head CI:** IN PROGRESS for `60e7a697cf1b1b5a0f24e0d6d065203e88e7b575`: Backend `42478834585`, PostgreSQL schema bootstrap `42478834486`, Frontend `42478834569`. Earlier green results are historical for their respective SHAs only.
 
 The previous fully green source head `8b54cf128ccd4861eedd1fae602846c92849f835` also passed Backend `42436694163`, PostgreSQL schema `42436693919`, and Frontend `42436694030`. Current head adds a documentation-only correction to the owner bootstrap guide; the full exact-head CI has now passed.
 
@@ -29,7 +29,7 @@ Final-review corrections now included:
 - Made Trade Hub Spot, Seconds and Earn states reflect backend market, execution, policy and catalog availability; retained the explicitly unavailable Futures card.
 - Preserved the locked spot trading-page layout.
 
-Human visual review covered representative 390px mobile and 1440px desktop screenshots, including home, markets, spot trade and Trade Hub. The responsive artifact is retained by CI for seven days. Hosted authenticated staging remains NOT VERIFIED.
+Human visual review covered representative 390px mobile and 1440px desktop screenshots, including home, markets, spot trade and Trade Hub. The responsive artifact is retained by CI for seven days. Hosted authenticated staging is now schema-installed in the isolated free Staging project; actual Email/Google Auth and authenticated API flows remain NOT VERIFIED.
 
 ## 3. A2 disposition — absorbed, not a separate active lane
 
@@ -60,10 +60,10 @@ PR #67 is the sole integration candidate. New fixes discovered during final revi
 
 ## 5. Remaining active work — one ordered queue
 
-1. PR #67 source consolidation and automated regression work for the current batch is complete at the verified head above. Do not restart the completed fixes or alter the locked trading-page layout.
-2. Hosted Supabase configuration, actual empty-project bootstrap, Email/Google authenticated staging, and live market-catalog configuration remain NOT VERIFIED because no authorized hosted staging credentials/environment were supplied. The CI preflight is configuration-shape validation only.
-3. Financial cutover flags remain explicitly disabled. Real spot orders, Seconds positions, Earn subscriptions/redemptions, deposits, withdrawals and settlement must remain unavailable until the hosted schema and transaction paths are independently verified and explicitly approved.
-4. Keep PR #67 Draft until hosted staging verification is available and the owner authorizes any release action.
+1. PR #67 remains the sole integration candidate. Latest head `60e7a697cf1b1b5a0f24e0d6d065203e88e7b575`; exact-head Backend, PostgreSQL schema and Frontend CI are in progress. Do not alter the locked trading-page layout.
+2. Isolated Supabase Staging project `gnwsygxshqceunihguwe` is created at $0/month in `us-east-1`; the fresh schema has 27 registered migrations installed successfully. See section 19 for exact verification and remaining limits.
+3. Real Email/Google provider configuration and authenticated end-to-end flows remain NOT VERIFIED. Admin bootstrap is not run because no Auth user exists; it requires the intended owner-controlled Auth identity.
+4. Financial cutover flags remain fail-closed. No real spot orders, Seconds positions, Earn subscriptions/redemptions, deposits, withdrawals or settlement have been executed. Keep PR #67 Draft until Auth, API and financial acceptance gates are independently verified and the owner authorizes release.
 
 No new A2 work is pending. Do not open another visual redesign batch or rerun already-green exact-head CI without a reproduced defect.
 
@@ -768,3 +768,16 @@ Safety/ownership:
 - Added Draft PR #71, branch fix/seconds-policy-runtime-readiness-guard-20261108, head 72b89d7ac2736995933a4634e4c80d2884b3c7f8, based on exact PR #67 head 58ca4cb4cdc1c5c9c5cec42b4b2c1b213089da32. API now checks for a valid active versioned policy and matching policy row before Seconds order creation and settlement; missing schema, empty/malformed policy or network errors fail closed with 503 before the financial RPC. Added five Node tests; isolated execution passed 5/5.
 - GitHub Actions did not auto-queue PR #71 because its base is the integration branch and the existing backend/frontend workflow pull_request branch filters do not include that base. The isolated unit test result is not a substitute for exact-head full CI. Keep PR draft until a valid CI path runs.
 - No hosted database writes, no financial environment flags changed, no merge or deployment.
+
+## 19. Free hosted Staging bootstrap and schema verification — 2026-11-08
+
+- Created a separate Supabase project `btcbox-staging` (`gnwsygxshqceunihguwe`) in `us-east-1`. The project quote was `$0/month`; no paid project or branch was created. Formal project `zlozsutefnmgwwzrlipt` was not modified.
+- Verified the new project was empty before installation: zero registered migrations and zero tables in `public`/`private`.
+- Applied the exact 26-file canonical SQL inventory from the integration candidate in the documented order. All 26 `apply_migration` calls returned success. A live Security/Performance Advisor review exposed one identical duplicate financial-audit index between migrations `0002` and `0021`; added canonical migration `0034_financial_audit_duplicate_index_cleanup_v1.sql`, added it to both fresh-bootstrap allowlists and the migration-order test/doc, then applied it successfully. Staging migration registry now contains 27 entries, all successful.
+- Staging post-install catalog: 25 BTCBOX tables, all 25 have RLS enabled. `anon` and `authenticated` have zero direct table grants across these tables; neither role has `private` schema USAGE. `service_role` has the intended private schema/table access. Public operational RPC wrappers are SECURITY INVOKER with empty `search_path` and EXECUTE granted only to `service_role`; private admin implementation functions are SECURITY DEFINER with restricted `service_role` EXECUTE only.
+- Data-state check: `auth.users` 0; `btcbox_state` 0; financial accounts/operations/ledger 0; deposits 0; withdrawals 0; Earn positions 0; enabled Spot markets 0. The canonical schema intentionally seeds seven active Earn catalog products and one initial Seconds policy with one active pointer; these are configuration/catalog rows, not demo users, balances or transaction history.
+- Security Advisor reports 25 INFO-level `rls_enabled_no_policy` notices. This matches the service-role-only design: direct grant inspection confirmed no browser-role table privileges. Do not add permissive RLS policies merely to silence these notices.
+- Performance Advisor now reports no duplicate index; migration `0034` removed the redundant `financial_audit_subject_created_idx`, retaining the equivalent original `financial_audit_subject_time_idx`. Remaining INFO notices: nine unindexed foreign keys and 18 currently unused indexes on an empty/no-traffic database. Review against actual query paths before adding/removing indexes; no speculative index changes made.
+- No Auth provider settings, OAuth secrets, or service-role runtime credentials were exposed by the management connector. Real Email/Google sign-in, API-level authenticated financial route tests, Super Admin bootstrap and real financial flows remain NOT VERIFIED. Do not seed fake users or execute financial transactions to simulate readiness.
+- PR #67 candidate includes the new migration/bootstrap/test/doc changes and the backend workflow filter update. Latest exact-head CI is pending/in progress as recorded above. PR #71 remains Draft at `5f13802dadd8f023ebc1df04e26728a0786e7eba`; its new malformed-policy identifier test was added, but no exact-head PR-triggered workflow run has yet been observed. Do not call the CI issue resolved until a run is visible and passes.
+- No production database write, production Auth change, financial operation, merge or deployment was performed.
