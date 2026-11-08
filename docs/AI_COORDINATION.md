@@ -533,3 +533,11 @@ Safety/ownership:
 - Previous desktop/mobile order-history smoke test failure on SHA `65a64ecf78de23f7e6b3ef517fcf9ac1d6124111` was a Playwright strict-locator collision: mobile card and desktop table intentionally share the same row data, including the hidden responsive counterpart. Updated the E2E assertions to filter visible elements on SHA `6d22ef579a346ec17f31256594889b7f8b4187bc`; later page changes are based on that fix.
 - Latest candidate SHA `4d84a3d0faecaac1adc9b85a5f05e5d6609e02bf`; exact-head checks observed at checkpoint: empty-postgres-bootstrap: in_progress; Unified frontend/backend build, tests, and fail-closed preflight: in_progress; build: in_progress.
 - No production deployment, PR merge, hosted Supabase DDL/write, financial operation, or Spot layout/API change.
+
+
+### Live market summary cards — 2026-11-08
+
+- Candidate head advanced to `7a846b7e7136cce52f6c110761ddb2d9801de81b` (PR #67 remains Draft/open/unmerged).
+- `frontend/src/features/dashboard/Dashboard.tsx` now includes responsive BTC/USDT summary cards for the last price, 24-hour percentage change and 24-hour volume. Values are derived only from the actual BTC ticker returned by `getMarkets()`; while loading or when BTC quote is unavailable, the page displays an em dash rather than seeded values. No trade controls, chart source, market API, or Spot page layout was changed.
+- Exact-head checks at this checkpoint: empty-postgres-bootstrap: in_progress; build: in_progress; Unified frontend/backend build, tests, and fail-closed preflight: in_progress.
+- Current candidate includes the responsive order card test selector fix, account/security/KYC/wallet visual adaptation and the live market summary cards. Full acceptance remains pending exact-head CI and final responsive review.
