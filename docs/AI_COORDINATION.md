@@ -215,3 +215,18 @@ Exact-current-head CI re-verification — 2026-11-08:
 - Inspected job steps: backend build/tests/preflight/output verification all passed; canonical SQL applied successfully to disposable PostgreSQL; frontend lint/build/Chromium desktop+mobile route smoke tests/responsive screenshot upload all passed.
 - This closes the current-head automated CI gap. It does not close hosted schema drift, isolated hosted staging, actual Email/Google provider and OAuth redirect verification, or live market configuration.
 - PR description was stale and stated that no current-head GitHub Actions runs existed; it is being corrected to match these exact-head results. PR remains Draft and unmerged. No production deployment or hosted Supabase writes were performed.
+
+## Visual acceptance correction — 2026-11-08
+
+The owner rejected the previously surfaced CI screenshot artifact as not representing the intended current BTCBOX appearance. Reinspection against the approved Strata Pro + shadcn-fintech direction found a concrete regression in the integration candidate: `frontend/src/index.css` had flattened all route accents to neutral gray, and `PageFrame` in `frontend/src/features/pages/Pages.tsx` no longer applied page-tone classes at all. This contradicted the earlier visual baseline in PR #65, which used restrained semantic accents over shared dark surfaces.
+
+Applied a selective visual-only correction to the sole candidate branch (no trading layout, API, auth, data, or financial behavior changes):
+- Restored the semantic route accent tokens from PR #65: market cyan, trading violet, assets teal, orders blue, Earn amber, support indigo, admin purple.
+- Added a dedicated account blue tone.
+- Restored page-tone mapping and accent eyebrow treatment in `PageFrame` for Spot/Seconds, Earn, Assets, Orders, Support, Account/KYC, and market pages.
+- Applied the market tone to the dashboard/markets root.
+- Shared dark surfaces, restrained borders, and the locked Spot trading-page structure remain unchanged.
+
+Commits on PR #67: `d8ac516cfbae19c56cb3447bac107dac0e1e8153` (tokens), `5b3faa3fbca8748845d8335ff6fa19208e9f5da7` (page tone mapping), `3d7f96352b214b386be410ab619b043898fef6c2` (dashboard market tone). Verified all three changes are present on the current candidate head `3d7f96352b214b386be410ab619b043898fef6c2`.
+
+Exact-head CI is running: Backend `42456223737`, PostgreSQL schema `42456223768`, Frontend `42456223776`. Do not mark the visual correction accepted until the exact-head frontend CI completes and a fresh responsive screenshot artifact is inspected. PR #67 remains Draft / unmerged; no deployment or hosted Supabase writes were performed.
