@@ -13,8 +13,7 @@ export function TopTokensTable({ markets = [] }: { markets?: MarketTicker[] }) {
   return (
     <Card className="flex flex-col overflow-hidden px-0 py-0">
       <div className="border-b border-brand-border px-4 py-4 md:px-6">
-        <h2 className="text-[15px] font-semibold tracking-tight text-brand-text">{t("Top tokens")}</h2>
-        <p className="mt-1 text-xs text-brand-text-muted">{t("Live market data supplied by BTCBOX")}</p>
+        <h2 className="type-section-title text-brand-text">{t("Top tokens")}</h2>
       </div>
       {markets.length === 0 ? (
         <div className="px-5 py-10 text-center text-sm text-brand-text-muted">{t("No live market data is available.")}</div>
