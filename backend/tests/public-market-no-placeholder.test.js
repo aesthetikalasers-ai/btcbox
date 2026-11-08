@@ -55,8 +55,10 @@ test('Vite dashboard does not keep stale quotes visible after a refresh error', 
 });
 
 test('order book cache is cleared when the live depth feed fails', () => {
-  assert.match(core, /else if\(state\.depthCache&&state\.depthCache\.sym===sym\)/);
-  assert.match(core, /state\.depthCache=null/);
+  assert.match(core, /depthRefreshInFlight/);
+  assert.match(core, /if\(state\.depthCache&&state\.depthCache\.sym===sym\)state\.depthCache=null/);
+  assert.match(core, /if\(state\.currentPair!==sym\)return/);
+  assert.match(core, /catch\{\s*if\(state\.currentPair===sym\)\{\s*state\.depthUnavailable=true/);
 });
 
 test('customer navigation contains no preview or API-verification banners', () => {

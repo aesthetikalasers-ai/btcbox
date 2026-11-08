@@ -9,7 +9,7 @@ import { ArrowUpRight, LockKeyhole, Wallet, ChartNoAxesCombined, ArrowLeftRight,
 import { Badge } from "../../components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
-import { useI18n } from "../../lib/i18n";
+import { formatDecimalAmount, localeTags, useI18n } from "../../lib/i18n";
 import { TokenIcon } from "../../components/ui/TokenIcon";
 import { CandlestickSeries, ColorType, createChart, type UTCTimestamp } from "lightweight-charts";
 
@@ -83,7 +83,8 @@ export function TradeHubPage(){
  </PageFrame>;
 }
 export function AssetsPage(){
- const {t}=useI18n();
+ const {t,language}=useI18n();
+ const numberLocale=localeTags[language];
  const [account,setAccount]=useState<AccountSnapshot|null>(null);
  const [loading,setLoading]=useState(true);
  const [error,setError]=useState("");
@@ -97,7 +98,7 @@ export function AssetsPage(){
   }).finally(()=>{if(!controller.signal.aborted)setLoading(false);});
   return ()=>controller.abort();
  },[reload]);
- const amount=(raw:number|string|undefined)=>{if(raw===undefined||raw===null||raw==="")return "—";const n=Number(raw);return Number.isFinite(n)?n.toLocaleString(undefined,{maximumFractionDigits:10}):"—";};
+ const amount=(raw:number|string|undefined)=>formatDecimalAmount(raw,numberLocale,10);
  const balances: Array<[string, AccountBalance]> = account ? Object.entries(account.balances) as Array<[string, AccountBalance]> : [];
  return <PageFrame eyebrow="BTCBOX / WALLET" title="Assets" description="Your balances are loaded from the authenticated BTCBOX account service.">
   <div className="flex flex-wrap items-center justify-between gap-3"><div className="flex items-center gap-2"><Badge variant="outline" className="border-brand-border">{t("Live account data")}</Badge>{account&&!loading?<span className="text-xs text-brand-text-muted">{balances.length} {t("assets")}</span>:null}</div><Button size="sm" variant="outline" disabled={loading} onClick={()=>setReload((n)=>n+1)}><RefreshCw className={"mr-2 h-4 w-4 "+(loading?"animate-spin":"")}/>{t("Refresh")}</Button></div>
@@ -884,6 +885,11 @@ export function DepositPage(){
   }).finally(()=>{if(!controller.signal.aborted)setHistoryLoading(false);});
   return ()=>controller.abort();
  },[historyReload]);
+ useEffect(()=>{
+  const refreshWhenVisible=()=>{if(document.visibilityState==="visible")setHistoryReload(value=>value+1);};
+  document.addEventListener("visibilitychange",refreshWhenVisible);
+  return ()=>document.removeEventListener("visibilitychange",refreshWhenVisible);
+ },[]);
  const changeCoin=(next:string)=>{setAddress("");setError("");setCopyMessage("");setCoin(next);setNetwork(depositNetworks[next][0]);};
  const changeNetwork=(next:string)=>{setAddress("");setError("");setCopyMessage("");setNetwork(next);};
  return <PageFrame eyebrow="BTCBOX / WALLET" title="Deposit" description="View the deposit address configured by BTCBOX for the selected asset and network. BTCBOX staff verify incoming transfers and manually credit the account.">
@@ -1046,6 +1052,12 @@ export function WithdrawPage(){
    .finally(()=>{if(!controller.signal.aborted)setLoading(false);});
   return ()=>controller.abort();
  },[reload]);
+
+ useEffect(()=>{
+  const refreshWhenVisible=()=>{if(document.visibilityState==="visible")setReload(value=>value+1);};
+  document.addEventListener("visibilitychange",refreshWhenVisible);
+  return ()=>document.removeEventListener("visibilitychange",refreshWhenVisible);
+ },[]);
 
  useEffect(()=>{
   if(!selectedId){setSelectedAddress(null);return;}

@@ -44,7 +44,7 @@ function renderOrderbook(sym){
   const chg=(market[sym]&&market[sym].chg)||0;
   let bids=[], asks=[];
   if(state.depthCache && state.depthCache.sym===sym){ bids=state.depthCache.bids.slice().sort((a,b)=>b[0]-a[0]).slice(0,10); asks=state.depthCache.asks.slice().sort((a,b)=>a[0]-b[0]).slice(0,10); }
-  if(!bids.length && !asks.length) return '<div style="padding:24px;text-align:center;color:var(--text-muted);font-size:13px">'+(state.marketUnavailable?'Order book unavailable until live market data is restored.':'Loading orderbook…')+'</div>';
+  if(!bids.length && !asks.length) return '<div style="padding:24px;text-align:center;color:var(--text-muted);font-size:13px">'+(state.marketUnavailable?'Order book unavailable until live market data is restored.':state.depthUnavailable?'Order book unavailable — waiting for a confirmed provider snapshot.':'Loading orderbook…')+'</div>';
   const maxAmt=Math.max(...bids.map(b=>b[1]),...asks.map(a=>a[1]));
   const row=(p,a,side)=>{
     const w=(a/maxAmt*100).toFixed(1);

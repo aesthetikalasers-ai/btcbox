@@ -5,42 +5,34 @@ import { Badge } from "../../components/ui/badge";
 import { Button } from "../../components/ui/button";
 import { Card, CardContent } from "../../components/ui/card";
 import { ApiError, getAccount, type AccountBalance, type AccountSnapshot } from "../../lib/api";
-import { useI18n } from "../../lib/i18n";
+import { formatDecimalAmount, localeTags, useI18n } from "../../lib/i18n";
 import { TokenIcon } from "../../components/ui/TokenIcon";
 
-function amount(value: number | string | undefined) {
-  if (typeof value === "string") {
-    const normalized = value.trim();
-    const match = normalized.match(/^(-?)(\d+)(?:\.(\d+))?$/);
-    if (!match) return "—";
-    const [, sign, integer, fraction] = match;
-    const grouped = integer.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
-    return sign + grouped + (fraction ? "." + fraction : "");
-  }
-  if (value === undefined || value === null) return "—";
-  return Number.isFinite(value) ? value.toLocaleString(undefined, { maximumFractionDigits: 8 }) : "—";
-}
-
 export function AssetsPage() {
-  const { t } = useI18n();
+  const { t, language } = useI18n();
+  const numberLocale = localeTags[language];
   const [account, setAccount] = useState<AccountSnapshot | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [signedOut, setSignedOut] = useState(false);
   const requestIdRef = useRef(0);
+  const controllerRef = useRef<AbortController | null>(null);
 
-  async function load(signal?: AbortSignal) {
+  async function load() {
+    controllerRef.current?.abort();
+    const controller = new AbortController();
+    controllerRef.current = controller;
     const requestId = ++requestIdRef.current;
     setLoading(true);
     setAccount(null);
     setError("");
     setSignedOut(false);
     try {
-      const snapshot = await getAccount(signal);
-      if (!signal?.aborted && requestId === requestIdRef.current) setAccount(snapshot);
+      const snapshot = await getAccount(controller.signal);
+      if (!controller.signal.aborted && requestId === requestIdRef.current) setAccount(snapshot);
     } catch (reason) {
       if (reason instanceof Error && reason.name === "AbortError") return;
-      if (signal?.aborted || requestId !== requestIdRef.current) return;
+      if (controller.signal.aborted || requestId !== requestIdRef.current) return;
       setAccount(null);
       if (reason instanceof ApiError && reason.code === "AUTH_REQUIRED") {
         setSignedOut(true);
@@ -49,14 +41,26 @@ export function AssetsPage() {
         setError(reason instanceof Error ? reason.message : t("Account data is temporarily unavailable."));
       }
     } finally {
-      if (!signal?.aborted && requestId === requestIdRef.current) setLoading(false);
+      if (requestId === requestIdRef.current) {
+        setLoading(false);
+        controllerRef.current = null;
+      }
     }
   }
 
   useEffect(() => {
-    const controller = new AbortController();
-    void load(controller.signal);
-    return () => controller.abort();
+    void load();
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === "visible") void load();
+    };
+    window.addEventListener("focus", refreshWhenVisible);
+    document.addEventListener("visibilitychange", refreshWhenVisible);
+    return () => {
+      requestIdRef.current += 1;
+      controllerRef.current?.abort();
+      window.removeEventListener("focus", refreshWhenVisible);
+      document.removeEventListener("visibilitychange", refreshWhenVisible);
+    };
   }, []);
 
   const balances = account?.balances ? Object.entries(account.balances) as Array<[string, AccountBalance]> : [];
@@ -79,7 +83,7 @@ export function AssetsPage() {
         <Card className="border-l-2 border-l-[var(--page-accent)] border-brand-border bg-brand-surface ring-1 ring-white/[0.025]">
           <CardContent className="flex items-center gap-3 p-4">
             <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-accent/10 text-brand-accent"><Wallet className="h-5 w-5"/></span>
-            <div className="min-w-0"><p className="type-meta text-brand-text-muted">{t("Estimated total value")}</p><p className="mt-1 truncate text-lg font-semibold tracking-tight tabular-nums text-brand-text">{loading ? "—" : account?.valuation_complete ? amount(account.totalUsdt) + " USDT" : "—"}</p><Badge className="mt-1" variant={account?.valuation_complete ? "outline" : "secondary"}>{loading ? t("Loading") : account?.valuation_complete ? t("Valuation complete") : t("Valuation incomplete")}</Badge></div>
+            <div className="min-w-0"><p className="type-meta text-brand-text-muted">{t("Estimated total value")}</p><p className="mt-1 truncate text-lg font-semibold tracking-tight tabular-nums text-brand-text">{loading ? "—" : account?.valuation_complete ? formatDecimalAmount(account.totalUsdt, numberLocale) + " USDT" : "—"}</p><Badge className="mt-1" variant={account?.valuation_complete ? "outline" : "secondary"}>{loading ? t("Loading") : account?.valuation_complete ? t("Valuation complete") : t("Valuation incomplete")}</Badge></div>
           </CardContent>
         </Card>
         <Card className="border-l-2 border-l-[var(--page-accent)] border-brand-border bg-brand-surface ring-1 ring-white/[0.025]">
@@ -105,7 +109,7 @@ export function AssetsPage() {
       </div>
 
       {loading ? <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3" role="status" aria-live="polite"><div className="h-36 animate-pulse rounded-xl bg-brand-surface-2"/><div className="h-36 animate-pulse rounded-xl bg-brand-surface-2"/><div className="h-36 animate-pulse rounded-xl bg-brand-surface-2"/></div>
-      : balances.length ? <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">{balances.map(([coin, balance], index)=><Card key={coin} className="group relative overflow-hidden border-brand-border bg-brand-surface ring-1 ring-white/[0.025] transition-colors hover:border-brand-accent/25"><div className={"absolute inset-y-0 left-0 w-1 " + (index % 3 === 0 ? "bg-brand-cyan" : index % 3 === 1 ? "bg-brand-violet" : "bg-brand-teal")}/><CardContent className="p-4 pl-5"><div className="flex items-center gap-3"><TokenIcon symbol={coin} className="h-10 w-10"/><div className="min-w-0"><p className="type-card-title text-brand-text">{coin}</p></div></div><div className="mt-5 grid grid-cols-2 gap-3"><div className="min-w-0 rounded-lg bg-brand-surface-2/80 p-3"><p className="type-meta text-brand-text-muted">{t("Available")}</p><p className="mt-1 break-all font-mono text-sm font-semibold tabular-nums text-brand-text">{amount(balance.free)}</p></div><div className="min-w-0 rounded-lg bg-brand-surface-2/80 p-3"><p className="type-meta text-brand-text-muted">{t("Frozen")}</p><p className="mt-1 break-all font-mono text-sm font-semibold tabular-nums text-brand-text-secondary">{amount(balance.frozen)}</p></div></div></CardContent></Card>)}</div>
+      : balances.length ? <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">{balances.map(([coin, balance], index)=><Card key={coin} className="group relative overflow-hidden border-brand-border bg-brand-surface ring-1 ring-white/[0.025] transition-colors hover:border-brand-accent/25"><div className={"absolute inset-y-0 left-0 w-1 " + (index % 3 === 0 ? "bg-brand-cyan" : index % 3 === 1 ? "bg-brand-violet" : "bg-brand-teal")}/><CardContent className="p-4 pl-5"><div className="flex items-center gap-3"><TokenIcon symbol={coin} className="h-10 w-10"/><div className="min-w-0"><p className="type-card-title text-brand-text">{coin}</p></div></div><div className="mt-5 grid grid-cols-2 gap-3"><div className="min-w-0 rounded-lg bg-brand-surface-2/80 p-3"><p className="type-meta text-brand-text-muted">{t("Available")}</p><p className="mt-1 break-all font-mono text-sm font-semibold tabular-nums text-brand-text">{formatDecimalAmount(balance.free, numberLocale)}</p></div><div className="min-w-0 rounded-lg bg-brand-surface-2/80 p-3"><p className="type-meta text-brand-text-muted">{t("Frozen")}</p><p className="mt-1 break-all font-mono text-sm font-semibold tabular-nums text-brand-text-secondary">{formatDecimalAmount(balance.frozen, numberLocale)}</p></div></div></CardContent></Card>)}</div>
       : <Card className="border-l-2 border-l-[var(--page-accent)] border-brand-border bg-brand-surface"><CardContent className="flex flex-col items-center px-5 py-12 text-center"><Wallet className="mb-3 h-9 w-9 page-accent"/><p className="type-card-title text-brand-text">{t(signedOut ? "Sign in required" : error ? "Assets could not be loaded" : "No asset balances")}</p>{(signedOut || error) && <p className="type-body-compact mt-2 max-w-md text-brand-text-muted">{t(signedOut ? "Your private balances are available after you sign in." : "Refresh after the account service is available. No balance values have been fabricated.")}</p>}</CardContent></Card>}
 
       {account?.unpriced_assets?.length ? <p className="type-meta text-brand-text-muted">{t("Unpriced assets")}: {account.unpriced_assets.join(", ")}</p> : null}

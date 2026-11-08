@@ -8,8 +8,26 @@ export const localeTags: Record<Language, string> = {
   en: "en-US", ja: "ja-JP", "zh-CN": "zh-CN", es: "es-ES", pt: "pt-PT", it: "it-IT", de: "de-DE",
 };
 
+export function formatDecimalAmount(value: number | string | undefined | null, locale: string, maximumFractionDigits = 8) {
+  if (value === undefined || value === null || value === "") return "—";
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? value.toLocaleString(locale, { maximumFractionDigits }) : "—";
+  }
+
+  const match = value.trim().match(/^(-?)(\d+)(?:\.(\d+))?$/);
+  if (!match) return "—";
+  const [, negative, integer, fraction] = match;
+  const parts = new Intl.NumberFormat(locale).formatToParts(-1234567.89);
+  const group = parts.find((part) => part.type === "group")?.value ?? ",";
+  const decimal = parts.find((part) => part.type === "decimal")?.value ?? ".";
+  const minus = parts.find((part) => part.type === "minusSign")?.value ?? "-";
+  const grouped = integer.replace(/\B(?=(\d{3})+(?!\d))/g, () => group);
+  return (negative ? minus : "") + grouped + (fraction ? decimal + fraction : "");
+}
+
 const dictionaries: Record<StoredLocale, Dictionary> = {
   en: {
+    "Wallet": "Wallet", "Google": "Google",
     "BTCBOX / OPEN MARKET":"BTCBOX / OPEN MARKET",
     "Digital asset exchange":"Digital asset exchange",
     "Explore the market. Trade with confidence.":"Explore the market. Trade with confidence.",
@@ -882,6 +900,7 @@ const dictionaries: Record<StoredLocale, Dictionary> = {
     "Administrator access could not be verified": "Administrator access could not be verified.",
   },
   ja: {
+    "Wallet": "ウォレット", "Google": "Google",
     "BTCBOX / OPEN MARKET":"BTCBOX / 公開市場",
     "Digital asset exchange":"デジタル資産取引所",
     "Explore the market. Trade with confidence.":"市場を知り、安心して取引を始めましょう。",
@@ -1724,6 +1743,7 @@ const dictionaries: Record<StoredLocale, Dictionary> = {
     "Administrator access could not be verified": "管理者権限を確認できませんでした。",
   },
   "zh-CN": {
+    "Wallet": "钱包", "Google": "Google",
     "BTCBOX / OPEN MARKET":"BTCBOX / 公开市场",
     "Digital asset exchange":"数字资产交易平台",
     "Explore the market. Trade with confidence.":"洞察市场，安心开启交易。",
@@ -2566,6 +2586,7 @@ const dictionaries: Record<StoredLocale, Dictionary> = {
     "Administrator access could not be verified": "无法验证管理员权限。",
   },
   es: {
+    "Wallet": "Cartera", "Google": "Google",
     "BTCBOX / OPEN MARKET":"BTCBOX / MERCADO ABIERTO",
     "Digital asset exchange":"Exchange de activos digitales",
     "Explore the market. Trade with confidence.":"Explora el mercado. Opera con confianza.",
@@ -3408,6 +3429,7 @@ const dictionaries: Record<StoredLocale, Dictionary> = {
     "Administrator access could not be verified": "No se pudo verificar el acceso de administrador.",
   },
   vi: {
+    "Wallet": "Ví", "Google": "Google",
     "BTCBOX / OPEN MARKET":"BTCBOX / THỊ TRƯỜNG MỞ",
     "Digital asset exchange":"Sàn giao dịch tài sản số",
     "Explore the market. Trade with confidence.":"Khám phá thị trường. Giao dịch tự tin.",
@@ -4250,6 +4272,7 @@ const dictionaries: Record<StoredLocale, Dictionary> = {
     "Administrator access could not be verified": "Không thể xác minh quyền quản trị viên.",
   },
   it: {
+    "Wallet": "Portafoglio", "Google": "Google",
     "BTCBOX / OPEN MARKET":"BTCBOX / MERCATO APERTO",
     "Digital asset exchange":"Exchange di asset digitali",
     "Explore the market. Trade with confidence.":"Esplora il mercato. Fai trading con fiducia.",
@@ -5092,6 +5115,7 @@ const dictionaries: Record<StoredLocale, Dictionary> = {
     "Administrator access could not be verified": "Impossibile verificare l'accesso amministratore.",
   },
   pt: {
+    "Wallet": "Carteira", "Google": "Google",
     "BTCBOX / OPEN MARKET":"BTCBOX / MERCADO ABERTO",
     "Digital asset exchange":"Exchange de ativos digitais",
     "Explore the market. Trade with confidence.":"Explore o mercado. Negocie com confiança.",
@@ -5934,6 +5958,7 @@ const dictionaries: Record<StoredLocale, Dictionary> = {
   },
 
   de: {
+    "Wallet": "Wallet", "Google": "Google",
     "BTCBOX / OPEN MARKET": "BTCBOX / OFFENER MARKT",
     "Digital asset exchange": "Handelsplattform für digitale Vermögenswerte",
     "Explore the market. Trade with confidence.": "Entdecken Sie den Markt. Handeln Sie mit Vertrauen.",
@@ -6841,8 +6866,13 @@ const I18nContext = createContext<I18nValue | null>(null);
 
 export function I18nProvider({ children }: { children: ReactNode }) {
   const [language, setLanguageState] = useState<Language>(() => {
-    const saved = typeof window !== "undefined" ? window.localStorage.getItem("btcbox-language") : null;
-    return saved === "en" || saved === "ja" || saved === "zh-CN" || saved === "es" || saved === "it" || saved === "pt" || saved === "de" ? saved : "en";
+    let saved: string | null = null;
+    try {
+      saved = typeof window !== "undefined" ? window.localStorage.getItem("btcbox-language") : null;
+    } catch {
+      // Keep first-visit language selection usable when browser storage is unavailable.
+    }
+    return saved === "en" || saved === "ja" || saved === "zh-CN" || saved === "es" || saved === "it" || saved === "pt" || saved === "de" ? saved : "ja";
   });
   useEffect(() => {
     document.documentElement.lang = localeTags[language];
@@ -6850,7 +6880,11 @@ export function I18nProvider({ children }: { children: ReactNode }) {
 
   const setLanguage = (next: Language) => {
     setLanguageState(next);
-    if (typeof window !== "undefined") window.localStorage.setItem("btcbox-language", next);
+    try {
+      if (typeof window !== "undefined") window.localStorage.setItem("btcbox-language", next);
+    } catch {
+      // The selected language still applies for this session if storage is unavailable.
+    }
   };
   const value = useMemo(() => ({ language, setLanguage, t: (text: string) => translateText(language, text) }), [language]);
   return <I18nContext.Provider value={value}>{children}</I18nContext.Provider>;

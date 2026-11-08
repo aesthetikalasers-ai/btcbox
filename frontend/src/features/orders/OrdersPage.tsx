@@ -35,19 +35,23 @@ export function OrdersPage() {
   const [error, setError] = useState("");
   const [signedOut, setSignedOut] = useState(false);
   const requestIdRef = useRef(0);
+  const controllerRef = useRef<AbortController | null>(null);
 
-  async function load(signal?: AbortSignal) {
+  async function load() {
+    controllerRef.current?.abort();
+    const controller = new AbortController();
+    controllerRef.current = controller;
     const requestId = ++requestIdRef.current;
     setLoading(true);
     setOrders([]);
     setError("");
     setSignedOut(false);
     try {
-      const rows = await getOrders(signal);
-      if (!signal?.aborted && requestId === requestIdRef.current) setOrders(rows);
+      const rows = await getOrders(controller.signal);
+      if (!controller.signal.aborted && requestId === requestIdRef.current) setOrders(rows);
     } catch (reason) {
       if (reason instanceof Error && reason.name === "AbortError") return;
-      if (signal?.aborted || requestId !== requestIdRef.current) return;
+      if (controller.signal.aborted || requestId !== requestIdRef.current) return;
       setOrders([]);
       if (reason instanceof ApiError && reason.code === "AUTH_REQUIRED") {
         setSignedOut(true);
@@ -56,14 +60,26 @@ export function OrdersPage() {
         setError(reason instanceof Error ? reason.message : t("Order history is temporarily unavailable."));
       }
     } finally {
-      if (!signal?.aborted && requestId === requestIdRef.current) setLoading(false);
+      if (requestId === requestIdRef.current) {
+        setLoading(false);
+        controllerRef.current = null;
+      }
     }
   }
 
   useEffect(() => {
-    const controller = new AbortController();
-    void load(controller.signal);
-    return () => controller.abort();
+    void load();
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === "visible") void load();
+    };
+    window.addEventListener("focus", refreshWhenVisible);
+    document.addEventListener("visibilitychange", refreshWhenVisible);
+    return () => {
+      requestIdRef.current += 1;
+      controllerRef.current?.abort();
+      window.removeEventListener("focus", refreshWhenVisible);
+      document.removeEventListener("visibilitychange", refreshWhenVisible);
+    };
   }, []);
 
   return (
