@@ -60,7 +60,7 @@ test('withdrawal creation API and canonical SQL agree on the 11-argument fee-sna
   for (const field of ['user_id', 'asset', 'network', 'amount', 'destination', 'request_hash']) {
     assert.match(replayBlock, new RegExp('v_existing\\.' + field + '\\s+is\\s+distinct\\s+from'), 'replay must bind original ' + field);
   }
-  assert.doesNotMatch(replayBlock, /v_existing\\.(?:fee|require_admin_review)\\s+is\\s+distinct\\s+from/i,
+  assert.doesNotMatch(replayBlock, /v_existing\.(?:fee|require_admin_review)\s+is\s+distinct\s+from/i,
     'fee and review threshold are server snapshots and must not invalidate an exact retry');
   assert.match(api, /\[String\(user\.uid\), coin, network, String\(amount\), addr, requestId\]\.join\('\|'\)/,
     'request hash must bind user, asset, network, amount, destination and request ID without mutable fee configuration');
