@@ -5,8 +5,10 @@ import { Button } from "../../components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/card";
 import { Input } from "../../components/ui/input";
 import { useAuth } from "../../lib/auth";
+import { useI18n } from "../../lib/i18n";
 
 export function AccountSetupPage() {
+  const { t } = useI18n();
   const { status, needsCredentials, busy, error, notice, setBtcboxCredentials } = useAuth();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -17,7 +19,7 @@ export function AccountSetupPage() {
     if (status === "authenticated" && !needsCredentials) navigate("/home", { replace: true });
   }, [status, needsCredentials, navigate]);
 
-  if (status === "loading") return <div className="mx-auto flex min-h-[60vh] items-center justify-center text-sm text-brand-text-muted">Checking your BTCBOX account…</div>;
+  if (status === "loading") return <div className="mx-auto flex min-h-[60vh] items-center justify-center text-sm text-brand-text-muted">{t("Checking your BTCBOX account…")}</div>;
   if (status !== "authenticated") return <Navigate to="/login" replace />;
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
@@ -31,17 +33,17 @@ export function AccountSetupPage() {
     <Card className="w-full border-brand-border bg-brand-surface shadow-xl">
       <CardHeader className="gap-3 text-center">
         <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl border border-brand-border bg-brand-surface-2"><ShieldCheck className="h-6 w-6 text-brand-text-secondary"/></div>
-        <CardTitle className="text-xl">Set up your BTCBOX account</CardTitle>
-        <CardDescription>Your Google account or wallet is verified. Now create a BTCBOX username and password. They will belong to this same account and its existing records.</CardDescription>
+        <CardTitle className="text-xl">{t(t("Set up your BTCBOX account"))}</CardTitle>
+        <CardDescription>{t(t("Your Google account or wallet is verified. Now create a BTCBOX username and password. They will belong to this same account and its existing records."))}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         {error && <p role="alert" className="rounded-lg border border-loss/30 bg-loss/10 p-3 text-sm text-loss">{error}</p>}
         {notice && <p role="status" className="rounded-lg border border-brand-border bg-brand-surface-2 p-3 text-sm text-brand-text-secondary">{notice}</p>}
         <form className="space-y-3" onSubmit={submit}>
-          <label className="block space-y-1.5 text-sm"><span className="text-brand-text-secondary">Choose a username</span><Input value={username} onChange={e=>setUsername(e.target.value.toLowerCase())} autoComplete="username" minLength={3} maxLength={24} pattern="[a-z0-9][a-z0-9_]{2,23}" placeholder="3–24 letters, numbers or underscores" required/></label>
-          <label className="block space-y-1.5 text-sm"><span className="text-brand-text-secondary">Create a password</span><Input type="password" value={password} onChange={e=>setPassword(e.target.value)} autoComplete="new-password" minLength={12} maxLength={128} placeholder="At least 12 characters" required/></label>
-          <label className="block space-y-1.5 text-sm"><span className="text-brand-text-secondary">Confirm password</span><Input type="password" value={confirmPassword} onChange={e=>setConfirmPassword(e.target.value)} autoComplete="new-password" minLength={12} maxLength={128} placeholder="Enter the password again" required/></label>
-          {confirmPassword && password !== confirmPassword && <p className="text-sm text-loss">Passwords do not match.</p>}
+          <label className="block space-y-1.5 text-sm"><span className="text-brand-text-secondary">{t("Choose a username")}</span><Input value={username} onChange={e=>setUsername(e.target.value.toLowerCase())} autoComplete="username" minLength={3} maxLength={24} pattern="[a-z0-9][a-z0-9_]{2,23}" placeholder={t("3–24 letters, numbers or underscores")} required/></label>
+          <label className="block space-y-1.5 text-sm"><span className="text-brand-text-secondary">{t("Create a password")}</span><Input type="password" value={password} onChange={e=>setPassword(e.target.value)} autoComplete="new-password" minLength={12} maxLength={128} placeholder={t("At least 12 characters")} required/></label>
+          <label className="block space-y-1.5 text-sm"><span className="text-brand-text-secondary">{t("Confirm password")}</span><Input type="password" value={confirmPassword} onChange={e=>setConfirmPassword(e.target.value)} autoComplete="new-password" minLength={12} maxLength={128} placeholder={t("Enter the password again")} required/></label>
+          {confirmPassword && password !== confirmPassword && <p className="text-sm text-loss">{t("Passwords do not match.")}</p>}
           <Button type="submit" className="w-full" disabled={busy || username.length < 3 || password.length < 12 || password !== confirmPassword}><KeyRound className="h-4 w-4"/>{busy ? "Saving securely…" : "Save BTCBOX credentials"}</Button>
         </form>
       </CardContent>
