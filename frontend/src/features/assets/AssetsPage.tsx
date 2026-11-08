@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { ArrowDownToLine, ArrowUpFromLine, RefreshCw, Wallet } from "lucide-react";
+import { ArrowDownToLine, ArrowUpFromLine, RefreshCw, ShieldCheck, Wallet } from "lucide-react";
 import { Badge } from "../../components/ui/badge";
 import { Button } from "../../components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/card";
+import { Card, CardContent } from "../../components/ui/card";
 import { ApiError, getAccount, type AccountBalance, type AccountSnapshot } from "../../lib/api";
 import { useI18n } from "../../lib/i18n";
 import { TokenIcon } from "../../components/ui/TokenIcon";
