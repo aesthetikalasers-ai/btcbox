@@ -100,3 +100,5 @@ BTCBOX localization is a complete language system per locale, not a literal tran
 - Localized the dashboard Top tokens panel and market snapshot metadata across all seven supported locales, including source labels and relative-age units. Numeric formatting uses the shared locale map; asset tickers and USDT remain canonical financial identifiers.
 
 - Localized the market-feed stale-snapshot warning in all seven locales and localized the loading-state accessible label. The stale-data fail-closed behavior and 90-second threshold are unchanged.
+
+- Completed first full locale-copy pass for Dashboard, Assets and Orders labels/status text in all seven supported locales. Financial identifiers and exact numeric values remain unchanged; common operational labels (available/frozen, price/quantity, valuation status) now have consistent locale entries.
