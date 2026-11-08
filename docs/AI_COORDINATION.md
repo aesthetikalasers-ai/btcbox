@@ -571,3 +571,11 @@ Safety/ownership:
 - `frontend/src/features/pages/Pages.tsx` Support page conversation and composer now use the fintech card surface hierarchy, clearer sender-specific message bubbles, improved responsive padding and a full-width mobile send action.
 - The existing authenticated message fetch, message content, newest-50 display, request-ID idempotency on send, safe error handling and prohibition on sending passwords/2FA/recovery phrases are unchanged. No demo messages were added.
 - Exact-head checks at checkpoint: Unified frontend/backend build, tests, and fail-closed preflight: in_progress; build: in_progress; empty-postgres-bootstrap: in_progress.
+
+
+### Admin control-center visual adaptation — 2026-11-08
+
+- Candidate head: `3466962e5d8683e0be883d97302b120724accf79`; PR #67 remains Draft/open/unmerged.
+- `frontend/src/features/admin/AdminPage.tsx` now uses the shared admin tone, responsive control-center hero, scrollable tab navigation for narrow screens, more legible KPI cards with semantic accent strips, and consistent search-field focus styling.
+- This batch changes presentation only; admin session validation, RBAC checks, finance review flows, and endpoint contracts are unchanged.
+- Current exact-head checks: build: in_progress; empty-postgres-bootstrap: in_progress; Unified frontend/backend build, tests, and fail-closed preflight: in_progress.
