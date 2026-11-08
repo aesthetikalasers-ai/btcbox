@@ -15,7 +15,7 @@ const names: Record<string, string> = {
 };
 
 const numberLocales: Record<Language, string> = {
-  en: "en-US", ja: "ja-JP", "zh-CN": "zh-CN", es: "es-ES", vi: "vi-VN", it: "it-IT", pt: "pt-PT",
+  en: "en-US", ja: "ja-JP", "zh-CN": "zh-CN", es: "es-ES", pt: "pt-PT", it: "it-IT", de: "de-DE",
 };
 
 const price = (value: number, locale: string) => new Intl.NumberFormat(locale, {
