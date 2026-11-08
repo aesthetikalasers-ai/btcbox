@@ -1051,7 +1051,7 @@ export function AdminPage() {
         </label>
         {error ? <p role="alert" className="mt-3 text-sm text-rose-300">{error}</p> : null}
         <div className="mt-5 flex flex-col-reverse justify-end gap-2 sm:flex-row">
-          <Button type="button" variant="outline" disabled={busy} onClick={() => { setReviewDialog(null); setReviewReason(""); }}>{t(t("Cancel"))}</Button>
+          <Button type="button" variant="outline" disabled={busy} onClick={() => { setReviewDialog(null); setReviewReason(""); }}>{t("Cancel")}</Button>
           <Button type="button" variant="destructive" disabled={busy || !reviewReason.trim()} onClick={() => void confirmReviewRejection()}>
             {busy ? t("Submitting…") : t("Confirm rejection")}
           </Button>
