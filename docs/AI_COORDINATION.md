@@ -16,16 +16,12 @@ One repository execution path is active at a time. Re-read this file before star
 - **Current candidate head:** `1594084189befe103c978b2d7ce6dc65eaf5a451`
 - **Base:** `main` at `2a3810da1aef2c0c7c58df0cfdb059a212eeb0d6`
 - **State:** Draft / open / not merged
-- **Current-head CI:** Backend and PostgreSQL schema PASS; Frontend still in progress.
-  - Backend: `42449102047` — PASS
-  - PostgreSQL schema: `42449102051` — PASS
-  - Frontend: `42449102014` — IN PROGRESS (lint/build and Chromium setup passed; desktop/mobile route smoke tests running).
+- **Exact-current-head CI:** PASS on `1594084189befe103c978b2d7ce6dc65eaf5a451`.
+  - Backend: `42449102047` — PASS.
+  - PostgreSQL schema: `42449102051` — PASS.
+  - Frontend: `42449102014` — PASS; lint/build, Chromium setup, desktop/mobile route smoke tests, and responsive screenshot artifact upload completed successfully.
 
-Previous fully green source head `8b54cf128ccd4861eedd1fae602846c92849f835`:
-- Backend `42436694163`: PASS — all 464 backend tests passed; deployment preflight passed with all financial cutover flags explicitly disabled. Preflight checks configuration shape only; it does not connect to hosted Supabase.
-- PostgreSQL schema `42436693919`: PASS — canonical empty-database SQL applied successfully to disposable PostgreSQL.
-- Frontend `42436694030`: PASS — lint/build and 87 desktop/mobile Playwright tests passed. The workflow generated 72 responsive screenshots across 320/360/375/390/430/768/1024/1440px and nine customer routes; automated horizontal-overflow checks passed.
-- The only source change on current head `1594084189befe103c978b2d7ce6dc65eaf5a451` is a documentation correction aligning the owner bootstrap guide with the React app's Google OAuth and Email/password flows. Actual provider enablement remains NOT VERIFIED.
+The previous fully green source head `8b54cf128ccd4861eedd1fae602846c92849f835` also passed Backend `42436694163`, PostgreSQL schema `42436693919`, and Frontend `42436694030`. Current head adds a documentation-only correction to the owner bootstrap guide; the full exact-head CI has now passed.
 
 Final-review corrections now included:
 - Removed two out-of-scope production inventory/readiness SQL diagnostics and aligned the SQL guide with the empty-database direction.
