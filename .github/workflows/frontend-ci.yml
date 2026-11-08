@@ -21,6 +21,8 @@ jobs:
         with:
           node-version: 22
       - run: npm install
+      - name: Check all official and preserved legacy translations
+        run: npm run check:i18n
       - run: npm run lint
       - run: npm run build
       - name: Install Chromium for isolated browser tests

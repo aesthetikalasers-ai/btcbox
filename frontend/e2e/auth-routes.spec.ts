@@ -1164,14 +1164,14 @@ test("public preview distinguishes server snapshot time from upstream provider t
     body: JSON.stringify({
       ok: true,
       markets: [{ sym: "BTC", price: 65000, chg: 1.2, high: 66000, low: 64000, vol: "1000000", source: "coinbase" }],
-      data: { BTC: { ts: now, providerTs: now - 90, source: "coinbase" } },
+      data: { BTC: { ts: now, providerTs: now - 10, source: "coinbase" } },
     }),
   }));
 
   await page.goto("/home");
 
   await expect(page.getByText(/Server snapshot ·/)).toBeVisible();
-  await expect(page.getByText(/Provider snapshot · coinbase · .* · [0-9]+s ago/)).toBeVisible();
+  await expect(page.getByLabel(/Provider snapshot coinbase .* \d+s ago/)).toBeVisible();
 });
 
 test("Admin ignores a withdrawal queue response from a tab opened earlier", async ({ page }) => {
@@ -1318,17 +1318,36 @@ test("Google and Wallet provider entries have matching dimensions and responsive
 
 test("language preference updates the document locale and persists across reloads", async ({ page }) => {
   await page.goto("/home");
-  await expect.poll(() => page.locator("html").getAttribute("lang")).toBe("en");
+  await expect.poll(() => page.locator("html").getAttribute("lang")).toBe("en-US");
 
   const language = page.getByRole("combobox", { name: "Language" });
   await language.selectOption("ja");
-  await expect(page.locator("html")).toHaveAttribute("lang", "ja");
+  await expect(page.locator("html")).toHaveAttribute("lang", "ja-JP");
   await expect(page.getByRole("navigation", { name: "メインナビゲーション" }).getByRole("link", { name: "ホーム" })).toBeVisible();
 
   await page.reload();
-  await expect(page.locator("html")).toHaveAttribute("lang", "ja");
+  await expect(page.locator("html")).toHaveAttribute("lang", "ja-JP");
   await expect(page.getByRole("combobox", { name: "言語" })).toHaveValue("ja");
   await expect(page.getByRole("navigation", { name: "メインナビゲーション" }).getByRole("link", { name: "ホーム" })).toBeVisible();
+});
+
+test("a first-time visitor sees Japanese and can switch to another language", async ({ page }) => {
+  await page.addInitScript(() => {
+    if (!window.sessionStorage.getItem("btcbox-first-visit-test")) {
+      window.localStorage.removeItem("btcbox-language");
+      window.sessionStorage.setItem("btcbox-first-visit-test", "1");
+    }
+  });
+  await page.goto("/home");
+
+  await expect(page.locator("html")).toHaveAttribute("lang", "ja-JP");
+  await expect(page.getByRole("navigation", { name: "メインナビゲーション" }).getByRole("link", { name: "ホーム" })).toBeVisible();
+
+  const language = page.getByRole("combobox", { name: "言語" });
+  await language.selectOption("de");
+  await expect(page.locator("html")).toHaveAttribute("lang", "de-DE");
+  await page.reload();
+  await expect(page.locator("header select")).toHaveValue("de");
 });
 
 
@@ -1337,7 +1356,7 @@ test("login screen switches to native Japanese copy without changing authenticat
   const language = page.getByRole("combobox", { name: "Language" });
   await language.selectOption("ja");
 
-  await expect(page.locator("html")).toHaveAttribute("lang", "ja");
+  await expect(page.locator("html")).toHaveAttribute("lang", "ja-JP");
   await expect(page.getByRole("heading", { name: "お帰りなさい", exact: true })).toBeVisible();
   await expect(page.getByLabel("ユーザー名")).toBeVisible();
   await expect(page.getByLabel("パスワード", { exact: true })).toBeVisible();
@@ -1345,7 +1364,7 @@ test("login screen switches to native Japanese copy without changing authenticat
   await expect(page.getByText("Googleログインは一時的に利用できません。")).toBeVisible();
 
   await page.reload();
-  await expect(page.locator("html")).toHaveAttribute("lang", "ja");
+  await expect(page.locator("html")).toHaveAttribute("lang", "ja-JP");
   await expect(page.getByRole("combobox", { name: "言語" })).toHaveValue("ja");
   await expect(page.getByRole("heading", { name: "お帰りなさい", exact: true })).toBeVisible();
 });

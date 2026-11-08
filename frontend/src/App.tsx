@@ -6,6 +6,7 @@ import { AuthCallbackPage, AuthPage } from "./features/auth/AuthPages";
 import { AccountSetupPage } from "./features/auth/AccountSetupPage";
 import { AccountSecurityPage } from "./features/account/AccountSecurityPage";
 import { useAuth } from "./lib/auth";
+import { useI18n } from "./lib/i18n";
 
 const Dashboard = lazy(() => import("./features/dashboard/Dashboard").then((m) => ({ default: m.Dashboard })));
 const AdminPage = lazy(() => import("./features/admin/AdminPage").then((m) => ({ default: m.AdminPage })));
@@ -36,7 +37,8 @@ function AccountSetupGate({ children }: { children: ReactNode }) {
   return <>{children}</>;
 }
 function RouteLoading() {
-  return <div className="mx-auto flex min-h-[240px] w-full max-w-[1200px] items-center justify-center p-6" role="status" aria-live="polite"><div className="flex items-center gap-3 text-sm text-brand-text-muted"><span className="h-4 w-4 animate-spin rounded-full border-2 border-white/15 border-t-brand-accent" />Loading BTCBOX…</div></div>;
+  const { t } = useI18n();
+  return <div className="mx-auto flex min-h-[240px] w-full max-w-[1200px] items-center justify-center p-6" role="status" aria-live="polite"><div className="flex items-center gap-3 text-sm text-brand-text-muted"><span className="h-4 w-4 animate-spin rounded-full border-2 border-white/15 border-t-brand-accent" />{t("Loading…")}</div></div>;
 }
 function CustomerRoutes() {
   const location = useLocation();

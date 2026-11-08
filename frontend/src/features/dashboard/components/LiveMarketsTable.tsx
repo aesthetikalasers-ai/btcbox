@@ -50,6 +50,9 @@ export function LiveMarketsTable({ markets, loading, error }: {
     ? new Intl.DateTimeFormat(numberLocale, { hour: "2-digit", minute: "2-digit", second: "2-digit" }).format(new Date(providerTimestamp * 1000))
     : "";
   const providerAgeSeconds = providerTimestamp > 0 ? Math.max(0, Math.floor(Date.now() / 1000 - providerTimestamp)) : null;
+  const providerAgeLabel = providerAgeSeconds !== null
+    ? new Intl.RelativeTimeFormat(numberLocale, { numeric: "auto", style: "short" }).format(-providerAgeSeconds, "second")
+    : "";
   const visibleMarkets = useMemo(() => displayMarkets.filter((item) => {
     if (!query) return true;
     return item.sym.toLowerCase().includes(query) || (names[item.sym] || "").toLowerCase().includes(query);
@@ -62,7 +65,7 @@ export function LiveMarketsTable({ markets, loading, error }: {
           {displayMarkets.length > 0 && <>
             <p className="mt-1 text-[11px] text-brand-text-muted" aria-label={snapshotTime ? `${t("Server snapshot")} ${snapshotTime}` : t("Server snapshot time unavailable")}>{snapshotTime ? `${t("Server snapshot")} · ${snapshotTime} · ${snapshotAgeSeconds}${t("seconds ago")}` : t("Server snapshot time unavailable")}</p>
             <p className="mt-0.5 text-[11px] text-brand-text-muted" aria-label={providerTime ? `${t("Provider snapshot")} ${providerSource || t("source unavailable")} ${providerTime}, ${providerAgeSeconds}${t("seconds ago")}` : t("Provider timestamp unavailable")}>
-              {providerTime ? `${t("Provider snapshot")} · ${providerSource || t("source unavailable")} · ${providerTime} · ${providerAgeSeconds}s ago` : t("Provider timestamp unavailable")}
+              {providerTime ? `${t("Provider snapshot")} · ${providerSource || t("source unavailable")} · ${providerTime} · ${providerAgeLabel}` : t("Provider timestamp unavailable")}
             </p>
           </>}
         </div>
