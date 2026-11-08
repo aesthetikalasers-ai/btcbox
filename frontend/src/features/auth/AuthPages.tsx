@@ -19,7 +19,6 @@ export function AuthPage({ mode, redirectTo }: { mode: "login" | "register"; red
   const [emailAddress, setEmailAddress] = useState("");
   const [emailPassword, setEmailPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [termsAgreed, setTermsAgreed] = useState(false);
   const [password, setPassword] = useState("");
   const [verifyCode, setVerifyCode] = useState("");
   const [verifyBusy, setVerifyBusy] = useState(false);
@@ -228,15 +227,7 @@ export function AuthPage({ mode, redirectTo }: { mode: "login" | "register"; red
                 {registering && confirmPassword.length > 0 && confirmPassword !== emailPassword && (
                   <p className="text-[11px] text-loss -mt-1" role="alert">{t("Passwords do not match.")}</p>
                 )}
-                {registering && (
-                  <label className="flex cursor-pointer items-start gap-2 text-[11px] leading-4 text-brand-text-secondary">
-                    <input type="checkbox" checked={termsAgreed} onChange={e => setTermsAgreed(e.target.checked)} className="mt-0.5 h-3.5 w-3.5 shrink-0 cursor-pointer rounded border-brand-border accent-brand-cyan" required />
-                    <span>
-                      {t("I agree to the")} <a href="/terms" target="_blank" rel="noopener noreferrer" className="font-semibold text-brand-accent underline-offset-2 hover:underline">{t("Terms of Service")}</a> {t("and")} <a href="/privacy" target="_blank" rel="noopener noreferrer" className="font-semibold text-brand-accent underline-offset-2 hover:underline">{t("Privacy Policy")}</a>
-                    </span>
-                  </label>
-                )}
-                <Button type="submit" className="min-h-11 w-full" variant="outline" disabled={busy || status !== "anonymous" || !emailAddress.trim() || (registering ? (emailPassword.length < 10 || emailPassword !== confirmPassword || !termsAgreed) : !emailPassword)}>
+                <Button type="submit" className="min-h-11 w-full" variant="outline" disabled={busy || status !== "anonymous" || !emailAddress.trim() || (registering ? (emailPassword.length < 10 || emailPassword !== confirmPassword) : !emailPassword)}>
                   {busy ? t("Please wait…") : mode === "login" ? t("Sign in with email") : t("Create account with email")}
                 </Button>
                 {mode === "login" && <button type="button" className="min-h-10 text-xs font-medium text-brand-text-secondary underline underline-offset-4 disabled:opacity-50" disabled={busy || !emailAddress.trim()} onClick={() => void requestPasswordReset(emailAddress).catch(() => {})}>{t("Forgot password?")}</button>}
