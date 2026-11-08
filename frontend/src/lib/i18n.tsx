@@ -837,6 +837,7 @@ const dictionaries: Record<Language, Dictionary> = {
     "No orders returned": "No orders returned",
     "No orders are available for this account yet.": "No orders are available for this account yet.",
     "Order ID": "Order ID",
+    "assets": "assets",
   },
   ja: {
     "BTCBOX / OPEN MARKET":"BTCBOX / 公開市場",
@@ -1636,6 +1637,7 @@ const dictionaries: Record<Language, Dictionary> = {
     "No orders returned": "注文は返されませんでした",
     "No orders are available for this account yet.": "このアカウントにはまだ注文がありません。",
     "Order ID": "注文ID",
+    "assets": "資産",
   },
   "zh-CN": {
     "BTCBOX / OPEN MARKET":"BTCBOX / 公开市场",
@@ -2435,6 +2437,7 @@ const dictionaries: Record<Language, Dictionary> = {
     "No orders returned": "未返回订单",
     "No orders are available for this account yet.": "此账户暂时没有可用订单。",
     "Order ID": "订单 ID",
+    "assets": "资产",
   },
   es: {
     "BTCBOX / OPEN MARKET":"BTCBOX / MERCADO ABIERTO",
@@ -3234,6 +3237,7 @@ const dictionaries: Record<Language, Dictionary> = {
     "No orders returned": "No se devolvieron órdenes",
     "No orders are available for this account yet.": "Aún no hay órdenes disponibles para esta cuenta.",
     "Order ID": "ID de orden",
+    "assets": "activos",
   },
   vi: {
     "BTCBOX / OPEN MARKET":"BTCBOX / THỊ TRƯỜNG MỞ",
@@ -4033,6 +4037,7 @@ const dictionaries: Record<Language, Dictionary> = {
     "No orders returned": "Không có lệnh nào được trả về",
     "No orders are available for this account yet.": "Tài khoản này hiện chưa có lệnh nào.",
     "Order ID": "ID lệnh",
+    "assets": "tài sản",
   },
   it: {
     "BTCBOX / OPEN MARKET":"BTCBOX / MERCATO APERTO",
@@ -4832,6 +4837,7 @@ const dictionaries: Record<Language, Dictionary> = {
     "No orders returned": "Nessun ordine restituito",
     "No orders are available for this account yet.": "Non sono ancora disponibili ordini per questo account.",
     "Order ID": "ID ordine",
+    "assets": "asset",
   },
   pt: {
     "BTCBOX / OPEN MARKET":"BTCBOX / MERCADO ABERTO",
@@ -5631,6 +5637,7 @@ const dictionaries: Record<Language, Dictionary> = {
     "No orders returned": "Nenhuma ordem devolvida",
     "No orders are available for this account yet.": "Ainda não existem ordens disponíveis para esta conta.",
     "Order ID": "ID da ordem",
+    "assets": "ativos",
   }
 };
 
