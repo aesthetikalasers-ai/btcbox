@@ -5,15 +5,18 @@ import { Badge } from "../../components/ui/badge";
 import { Button } from "../../components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/card";
 import { ApiError, getAccount, type AccountBalance, type AccountSnapshot } from "../../lib/api";
-import { useI18n } from "../../lib/i18n";
+import { useI18n, type Language } from "../../lib/i18n";
 
-function amount(value: number | string | undefined) {
+const numberLocales: Record<Language, string> = { en: "en-US", ja: "ja-JP", "zh-CN": "zh-CN", es: "es-ES", pt: "pt-PT", it: "it-IT", de: "de-DE" };
+
+function amount(value: number | string | undefined, locale: string) {
   const parsed = Number(value ?? 0);
-  return Number.isFinite(parsed) ? parsed.toLocaleString(undefined, { maximumFractionDigits: 8 }) : "—";
+  return Number.isFinite(parsed) ? parsed.toLocaleString(locale, { maximumFractionDigits: 8 }) : "—";
 }
 
 export function AssetsPage() {
-  const { t } = useI18n();
+  const { t, language } = useI18n();
+  const numberLocale = numberLocales[language];
   const [account, setAccount] = useState<AccountSnapshot | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -67,7 +70,7 @@ export function AssetsPage() {
       <Card className="border-brand-border bg-brand-surface">
         <CardHeader>
           <CardDescription>{t("Estimated total value")}</CardDescription>
-          <CardTitle className="type-display tabular-nums">{loading ? "—" : account?.valuation_complete ? `${amount(account.totalUsdt)} USDT` : "—"}</CardTitle>
+          <CardTitle className="type-display tabular-nums">{loading ? "—" : account?.valuation_complete ? `${amount(account.totalUsdt, numberLocale)} USDT` : "—"}</CardTitle>
           {account && <div className="flex flex-wrap items-center gap-2 pt-1"><Badge variant={account.valuation_complete ? "outline" : "secondary"}>{t(account.valuation_complete ? "Valuation complete" : "Partial valuation")}</Badge>{!account.valuation_complete && <span className="type-meta text-brand-text-muted">{t("Some assets do not have a verified USDT valuation.")}</span>}</div>}
         </CardHeader>
         <CardContent className="flex flex-wrap gap-2">
@@ -80,7 +83,7 @@ export function AssetsPage() {
         <CardHeader><CardTitle>{t("Asset balances")}</CardTitle><CardDescription>{t("Available and frozen amounts returned by the account service.")}</CardDescription></CardHeader>
         <CardContent className="p-0">
           {loading ? <div className="space-y-3 p-5" role="status" aria-live="polite"><div className="h-4 w-1/3 animate-pulse rounded bg-brand-surface-2"/><div className="h-12 animate-pulse rounded bg-brand-surface-2"/><div className="h-12 animate-pulse rounded bg-brand-surface-2"/></div>
-          : balances.length ? <div className="divide-y divide-brand-border">{balances.map(([coin, balance])=><div key={coin} className="grid grid-cols-3 gap-3 px-4 py-4 sm:px-5"><div className="min-w-0"><p className="font-semibold text-brand-text">{coin}</p><p className="type-meta text-brand-text-muted">{t("Asset")}</p></div><div className="min-w-0 text-right"><p className="font-mono tabular-nums text-brand-text">{amount(balance.free)}</p><p className="type-meta text-brand-text-muted">{t("Available")}</p></div><div className="min-w-0 text-right"><p className="font-mono tabular-nums text-brand-text-secondary">{amount(balance.frozen)}</p><p className="type-meta text-brand-text-muted">{t("Frozen")}</p></div></div>)}</div>
+          : balances.length ? <div className="divide-y divide-brand-border">{balances.map(([coin, balance])=><div key={coin} className="grid grid-cols-3 gap-3 px-4 py-4 sm:px-5"><div className="min-w-0"><p className="font-semibold text-brand-text">{coin}</p><p className="type-meta text-brand-text-muted">{t("Asset")}</p></div><div className="min-w-0 text-right"><p className="font-mono tabular-nums text-brand-text">{amount(balance.free, numberLocale)}</p><p className="type-meta text-brand-text-muted">{t("Available")}</p></div><div className="min-w-0 text-right"><p className="font-mono tabular-nums text-brand-text-secondary">{amount(balance.frozen, numberLocale)}</p><p className="type-meta text-brand-text-muted">{t("Frozen")}</p></div></div>)}</div>
           : <div className="flex flex-col items-center px-5 py-12 text-center"><Wallet className="mb-3 h-9 w-9 text-brand-text-muted"/><p className="type-card-title text-brand-text">{t(signedOut ? "Sign in required" : error ? "Assets could not be loaded" : "No asset balances")}</p><p className="type-body-compact mt-2 max-w-md text-brand-text-muted">{t(signedOut ? "Your private balances are available after you sign in." : error ? "Refresh after the account service is available. No balance values have been fabricated." : "No balance rows were returned for this account.")}</p></div>}
         </CardContent>
       </Card>
