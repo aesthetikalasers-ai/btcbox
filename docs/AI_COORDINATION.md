@@ -735,3 +735,9 @@ Safety/ownership:
 - Added Playwright regression coverage for switching the login screen to Japanese, verifying localized labels/disabled Google state and persistence after reload.
 - Remaining localization gap: unknown dynamic provider/backend error text cannot be translated reliably until source error codes are normalized; `AccountSecurityPage`, `AccountSetupPage` and `AdminPage` still require a full locale pass. Other locales' auth dictionary copy must also be completed before enabling all locale selectors as production-complete.
 - Exact-head CI for `6358d17052da4466e13533c1fab14a6a07012b78` started: Frontend `42472204533`, Backend `42472204529`, PostgreSQL `42472204614`; all were in progress at this update.
+
+
+- Candidate advanced to `7715398ae5d60a19dbf3d812371e8e3a90dfb54e`: Account Setup and Account Security screens now use shared Japanese i18n for credential onboarding, 2FA state, linked Google/Ethereum/Solana identity management, reauthentication steps and password recovery. Existing credential policies, identity proof sequence, session/auth behavior and security controls unchanged.
+- Static Japanese translation-key audit is clear for active customer-facing Dashboard, Assets, Orders, Trade Hub, Spot, Seconds, My Account, KYC, Support, Deposit, Earn, Withdraw, Account Setup, Auth and Account Security components. The 23 remaining `Pages.tsx` key misses are in legacy duplicate Assets/Orders components not imported by active routes.
+- Remaining blockers before Japanese-first: Admin console locale coverage; unknown dynamic backend/provider error strings need code-to-locale mapping; all seven supported locales need equivalent full-page coverage and native terminology review. No default locale switch yet.
+- Exact-head CI for `7715398ae5d60a19dbf3d812371e8e3a90dfb54e` has been queued; frontend, backend and PostgreSQL checks not yet complete.
