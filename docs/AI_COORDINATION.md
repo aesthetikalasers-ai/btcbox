@@ -230,3 +230,9 @@ Applied a selective visual-only correction to the sole candidate branch (no trad
 Commits on PR #67: `d8ac516cfbae19c56cb3447bac107dac0e1e8153` (tokens), `5b3faa3fbca8748845d8335ff6fa19208e9f5da7` (page tone mapping), `3d7f96352b214b386be410ab619b043898fef6c2` (dashboard market tone). Verified all three changes are present on the current candidate head `3d7f96352b214b386be410ab619b043898fef6c2`.
 
 Exact-head CI is running: Backend `42456223737`, PostgreSQL schema `42456223768`, Frontend `42456223776`. Do not mark the visual correction accepted until the exact-head frontend CI completes and a fresh responsive screenshot artifact is inspected. PR #67 remains Draft / unmerged; no deployment or hosted Supabase writes were performed.
+
+Visual correction CI refresh — 2026-11-08:
+- Exact-head Backend CI `42456223737`: PASS.
+- Exact-head PostgreSQL schema CI `42456223768`: PASS.
+- Exact-head Frontend CI `42456223776`: install, lint, production build, and Chromium installation PASS; desktop/mobile route smoke tests were still running at this refresh. Responsive screenshot upload is pending.
+- Current candidate head remains `3d7f96352b214b386be410ab619b043898fef6c2`. Do not mark visual acceptance complete until the frontend workflow passes and the new screenshot artifact is inspected.
