@@ -46,14 +46,14 @@ export function AuthPage({ mode, redirectTo }: { mode: "login" | "register"; red
   const walletButtons = <>
     {ethereumWallets.length > 0
       ? ethereumWallets.map((wallet) => (
-        <Button key={wallet.info.uuid} type="button" variant="outline" className="w-full justify-start" aria-busy={busy} disabled={busy || status !== "anonymous"} onClick={() => void signInWithWeb3("ethereum", wallet.provider)}>
+        <Button key={wallet.info.uuid} type="button" variant="outline" className="min-h-12 w-full justify-start" aria-busy={busy} disabled={busy || status !== "anonymous"} onClick={() => void signInWithWeb3("ethereum", wallet.provider)}>
           <Wallet className="mr-2 h-4 w-4" /> Continue with {wallet.info.name}
         </Button>
       ))
-      : <Button type="button" variant="outline" className="w-full justify-start" aria-busy={busy} disabled={busy || status !== "anonymous"} onClick={() => void signInWithWeb3("ethereum")}>
+      : <Button type="button" variant="outline" className="min-h-12 w-full justify-start" aria-busy={busy} disabled={busy || status !== "anonymous"} onClick={() => void signInWithWeb3("ethereum")}>
         <Wallet className="mr-2 h-4 w-4" /> Connect Ethereum wallet
       </Button>}
-    <Button type="button" variant="outline" className="w-full justify-start" aria-busy={busy} disabled={busy || status !== "anonymous"} onClick={() => void signInWithWeb3("solana")}>
+    <Button type="button" variant="outline" className="min-h-12 w-full justify-start" aria-busy={busy} disabled={busy || status !== "anonymous"} onClick={() => void signInWithWeb3("solana")}>
       <Wallet className="mr-2 h-4 w-4" /> Connect Solana wallet
     </Button>
   </>;
@@ -94,10 +94,11 @@ export function AuthPage({ mode, redirectTo }: { mode: "login" | "register"; red
           <Link to="/home" aria-label="BTCBOX home"><BrandLogo compact /></Link>
           <Link to="/markets" className="inline-flex min-h-11 items-center gap-1.5 rounded-lg px-2 text-xs font-semibold text-brand-text-secondary transition-colors hover:bg-brand-surface-hover hover:text-brand-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent/70">Explore markets <ArrowRight className="h-3.5 w-3.5" /></Link>
         </div>
-        <Card className="w-full border-brand-border bg-brand-surface shadow-2xl shadow-black/20 ring-1 ring-white/[0.025]">
-          <CardHeader className="gap-3 px-5 pb-3 pt-6 sm:px-8 sm:pt-8">
+        <Card className="w-full overflow-hidden border-brand-cyan/20 bg-brand-surface shadow-2xl shadow-black/20 ring-1 ring-white/[0.025]">
+          <div className="h-1 bg-gradient-to-r from-brand-cyan via-brand-indigo to-brand-success"/>
+          <CardHeader className="gap-3 border-b border-brand-border/70 bg-gradient-to-br from-brand-cyan/[0.055] via-brand-surface to-brand-surface px-5 pb-4 pt-6 sm:px-8 sm:pt-8">
             <div className="flex items-center gap-2">
-              <span className="flex h-10 w-10 items-center justify-center rounded-xl border border-brand-cyan/20 bg-brand-cyan/10 text-brand-cyan">
+              <span className="flex h-11 w-11 items-center justify-center rounded-xl border border-brand-cyan/25 bg-brand-cyan/[0.12] text-brand-cyan shadow-sm shadow-brand-cyan/[0.08]">
                 {status === "two-factor" ? <ShieldCheck className="h-5 w-5" /> : registering ? <Globe2 className="h-5 w-5" /> : <LockKeyhole className="h-5 w-5" />}
               </span>
               <span className="text-xs font-semibold uppercase tracking-[.16em] text-brand-text-muted">{registering ? "Join BTCBOX" : "Secure access"}</span>
@@ -127,20 +128,20 @@ export function AuthPage({ mode, redirectTo }: { mode: "login" | "register"; red
             }}>
               <label className="block space-y-2 text-sm">
                 <span className="text-brand-text-secondary">Authenticator code</span>
-                <Input value={verifyCode} onChange={event => setVerifyCode(event.target.value.replace(/\D/g, "").slice(0, 8))} inputMode="numeric" autoComplete="one-time-code" placeholder="Enter code" required />
+                <Input className="h-12" value={verifyCode} onChange={event => setVerifyCode(event.target.value.replace(/\D/g, "").slice(0, 8))} inputMode="numeric" autoComplete="one-time-code" placeholder="Enter code" required />
               </label>
-              <Button type="submit" className="w-full" disabled={verifyBusy || verifyCode.length < 6}>{verifyBusy ? "Verifying…" : "Verify and continue"}</Button>
+              <Button type="submit" className="min-h-12 w-full" disabled={verifyBusy || verifyCode.length < 6}>{verifyBusy ? "Verifying…" : "Verify and continue"}</Button>
             </form> : <>
               {mode === "login" && <form className="space-y-3" aria-busy={busy} onSubmit={submitUsernameLogin}>
                 <label className="block space-y-1.5 text-sm">
                   <span className="text-brand-text-secondary">Username</span>
-                  <Input value={username} onChange={event => setUsername(event.target.value.toLowerCase())} autoComplete="username" minLength={3} maxLength={24} pattern="[a-z0-9][a-z0-9_]{2,23}" placeholder="Enter your BTCBOX username" required />
+                  <Input className="h-12" value={username} onChange={event => setUsername(event.target.value.toLowerCase())} autoComplete="username" minLength={3} maxLength={24} pattern="[a-z0-9][a-z0-9_]{2,23}" placeholder="Enter your BTCBOX username" required />
                 </label>
                 <label className="block space-y-1.5 text-sm">
                   <span className="text-brand-text-secondary">Password</span>
-                  <Input type="password" value={password} onChange={event => setPassword(event.target.value)} autoComplete="current-password" minLength={12} maxLength={128} placeholder="Enter your password" required />
+                  <Input className="h-12" type="password" value={password} onChange={event => setPassword(event.target.value)} autoComplete="current-password" minLength={12} maxLength={128} placeholder="Enter your password" required />
                 </label>
-                <Button type="submit" className="w-full" aria-busy={busy} disabled={busy || username.length < 3 || password.length < 12}>
+                <Button type="submit" className="min-h-12 w-full" aria-busy={busy} disabled={busy || username.length < 3 || password.length < 12}>
                   <KeyRound className="mr-2 h-4 w-4" /> {busy ? "Signing in…" : "Sign in with username"}
                 </Button>
               </form>}
@@ -153,13 +154,13 @@ export function AuthPage({ mode, redirectTo }: { mode: "login" | "register"; red
                 <p className="text-sm font-semibold text-brand-text">{mode === "login" ? "Continue with email" : "Register with email"}</p>
                 <label className="block space-y-1.5 text-sm">
                   <span className="text-brand-text-secondary">Email address</span>
-                  <Input type="email" value={emailAddress} onChange={event => setEmailAddress(event.target.value)} autoComplete="email" maxLength={254} placeholder="you@example.com" required />
+                  <Input className="h-12" type="email" value={emailAddress} onChange={event => setEmailAddress(event.target.value)} autoComplete="email" maxLength={254} placeholder="you@example.com" required />
                 </label>
                 <label className="block space-y-1.5 text-sm">
                   <span className="text-brand-text-secondary">Email password</span>
-                  <Input type="password" value={emailPassword} onChange={event => setEmailPassword(event.target.value)} autoComplete={mode === "login" ? "current-password" : "new-password"} minLength={mode === "register" ? 8 : 1} maxLength={128} placeholder="Enter your password" required />
+                  <Input className="h-12" type="password" value={emailPassword} onChange={event => setEmailPassword(event.target.value)} autoComplete={mode === "login" ? "current-password" : "new-password"} minLength={mode === "register" ? 8 : 1} maxLength={128} placeholder="Enter your password" required />
                 </label>
-                <Button type="submit" className="w-full" variant="outline" disabled={busy || status !== "anonymous" || !emailAddress.trim() || (mode === "register" ? emailPassword.length < 8 : !emailPassword)}>
+                <Button type="submit" className="min-h-12 w-full" variant="outline" disabled={busy || status !== "anonymous" || !emailAddress.trim() || (mode === "register" ? emailPassword.length < 8 : !emailPassword)}>
                   {busy ? "Please wait…" : mode === "login" ? "Sign in with email" : "Create account with email"}
                 </Button>
                 {mode === "login" && <button type="button" className="min-h-11 text-sm font-medium text-brand-text-secondary underline underline-offset-4 disabled:opacity-50" disabled={busy || !emailAddress.trim()} onClick={() => void requestPasswordReset(emailAddress).catch(() => {})}>Forgot password?</button>}
@@ -169,7 +170,7 @@ export function AuthPage({ mode, redirectTo }: { mode: "login" | "register"; red
                 <div className="relative flex justify-center"><span className="bg-brand-surface px-3 text-xs text-brand-text-muted">{mode === "login" ? "OR CONTINUE WITH GOOGLE" : "OR SIGN UP WITH GOOGLE"}</span></div>
               </div>
               {googleEnabled
-                ? <Button type="button" className="w-full" size="lg" aria-busy={busy} disabled={busy || status !== "anonymous"} onClick={() => void signInWithGoogle()}>
+                ? <Button type="button" className="min-h-12 w-full" size="lg" aria-busy={busy} disabled={busy || status !== "anonymous"} onClick={() => void signInWithGoogle()}>
                     <Chrome className="mr-2 h-5 w-5" /> Continue with Google
                   </Button>
                 : <div className="rounded-lg border border-brand-border bg-brand-surface-2 p-3 text-sm text-brand-text-muted" role="status">Google sign-in is temporarily unavailable.</div>}
@@ -219,18 +220,19 @@ export function AuthCallbackPage() {
     catch (cause) { setRecoveryError(cause instanceof Error ? cause.message : "Password could not be updated."); }
   };
   if (status === "password-recovery") return <main className="tone-support mx-auto flex min-h-[100dvh] w-full max-w-[520px] items-center px-3 py-8 sm:px-6">
-    <Card className="w-full border-brand-border bg-brand-surface shadow-2xl shadow-black/20">
-      <CardHeader className="gap-3 px-5 pt-7 sm:px-8">
+    <Card className="w-full overflow-hidden border-brand-cyan/20 bg-brand-surface shadow-2xl shadow-black/20 ring-1 ring-white/[0.025]">
+      <div className="h-1 bg-gradient-to-r from-brand-cyan via-brand-indigo to-brand-success"/>
+      <CardHeader className="gap-3 border-b border-brand-border/70 bg-gradient-to-br from-brand-cyan/[0.055] via-brand-surface to-brand-surface px-5 pt-7 sm:px-8">
         <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-brand-cyan/20 bg-brand-cyan/10 text-brand-cyan"><LockKeyhole className="h-5 w-5" /></div>
         <CardTitle className="text-2xl">Reset your password</CardTitle>
         <CardDescription>Choose a new password for your BTCBOX email account.</CardDescription>
       </CardHeader>
       <CardContent className="px-5 pb-7 sm:px-8">
         <form className="space-y-3" aria-busy={busy} onSubmit={submitRecovery}>
-          <label className="block space-y-1.5 text-sm"><span className="text-brand-text-secondary">New password</span><Input type="password" value={newPassword} onChange={event => setNewPassword(event.target.value)} autoComplete="new-password" minLength={8} maxLength={128} required /></label>
-          <label className="block space-y-1.5 text-sm"><span className="text-brand-text-secondary">Confirm new password</span><Input type="password" value={confirmPassword} onChange={event => setConfirmPassword(event.target.value)} autoComplete="new-password" minLength={8} maxLength={128} required /></label>
+          <label className="block space-y-1.5 text-sm"><span className="text-brand-text-secondary">New password</span><Input className="h-12" type="password" value={newPassword} onChange={event => setNewPassword(event.target.value)} autoComplete="new-password" minLength={8} maxLength={128} required /></label>
+          <label className="block space-y-1.5 text-sm"><span className="text-brand-text-secondary">Confirm new password</span><Input className="h-12" type="password" value={confirmPassword} onChange={event => setConfirmPassword(event.target.value)} autoComplete="new-password" minLength={8} maxLength={128} required /></label>
           {(recoveryError || error) && <p role="alert" className="rounded-lg border border-loss/30 bg-loss/10 p-3 text-sm text-loss">{recoveryError || error}</p>}
-          <Button type="submit" className="w-full" disabled={busy || newPassword.length < 8 || newPassword !== confirmPassword}>{busy ? "Updating password…" : "Update password"}</Button>
+          <Button type="submit" className="min-h-12 w-full" disabled={busy || newPassword.length < 8 || newPassword !== confirmPassword}>{busy ? "Updating password…" : "Update password"}</Button>
         </form>
       </CardContent>
     </Card>
