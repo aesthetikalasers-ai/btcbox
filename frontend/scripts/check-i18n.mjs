@@ -81,5 +81,13 @@ if (missingUsed.length) {
   console.error("  Unregistered t() keys: " + missingUsed.slice(0, 100).join(" | "));
 }
 
+for (const locale of preservedLegacyLocales) {
+  const { keys, invalid } = dictionaries[locale];
+  const duplicates = keys.filter((key, index) => keys.indexOf(key) !== index);
+  const missing = [...canonical].filter((key) => !keys.includes(key));
+  console.log(locale + " (legacy): " + keys.length + " keys; " + missing.length + " missing; " + duplicates.length + " duplicate; " + invalid.length + " invalid values");
+  if (duplicates.length || missing.length || invalid.length) failed = true;
+}
+
 if (failed) process.exitCode = 1;
 else console.log("All locale dictionaries and static translation calls are complete.");
