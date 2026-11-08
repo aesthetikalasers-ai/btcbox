@@ -53,6 +53,7 @@ FILES=(
   0033_withdrawal_legacy_rpc_cleanup_v1.sql
   0034_financial_audit_duplicate_index_cleanup_v1.sql
   0035_service_role_privilege_minimization_v1.sql
+  0036_service_role_maintain_privilege_revoke_v1.sql
 )
 
 for file in "${FILES[@]}"; do
