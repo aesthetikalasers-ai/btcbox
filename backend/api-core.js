@@ -506,13 +506,39 @@ async function loadDB() {
       const rows = await response.json();
       if (!Array.isArray(rows)) throw new Error('Supabase state response invalid');
       if (rows.length > 1) throw new Error('Supabase state row is not unique');
+      if (rows.length === 0) {
+        // A fresh, schema-bootstrapped database has no BTCBOX state row yet.
+        // Initialize only that empty singleton through the existing revision-0 CAS RPC.
+        // The insert is atomic; a concurrent first request may win, in which case re-read.
+        const initialState = defaultDB();
+        const seedResponse = await fetch(base + '/rest/v1/rpc/btcbox_save_state', {
+          method: 'POST',
+          headers: supabaseHeaders(),
+          body: JSON.stringify({ p_expected_revision: 0, p_data: initialState })
+        });
+        if (!seedResponse.ok) throw new Error('Supabase state initialization failed');
+        const seeded = await seedResponse.json();
+        if (seeded === true) {
+          mergeDepositAddresses(initialState);
+          return attachRevision(initialState, 1);
+        }
+        const retryResponse = await fetch(base + '/rest/v1/btcbox_state?select=revision,data&id=eq.main', { headers: supabaseHeaders() });
+        if (!retryResponse.ok) throw new Error('Supabase state re-read failed after initialization race');
+        const retryRows = await retryResponse.json();
+        if (!Array.isArray(retryRows) || retryRows.length !== 1 ||
+            !retryRows[0] || !retryRows[0].data || !retryRows[0].data.users) {
+          throw new Error('Supabase state initialization conflict');
+        }
+        const data = JSON.parse(JSON.stringify(retryRows[0].data));
+        mergeDepositAddresses(data);
+        return attachRevision(data, retryRows[0].revision);
+      }
       if (rows.length === 1 && rows[0] && rows[0].data && rows[0].data.users) {
         const data = JSON.parse(JSON.stringify(rows[0].data));
         mergeDepositAddresses(data);
         return attachRevision(data, rows[0].revision);
       }
-      // Fail closed: never treat an empty Supabase table as a fresh exchange database.
-      // This prevents accidental balance/history loss if secrets are configured before import.
+      // Multiple or malformed rows indicate a broken state contract; never reset or overwrite them.
       throw new Error('Supabase state is not initialized');
     }
     // Netlify Blobs has been retired. All persistent state must use Supabase.
@@ -3897,6 +3923,8 @@ exports.handler = function (event, context) {
 };
 // 导出纯函数供后端单元测试（无网络/无 DB 依赖）。
 exports._test = {
+  loadDB: loadDB,
+  defaultDB: defaultDB,
   depositAddressFromEnv: depositAddressFromEnv,
   DEPOSIT_ADDRESS_ENV_KEYS: DEPOSIT_ADDRESS_ENV_KEYS,
   getPublishableKey: getPublishableKey,
