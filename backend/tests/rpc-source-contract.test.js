@@ -294,6 +294,8 @@ test('first successful withdrawal always requires review based on PostgreSQL his
   assert.match(api, /const requireAdminReview = usdtValue === null \|\| usdtValue > thresholdUsdt/);
   assert.doesNotMatch(api, /const requireAdminReview = withdrawalRequiresAdminReview\(/,
     'legacy btcbox_state withdrawal history must not decide the first PostgreSQL withdrawal review');
+  assert.doesNotMatch(api, /function withdrawalRequiresAdminReview\(/,
+    'the obsolete legacy-state review helper must not remain available for accidental reuse');
   assert.match(migration, /v_require_admin_review := p_require_admin_review OR NOT EXISTS/i);
   assert.match(migration, /from public\.withdrawal_requests[\s\S]*?where user_id = p_user_id[\s\S]*?status in \('completed', 'success', 'approved', 'broadcast'\)/i);
   assert.match(migration, /v_status := case when v_require_admin_review then 'pending_admin_review' else 'pending' end/i);
