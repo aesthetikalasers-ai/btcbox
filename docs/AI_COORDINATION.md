@@ -13,14 +13,10 @@ One repository execution path is active at a time. Re-read this file before star
 
 - **Active candidate:** PR #67
 - **Branch:** `integration/btcbox-mainline-consolidation-20261108`
-- **Current candidate head:** `07e0cf66ab5e86a73da10e9972791767d7a2a18f`
+- **Current candidate head:** `99269ee580006a54446e35920ec945257f1d2c72`
 - **Base:** `main` at `2a3810da1aef2c0c7c58df0cfdb059a212eeb0d6`
 - **State:** Draft / open / not merged
-- **Latest exact-current-head CI:** PASS on `07e0cf66ab5e86a73da10e9972791767d7a2a18f`.
-  - Backend: `42457650357` — PASS.
-  - PostgreSQL schema: `42457650540` — PASS.
-  - Frontend: `42457650430` — PASS.
-  - Earlier CI runs on `54d9b552...`, `df6cf43...`, and `1594084...` are historical and are not current-head evidence.
+- **Latest exact-current-head CI:** PENDING for `99269ee580006a54446e35920ec945257f1d2c72` (UI-only Dashboard metric surface + migration-ledger update). Checks currently running: Frontend build `128693567469`, unified frontend/backend/preflight `128693567207`, PostgreSQL bootstrap `128693567157`. Prior head `d875faed3ed93e8ec0d0f69847b0e4a9fee32397` had Backend `42468033093`, PostgreSQL schema `42468033064`, and Frontend `42468033071` all PASS; those results are historical for the prior SHA only.
 
 The previous fully green source head `8b54cf128ccd4861eedd1fae602846c92849f835` also passed Backend `42436694163`, PostgreSQL schema `42436693919`, and Frontend `42436694030`. Current head adds a documentation-only correction to the owner bootstrap guide; the full exact-head CI has now passed.
 
@@ -592,3 +588,13 @@ Safety/ownership:
 - PR #67 remains Draft/open/unmerged. Exact-head Backend, PostgreSQL schema and Frontend CI for `d875faed3ed93e8ec0d0f69847b0e4a9fee32397` are running: Backend `42468033093`, PostgreSQL schema `42468033064`, Frontend `42468033071`. Do not claim a pass until all complete; Frontend route smoke tests and screenshot upload must complete before responsive QA evidence is accepted.
 - Prior `32dd6c7` frontend route-matrix run `42467899230` is still in progress at this checkpoint. Its screenshots do not include the new semantic accent commit and cannot be used as final visual evidence.
 - No merge, production deployment, Vercel configuration change, hosted Supabase DDL/DML, financial operation, or Spot trading-page layout change.
+
+
+## 8. Single-operator continuation — 2026-11-08
+
+- One assistant execution path owns the entire integration batch. Historical team labels are work categories only; do not assume separate agents or parallel branches.
+- Candidate PR #67 advanced from `d875faed3ed93e8ec0d0f69847b0e4a9fee32397` to `99269ee580006a54446e35920ec945257f1d2c72`.
+- Batch added Strata-inspired semantic accent surfaces to the BTC/USDT last-price, 24h-change, and 24h-volume summary cards in `frontend/src/features/dashboard/Dashboard.tsx`; values remain sourced exclusively from BTCBOX live market responses. `docs/FRONTEND_TEMPLATE_MIGRATION.md` now records this as a partial runtime port and explicitly lists remaining template migration work.
+- No business/API/auth behavior or Spot layout changed. No demo/mock values introduced.
+- Exact-head CI for `99269ee...` was still running at this note: Frontend build `128693567469`, unified frontend/backend/preflight `128693567207`, PostgreSQL bootstrap `128693567157`. Do not mark this head green until all required checks complete successfully.
+- PR #67 remains Draft/open/unmerged. No production deployment, Vercel configuration change, hosted Supabase write, or financial operation was initiated.
