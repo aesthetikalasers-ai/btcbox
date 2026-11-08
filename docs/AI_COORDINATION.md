@@ -86,7 +86,7 @@ Observed live state:
 
 Hosted schema does NOT currently match the canonical 26-file fresh-schema source inventory in this PR:
 - Missing tables include `private.admin_permission_catalog`, `private.admin_memberships`, `private.admin_permission_events`, `private.admin_security_audit`, `private.admin_request_idempotency`, `private.seconds_policy_request_idempotency`, `public.seconds_contract_policies`, `public.seconds_contract_policy_active`, `public.seconds_contract_policy_audit`, and `public.financial_matching_cancel_requests`.
-- Missing functions include `private.bootstrap_super_admin_v1`, public admin membership wrappers, `public.admin_set_seconds_policy_v1`, and `public.admin_list_seconds_open_positions_v1`.
+- Missing functions include `private.bootstrap_super_admin_v1`, public admin membership wrappers, `public.admin_set_seconds_policy_v1`, and `public.admin_read_seconds_open_positions_v1`.
 - Existing matching-engine submit/cancel RPCs are present, but the missing policy/admin schema means the current hosted project cannot satisfy the full PR #67 backend contract.
 - Do NOT run the canonical empty-database bootstrap against this project: it is not empty. Validate the full SQL inventory on disposable PostgreSQL / isolated staging first, then plan a separately approved hosted installation.
 
@@ -177,3 +177,11 @@ RPC source-contract regression coverage — 2026-11-08:
 - Final test-source commit: `df6cf43d28194911a4dbebcdcdb1989c9ccf6ded`.
 - Exact-head Backend CI `42453532346`, PostgreSQL schema CI `42453532347`, and Frontend CI `42453532383` all completed successfully.
 - PR #67 remains Draft / open / not merged. The owner's merge authorization is noted, but the documented release gate remains unmet: hosted schema reconciliation and authenticated Email/Google staging verification are NOT VERIFIED. Do not merge until those prerequisites are completed or the owner explicitly revises the release gate after reviewing the risk.
+
+
+Hosted schema diagnostic coverage correction — 2026-11-08:
+- Source inspection found the documented Seconds administrator queue function name was wrong: canonical SQL `0030_seconds_admin_open_positions_read_v1.sql` and `backend/api-core.js` both use `admin_read_seconds_open_positions_v1`, not `admin_list_seconds_open_positions_v1`.
+- Expanded `backend/supabase/diagnostics/hosted-schema-contract-readonly.sql` in PR #67 commit `54d9b552a83eccfabc9fdf4a155ac9f2e072caae` to check the private RBAC helper functions, private Seconds/Spot transition functions, public Seconds queue and Spot admin/read wrappers, and `private.spot_market_request_idempotency`.
+- The added Spot market idempotency table and wrapper functions were absent from the earlier diagnostic inventory; their live hosted presence has NOT YET BEEN RECHECKED. The expanded diagnostic has not yet been executed against hosted Supabase.
+- PR #67 head is now `54d9b552a83eccfabc9fdf4a155ac9f2e072caae`. No GitHub Actions workflow runs were returned for this exact commit at the time of this update; the combined commit status only reports the Vercel check as failure due to its build-rate-limit target. Per owner instruction, Vercel is not part of this work. Do not carry forward the previous exact-head CI PASS as evidence for this newer commit.
+- No hosted SQL was executed, no DDL/data/Auth changes were made, and PR #67 remains Draft / unmerged.
