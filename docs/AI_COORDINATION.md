@@ -197,3 +197,11 @@ Expanded hosted schema diagnostic execution — 2026-11-08:
 - The legacy Seconds duration CHECK remains `duration_sec = ANY (ARRAY[30,60,300,900])`.
 - PR #67 candidate head remains `54d9b552a83eccfabc9fdf4a155ac9f2e072caae`. The GitHub Actions workflow-run lookup returned no PR-triggered runs for this exact commit; combined commit status only surfaced the Vercel build-rate-limit failure. Vercel is explicitly out of scope. The previous CI PASS at `df6cf43...` is historical and must not be attributed to this newer head.
 - This diagnostic confirms more hosted contract drift; it does not provide a safe upgrade path. The existing hosted project remains non-empty and the canonical scripts remain fresh-database bootstrap files, not incremental migrations. Do not apply them to hosted production.
+
+
+PR metadata and staging-environment status — 2026-11-08:
+- Updated PR #67 description to identify current head `54d9b552a83eccfabc9fdf4a155ac9f2e072caae`, distinguish historical CI PASS evidence at `df6cf43...`, and record current-head CI as NOT VERIFIED. PR remains Draft/open/unmerged.
+- The PR description now includes the expanded hosted schema drift evidence and explicitly retains the no-bootstrap/no-production-write gate.
+- Supabase development branch inventory for hosted project `zlozsutefnmgwwzrlipt` currently returns no branches. No independent Supabase staging project/branch was identified in this check. Do not create a branch/project without first establishing its cost and owner approval.
+- The available GitHub integration exposes workflow-run inspection but no workflow-dispatch action. Current head has no returned GitHub Actions PR workflow runs; do not claim current-head CI passed. A repository owner may need to dispatch the applicable Backend, PostgreSQL schema, and Frontend workflows manually, or authorize another CI trigger path.
+- Next safe prerequisite: establish a separately isolated staging database/project and confirm its cost/ownership before applying the 26-file canonical fresh-schema bootstrap there. Do not use the connected non-empty hosted project as that target.
