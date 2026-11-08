@@ -72,8 +72,6 @@ for (const path of walk(resolve(root, "src")).filter((path) => [".ts", ".tsx", "
   const code = readFileSync(path, "utf8");
   for (const match of code.matchAll(callPattern)) usedKeys.add(match[2]);
 }
-const legacy = dictionaries.vi;
-console.log("vi (preserved legacy): " + legacy.keys.length + " keys; " + [...canonical].filter((key) => !legacy.keys.includes(key)).length + " missing from official source baseline");
 const missingUsed = [...usedKeys].filter((key) => !canonical.has(key));
 console.log("Static t() calls: " + usedKeys.size + "; keys absent from English dictionary: " + missingUsed.length);
 if (missingUsed.length) {
