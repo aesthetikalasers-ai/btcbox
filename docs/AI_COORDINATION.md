@@ -318,3 +318,12 @@ Safety/ownership:
 - The GitHub connector exposes read/compare and Git object/ref primitives, but no safe native cherry-pick/merge-branch operation. Do not synthesize a broad merge tree or move the PR head without inspecting every affected path and preserving conflict-sensitive business logic. If a required operation cannot be performed safely with the available interface, report the precise blocker and use a repository workspace/authorized implementation agent rather than pretending integration happened.
 - Continue using one candidate only. Do not merge PR #65 independently or close historical branches until all verified unique changes are accounted for.
 - Preserve locked Spot layout, BTCBOX backend/auth/business contracts, no demo data, no production deployment, no hosted Supabase writes, no Vercel changes, and no real financial operations.
+
+
+### First consolidation commit — source inputs added to sole candidate (2026-11-08)
+
+- PR #67 candidate branch advanced from `3d7f96352b214b386be410ab619b043898fef6c2` to `a15cc242001eeaf9cc2d8e47cd54cd4e888619fd`.
+- Commit `a15cc242001eeaf9cc2d8e47cd54cd4e888619fd` adds `.gitmodules`, both pinned template submodule gitlinks, `docs/COMPLETE_UI_TEMPLATE_SOURCES.md`, `docs/FRONTEND_TEMPLATE_MIGRATION.md`, and the existing Lightweight Charts notices. The submodule pins are Strata Pro `a3f79d0237c68faddc877f8c1b00afece2fbbae8` and shadcn-fintech `a905058c75a840896d27a16991f2e7cc1ca06f3f`.
+- This is a source-input consolidation step only. It makes both immutable upstream source references available from the integration candidate and records the migration contract; it does NOT port their pages/components into BTCBOX runtime and does NOT count as full template migration.
+- PR #67 is still Draft/open/unmerged. No production deployment, Vercel change, hosted Supabase write, financial operation, or locked Spot layout change occurred.
+- Next consolidation work: selectively reconcile PR #65's unique compatible visual/accessibility/mobile changes into current PR #67 without overwriting newer business/auth logic. Then complete runtime template porting and BTCBOX real-service wiring. Comprehensive end-to-end audit remains scheduled AFTER consolidation.
