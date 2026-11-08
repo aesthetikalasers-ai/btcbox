@@ -13,7 +13,7 @@ One repository execution path is active at a time. Re-read this file before star
 
 - **Active candidate:** PR #67
 - **Branch:** `integration/btcbox-mainline-consolidation-20261108`
-- **Current candidate head:** `e2a70744668614bdb63b1259f26d931406ff2a88`
+- **Current candidate head:** `44d9e5009f752687d7857d455ab4834669205248`
 - **Base:** `main` at `2a3810da1aef2c0c7c58df0cfdb059a212eeb0d6`
 - **State:** Draft / open / not merged
 - **Latest exact-current-head CI:** PENDING for `e2a70744668614bdb63b1259f26d931406ff2a88` (Dashboard metric surfaces + My Account quick-link semantic surfaces). Earlier head `99269ee580006a54446e35920ec945257f1d2c72`: unified frontend/backend/preflight PASS (`42468524161`), PostgreSQL bootstrap PASS (`42468524162`), Frontend build `42468524189` still running at last check. Prior head `d875faed3ed93e8ec0d0f69847b0e4a9fee32397` had all three workflow suites PASS; those results are historical for that SHA only.
@@ -623,3 +623,15 @@ Safety/ownership:
 - Exact-head CI for `05cc95e...` was not yet visible in GitHub Actions at the immediate post-push query. The navigation batch remains unaccepted until lint, unified build, PostgreSQL bootstrap, desktop/mobile smoke tests and screenshot artifact complete on this exact SHA.
 
 - Corrected-head CI progress for `05cc95e7...`: unified frontend/backend build, backend tests, fail-closed preflight and output checks PASS (`42469014294`). Frontend install, lint and production build PASS; Chromium install/browser smoke tests/screenshot artifact still running (`42469014466`). PostgreSQL disposable bootstrap still running (`42469014293`). This is partial success, not full CI acceptance.
+
+
+## 10. Deposit, withdrawal and support visual batches — 2026-11-08
+
+- Candidate PR #67 advanced from `05cc95e7e8587669d30776f5c0c721a8ca1205cd` to `a23c5b8b18c19bd2e3243462beb6e3784e007ae6` (Deposit/Withdraw), then `44d9e5009f752687d7857d455ab4834669205248` (Support). PR remains Draft/open/unmerged.
+- Deposit UI: clearer asset/network destination presentation, teal/cyan address surface, warning hierarchy and history heading. No deposit request or account credit logic introduced.
+- Withdrawal UI: distinct wallet balance and submission surfaces, consistent 48px inputs/focus treatment, stronger submit action. Existing saved destination selection, exact fee confirmation, fund-password/2FA, local pending-intent request ID, idempotent retry, backend action gates and staff review are preserved. No withdrawal submitted.
+- Support UI: public help, private message conversation and composer now have indigo/cyan semantic surfaces and improved message/input hierarchy. Auth gating, private account messages and request-id retry behavior remain unchanged. No support message sent.
+- Exact-head CI for `a23c5b8...`: Backend unified tests/preflight PASS (`42469275344`); disposable PostgreSQL bootstrap PASS (`42469275353`); frontend install/lint/build/Chromium installation PASS, desktop/mobile route smoke tests and screenshot upload still in progress (`42469275354`).
+- Support follow-up head `44d9e500...` was pushed after the `a23c5b8...` workflow began, so its own exact-head CI is not yet visible. Do not transfer the preceding SHA's green checks to this newer head.
+- Navigation correction head `05cc95e7...` completed desktop/mobile route smoke tests and responsive screenshot upload successfully; its backend, frontend build and PostgreSQL checks all completed successfully.
+- No merge, deployment, Vercel changes, hosted Supabase writes, financial operations, or Spot layout/API changes.
