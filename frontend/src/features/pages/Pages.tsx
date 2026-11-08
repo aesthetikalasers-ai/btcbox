@@ -5,7 +5,7 @@ import { ApiError, getAccount, getOrders, getMarkets, getSpotMarketPairs, getKli
 import { useAuth } from "../../lib/auth";
 
 import type { ReactNode } from "react";
-import { ArrowUpRight, LockKeyhole, Wallet, ChartNoAxesCombined, ArrowLeftRight, Sprout } from "lucide-react";
+import { ArrowUpRight, LockKeyhole, Wallet, ChartNoAxesCombined, ArrowLeftRight, Sprout, BadgeCheck, ShieldCheck } from "lucide-react";
 import { Badge } from "../../components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
@@ -140,14 +140,22 @@ export function MyPage(){
   {status!=="authenticated"?<Card className="border-brand-border bg-brand-surface"><CardContent className="flex flex-col items-start gap-3 p-6"><div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-brand-accent/20 bg-brand-accent/10 text-brand-text-secondary"><LockKeyhole className="h-5 w-5"/></div><div><p className="type-card-title">{t("Sign in to continue")}</p><p className="type-body-compact mt-1 text-brand-text-muted">{t("Sign in to view your BTCBOX account profile.")}</p></div><div className="flex w-full flex-wrap gap-2 sm:w-auto"><Button asChild className="min-w-[112px] flex-1 sm:flex-none"><Link to="/login">{t("Sign in")}</Link></Button><Button asChild variant="outline" className="min-w-[112px] flex-1 sm:flex-none"><Link to="/register">{t("Create account")}</Link></Button></div></CardContent></Card>
   :loading?<Card className="border-brand-border bg-brand-surface"><CardContent className="p-6 text-sm text-brand-text-muted" role="status">{t("Loading account profile…")}</CardContent></Card>
   :error?<Card className="border-rose-500/30 bg-brand-surface"><CardContent className="flex flex-wrap items-center justify-between gap-3 p-5"><p className="text-sm text-rose-300" role="alert">{error}</p><Button size="sm" variant="outline" onClick={()=>setReload((n)=>n+1)}>{t("Try again")}</Button></CardContent></Card>
-  :account?<Card className="border-brand-border bg-brand-surface"><CardContent className="grid gap-4 p-5 sm:grid-cols-2 sm:p-6">
-   <div><p className="text-xs text-brand-text-muted">{t("Username")}</p><p className="mt-1 break-all font-semibold">{account.username||"—"}</p></div>
-   <div><p className="text-xs text-brand-text-muted">{t("Email")}</p><p className="mt-1 break-all font-semibold">{account.email||"—"}</p></div>
-   <div><p className="text-xs text-brand-text-muted">{t("Verification")}</p><p className="mt-1 font-semibold capitalize">{account.kyc?.status||"not submitted"}</p></div>
-   <div><p className="text-xs text-brand-text-muted">{t("Two-factor authentication")}</p><p className="mt-1 font-semibold">{account.twofa_enabled?t("Enabled"):t("Not enabled")}</p></div>
-   <div className="sm:col-span-2"><p className="text-xs text-brand-text-muted">{t("Linked sign-in methods")}</p><div className="mt-2 flex flex-wrap gap-2">{(account.auth_providers||[]).length?(account.auth_providers||[]).map(provider=><Badge key={provider} variant="outline" className="border-brand-border capitalize">{provider}</Badge>):<span className="text-sm text-brand-text-muted">—</span>}</div></div>
-   <div className="sm:col-span-2 border-t border-brand-border pt-3"><p className="text-xs text-brand-text-muted">{t("BTCBOX account ID")}</p><p className="mt-1 break-all font-mono text-xs text-brand-text-secondary">{account.uid?account.uid.slice(0,8)+"…"+account.uid.slice(-4):"—"}</p></div>
-  </CardContent></Card>:null}
+  :account?<div className="space-y-4">
+   <section aria-label={t("Account overview")} className="grid gap-3 sm:grid-cols-3">
+    <Card className="border-brand-border bg-brand-surface ring-1 ring-white/[0.025]"><CardContent className="flex items-center gap-3 p-4"><span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-cyan/10 text-brand-cyan"><BadgeCheck className="h-5 w-5"/></span><div className="min-w-0"><p className="type-meta text-brand-text-muted">{t("Verification")}</p><p className="mt-1 truncate text-base font-semibold capitalize text-brand-text">{t(account.kyc?.status||"not submitted")}</p><p className="type-meta text-brand-text-muted">{t("Identity review status")}</p></div></CardContent></Card>
+    <Card className="border-brand-border bg-brand-surface ring-1 ring-white/[0.025]"><CardContent className="flex items-center gap-3 p-4"><span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-teal/10 text-brand-teal"><ShieldCheck className="h-5 w-5"/></span><div className="min-w-0"><p className="type-meta text-brand-text-muted">{t("Two-factor authentication")}</p><p className="mt-1 text-base font-semibold text-brand-text">{account.twofa_enabled?t("Enabled"):t("Not enabled")}</p><p className="type-meta text-brand-text-muted">{t("Account protection")}</p></div></CardContent></Card>
+    <Card className="border-brand-border bg-brand-surface ring-1 ring-white/[0.025]"><CardContent className="flex items-center gap-3 p-4"><span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-violet/10 text-brand-violet"><Wallet className="h-5 w-5"/></span><div className="min-w-0"><p className="type-meta text-brand-text-muted">{t("Linked sign-in methods")}</p><p className="mt-1 text-base font-semibold tabular-nums text-brand-text">{(account.auth_providers||[]).length}</p><p className="type-meta text-brand-text-muted">{t("Connected providers")}</p></div></CardContent></Card>
+   </section>
+   <Card className="overflow-hidden border-brand-border bg-brand-surface ring-1 ring-white/[0.025]">
+    <CardHeader className="border-b border-brand-border bg-brand-surface-2/70 px-5 py-4 sm:px-6"><div><CardTitle>{t("Account profile")}</CardTitle><CardDescription>{t("Your BTCBOX identity and account-level security details.")}</CardDescription></div></CardHeader>
+    <CardContent className="grid gap-x-8 gap-y-5 p-5 sm:grid-cols-2 sm:p-6">
+     <div className="min-w-0"><p className="type-meta text-brand-text-muted">{t("Username")}</p><p className="mt-1 break-all font-semibold text-brand-text">{account.username||"—"}</p></div>
+     <div className="min-w-0"><p className="type-meta text-brand-text-muted">{t("Email")}</p><p className="mt-1 break-all font-semibold text-brand-text">{account.email||"—"}</p></div>
+     <div className="min-w-0 sm:col-span-2"><p className="type-meta text-brand-text-muted">{t("Linked sign-in methods")}</p><div className="mt-2 flex flex-wrap gap-2">{(account.auth_providers||[]).length?(account.auth_providers||[]).map(provider=><Badge key={provider} variant="outline" className="border-brand-border capitalize">{provider}</Badge>):<span className="text-sm text-brand-text-muted">—</span>}</div></div>
+     <div className="border-t border-brand-border pt-4 sm:col-span-2"><p className="type-meta text-brand-text-muted">{t("BTCBOX account ID")}</p><p className="mt-1 break-all font-mono text-xs text-brand-text-secondary">{account.uid?account.uid.slice(0,8)+"…"+account.uid.slice(-4):"—"}</p></div>
+    </CardContent>
+   </Card>
+  </div>:null}
   <div className="grid gap-3 sm:grid-cols-2">{links.map(x=><Link key={x.to} to={x.to} className="rounded-xl border border-brand-border bg-brand-surface p-4 text-sm font-semibold transition-colors hover:border-brand-accent/40 hover:bg-brand-surface-2">{t(x.title)}<ArrowUpRight className="ml-2 inline h-4 w-4 text-brand-text-secondary"/></Link>)}</div>
  </PageFrame>;
 }
