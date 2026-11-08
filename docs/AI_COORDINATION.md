@@ -611,3 +611,10 @@ Safety/ownership:
 - Migration ledger updated. These are presentation refinements; they do not constitute full upstream template migration. The Spot trading layout and API contract remain untouched; no demo/mock financial values introduced.
 - Exact-head CI for `e75d39a...`: no PR-triggered check-runs/workflow-runs were visible at the immediate post-push query. Do not mark green until GitHub Actions reports completed results. Latest preceding SHA `84cee8afffbe2d980a8652f5c55ea262b4d7c797` also had no visible PR-triggered checks at query time; prior earlier-head checks are historical only.
 - No merge, production deployment, Vercel setting changes, hosted Supabase writes, or financial operations.
+
+
+### CI failure and immediate JSX correction — 2026-11-08
+
+- Exact head `e75d39a3408348a7d2171b7494e86b3fa4b88706` exposed a JSX syntax error in `frontend/src/components/layout/Sidebar.tsx` (extra closing brace after the secondary navigation map). Frontend lint and unified build both failed at TypeScript line 61; PostgreSQL bootstrap passed. This failure was caused by the sidebar patch and is not hidden or treated as a pass.
+- Corrected the extra brace in commit `62231c8ee8cc52a5d7d01da252441fc8965f945c`. The corrected head must rerun lint/build/browser smoke tests before acceptance. No other code or business behavior was changed in the fix.
+- Exact-head CI for `62231c8...` had no check-runs visible at the immediate post-push query. Keep CI pending until new PR checks are reported. Prior `e75d39a...` failures remain historical and must not be mistaken for corrected-head results.
