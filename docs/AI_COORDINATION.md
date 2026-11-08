@@ -469,3 +469,12 @@ Safety/ownership:
 - This change updates source SQL only. It does not apply DDL to the hosted Supabase project. Existing hosted environments require a separately reviewed additive upgrade migration; do not assume editing bootstrap SQL upgrades an already-created permission catalogue.
 - PR #67 remains Draft/open/unmerged. No production deployment, hosted database writes/DDL, financial operation, or Spot layout change was performed.
 - Next batch: verify exact-head CI, then continue one-operator implementation of full Strata Pro + Shadcn Fintech runtime page/component migration. The pinned submodules remain source references only; they are not runtime migration evidence. Keep the comprehensive whole-project audit until the requested integration is assembled.
+
+
+### Payout RBAC regression correction — 2026-11-08
+
+- The first permission-remediation commit `bd258b3ec5da983e708d211c64bc6f8f064d6ed5` correctly changed the route mapping and catalogue, but its Backend CI exposed one remaining legacy assertion in `backend/tests/admin-route-permissions.test.js` that still expected the old `deposits.read` / `system_config.write` mappings. Backend run `42461929437` therefore failed at that assertion (469/470 tests passed); this was a test-contract mismatch caused by the intentional least-privilege change, not a runtime failure.
+- Updated that route-permission test to expect `payout_addresses.read_sensitive` for GET and `payout_addresses.manage` for POST, and explicitly assert that the old broad mappings are absent.
+- New exact candidate head: `f46073860a5412bd0d70a2119d27568a2faadfe0`. PR #67 remains Draft/open/unmerged.
+- Exact-head checks for `f46073860a5412bd0d70a2119d27568a2faadfe0` were visible as in progress: unified Backend/build/test run `42462027466`, PostgreSQL bootstrap run `42462027505`, and frontend build run `42462027577`. No pass is claimed until they complete.
+- The earlier `bd258b3` Backend failure is superseded by the corrected test commit; do not treat its result as evidence for the current head.
