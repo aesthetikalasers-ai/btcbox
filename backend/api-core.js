@@ -3135,7 +3135,7 @@ async function handleRequest(event, context) {
         try { const withdrawalSnapshot = await readAdminWithdrawalSnapshot(); pendingWd = withdrawalSnapshot.pending_count; pendingAdminReviewWd = withdrawalSnapshot.pending_admin_review_count; }
         catch (e) { return json({ ok: false, msg: 'Financial data temporarily unavailable. Please try again later.', code: 'FINANCIAL_READ_UNAVAILABLE' }, 503); }
       }
-      const pendingKyc = users.filter(function (u) { return u.kyc && u.kyc.status === 'pending'; }).length;
+      const pendingKyc = users.filter(function (u) { return u.kyc && isKycInReview(u.kyc.status); }).length;
       return json({ ok: true, total_users: users.length, pending_withdrawals: pendingWd, pending_admin_review_withdrawals: pendingAdminReviewWd, pending_kyc: pendingKyc, deposit_addresses: safeDepositAddresses(db.deposit_addresses), announcement: db.announcement || '' });
     }
 

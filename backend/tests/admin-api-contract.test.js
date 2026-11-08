@@ -22,6 +22,15 @@ test('every admin route exposed by the backend has a matching permission and the
   assert.ok(api.includes('ADMIN_PERMISSION_DENIED'));
 });
 
+test('admin KYC dashboard counts every status included in the review queue', () => {
+  const statsStart = api.indexOf("if (sub === 'stats' && method === 'GET')");
+  const statsEnd = api.indexOf("// GET /api/admin/users?search=", statsStart);
+  assert.ok(statsStart >= 0 && statsEnd > statsStart);
+  const statsRoute = api.slice(statsStart, statsEnd);
+  assert.ok(statsRoute.includes('isKycInReview(u.kyc.status)'));
+  assert.ok(api.includes("const KYC_IN_REVIEW_STATUSES = ['pending', 'processing', 'under_review']"));
+});
+
 test('admin frontend functions call the same paths the backend implements and never use native prompts', () => {
   for (const fn of ['getAdminStats', 'getAdminUsers', 'getAdminUser', 'getAdminKyc', 'adminApproveKyc', 'adminRejectKyc', 'adminApproveWithdrawal', 'adminRejectWithdrawal', 'adminMarkWithdrawalPaid', 'adminManualCredit', 'getAdminWithdrawals', 'getAdminOrders', 'getAdminAuditLogs', 'adminReplySupport', 'getAdminSupportMessages']) {
     assert.ok(client.includes('export async function ' + fn), 'client must export ' + fn);
