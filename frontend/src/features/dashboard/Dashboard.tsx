@@ -94,7 +94,7 @@ export function Dashboard() {
     return () => { window.clearInterval(refreshId); controller.abort(); };
   }, [volumeInterval]);
 
-  return <div className="mx-auto flex w-full max-w-[1600px] min-w-0 flex-col gap-5 p-3 sm:gap-6 sm:p-5 lg:p-7">
+  return <div className="tone-market mx-auto flex w-full max-w-[1600px] min-w-0 flex-col gap-5 p-3 sm:gap-6 sm:p-5 lg:p-7">
     <section className={`${isMarketsPage ? "hidden " : ""}relative isolate overflow-hidden rounded-2xl border border-brand-border bg-gradient-to-br from-brand-surface via-brand-surface to-[#102a48] p-5 sm:p-7 lg:p-9`}>
       <div className="pointer-events-none absolute -right-16 -top-24 -z-10 h-72 w-72 rounded-full bg-brand-accent/15 blur-3xl" />
       <div className="relative grid items-center gap-7 lg:grid-cols-[minmax(0,1fr)_minmax(220px,.55fr)]">
