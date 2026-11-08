@@ -13,13 +13,14 @@ One repository execution path is active at a time. Re-read this file before star
 
 - **Active candidate:** PR #67
 - **Branch:** `integration/btcbox-mainline-consolidation-20261108`
-- **Current candidate head:** `df6cf43d28194911a4dbebcdcdb1989c9ccf6ded`
+- **Current candidate head:** `54d9b552a83eccfabc9fdf4a155ac9f2e072caae`
 - **Base:** `main` at `2a3810da1aef2c0c7c58df0cfdb059a212eeb0d6`
 - **State:** Draft / open / not merged
-- **Exact-current-head CI:** PASS on `df6cf43d28194911a4dbebcdcdb1989c9ccf6ded`.
-  - Backend: `42453532346` — PASS; full backend test job completed successfully.
-  - PostgreSQL schema: `42453532347` — PASS; canonical SQL applied to disposable PostgreSQL.
-  - Frontend: `42453532383` — PASS; lint, build, Chromium setup, desktop/mobile route smoke tests, and responsive screenshot upload completed successfully.
+- **Exact-current-head CI:** PASS on `54d9b552a83eccfabc9fdf4a155ac9f2e072caae`.
+  - Backend: `42453956475` — PASS; build, full backend tests, fail-closed deployment configuration preflight, and unified output checks completed successfully.
+  - PostgreSQL schema: `42453956455` — PASS; all canonical SQL files applied to disposable PostgreSQL.
+  - Frontend: `42453956535` — PASS; lint, build, Chromium setup, desktop/mobile route smoke tests, and responsive screenshot upload completed successfully.
+  - The earlier `df6cf43...` CI runs `42453532346`, `42453532347`, and `42453532383` remain historical, not the current-head evidence.
   - Previous exact-head CI on `1594084189befe103c978b2d7ce6dc65eaf5a451` also passed, but is historical and not the current candidate head.
 
 The previous fully green source head `8b54cf128ccd4861eedd1fae602846c92849f835` also passed Backend `42436694163`, PostgreSQL schema `42436693919`, and Frontend `42436694030`. Current head adds a documentation-only correction to the owner bootstrap guide; the full exact-head CI has now passed.
@@ -205,3 +206,12 @@ PR metadata and staging-environment status — 2026-11-08:
 - Supabase development branch inventory for hosted project `zlozsutefnmgwwzrlipt` currently returns no branches. No independent Supabase staging project/branch was identified in this check. Do not create a branch/project without first establishing its cost and owner approval.
 - The available GitHub integration exposes workflow-run inspection but no workflow-dispatch action. Current head has no returned GitHub Actions PR workflow runs; do not claim current-head CI passed. A repository owner may need to dispatch the applicable Backend, PostgreSQL schema, and Frontend workflows manually, or authorize another CI trigger path.
 - Next safe prerequisite: establish a separately isolated staging database/project and confirm its cost/ownership before applying the 26-file canonical fresh-schema bootstrap there. Do not use the connected non-empty hosted project as that target.
+
+
+
+Exact-current-head CI re-verification — 2026-11-08:
+- Fetched PR #67 metadata directly: head branch `integration/btcbox-mainline-consolidation-20261108`, head SHA `54d9b552a83eccfabc9fdf4a155ac9f2e072caae`, base `main` at `2a3810da1aef2c0c7c58df0cfdb059a212eeb0d6`; PR is open, Draft, not merged, mergeable.
+- Fetched workflow runs associated with exact head `54d9b552a83eccfabc9fdf4a155ac9f2e072caae`: Backend `42453956475`, PostgreSQL schema `42453956455`, Frontend `42453956535`; all completed successfully.
+- Inspected job steps: backend build/tests/preflight/output verification all passed; canonical SQL applied successfully to disposable PostgreSQL; frontend lint/build/Chromium desktop+mobile route smoke tests/responsive screenshot upload all passed.
+- This closes the current-head automated CI gap. It does not close hosted schema drift, isolated hosted staging, actual Email/Google provider and OAuth redirect verification, or live market configuration.
+- PR description was stale and stated that no current-head GitHub Actions runs existed; it is being corrected to match these exact-head results. PR remains Draft and unmerged. No production deployment or hosted Supabase writes were performed.
