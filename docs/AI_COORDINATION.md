@@ -120,6 +120,12 @@ Repeatable diagnostic and documentation correction — 2026-11-08:
 - Corrected this coordination document's release boundary to distinguish fresh-schema design from the actual hosted database. No hosted DDL or data writes were made.
 - Current PR #67 head after diagnostic/docs additions: `da4125424270ab5231a363a5627487ee3db5253b`. Backend CI `42450389952` passed; PostgreSQL schema CI `42450389963` and Frontend CI `42450389966` were still running at last check.
 
+RPC security/legacy-contract diagnostic — 2026-11-08:
+- Extended the read-only SQL diagnostic to report RPC signatures, SECURITY DEFINER state, function settings, and EXECUTE grants, plus the live Seconds duration constraint.
+- Executed those checks on hosted Supabase. The three existing Spot/Seconds RPCs are SECURITY INVOKER, use an empty `search_path`, and grant EXECUTE only to `service_role`; anon/authenticated EXECUTE is false. The legacy direct-fill `execute_spot_trade_atomic` RPC is also service-role-only and remains unused by current PR backend source.
+- The live Seconds position table still enforces `duration_sec = ANY (ARRAY[30,60,300,900])`, confirming that source SQL `0031` has not been applied to the hosted database. No hosted writes were performed.
+- Diagnostic extension commit on PR #67: `724d871c9f9f5e3a4df0ce2b7ea78e46164f7082`. Backend, PostgreSQL and Frontend CI started for this exact head; results pending at last check.
+
 This read-only verification supersedes the earlier statement that no Supabase management access was available. It does NOT change the no-hosted-writes/no-merge/no-production-deploy boundary.
 
 ## 6. Release and safety boundary
