@@ -230,7 +230,8 @@ test('withdrawal review and manual payout preserve locked state transitions and 
   const api = read('api-core.js');
   const review = read('supabase/sql/0022_withdrawal_admin_review_status_v1.sql');
   const payout = read('supabase/sql/0027_withdrawal_manual_payout_completion_v1.sql');
-  assert.match(api, /rpc\('review_withdrawal_atomic'[\s\S]*?p_withdrawal_id:\s*wdId[\s\S]*?p_admin_id:\s*adminId[\s\S]*?p_approve:\s*true/);
+  assert.ok(api.includes("'/rest/v1/rpc/review_withdrawal_atomic'"));
+  assert.match(api, /p_withdrawal_id:\s*wdId[\s\S]*?p_admin_id:\s*adminId[\s\S]*?p_approve:\s*true/);
   assert.match(review, /where\s+id\s*=\s*p_withdrawal_id\s+for update/i);
   assert.match(review, /if\s+v_w\.status\s+not\s+in\s*\('pending',\s*'pending_admin_review'\)/i);
   assert.match(review, /'withdraw-review:'\s*\|\|\s*v_w\.id/i);
