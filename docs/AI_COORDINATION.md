@@ -682,3 +682,16 @@ Safety/ownership:
 
 - Product localization rule confirmed by owner: every locale must use its own complete, natural, internally consistent language and terminology system; no mixed-language sentences or awkward literal translation. Recognized financial terms may remain in industry-standard form where appropriate (e.g. Spot, Limit Order, Maker/Taker, API, BTC/USDT), while surrounding explanations are localized. Maintain reviewed per-locale glossaries, completeness checks, consistent risk/error/status copy and preserve all financial semantics/API contracts.
 - Candidate migration standard updated in commit `ba7d431d8d0ca27311f2f3540d27cab2a8fd8e24`. Japanese-first remains gated on complete Japanese coverage and UI review; English remains selectable. No language default has been switched.
+
+
+## 15. Locale infrastructure and dashboard localization batch — 2026-11-08
+
+- Candidate PR #67 head: `1a610fd17241aca5bd7b2b17ecb3c4db50b2cbde`; PR remains Draft/open/unmerged.
+- Commits since the prior coordination update:
+  - `e86a59364b275e141e60aeb626ec560c56801299`: centralized locale tags, set `document.documentElement.lang` on initial provider mount and language changes, and made Top tokens price formatting follow the selected locale.
+  - `d73e759e96b4b97966cc2beaef833a4dd82cc4d5`: added Playwright regression coverage for Japanese selection, localized navigation and persistence after reload.
+  - `d1dfa752cddc83f434897d3d2ca637cb9595ca8e`: translated dashboard Top tokens and server/provider snapshot metadata across all seven supported locales.
+  - `1a610fd17241aca5bd7b2b17ecb3c4db50b2cbde`: translated stale-market-snapshot warning and loading accessible label across all seven locales; 90-second fail-closed behavior unchanged.
+- No default-language switch yet. Existing fallback behavior and broad auth/admin/business-page coverage still need systematic completion before Japanese-first is safe.
+- Exact-head CI started: Frontend `42470781531`, Backend `42470781493`, PostgreSQL `42470781521`. At this update all three were in progress; frontend dependency installation, backend unified build and PostgreSQL container initialization were underway. No PASS claim yet.
+- Spot layout/API contract, API contracts, financial precision, authentication behavior and business flows unchanged. No merge, deployment, hosted Supabase writes or financial operations.
