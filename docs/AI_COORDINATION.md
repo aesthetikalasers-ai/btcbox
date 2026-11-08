@@ -678,3 +678,7 @@ Safety/ownership:
 
 
 - CI status refresh for exact candidate `d9c681392501c444e070eaa25b3144231e420d1f`: Backend `42470197262` PASS; PostgreSQL disposable-schema bootstrap `42470197272` PASS. Frontend `42470197271`: install, lint, production build and Chromium install PASS; desktop/mobile route smoke tests remain in progress and screenshot upload is pending. Candidate remains unaccepted until the frontend run completes successfully.
+
+
+- Product localization rule confirmed by owner: every locale must use its own complete, natural, internally consistent language and terminology system; no mixed-language sentences or awkward literal translation. Recognized financial terms may remain in industry-standard form where appropriate (e.g. Spot, Limit Order, Maker/Taker, API, BTC/USDT), while surrounding explanations are localized. Maintain reviewed per-locale glossaries, completeness checks, consistent risk/error/status copy and preserve all financial semantics/API contracts.
+- Candidate migration standard updated in commit `ba7d431d8d0ca27311f2f3540d27cab2a8fd8e24`. Japanese-first remains gated on complete Japanese coverage and UI review; English remains selectable. No language default has been switched.
