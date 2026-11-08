@@ -147,7 +147,7 @@ test('Earn subscribe and redeem API payloads match canonical RPC signatures and 
   assert.match(api, /p_position_id:\s*positionId[\s\S]*?p_user_id:\s*String\(user\.uid\)[\s\S]*?p_product_id:\s*productId[\s\S]*?p_asset:\s*asset[\s\S]*?p_principal:\s*String\(amount\)[\s\S]*?p_request_id:\s*requestId[\s\S]*?p_request_hash:\s*requestHash/);
   assert.match(api, /JSON\.stringify\(\{ user_id: String\(user\.uid\), product_id: productId, asset, amount: String\(amount\), request_id: requestId \}\)/);
   assert.match(lifecycle, /request_idempotency_key\s*=\s*p_request_id/i);
-  assert.match(lifecycle, /subscribe_request_hash\s*=\s*p_request_hash/i);
+  assert.match(lifecycle, /subscribe_request_hash\\)[\\s\\S]*?p_request_hash\\);/i);
 
   const redeem = redemption.match(/create\s+or\s+replace\s+function\s+public\.redeem_earn_atomic\s*\(([\s\S]*?)\)\s*returns/i);
   assert.ok(redeem, 'canonical Earn redemption RPC must exist');
