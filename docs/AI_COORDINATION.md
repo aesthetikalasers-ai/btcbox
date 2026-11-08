@@ -13,10 +13,10 @@ One repository execution path is active at a time. Re-read this file before star
 
 - **Active candidate:** PR #67
 - **Branch:** `integration/btcbox-mainline-consolidation-20261108`
-- **Current candidate head:** `57170c221cd9761411ad84d5e9730b60089256fb`
+- **Current candidate head:** `c2065d39afc42dbf0c2bf2f7223a7453af8ae8e0`
 - **Base:** `main` at `2a3810da1aef2c0c7c58df0cfdb059a212eeb0d6`
 - **State:** Draft / open / not merged
-- **Latest exact-current-head CI:** IN PROGRESS for `60e7a697cf1b1b5a0f24e0d6d065203e88e7b575`: Backend `42479149265`, PostgreSQL schema bootstrap `42479149276`, Frontend `42479149277`. Earlier green results are historical for their respective SHAs only.
+- **Latest exact-current-head CI:** IN PROGRESS for `60e7a697cf1b1b5a0f24e0d6d065203e88e7b575`: Backend `42479320273`, PostgreSQL schema bootstrap `42479320338`, Frontend `42479320367`. Earlier green results are historical for their respective SHAs only.
 
 The previous fully green source head `8b54cf128ccd4861eedd1fae602846c92849f835` also passed Backend `42436694163`, PostgreSQL schema `42436693919`, and Frontend `42436694030`. Current head adds a documentation-only correction to the owner bootstrap guide; the full exact-head CI has now passed.
 
