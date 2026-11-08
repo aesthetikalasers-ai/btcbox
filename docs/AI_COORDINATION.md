@@ -487,3 +487,14 @@ Safety/ownership:
 - Empty PostgreSQL bootstrap workflow `42462027505`: completed successfully.
 - Frontend build workflow `42462027577`: still in progress at this check.
 - The prior backend failure on `bd258b3` was resolved by updating the route-permission contract test; current-head backend suite is green. Frontend is the only remaining CI check for this commit.
+
+
+### Fintech account-card layout port — BTCBOX Assets page — 2026-11-08
+
+- Applied a structural visual adaptation from the Shadcn Fintech Accounts page to BTCBOX `frontend/src/features/assets/AssetsPage.tsx`: responsive three-metric summary row and responsive asset-card grid with asset icon, dedicated Available/Frozen value panels, subtle left accent and card hover treatment.
+- All displayed values remain sourced from the authenticated BTCBOX `getAccount()` snapshot. The summary uses the real valuation-complete flag, real balance-row count and actual unpriced-asset count. Each asset card displays only the returned free/frozen values. No template seed data, fake balances, fake account actions, or invented change/last-activity figures were ported.
+- Deposit/Withdraw actions continue to use the existing BTCBOX routes; loading, auth-required, API-error, empty and unpriced-asset states remain truthful.
+- Candidate commit sequence: `6955cf053ace1190766ddf10a02c0c024d159e99` (layout) followed by `e8353298b88da84b3699c8c97ecca84933360299` (import cleanup). Current PR #67 head is `e8353298b88da84b3699c8c97ecca84933360299`.
+- Exact-head checks for the current commit were triggered and observed in progress: empty PostgreSQL bootstrap, frontend build, and unified backend/build/test/fail-closed workflow. Do not claim completion until all three conclude successfully.
+- Previous permission-remediation-only head `f46073860a5412bd0d70a2119d27568a2faadfe0` passed all three checks, but that is not current-head CI evidence after the Assets page change.
+- No hosted Supabase DDL/writes, production deployment, merge, financial operation, or locked Spot layout change.
