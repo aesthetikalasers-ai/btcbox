@@ -13,10 +13,10 @@ One repository execution path is active at a time. Re-read this file before star
 
 - **Active candidate:** PR #67
 - **Branch:** `integration/btcbox-mainline-consolidation-20261108`
-- **Current candidate head:** `99269ee580006a54446e35920ec945257f1d2c72`
+- **Current candidate head:** `e2a70744668614bdb63b1259f26d931406ff2a88`
 - **Base:** `main` at `2a3810da1aef2c0c7c58df0cfdb059a212eeb0d6`
 - **State:** Draft / open / not merged
-- **Latest exact-current-head CI:** PENDING for `99269ee580006a54446e35920ec945257f1d2c72` (UI-only Dashboard metric surface + migration-ledger update). Checks currently running: Frontend build `128693567469`, unified frontend/backend/preflight `128693567207`, PostgreSQL bootstrap `128693567157`. Prior head `d875faed3ed93e8ec0d0f69847b0e4a9fee32397` had Backend `42468033093`, PostgreSQL schema `42468033064`, and Frontend `42468033071` all PASS; those results are historical for the prior SHA only.
+- **Latest exact-current-head CI:** PENDING for `e2a70744668614bdb63b1259f26d931406ff2a88` (Dashboard metric surfaces + My Account quick-link semantic surfaces). Earlier head `99269ee580006a54446e35920ec945257f1d2c72`: unified frontend/backend/preflight PASS (`42468524161`), PostgreSQL bootstrap PASS (`42468524162`), Frontend build `42468524189` still running at last check. Prior head `d875faed3ed93e8ec0d0f69847b0e4a9fee32397` had all three workflow suites PASS; those results are historical for that SHA only.
 
 The previous fully green source head `8b54cf128ccd4861eedd1fae602846c92849f835` also passed Backend `42436694163`, PostgreSQL schema `42436693919`, and Frontend `42436694030`. Current head adds a documentation-only correction to the owner bootstrap guide; the full exact-head CI has now passed.
 
@@ -598,3 +598,5 @@ Safety/ownership:
 - No business/API/auth behavior or Spot layout changed. No demo/mock values introduced.
 - Exact-head CI for `99269ee...` was still running at this note: Frontend build `128693567469`, unified frontend/backend/preflight `128693567207`, PostgreSQL bootstrap `128693567157`. Do not mark this head green until all required checks complete successfully.
 - PR #67 remains Draft/open/unmerged. No production deployment, Vercel configuration change, hosted Supabase write, or financial operation was initiated.
+
+- Follow-up UI batch advanced candidate to `e2a70744668614bdb63b1259f26d931406ff2a88`: My Account quick links now carry separate semantic tones for verification, orders, support, and settings. The route targets and account data flow are unchanged. Exact-head CI pending.
