@@ -24,7 +24,7 @@ function readLocale(locale) {
     .map((name) => source.indexOf(markers[name], bodyStart))
     .filter((index) => index >= 0)
     .sort((a, b) => a - b)[0];
-  const end = nextLocaleStart ?? source.indexOf("\\n};", bodyStart);
+  const end = nextLocaleStart ?? source.indexOf("\n};", bodyStart);
   if (end < 0) throw new Error(\`Unterminated locale dictionary: \${locale}\`);
   const body = source.slice(bodyStart, end);
   const keys = [];
