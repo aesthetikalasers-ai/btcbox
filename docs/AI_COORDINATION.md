@@ -73,6 +73,43 @@ PR #67 is the sole integration candidate. New fixes discovered during final revi
 
 No new A2 work is pending. Do not open another visual redesign batch or rerun already-green exact-head CI without a reproduced defect.
 
+## 5A. Hosted Supabase read-only verification — 2026-11-08
+
+Authorized Supabase management/read-only SQL access is now connected for project `zlozsutefnmgwwzrlipt` (US East 1, PostgreSQL 17). This is management/read-only verification only; no hosted database writes, DDL, Auth changes, or financial operations were performed.
+
+Observed live state:
+- `auth.users`: 0 rows.
+- `public.btcbox_state`: 1 singleton row, revision 29; its JSON state contains 3 legacy `users` entries and 3 `sessions` entries. This is distinct from Supabase Auth users. Do not disclose or inspect individual records, and do not delete/reset them without separate approval.
+- Financial accounts, operations, ledger, spot orders, Seconds positions, deposits, and withdrawals: 0 rows.
+- Earn catalog: 7 active products.
+- Enabled matching markets: 0.
+- Two private test-backup tables remain: one state backup row and three Auth-test-user backup rows.
+- Supabase migration registry currently lists only two migration records; Edge Functions list is empty.
+
+Hosted schema does NOT currently match the canonical 26-file fresh-schema source inventory in this PR:
+- Missing tables include `private.admin_permission_catalog`, `private.admin_memberships`, `private.admin_permission_events`, `private.admin_security_audit`, `private.admin_request_idempotency`, `private.seconds_policy_request_idempotency`, `public.seconds_contract_policies`, `public.seconds_contract_policy_active`, `public.seconds_contract_policy_audit`, and `public.financial_matching_cancel_requests`.
+- Missing functions include `private.bootstrap_super_admin_v1`, public admin membership wrappers, `public.admin_set_seconds_policy_v1`, and `public.admin_list_seconds_open_positions_v1`.
+- Existing matching-engine submit/cancel RPCs are present, but the missing policy/admin schema means the current hosted project cannot satisfy the full PR #67 backend contract.
+- Do NOT run the canonical empty-database bootstrap against this project: it is not empty. Validate the full SQL inventory on disposable PostgreSQL / isolated staging first, then plan a separately approved hosted installation.
+
+Security observations:
+- Supabase Security Advisor reports 14 public tables with RLS enabled but no policies. Direct privilege inspection found no table grants to `anon` or `authenticated`; service-role-only table grants were observed on the public financial tables.
+- The two private backup tables have RLS disabled. Direct inspection found no `private` schema USAGE for `anon`, `authenticated`, or `service_role`, and no table grants to browser roles. The advisor warning must still be tracked; do not assume exposure from the advisor text alone or auto-apply changes.
+- If the owner elects to enable RLS on the backup tables, the advisor-provided SQL is:
+  `ALTER TABLE private.btcbox_state_pre_test_cleanup_backup ENABLE ROW LEVEL SECURITY;`
+  `ALTER TABLE private.btcbox_auth_test_users_backup ENABLE ROW LEVEL SECURITY;`
+  Enabling RLS without policies blocks access; do not execute automatically.
+- Performance Advisor reports five unindexed foreign keys; review against query paths before adding indexes. No index changes have been made.
+
+Authentication and release verification:
+- Current PR #67 frontend source exposes Email and Google auth flows; Supabase project has active publishable/anon keys. The management connector does not expose the Auth provider toggle / Google OAuth client configuration, so actual Email/Google provider enablement, redirect URLs, and a real authenticated staging login remain NOT VERIFIED.
+- No Supabase Auth log source was present in the last-24-hour unified-log source summary; this is not proof that providers are disabled.
+- Hosted runtime environment variables and financial cutover flags were not inspected. CI/preflight evidence only confirms the PR's test configuration with financial flags explicitly disabled.
+- The PR's Super Admin bootstrap doc is owner-controlled and requires an existing Auth UUID. Do not run it; there is currently no Auth user and the required private RBAC schema/function is absent.
+- Current hosted market state has zero enabled Spot markets; Earn catalog has seven active rows, but Seconds policy schema is absent. Do not advertise real execution as available.
+
+This read-only verification supersedes the earlier statement that no Supabase management access was available. It does NOT change the no-hosted-writes/no-merge/no-production-deploy boundary.
+
 ## 6. Release and safety boundary
 
 - Do not merge to `main`, trigger a production deployment, or resume automatic production deployment without the owner's explicit approval.
