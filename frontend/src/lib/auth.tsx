@@ -2,7 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { completeLogin2fa, exchangeSupabaseSession, getAccount, getAuthClientConfig, linkSupabaseIdentity as linkIdentityRequest, reauthenticateIdentityForLink as reauthenticateIdentityForLinkRequest, loginWithUsername, logout, reauthenticateBtcboxCredentials as reauthenticateCredentialsRequest, recoverBtcboxCredentials as recoverCredentialsRequest, setBtcboxCredentials as saveCredentialsRequest } from "./api";
 
-type AuthStatus = "loading" | "anonymous" | "authenticated" | "two-factor";
+type AuthStatus = "loading" | "anonymous" | "authenticated" | "two-factor" | "password-recovery";
 
 type EthereumWalletChoice = {
   info: { uuid: string; name: string; rdns?: string };
@@ -37,6 +37,10 @@ type AuthContextValue = {
   linkGoogleIdentity: () => Promise<void>;
   linkWeb3Identity: (chain: "ethereum" | "solana", wallet?: unknown) => Promise<void>;
   signInWithWeb3: (chain: "ethereum" | "solana", wallet?: unknown) => Promise<void>;
+  signInWithEmail: (email: string, password: string) => Promise<void>;
+  signUpWithEmail: (email: string, password: string) => Promise<void>;
+  requestPasswordReset: (email: string) => Promise<void>;
+  completePasswordRecovery: (password: string) => Promise<void>;
   finishOAuth: () => Promise<void>;
   verifyTwoFactor: (code: string) => Promise<void>;
   getSupabaseAccessToken: () => Promise<string>;
@@ -120,7 +124,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const callbackParams = new URLSearchParams(window.location.search);
         const callbackHashParams = new URLSearchParams(window.location.hash.replace(/^#/, ""));
         const isCallback = window.location.pathname === "/auth/react-callback" &&
-          (callbackParams.has("code") ||
+          (callbackParams.has("code") || callbackParams.get("flow") === "recovery" ||
             callbackParams.has("error") || callbackParams.has("error_description") ||
             callbackParams.has("error_code") || callbackParams.has("error_reason") ||
             callbackHashParams.has("error") || callbackHashParams.has("error_description") ||
@@ -380,6 +384,60 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } finally { setBusy(false); }
   }, [acceptSupabaseSession]);
 
+  const signInWithEmail = useCallback(async (address: string, password: string) => {
+    setBusy(true); setError(""); setNotice("");
+    try {
+      if (!clientRef.current) throw new Error("Authentication is still initializing. Please try again.");
+      const { data, error: authError } = await clientRef.current.auth.signInWithPassword({ email: address.trim(), password });
+      if (authError) throw authError;
+      if (!data.session?.access_token) throw new Error("Email is not verified yet. Please check your inbox and confirm your email.");
+      await acceptSupabaseSession(data.session.access_token);
+    } catch (cause) { setError(cause instanceof Error ? cause.message : "Email sign-in failed."); throw cause; }
+    finally { setBusy(false); }
+  }, [acceptSupabaseSession]);
+
+  const signUpWithEmail = useCallback(async (address: string, password: string) => {
+    setBusy(true); setError(""); setNotice("");
+    try {
+      if (!clientRef.current) throw new Error("Authentication is still initializing. Please try again.");
+      const { data, error: authError } = await clientRef.current.auth.signUp({
+        email: address.trim(), password,
+        options: { emailRedirectTo: window.location.origin + "/auth/react-callback" },
+      });
+      if (authError) throw authError;
+      if (data.session?.access_token) await acceptSupabaseSession(data.session.access_token);
+      else setNotice("Registration received. Please check your email and confirm your address before signing in.");
+    } catch (cause) { setError(cause instanceof Error ? cause.message : "Email registration failed."); throw cause; }
+    finally { setBusy(false); }
+  }, [acceptSupabaseSession]);
+
+  const requestPasswordReset = useCallback(async (address: string) => {
+    setBusy(true); setError(""); setNotice("");
+    try {
+      if (!clientRef.current) throw new Error("Authentication is still initializing. Please try again.");
+      const { error: authError } = await clientRef.current.auth.resetPasswordForEmail(address.trim(), {
+        redirectTo: window.location.origin + "/auth/react-callback?flow=recovery",
+      });
+      if (authError) throw authError;
+      setNotice("If an account exists for this email, a password reset message will be sent.");
+    } catch (cause) { setError(cause instanceof Error ? cause.message : "Password reset could not be requested."); throw cause; }
+    finally { setBusy(false); }
+  }, []);
+
+  const completePasswordRecovery = useCallback(async (password: string) => {
+    setBusy(true); setError(""); setNotice("");
+    try {
+      if (!clientRef.current) throw new Error("Authentication is unavailable. Please reload and try again.");
+      const { error: updateError } = await clientRef.current.auth.updateUser({ password });
+      if (updateError) throw updateError;
+      const { data, error: sessionError } = await clientRef.current.auth.getSession();
+      if (sessionError || !data.session?.access_token) throw sessionError || new Error("Password updated. Please sign in again.");
+      await acceptSupabaseSession(data.session.access_token);
+      setNotice("Your password has been updated.");
+    } catch (cause) { setError(cause instanceof Error ? cause.message : "Password could not be updated."); throw cause; }
+    finally { setBusy(false); }
+  }, [acceptSupabaseSession]);
+
   const finishOAuth = useCallback(async () => {
     if (callbackLock.current) return;
     callbackLock.current = true;
@@ -398,6 +456,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (code) {
         const { error: exchangeError } = await client.auth.exchangeCodeForSession(code);
         if (exchangeError) throw exchangeError;
+      }
+      if (url.searchParams.get("flow") === "recovery") {
+        const { data, error: sessionError } = await client.auth.getSession();
+        if (sessionError || !data.session) throw sessionError || new Error("The password reset link is invalid or expired.");
+        setStatus("password-recovery");
+        window.history.replaceState({}, document.title, "/auth/react-callback?flow=recovery");
+        return;
       }
       const { data, error: sessionError } = await client.auth.getSession();
       if (sessionError) throw sessionError;
@@ -527,9 +592,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const value = useMemo(() => ({
-    status, email, busy, error, notice, googleEnabled, identityLinkSourceVerified, identityLinkNeedsTwoFactor, completeIdentityLinkReauthTwoFactor, needsCredentials, credentialRecoveryReady, credentialRecoveryNeedsTwoFactor, ethereumWallets, signInWithGoogle, reauthenticateIdentityLinkWithGoogle, reauthenticateIdentityLinkWithWeb3, linkGoogleIdentity, linkWeb3Identity, signInWithUsername, setBtcboxCredentials, reauthenticateCredentialsWithGoogle, reauthenticateCredentialsWithWeb3, completeCredentialRecoveryTwoFactor, recoverBtcboxPassword, signInWithWeb3, finishOAuth, verifyTwoFactor, getSupabaseAccessToken, signOut,
+    status, email, busy, error, notice, googleEnabled, identityLinkSourceVerified, identityLinkNeedsTwoFactor, completeIdentityLinkReauthTwoFactor, needsCredentials, credentialRecoveryReady, credentialRecoveryNeedsTwoFactor, ethereumWallets, signInWithGoogle, reauthenticateIdentityLinkWithGoogle, reauthenticateIdentityLinkWithWeb3, linkGoogleIdentity, linkWeb3Identity, signInWithUsername, setBtcboxCredentials, reauthenticateCredentialsWithGoogle, reauthenticateCredentialsWithWeb3, completeCredentialRecoveryTwoFactor, recoverBtcboxPassword, signInWithWeb3, signInWithEmail, signUpWithEmail,
+    requestPasswordReset, completePasswordRecovery, finishOAuth, verifyTwoFactor, getSupabaseAccessToken, signOut,
     clearError: () => setError(""),
-  }), [status, email, busy, error, notice, googleEnabled, identityLinkSourceVerified, identityLinkNeedsTwoFactor, completeIdentityLinkReauthTwoFactor, needsCredentials, credentialRecoveryReady, credentialRecoveryNeedsTwoFactor, ethereumWallets, signInWithGoogle, linkGoogleIdentity, linkWeb3Identity, signInWithUsername, setBtcboxCredentials, reauthenticateCredentialsWithGoogle, reauthenticateCredentialsWithWeb3, completeCredentialRecoveryTwoFactor, recoverBtcboxPassword, signInWithWeb3, finishOAuth, verifyTwoFactor, getSupabaseAccessToken, signOut, reauthenticateIdentityLinkWithGoogle, reauthenticateIdentityLinkWithWeb3]);
+  }), [status, email, busy, error, notice, googleEnabled, identityLinkSourceVerified, identityLinkNeedsTwoFactor, completeIdentityLinkReauthTwoFactor, needsCredentials, credentialRecoveryReady, credentialRecoveryNeedsTwoFactor, ethereumWallets, signInWithGoogle, linkGoogleIdentity, linkWeb3Identity, signInWithUsername, setBtcboxCredentials, reauthenticateCredentialsWithGoogle, reauthenticateCredentialsWithWeb3, completeCredentialRecoveryTwoFactor, recoverBtcboxPassword, signInWithWeb3, signInWithEmail, signUpWithEmail,
+    requestPasswordReset, completePasswordRecovery, finishOAuth, verifyTwoFactor, getSupabaseAccessToken, signOut, reauthenticateIdentityLinkWithGoogle, reauthenticateIdentityLinkWithWeb3]);
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 

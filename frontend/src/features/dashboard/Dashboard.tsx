@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { ArrowRight, ArrowUpRight, ChartNoAxesCombined, ShieldCheck, Wallet } from "lucide-react";
 import { LiquidityChart } from "./components/LiquidityChart";
 import { VolumeChart } from "./components/VolumeChart";
@@ -16,6 +16,7 @@ const VOLUME_INTERVALS: Record<string, string> = { "1d": "5m", "7d": "1h", "30d"
 
 export function Dashboard() {
   const { t } = useI18n();
+  const isMarketsPage = useLocation().pathname === "/markets";
   const [markets, setMarkets] = useState<MarketTicker[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -25,6 +26,11 @@ export function Dashboard() {
   const volumeRange = useDashboardStore((state) => state.volumeRange);
   const liquidityInterval = LIQUIDITY_INTERVALS[liquidityRange] || "5m";
   const volumeInterval = VOLUME_INTERVALS[volumeRange] || "1h";
+  const btcMarket = markets.find((item) => item.sym === "BTC");
+  const latestMarketSnapshotTs = markets.reduce((latest, item) => Math.max(latest, item.snapshotTs || 0), 0);
+  const hasMarketSnapshotTime = markets.length > 0 && markets.every((item) => Number.isFinite(item.snapshotTs) && (item.snapshotTs || 0) > 0);
+  const marketSnapshotStale = hasMarketSnapshotTime && markets.some((item) => Date.now() / 1000 - (item.snapshotTs || 0) > 90);
+  const marketFeedStatus = loading ? "Connecting" : error ? "Feed unavailable" : !markets.length ? "No markets enabled" : !hasMarketSnapshotTime ? "Snapshot time unavailable" : marketSnapshotStale ? "Snapshot stale" : "Live market feed";
 
   useEffect(() => {
     const controller = new AbortController();
@@ -38,7 +44,8 @@ export function Dashboard() {
         setError("");
       }).catch((reason: unknown) => {
         if (reason instanceof Error && reason.name === "AbortError") return;
-        // Keep the last confirmed rows visible while the provider is unavailable.
+        // Do not leave old quotes on screen as if they were current.
+        setMarkets([]);
         setError(reason instanceof Error ? reason.message : "Market data is unavailable.");
       }).finally(() => {
         refreshing = false;
@@ -52,12 +59,17 @@ export function Dashboard() {
 
   useEffect(() => {
     const controller = new AbortController();
-    const load = () => getKlines("BTCUSDT", liquidityInterval, controller.signal).then((rows) => {
-      if (!controller.signal.aborted) setLiquidityCandles(rows);
-    }).catch((reason: unknown) => {
-      if (reason instanceof Error && reason.name === "AbortError") return;
-      if (!controller.signal.aborted) setLiquidityCandles([]);
-    });
+    let refreshing = false;
+    const load = () => {
+      if (refreshing || controller.signal.aborted) return;
+      refreshing = true;
+      void getKlines("BTCUSDT", liquidityInterval, controller.signal).then((rows) => {
+        if (!controller.signal.aborted) setLiquidityCandles(rows);
+      }).catch((reason: unknown) => {
+        if (reason instanceof Error && reason.name === "AbortError") return;
+        if (!controller.signal.aborted) setLiquidityCandles([]);
+      }).finally(() => { refreshing = false; });
+    };
     setLiquidityCandles([]);
     load();
     const refreshId = window.setInterval(load, 60000);
@@ -66,20 +78,25 @@ export function Dashboard() {
 
   useEffect(() => {
     const controller = new AbortController();
-    const load = () => getKlines("BTCUSDT", volumeInterval, controller.signal).then((rows) => {
-      if (!controller.signal.aborted) setVolumeCandles(rows);
-    }).catch((reason: unknown) => {
-      if (reason instanceof Error && reason.name === "AbortError") return;
-      if (!controller.signal.aborted) setVolumeCandles([]);
-    });
+    let refreshing = false;
+    const load = () => {
+      if (refreshing || controller.signal.aborted) return;
+      refreshing = true;
+      void getKlines("BTCUSDT", volumeInterval, controller.signal).then((rows) => {
+        if (!controller.signal.aborted) setVolumeCandles(rows);
+      }).catch((reason: unknown) => {
+        if (reason instanceof Error && reason.name === "AbortError") return;
+        if (!controller.signal.aborted) setVolumeCandles([]);
+      }).finally(() => { refreshing = false; });
+    };
     setVolumeCandles([]);
     load();
     const refreshId = window.setInterval(load, 60000);
     return () => { window.clearInterval(refreshId); controller.abort(); };
   }, [volumeInterval]);
 
-  return <div className="mx-auto flex w-full max-w-[1600px] min-w-0 flex-col gap-5 p-3 sm:gap-6 sm:p-5 lg:p-7">
-    <section className="relative isolate overflow-hidden rounded-2xl border border-brand-border bg-gradient-to-br from-brand-surface via-brand-surface to-[#102a48] p-5 sm:p-7 lg:p-9">
+  return <div className="tone-market mx-auto flex w-full max-w-[1600px] min-w-0 flex-col gap-5 p-3 sm:gap-6 sm:p-5 lg:p-7">
+    <section className={`${isMarketsPage ? "hidden " : ""}relative isolate overflow-hidden rounded-2xl border border-brand-border bg-gradient-to-br from-brand-surface via-brand-surface to-[#102a48] p-5 sm:p-7 lg:p-9`}>
       <div className="pointer-events-none absolute -right-16 -top-24 -z-10 h-72 w-72 rounded-full bg-brand-accent/15 blur-3xl" />
       <div className="relative grid items-center gap-7 lg:grid-cols-[minmax(0,1fr)_minmax(220px,.55fr)]">
         <div className="min-w-0">
@@ -110,13 +127,33 @@ export function Dashboard() {
     <div className="flex flex-wrap items-end justify-between gap-3">
       <div className="min-w-0">
         <p className="mb-1 text-xs font-bold uppercase tracking-[.18em] text-brand-text-muted">{t("BTCBOX / MARKETS")}</p>
-        <h2 className="type-page-title text-brand-text">{t("Market overview")}</h2>
+        {isMarketsPage ? <h1 className="type-page-title text-brand-text">{t("Market overview")}</h1> : <h2 className="type-page-title text-brand-text">{t("Market overview")}</h2>}
         <p className="type-body mt-1.5 text-brand-text-secondary">{t("Live spot prices and 24-hour market movement.")}</p>
       </div>
       <Badge variant="outline" className="border-brand-accent/30 bg-brand-accent/10 px-3 py-1 text-brand-text-secondary">
-        {loading ? t("Connecting") : error ? t("Feed unavailable") : t("Live market feed")}
+        {t(marketFeedStatus)}
       </Badge>
     </div>
+    {(btcMarket || loading) && <section aria-label={t("Bitcoin market summary")} className="grid gap-3 sm:grid-cols-3">
+      <div className="relative min-w-0 overflow-hidden rounded-xl border border-brand-cyan/25 bg-gradient-to-br from-brand-cyan/[0.075] via-brand-surface to-brand-surface p-4 ring-1 ring-brand-cyan/[0.06] sm:p-5">
+        <span aria-hidden="true" className="absolute inset-y-0 left-0 w-1 bg-brand-cyan"/>
+        <div className="flex items-center justify-between gap-2 pl-1"><p className="type-meta font-semibold uppercase tracking-wide text-brand-text-muted">{t("BTC/USDT last price")}</p><span className="h-2 w-2 rounded-full bg-brand-cyan shadow-[0_0_12px_var(--color-brand-cyan)]"/></div>
+        <p className="mt-3 truncate text-xl font-semibold tracking-tight tabular-nums text-brand-text sm:text-2xl">{loading ? "—" : btcMarket ? btcMarket.price.toLocaleString(undefined,{maximumFractionDigits:8}) : "—"}</p>
+        
+      </div>
+      <div className="relative min-w-0 overflow-hidden rounded-xl border border-brand-teal/25 bg-gradient-to-br from-brand-teal/[0.075] via-brand-surface to-brand-surface p-4 ring-1 ring-brand-teal/[0.06] sm:p-5">
+        <span aria-hidden="true" className="absolute inset-y-0 left-0 w-1 bg-brand-teal"/>
+        <div className="flex items-center justify-between gap-2 pl-1"><p className="type-meta font-semibold uppercase tracking-wide text-brand-text-muted">{t("BTC 24h change")}</p><span className={"h-2 w-2 rounded-full "+(btcMarket ? btcMarket.chg >= 0 ? "bg-profit" : "bg-loss" : "bg-brand-text-muted")}/></div>
+        <p className={"mt-3 truncate text-xl font-semibold tracking-tight tabular-nums sm:text-2xl "+(btcMarket ? btcMarket.chg >= 0 ? "text-profit" : "text-loss" : "text-brand-text")}>{loading || !btcMarket ? "—" : (btcMarket.chg > 0 ? "+" : "") + btcMarket.chg.toFixed(2) + "%"}</p>
+        
+      </div>
+      <div className="relative min-w-0 overflow-hidden rounded-xl border border-brand-violet/25 bg-gradient-to-br from-brand-violet/[0.075] via-brand-surface to-brand-surface p-4 ring-1 ring-brand-violet/[0.06] sm:p-5">
+        <span aria-hidden="true" className="absolute inset-y-0 left-0 w-1 bg-brand-violet"/>
+        <div className="flex items-center justify-between gap-2 pl-1"><p className="type-meta font-semibold uppercase tracking-wide text-brand-text-muted">{t("BTC 24h volume")}</p><span className="h-2 w-2 rounded-full bg-brand-violet shadow-[0_0_12px_var(--color-brand-violet)]"/></div>
+        <p className="mt-3 truncate text-xl font-semibold tracking-tight tabular-nums text-brand-text sm:text-2xl">{loading || !btcMarket ? "—" : btcMarket.vol + " USDT"}</p>
+        
+      </div>
+    </section>}
     <LiveMarketsTable markets={markets} loading={loading} error={error} />
     <div className="flex items-center justify-between gap-3 px-1 pt-1">
       <div>
@@ -141,5 +178,9 @@ export function Dashboard() {
         <Button asChild><Link to="/register">{t("Create account")}</Link></Button>
       </div>
     </section>
+    <footer className="px-1 pb-2 text-[11px] leading-5 text-brand-text-muted">
+      TradingView Lightweight Charts™ Copyright (с) 2025 TradingView, Inc.{" "}
+      <a href="https://www.tradingview.com/" target="_blank" rel="noreferrer" className="underline underline-offset-2 hover:text-brand-text-secondary">https://www.tradingview.com/</a>
+    </footer>
   </div>;
 }

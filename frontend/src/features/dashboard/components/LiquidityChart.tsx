@@ -20,13 +20,14 @@ export function LiquidityChart({ candles = [] }: { candles?: MarketCandle[] }) {
 
     const chart = createChart(chartContainerRef.current, {
       layout: {
+        attributionLogo: false,
         background: { type: ColorType.Solid, color: 'transparent' },
-        textColor: 'rgba(255, 255, 255, 0.38)',
-        fontSize: 11,
+        textColor: 'rgba(255,255,255,0.62)',
+        fontSize: 12,
         fontFamily: 'Inter',
       },
       grid: {
-        vertLines: { color: 'rgba(255, 255, 255, 0.02)', style: 4 },
+        vertLines: { color: 'rgba(255, 255, 255, 0.025)', style: 4 },
         horzLines: { color: 'rgba(255, 255, 255, 0.02)', style: 4 }, 
       },
       crosshair: {
@@ -35,7 +36,7 @@ export function LiquidityChart({ candles = [] }: { candles?: MarketCandle[] }) {
           color: 'rgba(255, 255, 255, 0.15)',
           width: 1,
           style: 3,
-          labelBackgroundColor: '#101113',
+          labelBackgroundColor: '#141518',
         },
         horzLine: {
           color: 'rgba(255, 255, 255, 0.15)',
@@ -57,13 +58,13 @@ export function LiquidityChart({ candles = [] }: { candles?: MarketCandle[] }) {
     });
 
     const series = chart.addSeries(CandlestickSeries, {
-        upColor: '#22C55E',
-        downColor: '#EF4444',
-        borderUpColor: '#22C55E',
-        borderDownColor: '#EF4444',
+        upColor: '#22c55e',
+        downColor: '#ef4444',
+        borderUpColor: '#22c55e',
+        borderDownColor: '#ef4444',
         borderVisible: true,
-        wickUpColor: '#22C55E',
-        wickDownColor: '#EF4444',
+        wickUpColor: '#22c55e',
+        wickDownColor: '#ef4444',
     });
 
     series.setData(candles.map(c => ({ time: Math.floor(c.time / 1000) as import('lightweight-charts').UTCTimestamp, open: c.open, high: c.high, low: c.low, close: c.close })));
@@ -105,7 +106,7 @@ export function LiquidityChart({ candles = [] }: { candles?: MarketCandle[] }) {
               className={cn(
                 "min-h-9 px-2 py-1 text-[12px] font-medium rounded-md transition-all duration-200 cursor-pointer active:scale-[0.95] sm:px-2.5",
                 activeRange === r 
-                  ? "bg-brand-surface-2 text-brand-text shadow-[0_1px_2px_rgba(0,0,0,0.5),inset_0_1px_1px_rgba(255,255,255,0.02)]" 
+                  ? "border border-brand-cyan/25 bg-brand-cyan/10 text-brand-cyan shadow-[0_1px_2px_rgba(0,0,0,0.25)]" 
                   : "text-brand-text-muted hover:text-brand-text-secondary hover:bg-brand-surface-hover"
               )}
             >
@@ -116,8 +117,8 @@ export function LiquidityChart({ candles = [] }: { candles?: MarketCandle[] }) {
       </CardHeader>
       
       <div className="mb-4 flex min-w-0 shrink-0 flex-wrap items-baseline gap-x-3 gap-y-2">
-        <span className="text-2xl font-semibold leading-none tracking-tight sm:text-[32px]">{latestCandle ? latestCandle.close.toLocaleString("en-US", { maximumFractionDigits: 2 }) : "No market data"}</span>
-        <div className={cn("min-w-0 break-words text-[12px] font-medium", latestCandle ? (changePct >= 0 ? "text-profit" : "text-loss") : "text-brand-text-muted")}>
+        <span className="type-price text-brand-text">{latestCandle ? latestCandle.close.toLocaleString("en-US", { maximumFractionDigits: 2 }) : "No market data"}</span>
+        <div className={cn("min-w-0 break-words text-[13px] font-medium", latestCandle ? (changePct >= 0 ? "text-profit" : "text-loss") : "text-brand-text-muted")}>
           {latestCandle ? `${changePct >= 0 ? "▲" : "▼"} ${Math.abs(changePct).toFixed(2)}% across loaded candles` : "Waiting for market data"}
         </div>
       </div>

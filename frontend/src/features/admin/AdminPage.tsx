@@ -56,7 +56,7 @@ const tabs: Array<{ id: Tab; label: string; permission: string }> = [
   { id: "seconds", label: "Seconds policy", permission: "seconds_policy.read" },
   { id: "markets", label: "Spot markets", permission: "system_config.read" },
 ];
-const adminPermissionOptions = [["dashboard.read","Dashboard"],["users.read","Read users"],["users.manage","Manage users"],["users.freeze","Freeze accounts"],["kyc.read","Read KYC"],["kyc.review","Review KYC"],["deposits.read","Read deposits"],["deposits.review","Manual deposit credit"],["withdrawals.read","Read withdrawals"],["withdrawals.review","Review and mark paid"],["orders.read","Read orders"],["support.read","Read support"],["support.reply","Reply to support"],["support.manage","Manage support"],["announcements.read","Read announcements"],["announcements.manage","Manage announcements"],["system_config.read","Read system configuration"],["system_config.write","Edit system configuration"],["seconds_policy.read","Read Seconds policy"],["seconds_policy.manage","Manage Seconds policy"],["financial_audit.read","Read financial audit"]] as const;
+const adminPermissionOptions = [["dashboard.read","Dashboard"],["users.read","Read users"],["users.manage","Manage users"],["users.freeze","Freeze accounts"],["kyc.read","Read KYC"],["kyc.review","Review KYC"],["deposits.read","Read deposits"],["deposits.review","Manual deposit credit"],["payout_addresses.read_sensitive","Read sensitive customer payout addresses"],["payout_addresses.manage","Manage customer payout addresses"],["withdrawals.read","Read withdrawals"],["withdrawals.review","Review and mark paid"],["orders.read","Read orders"],["support.read","Read support"],["support.reply","Reply to support"],["support.manage","Manage support"],["announcements.read","Read announcements"],["announcements.manage","Manage announcements"],["system_config.read","Read system configuration"],["system_config.write","Edit system configuration"],["seconds_policy.read","Read Seconds policy"],["seconds_policy.manage","Manage Seconds policy"],["financial_audit.read","Read financial audit"]] as const;
 const depositAddressKeys = [
   "USDT-TRC20", "USDT-ERC20", "USDT-BEP20", "BTC-BTC",
   "ETH-ERC20", "SOL-SOL", "BNB-BEP20", "USDC-ERC20",
@@ -85,6 +85,9 @@ export function AdminPage() {
   const [tab, setTab] = useState<Tab>("overview");
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
+  const payoutSubmitLockRef = useRef(false);
+  const reviewActionLocksRef = useRef<Record<string, boolean>>({});
+  const manualCreditLocksRef = useRef<Record<string, boolean>>({});
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [stats, setStats] = useState<Record<string, unknown> | null>(null);
@@ -103,7 +106,7 @@ export function AdminPage() {
   const [reviewReason, setReviewReason] = useState("");
   const [config, setConfig] = useState<AdminConfig>({
     deposit_addresses: {},
-    withdrawal_fees: { USDT: "1", BTC: "0.0001", ETH: "0.001", SOL: "0.01", BNB: "0.0005", USDC: "1" },
+    withdrawal_fees: {},
     announcement: "",
   });
   const [kyc, setKyc] = useState<AdminKycRecord[]>([]);
@@ -112,6 +115,14 @@ export function AdminPage() {
   const [auditPageLoading, setAuditPageLoading] = useState(false);
   const auditPageRequestRef = useRef(0);
   const tabLoadRequestRef = useRef(0);
+  const userDetailRequestRef = useRef(0);
+  const adminCandidatesRequestRef = useRef(0);
+  const secondsQueueRequestRef = useRef(0);
+  const kycRefreshLockRef = useRef(false);
+  const kycQueueRequestRef = useRef(0);
+  const withdrawalQueueRequestRef = useRef(0);
+  const supportQueueRequestRef = useRef(0);
+  const supportReplyLocksRef = useRef<Record<string, boolean>>({});
   const [auditSource, setAuditSource] = useState("unknown");
   const [auditCompleteness, setAuditCompleteness] = useState("unknown");
   const [orders, setOrders] = useState<Array<Record<string, unknown>>>([]);
@@ -215,6 +226,8 @@ export function AdminPage() {
 
   const loadTab = useCallback(async () => {
     const requestId = ++tabLoadRequestRef.current;
+    if (tab !== "users") userDetailRequestRef.current += 1;
+    if (tab !== "seconds") secondsQueueRequestRef.current += 1;
     if (!token || !session) return;
     const auditRequestId = ++auditPageRequestRef.current;
     setAuditPageLoading(false);
@@ -222,21 +235,27 @@ export function AdminPage() {
     setError("");
     try {
       if (tab === "overview") {
+        setStats(null);
         const snapshot = await getAdminStats(token);
         if (requestId !== tabLoadRequestRef.current) return;
         setStats(snapshot);
       }
       if (tab === "users") {
+        userDetailRequestRef.current += 1;
+        setUsers([]);
+        setSelectedUser(null);
         const snapshot = await getAdminUsers(token, search);
         if (requestId !== tabLoadRequestRef.current) return;
         setUsers(snapshot.users);
       }
       if (tab === "deposits") {
+        setConfig({ deposit_addresses: {}, withdrawal_fees: {}, announcement: "" });
         const snapshot = await getAdminConfig(token);
         if (requestId !== tabLoadRequestRef.current) return;
         setConfig(snapshot);
       }
       if (tab === "markets") {
+        setSpotMarkets([]);
         const result = await getAdminSpotMarkets(token);
         if (requestId !== tabLoadRequestRef.current) return;
         setSpotMarkets(result.markets || []);
@@ -258,16 +277,28 @@ export function AdminPage() {
         }
       }
       if (tab === "withdrawals") {
+        const queueRequestId = ++withdrawalQueueRequestRef.current;
         setWithdrawals([]);
-        const snapshot = await getAdminWithdrawals(token);
-        if (requestId !== tabLoadRequestRef.current) return;
-        setWithdrawals(snapshot.withdrawals || []);
+        try {
+          const snapshot = await getAdminWithdrawals(token);
+          if (requestId !== tabLoadRequestRef.current || queueRequestId !== withdrawalQueueRequestRef.current) return;
+          setWithdrawals(snapshot.withdrawals || []);
+        } catch (reason) {
+          if (requestId !== tabLoadRequestRef.current || queueRequestId !== withdrawalQueueRequestRef.current) return;
+          throw reason;
+        }
       }
       if (tab === "kyc") {
+        const queueRequestId = ++kycQueueRequestRef.current;
         setKyc([]);
-        const snapshot = await getAdminKyc(token);
-        if (requestId !== tabLoadRequestRef.current) return;
-        setKyc(snapshot.kycs || []);
+        try {
+          const snapshot = await getAdminKyc(token);
+          if (requestId !== tabLoadRequestRef.current || queueRequestId !== kycQueueRequestRef.current) return;
+          setKyc(snapshot.kycs || []);
+        } catch (reason) {
+          if (requestId !== tabLoadRequestRef.current || queueRequestId !== kycQueueRequestRef.current) return;
+          throw reason;
+        }
       }
       if (tab === "audit") {
         // Never leave a previously loaded audit snapshot visible while a new
@@ -285,17 +316,30 @@ export function AdminPage() {
         }
       }
       if (tab === "orders") {
+        setOrders([]);
+        setOrdersSource("unknown");
         const snapshot = await getAdminOrders(token);
         if (requestId !== tabLoadRequestRef.current) return;
         setOrders((snapshot.orders || []) as unknown as Array<Record<string, unknown>>);
         setOrdersSource(snapshot.source || "unknown");
       }
       if (tab === "support") {
-        const snapshot = await getAdminSupportMessages(token);
-        if (requestId !== tabLoadRequestRef.current) return;
-        setSupport((snapshot.messages || []) as unknown as Array<Record<string, unknown>>);
+        const queueRequestId = ++supportQueueRequestRef.current;
+        setSupport([]);
+        try {
+          const snapshot = await getAdminSupportMessages(token);
+          if (requestId !== tabLoadRequestRef.current || queueRequestId !== supportQueueRequestRef.current) return;
+          setSupport((snapshot.messages || []) as unknown as Array<Record<string, unknown>>);
+        } catch (reason) {
+          if (requestId !== tabLoadRequestRef.current || queueRequestId !== supportQueueRequestRef.current) return;
+          throw reason;
+        }
       }
       if (tab === "seconds") {
+        setSecondsPolicy(null);
+        setSecondsOpenPositions([]);
+        setSecondsOpenSummary(null);
+        setSecondsQueueError("");
         const result = await getAdminSecondsPolicy(token);
         if (requestId !== tabLoadRequestRef.current) return;
         setSecondsPolicy(result.policy); setSecondsSymbols(result.policy.symbols); setSecondsDurations(result.policy.durations_sec);
@@ -303,22 +347,28 @@ export function AdminPage() {
         setSecondsPayoutPercent((result.policy.payout_bps / 100).toString());
         setSecondsExposure(result.policy.per_user_open_exposure === null ? "" : String(result.policy.per_user_open_exposure));
         setSecondsMaxOpenPositions(result.policy.max_open_positions_per_user === null ? "" : String(result.policy.max_open_positions_per_user));
+        const secondsQueueRequestId = ++secondsQueueRequestRef.current;
         try {
           const queue = await getAdminSecondsOpenPositions(token);
-          if (requestId !== tabLoadRequestRef.current) return;
+          if (requestId !== tabLoadRequestRef.current || secondsQueueRequestId !== secondsQueueRequestRef.current) return;
           setSecondsOpenPositions(queue.positions);
           setSecondsOpenSummary(queue);
           setSecondsQueueError("");
         } catch (queueError) {
-          if (requestId !== tabLoadRequestRef.current) return;
+          if (requestId !== tabLoadRequestRef.current || secondsQueueRequestId !== secondsQueueRequestRef.current) return;
+          setSecondsOpenPositions([]);
+          setSecondsOpenSummary(null);
           setSecondsQueueError(queueError instanceof Error ? queueError.message : "Open Seconds positions are temporarily unavailable.");
         }
       }
       if (tab === "admins" && session.is_super_admin) {
+        setAdminMemberships([]);
+        setAdminCandidates([]);
+        const candidatesRequestId = ++adminCandidatesRequestRef.current;
         const [membershipResult, userResult] = await Promise.all([getAdminMemberships(token), getAdminUsers(token, adminSearch)]);
         if (requestId !== tabLoadRequestRef.current) return;
         setAdminMemberships(membershipResult.admins || []);
-        setAdminCandidates(userResult.users || []);
+        if (candidatesRequestId === adminCandidatesRequestRef.current) setAdminCandidates(userResult.users || []);
       }
     } catch (reason) {
       if (requestId === tabLoadRequestRef.current) {
@@ -366,7 +416,6 @@ export function AdminPage() {
   }, [session?.user_id, selectedUser?.uid]);
 
 
-  const userDetailRequestRef = useRef(0);
   const selectUser = async (uid: string) => {
     if (!token) return;
     const requestId = ++userDetailRequestRef.current;
@@ -389,11 +438,13 @@ export function AdminPage() {
 
   const manualCredit = async (event: FormEvent<HTMLFormElement>, coin: string) => {
     event.preventDefault();
-    if (!token || !selectedUser) return;
+    if (!token || !selectedUser || manualCreditLocksRef.current[coin]) return;
     if (creditPendingInvalid[coin]) {
       setError("A saved manual-credit request is unreadable. Check the user's ledger before creating another credit.");
       return;
     }
+    const selectedUid = selectedUser.uid;
+    const selectedUserRequestId = userDetailRequestRef.current;
     const amount = (creditAmount[coin] || "").trim();
     if (!/^(?:0|[1-9]\d*)(?:\.\d{1,18})?$/.test(amount) || /^0(?:\.0*)?$/.test(amount)) {
       setError("Enter the verified amount received.");
@@ -408,10 +459,16 @@ export function AdminPage() {
       setError("The authenticated administrator identity is unavailable. No credit was sent.");
       return;
     }
+    manualCreditLocksRef.current[coin] = true;
     const storageKey = "btcbox.admin.manual-credit.v1." + session.user_id + "." + selectedUser.uid + "." + coin;
     let stableRequestId = creditRequestIds[coin];
     if (!stableRequestId) {
-      stableRequestId = window.crypto.randomUUID();
+      try { stableRequestId = window.crypto.randomUUID(); }
+      catch {
+        manualCreditLocksRef.current[coin] = false;
+        setError("Secure manual-credit request IDs are unavailable in this browser. No credit was sent.");
+        return;
+      }
       const intent = {
         version: 1, actor_id: session.user_id, target_uid: selectedUser.uid, coin,
         request_id: stableRequestId, amount,
@@ -420,6 +477,7 @@ export function AdminPage() {
       };
       try { window.localStorage.setItem(storageKey, JSON.stringify(intent)); }
       catch {
+        manualCreditLocksRef.current[coin] = false;
         setError("This browser cannot safely save the manual-credit request. No credit was sent.");
         return;
       }
@@ -439,39 +497,52 @@ export function AdminPage() {
       setCreditRequestIds(current => { const next = { ...current }; delete next[coin]; return next; });
       setCreditPendingInvalid(current => { const next = { ...current }; delete next[coin]; return next; });
       setNotice(result.duplicate ? "This manual credit was already recorded." : "Manual credit recorded and audit event submitted.");
-      await selectUser(selectedUser.uid);
+      // A completed credit must not steal focus from a different user selected
+      // while the request was in flight. Refresh only the still-current detail.
+      if (userDetailRequestRef.current === selectedUserRequestId && selectedUser?.uid === selectedUid) {
+        await selectUser(selectedUid);
+      }
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "Manual credit was not confirmed.");
       if (!creditAccepted && reason instanceof ApiError && reason.status >= 400 && reason.status < 500 && reason.status !== 409) {
         try { window.localStorage.removeItem(storageKey); } catch {}
         setCreditRequestIds(current => { const next = { ...current }; delete next[coin]; return next; });
       }
-    } finally { setBusy(false); }
+    } finally { manualCreditLocksRef.current[coin] = false; setBusy(false); }
   };
   const refreshWithdrawalQueue = async (confirmedAction: string) => {
+    const requestId = ++withdrawalQueueRequestRef.current;
     setReviewQueueLoading(true);
+    setWithdrawals([]);
     try {
       const snapshot = await getAdminWithdrawals(token);
+      if (requestId !== withdrawalQueueRequestRef.current) return;
       setWithdrawals(snapshot.withdrawals || []);
       setError("");
       setNotice(confirmedAction);
     } catch {
+      if (requestId !== withdrawalQueueRequestRef.current) return;
+      setWithdrawals([]);
       setError(confirmedAction + " The queue could not refresh. Reload this tab before taking another action.");
     } finally {
-      setReviewQueueLoading(false);
+      if (requestId === withdrawalQueueRequestRef.current) setReviewQueueLoading(false);
     }
   };
   const refreshWithdrawalQueueManually = async () => {
     if (!token) return;
-    setReviewQueueLoading(true); setError(""); setNotice("");
+    const requestId = ++withdrawalQueueRequestRef.current;
+    setReviewQueueLoading(true); setWithdrawals([]); setError(""); setNotice("");
     try {
       const snapshot = await getAdminWithdrawals(token);
+      if (requestId !== withdrawalQueueRequestRef.current) return;
       setWithdrawals(snapshot.withdrawals || []);
       setNotice("Withdrawal queue refreshed.");
     } catch (reason) {
+      if (requestId !== withdrawalQueueRequestRef.current) return;
+      setWithdrawals([]);
       setError(reason instanceof Error ? reason.message : "Withdrawal review queue could not be refreshed.");
     } finally {
-      setReviewQueueLoading(false);
+      if (requestId === withdrawalQueueRequestRef.current) setReviewQueueLoading(false);
     }
   };
   const loadOlderAuditRecords = async () => {
@@ -503,18 +574,36 @@ export function AdminPage() {
   };
 
   const refreshKycQueue = async () => {
-    if (!token) return;
+    if (!token || kycRefreshLockRef.current) return;
+    const requestId = ++kycQueueRequestRef.current;
+    kycRefreshLockRef.current = true;
     setReviewQueueLoading(true); setError(""); setNotice("");
     // A failed refresh must not leave an older KYC decision queue actionable.
     setKyc([]);
     try {
       const snapshot = await getAdminKyc(token);
+      if (requestId !== kycQueueRequestRef.current) return;
       setKyc(snapshot.kycs || []);
       setNotice("KYC review queue refreshed.");
     } catch (reason) {
+      if (requestId !== kycQueueRequestRef.current) return;
       setError(reason instanceof Error ? reason.message : "KYC review queue could not be refreshed.");
     } finally {
-      setReviewQueueLoading(false);
+      kycRefreshLockRef.current = false;
+      if (requestId === kycQueueRequestRef.current) setReviewQueueLoading(false);
+    }
+  };
+  const refreshKycQueueAfterReview = async (successMessage: string) => {
+    const requestId = ++kycQueueRequestRef.current;
+    setKyc([]);
+    try {
+      const snapshot = await getAdminKyc(token);
+      if (requestId !== kycQueueRequestRef.current) return;
+      setKyc(snapshot.kycs || []);
+      setNotice(successMessage);
+    } catch {
+      if (requestId !== kycQueueRequestRef.current) return;
+      setError(successMessage + " The queue could not refresh. Reload this tab before reviewing another application.");
     }
   };
   // A 409 WITHDRAWAL_ALREADY_PROCESSED means the operation actually succeeded on
@@ -528,7 +617,9 @@ export function AdminPage() {
     void refreshWithdrawalQueue(message + " ");
   };
   const approveWithdrawal = async (id: string) => {
-    if (!token) return;
+    const lockKey = "withdrawal:" + id;
+    if (!token || reviewActionLocksRef.current[lockKey]) return;
+    reviewActionLocksRef.current[lockKey] = true;
     setBusy(true); setError(""); setNotice("");
     try {
       await adminApproveWithdrawal(token, id);
@@ -539,7 +630,7 @@ export function AdminPage() {
       if (isAlreadyProcessed(reason)) { handleAlreadyProcessed("Withdrawal was already approved on a previous attempt. No duplicate charge was made."); }
       else { setError(reason instanceof Error ? reason.message : "Approval was not confirmed."); }
     }
-    finally { setBusy(false); }
+    finally { reviewActionLocksRef.current[lockKey] = false; setBusy(false); }
   };
   const rejectWithdrawal = (id: string) => {
     setReviewDialog({ kind: "withdrawal", id });
@@ -556,6 +647,9 @@ export function AdminPage() {
       return;
     }
     const target = reviewDialog;
+    const actionLockKey = target.kind === "withdrawal" ? "withdrawal:" + target.id : "kyc:" + target.uid;
+    if (reviewActionLocksRef.current[actionLockKey]) return;
+    reviewActionLocksRef.current[actionLockKey] = true;
     setBusy(true); setError(""); setNotice("");
     try {
       if (target.kind === "withdrawal") {
@@ -567,12 +661,9 @@ export function AdminPage() {
         await refreshWithdrawalQueue("Withdrawal rejection and refund confirmed.");
       } else {
         await adminRejectKyc(token, target.uid, reasonText);
-        setKyc(current => current.filter(item => item.uid !== target.uid));
-        setNotice("KYC rejected.");
         setReviewDialog(null);
         setReviewReason("");
-        try { setKyc((await getAdminKyc(token)).kycs || []); }
-        catch { setError("KYC review is confirmed; the queue could not refresh. Reload this tab before reviewing another application."); }
+        await refreshKycQueueAfterReview("KYC rejected.");
       }
     } catch (reason) {
       if (target.kind === "withdrawal" && isAlreadyProcessed(reason)) {
@@ -582,12 +673,13 @@ export function AdminPage() {
         setError(reason instanceof Error ? reason.message : "Rejection was not confirmed.");
       }
     } finally {
+      reviewActionLocksRef.current[actionLockKey] = false;
       setBusy(false);
     }
   };
 
   const markPaid = async (id: string) => {
-    if (!token) return;
+    if (!token || payoutSubmitLockRef.current) return;
     const reference = (payoutReferences[id] || "").trim();
     if (!reference || reference.length > 160 || /[\u0000-\u001f\u007f]/.test(reference)) {
       setError("Enter a valid TxID / payout reference (1–160 characters).");
@@ -606,6 +698,7 @@ export function AdminPage() {
       setError("This browser cannot safely save the payout reference. No payout update was sent.");
       return;
     }
+    payoutSubmitLockRef.current = true;
     setBusy(true); setError(""); setNotice("");
     try {
       const result = await adminMarkWithdrawalPaid(token, { id, reference, note: "Staff manually transferred funds." });
@@ -618,7 +711,7 @@ export function AdminPage() {
     } catch (reason) {
       setError((reason instanceof Error ? reason.message : "Payout completion was not confirmed.") +
         " The same reference has been saved. Verify the transaction and withdrawal history before retrying.");
-    } finally { setBusy(false); }
+    } finally { payoutSubmitLockRef.current = false; setBusy(false); }
   };
 
   const saveAddresses = async (event: FormEvent<HTMLFormElement>) => {
@@ -644,10 +737,7 @@ export function AdminPage() {
     setBusy(true); setError(""); setNotice("");
     try {
       await adminApproveKyc(token, uid);
-      setKyc(current => current.filter(item => item.uid !== uid));
-      setNotice("KYC approved.");
-      try { setKyc((await getAdminKyc(token)).kycs || []); }
-      catch { setError("KYC review is confirmed; the queue could not refresh. Reload this tab before reviewing another application."); }
+      await refreshKycQueueAfterReview("KYC approved.");
     } catch (reason) {
       // KYC 409 responses include actionable states such as missing documents
       // and exception approval requirements; they are not proof of a prior success.
@@ -657,22 +747,56 @@ export function AdminPage() {
     }
   };
 
-  const replySupport = async (uid: string) => {
+  const refreshSupportQueue = async () => {
     if (!token) return;
+    const requestId = ++supportQueueRequestRef.current;
+    setSupport([]); setError(""); setNotice("");
+    try {
+      const snapshot = await getAdminSupportMessages(token);
+      if (requestId !== supportQueueRequestRef.current) return;
+      setSupport((snapshot.messages || []) as unknown as Array<Record<string, unknown>>);
+      setNotice("Support queue refreshed.");
+    } catch (reason) {
+      if (requestId !== supportQueueRequestRef.current) return;
+      setSupport([]);
+      setError(reason instanceof Error ? reason.message : "Support queue could not be refreshed.");
+    }
+  };
+
+  const replySupport = async (uid: string) => {
+    if (!token || supportReplyLocksRef.current[uid]) return;
     const content = (supportReply[uid] || "").trim();
     if (!content) return;
-    const requestId = supportReplyRequestIds[uid] || window.crypto.randomUUID();
-    setSupportReplyRequestIds((current) => ({ ...current, [uid]: requestId }));
+    let requestId = supportReplyRequestIds[uid];
+    if (!requestId) {
+      try { requestId = window.crypto.randomUUID(); }
+      catch {
+        setError("Secure support reply request IDs are unavailable in this browser. No reply was sent.");
+        return;
+      }
+      setSupportReplyRequestIds((current) => ({ ...current, [uid]: requestId }));
+    }
+    supportReplyLocksRef.current[uid] = true;
     setBusy(true); setError(""); setNotice("");
     try {
       const result = await adminReplySupport(token, uid, content, requestId);
-      setNotice(result.audit_sync_pending ? "Support reply sent; audit delivery is pending." : "Support reply sent.");
       setSupportReply((current) => ({ ...current, [uid]: "" }));
       setSupportReplyRequestIds((current) => { const next = { ...current }; delete next[uid]; return next; });
-      try { setSupport((await getAdminSupportMessages(token)).messages || []); }
-      catch { setError("Support reply is confirmed; the conversation could not refresh. Reload this tab to view the sent reply."); }
+      const successMessage = result.audit_sync_pending ? "Support reply sent; audit delivery is pending." : "Support reply sent.";
+      const queueRequestId = ++supportQueueRequestRef.current;
+      setSupport([]);
+      try {
+        const snapshot = await getAdminSupportMessages(token);
+        if (queueRequestId !== supportQueueRequestRef.current) return;
+        setSupport((snapshot.messages || []) as unknown as Array<Record<string, unknown>>);
+        setNotice(successMessage);
+      } catch {
+        if (queueRequestId !== supportQueueRequestRef.current) return;
+        setSupport([]);
+        setError(successMessage + " The conversation could not refresh. Reload this tab before replying again.");
+      }
     } catch (reason) { setError(reason instanceof Error ? reason.message : "Support reply failed."); }
-    finally { setBusy(false); }
+    finally { supportReplyLocksRef.current[uid] = false; setBusy(false); }
   };
 
   const saveSpotMarket = async () => {
@@ -689,7 +813,7 @@ export function AdminPage() {
       max_limit_price: spotMarketDraft.max_limit_price.trim(),
       reason: spotMarketDraft.reason.trim(),
     };
-    const decimal = /^(?:0|[1-9]\\d{0,19})(?:\\.\\d{1,18})?$/;
+    const decimal = /^(?:0|[1-9]\d{0,19})(?:\.\d{1,18})?$/;
     const asset = /^[A-Z0-9]{2,16}$/;
     if (!asset.test(draft.base_asset) || !asset.test(draft.quote_asset) || draft.base_asset === draft.quote_asset ||
         !decimal.test(draft.price_tick) || Number(draft.price_tick) <= 0 ||
@@ -786,12 +910,12 @@ export function AdminPage() {
   if (loading && !session) return <div className="mx-auto max-w-7xl p-6"><Card><CardContent className="p-8 text-sm text-brand-text-muted">Verifying administrator identity…</CardContent></Card></div>;
   if (!session) return <div className="mx-auto max-w-3xl p-6"><Card><CardHeader><CardTitle>BTCBOX Administrator</CardTitle><CardDescription>Administrator access requires a verified Supabase Auth identity with an active BTCBOX administrator membership.</CardDescription></CardHeader><CardContent><p className="text-sm text-rose-300">{error || "Administrator membership was not found."}</p></CardContent></Card></div>;
 
-  return <div className="mx-auto w-full max-w-7xl space-y-5 p-4 md:p-6">
-    <div className="flex flex-wrap items-start justify-between gap-3">
-      <div><p className="text-xs font-semibold uppercase tracking-[0.18em] text-brand-text-muted">BTCBOX / CONTROL CENTER</p><h1 className="mt-1 text-2xl font-bold text-brand-text">Administrator Console</h1><p className="mt-1 text-sm text-brand-text-muted">{session.is_super_admin ? "Super Administrator" : "Role-based administrator"} · {session.user_id}</p></div>
+  return <div className="tone-admin mx-auto w-full max-w-[1600px] space-y-5 p-3 sm:p-5 lg:p-7">
+    <div className="flex flex-wrap items-start justify-between gap-3 rounded-2xl border border-brand-border bg-[radial-gradient(ellipse_at_top_left,rgba(192,132,252,.10),transparent_52%),linear-gradient(135deg,var(--color-brand-surface),var(--color-brand-bg))] p-5 sm:items-center sm:p-6">
+      <div><p className="type-meta font-semibold uppercase tracking-[0.18em] text-brand-violet">BTCBOX / CONTROL CENTER</p><h1 className="mt-1 text-2xl font-bold tracking-tight text-brand-text sm:text-3xl">Administrator Console</h1><p className="mt-1 text-sm text-brand-text-muted">{session.is_super_admin ? "Super Administrator" : "Role-based administrator"} · {session.user_id}</p></div>
       <Badge variant="outline">{session.is_super_admin ? "SUPER ADMIN" : "ACTIVE ADMIN"}</Badge>
     </div>
-    <div className="flex flex-wrap gap-2 border-b border-brand-border pb-3">
+    <div className="flex max-w-full gap-2 overflow-x-auto border-b border-brand-border pb-3">
       {allowedTabs.map(item => <Button key={item.id} size="sm" variant={tab === item.id ? "default" : "outline"} onClick={() => { setTab(item.id); setError(""); setNotice(""); }}>{item.label}</Button>)}
     </div>
     {error ? <div role="alert" className="rounded-xl border border-rose-500/30 bg-rose-500/5 p-3 text-sm text-rose-300">{error}</div> : null}
@@ -802,12 +926,12 @@ export function AdminPage() {
       {[
         ["Total users", stats.total_users], ["Pending withdrawals", stats.pending_withdrawals],
         ["Pending KYC", stats.pending_kyc], ["Review queue", stats.pending_admin_review_withdrawals],
-      ].map(([label, value]) => <Card key={String(label)}><CardContent className="p-5"><p className="text-xs text-brand-text-muted">{label}</p><p className="mt-2 text-2xl font-bold tabular-nums text-brand-text">{asText(value)}</p></CardContent></Card>)}
+      ].map(([label, value], index) => <Card key={String(label)} className="overflow-hidden border-brand-border bg-brand-surface ring-1 ring-white/[0.025]"><div className={"h-1 "+(index===0?"bg-brand-cyan":index===1?"bg-brand-warning":index===2?"bg-brand-violet":"bg-brand-teal")}/><CardContent className="p-4 sm:p-5"><p className="type-meta font-semibold uppercase tracking-wide text-brand-text-muted">{label}</p><p className="mt-2 text-2xl font-bold tracking-tight tabular-nums text-brand-text sm:text-3xl">{asText(value)}</p></CardContent></Card>)}
     </div> : null}
 
     {!loading && tab === "users" ? <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(360px,0.9fr)]">
       <Card><CardHeader><CardTitle>Users</CardTitle><CardDescription>Search a user, then select an asset row for staff manual credit.</CardDescription></CardHeader><CardContent>
-        <form className="mb-3 flex gap-2" onSubmit={event => { event.preventDefault(); void loadTab(); }}><input value={search} onChange={event => setSearch(event.target.value)} placeholder="Search UID or email" className="min-w-0 flex-1 rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-2 text-sm text-brand-text"/><Button size="sm" type="submit">Search</Button></form>
+        <form className="mb-3 flex gap-2" onSubmit={event => { event.preventDefault(); void loadTab(); }}><input value={search} onChange={event => setSearch(event.target.value)} placeholder="Search UID or email" className="h-11 min-w-0 flex-1 rounded-xl border border-brand-border bg-brand-surface-2 px-3 py-2 text-sm text-brand-text outline-none transition-colors focus:border-brand-accent/60 focus:ring-2 focus:ring-brand-accent/15"/><Button size="sm" type="submit">Search</Button></form>
         <div className="overflow-x-auto"><table className="w-full min-w-[520px] text-left text-sm"><thead><tr className="border-b border-brand-border text-xs text-brand-text-muted"><th className="p-2">UID</th><th className="p-2">Email</th><th className="p-2">KYC</th><th className="p-2">Status</th><th className="p-2"></th></tr></thead><tbody>{users.map(user=><tr key={user.uid} className="border-b border-brand-border/60"><td className="p-2 font-mono text-xs">{user.uid}</td><td className="p-2">{user.email}</td><td className="p-2">{user.kyc_status || user.kyc?.status || "—"}</td><td className="p-2"><Badge variant={user.frozen?"destructive":"outline"}>{user.frozen?"Frozen":"Active"}</Badge></td><td className="p-2"><Button size="sm" variant="outline" onClick={()=>void selectUser(user.uid)}>Open</Button></td></tr>)}</tbody></table></div>
       </CardContent></Card>
       <Card><CardHeader><CardTitle>Manual credit</CardTitle><CardDescription>UID and asset are bound by the selected user and asset row. No pending deposit order is created.</CardDescription></CardHeader><CardContent>
@@ -837,7 +961,7 @@ export function AdminPage() {
       <Button type="submit" disabled={busy || !hasPermission("system_config.write")}>Save configuration</Button>
     </form></CardContent></Card> : null}
 
-    {!loading && tab === "withdrawals" ? <Card><CardHeader><div className="flex flex-wrap items-start justify-between gap-3"><div><CardTitle>Withdrawal queue</CardTitle><CardDescription>Approve or reject requests. After staff actually transfer funds, mark paid with the TxID/reference.</CardDescription></div><Button size="sm" variant="outline" disabled={reviewQueueLoading || busy} onClick={()=>void refreshWithdrawalQueueManually()}>{reviewQueueLoading ? "Refreshing…" : "Refresh queue"}</Button></div></CardHeader><CardContent><div className="overflow-x-auto"><table className="w-full min-w-[900px] text-left text-sm"><thead><tr className="border-b border-brand-border text-xs text-brand-text-muted"><th className="p-2">ID</th><th className="p-2">User</th><th className="p-2">Asset / amount</th><th className="p-2">Network / destination</th><th className="p-2">Status</th><th className="p-2">Action</th></tr></thead><tbody>{withdrawals.map(item=><tr key={item.id} className="border-b border-brand-border/60 align-top"><td className="p-2 font-mono text-xs">{item.id}</td><td className="p-2">{item.uid}</td><td className="p-2">{item.coin} {item.amount}<div className="text-xs text-brand-text-muted">Fee {item.fee}</div></td><td className="max-w-[260px] break-all p-2">{item.network}<div className="text-xs text-brand-text-muted">{item.address}</div></td><td className="p-2"><Badge variant={statusVariant(item.status)}>{item.status}</Badge></td><td className="min-w-[220px] space-y-2 p-2">{item.status==="pending"||item.status==="pending_admin_review"?<><Button size="sm" disabled={busy||!hasPermission("withdrawals.review")} onClick={()=>void approveWithdrawal(item.id)}>Approve</Button><Button size="sm" variant="outline" disabled={busy||!hasPermission("withdrawals.review")} onClick={()=>void rejectWithdrawal(item.id)}>Reject</Button></>:item.status==="approved"?<><input value={payoutReferences[item.id]||""} onChange={event=>setPayoutReferences(current=>({...current,[item.id]:event.target.value}))} placeholder="Required TxID / reference" maxLength={160} className="w-full rounded-lg border border-brand-border bg-brand-surface-2 px-2 py-2 text-xs text-brand-text"/><Button size="sm" disabled={busy||!payoutReferences[item.id]?.trim()||!hasPermission("withdrawals.review")} onClick={()=>void markPaid(item.id)}>Mark paid</Button></>:<span className="text-xs text-brand-text-muted">{item.payout_reference||"—"}</span>}</td></tr>)}</tbody></table></div></CardContent></Card> : null}
+    {!loading && tab === "withdrawals" ? <Card><CardHeader><div className="flex flex-wrap items-start justify-between gap-3"><div><CardTitle>Withdrawal queue</CardTitle><CardDescription>Approve or reject requests. After staff actually transfer funds, mark paid with the TxID/reference.</CardDescription></div><Button size="sm" variant="outline" disabled={reviewQueueLoading || busy} onClick={()=>void refreshWithdrawalQueueManually()}>{reviewQueueLoading ? "Refreshing…" : "Refresh queue"}</Button></div></CardHeader><CardContent><div className="overflow-x-auto"><table className="w-full min-w-[900px] text-left text-sm"><thead><tr className="border-b border-brand-border text-xs text-brand-text-muted"><th className="p-2">ID</th><th className="p-2">User</th><th className="p-2">Asset / amount</th><th className="p-2">Network / destination</th><th className="p-2">Status</th><th className="p-2">Action</th></tr></thead><tbody>{withdrawals.map(item=><tr key={item.id} className="border-b border-brand-border/60 align-top"><td className="p-2 font-mono text-xs">{item.id}</td><td className="p-2">{item.uid}</td><td className="p-2">{item.coin} {item.amount}<div className="text-xs text-brand-text-muted">Fee {item.fee}</div></td><td className="max-w-[260px] break-all p-2">{item.network}<div className="text-xs text-brand-text-muted">{item.address}</div></td><td className="p-2"><Badge variant={statusVariant(item.status)}>{item.status}</Badge></td><td className="min-w-[220px] space-y-2 p-2">{item.status==="pending"||item.status==="pending_admin_review"?<><Button size="sm" disabled={busy||reviewQueueLoading||!hasPermission("withdrawals.review")} onClick={()=>void approveWithdrawal(item.id)}>Approve</Button><Button size="sm" variant="outline" disabled={busy||reviewQueueLoading||!hasPermission("withdrawals.review")} onClick={()=>void rejectWithdrawal(item.id)}>Reject</Button></>:item.status==="approved"?<><input disabled={reviewQueueLoading} value={payoutReferences[item.id]||""} onChange={event=>setPayoutReferences(current=>({...current,[item.id]:event.target.value}))} placeholder="Required TxID / reference" maxLength={160} className="w-full rounded-lg border border-brand-border bg-brand-surface-2 px-2 py-2 text-xs text-brand-text"/><Button size="sm" disabled={busy||reviewQueueLoading||!payoutReferences[item.id]?.trim()||!hasPermission("withdrawals.review")} onClick={()=>void markPaid(item.id)}>Mark paid</Button></>:<span className="text-xs text-brand-text-muted">{item.payout_reference||"—"}</span>}</td></tr>)}</tbody></table></div></CardContent></Card> : null}
 
     {!loading && tab === "kyc" ? <Card><CardHeader><div className="flex flex-wrap items-center justify-between gap-3"><CardTitle>KYC review</CardTitle><Button size="sm" variant="outline" disabled={reviewQueueLoading || busy} onClick={()=>void refreshKycQueue()}>{reviewQueueLoading ? "Refreshing…" : "Refresh queue"}</Button></div></CardHeader><CardContent><div className="overflow-x-auto"><table className="w-full min-w-[700px] text-left text-sm"><thead><tr className="border-b border-brand-border text-xs text-brand-text-muted"><th className="p-2">User</th><th className="p-2">Name</th><th className="p-2">Document</th><th className="p-2">Status</th><th className="p-2">Submitted</th><th className="p-2">Action</th></tr></thead><tbody>{kyc.map(item=><tr key={item.uid} className="border-b border-brand-border/60"><td className="p-2">{item.uid}<div className="text-xs text-brand-text-muted">{item.email}</div></td><td className="p-2">{item.name}</td><td className="p-2">{item.id_type}<div className="mt-1 text-xs">{item.document_url&&!item.document_preview_error?<a href={item.document_url} target="_blank" rel="noreferrer" className="text-brand-accent underline underline-offset-2">Open secure image</a>:<span className="text-brand-text-muted">{item.document_preview_error||"Document image missing"}</span>}</div></td><td className="p-2">{item.status}</td><td className="p-2">{formatDate(item.submitted_at)}</td><td className="space-x-2 p-2"><Button size="sm" disabled={busy||!hasPermission("kyc.review")||!item.document_uploaded||!item.document_url||!!item.document_preview_error} onClick={()=>void reviewKyc(item.uid,true)}>Approve</Button><Button size="sm" variant="outline" disabled={busy||!hasPermission("kyc.review")} onClick={()=>void reviewKyc(item.uid,false)}>Reject</Button>{!item.document_uploaded||!item.document_url||item.document_preview_error?<p className="mt-1 text-xs text-amber-300">{!item.document_uploaded?"Identity document upload is required before approval.":"Document preview unavailable; refresh the queue before approval."}</p>:null}</td></tr>)}</tbody></table></div></CardContent></Card> : null}
 
@@ -845,7 +969,7 @@ export function AdminPage() {
 
     {!loading && tab === "orders" ? <Card><CardHeader><div className="flex flex-wrap items-start justify-between gap-2"><div><CardTitle>Orders</CardTitle><CardDescription>{ordersSource === "postgres_financial_matching" ? "Customer order history and this administrator view use the canonical PostgreSQL matching orders." : ordersSource === "legacy_state" ? "Legacy state fallback is active because matching-engine mode was not requested." : "Order data source is not confirmed."}</CardDescription></div><Badge variant={ordersSource === "postgres_financial_matching" ? "default" : "destructive"}>{ordersSource === "postgres_financial_matching" ? "Source: PostgreSQL matching" : ordersSource === "legacy_state" ? "Source: legacy state" : "Source: unknown"}</Badge></div></CardHeader><CardContent><div className="overflow-x-auto"><table className="w-full min-w-[700px] text-left text-sm"><thead><tr className="border-b border-brand-border text-xs text-brand-text-muted"><th className="p-2">ID</th><th className="p-2">User</th><th className="p-2">Symbol</th><th className="p-2">Side</th><th className="p-2">Status</th><th className="p-2">Created</th></tr></thead><tbody>{orders.map((item,index)=><tr key={asText(item.id)||index} className="border-b border-brand-border/60"><td className="p-2 font-mono text-xs">{asText(item.id)}</td><td className="p-2">{asText(item.uid||item.user_id)}</td><td className="p-2">{asText(item.symbol)}</td><td className="p-2">{asText(item.side)}</td><td className="p-2">{asText(item.status)}</td><td className="p-2">{formatDate(item.created_at||item.time)}</td></tr>)}</tbody></table></div></CardContent></Card> : null}
 
-    {!loading && tab === "support" ? <Card><CardHeader><CardTitle>Support messages</CardTitle></CardHeader><CardContent className="space-y-3">{support.map((item,index)=>{const uid=asText(item.uid||item.user_id);return <div key={asText(item.id)||index} className="rounded-xl border border-brand-border p-3"><p className="text-xs text-brand-text-muted">{uid} · {formatDate(item.created_at||item.time)}</p><p className="mt-2 whitespace-pre-wrap text-sm">{asText(item.content||item.message)}</p><textarea value={supportReply[uid]||""} onChange={event=>{setSupportReply(current=>({...current,[uid]:event.target.value}));setSupportReplyRequestIds(current=>({...current,[uid]:window.crypto.randomUUID()}));}} rows={2} className="mt-3 w-full rounded-lg border border-brand-border bg-brand-surface-2 p-2 text-sm text-brand-text" placeholder="Reply to customer"/><Button size="sm" className="mt-2" disabled={busy||!supportReply[uid]?.trim()||!hasPermission("support.reply")} onClick={()=>void replySupport(uid)}>Send reply</Button></div>;})}</CardContent></Card> : null}
+    {!loading && tab === "support" ? <Card><CardHeader className="flex flex-row items-center justify-between"><CardTitle>Support messages</CardTitle><Button size="sm" variant="outline" disabled={busy} onClick={()=>void refreshSupportQueue()}>Refresh queue</Button></CardHeader><CardContent className="space-y-3">{support.map((item,index)=>{const uid=asText(item.uid||item.user_id);return <div key={asText(item.id)||index} className="rounded-xl border border-brand-border p-3"><p className="text-xs text-brand-text-muted">{uid} · {formatDate(item.created_at||item.time)}</p><p className="mt-2 whitespace-pre-wrap text-sm">{asText(item.content||item.message)}</p><textarea value={supportReply[uid]||""} onChange={event=>{setSupportReply(current=>({...current,[uid]:event.target.value}));try { setSupportReplyRequestIds(current=>({...current,[uid]:window.crypto.randomUUID()})); } catch { setError("Secure support reply request IDs are unavailable in this browser. No reply was sent."); }}} rows={2} className="mt-3 w-full rounded-lg border border-brand-border bg-brand-surface-2 p-2 text-sm text-brand-text" placeholder="Reply to customer"/><Button size="sm" className="mt-2" disabled={busy||!supportReply[uid]?.trim()||!hasPermission("support.reply")} onClick={()=>void replySupport(uid)}>Send reply</Button></div>;})}</CardContent></Card> : null}
     {!loading && tab === "markets" ? <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(340px,0.9fr)]">
       <Card><CardHeader><CardTitle>Spot market catalogue</CardTitle><CardDescription>Only enabled pairs accept limit orders. Market orders remain disabled; maker/taker fees stay at zero until fee movements are implemented atomically.</CardDescription></CardHeader><CardContent className="space-y-3">
         {spotMarkets.length ? <div className="overflow-x-auto"><table className="w-full min-w-[620px] text-left text-sm"><thead><tr className="border-b border-brand-border text-xs text-brand-text-muted"><th className="p-2">Pair</th><th className="p-2">Status</th><th className="p-2">Tick / step</th><th className="p-2">Min quantity / notional</th><th className="p-2"></th></tr></thead><tbody>{spotMarkets.map(market=><tr key={market.base_asset + "/" + market.quote_asset} className="border-b border-brand-border/60"><td className="p-2 font-semibold">{market.base_asset}/{market.quote_asset}</td><td className="p-2"><Badge variant={market.enabled ? "default" : "outline"}>{market.enabled ? "Enabled" : "Disabled"}</Badge></td><td className="p-2 text-xs tabular-nums">{asText(market.price_tick)} / {asText(market.quantity_step)}</td><td className="p-2 text-xs tabular-nums">{asText(market.min_quantity)} / {asText(market.min_notional)}</td><td className="p-2"><Button size="sm" variant="outline" disabled={busy || !!spotMarketRequestId || !hasPermission("system_config.write")} onClick={()=>setSpotMarketDraft({base_asset:market.base_asset,quote_asset:market.quote_asset,enabled:market.enabled,price_tick:String(market.price_tick),quantity_step:String(market.quantity_step),min_quantity:String(market.min_quantity),min_notional:String(market.min_notional),min_limit_price:market.min_limit_price==null?"":String(market.min_limit_price),max_limit_price:market.max_limit_price==null?"":String(market.max_limit_price),reason:""})}>Edit</Button></td></tr>)}</tbody></table></div> : <p className="text-sm text-brand-text-muted">No spot pairs have been configured yet.</p>}
@@ -869,7 +993,7 @@ export function AdminPage() {
       <label className="block space-y-1 text-sm"><span>Reason for policy change (required)</span><textarea value={secondsReason} disabled={busy||!hasPermission("seconds_policy.manage")} onChange={event=>setSecondsReason(event.target.value)} rows={2} maxLength={500} className="w-full rounded-lg border border-brand-border bg-brand-surface-2 p-3 text-brand-text" placeholder="Explain why these rules are changing"/></label>
       {hasPermission("seconds_policy.manage")?<Button block disabled={busy||!secondsReason.trim()} onClick={()=>void saveSecondsPolicy()}>Create and activate new policy version</Button>:<p className="text-sm text-brand-text-muted">Your administrator role is read-only for Seconds policy.</p>}
     </CardContent></Card> : null}
-    {!loading && tab === "seconds" ? <Card><CardHeader><div className="flex flex-wrap items-center justify-between gap-2"><div><CardTitle>Open Seconds positions</CardTitle><CardDescription>Read-only live queue. Due positions remain visible until the server confirms settlement; staff cannot force a result or manually release frozen funds here.</CardDescription></div><Button size="sm" variant="outline" disabled={secondsQueueLoading || !token} onClick={() => { if (!token) return; setSecondsQueueLoading(true); void getAdminSecondsOpenPositions(token).then(result => { setSecondsOpenPositions(result.positions); setSecondsOpenSummary(result); setSecondsQueueError(""); }).catch(reason => setSecondsQueueError(reason instanceof Error ? reason.message : "Open Seconds positions are temporarily unavailable.")).finally(() => setSecondsQueueLoading(false)); }}>{secondsQueueLoading ? "Refreshing…" : "Refresh queue"}</Button></div></CardHeader><CardContent className="space-y-3">
+    {!loading && tab === "seconds" ? <Card><CardHeader><div className="flex flex-wrap items-center justify-between gap-2"><div><CardTitle>Open Seconds positions</CardTitle><CardDescription>Read-only live queue. Due positions remain visible until the server confirms settlement; staff cannot force a result or manually release frozen funds here.</CardDescription></div><Button size="sm" variant="outline" disabled={secondsQueueLoading || !token} onClick={() => { if (!token) return; const requestId = ++secondsQueueRequestRef.current; setSecondsQueueLoading(true); setSecondsOpenPositions([]); setSecondsOpenSummary(null); setSecondsQueueError(""); void getAdminSecondsOpenPositions(token).then(result => { if (requestId !== secondsQueueRequestRef.current) return; setSecondsOpenPositions(result.positions); setSecondsOpenSummary(result); }).catch(reason => { if (requestId === secondsQueueRequestRef.current) { setSecondsOpenPositions([]); setSecondsOpenSummary(null); setSecondsQueueError(reason instanceof Error ? reason.message : "Open Seconds positions are temporarily unavailable."); } }).finally(() => { if (requestId === secondsQueueRequestRef.current) setSecondsQueueLoading(false); }); }}>{secondsQueueLoading ? "Refreshing…" : "Refresh queue"}</Button></div></CardHeader><CardContent className="space-y-3">
       {secondsQueueError ? <p role="alert" className="rounded-lg border border-brand-border p-3 text-sm text-brand-text-muted">{secondsQueueError}</p> : null}
       {secondsOpenSummary ? <div className="grid gap-2 sm:grid-cols-3"><div className="rounded-lg border border-brand-border p-3"><p className="text-xs text-brand-text-muted">Open positions</p><p className="mt-1 text-lg font-semibold">{secondsOpenSummary.total_open_count}</p></div><div className="rounded-lg border border-brand-border p-3"><p className="text-xs text-brand-text-muted">Open exposure · USDT</p><p className="mt-1 text-lg font-semibold">{Number(secondsOpenSummary.total_open_exposure).toLocaleString(undefined,{maximumFractionDigits:8})}</p></div><div className="rounded-lg border border-brand-border p-3"><p className="text-xs text-brand-text-muted">Past maturity, not yet settled</p><p className="mt-1 text-lg font-semibold">{secondsOpenSummary.overdue_count}</p></div></div> : null}
       {secondsOpenSummary?.truncated ? <p className="text-xs text-brand-text-muted">Showing the earliest 100 open positions. Summary totals include all open positions.</p> : null}
@@ -880,7 +1004,7 @@ export function AdminPage() {
         {adminMemberships.length ? adminMemberships.map(item=><div key={item.user_id} className="rounded-xl border border-brand-border p-3"><div className="flex flex-wrap items-start justify-between gap-2"><div><p className="font-mono text-xs text-brand-text">{item.user_id}</p><p className="mt-1 text-xs text-brand-text-muted">Revision {item.revision} · {formatDate(item.updated_at||item.created_at)}</p></div><Badge variant={statusVariant(item.status)}>{item.status}</Badge></div><p className="mt-2 break-words text-xs text-brand-text-muted">{item.permissions.join(" · ") || "No permissions"}</p><div className="mt-3 flex flex-wrap gap-2"><Button size="sm" variant="outline" disabled={busy||item.status==="revoked"} onClick={()=>{setAdminTargetUserId(item.user_id);setAdminPermissions(item.permissions);setAdminReason("");setAdminRequestId("");setAdminRequestKey("");}}>Edit permissions</Button>{item.status==="active"?<Button size="sm" variant="outline" disabled={busy} onClick={()=>void submitAdminMembershipChange("suspend",item.user_id,item.revision,[])}>Suspend</Button>:null}{item.status==="suspended"?<Button size="sm" variant="outline" disabled={busy} onClick={()=>void submitAdminMembershipChange("reactivate",item.user_id,item.revision,item.permissions)}>Reactivate</Button>:null}{item.status!=="revoked"?<Button size="sm" variant="destructive" disabled={busy} onClick={()=>void submitAdminMembershipChange("revoke",item.user_id,item.revision,[])}>Revoke</Button>:null}</div></div>) : <p className="text-sm text-brand-text-muted">No delegated administrators have been provisioned.</p>}
       </CardContent></Card>
       <Card><CardHeader><CardTitle>{adminMemberships.some(item=>item.user_id===adminTargetUserId)?"Edit administrator permissions":"Provision administrator"}</CardTitle><CardDescription>Select an existing BTCBOX user. The database verifies that the target UUID belongs to a real Supabase Auth user.</CardDescription></CardHeader><CardContent className="space-y-3">
-        <form className="flex gap-2" onSubmit={event=>{event.preventDefault();void getAdminUsers(token,adminSearch).then(result=>setAdminCandidates(result.users||[])).catch(reason=>setError(reason instanceof Error?reason.message:"User search failed."));}}><input value={adminSearch} onChange={event=>setAdminSearch(event.target.value)} placeholder="Search user email or UID" className="min-w-0 flex-1 rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-2 text-sm text-brand-text"/><Button size="sm" type="submit" variant="outline">Search</Button></form>
+        <form className="flex gap-2" onSubmit={event=>{event.preventDefault();if(!token)return;const requestId=++adminCandidatesRequestRef.current;setAdminCandidates([]);setError("");void getAdminUsers(token,adminSearch).then(result=>{if(requestId===adminCandidatesRequestRef.current)setAdminCandidates(result.users||[]);}).catch(reason=>{if(requestId===adminCandidatesRequestRef.current)setError(reason instanceof Error?reason.message:"User search failed.");});}}><input value={adminSearch} onChange={event=>setAdminSearch(event.target.value)} placeholder="Search user email or UID" className="h-11 min-w-0 flex-1 rounded-xl border border-brand-border bg-brand-surface-2 px-3 py-2 text-sm text-brand-text outline-none transition-colors focus:border-brand-accent/60 focus:ring-2 focus:ring-brand-accent/15"/><Button size="sm" type="submit" variant="outline">Search</Button></form>
         <select value={adminTargetUserId} onChange={event=>{const value=event.target.value;setAdminTargetUserId(value);const found=adminMemberships.find(item=>item.user_id===value);setAdminPermissions(found?.permissions||[]);setAdminRequestId("");setAdminRequestKey("");}} className="w-full rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-2 text-sm text-brand-text"><option value="">Select an Auth-linked user</option>{adminCandidates.filter(user=>/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(user.admin_auth_user_id||"")&&!adminMemberships.some(item=>item.user_id===user.admin_auth_user_id)).map(user=><option key={user.uid} value={user.admin_auth_user_id}>{user.email} · BTCBOX UID {user.uid}</option>)}{adminMemberships.some(item=>item.user_id===adminTargetUserId)?<option value={adminTargetUserId}>{adminTargetUserId}</option>:null}</select>
         <div className="grid gap-2 sm:grid-cols-2">{adminPermissionOptions.map(([key,label])=><label key={key} className="flex items-center gap-2 rounded-lg border border-brand-border p-2 text-xs"><input type="checkbox" checked={adminPermissions.includes(key)} onChange={event=>setAdminPermissions(current=>event.target.checked?[...current,key]:current.filter(item=>item!==key))}/><span>{label}</span></label>)}</div>
         <textarea value={adminReason} onChange={event=>setAdminReason(event.target.value)} rows={2} maxLength={500} placeholder="Required reason for this administrator change" className="w-full rounded-lg border border-brand-border bg-brand-surface-2 p-3 text-sm text-brand-text"/>

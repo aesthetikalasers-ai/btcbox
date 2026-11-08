@@ -1,9 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { ArrowUpRight, ClipboardList, RefreshCw } from "lucide-react";
 import { Badge } from "../../components/ui/badge";
 import { Button } from "../../components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
 import { ApiError, getOrders, type OrderRecord } from "../../lib/api";
 import { useI18n } from "../../lib/i18n";
 
@@ -25,17 +25,20 @@ export function OrdersPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [signedOut, setSignedOut] = useState(false);
+  const requestIdRef = useRef(0);
 
   async function load(signal?: AbortSignal) {
+    const requestId = ++requestIdRef.current;
     setLoading(true);
+    setOrders([]);
     setError("");
     setSignedOut(false);
     try {
       const rows = await getOrders(signal);
-      if (!signal?.aborted) setOrders(rows);
+      if (!signal?.aborted && requestId === requestIdRef.current) setOrders(rows);
     } catch (reason) {
       if (reason instanceof Error && reason.name === "AbortError") return;
-      if (signal?.aborted) return;
+      if (signal?.aborted || requestId !== requestIdRef.current) return;
       setOrders([]);
       if (reason instanceof ApiError && reason.code === "AUTH_REQUIRED") {
         setSignedOut(true);
@@ -44,7 +47,7 @@ export function OrdersPage() {
         setError(reason instanceof Error ? reason.message : t("Order history is temporarily unavailable."));
       }
     } finally {
-      if (!signal?.aborted) setLoading(false);
+      if (!signal?.aborted && requestId === requestIdRef.current) setLoading(false);
     }
   }
 
@@ -55,12 +58,11 @@ export function OrdersPage() {
   }, []);
 
   return (
-    <div className="mx-auto flex w-full max-w-[1200px] min-w-0 flex-col gap-5 p-3 sm:p-4 md:p-6 lg:p-8">
+    <div className="tone-orders mx-auto flex w-full max-w-[1200px] min-w-0 flex-col gap-5 p-3 sm:p-4 md:p-6 lg:p-8">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <p className="mb-1 text-xs font-bold uppercase tracking-[.18em] text-brand-text-secondary">{t("BTCBOX / ACCOUNT")}</p>
+          <p className="page-accent mb-1 text-xs font-bold uppercase tracking-[.18em]">{t("BTCBOX / ACCOUNT")}</p>
           <h1 className="type-page-title text-brand-text">{t("Orders")}</h1>
-          <p className="type-body mt-2 text-brand-text-secondary">{t("Your order history from the authenticated BTCBOX account service.")}</p>
         </div>
         <Button variant="outline" size="sm" onClick={() => void load()} disabled={loading}>
           <RefreshCw className={`mr-2 h-4 w-4 ${loading ? "animate-spin" : ""}`} />
@@ -77,10 +79,9 @@ export function OrdersPage() {
         </Card>
       )}
 
-      <Card className="border-brand-border bg-brand-surface">
-        <CardHeader>
-          <CardTitle>{t("Order history")}</CardTitle>
-          <CardDescription>{t("Only records returned by the authenticated API are shown. No sample orders are generated.")}</CardDescription>
+      <Card className="overflow-hidden border-t-2 border-t-[var(--page-accent)] border-brand-border bg-brand-surface ring-1 ring-white/[0.025]"><div className="h-1 bg-gradient-to-r from-brand-cyan/80 via-brand-violet/70 to-brand-success/70"/>
+        <CardHeader className="border-b border-brand-border bg-brand-surface-2/50 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-3"><span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--page-accent)]/10 text-[var(--page-accent)]"><ClipboardList className="h-5 w-5"/></span><CardTitle>{t("Order history")}</CardTitle></div>
         </CardHeader>
         <CardContent className="p-0">
           {loading ? (
@@ -89,23 +90,43 @@ export function OrdersPage() {
               <div className="h-12 animate-pulse rounded bg-brand-surface-2" />
               <div className="h-12 animate-pulse rounded bg-brand-surface-2" />
             </div>
-          ) : orders.length === 0 ? (
+          ) : orders.length === 0 && !error && !signedOut ? (
             <div className="flex flex-col items-center px-5 py-12 text-center">
-              <ClipboardList className="mb-3 h-9 w-9 text-brand-text-muted" />
+              <ClipboardList className="mb-3 h-9 w-9 page-accent" />
               <p className="type-card-title text-brand-text">{t(signedOut ? "Sign in required" : error ? "Orders could not be loaded" : "No orders yet")}</p>
               <p className="type-body-compact mt-2 max-w-md text-brand-text-muted">{t(signedOut ? "Your private order history is available after you sign in." : error ? "Refresh after the account service is available. Your order records have not been changed." : "When you place an order, its status and details will appear here.")}</p>
             </div>
           ) : (
-            <div className="custom-scrollbar overflow-x-auto">
+            <>
+              <div className="grid gap-3 p-3 md:hidden">
+                {orders.map((order, index) => {
+                  const id = display(order.order_id ?? order.id, `#${index + 1}`);
+                  const side = display(order.side);
+                  return <Card key={id} className="border-l-2 border-l-[var(--page-accent)] border-brand-border bg-brand-surface-2/50 ring-1 ring-white/[0.025] transition-all hover:border-brand-cyan/30 hover:bg-brand-surface-2/80">
+                    <CardContent className="space-y-3 p-4">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0"><p className="font-semibold text-brand-text">{display(order.symbol)}</p><p className="mt-1 truncate font-mono text-[11px] text-brand-text-muted">{id}</p></div>
+                        <div className="flex shrink-0 flex-wrap items-center justify-end gap-2"><Badge variant={side.toLowerCase() === "buy" ? "default" : "outline"}>{t(side)}</Badge><Badge variant={statusVariant(display(order.status, "unknown"))}>{t(display(order.status, "Unknown"))}</Badge></div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="rounded-lg bg-brand-surface p-3"><p className="type-meta text-brand-text-muted">{t("Price")}</p><p className="mt-1 break-all font-mono text-sm tabular-nums text-brand-text">{display(order.price)}</p></div>
+                        <div className="rounded-lg bg-brand-surface p-3"><p className="type-meta text-brand-text-muted">{t("Quantity")}</p><p className="mt-1 break-all font-mono text-sm tabular-nums text-brand-text">{display(order.quantity ?? order.amount)}</p></div>
+                      </div>
+                      <div className="flex items-center justify-between gap-3 border-t border-brand-border pt-2 text-xs"><span className="text-brand-text-muted">{t(display(order.type))}</span><span className="text-right text-brand-text-muted">{display(order.created_at)}</span></div>
+                    </CardContent>
+                  </Card>;
+                })}
+              </div>
+              <div className="hidden custom-scrollbar overflow-x-auto md:block">
               <table className="w-full min-w-[760px] text-left text-sm">
-                <thead className="border-y border-brand-border bg-brand-surface-2 text-xs uppercase tracking-wide text-brand-text-muted">
+                <thead className="border-y border-brand-border bg-brand-surface-2/90 text-[11px] uppercase tracking-[.12em] text-brand-text-muted">
                   <tr>{["Order", "Pair", "Side", "Type", "Price", "Quantity", "Status", "Created"].map((label) => <th key={label} className="px-4 py-3 font-semibold">{t(label)}</th>)}</tr>
                 </thead>
                 <tbody>
                   {orders.map((order, index) => {
                     const id = display(order.order_id ?? order.id, `#${index + 1}`);
                     const side = display(order.side);
-                    return <tr key={id} className="border-b border-brand-border last:border-0 hover:bg-brand-surface-hover">
+                    return <tr key={id} className="border-b border-brand-border/80 last:border-0 transition-colors hover:bg-brand-surface-hover">
                       <td className="max-w-[180px] truncate px-4 py-3 font-mono text-xs text-brand-text-secondary">{id}</td>
                       <td className="px-4 py-3 font-semibold text-brand-text">{display(order.symbol)}</td>
                       <td className="px-4 py-3"><span className={side.toLowerCase() === "buy" ? "text-profit" : side.toLowerCase() === "sell" ? "text-loss" : "text-brand-text-secondary"}>{t(side)}</span></td>
@@ -118,7 +139,8 @@ export function OrdersPage() {
                   })}
                 </tbody>
               </table>
-            </div>
+              </div>
+            </>
           )}
         </CardContent>
       </Card>

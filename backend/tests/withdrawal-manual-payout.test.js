@@ -48,7 +48,8 @@ test('manual payout completion is audit/status-only and does not apply another l
 test('React withdrawal intent persists only non-secret request fields and retries with the same ID', () => {
   const pages = fs.readFileSync(path.resolve(__dirname, '../../frontend/src/features/pages/Pages.tsx'), 'utf8');
   assert.ok(pages.includes('btcbox.withdraw.pending.v1.'));
-  const intentStart = pages.indexOf('intent={version:1,request_id:window.crypto.randomUUID()');
+  const requestIdStart = pages.indexOf('requestId=window.crypto.randomUUID()');
+  const intentStart = pages.indexOf('intent={version:1,request_id:requestId', requestIdStart);
   const intentEnd = pages.indexOf('};', intentStart);
   assert.ok(intentStart >= 0 && intentEnd > intentStart);
   const intent = pages.slice(intentStart, intentEnd);
@@ -99,4 +100,25 @@ test('manual payout audit binds the verified actor, withdrawal subject and payou
   ]) assert.ok(auditInsert.includes(fragment), 'audit insert must include ' + fragment);
   assert.ok(sql.includes('paid_by=p_admin_id'));
   assert.ok(sql.includes('paid_at=clock_timestamp()'));
+});
+
+test('admin manual payout handler blocks concurrent duplicate submissions synchronously', () => {
+  const admin = fs.readFileSync(path.resolve(__dirname, '../../frontend/src/features/admin/AdminPage.tsx'), 'utf8');
+  assert.ok(admin.includes('const payoutSubmitLockRef = useRef(false)'));
+  assert.ok(admin.includes('if (!token || payoutSubmitLockRef.current) return;'));
+  assert.ok(admin.includes('payoutSubmitLockRef.current = true;'));
+  assert.ok(admin.includes('finally { payoutSubmitLockRef.current = false; setBusy(false); }'));
+});
+
+test('admin manual credit uses a per-asset synchronous lock and fails closed without secure request IDs', () => {
+  const admin = fs.readFileSync(path.resolve(__dirname, '../../frontend/src/features/admin/AdminPage.tsx'), 'utf8');
+  const start = admin.indexOf('const manualCredit = async');
+  const end = admin.indexOf('const refreshWithdrawalQueue', start);
+  const handler = admin.slice(start, end);
+  assert.ok(start >= 0 && end > start);
+  assert.ok(handler.includes('manualCreditLocksRef.current[coin]'));
+  assert.ok(handler.includes('manualCreditLocksRef.current[coin] = true'));
+  assert.ok(handler.includes('window.crypto.randomUUID()'));
+  assert.ok(handler.includes('Secure manual-credit request IDs are unavailable in this browser.'));
+  assert.ok(handler.includes('finally { manualCreditLocksRef.current[coin] = false; setBusy(false); }'));
 });

@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Search, Bell, User, Radio, Menu, Languages } from "lucide-react";
+import { Search, Bell, User, Menu, Languages } from "lucide-react";
 import { useI18n, type Language } from "../../lib/i18n";
 import { BrandLogo } from "../BrandLogo";
 
@@ -22,7 +22,7 @@ export function Topbar({ onMenuClick, menuOpen = false }: { onMenuClick?: () => 
             <Menu className="h-5 w-5" />
           </button>
         )}
-        <Link to="/home" aria-label="BTCBOX home" className="min-w-0 sm:hidden"><BrandLogo compact showExchange={false} /></Link>
+        <Link to="/home" aria-label="BTCBOX home" className="min-w-0 sm:hidden"><BrandLogo compact showExchange={false} hideNameBelow /></Link>
         <form onSubmit={submitSearch} role="search" className="relative hidden min-w-0 max-[480px]:hidden sm:block">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-brand-text-muted" />
           <input type="search" aria-label={t("Search BTCBOX")} value={search} onChange={(event) => setSearch(event.target.value)} placeholder={t("Search")} className="h-11 w-[min(30vw,190px)] rounded-xl border border-brand-border bg-brand-surface px-3 pl-10 pr-3 text-sm text-brand-text placeholder:text-brand-text-muted focus:border-brand-accent focus:outline-none md:w-[240px]" />
@@ -33,10 +33,6 @@ export function Topbar({ onMenuClick, menuOpen = false }: { onMenuClick?: () => 
         </button>
       </div>
       <div className="flex shrink-0 items-center gap-1 sm:gap-3">
-        <div className="hidden items-center gap-1.5 rounded-full border border-brand-border bg-brand-surface px-3 py-2 sm:flex">
-          <Radio className="h-3.5 w-3.5 text-profit" />
-          <span className="text-xs font-semibold text-brand-text">{t("Preview")}</span>
-        </div>
         <label className="flex h-11 items-center gap-1.5 rounded-xl border border-brand-border bg-brand-surface px-2 text-brand-text-secondary sm:px-2.5">
           <Languages className="h-4 w-4 shrink-0" />
           <select aria-label={t("Language")} value={language} onChange={(event) => setLanguage(event.target.value as Language)} className="w-[74px] bg-transparent text-xs font-semibold text-brand-text outline-none sm:w-[88px]">

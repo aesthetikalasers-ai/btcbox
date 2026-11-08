@@ -44,7 +44,7 @@ function renderOrderbook(sym){
   const chg=(market[sym]&&market[sym].chg)||0;
   let bids=[], asks=[];
   if(state.depthCache && state.depthCache.sym===sym){ bids=state.depthCache.bids.slice().sort((a,b)=>b[0]-a[0]).slice(0,10); asks=state.depthCache.asks.slice().sort((a,b)=>a[0]-b[0]).slice(0,10); }
-  if(!bids.length && !asks.length) return '<div style="padding:24px;text-align:center;color:var(--text-muted);font-size:13px">'+(state.marketUnavailable?'Market data unavailable — orderbook hidden (no simulated data).':'Loading orderbook…')+'</div>';
+  if(!bids.length && !asks.length) return '<div style="padding:24px;text-align:center;color:var(--text-muted);font-size:13px">'+(state.marketUnavailable?'Order book unavailable until live market data is restored.':'Loading orderbook…')+'</div>';
   const maxAmt=Math.max(...bids.map(b=>b[1]),...asks.map(a=>a[1]));
   const row=(p,a,side)=>{
     const w=(a/maxAmt*100).toFixed(1);
@@ -64,7 +64,7 @@ function renderOrderbook(sym){
 }
 function renderRecentTrades(sym){
   let h='<div class="ob-head"><span>Price (USDT)</span><span>Amount</span><span>Time</span></div>';
-  h+='<div style="padding:24px 12px;text-align:center;color:var(--text-muted);font-size:12px">'+(state.marketUnavailable?'Market data unavailable — recent trades hidden.':'Recent trade feed not exposed by backend.')+'</div>';
+  h+='<div style="padding:24px 12px;text-align:center;color:var(--text-muted);font-size:12px">'+(state.marketUnavailable?'Market data unavailable — recent trades hidden.':'Recent trades are currently unavailable.')+'</div>';
   return h;
 }
 function marketPriceText(m,symbol){

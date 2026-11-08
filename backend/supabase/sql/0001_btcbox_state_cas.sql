@@ -1,6 +1,7 @@
 -- BTCBOX single-state CAS storage adapter.
--- Apply only after a verified export/backup and only to the intended btcbox project.
--- This schema does NOT import existing Netlify Blobs data.
+-- Apply only to the intended fresh, empty BTCBOX project under the guarded bootstrap.
+-- This schema does NOT import existing Netlify Blobs data or seed users/balances.
+-- The first API request initializes the empty btcbox_state singleton via its revision-0 CAS RPC.
 
 create table if not exists public.btcbox_state (
   id text primary key check (id = 'main'),

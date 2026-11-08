@@ -19,7 +19,7 @@ const isValidAuthEmail = extractFunction('isValidAuthEmail');
 const getSupabaseWalletIdentity = extractFunction('getSupabaseWalletIdentity', { getSingleSupabaseAuthProvider });
 const isSupabaseUserId = extractFunction('isSupabaseUserId');
 
-test('only one server-verified Google or Web3 Supabase identity is accepted', () => {
+test('only one server-verified Google, Email or Web3 Supabase identity is accepted', () => {
   const google = {
     app_metadata: { provider: 'google', providers: ['google'] },
     identities: [{ provider: 'google' }],
@@ -34,7 +34,7 @@ test('only one server-verified Google or Web3 Supabase identity is accepted', ()
     app_metadata: { provider: 'email', providers: ['email'] },
     identities: [{ provider: 'email' }],
     user_metadata: { provider: 'google' }
-  }), null, 'email identities are not an enabled BTCBOX sign-in method');
+  }), 'email', 'the server-verified Email provider is an enabled BTCBOX sign-in method');
   assert.equal(getSingleSupabaseAuthProvider({
     app_metadata: { provider: 'google', providers: ['google', 'email'] },
     identities: [{ provider: 'google' }, { provider: 'email' }]
@@ -156,13 +156,13 @@ test('first-time Supabase sign-in creates one BTCBOX account with server-verifie
   assert.match(create, /wallet_identities: walletIdentity \? \[\{/);
   assert.match(create, /auth_providers: authProviders/);
   assert.match(create, /balances: emptyBalances\(\)/);
-  assert.match(route, /db\.sessions\[token\] = \{ uid: user\.uid, email: email, created_at: Date\.now\(\), auth_method: authProvider === 'web3' \? 'supabase_web3' : 'supabase_google' \}/);
+  assert.match(route, /db\.sessions\[token\] = \{ uid: user\.uid, email: email, created_at: Date\.now\(\), auth_method: authProvider === 'web3' \? 'supabase_web3' : authProvider === 'email' \? 'supabase_email' : 'supabase_google' \}/);
   assert.match(route, /try\s*\{\s*await saveDB\(db\);\s*\}\s*catch[\s\S]*?return json\(\{ ok: true, uid: user\.uid \}/);
   assert.match(route, /if \(authProvider === 'web3' \? !walletIdentity : \(!isValidAuthEmail\(email\) \|\| !confirmed\)\)/);
 });
 
 
-test('Google and Web3 login persist 2FA challenges and authenticated sessions before returning success', () => {
+test('Google, Email and Web3 login persist 2FA challenges and authenticated sessions before returning success', () => {
   const routeStart = source.indexOf("if ((path === 'supabase-login' || path === 'google-login') && method === 'POST')");
   const routeEnd = source.indexOf("// ---------- POST /api/logout ----------", routeStart);
   assert.ok(routeStart >= 0 && routeEnd > routeStart);
@@ -181,7 +181,7 @@ test('Google and Web3 login persist 2FA challenges and authenticated sessions be
   const success = route.indexOf("return json({ ok: true, uid: user.uid }, 200, setCookieHeader(token))", session);
   assert.ok(session > createAccount && save > session && success > save);
   assert.match(route.slice(save, success), /PERSISTENCE_UNAVAILABLE/);
-  assert.match(route, /auth_method: authProvider === 'web3' \? 'supabase_web3' : 'supabase_google'/);
+  assert.match(route, /auth_method: authProvider === 'web3' \? 'supabase_web3' : authProvider === 'email' \? 'supabase_email' : 'supabase_google'/);
 });
 
 
@@ -189,7 +189,7 @@ test('Supabase provider is retained across the shared 2FA challenge exchange', (
   const start = source.indexOf("if ((path === 'supabase-login' || path === 'google-login') && method === 'POST')");
   const end = source.indexOf("// ---------- POST /api/logout ----------", start);
   const route = source.slice(start, end);
-  assert.match(route, /auth_method: authProvider === 'web3' \? 'supabase_web3_2fa' : 'supabase_google_2fa'/);
+  assert.match(route, /auth_method: authProvider === 'web3' \? 'supabase_web3_2fa' : authProvider === 'email' \? 'supabase_email_2fa' : 'supabase_google_2fa'/);
   const challengeStart = source.indexOf("if (path === 'login/2fa' && method === 'POST')");
   const challengeEnd = source.indexOf("// ---------- GET /api/kline", challengeStart);
   const challengeRoute = source.slice(challengeStart, challengeEnd);

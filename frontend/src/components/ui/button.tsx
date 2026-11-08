@@ -4,15 +4,15 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "../../lib/utils";
 
 const variants = cva(
-  "inline-flex min-w-0 max-w-full select-none items-center justify-center gap-2 whitespace-normal text-center leading-tight rounded-xl text-sm font-semibold tracking-[0.005em] transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-brand-bg disabled:pointer-events-none disabled:opacity-45 active:translate-y-px",
+  "inline-flex min-w-0 max-w-full select-none items-center justify-center gap-2 whitespace-normal text-center leading-tight rounded-xl text-sm font-semibold tracking-[0.005em] transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent/70 focus-visible:ring-offset-2 focus-visible:ring-offset-brand-bg disabled:pointer-events-none disabled:opacity-45 active:translate-y-px",
   {
     variants: {
       variant: {
-        default: "bg-primary text-primary-foreground shadow-sm hover:brightness-105",
+        default: "bg-primary text-primary-foreground shadow-[inset_0_1px_0_rgba(255,255,255,0.24),0_4px_12px_rgba(0,0,0,0.24)] hover:brightness-105",
         destructive: "bg-destructive text-white shadow-sm hover:brightness-110",
-        outline: "border border-brand-border bg-brand-surface text-brand-text hover:border-brand-accent/50 hover:bg-brand-surface-hover",
-        secondary: "border border-brand-border bg-brand-surface-2 text-brand-text hover:border-brand-accent/30 hover:bg-brand-surface-hover",
-        ghost: "text-brand-text-secondary hover:bg-brand-surface-hover hover:text-brand-text",
+        outline: "border border-brand-border-strong bg-brand-surface text-brand-text shadow-sm hover:border-white/20 hover:bg-white/[0.045]",
+        secondary: "border border-brand-border bg-brand-surface-2 text-brand-text shadow-sm hover:border-white/15 hover:bg-white/[0.055]",
+        ghost: "text-brand-text-secondary hover:bg-white/[0.045] hover:text-brand-text",
         link: "min-h-0 h-auto rounded-none p-0 text-primary text-left underline-offset-4 hover:underline",
       },
       size: {

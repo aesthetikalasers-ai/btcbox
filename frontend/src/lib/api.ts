@@ -318,7 +318,18 @@ async function readAuthenticated<T>(path: string, signal?: AbortSignal): Promise
 
 export async function getAccount(signal?: AbortSignal): Promise<AccountSnapshot> {
   const payload = await readAuthenticated<AccountSnapshot & { ok: true }>("account", signal);
-  if (!payload.balances || typeof payload.balances !== "object" || !Array.isArray(payload.unpriced_assets)) {
+  const validAmount = (value: unknown) =>
+    (typeof value === "number" && Number.isFinite(value) && value >= 0) ||
+    (typeof value === "string" && /^(?:\d+)(?:\.\d{1,18})?$/.test(value.trim()));
+  const validBalances = !!payload.balances &&
+    typeof payload.balances === "object" &&
+    !Array.isArray(payload.balances) &&
+    Object.entries(payload.balances).every(([asset, balance]) =>
+      !!asset && !!balance && typeof balance === "object" && !Array.isArray(balance) &&
+      validAmount((balance as AccountBalance).free) &&
+      validAmount((balance as AccountBalance).frozen)
+    );
+  if (!validBalances || !Array.isArray(payload.unpriced_assets)) {
     throw new ApiError("BTCBOX returned an invalid account response.", 502, "INVALID_ACCOUNT_RESPONSE");
   }
   return payload;
