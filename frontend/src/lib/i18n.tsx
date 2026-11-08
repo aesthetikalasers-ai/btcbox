@@ -5877,6 +5877,7 @@ const dictionaries: Record<StoredLocale, Dictionary> = {
     "Administrator Supabase session is missing.": "Falta a sessão Supabase do administrador.",
     "Administrator request could not reach BTCBOX.": "O pedido do administrador não conseguiu aceder à BTCBOX.",
     "BTCBOX returned an invalid open Seconds position queue.": "A BTCBOX devolveu uma fila de posições Seconds abertas inválida.",
+  },
 
     "Some assets do not have a verified USDT valuation.": "Alguns ativos não têm uma avaliação em USDT verificada.",
     "BTCBOX spot market data": "Dados do mercado spot BTCBOX",
@@ -5956,7 +5957,7 @@ const dictionaries: Record<StoredLocale, Dictionary> = {
     "Loading": "Wird geladen",
     "Enabled": "Aktiviert",
     "Not enabled": "Nicht aktiviert",
-    "Complete": "Abgeschlossen"
+    "Complete": "Abgeschlossen",
     "Discover live digital asset markets, review price movements and explore BTCBOX trading services. Public market information is available without signing in.": "Entdecken Sie Live-Märkte für digitale Vermögenswerte, verfolgen Sie Kursbewegungen und erkunden Sie die Handelsdienste von BTCBOX. Öffentliche Marktinformationen sind ohne Anmeldung verfügbar.",
     "Create an account or sign in to manage your personal assets and account services.": "Erstellen Sie ein Konto oder melden Sie sich an, um Ihre Vermögenswerte und Kontodienste zu verwalten.",
     "Live prices from the BTCBOX market service": "Live-Kurse vom BTCBOX-Marktdienst",
