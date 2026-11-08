@@ -136,8 +136,8 @@ test('Spot cancellation API and SQL preserve request identity and exact-replay b
 
 test('Earn subscribe and redeem API payloads match canonical RPC signatures and replay hashes', () => {
   const api = read('api-core.js');
-  const lifecycle = read('supabase/sql/0003_financial_lifecycle_v2.sql');
-  const redemption = read('supabase/sql/0005_financial_earn_redemption_idempotency_v4.sql');
+  const lifecycle = read('supabase/sql/0006_financial_earn_policy_v5.sql');
+  const redemption = lifecycle;
 
   const subscribe = lifecycle.match(/create\s+or\s+replace\s+function\s+public\.subscribe_earn_atomic\s*\(([\s\S]*?)\)\s*returns/i);
   assert.ok(subscribe, 'canonical Earn subscription RPC must exist');
