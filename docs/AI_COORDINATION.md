@@ -13,13 +13,14 @@ One repository execution path is active at a time. Re-read this file before star
 
 - **Active candidate:** PR #67
 - **Branch:** `integration/btcbox-mainline-consolidation-20261108`
-- **Current candidate head:** `1594084189befe103c978b2d7ce6dc65eaf5a451`
+- **Current candidate head:** `724d871c9f9f5e3a4df0ce2b7ea78e46164f7082`
 - **Base:** `main` at `2a3810da1aef2c0c7c58df0cfdb059a212eeb0d6`
 - **State:** Draft / open / not merged
-- **Exact-current-head CI:** PASS on `1594084189befe103c978b2d7ce6dc65eaf5a451`.
-  - Backend: `42449102047` — PASS.
-  - PostgreSQL schema: `42449102051` — PASS.
-  - Frontend: `42449102014` — PASS; lint/build, Chromium setup, desktop/mobile route smoke tests, and responsive screenshot artifact upload completed successfully.
+- **Exact-current-head CI:** PASS on `724d871c9f9f5e3a4df0ce2b7ea78e46164f7082`.
+  - Backend: `42450472668` — PASS.
+  - PostgreSQL schema: `42450472665` — PASS.
+  - Frontend: `42450472705` — PASS; the build job completed successfully with no failed steps.
+  - Previous exact-head CI on `1594084189befe103c978b2d7ce6dc65eaf5a451` also passed, but is historical and not the current candidate head.
 
 The previous fully green source head `8b54cf128ccd4861eedd1fae602846c92849f835` also passed Backend `42436694163`, PostgreSQL schema `42436693919`, and Frontend `42436694030`. Current head adds a documentation-only correction to the owner bootstrap guide; the full exact-head CI has now passed.
 
@@ -163,3 +164,8 @@ API-to-SQL source contract cross-check — 2026-11-08:
 - Spot cancel API forwards `client_cancel_id`; canonical SQL `0008` persists cancellation identity in `financial_matching_cancel_requests` keyed by `(user_id, client_cancel_id)`, checks order ID and request hash on replay, and returns the stored response for an exact retry. The live hosted function still lacks this canonical table, as already recorded above.
 - This was a source inspection only. It does not close hosted schema drift or prove live RPC behavior. No code or hosted database was changed in this cross-check.
 - The exact-head CI results recorded above remain the latest verified results for PR #67 SHA `724d871c9f9f5e3a4df0ce2b7ea78e46164f7082`.
+
+
+Coordination document correction — 2026-11-08:
+- Updated the top-level candidate SHA and exact-head CI block to `724d871c9f9f5e3a4df0ce2b7ea78e46164f7082` and its three passing workflow runs. The older `159408...` evidence remains historical only.
+- A source inspection found that `backend/tests/rpc-source-contract.test.js` inventories active RPC names and has a detailed signature assertion for withdrawal creation, but does not currently assert parameter/signature parity or request-hash normalization for admin membership, Seconds policy, Seconds order, and matching cancellation. Treat this as a potential regression-coverage improvement, not as a runtime defect; verify team file ownership and existing test conventions before changing it.
