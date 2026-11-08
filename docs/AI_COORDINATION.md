@@ -695,3 +695,6 @@ Safety/ownership:
 - No default-language switch yet. Existing fallback behavior and broad auth/admin/business-page coverage still need systematic completion before Japanese-first is safe.
 - Exact-head CI started: Frontend `42470781531`, Backend `42470781493`, PostgreSQL `42470781521`. At this update all three were in progress; frontend dependency installation, backend unified build and PostgreSQL container initialization were underway. No PASS claim yet.
 - Spot layout/API contract, API contracts, financial precision, authentication behavior and business flows unchanged. No merge, deployment, hosted Supabase writes or financial operations.
+
+
+- Follow-up syntax correction: the English dictionary's final pre-existing `Live product catalog` entry lacked a trailing comma before the newly added locale keys. Exact-head CI at `1a610fd17241aca5bd7b2b17ecb3c4db50b2cbde` caught this with TypeScript TS1005 at `i18n.tsx:24`; the comma has been corrected in candidate commit `da837d720d44db67995d0d9f446ec7b71fab65b1`. The failing run is not accepted. Fresh CI for the corrected exact head is pending.
