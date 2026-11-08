@@ -23,8 +23,10 @@ function collectFiles(directory) {
 const i18nText = fs.readFileSync(i18nPath, "utf8");
 const i18nFile = ts.createSourceFile(i18nPath, i18nText, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
 let dictionariesNode;
+let supplementalDictionariesNode;
 function findDictionaries(node) {
   if (ts.isVariableDeclaration(node) && node.name.getText(i18nFile) === "dictionaries") dictionariesNode = node.initializer;
+  if (ts.isVariableDeclaration(node) && node.name.getText(i18nFile) === "supplementalDictionaries") supplementalDictionariesNode = node.initializer;
   ts.forEachChild(node, findDictionaries);
 }
 findDictionaries(i18nFile);
@@ -45,6 +47,21 @@ for (const localeProperty of dictionariesNode.properties) {
     }
   }
   dictionaries.set(locale, keys);
+}
+if (supplementalDictionariesNode && ts.isObjectLiteralExpression(supplementalDictionariesNode)) {
+  for (const localeProperty of supplementalDictionariesNode.properties) {
+    if (!ts.isPropertyAssignment(localeProperty) || !ts.isObjectLiteralExpression(localeProperty.initializer)) continue;
+    const locale = propertyName(localeProperty.name);
+    if (!locale) continue;
+    const keys = dictionaries.get(locale) || new Set();
+    for (const entry of localeProperty.initializer.properties) {
+      if (ts.isPropertyAssignment(entry)) {
+        const key = propertyName(entry.name);
+        if (key !== undefined) keys.add(key);
+      }
+    }
+    dictionaries.set(locale, keys);
+  }
 }
 
 const usages = new Map();
