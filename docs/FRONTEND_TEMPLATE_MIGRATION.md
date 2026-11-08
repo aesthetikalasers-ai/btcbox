@@ -51,3 +51,5 @@ The upstream repositories are pinned as Git submodules. This establishes source 
 - No Next.js app router, Clerk, demo data, or mock financial values are introduced by this batch. The locked Spot trading-page layout and API contract are untouched.
 
 - My Account quick-navigation cards now use distinct semantic accents for verification, orders, support, and settings. Routes and their existing BTCBOX-backed page behavior are unchanged.
+
+- Responsive navigation follow-up: the mobile bottom bar now mirrors the desktop sidebar semantic route colors for Home/Markets, Trade, Assets, and My. Active-state contrast and touch-target sizing are retained; no route or business behavior changed.
