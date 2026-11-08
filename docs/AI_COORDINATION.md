@@ -621,3 +621,5 @@ Safety/ownership:
 
 - Follow-up CI on `62231c8...` found two additional TypeScript errors: child JSX attempted to reference `isActive` outside the `NavLink` className render callback in Sidebar and BottomNav. Fixed by moving active-state indication to a parent active class and removing the out-of-scope variable from child nodes. Fix commit: `05cc95e7e8587669d30776f5c0c721a8ca1205cd`.
 - Exact-head CI for `05cc95e...` was not yet visible in GitHub Actions at the immediate post-push query. The navigation batch remains unaccepted until lint, unified build, PostgreSQL bootstrap, desktop/mobile smoke tests and screenshot artifact complete on this exact SHA.
+
+- Corrected-head CI progress for `05cc95e7...`: unified frontend/backend build, backend tests, fail-closed preflight and output checks PASS (`42469014294`). Frontend install, lint and production build PASS; Chromium install/browser smoke tests/screenshot artifact still running (`42469014466`). PostgreSQL disposable bootstrap still running (`42469014293`). This is partial success, not full CI acceptance.
