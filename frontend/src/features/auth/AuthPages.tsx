@@ -128,13 +128,11 @@ export function AuthPage({ mode, redirectTo }: { mode: "login" | "register"; red
             <CardTitle className="text-2xl font-semibold tracking-tight">
               {status === "two-factor" ? t("Verify your sign-in") : registering ? t("Create your BTCBOX account") : t("Welcome back")}
             </CardTitle>
-            <CardDescription className="max-w-[380px] text-sm leading-6 text-brand-text-muted">
+            {(status === "two-factor" || registering) && <CardDescription className="max-w-[380px] text-sm leading-6 text-brand-text-muted">
               {status === "two-factor"
                 ? t("Enter your authenticator code to finish signing in.")
-                : registering
-                  ? t("Verify your email address or Google identity, then complete your BTCBOX account setup.")
-                  : t("Sign in with your email, BTCBOX username, Google account or supported crypto wallet.")}
-            </CardDescription>
+                : t("Verify your email address or Google identity, then complete your BTCBOX account setup.")}
+            </CardDescription>}
           </CardHeader>
           <CardContent className="space-y-4 px-5 pb-6 sm:px-8 sm:pb-8">
             {error && <div role="alert" className="flex items-start justify-between gap-3 rounded-lg border border-loss/30 bg-loss/10 p-3 text-sm text-loss">
