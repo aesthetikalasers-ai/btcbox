@@ -55,6 +55,7 @@ FILES=(
   0035_service_role_privilege_minimization_v1.sql
   0036_service_role_maintain_privilege_revoke_v1.sql
   0037_financial_write_rate_limit_scopes_v1.sql
+  0038_withdrawal_first_successful_review_guard_v1.sql
 )
 
 for file in "${FILES[@]}"; do
