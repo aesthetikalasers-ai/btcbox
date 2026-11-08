@@ -19,6 +19,13 @@ const price = (value: number, locale: string) => new Intl.NumberFormat(locale, {
   maximumFractionDigits: value >= 1 ? 4 : 8,
 }).format(value);
 
+const formatCompact = (value: number | string | undefined | null, locale: string) => {
+  const num = typeof value === "string" ? parseFloat(value) : value;
+  if (num === undefined || num === null || !Number.isFinite(num) || num < 0) return "—";
+  if (num === 0) return "0.00";
+  return new Intl.NumberFormat(locale, { notation: "compact", maximumFractionDigits: 2 }).format(num);
+};
+
 function Change({ value, locale }: { value: number; locale: string }) {
   return <span className={`inline-flex min-w-[76px] justify-center rounded-lg px-2.5 py-1.5 text-xs font-semibold tabular-nums ${value >= 0 ? "bg-profit/10 text-profit" : "bg-loss/10 text-loss"}`}>
     {value > 0 ? "+" : ""}{value.toLocaleString(locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%
@@ -126,7 +133,7 @@ export function LiveMarketsTable({ markets, loading, error }: {
                   </td>
                   <td className="whitespace-nowrap px-4 text-base font-semibold tabular-nums text-brand-text md:px-6">{price(item.price, numberLocale)}</td>
                   <td className="whitespace-nowrap px-4 md:px-6"><Change value={item.chg} locale={numberLocale} /></td>
-                  <td className="whitespace-nowrap px-4 text-sm tabular-nums text-brand-text-secondary md:px-6">{item.vol} USDT</td>
+                  <td className="whitespace-nowrap px-4 text-sm tabular-nums text-brand-text-secondary md:px-6">{formatCompact(item.vol, numberLocale)} USDT</td>
                   <td className="whitespace-nowrap px-4 text-sm tabular-nums text-brand-text-secondary md:px-6">{price(item.high, numberLocale)}</td>
                   <td className="whitespace-nowrap px-4 text-sm tabular-nums text-brand-text-secondary md:px-6">{price(item.low, numberLocale)}</td>
                 </tr>

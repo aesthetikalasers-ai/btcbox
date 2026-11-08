@@ -4,10 +4,13 @@ import { useDashboardStore } from '../dashboard.data';
 import type { MarketCandle } from '../../../lib/api';
 import { Card, CardHeader } from './Card';
 import { cn } from '../../../lib/utils';
+import { useI18n, localeTags } from '../../../lib/i18n';
 
 const RANGES = ['1h', '24h', '6h', '7d', '30d'];
 
 export function LiquidityChart({ candles = [] }: { candles?: MarketCandle[] }) {
+  const { t, language } = useI18n();
+  const numberLocale = localeTags[language] || 'en-US';
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const activeRange = useDashboardStore(s => s.liquidityRange);
   const setRange = useDashboardStore(s => s.setLiquidityRange);
@@ -117,9 +120,9 @@ export function LiquidityChart({ candles = [] }: { candles?: MarketCandle[] }) {
       </CardHeader>
       
       <div className="mb-4 flex min-w-0 shrink-0 flex-wrap items-baseline gap-x-3 gap-y-2">
-        <span className="type-price text-brand-text">{latestCandle ? latestCandle.close.toLocaleString("en-US", { maximumFractionDigits: 2 }) : "No market data"}</span>
+        <span className="type-price text-brand-text">{latestCandle ? latestCandle.close.toLocaleString(numberLocale, { maximumFractionDigits: 2 }) : t("No market data")}</span>
         <div className={cn("min-w-0 break-words text-[13px] font-medium", latestCandle ? (changePct >= 0 ? "text-profit" : "text-loss") : "text-brand-text-muted")}>
-          {latestCandle ? `${changePct >= 0 ? "▲" : "▼"} ${Math.abs(changePct).toFixed(2)}% across loaded candles` : "Waiting for market data"}
+          {latestCandle ? `${changePct >= 0 ? "▲" : "▼"} ${Math.abs(changePct).toFixed(2)}% ${t("across loaded candles")}` : t("Waiting for market data")}
         </div>
       </div>
       
