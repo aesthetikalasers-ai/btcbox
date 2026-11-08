@@ -1251,3 +1251,19 @@ test("public market preview remains responsive across mobile, tablet and desktop
     expect(dimensions.content, `public preview overflow at ${viewport.width}px`).toBeLessThanOrEqual(dimensions.viewport);
   }
 });
+
+
+test("language preference updates the document locale and persists across reloads", async ({ page }) => {
+  await page.goto("/home");
+  await expect.poll(() => page.locator("html").getAttribute("lang")).toBe("en");
+
+  const language = page.getByRole("combobox", { name: "Language" });
+  await language.selectOption("ja");
+  await expect(page.locator("html")).toHaveAttribute("lang", "ja");
+  await expect(page.getByRole("navigation", { name: "メインナビゲーション" }).getByRole("link", { name: "ホーム" })).toBeVisible();
+
+  await page.reload();
+  await expect(page.locator("html")).toHaveAttribute("lang", "ja");
+  await expect(page.getByRole("combobox", { name: "言語" })).toHaveValue("ja");
+  await expect(page.getByRole("navigation", { name: "メインナビゲーション" }).getByRole("link", { name: "ホーム" })).toBeVisible();
+});
