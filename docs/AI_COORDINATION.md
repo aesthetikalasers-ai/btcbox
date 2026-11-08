@@ -563,3 +563,11 @@ Safety/ownership:
 - All product/rate/term values remain sourced from `getEarnCatalog()`; positions and interest remain sourced from the authenticated account snapshot. No mock products, invented APY, synthetic balances or changed subscribe/redeem behavior were added. Existing backend action enablement and request-id idempotency remain intact.
 - Exact-head CI checkpoint: empty-postgres-bootstrap: in_progress; build: in_progress; Unified frontend/backend build, tests, and fail-closed preflight: in_progress.
 - Visual migration remains in progress; no merge, deployment, hosted Supabase writes, financial operation, or Spot page layout/API change.
+
+
+### Support conversation visual adaptation — 2026-11-08
+
+- Candidate head: `91e489364bf1d89a4d11f56d0563df8c63054d07`; PR #67 remains Draft/open/unmerged.
+- `frontend/src/features/pages/Pages.tsx` Support page conversation and composer now use the fintech card surface hierarchy, clearer sender-specific message bubbles, improved responsive padding and a full-width mobile send action.
+- The existing authenticated message fetch, message content, newest-50 display, request-ID idempotency on send, safe error handling and prohibition on sending passwords/2FA/recovery phrases are unchanged. No demo messages were added.
+- Exact-head checks at checkpoint: Unified frontend/backend build, tests, and fail-closed preflight: in_progress; build: in_progress; empty-postgres-bootstrap: in_progress.
