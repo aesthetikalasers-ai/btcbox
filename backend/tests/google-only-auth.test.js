@@ -132,6 +132,13 @@ test('React auth server endpoints retain exact POST contracts and legacy callbac
   assert.ok(!vercel.includes('/legacy-index.html'));
 });
 
+test('OAuth callback renders an error once instead of retrying a consumed authorization code', () => {
+  const callback = read('../frontend/src/features/auth/AuthPages.tsx');
+  assert.ok(callback.includes('const oauthAttempted = useRef(false)'));
+  assert.ok(callback.includes('if (!oauthAttempted.current && status !== "loading"'));
+  assert.ok(callback.includes('oauthAttempted.current = true;'));
+});
+
 
 test('React auth preserves Supabase email and Google alongside existing username and wallet identity paths', () => {
   const backend = read('api-core.js');
