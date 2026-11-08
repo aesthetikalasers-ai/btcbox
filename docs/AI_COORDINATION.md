@@ -451,3 +451,21 @@ Safety/ownership:
 - Re-read the candidate's closed backend permission catalogue, private SQL permission seed, route permission map, Admin tab permission declarations, and admin API contract tests. The payout-address gap recorded in batch 10 remains present and is cross-layer: `addresses GET` still maps to `deposits.read`; `address/manage POST` still maps to `system_config.write`; neither `payout_addresses.read_sensitive` nor `payout_addresses.manage` exists in the backend catalogue, SQL seed, or Admin role editor. No partial backend-only permission patch was made.
 - Required coordinated change remains: 3号 owns the business/API permission contract and route enforcement; 1号 owns the closed permission catalogue plus private SQL seed/schema/test alignment; 2号 owns Admin role-editor options, tab/action visibility and UI regression coverage. All three permissions layers must land together on PR #67, with tests proving the old broad permissions alone cannot read or mutate customer payout destinations.
 - Candidate code was not changed in this review batch. No local test execution, hosted Supabase DDL/writes, financial operations, Vercel changes, merge/deploy, or locked Spot layout changes occurred. Keep the final comprehensive audit after the requested template/runtime integration is assembled.
+
+
+### Single-operator execution and payout-address permission remediation — 2026-11-08
+
+- Owner instruction: BTCBOX work is to be executed by one ChatGPT operator, not described as parallel work by separate 1号/2号/3号 agents. Historical ownership boundaries are not a reason to wait for another agent. The single operator is responsible for coordinating and implementing visual, interaction, business, API, security and integration changes while preserving the stated production/merge/deploy restrictions.
+- Candidate PR #67 advanced from `90839a7f4f9fc47a712eb0ac53f1b144c9b755e2` to `bd258b3ec5da983e708d211c64bc6f8f064d6ed5`.
+- Implemented a coordinated least-privilege correction across backend closed permission catalogue, API route authorization, private SQL permission seed, delegated-admin role editor, and regression tests:
+  - `GET /api/admin/addresses` now requires `payout_addresses.read_sensitive`.
+  - `POST /api/admin/address/manage` now requires `payout_addresses.manage`.
+  - Neither `deposits.read` nor `system_config.write` alone grants either sensitive payout-address action.
+  - Admin role editor exposes the two separate permissions.
+  - Global Deposit addresses configuration tab now uses `system_config.read`, matching the `GET /api/admin/config` route it actually loads.
+  - Added runtime RBAC assertions and API/UI/SQL contract assertions.
+- Changed files: `backend/admin-rbac.js`, `backend/api-core.js`, `backend/supabase/sql/0026_admin_rbac_private_store_v1.sql`, `backend/tests/admin-api-contract.test.js`, `backend/tests/admin-rbac.test.js`, `frontend/src/features/admin/AdminPage.tsx`.
+- Exact-head CI for `bd258b3ec5da983e708d211c64bc6f8f064d6ed5` was triggered: Backend run `42461929437`, PostgreSQL schema run `42461929390`, Frontend run `42461929462`. All were in progress at the time this note was written; do not claim a pass until each completes successfully.
+- This change updates source SQL only. It does not apply DDL to the hosted Supabase project. Existing hosted environments require a separately reviewed additive upgrade migration; do not assume editing bootstrap SQL upgrades an already-created permission catalogue.
+- PR #67 remains Draft/open/unmerged. No production deployment, hosted database writes/DDL, financial operation, or Spot layout change was performed.
+- Next batch: verify exact-head CI, then continue one-operator implementation of full Strata Pro + Shadcn Fintech runtime page/component migration. The pinned submodules remain source references only; they are not runtime migration evidence. Keep the comprehensive whole-project audit until the requested integration is assembled.
