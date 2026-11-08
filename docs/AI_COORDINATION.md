@@ -293,3 +293,28 @@ Inspected both migration documents on `feat/btcbox-unified-template-migration-20
 - These documents establish the pinned source identities and intended architecture, but do not yet establish page-by-page migration completion. The actual upstream submodule trees and current BTCBOX route/component implementations still require comparison.
 
 Current interpretation: full source acquisition was prepared correctly as pinned MIT submodules, but the migration branch's own docs explicitly characterize runtime migration as not yet complete. Do not state that either full template has already been integrated. Next action is a page/component-level audit of both pinned upstream trees against the current PR #67 frontend, then a file-ownership-aware implementation matrix.
+
+
+## Owner-approved execution order change — consolidate first, comprehensive audit second (2026-11-08)
+
+The owner has clarified that the preferred sequence is to **integrate the existing work first, then perform one comprehensive end-to-end audit**, rather than repeatedly auditing and patching isolated batches. This supersedes the previous “audit both vendor trees and produce a matrix before any implementation” as the overall sequencing rule. A small amount of source/branch reconnaissance is allowed to prevent unsafe overwrites; the comprehensive page-by-page verification is deferred until the consolidation pass is assembled.
+
+Consolidation target remains the existing sole candidate branch `integration/btcbox-mainline-consolidation-20261108` / PR #67. Do not create another parallel candidate. “Integrate first” means consolidate code into this candidate, NOT merge PR #67 into `main`, deploy, or write to hosted Supabase.
+
+Initial branch comparison evidence (GitHub compare API, 2026-11-08):
+- PR #65 head branch `fix/hide-lightweight-chart-attribution-20261107` vs PR #67: diverged; PR #65 side is 86 commits ahead and PR #67 side is 127 commits ahead of the common base. The comparison reports 26 changed frontend/README files on the PR #65-only side. Therefore do not merge PR #65 wholesale or replace whole files: it is based on an older unified branch and overlaps newer PR #67 business/auth changes. Its unique work must be selectively reconciled into the current candidate while preserving newer contracts.
+- Template migration branch `feat/btcbox-unified-template-migration-20261105` vs PR #67: diverged; migration branch side is 24 commits ahead and PR #67 side is 1,329 commits ahead of the common base. The migration branch's unique diff includes `.gitmodules`, two vendor submodule gitlinks, source/migration docs, notices and some branding/build files. The two vendor paths are gitlinks pinned to upstream commits, not ordinary copied source directories.
+- PR #67 remains the current candidate at `3d7f96352b214b386be410ab619b043898fef6c2`; it remains Draft/open/unmerged.
+
+Consolidation sequence:
+1. Freeze the current PR #67 head as the base of the consolidation batch and retain all exact SHA evidence.
+2. Reconcile the unique PR #65 work into PR #67 selectively, file by file or logical change group. For overlapping files, preserve PR #67's newer API/auth/business/fail-closed logic and transplant only compatible visual/accessibility/mobile improvements. Do not merge the old PR branch wholesale.
+3. Bring the pinned template source references and required notices/docs from the migration branch into the candidate. Preserve the two immutable upstream pins and license notices. Confirm submodule gitlinks resolve in a recursive checkout; do not mistake gitlinks for integrated runtime components.
+4. Consolidate the prior completed A2 work and any other verified non-duplicate changes only if absent from PR #67. A2 is already documented as absorbed; no blind cherry-pick.
+5. Once the candidate represents the consolidated code set, run ONE comprehensive audit across all routes/pages/components and backend/auth/API/data contracts, followed by one consolidated defect list and batch repair. Responsive checks must cover the documented widths, and screenshots must be compared against both source templates.
+6. Run exact-head Backend, PostgreSQL schema, Frontend lint/build, desktop/mobile E2E and responsive screenshot checks on the final consolidated SHA. Record owner visual acceptance separately as NOT VERIFIED until the owner reviews it.
+
+Safety/ownership:
+- The GitHub connector exposes read/compare and Git object/ref primitives, but no safe native cherry-pick/merge-branch operation. Do not synthesize a broad merge tree or move the PR head without inspecting every affected path and preserving conflict-sensitive business logic. If a required operation cannot be performed safely with the available interface, report the precise blocker and use a repository workspace/authorized implementation agent rather than pretending integration happened.
+- Continue using one candidate only. Do not merge PR #65 independently or close historical branches until all verified unique changes are accounted for.
+- Preserve locked Spot layout, BTCBOX backend/auth/business contracts, no demo data, no production deployment, no hosted Supabase writes, no Vercel changes, and no real financial operations.
