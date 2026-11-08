@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { ArrowLeft, ArrowRight, KeyRound, ShieldCheck, Wallet, ChartNoAxesCombined, Globe2, LockKeyhole } from "lucide-react";
 import { Button } from "../../components/ui/button";
@@ -207,9 +207,13 @@ export function AuthCallbackPage() {
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [recoveryError, setRecoveryError] = useState("");
+  const oauthAttempted = useRef(false);
   const navigate = useNavigate();
   useEffect(() => {
-    if (status !== "loading" && status !== "authenticated" && status !== "two-factor" && status !== "password-recovery") void finishOAuth();
+    if (!oauthAttempted.current && status !== "loading" && status !== "authenticated" && status !== "two-factor" && status !== "password-recovery") {
+      oauthAttempted.current = true;
+      void finishOAuth();
+    }
   }, [finishOAuth, status]);
   useEffect(() => {
     if (status === "authenticated") navigate(needsCredentials ? "/account-setup" : "/home", { replace: true });

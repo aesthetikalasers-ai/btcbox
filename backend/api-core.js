@@ -498,6 +498,16 @@ function attachRevision(db, revision) {
   Object.defineProperty(db, '_revision', { value: Number(revision || 0), writable: true, configurable: true, enumerable: false });
   return db;
 }
+// Vercel normalizes request headers to lower case, while unit and local callers
+// may not. Keep the rate-limit subject deliberately narrow and bounded: a
+// malformed proxy value shares an anonymous bucket rather than throwing during
+// an authentication request.
+function clientIp(event) {
+  const headers = event && event.headers && typeof event.headers === 'object' ? event.headers : {};
+  const forwarded = headers['x-forwarded-for'] || headers['X-Forwarded-For'] || '';
+  const candidate = String(forwarded).split(',', 1)[0].trim();
+  return candidate.length <= 128 && /^[0-9a-f:.]+$/i.test(candidate) ? candidate.toLowerCase() : 'unknown';
+}
 async function loadDB() {
   try {
     if (supabaseStorageConfigured()) {
@@ -3948,6 +3958,7 @@ exports._test = {
   KYC_IN_REVIEW_STATUSES: KYC_IN_REVIEW_STATUSES,
   KYC_APPROVED_STATUSES: KYC_APPROVED_STATUSES,
   parseMoneyInput: parseMoneyInput,
+  clientIp: clientIp,
   compareMoney: compareMoney,
   addMoney: addMoney,
   withdrawalAddressCheck: withdrawalAddressCheck,
