@@ -11,6 +11,7 @@ test.beforeEach(async ({ page }) => {
         supabase_url: "https://btcbox-e2e.invalid",
         publishable_key: "e2e-anon-key-not-valid-for-production",
         google_enabled: false,
+        wallet_enabled: true,
       }),
     });
   });
@@ -82,6 +83,7 @@ test("Google sign-in button is shown when the public auth config enables Google"
         supabase_url: "https://btcbox-e2e.invalid",
         publishable_key: "e2e-anon-key-not-valid-for-production",
         google_enabled: true,
+        wallet_enabled: true,
       }),
     });
   });
@@ -503,6 +505,14 @@ test("OAuth callback cancellation returns a visible recovery path without creati
   await expect(page.getByText("Google sign-in was cancelled")).toBeVisible();
   await expect(page.getByRole("link", { name: "Return to sign in" })).toHaveAttribute("href", "/login");
   await expect(page).toHaveURL(/\/auth\/react-callback\?/);
+});
+
+test("OAuth callback failure returns a registration attempt to the registration entry", async ({ page }) => {
+  await page.goto("/auth/react-callback?intent=register&error=access_denied&error_description=Google%20sign-in%20was%20cancelled");
+
+  await expect(page.getByText("Google sign-in was cancelled")).toBeVisible();
+  await expect(page.getByRole("link", { name: "Return to sign in" })).toHaveAttribute("href", "/register");
+  await expect(page).toHaveURL(/\/register$/, { timeout: 3500 });
 });
 
 async function installAdminE2EIdentity(page: import("@playwright/test").Page) {

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { ArrowLeft, ArrowRight, KeyRound, ShieldCheck, Wallet, ChartNoAxesCombined, Globe2, LockKeyhole } from "lucide-react";
 import { Button } from "../../components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/card";
@@ -11,7 +11,7 @@ import { useI18n, type Language } from "../../lib/i18n";
 export function AuthPage({ mode, redirectTo }: { mode: "login" | "register"; redirectTo?: string }) {
   const { t, language, setLanguage } = useI18n();
   const {
-    status, needsCredentials, busy, error, notice, googleEnabled, ethereumWallets,
+    status, needsCredentials, busy, error, notice, googleEnabled, walletEnabled, ethereumWallets,
     signInWithGoogle, signInWithUsername, signInWithWeb3, signInWithEmail, signUpWithEmail,
     requestPasswordReset, verifyTwoFactor, clearError,
   } = useAuth();
@@ -25,6 +25,11 @@ export function AuthPage({ mode, redirectTo }: { mode: "login" | "register"; red
   const [walletMenuOpen, setWalletMenuOpen] = useState(false);
   const navigate = useNavigate();
   const registering = mode === "register";
+
+  useEffect(() => {
+    clearError();
+    setWalletMenuOpen(false);
+  }, [mode]);
 
   useEffect(() => {
     if (status === "authenticated") navigate(needsCredentials ? "/account-setup" : (redirectTo || "/home"), { replace: true });
@@ -50,21 +55,21 @@ export function AuthPage({ mode, redirectTo }: { mode: "login" | "register"; red
   const walletButtons = <div className="mt-2 grid gap-2" role="group" aria-label={t("Wallet")}>
     {ethereumWallets.length > 0
       ? ethereumWallets.map((wallet) => (
-        <Button key={wallet.info.uuid} type="button" variant="outline" className="min-h-11 w-full justify-start" aria-busy={busy} disabled={busy || status !== "anonymous"} onClick={() => void signInWithWeb3("ethereum", wallet.provider)}>
+        <Button key={wallet.info.uuid} type="button" variant="outline" className="min-h-11 w-full justify-start" aria-busy={busy} disabled={!walletEnabled || busy || status !== "anonymous"} onClick={() => void signInWithWeb3("ethereum", wallet.provider)}>
           <Wallet className="mr-2 h-4 w-4" /> {t("Continue with {wallet}").replace("{wallet}", wallet.info.name)}
         </Button>
       ))
-      : <Button type="button" variant="outline" className="min-h-11 w-full justify-start" aria-busy={busy} disabled={busy || status !== "anonymous"} onClick={() => void signInWithWeb3("ethereum")}>
+      : <Button type="button" variant="outline" className="min-h-11 w-full justify-start" aria-busy={busy} disabled={!walletEnabled || busy || status !== "anonymous"} onClick={() => void signInWithWeb3("ethereum")}>
         <Wallet className="mr-2 h-4 w-4" /> {t("Connect Ethereum wallet")}
       </Button>}
-    <Button type="button" variant="outline" className="min-h-11 w-full justify-start" aria-busy={busy} disabled={busy || status !== "anonymous"} onClick={() => void signInWithWeb3("solana")}>
+    <Button type="button" variant="outline" className="min-h-11 w-full justify-start" aria-busy={busy} disabled={!walletEnabled || busy || status !== "anonymous"} onClick={() => void signInWithWeb3("solana")}>
       <Wallet className="mr-2 h-4 w-4" /> {t("Connect Solana wallet")}
     </Button>
   </div>;
 
   const identityButtons = <>
     <div className="grid grid-cols-2 gap-3 max-[360px]:grid-cols-1" data-testid="auth-provider-buttons">
-      <Button type="button" variant="outline" className="h-12 min-h-12 w-full justify-center gap-2 px-3" aria-busy={busy} disabled={!googleEnabled || busy || status !== "anonymous"} title={!googleEnabled ? t("Google sign-in is temporarily unavailable.") : undefined} onClick={() => void signInWithGoogle()}>
+      <Button type="button" variant="outline" className="h-12 min-h-12 w-full justify-center gap-2 px-3" aria-busy={busy} disabled={!googleEnabled || busy || status !== "anonymous"} title={!googleEnabled ? t("Google sign-in is temporarily unavailable.") : undefined} onClick={() => void signInWithGoogle(registering ? "register" : "login")}>
         <svg aria-hidden="true" viewBox="0 0 48 48" className="h-5 w-5 shrink-0">
           <path fill="#4285F4" d="M43.6 24.5c0-1.4-.1-2.8-.4-4.1H24v7.8h11c-.5 2.5-1.9 4.6-4 6l6.4 5c3.8-3.5 6.2-8.6 6.2-14.7z"/>
           <path fill="#34A853" d="M24 44c5.5 0 10.1-1.8 13.4-4.8l-6.4-5c-1.8 1.2-4.1 2-7 2-5.4 0-10-3.7-11.6-8.6l-6.6 5.1C9.1 39.3 16 44 24 44z"/>
@@ -73,11 +78,12 @@ export function AuthPage({ mode, redirectTo }: { mode: "login" | "register"; red
         </svg>
         <span className="truncate">{t("Google")}</span>
       </Button>
-      <Button type="button" variant="outline" className="h-12 min-h-12 w-full justify-center gap-2 px-3" aria-expanded={walletMenuOpen} aria-controls="auth-wallet-options" aria-busy={busy} disabled={busy || status !== "anonymous"} onClick={() => setWalletMenuOpen(open => !open)}>
+      <Button type="button" variant="outline" className="h-12 min-h-12 w-full justify-center gap-2 px-3" aria-expanded={walletMenuOpen} aria-controls="auth-wallet-options" aria-busy={busy} disabled={!walletEnabled || busy || status !== "anonymous"} title={!walletEnabled ? t("Wallet sign-in is temporarily unavailable.") : undefined} onClick={() => setWalletMenuOpen(open => !open)}>
         <Wallet className="h-5 w-5 shrink-0" /> <span>{t("Wallet")}</span>
       </Button>
     </div>
     {!googleEnabled && <p className="text-xs text-brand-text-muted" role="status">{t("Google sign-in is temporarily unavailable.")}</p>}
+    {!walletEnabled && <p className="text-xs text-brand-text-muted" role="status">{t("Wallet sign-in is temporarily unavailable.")}</p>}
     {walletMenuOpen && <div id="auth-wallet-options">{walletButtons}</div>}
   </>;
 
@@ -124,7 +130,7 @@ export function AuthPage({ mode, redirectTo }: { mode: "login" | "register"; red
               <span className="flex h-11 w-11 items-center justify-center rounded-xl border border-brand-cyan/25 bg-brand-cyan/[0.12] text-brand-cyan shadow-sm shadow-brand-cyan/[0.08]">
                 {status === "two-factor" ? <ShieldCheck className="h-5 w-5" /> : registering ? <Globe2 className="h-5 w-5" /> : <LockKeyhole className="h-5 w-5" />}
               </span>
-              <span className="text-xs font-semibold uppercase tracking-[.16em] text-brand-text-muted">{registering ? t("Join BTCBOX") : t("Secure access")}</span><label className="ml-auto flex h-9 items-center gap-1 rounded-lg border border-brand-border bg-brand-surface-2 px-2 text-brand-text-secondary"><Globe2 className="h-3.5 w-3.5"/><select aria-label={t("Language")} value={language} onChange={event => setLanguage(event.target.value as Language)} className="w-[76px] bg-transparent text-xs font-semibold text-brand-text outline-none"><option value="en">English</option><option value="ja">日本語</option><option value="zh-CN">简体中文</option><option value="es">Español</option><option value="vi">Tiếng Việt</option><option value="it">Italiano</option><option value="pt">Português</option></select></label>
+              <span className="text-xs font-semibold uppercase tracking-[.16em] text-brand-text-muted">{registering ? t("Join BTCBOX") : t("Secure access")}</span><label className="ml-auto flex h-9 items-center gap-1 rounded-lg border border-brand-border bg-brand-surface-2 px-2 text-brand-cyan shadow-sm shadow-brand-cyan/10"><Globe2 className="h-3.5 w-3.5"/><select aria-label={t("Language")} value={language} onChange={event => setLanguage(event.target.value as Language)} className="w-[76px] appearance-none bg-transparent text-xs font-semibold text-brand-text outline-none"><option className="bg-brand-surface text-brand-text" value="en">English</option><option className="bg-brand-surface text-brand-text" value="ja">日本語</option><option className="bg-brand-surface text-brand-text" value="zh-CN">中文</option><option className="bg-brand-surface text-brand-text" value="es">Español</option><option className="bg-brand-surface text-brand-text" value="vi">Tiếng Việt</option><option className="bg-brand-surface text-brand-text" value="it">Italiano</option><option className="bg-brand-surface text-brand-text" value="pt">Português</option></select></label>
             </div>
             <CardTitle className="text-2xl font-semibold tracking-tight">
               {status === "two-factor" ? t("Verify your sign-in") : registering ? t("Create your BTCBOX account") : t("Welcome back")}
@@ -134,6 +140,10 @@ export function AuthPage({ mode, redirectTo }: { mode: "login" | "register"; red
                 ? t("Enter your authenticator code to finish signing in.")
                 : t("Verify your email address or Google identity, then complete your BTCBOX account setup.")}
             </CardDescription>}
+            {status !== "two-factor" && <div data-testid="auth-mode-switcher" className="grid grid-cols-2 rounded-xl border border-brand-border bg-brand-surface-2 p-1 text-sm font-semibold">
+              <Link to="/login" className={`flex min-h-10 items-center justify-center rounded-lg transition-colors ${!registering ? "bg-brand-accent text-white shadow-sm" : "text-brand-text-secondary hover:text-brand-text"}`}>{t("Sign in")}</Link>
+              <Link to="/register" className={`flex min-h-10 items-center justify-center rounded-lg transition-colors ${registering ? "bg-brand-accent text-white shadow-sm" : "text-brand-text-secondary hover:text-brand-text"}`}>{t("Create account")}</Link>
+            </div>}
           </CardHeader>
           <CardContent className="space-y-4 px-5 pb-6 sm:px-8 sm:pb-8">
             {error && <div role="alert" className="flex items-start justify-between gap-3 rounded-lg border border-loss/30 bg-loss/10 p-3 text-sm text-loss">
@@ -167,7 +177,7 @@ export function AuthPage({ mode, redirectTo }: { mode: "login" | "register"; red
                 </Button>
               </form>}
 
-              {mode === "login" && identityButtons}
+              {identityButtons}
 
               <form className="space-y-2.5 rounded-xl border border-brand-border bg-brand-surface-2 p-3.5" aria-busy={busy} onSubmit={submitEmail}>
                 <p className="text-sm font-semibold text-brand-text">{mode === "login" ? t("Continue with email") : t("Register with email")}</p>
@@ -233,7 +243,6 @@ export function AuthPage({ mode, redirectTo }: { mode: "login" | "register"; red
                 {mode === "login" && <button type="button" className="min-h-10 text-xs font-medium text-brand-text-secondary underline underline-offset-4 disabled:opacity-50" disabled={busy || !emailAddress.trim()} onClick={() => void requestPasswordReset(emailAddress).catch(() => {})}>{t("Forgot password?")}</button>}
               </form>
 
-              {mode === "register" && identityButtons}
             </>}
 
             <div className="border-t border-brand-border pt-4 text-center text-sm text-brand-text-secondary">
@@ -258,6 +267,9 @@ export function AuthCallbackPage() {
   const [recoveryError, setRecoveryError] = useState("");
   const oauthAttempted = useRef(false);
   const navigate = useNavigate();
+  const location = useLocation();
+  const callbackIntent = new URLSearchParams(location.search).get("intent");
+  const callbackDestination = callbackIntent === "register" ? "/register" : "/login";
   useEffect(() => {
     if (!oauthAttempted.current && status !== "loading" && status !== "authenticated" && status !== "two-factor" && status !== "password-recovery") {
       oauthAttempted.current = true;
@@ -268,6 +280,11 @@ export function AuthCallbackPage() {
     if (status === "authenticated") navigate(needsCredentials ? "/account-setup" : "/home", { replace: true });
     else if (status === "two-factor") navigate("/login", { replace: true });
   }, [status, needsCredentials, navigate]);
+  useEffect(() => {
+    if (!error || status !== "anonymous") return;
+    const redirectId = window.setTimeout(() => navigate(callbackDestination, { replace: true }), 1800);
+    return () => window.clearTimeout(redirectId);
+  }, [callbackDestination, error, navigate, status]);
   const submitRecovery = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setRecoveryError("");
@@ -303,6 +320,6 @@ export function AuthCallbackPage() {
   return <div className="tone-support mx-auto flex min-h-[60vh] max-w-lg flex-col items-center justify-center gap-3 p-6 text-center">
     <div className="h-6 w-6 animate-spin rounded-full border-2 border-white/20 border-t-brand-accent" />
     <p role={error ? "alert" : "status"} aria-live={error ? "assertive" : "polite"} className="text-sm text-brand-text-secondary">{error ? t(error) : busy ? t("Completing secure sign-in…") : t("Finishing sign-in…")}</p>
-    {error && <Link to="/login" className="inline-flex min-h-11 items-center justify-center rounded-lg px-4 text-sm font-semibold underline underline-offset-4 transition-colors hover:bg-brand-surface-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent/70">{t("Return to sign in")}</Link>}
+    {error && <Link to={callbackDestination} className="inline-flex min-h-11 items-center justify-center rounded-lg px-4 text-sm font-semibold underline underline-offset-4 transition-colors hover:bg-brand-surface-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent/70">{t("Return to sign in")}</Link>}
   </div>;
 }

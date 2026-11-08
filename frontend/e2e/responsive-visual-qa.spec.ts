@@ -28,7 +28,7 @@ test("responsive visual QA captures key customer and admin entry routes without 
     if (pathname === "/api/auth-client-config") {
       await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({
         ok: true, supabase_url: "https://btcbox-e2e.invalid",
-        publishable_key: "e2e-anon-key-not-valid-for-production", google_enabled: false,
+        publishable_key: "e2e-anon-key-not-valid-for-production", google_enabled: false, wallet_enabled: false,
       }) });
       return;
     }

@@ -41,7 +41,7 @@ function getPublishableKey() {
 // GoTrue's public /auth/v1/settings. Cached briefly so every auth-health /
 // supabase-login call does not pay an extra round trip. Returns true / false, or
 // null if the status cannot be determined (settings endpoint unreachable).
-let _googleProviderCache = { value: null, expiresAt: 0 };
+let _authProviderCache = { google: { value: null, expiresAt: 0 }, web3: { value: null, expiresAt: 0 } };
 // Accept only one server-verified Supabase identity. Mixed/linked identities are
 // deliberately rejected until an explicit, audited account-linking flow exists.
 function getSingleSupabaseAuthProvider(identity) {
@@ -187,13 +187,15 @@ function getUserLinkedIdentityIds(user) {
 }
 
 
-async function detectGoogleProviderEnabled() {
+async function detectAuthProviderEnabled(provider) {
+  const providerName = provider === 'web3' ? 'web3' : 'google';
   const now = Date.now();
-  if (_googleProviderCache.value !== null && _googleProviderCache.expiresAt > now) return _googleProviderCache.value;
+  const cached = _authProviderCache[providerName];
+  if (cached.value !== null && cached.expiresAt > now) return cached.value;
   const authUrl = String(process.env.SUPABASE_AUTH_URL || process.env.SUPABASE_URL || '').replace(/\/+$/, '');
   const authKey = getPublishableKey();
   if (!authUrl || !authKey) {
-    _googleProviderCache = { value: false, expiresAt: now + 60 * 1000 };
+    _authProviderCache[providerName] = { value: false, expiresAt: now + 60 * 1000 };
     return false;
   }
   try {
@@ -204,16 +206,19 @@ async function detectGoogleProviderEnabled() {
     });
     if (!res.ok) throw new Error('settings http ' + res.status);
     const data = await res.json();
-    const enabled = !!(data && data.external && data.external.google);
-    _googleProviderCache = { value: enabled, expiresAt: now + 60 * 1000 };
+    const providerConfig = data && data.external && data.external[providerName];
+    const enabled = providerConfig === true || !!(providerConfig && typeof providerConfig === 'object' && providerConfig.enabled === true);
+    _authProviderCache[providerName] = { value: enabled, expiresAt: now + 60 * 1000 };
     return enabled;
   } catch (e) {
     // Keep the last known value; if never known, report null (unknown) and retry soon.
-    const prev = _googleProviderCache.value;
-    _googleProviderCache = { value: prev, expiresAt: now + 15 * 1000 };
+    const prev = _authProviderCache[providerName].value;
+    _authProviderCache[providerName] = { value: prev, expiresAt: now + 15 * 1000 };
     return prev;
   }
 }
+async function detectGoogleProviderEnabled() { return detectAuthProviderEnabled('google'); }
+async function detectWeb3ProviderEnabled() { return detectAuthProviderEnabled('web3'); }
 // ===== CORS（SPA 与后端跨域必需）=====
 // 带 credentials 时 Access-Control-Allow-Origin 不能用 *，必须反射具体 Origin。
 // _currentEvent 在 handleRequest 入口赋值，供 json() 合并 CORS 头使用。
@@ -1174,12 +1179,13 @@ async function handleRequest(event, context) {
     if (!validAuthUrl || !publishableKey) {
       return json({ ok: false, code: 'AUTH_CLIENT_CONFIG_UNAVAILABLE', msg: 'Authentication is not configured.' }, 503);
     }
-    const googleEnabled = await detectGoogleProviderEnabled();
+    const [googleEnabled, walletEnabled] = await Promise.all([detectGoogleProviderEnabled(), detectWeb3ProviderEnabled()]);
     return json({
       ok: true,
       supabase_url: authUrl,
       publishable_key: publishableKey,
-      google_enabled: googleEnabled
+      google_enabled: googleEnabled,
+      wallet_enabled: walletEnabled
     }, 200);
   }
   if (path === 'auth-health' && method === 'GET') {
