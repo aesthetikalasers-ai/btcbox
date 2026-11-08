@@ -868,6 +868,11 @@ const dictionaries: Record<StoredLocale, Dictionary> = {
     "Administrator Supabase session is missing.": "Administrator Supabase session is missing.",
     "Administrator request could not reach BTCBOX.": "Administrator request could not reach BTCBOX.",
     "BTCBOX returned an invalid open Seconds position queue.": "BTCBOX returned an invalid open Seconds position queue.",
+    "Some assets do not have a verified USDT valuation.": "Some assets do not have a verified USDT valuation.",
+    "BTCBOX spot market data": "BTCBOX spot market data",
+    "Only order records returned by the authenticated account service are shown.": "Only order records returned by the authenticated account service are shown.",
+    "Policy-driven order entry": "Policy-driven order entry",
+    "Place supported limit orders against the BTCBOX spot matching service.": "Place supported limit orders against the BTCBOX spot matching service.",
   },
   ja: {
     "BTCBOX / OPEN MARKET":"BTCBOX / 公開市場",
@@ -1698,6 +1703,11 @@ const dictionaries: Record<StoredLocale, Dictionary> = {
     "Administrator request could not reach BTCBOX.": "管理者リクエストがBTCBOXに接続できませんでした。",
     "BTCBOX returned an invalid open Seconds position queue.": "BTCBOXから無効な秒合約オープンポジション一覧が返されました。",
 
+    "Some assets do not have a verified USDT valuation.": "一部の資産には確認済みのUSDT評価額がありません。",
+    "BTCBOX spot market data": "BTCBOX現物市場データ",
+    "Only order records returned by the authenticated account service are shown.": "認証済みアカウントサービスから返された注文記録のみ表示されます。",
+    "Policy-driven order entry": "ポリシーに基づく注文入力",
+    "Place supported limit orders against the BTCBOX spot matching service.": "BTCBOX現物マッチングサービスでサポートされている指値注文を発注します。",
   },
   "zh-CN": {
     "BTCBOX / OPEN MARKET":"BTCBOX / 公开市场",
@@ -2528,6 +2538,11 @@ const dictionaries: Record<StoredLocale, Dictionary> = {
     "Administrator request could not reach BTCBOX.": "管理员请求无法连接 BTCBOX。",
     "BTCBOX returned an invalid open Seconds position queue.": "BTCBOX 返回了无效的秒合约未平仓队列。",
 
+    "Some assets do not have a verified USDT valuation.": "部分资产没有经过验证的 USDT 估值。",
+    "BTCBOX spot market data": "BTCBOX 现货市场数据",
+    "Only order records returned by the authenticated account service are shown.": "仅显示经身份验证的账户服务返回的订单记录。",
+    "Policy-driven order entry": "按政策规则下单",
+    "Place supported limit orders against the BTCBOX spot matching service.": "通过 BTCBOX 现货撮合服务提交受支持的限价订单。",
   },
   es: {
     "BTCBOX / OPEN MARKET":"BTCBOX / MERCADO ABIERTO",
@@ -3358,6 +3373,11 @@ const dictionaries: Record<StoredLocale, Dictionary> = {
     "Administrator request could not reach BTCBOX.": "La solicitud del administrador no pudo llegar a BTCBOX.",
     "BTCBOX returned an invalid open Seconds position queue.": "BTCBOX devolvió una cola de posiciones Seconds abiertas no válida.",
 
+    "Some assets do not have a verified USDT valuation.": "Algunos activos no tienen una valoración en USDT verificada.",
+    "BTCBOX spot market data": "Datos del mercado spot de BTCBOX",
+    "Only order records returned by the authenticated account service are shown.": "Solo se muestran los registros de órdenes devueltos por el servicio de cuenta autenticado.",
+    "Policy-driven order entry": "Creación de órdenes según la política",
+    "Place supported limit orders against the BTCBOX spot matching service.": "Envía órdenes limitadas compatibles a través del servicio de emparejamiento spot de BTCBOX.",
   },
   vi: {
     "BTCBOX / OPEN MARKET":"BTCBOX / THỊ TRƯỜNG MỞ",
@@ -4188,6 +4208,11 @@ const dictionaries: Record<StoredLocale, Dictionary> = {
     "Administrator request could not reach BTCBOX.": "Yêu cầu quản trị viên không thể kết nối BTCBOX.",
     "BTCBOX returned an invalid open Seconds position queue.": "BTCBOX trả về hàng đợi vị thế Seconds đang mở không hợp lệ.",
 
+    "Some assets do not have a verified USDT valuation.": "Một số tài sản chưa có định giá USDT đã xác minh.",
+    "BTCBOX spot market data": "Dữ liệu thị trường giao ngay BTCBOX",
+    "Only order records returned by the authenticated account service are shown.": "Chỉ hiển thị các bản ghi lệnh do dịch vụ tài khoản đã xác thực trả về.",
+    "Policy-driven order entry": "Đặt lệnh theo chính sách",
+    "Place supported limit orders against the BTCBOX spot matching service.": "Đặt các lệnh giới hạn được hỗ trợ thông qua dịch vụ khớp lệnh giao ngay BTCBOX.",
   },
   it: {
     "BTCBOX / OPEN MARKET":"BTCBOX / MERCATO APERTO",
@@ -5018,6 +5043,11 @@ const dictionaries: Record<StoredLocale, Dictionary> = {
     "Administrator request could not reach BTCBOX.": "La richiesta dell'amministratore non ha raggiunto BTCBOX.",
     "BTCBOX returned an invalid open Seconds position queue.": "BTCBOX ha restituito una coda di posizioni Seconds aperte non valida.",
 
+    "Some assets do not have a verified USDT valuation.": "Alcuni asset non dispongono di una valutazione USDT verificata.",
+    "BTCBOX spot market data": "Dati del mercato spot BTCBOX",
+    "Only order records returned by the authenticated account service are shown.": "Vengono mostrati solo i record degli ordini restituiti dal servizio account autenticato.",
+    "Policy-driven order entry": "Inserimento ordini basato sulle policy",
+    "Place supported limit orders against the BTCBOX spot matching service.": "Invia ordini limite supportati tramite il servizio di matching spot BTCBOX.",
   },
   pt: {
     "BTCBOX / OPEN MARKET":"BTCBOX / MERCADO ABERTO",
@@ -5848,6 +5878,11 @@ const dictionaries: Record<StoredLocale, Dictionary> = {
     "Administrator request could not reach BTCBOX.": "O pedido do administrador não conseguiu aceder à BTCBOX.",
     "BTCBOX returned an invalid open Seconds position queue.": "A BTCBOX devolveu uma fila de posições Seconds abertas inválida.",
 
+    "Some assets do not have a verified USDT valuation.": "Alguns ativos não têm uma avaliação em USDT verificada.",
+    "BTCBOX spot market data": "Dados do mercado spot BTCBOX",
+    "Only order records returned by the authenticated account service are shown.": "São apresentados apenas os registos de ordens devolvidos pelo serviço de conta autenticado.",
+    "Policy-driven order entry": "Envio de ordens com base na política",
+    "Place supported limit orders against the BTCBOX spot matching service.": "Envie ordens limitadas suportadas através do serviço de correspondência spot da BTCBOX.",
   }
 
   de: {
@@ -6723,6 +6758,11 @@ const dictionaries: Record<StoredLocale, Dictionary> = {
     "Administrator Supabase session is missing.": "Die Supabase-Sitzung des Administrators fehlt.",
     "Administrator request could not reach BTCBOX.": "Die Administratoranfrage konnte BTCBOX nicht erreichen.",
     "BTCBOX returned an invalid open Seconds position queue.": "BTCBOX hat eine ungültige Warteschlange offener Seconds-Positionen zurückgegeben.",
+    "Some assets do not have a verified USDT valuation.": "Einige Vermögenswerte haben keine bestätigte USDT-Bewertung.",
+    "BTCBOX spot market data": "BTCBOX-Spotmarktdaten",
+    "Only order records returned by the authenticated account service are shown.": "Es werden nur Orderdatensätze angezeigt, die vom authentifizierten Kontodienst zurückgegeben wurden.",
+    "Policy-driven order entry": "Richtlinienbasierte Orderaufgabe",
+    "Place supported limit orders against the BTCBOX spot matching service.": "Geben Sie unterstützte Limit-Orders über den BTCBOX-Spot-Matching-Dienst auf.",
   }
 };
 
