@@ -170,6 +170,7 @@ const dictionaries: Record<Language, Dictionary> = {
     "Available balance": "Available balance",
     "Order submitted": "Order submitted",
     "Order submission failed": "Order submission failed",
+    "Loading BTCBOX…": "Loading BTCBOX…",
   },
   ja: {
     "BTCBOX / OPEN MARKET":"BTCBOX / 公開市場",
@@ -1523,6 +1524,21 @@ const dictionaries: Record<Language, Dictionary> = {
 };
 
 type I18nValue = { language: Language; setLanguage: (language: Language) => void; t: (value: string) => string };
+
+const missingTranslationWarnings = new Set<string>();
+
+function translateText(language: Language, text: string): string {
+  const translated = dictionaries[language][text];
+  if (translated !== undefined) return translated;
+
+  const warningKey = `${language}:${text}`;
+  if (!missingTranslationWarnings.has(warningKey)) {
+    missingTranslationWarnings.add(warningKey);
+    console.warn(`[BTCBOX i18n] Missing ${language} translation for: ${text}`);
+  }
+
+  return dictionaries.en[text] ?? text;
+}
 const I18nContext = createContext<I18nValue | null>(null);
 
 export function I18nProvider({ children }: { children: ReactNode }) {
@@ -1538,7 +1554,7 @@ export function I18nProvider({ children }: { children: ReactNode }) {
     setLanguageState(next);
     if (typeof window !== "undefined") window.localStorage.setItem("btcbox-language", next);
   };
-  const value = useMemo(() => ({ language, setLanguage, t: (text: string) => dictionaries[language][text] || text }), [language]);
+  const value = useMemo(() => ({ language, setLanguage, t: (text: string) => translateText(language, text) }), [language]);
   return <I18nContext.Provider value={value}>{children}</I18nContext.Provider>;
 }
 
