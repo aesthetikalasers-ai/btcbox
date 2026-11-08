@@ -80,7 +80,7 @@ export function OrdersPage() {
       <Card className="border-brand-border bg-brand-surface">
         <CardHeader>
           <CardTitle>{t("Order history")}</CardTitle>
-          <CardDescription>{t("Only records returned by the authenticated API are shown. No sample orders are generated.")}</CardDescription>
+          <CardDescription>{t("Only order records returned by the authenticated account service are shown.")}</CardDescription>
         </CardHeader>
         <CardContent className="p-0">
           {loading ? (

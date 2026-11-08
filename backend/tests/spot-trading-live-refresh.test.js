@@ -56,9 +56,11 @@ test('public market overview polls at 15 seconds and prevents overlapping refres
   assert.ok(dashboard.includes('refreshing = false;'));
 });
 
-test('market table preserves last confirmed prices and displays a stale-feed warning', () => {
-  assert.ok(marketTable.includes('error && markets.length > 0'));
-  assert.ok(marketTable.includes('Showing the last confirmed market data.'));
+test('market table clears last confirmed prices and reports feed unavailability', () => {
+  assert.ok(marketTable.includes('const displayMarkets = error ? [] : markets'));
+  assert.ok(marketTable.includes('error && displayMarkets.length === 0'));
+  assert.ok(!marketTable.includes('Showing the last confirmed market data.'));
+  assert.ok(dashboard.includes('setMarkets([]);'));
 });
 const api = fs.readFileSync(path.resolve(__dirname, '../../frontend/src/lib/api.ts'), 'utf8');
 const backend = fs.readFileSync(path.resolve(__dirname, '../api-core.js'), 'utf8');
