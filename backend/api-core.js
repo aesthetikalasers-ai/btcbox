@@ -3,6 +3,7 @@
 const crypto = require('crypto');
 const { authorizeSupabaseAdmin } = require('./admin-auth');
 const { hasAdminPermission } = require('./admin-rbac');
+const { hasActiveVersionedSecondsPolicy } = require('./seconds-policy-readiness');
 
 const SESSION_COOKIE = 'session_token';
 const PBKDF2_ITER = 100000;
@@ -2559,6 +2560,9 @@ async function handleRequest(event, context) {
     if (!financialWritesEnabled()) {
       return json({ ok: false, code: 'FINANCIAL_CUTOVER_INCOMPLETE', msg: 'Short-term contracts are unavailable until financial cutover is complete. No funds were frozen and no position was created.' }, 503);
     }
+    if (!(await hasActiveVersionedSecondsPolicy())) {
+      return json({ ok: false, code: 'SECONDS_POLICY_SCHEMA_UNAVAILABLE', msg: 'Short-term contracts are unavailable because the active versioned policy is not installed. No funds were frozen and no position was created.' }, 503);
+    }
     const symbol = String(body.symbol || 'BTC').toUpperCase();
     const direction = String(body.direction || 'up').toLowerCase();
     const durationSec = Number(body.duration_sec || body.duration || 30);
@@ -2598,6 +2602,9 @@ async function handleRequest(event, context) {
     if (rl.limited) return rateLimitedJson(rl.retryAfter);
     if (!financialWritesEnabled()) {
       return json({ ok: false, code: 'FINANCIAL_CUTOVER_INCOMPLETE', msg: 'Short-term contracts are unavailable until financial cutover is complete. This position was not settled.' }, 503);
+    }
+    if (!(await hasActiveVersionedSecondsPolicy())) {
+      return json({ ok: false, code: 'SECONDS_POLICY_SCHEMA_UNAVAILABLE', msg: 'Short-term contract settlement is unavailable because the active versioned policy is not installed. This position was not settled.' }, 503);
     }
     const positionId = String(body.position_id || '').trim();
     const requestId = String(body.request_id || '').trim();
