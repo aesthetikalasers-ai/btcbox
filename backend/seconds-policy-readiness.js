@@ -10,9 +10,9 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-
 async function hasActiveVersionedSecondsPolicy(options = {}) {
   const env = options.env || process.env;
   const fetchImpl = options.fetchImpl || globalThis.fetch;
-  const baseUrl = String(env.SUPABASE_URL || '').trim().replace(/\\/+$/, '');
+  const baseUrl = String(env.SUPABASE_URL || '').trim().replace(/\/+$/, '');
   const serviceKey = String(env.SUPABASE_SERVICE_ROLE_KEY || env.SUPABASE_SECRET_KEY || '').trim();
-  if (!/^https:\\/\\//i.test(baseUrl) || !serviceKey || /\\s/.test(serviceKey) || typeof fetchImpl !== 'function') return false;
+  if (!/^https:\/\//i.test(baseUrl) || !serviceKey || /\s/.test(serviceKey) || typeof fetchImpl !== 'function') return false;
 
   const headers = {
     apikey: serviceKey,
