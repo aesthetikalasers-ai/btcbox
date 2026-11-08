@@ -351,3 +351,18 @@ Safety/ownership:
 - PR #65's remaining meaningful differences still require focused review: Topbar (candidate's unavailable-notifications behavior retained), Pages.tsx and business-heavy feature pages, account/auth/admin/assets/dashboard/orders pages, i18n and chart components. Preserve candidate contracts; inspect each logical change before any transplant.
 - No tests were run. This is source-diff analysis only, not validation. Full audit remains deferred until consolidation is assembled.
 - No merge, deploy, Vercel change, hosted Supabase write, financial operation, or locked Spot layout change.
+
+
+### PR #65 feature-page reconciliation — batch 4 (2026-11-08)
+
+- Candidate remains `07e0cf66ab5e86a73da10e9972791767d7a2a18f`; PR #67 remains Draft/open/unmerged.
+- Reviewed `AssetsPage.tsx`: PR #65 preserves last confirmed balances on transient refresh failure and has more responsive two-column mobile layout; candidate adds request sequencing to prevent stale responses from overwriting newer account state and uses exact decimal-string formatting. Do not overwrite candidate with PR #65. A future surgical improvement may preserve the last confirmed snapshot only when the same authenticated identity remains active; do not expose previous-account balances after identity/session changes.
+- Reviewed `OrdersPage.tsx`: PR #65 adds accessible named scroll region, sticky table header, richer status variants and responsive layout, but preserves last confirmed orders on refresh errors. Candidate has request sequencing and clears stale orders; retain candidate data-isolation behavior. Consider porting only accessibility/status styling in a later isolated patch after exact component-level review.
+- Reviewed `LiveMarketsTable.tsx` and `Dashboard.tsx`: candidate implements a 90-second stale-snapshot cutoff, hides stale quotes, distinguishes unavailable/stale states, and preserves route links; PR #65 retains stale quotes with a warning. Retain candidate fail-closed market behavior. Do not reintroduce stale market display.
+- Reviewed `AuthPages.tsx`: PR #65 has wallet/Google-only onboarding; candidate adds Supabase Email login/registration, password reset and recovery. Current approved auth contract requires Email and Google, so retain candidate.
+- Reviewed `AdminPage.tsx`: PR #65 adds a review-dialog focus trap and status variants, but its older permission name `system_config.read` conflicts with candidate's current `deposits.read`; candidate adds payout/action locks, request sequencing, stale-queue clearing and removes hard-coded withdrawal fee defaults. No wholesale copy; potential focus-trap enhancement requires a small, conflict-aware transplant preserving all current action locks and permission contracts.
+- `AccountSecurityPage.tsx` blob SHA is identical on both branches.
+- No code commit in this batch: inspected differences either conflict with newer security/data contracts or require a carefully isolated accessibility transplant that cannot be validated through content-only review. No source code was blindly replaced.
+- Template submodules remain pinned source references only; no runtime migration yet. This means the user's full Strata Pro + Shadcn Fintech frontend migration is still outstanding and consolidation is not complete.
+- No tests were run. Comprehensive audit remains deferred until consolidation is assembled.
+- No merge, deploy, Vercel change, hosted Supabase write, financial operation, or locked Spot layout change.
