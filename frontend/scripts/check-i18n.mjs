@@ -36,13 +36,13 @@ function readLocale(locale) {
 }
 
 const dictionaries = Object.fromEntries(locales.map((locale) => [locale, readLocale(locale)]));
-const canonical = new Set(dictionaries.ja);
+const canonical = new Set(dictionaries.en);
 let failed = false;
 
 for (const locale of locales) {
   const keys = dictionaries[locale];
   const duplicates = keys.filter((key, index) => keys.indexOf(key) !== index);
-  const missing = locale === "en" ? [] : [...canonical].filter((key) => !keys.includes(key));
+  const missing = [...canonical].filter((key) => !keys.includes(key));
   console.log(\`\${locale}: \${keys.length} keys; \${missing.length} missing; \${duplicates.length} duplicate\`);
   if (duplicates.length) {
     failed = true;
