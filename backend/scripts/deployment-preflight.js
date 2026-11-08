@@ -17,6 +17,8 @@ add('SUPABASE_URL is a valid HTTPS URL', validHttpUrl(dbUrl), 'Set the Supabase 
 add('server-side Supabase credential exists', Boolean(dbKey && String(dbKey).trim()), 'Set SUPABASE_SERVICE_ROLE_KEY or SUPABASE_SECRET_KEY as a server-only environment variable.');
 add('Supabase auth URL is valid', validHttpUrl(authUrl), 'Set SUPABASE_AUTH_URL, or use SUPABASE_URL when both services share a project.');
 add('Supabase publishable/anon key exists', Boolean(authKey && String(authKey).trim()), 'Set SUPABASE_AUTH_PUBLISHABLE_KEY or SUPABASE_AUTH_ANON_KEY.');
+const rateLimitSecret = String(process.env.BTCBOX_RATE_LIMIT_HMAC_SECRET || '');
+add('shared rate-limit HMAC secret is at least 32 bytes', Buffer.byteLength(rateLimitSecret, 'utf8') >= 32, 'Set BTCBOX_RATE_LIMIT_HMAC_SECRET to a server-only random value of at least 32 bytes.');
 // Admin authentication is Supabase Auth + database-backed RBAC. Legacy ADMIN_USER/ADMIN_PASS
 // are intentionally not deployment requirements and must not be used as an authentication fallback.
 const dangerousFlags = ['FINANCIAL_POSTGRES_RPC_ENABLED', 'FINANCIAL_POSTGRES_FULL_CUTOVER_APPROVED', 'FINANCIAL_POSTGRES_READS_ENABLED', 'FINANCIAL_MATCHING_ENGINE_ENABLED'];
