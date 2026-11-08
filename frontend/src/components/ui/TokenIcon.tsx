@@ -6,7 +6,7 @@ export const TokenIcon = ({ symbol, className }: { symbol: string, className?: s
   const [hasError, setHasError] = useState(false);
 
   return (
-    <div className={cn("rounded-full flex items-center justify-center shrink-0 overflow-hidden bg-brand-surface-2 border border-brand-border-subtle", className)}>
+    <div className={cn("relative flex aspect-square shrink-0 items-center justify-center overflow-hidden rounded-full border border-brand-border-subtle bg-brand-surface-2", className)}>
       {hasError ? (
         <span className="text-[10px] font-bold text-brand-text-secondary leading-none">
           {symbol.substring(0, 3)}
@@ -15,7 +15,7 @@ export const TokenIcon = ({ symbol, className }: { symbol: string, className?: s
         <img
           src={iconUrl}
           alt={symbol}
-          className="w-full h-full object-cover"
+          className="block h-full w-full object-contain"
           onError={() => setHasError(true)}
         />
       )}
