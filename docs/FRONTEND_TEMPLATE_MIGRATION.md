@@ -53,3 +53,6 @@ The upstream repositories are pinned as Git submodules. This establishes source 
 - My Account quick-navigation cards now use distinct semantic accents for verification, orders, support, and settings. Routes and their existing BTCBOX-backed page behavior are unchanged.
 
 - Responsive navigation follow-up: the mobile bottom bar now mirrors the desktop sidebar semantic route colors for Home/Markets, Trade, Assets, and My. Active-state contrast and touch-target sizing are retained; no route or business behavior changed.
+
+- Assets page batch: the account summary is now three live-data cards (estimated value, returned asset count, valuation completeness), asset rows include the existing token icon component and subtle semantic markers. Partial valuations remain explicitly incomplete; no aggregate is synthesized from incomplete prices.
+- Account Security overview cards now have restrained semantic surfaces for linked methods, 2FA and password status. Values remain from the authenticated account snapshot; auth actions and recovery flows are unchanged.
