@@ -280,3 +280,16 @@ Execution order (mandatory before further visual implementation):
 Process guardrail: before every new batch, read this coordination file and the current candidate/branch metadata; after every batch, update this file with exact branch, SHA, paths, evidence, ownership, status, blockers, and next action. Never start implementation from conversational memory alone. Do not report a task complete based only on a prior PR description, a branch name, or a CI PASS.
 
 No merge, production deployment, Vercel changes, hosted Supabase writes, financial operations, or locked Spot layout changes are authorized by this correction.
+
+
+### Template-source audit — first evidence batch (2026-11-08)
+
+Inspected both migration documents on `feat/btcbox-unified-template-migration-20261105` and the recursive Git tree:
+- `frontend/vendor/strata-pro` is a Git submodule (mode `160000`), pinned to upstream `bymilon/strata-pro-crypto-ui` commit `a3f79d0237c68faddc877f8c1b00afece2fbbae8`, declared MIT.
+- `frontend/vendor/shadcn-fintech` is a Git submodule (mode `160000`), pinned to upstream `abderrahimghazali/shadcn-fintech` commit `a905058c75a840896d27a16991f2e7cc1ca06f3f`, declared MIT.
+- `docs/COMPLETE_UI_TEMPLATE_SOURCES.md` explicitly says the full upstream repositories are pinned as submodules and are NOT yet merged into the BTCBOX runtime.
+- `docs/FRONTEND_TEMPLATE_MIGRATION.md` status is “migration branch initialized; source audit in progress.” It records the intended page map and says BTCBOX's current Vite/React app is the runtime target; Shadcn Fintech's Next.js routes/components must be ported, not imported as a second app.
+- The vendor paths appearing in the recursive tree are gitlinks, not evidence that upstream source files have already been copied into or integrated with the BTCBOX runtime.
+- These documents establish the pinned source identities and intended architecture, but do not yet establish page-by-page migration completion. The actual upstream submodule trees and current BTCBOX route/component implementations still require comparison.
+
+Current interpretation: full source acquisition was prepared correctly as pinned MIT submodules, but the migration branch's own docs explicitly characterize runtime migration as not yet complete. Do not state that either full template has already been integrated. Next action is a page/component-level audit of both pinned upstream trees against the current PR #67 frontend, then a file-ownership-aware implementation matrix.
