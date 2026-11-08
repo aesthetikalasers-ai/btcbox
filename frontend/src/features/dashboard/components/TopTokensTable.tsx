@@ -25,8 +25,8 @@ export function TopTokensTable({ markets = [] }: { markets?: MarketTicker[] }) {
             </tr></thead>
             <tbody>{markets.map((item) => (
               <tr key={item.sym} className="border-b border-brand-border/50 last:border-0 hover:bg-brand-surface-hover">
-                <td className="h-16 whitespace-nowrap px-4 py-2 md:px-6"><div className="flex items-center gap-3"><TokenIcon symbol={item.sym} className="h-8 w-8"/><div><p className="text-sm font-semibold text-brand-text">{item.sym}/USDT</p><p className="text-xs text-brand-text-muted">{item.source}</p></div></div></td>
-                <td className="whitespace-nowrap px-4 text-sm font-semibold tabular-nums text-brand-text md:px-6">{price(item.price, numberLocale)}</td>
+                <td className="h-16 whitespace-nowrap px-4 py-2 md:px-6"><div className="flex items-center gap-3"><TokenIcon symbol={item.sym} className="h-8 w-8"/><div><p className="text-sm font-semibold text-brand-text">{item.sym}/USDT</p></div></div></td>
+                <td className="whitespace-nowrap px-4 text-base font-semibold tabular-nums text-brand-text md:px-6">{price(item.price, numberLocale)}</td>
                 <td className={`whitespace-nowrap px-4 text-sm font-semibold tabular-nums md:px-6 ${item.chg >= 0 ? "text-profit" : "text-loss"}`}>{item.chg > 0 ? "+" : ""}{item.chg.toFixed(2)}%</td>
                 <td className="whitespace-nowrap px-4 text-sm tabular-nums text-brand-text-secondary md:px-6">{item.vol} USDT</td>
               </tr>
