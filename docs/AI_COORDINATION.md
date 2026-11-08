@@ -498,3 +498,14 @@ Safety/ownership:
 - Exact-head checks for the current commit were triggered and observed in progress: empty PostgreSQL bootstrap, frontend build, and unified backend/build/test/fail-closed workflow. Do not claim completion until all three conclude successfully.
 - Previous permission-remediation-only head `f46073860a5412bd0d70a2119d27568a2faadfe0` passed all three checks, but that is not current-head CI evidence after the Assets page change.
 - No hosted Supabase DDL/writes, production deployment, merge, financial operation, or locked Spot layout change.
+
+
+### Fintech-style responsive order-history cards — 2026-11-08
+
+- Adapted the Shadcn Fintech transaction-list presentation pattern to BTCBOX `frontend/src/features/orders/OrdersPage.tsx` without importing the template's seed transactions, fake merchants, selection/export actions or mock behaviors.
+- On narrow viewports, authenticated BTCBOX orders now render as compact responsive cards showing the actual pair, side, order ID, status, price, quantity and creation time. The existing desktop table remains intact at medium and larger widths.
+- No order API, cancellation, placement, financial or Spot layout behavior changed. Loading, sign-in-required, error and no-orders states remain unchanged.
+- Candidate head advanced to `65a64ecf78de23f7e6b3ef517fcf9ac1d6124111`; PR #67 remains Draft/open/unmerged.
+- Exact-head checks for `65a64ecf78de23f7e6b3ef517fcf9ac1d6124111` were queued when checked: frontend build, empty PostgreSQL bootstrap, and unified backend/build/test/fail-closed workflow. Do not claim these as passed until completion.
+- The previous Assets-page commit `e8353298b88da84b3699c8c97ecca84933360299` had empty PostgreSQL bootstrap and unified backend/build/test workflows pass; its frontend build/route smoke check was still in progress at the last check. This is not current-head CI evidence.
+- No hosted Supabase DDL/writes, production deployment, merge, financial operation, or locked Spot layout change.
