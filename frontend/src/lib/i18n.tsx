@@ -784,6 +784,7 @@ const dictionaries: Record<Language, Dictionary> = {
     "A reason is required for every administrator change.": "A reason is required for every administrator change.",
     "Administrator change is confirmed; the list could not refresh. Reload this tab before taking another action.": "Administrator change is confirmed; the list could not refresh. Reload this tab before taking another action.",
     "Administrators": "Administrators",
+    "Read Seconds policy": "Read Seconds policy",
   },
   ja: {
     "BTCBOX / OPEN MARKET":"BTCBOX / 公開市場",
@@ -1530,6 +1531,7 @@ const dictionaries: Record<Language, Dictionary> = {
     "A reason is required for every administrator change.": "管理者による変更にはすべて理由が必要です。",
     "Administrator change is confirmed; the list could not refresh. Reload this tab before taking another action.": "管理者の変更は確認されましたが、一覧を更新できませんでした。次の操作の前にこのタブを再読み込みしてください。",
     "Administrators": "管理者",
+    "Read Seconds policy": "秒合約ポリシー閲覧",
   },
   "zh-CN": {
     "BTCBOX / OPEN MARKET":"BTCBOX / 公开市场",
@@ -2276,6 +2278,7 @@ const dictionaries: Record<Language, Dictionary> = {
     "A reason is required for every administrator change.": "每项管理员变更都必须填写原因。",
     "Administrator change is confirmed; the list could not refresh. Reload this tab before taking another action.": "管理员变更已确认，但列表无法刷新。执行下一步前请重新加载此标签页。",
     "Administrators": "管理员",
+    "Read Seconds policy": "查看秒合约政策",
   },
   es: {
     "BTCBOX / OPEN MARKET":"BTCBOX / MERCADO ABIERTO",
@@ -3022,6 +3025,7 @@ const dictionaries: Record<Language, Dictionary> = {
     "A reason is required for every administrator change.": "Cada cambio de administrador requiere un motivo.",
     "Administrator change is confirmed; the list could not refresh. Reload this tab before taking another action.": "El cambio de administrador está confirmado, pero no se pudo actualizar la lista. Recarga esta pestaña antes de realizar otra acción.",
     "Administrators": "Administradores",
+    "Read Seconds policy": "Ver política Seconds",
   },
   vi: {
     "BTCBOX / OPEN MARKET":"BTCBOX / THỊ TRƯỜNG MỞ",
@@ -3768,6 +3772,7 @@ const dictionaries: Record<Language, Dictionary> = {
     "A reason is required for every administrator change.": "Mọi thay đổi của quản trị viên đều cần có lý do.",
     "Administrator change is confirmed; the list could not refresh. Reload this tab before taking another action.": "Thay đổi quản trị viên đã được xác nhận nhưng không thể làm mới danh sách. Hãy tải lại tab này trước khi thực hiện thao tác khác.",
     "Administrators": "Quản trị viên",
+    "Read Seconds policy": "Xem chính sách Seconds",
   },
   it: {
     "BTCBOX / OPEN MARKET":"BTCBOX / MERCATO APERTO",
@@ -4514,6 +4519,7 @@ const dictionaries: Record<Language, Dictionary> = {
     "A reason is required for every administrator change.": "Ogni modifica amministrativa richiede un motivo.",
     "Administrator change is confirmed; the list could not refresh. Reload this tab before taking another action.": "La modifica amministrativa è confermata, ma non è stato possibile aggiornare l'elenco. Ricarica questa scheda prima di eseguire un'altra azione.",
     "Administrators": "Amministratori",
+    "Read Seconds policy": "Visualizza policy Seconds",
   },
   pt: {
     "BTCBOX / OPEN MARKET":"BTCBOX / MERCADO ABERTO",
@@ -5260,6 +5266,7 @@ const dictionaries: Record<Language, Dictionary> = {
     "A reason is required for every administrator change.": "Cada alteração administrativa requer um motivo.",
     "Administrator change is confirmed; the list could not refresh. Reload this tab before taking another action.": "A alteração administrativa foi confirmada, mas não foi possível atualizar a lista. Recarregue este separador antes de realizar outra ação.",
     "Administrators": "Administradores",
+    "Read Seconds policy": "Ver política Seconds",
   }
 };
 
