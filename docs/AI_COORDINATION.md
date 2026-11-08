@@ -698,3 +698,15 @@ Safety/ownership:
 
 
 - Follow-up syntax correction: the English dictionary's final pre-existing `Live product catalog` entry lacked a trailing comma before the newly added locale keys. Exact-head CI at `1a610fd17241aca5bd7b2b17ecb3c4db50b2cbde` caught this with TypeScript TS1005 at `i18n.tsx:24`; the comma has been corrected in candidate commit `da837d720d44db67995d0d9f446ec7b71fab65b1`. The failing run is not accepted. Fresh CI for the corrected exact head is pending.
+
+
+## 16. Japanese Trade Hub and active-page coverage audit — 2026-11-08
+
+- Candidate PR #67 head: `2ed0e1e253419256a90def6ed7fb1b9da66e3275`.
+- Japanese Trade Hub status/availability copy now covers all 43 unique `t()` keys in `TradeHubPage`; this includes Spot, Seconds, Earn and Futures availability, fail-closed order-entry messages and login gates.
+- Active standalone `AssetsPage.tsx`, `OrdersPage.tsx` and `Dashboard.tsx` now have zero missing Japanese dictionary keys among their static `t()` calls. All seven locale dictionaries received the dashboard/assets/orders copy batch.
+- Coverage scan of `Pages.tsx` shows major remaining active-page gaps: MyPage 14; SpotTradingPage 36; SecondsPage 46; KycPage 28; SupportPage 15; DepositPage 14; EarnPage 36; WithdrawPage 31; generic SectionPage 1. Some duplicate legacy Assets/Orders components in Pages.tsx are not the active route imports; active standalone files are translated.
+- `AuthPages.tsx` still does not use shared i18n; account security and admin surfaces also need a deliberate locale audit. No Japanese-first default until active route and dynamic copy coverage is complete.
+- Exact-head CI for `2ed0e1e253419256a90def6ed7fb1b9da66e3275`: Backend `42471156823` PASS; PostgreSQL bootstrap `42471156837` PASS; Frontend `42471156838` has install, lint, production build and Chromium install PASS; desktop/mobile route smoke tests still in progress, screenshot upload pending.
+- The earlier syntax failure on `1a610fd...` was fixed in `da837d7...`; the corrected subsequent exact-head run is the one being tracked here.
+- No merge, deployment, hosted Supabase writes, financial operations or Spot layout/API changes.
