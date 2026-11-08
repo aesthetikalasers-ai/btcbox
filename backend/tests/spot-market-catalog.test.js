@@ -81,7 +81,7 @@ test('public ticker snapshots use a short shared-cache window and clients bypass
   const route = backend.slice(marketStart, marketStart + 9000);
   assert.ok(route.includes("'Cache-Control': 'public, max-age=0, s-maxage=2, stale-while-revalidate=1'"));
   assert.ok(api.includes('cache: "no-store"'));
-  assert.ok(pages.includes('window.setInterval(refreshMarketData,15000)'));
+  assert.ok(pages.includes('window.setInterval(refreshMarketData,5000)'));
 });
 
 test('order book snapshots normalize provider levels and expose source-specific freshness', () => {
