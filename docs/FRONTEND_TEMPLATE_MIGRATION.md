@@ -112,3 +112,5 @@ BTCBOX localization is a complete language system per locale, not a literal tran
 - Japanese Seconds page copy batch: added native Japanese for policy status, order confirmation/idempotency warnings, payout and exposure limits, position lifecycle, independent settlement, and history/empty states. The backend policy gates, request IDs, fund reservation and settlement logic are unchanged.
 
 - Japanese Support and Deposit copy batch: localized private conversation states, support safety guidance, deposit address/network labels, deposit-history labels and the full deposit-risk warning. Existing private-message request IDs, address masking, manual deposit verification and crediting behavior are unchanged.
+
+- Japanese Earn and Withdraw copy batch: localized Earn catalog/position terminology (APY retained as a recognized financial metric, principal, estimated interest, maturity, subscribe/redeem) and withdrawal lifecycle, fee, saved-address, fund-password/2FA and manual-payout warnings. No subscription, redemption, withdrawal, fee calculation, address access or financial-ledger behavior changed.
