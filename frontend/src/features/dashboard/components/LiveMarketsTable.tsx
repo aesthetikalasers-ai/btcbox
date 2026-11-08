@@ -41,15 +41,9 @@ export function LiveMarketsTable({ markets, loading, error }: {
   const displayMarkets = feedError ? [] : markets;
   const latestProviderMarket = displayMarkets.reduce<MarketTicker | null>((latest, item) =>
     (item.providerTs || 0) > (latest?.providerTs || 0) ? item : latest, null);
-  const providerTimestamp = latestProviderMarket?.providerTs || 0;
-  const providerSource = (latestProviderMarket?.source || "").replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 32);
   const snapshotTime = latestSnapshotTs > 0
     ? new Intl.DateTimeFormat(numberLocale, { hour: "2-digit", minute: "2-digit", second: "2-digit" }).format(new Date(latestSnapshotTs * 1000))
     : "";
-  const providerTime = providerTimestamp > 0
-    ? new Intl.DateTimeFormat(numberLocale, { hour: "2-digit", minute: "2-digit", second: "2-digit" }).format(new Date(providerTimestamp * 1000))
-    : "";
-  const providerAgeSeconds = providerTimestamp > 0 ? Math.max(0, Math.floor(Date.now() / 1000 - providerTimestamp)) : null;
   const visibleMarkets = useMemo(() => displayMarkets.filter((item) => {
     if (!query) return true;
     return item.sym.toLowerCase().includes(query) || (names[item.sym] || "").toLowerCase().includes(query);
@@ -58,12 +52,8 @@ export function LiveMarketsTable({ markets, loading, error }: {
     <Card className="flex flex-col overflow-hidden px-0 py-0">
       <div className="flex items-center justify-between gap-3 border-b border-brand-border px-4 py-4 md:px-6">
         <div className="min-w-0">
-          <h2 className="text-[15px] font-semibold tracking-tight text-brand-text">{t("Spot markets")}</h2>
-          <p className="mt-1 text-xs text-brand-text-muted">{t("Live prices from the BTCBOX market service")}</p>
-          <p className="mt-1 text-[11px] text-brand-text-muted" aria-label={snapshotTime ? `${t("Server snapshot")} ${snapshotTime}` : t("Server snapshot time unavailable")}>{snapshotTime ? `${t("Server snapshot")} · ${snapshotTime} · ${snapshotAgeSeconds}${t("seconds ago")}` : t("Server snapshot time unavailable")}</p>
-          <p className="mt-1 text-[11px] text-brand-text-muted" aria-label={providerTime ? `${t("Provider snapshot")} ${providerSource || t("source unavailable")} ${providerTime}, ${providerAgeSeconds}${t("seconds ago")}` : t("Provider timestamp unavailable")}>
-            {providerTime ? `${t("Provider snapshot")} · ${providerSource || t("source unavailable")} · ${providerTime} · ${providerAgeSeconds}${t("seconds ago")}` : t("Provider timestamp unavailable")}
-          </p>
+          <h2 className="type-section-title text-brand-text">{t("Spot markets")}</h2>
+          <p className="mt-1 text-[11px] text-brand-text-muted" aria-label={snapshotTime ? `${t("Server snapshot")} ${snapshotTime}` : t("Server snapshot time unavailable")}>{snapshotTime ? `${t("Updated")} · ${snapshotTime} · ${snapshotAgeSeconds}${t("seconds ago")}` : t("Server snapshot time unavailable")}</p>
         </div>
         <span className="shrink-0 rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-2 text-xs font-semibold text-brand-text-secondary">
           {loading ? t("Loading…") : feedError ? t("Unavailable") : `${visibleMarkets.length} ${t("pairs")}`}
@@ -99,7 +89,7 @@ export function LiveMarketsTable({ markets, loading, error }: {
                   </div>
                 </div>
                 <div className="flex shrink-0 flex-col items-end gap-1.5">
-                  <span className="type-body font-bold tabular-nums text-brand-text">{price(item.price, numberLocale)}</span>
+                  <span className="text-base font-bold tabular-nums text-brand-text">{price(item.price, numberLocale)}</span>
                   <Change value={item.chg} locale={numberLocale} />
                 </div>
               </Link>
@@ -122,7 +112,7 @@ export function LiveMarketsTable({ markets, loading, error }: {
                       </Link>
                     </div>
                   </td>
-                  <td className="whitespace-nowrap px-4 type-body font-semibold tabular-nums text-brand-text md:px-6">{price(item.price, numberLocale)}</td>
+                  <td className="whitespace-nowrap px-4 text-base font-semibold tabular-nums text-brand-text md:px-6">{price(item.price, numberLocale)}</td>
                   <td className="whitespace-nowrap px-4 md:px-6"><Change value={item.chg} locale={numberLocale} /></td>
                   <td className="whitespace-nowrap px-4 text-sm tabular-nums text-brand-text-secondary md:px-6">{item.vol} USDT</td>
                   <td className="whitespace-nowrap px-4 text-sm tabular-nums text-brand-text-secondary md:px-6">{price(item.high, numberLocale)}</td>
