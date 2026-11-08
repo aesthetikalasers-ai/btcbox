@@ -103,7 +103,7 @@ test('Seconds order API and canonical SQL preserve the request-hash replay contr
   assert.match(secondsSql, /WHERE open_request_id=p_request_id/i);
   const secondsOrderBody = secondsSql.slice(signature.index).toLowerCase();
   assert.ok(
-    secondsOrderBody.indexOf('where open_request_id=p_request_id') < secondsOrderBody.indexOf('select * into v_policy'),
+    secondsOrderBody.indexOf('where open_request_id=p_request_id') < secondsOrderBody.indexOf('into v_policy'),
     'idempotent replay lookup must happen before resolving the active policy within submit_seconds_order_v1'
   );
 });
