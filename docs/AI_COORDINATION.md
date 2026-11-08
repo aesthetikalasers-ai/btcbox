@@ -182,7 +182,7 @@ RPC source-contract regression coverage — 2026-11-08:
 Hosted schema diagnostic coverage correction — 2026-11-08:
 - Source inspection found the documented Seconds administrator queue function name was wrong: canonical SQL `0030_seconds_admin_open_positions_read_v1.sql` and `backend/api-core.js` both use `admin_read_seconds_open_positions_v1`, not `admin_list_seconds_open_positions_v1`.
 - Expanded `backend/supabase/diagnostics/hosted-schema-contract-readonly.sql` in PR #67 commit `54d9b552a83eccfabc9fdf4a155ac9f2e072caae` to check the private RBAC helper functions, private Seconds/Spot transition functions, public Seconds queue and Spot admin/read wrappers, and `private.spot_market_request_idempotency`.
-- The added Spot market idempotency table and wrapper functions were absent from the earlier diagnostic inventory; their live hosted presence has NOT YET BEEN RECHECKED. The expanded diagnostic has not yet been executed against hosted Supabase.
+- The added Spot market idempotency table and wrapper functions were absent from the earlier diagnostic inventory. The expanded diagnostic was subsequently executed against hosted Supabase; see the later “Expanded hosted schema diagnostic execution” record below.
 - PR #67 head is now `54d9b552a83eccfabc9fdf4a155ac9f2e072caae`. No GitHub Actions workflow runs were returned for this exact commit at the time of this update; the combined commit status only reports the Vercel check as failure due to its build-rate-limit target. Per owner instruction, Vercel is not part of this work. Do not carry forward the previous exact-head CI PASS as evidence for this newer commit.
 - No hosted SQL was executed, no DDL/data/Auth changes were made, and PR #67 remains Draft / unmerged.
 
