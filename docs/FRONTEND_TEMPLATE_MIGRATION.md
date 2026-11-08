@@ -104,3 +104,5 @@ BTCBOX localization is a complete language system per locale, not a literal tran
 - Completed first full locale-copy pass for Dashboard, Assets and Orders labels/status text in all seven supported locales. Financial identifiers and exact numeric values remain unchanged; common operational labels (available/frozen, price/quantity, valuation status) now have consistent locale entries.
 
 - Japanese-first terminology batch: completed native Japanese copy for the Trade Hub's Spot, Seconds, Earn and Futures availability/status surfaces. Operational availability wording preserves backend fail-closed semantics; Spot, Seconds, Earn and Futures remain recognized product terms where useful. No order execution behavior changed.
+
+- Japanese account-center and KYC copy batch: added native Japanese for My Account profile/security summaries and the identity-verification form, document guidance, submission/confirmation states and privacy warnings. No identity verification rules, document handling, account APIs or authentication behavior changed.
