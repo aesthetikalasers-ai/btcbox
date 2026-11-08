@@ -327,3 +327,15 @@ Safety/ownership:
 - This is a source-input consolidation step only. It makes both immutable upstream source references available from the integration candidate and records the migration contract; it does NOT port their pages/components into BTCBOX runtime and does NOT count as full template migration.
 - PR #67 is still Draft/open/unmerged. No production deployment, Vercel change, hosted Supabase write, financial operation, or locked Spot layout change occurred.
 - Next consolidation work: selectively reconcile PR #65's unique compatible visual/accessibility/mobile changes into current PR #67 without overwriting newer business/auth logic. Then complete runtime template porting and BTCBOX real-service wiring. Comprehensive end-to-end audit remains scheduled AFTER consolidation.
+
+
+### Selective PR #65 reconciliation — batch 2 (2026-11-08)
+
+- Candidate branch advanced from `a15cc242001eeaf9cc2d8e47cd54cd4e888619fd` to `07e0cf66ab5e86a73da10e9972791767d7a2a18f`.
+- Commit `07e0cf66ab5e86a73da10e9972791767d7a2a18f` selectively reconciles the PR #65 Sidebar accessibility improvements into the newer PR #67 Sidebar: explicit focus-visible keyboard rings, consistent 44px minimum touch targets, wrapped navigation labels, and close-button type semantics. It retains PR #67's more visible semantic active-route accent treatment and current navigation structure.
+- PR #65's Sidebar was NOT copied wholesale. This is a deliberate compatible transplant of interaction/accessibility behavior.
+- Reviewed PR #65 differences in `Topbar.tsx` and `index.css`: retained PR #67's current disabled/unavailable notification affordance and compact BrandLogo behavior, plus the account page tone token. Do not overwrite these newer candidate choices with older PR #65 snapshots.
+- Current compare of PR #65 branch `fix/hide-lightweight-chart-attribution-20261107` against candidate reports divergence (PR #65 86 commits ahead, candidate 129 commits ahead) and 26 changed paths. Remaining unique areas include E2E auth-route coverage, BottomNav/AppLayout, UI primitives, account/auth/admin/assets/dashboard/orders pages, i18n, charts, and README/license notice. These require selective review against current contracts; no wholesale merge or file replacement.
+- No runtime template page migration has been performed in this batch. Pinned template source inputs remain available in candidate.
+- No tests have been run for this commit; exact-head CI is required before treating the change as validated. Comprehensive audit remains deferred until consolidation is assembled.
+- No merge, deploy, Vercel change, hosted Supabase write, financial operation, or locked Spot layout change.
