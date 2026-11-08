@@ -115,9 +115,15 @@ test('withdrawal and KYC review actions use synchronous per-record locks', () =>
   assert.ok(adminPage.includes('reviewActionLocksRef.current[actionLockKey] = false'));
 });
 
-test('deposit address tab visibility matches the backend deposits.read route contract', () => {
+test('customer payout-address endpoints use dedicated sensitive permissions, separate from deposits and system config', () => {
+  assert.ok(api.includes("if (route === 'addresses' && verb === 'GET') return 'payout_addresses.read_sensitive';"));
+  assert.ok(api.includes("if (route === 'address/manage' && verb === 'POST') return 'payout_addresses.manage';"));
+  assert.ok(!api.includes("if (route === 'addresses' && verb === 'GET') return 'deposits.read';"));
+  assert.ok(!api.includes("if (route === 'address/manage' && verb === 'POST') return 'system_config.write';"));
+  assert.ok(api.includes("if (!hasAdminPermission(adminMembership, requiredPermission))"));
+  assert.ok(adminPage.includes('["payout_addresses.read_sensitive","Read sensitive customer payout addresses"]'));
+  assert.ok(adminPage.includes('["payout_addresses.manage","Manage customer payout addresses"]'));
   const tab = adminPage.match(/\{ id: "deposits", label: "Deposit addresses", permission: "([^"]+)" \}/);
-  assert.ok(tab, 'deposit address tab must be present');
-  assert.equal(tab[1], 'deposits.read');
-  assert.ok(api.includes("if (route === 'addresses' && verb === 'GET') return 'deposits.read';"));
+  assert.ok(tab, 'global deposit configuration tab must be present');
+  assert.equal(tab[1], 'system_config.read');
 });

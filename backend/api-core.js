@@ -2915,8 +2915,8 @@ async function handleRequest(event, context) {
       if (route === 'kyc' && verb === 'GET') return 'kyc.read';
       if ((route === 'kyc/approve' || route === 'kyc/reject') && verb === 'POST') return 'kyc.review';
       if (route === 'deposit/confirm' && verb === 'POST') return 'deposits.review';
-      if (route === 'addresses' && verb === 'GET') return 'deposits.read';
-      if (route === 'address/manage' && verb === 'POST') return 'system_config.write';
+      if (route === 'addresses' && verb === 'GET') return 'payout_addresses.read_sensitive';
+      if (route === 'address/manage' && verb === 'POST') return 'payout_addresses.manage';
       if (route === 'withdrawals' && verb === 'GET') return 'withdrawals.read';
       if (['withdraw/approve','withdraw/reject','withdraw/mark-paid'].includes(route) && verb === 'POST') return 'withdrawals.review';
       if (route === 'orders' && verb === 'GET') return 'orders.read';
