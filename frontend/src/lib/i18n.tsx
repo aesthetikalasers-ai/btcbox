@@ -1,13 +1,14 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 
-export type Language = "en" | "ja" | "zh-CN" | "es" | "vi" | "it" | "pt";
+export type Language = "en" | "ja" | "zh-CN" | "es" | "pt" | "it" | "de";
+type StoredLocale = Language | "vi";
 type Dictionary = Record<string, string>;
 
 export const localeTags: Record<Language, string> = {
-  en: "en-US", ja: "ja-JP", "zh-CN": "zh-CN", es: "es-ES", vi: "vi-VN", it: "it-IT", pt: "pt-PT",
+  en: "en-US", ja: "ja-JP", "zh-CN": "zh-CN", es: "es-ES", pt: "pt-PT", it: "it-IT", de: "de-DE",
 };
 
-const dictionaries: Record<Language, Dictionary> = {
+const dictionaries: Record<StoredLocale, Dictionary> = {
   en: {
     "BTCBOX / OPEN MARKET":"BTCBOX / OPEN MARKET",
     "Digital asset exchange":"Digital asset exchange",
@@ -5962,6 +5963,80 @@ const dictionaries: Record<Language, Dictionary> = {
     "Open": "Abrir",
     "Unavailable": "Indisponível",
   }
+
+  de: {
+    "BTCBOX / OPEN MARKET": "BTCBOX / OFFENER MARKT",
+    "Digital asset exchange": "Handelsplattform für digitale Vermögenswerte",
+    "Explore the market. Trade with confidence.": "Entdecken Sie den Markt. Handeln Sie mit Vertrauen.",
+    "Public market access": "Öffentlicher Marktzugang",
+    "View market prices and historical movement before you sign in.": "Sehen Sie sich Marktpreise und historische Kursbewegungen an, bevor Sie sich anmelden.",
+    "Account protection": "Kontoschutz",
+    "Personal assets and account actions require an authenticated session.": "Für persönliche Vermögenswerte und Kontoaktionen ist eine authentifizierte Sitzung erforderlich.",
+    "Ready to access your account?": "Möchten Sie auf Ihr Konto zugreifen?",
+    "Spot markets": "Spotmärkte",
+    "Loading…": "Wird geladen …",
+    "Market feed unavailable": "Marktdaten nicht verfügbar",
+    "Market data is temporarily unavailable. Please try again shortly.": "Marktdaten sind vorübergehend nicht verfügbar. Bitte versuchen Sie es in Kürze erneut.",
+    "No market pairs are currently available.": "Derzeit sind keine Handelspaare verfügbar.",
+    "Asset": "Vermögenswert",
+    "Last price": "Letzter Preis",
+    "24h change": "Änderung in 24 Std.",
+    "24h volume": "Volumen in 24 Std.",
+    "24h high": "Hoch in 24 Std.",
+    "24h low": "Tief in 24 Std.",
+    "Choose your trading mode": "Wählen Sie Ihren Handelsmodus",
+    "Sign in required": "Anmeldung erforderlich",
+    "Policy unavailable": "Richtlinie nicht verfügbar",
+    "Actions disabled": "Aktionen deaktiviert",
+    "Order entry enabled": "Orderaufgabe aktiviert",
+    "Sign in": "Anmelden",
+    "Create account": "Konto erstellen",
+    "Sign in to continue": "Melden Sie sich an, um fortzufahren",
+    "Home": "Startseite",
+    "Markets": "Märkte",
+    "Trade": "Handeln",
+    "Assets": "Vermögenswerte",
+    "My": "Mein Konto",
+    "Orders": "Orders",
+    "Earn": "Erträge",
+    "Support": "Support",
+    "Settings": "Einstellungen",
+    "Manage": "Verwalten",
+    "Search": "Suchen",
+    "Language": "Sprache",
+    "Connecting": "Verbindung wird hergestellt",
+    "Feed unavailable": "Datenfeed nicht verfügbar",
+    "Live market feed": "Live-Marktdatenfeed",
+    "Market analytics": "Marktanalyse",
+    "Historical chart integration is still in progress.": "Die Integration historischer Charts wird noch durchgeführt.",
+    "Spot": "Spot",
+    "Seconds": "Sekunden",
+    "Futures": "Futures",
+    "Deposit": "Einzahlen",
+    "Withdraw": "Auszahlen",
+    "Verification": "Verifizierung",
+    "Open": "Öffnen",
+    "Unavailable": "Nicht verfügbar",
+    "Refresh": "Aktualisieren",
+    "Available": "Verfügbar",
+    "Frozen": "Gesperrt",
+    "Price": "Preis",
+    "Quantity": "Menge",
+    "Buy": "Kaufen",
+    "Sell": "Verkaufen",
+    "Amount (USDT)": "Betrag (USDT)",
+    "Limit price (USDT)": "Limitpreis (USDT)",
+    "Available balance": "Verfügbares Guthaben",
+    "Order submitted": "Order übermittelt",
+    "Order submission failed": "Order konnte nicht übermittelt werden",
+    "Close": "Schließen",
+    "Cancel": "Abbrechen",
+    "Try again": "Erneut versuchen",
+    "Loading": "Wird geladen",
+    "Enabled": "Aktiviert",
+    "Not enabled": "Nicht aktiviert",
+    "Complete": "Abgeschlossen"
+  }
 };
 
 type I18nValue = { language: Language; setLanguage: (language: Language) => void; t: (value: string) => string };
@@ -5985,7 +6060,7 @@ const I18nContext = createContext<I18nValue | null>(null);
 export function I18nProvider({ children }: { children: ReactNode }) {
   const [language, setLanguageState] = useState<Language>(() => {
     const saved = typeof window !== "undefined" ? window.localStorage.getItem("btcbox-language") : null;
-    return saved === "en" || saved === "ja" || saved === "zh-CN" || saved === "es" || saved === "vi" || saved === "it" || saved === "pt" ? saved : "en";
+    return saved === "en" || saved === "ja" || saved === "zh-CN" || saved === "es" || saved === "it" || saved === "pt" || saved === "de" ? saved : "en";
   });
   useEffect(() => {
     document.documentElement.lang = language;
