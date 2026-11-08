@@ -11,6 +11,8 @@ const routes = [
   { path: "/trade/BTCUSDT", heading: "BTCUSDT" },
   { path: "/trade-hub", heading: "Choose your trading mode" },
   { path: "/assets", heading: "Assets" },
+  { path: "/me", heading: "My account" },
+  { path: "/settings", heading: "Account security" },
   { path: "/support", heading: "Customer support" },
   { path: "/orders", heading: "Orders" },
 ];
