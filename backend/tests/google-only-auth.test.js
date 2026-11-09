@@ -156,7 +156,7 @@ test('auth entry exposes a side-by-side sign-in/register choice and truthfully g
 });
 
 
-test('React auth preserves Supabase email and Google alongside existing username and wallet identity paths', () => {
+test('React auth keeps Google sign-in and username or wallet alternatives without blocking an external identity from its account', () => {
   const backend = read('api-core.js');
   const auth = read('../frontend/src/lib/auth.tsx');
   const pages = read('../frontend/src/features/auth/AuthPages.tsx');
@@ -193,7 +193,9 @@ test('React auth preserves Supabase email and Google alongside existing username
   assert.ok(security.includes('Link Google'));
   assert.ok(security.includes('Link Ethereum wallet'));
   assert.ok(security.includes('Link Solana wallet'));
-  assert.ok(app.includes('AccountSetupGate'));
+  assert.ok(pages.includes('navigate(redirectTo || "/me", { replace: true })'));
+  assert.ok(pages.includes('navigate("/me", { replace: true })'));
+  assert.ok(!app.includes('AccountSetupGate'));
   assert.ok(app.includes('AccountSecurityPage'));
   assert.ok(!pages.includes('Terms of Service'));
 });

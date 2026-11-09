@@ -28,14 +28,6 @@ function ProtectedAccountRoute({ children }: { children: ReactNode }) {
   if (status !== "authenticated") return <Navigate to="/login" replace />;
   return <>{children}</>;
 }
-function AccountSetupGate({ children }: { children: ReactNode }) {
-  const { status, needsCredentials } = useAuth();
-  const location = useLocation();
-  if (status === "authenticated" && needsCredentials && location.pathname !== "/account-setup") {
-    return <Navigate to="/account-setup" replace />;
-  }
-  return <>{children}</>;
-}
 function RouteLoading() {
   const { t } = useI18n();
   return <div className="mx-auto flex min-h-[240px] w-full max-w-[1200px] items-center justify-center p-6" role="status" aria-live="polite"><div className="flex items-center gap-3 text-sm text-brand-text-muted"><span className="h-4 w-4 animate-spin rounded-full border-2 border-white/15 border-t-brand-accent" />{t("Loading…")}</div></div>;
@@ -43,7 +35,7 @@ function RouteLoading() {
 function CustomerRoutes() {
   const location = useLocation();
   const isStandaloneAuthRoute = ["/login", "/register", "/account-setup", "/auth/react-callback"].includes(location.pathname);
-  const content = <AccountSetupGate><Suspense fallback={<RouteLoading />}><Routes>
+  const content = <Suspense fallback={<RouteLoading />}><Routes>
     <Route path="/home" element={<Dashboard />} /><Route path="/markets" element={<Dashboard />} />
     <Route path="/trade-hub" element={<TradeHubPage />} /><Route path="/trade" element={<Navigate to="/trade-hub" replace />} />
     <Route path="/trade/:symbol" element={<SpotTradingPage />} />
@@ -58,7 +50,7 @@ function CustomerRoutes() {
     <Route path="/support" element={<SupportPage />} />
     <Route path="/settings" element={<ProtectedAccountRoute><AccountSecurityPage /></ProtectedAccountRoute>} />
     <Route path="*" element={<Navigate to="/home" replace />} />
-  </Routes></Suspense></AccountSetupGate>;
+  </Routes></Suspense>;
   return isStandaloneAuthRoute ? content : <AppLayout>{content}</AppLayout>;
 }
 export default function App() {

@@ -11,7 +11,7 @@ import { useI18n, type Language } from "../../lib/i18n";
 export function AuthPage({ mode, redirectTo }: { mode: "login" | "register"; redirectTo?: string }) {
   const { t, language, setLanguage } = useI18n();
   const {
-    status, needsCredentials, busy, error, notice, googleEnabled, walletEnabled, ethereumWallets,
+    status, busy, error, notice, googleEnabled, walletEnabled, ethereumWallets,
     signInWithGoogle, signInWithUsername, signInWithWeb3, signInWithEmail, signUpWithEmail,
     requestPasswordReset, verifyTwoFactor, clearError,
   } = useAuth();
@@ -31,9 +31,9 @@ export function AuthPage({ mode, redirectTo }: { mode: "login" | "register"; red
   }, [mode]);
 
   useEffect(() => {
-    if (status === "authenticated") navigate(needsCredentials ? "/account-setup" : (redirectTo || "/home"), { replace: true });
+    if (status === "authenticated") navigate(redirectTo || "/me", { replace: true });
     else if (status === "two-factor") navigate(redirectTo || "/login", { replace: true });
-  }, [status, needsCredentials, navigate, redirectTo]);
+  }, [status, navigate, redirectTo]);
 
   if (status === "loading") return <div className="mx-auto flex min-h-[60vh] items-center justify-center text-sm text-brand-text-muted">{t("Loading secure sign-in…")}</div>;
 
@@ -212,7 +212,7 @@ export function AuthPage({ mode, redirectTo }: { mode: "login" | "register"; red
 
 export function AuthCallbackPage() {
   const { t } = useI18n();
-  const { finishOAuth, status, needsCredentials, error, busy, completePasswordRecovery } = useAuth();
+  const { finishOAuth, status, error, busy, completePasswordRecovery } = useAuth();
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [recoveryError, setRecoveryError] = useState("");
@@ -228,9 +228,9 @@ export function AuthCallbackPage() {
     }
   }, [finishOAuth, status]);
   useEffect(() => {
-    if (status === "authenticated") navigate(needsCredentials ? "/account-setup" : "/home", { replace: true });
+    if (status === "authenticated") navigate("/me", { replace: true });
     else if (status === "two-factor") navigate("/login", { replace: true });
-  }, [status, needsCredentials, navigate]);
+  }, [status, navigate]);
   useEffect(() => {
     if (!error || status !== "anonymous") return;
     const redirectId = window.setTimeout(() => navigate(callbackDestination, { replace: true }), 1800);
