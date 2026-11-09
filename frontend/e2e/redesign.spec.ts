@@ -167,3 +167,27 @@ test('spot inputs and readable depth retain real account balances across buy and
   expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
  }
 });
+
+test('terminal details use real depth sizes and accessible order rows at 375, 390 and 414',async({page})=>{
+ await page.route('**/api/depth?**',r=>r.fulfill({json:{ok:true,source:'isolated-test',snapshotTs:Math.floor(Date.now()/1000),bids:[['3199','1'],['3198','3']],asks:[['3201','2'],['3202','6']]}}));
+ await page.route('**/api/orders',r=>r.fulfill({json:{ok:true,orders:[{order_id:'isolated-order',symbol:'ETHUSDT',side:'buy',price:'3200',quantity:'2',remaining_quantity:'1',status:'open'}]}}));
+ for(const width of [375,390,414]){
+  await page.setViewportSize({width,height:844});await page.goto('/trade/ETH');
+  const bids=page.locator('.spot-book-row[data-side="bid"]');await expect(bids).toHaveCount(2);
+  expect(await bids.first().evaluate(e=>e.style.backgroundSize)).toBe('25% 100%');
+  expect(await bids.last().evaluate(e=>e.style.backgroundSize)).toBe('100% 100%');
+  const asks=page.locator('.spot-book-row[data-side="ask"]');
+  expect(await asks.first().evaluate(e=>e.style.backgroundSize)).toBe('100% 100%');
+  expect(await asks.last().evaluate(e=>e.style.backgroundSize)).toBe('25% 100%');
+  expect(await bids.first().evaluate(e=>parseFloat(getComputedStyle(e).fontSize))).toBeGreaterThanOrEqual(12);
+  expect(await bids.first().evaluate(e=>getComputedStyle(e).lineHeight)).toBe('26px');
+  const row=page.locator('.spot-order-row');await expect(row).toContainText('ETHUSDT · Buy');
+  await expect(row).toContainText('Remaining 1');await expect(row.getByRole('button',{name:'Cancel',exact:true})).toBeDisabled();
+  await page.evaluate(()=>{const m=document.querySelector('main')!;m.scrollTop=m.scrollHeight;});
+  const button=(await row.getByRole('button').boundingBox())!;
+  const nav=(await page.getByRole('navigation',{name:'Primary navigation',exact:true}).boundingBox())!;
+  expect(button.y+button.height).toBeLessThanOrEqual(nav.y);
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+  await expect(page.getByText(/CodeRabbit|Synthetic fixture|scroll capture/)).toHaveCount(0);
+ }
+});

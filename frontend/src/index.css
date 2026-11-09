@@ -271,11 +271,11 @@ a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
 
 
 /* Spot terminal: one scoped layout system, independent from account/admin cards. */
-.spot-terminal { gap:16px; }
+.spot-terminal { gap:12px; }
 .spot-terminal > div:first-child .page-accent { display:none; }
 .spot-terminal .type-page-title { font-size:22px; }
 .spot-quote { border:0; border-radius:0; box-shadow:none; background:transparent; }
-.spot-quote-grid { display:grid; grid-template-columns:1fr 1fr; gap:16px 24px; padding:0 0 16px; border-bottom:1px solid var(--color-brand-border); }
+.spot-quote-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px 24px; padding:0 0 12px; border-bottom:1px solid var(--color-brand-border); }
 .spot-quote-grid > div { min-width:0; }
 .spot-quote-grid > div:first-child p:last-child { font-size:30px; line-height:1.15; letter-spacing:-.04em; }
 .spot-quote-grid > div:nth-child(2) { align-self:center; text-align:right; }
@@ -290,9 +290,13 @@ a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
 .exchange-depth { grid-column:1; grid-row:1; }
 .exchange-orders { grid-column:1 / -1; grid-row:2; margin-top:8px; }
 .exchange-book-levels { display:flex; flex-direction:column; gap:10px; }
-.spot-book-columns,.spot-book-row { display:grid; grid-template-columns:minmax(0,1.15fr) minmax(0,1fr); gap:6px; text-align:right; font-size:12px; font-variant-numeric:tabular-nums; }
+.spot-book-columns,.spot-book-row { display:grid; grid-template-columns:minmax(0,1.35fr) minmax(0,1fr); gap:6px; text-align:right; font-size:12px; font-variant-numeric:tabular-nums; }
 .spot-book-columns { font-size:11px; color:var(--color-brand-text-muted); margin-bottom:12px; }
-.spot-book-row { line-height:24px; }
+.spot-book-row { line-height:26px; background-position:right center; background-repeat:no-repeat; font-family:var(--font-mono); }
+.spot-book-row[data-side="ask"] { background-image:linear-gradient(rgb(239 68 68 / .09),rgb(239 68 68 / .09)); }
+.spot-book-row[data-side="bid"] { background-image:linear-gradient(rgb(34 197 94 / .09),rgb(34 197 94 / .09)); }
+.spot-book-columns span:first-child { text-align:left; }
+.spot-mid-price { margin-block:4px; padding-block:12px; border-block:1px solid var(--color-brand-border); font:600 17px/26px var(--font-mono); }
 .spot-book-row span { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .spot-book-row span:first-child { text-align:left; }
 .spot-side button { min-height:44px; border-radius:6px; font-weight:650; }
@@ -302,7 +306,15 @@ a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
 .spot-available strong { font-weight:500; color:var(--color-brand-text); font-variant-numeric:tabular-nums; }
 .exchange-entry input { height:46px; border-radius:6px; padding:10px; font-size:16px; font-variant-numeric:tabular-nums; }
 .exchange-entry form > button { min-height:48px; border-radius:6px; white-space:normal; font-weight:650; }
-.spot-policy { margin-top:14px; padding-top:12px; border-top:1px solid var(--color-brand-border); font-size:11px; line-height:1.6; }
+.spot-policy { margin-top:12px; padding:0 0 0 8px; border-left:2px solid var(--color-brand-border); color:var(--color-brand-text-muted); font-size:11px; line-height:1.6; }
+.spot-total { padding-block:6px; font-size:12px; color:var(--color-brand-text-secondary); font-variant-numeric:tabular-nums; }
+.spot-order-row { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:14px 0; border-bottom:1px solid var(--color-brand-border); }
+.spot-order-row:last-child { border-bottom:0; }
+.spot-order-summary { min-width:0; display:grid; gap:6px; }
+.spot-order-values { font-size:12px; color:var(--color-brand-text-muted); font-variant-numeric:tabular-nums; overflow-wrap:anywhere; }
+.spot-orders-empty { padding-block:20px; text-align:center; }
+.exchange-orders > div:first-child { padding-bottom:12px; }
+.exchange-orders > div:first-child > p { font-size:12px; line-height:1.5; }
 .trade-drawer-mask { position:fixed; inset:0 0 calc(60px + env(safe-area-inset-bottom)); z-index:40; background:rgb(0 0 0 / .65); }
 .trade-chart-drawer { position:fixed; z-index:50; inset:auto 0 calc(60px + env(safe-area-inset-bottom)); max-height:calc(100dvh - 76px - env(safe-area-inset-bottom)); overflow:auto; border:1px solid var(--color-brand-border); border-radius:12px 12px 0 0; background:var(--color-brand-surface); }
 .trade-chart-drawer .exchange-chart { border:0; box-shadow:none; }
@@ -315,7 +327,7 @@ a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
  .exchange-entry p { overflow-wrap:anywhere; }
  .exchange-entry button { padding-inline:6px; }
  .exchange-entry form,.exchange-entry label { font-size:12px; }
- .exchange-depth .exchange-book-levels > p { font-size:15px; }
+
 }
 @media (max-width:359px) {
  .exchange-workspace { gap:10px; }

@@ -6627,4 +6627,17 @@ Available balances now display only the existing validated account response,usin
 Acceptance includes320/360/375/390/393/414/430/768/1440 geometry/drawer checks and buy/sell/balance/input tests. Test fixtures only; no actual financial operation. Outputs contain full mobile/desktop scroll captures and390px view. Current exact-SHA results are recorded separately in task validation record. Prior18CI failures remain outside this visual patch. No push/merge/deployment/database action.
 
 
+<!-- /coderabbit-ai-generated:v1 --><!-- coderabbit-ai-generated:v1 -->
+
+<!-- coderabbit-ai-generated-section:v1:45eb6df5249a6b937b27aa9dbc1f5e6d6539c29a3bbab8786725b5670fab65ad -->
+
+## 2026-11-09 terminal detail refinement
+
+Preserved accepted compact40/60left-depth/right-entry and chart drawer,desktopfourzones. Depth column grid now1.35:1 with aligned headers,existing mono font,12px minimum and26px row height; emphasized latest API price. Subtle9%opacity cumulative backgrounds use only visible verified orderbook quantities,normalized within each side,not financial calculations or invented liquidity. Blank/stale depth renders no bars. Quote spacing reduced; total/available/input/action hierarchy refined; routine policy notice muted but retained. Open orders use divider rows with existing status/cancel handler/gates.
+
+Searched frontend/src and backend/assets: no renderedCodeRabbit/Synthetic fixture/scroll capture strings existed. Previous visible labels were capture annotations. New screenshot artifacts omit visible annotations and retain generation/test provenance in PNG metadata and report. No production code marker stripped, no API source fabrication. Submit/cancel handlers remain byte-identical to8a857d7;no backend/API/decimal/logo/nav changes. No push/merge/deploy/productiondata operations.
+
+Fresh affected browser suite28/28,including375/390/414depth sizing/row/cancel-nav clearance and existing320–1440geometry,input/staleness/nontradecases. Build/typecheck,lint,i18n pass;backend493/493anddecimal3/3reused unchanged.9actual sharedPreview screenshots include375/390/414 and desktopfullscroll;fixturecontext documented in report. NativeSafari/live provider execution and old18fullCI failures remain outstanding. Final SHA and reproducible evidence are in task Outputs/validation record.
+
+
 <!-- /coderabbit-ai-generated:v1 -->
