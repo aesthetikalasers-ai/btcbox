@@ -20,6 +20,7 @@ export function AuthPage({ mode, redirectTo }: { mode: "login" | "register"; red
   const [verifyCode, setVerifyCode] = useState("");
   const [verifyBusy, setVerifyBusy] = useState(false);
   const [walletMenuOpen, setWalletMenuOpen] = useState(false);
+  const [googleStarted, setGoogleStarted] = useState(false);
   const navigate = useNavigate();
   const registering = mode === "register";
 
@@ -27,6 +28,9 @@ export function AuthPage({ mode, redirectTo }: { mode: "login" | "register"; red
     clearError();
     setWalletMenuOpen(false);
   }, [mode]);
+  // Once a Google OAuth redirect has started, keep the button disabled until the
+  // flow either fails (busy resets) or the page navigates away. Prevents double submit.
+  useEffect(() => { if (!busy) setGoogleStarted(false); }, [busy]);
 
   useEffect(() => {
     if (status === "authenticated") navigate(needsCredentials ? "/account-setup" : (redirectTo || "/home"), { replace: true });
@@ -34,6 +38,12 @@ export function AuthPage({ mode, redirectTo }: { mode: "login" | "register"; red
   }, [status, needsCredentials, navigate, redirectTo]);
 
   if (status === "loading") return <div className="mx-auto flex min-h-[60vh] items-center justify-center text-sm text-brand-text-muted">{t("Loading secure sign-in…")}</div>;
+  // Never render the clickable sign-in form while a sign-in is already in progress
+  // or the session is established; avoids duplicate submissions on the same page.
+  if (status !== "anonymous") return <div className="mx-auto flex min-h-[60vh] flex-col items-center justify-center gap-3 text-sm text-brand-text-muted">
+    <div className="h-8 w-8 animate-spin rounded-full border-2 border-brand-border border-t-brand-accent" aria-hidden="true" />
+    {t("Completing sign-in…")}
+  </div>;
 
   const submitUsernameLogin = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -59,14 +69,14 @@ export function AuthPage({ mode, redirectTo }: { mode: "login" | "register"; red
 
   const identityButtons = <>
     <div className="grid grid-cols-2 gap-3 max-[360px]:grid-cols-1" data-testid="auth-provider-buttons">
-      <Button type="button" variant="outline" className="h-12 min-h-12 w-full justify-center gap-2 px-3" aria-busy={busy} disabled={!googleEnabled || busy || status !== "anonymous"} title={!googleEnabled ? t("Google sign-in is temporarily unavailable.") : undefined} onClick={() => void signInWithGoogle(registering ? "register" : "login")}>
+      <Button type="button" variant="outline" className="h-12 min-h-12 w-full justify-center gap-2 px-3" aria-busy={busy || googleStarted} disabled={!googleEnabled || busy || status !== "anonymous" || googleStarted} title={!googleEnabled ? t("Google sign-in is temporarily unavailable.") : undefined} onClick={() => { setGoogleStarted(true); void signInWithGoogle(registering ? "register" : "login"); }}>
         <svg aria-hidden="true" viewBox="0 0 48 48" className="h-5 w-5 shrink-0">
           <path fill="#4285F4" d="M43.6 24.5c0-1.4-.1-2.8-.4-4.1H24v7.8h11c-.5 2.5-1.9 4.6-4 6l6.4 5c3.8-3.5 6.2-8.6 6.2-14.7z"/>
           <path fill="#34A853" d="M24 44c5.5 0 10.1-1.8 13.4-4.8l-6.4-5c-1.8 1.2-4.1 2-7 2-5.4 0-10-3.7-11.6-8.6l-6.6 5.1C9.1 39.3 16 44 24 44z"/>
           <path fill="#FBBC05" d="M12.4 27.6c-.4-1.2-.7-2.4-.7-3.6s.2-2.5.7-3.6l-6.6-5.1C4.5 18 3.5 20.9 3.5 24s1 6 2.3 8.7l6.6-5.1z"/>
           <path fill="#EA4335" d="M24 11.4c3 0 5.7 1 7.8 3l5.8-5.8C34.1 5.3 29.5 3.5 24 3.5 16 3.5 9.1 8.2 5.8 15.3l6.6 5.1c1.6-4.9 6.2-9 11.6-9z"/>
         </svg>
-        <span className="truncate">{t("Google")}</span>
+        <span className="truncate">{googleStarted ? t("Redirecting…") : t("Google")}</span>
       </Button>
       <Button type="button" variant="outline" className="h-12 min-h-12 w-full justify-center gap-2 px-3" aria-expanded={walletMenuOpen} aria-controls="auth-wallet-options" aria-busy={busy} disabled={!walletEnabled || busy || status !== "anonymous"} title={!walletEnabled ? t("Wallet sign-in is temporarily unavailable.") : undefined} onClick={() => setWalletMenuOpen(open => !open)}>
         <Wallet className="h-5 w-5 shrink-0" /> <span>{t("Wallet")}</span>
@@ -208,7 +218,7 @@ export function AuthCallbackPage() {
   }, [status, needsCredentials, navigate]);
   useEffect(() => {
     if (!error || status !== "anonymous") return;
-    const redirectId = window.setTimeout(() => navigate(callbackDestination, { replace: true }), 1800);
+    const redirectId = window.setTimeout(() => navigate(callbackDestination, { replace: true }), 6000);
     return () => window.clearTimeout(redirectId);
   }, [callbackDestination, error, navigate, status]);
   const submitRecovery = async (event: FormEvent<HTMLFormElement>) => {

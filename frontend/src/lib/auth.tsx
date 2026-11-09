@@ -111,6 +111,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [setSignedIn]);
 
   useEffect(() => {
+    // If an OAuth callback lands on the wrong path (Supabase allowlist fell back
+    // to the site URL), ferry the code/hash to the real callback route before init.
+    const initSearch = new URLSearchParams(window.location.search);
+    const initHash = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+    if ((initSearch.has("code") || initSearch.has("error") || initHash.has("access_token")) && window.location.pathname !== "/auth/react-callback") {
+      window.location.replace("/auth/react-callback" + window.location.search + window.location.hash);
+      return;
+    }
     let active = true;
     const controller = new AbortController();
     (async () => {
