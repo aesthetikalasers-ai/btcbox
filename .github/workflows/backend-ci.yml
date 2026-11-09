@@ -45,6 +45,9 @@ jobs:
       - name: Run backend tests
         run: npm test --prefix backend
 
+      - name: Verify local frontend and API integration
+        run: npm run test:integration --prefix backend
+
       - name: Validate fail-closed deployment configuration shape
         env:
           CONTEXT: production
