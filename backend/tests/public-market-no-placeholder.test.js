@@ -13,6 +13,7 @@ const liveMarketsTable = fs.readFileSync(path.resolve(root, '../frontend/src/fea
 const ordersPage = fs.readFileSync(path.resolve(root, '../frontend/src/features/orders/OrdersPage.tsx'), 'utf8');
 const topbar = fs.readFileSync(path.resolve(root, '../frontend/src/components/layout/Topbar.tsx'), 'utf8');
 const sidebar = fs.readFileSync(path.resolve(root, '../frontend/src/components/layout/Sidebar.tsx'), 'utf8');
+const tokenIcon = fs.readFileSync(path.resolve(root, '../frontend/src/components/ui/TokenIcon.tsx'), 'utf8');
 
 test('public market list renders only positive quotes from an available feed', () => {
   assert.match(marketView, /PAIRS\.filter\(sym=>!state\.marketUnavailable&&market\[sym\]&&Number\(market\[sym\]\.price\)>0\)/);
@@ -52,6 +53,15 @@ test('Vite dashboard does not keep stale quotes visible after a refresh error', 
   assert.match(liveMarketsTable, /feedError && displayMarkets\.length === 0/);
   assert.match(liveMarketsTable, /snapshotAgeSeconds > 90/);
   assert.doesNotMatch(liveMarketsTable, /Showing the last confirmed market data/);
+});
+
+test('market tokens use bundled SVG marks instead of an external icon host', () => {
+  for (const symbol of ['BTC', 'ETH', 'SOL', 'BNB', 'XRP', 'DOGE', 'ADA', 'AVAX', 'USDT']) {
+    assert.match(tokenIcon, new RegExp(`case "${symbol}"`));
+  }
+  assert.match(tokenIcon, /<svg viewBox="0 0 32 32"/);
+  assert.doesNotMatch(tokenIcon, /assets\.coincap\.io/);
+  assert.doesNotMatch(tokenIcon, /<img/);
 });
 
 test('order book cache is cleared when the live depth feed fails', () => {
