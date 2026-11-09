@@ -432,8 +432,9 @@ test("spot preview keeps provider provenance visible and fits a 320px mobile vie
   await expect(page.getByText("Ticker: coinbase · Order book: bybit · Chart: coinbase")).toBeVisible();
   await expect(page.getByText("Last price")).toBeVisible();
   await expect(page.getByRole("heading", { name: "Limit order" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Price chart" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Order book" })).toBeVisible();
+  await page.getByRole("button", { name: "Price chart", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Price chart" })).toBeVisible();
   await expect(page.locator("canvas").first()).toBeVisible();
   await expect(page.getByRole("button", { name: "1h", exact: true })).toHaveAttribute("aria-pressed", "true");
   await expect(page.getByText(/Chart refresh is unavailable/)).toHaveCount(0);

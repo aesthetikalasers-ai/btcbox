@@ -40,18 +40,22 @@ test('market favorites persist, sorting changes rows, and ETH opens its own pair
   await expect(page.getByText('Quantity · ETH', {exact:true})).toBeVisible();
 });
 
-test('chart is visible on mobile and interval switches preserve the edited order',async({page})=>{
+test('V211 chart drawer and interval switches preserve the edited order',async({page})=>{
   await page.goto('/trade/ETH');
   await expect(page.getByRole('heading',{name:'ETHUSDT',exact:true})).toBeVisible();
+  if(page.viewportSize()!.width<1280) await page.getByRole('button',{name:'Price chart',exact:true}).click();
   await expect(page.getByRole('heading',{name:'Price chart',exact:true})).toBeVisible();
+  if(page.viewportSize()!.width<1280) await page.getByRole('button',{name:'Close',exact:true}).click();
   const price=page.getByLabel('Limit price (USDT)');
   await expect(price).toHaveValue('3200');
   await price.fill('0.1');
   await page.getByLabel('Quantity · ETH').fill('0.2');
   await expect(page.getByText('Estimated total: 0.02 USDT',{exact:true})).toBeVisible();
+  if(page.viewportSize()!.width<1280) await page.getByRole('button',{name:'Price chart',exact:true}).click();
   const response=page.waitForResponse(r=>r.url().includes('/api/kline?')&&r.url().includes('interval=5m'));
   await page.getByRole('button',{name:'5m',exact:true}).click();
   await response;
+  if(page.viewportSize()!.width<1280) await page.keyboard.press('Escape');
   await expect(price).toHaveValue('0.1');
   await expect(page.getByLabel('Quantity · ETH')).toHaveValue('0.2');
   await expect(page.getByRole('button',{name:'Place buy limit order'})).toBeDisabled();
@@ -114,4 +118,30 @@ test('Chinese administration preserves the customer language preference',async({
   await page.getByRole('link',{name:'返回 BTCBOX'}).click();
   await expect(page.getByRole('heading',{name:'Market overview'})).toBeVisible();
   await expect(page.locator('html')).toHaveAttribute('lang','en-US');
+});
+
+test('V211 keeps depth left, entry right and chart in a safe-area drawer',async({page})=>{
+ for(const width of [320,390,768,1440]){
+  await page.setViewportSize({width,height:900});await page.goto('/trade/ETH');
+  const entry=page.locator('#trade-entry'), book=page.locator('#trade-depth');
+  await expect(entry).toBeVisible();await expect(book).toBeVisible();
+  const e=(await entry.boundingBox())!,b=(await book.boundingBox())!;
+  expect(b.x+b.width).toBeLessThanOrEqual(e.x);expect(Math.abs(e.y-b.y)).toBeLessThan(2);
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+  if(width<1280){
+   expect(b.width/(b.width+e.width)).toBeCloseTo(.38,1);
+   await expect(page.locator('#trade-chart')).toHaveCount(0);
+   const trigger=page.getByRole('button',{name:'Price chart',exact:true});
+   for(let i=0;i<2;i++){
+    await trigger.click();const drawer=page.getByRole('dialog');await expect(drawer).toBeVisible();
+    await expect(drawer.locator('canvas').first()).toBeVisible();
+    const d=(await drawer.boundingBox())!;expect(d.y+d.height).toBeLessThanOrEqual(840);
+    await page.keyboard.press('Escape');await expect(drawer).toHaveCount(0);await expect(trigger).toBeFocused();
+   }
+  }else{
+   await expect(page.locator('.exchange-pairs')).toBeVisible();
+   const c=(await page.locator('#trade-chart').boundingBox())!;expect(c.x+c.width).toBeLessThanOrEqual(b.x);
+   await expect(page.locator('#trade-chart canvas').first()).toBeVisible();
+  }
+ }
 });

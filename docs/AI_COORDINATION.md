@@ -6601,4 +6601,17 @@ Current branch HEAD at note creation: `51c302a96f069876e438321d3597501fcbc26b54`
 - ARTIFACTS: task Outputs `btcbox-v211/trace-evidence.md`, `btcbox-v211/source-history.json`, `btcbox-nontrade-fixes/` screenshots. Trading layout acceptance remains open pending version identity; language coverage is not a full linguistic/real-provider acceptance.
 
 
+<!-- /coderabbit-ai-generated:v1 --><!-- coderabbit-ai-generated:v1 -->
+
+<!-- coderabbit-ai-generated-section:v1:dfe06c4b848667926ac3570d3be5f7511426546952cb19d89e965003186dc329 -->
+
+## 2026-11-09 Owner-confirmed V211 layout implementation
+
+- OWNER CONFIRMATION: mobile orderbook-left/order-entry-right with K-line drawer is now the confirmed V211 requirement. No additional version-name confirmation is required. This supersedes the prior pending-identity stop condition for implementing this structure; it does not establish that every historical source detail was accepted.
+- IMPLEMENTED on the isolated task branch: compact workspace uses38/62 left depth/right entry with full-width orders below; chart is mounted in a modal bottom drawer above60px navigation plus safe area. Desktop restores pair list/chart/book/entry four zones with legacy170px/adaptive/min240px20%/min280px24% proportions and500/560px chart height. Pair choices reuse the existing enabled-pair API response. Live quote/precision/idempotency/order/cancel handlers and backend remain preserved.
+- INTERACTION: existing Radix modal primitive supplies focus containment/Escape/outside close; explicit close restores entry focus. Chart initializes after portal node mount, cleans up on close, preserves form values across chart/timeframe changes, and handles viewport transitions. No market/financial fallback fixtures added to application code.
+- ACCEPTANCE SCOPE: new responsive browser assertions verify left/right geometry at320/390/768 and desktop1440, drawer canvas and safe navigation clearance, repeated close/open, focus return and unchanged edited exact amounts. Previous inline-chart expectations changed to the newly authorized drawer contract; first stale-expectation run had2 failures,follow-up24 passed before final sizing refinements. Final current-source results are in task validation record/Outputs.
+- OTHER PAGES: previous admin navigation,Chinese expired-session feedback and account translations retained; their browser cases are included in the affected regression run. Non-trading commit e9b988b remains separately reviewable. Historical18 CI failures remain independent outstanding issues. No push/merge/deploy/database or real funds operation authorized or performed.
+
+
 <!-- /coderabbit-ai-generated:v1 -->
