@@ -6540,3 +6540,21 @@ Current branch HEAD at note creation: `51c302a96f069876e438321d3597501fcbc26b54`
 - Local Vite preview had no configured API; it does not verify production login, support delivery, or live market updates.
 
 <!-- /coderabbit-ai-generated:v1 -->
+
+
+<!-- coderabbit-ai-generated:v1 -->
+
+<!-- coderabbit-ai-generated-section:v1:0c7e19585645fa50d2a64f9beffdf1aa7637728d7ba9397c2e890f613e56542d -->
+
+## 2026-11-09 next-phase evidence (main baseline)
+
+- Latest fetched main:05d2ac87e77e157284ccc16148e20cf516c8757d; accepted prior task work remains74a8dfe97f26b7b3b4ce1b63f08cf4da22de5de2. No new work branch,merge,push,deployment or production writes.
+- SECURITY TEST PASSED: main already includes2a3810da1aef2c0c7c58df0cfdb059a212eeb0d6 retiring ADMIN_PASS startup gating. Active admin authentication is Supabase Bearer plus server-side RBAC; no legacy password fallback. `mise exec node@22 -- node --test tests/admin-legacy-password-env.test.js tests/admin-auth.test.js tests/admin-rbac.test.js tests/admin-route-permissions.test.js` in backend passed27/27. No production credential read or changed. Historical weak-password startup warning is superseded for current source; deployed-version and production identity/configuration remain NOT VERIFIED.
+- HISTORICAL CI VERIFIED: GitHub run42357960746/job128360079462 log says68 passed(1.1m),SHA367e2779fcc5122cbe8e99e9445cf6c1d0f0fb2b. This is not current-main acceptance.
+- MAIN E2E EXECUTED: main frontend exported with git archive to /tmp/btcbox-main-next-phase,existing node_modules reused. Node22.23.4,Playwright1.65.0,Chromium1254. `mise exec node@22 -- npx playwright test --workers=2 --output=/tmp/btcbox-main-next-e2e` completed exit1:72 passed,27 failed,1 intentionally skipped. Browser available. Failures involve retired email controls,OAuth cancellation destination,Home hierarchy/stale status,and mobile/ambiguous locators; responsive matrix did not complete. No tests weakened or email flow restored.
+- CANDIDATES ANALYZED: PR64 f4a449bde40c3000c0a698363a058edd850e0b60 (158 unique/30 main commits missing,47 changed files,21 simulated conflicts): only select missing read-only diagnostics/planning for later review; support/0033 already present. PR73 47edfd6961a45b07b94158539bec398cccf80e95 (76/30,25 files,15 conflicts): do not duplicate seven-locale work already in main. PR78 c4c7f8559f7fafa9ac29ffd0c61c31bd13da463d (3/20,3 files,1 conflict): locale-formatting patch worth porting selectively; preserve newer polling/auth/visual work. merge-tree simulation only,no actual merge.
+- K-LINE PLAN: compact Markets header link to an anchor on existing BTC/USDT analysis; reuse chart and request/store logic. Do not imply arbitrary selected-pair support or change locked Trade structure. Cloud Preview inspected at390px; no horizontal overflow in no-data state,not live-market acceptance.
+- APPROVAL PACKET PREPARED: guest support needs a confirmed official channel or separately approved guest-ticket API/data design; KYC needs owner retention/deletion policy and approved isolated storage verification; withdrawals require staged migration/idempotency/ledger evidence and explicit production cutover approval. No approval is inferred from this report. No financial or database actions performed.
+
+
+<!-- /coderabbit-ai-generated:v1 -->
