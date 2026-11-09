@@ -121,6 +121,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return;
       }
       await setSignedIn();
+    } catch (cause) {
+      // A stale/expired Supabase session must not leave the app in "loading"
+      // forever. Clear it so the visitor can sign in again.
+      setError(cause instanceof Error ? cause.message : "Your session could not be restored. Please sign in again.");
+      setInitializationIssue(true);
+      await clientRef.current?.auth.signOut().catch(() => undefined);
+      setTempToken("");
+      setStatus("anonymous");
     } finally { exchangeLock.current = false; }
   }, [setSignedIn]);
 
@@ -139,6 +147,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Keep credentials/session storage intact and expose an explicit recovery action.
     setInitializationIssue(false);
     const slowTimer = window.setTimeout(() => { if (active) setInitializationIssue(true); }, 12000);
+    // Hard watchdog: initialization must resolve. If a request hangs beyond the
+    // per-request timeouts, force anonymous so protected routes never deadlock.
+    const watchdogTimer = window.setTimeout(() => {
+      if (!active) return;
+      setError("Authentication restoration timed out. Please sign in again.");
+      setInitializationIssue(true);
+      clientRef.current?.auth.signOut().catch(() => undefined);
+      setTempToken("");
+      setStatus("anonymous");
+    }, 25000);
     (async () => {
       try {
         const config = await getAuthClientConfig(controller.signal);
@@ -171,10 +189,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
         if (active) setStatus("anonymous");
       } catch (cause) {
-        if (active) { setError(cause instanceof Error ? cause.message : "Authentication is unavailable."); setInitializationIssue(true); }
-      } finally { window.clearTimeout(slowTimer); }
+        if (active) {
+          setError(cause instanceof Error ? cause.message : "Authentication is unavailable.");
+          setInitializationIssue(true);
+          // Never leave protected routes stuck on the loading spinner: resolve
+          // to anonymous so visitors are redirected to /login and can sign in.
+          await clientRef.current?.auth.signOut().catch(() => undefined);
+          setTempToken("");
+          setStatus("anonymous");
+        }
+      } finally { window.clearTimeout(slowTimer); window.clearTimeout(watchdogTimer); }
     })();
-    return () => { active = false; window.clearTimeout(slowTimer); controller.abort(); };
+    return () => { active = false; window.clearTimeout(slowTimer); window.clearTimeout(watchdogTimer); controller.abort(); };
   }, [acceptSupabaseSession, setSignedIn]);
 
   const signInWithUsername = useCallback(async (username: string, password: string) => {
