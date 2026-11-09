@@ -3,43 +3,18 @@ import { fileURLToPath } from "node:url";
 import { dirname, resolve, extname } from "node:path";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const source = readFileSync(resolve(root, "src/lib/i18n.tsx"), "utf8");
 const locales = ["en", "ja", "zh-CN", "es", "pt", "it", "de"];
 const preservedLegacyLocales = ["vi"];
 const allLocales = ["en", "ja", "zh-CN", "es", "vi", "it", "pt", "de"];
-const markers = {
-  en: "  en: {",
-  ja: "  ja: {",
-  "zh-CN": '  "zh-CN": {',
-  es: "  es: {",
-  vi: "  vi: {",
-  de: "  de: {",
-  it: "  it: {",
-  pt: "  pt: {",
-};
-
 function readLocale(locale) {
-  const marker = markers[locale];
-  const start = source.indexOf(marker);
-  if (start < 0) throw new Error("Missing locale dictionary: " + locale);
-  const bodyStart = start + marker.length;
-  const nextLocaleStart = allLocales
-    .map((name) => source.indexOf(markers[name], bodyStart))
-    .filter((index) => index >= 0)
-    .sort((a, b) => a - b)[0];
-  const end = nextLocaleStart ?? source.indexOf("\n};", bodyStart);
-  if (end < 0) throw new Error("Unterminated locale dictionary: " + locale);
-  const body = source.slice(bodyStart, end);
-  const keys = [];
-  const invalid = [];
-  const pattern = /(?:^|,)\s*("(?:\\.|[^"\\])*"|[A-Za-z_$][\w$]*)\s*:\s*("(?:\\.|[^"\\])*"|undefined|null)/gm;
-  for (const match of body.matchAll(pattern)) {
-    const rawKey = match[1];
-    const key = rawKey.startsWith('"') ? JSON.parse(rawKey) : rawKey;
-    keys.push(key);
-    if (match[2].trim() === "undefined" || match[2].trim() === "null") invalid.push(key);
-  }
-  return { keys, invalid };
+  const source = readFileSync(resolve(root, "src/lib/locales", locale + ".json"), "utf8");
+  const dictionary = JSON.parse(source);
+  // Inspect the raw keys as well: JSON.parse alone silently accepts duplicates.
+  const keys = [...source.matchAll(/(?:^|[,{])\s*("(?:\\.|[^"\\])*")\s*:/gm)].map((match) => JSON.parse(match[1]));
+  const invalid = Object.entries(dictionary)
+    .filter(([, value]) => typeof value !== "string" || value.trim() === "")
+    .map(([key]) => key);
+  return { keys, invalid, values: dictionary };
 }
 
 function walk(directory) {
@@ -64,6 +39,29 @@ for (const locale of locales) {
   if (duplicates.length) console.error("  Duplicate keys: " + duplicates.slice(0, 12).join(" | "));
   if (missing.length) console.error("  Missing keys: " + missing.slice(0, 20).join(" | "));
   if (invalid.length) console.error("  Invalid values: " + invalid.slice(0, 20).join(" | "));
+}
+
+// Recovery copy must remain readable when the full language file cannot load.
+const loadingMessages = JSON.parse(readFileSync(resolve(root, "src/lib/locales/loading-messages.json"), "utf8"));
+for (const locale of locales) {
+  for (const key of ["Loading…", "Unable to load this language. Please try again.", "Try again"]) {
+    if (loadingMessages[locale]?.[key] !== dictionaries[locale].values[key]) {
+      failed = true;
+      console.error("Loading message differs from dictionary: " + locale + ": " + key);
+    }
+  }
+}
+
+// Catch misplaced translation blocks across scripts. This supplements key coverage;
+// languages sharing the Latin alphabet still require linguistic review.
+for (const locale of ["zh-CN", "es", "pt", "it", "de"]) {
+  const unexpectedScript = locale === "zh-CN" ? /[\u3040-\u30ff]/ : /[\u3040-\u30ff\u4e00-\u9fffĐđƯưƠơĂă]/;
+  for (const [key, text] of Object.entries(dictionaries[locale].values)) {
+    if (unexpectedScript.test(text)) {
+      failed = true;
+      console.error("Unexpected script in " + locale + ": " + key);
+    }
+  }
 }
 
 const usedKeys = new Set();

@@ -1,0 +1,37 @@
+{
+  "en": {
+    "Loading…": "Loading…",
+    "Unable to load this language. Please try again.": "Unable to load this language. Please try again.",
+    "Try again": "Try again"
+  },
+  "ja": {
+    "Loading…": "読み込み中…",
+    "Unable to load this language. Please try again.": "言語を読み込めませんでした。もう一度お試しください。",
+    "Try again": "再試行"
+  },
+  "zh-CN": {
+    "Loading…": "加载中…",
+    "Unable to load this language. Please try again.": "无法加载该语言，请重试。",
+    "Try again": "重试"
+  },
+  "es": {
+    "Loading…": "Cargando…",
+    "Unable to load this language. Please try again.": "No se pudo cargar este idioma. Inténtalo de nuevo.",
+    "Try again": "Volver a intentar"
+  },
+  "pt": {
+    "Loading…": "A carregar…",
+    "Unable to load this language. Please try again.": "Não foi possível carregar este idioma. Tente novamente.",
+    "Try again": "Tentar novamente"
+  },
+  "it": {
+    "Loading…": "Caricamento…",
+    "Unable to load this language. Please try again.": "Impossibile caricare questa lingua. Riprova.",
+    "Try again": "Riprova"
+  },
+  "de": {
+    "Loading…": "Wird geladen …",
+    "Unable to load this language. Please try again.": "Diese Sprache konnte nicht geladen werden. Bitte versuchen Sie es erneut.",
+    "Try again": "Erneut versuchen"
+  }
+}
