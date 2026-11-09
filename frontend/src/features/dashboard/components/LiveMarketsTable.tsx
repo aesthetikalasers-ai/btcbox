@@ -63,7 +63,7 @@ export function LiveMarketsTable({ markets, loading, error }: {
   const query = (searchParams.get("q") || "").trim().toLowerCase();
   const latestSnapshotTs = markets.reduce((latest, item) => Math.max(latest, item.snapshotTs || 0), 0);
   const snapshotAgeSeconds = latestSnapshotTs > 0 ? Math.max(0, Math.floor(Date.now() / 1000 - latestSnapshotTs)) : null;
-  const snapshotStale = snapshotAgeSeconds !== null && snapshotAgeSeconds > 90;
+  const snapshotStale = markets.some((item) => (item.snapshotTs || 0) > 0 && Date.now() / 1000 - (item.snapshotTs || 0) > 90);
   const feedError = error || (snapshotStale ? t("The market service snapshot is older than 90 seconds. Quotes are hidden until a fresh snapshot arrives.") : "");
   const displayMarkets = feedError ? [] : markets;
   const latestProviderMarket = displayMarkets.reduce<MarketTicker | null>((latest, item) =>
@@ -107,7 +107,7 @@ export function LiveMarketsTable({ markets, loading, error }: {
       {feedError && displayMarkets.length === 0 ? (
         <div className="px-5 py-10 text-center">
           <p className="text-sm font-semibold text-brand-text">{t("Market feed unavailable")}</p>
-          <p className="mt-2 break-words text-sm text-brand-text-muted">{feedError}</p>
+          <p className="mt-2 break-words text-sm text-brand-text-muted">{t(feedError)}</p>
         </div>
       ) : loading && displayMarkets.length === 0 ? (
         <div className="space-y-3 px-5 py-8" aria-label={t("Loading markets")}>

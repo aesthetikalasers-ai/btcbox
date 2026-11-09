@@ -29,11 +29,10 @@ export function Dashboard() {
   const volumeRange = useDashboardStore((state) => state.volumeRange);
   const liquidityInterval = LIQUIDITY_INTERVALS[liquidityRange] || "5m";
   const volumeInterval = VOLUME_INTERVALS[volumeRange] || "1h";
-  const btcMarket = markets.find((item) => item.sym === "BTC");
-  const latestMarketSnapshotTs = markets.reduce((latest, item) => Math.max(latest, item.snapshotTs || 0), 0);
   const hasMarketSnapshotTime = markets.length > 0 && markets.every((item) => Number.isFinite(item.snapshotTs) && (item.snapshotTs || 0) > 0);
-  const marketSnapshotStale = hasMarketSnapshotTime && markets.some((item) => Date.now() / 1000 - (item.snapshotTs || 0) > 90);
-  const marketFeedStatus = loading ? "Connecting" : error ? "Feed unavailable" : !markets.length ? "No markets enabled" : !hasMarketSnapshotTime ? "Snapshot time unavailable" : marketSnapshotStale ? "Snapshot stale" : "Live market feed";
+  const marketSnapshotStale = markets.some((item) => (item.snapshotTs || 0) > 0 && Date.now() / 1000 - (item.snapshotTs || 0) > 90);
+  const btcMarket = !error && !marketSnapshotStale ? markets.find((item) => item.sym === "BTC") : undefined;
+  const marketFeedStatus = loading ? "Connecting" : error ? "Feed unavailable" : !markets.length ? "No markets enabled" : marketSnapshotStale ? "Snapshot stale" : !hasMarketSnapshotTime ? "Snapshot time unavailable" : "Live market feed";
 
   useEffect(() => {
     // A fresh AbortController per poll attempt: a timed-out or unmount-aborted
@@ -42,10 +41,12 @@ export function Dashboard() {
     // hung (no client timeout), freezing all prices on screen.
     let cancelled = false;
     let refreshing = false;
+    let pendingController: AbortController | undefined;
     const loadMarkets = () => {
       if (refreshing || cancelled) return;
       refreshing = true;
       const controller = new AbortController();
+      pendingController = controller;
       const timeoutId = window.setTimeout(() => controller.abort(), 10000);
       getMarkets(controller.signal).then((rows) => {
         if (cancelled) return;
@@ -53,10 +54,9 @@ export function Dashboard() {
         setError("");
       }).catch((reason: unknown) => {
         if (cancelled) return;
-        if (reason instanceof Error && reason.name === "AbortError") return;
         // Do not leave old quotes on screen as if they were current.
         setMarkets([]);
-        setError(reason instanceof Error ? reason.message : "Market data is unavailable.");
+        setError(reason instanceof Error && reason.name !== "AbortError" ? reason.message : "Market data is temporarily unavailable. Please try again shortly.");
       }).finally(() => {
         window.clearTimeout(timeoutId);
         refreshing = false;
@@ -65,7 +65,7 @@ export function Dashboard() {
     };
     loadMarkets();
     const refreshId = window.setInterval(loadMarkets, 5000);
-    return () => { cancelled = true; window.clearInterval(refreshId); };
+    return () => { cancelled = true; window.clearInterval(refreshId); pendingController?.abort(); };
   }, []);
 
   useEffect(() => {
@@ -142,7 +142,7 @@ export function Dashboard() {
     {(btcMarket || loading) && <section aria-label={t("Bitcoin market summary")} className="grid gap-3 sm:grid-cols-3">
       <div className="anim-fade-up anim-delay-1 card-lift relative min-w-0 overflow-hidden rounded-xl border border-brand-border bg-gradient-to-br from-brand-accent/[0.06] via-brand-surface to-brand-surface p-4 sm:p-5">
         <span aria-hidden="true" className="absolute inset-y-0 left-0 w-1 bg-brand-accent"/>
-        <div className="flex items-center justify-between gap-2 pl-1"><p className="type-meta font-semibold uppercase tracking-wide text-brand-text-muted">{t("BTC/USDT last price")}</p><span className="h-2 w-2 rounded-full bg-brand-accent shadow-[0_0_12px_var(--color-brand-accent)] live-dot"/></div>
+        <div className="flex items-center justify-between gap-2 pl-1"><p className="type-meta font-semibold uppercase tracking-wide text-brand-text-muted">{t("BTC/USDT last price")}</p></div>
         <p className="mt-3 truncate text-xl font-semibold tracking-tight tabular-nums text-brand-text sm:text-2xl">{loading ? "—" : btcMarket ? btcMarket.price.toLocaleString(undefined,{maximumFractionDigits:8}) : "—"}</p>
         
       </div>
@@ -154,12 +154,15 @@ export function Dashboard() {
       </div>
       <div className="anim-fade-up anim-delay-3 card-lift relative min-w-0 overflow-hidden rounded-xl border border-brand-border bg-gradient-to-br from-brand-accent/[0.06] via-brand-surface to-brand-surface p-4 sm:p-5">
         <span aria-hidden="true" className="absolute inset-y-0 left-0 w-1 bg-brand-accent"/>
-        <div className="flex items-center justify-between gap-2 pl-1"><p className="type-meta font-semibold uppercase tracking-wide text-brand-text-muted">{t("BTC 24h volume")}</p><span className="h-2 w-2 rounded-full bg-brand-accent shadow-[0_0_12px_var(--color-brand-accent)] live-dot"/></div>
+        <div className="flex items-center justify-between gap-2 pl-1"><p className="type-meta font-semibold uppercase tracking-wide text-brand-text-muted">{t("BTC 24h volume")}</p></div>
         <p className="mt-3 truncate text-xl font-semibold tracking-tight tabular-nums text-brand-text sm:text-2xl">{loading || !btcMarket ? "—" : Number(btcMarket.vol).toLocaleString(undefined, { notation: "compact", maximumFractionDigits: 2 }) + " USDT"}</p>
         
       </div>
     </section>}
-    <div className="anim-fade-up anim-delay-4 min-w-0"><LiveMarketsTable markets={markets} loading={loading} error={error} /></div>
+    <div className="anim-fade-up anim-delay-4 min-w-0">
+      {!isMarketsPage && marketSnapshotStale && <Badge variant="outline" className="mb-2 border-brand-border bg-brand-surface">{t("Snapshot stale")}</Badge>}
+      <LiveMarketsTable markets={markets} loading={loading} error={error} />
+    </div>
     {isMarketsPage && <>
     <div className="flex items-center justify-between gap-3 px-1 pt-1">
       <div>

@@ -6510,3 +6510,33 @@ Current branch HEAD at note creation: `51c302a96f069876e438321d3597501fcbc26b54`
 
 - FINAL CI — frontend run `42357960746` passed **68/68 desktop/mobile Playwright tests** after fixing the hidden duplicate-row locator. npm install, lint, build and Chromium setup passed. Backend run `42357960745` passed unified build, tests, fail-closed preflight and output/entrypoint checks.
 - Vercel's separate status remains blocked by the free-plan daily deployment cap. No deployment was attempted. Manual screenshot and live-provider checks remain pending.
+
+
+<!-- coderabbit-ai-generated:v1 -->
+
+<!-- coderabbit-ai-generated-section:v1:8fa62c1ee70e8663cb4fa29fd58e1301dffe367670a5954796fb70040545a30e -->
+
+## 2026-11-09 mobile handoff and focused fixes
+
+- SOURCE OBSERVED: fetched main at `05d2ac87e77e157284ccc16148e20cf516c8757d`; the canonical build uses `frontend/` and the `backend/` Vercel build. The older coordination inventories and CI results describe other revisions. PR #64 (public support and readiness) is open and conflicting with main; PRs #73 and #78 contain ongoing locale work. Do not merge them wholesale or assume their CI covers main.
+- SOURCE OBSERVED: My account previously presented the signed-out panel while auth was still loading. The page now shows loading until session restoration resolves.
+- SOURCE OBSERVED: a timed-out market poll could retain quotes; the BTC summary also remained visible with stale snapshots and the market list used only the newest snapshot to decide freshness. This batch clears quotes on timeout, cancels an in-flight request on unmount, hides all quotes when any timestamped row is stale, and labels stale home data.
+- REPRODUCED: the mobile public support link reaches `/support`, but the guest page has only a sign-in link and the backend chat endpoint requires a user; guest communication is NOT IMPLEMENTED. Core/API owner must design a real guest channel and its persistence/abuse controls.
+- NOT VERIFIED: live Supabase auth and session persistence, OAuth provider, production market timestamps, real support, all requested viewports, or production deployment. Auth initialization still treats configuration failures as anonymous and has no bounded initialization timeout; this needs a separate auth-state repair. Main's locale checker reports seven previously unregistered static labels; the Japanese mobile account/market views also contain English. Coordinate with existing locale work.
+- Scope is customer frontend and tests only; no trade layout, financial operation, database, deployment, or merge changed. See this commit's test evidence and task report for exact results.
+
+<!-- /coderabbit-ai-generated:v1 -->
+
+
+<!-- coderabbit-ai-generated:v1 -->
+
+<!-- coderabbit-ai-generated-section:v1:4166d4f341aeb7d38cc0648d131edf06b68bda405c0fb99fcaa8bd7a1fa09c64 -->
+
+### Validation for this batch
+
+- TEST PASSED: frontend lint and build; 8/8 focused account/support tests and 14/14 market tests across desktop/mobile Chromium with synthetic isolated responses.
+- FAILED: `npm run check:i18n` reports seven pre-existing static keys missing from the English dictionary. Local preview at 390px exposed additional Japanese/English mixing; locale work remains open.
+- Initial market test run exposed a missing stale badge on Home; added it and the full market suite passed on isolated rerun. One intervening run lost Playwright artifacts because two test commands shared their output directory; no concurrency used in final run.
+- Local Vite preview had no configured API; it does not verify production login, support delivery, or live market updates.
+
+<!-- /coderabbit-ai-generated:v1 -->
