@@ -1,6 +1,6 @@
 # BTCBOX AI Coordination — Single Source of Truth
 
-Last verified: 2026-11-08
+Last verified: 2026-11-09
 Repository: `avali9308-code/btcboxcdt`
 
 ## 1. Operating rule
@@ -9,27 +9,16 @@ This file is the **only active coordination and task-status document**. Do not c
 
 One repository execution path is active at a time. Re-read this file before starting a batch and update this file only when the active state or verified evidence changes.
 
-## 2. Current integration candidate
+## 2. Current integration disposition — verified 2026-11-09
 
-- **Active candidate:** PR #67
-- **Branch:** `integration/btcbox-mainline-consolidation-20261108`
-- **Current candidate head:** `3d5693522ded77f624b5b2333af5a5eec8fdc1cc`
-- **Base:** `main` at `2a3810da1aef2c0c7c58df0cfdb059a212eeb0d6`
-- **State:** Draft / open / not merged
-- **Latest exact-current-head CI:** For `0bb7f060e6319b822b2cffb78ab523917fea90f1`, Backend `42486052474` PASS and PostgreSQL schema `42486052438` PASS; Frontend `42486052434` is running desktop/mobile route smoke tests. This head includes withdrawal replay regression coverage, five new financial-write rate-limit scopes, the additive `0037` migration, and rate-limit-secret deployment preflight.
-
-The previous fully green source head `8b54cf128ccd4861eedd1fae602846c92849f835` also passed Backend `42436694163`, PostgreSQL schema `42436693919`, and Frontend `42436694030`. Current head adds a documentation-only correction to the owner bootstrap guide; the full exact-head CI has now passed.
-
-Final-review corrections now included:
-- Removed two out-of-scope production inventory/readiness SQL diagnostics and aligned the SQL guide with the empty-database direction.
-- Corrected the market E2E timestamp fixture and Earn route selector.
-- Fixed first-request initialization for an empty `btcbox_state` table through the revision-0 atomic CAS RPC; concurrent first requests re-read the winner, while malformed schema/RPC failures remain fail-closed.
-- Cleared stale spot candles when periodic chart refresh fails; the chart no longer presents the last old snapshot as current.
-- Corrected the mobile topbar wordmark clipping at narrow widths.
-- Made Trade Hub Spot, Seconds and Earn states reflect backend market, execution, policy and catalog availability; retained the explicitly unavailable Futures card.
-- Preserved the locked spot trading-page layout.
-
-Human visual review covered representative 390px mobile and 1440px desktop screenshots, including home, markets, spot trade and Trade Hub. The responsive artifact is retained by CI for seven days. Hosted authenticated staging is now schema-installed in the isolated free Staging project; actual Email/Google Auth and authenticated API flows remain NOT VERIFIED.
+- PR #67 was already CLOSED and MERGED on 2026-11-08 at 2026-11-08T16:24:57Z. GitHub reports state=closed, merged=true, draft=false.
+- PR #67 head at merge: c53fa948a599b560c1319726adfb57be6828b0fa; original base: 2a3810da1aef2c0c7c58df0cfdb059a212eeb0d6; merge commit: fbf301f88c5c19db94ea1546c590667a8818e842.
+- Exact merged-head GitHub Actions results for c53fa948...: Backend 42498936887 PASS; PostgreSQL schema 42498936856 PASS; Frontend 42498936859 PASS. Each run's primary job completed successfully. These results belong to the PR head at merge, not to later branch commits.
+- The integration branch continued after the PR merge. Its current tip is 1faa908331122a4155630f6a2554bb7e74788834. Comparing the merged PR head to this branch tip shows exactly two post-merge commits and only two documentation files: docs/design/BTCBOX_MOBILE_DESIGN_SPEC_2026-11.md and docs/design/btcbox-mobile-design-board.svg. No business/API/SQL code changed after the merged PR head.
+- Current main tip is 05d2ac87e77e157284ccc16148e20cf516c8757d. The compare endpoint reports the integration branch and current main as diverged (263 commits ahead on the integration side and 30 commits ahead on main relative to the common base). Because PR #67 is already merged, do not interpret the ancestry count as permission to merge or replay the old branch. Treat the integration branch as stale and do not append new implementation work to it.
+- Exact current integration-tip CI: the commit workflow lookup for 1faa908... returned no PR-triggered GitHub Actions runs; combined status shows only a successful Vercel check. The latest commit is documentation-only, but there is no GitHub Actions PASS evidence for this exact SHA. Do not inherit the merged-head CI results as current-tip CI.
+- A narrow existing-schema upgrade now exists on main at backend/supabase/existing-schema-upgrades/0039_existing_schema_market_catalog_upgrade_v1.sql, but is absent from the integration branch. Source review shows it requires an existing financial_matching_markets table, adds a service-role-only read_spot_market_snapshot_v1() RPC, and inserts BTC/ETH/SOL/BNB-USDT quote pairs only when absent. It is deliberately outside the fresh-bootstrap inventory. It does not reconcile the other production Admin, Seconds, withdrawal, or rate-limit schema gaps, and no hosted database was changed during this run.
+- PR #67 cannot remain Draft because GitHub already reports it merged. This is an observed repository state; no merge, deployment, branch rewrite, or hosted database write was performed in this run.
 
 ## 3. A2 disposition — absorbed, not a separate active lane
 
@@ -56,16 +45,18 @@ PR #67 supersedes the A2 branch versions where later integration changes exist. 
 - PR #66: market/admin follow-up against the older unified branch. Its overlapping changes have been reviewed against PR #67. Do not merge independently.
 - Older duplicate/overlapping PRs (#42, #44, #45, #19) are not active work queues. Do not revive them or merge them independently.
 
-PR #67 is the sole integration candidate. New fixes discovered during final review must be applied to this candidate, not developed on another parallel integration branch.
+PR #67 has since been merged. Do not revive it or continue implementation on its stale post-merge branch. Any new integration work must be explicitly re-baselined from the current main SHA and assigned through a new coordination candidate.
 
-## 5. Remaining active work — one ordered queue
+## 5. Remaining active work — current disposition
 
-1. PR #67 remains the sole integration candidate. Latest head `9cae5b546489b0dc33e0db0ef867d88e9c7c30f0`; exact-head Backend and PostgreSQL schema CI pass, Frontend desktop/mobile smoke tests are in progress. Do not alter the locked trading-page layout.
-2. Isolated Supabase Staging project `gnwsygxshqceunihguwe` is created at $0/month in `us-east-1`; the fresh schema has 27 registered migrations installed successfully. See section 19 for exact verification and remaining limits.
-3. Real Email/Google provider configuration and authenticated end-to-end flows remain NOT VERIFIED. Admin bootstrap is not run because no Auth user exists; it requires the intended owner-controlled Auth identity.
-4. Financial cutover flags remain fail-closed. No real spot orders, Seconds positions, Earn subscriptions/redemptions, deposits, withdrawals or settlement have been executed. Keep PR #67 Draft until Auth, API and financial acceptance gates are independently verified and the owner authorizes release.
+1. There is no active PR #67 candidate: it was merged on 2026-11-08. Do not reopen it, merge it again, or push new implementation commits to its old branch.
+2. Current main is 05d2ac87e77e157284ccc16148e20cf516c8757d; the old integration branch is at 1faa908331122a4155630f6a2554bb7e74788834 and is not a safe current baseline. Do not automatically rebase, merge, or replay the diverged histories. A new candidate must start from the current main baseline after the owner assigns the next scope.
+3. Isolated free Staging project gnwsygxshqceunihguwe has the canonical schema and prior read-only catalog checks recorded below. It still has no Auth users; real Email/Google provider configuration and authenticated end-to-end flows remain NOT VERIFIED.
+4. Production project zlozsutefnmgwwzrlipt remains a non-empty legacy schema with confirmed drift. The fresh bootstrap and narrow market-catalogue upgrade are not substitutes for a reviewed, complete additive reconciliation plan. No production DDL/data/Auth change is authorized by this coordination record.
+5. Financial cutover flags, real spot/Seconds/Earn execution, deposits, withdrawals, settlement, owner-admin bootstrap, and production runtime secrets remain NOT VERIFIED. Keep all financial paths fail-closed.
+6. Preserve the locked Spot trading-page layout. Do not modify Vercel, deploy, or perform hosted writes as part of this coordination work.
 
-No new A2 work is pending. Do not open another visual redesign batch or rerun already-green exact-head CI without a reproduced defect.
+No new A2 work is pending. Do not repeat already-green exact-head CI or reopen completed visual batches without a reproduced defect.
 
 ## 5A. Hosted Supabase read-only verification — 2026-11-08
 
@@ -946,3 +937,15 @@ Safety/ownership:
 - Current PR #67 head: `3d5693522ded77f624b5b2333af5a5eec8fdc1cc`. Backend CI `42488694504` PASS; PostgreSQL schema CI `42488694509` PASS; Frontend CI `42488694496` PASS (93 passed, one intentionally skipped mobile duplicate of the desktop-only viewport matrix).
 - The same read-only 28-object hosted-schema diagnostic was run against Staging: zero expected objects missing (28/28 present). Production is missing 25/28 expected objects. Staging is a structurally complete canonical test target; production remains a separate schema-reconciliation project. Supabase's current Web3 Auth guide requires enabling the Web3 Wallet provider in Auth settings for both Ethereum and Solana; it also recommends configuring Web3 IP rate limits, CAPTCHA, and the application's redirect URL allowlist. The frontend calls `supabase.auth.signInWithWeb3`, but the live production provider enablement, redirect allowlist, rate-limit and CAPTCHA settings have not been verified. Existing E2E coverage verifies wallet-provider failure handling and absence of a BTCBOX session without a valid wallet session; it does not constitute a live signature/OAuth acceptance test.
 - PR #72 remains unchanged at `40a0a543a67bb6d1874638894badeab914a3ed0f`. The language owner has the exact duplicate list, missing provider keys, Japanese default requirement, and latest integration target. Language work is still not accepted.
+## 36. Post-merge repository state and current-head verification — 2026-11-09
+
+- Read this coordination file first, then inspected PR #67, its head branch, current main, and exact-SHA CI.
+- PR #67 is CLOSED / MERGED (not Draft) at 2026-11-08T16:24:57Z; merged head c53fa948a599b560c1319726adfb57be6828b0fa; merge commit fbf301f88c5c19db94ea1546c590667a8818e842.
+- Exact merged-head GitHub Actions: Backend 42498936887 PASS (unified build/tests/fail-closed preflight job); PostgreSQL schema 42498936856 PASS (empty-postgres-bootstrap); Frontend 42498936859 PASS (build). All three run primary jobs completed successfully.
+- Current old integration branch tip: 1faa908331122a4155630f6a2554bb7e74788834. It is two documentation-only commits beyond the merged PR head; no business implementation changes were found in those two commits.
+- Current main tip: 05d2ac87e77e157284ccc16148e20cf516c8757d. The branch comparison reports 263 commits ahead / 30 behind relative to the common base; do not replay or merge this history automatically. The integration branch is no longer the active candidate.
+- Exact current branch-tip CI for 1faa908...: no PR-triggered GitHub Actions runs returned; combined commit status contains only Vercel success. Exact-SHA GitHub Actions status is therefore NOT VERIFIED, not PASS.
+- Reviewed mainline migration 0039_existing_schema_market_catalog_upgrade_v1.sql: it is a narrow additive RPC/catalogue upgrade, intentionally excluded from fresh bootstrap, and does not solve the remaining production schema drift. It was inspected only; no SQL was executed against any hosted project.
+- No source code, SQL, API, tests, Vercel settings, hosted Supabase, Auth configuration, financial data, or production deployment was changed during this run. The only write in this run is this coordination-document correction.
+- Next action: establish a new integration candidate from current main only after the owner assigns the next work scope; first reconcile the new mainline changes and release blockers without touching the locked Spot layout. Do not continue coding on the already-merged PR #67 branch.
+
