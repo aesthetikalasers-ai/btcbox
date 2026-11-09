@@ -36,13 +36,13 @@ export function AuthPage({ mode, redirectTo }: { mode: "login" | "register"; red
 
   useEffect(() => {
     if (status === "authenticated") navigate(needsCredentials ? "/account-setup" : (redirectTo || "/home"), { replace: true });
-    else if (status === "two-factor") navigate(redirectTo || "/login", { replace: true });
+
   }, [status, needsCredentials, navigate, redirectTo]);
 
   if (status === "loading") return <AuthRestoreState />;
   // Never render the clickable sign-in form while a sign-in is already in progress
   // or the session is established; avoids duplicate submissions on the same page.
-  if (status !== "anonymous") return <div className="mx-auto flex min-h-[60vh] flex-col items-center justify-center gap-3 text-sm text-brand-text-muted">
+  if (status !== "anonymous" && status !== "two-factor") return <div className="mx-auto flex min-h-[60vh] flex-col items-center justify-center gap-3 text-sm text-brand-text-muted">
     <div className="h-8 w-8 animate-spin rounded-full border-2 border-brand-border border-t-brand-accent" aria-hidden="true" />
     {t("Completing sign-in…")}
   </div>;
@@ -155,13 +155,13 @@ export function AuthPage({ mode, redirectTo }: { mode: "login" | "register"; red
             {notice && <div role="status" className="rounded-lg border border-brand-border bg-brand-surface-2 p-3 text-sm text-brand-text-secondary">{t(notice)}</div>}
 
             {status === "two-factor" ? <form className="space-y-3" aria-busy={verifyBusy} onSubmit={async event => {
-              event.preventDefault(); setVerifyBusy(true);
+              event.preventDefault(); if (verifyBusy) return; setVerifyBusy(true);
               try { await verifyTwoFactor(verifyCode); } catch { /* Safe error is displayed by AuthProvider. */ }
               finally { setVerifyBusy(false); }
             }}>
               <label className="block space-y-2 text-sm">
                 <span className="text-brand-text-secondary">{t("Authenticator code")}</span>
-                <Input className="h-12" value={verifyCode} onChange={event => setVerifyCode(event.target.value.replace(/\D/g, "").slice(0, 8))} inputMode="numeric" autoComplete="one-time-code" placeholder={t("Enter code")} required />
+                <Input className="h-12" value={verifyCode} onChange={event => setVerifyCode(event.target.value.replace(/\D/g, "").slice(0, 8))} inputMode="numeric" autoComplete="one-time-code" placeholder={t("Enter code")} required aria-label={t("Authenticator code")} />
               </label>
               <Button type="submit" className="min-h-12 w-full" disabled={verifyBusy || verifyCode.length < 6}>{verifyBusy ? t("Verifying…") : t("Verify and continue")}</Button>
             </form> : <>
