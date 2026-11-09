@@ -43,7 +43,7 @@ function RouteLoading() {
 function CustomerRoutes() {
   const location = useLocation();
   const isStandaloneAuthRoute = ["/login", "/register", "/account-setup", "/auth/react-callback"].includes(location.pathname);
-  const content = <AccountSetupGate><Suspense fallback={<RouteLoading />}><Routes>
+  const content = <div key={location.pathname} className="anim-fade-in min-w-0 flex-1"><AccountSetupGate><Suspense fallback={<RouteLoading />}><Routes>
     <Route path="/home" element={<Dashboard />} /><Route path="/markets" element={<Dashboard />} />
     <Route path="/trade-hub" element={<TradeHubPage />} /><Route path="/trade" element={<Navigate to="/trade-hub" replace />} />
     <Route path="/trade/:symbol" element={<SpotTradingPage />} />
@@ -58,7 +58,7 @@ function CustomerRoutes() {
     <Route path="/support" element={<SupportPage />} />
     <Route path="/settings" element={<ProtectedAccountRoute><AccountSecurityPage /></ProtectedAccountRoute>} />
     <Route path="*" element={<Navigate to="/home" replace />} />
-  </Routes></Suspense></AccountSetupGate>;
+  </Routes></Suspense></AccountSetupGate></div>;
   return isStandaloneAuthRoute ? content : <AppLayout>{content}</AppLayout>;
 }
 export default function App() {
