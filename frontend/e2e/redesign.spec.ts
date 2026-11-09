@@ -121,7 +121,7 @@ test('Chinese administration preserves the customer language preference',async({
 });
 
 test('V211 keeps depth left, entry right and chart in a safe-area drawer',async({page})=>{
- for(const width of [320,390,768,1440]){
+ for(const width of [320,360,375,390,393,414,430,768,1440]){
   await page.setViewportSize({width,height:900});await page.goto('/trade/ETH');
   const entry=page.locator('#trade-entry'), book=page.locator('#trade-depth');
   await expect(entry).toBeVisible();await expect(book).toBeVisible();
@@ -129,7 +129,7 @@ test('V211 keeps depth left, entry right and chart in a safe-area drawer',async(
   expect(b.x+b.width).toBeLessThanOrEqual(e.x);expect(Math.abs(e.y-b.y)).toBeLessThan(2);
   expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
   if(width<1280){
-   expect(b.width/(b.width+e.width)).toBeCloseTo(.38,1);
+   expect(b.width/(b.width+e.width)).toBeCloseTo(.40,2);
    await expect(page.locator('#trade-chart')).toHaveCount(0);
    const trigger=page.getByRole('button',{name:'Price chart',exact:true});
    for(let i=0;i<2;i++){
@@ -143,5 +143,27 @@ test('V211 keeps depth left, entry right and chart in a safe-area drawer',async(
    const c=(await page.locator('#trade-chart').boundingBox())!;expect(c.x+c.width).toBeLessThanOrEqual(b.x);
    await expect(page.locator('#trade-chart canvas').first()).toBeVisible();
   }
+ }
+});
+
+test('spot inputs and readable depth retain real account balances across buy and sell',async({page})=>{
+ await page.route('**/api/account',r=>r.fulfill({json:{ok:true,uid:'synthetic-spot-user',username:'spot_user',unpriced_assets:[],balances:{USDT:{free:'2500.05',frozen:'0'},ETH:{free:'1.25',frozen:'0'}},kyc:{status:'not_submitted'},has_login_password:true}}));
+ for(const width of [320,360,375,390,393,414,430]){
+  await page.setViewportSize({width,height:900});await page.goto('/trade/ETH');
+  const entry=page.locator('#trade-entry');
+  await expect(entry.getByText('2,500.05 USDT',{exact:true})).toBeVisible();
+  await entry.getByRole('button',{name:'Sell',exact:true}).click();
+  await expect(entry.getByRole('button',{name:'Sell',exact:true})).toHaveAttribute('aria-pressed','true');
+  await expect(entry.getByText('1.25 ETH',{exact:true})).toBeVisible();
+  await page.getByLabel('Limit price (USDT)').fill('0.1');await page.getByLabel('Quantity · ETH').fill('0.2');
+  await expect(page.getByText('Estimated total: 0.02 USDT',{exact:true})).toBeVisible();
+  await entry.getByRole('button',{name:'Buy',exact:true}).click();
+  await expect(page.getByLabel('Limit price (USDT)')).toHaveValue('0.1');
+  await expect(page.getByLabel('Quantity · ETH')).toHaveValue('0.2');
+  await expect(entry.getByRole('button',{name:'Place buy limit order'})).toBeDisabled();
+  const levels=page.locator('.spot-book-row');await expect(levels.first()).toBeVisible();
+  expect(await levels.first().evaluate(e=>parseFloat(getComputedStyle(e).fontSize))).toBeGreaterThanOrEqual(12);
+  expect(await page.getByLabel('Limit price (USDT)').evaluate(e=>e.getBoundingClientRect().height)).toBeGreaterThanOrEqual(44);
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
  }
 });

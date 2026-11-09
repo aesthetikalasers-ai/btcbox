@@ -6614,4 +6614,17 @@ Current branch HEAD at note creation: `51c302a96f069876e438321d3597501fcbc26b54`
 - OTHER PAGES: previous admin navigation,Chinese expired-session feedback and account translations retained; their browser cases are included in the affected regression run. Non-trading commit e9b988b remains separately reviewable. Historical18 CI failures remain independent outstanding issues. No push/merge/deploy/database or real funds operation authorized or performed.
 
 
+<!-- /coderabbit-ai-generated:v1 --><!-- coderabbit-ai-generated:v1 -->
+
+<!-- coderabbit-ai-generated-section:v1:8b459f70add42507085e42c27f3ac0eb5336ac27b646fb6c7cfb8dce0e7233c5 -->
+
+## 2026-11-09 spot terminal visual refinement
+
+Owner requests production-quality visual hierarchy without changing API/function contracts or official logo/fonts. Compact terminal remains left-book/right-entry plus chart drawer; proportions now40/60 rather than38/62 under explicit proportion-optimization authorization. Desktop keeps four zones. Consolidated existing exchange CSS into one scoped ruleset,12px depth rows,46px inputs,44px buy/sell selection,48px order action,30px primary quote and secondary high/low grid. Compact cards/borders removed; policy message remains visible below submit and execution gates unchanged.
+
+Available balances now display only the existing validated account response,using exact string-aware locale formatting; signed out/failed reads show dash,not zero. Snapshots clear on refresh/pair change and while order/cancel busy,requiring refreshed reads after mutations. No new endpoint or business fallback. Submit/cancel handler bodies remain byte-identical to0ce8d9d. Radix trigger now belongs to the same Root as its portal for consistent outside-click/focus handling. No other page logo/font/global tokens changed. Nontrade admin/account regression cases retained.
+
+Acceptance includes320/360/375/390/393/414/430/768/1440 geometry/drawer checks and buy/sell/balance/input tests. Test fixtures only; no actual financial operation. Outputs contain full mobile/desktop scroll captures and390px view. Current exact-SHA results are recorded separately in task validation record. Prior18CI failures remain outside this visual patch. No push/merge/deployment/database action.
+
+
 <!-- /coderabbit-ai-generated:v1 -->
