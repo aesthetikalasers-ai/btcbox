@@ -7,16 +7,17 @@ import { LiveMarketsTable } from "./components/LiveMarketsTable";
 import { Badge } from "../../components/ui/badge";
 import { Button } from "../../components/ui/button";
 import { getKlines, getMarkets, type MarketCandle, type MarketTicker } from "../../lib/api";
-import { useI18n } from "../../lib/i18n";
+import { useI18n, localeTags } from "../../lib/i18n";
 import { useAuth } from "../../lib/auth";
 import { useDashboardStore } from "./dashboard.data";
-import { BrandLogo } from "../../components/BrandLogo";
+
 
 const LIQUIDITY_INTERVALS: Record<string, string> = { "1h": "1m", "6h": "5m", "24h": "5m", "7d": "1h", "30d": "1d" };
 const VOLUME_INTERVALS: Record<string, string> = { "1d": "5m", "7d": "1h", "30d": "1d" };
 
 export function Dashboard() {
-  const { t } = useI18n();
+  const { t, language } = useI18n();
+  const numberLocale = localeTags[language];
   const { status: authStatus } = useAuth();
   const signedIn = authStatus === "authenticated";
   const isMarketsPage = useLocation().pathname === "/markets";
@@ -69,6 +70,7 @@ export function Dashboard() {
   }, []);
 
   useEffect(() => {
+    if (!isMarketsPage) return;
     const controller = new AbortController();
     let refreshing = false;
     const load = () => {
@@ -85,9 +87,10 @@ export function Dashboard() {
     load();
     const refreshId = window.setInterval(load, 60000);
     return () => { window.clearInterval(refreshId); controller.abort(); };
-  }, [liquidityInterval]);
+  }, [liquidityInterval, isMarketsPage]);
 
   useEffect(() => {
+    if (!isMarketsPage) return;
     const controller = new AbortController();
     let refreshing = false;
     const load = () => {
@@ -104,67 +107,31 @@ export function Dashboard() {
     load();
     const refreshId = window.setInterval(load, 60000);
     return () => { window.clearInterval(refreshId); controller.abort(); };
-  }, [volumeInterval]);
+  }, [volumeInterval, isMarketsPage]);
 
-  return <div className="tone-market mx-auto flex w-full max-w-[1600px] min-w-0 flex-col gap-4 p-3 sm:gap-5 sm:p-4 lg:p-6">
-    <section className={`${isMarketsPage ? "hidden " : ""}anim-fade-up relative isolate overflow-hidden rounded-2xl border border-brand-border bg-brand-surface p-4 sm:p-6 lg:p-7`}>
-      <div className="pointer-events-none absolute -right-16 -top-24 -z-10 h-72 w-72 rounded-full bg-brand-accent/10 blur-3xl" />
-      <div className="relative max-w-3xl">
-        <div className="min-w-0">
-          <div className="mb-3 flex items-center gap-2"><BrandLogo compact className="hidden sm:inline-flex" /><Badge variant="outline" className="border-brand-accent/30 bg-brand-accent/10 text-brand-text-secondary">Digital asset exchange</Badge></div>
-          <p className="mb-2 text-xs font-bold uppercase tracking-[.18em] text-brand-accent">{t("BTCBOX / OPEN MARKET")}</p>
-          <h1 className="max-w-[680px] text-2xl font-semibold leading-tight tracking-tight text-brand-text sm:text-3xl lg:text-4xl">{t("Explore the market. Trade with confidence.")}</h1>
-          <p className="mt-3 max-w-[620px] text-sm leading-6 text-brand-text-secondary sm:text-base sm:leading-7">{t("Discover live digital asset markets, review price movements and explore BTCBOX trading services. Public market information is available without signing in.")}</p>
-          <div className="mt-5 flex flex-wrap gap-3">
-            {signedIn ? (<>
-              <Button asChild size="lg"><Link to="/trade-hub">{t("Start trading")} <ArrowUpRight className="h-4 w-4" /></Link></Button>
-              <Button asChild variant="outline" size="lg"><Link to="/assets">{t("Assets")}</Link></Button>
-            </>) : (<>
-              <Button asChild size="lg"><Link to="/register">{t("Create account")} <ArrowUpRight className="h-4 w-4" /></Link></Button>
-              <Button asChild variant="outline" size="lg"><Link to="/login">{t("Sign in")}</Link></Button>
-              <Button asChild variant="ghost" size="lg"><Link to="/markets">{t("View markets")} <ArrowRight className="h-4 w-4" /></Link></Button>
-            </>)}
-          </div>
-        </div>
-      </div>
-    </section>
-
-    {isMarketsPage && <div className="anim-fade-up flex flex-wrap items-end justify-between gap-3">
+  return <div className="tone-market mx-auto flex w-full max-w-[1600px] min-w-0 flex-col gap-4 p-4 sm:gap-6 sm:p-6 lg:p-8">
+    <header className="flex flex-wrap items-end justify-between gap-3 py-1 sm:py-3">
       <div className="min-w-0">
-        <p className="mb-1 text-xs font-bold uppercase tracking-[.18em] text-brand-text-muted">{t("BTCBOX / MARKETS")}</p>
-        <h1 className="type-page-title text-brand-text">{t("Market overview")}</h1>
-        <p className="type-body mt-1.5 text-brand-text-secondary">{t("Live spot prices and 24-hour market movement.")}</p>
+        <p className="mb-2 text-xs font-semibold tracking-widest text-brand-accent">BTCBOX / {t(isMarketsPage ? "Markets" : "Home")}</p>
+        <h1 className="type-page-title">{t("Market overview")}</h1>
+        <p className="mt-2 text-sm text-brand-text-secondary">{t("Live spot prices and 24-hour market movement.")}</p>
       </div>
-      <Badge variant="outline" className="border-brand-accent/30 bg-brand-accent/10 px-3 py-1 text-brand-text-secondary">
-        {t(marketFeedStatus)}
-      </Badge>
-    </div>}
-    {(btcMarket || loading) && <section aria-label={t("Bitcoin market summary")} className="grid gap-3 sm:grid-cols-3">
-      <div className="anim-fade-up anim-delay-1 card-lift relative min-w-0 overflow-hidden rounded-xl border border-brand-border bg-gradient-to-br from-brand-accent/[0.06] via-brand-surface to-brand-surface p-4 sm:p-5">
-        <span aria-hidden="true" className="absolute inset-y-0 left-0 w-1 bg-brand-accent"/>
-        <div className="flex items-center justify-between gap-2 pl-1"><p className="type-meta font-semibold uppercase tracking-wide text-brand-text-muted">{t("BTC/USDT last price")}</p></div>
-        <p className="mt-3 truncate text-xl font-semibold tracking-tight tabular-nums text-brand-text sm:text-2xl">{loading ? "—" : btcMarket ? btcMarket.price.toLocaleString(undefined,{maximumFractionDigits:8}) : "—"}</p>
-        
+      <div className="flex flex-wrap items-center gap-2">
+        <Badge variant="outline">{t(marketFeedStatus)}</Badge>
+        {isMarketsPage ? <Button asChild variant="outline" size="sm"><a href="#market-analysis">{t("Chart")} <ArrowRight className="h-4 w-4" /></a></Button>
+          : <Button asChild size="sm"><Link to={signedIn ? "/assets" : "/register"}>{t(signedIn ? "Assets" : "Create account")} <ArrowUpRight className="h-4 w-4" /></Link></Button>}
       </div>
-      <div className="anim-fade-up anim-delay-2 card-lift relative min-w-0 overflow-hidden rounded-xl border border-brand-border bg-gradient-to-br from-brand-accent/[0.06] via-brand-surface to-brand-surface p-4 sm:p-5">
-        <span aria-hidden="true" className="absolute inset-y-0 left-0 w-1 bg-brand-accent"/>
-        <div className="flex items-center justify-between gap-2 pl-1"><p className="type-meta font-semibold uppercase tracking-wide text-brand-text-muted">{t("BTC 24h change")}</p><span className={"h-2 w-2 rounded-full "+(btcMarket ? btcMarket.chg >= 0 ? "bg-profit" : "bg-loss" : "bg-brand-text-muted")}/></div>
-        <p className={"mt-3 truncate text-xl font-semibold tracking-tight tabular-nums sm:text-2xl "+(btcMarket ? btcMarket.chg >= 0 ? "text-profit" : "text-loss" : "text-brand-text")}>{loading || !btcMarket ? "—" : (btcMarket.chg > 0 ? "+" : "") + btcMarket.chg.toFixed(2) + "%"}</p>
-        
-      </div>
-      <div className="anim-fade-up anim-delay-3 card-lift relative min-w-0 overflow-hidden rounded-xl border border-brand-border bg-gradient-to-br from-brand-accent/[0.06] via-brand-surface to-brand-surface p-4 sm:p-5">
-        <span aria-hidden="true" className="absolute inset-y-0 left-0 w-1 bg-brand-accent"/>
-        <div className="flex items-center justify-between gap-2 pl-1"><p className="type-meta font-semibold uppercase tracking-wide text-brand-text-muted">{t("BTC 24h volume")}</p></div>
-        <p className="mt-3 truncate text-xl font-semibold tracking-tight tabular-nums text-brand-text sm:text-2xl">{loading || !btcMarket ? "—" : Number(btcMarket.vol).toLocaleString(undefined, { notation: "compact", maximumFractionDigits: 2 }) + " USDT"}</p>
-        
-      </div>
+    </header>
+    {(btcMarket || loading) && <section aria-label={t("Bitcoin market summary")} className="exchange-summary">
+      <div><p className="text-xs text-brand-text-muted">{t("BTC/USDT last price")}</p><p className="mt-2 type-price">{btcMarket ? btcMarket.price.toLocaleString(numberLocale, {maximumFractionDigits:8}) : "—"} <span className="text-xs font-normal text-brand-text-muted">USDT</span></p></div>
+      <div><p className="text-xs text-brand-text-muted">{t("BTC 24h change")}</p><p className={"mt-2 text-xl font-semibold tabular-nums " + (btcMarket && btcMarket.chg < 0 ? "text-loss" : "text-profit")}>{btcMarket ? (btcMarket.chg > 0 ? "+" : "") + btcMarket.chg.toLocaleString(numberLocale, {minimumFractionDigits:2,maximumFractionDigits:2}) + "%" : "—"}</p></div>
+      <div><p className="text-xs text-brand-text-muted">{t("BTC 24h volume")}</p><p className="mt-2 text-xl font-semibold tabular-nums">{btcMarket ? Number(btcMarket.vol).toLocaleString(numberLocale, {notation:"compact",maximumFractionDigits:2}) : "—"} <span className="text-xs font-normal text-brand-text-muted">USDT</span></p></div>
     </section>}
     <div className="anim-fade-up anim-delay-4 min-w-0">
-      {!isMarketsPage && marketSnapshotStale && <Badge variant="outline" className="mb-2 border-brand-border bg-brand-surface">{t("Snapshot stale")}</Badge>}
       <LiveMarketsTable markets={markets} loading={loading} error={error} />
     </div>
     {isMarketsPage && <>
-    <div className="flex items-center justify-between gap-3 px-1 pt-1">
+    <div id="market-analysis" className="flex scroll-mt-4 flex-wrap items-center justify-between gap-3 px-1 pt-1">
       <div>
         <h2 className="type-section-title text-brand-text">{t("Market analytics")}</h2>
         <p className="type-body-compact mt-1 text-brand-text-muted">{t("Historical BTC/USDT candles from market providers.")}</p>
@@ -178,6 +145,9 @@ export function Dashboard() {
       <VolumeChart candles={volumeCandles} />
     </div>
     </>}
+    {!isMarketsPage && <nav aria-label={t("Manage")} className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+      {[{to:"/markets",label:"Markets"},{to:"/trade-hub",label:"Trade"},{to:"/assets",label:"Assets"},{to:"/support",label:"Support"}].map(item => <Button key={item.to} asChild variant="outline"><Link to={item.to}>{t(item.label)} <ArrowUpRight className="ml-auto h-4 w-4" /></Link></Button>)}
+    </nav>}
     <footer className="px-1 pb-2 text-[11px] leading-5 text-brand-text-muted">
       TradingView Lightweight Charts™ Copyright (с) 2025 TradingView, Inc.{" "}
       <a href="https://www.tradingview.com/" target="_blank" rel="noreferrer" className="underline underline-offset-2 hover:text-brand-text-secondary">https://www.tradingview.com/</a>

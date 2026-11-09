@@ -5,8 +5,8 @@ export function Card({ children, className }: { children: ReactNode; className?:
   return (
     <div
       className={cn(
-        "min-w-0 rounded-[16px] border border-brand-border-subtle bg-brand-surface p-4 md:rounded-[20px] md:p-[18px]",
-        "shadow-[inset_0_1px_0_0_rgba(255,255,255,0.02),0_8px_32px_rgba(0,0,0,0.55)]",
+        "min-w-0 rounded-xl border border-brand-border-subtle bg-brand-surface p-4 md:rounded-xl md:p-[18px]",
+        "shadow-sm",
         className,
       )}
     >

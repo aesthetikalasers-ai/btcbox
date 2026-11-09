@@ -27,6 +27,28 @@ export function formatDecimalAmount(value: number | string | undefined | null, l
 
 const dictionaries: Record<StoredLocale, Dictionary> = {
   en: {
+    "not submitted": "Not submitted",
+    "Market data": "Market data",
+    "BTCBOX / SPOT": "BTCBOX / SPOT",
+    "Account verification is taking longer than expected. Your session has not been cleared.": "Account verification is taking longer than expected. Your session has not been cleared.",
+    "Completing sign-in…": "Completing sign-in…",
+    "Redirecting…": "Redirecting…",
+    "Create your BTCBOX account with Google or your wallet, then complete your account setup.": "Create your BTCBOX account with Google or your wallet, then complete your account setup.",
+    "Access your BTCBOX account with your username, Google or a supported crypto wallet.": "Access your BTCBOX account with your username, Google or a supported crypto wallet.",
+    "Sign in with Google or connect your wallet, then complete your BTCBOX account setup.": "Sign in with Google or connect your wallet, then complete your BTCBOX account setup.",
+    "Go to sign in": "Go to sign in",
+    "Start trading": "Start trading",
+    "BTC/USDT price history": "BTC/USDT price history",
+    "BTC/USDT trading volume": "BTC/USDT trading volume",
+    "Latest candle": "Latest candle",
+    "Favorites": "Favorites",
+    "Sort by": "Sort by",
+    "Show password": "Show password",
+    "Hide password": "Hide password",
+    "No markets enabled": "No markets enabled",
+    "Snapshot stale": "Snapshot stale",
+    "Snapshot time unavailable": "Snapshot time unavailable",
+    "BTCBOX market data is temporarily unavailable.": "BTCBOX market data is temporarily unavailable.",
     "Wallet": "Wallet", "Google": "Google",
     "BTCBOX / OPEN MARKET":"BTCBOX / OPEN MARKET",
     "Digital asset exchange":"Digital asset exchange",
@@ -926,6 +948,25 @@ const dictionaries: Record<StoredLocale, Dictionary> = {
     "I understand digital asset trading involves significant risk.": "I understand digital asset trading involves significant risk.",
   },
   ja: {
+    "not submitted": "未提出",
+    "Market data": "市場データ",
+    "BTCBOX / SPOT": "BTCBOX / 現物取引",
+    "Account verification is taking longer than expected. Your session has not been cleared.": "アカウントの確認に時間がかかっています。セッションは削除されていません。",
+    "Completing sign-in…": "ログインを完了しています…",
+    "Redirecting…": "移動しています…",
+    "Go to sign in": "ログインへ",
+    "Start trading": "取引を始める",
+    "BTC/USDT price history": "BTC/USDT 価格チャート",
+    "BTC/USDT trading volume": "BTC/USDT 出来高",
+    "Latest candle": "最新のローソク足",
+    "Favorites": "お気に入り",
+    "Sort by": "並べ替え",
+    "Show password": "パスワードを表示",
+    "Hide password": "パスワードを隠す",
+    "No markets enabled": "取引可能な市場はありません",
+    "Snapshot stale": "相場データの有効期限切れ",
+    "Snapshot time unavailable": "相場の更新時刻を取得できません",
+    "BTCBOX market data is temporarily unavailable.": "BTCBOX の相場データを一時的に取得できません。",
     "Wallet": "ウォレット", "Google": "Google",
     "BTCBOX / OPEN MARKET":"BTCBOX / 公開市場",
     "Digital asset exchange":"デジタル資産取引所",
@@ -1798,6 +1839,28 @@ const dictionaries: Record<StoredLocale, Dictionary> = {
     "I understand digital asset trading involves significant risk.": "デジタル資産取引には大きなリスクが伴うことを理解しています。",
   },
   "zh-CN": {
+    "not submitted": "未提交",
+    "Market data": "行情数据",
+    "BTCBOX / SPOT": "BTCBOX / 现货",
+    "Account verification is taking longer than expected. Your session has not been cleared.": "账户验证耗时较长，登录会话未被清除。",
+    "Completing sign-in…": "正在完成登录…",
+    "Redirecting…": "正在跳转…",
+    "Create your BTCBOX account with Google or your wallet, then complete your account setup.": "通过 Google 或钱包验证身份，然后完成 BTCBOX 账户设置。",
+    "Access your BTCBOX account with your username, Google or a supported crypto wallet.": "使用用户名、Google 或支持的钱包登录 BTCBOX。",
+    "Sign in with Google or connect your wallet, then complete your BTCBOX account setup.": "使用 Google 登录或连接钱包，然后完成 BTCBOX 账户设置。",
+    "Go to sign in": "前往登录",
+    "Start trading": "开始交易",
+    "BTC/USDT price history": "BTC/USDT 价格走势",
+    "BTC/USDT trading volume": "BTC/USDT 成交量",
+    "Latest candle": "最新 K 线",
+    "Favorites": "自选",
+    "Sort by": "排序",
+    "Show password": "显示密码",
+    "Hide password": "隐藏密码",
+    "No markets enabled": "暂无已启用市场",
+    "Snapshot stale": "行情快照已过期",
+    "Snapshot time unavailable": "行情更新时间不可用",
+    "BTCBOX market data is temporarily unavailable.": "BTCBOX 行情数据暂时不可用。",
     "Wallet": "钱包", "Google": "Google",
     "BTCBOX / OPEN MARKET":"BTCBOX / 公开市场",
     "Digital asset exchange":"数字资产交易平台",
@@ -2674,6 +2737,28 @@ const dictionaries: Record<StoredLocale, Dictionary> = {
     "I understand digital asset trading involves significant risk.": "我理解数字资产交易涉及重大风险。",
   },
   es: {
+    "not submitted": "Sin presentar",
+    "Market data": "Datos de mercado",
+    "BTCBOX / SPOT": "BTCBOX / MERCADO SPOT",
+    "Account verification is taking longer than expected. Your session has not been cleared.": "La verificación está tardando más de lo previsto. Tu sesión no se ha borrado.",
+    "Completing sign-in…": "Completando el acceso…",
+    "Redirecting…": "Redirigiendo…",
+    "Create your BTCBOX account with Google or your wallet, then complete your account setup.": "Verifica tu identidad con Google o tu cartera y completa la configuración de BTCBOX.",
+    "Access your BTCBOX account with your username, Google or a supported crypto wallet.": "Accede a BTCBOX con tu nombre de usuario, Google o una cartera compatible.",
+    "Sign in with Google or connect your wallet, then complete your BTCBOX account setup.": "Accede con Google o conecta tu cartera y completa la configuración de BTCBOX.",
+    "Go to sign in": "Ir al inicio de sesión",
+    "Start trading": "Empezar a operar",
+    "BTC/USDT price history": "Historial de precios BTC/USDT",
+    "BTC/USDT trading volume": "Volumen de BTC/USDT",
+    "Latest candle": "Última vela",
+    "Favorites": "Favoritos",
+    "Sort by": "Ordenar por",
+    "Show password": "Mostrar contraseña",
+    "Hide password": "Ocultar contraseña",
+    "No markets enabled": "No hay mercados habilitados",
+    "Snapshot stale": "Datos caducados",
+    "Snapshot time unavailable": "Hora de actualización no disponible",
+    "BTCBOX market data is temporarily unavailable.": "Los datos de mercado de BTCBOX no están disponibles temporalmente.",
     "Wallet": "Cartera", "Google": "Google",
     "BTCBOX / OPEN MARKET":"BTCBOX / MERCADO ABIERTO",
     "Digital asset exchange":"Exchange de activos digitales",
@@ -3548,6 +3633,28 @@ const dictionaries: Record<StoredLocale, Dictionary> = {
     "I understand digital asset trading involves significant risk.": "Entiendo que el trading de activos digitales implica un riesgo significativo.",
   },
   vi: {
+    "not submitted": "Chưa gửi",
+    "Market data": "Dữ liệu thị trường",
+    "BTCBOX / SPOT": "BTCBOX / GIAO NGAY",
+    "Account verification is taking longer than expected. Your session has not been cleared.": "Việc xác minh mất nhiều thời gian hơn dự kiến. Phiên đăng nhập chưa bị xóa.",
+    "Completing sign-in…": "Đang hoàn tất đăng nhập…",
+    "Redirecting…": "Đang chuyển hướng…",
+    "Create your BTCBOX account with Google or your wallet, then complete your account setup.": "Xác minh bằng Google hoặc ví, sau đó hoàn tất thiết lập tài khoản BTCBOX.",
+    "Access your BTCBOX account with your username, Google or a supported crypto wallet.": "Đăng nhập BTCBOX bằng tên người dùng, Google hoặc ví được hỗ trợ.",
+    "Sign in with Google or connect your wallet, then complete your BTCBOX account setup.": "Đăng nhập bằng Google hoặc kết nối ví, rồi hoàn tất thiết lập BTCBOX.",
+    "Go to sign in": "Đến trang đăng nhập",
+    "Start trading": "Bắt đầu giao dịch",
+    "BTC/USDT price history": "Lịch sử giá BTC/USDT",
+    "BTC/USDT trading volume": "Khối lượng BTC/USDT",
+    "Latest candle": "Nến gần nhất",
+    "Favorites": "Yêu thích",
+    "Sort by": "Sắp xếp theo",
+    "Show password": "Hiện mật khẩu",
+    "Hide password": "Ẩn mật khẩu",
+    "No markets enabled": "Chưa có thị trường hoạt động",
+    "Snapshot stale": "Dữ liệu đã cũ",
+    "Snapshot time unavailable": "Không có thời gian cập nhật",
+    "BTCBOX market data is temporarily unavailable.": "Dữ liệu thị trường BTCBOX tạm thời không khả dụng.",
     "Wallet": "Ví", "Google": "Google",
     "BTCBOX / OPEN MARKET":"BTCBOX / THỊ TRƯỜNG MỞ",
     "Digital asset exchange":"Sàn giao dịch tài sản số",
@@ -4422,6 +4529,28 @@ const dictionaries: Record<StoredLocale, Dictionary> = {
     "I understand digital asset trading involves significant risk.": "Tôi hiểu giao dịch tài sản số có mức rủi ro đáng kể.",
   },
   it: {
+    "not submitted": "Non inviato",
+    "Market data": "Dati di mercato",
+    "BTCBOX / SPOT": "BTCBOX / MERCATO SPOT",
+    "Account verification is taking longer than expected. Your session has not been cleared.": "La verifica richiede più tempo del previsto. La sessione non è stata cancellata.",
+    "Completing sign-in…": "Completamento dell’accesso…",
+    "Redirecting…": "Reindirizzamento…",
+    "Create your BTCBOX account with Google or your wallet, then complete your account setup.": "Verifica la tua identità con Google o il wallet e completa la configurazione di BTCBOX.",
+    "Access your BTCBOX account with your username, Google or a supported crypto wallet.": "Accedi a BTCBOX con il nome utente, Google o un wallet supportato.",
+    "Sign in with Google or connect your wallet, then complete your BTCBOX account setup.": "Accedi con Google o collega il wallet, poi completa la configurazione di BTCBOX.",
+    "Go to sign in": "Vai al login",
+    "Start trading": "Inizia a negoziare",
+    "BTC/USDT price history": "Storico prezzi BTC/USDT",
+    "BTC/USDT trading volume": "Volume BTC/USDT",
+    "Latest candle": "Ultima candela",
+    "Favorites": "Preferiti",
+    "Sort by": "Ordina per",
+    "Show password": "Mostra password",
+    "Hide password": "Nascondi password",
+    "No markets enabled": "Nessun mercato abilitato",
+    "Snapshot stale": "Dati scaduti",
+    "Snapshot time unavailable": "Orario di aggiornamento non disponibile",
+    "BTCBOX market data is temporarily unavailable.": "I dati di mercato BTCBOX sono temporaneamente indisponibili.",
     "Wallet": "Portafoglio", "Google": "Google",
     "BTCBOX / OPEN MARKET":"BTCBOX / MERCATO APERTO",
     "Digital asset exchange":"Exchange di asset digitali",
@@ -5296,6 +5425,28 @@ const dictionaries: Record<StoredLocale, Dictionary> = {
     "I understand digital asset trading involves significant risk.": "Comprendo che il trading di asset digitali comporta rischi significativi.",
   },
   pt: {
+    "not submitted": "Não enviado",
+    "Market data": "Dados de mercado",
+    "BTCBOX / SPOT": "BTCBOX / MERCADO SPOT",
+    "Account verification is taking longer than expected. Your session has not been cleared.": "A verificação está a demorar mais do que o previsto. A sessão não foi apagada.",
+    "Completing sign-in…": "A concluir o início de sessão…",
+    "Redirecting…": "A redirecionar…",
+    "Create your BTCBOX account with Google or your wallet, then complete your account setup.": "Verifique a identidade com o Google ou a carteira e conclua a configuração da conta BTCBOX.",
+    "Access your BTCBOX account with your username, Google or a supported crypto wallet.": "Aceda à BTCBOX com o nome de utilizador, Google ou uma carteira compatível.",
+    "Sign in with Google or connect your wallet, then complete your BTCBOX account setup.": "Inicie sessão com o Google ou ligue a carteira e conclua a configuração da BTCBOX.",
+    "Go to sign in": "Iniciar sessão",
+    "Start trading": "Começar a negociar",
+    "BTC/USDT price history": "Histórico de preços BTC/USDT",
+    "BTC/USDT trading volume": "Volume de BTC/USDT",
+    "Latest candle": "Última vela",
+    "Favorites": "Favoritos",
+    "Sort by": "Ordenar por",
+    "Show password": "Mostrar palavra-passe",
+    "Hide password": "Ocultar palavra-passe",
+    "No markets enabled": "Sem mercados ativos",
+    "Snapshot stale": "Dados desatualizados",
+    "Snapshot time unavailable": "Hora de atualização indisponível",
+    "BTCBOX market data is temporarily unavailable.": "Os dados de mercado da BTCBOX estão temporariamente indisponíveis.",
     "Wallet": "Carteira", "Google": "Google",
     "BTCBOX / OPEN MARKET":"BTCBOX / MERCADO ABERTO",
     "Digital asset exchange":"Exchange de ativos digitais",
@@ -6170,6 +6321,28 @@ const dictionaries: Record<StoredLocale, Dictionary> = {
   },
 
   de: {
+    "not submitted": "Nicht eingereicht",
+    "Market data": "Marktdaten",
+    "BTCBOX / SPOT": "BTCBOX / SPOTMARKT",
+    "Account verification is taking longer than expected. Your session has not been cleared.": "Die Kontoprüfung dauert länger als erwartet. Ihre Sitzung wurde nicht gelöscht.",
+    "Completing sign-in…": "Anmeldung wird abgeschlossen…",
+    "Redirecting…": "Weiterleitung…",
+    "Create your BTCBOX account with Google or your wallet, then complete your account setup.": "Bestätigen Sie Ihre Identität mit Google oder Ihrer Wallet und richten Sie Ihr BTCBOX-Konto ein.",
+    "Access your BTCBOX account with your username, Google or a supported crypto wallet.": "Melden Sie sich mit Benutzername, Google oder einer unterstützten Wallet bei BTCBOX an.",
+    "Sign in with Google or connect your wallet, then complete your BTCBOX account setup.": "Melden Sie sich mit Google an oder verbinden Sie Ihre Wallet und richten Sie Ihr BTCBOX-Konto ein.",
+    "Go to sign in": "Zur Anmeldung",
+    "Start trading": "Handel starten",
+    "BTC/USDT price history": "BTC/USDT-Kursverlauf",
+    "BTC/USDT trading volume": "BTC/USDT-Handelsvolumen",
+    "Latest candle": "Letzte Kerze",
+    "Favorites": "Favoriten",
+    "Sort by": "Sortieren nach",
+    "Show password": "Passwort anzeigen",
+    "Hide password": "Passwort verbergen",
+    "No markets enabled": "Keine Märkte aktiviert",
+    "Snapshot stale": "Veraltete Marktdaten",
+    "Snapshot time unavailable": "Aktualisierungszeit nicht verfügbar",
+    "BTCBOX market data is temporarily unavailable.": "BTCBOX-Marktdaten sind vorübergehend nicht verfügbar.",
     "Wallet": "Wallet", "Google": "Google",
     "BTCBOX / OPEN MARKET": "BTCBOX / OFFENER MARKT",
     "Digital asset exchange": "Handelsplattform für digitale Vermögenswerte",
@@ -7089,7 +7262,7 @@ const dictionaries: Record<StoredLocale, Dictionary> = {
   }
 };
 
-type I18nValue = { language: Language; setLanguage: (language: Language) => void; t: (value: string) => string };
+type I18nValue = { language: Language; canChangeLanguage: boolean; setLanguage: (language: Language) => void; t: (value: string) => string };
 
 const missingTranslationWarnings = new Set<string>();
 
@@ -7107,8 +7280,8 @@ function translateText(language: Language, text: string): string {
 }
 const I18nContext = createContext<I18nValue | null>(null);
 
-export function I18nProvider({ children }: { children: ReactNode }) {
-  const [language, setLanguageState] = useState<Language>(() => {
+export function I18nProvider({ children, fixedLanguage }: { children: ReactNode; fixedLanguage?: Language }) {
+  const [storedLanguage, setLanguageState] = useState<Language>(() => {
     let saved: string | null = null;
     try {
       saved = typeof window !== "undefined" ? window.localStorage.getItem("btcbox-language") : null;
@@ -7117,11 +7290,15 @@ export function I18nProvider({ children }: { children: ReactNode }) {
     }
     return saved === "en" || saved === "ja" || saved === "zh-CN" || saved === "es" || saved === "it" || saved === "pt" || saved === "de" ? saved : "ja";
   });
+  const language = fixedLanguage ?? storedLanguage;
   useEffect(() => {
+    const previous = document.documentElement.lang;
     document.documentElement.lang = localeTags[language];
+    return () => { document.documentElement.lang = previous; };
   }, [language]);
 
   const setLanguage = (next: Language) => {
+    if (fixedLanguage) return;
     setLanguageState(next);
     try {
       if (typeof window !== "undefined") window.localStorage.setItem("btcbox-language", next);
@@ -7129,7 +7306,7 @@ export function I18nProvider({ children }: { children: ReactNode }) {
       // The selected language still applies for this session if storage is unavailable.
     }
   };
-  const value = useMemo(() => ({ language, setLanguage, t: (text: string) => translateText(language, text) }), [language]);
+  const value = useMemo(() => ({ language, canChangeLanguage: !fixedLanguage, setLanguage, t: (text: string) => translateText(language, text) }), [language, fixedLanguage]);
   return <I18nContext.Provider value={value}>{children}</I18nContext.Provider>;
 }
 

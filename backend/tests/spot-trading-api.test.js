@@ -45,7 +45,8 @@ test('React spot terminal uses real market, candle, order book, order and capabi
   ]) assert.ok(client.includes(contract), 'missing client contract ' + contract);
   assert.ok(pages.includes('export function SpotTradingPage()'));
   assert.ok(pages.includes('createChart('));
-  assert.ok(pages.includes('getKlines(symbol,"1h"'));
+  assert.ok(pages.includes('getKlines(symbol,chartInterval,controller.signal)'));
+  assert.ok(pages.includes('useState("1h")'));
   assert.ok(pages.includes('getOrderBook(symbol'));
   assert.ok(pages.includes('submitSpotOrder('));
   assert.ok(pages.includes('cancelSpotOrder('));

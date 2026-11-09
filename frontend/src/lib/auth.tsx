@@ -35,7 +35,7 @@ function getInjectedSolanaWallet(): unknown {
   });
 }
 type AuthContextValue = {
-  status: AuthStatus; email: string; busy: boolean; error: string; notice: string; googleEnabled: boolean; walletEnabled: boolean; needsCredentials: boolean; credentialRecoveryReady: boolean; credentialRecoveryNeedsTwoFactor: boolean; ethereumWallets: EthereumWalletChoice[];
+  status: AuthStatus; initializationIssue: boolean; email: string; busy: boolean; error: string; notice: string; googleEnabled: boolean; walletEnabled: boolean; needsCredentials: boolean; credentialRecoveryReady: boolean; credentialRecoveryNeedsTwoFactor: boolean; ethereumWallets: EthereumWalletChoice[];
   signInWithGoogle: (intent?: "login" | "register") => Promise<void>;
   signInWithUsername: (username: string, password: string) => Promise<void>;
   setBtcboxCredentials: (username: string, password: string) => Promise<void>;
@@ -65,6 +65,7 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const clientRef = useRef<SupabaseClient | null>(null);
   const [status, setStatus] = useState<AuthStatus>("loading");
+  const [initializationIssue, setInitializationIssue] = useState(false);
   const [email, setEmail] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -134,6 +135,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     let active = true;
     const controller = new AbortController();
+    // A slow/configuration-failed restoration is not proof of a signed-out account.
+    // Keep credentials/session storage intact and expose an explicit recovery action.
+    setInitializationIssue(false);
+    const slowTimer = window.setTimeout(() => { if (active) setInitializationIssue(true); }, 12000);
     (async () => {
       try {
         const config = await getAuthClientConfig(controller.signal);
@@ -162,10 +167,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
         if (active) setStatus("anonymous");
       } catch (cause) {
-        if (active) { setError(cause instanceof Error ? cause.message : "Authentication is unavailable."); setStatus("anonymous"); }
-      }
+        if (active) { setError(cause instanceof Error ? cause.message : "Authentication is unavailable."); setInitializationIssue(true); }
+      } finally { window.clearTimeout(slowTimer); }
     })();
-    return () => { active = false; controller.abort(); };
+    return () => { active = false; window.clearTimeout(slowTimer); controller.abort(); };
   }, [acceptSupabaseSession, setSignedIn]);
 
   const signInWithUsername = useCallback(async (username: string, password: string) => {
@@ -616,10 +621,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const value = useMemo(() => ({
-    status, email, busy, error, notice, googleEnabled, walletEnabled, identityLinkSourceVerified, identityLinkNeedsTwoFactor, completeIdentityLinkReauthTwoFactor, needsCredentials, credentialRecoveryReady, credentialRecoveryNeedsTwoFactor, ethereumWallets, signInWithGoogle, reauthenticateIdentityLinkWithGoogle, reauthenticateIdentityLinkWithWeb3, linkGoogleIdentity, linkWeb3Identity, signInWithUsername, setBtcboxCredentials, reauthenticateCredentialsWithGoogle, reauthenticateCredentialsWithWeb3, completeCredentialRecoveryTwoFactor, recoverBtcboxPassword, signInWithWeb3, signInWithEmail, signUpWithEmail,
+    status, initializationIssue, email, busy, error, notice, googleEnabled, walletEnabled, identityLinkSourceVerified, identityLinkNeedsTwoFactor, completeIdentityLinkReauthTwoFactor, needsCredentials, credentialRecoveryReady, credentialRecoveryNeedsTwoFactor, ethereumWallets, signInWithGoogle, reauthenticateIdentityLinkWithGoogle, reauthenticateIdentityLinkWithWeb3, linkGoogleIdentity, linkWeb3Identity, signInWithUsername, setBtcboxCredentials, reauthenticateCredentialsWithGoogle, reauthenticateCredentialsWithWeb3, completeCredentialRecoveryTwoFactor, recoverBtcboxPassword, signInWithWeb3, signInWithEmail, signUpWithEmail,
     requestPasswordReset, completePasswordRecovery, finishOAuth, verifyTwoFactor, getSupabaseAccessToken, signOut,
     clearError: () => setError(""),
-  }), [status, email, busy, error, notice, googleEnabled, walletEnabled, identityLinkSourceVerified, identityLinkNeedsTwoFactor, completeIdentityLinkReauthTwoFactor, needsCredentials, credentialRecoveryReady, credentialRecoveryNeedsTwoFactor, ethereumWallets, signInWithGoogle, linkGoogleIdentity, linkWeb3Identity, signInWithUsername, setBtcboxCredentials, reauthenticateCredentialsWithGoogle, reauthenticateCredentialsWithWeb3, completeCredentialRecoveryTwoFactor, recoverBtcboxPassword, signInWithWeb3, signInWithEmail, signUpWithEmail,
+  }), [status, initializationIssue, email, busy, error, notice, googleEnabled, walletEnabled, identityLinkSourceVerified, identityLinkNeedsTwoFactor, completeIdentityLinkReauthTwoFactor, needsCredentials, credentialRecoveryReady, credentialRecoveryNeedsTwoFactor, ethereumWallets, signInWithGoogle, linkGoogleIdentity, linkWeb3Identity, signInWithUsername, setBtcboxCredentials, reauthenticateCredentialsWithGoogle, reauthenticateCredentialsWithWeb3, completeCredentialRecoveryTwoFactor, recoverBtcboxPassword, signInWithWeb3, signInWithEmail, signUpWithEmail,
     requestPasswordReset, completePasswordRecovery, finishOAuth, verifyTwoFactor, getSupabaseAccessToken, signOut, reauthenticateIdentityLinkWithGoogle, reauthenticateIdentityLinkWithWeb3]);
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

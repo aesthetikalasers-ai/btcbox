@@ -76,7 +76,7 @@ test('market table clears last confirmed prices and reports feed unavailability'
   assert.ok(marketTable.includes('const feedError = error || (snapshotStale ?'));
   assert.ok(marketTable.includes('const displayMarkets = feedError ? [] : markets'));
   assert.ok(marketTable.includes('feedError && displayMarkets.length === 0'));
-  assert.ok(marketTable.includes('snapshotAgeSeconds > 90'));
+  assert.ok(marketTable.includes('markets.some((item) => (item.snapshotTs || 0) > 0 && Date.now() / 1000 - (item.snapshotTs || 0) > 90)'));
   assert.ok(!marketTable.includes('Showing the last confirmed market data.'));
   assert.ok(dashboard.includes('setMarkets([]);'));
 });

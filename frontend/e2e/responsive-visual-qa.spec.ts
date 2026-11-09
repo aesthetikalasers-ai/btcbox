@@ -6,7 +6,7 @@ const widths = [320, 360, 375, 390, 430, 768, 1024, 1440];
 const routes = [
   { path: "/login", heading: "Welcome back" },
   { path: "/register", heading: "Create your BTCBOX account" },
-  { path: "/home", heading: "Explore the market. Trade with confidence." },
+  { path: "/home", heading: "Market overview" },
   { path: "/markets", heading: "Market overview" },
   { path: "/trade/BTCUSDT", heading: "BTCUSDT" },
   { path: "/trade-hub", heading: "Choose your trading mode" },
@@ -86,7 +86,7 @@ test("responsive visual QA captures key customer and admin entry routes without 
       expect(new URL(page.url()).pathname).toBe(routePath);
       await expect(page.getByRole("heading", { name: route.heading, exact: true })).toBeVisible({ timeout: 15000 });
       if (!["/login", "/register"].includes(routePath) && width <= 480) {
-        await expect(page.getByRole("link", { name: "BTCBOX home" }).getByText("BTCBOX", { exact: true })).toBeHidden();
+        await expect(page.getByRole("link", { name: "BTCBOX home" }).getByRole("img", { name: "BTCBOX" })).toBeVisible();
       }
       if (routePath === "/markets") await expect(page.getByRole("heading", { name: "Explore the market. Trade with confidence.", exact: true })).toHaveCount(0);
       if (routePath === "/home" || routePath === "/markets") await expect(page.getByText("No markets enabled", { exact: true })).toBeVisible();

@@ -1,6 +1,7 @@
+import { AuthRestoreState } from "../../components/AuthRestoreState";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { ArrowLeft, ArrowRight, KeyRound, ShieldCheck, Wallet, ChartNoAxesCombined, Globe2, LockKeyhole } from "lucide-react";
+import { Eye, EyeOff, ArrowLeft, ArrowRight, KeyRound, ShieldCheck, Wallet, ChartNoAxesCombined, Globe2, LockKeyhole } from "lucide-react";
 import { Button } from "../../components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/card";
 import { Input } from "../../components/ui/input";
@@ -9,7 +10,7 @@ import { useAuth } from "../../lib/auth";
 import { useI18n, type Language } from "../../lib/i18n";
 
 export function AuthPage({ mode, redirectTo }: { mode: "login" | "register"; redirectTo?: string }) {
-  const { t, language, setLanguage } = useI18n();
+  const { t, language, setLanguage, canChangeLanguage } = useI18n();
   const {
     status, needsCredentials, busy, error, notice, googleEnabled, walletEnabled, ethereumWallets,
     signInWithGoogle, signInWithUsername, signInWithWeb3,
@@ -17,6 +18,7 @@ export function AuthPage({ mode, redirectTo }: { mode: "login" | "register"; red
   } = useAuth();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [verifyCode, setVerifyCode] = useState("");
   const [verifyBusy, setVerifyBusy] = useState(false);
   const [walletMenuOpen, setWalletMenuOpen] = useState(false);
@@ -37,7 +39,7 @@ export function AuthPage({ mode, redirectTo }: { mode: "login" | "register"; red
     else if (status === "two-factor") navigate(redirectTo || "/login", { replace: true });
   }, [status, needsCredentials, navigate, redirectTo]);
 
-  if (status === "loading") return <div className="mx-auto flex min-h-[60vh] items-center justify-center text-sm text-brand-text-muted">{t("Loading secure sign-in…")}</div>;
+  if (status === "loading") return <AuthRestoreState />;
   // Never render the clickable sign-in form while a sign-in is already in progress
   // or the session is established; avoids duplicate submissions on the same page.
   if (status !== "anonymous") return <div className="mx-auto flex min-h-[60vh] flex-col items-center justify-center gap-3 text-sm text-brand-text-muted">
@@ -88,12 +90,12 @@ export function AuthPage({ mode, redirectTo }: { mode: "login" | "register"; red
   </>;
 
   return <main className="tone-support relative mx-auto flex min-h-[100dvh] w-full max-w-[1120px] items-center px-3 py-6 sm:px-6 sm:py-10 lg:px-8">
-    <div className="pointer-events-none absolute inset-x-8 top-8 -z-10 h-64 rounded-full bg-brand-cyan/10 blur-3xl" />
-    <div className="grid w-full items-center gap-6 lg:grid-cols-[minmax(0,1.05fr)_minmax(380px,.95fr)] lg:gap-12">
+
+    <div className="grid w-full items-center gap-6 lg:grid-cols-[minmax(0,1.05fr)_minmax(380px,.95fr)] lg:gap-16">
       <section className="hidden min-w-0 flex-col justify-center lg:flex">
         <Link to="/home" className="mb-12 w-fit"><BrandLogo /></Link>
         <p className="mb-4 flex items-center gap-2 text-xs font-bold uppercase tracking-[.2em] text-brand-cyan"><span className="h-1.5 w-1.5 rounded-full bg-brand-success" /> {t("Digital asset exchange")}</p>
-        <h1 className="max-w-[560px] text-4xl font-semibold leading-[1.12] tracking-tight text-brand-text xl:text-5xl">
+        <h1 className="max-w-[560px] text-3xl font-semibold leading-[1.12] tracking-tight text-brand-text xl:text-4xl">
           {registering ? t("A clearer way to enter the digital asset market.") : t("Welcome back to your market.")}
         </h1>
         <p className="mt-5 max-w-[480px] text-base leading-7 text-brand-text-secondary">
@@ -102,12 +104,12 @@ export function AuthPage({ mode, redirectTo }: { mode: "login" | "register"; red
             : t("Access your BTCBOX account with your username, Google or a supported crypto wallet.")}
         </p>
         <div className="mt-9 grid max-w-[520px] gap-3 sm:grid-cols-2">
-          <div className="rounded-xl border border-brand-border bg-gradient-to-br from-brand-surface via-brand-surface to-brand-cyan/[0.035] p-4">
+          <div className="rounded-xl border border-brand-border bg-brand-surface p-4">
             <ChartNoAxesCombined className="mb-3 h-5 w-5 text-brand-cyan" />
             <p className="text-sm font-semibold text-brand-text">{t("Public market access")}</p>
             <p className="mt-1 text-xs leading-5 text-brand-text-muted">{t("Explore market information before signing in.")}</p>
           </div>
-          <div className="rounded-xl border border-brand-border bg-gradient-to-br from-brand-surface via-brand-surface to-brand-success/[0.035] p-4">
+          <div className="rounded-xl border border-brand-border bg-brand-surface p-4">
             <ShieldCheck className="mb-3 h-5 w-5 text-brand-success" />
             <p className="text-sm font-semibold text-brand-text">{t("Account-first controls")}</p>
             <p className="mt-1 text-xs leading-5 text-brand-text-muted">{t("Personal assets and account actions stay protected.")}</p>
@@ -123,14 +125,14 @@ export function AuthPage({ mode, redirectTo }: { mode: "login" | "register"; red
           <Link to="/home" aria-label={t("BTCBOX home")}><BrandLogo compact /></Link>
           <Link to="/markets" className="inline-flex min-h-11 items-center gap-1.5 rounded-lg px-2 text-xs font-semibold text-brand-text-secondary transition-colors hover:bg-brand-surface-hover hover:text-brand-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent/70">{t("Explore markets")} <ArrowRight className="h-3.5 w-3.5" /></Link>
         </div>
-        <Card className="w-full overflow-hidden border-brand-cyan/20 bg-brand-surface shadow-2xl shadow-black/20 ring-1 ring-white/[0.025]">
-          <div className="h-1 bg-gradient-to-r from-brand-cyan via-brand-indigo to-brand-success"/>
-          <CardHeader className="gap-3 border-b border-brand-border/70 bg-gradient-to-br from-brand-cyan/[0.055] via-brand-surface to-brand-surface px-5 pb-4 pt-6 sm:px-8 sm:pt-8">
+        <Card className="w-full overflow-hidden border-brand-cyan/20 bg-brand-surface  ">
+          <div className="h-1 bg-brand-accent"/>
+          <CardHeader className="gap-3 border-b border-brand-border/70 bg-brand-surface px-5 pb-4 pt-6 sm:px-8 sm:pt-8">
             <div className="flex items-center gap-2">
               <span className="flex h-11 w-11 items-center justify-center rounded-xl border border-brand-cyan/25 bg-brand-cyan/[0.12] text-brand-cyan shadow-sm shadow-brand-cyan/[0.08]">
                 {status === "two-factor" ? <ShieldCheck className="h-5 w-5" /> : registering ? <Globe2 className="h-5 w-5" /> : <LockKeyhole className="h-5 w-5" />}
               </span>
-              <span className="text-xs font-semibold uppercase tracking-[.16em] text-brand-text-muted">{registering ? t("Join BTCBOX") : t("Secure access")}</span><label className="ml-auto flex h-9 items-center gap-1 rounded-lg border border-brand-border bg-brand-surface-2 px-2 text-brand-cyan shadow-sm shadow-brand-cyan/10"><Globe2 className="h-3.5 w-3.5"/><select aria-label={t("Language")} value={language} onChange={event => setLanguage(event.target.value as Language)} className="w-[76px] appearance-none bg-transparent text-xs font-semibold text-brand-text outline-none"><option className="bg-brand-surface text-brand-text" value="en">English</option><option className="bg-brand-surface text-brand-text" value="ja">日本語</option><option className="bg-brand-surface text-brand-text" value="zh-CN">中文</option><option className="bg-brand-surface text-brand-text" value="es">Español</option><option className="bg-brand-surface text-brand-text" value="vi">Tiếng Việt</option><option className="bg-brand-surface text-brand-text" value="it">Italiano</option><option className="bg-brand-surface text-brand-text" value="pt">Português</option></select></label>
+              <span className="text-xs font-semibold uppercase tracking-[.16em] text-brand-text-muted">{registering ? t("Join BTCBOX") : t("Secure access")}</span><label className="ml-auto flex h-9 items-center gap-1 rounded-lg border border-brand-border bg-brand-surface-2 px-2 text-brand-cyan shadow-sm shadow-brand-cyan/10"><Globe2 className="h-3.5 w-3.5"/><select disabled={!canChangeLanguage} aria-label={t("Language")} value={language} onChange={event => setLanguage(event.target.value as Language)} className="w-[76px] appearance-none bg-transparent text-xs font-semibold text-brand-text outline-none"><option className="bg-brand-surface text-brand-text" value="en">English</option><option className="bg-brand-surface text-brand-text" value="ja">日本語</option><option className="bg-brand-surface text-brand-text" value="zh-CN">中文</option><option className="bg-brand-surface text-brand-text" value="es">Español</option><option className="bg-brand-surface text-brand-text" value="de">Deutsch</option><option className="bg-brand-surface text-brand-text" value="it">Italiano</option><option className="bg-brand-surface text-brand-text" value="pt">Português</option></select></label>
             </div>
             <CardTitle className="text-2xl font-semibold tracking-tight">
               {status === "two-factor" ? t("Verify your sign-in") : registering ? t("Create your BTCBOX account") : t("Welcome back")}
@@ -170,7 +172,7 @@ export function AuthPage({ mode, redirectTo }: { mode: "login" | "register"; red
                 </label>
                 <label className="block space-y-1.5 text-sm">
                   <span className="text-brand-text-secondary">{t("Password")}</span>
-                  <Input className="h-12" type="password" value={password} onChange={event => setPassword(event.target.value)} autoComplete="current-password" minLength={12} maxLength={128} placeholder={t("Enter your password")} required />
+                  <span className="relative block"><Input aria-label={t("Password")} className="h-12 pr-12" type={showPassword ? "text" : "password"} value={password} onChange={event => setPassword(event.target.value)} autoComplete="current-password" minLength={12} maxLength={128} placeholder={t("Enter your password")} required /><button type="button" aria-label={t(showPassword ? "Hide password" : "Show password")} aria-pressed={showPassword} onClick={() => setShowPassword(value => !value)} className="absolute inset-y-0 right-0 flex w-12 items-center justify-center text-brand-text-muted">{showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}</button></span>
                 </label>
                 <Button type="submit" className="min-h-12 w-full" aria-busy={busy} disabled={busy || username.length < 3 || password.length < 12}>
                   <KeyRound className="mr-2 h-4 w-4" /> {busy ? t("Signing in…") : t("Sign in with username")}
@@ -239,9 +241,9 @@ export function AuthCallbackPage() {
     catch (cause) { setRecoveryError(cause instanceof Error ? cause.message : t("Password could not be updated.")); }
   };
   if (status === "password-recovery") return <main className="tone-support mx-auto flex min-h-[100dvh] w-full max-w-[520px] items-center px-3 py-8 sm:px-6">
-    <Card className="w-full overflow-hidden border-brand-cyan/20 bg-brand-surface shadow-2xl shadow-black/20 ring-1 ring-white/[0.025]">
-      <div className="h-1 bg-gradient-to-r from-brand-cyan via-brand-indigo to-brand-success"/>
-      <CardHeader className="gap-3 border-b border-brand-border/70 bg-gradient-to-br from-brand-cyan/[0.055] via-brand-surface to-brand-surface px-5 pt-7 sm:px-8">
+    <Card className="w-full overflow-hidden border-brand-cyan/20 bg-brand-surface  ">
+      <div className="h-1 bg-brand-accent"/>
+      <CardHeader className="gap-3 border-b border-brand-border/70 bg-brand-surface px-5 pt-7 sm:px-8">
         <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-brand-cyan/20 bg-brand-cyan/10 text-brand-cyan"><LockKeyhole className="h-5 w-5" /></div>
         <CardTitle className="text-2xl">{t("Reset your password")}</CardTitle>
         <CardDescription>{t("Choose a new password for your BTCBOX email account.")}</CardDescription>

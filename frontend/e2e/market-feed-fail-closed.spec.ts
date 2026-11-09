@@ -181,9 +181,8 @@ test("spot trading hides expired quotes and blocks new orders until a fresh snap
   await expect(page.getByText("64,999", { exact: false })).toHaveCount(0);
   await expect(page.getByText("65,001", { exact: false })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Place buy limit order" })).toBeDisabled();
-  await page.getByRole("button", { name: "Order book" }).click();
-  await expect(page.getByRole("dialog", { name: "Order book" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Close market panel" })).toBeVisible();
-  await page.getByRole("button", { name: "Close market panel" }).click();
-  await expect(page.getByRole("dialog", { name: "Order book" })).toHaveCount(0);
+  await expect(page.getByRole("heading", { name: "Order book", exact: true })).toBeVisible();
+  // Depth is inline in the redesigned terminal and still hides stale prices.
+  await expect(page.getByText("64,999", { exact: false })).toHaveCount(0);
+  await expect(page.getByText("65,001", { exact: false })).toHaveCount(0);
 });

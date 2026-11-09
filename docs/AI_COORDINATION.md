@@ -6558,3 +6558,31 @@ Current branch HEAD at note creation: `51c302a96f069876e438321d3597501fcbc26b54`
 
 
 <!-- /coderabbit-ai-generated:v1 -->
+<!-- coderabbit-ai-generated:v1 -->
+
+<!-- coderabbit-ai-generated-section:v1:66c48b4f63dfc293bf65f472f64d56aa59b6750f7fee52dc78d777b2586e995e -->
+
+## 2026-11-09 independent redesign and design correction
+
+- OWNER AUTHORIZATION: the latest assignment explicitly lifts the previous Trade layout lock and authorizes CodeRabbit to implement the integrated frontend on `feature/btcbox-complete-redesign`. The subsequent correction requires a coherent product design system, no promotional poster composition, Chinese administration, Japanese-default multilingual customer pages, and preservation of real business/API behavior. These instructions supersede earlier layout/ownership restrictions for this isolated assignment; they do not authorize a merge, deployment, database migration or production financial operation.
+- BASELINE: latest fetched stable main is `05d2ac87e77e157284ccc16148e20cf516c8757d`. The new branch was created from that commit, then accepted account-loading/market-freshness fixes and prior evidence were preserved via `5cfa4e1` and `defa121`. Older candidate branches were not merged. Work is isolated from other branches.
+- IMPLEMENTED: unified navy surfaces, blue actions, typography, borders, navigation and compact mobile layouts; official unmodified white logo; market-first home, favorites/sorting, market chart entry, inline responsive Trade chart/order-entry/depth with interval controls, exact decimal estimate, compact account/assets/order views and explicit session-restoration recovery. The selected Trade pair now reaches its actual USDT market. No fabricated market or financial fallback data is introduced.
+- LANGUAGE: customer default remains Japanese with English, Chinese, Spanish, Portuguese, Italian and German choices. Admin presentation is independently Chinese, without overwriting the customer's saved language. Server enums and API permission names remain unchanged. Unknown provider/server error payloads can retain their original language; dictionary key coverage is not a proof of complete linguistic quality.
+- ADMIN PRESERVATION: existing Supabase/RBAC gates, user lookup, manual credit, addresses/fees/announcement configuration, withdrawal review/manual payout references, KYC review, audit provenance/pagination, orders, support replies, Seconds policy/open positions, market configuration and administrator provisioning remain wired to their existing handlers. No permission or financial-validation handler was removed. The unified build now includes only the three whitelisted original brand images.
+- DEPLOYMENT BOUNDARY: `backend/vercel.json` disables Git deployment for this new branch. No main merge, production deployment, database or financial operation is part of this delivery. All visual fixtures and automated test identities are synthetic; the branch is not production-approved.
+- REMAINING: email-provider login/registration/recovery requested earlier is absent from the current Google/Web3 allowlist contract; it was not silently enabled for the visual correction. Real Supabase OAuth, KYC storage/RLS, funds/execution and guest message delivery are not certified by fixture tests. Brand download provenance does not prove the owner's commercial authorization. Final validation evidence is appended separately.
+
+
+<!-- /coderabbit-ai-generated:v1 --><!-- coderabbit-ai-generated:v1 -->
+
+<!-- coderabbit-ai-generated-section:v1:a85d99d63f70e7ed03e6550077eb717659167e6387694d9f41bb0e2b32fa08d1 -->
+
+### Redesign validation and delivery limits
+
+- PASSED: frontend lint, TypeScript production build; locale checker939 keys per supported locale,0 missing/duplicate. Exact-decimal tests3/3. Backend suite493/493; latest packaging/admin-entry/CSP/auth subset66/66 after final build. Overlapping subsets are not additional distinct tests.
+- FULL E2E:99 passed,18 failed,1 intentionally skipped (118 cases),4.9min. The six new redesign/session scenarios passed on both desktop and mobile. Remaining nine failures per device concern retired email controls,Google label/registration layout expectations,and OAuth registration cancellation destination. Failures remain reported rather than suppressed. After final Chinese admin route/date/fallback refinement,focused admin E2E26/26 passed; no customer business behavior changed afterward. A duplicate dictionary property caught by final TypeScript build was removed; final build passes.
+- VISUAL:20 desktop/mobile screenshots from the task's shared Chromium, covering home,markets,login,registration,account,trade,assets,orders,admin access and admin overview. All are visibly marked synthetic UI fixtures; they are not live API,prices,funds,orders,provider or production acceptance evidence. Logo/overflow checks also ran at320,360,390,430,768,1440px. Native Safari/WebKit has not been exercised.
+- LIMITS: approximately1.263MB main bundle warning remains. Unknown server error payloads may retain upstream language. Email auth,guest support delivery and live integration requirements remain open as noted above. No production readiness or all-tests-green claim. CI results belong to the pushed branch SHA and must be read independently of old68-pass evidence.
+
+
+<!-- /coderabbit-ai-generated:v1 -->
