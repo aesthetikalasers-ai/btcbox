@@ -19,7 +19,7 @@ function listJavaScriptFiles(dir, prefix='') {
 test('all nested API paths are served by one catch-all function within Vercel Hobby limits', () => {
   assert.strictEqual(catchAll,adapter,'the catch-all must reuse the tested shared adapter');
   const apiFiles=listJavaScriptFiles(path.join(__dirname,'..','api')).sort();
-  assert.deepEqual(apiFiles,['[...path].js','healthz.js']);
+  assert.deepEqual(apiFiles,['[...path].js','healthz.js','router.js']);
   assert.ok(apiFiles.length<=12,'Vercel Hobby allows at most 12 serverless functions per deployment');
 });
 test('all 23 nested API routes preserve their canonical request path through the catch-all', () => {

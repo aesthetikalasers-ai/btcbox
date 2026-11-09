@@ -30,7 +30,16 @@ async function readBody(req) {
 }
 function createApiEvent(req, body) {
   const url = new URL(req.url || '/', 'https://vercel.invalid');
-  return { path:url.pathname, httpMethod:req.method || 'GET', headers:req.headers || {},
+  let pathname = url.pathname;
+  // Vercel multi-segment rewrite fallback: if routed via the static /api/router
+  // function and the original path was lost, recover it from x-now-route-matches.
+  const headers = req.headers || {};
+  if (pathname === '/api/router') {
+    const matches = headers['x-now-route-matches'] || '';
+    const m = /(?:^|&)1=([^&]+)/.exec(matches);
+    if (m) pathname = '/api/' + decodeURIComponent(m[1]);
+  }
+  return { path:pathname, httpMethod:req.method || 'GET', headers:headers,
     queryStringParameters:Object.fromEntries(url.searchParams.entries()), body:body || null, isBase64Encoded:false };
 }
 async function vercelApi(req, res) {
