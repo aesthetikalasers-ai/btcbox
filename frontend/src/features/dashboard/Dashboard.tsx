@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { ArrowRight, ArrowUpRight } from "lucide-react";
+import { ArrowRight, ArrowUpRight, ArrowLeftRight, ChartNoAxesCombined, Headset, Wallet } from "lucide-react";
 import { LiquidityChart } from "./components/LiquidityChart";
 import { VolumeChart } from "./components/VolumeChart";
 import { LiveMarketsTable } from "./components/LiveMarketsTable";
@@ -78,8 +78,7 @@ export function Dashboard() {
       refreshing = true;
       void getKlines("BTCUSDT", liquidityInterval, controller.signal).then((rows) => {
         if (!controller.signal.aborted) setLiquidityCandles(rows);
-      }).catch((reason: unknown) => {
-        if (reason instanceof Error && reason.name === "AbortError") return;
+      }).catch(() => {
         if (!controller.signal.aborted) setLiquidityCandles([]);
       }).finally(() => { refreshing = false; });
     };
@@ -98,8 +97,7 @@ export function Dashboard() {
       refreshing = true;
       void getKlines("BTCUSDT", volumeInterval, controller.signal).then((rows) => {
         if (!controller.signal.aborted) setVolumeCandles(rows);
-      }).catch((reason: unknown) => {
-        if (reason instanceof Error && reason.name === "AbortError") return;
+      }).catch(() => {
         if (!controller.signal.aborted) setVolumeCandles([]);
       }).finally(() => { refreshing = false; });
     };
@@ -145,8 +143,13 @@ export function Dashboard() {
       <VolumeChart candles={volumeCandles} />
     </div>
     </>}
-    {!isMarketsPage && <nav aria-label={t("Manage")} className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-      {[{to:"/markets",label:"Markets"},{to:"/trade-hub",label:"Trade"},{to:"/assets",label:"Assets"},{to:"/support",label:"Support"}].map(item => <Button key={item.to} asChild variant="outline"><Link to={item.to}>{t(item.label)} <ArrowUpRight className="ml-auto h-4 w-4" /></Link></Button>)}
+    {!isMarketsPage && <nav aria-label={t("Manage")} className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      {[{to:"/markets",label:"Markets",icon:ChartNoAxesCombined},{to:"/trade-hub",label:"Trade",icon:ArrowLeftRight},{to:"/assets",label:"Assets",icon:Wallet},{to:"/support",label:"Support",icon:Headset}].map(({to,label,icon:Icon}) =>
+        <Link key={to} to={to} className="group flex min-w-0 items-center gap-3 rounded-xl border border-brand-border bg-brand-surface px-4 py-4 text-sm font-semibold transition-colors hover:border-brand-accent/50 hover:bg-brand-surface-2 sm:py-5">
+          <Icon aria-hidden="true" className="h-5 w-5 shrink-0 text-brand-text-muted group-hover:text-brand-accent" />
+          <span className="min-w-0 break-words">{t(label)}</span>
+          <ArrowUpRight aria-hidden="true" className="ml-auto hidden h-4 w-4 shrink-0 text-brand-text-muted sm:block" />
+        </Link>)}
     </nav>}
     <footer className="px-1 pb-2 text-[11px] leading-5 text-brand-text-muted">
       TradingView Lightweight Charts™ Copyright (с) 2025 TradingView, Inc.{" "}

@@ -110,12 +110,12 @@ export function LiveMarketsTable({ markets, loading, error }: {
         </div>
         {loading || feedError ? <span className="shrink-0 rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-2 text-xs font-semibold text-brand-text-secondary">{loading ? t("Loading…") : t("Unavailable")}</span> : visibleMarkets.length > 0 ? <span className="shrink-0 rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-2 text-xs font-semibold text-brand-text-secondary">{visibleMarkets.length} {t("pairs")}</span> : null}
       </div>
-      {displayMarkets.length > 0 && <div className="border-b border-brand-border px-4 py-3 md:px-6">
+      {displayMarkets.length > 0 && <div className="grid gap-3 border-b border-brand-border px-4 py-3 md:grid-cols-[minmax(180px,1fr)_auto] md:items-center md:px-6">
         <label className="relative block">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-brand-text-muted" />
           <input type="search" aria-label={t("Search BTCBOX")} placeholder={t("Search")} value={searchParams.get("q") || ""} onChange={(event) => setSearchParams(event.target.value ? { q: event.target.value } : {})} className="h-11 w-full rounded-xl border border-brand-border bg-brand-surface px-3 pl-10 text-sm text-brand-text placeholder:text-brand-text-muted focus:border-brand-accent focus:outline-none" />
         </label>
-        <div className="mt-2 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
+        <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
           <div className="flex gap-1"><button type="button" onClick={() => setFavoritesOnly(false)} aria-pressed={!favoritesOnly} className={"min-h-11 rounded-lg px-2 text-xs " + (!favoritesOnly ? "bg-brand-accent/10 text-brand-accent" : "text-brand-text-muted")}>{t("Spot markets")}</button><button type="button" onClick={() => setFavoritesOnly(true)} aria-pressed={favoritesOnly} className={"min-h-11 rounded-lg px-2 text-xs " + (favoritesOnly ? "bg-brand-accent/10 text-brand-accent" : "text-brand-text-muted")}>{t("Favorites")}</button></div>
           <select aria-label={t("Sort by")} value={sort} onChange={event => setSort(event.target.value)} className="min-w-0 max-w-[128px] rounded-lg border border-brand-border bg-brand-surface px-2 text-xs"><option value="volume">{t("24h volume")}</option><option value="change">{t("24h change")}</option><option value="price">{t("Last price")}</option></select>
         </div>
@@ -151,15 +151,15 @@ export function LiveMarketsTable({ markets, loading, error }: {
             ))}
           </div>
           <div className="hidden w-full overflow-x-auto sm:block">
-            <table className="w-full min-w-[700px] border-collapse text-left">
+            <table className="w-full min-w-[700px] border-collapse text-right">
               <thead><tr className="border-b border-brand-border bg-brand-surface-2/70">
                 {["Asset", "Last price", "24h change", "24h volume", "24h high", "24h low"].map((label) =>
-                  <th key={label} className="whitespace-nowrap px-4 py-3 text-xs font-semibold text-brand-text-muted md:px-6">{t(label)}</th>
+                  <th key={label} className="whitespace-nowrap px-4 py-3 text-xs font-semibold text-brand-text-muted first:text-left md:px-6">{t(label)}</th>
                 )}
               </tr></thead>
               <tbody>{visibleMarkets.map((item) => (
                 <tr key={item.sym} className="border-b border-brand-border/50 transition-colors last:border-0 hover:bg-brand-surface-hover">
-                  <td className="h-16 whitespace-nowrap px-4 py-2 md:px-6">
+                  <td className="h-16 whitespace-nowrap px-4 py-2 text-left md:px-6">
                     <div className="flex items-center gap-3">
                       {favoriteButton(item.sym)}<TokenIcon symbol={item.sym} className="h-8 w-8 shrink-0" />
                       <Link to={`/trade/${item.sym.endsWith("USDT") ? item.sym : item.sym + "USDT"}`} aria-label={`${item.sym} spot trading`} className="group min-w-0 rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent">

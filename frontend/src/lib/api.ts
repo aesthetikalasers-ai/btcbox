@@ -124,37 +124,52 @@ export async function getKlines(
   interval = "1h",
   signal?: AbortSignal,
 ): Promise<MarketCandle[]> {
-  const query = new URLSearchParams({ symbol, interval });
-  let response: Response;
+  const controller = new AbortController();
+  const abort = () => controller.abort();
+  if (signal?.aborted) abort();
+  else signal?.addEventListener("abort", abort, { once: true });
+  const timeout = setTimeout(abort, 15000);
   try {
-    response = await fetch(`${API_BASE_URL}/kline?${query.toString()}`, {
-      method: "GET",
-      credentials: "include",
-      headers: { Accept: "application/json" },
-      cache: "no-store",
-      signal,
-    });
-  } catch (error) {
-    if (error instanceof Error && error.name === "AbortError") throw error;
-    throw new ApiError("Unable to reach BTCBOX chart service.", 0, "NETWORK_ERROR");
-  }
+    const query = new URLSearchParams({ symbol, interval });
+    let response: Response;
+    try {
+      response = await fetch(`${API_BASE_URL}/kline?${query.toString()}`, {
+        method: "GET",
+        credentials: "include",
+        headers: { Accept: "application/json" },
+        cache: "no-store",
+        signal: controller.signal,
+      });
+    } catch (error) {
+      if (error instanceof Error && error.name === "AbortError") throw error;
+      throw new ApiError("Unable to reach BTCBOX chart service.", 0, "NETWORK_ERROR");
+    }
 
-  const payload = (await response.json().catch(() => null)) as KlineResponse | null;
-  if (!response.ok || !payload || payload.ok !== true || !Array.isArray(payload.klines)) {
-    throw new ApiError(payload?.msg || "Historical market data is unavailable.", response.status, payload?.code);
-  }
+    const payload = (await response.json().catch(() => null)) as KlineResponse | null;
+    if (!response.ok || !payload || payload.ok !== true || !Array.isArray(payload.klines)) {
+      throw new ApiError(payload?.msg || "Historical market data is unavailable.", response.status, payload?.code);
+    }
 
-  return payload.klines.filter((candle) =>
-    candle &&
-    Number.isFinite(candle.time) &&
-    Number.isFinite(candle.open) && candle.open > 0 &&
-    Number.isFinite(candle.high) && candle.high > 0 &&
-    Number.isFinite(candle.low) && candle.low > 0 &&
-    Number.isFinite(candle.close) && candle.close > 0 &&
-    Number.isFinite(candle.volume) && candle.volume >= 0 &&
-    candle.high >= Math.max(candle.open, candle.close, candle.low) &&
-    candle.low <= Math.min(candle.open, candle.close, candle.high)
-  ).map(candle => ({ ...candle, source: typeof payload.source === "string" ? payload.source : undefined }));
+    const valid = payload.klines.filter((candle) =>
+      candle &&
+      Number.isFinite(candle.time) && candle.time >= 0 && Number.isSafeInteger(Math.floor(candle.time / 1000)) &&
+      Number.isFinite(candle.open) && candle.open > 0 &&
+      Number.isFinite(candle.high) && candle.high > 0 &&
+      Number.isFinite(candle.low) && candle.low > 0 &&
+      Number.isFinite(candle.close) && candle.close > 0 &&
+      Number.isFinite(candle.volume) && candle.volume >= 0 &&
+      candle.high >= Math.max(candle.open, candle.close, candle.low) &&
+      candle.low <= Math.min(candle.open, candle.close, candle.high)
+    ).map(candle => ({ ...candle, source: typeof payload.source === "string" ? payload.source : undefined }));
+    // Charts consume Unix seconds. Keep the last provider update per second and
+    // order the result before chart libraries enforce strictly increasing times.
+    const bySecond = new Map<number, MarketCandle>();
+    for (const candle of valid) bySecond.set(Math.floor(candle.time / 1000), candle);
+    return [...bySecond.values()].sort((a, b) => a.time - b.time);
+  } finally {
+    clearTimeout(timeout);
+    signal?.removeEventListener("abort", abort);
+  }
 }
 
 
@@ -290,30 +305,47 @@ export interface OrderRecord {
 }
 
 async function readAuthenticated<T>(path: string, signal?: AbortSignal): Promise<T> {
-  let response: Response;
+  // Bound read-only account requests so refresh controls can recover. Mutation
+  // requests retain their existing semantics and are never retried here.
+  const controller = new AbortController();
+  const abort = () => controller.abort();
+  if (signal?.aborted) controller.abort();
+  else signal?.addEventListener("abort", abort, { once: true });
+  const timeout = window.setTimeout(abort, 15000);
   try {
-    response = await fetch(`${API_BASE_URL}/${path}`, {
-      method: "GET",
-      credentials: "include",
-      headers: { Accept: "application/json" },
-      cache: "no-store",
-      signal,
-    });
-  } catch (error) {
-    if (error instanceof Error && error.name === "AbortError") throw error;
-    throw new ApiError("Unable to reach BTCBOX services. Please try again.", 0, "NETWORK_ERROR");
-  }
+    let response: Response;
+    try {
+      response = await fetch(`${API_BASE_URL}/${path}`, {
+        method: "GET",
+        credentials: "include",
+        headers: { Accept: "application/json" },
+        cache: "no-store",
+        signal: controller.signal,
+      });
+    } catch (error) {
+      if (error instanceof Error && error.name === "AbortError") throw error;
+      throw new ApiError("Unable to reach BTCBOX services. Please try again.", 0, "NETWORK_ERROR");
+    }
 
-  const payload = await response.json().catch(() => null) as (T & { ok?: boolean; msg?: string; code?: string; need_login?: boolean }) | null;
-  if (!response.ok || !payload || payload.ok !== true) {
-    const authRequired = !!payload?.need_login;
-    throw new ApiError(
-      payload?.msg || (authRequired ? "Please sign in to continue." : "BTCBOX account data is temporarily unavailable."),
-      authRequired ? 401 : response.status,
-      authRequired ? "AUTH_REQUIRED" : payload?.code,
-    );
+    const payload = await response.json().catch(() => null) as (T & { ok?: boolean; msg?: string; code?: string; need_login?: boolean }) | null;
+    if (!response.ok || !payload || payload.ok !== true) {
+      const authRequired = !!payload?.need_login;
+      throw new ApiError(
+        payload?.msg || (authRequired ? "Please sign in to continue." : "BTCBOX account data is temporarily unavailable."),
+        authRequired ? 401 : response.status,
+        authRequired ? "AUTH_REQUIRED" : payload?.code,
+      );
+    }
+    return payload;
+  } catch (error) {
+    if (controller.signal.aborted && !signal?.aborted) {
+      throw new ApiError("Unable to reach BTCBOX services. Please try again.", 0, "NETWORK_ERROR");
+    }
+    throw error;
+  } finally {
+    window.clearTimeout(timeout);
+    signal?.removeEventListener("abort", abort);
   }
-  return payload;
 }
 
 export async function getAccount(signal?: AbortSignal): Promise<AccountSnapshot> {
