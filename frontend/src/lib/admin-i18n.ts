@@ -1,5 +1,6 @@
 // Administrator UI uses Chinese independently of the customer locale.
 const messages: Record<string, string> = {
+  "Your sign-in session has expired. Please sign in again.": "登录会话已过期，请重新登录。",
   "Administrator membership was not found.": "未找到有效的管理员资格。",
   "Sign in with your BTCBOX administrator Supabase identity.": "请使用具有管理员权限的 BTCBOX Supabase 账户登录。",
   "Administrator access could not be verified": "无法验证管理员权限",

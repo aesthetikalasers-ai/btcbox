@@ -6585,4 +6585,20 @@ Current branch HEAD at note creation: `51c302a96f069876e438321d3597501fcbc26b54`
 - LIMITS: approximately1.263MB main bundle warning remains. Unknown server error payloads may retain upstream language. Email auth,guest support delivery and live integration requirements remain open as noted above. No production readiness or all-tests-green claim. CI results belong to the pushed branch SHA and must be read independently of old68-pass evidence.
 
 
+<!-- /coderabbit-ai-generated:v1 --><!-- coderabbit-ai-generated:v1 -->
+
+<!-- coderabbit-ai-generated-section:v1:64f0cacead09f4237db0094af023eb04991f0b565e30a311ed1069eab66a7f63 -->
+
+## 2026-11-09 V211 continued source trace and confirmed non-trading fixes
+
+- CURRENT OWNER DIRECTION: preserve the approved V211 professional terminal; identify its exact source before changing trading structure. This supersedes the earlier redesign layout freedom for subsequent work. No transaction layout/source deletion, push, merge, deployment, provider operation or production database write in this batch.
+- INSPECTION BASELINE: merged task HEAD `610031e181dddf3a9f03a42381e6db8203a229fa`; latest fetched main remains `8db5de501949751135c84abc28a60f9f30dcdc1a`, not integrated. Work remains isolated on `coderabbit/btcbox-mobile-audit/a99c5bf9`.
+- NEW EVIDENCE: restore notes identify upstream `avali9308-code/btcbox-v33` at `18a354a9e8e1d0365e240c7c44eda4a18d62ce07`. Its archived terminal, imported by `a915ec8d661d4bd2df26e7a67eab631305551954`, has exactly the current legacy CSS blob `8516acef37a5e70b072d786ce33083b6c3d25528`. Original ZIP CSS is also byte-identical. Historical coordination explicitly describes the approved mobile orderbook-left/form-right 38/62 layout and chart drawer above five-item navigation; it also says device acceptance was not run. These facts establish layout lineage, not the V211 version label.
+- REPLACEMENT CHAIN: initial React SpotTradingPage `824c9448d6324f879759b243fbf5c9c013c3b137`; React-only build switch `58cc29cfb3cd8e54c4a8c0461b0a4f49b9dc4fbe`; later mobile chart/depth drawers; current redesign `8e7267dc7ad54c446c4b80b2406b82da5bdf9c1c` uses inline chart/entry/depth. Current React cannot be certified as preserving the old professional layout. Legacy code remains intact.
+- REMAINING BASELINE GAP: no source/snapshot or reachable commit binds the name V211 to the archived terminal. The old handoff's source commit references return GitHub HTTP422 in the upstream repo. Minimal owner question is only whether the already recovered four-zone desktop / left-book-right-entry mobile terminal is the version they call V211; no repeated source-file request is needed.
+- FIXED: admin tabs preserve complete horizontal labels and scroll at 320/390/768px; Chinese admin session-expired feedback still denies access; account support/security descriptions translated across all supported locales and legacy Vietnamese. Existing API, permission and financial handlers remain unchanged.
+- VERIFIED: frontend lint/typecheck/build pass; locale checker941 keys with no missing/duplicate keys; focused admin/account browser E2E20/20; backend493/493. Six fresh shared-Preview screenshots cover desktop/mobile account,admin,expired-session states using visibly marked synthetic fixtures. Existing full CI at8e7267d remains99 pass/18 fail/1 skip, not superseded by this focused pass. No new CI triggered because no push.
+- ARTIFACTS: task Outputs `btcbox-v211/trace-evidence.md`, `btcbox-v211/source-history.json`, `btcbox-nontrade-fixes/` screenshots. Trading layout acceptance remains open pending version identity; language coverage is not a full linguistic/real-provider acceptance.
+
+
 <!-- /coderabbit-ai-generated:v1 -->

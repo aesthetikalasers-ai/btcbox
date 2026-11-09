@@ -27,6 +27,8 @@ export function formatDecimalAmount(value: number | string | undefined | null, l
 
 const dictionaries: Record<StoredLocale, Dictionary> = {
   en: {
+    "Contact the BTCBOX support team.": "Contact the BTCBOX support team.",
+    "Manage sign-in methods and account security.": "Manage sign-in methods and account security.",
     "not submitted": "Not submitted",
     "Market data": "Market data",
     "BTCBOX / SPOT": "BTCBOX / SPOT",
@@ -948,6 +950,8 @@ const dictionaries: Record<StoredLocale, Dictionary> = {
     "I understand digital asset trading involves significant risk.": "I understand digital asset trading involves significant risk.",
   },
   ja: {
+    "Contact the BTCBOX support team.": "BTCBOXのカスタマーサポートにお問い合わせください。",
+    "Manage sign-in methods and account security.": "ログイン方法とアカウントのセキュリティを管理します。",
     "not submitted": "未提出",
     "Market data": "市場データ",
     "BTCBOX / SPOT": "BTCBOX / 現物取引",
@@ -1839,6 +1843,8 @@ const dictionaries: Record<StoredLocale, Dictionary> = {
     "I understand digital asset trading involves significant risk.": "デジタル資産取引には大きなリスクが伴うことを理解しています。",
   },
   "zh-CN": {
+    "Contact the BTCBOX support team.": "联系 BTCBOX 客服团队。",
+    "Manage sign-in methods and account security.": "管理登录方式和账户安全。",
     "not submitted": "未提交",
     "Market data": "行情数据",
     "BTCBOX / SPOT": "BTCBOX / 现货",
@@ -2737,6 +2743,8 @@ const dictionaries: Record<StoredLocale, Dictionary> = {
     "I understand digital asset trading involves significant risk.": "我理解数字资产交易涉及重大风险。",
   },
   es: {
+    "Contact the BTCBOX support team.": "Contacta con el equipo de soporte de BTCBOX.",
+    "Manage sign-in methods and account security.": "Gestiona los métodos de acceso y la seguridad de tu cuenta.",
     "not submitted": "Sin presentar",
     "Market data": "Datos de mercado",
     "BTCBOX / SPOT": "BTCBOX / MERCADO SPOT",
@@ -3633,6 +3641,8 @@ const dictionaries: Record<StoredLocale, Dictionary> = {
     "I understand digital asset trading involves significant risk.": "Entiendo que el trading de activos digitales implica un riesgo significativo.",
   },
   vi: {
+    "Contact the BTCBOX support team.": "Liên hệ đội ngũ hỗ trợ BTCBOX.",
+    "Manage sign-in methods and account security.": "Quản lý phương thức đăng nhập và bảo mật tài khoản.",
     "not submitted": "Chưa gửi",
     "Market data": "Dữ liệu thị trường",
     "BTCBOX / SPOT": "BTCBOX / GIAO NGAY",
@@ -4529,6 +4539,8 @@ const dictionaries: Record<StoredLocale, Dictionary> = {
     "I understand digital asset trading involves significant risk.": "Tôi hiểu giao dịch tài sản số có mức rủi ro đáng kể.",
   },
   it: {
+    "Contact the BTCBOX support team.": "Contatta il servizio clienti di BTCBOX.",
+    "Manage sign-in methods and account security.": "Gestisci i metodi di accesso e la sicurezza del conto.",
     "not submitted": "Non inviato",
     "Market data": "Dati di mercato",
     "BTCBOX / SPOT": "BTCBOX / MERCATO SPOT",
@@ -5425,6 +5437,8 @@ const dictionaries: Record<StoredLocale, Dictionary> = {
     "I understand digital asset trading involves significant risk.": "Comprendo che il trading di asset digitali comporta rischi significativi.",
   },
   pt: {
+    "Contact the BTCBOX support team.": "Contacte a equipa de apoio da BTCBOX.",
+    "Manage sign-in methods and account security.": "Gira os métodos de início de sessão e a segurança da conta.",
     "not submitted": "Não enviado",
     "Market data": "Dados de mercado",
     "BTCBOX / SPOT": "BTCBOX / MERCADO SPOT",
@@ -6321,6 +6335,8 @@ const dictionaries: Record<StoredLocale, Dictionary> = {
   },
 
   de: {
+    "Contact the BTCBOX support team.": "Kontaktieren Sie den BTCBOX-Kundendienst.",
+    "Manage sign-in methods and account security.": "Verwalten Sie Ihre Anmeldemethoden und die Kontosicherheit.",
     "not submitted": "Nicht eingereicht",
     "Market data": "Marktdaten",
     "BTCBOX / SPOT": "BTCBOX / SPOTMARKT",

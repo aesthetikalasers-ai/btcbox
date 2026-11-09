@@ -1385,3 +1385,40 @@ test("login screen switches to native Japanese copy without changing authenticat
   await expect(page.getByRole("combobox", { name: "言語" })).toHaveValue("ja");
   await expect(page.getByRole("heading", { name: "お帰りなさい", exact: true })).toBeVisible();
 });
+
+test('Admin mobile navigation keeps complete labels and can scroll to the last entry', async ({page}) => {
+  await installAdminE2EIdentity(page);
+  await page.route('**/api/admin/session',route=>route.fulfill({json:{ok:true,user_id:'e2e-admin-001',status:'active',is_super_admin:true,permissions:[]}}));
+  await page.route('**/api/admin/stats',route=>route.fulfill({json:{ok:true,total_users:0,pending_withdrawals:0,pending_kyc:0}}));
+  for (const width of [320,390,768]) {
+    await page.setViewportSize({width,height:844});
+    await page.goto('/admin');
+    const nav=page.getByRole('navigation',{name:'管理功能'});
+    await expect(nav).toBeVisible();
+    expect(await nav.evaluate(e=>e.scrollWidth>e.clientWidth)).toBe(true);
+    const first=nav.getByRole('button',{name:'用户与人工入账',exact:true});
+    expect(await first.evaluate(e=>({whiteSpace:getComputedStyle(e).whiteSpace,shrink:getComputedStyle(e).flexShrink}))).toEqual({whiteSpace:'nowrap',shrink:'0'});
+    const last=nav.getByRole('button',{name:'管理员',exact:true});
+    await last.scrollIntoViewIfNeeded();
+    await expect(last).toBeInViewport();
+    expect(await nav.evaluate(e=>e.scrollLeft)).toBeGreaterThan(0);
+    expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+  }
+});
+
+test('Admin session expiration is translated without hiding the denial', async ({page}) => {
+  await installAdminE2EIdentity(page);
+  await page.route('**/api/admin/session',route=>route.fulfill({status:401,json:{ok:false,code:'AUTH_REQUIRED',msg:'Your sign-in session has expired. Please sign in again.'}}));
+  await page.goto('/admin');
+  await expect(page.getByText('登录会话已过期，请重新登录。')).toBeVisible();
+  await expect(page.getByRole('heading',{name:'管理控制台'})).toHaveCount(0);
+});
+
+test('Japanese account descriptions use the selected customer language', async ({page}) => {
+  await page.addInitScript(()=>localStorage.setItem('btcbox-language','ja'));
+  await page.route('**/api/account',route=>route.fulfill({json:authenticatedAccountFixture}));
+  await page.goto('/me');
+  await expect(page.getByText('BTCBOXのカスタマーサポートにお問い合わせください。')).toBeVisible();
+  await expect(page.getByText('ログイン方法とアカウントのセキュリティを管理します。')).toBeVisible();
+  await expect(page.getByText('Contact the BTCBOX support team.',{exact:true})).toHaveCount(0);
+});
