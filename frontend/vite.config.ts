@@ -12,6 +12,14 @@ export default defineConfig({
   build: {
     // Keep React bundles separate from the legacy BTCBOX admin assets at /assets.
     assetsDir: "frontend-assets",
+    rollupOptions: {
+      output: {
+        // Cache the stable React/router runtime independently of application edits.
+        manualChunks(id) {
+          if (/\/node_modules\/(react|react-dom|react-router|react-router-dom|scheduler)\//.test(id)) return "react-runtime";
+        },
+      },
+    },
   },
   server: {
     hmr: process.env.DISABLE_HMR !== "true",

@@ -1,12 +1,50 @@
+<!-- coderabbit-ai-generated:v1 -->
+
+<!-- coderabbit-ai-generated-section:v1:bb3eaf17aaa7ca40a83801916ad3b450e0a201c28d7029e918b9d3421f7a2a58 -->
+
+<!-- coderabbit-ai-generated-section:v1:293a9fbfa4ec8c75ed64cd0db4084d3367bed51ed860c0c1bc1a7be2c7f0b726 -->
+
 # BTCBOX AI Coordination
 
-Last refreshed: 2026-11-07 (UTC+8)
+Last refreshed: 2026-11-09 (UTC)
 Repository: `avali9308-code/btcboxcdt`
 Active integration branch: `work/btcbox-unified-20261104`
 Coordination record: this document is historical baseline plus appended current-batch evidence; do not treat the 2026-11-05 branch inventory as current.
+
+## BTCBOX localization/performance and credential follow-up — 2026-11-09
+
+- TARGET: aesthetikalasers-ai/btcbox only, assigned task branch. Main 4bd2061f remains unchanged; draft PR #4 contains the work. No production deployment/merge/database operation.
+<!-- coderabbit-ai-generated:v1 -->
+
+<!-- coderabbit-ai-generated-section:v1:e2e998d199b057d3e430cc318715bcc2b243596118e5c31e9dcda250099ab9e7 -->
+
+- SOURCE OBSERVED: supplied Vercel credential authenticates as aesthetikalasers-4270, but the specified team returns 403 team_unauthorized; supplied project ID/name returns 404. This is distinct from GitHub Connector/MIRROR_TOKEN. Supabase project zlozsutefnmgwwzrlipt responds 200 to read-only health/settings/schema requests, Google enabled, 14 business tables/21 RPCs listed. No records read or writes performed. The project is also named in historical repository docs, so isolation from real users/funds is unconfirmed. Browser auth still requires its public anon/publishable key; service_role stays server-private. Schema metadata lacks 10 of 26 RPCs directly referenced by current backend, including Admin membership/audit, rate limiting, withdrawal-paid and policy/market management. Migrations, grants or schema cache need confirmation; metadata alone does not distinguish them.
+
+<!-- /coderabbit-ai-generated:v1 -->
+- IMPLEMENTED: extracted all 8 dictionaries preserving every original key; corrected 842 inherited wrong-language/mixed-language values across Japanese, Chinese, Spanish, Italian and legacy Vietnamese. Japanese admin translations now Japanese; actual Admin presentation remains fixed Chinese. Added script mismatch and recovery-copy consistency checks. Coverage is not native-speaker certification.
+- IMPLEMENTED: bundle Japanese/English/fixed Chinese Admin dictionaries; load 4 optional languages on demand with cache, timeout, retry and late-response isolation. Preserve mounted forms. First-load failure offers bundled English, localized recovery messages remain available offline. Fixed Chinese Admin does not depend on another language request. This preserves the fixed-Admin contract rather than applying a review suggestion to fall back to English there.
+- PERFORMANCE: stable React/router runtime chunk separately cached; final sizes and checks tracked in validation record and PR. No API/schema/financial-control/mirror/ownership-rule change.
+- VALIDATION: first full browser pass: 167 passed / 11 skips; first built-output: 5 passed; subsequent recovery-copy: 24 passed. CodeRabbit first pass: 5 findings (wrong-language blocks and first-load recovery), verified and repaired; second pass: 5 minor findings, corrected (password-reset meaning, wallet/Seconds terminology, pt-PT usage and documentation). Final full browser suite: 171 passed / 11 intentional skips; compiled-language suite: 7 passed. Final literal-copy checks and review are recorded in the validation record/PR. Test fixtures are isolated and are not real provider/financial verification.
+- OUTSTANDING: confirmed nonproduction identity/provider/financial flows, native devices, independent security acceptance, native-speaker proofreading and remaining visual acceptance. Supplied credential metadata does not establish these outcomes.
+
+
+
+<!-- /coderabbit-ai-generated:v1 -->
+
 Observed baseline: `main` at/including merge commit `93a236e4a3ed6c9edd2003ac1068a89161015511` (PR #20, read-only account/orders API).
 
+
+
+
+<!-- coderabbit-ai-generated:v1 -->
+
+<!-- coderabbit-ai-generated-section:v1:84f4afb8498213caf1c278702b8ffe72e92e5b2f0337c7e283b2322c5d8fc7ad -->
+
+<!-- /coderabbit-ai-generated:v1 -->
+
 ## Roles and boundaries
+
+<!-- /coderabbit-ai-generated:v1 -->
 
 - Current assignment: ChatGPT is 2号 AI, responsible for Web App + Admin Panel implementation, integration, responsive UX and independent cross-checks. 1号 AI owns Core backend; 3号 AI owns architecture, API contracts and cross-module integration. Read the latest unified-branch handoff before acting; do not overwrite another owner's work.
 - The user is the final approver for merges to `main`, production deployment, destructive operations, and material business-rule changes.
