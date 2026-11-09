@@ -5,3 +5,7 @@ dist/
 .env
 .env.*
 !.env.example
+
+# Local browser-test artifacts; deliverable screenshots live outside the checkout.
+test-results/
+playwright-report/

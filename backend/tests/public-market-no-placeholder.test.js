@@ -50,7 +50,7 @@ test('Vite dashboard does not keep stale quotes visible after a refresh error', 
   assert.match(liveMarketsTable, /const feedError = error \|\| \(snapshotStale \?/);
   assert.match(liveMarketsTable, /const displayMarkets = feedError \? \[\] : markets/);
   assert.match(liveMarketsTable, /feedError && displayMarkets\.length === 0/);
-  assert.match(liveMarketsTable, /snapshotAgeSeconds > 90/);
+  assert.ok(liveMarketsTable.includes('markets.some((item) => (item.snapshotTs || 0) > 0 && Date.now() / 1000 - (item.snapshotTs || 0) > 90)'));
   assert.doesNotMatch(liveMarketsTable, /Showing the last confirmed market data/);
 });
 

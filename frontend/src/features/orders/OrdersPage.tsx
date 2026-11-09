@@ -30,6 +30,7 @@ function statusVariant(status: string) {
 export function OrdersPage() {
   const { t, language } = useI18n();
   const dateLocale = dateLocales[language];
+  const [openOnly, setOpenOnly] = useState(false);
   const [orders, setOrders] = useState<OrderRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -82,6 +83,8 @@ export function OrdersPage() {
     };
   }, []);
 
+  const visibleOrders = openOnly ? orders.filter(order => ["open", "partially_filled", "partially-filled", "pending"].includes(String(order.status || "").toLowerCase())) : orders;
+
   return (
     <div className="tone-orders mx-auto flex w-full max-w-[1200px] min-w-0 flex-col gap-5 p-3 sm:p-4 md:p-6 lg:p-8">
       <div className="flex flex-wrap items-end justify-between gap-3">
@@ -104,9 +107,9 @@ export function OrdersPage() {
         </Card>
       )}
 
-      <Card className="overflow-hidden border-t-2 border-t-[var(--page-accent)] border-brand-border bg-brand-surface ring-1 ring-white/[0.025]"><div className="h-1 bg-gradient-to-r from-brand-cyan/80 via-brand-violet/70 to-brand-success/70"/>
+      <Card className="overflow-hidden border-brand-border bg-brand-surface ">
         <CardHeader className="border-b border-brand-border bg-brand-surface-2/50 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-3"><span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--page-accent)]/10 text-[var(--page-accent)]"><ClipboardList className="h-5 w-5"/></span><CardTitle>{t("Order history")}</CardTitle></div>
+          <div className="flex items-center gap-3"><span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--page-accent)]/10 text-[var(--page-accent)]"><ClipboardList className="h-5 w-5"/></span><CardTitle>{t("Order history")}</CardTitle></div><div className="mt-3 flex flex-wrap gap-2 sm:mt-0"><Button variant={openOnly ? "default" : "outline"} size="sm" aria-pressed={openOnly} onClick={() => setOpenOnly(true)}>{t("Open orders")}</Button><Button variant={!openOnly ? "default" : "outline"} size="sm" aria-pressed={!openOnly} onClick={() => setOpenOnly(false)}>{t("Order history")}</Button></div>
         </CardHeader>
         <CardContent className="p-0">
           {loading ? (
@@ -115,7 +118,7 @@ export function OrdersPage() {
               <div className="h-12 animate-pulse rounded bg-brand-surface-2" />
               <div className="h-12 animate-pulse rounded bg-brand-surface-2" />
             </div>
-          ) : orders.length === 0 && !error && !signedOut ? (
+          ) : visibleOrders.length === 0 && !error && !signedOut ? (
             <div className="flex flex-col items-center px-5 py-12 text-center">
               <ClipboardList className="mb-3 h-9 w-9 page-accent" />
               <p className="type-card-title text-brand-text">{t(signedOut ? "Sign in required" : error ? "Orders could not be loaded" : "No orders yet")}</p>
@@ -124,10 +127,10 @@ export function OrdersPage() {
           ) : (
             <>
               <div className="grid gap-3 p-3 md:hidden">
-                {orders.map((order, index) => {
+                {visibleOrders.map((order, index) => {
                   const id = display(order.order_id ?? order.id, `#${index + 1}`);
                   const side = display(order.side);
-                  return <Card key={id} className="border-l-2 border-l-[var(--page-accent)] border-brand-border bg-brand-surface-2/50 ring-1 ring-white/[0.025] transition-all hover:border-brand-cyan/30 hover:bg-brand-surface-2/80">
+                  return <Card key={id} className="border-brand-border bg-brand-surface-2/50  transition-all hover:border-brand-cyan/30 hover:bg-brand-surface-2/80">
                     <CardContent className="space-y-3 p-4">
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0"><p className="font-semibold text-brand-text">{display(order.symbol)}</p><p className="mt-1 truncate font-mono text-[11px] text-brand-text-muted">{id}</p></div>
@@ -137,7 +140,7 @@ export function OrdersPage() {
                         <div className="rounded-lg bg-brand-surface p-3"><p className="type-meta text-brand-text-muted">{t("Price")}</p><p className="mt-1 break-all font-mono text-sm tabular-nums text-brand-text">{display(order.price)}</p></div>
                         <div className="rounded-lg bg-brand-surface p-3"><p className="type-meta text-brand-text-muted">{t("Quantity")}</p><p className="mt-1 break-all font-mono text-sm tabular-nums text-brand-text">{display(order.quantity ?? order.amount)}</p></div>
                       </div>
-                      <div className="flex items-center justify-between gap-3 border-t border-brand-border pt-2 text-xs"><span className="text-brand-text-muted">{t(display(order.type))}</span><span className="text-right text-brand-text-muted">{display(order.created_at)}</span></div>
+                      <div className="flex items-center justify-between gap-3 border-t border-brand-border pt-2 text-xs"><span className="text-brand-text-muted">{t(display(order.type))}</span><span className="text-right text-brand-text-muted">{formatDate(order.created_at, dateLocale)}</span></div>
                     </CardContent>
                   </Card>;
                 })}
@@ -148,7 +151,7 @@ export function OrdersPage() {
                   <tr>{["Order", "Pair", "Side", "Type", "Price", "Quantity", "Status", "Created"].map((label) => <th key={label} className="px-4 py-3 font-semibold">{t(label)}</th>)}</tr>
                 </thead>
                 <tbody>
-                  {orders.map((order, index) => {
+                  {visibleOrders.map((order, index) => {
                     const id = display(order.order_id ?? order.id, `#${index + 1}`);
                     const side = display(order.side);
                     return <tr key={id} className="border-b border-brand-border/80 last:border-0 transition-colors hover:bg-brand-surface-hover">

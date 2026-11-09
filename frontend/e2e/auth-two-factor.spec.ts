@@ -47,7 +47,7 @@ test("username login keeps the authenticator challenge visible and completes sig
 
   await expect(page.getByRole("heading", { name: "Verify your sign-in" })).toBeVisible();
   await expect(page.getByLabel("Authenticator code")).toBeVisible();
-  await expect(page.getByRole("button", { name: "Verify and continue" })).toBeEnabled();
+  await expect(page.getByRole("button", { name: "Verify and continue" })).toBeDisabled();
   await expect(page.getByTestId("auth-mode-switcher")).toHaveCount(0);
 
   await page.getByLabel("Authenticator code").fill("123456");

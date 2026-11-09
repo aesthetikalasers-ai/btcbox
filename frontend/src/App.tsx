@@ -1,3 +1,4 @@
+import { AuthRestoreState } from "./components/AuthRestoreState";
 import { lazy, Suspense, type ReactNode } from "react";
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { AppLayout } from "./components/layout/AppLayout";
@@ -24,7 +25,7 @@ const EarnPage = lazy(() => import("./features/pages/Pages").then((m) => ({ defa
 
 function ProtectedAccountRoute({ children }: { children: ReactNode }) {
   const { status } = useAuth();
-  if (status === "loading") return <RouteLoading />;
+  if (status === "loading") return <AuthRestoreState />;
   if (status !== "authenticated") return <Navigate to="/login" replace />;
   return <>{children}</>;
 }
@@ -62,7 +63,8 @@ function CustomerRoutes() {
   return isStandaloneAuthRoute ? content : <AppLayout>{content}</AppLayout>;
 }
 export default function App() {
-  return <I18nProvider><Suspense fallback={<RouteLoading />}><Routes>
+  const { pathname } = useLocation();
+  return <I18nProvider fixedLanguage={/^\/admin\/?$/i.test(pathname) ? "zh-CN" : undefined}><Suspense fallback={<RouteLoading />}><Routes>
     <Route path="/admin" element={<AdminPage />} />
     <Route path="/*" element={<CustomerRoutes />} />
   </Routes></Suspense></I18nProvider>;

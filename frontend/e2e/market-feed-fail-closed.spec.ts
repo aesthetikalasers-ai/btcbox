@@ -1,5 +1,46 @@
 import { expect, test } from "@playwright/test";
 
+test("stale quotes are hidden from both the summary and list when snapshots have mixed ages", async ({ page }) => {
+  const now = Math.floor(Date.now() / 1000);
+  await page.route("**/api/market", route => route.fulfill({ status: 200, json: {
+    ok: true,
+    markets: [
+      { sym: "BTC", price: 65000, chg: 1, high: 66000, low: 64000, vol: "1200", source: "provider" },
+      { sym: "ETH", price: 3200, chg: 1, high: 3300, low: 3100, vol: "500", source: "provider" },
+    ],
+    data: { BTC: { ts: now - 100 }, ETH: { ts: now } },
+  } }));
+  await page.route("**/api/kline?**", route => route.fulfill({ status: 200, json: { ok: true, klines: [] } }));
+  await page.goto("/markets");
+  await expect(page.getByText("Snapshot stale", { exact: true })).toBeVisible();
+  await expect(page.getByText(/older than 90 seconds/)).toBeVisible();
+  await expect(page.getByText("65,000", { exact: false })).toHaveCount(0);
+  await expect(page.getByRole("link", { name: "ETH spot trading" })).toHaveCount(0);
+});
+
+test("a timed-out market refresh hides previous quotes and a later refresh recovers", async ({ page }) => {
+  test.setTimeout(40_000);
+  let stallNext = false;
+  let stalled = false;
+  let releasePending!: () => void;
+  const pending = new Promise<void>(resolve => { releasePending = resolve; });
+  await page.route("**/api/market", async route => {
+    if (stallNext) { stallNext = false; stalled = true; await pending; await route.abort().catch(() => {}); return; }
+    const now = Math.floor(Date.now() / 1000);
+    await route.fulfill({ status: 200, json: { ok: true, markets: [{ sym: "BTC", price: 65000, chg: 1, high: 66000, low: 64000, vol: "1200", source: "provider" }], data: { BTC: { ts: now } } } });
+  });
+  await page.route("**/api/kline?**", route => route.fulfill({ status: 200, json: { ok: true, klines: [] } }));
+  try {
+    await page.goto("/markets");
+    await expect(page.getByRole("link", { name: "BTC spot trading" })).toBeVisible();
+    stallNext = true;
+    await expect.poll(() => stalled, { timeout: 8000 }).toBe(true);
+    await expect(page.getByText("Market feed unavailable", { exact: true })).toBeVisible({ timeout: 12000 });
+    await expect(page.getByText("65,000", { exact: false })).toHaveCount(0);
+    await expect(page.getByRole("link", { name: "BTC spot trading" })).toBeVisible({ timeout: 8000 });
+  } finally { releasePending(); }
+});
+
 test("public dashboard shows an unavailable state and no quote values when the market feed fails", async ({ page }) => {
   await page.route("**/api/market", route => route.fulfill({
     status: 503,
@@ -140,9 +181,8 @@ test("spot trading hides expired quotes and blocks new orders until a fresh snap
   await expect(page.getByText("64,999", { exact: false })).toHaveCount(0);
   await expect(page.getByText("65,001", { exact: false })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Place buy limit order" })).toBeDisabled();
-  await page.getByRole("button", { name: "Order book" }).click();
-  await expect(page.getByRole("dialog", { name: "Order book" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Close market panel" })).toBeVisible();
-  await page.getByRole("button", { name: "Close market panel" }).click();
-  await expect(page.getByRole("dialog", { name: "Order book" })).toHaveCount(0);
+  await expect(page.getByRole("heading", { name: "Order book", exact: true })).toBeVisible();
+  // Depth is inline in the redesigned terminal and still hides stale prices.
+  await expect(page.getByText("64,999", { exact: false })).toHaveCount(0);
+  await expect(page.getByText("65,001", { exact: false })).toHaveCount(0);
 });

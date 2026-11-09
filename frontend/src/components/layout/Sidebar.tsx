@@ -23,7 +23,7 @@ const focusRing = "focus-visible:outline-none focus-visible:ring-2 focus-visible
 export function Sidebar({ onClose }: { onClose?: () => void }) {
   const { t } = useI18n();
   return (
-    <aside className="flex h-full w-full shrink-0 flex-col border-r border-brand-border bg-brand-sidebar pt-[env(safe-area-inset-top)] lg:w-[248px]">
+    <aside className="flex h-full w-full shrink-0 flex-col border-r border-brand-border bg-brand-sidebar pt-[env(safe-area-inset-top)] lg:w-[224px]">
       <div className="mt-1 flex h-16 items-center justify-between px-5">
         <NavLink to="/home" className="min-w-0" onClick={onClose}><BrandLogo /></NavLink>
         {onClose && (
@@ -36,12 +36,12 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
         <div className="space-y-1">
           {primary.map(({ to, label, icon: Icon }) => (
             <NavLink key={to} to={to} onClick={onClose} className={({ isActive }) => cn(
-              "group flex min-h-11 h-auto min-w-0 items-center gap-3 rounded-xl border px-3 py-2 text-sm font-semibold leading-tight transition-all duration-200",
+              "group flex min-h-11 h-auto min-w-0 items-center gap-3 rounded-lg border px-3 py-2 text-sm font-semibold leading-tight transition-all duration-200",
               focusRing,
               isActive && "is-active",
-              isActive ? (to === "/trade-hub" ? "border-brand-violet/25 bg-brand-violet/[0.09] text-brand-text shadow-[inset_3px_0_0_0_var(--color-brand-violet)]" : to === "/assets" ? "border-brand-teal/25 bg-brand-teal/[0.08] text-brand-text shadow-[inset_3px_0_0_0_var(--color-brand-teal)]" : to === "/me" ? "border-brand-info/25 bg-brand-info/[0.08] text-brand-text shadow-[inset_3px_0_0_0_var(--color-brand-info)]" : "border-brand-cyan/25 bg-brand-cyan/[0.08] text-brand-text shadow-[inset_3px_0_0_0_var(--color-brand-cyan)]") : "border-transparent text-brand-text-secondary hover:bg-brand-surface-hover hover:text-brand-text",
+              isActive ? "border-brand-accent/25 bg-brand-accent/10 text-brand-text" : "border-transparent text-brand-text-secondary hover:bg-brand-surface-hover hover:text-brand-text",
             )}>
-              <span className={cn("flex h-8 w-8 shrink-0 items-center justify-center rounded-lg", to === "/trade-hub" ? "bg-brand-violet/10 text-brand-violet" : to === "/assets" ? "bg-brand-teal/10 text-brand-teal" : to === "/me" ? "bg-brand-info/10 text-brand-info" : "bg-brand-cyan/10 text-brand-cyan")}><Icon className="h-[17px] w-[17px] opacity-95" /></span>
+              <span className={cn("flex h-8 w-8 shrink-0 items-center justify-center rounded-lg", "text-current")}><Icon className="h-[17px] w-[17px] opacity-95" /></span>
               <span className="min-w-0 break-words">{t(label)}</span>
               <span aria-hidden="true" className={cn("ml-auto h-1.5 w-1.5 shrink-0 rounded-full opacity-0 transition-opacity group-[.is-active]:opacity-100", to === "/trade-hub" ? "bg-brand-violet" : to === "/assets" ? "bg-brand-teal" : to === "/me" ? "bg-brand-info" : "bg-brand-cyan")} />
             </NavLink>
@@ -52,11 +52,11 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
           <div className="space-y-1">
             {secondary.map(({ to, label, icon: Icon }) => (
               <NavLink key={to} to={to} onClick={onClose} className={({ isActive }) => cn(
-                "group flex min-h-11 h-auto min-w-0 items-center gap-3 rounded-xl border px-3 py-2 text-[13px] font-semibold leading-tight transition-all duration-200",
+                "group flex min-h-11 h-auto min-w-0 items-center gap-3 rounded-lg border px-3 py-2 text-[13px] font-semibold leading-tight transition-all duration-200",
                 focusRing,
                 isActive ? (to === "/earn" ? "border-brand-orange/20 bg-brand-orange/[0.07] text-brand-text" : to === "/support" ? "border-brand-indigo/20 bg-brand-indigo/[0.07] text-brand-text" : "border-brand-info/20 bg-brand-info/[0.07] text-brand-text") : "border-transparent text-brand-text-secondary hover:bg-brand-surface-hover hover:text-brand-text",
               )}>
-                <span className={cn("flex h-7 w-7 shrink-0 items-center justify-center rounded-lg", to === "/earn" ? "bg-brand-orange/10 text-brand-orange" : to === "/support" ? "bg-brand-indigo/10 text-brand-indigo" : "bg-brand-info/10 text-brand-info")}><Icon className="h-4 w-4" /></span>
+                <span className={cn("flex h-7 w-7 shrink-0 items-center justify-center rounded-lg", to === "/earn" ? "text-brand-text-muted" : to === "/support" ? "text-brand-text-muted" : "text-brand-text-muted")}><Icon className="h-4 w-4" /></span>
                 <span className="min-w-0 break-words">{t(label)}</span>
               </NavLink>
             ))}
