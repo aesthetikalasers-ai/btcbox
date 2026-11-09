@@ -4,6 +4,19 @@ import { completeLogin2fa, exchangeSupabaseSession, getAccount, getAuthClientCon
 
 type AuthStatus = "loading" | "anonymous" | "authenticated" | "two-factor" | "password-recovery";
 
+// Map server auth error codes to actionable, user-safe messages. Never expose
+// Supabase UUIDs, database details, or "contact support" with no next step.
+function friendlyAuthErrorMessage(cause: unknown): string {
+  const code = (cause as { code?: string })?.code;
+  if (code === "SUPABASE_IDENTITY_MISMATCH") return "This email is already registered on BTCBOX. Please sign in instead, or contact support to link this Google account.";
+  if (code === "IDENTITY_IN_USE") return "This wallet is already linked to another BTCBOX account. Please sign in with that account.";
+  if (code === "ACCOUNT_FROZEN") return "This BTCBOX account is frozen. Please contact support.";
+  if (code === "AUTH_PROVIDER_NOT_ALLOWED") return "This sign-in method is not available. Please use another method.";
+  if (code === "GOOGLE_PROVIDER_UNAVAILABLE") return "Google sign-in is temporarily unavailable. Please try again later.";
+  if (code === "INVALID_SUPABASE_IDENTITY") return "The sign-in identity could not be verified. Please try again.";
+  return cause instanceof Error ? cause.message : "Authentication callback failed.";
+}
+
 type EthereumWalletChoice = {
   info: { uuid: string; name: string; rdns?: string };
   provider: unknown;
@@ -533,7 +546,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await acceptSupabaseSession(data.session.access_token);
       window.history.replaceState({}, document.title, "/auth/react-callback");
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Authentication callback failed.");
+      setError(friendlyAuthErrorMessage(cause));
       const failedFlow = new URL(window.location.href).searchParams.get("flow") || "";
       if (failedFlow === "link-reauth") {
         setPendingIdentityLinkToken("");

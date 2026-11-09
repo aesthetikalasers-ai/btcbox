@@ -147,7 +147,7 @@ export function AuthPage({ mode, redirectTo }: { mode: "login" | "register"; red
           </CardHeader>
           <CardContent className="space-y-4 px-5 pb-6 sm:px-8 sm:pb-8">
             {error && <div role="alert" className="flex items-start justify-between gap-3 rounded-lg border border-loss/30 bg-loss/10 p-3 text-sm text-loss">
-              <span className="min-w-0 break-words">{t(error)}</span>
+              <span className="min-w-0 break-words">{t(error)}{/already registered|already linked/i.test(error) && <> <Link to="/login" className="font-semibold underline underline-offset-4 hover:opacity-80">{t("Go to sign in")}</Link></>}</span>
               <button type="button" aria-label={t("Dismiss sign-in error")} className="flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-lg px-2 text-xs font-semibold underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent/70" onClick={clearError}>{t("Dismiss")}</button>
             </div>}
             {notice && <div role="status" className="rounded-lg border border-brand-border bg-brand-surface-2 p-3 text-sm text-brand-text-secondary">{t(notice)}</div>}
@@ -206,6 +206,9 @@ export function AuthCallbackPage() {
   const location = useLocation();
   const callbackIntent = new URLSearchParams(location.search).get("intent");
   const callbackDestination = callbackIntent === "register" ? "/register" : "/login";
+  // Identity-conflict errors mean the account already exists -> send to sign-in, not back to register.
+  const accountExistsError = !!error && /already registered|already linked|account is frozen/i.test(error);
+  const effectiveDestination = accountExistsError ? "/login" : callbackDestination;
   useEffect(() => {
     if (!oauthAttempted.current && status !== "loading" && status !== "authenticated" && status !== "two-factor" && status !== "password-recovery") {
       oauthAttempted.current = true;
@@ -218,9 +221,9 @@ export function AuthCallbackPage() {
   }, [status, needsCredentials, navigate]);
   useEffect(() => {
     if (!error || status !== "anonymous") return;
-    const redirectId = window.setTimeout(() => navigate(callbackDestination, { replace: true }), 6000);
+    const redirectId = window.setTimeout(() => navigate(effectiveDestination, { replace: true }), 6000);
     return () => window.clearTimeout(redirectId);
-  }, [callbackDestination, error, navigate, status]);
+  }, [effectiveDestination, error, navigate, status]);
   const submitRecovery = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setRecoveryError("");
