@@ -67,19 +67,19 @@ export function AuthPage({ mode, redirectTo }: { mode: "login" | "register"; red
   </div>;
 
   const identityButtons = <>
-    <div className="grid grid-cols-2 gap-3 max-[360px]:grid-cols-1" data-testid="auth-provider-buttons">
-      <Button type="button" variant="outline" className="h-12 min-h-12 w-full justify-center gap-2 px-3" aria-busy={busy} disabled={!googleEnabled || busy || status !== "anonymous"} title={!googleEnabled ? t("Google sign-in is temporarily unavailable.") : undefined} onClick={() => void signInWithGoogle(registering ? "register" : "login")}>
+    <div className="grid gap-2" data-testid="auth-provider-buttons">
+      <Button type="button" className="h-12 min-h-12 w-full justify-center gap-2 px-3" aria-busy={busy} disabled={!googleEnabled || busy || status !== "anonymous"} title={!googleEnabled ? t("Google sign-in is temporarily unavailable.") : undefined} onClick={() => void signInWithGoogle(registering ? "register" : "login")}>
         <svg aria-hidden="true" viewBox="0 0 48 48" className="h-5 w-5 shrink-0">
           <path fill="#4285F4" d="M43.6 24.5c0-1.4-.1-2.8-.4-4.1H24v7.8h11c-.5 2.5-1.9 4.6-4 6l6.4 5c3.8-3.5 6.2-8.6 6.2-14.7z"/>
           <path fill="#34A853" d="M24 44c5.5 0 10.1-1.8 13.4-4.8l-6.4-5c-1.8 1.2-4.1 2-7 2-5.4 0-10-3.7-11.6-8.6l-6.6 5.1C9.1 39.3 16 44 24 44z"/>
           <path fill="#FBBC05" d="M12.4 27.6c-.4-1.2-.7-2.4-.7-3.6s.2-2.5.7-3.6l-6.6-5.1C4.5 18 3.5 20.9 3.5 24s1 6 2.3 8.7l6.6-5.1z"/>
           <path fill="#EA4335" d="M24 11.4c3 0 5.7 1 7.8 3l5.8-5.8C34.1 5.3 29.5 3.5 24 3.5 16 3.5 9.1 8.2 5.8 15.3l6.6 5.1c1.6-4.9 6.2-9 11.6-9z"/>
         </svg>
-        <span className="truncate">{t("Google")}</span>
+        <span className="truncate">{t("Continue with Google")}</span>
       </Button>
-      <Button type="button" variant="outline" className="h-12 min-h-12 w-full justify-center gap-2 px-3" aria-expanded={walletMenuOpen} aria-controls="auth-wallet-options" aria-busy={busy} disabled={!walletEnabled || busy || status !== "anonymous"} title={!walletEnabled ? t("Wallet sign-in is temporarily unavailable.") : undefined} onClick={() => setWalletMenuOpen(open => !open)}>
+      {walletEnabled && <Button type="button" variant="outline" className="h-12 min-h-12 w-full justify-center gap-2 px-3" aria-expanded={walletMenuOpen} aria-controls="auth-wallet-options" aria-busy={busy} disabled={busy || status !== "anonymous"} onClick={() => setWalletMenuOpen(open => !open)}>
         <Wallet className="h-5 w-5 shrink-0" /> <span>{t("Wallet")}</span>
-      </Button>
+      </Button>}
     </div>
     {!googleEnabled && <p className="text-xs text-brand-text-muted" role="status">{t("Google sign-in is temporarily unavailable.")}</p>}
     {!walletEnabled && <p className="text-xs text-brand-text-muted" role="status">{t("Wallet sign-in is temporarily unavailable.")}</p>}
@@ -95,11 +95,7 @@ export function AuthPage({ mode, redirectTo }: { mode: "login" | "register"; red
         <h1 className="max-w-[560px] text-4xl font-semibold leading-[1.12] tracking-tight text-brand-text xl:text-5xl">
           {registering ? t("A clearer way to enter the digital asset market.") : t("Welcome back to your market.")}
         </h1>
-        <p className="mt-5 max-w-[480px] text-base leading-7 text-brand-text-secondary">
-          {registering
-            ? t("Create your BTCBOX account with email or Google, verify your identity, and complete your account setup.")
-            : t("Access your BTCBOX account with email, username, Google or a supported crypto wallet.")}
-        </p>
+        {!registering && <p className="mt-5 max-w-[480px] text-base leading-7 text-brand-text-secondary">{t("Access your BTCBOX account with email, username, Google or a supported crypto wallet.")}</p>}
         <div className="mt-9 grid max-w-[520px] gap-3 sm:grid-cols-2">
           <div className="rounded-xl border border-brand-border bg-gradient-to-br from-brand-surface via-brand-surface to-brand-cyan/[0.035] p-4">
             <ChartNoAxesCombined className="mb-3 h-5 w-5 text-brand-cyan" />
@@ -134,11 +130,7 @@ export function AuthPage({ mode, redirectTo }: { mode: "login" | "register"; red
             <CardTitle className="text-2xl font-semibold tracking-tight">
               {status === "two-factor" ? t("Verify your sign-in") : registering ? t("Create your BTCBOX account") : t("Welcome back")}
             </CardTitle>
-            {(status === "two-factor" || registering) && <CardDescription className="max-w-[380px] text-sm leading-6 text-brand-text-muted">
-              {status === "two-factor"
-                ? t("Enter your authenticator code to finish signing in.")
-                : t("Verify your email address or Google identity, then complete your BTCBOX account setup.")}
-            </CardDescription>}
+            {status === "two-factor" && <CardDescription className="max-w-[380px] text-sm leading-6 text-brand-text-muted">{t("Enter your authenticator code to finish signing in.")}</CardDescription>}
             {status !== "two-factor" && <div data-testid="auth-mode-switcher" className="grid grid-cols-2 rounded-xl border border-brand-border bg-brand-surface-2 p-1 text-sm font-semibold">
               <Link to="/login" className={`flex min-h-10 items-center justify-center rounded-lg transition-colors ${!registering ? "bg-brand-accent text-white shadow-sm" : "text-brand-text-secondary hover:text-brand-text"}`}>{t("Sign in")}</Link>
               <Link to="/register" className={`flex min-h-10 items-center justify-center rounded-lg transition-colors ${registering ? "bg-brand-accent text-white shadow-sm" : "text-brand-text-secondary hover:text-brand-text"}`}>{t("Create account")}</Link>
@@ -162,6 +154,7 @@ export function AuthPage({ mode, redirectTo }: { mode: "login" | "register"; red
               </label>
               <Button type="submit" className="min-h-12 w-full" disabled={verifyBusy || verifyCode.length < 6}>{verifyBusy ? t("Verifying…") : t("Verify and continue")}</Button>
             </form> : <>
+              {identityButtons}
               {mode === "login" && <form className="space-y-3" aria-busy={busy} onSubmit={submitUsernameLogin}>
                 <label className="block space-y-1.5 text-sm">
                   <span className="text-brand-text-secondary">{t("Username")}</span>
@@ -175,8 +168,6 @@ export function AuthPage({ mode, redirectTo }: { mode: "login" | "register"; red
                   <KeyRound className="mr-2 h-4 w-4" /> {busy ? t("Signing in…") : t("Sign in with username")}
                 </Button>
               </form>}
-
-              {identityButtons}
 
               <form className="space-y-3 rounded-xl border border-brand-border bg-brand-surface-2 p-4" aria-busy={busy} onSubmit={submitEmail}>
                 <p className="text-sm font-semibold text-brand-text">{mode === "login" ? t("Continue with email") : t("Register with email")}</p>
