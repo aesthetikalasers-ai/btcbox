@@ -288,6 +288,22 @@ const authenticatedAccountFixture = {
   twofa_enabled: false,
 };
 
+test("account page waits for session restoration before showing sign-in", async ({ page }) => {
+  let releaseConfig!: () => void;
+  const configReady = new Promise<void>(resolve => { releaseConfig = resolve; });
+  await page.route("**/api/auth-client-config", async route => {
+    await configReady;
+    await route.fulfill({ status: 200, json: { ok: true, supabase_url: "https://btcbox-e2e.invalid", publishable_key: "e2e-anon-key-not-valid-for-production", google_enabled: false, wallet_enabled: false } });
+  });
+  await page.route("**/api/account", route => route.fulfill({ status: 200, json: authenticatedAccountFixture }));
+  await page.goto("/me");
+  await expect(page.getByText("Loading account profile…")).toBeVisible();
+  await expect(page.getByText("Sign in to continue")).toHaveCount(0);
+  releaseConfig();
+  await expect(page.getByRole("heading", { name: "Account profile" })).toBeVisible();
+  await expect(page.getByText("Sign in to continue")).toHaveCount(0);
+});
+
 test("authenticated My account keeps profile hierarchy concise", async ({ page }) => {
   await page.route("**/api/account", async (route) => {
     await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(authenticatedAccountFixture) });
