@@ -191,3 +191,27 @@ test('terminal details use real depth sizes and accessible order rows at 375, 39
   await expect(page.getByText(/CodeRabbit|Synthetic fixture|scroll capture/)).toHaveCount(0);
  }
 });
+
+test('new spot orders follow exact available balance while trading stays enabled',async({page})=>{
+ await page.route('**/api/account',r=>r.fulfill({json:{ok:true,uid:'balance-check',username:'balance_user',unpriced_assets:[],balances:{USDT:{free:'1.00',frozen:'0'},ETH:{free:'0.25',frozen:'0'}},kyc:{status:'not_submitted'},has_login_password:true}}));
+ await page.route('**/api/trading/status',r=>r.fulfill({json:{ok:true,spot_order_entry_enabled:true,spot_cancel_enabled:true,supported_order_types:['limit']}}));
+ await page.goto('/trade/ETH');
+ await page.getByLabel('Limit price (USDT)').fill('1');
+ await page.getByLabel('Quantity · ETH').fill('1.000000000000000001');
+ await expect(page.getByRole('button',{name:'Insufficient available balance'})).toBeDisabled();
+ await page.getByLabel('Quantity · ETH').fill('1');
+ await expect(page.getByRole('button',{name:'Place buy limit order'})).toBeEnabled();
+ await page.getByRole('button',{name:'Sell',exact:true}).click();
+ await expect(page.getByRole('button',{name:'Insufficient available balance'})).toBeDisabled();
+ await page.getByLabel('Quantity · ETH').fill('0.25');
+ await expect(page.getByRole('button',{name:'Place sell limit order'})).toBeEnabled();
+});
+
+test('all preserved locales show truthful service availability without development promises',async({page})=>{
+ for(const locale of ['ja','en','zh-CN','es','vi','pt','it','de']){
+  await page.addInitScript(value=>localStorage.setItem('btcbox-language',value),locale);
+  await page.goto('/trade-hub');
+  await expect(page.locator('main')).not.toContainText(/Coming soon|近日対応予定|即将推出|Próximamente|Sắp ra mắt|Prossimamente|Em breve|Demnächst verfügbar|CodeRabbit|Synthetic fixture|scroll capture|API integration pending/i);
+  await expect(page.locator('main')).toContainText(/Futures|先物|合约|Futuros|futuros|tương lai|futures/i);
+ }
+});

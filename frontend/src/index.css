@@ -275,7 +275,7 @@ a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
 .spot-terminal > div:first-child .page-accent { display:none; }
 .spot-terminal .type-page-title { font-size:22px; }
 .spot-quote { border:0; border-radius:0; box-shadow:none; background:transparent; }
-.spot-quote-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px 24px; padding:0 0 12px; border-bottom:1px solid var(--color-brand-border); }
+.spot-quote-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px 24px; padding:0 0 10px; border-bottom:1px solid var(--color-brand-border); }
 .spot-quote-grid > div { min-width:0; }
 .spot-quote-grid > div:first-child p:last-child { font-size:30px; line-height:1.15; letter-spacing:-.04em; }
 .spot-quote-grid > div:nth-child(2) { align-self:center; text-align:right; }
@@ -293,10 +293,10 @@ a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
 .spot-book-columns,.spot-book-row { display:grid; grid-template-columns:minmax(0,1.35fr) minmax(0,1fr); gap:6px; text-align:right; font-size:12px; font-variant-numeric:tabular-nums; }
 .spot-book-columns { font-size:11px; color:var(--color-brand-text-muted); margin-bottom:12px; }
 .spot-book-row { line-height:26px; background-position:right center; background-repeat:no-repeat; font-family:var(--font-mono); }
-.spot-book-row[data-side="ask"] { background-image:linear-gradient(rgb(239 68 68 / .09),rgb(239 68 68 / .09)); }
-.spot-book-row[data-side="bid"] { background-image:linear-gradient(rgb(34 197 94 / .09),rgb(34 197 94 / .09)); }
+.spot-book-row[data-side="ask"] { background-image:linear-gradient(rgb(239 68 68 / .12),rgb(239 68 68 / .12)); }
+.spot-book-row[data-side="bid"] { background-image:linear-gradient(rgb(34 197 94 / .12),rgb(34 197 94 / .12)); }
 .spot-book-columns span:first-child { text-align:left; }
-.spot-mid-price { margin-block:4px; padding-block:12px; border-block:1px solid var(--color-brand-border); font:600 17px/26px var(--font-mono); }
+.spot-mid-price { margin-block:4px; padding-block:12px; border-block:1px solid var(--color-brand-border); font:700 19px/28px var(--font-mono); }
 .spot-book-row span { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .spot-book-row span:first-child { text-align:left; }
 .spot-side button { min-height:44px; border-radius:6px; font-weight:650; }

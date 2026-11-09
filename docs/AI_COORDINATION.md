@@ -6667,3 +6667,19 @@ Fresh affected browser suite28/28,including375/390/414depth sizing/row/cancel-na
 - Removed remaining customer-facing “sample/simulated orders” copy from both Orders page implementations.
 - Backend market depth cache is now cleared when the current order-book provider refresh fails, instead of continuing to display an old book.
 - Regression tests cover these visible-copy rules and stale depth clearing. Latest PR head is d80ce66; exact-head CI is queued/running. No merge or deployment has been performed.
+<!-- coderabbit-ai-generated:v1 -->
+
+<!-- coderabbit-ai-generated-section:v1:1e31c5667b43cad150e5e4b553c3a2dfc61db5e79105dbdbf4eb05a144211ee8 -->
+
+## 2026-11-09 customer cleanup and local integration
+
+Owner requested customer-visible development-copy cleanup, precise balance-aware order states, existing terminal preservation and integration only after green CI. Fetched main 8db5de501949751135c84abc28a60f9f30dcdc1a and unified 27f88f99e70563ac5f7622e096420451a4f1e413. Local merge6056f84 preserves the newer stale-feed locks, language selectors and approved terminal while retaining unified legacy live-stat updates and both handoffs. Local merge4e1eb01 preserves main's working 2FA challenge within the existing auth design; the imported regression now correctly expects Verify disabled until a code is entered.
+
+Removed futures Coming-soon promise and integration-progress wording in all eight preserved dictionaries; legitimate document preview, KYC pending state, input placeholders, test fixtures and internal docs retained. Added localized unavailable account/chart messages after actual Preview exposed English fallback text. Adopted PR78 customer date/amount locale formatting; admin remains Chinese per Owner. PR73 dictionaries were compared against the expanded current dictionary; PR65 is not applied wholesale because it overlaps and would replace the accepted terminal/account protections. No claim that all four open PRs are fully integrated.
+
+Spot book digits remain12px with19px midprice and restrained12%depth fill. New-order button rejects unknown/insufficient balances and invalid inputs using exact decimal comparison, with the same rule before submission; existing pending intent retries retain their ID and backend validation. No execution, permission, fee, cancellation or production-data bypass.
+
+Fresh backend493/493,decimal4/4,build/lint and all944translation keys pass. Eight-locale browser availability checks2/2 pass. Full E2E and focused final rerun results are in task Outputs and validation record. Historical18auth failures match prior error signatures and remain unresolved; cannot merge under the Owner's green-CI gate. No push,remote merge,deployment or production database change performed. Actual Preview screenshots use unavailable local provider/account state without fake fallback data. Live admin data cleanup, native Safari and complete external-service acceptance remain unverified.
+
+
+<!-- /coderabbit-ai-generated:v1 -->

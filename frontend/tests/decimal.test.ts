@@ -16,3 +16,11 @@ test('invalid and unbounded numeric inputs fail closed', () => {
     assert.equal(multiplyDecimalStrings(value, '2'), undefined);
   }
 });
+
+test('balance comparison preserves exact values and rejects unavailable data', async () => {
+  const { compareDecimalStrings } = await import('../src/lib/decimal.ts');
+  assert.equal(compareDecimalStrings('9007199254740993', '9007199254740992'), 1);
+  assert.equal(compareDecimalStrings('0.099999999999999999', '0.1'), -1);
+  assert.equal(compareDecimalStrings('01.200', '1.2'), 0);
+  for (const value of ['', '-1', 'NaN', '1e3', '1'.repeat(257)]) assert.equal(compareDecimalStrings(value, '1'), undefined);
+});
