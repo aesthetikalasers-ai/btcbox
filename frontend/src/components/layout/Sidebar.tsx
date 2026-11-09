@@ -23,7 +23,7 @@ const focusRing = "focus-visible:outline-none focus-visible:ring-2 focus-visible
 export function Sidebar({ onClose }: { onClose?: () => void }) {
   const { t } = useI18n();
   return (
-    <aside className="flex h-full w-full shrink-0 flex-col border-r border-brand-border bg-brand-sidebar lg:w-[248px]">
+    <aside className="flex h-full w-full shrink-0 flex-col border-r border-brand-border bg-brand-sidebar pt-[env(safe-area-inset-top)] lg:w-[248px]">
       <div className="mt-1 flex h-16 items-center justify-between px-5">
         <NavLink to="/home" className="min-w-0" onClick={onClose}><BrandLogo /></NavLink>
         {onClose && (

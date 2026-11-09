@@ -223,6 +223,9 @@ a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
   }
   .pulse-soft { animation: pulseSoft 2s ease-in-out infinite; }
   .live-dot { animation: liveDot 1.8s ease-in-out infinite; }
+  /* Unified page gutter + max width for content pages (trade hub stays full-bleed). */
+  .page-gutter { padding-left: clamp(12px, 3vw, 24px); padding-right: clamp(12px, 3vw, 24px); }
+  .page-max { max-width: 1600px; margin-inline: auto; }
 }
 @layer components {
   .card-lift { transition: transform .22s cubic-bezier(.22,.61,.36,1), border-color .22s, box-shadow .22s, background-color .22s; }
