@@ -1,8 +1,6 @@
 name: Sync mirror from btcboxcdt
 
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
   schedule:
     - cron: "17 * * * *"
@@ -23,7 +21,7 @@ jobs:
         with:
           fetch-depth: 1
 
-      - name: Mirror all source branches and tags
+      - name: Mirror non-main source branches and tags
         env:
           SOURCE_URL: https://github.com/avali9308-code/btcboxcdt.git
           TARGET_URL: https://github.com/aesthetikalasers-ai/btcbox.git
@@ -48,19 +46,8 @@ jobs:
           git clone --mirror "$SOURCE_URL" source.git
 
 
-          git clone source.git working
-          mkdir -p working/.github/workflows
-          cp "$GITHUB_WORKSPACE/.github/workflows/mirror.yml" working/.github/workflows/mirror.yml
-
-          git -C working config user.name "github-actions[bot]"
-          git -C working config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git -C working add .github/workflows/mirror.yml
-          if ! git -C working diff --cached --quiet; then
-            git -C working commit -m "chore: retain automatic mirror workflow"
-          fi
-
-          # Preserve this controller workflow on main; all other source refs are mirrored.
-          target_git -C working push --force "$TARGET_URL" HEAD:refs/heads/main
+          # main is maintained in this repository by integration PRs.
+          # Keep source branch/tag sync without replacing target main.
 
           while IFS= read -r branch; do
             [ "$branch" = "main" ] && continue
