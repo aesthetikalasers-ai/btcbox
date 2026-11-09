@@ -5,15 +5,14 @@ on:
     branches: [main, "feature/btcbox-complete-redesign", 'integration/btcbox-mainline-consolidation-20261108', 'feat/btcbox-web3-auth-20261105', 'fix/post-merge-db-bootstrap-seconds-20261106', 'work/btcbox-unified-20261104']
     paths:
       - 'backend/**'
-      - 'frontend/src/lib/auth.tsx'
-      - 'frontend/src/features/auth/AuthPages.tsx'
+      - 'frontend/**'
       - '.github/workflows/backend-ci.yml'
       - '.github/workflows/frontend-ci.yml'
   pull_request:
     branches: [main, 'integration/btcbox-mainline-consolidation-20261108', 'feat/btcbox-web3-auth-20261105', 'fix/post-merge-db-bootstrap-seconds-20261106', 'work/btcbox-unified-20261104']
     paths:
       - 'backend/**'
-      - 'frontend/src/lib/auth.tsx'
+      - 'frontend/**'
       - '.github/workflows/backend-ci.yml'
       - '.github/workflows/frontend-ci.yml'
   workflow_dispatch:

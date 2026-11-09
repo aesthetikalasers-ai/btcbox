@@ -17,7 +17,8 @@ const routes = [
   { path: "/orders", heading: "Orders" },
 ];
 
-test("responsive visual QA captures key customer and admin entry routes without horizontal page overflow", async ({ page }) => {
+for (const route of routes) {
+test(`responsive visual QA ${route.path} fits every viewport`, async ({ page }) => {
   test.setTimeout(180_000);
   test.skip(test.info().project.name !== "desktop-chromium", "The desktop Chromium project iterates the full viewport matrix.");
   const output = path.resolve(process.cwd(), "test-results/visual-qa");
@@ -77,7 +78,6 @@ test("responsive visual QA captures key customer and admin entry routes without 
   });
   await page.route("https://btcbox-e2e.invalid/**", route => route.abort());
 
-  for (const route of routes) {
     const routePath = route.path;
     for (const width of widths) {
       await page.setViewportSize({ width, height: 900 });
@@ -91,7 +91,6 @@ test("responsive visual QA captures key customer and admin entry routes without 
       if (routePath === "/markets") await expect(page.getByRole("heading", { name: "Explore the market. Trade with confidence.", exact: true })).toHaveCount(0);
       if (routePath === "/home" || routePath === "/markets") await expect(page.getByText("No markets enabled", { exact: true })).toBeVisible();
       if (routePath === "/trade-hub") await expect(page.getByTestId("spot-availability")).toHaveText("Unavailable");
-      await page.waitForLoadState("networkidle");
       await page.evaluate(() => document.fonts.ready);
       const dimensions = await page.evaluate(() => ({
         viewport: window.innerWidth,
@@ -103,5 +102,5 @@ test("responsive visual QA captures key customer and admin entry routes without 
       const slug = routePath.replace(/[^a-z0-9]+/gi, "-").replace(/^-|-$/g, "") || "root";
       await page.screenshot({ path: path.join(output, `${slug}-${width}.png`), fullPage: true, animations: "disabled" });
     }
-  }
 });
+}

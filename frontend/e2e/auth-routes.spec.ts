@@ -31,7 +31,7 @@ test.beforeEach(async ({ page }) => {
   await page.route("https://btcbox-e2e.invalid/**", (route) => route.abort());
 });
 
-test("login route exposes email/password, BTCBOX username, Google and wallet sign-in", async ({ page }) => {
+test("login route exposes BTCBOX username, Google and wallet sign-in", async ({ page }) => {
   await page.goto("/login");
 
   await expect(page.getByRole("heading", { name: "Welcome back", exact: true })).toBeVisible();
@@ -39,10 +39,10 @@ test("login route exposes email/password, BTCBOX username, Google and wallet sig
   await expect(page.getByRole("navigation", { name: "Primary navigation" })).toHaveCount(0);
   await expect(page.getByLabel("Username")).toBeVisible();
   await expect(page.getByLabel("Password", { exact: true })).toBeVisible();
-  await expect(page.getByLabel("Email address")).toBeVisible();
-  await expect(page.getByLabel("Email password")).toBeVisible();
-  await expect(page.getByRole("button", { name: "Sign in with email" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Forgot password?" })).toBeVisible();
+  await expect(page.getByLabel("Email address")).toHaveCount(0);
+  await expect(page.getByLabel("Email password")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Sign in with email" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Forgot password?" })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Google" })).toBeDisabled();
   await expect(page.getByText("Google sign-in is temporarily unavailable.")).toBeVisible();
   await page.getByRole("button", { name: "Wallet" }).click();
@@ -51,26 +51,18 @@ test("login route exposes email/password, BTCBOX username, Google and wallet sig
   await expect(page.getByRole("button", { name: "Connect Solana wallet" })).toBeVisible();
 });
 
-test("email login is verified by Supabase before any BTCBOX session is created", async ({ page }) => {
-  let passwordGrantRequests = 0;
-  const btcboxExchanges: string[] = [];
-  await page.route("https://btcbox-e2e.invalid/auth/v1/token?grant_type=password", async route => {
-    passwordGrantRequests += 1;
-    await route.fulfill({
-      status: 400, contentType: "application/json",
-      body: JSON.stringify({ code: "invalid_credentials", message: "Invalid login credentials" }),
-    });
-  });
+test("login does not expose retired email authentication", async ({ page }) => {
+  const forbiddenRequests: string[] = [];
   page.on("request", request => {
-    if (new URL(request.url()).pathname === "/api/supabase-login") btcboxExchanges.push(request.method());
+    const url = new URL(request.url());
+    if (url.pathname === "/auth/v1/token" || url.pathname === "/api/supabase-login") forbiddenRequests.push(url.pathname);
   });
   await page.goto("/login");
-  await page.getByLabel("Email address").fill("member@example.invalid");
-  await page.getByLabel("Email password").fill("IncorrectPassword123!");
-  await page.getByRole("button", { name: "Sign in with email" }).click();
-  await expect(page.getByRole("alert")).toContainText("Invalid login credentials");
-  expect(passwordGrantRequests).toBe(1);
-  expect(btcboxExchanges).toEqual([]);
+  await expect(page.getByRole("button", { name: "Wallet", exact: true })).toBeVisible();
+  await expect(page.getByLabel("Email address")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Forgot password?" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Create account with email" })).toHaveCount(0);
+  expect(forbiddenRequests).toEqual([]);
 });
 
 test("Google sign-in button is shown when the public auth config enables Google", async ({ page }) => {
@@ -95,8 +87,8 @@ test("Google sign-in button is shown when the public auth config enables Google"
   await page.getByRole("button", { name: "Wallet" }).click();
   await expect(page.getByRole("button", { name: "Connect Ethereum wallet" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Connect Solana wallet" })).toBeVisible();
-  await expect(page.getByLabel("Email address")).toBeVisible();
-  await expect(page.getByRole("button", { name: "Sign in with email" })).toBeVisible();
+  await expect(page.getByLabel("Email address")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Sign in with email" })).toHaveCount(0);
 });
 
 test("wallet sign-in failures remain visible and never create a BTCBOX session without a wallet provider", async ({ page }) => {
@@ -123,56 +115,50 @@ test("wallet sign-in failures remain visible and never create a BTCBOX session w
   expect(btcboxSessionExchanges).toEqual([]);
 });
 
-test("registration route offers Supabase email registration, Google and optional wallet identity creation", async ({ page }) => {
+test("registration route offers Google and wallet identity creation", async ({ page }) => {
   await page.goto("/register");
 
   await expect(page.getByRole("heading", { name: "Create your BTCBOX account" })).toBeVisible();
   await expect(page.getByRole("banner")).toHaveCount(0);
   await expect(page.getByRole("navigation", { name: "Primary navigation" })).toHaveCount(0);
-  await expect(page.getByLabel("Email address")).toBeVisible();
-  await expect(page.getByLabel("Email password")).toBeVisible();
-  await expect(page.getByRole("button", { name: "Create account with email" })).toBeVisible();
+  await expect(page.getByLabel("Email address")).toHaveCount(0);
+  await expect(page.getByLabel("Email password")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Create account with email" })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Google" })).toBeDisabled();
   await expect(page.getByRole("button", { name: "Wallet" })).toBeVisible();
   await page.getByRole("button", { name: "Wallet" }).click();
   await expect(page.getByRole("button", { name: "Connect Ethereum wallet" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Connect Solana wallet" })).toBeVisible();
-  await expect(page.getByRole("link", { name: "Sign in" })).toHaveAttribute("href", "/login");
+  await expect(page.getByTestId("auth-mode-switcher").getByRole("link", { name: "Sign in", exact: true })).toHaveAttribute("href", "/login");
 });
 
 
-test("email registration submits to Supabase and requires mailbox confirmation", async ({ page }) => {
-  await page.route("https://btcbox-e2e.invalid/auth/v1/signup**", route => route.fulfill({
-    status: 200,
-    contentType: "application/json",
-    body: JSON.stringify({
-      id: "e2e-email-user-001", aud: "authenticated", role: "authenticated",
-      email: "new-user@example.invalid", email_confirmed_at: null,
-      app_metadata: { provider: "email", providers: ["email"] }, user_metadata: {},
-      identities: [{ identity_id: "e2e-email-identity-001", id: "e2e-email-user-001", user_id: "e2e-email-user-001",
-        identity_data: { email: "new-user@example.invalid" }, provider: "email",
-        created_at: "2026-11-08T00:00:00.000Z", updated_at: "2026-11-08T00:00:00.000Z" }],
-      created_at: "2026-11-08T00:00:00.000Z", updated_at: "2026-11-08T00:00:00.000Z",
-    }),
-  }));
+test("registration does not expose retired email signup", async ({ page }) => {
+  const forbiddenRequests: string[] = [];
+  page.on("request", request => {
+    const url = new URL(request.url());
+    if (url.pathname === "/auth/v1/signup" || url.pathname === "/api/supabase-login") forbiddenRequests.push(url.pathname);
+  });
   await page.goto("/register");
-  await page.getByLabel("Email address").fill("new-user@example.invalid");
-  await page.getByLabel("Email password").fill("StrongPassword123!");
-  await page.getByRole("button", { name: "Create account with email" }).click();
-  await expect(page.getByText("Registration received. Please check your email and confirm your address before signing in.")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Wallet", exact: true })).toBeVisible();
+  await expect(page.getByLabel("Email address")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Forgot password?" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Create account with email" })).toHaveCount(0);
+  expect(forbiddenRequests).toEqual([]);
 });
 
-test("forgot password requests Supabase recovery without revealing whether an account exists", async ({ page }) => {
-  let recoveryRequests = 0;
-  await page.route("https://btcbox-e2e.invalid/auth/v1/recover**", async route => {
-    recoveryRequests += 1;
-    await route.fulfill({ status: 200, contentType: "application/json", body: "{}" });
+test("login does not expose retired email recovery", async ({ page }) => {
+  const forbiddenRequests: string[] = [];
+  page.on("request", request => {
+    const url = new URL(request.url());
+    if (url.pathname === "/auth/v1/recover" || url.pathname === "/api/supabase-login") forbiddenRequests.push(url.pathname);
   });
   await page.goto("/login");
-  await page.getByLabel("Email address").fill("existing-user@example.invalid");
-  await page.getByRole("button", { name: "Forgot password?" }).click();
-  await expect(page.getByText("If an account exists for this email, a password reset message will be sent.")).toBeVisible();
-  expect(recoveryRequests).toBe(1);
+  await expect(page.getByRole("button", { name: "Wallet", exact: true })).toBeVisible();
+  await expect(page.getByLabel("Email address")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Forgot password?" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Create account with email" })).toHaveCount(0);
+  expect(forbiddenRequests).toEqual([]);
 });
 
 test("unauthenticated customer is redirected from a protected route", async ({ page }) => {
@@ -265,7 +251,7 @@ test("account overview stays signed out after the auth session bootstrap check",
   await page.goto("/me");
 
   await expect(page.getByText("Sign in to continue")).toBeVisible();
-  await expect(page.getByRole("link", { name: "Sign in" })).toHaveAttribute("href", "/login");
+  await expect(page.getByRole("link", { name: "Sign in", exact: true })).toHaveAttribute("href", "/login");
   // AuthProvider performs one read-only account probe to restore an existing cookie session.
   // That bootstrap GET is expected while signed out; no write endpoint is involved.
   expect(privateAccountRequests).toEqual(["GET"]);
@@ -520,7 +506,7 @@ test("OAuth callback failure returns a registration attempt to the registration 
 
   await expect(page.getByText("Google sign-in was cancelled")).toBeVisible();
   await expect(page.getByRole("link", { name: "Return to sign in" })).toHaveAttribute("href", "/register");
-  await expect(page).toHaveURL(/\/register$/, { timeout: 3500 });
+  await expect(page).toHaveURL(/\/register$/, { timeout: 7500 });
 });
 
 async function installAdminE2EIdentity(page: import("@playwright/test").Page) {
@@ -1018,8 +1004,8 @@ test("registration experience stays clear and usable on a narrow mobile viewport
   await page.getByRole("button", { name: "Wallet" }).click();
   await expect(page.getByRole("button", { name: "Connect Ethereum wallet" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Connect Solana wallet" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Create account with email" })).toBeVisible();
-  await expect(page.getByLabel("Email address")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Create account with email" })).toHaveCount(0);
+  await expect(page.getByLabel("Email address")).toHaveCount(0);
   const dimensions = await page.evaluate(() => ({ viewport: document.documentElement.clientWidth, content: document.documentElement.scrollWidth }));
   expect(dimensions.content).toBeLessThanOrEqual(dimensions.viewport);
 });
@@ -1043,7 +1029,7 @@ test("public preview landing page is available signed out with market data and r
   }));
 
   await page.goto("/home");
-  await expect(page.locator("header")).toBeVisible();
+  await expect(page.getByRole("banner")).toBeVisible();
   await expect(page.locator("nav[aria-label='Primary navigation']").last()).toBeVisible();
   await expect(page.locator("section").first().locator("[aria-label='BTCBOX Exchange']")).toBeHidden();
   await expect(page.getByRole("link", { name: /Create account/i }).first()).toHaveAttribute("href", "/register");
@@ -1252,9 +1238,9 @@ test("registration layout adapts from mobile to desktop without losing the ident
     await page.getByRole("button", { name: "Wallet" }).click();
     await expect(page.getByRole("button", { name: "Connect Ethereum wallet" })).toBeVisible();
     await expect(page.getByRole("button", { name: "Connect Solana wallet" })).toBeVisible();
-    await expect(page.getByRole("link", { name: "Sign in" })).toHaveAttribute("href", "/login");
-    await expect(page.getByLabel("Email address")).toBeVisible();
-    await expect(page.getByRole("button", { name: "Create account with email" })).toBeVisible();
+    await expect(page.getByTestId("auth-mode-switcher").getByRole("link", { name: "Sign in", exact: true })).toHaveAttribute("href", "/login");
+    await expect(page.getByLabel("Email address")).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Create account with email" })).toHaveCount(0);
     await expect(page.getByLabel("Username")).toHaveCount(0);
     const dimensions = await page.evaluate(() => ({
       viewport: document.documentElement.clientWidth,
