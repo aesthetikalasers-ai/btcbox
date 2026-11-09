@@ -31,13 +31,15 @@ test('migration evidence tool refuses to guess a mapping when staging URL is abs
   assert.match(result.stderr, /production DATABASE_URL is intentionally ignored/);
 });
 
-test('migration evidence tool refuses the known production project even when supplied as staging URL', () => {
-  const env = { ...process.env, STAGING_DATABASE_URL: 'postgresql://operator:secret@db.zlozsutefnmgwwzrlipt.supabase.co/postgres' };
+for (const project of ['zlozsutefnmgwwzrlipt', 'ZLOZSUTEFNMGWWZRLIPT', '%7Alozsutefnmgwwzrlipt']) {
+test(`migration evidence tool refuses protected project spelling ${project}`, () => {
+  const env = { ...process.env, STAGING_DATABASE_URL: `postgresql://operator:secret@db.${project}.supabase.co/postgres` };
   const result = spawnSync('python3', [script], { encoding: 'utf8', env });
   assert.equal(result.status, 2);
   assert.match(result.stderr, /Refusing the known production Supabase project/);
   assert.doesNotMatch(result.stderr, /operator|secret/);
 });
+}
 
 test('migration evidence collector is read-only and blocks the known production project', () => {
   const source = fs.readFileSync(script, 'utf8');

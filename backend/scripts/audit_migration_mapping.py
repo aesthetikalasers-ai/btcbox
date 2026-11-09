@@ -18,6 +18,7 @@ import os
 import re
 import sys
 from pathlib import Path
+from urllib.parse import unquote
 
 ROOT = Path(__file__).resolve().parents[1]
 SQL_DIR = ROOT / "supabase" / "sql"
@@ -55,7 +56,7 @@ def query_all(cursor, sql, params=None):
 def database_snapshot(database_url):
     # Prevent accidental use against the known production project. This is an
     # evidence collector for an isolated clone/staging database only.
-    if PROTECTED_PROJECT in database_url:
+    if PROTECTED_PROJECT in unquote(database_url).lower():
         raise AuditConfigurationError("Refusing the known production Supabase project; use an isolated staging clone.")
 
     try:
