@@ -20,22 +20,24 @@ const price = (value: number, locale: string) => new Intl.NumberFormat(locale, {
 }).format(value);
 
 function Change({ value, locale }: { value: number; locale: string }) {
-  return <span className={`inline-flex min-w-[76px] justify-center rounded-lg px-2.5 py-1.5 text-xs font-semibold tabular-nums ${value >= 0 ? "bg-profit/10 text-profit" : "bg-loss/10 text-loss"}`}>
+  return <span className={`inline-flex min-w-[76px] justify-center rounded-lg px-2.5 py-1.5 text-xs font-semibold tabular-nums ${value >= 0 ? "bg-profit/[0.08] text-profit/90" : "bg-loss/[0.06] text-loss/85"}`}>
     {value > 0 ? "+" : ""}{value.toLocaleString(locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%
   </span>;
 }
 
-export function LiveMarketsTable({ markets, loading, error }: {
+export function LiveMarketsTable({ markets, loading, error, now, refreshing }: {
   markets: MarketTicker[];
   loading: boolean;
   error: string;
+  now: number;
+  refreshing: boolean;
 }) {
   const { t, language } = useI18n();
   const numberLocale = localeTags[language];
   const [searchParams, setSearchParams] = useSearchParams();
   const query = (searchParams.get("q") || "").trim().toLowerCase();
   const latestSnapshotTs = markets.reduce((latest, item) => Math.max(latest, item.snapshotTs || 0), 0);
-  const snapshotAgeSeconds = latestSnapshotTs > 0 ? Math.max(0, Math.floor(Date.now() / 1000 - latestSnapshotTs)) : null;
+  const snapshotAgeSeconds = latestSnapshotTs > 0 ? Math.max(0, Math.floor(now / 1000 - latestSnapshotTs)) : null;
   const snapshotStale = snapshotAgeSeconds !== null && snapshotAgeSeconds > 90;
   const feedError = error || (snapshotStale ? t("The market service snapshot is older than 90 seconds. Quotes are hidden until a fresh snapshot arrives.") : "");
   const displayMarkets = feedError ? [] : markets;
@@ -49,7 +51,7 @@ export function LiveMarketsTable({ markets, loading, error }: {
   const providerTime = providerTimestamp > 0
     ? new Intl.DateTimeFormat(numberLocale, { hour: "2-digit", minute: "2-digit", second: "2-digit" }).format(new Date(providerTimestamp * 1000))
     : "";
-  const providerAgeSeconds = providerTimestamp > 0 ? Math.max(0, Math.floor(Date.now() / 1000 - providerTimestamp)) : null;
+  const providerAgeSeconds = providerTimestamp > 0 ? Math.max(0, Math.floor(now / 1000 - providerTimestamp)) : null;
   const providerAgeLabel = providerAgeSeconds !== null
     ? new Intl.RelativeTimeFormat(numberLocale, { numeric: "auto", style: "short" }).format(-providerAgeSeconds, "second")
     : "";
@@ -69,7 +71,7 @@ export function LiveMarketsTable({ markets, loading, error }: {
             </p>
           </>}
         </div>
-        {loading || feedError ? <span className="shrink-0 rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-2 text-xs font-semibold text-brand-text-secondary">{loading ? t("Loading…") : t("Unavailable")}</span> : visibleMarkets.length > 0 ? <span className="shrink-0 rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-2 text-xs font-semibold text-brand-text-secondary">{visibleMarkets.length} {t("pairs")}</span> : null}
+        {loading || feedError ? <span className="shrink-0 rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-2 text-xs font-semibold text-brand-text-secondary">{loading ? t("Loading…") : t("Unavailable")}</span> : visibleMarkets.length > 0 ? <span className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-2 text-xs font-semibold text-brand-text-secondary"><span aria-hidden="true" className={`h-1.5 w-1.5 rounded-full bg-brand-success ${refreshing ? "animate-ping" : ""}`} />{visibleMarkets.length} {t("pairs")}</span> : null}
       </div>
       {displayMarkets.length > 0 && <div className="border-b border-brand-border px-4 py-3 md:px-6">
         <label className="relative block">

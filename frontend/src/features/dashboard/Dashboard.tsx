@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { ArrowRight, ArrowUpRight, ChartNoAxesCombined, ShieldCheck, Wallet } from "lucide-react";
+import { ArrowDownRight, ArrowRight, ArrowUpRight, ChartNoAxesCombined, ShieldCheck, Wallet } from "lucide-react";
 import { LiquidityChart } from "./components/LiquidityChart";
 import { VolumeChart } from "./components/VolumeChart";
 import { LiveMarketsTable } from "./components/LiveMarketsTable";
@@ -19,6 +19,9 @@ export function Dashboard() {
   const isMarketsPage = useLocation().pathname === "/markets";
   const [markets, setMarkets] = useState<MarketTicker[]>([]);
   const [loading, setLoading] = useState(true);
+  const [marketRefreshInFlight, setMarketRefreshInFlight] = useState(false);
+  const [marketRefreshAt, setMarketRefreshAt] = useState(0);
+  const [now, setNow] = useState(() => Date.now());
   const [error, setError] = useState("");
   const [liquidityCandles, setLiquidityCandles] = useState<MarketCandle[]>([]);
   const [volumeCandles, setVolumeCandles] = useState<MarketCandle[]>([]);
@@ -33,15 +36,22 @@ export function Dashboard() {
   const marketFeedStatus = loading ? "Connecting" : error ? "Feed unavailable" : !markets.length ? "No markets enabled" : !hasMarketSnapshotTime ? "Snapshot time unavailable" : marketSnapshotStale ? "Snapshot stale" : "Live market feed";
 
   useEffect(() => {
+    const tickId = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(tickId);
+  }, []);
+
+  useEffect(() => {
     const controller = new AbortController();
     let refreshing = false;
     const loadMarkets = () => {
       if (refreshing || controller.signal.aborted) return;
       refreshing = true;
+      setMarketRefreshInFlight(true);
       getMarkets(controller.signal).then((rows) => {
         if (controller.signal.aborted) return;
         setMarkets(rows);
         setError("");
+        setMarketRefreshAt(Date.now());
       }).catch((reason: unknown) => {
         if (reason instanceof Error && reason.name === "AbortError") return;
         // Do not leave old quotes on screen as if they were current.
@@ -49,7 +59,10 @@ export function Dashboard() {
         setError(reason instanceof Error ? reason.message : "Market data is unavailable.");
       }).finally(() => {
         refreshing = false;
-        if (!controller.signal.aborted) setLoading(false);
+        if (!controller.signal.aborted) {
+          setLoading(false);
+          setMarketRefreshInFlight(false);
+        }
       });
     };
     loadMarkets();
@@ -130,8 +143,10 @@ export function Dashboard() {
         {isMarketsPage ? <h1 className="type-page-title text-brand-text">{t("Market overview")}</h1> : <h2 className="type-page-title text-brand-text">{t("Market overview")}</h2>}
         <p className="type-body mt-1.5 text-brand-text-secondary">{t("Live spot prices and 24-hour market movement.")}</p>
       </div>
-      <Badge variant="outline" className="border-brand-accent/30 bg-brand-accent/10 px-3 py-1 text-brand-text-secondary">
-        {t(marketFeedStatus)}
+      <Badge variant="outline" className="flex items-center gap-1.5 border-brand-accent/30 bg-brand-accent/10 px-3 py-1 text-brand-text-secondary" aria-live="polite">
+        <span aria-hidden="true" className={`h-1.5 w-1.5 rounded-full ${marketRefreshInFlight ? "animate-ping bg-brand-accent" : error || marketSnapshotStale ? "bg-brand-text-muted" : "bg-brand-success shadow-[0_0_8px_var(--color-brand-success)]"}`} />
+        <span>{t(marketRefreshInFlight ? "Loading…" : marketFeedStatus)}</span>
+        {marketRefreshAt > 0 && !marketRefreshInFlight && !error && <span className="text-brand-text-muted">· {Math.max(0, Math.floor((now - marketRefreshAt) / 1000))}s</span>}
       </Badge>
     </div>
     {(btcMarket || loading) && <section aria-label={t("Bitcoin market summary")} className="grid gap-3 sm:grid-cols-3">
@@ -144,7 +159,7 @@ export function Dashboard() {
       <div className="relative min-w-0 overflow-hidden rounded-xl border border-brand-teal/25 bg-gradient-to-br from-brand-teal/[0.075] via-brand-surface to-brand-surface p-4 ring-1 ring-brand-teal/[0.06] sm:p-5">
         <span aria-hidden="true" className="absolute inset-y-0 left-0 w-1 bg-brand-teal"/>
         <div className="flex items-center justify-between gap-2 pl-1"><p className="type-meta font-semibold uppercase tracking-wide text-brand-text-muted">{t("BTC 24h change")}</p><span className={"h-2 w-2 rounded-full "+(btcMarket ? btcMarket.chg >= 0 ? "bg-profit" : "bg-loss" : "bg-brand-text-muted")}/></div>
-        <p className={"mt-3 truncate text-xl font-semibold tracking-tight tabular-nums sm:text-2xl "+(btcMarket ? btcMarket.chg >= 0 ? "text-profit" : "text-loss" : "text-brand-text")}>{loading || !btcMarket ? "—" : (btcMarket.chg > 0 ? "+" : "") + btcMarket.chg.toFixed(2) + "%"}</p>
+        <div className="mt-3 flex items-center gap-2 pl-1"><p className="truncate text-xl font-semibold tracking-tight tabular-nums text-brand-text sm:text-2xl">{loading || !btcMarket ? "—" : (btcMarket.chg > 0 ? "+" : "") + btcMarket.chg.toFixed(2) + "%"}</p>{btcMarket && !loading && <span className={`inline-flex items-center rounded-md px-1.5 py-1 ${btcMarket.chg >= 0 ? "bg-profit/[0.07] text-profit/85" : "bg-loss/[0.06] text-loss/85"}`}><ArrowDownRight aria-hidden="true" className={`h-3.5 w-3.5 ${btcMarket.chg >= 0 ? "rotate-180" : ""}`}/></span>}</div>
         
       </div>
       <div className="relative min-w-0 overflow-hidden rounded-xl border border-brand-violet/25 bg-gradient-to-br from-brand-violet/[0.075] via-brand-surface to-brand-surface p-4 ring-1 ring-brand-violet/[0.06] sm:p-5">
@@ -154,7 +169,7 @@ export function Dashboard() {
         
       </div>
     </section>}
-    <LiveMarketsTable markets={markets} loading={loading} error={error} />
+    <LiveMarketsTable markets={markets} loading={loading} error={error} now={now} refreshing={marketRefreshInFlight} />
     <div className="flex items-center justify-between gap-3 px-1 pt-1">
       <div>
         <h2 className="type-section-title text-brand-text">{t("Market analytics")}</h2>
