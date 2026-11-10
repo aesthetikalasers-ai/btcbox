@@ -101,7 +101,7 @@ export function OrdersPage() {
       {error && (
         <Card className="border-brand-border bg-brand-surface">
           <CardContent className="flex flex-wrap items-center justify-between gap-3 p-4">
-            <p className="type-body-compact text-brand-text-secondary" role="alert">{error}</p>
+            <p className="type-body-compact text-brand-text-secondary" role="alert">{t(error)}</p>
             {signedOut && <Button asChild size="sm"><Link to="/login">{t("Sign in")} <ArrowUpRight className="ml-1 h-4 w-4" /></Link></Button>}
           </CardContent>
         </Card>
