@@ -105,7 +105,7 @@ export function Topbar({ onMenuClick, menuOpen = false, menuButtonRef }: { menuB
               <span aria-hidden="true" className={`text-xs text-brand-text-muted transition-transform ${langMenuOpen ? "rotate-180" : ""}`}>⌄</span>
             </button>
             {langMenuOpen && (
-              <div ref={langItemsRef} id="language-menu" role="menu" aria-orientation="vertical" aria-label={t("Language")} onKeyDown={handleLanguageMenuKeyDown} className="absolute right-0 z-50 mt-2 w-44 max-w-[80vw] overflow-hidden rounded-lg border border-brand-border bg-brand-surface-2 py-1 shadow-xl shadow-black/40">
+              <div ref={langItemsRef} id="language-menu" role="menu" aria-orientation="vertical" aria-label={t("Language")} onKeyDown={handleLanguageMenuKeyDown} className="absolute right-0 z-50 mt-2 max-h-[min(70dvh,22rem)] w-44 max-w-[80vw] overflow-y-auto overscroll-contain rounded-lg border border-brand-border bg-brand-surface-2 py-1 shadow-xl shadow-black/40">
                 {LANGUAGE_MENU.map(({ code, label }) => {
                   const selected = language === code;
                   return (
