@@ -945,5 +945,21 @@
   "I understand digital asset trading involves significant risk.": "Tôi hiểu giao dịch tài sản số có mức rủi ro đáng kể.",
   "Unable to load this language. Please try again.": "Không thể tải ngôn ngữ này. Vui lòng thử lại.",
   "Gainers": "Tăng giá",
-  "Losers": "Giảm giá"
+  "Losers": "Giảm giá",
+  "Redeemed": "Đã chuộc lại",
+  "Settled": "Đã thanh toán",
+  "Unknown": "Không xác định",
+  "Confirmed": "Đã xác nhận",
+  "Pending": "Đang chờ",
+  "Processing": "Đang xử lý",
+  "Rejected": "Bị từ chối",
+  "Completed": "Đã hoàn tất",
+  "Under review": "Đang xem xét",
+  "Verified": "Đã xác minh",
+  "Approved": "Đã phê duyệt",
+  "Failed": "Thất bại",
+  "Cancelled": "Đã hủy",
+  "Filled": "Đã khớp",
+  "Partially filled": "Khớp một phần",
+  "Not submitted": "Chưa gửi"
 }

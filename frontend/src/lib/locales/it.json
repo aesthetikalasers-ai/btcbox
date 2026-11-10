@@ -945,5 +945,21 @@
   "I understand digital asset trading involves significant risk.": "Comprendo che il trading di asset digitali comporta rischi significativi.",
   "Unable to load this language. Please try again.": "Impossibile caricare questa lingua. Riprova.",
   "Gainers": "Maggiori rialzi",
-  "Losers": "Maggiori ribassi"
+  "Losers": "Maggiori ribassi",
+  "Redeemed": "Rimborsato",
+  "Settled": "Regolato",
+  "Unknown": "Sconosciuto",
+  "Confirmed": "Confermato",
+  "Pending": "In attesa",
+  "Processing": "In elaborazione",
+  "Rejected": "Rifiutato",
+  "Completed": "Completato",
+  "Under review": "In revisione",
+  "Verified": "Verificato",
+  "Approved": "Approvato",
+  "Failed": "Non riuscito",
+  "Cancelled": "Annullato",
+  "Filled": "Eseguito",
+  "Partially filled": "Parzialmente eseguito",
+  "Not submitted": "Non inviato"
 }

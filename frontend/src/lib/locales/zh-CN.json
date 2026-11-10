@@ -945,5 +945,21 @@
   "I understand digital asset trading involves significant risk.": "我理解数字资产交易涉及重大风险。",
   "Unable to load this language. Please try again.": "无法加载该语言，请重试。",
   "Gainers": "涨幅榜",
-  "Losers": "跌幅榜"
+  "Losers": "跌幅榜",
+  "Redeemed": "已赎回",
+  "Settled": "已结算",
+  "Unknown": "未知",
+  "Confirmed": "已确认",
+  "Pending": "待处理",
+  "Processing": "处理中",
+  "Rejected": "已拒绝",
+  "Completed": "已完成",
+  "Under review": "审核中",
+  "Verified": "已验证",
+  "Approved": "已批准",
+  "Failed": "失败",
+  "Cancelled": "已取消",
+  "Filled": "已成交",
+  "Partially filled": "部分成交",
+  "Not submitted": "未提交"
 }
