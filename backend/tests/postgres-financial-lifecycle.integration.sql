@@ -130,6 +130,8 @@ BEGIN
     RAISE EXCEPTION 'withdrawal freeze mismatch: available %, frozen %',v_balance,v_frozen;
   END IF;
 
+  -- Capture ledger count before approval to prove that approval itself is non-financial.
+  SELECT count(*) INTO v_ledger_before FROM public.financial_ledger WHERE user_id='deposit-user';
   v_result := public.review_withdrawal_atomic('WD-CI-0001','admin-ci',true,'postgres-ci approve');
   IF v_result->>'status'<>'approved' OR v_result->>'duplicate'<>'false' THEN
     RAISE EXCEPTION 'withdrawal approval failed: %',v_result;
@@ -140,7 +142,10 @@ BEGIN
   END IF;
 
   -- Approval is status-only: preserve the user's full reserved amount and create no ledger row.
-  SELECT count(*) INTO v_ledger_before FROM public.financial_ledger WHERE user_id='deposit-user';
+  SELECT count(*) INTO v_ledger_after FROM public.financial_ledger WHERE user_id='deposit-user';
+  IF v_ledger_after<>v_ledger_before THEN
+    RAISE EXCEPTION 'approval must not create a financial ledger row';
+  END IF;
   SELECT available,frozen INTO v_balance,v_frozen FROM public.financial_accounts
   WHERE user_id='deposit-user' AND asset='USDT';
   IF v_balance<>89 OR v_frozen<>11 THEN
@@ -154,6 +159,7 @@ BEGIN
   END IF;
 
   -- Staff payout completion is the single, idempotent ledger debit of frozen funds.
+  SELECT count(*) INTO v_ledger_before FROM public.financial_ledger WHERE user_id='deposit-user';
   v_result := public.mark_withdrawal_paid_atomic('WD-CI-0001','admin-ci','txid-ci-0001','postgres-ci payout');
   IF v_result->>'status'<>'completed' OR v_result->>'duplicate'<>'false' THEN
     RAISE EXCEPTION 'manual payout completion failed: %',v_result;
