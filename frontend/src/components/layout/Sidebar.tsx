@@ -27,7 +27,7 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
       <div className="mt-1 flex h-16 items-center justify-between px-5">
         <NavLink to="/home" className="min-w-0" onClick={onClose}><BrandLogo /></NavLink>
         {onClose && (
-          <button type="button" aria-label={t("Close navigation")} onClick={onClose} className={cn("flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-brand-text-muted transition-colors hover:bg-brand-surface-hover lg:hidden", focusRing)}>
+          <button type="button" aria-label={t("Close navigation")} onClick={onClose} className={cn("flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-brand-text-muted transition-colors hover:bg-brand-surface-hover lg:hidden", focusRing)}>
             <X className="h-5 w-5" />
           </button>
         )}

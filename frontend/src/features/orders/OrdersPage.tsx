@@ -57,9 +57,9 @@ export function OrdersPage() {
       setOrders([]);
       if (reason instanceof ApiError && reason.code === "AUTH_REQUIRED") {
         setSignedOut(true);
-        setError(t("Sign in to view your order history."));
+        setError("Sign in to view your order history.");
       } else {
-        setError(reason instanceof Error ? reason.message : t("Order history is temporarily unavailable."));
+        setError(reason instanceof Error ? reason.message : "Order history is temporarily unavailable.");
       }
     } finally {
       if (requestId === requestIdRef.current) {

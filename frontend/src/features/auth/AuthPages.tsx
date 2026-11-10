@@ -234,15 +234,15 @@ export function AuthCallbackPage() {
     if (busy) return;
     setRecoveryError("");
     if (newPassword.length < 8 || newPassword.length > 128) {
-      setRecoveryError(t("Use a password between 8 and 128 characters."));
+      setRecoveryError("Use a password between 8 and 128 characters.");
       return;
     }
     if (newPassword !== confirmPassword) {
-      setRecoveryError(t("The passwords do not match."));
+      setRecoveryError("The passwords do not match.");
       return;
     }
     try { await completePasswordRecovery(newPassword); }
-    catch (cause) { setRecoveryError(cause instanceof Error ? cause.message : t("Password could not be updated.")); }
+    catch (cause) { setRecoveryError(cause instanceof Error ? cause.message : "Password could not be updated."); }
   };
   if (status === "password-recovery") return <main className="tone-support mx-auto flex min-h-[100dvh] w-full max-w-[520px] items-center px-3 py-8 sm:px-6">
     <Card className="w-full overflow-hidden border-brand-accent/20 bg-brand-surface  ">

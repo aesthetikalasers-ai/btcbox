@@ -36,9 +36,9 @@ export function AssetsPage() {
       setAccount(null);
       if (reason instanceof ApiError && reason.code === "AUTH_REQUIRED") {
         setSignedOut(true);
-        setError(t("Sign in to view your assets."));
+        setError("Sign in to view your assets.");
       } else {
-        setError(reason instanceof Error ? reason.message : t("Account data is temporarily unavailable."));
+        setError(reason instanceof Error ? reason.message : "Account data is temporarily unavailable.");
       }
     } finally {
       if (requestId === requestIdRef.current) {
