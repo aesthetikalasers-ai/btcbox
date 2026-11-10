@@ -1033,11 +1033,10 @@ test("public preview landing page is available signed out with market data and r
   await expect(page.locator("nav[aria-label='Primary navigation']").last()).toBeVisible();
   await expect(page.locator("section").first().locator("[aria-label='BTCBOX Exchange']")).toBeHidden();
   await expect(page.getByRole("link", { name: /Create account/i }).first()).toHaveAttribute("href", "/register");
-  await expect(page.getByRole("heading", { name: "Market overview" })).toBeVisible();
-  await expect(page.getByText(/Live market feed|Connecting/)).toBeVisible();
-  await page.getByText("Market data", { exact: true }).click();
-  await expect(page.getByText(/Server snapshot/)).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Explore the market. Trade with confidence." })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Top tokens" })).toBeVisible();
   await expect(page.getByText("BTC/USDT", { exact: true }).first()).toBeVisible();
+  await expect(page.getByRole("link", { name: "Spot trading" })).toHaveAttribute("href", "/trade/BTCUSDT");
   const dimensions = await page.evaluate(() => ({ viewport: document.documentElement.clientWidth, content: document.documentElement.scrollWidth }));
   expect(dimensions.content).toBeLessThanOrEqual(dimensions.viewport);
   expect(mutations).toEqual([]);
@@ -1172,11 +1171,11 @@ test("public preview distinguishes server snapshot time from upstream provider t
     }),
   }));
 
-  await page.goto("/home");
+  await page.goto("/markets");
 
   await page.getByText("Market data", { exact: true }).click();
   await expect(page.getByText(/Server snapshot ·/)).toBeVisible();
-  await expect(page.getByLabel(/Provider snapshot coinbase .* \d+s ago/)).toBeVisible();
+  await expect(page.getByText(/Provider snapshot · coinbase · \d+ seconds ago/)).toBeVisible();
 });
 
 test("Admin ignores a withdrawal queue response from a tab opened earlier", async ({ page }) => {
@@ -1278,8 +1277,8 @@ test("public market preview remains responsive across mobile, tablet and desktop
   ]) {
     await page.setViewportSize(viewport);
     await page.goto("/home");
-    await expect(page.getByRole("heading", { name: "Market overview" })).toBeVisible();
-    await expect(page.locator("p:visible").filter({ hasText: "BTC/USDT" }).first()).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Explore the market. Trade with confidence." })).toBeVisible();
+    await expect(page.getByText("BTC/USDT", { exact: true }).first()).toBeVisible();
     const dimensions = await page.evaluate(() => ({
       viewport: document.documentElement.clientWidth,
       content: document.documentElement.scrollWidth,
