@@ -68,10 +68,13 @@ test('withdrawal approve/reject/mark-paid are atomic RPCs with duplicate protect
   assert.ok(approve.includes('p_reason:'));
   // The final migration overrides the original review RPC: approval must leave the
   // reserved amount frozen, while rejection releases it. Payout is a separate debit.
-  assert.match(sqlWithdrawalApproveNoBurn, /case when p_approve then 0 else v_w\.amount \+ v_w\.fee end/);
-  assert.match(sqlWithdrawalApproveNoBurn, /case when p_approve then 0 else -\(v_w\.amount \+ v_w\.fee\) end/);
+  assert.match(sqlWithdrawalApproveNoBurn, /if p_approve then[\s\S]*?v_operation_id := null;[\s\S]*?else[\s\S]*?public\.apply_financial_operation/);
+  assert.match(sqlWithdrawalApproveNoBurn, /'withdraw_reject'[\s\S]*?v_w\.amount \+ v_w\.fee[\s\S]*?-\(v_w\.amount \+ v_w\.fee\)/);
   assert.match(sqlWithdrawalApproveNoBurn, /set status = v_status[\s\S]*reviewed_by = p_admin_id/);
-  assert.match(sqlWithdrawalApproveNoBurn, /public\.apply_financial_operation/);
+  assert.match(sqlWithdrawalApproveNoBurn, /operation_type in[\s\S]*?'withdraw_paid'/);
+  assert.match(sqlWithdrawalApproveNoBurn, /'withdraw_paid'[\s\S]*?-(v_w\.amount \+ v_w\.fee)/);
+  assert.match(sqlWithdrawalApproveNoBurn, /payout_operation_id=v_operation_id/);
+  assert.match(sqlWithdrawalApproveNoBurn, /'withdrawal_manual_payout_completed'/);
 });
 
 test('account freeze/unfreeze is state-guarded, audited and never double-applied', () => {
