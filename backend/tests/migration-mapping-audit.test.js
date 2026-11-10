@@ -15,6 +15,7 @@ test('migration evidence tool emits source SHA manifest without connecting to a 
   assert.equal(report.mapping_status, 'MANUAL_REVIEW_REQUIRED');
   assert.equal(report.database.status, 'NOT_CHECKED');
   assert.ok(report.source_migrations.length >= 26);
+  assert.ok(report.source_migrations.some((migration) => migration.filename === '0039_withdrawal_approve_no_burn_v1.sql'));
   for (const migration of report.source_migrations) {
     assert.match(migration.sha256, /^[a-f0-9]{64}$/);
     assert.match(migration.filename, /^\d{4}_.+\.sql$/);
