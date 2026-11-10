@@ -56,8 +56,8 @@ export function AccountSecurityPage() {
       <CardHeader className="border-b border-brand-border/70 bg-brand-surface-2/70"><CardTitle className="text-base">{t("BTCBOX account")}</CardTitle><CardDescription>{t("Your internal account ID remains the owner of your balance, orders and history.")}</CardDescription></CardHeader>
       <CardContent className="space-y-3 p-4 text-sm sm:space-y-2 sm:p-6">
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-brand-border/60 py-2 last:border-0"><span className="text-brand-text-muted">{t("Username")}</span><span className="min-w-0 break-all text-right font-medium text-brand-text">{account?.username || t("Not set")}</span></div>
-        <div className="flex items-center justify-between gap-4"><span className="text-brand-text-muted">BTCBOX password</span><span className="font-medium text-brand-text">{account?.has_login_password ? t("Set") : t("Not set")}</span></div>
-        <div className="flex items-center justify-between gap-4"><span className="text-brand-text-muted">{t("Account ID")}</span><span className="min-w-0 break-all text-right font-mono text-xs text-brand-text-secondary">{account?.uid || "—"}</span></div>
+        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 border-b border-brand-border/60 py-2"><span className="text-brand-text-muted">BTCBOX password</span><span className="font-medium text-brand-text">{account?.has_login_password ? t("Set") : t("Not set")}</span></div>
+        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 py-2"><span className="text-brand-text-muted">{t("Account ID")}</span><span className="min-w-0 max-w-full break-all text-right font-mono text-xs text-brand-text-secondary">{account?.uid || "—"}</span></div>
       </CardContent>
     </Card>
     <Card className="border-brand-border bg-brand-surface">
