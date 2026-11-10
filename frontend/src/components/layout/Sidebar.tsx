@@ -41,7 +41,7 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
               isActive && "is-active",
               isActive ? "border-brand-accent/25 bg-brand-accent/10 text-brand-text" : "border-transparent text-brand-text-secondary hover:bg-brand-surface-hover hover:text-brand-text",
             )}>
-              <span className={cn("flex h-8 w-8 shrink-0 items-center justify-center rounded-lg", "text-current")}><Icon className="h-[17px] w-[17px] opacity-95" /></span>
+              <span className={cn("flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-colors text-current group-[.is-active]:bg-brand-accent/10 group-[.is-active]:text-brand-accent")}><Icon className="h-[17px] w-[17px] opacity-95" /></span>
               <span className="min-w-0 break-words">{t(label)}</span>
               <span aria-hidden="true" className={cn("ml-auto h-1.5 w-1.5 shrink-0 rounded-full opacity-0 transition-opacity group-[.is-active]:opacity-100", to === "/trade-hub" ? "bg-brand-violet" : to === "/assets" ? "bg-brand-teal" : to === "/me" ? "bg-brand-info" : "bg-brand-cyan")} />
             </NavLink>

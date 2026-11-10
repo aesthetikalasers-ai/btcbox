@@ -40,31 +40,31 @@ export function AccountSecurityPage() {
   const hasSolana = account?.wallet_chain === "solana" || identities.some((identity) => identity.provider === "web3" && identity.wallet_chain === "solana");
   const linkedMethodCount = identities.length || [hasGoogle, hasEthereum, hasSolana].filter(Boolean).length;
 
-  return <div className="tone-account mx-auto w-full max-w-5xl space-y-5 p-3 pb-24 sm:space-y-6 sm:p-5 lg:p-7">
+  return <div aria-busy={busy} className="tone-account mx-auto w-full max-w-5xl space-y-5 p-3 pb-24 sm:space-y-6 sm:p-5 lg:p-7">
     <div className="flex flex-col justify-between gap-4 rounded-2xl border border-brand-info/25 bg-brand-surface p-5 sm:flex-row sm:items-center sm:p-6" style={{ backgroundImage: "radial-gradient(ellipse at top left, color-mix(in srgb, var(--color-brand-info) 12%, transparent), transparent 55%)" }}>
       <div className="flex min-w-0 items-center gap-3"><span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-brand-info/10 text-brand-info"><ShieldCheck className="h-6 w-6"/></span><div><p className="type-meta font-semibold uppercase tracking-[.16em] page-accent">{t("Account center")}</p><h1 className="mt-1 text-xl font-semibold tracking-tight text-brand-text sm:text-2xl">{t("Account security")}</h1><p className="mt-1 max-w-xl text-sm leading-6 text-brand-text-muted">{t("Manage verified sign-in methods and protect access to your BTCBOX account.")}</p></div></div>
       <span className="inline-flex w-fit items-center gap-2 rounded-md border border-brand-success/25 bg-brand-success/[.07] px-3 py-1.5 text-xs font-semibold text-brand-success"><span className="h-1.5 w-1.5 rounded-full bg-brand-success"/>{account ? t("Account details loaded") : t("Checking account")}</span>
     </div>
     {(error || loadError) && <p role="alert" className="rounded-xl border border-brand-danger/25 bg-brand-danger/[0.06] p-3 text-sm leading-6 text-brand-danger">{t(error || loadError)}</p>}
     {notice && <p role="status" className="rounded-xl border border-brand-success/20 bg-brand-success/[0.05] p-3 text-sm leading-6 text-brand-text-secondary">{t(notice)}</p>}
-    <section aria-label={t("Security overview")} className="grid gap-3 sm:grid-cols-3">
+    <section aria-label={t("Security overview")} className="grid grid-cols-1 gap-3 min-[480px]:grid-cols-2 lg:grid-cols-3">
       <Card className="border-brand-cyan/25 bg-gradient-to-br from-brand-cyan/[0.055] via-brand-surface to-brand-surface ring-1 ring-brand-cyan/[0.05]"><CardContent className="flex items-center gap-3 p-4"><span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-cyan/10 text-brand-cyan"><Link2 className="h-5 w-5"/></span><div className="min-w-0"><p className="type-meta text-brand-text-muted">{t("Connected methods")}</p><p className="mt-1 text-lg font-semibold tabular-nums text-brand-text">{account ? linkedMethodCount : "—"}</p><p className="type-meta text-brand-text-muted">{t("Verified identity links")}</p></div></CardContent></Card>
       <Card className="border-brand-teal/25 bg-gradient-to-br from-brand-teal/[0.055] via-brand-surface to-brand-surface ring-1 ring-brand-teal/[0.05]"><CardContent className="flex items-center gap-3 p-4"><span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-teal/10 text-brand-teal"><ShieldCheck className="h-5 w-5"/></span><div className="min-w-0"><p className="type-meta text-brand-text-muted">{t("Two-factor authentication")}</p><p className="mt-1 text-lg font-semibold text-brand-text">{account ? account.twofa_enabled ? t("Enabled") : t("Not enabled") : "—"}</p><p className="type-meta text-brand-text-muted">{t("Account protection status")}</p></div></CardContent></Card>
       <Card className="border-brand-violet/25 bg-gradient-to-br from-brand-violet/[0.055] via-brand-surface to-brand-surface ring-1 ring-brand-violet/[0.05]"><CardContent className="flex items-center gap-3 p-4"><span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-violet/10 text-brand-violet"><Wallet className="h-5 w-5"/></span><div className="min-w-0"><p className="type-meta text-brand-text-muted">{t("BTCBOX password")}</p><p className="mt-1 text-lg font-semibold text-brand-text">{account ? account.has_login_password ? t("Set") : t("Not set") : "—"}</p><p className="type-meta text-brand-text-muted">{t("Password credential status")}</p></div></CardContent></Card>
     </section>
     <Card className="overflow-hidden border-brand-border bg-brand-surface">
       <CardHeader className="border-b border-brand-border/70 bg-brand-surface-2/70"><CardTitle className="text-base">{t("BTCBOX account")}</CardTitle><CardDescription>{t("Your internal account ID remains the owner of your balance, orders and history.")}</CardDescription></CardHeader>
-      <CardContent className="space-y-2 text-sm">
-        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-brand-border/60 py-2 last:border-0"><span className="text-brand-text-muted">{t("Username")}</span><span className="font-medium text-brand-text">{account?.username || t("Not set")}</span></div>
-        <div className="flex items-center justify-between gap-4"><span className="text-brand-text-muted">BTCBOX password</span><span className="font-medium text-brand-text">{account?.has_login_password ? t("Set") : t("Not set")}</span></div>
-        <div className="flex items-center justify-between gap-4"><span className="text-brand-text-muted">{t("Account ID")}</span><span className="font-mono text-xs text-brand-text-secondary">{account?.uid || "—"}</span></div>
+      <CardContent className="space-y-3 p-4 text-sm sm:space-y-2 sm:p-6">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-brand-border/60 py-2 last:border-0"><span className="text-brand-text-muted">{t("Username")}</span><span className="min-w-0 break-all text-right font-medium text-brand-text">{account?.username || t("Not set")}</span></div>
+        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 border-b border-brand-border/60 py-2"><span className="text-brand-text-muted">BTCBOX password</span><span className="font-medium text-brand-text">{account?.has_login_password ? t("Set") : t("Not set")}</span></div>
+        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 py-2"><span className="text-brand-text-muted">{t("Account ID")}</span><span className="min-w-0 max-w-full break-all text-right font-mono text-xs text-brand-text-secondary">{account?.uid || "—"}</span></div>
       </CardContent>
     </Card>
     <Card className="border-brand-border bg-brand-surface">
       <CardHeader className="border-b border-brand-border/70 bg-brand-cyan/[0.035]"><CardTitle className="text-base">{t("Connected sign-in methods")}</CardTitle><CardDescription>{t("Each method below authenticates the same BTCBOX account. Linking requires a recent sign-in and proof of ownership of the new identity.")}</CardDescription></CardHeader>
       <CardContent className="space-y-3">
         {identities.length === 0 && <p className="text-sm text-brand-text-muted">{t("Your primary verified sign-in method is being synchronized.")}</p>}
-        {identities.map((identity, index) => <div key={identity.provider + identity.wallet_chain + identity.wallet_address + index} className="flex min-w-0 flex-col gap-2 rounded-xl border border-brand-success/15 bg-brand-success/[0.025] p-3 sm:p-4">
+        {identities.map((identity, index) => <div key={identity.provider + identity.wallet_chain + identity.wallet_address + index} className="flex min-w-0 flex-col gap-2 rounded-xl border border-brand-success/15 bg-brand-success/[0.025] p-3 transition-colors sm:p-4">
           <div className="flex flex-wrap items-center justify-between gap-2"><span className="font-medium capitalize text-brand-text">{identity.provider === "web3" ? (identity.wallet_chain || "Web3") + " wallet" : identity.provider}</span><span className="rounded-md border border-brand-success/25 bg-brand-success/[0.07] px-2 py-1 text-[11px] font-semibold tracking-wide text-brand-success">{t("Connected")}</span></div>
           {identity.wallet_address && <span className="break-all font-mono text-xs text-brand-text-muted">{identity.wallet_address}</span>}
         </div>)}
@@ -83,7 +83,7 @@ export function AccountSecurityPage() {
           </div>
           {showSourceEthereumWallets && <div className="space-y-2">{ethereumWallets.map(wallet => <Button key={wallet.info.uuid} variant="outline" className="w-full justify-start" aria-busy={busy} disabled={busy} onClick={() => { setShowSourceEthereumWallets(false); void reauthenticateIdentityLinkWithWeb3("ethereum", twoFactorCode, wallet.provider); }}><Wallet className="h-4 w-4"/>{wallet.info.name}</Button>)}</div>}
           {account?.twofa_enabled && <label className="block space-y-1.5 text-sm"><span className="text-brand-text-secondary">{t("Authenticator code (required when account 2FA is enabled)")}</span><Input value={twoFactorCode} onChange={event => setTwoFactorCode(event.target.value.replace(/\D/g, "").slice(0, 6))} inputMode="numeric" autoComplete="one-time-code" maxLength={6} placeholder={t("Enter your 2FA code")} /></label>}
-          {identityLinkNeedsTwoFactor && <form className="space-y-2" aria-busy={busy} onSubmit={async event => { event.preventDefault(); try { await completeIdentityLinkReauthTwoFactor(twoFactorCode); setTwoFactorCode(""); } catch { /* AuthProvider displays the safe error. */ } }}>
+          {identityLinkNeedsTwoFactor && <form className="space-y-2" aria-busy={busy} onSubmit={async event => { event.preventDefault(); if (busy) return; try { await completeIdentityLinkReauthTwoFactor(twoFactorCode); setTwoFactorCode(""); } catch { /* AuthProvider displays the safe error. */ } }}>
             <p className="text-sm text-brand-text-secondary">{t("Google identity confirmed. Enter your authenticator code to complete this step.")}</p>
             <Button type="submit" className="w-full" aria-busy={busy} disabled={busy || twoFactorCode.length !== 6}>{t("Confirm existing identity")}</Button>
           </form>}
@@ -109,7 +109,7 @@ export function AccountSecurityPage() {
         {credentialRecoveryReady ? (
           <form className="space-y-3" aria-busy={busy} onSubmit={async (event: FormEvent<HTMLFormElement>) => {
             event.preventDefault();
-            if (newPassword !== confirmNewPassword) return;
+            if (busy || newPassword !== confirmNewPassword) return;
             try {
               await recoverBtcboxPassword(newPassword);
               setNewPassword("");
@@ -117,13 +117,14 @@ export function AccountSecurityPage() {
             } catch { /* AuthProvider displays the safe error. */ }
           }}>
             <label className="block space-y-1.5 text-sm"><span className="text-brand-text-secondary">{t("New BTCBOX password")}</span><Input type="password" value={newPassword} onChange={event => setNewPassword(event.target.value)} autoComplete="new-password" minLength={12} maxLength={128} placeholder={t("At least 12 characters")} required /></label>
-            <label className="block space-y-1.5 text-sm"><span className="text-brand-text-secondary">{t("Confirm new password")}</span><Input type="password" value={confirmNewPassword} onChange={event => setConfirmNewPassword(event.target.value)} autoComplete="new-password" minLength={12} maxLength={128} placeholder={t("Enter it again")} required /></label>
-            {confirmNewPassword && newPassword !== confirmNewPassword && <p className="text-sm text-loss">{t("Passwords do not match.")}</p>}
+            <label className="block space-y-1.5 text-sm"><span className="text-brand-text-secondary">{t("Confirm new password")}</span><Input type="password" value={confirmNewPassword} onChange={event => setConfirmNewPassword(event.target.value)} autoComplete="new-password" minLength={12} maxLength={128} aria-invalid={Boolean(confirmNewPassword && newPassword !== confirmNewPassword)} aria-describedby={confirmNewPassword && newPassword !== confirmNewPassword ? "recovery-password-error" : undefined} placeholder={t("Enter it again")} required /></label>
+            {confirmNewPassword && newPassword !== confirmNewPassword && <p id="recovery-password-error" role="alert" className="text-sm text-loss">{t("Passwords do not match.")}</p>}
             <Button type="submit" className="w-full" aria-busy={busy} disabled={busy || newPassword.length < 12 || newPassword !== confirmNewPassword}>{t("Save new password")}</Button>
           </form>
         ) : credentialRecoveryNeedsTwoFactor ? (
           <form className="space-y-3" aria-busy={busy} onSubmit={async event => {
             event.preventDefault();
+            if (busy) return;
             try { await completeCredentialRecoveryTwoFactor(twoFactorCode); setTwoFactorCode(""); }
             catch { /* AuthProvider displays the safe error. */ }
           }}>
