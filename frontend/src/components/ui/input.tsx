@@ -5,10 +5,7 @@ export const Input = React.forwardRef<HTMLInputElement, React.ComponentProps<"in
   ({ className, type, ...props }, ref) => (
     <input
       type={type}
-      className={cn(
-        "flex h-11 w-full min-w-0 rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-2 text-base text-foreground shadow-[inset_0_1px_2px_rgba(0,0,0,0.22)] placeholder:text-brand-text-faint transition-[border-color,box-shadow,background-color] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent/60 focus-visible:ring-offset-1 focus-visible:ring-offset-brand-bg focus-visible:border-brand-accent aria-[invalid=true]:border-brand-danger/75 aria-[invalid=true]:ring-2 aria-[invalid=true]:ring-brand-danger/15 disabled:cursor-not-allowed disabled:opacity-50 sm:text-sm",
-        className,
-      )}
+      className={cn("field-control flex disabled:cursor-not-allowed", className)}
       ref={ref}
       {...props}
     />

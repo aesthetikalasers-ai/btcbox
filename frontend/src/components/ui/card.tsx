@@ -4,7 +4,7 @@ import { cn } from "../../lib/utils";
 const cardPadding = "p-4 sm:p-5 lg:p-6";
 
 export function Card({ className, ...props }: React.ComponentProps<"div">) {
-  return <div className={cn("min-w-0 rounded-xl border border-brand-border bg-card text-card-foreground shadow-sm", className)} {...props} />;
+  return <div className={cn("min-w-0 rounded-card border border-brand-border bg-card text-card-foreground shadow-card", className)} {...props} />;
 }
 
 export function CardHeader({ className, ...props }: React.ComponentProps<"div">) {
