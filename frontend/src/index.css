@@ -347,3 +347,21 @@ a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
  .trade-candles { height:500px; }
 }
 @media (min-width:1500px) { .trade-candles { height:560px; } }
+
+
+/* Responsive card groups: equal tracks within each row, intrinsic height across content. */
+@layer utilities {
+  .card-grid-equal {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr));
+    grid-auto-rows: 1fr;
+    align-items: stretch;
+    min-width: 0;
+  }
+  .card-grid-equal > * { min-width: 0; height: 100%; }
+  .card-grid-equal > * > .card-grid-content { display: flex; min-width: 0; height: 100%; flex-direction: column; }
+  .card-grid-equal .card-grid-footer { margin-top: auto; }
+  @media (max-width: 639px) {
+    .card-grid-equal { gap: 12px; }
+  }
+}
