@@ -67,7 +67,7 @@ Manual deposits follow the chosen half-manual workflow: staff verifies the trans
 - `0023` adds shared server-side rate limiting before routes that consume its RPC.
 - `0037` extends the shared limiter's scope constraint and server policy for withdrawal creation, Spot order/cancel, and Earn subscribe/redeem; each route fails closed if the shared limiter is unavailable.
 - `0038` makes PostgreSQL authoritative for first-successful-withdrawal manual review. The database ORs the API's large-value/unknown-price flag with its own prior successful withdrawal history, so stale legacy `btcbox_state` cannot bypass the first-withdrawal review requirement.
-- `0039` fixes the withdrawal approval accounting bug: approval records the review and leaves the reserved amount/fee frozen without debiting it; the separate payout-completion step performs the debit. Rejection still releases the frozen amount back to available balance.
+- `0039` fixes the withdrawal approval accounting bug: approval records the review and leaves the reserved amount/fee frozen without debiting it; rejection releases the frozen amount back to available balance. The separate payout-completion RPC applies one idempotent `withdraw_paid` ledger debit from frozen funds and records `payout_operation_id`; duplicate payout references cannot debit twice.
 - `0024` adds Seconds settlement request-hash idempotency and depends on the Seconds base schema in `0014`.
 - `0025` adds immutable Seconds policy versions, active pointer, policy audit and per-position payout/policy snapshots. New orders validate the active policy and snapshot it in the same transaction as the reserve.
 - `0026` adds the private admin membership/permission store, Super Admin bootstrap and delegated-admin lifecycle.
