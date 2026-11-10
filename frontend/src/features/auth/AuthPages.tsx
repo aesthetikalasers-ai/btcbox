@@ -94,7 +94,7 @@ export function AuthPage({ mode, redirectTo }: { mode: "login" | "register"; red
     <div className="grid w-full items-center gap-6 lg:grid-cols-[minmax(0,1.05fr)_minmax(380px,.95fr)] lg:gap-16">
       <section className="hidden min-w-0 flex-col justify-center lg:flex">
         <Link to="/home" className="mb-12 w-fit"><BrandLogo /></Link>
-        <p className="mb-4 flex items-center gap-2 text-xs font-bold uppercase tracking-[.2em] text-brand-cyan"><span className="h-1.5 w-1.5 rounded-full bg-brand-success" /> {t("Digital asset exchange")}</p>
+        <p className="mb-4 flex items-center gap-2 text-xs font-bold uppercase tracking-[.2em] text-brand-accent"><span className="h-1.5 w-1.5 rounded-full bg-brand-success" /> {t("Digital asset exchange")}</p>
         <h1 className="max-w-[560px] text-3xl font-semibold leading-[1.12] tracking-tight text-brand-text xl:text-4xl">
           {registering ? t("A clearer way to enter the digital asset market.") : t("Welcome back to your market.")}
         </h1>
@@ -105,7 +105,7 @@ export function AuthPage({ mode, redirectTo }: { mode: "login" | "register"; red
         </p>
         <div className="mt-9 grid max-w-[520px] gap-3 sm:grid-cols-2">
           <div className="rounded-xl border border-brand-border bg-brand-surface p-4">
-            <ChartNoAxesCombined className="mb-3 h-5 w-5 text-brand-cyan" />
+            <ChartNoAxesCombined className="mb-3 h-5 w-5 text-brand-accent" />
             <p className="text-sm font-semibold text-brand-text">{t("Public market access")}</p>
             <p className="mt-1 text-xs leading-5 text-brand-text-muted">{t("Explore market information before signing in.")}</p>
           </div>
@@ -115,7 +115,7 @@ export function AuthPage({ mode, redirectTo }: { mode: "login" | "register"; red
             <p className="mt-1 text-xs leading-5 text-brand-text-muted">{t("Personal assets and account actions stay protected.")}</p>
           </div>
         </div>
-        <Link to="/markets" className="mt-8 inline-flex min-h-12 w-fit items-center gap-2 rounded-xl border border-brand-cyan/30 bg-brand-cyan/[0.08] px-4 text-sm font-semibold text-brand-cyan shadow-sm shadow-brand-cyan/[0.06] transition-all hover:border-brand-cyan/50 hover:bg-brand-cyan/[0.13] hover:text-brand-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent/70">
+        <Link to="/markets" className="mt-8 inline-flex min-h-12 w-fit items-center gap-2 rounded-xl border border-brand-accent/30 bg-brand-accent/[0.08] px-4 text-sm font-semibold text-brand-accent shadow-sm shadow-brand-accent/[0.06] transition-all hover:border-brand-accent/50 hover:bg-brand-accent/[0.13] hover:text-brand-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent/70">
           <ChartNoAxesCombined className="h-4 w-4" /> {t("Explore public markets")} <ArrowRight className="h-4 w-4" />
         </Link>
       </section>
@@ -123,16 +123,16 @@ export function AuthPage({ mode, redirectTo }: { mode: "login" | "register"; red
       <div className="mx-auto w-full max-w-[480px]">
         <div className="mb-5 flex items-center justify-between lg:hidden">
           <Link to="/home" aria-label={t("BTCBOX home")}><BrandLogo compact /></Link>
-          <Link to="/markets" className="inline-flex min-h-10 items-center gap-1.5 rounded-lg border border-brand-cyan/25 bg-brand-cyan/[0.07] px-3 text-xs font-semibold text-brand-cyan transition-colors hover:border-brand-cyan/45 hover:bg-brand-cyan/[0.12] hover:text-brand-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent/70"><ChartNoAxesCombined className="h-3.5 w-3.5" />{t("Explore markets")} <ArrowRight className="h-3.5 w-3.5" /></Link>
+          <Link to="/markets" className="inline-flex min-h-10 items-center gap-1.5 rounded-lg border border-brand-accent/25 bg-brand-accent/[0.07] px-3 text-xs font-semibold text-brand-accent transition-colors hover:border-brand-accent/45 hover:bg-brand-accent/[0.12] hover:text-brand-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent/70"><ChartNoAxesCombined className="h-3.5 w-3.5" />{t("Explore markets")} <ArrowRight className="h-3.5 w-3.5" /></Link>
         </div>
-        <Card className="w-full overflow-hidden border-brand-cyan/20 bg-brand-surface  ">
+        <Card className="w-full overflow-hidden border-brand-accent/20 bg-brand-surface  ">
           <div className="h-1 bg-brand-accent"/>
           <CardHeader className="gap-3 border-b border-brand-border/70 bg-brand-surface px-5 pb-4 pt-6 sm:px-8 sm:pt-8">
             <div className="flex items-center gap-2">
-              <span className="flex h-11 w-11 items-center justify-center rounded-xl border border-brand-cyan/25 bg-brand-cyan/[0.12] text-brand-cyan shadow-sm shadow-brand-cyan/[0.08]">
+              <span className="flex h-11 w-11 items-center justify-center rounded-xl border border-brand-accent/25 bg-brand-accent/[0.12] text-brand-accent shadow-sm shadow-brand-accent/[0.08]">
                 {status === "two-factor" ? <ShieldCheck className="h-5 w-5" /> : registering ? <Globe2 className="h-5 w-5" /> : <LockKeyhole className="h-5 w-5" />}
               </span>
-              <span className="text-xs font-semibold uppercase tracking-[.16em] text-brand-text-muted">{registering ? t("Join BTCBOX") : t("Secure access")}</span><label className="ml-auto flex h-9 items-center gap-1 rounded-lg border border-brand-border bg-brand-surface-2 px-2 text-brand-cyan shadow-sm shadow-brand-cyan/10"><Globe2 className="h-3.5 w-3.5"/><select disabled={!canChangeLanguage} aria-label={t("Language")} value={language} onChange={event => setLanguage(event.target.value as Language)} className="w-[76px] appearance-none bg-transparent text-xs font-semibold text-brand-text outline-none [color-scheme:dark]"><option className="bg-brand-surface text-brand-text" value="en">English</option><option className="bg-brand-surface text-brand-text" value="ja">日本語</option><option className="bg-brand-surface text-brand-text" value="zh-CN">中文</option><option className="bg-brand-surface text-brand-text" value="es">Español</option><option className="bg-brand-surface text-brand-text" value="de">Deutsch</option><option className="bg-brand-surface text-brand-text" value="it">Italiano</option><option className="bg-brand-surface text-brand-text" value="pt">Português</option></select></label>
+              <span className="text-xs font-semibold uppercase tracking-[.16em] text-brand-text-muted">{registering ? t("Join BTCBOX") : t("Secure access")}</span><label className="ml-auto flex h-9 items-center gap-1 rounded-lg border border-brand-border bg-brand-surface-2 px-2 text-brand-accent shadow-sm shadow-brand-accent/10"><Globe2 className="h-3.5 w-3.5"/><select disabled={!canChangeLanguage} aria-label={t("Language")} value={language} onChange={event => setLanguage(event.target.value as Language)} className="w-[76px] appearance-none bg-transparent text-xs font-semibold text-brand-text outline-none [color-scheme:dark]"><option className="bg-brand-surface text-brand-text" value="ja">日本語</option><option className="bg-brand-surface text-brand-text" value="zh-CN">中文</option><option className="bg-brand-surface text-brand-text" value="en">English</option><option className="bg-brand-surface text-brand-text" value="es">Español</option><option className="bg-brand-surface text-brand-text" value="de">Deutsch</option><option className="bg-brand-surface text-brand-text" value="it">Italiano</option><option className="bg-brand-surface text-brand-text" value="pt">Português</option></select></label>
             </div>
             <CardTitle className="text-2xl font-semibold tracking-tight">
               {status === "two-factor" ? t("Verify your sign-in") : registering ? t("Create your BTCBOX account") : t("Welcome back")}
@@ -143,8 +143,8 @@ export function AuthPage({ mode, redirectTo }: { mode: "login" | "register"; red
                 : t("Sign in with Google or connect your wallet, then complete your BTCBOX account setup.")}
             </CardDescription>}
             {status !== "two-factor" && <div data-testid="auth-mode-switcher" className="grid grid-cols-2 rounded-xl border border-brand-border bg-brand-surface-2 p-1 text-sm font-semibold">
-              <Link to="/login" className={`flex min-h-10 items-center justify-center rounded-lg transition-colors ${!registering ? "bg-brand-accent text-white shadow-sm" : "text-brand-text-secondary hover:text-brand-text"}`}>{t("Sign in")}</Link>
-              <Link to="/register" className={`flex min-h-10 items-center justify-center rounded-lg transition-colors ${registering ? "bg-brand-accent text-white shadow-sm" : "text-brand-text-secondary hover:text-brand-text"}`}>{t("Create account")}</Link>
+              <Link to="/login" className={`flex min-h-10 items-center justify-center rounded-lg transition-colors ${!registering ? "bg-primary text-primary-foreground shadow-sm" : "text-brand-text-secondary hover:text-brand-text"}`}>{t("Sign in")}</Link>
+              <Link to="/register" className={`flex min-h-10 items-center justify-center rounded-lg transition-colors ${registering ? "bg-primary text-primary-foreground shadow-sm" : "text-brand-text-secondary hover:text-brand-text"}`}>{t("Create account")}</Link>
             </div>}
           </CardHeader>
           <CardContent className="space-y-4 px-5 pb-6 sm:px-8 sm:pb-8">
@@ -189,7 +189,7 @@ export function AuthPage({ mode, redirectTo }: { mode: "login" | "register"; red
                 : <>{t("Already have an account?")} <Link className="font-semibold text-brand-accent underline-offset-4 hover:underline" to="/login">{t("Sign in")}</Link></>}
             </div>
             <div className="border-t border-brand-border/80 pt-3">
-              <Link to="/home" className="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-brand-border bg-brand-surface-2/70 px-4 text-sm font-medium text-brand-text-secondary shadow-sm transition-all hover:border-brand-cyan/35 hover:bg-brand-surface-hover hover:text-brand-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent/70"><ArrowLeft className="h-4 w-4" /> {t("Back to BTCBOX")}</Link>
+              <Link to="/home" className="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-brand-border bg-brand-surface-2/70 px-4 text-sm font-medium text-brand-text-secondary shadow-sm transition-all hover:border-brand-accent/35 hover:bg-brand-surface-hover hover:text-brand-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent/70"><ArrowLeft className="h-4 w-4" /> {t("Back to BTCBOX")}</Link>
             </div>
           </CardContent>
         </Card>
@@ -243,10 +243,10 @@ export function AuthCallbackPage() {
     catch (cause) { setRecoveryError(cause instanceof Error ? cause.message : t("Password could not be updated.")); }
   };
   if (status === "password-recovery") return <main className="tone-support mx-auto flex min-h-[100dvh] w-full max-w-[520px] items-center px-3 py-8 sm:px-6">
-    <Card className="w-full overflow-hidden border-brand-cyan/20 bg-brand-surface  ">
+    <Card className="w-full overflow-hidden border-brand-accent/20 bg-brand-surface  ">
       <div className="h-1 bg-brand-accent"/>
       <CardHeader className="gap-3 border-b border-brand-border/70 bg-brand-surface px-5 pt-7 sm:px-8">
-        <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-brand-cyan/20 bg-brand-cyan/10 text-brand-cyan"><LockKeyhole className="h-5 w-5" /></div>
+        <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-brand-accent/20 bg-brand-accent/10 text-brand-accent"><LockKeyhole className="h-5 w-5" /></div>
         <CardTitle className="text-2xl">{t("Reset your password")}</CardTitle>
         <CardDescription>{t("Choose a new password for your BTCBOX email account.")}</CardDescription>
       </CardHeader>
@@ -261,7 +261,7 @@ export function AuthCallbackPage() {
     </Card>
   </main>;
   return <div className="tone-support mx-auto flex min-h-[60vh] max-w-lg flex-col items-center justify-center gap-3 p-6 text-center">
-    <div className="h-6 w-6 animate-spin rounded-full border-2 border-white/20 border-t-brand-accent" />
+    <div className="h-6 w-6 animate-spin rounded-full border-2 border-brand-border border-t-brand-accent" />
     <p role={error ? "alert" : "status"} aria-live={error ? "assertive" : "polite"} className="text-sm text-brand-text-secondary">{error ? t(error) : busy ? t("Completing secure sign-in…") : t("Finishing sign-in…")}</p>
     {error && <Link to={callbackDestination} className="inline-flex min-h-11 items-center justify-center rounded-lg px-4 text-sm font-semibold underline underline-offset-4 transition-colors hover:bg-brand-surface-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent/70">{t("Return to sign in")}</Link>}
   </div>;

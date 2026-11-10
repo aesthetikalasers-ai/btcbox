@@ -27,7 +27,7 @@ const formatCompact = (value: number | string | undefined | null, locale: string
 };
 
 function Change({ value, locale }: { value: number; locale: string }) {
-  return <span className={`inline-flex min-w-[76px] justify-center rounded-lg px-2.5 py-1.5 text-xs font-semibold tabular-nums ${value >= 0 ? "bg-profit/10 text-profit" : "bg-loss/10 text-loss"}`}>
+  return <span className={`inline-flex min-w-[76px] justify-center rounded-md px-2.5 py-1 text-xs font-semibold tabular-nums ${value >= 0 ? "bg-profit/10 text-profit" : "bg-loss/10 text-loss"}`}>
     {value > 0 ? "+" : ""}{value.toLocaleString(locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%
   </span>;
 }
@@ -108,12 +108,12 @@ export function LiveMarketsTable({ markets, loading, error }: {
             </p>
           </details>}
         </div>
-        {loading || feedError ? <span className="shrink-0 rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-2 text-xs font-semibold text-brand-text-secondary">{loading ? t("Loading…") : t("Unavailable")}</span> : visibleMarkets.length > 0 ? <span className="shrink-0 rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-2 text-xs font-semibold text-brand-text-secondary">{visibleMarkets.length} {t("pairs")}</span> : null}
+        {loading || feedError ? <span className="shrink-0 rounded-md border border-brand-border bg-brand-surface-2 px-3 py-2 text-xs font-semibold text-brand-text-secondary">{loading ? t("Loading…") : t("Unavailable")}</span> : visibleMarkets.length > 0 ? <span className="shrink-0 rounded-md border border-brand-border bg-brand-surface-2 px-3 py-2 text-xs font-semibold text-brand-text-secondary">{visibleMarkets.length} {t("pairs")}</span> : null}
       </div>
       {displayMarkets.length > 0 && <div className="grid gap-3 border-b border-brand-border px-4 py-3 md:grid-cols-[minmax(180px,1fr)_auto] md:items-center md:px-6">
         <label className="relative block">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-brand-text-muted" />
-          <input type="search" aria-label={t("Search BTCBOX")} placeholder={t("Search")} value={searchParams.get("q") || ""} onChange={(event) => setSearchParams(event.target.value ? { q: event.target.value } : {})} className="h-11 w-full rounded-xl border border-brand-border bg-brand-surface px-3 pl-10 text-sm text-brand-text placeholder:text-brand-text-muted focus:border-brand-accent focus:outline-none" />
+          <input type="search" aria-label={t("Search BTCBOX")} placeholder={t("Search")} value={searchParams.get("q") || ""} onChange={(event) => setSearchParams(event.target.value ? { q: event.target.value } : {})} className="h-11 w-full rounded-lg border border-brand-border bg-brand-surface px-3 pl-10 text-sm text-brand-text placeholder:text-brand-text-muted focus:border-brand-accent focus:outline-none focus:ring-2 focus:ring-brand-accent/30" />
         </label>
         <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
           <div className="flex gap-1"><button type="button" onClick={() => setFavoritesOnly(false)} aria-pressed={!favoritesOnly} className={"min-h-11 rounded-lg px-2 text-xs " + (!favoritesOnly ? "bg-brand-accent/10 text-brand-accent" : "text-brand-text-muted")}>{t("Spot markets")}</button><button type="button" onClick={() => setFavoritesOnly(true)} aria-pressed={favoritesOnly} className={"min-h-11 rounded-lg px-2 text-xs " + (favoritesOnly ? "bg-brand-accent/10 text-brand-accent" : "text-brand-text-muted")}>{t("Favorites")}</button></div>
@@ -127,13 +127,13 @@ export function LiveMarketsTable({ markets, loading, error }: {
         </div>
       ) : loading && displayMarkets.length === 0 ? (
         <div className="space-y-3 px-5 py-8" aria-label={t("Loading markets")}>
-          {Array.from({ length: 5 }).map((_, index) => <div key={index} className="h-12 animate-pulse rounded-xl bg-white/[0.05]" />)}
+          {Array.from({ length: 5 }).map((_, index) => <div key={index} className="h-12 animate-pulse rounded-lg bg-brand-surface-2" />)}
         </div>
       ) : visibleMarkets.length === 0 ? (
         <div className="px-5 py-10 text-center text-sm text-brand-text-muted">{t("No market pairs are currently available.")}</div>
       ) : (
         <>
-          <div className="divide-y divide-brand-border/70 sm:hidden">
+          <div className="divide-y divide-brand-border-subtle sm:hidden">
             {visibleMarkets.map((item) => (
               <div key={item.sym} className="flex items-center">{favoriteButton(item.sym)}<Link to={`/trade/${item.sym.endsWith("USDT") ? item.sym : item.sym + "USDT"}`} aria-label={`${item.sym} spot trading`} className="flex min-w-0 flex-1 min-h-[76px] items-center justify-between gap-2 pr-3 py-3 transition-colors hover:bg-brand-surface-hover active:bg-brand-surface-hover">
                 <div className="flex min-w-0 items-center gap-3">
@@ -154,11 +154,11 @@ export function LiveMarketsTable({ markets, loading, error }: {
             <table className="w-full min-w-[700px] border-collapse text-right">
               <thead><tr className="border-b border-brand-border bg-brand-surface-2/70">
                 {["Asset", "Last price", "24h change", "24h volume", "24h high", "24h low"].map((label) =>
-                  <th key={label} className="whitespace-nowrap px-4 py-3 text-xs font-semibold text-brand-text-muted first:text-left md:px-6">{t(label)}</th>
+                  <th key={label} className="whitespace-nowrap px-4 py-3 text-[11px] font-semibold uppercase tracking-[.12em] text-brand-text-faint first:text-left md:px-6">{t(label)}</th>
                 )}
               </tr></thead>
               <tbody>{visibleMarkets.map((item) => (
-                <tr key={item.sym} className="border-b border-brand-border/50 transition-colors last:border-0 hover:bg-brand-surface-hover">
+                <tr key={item.sym} className="border-b border-brand-border-subtle transition-colors last:border-0 hover:bg-brand-surface-hover">
                   <td className="h-16 whitespace-nowrap px-4 py-2 text-left md:px-6">
                     <div className="flex items-center gap-3">
                       {favoriteButton(item.sym)}<TokenIcon symbol={item.sym} className="h-8 w-8 shrink-0" />

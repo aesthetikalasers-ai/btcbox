@@ -23,50 +23,50 @@ export function VolumeChart({ candles = [] }: { candles?: MarketCandle[] }) {
       layout: {
         attributionLogo: false,
         background: { type: ColorType.Solid, color: 'transparent' },
-        textColor: 'rgba(255,255,255,0.62)',
+        textColor: '#A2B0BE',
         fontSize: 12,
         fontFamily: 'Inter',
       },
       grid: {
-        vertLines: { color: 'rgba(255, 255, 255, 0.025)', style: 4 },
-        horzLines: { color: 'rgba(255, 255, 255, 0.02)', style: 4 }, 
+        vertLines: { color: 'rgba(32,45,57,0.85)', style: 4 },
+        horzLines: { color: 'rgba(32,45,57,0.7)', style: 4 }, 
       },
       crosshair: {
         mode: 1,
         vertLine: {
-          color: 'rgba(255, 255, 255, 0.15)',
+          color: 'rgba(162,176,190,0.4)',
           width: 1,
           style: 3,
-          labelBackgroundColor: '#141518',
+          labelBackgroundColor: '#1B2936',
         },
         horzLine: {
-          color: 'rgba(255, 255, 255, 0.15)',
+          color: 'rgba(162,176,190,0.4)',
           width: 1,
           style: 3,
-          labelBackgroundColor: '#101113',
+          labelBackgroundColor: '#1B2936',
         },
       },
       timeScale: {
-        borderColor: 'rgba(255, 255, 255, 0.05)',
+        borderColor: '#263443',
         timeVisible: false,
       },
       handleScroll: { vertTouchDrag: false, horzTouchDrag: true },
       handleScale: { pinch: true },
       rightPriceScale: {
-        borderColor: 'rgba(255, 255, 255, 0.05)',
+        borderColor: '#263443',
       },
       autoSize: true,
     });
 
     const series = chart.addSeries(HistogramSeries, {
-      color: '#22c55e',
+      color: '#35D6A6',
       base: 0,
       priceFormat: {
         type: 'volume',
       },
     });
 
-    series.setData(candles.map(c => ({ time: Math.floor(c.time / 1000) as import('lightweight-charts').UTCTimestamp, value: c.volume, color: c.close >= c.open ? 'rgba(34, 197, 94, 0.8)' : 'rgba(239, 68, 68, 0.8)' })));
+    series.setData(candles.map(c => ({ time: Math.floor(c.time / 1000) as import('lightweight-charts').UTCTimestamp, value: c.volume, color: c.close >= c.open ? 'rgba(53,214,166,0.8)' : 'rgba(240,107,120,0.8)' })));
     
     const bars = { '1d': 24, '7d': 168, '30d': 720 }[activeRange] || 24;
     const totalBars = candles.length;
@@ -88,7 +88,7 @@ export function VolumeChart({ candles = [] }: { candles?: MarketCandle[] }) {
               className={cn(
                 "min-h-9 px-2 py-1 text-[12px] font-medium rounded-md transition-all duration-200 cursor-pointer active:scale-[0.95] sm:px-2.5",
                 activeRange === r 
-                  ? "border border-brand-cyan/25 bg-brand-cyan/10 text-brand-cyan shadow-[0_1px_2px_rgba(0,0,0,0.25)]" 
+                  ? "border border-brand-accent/30 bg-brand-accent/10 text-brand-accent shadow-[0_1px_2px_rgba(0,0,0,0.25)]" 
                   : "text-brand-text-muted hover:text-brand-text-secondary hover:bg-brand-surface-hover"
               )}
             >

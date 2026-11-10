@@ -130,7 +130,7 @@ export function OrdersPage() {
                 {visibleOrders.map((order, index) => {
                   const id = display(order.order_id ?? order.id, `#${index + 1}`);
                   const side = display(order.side);
-                  return <Card key={id} className="border-brand-border bg-brand-surface-2/50  transition-all hover:border-brand-cyan/30 hover:bg-brand-surface-2/80">
+                  return <Card key={id} className="border-brand-border bg-brand-surface-2/50  transition-all hover:border-brand-accent/30 hover:bg-brand-surface-2/80">
                     <CardContent className="space-y-3 p-4">
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0"><p className="font-semibold text-brand-text">{display(order.symbol)}</p><p className="mt-1 truncate font-mono text-[11px] text-brand-text-muted">{id}</p></div>
@@ -148,7 +148,7 @@ export function OrdersPage() {
               <div className="hidden custom-scrollbar overflow-x-auto md:block">
               <table className="w-full min-w-[760px] text-left text-sm">
                 <thead className="border-y border-brand-border bg-brand-surface-2/90 text-[11px] uppercase tracking-[.12em] text-brand-text-muted">
-                  <tr>{["Order", "Pair", "Side", "Type", "Price", "Quantity", "Status", "Created"].map((label) => <th key={label} className="px-4 py-3 font-semibold">{t(label)}</th>)}</tr>
+                  <tr>{["Order", "Pair", "Side", "Type", "Price", "Quantity", "Status", "Created"].map((label) => <th key={label} className={`px-4 py-3 font-semibold ${label === "Price" || label === "Quantity" ? "text-right" : ""}`}>{t(label)}</th>)}</tr>
                 </thead>
                 <tbody>
                   {visibleOrders.map((order, index) => {
@@ -159,8 +159,8 @@ export function OrdersPage() {
                       <td className="px-4 py-3 font-semibold text-brand-text">{display(order.symbol)}</td>
                       <td className="px-4 py-3"><span className={side.toLowerCase() === "buy" ? "text-profit" : side.toLowerCase() === "sell" ? "text-loss" : "text-brand-text-secondary"}>{t(side)}</span></td>
                       <td className="px-4 py-3 text-brand-text-secondary">{display(order.type)}</td>
-                      <td className="px-4 py-3 font-mono tabular-nums">{display(order.price)}</td>
-                      <td className="px-4 py-3 font-mono tabular-nums">{display(order.quantity ?? order.amount)}</td>
+                      <td className="px-4 py-3 text-right font-mono tabular-nums">{display(order.price)}</td>
+                      <td className="px-4 py-3 text-right font-mono tabular-nums">{display(order.quantity ?? order.amount)}</td>
                       <td className="px-4 py-3"><Badge variant={statusVariant(display(order.status, "unknown"))}>{t(display(order.status, "Unknown"))}</Badge></td>
                       <td className="px-4 py-3 text-xs text-brand-text-muted">{formatDate(order.created_at, dateLocale)}</td>
                     </tr>;

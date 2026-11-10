@@ -1,13 +1,41 @@
-import { useState, type FormEvent, type Ref } from "react";
+import { useEffect, useRef, useState, type FormEvent, type Ref } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Search, User, Menu, Languages } from "lucide-react";
+import { Search, User, Menu, Check } from "lucide-react";
 import { useI18n, type Language } from "../../lib/i18n";
 import { BrandLogo } from "../BrandLogo";
 
+// Fixed menu order per product requirement. vi (Vietnamese) is legacy and intentionally omitted.
+const LANGUAGE_MENU: Array<{ code: Language; label: string }> = [
+  { code: "ja", label: "日本語" },
+  { code: "zh-CN", label: "中文" },
+  { code: "en", label: "English" },
+  { code: "es", label: "Español" },
+  { code: "de", label: "Deutsch" },
+  { code: "it", label: "Italiano" },
+  { code: "pt", label: "Português" },
+];
+const LANGUAGE_LABEL: Record<Language, string> = {
+  ja: "日本語", "zh-CN": "中文", en: "English", es: "Español", de: "Deutsch", it: "Italiano", pt: "Português",
+};
+
 export function Topbar({ onMenuClick, menuOpen = false, menuButtonRef }: { menuButtonRef?: Ref<HTMLButtonElement>; onMenuClick?: () => void; menuOpen?: boolean }) {
-  const { language, setLanguage, t } = useI18n();
+  const { language, setLanguage, canChangeLanguage, t } = useI18n();
   const [search, setSearch] = useState("");
+  const [langMenuOpen, setLangMenuOpen] = useState(false);
+  const langMenuRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!langMenuOpen) return;
+    const close = (event: MouseEvent) => {
+      if (langMenuRef.current && !langMenuRef.current.contains(event.target as Node)) setLangMenuOpen(false);
+    };
+    const onKey = (event: KeyboardEvent) => { if (event.key === "Escape") setLangMenuOpen(false); };
+    document.addEventListener("mousedown", close);
+    document.addEventListener("keydown", onKey);
+    return () => { document.removeEventListener("mousedown", close); document.removeEventListener("keydown", onKey); };
+  }, [langMenuOpen]);
+
   const submitSearch = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const query = search.trim();
@@ -33,18 +61,42 @@ export function Topbar({ onMenuClick, menuOpen = false, menuButtonRef }: { menuB
         </button>
       </div>
       <div className="flex shrink-0 items-center gap-1 sm:gap-3">
-        <label className="flex h-11 items-center gap-1.5 rounded-xl border border-brand-border bg-brand-surface px-2 text-brand-text-secondary sm:flex sm:px-2.5">
-          <Languages className="hidden h-4 w-4 shrink-0 sm:block" />
-          <select aria-label={t("Language")} value={language} onChange={(event) => setLanguage(event.target.value as Language)} className="w-[64px] bg-transparent text-xs font-semibold text-brand-text outline-none [color-scheme:dark] sm:w-[88px]">
-            <option className="bg-brand-surface text-brand-text" value="ja">日本語</option>
-            <option className="bg-brand-surface text-brand-text" value="en">English</option>
-            <option className="bg-brand-surface text-brand-text" value="zh-CN">简体中文</option>
-            <option className="bg-brand-surface text-brand-text" value="es">Español</option>
-            <option className="bg-brand-surface text-brand-text" value="pt">Português</option>
-            <option className="bg-brand-surface text-brand-text" value="it">Italiano</option>
-            <option className="bg-brand-surface text-brand-text" value="de">Deutsch</option>
-          </select>
-        </label>
+        {canChangeLanguage && (
+          <div ref={langMenuRef} className="relative">
+            <button
+              type="button"
+              aria-label={t("Language")}
+              aria-haspopup="menu"
+              aria-expanded={langMenuOpen}
+              onClick={() => setLangMenuOpen((open) => !open)}
+              className="flex h-11 min-w-0 items-center gap-1.5 rounded-lg border border-brand-border bg-brand-surface px-2.5 text-sm font-semibold text-brand-text transition-colors hover:border-brand-accent/40 hover:bg-brand-surface-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent sm:px-3"
+            >
+              <span aria-hidden="true" className="text-base leading-none">🌐</span>
+              <span className="max-w-[5.5rem] truncate sm:max-w-none">{LANGUAGE_LABEL[language]}</span>
+              <span aria-hidden="true" className={`text-xs text-brand-text-muted transition-transform ${langMenuOpen ? "rotate-180" : ""}`}>⌄</span>
+            </button>
+            {langMenuOpen && (
+              <div role="menu" aria-label={t("Language")} className="absolute right-0 z-50 mt-2 w-44 max-w-[80vw] overflow-hidden rounded-lg border border-brand-border bg-brand-surface-2 py-1 shadow-xl shadow-black/40">
+                {LANGUAGE_MENU.map(({ code, label }) => {
+                  const selected = language === code;
+                  return (
+                    <button
+                      key={code}
+                      type="button"
+                      role="menuitemradio"
+                      aria-checked={selected}
+                      onClick={() => { setLanguage(code); setLangMenuOpen(false); }}
+                      className={`flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm transition-colors focus-visible:outline-none focus-visible:bg-brand-surface-hover ${selected ? "font-semibold text-brand-accent" : "text-brand-text-secondary hover:bg-brand-surface-hover hover:text-brand-text"}`}
+                    >
+                      <span className="truncate">{label}</span>
+                      {selected && <Check className="h-4 w-4 shrink-0" aria-hidden="true" />}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
         <Link to="/me" aria-label={t("My")} className="flex h-11 w-11 items-center justify-center rounded-xl border border-brand-border bg-brand-surface text-brand-text-secondary transition-colors hover:border-brand-accent/40 hover:text-brand-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent">
           <User className="h-[18px] w-[18px]" />
         </Link>
