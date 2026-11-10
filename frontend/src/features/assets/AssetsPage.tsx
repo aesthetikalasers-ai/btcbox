@@ -87,9 +87,9 @@ export function AssetsPage() {
             <p className="mt-1.5 truncate text-[28px] font-bold leading-tight tracking-tight tabular-nums text-brand-text sm:text-[34px]">{loading ? "—" : account?.valuation_complete ? formatDecimalAmount(account.totalUsdt, numberLocale) + " USDT" : "—"}</p>
             <div className="mt-2.5"><Badge variant={loading ? "outline" : account?.valuation_complete ? "success" : "warning"}>{loading ? t("Loading") : account?.valuation_complete ? t("Valuation complete") : t("Valuation incomplete")}</Badge></div>
           </div>
-          <div className="flex shrink-0 flex-wrap gap-2">
-            <Button asChild><Link to="/deposit"><ArrowDownToLine className="mr-2 h-4 w-4"/>{t("Deposit")}</Link></Button>
-            <Button asChild variant="outline"><Link to="/withdraw"><ArrowUpFromLine className="mr-2 h-4 w-4"/>{t("Withdraw")}</Link></Button>
+          <div className="flex w-full flex-wrap gap-2 sm:w-auto">
+            <Button asChild className="flex-1 sm:flex-none"><Link to="/deposit"><ArrowDownToLine className="mr-2 h-4 w-4"/>{t("Deposit")}</Link></Button>
+            <Button asChild className="flex-1 sm:flex-none" variant="outline"><Link to="/withdraw"><ArrowUpFromLine className="mr-2 h-4 w-4"/>{t("Withdraw")}</Link></Button>
           </div>
         </CardContent>
       </Card>
