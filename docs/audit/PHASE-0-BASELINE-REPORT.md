@@ -391,3 +391,88 @@ Inspector links：
 - 因而源码层面的组件挂载预期是：桌面宽度（1440/1024）Sidebar + Topbar；390px 初始状态 Topbar 可见，桌面 Sidebar 隐藏但其 JSX 子树仍挂载，关闭 Dialog 的 Portal 子树通常不呈现；390px 打开抽屉后再出现移动 Sidebar。必须以实际 DOM、computed visibility 和 AX tree 验证每一项。
 - 本节替代第 3 节中将 390px Sidebar 简化描述为“仅在关闭的移动抽屉内”的说法。真实 DOM 数量、role/name 和可见入口数量仍未测试。
 
+
+
+## 10.10 AI 2 下一轮指令：运行时/CI/Vercel 只读补证（2026-11-11）
+
+本节仅记录本轮实际可取得的新证据与执行限制。没有修改应用源码、Playwright 测试、CI workflow、Vercel 项目设置或部署；没有写 main、合并或执行金融写入。
+
+### A. 浏览器能力核验与 LanguageMenu 语义
+
+执行：通过 Browser Chat 接口列出当前标签，并尝试确定是否存在可用的 BTCBOX 页面。结果：当前标签只有 ChatGPT、Supabase、TOTP generator、设置和 Telegram；没有 BTCBOX 页面。当前 Browser 接口仅暴露 list_tabs/get_tab_context，未提供导航、viewport、点击、执行 DOM 脚本或 AX snapshot 能力。因此本轮没有执行 1440/1024/390 运行时测试，不能提供 computed visibility、真实 role/name、AX tree、语言切换和焦点恢复的运行时结果。
+
+进一步读取基线源码：
+- `LanguageMenu.tsx` 的触发器是 `button[aria-haspopup=menu]`，accessible name 由 i18n 的 `Language` 提供；不是原生 `select` / `combobox`。
+- 菜单打开后是 `role=menu`，选项为 `role=menuitemradio` 并设置 `aria-checked`；搜索框有 `aria-label=Search Language`。
+- 菜单 Escape 处理调用 `setOpen(false)` 并聚焦触发器；选择语言后也聚焦触发器。菜单外点击会关闭，但该路径没有显式焦点恢复代码。
+- `AppLayout.tsx` 使用 Radix Dialog 作为移动导航；Dialog Escape/关闭后的焦点恢复通过 `onCloseAutoFocus` 聚焦 Topbar 的菜单按钮。桌面断点变化监听会在 min-width 1024px 时关闭移动菜单。
+- Sidebar 的语言菜单为 drawer variant；Topbar 语言菜单为 bar variant。bar variant 在 560px 以下 CSS 隐藏，drawer variant 在 Sidebar 内显示。桌面 Sidebar 与 Topbar 同时存在；实际可见入口数仍未在浏览器测量。
+
+对照失败测试源码，`language-loading.spec.ts` 使用 `page.locator('select').selectOption()`，并断言 `header select`；`navigation-accessibility.spec.ts` 在 resize 后也使用 `getByRole('combobox', {name:'Language'})`。这些 locator 与当前自定义 menu-button/menuitemradio 组件语义不一致。**这两类断言可定为测试断言与当前组件契约不匹配（测试过时/断言过时候选，基于源码证据）；不能据此断定语言切换功能本身通过。**
+
+最小修复建议（未执行）：仅将测试 locator/交互改为按 button accessible name “Language”打开菜单，再按 menuitemradio 名称选择语言；验证 `html[lang]`、localStorage、Escape/关闭焦点恢复。不要将组件改回原生 select，也不要隐藏式保留重复可聚焦菜单实例。桌面/移动实例挂载与可见数量仍需在可运行浏览器环境测量。
+
+### B. CI 原始日志和重点用例证据链
+
+执行：读取 GitHub Actions run `42905110305` 的 jobs 与 job `130140950103` 原始日志。job 状态 completed/failure；步骤 1–9 成功，步骤 10 浏览器 smoke tests 失败，步骤 11 Artifact 上传成功；最终 142 passed、33 failed、11 skipped，进程 exit code 1。日志列出 17 个独立失败测试，其中 desktop/mobile 项目重复运行；responsive visual QA 的 home 测试仅 desktop 运行，因此 17 个独立用例形成 33 次失败。原始日志链接：https://github.com/aesthetikalasers-ai/btcbox/actions/runs/42905110305
+
+重点逐项复核：
+1. **行情超时隐藏旧报价并恢复**（`market-feed-fail-closed.spec.ts:21`）：测试 mock `**/api/market`，先返回 BTC 65000 + 当前时间戳，第二次请求挂起后 abort；期望 Market feed unavailable、旧报价消失、恢复后 BTC link 可见。CI 失败记录在该测试断言阶段。该 fixture 与当前测试所声明的 API 请求路径/响应形状明确；但没有 Playwright trace/error-context 附件可读取，也没有本轮运行时 DOM/请求日志，最终归因保持**未确定**（产品状态处理或测试时序/mock 需继续查）。
+2. **503 fail-closed**（同文件 :44）：mock `/api/market` 和 `/api/kline` 返回 503，期望首页显示不可用态且不出现报价/零值。原始失败名称确认；没有足够 DOM/请求证据判断是页面先决状态、文案还是 fail-closed 行为，保持**未确定**。
+3. **市场交易对跳转**（同文件 :86）：mock 返回 `BTCUSDT`，期望 link accessible name 为 “BTCUSDT spot trading”，点击后 URL 为 `/trade/BTCUSDT`。该用例失败。必须对照实际渲染链接 name 与路由；本轮无 DOM/trace，保持**未确定**。
+4. **陈旧快照隐藏报价**（同文件 :111）：mock 的 `data.BTCUSDT.ts=1`，期望 Snapshot stale、older than 90 seconds、报价及 pair link 不存在。该用例失败；缺少运行时 DOM/请求证据，保持**未确定**。
+5. **导航 resize**（`navigation-accessibility.spec.ts:25`）：fixture 先将 `/api/**` 置为 503、viewport 390×844，打开移动 Dialog、点 Markets，再次打开并 resize 至 1440×900，期望 Dialog 不可见；随后用原生 combobox 选择德语。AppLayout 有 1024px matchMedia change handler 关闭移动 Dialog 的源码逻辑；后续 combobox locator 与 LanguageMenu 自定义 menu 语义不匹配。Dialog 关闭的实际运行结果仍**未确定**；combobox 断言为**测试断言过时/契约不匹配**候选。
+6. **认证恢复**（`redesign.spec.ts:78`）：测试拦截 `/api/auth-client-config` 返回 503，访问 /assets，期望固定文案 “Account verification is taking longer than expected. Your session has not been cleared.”、Try again 按钮及 URL 保持 /assets。CI 实际日志显示该文案未找到。没有页面 DOM 和请求 trace，无法证明是状态触发条件、mock 契约还是产品文案/逻辑差异，保持**未确定**。
+7. **LanguageMenu / locale persistence**：`language-loading.spec.ts` 和 `auth-routes.spec.ts` 的失败日志明确使用原生 select/combobox locator；当前 LanguageMenu 是 button + menu + menuitemradio。将这些 locator 断言标记为**测试过时/语义契约不匹配**，建议改测试，不改产品组件语义。语言字典加载、持久化和 document lang 的功能行为仍需使用正确交互重新跑测试。
+
+其余失败用例仍保留第 4 节的原始失败列表与“未确定”状态；本轮未获得 trace.zip/error-context.md（Artifact 13804199963 仅上传 visual-qa PNG），未能完成 17 项逐条 DOM/trace 最终归因。禁止把以上初步分类扩展成全套 17 项的确定结论。
+
+回归建议：新建/修订独立 Playwright 测试，保存 blob/html report、trace.zip、error-context.md 和 request journal；对行情测试记录每次 `/api/market` 请求时间、mock response、页面状态和报价节点文本；对 pair link 记录 role/name/href；对 resize 记录 Dialog DOM/visibility/AX 与焦点；对 auth recovery 记录 auth-client-config 响应、状态文案和路由。所有新增测试仅使用隔离 mock，不执行真实资金/交易写入。
+
+### C. Vercel 双项目及 Git 集成补证
+
+本轮重新读取两项目详情、部署详情和 Git deployment context，发现此前需进一步区分“项目本身 Git 连接”与“某一部署来源”：
+
+| 字段 | 新号团队 fuyao999 | BOX 团队 |
+|---|---|---|
+| Team ID | `team_AZiXGACBy90fpgeKEUb9i2YQ` | `team_tnwJkMYPnWK2BjBGf3Q2n3FB` |
+| Project ID | `prj_InHUgyajw4eUMsb9KOdjUmMF0aIP` | `prj_rmwOE9q0XyZ3BikpxX2FzDt2VjKK` |
+| Project name | `btcboxcdt` | `btcboxcdt` |
+| Project domain list | `btcboxcdt-pi.vercel.app`、`btcboxcdt-fuyao999.vercel.app`、`btcboxcdt-git-main-fuyao999.vercel.app` | `btcboxcdt.vercel.app`、`btcboxcdt-box-2753.vercel.app` |
+| Team Git-linked projects（Git deployment context） | `btcboxcdt` → `aesthetikalasers-ai/btcbox` | `btcbox-v33` → `avali9308-code/btcbox-v33` |
+| 目标项目 Git integration | team context 与目标 Project ID 一致，GitHub repo `aesthetikalasers-ai/btcbox` | team context 没有将目标 Project ID `prj_rmw...` 映射到 `aesthetikalasers-ai/btcbox`；只列出另一项目 `btcbox-v33` |
+| 目标 Production deployment | `dpl_E8WqAXhkZENy3QKETeCAkPhWyoCK`，READY，target=production，branch `main`，SHA `d89d9363cab056cca27492a721b5922c2a29d05c`，source=git | `dpl_32SerPKNdcAtJu4iLqqYR8s4AVoP`，READY，target=production，branch `main`，SHA `525cc9d6c72140f3778ae295e46f1338482189cc`，source=cli |
+| Project configured Production Branch | 接口未暴露，未确定 | 接口未暴露，未确定 |
+
+新号项目的最新 deployment 已变化：`dpl_HAnUyUzfX1hcv1g9wHUovVMHM5tJ`，source=git，branch `audit/phase-0-baseline-evidence-20261111`，commit `b0645014503de2db45ce2543cf920b730f462f67`，state READY，但 target=null，属于 Preview，不是 Production。它不改变上表中 Production deployment 的记录。该 Preview 证明审计分支可由新号项目 Git 集成构建；未执行生产部署。
+
+BOX 项目的目标 Project ID 与其 Team 的 Git-linked project 清单不一致；BOX 账号当前 team context 仅列出 `btcbox-v33` / `avali9308-code/btcbox-v33`，而目标 `btcboxcdt` 的 deployment source=cli。故不能声称 BOX 目标项目已连接 `aesthetikalasers-ai/btcbox` 的 Git 自动部署。需要在 Vercel 项目设置界面/只读 API 获得该 Project ID 的 Git repository 绑定及 configured Production Branch 才能闭环。没有改配置、域名、环境变量或部署。
+
+### D. Secret Scan 与执行边界
+
+本轮没有完整只读 checkout runner，也没有可用的 gitleaks/trufflehog 二进制；没有执行专用扫描。扫描 commit、工具版本、范围、排除规则、退出码均为**未执行/无数据**。未以关键词 grep 替代专用 scanner，未输出任何 secret 值。Phase 0 Secret Scan 保持未完成。
+
+### E. 本轮命令/工具结果摘要
+
+| 操作 | 实际执行内容 | 结果 |
+|---|---|---|
+| 浏览器标签读取 | Browser list_tabs | 成功；没有 BTCBOX 标签；未执行 DOM/AX |
+| GitHub CI jobs | fetch workflow run jobs: 42905110305 | 成功；job 130140950103 failure；步骤状态已记录 |
+| CI 原始日志 | fetch job logs: 130140950103 | 成功读取；job exit code 1；142/33/11 |
+| 源码核对 | fetch_file：LanguageMenu、AppLayout、Sidebar、Topbar、i18n、market-feed、navigation、language-loading、playwright config | 成功；只读；用于测试语义和 fixture 对照 |
+| Vercel project | get_project × 2 | 成功；项目 ID/Team/domain/latest deployment 读取成功 |
+| Vercel deployment | get_deployment × 2；其中新号审计 Preview 返回 Git source、audit branch、commit b064... | 成功；未写入 |
+| Vercel Git context | get_git_deployment_context × 2 | 成功；新号团队列出目标 Git-linked project；BOX 团队只列出另一个 btcbox-v33 项目 |
+| Secret scan | gitleaks/trufflehog | 未执行；runner/二进制不可用；无退出码 |
+
+### F. 未解决项与当前判断
+
+1. LanguageMenu 1440/1024/390 的真实 DOM、computed visibility、AX tree、入口计数、打开/关闭/选择语言、Escape、路由切换及焦点恢复仍未运行时验证。
+2. 600/820/1280/1366/1600/1920 的页面结构化检查仍未执行；无需截图，但必须有可运行 Playwright 环境的 DOM/AX/overflow/network 输出。
+3. 页面矩阵的 10 个重点路由仍缺真实运行时覆盖；源码结构不替代浏览器运行结果。
+4. 17 个 CI 失败用例只有部分可以基于源码确认测试 locator 契约过时；行情、pair link、Dialog resize 实际结果、认证恢复仍未确定。缺失 trace/error-context 使完整证据链未闭环。
+5. BOX 项目的 Git 自动部署连接未证实；当前 team context 指向另一仓库，目标项目的 deployment source=cli。
+6. 两个项目 configured Production Branch 字段未取得。
+7. Secret Scan 未执行。
+
+**Phase 0 继续维持 REJECT / NOT PASSED（AI 1 不签发验收）。** 本轮没有源码/交易页改动，没有修改生产配置，没有合并、生产部署或金融写入。以上证据供 AI 2 独立复核。
