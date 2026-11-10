@@ -221,6 +221,8 @@ begin
   end loop;
 end $$;
 grant usage, select on all sequences in schema public to service_role;
+-- FIX (Critical-2): perp_apply_fill_to_position / liquidation delete positions; service_role needs DELETE.
+grant delete on public.perpetual_positions to service_role;
 
 -- ============================================================
 -- Helper: latest fresh mark price for a symbol, or NULL if stale.
@@ -372,6 +374,7 @@ declare
   v_filled_qty numeric(38,18) := 0;
   v_filled_quote numeric(38,18) := 0;
   v_pos_check record;
+  v_reducible_remaining numeric(38,18); -- FIX (Medium): reduce-only fill cap = opposite position size; NULL = no cap.
 begin
   -- 0. Input validation.
   if coalesce(p_order_id,'')='' or coalesce(p_user_id,'')='' or coalesce(p_symbol,'') !~ '^[A-Z0-9]{3,20}$'
@@ -427,10 +430,12 @@ begin
     end if;
     if p_close_position then p_quantity := v_pos_check.quantity; end if;
     v_reserve := 0;
+    v_reducible_remaining := v_pos_check.quantity; -- FIX (Medium): reduce-only may fill at most the opposite position
   else
     -- 5. Opening/increasing: reserve initial margin + worst-case fee (over-reserve is safe).
     declare v_ref_price numeric(38,18) := coalesce(p_price, v_mark.mark_price);
     begin
+      v_reducible_remaining := null; -- opening/increasing: no reduce cap
       v_reserve := (v_ref_price * p_quantity) / p_leverage
                  + (v_ref_price * p_quantity) * v_market.taker_fee_rate;
       if v_reserve <= 0 then raise exception 'invalid margin reserve'; end if;
@@ -482,7 +487,7 @@ begin
       limit 1 for update;
     exit when not found;
 
-    v_fill := least(v_remaining, v_maker.remaining_quantity);
+    v_fill := least(v_remaining, v_maker.remaining_quantity, coalesce(v_reducible_remaining, v_remaining)); -- FIX (Medium): cap reduce-only fills at remaining position size
     v_exec_price := v_maker.price;
     v_quote := v_fill * v_exec_price;
     v_taker_fee := v_quote * v_market.taker_fee_rate;
@@ -504,14 +509,16 @@ begin
             v_taker_net numeric(38,18);
     begin
       v_taker_net := v_taker_pos.realized_settled - v_taker_fee; -- +credit if profit
-      -- frozen -> available: release the reserved portion; adjust available by net pnl-fee; lock extra if margin_delta>0.
-      update public.financial_accounts set frozen=frozen-v_taker_release,
-        available=available + v_taker_release + v_taker_net - greatest(v_taker_pos.margin_delta,0),
+      -- FIX (Critical-1): isolated margin stays in frozen on open; released from frozen on close.
+      -- frozen_delta = -v_release + margin_delta; available_delta = +v_release - margin_delta + v_net.
+      -- Per-fill invariant: available_delta + frozen_delta = v_net (realized - fee); fees have their own insurance leg.
+      update public.financial_accounts set frozen=frozen - v_taker_release + v_taker_pos.margin_delta,
+        available=available + v_taker_release - v_taker_pos.margin_delta + v_taker_net,
         version=version+1, updated_at=now()
-       where user_id=p_user_id and asset='USDT' and frozen >= v_taker_release;
+       where user_id=p_user_id and asset='USDT' and frozen >= v_taker_release - v_taker_pos.margin_delta;
       if not found then raise exception 'taker margin invariant failed'; end if;
       insert into public.financial_ledger(operation_id,user_id,asset,available_delta,frozen_delta,available_after,frozen_after)
-      select v_fill_op_id, p_user_id, 'USDT', (v_taker_release + v_taker_net - greatest(v_taker_pos.margin_delta,0)), -v_taker_release, available, frozen
+      select v_fill_op_id, p_user_id, 'USDT', (v_taker_release - v_taker_pos.margin_delta + v_taker_net), (-v_taker_release + v_taker_pos.margin_delta), available, frozen
         from public.financial_accounts where user_id=p_user_id and asset='USDT';
       v_reserve := v_reserve - v_taker_release;
       -- keep taker order reserved_margin in sync with remaining reserve so cancel releases the correct amount.
@@ -523,13 +530,14 @@ begin
             v_maker_net numeric(38,18);
     begin
       v_maker_net := v_maker_pos.realized_settled - v_maker_fee;
-      update public.financial_accounts set frozen=frozen-v_maker_release,
-        available=available + v_maker_release + v_maker_net - greatest(v_maker_pos.margin_delta,0),
+      -- FIX (Critical-1): same delta formula as taker — isolated margin moves within frozen, not vanished.
+      update public.financial_accounts set frozen=frozen - v_maker_release + v_maker_pos.margin_delta,
+        available=available + v_maker_release - v_maker_pos.margin_delta + v_maker_net,
         version=version+1, updated_at=now()
-       where user_id=v_maker.user_id and asset='USDT' and frozen >= v_maker_release;
+       where user_id=v_maker.user_id and asset='USDT' and frozen >= v_maker_release - v_maker_pos.margin_delta;
       if not found then raise exception 'maker margin invariant failed'; end if;
       insert into public.financial_ledger(operation_id,user_id,asset,available_delta,frozen_delta,available_after,frozen_after)
-      select v_fill_op_id, v_maker.user_id, 'USDT', (v_maker_release + v_maker_net - greatest(v_maker_pos.margin_delta,0)), -v_maker_release, available, frozen
+      select v_fill_op_id, v_maker.user_id, 'USDT', (v_maker_release - v_maker_pos.margin_delta + v_maker_net), (-v_maker_release + v_maker_pos.margin_delta), available, frozen
         from public.financial_accounts where user_id=v_maker.user_id and asset='USDT';
       update public.perpetual_orders set reserved_margin=reserved_margin-v_maker_release where id=v_maker.id;
     end;
@@ -553,6 +561,10 @@ begin
     v_filled_qty := v_filled_qty + v_fill;
     v_filled_quote := v_filled_quote + v_quote;
     v_remaining := v_remaining - v_fill;
+    if v_reducible_remaining is not null then -- FIX (Medium): reduce-only exhausted -> stop; never flip into reverse position
+      v_reducible_remaining := v_reducible_remaining - v_fill;
+      if v_reducible_remaining <= 0 then exit; end if;
+    end if;
     update public.perpetual_orders set remaining_quantity=remaining_quantity-v_fill,
       status=case when remaining_quantity-v_fill<=0 then 'filled' else 'partially_filled' end,
       avg_fill_price=case when avg_fill_price is null then v_exec_price
@@ -585,6 +597,9 @@ begin
           from public.financial_accounts where user_id=p_user_id and asset='USDT';
       end;
     end if;
+    update public.perpetual_orders set remaining_quantity=0, status='cancelled', reserved_margin=0, updated_at=now() where id=p_order_id;
+  elsif p_reduce_only and v_reducible_remaining <= 0 then
+    -- FIX (Medium): reduce-only limit order filled up to full position size; leftover quantity cancelled, never flips into reverse. v_reserve=0 for reduce-only so no margin to release.
     update public.perpetual_orders set remaining_quantity=0, status='cancelled', reserved_margin=0, updated_at=now() where id=p_order_id;
   else
     update public.perpetual_orders set remaining_quantity=v_remaining, reserved_margin=v_reserve,
