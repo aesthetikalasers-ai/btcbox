@@ -446,3 +446,9 @@ a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
   .trade-nav-scroll, .trade-snap-x { scrollbar-width: none; -ms-overflow-style: none; -webkit-overflow-scrolling: touch; }
   .trade-nav-scroll::-webkit-scrollbar, .trade-snap-x::-webkit-scrollbar { display: none; width: 0; height: 0; }
 }
+
+@keyframes toastIn {
+  from { opacity: 0; transform: translateY(-8px) scale(.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+.anim-toast-in { animation: toastIn .22s cubic-bezier(.22,.61,.36,1) both; }

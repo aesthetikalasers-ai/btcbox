@@ -1,4 +1,5 @@
 import { NavLink } from "react-router-dom";
+import { LanguageMenu } from "./LanguageMenu";
 import { ArrowLeftRight, ChartNoAxesCombined, ClipboardList, Headset, House, Settings, Sprout, UserRound, Wallet, X } from "lucide-react";
 import { cn } from "../../lib/utils";
 import { useI18n } from "../../lib/i18n";
@@ -63,6 +64,9 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
           </div>
         </div>
       </nav>
+      <div className="px-3 pb-4">
+        <LanguageMenu variant="drawer" />
+      </div>
     </aside>
   );
 }
