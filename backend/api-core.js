@@ -3522,7 +3522,7 @@ async function handleRequest(event, context) {
     }
 
     // POST /api/admin/withdraw/mark-paid — staff has already sent the funds manually.
-    // This is a status/audit confirmation only; it never broadcasts or debits funds.
+    // The external transfer is staff-executed; this RPC atomically consumes the frozen reserve and records the TxID. It never broadcasts funds.
     if (sub === 'withdraw/mark-paid' && method === 'POST') {
       if (!financialWritesEnabled()) return json({ ok: false, code: 'FINANCIAL_CUTOVER_INCOMPLETE', msg: 'Financial ledger cutover is incomplete. Payout status was not changed.' }, 503);
       const wdId = String(body.id || '').trim();
@@ -3545,7 +3545,7 @@ async function handleRequest(event, context) {
           return json({ ok: false, code: 'FINANCIAL_RPC_FAILED', msg: 'Manual payout completion was not confirmed. Check the withdrawal record before retrying.' }, rpc.status === 400 ? 400 : 503);
         }
         return json({ ok: true, duplicate: !!result.duplicate, withdrawal_id: result.withdrawal_id, status: result.status,
-          payout_reference: result.payout_reference || '', paid_at: result.paid_at || null,
+          payout_reference: result.payout_reference || '', payout_operation_id: result.payout_operation_id || null, paid_at: result.paid_at || null,
           msg: result.duplicate ? 'This withdrawal was already marked as paid.' : 'Manual payout completion recorded.' });
       } catch (e) {
         return json({ ok: false, code: 'FINANCIAL_RPC_UNAVAILABLE', msg: 'Financial database temporarily unavailable. Payout status is unconfirmed; check the withdrawal record before retrying.' }, 503);
