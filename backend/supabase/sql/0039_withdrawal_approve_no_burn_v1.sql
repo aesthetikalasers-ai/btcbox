@@ -10,7 +10,7 @@ ALTER TABLE public.financial_operations
   ADD CONSTRAINT financial_operations_operation_type_check
   CHECK (operation_type IN (
     'deposit_credit','withdraw_freeze','withdraw_approve','withdraw_reject',
-    'withdraw_paid','earn_subscribe','earn_redeem','admin_adjustment','migration_opening_balance'
+    'withdraw_paid','earn_subscribe','earn_redeem','admin_adjustment','spot_trade','spot_order_reserve','spot_order_cancel','seconds_open','seconds_settle','migration_opening_balance'
   ));
 
 ALTER TABLE public.withdrawal_requests
@@ -35,7 +35,7 @@ DECLARE
 BEGIN
   IF p_idempotency_key IS NULL OR length(p_idempotency_key) < 16 OR length(p_idempotency_key) > 128
      OR p_user_id IS NULL OR p_user_id = '' OR p_asset IS NULL OR p_asset !~ '^[A-Z0-9]{2,16}$'
-     OR p_operation_type NOT IN ('deposit_credit','withdraw_freeze','withdraw_approve','withdraw_reject','withdraw_paid','earn_subscribe','earn_redeem','admin_adjustment')
+     OR p_operation_type NOT IN ('deposit_credit','withdraw_freeze','withdraw_approve','withdraw_reject','withdraw_paid','earn_subscribe','earn_redeem','admin_adjustment','spot_trade','spot_order_reserve','spot_order_cancel','seconds_open','seconds_settle')
      OR p_request_hash IS NULL OR p_request_hash = ''
      OR p_metadata IS NULL OR jsonb_typeof(p_metadata) <> 'object'
      OR p_available_delta IS NULL OR p_frozen_delta IS NULL
