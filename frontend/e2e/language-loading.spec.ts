@@ -36,6 +36,7 @@ test('languages load on demand, cache in memory and persist across navigation an
   await expect(page.locator('html')).toHaveAttribute('lang', 'de-DE');
   await page.reload();
   await expect(page.locator('header select')).toHaveValue('de');
+  await expect(page.locator('header select')).toHaveCSS('color-scheme', 'dark');
   await expect(page.locator('html')).toHaveAttribute('lang', 'de-DE');
 });
 
