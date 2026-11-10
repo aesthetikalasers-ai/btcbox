@@ -347,3 +347,18 @@ a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
  .trade-candles { height:500px; }
 }
 @media (min-width:1500px) { .trade-candles { height:560px; } }
+
+
+/* Responsive card groups: stable-width tracks, with equal height only within each row. */
+@layer utilities {
+  .card-grid-equal {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 15rem), 1fr));
+    align-items: stretch;
+    min-width: 0;
+  }
+  .card-grid-equal > * { min-width: 0; }
+  @media (max-width: 639px) {
+    .card-grid-equal { gap: 12px; }
+  }
+}

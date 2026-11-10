@@ -79,14 +79,14 @@ export function AssetsPage() {
 
       {error && <Card className="border-brand-border bg-brand-surface"><CardContent className="flex flex-wrap items-center justify-between gap-3 p-4"><p className="type-body-compact text-brand-text-secondary" role="alert">{error}</p>{signedOut && <Button asChild size="sm"><Link to="/login">{t("Sign in")}</Link></Button>}</CardContent></Card>}
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-        <Card className="col-span-2 sm:col-span-1 border-brand-border bg-brand-surface ">
+      <div className="card-grid-equal gap-3 sm:gap-4">
+        <Card className="flex min-w-0 flex-col border-brand-border bg-brand-surface ">
           <CardContent className="flex items-center gap-3 p-4">
             <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-accent/10 text-brand-accent"><Wallet className="h-5 w-5"/></span>
             <div className="min-w-0"><p className="type-meta text-brand-text-muted">{t("Estimated total value")}</p><p className="mt-1 truncate text-lg font-semibold tracking-tight tabular-nums text-brand-text">{loading ? "—" : account?.valuation_complete ? formatDecimalAmount(account.totalUsdt, numberLocale) + " USDT" : "—"}</p><Badge className="mt-1" variant={account?.valuation_complete ? "outline" : "secondary"}>{loading ? t("Loading") : account?.valuation_complete ? t("Valuation complete") : t("Valuation incomplete")}</Badge></div>
           </CardContent>
         </Card>
-        <Card className="border-brand-border bg-brand-surface ">
+        <Card className="flex min-w-0 flex-col border-brand-border bg-brand-surface ">
           <CardContent className="flex items-center gap-3 p-4">
             <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-cyan/10 text-brand-cyan"><Wallet className="h-5 w-5"/></span>
             <div className="min-w-0"><p className="type-meta text-brand-text-muted">{t("Assets held")}</p><p className="mt-1 text-lg font-semibold tabular-nums text-brand-text">{loading || !account ? "—" : balances.length}</p></div>
