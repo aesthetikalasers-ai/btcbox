@@ -1690,6 +1690,10 @@ async function handleRequest(event, context) {
       auth_time: authTime,
       verified_at: Date.now()
     };
+    // A freshly verified linked identity renews the current BTCBOX session's
+    // recent-auth window. This lets first-time account setup recover safely
+    // after the original OAuth callback has been open for more than five minutes.
+    sessionRecord.session.created_at = Date.now();
     try { await saveDB(db); }
     catch (e) {
       if (e && e.message === 'Persistent storage write conflict') return json({ ok: false, code: 'ACCOUNT_UPDATE_CONFLICT', msg: 'Your account changed at the same time. Please retry verification.' }, 409);
