@@ -130,10 +130,6 @@ BEGIN
     RAISE EXCEPTION 'withdrawal freeze mismatch: available %, frozen %',v_balance,v_frozen;
   END IF;
 
-  v_result := public.review_withdrawal_atomic('WD-CI-0001','admin-ci',true,'postgres-ci approve');
-  IF v_result->>'status'<>'approved' OR v_result->>'duplicate'<>'false' THEN
-    RAISE EXCEPTION 'withdrawal approval failed: %',v_result;
-  END IF;
   SELECT count(*) INTO v_ledger_before FROM public.financial_ledger WHERE user_id='deposit-user';
   v_result := public.review_withdrawal_atomic('WD-CI-0001','admin-ci',true,'postgres-ci approve');
   IF v_result->>'status'<>'approved' OR v_result->>'duplicate'<>'false' THEN
