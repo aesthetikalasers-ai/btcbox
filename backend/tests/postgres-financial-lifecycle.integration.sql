@@ -139,7 +139,21 @@ BEGIN
     RAISE EXCEPTION 'withdrawal approval retry was not idempotent: %',v_result;
   END IF;
 
+  -- Approval is status-only: preserve the user's full reserved amount and create no ledger row.
   SELECT count(*) INTO v_ledger_before FROM public.financial_ledger WHERE user_id='deposit-user';
+  SELECT available,frozen INTO v_balance,v_frozen FROM public.financial_accounts
+  WHERE user_id='deposit-user' AND asset='USDT';
+  IF v_balance<>89 OR v_frozen<>11 THEN
+    RAISE EXCEPTION 'approval changed reserved funds: available %, frozen %',v_balance,v_frozen;
+  END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM public.withdrawal_requests
+    WHERE id='WD-CI-0001' AND review_operation_id=freeze_operation_id
+  ) THEN
+    RAISE EXCEPTION 'approved withdrawal is not linked to its original freeze operation';
+  END IF;
+
+  -- Staff payout completion is the single, idempotent ledger debit of frozen funds.
   v_result := public.mark_withdrawal_paid_atomic('WD-CI-0001','admin-ci','txid-ci-0001','postgres-ci payout');
   IF v_result->>'status'<>'completed' OR v_result->>'duplicate'<>'false' THEN
     RAISE EXCEPTION 'manual payout completion failed: %',v_result;
@@ -149,8 +163,15 @@ BEGIN
     RAISE EXCEPTION 'manual payout retry was not idempotent: %',v_result;
   END IF;
   SELECT count(*) INTO v_ledger_after FROM public.financial_ledger WHERE user_id='deposit-user';
-  IF v_ledger_after<>v_ledger_before THEN
-    RAISE EXCEPTION 'mark-paid incorrectly created another financial ledger movement';
+  IF v_ledger_after<>v_ledger_before+1 THEN
+    RAISE EXCEPTION 'manual payout must create exactly one debit ledger operation';
+  END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM public.financial_operations o
+    JOIN public.withdrawal_requests w ON w.payout_operation_id=o.id
+    WHERE w.id='WD-CI-0001' AND o.operation_type='withdraw_paid'
+  ) THEN
+    RAISE EXCEPTION 'completed withdrawal is not linked to its withdraw_paid ledger operation';
   END IF;
   SELECT available,frozen INTO v_balance,v_frozen FROM public.financial_accounts
   WHERE user_id='deposit-user' AND asset='USDT';
