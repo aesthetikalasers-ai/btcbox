@@ -943,5 +943,7 @@
   "and": "および",
   "Privacy Policy": "プライバシーポリシー",
   "I understand digital asset trading involves significant risk.": "デジタル資産取引には大きなリスクが伴うことを理解しています。",
-  "Unable to load this language. Please try again.": "言語を読み込めませんでした。もう一度お試しください。"
+  "Unable to load this language. Please try again.": "言語を読み込めませんでした。もう一度お試しください。",
+  "Gainers": "値上がり",
+  "Losers": "値下がり"
 }
