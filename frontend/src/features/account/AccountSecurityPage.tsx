@@ -83,7 +83,7 @@ export function AccountSecurityPage() {
           </div>
           {showSourceEthereumWallets && <div className="space-y-2">{ethereumWallets.map(wallet => <Button key={wallet.info.uuid} variant="outline" className="w-full justify-start" aria-busy={busy} disabled={busy} onClick={() => { setShowSourceEthereumWallets(false); void reauthenticateIdentityLinkWithWeb3("ethereum", twoFactorCode, wallet.provider); }}><Wallet className="h-4 w-4"/>{wallet.info.name}</Button>)}</div>}
           {account?.twofa_enabled && <label className="block space-y-1.5 text-sm"><span className="text-brand-text-secondary">{t("Authenticator code (required when account 2FA is enabled)")}</span><Input value={twoFactorCode} onChange={event => setTwoFactorCode(event.target.value.replace(/\D/g, "").slice(0, 6))} inputMode="numeric" autoComplete="one-time-code" maxLength={6} placeholder={t("Enter your 2FA code")} /></label>}
-          {identityLinkNeedsTwoFactor && <form className="space-y-2" aria-busy={busy} onSubmit={async event => { event.preventDefault(); try { await completeIdentityLinkReauthTwoFactor(twoFactorCode); setTwoFactorCode(""); } catch { /* AuthProvider displays the safe error. */ } }}>
+          {identityLinkNeedsTwoFactor && <form className="space-y-2" aria-busy={busy} onSubmit={async event => { event.preventDefault(); if (busy) return; try { await completeIdentityLinkReauthTwoFactor(twoFactorCode); setTwoFactorCode(""); } catch { /* AuthProvider displays the safe error. */ } }}>
             <p className="text-sm text-brand-text-secondary">{t("Google identity confirmed. Enter your authenticator code to complete this step.")}</p>
             <Button type="submit" className="w-full" aria-busy={busy} disabled={busy || twoFactorCode.length !== 6}>{t("Confirm existing identity")}</Button>
           </form>}
@@ -109,7 +109,7 @@ export function AccountSecurityPage() {
         {credentialRecoveryReady ? (
           <form className="space-y-3" aria-busy={busy} onSubmit={async (event: FormEvent<HTMLFormElement>) => {
             event.preventDefault();
-            if (newPassword !== confirmNewPassword) return;
+            if (busy || newPassword !== confirmNewPassword) return;
             try {
               await recoverBtcboxPassword(newPassword);
               setNewPassword("");
@@ -117,13 +117,14 @@ export function AccountSecurityPage() {
             } catch { /* AuthProvider displays the safe error. */ }
           }}>
             <label className="block space-y-1.5 text-sm"><span className="text-brand-text-secondary">{t("New BTCBOX password")}</span><Input type="password" value={newPassword} onChange={event => setNewPassword(event.target.value)} autoComplete="new-password" minLength={12} maxLength={128} placeholder={t("At least 12 characters")} required /></label>
-            <label className="block space-y-1.5 text-sm"><span className="text-brand-text-secondary">{t("Confirm new password")}</span><Input type="password" value={confirmNewPassword} onChange={event => setConfirmNewPassword(event.target.value)} autoComplete="new-password" minLength={12} maxLength={128} placeholder={t("Enter it again")} required /></label>
-            {confirmNewPassword && newPassword !== confirmNewPassword && <p className="text-sm text-loss">{t("Passwords do not match.")}</p>}
+            <label className="block space-y-1.5 text-sm"><span className="text-brand-text-secondary">{t("Confirm new password")}</span><Input type="password" value={confirmNewPassword} onChange={event => setConfirmNewPassword(event.target.value)} autoComplete="new-password" minLength={12} maxLength={128} aria-invalid={Boolean(confirmNewPassword && newPassword !== confirmNewPassword)} aria-describedby={confirmNewPassword && newPassword !== confirmNewPassword ? "recovery-password-error" : undefined} placeholder={t("Enter it again")} required /></label>
+            {confirmNewPassword && newPassword !== confirmNewPassword && <p id="recovery-password-error" role="alert" className="text-sm text-loss">{t("Passwords do not match.")}</p>}
             <Button type="submit" className="w-full" aria-busy={busy} disabled={busy || newPassword.length < 12 || newPassword !== confirmNewPassword}>{t("Save new password")}</Button>
           </form>
         ) : credentialRecoveryNeedsTwoFactor ? (
           <form className="space-y-3" aria-busy={busy} onSubmit={async event => {
             event.preventDefault();
+            if (busy) return;
             try { await completeCredentialRecoveryTwoFactor(twoFactorCode); setTwoFactorCode(""); }
             catch { /* AuthProvider displays the safe error. */ }
           }}>
