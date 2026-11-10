@@ -171,7 +171,7 @@ export function MyPage(){
     </CardContent>
    </Card>
   </div>:null}
-  <div className="account-actions">{links.map(({title,description,to,icon:Icon})=><Link key={to} to={to} className="group flex min-w-0 items-center gap-3 p-4 transition-colors hover:bg-brand-surface-2"><span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-brand-accent/10 text-brand-accent"><Icon className="h-5 w-5"/></span><span className="min-w-0 flex-1"><span className="block text-sm font-semibold text-brand-text">{t(title)}</span>{description?<span className="mt-1 block text-xs leading-5 text-brand-text-muted">{t(description)}</span>:null}</span><ArrowUpRight className="h-4 w-4 shrink-0 text-brand-text-muted transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-brand-text"/></Link>)}</div>
+  <div className="account-actions">{links.map(({title,description,to,icon:Icon})=><Link key={to} to={to} className="group flex min-w-0 items-center gap-3 p-4 transition-colors hover:bg-brand-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-accent/60"><span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-brand-accent/10 text-brand-accent"><Icon className="h-5 w-5"/></span><span className="min-w-0 flex-1"><span className="block text-sm font-semibold text-brand-text">{t(title)}</span>{description?<span className="mt-1 block text-xs leading-5 text-brand-text-muted">{t(description)}</span>:null}</span><ArrowUpRight className="h-4 w-4 shrink-0 text-brand-text-muted transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-brand-text"/></Link>)}</div>
  </PageFrame>;
 }
 
@@ -196,9 +196,9 @@ export function OrdersPage(){
  const date=(raw?:string)=>{if(!raw)return "—";const parsed=new Date(raw);return Number.isNaN(parsed.getTime())?raw:parsed.toLocaleString(localeTags[language]);};
  const statusTone=(status?:string)=>{
   const normalized=String(status||"").toLowerCase();
-  if(["filled","completed","success","settled"].includes(normalized))return "border-brand-success/30 text-brand-success";
-  if(["cancelled","canceled","rejected","failed","expired"].includes(normalized))return "border-brand-danger/30 text-brand-danger";
-  return "border-brand-warning/30 text-brand-warning";
+  if(["filled","completed","success","settled"].includes(normalized))return "border-brand-success/30 bg-brand-success/[.07] text-brand-success";
+  if(["cancelled","canceled","rejected","failed","expired"].includes(normalized))return "border-brand-danger/30 bg-brand-danger/[.07] text-brand-danger";
+  return "border-brand-warning/30 bg-brand-warning/[.07] text-brand-warning";
  };
  return <PageFrame eyebrow="BTCBOX / ACCOUNT" title="Orders" description="Review order records returned by your authenticated BTCBOX account service. This page is read-only.">
   <div className="flex flex-wrap items-center justify-between gap-3">
