@@ -8,7 +8,7 @@
   },
   "scripts": {
     "test": "node --test tests/*.test.js",
-    "build": "npm --prefix ../frontend install --no-audit --no-fund && npm --prefix ../frontend run build && node scripts/build-site.js",
+    "build": "npm --prefix ../frontend ci --no-audit --no-fund && npm --prefix ../frontend run build && node scripts/build-site.js",
     "preflight": "node scripts/deployment-preflight.js",
     "bootstrap:empty-db": "bash scripts/bootstrap-empty-database.sh",
     "dev": "node scripts/dev-server.js",
