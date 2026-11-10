@@ -476,3 +476,97 @@ BOX 项目的目标 Project ID 与其 Team 的 Git-linked project 清单不一�
 7. Secret Scan 未执行。
 
 **Phase 0 继续维持 REJECT / NOT PASSED（AI 1 不签发验收）。** 本轮没有源码/交易页改动，没有修改生产配置，没有合并、生产部署或金融写入。以上证据供 AI 2 独立复核。
+
+---
+
+# 10.11 AI 1 最后一轮证据闭环补充（2026-11-11）
+
+本节只记录本轮实际读取结果。未修改应用源码、Playwright 测试、CI workflow、Vercel 项目配置或生产部署。Vercel 操作为只读；CI 仅对既有失败 job 发起一次重跑。
+
+## 10.11.1 专用 Secret Scan：未执行
+
+当前容器环境探测：command -v gitleaks 无输出（未安装）；command -v trufflehog 无输出（未安装）；git 可用（/usr/bin/git），但当前容器没有 BTCBOX 仓库 checkout，/workspace/btcbox 不存在可用 worktree。没有可用的完整只读 checkout runner，也没有现成可触发的专用安全扫描 workflow。GitHub 文件读取 API 不能作为完整 Git 历史及全部 tracked blobs 的本地扫描输入。
+
+本轮没有安装或运行 scanner，也没有用关键词 grep 替代。扫描范围、scanner 版本、排除规则、命令、退出码及脱敏命中摘要均为未执行/无数据；不得解释为 clean。Phase 0 Secret Scan 仍为阻断项。
+
+## 10.11.2 Frontend CI 17 项失败：原始 job 日志逐项核对
+
+来源：run 42905110305，job 130140950103，GitHub Actions job logs API 完整解码文本（285,258 字符），checkout SHA 525cc9d6c72140f3778ae295e46f1338482189cc。最终统计 142 passed、33 failed、11 skipped，exit code 1。33 次失败去重为 17 个独立测试；16 项分别在 desktop/mobile 两个 Playwright project 失败，responsive visual QA /home 仅 desktop 运行。
+
+| # | 独立失败测试 | 原始日志首要失败表现 | 当前分类 |
+|---:|---|---|---|
+| 1 | auth-routes.spec.ts:968 — trade chooser exposes exactly the four customer products (Spot/Seconds/Contract/Earn) without a Futures entry | getByText('Unavailable', exact:true) 不可见 | 页面文案/状态断言不匹配；业务状态未确定 |
+| 2 | auth-routes.spec.ts:1014 — public preview landing page is available signed out with market data and registration entry points | heading[name='Market overview'] 不存在 | 首页 DOM/测试预期不匹配；原因未确定 |
+| 3 | auth-routes.spec.ts:1164 — public preview distinguishes server snapshot time from upstream provider time | 等待 Market data 控件点击超时 | 未确定 |
+| 4 | auth-routes.spec.ts:1257 — public market preview remains responsive across mobile, tablet and desktop widths | Market overview heading 不存在，viewport 断言未完整执行 | 前置页面断言失败；响应式结论未确定 |
+| 5 | auth-routes.spec.ts:1324 — language preference updates the document locale and persists across reloads | 失败清单列出测试名；详细 locator 未保留在汇总段 | LanguageMenu 语义冲突候选；语言功能未证明 |
+| 6 | auth-routes.spec.ts:1339 — a first-time visitor sees Japanese and can switch to another language | 失败清单列出测试名；详细 locator 未保留在汇总段 | LanguageMenu 语义冲突候选；语言功能未证明 |
+| 7 | language-loading.spec.ts:17 — languages load on demand, cache in memory and persist across navigation and reload | locator('header select') 的 toHaveValue 超时 | 测试断言过时/组件语义不匹配；加载、缓存、持久化未证明 |
+| 8 | market-feed-fail-closed.spec.ts:21 — a timed-out market refresh hides previous quotes and a later refresh recovers | link[name='BTC spot trading'] 不可见 | 首页 DOM 或 mock 契约问题；未确定 |
+| 9 | market-feed-fail-closed.spec.ts:44 — public dashboard shows an unavailable state and no quote values when the market feed fails | TradingView Lightweight Charts Copyright 文本不可见 | 前置 DOM 断言失败；fail-closed 行为未确定 |
+| 10 | market-feed-fail-closed.spec.ts:86 — a live public market pair opens its spot trading page | link[name='BTCUSDT spot trading'] 不可见 | 市场行/链接 DOM 或 mock 契约；未确定 |
+| 11 | market-feed-fail-closed.spec.ts:111 — public dashboard hides quotes from an expired server market snapshot | text('Snapshot stale') 不可见 | 陈旧快照状态或测试数据契约；未确定 |
+| 12 | navigation-accessibility.spec.ts:25 — desktop resize releases the mobile modal and navigation links close it | 汇总列出失败；详细断言上下文未导出 | Dialog resize/导航行为未确定 |
+| 13 | redesign.spec.ts:25 — market favorites persist, sorting changes rows, and ETH opens its own pair | 首个可见 link[name=/spot trading/] accessible name 不符合预期 | 链接命名/数据排序/页面渲染；未确定 |
+| 14 | redesign.spec.ts:64 — official logo and compact market workspace fit narrow viewports | Market overview heading 不存在 | 前置首页断言失败；logo/overflow 未真正测完 |
+| 15 | redesign.spec.ts:78 — configuration outage preserves protected route and offers recovery instead of a login loop | 指定 session restoration 错误文案不可见 | auth recovery 状态/文案或 mock 触发条件；未确定 |
+| 16 | redesign.spec.ts:111 — Chinese administration preserves the customer language preference | 返回后 Market overview heading 不存在 | Admin 返回/客户首页断言未确定 |
+| 17 | responsive-visual-qa.spec.ts:21 — responsive visual QA /home fits every viewport | 精确 Market overview heading 不可见，15s 超时 | /home 视觉循环中断；不能判定 viewport 通过 |
+
+同一 job 中，language-loading.spec.ts:84、:104、:122、:136 的其他恢复/回退用例通过；market-feed-fail-closed.spec.ts:3、:67、:136 的混合年龄报价隐藏、无零值占位、现货过期报价拦截用例通过。redesign.spec.ts:123 的手机现货布局（盘口左、下单右、K 线抽屉）通过，:149、:171、:195 的现货余额/盘口/下单用例也通过。这些均是该 commit 的 mock E2E 结果，不替代生产验收，也不抵消失败项。
+
+证据限制：日志列出部分 Playwright attachment 路径（trace.zip、error-context.md），但 GitHub run Artifact API 返回的唯一 Artifact 是 btcbox-responsive-visual-qa（ID 13804199963，4,645,781 bytes），内容为 80 张 PNG。没有发现 trace.zip、HTML/blob report 或 error-context 文件已上传。因此实际 DOM、请求/响应 journal、trace action timeline 仍不可复核；失败归因继续保留未确定。
+
+### CI 重跑记录
+
+按 AI 2 指令，对原 job 130140950103 发起 GitHub Actions 单 job rerun。API 返回 success=true；仅重跑该失败 job，不重跑成功 jobs。此操作未修改 workflow、测试或应用代码。报告更新时 rerun 尚无最终 job 结果；新的统计、trace 上传情况和退出码待后续读取，不得描述为通过。
+
+## 10.11.3 Vercel 双项目：项目级读取结果
+
+本轮分别使用两个已连接账号读取各自指定 Project ID，均为只读。
+
+### 新号团队目标项目
+
+- Team fuyao999：team_AZiXGACBy90fpgeKEUb9i2YQ。
+- Project btcboxcdt：prj_InHUgyajw4eUMsb9KOdjUmMF0aIP。
+- Git deployment context 的 linkedProjects 明确列出该 Project ID，绑定 GitHub aesthetikalasers-ai/btcbox。
+- 最新 Production：dpl_E8WqAXhkZENy3QKETeCAkPhWyoCK，READY，target=production，branch main，commit d89d9363cab056cca27492a721b5922c2a29d05c，source=git。
+- 最新审计 Preview：dpl_BtNwVD47VGTe1o6Sv2nUoXayHQ5X，READY，target=null，branch audit/phase-0-baseline-evidence-20261111，commit ead7a47446af56d2b7eecfde41927e926e46dc34，source=git。
+- Project detail 未暴露 configured Production Branch；deployment branch=main 只能证明该次部署来自 main，不能替代项目设置字段。
+
+### BOX 团队目标项目
+
+- Team BOX：team_tnwJkMYPnWK2BjBGf3Q2n3FB。
+- Project btcboxcdt：prj_rmwOE9q0XyZ3BikpxX2FzDt2VjKK。
+- BOX 团队 Git deployment context 的 linkedProjects 只有 btcbox-v33（Project ID prj_qMPK5OmY87BbvMPjIfaTElNuKo4i），绑定 avali9308-code/btcbox-v33。目标 btcboxcdt Project ID 不在 linkedProjects 清单内。
+- 目标项目最新 Production：dpl_32SerPKNdcAtJu4iLqqYR8s4AVoP，READY，target=production，branch main，commit 525cc9d6c72140f3778ae295e46f1338482189cc，source=cli。
+- 当前证据支持：BOX 目标 btcboxcdt 项目没有被团队 Git-linked project 清单证明绑定目标仓库，且最新 Production deployment 明确来源 CLI。不可借用同团队 btcbox-v33 的 Git 连接证明 btcboxcdt 已绑定。
+- 本轮未取得 BOX 目标项目最新 Preview deployment 记录，不作推测。
+
+### Vercel 未闭环字段
+
+- 两个 Project detail API 响应均未返回 Git repository setting / configured Production Branch 字段；两个项目的 configured Production Branch 均为未确定。
+- BOX 目标项目 Git 绑定未闭环；Production source=CLI 已确认。
+- 本轮没有修改任何项目、域名、Production Branch、环境变量或部署。
+
+## 10.11.4 浏览器运行时证据
+
+当前 Browser Chat 接口只提供 tab listing/context 读取，不提供导航、执行脚本、viewport resize、DOM snapshot 或 AX snapshot。当前容器没有 BTCBOX 浏览器会话。未执行 1440/1024/390 LanguageMenu 运行时检查，也未执行 /home、/seconds、/contract、/deposit、/withdraw、/earn、/kyc、/account-setup、/admin、/oauth/consent 页面及 600/820/1280/1366/1600/1920px 视口矩阵。不要求用户人工截图或操作；这些项目仍未完成，源码推断不作为运行时结果。
+
+## 10.11.5 本轮证据状态摘要
+
+| 验收项目 | 状态 |
+|---|---|
+| 专用 Secret Scan | 未执行；无安全 checkout runner，gitleaks/trufflehog 未安装 |
+| 17 项 CI 独立失败清单 | 已从完整原始 job log 逐项核对 |
+| 17 项失败最终归因 | 未闭环；缺少 trace/error-context/report 上传及 DOM/request journal |
+| CI failed job rerun | 已发起，API success=true；最终结果待读取 |
+| 新号项目 Git repo 绑定 | 已确认 Project ID → aesthetikalasers-ai/btcbox |
+| BOX 目标项目 Git repo 绑定 | 未闭环；目标项目不在团队 linkedProjects 清单中 |
+| 新号 Production/Preview | 已确认；Production main/git，审计 Preview ead7a47/git |
+| BOX Production | 已确认；main/525cc9d/CLI |
+| 两项目 configured Production Branch | 未确定 |
+| BOX 最新 Preview | 本轮未取得 |
+| 浏览器 DOM/AX/指定视口矩阵 | 未执行，工具能力不支持 |
+
+**Phase 0 仍为 REJECT / NOT PASSED。** 本节新增原始 CI 断言级证据、job rerun 触发记录、两个项目 Git deployment context 及部署来源区分；未解决 Secret Scan、浏览器运行时、CI trace 逐项归因、BOX Git 绑定和 Production Branch 等阻断项。AI 1 不签发 PASS，交 AI 2 独立复核。
