@@ -82,4 +82,5 @@ test('a stored Spot retry retains its idempotency key when the matching cutover 
   assert.ok(cleanupGuardAt > retryMessageAt, 'stored retries must be excluded from first-attempt cleanup');
   assert.ok(removeAt > cleanupGuardAt && clearAt > removeAt, 'only a first-attempt definitive rejection may clear the stored intent');
   assert.ok(pages.includes('the earlier order result remains unconfirmed'), 'retry feedback must not claim that the original order was never created');
+  assert.ok(pages.includes('do not create a new order'), 'retry feedback must prohibit replacing an unconfirmed request with a new idempotency key');
 });
