@@ -39,7 +39,7 @@ type AuthContextValue = {
   signInWithGoogle: (intent?: "login" | "register") => Promise<void>;
   signInWithUsername: (username: string, password: string) => Promise<void>;
   setBtcboxCredentials: (username: string, password: string) => Promise<void>;
-  reauthenticateCredentialsWithGoogle: (returnTo?: "/settings" | "/account-setup") => Promise<void>;
+  reauthenticateCredentialsWithGoogle: () => Promise<void>;
   reauthenticateCredentialsWithWeb3: (chain: "ethereum" | "solana", twoFactorCode?: string, wallet?: unknown) => Promise<void>;
   completeCredentialRecoveryTwoFactor: (code: string) => Promise<void>;
   recoverBtcboxPassword: (password: string) => Promise<void>;
@@ -121,6 +121,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return;
       }
       await setSignedIn();
+    } catch (cause) {
+      // A stale/expired Supabase session must not leave the app in "loading"
+      // forever. Clear it so the visitor can sign in again.
+      setError(cause instanceof Error ? cause.message : "Your session could not be restored. Please sign in again.");
+      setInitializationIssue(true);
+      await clientRef.current?.auth.signOut().catch(() => undefined);
+      setTempToken("");
+      setStatus("anonymous");
     } finally { exchangeLock.current = false; }
   }, [setSignedIn]);
 
@@ -139,6 +147,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Keep credentials/session storage intact and expose an explicit recovery action.
     setInitializationIssue(false);
     const slowTimer = window.setTimeout(() => { if (active) setInitializationIssue(true); }, 12000);
+    // Hard watchdog: initialization must resolve. If a request hangs beyond the
+    // per-request timeouts, force anonymous so protected routes never deadlock.
+    const watchdogTimer = window.setTimeout(() => {
+      if (!active) return;
+      setError("Authentication restoration timed out. Please sign in again.");
+      setInitializationIssue(true);
+      clientRef.current?.auth.signOut().catch(() => undefined);
+      setTempToken("");
+      setStatus("anonymous");
+    }, 25000);
     (async () => {
       try {
         const config = await getAuthClientConfig(controller.signal);
@@ -171,10 +189,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
         if (active) setStatus("anonymous");
       } catch (cause) {
-        if (active) { setError(cause instanceof Error ? cause.message : "Authentication is unavailable."); setInitializationIssue(true); }
-      } finally { window.clearTimeout(slowTimer); }
+        if (active) {
+          setError(cause instanceof Error ? cause.message : "Authentication is unavailable.");
+          setInitializationIssue(true);
+          // Never leave protected routes stuck on the loading spinner: resolve
+          // to anonymous so visitors are redirected to /login and can sign in.
+          await clientRef.current?.auth.signOut().catch(() => undefined);
+          setTempToken("");
+          setStatus("anonymous");
+        }
+      } finally { window.clearTimeout(slowTimer); window.clearTimeout(watchdogTimer); }
     })();
-    return () => { active = false; window.clearTimeout(slowTimer); controller.abort(); };
+    return () => { active = false; window.clearTimeout(slowTimer); window.clearTimeout(watchdogTimer); controller.abort(); };
   }, [acceptSupabaseSession, setSignedIn]);
 
   const signInWithUsername = useCallback(async (username: string, password: string) => {
@@ -205,14 +231,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } finally { setBusy(false); }
   }, [setSignedIn]);
 
-  const reauthenticateCredentialsWithGoogle = useCallback(async (returnTo: "/settings" | "/account-setup" = "/settings") => {
+  const reauthenticateCredentialsWithGoogle = useCallback(async () => {
     setBusy(true); setError(""); setNotice("");
     try {
       if (!googleEnabled) throw new Error("Google sign-in is currently unavailable.");
       if (!clientRef.current) throw new Error("Authentication is still initializing. Please try again.");
       const { error: authError } = await clientRef.current.auth.signInWithOAuth({
         provider: "google",
-        options: { redirectTo: window.location.origin + "/auth/react-callback?flow=credential-recovery&returnTo=" + encodeURIComponent(returnTo), queryParams: { prompt: "select_account" } },
+        options: { redirectTo: window.location.origin + "/auth/react-callback?flow=credential-recovery", queryParams: { prompt: "select_account" } },
       });
       if (authError) throw authError;
     } catch (cause) {
@@ -517,8 +543,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           await setSignedIn();
           setNotice("Enter your authenticator code to complete password recovery.");
         }
-        const returnTo = url.searchParams.get("returnTo") === "account-setup" ? "/account-setup" : "/settings";
-        window.history.replaceState({}, document.title, returnTo);
+        window.history.replaceState({}, document.title, "/settings");
         return;
       }
       if (url.searchParams.get("flow") === "link-reauth") {
