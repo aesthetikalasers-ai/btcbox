@@ -999,5 +999,13 @@
   "5m": "5分",
   "15m": "15分",
   "30m": "30分",
-  "1h": "1時間"
+  "1h": "1時間",
+  "ascending": "昇順",
+  "descending": "降順",
+  "unsorted": "未ソート",
+  "Use at least 12 characters with upper and lower case letters, numbers and symbols.": "大文字・小文字・数字・記号を含む12文字以上を使用してください。",
+  "Notifications": "通知",
+  "Dismiss notification": "通知を閉じる",
+  "Frequently asked questions": "よくある質問",
+  "Answers follow your selected language.": "回答は選択した言語に従います。"
 }
