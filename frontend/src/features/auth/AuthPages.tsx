@@ -94,7 +94,7 @@ export function AuthPage({ mode, redirectTo }: { mode: "login" | "register"; red
     <div className="grid w-full items-center gap-6 lg:grid-cols-[minmax(0,1.05fr)_minmax(380px,.95fr)] lg:gap-16">
       <section className="hidden min-w-0 flex-col justify-center lg:flex">
         <Link to="/home" className="mb-12 w-fit"><BrandLogo /></Link>
-        <p className="mb-4 flex items-center gap-2 text-xs font-bold uppercase tracking-[.2em] text-brand-accent"><span className="h-1.5 w-1.5 rounded-full bg-brand-success" /> {t("Digital asset exchange")}</p>
+        <p className="mb-4 flex items-center gap-2 text-xs font-bold uppercase tracking-[.2em] text-brand-accent"><span className="h-1.5 w-1.5 rounded bg-brand-success" /> {t("Digital asset exchange")}</p>
         <h1 className="max-w-[560px] text-3xl font-semibold leading-[1.12] tracking-tight text-brand-text xl:text-4xl">
           {registering ? t("A clearer way to enter the digital asset market.") : t("Welcome back to your market.")}
         </h1>
@@ -103,7 +103,7 @@ export function AuthPage({ mode, redirectTo }: { mode: "login" | "register"; red
             ? t("Create your BTCBOX account with Google or your wallet, then complete your account setup.")
             : t("Access your BTCBOX account with your username, Google or a supported crypto wallet.")}
         </p>
-        <div className="mt-9 grid max-w-[520px] gap-3 sm:grid-cols-2">
+        <div className="mt-8 grid max-w-[520px] gap-3 sm:grid-cols-2">
           <div className="rounded-xl border border-brand-border bg-brand-surface p-4">
             <ChartNoAxesCombined className="mb-3 h-5 w-5 text-brand-accent" />
             <p className="text-sm font-semibold text-brand-text">{t("Public market access")}</p>

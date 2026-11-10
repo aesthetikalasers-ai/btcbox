@@ -16,7 +16,7 @@ export function TopTokensTable({ markets = [] }: { markets?: MarketTicker[] }) {
   const { t, language } = useI18n();
   const numberLocale = localeTags[language];
   return (
-    <Card className="flex flex-col overflow-hidden px-0 py-0">
+    <Card className="flex flex-col overflow-hidden p-0">
       <div className="border-b border-brand-border px-4 py-4 md:px-6">
         <h2 className="type-section-title text-brand-text">{t("Top tokens")}</h2>
       </div>

@@ -80,13 +80,13 @@ export function VolumeChart({ candles = [] }: { candles?: MarketCandle[] }) {
   return (
     <Card className="flex h-[320px] min-w-0 flex-col sm:h-[340px] md:h-[400px]">
       <CardHeader title={t("BTC/USDT trading volume")}>
-        <div className="flex max-w-full gap-0.5 overflow-x-auto rounded-lg border border-brand-border-subtle bg-brand-surface-2 p-0.5 shadow-[inset_0_1px_1px_rgba(0,0,0,0.3)] custom-scrollbar">
+        <div className="flex max-w-full gap-1 overflow-x-auto rounded-lg border border-brand-border-subtle bg-brand-surface-2 p-1 shadow-[inset_0_1px_1px_rgba(0,0,0,0.3)] custom-scrollbar">
           {RANGES.map(r => (
             <button
               key={r}
               onClick={() => setRange(r)}
               className={cn(
-                "min-h-9 px-2 py-1 text-[12px] font-medium rounded-md transition-all duration-200 cursor-pointer active:scale-[0.95] sm:px-2.5",
+                "min-h-9 px-2 py-1 text-[12px] font-medium rounded-md transition-all duration-200 cursor-pointer active:scale-[0.95] sm:px-3",
                 activeRange === r 
                   ? "border border-brand-accent/30 bg-brand-accent/10 text-brand-accent shadow-[0_1px_2px_rgba(0,0,0,0.25)]" 
                   : "text-brand-text-muted hover:text-brand-text-secondary hover:bg-brand-surface-hover"

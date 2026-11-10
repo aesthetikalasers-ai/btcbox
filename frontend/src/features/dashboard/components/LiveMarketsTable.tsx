@@ -97,7 +97,7 @@ export function LiveMarketsTable({ markets, loading, error }: {
     return item.sym.toLowerCase().includes(query) || (names[item.sym] || "").toLowerCase().includes(query);
   }).sort((a, b) => sort === "change" ? b.chg - a.chg : sort === "price" ? b.price - a.price : Number(b.vol) - Number(a.vol)), [displayMarkets, query, favoritesOnly, favorites, sort]);
   return (
-    <Card className="flex flex-col overflow-hidden p-0 md:p-0">
+    <Card className="flex flex-col overflow-hidden p-0">
       <div className="flex items-center justify-between gap-3 border-b border-brand-border px-4 py-4 md:px-6">
         <div className="min-w-0">
           <h2 className="type-section-title text-brand-text">{t("Spot markets")}</h2>

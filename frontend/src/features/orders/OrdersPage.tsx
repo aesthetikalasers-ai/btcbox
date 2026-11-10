@@ -86,7 +86,7 @@ export function OrdersPage() {
   const visibleOrders = openOnly ? orders.filter(order => ["open", "partially_filled", "partially-filled", "pending"].includes(String(order.status || "").toLowerCase())) : orders;
 
   return (
-    <div className="tone-orders mx-auto flex w-full max-w-[1200px] min-w-0 flex-col gap-5 p-3 sm:p-4 md:p-6 lg:p-8">
+    <div className="tone-orders page-gutter page-max flex min-w-0 flex-col gap-6 py-4 sm:py-6 lg:py-8">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <p className="page-accent mb-1 text-xs font-bold uppercase tracking-[.18em]">{t("BTCBOX / ACCOUNT")}</p>
@@ -137,8 +137,8 @@ export function OrdersPage() {
                         <div className="flex shrink-0 flex-wrap items-center justify-end gap-2"><Badge variant={side.toLowerCase() === "buy" ? "default" : "outline"}>{t(side)}</Badge><Badge variant={statusVariant(display(order.status, "unknown"))}>{t(display(order.status, "Unknown"))}</Badge></div>
                       </div>
                       <div className="grid grid-cols-2 gap-3">
-                        <div className="rounded-lg bg-brand-surface p-3"><p className="type-meta text-brand-text-muted">{t("Price")}</p><p className="mt-1 break-all font-mono text-sm tabular-nums text-brand-text">{display(order.price)}</p></div>
-                        <div className="rounded-lg bg-brand-surface p-3"><p className="type-meta text-brand-text-muted">{t("Quantity")}</p><p className="mt-1 break-all font-mono text-sm tabular-nums text-brand-text">{display(order.quantity ?? order.amount)}</p></div>
+                        <div className="rounded-lg bg-brand-surface p-3"><p className="type-meta text-brand-text-muted">{t("Price")}</p><p className="mt-2 break-all font-mono text-sm tabular-nums text-brand-text">{display(order.price)}</p></div>
+                        <div className="rounded-lg bg-brand-surface p-3"><p className="type-meta text-brand-text-muted">{t("Quantity")}</p><p className="mt-2 break-all font-mono text-sm tabular-nums text-brand-text">{display(order.quantity ?? order.amount)}</p></div>
                       </div>
                       <div className="flex items-center justify-between gap-3 border-t border-brand-border pt-2 text-xs"><span className="text-brand-text-muted">{t(display(order.type))}</span><span className="text-right text-brand-text-muted">{formatDate(order.created_at, dateLocale)}</span></div>
                     </CardContent>
@@ -148,21 +148,21 @@ export function OrdersPage() {
               <div className="hidden custom-scrollbar overflow-x-auto md:block">
               <table className="w-full min-w-[760px] text-left text-sm">
                 <thead className="border-y border-brand-border bg-brand-surface-2/90 text-[11px] uppercase tracking-[.12em] text-brand-text-muted">
-                  <tr>{["Order", "Pair", "Side", "Type", "Price", "Quantity", "Status", "Created"].map((label) => <th key={label} className={`px-4 py-3 font-semibold ${label === "Price" || label === "Quantity" ? "text-right" : ""}`}>{t(label)}</th>)}</tr>
+                  <tr>{["Order", "Pair", "Side", "Type", "Price", "Quantity", "Status", "Created"].map((label) => <th key={label} className={`px-4 py-4 font-semibold ${label === "Price" || label === "Quantity" ? "text-right" : ""}`}>{t(label)}</th>)}</tr>
                 </thead>
                 <tbody>
                   {visibleOrders.map((order, index) => {
                     const id = display(order.order_id ?? order.id, `#${index + 1}`);
                     const side = display(order.side);
                     return <tr key={id} className="border-b border-brand-border/80 last:border-0 transition-colors hover:bg-brand-surface-hover">
-                      <td className="max-w-[180px] truncate px-4 py-3 font-mono text-xs text-brand-text-secondary">{id}</td>
-                      <td className="px-4 py-3 font-semibold text-brand-text">{display(order.symbol)}</td>
-                      <td className="px-4 py-3"><span className={side.toLowerCase() === "buy" ? "text-profit" : side.toLowerCase() === "sell" ? "text-loss" : "text-brand-text-secondary"}>{t(side)}</span></td>
-                      <td className="px-4 py-3 text-brand-text-secondary">{display(order.type)}</td>
-                      <td className="px-4 py-3 text-right font-mono tabular-nums">{display(order.price)}</td>
-                      <td className="px-4 py-3 text-right font-mono tabular-nums">{display(order.quantity ?? order.amount)}</td>
-                      <td className="px-4 py-3"><Badge variant={statusVariant(display(order.status, "unknown"))}>{t(display(order.status, "Unknown"))}</Badge></td>
-                      <td className="px-4 py-3 text-xs text-brand-text-muted">{formatDate(order.created_at, dateLocale)}</td>
+                      <td className="max-w-[180px] truncate px-4 py-4 font-mono text-xs text-brand-text-secondary">{id}</td>
+                      <td className="px-4 py-4 font-semibold text-brand-text">{display(order.symbol)}</td>
+                      <td className="px-4 py-4"><span className={side.toLowerCase() === "buy" ? "text-profit" : side.toLowerCase() === "sell" ? "text-loss" : "text-brand-text-secondary"}>{t(side)}</span></td>
+                      <td className="px-4 py-4 text-brand-text-secondary">{display(order.type)}</td>
+                      <td className="px-4 py-4 text-right font-mono tabular-nums">{display(order.price)}</td>
+                      <td className="px-4 py-4 text-right font-mono tabular-nums">{display(order.quantity ?? order.amount)}</td>
+                      <td className="px-4 py-4"><Badge variant={statusVariant(display(order.status, "unknown"))}>{t(display(order.status, "Unknown"))}</Badge></td>
+                      <td className="px-4 py-4 text-xs text-brand-text-muted">{formatDate(order.created_at, dateLocale)}</td>
                     </tr>;
                   })}
                 </tbody>

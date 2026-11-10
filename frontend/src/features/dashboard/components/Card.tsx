@@ -16,7 +16,7 @@ export function Card({ children, className }: { children: ReactNode; className?:
 
 export function CardHeader({ title, children }: { title: string; children?: ReactNode }) {
   return (
-    <div className="mb-4 flex min-w-0 flex-wrap items-center justify-between gap-2 border-b border-brand-border-subtle pb-4">
+    <div className="mb-3 flex min-w-0 flex-wrap items-center justify-between gap-2 border-b border-brand-border-subtle pb-3">
       <h2 className="type-card-title min-w-0 text-brand-text">{title}</h2>
       {children}
     </div>

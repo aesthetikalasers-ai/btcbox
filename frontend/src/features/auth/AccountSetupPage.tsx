@@ -35,11 +35,11 @@ export function AccountSetupPage() {
     <Card className="w-full overflow-hidden border-brand-accent/20 bg-brand-surface shadow-2xl shadow-black/20">
       <div className="h-1 bg-brand-accent"/>
       <CardHeader className="gap-3 border-b border-brand-border/70 bg-brand-surface p-6 text-center sm:p-8">
-        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl border border-brand-accent/20 bg-brand-accent/[0.08]"><ShieldCheck className="h-6 w-6 text-brand-accent"/></div>
+        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl border border-brand-accent/20 bg-brand-accent/[0.08]"><ShieldCheck className="h-6 w-6 text-brand-accent"/></div>
         <CardTitle className="text-xl">{t("Set up your BTCBOX account")}</CardTitle>
         <CardDescription>{t("Your Google account or wallet is verified. Now create a BTCBOX username and password. They will belong to this same account and its existing records.")}</CardDescription>
       </CardHeader>
-      <CardContent className="space-y-4 p-5 sm:p-7">
+      <CardContent className="space-y-4 p-5 sm:p-6">
         {error && <p role="alert" className="rounded-xl border border-brand-danger/25 bg-brand-danger/[0.06] p-3 text-sm leading-6 text-brand-danger">{t(error)}</p>}
         {notice && <p role="status" className="rounded-xl border border-brand-success/20 bg-brand-success/[0.05] p-3 text-sm leading-6 text-brand-text-secondary">{t(notice)}</p>}
         <form className="space-y-4" aria-busy={busy} onSubmit={submit}>

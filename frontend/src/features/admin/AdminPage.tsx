@@ -920,7 +920,7 @@ export function AdminPage() {
   if (loading && !session) return <div className="mx-auto max-w-7xl p-6"><Card><CardContent className="p-8 text-sm text-brand-text-muted">{adminText("Verifying administrator identity…")}</CardContent></Card></div>;
   if (!session) return <div className="mx-auto max-w-3xl p-6"><Card><CardHeader><CardTitle>{adminText("BTCBOX Administrator")}</CardTitle><CardDescription>{adminText("Administrator access requires a verified Supabase Auth identity with an active BTCBOX administrator membership.")}</CardDescription></CardHeader><CardContent><p className="text-sm text-brand-danger">{adminText(error || "Administrator membership was not found.")}</p></CardContent></Card></div>;
 
-  return <div className="tone-admin mx-auto w-full max-w-[1600px] space-y-5 p-3 sm:p-5 lg:p-7">
+  return <div className="tone-admin page-gutter page-max w-full space-y-6 py-3 sm:py-5 lg:py-8">
     <div className="flex flex-wrap items-start justify-between gap-3 rounded-xl border border-brand-border bg-brand-surface p-5 sm:items-center sm:p-6">
       <div><BrandLogo compact /><p className="type-meta mt-3 font-semibold uppercase tracking-[0.18em] text-brand-accent">{adminText("BTCBOX / CONTROL CENTER")}</p><h1 className="mt-1 text-2xl font-bold tracking-tight text-brand-text sm:text-3xl">{adminText("Administrator Console")}</h1><p className="mt-1 text-sm text-brand-text-muted">{session.is_super_admin ? adminText("Super Administrator") : adminText("Role-based administrator")} · {session.user_id}</p></div>
       <Badge variant={session.is_super_admin ? "default" : "info"}>{session.is_super_admin ? adminText("SUPER ADMIN") : adminText("ACTIVE ADMIN")}</Badge>
