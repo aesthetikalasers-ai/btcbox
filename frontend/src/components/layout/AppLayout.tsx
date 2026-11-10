@@ -19,7 +19,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
   return (
     <Dialog.Root open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
     <div className="flex h-dvh min-h-screen min-h-[100dvh] w-full overflow-hidden bg-brand-bg text-brand-text">
-      <div className="hidden h-full w-[224px] shrink-0 shadow-[1px_0_0_0_rgba(255,255,255,0.05)] lg:z-20 lg:block"><Sidebar /></div>
+      <div className="hidden h-full w-[224px] shrink-0 lg:z-20 lg:block"><Sidebar /></div>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-40 bg-black/60 lg:hidden" />
         <Dialog.Content id="mobile-navigation" aria-describedby={undefined}
