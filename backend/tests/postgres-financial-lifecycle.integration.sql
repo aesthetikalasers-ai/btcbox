@@ -135,6 +135,10 @@ BEGIN
     RAISE EXCEPTION 'withdrawal approval failed: %',v_result;
   END IF;
   SELECT count(*) INTO v_ledger_before FROM public.financial_ledger WHERE user_id='deposit-user';
+  v_result := public.review_withdrawal_atomic('WD-CI-0001','admin-ci',true,'postgres-ci approve');
+  IF v_result->>'status'<>'approved' OR v_result->>'duplicate'<>'false' THEN
+    RAISE EXCEPTION 'withdrawal approval failed: %',v_result;
+  END IF;
   -- Approval is a review decision only: amount+fee stay frozen until mark-paid.
   SELECT available,frozen INTO v_balance,v_frozen FROM public.financial_accounts
   WHERE user_id='deposit-user' AND asset='USDT';
