@@ -71,7 +71,7 @@ test('Vercel serves /admin through the React SPA instead of the legacy admin.htm
 });
 
 test('React admin route uses verified Supabase Auth identity and server-side role permissions', () => {
-  assert.ok(reactApp.includes('const AdminPage = lazy(() => import("./features/admin/AdminPage")'));
+  assert.ok(reactApp.includes('import { AdminPage } from "./features/admin/AdminPage";'));
   assert.ok(reactApp.includes('<Route path="/admin" element={<AdminPage />} />'));
   assert.ok(reactAdminPage.includes('const { status: authStatus, getSupabaseAccessToken } = useAuth()'));
   assert.ok(reactAdminPage.includes('<AuthPage mode="login" redirectTo="/admin" />'));
