@@ -23,18 +23,41 @@ export function Topbar({ onMenuClick, menuOpen = false, menuButtonRef }: { menuB
   const [search, setSearch] = useState("");
   const [langMenuOpen, setLangMenuOpen] = useState(false);
   const langMenuRef = useRef<HTMLDivElement>(null);
+  const langTriggerRef = useRef<HTMLButtonElement>(null);
+  const langItemsRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
 
   useEffect(() => {
     if (!langMenuOpen) return;
-    const close = (event: MouseEvent) => {
+    const close = (event: PointerEvent) => {
       if (langMenuRef.current && !langMenuRef.current.contains(event.target as Node)) setLangMenuOpen(false);
     };
-    const onKey = (event: KeyboardEvent) => { if (event.key === "Escape") setLangMenuOpen(false); };
-    document.addEventListener("mousedown", close);
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setLangMenuOpen(false);
+        langTriggerRef.current?.focus();
+      }
+    };
+    document.addEventListener("pointerdown", close);
     document.addEventListener("keydown", onKey);
-    return () => { document.removeEventListener("mousedown", close); document.removeEventListener("keydown", onKey); };
+    langItemsRef.current?.querySelector<HTMLButtonElement>('[role="menuitemradio"]')?.focus();
+    return () => { document.removeEventListener("pointerdown", close); document.removeEventListener("keydown", onKey); };
   }, [langMenuOpen]);
+
+  const handleLanguageMenuKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    const items = Array.from(langItemsRef.current?.querySelectorAll<HTMLButtonElement>('[role="menuitemradio"]') ?? []);
+    if (!items.length) return;
+    const currentIndex = items.indexOf(document.activeElement as HTMLButtonElement);
+    let nextIndex: number | undefined;
+    if (event.key === "ArrowDown") nextIndex = (currentIndex + 1) % items.length;
+    else if (event.key === "ArrowUp") nextIndex = (currentIndex - 1 + items.length) % items.length;
+    else if (event.key === "Home") nextIndex = 0;
+    else if (event.key === "End") nextIndex = items.length - 1;
+    if (nextIndex !== undefined) {
+      event.preventDefault();
+      items[nextIndex].focus();
+    }
+  };
 
   const submitSearch = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -66,7 +89,9 @@ export function Topbar({ onMenuClick, menuOpen = false, menuButtonRef }: { menuB
             <button
               type="button"
               aria-label={t("Language")}
+              ref={langTriggerRef}
               aria-haspopup="menu"
+              aria-controls="language-menu"
               aria-expanded={langMenuOpen}
               onClick={() => setLangMenuOpen((open) => !open)}
               className="flex h-11 min-w-0 items-center gap-1.5 rounded-lg border border-brand-border bg-brand-surface px-2.5 text-sm font-semibold text-brand-text transition-colors hover:border-brand-accent/40 hover:bg-brand-surface-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent sm:px-3"
@@ -76,7 +101,7 @@ export function Topbar({ onMenuClick, menuOpen = false, menuButtonRef }: { menuB
               <span aria-hidden="true" className={`text-xs text-brand-text-muted transition-transform ${langMenuOpen ? "rotate-180" : ""}`}>⌄</span>
             </button>
             {langMenuOpen && (
-              <div role="menu" aria-label={t("Language")} className="absolute right-0 z-50 mt-2 w-44 max-w-[80vw] overflow-hidden rounded-lg border border-brand-border bg-brand-surface-2 py-1 shadow-xl shadow-black/40">
+              <div ref={langItemsRef} id="language-menu" role="menu" aria-label={t("Language")} onKeyDown={handleLanguageMenuKeyDown} className="absolute right-0 z-50 mt-2 w-44 max-w-[80vw] overflow-hidden rounded-lg border border-brand-border bg-brand-surface-2 py-1 shadow-xl shadow-black/40">
                 {LANGUAGE_MENU.map(({ code, label }) => {
                   const selected = language === code;
                   return (
@@ -85,7 +110,7 @@ export function Topbar({ onMenuClick, menuOpen = false, menuButtonRef }: { menuB
                       type="button"
                       role="menuitemradio"
                       aria-checked={selected}
-                      onClick={() => { setLanguage(code); setLangMenuOpen(false); }}
+                      onClick={() => { setLanguage(code); setLangMenuOpen(false); langTriggerRef.current?.focus(); }}
                       className={`flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm transition-colors focus-visible:outline-none focus-visible:bg-brand-surface-hover ${selected ? "font-semibold text-brand-accent" : "text-brand-text-secondary hover:bg-brand-surface-hover hover:text-brand-text"}`}
                     >
                       <span className="truncate">{label}</span>
