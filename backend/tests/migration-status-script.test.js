@@ -69,8 +69,11 @@ test('migration order document records the prepared Seconds migration dependenci
   const withdrawalCleanup = orderDoc.indexOf('0033_withdrawal_legacy_rpc_cleanup_v1.sql');
   const auditDuplicateCleanup = orderDoc.indexOf('0034_financial_audit_duplicate_index_cleanup_v1.sql');
   const serviceRolePrivileges = orderDoc.indexOf('0035_service_role_privilege_minimization_v1.sql');
+  const maintainPrivilegeRevoke = orderDoc.indexOf('0036_service_role_maintain_privilege_revoke_v1.sql');
+  const writeRateLimitScopes = orderDoc.indexOf('0037_financial_write_rate_limit_scopes_v1.sql');
+  const firstSuccessfulReview = orderDoc.indexOf('0038_withdrawal_first_successful_review_guard_v1.sql');
   const withdrawalApproveNoBurn = orderDoc.indexOf('0039_withdrawal_approve_no_burn_v1.sql');
-  assert.ok(rateLimit >= 0 && settlement > rateLimit && policy > settlement && adminRbac > policy && manualPayout > adminRbac && rbacWrappers > manualPayout && feeIdempotency > rbacWrappers && secondsAdminQueue > feeIdempotency && durationAlignment > secondsAdminQueue && auditIndexes > durationAlignment && withdrawalCleanup > auditIndexes && auditDuplicateCleanup > withdrawalCleanup && serviceRolePrivileges > auditDuplicateCleanup && withdrawalApproveNoBurn > serviceRolePrivileges);
+  assert.ok(rateLimit >= 0 && settlement > rateLimit && policy > settlement && adminRbac > policy && manualPayout > adminRbac && rbacWrappers > manualPayout && feeIdempotency > rbacWrappers && secondsAdminQueue > feeIdempotency && durationAlignment > secondsAdminQueue && auditIndexes > durationAlignment && withdrawalCleanup > auditIndexes && auditDuplicateCleanup > withdrawalCleanup && serviceRolePrivileges > auditDuplicateCleanup && maintainPrivilegeRevoke > serviceRolePrivileges && writeRateLimitScopes > maintainPrivilegeRevoke && firstSuccessfulReview > writeRateLimitScopes && withdrawalApproveNoBurn > firstSuccessfulReview);
   assert.ok(orderDoc.includes('depends on the Seconds base schema in'));
   assert.ok(orderDoc.includes('adds Seconds settlement request-hash idempotency'));
   assert.ok(orderDoc.includes('withdrawal fee quotes replay-safe'));
