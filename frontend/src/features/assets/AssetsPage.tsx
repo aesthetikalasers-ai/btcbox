@@ -77,7 +77,7 @@ export function AssetsPage() {
         </Button>
       </div>
 
-      {error && <Card className="border-brand-border bg-brand-surface"><CardContent className="flex flex-wrap items-center justify-between gap-3 p-4"><p className="type-body-compact text-brand-text-secondary" role="alert">{error}</p>{signedOut && <Button asChild size="sm"><Link to="/login">{t("Sign in")}</Link></Button>}</CardContent></Card>}
+      {error && <Card className="border-brand-danger/25 bg-brand-danger/[0.045]"><CardContent className="flex flex-wrap items-center justify-between gap-3 p-4"><p className="type-body-compact text-brand-danger" role="alert">{error}</p>{signedOut && <Button asChild size="sm"><Link to="/login">{t("Sign in")}</Link></Button>}</CardContent></Card>}
 
       {/* Step 18: total asset figure prominent, deposit/withdraw easy to reach */}
       <Card className="overflow-hidden border-brand-accent/25 bg-brand-surface">
@@ -85,7 +85,7 @@ export function AssetsPage() {
           <div className="min-w-0">
             <p className="type-label text-brand-text-muted">{t("Estimated total value")}</p>
             <p className="mt-1.5 truncate text-[28px] font-bold leading-tight tracking-tight tabular-nums text-brand-text sm:text-[34px]">{loading ? "—" : account?.valuation_complete ? formatDecimalAmount(account.totalUsdt, numberLocale) + " USDT" : "—"}</p>
-            <div className="mt-2.5"><Badge variant={account?.valuation_complete ? "outline" : "secondary"}>{loading ? t("Loading") : account?.valuation_complete ? t("Valuation complete") : t("Valuation incomplete")}</Badge></div>
+            <div className="mt-2.5"><Badge variant={loading ? "outline" : account?.valuation_complete ? "success" : "warning"}>{loading ? t("Loading") : account?.valuation_complete ? t("Valuation complete") : t("Valuation incomplete")}</Badge></div>
           </div>
           <div className="flex shrink-0 flex-wrap gap-2">
             <Button asChild><Link to="/deposit"><ArrowDownToLine className="mr-2 h-4 w-4"/>{t("Deposit")}</Link></Button>
@@ -115,7 +115,7 @@ export function AssetsPage() {
 
       {loading ? <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3" role="status" aria-live="polite"><div className="h-36 animate-pulse rounded-xl bg-brand-surface-2"/><div className="h-36 animate-pulse rounded-xl bg-brand-surface-2"/><div className="h-36 animate-pulse rounded-xl bg-brand-surface-2"/></div>
       : balances.length ? <div className="overflow-hidden rounded-xl border border-brand-border bg-brand-surface">{balances.map(([coin, balance]) => <div key={coin} className="balance-row">
-        <div className="flex items-center gap-3"><TokenIcon symbol={coin} className="h-9 w-9 shrink-0" /><span className="font-semibold text-brand-text">{coin}</span><Link to={`/markets?q=${encodeURIComponent(coin)}`} className="ml-auto text-sm font-semibold text-brand-accent">{t("Trade")}</Link></div>
+        <div className="flex min-w-0 items-center gap-3"><TokenIcon symbol={coin} className="h-9 w-9 shrink-0" /><span className="min-w-0 truncate font-semibold text-brand-text">{coin}</span><Link to={`/markets?q=${encodeURIComponent(coin)}`} className="ml-auto text-sm font-semibold text-brand-accent">{t("Trade")}</Link></div>
         <div className="min-w-0 sm:text-right"><p className="type-meta text-brand-text-muted">{t("Available")}</p><p className="mt-1 break-all font-mono text-sm font-semibold tabular-nums text-brand-text">{formatDecimalAmount(balance.free, numberLocale)}</p></div>
         <div className="min-w-0 text-right"><p className="type-meta text-brand-text-muted">{t("Frozen")}</p><p className="mt-1 break-all font-mono text-sm tabular-nums text-brand-text-muted">{formatDecimalAmount(balance.frozen, numberLocale)}</p></div>
       </div>)}</div>
