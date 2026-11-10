@@ -947,5 +947,21 @@
   "Gainers": "Größte Gewinner",
   "Losers": "Größte Verlierer",
   "Search Language": "Sprache suchen",
-  "No matching language": "Keine passende Sprache"
+  "No matching language": "Keine passende Sprache",
+  "Redeemed": "Eingelöst",
+  "Settled": "Abgerechnet",
+  "Unknown": "Unbekannt",
+  "Confirmed": "Bestätigt",
+  "Pending": "Ausstehend",
+  "Processing": "In Bearbeitung",
+  "Rejected": "Abgelehnt",
+  "Completed": "Abgeschlossen",
+  "Under review": "In Prüfung",
+  "Verified": "Verifiziert",
+  "Approved": "Genehmigt",
+  "Failed": "Fehlgeschlagen",
+  "Cancelled": "Storniert",
+  "Filled": "Ausgeführt",
+  "Partially filled": "Teilweise ausgeführt",
+  "Not submitted": "Nicht eingereicht"
 }

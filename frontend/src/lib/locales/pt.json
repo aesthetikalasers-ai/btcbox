@@ -947,5 +947,21 @@
   "Gainers": "Maiores altas",
   "Losers": "Maiores quedas",
   "Search Language": "Buscar idioma",
-  "No matching language": "Nenhum idioma correspondente"
+  "No matching language": "Nenhum idioma correspondente",
+  "Redeemed": "Resgatado",
+  "Settled": "Liquidado",
+  "Unknown": "Desconhecido",
+  "Confirmed": "Confirmado",
+  "Pending": "Pendente",
+  "Processing": "Processando",
+  "Rejected": "Rejeitado",
+  "Completed": "Concluído",
+  "Under review": "Em análise",
+  "Verified": "Verificado",
+  "Approved": "Aprovado",
+  "Failed": "Falhou",
+  "Cancelled": "Cancelado",
+  "Filled": "Executado",
+  "Partially filled": "Parcialmente executado",
+  "Not submitted": "Não enviado"
 }

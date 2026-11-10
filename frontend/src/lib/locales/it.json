@@ -947,5 +947,21 @@
   "Gainers": "Maggiori rialzi",
   "Losers": "Maggiori ribassi",
   "Search Language": "Cerca lingua",
-  "No matching language": "Nessuna lingua corrispondente"
+  "No matching language": "Nessuna lingua corrispondente",
+  "Redeemed": "Rimborsato",
+  "Settled": "Regolato",
+  "Unknown": "Sconosciuto",
+  "Confirmed": "Confermato",
+  "Pending": "In attesa",
+  "Processing": "In elaborazione",
+  "Rejected": "Rifiutato",
+  "Completed": "Completato",
+  "Under review": "In revisione",
+  "Verified": "Verificato",
+  "Approved": "Approvato",
+  "Failed": "Non riuscito",
+  "Cancelled": "Annullato",
+  "Filled": "Eseguito",
+  "Partially filled": "Parzialmente eseguito",
+  "Not submitted": "Non inviato"
 }

@@ -947,5 +947,21 @@
   "Gainers": "Gainers",
   "Losers": "Losers",
   "Search Language": "Search Language",
-  "No matching language": "No matching language"
+  "No matching language": "No matching language",
+  "Redeemed": "Redeemed",
+  "Settled": "Settled",
+  "Unknown": "Unknown",
+  "Confirmed": "Confirmed",
+  "Pending": "Pending",
+  "Processing": "Processing",
+  "Rejected": "Rejected",
+  "Completed": "Completed",
+  "Under review": "Under review",
+  "Verified": "Verified",
+  "Approved": "Approved",
+  "Failed": "Failed",
+  "Cancelled": "Cancelled",
+  "Filled": "Filled",
+  "Partially filled": "Partially filled",
+  "Not submitted": "Not submitted"
 }

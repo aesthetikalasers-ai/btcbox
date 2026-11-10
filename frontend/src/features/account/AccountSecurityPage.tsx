@@ -26,7 +26,7 @@ export function AccountSecurityPage() {
     getAccount().then((result) => {
       if (active) { setAccount(result); setLoadError(""); }
     }).catch((cause) => {
-      if (active) setLoadError(t("Account security details are temporarily unavailable. Refresh to try again."));
+      if (active) setLoadError("Account security details are temporarily unavailable. Refresh to try again.");
     });
     return () => { active = false; };
   }, [status, notice]);
