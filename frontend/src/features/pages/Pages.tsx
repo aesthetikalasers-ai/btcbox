@@ -426,6 +426,7 @@ export function SpotTradingPage(){
  const balanceUnavailable=balanceComparison===undefined;
  const submitOrder=async(event:FormEvent<HTMLFormElement>)=>{
   event.preventDefault();
+  const retryingStoredIntent=!!pendingIntent;
   if(pendingIntentInvalid){setError("A saved spot order request must be reconciled before another order can be placed.");return;}
   if((!ticker||marketSnapshotStale)&&!pendingIntent){setError("A fresh timestamped market snapshot is required before placing a new order. No order was sent.");return;}
   if(!spotPairEnabled&&!pendingIntent){setError("This spot pair is not enabled by BTCBOX operators. No order was sent.");return;}
@@ -453,8 +454,15 @@ export function SpotTradingPage(){
    setPendingIntent(null);setPendingIntentInvalid(false);setQuantity("");
    setNotice(result.duplicate?"This order request was already recorded and confirmed.":"Limit order accepted and confirmed in order history.");
   }catch(reason){
-   setError(reason instanceof Error?reason.message:"Order result is unconfirmed. Keep the same request ID and check orders before retrying.");
-   if(!orderAccepted&&reason instanceof ApiError&&(reason.status===400||reason.status===401||reason.status===403||reason.code==="MATCHING_ENGINE_UNAVAILABLE")){
+   if(retryingStoredIntent&&reason instanceof ApiError&&reason.code==="MATCHING_ENGINE_UNAVAILABLE"){
+    setError("Matching engine is unavailable. This retry was not processed; the earlier order result remains unconfirmed. Keep the same request ID and do not create a new order. Retry this same request after service recovery.");
+   }else{
+    setError(reason instanceof Error?reason.message:"Order result is unconfirmed. Keep the same request ID and check orders before retrying.");
+   }
+   // Only discard a first-attempt intent after a definitive pre-RPC rejection.
+   // A retry of a stored intent may refer to an order committed by an earlier
+   // ambiguous attempt, so retain its idempotency key until order history confirms it.
+   if(!retryingStoredIntent&&!orderAccepted&&reason instanceof ApiError&&(reason.status===400||reason.status===401||reason.status===403||reason.code==="MATCHING_ENGINE_UNAVAILABLE")){
     try{window.localStorage.removeItem(pendingStorageKey);}catch{}
     setPendingIntent(null);setPendingIntentInvalid(false);
    }
