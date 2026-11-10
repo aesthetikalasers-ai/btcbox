@@ -455,7 +455,7 @@ export function SpotTradingPage(){
    setNotice(result.duplicate?"This order request was already recorded and confirmed.":"Limit order accepted and confirmed in order history.");
   }catch(reason){
    if(retryingStoredIntent&&reason instanceof ApiError&&reason.code==="MATCHING_ENGINE_UNAVAILABLE"){
-    setError("Matching engine is unavailable. This retry was not processed; the earlier order result remains unconfirmed. The same request ID is retained. Check order history before retrying.");
+    setError("Matching engine is unavailable. This retry was not processed; the earlier order result remains unconfirmed. Keep the same request ID and do not create a new order. Retry this same request after service recovery.");
    }else{
     setError(reason instanceof Error?reason.message:"Order result is unconfirmed. Keep the same request ID and check orders before retrying.");
    }
