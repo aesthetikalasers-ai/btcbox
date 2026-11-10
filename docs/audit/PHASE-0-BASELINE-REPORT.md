@@ -358,3 +358,36 @@ Inspector links：
 ## 10.7 本轮结论
 
 **Phase 0 仍为待补证 / NOT PASSED。** 本轮完成 Artifact 的 80 张 PNG 实际清单与宽度核对；补齐双 Vercel 账号项目、域名和 Production deployment 的只读证据；重新读取完整 Frontend CI job log，并对主要失败测试的 mock fixture 源码进行对照。真实浏览器交互、补充视口、全部页面布局实测、17 项失败最终归因、Production branch 设置、专用 secret scan 仍未完成。未修改交易页、未写 main、未合并、未部署、未执行真实资金或金融写入。AI 1 不签发 PASS，请 AI 2 独立复核。
+
+
+## 10.8 路由/布局代码证据增补（非浏览器验收）
+
+本节依据基线 `525cc9d6...` 的 `frontend/src/App.tsx`、`frontend/src/features/pages/Pages.tsx`、`frontend/src/features/pages/ContractPage.tsx`、`frontend/src/features/auth/AccountSetupPage.tsx`、`frontend/src/features/admin/AdminPage.tsx`、`backend/oauth/consent.html` 复核。它描述代码中声明的页面组合，不表示已在真实 Desktop/Mobile/Tablet 视口运行通过。
+
+| 路由 | 页面组合与组件证据 | Desktop / Mobile / Tablet 当前能证明的内容 | 未覆盖内容 |
+|---|---|---|---|
+| `/seconds` | `SecondsPage` 使用共享 `PageFrame`；包含 active contract policy 卡片、下单/持仓相关数据和 positions/history 卡片；位置卡片用 grid，断点含 `sm:grid-cols-2`、`lg:grid-cols-4`。 | 三类设备均由同一 React 页面组件 + Tailwind 响应式断点组成；没有独立 Tablet 页面组合证据。 | 没有此路由截图；未实际核验订单表单、计时器、持仓/历史列表、滚动和键盘行为。 |
+| `/contract` | 独立 `ContractPage`；引用 `TradeProductNav`、`OrderBookDepth`、`ChartDrawer`；定义 open/history/trades/funding tab，并调用 perp markets/orders/positions/funding APIs。 | 桌面多面板结构与移动标签/图表抽屉有源码线索；不是另一套独立 Tablet Shell。 | 本 Artifact 无截图；未核验订单表单、深度、图表抽屉、持仓/历史表格在三个视口的真实组合。 |
+| `/deposit` | `DepositPage` 在共享 `PageFrame` 内；资产与网络 select、验证地址卡片、复制地址动作、deposit history 区块。 | 同一页面组件 + `sm:grid-cols-2` 等 CSS 断点；无独立平板组件。 | 无截图；未核验历史列表/表格、地址状态、错误态和复制交互。 |
+| `/withdraw` | `WithdrawPage` 在 `Pages.tsx`；使用 withdrawal config、saved/selected crypto address、submitWithdrawal API。 | 同一共享页面组件；无独立 Desktop/Mobile/Tablet Shell 证据。 | 无截图；未核验金额/地址/网络表单、确认步骤、费用/限额、错误态及任何写入行为。 |
+| `/earn` | `EarnPage` 使用产品目录和 positions；顶部状态卡片、Available products 卡片网格（`md:grid-cols-2`）、账户持仓状态。源码明确在未启用时显示 Operations not enabled，并说明 Subscribe/Redeem 不可用。 | 同一页面组件 + CSS 响应式；没有独立 Tablet 页面组合。 | 无截图；未核验产品详情、持仓列表和受限操作交互。 |
+| `/kyc` | `KycPage` 有状态卡片、申请人/证件资料、拒绝原因、提交/重新提交表单；表单含姓名、证件类型、证件上传相关流程。 | 同一页面组件 + `sm:grid-cols` 响应式布局；无独立平板组件。 | 无截图；未核验上传、压缩、表单校验、隐私显示、错误态。 |
+| `/account-setup` | 独立认证路由，不渲染 AppLayout；`AccountSetupPage` 是 max-width 640px standalone main/card，包含 username/password/confirm password 表单。 | Desktop/Mobile/Tablet 都是同一 standalone card 组合，padding 以 `p-4 sm:p-6` 响应；无独立 Tablet Shell。 | 无截图；未实测 Google/wallet 后的真实 session、表单提交与错误恢复。 |
+| `/admin` | App.tsx 顶层独立路由，不经过 CustomerRoutes/AppLayout；AdminPage 自己维护 Overview、Users、Deposits、Withdrawals、KYC、Audit、Orders、Support、Admins、Seconds、Markets tabs 和 permission strings。 | 可证明是独立 AdminPage；没有足够证据证明各视口实际布局、侧栏折叠或表格移动模式。 | 无截图；未实测桌面/手机/平板导航、各管理表格、对话框、分页和权限行为。 |
+| `/oauth/consent` | 独立静态 HTML `backend/oauth/consent.html`，不是 React 页面；容器 card max-width 440px，包含自有 CSS 与按钮/授权表单。 | 同一静态页面依赖自身 CSS media queries；不是 React AppLayout，也没有 Tablet 专用版本。 | 无截图；未核验 600/820/1280/1366/1600/1920 的断点、键盘可访问性、授权/拒绝交互。 |
+
+**现有代码可确认的共享结构：**
+- `/login`、`/register`、`/account-setup`、`/auth/react-callback` 是 standalone auth routes，不渲染 `AppLayout`。
+- `/admin` 是 App 顶层独立路由；语言固定 zh-CN。
+- 其他客户路由包在共享 `AppLayout`，由 Sidebar、Topbar、BottomNav 和单个页面组件构成。
+- `/trade/:symbol` 有单独的现货终端组件和移动图表 Dialog；锁定的手机左盘口、右下单、K 线抽屉布局不在本轮更改范围。
+- `/markets` 页面包含 markets rows、筛选/排序和 lightweight-charts 图表组件；但图表实际可见与加载情况仍需浏览器实测。
+
+## 10.9 LanguageMenu DOM 数量的源码语义更正
+
+对 `AppLayout.tsx` 进一步按 JSX 层级核对后，补充更精确的预期结构：
+- 桌面 Sidebar 外层使用 CSS `hidden ... lg:block`，其 JSX 子树仍被 React 渲染；因此在 390px 下，**隐藏的桌面 Sidebar 仍可能留在 DOM 中**，其中的 drawer variant LanguageMenu 不能计为可见入口。
+- 移动 Sidebar 位于 Radix Dialog Portal/Content 内；Dialog 初始关闭时，Portal 内容是否在 DOM/AX tree 中由 Radix Presence 生命周期决定，不能仅凭 `Dialog.Root` 的 JSX 推断成“关闭抽屉仍有一份 DOM”。抽屉打开时，移动 Sidebar 会作为额外实例出现。
+- 因而源码层面的组件挂载预期是：桌面宽度（1440/1024）Sidebar + Topbar；390px 初始状态 Topbar 可见，桌面 Sidebar 隐藏但其 JSX 子树仍挂载，关闭 Dialog 的 Portal 子树通常不呈现；390px 打开抽屉后再出现移动 Sidebar。必须以实际 DOM、computed visibility 和 AX tree 验证每一项。
+- 本节替代第 3 节中将 390px Sidebar 简化描述为“仅在关闭的移动抽屉内”的说法。真实 DOM 数量、role/name 和可见入口数量仍未测试。
+
