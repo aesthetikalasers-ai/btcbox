@@ -92,7 +92,7 @@ test('React Supabase email confirmation and Google OAuth use the isolated templa
   const auth = read('../frontend/src/features/auth/AuthPages.tsx');
   const provider = read('../frontend/src/lib/auth.tsx');
   assert.ok(app.includes('path="/auth/react-callback"'));
-  assert.ok(app.includes('<AuthPage mode="register" />'));
+  assert.ok(app.includes('<AuthPage mode="register" redirectTo={redirectTo} />'));
   assert.ok(auth.includes('Google'));
   assert.ok(!auth.includes('reg-terms') && !auth.includes('Terms of Service'));
   assert.ok(provider.includes('flowType: "pkce"'));
