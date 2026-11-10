@@ -35,8 +35,14 @@ export function Topbar({ onMenuClick, menuOpen = false, menuButtonRef }: { menuB
       <div className="flex shrink-0 items-center gap-1 sm:gap-3">
         <label className="flex h-11 items-center gap-1.5 rounded-xl border border-brand-border bg-brand-surface px-2 text-brand-text-secondary sm:flex sm:px-2.5">
           <Languages className="hidden h-4 w-4 shrink-0 sm:block" />
-          <select aria-label={t("Language")} value={language} onChange={(event) => setLanguage(event.target.value as Language)} className="w-[64px] bg-transparent text-xs font-semibold text-brand-text outline-none sm:w-[88px]">
-            <option value="ja">日本語</option><option value="en">English</option><option value="zh-CN">简体中文</option><option value="es">Español</option><option value="pt">Português</option><option value="it">Italiano</option><option value="de">Deutsch</option>
+          <select aria-label={t("Language")} value={language} onChange={(event) => setLanguage(event.target.value as Language)} className="w-[64px] bg-transparent text-xs font-semibold text-brand-text outline-none [color-scheme:dark] sm:w-[88px]">
+            <option className="bg-brand-surface text-brand-text" value="ja">日本語</option>
+            <option className="bg-brand-surface text-brand-text" value="en">English</option>
+            <option className="bg-brand-surface text-brand-text" value="zh-CN">简体中文</option>
+            <option className="bg-brand-surface text-brand-text" value="es">Español</option>
+            <option className="bg-brand-surface text-brand-text" value="pt">Português</option>
+            <option className="bg-brand-surface text-brand-text" value="it">Italiano</option>
+            <option className="bg-brand-surface text-brand-text" value="de">Deutsch</option>
           </select>
         </label>
         <Link to="/me" aria-label={t("My")} className="flex h-11 w-11 items-center justify-center rounded-xl border border-brand-border bg-brand-surface text-brand-text-secondary transition-colors hover:border-brand-accent/40 hover:text-brand-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent">
