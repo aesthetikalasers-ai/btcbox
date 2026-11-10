@@ -12,6 +12,7 @@ test("stale quotes are hidden from both the summary and list when snapshots have
   } }));
   await page.route("**/api/kline?**", route => route.fulfill({ status: 200, json: { ok: true, klines: [] } }));
   await page.goto("/markets");
+  await expect(page.getByText("Snapshot stale", { exact: true })).toBeVisible();
   await expect(page.getByText("Market feed unavailable", { exact: true })).toBeVisible();
   await expect(page.getByText(/older than 90 seconds/)).toBeVisible();
   await expect(page.getByText("65,000", { exact: false })).toHaveCount(0);
