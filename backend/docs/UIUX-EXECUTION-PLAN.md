@@ -637,8 +637,8 @@ BTCBOX 必须达到以下产品标准：
 按以下顺序显示可用语言：
 
 1. 日本語（首次访问默认选中）
-2. 中文
-3. English
+2. English
+3. 中文
 4. Español
 5. Deutsch
 6. Italiano
