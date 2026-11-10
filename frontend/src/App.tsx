@@ -17,8 +17,9 @@ import { TradeHubPage, MyPage, SpotTradingPage, SecondsPage, KycPage, SupportPag
 
 function ProtectedAccountRoute({ children }: { children: ReactNode }) {
   const { status } = useAuth();
+  const location = useLocation();
   if (status === "loading") return <AuthRestoreState />;
-  if (status !== "authenticated") return <Navigate to="/login" replace />;
+  if (status !== "authenticated") return <Navigate to="/login" replace state={{ from: location }} />;
   return <>{children}</>;
 }
 function AccountSetupGate({ children }: { children: ReactNode }) {
@@ -35,6 +36,10 @@ function RouteLoading() {
 }
 function CustomerRoutes() {
   const location = useLocation();
+  const redirectFrom = (location.state as { from?: { pathname?: string; search?: string; hash?: string } } | null)?.from;
+  const redirectTo = redirectFrom?.pathname && redirectFrom.pathname.startsWith("/") && !redirectFrom.pathname.startsWith("//")
+    ? `${redirectFrom.pathname}${redirectFrom.search || ""}${redirectFrom.hash || ""}`
+    : undefined;
   const isStandaloneAuthRoute = ["/login", "/register", "/account-setup", "/auth/react-callback"].includes(location.pathname);
   const content = <div key={location.pathname} className="anim-fade-in min-w-0 flex-1"><AccountSetupGate><Suspense fallback={<RouteLoading />}><Routes>
     <Route path="/home" element={<Dashboard />} /><Route path="/markets" element={<MarketsPage />} />
@@ -46,7 +51,7 @@ function CustomerRoutes() {
     <Route path="/deposit" element={<ProtectedAccountRoute><DepositPage /></ProtectedAccountRoute>} />
     <Route path="/withdraw" element={<ProtectedAccountRoute><WithdrawPage /></ProtectedAccountRoute>} />
     <Route path="/earn" element={<ProtectedAccountRoute><EarnPage /></ProtectedAccountRoute>} />
-    <Route path="/login" element={<AuthPage mode="login" />} /><Route path="/register" element={<AuthPage mode="register" />} /><Route path="/account-setup" element={<AccountSetupPage />} /><Route path="/auth/react-callback" element={<AuthCallbackPage />} />
+    <Route path="/login" element={<AuthPage mode="login" redirectTo={redirectTo} />} /><Route path="/register" element={<AuthPage mode="register" redirectTo={redirectTo} />} /><Route path="/account-setup" element={<AccountSetupPage />} /><Route path="/auth/react-callback" element={<AuthCallbackPage />} />
     <Route path="/kyc" element={<ProtectedAccountRoute><KycPage /></ProtectedAccountRoute>} />
     <Route path="/support" element={<SupportPage />} />
     <Route path="/settings" element={<ProtectedAccountRoute><AccountSecurityPage /></ProtectedAccountRoute>} />
