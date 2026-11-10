@@ -432,3 +432,17 @@ a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
   .summary-row .label { color: var(--color-brand-text-muted); }
   .summary-row .value { font-weight: 600; font-variant-numeric: tabular-nums; color: var(--color-brand-text); }
 }
+
+/* === Professional mobile trade UI: drawer + scroll-snap helpers (tokens only) === */
+@layer components {
+  /* Fixed bottom chart drawer: sits above the 60px mobile BottomNav; flush to bottom on lg+ where nav hides. */
+  .trade-drawer-root { position: fixed; left: 0; right: 0; z-index: 40; bottom: calc(60px + env(safe-area-inset-bottom)); }
+  @media (min-width: 1024px) { .trade-drawer-root { bottom: 0; } }
+  .trade-drawer-panel { display: flex; flex-direction: column; border: 1px solid var(--color-brand-border); border-bottom: 0; border-radius: 14px 14px 0 0; background: var(--color-brand-surface); box-shadow: 0 -18px 50px -12px rgba(0,0,0,.7); overflow: hidden; transition: height .28s cubic-bezier(.22,.61,.36,1); will-change: height; }
+  .trade-drawer-root.is-dragging .trade-drawer-panel { transition: none; }
+  .trade-drawer-handle { touch-action: none; cursor: grab; }
+  .trade-drawer-handle:active { cursor: grabbing; }
+  /* Hidden scrollbars for the product nav and the horizontal snap scroller (scroll position still indicated by dots). */
+  .trade-nav-scroll, .trade-snap-x { scrollbar-width: none; -ms-overflow-style: none; -webkit-overflow-scrolling: touch; }
+  .trade-nav-scroll::-webkit-scrollbar, .trade-snap-x::-webkit-scrollbar { display: none; width: 0; height: 0; }
+}

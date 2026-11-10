@@ -984,5 +984,20 @@
   "Your executed trades for this market will appear here.": "この市場の約定履歴がここに表示されます。",
   "No funding payments yet": "資金調達支払いはありません",
   "Funding payments are settled periodically and will appear here.": "資金調達支払いは定期的に決済され、ここに表示されます。",
-  "Funding payment": "資金調達支払い"
+  "Funding payment": "資金調達支払い",
+  "Positions": "ポジション",
+  "Order entry, market depth and positions": "注文・板・ポジション",
+  "Demo data": "デモデータ",
+  "Expand chart": "チャートを展開",
+  "Collapse chart": "チャートを閉じる",
+  "Total": "合計",
+  "Mid price": "中値",
+  "Trade products": "取引商品",
+  "Line": "ライン",
+  "1m": "1分",
+  "3m": "3分",
+  "5m": "5分",
+  "15m": "15分",
+  "30m": "30分",
+  "1h": "1時間"
 }
