@@ -39,7 +39,7 @@ type AuthContextValue = {
   signInWithGoogle: (intent?: "login" | "register") => Promise<void>;
   signInWithUsername: (username: string, password: string) => Promise<void>;
   setBtcboxCredentials: (username: string, password: string) => Promise<void>;
-  reauthenticateCredentialsWithGoogle: () => Promise<void>;
+  reauthenticateCredentialsWithGoogle: (returnTo?: "/settings" | "/account-setup") => Promise<void>;
   reauthenticateCredentialsWithWeb3: (chain: "ethereum" | "solana", twoFactorCode?: string, wallet?: unknown) => Promise<void>;
   completeCredentialRecoveryTwoFactor: (code: string) => Promise<void>;
   recoverBtcboxPassword: (password: string) => Promise<void>;
@@ -205,14 +205,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } finally { setBusy(false); }
   }, [setSignedIn]);
 
-  const reauthenticateCredentialsWithGoogle = useCallback(async () => {
+  const reauthenticateCredentialsWithGoogle = useCallback(async (returnTo: "/settings" | "/account-setup" = "/settings") => {
     setBusy(true); setError(""); setNotice("");
     try {
       if (!googleEnabled) throw new Error("Google sign-in is currently unavailable.");
       if (!clientRef.current) throw new Error("Authentication is still initializing. Please try again.");
       const { error: authError } = await clientRef.current.auth.signInWithOAuth({
         provider: "google",
-        options: { redirectTo: window.location.origin + "/auth/react-callback?flow=credential-recovery", queryParams: { prompt: "select_account" } },
+        options: { redirectTo: window.location.origin + "/auth/react-callback?flow=credential-recovery&returnTo=" + encodeURIComponent(returnTo), queryParams: { prompt: "select_account" } },
       });
       if (authError) throw authError;
     } catch (cause) {
@@ -517,7 +517,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           await setSignedIn();
           setNotice("Enter your authenticator code to complete password recovery.");
         }
-        window.history.replaceState({}, document.title, "/settings");
+        const returnTo = url.searchParams.get("returnTo") === "account-setup" ? "/account-setup" : "/settings";
+        window.history.replaceState({}, document.title, returnTo);
         return;
       }
       if (url.searchParams.get("flow") === "link-reauth") {
