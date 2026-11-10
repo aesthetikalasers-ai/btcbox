@@ -29,13 +29,13 @@ export function AppLayout({ children }: { children: ReactNode }) {
     <div className="flex h-dvh min-h-screen min-h-[100dvh] w-full overflow-hidden bg-brand-bg text-brand-text">
       <div className="hidden h-full w-[224px] shrink-0 lg:z-20 lg:block"><Sidebar /></div>
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 z-40 bg-black/60 lg:hidden" />
+        <Dialog.Overlay className="mobile-nav-overlay fixed inset-0 z-40 bg-black/60 lg:hidden" />
         <Dialog.Content id="mobile-navigation" aria-describedby={undefined}
           onCloseAutoFocus={(event) => {
             event.preventDefault();
             if (!window.matchMedia("(min-width: 1024px)").matches) menuTrigger.current?.focus();
           }}
-          className="fixed inset-y-0 left-0 z-50 w-[min(84vw,280px)] bg-brand-sidebar shadow-2xl lg:hidden">
+          className="mobile-nav-panel fixed inset-y-0 left-0 z-50 w-[min(84vw,280px)] bg-brand-sidebar shadow-2xl lg:hidden">
           <Dialog.Title className="sr-only">{t("Mobile navigation")}</Dialog.Title>
           <Sidebar onClose={() => setIsMobileMenuOpen(false)} />
         </Dialog.Content>
