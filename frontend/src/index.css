@@ -10,37 +10,54 @@
   --font-sans: "Inter", "Noto Sans JP", "Noto Sans SC", "Noto Sans Khmer", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, monospace;
 
-  --color-brand-bg: #0b1220;
-  --color-brand-sidebar: #0b1220;
-  --color-brand-surface: #111c2e;
-  --color-brand-surface-2: #162237;
-  --color-brand-surface-hover: rgba(255, 255, 255, .05);
-  --color-brand-border: rgba(155, 183, 220, .16);
-  --color-brand-border-subtle: rgba(255, 255, 255, .03);
-  --color-brand-border-strong: var(--border-strong);
-  --color-brand-text: #f8fafc;
-  --color-brand-text-secondary: #bdc9dc;
-  --color-brand-text-muted: #94a3b8;
-  --color-brand-accent: #3b82f6;
+  /* === Phase 3 Premium Visual System — UIUX-EXECUTION-PLAN.md Step 4-8 === */
+  /* Brand (Step 4): Emerald Teal — primary actions only, not large areas */
+  --color-brand-accent: #21C7A8;
+  --color-brand-hover: #13A98C;
+  --color-brand-active: #0D806D;
+  --color-brand-soft: #102B27;
+  --color-brand-border-brand: #1B6558;
+  /* Five-level background (Step 5) */
+  --color-brand-bg: #080D13;
+  --color-brand-sidebar: #080D13;
+  --color-brand-surface: #131E29;
+  --color-brand-surface-2: #1B2936;
+  --color-brand-surface-hover: #243443;
+  /* Borders (Step 8) */
+  --color-brand-border: #263443;
+  --color-brand-border-subtle: #202D39;
+  --color-brand-border-strong: #344657;
+  --color-border-focus: #21C7A8;
+  /* Text (Step 6) */
+  --color-brand-text: #F4F7FA;
+  --color-brand-text-secondary: #D5DEE7;
+  --color-brand-text-muted: #A2B0BE;
+  --color-brand-text-faint: #738293;
+  --color-brand-text-disabled: #526170;
 
-  /* Restrained semantic accents: neutral surfaces, distinct functional color. */
-  --color-brand-cyan: #3b82f6;
-  --color-brand-teal: #2dd4bf;
+  /* Financial states (Step 7) — preserve existing up/down convention */
+  --color-positive: #35D6A6;
+  --color-negative: #F06B78;
+  --color-warning-state: #E9B85C;
+  --color-information: #72AEF2;
+  --color-neutral-state: #A2B0BE;
+  --color-brand-cyan: #72AEF2;
+  --color-brand-teal: #21C7A8;
   --color-brand-violet: #a78bfa;
   --color-brand-indigo: #818cf8;
-  --color-brand-orange: #f59e0b;
-  --color-brand-info: #60a5fa;
-  --color-brand-warning: #f59e0b;
-  --color-brand-success: #22c55e;
-  --color-brand-danger: #ef4444;
-  --color-profit: #22c55e;
-  --color-loss: #ef4444;
-  --color-gold: #f59e0b;
+  --color-brand-orange: #E9B85C;
+  --color-brand-info: #72AEF2;
+  --color-brand-warning: #E9B85C;
+  --color-brand-success: #35D6A6;
+  --color-brand-danger: #F06B78;
+  --color-profit: #35D6A6;
+  --color-loss: #F06B78;
+  --color-gold: #E9B85C;
 
   --color-chart-1: #d4d4d8;
-  --color-chart-2: #22c55e;
+  --color-chart-2: #35D6A6;
   --color-chart-3: #94a3b8;
-  --color-chart-4: #f59e0b;
+  --color-chart-4: #E9B85C;
   --color-chart-5: #52525b;
 
   --color-background: var(--background);
@@ -65,36 +82,36 @@
 
 :root {
   color-scheme: dark;
-  --background: #0b1220;
-  --foreground: #f8fafc;
-  --card: #111c2e;
-  --card-foreground: #f8fafc;
-  --popover: #162237;
-  --popover-foreground: #f8fafc;
-  --primary: #2563eb;
-  --primary-foreground: #ffffff;
-  --secondary: #162237;
-  --secondary-foreground: #f8fafc;
-  --muted: #162237;
-  --muted-foreground: rgba(255, 255, 255, .52);
-  --accent: #23334c;
-  --accent-foreground: #f8fafc;
-  --destructive: #dc2626;
-  --border: rgba(255, 255, 255, .05);
-  --input: rgba(255, 255, 255, .10);
-  --ring: #3b82f6;
+  --background: #080D13;
+  --foreground: #F4F7FA;
+  --card: #131E29;
+  --card-foreground: #F4F7FA;
+  --popover: #1B2936;
+  --popover-foreground: #F4F7FA;
+  --primary: #21C7A8;
+  --primary-foreground: #05201A; /* dark text on teal per Step 12 */
+  --secondary: #1B2936;
+  --secondary-foreground: #F4F7FA;
+  --muted: #131E29;
+  --muted-foreground: #A2B0BE;
+  --accent: #243443;
+  --accent-foreground: #F4F7FA;
+  --destructive: #F06B78;
+  --border: #263443;
+  --input: #263443;
+  --ring: #21C7A8;
 
-  --brand-accent: #3b82f6;
-  --brand-success: #22c55e;
-  --brand-danger: #ef4444;
-  --brand-warning: #f59e0b;
-  --brand-info: #94a3b8;
-  --surface-raised: #162237;
-  --surface-overlay: #1b304b;
-  --border-strong: rgba(255, 255, 255, .12);
-  --text-high: #f8fafc;
-  --text-medium: rgba(255, 255, 255, .72);
-  --text-low: rgba(255, 255, 255, .42);
+  --brand-accent: #21C7A8;
+  --brand-success: #35D6A6;
+  --brand-danger: #F06B78;
+  --brand-warning: #E9B85C;
+  --brand-info: #72AEF2;
+  --surface-raised: #1B2936;
+  --surface-overlay: #243443;
+  --border-strong: #344657;
+  --text-high: #F4F7FA;
+  --text-medium: #D5DEE7;
+  --text-low: #738293;
 }
 
 * { box-sizing: border-box; }
@@ -144,14 +161,14 @@ a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
 }
 
 /* Page identity uses restrained semantic accents over the shared dark surfaces. */
-.tone-account { --page-accent: #3b82f6; --page-accent-soft: rgba(102,197,255,.10); }
-.tone-market { --page-accent: #3b82f6; --page-accent-soft: rgba(102,197,255,.10); }
-.tone-trading { --page-accent: #3b82f6; --page-accent-soft: rgba(102,197,255,.10); }
-.tone-assets { --page-accent: #3b82f6; --page-accent-soft: rgba(102,197,255,.10); }
-.tone-orders { --page-accent: #3b82f6; --page-accent-soft: rgba(102,197,255,.10); }
-.tone-earn { --page-accent: #3b82f6; --page-accent-soft: rgba(102,197,255,.10); }
-.tone-support { --page-accent: #3b82f6; --page-accent-soft: rgba(102,197,255,.10); }
-.tone-admin { --page-accent: #3b82f6; --page-accent-soft: rgba(102,197,255,.10); }
+.tone-account { --page-accent: #21C7A8; --page-accent-soft: rgba(33,199,168,.08); }
+.tone-market { --page-accent: #21C7A8; --page-accent-soft: rgba(33,199,168,.08); }
+.tone-trading { --page-accent: #21C7A8; --page-accent-soft: rgba(33,199,168,.08); }
+.tone-assets { --page-accent: #21C7A8; --page-accent-soft: rgba(33,199,168,.08); }
+.tone-orders { --page-accent: #21C7A8; --page-accent-soft: rgba(33,199,168,.08); }
+.tone-earn { --page-accent: #21C7A8; --page-accent-soft: rgba(33,199,168,.08); }
+.tone-support { --page-accent: #21C7A8; --page-accent-soft: rgba(33,199,168,.08); }
+.tone-admin { --page-accent: #21C7A8; --page-accent-soft: rgba(33,199,168,.08); }
 .page-accent { color: var(--page-accent, var(--brand-accent)); }
 .page-accent-surface { background: var(--page-accent-soft, rgba(56,189,248,.08)); }
 
@@ -166,11 +183,11 @@ a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
 
 /* Live price flash: replays on remount (keyed by price value) */
 @keyframes priceFlashUp {
-  0% { background-color: rgba(14,203,129,.30); color: #0ecb81; }
+  0% { background-color: rgba(53,214,166,.28); color: #35D6A6; }
   100% { background-color: transparent; }
 }
 @keyframes priceFlashDown {
-  0% { background-color: rgba(246,70,93,.30); color: #f6465d; }
+  0% { background-color: rgba(240,107,120,.28); color: #F06B78; }
   100% { background-color: transparent; }
 }
 .price-flash-up { animation: priceFlashUp .9s ease-out; border-radius: 6px; padding: 0 4px; margin: 0 -4px; }
@@ -291,8 +308,8 @@ a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
 .spot-book-columns,.spot-book-row { display:grid; grid-template-columns:minmax(0,1.35fr) minmax(0,1fr); gap:6px; text-align:right; font-size:12px; font-variant-numeric:tabular-nums; }
 .spot-book-columns { font-size:11px; color:var(--color-brand-text-muted); margin-bottom:12px; }
 .spot-book-row { line-height:26px; background-position:right center; background-repeat:no-repeat; font-family:var(--font-mono); }
-.spot-book-row[data-side="ask"] { background-image:linear-gradient(rgb(239 68 68 / .12),rgb(239 68 68 / .12)); }
-.spot-book-row[data-side="bid"] { background-image:linear-gradient(rgb(34 197 94 / .12),rgb(34 197 94 / .12)); }
+.spot-book-row[data-side="ask"] { background-image:linear-gradient(rgb(240 107 120 / .12),rgb(240 107 120 / .12)); }
+.spot-book-row[data-side="bid"] { background-image:linear-gradient(rgb(53 214 166 / .12),rgb(53 214 166 / .12)); }
 .spot-book-columns span:first-child { text-align:left; }
 .spot-mid-price { margin-block:4px; padding-block:12px; border-block:1px solid var(--color-brand-border); font:700 19px/28px var(--font-mono); }
 .spot-book-row span { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
