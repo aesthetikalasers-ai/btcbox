@@ -25,7 +25,7 @@ export function AccountSetupPage() {
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (password !== confirmPassword) return;
+    if (busy || password !== confirmPassword) return;
     try { await setBtcboxCredentials(username, password); navigate("/home", { replace: true }); }
     catch { /* AuthProvider displays the safe error. */ }
   };
