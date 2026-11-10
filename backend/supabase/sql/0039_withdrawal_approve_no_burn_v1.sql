@@ -23,6 +23,11 @@ ALTER TABLE public.financial_operations
     'earn_subscribe',
     'earn_redeem',
     'admin_adjustment',
+    'spot_trade',
+    'spot_order_reserve',
+    'spot_order_cancel',
+    'seconds_open',
+    'seconds_settle',
     'migration_opening_balance'
   ));
 
@@ -50,7 +55,8 @@ BEGIN
      OR p_asset IS NULL OR p_asset !~ '^[A-Z0-9]{2,16}$'
      OR coalesce(p_operation_type, '') NOT IN (
        'deposit_credit','withdraw_freeze','withdraw_approve','withdraw_reject',
-       'withdraw_paid','earn_subscribe','earn_redeem','admin_adjustment'
+       'withdraw_paid','earn_subscribe','earn_redeem','admin_adjustment',
+       'spot_trade','spot_order_reserve','spot_order_cancel','seconds_open','seconds_settle'
      )
      OR p_request_hash IS NULL OR p_request_hash = ''
      OR p_metadata IS NULL OR jsonb_typeof(p_metadata) <> 'object'
