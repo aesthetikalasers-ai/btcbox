@@ -66,7 +66,7 @@ export function AssetsPage() {
   const balances = account?.balances ? Object.entries(account.balances) as Array<[string, AccountBalance]> : [];
 
   return (
-    <div className="tone-assets mx-auto flex w-full max-w-[1200px] min-w-0 flex-col gap-5 p-3 sm:p-4 md:p-6 lg:p-8">
+    <div aria-busy={loading} className="tone-assets mx-auto flex w-full max-w-[1200px] min-w-0 flex-col gap-5 p-3 sm:p-4 md:p-6 lg:p-8">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <p className="page-accent mb-1 text-xs font-bold uppercase tracking-[.18em]">{t("BTCBOX / WALLET")}</p>
@@ -94,7 +94,7 @@ export function AssetsPage() {
         </CardContent>
       </Card>
 
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 gap-3 min-[420px]:grid-cols-2">
         <Card className="border-brand-border bg-brand-surface">
           <CardContent className="flex items-center gap-3 p-4">
             <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-brand-info/10 text-brand-info"><Wallet className="h-5 w-5"/></span>
