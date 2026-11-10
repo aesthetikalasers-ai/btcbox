@@ -2,6 +2,8 @@ import { ArrowRight, ArrowUpRight, ArrowLeftRight, ChartNoAxesCombined, Headset,
 import { lazy, Suspense, type ReactNode } from "react";
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { AuthRestoreState } from "./components/AuthRestoreState";
+import { useAuth } from "./lib/auth";
+import { I18nProvider, useI18n } from "./lib/i18n";
 import { AppLayout } from "./components/layout/AppLayout";
 import { AccountSecurityPage } from "./features/account/AccountSecurityPage";
 import { AdminPage } from "./features/admin/AdminPage";
