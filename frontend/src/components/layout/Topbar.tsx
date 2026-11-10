@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type FormEvent, type Ref } from "react";
+import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent as ReactKeyboardEvent, type Ref } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Search, User, Menu, Check } from "lucide-react";
 import { useI18n, type Language } from "../../lib/i18n";
@@ -44,7 +44,7 @@ export function Topbar({ onMenuClick, menuOpen = false, menuButtonRef }: { menuB
     return () => { document.removeEventListener("pointerdown", close); document.removeEventListener("keydown", onKey); };
   }, [langMenuOpen]);
 
-  const handleLanguageMenuKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+  const handleLanguageMenuKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
     const items = Array.from(langItemsRef.current?.querySelectorAll<HTMLButtonElement>('[role="menuitemradio"]') ?? []);
     if (!items.length) return;
     const currentIndex = items.indexOf(document.activeElement as HTMLButtonElement);
