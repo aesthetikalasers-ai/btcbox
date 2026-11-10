@@ -971,5 +971,18 @@
   "Position": "仓位",
   "Trade history": "成交历史",
   "Submit": "提交",
-  "Awaiting the perpetual contract backend.": "永续合约后端待启用。"
+  "Awaiting the perpetual contract backend.": "永续合约后端待启用。",
+  "Trade hub": "交易中心",
+  "Open a position from the order form and it will appear here.": "在下单表单中开仓后，持仓将显示在这里。",
+  "Order, trade and funding history requires an authenticated account.": "委托、成交与资金费历史需要登录后查看。",
+  "No open orders": "暂无当前委托",
+  "Open orders will appear here once submitted and before they fill.": "提交后且成交前的委托将显示在这里。",
+  "Type": "类型",
+  "No order history": "暂无历史委托",
+  "Filled and cancelled orders will appear here.": "已成交和已撤销的委托将显示在这里。",
+  "No trades yet": "暂无成交记录",
+  "Your executed trades for this market will appear here.": "该市场的成交记录将显示在这里。",
+  "No funding payments yet": "暂无资金费记录",
+  "Funding payments are settled periodically and will appear here.": "资金费定期结算，将显示在这里。",
+  "Funding payment": "资金费"
 }
