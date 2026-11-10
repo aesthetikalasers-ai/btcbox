@@ -24,17 +24,18 @@ test.beforeEach(async ({page}) => {
 
 test('market favorites persist, sorting changes rows, and ETH opens its own pair',async({page})=>{
   await page.goto('/markets');
-  const rows = () => page.getByRole('link',{name:/spot trading/}).filter({visible:true});
-  await expect(rows().first()).toHaveAccessibleName('BTC spot trading');
+  const pairButtons = () => page.getByRole('button').filter({hasText:/BTC\/USDT|ETH\/USDT/});
+  await expect(pairButtons().first()).toContainText('BTC/USDT');
   await page.getByLabel('Sort by').selectOption('change');
-  await expect(rows().first()).toHaveAccessibleName('ETH spot trading');
-  await page.getByRole('button',{name:'Favorites ETH',exact:true}).filter({visible:true}).click();
+  await expect(pairButtons().first()).toContainText('ETH/USDT');
+  await page.getByRole('button',{name:'Add to favorites ETH',exact:true}).click();
   await page.getByRole('button',{name:'Favorites',exact:true}).click();
-  await expect(rows()).toHaveCount(1);
+  await expect(pairButtons()).toHaveCount(1);
   await page.reload();
   await page.getByRole('button',{name:'Favorites',exact:true}).click();
-  await expect(rows()).toHaveCount(1);
-  await rows().first().click();
+  await expect(pairButtons()).toHaveCount(1);
+  await pairButtons().first().click();
+  await page.getByRole('link',{name:'Spot trading',exact:true}).click();
   await expect(page).toHaveURL(/\/trade\/ETHUSDT$/);
   await expect(page.getByRole('heading',{name:'ETHUSDT',exact:true})).toBeVisible();
   await expect(page.getByText('Quantity · ETH', {exact:true})).toBeVisible();
@@ -65,7 +66,7 @@ test('official logo and compact market workspace fit narrow viewports',async({pa
   for(const width of [320,360,390,430,768,1440]){
     await page.setViewportSize({width,height:900});
     await page.goto('/home');
-    await expect(page.getByRole('heading',{name:'Market overview'})).toBeVisible();
+    await expect(page.getByRole('heading',{name:'Explore the market. Trade with confidence.'})).toBeVisible();
     const logo=page.getByRole('img',{name:'BTCBOX',exact:true}).filter({visible:true}).first();
     await expect(logo).toBeVisible();
     expect(await logo.evaluate((el:HTMLImageElement)=>el.complete&&el.naturalWidth===1113)).toBe(true);
@@ -82,7 +83,7 @@ test('configuration outage preserves protected route and offers recovery instead
   await expect(page.getByRole('button',{name:'Try again',exact:true})).toBeVisible();
   await expect(page).toHaveURL(/\/assets$/);
   await page.getByRole('link',{name:'View markets',exact:true}).click();
-  await expect(page.getByRole('heading',{name:'Market overview'})).toBeVisible();
+  await expect(page.getByRole('heading',{name:'Explore the market. Trade with confidence.'})).toBeVisible();
 });
 
 
@@ -116,7 +117,7 @@ test('Chinese administration preserves the customer language preference',async({
   }
   expect(await page.evaluate(()=>localStorage.getItem('btcbox-language'))).toBe('en');
   await page.getByRole('link',{name:'返回 BTCBOX'}).click();
-  await expect(page.getByRole('heading',{name:'Market overview'})).toBeVisible();
+  await expect(page.getByRole('heading',{name:'Explore the market. Trade with confidence.'})).toBeVisible();
   await expect(page.locator('html')).toHaveAttribute('lang','en-US');
 });
 
