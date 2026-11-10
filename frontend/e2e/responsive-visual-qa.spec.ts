@@ -3,7 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 
 const fixedWidths = [375, 390, 430, 768, 1366, 1440, 1920];
-const mobileWidths = [375, 390, 430];
+const mobileWidths = [320, 360, 375, 390, 430];
 const continuityWidths = [
   320, 360, 375, 390, 414, 430, 480, 540, 600, 640, 680, 720,
   768, 820, 860, 899, 900, 960, 1024, 1100, 1180, 1280, 1366,
@@ -156,6 +156,20 @@ async function assertPageAtWidth(
   }
   if (route.path === "/trade-hub") {
     await expect(page.getByTestId("spot-availability")).toHaveText("Unavailable");
+  }
+  if (route.path === "/trade/BTCUSDT" && width <= 768) {
+    const orderbook = page.locator(".trade-top > .ob-card");
+    const orderForm = page.locator(".trade-top > .form-card");
+    await expect(orderbook).toBeVisible();
+    await expect(orderForm).toBeVisible();
+    const [bookBox, formBox] = await Promise.all([orderbook.boundingBox(), orderForm.boundingBox()]);
+    expect(bookBox, "Mobile orderbook must have a layout box.").not.toBeNull();
+    expect(formBox, "Mobile order form must have a layout box.").not.toBeNull();
+    expect(bookBox!.x, "The mobile orderbook must remain on the left.").toBeLessThan(formBox!.x);
+    expect(
+      bookBox!.x + bookBox!.width,
+      "The mobile orderbook and order form must not overlap.",
+    ).toBeLessThanOrEqual(formBox!.x + 1);
   }
 
   await page.evaluate(() => document.fonts.ready);
