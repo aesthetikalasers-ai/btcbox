@@ -130,8 +130,20 @@ export function Dashboard() {
         <div className="flex min-w-0 flex-wrap gap-2 sm:justify-end">{status === "loading" ? <Badge variant="outline" role="status">{t("Checking your BTCBOX account…")}</Badge> : signedIn ? <><Button asChild size="sm"><Link to="/trade-hub">{t("Start trading")} <ArrowUpRight className="h-4 w-4"/></Link></Button><Button asChild size="sm" variant="outline"><Link to="/assets">{t("Assets")} <Wallet className="h-4 w-4"/></Link></Button></> : <><Button asChild size="sm"><Link to="/login">{t("Sign in")}</Link></Button><Button asChild size="sm" variant="outline"><Link to="/register">{t("Create account")}</Link></Button></>}</div>
       </header>
 
-      <section className="grid min-w-0 gap-3 sm:grid-cols-3" aria-label={t("Bitcoin market summary")}>
-        {[{ label: "BTC/USDT last price", value: btc ? `${formatPrice(btc.price, locale)} USDT` : "—", tone: "text-brand-text" }, { label: "BTC 24h change", value: btc ? `${btc.chg > 0 ? "+" : ""}${btc.chg.toLocaleString(locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%` : "—", tone: btc && btc.chg < 0 ? "text-loss" : "text-profit" }, { label: "BTC 24h volume", value: btc ? `${formatCompact(btc.vol, locale)} USDT` : "—", tone: "text-brand-text" }].map((metric) => <Card key={metric.label}><CardContent className="p-4"><p className="type-meta text-brand-text-muted">{t(metric.label)}</p><p className={`mt-2 break-all type-price ${metric.tone}`}>{loading && !btc ? "—" : metric.value}</p><p className="mt-1 text-[11px] text-brand-text-muted">{t(metric.label === "BTC/USDT last price" ? "Latest price returned by BTCBOX" : metric.label === "BTC 24h change" ? "24-hour change from the live market feed" : "Reported 24-hour trading volume")}</p></CardContent></Card>)}
+      <section className="grid min-w-0 grid-cols-2 gap-3 sm:grid-cols-3" aria-label={t("Bitcoin market summary")}>
+        {[
+          { label: "BTC/USDT last price", value: btc ? `${formatPrice(btc.price, locale)} USDT` : "—", tone: "text-brand-text", featured: true },
+          { label: "BTC 24h change", value: btc ? `${btc.chg > 0 ? "+" : ""}${btc.chg.toLocaleString(locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%` : "—", tone: btc && btc.chg < 0 ? "text-loss" : "text-profit", featured: false },
+          { label: "BTC 24h volume", value: btc ? `${formatCompact(btc.vol, locale)} USDT` : "—", tone: "text-brand-text", featured: false },
+        ].map((metric) => (
+          <Card key={metric.label} className={metric.featured ? "col-span-2 border-brand-accent/25 bg-brand-surface sm:col-span-1" : "bg-brand-surface"}>
+            <CardContent className="flex h-full min-h-[116px] flex-col justify-between gap-3 p-4 sm:min-h-[132px] sm:p-5">
+              <p className="type-meta text-brand-text-muted">{t(metric.label)}</p>
+              <p className={`break-all tabular-nums ${metric.featured ? "text-2xl font-semibold tracking-tight sm:text-3xl" : "text-xl font-semibold tracking-tight sm:text-2xl"} ${metric.tone}`}>{loading && !btc ? "—" : metric.value}</p>
+              <p className="text-[11px] leading-5 text-brand-text-muted">{t(metric.label === "BTC/USDT last price" ? "Latest price returned by BTCBOX" : metric.label === "BTC 24h change" ? "24-hour change from the live market feed" : "Reported 24-hour trading volume")}</p>
+            </CardContent>
+          </Card>
+        ))}
       </section>
 
       <div className="grid min-w-0 items-start gap-4 lg:grid-cols-[minmax(0,1.55fr)_minmax(280px,.8fr)] lg:gap-5">
