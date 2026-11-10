@@ -1,5 +1,6 @@
 import * as Dialog from "@radix-ui/react-dialog";
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useLocation } from "react-router-dom";
 import { Sidebar } from "./Sidebar";
 import { Topbar } from "./Topbar";
 import { BottomNav } from "./BottomNav";
@@ -8,6 +9,13 @@ import { useI18n } from "../../lib/i18n";
 export function AppLayout({ children }: { children: ReactNode }) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const { t } = useI18n();
+  const { pathname } = useLocation();
+  const mainRef = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    setIsMobileMenuOpen(false);
+    mainRef.current?.scrollTo({ top: 0, behavior: "auto" });
+  }, [pathname]);
 
   const menuTrigger = useRef<HTMLButtonElement>(null);
   useEffect(() => {
@@ -34,7 +42,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
       </Dialog.Portal>
       <div className="relative z-10 flex h-full min-w-0 flex-1 flex-col overflow-hidden">
         <Topbar menuButtonRef={menuTrigger} menuOpen={isMobileMenuOpen} onMenuClick={() => setIsMobileMenuOpen((open) => !open)} />
-        <main className="min-h-0 flex-1 overflow-y-auto pb-[calc(60px+env(safe-area-inset-bottom))] lg:pb-0">{children}</main>
+        <main ref={mainRef} tabIndex={-1} className="min-h-0 flex-1 overflow-y-auto pb-[calc(60px+env(safe-area-inset-bottom))] focus:outline-none lg:pb-0">{children}</main>
       </div>
       <BottomNav />
     </div>
