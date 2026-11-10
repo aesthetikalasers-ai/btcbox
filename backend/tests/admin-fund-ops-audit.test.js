@@ -7,6 +7,7 @@ const root = path.resolve(__dirname, '..');
 const api = fs.readFileSync(path.join(root, 'api-core.js'), 'utf8');
 const sqlManualDeposit = fs.readFileSync(path.join(root, 'supabase/sql/0007_financial_admin_manual_deposit_v1.sql'), 'utf8');
 const sqlWithdrawalReview = fs.readFileSync(path.join(root, 'supabase/sql/0022_withdrawal_admin_review_status_v1.sql'), 'utf8');
+const sqlWithdrawalApproveNoBurn = fs.readFileSync(path.join(root, 'supabase/sql/0039_withdrawal_approve_no_burn_v1.sql'), 'utf8');
 
 function sliceRoute(marker, endMarker) {
   const start = api.indexOf(marker);
@@ -65,6 +66,12 @@ test('withdrawal approve/reject/mark-paid are atomic RPCs with duplicate protect
   // Reject requires an admin-supplied reason; approve carries a recorded reason too.
   assert.ok(reject.includes('p_reason: reason'));
   assert.ok(approve.includes('p_reason:'));
+  // The final migration overrides the original review RPC: approval must leave the
+  // reserved amount frozen, while rejection releases it. Payout is a separate debit.
+  assert.match(sqlWithdrawalApproveNoBurn, /case when p_approve then 0 else v_w\.amount \+ v_w\.fee end/);
+  assert.match(sqlWithdrawalApproveNoBurn, /case when p_approve then 0 else -\(v_w\.amount \+ v_w\.fee\) end/);
+  assert.match(sqlWithdrawalApproveNoBurn, /set status = v_status[\s\S]*reviewed_by = p_admin_id/);
+  assert.match(sqlWithdrawalApproveNoBurn, /public\.apply_financial_operation/);
 });
 
 test('account freeze/unfreeze is state-guarded, audited and never double-applied', () => {
