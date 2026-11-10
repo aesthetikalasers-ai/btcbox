@@ -1017,5 +1017,12 @@
   "Cancelled": "キャンセル済み",
   "Filled": "約定済み",
   "Partially filled": "部分約定",
-  "Not submitted": "未提出"
+  "Not submitted": "未提出",
+  "No deposits yet": "入金履歴はまだありません",
+  "No Earn products available": "利用可能なEarn商品はありません",
+  "No Earn positions": "Earnポジションはありません",
+  "No asset balances": "資産残高はありません",
+  "No saved withdrawal addresses": "登録済みの出金先はありません",
+  "No withdrawals yet": "出金履歴はまだありません",
+  "No saved addresses": "登録済みアドレスはありません"
 }
