@@ -23,7 +23,6 @@ import { useAuth } from "../../lib/auth";
 import { localeTags, useI18n } from "../../lib/i18n";
 import { TradeProductNav } from "../trade/TradeProductNav";
 import { OrderBookDepth } from "../trade/OrderBookDepth";
-import { TradeSnapScroller } from "../trade/TradeSnapScroller";
 import { ChartDrawer } from "../trade/ChartDrawer";
 import { cn } from "../../lib/utils";
 
@@ -380,6 +379,8 @@ export function ContractPage() {
     </div>
   );
 
+  const [mobileTradeTab, setMobileTradeTab] = useState(0);
+
   return (
     <>
       <TradeProductNav />
@@ -408,11 +409,26 @@ export function ContractPage() {
 
         {statsStrip}
 
-        {/* Mobile: horizontal scroll-snap segments (order entry / depth / positions+orders). Desktop: multi-column grid. */}
-        <TradeSnapScroller
-          ariaLabel={t("Order entry, market depth and positions")}
-          segments={[orderEntryCard, <OrderBookDepth mid={depthMid} />, mobilePositionsAndOrders]}
-        />
+        {/* Mobile: explicit tab switcher (order entry / depth / positions+orders) — a genuinely
+            different interaction paradigm from the desktop multi-column grid below.
+            K-line remains the bottom drawer (tap to expand). */}
+        <div className="md:hidden">
+          <div role="tablist" aria-label={t("Order entry, market depth and positions")} className="mb-3 flex gap-1 rounded-xl border border-brand-border bg-brand-surface-2/60 p-1">
+            {[t("Submit"), t("Order book"), t("Position")].map((label, i) => (
+              <button
+                key={label}
+                role="tab"
+                aria-selected={mobileTradeTab === i}
+                type="button"
+                onClick={() => setMobileTradeTab(i)}
+                className={"min-h-10 flex-1 rounded-lg px-2 text-[13px] font-semibold transition-colors " + (mobileTradeTab === i ? "bg-brand-surface text-brand-text shadow-sm" : "text-brand-text-muted hover:text-brand-text-secondary")}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          <div>{[orderEntryCard, <OrderBookDepth mid={depthMid} />, mobilePositionsAndOrders][mobileTradeTab]}</div>
+        </div>
         <div className="hidden gap-4 md:grid md:grid-cols-2 lg:grid-cols-3">
           {orderEntryCard}
           <OrderBookDepth mid={depthMid} />
