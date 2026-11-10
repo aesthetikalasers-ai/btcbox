@@ -1,27 +1,17 @@
-import { AuthRestoreState } from "./components/AuthRestoreState";
+import { ArrowRight, ArrowUpRight, ArrowLeftRight, ChartNoAxesCombined, Headset, Wallet } from "lucide-react";
 import { lazy, Suspense, type ReactNode } from "react";
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
+import { AuthRestoreState } from "./components/AuthRestoreState";
 import { AppLayout } from "./components/layout/AppLayout";
-import { I18nProvider } from "./lib/i18n";
+import { AccountSecurityPage } from "./features/account/AccountSecurityPage";
+import { AdminPage } from "./features/admin/AdminPage";
+import { AssetsPage } from "./features/assets/AssetsPage";
 import { AuthCallbackPage, AuthPage } from "./features/auth/AuthPages";
 import { AccountSetupPage } from "./features/auth/AccountSetupPage";
-import { AccountSecurityPage } from "./features/account/AccountSecurityPage";
-import { useAuth } from "./lib/auth";
-import { useI18n } from "./lib/i18n";
-
-const Dashboard = lazy(() => import("./features/dashboard/Dashboard").then((m) => ({ default: m.Dashboard })));
-const AdminPage = lazy(() => import("./features/admin/AdminPage").then((m) => ({ default: m.AdminPage })));
-const TradeHubPage = lazy(() => import("./features/pages/Pages").then((m) => ({ default: m.TradeHubPage })));
-const AssetsPage = lazy(() => import("./features/assets/AssetsPage").then((m) => ({ default: m.AssetsPage })));
-const MyPage = lazy(() => import("./features/pages/Pages").then((m) => ({ default: m.MyPage })));
-const SpotTradingPage = lazy(() => import("./features/pages/Pages").then((m) => ({ default: m.SpotTradingPage })));
-const OrdersPage = lazy(() => import("./features/orders/OrdersPage").then((m) => ({ default: m.OrdersPage })));
-const SecondsPage = lazy(() => import("./features/pages/Pages").then((m) => ({ default: m.SecondsPage })));
-const KycPage = lazy(() => import("./features/pages/Pages").then((m) => ({ default: m.KycPage })));
-const SupportPage = lazy(() => import("./features/pages/Pages").then((m) => ({ default: m.SupportPage })));
-const DepositPage = lazy(() => import("./features/pages/Pages").then((m) => ({ default: m.DepositPage })));
-const WithdrawPage = lazy(() => import("./features/pages/Pages").then((m) => ({ default: m.WithdrawPage })));
-const EarnPage = lazy(() => import("./features/pages/Pages").then((m) => ({ default: m.EarnPage })));
+import { OrdersPage } from "./features/orders/OrdersPage";
+import { Dashboard } from "./features/dashboard/Dashboard";
+import { MarketsPage } from "./features/markets/MarketsPage";
+import { TradeHubPage, MyPage, SpotTradingPage, SecondsPage, KycPage, SupportPage, DepositPage, WithdrawPage, EarnPage } from "./features/pages/Pages";
 
 function ProtectedAccountRoute({ children }: { children: ReactNode }) {
   const { status } = useAuth();
@@ -45,7 +35,7 @@ function CustomerRoutes() {
   const location = useLocation();
   const isStandaloneAuthRoute = ["/login", "/register", "/account-setup", "/auth/react-callback"].includes(location.pathname);
   const content = <div key={location.pathname} className="anim-fade-in min-w-0 flex-1"><AccountSetupGate><Suspense fallback={<RouteLoading />}><Routes>
-    <Route path="/home" element={<Dashboard />} /><Route path="/markets" element={<Dashboard />} />
+    <Route path="/home" element={<Dashboard />} /><Route path="/markets" element={<MarketsPage />} />
     <Route path="/trade-hub" element={<TradeHubPage />} /><Route path="/trade" element={<Navigate to="/trade-hub" replace />} />
     <Route path="/trade/:symbol" element={<SpotTradingPage />} />
     <Route path="/seconds" element={<ProtectedAccountRoute><SecondsPage /></ProtectedAccountRoute>} />
