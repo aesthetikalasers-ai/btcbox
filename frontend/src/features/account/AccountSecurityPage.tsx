@@ -40,7 +40,7 @@ export function AccountSecurityPage() {
   const hasSolana = account?.wallet_chain === "solana" || identities.some((identity) => identity.provider === "web3" && identity.wallet_chain === "solana");
   const linkedMethodCount = identities.length || [hasGoogle, hasEthereum, hasSolana].filter(Boolean).length;
 
-  return <div className="tone-account mx-auto w-full max-w-5xl space-y-5 p-3 pb-24 sm:space-y-6 sm:p-5 lg:p-7">
+  return <div aria-busy={busy} className="tone-account mx-auto w-full max-w-5xl space-y-5 p-3 pb-24 sm:space-y-6 sm:p-5 lg:p-7">
     <div className="flex flex-col justify-between gap-4 rounded-2xl border border-brand-info/25 bg-brand-surface p-5 sm:flex-row sm:items-center sm:p-6" style={{ backgroundImage: "radial-gradient(ellipse at top left, color-mix(in srgb, var(--color-brand-info) 12%, transparent), transparent 55%)" }}>
       <div className="flex min-w-0 items-center gap-3"><span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-brand-info/10 text-brand-info"><ShieldCheck className="h-6 w-6"/></span><div><p className="type-meta font-semibold uppercase tracking-[.16em] page-accent">{t("Account center")}</p><h1 className="mt-1 text-xl font-semibold tracking-tight text-brand-text sm:text-2xl">{t("Account security")}</h1><p className="mt-1 max-w-xl text-sm leading-6 text-brand-text-muted">{t("Manage verified sign-in methods and protect access to your BTCBOX account.")}</p></div></div>
       <span className="inline-flex w-fit items-center gap-2 rounded-md border border-brand-success/25 bg-brand-success/[.07] px-3 py-1.5 text-xs font-semibold text-brand-success"><span className="h-1.5 w-1.5 rounded-full bg-brand-success"/>{account ? t("Account details loaded") : t("Checking account")}</span>
