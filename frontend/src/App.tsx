@@ -10,6 +10,7 @@ import { useAuth } from "./lib/auth";
 import { useI18n } from "./lib/i18n";
 
 const Dashboard = lazy(() => import("./features/dashboard/Dashboard").then((m) => ({ default: m.Dashboard })));
+const MarketsPage = lazy(() => import("./features/markets/MarketsPage").then((m) => ({ default: m.MarketsPage })));
 const AdminPage = lazy(() => import("./features/admin/AdminPage").then((m) => ({ default: m.AdminPage })));
 const TradeHubPage = lazy(() => import("./features/pages/Pages").then((m) => ({ default: m.TradeHubPage })));
 const AssetsPage = lazy(() => import("./features/assets/AssetsPage").then((m) => ({ default: m.AssetsPage })));
@@ -45,7 +46,7 @@ function CustomerRoutes() {
   const location = useLocation();
   const isStandaloneAuthRoute = ["/login", "/register", "/account-setup", "/auth/react-callback"].includes(location.pathname);
   const content = <div key={location.pathname} className="anim-fade-in min-w-0 flex-1"><AccountSetupGate><Suspense fallback={<RouteLoading />}><Routes>
-    <Route path="/home" element={<Dashboard />} /><Route path="/markets" element={<Dashboard />} />
+    <Route path="/home" element={<Dashboard />} /><Route path="/markets" element={<MarketsPage />} />
     <Route path="/trade-hub" element={<TradeHubPage />} /><Route path="/trade" element={<Navigate to="/trade-hub" replace />} />
     <Route path="/trade/:symbol" element={<SpotTradingPage />} />
     <Route path="/seconds" element={<ProtectedAccountRoute><SecondsPage /></ProtectedAccountRoute>} />
