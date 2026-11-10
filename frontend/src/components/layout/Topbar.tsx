@@ -59,7 +59,7 @@ export function Topbar({ onMenuClick, menuOpen = false, menuButtonRef }: { menuB
           <input type="search" aria-label={t("Search BTCBOX")} value={search} onChange={(event) => setSearch(event.target.value)} placeholder={t("Search")} className="h-11 w-[min(30vw,190px)] rounded-xl border border-brand-border bg-brand-surface px-3 pl-10 pr-3 text-sm text-brand-text placeholder:text-brand-text-muted focus:border-brand-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent/40 focus-visible:ring-offset-2 focus-visible:ring-offset-brand-bg md:w-[240px]" />
           <button type="submit" aria-label={t("Search BTCBOX")} className="sr-only">{t("Search")}</button>
         </form>
-        <button type="button" aria-label={t("Search BTCBOX")} onClick={() => navigate("/markets")} className="hidden h-11 w-11 items-center justify-center rounded-xl text-brand-text-secondary transition-colors hover:bg-brand-surface-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent sm:hidden">
+        <button type="button" aria-label={t("Search BTCBOX")} onClick={() => navigate("/markets")} className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-brand-border bg-brand-surface text-brand-text-secondary transition-colors hover:border-brand-accent/40 hover:bg-brand-surface-hover hover:text-brand-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent sm:hidden">
           <Search className="h-5 w-5" />
         </button>
       </div>
