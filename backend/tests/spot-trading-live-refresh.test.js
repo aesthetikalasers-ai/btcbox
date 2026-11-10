@@ -66,10 +66,13 @@ test('spot market preview route is public while account and order APIs remain se
 });
 
 test('public market overview polls at 5 seconds and prevents overlapping refreshes', () => {
-  assert.ok(dashboard.includes('window.setInterval(loadMarkets, 5000)'));
-  assert.ok(dashboard.includes('if (refreshing || controller.signal.aborted) return;'));
+  assert.ok(dashboard.includes('window.setInterval(load, 5000)'));
+  assert.ok(dashboard.includes('if (cancelled || refreshing) return;'));
   assert.ok(dashboard.includes('refreshing = true;'));
   assert.ok(dashboard.includes('refreshing = false;'));
+  assert.ok(dashboard.includes('window.clearInterval(poll)'));
+  assert.ok(dashboard.includes('pending?.abort()'));
+  assert.ok(dashboard.includes('cancelled = true;'));
 });
 
 test('market table clears last confirmed prices and reports feed unavailability', () => {

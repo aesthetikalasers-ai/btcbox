@@ -98,7 +98,7 @@ test('administrator cannot approve KYC without an uploaded, reviewable document 
   assert.ok(queue.includes('Identity document upload is required before approval.'));
   assert.ok(queue.includes('Document preview unavailable; refresh the queue before approval.'));
   // Rejection remains available to authorized reviewers even when evidence is missing.
-  assert.match(queue, /variant="outline" disabled=\{busy\|\|!hasPermission\("kyc\.review"\)\} onClick=\{\(\)=>void reviewKyc\(item\.uid,false\)\}/);
+  assert.match(queue, /variant="destructive" disabled=\{busy\|\|!hasPermission\("kyc\.review"\)\} onClick=\{\(\)=>void reviewKyc\(item\.uid,false\)\}/);
 });
 
 test('confirmed KYC review is not reported as failed when the pending queue refresh fails', () => {
