@@ -213,10 +213,12 @@ export function ChartDrawer({ symbol = "BTC/USDT" }: { symbol?: string }) {
           </button>
         </div>
 
-        {/* Chart body — zero height when collapsed, so it never blocks order buttons. */}
-        {!collapsed ? (
-          <div className="relative min-h-0 flex-1">
-            <div ref={containerRef} className="absolute inset-0" />
+        {/* Chart body — container always mounted so lightweight-charts initializes on
+            mobile (which starts collapsed); it has zero height when collapsed. */}
+        <div className="relative min-h-0 flex-1">
+          <div ref={containerRef} className="absolute inset-0" />
+          {!collapsed && (
+            <>
             <div className="pointer-events-none absolute left-2 top-2 rounded border border-brand-border bg-brand-surface/80 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-brand-warning">
               {t("Demo data")}
             </div>
@@ -236,8 +238,9 @@ export function ChartDrawer({ symbol = "BTC/USDT" }: { symbol?: string }) {
                 </button>
               ))}
             </div>
-          </div>
-        ) : null}
+            </>
+          )}
+        </div>
       </div>
     </div>
   );
