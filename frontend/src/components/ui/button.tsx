@@ -35,12 +35,21 @@ export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElemen
 
 export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
   ({ className, variant, size, asChild = false, loading = false, disabled, children, ...props }, ref) => {
-    const Comp = asChild ? Slot : "button";
+    const classes = cn(variants({ variant, size }), className);
+    // When asChild, Radix Slot must receive exactly ONE child element — never inject
+    // a sibling loader (it breaks Slot). Loading still disables the slotted control.
+    if (asChild) {
+      return (
+        <Slot ref={ref} className={classes} disabled={disabled || loading} aria-busy={loading || undefined} {...props}>
+          {children}
+        </Slot>
+      );
+    }
     return (
-      <Comp ref={ref} className={cn(variants({ variant, size }), className)} disabled={disabled || loading} aria-busy={loading || undefined} {...props}>
+      <button ref={ref} className={classes} disabled={disabled || loading} aria-busy={loading || undefined} {...props}>
         {loading && <Loader2 className="h-4 w-4 shrink-0 animate-spin" aria-hidden="true" />}
         {children}
-      </Comp>
+      </button>
     );
   },
 );
