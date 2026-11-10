@@ -19,7 +19,7 @@ import { CandlestickSeries, ColorType, createChart, type UTCTimestamp } from "li
 function PageFrame({eyebrow,title,description,children,className=""}:{eyebrow:string;title:string;description?:string;children:ReactNode;className?:string}){
  const {t}=useI18n();
  const tone = eyebrow.includes("/ TRADE") || eyebrow.includes("/ SPOT") || title === "Seconds" || title === "Spot" ? "trading" : eyebrow.includes("/ WEALTH") || title === "Earn" ? "earn" : eyebrow.includes("/ WALLET") ? "assets" : eyebrow.includes("/ HELP") ? "support" : eyebrow.includes("/ ACCOUNT") ? (title === "Orders" ? "orders" : "account") : "market";
- return <div className={`${className} tone-${tone} mx-auto flex w-full max-w-[1520px] min-w-0 flex-col gap-5 p-3 sm:p-4 md:p-6 lg:p-8`}><div><p className="page-accent mb-1 text-xs font-bold uppercase tracking-[.18em] text-brand-text-secondary">{t(eyebrow)}</p><h1 className="type-page-title text-brand-text">{t(title)}</h1>{description?<p className="type-body mt-2 max-w-2xl text-brand-text-secondary">{t(description)}</p>:null}</div>{children}</div>;
+ return <div className={`${className} tone-${tone} mx-auto flex w-full max-w-[1520px] min-w-0 flex-col gap-5 sm:gap-6 p-3 sm:p-4 md:p-6 lg:p-8`}><header className="min-w-0"><p className="page-accent mb-1 text-xs font-bold uppercase tracking-[.18em] text-brand-text-secondary">{t(eyebrow)}</p><h1 className="type-page-title break-words text-brand-text">{t(title)}</h1>{description?<p className="type-body mt-2 max-w-2xl break-words text-brand-text-secondary">{t(description)}</p>:null}</header>{children}</div>;
 }
 export function TradeHubPage(){
  const {t}=useI18n();
