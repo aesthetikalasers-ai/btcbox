@@ -937,7 +937,7 @@ export function AdminPage() {
       {[
         ["Total users", stats.total_users], ["Pending withdrawals", stats.pending_withdrawals],
         ["Pending KYC", stats.pending_kyc], ["Review queue", stats.pending_admin_review_withdrawals],
-      ].map(([label, value], index) => <Card key={adminText(String(label))} className="overflow-hidden border-brand-border bg-brand-surface"><div className={"h-1 "+(index===0?"bg-brand-info":index===1?"bg-brand-warning":index===2?"bg-brand-warning":"bg-brand-accent")}/><CardContent className="p-4 sm:p-5"><p className="type-meta font-semibold uppercase tracking-wide text-brand-text-muted">{adminText(label)}</p><p className="type-price mt-2 text-brand-text">{asText(value)}</p></CardContent></Card>)}
+      ].map(([label, value], index) => <Card key={adminText(String(label))} className="overflow-hidden border-brand-border bg-brand-surface"><div className={"h-1 "+(index===0?"bg-brand-accent":index===1?"bg-brand-warning":index===2?"bg-brand-warning":"bg-brand-accent")}/><CardContent className="p-4 sm:p-5"><p className="type-meta font-semibold uppercase tracking-wide text-brand-text-muted">{adminText(label)}</p><p className="type-price mt-2 text-brand-text">{asText(value)}</p></CardContent></Card>)}
     </div> : null}
 
     {!loading && tab === "users" ? <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(360px,0.9fr)]">
