@@ -29,7 +29,7 @@ ledger_chain as (
 pending_withdrawals as (
   select user_id, asset, sum(amount + fee) as pending_hold_total, count(*) as pending_count
     from public.withdrawal_requests
-   where status = 'pending'
+   where status in ('pending','pending_admin_review','approved')
    group by user_id, asset
 ),
 findings as (
@@ -94,8 +94,23 @@ findings as (
   select 'reviewed_withdrawal_missing_review_operation', w.user_id, w.asset, w.id,
          'review operation linked', coalesce(w.review_operation_id::text, '<null>')
     from public.withdrawal_requests w
-   where w.status in ('approved', 'rejected', 'broadcast', 'failed')
+   where w.status in ('rejected', 'broadcast', 'failed')
      and w.review_operation_id is null
+
+  union all
+  select 'completed_withdrawal_missing_payout_operation', w.user_id, w.asset, w.id,
+         'payout operation linked', coalesce(w.payout_operation_id::text, '<null>')
+    from public.withdrawal_requests w
+   where w.status = 'completed' and w.payout_operation_id is null
+
+  union all
+  select 'withdrawal_payout_operation_mismatch', w.user_id, w.asset, w.id,
+         'withdraw_paid', coalesce(o.operation_type, '<missing>')
+    from public.withdrawal_requests w
+    left join public.financial_operations o on o.id=w.payout_operation_id
+   where w.status = 'completed'
+     and (o.id is null or o.operation_type <> 'withdraw_paid'
+       or o.user_id <> w.user_id or o.asset <> w.asset)
 
   union all
   select 'confirmed_deposit_missing_credit_operation', d.user_id, d.asset, d.id,
