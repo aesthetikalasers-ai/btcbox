@@ -570,3 +570,9 @@ BOX 项目的目标 Project ID 与其 Team 的 Git-linked project 清单不一�
 | 浏览器 DOM/AX/指定视口矩阵 | 未执行，工具能力不支持 |
 
 **Phase 0 仍为 REJECT / NOT PASSED。** 本节新增原始 CI 断言级证据、job rerun 触发记录、两个项目 Git deployment context 及部署来源区分；未解决 Secret Scan、浏览器运行时、CI trace 逐项归因、BOX Git 绑定和 Production Branch 等阻断项。AI 1 不签发 PASS，交 AI 2 独立复核。
+
+## 10.11.6 BOX 项目 Preview 补充读取（2026-11-11）
+
+继续读取 BOX 目标项目 prj_rmwOE9q0XyZ3BikpxX2FzDt2VjKK 的 Preview deployments（target=null）后，列表最新记录为 dpl_F9Rf8f8oN34UE5wMB39Z3PNHgo5X，状态 READY，branch fix/auth-init-terminal-state-20261110，commit a1c9f1a，target=null。详情响应未返回 source 字段或完整 Git repository metadata，因此不据此推断该 Preview 是 Git 自动部署。该项目最新 Production 仍为 main / 525cc9d / source=cli。
+
+CI rerun job 130166488673 再次读取时仍处于 in_progress；步骤 1–9 成功，步骤 10 浏览器 smoke tests 运行中，Artifact 上传步骤尚未开始。新的测试结果仍待完成。
