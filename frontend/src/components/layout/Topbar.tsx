@@ -56,10 +56,10 @@ export function Topbar({ onMenuClick, menuOpen = false, menuButtonRef }: { menuB
         <Link to="/home" aria-label="BTCBOX home" className="min-w-0 lg:hidden"><BrandLogo compact showExchange={false}  /></Link>
         <form onSubmit={submitSearch} role="search" className="relative hidden min-w-0 max-[480px]:hidden sm:block">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-brand-text-muted" />
-          <input type="search" aria-label={t("Search BTCBOX")} value={search} onChange={(event) => setSearch(event.target.value)} placeholder={t("Search")} className="h-11 w-[min(30vw,190px)] rounded-xl border border-brand-border bg-brand-surface px-3 pl-10 pr-3 text-sm text-brand-text placeholder:text-brand-text-muted focus:border-brand-accent focus:outline-none md:w-[240px]" />
+          <input type="search" aria-label={t("Search BTCBOX")} value={search} onChange={(event) => setSearch(event.target.value)} placeholder={t("Search")} className="h-11 w-[min(30vw,190px)] rounded-xl border border-brand-border bg-brand-surface px-3 pl-10 pr-3 text-sm text-brand-text placeholder:text-brand-text-muted focus:border-brand-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent/40 focus-visible:ring-offset-2 focus-visible:ring-offset-brand-bg md:w-[240px]" />
           <button type="submit" aria-label={t("Search BTCBOX")} className="sr-only">{t("Search")}</button>
         </form>
-        <button type="button" aria-label={t("Search BTCBOX")} onClick={() => navigate("/markets")} className="hidden h-11 w-11 items-center justify-center rounded-xl text-brand-text-secondary hover:bg-brand-surface-hover sm:hidden">
+        <button type="button" aria-label={t("Search BTCBOX")} onClick={() => navigate("/markets")} className="hidden h-11 w-11 items-center justify-center rounded-xl text-brand-text-secondary transition-colors hover:bg-brand-surface-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent sm:hidden">
           <Search className="h-5 w-5" />
         </button>
       </div>
@@ -79,7 +79,7 @@ export function Topbar({ onMenuClick, menuOpen = false, menuButtonRef }: { menuB
               <span aria-hidden="true" className={`text-xs text-brand-text-muted transition-transform ${langMenuOpen ? "rotate-180" : ""}`}>⌄</span>
             </button>
             {langMenuOpen && (
-              <div role="menu" aria-label={t("Language")} className="absolute right-0 z-50 mt-2 w-44 max-w-[80vw] overflow-hidden rounded-lg border border-brand-border bg-brand-surface-2 py-1 shadow-xl shadow-black/40">
+              <div role="menu" aria-label={t("Language")} className="absolute right-0 z-50 mt-2 max-h-[min(70vh,22rem)] w-44 max-w-[80vw] overflow-y-auto overscroll-contain rounded-lg border border-brand-border bg-brand-surface-2 py-1 shadow-xl shadow-black/40">
                 {LANGUAGE_MENU.map(({ code, label, flag }) => {
                   const selected = language === code;
                   return (
