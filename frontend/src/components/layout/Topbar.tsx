@@ -5,15 +5,18 @@ import { useI18n, type Language } from "../../lib/i18n";
 import { BrandLogo } from "../BrandLogo";
 
 // Fixed menu order per product requirement. vi (Vietnamese) is legacy and intentionally omitted.
-const LANGUAGE_MENU: Array<{ code: Language; label: string }> = [
-  { code: "ja", label: "日本語" },
-  { code: "zh-CN", label: "中文" },
-  { code: "en", label: "English" },
-  { code: "es", label: "Español" },
-  { code: "de", label: "Deutsch" },
-  { code: "it", label: "Italiano" },
-  { code: "pt", label: "Português" },
+const LANGUAGE_MENU: Array<{ code: Language; label: string; flag: string }> = [
+  { code: "ja", label: "日本語", flag: "🇯🇵" },
+  { code: "zh-CN", label: "中文", flag: "🇨🇳" },
+  { code: "en", label: "English", flag: "🇺🇸" },
+  { code: "es", label: "Español", flag: "🇪🇸" },
+  { code: "de", label: "Deutsch", flag: "🇩🇪" },
+  { code: "it", label: "Italiano", flag: "🇮🇹" },
+  { code: "pt", label: "Português", flag: "🇵🇹" },
 ];
+const LANGUAGE_FLAG: Record<Language, string> = {
+  ja: "🇯🇵", "zh-CN": "🇨🇳", en: "🇺🇸", es: "🇪🇸", de: "🇩🇪", it: "🇮🇹", pt: "🇵🇹",
+};
 const LANGUAGE_LABEL: Record<Language, string> = {
   ja: "日本語", "zh-CN": "中文", en: "English", es: "Español", de: "Deutsch", it: "Italiano", pt: "Português",
 };
@@ -71,13 +74,13 @@ export function Topbar({ onMenuClick, menuOpen = false, menuButtonRef }: { menuB
               onClick={() => setLangMenuOpen((open) => !open)}
               className="flex h-11 min-w-0 items-center gap-1.5 rounded-lg border border-brand-border bg-brand-surface px-2.5 text-sm font-semibold text-brand-text transition-colors hover:border-brand-accent/40 hover:bg-brand-surface-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent sm:px-3"
             >
-              <span aria-hidden="true" className="text-base leading-none">🌐</span>
+              <span aria-hidden="true" className="shrink-0 text-base leading-none">{LANGUAGE_FLAG[language]}</span>
               <span className="max-w-[5.5rem] truncate sm:max-w-none">{LANGUAGE_LABEL[language]}</span>
               <span aria-hidden="true" className={`text-xs text-brand-text-muted transition-transform ${langMenuOpen ? "rotate-180" : ""}`}>⌄</span>
             </button>
             {langMenuOpen && (
               <div role="menu" aria-label={t("Language")} className="absolute right-0 z-50 mt-2 w-44 max-w-[80vw] overflow-hidden rounded-lg border border-brand-border bg-brand-surface-2 py-1 shadow-xl shadow-black/40">
-                {LANGUAGE_MENU.map(({ code, label }) => {
+                {LANGUAGE_MENU.map(({ code, label, flag }) => {
                   const selected = language === code;
                   return (
                     <button
@@ -88,7 +91,7 @@ export function Topbar({ onMenuClick, menuOpen = false, menuButtonRef }: { menuB
                       onClick={() => { setLanguage(code); setLangMenuOpen(false); }}
                       className={`flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm transition-colors focus-visible:outline-none focus-visible:bg-brand-surface-hover ${selected ? "font-semibold text-brand-accent" : "text-brand-text-secondary hover:bg-brand-surface-hover hover:text-brand-text"}`}
                     >
-                      <span className="truncate">{label}</span>
+                      <span className="flex min-w-0 items-center gap-2"><span aria-hidden="true" className="shrink-0 text-base leading-none">{flag}</span><span className="truncate">{label}</span></span>
                       {selected && <Check className="h-4 w-4 shrink-0" aria-hidden="true" />}
                     </button>
                   );
