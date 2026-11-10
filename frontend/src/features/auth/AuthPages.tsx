@@ -49,6 +49,7 @@ export function AuthPage({ mode, redirectTo }: { mode: "login" | "register"; red
 
   const submitUsernameLogin = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (busy) return;
     try { await signInWithUsername(username, password); }
     catch { /* AuthProvider displays the safe error. */ }
   };
@@ -168,7 +169,7 @@ export function AuthPage({ mode, redirectTo }: { mode: "login" | "register"; red
               {mode === "login" && <form className="space-y-3" aria-busy={busy} onSubmit={submitUsernameLogin}>
                 <label className="block space-y-1.5 text-sm">
                   <span className="text-brand-text-secondary">{t("Username")}</span>
-                  <Input className="h-12" value={username} onChange={event => setUsername(event.target.value.toLowerCase())} autoComplete="username" minLength={3} maxLength={24} pattern="[a-z0-9][a-z0-9_]{2,23}" placeholder={t("Enter your BTCBOX username")} required />
+                  <Input className="h-12" value={username} onChange={event => setUsername(event.target.value.toLowerCase())} autoComplete="username" autoCapitalize="none" autoCorrect="off" spellCheck={false} minLength={3} maxLength={24} pattern="[a-z0-9][a-z0-9_]{2,23}" placeholder={t("Enter your BTCBOX username")} required />
                 </label>
                 <label className="block space-y-1.5 text-sm">
                   <span className="text-brand-text-secondary">{t("Password")}</span>
@@ -230,6 +231,7 @@ export function AuthCallbackPage() {
   }, [effectiveDestination, error, navigate, status]);
   const submitRecovery = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (busy) return;
     setRecoveryError("");
     if (newPassword.length < 8 || newPassword.length > 128) {
       setRecoveryError(t("Use a password between 8 and 128 characters."));
@@ -253,7 +255,8 @@ export function AuthCallbackPage() {
       <CardContent className="px-5 pb-7 sm:px-8">
         <form className="space-y-3" aria-busy={busy} onSubmit={submitRecovery}>
           <label className="block space-y-1.5 text-sm"><span className="text-brand-text-secondary">{t("New password")}</span><Input className="h-12" type="password" value={newPassword} onChange={event => setNewPassword(event.target.value)} autoComplete="new-password" minLength={8} maxLength={128} required /></label>
-          <label className="block space-y-1.5 text-sm"><span className="text-brand-text-secondary">{t("Confirm new password")}</span><Input className="h-12" type="password" value={confirmPassword} onChange={event => setConfirmPassword(event.target.value)} autoComplete="new-password" minLength={8} maxLength={128} required /></label>
+          <label className="block space-y-1.5 text-sm"><span className="text-brand-text-secondary">{t("Confirm new password")}</span><Input id="recovery-confirm-password" className="h-12" type="password" value={confirmPassword} onChange={event => setConfirmPassword(event.target.value)} autoComplete="new-password" minLength={8} maxLength={128} aria-invalid={Boolean(confirmPassword && newPassword !== confirmPassword)} aria-describedby={confirmPassword && newPassword !== confirmPassword ? "recovery-password-mismatch" : undefined} required /></label>
+          {confirmPassword && newPassword !== confirmPassword && <p id="recovery-password-mismatch" role="alert" className="rounded-lg border border-loss/30 bg-loss/10 p-3 text-sm text-loss">{t("The passwords do not match.")}</p>}
           {(recoveryError || error) && <p role="alert" className="rounded-lg border border-loss/30 bg-loss/10 p-3 text-sm text-loss">{t(recoveryError || error)}</p>}
           <Button type="submit" className="min-h-12 w-full" disabled={busy || newPassword.length < 8 || newPassword !== confirmPassword}>{busy ? t("Updating password…") : t("Update password")}</Button>
         </form>
