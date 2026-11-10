@@ -22,8 +22,9 @@ function display(value: unknown, fallback = "—") {
 
 function statusVariant(status: string) {
   const value = status.toLowerCase();
-  if (["filled", "completed", "success", "closed"].includes(value)) return "default" as const;
+  if (["filled", "completed", "success", "closed"].includes(value)) return "success" as const;
   if (["cancelled", "canceled", "rejected", "failed"].includes(value)) return "destructive" as const;
+  if (["pending", "open", "partially_filled", "partially-filled", "processing", "review"].includes(value)) return "warning" as const;
   return "outline" as const;
 }
 
@@ -132,15 +133,15 @@ export function OrdersPage() {
                   const side = display(order.side);
                   return <Card key={id} className="border-brand-border bg-brand-surface-2/50  transition-all hover:border-brand-accent/30 hover:bg-brand-surface-2/80">
                     <CardContent className="space-y-3 p-4">
-                      <div className="flex items-start justify-between gap-3">
+                      <div className="flex min-w-0 items-start justify-between gap-3">
                         <div className="min-w-0"><p className="font-semibold text-brand-text">{display(order.symbol)}</p><p className="mt-1 truncate font-mono text-[11px] text-brand-text-muted">{id}</p></div>
-                        <div className="flex shrink-0 flex-wrap items-center justify-end gap-2"><Badge variant={side.toLowerCase() === "buy" ? "default" : "outline"}>{t(side)}</Badge><Badge variant={statusVariant(display(order.status, "unknown"))}>{t(display(order.status, "Unknown"))}</Badge></div>
+                        <div className="flex shrink-0 flex-wrap items-center justify-end gap-2"><Badge variant={side.toLowerCase() === "buy" ? "default" : "outline"}>{t(side)}</Badge><Badge className="whitespace-nowrap" variant={statusVariant(display(order.status, "unknown"))}>{t(display(order.status, "Unknown"))}</Badge></div>
                       </div>
                       <div className="grid grid-cols-2 gap-3">
                         <div className="rounded-lg bg-brand-surface p-3"><p className="type-meta text-brand-text-muted">{t("Price")}</p><p className="mt-1 break-all font-mono text-sm tabular-nums text-brand-text">{display(order.price)}</p></div>
                         <div className="rounded-lg bg-brand-surface p-3"><p className="type-meta text-brand-text-muted">{t("Quantity")}</p><p className="mt-1 break-all font-mono text-sm tabular-nums text-brand-text">{display(order.quantity ?? order.amount)}</p></div>
                       </div>
-                      <div className="flex items-center justify-between gap-3 border-t border-brand-border pt-2 text-xs"><span className="text-brand-text-muted">{t(display(order.type))}</span><span className="text-right text-brand-text-muted">{formatDate(order.created_at, dateLocale)}</span></div>
+                      <div className="flex min-w-0 flex-wrap items-center justify-between gap-x-3 gap-y-1 border-t border-brand-border pt-2 text-xs"><span className="text-brand-text-muted">{t(display(order.type))}</span><span className="ml-auto min-w-0 text-right text-brand-text-muted">{formatDate(order.created_at, dateLocale)}</span></div>
                     </CardContent>
                   </Card>;
                 })}
