@@ -1,84 +1,610 @@
-# BTCBOX UI/UX Execution Plan
+# BTCBOX — 第三阶段：全站视觉系统建设与 UI 精修执行方案
 
-## Status and authorization
+**项目名称：** BTCBOX  
+**阶段名称：** Phase 3 — Premium Visual Design & UI Refinement  
+**设计定位：** Premium Institutional Fintech  
+**核心风格：** 深邃、专业、简洁、精致、可信赖  
+**主品牌色：** Emerald Teal（翡翠青绿）  
+**基础风格：** Dark Navy Financial Interface
 
-Current status: implementation authorized; work proceeds in reviewable phases on `feature/uiux-upgrade`.
+---
 
-**The project owner has authorized the BTCBOX v2.0 frontend redesign and implementation.** The phase sequence below is an execution plan, not a request for repeated approval. The independent reviewer retains separate acceptance authority; a phase is not accepted merely because implementation work is committed. No changes to `main` or production deployment are authorized.
+# 一、项目目标
 
-## Product and visual constraints (carry forward)
+本阶段的目标不是简单地修改颜色、圆角或按钮，而是建立 BTCBOX 完整、统一、可长期维护的品牌视觉设计系统。
 
-- Brand: BTCBOX independent identity.
-- Theme: unified dark gray/black with fluorescent green accents.
-- No dark gold or gold accent palette.
-- Professional exchange information hierarchy; clean/premium visual language.
-- Desktop and mobile must be designed as distinct responsive experiences, not a desktop layout merely scaled down.
-- Preserve all existing business behavior and real API data. No mock market prices, balances, orders, positions, or account records.
-- Mobile navigation product requirement: Home / Markets / Trade / Assets / My (首页 / 行情 / 交易 / 资产 / 我的), in that order. Implement the approved structure and route relationships; do not relabel Earn as Home or Account as My without correcting the destination.
+最终需要达到：
 
-## Phase 0 — Repository audit and baseline (evidence recorded; independent acceptance pending)
+1. 全站拥有统一的品牌视觉识别。
+2. 所有页面具有明确的视觉层级。
+3. 桌面端和移动端采用一致的设计语言。
+4. 交易、资产、管理后台、认证页面不再有拼接感。
+5. 文字、数字、图标、卡片、表格、按钮拥有统一规范。
+6. 重要操作突出，辅助信息简洁。
+7. 用户可以快速识别重要数据、风险状态和操作结果。
+8. 不影响已经完成的业务逻辑和后端功能。
 
-1. Confirm branch and source baseline; do not change `main`.
-2. Inventory physical HTML shells, hash routes, view registry, navigation links and route entry points.
-3. Map frontend copy to user-facing, admin-only, developer diagnostic and internal/system categories.
-4. Record known product taxonomy ambiguity and missing market registry entries.
-5. Record financial feature-flag mismatch and request owner decision.
-6. Obtain exact-HEAD build/test evidence.
-7. Update handoff and independent audit response.
+**重要：本阶段属于视觉与交互表现优化，不是业务重构。**
 
-Exit gate: audit findings have source evidence, exact-HEAD CI is recorded, unresolved product/financial decisions are assigned to owner.
+---
 
-## Phase 1 — UI foundation (implementation authorized; independent acceptance required)
+# 二、开始前的准备工作
 
-- Audit design tokens, typography, spacing, radii, borders, shadows, focus/disabled/loading states.
-- Define responsive breakpoints and safe-area behavior.
-- Define shared navigation, page headers, cards, tables, form controls, dialogs, drawers and toasts.
-- Verify accessibility basics: labels, keyboard focus, contrast, reduced motion and semantic controls.
-- No business logic/API/auth/database changes.
+在正式修改代码之前，先完成以下准备。
 
-## Phase 2 — User-facing routes (implementation authorized; independent acceptance required)
+## Step 1：确认当前代码版本
 
-Recommended sequence:
-1. Home / markets / login / registration.
-2. Trade / K-line / seconds / order history.
-3. Assets / deposit / withdrawal / earn.
-4. My account / KYC / support / settings.
-5. Secondary account routes and empty/coming-soon states.
+1. 获取最新主分支代码。
+2. 确认最新生产版本及对应 Commit SHA。
+3. 检查当前是否存在尚未合并的修复分支。
+4. 确认第二轮业务修复和前后端整合已经完成验收。
+5. 不得覆盖其他团队尚未合并的工作。
 
-Each route must be checked at narrow mobile, tablet and desktop widths. Preserve real API-backed states and error paths.
+## Step 2：建立独立视觉开发分支
 
-## Phase 3 — Admin and operational pages (implementation authorized within existing permissions and behavior)
+建议创建：
 
-- Separate admin information hierarchy from consumer navigation.
-- Admin Chinese copy may remain Chinese if owner retains that requirement.
-- Do not alter admin authorization, role checks, HTTP Basic Auth, financial approvals or audit behavior.
-- Test empty, loading, error, success and permission-denied states.
+`feature/btcbox-premium-visual-system`
 
-## Phase 4 — Release validation (implementation authorized; production deployment remains prohibited)
+所有视觉修改先在该分支进行。
 
-- Build and automated tests on exact candidate commit.
-- Browser QA on iOS Safari and Android/mobile Chrome where available.
-- Desktop browser QA.
-- Route smoke tests, console/network inspection, asset refresh/deep-link checks.
-- API contract regression without changing request/response shape.
-- Financial and matching tests remain a separate backend release gate; do not enable real orders until separately validated.
-- No production deploy without explicit owner instruction.
+要求：
 
-## Change control
+- 不直接修改生产分支。
+- 不直接部署生产环境。
+- 不覆盖其他团队工作。
+- 不删除现有功能。
+- 不擅自修改公共业务逻辑。
+- 不擅自修改数据库结构。
 
-- Small, reviewable commits; one active editor per file.
-- Never modify `main` or deploy production in this workflow.
-- Never modify financial calculations, settlement, matching, database schema, auth/security flow or API contracts without explicit owner authorization.
-- Do not fabricate supported products or translate away operational/legal/security meaning.
-- Record exact commit SHA, changed files, commands and actual results in each execution report.
+## Step 3：建立当前页面基准
 
+记录现有页面的截图和布局，至少包括：
 
-## Current implementation guardrails from independent review
+- 桌面端交易页面
+- 手机端交易页面
+- 用户资产中心
+- 充值页面
+- 提现页面
+- 订单及交易记录
+- 登录页面
+- 注册页面
+- 用户个人中心
+- 管理后台
+- 客服与帮助中心
 
-- NAV-001 / NAV-002: implement the five-item mobile navigation and a distinct trade-type selection entry. Existing unsupported product types must be visibly unavailable/coming soon rather than presented as working.
-- TRADE-001: preserve the bottom chart drawer; resolve desktop chart visibility and mobile order-entry/order-book arrangement against the latest approved protocol before restructuring the trade workspace.
-- MARKET-001 / MARKET-002: inspect real market API/config responses and pair registry before changing Spot/Perpetual labels or New filters. Never add unsupported symbols or synthetic prices.
-- DS-001: choose one authoritative token family after scanning all token usages; preserve Inter and JetBrains Mono declarations.
-- MODAL-001 / SEC-UI-001: improve dialog semantics/focus behavior, drawer closability, and safe text rendering without changing business/API behavior.
-- PLAN-001: this plan reflects the owner's existing implementation authorization; do not ask the owner to repeat it.
-- Preview API isolation: do not perform Preview writes until the hard-coded API target is understood and confirmed safe.
+截图用于前后对照，防止视觉修改过程中遗漏原有功能。
+
+---
+
+# 三、第一阶段：建立全局 Design System
+
+这是整个视觉改造最重要的基础。
+
+先定义全局设计变量，不允许各页面自行随意定义颜色。
+
+## Step 4：建立品牌颜色系统
+
+### 4.1 品牌主色
+
+| Token | 色值 | 用途 |
+|---|---|---|
+| Brand Primary | #21C7A8 | 品牌强调、主要操作 |
+| Brand Hover | #13A98C | 鼠标悬停 |
+| Brand Active | #0D806D | 按下状态 |
+| Brand Soft | #102B27 | 品牌浅背景 |
+| Brand Border | #1B6558 | 品牌强调边框 |
+
+品牌青绿应该用于重要位置，而不是大面积铺满页面。
+
+## Step 5：建立五级背景系统
+
+| Token | 色值 | 用途 |
+|---|---|---|
+| Background 0 | #080D13 | 全站最底层背景 |
+| Background 1 | #0D141D | 页面主内容背景 |
+| Surface 1 | #131E29 | 普通卡片 |
+| Surface 2 | #1B2936 | 弹窗、下拉菜单 |
+| Surface 3 | #243443 | 悬停、选中区域 |
+
+要求：
+
+- 背景层级必须清楚。
+- 不允许所有区域使用同一种黑色。
+- 卡片之间通过颜色、边框和间距形成层次。
+- 不要过度使用渐变。
+- 不要让每张卡片都出现明显发光效果。
+
+## Step 6：建立文字颜色系统
+
+| Token | 色值 | 使用范围 |
+|---|---|---|
+| Text Primary | #F4F7FA | 页面标题、重要数字 |
+| Text Secondary | #D5DEE7 | 普通正文、卡片标题 |
+| Text Tertiary | #A2B0BE | 辅助说明 |
+| Text Muted | #738293 | 时间、次要标签 |
+| Text Disabled | #526170 | 禁用状态 |
+
+文字必须有明确的阅读顺序。
+
+## Step 7：建立金融数据颜色
+
+| 状态 | 色值 | 用途 |
+|---|---|---|
+| Positive | #35D6A6 | 盈利、上涨、成功 |
+| Negative | #F06B78 | 亏损、下跌、错误 |
+| Warning | #E9B85C | 等待、审核、风险提醒 |
+| Information | #72AEF2 | 信息提示 |
+| Neutral | #A2B0BE | 普通状态 |
+
+注意：
+
+- 行情颜色必须遵循现有产品的涨跌规则。
+- 资金操作成功与行情上涨不能混为同一个业务含义。
+- 错误、警告、成功状态必须有文字或图标辅助，不能只依赖颜色。
+
+## Step 8：建立边框和阴影系统
+
+| Token | 建议值 | 用途 |
+|---|---|---|
+| Border Subtle | #202D39 | 普通分隔线 |
+| Border Default | #263443 | 卡片边框 |
+| Border Strong | #344657 | 强调边框 |
+| Border Focus | #21C7A8 | 输入框聚焦 |
+| Shadow Card | 轻微阴影 | 普通卡片 |
+| Shadow Modal | 中等阴影 | 弹窗和浮层 |
+
+阴影应该克制，不允许全站出现夸张的霓虹效果。
+
+---
+
+# 四、第二阶段：建立排版和空间系统
+
+## Step 9：统一字体规范
+
+建立全站统一字体体系。
+
+建议：
+
+- 英文与数字优先采用现代无衬线字体。
+- 日文采用清晰易读的日文字体回退体系。
+- 中文采用适当的系统字体回退。
+- 数字使用稳定的数字排版，避免余额和价格跳动。
+
+字体层级：
+
+| 元素 | 建议字号 | 字重 |
+|---|---:|---|
+| 页面主标题 | 26–30px | 700 |
+| 区域标题 | 18–22px | 600 |
+| 卡片标题 | 15–17px | 600 |
+| 正文 | 13–15px | 400 |
+| 辅助文字 | 11–12px | 400 |
+| 核心资产数字 | 28–36px | 600–700 |
+
+注意：
+
+不要所有文字都加粗。
+
+重要数字、标题和普通说明必须形成明显区别。
+
+## Step 10：统一间距系统
+
+建立统一间距变量：
+
+- 4px：极小间距
+- 8px：图标与文字
+- 12px：紧凑元素
+- 16px：普通组件间距
+- 20px：卡片内部间距
+- 24px：内容区间距
+- 32px：模块间距
+- 40px：较大区域分隔
+- 48px：页面主要区域间距
+
+不要每个组件随意使用不同的间距。
+
+## Step 11：统一圆角
+
+建议：
+
+| 元素 | 圆角 |
+|---|---:|
+| 小标签 | 4–6px |
+| 输入框 | 8px |
+| 普通按钮 | 8px |
+| 普通卡片 | 12px |
+| 大型内容卡 | 14–16px |
+| 弹窗 | 16px |
+
+不要所有东西都做成胶囊形。
+
+---
+
+# 五、第三阶段：建立全站公共组件
+
+这一阶段先做组件，再修改页面。
+
+## Step 12：按钮系统
+
+建立四种标准按钮。
+
+1. Primary Button：品牌青绿背景，深色文字。
+2. Secondary Button：深蓝灰背景，浅色文字。
+3. Outline Button：透明背景，边框强调。
+4. Danger Button：危险操作红色。
+
+每种按钮都必须支持：
+
+- Default
+- Hover
+- Active
+- Focus
+- Disabled
+- Loading
+
+按钮要求：
+
+- 高度统一。
+- 字体和图标对齐。
+- 加载状态不能造成布局跳动。
+- 提交成功后有明确反馈。
+- 防止重复提交。
+- 危险操作需要明确提示。
+
+## Step 13：输入框系统
+
+统一：
+
+- 输入框高度
+- 背景色
+- 边框颜色
+- 圆角
+- Placeholder
+- Focus 状态
+- Error 状态
+- Disabled 状态
+
+错误提示应该放在输入框附近，不要只弹出一个 Toast。
+
+## Step 14：卡片系统
+
+建立：
+
+- 普通信息卡
+- 资产卡
+- 统计卡
+- 订单卡
+- 状态卡
+- 功能卡
+
+统一：
+
+- 背景层级
+- 边框
+- 圆角
+- 内边距
+- 标题与内容间距
+- 数字展示规范
+
+## Step 15：弹窗与反馈系统
+
+统一：
+
+- Modal
+- Confirm Dialog
+- Success Toast
+- Error Toast
+- Warning Toast
+- Loading Overlay
+- Dropdown
+- Tooltip
+
+所有操作都要有明确反馈。
+
+不得出现点击后没有任何响应的按钮。
+
+## Step 16：表格系统
+
+重点优化管理后台和交易记录：
+
+- 表头与正文形成层级。
+- 金额右对齐。
+- 数字使用统一格式。
+- 行高统一。
+- Hover 状态清楚。
+- 状态标签统一。
+- 空数据状态完整。
+- 手机端提供合理的响应式布局。
+
+---
+
+# 六、第四阶段：逐页面视觉精修
+
+公共组件完成并通过检查后，才开始逐页面改造。
+
+## Step 17：交易页面
+
+这是 BTCBOX 最重要的页面。
+
+**交易页面布局已经锁定，不允许擅自重新设计。**
+
+允许：
+
+- 优化文字层级。
+- 优化颜色。
+- 优化边框。
+- 优化图标。
+- 优化按钮视觉。
+- 优化数字排版。
+- 优化状态提示。
+- 优化细微交互反馈。
+
+禁止：
+
+- 改变交易区域布局。
+- 改变盘口与下单区域的位置。
+- 擅自改变 K 线区域结构。
+- 改变桌面端既定布局。
+- 改变手机端左盘口、右下单及 K 线抽屉结构。
+- 影响交易操作流程。
+
+特别检查：
+
+- 币种 Logo 是否稳定。
+- 行情更新是否闪烁。
+- 价格变化是否引起页面跳动。
+- 买入和卖出是否容易区分。
+- 下单按钮是否突出。
+- 数字是否容易阅读。
+
+## Step 18：用户资产中心
+
+重点：
+
+- 总资产数字突出。
+- 可用余额和冻结余额清晰区分。
+- 充值、提现操作容易找到。
+- 资产明细层级清楚。
+- 资金记录容易查看。
+- 不要使用过多说明文字。
+
+## Step 19：充值页面
+
+重点：
+
+- 充值金额输入突出。
+- 网络和币种信息清晰。
+- 地址和二维码区域整洁。
+- 复制按钮明显。
+- 风险提醒清楚。
+- 充值状态明确。
+- 防止用户误选网络。
+
+不得改变充值业务规则。
+
+## Step 20：提现页面
+
+重点：
+
+- 可提现余额清晰。
+- 提现地址、金额和网络层级清楚。
+- 手续费和到账金额分开显示。
+- 风险提醒明显。
+- 确认操作有二次确认。
+- 审核中、成功、失败状态统一。
+
+不得改变资金审核和扣款逻辑。
+
+## Step 21：登录和注册页面
+
+重点：
+
+- 统一品牌风格。
+- 减少无意义文字。
+- 输入区域清晰。
+- Google 登录按钮视觉统一。
+- 登录和注册之间切换自然。
+- 错误提示准确。
+- 加载状态明确。
+- 不要让注册成功后又意外跳回注册页面。
+- 保持用户会话和认证状态正确。
+
+## Step 22：个人中心
+
+重点：
+
+- 用户信息清楚。
+- 账户安全入口明确。
+- 资产和记录容易找到。
+- 页面层级简单。
+- 不要让所有功能挤在一个区域。
+
+## Step 23：管理后台
+
+重点：
+
+- 数据表格清晰。
+- 统计数字突出。
+- 用户和权限信息易读。
+- 审核操作突出。
+- 危险操作有明显警告。
+- 超级管理员和普通管理员的权限展示清楚。
+
+管理后台不能只追求美观，必须保证操作准确。
+
+## Step 24：客服和帮助中心
+
+重点：
+
+- 信息结构清楚。
+- FAQ 分类明确。
+- 聊天窗口整洁。
+- 用户消息与客服消息明显区分。
+- 空状态、等待状态、错误状态统一。
+
+---
+
+# 七、第五阶段：桌面端与移动端适配
+
+## Step 25：桌面端
+
+重点检查：
+
+- 页面宽度利用合理。
+- 卡片对齐。
+- 标题与内容层级清晰。
+- 表格不拥挤。
+- 导航结构稳定。
+- 页面没有多余留白。
+
+## Step 26：移动端
+
+重点检查：
+
+- 按钮触控区域足够。
+- 文字不溢出。
+- 卡片不挤压。
+- 数字不被截断。
+- 底部导航位置稳定。
+- Safari 安全区域正确。
+- 弹窗不超出屏幕。
+- 键盘弹出时输入框可见。
+
+不得为了适配移动端破坏已经确定的交易页面结构。
+
+---
+
+# 八、第六阶段：视觉质量验收
+
+每个页面完成后，必须进行以下验收。
+
+## Step 27：视觉检查
+
+- [ ] 品牌颜色一致。
+- [ ] 背景层级明确。
+- [ ] 文字层级清楚。
+- [ ] 字体大小合理。
+- [ ] 重要数字突出。
+- [ ] 卡片风格统一。
+- [ ] 图标风格统一。
+- [ ] 按钮尺寸统一。
+- [ ] 页面没有拼接感。
+- [ ] 不存在明显的视觉拥挤。
+- [ ] 不存在不必要的装饰。
+
+## Step 28：交互检查
+
+- [ ] 按钮能够正常操作。
+- [ ] Loading 状态正确。
+- [ ] Success 状态正确。
+- [ ] Error 状态正确。
+- [ ] Warning 状态正确。
+- [ ] Modal 能够正确关闭。
+- [ ] 不会重复提交。
+- [ ] 表单错误提示正确。
+- [ ] 页面跳转正常。
+
+## Step 29：回归检查
+
+- [ ] 原有业务功能没有丢失。
+- [ ] 原有 API 调用没有被破坏。
+- [ ] 认证状态正常。
+- [ ] 资金流程正常。
+- [ ] 交易流程正常。
+- [ ] 桌面端正常。
+- [ ] 移动端正常。
+- [ ] 浏览器控制台没有新增关键错误。
+- [ ] 原有测试没有出现新的失败。
+
+---
+
+# 九、开发与合并规则
+
+1. 视觉修改必须在独立分支完成。
+2. 先完成公共 Design System，再逐页使用。
+3. 不允许各页面重复创建不同的颜色体系。
+4. 不允许为了视觉效果删除已有业务信息。
+5. 不允许修改数据库、资金逻辑及认证核心流程。
+6. 不允许修改已锁定的交易页面布局。
+7. 每完成一个主要模块，提交对应 Commit SHA。
+8. 保留修改前后截图。
+9. 在 Preview 环境进行视觉和浏览器验收。
+10. 所有测试通过后再提交 PR。
+11. 未经批准不得合并生产分支或部署生产环境。
+
+---
+
+# 十、最终交付清单
+
+视觉团队最终必须提交：
+
+1. 全局 Design Tokens 文件。
+2. 完整颜色规范。
+3. 字体和排版规范。
+4. 间距、圆角和阴影规范。
+5. 公共 UI 组件规范。
+6. 桌面端页面精修成果。
+7. 移动端页面精修成果。
+8. 修改前后截图。
+9. 测试报告。
+10. Commit SHA。
+11. PR 地址。
+12. 未解决问题清单。
+
+---
+
+# 十一、最终验收标准
+
+BTCBOX 必须达到以下产品标准：
+
+**品牌层面：**
+具有明确的品牌辨识度，而不是普通的加密货币模板。
+
+**视觉层面：**
+颜色、字体、间距、图标、卡片具有统一规范。
+
+**信息层面：**
+重要信息突出，辅助信息简洁，阅读顺序明确。
+
+**交互层面：**
+所有操作有反馈，用户不会不知道系统正在做什么。
+
+**响应式层面：**
+桌面端和手机端都保持专业、整洁和稳定。
+
+**业务层面：**
+所有原有业务功能和交易页面布局完整保留。
+
+**工程层面：**
+组件可复用，颜色可维护，页面不能各自为政。
+
+---
+
+# 十二、执行顺序与授权边界
+
+请严格按照以下顺序执行：
+
+第一步：确认第二轮业务修复及前后端整合已经验收。
+
+第二步：建立独立视觉分支。
+
+第三步：建立完整 Design System。
+
+第四步：完成公共 UI 组件。
+
+第五步：逐页面进行视觉精修。
+
+第六步：完成桌面端和移动端适配。
+
+第七步：完成浏览器回归测试。
+
+第八步：提交 PR，等待最终验收。
+
+**执行原则：**
+
+已经明确授权的视觉范围内，可以批量推进，不需要每修改一个按钮就等待审批。
+
+但是，涉及交易布局、资金逻辑、认证核心流程、数据库、公共业务规范和生产部署的修改，必须遵守原有审批边界。
+
+**最终目标：将 BTCBOX 打造成具有统一品牌语言、专业金融产品质感、清晰信息层级和稳定操作体验的完整交易平台。**
