@@ -45,7 +45,7 @@ export function Topbar({ onMenuClick, menuOpen = false, menuButtonRef }: { menuB
   }, [langMenuOpen]);
 
   const handleLanguageMenuKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
-    const items = Array.from(langItemsRef.current?.querySelectorAll<HTMLButtonElement>('[role="menuitemradio"]') ?? []);
+    const items = Array.from(langItemsRef.current?.querySelectorAll('[role="menuitemradio"]') ?? []) as HTMLButtonElement[];
     if (!items.length) return;
     const currentIndex = items.indexOf(document.activeElement as HTMLButtonElement);
     let nextIndex: number | undefined;
