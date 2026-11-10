@@ -45,6 +45,21 @@ BEGIN
   IF NOT (SELECT relrowsecurity FROM pg_class WHERE oid=v_withdrawals) THEN
     RAISE EXCEPTION 'withdrawal_requests must have RLS enabled';
   END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema='public' AND table_name='withdrawal_requests'
+      AND column_name='payout_operation_id'
+  ) THEN
+    RAISE EXCEPTION 'withdrawal_requests must retain the payout financial operation reference';
+  END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conrelid='public.financial_operations'::regclass
+      AND conname='financial_operations_operation_type_check'
+      AND pg_get_constraintdef(oid) ILIKE '%withdraw_paid%'
+  ) THEN
+    RAISE EXCEPTION 'financial_operations must allow the withdraw_paid operation type';
+  END IF;
   IF NOT (SELECT relrowsecurity FROM pg_class WHERE oid=v_spot_orders) THEN
     RAISE EXCEPTION 'financial_matching_orders must have RLS enabled';
   END IF;
