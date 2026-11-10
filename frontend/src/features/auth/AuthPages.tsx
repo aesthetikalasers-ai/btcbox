@@ -164,7 +164,7 @@ export function AuthPage({ mode, redirectTo }: { mode: "login" | "register"; red
                 <span className="text-brand-text-secondary">{t("Authenticator code")}</span>
                 <Input className="h-12" value={verifyCode} onChange={event => setVerifyCode(event.target.value.replace(/\D/g, "").slice(0, 8))} inputMode="numeric" autoComplete="one-time-code" placeholder={t("Enter code")} required aria-label={t("Authenticator code")} />
               </label>
-              <Button type="submit" className="min-h-12 w-full" disabled={verifyBusy || verifyCode.length < 6}>{verifyBusy ? t("Verifying…") : t("Verify and continue")}</Button>
+              <Button type="submit" className="min-h-12 w-full" aria-busy={verifyBusy} disabled={verifyBusy || verifyCode.length < 6}>{verifyBusy ? t("Verifying…") : t("Verify and continue")}</Button>
             </form> : <>
               {mode === "login" && <form className="space-y-3" aria-busy={busy} onSubmit={submitUsernameLogin}>
                 <label className="block space-y-1.5 text-sm">
