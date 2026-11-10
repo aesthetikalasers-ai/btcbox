@@ -70,7 +70,7 @@ test('withdrawal approve/reject/mark-paid are atomic RPCs with duplicate protect
   // reserved amount frozen, while rejection releases it. Payout is a separate debit.
   assert.match(sqlWithdrawalApproveNoBurn, /if p_approve then[\s\S]*?v_operation_id := null;[\s\S]*?else[\s\S]*?public\.apply_financial_operation/i);
   assert.match(sqlWithdrawalApproveNoBurn, /'withdraw_reject'[\s\S]*?v_w\.amount \+ v_w\.fee[\s\S]*?-\(v_w\.amount \+ v_w\.fee\)/);
-  assert.match(sqlWithdrawalApproveNoBurn, /set status = v_status[\s\S]*reviewed_by = p_admin_id/);
+  assert.match(sqlWithdrawalApproveNoBurn, /set status = v_status[\s\S]*reviewed_by = p_admin_id/i);
   assert.match(sqlWithdrawalApproveNoBurn, /operation_type in[\s\S]*?'withdraw_paid'/i);
   assert.match(sqlWithdrawalApproveNoBurn, /'withdraw_paid'[\s\S]*?-(v_w\.amount \+ v_w\.fee)/);
   assert.match(sqlWithdrawalApproveNoBurn, /payout_operation_id=v_operation_id/);
