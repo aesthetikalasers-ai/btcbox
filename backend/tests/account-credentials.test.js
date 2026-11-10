@@ -268,3 +268,19 @@ test('credential setup validates username, password and uniqueness before mutati
   assert.ok(route.includes('await saveDB(db)'));
   assert.ok(route.includes("code: 'PERSISTENCE_UNAVAILABLE'"));
 });
+
+test('fresh linked-identity reauthentication renews the current BTCBOX session before returning success', () => {
+  const start = source.indexOf("if (path === 'account/credentials/reauth' && method === 'POST')");
+  const end = source.indexOf("// ---------- POST /api/account/credentials/recover ----------", start);
+  assert.ok(start >= 0 && end > start);
+  const route = source.slice(start, end);
+  const verify = route.indexOf("if (!isSupabaseUserId(linkedId) || !claims || claims.subject !== linkedId");
+  const marker = route.indexOf("sessionRecord.session.credential_reauth = {");
+  const refresh = route.indexOf("sessionRecord.session.created_at = Date.now()");
+  const persist = route.indexOf("await saveDB(db)");
+  const success = route.indexOf("return json({ ok: true, recovery_window_seconds: 300 })");
+  assert.ok(verify >= 0 && marker > verify);
+  assert.ok(refresh > marker && persist > refresh && success > persist);
+  assert.ok(route.includes("nowSeconds - authTime > 5 * 60"));
+  assert.ok(route.includes("!isSupabaseIdentityLinked(user, linkedId)"));
+});
