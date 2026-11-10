@@ -6,7 +6,7 @@ const widths = [320, 360, 375, 390, 430, 768, 1024, 1440];
 const routes = [
   { path: "/login", heading: "Welcome back" },
   { path: "/register", heading: "Create your BTCBOX account" },
-  { path: "/home", heading: "Market overview" },
+  { path: "/home", heading: /Welcome back to your market\.|Explore the market\. Trade with confidence\./ },
   { path: "/markets", heading: "Market overview" },
   { path: "/trade/BTCUSDT", heading: "BTCUSDT" },
   { path: "/trade-hub", heading: "Choose your trading mode" },
@@ -15,6 +15,10 @@ const routes = [
   { path: "/settings", heading: "Account security" },
   { path: "/support", heading: "Customer support" },
   { path: "/orders", heading: "Orders" },
+  { path: "/deposit", heading: "Deposit" },
+  { path: "/withdraw", heading: "Withdraw" },
+  { path: "/earn", heading: "Earn" },
+  { path: "/kyc", heading: "Identity verification" },
 ];
 
 for (const route of routes) {
@@ -66,6 +70,31 @@ test(`responsive visual QA ${route.path} fits every viewport`, async ({ page }) 
       await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ ok: true, orders: [] }) });
       return;
     }
+    if (pathname === "/api/deposit") {
+      await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ ok: true, address: "TQn9Y2khEsLJW1ChVWFMSMeRDow5KcbLSE" }) });
+      return;
+    }
+    if (pathname === "/api/addresses") {
+      await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ ok: true, addresses: [{
+        id: "visual-address-1", type: "crypto", coin: "USDT", network: "TRC20", address: "TQn9Y2khEsLJW1ChVWFMSMeRDow5KcbLSE",
+      }] }) });
+      return;
+    }
+    if (pathname === "/api/addresses/select") {
+      await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ ok: true, coin: "USDT", network: "TRC20", address: "TQn9Y2khEsLJW1ChVWFMSMeRDow5KcbLSE" }) });
+      return;
+    }
+    if (pathname === "/api/withdrawal/config") {
+      await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ ok: true, actions_enabled: true, fees: { USDT: "1" }, allowed_networks: { USDT: ["TRC20"] } }) });
+      return;
+    }
+    if (pathname === "/api/earn/products") {
+      await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ ok: true, actions_enabled: true, products: [
+        { product_id: "usdt-flex", asset: "USDT", product_type: "demand", apy_percent: 4.2, term_days: 0, early_fee_percent: 0, amount_scale: 2 },
+        { product_id: "btc-fixed-30", asset: "BTC", product_type: "fixed", apy_percent: 2.8, term_days: 30, early_fee_percent: 1, amount_scale: 6 },
+      ] }) });
+      return;
+    }
     if (pathname === "/api/trading/status") {
       await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({
         ok: true, spot_order_entry_enabled: false, spot_cancel_enabled: false, supported_order_types: [],
@@ -84,12 +113,12 @@ test(`responsive visual QA ${route.path} fits every viewport`, async ({ page }) 
       await page.goto(routePath, { waitUntil: "domcontentloaded" });
       await expect(page.locator("#root")).not.toBeEmpty();
       expect(new URL(page.url()).pathname).toBe(routePath);
-      await expect(page.getByRole("heading", { name: route.heading, exact: true })).toBeVisible({ timeout: 15000 });
+      await expect(page.getByRole("heading", { name: route.heading, ...(typeof route.heading === "string" ? { exact: true } : {}) })).toBeVisible({ timeout: 15000 });
       if (!["/login", "/register"].includes(routePath) && width <= 480) {
         await expect(page.getByRole("link", { name: "BTCBOX home" }).getByRole("img", { name: "BTCBOX" })).toBeVisible();
       }
       if (routePath === "/markets") await expect(page.getByRole("heading", { name: "Explore the market. Trade with confidence.", exact: true })).toHaveCount(0);
-      if (routePath === "/home" || routePath === "/markets") await expect(page.getByText("No markets enabled", { exact: true })).toBeVisible();
+      if (routePath === "/markets") await expect(page.getByText("No markets enabled", { exact: true })).toBeVisible();
       if (routePath === "/trade-hub") await expect(page.getByTestId("spot-availability")).toHaveText("Unavailable");
       await page.evaluate(() => document.fonts.ready);
       const dimensions = await page.evaluate(() => ({

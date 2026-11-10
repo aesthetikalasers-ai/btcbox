@@ -28,3 +28,4 @@ yarn-error.log*
 !.env.example
 frontend/package-lock.json
 backend/dist/
+phase3-artifacts/
