@@ -232,3 +232,129 @@ Production deployment 的 `alias` 明确包含 `btcboxcdt-pi.vercel.app`；这�
 未完成：真实视口 DOM/截图、完整截图文件清单、失败逐项最终归因、全页面与全部指定视口矩阵、第二 Vercel 账号核验、专用 no-secrets 扫描。
 
 没有改动交易页布局或生产环境，没有合并和部署。请 AI 2 继续独立审查本报告并决定下一步验收状态。
+
+
+---
+
+# 10. AI 1 下一轮 Phase 0 补证（2026-11-11）
+
+本节补充并在证据冲突时优先于上文相应的“待下载/待授权”描述。没有修改应用源码、交易业务或 Vercel 配置。
+
+## 10.1 Artifact 13804199963：ZIP 实际清单核验
+
+已通过 GitHub Actions Artifact 下载接口下载 ZIP，并在本轮执行环境实际展开。ZIP SHA-256（来自 GitHub 上传日志）：`debb191d9f260698c56507ad0998fe44a8ba4b1bc0d8143d1e884a34795f2e58`；ZIP 解压后 80 个 PNG 全部存在，逐个用图像读取器核对图片宽度，图片宽度与文件名中的宽度一致。
+
+- Artifact 文件名：`btcbox-visual-qa-13804199963.zip`
+- 实际 PNG：80
+- 页面 slug：10
+- 每页视口：320、360、375、390、430、768、1024、1440
+- 图片尺寸：每张图的 width 与后缀数字相同；未发现宽度不匹配文件。
+- Artifact 原始链接：https://github.com/aesthetikalasers-ai/btcbox/actions/runs/42905110305/artifacts/13804199963
+- CI job 原始日志：job ID `130140950103`，https://github.com/aesthetikalasers-ai/btcbox/actions/runs/42905110305
+
+**实际文件清单（文件名均来自 ZIP 中央目录，而非测试代码推断）：**
+
+| 页面 slug / 路由 | 实际存在的 PNG |
+|---|---|
+| assets / `/assets` | `assets-320.png`, `assets-360.png`, `assets-375.png`, `assets-390.png`, `assets-430.png`, `assets-768.png`, `assets-1024.png`, `assets-1440.png` |
+| login / `/login` | `login-320.png`, `login-360.png`, `login-375.png`, `login-390.png`, `login-430.png`, `login-768.png`, `login-1024.png`, `login-1440.png` |
+| markets / `/markets` | `markets-320.png`, `markets-360.png`, `markets-375.png`, `markets-390.png`, `markets-430.png`, `markets-768.png`, `markets-1024.png`, `markets-1440.png` |
+| me / `/me` | `me-320.png`, `me-360.png`, `me-375.png`, `me-390.png`, `me-430.png`, `me-768.png`, `me-1024.png`, `me-1440.png` |
+| orders / `/orders` | `orders-320.png`, `orders-360.png`, `orders-375.png`, `orders-390.png`, `orders-430.png`, `orders-768.png`, `orders-1024.png`, `orders-1440.png` |
+| register / `/register` | `register-320.png`, `register-360.png`, `register-375.png`, `register-390.png`, `register-430.png`, `register-768.png`, `register-1024.png`, `register-1440.png` |
+| settings / `/settings` | `settings-320.png`, `settings-360.png`, `settings-375.png`, `settings-390.png`, `settings-430.png`, `settings-768.png`, `settings-1024.png`, `settings-1440.png` |
+| support / `/support` | `support-320.png`, `support-360.png`, `support-375.png`, `support-390.png`, `support-430.png`, `support-768.png`, `support-1024.png`, `support-1440.png` |
+| trade-BTCUSDT / `/trade/BTCUSDT` | `trade-BTCUSDT-320.png`, `trade-BTCUSDT-360.png`, `trade-BTCUSDT-375.png`, `trade-BTCUSDT-390.png`, `trade-BTCUSDT-430.png`, `trade-BTCUSDT-768.png`, `trade-BTCUSDT-1024.png`, `trade-BTCUSDT-1440.png` |
+| trade-hub / `/trade-hub` | `trade-hub-320.png`, `trade-hub-360.png`, `trade-hub-375.png`, `trade-hub-390.png`, `trade-hub-430.png`, `trade-hub-768.png`, `trade-hub-1024.png`, `trade-hub-1440.png` |
+
+**失败/缺失/未生成标记：**
+- `/home`：测试代码在标题 `Market overview` 的可见性断言处失败；Artifact 中不存在 `home-*.png`，8 个视口均无 PNG。
+- `/seconds`、`/contract`、`/deposit`、`/withdraw`、`/earn`、`/kyc`、`/account-setup`、`/admin`、`/oauth/consent`：本 Artifact 未声明/未生成这些路径的截图，不能据此评估页面外观。
+- 其余 10 个 slug 的 80 张 PNG 已确认存在；文件存在不等于页面通过了所有交互/可访问性断言。
+
+CI 测试定义来源：`frontend/e2e/responsive-visual-qa.spec.ts`。它声明 11 条路由 × 8 个宽度，但 `/home` 标题断言先失败，实际 artifact 为 10 × 8 = 80。测试声明的 11 × 8 不应被写成 88 张实际截图。
+
+## 10.2 真实浏览器任务：当前证据边界与最小修复建议
+
+本轮已检查当前连接浏览器标签。没有 BTCBOX 页面标签；Chat 模式浏览器接口只提供读取已有标签及其页面文本，不提供本轮所需的导航、viewport 设置、点击、截图、DOM 脚本执行或可访问性树导出能力。当前没有可用的 Work 浏览器控制/交接工具。因此本节**不声称已完成** 1440/1024/390 实时浏览器验证，也不以 CI mock 截图冒充用户真实浏览器证据。
+
+源码复核（基线 `525cc9d6...`）：
+- `frontend/src/components/layout/AppLayout.tsx`：桌面 Sidebar 在 `min-width:1024px` 显示；移动 Dialog 内另挂一个 Sidebar；Topbar 同时挂载。
+- `frontend/src/components/layout/Sidebar.tsx`：Sidebar 内无条件渲染 `LanguageMenu variant="drawer"`。
+- `frontend/src/components/layout/Topbar.tsx`：Topbar 无条件渲染默认 `LanguageMenu`。
+- 这能证明桌面布局树有 Sidebar + Topbar 两个菜单组件实例；不能证明两个入口均可见、实际触发器数量、关闭移动 Dialog 的可访问性行为，亦不能代替浏览器截图。
+- 390px 初始状态下移动 Sidebar 位于关闭的 Dialog 中；它的 DOM 是否挂载、是否从 accessibility tree 排除，需实时 DOM/AX tree 核实，不能仅凭 JSX 推断。
+
+**最小修复建议（未执行、未改源码）：**
+1. 保留 Topbar 的默认语言入口。
+2. Sidebar 增加明确的呈现上下文/variant 参数：桌面常驻 Sidebar 不渲染 drawer 语言菜单；移动 Dialog Sidebar 才渲染 drawer 菜单。
+3. 不用 CSS 仅隐藏视觉元素来解决重复 DOM；让不应出现的组件实例不挂载，避免重复可聚焦/可访问入口。
+4. 以 1440px、1024px、390px 实测：DOM 组件实例数、可见触发器数、role/name、AX tree；分别验证桌面入口打开/关闭、移动抽屉打开后入口打开/关闭、选择语言后 `html[lang]` 与持久化值更新。需覆盖 Escape、切换路由、抽屉关闭后焦点恢复。
+5. 交由 AI 2 审核方案后再决定是否进入修复；本轮没有修改语言菜单源码。
+
+## 10.3 CI 失败证据：原始日志与 mock 证据补充
+
+本轮重新下载了完整 job log（285,258 字符），并确认：
+- checkout SHA：`525cc9d6c72140f3778ae295e46f1338482189cc`
+- Node：22.23.4；npm：10.9.9；Ubuntu 26.04.1；Chromium 安装成功。
+- 安装、i18n 检查、TypeScript lint、Decimal tests、Vite build 均通过；Vite CSS 优化阶段有一条 `var(--color-brand-surface-2/70)` 的 Unexpected token Delim('/') 警告。
+- 第 10 步浏览器 smoke tests 失败；最终 142 passed、33 failed、11 skipped；Artifact 上传步骤成功，实际上传 80 个文件。
+- 原始失败上下文在 job log 中包含 Playwright locator、expected/timeout、源码行及每个失败用例的 Error Context 文件路径；CI 没有把完整 `test-results`、trace.zip 和失败截图包含在 Artifact 13804199963（该 Artifact 只上传 `test-results/visual-qa/*.png`）。
+
+已核对的 fixture/mock 源码：
+- `frontend/e2e/auth-routes.spec.ts`：将 `/api/auth-client-config` mock 到 `https://btcbox-e2e.invalid`，`/api/account` 固定 401；拦截 fake Supabase host。
+- `frontend/e2e/language-loading.spec.ts`：将 `/api/**` 置于本地 mock；语言加载测试使用 `page.locator('select').selectOption(...)` 和 `header select`，其假设是原生 select。
+- `frontend/e2e/market-feed-fail-closed.spec.ts`：mock `/api/market`、`/api/kline`；行情 fixture 包含 `markets` 数组及 `data[symbol].ts`；另测 503、超时、过期快照和 pair link。
+- `frontend/e2e/navigation-accessibility.spec.ts`：先设 390×844，再点击移动导航、进入 Markets、重新打开后调整到 1440×900；随后断言移动 dialog 关闭及语言控件为原生 combobox。
+- `frontend/e2e/redesign.spec.ts`：mock `/api/market`、`/api/market/pairs`、`/api/kline`、`/api/depth`、`/api/trading/status`、`/api/orders` 等；fixture 提供 BTC/ETH pair 与 synthetic market data。
+
+重点失败的原始断言线索：
+- 语言菜单：`language-loading.spec.ts` 使用原生 `selectOption`；失败日志中出现 `locator('header select')`、期望值 `de`。当前源码的 Topbar/Sidebar 使用自定义 `LanguageMenu` 组件；“断言过时/语义契约不匹配”是强候选，但需拿实际 DOM/组件源码与交互回归闭环后才可定类。
+- 行情 fail-closed：测试明确 mock `/api/market` 的超时、503、过期 timestamp；日志包含 `Market feed unavailable`、报价消失及恢复等失败断言。测试 fixture 与产品请求契约尚未完整对照，因此维持“未确定”，不能推断为产品缺陷或环境问题。
+- 市场交易对跳转：测试 fixture 与断言使用 BTC/ETH、`/trade/ETHUSDT`、可访问名称 `BTC spot trading`；日志出现链接 accessible name 与预期不匹配。可能是可访问名称或页面 DOM 契约差异，仍需真实 DOM/路由结果。
+- 导航 resize：测试在移动 Dialog 打开状态改到 1440px，随后断言 Dialog 不可见；`AppLayout.tsx` 有 `matchMedia('(min-width:1024px)')` change handler 关闭状态。该代码支持预期关闭机制，但失败日志仍需结合完整 trace/AX tree 判定是时序、Dialog DOM 还是焦点/控件 locator 问题。
+- 认证恢复：测试断言配置不可用时出现固定英文 session restoration 文案；fixture 把 `/api/**` 设为 503。尚未证明生产恢复逻辑有缺陷，需将错误状态与组件实际文案/条件对照。
+- 17 个独立测试的原始测试名称、主要失败断言及桌面/移动重复关系仍以本报告第 4 节为准。**逐项最终分类仍未闭环**；无证据的项目保留未确定。建议从 CI job 重新执行时额外保存 Playwright blob report、trace.zip、error-context.md、失败截图和 mock request journal，避免只保留 visual QA PNG。
+
+## 10.4 Vercel 双账号只读核验更新
+
+本轮两组已连接账号授权均可读，不再适用第 6 节“第二账号无有效授权”的旧状态。
+
+| 字段 | 新号账号 | BOX 账号 |
+|---|---|---|
+| Project | `btcboxcdt` | `btcboxcdt` |
+| Project ID | `prj_InHUgyajw4eUMsb9KOdjUmMF0aIP` | `prj_rmwOE9q0XyZ3BikpxX2FzDt2VjKK` |
+| Team ID | `team_AZiXGACBy90fpgeKEUb9i2YQ` | `team_tnwJkMYPnWK2BjBGf3Q2n3FB` |
+| Project domain list | `btcboxcdt-pi.vercel.app`, `btcboxcdt-fuyao999.vercel.app`, `btcboxcdt-git-main-fuyao999.vercel.app` | `btcboxcdt.vercel.app`, `btcboxcdt-box-2753.vercel.app` |
+| 已核实主域名 | `btcboxcdt-pi.vercel.app`，verified=true | `btcboxcdt.vercel.app`，verified=true |
+| Production deployment | `dpl_E8WqAXhkZENy3QKETeCAkPhWyoCK` | `dpl_32SerPKNdcAtJu4iLqqYR8s4AVoP` |
+| 状态 / target | READY / production | READY / production |
+| commit branch / SHA | `main` / `d89d9363cab056cca27492a721b5922c2a29d05c` | `main` / `525cc9d6c72140f3778ae295e46f1338482189cc` |
+| deployment source | `git` | `cli` |
+| createdAt (UTC) | 2026-11-10T20:40:15.753Z | 2026-11-10T22:48:30.312Z |
+| ready (UTC) | 2026-11-10T20:40:38.430Z | 2026-11-10T22:49:09.311Z |
+
+Inspector links：
+- 新号项目：https://vercel.com/fuyao999/btcboxcdt
+- BOX 项目：https://vercel.com/box-2753/btcboxcdt
+- 新号 Production：https://vercel.com/fuyao999/btcboxcdt/E8WqAXhkZENy3QKETeCAkPhWyoCK
+- BOX Production：https://vercel.com/box-2753/btcboxcdt/32SerPKNdcAtJu4iLqqYR8s4AVoP
+
+部署元数据的 Git source details 均记录 `githubOrg=aesthetikalasers-ai`、`githubRepo=btcbox`、branch `main`。但 BOX 项目这条 Production deployment 的 `source=cli`，所以只能证明 CLI 部署元数据引用了该 GitHub repo/commit，**不能据此声称已启用 Vercel Git 自动部署集成**。两个项目设置接口均未暴露 configured production branch 字段；Production deployment 的 branch 为 main，不等同于独立读取了该配置。未修改项目配置、域名或部署。
+
+## 10.5 Secret scan 状态（仍未完成）
+
+本轮没有在完整、只读的 Git checkout runner 上执行 Gitleaks 或 TruffleHog。当前工作容器不能从 GitHub 取得完整 checkout；此前 gitleaks/trufflehog/detect-secrets 均未安装。虽然下载了 CI logs 与 screenshot Artifact，但这些不构成 tracked-file scan。没有 scanner 版本、扫描范围、排除规则、退出码或 clean 结果，因此**不得声称 secret scan 通过**。需要有权读取仓库的安全 runner 执行固定版本扫描，并仅提交不含 secret 值的脱敏摘要。
+
+## 10.6 本轮剩余未解决事项
+
+1. **真实浏览器**：1440、1024、390 的 screenshot、DOM、AX tree、菜单打开/关闭、语言切换仍未测试；当前浏览器工具在 Chat 模式不支持导航/交互/截图，需可用 Work 浏览器控制能力。
+2. **补充视口**：600、820、1280、1366、1600、1920px 尚未生成截图；本轮不修改 CI workflow 或启动新的 CI。
+3. **完整页面矩阵**：指定的 Seconds、Contract、Deposit、Withdraw、Earn、KYC、Account Setup、Admin、OAuth consent 仍无真实 viewport/组件交互证据；代码路由存在不等于页面审计完成。
+4. **17 个 CI 用例**：已有完整 job log 和多份 mock 测试源码，但仍需每项的完整 Error Context/trace、DOM 行为和源码逻辑对照；归因保持未确定，不能强制分类。
+5. **Vercel**：两项目 ID、Team、域名和最新 Production deployment 已补齐；configured production branch 及 BOX 项目的自动 Git integration 仍未证实。
+6. **Secret scan**：仍未执行，需安全只读 checkout runner。
+
+## 10.7 本轮结论
+
+**Phase 0 仍为待补证 / NOT PASSED。** 本轮完成 Artifact 的 80 张 PNG 实际清单与宽度核对；补齐双 Vercel 账号项目、域名和 Production deployment 的只读证据；重新读取完整 Frontend CI job log，并对主要失败测试的 mock fixture 源码进行对照。真实浏览器交互、补充视口、全部页面布局实测、17 项失败最终归因、Production branch 设置、专用 secret scan 仍未完成。未修改交易页、未写 main、未合并、未部署、未执行真实资金或金融写入。AI 1 不签发 PASS，请 AI 2 独立复核。
