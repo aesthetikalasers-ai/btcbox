@@ -70,6 +70,8 @@ for (const path of walk(resolve(root, "src")).filter((path) => [".ts", ".tsx", "
   const code = readFileSync(path, "utf8");
   for (const match of code.matchAll(callPattern)) usedKeys.add(match[2]);
 }
+// Dynamic market filter labels are passed through t(label), so they are not visible to the static t("key") scanner.
+for (const key of ["Gainers", "Losers"]) usedKeys.add(key);
 const missingUsed = [...usedKeys].filter((key) => !canonical.has(key));
 console.log("Static t() calls: " + usedKeys.size + "; keys absent from English dictionary: " + missingUsed.length);
 if (missingUsed.length) {
