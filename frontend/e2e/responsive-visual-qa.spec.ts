@@ -6,7 +6,7 @@ const widths = [320, 360, 375, 390, 430, 768, 1024, 1440];
 const routes = [
   { path: "/login", heading: "Welcome back" },
   { path: "/register", heading: "Create your BTCBOX account" },
-  { path: "/home", heading: "Market overview" },
+  { path: "/home", heading: "Explore the market. Trade with confidence." },
   { path: "/markets", heading: "Market overview" },
   { path: "/trade/BTCUSDT", heading: "BTCUSDT" },
   { path: "/trade-hub", heading: "Choose your trading mode" },
@@ -89,7 +89,7 @@ test(`responsive visual QA ${route.path} fits every viewport`, async ({ page }) 
         await expect(page.getByRole("link", { name: "BTCBOX home" }).getByRole("img", { name: "BTCBOX" })).toBeVisible();
       }
       if (routePath === "/markets") await expect(page.getByRole("heading", { name: "Explore the market. Trade with confidence.", exact: true })).toHaveCount(0);
-      if (routePath === "/home" || routePath === "/markets") await expect(page.getByText("No markets enabled", { exact: true })).toBeVisible();
+      if (routePath === "/home" || routePath === "/markets") await expect(page.getByText("No market pairs are currently available.", { exact: true })).toBeVisible();
       if (routePath === "/trade-hub") await expect(page.getByTestId("spot-availability")).toHaveText("Unavailable");
       await page.evaluate(() => document.fonts.ready);
       const dimensions = await page.evaluate(() => ({
