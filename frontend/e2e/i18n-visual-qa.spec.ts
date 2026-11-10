@@ -60,8 +60,10 @@ for (const locale of activeLocales) {
     await expect(page.getByRole("heading", { name: expectedHeading, exact: true })).toBeVisible({
       timeout: 20000,
     });
+    const output = path.resolve(process.cwd(), "test-results/i18n-visual-qa");
+    fs.mkdirSync(output, { recursive: true });
     await page.screenshot({
-      path: path.resolve(process.cwd(), "test-results/i18n-visual-qa", locale.code + "-" + test.info().project.name + ".png"),
+      path: path.join(output, locale.code + "-" + test.info().project.name + ".png"),
       fullPage: true,
       animations: "disabled",
     });
