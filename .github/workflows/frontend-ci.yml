@@ -5,7 +5,7 @@ on:
       - "frontend/**"
       - ".github/workflows/frontend-ci.yml"
   push:
-    branches: [main, "feature/btcbox-complete-redesign", "feature/btcbox-react-frontend-20261104", "feat/btcbox-web3-auth-20261105", "fix/post-merge-db-bootstrap-seconds-20261106", "work/btcbox-unified-20261104"]
+    branches: [main, "feature/btcbox-complete-redesign", "feature/btcbox-react-frontend-20261104", "feat/btcbox-web3-auth-20261105", "fix/post-merge-db-bootstrap-seconds-20261106", "work/btcbox-unified-20261104", "audit/phase-0-baseline-evidence-20261111"]
     paths:
       - "frontend/**"
       - ".github/workflows/frontend-ci.yml"
@@ -37,5 +37,16 @@ jobs:
         with:
           name: btcbox-responsive-visual-qa
           path: frontend/test-results/visual-qa/*.png
+          if-no-files-found: warn
+          retention-days: 7
+      - name: Upload Playwright traces, error context, and reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: btcbox-playwright-failure-evidence
+          path: |
+            frontend/test-results/
+            frontend/playwright-report/
+            frontend/blob-report/
           if-no-files-found: warn
           retention-days: 7
