@@ -647,7 +647,7 @@
   /* CORE: dual-column 38/62 — orderbook LEFT, order entry RIGHT */
   .trade-top{
     display:grid !important;
-    grid-template-columns:38% 62% !important;
+    grid-template-columns:minmax(0,38fr) minmax(0,62fr) !important;
     gap:8px !important;
     align-items:start !important;
     flex-direction:row !important;
@@ -731,7 +731,7 @@
 
 /* 320px: tightest — reduce orderbook row height, form more compact */
 @media (max-width:359px){
-  .trade-top{grid-template-columns:36% 64% !important;gap:6px !important}
+  .trade-top{grid-template-columns:minmax(0,36fr) minmax(0,64fr) !important;gap:6px !important}
   .ob-row{font-size:9px !important;line-height:17px !important;padding:0 4px !important}
   .ob-mid .mid-price{font-size:12px !important}
   .form-card{padding:8px !important}
@@ -743,14 +743,14 @@
 
 /* 390-430px: main acceptance — comfortable density */
 @media (min-width:389px) and (max-width:430px){
-  .trade-top{grid-template-columns:39% 61% !important;gap:9px !important}
+  .trade-top{grid-template-columns:minmax(0,39fr) minmax(0,61fr) !important;gap:9px !important}
   .ob-row{font-size:10.5px !important;line-height:20px !important;padding:0 7px !important}
   .form-card{padding:11px !important}
 }
 
 /* ≥430px tablet: slightly wider orderbook, more padding */
 @media (min-width:431px) and (max-width:768px){
-  .trade-top{grid-template-columns:40% 60% !important;gap:10px !important}
+  .trade-top{grid-template-columns:minmax(0,40fr) minmax(0,60fr) !important;gap:10px !important}
   .ob-row{font-size:11px !important;line-height:22px !important;padding:0 8px !important}
   .form-card{padding:12px !important}
 }
@@ -762,9 +762,12 @@
   .orders-tabs .tab{padding:0 10px !important;font-size:11px !important}
 }
 
-/* K-line drawer: bottom edge must align with top of fixed bottom nav (never cover 5-tab nav) */
-.kline-drawer{bottom:calc(64px + env(safe-area-inset-bottom))!important;height:min(520px,68vh)!important}
-.kline-drawer-mask{bottom:calc(64px + env(safe-area-inset-bottom))!important}
+/* Mobile drawer sits above the fixed five-tab navigation. Desktop drawer keeps
+   its original viewport-bottom anchoring and must not inherit mobile offsets. */
 @media (max-width:768px){
-  .kline-drawer{height:min(calc(100dvh - 64px - env(safe-area-inset-bottom) - 12px), 520px)!important}
+  .kline-drawer{
+    bottom:calc(64px + env(safe-area-inset-bottom))!important;
+    height:min(calc(100dvh - 64px - env(safe-area-inset-bottom) - 12px), 520px)!important;
+  }
+  .kline-drawer-mask{bottom:calc(64px + env(safe-area-inset-bottom))!important}
 }
