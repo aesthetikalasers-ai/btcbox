@@ -12,6 +12,7 @@ on:
   push:
     branches:
       - main
+      - feature/home-ia-preview
       - fix/post-merge-db-bootstrap-seconds-20261106
     paths:
       - 'backend/supabase/sql/**'
