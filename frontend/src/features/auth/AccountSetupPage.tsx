@@ -10,7 +10,7 @@ import { useI18n } from "../../lib/i18n";
 
 export function AccountSetupPage() {
   const { t } = useI18n();
-  const { status, needsCredentials, busy, error, notice, setBtcboxCredentials } = useAuth();
+  const { status, needsCredentials, busy, error, notice, setBtcboxCredentials, reauthenticateCredentialsWithGoogle } = useAuth();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -49,6 +49,11 @@ export function AccountSetupPage() {
           {confirmPassword && password !== confirmPassword && <p role="alert" className="rounded-lg border border-brand-danger/20 bg-brand-danger/[0.05] px-3 py-2 text-sm text-brand-danger">{t("Passwords do not match.")}</p>}
           <Button type="submit" className="min-h-12 w-full bg-brand-cyan text-brand-bg hover:bg-brand-cyan/90" aria-busy={busy} disabled={busy || username.length < 3 || password.length < 12 || password !== confirmPassword}><KeyRound className="h-4 w-4"/>{busy ? t("Saving securely…") : t("Save BTCBOX credentials")}</Button>
         </form>
+        <div className="border-t border-brand-border pt-4">
+          <Button type="button" variant="outline" className="min-h-11 w-full" disabled={busy} onClick={() => void reauthenticateCredentialsWithGoogle("/account-setup")}>
+            <ShieldCheck className="h-4 w-4" />{t("Verify your sign-in")}
+          </Button>
+        </div>
       </CardContent>
     </Card>
     <p className="flex items-center gap-2 text-center text-xs text-brand-text-muted"><ShieldCheck className="h-3.5 w-3.5 text-brand-success"/>{t("Your credentials are attached to the verified BTCBOX account.")}</p>
