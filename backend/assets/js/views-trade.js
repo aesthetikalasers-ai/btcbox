@@ -17,9 +17,9 @@ function candleOption(klines,symbol){
   const dates=klines.map(k=>klineAxisTime(k[0])), o=klines.map(k=>k[1]), c=klines.map(k=>k[2]), lows=klines.map(k=>k[3]), highs=klines.map(k=>k[4]), vols=klines.map((k,i)=>({value:k[5], itemStyle:{color: c[i]>=o[i]?'rgba(14,203,129,.5)':'rgba(246,70,93,.5)'}}));
   return {
     backgroundColor:'transparent', animation:false,
-    tooltip:{trigger:'axis',axisPointer:{type:'cross'},backgroundColor:'#1E2329',borderColor:'#2B3139',textStyle:{color:'#EAECEF',fontSize:11}},
+    tooltip:{trigger:'axis',confine:true,padding:[9,11],borderWidth:1,axisPointer:{type:'cross',lineStyle:{color:'#848E9C',width:1,type:'dashed'}},backgroundColor:'#1E2329',borderColor:'#3A424D',extraCssText:'box-shadow:0 8px 24px rgba(0,0,0,.24);border-radius:8px;',textStyle:{color:'#EAECEF',fontSize:11}},
     axisPointer:{link:[{xAxisIndex:'all'}]},
-    grid:[{left:8,right:12,top:24,height:'58%'},{left:8,right:12,top:'72%',height:'18%'}],
+    grid:[{left:8,right:58,top:24,height:'58%',containLabel:false},{left:8,right:58,top:'72%',height:'18%',containLabel:false}],
     xAxis:[
       {type:'category',data:dates,scale:true,boundaryGap:false,axisLine:{lineStyle:{color:'#2B3139'}},axisLabel:{color:'#848E9C',fontSize:10,hideOverlap:true},splitLine:{show:false},axisPointer:{z:100}},
       {type:'category',gridIndex:1,data:dates,scale:true,boundaryGap:false,axisLine:{lineStyle:{color:'#2B3139'}},axisLabel:{show:false},splitLine:{show:false}}

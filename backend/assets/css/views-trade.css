@@ -768,3 +768,96 @@
 @media (max-width:768px){
   .kline-drawer{height:min(calc(100dvh - 64px - env(safe-area-inset-bottom) - 12px), 520px)!important}
 }
+
+
+/* ============================================================
+   K-LINE VISUAL HIERARCHY — restrained chart/workspace refinement
+   Presentation only: preserve the locked desktop and mobile layouts.
+   ============================================================ */
+@media (min-width: 1025px) {
+  .chart-card {
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: var(--bg-card);
+  }
+  .chart-header {
+    gap: 18px;
+    padding: 15px 18px;
+    background: var(--bg-card);
+    border-bottom-color: var(--border);
+  }
+  .chart-header .pair-title {
+    font-size: 16px;
+    letter-spacing: -.02em;
+  }
+  .chart-header .price-big {
+    font-size: 21px;
+    line-height: 1.2;
+    font-variant-numeric: tabular-nums;
+  }
+  .chart-header .chg-small {
+    margin-top: 3px;
+    font-size: 11px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+  .chart-header .hl {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px 16px;
+    font-size: 11px;
+  }
+  .chart-header .hl > div {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+  }
+  .chart-body {
+    background: linear-gradient(180deg, var(--bg-raised) 0%, var(--bg-card) 42%);
+  }
+  .tf-btn {
+    min-height: 30px;
+    transition: background-color .16s ease, color .16s ease;
+  }
+  .tf-btn:hover:not(.active) {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+  }
+  .tf-btn:focus-visible {
+    outline: 2px solid var(--brand-bright);
+    outline-offset: 2px;
+  }
+}
+
+/* The drawer reads as one chart workspace, not a detached floating panel. */
+.kline-drawer {
+  border: 1px solid var(--border);
+  border-bottom: 0;
+  box-shadow: 0 -12px 36px rgba(0,0,0,.28);
+}
+.kline-drawer-grab {
+  display: flex;
+  flex: 0 0 auto;
+  justify-content: center;
+  padding: 8px 0 3px;
+  background: var(--bg-card);
+}
+.kline-drawer-grab span {
+  display: block;
+  width: 36px;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--text-muted);
+  opacity: .5;
+}
+.kline-drawer-head {
+  background: var(--bg-card);
+  border-bottom-color: var(--border);
+}
+#kline-drawer-close {
+  transition: background-color .16s ease, border-color .16s ease;
+}
+#kline-drawer-close:hover {
+  background: var(--bg-hover);
+  border-color: var(--brand-bright);
+}

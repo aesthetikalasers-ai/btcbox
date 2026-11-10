@@ -19,6 +19,10 @@ export function AppLayout({ children }: { children: ReactNode }) {
 
   const menuTrigger = useRef<HTMLButtonElement>(null);
   useEffect(() => {
+    setIsMobileMenuOpen(false);
+    mainRef.current?.scrollTo({ top: 0, behavior: "auto" });
+  }, [location.pathname]);
+  useEffect(() => {
     const desktop = window.matchMedia("(min-width: 1024px)");
     const closeOnDesktop = () => { if (desktop.matches) setIsMobileMenuOpen(false); };
     desktop.addEventListener("change", closeOnDesktop);
