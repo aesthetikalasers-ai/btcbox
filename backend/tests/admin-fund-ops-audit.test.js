@@ -72,7 +72,7 @@ test('withdrawal approve/reject/mark-paid are atomic RPCs with duplicate protect
   assert.match(sqlWithdrawalApproveNoBurn, /'withdraw_reject'[\s\S]*?v_w\.amount \+ v_w\.fee[\s\S]*?-\(v_w\.amount \+ v_w\.fee\)/);
   assert.match(sqlWithdrawalApproveNoBurn, /set status = v_status[\s\S]*reviewed_by = p_admin_id/i);
   assert.match(sqlWithdrawalApproveNoBurn, /operation_type in[\s\S]*?'withdraw_paid'/i);
-  assert.match(sqlWithdrawalApproveNoBurn, /'withdraw_paid',\\s*0,\\s*-\\(v_w\\.amount \\+ v_w\\.fee\\)/);
+  assert.match(sqlWithdrawalApproveNoBurn, /'withdraw_paid',\s*0,\s*-\(v_w\.amount \+ v_w\.fee\)/);
   assert.match(sqlWithdrawalApproveNoBurn, /payout_operation_id=v_operation_id/);
   assert.match(sqlWithdrawalApproveNoBurn, /'withdrawal_manual_payout_completed'/);
 });
