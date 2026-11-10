@@ -61,7 +61,7 @@ test('Spot limit form accepts decimal digits and rejects malformed decimal strin
 });
 
 
-test('Spot order intent is saved before POST, restored per account/market, and cleared only after order-history confirmation', () => {
+test('Spot order intent is saved before POST and preserved after ambiguous results', () => {
   assert.ok(pages.includes('btcbox.spot.pending.v1.'));
   assert.ok(pages.includes('window.localStorage.setItem(pendingStorageKey,JSON.stringify(intent))'));
   assert.ok(pages.includes('window.localStorage.getItem(pendingStorageKey)'));
@@ -70,4 +70,16 @@ test('Spot order intent is saved before POST, restored per account/market, and c
   assert.ok(pages.includes('const confirmed=latest.some(item=>String(item.order_id??item.id??"")===result.order_id)'));
   assert.ok(pages.includes('pendingIntentInvalid'));
   assert.ok(pages.includes('No order was sent.'));
+});
+
+test('a stored Spot retry retains its idempotency key when the matching cutover gate rejects the retry', () => {
+  const retryFlagAt = pages.indexOf('const retryingStoredIntent=!!pendingIntent;');
+  const retryMessageAt = pages.indexOf('if(retryingStoredIntent&&reason instanceof ApiError&&reason.code==="MATCHING_ENGINE_UNAVAILABLE")');
+  const cleanupGuardAt = pages.indexOf('if(!retryingStoredIntent&&!orderAccepted&&reason instanceof ApiError');
+  const removeAt = pages.indexOf('window.localStorage.removeItem(pendingStorageKey)', cleanupGuardAt);
+  const clearAt = pages.indexOf('setPendingIntent(null);setPendingIntentInvalid(false);', cleanupGuardAt);
+  assert.ok(retryFlagAt >= 0 && retryMessageAt > retryFlagAt, 'retry status must be captured before a new intent is created');
+  assert.ok(cleanupGuardAt > retryMessageAt, 'stored retries must be excluded from first-attempt cleanup');
+  assert.ok(removeAt > cleanupGuardAt && clearAt > removeAt, 'only a first-attempt definitive rejection may clear the stored intent');
+  assert.ok(pages.includes('the earlier order result remains unconfirmed'), 'retry feedback must not claim that the original order was never created');
 });
