@@ -115,15 +115,15 @@ export function AuthPage({ mode, redirectTo }: { mode: "login" | "register"; red
             <p className="mt-1 text-xs leading-5 text-brand-text-muted">{t("Personal assets and account actions stay protected.")}</p>
           </div>
         </div>
-        <Link to="/markets" className="mt-8 inline-flex min-h-11 w-fit items-center gap-2 text-sm font-semibold text-brand-text-secondary transition-colors hover:text-brand-text">
-          {t("Explore public markets")} <ArrowRight className="h-4 w-4" />
+        <Link to="/markets" className="mt-8 inline-flex min-h-12 w-fit items-center gap-2 rounded-xl border border-brand-cyan/30 bg-brand-cyan/[0.08] px-4 text-sm font-semibold text-brand-cyan shadow-sm shadow-brand-cyan/[0.06] transition-all hover:border-brand-cyan/50 hover:bg-brand-cyan/[0.13] hover:text-brand-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent/70">
+          <ChartNoAxesCombined className="h-4 w-4" /> {t("Explore public markets")} <ArrowRight className="h-4 w-4" />
         </Link>
       </section>
 
       <div className="mx-auto w-full max-w-[480px]">
         <div className="mb-5 flex items-center justify-between lg:hidden">
           <Link to="/home" aria-label={t("BTCBOX home")}><BrandLogo compact /></Link>
-          <Link to="/markets" className="inline-flex min-h-11 items-center gap-1.5 rounded-lg px-2 text-xs font-semibold text-brand-text-secondary transition-colors hover:bg-brand-surface-hover hover:text-brand-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent/70">{t("Explore markets")} <ArrowRight className="h-3.5 w-3.5" /></Link>
+          <Link to="/markets" className="inline-flex min-h-10 items-center gap-1.5 rounded-lg border border-brand-cyan/25 bg-brand-cyan/[0.07] px-3 text-xs font-semibold text-brand-cyan transition-colors hover:border-brand-cyan/45 hover:bg-brand-cyan/[0.12] hover:text-brand-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent/70"><ChartNoAxesCombined className="h-3.5 w-3.5" />{t("Explore markets")} <ArrowRight className="h-3.5 w-3.5" /></Link>
         </div>
         <Card className="w-full overflow-hidden border-brand-cyan/20 bg-brand-surface  ">
           <div className="h-1 bg-brand-accent"/>
@@ -188,7 +188,9 @@ export function AuthPage({ mode, redirectTo }: { mode: "login" | "register"; red
                 ? <>{t("New to BTCBOX?")} <Link className="font-semibold text-brand-accent underline-offset-4 hover:underline" to="/register">{t("Create account")}</Link></>
                 : <>{t("Already have an account?")} <Link className="font-semibold text-brand-accent underline-offset-4 hover:underline" to="/login">{t("Sign in")}</Link></>}
             </div>
-            <Link to="/home" className="flex min-h-11 items-center justify-center gap-2 rounded-lg px-3 text-xs text-brand-text-muted transition-colors hover:bg-brand-surface-hover hover:text-brand-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent/70"><ArrowLeft className="h-3.5 w-3.5" /> {t("Back to BTCBOX")}</Link>
+            <div className="border-t border-brand-border/80 pt-3">
+              <Link to="/home" className="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-brand-border bg-brand-surface-2/70 px-4 text-sm font-medium text-brand-text-secondary shadow-sm transition-all hover:border-brand-cyan/35 hover:bg-brand-surface-hover hover:text-brand-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent/70"><ArrowLeft className="h-4 w-4" /> {t("Back to BTCBOX")}</Link>
+            </div>
           </CardContent>
         </Card>
         <p className="mt-4 flex items-center justify-center gap-2 text-center text-[11px] text-brand-text-muted"><ShieldCheck className="h-3.5 w-3.5 shrink-0" /> {t("Protected account access · Public markets remain available without signing in")}</p>
