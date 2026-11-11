@@ -435,7 +435,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
       if (authError) throw authError;
       if (data.session?.access_token) await acceptSupabaseSession(data.session.access_token);
-      else setNotice("Registration received. Please check your email and confirm your address before signing in.");
+      else setNotice("Registration received. Check your email and open the confirmation link in this same browser and device before signing in.");
     } catch (cause) { setError(cause instanceof Error ? cause.message : "Email registration failed."); throw cause; }
     finally { setBusy(false); }
   }, [acceptSupabaseSession]);
