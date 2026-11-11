@@ -54,7 +54,7 @@ test('admin UI displays deposit history source, amount, status, network, referen
   assert.ok(admin.includes('Source: legacy state · limited'));
   assert.ok(admin.includes('item.coin} · {item.network || "—"}'));
   assert.ok(admin.includes('item.reference || item.txid || "—"'));
-  assert.ok(admin.includes('formatDate(item.time)'));
+  assert.ok(admin.includes('formatDate(item.time, numberLocale)'));
 });
 
 test('deposit history UI never exposes it to a user without deposits.read', () => {
