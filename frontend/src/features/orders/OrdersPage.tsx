@@ -22,11 +22,16 @@ function display(value: unknown, fallback = "—") {
 
 function statusVariant(status: string) {
   const value = status.toLowerCase();
-  if (["filled", "completed", "success", "closed"].includes(value)) return "default" as const;
+  if (["filled", "completed", "success", "closed"].includes(value)) return "success" as const;
   if (["cancelled", "canceled", "rejected", "failed"].includes(value)) return "destructive" as const;
+  if (["pending", "open", "partially_filled", "partially-filled", "processing", "review"].includes(value)) return "warning" as const;
   return "outline" as const;
 }
 
+/**
+ * Displays the user's open orders and historical order records.
+ * Supports switching between the open-order and full-history views.
+ */
 export function OrdersPage() {
   const { t, language } = useI18n();
   const dateLocale = dateLocales[language];
@@ -38,6 +43,10 @@ export function OrdersPage() {
   const requestIdRef = useRef(0);
   const controllerRef = useRef<AbortController | null>(null);
 
+  /**
+   * Fetches the order records required by the currently selected view.
+   * Retains the existing request cancellation and error-state behavior.
+   */
   async function load() {
     controllerRef.current?.abort();
     const controller = new AbortController();
@@ -86,7 +95,7 @@ export function OrdersPage() {
   const visibleOrders = openOnly ? orders.filter(order => ["open", "partially_filled", "partially-filled", "pending"].includes(String(order.status || "").toLowerCase())) : orders;
 
   return (
-    <div className="tone-orders mx-auto flex w-full max-w-[1200px] min-w-0 flex-col gap-5 p-3 sm:p-4 md:p-6 lg:p-8">
+    <div aria-busy={loading} className="tone-orders mx-auto flex w-full max-w-[1200px] min-w-0 flex-col gap-5 p-3 sm:p-4 md:p-6 lg:p-8">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <p className="page-accent mb-1 text-xs font-bold uppercase tracking-[.18em]">{t("BTCBOX / ACCOUNT")}</p>
@@ -99,9 +108,9 @@ export function OrdersPage() {
       </div>
 
       {error && (
-        <Card className="border-brand-border bg-brand-surface">
+        <Card className="border-brand-danger/25 bg-brand-danger/[0.045]">
           <CardContent className="flex flex-wrap items-center justify-between gap-3 p-4">
-            <p className="type-body-compact text-brand-text-secondary" role="alert">{error}</p>
+            <p className="type-body-compact text-brand-danger" role="alert">{error}</p>
             {signedOut && <Button asChild size="sm"><Link to="/login">{t("Sign in")} <ArrowUpRight className="ml-1 h-4 w-4" /></Link></Button>}
           </CardContent>
         </Card>
@@ -109,7 +118,7 @@ export function OrdersPage() {
 
       <Card className="overflow-hidden border-brand-border bg-brand-surface ">
         <CardHeader className="border-b border-brand-border bg-brand-surface-2/50 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-3"><span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--page-accent)]/10 text-[var(--page-accent)]"><ClipboardList className="h-5 w-5"/></span><CardTitle>{t("Order history")}</CardTitle></div><div className="mt-3 flex flex-wrap gap-2 sm:mt-0"><Button variant={openOnly ? "default" : "outline"} size="sm" aria-pressed={openOnly} onClick={() => setOpenOnly(true)}>{t("Open orders")}</Button><Button variant={!openOnly ? "default" : "outline"} size="sm" aria-pressed={!openOnly} onClick={() => setOpenOnly(false)}>{t("Order history")}</Button></div>
+          <div className="flex min-w-0 items-center gap-3"><span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[var(--page-accent)]/10 text-[var(--page-accent)]"><ClipboardList className="h-5 w-5"/></span><CardTitle className="min-w-0">{t("Order history")}</CardTitle></div><div className="mt-3 flex flex-wrap gap-2 sm:mt-0"><Button variant={openOnly ? "default" : "outline"} size="sm" aria-pressed={openOnly} onClick={() => setOpenOnly(true)}>{t("Open orders")}</Button><Button variant={!openOnly ? "default" : "outline"} size="sm" aria-pressed={!openOnly} onClick={() => setOpenOnly(false)}>{t("Order history")}</Button></div>
         </CardHeader>
         <CardContent className="p-0">
           {loading ? (
@@ -132,15 +141,15 @@ export function OrdersPage() {
                   const side = display(order.side);
                   return <Card key={id} className="border-brand-border bg-brand-surface-2/50  transition-all hover:border-brand-accent/30 hover:bg-brand-surface-2/80">
                     <CardContent className="space-y-3 p-4">
-                      <div className="flex items-start justify-between gap-3">
+                      <div className="flex min-w-0 items-start justify-between gap-3">
                         <div className="min-w-0"><p className="font-semibold text-brand-text">{display(order.symbol)}</p><p className="mt-1 truncate font-mono text-[11px] text-brand-text-muted">{id}</p></div>
-                        <div className="flex shrink-0 flex-wrap items-center justify-end gap-2"><Badge variant={side.toLowerCase() === "buy" ? "default" : "outline"}>{t(side)}</Badge><Badge variant={statusVariant(display(order.status, "unknown"))}>{t(display(order.status, "Unknown"))}</Badge></div>
+                        <div className="flex shrink-0 flex-wrap items-center justify-end gap-2"><Badge variant={side.toLowerCase() === "buy" ? "default" : "outline"}>{t(side)}</Badge><Badge className="whitespace-nowrap" variant={statusVariant(display(order.status, "unknown"))}>{t(display(order.status, "Unknown"))}</Badge></div>
                       </div>
                       <div className="grid grid-cols-2 gap-3">
                         <div className="rounded-lg bg-brand-surface p-3"><p className="type-meta text-brand-text-muted">{t("Price")}</p><p className="mt-1 break-all font-mono text-sm tabular-nums text-brand-text">{display(order.price)}</p></div>
                         <div className="rounded-lg bg-brand-surface p-3"><p className="type-meta text-brand-text-muted">{t("Quantity")}</p><p className="mt-1 break-all font-mono text-sm tabular-nums text-brand-text">{display(order.quantity ?? order.amount)}</p></div>
                       </div>
-                      <div className="flex items-center justify-between gap-3 border-t border-brand-border pt-2 text-xs"><span className="text-brand-text-muted">{t(display(order.type))}</span><span className="text-right text-brand-text-muted">{formatDate(order.created_at, dateLocale)}</span></div>
+                      <div className="flex min-w-0 flex-wrap items-center justify-between gap-x-3 gap-y-1 border-t border-brand-border pt-2 text-xs"><span className="text-brand-text-muted">{t(display(order.type))}</span><span className="ml-auto min-w-0 text-right text-brand-text-muted">{formatDate(order.created_at, dateLocale)}</span></div>
                     </CardContent>
                   </Card>;
                 })}
@@ -161,7 +170,7 @@ export function OrdersPage() {
                       <td className="px-4 py-3 text-brand-text-secondary">{display(order.type)}</td>
                       <td className="px-4 py-3 text-right font-mono tabular-nums">{display(order.price)}</td>
                       <td className="px-4 py-3 text-right font-mono tabular-nums">{display(order.quantity ?? order.amount)}</td>
-                      <td className="px-4 py-3"><Badge variant={statusVariant(display(order.status, "unknown"))}>{t(display(order.status, "Unknown"))}</Badge></td>
+                      <td className="px-4 py-3"><Badge className="whitespace-nowrap" variant={statusVariant(display(order.status, "unknown"))}>{t(display(order.status, "Unknown"))}</Badge></td>
                       <td className="px-4 py-3 text-xs text-brand-text-muted">{formatDate(order.created_at, dateLocale)}</td>
                     </tr>;
                   })}

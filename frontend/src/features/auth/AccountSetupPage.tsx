@@ -8,6 +8,10 @@ import { Input } from "../../components/ui/input";
 import { useAuth } from "../../lib/auth";
 import { useI18n } from "../../lib/i18n";
 
+/**
+ * Renders the initial BTCBOX account setup form.
+ * Validates matching credentials before invoking the existing account setup flow.
+ */
 export function AccountSetupPage() {
   const { t } = useI18n();
   const { status, needsCredentials, busy, error, notice, googleEnabled, setBtcboxCredentials, signInWithGoogle } = useAuth();
@@ -23,10 +27,17 @@ export function AccountSetupPage() {
   if (status === "loading") return <div className="mx-auto flex min-h-[60vh] items-center justify-center text-sm text-brand-text-muted">{t("Checking your BTCBOX account…")}</div>;
   if (status !== "authenticated") return <Navigate to="/login" replace />;
 
+  /**
+   * Validates the setup form and submits the new account credentials.
+   * Ignores duplicate submissions while the request is already in progress.
+   */
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (password !== confirmPassword) return;
-    try { await setBtcboxCredentials(username, password); navigate("/me", { replace: true }); }
+    if (busy || password !== confirmPassword) return;
+    try { 
+      await setBtcboxCredentials(username, password); 
+      navigate("/me", { replace: true }); 
+    }
     catch { /* AuthProvider displays the safe error. */ }
   };
 
@@ -43,10 +54,10 @@ export function AccountSetupPage() {
         {error && <p role="alert" className="rounded-xl border border-brand-danger/25 bg-brand-danger/[0.06] p-3 text-sm leading-6 text-brand-danger">{t(error)}</p>}
         {notice && <p role="status" className="rounded-xl border border-brand-success/20 bg-brand-success/[0.05] p-3 text-sm leading-6 text-brand-text-secondary">{t(notice)}</p>}
         <form className="space-y-4" aria-busy={busy} onSubmit={submit}>
-          <label className="block space-y-1.5 text-sm"><span className="text-brand-text-secondary">{t("Choose a username")}</span><Input value={username} onChange={e=>setUsername(e.target.value.toLowerCase())} autoComplete="username" minLength={3} maxLength={24} pattern="[a-z0-9][a-z0-9_]{2,23}" placeholder={t("3–24 letters, numbers or underscores")} required/></label>
+          <label className="block space-y-1.5 text-sm"><span className="text-brand-text-secondary">{t("Choose a username")}</span><Input value={username} onChange={e=>setUsername(e.target.value.toLowerCase())} autoComplete="username" autoCapitalize="none" autoCorrect="off" spellCheck={false} minLength={3} maxLength={24} pattern="[a-z0-9][a-z0-9_]{2,23}" placeholder={t("3–24 letters, numbers or underscores")} required/></label>
           <label className="block space-y-1.5 text-sm"><span className="text-brand-text-secondary">{t("Create a password")}</span><Input type="password" value={password} onChange={e=>setPassword(e.target.value)} autoComplete="new-password" minLength={12} maxLength={128} placeholder={t("At least 12 characters")} required/></label>
-          <label className="block space-y-1.5 text-sm"><span className="text-brand-text-secondary">{t("Confirm password")}</span><Input type="password" value={confirmPassword} onChange={e=>setConfirmPassword(e.target.value)} autoComplete="new-password" minLength={12} maxLength={128} placeholder={t("Enter the password again")} required/></label>
-          {confirmPassword && password !== confirmPassword && <p role="alert" className="rounded-lg border border-brand-danger/20 bg-brand-danger/[0.05] px-3 py-2 text-sm text-brand-danger">{t("Passwords do not match.")}</p>}
+          <label className="block space-y-1.5 text-sm"><span className="text-brand-text-secondary">{t("Confirm password")}</span><Input id="confirm-btcbox-password" type="password" value={confirmPassword} onChange={e=>setConfirmPassword(e.target.value)} autoComplete="new-password" minLength={12} maxLength={128} aria-invalid={Boolean(confirmPassword && password !== confirmPassword)} aria-describedby={confirmPassword && password !== confirmPassword ? "confirm-btcbox-password-error" : undefined} placeholder={t("Enter the password again")} required/></label>
+          {confirmPassword && password !== confirmPassword && <p id="confirm-btcbox-password-error" role="alert" className="rounded-lg border border-brand-danger/20 bg-brand-danger/[0.05] px-3 py-2 text-sm text-brand-danger">{t("Passwords do not match.")}</p>}
           <Button type="submit" className="min-h-12 w-full bg-primary text-primary-foreground hover:bg-brand-hover" aria-busy={busy} disabled={busy || username.length < 3 || password.length < 12 || password !== confirmPassword}><KeyRound className="h-4 w-4"/>{busy ? t("Saving securely…") : t("Save BTCBOX credentials")}</Button>
         </form>
         {googleEnabled && <div className="border-t border-brand-border pt-4">
