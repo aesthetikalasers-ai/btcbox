@@ -48,11 +48,11 @@ export function Dashboard() {
         if (cancelled) return;
         setMarkets(rows);
         setError("");
-      }).catch((reason: unknown) => {
+      }).catch(() => {
         if (cancelled) return;
-        // Do not leave old quotes on screen as if they were current.
+        // Never show upstream provider diagnostics or stale prices to customers.
         setMarkets([]);
-        setError(reason instanceof Error && reason.name !== "AbortError" ? reason.message : "Market data is temporarily unavailable. Please try again shortly.");
+        setError("Market data is temporarily unavailable. Please try again shortly.");
       }).finally(() => {
         window.clearTimeout(timeoutId);
         refreshing = false;
