@@ -41,9 +41,11 @@ test('local integration serves real JSON APIs and SPA deep links on one origin',
   const health = await fetch(base + '/api/healthz');
   assert.equal((await health.json()).ok, true);
   const market = await fetch(base + '/api/market');
-  assert.equal(market.status, 503);
+  assert.equal(market.status, 200);
   assert.match(market.headers.get('content-type'), /application\/json/);
-  assert.equal((await market.json()).ok, false);
+  const marketPayload = await market.json();
+  assert.equal(marketPayload.ok, true);
+  assert.ok(marketPayload.data && typeof marketPayload.data === 'object');
   const page = await fetch(base + '/trade/BTCUSDT');
   assert.equal(page.status, 200);
   assert.match(await page.text(), /id="root"/);
