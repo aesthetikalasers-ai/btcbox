@@ -164,8 +164,8 @@ async function assertPageAtWidth(
     await expect(page.getByTestId("spot-availability")).toHaveText("Unavailable");
   }
   if (route.path === "/trade/BTCUSDT" && width <= 768) {
-    const orderbook = page.locator(".trade-top > .ob-card");
-    const orderForm = page.locator(".trade-top > .form-card");
+    const orderbook = page.locator(".exchange-workspace > .exchange-depth");
+    const orderForm = page.locator(".exchange-workspace > .exchange-entry");
     await expect(orderbook).toBeVisible();
     await expect(orderForm).toBeVisible();
     const [bookBox, formBox] = await Promise.all([orderbook.boundingBox(), orderForm.boundingBox()]);
@@ -176,6 +176,19 @@ async function assertPageAtWidth(
       bookBox!.x + bookBox!.width,
       "The mobile orderbook and order form must not overlap.",
     ).toBeLessThanOrEqual(formBox!.x + 1);
+
+    const chartTrigger = page.locator("#trade-chart-open");
+    await expect(chartTrigger, "Mobile spot trading must expose the chart drawer trigger.").toBeVisible();
+    await chartTrigger.click();
+    const chartDrawer = page.locator(".trade-chart-drawer");
+    await expect(chartDrawer, "The mobile K-line drawer must open.").toBeVisible();
+    const drawerBox = await chartDrawer.boundingBox();
+    expect(drawerBox, "The mobile K-line drawer must have a layout box.").not.toBeNull();
+    expect(drawerBox!.x, "The K-line drawer must not extend beyond the left viewport edge.").toBeGreaterThanOrEqual(-1);
+    expect(drawerBox!.x + drawerBox!.width, "The K-line drawer must not extend beyond the right viewport edge.").toBeLessThanOrEqual(width + 1);
+    expect(drawerBox!.y + drawerBox!.height, "The K-line drawer must remain above the bottom navigation safe area.").toBeLessThanOrEqual(900 - 60 + 1);
+    await chartDrawer.getByRole("button", { name: "Close", exact: true }).click();
+    await expect(chartDrawer, "The K-line drawer must close cleanly.").toBeHidden();
   }
 
   await page.evaluate(() => document.fonts.ready);
@@ -196,7 +209,7 @@ async function assertPageAtWidth(
   // Inspect rendered geometry as well as scrollWidth: global overflow clipping
   // must not make an element outside the viewport look like a passing layout.
   const boundaryViolations = await page.evaluate(() => {
-    const selectors = ["main", "header", "h1", ".trade-top", ".trade-top > *", ".ob-card", ".form-card", "[data-testid]"];
+    const selectors = ["main", "header", "h1", ".trade-top", ".trade-top > *", ".ob-card", ".form-card", ".exchange-workspace", ".exchange-depth", ".exchange-entry", ".trade-chart-drawer", "[data-testid]"];
     const elements = Array.from(new Set(selectors.flatMap((selector) =>
       Array.from(document.querySelectorAll<HTMLElement>(selector)),
     )));
