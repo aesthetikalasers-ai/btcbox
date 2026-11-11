@@ -100,7 +100,9 @@ test("responsive visual QA captures key customer and admin entry routes without 
       expect(dimensions.document, `${routePath} at ${width}px has document horizontal overflow: ${JSON.stringify(dimensions)}`).toBeLessThanOrEqual(width);
       expect(dimensions.body, `${routePath} at ${width}px has body horizontal overflow: ${JSON.stringify(dimensions)}`).toBeLessThanOrEqual(width);
       const slug = routePath.replace(/[^a-z0-9]+/gi, "-").replace(/^-|-$/g, "") || "root";
-      await page.screenshot({ path: path.join(output, `${slug}-${width}.png`), fullPage: true, animations: "disabled" });
+      if ([375, 768, 1366, 1920].includes(width)) {
+        await page.screenshot({ path: path.join(output, `${slug}-${width}.png`), fullPage: true, animations: "disabled" });
+      }
     }
   }
 });
