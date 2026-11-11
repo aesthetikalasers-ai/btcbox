@@ -21,12 +21,12 @@ test('React login and registration expose the approved BTCBOX authentication met
   assert.ok(authPage.includes('Wallet'));
   assert.ok(authPage.includes('Connect Ethereum wallet'));
   assert.ok(authPage.includes('Connect Solana wallet'));
-  assert.ok(!authPage.includes('signInWithEmail'));
-  assert.ok(!authPage.includes('signUpWithEmail'));
-  assert.ok(!authPage.includes('requestPasswordReset'));
+  assert.ok(authPage.includes('signInWithEmail'));
+  assert.ok(authPage.includes('signUpWithEmail'));
+  assert.ok(authPage.includes('requestPasswordReset'));
   assert.ok(authPage.includes('completePasswordRecovery'));
-  assert.ok(!authPage.includes('Sign in with email'));
-  assert.ok(!authPage.includes('Register with email'));
+  assert.ok(authPage.includes('Sign in with email'));
+  assert.ok(authPage.includes('Create account with email'));
 });
 
 test('legacy static Google OAuth callback retains same-origin return-target safeguards', () => {
@@ -178,7 +178,7 @@ test('React auth preserves Supabase email and Google alongside existing username
   assert.ok(auth.includes('signInWithEmail') && auth.includes('signUpWithEmail'));
   assert.ok(auth.includes('requestPasswordReset') && auth.includes('completePasswordRecovery'));
   assert.ok(auth.includes('flowType: "pkce"'));
-  for (const required of ['Sign in with username', 'Google', 'Connect Ethereum wallet', 'Connect Solana wallet']) assert.ok(pages.includes(required), 'auth page must expose ' + required);
+  for (const required of ['Sign in with username', 'Sign in with email', 'Create account with email', 'Email address', 'Email password', 'Google', 'Connect Ethereum wallet', 'Connect Solana wallet']) assert.ok(pages.includes(required), 'auth page must expose ' + required);
   assert.ok(!pages.includes('No email registration is required'));
   assert.ok(auth.includes('eip6963:announceProvider'));
   assert.ok(auth.includes('eip6963:requestProvider'));
