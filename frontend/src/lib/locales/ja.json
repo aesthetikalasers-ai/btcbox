@@ -1042,5 +1042,6 @@
   "s": "秒",
   "s ·": "秒 ·",
   "unsorted": "未ソート",
-  "· BTCBOX UID": "・BTCBOX UID"
+  "· BTCBOX UID": "・BTCBOX UID",
+  "Network error. Please try again.": "ネットワークエラーです。再度お試しください。"
 }

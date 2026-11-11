@@ -1042,5 +1042,6 @@
   "s": "giây",
   "s ·": "giây ·",
   "unsorted": "chưa sắp xếp",
-  "· BTCBOX UID": "· UID BTCBOX"
+  "· BTCBOX UID": "· UID BTCBOX",
+  "Network error. Please try again.": "Lỗi mạng. Vui lòng thử lại."
 }

@@ -1042,5 +1042,6 @@
   "s": "s",
   "s ·": "s ·",
   "unsorted": "não ordenado",
-  "· BTCBOX UID": "· UID BTCBOX"
+  "· BTCBOX UID": "· UID BTCBOX",
+  "Network error. Please try again.": "Erro de rede. Tente novamente."
 }

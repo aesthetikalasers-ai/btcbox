@@ -1042,5 +1042,6 @@
   "s": "秒",
   "s ·": "秒 ·",
   "unsorted": "未排序",
-  "· BTCBOX UID": "· BTCBOX UID"
+  "· BTCBOX UID": "· BTCBOX UID",
+  "Network error. Please try again.": "网络错误，请重试。"
 }
