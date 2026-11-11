@@ -1174,7 +1174,7 @@ test("Admin rapid user selection ignores an older detail response", async ({ pag
   expect(detailReads).toBe(2);
 });
 
-test("public preview distinguishes server snapshot time from upstream provider time", async ({ page }) => {
+test("public market UI keeps provider timestamps out of customer-facing pages", async ({ page }) => {
   const now = Math.floor(Date.now() / 1000);
   await page.route("**/api/market", route => route.fulfill({
     status: 200,
@@ -1188,9 +1188,9 @@ test("public preview distinguishes server snapshot time from upstream provider t
 
   await page.goto("/home");
 
-  await page.getByText("Market data", { exact: true }).click();
-  await expect(page.getByText(/Server snapshot ·/)).toBeVisible();
-  await expect(page.getByLabel(/Provider snapshot coinbase .* \d+s ago/)).toBeVisible();
+  await expect(page.getByText("Market data", { exact: true })).toHaveCount(0);
+  await expect(page.getByText(/Server snapshot|Provider snapshot|coinbase/)).toHaveCount(0);
+  await expect(page.getByText("BTC/USDT", { exact: true }).first()).toBeVisible();
 });
 
 test("Admin ignores a withdrawal queue response from a tab opened earlier", async ({ page }) => {
