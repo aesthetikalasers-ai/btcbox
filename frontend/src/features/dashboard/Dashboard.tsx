@@ -115,7 +115,7 @@ export function Dashboard() {
       <Badge variant="outline" className="border-brand-accent/30 bg-brand-accent/10 px-3 py-1 text-brand-text-secondary">
         {t(marketFeedStatus)}
       </Badge>
-    </div>
+    </header>
     {(btcMarket || loading) && <section aria-label={t("Bitcoin market summary")} className="grid gap-3 sm:grid-cols-3">
       <div className="relative min-w-0 overflow-hidden rounded-xl border border-brand-cyan/25 bg-gradient-to-br from-brand-cyan/[0.075] via-brand-surface to-brand-surface p-4 ring-1 ring-brand-cyan/[0.06] sm:p-5">
         <span aria-hidden="true" className="absolute inset-y-0 left-0 w-1 bg-brand-cyan"/>
@@ -135,7 +135,7 @@ export function Dashboard() {
         <p className="mt-3 truncate text-xl font-semibold tracking-tight tabular-nums text-brand-text sm:text-2xl">{loading || !btcMarket || !Number.isFinite(Number(btcMarket.vol)) ? "—" : new Intl.NumberFormat(localeTags[language],{notation:"compact",maximumFractionDigits:2}).format(Number(btcMarket.vol)) + " USDT"}</p>
         
       </div>
-    </header>
+    </section>}
     <div className="anim-fade-up anim-delay-4 min-w-0">
       <LiveMarketsTable markets={markets} loading={loading} error={error} />
     </div>
