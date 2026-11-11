@@ -85,7 +85,7 @@ export function AssetsPage() {
         </Button>
       </div>
 
-      {error && <Card className="border-brand-danger/25 bg-brand-danger/[0.045]"><CardContent className="flex flex-wrap items-center justify-between gap-3 p-4"><p className="type-body-compact text-brand-danger" role="alert">{error}</p>{signedOut && <Button asChild size="sm"><Link to="/login">{t("Sign in")}</Link></Button>}</CardContent></Card>}
+      {error && <Card className="border-brand-danger/25 bg-brand-danger/[0.045]"><CardContent className="flex flex-wrap items-center justify-between gap-3 p-4"><p className="type-body-compact text-brand-danger" role="alert">{t(error)}</p>{signedOut && <Button asChild size="sm"><Link to="/login">{t("Sign in")}</Link></Button>}</CardContent></Card>}
 
       {/* Step 18: total asset figure prominent, deposit/withdraw easy to reach */}
       <Card className="overflow-hidden border-brand-accent/25 bg-brand-surface">

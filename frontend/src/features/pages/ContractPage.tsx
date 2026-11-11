@@ -66,8 +66,9 @@ function EmptyState({ title, hint }: { title: string; hint: string }) {
 }
 
 function TableSkeleton({ rows = 3 }: { rows?: number }) {
+  const { t } = useI18n();
   return (
-    <div className="space-y-3 p-4" role="status" aria-label="Loading">
+    <div className="space-y-3 p-4" role="status" aria-label={t("Loading…")}>
       {Array.from({ length: rows }).map((_, i) => <div key={i} className="skeleton-bar h-8 w-full" />)}
     </div>
   );
@@ -235,7 +236,7 @@ export function ContractPage() {
   const orderEntryCard = (
     <Card className="border-brand-border bg-brand-surface">
       <CardHeader className="pb-3"><CardTitle>{t("Submit")}</CardTitle><CardDescription>{selectedMarket ? selectedMarket.symbol : t("Contract markets")}</CardDescription></CardHeader>
-      <CardContent className="space-y-3.5">
+      <CardContent><form onSubmit={(e) => void submitOrder(e)} className="space-y-3.5">
         <label className="block space-y-1.5 text-sm">
           <span className="type-label text-brand-text-muted">{t("Contract markets")}</span>
           <select value={symbol} onChange={(e) => setSymbol(e.target.value)} disabled={marketsLoading || !markets.length} className="field-control">
@@ -279,7 +280,6 @@ export function ContractPage() {
         {submitError ? <p className="inline-alert inline-alert-error" role="alert"><AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />{submitError}</p> : null}
         {submitOk ? <p className="inline-alert inline-alert-success" role="status"><CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />{submitOk}</p> : null}
 
-        <form onSubmit={(e) => void submitOrder(e)}>
           <Button type="submit" variant={side === "buy" ? "default" : "destructive"} className="min-h-12 w-full text-[15px] font-bold" disabled={busy || !selectedMarket || (orderType === "limit" && !price) || !quantity}>
             {busy ? t("Loading…") : side === "buy" ? `${t("Long")} ${selectedMarket?.base_asset ?? ""}` : `${t("Short")} ${selectedMarket?.base_asset ?? ""}`}
           </Button>

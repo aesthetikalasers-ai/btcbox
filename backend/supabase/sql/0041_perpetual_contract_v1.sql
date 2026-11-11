@@ -561,15 +561,15 @@ begin
     v_filled_qty := v_filled_qty + v_fill;
     v_filled_quote := v_filled_quote + v_quote;
     v_remaining := v_remaining - v_fill;
-    if v_reducible_remaining is not null then -- FIX (Medium): reduce-only exhausted -> stop; never flip into reverse position
-      v_reducible_remaining := v_reducible_remaining - v_fill;
-      if v_reducible_remaining <= 0 then exit; end if;
-    end if;
     update public.perpetual_orders set remaining_quantity=remaining_quantity-v_fill,
       status=case when remaining_quantity-v_fill<=0 then 'filled' else 'partially_filled' end,
       avg_fill_price=case when avg_fill_price is null then v_exec_price
                           else (avg_fill_price*(quantity-remaining_quantity)+v_exec_price*v_fill)/(quantity-remaining_quantity+v_fill) end,
       updated_at=now() where id=v_maker.id;
+    if v_reducible_remaining is not null then -- FIX (Medium): reduce-only exhausted -> stop; never flip into reverse position
+      v_reducible_remaining := v_reducible_remaining - v_fill;
+      if v_reducible_remaining <= 0 then exit; end if;
+    end if;
   end loop;
 
   -- 8. Finalize taker order.

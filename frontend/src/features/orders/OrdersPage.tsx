@@ -110,7 +110,7 @@ export function OrdersPage() {
       {error && (
         <Card className="border-brand-danger/25 bg-brand-danger/[0.045]">
           <CardContent className="flex flex-wrap items-center justify-between gap-3 p-4">
-            <p className="type-body-compact text-brand-danger" role="alert">{error}</p>
+            <p className="type-body-compact text-brand-danger" role="alert">{t(error)}</p>
             {signedOut && <Button asChild size="sm"><Link to="/login">{t("Sign in")} <ArrowUpRight className="ml-1 h-4 w-4" /></Link></Button>}
           </CardContent>
         </Card>

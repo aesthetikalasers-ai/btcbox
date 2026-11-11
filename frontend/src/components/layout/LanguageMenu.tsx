@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
+import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import { Check, ChevronDown, Search, X } from "lucide-react";
 import { useI18n, type Language } from "../../lib/i18n";
 
@@ -23,6 +23,7 @@ export function LanguageMenu() {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [highlight, setHighlight] = useState(0);
+  const listboxId = useId();
   const rootRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -89,7 +90,7 @@ export function LanguageMenu() {
   const onSearchKeyDown = (event: ReactKeyboardEvent<HTMLInputElement>) => {
     if (event.key === "ArrowDown") {
       event.preventDefault();
-      setHighlight((current) => Math.min(current + 1, filtered.length - 1));
+      setHighlight((current) => Math.max(0, Math.min(current + 1, filtered.length - 1)));
     } else if (event.key === "ArrowUp") {
       event.preventDefault();
       setHighlight((current) => Math.max(current - 1, 0));
@@ -106,7 +107,7 @@ export function LanguageMenu() {
         ref={triggerRef}
         type="button"
         aria-label={t("Language")}
-        aria-haspopup="menu"
+        aria-haspopup="dialog"
         aria-expanded={open}
         onClick={() => setOpen((current) => !current)}
         className="flex h-11 min-w-0 items-center gap-1.5 rounded-lg border border-brand-border bg-brand-surface px-2.5 text-sm font-semibold text-brand-text transition-colors hover:border-brand-accent/40 hover:bg-brand-surface-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent sm:px-3"
@@ -118,7 +119,7 @@ export function LanguageMenu() {
 
       {open && (
         <div
-          role="menu"
+          role="dialog"
           aria-label={t("Language")}
           className="absolute right-0 z-50 mt-2 w-72 max-w-[85vw] overflow-hidden rounded-xl border border-brand-border bg-brand-surface-2 shadow-xl shadow-black/40"
         >
@@ -145,6 +146,11 @@ export function LanguageMenu() {
                 onKeyDown={onSearchKeyDown}
                 placeholder={t("Search Language")}
                 aria-label={t("Search Language")}
+                role="combobox"
+                aria-autocomplete="list"
+                aria-expanded={filtered.length > 0}
+                aria-controls={filtered.length > 0 ? listboxId : undefined}
+                aria-activedescendant={filtered[highlight] ? `${listboxId}-${filtered[highlight].code}` : undefined}
                 className="h-11 w-full rounded-lg border border-brand-border bg-brand-surface-2 pl-9 pr-3 text-sm text-brand-text placeholder:text-brand-text-muted transition-colors focus:border-brand-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent/50"
               />
             </div>
@@ -154,7 +160,8 @@ export function LanguageMenu() {
             {filtered.length === 0 ? (
               <p role="status" className="px-3 py-6 text-center text-sm text-brand-text-muted">{t("No matching language")}</p>
             ) : (
-              filtered.map((lang, index) => {
+              <div id={listboxId} role="listbox" aria-label={t("Language")}>
+              {filtered.map((lang, index) => {
                 const selected = language === lang.code;
                 const active = index === highlight;
                 return (
@@ -162,8 +169,10 @@ export function LanguageMenu() {
                     key={lang.code}
                     ref={(element) => { itemRefs.current[index] = element; }}
                     type="button"
-                    role="menuitemradio"
-                    aria-checked={selected}
+                    id={`${listboxId}-${lang.code}`}
+                    role="option"
+                    aria-selected={selected}
+                    tabIndex={-1}
                     onClick={() => select(lang.code)}
                     onMouseEnter={() => setHighlight(index)}
                     className={`flex w-full items-center gap-3 rounded-lg px-2.5 py-2 text-left text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-accent/50 ${
@@ -179,7 +188,8 @@ export function LanguageMenu() {
                     {selected && <Check className="h-4 w-4 shrink-0" aria-hidden="true" />}
                   </button>
                 );
-              })
+              })}
+              </div>
             )}
           </div>
         </div>
