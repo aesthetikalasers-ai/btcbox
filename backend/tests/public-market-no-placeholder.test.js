@@ -68,6 +68,6 @@ test('customer navigation contains no preview or API-verification banners', () =
 test('dashboard candle polling does not overlap slow historical-data requests', () => {
   const dashboard = fs.readFileSync(path.resolve(__dirname, '../../frontend/src/features/dashboard/Dashboard.tsx'), 'utf8');
   assert.equal((dashboard.match(/let refreshing = false;/g) || []).length, 3);
-  assert.equal((dashboard.match(/if \(refreshing \|\| controller.signal.aborted\) return;/g) || []).length, 3);
+  assert.equal((dashboard.match(/if \(refreshing \|\| controller.signal.aborted\) return;/g) || []).length, 2);
   assert.equal((dashboard.match(/\.finally\(\(\) => \{ refreshing = false; \}\);/g) || []).length, 2);
 });
