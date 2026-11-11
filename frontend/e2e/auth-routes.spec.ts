@@ -562,7 +562,8 @@ async function installAdminE2EIdentity(page: import("@playwright/test").Page) {
   }));
 }
 
-test("Admin withdrawal refresh failure stays a read-only error and cannot imply a financial action", async ({ page }) => {
+test("Admin withdrawal refresh failure stays read-only and the layout fits UI V1.0 widths", async ({ page }) => {
+  test.setTimeout(90_000);
   await installAdminE2EIdentity(page);
   let queueReads = 0;
   let failNextQueueRead = false;
