@@ -1310,8 +1310,11 @@ test("Google and Wallet provider entries have matching dimensions and responsive
     { width: 360, height: 780 },
     { width: 375, height: 812 },
     { width: 390, height: 844 },
+    { width: 430, height: 900 },
     { width: 768, height: 900 },
+    { width: 1366, height: 1000 },
     { width: 1440, height: 1000 },
+    { width: 1920, height: 1080 },
   ]) {
     await page.setViewportSize(viewport);
     await page.goto("/register");
