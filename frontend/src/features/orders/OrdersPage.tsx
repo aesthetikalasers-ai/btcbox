@@ -28,6 +28,10 @@ function statusVariant(status: string) {
   return "outline" as const;
 }
 
+/**
+ * Displays the user's open orders and historical order records.
+ * Supports switching between the open-order and full-history views.
+ */
 export function OrdersPage() {
   const { t, language } = useI18n();
   const dateLocale = dateLocales[language];
@@ -39,6 +43,10 @@ export function OrdersPage() {
   const requestIdRef = useRef(0);
   const controllerRef = useRef<AbortController | null>(null);
 
+  /**
+   * Fetches the order records required by the currently selected view.
+   * Retains the existing request cancellation and error-state behavior.
+   */
   async function load() {
     controllerRef.current?.abort();
     const controller = new AbortController();
