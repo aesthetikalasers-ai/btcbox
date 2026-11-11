@@ -39,6 +39,20 @@ Tailwind breakpoint mapping: sm 640, md 768, lg 1024, xl 1280, 2xl 1536. Do not 
 - Borders use the existing brand-border tokens; elevation is subtle and reserved for layered surfaces.
 - Use 4 px spacing increments; avoid arbitrary per-page gaps unless content density requires it.
 
+### 3.1 Canonical tokens (`frontend/src/index.css`)
+
+| Group | Token | Value | Use |
+| --- | --- | --- | --- |
+| Brand | `--color-brand-accent` | `#21C7A8` | Primary actions, active navigation, focus rings |
+| Brand | `--color-brand-hover` / `--color-brand-active` | `#13A98C` / `#0D806D` | Hover and pressed brand states |
+| Background | `brand-bg` → `brand-surface` → `brand-surface-2` → `brand-surface-3` → `brand-sidebar` | `#080D13` → `#243443` | Five-level dark navy surface hierarchy |
+| Text | `brand-text` / `brand-text-secondary` / `brand-text-muted` / `brand-text-disabled` | `#F4F7FA` → `#526170` | Four-level text hierarchy |
+| Finance | `brand-success` / `brand-danger` / `brand-warning` / `brand-info` | `#35D6A6` / `#F06B78` / `#E9B85C` / `#72AEF2` | Positive, negative, warning and informational values only |
+| Shape | `--radius-control` / `--radius-card` / `--radius-panel` | 8 / 12 / 16 px | Inputs and buttons / cards / prominent summary surfaces |
+| Elevation | `--shadow-card` / `--shadow-overlay` | subtle / deep | Cards / dialogs, menus and floating layers |
+
+Pages must consume these tokens through Tailwind utilities (`rounded-control`, `rounded-card`, `shadow-card`) or the shared primitives below. Do not introduce page-local hex values or a second accent palette.
+
 ## 4. Typography hierarchy
 
 Use the semantic classes already introduced in `frontend/src/index.css`:
@@ -55,25 +69,33 @@ Use the semantic classes already introduced in `frontend/src/index.css`:
 | Metadata | `.type-meta` | 12 px |
 | Micro annotation | `.type-micro` | 11 px; never for key values or actions |
 | Financial value | `.type-price` | 20–28 px, tabular numerals |
+| Asset total | `.type-asset-value` | 28–36 px, tabular numerals, tight tracking |
+| Metric figure | `.type-metric` | 20–24 px, tabular numerals |
+| Table header | `.type-table-head` | 11 px uppercase, muted |
+| Eyebrow | `.type-eyebrow` | 11 px uppercase, heavy tracking |
 
 Do not shrink body copy to solve layout overflow. Wrap, stack, abbreviate only with an accessible full label, or change the layout.
 
 ## 5. Shared component contract
 
-- Buttons: default 44 px high, small 40 px only for secondary dense contexts, large 48 px, icon button at least 44 × 44 px. On touch-first primary actions prefer 48 px. Do not use small buttons for the only critical action.
-- Inputs/selects: minimum 44 px control height; keep mobile text at least 16 px to prevent browser zoom.
+- Buttons: default 44 px high, small 40 px only for secondary dense contexts, large 48 px, icon button at least 44 × 44 px. On touch-first primary actions prefer 48 px. Do not use small buttons for the only critical action. Variants: default, outline, secondary, ghost, destructive, link.
+- Inputs/selects: minimum 44 px control height; keep mobile text at least 16 px to prevent browser zoom. Use `Input`, `Select` and `Textarea` from `components/ui/select.tsx`/`input.tsx`; they share `.field-control`, invalid styling and disabled behavior.
+- Page header: `PageHeader` from `components/ui/page-header.tsx` owns eyebrow, title, description and action alignment. Callers pass translated strings; the component does not translate.
+- Feedback: `Alert` from `components/ui/alert.tsx` with tones `danger`, `success`, `warning`, `info`. Use it for page-level and form-level messages instead of bespoke colored boxes.
+- Empty states: `EmptyState` from `components/ui/empty-state.tsx` for every zero-record view (orders, deposits, withdrawals, addresses, Earn, support).
 - Cards: use shared Card primitives and semantic padding classes; avoid per-page custom card geometry.
 - Badges: status-only, concise, never the sole indicator of success or failure.
 - Dialogs/drawers: constrain to viewport height, support internal scrolling, preserve safe-area insets and keyboard focus.
-- Tables: provide a deliberate mobile row/card representation or a contained horizontal scroller; never silently clip essential columns.
-- Navigation: stable tap targets, clear active state, safe-area padding at the bottom.
+- Tables: use `.data-table` inside `.table-scroll`; header hierarchy, right-aligned amounts (`.num`), monospace values (`.mono`) and row hover are defined centrally. Provide a deliberate mobile row/card representation or a contained horizontal scroller; never silently clip essential columns.
+- Navigation: stable tap targets, clear active state, safe-area padding at the bottom. Active navigation uses the brand accent consistently; do not assign a different hue per menu item.
 
 ## 6. Mobile and browser requirements
 
 - Respect `env(safe-area-inset-top)` and `env(safe-area-inset-bottom)` for fixed navigation and overlays.
 - Prefer dynamic viewport units where appropriate; test browser chrome expansion/collapse.
 - Support portrait and landscape without fixed-width content assumptions.
-- Test browser text scaling and long translated strings across all seven locales: en, ja, zh-CN, es, vi, it, pt.
+- Test browser text scaling and long translated strings across all eight locales: en, ja, zh-CN, es, vi, it, pt, de.
+- On narrow phones the language trigger collapses to an icon button; the accessible name remains `Language`.
 - Prevent horizontal page overflow; intentional table/chart scrolling must remain local to its component.
 - Do not rely on hover for essential actions.
 

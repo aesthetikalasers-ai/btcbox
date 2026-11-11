@@ -4,6 +4,9 @@ import { ArrowUpRight, ClipboardList, RefreshCw } from "lucide-react";
 import { Badge } from "../../components/ui/badge";
 import { Button } from "../../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
+import { Alert } from "../../components/ui/alert";
+import { EmptyState } from "../../components/ui/empty-state";
+import { PageHeader } from "../../components/ui/page-header";
 import { ApiError, getOrders, type OrderRecord } from "../../lib/api";
 import { useI18n, type Language } from "../../lib/i18n";
 
@@ -88,24 +91,22 @@ export function OrdersPage() {
 
   return (
     <div aria-busy={loading} className="tone-orders mx-auto flex w-full max-w-[1200px] min-w-0 flex-col gap-5 p-3 sm:p-4 md:p-6 lg:p-8">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <p className="page-accent mb-1 text-xs font-bold uppercase tracking-[.18em]">{t("BTCBOX / ACCOUNT")}</p>
-          <h1 className="type-page-title text-brand-text">{t("Orders")}</h1>
-        </div>
-        <Button variant="outline" size="sm" onClick={() => void load()} disabled={loading}>
-          <RefreshCw className={`mr-2 h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+      <PageHeader
+        eyebrow={t("BTCBOX / ACCOUNT")}
+        title={t("Orders")}
+        actions={<Button variant="outline" size="sm" onClick={() => void load()} disabled={loading}>
+          <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
           {t("Refresh")}
-        </Button>
-      </div>
+        </Button>}
+      />
 
       {error && (
-        <Card className="border-brand-danger/25 bg-brand-danger/[0.045]">
-          <CardContent className="flex flex-wrap items-center justify-between gap-3 p-4">
-            <p className="type-body-compact text-brand-danger" role="alert">{error}</p>
-            {signedOut && <Button asChild size="sm"><Link to="/login">{t("Sign in")} <ArrowUpRight className="ml-1 h-4 w-4" /></Link></Button>}
-          </CardContent>
-        </Card>
+        <Alert
+          tone="danger"
+          action={signedOut
+            ? <Button asChild size="sm"><Link to="/login">{t("Sign in")} <ArrowUpRight className="h-4 w-4" /></Link></Button>
+            : <Button variant="outline" size="sm" onClick={() => void load()} disabled={loading}>{t("Try again")}</Button>}
+        >{t(error)}</Alert>
       )}
 
       <Card className="overflow-hidden border-brand-border bg-brand-surface ">
@@ -119,12 +120,13 @@ export function OrdersPage() {
               <div className="h-12 animate-pulse rounded bg-brand-surface-2" />
               <div className="h-12 animate-pulse rounded bg-brand-surface-2" />
             </div>
-          ) : visibleOrders.length === 0 && !error && !signedOut ? (
-            <div className="flex flex-col items-center px-5 py-12 text-center">
-              <ClipboardList className="mb-3 h-9 w-9 page-accent" />
-              <p className="type-card-title text-brand-text">{t(signedOut ? "Sign in required" : error ? "Orders could not be loaded" : "No orders yet")}</p>
-              <p className="type-body-compact mt-2 max-w-md text-brand-text-muted">{t(signedOut ? "Your private order history is available after you sign in." : error ? "Refresh after the account service is available. Your order records have not been changed." : "When you place an order, its status and details will appear here.")}</p>
-            </div>
+          ) : visibleOrders.length === 0 ? (
+            <EmptyState
+              icon={ClipboardList}
+              title={t(openOnly ? "No open orders" : "No orders yet")}
+              hint={t(openOnly ? "You have no working orders. Switch to order history to review completed orders." : "When you place an order, its status and details will appear here.")}
+              action={<Button asChild variant="secondary" size="sm"><Link to="/trade-hub">{t("Explore trading")} <ArrowUpRight className="h-4 w-4" /></Link></Button>}
+            />
           ) : (
             <>
               <div className="grid gap-3 p-3 md:hidden">
@@ -146,24 +148,24 @@ export function OrdersPage() {
                   </Card>;
                 })}
               </div>
-              <div className="hidden custom-scrollbar overflow-x-auto md:block">
-              <table className="w-full min-w-[760px] text-left text-sm">
-                <thead className="border-y border-brand-border bg-brand-surface-2/90 text-[11px] uppercase tracking-[.12em] text-brand-text-muted">
-                  <tr>{["Order", "Pair", "Side", "Type", "Price", "Quantity", "Status", "Created"].map((label) => <th key={label} className={`px-4 py-3 font-semibold ${label === "Price" || label === "Quantity" ? "text-right" : ""}`}>{t(label)}</th>)}</tr>
+              <div className="hidden custom-scrollbar table-scroll md:block">
+              <table className="data-table min-w-[760px]">
+                <thead>
+                  <tr>{["Order", "Pair", "Side", "Type", "Price", "Quantity", "Status", "Created"].map((label) => <th key={label} className={label === "Price" || label === "Quantity" ? "num" : ""}>{t(label)}</th>)}</tr>
                 </thead>
                 <tbody>
                   {visibleOrders.map((order, index) => {
                     const id = display(order.order_id ?? order.id, `#${index + 1}`);
                     const side = display(order.side);
-                    return <tr key={id} className="border-b border-brand-border/80 last:border-0 transition-colors hover:bg-brand-surface-hover">
-                      <td className="max-w-[180px] truncate px-4 py-3 font-mono text-xs text-brand-text-secondary">{id}</td>
-                      <td className="px-4 py-3 font-semibold text-brand-text">{display(order.symbol)}</td>
-                      <td className="px-4 py-3"><span className={side.toLowerCase() === "buy" ? "text-profit" : side.toLowerCase() === "sell" ? "text-loss" : "text-brand-text-secondary"}>{t(side)}</span></td>
-                      <td className="px-4 py-3 text-brand-text-secondary">{display(order.type)}</td>
-                      <td className="px-4 py-3 text-right font-mono tabular-nums">{display(order.price)}</td>
-                      <td className="px-4 py-3 text-right font-mono tabular-nums">{display(order.quantity ?? order.amount)}</td>
-                      <td className="px-4 py-3"><Badge className="whitespace-nowrap" variant={statusVariant(display(order.status, "unknown"))}>{t(display(order.status, "Unknown"))}</Badge></td>
-                      <td className="px-4 py-3 text-xs text-brand-text-muted">{formatDate(order.created_at, dateLocale)}</td>
+                    return <tr key={id}>
+                      <td className="mono max-w-[180px] truncate">{id}</td>
+                      <td className="strong">{display(order.symbol)}</td>
+                      <td><span className={side.toLowerCase() === "buy" ? "text-profit" : side.toLowerCase() === "sell" ? "text-loss" : "text-brand-text-secondary"}>{t(side)}</span></td>
+                      <td>{display(order.type)}</td>
+                      <td className="num">{display(order.price)}</td>
+                      <td className="num">{display(order.quantity ?? order.amount)}</td>
+                      <td><Badge className="whitespace-nowrap" variant={statusVariant(display(order.status, "unknown"))}>{t(display(order.status, "Unknown"))}</Badge></td>
+                      <td className="text-xs text-brand-text-muted">{formatDate(order.created_at, dateLocale)}</td>
                     </tr>;
                   })}
                 </tbody>

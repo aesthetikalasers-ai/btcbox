@@ -112,7 +112,7 @@ export function LanguageMenu() {
         className="flex h-11 min-w-0 items-center gap-1.5 rounded-lg border border-brand-border bg-brand-surface px-2.5 text-sm font-semibold text-brand-text transition-colors hover:border-brand-accent/40 hover:bg-brand-surface-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent sm:px-3"
       >
         <span aria-hidden="true" className="text-base leading-none">🌐</span>
-        <span className="max-w-[5.5rem] truncate sm:max-w-none">{LANGUAGE_LABEL[language]}</span>
+        <span className="hidden max-w-[5.5rem] truncate min-[420px]:inline sm:max-w-none">{LANGUAGE_LABEL[language]}</span>
         <ChevronDown aria-hidden="true" className={`h-3.5 w-3.5 shrink-0 text-brand-text-muted transition-transform ${open ? "rotate-180" : ""}`} />
       </button>
 

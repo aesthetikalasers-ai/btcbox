@@ -4,6 +4,9 @@ import { ArrowDownToLine, ArrowUpFromLine, RefreshCw, ShieldCheck, Wallet } from
 import { Badge } from "../../components/ui/badge";
 import { Button } from "../../components/ui/button";
 import { Card, CardContent } from "../../components/ui/card";
+import { Alert } from "../../components/ui/alert";
+import { EmptyState } from "../../components/ui/empty-state";
+import { PageHeader } from "../../components/ui/page-header";
 import { ApiError, getAccount, type AccountBalance, type AccountSnapshot } from "../../lib/api";
 import { formatDecimalAmount, localeTags, useI18n } from "../../lib/i18n";
 import { TokenIcon } from "../../components/ui/TokenIcon";
@@ -67,29 +70,30 @@ export function AssetsPage() {
 
   return (
     <div aria-busy={loading} className="tone-assets mx-auto flex w-full max-w-[1200px] min-w-0 flex-col gap-5 p-3 sm:p-4 md:p-6 lg:p-8">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <p className="page-accent mb-1 text-xs font-bold uppercase tracking-[.18em]">{t("BTCBOX / WALLET")}</p>
-          <h1 className="type-page-title text-brand-text">{t("Assets")}</h1>
-        </div>
-        <Button variant="outline" size="sm" onClick={() => void load()} disabled={loading}>
-          <RefreshCw className={`mr-2 h-4 w-4 ${loading ? "animate-spin" : ""}`} />{t("Refresh")}
-        </Button>
-      </div>
+      <PageHeader
+        eyebrow={t("BTCBOX / WALLET")}
+        title={t("Assets")}
+        actions={<Button variant="outline" size="sm" onClick={() => void load()} disabled={loading}>
+          <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />{t("Refresh")}
+        </Button>}
+      />
 
-      {error && <Card className="border-brand-danger/25 bg-brand-danger/[0.045]"><CardContent className="flex flex-wrap items-center justify-between gap-3 p-4"><p className="type-body-compact text-brand-danger" role="alert">{error}</p>{signedOut && <Button asChild size="sm"><Link to="/login">{t("Sign in")}</Link></Button>}</CardContent></Card>}
+      {error && <Alert
+        tone="danger"
+        action={signedOut ? <Button asChild size="sm"><Link to="/login">{t("Sign in")}</Link></Button> : <Button variant="outline" size="sm" onClick={() => void load()} disabled={loading}>{t("Try again")}</Button>}
+      >{t(error)}</Alert>}
 
       {/* Step 18: total asset figure prominent, deposit/withdraw easy to reach */}
       <Card className="overflow-hidden border-brand-accent/25 bg-brand-surface">
         <CardContent className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-6">
           <div className="min-w-0">
             <p className="type-label text-brand-text-muted">{t("Estimated total value")}</p>
-            <p className="mt-1.5 truncate text-[28px] font-bold leading-tight tracking-tight tabular-nums text-brand-text sm:text-[34px]">{loading ? "—" : account?.valuation_complete ? formatDecimalAmount(account.totalUsdt, numberLocale) + " USDT" : "—"}</p>
+            <p className="type-asset-value mt-1.5 truncate text-brand-text">{loading ? "—" : account?.valuation_complete ? formatDecimalAmount(account.totalUsdt, numberLocale) + " USDT" : "—"}</p>
             <div className="mt-2.5"><Badge variant={loading ? "outline" : account?.valuation_complete ? "success" : "warning"}>{loading ? t("Loading") : account?.valuation_complete ? t("Valuation complete") : t("Valuation incomplete")}</Badge></div>
           </div>
           <div className="flex w-full flex-wrap gap-2 sm:w-auto">
-            <Button asChild className="flex-1 sm:flex-none"><Link to="/deposit"><ArrowDownToLine className="mr-2 h-4 w-4"/>{t("Deposit")}</Link></Button>
-            <Button asChild className="flex-1 sm:flex-none" variant="outline"><Link to="/withdraw"><ArrowUpFromLine className="mr-2 h-4 w-4"/>{t("Withdraw")}</Link></Button>
+            <Button asChild className="flex-1 sm:flex-none"><Link to="/deposit"><ArrowDownToLine className="h-4 w-4"/>{t("Deposit")}</Link></Button>
+            <Button asChild className="flex-1 sm:flex-none" variant="outline"><Link to="/withdraw"><ArrowUpFromLine className="h-4 w-4"/>{t("Withdraw")}</Link></Button>
           </div>
         </CardContent>
       </Card>
@@ -97,7 +101,7 @@ export function AssetsPage() {
       <div className="grid grid-cols-1 gap-3 min-[420px]:grid-cols-2">
         <Card className="border-brand-border bg-brand-surface">
           <CardContent className="flex items-center gap-3 p-4">
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-brand-info/10 text-brand-info"><Wallet className="h-5 w-5"/></span>
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-brand-accent/10 text-brand-accent"><Wallet className="h-5 w-5"/></span>
             <div className="min-w-0"><p className="type-meta text-brand-text-muted">{t("Assets held")}</p><p className="mt-1 text-lg font-semibold tabular-nums text-brand-text">{loading || !account ? "—" : balances.length}</p></div>
           </CardContent>
         </Card>
@@ -119,7 +123,12 @@ export function AssetsPage() {
         <div className="min-w-0 sm:text-right"><p className="type-meta text-brand-text-muted">{t("Available")}</p><p className="mt-1 break-all font-mono text-sm font-semibold tabular-nums text-brand-text">{formatDecimalAmount(balance.free, numberLocale)}</p></div>
         <div className="min-w-0 text-right"><p className="type-meta text-brand-text-muted">{t("Frozen")}</p><p className="mt-1 break-all font-mono text-sm tabular-nums text-brand-text-muted">{formatDecimalAmount(balance.frozen, numberLocale)}</p></div>
       </div>)}</div>
-      : <Card className="border-brand-border bg-brand-surface"><CardContent className="flex flex-col items-center px-5 py-12 text-center"><Wallet className="mb-3 h-9 w-9 page-accent"/><p className="type-card-title text-brand-text">{t(signedOut ? "Sign in required" : error ? "Assets could not be loaded" : "No asset balances")}</p>{(signedOut || error) && <p className="type-body-compact mt-2 max-w-md text-brand-text-muted">{t(signedOut ? "Your private balances are available after you sign in." : "Refresh after the account service is available. No balance values have been fabricated.")}</p>}</CardContent></Card>}
+      : <Card className="border-brand-border bg-brand-surface"><CardContent className="p-0"><EmptyState
+        icon={Wallet}
+        title={t(signedOut ? "Sign in required" : error ? "Assets could not be loaded" : "No asset balances")}
+        hint={t(signedOut ? "Your private balances are available after you sign in." : error ? "Refresh after the account service is available. No balance values have been fabricated." : "Deposit or receive assets to see balances here.")}
+        action={signedOut ? <Button asChild size="sm"><Link to="/login">{t("Sign in")}</Link></Button> : error ? <Button variant="outline" size="sm" onClick={() => void load()}>{t("Try again")}</Button> : undefined}
+      /></CardContent></Card>}
 
       {account?.unpriced_assets?.length ? <p className="type-meta text-brand-text-muted">{t("Unpriced assets")}: {account.unpriced_assets.join(", ")}</p> : null}
     </div>

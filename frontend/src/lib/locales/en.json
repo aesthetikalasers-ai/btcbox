@@ -1017,5 +1017,12 @@
   "Cancelled": "Cancelled",
   "Filled": "Filled",
   "Partially filled": "Partially filled",
-  "Not submitted": "Not submitted"
+  "Not submitted": "Not submitted",
+  "No deposits yet": "No deposits yet",
+  "No Earn products available": "No Earn products available",
+  "No Earn positions": "No Earn positions",
+  "No asset balances": "No asset balances",
+  "No saved withdrawal addresses": "No saved withdrawal addresses",
+  "No withdrawals yet": "No withdrawals yet",
+  "No saved addresses": "No saved addresses"
 }

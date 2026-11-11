@@ -3,6 +3,7 @@ import { Navigate } from "react-router-dom";
 import { Link2, ShieldCheck, Wallet } from "lucide-react";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
+import { Alert } from "../../components/ui/alert";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/card";
 import { getAccount, type AccountSnapshot } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
@@ -41,12 +42,12 @@ export function AccountSecurityPage() {
   const linkedMethodCount = identities.length || [hasGoogle, hasEthereum, hasSolana].filter(Boolean).length;
 
   return <div aria-busy={busy} className="tone-account mx-auto w-full max-w-5xl space-y-5 p-3 pb-24 sm:space-y-6 sm:p-5 lg:p-7">
-    <div className="flex flex-col justify-between gap-4 rounded-2xl border border-brand-info/25 bg-brand-surface p-5 sm:flex-row sm:items-center sm:p-6" style={{ backgroundImage: "radial-gradient(ellipse at top left, color-mix(in srgb, var(--color-brand-info) 12%, transparent), transparent 55%)" }}>
-      <div className="flex min-w-0 items-center gap-3"><span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-brand-info/10 text-brand-info"><ShieldCheck className="h-6 w-6"/></span><div><p className="type-meta font-semibold uppercase tracking-[.16em] page-accent">{t("Account center")}</p><h1 className="mt-1 text-xl font-semibold tracking-tight text-brand-text sm:text-2xl">{t("Account security")}</h1><p className="mt-1 max-w-xl text-sm leading-6 text-brand-text-muted">{t("Manage verified sign-in methods and protect access to your BTCBOX account.")}</p></div></div>
+    <div className="flex flex-col justify-between gap-4 rounded-panel border border-brand-accent/25 bg-brand-surface p-5 sm:flex-row sm:items-center sm:p-6" style={{ backgroundImage: "radial-gradient(ellipse at top left, color-mix(in srgb, var(--color-brand-accent) 9%, transparent), transparent 55%)" }}>
+      <div className="flex min-w-0 items-center gap-3"><span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-brand-accent/10 text-brand-accent"><ShieldCheck className="h-6 w-6"/></span><div><p className="type-meta font-semibold uppercase tracking-[.16em] page-accent">{t("Account center")}</p><h1 className="mt-1 text-xl font-semibold tracking-tight text-brand-text sm:text-2xl">{t("Account security")}</h1><p className="mt-1 max-w-xl text-sm leading-6 text-brand-text-muted">{t("Manage verified sign-in methods and protect access to your BTCBOX account.")}</p></div></div>
       <span className="inline-flex w-fit items-center gap-2 rounded-md border border-brand-success/25 bg-brand-success/[.07] px-3 py-1.5 text-xs font-semibold text-brand-success"><span className="h-1.5 w-1.5 rounded-full bg-brand-success"/>{account ? t("Account details loaded") : t("Checking account")}</span>
     </div>
-    {(error || loadError) && <p role="alert" className="rounded-xl border border-brand-danger/25 bg-brand-danger/[0.06] p-3 text-sm leading-6 text-brand-danger">{t(error || loadError)}</p>}
-    {notice && <p role="status" className="rounded-xl border border-brand-success/20 bg-brand-success/[0.05] p-3 text-sm leading-6 text-brand-text-secondary">{t(notice)}</p>}
+    {(error || loadError) && <Alert tone="danger">{t(error || loadError)}</Alert>}
+    {notice && <Alert tone="success">{t(notice)}</Alert>}
     <section aria-label={t("Security overview")} className="grid grid-cols-1 gap-3 min-[480px]:grid-cols-2 lg:grid-cols-3">
       <Card className="border-brand-border bg-brand-surface"><CardContent className="flex items-center gap-3 p-4"><span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-accent/10 text-brand-accent"><Link2 className="h-5 w-5"/></span><div className="min-w-0"><p className="type-meta text-brand-text-muted">{t("Connected methods")}</p><p className="mt-1 text-lg font-semibold tabular-nums text-brand-text">{account ? linkedMethodCount : "—"}</p><p className="type-meta text-brand-text-muted">{t("Verified identity links")}</p></div></CardContent></Card>
       <Card className="border-brand-border bg-brand-surface"><CardContent className="flex items-center gap-3 p-4"><span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-accent/10 text-brand-accent"><ShieldCheck className="h-5 w-5"/></span><div className="min-w-0"><p className="type-meta text-brand-text-muted">{t("Two-factor authentication")}</p><p className="mt-1 text-lg font-semibold text-brand-text">{account ? account.twofa_enabled ? t("Enabled") : t("Not enabled") : "—"}</p><p className="type-meta text-brand-text-muted">{t("Account protection status")}</p></div></CardContent></Card>
@@ -56,12 +57,12 @@ export function AccountSecurityPage() {
       <CardHeader className="border-b border-brand-border/70 bg-brand-surface-2/70"><CardTitle className="text-base">{t("BTCBOX account")}</CardTitle><CardDescription>{t("Your internal account ID remains the owner of your balance, orders and history.")}</CardDescription></CardHeader>
       <CardContent className="space-y-3 p-4 text-sm sm:space-y-2 sm:p-6">
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-brand-border/60 py-2 last:border-0"><span className="text-brand-text-muted">{t("Username")}</span><span className="min-w-0 break-all text-right font-medium text-brand-text">{account?.username || t("Not set")}</span></div>
-        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 border-b border-brand-border/60 py-2"><span className="text-brand-text-muted">BTCBOX password</span><span className="font-medium text-brand-text">{account?.has_login_password ? t("Set") : t("Not set")}</span></div>
+        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 border-b border-brand-border/60 py-2"><span className="text-brand-text-muted">{t("BTCBOX password")}</span><span className="font-medium text-brand-text">{account?.has_login_password ? t("Set") : t("Not set")}</span></div>
         <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 py-2"><span className="text-brand-text-muted">{t("Account ID")}</span><span className="min-w-0 max-w-full break-all text-right font-mono text-xs text-brand-text-secondary">{account?.uid || "—"}</span></div>
       </CardContent>
     </Card>
     <Card className="border-brand-border bg-brand-surface">
-      <CardHeader className="border-b border-brand-border/70 bg-brand-cyan/[0.035]"><CardTitle className="text-base">{t("Connected sign-in methods")}</CardTitle><CardDescription>{t("Each method below authenticates the same BTCBOX account. Linking requires a recent sign-in and proof of ownership of the new identity.")}</CardDescription></CardHeader>
+      <CardHeader className="border-b border-brand-border/70 bg-brand-surface-2/60"><CardTitle className="text-base">{t("Connected sign-in methods")}</CardTitle><CardDescription>{t("Each method below authenticates the same BTCBOX account. Linking requires a recent sign-in and proof of ownership of the new identity.")}</CardDescription></CardHeader>
       <CardContent className="space-y-3">
         {identities.length === 0 && <p className="text-sm text-brand-text-muted">{t("Your primary verified sign-in method is being synchronized.")}</p>}
         {identities.map((identity, index) => <div key={identity.provider + identity.wallet_chain + identity.wallet_address + index} className="flex min-w-0 flex-col gap-2 rounded-xl border border-brand-success/15 bg-brand-success/[0.025] p-3 transition-colors sm:p-4">
@@ -72,9 +73,9 @@ export function AccountSecurityPage() {
       </CardContent>
     </Card>
     <Card className="border-brand-border bg-brand-surface">
-      <CardHeader className="border-b border-brand-border/70 bg-brand-teal/[0.035]"><CardTitle className="text-base">{t("Link another sign-in method")}</CardTitle><CardDescription>{t("First reverify a sign-in method already connected to this BTCBOX account. Then verify the new method you want to add. The two proofs must be different.")}</CardDescription></CardHeader>
+      <CardHeader className="border-b border-brand-border/70 bg-brand-surface-2/60"><CardTitle className="text-base">{t("Link another sign-in method")}</CardTitle><CardDescription>{t("First reverify a sign-in method already connected to this BTCBOX account. Then verify the new method you want to add. The two proofs must be different.")}</CardDescription></CardHeader>
       <CardContent className="space-y-3">
-        <div className="space-y-3 rounded-xl border border-brand-teal/20 bg-brand-teal/[0.035] p-3 sm:p-4">
+        <div className="space-y-3 rounded-xl border border-brand-border bg-brand-surface-2/60 p-3 sm:p-4">
           <p className="text-sm font-medium text-brand-text">{t("Step 1 · Verify an existing method")}</p>
           <div className="grid gap-2 sm:grid-cols-2">
             {hasGoogle && <Button variant="outline" aria-busy={busy} disabled={busy || !googleEnabled || identityLinkSourceVerified} onClick={() => void reauthenticateIdentityLinkWithGoogle()}>{t("Verify existing Google")}</Button>}
@@ -89,7 +90,7 @@ export function AccountSecurityPage() {
           </form>}
           {identityLinkSourceVerified && <p role="status" className="text-sm text-profit">{t("Existing identity verified. Continue to step 2.")}</p>}
         </div>
-        <div className="space-y-3 rounded-xl border border-brand-cyan/20 bg-brand-cyan/[0.025] p-3 sm:p-4">
+        <div className="space-y-3 rounded-xl border border-brand-border bg-brand-surface-2/40 p-3 sm:p-4">
           <p className="text-sm font-medium text-brand-text">{t("Step 2 · Verify the new method")}</p>
           <div className="grid gap-3 sm:grid-cols-2">
             <Button variant="outline" aria-busy={busy} disabled={busy || !identityLinkSourceVerified || !googleEnabled || hasGoogle} onClick={() => void linkGoogleIdentity()}><Link2 className="h-4 w-4"/>{hasGoogle ? t("Google connected") : t("Link Google")}</Button>
@@ -104,7 +105,7 @@ export function AccountSecurityPage() {
       </CardContent>
     </Card>
     <Card className="border-brand-border bg-brand-surface">
-      <CardHeader className="border-b border-brand-border/70 bg-brand-warning/[0.035]"><CardTitle className="text-base">{t("Reset BTCBOX password")}</CardTitle><CardDescription>{t("Verify a Google account or wallet already connected to this BTCBOX account. A fresh verification opens a five-minute reset window.")}</CardDescription></CardHeader>
+      <CardHeader className="border-b border-brand-border/70 bg-brand-surface-2/60"><CardTitle className="text-base">{t("Reset BTCBOX password")}</CardTitle><CardDescription>{t("Verify a Google account or wallet already connected to this BTCBOX account. A fresh verification opens a five-minute reset window.")}</CardDescription></CardHeader>
       <CardContent className="space-y-3">
         {credentialRecoveryReady ? (
           <form className="space-y-3" aria-busy={busy} onSubmit={async (event: FormEvent<HTMLFormElement>) => {

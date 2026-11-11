@@ -34,6 +34,13 @@
   --color-brand-text-faint: #738293;
   --color-brand-text-disabled: #526170;
 
+  /* Shape and elevation (Step 11) — controls 8px, cards 12px, panels 16px */
+  --radius-control: 0.5rem;
+  --radius-card: 0.75rem;
+  --radius-panel: 1rem;
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, .28), 0 10px 28px -20px rgba(0, 0, 0, .55);
+  --shadow-overlay: 0 24px 64px -24px rgba(0, 0, 0, .72);
+
   /* Financial states (Step 7) — preserve existing up/down convention */
   --color-positive: #35D6A6;
   --color-negative: #F06B78;
@@ -157,6 +164,10 @@ a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
   .type-meta { font-size: .78125rem; line-height: 1.45; }
   .type-micro { font-size: .71875rem; line-height: 1.4; }
   .type-price { font-size: clamp(1.375rem, 4vw, 1.875rem); line-height: 1.15; font-weight: 600; letter-spacing: -.035em; font-variant-numeric: tabular-nums; }
+  .type-asset-value { font-size: clamp(1.75rem, 4.5vw, 2.25rem); line-height: 1.1; font-weight: 700; letter-spacing: -.04em; font-variant-numeric: tabular-nums; }
+  .type-metric { font-size: clamp(1.25rem, 3vw, 1.5rem); line-height: 1.2; font-weight: 650; letter-spacing: -.03em; font-variant-numeric: tabular-nums; }
+  .type-table-head { font-size: .6875rem; line-height: 1.4; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--color-brand-text-muted); }
+  .type-eyebrow { font-size: .6875rem; line-height: 1.4; font-weight: 700; text-transform: uppercase; letter-spacing: .18em; }
 }
 
 /* Page identity uses restrained semantic accents over the shared dark surfaces. */
@@ -387,6 +398,10 @@ a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
     box-shadow: 0 0 0 2px rgba(33,199,168,.25), inset 0 1px 2px rgba(0,0,0,.22);
   }
   .field-control:disabled { cursor: not-allowed; opacity: .5; }
+  .field-control[aria-invalid="true"] { border-color: rgba(240,107,120,.75); box-shadow: 0 0 0 2px rgba(240,107,120,.16), inset 0 1px 2px rgba(0,0,0,.22); }
+  .field-control-sm { height: 2.5rem; font-size: .8125rem; }
+  .field-textarea { height: auto; min-height: 6.5rem; padding-block: .625rem; resize: vertical; line-height: 1.55; }
+  select.field-control { appearance: none; padding-right: 2.25rem; background-image: linear-gradient(45deg, transparent 50%, var(--color-brand-text-muted) 50%), linear-gradient(135deg, var(--color-brand-text-muted) 50%, transparent 50%); background-position: calc(100% - 1rem) calc(50% - 1px), calc(100% - .7rem) calc(50% - 1px); background-size: .3rem .3rem, .3rem .3rem; background-repeat: no-repeat; }
   @media (min-width: 640px) { .field-control { font-size: .875rem; } }
 
   /* Honest empty state: icon + title + hint, never fake data */
@@ -411,6 +426,8 @@ a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
   .data-table tbody tr { transition: background-color .15s ease; }
   .data-table tbody tr:hover { background: rgba(255,255,255,.03); }
   .data-table td.num, .data-table th.num { text-align: right; font-variant-numeric: tabular-nums; }
+  .data-table td.mono, .data-table th.mono { font-family: var(--font-mono); font-size: .75rem; }
+  .data-table td.strong { font-weight: 600; color: var(--color-brand-text); }
   .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 0 -1px; }
   .table-scroll::-webkit-scrollbar { height: 6px; }
 

@@ -1017,5 +1017,12 @@
   "Cancelled": "Đã hủy",
   "Filled": "Đã khớp",
   "Partially filled": "Khớp một phần",
-  "Not submitted": "Chưa gửi"
+  "Not submitted": "Chưa gửi",
+  "No deposits yet": "Chưa có lệnh nạp tiền",
+  "No Earn products available": "Chưa có sản phẩm Earn",
+  "No Earn positions": "Chưa có vị thế Earn",
+  "No asset balances": "Chưa có số dư tài sản",
+  "No saved withdrawal addresses": "Chưa có địa chỉ rút tiền đã lưu",
+  "No withdrawals yet": "Chưa có lệnh rút tiền",
+  "No saved addresses": "Chưa có địa chỉ đã lưu"
 }

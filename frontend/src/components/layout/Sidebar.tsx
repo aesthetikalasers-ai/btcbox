@@ -43,7 +43,7 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
             )}>
               <span className={cn("flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-colors text-current group-[.is-active]:bg-brand-accent/10 group-[.is-active]:text-brand-accent")}><Icon className="h-[17px] w-[17px] opacity-95" /></span>
               <span className="min-w-0 break-words">{t(label)}</span>
-              <span aria-hidden="true" className={cn("ml-auto h-1.5 w-1.5 shrink-0 rounded-full opacity-0 transition-opacity group-[.is-active]:opacity-100", to === "/trade-hub" ? "bg-brand-violet" : to === "/assets" ? "bg-brand-teal" : to === "/me" ? "bg-brand-info" : "bg-brand-cyan")} />
+              <span aria-hidden="true" className={cn("ml-auto h-1.5 w-1.5 shrink-0 rounded-full bg-brand-accent opacity-0 transition-opacity group-[.is-active]:opacity-100")} />
             </NavLink>
           ))}
         </div>
@@ -54,9 +54,9 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
               <NavLink key={to} to={to} onClick={onClose} className={({ isActive }) => cn(
                 "group flex min-h-11 h-auto min-w-0 items-center gap-3 rounded-lg border px-3 py-2 text-[13px] font-semibold leading-tight transition-all duration-200",
                 focusRing,
-                isActive ? (to === "/earn" ? "border-brand-orange/20 bg-brand-orange/[0.07] text-brand-text" : to === "/support" ? "border-brand-indigo/20 bg-brand-indigo/[0.07] text-brand-text" : "border-brand-info/20 bg-brand-info/[0.07] text-brand-text") : "border-transparent text-brand-text-secondary hover:bg-brand-surface-hover hover:text-brand-text",
+                isActive ? "border-brand-accent/20 bg-brand-accent/[0.07] text-brand-text" : "border-transparent text-brand-text-secondary hover:bg-brand-surface-hover hover:text-brand-text",
               )}>
-                <span className={cn("flex h-7 w-7 shrink-0 items-center justify-center rounded-lg", to === "/earn" ? "text-brand-text-muted" : to === "/support" ? "text-brand-text-muted" : "text-brand-text-muted")}><Icon className="h-4 w-4" /></span>
+                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-brand-text-muted group-[.is-active]:text-brand-accent"><Icon className="h-4 w-4" /></span>
                 <span className="min-w-0 break-words">{t(label)}</span>
               </NavLink>
             ))}

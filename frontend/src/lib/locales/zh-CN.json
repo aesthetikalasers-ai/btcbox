@@ -1017,5 +1017,12 @@
   "Cancelled": "已取消",
   "Filled": "已成交",
   "Partially filled": "部分成交",
-  "Not submitted": "未提交"
+  "Not submitted": "未提交",
+  "No deposits yet": "暂无充值记录",
+  "No Earn products available": "暂无可用的 Earn 产品",
+  "No Earn positions": "暂无 Earn 持仓",
+  "No asset balances": "暂无资产余额",
+  "No saved withdrawal addresses": "暂无已保存的提现地址",
+  "No withdrawals yet": "暂无提现记录",
+  "No saved addresses": "暂无已保存地址"
 }

@@ -1017,5 +1017,12 @@
   "Cancelled": "Cancelado",
   "Filled": "Executado",
   "Partially filled": "Parcialmente executado",
-  "Not submitted": "Não enviado"
+  "Not submitted": "Não enviado",
+  "No deposits yet": "Ainda não há depósitos",
+  "No Earn products available": "Nenhum produto Earn disponível",
+  "No Earn positions": "Nenhuma posição de Earn",
+  "No asset balances": "Nenhum saldo de ativos",
+  "No saved withdrawal addresses": "Nenhum endereço de saque salvo",
+  "No withdrawals yet": "Ainda não há saques",
+  "No saved addresses": "Nenhum endereço salvo"
 }
