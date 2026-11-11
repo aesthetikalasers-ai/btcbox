@@ -18,7 +18,7 @@ const LANGUAGE_LABEL: Record<Language, string> = {
   ja: "日本語", "zh-CN": "中文", en: "English", es: "Español", de: "Deutsch", it: "Italiano", pt: "Português",
 };
 
-export function LanguageMenu({ variant = "bar" }: { variant?: "bar" | "drawer" }) {
+export function LanguageMenu() {
   const { language, setLanguage, canChangeLanguage, t } = useI18n();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -100,10 +100,8 @@ export function LanguageMenu({ variant = "bar" }: { variant?: "bar" | "drawer" }
     }
   };
 
-  const drawer = variant === "drawer";
-
   return (
-    <div ref={rootRef} className={drawer ? "relative block" : "relative hidden min-[560px]:block"}>
+    <div ref={rootRef} className="relative">
       <button
         ref={triggerRef}
         type="button"
@@ -111,12 +109,10 @@ export function LanguageMenu({ variant = "bar" }: { variant?: "bar" | "drawer" }
         aria-haspopup="menu"
         aria-expanded={open}
         onClick={() => setOpen((current) => !current)}
-        className={drawer
-          ? "flex h-11 w-full min-w-0 items-center gap-3 rounded-lg border border-transparent px-3 text-sm font-semibold text-brand-text-secondary transition-colors hover:bg-brand-surface-hover hover:text-brand-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent/70"
-          : "flex h-11 min-w-0 items-center gap-1.5 rounded-xl border border-brand-border bg-brand-surface px-3 text-sm font-semibold text-brand-text transition-colors hover:border-brand-accent/40 hover:bg-brand-surface-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent"}
+        className="flex h-11 min-w-0 items-center gap-1.5 rounded-lg border border-brand-border bg-brand-surface px-2.5 text-sm font-semibold text-brand-text transition-colors hover:border-brand-accent/40 hover:bg-brand-surface-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent sm:px-3"
       >
         <span aria-hidden="true" className="text-base leading-none">🌐</span>
-        <span className={drawer ? "min-w-0 flex-1 truncate text-left" : "max-w-[6rem] truncate"}>{LANGUAGE_LABEL[language]}</span>
+        <span className="max-w-[5.5rem] truncate sm:max-w-none">{LANGUAGE_LABEL[language]}</span>
         <ChevronDown aria-hidden="true" className={`h-3.5 w-3.5 shrink-0 text-brand-text-muted transition-transform ${open ? "rotate-180" : ""}`} />
       </button>
 
@@ -124,9 +120,7 @@ export function LanguageMenu({ variant = "bar" }: { variant?: "bar" | "drawer" }
         <div
           role="menu"
           aria-label={t("Language")}
-          className={drawer
-            ? "anim-toast-in absolute inset-x-0 bottom-[calc(100%+0.375rem)] z-50 overflow-hidden rounded-xl border border-brand-border bg-brand-surface-2 shadow-xl shadow-black/40"
-            : "absolute right-0 z-50 mt-2 w-72 max-w-[85vw] overflow-hidden rounded-xl border border-brand-border bg-brand-surface-2 shadow-xl shadow-black/40"}
+          className="absolute right-0 z-50 mt-2 w-72 max-w-[85vw] overflow-hidden rounded-xl border border-brand-border bg-brand-surface-2 shadow-xl shadow-black/40"
         >
           <div className="flex items-center justify-between gap-2 px-4 pb-2 pt-3">
             <span className="type-card-title text-brand-text">{t("Language")}</span>

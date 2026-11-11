@@ -179,4 +179,108 @@ export function AuthPage({ mode, redirectTo }: { mode: "login" | "register"; red
             }}>
               <label className="block space-y-2 text-sm">
                 <span className="text-brand-text-secondary">{t("Authenticator code")}</span>
-                <Input className="h-12" value={verifyCode}
+                <Input className="h-12" value={verifyCode} onChange={event => setVerifyCode(event.target.value.replace(/\D/g, "").slice(0, 8))} inputMode="numeric" autoComplete="one-time-code" placeholder={t("Enter code")} required aria-label={t("Authenticator code")} />
+              </label>
+              <Button type="submit" className="min-h-12 w-full" disabled={verifyBusy || verifyCode.length < 6}>{verifyBusy ? t("Verifying…") : t("Verify and continue")}</Button>
+            </form> : <>
+              {mode === "login" && <form className="space-y-3" aria-busy={busy} onSubmit={submitUsernameLogin}>
+                <label className="block space-y-1.5 text-sm">
+                  <span className="text-brand-text-secondary">{t("Username")}</span>
+                  <Input className="h-12" value={username} onChange={event => setUsername(event.target.value.toLowerCase())} autoComplete="username" minLength={3} maxLength={24} pattern="[a-z0-9][a-z0-9_]{2,23}" placeholder={t("Enter your BTCBOX username")} required />
+                </label>
+                <label className="block space-y-1.5 text-sm">
+                  <span className="text-brand-text-secondary">{t("Password")}</span>
+                  <span className="relative block"><Input aria-label={t("Password")} className="h-12 pr-12" type={showPassword ? "text" : "password"} value={password} onChange={event => setPassword(event.target.value)} autoComplete="current-password" minLength={12} maxLength={128} placeholder={t("Enter your password")} required /><button type="button" aria-label={t(showPassword ? "Hide password" : "Show password")} aria-pressed={showPassword} onClick={() => setShowPassword(value => !value)} className="absolute inset-y-0 right-0 flex w-12 items-center justify-center text-brand-text-muted">{showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}</button></span>
+                </label>
+                <Button type="submit" className="min-h-12 w-full" aria-busy={busy} disabled={busy || username.length < 3 || password.length < 12}>
+                  <KeyRound className="mr-2 h-4 w-4" /> {busy ? t("Signing in…") : t("Sign in with username")}
+                </Button>
+              </form>}
+
+              {identityButtons}
+
+            </>}
+
+            <div className="border-t border-brand-border pt-4 text-center text-sm text-brand-text-secondary">
+              {mode === "login"
+                ? <>{t("New to BTCBOX?")} <Link className="font-semibold text-brand-accent underline-offset-4 hover:underline" to="/register">{t("Create account")}</Link></>
+                : <>{t("Already have an account?")} <Link className="font-semibold text-brand-accent underline-offset-4 hover:underline" to="/login">{t("Sign in")}</Link></>}
+            </div>
+            <div className="border-t border-brand-border/80 pt-3">
+              <Link to="/home" className="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-brand-border bg-brand-surface-2/70 px-4 text-sm font-medium text-brand-text-secondary shadow-sm transition-all hover:border-brand-accent/35 hover:bg-brand-surface-hover hover:text-brand-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent/70"><ArrowLeft className="h-4 w-4" /> {t("Back to BTCBOX")}</Link>
+            </div>
+          </CardContent>
+        </Card>
+        <p className="mt-4 flex items-center justify-center gap-2 text-center text-[11px] text-brand-text-muted"><ShieldCheck className="h-3.5 w-3.5 shrink-0" /> {t("Protected account access · Public markets remain available without signing in")}</p>
+      </div>
+    </div>
+  </main>;
+}
+
+export function AuthCallbackPage() {
+  const { t } = useI18n();
+  const { finishOAuth, status, needsCredentials, error, busy, completePasswordRecovery } = useAuth();
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [recoveryError, setRecoveryError] = useState("");
+  const oauthAttempted = useRef(false);
+  const navigate = useNavigate();
+  const location = useLocation();
+  const callbackIntent = new URLSearchParams(location.search).get("intent");
+  const callbackDestination = callbackIntent === "register" ? "/register" : "/login";
+  // Identity-conflict errors mean the account already exists -> send to sign-in, not back to register.
+  const accountExistsError = !!error && /already registered|already linked|account is frozen/i.test(error);
+  const effectiveDestination = accountExistsError ? "/login" : callbackDestination;
+  useEffect(() => {
+    if (!oauthAttempted.current && status !== "loading" && status !== "authenticated" && status !== "two-factor" && status !== "password-recovery") {
+      oauthAttempted.current = true;
+      void finishOAuth();
+    }
+  }, [finishOAuth, status]);
+  useEffect(() => {
+    if (status === "authenticated") navigate(needsCredentials ? "/account-setup" : "/home", { replace: true });
+    else if (status === "two-factor") navigate("/login", { replace: true });
+  }, [status, needsCredentials, navigate]);
+  useEffect(() => {
+    if (!error || status !== "anonymous") return;
+    const redirectId = window.setTimeout(() => navigate(effectiveDestination, { replace: true }), 6000);
+    return () => window.clearTimeout(redirectId);
+  }, [effectiveDestination, error, navigate, status]);
+  const submitRecovery = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setRecoveryError("");
+    if (newPassword.length < 8 || newPassword.length > 128) {
+      setRecoveryError("Use a password between 8 and 128 characters.");
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setRecoveryError("The passwords do not match.");
+      return;
+    }
+    try { await completePasswordRecovery(newPassword); }
+    catch (cause) { setRecoveryError(cause instanceof Error ? cause.message : "Password could not be updated."); }
+  };
+  if (status === "password-recovery") return <main className="tone-support mx-auto flex min-h-[100dvh] w-full max-w-[520px] items-center px-3 py-8 sm:px-6">
+    <Card className="w-full overflow-hidden border-brand-accent/20 bg-brand-surface  ">
+      <div className="h-1 bg-brand-accent"/>
+      <CardHeader className="gap-3 border-b border-brand-border/70 bg-brand-surface px-5 pt-7 sm:px-8">
+        <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-brand-accent/20 bg-brand-accent/10 text-brand-accent"><LockKeyhole className="h-5 w-5" /></div>
+        <CardTitle className="text-2xl">{t("Reset your password")}</CardTitle>
+        <CardDescription>{t("Choose a new password for your BTCBOX email account.")}</CardDescription>
+      </CardHeader>
+      <CardContent className="px-5 pb-7 sm:px-8">
+        <form className="space-y-3" aria-busy={busy} onSubmit={submitRecovery}>
+          <label className="block space-y-1.5 text-sm"><span className="text-brand-text-secondary">{t("New password")}</span><Input className="h-12" type="password" value={newPassword} onChange={event => setNewPassword(event.target.value)} autoComplete="new-password" minLength={8} maxLength={128} required /></label>
+          <label className="block space-y-1.5 text-sm"><span className="text-brand-text-secondary">{t("Confirm new password")}</span><Input className="h-12" type="password" value={confirmPassword} onChange={event => setConfirmPassword(event.target.value)} autoComplete="new-password" minLength={8} maxLength={128} required /></label>
+          {(recoveryError || error) && <p role="alert" className="rounded-lg border border-loss/30 bg-loss/10 p-3 text-sm text-loss">{t(recoveryError || error)}</p>}
+          <Button type="submit" className="min-h-12 w-full" disabled={busy || newPassword.length < 8 || newPassword !== confirmPassword}>{busy ? t("Updating password…") : t("Update password")}</Button>
+        </form>
+      </CardContent>
+    </Card>
+  </main>;
+  return <div className="tone-support mx-auto flex min-h-[60vh] max-w-lg flex-col items-center justify-center gap-3 p-6 text-center">
+    <div className="h-6 w-6 animate-spin rounded-full border-2 border-brand-border border-t-brand-accent" />
+    <p role={error ? "alert" : "status"} aria-live={error ? "assertive" : "polite"} className="text-sm text-brand-text-secondary">{error ? t(error) : busy ? t("Completing secure sign-in…") : t("Finishing sign-in…")}</p>
+    {error && <Link to={callbackDestination} className="inline-flex min-h-11 items-center justify-center rounded-lg px-4 text-sm font-semibold underline underline-offset-4 transition-colors hover:bg-brand-surface-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent/70">{t("Return to sign in")}</Link>}
+  </div>;
+}
