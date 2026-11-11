@@ -22,6 +22,7 @@ const localeRoutes = [
   { path: "/kyc", headingKey: "Identity verification" },
   { path: "/contract", headingKey: "Perpetual" },
   { path: "/seconds", headingKey: "Seconds contracts" },
+  { path: "/trade/BTCUSDT", heading: "BTCUSDT" },
 ];
 
 for (const locale of activeLocales) {
@@ -29,8 +30,8 @@ for (const locale of activeLocales) {
     test("language rendering " + locale.code + " on " + routeInfo.path, async ({ page }) => {
       const dictionaryPath = path.resolve(process.cwd(), "src/lib/locales", locale.code + ".json");
       const dictionary = JSON.parse(fs.readFileSync(dictionaryPath, "utf8")) as Record<string, string>;
-      const expectedHeading = dictionary[routeInfo.headingKey];
-      expect(expectedHeading, "The locale must translate " + routeInfo.headingKey + ".").toBeTruthy();
+      const expectedHeading = routeInfo.heading ?? dictionary[routeInfo.headingKey!];
+      expect(expectedHeading, "The locale must translate " + (routeInfo.headingKey ?? routeInfo.heading) + ".").toBeTruthy();
 
       await page.addInitScript((language) => {
         window.localStorage.setItem("btcbox-language", language);
@@ -121,6 +122,24 @@ for (const locale of activeLocales) {
         }));
         expect(dimensions.document, locale.code + " " + routeInfo.path + " overflows at " + width + "px").toBeLessThanOrEqual(width);
         expect(dimensions.body, locale.code + " " + routeInfo.path + " body overflows at " + width + "px").toBeLessThanOrEqual(width);
+
+        const boundaryViolations = await page.evaluate(() => {
+          const selectors = ["main", "header", "h1", ".trade-top", ".trade-top > *", ".ob-card", ".form-card", "[data-testid]"];
+          const elements = Array.from(new Set(selectors.flatMap((selector) =>
+            Array.from(document.querySelectorAll<HTMLElement>(selector)),
+          )));
+          return elements.flatMap((element) => {
+            const style = window.getComputedStyle(element);
+            const rect = element.getBoundingClientRect();
+            if (style.display === "none" || style.visibility === "hidden" || Number(style.opacity) === 0 || rect.width === 0 || rect.height === 0) return [];
+            if (rect.left < -1 || rect.right > window.innerWidth + 1) {
+              return [{ tag: element.tagName.toLowerCase(), left: Math.round(rect.left), right: Math.round(rect.right), width: Math.round(rect.width) }];
+            }
+            return [];
+          });
+        });
+        expect(boundaryViolations, locale.code + " " + routeInfo.path + " has visible elements outside the viewport at " + width + "px").toEqual([]);
+
         await page.screenshot({
           path: path.join(output, locale.code + "-" + routeInfo.path.replace(/[^a-z0-9]+/gi, "-") + "-" + width + "-" + test.info().project.name + ".png"),
           fullPage: true,
