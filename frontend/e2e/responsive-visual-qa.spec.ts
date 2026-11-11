@@ -156,6 +156,14 @@ async function assertPageAtWidth(
       name: "Explore the market. Trade with confidence.",
       exact: true,
     })).toHaveCount(0);
+    const attribution = page.getByTestId("market-chart-attribution");
+    await expect(attribution, "Market charts must retain the required attribution when the logo is hidden.").toBeVisible();
+    await expect(attribution.getByRole("link", { name: "https://www.tradingview.com/" })).toHaveAttribute("href", "https://www.tradingview.com/");
+  }
+  if (route.path === "/contract" && width >= 1024) {
+    const attribution = page.getByTestId("contract-chart-attribution");
+    await expect(attribution, "Expanded contract charts must retain the required attribution.").toBeVisible();
+    await expect(attribution.getByRole("link", { name: "https://www.tradingview.com/" })).toHaveAttribute("href", "https://www.tradingview.com/");
   }
   if (route.path === "/home" || route.path === "/markets") {
     await expect(page.getByText("No markets enabled", { exact: true })).toBeVisible();
