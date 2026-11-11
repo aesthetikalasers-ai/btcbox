@@ -156,9 +156,9 @@ export function Dashboard() {
     {!isMarketsPage && <nav aria-label={t("Manage")} className="grid grid-cols-2 gap-2 sm:grid-cols-4">
       {[{to:"/markets",label:"Markets"},{to:"/trade-hub",label:"Trade"},{to:"/assets",label:"Assets"},{to:"/support",label:"Support"}].map(item => <Button key={item.to} asChild variant="outline"><Link to={item.to}>{t(item.label)} <ArrowUpRight className="ml-auto h-4 w-4" /></Link></Button>)}
     </nav>}
-    <footer className="px-1 pb-2 text-[11px] leading-5 text-brand-text-muted">
+    {isMarketsPage && <footer className="px-1 pb-2 text-[11px] leading-5 text-brand-text-muted">
       TradingView Lightweight Charts™ Copyright (с) 2025 TradingView, Inc.{" "}
       <a href="https://www.tradingview.com/" target="_blank" rel="noreferrer" className="underline underline-offset-2 hover:text-brand-text-secondary">https://www.tradingview.com/</a>
-    </footer>
+    </footer>}
   </div>;
 }
