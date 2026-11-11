@@ -287,7 +287,7 @@ a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
 
 /* Spot terminal: one scoped layout system, independent from account/admin cards. */
 .spot-terminal { gap:12px; }
-.spot-terminal > div:first-child .page-accent { display:none; }
+.spot-terminal > :first-child .page-accent { display:none; }
 .spot-terminal .type-page-title { font-size:22px; }
 .spot-quote { border:0; border-radius:0; box-shadow:none; background:transparent; }
 .spot-quote-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px 24px; padding:0 0 10px; border-bottom:1px solid var(--color-brand-border); }

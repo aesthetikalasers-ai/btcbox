@@ -1,18 +1,47 @@
-import { useState, type FormEvent, type Ref } from "react";
+import { useEffect, useRef, useState, type FormEvent, type Ref } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Search, User, Menu, LogIn } from "lucide-react";
-import { useI18n } from "../../lib/i18n";
+import { Search, Menu, Check, LogIn } from "lucide-react";
+import { useI18n, type Language } from "../../lib/i18n";
 import { BrandLogo } from "../BrandLogo";
-import { LanguageMenu } from "./LanguageMenu";
 import { useAuth } from "../../lib/auth";
 
+// Fixed menu order per product requirement. vi (Vietnamese) is legacy and intentionally omitted.
+const LANGUAGE_MENU: Array<{ code: Language; label: string; flag: string }> = [
+  { code: "ja", label: "日本語", flag: "🇯🇵" },
+  { code: "zh-CN", label: "中文", flag: "🇨🇳" },
+  { code: "en", label: "English", flag: "🇺🇸" },
+  { code: "es", label: "Español", flag: "🇪🇸" },
+  { code: "de", label: "Deutsch", flag: "🇩🇪" },
+  { code: "it", label: "Italiano", flag: "🇮🇹" },
+  { code: "pt", label: "Português", flag: "🇵🇹" },
+];
+const LANGUAGE_FLAG: Record<Language, string> = {
+  ja: "🇯🇵", "zh-CN": "🇨🇳", en: "🇺🇸", es: "🇪🇸", de: "🇩🇪", it: "🇮🇹", pt: "🇵🇹",
+};
+const LANGUAGE_LABEL: Record<Language, string> = {
+  ja: "日本語", "zh-CN": "中文", en: "English", es: "Español", de: "Deutsch", it: "Italiano", pt: "Português",
+};
+
 export function Topbar({ onMenuClick, menuOpen = false, menuButtonRef }: { menuButtonRef?: Ref<HTMLButtonElement>; onMenuClick?: () => void; menuOpen?: boolean }) {
-  const { t } = useI18n();
+  const { language, setLanguage, canChangeLanguage, t } = useI18n();
   const { status, email } = useAuth();
   const signedIn = status === "authenticated";
   const avatarLetter = (email || "U").trim().charAt(0).toUpperCase();
   const [search, setSearch] = useState("");
+  const [langMenuOpen, setLangMenuOpen] = useState(false);
+  const langMenuRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!langMenuOpen) return;
+    const close = (event: MouseEvent) => {
+      if (langMenuRef.current && !langMenuRef.current.contains(event.target as Node)) setLangMenuOpen(false);
+    };
+    const onKey = (event: KeyboardEvent) => { if (event.key === "Escape") setLangMenuOpen(false); };
+    document.addEventListener("mousedown", close);
+    document.addEventListener("keydown", onKey);
+    return () => { document.removeEventListener("mousedown", close); document.removeEventListener("keydown", onKey); };
+  }, [langMenuOpen]);
 
   const submitSearch = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -31,15 +60,50 @@ export function Topbar({ onMenuClick, menuOpen = false, menuButtonRef }: { menuB
         <Link to="/home" aria-label="BTCBOX home" className="min-w-0 lg:hidden"><BrandLogo compact showExchange={false}  /></Link>
         <form onSubmit={submitSearch} role="search" className="relative hidden min-w-0 max-[480px]:hidden sm:block">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-brand-text-muted" />
-          <input type="search" aria-label={t("Search BTCBOX")} value={search} onChange={(event) => setSearch(event.target.value)} placeholder={t("Search")} className="h-11 w-[min(30vw,190px)] rounded-xl border border-brand-border bg-brand-surface px-3 pl-10 pr-3 text-sm text-brand-text placeholder:text-brand-text-muted focus:border-brand-accent focus:outline-none md:w-[240px]" />
+          <input type="search" aria-label={t("Search BTCBOX")} value={search} onChange={(event) => setSearch(event.target.value)} placeholder={t("Search")} className="h-11 w-[min(30vw,190px)] rounded-xl border border-brand-border bg-brand-surface px-3 pl-10 pr-3 text-sm text-brand-text placeholder:text-brand-text-muted focus:border-brand-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent/40 focus-visible:ring-offset-2 focus-visible:ring-offset-brand-bg md:w-[240px]" />
           <button type="submit" aria-label={t("Search BTCBOX")} className="sr-only">{t("Search")}</button>
         </form>
-        <button type="button" aria-label={t("Search BTCBOX")} onClick={() => navigate("/markets")} className="hidden h-11 w-11 items-center justify-center rounded-xl text-brand-text-secondary hover:bg-brand-surface-hover sm:hidden">
+        <button type="button" aria-label={t("Search BTCBOX")} onClick={() => navigate("/markets")} className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-brand-border bg-brand-surface text-brand-text-secondary transition-colors hover:border-brand-accent/40 hover:bg-brand-surface-hover hover:text-brand-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent sm:hidden">
           <Search className="h-5 w-5" />
         </button>
       </div>
       <div className="flex shrink-0 items-center gap-1 sm:gap-3">
-        <LanguageMenu />
+        {canChangeLanguage && (
+          <div ref={langMenuRef} className="relative">
+            <button
+              type="button"
+              aria-label={t("Language")}
+              aria-haspopup="menu"
+              aria-expanded={langMenuOpen}
+              onClick={() => setLangMenuOpen((open) => !open)}
+              className="flex h-11 min-w-0 items-center gap-1.5 rounded-lg border border-brand-border bg-brand-surface px-2.5 text-sm font-semibold text-brand-text transition-colors hover:border-brand-accent/40 hover:bg-brand-surface-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent sm:px-3"
+            >
+              <span aria-hidden="true" className="shrink-0 text-base leading-none">{LANGUAGE_FLAG[language]}</span>
+              <span className="max-w-[5.5rem] truncate sm:max-w-none">{LANGUAGE_LABEL[language]}</span>
+              <span aria-hidden="true" className={`text-xs text-brand-text-muted transition-transform ${langMenuOpen ? "rotate-180" : ""}`}>⌄</span>
+            </button>
+            {langMenuOpen && (
+              <div role="menu" aria-label={t("Language")} className="absolute right-0 z-50 mt-2 max-h-[min(70vh,22rem)] w-44 max-w-[80vw] overflow-y-auto overscroll-contain rounded-lg border border-brand-border bg-brand-surface-2 py-1 shadow-xl shadow-black/40">
+                {LANGUAGE_MENU.map(({ code, label, flag }) => {
+                  const selected = language === code;
+                  return (
+                    <button
+                      key={code}
+                      type="button"
+                      role="menuitemradio"
+                      aria-checked={selected}
+                      onClick={() => { setLanguage(code); setLangMenuOpen(false); }}
+                      className={`flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm transition-colors focus-visible:outline-none focus-visible:bg-brand-surface-hover ${selected ? "font-semibold text-brand-accent" : "text-brand-text-secondary hover:bg-brand-surface-hover hover:text-brand-text"}`}
+                    >
+                      <span className="flex min-w-0 items-center gap-2"><span aria-hidden="true" className="shrink-0 text-base leading-none">{flag}</span><span className="truncate">{label}</span></span>
+                      {selected && <Check className="h-4 w-4 shrink-0" aria-hidden="true" />}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
         {signedIn ? (
           <Link to="/me" aria-label={t("My account")} className="flex h-11 min-w-11 items-center gap-2 rounded-xl border border-brand-border bg-brand-surface px-2 text-brand-text-secondary transition-colors hover:border-brand-accent/40 hover:text-brand-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent">
             <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-brand-accent/15 text-xs font-bold text-brand-accent">{avatarLetter}</span>
