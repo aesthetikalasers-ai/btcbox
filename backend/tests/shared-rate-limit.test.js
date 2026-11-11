@@ -28,7 +28,7 @@ const policies = {
   fund_password_change: [10, 900],
 };
 
-test('shared limiter has an explicit policy and async call site for all seventeen protected routes', () => {
+test('shared limiter has an explicit policy and async call site for all nineteen protected routes', () => {
   const tableScopeCheck = extensionMigration.match(/CHECK \(scope IN \(([\s\S]*?)\)\)/);
   assert.ok(tableScopeCheck, 'rate-limit table must constrain scope values');
   for (const [scope, [limit, seconds]] of Object.entries(policies)) {
@@ -37,7 +37,7 @@ test('shared limiter has an explicit policy and async call site for all seventee
     assert.ok(extensionMigration.includes("when '" + scope + "' then"), scope + ' must be accepted by the database RPC');
     assert.ok(tableScopeCheck[1].includes("'" + scope + "'"), scope + ' must be accepted by the table CHECK constraint');
   }
-  assert.equal((api.match(/await rateCheckShared\(/g) || []).length, 17);
+  assert.equal((api.match(/await rateCheckShared\(/g) || []).length, 19);
   assert.equal(api.includes('_rateBuckets'), false);
   assert.equal(api.includes('function rateCheck('), false);
 });

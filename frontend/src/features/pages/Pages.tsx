@@ -4,7 +4,7 @@ import { multiplyDecimalStrings, compareDecimalStrings } from "../../lib/decimal
 import { Link, useParams } from "react-router-dom";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { RefreshCw, TrendingUp, TrendingDown, Clock3, ShieldAlert, Send, MessageCircle } from "lucide-react";
-import { ApiError, getAccount, getOrders, getMarkets, getSpotMarketPairs, getKlines, getOrderBook, getTradingStatus, submitSpotOrder, cancelSpotOrder, getSecondsPositions, getSecondsPolicy, submitSecondsOrder, settleSecondsPosition, getSupportMessages, sendSupportMessage, getDepositAddress, getSavedCryptoAddresses, getSelectedCryptoAddress, getWithdrawalConfig, submitWithdrawal, getEarnCatalog, submitEarnAction, type EarnProduct, type EarnPosition, type SavedCryptoAddress, type AccountBalance, type AccountSnapshot, type DepositRecord, type OrderRecord, type MarketTicker, type MarketCandle, type OrderBookSnapshot, type SpotMarketPair, type TradingStatus, type SecondsPositionsSnapshot, type SecondsOrderInput, type SecondsPolicyResponse, type SupportMessage, type SelectedCryptoAddress, type WithdrawalConfig, type WithdrawalRecord, submitKyc } from "../../lib/api";
+import { ApiError, getAccount, getOrders, getMarkets, getSpotMarketPairs, getKlines, getOrderBook, getTradingStatus, submitSpotOrder, cancelSpotOrder, getSecondsPositions, getSecondsPolicy, submitSecondsOrder, settleSecondsPosition, getSupportMessages, sendSupportMessage, getDepositAddress, getSavedCryptoAddresses, getSelectedCryptoAddress, getWithdrawalConfig, submitWithdrawal, getEarnCatalog, submitEarnAction, getPerpMarkets, type PerpMarket, type EarnProduct, type EarnPosition, type SavedCryptoAddress, type AccountBalance, type AccountSnapshot, type DepositRecord, type OrderRecord, type MarketTicker, type MarketCandle, type OrderBookSnapshot, type SpotMarketPair, type TradingStatus, type SecondsPositionsSnapshot, type SecondsOrderInput, type SecondsPolicyResponse, type SupportMessage, type SelectedCryptoAddress, type WithdrawalConfig, type WithdrawalRecord, submitKyc } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
 
 import type { ReactNode } from "react";
@@ -15,6 +15,7 @@ import { Button } from "../../components/ui/button";
 import { formatDecimalAmount, localeTags, useI18n } from "../../lib/i18n";
 import { TokenIcon } from "../../components/ui/TokenIcon";
 import { CandlestickSeries, ColorType, createChart, type UTCTimestamp } from "lightweight-charts";
+import { TradeProductNav } from "../trade/TradeProductNav";
 
 /**
  * Provides the consistent page heading and content layout used by workspace pages.
@@ -38,6 +39,7 @@ export function TradeHubPage(){
  const [tradingStatusError,setTradingStatusError]=useState("");
  const [secondsAvailability,setSecondsAvailability]=useState<"loading"|"sign-in"|"enabled"|"read-only"|"unavailable">("loading");
  const [earnAvailability,setEarnAvailability]=useState<"loading"|"sign-in"|"enabled"|"read-only"|"empty"|"unavailable">("loading");
+ const [perpAvailability,setPerpAvailability]=useState<"loading"|"sign-in"|"enabled"|"read-only"|"unavailable">("loading");
  useEffect(()=>{
   const controller=new AbortController();
   getSpotMarketPairs(controller.signal).then(setSpotPairs).catch(reason=>{
@@ -61,16 +63,18 @@ export function TradeHubPage(){
    setSecondsAvailability("sign-in");setEarnAvailability("sign-in");
   }else{
    setSecondsAvailability("loading");setEarnAvailability("loading");
-   Promise.allSettled([getSecondsPolicy(controller.signal),getEarnCatalog(controller.signal)]).then(([seconds,earn])=>{
+   Promise.allSettled([getSecondsPolicy(controller.signal),getEarnCatalog(controller.signal),getPerpMarkets(controller.signal)]).then(([seconds,earn,perp])=>{
     if(controller.signal.aborted)return;
     setSecondsAvailability(seconds.status==="fulfilled"?(seconds.value.actions_enabled?"enabled":"read-only"):"unavailable");
     setEarnAvailability(earn.status==="rejected"?"unavailable":earn.value.products.length===0?"empty":earn.value.actions_enabled?"enabled":"read-only");
+    setPerpAvailability(perp.status==="fulfilled"?(perp.value.length>0?"enabled":"read-only"):"unavailable");
    });
   }
   return ()=>controller.abort();
  },[status]);
  const spotExecutionEnabled=tradingStatus?.spot_order_entry_enabled===true;
  const spotBadge=pairsLoading?"Checking markets":pairsError?"Markets unavailable":!spotPairs.length?"Unavailable":tradingStatusError?"Execution unavailable":tradingStatus===null?"Checking execution":spotExecutionEnabled?"Order entry enabled":"Read-only";
+ const spotBadgeVariant=pairsLoading?"info" as const:pairsError||tradingStatusError?"destructive" as const:!spotPairs.length?"warning" as const:tradingStatus===null?"info" as const:spotExecutionEnabled?"success" as const:"warning" as const;
  const spotDescription=pairsLoading?t("Checking backend-enabled spot markets."):pairsError?t("Spot availability cannot be confirmed. Order entry remains unavailable."):!spotPairs.length?t("No spot markets are currently enabled. Spot order entry remains unavailable."):tradingStatusError?t("Markets are listed, but execution status cannot be confirmed. Order entry remains unavailable."):tradingStatus===null?t("Checking server-side order execution status."):spotExecutionEnabled?t("Place server-validated limit orders on configured spot pairs."):t("Configured markets are visible, but spot order execution is disabled by server policy.");
  const secondsDescription=secondsAvailability==="sign-in"?t("Sign in to check the active Seconds policy and availability."):secondsAvailability==="loading"?t("Checking the active backend Seconds policy."):secondsAvailability==="unavailable"?t("Seconds policy is unavailable. New positions remain disabled."):secondsAvailability==="read-only"?t("The policy is configured, but new positions are disabled by backend financial controls."):t("Place policy-driven positions with independent timers and server-side settlement.");
  const secondsBadge=secondsAvailability==="sign-in"?t("Sign in required"):secondsAvailability==="loading"?t("Checking policy"):secondsAvailability==="unavailable"?t("Policy unavailable"):secondsAvailability==="read-only"?t("Actions disabled"):t("Order entry enabled");
@@ -301,7 +305,7 @@ export function SpotTradingPage(){
    if(controller.signal.aborted)return;
    const [pairResult,marketResult,bookResult,statusResult,ordersResult,accountResult]=results;
    if(pairResult.status==="fulfilled"){
-    setPairSymbols(pairResult.value.filter(pair=>pair.quote_asset==="USDT").map(pair=>pair.base_asset+"USDT"));
+    setPairSymbols(pairResult.value.filter(pair=>pair.quote_asset==="USDT").map(pair=>pair.base_asset+pair.quote_asset));
     const enabled=pairResult.value.some(pair=>pair.base_asset===base&&pair.quote_asset==="USDT");
     setSpotPairEnabled(enabled);
     if(!enabled)setError("This spot market is not enabled by BTCBOX operators.");

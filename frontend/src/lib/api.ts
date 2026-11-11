@@ -1166,3 +1166,152 @@ export async function adminReplySupport(token: string, uid: string, content: str
     body: { uid, content, request_id: requestId },
   });
 }
+
+// ================= Perpetual contract (Contract product) client =================
+// Endpoints: /api/perpetual/*. Field names mirror backend/supabase/sql/0041_perpetual_contract_v1.sql.
+// Until the API-layer handlers are enabled these calls fail closed and the UI shows honest empty states.
+export interface PerpMarket {
+  symbol: string;
+  base_asset: string;
+  quote_asset: string;
+  status: "trading" | "paused" | "open_only" | "liquidation_only";
+  max_leverage: number;
+  price_tick: string;
+  quantity_step: string;
+  min_quantity: string;
+  funding_interval_sec: number;
+  funding_rate_cap: number;
+  next_funding_at?: string | null;
+  mark_price?: number | string | null;
+  index_price?: number | string | null;
+}
+export interface PerpPosition {
+  position_id: string;
+  symbol: string;
+  side: "long" | "short";
+  quantity: number | string;
+  entry_price: number | string;
+  mark_price?: number | string | null;
+  liquidation_price?: number | string | null;
+  isolated_margin: number | string;
+  leverage?: number;
+  unrealized_pnl?: number | string | null;
+  realized_pnl: number | string;
+  created_at?: string;
+}
+export interface PerpOrder {
+  order_id: string;
+  client_order_id?: string;
+  symbol: string;
+  type: "market" | "limit";
+  side: "buy" | "sell";
+  price?: number | string | null;
+  quantity: number | string;
+  filled_quantity?: number | string;
+  status: string;
+  leverage: number;
+  reduce_only?: boolean;
+  close_position?: boolean;
+  created_at?: string;
+}
+export interface PerpTrade {
+  trade_id: string;
+  symbol: string;
+  side: "buy" | "sell";
+  price: number | string;
+  quantity: number | string;
+  fee?: number | string;
+  role?: "maker" | "taker";
+  created_at?: string;
+}
+export interface PerpFundingRecord {
+  symbol: string;
+  funding_at: string;
+  funding_rate: number | string;
+  payment?: number | string;
+  mark_price?: number | string | null;
+}
+export interface PerpOrderInput {
+  symbol: string;
+  type: "market" | "limit";
+  side: "buy" | "sell";
+  price?: string;
+  quantity: string;
+  leverage: number;
+  reduceOnly?: boolean;
+  closePosition?: boolean;
+  clientOrderId: string;
+}
+export async function getPerpMarkets(signal?: AbortSignal): Promise<PerpMarket[]> {
+  const payload = await readAuthenticated<{ ok: true; markets: PerpMarket[] }>("perpetual/markets", signal);
+  if (!Array.isArray(payload.markets)) throw new ApiError("Perpetual market catalogue is unavailable.", 502, "INVALID_PERP_MARKETS");
+  return payload.markets.filter((m) => m && typeof m.symbol === "string" && typeof m.max_leverage === "number");
+}
+export async function submitPerpOrder(input: PerpOrderInput): Promise<{ order_id: string; status: string; duplicate?: boolean }> {
+  const body = {
+    symbol: input.symbol, type: input.type, side: input.side, quantity: input.quantity,
+    leverage: input.leverage, reduce_only: input.reduceOnly === true, close_position: input.closePosition === true,
+    client_order_id: input.clientOrderId,
+  };
+  if (input.type === "limit") (body as { price?: string }).price = input.price;
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE_URL}/perpetual/order`, { method: "POST", credentials: "include", cache: "no-store", headers: { Accept: "application/json", "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  } catch {
+    throw new ApiError("Perpetual order result is unconfirmed. Keep the same request ID and check order history before retrying.", 0, "NETWORK_ERROR");
+  }
+  const payload = await response.json().catch(() => null) as ({ ok?: boolean; order_id?: string; status?: string; duplicate?: boolean; msg?: string; code?: string }) | null;
+  if (!response.ok || !payload || payload.ok !== true || typeof payload.order_id !== "string") {
+    throw new ApiError(payload?.msg || "Perpetual order was not accepted.", response.status, payload?.code || "PERP_ORDER_REJECTED");
+  }
+  return { order_id: payload.order_id, status: payload.status || "open", duplicate: payload.duplicate === true };
+}
+export async function cancelPerpOrder(input: { orderId: string; clientCancelId: string }): Promise<{ order_id: string; status: string; duplicate?: boolean }> {
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE_URL}/perpetual/order`, { method: "DELETE", credentials: "include", cache: "no-store", headers: { Accept: "application/json", "Content-Type": "application/json" }, body: JSON.stringify({ order_id: input.orderId, client_cancel_id: input.clientCancelId }) });
+  } catch {
+    throw new ApiError("Perpetual cancel result is unconfirmed. Check open orders before retrying.", 0, "NETWORK_ERROR");
+  }
+  const payload = await response.json().catch(() => null) as ({ ok?: boolean; order_id?: string; status?: string; duplicate?: boolean; msg?: string; code?: string }) | null;
+  if (!response.ok || !payload || payload.ok !== true) throw new ApiError(payload?.msg || "Perpetual cancel was not accepted.", response.status, payload?.code || "PERP_CANCEL_REJECTED");
+  return { order_id: payload.order_id || input.orderId, status: payload.status || "canceled", duplicate: payload.duplicate === true };
+}
+export async function closePerpPosition(input: { symbol: string; clientOrderId: string }): Promise<{ order_id: string; status: string; duplicate?: boolean }> {
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE_URL}/perpetual/close-position`, { method: "POST", credentials: "include", cache: "no-store", headers: { Accept: "application/json", "Content-Type": "application/json" }, body: JSON.stringify({ symbol: input.symbol, client_order_id: input.clientOrderId }) });
+  } catch {
+    throw new ApiError("Perpetual close-position result is unconfirmed. Check positions before retrying.", 0, "NETWORK_ERROR");
+  }
+  const payload = await response.json().catch(() => null) as ({ ok?: boolean; order_id?: string; status?: string; duplicate?: boolean; msg?: string; code?: string }) | null;
+  if (!response.ok || !payload || payload.ok !== true) throw new ApiError(payload?.msg || "Close-position request was not accepted.", response.status, payload?.code || "PERP_CLOSE_REJECTED");
+  return { order_id: payload.order_id || "", status: payload.status || "accepted", duplicate: payload.duplicate === true };
+}
+export async function getPerpOpenOrders(signal?: AbortSignal): Promise<PerpOrder[]> {
+  const payload = await readAuthenticated<{ ok: true; orders: PerpOrder[] }>("perpetual/orders", signal);
+  if (!Array.isArray(payload.orders)) throw new ApiError("Perpetual open orders are unavailable.", 502, "INVALID_PERP_ORDERS");
+  return payload.orders;
+}
+export async function getPerpOrderHistory(signal?: AbortSignal): Promise<PerpOrder[]> {
+  const payload = await readAuthenticated<{ ok: true; orders: PerpOrder[] }>("perpetual/orders?history=true", signal);
+  if (!Array.isArray(payload.orders)) throw new ApiError("Perpetual order history is unavailable.", 502, "INVALID_PERP_ORDER_HISTORY");
+  return payload.orders;
+}
+export async function getPerpPositions(signal?: AbortSignal): Promise<PerpPosition[]> {
+  const payload = await readAuthenticated<{ ok: true; positions: PerpPosition[] }>("perpetual/positions", signal);
+  if (!Array.isArray(payload.positions)) throw new ApiError("Perpetual positions are unavailable.", 502, "INVALID_PERP_POSITIONS");
+  return payload.positions;
+}
+export async function getPerpTrades(symbol: string, signal?: AbortSignal): Promise<PerpTrade[]> {
+  const query = new URLSearchParams({ symbol });
+  const payload = await readAuthenticated<{ ok: true; trades: PerpTrade[] }>(`perpetual/trades?${query.toString()}`, signal);
+  if (!Array.isArray(payload.trades)) throw new ApiError("Perpetual trade history is unavailable.", 502, "INVALID_PERP_TRADES");
+  return payload.trades;
+}
+export async function getPerpFundingHistory(symbol: string, signal?: AbortSignal): Promise<PerpFundingRecord[]> {
+  const query = new URLSearchParams({ symbol });
+  const payload = await readAuthenticated<{ ok: true; funding: PerpFundingRecord[] }>(`perpetual/funding?${query.toString()}`, signal);
+  if (!Array.isArray(payload.funding)) throw new ApiError("Perpetual funding history is unavailable.", 502, "INVALID_PERP_FUNDING");
+  return payload.funding;
+}

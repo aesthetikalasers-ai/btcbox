@@ -1,6 +1,6 @@
 import { AuthRestoreState } from "./components/AuthRestoreState";
-import { lazy, Suspense, type ReactNode } from "react";
-import { Navigate, Route, Routes, useLocation } from "react-router-dom";
+import { lazy, Suspense, useEffect, type ReactNode } from "react";
+import { Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { AppLayout } from "./components/layout/AppLayout";
 import { I18nProvider } from "./lib/i18n";
 import { AuthCallbackPage, AuthPage } from "./features/auth/AuthPages";
@@ -8,6 +8,7 @@ import { AccountSetupPage } from "./features/auth/AccountSetupPage";
 import { AccountSecurityPage } from "./features/account/AccountSecurityPage";
 import { useAuth } from "./lib/auth";
 import { useI18n } from "./lib/i18n";
+import { getSpotMarketPairs } from "./lib/api";
 
 const Dashboard = lazy(() => import("./features/dashboard/Dashboard").then((m) => ({ default: m.Dashboard })));
 const MarketsPage = lazy(() => import("./features/markets/MarketsPage").then((m) => ({ default: m.MarketsPage })));
@@ -23,7 +24,27 @@ const SupportPage = lazy(() => import("./features/pages/Pages").then((m) => ({ d
 const DepositPage = lazy(() => import("./features/pages/Pages").then((m) => ({ default: m.DepositPage })));
 const WithdrawPage = lazy(() => import("./features/pages/Pages").then((m) => ({ default: m.WithdrawPage })));
 const EarnPage = lazy(() => import("./features/pages/Pages").then((m) => ({ default: m.EarnPage })));
+const ContractPage = lazy(() => import("./features/pages/ContractPage").then((m) => ({ default: m.ContractPage })));
 
+// Resolves "/trade" to the first enabled spot pair (BTC/USDT preferred) so the
+// Trade nav entry opens the trading terminal directly instead of the market hub.
+// Falls back to /trade-hub when the spot catalogue is unavailable.
+function TradeRedirect() {
+  const navigate = useNavigate();
+  useEffect(() => {
+    let cancelled = false;
+    const controller = new AbortController();
+    getSpotMarketPairs(controller.signal)
+      .then((pairs) => {
+        if (cancelled) return;
+        const preferred = pairs.find((p) => p.base_asset === "BTC" && p.quote_asset === "USDT") || pairs[0];
+        navigate(preferred ? `/trade/${preferred.base_asset}${preferred.quote_asset}` : "/trade-hub", { replace: true });
+      })
+      .catch(() => { if (!cancelled) navigate("/trade-hub", { replace: true }); });
+    return () => { cancelled = true; controller.abort(); };
+  }, [navigate]);
+  return <RouteLoading />;
+}
 function ProtectedAccountRoute({ children }: { children: ReactNode }) {
   const { status } = useAuth();
   if (status === "loading") return <AuthRestoreState />;
@@ -47,7 +68,7 @@ function CustomerRoutes() {
   const isStandaloneAuthRoute = ["/login", "/register", "/account-setup", "/auth/react-callback"].includes(location.pathname);
   const content = <div key={location.pathname} className="anim-fade-in min-w-0 flex-1"><AccountSetupGate><Suspense fallback={<RouteLoading />}><Routes>
     <Route path="/home" element={<Dashboard />} /><Route path="/markets" element={<MarketsPage />} />
-    <Route path="/trade-hub" element={<TradeHubPage />} /><Route path="/trade" element={<Navigate to="/trade-hub" replace />} />
+    <Route path="/trade-hub" element={<TradeHubPage />} /><Route path="/trade" element={<TradeRedirect />} />
     <Route path="/trade/:symbol" element={<SpotTradingPage />} />
     <Route path="/seconds" element={<ProtectedAccountRoute><SecondsPage /></ProtectedAccountRoute>} />
     <Route path="/assets" element={<ProtectedAccountRoute><AssetsPage /></ProtectedAccountRoute>} /><Route path="/me" element={<MyPage />} />
@@ -55,6 +76,7 @@ function CustomerRoutes() {
     <Route path="/deposit" element={<ProtectedAccountRoute><DepositPage /></ProtectedAccountRoute>} />
     <Route path="/withdraw" element={<ProtectedAccountRoute><WithdrawPage /></ProtectedAccountRoute>} />
     <Route path="/earn" element={<ProtectedAccountRoute><EarnPage /></ProtectedAccountRoute>} />
+    <Route path="/contract" element={<ProtectedAccountRoute><ContractPage /></ProtectedAccountRoute>} />
     <Route path="/login" element={<AuthPage mode="login" />} /><Route path="/register" element={<AuthPage mode="register" />} /><Route path="/account-setup" element={<AccountSetupPage />} /><Route path="/auth/react-callback" element={<AuthCallbackPage />} />
     <Route path="/kyc" element={<ProtectedAccountRoute><KycPage /></ProtectedAccountRoute>} />
     <Route path="/support" element={<SupportPage />} />

@@ -313,6 +313,40 @@ async function matchingRpc(name, payload) {
   return result;
 }
 
+// ===== Perpetual (Contract / Perpetual) v1 — fail-closed, default OFF. =====
+// All perpetual write paths require FINANCIAL_PERPETUAL_ENGINE_ENABLED === '1'
+// AND the full Postgres financial cutover (RPC + reads + approved). When off,
+// every write returns 503/409 and market reads return an empty list with a
+// perpetual_enabled=false flag. Never fake availability.
+function perpetualEngineEnabled() {
+  return process.env.FINANCIAL_PERPETUAL_ENGINE_ENABLED === '1' && financialWritesEnabled();
+}
+function perpetualEngineRequested() {
+  return process.env.FINANCIAL_PERPETUAL_ENGINE_ENABLED === '1';
+}
+async function perpRpc(name, payload) {
+  if (!perpetualEngineEnabled()) {
+    const error = new Error('Perpetual engine cutover is not approved');
+    error.status = 503; error.code = 'PERPETUAL_ENGINE_UNAVAILABLE'; throw error;
+  }
+  const base = process.env.SUPABASE_URL.replace(/\/+$/, '');
+  const response = await fetch(base + '/rest/v1/rpc/' + name, {
+    method: 'POST', headers: supabaseHeaders(), body: JSON.stringify(payload)
+  });
+  const result = await response.json().catch(() => null);
+  if (!response.ok || !result || result.ok !== true) {
+    const error = new Error('Perpetual RPC failed');
+    error.status = response.status; error.result = result; throw error;
+  }
+  return result;
+}
+async function perpRestGet(pathAndQuery) {
+  const base = process.env.SUPABASE_URL.replace(/\/+$/, '');
+  const response = await fetch(base + '/rest/v1/' + pathAndQuery, { method: 'GET', headers: supabaseHeaders() });
+  if (!response.ok) return [];
+  return response.json().catch(() => []);
+}
+
 // Seconds-contract reference price. The server always fetches the open/settle
 // price itself from the same trusted feeds as /api/market; client-supplied
 // prices are never trusted for balance-affecting operations.
@@ -2678,6 +2712,165 @@ async function handleRequest(event, context) {
     } catch (e) { return json({ ok: false, code: 'FINANCIAL_RPC_UNAVAILABLE', msg: 'The financial database is unavailable.' }, 503); }
   }
 
+  // ==================== Perpetual (Contract / Perpetual) v1 ====================
+  // All writes gated by perpetualEngineEnabled() (default OFF). Money passed as strings.
+  // ---------- GET /api/perpetual/markets (public) ----------
+  if (path === 'perpetual/markets' && method === 'GET') {
+    if (!perpetualEngineRequested() || !supabaseStorageConfigured()) {
+      return json({ ok: true, perpetual_enabled: false, markets: [], msg: 'Perpetual trading is not enabled yet.' });
+    }
+    try {
+      const markets = await perpRestGet('perpetual_markets?select=symbol,base_asset,quote_asset,enabled,status,price_tick,quantity_step,min_quantity,max_quantity,max_position_notional,max_leverage,maintenance_margin_rate,maker_fee_rate,taker_fee_rate,funding_interval_sec,funding_rate_cap,next_funding_at,mark_price_stale_sec&enabled=eq.true&order=symbol.asc');
+      return json({ ok: true, perpetual_enabled: perpetualEngineEnabled(), markets: markets });
+    } catch (e) { return json({ ok: true, perpetual_enabled: false, markets: [] }, 200); }
+  }
+  // ---------- POST /api/perpetual/order (auth) ----------
+  if (path === 'perpetual/order' && method === 'POST') {
+    if (!user) return json({ ok: false, msg: 'Not signed in.', need_login: true }, 401);
+    if (user.frozen) return json({ ok: false, msg: 'Account frozen. Trading is not available.', code: 'ACCOUNT_FROZEN' }, 403);
+    { const rl = await rateCheckShared('spot_order', String(user.uid)); if (rl.unavailable) return rateLimitUnavailableJson(); if (rl.limited) return rateLimitedJson(rl.retryAfter); }
+    if (!perpetualEngineEnabled()) return json({ ok: false, code: 'PERPETUAL_ENGINE_UNAVAILABLE', msg: 'Perpetual trading is not enabled. No order was created and your balance was unchanged.' }, 503);
+    const symbol = String(body.symbol || '').trim().toUpperCase();
+    const type = String(body.type || 'limit').toLowerCase();
+    const side = String(body.side || '').toLowerCase();
+    const price = body.price === undefined || body.price === null || body.price === '' ? null : parseMoneyInput(body.price);
+    const quantity = parseMoneyInput(body.quantity);
+    const leverage = Number(body.leverage);
+    const reduceOnly = body.reduce_only === true || body.close_position === true;
+    const closePosition = body.close_position === true;
+    const clientOrderId = String(body.client_order_id || (event.headers && (event.headers['x-idempotency-key'] || event.headers['X-Idempotency-Key'])) || '').trim();
+    if (!/^[A-Z0-9]{3,20}$/.test(symbol)) return json({ ok: false, msg: 'Invalid trading pair.', code: 'INVALID_SYMBOL' }, 400);
+    if (!['limit','market'].includes(type)) return json({ ok: false, msg: 'Only limit or market orders are supported.', code: 'INVALID_ORDER_TYPE' }, 400);
+    if (!['buy','sell'].includes(side)) return json({ ok: false, msg: 'Invalid trade direction.', code: 'INVALID_SIDE' }, 400);
+    if (type === 'limit' && (price === null || compareMoney(price, '0') <= 0)) return json({ ok: false, msg: 'Invalid limit price.', code: 'INVALID_PRICE' }, 400);
+    if (quantity === null || compareMoney(quantity, '0') <= 0) return json({ ok: false, msg: 'Invalid quantity.', code: 'INVALID_QUANTITY' }, 400);
+    if (!Number.isInteger(leverage) || leverage < 1 || leverage > 100) return json({ ok: false, msg: 'Leverage must be an integer between 1 and 100.', code: 'INVALID_LEVERAGE' }, 400);
+    if (!/^[A-Za-z0-9_-]{16,100}$/.test(clientOrderId)) return json({ ok: false, code: 'IDEMPOTENCY_KEY_REQUIRED', msg: 'Please provide a client_order_id or X-Idempotency-Key (16-100 characters).' }, 400);
+    const orderId = 'PO' + crypto.randomUUID().replace(/-/g, '');
+    try {
+      const result = await perpRpc('perp_submit_order', {
+        p_order_id: orderId, p_user_id: String(user.uid), p_symbol: symbol, p_type: type, p_side: side,
+        p_price: price, p_quantity: quantity, p_leverage: leverage,
+        p_reduce_only: reduceOnly, p_close_position: closePosition, p_client_order_id: clientOrderId
+      });
+      return json({ ok: true, duplicate: !!result.duplicate, order_id: result.order_id || orderId, status: result.status,
+        filled_quantity: result.filled_quantity, remaining_quantity: result.remaining_quantity, avg_fill_price: result.avg_fill_price });
+    } catch (e) {
+      const status = e.status === 400 ? 400 : 503;
+      return json({ ok: false, code: e.status === 400 ? 'ORDER_REJECTED' : 'PERPETUAL_RPC_UNAVAILABLE',
+        msg: e.status === 400 ? 'Order validation failed. Check pair rules, available margin, and request parameters.' : 'Perpetual matching database temporarily unavailable. Order result is unconfirmed. Check your orders before retrying.' }, status);
+    }
+  }
+  // ---------- DELETE /api/perpetual/order (auth) ----------
+  if (path === 'perpetual/order' && method === 'DELETE') {
+    if (!user) return json({ ok: false, msg: 'Not signed in.', need_login: true }, 401);
+    { const rl = await rateCheckShared('spot_cancel', String(user.uid)); if (rl.unavailable) return rateLimitUnavailableJson(); if (rl.limited) return rateLimitedJson(rl.retryAfter); }
+    if (!perpetualEngineEnabled()) return json({ ok: false, code: 'PERPETUAL_ENGINE_UNAVAILABLE', msg: 'Perpetual trading is not enabled. Cancel was not executed.' }, 503);
+    const orderId = String(body.order_id || '').trim();
+    const clientCancelId = String(body.client_cancel_id || '').trim();
+    if (!orderId || orderId.length > 128) return json({ ok: false, code: 'INVALID_ORDER_ID', msg: 'Invalid order ID.' }, 400);
+    if (!/^[A-Za-z0-9_-]{16,100}$/.test(clientCancelId)) return json({ ok: false, code: 'IDEMPOTENCY_KEY_REQUIRED', msg: 'Please provide a valid client_cancel_id (16-100 characters).' }, 400);
+    try {
+      const result = await perpRpc('perp_cancel_order', { p_user_id: String(user.uid), p_client_cancel_id: clientCancelId, p_order_id: orderId });
+      return json({ ok: true, duplicate: !!result.duplicate, order_id: result.order_id || orderId, status: result.status });
+    } catch (e) {
+      const status = e.status === 400 ? 400 : 503;
+      return json({ ok: false, code: e.status === 400 ? 'CANCEL_REJECTED' : 'PERPETUAL_RPC_UNAVAILABLE', msg: 'Cancel was not confirmed. Check your orders before retrying.' }, status);
+    }
+  }
+  // ---------- POST /api/perpetual/close-position (auth, reduce-only market close) ----------
+  if (path === 'perpetual/close-position' && method === 'POST') {
+    if (!user) return json({ ok: false, msg: 'Not signed in.', need_login: true }, 401);
+    if (user.frozen) return json({ ok: false, code: 'ACCOUNT_FROZEN' }, 403);
+    if (!perpetualEngineEnabled()) return json({ ok: false, code: 'PERPETUAL_ENGINE_UNAVAILABLE', msg: 'Perpetual trading is not enabled. Position was not closed.' }, 503);
+    const symbol = String(body.symbol || '').trim().toUpperCase();
+    const clientOrderId = String(body.client_order_id || '').trim();
+    if (!/^[A-Z0-9]{3,20}$/.test(symbol)) return json({ ok: false, code: 'INVALID_SYMBOL' }, 400);
+    if (!/^[A-Za-z0-9_-]{16,100}$/.test(clientOrderId)) return json({ ok: false, code: 'IDEMPOTENCY_KEY_REQUIRED' }, 400);
+    const positions = await perpRestGet('perpetual_positions?select=side,quantity&user_id=eq.' + encodeURIComponent(String(user.uid)) + '&symbol=eq.' + encodeURIComponent(symbol) + '&limit=1');
+    if (!positions || !positions.length) return json({ ok: false, code: 'NO_POSITION', msg: 'No open position to close.' }, 409);
+    const pos = positions[0];
+    const closeSide = pos.side === 'long' ? 'sell' : 'buy';
+    const orderId = 'PC' + crypto.randomUUID().replace(/-/g, '');
+    try {
+      const result = await perpRpc('perp_submit_order', {
+        p_order_id: orderId, p_user_id: String(user.uid), p_symbol: symbol, p_type: 'market', p_side: closeSide,
+        p_price: null, p_quantity: String(pos.quantity), p_leverage: 1,
+        p_reduce_only: true, p_close_position: true, p_client_order_id: clientOrderId
+      });
+      return json({ ok: true, duplicate: !!result.duplicate, order_id: result.order_id || orderId, status: result.status, filled_quantity: result.filled_quantity });
+    } catch (e) {
+      const status = e.status === 400 ? 400 : 503;
+      return json({ ok: false, code: e.status === 400 ? 'CLOSE_REJECTED' : 'PERPETUAL_RPC_UNAVAILABLE', msg: 'Close was not confirmed. Check your positions before retrying.' }, status);
+    }
+  }
+  // ---------- GET /api/perpetual/orders (auth) ----------
+  if (path === 'perpetual/orders' && method === 'GET') {
+    if (!user) return json({ ok: false, msg: 'Not signed in.', need_login: true }, 401);
+    if (!perpetualEngineRequested()) return json({ ok: true, open: [], history: [], perpetual_enabled: false });
+    try {
+      const open = await perpRestGet('perpetual_orders?select=id,symbol,type,side,price,quantity,remaining_quantity,leverage,reduce_only,close_position,status,avg_fill_price,reserved_margin,created_at&user_id=eq.' + encodeURIComponent(String(user.uid)) + '&status=in.(open,partially_filled)&order=created_at.desc');
+      const history = await perpRestGet('perpetual_orders?select=id,symbol,type,side,price,quantity,remaining_quantity,leverage,status,avg_fill_price,created_at&user_id=eq.' + encodeURIComponent(String(user.uid)) + '&status=in.(filled,cancelled,rejected)&order=created_at.desc&limit=100');
+      return json({ ok: true, open: open, history: history });
+    } catch (e) { return json({ ok: false, code: 'PERPETUAL_READ_UNAVAILABLE' }, 503); }
+  }
+  // ---------- GET /api/perpetual/positions (auth) — unrealized PnL & liq price from latest mark ----------
+  if (path === 'perpetual/positions' && method === 'GET') {
+    if (!user) return json({ ok: false, msg: 'Not signed in.', need_login: true }, 401);
+    if (!perpetualEngineRequested()) return json({ ok: true, positions: [], perpetual_enabled: false });
+    try {
+      const positions = await perpRestGet('perpetual_positions?select=symbol,side,quantity,entry_price,isolated_margin,realized_pnl,funding_paid,last_mark_price,created_at&user_id=eq.' + encodeURIComponent(String(user.uid)) + '&closed_at=is.null&order=symbol.asc');
+      const out = [];
+      for (const p of positions) {
+        let mark = null, unrealized = null, estLiqPrice = null, roePct = null;
+        try {
+          const base = process.env.SUPABASE_URL.replace(/\/+$/, '');
+          const mr = await fetch(base + '/rest/v1/rpc/perp_latest_mark_price', { method: 'POST', headers: supabaseHeaders(), body: JSON.stringify({ p_symbol: p.symbol, p_max_age_sec: 300 }) });
+          const markRows = await mr.json().catch(() => []);
+          if (Array.isArray(markRows) && markRows.length && markRows[0] && Number(markRows[0].mark_price) > 0) {
+            mark = Number(markRows[0].mark_price);
+            const qty = Number(p.quantity), entry = Number(p.entry_price), margin = Number(p.isolated_margin);
+            const dir = p.side === 'long' ? 1 : -1;
+            unrealized = dir * (mark - entry) * qty; // display-only estimate; settlement is DB-side
+            roePct = margin > 0 ? (unrealized / margin) * 100 : null;
+            const notional = qty * mark;
+            // est. liquidation price (display only; authoritative liquidation is DB-side perp_liquidate_position)
+            estLiqPrice = p.side === 'long' ? entry * (1 - margin / notional) : entry * (1 + margin / notional);
+          }
+        } catch (_) { /* mark unavailable; return position without estimate */ }
+        out.push({ symbol: p.symbol, side: p.side, quantity: p.quantity, entry_price: p.entry_price,
+          isolated_margin: p.isolated_margin, realized_pnl: p.realized_pnl, funding_paid: p.funding_paid,
+          mark_price: mark, unrealized_pnl_est: unrealized, roe_pct_est: roePct, liquidation_price_est: estLiqPrice,
+          created_at: p.created_at });
+      }
+      return json({ ok: true, positions: out, note: 'unrealized_pnl_est / roe_pct_est / liquidation_price_est are display-only estimates; settlement & liquidation are database-authoritative.' });
+    } catch (e) { return json({ ok: false, code: 'PERPETUAL_READ_UNAVAILABLE' }, 503); }
+  }
+  // ---------- GET /api/perpetual/trades (auth) ----------
+  if (path === 'perpetual/trades' && method === 'GET') {
+    if (!user) return json({ ok: false, msg: 'Not signed in.', need_login: true }, 401);
+    if (!perpetualEngineRequested()) return json({ ok: true, trades: [], perpetual_enabled: false });
+    try {
+      const uid = encodeURIComponent(String(user.uid));
+      const asMaker = await perpRestGet('perpetual_trades?select=id,symbol,maker_order_id,taker_order_id,price,quantity,quote_amount,maker_fee,taker_fee,created_at&maker_user_id=eq.' + uid + '&order=created_at.desc&limit=100');
+      const asTaker = await perpRestGet('perpetual_trades?select=id,symbol,maker_order_id,taker_order_id,price,quantity,quote_amount,maker_fee,taker_fee,created_at&taker_user_id=eq.' + uid + '&order=created_at.desc&limit=100');
+      const trades = [...asMaker.map(t => ({ ...t, role: 'maker' })), ...asTaker.map(t => ({ ...t, role: 'taker' }))]
+        .sort((a, b) => (a.created_at < b.created_at ? 1 : -1)).slice(0, 100);
+      return json({ ok: true, trades: trades });
+    } catch (e) { return json({ ok: false, code: 'PERPETUAL_READ_UNAVAILABLE' }, 503); }
+  }
+  // ---------- GET /api/perpetual/funding (auth) ----------
+  if (path === 'perpetual/funding' && method === 'GET') {
+    if (!user) return json({ ok: false, msg: 'Not signed in.', need_login: true }, 401);
+    if (!perpetualEngineRequested()) return json({ ok: true, history: [], rates: [], perpetual_enabled: false });
+    try {
+      const uid = encodeURIComponent(String(user.uid));
+      const history = await perpRestGet('perpetual_funding_history?select=symbol,funding_at,position_side,position_qty,notional,payment_delta,created_at&user_id=eq.' + uid + '&order=funding_at.desc&limit=100');
+      const rates = await perpRestGet('perpetual_funding_rates?select=symbol,funding_at,rate,mark_price,settled&order=funding_at.desc&limit=20');
+      return json({ ok: true, history: history, rates: rates });
+    } catch (e) { return json({ ok: false, code: 'PERPETUAL_READ_UNAVAILABLE' }, 503); }
+  }
+
   // ---------- POST /api/support/chat ----------
   if (path === 'support/chat' && method === 'POST') {
     if (!user) return json({ ok: false, msg: 'Not signed in.', need_login: true }, 401);
@@ -3924,6 +4117,62 @@ async function handleRequest(event, context) {
       });
       list.sort(function (a, b) { return (a.time < b.time) ? 1 : -1; });
       return json({ ok: true, messages: list.slice(0, 100) });
+    }
+    // ---------- Admin: Perpetual markets / liquidations / insurance fund ----------
+    if (sub.startsWith('perpetual/')) {
+      const perpSub = sub.slice('perpetual/'.length);
+      if (perpSub === 'market' && method === 'POST') {
+        if (!hasAdminPermission(adminMembership, 'system_config.write')) return json({ ok: false, code: 'ADMIN_PERMISSION_DENIED', permission: 'system_config.write' }, 403);
+        if (!supabaseStorageConfigured()) return json({ ok: false, code: 'PERPETUAL_RPC_NOT_CONFIGURED' }, 503);
+        const symbol = String(body.symbol || '').trim().toUpperCase();
+        const baseAsset = String(body.base_asset || symbol.replace('USDT','')).trim().toUpperCase();
+        const priceTick = parseMoneyInput(body.price_tick);
+        const quantityStep = parseMoneyInput(body.quantity_step);
+        const minQuantity = parseMoneyInput(body.min_quantity);
+        const maxQuantity = body.max_quantity ? parseMoneyInput(body.max_quantity) : null;
+        const maxPositionNotional = body.max_position_notional ? parseMoneyInput(body.max_position_notional) : null;
+        const maxLeverage = Number(body.max_leverage);
+        const mmr = body.maintenance_margin_rate === undefined ? null : Number(body.maintenance_margin_rate);
+        const makerFee = body.maker_fee_rate === undefined ? 0 : Number(body.maker_fee_rate);
+        const takerFee = body.taker_fee_rate === undefined ? 0 : Number(body.taker_fee_rate);
+        const fundingInterval = Number(body.funding_interval_sec || 28800);
+        const fundingCap = body.funding_rate_cap === undefined ? 0.0075 : Number(body.funding_rate_cap);
+        const status = String(body.status || 'paused').toLowerCase();
+        const enabled = body.enabled === true;
+        if (!/^[A-Z0-9]{3,20}$/.test(symbol) || !priceTick || compareMoney(priceTick,'0')<=0 || !quantityStep || compareMoney(quantityStep,'0')<=0
+            || !minQuantity || compareMoney(minQuantity,'0')<=0 || !Number.isInteger(maxLeverage) || maxLeverage < 1 || maxLeverage > 100
+            || !['trading','paused','open_only','liquidation_only'].includes(status)
+            || mmr === null || mmr < 0 || mmr > 0.5 || makerFee < 0 || takerFee < 0 || fundingInterval <= 0 || fundingCap <= 0) {
+          return json({ ok: false, code: 'INVALID_MARKET_CONFIG', msg: 'Invalid perpetual market configuration (max_leverage must be 1-100, mmr 0-0.5).' }, 400);
+        }
+        try {
+          const base = process.env.SUPABASE_URL.replace(/\/+$/, '');
+          const payload = { symbol: symbol, base_asset: baseAsset, quote_asset: 'USDT', enabled: enabled, status: status,
+            price_tick: priceTick, quantity_step: quantityStep, min_quantity: minQuantity, max_quantity: maxQuantity,
+            max_position_notional: maxPositionNotional, max_leverage: maxLeverage, maintenance_margin_rate: mmr,
+            maker_fee_rate: makerFee, taker_fee_rate: takerFee, funding_interval_sec: fundingInterval, funding_rate_cap: fundingCap,
+            updated_at: new Date().toISOString() };
+          const resp = await fetch(base + '/rest/v1/perpetual_markets?on_conflict=symbol', { method: 'POST', headers: { ...supabaseHeaders(), 'Prefer': 'resolution=merge-duplicates' }, body: JSON.stringify(payload) });
+          if (!resp.ok) { const err = await resp.text().catch(()=>''); return json({ ok: false, code: 'PERPETUAL_MARKET_UPSERT_FAILED', detail: String(resp.status) }, 503); }
+          return json({ ok: true, symbol: symbol, enabled: enabled, status: status });
+        } catch (e) { return json({ ok: false, code: 'PERPETUAL_RPC_UNAVAILABLE' }, 503); }
+      }
+      if (perpSub === 'liquidations' && method === 'GET') {
+        if (!hasAdminPermission(adminMembership, 'financial_audit.read')) return json({ ok: false, code: 'ADMIN_PERMISSION_DENIED', permission: 'financial_audit.read' }, 403);
+        try {
+          const events = await perpRestGet('perpetual_liquidation_events?select=*&order=created_at.desc&limit=200');
+          return json({ ok: true, events: events });
+        } catch (e) { return json({ ok: false, code: 'PERPETUAL_READ_UNAVAILABLE' }, 503); }
+      }
+      if (perpSub === 'insurance' && method === 'GET') {
+        if (!hasAdminPermission(adminMembership, 'financial_audit.read')) return json({ ok: false, code: 'ADMIN_PERMISSION_DENIED', permission: 'financial_audit.read' }, 403);
+        try {
+          const rows = await perpRestGet('financial_accounts?select=available,frozen,updated_at&user_id=eq.__perp_insurance__&asset=eq.USDT&limit=1');
+          const bal = (rows && rows[0]) ? rows[0] : { available: '0', frozen: '0' };
+          return json({ ok: true, insurance_user_id: '__perp_insurance__', available: bal.available, frozen: bal.frozen });
+        } catch (e) { return json({ ok: false, code: 'PERPETUAL_READ_UNAVAILABLE' }, 503); }
+      }
+      return json({ ok: false, msg: 'Unknown admin perpetual endpoint: ' + perpSub }, 404);
     }
     return json({ ok: false, msg: 'Unknown admin endpoint: ' + sub }, 404);
   }

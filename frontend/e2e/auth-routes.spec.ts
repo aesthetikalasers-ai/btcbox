@@ -965,7 +965,7 @@ test("Admin queue reload failure never leaves stale withdrawal actions visible",
   expect(queueReads).toBeGreaterThanOrEqual(2);
 });
 
-test("trade chooser exposes the backend-enabled products and keeps unsupported futures unavailable", async ({ page }) => {
+test("trade chooser exposes exactly the four customer products (Spot/Seconds/Contract/Earn) without a Futures entry", async ({ page }) => {
   await page.route("**/api/market/pairs", route => route.fulfill({
     status: 200,
     contentType: "application/json",
@@ -981,7 +981,8 @@ test("trade chooser exposes the backend-enabled products and keeps unsupported f
   await expect(page.getByRole("heading", { name: "Seconds" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "BTC/USDT" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Earn", exact: true })).toBeVisible();
-  await expect(page.getByText("Futures", { exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Contract", exact: true })).toBeVisible();
+  await expect(page.getByText("Futures", { exact: true })).toHaveCount(0);
   await expect(page.getByText("Unavailable", { exact: true })).toBeVisible();
   const earnEntry = page.locator('a[href="/earn"]:visible').last();
   await expect(earnEntry).toHaveAttribute("href", "/earn");

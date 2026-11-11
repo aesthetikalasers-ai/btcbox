@@ -14,6 +14,10 @@ function friendlyAuthErrorMessage(cause: unknown): string {
   if (code === "AUTH_PROVIDER_NOT_ALLOWED") return "This sign-in method is not available. Please use another method.";
   if (code === "GOOGLE_PROVIDER_UNAVAILABLE") return "Google sign-in is temporarily unavailable. Please try again later.";
   if (code === "INVALID_SUPABASE_IDENTITY") return "The sign-in identity could not be verified. Please try again.";
+  const rawMessage = cause instanceof Error ? cause.message : "";
+  if (/already associated|already linked|already exists|identity.*already|account.*already|user already/i.test(rawMessage)) {
+    return "This sign-in identity is already linked to another BTCBOX account. Please sign in with that account, or contact support to merge your sign-in methods.";
+  }
   return cause instanceof Error ? cause.message : "Authentication callback failed.";
 }
 

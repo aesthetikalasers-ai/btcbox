@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent as ReactKeyboardEvent, type Ref } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Search, User, Menu, Check } from "lucide-react";
+import { Search, Menu, Check, LogIn } from "lucide-react";
 import { useI18n, type Language } from "../../lib/i18n";
 import { BrandLogo } from "../BrandLogo";
+import { useAuth } from "../../lib/auth";
 
 // Fixed menu order per product requirement. vi (Vietnamese) is legacy and intentionally omitted.
 const LANGUAGE_MENU: Array<{ code: Language; label: string; flag: string }> = [
@@ -14,13 +15,24 @@ const LANGUAGE_MENU: Array<{ code: Language; label: string; flag: string }> = [
   { code: "it", label: "Italiano", flag: "🇮🇹" },
   { code: "pt", label: "Português", flag: "🇵🇹" },
 ];
+
+const LANGUAGE_FLAG: Record<Language, string> = {
+  ja: "🇯🇵", "zh-CN": "🇨🇳", en: "🇺🇸", es: "🇪🇸", de: "🇩🇪", it: "🇮🇹", pt: "🇵🇹",
+};
+const LANGUAGE_LABEL: Record<Language, string> = {
+  ja: "日本語", "zh-CN": "中文", en: "English", es: "Español", de: "Deutsch", it: "Italiano", pt: "Português",
+};
+
 /**
  * Renders the global header, search control, and accessible language selector.
  * Keyboard navigation and dismissal are managed locally without changing route permissions.
  */
 export function Topbar({ onMenuClick, menuOpen = false, menuButtonRef }: { menuButtonRef?: Ref<HTMLButtonElement>; onMenuClick?: () => void; menuOpen?: boolean }) {
   const { language, setLanguage, canChangeLanguage, t } = useI18n();
-  const currentLanguage = LANGUAGE_MENU.find(({ code }) => code === language) ?? LANGUAGE_MENU[2];
+  const { status, email } = useAuth();
+  const signedIn = status === "authenticated";
+  const avatarLetter = (email || "U").trim().charAt(0).toUpperCase();
+
   const [search, setSearch] = useState("");
   const [langMenuOpen, setLangMenuOpen] = useState(false);
   const langMenuRef = useRef<HTMLDivElement>(null);
@@ -86,13 +98,13 @@ export function Topbar({ onMenuClick, menuOpen = false, menuButtonRef }: { menuB
             <Menu className="h-5 w-5" />
           </button>
         )}
-        <Link to="/home" aria-label="BTCBOX home" className="min-w-0 lg:hidden"><BrandLogo compact showExchange={false}  /></Link>
+        <Link to="/home" aria-label="BTCBOX home" className="min-w-0 lg:hidden"><BrandLogo compact showExchange={false} /></Link>
         <form onSubmit={submitSearch} role="search" className="relative hidden min-w-0 max-[480px]:hidden sm:block">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-brand-text-muted" />
-          <input type="search" aria-label={t("Search BTCBOX")} value={search} onChange={(event) => setSearch(event.target.value)} placeholder={t("Search")} className="h-11 w-[min(30vw,190px)] rounded-xl border border-brand-border bg-brand-surface px-3 pl-10 pr-3 text-sm text-brand-text placeholder:text-brand-text-muted focus:border-brand-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent/60 focus-visible:ring-offset-1 focus-visible:ring-offset-brand-bg md:w-[240px]" />
+          <input type="search" aria-label={t("Search BTCBOX")} value={search} onChange={(event) => setSearch(event.target.value)} placeholder={t("Search")} className="h-11 w-[min(30vw,190px)] rounded-xl border border-brand-border bg-brand-surface px-3 pl-10 pr-3 text-sm text-brand-text placeholder:text-brand-text-muted focus:border-brand-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent/40 focus-visible:ring-offset-2 focus-visible:ring-offset-brand-bg md:w-[240px]" />
           <button type="submit" aria-label={t("Search BTCBOX")} className="sr-only">{t("Search")}</button>
         </form>
-        <button type="button" aria-label={t("Search BTCBOX")} onClick={() => navigate("/markets")} className="flex h-11 w-11 items-center justify-center rounded-xl text-brand-text-secondary transition-colors hover:bg-brand-surface-hover hover:text-brand-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent max-[359px]:hidden sm:hidden">
+        <button type="button" aria-label={t("Search BTCBOX")} onClick={() => navigate("/markets")} className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-brand-border bg-brand-surface text-brand-text-secondary transition-colors hover:border-brand-accent/40 hover:bg-brand-surface-hover hover:text-brand-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent sm:hidden">
           <Search className="h-5 w-5" />
         </button>
       </div>
@@ -109,8 +121,8 @@ export function Topbar({ onMenuClick, menuOpen = false, menuButtonRef }: { menuB
               onClick={() => setLangMenuOpen((open) => !open)}
               className="flex h-11 min-w-0 items-center gap-1.5 rounded-lg border border-brand-border bg-brand-surface px-2.5 text-sm font-semibold text-brand-text transition-colors hover:border-brand-accent/40 hover:bg-brand-surface-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent sm:px-3"
             >
-              <span aria-hidden="true" className="shrink-0 text-base leading-none">{currentLanguage.flag}</span>
-              <span className="max-w-[5.5rem] truncate sm:max-w-none">{currentLanguage.label}</span>
+              <span aria-hidden="true" className="shrink-0 text-base leading-none">{LANGUAGE_FLAG[language]}</span>
+              <span className="max-w-[5.5rem] truncate sm:max-w-none">{LANGUAGE_LABEL[language]}</span>
               <span aria-hidden="true" className={`text-xs text-brand-text-muted transition-transform ${langMenuOpen ? "rotate-180" : ""}`}>⌄</span>
             </button>
             {langMenuOpen && (
@@ -126,10 +138,7 @@ export function Topbar({ onMenuClick, menuOpen = false, menuButtonRef }: { menuB
                       onClick={() => { setLanguage(code); setLangMenuOpen(false); langTriggerRef.current?.focus(); }}
                       className={`flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm transition-colors focus-visible:outline-none focus-visible:bg-brand-surface-hover ${selected ? "font-semibold text-brand-accent" : "text-brand-text-secondary hover:bg-brand-surface-hover hover:text-brand-text"}`}
                     >
-                      <span className="flex min-w-0 items-center gap-2">
-                        <span aria-hidden="true" className="shrink-0 text-base leading-none">{flag}</span>
-                        <span className="truncate">{label}</span>
-                      </span>
+                      <span className="flex min-w-0 items-center gap-2"><span aria-hidden="true" className="shrink-0 text-base leading-none">{flag}</span><span className="truncate">{label}</span></span>
                       {selected && <Check className="h-4 w-4 shrink-0" aria-hidden="true" />}
                     </button>
                   );
@@ -138,9 +147,16 @@ export function Topbar({ onMenuClick, menuOpen = false, menuButtonRef }: { menuB
             )}
           </div>
         )}
-        <Link to="/me" aria-label={t("My")} className="flex h-11 w-11 items-center justify-center rounded-xl border border-brand-border bg-brand-surface text-brand-text-secondary transition-colors hover:border-brand-accent/40 hover:text-brand-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent">
-          <User className="h-[18px] w-[18px]" />
-        </Link>
+        {signedIn ? (
+          <Link to="/me" aria-label={t("My account")} className="flex h-11 min-w-11 items-center gap-2 rounded-xl border border-brand-border bg-brand-surface px-2 text-brand-text-secondary transition-colors hover:border-brand-accent/40 hover:text-brand-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent">
+            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-brand-accent/15 text-xs font-bold text-brand-accent">{avatarLetter}</span>
+            <span className="hidden max-w-[140px] truncate text-xs font-semibold md:block">{email || t("My account")}</span>
+          </Link>
+        ) : (
+          <Link to="/login" aria-label={t("Sign in")} className="flex h-11 items-center gap-1.5 rounded-xl border border-brand-accent/30 bg-brand-accent/10 px-3 text-xs font-semibold text-brand-accent transition-colors hover:border-brand-accent/50 hover:bg-brand-accent/[0.16] hover:text-brand-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent">
+            <LogIn className="h-4 w-4" /> <span className="hidden sm:inline">{t("Sign in")}</span>
+          </Link>
+        )}
       </div>
     </header>
   );

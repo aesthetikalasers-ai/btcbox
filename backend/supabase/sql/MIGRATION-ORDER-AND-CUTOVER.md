@@ -8,7 +8,7 @@ Use `backend/scripts/bootstrap-empty-database.sh` only against a verified empty 
 - requires `DATABASE_URL` and `BTCBOX_BOOTSTRAP_CONFIRM=YES`;
 - parses the URL hostname and refuses remote targets unless `BTCBOX_ALLOW_REMOTE_BOOTSTRAP=YES` is explicitly supplied;
 - checks that no BTCBOX-owned tables already exist before applying SQL;
-- applies the 33 canonical SQL files explicitly allowlisted in `backend/scripts/bootstrap-empty-database.sh`;
+- applies the 34 canonical SQL files explicitly allowlisted in `backend/scripts/bootstrap-empty-database.sh`;
 - creates the schema only; the first API request atomically inserts the empty `btcbox_state` singleton through `btcbox_save_state` at revision 0, with no demo users or balances;
 - stops on the first SQL error and never prints the database URL.
 
@@ -51,6 +51,7 @@ The current canonical source inventory is:
 31. `0038_withdrawal_first_successful_review_guard_v1.sql`
 32. `0039_withdrawal_approve_no_burn_v1.sql`
 33. `0040_admin_superadmin_membership_listing_v1.sql`
+34. `0041_perpetual_contract_v1.sql`
 
 The legacy `0008_financial_spot_trade_v3.sql` direct-fill RPC was removed because it bypassed the order book and was not called by the API. The durable matching engine now occupies `0008_financial_matching_engine_v1.sql` and is the only supported spot write path. Sequence `0009` is retired and intentionally omitted; the offline migration checker explicitly recognizes retired slots `0009` and `0015`–`0020`. The bootstrap allowlist contains only live numbered SQL files and is tested against the actual source inventory.
 
@@ -70,6 +71,7 @@ Manual deposits follow the chosen half-manual workflow: staff verifies the trans
 - `0038` makes PostgreSQL authoritative for first-successful-withdrawal manual review. The database ORs the API's large-value/unknown-price flag with its own prior successful withdrawal history, so stale legacy `btcbox_state` cannot bypass the first-withdrawal review requirement.
 - `0039` changes withdrawal approval to a status-and-audit decision without moving funds; rejection releases the frozen amount, and manual payout completion debits the frozen amount exactly once. It preserves the canonical operation types used by Spot and Seconds.
 - `0040` corrects the Super Admin membership list so it includes the active Super Admin and delegated administrators, with the effective permission snapshot for each. It does not redefine financial operations or withdrawal RPCs.
+- `0041` adds the Perpetual (Contract / Perpetual) v1 schema and RPCs: `perpetual_markets`, `perpetual_orders` (persistent order book), `perpetual_trades` (fills), `perpetual_positions` (long/short, isolated margin, entry price), `perpetual_mark_price_feed`, `perpetual_funding_rates`/`perpetual_funding_history`, `perpetual_liquidation_events`, `perpetual_position_history`, `perpetual_cancel_requests`, and the insurance account `__perp_insurance__`. It reuses `financial_accounts`/`financial_operations`/`financial_ledger` and extends `operation_type` with `perp_*` types. All balance movements write ledger rows; matching is taker-driven inside `perp_submit_order` with per-market advisory locks (single writer per market). It is gated at the API by `FINANCIAL_PERPETUAL_ENGINE_ENABLED=1` (default OFF) plus the full Postgres financial cutover. Funding/liquidation/mark-price are driven by separate workers (`backend/scripts/perp-*.js`), not by the API. Requires `0002` (ledger), `0008` (matching pattern), `0037` (rate-limit scopes; perp order/cancel reuse `spot_order`/`spot_cancel` scopes in v1).
 - `0024` adds Seconds settlement request-hash idempotency and depends on the Seconds base schema in `0014`.
 - `0025` adds immutable Seconds policy versions, active pointer, policy audit and per-position payout/policy snapshots. New orders validate the active policy and snapshot it in the same transaction as the reserve.
 - `0026` adds the private admin membership/permission store, Super Admin bootstrap and delegated-admin lifecycle.
@@ -99,7 +101,7 @@ All financial writes and matching remain fail-closed during source QA. Applying 
 
 Source CI verifies SQL inventory, shell syntax, bootstrap safety gates and source-level RPC contracts. It does not execute PostgreSQL DDL. Before any authorized hosted install:
 - use a disposable empty PostgreSQL/Supabase environment;
-- apply all 33 files in the exact order above and stop on any error;
+- apply all 34 files in the exact order above and stop on any error;
 - verify function signatures, RLS, grants, service-role-only execution and private schema exposure;
 - bootstrap the intended Super Admin and test delegated admin permissions;
 - test manual credit, withdrawal approval/payout completion, spot order idempotency and Seconds order/settlement concurrency/replay without enabling production financial cutover;

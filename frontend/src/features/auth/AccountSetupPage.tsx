@@ -14,14 +14,14 @@ import { useI18n } from "../../lib/i18n";
  */
 export function AccountSetupPage() {
   const { t } = useI18n();
-  const { status, needsCredentials, busy, error, notice, googleEnabled, setBtcboxCredentials, reauthenticateCredentialsWithGoogle } = useAuth();
+  const { status, needsCredentials, busy, error, notice, googleEnabled, setBtcboxCredentials, signInWithGoogle } = useAuth();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (status === "authenticated" && !needsCredentials) navigate("/home", { replace: true });
+    if (status === "authenticated" && !needsCredentials) navigate("/me", { replace: true });
   }, [status, needsCredentials, navigate]);
 
   if (status === "loading") return <div className="mx-auto flex min-h-[60vh] items-center justify-center text-sm text-brand-text-muted">{t("Checking your BTCBOX account…")}</div>;
@@ -34,7 +34,10 @@ export function AccountSetupPage() {
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (busy || password !== confirmPassword) return;
-    try { await setBtcboxCredentials(username, password); navigate("/home", { replace: true }); }
+    try { 
+      await setBtcboxCredentials(username, password); 
+      navigate("/me", { replace: true }); 
+    }
     catch { /* AuthProvider displays the safe error. */ }
   };
 
@@ -58,7 +61,7 @@ export function AccountSetupPage() {
           <Button type="submit" className="min-h-12 w-full bg-primary text-primary-foreground hover:bg-brand-hover" aria-busy={busy} disabled={busy || username.length < 3 || password.length < 12 || password !== confirmPassword}><KeyRound className="h-4 w-4"/>{busy ? t("Saving securely…") : t("Save BTCBOX credentials")}</Button>
         </form>
         {googleEnabled && <div className="border-t border-brand-border pt-4">
-          <Button type="button" variant="outline" className="min-h-11 w-full" disabled={busy} onClick={() => void reauthenticateCredentialsWithGoogle("/account-setup")}>
+          <Button type="button" variant="outline" className="min-h-11 w-full" disabled={busy} onClick={() => void signInWithGoogle("login")}>
             <ShieldCheck className="h-4 w-4" />{t("Verify your sign-in")}
           </Button>
         </div>}
