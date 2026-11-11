@@ -4,6 +4,7 @@ import { ChevronDown, ChevronUp, GripVertical } from "lucide-react";
 import { Badge } from "../../components/ui/badge";
 import { useI18n } from "../../lib/i18n";
 import { cn } from "../../lib/utils";
+import { getKlines, type MarketCandle } from "../../lib/api";
 
 type Snap = "collapsed" | "half" | "full";
 type TimeframeKey = "Line" | "1m" | "3m" | "5m" | "15m" | "30m" | "1h";
@@ -29,32 +30,10 @@ function snapHeights(): { collapsed: number; half: number; full: number } {
   };
 }
 
-/** Deterministic seeded walk — stable demo candles per timeframe, never real market data. */
-function generateCandles(seconds: number, count = 140) {
-  let seed = seconds * 2654435761 + 97;
-  const rand = () => {
-    seed = (seed * 1664525 + 1013904223) >>> 0;
-    return seed / 4294967296;
-  };
-  const now = Math.floor(Date.now() / 1000);
-  let price = 67000;
-  const candles: Array<{ time: UTCTimestamp; open: number; high: number; low: number; close: number }> = [];
-  for (let i = count - 1; i >= 0; i--) {
-    const open = price;
-    const drift = (rand() - 0.48) * price * 0.0022;
-    const close = Math.max(1, open + drift);
-    const high = Math.max(open, close) + rand() * price * 0.0012;
-    const low = Math.min(open, close) - rand() * price * 0.0012;
-    candles.push({ time: ((now - i * seconds) as unknown) as UTCTimestamp, open, high, low, close });
-    price = close;
-  }
-  return candles;
-}
-
 /**
  * Fixed bottom K-line drawer. Three snap states (collapsed ~48px bar / half ~45vh / full ~80vh),
  * drag on the handle to resize, tap collapsed bar to expand. Candlesticks rendered with
- * lightweight-charts v5 (repo pattern) from clearly-labeled simulated demo data.
+ * lightweight-charts v5 from the live BTCBOX market candle service.
  */
 export function ChartDrawer({ symbol = "BTC/USDT" }: { symbol?: string }) {
   const { t } = useI18n();
@@ -62,6 +41,15 @@ export function ChartDrawer({ symbol = "BTC/USDT" }: { symbol?: string }) {
   const [timeframe, setTimeframe] = useState<TimeframeKey>("5m");
   const [dragHeight, setDragHeight] = useState<number | null>(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [candles, setCandles] = useState<MarketCandle[]>([]);
+  const [chartLoading, setChartLoading] = useState(true);
+  const [chartError, setChartError] = useState("");
+
+  const pairSymbol = useMemo(() => {
+    const normalized = symbol.replace(/[^A-Z0-9]/gi, "").toUpperCase();
+    return normalized.endsWith("USDT") ? normalized : normalized + "USDT";
+  }, [symbol]);
+  const chartInterval = timeframe === "Line" ? "1m" : timeframe;
 
   const heights = useMemo(snapHeights, [snap]);
   const collapsed = snap === "collapsed" && dragHeight === null;
@@ -100,14 +88,34 @@ export function ChartDrawer({ symbol = "BTC/USDT" }: { symbol?: string }) {
     return () => { chart.remove(); chartRef.current = null; seriesRef.current = null; };
   }, []);
 
-  // (Re)build series + data when timeframe changes.
+  // Load live candles from the market service when the pair or interval changes.
+  useEffect(() => {
+    let cancelled = false;
+    const controller = new AbortController();
+    setChartLoading(true);
+    setChartError("");
+    setCandles([]);
+    getKlines(pairSymbol, chartInterval, controller.signal)
+      .then((rows) => { if (!cancelled) setCandles(rows); })
+      .catch((reason: unknown) => {
+        if (cancelled) return;
+        setCandles([]);
+        setChartError(reason instanceof Error && reason.name !== "AbortError" ? reason.message : "Chart data is temporarily unavailable.");
+      })
+      .finally(() => { if (!cancelled) setChartLoading(false); });
+    return () => { cancelled = true; controller.abort(); };
+  }, [pairSymbol, chartInterval]);
+
+  // (Re)build series + data when candles or timeframe change.
   useEffect(() => {
     const chart = chartRef.current;
     if (!chart) return;
     if (seriesRef.current) { chart.removeSeries(seriesRef.current); seriesRef.current = null; }
-    const tf = TIMEFRAMES.find((x) => x.key === timeframe) ?? TIMEFRAMES[1];
-    const candles = generateCandles(tf.seconds);
-    if (tf.key === "Line") {
+    if (!candles.length) return;
+    const data = candles
+      .map((c) => ({ time: Math.floor(c.time / 1000) as UTCTimestamp, open: c.open, high: c.high, low: c.low, close: c.close }))
+      .sort((a, b) => Number(a.time) - Number(b.time));
+    if (timeframe === "Line") {
       const series = chart.addSeries(AreaSeries, {
         lineColor: "#21C7A8",
         topColor: "rgba(33,199,168,0.28)",
@@ -116,18 +124,18 @@ export function ChartDrawer({ symbol = "BTC/USDT" }: { symbol?: string }) {
         priceLineVisible: true,
         lastValueVisible: true,
       });
-      series.setData(candles.map((c) => ({ time: c.time, value: c.close })));
+      series.setData(data.map((d) => ({ time: d.time, value: d.close })));
       seriesRef.current = series;
     } else {
       const series = chart.addSeries(CandlestickSeries, {
         upColor: "#35D6A6", downColor: "#F06B78",
         borderVisible: false, wickUpColor: "#35D6A6", wickDownColor: "#F06B78",
       });
-      series.setData(candles);
+      series.setData(data);
       seriesRef.current = series;
     }
     chart.timeScale().fitContent();
-  }, [timeframe]);
+  }, [candles, timeframe]);
 
   const nearestSnap = useCallback((h: number): Snap => {
     const hs = snapHeights();
@@ -155,7 +163,6 @@ export function ChartDrawer({ symbol = "BTC/USDT" }: { symbol?: string }) {
     setIsDragging(false);
     try { (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId); } catch { /* noop */ }
     if (d && !d.moved && snap === "collapsed") {
-      // Tap on collapsed bar → expand to half.
       setSnap("half");
       setDragHeight(null);
       return;
@@ -181,8 +188,11 @@ export function ChartDrawer({ symbol = "BTC/USDT" }: { symbol?: string }) {
           <span className="min-w-0 flex-1 truncate text-sm font-semibold text-brand-text">
             {symbol} · {t("Perpetual")} · {t("Chart")}
           </span>
-          {!collapsed ? (
-            <Badge variant="outline" className="shrink-0 border-brand-warning/30 bg-brand-warning/10 text-brand-warning">{t("Demo data")}</Badge>
+          {!collapsed && !chartLoading && !chartError && candles.length > 0 ? (
+            <Badge variant="outline" className="shrink-0 border-brand-success/30 bg-brand-success/10 text-brand-success">{t("Live")}</Badge>
+          ) : null}
+          {!collapsed && chartError ? (
+            <Badge variant="outline" className="shrink-0 border-brand-danger/30 bg-brand-danger/10 text-brand-danger">{t("Unavailable")}</Badge>
           ) : null}
           {!collapsed ? (
             <div className="hidden shrink-0 items-center gap-0.5 overflow-x-auto rounded-lg border border-brand-border-subtle bg-brand-surface-2 p-0.5 sm:flex trade-nav-scroll">
@@ -219,25 +229,27 @@ export function ChartDrawer({ symbol = "BTC/USDT" }: { symbol?: string }) {
           <div ref={containerRef} className="absolute inset-0" />
           {!collapsed && (
             <>
-            <div className="pointer-events-none absolute left-2 top-2 rounded border border-brand-border bg-brand-surface/80 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-brand-warning">
-              {t("Demo data")}
-            </div>
-            {/* Mobile timeframe row (desktop shows it in the header). */}
-            <div className="absolute right-2 top-2 flex gap-0.5 rounded-lg border border-brand-border-subtle bg-brand-surface/90 p-0.5 sm:hidden">
-              {TIMEFRAMES.map((tf) => (
-                <button
-                  key={tf.key}
-                  type="button"
-                  onClick={() => setTimeframe(tf.key)}
-                  className={cn(
-                    "min-h-6 rounded px-1.5 text-[10px] font-medium",
-                    timeframe === tf.key ? "bg-brand-accent/15 text-brand-accent" : "text-brand-text-muted",
-                  )}
-                >
-                  {t(tf.key)}
-                </button>
-              ))}
-            </div>
+              {chartLoading ? (
+                <div className="pointer-events-none absolute inset-0 flex items-center justify-center text-xs text-brand-text-muted" role="status">{t("Loading…")}</div>
+              ) : chartError ? (
+                <div className="pointer-events-none absolute inset-0 flex items-center justify-center px-4 text-center text-xs text-brand-danger" role="alert">{t(chartError)}</div>
+              ) : null}
+              {/* Mobile timeframe row (desktop shows it in the header). */}
+              <div className="absolute right-2 top-2 flex gap-0.5 rounded-lg border border-brand-border-subtle bg-brand-surface/90 p-0.5 sm:hidden">
+                {TIMEFRAMES.map((tf) => (
+                  <button
+                    key={tf.key}
+                    type="button"
+                    onClick={() => setTimeframe(tf.key)}
+                    className={cn(
+                      "min-h-6 rounded px-1.5 text-[10px] font-medium",
+                      timeframe === tf.key ? "bg-brand-accent/15 text-brand-accent" : "text-brand-text-muted",
+                    )}
+                  >
+                    {t(tf.key)}
+                  </button>
+                ))}
+              </div>
             </>
           )}
         </div>

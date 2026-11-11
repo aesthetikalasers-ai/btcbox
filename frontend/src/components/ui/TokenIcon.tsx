@@ -6,14 +6,29 @@ const LOCAL_TOKEN_ICONS = new Set([
   "ETH", "LINK", "LTC", "NEAR", "SOL", "TRX", "UNI", "USDC", "USDT", "XRP",
 ]);
 
+// Common quote assets stripped from a pair symbol (e.g. "BTCUSDT" / "BTC/USDT" -> "BTC")
+// so a trading pair still resolves to its base-asset icon instead of plain text.
+const QUOTE_ASSETS = ["USDT", "USDC", "BUSD", "USD", "BTC", "ETH", "BNB"];
+
 const normalizeSymbol = (symbol: string) => symbol.trim().toUpperCase().replace(/[^A-Z0-9]/g, "");
+
+function resolveIconSymbol(raw: string): string | undefined {
+  const normalized = normalizeSymbol(raw);
+  if (!normalized) return undefined;
+  if (LOCAL_TOKEN_ICONS.has(normalized)) return normalized;
+  for (const quote of QUOTE_ASSETS) {
+    if (normalized.length > quote.length && normalized.endsWith(quote)) {
+      const base = normalized.slice(0, normalized.length - quote.length);
+      if (LOCAL_TOKEN_ICONS.has(base)) return base;
+    }
+  }
+  return undefined;
+}
 
 export const TokenIcon = ({ symbol, className }: { symbol: string, className?: string }) => {
   const [hasError, setHasError] = useState(false);
-  const normalizedSymbol = normalizeSymbol(symbol);
-  const iconUrl = LOCAL_TOKEN_ICONS.has(normalizedSymbol)
-    ? `/token-icons/${normalizedSymbol.toLowerCase()}.svg`
-    : undefined;
+  const matchedSymbol = resolveIconSymbol(symbol);
+  const iconUrl = matchedSymbol ? `/token-icons/${matchedSymbol.toLowerCase()}.svg` : undefined;
 
   useEffect(() => {
     setHasError(false);

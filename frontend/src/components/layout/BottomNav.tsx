@@ -6,7 +6,7 @@ import { useI18n } from "../../lib/i18n";
 const items = [
   { to: "/home", label: "Home", icon: House, active: "text-brand-accent" },
   { to: "/markets", label: "Markets", icon: ChartNoAxesCombined, active: "text-brand-accent" },
-  { to: "/trade-hub", label: "Trade", icon: ArrowLeftRight, active: "text-brand-accent" },
+  { to: "/trade", label: "Trade", icon: ArrowLeftRight, active: "text-brand-accent" },
   { to: "/assets", label: "Assets", icon: Wallet, active: "text-brand-accent" },
   { to: "/me", label: "My", icon: UserRound, active: "text-brand-accent" },
 ];

@@ -17,7 +17,7 @@ export function AccountSetupPage() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (status === "authenticated" && !needsCredentials) navigate("/home", { replace: true });
+    if (status === "authenticated" && !needsCredentials) navigate("/me", { replace: true });
   }, [status, needsCredentials, navigate]);
 
   if (status === "loading") return <div className="mx-auto flex min-h-[60vh] items-center justify-center text-sm text-brand-text-muted">{t("Checking your BTCBOX account…")}</div>;
@@ -26,7 +26,7 @@ export function AccountSetupPage() {
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (password !== confirmPassword) return;
-    try { await setBtcboxCredentials(username, password); navigate("/home", { replace: true }); }
+    try { await setBtcboxCredentials(username, password); navigate("/me", { replace: true }); }
     catch { /* AuthProvider displays the safe error. */ }
   };
 

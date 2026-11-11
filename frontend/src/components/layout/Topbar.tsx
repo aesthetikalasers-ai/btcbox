@@ -1,12 +1,16 @@
 import { useState, type FormEvent, type Ref } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Search, User, Menu } from "lucide-react";
+import { Search, User, Menu, LogIn } from "lucide-react";
 import { useI18n } from "../../lib/i18n";
 import { BrandLogo } from "../BrandLogo";
 import { LanguageMenu } from "./LanguageMenu";
+import { useAuth } from "../../lib/auth";
 
 export function Topbar({ onMenuClick, menuOpen = false, menuButtonRef }: { menuButtonRef?: Ref<HTMLButtonElement>; onMenuClick?: () => void; menuOpen?: boolean }) {
   const { t } = useI18n();
+  const { status, email } = useAuth();
+  const signedIn = status === "authenticated";
+  const avatarLetter = (email || "U").trim().charAt(0).toUpperCase();
   const [search, setSearch] = useState("");
   const navigate = useNavigate();
 
@@ -36,9 +40,16 @@ export function Topbar({ onMenuClick, menuOpen = false, menuButtonRef }: { menuB
       </div>
       <div className="flex shrink-0 items-center gap-1 sm:gap-3">
         <LanguageMenu />
-        <Link to="/me" aria-label={t("My")} className="flex h-11 w-11 items-center justify-center rounded-xl border border-brand-border bg-brand-surface text-brand-text-secondary transition-colors hover:border-brand-accent/40 hover:text-brand-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent">
-          <User className="h-[18px] w-[18px]" />
-        </Link>
+        {signedIn ? (
+          <Link to="/me" aria-label={t("My account")} className="flex h-11 min-w-11 items-center gap-2 rounded-xl border border-brand-border bg-brand-surface px-2 text-brand-text-secondary transition-colors hover:border-brand-accent/40 hover:text-brand-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent">
+            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-brand-accent/15 text-xs font-bold text-brand-accent">{avatarLetter}</span>
+            <span className="hidden max-w-[140px] truncate text-xs font-semibold md:block">{email || t("My account")}</span>
+          </Link>
+        ) : (
+          <Link to="/login" aria-label={t("Sign in")} className="flex h-11 items-center gap-1.5 rounded-xl border border-brand-accent/30 bg-brand-accent/10 px-3 text-xs font-semibold text-brand-accent transition-colors hover:border-brand-accent/50 hover:bg-brand-accent/[0.16] hover:text-brand-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent">
+            <LogIn className="h-4 w-4" /> <span className="hidden sm:inline">{t("Sign in")}</span>
+          </Link>
+        )}
       </div>
     </header>
   );
