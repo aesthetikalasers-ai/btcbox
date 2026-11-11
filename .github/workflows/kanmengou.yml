@@ -1,16 +1,17 @@
-name: CI with Watchdog
+name: CI with Claude Watchdog
 on: [push, pull_request]
 
 jobs:
   test:
     runs-on: ubuntu-latest
     permissions:
-      contents: write
-      issues: write
-      pull-requests: write
+      contents: write     # 用于自动创建修复分支和提交
+      issues: write       # 用于自动创建故障排查 Issue
+      pull-requests: write # 用于自动提交修复好的 Pull Request
     
     steps:
       - uses: actions/checkout@v4
+      
       - uses: actions/setup-node@v4
         with:
           node-version: '18'
@@ -19,12 +20,12 @@ jobs:
         run: |
           npm ci
           npm test
-        continue-on-error: true
+        continue-on-error: true # 关键：让测试即使报错也不中断，留给看门狗去分析
 
       - name: Claude Code Watchdog failure analysis
         if: failure()
         uses: cardscan-ai/claude-code-watchdog@v0.3.1
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
-          test_results_path: 'test-results/**/*.xml'
-          create_fixes: 'true'
+          test_results_path: 'test-results/**/*.xml' # 换成你实际的测试结果路径
+          create_fixes: 'true'                       # 开启自动生成修复 PR 功能
