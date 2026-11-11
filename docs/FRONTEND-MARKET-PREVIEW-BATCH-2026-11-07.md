@@ -158,3 +158,16 @@ Admin KYC conflict handling:
 - Frontend CI run `42315614500` completed SUCCESS on source commit `06ddef81192a72b5717125f59b069ac1a478dca6`: npm install, lint, build, Chromium installation, and all 24 desktop/mobile Playwright route smoke tests passed (12 desktop + 12 mobile).
 
 Current branch HEAD at note creation: `51c302a96f069876e438321d3597501fcbc26b54`. No merge, deployment, production database change, or live financial operation was performed.
+
+## Superseding authentication contract — 2026-11-11
+
+This section supersedes the earlier Google-only / email-not-required notes in this historical document. The approved BTCBOX authentication contract is:
+
+- Supabase Email/password registration and sign-in, including email confirmation and password recovery.
+- Google OAuth registration and sign-in.
+- Ethereum and Solana wallet registration/sign-in.
+- Existing BTCBOX username/password authentication remains a separate credential path; it must not be confused with Supabase Email credentials.
+- Supabase-verified Email, Google, and wallet identities are exchanged for a BTCBOX session through the existing Supabase session endpoint. Email identities are accepted by the backend provider allowlist.
+- Email registration must call Supabase Auth `signUp()`; it must not fall back to the legacy `/api/register` endpoint.
+
+Do not remove Email registration/login UI or the Supabase Email Auth methods based on the superseded 2026-11-07 Google-only notes. Preserve Google, wallet, username, account-setup, and two-factor paths. Verify registration using a dedicated test account; do not create or modify production user records without explicit authorization.
