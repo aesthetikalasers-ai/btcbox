@@ -182,6 +182,9 @@ async function assertPageAtWidth(
     await chartTrigger.click();
     const chartDrawer = page.locator(".trade-chart-drawer");
     await expect(chartDrawer, "The mobile K-line drawer must open.").toBeVisible();
+    const attribution = chartDrawer.getByTestId("chart-attribution");
+    await expect(attribution, "The chart logo is hidden but required attribution remains visible.").toBeVisible();
+    await expect(attribution.getByRole("link", { name: "https://www.tradingview.com/" })).toHaveAttribute("href", "https://www.tradingview.com/");
     const drawerBox = await chartDrawer.boundingBox();
     expect(drawerBox, "The mobile K-line drawer must have a layout box.").not.toBeNull();
     expect(drawerBox!.x, "The K-line drawer must not extend beyond the left viewport edge.").toBeGreaterThanOrEqual(-1);
