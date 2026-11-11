@@ -1,4 +1,5 @@
 name: BTCBOX frontend CI
+
 on:
   pull_request:
     paths:
@@ -9,6 +10,7 @@ on:
     paths:
       - "frontend/**"
       - ".github/workflows/frontend-ci.yml"
+
 jobs:
   build:
     runs-on: ubuntu-latest
