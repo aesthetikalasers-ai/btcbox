@@ -21,6 +21,12 @@ const routes = [
   { path: "/settings", heading: "Account security" },
   { path: "/support", heading: "Customer support" },
   { path: "/orders", heading: "Orders" },
+  { path: "/deposit", heading: "Deposit" },
+  { path: "/withdraw", heading: "Withdraw" },
+  { path: "/earn", heading: "Earn" },
+  { path: "/kyc", heading: "Identity verification" },
+  { path: "/contract", heading: "Perpetual" },
+  { path: "/seconds", heading: "Seconds contracts" },
 ];
 
 async function installVisualApiMocks(page: Page) {
@@ -186,6 +192,28 @@ async function assertPageAtWidth(
     dimensions.body,
     route.path + " at " + width + "px has body horizontal overflow: " + JSON.stringify(dimensions),
   ).toBeLessThanOrEqual(width);
+
+  // Inspect rendered geometry as well as scrollWidth: global overflow clipping
+  // must not make an element outside the viewport look like a passing layout.
+  const boundaryViolations = await page.evaluate(() => {
+    const selectors = ["main", "header", "h1", ".trade-top", ".trade-top > *", ".ob-card", ".form-card", "[data-testid]"];
+    const elements = Array.from(new Set(selectors.flatMap((selector) =>
+      Array.from(document.querySelectorAll<HTMLElement>(selector)),
+    )));
+    return elements.flatMap((element) => {
+      const style = window.getComputedStyle(element);
+      const rect = element.getBoundingClientRect();
+      if (style.display === "none" || style.visibility === "hidden" || Number(style.opacity) === 0 || rect.width === 0 || rect.height === 0) return [];
+      if (rect.left < -1 || rect.right > window.innerWidth + 1) {
+        return [{ selector: element.tagName.toLowerCase() + (element.className && typeof element.className === "string" ? "." + element.className.trim().replace(/\\s+/g, ".") : ""), left: Math.round(rect.left), right: Math.round(rect.right), width: Math.round(rect.width) }];
+      }
+      return [];
+    });
+  });
+  expect(
+    boundaryViolations,
+    route.path + " at " + width + "px has visible elements outside the viewport",
+  ).toEqual([]);
 
   const slug = route.path.replace(/[^a-z0-9]+/gi, "-").replace(/^-|-$/g, "") || "root";
   await page.screenshot({
