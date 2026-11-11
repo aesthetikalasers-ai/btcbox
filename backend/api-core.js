@@ -1443,7 +1443,7 @@ async function handleRequest(event, context) {
       if (!uid) return json({ ok: false, code: 'ACCOUNT_ID_ALLOCATION_UNAVAILABLE', msg: 'Account creation is temporarily unavailable. Please try again later.' }, 503);
       const salt = genSalt();
       user = {
-        uid: uid, email: email || '', email_verified: authProvider !== 'web3', supabase_user_id: supabaseUserId,
+        uid: uid, email: email || '', email_verified: !!(email && confirmed), supabase_user_id: supabaseUserId,
         supabase_user_ids: [supabaseUserId],
         auth_identities: [{ supabase_user_id: supabaseUserId, provider: authProvider,
           email: email || '', wallet_address: walletIdentity ? walletIdentity.address : '', wallet_chain: walletIdentity ? walletIdentity.chain : '', linked_at: nowStr() }],
