@@ -8,6 +8,10 @@ import { getAccount, type AccountSnapshot } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
 import { useI18n } from "../../lib/i18n";
 
+/**
+ * Displays account security settings and identity-linking controls.
+ * Keeps sensitive actions guarded by the existing authentication and busy-state checks.
+ */
 export function AccountSecurityPage() {
   const { t } = useI18n();
   const { status, busy, error, notice, googleEnabled, ethereumWallets, identityLinkSourceVerified, identityLinkNeedsTwoFactor, reauthenticateIdentityLinkWithGoogle, reauthenticateIdentityLinkWithWeb3, completeIdentityLinkReauthTwoFactor, linkGoogleIdentity, linkWeb3Identity, credentialRecoveryReady, credentialRecoveryNeedsTwoFactor, reauthenticateCredentialsWithGoogle, reauthenticateCredentialsWithWeb3, completeCredentialRecoveryTwoFactor, recoverBtcboxPassword } = useAuth();
