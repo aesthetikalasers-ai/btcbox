@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 import fs from "node:fs";
 import path from "node:path";
 
-const widths = [320, 360, 375, 390, 430, 768, 1024, 1440];
+const widths = [320, 360, 375, 390, 430, 768, 1024, 1366, 1440, 1920];
 const routes = [
   { path: "/login", heading: "Welcome back" },
   { path: "/register", heading: "Create your BTCBOX account" },
@@ -18,7 +18,7 @@ const routes = [
 ];
 
 test("responsive visual QA captures key customer and admin entry routes without horizontal page overflow", async ({ page }) => {
-  test.setTimeout(180_000);
+  test.setTimeout(240_000);
   test.skip(test.info().project.name !== "desktop-chromium", "The desktop Chromium project iterates the full viewport matrix.");
   const output = path.resolve(process.cwd(), "test-results/visual-qa");
   fs.mkdirSync(output, { recursive: true });
