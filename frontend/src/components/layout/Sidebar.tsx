@@ -1,4 +1,5 @@
 import { NavLink } from "react-router-dom";
+import { LanguageMenu } from "./LanguageMenu";
 import { ArrowLeftRight, ChartNoAxesCombined, ClipboardList, Headset, House, Settings, Sprout, UserRound, Wallet, X } from "lucide-react";
 import { cn } from "../../lib/utils";
 import { useI18n } from "../../lib/i18n";
@@ -7,7 +8,7 @@ import { BrandLogo } from "../BrandLogo";
 const primary = [
   { to: "/home", label: "Home", icon: House },
   { to: "/markets", label: "Markets", icon: ChartNoAxesCombined },
-  { to: "/trade-hub", label: "Trade", icon: ArrowLeftRight },
+  { to: "/trade", label: "Trade", icon: ArrowLeftRight },
   { to: "/assets", label: "Assets", icon: Wallet },
   { to: "/me", label: "My", icon: UserRound },
 ];
@@ -41,9 +42,9 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
               isActive && "is-active",
               isActive ? "border-brand-accent/25 bg-brand-accent/10 text-brand-text" : "border-transparent text-brand-text-secondary hover:bg-brand-surface-hover hover:text-brand-text",
             )}>
-              <span className={cn("flex h-8 w-8 shrink-0 items-center justify-center rounded-lg", "text-current")}><Icon className="h-[17px] w-[17px] opacity-95" /></span>
+              <span className={cn("flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-colors text-current group-[.is-active]:bg-brand-accent/10 group-[.is-active]:text-brand-accent")}><Icon className="h-[17px] w-[17px] opacity-95" /></span>
               <span className="min-w-0 break-words">{t(label)}</span>
-              <span aria-hidden="true" className={cn("ml-auto h-1.5 w-1.5 shrink-0 rounded-full opacity-0 transition-opacity group-[.is-active]:opacity-100", to === "/trade-hub" ? "bg-brand-violet" : to === "/assets" ? "bg-brand-teal" : to === "/me" ? "bg-brand-info" : "bg-brand-cyan")} />
+              <span aria-hidden="true" className={cn("ml-auto h-1.5 w-1.5 shrink-0 rounded-full opacity-0 transition-opacity group-[.is-active]:opacity-100", to === "/trade" ? "bg-brand-violet" : to === "/assets" ? "bg-brand-teal" : to === "/me" ? "bg-brand-info" : "bg-brand-cyan")} />
             </NavLink>
           ))}
         </div>
@@ -63,6 +64,9 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
           </div>
         </div>
       </nav>
+      <div className="px-3 pb-4">
+        <LanguageMenu variant="drawer" />
+      </div>
     </aside>
   );
 }

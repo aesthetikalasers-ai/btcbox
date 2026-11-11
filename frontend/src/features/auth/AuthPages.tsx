@@ -9,6 +9,10 @@ import { BrandLogo } from "../../components/BrandLogo";
 import { useAuth } from "../../lib/auth";
 import { useI18n, type Language } from "../../lib/i18n";
 
+/**
+ * Renders the login or registration experience selected by the route.
+ * Handles form state while delegating authentication decisions to the auth provider.
+ */
 export function AuthPage({ mode, redirectTo }: { mode: "login" | "register"; redirectTo?: string }) {
   const { t, language, setLanguage, canChangeLanguage } = useI18n();
   const {
@@ -36,7 +40,6 @@ export function AuthPage({ mode, redirectTo }: { mode: "login" | "register"; red
 
   useEffect(() => {
     if (status === "authenticated") navigate(needsCredentials ? "/account-setup" : (redirectTo || "/home"), { replace: true });
-
   }, [status, needsCredentials, navigate, redirectTo]);
 
   if (status === "loading") return <AuthRestoreState />;
@@ -47,12 +50,16 @@ export function AuthPage({ mode, redirectTo }: { mode: "login" | "register"; red
     {t("Completing sign-in…")}
   </div>;
 
+  /**
+   * Submits username credentials through the configured authentication provider.
+   * Maintains the page's existing validation, error, and loading behavior.
+   */
   const submitUsernameLogin = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (busy) return;
     try { await signInWithUsername(username, password); }
     catch { /* AuthProvider displays the safe error. */ }
   };
-
 
   const walletButtons = <div className="mt-2 grid gap-2" role="group" aria-label={t("Wallet")}>
     {ethereumWallets.length > 0
@@ -90,7 +97,6 @@ export function AuthPage({ mode, redirectTo }: { mode: "login" | "register"; red
   </>;
 
   return <main className="tone-support relative mx-auto flex min-h-[100dvh] w-full max-w-[1120px] items-center px-3 py-6 sm:px-6 sm:py-10 lg:px-8">
-
     <div className="grid w-full items-center gap-6 lg:grid-cols-[minmax(0,1.05fr)_minmax(380px,.95fr)] lg:gap-16">
       <section className="hidden min-w-0 flex-col justify-center lg:flex">
         <Link to="/home" className="mb-12 w-fit"><BrandLogo /></Link>
@@ -125,14 +131,26 @@ export function AuthPage({ mode, redirectTo }: { mode: "login" | "register"; red
           <Link to="/home" aria-label={t("BTCBOX home")}><BrandLogo compact /></Link>
           <Link to="/markets" className="inline-flex min-h-10 items-center gap-1.5 rounded-lg border border-brand-accent/25 bg-brand-accent/[0.07] px-3 text-xs font-semibold text-brand-accent transition-colors hover:border-brand-accent/45 hover:bg-brand-accent/[0.12] hover:text-brand-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent/70"><ChartNoAxesCombined className="h-3.5 w-3.5" />{t("Explore markets")} <ArrowRight className="h-3.5 w-3.5" /></Link>
         </div>
-        <Card className="w-full overflow-hidden border-brand-accent/20 bg-brand-surface  ">
+        <Card className="w-full overflow-hidden border-brand-accent/20 bg-brand-surface">
           <div className="h-1 bg-brand-accent"/>
           <CardHeader className="gap-3 border-b border-brand-border/70 bg-brand-surface px-5 pb-4 pt-6 sm:px-8 sm:pt-8">
             <div className="flex items-center gap-2">
               <span className="flex h-11 w-11 items-center justify-center rounded-xl border border-brand-accent/25 bg-brand-accent/[0.12] text-brand-accent shadow-sm shadow-brand-accent/[0.08]">
                 {status === "two-factor" ? <ShieldCheck className="h-5 w-5" /> : registering ? <Globe2 className="h-5 w-5" /> : <LockKeyhole className="h-5 w-5" />}
               </span>
-              <span className="text-xs font-semibold uppercase tracking-[.16em] text-brand-text-muted">{registering ? t("Join BTCBOX") : t("Secure access")}</span><label className="ml-auto flex h-9 items-center gap-1 rounded-lg border border-brand-border bg-brand-surface-2 px-2 text-brand-accent shadow-sm shadow-brand-accent/10"><Globe2 className="h-3.5 w-3.5"/><select disabled={!canChangeLanguage} aria-label={t("Language")} value={language} onChange={event => setLanguage(event.target.value as Language)} className="w-[76px] appearance-none bg-transparent text-xs font-semibold text-brand-text outline-none [color-scheme:dark]"><option className="bg-brand-surface text-brand-text" value="ja">日本語</option><option className="bg-brand-surface text-brand-text" value="zh-CN">中文</option><option className="bg-brand-surface text-brand-text" value="en">English</option><option className="bg-brand-surface text-brand-text" value="es">Español</option><option className="bg-brand-surface text-brand-text" value="de">Deutsch</option><option className="bg-brand-surface text-brand-text" value="it">Italiano</option><option className="bg-brand-surface text-brand-text" value="pt">Português</option></select></label>
+              <span className="text-xs font-semibold uppercase tracking-[.16em] text-brand-text-muted">{registering ? t("Join BTCBOX") : t("Secure access")}</span>
+              <label className="ml-auto flex h-9 items-center gap-1 rounded-lg border border-brand-border bg-brand-surface-2 px-2 text-brand-accent shadow-sm shadow-brand-accent/10">
+                <Globe2 className="h-3.5 w-3.5"/>
+                <select disabled={!canChangeLanguage} aria-label={t("Language")} value={language} onChange={event => setLanguage(event.target.value as Language)} className="min-w-[88px] cursor-pointer appearance-none bg-transparent text-xs font-semibold text-brand-text outline-none focus-visible:ring-2 focus-visible:ring-brand-accent/70 disabled:cursor-not-allowed disabled:opacity-60 [color-scheme:dark]">
+                  <option className="bg-brand-surface text-brand-text" value="ja">🇯🇵 日本語</option>
+                  <option className="bg-brand-surface text-brand-text" value="zh-CN">🇨🇳 中文</option>
+                  <option className="bg-brand-surface text-brand-text" value="en">🇺🇸 English</option>
+                  <option className="bg-brand-surface text-brand-text" value="es">🇪🇸 Español</option>
+                  <option className="bg-brand-surface text-brand-text" value="de">🇩🇪 Deutsch</option>
+                  <option className="bg-brand-surface text-brand-text" value="it">🇮🇹 Italiano</option>
+                  <option className="bg-brand-surface text-brand-text" value="pt">🇵🇹 Português</option>
+                </select>
+              </label>
             </div>
             <CardTitle className="text-2xl font-semibold tracking-tight">
               {status === "two-factor" ? t("Verify your sign-in") : registering ? t("Create your BTCBOX account") : t("Welcome back")}

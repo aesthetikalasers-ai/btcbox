@@ -212,6 +212,6 @@ test('all preserved locales show truthful service availability without developme
   await page.addInitScript(value=>localStorage.setItem('btcbox-language',value),locale);
   await page.goto('/trade-hub');
   await expect(page.locator('main')).not.toContainText(/Coming soon|近日対応予定|即将推出|Próximamente|Sắp ra mắt|Prossimamente|Em breve|Demnächst verfügbar|CodeRabbit|Synthetic fixture|scroll capture|API integration pending/i);
-  await expect(page.locator('main')).toContainText(/Futures|先物|合约|Futuros|futuros|tương lai|futures/i);
+  await expect(page.locator('main')).toContainText(/Contract|契約|合约|Contrato|Contratto|Kontrakt/i);
  }
 });

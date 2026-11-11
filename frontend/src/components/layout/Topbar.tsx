@@ -5,6 +5,10 @@ import { useI18n } from "../../lib/i18n";
 import { BrandLogo } from "../BrandLogo";
 import { LanguageMenu } from "./LanguageMenu";
 
+/**
+ * Renders the global header, search control, and accessible language selector.
+ * Keyboard navigation and dismissal are managed locally without changing route permissions.
+ */
 export function Topbar({ onMenuClick, menuOpen = false, menuButtonRef }: { menuButtonRef?: Ref<HTMLButtonElement>; onMenuClick?: () => void; menuOpen?: boolean }) {
   const { t } = useI18n();
   const [search, setSearch] = useState("");
