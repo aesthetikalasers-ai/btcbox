@@ -22,6 +22,10 @@ const formatCompact = (value: string, locale: string) => {
   return Number.isFinite(parsed) && parsed >= 0 ? new Intl.NumberFormat(locale, { notation: "compact", maximumFractionDigits: 2 }).format(parsed) : "—";
 };
 
+/**
+ * Renders a compact market trend with its current loading and error states.
+ * Uses the supplied candle series and locale for presentation only.
+ */
 function MiniTrend({ candles, loading, error, locale, t }: { candles: MarketCandle[]; loading: boolean; error: string; locale: string; t: (value: string) => string }) {
   const points = useMemo(() => {
     const closes = candles.slice(-48).map((candle) => candle.close).filter((value) => Number.isFinite(value) && value > 0);
@@ -41,6 +45,10 @@ function MiniTrend({ candles, loading, error, locale, t }: { candles: MarketCand
   </div>;
 }
 
+/**
+ * Renders the dashboard market summary and account-facing overview.
+ * Loads market data independently while preserving the existing data sources.
+ */
 export function Dashboard() {
   const { t, language } = useI18n();
   const locale = localeTags[language];
