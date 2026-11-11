@@ -1138,5 +1138,6 @@
   "The withdrawal fee changed. The latest fee has been refreshed. Review the request and submit again.": "出金手数料が変更されました。最新の手数料に更新済みです。内容を確認して再度送信してください。",
   "Sort": "並び替え",
   "Notification center": "通知センター",
-  "Sidebar navigation": "サイドバーナビゲーション"
+  "Sidebar navigation": "サイドバーナビゲーション",
+  "Identity verification": "本人確認"
 }
