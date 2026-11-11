@@ -8,6 +8,10 @@ import { Input } from "../../components/ui/input";
 import { useAuth } from "../../lib/auth";
 import { useI18n } from "../../lib/i18n";
 
+/**
+ * Renders the initial BTCBOX account setup form.
+ * Validates matching credentials before invoking the existing account setup flow.
+ */
 export function AccountSetupPage() {
   const { t } = useI18n();
   const { status, needsCredentials, busy, error, notice, googleEnabled, setBtcboxCredentials, reauthenticateCredentialsWithGoogle } = useAuth();
@@ -23,6 +27,10 @@ export function AccountSetupPage() {
   if (status === "loading") return <div className="mx-auto flex min-h-[60vh] items-center justify-center text-sm text-brand-text-muted">{t("Checking your BTCBOX account…")}</div>;
   if (status !== "authenticated") return <Navigate to="/login" replace />;
 
+  /**
+   * Validates the setup form and submits the new account credentials.
+   * Ignores duplicate submissions while the request is already in progress.
+   */
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (busy || password !== confirmPassword) return;
