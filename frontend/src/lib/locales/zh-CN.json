@@ -1138,5 +1138,6 @@
   "The withdrawal fee changed. The latest fee has been refreshed. Review the request and submit again.": "提现手续费已变更，已刷新为最新手续费。请确认后重新提交。",
   "Sort": "排序",
   "Notification center": "通知中心",
-  "Sidebar navigation": "侧边栏导航"
+  "Sidebar navigation": "侧边栏导航",
+  "Identity verification": "身份验证"
 }
