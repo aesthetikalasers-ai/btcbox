@@ -1,81 +1,124 @@
-name: BTCBOX backend CI
+import React, { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { useI18n } from "../../lib/i18n";
+import { Button } from "../ui/Button";
+import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "../ui/Card";
+import { Lock, Mail, ArrowRight } from "lucide-react";
 
-on:
-  push:
-    branches: [main, "feature/btcbox-complete-redesign", 'integration/btcbox-mainline-consolidation-20261108', 'feat/btcbox-web3-auth-20261105', 'fix/post-merge-db-bootstrap-seconds-20261106', 'work/btcbox-unified-20261104']
-    paths:
-      - 'backend/**'
-      - 'frontend/**'
-      - '.github/workflows/backend-ci.yml'
-      - '.github/workflows/frontend-ci.yml'
-  pull_request:
-    branches: [main, 'integration/btcbox-mainline-consolidation-20261108', 'feat/btcbox-web3-auth-20261105', 'fix/post-merge-db-bootstrap-seconds-20261106', 'work/btcbox-unified-20261104']
-    paths:
-      - 'backend/**'
-      - 'frontend/**'
-      - '.github/workflows/backend-ci.yml'
-      - '.github/workflows/frontend-ci.yml'
-  workflow_dispatch:
+interface AuthPagesProps {
+  mode: "login" | "register";
+  onSuccess?: (email: string) => void;
+}
 
-permissions:
-  contents: read
+export function AuthPages({ mode, onSuccess }: AuthPagesProps) {
+  const { t } = useI18n();
+  const navigate = useNavigate();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
 
-jobs:
-  backend:
-    name: Unified frontend/backend build, tests, and fail-closed preflight
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email || !password) {
+      setError(t("Please fill in all fields"));
+      return;
+    }
+    if (onSuccess) {
+      onSuccess(email);
+    }
+    navigate(mode === "register" ? "/assets" : "/");
+  };
 
-      - name: Set up Node.js 22
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
-          cache-dependency-path: backend/package-lock.json
+  return (
+    <main className="flex min-h-[80vh] items-center justify-center px-4 py-12">
+      <div className="w-full max-w-md space-y-6">
+        <div className="text-center space-y-2">
+          <Link to="/" className="inline-flex items-center gap-2 text-2xl font-bold text-brand-text">
+            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-accent text-white font-mono shadow-lg">
+              B
+            </span>
+            <span>BTCBOX</span>
+          </Link>
+          <p className="text-sm text-brand-text-muted">
+            {mode === "register" ? t("Create your secure trading account") : t("Welcome back to crypto trading")}
+          </p>
+        </div>
 
-      - name: Install backend dependencies
-        run: npm ci --prefix backend
+        <Card className="border-brand-border bg-brand-surface shadow-xl rounded-2xl">
+          <CardHeader className="space-y-1 pb-4">
+            <CardTitle className="text-xl font-bold text-brand-text">
+              {mode === "register" ? t("Register Account") : t("Sign In")}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              {error && (
+                <div className="rounded-lg bg-red-500/10 border border-red-500/20 p-3 text-sm text-red-500">
+                  {error}
+                </div>
+              )}
 
-      - name: Build unified site
-        run: npm run build --prefix backend
+              <div className="space-y-2">
+                <label className="text-xs font-medium text-brand-text-muted">
+                  {t("Email Address")}
+                </label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-3.5 h-4 w-4 text-brand-text-muted" />
+                  <input
+                    type="email"
+                    required
+                    placeholder="name@example.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="w-full rounded-xl border border-brand-border bg-brand-background pl-10 pr-4 py-2.5 text-sm text-brand-text focus:outline-none focus:ring-2 focus:ring-brand-accent"
+                  />
+                </div>
+              </div>
 
-      - name: Run backend tests
-        run: npm test --prefix backend
+              <div className="space-y-2">
+                <label className="text-xs font-medium text-brand-text-muted">
+                  {t("Password")}
+                </label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-3.5 h-4 w-4 text-brand-text-muted" />
+                  <input
+                    type="password"
+                    required
+                    placeholder="••••••••"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="w-full rounded-xl border border-brand-border bg-brand-background pl-10 pr-4 py-2.5 text-sm text-brand-text focus:outline-none focus:ring-2 focus:ring-brand-accent"
+                  />
+                </div>
+              </div>
 
-      - name: Verify local frontend and API integration
-        run: npm run test:integration --prefix backend
-
-      - name: Validate fail-closed deployment configuration shape
-        env:
-          CONTEXT: production
-          SUPABASE_URL: https://ci-shape-check.supabase.co
-          SUPABASE_SERVICE_ROLE_KEY: ci_dummy_service_role_key_not_a_real_secret
-          SUPABASE_AUTH_URL: https://ci-shape-check.supabase.co
-          SUPABASE_AUTH_PUBLISHABLE_KEY: sb_publishable_ci_shape_check_dummy
-          BTCBOX_RATE_LIMIT_HMAC_SECRET: ci-only-dummy-rate-limit-secret-with-more-than-32-bytes
-          ADMIN_USER: ci-shape-check-admin
-          ADMIN_PASS: CI-Only-Strong-Dummy-Password-123!
-          FINANCIAL_POSTGRES_RPC_ENABLED: '0'
-          FINANCIAL_POSTGRES_FULL_CUTOVER_APPROVED: '0'
-          FINANCIAL_POSTGRES_READS_ENABLED: '0'
-          FINANCIAL_MATCHING_ENGINE_ENABLED: '0'
-        run: npm run preflight --prefix backend
-
-      - name: Verify unified output and preserved entrypoints
-        run: |
-          test -f backend/dist/index.html
-          test ! -f backend/dist/legacy-index.html
-          test ! -f backend/dist/admin.html
-          grep -q '<Route path="/admin" element={<AdminPage />} />' frontend/src/App.tsx
-          test -d backend/dist/frontend-assets
-          grep -q '/frontend-assets/' backend/dist/index.html
-          test -f 'backend/api/[...path].js'
-          test -f backend/api/healthz.js
-          test ! -d backend/dist/api
-          test ! -d backend/dist/assets/js
-          test -f backend/dist/assets/css/tokens.css
-          test -f backend/dist/oauth/consent.html
-          test -d backend/dist/oauth
+              <Button type="submit" className="w-full bg-brand-accent text-white py-3 rounded-xl hover:opacity-90 flex items-center justify-center gap-2 font-medium">
+                <span>{mode === "register" ? t("Create Account") : t("Sign In")}</span>
+                <ArrowRight className="h-4 w-4" />
+              </Button>
+            </form>
+          </CardContent>
+          <CardFooter className="flex justify-center border-t border-brand-border/40 pt-4 pb-4">
+            <p className="text-xs text-brand-text-muted">
+              {mode === "register" ? (
+                <>
+                  {t("Already have an account?")}{" "}
+                  <Link to="/login" className="text-brand-accent hover:underline font-medium">
+                    {t("Sign In")}
+                  </Link>
+                </>
+              ) : (
+                <>
+                  {t("Don't have an account?")}{" "}
+                  <Link to="/register" className="text-brand-accent hover:underline font-medium">
+                    {t("Register Now")}
+                  </Link>
+                </>
+              )}
+            </p>
+          </CardFooter>
+        </Card>
+      </div>
+    </main>
+  );
+}
