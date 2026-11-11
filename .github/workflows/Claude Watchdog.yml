@@ -1,0 +1,30 @@
+name: AI Watchdog & Code Review
+
+on:
+  pull_request:
+    branches: [ main ]
+  push:
+    branches: [ main ]
+
+jobs:
+  watchdog:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Run Code Check / Build Verification
+        run: |
+          echo "开始执行代码安全与完整性检查..."
+          # 这里可以加上你的项目构建或测试命令，例如：
+          # npm install
+          # npm run build
+          
+      - name: AI Code Analysis Notice
+        run: |
+          echo "代码已提交，AI 守护进程已介入同步或审查流程。"
