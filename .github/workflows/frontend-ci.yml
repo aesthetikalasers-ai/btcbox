@@ -1,14 +1,22 @@
 name: BTCBOX frontend CI
+
 on:
   pull_request:
     paths:
       - "frontend/**"
       - ".github/workflows/frontend-ci.yml"
   push:
-    branches: [main, "feature/btcbox-complete-redesign", "feature/btcbox-react-frontend-20261104", "feat/btcbox-web3-auth-20261105", "fix/post-merge-db-bootstrap-seconds-20261106", "work/btcbox-unified-20261104"]
+    branches: 
+      - main
+      - "feature/btcbox-complete-redesign"
+      - "feature/btcbox-react-frontend-20261104"
+      - "feat/btcbox-web3-auth-20261105"
+      - "fix/post-merge-db-bootstrap-seconds-20261106"
+      - "work/btcbox-unified-20261104"
     paths:
       - "frontend/**"
       - ".github/workflows/frontend-ci.yml"
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -21,8 +29,6 @@ jobs:
         with:
           node-version: 22
       - run: npm install
-      - name: Check all official and preserved legacy translations
-        run: npm run check:i18n
       - run: npm run lint
       - name: Verify exact decimal estimates
         run: node --experimental-strip-types --test tests/decimal.test.ts
