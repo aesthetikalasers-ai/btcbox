@@ -1240,8 +1240,8 @@ test("registration layout adapts from mobile to desktop without losing the ident
     await expect(page.getByRole("button", { name: "Connect Ethereum wallet" })).toBeVisible();
     await expect(page.getByRole("button", { name: "Connect Solana wallet" })).toBeVisible();
     await expect(page.getByTestId("auth-mode-switcher").getByRole("link", { name: "Sign in", exact: true })).toHaveAttribute("href", "/login");
-    await expect(page.getByLabel("Email address")).toHaveCount(0);
-    await expect(page.getByRole("button", { name: "Create account with email" })).toHaveCount(0);
+    await expect(page.getByLabel("Email")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Create account with email" })).toBeVisible();
     await expect(page.getByLabel("Username")).toHaveCount(0);
     const dimensions = await page.evaluate(() => ({
       viewport: document.documentElement.clientWidth,
@@ -1363,9 +1363,9 @@ test("login screen switches to native Japanese copy without changing authenticat
 
   await expect(page.locator("html")).toHaveAttribute("lang", "ja-JP");
   await expect(page.getByRole("heading", { name: "お帰りなさい", exact: true })).toBeVisible();
-  await expect(page.getByLabel("ユーザー名")).toBeVisible();
+  await expect(page.getByLabel("メール")).toBeVisible();
   await expect(page.getByLabel("パスワード", { exact: true })).toBeVisible();
-  await expect(page.getByRole("button", { name: "ユーザー名でログイン" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "メールでログイン" })).toBeVisible();
   await expect(page.getByText("Googleログインは一時的に利用できません。")).toBeVisible();
 
   await page.reload();
