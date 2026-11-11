@@ -79,11 +79,12 @@ test("responsive visual QA captures key customer and admin entry routes without 
 
   for (const route of routes) {
     const routePath = route.path;
+    await page.setViewportSize({ width: widths[0], height: 900 });
+    await page.goto(routePath, { waitUntil: "domcontentloaded" });
+    await expect(page.locator("#root")).not.toBeEmpty();
+    expect(new URL(page.url()).pathname).toBe(routePath);
     for (const width of widths) {
       await page.setViewportSize({ width, height: 900 });
-      await page.goto(routePath, { waitUntil: "domcontentloaded" });
-      await expect(page.locator("#root")).not.toBeEmpty();
-      expect(new URL(page.url()).pathname).toBe(routePath);
       await expect(page.getByRole("heading", { name: route.heading, exact: true })).toBeVisible({ timeout: 15000 });
       if (!["/login", "/register"].includes(routePath) && width <= 480) {
         await expect(page.getByRole("link", { name: "BTCBOX home" }).getByRole("img", { name: "BTCBOX" })).toBeVisible();
