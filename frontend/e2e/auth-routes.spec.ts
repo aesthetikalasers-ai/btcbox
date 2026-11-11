@@ -1189,7 +1189,9 @@ test("public market UI keeps provider timestamps out of customer-facing pages", 
   await page.goto("/home");
 
   await expect(page.getByText("Market data", { exact: true })).toHaveCount(0);
-  await expect(page.getByText(/Server snapshot|Provider snapshot|coinbase/)).toHaveCount(0);
+  await expect(page.getByText(/Server snapshot|Provider snapshot|market service snapshot|Snapshot stale|Snapshot time unavailable|coinbase/i)).toHaveCount(0);
+  await expect(page.getByText("Market analytics", { exact: true })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "1h", exact: true })).toHaveCount(0);
   await expect(page.getByText("BTC/USDT", { exact: true }).first()).toBeVisible();
 });
 
