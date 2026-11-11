@@ -38,7 +38,8 @@ export function Dashboard() {
         setError("");
       }).catch((reason: unknown) => {
         if (reason instanceof Error && reason.name === "AbortError") return;
-        // Keep the last confirmed rows visible while the provider is unavailable.
+        // Do not leave old quotes on screen as if they were current.
+        setMarkets([]);
         setError(reason instanceof Error ? reason.message : "Market data is unavailable.");
       }).finally(() => {
         refreshing = false;

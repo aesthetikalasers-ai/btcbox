@@ -227,9 +227,11 @@ function applyAccount(r){
   }
 }
 function applyMarket(r){
-  if(!r||typeof r!=='object') return;
+  if(!r||typeof r!=='object') return 0;
   const supported=new Set(PAIRS);
   const nowSeconds=Math.floor(Date.now()/1000);
+  let acceptedQuotes=0;
+  const seenQuotes=new Set();
   const normalizeSymbol=raw=>{
     if(typeof raw!=='string') return null;
     let base=raw.trim().toUpperCase();
@@ -248,16 +250,17 @@ function applyMarket(r){
     if(!normalized||!record||typeof record!=='object'||Array.isArray(record)) return;
     const current=market[normalized.sym];
     const incomingPrice=record.price===undefined||record.price===null||record.price===''?NaN:Number(record.price);
-    // Never create a new pair from an invalid/empty price record.
-    if(!current&&(!Number.isFinite(incomingPrice)||incomingPrice<=0)) return;
+    // A market quote is usable only when this response contains its own valid positive price.
+    if(!Number.isFinite(incomingPrice)||incomingPrice<=0) return;
     const next=current||{sym:normalized.sym,base:normalized.base,price:0,chg:0,high:0,low:0,vol:0,ts:0,source:null};
-    const fields=['price','chg','high','low','vol'];
+    next.price=incomingPrice;
+    const fields=['chg','high','low','vol'];
     fields.forEach(key=>{
       const raw=record[key];
       if(raw===undefined||raw===null||raw==='') return;
       const value=Number(raw);
       if(!Number.isFinite(value)) return;
-      if((key==='price'||key==='high'||key==='low')&&value<=0) return;
+      if((key==='high'||key==='low')&&value<=0) return;
       if(key==='vol'&&value<0) return;
       next[key]=value;
     });
@@ -268,6 +271,8 @@ function applyMarket(r){
     if(typeof record.source==='string'&&record.source.trim()) next.source=record.source.trim();
     else if(typeof r.source==='string'&&r.source.trim()) next.source=r.source.trim();
     market[normalized.sym]=next;
+    seenQuotes.add(normalized.sym);
+    acceptedQuotes++;
   };
   if(r.data&&typeof r.data==='object'&&!Array.isArray(r.data)){
     Object.entries(r.data).forEach(([base,record])=>applyRecord(base,record));
@@ -275,6 +280,15 @@ function applyMarket(r){
   if(Array.isArray(r.markets)){
     r.markets.forEach(record=>{if(record) applyRecord(record.sym,record);});
   }
+  PAIRS.forEach(sym=>{
+    if(seenQuotes.has(sym))return;
+    const quote=market[sym];if(!quote)return;
+    quote.price=0;quote.chg=0;quote.high=0;quote.low=0;quote.vol=0;quote.ts=0;
+  });
+  return acceptedQuotes;
+}
+function clearMarketQuotes(){
+  PAIRS.forEach(sym=>{const quote=market[sym];if(!quote)return;quote.price=0;quote.chg=0;quote.high=0;quote.low=0;quote.vol=0;quote.ts=0;});
 }
 function updateLivePriceEls(){
   $$('[data-live-price]').forEach(el=>{

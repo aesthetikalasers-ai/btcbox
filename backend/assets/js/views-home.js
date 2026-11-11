@@ -101,54 +101,76 @@ VIEWS.markets = function(){
 VIEWS.markets.afterRender = function(){
   let activeTab='All', q='';
   function render(){
-    let list=PAIRS.slice();
-    if(activeTab==='Favorites') list=list.filter(s=>state.favorites.has(s));
-    if(activeTab==='Top Volume') list.sort((a,b)=>Number(market[b]?.vol||0)-Number(market[a]?.vol||0));
-    if(q) list=list.filter(s=>s.toLowerCase().includes(q));
-    if(!list.length){ $('#mkt-body').innerHTML='<tr><td colspan="6">'+emptyState('No markets found','Try a different search or category.')+'</td></tr>'; return; }
-    $('#mkt-body').innerHTML=list.map(sym=>{
-      const m=market[sym], base=sym.replace('USDT',''), up=m.chg>=0;
-      const fav=state.favorites.has(sym);
+    const body=$('#mkt-body');if(!body)return;
+    let list=PAIRS.filter(sym=>!state.marketUnavailable&&market[sym]&&Number(market[sym].price)>0);
+    if(activeTab==='Favorites')list=list.filter(sym=>state.favorites.has(sym));
+    if(activeTab==='Top Volume')list.sort((a,b)=>Number(market[b]?.vol||0)-Number(market[a]?.vol||0));
+    if(q)list=list.filter(sym=>sym.toLowerCase().includes(q));
+    if(!list.length){
+      const title=state.marketUnavailable?'Market data temporarily unavailable':'No matching live markets';
+      const detail=state.marketUnavailable?'Live prices will appear when the market feed is available.':'Try a different search or category.';
+      body.innerHTML='<tr><td colspan="6">'+emptyState(title,detail)+'</td></tr>';return;
+    }
+    body.innerHTML=list.map(sym=>{
+      const m=market[sym],base=sym.replace('USDT',''),up=Number(m.chg)>=0,fav=state.favorites.has(sym);
+      const price=Number(m.price)>0?fmtPrice(m.price,base):'—';
+      const high=Number(m.high)>0?fmtPrice(m.high,base):'—';
+      const low=Number(m.low)>0?fmtPrice(m.low,base):'—';
+      const volume=Number(m.vol)>0?fmt(m.vol,0):'—';
       return '<tr class="trow markets-row" data-sym="'+sym+'">'+
         '<td class="td markets-pair-cell"><button type="button" class="fav-btn" data-sym="'+sym+'" aria-label="'+(fav?'Remove ':'Add ')+' '+base+' to favorites" aria-pressed="'+fav+'">'+(fav?'★':'☆')+'</button><div class="markets-pair-name"><b>'+base+'</b><span>/USDT</span><div style="font-size:11px;color:var(--text-muted)">'+base+' Spot</div></div></td>'+
-        '<td class="td num markets-last" data-live-price="'+sym+'">'+fmtPrice(m.price,base)+'</td>'+
-        '<td class="td num markets-change '+(up?'is-up':'is-down')+'" data-live-chg="'+sym+'">'+pct(m.chg)+'</td>'+
-        '<td class="td num markets-secondary">'+fmtPrice(m.high,base)+'</td>'+
-        '<td class="td num markets-secondary">'+fmtPrice(m.low,base)+'</td>'+
-        '<td class="td num markets-secondary">'+fmt(m.vol,0)+'</td></tr>';
+        '<td class="td num markets-last" data-live-price="'+sym+'">'+price+'</td>'+
+        '<td class="td num markets-change '+(up?'is-up':'is-down')+'" data-live-chg="'+sym+'">'+pct(Number(m.chg)||0)+'</td>'+
+        '<td class="td num markets-secondary">'+high+'</td>'+
+        '<td class="td num markets-secondary">'+low+'</td>'+
+        '<td class="td num markets-secondary">'+volume+'</td></tr>';
     }).join('');
-    $$('#mkt-body tr[data-sym]').forEach(tr=>tr.onclick=e=>{ if(e.target.classList.contains('fav-btn'))return; location.hash='#/trade/'+tr.dataset.sym; });
-    $$('.fav-btn').forEach(b=>b.onclick=e=>{e.stopPropagation();const s=b.dataset.sym; if(state.favorites.has(s))state.favorites.delete(s);else state.favorites.add(s); render();});
+    $$('#mkt-body tr[data-sym]').forEach(tr=>tr.onclick=e=>{if(e.target.classList.contains('fav-btn'))return;location.hash='#/trade/'+tr.dataset.sym;});
+    $$('.fav-btn').forEach(button=>button.onclick=e=>{e.stopPropagation();const sym=button.dataset.sym;if(state.favorites.has(sym))state.favorites.delete(sym);else state.favorites.add(sym);render();});
   }
+  window.__btcboxRefreshMarketView=render;
   render();
-  $$('#mkt-tabs .tab').forEach(t=>t.onclick=()=>{$$('#mkt-tabs .tab').forEach(x=>x.classList.remove('active'));t.classList.add('active');activeTab=t.dataset.tab;render();});
+  $$('#mkt-tabs .tab').forEach(tab=>tab.onclick=()=>{$$('#mkt-tabs .tab').forEach(item=>item.classList.remove('active'));tab.classList.add('active');activeTab=tab.dataset.tab;render();});
   $('#mkt-search').oninput=e=>{q=e.target.value.trim().toLowerCase();render();};
 };
 
 
 /* ================= HOME / TRADE TYPE ENTRY ================= */
 VIEWS.home = function(){
-  const ready = PAIRS.filter(sym => market[sym] && Number(market[sym].price) > 0);
-  const movers = ready.slice().sort((a,b) => Number(market[b].vol||0) - Number(market[a].vol||0)).slice(0,4);
-  const live = !state.marketUnavailable && ready.length > 0;
+  const ready=PAIRS.filter(sym=>!state.marketUnavailable&&market[sym]&&Number(market[sym].price)>0);
+  const movers=ready.slice().sort((a,b)=>Number(market[b].vol||0)-Number(market[a].vol||0)).slice(0,4);
+  const live=ready.length>0;
+  const cards=movers.length?'<div class="home-market-grid">'+movers.map(sym=>{const m=market[sym],base=sym.replace('USDT',''),up=Number(m.chg)>=0;return '<a class="home-market-card" href="#/trade/'+sym+'"><span class="home-market-name">'+base+' <small>/ USDT</small></span><strong class="num">'+fmtPrice(m.price,base)+'</strong><span class="home-market-change '+(up?'up':'down')+'">'+pct(Number(m.chg)||0)+' <small>24h</small></span></a>';}).join('')+'</div>':'<div class="home-empty">'+(state.marketUnavailable?'Live market data is temporarily unavailable. Prices will appear when the feed is restored.':'Market data is being updated.')+'</div>';
   return '<div class="view-enter home-view">'+
     '<section class="home-hero">'+
-      '<div class="home-hero-copy"><div class="home-eyebrow">BTCBOX · DIGITAL ASSET EXCHANGE</div><h1>Trade with clarity.</h1><p>Explore live spot markets, manage your assets and access BTCBOX trading services from one place.</p>'+
+      '<div class="home-hero-copy"><div class="home-eyebrow">BTCBOX · DIGITAL ASSET EXCHANGE</div><h1>Trade with clarity.</h1><p>Explore spot markets, manage your assets and access BTCBOX trading services from one place.</p>'+
         '<div class="home-hero-actions"><a class="btn btn-primary" href="#/trade-hub">Explore trading</a><a class="btn btn-ghost" href="#/markets">View markets</a>'+(state.user?'':'<a class="btn btn-ghost home-auth-link" href="#/login">Log in</a><a class="btn btn-ghost home-auth-link" href="#/register">Create account</a>')+'</div></div>'+
       '<div class="home-hero-mark" aria-hidden="true"><div class="home-orbit home-orbit-one"></div><div class="home-orbit home-orbit-two"></div><div class="home-mark-core">B</div></div>'+
     '</section>'+
     '<section class="home-metrics" aria-label="Market overview">'+
-      '<div class="home-metric"><span>Market data</span><strong class="'+(live?'is-live':'is-pending')+'">'+(live?'Live':'Updating')+'</strong><small>Connected market feed</small></div>'+
-      '<div class="home-metric"><span>Available spot pairs</span><strong>'+ready.length+'</strong><small>USDT-quoted markets</small></div>'+
+      '<div class="home-metric"><span>Market data</span><strong id="home-market-status" class="'+(live?'is-live':'is-pending')+'">'+(live?'Live':'Unavailable')+'</strong><small id="home-market-status-detail">'+(live?'Connected market feed':'Market feed unavailable')+'</small></div>'+
+      '<div class="home-metric"><span>Available spot pairs</span><strong id="home-market-pair-count">'+ready.length+'</strong><small>USDT-quoted markets</small></div>'+
       '<div class="home-metric"><span>Trading services</span><strong>2</strong><small>Spot and seconds access</small></div>'+
     '</section>'+
     '<section class="home-section"><div class="home-section-head"><div><h2>Markets by volume</h2><p>Live data from supported spot pairs</p></div><a href="#/markets">View all markets <span aria-hidden="true">→</span></a></div>'+
-      (movers.length?'<div class="home-market-grid">'+movers.map(sym=>{const m=market[sym],base=sym.replace('USDT',''),up=Number(m.chg)>=0;return '<a class="home-market-card" href="#/trade/'+sym+'"><span class="home-market-name">'+base+' <small>/ USDT</small></span><strong class="num">'+fmtPrice(m.price,base)+'</strong><span class="home-market-change '+(up?'up':'down')+'">'+pct(m.chg)+' <small>24h</small></span></a>';}).join('')+'</div>':'<div class="home-empty">Live market data is loading. Market values will appear when the provider responds.</div>')+
+      '<div id="home-market-content">'+cards+'</div>'+
     '</section>'+
     '<section class="home-section"><div class="home-section-head"><div><h2>Quick access</h2><p>Common account and trading destinations</p></div></div><div class="home-quick-grid">'+
       '<a href="#/trade-hub"><strong>Trade</strong><span>Choose a trading service</span></a><a href="#/assets"><strong>Assets</strong><span>Review available balances</span></a><a href="#/deposit"><strong>Deposit</strong><span>Fund your account</span></a><a href="#/me"><strong>My account</strong><span>Profile and security</span></a><a href="#/help"><strong>Help & announcements</strong><span>Public service information and support access</span></a>'+
     '</div></section>'+
   '</div>';
+};
+VIEWS.home.afterRender=function(){
+  window.__btcboxRefreshHomeMarketView=function(){
+    const content=document.getElementById('home-market-content');if(!content)return;
+    const ready=PAIRS.filter(sym=>!state.marketUnavailable&&market[sym]&&Number(market[sym].price)>0);
+    const movers=ready.slice().sort((a,b)=>Number(market[b].vol||0)-Number(market[a].vol||0)).slice(0,4);
+    const status=document.getElementById('home-market-status'),detail=document.getElementById('home-market-status-detail'),count=document.getElementById('home-market-pair-count');
+    if(status){status.textContent=ready.length?'Live':'Unavailable';status.className=ready.length?'is-live':'is-pending';}
+    if(detail)detail.textContent=ready.length?'Connected market feed':'Market feed unavailable';
+    if(count)count.textContent=String(ready.length);
+    content.innerHTML=movers.length?'<div class="home-market-grid">'+movers.map(sym=>{const m=market[sym],base=sym.replace('USDT',''),up=Number(m.chg)>=0;return '<a class="home-market-card" href="#/trade/'+sym+'"><span class="home-market-name">'+base+' <small>/ USDT</small></span><strong class="num">'+fmtPrice(m.price,base)+'</strong><span class="home-market-change '+(up?'up':'down')+'">'+pct(Number(m.chg)||0)+' <small>24h</small></span></a>';}).join('')+'</div>':'<div class="home-empty">'+(state.marketUnavailable?'Live market data is temporarily unavailable. Prices will appear when the feed is restored.':'Market data is being updated.')+'</div>';
+  };
 };
 
 VIEWS.tradehub = function(){
