@@ -13,15 +13,12 @@ export function AuthPage({ mode, redirectTo }: { mode: "login" | "register"; red
   const { t, language, setLanguage, canChangeLanguage } = useI18n();
   const {
     status, needsCredentials, busy, error, notice, googleEnabled, walletEnabled, ethereumWallets,
-    signInWithGoogle, signInWithUsername, signInWithWeb3, signUpWithEmail,
+    signInWithGoogle, signInWithUsername, signInWithWeb3,
     verifyTwoFactor, clearError,
   } = useAuth();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [registerEmail, setRegisterEmail] = useState("");
-  const [registerPassword, setRegisterPassword] = useState("");
-  const [showRegisterPassword, setShowRegisterPassword] = useState(false);
   const [verifyCode, setVerifyCode] = useState("");
   const [verifyBusy, setVerifyBusy] = useState(false);
   const [walletMenuOpen, setWalletMenuOpen] = useState(false);
@@ -38,9 +35,9 @@ export function AuthPage({ mode, redirectTo }: { mode: "login" | "register"; red
   useEffect(() => { if (!busy) setGoogleStarted(false); }, [busy]);
 
   useEffect(() => {
-    if (status === "authenticated") navigate(needsCredentials ? "/account-setup" : (redirectTo || (registering ? "/me" : "/home")), { replace: true });
+    if (status === "authenticated") navigate(needsCredentials ? "/account-setup" : (redirectTo || "/home"), { replace: true });
 
-  }, [status, needsCredentials, navigate, redirectTo, registering]);
+  }, [status, needsCredentials, navigate, redirectTo]);
 
   if (status === "loading") return <AuthRestoreState />;
   // Never render the clickable sign-in form while a sign-in is already in progress
@@ -53,11 +50,6 @@ export function AuthPage({ mode, redirectTo }: { mode: "login" | "register"; red
   const submitUsernameLogin = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     try { await signInWithUsername(username, password); }
-    catch { /* AuthProvider displays the safe error. */ }
-  };
-  const submitEmailRegister = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    try { await signUpWithEmail(registerEmail, registerPassword); }
     catch { /* AuthProvider displays the safe error. */ }
   };
 
@@ -140,7 +132,7 @@ export function AuthPage({ mode, redirectTo }: { mode: "login" | "register"; red
               <span className="flex h-11 w-11 items-center justify-center rounded-xl border border-brand-accent/25 bg-brand-accent/[0.12] text-brand-accent shadow-sm shadow-brand-accent/[0.08]">
                 {status === "two-factor" ? <ShieldCheck className="h-5 w-5" /> : registering ? <Globe2 className="h-5 w-5" /> : <LockKeyhole className="h-5 w-5" />}
               </span>
-              <span className="text-xs font-semibold uppercase tracking-[.16em] text-brand-text-muted">{registering ? t("Join BTCBOX") : t("Secure access")}</span><label className="ml-auto flex h-9 items-center gap-1 rounded-lg border border-brand-border bg-brand-surface-2 px-2 text-brand-accent shadow-sm shadow-brand-accent/10"><Globe2 className="h-3.5 w-3.5"/><select disabled={!canChangeLanguage} aria-label={t("Language")} value={language} onChange={event => setLanguage(event.target.value as Language)} className="w-[100px] appearance-none bg-transparent text-xs font-semibold text-brand-text outline-none [color-scheme:dark]"><option className="bg-brand-surface text-brand-text" value="ja">🇯🇵 日本語</option><option className="bg-brand-surface text-brand-text" value="zh-CN">🇨🇳 中文</option><option className="bg-brand-surface text-brand-text" value="en">🇺🇸 English</option><option className="bg-brand-surface text-brand-text" value="es">🇪🇸 Español</option><option className="bg-brand-surface text-brand-text" value="de">🇩🇪 Deutsch</option><option className="bg-brand-surface text-brand-text" value="it">🇮🇹 Italiano</option><option className="bg-brand-surface text-brand-text" value="pt">🇵🇹 Português</option></select></label>
+              <span className="text-xs font-semibold uppercase tracking-[.16em] text-brand-text-muted">{registering ? t("Join BTCBOX") : t("Secure access")}</span><label className="ml-auto flex h-9 items-center gap-1 rounded-lg border border-brand-border bg-brand-surface-2 px-2 text-brand-accent shadow-sm shadow-brand-accent/10"><Globe2 className="h-3.5 w-3.5"/><select disabled={!canChangeLanguage} aria-label={t("Language")} value={language} onChange={event => setLanguage(event.target.value as Language)} className="w-[100px] appearance-none bg-transparent text-xs font-semibold text-brand-text outline-none [color-scheme:dark]"><option className="bg-brand-surface text-brand-text" value="ja">🇯🇵 日本語</option><option className="bg-brand-surface text-brand-text" value="zh-CN">中文</option><option className="bg-brand-surface text-brand-text" value="en">🇺🇸 English</option><option className="bg-brand-surface text-brand-text" value="es">🇪🇸 Español</option><option className="bg-brand-surface text-brand-text" value="de">🇩🇪 Deutsch</option><option className="bg-brand-surface text-brand-text" value="it">🇮🇹 Italiano</option><option className="bg-brand-surface text-brand-text" value="pt">🇵🇹 Português</option></select></label>
             </div>
             <CardTitle className="text-2xl font-semibold tracking-tight">
               {status === "two-factor" ? t("Verify your sign-in") : registering ? t("Create your BTCBOX account") : t("Welcome back")}
@@ -187,20 +179,6 @@ export function AuthPage({ mode, redirectTo }: { mode: "login" | "register"; red
                 </Button>
               </form>}
 
-              {mode === "register" && <form className="space-y-3" aria-busy={busy} onSubmit={submitEmailRegister}>
-                <label className="block space-y-1.5 text-sm">
-                  <span className="text-brand-text-secondary">{t("Email")}</span>
-                  <Input className="h-12" type="email" value={registerEmail} onChange={event => setRegisterEmail(event.target.value)} autoComplete="email" placeholder={t("Enter your email address")} required />
-                </label>
-                <label className="block space-y-1.5 text-sm">
-                  <span className="text-brand-text-secondary">{t("Password")}</span>
-                  <span className="relative block"><Input aria-label={t("Password")} className="h-12 pr-12" type={showRegisterPassword ? "text" : "password"} value={registerPassword} onChange={event => setRegisterPassword(event.target.value)} autoComplete="new-password" minLength={8} maxLength={128} placeholder={t("At least 8 characters")} required /><button type="button" aria-label={t(showRegisterPassword ? "Hide password" : "Show password")} aria-pressed={showRegisterPassword} onClick={() => setShowRegisterPassword(value => !value)} className="absolute inset-y-0 right-0 flex w-12 items-center justify-center text-brand-text-muted">{showRegisterPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}</button></span>
-                </label>
-                <Button type="submit" className="min-h-12 w-full" aria-busy={busy} disabled={busy || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(registerEmail) || registerPassword.length < 8}>
-                  <KeyRound className="mr-2 h-4 w-4" /> {busy ? t("Creating account…") : t("Create account with email")}
-                </Button>
-                <p className="text-center text-xs leading-5 text-brand-text-muted">{t("After registering, confirm your email to activate sign-in. You can also sign in with Google or your wallet above.")}</p>
-              </form>}
 
               {identityButtons}
 
