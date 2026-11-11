@@ -14,6 +14,10 @@ const LANGUAGE_MENU: Array<{ code: Language; label: string; flag: string }> = [
   { code: "it", label: "Italiano", flag: "🇮🇹" },
   { code: "pt", label: "Português", flag: "🇵🇹" },
 ];
+/**
+ * Renders the global header, search control, and accessible language selector.
+ * Keyboard navigation and dismissal are managed locally without changing route permissions.
+ */
 export function Topbar({ onMenuClick, menuOpen = false, menuButtonRef }: { menuButtonRef?: Ref<HTMLButtonElement>; onMenuClick?: () => void; menuOpen?: boolean }) {
   const { language, setLanguage, canChangeLanguage, t } = useI18n();
   const currentLanguage = LANGUAGE_MENU.find(({ code }) => code === language) ?? LANGUAGE_MENU[2];
@@ -41,6 +45,10 @@ export function Topbar({ onMenuClick, menuOpen = false, menuButtonRef }: { menuB
     return () => { document.removeEventListener("pointerdown", close); document.removeEventListener("keydown", onKey); };
   }, [langMenuOpen]);
 
+  /**
+   * Moves focus through language options using the menu's arrow, Home, and End keys.
+   * Tab is allowed to leave the menu and closes it without trapping keyboard focus.
+   */
   const handleLanguageMenuKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
     if (event.key === "Tab") {
       setLangMenuOpen(false);
@@ -60,6 +68,10 @@ export function Topbar({ onMenuClick, menuOpen = false, menuButtonRef }: { menuB
     }
   };
 
+  /**
+   * Navigates to the markets view for a non-empty search query.
+   * Prevents the browser's default form submission behavior.
+   */
   const submitSearch = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const query = search.trim();
