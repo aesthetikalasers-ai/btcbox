@@ -3,7 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { useI18n } from "../../lib/i18n";
 import { Button } from "../ui/Button";
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "../ui/Card";
-import { Lock, Mail, User, ArrowRight } from "lucide-react";
+import { Lock, Mail, ArrowRight } from "lucide-react";
 
 interface AuthPagesProps {
   mode: "login" | "register";
@@ -23,7 +23,6 @@ export function AuthPages({ mode, onSuccess }: AuthPagesProps) {
       setError(t("Please fill in all fields"));
       return;
     }
-    // 模拟登录/注册成功
     if (onSuccess) {
       onSuccess(email);
     }
