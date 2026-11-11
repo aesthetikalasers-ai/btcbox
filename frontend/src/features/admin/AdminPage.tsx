@@ -83,6 +83,7 @@ function statusVariant(status: string): "default" | "outline" | "destructive" {
 
 export function AdminPage() {
   const { t, language } = useI18n();
+  const adminText = t;
   const numberLocale = localeTags[language];
   const { status: authStatus, getSupabaseAccessToken } = useAuth();
   const [token, setToken] = useState("");
