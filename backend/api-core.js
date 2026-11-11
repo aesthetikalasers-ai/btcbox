@@ -408,7 +408,9 @@ async function readFinancialAccountSnapshot(userId) {
   return result;
 }
 
+var DEFAULT_SPOT_CATALOG = ['BTC','ETH','SOL','BNB','XRP','DOGE','ADA','AVAX','LINK','DOT','LTC','TRX','ATOM','NEAR','UNI','BCH','ETC'].map(function (base) { return { base_asset: base, quote_asset: 'USDT', enabled: true, price_tick: '0.01', quantity_step: '0.00001', min_quantity: '0.00001', min_notional: '5', min_limit_price: null, max_limit_price: null }; });
 async function readSpotMarketCatalog() {
+  try {
   if (!supabaseStorageConfigured()) throw new Error('Spot market catalogue unavailable');
   const base = String(process.env.SUPABASE_URL || '').replace(/\/+$/, '');
   if (!base) throw new Error('Spot market catalogue unavailable');
@@ -437,6 +439,7 @@ async function readSpotMarketCatalog() {
       max_limit_price: market.max_limit_price == null ? null : String(market.max_limit_price),
     };
   });
+  } catch (_) { return DEFAULT_SPOT_CATALOG; }
 }
 
 // Keep this list aligned with spot pair support, manual-deposit assets, and admin asset controls.
@@ -1267,8 +1270,15 @@ async function handleRequest(event, context) {
   }
 
   let db;
-  try { db = await loadDB(); } catch(e) { return json({ ok: false, msg: 'Network error. Please try again.', code: 'PERSISTENCE_UNAVAILABLE' }, 503); }
-  if (!db) return json({ ok: false, msg: 'Network error. Please try again.', code: 'PERSISTENCE_UNAVAILABLE' }, 503);
+  try { db = await loadDB(); } catch(e) { db = null; }
+  if (!db) {
+    // Public, read-only market endpoints do not depend on persistent state.
+    // Keep prices / 24h change / 24h volume / klines available when Supabase is unavailable.
+    var publicNoDbPaths = ['market', 'market/pairs', 'kline', 'depth', 'trading/status', 'config'];
+    if (method !== 'GET' || publicNoDbPaths.indexOf(path) === -1) {
+      return json({ ok: false, msg: 'Network error. Please try again.', code: 'PERSISTENCE_UNAVAILABLE' }, 503);
+    }
+  }
 
   // ---------- GET /api/config ----------
   if (path === 'config' && method === 'GET') {
@@ -1276,7 +1286,7 @@ async function handleRequest(event, context) {
       ok: true,
       google_mock_enabled: process.env.ALLOW_GOOGLE_MOCK === '1',
       site: { name: 'BTCBOX', version: 'vercel-1.0' },
-      announcement: db.announcement || '',
+      announcement: (db && db.announcement) || '',
       supabase_auth_url: String(process.env.SUPABASE_AUTH_URL || '').trim(),
       supabase_auth_publishable_key: getPublishableKey(),
     });
