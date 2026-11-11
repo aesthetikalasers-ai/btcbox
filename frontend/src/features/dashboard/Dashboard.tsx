@@ -136,11 +136,6 @@ export function Dashboard() {
         
       </div>
     </header>
-    {(btcMarket || loading) && <section aria-label={t("Bitcoin market summary")} className="exchange-summary">
-      <div><p className="text-xs text-brand-text-muted">{t("BTC/USDT last price")}</p><p className="mt-2 type-price">{btcMarket ? btcMarket.price.toLocaleString(numberLocale, {maximumFractionDigits:8}) : "—"} <span className="text-xs font-normal text-brand-text-muted">USDT</span></p></div>
-      <div><p className="text-xs text-brand-text-muted">{t("BTC 24h change")}</p><p className={"mt-2 text-xl font-semibold tabular-nums " + (btcMarket && btcMarket.chg < 0 ? "text-loss" : "text-profit")}>{btcMarket ? (btcMarket.chg > 0 ? "+" : "") + btcMarket.chg.toLocaleString(numberLocale, {minimumFractionDigits:2,maximumFractionDigits:2}) + "%" : "—"}</p></div>
-      <div><p className="text-xs text-brand-text-muted">{t("BTC 24h volume")}</p><p className="mt-2 text-xl font-semibold tabular-nums">{btcMarket ? Number(btcMarket.vol).toLocaleString(numberLocale, {notation:"compact",maximumFractionDigits:2}) : "—"} <span className="text-xs font-normal text-brand-text-muted">USDT</span></p></div>
-    </section>}
     <div className="anim-fade-up anim-delay-4 min-w-0">
       <LiveMarketsTable markets={markets} loading={loading} error={error} />
     </div>
@@ -148,7 +143,6 @@ export function Dashboard() {
     <div id="market-analysis" className="flex scroll-mt-4 flex-wrap items-center justify-between gap-3 px-1 pt-1">
       <div>
         <h2 className="type-section-title text-brand-text">{t("Market analytics")}</h2>
-        <p className="type-body-compact mt-1 text-brand-text-muted">{t("Historical BTC/USDT candles from market providers.")}</p>
       </div>
       <Badge variant="outline" className="shrink-0 border-brand-border bg-brand-surface">
         {liquidityCandles.length ? "BTC/USDT · " + liquidityRange : t("No chart data")}
