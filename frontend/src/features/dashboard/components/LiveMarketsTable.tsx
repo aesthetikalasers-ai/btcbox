@@ -72,25 +72,9 @@ export function LiveMarketsTable({ markets, loading, error }: {
   };
   const [searchParams, setSearchParams] = useSearchParams();
   const query = (searchParams.get("q") || "").trim().toLowerCase();
-  const latestSnapshotTs = markets.reduce((latest, item) => Math.max(latest, item.snapshotTs || 0), 0);
-  const snapshotAgeSeconds = latestSnapshotTs > 0 ? Math.max(0, Math.floor(Date.now() / 1000 - latestSnapshotTs)) : null;
   const snapshotStale = markets.some((item) => (item.snapshotTs || 0) > 0 && Date.now() / 1000 - (item.snapshotTs || 0) > 90);
   const feedError = error || (snapshotStale ? t("The market service snapshot is older than 90 seconds. Quotes are hidden until a fresh snapshot arrives.") : "");
   const displayMarkets = feedError ? [] : markets;
-  const latestProviderMarket = displayMarkets.reduce<MarketTicker | null>((latest, item) =>
-    (item.providerTs || 0) > (latest?.providerTs || 0) ? item : latest, null);
-  const providerTimestamp = latestProviderMarket?.providerTs || 0;
-  const providerSource = (latestProviderMarket?.source || "").replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 32);
-  const snapshotTime = latestSnapshotTs > 0
-    ? new Intl.DateTimeFormat(numberLocale, { hour: "2-digit", minute: "2-digit", second: "2-digit" }).format(new Date(latestSnapshotTs * 1000))
-    : "";
-  const providerTime = providerTimestamp > 0
-    ? new Intl.DateTimeFormat(numberLocale, { hour: "2-digit", minute: "2-digit", second: "2-digit" }).format(new Date(providerTimestamp * 1000))
-    : "";
-  const providerAgeSeconds = providerTimestamp > 0 ? Math.max(0, Math.floor(Date.now() / 1000 - providerTimestamp)) : null;
-  const providerAgeLabel = providerAgeSeconds !== null
-    ? new Intl.RelativeTimeFormat(numberLocale, { numeric: "auto", style: "short" }).format(-providerAgeSeconds, "second")
-    : "";
   const visibleMarkets = useMemo(() => displayMarkets.filter((item) => {
     if (favoritesOnly && !favorites.includes(item.sym)) return false;
     if (!query) return true;
@@ -101,12 +85,7 @@ export function LiveMarketsTable({ markets, loading, error }: {
       <div className="flex items-center justify-between gap-3 border-b border-brand-border px-4 py-4 md:px-6">
         <div className="min-w-0">
           <h2 className="type-section-title text-brand-text">{t("Spot markets")}</h2>
-          {displayMarkets.length > 0 && <details className="market-meta mt-1"><summary>{t("Market data")}</summary>
-            <p className="mt-1 text-[11px] text-brand-text-muted" aria-label={snapshotTime ? `${t("Server snapshot")} ${snapshotTime}` : t("Server snapshot time unavailable")}>{snapshotTime ? `${t("Server snapshot")} · ${snapshotTime} · ${snapshotAgeSeconds}${t("seconds ago")}` : t("Server snapshot time unavailable")}</p>
-            <p className="mt-0.5 text-[11px] text-brand-text-muted" aria-label={providerTime ? `${t("Provider snapshot")} ${providerSource || t("source unavailable")} ${providerTime}, ${providerAgeSeconds}${t("seconds ago")}` : t("Provider timestamp unavailable")}>
-              {providerTime ? `${t("Provider snapshot")} · ${providerSource || t("source unavailable")} · ${providerTime} · ${providerAgeLabel}` : t("Provider timestamp unavailable")}
-            </p>
-          </details>}
+
         </div>
         {loading || feedError ? <span className="shrink-0 rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-2 text-xs font-semibold text-brand-text-secondary">{loading ? t("Loading…") : t("Unavailable")}</span> : visibleMarkets.length > 0 ? <span className="shrink-0 rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-2 text-xs font-semibold text-brand-text-secondary">{visibleMarkets.length} {t("pairs")}</span> : null}
       </div>
