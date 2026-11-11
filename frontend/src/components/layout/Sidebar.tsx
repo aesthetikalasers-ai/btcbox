@@ -1,6 +1,6 @@
 import { NavLink } from "react-router-dom";
 import { LanguageMenu } from "./LanguageMenu";
-import { ArrowLeftRight, ChartNoAxesCombined, ClipboardList, Headset, House, Settings, Sprout, UserRound, Wallet, X } from "lucide-react";
+import { ArrowLeftRight, ChartNoAxesCombined, ClipboardList, Headset, House, Settings, Sprout, TrendingUp, Timer, UserRound, Wallet, X } from "lucide-react";
 import { cn } from "../../lib/utils";
 import { useI18n } from "../../lib/i18n";
 import { BrandLogo } from "../BrandLogo";
@@ -11,6 +11,10 @@ const primary = [
   { to: "/trade", label: "Trade", icon: ArrowLeftRight },
   { to: "/assets", label: "Assets", icon: Wallet },
   { to: "/me", label: "My", icon: UserRound },
+];
+const products = [
+  { to: "/contract", label: "Perpetual", icon: TrendingUp },
+  { to: "/seconds", label: "Seconds", icon: Timer },
 ];
 const secondary = [
   { to: "/orders", label: "Orders", icon: ClipboardList },
@@ -47,6 +51,21 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
               <span aria-hidden="true" className={cn("ml-auto h-1.5 w-1.5 shrink-0 rounded-full opacity-0 transition-opacity group-[.is-active]:opacity-100", to === "/trade" ? "bg-brand-violet" : to === "/assets" ? "bg-brand-teal" : to === "/me" ? "bg-brand-info" : "bg-brand-cyan")} />
             </NavLink>
           ))}
+        </div>
+        <div>
+          <p className="mb-2 px-3 text-[11px] font-bold uppercase tracking-[.16em] text-brand-text-muted">{t("Trade products")}</p>
+          <div className="space-y-1">
+            {products.map(({ to, label, icon: Icon }) => (
+              <NavLink key={to} to={to} onClick={onClose} className={({ isActive }) => cn(
+                "group flex min-h-11 h-auto min-w-0 items-center gap-3 rounded-lg border px-3 py-2 text-sm font-semibold leading-tight transition-all duration-200",
+                focusRing,
+                isActive ? "border-brand-violet/25 bg-brand-violet/[0.08] text-brand-text" : "border-transparent text-brand-text-secondary hover:bg-brand-surface-hover hover:text-brand-text",
+              )}>
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-colors text-current group-[.is-active]:bg-brand-violet/10 group-[.is-active]:text-brand-violet"><Icon className="h-[17px] w-[17px] opacity-95" /></span>
+                <span className="min-w-0 break-words">{t(label)}</span>
+              </NavLink>
+            ))}
+          </div>
         </div>
         <div>
           <p className="mb-2 px-3 text-[11px] font-bold uppercase tracking-[.16em] text-brand-text-muted">{t("Manage")}</p>

@@ -398,6 +398,13 @@ export function ContractPage() {
             <RefreshCw className={"mr-2 h-4 w-4 " + (marketsLoading || positionsLoading ? "animate-spin" : "")} />{t("Refresh")}
           </Button>
         </div>
+        {!marketsLoading && !markets.length && !marketsError ? (
+          <Card className="border-brand-warning/30 bg-brand-surface">
+            <CardContent className="p-4 text-sm leading-6 text-brand-warning" role="status">
+              {t("Order entry is currently disabled by the backend financial cutover switch. No funds can be reserved until the required services are enabled.")}
+            </CardContent>
+          </Card>
+        ) : null}
 
         {marketsError ? (
           <Card className="border-brand-warning/30 bg-brand-surface"><CardContent className="flex flex-wrap items-center justify-between gap-3 p-5"><p className="text-sm text-brand-warning" role="alert">{marketsError}</p><Button size="sm" variant="outline" onClick={() => setReload((n) => n + 1)}>{t("Try again")}</Button></CardContent></Card>
