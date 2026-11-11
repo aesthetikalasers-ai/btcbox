@@ -558,3 +558,17 @@ Registration and the signed-out preview/home page are now the first pages to com
 - FINAL RESPONSIVE CI — frontend run `42357960746` completed SUCCESS on the responsive-test fix: npm install, TypeScript lint, production build, Chromium setup, and **68/68 desktop/mobile Playwright tests passed**. The new registration and public-preview breakpoint tests passed on both projects. The earlier 66-pass/2-fail run was the test-selector defect described above; corrected and verified with no retries reported in the final log.
 - FINAL BACKEND CI — run `42357960745` completed SUCCESS: unified build, backend test suite, fail-closed preflight, and output/entrypoint checks all passed.
 - The Vercel status remains separate and blocked by the free-plan daily deployment cap. No deploy was attempted. Manual screenshot review and live provider freshness remain pending; do not claim production visual/live-feed acceptance.
+
+
+## Superseding authentication contract — 2026-11-11
+
+This section supersedes the earlier Google-only / email-not-required notes in this historical document. The approved BTCBOX authentication contract is:
+
+- Supabase Email/password registration and sign-in, including email confirmation and password recovery.
+- Google OAuth registration and sign-in.
+- Ethereum and Solana wallet registration/sign-in.
+- Existing BTCBOX username/password authentication remains a separate credential path; it must not be confused with Supabase Email credentials.
+- Supabase-verified Email, Google, and wallet identities are exchanged for a BTCBOX session through the existing Supabase session endpoint. Email identities are accepted by the backend provider allowlist.
+- Email registration must call Supabase Auth `signUp()`; it must not fall back to the legacy `/api/register` endpoint.
+
+Do not remove Email registration/login UI or the Supabase Email Auth methods based on the superseded 2026-11-07 Google-only notes. Preserve Google, wallet, username, account-setup, and two-factor paths. Verify registration using a dedicated test account; do not create or modify production user records without explicit authorization.
