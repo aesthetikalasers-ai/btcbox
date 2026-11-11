@@ -115,7 +115,7 @@ export function AuthPage({ mode, redirectTo }: { mode: "login" | "register"; red
         </h1>
         <p className="mt-5 max-w-[480px] text-base leading-7 text-brand-text-secondary">
           {registering
-            ? t("Create your BTCBOX account with Google or your wallet, then complete your account setup.")
+            ? t("Create your BTCBOX account with email or Google, verify your identity, and complete your account setup.")
             : t("Access your BTCBOX account with your username, Google or a supported crypto wallet.")}
         </p>
         <div className="mt-9 grid max-w-[520px] gap-3 sm:grid-cols-2">
@@ -155,7 +155,7 @@ export function AuthPage({ mode, redirectTo }: { mode: "login" | "register"; red
             {(status === "two-factor" || registering) && <CardDescription className="max-w-[380px] text-sm leading-6 text-brand-text-muted">
               {status === "two-factor"
                 ? t("Enter your authenticator code to finish signing in.")
-                : t("Sign in with Google or connect your wallet, then complete your BTCBOX account setup.")}
+                : t("Create your BTCBOX account with email or Google, verify your identity, and complete your account setup.")}
             </CardDescription>}
             {status !== "two-factor" && <div data-testid="auth-mode-switcher" className="grid grid-cols-2 rounded-xl border border-brand-border bg-brand-surface-2 p-1 text-sm font-semibold">
               <Link to="/login" className={`flex min-h-10 items-center justify-center rounded-lg transition-colors ${!registering ? "bg-brand-accent text-white shadow-sm" : "text-brand-text-secondary hover:text-brand-text"}`}>{t("Sign in")}</Link>
