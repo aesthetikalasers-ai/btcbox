@@ -13,11 +13,13 @@ export function AuthPage({ mode, redirectTo }: { mode: "login" | "register"; red
   const { t, language, setLanguage, canChangeLanguage } = useI18n();
   const {
     status, needsCredentials, busy, error, notice, googleEnabled, walletEnabled, ethereumWallets,
-    signInWithGoogle, signInWithUsername, signInWithWeb3,
+    signInWithGoogle, signInWithUsername, signInWithWeb3, signInWithEmail, signUpWithEmail, requestPasswordReset,
     verifyTwoFactor, clearError,
   } = useAuth();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [emailAddress, setEmailAddress] = useState("");
+  const [emailPassword, setEmailPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [verifyCode, setVerifyCode] = useState("");
   const [verifyBusy, setVerifyBusy] = useState(false);
@@ -50,6 +52,19 @@ export function AuthPage({ mode, redirectTo }: { mode: "login" | "register"; red
   const submitUsernameLogin = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     try { await signInWithUsername(username, password); }
+    catch { /* AuthProvider displays the safe error. */ }
+  };
+
+  const submitEmailAuth = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    try {
+      if (registering) await signUpWithEmail(emailAddress, emailPassword);
+      else await signInWithEmail(emailAddress, emailPassword);
+    } catch { /* AuthProvider displays the safe error. */ }
+  };
+
+  const submitEmailPasswordReset = async () => {
+    try { await requestPasswordReset(emailAddress); }
     catch { /* AuthProvider displays the safe error. */ }
   };
 
@@ -178,6 +193,21 @@ export function AuthPage({ mode, redirectTo }: { mode: "login" | "register"; red
                   <KeyRound className="mr-2 h-4 w-4" /> {busy ? t("Signing in…") : t("Sign in with username")}
                 </Button>
               </form>}
+
+              <form className="space-y-3 border-t border-brand-border pt-4" aria-busy={busy} onSubmit={submitEmailAuth}>
+                <label className="block space-y-1.5 text-sm">
+                  <span className="text-brand-text-secondary">{t("Email address")}</span>
+                  <Input aria-label={t("Email address")} className="h-12" type="email" value={emailAddress} onChange={event => setEmailAddress(event.target.value)} autoComplete="email" inputMode="email" maxLength={254} placeholder={t("Email address")} required />
+                </label>
+                <label className="block space-y-1.5 text-sm">
+                  <span className="text-brand-text-secondary">{t("Email password")}</span>
+                  <Input aria-label={t("Email password")} className="h-12" type="password" value={emailPassword} onChange={event => setEmailPassword(event.target.value)} autoComplete={registering ? "new-password" : "current-password"} minLength={8} maxLength={128} placeholder={t("Email password")} required />
+                </label>
+                <Button type="submit" className="min-h-12 w-full" aria-busy={busy} disabled={busy || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailAddress.trim()) || emailPassword.length < 8}>
+                  {busy ? (registering ? t("Creating account…") : t("Signing in…")) : t(registering ? "Create account with email" : "Sign in with email")}
+                </Button>
+                {!registering && <button type="button" className="flex min-h-11 w-full items-center justify-center rounded-lg text-sm font-medium text-brand-text-secondary underline-offset-4 hover:text-brand-text hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent/70 disabled:opacity-50" disabled={busy || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailAddress.trim())} onClick={() => void submitEmailPasswordReset()}>{t("Forgot password?")}</button>}
+              </form>
 
               {identityButtons}
 
