@@ -8,6 +8,10 @@ import { ApiError, getAccount, type AccountBalance, type AccountSnapshot } from 
 import { formatDecimalAmount, localeTags, useI18n } from "../../lib/i18n";
 import { TokenIcon } from "../../components/ui/TokenIcon";
 
+/**
+ * Displays the user's asset balances, valuation status, and wallet actions.
+ * Refreshes account data through the existing account API without changing balances.
+ */
 export function AssetsPage() {
   const { t, language } = useI18n();
   const numberLocale = localeTags[language];
@@ -18,6 +22,10 @@ export function AssetsPage() {
   const requestIdRef = useRef(0);
   const controllerRef = useRef<AbortController | null>(null);
 
+  /**
+   * Loads the latest account and asset information for the current page.
+   * Preserves the existing loading and error handling behavior.
+   */
   async function load() {
     controllerRef.current?.abort();
     const controller = new AbortController();
