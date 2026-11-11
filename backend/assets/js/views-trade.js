@@ -116,9 +116,9 @@ VIEWS.trade = function(params){
       '<span class="mp-spacer"></span>'+
       '<select id="mobile-pair-select">'+PAIRS.map(p=>'<option value="'+p+'"'+(p===state.currentPair?' selected':'')+'>'+p.replace('USDT','/USDT')+'</option>').join('')+'</select>'+
       '<div class="mp-stats" aria-label="24 hour market statistics">'+
-        '<div><span>24h Change</span><b class="num" style="color:'+(s.chg>=0?'var(--up)':'var(--down)')+'">'+marketChangeText(s)+'</b></div>'+
-        '<div><span>24h High</span><b class="num">'+(Number(s.high)>0?fmtPrice(s.high,base):'—')+'</b></div>'+
-        '<div><span>24h Low</span><b class="num">'+(Number(s.low)>0?fmtPrice(s.low,base):'—')+'</b></div>'+
+        '<div><span>24h Change</span><b class="num" style="color:'+(s.chg>=0?'var(--up)':'var(--down)')+'" data-live-chg="'+state.currentPair+'">'+marketChangeText(s)+'</b></div>'+
+        '<div><span>24h High</span><b class="num" data-live-high="'+state.currentPair+'">'+(Number(s.high)>0?fmtPrice(s.high,base):'—')+'</b></div>'+
+        '<div><span>24h Low</span><b class="num" data-live-low="'+state.currentPair+'">'+(Number(s.low)>0?fmtPrice(s.low,base):'—')+'</b></div>'+
       '</div>'+
     '</div>'+
     /* desktop top workspace: pairs | chart | orderbook | form */
@@ -127,8 +127,8 @@ VIEWS.trade = function(params){
       '<div class="card chart-card">'+
         '<div class="chart-header">'+
           '<div class="pair-title">'+base+'/USDT</div>'+
-          '<div><div class="num price-big" style="color:'+(s.chg>=0?'var(--up)':'var(--down)')+'" data-live-price="'+state.currentPair+'">'+fmtPrice(s.price,base)+'</div><div class="num chg-small" style="color:'+(s.chg>=0?'var(--up)':'var(--down)')+'" data-live-chg="'+state.currentPair+'">'+pct(s.chg)+'</div></div>'+
-          '<div class="hl"><div>24h High <span class="num">'+fmtPrice(s.high,base)+'</span></div><div>24h Low <span class="num">'+fmtPrice(s.low,base)+'</span></div></div>'+
+          '<div><div class="num price-big" style="color:'+(s.chg>=0?'var(--up)':'var(--down)')+'" data-live-price="'+state.currentPair+'">'+marketPriceText(s,base)+'</div><div class="num chg-small" style="color:'+(s.chg>=0?'var(--up)':'var(--down)')+'" data-live-chg="'+state.currentPair+'">'+marketChangeText(s)+'</div></div>'+
+          '<div class="hl"><div>24h High <span class="num" data-live-high="'+state.currentPair+'">'+(Number(s.high)>0?fmtPrice(s.high,base):'—')+'</span></div><div>24h Low <span class="num" data-live-low="'+state.currentPair+'">'+(Number(s.low)>0?fmtPrice(s.low,base):'—')+'</span></div></div>'+
           '<div class="spacer"></div>'+
           '<div id="tf-switch" class="tf-switch">'+tfBtns+'</div>'+
         '</div>'+

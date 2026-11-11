@@ -591,6 +591,7 @@ export interface AuthClientConfig {
   supabase_url: string;
   publishable_key: string;
   google_enabled: boolean | null;
+  wallet_enabled: boolean | null;
 }
 
 export async function getAuthClientConfig(signal?: AbortSignal): Promise<AuthClientConfig> {

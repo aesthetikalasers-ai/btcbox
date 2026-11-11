@@ -6,7 +6,7 @@ import { Card, CardHeader } from './Card';
 import { cn } from '../../../lib/utils';
 import { useI18n, localeTags } from '../../../lib/i18n';
 
-const RANGES = ['1h', '24h', '6h', '7d', '30d'];
+const RANGES = ['1h', '6h', '24h', '7d', '30d'];
 
 export function LiquidityChart({ candles = [] }: { candles?: MarketCandle[] }) {
   const { t, language } = useI18n();
@@ -100,7 +100,7 @@ export function LiquidityChart({ candles = [] }: { candles?: MarketCandle[] }) {
 
   return (
     <Card className="flex h-[320px] min-w-0 flex-col sm:h-[340px] md:h-[400px]">
-      <CardHeader title="BTC/USDT price history">
+      <CardHeader title={t("BTC/USDT price history")}>
         <div className="flex max-w-full gap-0.5 overflow-x-auto rounded-lg border border-brand-border-subtle bg-brand-surface-2 p-0.5 shadow-[inset_0_1px_1px_rgba(0,0,0,0.3)] custom-scrollbar">
           {RANGES.map(r => (
             <button

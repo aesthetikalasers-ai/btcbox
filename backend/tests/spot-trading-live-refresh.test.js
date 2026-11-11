@@ -12,7 +12,7 @@ const page = pages.slice(start, end > start ? end : undefined);
 
 test('spot trading page refreshes public ticker and order book without reloading order-entry state', () => {
   assert.ok(start >= 0 && page.length > 0);
-  assert.ok(page.includes('window.setInterval(refreshMarketData,15000)'));
+  assert.ok(page.includes('window.setInterval(refreshMarketData,5000)'));
   assert.ok(page.includes('getMarkets(controller.signal)'));
   assert.ok(page.includes('getOrderBook(symbol,controller.signal)'));
   assert.ok(page.includes('setTicker(selected)'));
@@ -65,8 +65,8 @@ test('spot market preview route is public while account and order APIs remain se
   assert.ok(page.includes('getOrders(controller.signal)'));
 });
 
-test('public market overview polls at 15 seconds and prevents overlapping refreshes', () => {
-  assert.ok(dashboard.includes('window.setInterval(loadMarkets, 15000)'));
+test('public market overview polls at 5 seconds and prevents overlapping refreshes', () => {
+  assert.ok(dashboard.includes('window.setInterval(loadMarkets, 5000)'));
   assert.ok(dashboard.includes('if (refreshing || controller.signal.aborted) return;'));
   assert.ok(dashboard.includes('refreshing = true;'));
   assert.ok(dashboard.includes('refreshing = false;'));
@@ -76,7 +76,7 @@ test('market table clears last confirmed prices and reports feed unavailability'
   assert.ok(marketTable.includes('const feedError = error || (snapshotStale ?'));
   assert.ok(marketTable.includes('const displayMarkets = feedError ? [] : markets'));
   assert.ok(marketTable.includes('feedError && displayMarkets.length === 0'));
-  assert.ok(marketTable.includes('snapshotAgeSeconds > 90'));
+  assert.ok(marketTable.includes('markets.some((item) => (item.snapshotTs || 0) > 0 && Date.now() / 1000 - (item.snapshotTs || 0) > 90)'));
   assert.ok(!marketTable.includes('Showing the last confirmed market data.'));
   assert.ok(dashboard.includes('setMarkets([]);'));
 });
@@ -102,7 +102,7 @@ test('spot UI labels server snapshot time and does not substitute browser receip
 
 const authPage = fs.readFileSync(path.resolve(__dirname, '../../frontend/src/features/auth/AuthPages.tsx'), 'utf8');
 
-test('sign-in and registration pages expose Supabase Email/Password and Google auth', () => {
+test('sign-in and registration pages expose Google and wallet auth; email/password entry removed', () => {
   assert.ok(authPage.includes('Google'));
   assert.ok(authPage.includes('Wallet'));
   assert.ok(authPage.includes('signInWithGoogle'));
@@ -110,13 +110,8 @@ test('sign-in and registration pages expose Supabase Email/Password and Google a
   assert.ok(authPage.includes('Connect Solana wallet'));
   assert.ok(authPage.includes('signInWithWeb3'));
   assert.ok(authPage.includes('Sign in with username'));
-  assert.ok(authPage.includes('Sign in with email'));
-  assert.ok(authPage.includes('Register with email'));
-  assert.ok(authPage.includes('Create account with email'));
-  assert.ok(authPage.includes('Forgot password?'));
-  assert.ok(authPage.includes('signInWithEmail'));
-  assert.ok(authPage.includes('signUpWithEmail'));
-  assert.ok(authPage.includes('requestPasswordReset'));
+
+  assert.ok(!authPage.includes('requestPasswordReset'));
   assert.ok(authPage.includes('completePasswordRecovery'));
 });
 

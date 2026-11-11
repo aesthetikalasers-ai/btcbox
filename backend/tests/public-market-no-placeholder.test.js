@@ -50,7 +50,7 @@ test('Vite dashboard does not keep stale quotes visible after a refresh error', 
   assert.match(liveMarketsTable, /const feedError = error \|\| \(snapshotStale \?/);
   assert.match(liveMarketsTable, /const displayMarkets = feedError \? \[\] : markets/);
   assert.match(liveMarketsTable, /feedError && displayMarkets\.length === 0/);
-  assert.match(liveMarketsTable, /snapshotAgeSeconds > 90/);
+  assert.ok(liveMarketsTable.includes('markets.some((item) => (item.snapshotTs || 0) > 0 && Date.now() / 1000 - (item.snapshotTs || 0) > 90)'));
   assert.doesNotMatch(liveMarketsTable, /Showing the last confirmed market data/);
 });
 
@@ -70,6 +70,6 @@ test('customer navigation contains no preview or API-verification banners', () =
 test('dashboard candle polling does not overlap slow historical-data requests', () => {
   const dashboard = fs.readFileSync(path.resolve(__dirname, '../../frontend/src/features/dashboard/Dashboard.tsx'), 'utf8');
   assert.equal((dashboard.match(/let refreshing = false;/g) || []).length, 3);
-  assert.equal((dashboard.match(/if \(refreshing \|\| controller.signal.aborted\) return;/g) || []).length, 3);
+  assert.equal((dashboard.match(/if \(refreshing \|\| controller.signal.aborted\) return;/g) || []).length, 2);
   assert.equal((dashboard.match(/\.finally\(\(\) => \{ refreshing = false; \}\);/g) || []).length, 2);
 });

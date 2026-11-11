@@ -6510,3 +6510,176 @@ Current branch HEAD at note creation: `51c302a96f069876e438321d3597501fcbc26b54`
 
 - FINAL CI — frontend run `42357960746` passed **68/68 desktop/mobile Playwright tests** after fixing the hidden duplicate-row locator. npm install, lint, build and Chromium setup passed. Backend run `42357960745` passed unified build, tests, fail-closed preflight and output/entrypoint checks.
 - Vercel's separate status remains blocked by the free-plan daily deployment cap. No deployment was attempted. Manual screenshot and live-provider checks remain pending.
+
+
+<!-- coderabbit-ai-generated:v1 -->
+
+<!-- coderabbit-ai-generated-section:v1:8fa62c1ee70e8663cb4fa29fd58e1301dffe367670a5954796fb70040545a30e -->
+
+## 2026-11-09 mobile handoff and focused fixes
+
+- SOURCE OBSERVED: fetched main at `05d2ac87e77e157284ccc16148e20cf516c8757d`; the canonical build uses `frontend/` and the `backend/` Vercel build. The older coordination inventories and CI results describe other revisions. PR #64 (public support and readiness) is open and conflicting with main; PRs #73 and #78 contain ongoing locale work. Do not merge them wholesale or assume their CI covers main.
+- SOURCE OBSERVED: My account previously presented the signed-out panel while auth was still loading. The page now shows loading until session restoration resolves.
+- SOURCE OBSERVED: a timed-out market poll could retain quotes; the BTC summary also remained visible with stale snapshots and the market list used only the newest snapshot to decide freshness. This batch clears quotes on timeout, cancels an in-flight request on unmount, hides all quotes when any timestamped row is stale, and labels stale home data.
+- REPRODUCED: the mobile public support link reaches `/support`, but the guest page has only a sign-in link and the backend chat endpoint requires a user; guest communication is NOT IMPLEMENTED. Core/API owner must design a real guest channel and its persistence/abuse controls.
+- NOT VERIFIED: live Supabase auth and session persistence, OAuth provider, production market timestamps, real support, all requested viewports, or production deployment. Auth initialization still treats configuration failures as anonymous and has no bounded initialization timeout; this needs a separate auth-state repair. Main's locale checker reports seven previously unregistered static labels; the Japanese mobile account/market views also contain English. Coordinate with existing locale work.
+- Scope is customer frontend and tests only; no trade layout, financial operation, database, deployment, or merge changed. See this commit's test evidence and task report for exact results.
+
+<!-- /coderabbit-ai-generated:v1 -->
+
+
+<!-- coderabbit-ai-generated:v1 -->
+
+<!-- coderabbit-ai-generated-section:v1:4166d4f341aeb7d38cc0648d131edf06b68bda405c0fb99fcaa8bd7a1fa09c64 -->
+
+### Validation for this batch
+
+- TEST PASSED: frontend lint and build; 8/8 focused account/support tests and 14/14 market tests across desktop/mobile Chromium with synthetic isolated responses.
+- FAILED: `npm run check:i18n` reports seven pre-existing static keys missing from the English dictionary. Local preview at 390px exposed additional Japanese/English mixing; locale work remains open.
+- Initial market test run exposed a missing stale badge on Home; added it and the full market suite passed on isolated rerun. One intervening run lost Playwright artifacts because two test commands shared their output directory; no concurrency used in final run.
+- Local Vite preview had no configured API; it does not verify production login, support delivery, or live market updates.
+
+<!-- /coderabbit-ai-generated:v1 -->
+
+
+<!-- coderabbit-ai-generated:v1 -->
+
+<!-- coderabbit-ai-generated-section:v1:0c7e19585645fa50d2a64f9beffdf1aa7637728d7ba9397c2e890f613e56542d -->
+
+## 2026-11-09 next-phase evidence (main baseline)
+
+- Latest fetched main:05d2ac87e77e157284ccc16148e20cf516c8757d; accepted prior task work remains74a8dfe97f26b7b3b4ce1b63f08cf4da22de5de2. No new work branch,merge,push,deployment or production writes.
+- SECURITY TEST PASSED: main already includes2a3810da1aef2c0c7c58df0cfdb059a212eeb0d6 retiring ADMIN_PASS startup gating. Active admin authentication is Supabase Bearer plus server-side RBAC; no legacy password fallback. `mise exec node@22 -- node --test tests/admin-legacy-password-env.test.js tests/admin-auth.test.js tests/admin-rbac.test.js tests/admin-route-permissions.test.js` in backend passed27/27. No production credential read or changed. Historical weak-password startup warning is superseded for current source; deployed-version and production identity/configuration remain NOT VERIFIED.
+- HISTORICAL CI VERIFIED: GitHub run42357960746/job128360079462 log says68 passed(1.1m),SHA367e2779fcc5122cbe8e99e9445cf6c1d0f0fb2b. This is not current-main acceptance.
+- MAIN E2E EXECUTED: main frontend exported with git archive to /tmp/btcbox-main-next-phase,existing node_modules reused. Node22.23.4,Playwright1.65.0,Chromium1254. `mise exec node@22 -- npx playwright test --workers=2 --output=/tmp/btcbox-main-next-e2e` completed exit1:72 passed,27 failed,1 intentionally skipped. Browser available. Failures involve retired email controls,OAuth cancellation destination,Home hierarchy/stale status,and mobile/ambiguous locators; responsive matrix did not complete. No tests weakened or email flow restored.
+- CANDIDATES ANALYZED: PR64 f4a449bde40c3000c0a698363a058edd850e0b60 (158 unique/30 main commits missing,47 changed files,21 simulated conflicts): only select missing read-only diagnostics/planning for later review; support/0033 already present. PR73 47edfd6961a45b07b94158539bec398cccf80e95 (76/30,25 files,15 conflicts): do not duplicate seven-locale work already in main. PR78 c4c7f8559f7fafa9ac29ffd0c61c31bd13da463d (3/20,3 files,1 conflict): locale-formatting patch worth porting selectively; preserve newer polling/auth/visual work. merge-tree simulation only,no actual merge.
+- K-LINE PLAN: compact Markets header link to an anchor on existing BTC/USDT analysis; reuse chart and request/store logic. Do not imply arbitrary selected-pair support or change locked Trade structure. Cloud Preview inspected at390px; no horizontal overflow in no-data state,not live-market acceptance.
+- APPROVAL PACKET PREPARED: guest support needs a confirmed official channel or separately approved guest-ticket API/data design; KYC needs owner retention/deletion policy and approved isolated storage verification; withdrawals require staged migration/idempotency/ledger evidence and explicit production cutover approval. No approval is inferred from this report. No financial or database actions performed.
+
+
+<!-- /coderabbit-ai-generated:v1 -->
+<!-- coderabbit-ai-generated:v1 -->
+
+<!-- coderabbit-ai-generated-section:v1:66c48b4f63dfc293bf65f472f64d56aa59b6750f7fee52dc78d777b2586e995e -->
+
+## 2026-11-09 independent redesign and design correction
+
+- OWNER AUTHORIZATION: the latest assignment explicitly lifts the previous Trade layout lock and authorizes CodeRabbit to implement the integrated frontend on `feature/btcbox-complete-redesign`. The subsequent correction requires a coherent product design system, no promotional poster composition, Chinese administration, Japanese-default multilingual customer pages, and preservation of real business/API behavior. These instructions supersede earlier layout/ownership restrictions for this isolated assignment; they do not authorize a merge, deployment, database migration or production financial operation.
+- BASELINE: latest fetched stable main is `05d2ac87e77e157284ccc16148e20cf516c8757d`. The new branch was created from that commit, then accepted account-loading/market-freshness fixes and prior evidence were preserved via `5cfa4e1` and `defa121`. Older candidate branches were not merged. Work is isolated from other branches.
+- IMPLEMENTED: unified navy surfaces, blue actions, typography, borders, navigation and compact mobile layouts; official unmodified white logo; market-first home, favorites/sorting, market chart entry, inline responsive Trade chart/order-entry/depth with interval controls, exact decimal estimate, compact account/assets/order views and explicit session-restoration recovery. The selected Trade pair now reaches its actual USDT market. No fabricated market or financial fallback data is introduced.
+- LANGUAGE: customer default remains Japanese with English, Chinese, Spanish, Portuguese, Italian and German choices. Admin presentation is independently Chinese, without overwriting the customer's saved language. Server enums and API permission names remain unchanged. Unknown provider/server error payloads can retain their original language; dictionary key coverage is not a proof of complete linguistic quality.
+- ADMIN PRESERVATION: existing Supabase/RBAC gates, user lookup, manual credit, addresses/fees/announcement configuration, withdrawal review/manual payout references, KYC review, audit provenance/pagination, orders, support replies, Seconds policy/open positions, market configuration and administrator provisioning remain wired to their existing handlers. No permission or financial-validation handler was removed. The unified build now includes only the three whitelisted original brand images.
+- DEPLOYMENT BOUNDARY: `backend/vercel.json` disables Git deployment for this new branch. No main merge, production deployment, database or financial operation is part of this delivery. All visual fixtures and automated test identities are synthetic; the branch is not production-approved.
+- REMAINING: email-provider login/registration/recovery requested earlier is absent from the current Google/Web3 allowlist contract; it was not silently enabled for the visual correction. Real Supabase OAuth, KYC storage/RLS, funds/execution and guest message delivery are not certified by fixture tests. Brand download provenance does not prove the owner's commercial authorization. Final validation evidence is appended separately.
+
+
+<!-- /coderabbit-ai-generated:v1 --><!-- coderabbit-ai-generated:v1 -->
+
+<!-- coderabbit-ai-generated-section:v1:a85d99d63f70e7ed03e6550077eb717659167e6387694d9f41bb0e2b32fa08d1 -->
+
+### Redesign validation and delivery limits
+
+- PASSED: frontend lint, TypeScript production build; locale checker939 keys per supported locale,0 missing/duplicate. Exact-decimal tests3/3. Backend suite493/493; latest packaging/admin-entry/CSP/auth subset66/66 after final build. Overlapping subsets are not additional distinct tests.
+- FULL E2E:99 passed,18 failed,1 intentionally skipped (118 cases),4.9min. The six new redesign/session scenarios passed on both desktop and mobile. Remaining nine failures per device concern retired email controls,Google label/registration layout expectations,and OAuth registration cancellation destination. Failures remain reported rather than suppressed. After final Chinese admin route/date/fallback refinement,focused admin E2E26/26 passed; no customer business behavior changed afterward. A duplicate dictionary property caught by final TypeScript build was removed; final build passes.
+- VISUAL:20 desktop/mobile screenshots from the task's shared Chromium, covering home,markets,login,registration,account,trade,assets,orders,admin access and admin overview. All are visibly marked synthetic UI fixtures; they are not live API,prices,funds,orders,provider or production acceptance evidence. Logo/overflow checks also ran at320,360,390,430,768,1440px. Native Safari/WebKit has not been exercised.
+- LIMITS: approximately1.263MB main bundle warning remains. Unknown server error payloads may retain upstream language. Email auth,guest support delivery and live integration requirements remain open as noted above. No production readiness or all-tests-green claim. CI results belong to the pushed branch SHA and must be read independently of old68-pass evidence.
+
+
+<!-- /coderabbit-ai-generated:v1 --><!-- coderabbit-ai-generated:v1 -->
+
+<!-- coderabbit-ai-generated-section:v1:64f0cacead09f4237db0094af023eb04991f0b565e30a311ed1069eab66a7f63 -->
+
+## 2026-11-09 V211 continued source trace and confirmed non-trading fixes
+
+- CURRENT OWNER DIRECTION: preserve the approved V211 professional terminal; identify its exact source before changing trading structure. This supersedes the earlier redesign layout freedom for subsequent work. No transaction layout/source deletion, push, merge, deployment, provider operation or production database write in this batch.
+- INSPECTION BASELINE: merged task HEAD `610031e181dddf3a9f03a42381e6db8203a229fa`; latest fetched main remains `8db5de501949751135c84abc28a60f9f30dcdc1a`, not integrated. Work remains isolated on `coderabbit/btcbox-mobile-audit/a99c5bf9`.
+- NEW EVIDENCE: restore notes identify upstream `avali9308-code/btcbox-v33` at `18a354a9e8e1d0365e240c7c44eda4a18d62ce07`. Its archived terminal, imported by `a915ec8d661d4bd2df26e7a67eab631305551954`, has exactly the current legacy CSS blob `8516acef37a5e70b072d786ce33083b6c3d25528`. Original ZIP CSS is also byte-identical. Historical coordination explicitly describes the approved mobile orderbook-left/form-right 38/62 layout and chart drawer above five-item navigation; it also says device acceptance was not run. These facts establish layout lineage, not the V211 version label.
+- REPLACEMENT CHAIN: initial React SpotTradingPage `824c9448d6324f879759b243fbf5c9c013c3b137`; React-only build switch `58cc29cfb3cd8e54c4a8c0461b0a4f49b9dc4fbe`; later mobile chart/depth drawers; current redesign `8e7267dc7ad54c446c4b80b2406b82da5bdf9c1c` uses inline chart/entry/depth. Current React cannot be certified as preserving the old professional layout. Legacy code remains intact.
+- REMAINING BASELINE GAP: no source/snapshot or reachable commit binds the name V211 to the archived terminal. The old handoff's source commit references return GitHub HTTP422 in the upstream repo. Minimal owner question is only whether the already recovered four-zone desktop / left-book-right-entry mobile terminal is the version they call V211; no repeated source-file request is needed.
+- FIXED: admin tabs preserve complete horizontal labels and scroll at 320/390/768px; Chinese admin session-expired feedback still denies access; account support/security descriptions translated across all supported locales and legacy Vietnamese. Existing API, permission and financial handlers remain unchanged.
+- VERIFIED: frontend lint/typecheck/build pass; locale checker941 keys with no missing/duplicate keys; focused admin/account browser E2E20/20; backend493/493. Six fresh shared-Preview screenshots cover desktop/mobile account,admin,expired-session states using visibly marked synthetic fixtures. Existing full CI at8e7267d remains99 pass/18 fail/1 skip, not superseded by this focused pass. No new CI triggered because no push.
+- ARTIFACTS: task Outputs `btcbox-v211/trace-evidence.md`, `btcbox-v211/source-history.json`, `btcbox-nontrade-fixes/` screenshots. Trading layout acceptance remains open pending version identity; language coverage is not a full linguistic/real-provider acceptance.
+
+
+<!-- /coderabbit-ai-generated:v1 --><!-- coderabbit-ai-generated:v1 -->
+
+<!-- coderabbit-ai-generated-section:v1:dfe06c4b848667926ac3570d3be5f7511426546952cb19d89e965003186dc329 -->
+
+## 2026-11-09 Owner-confirmed V211 layout implementation
+
+- OWNER CONFIRMATION: mobile orderbook-left/order-entry-right with K-line drawer is now the confirmed V211 requirement. No additional version-name confirmation is required. This supersedes the prior pending-identity stop condition for implementing this structure; it does not establish that every historical source detail was accepted.
+- IMPLEMENTED on the isolated task branch: compact workspace uses38/62 left depth/right entry with full-width orders below; chart is mounted in a modal bottom drawer above60px navigation plus safe area. Desktop restores pair list/chart/book/entry four zones with legacy170px/adaptive/min240px20%/min280px24% proportions and500/560px chart height. Pair choices reuse the existing enabled-pair API response. Live quote/precision/idempotency/order/cancel handlers and backend remain preserved.
+- INTERACTION: existing Radix modal primitive supplies focus containment/Escape/outside close; explicit close restores entry focus. Chart initializes after portal node mount, cleans up on close, preserves form values across chart/timeframe changes, and handles viewport transitions. No market/financial fallback fixtures added to application code.
+- ACCEPTANCE SCOPE: new responsive browser assertions verify left/right geometry at320/390/768 and desktop1440, drawer canvas and safe navigation clearance, repeated close/open, focus return and unchanged edited exact amounts. Previous inline-chart expectations changed to the newly authorized drawer contract; first stale-expectation run had2 failures,follow-up24 passed before final sizing refinements. Final current-source results are in task validation record/Outputs.
+- OTHER PAGES: previous admin navigation,Chinese expired-session feedback and account translations retained; their browser cases are included in the affected regression run. Non-trading commit e9b988b remains separately reviewable. Historical18 CI failures remain independent outstanding issues. No push/merge/deploy/database or real funds operation authorized or performed.
+
+
+<!-- /coderabbit-ai-generated:v1 --><!-- coderabbit-ai-generated:v1 -->
+
+<!-- coderabbit-ai-generated-section:v1:8b459f70add42507085e42c27f3ac0eb5336ac27b646fb6c7cfb8dce0e7233c5 -->
+
+## 2026-11-09 spot terminal visual refinement
+
+Owner requests production-quality visual hierarchy without changing API/function contracts or official logo/fonts. Compact terminal remains left-book/right-entry plus chart drawer; proportions now40/60 rather than38/62 under explicit proportion-optimization authorization. Desktop keeps four zones. Consolidated existing exchange CSS into one scoped ruleset,12px depth rows,46px inputs,44px buy/sell selection,48px order action,30px primary quote and secondary high/low grid. Compact cards/borders removed; policy message remains visible below submit and execution gates unchanged.
+
+Available balances now display only the existing validated account response,using exact string-aware locale formatting; signed out/failed reads show dash,not zero. Snapshots clear on refresh/pair change and while order/cancel busy,requiring refreshed reads after mutations. No new endpoint or business fallback. Submit/cancel handler bodies remain byte-identical to0ce8d9d. Radix trigger now belongs to the same Root as its portal for consistent outside-click/focus handling. No other page logo/font/global tokens changed. Nontrade admin/account regression cases retained.
+
+Acceptance includes320/360/375/390/393/414/430/768/1440 geometry/drawer checks and buy/sell/balance/input tests. Test fixtures only; no actual financial operation. Outputs contain full mobile/desktop scroll captures and390px view. Current exact-SHA results are recorded separately in task validation record. Prior18CI failures remain outside this visual patch. No push/merge/deployment/database action.
+
+
+<!-- /coderabbit-ai-generated:v1 --><!-- coderabbit-ai-generated:v1 -->
+
+<!-- coderabbit-ai-generated-section:v1:45eb6df5249a6b937b27aa9dbc1f5e6d6539c29a3bbab8786725b5670fab65ad -->
+
+## 2026-11-09 terminal detail refinement
+
+Preserved accepted compact40/60left-depth/right-entry and chart drawer,desktopfourzones. Depth column grid now1.35:1 with aligned headers,existing mono font,12px minimum and26px row height; emphasized latest API price. Subtle9%opacity cumulative backgrounds use only visible verified orderbook quantities,normalized within each side,not financial calculations or invented liquidity. Blank/stale depth renders no bars. Quote spacing reduced; total/available/input/action hierarchy refined; routine policy notice muted but retained. Open orders use divider rows with existing status/cancel handler/gates.
+
+Searched frontend/src and backend/assets: no renderedCodeRabbit/Synthetic fixture/scroll capture strings existed. Previous visible labels were capture annotations. New screenshot artifacts omit visible annotations and retain generation/test provenance in PNG metadata and report. No production code marker stripped, no API source fabrication. Submit/cancel handlers remain byte-identical to8a857d7;no backend/API/decimal/logo/nav changes. No push/merge/deploy/productiondata operations.
+
+Fresh affected browser suite28/28,including375/390/414depth sizing/row/cancel-nav clearance and existing320–1440geometry,input/staleness/nontradecases. Build/typecheck,lint,i18n pass;backend493/493anddecimal3/3reused unchanged.9actual sharedPreview screenshots include375/390/414 and desktopfullscroll;fixturecontext documented in report. NativeSafari/live provider execution and old18fullCI failures remain outstanding. Final SHA and reproducible evidence are in task Outputs/validation record.
+
+
+<!-- /coderabbit-ai-generated:v1 -->
+
+## 2026-11-07 — 2号 AI public market no-placeholder batch
+
+- Dedicated branch: `fix/public-market-no-placeholder-data-20261107`, based on `main` at `2a3810d`; integration target remains `work/btcbox-unified-20261104`.
+- Public Markets previously formatted zero-initialized pair entries as prices. Invalid/empty refreshes could also leave old values in memory and render them as current.
+- Fixed provider parsing to accept only positive prices from the current response, clear missing/failed quotes, update all visible quote/stat elements, and hide unsupported/empty rows on Home and Markets. Trade headers now show unavailable values rather than formatting zero. Removed public-facing simulation/backend-internal wording from unavailable states.
+- Added market-adapter and public UI regression tests. Exact-head CI, browser QA, and live-provider Preview verification are pending; do not mark accepted until CI passes. No production deployment, environment change, database write, or real financial operation.
+- Detailed handoff: `docs/PUBLIC-MARKET-NO-PLACEHOLDER-HANDOFF-2026-11-07.md`.
+
+
+## 2026-11-07 — 2号 AI Vite public UI copy and stale-market follow-up
+
+- Vercel project lookup for btcboxcdt reports framework `vite`; the same repository also contains the backend static app. The batch therefore covers both the backend market adapter/views and the Vite customer-facing dashboard/pages, rather than assuming the legacy HTML view is the only active UI.
+- Vite dashboard previously retained last confirmed quote rows after a market refresh error while labelling the table as live. It now clears market rows on refresh failure, and the table itself suppresses any quote rows whenever an error is present. Unavailable state is explicit and does not show stale snapshot/provider metadata or a misleading zero-pair count.
+- Removed customer-visible wording that described orders as “sample or simulated” and “never simulated in the browser”; replaced it with ordinary account/market copy.
+- Added Playwright regressions for a successful quote followed by a failed refresh and for empty market responses; added a source-contract test preventing simulation wording in customer pages.
+- PR #63 now includes these Vite changes as well as the backend view/adapter fixes. Exact-head frontend/backend CI and browser QA remain pending; no production deployment or financial/DB operation.
+
+
+## 2026-11-07 — 2号 AI final visible-copy cleanup
+
+- Removed the visible “Preview” status pill from the top bar and “Preview · API verification pending” banner from the sidebar.
+- Replaced the customer-facing “Integration pending / scaffolded / in this preview” section placeholder with a neutral “Unavailable” state.
+- Removed remaining customer-facing “sample/simulated orders” copy from both Orders page implementations.
+- Backend market depth cache is now cleared when the current order-book provider refresh fails, instead of continuing to display an old book.
+- Regression tests cover these visible-copy rules and stale depth clearing. Latest PR head is d80ce66; exact-head CI is queued/running. No merge or deployment has been performed.
+<!-- coderabbit-ai-generated:v1 -->
+
+<!-- coderabbit-ai-generated-section:v1:1e31c5667b43cad150e5e4b553c3a2dfc61db5e79105dbdbf4eb05a144211ee8 -->
+
+## 2026-11-09 customer cleanup and local integration
+
+Owner requested customer-visible development-copy cleanup, precise balance-aware order states, existing terminal preservation and integration only after green CI. Fetched main 8db5de501949751135c84abc28a60f9f30dcdc1a and unified 27f88f99e70563ac5f7622e096420451a4f1e413. Local merge6056f84 preserves the newer stale-feed locks, language selectors and approved terminal while retaining unified legacy live-stat updates and both handoffs. Local merge4e1eb01 preserves main's working 2FA challenge within the existing auth design; the imported regression now correctly expects Verify disabled until a code is entered.
+
+Removed futures Coming-soon promise and integration-progress wording in all eight preserved dictionaries; legitimate document preview, KYC pending state, input placeholders, test fixtures and internal docs retained. Added localized unavailable account/chart messages after actual Preview exposed English fallback text. Adopted PR78 customer date/amount locale formatting; admin remains Chinese per Owner. PR73 dictionaries were compared against the expanded current dictionary; PR65 is not applied wholesale because it overlaps and would replace the accepted terminal/account protections. No claim that all four open PRs are fully integrated.
+
+Spot book digits remain12px with19px midprice and restrained12%depth fill. New-order button rejects unknown/insufficient balances and invalid inputs using exact decimal comparison, with the same rule before submission; existing pending intent retries retain their ID and backend validation. No execution, permission, fee, cancellation or production-data bypass.
+
+Fresh backend493/493,decimal4/4,build/lint and all944translation keys pass. Eight-locale browser availability checks2/2 pass. Full E2E and focused final rerun results are in task Outputs and validation record. Historical18auth failures match prior error signatures and remain unresolved; cannot merge under the Owner's green-CI gate. No push,remote merge,deployment or production database change performed. Actual Preview screenshots use unavailable local provider/account state without fake fallback data. Live admin data cleanup, native Safari and complete external-service acceptance remain unverified.
+
+
+<!-- /coderabbit-ai-generated:v1 -->

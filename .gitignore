@@ -26,3 +26,5 @@ yarn-error.log*
 .env
 .env.*
 !.env.example
+frontend/package-lock.json
+backend/dist/

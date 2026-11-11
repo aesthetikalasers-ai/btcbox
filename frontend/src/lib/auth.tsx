@@ -4,6 +4,19 @@ import { completeLogin2fa, exchangeSupabaseSession, getAccount, getAuthClientCon
 
 type AuthStatus = "loading" | "anonymous" | "authenticated" | "two-factor" | "password-recovery";
 
+// Map server auth error codes to actionable, user-safe messages. Never expose
+// Supabase UUIDs, database details, or "contact support" with no next step.
+function friendlyAuthErrorMessage(cause: unknown): string {
+  const code = (cause as { code?: string })?.code;
+  if (code === "SUPABASE_IDENTITY_MISMATCH") return "This email is already registered on BTCBOX. Please sign in instead, or contact support to link this Google account.";
+  if (code === "IDENTITY_IN_USE") return "This wallet is already linked to another BTCBOX account. Please sign in with that account.";
+  if (code === "ACCOUNT_FROZEN") return "This BTCBOX account is frozen. Please contact support.";
+  if (code === "AUTH_PROVIDER_NOT_ALLOWED") return "This sign-in method is not available. Please use another method.";
+  if (code === "GOOGLE_PROVIDER_UNAVAILABLE") return "Google sign-in is temporarily unavailable. Please try again later.";
+  if (code === "INVALID_SUPABASE_IDENTITY") return "The sign-in identity could not be verified. Please try again.";
+  return cause instanceof Error ? cause.message : "Authentication callback failed.";
+}
+
 type EthereumWalletChoice = {
   info: { uuid: string; name: string; rdns?: string };
   provider: unknown;
@@ -22,8 +35,8 @@ function getInjectedSolanaWallet(): unknown {
   });
 }
 type AuthContextValue = {
-  status: AuthStatus; email: string; busy: boolean; error: string; notice: string; googleEnabled: boolean; needsCredentials: boolean; credentialRecoveryReady: boolean; credentialRecoveryNeedsTwoFactor: boolean; ethereumWallets: EthereumWalletChoice[];
-  signInWithGoogle: () => Promise<void>;
+  status: AuthStatus; initializationIssue: boolean; email: string; busy: boolean; error: string; notice: string; googleEnabled: boolean; walletEnabled: boolean; needsCredentials: boolean; credentialRecoveryReady: boolean; credentialRecoveryNeedsTwoFactor: boolean; ethereumWallets: EthereumWalletChoice[];
+  signInWithGoogle: (intent?: "login" | "register") => Promise<void>;
   signInWithUsername: (username: string, password: string) => Promise<void>;
   setBtcboxCredentials: (username: string, password: string) => Promise<void>;
   reauthenticateCredentialsWithGoogle: () => Promise<void>;
@@ -52,11 +65,13 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const clientRef = useRef<SupabaseClient | null>(null);
   const [status, setStatus] = useState<AuthStatus>("loading");
+  const [initializationIssue, setInitializationIssue] = useState(false);
   const [email, setEmail] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [googleEnabled, setGoogleEnabled] = useState(true);
+  const [walletEnabled, setWalletEnabled] = useState(false);
   const [identityLinkSourceVerified, setIdentityLinkSourceVerified] = useState(false);
   const [pendingIdentityLinkToken, setPendingIdentityLinkToken] = useState("");
   const [identityLinkNeedsTwoFactor, setIdentityLinkNeedsTwoFactor] = useState(false);
@@ -110,13 +125,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [setSignedIn]);
 
   useEffect(() => {
+    // If an OAuth callback lands on the wrong path (Supabase allowlist fell back
+    // to the site URL), ferry the code/hash to the real callback route before init.
+    const initSearch = new URLSearchParams(window.location.search);
+    const initHash = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+    if ((initSearch.has("code") || initSearch.has("error") || initHash.has("access_token")) && window.location.pathname !== "/auth/react-callback") {
+      window.location.replace("/auth/react-callback" + window.location.search + window.location.hash);
+      return;
+    }
     let active = true;
     const controller = new AbortController();
+    // A slow/configuration-failed restoration is not proof of a signed-out account.
+    // Keep credentials/session storage intact and expose an explicit recovery action.
+    setInitializationIssue(false);
+    const slowTimer = window.setTimeout(() => { if (active) setInitializationIssue(true); }, 12000);
     (async () => {
       try {
         const config = await getAuthClientConfig(controller.signal);
         if (!active) return;
         setGoogleEnabled(config.google_enabled === true);
+        setWalletEnabled(config.wallet_enabled === true);
         const client = createClient(config.supabase_url, config.publishable_key, {
           auth: { flowType: "pkce", persistSession: true, autoRefreshToken: true, detectSessionInUrl: false },
         });
@@ -139,10 +167,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
         if (active) setStatus("anonymous");
       } catch (cause) {
-        if (active) { setError(cause instanceof Error ? cause.message : "Authentication is unavailable."); setStatus("anonymous"); }
-      }
+        if (active) { setError(cause instanceof Error ? cause.message : "Authentication is unavailable."); setInitializationIssue(true); }
+      } finally { window.clearTimeout(slowTimer); }
     })();
-    return () => { active = false; controller.abort(); };
+    return () => { active = false; window.clearTimeout(slowTimer); controller.abort(); };
   }, [acceptSupabaseSession, setSignedIn]);
 
   const signInWithUsername = useCallback(async (username: string, password: string) => {
@@ -351,14 +379,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } finally { setBusy(false); }
   }, [identityLinkSourceVerified, setSignedIn]);
 
-  const signInWithGoogle = useCallback(async () => {
+  const signInWithGoogle = useCallback(async (intent: "login" | "register" = "login") => {
     setBusy(true); setError(""); setNotice("");
     try {
       if (!googleEnabled) throw new Error("Google sign-in is currently unavailable.");
       if (!clientRef.current) throw new Error("Authentication is still initializing. Please try again.");
       const { error: authError } = await clientRef.current.auth.signInWithOAuth({
         provider: "google",
-        options: { redirectTo: window.location.origin + "/auth/react-callback", queryParams: { prompt: "select_account" } },
+        options: { redirectTo: window.location.origin + "/auth/react-callback?intent=" + intent, queryParams: { prompt: "select_account" } },
       });
       if (authError) throw authError;
     } catch (cause) {
@@ -370,6 +398,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signInWithWeb3 = useCallback(async (chain: "ethereum" | "solana", selectedWallet?: unknown) => {
     setBusy(true); setError(""); setNotice("");
     try {
+      if (!walletEnabled) throw new Error("Wallet sign-in is temporarily unavailable.");
       const client = clientRef.current;
       if (!client) throw new Error("Authentication is still initializing. Please try again.");
       const statement = "Sign in to BTCBOX. This signature verifies wallet ownership only and does not authorize any blockchain transaction.";
@@ -382,7 +411,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const message = cause instanceof Error ? cause.message : "Wallet sign-in failed.";
       setError(message.toLowerCase().includes("provider is disabled") ? "This wallet network is not enabled in BTCBOX authentication settings." : message);
     } finally { setBusy(false); }
-  }, [acceptSupabaseSession]);
+  }, [acceptSupabaseSession, walletEnabled]);
 
   const signInWithEmail = useCallback(async (address: string, password: string) => {
     setBusy(true); setError(""); setNotice("");
@@ -522,7 +551,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await acceptSupabaseSession(data.session.access_token);
       window.history.replaceState({}, document.title, "/auth/react-callback");
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Authentication callback failed.");
+      setError(friendlyAuthErrorMessage(cause));
       const failedFlow = new URL(window.location.href).searchParams.get("flow") || "";
       if (failedFlow === "link-reauth") {
         setPendingIdentityLinkToken("");
@@ -592,10 +621,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const value = useMemo(() => ({
-    status, email, busy, error, notice, googleEnabled, identityLinkSourceVerified, identityLinkNeedsTwoFactor, completeIdentityLinkReauthTwoFactor, needsCredentials, credentialRecoveryReady, credentialRecoveryNeedsTwoFactor, ethereumWallets, signInWithGoogle, reauthenticateIdentityLinkWithGoogle, reauthenticateIdentityLinkWithWeb3, linkGoogleIdentity, linkWeb3Identity, signInWithUsername, setBtcboxCredentials, reauthenticateCredentialsWithGoogle, reauthenticateCredentialsWithWeb3, completeCredentialRecoveryTwoFactor, recoverBtcboxPassword, signInWithWeb3, signInWithEmail, signUpWithEmail,
+    status, initializationIssue, email, busy, error, notice, googleEnabled, walletEnabled, identityLinkSourceVerified, identityLinkNeedsTwoFactor, completeIdentityLinkReauthTwoFactor, needsCredentials, credentialRecoveryReady, credentialRecoveryNeedsTwoFactor, ethereumWallets, signInWithGoogle, reauthenticateIdentityLinkWithGoogle, reauthenticateIdentityLinkWithWeb3, linkGoogleIdentity, linkWeb3Identity, signInWithUsername, setBtcboxCredentials, reauthenticateCredentialsWithGoogle, reauthenticateCredentialsWithWeb3, completeCredentialRecoveryTwoFactor, recoverBtcboxPassword, signInWithWeb3, signInWithEmail, signUpWithEmail,
     requestPasswordReset, completePasswordRecovery, finishOAuth, verifyTwoFactor, getSupabaseAccessToken, signOut,
     clearError: () => setError(""),
-  }), [status, email, busy, error, notice, googleEnabled, identityLinkSourceVerified, identityLinkNeedsTwoFactor, completeIdentityLinkReauthTwoFactor, needsCredentials, credentialRecoveryReady, credentialRecoveryNeedsTwoFactor, ethereumWallets, signInWithGoogle, linkGoogleIdentity, linkWeb3Identity, signInWithUsername, setBtcboxCredentials, reauthenticateCredentialsWithGoogle, reauthenticateCredentialsWithWeb3, completeCredentialRecoveryTwoFactor, recoverBtcboxPassword, signInWithWeb3, signInWithEmail, signUpWithEmail,
+  }), [status, initializationIssue, email, busy, error, notice, googleEnabled, walletEnabled, identityLinkSourceVerified, identityLinkNeedsTwoFactor, completeIdentityLinkReauthTwoFactor, needsCredentials, credentialRecoveryReady, credentialRecoveryNeedsTwoFactor, ethereumWallets, signInWithGoogle, linkGoogleIdentity, linkWeb3Identity, signInWithUsername, setBtcboxCredentials, reauthenticateCredentialsWithGoogle, reauthenticateCredentialsWithWeb3, completeCredentialRecoveryTwoFactor, recoverBtcboxPassword, signInWithWeb3, signInWithEmail, signUpWithEmail,
     requestPasswordReset, completePasswordRecovery, finishOAuth, verifyTwoFactor, getSupabaseAccessToken, signOut, reauthenticateIdentityLinkWithGoogle, reauthenticateIdentityLinkWithWeb3]);
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

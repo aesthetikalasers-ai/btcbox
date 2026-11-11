@@ -24,7 +24,7 @@ test('delegated administrator provisioning sends the Auth UUID, not the internal
   assert.match(page, /value=\{user\.admin_auth_user_id\}/);
   assert.match(page, /item\.user_id===user\.admin_auth_user_id/);
   assert.match(page, /user\.admin_auth_user_id\|\|""/);
-  assert.ok(page.includes('BTCBOX UID {user.uid}'));
+  assert.ok(page.includes('adminText("· BTCBOX UID")}{user.uid}'));
   assert.ok(types.includes('admin_auth_user_id?: string;'));
 });
 

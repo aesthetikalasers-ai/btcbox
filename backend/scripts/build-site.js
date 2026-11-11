@@ -55,4 +55,17 @@ if (!html.includes('/frontend-assets/')) {
 fs.copyFileSync(frontendIndex, path.join(out, 'index.html'));
 fs.cpSync(frontendAssets, path.join(out, 'frontend-assets'), { recursive: true });
 
+// Explicitly allow only the official brand images required by the SPA.
+// Do not copy the entire Vite public directory into a financial application's output.
+const brandOutput = path.join(out, 'brand');
+fs.mkdirSync(brandOutput, { recursive: true });
+for (const name of ['btcbox-logo.png', 'btcbox-icon.png', 'btcbox-logo-white.png']) {
+  const source = path.join(frontendDist, 'brand', name);
+  if (!fs.existsSync(source) || !fs.statSync(source).isFile()) {
+    throw new Error(`Required official brand asset missing: ${name}`);
+  }
+  fs.copyFileSync(source, path.join(brandOutput, name));
+}
+
+
 console.log('BTCBOX unified public build created in dist/ (React customer/admin app + retained OAuth consent assets).');
