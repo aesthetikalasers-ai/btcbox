@@ -16,11 +16,18 @@ import { formatDecimalAmount, localeTags, useI18n } from "../../lib/i18n";
 import { TokenIcon } from "../../components/ui/TokenIcon";
 import { CandlestickSeries, ColorType, createChart, type UTCTimestamp } from "lightweight-charts";
 
+/**
+ * Provides the consistent page heading and content layout used by workspace pages.
+ */
 function PageFrame({eyebrow,title,description,children,className=""}:{eyebrow:string;title:string;description?:string;children:ReactNode;className?:string}){
  const {t}=useI18n();
  const tone = eyebrow.includes("/ TRADE") || eyebrow.includes("/ SPOT") || title === "Seconds" || title === "Spot" ? "trading" : eyebrow.includes("/ WEALTH") || title === "Earn" ? "earn" : eyebrow.includes("/ WALLET") ? "assets" : eyebrow.includes("/ HELP") ? "support" : eyebrow.includes("/ ACCOUNT") ? (title === "Orders" ? "orders" : "account") : "market";
  return <div className={`${className} tone-${tone} mx-auto flex w-full max-w-[1520px] min-w-0 flex-col gap-5 p-3 sm:gap-6 sm:p-4 md:p-6 lg:p-8`}><header className="min-w-0"><p className="page-accent mb-1 text-xs font-bold uppercase tracking-[.18em] text-brand-text-secondary">{t(eyebrow)}</p><h1 className="type-page-title break-words text-brand-text">{t(title)}</h1>{description?<p className="type-body mt-2 max-w-2xl break-words text-brand-text-secondary">{t(description)}</p>:null}</header>{children}</div>;
 }
+/**
+ * Displays the TradeHub service directory and its available product entry points.
+ * Keeps each service routed to its existing dedicated workflow.
+ */
 export function TradeHubPage(){
  const {t}=useI18n();
  const {status}=useAuth();
@@ -759,6 +766,10 @@ async function prepareKycDocumentImage(file: File): Promise<{
  }
 }
 
+/**
+ * Renders the identity-verification workflow and its document submission form.
+ * Leaves document validation and review decisions to the existing KYC services.
+ */
 export function KycPage(){
  const {t}=useI18n();
  const [account,setAccount]=useState<AccountSnapshot|null>(null);
@@ -831,6 +842,10 @@ export function KycPage(){
 
 
 
+/**
+ * Displays support conversations and the message composer.
+ * Preserves the existing message submission and retrieval behavior.
+ */
 export function SupportPage(){
  const {t,language}=useI18n();
  const [messages,setMessages]=useState<SupportMessage[]>([]);
@@ -890,6 +905,10 @@ export function SupportPage(){
 
 
 const depositNetworks:Record<string,string[]>={BTC:["BTC"],ETH:["ERC20"],USDT:["TRC20","ERC20","BEP20"],SOL:["SOL"],BNB:["BEP20"],USDC:["ERC20"]};
+/**
+ * Displays deposit instructions, address selection, and deposit history.
+ * Uses the configured deposit networks and existing wallet data sources.
+ */
 export function DepositPage(){
  const {t}=useI18n();
  const [depositHistory,setDepositHistory]=useState<DepositRecord[]>([]);
@@ -960,6 +979,10 @@ export function DepositPage(){
 }
 
 
+/**
+ * Displays Earn products and the user's positions with their available actions.
+ * Leaves subscription and redemption rules to the existing financial services.
+ */
 export function EarnPage(){
  const {t,language}=useI18n();
  const [products,setProducts]=useState<EarnProduct[]>([]);
@@ -1053,6 +1076,10 @@ export function EarnPage(){
 }
 
 
+/**
+ * Renders the withdrawal request workflow and wallet balance context.
+ * Preserves saved-address, confirmation, and financial-ledger safeguards.
+ */
 export function WithdrawPage(){
  const {t,language}=useI18n();
  const [account,setAccount]=useState<AccountSnapshot|null>(null);
