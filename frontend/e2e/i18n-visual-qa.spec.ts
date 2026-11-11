@@ -16,6 +16,12 @@ const localeRoutes = [
   { path: "/home", headingKey: "Market overview" },
   { path: "/trade-hub", headingKey: "Choose your trading mode" },
   { path: "/assets", headingKey: "Assets" },
+  { path: "/deposit", headingKey: "Deposit" },
+  { path: "/withdraw", headingKey: "Withdraw" },
+  { path: "/earn", headingKey: "Earn" },
+  { path: "/kyc", headingKey: "Identity verification" },
+  { path: "/contract", headingKey: "Perpetual" },
+  { path: "/seconds", headingKey: "Seconds contracts" },
 ];
 
 for (const locale of activeLocales) {
@@ -98,7 +104,7 @@ for (const locale of activeLocales) {
       });
       await page.route("https://btcbox-e2e.invalid/**", (route) => route.abort());
 
-      const widths = test.info().project.name === "mobile-chromium" ? [375, 390, 430] : [1366];
+      const widths = test.info().project.name === "mobile-chromium" ? [320, 360, 375, 390, 430] : [1366];
       const output = path.resolve(process.cwd(), "test-results/i18n-visual-qa");
       fs.mkdirSync(output, { recursive: true });
 
