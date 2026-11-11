@@ -138,9 +138,9 @@ export function Dashboard() {
         ].map((metric) => (
           <Card key={metric.label} className={metric.featured ? "col-span-2 border-brand-accent/25 bg-brand-surface sm:col-span-1" : "bg-brand-surface"}>
             <CardContent className="flex h-full min-h-[116px] flex-col justify-between gap-3 p-4 sm:min-h-[132px] sm:p-5">
-              <p className="type-meta text-brand-text-muted">{t(metric.label)}</p>
+              <p className="type-meta text-brand-text-muted [overflow-wrap:anywhere]">{t(metric.label)}</p>
               <p className={`break-all tabular-nums ${metric.featured ? "text-2xl font-semibold tracking-tight sm:text-3xl" : "text-xl font-semibold tracking-tight sm:text-2xl"} ${metric.tone}`}>{loading && !btc ? "—" : metric.value}</p>
-              <p className="text-[11px] leading-5 text-brand-text-muted">{t(metric.label === "BTC/USDT last price" ? "Latest price returned by BTCBOX" : metric.label === "BTC 24h change" ? "24-hour change from the live market feed" : "Reported 24-hour trading volume")}</p>
+              <p className="text-[11px] leading-5 text-brand-text-muted [overflow-wrap:anywhere]">{t(metric.label === "BTC/USDT last price" ? "Latest price returned by BTCBOX" : metric.label === "BTC 24h change" ? "24-hour change from the live market feed" : "Reported 24-hour trading volume")}</p>
             </CardContent>
           </Card>
         ))}
