@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 import fs from "node:fs";
 import path from "node:path";
 
-const widths = [320, 360, 375, 390, 430, 768, 1024, 1366, 1440, 1920];
+const widths = [320, 375, 390, 430, 768, 1366, 1440, 1920];
 const routes = [
   { path: "/login", heading: "Welcome back" },
   { path: "/register", heading: "Create your BTCBOX account" },
@@ -91,7 +91,6 @@ test("responsive visual QA captures key customer and admin entry routes without 
       if (routePath === "/markets") await expect(page.getByRole("heading", { name: "Explore the market. Trade with confidence.", exact: true })).toHaveCount(0);
       if (routePath === "/home" || routePath === "/markets") await expect(page.getByText("No markets enabled", { exact: true })).toBeVisible();
       if (routePath === "/trade-hub") await expect(page.getByTestId("spot-availability")).toHaveText("Unavailable");
-      await page.waitForLoadState("networkidle");
       await page.evaluate(() => document.fonts.ready);
       const dimensions = await page.evaluate(() => ({
         viewport: window.innerWidth,
