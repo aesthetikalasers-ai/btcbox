@@ -58,7 +58,8 @@ test('admin error feedback surfaces server codes and the refresh-after-confirmed
   // Admin actions that succeed but whose follow-up refresh fails must keep the
   // success notice and tell the operator to reload, not report the action as
   // failed. Verified for KYC review; withdrawal queue uses the same helper.
-  assert.ok(adminPage.includes('KYC review is confirmed; the queue could not refresh'));
+  assert.ok(adminPage.includes('await refreshKycQueue("KYC approved.")'));
+  assert.ok(adminPage.includes('await refreshKycQueue("KYC rejected.")'));
   const refreshStart = adminPage.indexOf('const refreshWithdrawalQueue = async (confirmedAction: string)');
   const refreshEnd = adminPage.indexOf('const refreshWithdrawalQueueManually = async', refreshStart);
   assert.ok(refreshStart >= 0 && refreshEnd > refreshStart);
@@ -82,4 +83,47 @@ test('admin error feedback surfaces server codes and the refresh-after-confirmed
   // ApiError carries the server code so callers can distinguish 409/400/503.
   assert.ok(client.includes('class ApiError') || client.includes('ApiError'));
   assert.ok(client.includes('payload?.code'));
+});
+
+
+test('withdrawal review refresh clears stale actionable rows before requesting a new snapshot', () => {
+  const refreshStart = adminPage.indexOf('const refreshWithdrawalQueue = async (confirmedAction: string)');
+  const manualStart = adminPage.indexOf('const refreshWithdrawalQueueManually = async');
+  const olderAuditStart = adminPage.indexOf('const loadOlderAuditRecords = async', manualStart);
+  assert.ok(refreshStart >= 0 && manualStart > refreshStart && olderAuditStart > manualStart);
+  assert.ok(adminPage.slice(refreshStart, manualStart).indexOf('setWithdrawals([])') < adminPage.slice(refreshStart, manualStart).indexOf('getAdminWithdrawals(token)'));
+  assert.ok(adminPage.slice(manualStart, olderAuditStart).indexOf('setWithdrawals([])') < adminPage.slice(manualStart, olderAuditStart).indexOf('getAdminWithdrawals(token)'));
+});
+
+
+test('admin review queues ignore stale overlapping refresh responses', () => {
+  assert.ok(adminPage.includes('const withdrawalQueueRequestRef = useRef(0)'));
+  assert.ok(adminPage.includes('const kycQueueRequestRef = useRef(0)'));
+  const withdrawalStart = adminPage.indexOf('const refreshWithdrawalQueue = async (confirmedAction: string)');
+  const withdrawalEnd = adminPage.indexOf('const loadOlderAuditRecords = async', withdrawalStart);
+  const withdrawal = adminPage.slice(withdrawalStart, withdrawalEnd);
+  assert.ok(withdrawal.includes('++withdrawalQueueRequestRef.current'));
+  assert.ok(withdrawal.includes('requestId !== withdrawalQueueRequestRef.current'));
+  assert.ok(withdrawal.includes('requestId === withdrawalQueueRequestRef.current'));
+  const kycStart = adminPage.indexOf('const refreshKycQueue = async');
+  const kycEnd = adminPage.indexOf('// A 409 WITHDRAWAL_ALREADY_PROCESSED', kycStart);
+  const kyc = adminPage.slice(kycStart, kycEnd);
+  assert.ok(kyc.includes('++kycQueueRequestRef.current'));
+  assert.ok(kyc.includes('requestId !== kycQueueRequestRef.current'));
+  assert.ok(kyc.includes('requestId === kycQueueRequestRef.current'));
+  assert.ok(adminPage.includes('await refreshKycQueue("KYC approved.")'));
+  assert.ok(adminPage.includes('await refreshKycQueue("KYC rejected.")'));
+});
+
+
+test('manual credit confirmation remains visible when the selected user detail refresh fails', () => {
+  const selectStart = adminPage.indexOf('const selectUser = async (uid: string, confirmedAction?: string)');
+  const creditStart = adminPage.indexOf('const manualCredit = async', selectStart);
+  const creditEnd = adminPage.indexOf('const refreshWithdrawalQueue', creditStart);
+  assert.ok(selectStart >= 0 && creditStart > selectStart && creditEnd > creditStart);
+  const selection = adminPage.slice(selectStart, creditStart);
+  const credit = adminPage.slice(creditStart, creditEnd);
+  assert.match(selection, /setNotice\(confirmedAction \|\| ""\)/);
+  assert.match(selection, /if \(confirmedAction\) \{[\s\S]*?setNotice\(confirmedAction \+ " User details could not refresh/);
+  assert.match(credit, /const confirmedAction = result\.duplicate[\s\S]*?await selectUser\(selectedUser\.uid, confirmedAction\)/);
 });

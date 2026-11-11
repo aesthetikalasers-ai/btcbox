@@ -57,6 +57,7 @@ const state = {
   admin: { users:[], deposits:[], withdrawals:[], kycs:[] },
   adminAuth: null, // base64(user:pass) for HTTP Basic Auth on admin endpoints (independent of user cookie)
   depthCache: null, // {sym,bids,asks} from real /api/depth polling
+  depthUnavailable: true, // no order-book snapshot has been confirmed yet
   depthTimer: null,
   marketUnavailable: true, // until first successful /api/market poll
   currentPair: 'BTCUSDT',
@@ -291,40 +292,49 @@ function clearMarketQuotes(){
 }
 function updateLivePriceEls(){
   $$('[data-live-price]').forEach(el=>{
-    const sym=el.getAttribute('data-live-price'), quote=market[sym];
-    el.textContent=!state.marketUnavailable&&quote&&Number(quote.price)>0?fmtPrice(quote.price,sym.replace('USDT','')):'—';
+    const sym=el.getAttribute('data-live-price'), price=Number(market[sym]&&market[sym].price);
+    el.textContent=Number.isFinite(price)&&price>0?fmtPrice(price,sym.replace('USDT','')):'—';
   });
   $$('[data-live-chg]').forEach(el=>{
-    const sym=el.getAttribute('data-live-chg'), quote=market[sym];
-    if(state.marketUnavailable||!quote||!(Number(quote.price)>0)){el.textContent='—';el.style.color='var(--text-muted)';return;}
-    const change=Number(quote.chg)||0;el.textContent=pct(change);el.style.color=change>=0?'var(--up)':'var(--down)';
+    const sym=el.getAttribute('data-live-chg'), price=Number(market[sym]&&market[sym].price);
+    if(!Number.isFinite(price)||price<=0){el.textContent='—';return;}
+    const c=Number(market[sym].chg)||0; el.textContent=pct(c); el.style.color=c>=0?'var(--up)':'var(--down)';
   });
-  $$('[data-live-high]').forEach(el=>{const sym=el.getAttribute('data-live-high'),quote=market[sym];el.textContent=!state.marketUnavailable&&quote&&Number(quote.high)>0?fmtPrice(quote.high,sym.replace('USDT','')):'—';});
-  $$('[data-live-low]').forEach(el=>{const sym=el.getAttribute('data-live-low'),quote=market[sym];el.textContent=!state.marketUnavailable&&quote&&Number(quote.low)>0?fmtPrice(quote.low,sym.replace('USDT','')):'—';});
 }
 async function refreshMarket(){
-  const r=await apiFetch('/market');
-  const accepted=r&&r.ok&&(r.data||r.markets)?applyMarket(r):0;
-  if(accepted>0){
-    state.marketUnavailable=false;hideNetError();updateLivePriceEls();
-  }else{
-    state.marketUnavailable=true;clearMarketQuotes();updateLivePriceEls();
-    showNetError((r&&r.msg)?r.msg:'Market data is temporarily unavailable.',refreshMarket);
-  }
-  if(typeof window!=='undefined'){
-    if(typeof window.__btcboxRefreshMarketView==='function')window.__btcboxRefreshMarketView();
-    if(typeof window.__btcboxRefreshHomeMarketView==='function')window.__btcboxRefreshHomeMarketView();
+  if(state.marketRefreshInFlight) return;
+  state.marketRefreshInFlight=true;
+  try{
+    const r=await apiFetch('/market');
+    if(r.ok && (r.data||r.markets)){
+      state.marketUnavailable=false; hideNetError(); applyMarket(r); updateLivePriceEls();
+    } else {
+      // A failed snapshot must not leave the last successful ticker looking live.
+      state.marketUnavailable=true;
+      Object.keys(market).forEach(sym=>{market[sym].price=0;market[sym].chg=0;market[sym].high=0;market[sym].low=0;market[sym].vol=0;market[sym].source='unavailable';});
+      updateLivePriceEls();
+      showNetError((r&&r.msg)?r.msg:'Market data unavailable (backend 503). Prices are NOT simulated.', refreshMarket);
+    }
+  } finally {
+    state.marketRefreshInFlight=false;
   }
 }
 async function refreshDepth(){
-  const sym=state.currentPair; if(!sym) return;
-  const r=await apiAdapter.depth(sym);
-  if(r.ok){
-    state.depthCache={sym:sym,bids:r.bids,asks:r.asks,ts:Date.now()};
-    const ob=$('#orderbook');if(ob&&location.hash.indexOf('/trade')>=0)ob.innerHTML=renderOrderbook(sym);
-  }else if(state.depthCache&&state.depthCache.sym===sym){
-    state.depthCache=null;
-    const ob=$('#orderbook');if(ob&&location.hash.indexOf('/trade')>=0)ob.innerHTML=renderOrderbook(sym);
+  const sym=state.currentPair; if(!sym||state.depthRefreshInFlight) return;
+  state.depthRefreshInFlight=true;
+  try{
+    const r=await apiAdapter.depth(sym);
+    if(r.ok){
+      state.depthCache={sym:sym,bids:r.bids,asks:r.asks,ts:Date.now()};
+      state.depthUnavailable=false;
+      const ob=$('#orderbook'); if(ob && location.hash.indexOf('/trade')>=0 && state.currentPair===sym) ob.innerHTML=renderOrderbook(sym);
+    } else {
+      state.depthUnavailable=true;
+      if(state.depthCache&&state.depthCache.sym===sym) state.depthCache=null;
+      const ob=$('#orderbook'); if(ob && location.hash.indexOf('/trade')>=0 && state.currentPair===sym) ob.innerHTML=renderOrderbook(sym);
+    }
+  } finally {
+    state.depthRefreshInFlight=false;
   }
 }
 

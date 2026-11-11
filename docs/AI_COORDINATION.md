@@ -6512,28 +6512,68 @@ Current branch HEAD at note creation: `51c302a96f069876e438321d3597501fcbc26b54`
 - Vercel's separate status remains blocked by the free-plan daily deployment cap. No deployment was attempted. Manual screenshot and live-provider checks remain pending.
 
 
-## 2026-11-07 — 2号 AI public market no-placeholder batch
+## 2号 AI — stale market/depth UI batch — 2026-11-08
 
-- Dedicated branch: `fix/public-market-no-placeholder-data-20261107`, based on `main` at `2a3810d`; integration target remains `work/btcbox-unified-20261104`.
-- Public Markets previously formatted zero-initialized pair entries as prices. Invalid/empty refreshes could also leave old values in memory and render them as current.
-- Fixed provider parsing to accept only positive prices from the current response, clear missing/failed quotes, update all visible quote/stat elements, and hide unsupported/empty rows on Home and Markets. Trade headers now show unavailable values rather than formatting zero. Removed public-facing simulation/backend-internal wording from unavailable states.
-- Added market-adapter and public UI regression tests. Exact-head CI, browser QA, and live-provider Preview verification are pending; do not mark accepted until CI passes. No production deployment, environment change, database write, or real financial operation.
-- Detailed handoff: `docs/PUBLIC-MARKET-NO-PLACEHOLDER-HANDOFF-2026-11-07.md`.
+- Branch: `work/2ai-market-stale-state-20261108` (branched from `work/btcbox-unified-20261104` at `f9c33e48c9d5e0b76ab6eea2ef3c2f222a76e824`).
+- SOURCE OBSERVED: the static `backend/assets/js/app-core.js` polling loop kept last-successful ticker values in the DOM after a failed `/api/market` response, so stale prices could continue looking current. Market polling could also overlap when a request exceeded its 3-second interval.
+- FIXED: failed market snapshots now invalidate displayed price/change/high/low/volume values and mark source unavailable; live price/change nodes render `—` when no positive confirmed price exists. Market refresh is single-flight to prevent out-of-order overlapping responses.
+- FIXED: depth polling is single-flight; a failed depth refresh clears the matching cached book and exposes an explicit unavailable state rather than leaving the previous book visible or saying it is still loading.
+- TEST ADDED: `backend/tests/spot-market-catalog.test.js` checks stale ticker invalidation, single-flight guards, depth cache clearing, and the explicit unavailable order-book message.
+- NOT VERIFIED: exact-branch backend test/build CI and live upstream outage/recovery behavior. No real order, financial operation, production data, merge, or deployment was performed.
+- Scope note: these edits are in the static backend app under `btcboxcdt/backend`; the coordination baseline separately identifies `btcbox-v33` as a distinct deployed Vercel project/repository. Production app/repository alignment remains an explicit integration check before release.
+- Next: inspect Admin manual-review flows in the canonical app/repository, verify asset/order state refresh paths, then run the full backend test/build and browser smoke suite. Keep deployment paused.
+
+### Admin withdrawal queue stale-state follow-up — 2026-11-08
+
+- SOURCE OBSERVED: manual and post-action withdrawal queue refreshes left the previously loaded rows in component state while the request was pending; a failed refresh could leave stale review actions visible alongside a warning.
+- FIXED: both refresh paths now clear the old withdrawal rows before requesting a fresh snapshot. If the read fails, the page shows the error without retaining actionable stale records.
+- TEST ADDED: `backend/tests/admin-api-contract.test.js` checks that both refresh paths clear rows before calling the API.
+- NOT VERIFIED: exact-branch CI/browser behavior; no withdrawal approval, rejection, payout, or financial mutation was performed.
+
+### CI result — market/depth + withdrawal queue batch — 2026-11-08
+
+- Backend CI run `42409262198` on code/test head `497c3ef1f8cea1cc4b893c91cc7d78bfed07bd15`: SUCCESS. Unified build, backend test suite, fail-closed preflight and output/entrypoint checks passed.
+- Frontend CI run `42409262067` on the same code/test head: lint and build PASSED; Chromium installation and desktop/mobile route smoke tests were still running at the time of this update.
+- The current branch head advances to `9ccfb4a7878f0f4ba09ca486e5bf3671a85a805f` with coordination-only documentation after the tested code/test head. No application code changed after the passing backend build/tests or frontend lint/build.
+- Browser E2E remains NOT VERIFIED until the smoke-test job completes. Vercel deployment status is not used as a code-test signal; deployment remains paused.
 
 
-## 2026-11-07 — 2号 AI Vite public UI copy and stale-market follow-up
+## 2号 AI — 2026-11-08 Admin review queue concurrency batch
 
-- Vercel project lookup for btcboxcdt reports framework `vite`; the same repository also contains the backend static app. The batch therefore covers both the backend market adapter/views and the Vite customer-facing dashboard/pages, rather than assuming the legacy HTML view is the only active UI.
-- Vite dashboard previously retained last confirmed quote rows after a market refresh error while labelling the table as live. It now clears market rows on refresh failure, and the table itself suppresses any quote rows whenever an error is present. Unavailable state is explicit and does not show stale snapshot/provider metadata or a misleading zero-pair count.
-- Removed customer-visible wording that described orders as “sample or simulated” and “never simulated in the browser”; replaced it with ordinary account/market copy.
-- Added Playwright regressions for a successful quote followed by a failed refresh and for empty market responses; added a source-contract test preventing simulation wording in customer pages.
-- PR #63 now includes these Vite changes as well as the backend view/adapter fixes. Exact-head frontend/backend CI and browser QA remain pending; no production deployment or financial/DB operation.
+- Branch: `work/2ai-market-stale-state-20261108`.
+- Latest batch commit: `6d05b5e793ab2eab6a98f2d5daa4040c6bbcd049`.
+- `frontend/src/features/admin/AdminPage.tsx`: added independent request sequence guards for withdrawal and KYC queue refreshes. Superseded responses no longer replace a newer queue or clear the newer request's loading state. Refresh errors keep the actionable queue empty.
+- KYC approve/reject follow-up reads now use the same guarded refresh helper, preserving a confirmed-action notice on successful refresh and reporting a refresh failure separately from the already-confirmed review action.
+- `backend/tests/admin-api-contract.test.js`: added source-contract coverage for independent request IDs, stale-response rejection, and unified KYC refresh after approve/reject.
+- Source review confirmed UI action controls already gate manual credit, KYC review and withdrawal review with their corresponding permission keys; backend routes also have explicit permission mapping tests. KYC approval remains disabled if required document metadata/preview is missing.
+- No API contract or Core financial behavior changed. No real funds, database writes, merge, or deployment performed.
+- CI for this exact commit: backend run `42412628579`, frontend run `42412628647`; both were in progress at the time of this note. Do not claim tests passed until completed.
+- Admin manual credit remains staff-confirmed credit from a selected user's detail; no independent pending-deposit queue endpoint was found in the React API client. Do not invent such a queue in the frontend.
 
 
-## 2026-11-07 — 2号 AI final visible-copy cleanup
+### KYC confirmed-action feedback regression fix — 2026-11-08
 
-- Removed the visible “Preview” status pill from the top bar and “Preview · API verification pending” banner from the sidebar.
-- Replaced the customer-facing “Integration pending / scaffolded / in this preview” section placeholder with a neutral “Unavailable” state.
-- Removed remaining customer-facing “sample/simulated orders” copy from both Orders page implementations.
-- Backend market depth cache is now cleared when the current order-book provider refresh fails, instead of continuing to display an old book.
-- Regression tests cover these visible-copy rules and stale depth clearing. Latest PR head is d80ce66; exact-head CI is queued/running. No merge or deployment has been performed.
+- Exact-head CI exposed one stale source assertion in `backend/tests/kyc-flow.test.js`: it expected an older inline success/error string after KYC approve/reject follow-up reads had been moved into the guarded `refreshKycQueue` helper.
+- Cross-check found a user-facing edge case worth fixing rather than only changing the test: after a confirmed KYC decision, a failed queue refresh cleared the queue (correctly) but also cleared the confirmation notice, which could make the operator uncertain whether the decision succeeded.
+- FIXED: `refreshKycQueue(confirmedAction)` now preserves a clear confirmed-action notice when the review mutation succeeded but its follow-up read failed; generic manual refresh failures still show the read error. The queue remains empty on failure, and stale responses remain ignored.
+- TEST UPDATED: the KYC flow regression now verifies the review handler delegates to the guarded refresh helper and that the helper distinguishes confirmed-action refresh failures from ordinary refresh failures.
+- CI before fix: backend run `42412713747` failed 1/414 tests (413 passed); frontend run `42412713753` passed build. The sole backend failure was the outdated KYC assertion. New exact-head CI is required before marking this fix verified.
+- Commits: Admin fix `fd12a405598ab616a459a7f4ecbb11867d19e92a`; KYC test update `c58307deb7e55b55d7b61e5236e224a59d8302a8`.
+- No KYC decision, withdrawal, payout, manual credit, production DB write, merge or deployment was performed.
+
+
+## 2号 AI — account and manual-review confirmation freshness — 2026-11-08
+
+- FOUND: after a successful Admin manual credit, `manualCredit` called `selectUser` to reload the selected user's balance and ledger history. `selectUser` cleared the success notice immediately, and a failed detail read could leave the operator without a clear confirmation that the credit itself had already been accepted.
+- FIXED: selected-user refresh now accepts a confirmed-action message. A successful credit keeps its confirmation visible while the detail reload runs; if the detail read fails, the UI retains the confirmed credit notice and separately says user details could not refresh. The idempotency request cleanup and financial API are unchanged.
+- FOUND: the Deposit history panel retained its previous records during a manual refresh and after returning to the visible page; Withdraw loaded account balances/history only on initial mount or explicit post-submit reload.
+- FIXED: Deposit history now clears the prior snapshot during refresh and reloads when the page becomes visible. Withdraw now reloads account balances, saved-address metadata and withdrawal configuration on visibility return, clearing the prior account snapshot while the read is pending so stale balances/history are not presented as current.
+- TESTS ADDED/UPDATED: Admin manual-credit confirmation regression in `backend/tests/admin-api-contract.test.js`; new `backend/tests/account-page-freshness.test.js` covers deposit/withdraw snapshot invalidation and visibility refresh.
+- Files: `frontend/src/features/admin/AdminPage.tsx`, `frontend/src/features/pages/Pages.tsx`, `backend/tests/admin-api-contract.test.js`, `backend/tests/account-page-freshness.test.js`.
+- Commits: Admin UI `cb3ef78b29feb73d7c30e2e561b9a2ac6486aa53`; deposit/withdraw pages `2df8ecaf0b5b2d6bc4e13f2cb93b91b809d532b1`; Admin regression `91eda8b4baa643396d118650ea0ac3cb09f4ffe1`; account freshness tests `28b2d9935cf9675084cd90fccbb249e2ccb0e6bc`.
+- Boundary: no balance, ledger, withdrawal, deposit or payout API behavior changed; no real credit, order, withdrawal, production database write, merge or deployment performed. Exact-head CI is required.
+
+
+- CI follow-up: backend run `42413457662` caught a syntax error in the new source-contract test regex (not an application-code failure). Replaced the brittle regex with literal source assertions. Corrected test commit: `feede10fb984272f3ed49ad657d9ed23bcc5e1ff`; exact-head backend/frontend CI runs `42413548546` and `42413548554` are running.
+
+- Exact-head verification after the assertion correction: backend run `42413624133` PASSED unified build, all backend tests, fail-closed preflight and output/entrypoint checks. Frontend run `42413624143`: npm install, lint, production build and Chromium installation PASSED; desktop/mobile route smoke tests are still running.
