@@ -599,6 +599,14 @@ test("Admin withdrawal refresh failure stays a read-only error and cannot imply 
   await expect(page.getByText("E2E-WITHDRAWAL-001")).toBeVisible();
   await expect(page.getByRole("button", { name: "标记已付款" })).toBeDisabled();
 
+  for (const width of [375, 390, 430, 768, 1366, 1440, 1920]) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.reload();
+    await expect(page.getByRole("heading", { name: "提现队列" })).toBeVisible();
+    const hasHorizontalOverflow = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth);
+    expect(hasHorizontalOverflow, `admin page must not overflow horizontally at ${width}px`).toBe(false);
+  }
+
   failNextQueueRead = true;
   await page.getByRole("button", { name: "刷新队列" }).click();
   await expect(page.getByRole("alert")).toContainText("无法刷新提现审核队列。");
