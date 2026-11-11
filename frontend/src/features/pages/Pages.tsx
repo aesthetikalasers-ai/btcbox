@@ -290,7 +290,7 @@ export function SpotTradingPage(){
    if(controller.signal.aborted)return;
    const [pairResult,marketResult,bookResult,statusResult,ordersResult,accountResult]=results;
    if(pairResult.status==="fulfilled"){
-    setPairSymbols(pairResult.value.filter(pair=>pair.quote_asset==="USDT").map(pair=>pair.base_asset+"USDT"));
+    setPairSymbols(pairResult.value.filter(pair=>pair.quote_asset==="USDT").map(pair=>pair.base_asset+pair.quote_asset));
     const enabled=pairResult.value.some(pair=>pair.base_asset===base&&pair.quote_asset==="USDT");
     setSpotPairEnabled(enabled);
     if(!enabled)setError("This spot market is not enabled by BTCBOX operators.");
