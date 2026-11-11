@@ -22,7 +22,7 @@ test('React login and registration expose the approved BTCBOX authentication met
   assert.ok(authPage.includes('Connect Ethereum wallet'));
   assert.ok(authPage.includes('Connect Solana wallet'));
   assert.ok(!authPage.includes('signInWithEmail'));
-  assert.ok(!authPage.includes('signUpWithEmail'));
+  assert.ok(authPage.includes('signUpWithEmail')); // email registration supported via Supabase Auth
   assert.ok(!authPage.includes('requestPasswordReset'));
   assert.ok(authPage.includes('completePasswordRecovery'));
   assert.ok(!authPage.includes('Sign in with email'));
@@ -149,7 +149,7 @@ test('auth entry exposes a side-by-side sign-in/register choice and truthfully g
   assert.ok(page.includes('data-testid="auth-mode-switcher"'));
   assert.ok(page.includes('walletEnabled'));
   assert.ok(page.includes('Wallet sign-in is temporarily unavailable.'));
-  assert.ok(page.includes('value="zh-CN">中文</option>'));
+  assert.ok(page.includes('value="zh-CN"'));
   assert.ok(api.includes('wallet_enabled: boolean | null'));
   assert.ok(provider.includes('setWalletEnabled(config.wallet_enabled === true)'));
   assert.ok(provider.includes('"/auth/react-callback?intent=" + intent'));

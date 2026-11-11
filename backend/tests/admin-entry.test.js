@@ -75,7 +75,7 @@ test('React admin route uses verified Supabase Auth identity and server-side rol
   assert.ok(reactApp.includes('<Route path="/admin" element={<AdminPage />} />'));
   assert.ok(reactAdminPage.includes('const { status: authStatus, getSupabaseAccessToken } = useAuth()'));
   assert.ok(reactAdminPage.includes('<AuthPage mode="login" redirectTo="/admin" />'));
-  assert.ok(authPages.includes('redirectTo || "/home"'));
+  assert.ok(authPages.includes('redirectTo || (registering ? "/me" : "/home")'));
   assert.ok(reactAdminPage.includes('getAdminSession(accessToken)'));
   assert.ok(reactAdminPage.includes('session.is_super_admin || session.permissions.includes(permission)'));
   assert.ok(apiCore.includes("require('./admin-auth')"));
