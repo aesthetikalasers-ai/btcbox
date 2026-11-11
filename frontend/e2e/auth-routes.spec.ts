@@ -159,7 +159,7 @@ test("email registration submits to Supabase and requires mailbox confirmation",
   await page.getByLabel("Email address").fill("new-user@example.invalid");
   await page.getByLabel("Email password").fill("StrongPassword123!");
   await page.getByRole("button", { name: "Create account with email" }).click();
-  await expect(page.getByText("Registration received. Please check your email and confirm your address before signing in.")).toBeVisible();
+  await expect(page.getByText("Registration received. Check your email and open the confirmation link in this same browser and device before signing in.")).toBeVisible();
 });
 
 test("forgot password requests Supabase recovery without revealing whether an account exists", async ({ page }) => {
