@@ -38,8 +38,9 @@ export function LiveMarketsTable({ markets, loading, error }: {
   const numberLocale = numberLocales[language];
   const [searchParams, setSearchParams] = useSearchParams();
   const query = (searchParams.get("q") || "").trim().toLowerCase();
-  const latestSnapshotTs = markets.reduce((latest, item) => Math.max(latest, item.snapshotTs || 0), 0);
-  const latestProviderMarket = markets.reduce<MarketTicker | null>((latest, item) =>
+  const displayMarkets = error ? [] : markets;
+  const latestSnapshotTs = displayMarkets.reduce((latest, item) => Math.max(latest, item.snapshotTs || 0), 0);
+  const latestProviderMarket = displayMarkets.reduce<MarketTicker | null>((latest, item) =>
     (item.providerTs || 0) > (latest?.providerTs || 0) ? item : latest, null);
   const providerTimestamp = latestProviderMarket?.providerTs || 0;
   const providerSource = (latestProviderMarket?.source || "").replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 32);
@@ -50,23 +51,23 @@ export function LiveMarketsTable({ markets, loading, error }: {
     ? new Intl.DateTimeFormat(numberLocale, { hour: "2-digit", minute: "2-digit", second: "2-digit" }).format(new Date(providerTimestamp * 1000))
     : "";
   const providerAgeSeconds = providerTimestamp > 0 ? Math.max(0, Math.floor(Date.now() / 1000 - providerTimestamp)) : null;
-  const visibleMarkets = useMemo(() => markets.filter((item) => {
+  const visibleMarkets = useMemo(() => displayMarkets.filter((item) => {
     if (!query) return true;
     return item.sym.toLowerCase().includes(query) || (names[item.sym] || "").toLowerCase().includes(query);
-  }), [markets, query]);
+  }), [displayMarkets, query]);
   return (
     <Card className="flex flex-col overflow-hidden px-0 py-0">
       <div className="flex items-center justify-between gap-3 border-b border-brand-border px-4 py-4 md:px-6">
         <div className="min-w-0">
           <h2 className="text-[15px] font-semibold tracking-tight text-brand-text">{t("Spot markets")}</h2>
-          <p className="mt-1 text-xs text-brand-text-muted">{t("Live prices from the BTCBOX market service")}</p>
-          <p className="mt-1 text-[11px] text-brand-text-muted" aria-label={snapshotTime ? `Server snapshot ${snapshotTime}` : "Server snapshot time unavailable"}>{snapshotTime ? `Server snapshot · ${snapshotTime}` : "Server snapshot time unavailable"}</p>
-          <p className="mt-1 text-[11px] text-brand-text-muted" aria-label={providerTime ? `Provider snapshot ${providerSource || "source unavailable"} at ${providerTime}, ${providerAgeSeconds} seconds old` : "Provider timestamp unavailable"}>
+          <p className="mt-1 text-xs text-brand-text-muted">{t("BTCBOX spot market data")}</p>
+          {displayMarkets.length > 0 ? <p className="mt-1 text-[11px] text-brand-text-muted" aria-label={`Server snapshot ${snapshotTime || "time unavailable"}`}>{snapshotTime ? `Server snapshot · ${snapshotTime}` : "Server snapshot time unavailable"}</p> : null}
+          {displayMarkets.length > 0 ? <p className="mt-1 text-[11px] text-brand-text-muted" aria-label={providerTime ? `Provider snapshot ${providerSource || "source unavailable"} at ${providerTime}, ${providerAgeSeconds} seconds old` : "Provider timestamp unavailable"}>
             {providerTime ? `Provider snapshot · ${providerSource || "source unavailable"} · ${providerTime} · ${providerAgeSeconds}s ago` : "Provider timestamp unavailable"}
-          </p>
+          </p> : null}
         </div>
         <span className="shrink-0 rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-2 text-xs font-semibold text-brand-text-secondary">
-          {loading ? t("Loading…") : `${visibleMarkets.length} ${t("pairs")}`}
+          {loading ? t("Loading…") : error ? t("Unavailable") : `${visibleMarkets.length} ${t("pairs")}`}
         </span>
       </div>
       <div className="border-b border-brand-border px-4 py-3 md:px-6">
