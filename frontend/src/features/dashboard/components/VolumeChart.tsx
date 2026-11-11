@@ -5,9 +5,12 @@ import type { MarketCandle } from '../../../lib/api';
 import { Card, CardHeader } from './Card';
 import { cn } from '../../../lib/utils';
 
+import { useI18n, localeTags } from '../../../lib/i18n';
+
 const RANGES = ['1d', '7d', '30d'];
 
 export function VolumeChart({ candles = [] }: { candles?: MarketCandle[] }) {
+  const { t, language } = useI18n();
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const activeRange = useDashboardStore(s => s.volumeRange);
   const setRange = useDashboardStore(s => s.setVolumeRange);
@@ -18,13 +21,14 @@ export function VolumeChart({ candles = [] }: { candles?: MarketCandle[] }) {
 
     const chart = createChart(chartContainerRef.current, {
       layout: {
+        attributionLogo: false,
         background: { type: ColorType.Solid, color: 'transparent' },
-        textColor: 'rgba(255, 255, 255, 0.38)',
-        fontSize: 11,
+        textColor: 'rgba(255,255,255,0.62)',
+        fontSize: 12,
         fontFamily: 'Inter',
       },
       grid: {
-        vertLines: { color: 'rgba(255, 255, 255, 0.02)', style: 4 },
+        vertLines: { color: 'rgba(255, 255, 255, 0.025)', style: 4 },
         horzLines: { color: 'rgba(255, 255, 255, 0.02)', style: 4 }, 
       },
       crosshair: {
@@ -33,7 +37,7 @@ export function VolumeChart({ candles = [] }: { candles?: MarketCandle[] }) {
           color: 'rgba(255, 255, 255, 0.15)',
           width: 1,
           style: 3,
-          labelBackgroundColor: '#101113',
+          labelBackgroundColor: '#141518',
         },
         horzLine: {
           color: 'rgba(255, 255, 255, 0.15)',
@@ -55,7 +59,7 @@ export function VolumeChart({ candles = [] }: { candles?: MarketCandle[] }) {
     });
 
     const series = chart.addSeries(HistogramSeries, {
-      color: '#22C55E',
+      color: '#22c55e',
       base: 0,
       priceFormat: {
         type: 'volume',
@@ -75,7 +79,7 @@ export function VolumeChart({ candles = [] }: { candles?: MarketCandle[] }) {
 
   return (
     <Card className="flex h-[320px] min-w-0 flex-col sm:h-[340px] md:h-[400px]">
-      <CardHeader title="BTC/USDT trading volume">
+      <CardHeader title={t("BTC/USDT trading volume")}>
         <div className="flex max-w-full gap-0.5 overflow-x-auto rounded-lg border border-brand-border-subtle bg-brand-surface-2 p-0.5 shadow-[inset_0_1px_1px_rgba(0,0,0,0.3)] custom-scrollbar">
           {RANGES.map(r => (
             <button
@@ -84,7 +88,7 @@ export function VolumeChart({ candles = [] }: { candles?: MarketCandle[] }) {
               className={cn(
                 "min-h-9 px-2 py-1 text-[12px] font-medium rounded-md transition-all duration-200 cursor-pointer active:scale-[0.95] sm:px-2.5",
                 activeRange === r 
-                  ? "bg-brand-surface-2 text-brand-text shadow-[0_1px_2px_rgba(0,0,0,0.5),inset_0_1px_1px_rgba(255,255,255,0.02)] border border-brand-border-subtle" 
+                  ? "border border-brand-cyan/25 bg-brand-cyan/10 text-brand-cyan shadow-[0_1px_2px_rgba(0,0,0,0.25)]" 
                   : "text-brand-text-muted hover:text-brand-text-secondary hover:bg-brand-surface-hover"
               )}
             >
@@ -95,9 +99,9 @@ export function VolumeChart({ candles = [] }: { candles?: MarketCandle[] }) {
       </CardHeader>
       
       <div className="mb-4 flex min-w-0 shrink-0 flex-wrap items-baseline gap-x-3 gap-y-2">
-        <span className="text-2xl font-semibold leading-none tracking-tight sm:text-[32px]">{latestCandle ? latestCandle.volume.toLocaleString("en-US", { maximumFractionDigits: 2 }) : "No market data"}</span>
-        <div className="min-w-0 break-words text-[12px] font-medium text-brand-text-muted">
-          {latestCandle ? "Latest 1h candle · BTC/USDT" : "Waiting for market data"}
+        <span className="type-price text-brand-text">{latestCandle ? latestCandle.volume.toLocaleString(localeTags[language], { maximumFractionDigits: 2 }) : t("No market data")}</span>
+        <div className="min-w-0 break-words text-[13px] font-medium text-brand-text-muted">
+          {latestCandle ? t("Latest candle") + " · BTC/USDT" : t("Waiting for market data")}
         </div>
       </div>
       

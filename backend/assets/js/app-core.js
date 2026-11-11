@@ -57,8 +57,11 @@ const state = {
   admin: { users:[], deposits:[], withdrawals:[], kycs:[] },
   adminAuth: null, // base64(user:pass) for HTTP Basic Auth on admin endpoints (independent of user cookie)
   depthCache: null, // {sym,bids,asks} from real /api/depth polling
+  depthUnavailable: true, // no order-book snapshot has been confirmed yet
+  depthRefreshInFlight: false,
   depthTimer: null,
   marketUnavailable: true, // until first successful /api/market poll
+  marketRefreshInFlight: false,
   currentPair: 'BTCUSDT',
   currentInterval: '15m',
   chart: null,

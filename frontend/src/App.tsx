@@ -1,3 +1,4 @@
+import { AuthRestoreState } from "./components/AuthRestoreState";
 import { lazy, Suspense, type ReactNode } from "react";
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { AppLayout } from "./components/layout/AppLayout";
@@ -6,6 +7,7 @@ import { AuthCallbackPage, AuthPage } from "./features/auth/AuthPages";
 import { AccountSetupPage } from "./features/auth/AccountSetupPage";
 import { AccountSecurityPage } from "./features/account/AccountSecurityPage";
 import { useAuth } from "./lib/auth";
+import { useI18n } from "./lib/i18n";
 
 const Dashboard = lazy(() => import("./features/dashboard/Dashboard").then((m) => ({ default: m.Dashboard })));
 const AdminPage = lazy(() => import("./features/admin/AdminPage").then((m) => ({ default: m.AdminPage })));
@@ -23,7 +25,7 @@ const EarnPage = lazy(() => import("./features/pages/Pages").then((m) => ({ defa
 
 function ProtectedAccountRoute({ children }: { children: ReactNode }) {
   const { status } = useAuth();
-  if (status === "loading") return <RouteLoading />;
+  if (status === "loading") return <AuthRestoreState />;
   if (status !== "authenticated") return <Navigate to="/login" replace />;
   return <>{children}</>;
 }
@@ -36,12 +38,13 @@ function AccountSetupGate({ children }: { children: ReactNode }) {
   return <>{children}</>;
 }
 function RouteLoading() {
-  return <div className="mx-auto flex min-h-[240px] w-full max-w-[1200px] items-center justify-center p-6" role="status" aria-live="polite"><div className="flex items-center gap-3 text-sm text-brand-text-muted"><span className="h-4 w-4 animate-spin rounded-full border-2 border-white/15 border-t-brand-accent" />Loading BTCBOX…</div></div>;
+  const { t } = useI18n();
+  return <div className="mx-auto flex min-h-[240px] w-full max-w-[1200px] items-center justify-center p-6" role="status" aria-live="polite"><div className="flex items-center gap-3 text-sm text-brand-text-muted"><span className="h-4 w-4 animate-spin rounded-full border-2 border-white/15 border-t-brand-accent" />{t("Loading…")}</div></div>;
 }
 function CustomerRoutes() {
   const location = useLocation();
   const isStandaloneAuthRoute = ["/login", "/register", "/account-setup", "/auth/react-callback"].includes(location.pathname);
-  const content = <AccountSetupGate><Suspense fallback={<RouteLoading />}><Routes>
+  const content = <div key={location.pathname} className="anim-fade-in min-w-0 flex-1"><AccountSetupGate><Suspense fallback={<RouteLoading />}><Routes>
     <Route path="/home" element={<Dashboard />} /><Route path="/markets" element={<Dashboard />} />
     <Route path="/trade-hub" element={<TradeHubPage />} /><Route path="/trade" element={<Navigate to="/trade-hub" replace />} />
     <Route path="/trade/:symbol" element={<SpotTradingPage />} />
@@ -56,11 +59,12 @@ function CustomerRoutes() {
     <Route path="/support" element={<SupportPage />} />
     <Route path="/settings" element={<ProtectedAccountRoute><AccountSecurityPage /></ProtectedAccountRoute>} />
     <Route path="*" element={<Navigate to="/home" replace />} />
-  </Routes></Suspense></AccountSetupGate>;
+  </Routes></Suspense></AccountSetupGate></div>;
   return isStandaloneAuthRoute ? content : <AppLayout>{content}</AppLayout>;
 }
 export default function App() {
-  return <I18nProvider><Suspense fallback={<RouteLoading />}><Routes>
+  const { pathname } = useLocation();
+  return <I18nProvider fixedLanguage={/^\/admin\/?$/i.test(pathname) ? "zh-CN" : undefined}><Suspense fallback={<RouteLoading />}><Routes>
     <Route path="/admin" element={<AdminPage />} />
     <Route path="/*" element={<CustomerRoutes />} />
   </Routes></Suspense></I18nProvider>;

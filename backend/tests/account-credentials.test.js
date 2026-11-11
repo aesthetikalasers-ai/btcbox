@@ -41,14 +41,14 @@ test('BTCBOX login password policy rejects short, oversized and control-characte
   assert.equal(validPassword('safe\nunsafe-password'), false);
   assert.equal(validPassword(null), false);
 });
-test('Supabase sign-in accepts Google and Web3 identities but rejects email identities', () => {
+test('Supabase sign-in accepts one server-verified Google, Email or Web3 identity', () => {
   const identity = (provider) => ({
     app_metadata: { provider, providers: [provider] },
     identities: [{ provider }],
   });
   assert.equal(authProvider(identity('google')), 'google');
   assert.equal(authProvider(identity('web3')), 'web3');
-  assert.equal(authProvider(identity('email')), null);
+  assert.equal(authProvider(identity('email')), 'email');
   assert.equal(authProvider({
     app_metadata: { provider: 'google', providers: ['google', 'email'] },
     identities: [{ provider: 'google' }, { provider: 'email' }],

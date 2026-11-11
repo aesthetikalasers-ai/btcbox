@@ -1,6 +1,11 @@
 node_modules/
 dist/
+*.tsbuildinfo
 *.local
 .env
 .env.*
 !.env.example
+
+# Local browser-test artifacts; deliverable screenshots live outside the checkout.
+test-results/
+playwright-report/

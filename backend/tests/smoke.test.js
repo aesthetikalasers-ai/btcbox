@@ -16,6 +16,11 @@ test('build-site.js publishes the React root and consent assets without legacy S
   assert.ok(fs.existsSync(path.join(root, 'dist', 'index.html')));
   assert.ok(fs.existsSync(path.join(root, 'dist', 'index.html')));
   assert.ok(fs.readFileSync(path.join(root, 'dist', 'index.html'), 'utf8').includes('/frontend-assets/'));
+  for (const name of ['btcbox-logo.png', 'btcbox-icon.png', 'btcbox-logo-white.png']) {
+    assert.deepEqual(fs.readFileSync(path.join(root, 'dist', 'brand', name)), fs.readFileSync(path.join(root, '..', 'frontend', 'public', 'brand', name)));
+  }
+  assert.deepEqual(fs.readdirSync(path.join(root, 'dist', 'brand')).sort(), ['btcbox-icon.png', 'btcbox-logo-white.png', 'btcbox-logo.png']);
+
   assert.ok(!fs.existsSync(path.join(root, 'dist', 'legacy-index.html')));
   assert.ok(!fs.existsSync(path.join(root, 'dist', 'admin.html')));
   assert.ok(!fs.existsSync(path.join(root, 'dist', 'assets', 'js')));

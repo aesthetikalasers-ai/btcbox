@@ -20,6 +20,7 @@ INSERT INTO private.admin_permission_catalog(permission_key,module_key) VALUES
  ('users.read','users'),('users.manage','users'),('users.freeze','users'),
  ('kyc.read','kyc'),('kyc.review','kyc'),
  ('deposits.read','deposits'),('deposits.review','deposits'),
+ ('payout_addresses.read_sensitive','payout_addresses'),('payout_addresses.manage','payout_addresses'),
  ('withdrawals.read','withdrawals'),('withdrawals.review','withdrawals'),
  ('orders.read','orders'),
  ('support.read','support'),('support.reply','support'),('support.manage','support'),

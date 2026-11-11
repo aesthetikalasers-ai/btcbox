@@ -104,3 +104,24 @@ test('every React administrator read route is protected by its dedicated server-
   assert.ok(adminBlock.includes("if (sub === 'admins' && method === 'GET')"));
   assert.ok(adminBlock.includes('adminMembership.is_super_admin !== true'));
 });
+
+
+test('customer payout-address permissions are explicit and isolated from deposit/config grants', () => {
+  const read = 'payout_addresses.read_sensitive';
+  const manage = 'payout_addresses.manage';
+  assert.ok(ADMIN_PERMISSION_KEYS.includes(read));
+  assert.ok(ADMIN_PERMISSION_KEYS.includes(manage));
+  const depositsOnly = { status: 'active', is_super_admin: false, permissions: ['deposits.read'] };
+  const configOnly = { status: 'active', is_super_admin: false, permissions: ['system_config.write'] };
+  const payoutReader = { status: 'active', is_super_admin: false, permissions: [read] };
+  const payoutManager = { status: 'active', is_super_admin: false, permissions: [manage] };
+  assert.equal(hasAdminPermission(depositsOnly, read), false);
+  assert.equal(hasAdminPermission(depositsOnly, manage), false);
+  assert.equal(hasAdminPermission(configOnly, read), false);
+  assert.equal(hasAdminPermission(configOnly, manage), false);
+  assert.equal(hasAdminPermission(payoutReader, read), true);
+  assert.equal(hasAdminPermission(payoutReader, manage), false);
+  assert.equal(hasAdminPermission(payoutManager, read), false);
+  assert.equal(hasAdminPermission(payoutManager, manage), true);
+  assert.equal(normalizeAdminPermissionSet([read, manage]).ok, true);
+});

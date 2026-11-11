@@ -4,8 +4,8 @@ This is a one-time, owner-controlled database operation. It is **not** an HTTP e
 
 ## Before running
 
-1. Create or verify the owner account using the configured Google sign-in provider only. Do not enable or rely on email/password or email OTP authentication for this project.
-2. In Supabase Dashboard → Authentication → Users, copy the exact UUID of that account. Do not use email as the identity key.
+1. Create or verify the owner account through an authentication provider supported by the BTCBOX app and explicitly enabled in this Supabase project. The current React app supports Google OAuth and Email/password registration and sign-in; verify the corresponding provider settings and redirect URLs in Supabase Auth before relying on either. Do not assume Email OTP is enabled. Wallet connections are not a substitute for an existing Supabase Auth user for this owner-only bootstrap.
+2. In Supabase Dashboard → Authentication → Users, copy the exact UUID of that account. Do not use email or a wallet address as the identity key.
 3. Confirm the target is the intended BTCBOX project and its BTCBOX schema is the new empty schema.
 4. Confirm the fresh-schema bootstrap has completed in an isolated PostgreSQL environment and the owner has explicitly approved this one-time action.
 

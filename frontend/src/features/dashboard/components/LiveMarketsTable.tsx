@@ -4,7 +4,7 @@ import { Link, useSearchParams } from "react-router-dom";
 import { TokenIcon } from "../../../components/ui/TokenIcon";
 import { Card } from "./Card";
 import type { MarketTicker } from "../../../lib/api";
-import { useI18n, type Language } from "../../../lib/i18n";
+import { useI18n, localeTags } from "../../../lib/i18n";
 
 const names: Record<string, string> = {
   BTC: "Bitcoin", ETH: "Ethereum", SOL: "Solana", BNB: "BNB",
@@ -14,14 +14,17 @@ const names: Record<string, string> = {
   ATOM: "Cosmos", ETC: "Ethereum Classic",
 };
 
-const numberLocales: Record<Language, string> = {
-  en: "en-US", ja: "ja-JP", "zh-CN": "zh-CN", es: "es-ES", vi: "vi-VN", it: "it-IT", pt: "pt-PT",
-};
-
 const price = (value: number, locale: string) => new Intl.NumberFormat(locale, {
   minimumFractionDigits: 2,
   maximumFractionDigits: value >= 1 ? 4 : 8,
 }).format(value);
+
+const formatCompact = (value: number | string | undefined | null, locale: string) => {
+  const num = typeof value === "string" ? parseFloat(value) : value;
+  if (num === undefined || num === null || !Number.isFinite(num) || num < 0) return "—";
+  if (num === 0) return "0.00";
+  return new Intl.NumberFormat(locale, { notation: "compact", maximumFractionDigits: 2 }).format(num);
+};
 
 function Change({ value, locale }: { value: number; locale: string }) {
   return <span className={`inline-flex min-w-[76px] justify-center rounded-lg px-2.5 py-1.5 text-xs font-semibold tabular-nums ${value >= 0 ? "bg-profit/10 text-profit" : "bg-loss/10 text-loss"}`}>
@@ -35,7 +38,38 @@ export function LiveMarketsTable({ markets, loading, error }: {
   error: string;
 }) {
   const { t, language } = useI18n();
-  const numberLocale = numberLocales[language];
+  const [sort, setSort] = useState("volume");
+  const [favoritesOnly, setFavoritesOnly] = useState(false);
+  const [favorites, setFavorites] = useState<string[]>(() => {
+    try { const saved: unknown = JSON.parse(localStorage.getItem("btcbox.market-favorites") || "[]"); return Array.isArray(saved) ? saved.filter((item): item is string => typeof item === "string").slice(0, 200) : []; } catch { return []; }
+  });
+  const toggleFavorite = (symbol: string) => {
+    const next = favorites.includes(symbol) ? favorites.filter(item => item !== symbol) : [...favorites, symbol];
+    setFavorites(next);
+    try { localStorage.setItem("btcbox.market-favorites", JSON.stringify(next)); } catch { /* Remain usable when browser storage is unavailable. */ }
+  };
+  const favoriteButton = (symbol: string) => <button type="button" aria-label={t("Favorites") + " " + symbol} aria-pressed={favorites.includes(symbol)} onClick={() => toggleFavorite(symbol)} className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-brand-text-muted hover:text-brand-accent"><Star className={"h-4 w-4 " + (favorites.includes(symbol) ? "fill-brand-accent text-brand-accent" : "")} /></button>;
+  const numberLocale = localeTags[language];
+  // Price-flash detection: read previous prices during render (StrictMode-safe),
+  // commit the new prices only after paint so the next diff still compares correctly.
+  const prevPricesRef = useRef<Record<string, number>>({});
+  const flashMap = useMemo(() => {
+    const map: Record<string, "up" | "down"> = {};
+    for (const item of markets) {
+      const prev = prevPricesRef.current[item.sym];
+      if (prev !== undefined && prev !== item.price) map[item.sym] = item.price > prev ? "up" : "down";
+    }
+    return map;
+  }, [markets]);
+  useEffect(() => {
+    const next: Record<string, number> = {};
+    for (const item of markets) next[item.sym] = item.price;
+    prevPricesRef.current = next;
+  }, [markets]);
+  const flashClassOf = (sym: string) => {
+    const dir = flashMap[sym];
+    return dir === "up" ? "price-flash-up" : dir === "down" ? "price-flash-down" : "";
+  };
   const [searchParams, setSearchParams] = useSearchParams();
   const query = (searchParams.get("q") || "").trim().toLowerCase();
   const latestSnapshotTs = markets.reduce((latest, item) => Math.max(latest, item.snapshotTs || 0), 0);
@@ -59,7 +93,7 @@ export function LiveMarketsTable({ markets, loading, error }: {
     return item.sym.toLowerCase().includes(query) || (names[item.sym] || "").toLowerCase().includes(query);
   }), [displayMarkets, query]);
   return (
-    <Card className="flex flex-col overflow-hidden px-0 py-0">
+    <Card className="flex flex-col overflow-hidden p-0 md:p-0">
       <div className="flex items-center justify-between gap-3 border-b border-brand-border px-4 py-4 md:px-6">
         <div className="min-w-0">
           <h2 className="text-[15px] font-semibold tracking-tight text-brand-text">{t("Spot markets")}</h2>
@@ -73,7 +107,7 @@ export function LiveMarketsTable({ markets, loading, error }: {
           {loading ? t("Loading…") : feedError ? t("Unavailable") : `${visibleMarkets.length} ${t("pairs")}`}
         </span>
       </div>
-      <div className="border-b border-brand-border px-4 py-3 md:px-6">
+      {displayMarkets.length > 0 && <div className="border-b border-brand-border px-4 py-3 md:px-6">
         <label className="relative block">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-brand-text-muted" />
           <input type="search" aria-label={t("Search BTCBOX")} placeholder={t("Search")} value={searchParams.get("q") || ""} onChange={(event) => setSearchParams(event.target.value ? { q: event.target.value } : {})} className="h-11 w-full rounded-xl border border-brand-border bg-brand-surface px-3 pl-10 text-sm text-brand-text placeholder:text-brand-text-muted focus:border-brand-accent focus:outline-none" />
@@ -99,11 +133,11 @@ export function LiveMarketsTable({ markets, loading, error }: {
                   <TokenIcon symbol={item.sym} className="h-9 w-9 shrink-0" />
                   <div className="min-w-0">
                     <p className="truncate text-sm font-semibold text-brand-text">{item.sym}/USDT</p>
-                    <p className="type-meta mt-0.5 truncate text-brand-text-muted">{names[item.sym] || item.sym}</p>
+                    <p className="type-meta mt-0.5 truncate text-brand-text-muted">{t("24h volume")} {formatCompact(item.vol, numberLocale)}</p>
                   </div>
                 </div>
                 <div className="flex shrink-0 flex-col items-end gap-1.5">
-                  <span className="type-body font-bold tabular-nums text-brand-text">{price(item.price, numberLocale)}</span>
+                  <span key={item.price} className={"text-base font-bold tabular-nums text-brand-text "+flashClassOf(item.sym)}>{price(item.price, numberLocale)}</span>
                   <Change value={item.chg} locale={numberLocale} />
                 </div>
               </Link>
@@ -126,9 +160,9 @@ export function LiveMarketsTable({ markets, loading, error }: {
                       </Link>
                     </div>
                   </td>
-                  <td className="whitespace-nowrap px-4 type-body font-semibold tabular-nums text-brand-text md:px-6">{price(item.price, numberLocale)}</td>
+                  <td className="whitespace-nowrap px-4 text-base font-semibold tabular-nums text-brand-text md:px-6"><span key={item.price} className={flashClassOf(item.sym)}>{price(item.price, numberLocale)}</span></td>
                   <td className="whitespace-nowrap px-4 md:px-6"><Change value={item.chg} locale={numberLocale} /></td>
-                  <td className="whitespace-nowrap px-4 text-sm tabular-nums text-brand-text-secondary md:px-6">{item.vol} USDT</td>
+                  <td className="whitespace-nowrap px-4 text-sm tabular-nums text-brand-text-secondary md:px-6">{formatCompact(item.vol, numberLocale)} USDT</td>
                   <td className="whitespace-nowrap px-4 text-sm tabular-nums text-brand-text-secondary md:px-6">{price(item.high, numberLocale)}</td>
                   <td className="whitespace-nowrap px-4 text-sm tabular-nums text-brand-text-secondary md:px-6">{price(item.low, numberLocale)}</td>
                 </tr>

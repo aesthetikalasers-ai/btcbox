@@ -7,6 +7,7 @@ const ADMIN_PERMISSION_KEYS = Object.freeze([
   'users.read', 'users.manage', 'users.freeze',
   'kyc.read', 'kyc.review',
   'deposits.read', 'deposits.review',
+  'payout_addresses.read_sensitive', 'payout_addresses.manage',
   'withdrawals.read', 'withdrawals.review',
   'orders.read',
   'support.read', 'support.reply', 'support.manage',

@@ -3,6 +3,7 @@
 const crypto = require('crypto');
 const { authorizeSupabaseAdmin } = require('./admin-auth');
 const { hasAdminPermission } = require('./admin-rbac');
+const { hasActiveVersionedSecondsPolicy } = require('./seconds-policy-readiness');
 
 const SESSION_COOKIE = 'session_token';
 const PBKDF2_ITER = 100000;
@@ -40,7 +41,7 @@ function getPublishableKey() {
 // GoTrue's public /auth/v1/settings. Cached briefly so every auth-health /
 // supabase-login call does not pay an extra round trip. Returns true / false, or
 // null if the status cannot be determined (settings endpoint unreachable).
-let _googleProviderCache = { value: null, expiresAt: 0 };
+let _authProviderCache = { google: { value: null, expiresAt: 0 }, web3: { value: null, expiresAt: 0 } };
 // Accept only one server-verified Supabase identity. Mixed/linked identities are
 // deliberately rejected until an explicit, audited account-linking flow exists.
 function getSingleSupabaseAuthProvider(identity) {
@@ -49,7 +50,7 @@ function getSingleSupabaseAuthProvider(identity) {
   const provider = String(appMetadata.provider || '').toLowerCase();
   const providers = Array.isArray(appMetadata.providers) ? appMetadata.providers.map(p => String(p || '').toLowerCase()) : [];
   const identities = Array.isArray(identity.identities) ? identity.identities : [];
-  if (!['google', 'web3'].includes(provider) || providers.length !== 1 || providers[0] !== provider) return null;
+  if (!['google', 'email', 'web3'].includes(provider) || providers.length !== 1 || providers[0] !== provider) return null;
   if (identities.length !== 1 || !identities[0] || String(identities[0].provider || '').toLowerCase() !== provider) return null;
   return provider;
 }
@@ -186,13 +187,15 @@ function getUserLinkedIdentityIds(user) {
 }
 
 
-async function detectGoogleProviderEnabled() {
+async function detectAuthProviderEnabled(provider) {
+  const providerName = provider === 'web3' ? 'web3' : 'google';
   const now = Date.now();
-  if (_googleProviderCache.value !== null && _googleProviderCache.expiresAt > now) return _googleProviderCache.value;
+  const cached = _authProviderCache[providerName];
+  if (cached.value !== null && cached.expiresAt > now) return cached.value;
   const authUrl = String(process.env.SUPABASE_AUTH_URL || process.env.SUPABASE_URL || '').replace(/\/+$/, '');
   const authKey = getPublishableKey();
   if (!authUrl || !authKey) {
-    _googleProviderCache = { value: false, expiresAt: now + 60 * 1000 };
+    _authProviderCache[providerName] = { value: false, expiresAt: now + 60 * 1000 };
     return false;
   }
   try {
@@ -203,16 +206,19 @@ async function detectGoogleProviderEnabled() {
     });
     if (!res.ok) throw new Error('settings http ' + res.status);
     const data = await res.json();
-    const enabled = !!(data && data.external && data.external.google);
-    _googleProviderCache = { value: enabled, expiresAt: now + 60 * 1000 };
+    const providerConfig = data && data.external && data.external[providerName];
+    const enabled = providerConfig === true || !!(providerConfig && typeof providerConfig === 'object' && providerConfig.enabled === true);
+    _authProviderCache[providerName] = { value: enabled, expiresAt: now + 60 * 1000 };
     return enabled;
   } catch (e) {
     // Keep the last known value; if never known, report null (unknown) and retry soon.
-    const prev = _googleProviderCache.value;
-    _googleProviderCache = { value: prev, expiresAt: now + 15 * 1000 };
+    const prev = _authProviderCache[providerName].value;
+    _authProviderCache[providerName] = { value: prev, expiresAt: now + 15 * 1000 };
     return prev;
   }
 }
+async function detectGoogleProviderEnabled() { return detectAuthProviderEnabled('google'); }
+async function detectWeb3ProviderEnabled() { return detectAuthProviderEnabled('web3'); }
 // ===== CORS（SPA 与后端跨域必需）=====
 // 带 credentials 时 Access-Control-Allow-Origin 不能用 *，必须反射具体 Origin。
 // _currentEvent 在 handleRequest 入口赋值，供 json() 合并 CORS 头使用。
@@ -497,6 +503,16 @@ function attachRevision(db, revision) {
   Object.defineProperty(db, '_revision', { value: Number(revision || 0), writable: true, configurable: true, enumerable: false });
   return db;
 }
+// Vercel normalizes request headers to lower case, while unit and local callers
+// may not. Keep the rate-limit subject deliberately narrow and bounded: a
+// malformed proxy value shares an anonymous bucket rather than throwing during
+// an authentication request.
+function clientIp(event) {
+  const headers = event && event.headers && typeof event.headers === 'object' ? event.headers : {};
+  const forwarded = headers['x-forwarded-for'] || headers['X-Forwarded-For'] || '';
+  const candidate = String(forwarded).split(',', 1)[0].trim();
+  return candidate.length <= 128 && /^[0-9a-f:.]+$/i.test(candidate) ? candidate.toLowerCase() : 'unknown';
+}
 async function loadDB() {
   try {
     if (supabaseStorageConfigured()) {
@@ -506,13 +522,39 @@ async function loadDB() {
       const rows = await response.json();
       if (!Array.isArray(rows)) throw new Error('Supabase state response invalid');
       if (rows.length > 1) throw new Error('Supabase state row is not unique');
+      if (rows.length === 0) {
+        // A fresh, schema-bootstrapped database has no BTCBOX state row yet.
+        // Initialize only that empty singleton through the existing revision-0 CAS RPC.
+        // The insert is atomic; a concurrent first request may win, in which case re-read.
+        const initialState = defaultDB();
+        const seedResponse = await fetch(base + '/rest/v1/rpc/btcbox_save_state', {
+          method: 'POST',
+          headers: supabaseHeaders(),
+          body: JSON.stringify({ p_expected_revision: 0, p_data: initialState })
+        });
+        if (!seedResponse.ok) throw new Error('Supabase state initialization failed');
+        const seeded = await seedResponse.json();
+        if (seeded === true) {
+          mergeDepositAddresses(initialState);
+          return attachRevision(initialState, 1);
+        }
+        const retryResponse = await fetch(base + '/rest/v1/btcbox_state?select=revision,data&id=eq.main', { headers: supabaseHeaders() });
+        if (!retryResponse.ok) throw new Error('Supabase state re-read failed after initialization race');
+        const retryRows = await retryResponse.json();
+        if (!Array.isArray(retryRows) || retryRows.length !== 1 ||
+            !retryRows[0] || !retryRows[0].data || !retryRows[0].data.users) {
+          throw new Error('Supabase state initialization conflict');
+        }
+        const data = JSON.parse(JSON.stringify(retryRows[0].data));
+        mergeDepositAddresses(data);
+        return attachRevision(data, retryRows[0].revision);
+      }
       if (rows.length === 1 && rows[0] && rows[0].data && rows[0].data.users) {
         const data = JSON.parse(JSON.stringify(rows[0].data));
         mergeDepositAddresses(data);
         return attachRevision(data, rows[0].revision);
       }
-      // Fail closed: never treat an empty Supabase table as a fresh exchange database.
-      // This prevents accidental balance/history loss if secrets are configured before import.
+      // Multiple or malformed rows indicate a broken state contract; never reset or overwrite them.
       throw new Error('Supabase state is not initialized');
     }
     // Netlify Blobs has been retired. All persistent state must use Supabase.
@@ -644,6 +686,11 @@ const RATE_LIMIT_POLICIES = Object.freeze({
   twofa_disable: { limit: 10, windowSeconds: 900 },
   seconds_order: { limit: 30, windowSeconds: 300 },
   seconds_settle: { limit: 60, windowSeconds: 300 },
+  withdraw_create: { limit: 5, windowSeconds: 900 },
+  spot_order: { limit: 30, windowSeconds: 300 },
+  spot_cancel: { limit: 60, windowSeconds: 300 },
+  earn_subscribe: { limit: 10, windowSeconds: 900 },
+  earn_redeem: { limit: 20, windowSeconds: 900 },
   password_change: { limit: 10, windowSeconds: 900 },
   fund_password_change: { limit: 10, windowSeconds: 900 }
 });
@@ -742,14 +789,6 @@ function withdrawalAddressCheck(user, addr, coin, network, now, cooldownMs) {
     return { allowed: false, code: 'ADDRESS_COOLDOWN', msg: 'Newly bound withdrawal address is in cooldown. Please try again in about ' + hours + ' hour(s).' };
   }
   return { allowed: true, bound: bound };
-}
-// 首次提现（历史无成功提现）或大额（USDT 等值超阈值）→ 强制人工审核 pending_admin_review。
-function withdrawalRequiresAdminReview(user, coin, amount, usdtValue, thresholdUsdt) {
-  const history = Array.isArray(user && user.withdrawals) ? user.withdrawals : [];
-  const hasSuccess = history.some(function (w) { return w && (w.status === 'completed' || w.status === 'success' || w.status === 'approved' || w.status === 'broadcast'); });
-  if (!hasSuccess) return true;
-  if (Number.isFinite(usdtValue) && usdtValue > thresholdUsdt) return true;
-  return false;
 }
 // 估算提现金额的 USDT 等值；价格不可用时返回 null（调用方应保守视为大额，强制审核）。
 function estimateUsdtValue(coin, amount, prices) {
@@ -1140,12 +1179,13 @@ async function handleRequest(event, context) {
     if (!validAuthUrl || !publishableKey) {
       return json({ ok: false, code: 'AUTH_CLIENT_CONFIG_UNAVAILABLE', msg: 'Authentication is not configured.' }, 503);
     }
-    const googleEnabled = await detectGoogleProviderEnabled();
+    const [googleEnabled, walletEnabled] = await Promise.all([detectGoogleProviderEnabled(), detectWeb3ProviderEnabled()]);
     return json({
       ok: true,
       supabase_url: authUrl,
       publishable_key: publishableKey,
-      google_enabled: googleEnabled
+      google_enabled: googleEnabled,
+      wallet_enabled: walletEnabled
     }, 200);
   }
   if (path === 'auth-health' && method === 'GET') {
@@ -1337,7 +1377,7 @@ async function handleRequest(event, context) {
     if (user && user.twofa_enabled) {
       const tempToken = genToken();
       db.temp_tokens = db.temp_tokens || {};
-      db.temp_tokens[tempToken] = { uid: user.uid, exp: Date.now() + 10 * 60 * 1000, auth_method: authProvider === 'web3' ? 'supabase_web3_2fa' : 'supabase_google_2fa' };
+      db.temp_tokens[tempToken] = { uid: user.uid, exp: Date.now() + 10 * 60 * 1000, auth_method: authProvider === 'web3' ? 'supabase_web3_2fa' : authProvider === 'email' ? 'supabase_email_2fa' : 'supabase_google_2fa' };
       secCounterReset(db.security_counters, loginKey);
       try { await saveDB(db); }
       catch (_) { return json({ ok: false, code: 'PERSISTENCE_UNAVAILABLE', msg: 'Authentication is temporarily unavailable. Please try again.' }, 503); }
@@ -1381,7 +1421,7 @@ async function handleRequest(event, context) {
     }
     user.last_login = nowStr();
     const token = genToken();
-    db.sessions[token] = { uid: user.uid, email: email, created_at: Date.now(), auth_method: authProvider === 'web3' ? 'supabase_web3' : 'supabase_google' };
+    db.sessions[token] = { uid: user.uid, email: email, created_at: Date.now(), auth_method: authProvider === 'web3' ? 'supabase_web3' : authProvider === 'email' ? 'supabase_email' : 'supabase_google' };
     secCounterReset(db.security_counters, loginKey);
     try { await saveDB(db); }
     catch (_) { return json({ ok: false, code: 'PERSISTENCE_UNAVAILABLE', msg: 'Authentication is temporarily unavailable. Please try again.' }, 503); }
@@ -1566,8 +1606,8 @@ async function handleRequest(event, context) {
     const confirmed = !!(identity && (identity.email_confirmed_at || identity.confirmed_at));
     if (!isSupabaseUserId(sourceId) || !claims || claims.subject !== sourceId ||
         !Number.isFinite(authTime) || authTime > nowSeconds + 60 || nowSeconds - authTime > 5 * 60 ||
-        !['google', 'web3'].includes(provider) ||
-        (provider === 'google' && (!confirmed || !isValidAuthEmail(email))) ||
+        !['google', 'email', 'web3'].includes(provider) ||
+        ((provider === 'google' || provider === 'email') && (!confirmed || !isValidAuthEmail(email))) ||
         (provider === 'web3' && !walletIdentity)) {
       return json({ ok: false, code: 'RECENT_REAUTH_REQUIRED', msg: 'Please freshly verify a sign-in method already connected to this BTCBOX account.' }, 403);
     }
@@ -2150,6 +2190,7 @@ async function handleRequest(event, context) {
     // Enforce account freeze on every financial write, not only at login. Existing
     // sessions remain valid after an administrator freezes an account.
     if (user.frozen) return json({ ok: false, msg: 'Account frozen. Withdrawals are not available. Please contact support.', code: 'ACCOUNT_FROZEN' }, 403);
+    { const rl = await rateCheckShared('withdraw_create', String(user.uid)); if (rl.unavailable) return rateLimitUnavailableJson(); if (rl.limited) return rateLimitedJson(rl.retryAfter); }
     const coin = String(body.coin || 'USDT').trim().toUpperCase();
     const amount = parseMoneyInput(body.amount);
     const addr = String(body.address || '').trim();
@@ -2187,7 +2228,9 @@ async function handleRequest(event, context) {
     // 首次提现 / 大额提现（USDT 等值超阈值，价格不可用时保守视为大额）→ 强制人工审核 pending_admin_review。
     const thresholdUsdt = Number(process.env.WITHDRAWAL_LARGE_THRESHOLD_USDT) || 1000;
     const usdtValue = estimateUsdtValue(coin, amount, livePriceCache.prices);
-    const requireAdminReview = withdrawalRequiresAdminReview(user, coin, amount, usdtValue === null ? Infinity : usdtValue, thresholdUsdt);
+    // The database independently enforces first-successful-withdrawal review from its own history.
+    // The API only adds the large-value / unavailable-price review requirement.
+    const requireAdminReview = usdtValue === null || usdtValue > thresholdUsdt;
     // 资金密码校验（≥8 位含字母+数字）+ 持久化错误计数锁定（5 次错误锁 15 分钟，计数存 btcbox_state）。
     const fundPassword = String(body.fund_password || '');
     const fpValid = validateFundPassword(fundPassword);
@@ -2341,7 +2384,7 @@ async function handleRequest(event, context) {
     const snapshotTs = Math.floor(Date.now() / 1000);
     const out = bases.filter(base => marketsByBase[base]).map(base => {
       const row = marketsByBase[base];
-      return { sym: row.sym, price: row.price, chg: row.chg, high: row.high, low: row.low, vol: (row.vol / 1e9).toFixed(2) + 'B', source: row.source };
+      return { sym: row.sym, price: row.price, chg: row.chg, high: row.high, low: row.low, vol: Number.isFinite(row.vol) && row.vol >= 0 ? String(row.vol) : '0', source: row.source };
     });
     const dataObj = {};
     out.forEach(row => { dataObj[row.sym] = { price: row.price, chg: row.chg, high: row.high, low: row.low, vol: marketsByBase[row.sym].vol, ts: snapshotTs, providerTs: marketsByBase[row.sym].providerTs, source: row.source }; });
@@ -2366,6 +2409,7 @@ async function handleRequest(event, context) {
     // Never simulate fills: an unavailable or unapproved engine must fail closed.
     if (!user) return json({ ok: false, msg: 'Not signed in.', need_login: true }, 401);
     if (user.frozen) return json({ ok: false, msg: 'Account frozen. Trading is not available. Please contact support.', code: 'ACCOUNT_FROZEN' }, 403);
+    { const rl = await rateCheckShared('spot_order', String(user.uid)); if (rl.unavailable) return rateLimitUnavailableJson(); if (rl.limited) return rateLimitedJson(rl.retryAfter); }
     const symbol = String(body.symbol || 'BTCUSDT').toUpperCase();
     const side = String(body.side || 'buy').toLowerCase();
     const type = String(body.type || body.order_type || 'limit').toLowerCase();
@@ -2406,6 +2450,7 @@ async function handleRequest(event, context) {
     const cancelId = String(body.client_cancel_id || body.request_id || '').trim();
     if (!orderId || orderId.length > 128) return json({ ok: false, code: 'INVALID_ORDER_ID', msg: 'Invalid order ID.' }, 400);
     if (!/^[A-Za-z0-9_-]{16,100}$/.test(cancelId)) return json({ ok: false, code: 'IDEMPOTENCY_KEY_REQUIRED', msg: 'Please provide a valid client_cancel_id (16-100 characters).' }, 400);
+    { const rl = await rateCheckShared('spot_cancel', String(user.uid)); if (rl.unavailable) return rateLimitUnavailableJson(); if (rl.limited) return rateLimitedJson(rl.retryAfter); }
     if (!matchingEngineEnabled()) return json({ ok: false, code: 'MATCHING_ENGINE_UNAVAILABLE', msg: 'Matching engine cutover is not approved. Cancel was not executed.' }, 503);
     try {
       const result = await matchingRpc('cancel_limit_order_matching_v1', {
@@ -2462,6 +2507,7 @@ async function handleRequest(event, context) {
       const productId = String(body.product_id || 'flex_USDT');
       const products = new Set(['demand','flex_USDT','flex_BTC','flex_ETH','fixed30','fixed90','fixed180']);
       if (!products.has(productId)) return json({ ok: false, msg: 'This earn product is not supported.' }, 400);
+      { const rl = await rateCheckShared('earn_subscribe', String(user.uid)); if (rl.unavailable) return rateLimitUnavailableJson(); if (rl.limited) return rateLimitedJson(rl.retryAfter); }
       const asset = productId.endsWith('_BTC') ? 'BTC' : productId.endsWith('_ETH') ? 'ETH' : 'USDT';
       const positionId = 'EP' + crypto.createHash('sha256').update(String(user.uid) + '|' + requestId).digest('hex').slice(0, 32);
       const requestHash = crypto.createHash('sha256').update(JSON.stringify({ user_id: String(user.uid), product_id: productId, asset, amount: String(amount), request_id: requestId })).digest('hex');
@@ -2476,6 +2522,7 @@ async function handleRequest(event, context) {
       const positionId = String(body.record_id || '').trim();
       if (!positionId || positionId.length > 128) return json({ ok: false, msg: 'Invalid record ID.' }, 400);
       if (!/^[A-Za-z0-9_-]{16,100}$/.test(requestId)) return json({ ok: false, code: 'IDEMPOTENCY_KEY_REQUIRED', msg: 'A valid redemption request ID is required.' }, 400);
+      { const rl = await rateCheckShared('earn_redeem', String(user.uid)); if (rl.unavailable) return rateLimitUnavailableJson(); if (rl.limited) return rateLimitedJson(rl.retryAfter); }
       const requestHash = crypto.createHash('sha256').update(JSON.stringify({ user_id: String(user.uid), position_id: positionId, request_id: requestId })).digest('hex');
       try {
         const rpc = await fetch(base + '/rest/v1/rpc/redeem_earn_atomic', { method: 'POST', headers: supabaseHeaders(), body: JSON.stringify({ p_position_id: positionId, p_user_id: String(user.uid), p_request_id: requestId, p_request_hash: requestHash }) });
@@ -2533,6 +2580,9 @@ async function handleRequest(event, context) {
     if (!financialWritesEnabled()) {
       return json({ ok: false, code: 'FINANCIAL_CUTOVER_INCOMPLETE', msg: 'Short-term contracts are unavailable until financial cutover is complete. No funds were frozen and no position was created.' }, 503);
     }
+    if (!(await hasActiveVersionedSecondsPolicy())) {
+      return json({ ok: false, code: 'SECONDS_POLICY_SCHEMA_UNAVAILABLE', msg: 'Short-term contracts are unavailable because the active versioned policy is not installed. No funds were frozen and no position was created.' }, 503);
+    }
     const symbol = String(body.symbol || 'BTC').toUpperCase();
     const direction = String(body.direction || 'up').toLowerCase();
     const durationSec = Number(body.duration_sec || body.duration || 30);
@@ -2572,6 +2622,9 @@ async function handleRequest(event, context) {
     if (rl.limited) return rateLimitedJson(rl.retryAfter);
     if (!financialWritesEnabled()) {
       return json({ ok: false, code: 'FINANCIAL_CUTOVER_INCOMPLETE', msg: 'Short-term contracts are unavailable until financial cutover is complete. This position was not settled.' }, 503);
+    }
+    if (!(await hasActiveVersionedSecondsPolicy())) {
+      return json({ ok: false, code: 'SECONDS_POLICY_SCHEMA_UNAVAILABLE', msg: 'Short-term contract settlement is unavailable because the active versioned policy is not installed. This position was not settled.' }, 503);
     }
     const positionId = String(body.position_id || '').trim();
     const requestId = String(body.request_id || '').trim();
@@ -2889,8 +2942,8 @@ async function handleRequest(event, context) {
       if (route === 'kyc' && verb === 'GET') return 'kyc.read';
       if ((route === 'kyc/approve' || route === 'kyc/reject') && verb === 'POST') return 'kyc.review';
       if (route === 'deposit/confirm' && verb === 'POST') return 'deposits.review';
-      if (route === 'addresses' && verb === 'GET') return 'deposits.read';
-      if (route === 'address/manage' && verb === 'POST') return 'system_config.write';
+      if (route === 'addresses' && verb === 'GET') return 'payout_addresses.read_sensitive';
+      if (route === 'address/manage' && verb === 'POST') return 'payout_addresses.manage';
       if (route === 'withdrawals' && verb === 'GET') return 'withdrawals.read';
       if (['withdraw/approve','withdraw/reject','withdraw/mark-paid'].includes(route) && verb === 'POST') return 'withdrawals.review';
       if (route === 'orders' && verb === 'GET') return 'orders.read';
@@ -3109,7 +3162,7 @@ async function handleRequest(event, context) {
         try { const withdrawalSnapshot = await readAdminWithdrawalSnapshot(); pendingWd = withdrawalSnapshot.pending_count; pendingAdminReviewWd = withdrawalSnapshot.pending_admin_review_count; }
         catch (e) { return json({ ok: false, msg: 'Financial data temporarily unavailable. Please try again later.', code: 'FINANCIAL_READ_UNAVAILABLE' }, 503); }
       }
-      const pendingKyc = users.filter(function (u) { return u.kyc && u.kyc.status === 'pending'; }).length;
+      const pendingKyc = users.filter(function (u) { return u.kyc && isKycInReview(u.kyc.status); }).length;
       return json({ ok: true, total_users: users.length, pending_withdrawals: pendingWd, pending_admin_review_withdrawals: pendingAdminReviewWd, pending_kyc: pendingKyc, deposit_addresses: safeDepositAddresses(db.deposit_addresses), announcement: db.announcement || '' });
     }
 
@@ -3897,6 +3950,8 @@ exports.handler = function (event, context) {
 };
 // 导出纯函数供后端单元测试（无网络/无 DB 依赖）。
 exports._test = {
+  loadDB: loadDB,
+  defaultDB: defaultDB,
   depositAddressFromEnv: depositAddressFromEnv,
   DEPOSIT_ADDRESS_ENV_KEYS: DEPOSIT_ADDRESS_ENV_KEYS,
   getPublishableKey: getPublishableKey,
@@ -3909,10 +3964,10 @@ exports._test = {
   KYC_IN_REVIEW_STATUSES: KYC_IN_REVIEW_STATUSES,
   KYC_APPROVED_STATUSES: KYC_APPROVED_STATUSES,
   parseMoneyInput: parseMoneyInput,
+  clientIp: clientIp,
   compareMoney: compareMoney,
   addMoney: addMoney,
   withdrawalAddressCheck: withdrawalAddressCheck,
-  withdrawalRequiresAdminReview: withdrawalRequiresAdminReview,
   estimateUsdtValue: estimateUsdtValue,
   redactAdminAuditDetail: redactAdminAuditDetail,
   normalizeReferenceTimestamp: normalizeReferenceTimestamp,

@@ -13,7 +13,7 @@ Use `backend/scripts/bootstrap-empty-database.sh` only against a verified empty 
 
 The scripts do not clear or overwrite an existing schema. They are not incremental migration runners: Docker's init hook only runs for a new empty data directory, and `run_migrations.sh` is a compatibility alias for the guarded empty-database bootstrap. A persisted Docker volume is not upgraded automatically. Do not run either bootstrap against a production database or an existing data volume; a separate versioned, data-preserving upgrade process is required.
 
-## Exact source migration order
+## Exact source SQL order
 
 The current canonical source inventory is:
 
@@ -58,6 +58,8 @@ Manual deposits follow the chosen half-manual workflow: staff verifies the trans
 - `0021` extends the canonical financial audit contract; it must not create a second competing audit-log schema.
 - `0022` extends the existing withdrawal review/request contract.
 - `0023` adds shared server-side rate limiting before routes that consume its RPC.
+- `0037` extends the shared limiter's scope constraint and server policy for withdrawal creation, Spot order/cancel, and Earn subscribe/redeem; each route fails closed if the shared limiter is unavailable.
+- `0038` makes PostgreSQL authoritative for first-successful-withdrawal manual review. The database ORs the API's large-value/unknown-price flag with its own prior successful withdrawal history, so stale legacy `btcbox_state` cannot bypass the first-withdrawal review requirement.
 - `0024` adds Seconds settlement request-hash idempotency and depends on the Seconds base schema in `0014`.
 - `0025` adds immutable Seconds policy versions, active pointer, policy audit and per-position payout/policy snapshots. New orders validate the active policy and snapshot it in the same transaction as the reserve.
 - `0026` adds the private admin membership/permission store, Super Admin bootstrap and delegated-admin lifecycle.
@@ -76,6 +78,10 @@ The initial Super Admin is not seeded automatically. First, the intended adminis
 Do not put a service-role key in the browser. Private tables remain unavailable to browser roles; the backend uses narrow RPC wrappers after validating Supabase Auth.
 
 All financial writes and matching remain fail-closed during source QA. Applying SQL does not itself authorize enabling deposits, withdrawals, spot matching, Seconds orders or settlement.
+
+## Read-only hosted schema diagnostic
+
+`backend/supabase/diagnostics/hosted-schema-contract-readonly.sql` is a SELECT-only diagnostic for comparing critical PR #67 tables/functions and the current state counts with the connected hosted database. It does not mutate schema or data and deliberately reports missing objects instead of attempting to bootstrap them. Run it only for inspection; a missing-object result is a release blocker, not permission to run the fresh-schema bootstrap against a non-empty project.
 
 ## Validation and release gates
 

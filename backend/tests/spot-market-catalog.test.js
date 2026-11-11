@@ -81,7 +81,7 @@ test('public ticker snapshots use a short shared-cache window and clients bypass
   const route = backend.slice(marketStart, marketStart + 9000);
   assert.ok(route.includes("'Cache-Control': 'public, max-age=0, s-maxage=2, stale-while-revalidate=1'"));
   assert.ok(api.includes('cache: "no-store"'));
-  assert.ok(pages.includes('window.setInterval(refreshMarketData,15000)'));
+  assert.ok(pages.includes('window.setInterval(refreshMarketData,5000)'));
 });
 
 test('order book snapshots normalize provider levels and expose source-specific freshness', () => {
@@ -109,5 +109,28 @@ test('spot chart preserves provider provenance and rejects impossible OHLC range
   assert.ok(api.includes('candle.low <= Math.min(candle.open, candle.close, candle.high)'));
   assert.ok(api.includes('source: typeof payload.source === "string" ? payload.source : undefined'));
   assert.ok(pages.includes('t("Chart")}: {candles[0]?.source||"—"}'));
-  assert.ok(pages.includes('setChartFeedWarning("Chart refresh is unavailable; showing the last confirmed candles.")'));
+  assert.ok(pages.includes('setCandles([]);setChartFeedWarning("Chart data is temporarily unavailable.")'));
+  assert.ok(!pages.includes("showing the last confirmed candles"));
+});
+
+test('legacy market and depth polling suppress overlapping requests and never retain failed snapshots', () => {
+  const appCore = fs.readFileSync(path.join(root, 'assets/js/app-core.js'), 'utf8');
+  const tradeView = fs.readFileSync(path.join(root, 'assets/js/views-trade.js'), 'utf8');
+  const marketStart = appCore.indexOf('async function refreshMarket()');
+  const depthStart = appCore.indexOf('async function refreshDepth()', marketStart);
+  const adapterStart = appCore.indexOf('/* ---------- apiAdapter', depthStart);
+  assert.ok(marketStart >= 0 && depthStart > marketStart && adapterStart > depthStart);
+  const market = appCore.slice(marketStart, depthStart);
+  const depth = appCore.slice(depthStart, adapterStart);
+  assert.ok(market.includes('if(state.marketRefreshInFlight) return;'));
+  assert.ok(market.includes('state.marketRefreshInFlight=true;'));
+  assert.ok(market.includes('state.marketRefreshInFlight=false;'));
+  assert.ok(market.includes('clearMarketQuotes();updateLivePriceEls();'));
+  assert.ok(market.includes('catch{'));
+  assert.ok(depth.includes('if(!sym||state.depthRefreshInFlight) return;'));
+  assert.ok(depth.includes('state.depthRefreshInFlight=false;'));
+  assert.ok(depth.includes('if(state.currentPair!==sym)return;'));
+  assert.ok(depth.includes('state.depthUnavailable=true;'));
+  assert.ok(depth.includes('state.depthCache=null;'));
+  assert.ok(tradeView.includes("state.depthUnavailable?'Order book unavailable"));
 });

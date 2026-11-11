@@ -4,8 +4,21 @@ import { cn } from "../../lib/utils";
 import { useI18n } from "../../lib/i18n";
 import { BrandLogo } from "../BrandLogo";
 
-const primary = [{to:"/home",label:"Home",icon:House},{to:"/markets",label:"Markets",icon:ChartNoAxesCombined},{to:"/trade-hub",label:"Trade",icon:ArrowLeftRight},{to:"/assets",label:"Assets",icon:Wallet},{to:"/me",label:"My",icon:UserRound}];
-const secondary = [{to:"/orders",label:"Orders",icon:ClipboardList},{to:"/earn",label:"Earn",icon:Sprout},{to:"/support",label:"Support",icon:Headset},{to:"/settings",label:"Settings",icon:Settings}];
+const primary = [
+  { to: "/home", label: "Home", icon: House },
+  { to: "/markets", label: "Markets", icon: ChartNoAxesCombined },
+  { to: "/trade-hub", label: "Trade", icon: ArrowLeftRight },
+  { to: "/assets", label: "Assets", icon: Wallet },
+  { to: "/me", label: "My", icon: UserRound },
+];
+const secondary = [
+  { to: "/orders", label: "Orders", icon: ClipboardList },
+  { to: "/earn", label: "Earn", icon: Sprout },
+  { to: "/support", label: "Support", icon: Headset },
+  { to: "/settings", label: "Settings", icon: Settings },
+];
+
+const focusRing = "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent/70 focus-visible:ring-offset-2 focus-visible:ring-offset-brand-sidebar";
 
 export function Sidebar({ onClose }: { onClose?: () => void }) {
   const { t } = useI18n();

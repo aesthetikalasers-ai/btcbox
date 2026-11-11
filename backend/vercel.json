@@ -61,7 +61,8 @@
   ],
   "git": {
     "deploymentEnabled": {
-      "feature/uiux-upgrade": false
+      "feature/uiux-upgrade": false,
+      "feature/btcbox-complete-redesign": false
     }
   }
 }
