@@ -40,7 +40,14 @@ language sql
 security definer
 set search_path = ''
 as $$
-  select nextval('public.btcbox_user_id_seq'::regclass)::text;
+  with allocated as (
+    select nextval('public.btcbox_user_id_seq'::regclass)::text as user_id
+  ), inserted as (
+    insert into public.btcbox_users (user_id)
+    select user_id from allocated
+    returning user_id
+  )
+  select user_id from inserted;
 $$;
 
 revoke all on function public.allocate_btcbox_user_id() from public, anon, authenticated;
