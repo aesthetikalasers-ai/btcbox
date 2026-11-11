@@ -6,6 +6,10 @@ import { Topbar } from "./Topbar";
 import { BottomNav } from "./BottomNav";
 import { useI18n } from "../../lib/i18n";
 
+/**
+ * Renders the shared application shell and coordinates responsive navigation.
+ * Closes the mobile menu and resets the content scroll position when routes change.
+ */
 export function AppLayout({ children }: { children: ReactNode }) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const { t } = useI18n();
