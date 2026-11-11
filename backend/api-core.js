@@ -1411,7 +1411,7 @@ async function handleRequest(event, context) {
     return json({ ok: true, uid: user.uid }, 200, setCookieHeader(token));
   }
 
-  // ---------- POST /api/supabase-login (Supabase-verified single-provider identity) ----------
+  // ---------- POST /api/supabase-login (Supabase-verified provider identity registry) ----------
   if ((path === 'supabase-login' || path === 'google-login') && method === 'POST') {
     // 登录路径持久化限流（按 IP，20 次/15 分钟），计数存 btcbox_state，跨实例共享。
     if (!db.security_counters) db.security_counters = {};
@@ -1447,7 +1447,7 @@ async function handleRequest(event, context) {
     }
     const authProvider = getSingleSupabaseAuthProvider(identity);
     if (!authProvider) {
-      return json({ ok: false, code: 'AUTH_PROVIDER_NOT_ALLOWED', msg: 'This account uses multiple or unsupported sign-in methods. Please contact support.' }, 403);
+      return json({ ok: false, code: 'AUTH_PROVIDER_NOT_ALLOWED', msg: 'The sign-in provider could not be verified or is unsupported. Please sign in again.' }, 403);
     }
     const walletIdentity = authProvider === 'web3' ? getSupabaseWalletIdentity(identity) : null;
     const confirmed = !!(identity && (identity.email_confirmed_at || identity.confirmed_at));
