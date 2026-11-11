@@ -12,7 +12,7 @@ test("stale quotes are hidden from both the summary and list when snapshots have
   } }));
   await page.route("**/api/kline?**", route => route.fulfill({ status: 200, json: { ok: true, klines: [] } }));
   await page.goto("/markets");
-  await expect(page.getByText("Snapshot stale", { exact: true })).toBeVisible();
+  await expect(page.getByText("Feed unavailable", { exact: true })).toBeVisible();
   await expect(page.getByText(/older than 90 seconds/)).toBeVisible();
   await expect(page.getByText("65,000", { exact: false })).toHaveCount(0);
   await expect(page.getByRole("link", { name: "ETH spot trading" })).toHaveCount(0);
@@ -35,7 +35,7 @@ test("a timed-out market refresh hides previous quotes and a later refresh recov
     await expect(page.getByRole("link", { name: "BTC spot trading" })).toBeVisible();
     stallNext = true;
     await expect.poll(() => stalled, { timeout: 8000 }).toBe(true);
-    await expect(page.getByText("Market feed unavailable", { exact: true })).toBeVisible({ timeout: 12000 });
+    await expect(page.getByText("Feed unavailable", { exact: true })).toBeVisible({ timeout: 12000 });
     await expect(page.getByText("65,000", { exact: false })).toHaveCount(0);
     await expect(page.getByRole("link", { name: "BTC spot trading" })).toBeVisible({ timeout: 8000 });
   } finally { releasePending(); }
@@ -59,7 +59,7 @@ test("public dashboard shows an unavailable state and no quote values when the m
   await expect(page.getByText("Preview · API verification pending", { exact: true })).toHaveCount(0);
   await expect(page.getByText(/TradingView Lightweight Charts™ Copyright/)).toBeVisible();
   await expect(page.getByRole("link", { name: "https://www.tradingview.com/" })).toHaveAttribute("href", "https://www.tradingview.com/");
-  await expect(page.getByText(/Market feed unavailable/i).first()).toBeVisible();
+  await expect(page.getByText(/Market data is temporarily unavailable/i).first()).toBeVisible();
   await expect(page.getByText(/65,?000\.00/)).toHaveCount(0);
   await expect(page.getByText("0.00", { exact: true })).toHaveCount(0);
 });
@@ -126,7 +126,7 @@ test("public dashboard hides quotes from an expired server market snapshot", asy
 
   await page.goto("/home");
 
-  await expect(page.getByText("Snapshot stale", { exact: true })).toBeVisible();
+  await expect(page.getByText("Feed unavailable", { exact: true })).toBeVisible();
   await expect(page.getByText(/older than 90 seconds/i)).toBeVisible();
   await expect(page.getByText("65,000.00", { exact: true })).toHaveCount(0);
   await expect(page.getByRole("link", { name: "BTCUSDT spot trading" })).toHaveCount(0);
