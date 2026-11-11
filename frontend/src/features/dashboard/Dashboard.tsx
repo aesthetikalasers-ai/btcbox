@@ -7,8 +7,7 @@ import { LiveMarketsTable } from "./components/LiveMarketsTable";
 import { Badge } from "../../components/ui/badge";
 import { Button } from "../../components/ui/button";
 import { getKlines, getMarkets, type MarketCandle, type MarketTicker } from "../../lib/api";
-import { useI18n, localeTags } from "../../lib/i18n";
-import { useAuth } from "../../lib/auth";
+import { localeTags, useI18n } from "../../lib/i18n";
 import { useDashboardStore } from "./dashboard.data";
 
 
@@ -17,9 +16,6 @@ const VOLUME_INTERVALS: Record<string, string> = { "1d": "5m", "7d": "1h", "30d"
 
 export function Dashboard() {
   const { t, language } = useI18n();
-  const numberLocale = localeTags[language];
-  const { status: authStatus } = useAuth();
-  const signedIn = authStatus === "authenticated";
   const isMarketsPage = useLocation().pathname === "/markets";
   const [markets, setMarkets] = useState<MarketTicker[]>([]);
   const [loading, setLoading] = useState(true);
@@ -116,10 +112,28 @@ export function Dashboard() {
         <h1 className="type-page-title">{t("Market overview")}</h1>
         <p className="mt-2 text-sm text-brand-text-secondary">{t("Live spot prices and 24-hour market movement.")}</p>
       </div>
-      <div className="flex flex-wrap items-center gap-2">
-        <Badge variant="outline">{t(marketFeedStatus)}</Badge>
-        {isMarketsPage ? <Button asChild variant="outline" size="sm"><a href="#market-analysis">{t("Chart")} <ArrowRight className="h-4 w-4" /></a></Button>
-          : <Button asChild size="sm"><Link to={signedIn ? "/assets" : "/register"}>{t(signedIn ? "Assets" : "Create account")} <ArrowUpRight className="h-4 w-4" /></Link></Button>}
+      <Badge variant="outline" className="border-brand-accent/30 bg-brand-accent/10 px-3 py-1 text-brand-text-secondary">
+        {t(marketFeedStatus)}
+      </Badge>
+    </div>
+    {(btcMarket || loading) && <section aria-label={t("Bitcoin market summary")} className="grid gap-3 sm:grid-cols-3">
+      <div className="relative min-w-0 overflow-hidden rounded-xl border border-brand-cyan/25 bg-gradient-to-br from-brand-cyan/[0.075] via-brand-surface to-brand-surface p-4 ring-1 ring-brand-cyan/[0.06] sm:p-5">
+        <span aria-hidden="true" className="absolute inset-y-0 left-0 w-1 bg-brand-cyan"/>
+        <div className="flex items-center justify-between gap-2 pl-1"><p className="type-meta font-semibold uppercase tracking-wide text-brand-text-muted">{t("BTC/USDT last price")}</p><span className="h-2 w-2 rounded-full bg-brand-cyan shadow-[0_0_12px_var(--color-brand-cyan)]"/></div>
+        <p className="mt-3 truncate text-xl font-semibold tracking-tight tabular-nums text-brand-text sm:text-2xl">{loading ? "—" : btcMarket ? btcMarket.price.toLocaleString(localeTags[language],{maximumFractionDigits:8}) : "—"}</p>
+        
+      </div>
+      <div className="relative min-w-0 overflow-hidden rounded-xl border border-brand-teal/25 bg-gradient-to-br from-brand-teal/[0.075] via-brand-surface to-brand-surface p-4 ring-1 ring-brand-teal/[0.06] sm:p-5">
+        <span aria-hidden="true" className="absolute inset-y-0 left-0 w-1 bg-brand-teal"/>
+        <div className="flex items-center justify-between gap-2 pl-1"><p className="type-meta font-semibold uppercase tracking-wide text-brand-text-muted">{t("BTC 24h change")}</p><span className={"h-2 w-2 rounded-full "+(btcMarket ? btcMarket.chg >= 0 ? "bg-profit" : "bg-loss" : "bg-brand-text-muted")}/></div>
+        <p className={"mt-3 truncate text-xl font-semibold tracking-tight tabular-nums sm:text-2xl "+(btcMarket ? btcMarket.chg >= 0 ? "text-profit" : "text-loss" : "text-brand-text")}>{loading || !btcMarket ? "—" : (btcMarket.chg > 0 ? "+" : "") + btcMarket.chg.toFixed(2) + "%"}</p>
+        
+      </div>
+      <div className="relative min-w-0 overflow-hidden rounded-xl border border-brand-violet/25 bg-gradient-to-br from-brand-violet/[0.075] via-brand-surface to-brand-surface p-4 ring-1 ring-brand-violet/[0.06] sm:p-5">
+        <span aria-hidden="true" className="absolute inset-y-0 left-0 w-1 bg-brand-violet"/>
+        <div className="flex items-center justify-between gap-2 pl-1"><p className="type-meta font-semibold uppercase tracking-wide text-brand-text-muted">{t("BTC 24h volume")}</p><span className="h-2 w-2 rounded-full bg-brand-violet shadow-[0_0_12px_var(--color-brand-violet)]"/></div>
+        <p className="mt-3 truncate text-xl font-semibold tracking-tight tabular-nums text-brand-text sm:text-2xl">{loading || !btcMarket || !Number.isFinite(Number(btcMarket.vol)) ? "—" : new Intl.NumberFormat(localeTags[language],{notation:"compact",maximumFractionDigits:2}).format(Number(btcMarket.vol)) + " USDT"}</p>
+        
       </div>
     </header>
     {(btcMarket || loading) && <section aria-label={t("Bitcoin market summary")} className="exchange-summary">
