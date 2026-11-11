@@ -42,21 +42,23 @@ function getPublishableKey() {
 // supabase-login call does not pay an extra round trip. Returns true / false, or
 // null if the status cannot be determined (settings endpoint unreachable).
 let _authProviderCache = { google: { value: null, expiresAt: 0 }, web3: { value: null, expiresAt: 0 } };
-// Accept only one server-verified Supabase identity. Mixed/linked identities are
-// deliberately rejected until an explicit, audited account-linking flow exists.
+// Supabase may return several linked identities for one verified Auth user.
+// The stable Supabase UUID remains the account-level key; never merge by email alone.
 function getSingleSupabaseAuthProvider(identity) {
   if (!identity || typeof identity !== 'object') return null;
   const appMetadata = identity.app_metadata && typeof identity.app_metadata === 'object' ? identity.app_metadata : {};
   const provider = String(appMetadata.provider || '').toLowerCase();
   const providers = Array.isArray(appMetadata.providers) ? appMetadata.providers.map(p => String(p || '').toLowerCase()) : [];
   const identities = Array.isArray(identity.identities) ? identity.identities : [];
-  if (!['google', 'email', 'web3'].includes(provider) || providers.length !== 1 || providers[0] !== provider) return null;
-  if (identities.length !== 1 || !identities[0] || String(identities[0].provider || '').toLowerCase() !== provider) return null;
+  const allowed = new Set(['google', 'email', 'web3']);
+  if (!allowed.has(provider) || !providers.includes(provider) || !identities.some(item => item && String(item.provider || '').toLowerCase() === provider)) return null;
+  if (providers.some(item => !allowed.has(item))) return null;
   return provider;
 }
 function getSupabaseWalletIdentity(identity) {
-  if (!identity || typeof identity !== 'object' || getSingleSupabaseAuthProvider(identity) !== 'web3') return null;
-  const walletIdentity = Array.isArray(identity.identities) ? identity.identities[0] : null;
+  if (!identity || typeof identity !== 'object') return null;
+  const walletIdentity = (Array.isArray(identity.identities) ? identity.identities : []).find(item => item && String(item.provider || '').toLowerCase() === 'web3');
+  if (!walletIdentity) return null;
   const identityData = walletIdentity && walletIdentity.identity_data && typeof walletIdentity.identity_data === 'object' ? walletIdentity.identity_data : {};
   const claims = identityData.custom_claims && typeof identityData.custom_claims === 'object' ? identityData.custom_claims : {};
   const chain = String(claims.chain || '').toLowerCase();
@@ -1397,7 +1399,7 @@ async function handleRequest(event, context) {
     if (authProvider === 'google' && await detectGoogleProviderEnabled() !== true) {
       return json({ ok: false, code: 'GOOGLE_PROVIDER_UNAVAILABLE', msg: 'Google sign-in is temporarily unavailable. Please try again later.' }, 503);
     }
-    const authProviders = [authProvider];
+    const authProviders = Array.from(new Set((Array.isArray(identity.app_metadata && identity.app_metadata.providers) ? identity.app_metadata.providers : [authProvider]).map(p => String(p || '').toLowerCase()).filter(p => ['google', 'email', 'web3'].includes(p))));
     // Resolve the internal account by the server-verified Supabase UUID first.
     // Wallet identities have no email; never synthesize one or link by wallet metadata.
     let user = Object.values(db.users).find(function (u) { return isSupabaseIdentityLinked(u, supabaseUserId); });
@@ -1428,7 +1430,17 @@ async function handleRequest(event, context) {
       return json({ ok: false, require_2fa: true, temp_token: tempToken }, 200);
     }
     if (!user) {
-      const uid = String(db.next_uid++);
+      // PostgreSQL nextval() allocates IDs atomically across Vercel instances.
+      // The migration must exist before this code is enabled; fail closed otherwise.
+      let uid;
+      try {
+        const allocationResponse = await fetch(process.env.SUPABASE_URL.replace(/\/+$/, '') + '/rest/v1/rpc/allocate_btcbox_user_id', {
+          method: 'POST', headers: supabaseHeaders(), body: '{}'
+        });
+        const allocated = allocationResponse.ok ? await allocationResponse.json() : null;
+        uid = typeof allocated === 'string' && /^\d+$/.test(allocated) ? allocated : null;
+      } catch (_) { uid = null; }
+      if (!uid) return json({ ok: false, code: 'ACCOUNT_ID_ALLOCATION_UNAVAILABLE', msg: 'Account creation is temporarily unavailable. Please try again later.' }, 503);
       const salt = genSalt();
       user = {
         uid: uid, email: email || '', email_verified: authProvider !== 'web3', supabase_user_id: supabaseUserId,
