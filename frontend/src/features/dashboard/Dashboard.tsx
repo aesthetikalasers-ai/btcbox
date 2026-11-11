@@ -26,10 +26,9 @@ export function Dashboard() {
   const volumeRange = useDashboardStore((state) => state.volumeRange);
   const liquidityInterval = LIQUIDITY_INTERVALS[liquidityRange] || "5m";
   const volumeInterval = VOLUME_INTERVALS[volumeRange] || "1h";
-  const hasMarketSnapshotTime = markets.length > 0 && markets.every((item) => Number.isFinite(item.snapshotTs) && (item.snapshotTs || 0) > 0);
   const marketSnapshotStale = markets.some((item) => (item.snapshotTs || 0) > 0 && Date.now() / 1000 - (item.snapshotTs || 0) > 90);
   const btcMarket = !error && !marketSnapshotStale ? markets.find((item) => item.sym === "BTC") : undefined;
-  const marketFeedStatus = loading ? "Connecting" : error ? "Feed unavailable" : !markets.length ? "No markets enabled" : marketSnapshotStale ? "Snapshot stale" : !hasMarketSnapshotTime ? "Snapshot time unavailable" : "Live market feed";
+  const marketFeedStatus = loading ? "Connecting" : error || !markets.length || marketSnapshotStale ? "Feed unavailable" : "Live market feed";
 
   useEffect(() => {
     // A fresh AbortController per poll attempt: a timed-out or unmount-aborted
