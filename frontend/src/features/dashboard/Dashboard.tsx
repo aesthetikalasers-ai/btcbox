@@ -26,8 +26,10 @@ export function Dashboard() {
   const volumeRange = useDashboardStore((state) => state.volumeRange);
   const liquidityInterval = LIQUIDITY_INTERVALS[liquidityRange] || "5m";
   const volumeInterval = VOLUME_INTERVALS[volumeRange] || "1h";
-  const latestMarketSnapshotTs = markets.reduce((latest, item) => Math.max(latest, item.snapshotTs || 0), 0);
-  const marketSnapshotStale = latestMarketSnapshotTs > 0 && Date.now() / 1000 - latestMarketSnapshotTs > 90;
+  const hasMarketSnapshotTime = markets.length > 0 && markets.every((item) => Number.isFinite(item.snapshotTs) && (item.snapshotTs || 0) > 0);
+  const marketSnapshotStale = markets.some((item) => (item.snapshotTs || 0) > 0 && Date.now() / 1000 - (item.snapshotTs || 0) > 90);
+  const btcMarket = !error && !marketSnapshotStale ? markets.find((item) => item.sym === "BTC") : undefined;
+  const marketFeedStatus = loading ? "Connecting" : error ? "Feed unavailable" : !markets.length ? "No markets enabled" : marketSnapshotStale ? "Snapshot stale" : !hasMarketSnapshotTime ? "Snapshot time unavailable" : "Live market feed";
 
   useEffect(() => {
     // A fresh AbortController per poll attempt: a timed-out or unmount-aborted
@@ -48,10 +50,10 @@ export function Dashboard() {
         setMarkets(rows);
         setError("");
       }).catch((reason: unknown) => {
-        if (reason instanceof Error && reason.name === "AbortError") return;
+        if (cancelled) return;
         // Do not leave old quotes on screen as if they were current.
         setMarkets([]);
-        setError(reason instanceof Error ? reason.message : "Market data is unavailable.");
+        setError(reason instanceof Error && reason.name !== "AbortError" ? reason.message : "Market data is temporarily unavailable. Please try again shortly.");
       }).finally(() => {
         window.clearTimeout(timeoutId);
         refreshing = false;
@@ -111,7 +113,7 @@ export function Dashboard() {
         <p className="mt-2 text-sm text-brand-text-secondary">{t("Live spot prices and 24-hour market movement.")}</p>
       </div>
       <Badge variant="outline" className="border-brand-accent/30 bg-brand-accent/10 px-3 py-1 text-brand-text-secondary">
-        {loading ? t("Connecting") : error ? t("Feed unavailable") : marketSnapshotStale ? t("Snapshot stale") : t("Live market feed")}
+        {t(marketFeedStatus)}
       </Badge>
     </div>
     {(btcMarket || loading) && <section aria-label={t("Bitcoin market summary")} className="grid gap-3 sm:grid-cols-3">
@@ -156,16 +158,10 @@ export function Dashboard() {
       <LiquidityChart candles={liquidityCandles} />
       <VolumeChart candles={volumeCandles} />
     </div>
-    <section className="flex flex-col items-start justify-between gap-4 rounded-xl border border-brand-border bg-brand-surface p-5 sm:flex-row sm:items-center sm:p-6">
-      <div className="flex min-w-0 items-start gap-3">
-        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-brand-accent/10 text-brand-accent"><Wallet className="h-5 w-5" /></span>
-        <div><h2 className="type-section-title text-brand-text">{t("Ready to access your account?")}</h2><p className="mt-1 text-sm leading-6 text-brand-text-muted">{t("Create an account or sign in to manage your personal assets and account services.")}</p></div>
-      </div>
-      <div className="flex w-full shrink-0 flex-wrap gap-2 sm:w-auto">
-        <Button asChild variant="outline"><Link to="/login">{t("Sign in")}</Link></Button>
-        <Button asChild><Link to="/register">{t("Create account")}</Link></Button>
-      </div>
-    </section>
+    </>}
+    {!isMarketsPage && <nav aria-label={t("Manage")} className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+      {[{to:"/markets",label:"Markets"},{to:"/trade-hub",label:"Trade"},{to:"/assets",label:"Assets"},{to:"/support",label:"Support"}].map(item => <Button key={item.to} asChild variant="outline"><Link to={item.to}>{t(item.label)} <ArrowUpRight className="ml-auto h-4 w-4" /></Link></Button>)}
+    </nav>}
     <footer className="px-1 pb-2 text-[11px] leading-5 text-brand-text-muted">
       TradingView Lightweight Charts™ Copyright (с) 2025 TradingView, Inc.{" "}
       <a href="https://www.tradingview.com/" target="_blank" rel="noreferrer" className="underline underline-offset-2 hover:text-brand-text-secondary">https://www.tradingview.com/</a>
