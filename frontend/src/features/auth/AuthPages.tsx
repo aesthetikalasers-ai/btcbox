@@ -54,7 +54,7 @@ export function AuthPage({ mode, redirectTo }: { mode: "login" | "register"; red
   </div>;
 
   /**
-   * Submits username credentials through the configured authentication provider.
+   * Submits email credentials through the configured authentication provider.
    * Maintains the page's existing validation, error, and loading behavior.
    */
   const submitEmailLogin = async (event: FormEvent<HTMLFormElement>) => {
@@ -199,9 +199,9 @@ export function AuthPage({ mode, redirectTo }: { mode: "login" | "register"; red
                 </label>
                 <label className="block space-y-1.5 text-sm">
                   <span className="text-brand-text-secondary">{t("Password")}</span>
-                  <span className="relative block"><Input aria-label={t("Password")} className="h-12 pr-12" type={showPassword ? "text" : "password"} value={password} onChange={event => setPassword(event.target.value)} autoComplete="current-password" minLength={12} maxLength={128} placeholder={t("Enter your password")} required /><button type="button" aria-label={t(showPassword ? "Hide password" : "Show password")} aria-pressed={showPassword} onClick={() => setShowPassword(value => !value)} className="absolute inset-y-0 right-0 flex w-12 items-center justify-center text-brand-text-muted">{showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}</button></span>
+                  <span className="relative block"><Input aria-label={t("Password")} className="h-12 pr-12" type={showPassword ? "text" : "password"} value={password} onChange={event => setPassword(event.target.value)} autoComplete="current-password" minLength={8} maxLength={128} placeholder={t("Enter your password")} required /><button type="button" aria-label={t(showPassword ? "Hide password" : "Show password")} aria-pressed={showPassword} onClick={() => setShowPassword(value => !value)} className="absolute inset-y-0 right-0 flex w-12 items-center justify-center text-brand-text-muted">{showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}</button></span>
                 </label>
-                <Button type="submit" className="min-h-12 w-full" aria-busy={busy} disabled={busy || !/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(loginEmail) || password.length < 8}>
+                <Button type="submit" className="min-h-12 w-full" aria-busy={busy} disabled={busy || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(loginEmail) || password.length < 8}>
                   <KeyRound className="mr-2 h-4 w-4" /> {busy ? t("Signing in…") : t("Sign in with email")}
                 </Button>
               </form>}
