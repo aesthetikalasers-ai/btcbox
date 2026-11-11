@@ -98,7 +98,6 @@ export function OrdersPage() {
     <div aria-busy={loading} className="tone-orders mx-auto flex w-full max-w-[1200px] min-w-0 flex-col gap-5 p-3 sm:p-4 md:p-6 lg:p-8">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <p className="page-accent mb-1 text-xs font-bold uppercase tracking-[.18em]">{t("BTCBOX / ACCOUNT")}</p>
           <h1 className="type-page-title text-brand-text">{t("Orders")}</h1>
         </div>
         <Button variant="outline" size="sm" onClick={() => void load()} disabled={loading}>

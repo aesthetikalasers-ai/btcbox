@@ -1057,5 +1057,18 @@
   "What should I do when a market or an order fails?": "Was tun bei Markt- oder Orderfehlern?",
   "Check the feed status on the Markets page first: stale snapshots hide quotes until fresh data arrives. Rejected orders show the reason returned by the trading service. If the problem persists, send the symbol, time and error text to support from this page.": "Prüfen Sie zuerst den Feed-Status auf Märkte: Bei veralteten Snapshots werden Kurse bis zum Frischdaten-Eingang ausgeblendet. Abgelehnte Orders zeigen den Grund vom Handelsservice. Bleibt das Problem, senden Sie Symbol, Uhrzeit und Fehlertext über diese Seite an den Support.",
   "How are support replies handled?": "Wie werden Support-Antworten bearbeitet?",
-  "Messages sent here are stored in your private account conversation and answered by the support team in the order they are received. Replies appear in this conversation and in the notification bell. We do not use automated answers, so every message is read by a person.": "Hier gesendete Nachrichten werden in Ihrer privaten Konto-Konversation gespeichert und vom Support-Team in Eingangsfolge beantwortet. Antworten erscheinen in dieser Unterhaltung und im Benachrichtigungs-Glockensymbol. Wir verwenden keine automatischen Antworten; jede Nachricht wird von einem Menschen gelesen."
+  "Messages sent here are stored in your private account conversation and answered by the support team in the order they are received. Replies appear in this conversation and in the notification bell. We do not use automated answers, so every message is read by a person.": "Hier gesendete Nachrichten werden in Ihrer privaten Konto-Konversation gespeichert und vom Support-Team in Eingangsfolge beantwortet. Antworten erscheinen in dieser Unterhaltung und im Benachrichtigungs-Glockensymbol. Wir verwenden keine automatischen Antworten; jede Nachricht wird von einem Menschen gelesen.",
+  "Tap to upload": "Tippen zum Hochladen",
+  "Market maintenance": "Markt-Wartung",
+  "Trading is temporarily unavailable. Please try again later.": "Der Handel ist vorübergehend nicht verfügbar. Bitte versuchen Sie es später erneut.",
+  "Positions will appear here once trading resumes.": "Positionen werden hier angezeigt, sobald der Handel wieder aufgenommen wird.",
+  "Enter a valid amount.": "Bitte geben Sie einen gültigen Betrag ein.",
+  "Minimum payout is 85%; rates may vary by product.": "Die Mindestauszahlung beträgt 85 %; die Sätze können je nach Produkt variieren.",
+  "Coming soon.": "Bald verfügbar.",
+  "Copy": "Kopieren",
+  "Copied": "Kopiert",
+  "Not linked": "Nicht verknüpft",
+  "Submit your identity documents to begin verification.": "Reichen Sie Ihre Identitätsdokumente ein, um die Verifizierung zu starten.",
+  "ID card": "Personalausweis",
+  "Driver's license": "Führerschein"
 }

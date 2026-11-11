@@ -1057,5 +1057,18 @@
   "What should I do when a market or an order fails?": "What should I do when a market or an order fails?",
   "Check the feed status on the Markets page first: stale snapshots hide quotes until fresh data arrives. Rejected orders show the reason returned by the trading service. If the problem persists, send the symbol, time and error text to support from this page.": "Check the feed status on the Markets page first: stale snapshots hide quotes until fresh data arrives. Rejected orders show the reason returned by the trading service. If the problem persists, send the symbol, time and error text to support from this page.",
   "How are support replies handled?": "How are support replies handled?",
-  "Messages sent here are stored in your private account conversation and answered by the support team in the order they are received. Replies appear in this conversation and in the notification bell. We do not use automated answers, so every message is read by a person.": "Messages sent here are stored in your private account conversation and answered by the support team in the order they are received. Replies appear in this conversation and in the notification bell. We do not use automated answers, so every message is read by a person."
+  "Messages sent here are stored in your private account conversation and answered by the support team in the order they are received. Replies appear in this conversation and in the notification bell. We do not use automated answers, so every message is read by a person.": "Messages sent here are stored in your private account conversation and answered by the support team in the order they are received. Replies appear in this conversation and in the notification bell. We do not use automated answers, so every message is read by a person.",
+  "Tap to upload": "Tap to upload",
+  "Market maintenance": "Market maintenance",
+  "Trading is temporarily unavailable. Please try again later.": "Trading is temporarily unavailable. Please try again later.",
+  "Positions will appear here once trading resumes.": "Positions will appear here once trading resumes.",
+  "Enter a valid amount.": "Enter a valid amount.",
+  "Minimum payout is 85%; rates may vary by product.": "Minimum payout is 85%; rates may vary by product.",
+  "Coming soon.": "Coming soon.",
+  "Copy": "Copy",
+  "Copied": "Copied",
+  "Not linked": "Not linked",
+  "Submit your identity documents to begin verification.": "Submit your identity documents to begin verification.",
+  "ID card": "ID card",
+  "Driver's license": "Driver's license"
 }

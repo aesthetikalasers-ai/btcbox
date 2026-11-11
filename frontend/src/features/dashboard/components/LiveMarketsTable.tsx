@@ -138,7 +138,7 @@ export function LiveMarketsTable({ markets, loading, error }: {
                   </div>
                 </div>
                 <div className="flex shrink-0 flex-col items-end gap-1.5">
-                  <span key={item.price} className={"text-base font-bold tabular-nums text-brand-text "+flashClassOf(item.sym)}>{price(item.price, numberLocale)}</span>
+                  <span key={item.price} className={"font-mono text-base font-semibold tabular-nums text-brand-text "+flashClassOf(item.sym)}>{price(item.price, numberLocale)}</span>
                   <Change value={item.chg} locale={numberLocale} />
                 </div>
               </Link></div>
@@ -161,11 +161,11 @@ export function LiveMarketsTable({ markets, loading, error }: {
                       </Link>
                     </div>
                   </td>
-                  <td className="whitespace-nowrap px-4 text-base font-semibold tabular-nums text-brand-text md:px-6"><span key={item.price} className={flashClassOf(item.sym)}>{price(item.price, numberLocale)}</span></td>
+                  <td className="whitespace-nowrap px-4 font-mono text-base font-semibold tabular-nums text-brand-text md:px-6"><span key={item.price} className={flashClassOf(item.sym)}>{price(item.price, numberLocale)}</span></td>
                   <td className="whitespace-nowrap px-4 md:px-6"><Change value={item.chg} locale={numberLocale} /></td>
-                  <td className="whitespace-nowrap px-4 text-sm tabular-nums text-brand-text-secondary md:px-6">{formatCompact(item.vol, numberLocale)} USDT</td>
-                  <td className="whitespace-nowrap px-4 text-sm tabular-nums text-brand-text-secondary md:px-6">{price(item.high, numberLocale)}</td>
-                  <td className="whitespace-nowrap px-4 text-sm tabular-nums text-brand-text-secondary md:px-6">{price(item.low, numberLocale)}</td>
+                  <td className="whitespace-nowrap px-4 text-right font-mono text-sm tabular-nums text-brand-text-secondary md:px-6">{formatCompact(item.vol, numberLocale)} USDT</td>
+                  <td className="whitespace-nowrap px-4 text-right font-mono text-sm tabular-nums text-brand-text-secondary md:px-6">{price(item.high, numberLocale)}</td>
+                  <td className="whitespace-nowrap px-4 text-right font-mono text-sm tabular-nums text-brand-text-secondary md:px-6">{price(item.low, numberLocale)}</td>
                 </tr>
               ))}</tbody>
             </table>

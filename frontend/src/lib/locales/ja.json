@@ -1057,5 +1057,18 @@
   "What should I do when a market or an order fails?": "相場や注文が失敗したときはどうすればよいですか？",
   "Check the feed status on the Markets page first: stale snapshots hide quotes until fresh data arrives. Rejected orders show the reason returned by the trading service. If the problem persists, send the symbol, time and error text to support from this page.": "まず市場ページの配信状態を確認してください。スナップショットが古い間は新しいデータが届くまで価格が非表示になります。拒否された注文には取引サービスが返した理由が表示されます。解決しない場合は、このページから銘柄・時刻・エラー内容をサポートへ送信してください。",
   "How are support replies handled?": "サポートの返信はどのように処理されますか？",
-  "Messages sent here are stored in your private account conversation and answered by the support team in the order they are received. Replies appear in this conversation and in the notification bell. We do not use automated answers, so every message is read by a person.": "ここで送信されたメッセージは非公開のアカウント会話に保存され、受信順にサポートチームが回答します。返信はこの会話と通知ベルに表示されます。自動応答は使用せず、すべて人が目を通します。"
+  "Messages sent here are stored in your private account conversation and answered by the support team in the order they are received. Replies appear in this conversation and in the notification bell. We do not use automated answers, so every message is read by a person.": "ここで送信されたメッセージは非公開のアカウント会話に保存され、受信順にサポートチームが回答します。返信はこの会話と通知ベルに表示されます。自動応答は使用せず、すべて人が目を通します。",
+  "Tap to upload": "タップしてアップロード",
+  "Market maintenance": "マーケットメンテナンス中",
+  "Trading is temporarily unavailable. Please try again later.": "取引は一時的に利用できません。しばらくしてからもう一度お試しください。",
+  "Positions will appear here once trading resumes.": "取引が再開されると、ポジションがここに表示されます。",
+  "Enter a valid amount.": "有効な金額を入力してください。",
+  "Minimum payout is 85%; rates may vary by product.": "最低ペイアウトは85%です。レートは商品によって異なる場合があります。",
+  "Coming soon.": "近日公開予定です。",
+  "Copy": "コピー",
+  "Copied": "コピーしました",
+  "Not linked": "連携されていません",
+  "Submit your identity documents to begin verification.": "本人確認を開始するには、身分証明書を提出してください。",
+  "ID card": "IDカード",
+  "Driver's license": "運転免許証"
 }

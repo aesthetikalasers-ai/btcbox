@@ -1057,5 +1057,18 @@
   "What should I do when a market or an order fails?": "What should I do when a market or an order fails?",
   "Check the feed status on the Markets page first: stale snapshots hide quotes until fresh data arrives. Rejected orders show the reason returned by the trading service. If the problem persists, send the symbol, time and error text to support from this page.": "Check the feed status on the Markets page first: stale snapshots hide quotes until fresh data arrives. Rejected orders show the reason returned by the trading service. If the problem persists, send the symbol, time and error text to support from this page.",
   "How are support replies handled?": "How are support replies handled?",
-  "Messages sent here are stored in your private account conversation and answered by the support team in the order they are received. Replies appear in this conversation and in the notification bell. We do not use automated answers, so every message is read by a person.": "Messages sent here are stored in your private account conversation and answered by the support team in the order they are received. Replies appear in this conversation and in the notification bell. We do not use automated answers, so every message is read by a person."
+  "Messages sent here are stored in your private account conversation and answered by the support team in the order they are received. Replies appear in this conversation and in the notification bell. We do not use automated answers, so every message is read by a person.": "Messages sent here are stored in your private account conversation and answered by the support team in the order they are received. Replies appear in this conversation and in the notification bell. We do not use automated answers, so every message is read by a person.",
+  "Tap to upload": "Chạm để tải lên",
+  "Market maintenance": "Bảo trì thị trường",
+  "Trading is temporarily unavailable. Please try again later.": "Giao dịch tạm thời không khả dụng. Vui lòng thử lại sau.",
+  "Positions will appear here once trading resumes.": "Các vị thế sẽ xuất hiện tại đây khi giao dịch tiếp tục.",
+  "Enter a valid amount.": "Vui lòng nhập số tiền hợp lệ.",
+  "Minimum payout is 85%; rates may vary by product.": "Thanh toán tối thiểu là 85%; tỷ lệ có thể thay đổi tùy sản phẩm.",
+  "Coming soon.": "Sắp ra mắt.",
+  "Copy": "Sao chép",
+  "Copied": "Đã sao chép",
+  "Not linked": "Chưa liên kết",
+  "Submit your identity documents to begin verification.": "Gửi giấy tờ tùy thân để bắt đầu xác minh.",
+  "ID card": "Thẻ căn cước",
+  "Driver's license": "Giấy phép lái xe"
 }

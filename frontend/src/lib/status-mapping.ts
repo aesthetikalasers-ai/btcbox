@@ -188,3 +188,23 @@ export function secondsStatusBadgeVariant(status: SecondsStatus): BadgeVariant {
   if (status === "unknown") return "secondary";
   return "outline";
 }
+
+// ---------- KYC identity document type ----------
+// Backend may return id_card / passport / driver_license with case,
+// underscore or hyphen variants (e.g. "driver-license", "DriverLicense").
+export type KycDocumentType = "id_card" | "passport" | "driver_license" | "unknown";
+export function normalizeKycDocumentType(raw: string | null | undefined): KycDocumentType {
+  const s = normKey(raw);
+  if (s === "idcard" || s === "nationalidcard" || s === "nationalid" || s === "id" || s === "identitycard") return "id_card";
+  if (s === "passport") return "passport";
+  if (s === "driverlicense" || s === "driverslicense" || s === "drivinglicense" || s === "driverlicence" || s === "drivinglicence") return "driver_license";
+  return "unknown";
+}
+export function kycDocumentTypeLabel(docType: KycDocumentType, t: TFn): string {
+  switch (docType) {
+    case "id_card": return t("National ID card");
+    case "passport": return t("Passport");
+    case "driver_license": return t("Driver license");
+    default: return t("Unknown");
+  }
+}

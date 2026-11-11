@@ -390,9 +390,8 @@ export function ContractPage() {
             <Link to="/trade-hub" className="mb-2 inline-flex items-center gap-1 text-xs font-medium text-brand-text-muted transition-colors hover:text-brand-text">
               <ChevronLeft className="h-3.5 w-3.5" />{t("Trade hub")}
             </Link>
-            <p className="mb-1 text-xs font-bold uppercase tracking-[.18em] text-brand-text-secondary">{t("BTCBOX / TRADE")}</p>
             <h1 className="type-page-title text-brand-text">{t("Perpetual")}</h1>
-            <p className="type-body mt-2 max-w-2xl text-brand-text-secondary">{t("Perpetual contract trading")} · {selectedMarket ? `${selectedMarket.symbol} · ${t("Leverage")} 1–${selectedMarket.max_leverage}×` : t("Awaiting the perpetual contract backend.")}</p>
+            <p className="type-body mt-2 max-w-2xl text-brand-text-secondary">{t("Perpetual contract trading")} · {selectedMarket ? `${selectedMarket.symbol} · ${t("Leverage")} ${selectedMarket.max_leverage > 1 ? `1–${selectedMarket.max_leverage}` : "1"}×` : t("Coming soon.")}</p>
           </div>
           <Button variant="outline" size="sm" className="min-h-10" onClick={() => setReload((n) => n + 1)}>
             <RefreshCw className={"mr-2 h-4 w-4 " + (marketsLoading || positionsLoading ? "animate-spin" : "")} />{t("Refresh")}
@@ -401,7 +400,7 @@ export function ContractPage() {
         {!marketsLoading && !markets.length && !marketsError ? (
           <Card className="border-brand-warning/30 bg-brand-surface">
             <CardContent className="p-4 text-sm leading-6 text-brand-warning" role="status">
-              {t("Order entry is currently disabled by the backend financial cutover switch. No funds can be reserved until the required services are enabled.")}
+              {t("Trading is temporarily unavailable. Please try again later.")}
             </CardContent>
           </Card>
         ) : null}

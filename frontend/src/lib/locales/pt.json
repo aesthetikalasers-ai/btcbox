@@ -1057,5 +1057,18 @@
   "What should I do when a market or an order fails?": "O que fazer quando um mercado ou ordem falha?",
   "Check the feed status on the Markets page first: stale snapshots hide quotes until fresh data arrives. Rejected orders show the reason returned by the trading service. If the problem persists, send the symbol, time and error text to support from this page.": "Primeiro verifique o status do feed em Mercados: snapshots antigos ocultam cotações até dados frescos chegarem. Ordens rejeitadas mostram o motivo retornado pelo serviço. Se persistir, envie o símbolo, o horário e o texto do erro ao suporte nesta página.",
   "How are support replies handled?": "Como as respostas do suporte são tratadas?",
-  "Messages sent here are stored in your private account conversation and answered by the support team in the order they are received. Replies appear in this conversation and in the notification bell. We do not use automated answers, so every message is read by a person.": "As mensagens enviadas aqui ficam na sua conversa privada e a equipe de suporte responde na ordem de recebimento. As respostas aparecem nesta conversa e no sino de notificações. Não usamos respostas automáticas; cada mensagem é lida por uma pessoa."
+  "Messages sent here are stored in your private account conversation and answered by the support team in the order they are received. Replies appear in this conversation and in the notification bell. We do not use automated answers, so every message is read by a person.": "As mensagens enviadas aqui ficam na sua conversa privada e a equipe de suporte responde na ordem de recebimento. As respostas aparecem nesta conversa e no sino de notificações. Não usamos respostas automáticas; cada mensagem é lida por uma pessoa.",
+  "Tap to upload": "Toque para enviar",
+  "Market maintenance": "Manutenção do mercado",
+  "Trading is temporarily unavailable. Please try again later.": "A negociação está temporariamente indisponível. Tente novamente mais tarde.",
+  "Positions will appear here once trading resumes.": "As posições aparecerão aqui quando a negociação for retomada.",
+  "Enter a valid amount.": "Insira um valor válido.",
+  "Minimum payout is 85%; rates may vary by product.": "O pagamento mínimo é de 85%; as taxas podem variar conforme o produto.",
+  "Coming soon.": "Em breve.",
+  "Copy": "Copiar",
+  "Copied": "Copiado",
+  "Not linked": "Não vinculado",
+  "Submit your identity documents to begin verification.": "Envie seus documentos de identidade para iniciar a verificação.",
+  "ID card": "Bilhete de identidade",
+  "Driver's license": "Carta de condução"
 }
