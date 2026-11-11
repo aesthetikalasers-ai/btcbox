@@ -124,7 +124,7 @@ for (const locale of activeLocales) {
         expect(dimensions.body, locale.code + " " + routeInfo.path + " body overflows at " + width + "px").toBeLessThanOrEqual(width);
 
         const boundaryViolations = await page.evaluate(() => {
-          const selectors = ["main", "header", "h1", ".trade-top", ".trade-top > *", ".ob-card", ".form-card", "[data-testid]"];
+          const selectors = ["main", "header", "h1", ".trade-top", ".trade-top > *", ".ob-card", ".form-card", ".exchange-workspace", ".exchange-depth", ".exchange-entry", ".trade-chart-drawer", "[data-testid]"];
           const elements = Array.from(new Set(selectors.flatMap((selector) =>
             Array.from(document.querySelectorAll<HTMLElement>(selector)),
           )));
