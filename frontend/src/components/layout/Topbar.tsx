@@ -14,15 +14,9 @@ const LANGUAGE_MENU: Array<{ code: Language; label: string; flag: string }> = [
   { code: "it", label: "Italiano", flag: "🇮🇹" },
   { code: "pt", label: "Português", flag: "🇵🇹" },
 ];
-const LANGUAGE_FLAG: Record<Language, string> = {
-  ja: "🇯🇵", "zh-CN": "🇨🇳", en: "🇺🇸", es: "🇪🇸", de: "🇩🇪", it: "🇮🇹", pt: "🇵🇹",
-};
-const LANGUAGE_LABEL: Record<Language, string> = {
-  ja: "日本語", "zh-CN": "中文", en: "English", es: "Español", de: "Deutsch", it: "Italiano", pt: "Português",
-};
-
 export function Topbar({ onMenuClick, menuOpen = false, menuButtonRef }: { menuButtonRef?: Ref<HTMLButtonElement>; onMenuClick?: () => void; menuOpen?: boolean }) {
   const { language, setLanguage, canChangeLanguage, t } = useI18n();
+  const currentLanguage = LANGUAGE_MENU.find(({ code }) => code === language) ?? LANGUAGE_MENU[2];
   const [search, setSearch] = useState("");
   const [langMenuOpen, setLangMenuOpen] = useState(false);
   const langMenuRef = useRef<HTMLDivElement>(null);
@@ -103,8 +97,8 @@ export function Topbar({ onMenuClick, menuOpen = false, menuButtonRef }: { menuB
               onClick={() => setLangMenuOpen((open) => !open)}
               className="flex h-11 min-w-0 items-center gap-1.5 rounded-lg border border-brand-border bg-brand-surface px-2.5 text-sm font-semibold text-brand-text transition-colors hover:border-brand-accent/40 hover:bg-brand-surface-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent sm:px-3"
             >
-              <span aria-hidden="true" className="shrink-0 text-base leading-none">{LANGUAGE_FLAG[language]}</span>
-              <span className="max-w-[5.5rem] truncate sm:max-w-none">{LANGUAGE_LABEL[language]}</span>
+              <span aria-hidden="true" className="shrink-0 text-base leading-none">{currentLanguage.flag}</span>
+              <span className="max-w-[5.5rem] truncate sm:max-w-none">{currentLanguage.label}</span>
               <span aria-hidden="true" className={`text-xs text-brand-text-muted transition-transform ${langMenuOpen ? "rotate-180" : ""}`}>⌄</span>
             </button>
             {langMenuOpen && (
