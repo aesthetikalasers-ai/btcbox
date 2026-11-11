@@ -9,6 +9,10 @@ import { BrandLogo } from "../../components/BrandLogo";
 import { useAuth } from "../../lib/auth";
 import { useI18n, type Language } from "../../lib/i18n";
 
+/**
+ * Renders the login or registration experience selected by the route.
+ * Handles form state while delegating authentication decisions to the auth provider.
+ */
 export function AuthPage({ mode, redirectTo }: { mode: "login" | "register"; redirectTo?: string }) {
   const { t, language, setLanguage, canChangeLanguage } = useI18n();
   const {
@@ -47,6 +51,10 @@ export function AuthPage({ mode, redirectTo }: { mode: "login" | "register"; red
     {t("Completing sign-in…")}
   </div>;
 
+  /**
+   * Submits username credentials through the configured authentication provider.
+   * Maintains the page's existing validation, error, and loading behavior.
+   */
   const submitUsernameLogin = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (busy) return;
@@ -200,6 +208,10 @@ export function AuthPage({ mode, redirectTo }: { mode: "login" | "register"; red
   </main>;
 }
 
+/**
+ * Completes the authentication callback and routes the user after provider verification.
+ * Leaves token validation and session creation to the authentication provider.
+ */
 export function AuthCallbackPage() {
   const { t } = useI18n();
   const { finishOAuth, status, needsCredentials, error, busy, completePasswordRecovery } = useAuth();
@@ -229,6 +241,10 @@ export function AuthCallbackPage() {
     const redirectId = window.setTimeout(() => navigate(effectiveDestination, { replace: true }), 6000);
     return () => window.clearTimeout(redirectId);
   }, [effectiveDestination, error, navigate, status]);
+  /**
+   * Submits the password-recovery form after validating the entered values.
+   * Uses the existing recovery service and its safe error handling.
+   */
   const submitRecovery = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (busy) return;
