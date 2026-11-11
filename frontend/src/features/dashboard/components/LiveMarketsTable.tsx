@@ -73,7 +73,7 @@ export function LiveMarketsTable({ markets, loading, error }: {
   const [searchParams, setSearchParams] = useSearchParams();
   const query = (searchParams.get("q") || "").trim().toLowerCase();
   const snapshotStale = markets.some((item) => (item.snapshotTs || 0) > 0 && Date.now() / 1000 - (item.snapshotTs || 0) > 90);
-  const feedError = error || (snapshotStale ? t("The market service snapshot is older than 90 seconds. Quotes are hidden until a fresh snapshot arrives.") : "");
+  const feedError = error || (snapshotStale ? t("Market data is temporarily unavailable. Please try again shortly.") : "");
   const displayMarkets = feedError ? [] : markets;
   const visibleMarkets = useMemo(() => displayMarkets.filter((item) => {
     if (favoritesOnly && !favorites.includes(item.sym)) return false;
