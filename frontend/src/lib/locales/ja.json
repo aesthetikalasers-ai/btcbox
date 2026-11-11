@@ -1043,5 +1043,19 @@
   "s ·": "秒 ·",
   "unsorted": "未ソート",
   "· BTCBOX UID": "・BTCBOX UID",
-  "Network error. Please try again.": "ネットワークエラーです。再度お試しください。"
+  "Network error. Please try again.": "ネットワークエラーです。再度お試しください。",
+  "Sign out": "ログアウト",
+  "Quick access": "クイックアクセス",
+  "How do I create and verify my BTCBOX account?": "BTCBOX アカウントの作成と本人確認はどうすればよいですか？",
+  "Register with a username, set a login password, then open Identity verification from your account page and submit the requested documents. Verified accounts can deposit, withdraw and place larger orders.": "ユーザー名で登録してログインパスワードを設定し、アカウントページの本人確認から必要な書類を提出してください。認証済みアカウントは入出金と大口注文が利用できます。",
+  "How long do deposits and withdrawals take?": "入金と出金にはどれくらい時間がかかりますか？",
+  "Deposits are credited after the network confirmations required for that asset. Withdrawal requests are reviewed by the BTCBOX team and broadcast after approval. The current status of each request is listed under Withdrawals in Assets.": "入金はその資産に必要なネットワーク確認数を満たすと反映されます。出金申請は BTCBOX チームが審査し、承認後にブロードキャストされます。各申請の最新状況は資産ページの出金履歴で確認できます。",
+  "Which products does BTCBOX offer?": "BTCBOX ではどの取引商品を利用できますか？",
+  "Four products: Spot for listed pairs against USDT, Seconds for short-duration directional rounds, Contract for perpetual markets with funding and positions, and Earn for flexible and fixed-term yield on idle balances.": "現物（USDT 取引ペア）、短期の方向性ラウンジを行う秒単位取引、資金調達とポジションのある永久契約、余裕資産向けの柔軟型・定期型の運用の4種類です。",
+  "How do I keep my account secure?": "アカウントを安全に保つにはどうすればよいですか？",
+  "Enable two-factor authentication under Account security, use a password that is unique to BTCBOX and never share verification codes. BTCBOX staff will never ask for your password, two-factor codes or wallet recovery phrase.": "アカウントのセキュリティで2要素認証を有効にし、BTCBOX 専用の固有パスワードを使い、認証コードを共有しないでください。BTCBOX のスタッフがパスワード、2FA コード、ウォレットのリカバリーフレーズを尋ねることはありません。",
+  "What should I do when a market or an order fails?": "相場や注文が失敗したときはどうすればよいですか？",
+  "Check the feed status on the Markets page first: stale snapshots hide quotes until fresh data arrives. Rejected orders show the reason returned by the trading service. If the problem persists, send the symbol, time and error text to support from this page.": "まず市場ページの配信状態を確認してください。スナップショットが古い間は新しいデータが届くまで価格が非表示になります。拒否された注文には取引サービスが返した理由が表示されます。解決しない場合は、このページから銘柄・時刻・エラー内容をサポートへ送信してください。",
+  "How are support replies handled?": "サポートの返信はどのように処理されますか？",
+  "Messages sent here are stored in your private account conversation and answered by the support team in the order they are received. Replies appear in this conversation and in the notification bell. We do not use automated answers, so every message is read by a person.": "ここで送信されたメッセージは非公開のアカウント会話に保存され、受信順にサポートチームが回答します。返信はこの会話と通知ベルに表示されます。自動応答は使用せず、すべて人が目を通します。"
 }

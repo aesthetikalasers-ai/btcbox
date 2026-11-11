@@ -179,7 +179,7 @@ export function AuthPage({ mode, redirectTo }: { mode: "login" | "register"; red
               <span className="min-w-0 break-words">{t(error)}{/already registered|already linked/i.test(error) && <> <Link to="/login" className="font-semibold underline underline-offset-4 hover:opacity-80">{t("Go to sign in")}</Link></>}</span>
               <button type="button" aria-label={t("Dismiss sign-in error")} className="flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-lg px-2 text-xs font-semibold underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent/70" onClick={clearError}>{t("Dismiss")}</button>
             </div>}
-            {notice && <div role="status" className="rounded-lg border border-brand-border bg-brand-surface-2 p-3 text-sm text-brand-text-secondary">{t(notice)}</div>}
+            {notice && <div role="status" className="space-y-2 rounded-lg border border-brand-border bg-brand-surface-2 p-3 text-sm text-brand-text-secondary"><p>{t(notice)}</p>{registering && <Link to="/login" className="font-semibold text-brand-accent underline underline-offset-4 hover:opacity-80">{t("Go to sign in")}</Link>}</div>}
 
             {status === "two-factor" ? <form className="space-y-3" aria-busy={verifyBusy} onSubmit={async event => {
               event.preventDefault(); if (verifyBusy) return; setVerifyBusy(true);

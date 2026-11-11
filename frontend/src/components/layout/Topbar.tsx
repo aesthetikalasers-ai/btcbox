@@ -1,25 +1,38 @@
 import { useState, type FormEvent, type Ref } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Search, User, Menu } from "lucide-react";
+import { Search, User, Menu, ArrowLeftRight, ChartNoAxesCombined, LogOut } from "lucide-react";
 import { useI18n } from "../../lib/i18n";
+import { useAuth } from "../../lib/auth";
 import { BrandLogo } from "../BrandLogo";
 import { LanguageMenu } from "./LanguageMenu";
-
+import { Button } from "../ui/button";
 /**
- * Renders the global header, search control, and accessible language selector.
+ * Renders the global header, search control, quick market/trade entries,
+ * language selector, and the authenticated account control.
  * Keyboard navigation and dismissal are managed locally without changing route permissions.
  */
 export function Topbar({ onMenuClick, menuOpen = false, menuButtonRef }: { menuButtonRef?: Ref<HTMLButtonElement>; onMenuClick?: () => void; menuOpen?: boolean }) {
   const { t } = useI18n();
+  const { status, email, signOut } = useAuth();
   const [search, setSearch] = useState("");
+  const [signingOut, setSigningOut] = useState(false);
   const navigate = useNavigate();
-
+  const authenticated = status === "authenticated";
   const submitSearch = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const query = search.trim();
     navigate(query ? `/markets?q=${encodeURIComponent(query)}` : "/markets");
   };
-
+  const handleSignOut = async () => {
+    if (signingOut) return;
+    setSigningOut(true);
+    try {
+      await signOut();
+      navigate("/home", { replace: true });
+    } finally {
+      setSigningOut(false);
+    }
+  };
   return (
     <header className="relative z-30 flex min-h-16 shrink-0 items-center justify-between gap-2 border-b border-brand-border bg-brand-bg/95 px-3 pt-[env(safe-area-inset-top)] backdrop-blur-xl sm:px-4 md:px-6">
       <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
@@ -38,9 +51,37 @@ export function Topbar({ onMenuClick, menuOpen = false, menuButtonRef }: { menuB
           <Search className="h-5 w-5" />
         </button>
       </div>
-      <div className="flex shrink-0 items-center gap-1 sm:gap-3">
+      <div className="flex shrink-0 items-center gap-1 sm:gap-2">
+        {/* Quick market and trading entries, restored in the global header. */}
+        <nav aria-label={t("Quick access")} className="hidden items-center gap-1 md:flex">
+          <Link to="/markets" aria-label={t("Markets")} className="flex h-11 items-center gap-1.5 rounded-lg px-2.5 text-sm font-semibold text-brand-text-secondary transition-colors hover:bg-brand-surface-hover hover:text-brand-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent/60">
+            <ChartNoAxesCombined className="h-[17px] w-[17px]" />
+            <span className="hidden xl:inline">{t("Markets")}</span>
+          </Link>
+          <Link to="/trade" aria-label={t("Trade")} className="flex h-11 items-center gap-1.5 rounded-lg px-2.5 text-sm font-semibold text-brand-text-secondary transition-colors hover:bg-brand-surface-hover hover:text-brand-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent/60">
+            <ArrowLeftRight className="h-[17px] w-[17px]" />
+            <span className="hidden xl:inline">{t("Trade")}</span>
+          </Link>
+        </nav>
+        <div aria-hidden="true" className="mx-1 hidden h-6 w-px bg-brand-border md:block" />
+        {authenticated ? (
+          <>
+            <Link to="/me" className="hidden h-11 min-w-0 items-center gap-2 rounded-lg border border-brand-border bg-brand-surface px-3 text-sm font-semibold text-brand-text transition-colors hover:border-brand-accent/40 hover:text-brand-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent sm:flex" title={email || t("My")}>
+              <User className="h-4 w-4 shrink-0 text-brand-accent" />
+              <span className="max-w-[160px] truncate">{email || t("My")}</span>
+            </Link>
+            <button type="button" aria-label={t("Sign out")} onClick={() => void handleSignOut()} disabled={signingOut} className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-brand-border bg-brand-surface text-brand-text-secondary transition-colors hover:border-brand-danger/40 hover:text-brand-danger focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent disabled:opacity-50">
+              <LogOut className="h-[18px] w-[18px]" />
+            </button>
+          </>
+        ) : (
+          <div className="hidden items-center gap-2 sm:flex">
+            <Button asChild size="sm" variant="ghost" className="h-11"><Link to="/login">{t("Sign in")}</Link></Button>
+            <Button asChild size="sm" className="h-11"><Link to="/register">{t("Create account")}</Link></Button>
+          </div>
+        )}
         <LanguageMenu />
-        <Link to="/me" aria-label={t("My")} className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-brand-border bg-brand-surface text-brand-text-secondary transition-colors hover:border-brand-accent/40 hover:text-brand-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent">
+        <Link to="/me" aria-label={t("My")} className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-brand-border bg-brand-surface text-brand-text-secondary transition-colors hover:border-brand-accent/40 hover:text-brand-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent ${authenticated ? "sm:hidden" : ""}`}>
           <User className="h-[18px] w-[18px]" />
         </Link>
       </div>

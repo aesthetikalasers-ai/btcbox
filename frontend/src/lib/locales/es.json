@@ -1043,5 +1043,19 @@
   "s ·": "s ·",
   "unsorted": "sin ordenar",
   "· BTCBOX UID": "· UID BTCBOX",
-  "Network error. Please try again.": "Error de red. Inténtalo de nuevo."
+  "Network error. Please try again.": "Error de red. Inténtalo de nuevo.",
+  "Sign out": "Cerrar sesión",
+  "Quick access": "Acceso rápido",
+  "How do I create and verify my BTCBOX account?": "¿Cómo creo y verifico mi cuenta de BTCBOX?",
+  "Register with a username, set a login password, then open Identity verification from your account page and submit the requested documents. Verified accounts can deposit, withdraw and place larger orders.": "Regístrese con un nombre de usuario, cree una contraseña y envíe los documentos solicitados en Verificación de identidad. Las cuentas verificadas pueden depositar, retirar y enviar órdenes de mayor tamaño.",
+  "How long do deposits and withdrawals take?": "¿Cuánto tardan los depósitos y retiros?",
+  "Deposits are credited after the network confirmations required for that asset. Withdrawal requests are reviewed by the BTCBOX team and broadcast after approval. The current status of each request is listed under Withdrawals in Assets.": "Los depósitos se acreditan tras las confirmaciones de red requeridas. Los retiros son revisados por el equipo de BTCBOX y emitidos tras la aprobación. El estado de cada solicitud aparece en Retiros dentro de Activos.",
+  "Which products does BTCBOX offer?": "¿Qué productos ofrece BTCBOX?",
+  "Four products: Spot for listed pairs against USDT, Seconds for short-duration directional rounds, Contract for perpetual markets with funding and positions, and Earn for flexible and fixed-term yield on idle balances.": "Cuatro productos: Spot con pares contra USDT, Segundos para rondas direccionales breves, Contrato perpetuo con financiación y posiciones, y Earn con rendimiento flexible y a plazo sobre saldos ociosos.",
+  "How do I keep my account secure?": "¿Cómo mantengo segura mi cuenta?",
+  "Enable two-factor authentication under Account security, use a password that is unique to BTCBOX and never share verification codes. BTCBOX staff will never ask for your password, two-factor codes or wallet recovery phrase.": "Active la autenticación de dos factores en Seguridad de la cuenta, use una contraseña exclusiva de BTCBOX y no comparta códigos de verificación. El personal de BTCBOX nunca le pedirá la contraseña, los códigos 2FA ni la frase de recuperación.",
+  "What should I do when a market or an order fails?": "¿Qué debo hacer si falla un mercado o una orden?",
+  "Check the feed status on the Markets page first: stale snapshots hide quotes until fresh data arrives. Rejected orders show the reason returned by the trading service. If the problem persists, send the symbol, time and error text to support from this page.": "Primero revise el estado del feed en Mercados: los snapshots obsoletos ocultan las cotizaciones hasta recibir datos frescos. Las órdenes rechazadas muestran el motivo devuelto por el servicio. Si persiste, envíe el símbolo, la hora y el texto del error a soporte desde esta página.",
+  "How are support replies handled?": "¿Cómo se gestionan las respuestas de soporte?",
+  "Messages sent here are stored in your private account conversation and answered by the support team in the order they are received. Replies appear in this conversation and in the notification bell. We do not use automated answers, so every message is read by a person.": "Los mensajes enviados aquí se guardan en su conversación privada y el equipo de soporte los responde por orden de llegada. Las respuestas aparecen en esta conversación y en la campana de notificaciones. No usamos respuestas automáticas: cada mensaje lo lee una persona."
 }

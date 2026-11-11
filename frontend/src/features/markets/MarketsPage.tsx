@@ -25,7 +25,7 @@ function SelectedMarketChart({ candles, loading, error, interval, onIntervalChan
   useEffect(() => {
     const node = containerRef.current;
     if (!node || !candles.length || node.clientWidth === 0) return;
-    const chart = createChart(node, { width: node.clientWidth, height: 300, layout: { attributionLogo: false, background: { type: ColorType.Solid, color: "transparent" }, textColor: "#A2B0BE", fontFamily: "Inter", fontSize: 11 }, grid: { vertLines: { color: "rgba(32,45,57,0.85)" }, horzLines: { color: "rgba(32,45,57,0.7)" } }, rightPriceScale: { borderColor: "#263443" }, timeScale: { borderColor: "#263443", timeVisible: true, secondsVisible: false }, handleScroll: { vertTouchDrag: false, horzTouchDrag: true }, handleScale: { pinch: true } });
+    const chart = createChart(node, { width: node.clientWidth, height: node.clientHeight || 360, layout: { attributionLogo: false, background: { type: ColorType.Solid, color: "transparent" }, textColor: "#A2B0BE", fontFamily: "Inter", fontSize: 11 }, grid: { vertLines: { color: "rgba(32,45,57,0.85)" }, horzLines: { color: "rgba(32,45,57,0.7)" } }, rightPriceScale: { borderColor: "#263443" }, timeScale: { borderColor: "#263443", timeVisible: true, secondsVisible: false }, handleScroll: { vertTouchDrag: false, horzTouchDrag: true }, handleScale: { pinch: true } });
     chartRef.current = chart;
     const series = chart.addSeries(CandlestickSeries, { upColor: "#35D6A6", downColor: "#F06B78", borderVisible: false, wickUpColor: "#35D6A6", wickDownColor: "#F06B78" });
     series.setData(candles.map((candle) => ({ time: Math.floor(candle.time / 1000) as UTCTimestamp, open: candle.open, high: candle.high, low: candle.low, close: candle.close })).sort((a, b) => Number(a.time) - Number(b.time)));
@@ -36,7 +36,7 @@ function SelectedMarketChart({ candles, loading, error, interval, onIntervalChan
   }, [candles]);
   return <Card className="min-w-0 overflow-hidden">
     <CardHeader className="flex-row flex-wrap items-start justify-between gap-3 space-y-0"><div className="min-w-0"><CardTitle>{t("Market analytics")}</CardTitle><p className="mt-1 text-xs text-brand-text-muted">{pair} · {interval}</p></div><div className="flex flex-wrap gap-1" role="group" aria-label={t("Chart")}>{intervals.map((value) => <button key={value} type="button" aria-pressed={interval === value} onClick={() => onIntervalChange(value)} className={`min-h-10 rounded-lg px-3 text-xs font-semibold ${interval === value ? "bg-brand-accent/10 text-brand-accent" : "text-brand-text-muted hover:bg-brand-surface-2 hover:text-brand-text"}`}>{value}</button>)}</div></CardHeader>
-    <CardContent>{latest && !loading && !error && <p className="mb-3 text-lg font-semibold tabular-nums text-brand-text">{price(latest.close, locale)} <span className="text-xs font-normal text-brand-text-muted">USDT</span></p>}{loading ? <div className="flex h-[260px] items-center justify-center text-sm text-brand-text-muted" role="status">{t("Loading…")}</div> : error ? <div className="flex h-[260px] items-center justify-center text-center text-sm text-brand-danger" role="alert">{t(error)}</div> : !candles.length ? <div className="flex h-[260px] items-center justify-center text-sm text-brand-text-muted">{t("Historical chart data is currently unavailable.")}</div> : <div ref={containerRef} className="h-[260px] min-w-0 w-full" aria-label={`${pair} ${t("Market analytics")}`}/>}</CardContent>
+    <CardContent>{latest && !loading && !error && <p className="mb-3 text-lg font-semibold tabular-nums text-brand-text">{price(latest.close, locale)} <span className="text-xs font-normal text-brand-text-muted">USDT</span></p>}{loading ? <div className="flex h-[340px] items-center justify-center text-sm text-brand-text-muted" role="status">{t("Loading…")}</div> : error ? <div className="flex h-[340px] items-center justify-center text-center text-sm text-brand-danger" role="alert">{t(error)}</div> : !candles.length ? <div className="flex h-[340px] items-center justify-center text-sm text-brand-text-muted">{t("Historical chart data is currently unavailable.")}</div> : <div ref={containerRef} className="h-[340px] min-w-0 w-full lg:h-[380px]" aria-label={`${pair} ${t("Market analytics")}`}/>}</CardContent>
   </Card>;
 }
 
@@ -78,18 +78,35 @@ export function MarketsPage() {
   const providerMarket = markets.reduce<MarketTicker | null>((latest, item) => (item.providerTs || 0) > (latest?.providerTs || 0) ? item : latest, null);
   const serverAge = latestSnapshotTs > 0 ? Math.max(0, Math.floor(clock / 1000 - latestSnapshotTs)) : null;
   const providerAge = providerMarket?.providerTs ? Math.max(0, Math.floor(clock / 1000 - providerMarket.providerTs)) : null;
+  // Candles refresh on a timer alongside the 5s quote poll; the chart must not
+  // wait for a manual refresh to reflect the latest closed/forming candle.
   useEffect(() => {
     if (effectiveError || !selectedMarket) { setCandles([]); setChartLoading(false); setChartError(""); return; }
-    const controller = new AbortController(); setCandles([]); setChartError(""); setChartLoading(true);
-    getKlines(tradeSymbol(selectedMarket.sym), interval, controller.signal).then((rows) => { if (!controller.signal.aborted) setCandles(rows); }).catch((reason: unknown) => { if (reason instanceof Error && reason.name === "AbortError") return; if (!controller.signal.aborted) { setCandles([]); setChartError(reason instanceof Error ? reason.message : "Chart data is temporarily unavailable."); } }).finally(() => { if (!controller.signal.aborted) setChartLoading(false); });
-    return () => controller.abort();
-  }, [selectedMarket?.sym, interval, effectiveError]);
+    let cancelled = false;
+    let refreshing = false;
+    let pending: AbortController | undefined;
+    const load = () => {
+      if (cancelled || refreshing) return;
+      refreshing = true;
+      const controller = new AbortController();
+      pending = controller;
+      const timeout = window.setTimeout(() => controller.abort(), 15000);
+      getKlines(tradeSymbol(selectedMarket.sym), interval, controller.signal)
+        .then((rows) => { if (!cancelled) setCandles(rows); })
+        .catch((reason: unknown) => { if (reason instanceof Error && reason.name === "AbortError") return; if (!cancelled) { setCandles([]); setChartError(reason instanceof Error ? reason.message : "Chart data is temporarily unavailable."); } })
+        .finally(() => { window.clearTimeout(timeout); refreshing = false; if (!cancelled) setChartLoading(false); });
+    };
+    setCandles([]); setChartError(""); setChartLoading(true);
+    load();
+    const poll = window.setInterval(load, 30000);
+    return () => { cancelled = true; window.clearInterval(poll); pending?.abort(); };
+  }, [selectedMarket?.sym, interval, effectiveError, reload]);
   const toggleFavorite = (symbol: string) => { const next = favorites.includes(symbol) ? favorites.filter((value) => value !== symbol) : [...favorites, symbol]; setFavorites(next); try { window.localStorage.setItem("btcbox.market-favorites", JSON.stringify(next)); } catch { /* Remain usable without storage. */ } };
   const filters: Array<[MarketFilter, string]> = [["all", "Spot markets"], ["favorites", "Favorites"], ["gainers", "Gainers"], ["losers", "Losers"]];
 
   return <div className="tone-market mx-auto flex w-full max-w-[1600px] min-w-0 flex-col gap-5 overflow-x-clip p-3 sm:gap-6 sm:p-5 lg:p-8">
     <header className="flex min-w-0 flex-col gap-4 sm:flex-row sm:items-end sm:justify-between"><div className="min-w-0"><p className="mb-2 text-xs font-semibold tracking-[.18em] text-brand-accent">{t("BTCBOX / MARKETS")}</p><h1 className="type-page-title text-brand-text">{t("Market overview")}</h1><p className="mt-2 text-sm text-brand-text-secondary">{t("Live spot prices and 24-hour market movement.")}</p></div><div className="flex min-w-0 flex-wrap items-center gap-2"><Badge variant="outline">{loading ? t("Connecting") : error ? t("Feed unavailable") : isStale && markets.length ? t("Snapshot stale") : !markets.length ? t("No markets enabled") : t("Live market feed")}</Badge>{markets.length > 0 && !effectiveError && <Badge variant="outline">{visibleMarkets.length} {t("pairs")}</Badge>}<Button type="button" size="sm" variant="outline" disabled={loading} onClick={() => setReload((value) => value + 1)}>{t("Refresh")}</Button></div></header>
-    <section className="grid min-w-0 gap-4 lg:grid-cols-[minmax(0,1.35fr)_minmax(340px,1fr)] lg:items-start" aria-label={t("Market analytics")}>
+    <section className="grid min-w-0 gap-4 lg:grid-cols-[minmax(0,1.28fr)_minmax(380px,.86fr)] lg:gap-5 lg:items-start" aria-label={t("Market analytics")}>
       <Card className="min-w-0 overflow-hidden p-0">
         <CardHeader className="gap-3 border-b border-brand-border pb-4"><div className="flex min-w-0 flex-wrap items-center justify-between gap-2"><div className="min-w-0"><CardTitle>{t("Spot markets")}</CardTitle><p className="mt-1 text-xs text-brand-text-muted">{t("Live prices from the BTCBOX market service")}</p></div>{selectedMarket && !effectiveError && <Button asChild size="sm" variant="secondary"><Link to={`/trade/${tradeSymbol(selectedMarket.sym)}`}>{t("Spot trading")} <ArrowUpRight className="h-4 w-4"/></Link></Button>}</div>
           <label className="relative block"><Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-brand-text-muted"/><input type="search" value={query} onChange={(event) => setQuery(event.target.value)} aria-label={t("Search BTCBOX")} placeholder={t("Search")} className="h-11 w-full min-w-0 rounded-lg border border-brand-border bg-brand-surface-2 pl-10 pr-3 text-sm text-brand-text placeholder:text-brand-text-muted focus:border-brand-accent focus:outline-none focus:ring-2 focus:ring-brand-accent/50"/></label>
@@ -98,7 +115,7 @@ export function MarketsPage() {
         {effectiveError ? <CardContent className="py-8" role="alert"><p className="text-sm font-semibold text-brand-danger">{t("Market feed unavailable")}</p><p className="mt-2 break-words text-sm text-brand-text-muted">{t(effectiveError)}</p></CardContent>
           : loading && !markets.length ? <CardContent className="space-y-3 py-6" role="status" aria-label={t("Loading markets")}>{Array.from({ length: 5 }).map((_, index) => <div key={index} className="h-16 animate-pulse rounded-lg bg-brand-surface-2"/>)}<p className="text-sm text-brand-text-muted">{t("Loading…")}</p></CardContent>
             : !visibleMarkets.length ? <CardContent className="py-10 text-center text-sm text-brand-text-muted">{t("No market pairs are currently available.")}</CardContent>
-              : <div className="divide-y divide-brand-border-subtle">{visibleMarkets.map((market) => <div key={market.sym} className={`grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2 px-4 py-3 sm:grid-cols-[minmax(0,1.3fr)_minmax(95px,.8fr)_minmax(92px,.75fr)_minmax(82px,.7fr)] sm:gap-3 sm:px-5 ${selectedMarket?.sym === market.sym ? "bg-brand-accent/[0.045]" : "hover:bg-brand-surface-hover"}`}>
+              : <div className="divide-y divide-brand-border-subtle">{visibleMarkets.map((market) => <div key={market.sym} className={`grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2 px-4 py-3.5 sm:grid-cols-[minmax(0,1.3fr)_minmax(95px,.8fr)_minmax(92px,.75fr)_minmax(82px,.7fr)] sm:gap-3 sm:px-5 ${selectedMarket?.sym === market.sym ? "bg-brand-accent/[0.045]" : "hover:bg-brand-surface-hover"}`}>
                 <div className="flex min-w-0 items-center gap-2 sm:gap-3"><button type="button" aria-label={`${t(favorites.includes(market.sym) ? "Remove from favorites" : "Add to favorites")} ${market.sym}`} aria-pressed={favorites.includes(market.sym)} onClick={() => toggleFavorite(market.sym)} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-brand-text-muted hover:text-brand-accent"><span aria-hidden="true" className={favorites.includes(market.sym) ? "text-brand-accent" : ""}>{favorites.includes(market.sym) ? "★" : "☆"}</span></button><TokenIcon symbol={market.sym} className="h-8 w-8 shrink-0"/><button type="button" onClick={() => setSelectedSymbol(market.sym)} aria-pressed={selectedMarket?.sym === market.sym} className="min-w-0 text-left"><span className="block truncate text-sm font-semibold text-brand-text">{market.sym}/USDT</span><span className="type-meta block truncate text-brand-text-muted">{market.sym}</span></button></div>
                 <div className="min-w-0 text-right"><p className="type-meta text-brand-text-muted sm:hidden">{t("Last price")}</p><p className="mt-1 truncate text-sm font-semibold tabular-nums text-brand-text sm:mt-0">{price(market.price, locale)}</p></div>
                 <div className="min-w-0 text-right"><p className="type-meta text-brand-text-muted sm:hidden">{t("24h change")}</p><p className={`mt-1 truncate text-sm font-semibold tabular-nums sm:mt-0 ${market.chg >= 0 ? "text-profit" : "text-loss"}`}>{market.chg > 0 ? "+" : ""}{market.chg.toLocaleString(locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%</p></div>

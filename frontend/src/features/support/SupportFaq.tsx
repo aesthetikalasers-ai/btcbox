@@ -35,7 +35,7 @@ const ENTRIES: Array<{ question: string; answer: string }> = [
 
 export function SupportFaq() {
   const { t } = useI18n();
-  const [open, setOpen] = useState<number[]>([]);
+  const [open, setOpen] = useState<number[]>([0]);
   const toggle = (index: number) => setOpen((current) => current.includes(index) ? current.filter((item) => item !== index) : [...current, index]);
 
   return (

@@ -353,14 +353,16 @@ a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
  .spot-quote-grid { grid-template-columns:1.5fr .8fr 1fr 1fr; align-items:center; }
  .spot-quote-grid > div:nth-child(2) { text-align:left; }
  .spot-quote-grid > div:nth-child(n+3) { display:block; }
- .exchange-workspace { grid-template-columns:140px minmax(0,1fr) minmax(200px,20%) minmax(280px,25%); gap:14px; }
+ .exchange-workspace { grid-template-columns:148px minmax(0,1.32fr) minmax(218px,.8fr) minmax(300px,.96fr); gap:16px; align-items:stretch; }
  .exchange-pairs { display:block; }
  .exchange-chart { grid-column:2; grid-row:1; }
  .exchange-depth { grid-column:3; grid-row:1; }
  .exchange-entry { grid-column:4; grid-row:1; }
- .trade-candles { height:500px; }
+ .exchange-orders { margin-top:4px; }
+ .exchange-chart,.exchange-entry,.exchange-depth,.exchange-orders { border-radius:12px; }
+ .trade-candles { height:520px; }
 }
-@media (min-width:1500px) { .trade-candles { height:560px; } }
+@media (min-width:1500px) { .trade-candles { height:600px; } }
 
 
 /* Mobile navigation: restrained entrance and exit motion. The global reduced-motion

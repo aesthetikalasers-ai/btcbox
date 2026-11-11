@@ -1043,5 +1043,19 @@
   "s ·": "秒 ·",
   "unsorted": "未排序",
   "· BTCBOX UID": "· BTCBOX UID",
-  "Network error. Please try again.": "网络错误，请重试。"
+  "Network error. Please try again.": "网络错误，请重试。",
+  "Sign out": "退出登录",
+  "Quick access": "快捷入口",
+  "How do I create and verify my BTCBOX account?": "如何注册并完成 BTCBOX 账户实名认证？",
+  "Register with a username, set a login password, then open Identity verification from your account page and submit the requested documents. Verified accounts can deposit, withdraw and place larger orders.": "注册用户名并设置登录密码，然后在账户页面打开「身份验证」并提交所需资料。完成实名认证后即可充值、提现并下达更大金额的订单。",
+  "How long do deposits and withdrawals take?": "充值和提现通常需要多长时间？",
+  "Deposits are credited after the network confirmations required for that asset. Withdrawal requests are reviewed by the BTCBOX team and broadcast after approval. The current status of each request is listed under Withdrawals in Assets.": "充值在达到该币种要求的网络确认数后入账；提现申请由 BTCBOX 团队审核，批准后广播上链。每笔申请的最新状态可在「资产-提现」中查看。",
+  "Which products does BTCBOX offer?": "BTCBOX 提供哪些交易产品？",
+  "Four products: Spot for listed pairs against USDT, Seconds for short-duration directional rounds, Contract for perpetual markets with funding and positions, and Earn for flexible and fixed-term yield on idle balances.": "共四类：USDT 现货交易对、短周期方向秒级交易、带资金费率和持仓的永续合约，以及闲置余额的灵活/定期理财。",
+  "How do I keep my account secure?": "如何保障账户安全？",
+  "Enable two-factor authentication under Account security, use a password that is unique to BTCBOX and never share verification codes. BTCBOX staff will never ask for your password, two-factor codes or wallet recovery phrase.": "在账户安全中开启两步验证，使用仅属于 BTCBOX 的独立密码，绝不分享验证码。BTCBOX 员工绝不会索要你的密码、两步验证码或钱包助记词。",
+  "What should I do when a market or an order fails?": "行情或下单失败时该怎么办？",
+  "Check the feed status on the Markets page first: stale snapshots hide quotes until fresh data arrives. Rejected orders show the reason returned by the trading service. If the problem persists, send the symbol, time and error text to support from this page.": "先在行情页查看数据状态：快照过期时，新数据到达前报价会被隐藏；被拒绝的订单会显示交易服务返回的原因。若仍未解决，请从本页面向客服发送交易对、时间和报错内容。",
+  "How are support replies handled?": "客服回复是如何处理的？",
+  "Messages sent here are stored in your private account conversation and answered by the support team in the order they are received. Replies appear in this conversation and in the notification bell. We do not use automated answers, so every message is read by a person.": "此处发送的消息保存在你的私密账户会话中，由客服团队按收到顺序回复；回复会显示在会话和通知铃铛中。我们不使用自动应答，每条消息都由人工阅读处理。"
 }

@@ -67,5 +67,14 @@ for (const name of ['btcbox-logo.png', 'btcbox-icon.png', 'btcbox-logo-white.png
   fs.copyFileSync(source, path.join(brandOutput, name));
 }
 
+// Trading-pair SVG icons referenced by TokenIcon (/token-icons/<SYMBOL>.svg).
+// Without this directory every pair falls back to plain monogram text in production.
+const tokenIconInput = path.join(frontendDist, 'token-icons');
+const tokenIconOutput = path.join(out, 'token-icons');
+if (fs.existsSync(tokenIconInput) && fs.statSync(tokenIconInput).isDirectory()) {
+  fs.mkdirSync(tokenIconOutput, { recursive: true });
+  fs.cpSync(tokenIconInput, tokenIconOutput, { recursive: true });
+}
+
 
 console.log('BTCBOX unified public build created in dist/ (React customer/admin app + retained OAuth consent assets).');
