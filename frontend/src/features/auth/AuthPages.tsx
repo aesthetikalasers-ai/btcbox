@@ -20,6 +20,16 @@ export function AuthPage({ mode, redirectTo }: { mode: "login" | "register"; red
   const [password, setPassword] = useState("");
   const [emailAddress, setEmailAddress] = useState("");
   const [emailPassword, setEmailPassword] = useState("");
+
+  const translateAuthMessage = (message: string) => {
+    const normalized = message.toLowerCase();
+    if (normalized.includes("email address not authorized") || normalized.includes("email_address_not_authorized")) return t("Email address not authorized");
+    if (normalized.includes("email rate limit exceeded") || normalized.includes("over_email_send_rate_limit")) return t("Email rate limit exceeded");
+    if (normalized.includes("user already registered")) return t("User already registered");
+    if (normalized.includes("invalid login credentials")) return t("Invalid login credentials");
+    if (normalized.includes("email not confirmed")) return t("Email not confirmed");
+    return t(message);
+  };
   const [showPassword, setShowPassword] = useState(false);
   const [verifyCode, setVerifyCode] = useState("");
   const [verifyBusy, setVerifyBusy] = useState(false);
@@ -167,7 +177,7 @@ export function AuthPage({ mode, redirectTo }: { mode: "login" | "register"; red
               <span className="min-w-0 break-words">{t(error)}{/already registered|already linked/i.test(error) && <> <Link to="/login" className="font-semibold underline underline-offset-4 hover:opacity-80">{t("Go to sign in")}</Link></>}</span>
               <button type="button" aria-label={t("Dismiss sign-in error")} className="flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-lg px-2 text-xs font-semibold underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent/70" onClick={clearError}>{t("Dismiss")}</button>
             </div>}
-            {notice && <div role="status" className="rounded-lg border border-brand-border bg-brand-surface-2 p-3 text-sm text-brand-text-secondary">{t(notice)}</div>}
+            {notice && <div role="status" className="rounded-lg border border-brand-border bg-brand-surface-2 p-3 text-sm text-brand-text-secondary">{translateAuthMessage(notice)}</div>}
 
             {status === "two-factor" ? <form className="space-y-3" aria-busy={verifyBusy} onSubmit={async event => {
               event.preventDefault(); if (verifyBusy) return; setVerifyBusy(true);
