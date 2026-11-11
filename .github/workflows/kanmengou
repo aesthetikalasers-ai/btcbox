@@ -1,1 +1,31 @@
 
+name: CI with Watchdog
+on: [push, pull_request]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+    
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          
+      - name: Install and test
+        run: |
+          npm ci
+          npm test
+        continue-on-error: true
+
+      - name: Claude Code Watchdog failure analysis
+        if: failure()
+        uses: cardscan-ai/claude-code-watchdog@v0.3.1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          test_results_path: 'test-results/**/*.xml'
+          create_fixes: 'true'
