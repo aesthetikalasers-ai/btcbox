@@ -59,6 +59,7 @@ FILES=(
   0039_withdrawal_approve_no_burn_v1.sql
   0040_admin_superadmin_membership_listing_v1.sql
   0041_perpetual_contract_v1.sql
+  0042_financial_operation_type_allowlist_reconciliation_v1.sql
 )
 
 for file in "${FILES[@]}"; do

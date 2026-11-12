@@ -150,6 +150,10 @@ test('Docker first-init and guarded empty-database bootstrap use the exact canon
   assert.ok(inventories[1].includes('0036_service_role_maintain_privilege_revoke_v1.sql'));
   assert.ok(inventories[1].includes('0037_financial_write_rate_limit_scopes_v1.sql'));
   assert.ok(inventories[1].includes('0038_withdrawal_first_successful_review_guard_v1.sql'));
+  assert.ok(inventories[1].includes('0039_withdrawal_approve_no_burn_v1.sql'));
+  assert.ok(inventories[1].includes('0040_admin_superadmin_membership_listing_v1.sql'));
+  assert.ok(inventories[1].includes('0041_perpetual_contract_v1.sql'));
+  assert.ok(inventories[1].includes('0042_financial_operation_type_allowlist_reconciliation_v1.sql'));
 });
 
 
