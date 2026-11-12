@@ -5,6 +5,7 @@ on:
     paths:
       - "frontend/**"
       - ".github/workflows/frontend-ci.yml"
+      - "backend/**"
   push:
     branches: 
       - main
@@ -17,6 +18,7 @@ on:
     paths:
       - "frontend/**"
       - ".github/workflows/frontend-ci.yml"
+      - "backend/**"
 
 jobs:
   build:

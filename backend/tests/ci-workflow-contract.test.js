@@ -34,10 +34,12 @@ test('frontend CI retains build, browser-route, and responsive evidence steps', 
   assert.match(frontendWorkflow, /npm run build/);
   assert.match(frontendWorkflow, /npm run test:e2e/);
   assert.match(frontendWorkflow, /Upload responsive visual QA screenshots/);
+  assert.match(frontendWorkflow, /backend\/\*\*/);
 });
 
 test('PostgreSQL CI retains disposable canonical-schema bootstrap validation', () => {
   assert.match(postgresWorkflow, /empty-postgres-bootstrap/);
   assert.match(postgresWorkflow, /test-postgres-schema-bootstrap\.sh/);
   assert.match(postgresWorkflow, /postgres:16/);
+  assert.match(postgresWorkflow, /\.github\/workflows\/frontend-ci\.yml/);
 });
