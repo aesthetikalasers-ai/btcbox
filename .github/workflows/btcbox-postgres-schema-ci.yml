@@ -12,6 +12,7 @@ on:
   push:
     branches:
       - main
+      - integration/btcbox-mainline-consolidation-20261112
       - fix/post-merge-db-bootstrap-seconds-20261106
     paths:
       - 'backend/supabase/sql/**'
