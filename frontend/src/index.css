@@ -400,3 +400,97 @@ a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
 .summary-row { display: flex; align-items: center; justify-content: space-between; gap: .75rem; padding: .625rem .75rem; border-radius: .5rem; background: color-mix(in srgb, var(--color-brand-surface-2) 70%, transparent); font-size: .8125rem; }
 .summary-row .label { color: var(--color-brand-text-muted); }
 .summary-row .value { font-weight: 600; font-variant-numeric: tabular-nums; color: var(--color-brand-text); }
+
+
+/* Shared premium metric-card treatment for trading page summaries. */
+.spot-quote-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  padding: 0 0 12px;
+  border: 0;
+}
+.spot-quote-grid > div {
+  display: flex;
+  min-width: 0;
+  min-height: 86px;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--color-brand-border-subtle);
+  border-radius: 12px;
+  background: var(--color-brand-surface);
+}
+.spot-quote-grid > div:first-child p:last-child {
+  font-size: clamp(21px, 5vw, 28px);
+  line-height: 1.15;
+  letter-spacing: -.035em;
+}
+.spot-quote-grid > div:nth-child(2) {
+  align-self: stretch;
+  text-align: left;
+}
+.spot-quote-grid > div:nth-child(n+3) {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+.spot-quote-grid > div:nth-child(n+3) p {
+  margin: 0;
+  font-size: 12px;
+}
+.seconds-trading-page {
+  gap: 16px;
+}
+.seconds-policy-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+.seconds-policy-grid > div {
+  display: flex;
+  min-width: 0;
+  min-height: 86px;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--color-brand-border-subtle);
+  border-radius: 12px;
+  background: var(--color-brand-surface-2);
+}
+.seconds-policy-grid > div > p:first-child {
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--color-brand-text-muted);
+}
+.seconds-policy-grid > div > p:last-child {
+  overflow-wrap: anywhere;
+  font-size: 15px;
+  line-height: 1.35;
+  font-variant-numeric: tabular-nums;
+}
+@media (min-width: 900px) {
+  .spot-quote-grid,
+  .seconds-policy-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 12px;
+  }
+  .spot-quote-grid > div,
+  .seconds-policy-grid > div {
+    min-height: 92px;
+    padding: 14px;
+  }
+}
+@media (max-width: 359px) {
+  .spot-quote-grid,
+  .seconds-policy-grid {
+    gap: 8px;
+  }
+  .spot-quote-grid > div,
+  .seconds-policy-grid > div {
+    min-height: 80px;
+    padding: 10px;
+  }
+}
