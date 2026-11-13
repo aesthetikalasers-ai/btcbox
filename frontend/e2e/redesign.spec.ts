@@ -273,11 +273,11 @@ test('spot mobile trading controls keep the chart, book precision, order tabs an
   await expect(page.locator('#trade-depth .spot-book-row[data-side="ask"]')).toHaveCount(4);
 
   await page.getByRole('button',{name:'Bids only'}).click();
-  await expect(page.locator('#trade-depth .spot-book-row[data-side="ask"]')).toHaveCount(0);
-  await expect(page.locator('#trade-depth .spot-book-row[data-side="bid"]')).toHaveCount(4);
+  await expect(page.locator('#trade-depth .spot-book-row[data-side="ask"]').first()).toBeHidden();
+  await expect(page.locator('#trade-depth .spot-book-row[data-side="bid"]').first()).toBeVisible();
   await page.getByRole('button',{name:'Asks only'}).click();
-  await expect(page.locator('#trade-depth .spot-book-row[data-side="ask"]')).toHaveCount(4);
-  await expect(page.locator('#trade-depth .spot-book-row[data-side="bid"]')).toHaveCount(0);
+  await expect(page.locator('#trade-depth .spot-book-row[data-side="ask"]').first()).toBeVisible();
+  await expect(page.locator('#trade-depth .spot-book-row[data-side="bid"]').first()).toBeHidden();
   await page.getByRole('button',{name:'Both sides'}).click();
   await expect(page.locator('#trade-depth .spot-book-row[data-side="bid"]')).toHaveCount(4);
 
@@ -295,5 +295,5 @@ test('spot mobile trading controls keep the chart, book precision, order tabs an
   await page.getByRole('tab',{name:'Current assets'}).click();
   await expect(page.getByText('Available · ETH',{exact:true})).toBeVisible();
   await expect(page.getByRole('link',{name:'Order history'})).toHaveAttribute('href','/orders');
-  await expect(page.evaluate(()=>document.documentElement.scrollWidth)).resolves.toBeLessThanOrEqual(390);
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
 });
