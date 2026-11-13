@@ -326,7 +326,7 @@ a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
 .spot-book-toolbar select { width:58px; min-width:58px; height:34px; min-height:34px; border:1px solid var(--color-brand-border); border-radius:5px; padding:0 4px; background:var(--color-brand-surface-2); color:var(--color-brand-text-secondary); font:600 11px var(--font-mono); }
 .spot-book-view { display:flex; align-items:center; gap:2px; }
 .spot-book-view button { display:inline-flex; width:25px; min-width:25px; min-height:34px; align-items:center; justify-content:center; border:1px solid transparent; border-radius:5px; color:var(--color-brand-text-muted); }
-.spot-book-view button[aria-pressed="true"] { border-color:var(--color-brand-accent); background:var(--color-brand-accent-soft); color:var(--color-brand-accent); }
+.spot-book-view button[aria-pressed="true"] { border-color:var(--color-brand-accent); background:var(--page-accent-soft,rgba(33,199,168,.08)); color:var(--color-brand-accent); }
 .spot-bottom-tabs { display:flex; align-items:center; gap:20px; min-height:42px; border-bottom:1px solid var(--color-brand-border); }
 .spot-bottom-tabs button,.spot-bottom-tabs a { position:relative; display:inline-flex; min-height:42px; align-items:center; gap:5px; padding:0 1px; color:var(--color-brand-text-muted); font-size:13px; white-space:nowrap; }
 .spot-bottom-tabs button.is-active { color:var(--color-brand-text); font-weight:650; }
