@@ -109,7 +109,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const setSignedIn = useCallback(async () => {
     const account = await getAccount();
     setEmail(account.email || "");
-    setNeedsCredentials(!account.username || account.has_login_password !== true);
+    setNeedsCredentials(false);
     setTempToken("");
     setStatus("authenticated");
   }, []);

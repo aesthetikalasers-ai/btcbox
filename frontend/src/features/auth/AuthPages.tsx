@@ -17,10 +17,10 @@ export function AuthPage({ mode, redirectTo }: { mode: "login" | "register"; red
   const { t, language, setLanguage, canChangeLanguage } = useI18n();
   const {
     status, needsCredentials, busy, error, notice, googleEnabled, walletEnabled, ethereumWallets,
-    signInWithGoogle, signInWithUsername, signInWithWeb3, signUpWithEmail,
+    signInWithGoogle, signInWithEmail, signInWithWeb3, signUpWithEmail,
     verifyTwoFactor, clearError,
   } = useAuth();
-  const [username, setUsername] = useState("");
+  const [loginEmail, setLoginEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [registerEmail, setRegisterEmail] = useState("");
@@ -54,13 +54,13 @@ export function AuthPage({ mode, redirectTo }: { mode: "login" | "register"; red
   </div>;
 
   /**
-   * Submits username credentials through the configured authentication provider.
+   * Submits email credentials through the configured authentication provider.
    * Maintains the page's existing validation, error, and loading behavior.
    */
-  const submitUsernameLogin = async (event: FormEvent<HTMLFormElement>) => {
+  const submitEmailLogin = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (busy) return;
-    try { await signInWithUsername(username, password); }
+    try { await signInWithEmail(loginEmail, password); }
     catch { /* AuthProvider displays the safe error. */ }
   };
   const submitEmailRegister = async (event: FormEvent<HTMLFormElement>) => {
@@ -115,8 +115,8 @@ export function AuthPage({ mode, redirectTo }: { mode: "login" | "register"; red
         </h1>
         <p className="mt-5 max-w-[480px] text-base leading-7 text-brand-text-secondary">
           {registering
-            ? t("Create your BTCBOX account with Google or your wallet, then complete your account setup.")
-            : t("Access your BTCBOX account with your username, Google or a supported crypto wallet.")}
+            ? t("Create your BTCBOX account with email, Google or your wallet.")
+            : t("Access your BTCBOX account with your email, Google or a supported crypto wallet.")}
         </p>
         <div className="mt-9 grid max-w-[520px] gap-3 sm:grid-cols-2">
           <div className="rounded-xl border border-brand-border bg-brand-surface p-4">
@@ -167,7 +167,7 @@ export function AuthPage({ mode, redirectTo }: { mode: "login" | "register"; red
             {(status === "two-factor" || registering) && <CardDescription className="max-w-[380px] text-sm leading-6 text-brand-text-muted">
               {status === "two-factor"
                 ? t("Enter your authenticator code to finish signing in.")
-                : t("Sign in with Google or connect your wallet, then complete your BTCBOX account setup.")}
+                : t("Register with email, Google or connect your wallet to create your BTCBOX account.")}
             </CardDescription>}
             {status !== "two-factor" && <div data-testid="auth-mode-switcher" className="grid grid-cols-2 rounded-xl border border-brand-border bg-brand-surface-2 p-1 text-sm font-semibold">
               <Link to="/login" className={`flex min-h-10 items-center justify-center rounded-lg transition-colors ${!registering ? "bg-primary text-primary-foreground shadow-sm" : "text-brand-text-secondary hover:text-brand-text"}`}>{t("Sign in")}</Link>
@@ -192,17 +192,17 @@ export function AuthPage({ mode, redirectTo }: { mode: "login" | "register"; red
               </label>
               <Button type="submit" className="min-h-12 w-full" disabled={verifyBusy || verifyCode.length < 6}>{verifyBusy ? t("Verifying…") : t("Verify and continue")}</Button>
             </form> : <>
-              {mode === "login" && <form className="space-y-3" aria-busy={busy} onSubmit={submitUsernameLogin}>
+              {mode === "login" && <form className="space-y-3" aria-busy={busy} onSubmit={submitEmailLogin}>
                 <label className="block space-y-1.5 text-sm">
-                  <span className="text-brand-text-secondary">{t("Username")}</span>
-                  <Input className="h-12" value={username} onChange={event => setUsername(event.target.value.toLowerCase())} autoComplete="username" minLength={3} maxLength={24} pattern="[a-z0-9][a-z0-9_]{2,23}" placeholder={t("Enter your BTCBOX username")} required />
+                  <span className="text-brand-text-secondary">{t("Email")}</span>
+                  <Input className="h-12" type="email" value={loginEmail} onChange={event => setLoginEmail(event.target.value)} autoComplete="email" placeholder={t("Enter your email address")} required />
                 </label>
                 <label className="block space-y-1.5 text-sm">
                   <span className="text-brand-text-secondary">{t("Password")}</span>
-                  <span className="relative block"><Input aria-label={t("Password")} className="h-12 pr-12" type={showPassword ? "text" : "password"} value={password} onChange={event => setPassword(event.target.value)} autoComplete="current-password" minLength={12} maxLength={128} placeholder={t("Enter your password")} required /><button type="button" aria-label={t(showPassword ? "Hide password" : "Show password")} aria-pressed={showPassword} onClick={() => setShowPassword(value => !value)} className="absolute inset-y-0 right-0 flex w-12 items-center justify-center text-brand-text-muted">{showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}</button></span>
+                  <span className="relative block"><Input aria-label={t("Password")} className="h-12 pr-12" type={showPassword ? "text" : "password"} value={password} onChange={event => setPassword(event.target.value)} autoComplete="current-password" minLength={8} maxLength={128} placeholder={t("Enter your password")} required /><button type="button" aria-label={t(showPassword ? "Hide password" : "Show password")} aria-pressed={showPassword} onClick={() => setShowPassword(value => !value)} className="absolute inset-y-0 right-0 flex w-12 items-center justify-center text-brand-text-muted">{showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}</button></span>
                 </label>
-                <Button type="submit" className="min-h-12 w-full" aria-busy={busy} disabled={busy || username.length < 3 || password.length < 12}>
-                  <KeyRound className="mr-2 h-4 w-4" /> {busy ? t("Signing in…") : t("Sign in with username")}
+                <Button type="submit" className="min-h-12 w-full" aria-busy={busy} disabled={busy || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(loginEmail) || password.length < 8}>
+                  <KeyRound className="mr-2 h-4 w-4" /> {busy ? t("Signing in…") : t("Sign in with email")}
                 </Button>
               </form>}
 
@@ -218,7 +218,7 @@ export function AuthPage({ mode, redirectTo }: { mode: "login" | "register"; red
                 <Button type="submit" className="min-h-12 w-full" aria-busy={busy} disabled={busy || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(registerEmail) || registerPassword.length < 8}>
                   <KeyRound className="mr-2 h-4 w-4" /> {busy ? t("Creating account…") : t("Create account with email")}
                 </Button>
-                <p className="text-center text-xs leading-5 text-brand-text-muted">{t("After registering, confirm your email to activate sign-in. You can also sign in with Google or your wallet above.")}</p>
+                <p className="text-center text-xs leading-5 text-brand-text-muted">{t("Use the same email and password whenever you sign in. You can also continue with Google or a supported wallet.")}</p>
               </form>}
 
               {identityButtons}
