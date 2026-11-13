@@ -129,7 +129,7 @@ test('V211 keeps depth left, entry right and chart in a safe-area drawer',async(
   expect(b.x+b.width).toBeLessThanOrEqual(e.x);expect(Math.abs(e.y-b.y)).toBeLessThan(2);
   expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
   if(width<1280){
-   expect(b.width/(b.width+e.width)).toBeCloseTo(.40,2);
+   expect(b.width/(b.width+e.width)).toBeCloseTo(.43,2);
    await expect(page.locator('#trade-chart')).toHaveCount(0);
    const trigger=page.getByRole('button',{name:'Price chart',exact:true});
    for(let i=0;i<2;i++){
@@ -180,7 +180,7 @@ test('terminal details use real depth sizes and accessible order rows at 375, 39
   expect(await asks.first().evaluate(e=>e.style.backgroundSize)).toBe('100% 100%');
   expect(await asks.last().evaluate(e=>e.style.backgroundSize)).toBe('25% 100%');
   expect(await bids.first().evaluate(e=>parseFloat(getComputedStyle(e).fontSize))).toBeGreaterThanOrEqual(12);
-  expect(await bids.first().evaluate(e=>getComputedStyle(e).lineHeight)).toBe('26px');
+  expect(await bids.first().evaluate(e=>getComputedStyle(e).lineHeight)).toBe('24px');
   const row=page.locator('.spot-order-row');await expect(row).toContainText('ETHUSDT · Buy');
   await expect(row).toContainText('Remaining 1');await expect(row.getByRole('button',{name:'Cancel',exact:true})).toBeDisabled();
   await page.evaluate(()=>{const m=document.querySelector('main')!;m.scrollTop=m.scrollHeight;});
@@ -225,8 +225,8 @@ test('spot terminal removes the market sub-toolbar and shows exactly four ask an
       ok: true,
       snapshotTs: Math.floor(Date.now() / 1000),
       source: 'isolated-four-level-fixture',
-      asks: [['3201','0.4'],['3202','0.5'],['3203','0.6'],['3204','0.7'],['3205','0.8'],['3206','0.9']],
-      bids: [['3199','0.4'],['3198','0.5'],['3197','0.6'],['3196','0.7'],['3195','0.8'],['3194','0.9']],
+      asks: [['3201.01','0.4'],['3201.02','0.5'],['3201.03','0.6'],['3201.04','0.7'],['3201.05','0.8'],['3202.01','0.9']],
+      bids: [['3199.99','0.4'],['3199.98','0.5'],['3199.97','0.6'],['3199.96','0.7'],['3199.95','0.8'],['3198.99','0.9']],
     }),
   }));
   for (const width of [390, 1440]) {
@@ -241,4 +241,59 @@ test('spot terminal removes the market sub-toolbar and shows exactly four ask an
     await expect(row).toBeVisible();
     expect(await row.evaluate(el => parseFloat(getComputedStyle(el).lineHeight))).toBe(24);
   }
+});
+
+test('spot mobile trading controls keep the chart, book precision, order tabs and limit-only contract clear', async ({page}) => {
+  await page.route('**/api/depth?**', route => route.fulfill({
+    status: 200,
+    contentType: 'application/json',
+    body: JSON.stringify({
+      ok: true,
+      snapshotTs: Math.floor(Date.now() / 1000),
+      source: 'isolated-depth-precision-fixture',
+      asks: [['3201.01','0.4'],['3201.02','0.5'],['3201.03','0.6'],['3201.04','0.7'],['3201.05','0.8'],['3202.01','0.9']],
+      bids: [['3199.99','0.4'],['3199.98','0.5'],['3199.97','0.6'],['3199.96','0.7'],['3199.95','0.8'],['3198.99','0.9']],
+    }),
+  }));
+  await page.setViewportSize({width:390,height:844});
+  await page.goto('/trade/ETH');
+  await expect(page.getByRole('heading',{name:'ETHUSDT',exact:true})).toBeVisible();
+  await expect(page.getByRole('button',{name:'Price chart',exact:true})).toBeVisible();
+  await expect(page.locator('.spot-shortcuts')).toHaveCount(0);
+  await expect(page.getByRole('alert')).toHaveCount(0);
+  await expect(page.locator('#trade-depth .spot-book-row[data-side="ask"]')).toHaveCount(4);
+  await expect(page.locator('#trade-depth .spot-book-row[data-side="bid"]')).toHaveCount(4);
+
+  const precision=page.getByLabel('Depth precision');
+  await expect(precision).toHaveValue('0.01');
+  await precision.selectOption('1');
+  await expect(page.locator('#trade-depth .spot-book-row[data-side="ask"]')).toHaveCount(2);
+  await expect(page.locator('#trade-depth .spot-book-row[data-side="bid"]')).toHaveCount(2);
+  await precision.selectOption('0.01');
+  await expect(page.locator('#trade-depth .spot-book-row[data-side="ask"]')).toHaveCount(4);
+
+  await page.getByRole('button',{name:'Bids only'}).click();
+  await expect(page.locator('#trade-depth .spot-book-row[data-side="ask"]')).toHaveCount(0);
+  await expect(page.locator('#trade-depth .spot-book-row[data-side="bid"]')).toHaveCount(4);
+  await page.getByRole('button',{name:'Asks only'}).click();
+  await expect(page.locator('#trade-depth .spot-book-row[data-side="ask"]')).toHaveCount(4);
+  await expect(page.locator('#trade-depth .spot-book-row[data-side="bid"]')).toHaveCount(0);
+  await page.getByRole('button',{name:'Both sides'}).click();
+  await expect(page.locator('#trade-depth .spot-book-row[data-side="bid"]')).toHaveCount(4);
+
+  const orderType=page.getByLabel('Order type');
+  await expect(orderType).toHaveValue('limit');
+  await expect(orderType.locator('option[value="market"]')).toBeDisabled();
+  const price=page.getByLabel('Limit price (USDT)');
+  await price.fill('3200');
+  await page.getByRole('button',{name:'Increase price'}).click();
+  await expect(price).toHaveValue('3200.01');
+  await page.getByRole('button',{name:'Decrease price'}).click();
+  await expect(price).toHaveValue('3200.00');
+
+  await expect(page.getByRole('tab',{name:'Open orders (0)'})).toBeVisible();
+  await page.getByRole('tab',{name:'Current assets'}).click();
+  await expect(page.getByText('Available · ETH',{exact:true})).toBeVisible();
+  await expect(page.getByRole('link',{name:'Order history'})).toHaveAttribute('href','/orders');
+  await expect(page.evaluate(()=>document.documentElement.scrollWidth)).resolves.toBeLessThanOrEqual(390);
 });
