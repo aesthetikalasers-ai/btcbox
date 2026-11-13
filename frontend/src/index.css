@@ -441,6 +441,19 @@ a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
   margin: 0;
   font-size: 12px;
 }
+.spot-quote-grid > div:nth-child(n+3) p:first-child {
+  color: var(--color-brand-text-muted);
+  font-size: 11px;
+  line-height: 1.35;
+}
+.spot-quote-grid > div:nth-child(n+3) p:last-child {
+  color: var(--color-brand-text);
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.35;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
 .seconds-trading-page {
   gap: 16px;
 }
