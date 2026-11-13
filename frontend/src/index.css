@@ -402,7 +402,7 @@ a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
 .summary-row .value { font-weight: 600; font-variant-numeric: tabular-nums; color: var(--color-brand-text); }
 
 
-/* Shared premium metric-card treatment for trading page summaries. */
+/* Shared premium metric-card treatment for spot and seconds trading summaries. */
 .spot-quote-grid {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
@@ -420,39 +420,32 @@ a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
   padding: 12px;
   border: 1px solid var(--color-brand-border-subtle);
   border-radius: 12px;
-  background: var(--color-brand-surface);
+  background: var(--color-brand-surface-2);
+}
+.spot-quote-grid > div p {
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.spot-quote-grid > div p:first-child {
+  color: var(--color-brand-text-muted);
+  font-size: 11px;
+  line-height: 1.4;
+}
+.spot-quote-grid > div p:last-child {
+  color: var(--color-brand-text);
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.35;
+  font-variant-numeric: tabular-nums;
 }
 .spot-quote-grid > div:first-child p:last-child {
   font-size: clamp(21px, 5vw, 28px);
   line-height: 1.15;
   letter-spacing: -.035em;
 }
-.spot-quote-grid > div:nth-child(2) {
-  align-self: stretch;
-  text-align: left;
-}
-.spot-quote-grid > div:nth-child(n+3) {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 8px;
-}
-.spot-quote-grid > div:nth-child(n+3) p {
-  margin: 0;
-  font-size: 12px;
-}
-.spot-quote-grid > div:nth-child(n+3) p:first-child {
-  color: var(--color-brand-text-muted);
-  font-size: 11px;
-  line-height: 1.35;
-}
-.spot-quote-grid > div:nth-child(n+3) p:last-child {
-  color: var(--color-brand-text);
-  font-size: 15px;
-  font-weight: 600;
-  line-height: 1.35;
-  font-variant-numeric: tabular-nums;
-  overflow-wrap: anywhere;
+.spot-quote-grid > div:nth-child(2) p:last-child {
+  font-size: 18px;
 }
 .seconds-trading-page {
   gap: 16px;
