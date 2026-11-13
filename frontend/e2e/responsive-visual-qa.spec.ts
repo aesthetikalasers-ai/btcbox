@@ -156,6 +156,14 @@ async function assertPageAtWidth(
       name: "Explore the market. Trade with confidence.",
       exact: true,
     })).toHaveCount(0);
+    const attribution = page.getByTestId("market-chart-attribution");
+    await expect(attribution, "Market charts must retain the required attribution when the logo is hidden.").toBeVisible();
+    await expect(attribution.getByRole("link", { name: "https://www.tradingview.com/" })).toHaveAttribute("href", "https://www.tradingview.com/");
+  }
+  if (route.path === "/contract" && width >= 1024) {
+    const attribution = page.getByTestId("contract-chart-attribution");
+    await expect(attribution, "Expanded contract charts must retain the required attribution.").toBeVisible();
+    await expect(attribution.getByRole("link", { name: "https://www.tradingview.com/" })).toHaveAttribute("href", "https://www.tradingview.com/");
   }
   if (route.path === "/home" || route.path === "/markets") {
     await expect(page.getByText("No markets enabled", { exact: true })).toBeVisible();
@@ -182,6 +190,9 @@ async function assertPageAtWidth(
     await chartTrigger.click();
     const chartDrawer = page.locator(".trade-chart-drawer");
     await expect(chartDrawer, "The mobile K-line drawer must open.").toBeVisible();
+    const attribution = chartDrawer.getByTestId("chart-attribution");
+    await expect(attribution, "The chart logo is hidden but required attribution remains visible.").toBeVisible();
+    await expect(attribution.getByRole("link", { name: "https://www.tradingview.com/" })).toHaveAttribute("href", "https://www.tradingview.com/");
     const drawerBox = await chartDrawer.boundingBox();
     expect(drawerBox, "The mobile K-line drawer must have a layout box.").not.toBeNull();
     expect(drawerBox!.x, "The K-line drawer must not extend beyond the left viewport edge.").toBeGreaterThanOrEqual(-1);

@@ -253,6 +253,7 @@ export function ChartDrawer({ symbol = "BTC/USDT" }: { symbol?: string }) {
             </>
           )}
         </div>
+        {!collapsed && <p data-testid="contract-chart-attribution" className="shrink-0 px-3 pb-2 pt-1 text-[11px] leading-4 text-brand-text-muted sm:px-4">TradingView Lightweight Charts™ Copyright (с) 2025 TradingView, Inc. <a href="https://www.tradingview.com/" target="_blank" rel="noreferrer" className="underline underline-offset-2 hover:text-brand-text-secondary">https://www.tradingview.com/</a></p>}
       </div>
     </div>
   );
