@@ -503,3 +503,24 @@ a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
     padding: 10px;
   }
 }
+
+/* Narrow trading workspace: keep order entry and depth readable instead of squeezing two columns. */
+@media (max-width: 767px) {
+  .exchange-workspace {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
+  }
+  .exchange-entry {
+    grid-column: 1;
+    grid-row: 1;
+  }
+  .exchange-depth {
+    grid-column: 1;
+    grid-row: 2;
+  }
+  .exchange-orders {
+    grid-column: 1;
+    grid-row: 3;
+    margin-top: 0;
+  }
+}
