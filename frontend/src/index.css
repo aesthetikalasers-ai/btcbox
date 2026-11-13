@@ -297,7 +297,7 @@ a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
 .spot-quote-grid > div:nth-child(n+3) p { margin:0; font-size:12px; }
 .spot-shortcuts { gap:8px; padding-bottom:4px; }
 .spot-shortcuts > * { min-height:40px; border-radius:6px; font-size:12px; }
-.exchange-workspace { display:grid; grid-template-columns:minmax(0,40fr) minmax(0,60fr); gap:12px; align-items:start; }
+.exchange-workspace { display:grid; grid-template-columns:minmax(0,43fr) minmax(0,57fr); gap:12px; align-items:start; }
 .exchange-pairs { display:none; }
 .exchange-chart,.exchange-entry,.exchange-depth,.exchange-orders { min-width:0; border-radius:6px; box-shadow:none; }
 .exchange-entry { grid-column:2; grid-row:1; }
@@ -316,6 +316,27 @@ a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
 .spot-side button { min-height:44px; border-radius:6px; font-weight:650; }
 .spot-side button[aria-pressed="true"]:first-child { background:var(--color-profit); color:#051a14; }
 .spot-side button[aria-pressed="true"]:last-child { background:var(--color-loss); color:#fff; }
+.spot-order-type { display:block; }
+.spot-order-type select { width:100%; min-height:38px; height:38px; border:1px solid var(--color-brand-border); border-radius:6px; padding:0 10px; background:var(--color-brand-surface-2); color:var(--color-brand-text); font-size:13px; font-weight:600; }
+.spot-price-control { display:flex; align-items:center; gap:6px; }
+.spot-price-control button { display:inline-flex; width:36px; min-width:36px; min-height:40px; align-items:center; justify-content:center; border:1px solid var(--color-brand-border); border-radius:6px; background:var(--color-brand-surface-2); color:var(--color-brand-text-secondary); }
+.spot-price-control button:hover:not(:disabled) { border-color:var(--color-brand-accent); color:var(--color-brand-accent); }
+.spot-price-control button:disabled { opacity:.45; }
+.spot-book-toolbar { display:flex; align-items:center; justify-content:space-between; gap:4px; flex-wrap:wrap; padding-top:4px; border-top:1px solid var(--color-brand-border); }
+.spot-book-toolbar select { width:58px; min-width:58px; height:34px; min-height:34px; border:1px solid var(--color-brand-border); border-radius:5px; padding:0 4px; background:var(--color-brand-surface-2); color:var(--color-brand-text-secondary); font:600 11px var(--font-mono); }
+.spot-book-view { display:flex; align-items:center; gap:2px; }
+.spot-book-view button { display:inline-flex; width:25px; min-width:25px; min-height:34px; align-items:center; justify-content:center; border:1px solid transparent; border-radius:5px; color:var(--color-brand-text-muted); }
+.spot-book-view button[aria-pressed="true"] { border-color:var(--color-brand-accent); background:var(--color-brand-accent-soft); color:var(--color-brand-accent); }
+.spot-bottom-tabs { display:flex; align-items:center; gap:20px; min-height:42px; border-bottom:1px solid var(--color-brand-border); }
+.spot-bottom-tabs button,.spot-bottom-tabs a { position:relative; display:inline-flex; min-height:42px; align-items:center; gap:5px; padding:0 1px; color:var(--color-brand-text-muted); font-size:13px; white-space:nowrap; }
+.spot-bottom-tabs button.is-active { color:var(--color-brand-text); font-weight:650; }
+.spot-bottom-tabs button.is-active::after { position:absolute; right:0; bottom:-1px; left:0; height:2px; background:var(--color-brand-accent); content:""; }
+.spot-bottom-tabs a { margin-left:auto; justify-content:center; width:36px; }
+.spot-asset-strip { display:grid; grid-template-columns:1fr 1fr auto; align-items:center; gap:12px; padding:14px 2px; font-size:12px; }
+.spot-asset-strip div { display:grid; gap:4px; min-width:0; }
+.spot-asset-strip span { color:var(--color-brand-text-muted); }
+.spot-asset-strip strong { overflow-wrap:anywhere; color:var(--color-brand-text); font:600 13px var(--font-mono); }
+.spot-asset-strip a { color:var(--color-brand-accent); white-space:nowrap; }
 .spot-available { display:flex; flex-wrap:wrap; justify-content:space-between; gap:4px; font-size:11px; color:var(--color-brand-text-muted); }
 .spot-available strong { font-weight:500; color:var(--color-brand-text); font-variant-numeric:tabular-nums; }
 .exchange-entry input { height:46px; border-radius:6px; padding:10px; font-size:16px; font-variant-numeric:tabular-nums; }
@@ -340,6 +361,9 @@ a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
  .exchange-entry > div:first-child,.exchange-depth > div:first-child { font-size:14px; }
  .exchange-entry p { overflow-wrap:anywhere; }
  .exchange-entry button { padding-inline:6px; }
+ .spot-price-control button { min-height:40px; padding-inline:0; }
+ .spot-book-toolbar { gap:3px; }
+ .spot-book-view button { min-height:34px; padding-inline:0; }
  .exchange-entry form,.exchange-entry label { font-size:12px; }
 
 }
