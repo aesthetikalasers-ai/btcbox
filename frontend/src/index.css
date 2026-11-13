@@ -306,7 +306,7 @@ a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
 .exchange-book-levels { display:flex; flex-direction:column; gap:6px; }
 .spot-book-columns,.spot-book-row { display:grid; grid-template-columns:minmax(0,1.35fr) minmax(0,1fr); gap:6px; text-align:right; font-size:12px; font-variant-numeric:tabular-nums; }
 .spot-book-columns { font-size:11px; color:var(--color-brand-text-muted); margin-bottom:6px; }
-.spot-book-row { line-height:22px; background-position:right center; background-repeat:no-repeat; font-family:var(--font-mono); }
+.spot-book-row { line-height:24px; background-position:right center; background-repeat:no-repeat; font-family:var(--font-mono); }
 .spot-book-row[data-side="ask"] { background-image:linear-gradient(rgb(240 107 120 / .12),rgb(240 107 120 / .12)); }
 .spot-book-row[data-side="bid"] { background-image:linear-gradient(rgb(53 214 166 / .12),rgb(53 214 166 / .12)); }
 .spot-book-columns span:first-child { text-align:left; }
