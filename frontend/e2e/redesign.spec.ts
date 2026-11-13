@@ -239,6 +239,6 @@ test('spot terminal removes the market sub-toolbar and shows exactly four ask an
     await expect(page.locator('#trade-entry')).toBeVisible();
     const row = page.locator('#trade-depth .spot-book-row').first();
     await expect(row).toBeVisible();
-    expect(await row.evaluate(el => parseFloat(getComputedStyle(el).lineHeight))).toBe(22);
+    expect(await row.evaluate(el => parseFloat(getComputedStyle(el).lineHeight))).toBe(24);
   }
 });
