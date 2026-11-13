@@ -215,3 +215,30 @@ test('all preserved locales show truthful service availability without developme
   await expect(page.locator('main')).toContainText(/Contract|契約|合约|Contrato|Contratto|Kontrakt/i);
  }
 });
+
+
+test('spot terminal removes the market sub-toolbar and shows exactly four ask and bid levels', async ({page}) => {
+  await page.route('**/api/depth?**', route => route.fulfill({
+    status: 200,
+    contentType: 'application/json',
+    body: JSON.stringify({
+      ok: true,
+      snapshotTs: Math.floor(Date.now() / 1000),
+      source: 'isolated-four-level-fixture',
+      asks: [['3201','0.4'],['3202','0.5'],['3203','0.6'],['3204','0.7'],['3205','0.8'],['3206','0.9']],
+      bids: [['3199','0.4'],['3198','0.5'],['3197','0.6'],['3196','0.7'],['3195','0.8'],['3194','0.9']],
+    }),
+  }));
+  for (const width of [390, 1440]) {
+    await page.setViewportSize({width, height: 900});
+    await page.goto('/trade/ETH');
+    await expect(page.getByRole('heading', {name:'ETHUSDT', exact:true})).toBeVisible();
+    await expect(page.locator('.spot-toolbar')).toHaveCount(0);
+    await expect(page.locator('#trade-depth .spot-book-row[data-side="ask"]')).toHaveCount(4);
+    await expect(page.locator('#trade-depth .spot-book-row[data-side="bid"]')).toHaveCount(4);
+    await expect(page.locator('#trade-entry')).toBeVisible();
+    const row = page.locator('#trade-depth .spot-book-row').first();
+    await expect(row).toBeVisible();
+    expect(await row.evaluate(el => parseFloat(getComputedStyle(el).lineHeight))).toBe(22);
+  }
+});
