@@ -1,6 +1,6 @@
 # BTCBOX AI Coordination — Single Source of Truth
 
-Last verified: 2026-11-12
+Last verified: 2026-11-13
 Repository: `avali9308-code/btcboxcdt`
 
 ## 1. Operating rule
@@ -1055,3 +1055,57 @@ This section supersedes earlier current-branch and candidate statements where th
   3. Auth/UI owners resolve the email-signup, account-route, language-selector, accessible-name and TradingView-branding test conflicts; rerun the complete frontend suite.
   4. Run all 10 Perpetual live scenarios against a disposable isolated PostgreSQL instance and retain ledger-reconciliation evidence. Do not use hosted Production for these tests.
   5. Keep this candidate without a PR until exact-head Backend, PostgreSQL and Frontend Actions all pass and owner approvals are recorded. If a PR is later opened, keep it Draft until every acceptance gate is met.
+
+
+## 40. 2026-11-13 exact-head revalidation and source-contract follow-up
+
+This section supersedes earlier current-ref and exact-head CI summaries where they conflict. The latest shared coordination branch was read before this batch. The candidate and source findings were rechecked from GitHub at their exact refs; no hosted environment was accessed or changed.
+
+### Repository refs and PR state
+
+- Current `main`: `f682bb15f239d5f55acd46adbcf6cb5cf609324c`.
+- Requested legacy branch `integration/btcbox-mainline-consolidation-20261108`: `1faa908331122a4155630f6a2554bb7e74788834`. Compare against main: 263 commits ahead / 287 behind; merge base `2a3810da1aef2c0c7c58df0cfdb059a212eeb0d6`. Do not append, rebase, cherry-pick, or merge it.
+- Active candidate `integration/btcbox-mainline-consolidation-20261112`: `ec0ac93e5fd5418d9454292776af760d0db4b293`, 4 commits ahead / 0 behind main, no open PR found. Keep isolated.
+- PR #67 remains CLOSED / MERGED, not Draft: merged head `c53fa948a599b560c1319726adfb57be6828b0fa`, merge commit `fbf301f88c5c19db94ea1546c590667a8818e842`. Do not reopen or try to convert it to Draft.
+
+### Exact-SHA GitHub Actions revalidation
+
+- PR #67 merged head `c53fa948...`: Backend `42498936887` PASS, PostgreSQL `42498936856` PASS, Frontend `42498936859` PASS; Vercel Preview Comments also completed successfully. These results certify only that historical PR head.
+- Legacy branch SHA `1faa908...`: zero GitHub Actions workflow runs. Its only check is Vercel Preview Comments success; combined status is Vercel Preview success. This is not CI evidence.
+- Current main SHA `f682bb15...` is NOT green:
+  - Backend workflow runs `43152630683`, `43096933658`, `43096756880`, and `43096570293` all failed before job creation; each has zero jobs. The exact main blob for `.github/workflows/backend-ci.yml` is `00ee83eced8d98ac4d2e8efcde8e0c84e901c741` and its first lines are React `AuthPages.tsx` imports, not YAML.
+  - Frontend run `43096571385` and PostgreSQL run `43096571375` remain QUEUED at this verification. Watchdog run `43096571329` is QUEUED; later watchdog run `43152632315` PASS.
+  - Mirror scheduled runs: `43140483047` FAIL; later `43209462046`, `43296845363`, and `43343041132` PASS. Supabase Preview is SKIPPED.
+- Candidate SHA `ec0ac93e...`:
+  - Backend `43153505729` PASS; job `130967991449` completed all steps. Backend tests: 534 passed / 0 failed; local frontend/API integration, fail-closed configuration-shape preflight, and unified output/entrypoint checks passed. Preflight explicitly does not connect to Supabase.
+  - PostgreSQL `43153505790` PASS; job `130967991830` applied all 35 canonical SQL files to disposable PostgreSQL, passed RLS/grant verification, and passed the existing deposit/withdrawal/Spot/Admin-market/multi-policy Seconds lifecycle script. It did not execute the 10 Perpetual live scenarios.
+  - Frontend `43153505752` FAIL; job `130967991753`: 87 failed, 269 passed, 4 skipped. Install, lint, decimal checks, and production build passed; desktop/mobile Playwright route tests failed.
+  - Watchdog `43153505723` PASS; Supabase Preview SKIPPED.
+  - Frontend failure log confirms both `four-products.spec.ts` tests fail (product taxonomy and mobile 2-column grid); `responsive-visual-qa` /home V1.0 and continuous sweep fail; multiple /home and /kyc i18n checks fail; market-feed fail-closed tests fail in desktop and mobile. The general /trade-hub responsive route checks and continuous sweep pass, but they do not override the dedicated card-grid failure. Screenshot artifact is not independent visual acceptance.
+
+### Confirmed API/SQL and worker gaps (source observed; no fix applied)
+
+- `backend/api-core.js:343-348`: `perpRestGet()` converts every non-2xx response and JSON parse failure into `[]`. Perpetual orders/positions/trades/funding reads can therefore return an empty-success response after a database failure. The close-position route can turn a failed position read into `NO_POSITION`.
+- `backend/api-core.js:2792-2810`: close-position is authenticated and feature-gated, but has no shared rate-limit check; it reads the live position before calling the idempotent submit RPC. After a successful close, retrying the same request key can return `NO_POSITION` before SQL replay. Preserve a stable close-request snapshot / resolve the stored request before reading the current position, and add full-close plus partial-close retry tests.
+- `backend/supabase/sql/0041_perpetual_contract_v1.sql`: duplicate-order comparison checks symbol/type/side/leverage/quantity/price but omits `reduce_only` and `close_position`. The current SQL source-contract test does not assert mismatch behavior for those two fields.
+- The same migration's insufficient-available funding branch updates `funding_paid` inside the branch and then again in the unconditional update below it. It also reduces account-level frozen funds based on aggregate frozen balance without bounding the debit to that position's own `isolated_margin`. This can desynchronize the position funding total from the single ledger/history payment and consume reserves belonging to other positions/orders. Treat as a high-severity blocker; do not enable funding.
+- `backend/scripts/perp-funding-worker.js` and `backend/scripts/perp-liquidation-worker.js` both map failed/malformed REST reads to `[]` and have no `FINANCIAL_PERPETUAL_ENGINE_ENABLED` / `financialWritesEnabled()` guard. A failed liquidation position read can appear as a clean empty pass. Funding ignores HTTP status for rate insert/PATCH, catches individual settlement errors but still marks the rate settled and advances `next_funding_at`, then exits successfully. Add worker-level or SQL-level cutover guards, propagate read/write failures, and advance funding only after every required settlement succeeds.
+- `backend/tests/perpetual-api-contract.test.js` covers close-position shape/no-position but not close rate limiting or same-key retry after full/partial close. `backend/tests/perpetual-sql-contract.test.js` checks generic replay/mismatch but not the `reduce_only`/`close_position` mismatch or the insufficient-available funding ledger invariant. `backend/tests/perpetual-live-db-scenarios.md` still lists 10 required isolated-PostgreSQL scenarios; none is evidenced as executed by this CI run.
+- Existing migration-order blocker remains: 0041 narrows `financial_operations.operation_type` before 0042 restores the previously valid `withdraw_paid`, `seconds_open`, and `seconds_settle` values. An existing-schema target containing those values may fail in 0041 before 0042 runs. Backend owner must repair the migration/upgrade sequence; do not apply to hosted Production.
+
+### Responsive route and product taxonomy
+
+- `frontend/e2e/four-products.spec.ts` still declares the product contract as Spot / Seconds / Contract / Earn and explicitly forbids Futures. This conflicts with the owner's current taxonomy: **现货交易 / 合约交易（说明秒合约） / 理财产品 / 期货交易**. Contract must remain distinct from Futures; the Contract card may explain that its current route is Seconds Contract, while Futures remains separately unavailable until its own engine is verified.
+- The dedicated mobile 2×2 test fails on the candidate. The general responsive matrix includes `/trade-hub`, but does not assert the four card rectangles, equal widths/heights, or exact taxonomy. UI owner should test 320/360/375/390/430px and verify equal card geometry and no overflow without touching the locked Spot trading page.
+- Auth/UI and market owners must triage the remaining frontend failures against the approved product contract; do not delete supported features or weaken fail-closed behavior merely to satisfy stale selectors.
+
+### Disposition, changes, and next actions
+
+- No candidate code, SQL, tests, or Vercel/Supabase configuration was changed in this run. No hosted Supabase query/write, Auth verification, financial operation, database reset, production deployment, or Spot layout change occurred.
+- This is source-level review plus exact-head GitHub Actions evidence. Hosted Auth, hosted schema parity, runtime flags, live financial execution, independent visual acceptance, and production readiness remain NOT VERIFIED. Perpetual and all financial cutover paths remain OFF / fail-closed.
+- Next actions by owner:
+  1. Backend/Perpetual owner: repair 0041/0042 upgrade ordering, compare all idempotency payload fields, make close retries stable and rate-limited, propagate REST read errors, gate workers, correct funding ledger invariants, and add focused unit + disposable-PostgreSQL regression cases.
+  2. UI owner: fix the 2×2 Trade Hub geometry and align labels/routes/tests to the four distinct product names above; preserve the locked Spot trading-page layout.
+  3. Auth/UI/market owners: resolve the /home, /kyc, language, registration/account-route, market-feed and accessibility failures, then rerun full Frontend CI.
+  4. Execute all 10 Perpetual scenarios and ledger reconciliation only in disposable isolated PostgreSQL; keep Perpetual disabled.
+  5. Keep the candidate without a PR until exact-head Backend, PostgreSQL and Frontend Actions all pass and owner approvals are recorded. Any later PR must remain Draft until every acceptance gate is satisfied.
