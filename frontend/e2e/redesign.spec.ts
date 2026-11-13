@@ -283,7 +283,11 @@ test('spot mobile trading controls keep the chart, book precision, order tabs an
 
   const orderType=page.getByLabel('Order type');
   await expect(orderType).toHaveValue('limit');
-  await expect(orderType.locator('option[value="market"]')).toBeDisabled();
+  await orderType.selectOption('market');
+  await expect(orderType).toHaveValue('market');
+  await expect(page.getByText('Market orders are unavailable under the current trading contract. Switch to limit order to continue.')).toBeVisible();
+  await expect(page.getByRole('button',{name:'Place buy limit order'})).toBeDisabled();
+  await orderType.selectOption('limit');
   const price=page.getByLabel('Limit price (USDT)');
   await price.fill('3200');
   await page.getByRole('button',{name:'Increase price'}).click();
