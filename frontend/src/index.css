@@ -439,6 +439,9 @@ a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
   line-height: 1.35;
   font-variant-numeric: tabular-nums;
 }
+.spot-quote-grid > div:nth-child(n+3) {
+  align-items: flex-start;
+}
 .spot-quote-grid > div:first-child p:last-child {
   font-size: clamp(21px, 5vw, 28px);
   line-height: 1.15;
