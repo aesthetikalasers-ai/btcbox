@@ -29,7 +29,7 @@ export function useToast(): ToastApi {
 const TONE_STYLE: Record<ToastTone, { icon: typeof Info; frame: string; iconColor: string }> = {
   success: { icon: CheckCircle2, frame: "border-positive/35", iconColor: "text-positive" },
   danger: { icon: XCircle, frame: "border-negative/40", iconColor: "text-negative" },
-  warning: { icon: AlertTriangle, frame: "border-warning/40", iconColor: "text-warning" },
+  warning: { icon: AlertTriangle, frame: "border-brand-border-subtle", iconColor: "text-brand-text-muted" },
   info: { icon: Info, frame: "brand-border-strong", iconColor: "text-brand-accent" },
 };
 

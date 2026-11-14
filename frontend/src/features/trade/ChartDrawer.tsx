@@ -5,6 +5,7 @@ import { Badge } from "../../components/ui/badge";
 import { useI18n } from "../../lib/i18n";
 import { cn } from "../../lib/utils";
 import { getKlines, type MarketCandle } from "../../lib/api";
+import { CHART_THEME } from "../../lib/chartTheme";
 
 type Snap = "collapsed" | "half" | "full";
 type TimeframeKey = "Line" | "1m" | "3m" | "5m" | "15m" | "30m" | "1h";
@@ -68,14 +69,14 @@ export function ChartDrawer({ symbol = "BTC/USDT" }: { symbol?: string }) {
       autoSize: true,
       layout: {
         attributionLogo: false,
-        background: { type: ColorType.Solid, color: "transparent" },
-        textColor: "#A2B0BE",
+        background: { type: ColorType.Solid, color: CHART_THEME.background },
+        textColor: CHART_THEME.text,
         fontSize: 11,
         fontFamily: "Inter",
       },
-      grid: { vertLines: { color: "rgba(32,45,57,0.85)" }, horzLines: { color: "rgba(32,45,57,0.7)" } },
-      rightPriceScale: { borderColor: "#263443" },
-      timeScale: { borderColor: "#263443", timeVisible: true, secondsVisible: false },
+      grid: { vertLines: { color: CHART_THEME.grid }, horzLines: { color: CHART_THEME.grid } },
+      rightPriceScale: { borderColor: CHART_THEME.border },
+      timeScale: { borderColor: CHART_THEME.border, timeVisible: true, secondsVisible: false },
       handleScroll: { vertTouchDrag: false, horzTouchDrag: true },
       handleScale: { pinch: true },
       crosshair: {
@@ -117,9 +118,9 @@ export function ChartDrawer({ symbol = "BTC/USDT" }: { symbol?: string }) {
       .sort((a, b) => Number(a.time) - Number(b.time));
     if (timeframe === "Line") {
       const series = chart.addSeries(AreaSeries, {
-        lineColor: "#21C7A8",
-        topColor: "rgba(33,199,168,0.28)",
-        bottomColor: "rgba(33,199,168,0.0)",
+        lineColor: CHART_THEME.up,
+        topColor: "rgba(14,203,129,0.28)",
+        bottomColor: "rgba(14,203,129,0.0)",
         lineWidth: 2,
         priceLineVisible: true,
         lastValueVisible: true,
@@ -128,8 +129,8 @@ export function ChartDrawer({ symbol = "BTC/USDT" }: { symbol?: string }) {
       seriesRef.current = series;
     } else {
       const series = chart.addSeries(CandlestickSeries, {
-        upColor: "#35D6A6", downColor: "#F06B78",
-        borderVisible: false, wickUpColor: "#35D6A6", wickDownColor: "#F06B78",
+        upColor: CHART_THEME.up, downColor: CHART_THEME.down,
+        borderVisible: false, wickUpColor: CHART_THEME.up, wickDownColor: CHART_THEME.down,
       });
       series.setData(data);
       seriesRef.current = series;

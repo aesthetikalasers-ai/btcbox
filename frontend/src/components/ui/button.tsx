@@ -9,8 +9,8 @@ const variants = cva(
   {
     variants: {
       variant: {
-        // Primary: brand teal background + dark text (UIUX-EXECUTION-PLAN Step 12)
-        default: "bg-primary text-primary-foreground shadow-sm hover:brightness-105",
+        // Primary: brand teal background + white text for contrast.
+        default: "bg-primary text-white shadow-sm hover:brightness-105",
         destructive: "bg-destructive text-white shadow-sm hover:brightness-110",
         outline: "border border-brand-border-strong bg-transparent text-brand-text shadow-sm hover:border-brand-accent/60 hover:bg-white/[0.045]",
         secondary: "border border-brand-border bg-brand-surface-2 text-brand-text shadow-sm hover:border-white/15 hover:bg-white/[0.055]",
@@ -31,6 +31,7 @@ const variants = cva(
 export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement>, VariantProps<typeof variants> {
   asChild?: boolean;
   loading?: boolean;
+  disabled?: boolean;
 }
 
 export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(

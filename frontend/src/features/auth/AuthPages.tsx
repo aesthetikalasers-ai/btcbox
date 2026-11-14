@@ -193,29 +193,32 @@ export function AuthPage({ mode, redirectTo }: { mode: "login" | "register"; red
               <Button type="submit" className="min-h-12 w-full" disabled={verifyBusy || verifyCode.length < 6}>{verifyBusy ? t("Verifying…") : t("Verify and continue")}</Button>
             </form> : <>
               {mode === "login" && <form className="space-y-3" aria-busy={busy} onSubmit={submitUsernameLogin}>
-                <label className="block space-y-1.5 text-sm">
-                  <span className="text-brand-text-secondary">{t("Username")}</span>
-                  <Input className="h-12" value={username} onChange={event => setUsername(event.target.value.toLowerCase())} autoComplete="username" minLength={3} maxLength={24} pattern="[a-z0-9][a-z0-9_]{2,23}" placeholder={t("Enter your BTCBOX username")} required />
-                </label>
-                <label className="block space-y-1.5 text-sm">
-                  <span className="text-brand-text-secondary">{t("Password")}</span>
-                  <span className="relative block"><Input aria-label={t("Password")} className="h-12 pr-12" type={showPassword ? "text" : "password"} value={password} onChange={event => setPassword(event.target.value)} autoComplete="current-password" minLength={12} maxLength={128} placeholder={t("Enter your password")} required /><button type="button" aria-label={t(showPassword ? "Hide password" : "Show password")} aria-pressed={showPassword} onClick={() => setShowPassword(value => !value)} className="absolute inset-y-0 right-0 flex w-12 items-center justify-center text-brand-text-muted">{showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}</button></span>
-                </label>
+                <div>
+                  <label htmlFor="btcbox-username" className="block text-sm text-gray-400 mb-1.5">{t("Username")}</label>
+                  <Input id="btcbox-username" className="h-12" value={username} onChange={event => setUsername(event.target.value.toLowerCase())} autoComplete="username" minLength={3} maxLength={24} pattern="[a-z0-9][a-z0-9_]{2,23}" placeholder={t("Enter your BTCBOX username")} required />
+                </div>
+                <div>
+                  <label htmlFor="btcbox-password" className="block text-sm text-gray-400 mb-1.5">{t("Password")}</label>
+                  <div className="relative">
+                    <Input id="btcbox-password" aria-label={t("Password")} className="h-12 pr-10" type={showPassword ? "text" : "password"} value={password} onChange={event => setPassword(event.target.value)} autoComplete="current-password" minLength={12} maxLength={128} placeholder={t("Enter your password")} required />
+                    <button type="button" aria-label={t(showPassword ? "Hide password" : "Show password")} aria-pressed={showPassword} onClick={() => setShowPassword(value => !value)} className="absolute right-3 top-1/2 -translate-y-1/2 flex h-6 w-6 items-center justify-center rounded text-brand-text-muted transition-colors hover:text-brand-text">{showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}</button>
+                  </div>
+                </div>
                 <Button type="submit" className="min-h-12 w-full" aria-busy={busy} disabled={busy || username.length < 3 || password.length < 12}>
                   <KeyRound className="mr-2 h-4 w-4" /> {busy ? t("Signing in…") : t("Sign in with username")}
                 </Button>
               </form>}
 
               {mode === "register" && <form className="space-y-3" aria-busy={busy} onSubmit={submitEmailRegister}>
-                <label className="block space-y-1.5 text-sm">
-                  <span className="text-brand-text-secondary">{t("Email")}</span>
-                  <Input className="h-12" type="email" value={registerEmail} onChange={event => setRegisterEmail(event.target.value)} autoComplete="email" placeholder={t("Enter your email address")} required />
-                </label>
-                <label className="block space-y-1.5 text-sm">
-                  <span className="text-brand-text-secondary">{t("Password")}</span>
-                  <span className="relative block"><Input aria-label={t("Password")} className="h-12 pr-12" type={showRegisterPassword ? "text" : "password"} value={registerPassword} onChange={event => setRegisterPassword(event.target.value)} autoComplete="new-password" minLength={8} maxLength={128} placeholder={t("At least 8 characters")} required /><button type="button" aria-label={t(showRegisterPassword ? "Hide password" : "Show password")} aria-pressed={showRegisterPassword} onClick={() => setShowRegisterPassword(value => !value)} className="absolute inset-y-0 right-0 flex w-12 items-center justify-center text-brand-text-muted">{showRegisterPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}</button></span>
-                </label>
-                <Button type="submit" className="min-h-12 w-full" aria-busy={busy} disabled={busy || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(registerEmail) || registerPassword.length < 8}>
+                <div>
+                  <label htmlFor="btcbox-email" className="block text-sm text-gray-400 mb-1.5">{t("Email")}</label>
+                  <Input id="btcbox-email" className="h-12" type="email" value={registerEmail} onChange={event => setRegisterEmail(event.target.value)} autoComplete="email" placeholder={t("Enter your email address")} required />
+                </div>
+                <div>
+                  <label htmlFor="btcbox-register-password" className="block text-sm text-gray-400 mb-1.5">{t("Password")}</label>
+                  <div className="relative"><Input id="btcbox-register-password" aria-label={t("Password")} className="h-12 pr-10" type={showRegisterPassword ? "text" : "password"} value={registerPassword} onChange={event => setRegisterPassword(event.target.value)} autoComplete="new-password" minLength={12} maxLength={128} placeholder={t("At least 12 characters")} required /><button type="button" aria-label={t(showRegisterPassword ? "Hide password" : "Show password")} aria-pressed={showRegisterPassword} onClick={() => setShowRegisterPassword(value => !value)} className="absolute right-3 top-1/2 -translate-y-1/2 flex h-6 w-6 items-center justify-center rounded text-brand-text-muted transition-colors hover:text-brand-text">{showRegisterPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}</button></div>
+                </div>
+                <Button type="submit" className="min-h-12 w-full" aria-busy={busy} disabled={busy || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(registerEmail) || registerPassword.length < 12}>
                   <KeyRound className="mr-2 h-4 w-4" /> {busy ? t("Creating account…") : t("Create account with email")}
                 </Button>
                 <p className="text-center text-xs leading-5 text-brand-text-muted">{t("After registering, confirm your email to activate sign-in. You can also sign in with Google or your wallet above.")}</p>

@@ -108,7 +108,7 @@ export function AccountSecurityPage() {
       </CardContent>
     </Card>
     <Card className="border-brand-border bg-brand-surface">
-      <CardHeader className="border-b border-brand-border/70 bg-brand-warning/[0.035]"><CardTitle className="text-base">{t("Reset BTCBOX password")}</CardTitle><CardDescription>{t("Verify a Google account or wallet already connected to this BTCBOX account. A fresh verification opens a five-minute reset window.")}</CardDescription></CardHeader>
+      <CardHeader className="border-b border-brand-border/70 bg-brand-surface-2/60"><CardTitle className="text-base">{t("Reset BTCBOX password")}</CardTitle><CardDescription>{t("Verify a Google account or wallet already connected to this BTCBOX account. A fresh verification opens a five-minute reset window.")}</CardDescription></CardHeader>
       <CardContent className="space-y-3">
         {credentialRecoveryReady ? (
           <form className="space-y-3" aria-busy={busy} onSubmit={async (event: FormEvent<HTMLFormElement>) => {

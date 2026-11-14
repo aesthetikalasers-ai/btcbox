@@ -1,9 +1,17 @@
 import { cn } from "../../lib/utils";
 import { useEffect, useState } from "react";
-const LOCAL_TOKEN_ICONS = new Set([
-  "ADA", "ATOM", "AVAX", "BCH", "BNB", "BTC", "DOGE", "DOT", "ETC",
-  "ETH", "LINK", "LTC", "NEAR", "SOL", "TRX", "UNI", "USDC", "USDT", "XRP",
-]);
+
+// Lazily resolve the `cryptocurrency-icons` color SVG set (nearly 500 coins).
+// import.meta.glob returns a map of "path" -> dynamic import(); we resolve the
+// exact color icon for a symbol at render time and fall back to the local
+// monogram disc when the symbol is missing from the set.
+const cryptoIconModules = import.meta.glob<string>("/node_modules/cryptocurrency-icons/svg/color/*.svg", { eager: true, import: "default" });
+
+const iconUrlFor = (symbol: string): string | undefined => {
+  const key = `/node_modules/cryptocurrency-icons/svg/color/${symbol.toLowerCase()}.svg`;
+  return cryptoIconModules[key];
+};
+
 // Common quote assets stripped from a pair symbol (e.g. "BTCUSDT" / "BTC/USDT" -> "BTC")
 // so a trading pair still resolves to its base-asset icon instead of plain text.
 const QUOTE_ASSETS = ["USDT", "USDC", "BUSD", "USD", "BTC", "ETH", "BNB"];
@@ -11,11 +19,11 @@ const normalizeSymbol = (symbol: string) => symbol.trim().toUpperCase().replace(
 function resolveIconSymbol(raw: string): string | undefined {
   const normalized = normalizeSymbol(raw);
   if (!normalized) return undefined;
-  if (LOCAL_TOKEN_ICONS.has(normalized)) return normalized;
+  if (iconUrlFor(normalized)) return normalized;
   for (const quote of QUOTE_ASSETS) {
     if (normalized.length > quote.length && normalized.endsWith(quote)) {
       const base = normalized.slice(0, normalized.length - quote.length);
-      if (LOCAL_TOKEN_ICONS.has(base)) return base;
+      if (iconUrlFor(base)) return base;
     }
   }
   return undefined;
@@ -32,14 +40,14 @@ function monogramTone(symbol: string): { background: string; color: string } {
     { background: "bg-brand-teal/10", color: "text-brand-teal" },
     { background: "bg-brand-violet/10", color: "text-brand-violet" },
     { background: "bg-brand-indigo/10", color: "text-brand-indigo" },
-    { background: "bg-brand-warning/10", color: "text-brand-warning" },
+    { background: "bg-brand-surface-2", color: "text-brand-text-secondary" },
   ];
   return tones[hash % tones.length];
 }
 export const TokenIcon = ({ symbol, className }: { symbol: string, className?: string }) => {
   const [hasError, setHasError] = useState(false);
   const matchedSymbol = resolveIconSymbol(symbol);
-  const iconUrl = matchedSymbol ? `/token-icons/${matchedSymbol.toLowerCase()}.svg` : undefined;
+  const iconUrl = matchedSymbol ? iconUrlFor(matchedSymbol) : undefined;
   useEffect(() => {
     setHasError(false);
   }, [iconUrl]);
@@ -52,7 +60,7 @@ export const TokenIcon = ({ symbol, className }: { symbol: string, className?: s
           src={iconUrl}
           alt={symbol}
           loading="lazy"
-          className="block h-full w-full object-contain"
+          className="block h-full w-full object-cover"
           onError={() => setHasError(true)}
         />
       ) : (

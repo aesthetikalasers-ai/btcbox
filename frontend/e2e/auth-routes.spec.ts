@@ -316,11 +316,34 @@ test("authenticated assets page renders only the mocked account balances", async
   await expect(page.getByRole("heading", { name: "Assets" })).toBeVisible();
   // The individual balances remain visible, but an incomplete valuation must not be shown as a total.
   // Decimal strings retain their exact fractional precision, including trailing zeroes.
-  await expect(page.getByText("125.50", { exact: true })).toBeVisible();
+  await expect(page.getByText("125.50", { exact: true }).first()).toBeVisible();
   await expect(page.getByText("10.00", { exact: true })).toBeVisible();
   await expect(page.getByText("USDT", { exact: true })).toBeVisible();
   await expect(page.getByText("0.002", { exact: true })).toBeVisible();
   await expect(page.getByText("125.50 USDT", { exact: true })).toHaveCount(0);
+});
+
+test("mobile asset and account pages keep balances readable and copy controls touch-sized", async ({ page }) => {
+  await page.route("**/api/account", async (route) => {
+    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(authenticatedAccountFixture) });
+  });
+
+  for (const width of [320, 390, 430]) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto("/assets");
+    await expect(page.getByRole("heading", { name: "Assets" })).toBeVisible();
+    await expect(page.getByText("125.50", { exact: true }).first()).toBeVisible();
+    await expect(page.getByText("0.002", { exact: true })).toBeVisible();
+    await expect(page.getByText("125.50 USDT", { exact: true })).toHaveCount(0);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+
+    await page.goto("/me");
+    await expect(page.getByRole("heading", { name: "My account" })).toBeVisible();
+    const copyButton = page.getByRole("button", { name: "Copy", exact: true });
+    await expect(copyButton).toBeVisible();
+    expect((await copyButton.boundingBox())?.height).toBeGreaterThanOrEqual(44);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+  }
 });
 
 

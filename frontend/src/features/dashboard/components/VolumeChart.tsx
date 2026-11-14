@@ -6,6 +6,7 @@ import { Card, CardHeader } from './Card';
 import { cn } from '../../../lib/utils';
 
 import { useI18n, localeTags } from '../../../lib/i18n';
+import { CHART_THEME } from '../../../lib/chartTheme';
 
 const RANGES = ['1d', '7d', '30d'];
 
@@ -22,44 +23,44 @@ export function VolumeChart({ candles = [] }: { candles?: MarketCandle[] }) {
     const chart = createChart(chartContainerRef.current, {
       layout: {
         attributionLogo: false,
-        background: { type: ColorType.Solid, color: 'transparent' },
-        textColor: '#A2B0BE',
+        background: { type: ColorType.Solid, color: CHART_THEME.background },
+        textColor: CHART_THEME.text,
         fontSize: 12,
         fontFamily: 'Inter',
       },
       grid: {
-        vertLines: { color: 'rgba(32,45,57,0.85)', style: 4 },
-        horzLines: { color: 'rgba(32,45,57,0.7)', style: 4 }, 
+        vertLines: { color: CHART_THEME.grid, style: 4 },
+        horzLines: { color: CHART_THEME.grid, style: 4 }, 
       },
       crosshair: {
         mode: 1,
         vertLine: {
-          color: 'rgba(162,176,190,0.4)',
+          color: 'rgba(132,142,156,0.4)',
           width: 1,
           style: 3,
           labelBackgroundColor: '#1B2936',
         },
         horzLine: {
-          color: 'rgba(162,176,190,0.4)',
+          color: 'rgba(132,142,156,0.4)',
           width: 1,
           style: 3,
           labelBackgroundColor: '#1B2936',
         },
       },
       timeScale: {
-        borderColor: '#263443',
+        borderColor: CHART_THEME.border,
         timeVisible: false,
       },
       handleScroll: { vertTouchDrag: false, horzTouchDrag: true },
       handleScale: { pinch: true },
       rightPriceScale: {
-        borderColor: '#263443',
+        borderColor: CHART_THEME.border,
       },
       autoSize: true,
     });
 
     const series = chart.addSeries(HistogramSeries, {
-      color: '#35D6A6',
+      color: CHART_THEME.up,
       base: 0,
       priceFormat: {
         type: 'volume',

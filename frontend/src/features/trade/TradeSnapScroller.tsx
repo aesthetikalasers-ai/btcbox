@@ -12,8 +12,10 @@ export function TradeSnapScroller({ segments, ariaLabel }: { segments: ReactNode
 
   const onScroll = () => {
     const el = scrollerRef.current;
-    if (!el || el.scrollWidth === 0) return;
-    const idx = Math.round((el.scrollLeft / el.scrollWidth) * segments.length);
+    if (!el || el.scrollWidth === 0 || segments.length === 0) return;
+    // Use per-segment width to avoid rounding collapse at the last segment.
+    const segmentWidth = el.scrollWidth / segments.length;
+    const idx = Math.round(el.scrollLeft / segmentWidth);
     setActive(Math.max(0, Math.min(segments.length - 1, idx)));
   };
 

@@ -4,8 +4,10 @@ import { ArrowUpRight, ClipboardList, RefreshCw } from "lucide-react";
 import { Badge } from "../../components/ui/badge";
 import { Button } from "../../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
+import { SubPageLayout } from "../../components/layout/SubPageLayout";
 import { ApiError, getOrders, type OrderRecord } from "../../lib/api";
 import { useI18n, type Language } from "../../lib/i18n";
+import { useTrading } from "../../lib/trading";
 
 const dateLocales: Record<Language, string> = { en: "en-US", ja: "ja-JP", "zh-CN": "zh-CN", es: "es-ES", pt: "pt-PT", it: "it-IT", de: "de-DE" };
 
@@ -35,6 +37,7 @@ function statusVariant(status: string) {
 export function OrdersPage() {
   const { t, language } = useI18n();
   const dateLocale = dateLocales[language];
+  const { orders: paperOrders } = useTrading();
   const [openOnly, setOpenOnly] = useState(false);
   const [orders, setOrders] = useState<OrderRecord[]>([]);
   const [loading, setLoading] = useState(true);
@@ -92,28 +95,48 @@ export function OrdersPage() {
     };
   }, []);
 
-  const visibleOrders = openOnly ? orders.filter(order => ["open", "partially_filled", "partially-filled", "pending"].includes(String(order.status || "").toLowerCase())) : orders;
+  // 合并纸面交易订单（客户端演示账本）与后端订单
+  const mergedOrders: OrderRecord[] = [
+    ...paperOrders.map((o) => ({
+      order_id: o.order_id,
+      id: o.order_id,
+      symbol: o.symbol,
+      side: o.side,
+      type: o.type,
+      price: o.price,
+      quantity: o.quantity,
+      status: o.status,
+      created_at: o.created_at,
+    })),
+    ...orders,
+  ];
+  const visibleOrders = openOnly ? mergedOrders.filter(order => ["open", "partially_filled", "partially-filled", "pending"].includes(String(order.status || "").toLowerCase())) : mergedOrders;
 
   return (
-    <div aria-busy={loading} className="tone-orders mx-auto flex w-full max-w-[1200px] min-w-0 flex-col gap-5 p-3 sm:p-4 md:p-6 lg:p-8">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="type-page-title text-brand-text">{t("Orders")}</h1>
-        </div>
-        <Button variant="outline" size="sm" onClick={() => void load()} disabled={loading}>
-          <RefreshCw className={`mr-2 h-4 w-4 ${loading ? "animate-spin" : ""}`} />
-          {t("Refresh")}
+    <SubPageLayout
+      title={t("Orders")}
+      actions={
+        <Button variant="ghost" size="sm" onClick={() => void load()} disabled={loading} aria-label={t("Refresh")} className="min-h-11 px-2.5">
+          <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
         </Button>
-      </div>
+      }
+    >
+      <div aria-busy={loading} className="bf-subpage-content tone-orders flex min-w-0 flex-col gap-4">
 
-      {error && (
+      {signedOut ? (
+        <Card className="border-brand-border bg-brand-surface">
+          <CardContent className="flex flex-wrap items-center justify-between gap-3 p-4">
+            <p className="type-body-compact text-brand-text-muted">{t("Sign in to view your order history.")}</p>
+            <Button asChild size="sm"><Link to="/login">{t("Sign in")} <ArrowUpRight className="ml-1 h-4 w-4" /></Link></Button>
+          </CardContent>
+        </Card>
+      ) : error ? (
         <Card className="border-brand-danger/25 bg-brand-danger/[0.045]">
           <CardContent className="flex flex-wrap items-center justify-between gap-3 p-4">
             <p className="type-body-compact text-brand-danger" role="alert">{t(error)}</p>
-            {signedOut && <Button asChild size="sm"><Link to="/login">{t("Sign in")} <ArrowUpRight className="ml-1 h-4 w-4" /></Link></Button>}
           </CardContent>
         </Card>
-      )}
+      ) : null}
 
       <Card className="overflow-hidden border-brand-border bg-brand-surface ">
         <CardHeader className="border-b border-brand-border bg-brand-surface-2/50 sm:flex-row sm:items-center sm:justify-between">
@@ -180,6 +203,7 @@ export function OrdersPage() {
           )}
         </CardContent>
       </Card>
-    </div>
+      </div>
+    </SubPageLayout>
   );
 }

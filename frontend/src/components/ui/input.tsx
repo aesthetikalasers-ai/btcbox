@@ -1,17 +1,33 @@
 import * as React from "react";
 import { cn } from "../../lib/utils";
 
-export const Input = React.forwardRef<HTMLInputElement, React.ComponentProps<"input">>(
-  ({ className, type, ...props }, ref) => (
-    <input
-      type={type}
-      className={cn(
-        "flex h-11 w-full min-w-0 rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-2 text-base text-foreground shadow-[inset_0_1px_2px_rgba(0,0,0,0.22)] placeholder:text-brand-text-faint transition-[border-color,box-shadow,background-color] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent/60 focus-visible:ring-offset-1 focus-visible:ring-offset-brand-bg focus-visible:border-brand-accent aria-[invalid=true]:border-brand-danger/75 aria-[invalid=true]:ring-2 aria-[invalid=true]:ring-brand-danger/15 disabled:cursor-not-allowed disabled:opacity-50 sm:text-sm",
-        className,
-      )}
-      ref={ref}
-      {...props}
-    />
-  ),
+export const Input = React.forwardRef<HTMLInputElement, React.ComponentProps<"input"> & { variant?: "default" | "outline" | "secondary"; size?: "default" | "sm" | "lg" }>(
+  ({ className, type, variant = "default", size = "default", placeholder = "0.00", ...props }, ref) => {
+    const variantClasses = {
+      default: "border-brand-border bg-brand-surface-2 placeholder:text-brand-text-faint",
+      outline: "border-brand-border-strong bg-transparent placeholder:text-brand-text-muted",
+      secondary: "border-brand-border bg-brand-surface-2 placeholder:text-brand-text-muted",
+    };
+    const sizeStyles = {
+      default: "h-11 py-2 text-sm",
+      sm: "h-10 px-3 py-2 text-[13px]",
+      lg: "h-12 px-5 py-2.5 text-[15px]",
+    };
+    
+    return (
+      <input
+        type={type}
+        className={cn(
+          "rounded-lg transition-colors",
+          variantClasses[variant],
+          sizeStyles[size],
+          "placeholder:text-brand-text-faint outline-none"
+        )}
+        placeholder={placeholder}
+        ref={ref}
+        {...props}
+      />
+    );
+  }
 );
 Input.displayName = "Input";

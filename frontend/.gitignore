@@ -9,3 +9,9 @@ dist/
 # Local browser-test artifacts; deliverable screenshots live outside the checkout.
 test-results/
 playwright-report/
+artifacts/
+
+# Local debugging logs and scratch files (never part of a commit).
+pw-*.log
+tsc*.log
+*.tsbuildinfo

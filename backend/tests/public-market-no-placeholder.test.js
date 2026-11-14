@@ -67,9 +67,19 @@ test('customer navigation contains no preview or API-verification banners', () =
 });
 
 
-test('dashboard candle polling does not overlap slow historical-data requests', () => {
+test('dashboard polling never overlaps slow requests', () => {
   const dashboard = fs.readFileSync(path.resolve(__dirname, '../../frontend/src/features/dashboard/Dashboard.tsx'), 'utf8');
-  assert.equal((dashboard.match(/let refreshing = false;/g) || []).length, 3);
-  assert.equal((dashboard.match(/if \(refreshing \|\| controller.signal.aborted\) return;/g) || []).length, 2);
-  assert.equal((dashboard.match(/\.finally\(\(\) => \{ refreshing = false; \}\);/g) || []).length, 2);
+  // The dashboard polls the market feed on an interval. Every polling loop must
+  // carry the in-flight guard, otherwise a slow response stacks requests. The
+  // K-line and depth polls that used to live here now belong to the trade page,
+  // which is covered by spot-trading-live-refresh.test.js.
+  const loops = (dashboard.match(/let refreshing = false;/g) || []).length;
+  const guards = (dashboard.match(/if \(cancelled \|\| refreshing\) return;/g) || []).length;
+  const resets = (dashboard.match(/refreshing = false;/g) || []).length;
+  assert.ok(loops >= 1, 'dashboard must define an in-flight flag for its poll');
+  assert.equal(loops, guards, 'every poll loop needs the in-flight guard');
+  assert.ok(resets >= loops, 'the in-flight flag must be reset when a request settles');
+  // The poll must also be cancelled on unmount so a stale request cannot land.
+  assert.match(dashboard, /clearInterval/);
+  assert.match(dashboard, /pending\?\.abort\(\)|controller\.abort\(\)/);
 });

@@ -23,30 +23,31 @@
     "check:i18n": "node scripts/check-i18n.mjs"
   },
   "dependencies": {
+    "@radix-ui/react-dialog": "^1.1.15",
+    "@radix-ui/react-separator": "^1.1.7",
+    "@radix-ui/react-slot": "^1.2.3",
+    "@supabase/supabase-js": "^2.72.0",
     "@tailwindcss/vite": "^4.1.14",
     "@tanstack/react-table": "^8.21.3",
+    "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "cryptocurrency-icons": "^0.18.1",
     "lightweight-charts": "^5.2.0",
     "lucide-react": "^0.546.0",
     "react": "^19.0.1",
     "react-dom": "^19.0.1",
-    "tailwind-merge": "^3.6.0",
-    "zustand": "^5.0.13",
-    "@radix-ui/react-dialog": "^1.1.15",
-    "@radix-ui/react-separator": "^1.1.7",
-    "@radix-ui/react-slot": "^1.2.3",
-    "class-variance-authority": "^0.7.1",
     "react-router-dom": "^7.9.2",
-    "@supabase/supabase-js": "^2.72.0"
+    "tailwind-merge": "^3.6.0",
+    "zustand": "^5.0.13"
   },
   "devDependencies": {
+    "@playwright/test": "^1.56.1",
     "@types/node": "^22.14.0",
     "@vitejs/plugin-react": "^5.0.4",
     "autoprefixer": "^10.4.21",
     "esbuild": "^0.25.0",
     "tailwindcss": "^4.1.14",
     "typescript": "~5.8.2",
-    "vite": "^6.2.3",
-    "@playwright/test": "^1.56.1"
+    "vite": "^6.2.3"
   }
 }

@@ -15,7 +15,7 @@ const PRODUCTS: Array<{
 }> = [
   { key: "spot", label: "Spot", to: "/trade/BTCUSDT", icon: CandlestickChart, activeClass: "text-brand-accent" },
   { key: "perpetual", label: "Perpetual", to: "/contract", icon: TrendingUp, activeClass: "text-brand-violet" },
-  { key: "seconds", label: "Seconds", to: "/seconds", icon: ArrowLeftRight, activeClass: "text-brand-warning" },
+  { key: "seconds", label: "Seconds", to: "/seconds", icon: ArrowLeftRight, activeClass: "text-brand-cyan" },
   { key: "earn", label: "Earn", to: "/earn", icon: Sprout, activeClass: "text-brand-info" },
 ];
 
@@ -23,7 +23,7 @@ const PRODUCTS: Array<{
 const UNDERLINE: Record<ProductKey, string> = {
   spot: "bg-brand-accent",
   perpetual: "bg-brand-violet",
-  seconds: "bg-brand-warning",
+  seconds: "bg-brand-cyan",
   earn: "bg-brand-info",
 };
 

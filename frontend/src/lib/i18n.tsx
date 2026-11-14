@@ -90,6 +90,9 @@ export function I18nProvider({ children, fixedLanguage }: { children: ReactNode;
     } catch {
       // Keep first-visit language selection usable when browser storage is unavailable.
     }
+    // BTCBOX ships with Japanese as the canonical first-visit language. A visitor's
+    // manual choice is persisted and wins on the next load; only a missing or
+    // unrecognized value falls back to Japanese (never the browser locale).
     return saved === "en" || saved === "ja" || saved === "zh-CN" || saved === "es" || saved === "it" || saved === "pt" || saved === "de" ? saved : "ja";
   });
   const requestedLanguage = fixedLanguage ?? storedLanguage;
