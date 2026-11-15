@@ -837,33 +837,65 @@ export function SecondsPage(){
 
  const refresh=()=>setReload(value=>value+1);
  const clearPending=()=>{
-  if(storageKey){try{window.localStorage.removeItem(storageKey);}catch{}}
-  setPendingIntent(null);
- };
-
- const submitSeconds=async(dir: "up" | "down")=>{
-  if(submitting) return;
-  const numeric=Number(amount);
-  if(!Number.isFinite(numeric)||numeric<=0){
-   setError(t("Please enter a valid investment amount")); return;
+  if(storageKey){
+   try{window.localStorage.removeItem(storageKey);}
+   catch{setError(t("The saved Seconds request could not be cleared. Keep this request and retry only with the same request ID."));return false;}
   }
-  const intent: SecondsOrderInput={
-   request_id:window.crypto.randomUUID().replace(/-/g,""),
-   symbol,
-   direction: dir,
-   duration_sec:duration,
-   amount:amount.trim()
-  };
+  setPendingIntent(null);
+  return true;
+ };
+ const sendIntent=async(intent:SecondsOrderInput)=>{
+  if(submitting)return;
   setSubmitting(true);setError("");setNotice("");
   try{
    const result=await submitSecondsOrder(intent);
    const latest=await getSecondsPositions();
    setSnapshot(latest);
-   clearPending();
-   setNotice(result.duplicate?t("Order confirmed"):t("Seconds order placed successfully. Funds are locked and will settle automatically at expiry."));
+   const confirmed=latest.open.some(position=>position.position_id===result.position_id);
+   if(!confirmed){
+    setError(t("The order response arrived, but the positions list has not confirmed it. Do not create another order; retry this same request."));
+    return;
+   }
+   if(!clearPending())return;
+   setNotice(result.duplicate?t("This order was already received and has been confirmed."):t("Order confirmed. Funds are reserved and the position has its own settlement time."));
   }catch(reason){
-   setError(reason instanceof Error?reason.message:t("Order not confirmed. Please check your funds and try again."));
+   setError(reason instanceof Error?reason.message:t("Order status is unconfirmed. Keep this request and retry only with the same request ID."));
   }finally{setSubmitting(false);}
+ };
+ const retryPendingIntent=()=>{if(pendingIntent)void sendIntent(pendingIntent);};
+
+ const submitSeconds=async(dir: "up" | "down")=>{
+  if(submitting)return;
+  if(policy?.actions_enabled!==true){
+   setError(t("Seconds order entry is currently disabled by server policy."));
+   return;
+  }
+  if(pendingIntent){
+   setError(t("An earlier Seconds request is still unconfirmed. Retry the same request before placing a new one."));
+   return;
+  }
+  if(!storageKey){
+   setError(t("Account identity is unavailable. No order was sent."));
+   return;
+  }
+  const numeric=Number(amount);
+  if(!Number.isFinite(numeric)||numeric<=0){
+   setError(t("Enter an amount greater than zero."));return;
+  }
+  const intent:SecondsOrderInput={
+   request_id:window.crypto.randomUUID().replace(/-/g,""),
+   symbol,
+   direction:dir,
+   duration_sec:duration,
+   amount:amount.trim()
+  };
+  try{window.localStorage.setItem(storageKey,JSON.stringify(intent));}
+  catch{
+   setError(t("This browser cannot safely save the order request. No order was sent."));
+   return;
+  }
+  setPendingIntent(intent);
+  await sendIntent(intent);
  };
 
  const currentRate = DURATION_OPTIONS.find(d => d.sec === duration)?.rate || 85;
@@ -914,6 +946,7 @@ export function SecondsPage(){
 
   {notice?<div role="status" className="rounded-lg border border-brand-success/25 bg-brand-success/5 p-1.5 text-xs text-brand-success">{notice}</div>:null}
   {error?<div role="alert" className="rounded-lg border border-brand-danger/25 bg-brand-danger/5 p-1.5 text-xs text-brand-danger">{error}</div>:null}
+  {pendingIntent?<div role="status" className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-brand-warning/30 bg-brand-warning/5 p-2 text-xs text-brand-text"><span>{t("An earlier Seconds request is still unconfirmed. Retry the same request before placing a new one.")}</span><Button type="button" size="sm" variant="outline" disabled={submitting} onClick={retryPendingIntent}>{t("Retry same request")}</Button></div>:null}
 
   {/* 3. 中间实时分时 / K线走势图区 */}
   <div className="rounded-xl border border-brand-border bg-brand-surface p-2.5 space-y-1.5">
@@ -981,11 +1014,11 @@ export function SecondsPage(){
 
    {/* 双色买涨/买跌按钮 */}
    <div className="grid grid-cols-2 gap-2 pt-0.5">
-    <button type="button" disabled={submitting} onClick={()=>submitSeconds("up")} className="h-10 rounded-lg bg-profit text-[#05201A] font-bold text-sm flex items-center justify-center gap-1.5 hover:bg-profit/90 active:scale-[0.99] transition-transform disabled:opacity-50">
+    <button type="button" disabled={submitting||!!pendingIntent} onClick={()=>submitSeconds("up")} className="h-10 rounded-lg bg-profit text-[#05201A] font-bold text-sm flex items-center justify-center gap-1.5 hover:bg-profit/90 active:scale-[0.99] transition-transform disabled:opacity-50">
      <TrendingUp className="h-4 w-4 stroke-[2.5]" />
      <span>{t("Buy up")} ({currentRate}%)</span>
     </button>
-    <button type="button" disabled={submitting} onClick={()=>submitSeconds("down")} className="h-10 rounded-lg bg-loss text-white font-bold text-sm flex items-center justify-center gap-1.5 hover:bg-loss/90 active:scale-[0.99] transition-transform disabled:opacity-50">
+    <button type="button" disabled={submitting||!!pendingIntent} onClick={()=>submitSeconds("down")} className="h-10 rounded-lg bg-loss text-white font-bold text-sm flex items-center justify-center gap-1.5 hover:bg-loss/90 active:scale-[0.99] transition-transform disabled:opacity-50">
      <TrendingDown className="h-4 w-4 stroke-[2.5]" />
      <span>{t("Buy down")} ({currentRate}%)</span>
     </button>
