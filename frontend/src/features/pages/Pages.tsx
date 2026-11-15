@@ -395,6 +395,7 @@ export function SpotTradingPage(){
     setError(pairResult.reason instanceof Error?pairResult.reason.message:"Spot-market catalogue is unavailable.");
    }
    if(accountResult.status==="fulfilled"){setAccountUid(accountResult.value.uid);setAvailableBalances(accountResult.value.balances);}
+   else if(accountResult.reason instanceof ApiError && accountResult.reason.code==="AUTH_REQUIRED"){setAccountUid("");setAvailableBalances({});}
    // Missing account data is represented by unavailable balances and disabled order entry;
    // keep it out of the prominent market-status banner to preserve the trading viewport.
    if(marketResult.status==="fulfilled"){
