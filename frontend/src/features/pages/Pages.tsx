@@ -871,8 +871,8 @@ export function SecondsPage(){
      <span className="text-brand-text-muted">{t("Low")}</span>
      <span className="text-brand-text font-medium">{ticker ? Number(ticker.low).toLocaleString() : "—"}</span>
     </div>
-   </div>
-  </div>
+   </form>
+  </CardContent></Card>
 
   {notice?<div role="status" className="rounded-lg border border-brand-success/25 bg-brand-success/5 p-1.5 text-xs text-brand-success">{notice}</div>:null}
   {error?<div role="alert" className="rounded-lg border border-brand-danger/25 bg-brand-danger/5 p-1.5 text-xs text-brand-danger">{error}</div>:null}
