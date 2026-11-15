@@ -1578,5 +1578,5 @@ export function WithdrawPage(){
     :<p className="rounded-xl border border-dashed border-brand-border p-5 text-sm text-brand-text-muted">{t("No saved crypto withdrawal addresses were found.")}</p>}
    </CardContent></Card>
   </>}
- </PageFrame>;
+ </div>;
 }
