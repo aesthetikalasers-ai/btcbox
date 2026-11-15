@@ -353,26 +353,47 @@ a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
 .spot-quote-grid > div:nth-child(n+3) p { margin:0; font-size:12px; }
 .spot-shortcuts { gap:8px; padding-bottom:4px; }
 .spot-shortcuts > * { min-height:40px; border-radius:6px; font-size:12px; }
-.exchange-workspace { display:grid; grid-template-columns:minmax(0,42fr) minmax(0,58fr); gap:12px; align-items:stretch; }
+.exchange-workspace { display:grid; grid-template-columns:minmax(0,43fr) minmax(0,57fr); gap:12px; align-items:start; }
 .exchange-pairs { display:none; }
 .exchange-chart,.exchange-entry,.exchange-depth,.exchange-orders { min-width:0; border-radius:6px; box-shadow:none; }
 .exchange-entry { grid-column:2; grid-row:1; display:flex; flex-direction:column; }
 .exchange-depth { grid-column:1; grid-row:1; display:flex; flex-direction:column; }
 .exchange-depth > div:last-child { display:flex; flex-direction:column; flex:1; }
 .exchange-orders { grid-column:1 / -1; grid-row:2; margin-top:8px; }
-.exchange-book-levels { display:flex; flex-direction:column; justify-content:space-between; flex:1; gap:6px; }
-.spot-book-columns,.spot-book-row { display:grid; grid-template-columns:minmax(0,1.25fr) minmax(0,1fr); gap:4px; text-align:right; font-size:11.5px; font-variant-numeric:tabular-nums; }
+.exchange-book-levels { display:flex; flex-direction:column; gap:6px; }
+.spot-book-columns,.spot-book-row { display:grid; grid-template-columns:minmax(0,1.35fr) minmax(0,1fr); gap:6px; text-align:right; font-size:12px; font-variant-numeric:tabular-nums; }
 .spot-book-columns { font-size:11px; color:var(--color-brand-text-muted); margin-bottom:6px; }
-.spot-book-row { line-height:26px; height:26px; font-size:12px; background-position:right center; background-repeat:no-repeat; font-family:var(--font-mono); display:flex; align-items:center; justify-content:space-between; }
+.spot-book-row { line-height:24px; background-position:right center; background-repeat:no-repeat; font-family:var(--font-mono); }
 .spot-book-row[data-side="ask"] { background-image:linear-gradient(rgb(240 107 120 / .12),rgb(240 107 120 / .12)); }
 .spot-book-row[data-side="bid"] { background-image:linear-gradient(rgb(53 214 166 / .12),rgb(53 214 166 / .12)); }
 .spot-book-columns span:first-child { text-align:left; }
-.spot-mid-price { margin-block:4px; padding-block:8px; border-block:1px solid var(--color-brand-border); font:700 16px/22px var(--font-mono); }
-.spot-book-row span { min-width:0; white-space:nowrap; }
+.spot-mid-price { margin-block:2px; padding-block:8px; border-block:1px solid var(--color-brand-border); font:700 19px/26px var(--font-mono); }
+.spot-book-row span { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .spot-book-row span:first-child { text-align:left; }
 .spot-side button { min-height:44px; border-radius:6px; font-weight:650; }
 .spot-side button[aria-pressed="true"]:first-child { background:var(--color-profit); color:#051a14; }
 .spot-side button[aria-pressed="true"]:last-child { background:var(--color-loss); color:#fff; }
+.spot-order-type { display:block; }
+.spot-order-type select { width:100%; min-height:38px; height:38px; border:1px solid var(--color-brand-border); border-radius:6px; padding:0 10px; background:var(--color-brand-surface-2); color:var(--color-brand-text); font-size:13px; font-weight:600; }
+.spot-price-control { display:flex; align-items:center; gap:6px; }
+.spot-price-control button { display:inline-flex; width:36px; min-width:36px; min-height:40px; align-items:center; justify-content:center; border:1px solid var(--color-brand-border); border-radius:6px; background:var(--color-brand-surface-2); color:var(--color-brand-text-secondary); }
+.spot-price-control button:hover:not(:disabled) { border-color:var(--color-brand-accent); color:var(--color-brand-accent); }
+.spot-price-control button:disabled { opacity:.45; }
+.spot-book-toolbar { display:flex; align-items:center; justify-content:space-between; gap:4px; flex-wrap:wrap; padding-top:4px; border-top:1px solid var(--color-brand-border); }
+.spot-book-toolbar select { width:58px; min-width:58px; height:34px; min-height:34px; border:1px solid var(--color-brand-border); border-radius:5px; padding:0 4px; background:var(--color-brand-surface-2); color:var(--color-brand-text-secondary); font:600 11px var(--font-mono); }
+.spot-book-view { display:flex; align-items:center; gap:2px; }
+.spot-book-view button { display:inline-flex; width:25px; min-width:25px; min-height:34px; align-items:center; justify-content:center; border:1px solid transparent; border-radius:5px; color:var(--color-brand-text-muted); }
+.spot-book-view button[aria-pressed="true"] { border-color:var(--color-brand-accent); background:var(--page-accent-soft,rgba(33,199,168,.08)); color:var(--color-brand-accent); }
+.spot-bottom-tabs { display:flex; align-items:center; gap:20px; min-height:42px; border-bottom:1px solid var(--color-brand-border); }
+.spot-bottom-tabs button,.spot-bottom-tabs a { position:relative; display:inline-flex; min-height:42px; align-items:center; gap:5px; padding:0 1px; color:var(--color-brand-text-muted); font-size:13px; white-space:nowrap; }
+.spot-bottom-tabs button.is-active { color:var(--color-brand-text); font-weight:650; }
+.spot-bottom-tabs button.is-active::after { position:absolute; right:0; bottom:-1px; left:0; height:2px; background:var(--color-brand-accent); content:""; }
+.spot-bottom-tabs a { margin-left:auto; justify-content:center; width:36px; }
+.spot-asset-strip { display:grid; grid-template-columns:1fr 1fr auto; align-items:center; gap:12px; padding:14px 2px; font-size:12px; }
+.spot-asset-strip div { display:grid; gap:4px; min-width:0; }
+.spot-asset-strip span { color:var(--color-brand-text-muted); }
+.spot-asset-strip strong { overflow-wrap:anywhere; color:var(--color-brand-text); font:600 13px var(--font-mono); }
+.spot-asset-strip a { color:var(--color-brand-accent); white-space:nowrap; }
 .spot-available { display:flex; flex-wrap:wrap; justify-content:space-between; gap:4px; font-size:11px; color:var(--color-brand-text-muted); }
 .spot-available strong { font-weight:500; color:var(--color-brand-text); font-variant-numeric:tabular-nums; }
 .exchange-entry input { height:46px; border-radius:6px; padding:10px; font-size:16px; font-variant-numeric:tabular-nums; }
@@ -615,6 +636,9 @@ a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
  .exchange-entry > div:first-child,.exchange-depth > div:first-child { font-size:14px; }
  .exchange-entry p { overflow-wrap:anywhere; }
  .exchange-entry button { padding-inline:6px; }
+ .spot-price-control button { min-height:40px; padding-inline:0; }
+ .spot-book-toolbar { gap:3px; }
+ .spot-book-view button { min-height:34px; padding-inline:0; }
  .exchange-entry form,.exchange-entry label { font-size:12px; }
 
 }
@@ -763,124 +787,126 @@ a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
 .summary-row .label { color: var(--color-brand-text-muted); }
 .summary-row .value { font-weight: 600; font-variant-numeric: tabular-nums; color: var(--color-brand-text); }
 
-/* ========================================================================
-   Global multi-language typography defense (375–1920px mobile-first)
-   ======================================================================== */
-html[lang="ja-JP"], html[lang="ja"] { --font-sans: "Noto Sans JP", "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic", "Meiryo", sans-serif; }
-html[lang="zh-CN"], html[lang="zh"] { --font-sans: "Noto Sans SC", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif; }
-html[lang="en-US"], html[lang="en"] { --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif; }
-html { overflow-x: hidden; }
-[class*="font-sans"], [class*="sans"] { font-family: var(--font-sans); }
-.bf-nowrap { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.bf-tabular { font-variant-numeric: tabular-nums; font-feature-settings: "tnum"; }
 
-/* === Deep dark card hierarchy for financial surfaces === */
-.bf-card-deep { background: var(--color-brand-surface); border: 1px solid var(--color-brand-border); border-radius: 12px; }
-.bf-card-layer-2 { background: var(--color-brand-surface-2); border: 1px solid var(--color-brand-border-subtle); border-radius: 10px; }
-
-/* === Horizontal filter tag strip: single line, no wrap, scrollable === */
-.bf-tag-strip { display: flex; flex-direction: row; flex-wrap: nowrap; gap: 6px; overflow-x: auto; scrollbar-width: none; -ms-overflow-style: none; -webkit-overflow-scrolling: touch; padding-bottom: 2px; }
-.bf-tag-strip::-webkit-scrollbar { display: none; }
-.bf-tag { display: inline-flex; align-items: center; justify-content: center; min-height: 30px; padding: 0 10px; border-radius: 8px; border: 1px solid var(--color-brand-border-subtle); background: var(--color-brand-surface-2); color: var(--color-brand-text-secondary); font-size: 11.5px; font-weight: 600; white-space: nowrap; line-height: 1; transition: all 0.15s ease; flex-shrink: 0; }
-.bf-tag:hover { border-color: var(--color-brand-border-strong); background: var(--color-brand-surface-hover); color: var(--color-brand-text); }
-.bf-tag--active { border-color: var(--color-brand-accent); background: color-mix(in srgb, var(--color-brand-accent) 14%, transparent); color: var(--color-brand-accent); }
-.bf-tag--active:hover { background: color-mix(in srgb, var(--color-brand-accent) 20%, transparent); }
-
-/* === 4-grid quick-entry icons (home) === */
-.bf-quick-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
-.bf-quick-item { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 80px; border-radius: 12px; border: 1px solid var(--color-brand-border); background: var(--color-brand-surface); color: var(--color-brand-text); text-decoration: none; transition: all 0.15s ease; }
-.bf-quick-item:hover { border-color: var(--color-brand-accent); background: var(--color-brand-surface-hover); transform: translateY(-1px); }
-.bf-quick-item .bf-quick-icon { width: 32px; height: 32px; border-radius: 8px; background: var(--color-brand-surface-2); display: flex; align-items: center; justify-content: center; margin-bottom: 6px; color: var(--color-brand-text-secondary); }
-.bf-quick-item--active .bf-quick-icon, .bf-quick-item:hover .bf-quick-icon { background: var(--color-brand-accent); color: #05201A; }
-.bf-quick-label { font-size: 12px; font-weight: 600; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: center; }
-
-/* === Home ticker strip: horizontal snap scroller, scrollbar hidden ===
-   The strip bleeds to the viewport edge on mobile so the next card peeks in,
-   signalling that it is swipeable. Scrollbar is suppressed because the peek
-   already communicates overflow and a visible bar would break the flat look. */
-.bf-ticker-strip { scrollbar-width: none; -ms-overflow-style: none; scroll-behavior: smooth; }
-.bf-ticker-strip::-webkit-scrollbar { display: none; }
-
-/* === TickerRow: high-density single market row for mobile === */
-.bf-ticker-row { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(72px, 0.9fr) minmax(70px, 0.8fr) minmax(64px, 0.7fr); gap: 8px; align-items: center; padding: 8px 12px; border-radius: 10px; background: var(--color-brand-surface); border: 1px solid var(--color-brand-border-subtle); transition: all 0.15s ease; }
-.bf-ticker-row:hover { background: var(--color-brand-surface-hover); border-color: var(--color-brand-border-strong); }
-.bf-ticker-row--selected { background: color-mix(in srgb, var(--color-brand-accent) 8%, transparent); border-color: var(--color-brand-accent); }
-.bf-ticker-pair { min-width: 0; display: flex; align-items: center; gap: 8px; }
-.bf-ticker-icon { width: 32px; height: 32px; flex-shrink: 0; border-radius: 8px; background: var(--color-brand-surface-2); display: flex; align-items: center; justify-content: center; }
-.bf-ticker-name { min-width: 0; }
-.bf-ticker-name b { display: block; font-size: 14px; font-weight: 700; letter-spacing: -0.01em; color: var(--color-brand-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.bf-ticker-name span { display: block; font-size: 10px; color: var(--color-brand-text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.bf-ticker-value { min-width: 0; text-align: right; }
-.bf-ticker-value b { display: block; font-variant-numeric: tabular-nums; font-feature-settings: "tnum"; font-size: 14px; font-weight: 700; color: var(--color-brand-text); white-space: nowrap; }
-.bf-ticker-change { min-width: 0; text-align: right; }
-.bf-ticker-change b { display: block; font-variant-numeric: tabular-nums; font-feature-settings: "tnum"; font-size: 12px; font-weight: 700; white-space: nowrap; }
-.bf-ticker-change--up { color: var(--color-positive); }
-.bf-ticker-change--down { color: var(--color-negative); }
-.bf-ticker-vol { min-width: 0; text-align: right; }
-.bf-ticker-vol b { display: block; font-variant-numeric: tabular-nums; font-feature-settings: "tnum"; font-size: 11px; font-weight: 600; color: var(--color-brand-text-secondary); white-space: nowrap; }
-
-/* === Bottom navigation: touch-first, 44px+ targets, safe-area ===
-   Mobile app tab bar (< 768px): 56px content height + safe-area padding,
-   hairline top border, dark translucent surface with a blur, brand-green
-   active state and muted slate inactive state. */
-.bf-bottom-nav { position: fixed; left: 0; right: 0; bottom: 0; z-index: 50; display: flex; flex-direction: row; justify-content: space-around; align-items: stretch; width: 100%; height: calc(56px + env(safe-area-inset-bottom)); border-top: 1px solid rgba(255, 255, 255, 0.10); background: rgba(11, 14, 17, 0.90); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); padding-bottom: max(0px, env(safe-area-inset-bottom)); padding-top: 0; box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.35); }
-.bf-bottom-nav-item { position: relative; display: flex; flex: 1 1 0; flex-direction: column; align-items: center; justify-content: center; gap: 2px; height: 56px; min-height: 56px; min-width: 0; padding-inline: 0.5px; border-radius: 0; color: #848E9C; font-size: 10px; font-weight: 700; line-height: 1.1; text-align: center; transition: color 0.15s ease; text-decoration: none; background: transparent; }
-.bf-bottom-nav-item .bf-nav-icon { width: 22px; height: 22px; flex-shrink: 0; color: currentColor; transition: color 0.15s ease, transform 0.15s ease; }
-.bf-bottom-nav-item:hover, .bf-bottom-nav-item:focus-visible { color: var(--color-brand-text-secondary); outline: none; }
-.bf-bottom-nav-item--active { background: transparent; color: #0ECB81; }
-.bf-bottom-nav-item--active .bf-nav-icon { color: #0ECB81; }
-.bf-bottom-nav-item--active::before { content: ""; position: absolute; top: 0; left: 50%; transform: translateX(-50%); width: 20px; height: 3px; border-radius: 0 0 3px 3px; background: #0ECB81; box-shadow: 0 0 8px rgba(14, 203, 129, 0.7); }
-
-.bf-bottom-nav-label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
-
-/* === Navigation tiers =====================================================
-   Top-level pages keep the global header + bottom tab bar. Sub-pages hide both
-   and render the secondary navigation bar instead (see SubPageLayout.tsx).
-   ======================================================================== */
-
-/* The bottom tab bar is a mobile-only affordance. This plain-CSS media query is
-   required because `lg:hidden` is emitted inside Tailwind's `@layer utilities`
-   and therefore loses to the unlayered `display:flex` declared above. */
-@media (min-width: 1024px) {
-  .bf-bottom-nav { display: none; }
+/* Shared premium metric-card treatment for spot and seconds trading summaries. */
+.spot-quote-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  padding: 0 0 12px;
+  border: 0;
+}
+.spot-quote-grid > div {
+  display: flex;
+  min-width: 0;
+  min-height: 86px;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--color-brand-border-subtle);
+  border-radius: 12px;
+  background: var(--color-brand-surface-2);
+}
+.spot-quote-grid > div p {
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.spot-quote-grid > div p:first-child {
+  color: var(--color-brand-text-muted);
+  font-size: 11px;
+  line-height: 1.4;
+}
+.spot-quote-grid > div p:last-child {
+  color: var(--color-brand-text);
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.35;
+  font-variant-numeric: tabular-nums;
+}
+.spot-quote-grid > div:nth-child(n+3) {
+  align-items: flex-start;
+}
+.spot-quote-grid > div:first-child p:last-child {
+  font-size: clamp(21px, 5vw, 28px);
+  line-height: 1.15;
+  letter-spacing: -.035em;
+}
+.spot-quote-grid > div:nth-child(2) p:last-child {
+  font-size: 18px;
+}
+.seconds-trading-page {
+  gap: 16px;
+}
+.seconds-policy-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+.seconds-policy-grid > div {
+  display: flex;
+  min-width: 0;
+  min-height: 86px;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--color-brand-border-subtle);
+  border-radius: 12px;
+  background: var(--color-brand-surface-2);
+}
+.seconds-policy-grid > div > p:first-child {
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--color-brand-text-muted);
+}
+.seconds-policy-grid > div > p:last-child {
+  overflow-wrap: anywhere;
+  font-size: 15px;
+  line-height: 1.35;
+  font-variant-numeric: tabular-nums;
+}
+@media (min-width: 900px) {
+  .spot-quote-grid,
+  .seconds-policy-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 12px;
+  }
+  .spot-quote-grid > div,
+  .seconds-policy-grid > div {
+    min-height: 92px;
+    padding: 14px;
+  }
+}
+@media (max-width: 359px) {
+  .spot-quote-grid,
+  .seconds-policy-grid {
+    gap: 8px;
+  }
+  .spot-quote-grid > div,
+  .seconds-policy-grid > div {
+    min-height: 80px;
+    padding: 10px;
+  }
 }
 
-/* Sub-page shell: owns the viewport so the secondary bar can stay pinned.
-   `100dvh` tracks the mobile URL bar; `100vh` is the fallback. */
-.bf-subpage {
-  height: 100vh;
-  height: 100dvh;
-  max-height: 100vh;
-  max-height: 100dvh;
+/* Narrow trading workspace: keep order entry and depth readable instead of squeezing two columns. */
+@media (max-width: 767px) {
+  .exchange-workspace {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
+  }
+  .exchange-entry {
+    grid-column: 1;
+    grid-row: 1;
+  }
+  .exchange-depth {
+    grid-column: 1;
+    grid-row: 2;
+  }
+  .exchange-orders {
+    grid-column: 1;
+    grid-row: 3;
+    margin-top: 0;
+  }
 }
-
-/* Secondary navigation bar (mobile-first). */
-.bf-subnav { min-height: 56px; }
-.bf-subnav-title {
-  /* Reserved gutters equal the 44px back control + 2px padding on both sides. */
-  max-width: calc(100% - 7rem);
-  margin-inline: auto;
-}
-.bf-subnav-back { touch-action: manipulation; }
-
-/* Sub-page content gutters: 16px on phones, wider on tablet/desktop. */
-.bf-subpage-content { width: 100%; margin-inline: auto; max-width: 1200px; padding: 12px; }
-@media (min-width: 640px) { .bf-subpage-content { padding: 16px; } }
-@media (min-width: 768px) { .bf-subpage-content { padding: 24px; } }
-@media (min-width: 1024px) { .bf-subpage-content { padding: 32px; } }
-
-/* === Professional mobile trade UI: drawer + scroll-snap helpers (tokens only) === */
-@layer components {
-  /* Fixed bottom chart drawer: sits directly above the 56px bottom tab bar, centred
-     at 430px for the H5 terminal. The panel expands upward from the same anchor so it
-     never overlaps the global bottom navigation (z-index 50). */
-  .trade-drawer-root { position: fixed; left: 0; right: 0; z-index: 30; bottom: calc(56px + env(safe-area-inset-bottom)); max-width: 430px; margin: 0 auto; }
-  .trade-drawer-panel { display: flex; flex-direction: column; border-top: 1px solid #2b3139; border-left: 1px solid #2b3139; border-right: 1px solid #2b3139; border-bottom: 0; border-radius: 0; background: #1e2329; box-shadow: 0 -4px 12px rgba(0,0,0,0.3); overflow: hidden; transition: height .28s cubic-bezier(.22,.61,.36,1); will-change: height; }
-  .trade-drawer-root.is-dragging .trade-drawer-panel { transition: none; }
-  .trade-drawer-handle { touch-action: none; cursor: grab; }
-  .trade-drawer-handle:active { cursor: grabbing; }
-  /* Hidden scrollbars for the product nav and the horizontal snap scroller (scroll position still indicated by dots). */
-  .trade-nav-scroll, .trade-snap-x { scrollbar-width: none; -ms-overflow-style: none; -webkit-overflow-scrolling: touch; }
-  .trade-nav-scroll::-webkit-scrollbar, .trade-snap-x::-webkit-scrollbar { display: none; width: 0; height: 0; }
-}
-
