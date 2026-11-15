@@ -74,6 +74,8 @@ export function LiveMarketsTable({ markets, loading, error }: {
   const query = (searchParams.get("q") || "").trim().toLowerCase();
   const latestSnapshotTs = markets.reduce((latest, item) => Math.max(latest, item.snapshotTs || 0), 0);
   const snapshotAgeSeconds = latestSnapshotTs > 0 ? Math.max(0, Math.floor(Date.now() / 1000 - latestSnapshotTs)) : null;
+  // Quotes older than 90s are treated as unavailable: showing a stale price is
+  // worse than showing none, because a trader could size an order against it.
   const snapshotStale = markets.some((item) => (item.snapshotTs || 0) > 0 && Date.now() / 1000 - (item.snapshotTs || 0) > 90);
   const feedError = error || (snapshotStale ? t("The market service snapshot is older than 90 seconds. Quotes are hidden until a fresh snapshot arrives.") : "");
   const displayMarkets = feedError ? [] : markets;

@@ -96,19 +96,22 @@ test('order book snapshots normalize provider levels and expose source-specific 
   assert.ok(route.includes('snapshotTs: Math.floor(Date.now() / 1000), providerTs'));
   assert.ok(api.includes('const normalizeLevels = (rows: unknown[])'));
   assert.ok(api.includes('INVALID_ORDER_BOOK'));
-  assert.ok(pages.includes('t("Ticker")}: {displayTicker?.source||"—"}'));
   assert.ok(pages.includes('const marketSnapshotStale=!!ticker&&(!marketUpdatedAt||marketClockNow-marketUpdatedAt>90_000)'));
   assert.ok(pages.includes('(!ticker||marketSnapshotStale)&&!pendingIntent'));
+  assert.ok(!pages.includes('displayTicker?.source'), 'ticker source badge must not be rendered');
   assert.ok(pages.includes('const orderBookSnapshotStale=!!book&&(!book.snapshotTs||marketClockNow-book.snapshotTs*1000>90_000)'));
-  assert.ok(pages.includes('const displayBook=orderBookSnapshotStale?null:book'));
-  assert.ok(pages.includes('t("Order book")}: {displayBook?.source||"—"}'));
+  assert.ok(pages.includes('const displayBook=orderBookSnapshotStale?null:(liveDepth.data??book)'));
+  // A stale book is never rendered: the panel receives `null` instead of data.
+  assert.ok(pages.includes('const displayBook=orderBookSnapshotStale?null'), 'stale book must not be rendered as live');
+  // Provider source badges were intentionally removed from the trader-facing UI.
+  assert.ok(!pages.includes('displayBook?.source'), 'order book source must not be rendered');
 });
 
 test('spot chart preserves provider provenance and rejects impossible OHLC ranges', () => {
   assert.ok(api.includes('candle.high >= Math.max(candle.open, candle.close, candle.low)'));
   assert.ok(api.includes('candle.low <= Math.min(candle.open, candle.close, candle.high)'));
-  assert.ok(api.includes('source: typeof payload.source === "string" ? payload.source : undefined'));
-  assert.ok(pages.includes('t("Chart")}: {candles[0]?.source||"—"}'));
+  assert.ok(api.includes('const candleSource = typeof payload.source === "string" ? payload.source : undefined'));
+  assert.ok(!pages.includes('candles[0]?.source'), 'chart source must not be rendered');
   assert.ok(pages.includes('setCandles([]);setChartFeedWarning("Chart data is temporarily unavailable.")'));
   assert.ok(!pages.includes("showing the last confirmed candles"));
 });

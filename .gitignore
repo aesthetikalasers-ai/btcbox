@@ -30,3 +30,14 @@ frontend/package-lock.json
 backend/dist/
 .vercel
 .env*
+
+# local logs and audit artifacts
+*.log
+audit_exit.txt
+audit_result.json
+build.log
+tsc-check.log
+tsc_exit*.txt
+frontend/dev_server*.log
+frontend/tsc_exit*.txt
+frontend/e2e/manual-audit.mjs

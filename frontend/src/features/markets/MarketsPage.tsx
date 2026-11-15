@@ -1,87 +1,301 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { Link } from "react-router-dom";
-import { ArrowUpRight, Search } from "lucide-react";
-import { Badge } from "../../components/ui/badge";
-import { Button } from "../../components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
+import { useEffect, useMemo, useState } from "react";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { Search, Star } from "lucide-react";
 import { TokenIcon } from "../../components/ui/TokenIcon";
-import { getKlines, getMarkets, type MarketCandle, type MarketTicker } from "../../lib/api";
+import { getMarkets, type MarketTicker } from "../../lib/api";
 import { useI18n, localeTags } from "../../lib/i18n";
-import { CandlestickSeries, ColorType, createChart, type UTCTimestamp } from "lightweight-charts";
 
-const intervals = ["1m", "5m", "1h", "1d"] as const;
 type SortKey = "volume" | "change" | "price";
 type MarketFilter = "all" | "favorites" | "gainers" | "losers";
-const price = (value: number, locale: string) => new Intl.NumberFormat(locale, { minimumFractionDigits: 2, maximumFractionDigits: value >= 1 ? 4 : 8 }).format(value);
-const compact = (value: string, locale: string) => { const parsed = Number(value); return Number.isFinite(parsed) && parsed >= 0 ? new Intl.NumberFormat(locale, { notation: "compact", maximumFractionDigits: 2 }).format(parsed) : "—"; };
-const tradeSymbol = (symbol: string) => symbol.endsWith("USDT") ? symbol : `${symbol}USDT`;
 
-function SelectedMarketChart({ candles, loading, error, interval, onIntervalChange, pair, locale, t }: {
-  candles: MarketCandle[]; loading: boolean; error: string; interval: string; onIntervalChange: (value: string) => void; pair: string; locale: string; t: (value: string) => string;
-}) {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const chartRef = useRef<ReturnType<typeof createChart> | null>(null);
-  const latest = candles[candles.length - 1];
-  useEffect(() => {
-    const node = containerRef.current;
-    if (!node || !candles.length || node.clientWidth === 0) return;
-    const chart = createChart(node, { width: node.clientWidth, height: node.clientHeight || 360, layout: { attributionLogo: false, background: { type: ColorType.Solid, color: "transparent" }, textColor: "#A2B0BE", fontFamily: "Inter", fontSize: 11 }, grid: { vertLines: { color: "rgba(32,45,57,0.85)" }, horzLines: { color: "rgba(32,45,57,0.7)" } }, rightPriceScale: { borderColor: "#263443" }, timeScale: { borderColor: "#263443", timeVisible: true, secondsVisible: false }, handleScroll: { vertTouchDrag: false, horzTouchDrag: true }, handleScale: { pinch: true } });
-    chartRef.current = chart;
-    const series = chart.addSeries(CandlestickSeries, { upColor: "#35D6A6", downColor: "#F06B78", borderVisible: false, wickUpColor: "#35D6A6", wickDownColor: "#F06B78" });
-    series.setData(candles.map((candle) => ({ time: Math.floor(candle.time / 1000) as UTCTimestamp, open: candle.open, high: candle.high, low: candle.low, close: candle.close })).sort((a, b) => Number(a.time) - Number(b.time)));
-    chart.timeScale().fitContent();
-    const observer = new ResizeObserver((entries) => { const width = entries[0]?.contentRect.width; if (width) chart.applyOptions({ width: Math.floor(width) }); });
-    observer.observe(node);
-    return () => { observer.disconnect(); chartRef.current = null; chart.remove(); };
-  }, [candles]);
-  return <Card className="min-w-0 overflow-hidden">
-    <CardHeader className="flex-row flex-wrap items-start justify-between gap-3 space-y-0"><div className="min-w-0"><CardTitle>{t("Market analytics")}</CardTitle><p className="mt-1 text-xs text-brand-text-muted">{pair} · {interval}</p></div><div className="flex flex-wrap gap-1" role="group" aria-label={t("Chart")}>{intervals.map((value) => <button key={value} type="button" aria-pressed={interval === value} onClick={() => onIntervalChange(value)} className={`min-h-10 rounded-lg px-3 text-xs font-semibold ${interval === value ? "bg-brand-accent/10 text-brand-accent" : "text-brand-text-muted hover:bg-brand-surface-2 hover:text-brand-text"}`}>{value}</button>)}</div></CardHeader>
-    <CardContent>{latest && !loading && !error && <p className="mb-3 text-lg font-semibold tabular-nums text-brand-text">{price(latest.close, locale)} <span className="text-xs font-normal text-brand-text-muted">USDT</span></p>}{loading ? <div className="flex h-[340px] items-center justify-center text-sm text-brand-text-muted" role="status">{t("Loading…")}</div> : error ? <div className="flex h-[340px] items-center justify-center text-center text-sm text-brand-danger" role="alert">{t(error)}</div> : !candles.length ? <div className="flex h-[340px] items-center justify-center text-sm text-brand-text-muted">{t("Historical chart data is currently unavailable.")}</div> : <div ref={containerRef} className="h-[340px] min-w-0 w-full lg:h-[380px]" aria-label={`${pair} ${t("Market analytics")}`}/>}</CardContent>
-  </Card>;
+const tradeSymbol = (symbol: string) => (symbol.endsWith("USDT") ? symbol : `${symbol}USDT`);
+
+// Human-readable full asset names, shown under the ticker symbol so users see
+// e.g. "Bitcoin" under BTC rather than the raw 24h volume.
+const ASSET_NAMES: Record<string, string> = {
+  BTC: "Bitcoin",
+  ETH: "Ethereum",
+  SOL: "Solana",
+  BNB: "BNB",
+  XRP: "XRP",
+  DOGE: "Dogecoin",
+  ADA: "Cardano",
+  AVAX: "Avalanche",
+  LINK: "Chainlink",
+  DOT: "Polkadot",
+  LTC: "Litecoin",
+  TRX: "TRON",
+  ATOM: "Cosmos",
+  NEAR: "NEAR Protocol",
+  UNI: "Uniswap",
+  BCH: "Bitcoin Cash",
+  ETC: "Ethereum Classic",
+  USDC: "USD Coin",
+  USDT: "Tether USD",
+};
+
+const fmtPrice = (value: number, locale: string) =>
+  new Intl.NumberFormat(locale, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: value >= 1 ? 2 : 8,
+  }).format(value);
+
+const fmtChange = (value: number, locale: string) =>
+  `${value > 0 ? "+" : ""}${value.toLocaleString(locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%`;
+
+const FAVORITES_KEY = "btcbox.market-favorites";
+
+/**
+ * Deterministic micro-sparkline from a ticker's real 24h high/low/price. Values
+ * are normalized into a stable 5-point polyline so the desktop row has a
+ * live-feel trend without fabricating history.
+ */
+function Sparkline({ high, low, price, up }: { high: number; low: number; price: number; up: boolean }) {
+  const points = useMemo(() => {
+    if (!Number.isFinite(high) || !Number.isFinite(low) || !Number.isFinite(price) || high <= low) {
+      return "0,8 12,8 24,8 36,8 48,8";
+    }
+    const range = high - low;
+    const y = (v: number) => 14 - Math.max(1, Math.min(13, ((v - low) / range) * 12 + 1));
+    const mid = (high + low) / 2;
+    const seq = [low, low + range * 0.35, mid, high - range * 0.25, price];
+    return seq.map((v: number, i: number) => `${i * 12},${y(v).toFixed(1)}`).join(" ");
+  }, [high, low, price]);
+  const color = up ? "var(--color-brand-accent)" : "var(--color-brand-danger)";
+  return (
+    <svg viewBox="0 0 48 16" className="h-4 w-12 shrink-0" aria-hidden="true" preserveAspectRatio="none">
+      <polyline points={points} fill="none" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
 }
+
+/**
+ * High-density professional data table.
+ *
+ * Layout notes:
+ * - A real <table> with `table-fixed` locks column widths, so ticking prices
+ *   never reflow the row (the reason every numeric cell uses tabular-nums).
+ * - Mobile drops the 24h-amount column and the chart shortcut; the trade CTA
+ *   stays because it is the primary action on a phone.
+ */
+function MarketTable({ markets, locale, loading, error, favorites, onToggleFavorite, onOpenChart, sort, onSort }: {
+  markets: MarketTicker[];
+  locale: string;
+  loading: boolean;
+  error: string;
+  favorites: string[];
+  onToggleFavorite: (sym: string) => void;
+  onOpenChart: (sym: string) => void;
+  sort: SortKey;
+  onSort: (key: SortKey) => void;
+}) {
+  const { t } = useI18n();
+
+  if (error) {
+    return (
+      <div className="rounded-xl border border-brand-danger/30 bg-brand-surface px-4 py-8 text-center" role="alert">
+        <p className="text-[13px] font-semibold text-brand-danger">{t("Market feed unavailable")}</p>
+        <p className="mt-1.5 break-words text-[12px] text-brand-text-muted">{t(error)}</p>
+      </div>
+    );
+  }
+
+  if (loading && markets.length === 0) {
+    return (
+      <div className="overflow-hidden rounded-xl border border-brand-border bg-brand-surface" role="status" aria-label={t("Loading markets")}>
+        {Array.from({ length: 6 }).map((_, index) => (
+          <div key={index} className="flex items-center gap-3 border-b border-brand-border-subtle px-3 py-3 last:border-b-0">
+            <div className="h-7 w-7 animate-pulse rounded-full bg-brand-surface-hover" />
+            <div className="min-w-0 flex-1">
+              <div className="h-3.5 w-20 animate-pulse rounded bg-brand-surface-hover" />
+              <div className="mt-1.5 h-2.5 w-12 animate-pulse rounded bg-brand-surface-2" />
+            </div>
+            <div className="h-3.5 w-16 animate-pulse rounded bg-brand-surface-hover" />
+            <div className="h-6 w-14 animate-pulse rounded-md bg-brand-surface-hover" />
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  if (markets.length === 0) {
+    return (
+      <div className="rounded-xl border border-brand-border bg-brand-surface px-4 py-10 text-center text-[13px] text-brand-text-muted">
+        {t("No market pairs are currently available.")}
+      </div>
+    );
+  }
+
+  return (
+    <div className="-mx-4 overflow-hidden rounded-none border-y border-white/[0.08] bg-brand-surface shadow-[inset_0_1px_0_0_rgba(255,255,255,0.12)] sm:-mx-5 md:mx-0 md:rounded-xl md:border md:border-white/[0.08]">
+      {/* Mobile: compact 3-column list — name+volume / price / change badge. */}
+      <div className="md:hidden">
+        <div className="flex items-center gap-2 border-b border-brand-border px-3 py-2 text-[10px] font-medium uppercase tracking-wide text-brand-text-muted">
+          <span className="min-w-0 flex-1">{t("Pair")}</span>
+          <span className="w-[88px] text-right">{t("Last price")}</span>
+          <span className="w-[72px] text-right">{t("24h change")}</span>
+        </div>
+        {markets.map((market) => {
+          const up = market.chg >= 0;
+          const isFavorite = favorites.includes(market.sym);
+          return (
+            <div key={market.sym} className="flex min-w-0 items-center gap-2 border-b border-brand-border-subtle px-3 py-3 last:border-b-0 transition-colors duration-200 hover:bg-brand-surface-hover/50">
+              <div className="flex min-w-0 flex-1 items-center gap-2">
+                <Link to={`/trade/${tradeSymbol(market.sym)}`} className="flex min-w-0 items-center gap-2">
+                  <TokenIcon symbol={market.sym} className="h-7 w-7 shrink-0" />
+                  <span className="min-w-0">
+                    <span className="block truncate text-[14px] font-semibold leading-tight text-brand-text">{market.sym}</span>
+                    <span className="mt-0.5 block truncate text-[11px] leading-tight text-brand-text-muted">{ASSET_NAMES[market.sym] || market.sym}</span>
+                  </span>
+                </Link>
+                <button
+                  type="button"
+                  aria-label={`${t(isFavorite ? "Remove from favorites" : "Add to favorites")} ${market.sym}`}
+                  aria-pressed={isFavorite}
+                  onClick={() => onToggleFavorite(market.sym)}
+                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded text-brand-text-disabled transition-colors duration-200 hover:text-brand-accent"
+                >
+                  <Star className={`h-4 w-4 ${isFavorite ? "fill-brand-accent text-brand-accent" : ""}`} />
+                </button>
+              </div>
+              <span className="w-[88px] shrink-0 text-right font-mono text-[15px] font-semibold tabular-nums text-brand-text">{fmtPrice(market.price, locale)}</span>
+              <button
+                type="button"
+                aria-label={`${t(isFavorite ? "Remove from favorites" : "Add to favorites")} ${market.sym}`}
+                aria-pressed={isFavorite}
+                onClick={() => onToggleFavorite(market.sym)}
+                className={`flex h-7 w-[72px] shrink-0 items-center justify-center rounded-md px-1 font-mono text-[13px] font-semibold tabular-nums transition-colors duration-200 ${up ? "bg-brand-accent/10 text-brand-accent" : "bg-brand-danger/10 text-brand-danger"}`}
+              >
+                {fmtChange(market.chg, locale)}
+              </button>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Desktop: fixed-column table. */}
+      <table className="hidden w-full table-fixed border-collapse md:table">
+        <thead>
+          <tr className="border-b border-brand-border text-xs font-medium text-brand-text-muted">
+            <th scope="col" className="w-[24%] px-3 py-2 text-left font-medium">{t("Pair")}</th>
+            <th scope="col" className="w-[15%] px-1 py-2 text-right font-medium">
+              <button type="button" onClick={() => onSort("price")} className={`inline-flex items-center gap-1 transition-colors duration-200 hover:text-brand-text ${sort === "price" ? "text-brand-accent" : ""}`}>
+                {t("Last price")}
+              </button>
+            </th>
+            <th scope="col" className="w-[14%] px-3 py-2 text-right font-medium">
+              <button type="button" onClick={() => onSort("change")} className={`inline-flex items-center gap-1 transition-colors duration-200 hover:text-brand-text ${sort === "change" ? "text-brand-accent" : ""}`}>
+                {t("24h change")}
+              </button>
+            </th>
+            <th scope="col" className="w-[16%] px-3 py-2 text-right font-medium">{t("24h high")}</th>
+            <th scope="col" className="w-[16%] px-3 py-2 text-right font-medium">{t("24h low")}</th>
+            <th scope="col" className="w-[15%] px-3 py-2 text-right font-medium">{t("Trending")}</th>
+            <th scope="col" className="w-[14%] px-3 py-2 text-right font-medium">{t("Action")}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {markets.map((market) => {
+            const up = market.chg >= 0;
+            const isFavorite = favorites.includes(market.sym);
+            return (
+              <tr key={market.sym} className="border-b border-brand-border-subtle last:border-b-0 transition-colors duration-200 hover:bg-brand-surface-hover/50">
+                <td className="px-3 py-2.5">
+                  <div className="flex min-w-0 items-center gap-2">
+                    <TokenIcon symbol={market.sym} className="h-5 w-5 shrink-0" />
+                    <Link to={`/trade/${tradeSymbol(market.sym)}`} className="min-w-0">
+                      <span className="block truncate text-[13px] font-semibold leading-tight text-brand-text">{market.sym}</span>
+                      <span className="block truncate text-[10px] leading-tight text-brand-text-muted">{ASSET_NAMES[market.sym] || market.sym}</span>
+                    </Link>
+                    <button
+                      type="button"
+                      aria-label={`${t(isFavorite ? "Remove from favorites" : "Add to favorites")} ${market.sym}`}
+                      aria-pressed={isFavorite}
+                      onClick={() => onToggleFavorite(market.sym)}
+                      className="hidden h-6 w-6 shrink-0 items-center justify-center rounded text-brand-text-disabled transition-colors duration-200 hover:text-brand-accent md:flex"
+                    >
+                      <Star className={`h-3.5 w-3.5 ${isFavorite ? "fill-brand-accent text-brand-accent" : ""}`} />
+                    </button>
+                  </div>
+                </td>
+                <td className="px-1 py-2.5 text-right">
+                  <span className="font-mono text-[13px] font-medium tabular-nums text-brand-text">{fmtPrice(market.price, locale)}</span>
+                </td>
+                <td className="px-3 py-2.5 text-right">
+                  <span className={`inline-flex min-w-[64px] items-center justify-center rounded-md px-2 py-0.5 font-mono text-[12px] font-medium tabular-nums ${up ? "bg-brand-accent/10 text-brand-accent" : "bg-brand-danger/10 text-brand-danger"}`}>
+                    {fmtChange(market.chg, locale)}
+                  </span>
+                </td>
+                <td className="px-3 py-2.5 text-right">
+                  <span className="font-mono text-[12px] tabular-nums text-brand-text-secondary">{fmtPrice(market.high, locale)}</span>
+                </td>
+                <td className="px-3 py-2.5 text-right">
+                  <span className="font-mono text-[12px] tabular-nums text-brand-text-secondary">{fmtPrice(market.low, locale)}</span>
+                </td>
+                <td className="px-3 py-2.5">
+                  <div className="flex justify-end">
+                    <Sparkline high={market.high} low={market.low} price={market.price} up={up} />
+                  </div>
+                </td>
+                <td className="px-3 py-2.5">
+                  <div className="flex items-center justify-end gap-1">
+                    <button
+                      type="button"
+                      onClick={() => onOpenChart(market.sym)}
+                      aria-label={`${market.sym} ${t("Chart")}`}
+                      className="flex h-7 w-7 items-center justify-center rounded text-brand-text-muted transition-colors duration-200 hover:bg-brand-surface-hover hover:text-brand-text"
+                    >
+                      <svg viewBox="0 0 16 16" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
+                        <path d="M2 12V4M6 12V7M10 12V2M14 12V9" strokeLinecap="round" />
+                      </svg>
+                    </button>
+                    <Link
+                      to={`/trade/${tradeSymbol(market.sym)}`}
+                      className="flex h-7 items-center rounded-md border border-brand-border px-2 text-[11px] font-semibold text-brand-text transition-colors duration-200 hover:border-brand-accent/40 hover:text-brand-accent"
+                    >
+                      {t("Trade")}
+                    </Link>
+                  </div>
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+
+
 
 export function MarketsPage() {
   const { t, language } = useI18n();
   const locale = localeTags[language];
+  const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const urlQuery = searchParams.get("q") || "";
+
   const [markets, setMarkets] = useState<MarketTicker[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState(urlQuery);
   const [filter, setFilter] = useState<MarketFilter>("all");
-  const [favorites, setFavorites] = useState<string[]>(() => { try { const stored: unknown = JSON.parse(window.localStorage.getItem("btcbox.market-favorites") || "[]"); return Array.isArray(stored) ? stored.filter((value): value is string => typeof value === "string").slice(0, 200) : []; } catch { return []; } });
   const [sort, setSort] = useState<SortKey>("volume");
-  const [selectedSymbol, setSelectedSymbol] = useState("");
-  const [interval, setInterval] = useState<string>("1h");
-  const [candles, setCandles] = useState<MarketCandle[]>([]);
-  const [chartLoading, setChartLoading] = useState(false);
-  const [chartError, setChartError] = useState("");
-  const [reload, setReload] = useState(0);
-  const [clock, setClock] = useState(Date.now());
-  useEffect(() => {
-    let cancelled = false; let refreshing = false; let pending: AbortController | undefined;
-    const load = () => { if (cancelled || refreshing) return; refreshing = true; const controller = new AbortController(); pending = controller; const timeout = window.setTimeout(() => controller.abort(), 10000); getMarkets(controller.signal).then((rows) => { if (!cancelled) { setMarkets(rows); setError(""); } }).catch((reason: unknown) => { if (!cancelled) { setMarkets([]); setError(reason instanceof Error && reason.name !== "AbortError" ? reason.message : "Market data is temporarily unavailable. Please try again shortly."); } }).finally(() => { window.clearTimeout(timeout); refreshing = false; if (!cancelled) setLoading(false); }); };
-    load(); const poll = window.setInterval(load, 5000); return () => { cancelled = true; window.clearInterval(poll); pending?.abort(); };
-  }, [reload]);
-  useEffect(() => { const timer = window.setInterval(() => setClock(Date.now()), 5000); return () => window.clearInterval(timer); }, []);
+  const [favorites, setFavorites] = useState<string[]>(() => {
+    try {
+      const stored: unknown = JSON.parse(window.localStorage.getItem(FAVORITES_KEY) || "[]");
+      return Array.isArray(stored)
+        ? stored.filter((value): value is string => typeof value === "string").slice(0, 200)
+        : [];
+    } catch {
+      return [];
+    }
+  });
 
-  const latestSnapshotTs = markets.reduce((latest, item) => Math.max(latest, item.snapshotTs || 0), 0);
-  const isStale = markets.some((item) => !item.snapshotTs || clock / 1000 - item.snapshotTs > 90);
-  const effectiveError = error || (isStale && markets.length ? "The market service snapshot is older than 90 seconds. Quotes are hidden until a fresh snapshot arrives." : "");
-  const visibleMarkets = useMemo(() => markets.filter((market) => {
-    if (filter === "favorites" && !favorites.includes(market.sym)) return false;
-    if (filter === "gainers" && market.chg <= 0) return false;
-    if (filter === "losers" && market.chg >= 0) return false;
-    const normalized = query.trim().toLowerCase();
-    return !normalized || market.sym.toLowerCase().includes(normalized);
-  }).sort((a, b) => sort === "change" ? b.chg - a.chg : sort === "price" ? b.price - a.price : Number(b.vol) - Number(a.vol)), [markets, filter, favorites, query, sort]);
-  const selectedMarket = visibleMarkets.find((market) => market.sym === selectedSymbol) || visibleMarkets[0];
-  const providerMarket = markets.reduce<MarketTicker | null>((latest, item) => (item.providerTs || 0) > (latest?.providerTs || 0) ? item : latest, null);
-  const serverAge = latestSnapshotTs > 0 ? Math.max(0, Math.floor(clock / 1000 - latestSnapshotTs)) : null;
-  const providerAge = providerMarket?.providerTs ? Math.max(0, Math.floor(clock / 1000 - providerMarket.providerTs)) : null;
-  // Candles refresh on a timer alongside the 5s quote poll; the chart must not
-  // wait for a manual refresh to reflect the latest closed/forming candle.
+  // Poll the market feed every 5s. Abort in-flight requests on unmount so a
+  // slow response can never overwrite fresher state.
   useEffect(() => {
-    if (effectiveError || !selectedMarket) { setCandles([]); setChartLoading(false); setChartError(""); return; }
     let cancelled = false;
     let refreshing = false;
     let pending: AbortController | undefined;
@@ -90,39 +304,139 @@ export function MarketsPage() {
       refreshing = true;
       const controller = new AbortController();
       pending = controller;
-      const timeout = window.setTimeout(() => controller.abort(), 15000);
-      getKlines(tradeSymbol(selectedMarket.sym), interval, controller.signal)
-        .then((rows) => { if (!cancelled) setCandles(rows); })
-        .catch((reason: unknown) => { if (reason instanceof Error && reason.name === "AbortError") return; if (!cancelled) { setCandles([]); setChartError(reason instanceof Error ? reason.message : "Chart data is temporarily unavailable."); } })
-        .finally(() => { window.clearTimeout(timeout); refreshing = false; if (!cancelled) setChartLoading(false); });
+      const timeout = window.setTimeout(() => controller.abort(), 10000);
+      getMarkets(controller.signal)
+        .then((rows) => {
+          if (!cancelled) { setMarkets(rows); setError(""); }
+        })
+        .catch((reason: unknown) => {
+          if (!cancelled) {
+            setMarkets([]);
+            setError(
+              reason instanceof Error && reason.name !== "AbortError"
+                ? reason.message
+                : "Market data is temporarily unavailable. Please try again shortly.",
+            );
+          }
+        })
+        .finally(() => {
+          window.clearTimeout(timeout);
+          refreshing = false;
+          if (!cancelled) setLoading(false);
+        });
     };
-    setCandles([]); setChartError(""); setChartLoading(true);
     load();
-    const poll = window.setInterval(load, 30000);
+    const poll = window.setInterval(load, 5000);
     return () => { cancelled = true; window.clearInterval(poll); pending?.abort(); };
-  }, [selectedMarket?.sym, interval, effectiveError, reload]);
-  const toggleFavorite = (symbol: string) => { const next = favorites.includes(symbol) ? favorites.filter((value) => value !== symbol) : [...favorites, symbol]; setFavorites(next); try { window.localStorage.setItem("btcbox.market-favorites", JSON.stringify(next)); } catch { /* Remain usable without storage. */ } };
-  const filters: Array<[MarketFilter, string]> = [["all", "Spot markets"], ["favorites", "Favorites"], ["gainers", "Gainers"], ["losers", "Losers"]];
+  }, []);
 
-  return <div className="tone-market mx-auto flex w-full max-w-[1600px] min-w-0 flex-col gap-5 overflow-x-clip p-3 sm:gap-6 sm:p-5 lg:p-8">
-    <header className="flex min-w-0 flex-col gap-4 sm:flex-row sm:items-end sm:justify-between"><div className="min-w-0"><h1 className="type-page-title text-brand-text">{t("Market overview")}</h1><p className="mt-2 text-sm text-brand-text-secondary">{t("Live spot prices and 24-hour market movement.")}</p></div><div className="flex min-w-0 flex-wrap items-center gap-2"><Badge variant="outline">{loading ? t("Connecting") : error ? t("Feed unavailable") : isStale && markets.length ? t("Snapshot stale") : !markets.length ? t("No markets enabled") : t("Live market feed")}</Badge>{markets.length > 0 && !effectiveError && <Badge variant="outline">{visibleMarkets.length} {t("pairs")}</Badge>}<Button type="button" size="sm" variant="outline" disabled={loading} onClick={() => setReload((value) => value + 1)}>{t("Refresh")}</Button></div></header>
-    <section className="grid min-w-0 gap-4 lg:grid-cols-[minmax(0,1.28fr)_minmax(380px,.86fr)] lg:gap-5 lg:items-start" aria-label={t("Market analytics")}>
-      <Card className="min-w-0 overflow-hidden p-0">
-        <CardHeader className="gap-3 border-b border-brand-border pb-4"><div className="flex min-w-0 flex-wrap items-center justify-between gap-2"><div className="min-w-0"><CardTitle>{t("Spot markets")}</CardTitle><p className="mt-1 text-xs text-brand-text-muted">{t("Live prices from the BTCBOX market service")}</p></div>{selectedMarket && !effectiveError && <Button asChild size="sm" variant="secondary"><Link to={`/trade/${tradeSymbol(selectedMarket.sym)}`}>{t("Spot trading")} <ArrowUpRight className="h-4 w-4"/></Link></Button>}</div>
-          <label className="relative block"><Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-brand-text-muted"/><input type="search" value={query} onChange={(event) => setQuery(event.target.value)} aria-label={t("Search BTCBOX")} placeholder={t("Search")} className="h-11 w-full min-w-0 rounded-lg border border-brand-border bg-brand-surface-2 pl-10 pr-3 text-sm text-brand-text placeholder:text-brand-text-muted focus:border-brand-accent focus:outline-none focus:ring-2 focus:ring-brand-accent/50"/></label>
-          <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-2"><div className="flex min-w-0 flex-wrap gap-1" role="group" aria-label={t("Spot markets")}>{filters.map(([key, label]) => <button key={key} type="button" aria-pressed={filter === key} onClick={() => setFilter(key)} className={`min-h-10 rounded-lg px-3 text-xs font-semibold ${filter === key ? "bg-brand-accent/10 text-brand-accent" : "text-brand-text-muted hover:bg-brand-surface-2"}`}>{t(label)}</button>)}</div><label className="flex min-w-0 items-center gap-2 text-xs text-brand-text-muted"><span className="hidden sm:inline">{t("Sort by")}</span><select value={sort} onChange={(event) => setSort(event.target.value as SortKey)} aria-label={t("Sort by")} className="h-10 min-w-0 max-w-[135px] rounded-lg border border-brand-border bg-brand-surface-2 px-2 text-xs text-brand-text"><option value="volume">{t("24h volume")}</option><option value="change">{t("24h change")}</option><option value="price">{t("Last price")}</option></select></label></div>
-        </CardHeader>
-        {effectiveError ? <CardContent className="py-8" role="alert"><p className="text-sm font-semibold text-brand-danger">{t("Market feed unavailable")}</p><p className="mt-2 break-words text-sm text-brand-text-muted">{t(effectiveError)}</p></CardContent>
-          : loading && !markets.length ? <CardContent className="space-y-3 py-6" role="status" aria-label={t("Loading markets")}>{Array.from({ length: 5 }).map((_, index) => <div key={index} className="h-16 animate-pulse rounded-lg bg-brand-surface-2"/>)}<p className="text-sm text-brand-text-muted">{t("Loading…")}</p></CardContent>
-            : !visibleMarkets.length ? <CardContent className="py-10 text-center text-sm text-brand-text-muted">{t("No market pairs are currently available.")}</CardContent>
-              : <div className="divide-y divide-brand-border-subtle">{visibleMarkets.map((market) => <div key={market.sym} className={`grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2 px-4 py-3.5 sm:grid-cols-[minmax(0,1.3fr)_minmax(95px,.8fr)_minmax(92px,.75fr)_minmax(82px,.7fr)] sm:gap-3 sm:px-5 ${selectedMarket?.sym === market.sym ? "bg-brand-accent/[0.045]" : "hover:bg-brand-surface-hover"}`}>
-                <div className="flex min-w-0 items-center gap-2 sm:gap-3"><button type="button" aria-label={`${t(favorites.includes(market.sym) ? "Remove from favorites" : "Add to favorites")} ${market.sym}`} aria-pressed={favorites.includes(market.sym)} onClick={() => toggleFavorite(market.sym)} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-brand-text-muted hover:text-brand-accent"><span aria-hidden="true" className={favorites.includes(market.sym) ? "text-brand-accent" : ""}>{favorites.includes(market.sym) ? "★" : "☆"}</span></button><TokenIcon symbol={market.sym} className="h-8 w-8 shrink-0"/><button type="button" onClick={() => setSelectedSymbol(market.sym)} aria-pressed={selectedMarket?.sym === market.sym} className="min-w-0 text-left"><span className="block truncate text-sm font-semibold text-brand-text">{market.sym}/USDT</span><span className="type-meta block truncate text-brand-text-muted">{market.sym}</span></button></div>
-                <div className="min-w-0 text-right"><p className="type-meta text-brand-text-muted sm:hidden">{t("Last price")}</p><p className="mt-1 truncate text-sm font-semibold tabular-nums text-brand-text sm:mt-0">{price(market.price, locale)}</p></div>
-                <div className="min-w-0 text-right"><p className="type-meta text-brand-text-muted sm:hidden">{t("24h change")}</p><p className={`mt-1 truncate text-sm font-semibold tabular-nums sm:mt-0 ${market.chg >= 0 ? "text-profit" : "text-loss"}`}>{market.chg > 0 ? "+" : ""}{market.chg.toLocaleString(locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%</p></div>
-                <div className="col-span-2 min-w-0 text-right sm:col-span-1"><p className="type-meta text-brand-text-muted sm:hidden">{t("24h volume")}</p><p className="mt-1 truncate text-xs tabular-nums text-brand-text-secondary sm:mt-0">{compact(market.vol, locale)} USDT</p></div>
-              </div>)}</div>}
-      </Card>
-      <SelectedMarketChart candles={candles} loading={chartLoading} error={chartError} interval={interval} onIntervalChange={setInterval} pair={selectedMarket ? `${selectedMarket.sym}/USDT` : "—"} locale={locale} t={t}/>
-    </section>
-  </div>;
+  const toggleFavorite = (sym: string) => {
+    setFavorites((current) => {
+      const next = current.includes(sym) ? current.filter((value) => value !== sym) : [...current, sym];
+      try { window.localStorage.setItem(FAVORITES_KEY, JSON.stringify(next)); } catch { /* storage may be blocked */ }
+      return next;
+    });
+  };
+
+  const filters: Array<[MarketFilter, string]> = [
+    ["all", "All"],
+    ["favorites", "Favorites"],
+    ["gainers", "Gainers"],
+    ["losers", "Losers"],
+  ];
+
+  const visibleMarkets = useMemo(() => {
+    const needle = query.trim().toUpperCase();
+    const rows = markets.filter((market) => {
+      if (needle && !market.sym.toUpperCase().includes(needle)) return false;
+      if (filter === "favorites") return favorites.includes(market.sym);
+      if (filter === "gainers") return market.chg > 0;
+      if (filter === "losers") return market.chg < 0;
+      return true;
+    });
+    return [...rows].sort((a, b) => {
+      if (sort === "change") return b.chg - a.chg;
+      if (sort === "price") return b.price - a.price;
+      return Number(b.vol) - Number(a.vol);
+    });
+  }, [markets, query, filter, favorites, sort]);
+
+
+  return (
+    <div className="tone-markets relative mx-auto flex w-full min-w-0 flex-col gap-3 p-4 sm:p-5">
+      {/* Ambient multi-layer glow (subtle, top-right, non-interactive). */}
+      <div aria-hidden="true" className="pointer-events-none absolute -top-20 right-0 h-72 w-72 rounded-full bg-brand-accent/10 blur-[90px]" />
+      <div aria-hidden="true" className="pointer-events-none absolute -top-8 right-10 h-36 w-36 rounded-full bg-brand-accent/20 blur-[45px]" />
+      <header className="relative flex min-w-0 items-center justify-between gap-3">
+        <h1 className="min-w-0 truncate text-[17px] font-semibold leading-tight text-brand-text">{t("Markets")}</h1>
+        <span className="flex shrink-0 items-center gap-1.5 text-[11px] font-medium text-brand-text-muted">
+          <span
+            aria-hidden="true"
+            className={`h-2 w-2 rounded-full ${error ? "bg-brand-danger" : loading ? "bg-brand-text-disabled" : "bg-brand-accent animate-pulse"}`}
+          />
+          {error ? t("Market unavailable") : loading ? t("Connecting") : t("Live market")}
+        </span>
+      </header>
+
+      {/* Toolbar: search + filter chips + sort. Single hairline row, no card chrome. */}
+      <div className="flex flex-col gap-2">
+        <label className="relative block">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-brand-text-muted" />
+          <input
+            value={query}
+            onChange={(event) => {
+              const value = event.target.value;
+              setQuery(value);
+              setSearchParams(value ? { q: value } : {}, { replace: true });
+            }}
+            aria-label={t("Search")}
+            placeholder={t("Search")}
+            className="h-11 w-full min-w-0 rounded-xl border border-white/[0.08] bg-brand-surface-2 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.12)] pl-9 pr-3 text-[13px] text-brand-text placeholder:text-brand-text-muted transition-colors duration-200 focus:border-brand-accent/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent/30"
+          />
+        </label>
+        <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center">
+          <div className="flex min-w-0 flex-1 gap-1 overflow-x-auto" role="group" aria-label={t("Spot markets")}>
+            {filters.map(([key, label]) => (
+              <button
+                key={key}
+                type="button"
+                aria-pressed={filter === key}
+                onClick={() => setFilter(key)}
+                className={`shrink-0 rounded-full border px-3 py-1.5 text-[11px] font-medium transition-colors ${
+                  filter === key
+                    ? "border-brand-accent/50 bg-brand-accent/15 text-brand-accent"
+                    : "border-transparent text-brand-text-muted hover:text-brand-text"
+                }`}
+              >
+                {t(label)}
+              </button>
+            ))}
+          </div>
+          <select
+            value={sort}
+            onChange={(event) => setSort(event.target.value as SortKey)}
+            aria-label={t("Sort by")}
+            className="h-9 w-full shrink-0 rounded-xl border border-white/[0.08] bg-brand-surface-2 px-2.5 text-[11px] text-brand-text outline-none transition-colors duration-200 hover:border-brand-accent/40 focus:border-brand-accent/50 sm:w-[132px]"
+          >
+            <option value="volume">{t("24h volume")}</option>
+            <option value="change">{t("24h change")}</option>
+            <option value="price">{t("Last price")}</option>
+          </select>
+        </div>
+      </div>
+
+      <MarketTable
+        markets={visibleMarkets}
+        locale={locale}
+        loading={loading}
+        error={error}
+        favorites={favorites}
+        onToggleFavorite={toggleFavorite}
+        onOpenChart={(sym) => navigate(`/chart/${tradeSymbol(sym)}`)}
+        sort={sort}
+        onSort={setSort}
+      />
+    </div>
+  );
 }
+

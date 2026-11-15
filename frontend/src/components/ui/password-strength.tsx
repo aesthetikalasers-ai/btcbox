@@ -2,7 +2,7 @@ import { useI18n } from "../../lib/i18n";
 import { cn } from "../../lib/utils";
 
 const LABELS = ["Too short", "Weak", "Fair", "Good", "Strong"] as const;
-const BAR_TONE = ["bg-loss", "bg-loss", "bg-warning", "bg-brand-accent", "bg-positive"] as const;
+const BAR_TONE = ["bg-loss", "bg-loss", "bg-brand-text-muted", "bg-brand-accent", "bg-positive"] as const;
 
 export function passwordScore(value: string): number {
   if (value.length < 12) return 0;

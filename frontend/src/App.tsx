@@ -1,6 +1,6 @@
 import { AuthRestoreState } from "./components/AuthRestoreState";
 import { lazy, Suspense, useEffect, type ReactNode } from "react";
-import { Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
+import { Link, Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { AppLayout } from "./components/layout/AppLayout";
 import { I18nProvider } from "./lib/i18n";
 import { AuthCallbackPage, AuthPage } from "./features/auth/AuthPages";
@@ -8,49 +8,91 @@ import { AccountSetupPage } from "./features/auth/AccountSetupPage";
 import { AccountSecurityPage } from "./features/account/AccountSecurityPage";
 import { useAuth } from "./lib/auth";
 import { useI18n } from "./lib/i18n";
-import { getSpotMarketPairs } from "./lib/api";
+import { Button } from "./components/ui/button";
+import { LockKeyhole } from "lucide-react";
+import { AccountNoticeModal } from "./components/AccountNoticeModal";
 
 const Dashboard = lazy(() => import("./features/dashboard/Dashboard").then((m) => ({ default: m.Dashboard })));
 const MarketsPage = lazy(() => import("./features/markets/MarketsPage").then((m) => ({ default: m.MarketsPage })));
 const AdminPage = lazy(() => import("./features/admin/AdminPage").then((m) => ({ default: m.AdminPage })));
-const TradeHubPage = lazy(() => import("./features/pages/Pages").then((m) => ({ default: m.TradeHubPage })));
+const TradeHubPage = lazy(() => import("./features/pages/TradeHubPage").then((m) => ({ default: m.TradeHubPage })));
 const AssetsPage = lazy(() => import("./features/assets/AssetsPage").then((m) => ({ default: m.AssetsPage })));
 const MyPage = lazy(() => import("./features/pages/Pages").then((m) => ({ default: m.MyPage })));
 const SpotTradingPage = lazy(() => import("./features/pages/Pages").then((m) => ({ default: m.SpotTradingPage })));
 const OrdersPage = lazy(() => import("./features/orders/OrdersPage").then((m) => ({ default: m.OrdersPage })));
-const SecondsPage = lazy(() => import("./features/pages/Pages").then((m) => ({ default: m.SecondsPage })));
+const SecondsPage = lazy(() => import("./features/pages/SecondsPage").then((m) => ({ default: m.SecondsPage })));
 const KycPage = lazy(() => import("./features/pages/Pages").then((m) => ({ default: m.KycPage })));
 const SupportPage = lazy(() => import("./features/pages/Pages").then((m) => ({ default: m.SupportPage })));
 const DepositPage = lazy(() => import("./features/pages/Pages").then((m) => ({ default: m.DepositPage })));
 const WithdrawPage = lazy(() => import("./features/pages/Pages").then((m) => ({ default: m.WithdrawPage })));
+const AddressBookPage = lazy(() => import("./features/pages/AddressBookPage").then((m) => ({ default: m.AddressBookPage })));
 const EarnPage = lazy(() => import("./features/pages/Pages").then((m) => ({ default: m.EarnPage })));
 const ContractPage = lazy(() => import("./features/pages/ContractPage").then((m) => ({ default: m.ContractPage })));
+const MobileTradeTerminal = lazy(() => import("./features/trade/ProfessionalMobileTradeTerminal"));
+const KlineChartPage = lazy(() => import("./features/pages/KlineChartPage").then((m) => ({ default: m.KlineChartPage })));
+const NotFoundPage = lazy(() => import("./features/pages/NotFoundPage").then((m) => ({ default: m.NotFoundPage })));
+const TrustCenterPage = lazy(() => import("./features/trust/TrustCenterPage").then((m) => ({ default: m.TrustCenterPage })));
+const TransparencyPage = lazy(() => import("./features/trust/TransparencyPage").then((m) => ({ default: m.TransparencyPage })));
+const FeesPage = lazy(() => import("./features/trust/FeesPage").then((m) => ({ default: m.FeesPage })));
+const RulesPage = lazy(() => import("./features/trust/RulesPage").then((m) => ({ default: m.RulesPage })));
+const RiskPage = lazy(() => import("./features/trust/RiskPage").then((m) => ({ default: m.RiskPage })));
+const SecurityPage = lazy(() => import("./features/trust/SecurityPage").then((m) => ({ default: m.SecurityPage })));
 
-// Resolves "/trade" to the first enabled spot pair (BTC/USDT preferred) so the
-// Trade nav entry opens the trading terminal directly instead of the market hub.
-// Falls back to /trade-hub when the spot catalogue is unavailable.
+// Trade entry opens the spot terminal directly on BTC/USDT without any backend
+// round-trip, so users always land on a live trading page.
 function TradeRedirect() {
   const navigate = useNavigate();
   useEffect(() => {
-    let cancelled = false;
-    const controller = new AbortController();
-    getSpotMarketPairs(controller.signal)
-      .then((pairs) => {
-        if (cancelled) return;
-        const preferred = pairs.find((p) => p.base_asset === "BTC" && p.quote_asset === "USDT") || pairs[0];
-        navigate(preferred ? `/trade/${preferred.base_asset}${preferred.quote_asset}` : "/trade-hub", { replace: true });
-      })
-      .catch(() => { if (!cancelled) navigate("/trade-hub", { replace: true }); });
-    return () => { cancelled = true; controller.abort(); };
+    navigate("/trade/BTCUSDT", { replace: true });
   }, [navigate]);
   return <RouteLoading />;
 }
+
+// Demo-user route wrapper: never forces a redirect to /login or /register.
+// Unauthenticated visitors still render the page with demo preview data.
+// Server-side authorization remains the source of truth: every account API
+// still answers AUTH_REQUIRED, and pages render an explicit sign-in prompt.
+function DemoRoute({ children }: { children: ReactNode }) {
+  return <>{children}</>;
+}
+
+// Account-only surfaces (balances, orders, scripts with real funds, security
+// settings) require a restored session. Instead of a hard redirect, we render a
+// friendly sign-in prompt so a first-time visitor understands why they are
+// seeing a locked screen and can sign in / register in place.
+function SignInPrompt() {
+  const { t } = useI18n();
+  return (
+    <div className="mx-auto flex w-full max-w-xl flex-col items-center justify-center px-4 py-16 text-center">
+      <span className="mb-5 flex h-16 w-16 items-center justify-center rounded-2xl border border-brand-accent/20 bg-brand-accent/10 text-brand-accent">
+        <LockKeyhole className="h-8 w-8" />
+      </span>
+      <h2 className="text-xl font-semibold text-brand-text">{t("Sign in to your account")}</h2>
+      <p className="mt-2 max-w-md text-sm leading-6 text-brand-text-muted">{t("Sign in to view balances, orders, and security settings.")}</p>
+      <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+        <Button asChild className="min-h-12 px-6 text-sm font-bold"><Link to="/login">{t("Sign in")}</Link></Button>
+        <Button asChild variant="secondary" className="min-h-12 px-6 text-sm font-bold"><Link to="/register">{t("Create account")}</Link></Button>
+      </div>
+    </div>
+  );
+}
+
 function ProtectedAccountRoute({ children }: { children: ReactNode }) {
   const { status } = useAuth();
   if (status === "loading") return <AuthRestoreState />;
-  if (status !== "authenticated") return <Navigate to="/login" replace />;
+  // Local development preview: render the page even when not authenticated so the
+  // UI/layout can be inspected without a real session. Server-side authorization
+  // remains the source of truth (every account API still answers AUTH_REQUIRED,
+  // and the page renders its own explicit sign-in prompt where data is gated).
+  // This bypass is compiled out of production builds (import.meta.env.DEV is false).
+  if (import.meta.env.DEV) return <>{children}</>;
+  if (status !== "authenticated") return <SignInPrompt />;
   return <>{children}</>;
 }
+
+// Signed-in users who have not yet saved BTCBOX credentials (Google / wallet
+// sign-ups) must finish account setup before using the terminal. Visitors who
+// are not signed in keep the public demo experience untouched.
 function AccountSetupGate({ children }: { children: ReactNode }) {
   const { status, needsCredentials } = useAuth();
   const location = useLocation();
@@ -67,22 +109,33 @@ function CustomerRoutes() {
   const location = useLocation();
   const isStandaloneAuthRoute = ["/login", "/register", "/account-setup", "/auth/react-callback"].includes(location.pathname);
   const content = <div key={location.pathname} className="anim-fade-in min-w-0 flex-1"><AccountSetupGate><Suspense fallback={<RouteLoading />}><Routes>
-    <Route path="/home" element={<Dashboard />} /><Route path="/markets" element={<MarketsPage />} />
+    <Route path="/home" element={<DemoRoute><Dashboard /></DemoRoute>} /><Route path="/markets" element={<DemoRoute><MarketsPage /></DemoRoute>} />
     <Route path="/trade-hub" element={<TradeHubPage />} /><Route path="/trade" element={<TradeRedirect />} />
     <Route path="/trade/:symbol" element={<SpotTradingPage />} />
+    <Route path="/chart/:symbol" element={<DemoRoute><KlineChartPage /></DemoRoute>} />
     <Route path="/seconds" element={<ProtectedAccountRoute><SecondsPage /></ProtectedAccountRoute>} />
     <Route path="/assets" element={<ProtectedAccountRoute><AssetsPage /></ProtectedAccountRoute>} /><Route path="/me" element={<MyPage />} />
     <Route path="/orders" element={<ProtectedAccountRoute><OrdersPage /></ProtectedAccountRoute>} />
     <Route path="/deposit" element={<ProtectedAccountRoute><DepositPage /></ProtectedAccountRoute>} />
     <Route path="/withdraw" element={<ProtectedAccountRoute><WithdrawPage /></ProtectedAccountRoute>} />
+    <Route path="/address-book" element={<ProtectedAccountRoute><AddressBookPage /></ProtectedAccountRoute>} />
     <Route path="/earn" element={<ProtectedAccountRoute><EarnPage /></ProtectedAccountRoute>} />
-    <Route path="/contract" element={<ProtectedAccountRoute><ContractPage /></ProtectedAccountRoute>} />
+    <Route path="/contract" element={<DemoRoute><ContractPage /></DemoRoute>} />
+    <Route path="/mobile-terminal" element={<DemoRoute><MobileTradeTerminal /></DemoRoute>} />
     <Route path="/login" element={<AuthPage mode="login" />} /><Route path="/register" element={<AuthPage mode="register" />} /><Route path="/account-setup" element={<AccountSetupPage />} /><Route path="/auth/react-callback" element={<AuthCallbackPage />} />
     <Route path="/kyc" element={<ProtectedAccountRoute><KycPage /></ProtectedAccountRoute>} />
     <Route path="/support" element={<SupportPage />} />
+    {/* Trust pages are public reference material: no sign-in required. */}
+    <Route path="/trust" element={<TrustCenterPage />} />
+    <Route path="/transparency" element={<TransparencyPage />} />
+    <Route path="/fees" element={<FeesPage />} />
+    <Route path="/rules" element={<RulesPage />} />
+    <Route path="/risk" element={<RiskPage />} />
+    <Route path="/security" element={<SecurityPage />} />
     <Route path="/settings" element={<ProtectedAccountRoute><AccountSecurityPage /></ProtectedAccountRoute>} />
-    <Route path="*" element={<Navigate to="/home" replace />} />
-  </Routes></Suspense></AccountSetupGate></div>;
+    <Route path="/" element={<Navigate to="/home" replace />} />
+    <Route path="*" element={<NotFoundPage />} />
+  </Routes></Suspense></AccountSetupGate><AccountNoticeModal /></div>;
   return isStandaloneAuthRoute ? content : <AppLayout>{content}</AppLayout>;
 }
 export default function App() {
@@ -92,3 +145,4 @@ export default function App() {
     <Route path="/*" element={<CustomerRoutes />} />
   </Routes></Suspense></I18nProvider>;
 }
+

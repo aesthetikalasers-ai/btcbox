@@ -5,6 +5,7 @@ import type { MarketCandle } from '../../../lib/api';
 import { Card, CardHeader } from './Card';
 import { cn } from '../../../lib/utils';
 import { useI18n, localeTags } from '../../../lib/i18n';
+import { CHART_THEME } from '../../../lib/chartTheme';
 
 const RANGES = ['1h', '6h', '24h', '7d', '30d'];
 
@@ -24,50 +25,50 @@ export function LiquidityChart({ candles = [] }: { candles?: MarketCandle[] }) {
     const chart = createChart(chartContainerRef.current, {
       layout: {
         attributionLogo: false,
-        background: { type: ColorType.Solid, color: 'transparent' },
-        textColor: '#A2B0BE',
+        background: { type: ColorType.Solid, color: CHART_THEME.background },
+        textColor: CHART_THEME.text,
         fontSize: 12,
         fontFamily: 'Inter',
       },
       grid: {
-        vertLines: { color: 'rgba(32,45,57,0.85)', style: 4 },
-        horzLines: { color: 'rgba(32,45,57,0.7)', style: 4 }, 
+        vertLines: { color: CHART_THEME.grid, style: 4 },
+        horzLines: { color: CHART_THEME.grid, style: 4 }, 
       },
       crosshair: {
         mode: 1,
         vertLine: {
-          color: 'rgba(162,176,190,0.4)',
+          color: 'rgba(132,142,156,0.4)',
           width: 1,
           style: 3,
           labelBackgroundColor: '#1B2936',
         },
         horzLine: {
-          color: 'rgba(162,176,190,0.4)',
+          color: 'rgba(132,142,156,0.4)',
           width: 1,
           style: 3,
           labelBackgroundColor: '#1B2936',
         },
       },
       timeScale: {
-        borderColor: '#263443',
+        borderColor: CHART_THEME.border,
         timeVisible: true,
       },
       handleScroll: { vertTouchDrag: false, horzTouchDrag: true },
       handleScale: { pinch: true },
       rightPriceScale: {
-        borderColor: '#263443',
+        borderColor: CHART_THEME.border,
       },
       autoSize: true,
     });
 
     const series = chart.addSeries(CandlestickSeries, {
-        upColor: '#35D6A6',
-        downColor: '#F06B78',
-        borderUpColor: '#35D6A6',
-        borderDownColor: '#F06B78',
+        upColor: CHART_THEME.up,
+        downColor: CHART_THEME.down,
+        borderUpColor: CHART_THEME.up,
+        borderDownColor: CHART_THEME.down,
         borderVisible: true,
-        wickUpColor: '#35D6A6',
-        wickDownColor: '#F06B78',
+        wickUpColor: CHART_THEME.up,
+        wickDownColor: CHART_THEME.down,
     });
 
     series.setData(candles.map(c => ({ time: Math.floor(c.time / 1000) as import('lightweight-charts').UTCTimestamp, open: c.open, high: c.high, low: c.low, close: c.close })));

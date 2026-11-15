@@ -9,7 +9,7 @@ const variants = cva(
   {
     variants: {
       variant: {
-        // Primary: brand teal background + dark text (UIUX-EXECUTION-PLAN Step 12)
+        // Primary: brand teal background + dark text for contrast (Step 12).
         default: "bg-primary text-primary-foreground shadow-sm hover:brightness-105",
         destructive: "bg-destructive text-white shadow-sm hover:brightness-110",
         outline: "border border-brand-border-strong bg-transparent text-brand-text shadow-sm hover:border-brand-accent/60 hover:bg-white/[0.045]",
@@ -31,16 +31,19 @@ const variants = cva(
 export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement>, VariantProps<typeof variants> {
   asChild?: boolean;
   loading?: boolean;
+  disabled?: boolean;
+  /** Full-width button (block-level). */
+  block?: boolean;
 }
 
 export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant, size, asChild = false, loading = false, disabled, children, ...props }, ref) => {
-    const classes = cn(variants({ variant, size }), className);
+  ({ className, variant, size, asChild = false, loading = false, disabled, block = false, children, ...props }, ref) => {
+    const classes = cn(variants({ variant, size }), block && "w-full", className);
     // When asChild, Radix Slot must receive exactly ONE child element — never inject
     // a sibling loader (it breaks Slot). Loading still disables the slotted control.
     if (asChild) {
       return (
-        <Slot ref={ref} className={classes} disabled={disabled || loading} aria-busy={loading || undefined} {...props}>
+        <Slot ref={ref} className={classes} aria-busy={loading || undefined} aria-disabled={disabled || loading || undefined} {...props}>
           {children}
         </Slot>
       );

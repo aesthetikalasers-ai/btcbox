@@ -16,12 +16,16 @@ async function start() {
   const vite = await createServer({ root, server: { middlewareMode: true, hmr: { server } }, appType: 'spa' });
   const api = require('../api-adapter');
   const health = require('../api/healthz');
+  const stream = require('../stream-api');
   server.on('request', (req, res) => {
     let url;
     try { url = new URL(req.url, 'http://localhost'); }
     catch { res.statusCode = 400; return res.end('Bad request'); }
     const pathname = url.pathname;
     if (pathname === '/api/healthz') return void health(req, res);
+    // Streaming routes must bypass the buffered adapter, which waits for the
+    // handler to finish before writing anything.
+    if (pathname === '/api/stream' || pathname.startsWith('/api/stream/')) return void stream(req, res);
     if (pathname === '/api' || pathname.startsWith('/api/')) return void api(req, res);
     if (pathname === '/auth/callback' || pathname === '/admin.html') {
       res.writeHead(302, { Location: pathname === '/admin.html' ? '/admin' : '/auth/react-callback' + url.search });

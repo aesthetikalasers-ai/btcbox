@@ -74,7 +74,7 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
               <NavLink key={to} to={to} onClick={onClose} className={({ isActive }) => cn(
                 "group flex min-h-11 h-auto min-w-0 items-center gap-3 rounded-lg border px-3 py-2 text-[13px] font-semibold leading-tight transition-all duration-200",
                 focusRing,
-                isActive ? (to === "/earn" ? "border-brand-orange/20 bg-brand-orange/[0.07] text-brand-text" : to === "/support" ? "border-brand-indigo/20 bg-brand-indigo/[0.07] text-brand-text" : "border-brand-info/20 bg-brand-info/[0.07] text-brand-text") : "border-transparent text-brand-text-secondary hover:bg-brand-surface-hover hover:text-brand-text",
+                isActive ? (to === "/earn" ? "border-brand-info/20 bg-brand-info/[0.07] text-brand-text" : to === "/support" ? "border-brand-indigo/20 bg-brand-indigo/[0.07] text-brand-text" : "border-brand-info/20 bg-brand-info/[0.07] text-brand-text") : "border-transparent text-brand-text-secondary hover:bg-brand-surface-hover hover:text-brand-text",
               )}>
                 <span className={cn("flex h-7 w-7 shrink-0 items-center justify-center rounded-lg", to === "/earn" ? "text-brand-text-muted" : to === "/support" ? "text-brand-text-muted" : "text-brand-text-muted")}><Icon className="h-4 w-4" /></span>
                 <span className="min-w-0 break-words">{t(label)}</span>
@@ -84,7 +84,7 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
         </div>
       </nav>
       <div className="px-3 pb-4">
-        <LanguageMenu variant="drawer" />
+        <LanguageMenu />
       </div>
     </aside>
   );

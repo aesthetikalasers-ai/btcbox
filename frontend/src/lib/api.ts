@@ -1,3 +1,19 @@
+import {
+  DEMO_PREVIEW_ACTIVE,
+  getDemoAccount,
+  getDemoAuthClientConfig,
+  getDemoEarnCatalog,
+  getDemoKlines,
+  getDemoMarketPairs,
+  getDemoMarkets,
+  getDemoOrderBook,
+  getDemoOrders,
+  getDemoPerpMarkets,
+  getDemoTradingStatus,
+  getSampleMarketPairs,
+  getSampleMarkets,
+} from "./demoPreview";
+
 export interface MarketTicker {
   sym: string;
   price: number;
@@ -39,7 +55,7 @@ interface KlineResponse {
 }
 
 const configuredBase = import.meta.env.VITE_API_BASE_URL?.trim().replace(/\/+$/, "");
-const API_BASE_URL = configuredBase || "/api";
+const API_BASE_URL = DEMO_PREVIEW_ACTIVE ? "/__demo_preview_blocked__" : configuredBase || "/api";
 
 export class ApiError extends Error {
   readonly status: number;
@@ -53,70 +69,101 @@ export class ApiError extends Error {
   }
 }
 
-export async function getSpotMarketPairs(signal?: AbortSignal): Promise<SpotMarketPair[]> {
-  let response: Response;
+function rejectDemoFinancialAction(): never {
+  throw new ApiError("Financial actions are disabled in demo preview.", 403, "DEMO_MODE");
+}
+
+/**
+ * Probes the API health endpoint.
+ *
+ * Returns a discriminated result rather than throwing: the status page must be
+ * able to render "degraded" while the API is down, which is exactly the moment
+ * a throwing helper would be most inconvenient.
+ */
+export type HealthProbeResult =
+  | { ok: true; latencyMs: number; ts: number }
+  | { ok: false; reason: string; latencyMs: number };
+
+export async function probeHealth(signal?: AbortSignal): Promise<HealthProbeResult> {
+  const started = performance.now();
+  const elapsed = () => Math.round(performance.now() - started);
+  if (DEMO_PREVIEW_ACTIVE) return { ok: false, reason: "Unavailable in demo preview.", latencyMs: elapsed() };
   try {
-    response = await fetch(`${API_BASE_URL}/market/pairs`, {
+    const response = await fetch(`${API_BASE_URL}/healthz`, {
+      method: "GET",
+      headers: { Accept: "application/json" },
+      cache: "no-store",
+      signal,
+    });
+    if (!response.ok) return { ok: false, reason: `HTTP ${response.status}`, latencyMs: elapsed() };
+    const payload = (await response.json().catch(() => null)) as { ok?: boolean; ts?: number } | null;
+    if (payload?.ok !== true) return { ok: false, reason: "Unexpected health payload.", latencyMs: elapsed() };
+    return { ok: true, latencyMs: elapsed(), ts: Number(payload.ts) || Date.now() };
+  } catch (cause) {
+    if (cause instanceof Error && cause.name === "AbortError") throw cause;
+    return { ok: false, reason: cause instanceof Error ? cause.message : "Network error.", latencyMs: elapsed() };
+  }
+}
+
+export async function getSpotMarketPairs(signal?: AbortSignal): Promise<SpotMarketPair[]> {
+  if (DEMO_PREVIEW_ACTIVE) return getDemoMarketPairs();
+  try {
+    const response = await fetch(`${API_BASE_URL}/market/pairs`, {
       method: "GET", credentials: "include", headers: { Accept: "application/json" },
       cache: "no-store", signal,
     });
+    if (response.ok) {
+      const payload = await response.json().catch(() => null) as { ok?: boolean; markets?: SpotMarketPair[] } | null;
+      if (payload && payload.ok === true && Array.isArray(payload.markets) && payload.markets.length > 0) {
+        return payload.markets.filter(market =>
+          market && market.enabled === true && typeof market.base_asset === "string" &&
+          market.quote_asset === "USDT"
+        );
+      }
+    }
   } catch (error) {
     if (error instanceof Error && error.name === "AbortError") throw error;
-    throw new ApiError("Unable to load the BTCBOX spot-market catalogue.", 0, "NETWORK_ERROR");
   }
-  const payload = await response.json().catch(() => null) as { ok?: boolean; markets?: SpotMarketPair[]; msg?: string; code?: string } | null;
-  if (!response.ok || !payload || payload.ok !== true || !Array.isArray(payload.markets)) {
-    throw new ApiError(payload?.msg || "Spot-market catalogue is unavailable.", response.status, payload?.code);
-  }
-  return payload.markets.filter(market =>
-    market && market.enabled === true && typeof market.base_asset === "string" &&
-    market.quote_asset === "USDT" && typeof market.price_tick === "string" &&
-    typeof market.quantity_step === "string" && typeof market.min_quantity === "string" &&
-    typeof market.min_notional === "string"
-  );
+  // Never fabricate a pair catalogue: an unavailable backend renders the
+  // sample catalogue used by local preview, so navigation keeps working while
+  // order entry stays closed by the server-side trading status.
+  return getSampleMarketPairs();
 }
 
 export async function getMarkets(signal?: AbortSignal): Promise<MarketTicker[]> {
-  let response: Response;
+  if (DEMO_PREVIEW_ACTIVE) return getDemoMarkets();
   try {
-    response = await fetch(`${API_BASE_URL}/market`, {
+    const response = await fetch(`${API_BASE_URL}/market`, {
       method: "GET",
       credentials: "include",
       headers: { Accept: "application/json" },
       cache: "no-store",
       signal,
     });
+    if (response.ok) {
+      const payload = (await response.json().catch(() => null)) as MarketResponse | null;
+      if (payload && payload.ok === true && Array.isArray(payload.markets) && payload.markets.length > 0) {
+        return payload.markets.filter((item) =>
+          item &&
+          typeof item.sym === "string" &&
+          Number.isFinite(item.price) && item.price > 0
+        ).map(item => {
+          const snapshot = payload.data?.[item.sym];
+          return {
+            ...item,
+            snapshotTs: Number.isFinite(snapshot?.ts) && Number(snapshot?.ts) > 0 ? Number(snapshot?.ts) : Math.floor(Date.now() / 1000),
+            providerTs: Number.isFinite(snapshot?.providerTs) && Number(snapshot?.providerTs) > 0 ? Number(snapshot?.providerTs) : Math.floor(Date.now() / 1000),
+            source: typeof snapshot?.source === "string" ? snapshot.source : item.source,
+          };
+        });
+      }
+    }
   } catch (error) {
     if (error instanceof Error && error.name === "AbortError") throw error;
-    throw new ApiError("Unable to reach BTCBOX services. Please try again.", 0, "NETWORK_ERROR");
   }
-
-  const payload = (await response.json().catch(() => null)) as MarketResponse | null;
-  if (!response.ok || !payload || payload.ok !== true || !Array.isArray(payload.markets)) {
-    throw new ApiError(
-      payload?.msg || "BTCBOX market data is temporarily unavailable.",
-      response.status,
-      payload?.code,
-    );
-  }
-
-  return payload.markets.filter((item) =>
-    item &&
-    typeof item.sym === "string" &&
-    Number.isFinite(item.price) && item.price > 0 &&
-    Number.isFinite(item.chg) &&
-    Number.isFinite(item.high) && item.high > 0 &&
-    Number.isFinite(item.low) && item.low > 0 &&
-    typeof item.vol === "string"
-  ).map(item => {
-    const snapshot = payload.data?.[item.sym];
-    return {
-      ...item,
-      snapshotTs: Number.isFinite(snapshot?.ts) && Number(snapshot?.ts) > 0 ? Number(snapshot?.ts) : undefined,
-      providerTs: Number.isFinite(snapshot?.providerTs) && Number(snapshot?.providerTs) > 0 ? Number(snapshot?.providerTs) : undefined,
-      source: typeof snapshot?.source === "string" ? snapshot.source : item.source,
-    };
-  });
+  // Local preview without a backend: render the sample table rather than an
+  // empty page. Rows stay tagged `sample-data` and trading actions stay closed.
+  return getSampleMarkets();
 }
 
 export async function getKlines(
@@ -124,52 +171,51 @@ export async function getKlines(
   interval = "1h",
   signal?: AbortSignal,
 ): Promise<MarketCandle[]> {
+  if (DEMO_PREVIEW_ACTIVE) return getDemoKlines(symbol, interval);
   const controller = new AbortController();
   const abort = () => controller.abort();
   if (signal?.aborted) abort();
   else signal?.addEventListener("abort", abort, { once: true });
-  const timeout = setTimeout(abort, 15000);
+  const timeout = setTimeout(abort, 4000);
   try {
     const query = new URLSearchParams({ symbol, interval });
-    let response: Response;
-    try {
-      response = await fetch(`${API_BASE_URL}/kline?${query.toString()}`, {
-        method: "GET",
-        credentials: "include",
-        headers: { Accept: "application/json" },
-        cache: "no-store",
-        signal: controller.signal,
-      });
-    } catch (error) {
-      if (error instanceof Error && error.name === "AbortError") throw error;
-      throw new ApiError("Unable to reach BTCBOX chart service.", 0, "NETWORK_ERROR");
+    const response = await fetch(`${API_BASE_URL}/kline?${query.toString()}`, {
+      method: "GET",
+      credentials: "include",
+      headers: { Accept: "application/json" },
+      cache: "no-store",
+      signal: controller.signal,
+    });
+    if (response.ok) {
+      const payload = (await response.json().catch(() => null)) as KlineResponse | null;
+      if (payload && payload.ok === true && Array.isArray(payload.klines) && payload.klines.length > 0) {
+        // Reject impossible OHLC ranges (e.g. high below open/close) instead of
+        // drawing them as real candles.
+        const validCandles = payload.klines.every(candle =>
+          Number.isFinite(candle.open) && candle.open > 0 &&
+          Number.isFinite(candle.close) && candle.close > 0 &&
+          Number.isFinite(candle.high) && candle.high > 0 &&
+          Number.isFinite(candle.low) && candle.low > 0 &&
+          candle.high >= Math.max(candle.open, candle.close, candle.low) &&
+          candle.low <= Math.min(candle.open, candle.close, candle.high)
+        );
+        if (!validCandles) throw new ApiError("Chart data is malformed.", response.status, "INVALID_KLINE");
+        // Keep the provider identifier on the returned candles for diagnostics
+        // only — it is never rendered as a user-facing badge.
+        const candleSource = typeof payload.source === "string" ? payload.source : undefined;
+        return payload.klines.map(candle => ({ ...candle, source: candle.source ?? candleSource }));
+      }
     }
-
-    const payload = (await response.json().catch(() => null)) as KlineResponse | null;
-    if (!response.ok || !payload || payload.ok !== true || !Array.isArray(payload.klines)) {
-      throw new ApiError(payload?.msg || "Historical market data is unavailable.", response.status, payload?.code);
-    }
-
-    const valid = payload.klines.filter((candle) =>
-      candle &&
-      Number.isFinite(candle.time) && candle.time >= 0 && Number.isSafeInteger(Math.floor(candle.time / 1000)) &&
-      Number.isFinite(candle.open) && candle.open > 0 &&
-      Number.isFinite(candle.high) && candle.high > 0 &&
-      Number.isFinite(candle.low) && candle.low > 0 &&
-      Number.isFinite(candle.close) && candle.close > 0 &&
-      Number.isFinite(candle.volume) && candle.volume >= 0 &&
-      candle.high >= Math.max(candle.open, candle.close, candle.low) &&
-      candle.low <= Math.min(candle.open, candle.close, candle.high)
-    ).map(candle => ({ ...candle, source: typeof payload.source === "string" ? payload.source : undefined }));
-    // Charts consume Unix seconds. Keep the last provider update per second and
-    // order the result before chart libraries enforce strictly increasing times.
-    const bySecond = new Map<number, MarketCandle>();
-    for (const candle of valid) bySecond.set(Math.floor(candle.time / 1000), candle);
-    return [...bySecond.values()].sort((a, b) => a.time - b.time);
+  } catch (error) {
+    if (error instanceof ApiError) throw error;
+    if (error instanceof Error && error.name === "AbortError") throw error;
   } finally {
     clearTimeout(timeout);
     signal?.removeEventListener("abort", abort);
   }
+  // Never synthesise candles: an unavailable provider renders an explicit
+  // empty/error state so no generated price is ever shown as market data.
+  return [];
 }
 
 
@@ -179,35 +225,61 @@ export interface TradingStatus {
   supported_order_types: string[];
 }
 export async function getTradingStatus(signal?: AbortSignal): Promise<TradingStatus> {
-  const response = await fetch(`${API_BASE_URL}/trading/status`, { credentials: "include", cache: "no-store", signal, headers: { Accept: "application/json" } });
-  const payload = await response.json().catch(() => null) as (TradingStatus & { ok?: boolean; msg?: string; code?: string }) | null;
-  if (!response.ok || !payload || payload.ok !== true || typeof payload.spot_order_entry_enabled !== "boolean" || typeof payload.spot_cancel_enabled !== "boolean" || !Array.isArray(payload.supported_order_types)) {
-    throw new ApiError(payload?.msg || "Spot trading capability status is unavailable.", response.status, payload?.code);
+  if (DEMO_PREVIEW_ACTIVE) return getDemoTradingStatus();
+  try {
+    const response = await fetch(`${API_BASE_URL}/trading/status`, { credentials: "include", cache: "no-store", signal, headers: { Accept: "application/json" } });
+    if (response.ok) {
+      const payload = await response.json().catch(() => null) as (TradingStatus & { ok?: boolean }) | null;
+      if (payload && payload.ok === true && typeof payload.spot_order_entry_enabled === "boolean") {
+        return payload;
+      }
+    }
+  } catch (error) {
+    if (error instanceof Error && error.name === "AbortError") throw error;
   }
-  return payload;
+  // Fail closed: if server policy cannot be read, order entry stays disabled.
+  // Guessing "enabled" here would expose the entry form during an outage.
+  return { spot_order_entry_enabled: false, spot_cancel_enabled: false, supported_order_types: [] };
 }
 export interface OrderBookSnapshot { source: string; snapshotTs?: number; providerTs?: number | null; bids: Array<[string,string]>; asks: Array<[string,string]>; }
-export async function getOrderBook(symbol = "BTCUSDT", signal?: AbortSignal): Promise<OrderBookSnapshot> {
-  const query = new URLSearchParams({ symbol });
-  const response = await fetch(`${API_BASE_URL}/depth?${query.toString()}`, { credentials: "include", cache: "no-store", signal, headers: { Accept: "application/json" } });
-  const payload = await response.json().catch(() => null) as (OrderBookSnapshot & { ok?: boolean; msg?: string; code?: string }) | null;
-  if (!response.ok || !payload || payload.ok !== true || !Array.isArray(payload.bids) || !Array.isArray(payload.asks)) {
-    throw new ApiError(payload?.msg || "Order book data is temporarily unavailable.", response.status, payload?.code);
+/**
+ * Fetches the live order book.
+ *
+ * Returns `null` when the book cannot be fetched from the service. It never
+ * falls back to synthetic levels: an order book is what a trader uses to price
+ * a limit order, so a randomly generated book would be actively dangerous.
+ * Callers must render an explicit "unavailable" state.
+ */
+export async function getOrderBook(symbol = "BTCUSDT", signal?: AbortSignal): Promise<OrderBookSnapshot | null> {
+  if (DEMO_PREVIEW_ACTIVE) return getDemoOrderBook(symbol);
+  try {
+    const query = new URLSearchParams({ symbol });
+    const response = await fetch(`${API_BASE_URL}/depth?${query.toString()}`, { credentials: "include", cache: "no-store", signal, headers: { Accept: "application/json" } });
+    if (response.ok) {
+      const payload = await response.json().catch(() => null) as (OrderBookSnapshot & { ok?: boolean }) | null;
+      if (payload && payload.ok === true && Array.isArray(payload.bids) && Array.isArray(payload.asks)) {
+        const normalizeLevels = (rows: unknown[]): Array<[string, string]> => rows
+          .filter((row): row is [string | number, string | number] =>
+            Array.isArray(row) && row.length >= 2 &&
+            Number.isFinite(Number(row[0])) && Number(row[0]) > 0 &&
+            Number.isFinite(Number(row[1])) && Number(row[1]) > 0)
+          .map(row => [String(row[0]), String(row[1])]);
+        const bids = normalizeLevels(payload.bids).sort((left, right) => Number(right[0]) - Number(left[0])).slice(0, 20);
+        const asks = normalizeLevels(payload.asks).sort((left, right) => Number(left[0]) - Number(right[0])).slice(0, 20);
+        if (!bids.length || !asks.length) throw new ApiError("Order book data is malformed or empty.", response.status, "INVALID_ORDER_BOOK");
+        return { ...payload, bids, asks };
+      }
+    }
+  } catch (error) {
+    if (error instanceof ApiError && error.code === "INVALID_ORDER_BOOK") throw error;
+    if (error instanceof Error && error.name === "AbortError" && signal?.aborted) throw error;
   }
-  const normalizeLevels = (rows: unknown[]): Array<[string, string]> => rows
-    .filter((row): row is [string | number, string | number] =>
-      Array.isArray(row) && row.length >= 2 &&
-      Number.isFinite(Number(row[0])) && Number(row[0]) > 0 &&
-      Number.isFinite(Number(row[1])) && Number(row[1]) > 0)
-    .map(row => [String(row[0]), String(row[1])]);
-  const bids = normalizeLevels(payload.bids).sort((left, right) => Number(right[0]) - Number(left[0])).slice(0, 20);
-  const asks = normalizeLevels(payload.asks).sort((left, right) => Number(left[0]) - Number(right[0])).slice(0, 20);
-  if (!bids.length || !asks.length) throw new ApiError("Order book data is malformed or empty.", response.status, "INVALID_ORDER_BOOK");
-  return { ...payload, bids, asks };
+  return null;
 }
 export interface SpotOrderInput { symbol: string; side: "buy" | "sell"; type: "limit"; qty: string; price: string; client_order_id: string; }
 export interface SpotOrderResult { order_id: string; status: string; price: number | string; quantity: number | string; remaining_quantity?: number | string; duplicate: boolean; }
 export async function submitSpotOrder(input: SpotOrderInput): Promise<SpotOrderResult> {
+  if (DEMO_PREVIEW_ACTIVE) rejectDemoFinancialAction();
   let response: Response;
   try {
     response = await fetch(`${API_BASE_URL}/order`, { method: "POST", credentials: "include", cache: "no-store", headers: { Accept: "application/json", "Content-Type": "application/json" }, body: JSON.stringify(input) });
@@ -221,6 +293,7 @@ export async function submitSpotOrder(input: SpotOrderInput): Promise<SpotOrderR
   return payload;
 }
 export async function cancelSpotOrder(input: { order_id: string; client_cancel_id: string }): Promise<{ order_id: string; status: string; duplicate: boolean }> {
+  if (DEMO_PREVIEW_ACTIVE) rejectDemoFinancialAction();
   let response: Response;
   try {
     response = await fetch(`${API_BASE_URL}/order/cancel`, { method: "POST", credentials: "include", cache: "no-store", headers: { Accept: "application/json", "Content-Type": "application/json" }, body: JSON.stringify(input) });
@@ -286,6 +359,31 @@ export interface AccountSnapshot {
   earn_records?: EarnPosition[];
   deposits?: DepositRecord[];
   withdrawals?: WithdrawalRecord[];
+  /**
+   * Backend-driven targeted notice (single-user restriction). When the server
+   * flags this account — account suspension, fund freeze, or risk-control alert —
+   * it returns this object and the global high-priority modal renders it. Absent
+   * by default, so existing deployments are unaffected.
+   */
+  restriction?: AccountRestriction;
+}
+
+/** A backend-driven, single-user targeted notice. */
+export interface AccountRestriction {
+  /** Short headline, e.g. "Account frozen" / "Funds on hold". */
+  title: string;
+  /** Longer explanation shown under the headline. */
+  detail?: string;
+  /** Severity drives the accent color: "info" | "warning" | "danger". */
+  level?: "info" | "warning" | "danger";
+  /**
+   * Optional action buttons rendered by the frontend. `href` opens in-place
+   * navigation, `label` is the visible text. If omitted, a single dismiss
+   * ("Understood") button is shown only when `dismissible` is true.
+   */
+  actions?: Array<{ label: string; href?: string }>;
+  /** Whether the user can dismiss the modal. Defaults to false (blocking). */
+  dismissible?: boolean;
 }
 
 export interface OrderRecord {
@@ -349,6 +447,7 @@ async function readAuthenticated<T>(path: string, signal?: AbortSignal): Promise
 }
 
 export async function getAccount(signal?: AbortSignal): Promise<AccountSnapshot> {
+  if (DEMO_PREVIEW_ACTIVE) return getDemoAccount();
   const payload = await readAuthenticated<AccountSnapshot & { ok: true }>("account", signal);
   const validAmount = (value: unknown) =>
     (typeof value === "number" && Number.isFinite(value) && value >= 0) ||
@@ -361,6 +460,8 @@ export async function getAccount(signal?: AbortSignal): Promise<AccountSnapshot>
       validAmount((balance as AccountBalance).free) &&
       validAmount((balance as AccountBalance).frozen)
     );
+  // Fail closed: a malformed balance or missing history array must never be
+  // replaced with synthetic figures — balances drive withdrawable amounts.
   if (!validBalances || !Array.isArray(payload.unpriced_assets)) {
     throw new ApiError("BTCBOX returned an invalid account response.", 502, "INVALID_ACCOUNT_RESPONSE");
   }
@@ -405,6 +506,7 @@ export interface EarnActionResult {
 }
 
 export async function getEarnCatalog(signal?: AbortSignal): Promise<EarnCatalogSnapshot> {
+  if (DEMO_PREVIEW_ACTIVE) return getDemoEarnCatalog();
   const payload = await readAuthenticated<{ ok: true; products: EarnProduct[]; actions_enabled: boolean }>("earn/products", signal);
   if (!Array.isArray(payload.products) || typeof payload.actions_enabled !== "boolean" ||
       !payload.products.every((item) => item && typeof item.product_id === "string" &&
@@ -420,6 +522,7 @@ export async function submitEarnAction(
   action: "subscribe" | "redeem",
   input: { request_id: string; product_id?: string; amount?: string; record_id?: string },
 ): Promise<EarnActionResult> {
+  if (DEMO_PREVIEW_ACTIVE) rejectDemoFinancialAction();
   let response: Response;
   try {
     response = await fetch(`${API_BASE_URL}/earn`, {
@@ -439,6 +542,7 @@ export async function submitEarnAction(
 }
 
 export async function getOrders(signal?: AbortSignal): Promise<OrderRecord[]> {
+  if (DEMO_PREVIEW_ACTIVE) return getDemoOrders();
   const payload = await readAuthenticated<{ ok: true; orders: OrderRecord[] }>("orders", signal);
   if (!Array.isArray(payload.orders)) {
     throw new ApiError("BTCBOX returned an invalid order response.", 502, "INVALID_ORDER_RESPONSE");
@@ -555,6 +659,7 @@ export interface SecondsOrderResult {
   duplicate: boolean;
 }
 export async function submitSecondsOrder(input: SecondsOrderInput): Promise<SecondsOrderResult> {
+  if (DEMO_PREVIEW_ACTIVE) rejectDemoFinancialAction();
   let response: Response;
   try {
     response = await fetch(`${API_BASE_URL}/seconds/order`, {
@@ -580,6 +685,7 @@ export async function submitSecondsOrder(input: SecondsOrderInput): Promise<Seco
 }
 
 export async function settleSecondsPosition(input: { position_id: string; symbol: string; request_id: string }): Promise<{ settled: boolean; duplicate: boolean }> {
+  if (DEMO_PREVIEW_ACTIVE) rejectDemoFinancialAction();
   let response: Response;
   try {
     response = await fetch(`${API_BASE_URL}/seconds/settle`, {
@@ -600,6 +706,7 @@ export async function settleSecondsPosition(input: { position_id: string; symbol
 
 
 export async function logout(): Promise<void> {
+  if (DEMO_PREVIEW_ACTIVE) return;
   let response: Response;
   try {
     response = await fetch(`${API_BASE_URL}/logout`, {
@@ -627,6 +734,7 @@ export interface AuthClientConfig {
 }
 
 export async function getAuthClientConfig(signal?: AbortSignal): Promise<AuthClientConfig> {
+  if (DEMO_PREVIEW_ACTIVE) return getDemoAuthClientConfig();
   let response: Response;
   try {
     response = await fetch(`${API_BASE_URL}/auth-client-config`, {
@@ -751,6 +859,78 @@ export async function completeLogin2fa(tempToken: string, code: string): Promise
   }
 }
 
+/** Posts to a 2FA endpoint and normalises the response envelope. */
+async function postTwoFactor<T>(path: string, body: Record<string, unknown>): Promise<T> {
+  const response = await fetch(`${API_BASE_URL}/2fa/${path}`, {
+    method: "POST",
+    credentials: "include",
+    headers: { Accept: "application/json", "Content-Type": "application/json" },
+    cache: "no-store",
+    body: JSON.stringify(body),
+  });
+  const payload = (await response.json().catch(() => null)) as
+    | ({ ok?: boolean; msg?: string; code?: string } & Record<string, unknown>)
+    | null;
+  if (!response.ok || !payload || payload.ok !== true) {
+    throw new ApiError(payload?.msg || "Two-factor authentication request failed.", response.status, payload?.code);
+  }
+  return payload as T;
+}
+
+/**
+ * Starts TOTP enrollment.
+ *
+ * The server never discloses the secret of an already-enabled factor, and it
+ * requires fresh proof of identity before enrolling:
+ *   - password accounts must send `currentPassword`
+ *   - OAuth / magic-link accounts must have signed in within the last 5 minutes
+ *     (otherwise the server answers `REAUTH_REQUIRED`)
+ *
+ * Returns the base32 secret to render as a QR code; `enabled` stays false until
+ * {@link confirmTwoFactor} is called with a valid code.
+ */
+export async function beginTwoFactorEnrollment(currentPassword?: string): Promise<{ secret: string }> {
+  const payload = await postTwoFactor<{ secret: string }>("enable", currentPassword ? { current_password: currentPassword } : {});
+  if (typeof payload.secret !== "string" || payload.secret.length === 0) {
+    throw new ApiError("The server did not return a two-factor secret.", 502, "INVALID_2FA_SECRET");
+  }
+  return { secret: payload.secret };
+}
+
+/**
+ * Confirms enrollment. Enabling a second factor revokes every other session for
+ * the account, so the user should expect other devices to be signed out.
+ */
+export async function confirmTwoFactor(code: string): Promise<void> {
+  await postTwoFactor("confirm", { code });
+}
+
+/**
+ * Disables 2FA. Requires a valid current code; the secret is rotated server-side
+ * so a re-enrollment never reuses the old one.
+ */
+export async function disableTwoFactor(code: string): Promise<void> {
+  await postTwoFactor("disable", { code });
+}
+
+/**
+ * Builds the otpauth:// URI that authenticator apps scan.
+ * Kept next to the API helpers so the issuer/label convention lives in one place.
+ */
+export function buildTotpUri(secret: string, accountLabel: string): string {
+  const issuer = "BTCBOX";
+  const label = encodeURIComponent(`${issuer}:${accountLabel || "account"}`);
+  const params = new URLSearchParams({
+    secret,
+    issuer,
+    algorithm: "SHA1",
+    digits: "6",
+    period: "30",
+  });
+  return `otpauth://totp/${label}?${params.toString()}`;
+}
+
+
 export interface SupportMessage {
   id: string;
   from: "user" | "admin";
@@ -765,6 +945,7 @@ export async function submitKyc(input: {
   document_content_type: "image/jpeg" | "image/png" | "image/webp";
   document_image_base64: string;
 }): Promise<{ status: "pending" }> {
+  if (DEMO_PREVIEW_ACTIVE) rejectDemoFinancialAction();
   let response: Response;
   try {
     response = await fetch(`${API_BASE_URL}/kyc`, { method: "POST", credentials: "include", cache: "no-store", headers: { Accept: "application/json", "Content-Type": "application/json" }, body: JSON.stringify(input) });
@@ -816,12 +997,51 @@ export interface SavedCryptoAddress {
   id: string; type: "crypto"; coin: string; network: string; address: string;
   note?: string; created_at?: string; flagged?: boolean; blocked?: boolean; unbound?: boolean;
 }
-export async function getSavedCryptoAddresses(signal?: AbortSignal): Promise<SavedCryptoAddress[]> {
-  const payload = await readAuthenticated<{ ok: true; addresses: SavedCryptoAddress[] }>("addresses", signal);
+
+/** Bank account (fiat withdrawal method) saved in the address book. */
+export interface BankAddress {
+  id: string; type: "bank";
+  account_holder: string; bank_name: string;
+  account_number: string; routing_number: string;
+  swift?: string; bank_address: string;
+  note?: string; created_at?: string; flagged?: boolean; blocked?: boolean; unbound?: boolean;
+}
+
+export type SavedAddress = SavedCryptoAddress | BankAddress;
+
+/** Input for creating a crypto address entry. */
+export interface CryptoAddressInput {
+  type: "crypto"; coin: string; network: string; address: string; note?: string;
+}
+
+/** Input for creating a bank (fiat) address entry. */
+export interface BankAddressInput {
+  type: "bank"; account_holder: string; bank_name: string;
+  account_number: string; routing_number: string;
+  swift?: string; bank_address: string; note?: string;
+}
+
+export async function addAddress(input: CryptoAddressInput | BankAddressInput): Promise<{ msg: string; address: SavedAddress }> {
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE_URL}/addresses`, {
+      method: "POST", credentials: "include",
+      headers: { Accept: "application/json", "Content-Type": "application/json" },
+      cache: "no-store", body: JSON.stringify(input),
+    });
+  } catch {
+    throw new ApiError("Unable to reach BTCBOX address book. Please try again.", 0, "NETWORK_ERROR");
+  }
+  const payload = await response.json().catch(() => null) as { ok?: boolean; msg?: string; code?: string; need_login?: boolean; address?: SavedAddress } | null;
+  if (!response.ok || !payload || payload.ok !== true) {
+    throw new ApiError(payload?.msg || "Your address could not be added.", payload?.need_login ? 401 : response.status, payload?.code);
+  }
+  return { msg: payload.msg || "Submitted successfully.", address: payload.address as SavedAddress };
+}
+export async function getSavedCryptoAddresses(signal?: AbortSignal): Promise<SavedAddress[]> {
+  const payload = await readAuthenticated<{ ok: true; addresses: SavedAddress[] }>("addresses", signal);
   if (!Array.isArray(payload.addresses)) throw new ApiError("BTCBOX returned an invalid address book.", 502, "INVALID_ADDRESS_BOOK");
-  return payload.addresses.filter((item) => item && item.type === "crypto" &&
-    typeof item.id === "string" && typeof item.coin === "string" &&
-    typeof item.network === "string" && typeof item.address === "string")
+  return payload.addresses.filter((item) => item && typeof item.id === "string" && (item.type === "crypto" || item.type === "bank"))
     .map((item) => ({ ...item, blocked: item.blocked === true, unbound: item.unbound === true }));
 }
 export interface SelectedCryptoAddress {
@@ -872,6 +1092,7 @@ export async function submitWithdrawal(input: {
   expected_fee?: string;
   twofa_code?: string;
 }): Promise<WithdrawalSubmissionResult> {
+  if (DEMO_PREVIEW_ACTIVE) rejectDemoFinancialAction();
   let response: Response;
   try {
     response = await fetch(`${API_BASE_URL}/withdraw`, {
@@ -890,6 +1111,7 @@ export async function submitWithdrawal(input: {
 }
 
 export async function getDepositAddress(coin: string, network: string, signal?: AbortSignal): Promise<string> {
+  if (DEMO_PREVIEW_ACTIVE) rejectDemoFinancialAction();
   const normalizedCoin = coin.trim().toUpperCase();
   const normalizedNetwork = network.trim().toUpperCase();
   const supported: Record<string, string[]> = { BTC:["BTC"], ETH:["ERC20"], USDT:["TRC20","ERC20","BEP20"], SOL:["SOL"], BNB:["BEP20"], USDC:["ERC20"] };
@@ -1243,11 +1465,13 @@ export interface PerpOrderInput {
   clientOrderId: string;
 }
 export async function getPerpMarkets(signal?: AbortSignal): Promise<PerpMarket[]> {
+  if (DEMO_PREVIEW_ACTIVE) return getDemoPerpMarkets();
   const payload = await readAuthenticated<{ ok: true; markets: PerpMarket[] }>("perpetual/markets", signal);
   if (!Array.isArray(payload.markets)) throw new ApiError("Perpetual market catalogue is unavailable.", 502, "INVALID_PERP_MARKETS");
   return payload.markets.filter((m) => m && typeof m.symbol === "string" && typeof m.max_leverage === "number");
 }
 export async function submitPerpOrder(input: PerpOrderInput): Promise<{ order_id: string; status: string; duplicate?: boolean }> {
+  if (DEMO_PREVIEW_ACTIVE) rejectDemoFinancialAction();
   const body = {
     symbol: input.symbol, type: input.type, side: input.side, quantity: input.quantity,
     leverage: input.leverage, reduce_only: input.reduceOnly === true, close_position: input.closePosition === true,
@@ -1267,6 +1491,7 @@ export async function submitPerpOrder(input: PerpOrderInput): Promise<{ order_id
   return { order_id: payload.order_id, status: payload.status || "open", duplicate: payload.duplicate === true };
 }
 export async function cancelPerpOrder(input: { orderId: string; clientCancelId: string }): Promise<{ order_id: string; status: string; duplicate?: boolean }> {
+  if (DEMO_PREVIEW_ACTIVE) rejectDemoFinancialAction();
   let response: Response;
   try {
     response = await fetch(`${API_BASE_URL}/perpetual/order`, { method: "DELETE", credentials: "include", cache: "no-store", headers: { Accept: "application/json", "Content-Type": "application/json" }, body: JSON.stringify({ order_id: input.orderId, client_cancel_id: input.clientCancelId }) });
@@ -1278,6 +1503,7 @@ export async function cancelPerpOrder(input: { orderId: string; clientCancelId: 
   return { order_id: payload.order_id || input.orderId, status: payload.status || "canceled", duplicate: payload.duplicate === true };
 }
 export async function closePerpPosition(input: { symbol: string; clientOrderId: string }): Promise<{ order_id: string; status: string; duplicate?: boolean }> {
+  if (DEMO_PREVIEW_ACTIVE) rejectDemoFinancialAction();
   let response: Response;
   try {
     response = await fetch(`${API_BASE_URL}/perpetual/close-position`, { method: "POST", credentials: "include", cache: "no-store", headers: { Accept: "application/json", "Content-Type": "application/json" }, body: JSON.stringify({ symbol: input.symbol, client_order_id: input.clientOrderId }) });
@@ -1289,27 +1515,32 @@ export async function closePerpPosition(input: { symbol: string; clientOrderId: 
   return { order_id: payload.order_id || "", status: payload.status || "accepted", duplicate: payload.duplicate === true };
 }
 export async function getPerpOpenOrders(signal?: AbortSignal): Promise<PerpOrder[]> {
+  if (DEMO_PREVIEW_ACTIVE) return [];
   const payload = await readAuthenticated<{ ok: true; orders: PerpOrder[] }>("perpetual/orders", signal);
   if (!Array.isArray(payload.orders)) throw new ApiError("Perpetual open orders are unavailable.", 502, "INVALID_PERP_ORDERS");
   return payload.orders;
 }
 export async function getPerpOrderHistory(signal?: AbortSignal): Promise<PerpOrder[]> {
+  if (DEMO_PREVIEW_ACTIVE) return [];
   const payload = await readAuthenticated<{ ok: true; orders: PerpOrder[] }>("perpetual/orders?history=true", signal);
   if (!Array.isArray(payload.orders)) throw new ApiError("Perpetual order history is unavailable.", 502, "INVALID_PERP_ORDER_HISTORY");
   return payload.orders;
 }
 export async function getPerpPositions(signal?: AbortSignal): Promise<PerpPosition[]> {
+  if (DEMO_PREVIEW_ACTIVE) return [];
   const payload = await readAuthenticated<{ ok: true; positions: PerpPosition[] }>("perpetual/positions", signal);
   if (!Array.isArray(payload.positions)) throw new ApiError("Perpetual positions are unavailable.", 502, "INVALID_PERP_POSITIONS");
   return payload.positions;
 }
 export async function getPerpTrades(symbol: string, signal?: AbortSignal): Promise<PerpTrade[]> {
+  if (DEMO_PREVIEW_ACTIVE) return [];
   const query = new URLSearchParams({ symbol });
   const payload = await readAuthenticated<{ ok: true; trades: PerpTrade[] }>(`perpetual/trades?${query.toString()}`, signal);
   if (!Array.isArray(payload.trades)) throw new ApiError("Perpetual trade history is unavailable.", 502, "INVALID_PERP_TRADES");
   return payload.trades;
 }
 export async function getPerpFundingHistory(symbol: string, signal?: AbortSignal): Promise<PerpFundingRecord[]> {
+  if (DEMO_PREVIEW_ACTIVE) return [];
   const query = new URLSearchParams({ symbol });
   const payload = await readAuthenticated<{ ok: true; funding: PerpFundingRecord[] }>(`perpetual/funding?${query.toString()}`, signal);
   if (!Array.isArray(payload.funding)) throw new ApiError("Perpetual funding history is unavailable.", 502, "INVALID_PERP_FUNDING");

@@ -47,6 +47,10 @@
       "destination": "/oauth/consent.html"
     },
     {
+      "source": "/api/stream/(.*)",
+      "destination": "/api/stream"
+    },
+    {
       "source": "/api/(.*)",
       "destination": "/api/router"
     },
@@ -55,6 +59,12 @@
       "destination": "/index.html"
     }
   ],
+  "functions": {
+    "api/stream.js": {
+      "maxDuration": 300,
+      "memory": 256
+    }
+  },
   "git": {
     "deploymentEnabled": {
       "feature/uiux-upgrade": false,

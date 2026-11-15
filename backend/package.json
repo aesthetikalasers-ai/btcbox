@@ -11,7 +11,7 @@
     "build": "npm --prefix ../frontend install --no-audit --no-fund && npm --prefix ../frontend run build && node scripts/build-site.js",
     "preflight": "node scripts/deployment-preflight.js",
     "bootstrap:empty-db": "bash scripts/bootstrap-empty-database.sh",
-    "dev": "node scripts/dev-server.js",
+    "dev": "node --env-file=.env scripts/dev-server.js",
     "test:integration": "node --test integration-tests/*.test.js"
   }
 }

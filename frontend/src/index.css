@@ -1,4 +1,4 @@
-@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+JP:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;600;700&family=Noto+Sans+Khmer:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800&family=Noto+Sans+JP:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;600;700&family=Noto+Sans+Khmer:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap");
 @import "tailwindcss";
 
 /*
@@ -7,56 +7,56 @@
  * semantic token architecture. Financial states remain explicit.
  */
 @theme {
-  --font-sans: "Inter", "Noto Sans JP", "Noto Sans SC", "Noto Sans Khmer", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "IBM Plex Sans", "Inter", "Noto Sans JP", "Noto Sans SC", "PingFang SC", "Microsoft YaHei", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, monospace;
 
-  /* === Phase 3 Premium Visual System — UIUX-EXECUTION-PLAN.md Step 4-8 === */
-  /* Brand (Step 4): Emerald Teal — primary actions only, not large areas */
-  --color-brand-accent: #21C7A8;
-  --color-brand-hover: #13A98C;
-  --color-brand-active: #0D806D;
-  --color-brand-soft: #102B27;
-  /* Five-level background (Step 5) */
-  --color-brand-bg: #080D13;
-  --color-brand-sidebar: #080D13;
-  --color-brand-surface: #131E29;
-  --color-brand-surface-2: #1B2936;
-  --color-brand-surface-hover: #243443;
+  /* === Phase 3 Premium Visual System —UIUX-EXECUTION-PLAN.md Step 4-8 === */
+  /* Brand (Step 4): Emerald Teal —primary actions only, not large areas */
+  --color-brand-accent: #0ECB81;
+  --color-brand-hover: #0CB873;
+  --color-brand-active: #0A9A61;
+  --color-brand-soft: #0E2B23;
+  /* Five-level background (Step 5) — Binance terminal palette */
+  --color-brand-bg: #0B0E11;
+  --color-brand-sidebar: #0B0E11;
+  --color-brand-surface: #181A20;
+  --color-brand-surface-2: #12161C;
+  --color-brand-surface-hover: #1E2329;
   /* Borders (Step 8) */
-  --color-brand-border: #263443;
-  --color-brand-border-subtle: #202D39;
-  --color-brand-border-strong: #344657;
-  --color-border-focus: #21C7A8;
-  /* Text (Step 6) */
-  --color-brand-text: #F4F7FA;
-  --color-brand-text-secondary: #D5DEE7;
-  --color-brand-text-muted: #A2B0BE;
-  --color-brand-text-faint: #738293;
-  --color-brand-text-disabled: #526170;
+  --color-brand-border: #2B3139;
+  --color-brand-border-subtle: #2B3139;
+  --color-brand-border-strong: #3A424B;
+  --color-border-focus: #0ECB81;
+  /* Text (Step 6) — three-tier hierarchy: primary / secondary / disabled */
+  --color-brand-text: #FFFFFF;
+  --color-brand-text-secondary: #B7BDC6;
+  --color-brand-text-muted: #848E9C;
+  --color-brand-text-faint: #5E6673;
+  --color-brand-text-disabled: #474D57;
 
-  /* Financial states (Step 7) — preserve existing up/down convention */
-  --color-positive: #35D6A6;
-  --color-negative: #F06B78;
-  --color-warning-state: #E9B85C;
+  /* Financial states (Step 7) — preserve existing up/down convention; neutral slate replaces yellow/gold across the site */
+  --color-positive: #0ECB81;
+  --color-negative: #F6465D;
+  --color-warning-state: #A2B0BE;
   --color-information: #72AEF2;
   --color-neutral-state: #A2B0BE;
   --color-brand-cyan: #72AEF2;
-  --color-brand-teal: #21C7A8;
+  --color-brand-teal: #0ECB81;
   --color-brand-violet: #a78bfa;
   --color-brand-indigo: #818cf8;
-  --color-brand-orange: #E9B85C;
+  --color-brand-orange: #A2B0BE;
   --color-brand-info: #72AEF2;
-  --color-brand-warning: #E9B85C;
-  --color-brand-success: #35D6A6;
-  --color-brand-danger: #F06B78;
-  --color-profit: #35D6A6;
-  --color-loss: #F06B78;
-  --color-gold: #E9B85C;
+  --color-brand-warning: #A2B0BE;
+  --color-brand-success: #0ECB81;
+  --color-brand-danger: #F6465D;
+  --color-profit: #0ECB81;
+  --color-loss: #F6465D;
+  --color-gold: #A2B0BE;
 
   --color-chart-1: #d4d4d8;
-  --color-chart-2: #35D6A6;
+  --color-chart-2: #0ECB81;
   --color-chart-3: #94a3b8;
-  --color-chart-4: #E9B85C;
+  --color-chart-4: #A2B0BE;
   --color-chart-5: #52525b;
 
   --color-background: var(--background);
@@ -81,39 +81,42 @@
 
 :root {
   color-scheme: dark;
-  --background: #080D13;
-  --foreground: #F4F7FA;
-  --card: #131E29;
-  --card-foreground: #F4F7FA;
-  --popover: #1B2936;
-  --popover-foreground: #F4F7FA;
-  --primary: #21C7A8;
+  --background: #0B0E11;
+  --foreground: #FFFFFF;
+  --card: #181A20;
+  --card-foreground: #FFFFFF;
+  --popover: #1E2329;
+  --popover-foreground: #FFFFFF;
+  --primary: #0ECB81;
   --primary-foreground: #05201A; /* dark text on teal per Step 12 */
-  --secondary: #1B2936;
-  --secondary-foreground: #F4F7FA;
-  --muted: #131E29;
-  --muted-foreground: #A2B0BE;
-  --accent: #243443;
-  --accent-foreground: #F4F7FA;
-  --destructive: #F06B78;
-  --border: #263443;
-  --input: #263443;
-  --ring: #21C7A8;
+  --secondary: #1E2329;
+  --secondary-foreground: #FFFFFF;
+  --muted: #12161C;
+  --muted-foreground: #848E9C;
+  --accent: #1E2329;
+  --accent-foreground: #FFFFFF;
+  --destructive: #F6465D;
+  --border: #2B3139;
+  --input: #2B3139;
+  --ring: #0ECB81;
 
-  --brand-accent: #21C7A8;
-  --brand-success: #35D6A6;
-  --brand-danger: #F06B78;
-  --brand-warning: #E9B85C;
+  --brand-accent: #0ECB81;
+  --brand-success: #0ECB81;
+  --brand-danger: #F6465D;
+  --brand-warning: #848E9C;
   --brand-info: #72AEF2;
-  --surface-raised: #1B2936;
-  --surface-overlay: #243443;
-  --border-strong: #344657;
-  --text-high: #F4F7FA;
-  --text-medium: #D5DEE7;
-  --text-low: #738293;
+  --surface-raised: #1E2329;
+  --surface-overlay: #232A30;
+  --border-strong: #3A424B;
+  --text-high: #FFFFFF;
+  --text-medium: #B7BDC6;
+  --text-low: #474D57;
 }
 
 * { box-sizing: border-box; }
+/* Hide scrollbars for horizontal marquee strips while keeping them scrollable. */
+.no-scrollbar { scrollbar-width: none; -ms-overflow-style: none; }
+.no-scrollbar::-webkit-scrollbar { display: none; }
 html, body, #root { width: 100%; min-height: 100%; margin: 0; }
 html, body { overflow-x: clip; }
 body {
@@ -128,6 +131,14 @@ input:not([type="checkbox"]):not([type="radio"]), select { min-height: 44px; }
 textarea { min-height: 104px; }
 input[type="checkbox"], input[type="radio"] { accent-color: var(--brand-accent); }
 a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
+/* Financial typography: keep all numbers/monospace figures aligned and jitter-free. */
+.font-mono, [class*="font-mono"], [class*="tabular-nums"], .bf-tabular {
+  font-variant-numeric: tabular-nums;
+}
+/* Interactive touch targets: never drop below the 44px accessibility floor on pointer devices. */
+@media (pointer: coarse) {
+  .bf-quick-item, .bf-bottom-nav-item, .bf-tag, .spot-book-row, .bf-ticker-row { min-height: 44px; }
+}
 :focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
@@ -138,6 +149,19 @@ a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
   body { font-size: 15px; }
   button { min-height: 44px; }
   input, select, textarea { font-size: 16px !important; }
+}
+
+/* Compact trade form (H5 perpetual order entry): the dense Binance-style order
+   form intentionally uses small, text-hugging controls. These scoped rules
+   outrank the global 44px mobile button floor above without affecting any other
+   page. */
+@media (max-width: 640px) {
+  .compact-trade-form button { min-height: 0; }
+  .compact-trade-form input,
+  .compact-trade-form select {
+    min-height: 0;
+    font-size: 13px !important;
+  }
 }
 
 @layer utilities {
@@ -168,6 +192,7 @@ a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
 .tone-earn { --page-accent: #21C7A8; --page-accent-soft: rgba(33,199,168,.08); }
 .tone-support { --page-accent: #21C7A8; --page-accent-soft: rgba(33,199,168,.08); }
 .tone-admin { --page-accent: #21C7A8; --page-accent-soft: rgba(33,199,168,.08); }
+.tone-home { --page-accent: #21C7A8; --page-accent-soft: rgba(33,199,168,.08); }
 .page-accent { color: var(--page-accent, var(--brand-accent)); }
 .page-accent-surface { background: var(--page-accent-soft, rgba(56,189,248,.08)); }
 
@@ -213,6 +238,10 @@ a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
   0%, 100% { opacity: 1; transform: scale(1); }
   50% { opacity: .45; transform: scale(.82); }
 }
+@keyframes ticker-scroll {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
 @layer utilities {
   .anim-fade-up { animation: fadeInUp .55s cubic-bezier(.22,.61,.36,1) both; }
   .anim-fade-in { animation: fadeIn .5s ease-out both; }
@@ -253,7 +282,7 @@ a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
   .balance-row { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:14px; align-items:center; padding:16px; border-bottom:1px solid var(--color-brand-border); }
   .balance-row:last-child { border-bottom:0; }
   .balance-row > :first-child { grid-column:1 / -1; }
-  .account-actions { display:grid; grid-template-columns:minmax(0,1fr); overflow:hidden; border:1px solid var(--color-brand-border); border-radius:12px; }
+  .account-actions { display:grid; grid-template-columns:minmax(0,1fr); overflow:hidden; border:1px solid rgba(255,255,255,.08); box-shadow:inset 0 1px 0 0 rgba(255,255,255,.12); border-radius:12px; background:var(--color-brand-surface); }
   .account-actions > a { border:0; border-radius:0; border-bottom:1px solid var(--color-brand-border); box-shadow:none; background:var(--color-brand-surface); }
   .account-actions > a:last-child { border-bottom:0; }
   table { font-variant-numeric:tabular-nums; }
@@ -285,7 +314,34 @@ a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
 
 
 /* Spot terminal: one scoped layout system, independent from account/admin cards. */
-.spot-terminal { gap:12px; }
+.spot-terminal { gap:12px; position:relative; }
+/* Ambient multi-layer glow behind the spot terminal (non-interactive, clipped to container). */
+.spot-terminal::before {
+  content: "";
+  position: absolute;
+  top: -80px;
+  right: 0;
+  width: 288px;
+  height: 288px;
+  border-radius: 9999px;
+  background: color-mix(in srgb, var(--color-brand-accent) 10%, transparent);
+  filter: blur(90px);
+  pointer-events: none;
+  z-index: 0;
+}
+.spot-terminal::after {
+  content: "";
+  position: absolute;
+  top: -32px;
+  right: 40px;
+  width: 144px;
+  height: 144px;
+  border-radius: 9999px;
+  background: color-mix(in srgb, var(--color-brand-accent) 20%, transparent);
+  filter: blur(45px);
+  pointer-events: none;
+  z-index: 0;
+}
 .spot-terminal > :first-child .page-accent { display:none; }
 .spot-terminal .type-page-title { font-size:22px; }
 .spot-quote { border:0; border-radius:0; box-shadow:none; background:transparent; }
@@ -300,8 +356,9 @@ a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
 .exchange-workspace { display:grid; grid-template-columns:minmax(0,43fr) minmax(0,57fr); gap:12px; align-items:start; }
 .exchange-pairs { display:none; }
 .exchange-chart,.exchange-entry,.exchange-depth,.exchange-orders { min-width:0; border-radius:6px; box-shadow:none; }
-.exchange-entry { grid-column:2; grid-row:1; }
-.exchange-depth { grid-column:1; grid-row:1; }
+.exchange-entry { grid-column:2; grid-row:1; display:flex; flex-direction:column; }
+.exchange-depth { grid-column:1; grid-row:1; display:flex; flex-direction:column; }
+.exchange-depth > div:last-child { display:flex; flex-direction:column; flex:1; }
 .exchange-orders { grid-column:1 / -1; grid-row:2; margin-top:8px; }
 .exchange-book-levels { display:flex; flex-direction:column; gap:6px; }
 .spot-book-columns,.spot-book-row { display:grid; grid-template-columns:minmax(0,1.35fr) minmax(0,1fr); gap:6px; text-align:right; font-size:12px; font-variant-numeric:tabular-nums; }
@@ -350,9 +407,227 @@ a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
 .spot-orders-empty { padding-block:20px; text-align:center; }
 .exchange-orders > div:first-child { padding-bottom:12px; }
 .exchange-orders > div:first-child > p { font-size:12px; line-height:1.5; }
+/* Drawer bottom inset keeps a 60px clearing line (56px, tab bar + 4px visual gap). */
 .trade-drawer-mask { position:fixed; inset:0 0 calc(60px + env(safe-area-inset-bottom)); z-index:40; background:rgb(0 0 0 / .65); }
 .trade-chart-drawer { position:fixed; z-index:50; inset:auto 0 calc(60px + env(safe-area-inset-bottom)); max-height:calc(100dvh - 76px - env(safe-area-inset-bottom)); overflow:auto; border:1px solid var(--color-brand-border); border-radius:12px 12px 0 0; background:var(--color-brand-surface); }
 .trade-chart-drawer .exchange-chart { border:0; box-shadow:none; }
+/* ========================================================================
+   Mobile Spot Terminal polish (< 768px) — Binance / OKX app aesthetic.
+   The desktop grid (>= 1280px) is untouched: every rule below is scoped to
+   `max-width: 767.98px` so the 4-column desktop workspace is unaffected.
+   ======================================================================== */
+@media (max-width: 767.98px) {
+  /* --- Mobile dual-column workspace (Binance-style) ----------------------- */
+  /* Order form (left 7fr) + order book (right 5fr) stay side-by-side on phones;
+     the orders panel spans full width below them. */
+  .exchange-workspace {
+    display: grid;
+    grid-template-columns: minmax(0, 58fr) minmax(0, 42fr);
+    gap: 8px;
+    align-items: stretch;
+  }
+  .exchange-workspace > .exchange-entry { grid-column: 1; grid-row: 1; }
+  .exchange-workspace > .exchange-depth { grid-column: 2; grid-row: 1; }
+  .exchange-workspace > .exchange-orders { grid-column: 1 / -1; grid-row: 2; }
+  .exchange-workspace > .exchange-chart { grid-column: 1 / -1; grid-row: auto; }
+
+  /* --- Compact inline chart inside the header-triggered drawer ------------ */
+  .exchange-chart--compact {
+    display: flex;
+    flex-direction: column;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    background: transparent;
+    padding-bottom: 4px;
+  }
+  .compact-chart-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 6px 10px 6px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  }
+  .compact-chart-pills { display: flex; align-items: center; gap: 4px; }
+  .compact-chart-pill {
+    min-width: 36px;
+    height: 24px;
+    padding: 0 8px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 4px;
+    background: var(--color-brand-surface-2);
+    color: var(--color-brand-text-muted);
+    font-size: 11px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    cursor: pointer;
+    transition: color .15s ease, border-color .15s ease, background-color .15s ease;
+  }
+  .compact-chart-pill.is-active {
+    border-color: rgba(14, 203, 129, 0.45);
+    background: rgba(14, 203, 129, 0.14);
+    color: var(--color-brand-accent);
+  }
+  .compact-chart-symbol {
+    color: var(--color-brand-text-muted);
+    font-size: 11px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: .02em;
+    line-height: 1.2;
+    margin: 0;
+  }
+  /* K-line owns a golden-ratio band of the mobile initial viewport (~45%),
+     independent of the order book that follows it in document flow. */
+  .trade-candles--compact {
+    height: 45dvh;
+    min-height: 220px;
+    max-height: 52dvh;
+    width: 100%;
+    overflow: hidden;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  }
+
+  /* --- Dense, crisp order book (left column) ----------------------------- */
+  .exchange-depth > div {
+    padding: 0;
+  }
+  /* The level list must stay compact; `space-between` (desktop) would stretch
+     the 4+4 rows across the whole column and destroy the dense rhythm. */
+  .exchange-book-levels {
+    flex: 0 0 auto;
+    justify-content: flex-start;
+    gap: 2px;
+  }
+  .exchange-book-levels > div {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .spot-book-columns {
+    margin-bottom: 4px;
+    padding: 0 4px;
+    font-size: 10.5px;
+  }
+  .spot-book-row {
+    /* Overrides the global `@media (pointer: coarse)` 44px touch floor: the
+       dense mobile order book requires a 26px row (matches the e2e lineHeight
+       contract). Full-width depth rows keep the tap target usable. */
+    min-height: 26px;
+    height: 26px;
+    line-height: 26px;
+    /* Dense 2px/4px rhythm; the fixed height keeps the row band compact. */
+    padding: 2px 4px;
+    border-radius: 3px;
+    font-variant-numeric: tabular-nums;
+  }
+  .spot-book-row[data-side="ask"] {
+    background-image: linear-gradient(rgba(246, 70, 93, 0.12), rgba(246, 70, 93, 0.12));
+  }
+  .spot-book-row[data-side="bid"] {
+    background-image: linear-gradient(rgba(14, 203, 129, 0.12), rgba(14, 203, 129, 0.12));
+  }
+  .spot-mid-price {
+    margin-block: 2px;
+    padding: 6px 4px;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    font: 700 15px/20px var(--font-mono);
+  }
+  .exchange-depth > div:last-child {
+    margin-top: 6px;
+    padding-top: 6px;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+  }
+
+  /* --- Tighter order form (right column) --------------------------------- */
+  .exchange-entry > div {
+    padding: 0;
+  }
+  /* The form owns the remaining column height so the CTA can be pushed to the
+     shared bottom baseline; spacing stays a flat 6px rhythm with no voids. */
+  .exchange-entry form {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-height: 0;
+    gap: 6px;
+  }
+  .exchange-entry input,
+  .exchange-entry select {
+    font-variant-numeric: tabular-nums;
+  }
+  .exchange-entry form > button {
+    min-height: 44px;
+    height: 44px;
+    border-radius: 6px;
+  }
+  .exchange-entry form > div > button:not([type="submit"]) {
+    border-radius: 4px;
+  }
+
+  /* --- Bottom baseline alignment of both columns ------------------------- */
+  /* Both columns stretch to the same grid row height. Each column's content
+     area is a flex column and only its LAST block (depth footer / CTA button)
+     absorbs the remaining space via `margin-top:auto`, so the footer and the
+     CTA share one bottom edge without stretching the rows in between. */
+  .exchange-depth,
+  .exchange-entry {
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+  }
+  .exchange-depth > div,
+  .exchange-entry > div {
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    flex: 1 1 auto;
+    min-height: 0;
+  }
+  .exchange-depth > div > div:last-child,
+  .exchange-entry > div form > button[type="submit"] {
+    margin-top: auto;
+  }
+
+  /* --- Typography & border standardization ------------------------------- */
+  .spot-book-row,
+  .spot-book-columns,
+  .spot-mid-price,
+  .compact-chart-symbol,
+  .spot-total,
+  .exchange-entry input,
+  .exchange-entry select {
+    font-variant-numeric: tabular-nums;
+  }
+  .exchange-entry input,
+  .exchange-entry form > div:has(> input) {
+    border-radius: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  /* --- Landscape: auto full-screen professional trading mode --------------- */
+  /* In landscape phones the K-line expands to fill the viewport height and the
+     workspace stacks the depth/entry panels as a readable full-screen terminal,
+     instead of being squeezed into the portrait single-column flow. */
+  @media (orientation: landscape) {
+    .spot-terminal .trade-candles--compact {
+      height: calc(100dvh - 96px);
+      min-height: 240px;
+      max-height: none;
+    }
+    .spot-terminal .exchange-workspace {
+      gap: 8px;
+    }
+    .spot-terminal .exchange-depth,
+    .spot-terminal .exchange-entry {
+      max-height: calc(100dvh - 120px);
+      overflow-y: auto;
+    }
+  }
+}
+
 @media (max-width:1279px) {
  .exchange-entry,.exchange-depth { border:0; background:transparent; }
  .exchange-entry > div,.exchange-depth > div { padding:0; }
@@ -367,6 +642,14 @@ a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
  .exchange-entry form,.exchange-entry label { font-size:12px; }
 
 }
+/* Large phone: 390–430 px → 16 px gutters; breathing room but not oversized controls. */
+@media (min-width:390px) {
+  .page-gutter { padding-left: 16px; padding-right: 16px; }
+  .trade-candles { height: 520px; max-width: 100%; overflow: hidden; }
+  .spot-quote-grid { gap: 8px 20px; }
+  .exchange-entry button { min-height: 46px; }
+}
+
 @media (max-width:359px) {
  .exchange-workspace { gap:10px; }
  .spot-book-row { font-size:12px; gap:4px; }
@@ -387,6 +670,109 @@ a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
  .trade-candles { height:520px; }
 }
 @media (min-width:1500px) { .trade-candles { height:600px; } }
+
+/* ========================================================================
+   Spot terminal layout enhancements (Binance-style 4-column grid):
+   viewport lock, collapsible market drawer, and maximize-able orders panel.
+   Scoped to desktop (>=1280px) where the full 4-column grid is active;
+   mobile keeps its existing orderbook-left / entry-right document flow.
+   ======================================================================== */
+@media (min-width:1280px) {
+  /* Lock the terminal to the viewport so only inner regions scroll. */
+  .spot-terminal {
+    height: calc(100dvh - 60px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+    overflow: hidden;
+    display: grid;
+    grid-template-rows: auto auto auto auto auto minmax(0,1fr);
+    align-content: start;
+  }
+  .spot-terminal .exchange-workspace {
+    min-height: 0;
+    height: 100%;
+    align-content: start;
+  }
+  .exchange-chart, .exchange-entry, .exchange-depth, .exchange-orders {
+    min-height: 0;
+    overflow: hidden;
+  }
+  .exchange-chart > div:last-child,
+  .exchange-entry > div:last-child,
+  .exchange-depth > div:last-child,
+  .exchange-orders > div:last-child {
+    overflow-y: auto;
+    min-height: 0;
+  }
+
+  /* Collapsible market-list drawer (right side, to the far left of the grid). */
+  .exchange-workspace[data-pairs-collapsed="true"] {
+    grid-template-columns: 36px minmax(0,1.32fr) minmax(218px,.8fr) minmax(300px,.96fr);
+  }
+  .exchange-pairs {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    overflow: hidden;
+    transition: width .18s ease;
+  }
+  .pairs-drawer-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 4px;
+    width: 100%;
+    padding: 10px 8px;
+    border-bottom: 1px solid var(--color-brand-border);
+    color: var(--color-brand-text-muted);
+    font-size: 12px;
+    font-weight: 600;
+  }
+  .pairs-drawer-toggle:hover { color: var(--color-brand-text); }
+  .exchange-workspace[data-pairs-collapsed="true"] .pairs-drawer-toggle {
+    justify-content: center;
+    padding: 10px 0;
+  }
+  .exchange-workspace[data-pairs-collapsed="true"] .pairs-drawer-toggle-label {
+    display: none;
+  }
+  .exchange-workspace[data-pairs-collapsed="true"] .pairs-drawer-toggle svg {
+    transform: rotate(180deg);
+  }
+  .pairs-drawer-list {
+    overflow-y: auto;
+    min-height: 0;
+    flex: 1;
+    padding: 4px;
+  }
+
+  /* Maximize-able bottom orders panel (drawer-style over the grid). */
+  .orders-maximize-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 24px;
+    width: 24px;
+    border-radius: 6px;
+    border: 1px solid var(--color-brand-border);
+    color: var(--color-brand-text-muted);
+    transition: color .18s ease, border-color .18s ease;
+  }
+  .orders-maximize-toggle:hover {
+    color: var(--color-brand-accent);
+    border-color: color-mix(in srgb, var(--color-brand-accent) 50%, transparent);
+  }
+  .exchange-workspace[data-orders-maximized="true"] {
+    grid-template-rows: auto minmax(0,1fr);
+    align-content: stretch;
+  }
+  .exchange-workspace[data-orders-maximized="true"] .exchange-orders {
+    grid-row: 2;
+  }
+  .exchange-workspace[data-orders-maximized="true"] .exchange-chart,
+  .exchange-workspace[data-orders-maximized="true"] .exchange-entry,
+  .exchange-workspace[data-orders-maximized="true"] .exchange-depth {
+    grid-row: 1;
+  }
+}
 
 
 /* Mobile navigation: restrained entrance and exit motion. The global reduced-motion

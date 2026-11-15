@@ -19,8 +19,29 @@ function listJavaScriptFiles(dir, prefix='') {
 test('all nested API paths are served by one catch-all function within Vercel Hobby limits', () => {
   assert.strictEqual(catchAll,adapter,'the catch-all must reuse the tested shared adapter');
   const apiFiles=listJavaScriptFiles(path.join(__dirname,'..','api')).sort();
-  assert.deepEqual(apiFiles,['[...path].js','healthz.js','router.js']);
+  // `stream.js` is a second entrypoint because SSE cannot go through the
+  // buffered adapter (it awaits the whole response before writing). It is
+  // routed ahead of the catch-all by an explicit rewrite in vercel.json.
+  assert.deepEqual(apiFiles,['[...path].js','healthz.js','router.js','stream.js']);
   assert.ok(apiFiles.length<=12,'Vercel Hobby allows at most 12 serverless functions per deployment');
+});
+
+test('the SSE entrypoint bypasses the buffered adapter', () => {
+  const stream = require('../api/stream.js');
+  const streamApi = require('../stream-api.js');
+  assert.strictEqual(stream, streamApi, 'api/stream.js must expose the streaming handler, not the adapter');
+  assert.notStrictEqual(stream, adapter, 'streaming must not reuse the buffering adapter');
+});
+
+test('vercel.json routes /api/stream before the catch-all rewrite', () => {
+  const config = JSON.parse(fs.readFileSync(path.join(__dirname,'..','vercel.json'),'utf8'));
+  const rewrites = Array.isArray(config.rewrites) ? config.rewrites : [];
+  const streamIndex = rewrites.findIndex(rule => rule.source === '/api/stream/(.*)');
+  const apiIndex = rewrites.findIndex(rule => rule.source === '/api/(.*)');
+  assert.ok(streamIndex !== -1, '/api/stream/(.*) rewrite must exist');
+  assert.ok(apiIndex !== -1, '/api/(.*) rewrite must exist');
+  assert.ok(streamIndex < apiIndex, 'stream rewrite must be evaluated before the catch-all');
+  assert.ok(config.functions && config.functions['api/stream.js'], 'stream function needs an explicit maxDuration');
 });
 test('all 23 nested API routes preserve their canonical request path through the catch-all', () => {
   assert.equal(routes.length,23);

@@ -8,24 +8,16 @@ type ProductKey = "spot" | "perpetual" | "seconds" | "earn";
 const PRODUCTS: Array<{
   key: ProductKey;
   label: string;
+  /** Fixed English sub-label shown beneath the translated primary label. */
+  subLabel: string;
   to: string;
   icon: typeof TrendingUp;
-  /** Tailwind text/border/underline color classes — all existing @theme tokens, no new hex values. */
-  activeClass: string;
 }> = [
-  { key: "spot", label: "Spot", to: "/trade/BTCUSDT", icon: CandlestickChart, activeClass: "text-brand-accent" },
-  { key: "perpetual", label: "Perpetual", to: "/contract", icon: TrendingUp, activeClass: "text-brand-violet" },
-  { key: "seconds", label: "Seconds", to: "/seconds", icon: ArrowLeftRight, activeClass: "text-brand-warning" },
-  { key: "earn", label: "Earn", to: "/earn", icon: Sprout, activeClass: "text-brand-info" },
+  { key: "spot", label: "Spot", subLabel: "Spot", to: "/trade/BTCUSDT", icon: CandlestickChart },
+  { key: "perpetual", label: "Perpetual", subLabel: "Perp", to: "/contract", icon: TrendingUp },
+  { key: "seconds", label: "Seconds", subLabel: "Seconds", to: "/seconds", icon: ArrowLeftRight },
+  { key: "earn", label: "Earn", subLabel: "Earn", to: "/earn", icon: Sprout },
 ];
-
-/** Underline accent color per product (used for the animated indicator span). */
-const UNDERLINE: Record<ProductKey, string> = {
-  spot: "bg-brand-accent",
-  perpetual: "bg-brand-violet",
-  seconds: "bg-brand-warning",
-  earn: "bg-brand-info",
-};
 
 function activeProduct(pathname: string): ProductKey | null {
   if (pathname.startsWith("/contract")) return "perpetual";
@@ -38,11 +30,12 @@ function activeProduct(pathname: string): ProductKey | null {
 
 /**
  * Top product navigation bar: Spot / Perpetual / Seconds / Earn.
- * - Active tab = animated underline in that product's accent color.
- * - Mobile: compact horizontally scrollable row (scrollbar hidden), touch targets >= 40px.
- * - Desktop: inline row. Colors use existing @theme tokens only.
+ * - Ambient emerald background glow so the dark bar never feels flat.
+ * - Active tab = high-contrast label + emerald glowing underline.
+ * - Dual-line label (translated primary + fixed English sub-label).
+ * - Routing is preserved via <Link>; each product is a distinct page.
  */
-export function TradeProductNav() {
+export function TradeProductNav({ leftIndent = "px-3.5 sm:px-4 md:px-6 lg:px-8" }: { leftIndent?: string } = {}) {
   const { t } = useI18n();
   const { pathname } = useLocation();
   const active = activeProduct(pathname);
@@ -50,10 +43,21 @@ export function TradeProductNav() {
   return (
     <nav
       aria-label={t("Trade products")}
-      className="trade-nav-scroll -mx-3 overflow-x-auto border-b border-brand-border bg-brand-surface/60 backdrop-blur-sm sm:-mx-4 md:-mx-6 lg:-mx-8"
+      className="relative overflow-hidden bg-brand-bg"
     >
-      <div className="flex min-w-full items-stretch px-3 sm:px-4 md:px-6 lg:px-8">
-        {PRODUCTS.map(({ key, label, to, icon: Icon, activeClass }) => {
+      {/* Ambient background glow (non-interactive, pointer-events-none). */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute left-1/2 top-0 h-[180px] w-[280px] -translate-x-1/2 rounded-full bg-brand-accent/10 blur-[90px]"
+      />
+      {/* Tight upper-right highlight core for layered breathing glow. */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute -top-6 right-10 h-36 w-36 rounded-full bg-brand-accent/20 blur-[45px]"
+      />
+
+      <div className={cn("relative flex min-w-full items-stretch gap-5 overflow-x-auto no-scrollbar", leftIndent)}>
+        {PRODUCTS.map(({ key, label, to, icon: Icon }) => {
           const isActive = active === key;
           return (
             <Link
@@ -61,18 +65,28 @@ export function TradeProductNav() {
               to={to}
               aria-current={isActive ? "page" : undefined}
               className={cn(
-                "group relative flex min-h-10 shrink-0 items-center gap-1.5 px-3.5 py-2 text-[13px] font-semibold transition-colors duration-200 sm:px-4 sm:text-sm",
-                isActive ? activeClass : "text-brand-text-muted hover:text-brand-text-secondary",
+                "group relative flex min-h-12 shrink-0 flex-col items-start justify-center py-2.5 transition-all duration-200",
               )}
             >
-              <Icon className="h-4 w-4 shrink-0" />
-              <span className="whitespace-nowrap">{t(label)}</span>
+              <span className="flex items-center gap-1.5">
+                <Icon className={cn("h-4 w-4 shrink-0 transition-colors duration-200", isActive ? "text-brand-accent" : "text-brand-text-muted")} />
+                <span
+                  className={cn(
+                    "whitespace-nowrap text-[13px] tracking-wide transition-colors duration-200 sm:text-sm",
+                    isActive ? "font-semibold text-brand-text" : "font-medium text-brand-text-muted hover:text-brand-text",
+                  )}
+                >
+                  {t(label)}
+                </span>
+              </span>
+              {/* Emerald glowing active underline. */}
               <span
                 aria-hidden="true"
                 className={cn(
-                  "absolute inset-x-3 -bottom-px h-0.5 rounded-full transition-transform duration-300 ease-out sm:inset-x-4",
-                  UNDERLINE[key],
-                  isActive ? "scale-x-100" : "scale-x-0 group-hover:scale-x-50",
+                  "absolute inset-x-0 bottom-0 h-0.5 rounded-full transition-transform duration-300 ease-out",
+                  isActive
+                    ? "bg-brand-accent shadow-[0_0_8px_rgba(14,203,129,0.6)] scale-x-100"
+                    : "bg-transparent scale-x-0 group-hover:scale-x-50 group-hover:bg-brand-accent/40",
                 )}
                 style={{ transformOrigin: "center" }}
               />
