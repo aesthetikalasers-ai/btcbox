@@ -1236,6 +1236,8 @@ export function SupportPage(){
  const [reload,setReload]=useState(0);
  const [draft,setDraft]=useState("");
  const [sending,setSending]=useState(false);
+ const [pendingRequestId,setPendingRequestId]=useState("");
+ const [pendingRequestContent,setPendingRequestContent]=useState("");
  const [sendError,setSendError]=useState("");
  const [sendMessage,setSendMessage]=useState("");
  const listRef=useRef<HTMLDivElement>(null);
@@ -1254,16 +1256,20 @@ export function SupportPage(){
  useEffect(()=>{listRef.current?.scrollTo({top:listRef.current.scrollHeight,behavior:"smooth"});},[messages]);
  const send=async(event:FormEvent<HTMLFormElement>)=>{
   event.preventDefault();
-  if(sending||!draft.trim())return;
-  let requestId:string;
-  try{requestId=window.crypto.randomUUID();}
-  catch{setSendError("Secure request IDs are unavailable in this browser. No message was sent.");return;}
+  if(sending)return;
+  const message=pendingRequestId?pendingRequestContent:draft.trim();
+  if(!message)return;
+  let requestId=pendingRequestId;
+  if(!requestId){
+   try{requestId=window.crypto.randomUUID();}
+   catch{setSendError("Secure request IDs are unavailable in this browser. No message was sent.");return;}
+   setPendingRequestId(requestId);setPendingRequestContent(message);
+  }
   setSending(true);setSendError("");setSendMessage("");
-  const content=draft.trim();
   try{
-   const result=await sendSupportMessage(content,requestId);
-   setDraft("");
-   if(!result.duplicate)setMessages(current=>[...current,{id:result.message_id||requestId,from:"user",content,time:result.time||new Date().toISOString()}]);
+   const result=await sendSupportMessage(message,requestId);
+   setDraft("");setPendingRequestId("");setPendingRequestContent("");
+   if(!result.duplicate)setMessages(current=>[...current,{id:result.message_id||requestId,from:"user",content:message,time:result.time||new Date().toISOString()}]);
    setSendMessage(result.duplicate?t("Your message was already received."):t("Message sent."));
    setReload(n=>n+1);
   }catch(reason){
@@ -1283,10 +1289,10 @@ export function SupportPage(){
       :messages.map(item=> <div key={item.id} className={`flex ${item.from==="user"?"justify-end":"justify-start"}`}><div className={`max-w-[85%] rounded-xl px-3 py-2 text-sm ${item.from==="user"?"bg-brand-accent/15 text-brand-text":"bg-brand-surface-2 text-brand-text-secondary"}`}><p className="whitespace-pre-wrap break-words">{item.content}</p><p className="mt-1 text-[10px] text-brand-text-muted">{date(item.time)}</p></div></div>)}
      </div>
      <form onSubmit={send} className="space-y-2">
-      <textarea value={draft} onChange={event=>setDraft(event.target.value)} maxLength={2000} rows={3} placeholder={t("Type your message (1–2,000 characters)")} className="w-full resize-none rounded-xl border border-brand-border bg-brand-surface-2 px-3 py-2 text-sm text-brand-text outline-none transition-colors placeholder:text-brand-text-muted focus:border-brand-accent/60 focus:ring-2 focus:ring-brand-accent/15"/>
+      <textarea value={pendingRequestId?pendingRequestContent:draft} onChange={event=>setDraft(event.target.value)} disabled={sending||!!pendingRequestId} maxLength={2000} rows={3} placeholder={t("Type your message (1–2,000 characters)")} className="w-full resize-none rounded-xl border border-brand-border bg-brand-surface-2 px-3 py-2 text-sm text-brand-text outline-none transition-colors placeholder:text-brand-text-muted focus:border-brand-accent/60 focus:ring-2 focus:ring-brand-accent/15"/>
       {sendError?<p role="alert" className="text-sm text-brand-danger">{sendError}</p>:null}
       {sendMessage?<p role="status" className="text-sm text-brand-success">{sendMessage}</p>:null}
-      <Button type="submit" disabled={sending||!draft.trim()} className="min-h-11 w-full"><Send className="mr-2 h-4 w-4"/>{sending?t("Sending…"):t("Send message")}</Button>
+      <Button type="submit" disabled={sending||(!draft.trim()&&!pendingRequestId)} className="min-h-11 w-full"><Send className="mr-2 h-4 w-4"/>{sending?t("Sending…"):pendingRequestId?t("Retry same request"):t("Send message")}</Button>
      </form>
     </>}
    </CardContent></Card>
