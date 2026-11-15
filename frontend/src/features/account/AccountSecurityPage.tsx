@@ -115,7 +115,7 @@ export function AccountSecurityPage() {
                 {row.linked ? (
                   <span className="truncate font-mono text-brand-text-muted">{row.value || t("Connected")}</span>
                 ) : (
-                  <span className="font-medium text-brand-accent">{t("Connect")}</span>
+                  <span className="font-medium text-brand-accent">{t(row.key === "google" ? "Link Google" : "Connect")}</span>
                 )}
                 <ChevronRight className="h-4 w-4 text-brand-text-muted" />
               </span>
