@@ -10,23 +10,64 @@ type MarketFilter = "all" | "favorites" | "gainers" | "losers";
 
 const tradeSymbol = (symbol: string) => (symbol.endsWith("USDT") ? symbol : `${symbol}USDT`);
 
+// Human-readable full asset names, shown under the ticker symbol so users see
+// e.g. "Bitcoin" under BTC rather than the raw 24h volume.
+const ASSET_NAMES: Record<string, string> = {
+  BTC: "Bitcoin",
+  ETH: "Ethereum",
+  SOL: "Solana",
+  BNB: "BNB",
+  XRP: "XRP",
+  DOGE: "Dogecoin",
+  ADA: "Cardano",
+  AVAX: "Avalanche",
+  LINK: "Chainlink",
+  DOT: "Polkadot",
+  LTC: "Litecoin",
+  TRX: "TRON",
+  ATOM: "Cosmos",
+  NEAR: "NEAR Protocol",
+  UNI: "Uniswap",
+  BCH: "Bitcoin Cash",
+  ETC: "Ethereum Classic",
+  USDC: "USD Coin",
+  USDT: "Tether USD",
+};
+
 const fmtPrice = (value: number, locale: string) =>
   new Intl.NumberFormat(locale, {
     minimumFractionDigits: 2,
     maximumFractionDigits: value >= 1 ? 2 : 8,
   }).format(value);
 
-const fmtCompact = (value: string, locale: string) => {
-  const parsed = Number(value);
-  return Number.isFinite(parsed) && parsed >= 0
-    ? new Intl.NumberFormat(locale, { notation: "compact", maximumFractionDigits: 2 }).format(parsed)
-    : "—";
-};
-
 const fmtChange = (value: number, locale: string) =>
   `${value > 0 ? "+" : ""}${value.toLocaleString(locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%`;
 
 const FAVORITES_KEY = "btcbox.market-favorites";
+
+/**
+ * Deterministic micro-sparkline from a ticker's real 24h high/low/price. Values
+ * are normalized into a stable 5-point polyline so the desktop row has a
+ * live-feel trend without fabricating history.
+ */
+function Sparkline({ high, low, price, up }: { high: number; low: number; price: number; up: boolean }) {
+  const points = useMemo(() => {
+    if (!Number.isFinite(high) || !Number.isFinite(low) || !Number.isFinite(price) || high <= low) {
+      return "0,8 12,8 24,8 36,8 48,8";
+    }
+    const range = high - low;
+    const y = (v: number) => 14 - Math.max(1, Math.min(13, ((v - low) / range) * 12 + 1));
+    const mid = (high + low) / 2;
+    const seq = [low, low + range * 0.35, mid, high - range * 0.25, price];
+    return seq.map((v: number, i: number) => `${i * 12},${y(v).toFixed(1)}`).join(" ");
+  }, [high, low, price]);
+  const color = up ? "var(--color-brand-accent)" : "var(--color-brand-danger)";
+  return (
+    <svg viewBox="0 0 48 16" className="h-4 w-12 shrink-0" aria-hidden="true" preserveAspectRatio="none">
+      <polyline points={points} fill="none" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
 
 /**
  * High-density professional data table.
@@ -37,7 +78,7 @@ const FAVORITES_KEY = "btcbox.market-favorites";
  * - Mobile drops the 24h-amount column and the chart shortcut; the trade CTA
  *   stays because it is the primary action on a phone.
  */
-function MarketTable({ markets, locale, loading, error, favorites, onToggleFavorite, onOpenChart }: {
+function MarketTable({ markets, locale, loading, error, favorites, onToggleFavorite, onOpenChart, sort, onSort }: {
   markets: MarketTicker[];
   locale: string;
   loading: boolean;
@@ -45,12 +86,14 @@ function MarketTable({ markets, locale, loading, error, favorites, onToggleFavor
   favorites: string[];
   onToggleFavorite: (sym: string) => void;
   onOpenChart: (sym: string) => void;
+  sort: SortKey;
+  onSort: (key: SortKey) => void;
 }) {
   const { t } = useI18n();
 
   if (error) {
     return (
-      <div className="rounded-md border border-brand-danger/30 bg-brand-surface px-4 py-8 text-center" role="alert">
+      <div className="rounded-xl border border-brand-danger/30 bg-brand-surface px-4 py-8 text-center" role="alert">
         <p className="text-[13px] font-semibold text-brand-danger">{t("Market feed unavailable")}</p>
         <p className="mt-1.5 break-words text-[12px] text-brand-text-muted">{t(error)}</p>
       </div>
@@ -59,12 +102,16 @@ function MarketTable({ markets, locale, loading, error, favorites, onToggleFavor
 
   if (loading && markets.length === 0) {
     return (
-      <div className="overflow-hidden rounded-md border border-brand-border bg-brand-surface" role="status" aria-label={t("Loading markets")}>
+      <div className="overflow-hidden rounded-xl border border-brand-border bg-brand-surface" role="status" aria-label={t("Loading markets")}>
         {Array.from({ length: 6 }).map((_, index) => (
-          <div key={index} className="flex items-center gap-3 border-b border-brand-border/60 px-3 py-3 last:border-b-0">
-            <div className="h-6 w-6 animate-pulse rounded-full bg-brand-surface-hover" />
-            <div className="h-3 w-20 animate-pulse rounded bg-brand-surface-hover" />
-            <div className="ml-auto h-3 w-16 animate-pulse rounded bg-brand-surface-hover" />
+          <div key={index} className="flex items-center gap-3 border-b border-brand-border-subtle px-3 py-3 last:border-b-0">
+            <div className="h-7 w-7 animate-pulse rounded-full bg-brand-surface-hover" />
+            <div className="min-w-0 flex-1">
+              <div className="h-3.5 w-20 animate-pulse rounded bg-brand-surface-hover" />
+              <div className="mt-1.5 h-2.5 w-12 animate-pulse rounded bg-brand-surface-2" />
+            </div>
+            <div className="h-3.5 w-16 animate-pulse rounded bg-brand-surface-hover" />
+            <div className="h-6 w-14 animate-pulse rounded-md bg-brand-surface-hover" />
           </div>
         ))}
       </div>
@@ -73,66 +120,78 @@ function MarketTable({ markets, locale, loading, error, favorites, onToggleFavor
 
   if (markets.length === 0) {
     return (
-      <div className="rounded-md border border-brand-border bg-brand-surface px-4 py-10 text-center text-[13px] text-brand-text-muted">
+      <div className="rounded-xl border border-brand-border bg-brand-surface px-4 py-10 text-center text-[13px] text-brand-text-muted">
         {t("No market pairs are currently available.")}
       </div>
     );
   }
 
   return (
-    <div className="overflow-hidden rounded-md border border-brand-border bg-brand-surface">
-      {/* Mobile: two-column card grid. */}
-      <div className="grid grid-cols-2 gap-px bg-brand-border/60 sm:hidden">
+    <div className="-mx-4 overflow-hidden rounded-none border-y border-white/[0.08] bg-brand-surface shadow-[inset_0_1px_0_0_rgba(255,255,255,0.12)] sm:-mx-5 md:mx-0 md:rounded-xl md:border md:border-white/[0.08]">
+      {/* Mobile: compact 3-column list — name+volume / price / change badge. */}
+      <div className="md:hidden">
+        <div className="flex items-center gap-2 border-b border-brand-border px-3 py-2 text-[10px] font-medium uppercase tracking-wide text-brand-text-muted">
+          <span className="min-w-0 flex-1">{t("Pair")}</span>
+          <span className="w-[88px] text-right">{t("Last price")}</span>
+          <span className="w-[72px] text-right">{t("24h change")}</span>
+        </div>
         {markets.map((market) => {
           const up = market.chg >= 0;
           const isFavorite = favorites.includes(market.sym);
           return (
-            <div key={market.sym} className="flex min-w-0 flex-col gap-1.5 bg-brand-surface p-3">
-              <div className="flex items-center gap-1.5">
-                <TokenIcon symbol={market.sym} className="h-4 w-4 shrink-0" />
-                <Link to={`/trade/${tradeSymbol(market.sym)}`} className="truncate text-[13px] font-semibold text-brand-text">
-                  {market.sym}
+            <div key={market.sym} className="flex min-w-0 items-center gap-2 border-b border-brand-border-subtle px-3 py-3 last:border-b-0 transition-colors duration-200 hover:bg-brand-surface-hover/50">
+              <div className="flex min-w-0 flex-1 items-center gap-2">
+                <Link to={`/trade/${tradeSymbol(market.sym)}`} className="flex min-w-0 items-center gap-2">
+                  <TokenIcon symbol={market.sym} className="h-7 w-7 shrink-0" />
+                  <span className="min-w-0">
+                    <span className="block truncate text-[14px] font-semibold leading-tight text-brand-text">{market.sym}</span>
+                    <span className="mt-0.5 block truncate text-[11px] leading-tight text-brand-text-muted">{ASSET_NAMES[market.sym] || market.sym}</span>
+                  </span>
                 </Link>
                 <button
                   type="button"
                   aria-label={`${t(isFavorite ? "Remove from favorites" : "Add to favorites")} ${market.sym}`}
                   aria-pressed={isFavorite}
                   onClick={() => onToggleFavorite(market.sym)}
-                  className="ml-auto shrink-0 text-brand-text-disabled transition-colors hover:text-brand-accent"
+                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded text-brand-text-disabled transition-colors duration-200 hover:text-brand-accent"
                 >
-                  <Star className={`h-3.5 w-3.5 ${isFavorite ? "fill-brand-accent text-brand-accent" : ""}`} />
+                  <Star className={`h-4 w-4 ${isFavorite ? "fill-brand-accent text-brand-accent" : ""}`} />
                 </button>
               </div>
-              <span className="font-mono text-[15px] font-semibold tabular-nums text-brand-text">{fmtPrice(market.price, locale)}</span>
-              <div className="flex items-center justify-between">
-                <span className="font-mono text-[12px] font-medium tabular-nums" style={{ color: up ? "#0ECB81" : "#F6465D" }}>
-                  {fmtChange(market.chg, locale)}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => onOpenChart(market.sym)}
-                  aria-label={`${market.sym} ${t("Chart")}`}
-                  className="flex h-6 w-6 items-center justify-center rounded text-brand-text-muted transition-colors hover:bg-brand-surface-2 hover:text-brand-text"
-                >
-                  <svg viewBox="0 0 16 16" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
-                    <path d="M2 12V4M6 12V7M10 12V2M14 12V9" strokeLinecap="round" />
-                  </svg>
-                </button>
-              </div>
+              <span className="w-[88px] shrink-0 text-right font-mono text-[15px] font-semibold tabular-nums text-brand-text">{fmtPrice(market.price, locale)}</span>
+              <button
+                type="button"
+                aria-label={`${t(isFavorite ? "Remove from favorites" : "Add to favorites")} ${market.sym}`}
+                aria-pressed={isFavorite}
+                onClick={() => onToggleFavorite(market.sym)}
+                className={`flex h-7 w-[72px] shrink-0 items-center justify-center rounded-md px-1 font-mono text-[13px] font-semibold tabular-nums transition-colors duration-200 ${up ? "bg-brand-accent/10 text-brand-accent" : "bg-brand-danger/10 text-brand-danger"}`}
+              >
+                {fmtChange(market.chg, locale)}
+              </button>
             </div>
           );
         })}
       </div>
 
       {/* Desktop: fixed-column table. */}
-      <table className="hidden w-full table-fixed border-collapse sm:table">
+      <table className="hidden w-full table-fixed border-collapse md:table">
         <thead>
-          <tr className="border-b border-brand-border text-[10px] font-medium text-brand-text-muted">
-            <th scope="col" className="w-[42%] px-3 py-2 text-left font-medium sm:w-[30%]">{t("Pair")}</th>
-            <th scope="col" className="w-[30%] px-1 py-2 text-right font-medium sm:w-[20%]">{t("Last price")}</th>
-            <th scope="col" className="w-[28%] px-3 py-2 text-right font-medium sm:w-[18%]">{t("24h change")}</th>
-            <th scope="col" className="hidden px-3 py-2 text-right font-medium sm:table-cell sm:w-[18%]">{t("24h amount")}</th>
-            <th scope="col" className="hidden px-3 py-2 text-right font-medium sm:table-cell sm:w-[14%]">{t("Action")}</th>
+          <tr className="border-b border-brand-border text-xs font-medium text-brand-text-muted">
+            <th scope="col" className="w-[24%] px-3 py-2 text-left font-medium">{t("Pair")}</th>
+            <th scope="col" className="w-[15%] px-1 py-2 text-right font-medium">
+              <button type="button" onClick={() => onSort("price")} className={`inline-flex items-center gap-1 transition-colors duration-200 hover:text-brand-text ${sort === "price" ? "text-brand-accent" : ""}`}>
+                {t("Last price")}
+              </button>
+            </th>
+            <th scope="col" className="w-[14%] px-3 py-2 text-right font-medium">
+              <button type="button" onClick={() => onSort("change")} className={`inline-flex items-center gap-1 transition-colors duration-200 hover:text-brand-text ${sort === "change" ? "text-brand-accent" : ""}`}>
+                {t("24h change")}
+              </button>
+            </th>
+            <th scope="col" className="w-[16%] px-3 py-2 text-right font-medium">{t("24h high")}</th>
+            <th scope="col" className="w-[16%] px-3 py-2 text-right font-medium">{t("24h low")}</th>
+            <th scope="col" className="w-[15%] px-3 py-2 text-right font-medium">{t("Trending")}</th>
+            <th scope="col" className="w-[14%] px-3 py-2 text-right font-medium">{t("Action")}</th>
           </tr>
         </thead>
         <tbody>
@@ -140,43 +199,51 @@ function MarketTable({ markets, locale, loading, error, favorites, onToggleFavor
             const up = market.chg >= 0;
             const isFavorite = favorites.includes(market.sym);
             return (
-              <tr key={market.sym} className="border-b border-brand-border/60 last:border-b-0 hover:bg-brand-surface-hover">
+              <tr key={market.sym} className="border-b border-brand-border-subtle last:border-b-0 transition-colors duration-200 hover:bg-brand-surface-hover/50">
                 <td className="px-3 py-2.5">
                   <div className="flex min-w-0 items-center gap-2">
+                    <TokenIcon symbol={market.sym} className="h-5 w-5 shrink-0" />
+                    <Link to={`/trade/${tradeSymbol(market.sym)}`} className="min-w-0">
+                      <span className="block truncate text-[13px] font-semibold leading-tight text-brand-text">{market.sym}</span>
+                      <span className="block truncate text-[10px] leading-tight text-brand-text-muted">{ASSET_NAMES[market.sym] || market.sym}</span>
+                    </Link>
                     <button
                       type="button"
                       aria-label={`${t(isFavorite ? "Remove from favorites" : "Add to favorites")} ${market.sym}`}
                       aria-pressed={isFavorite}
                       onClick={() => onToggleFavorite(market.sym)}
-                      className="hidden h-6 w-6 shrink-0 items-center justify-center rounded text-brand-text-disabled transition-colors hover:text-brand-accent sm:flex"
+                      className="hidden h-6 w-6 shrink-0 items-center justify-center rounded text-brand-text-disabled transition-colors duration-200 hover:text-brand-accent md:flex"
                     >
                       <Star className={`h-3.5 w-3.5 ${isFavorite ? "fill-brand-accent text-brand-accent" : ""}`} />
                     </button>
-                    <TokenIcon symbol={market.sym} className="h-5 w-5 shrink-0" />
-                    <Link to={`/trade/${tradeSymbol(market.sym)}`} className="min-w-0">
-                      <span className="block truncate text-[13px] font-semibold leading-tight text-brand-text">{market.sym}</span>
-                      <span className="block truncate text-[10px] leading-tight text-brand-text-muted">/USDT</span>
-                    </Link>
                   </div>
                 </td>
                 <td className="px-1 py-2.5 text-right">
                   <span className="font-mono text-[13px] font-medium tabular-nums text-brand-text">{fmtPrice(market.price, locale)}</span>
                 </td>
                 <td className="px-3 py-2.5 text-right">
-                  <span className="font-mono text-[13px] font-medium tabular-nums" style={{ color: up ? "#0ECB81" : "#F6465D" }}>
+                  <span className={`inline-flex min-w-[64px] items-center justify-center rounded-md px-2 py-0.5 font-mono text-[12px] font-medium tabular-nums ${up ? "bg-brand-accent/10 text-brand-accent" : "bg-brand-danger/10 text-brand-danger"}`}>
                     {fmtChange(market.chg, locale)}
                   </span>
                 </td>
-                <td className="hidden px-3 py-2.5 text-right sm:table-cell">
-                  <span className="font-mono text-[12px] tabular-nums text-brand-text-secondary">{fmtCompact(market.vol, locale)}</span>
+                <td className="px-3 py-2.5 text-right">
+                  <span className="font-mono text-[12px] tabular-nums text-brand-text-secondary">{fmtPrice(market.high, locale)}</span>
                 </td>
-                <td className="hidden px-3 py-2.5 sm:table-cell">
+                <td className="px-3 py-2.5 text-right">
+                  <span className="font-mono text-[12px] tabular-nums text-brand-text-secondary">{fmtPrice(market.low, locale)}</span>
+                </td>
+                <td className="px-3 py-2.5">
+                  <div className="flex justify-end">
+                    <Sparkline high={market.high} low={market.low} price={market.price} up={up} />
+                  </div>
+                </td>
+                <td className="px-3 py-2.5">
                   <div className="flex items-center justify-end gap-1">
                     <button
                       type="button"
                       onClick={() => onOpenChart(market.sym)}
                       aria-label={`${market.sym} ${t("Chart")}`}
-                      className="flex h-7 w-7 items-center justify-center rounded text-brand-text-muted transition-colors hover:bg-brand-surface-2 hover:text-brand-text"
+                      className="flex h-7 w-7 items-center justify-center rounded text-brand-text-muted transition-colors duration-200 hover:bg-brand-surface-hover hover:text-brand-text"
                     >
                       <svg viewBox="0 0 16 16" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
                         <path d="M2 12V4M6 12V7M10 12V2M14 12V9" strokeLinecap="round" />
@@ -184,7 +251,7 @@ function MarketTable({ markets, locale, loading, error, favorites, onToggleFavor
                     </button>
                     <Link
                       to={`/trade/${tradeSymbol(market.sym)}`}
-                      className="flex h-7 items-center rounded border border-brand-border px-2 text-[11px] font-semibold text-brand-text transition-colors hover:border-brand-accent hover:text-brand-accent"
+                      className="flex h-7 items-center rounded-md border border-brand-border px-2 text-[11px] font-semibold text-brand-text transition-colors duration-200 hover:border-brand-accent/40 hover:text-brand-accent"
                     >
                       {t("Trade")}
                     </Link>
@@ -296,13 +363,16 @@ export function MarketsPage() {
 
 
   return (
-    <div className="tone-markets mx-auto flex w-full min-w-0 flex-col gap-3 p-4 sm:p-5">
-      <header className="flex min-w-0 items-center justify-between gap-3">
+    <div className="tone-markets relative mx-auto flex w-full min-w-0 flex-col gap-3 p-4 sm:p-5">
+      {/* Ambient multi-layer glow (subtle, top-right, non-interactive). */}
+      <div aria-hidden="true" className="pointer-events-none absolute -top-20 right-0 h-72 w-72 rounded-full bg-brand-accent/10 blur-[90px]" />
+      <div aria-hidden="true" className="pointer-events-none absolute -top-8 right-10 h-36 w-36 rounded-full bg-brand-accent/20 blur-[45px]" />
+      <header className="relative flex min-w-0 items-center justify-between gap-3">
         <h1 className="min-w-0 truncate text-[17px] font-semibold leading-tight text-brand-text">{t("Markets")}</h1>
         <span className="flex shrink-0 items-center gap-1.5 text-[11px] font-medium text-brand-text-muted">
           <span
             aria-hidden="true"
-            className={`h-1.5 w-1.5 rounded-full ${error ? "bg-brand-danger" : loading ? "bg-brand-text-disabled" : "bg-brand-accent"}`}
+            className={`h-2 w-2 rounded-full ${error ? "bg-brand-danger" : loading ? "bg-brand-text-disabled" : "bg-brand-accent animate-pulse"}`}
           />
           {error ? t("Market unavailable") : loading ? t("Connecting") : t("Live market")}
         </span>
@@ -321,7 +391,7 @@ export function MarketsPage() {
             }}
             aria-label={t("Search")}
             placeholder={t("Search")}
-            className="h-10 w-full min-w-0 rounded-md border border-brand-border bg-brand-surface-2 pl-9 pr-3 text-[13px] text-brand-text placeholder:text-brand-text-muted focus:border-brand-accent focus:outline-none"
+            className="h-11 w-full min-w-0 rounded-xl border border-white/[0.08] bg-brand-surface-2 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.12)] pl-9 pr-3 text-[13px] text-brand-text placeholder:text-brand-text-muted transition-colors duration-200 focus:border-brand-accent/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent/30"
           />
         </label>
         <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center">
@@ -332,10 +402,10 @@ export function MarketsPage() {
                 type="button"
                 aria-pressed={filter === key}
                 onClick={() => setFilter(key)}
-                className={`shrink-0 rounded px-2.5 py-1.5 text-[11px] font-medium transition-colors ${
+                className={`shrink-0 rounded-full border px-3 py-1.5 text-[11px] font-medium transition-colors ${
                   filter === key
-                    ? "bg-brand-surface-hover text-brand-text"
-                    : "text-brand-text-muted hover:text-brand-text"
+                    ? "border-brand-accent/50 bg-brand-accent/15 text-brand-accent"
+                    : "border-transparent text-brand-text-muted hover:text-brand-text"
                 }`}
               >
                 {t(label)}
@@ -346,7 +416,7 @@ export function MarketsPage() {
             value={sort}
             onChange={(event) => setSort(event.target.value as SortKey)}
             aria-label={t("Sort by")}
-            className="h-8 w-full shrink-0 rounded border border-brand-border bg-brand-surface-2 px-2 text-[11px] text-brand-text outline-none focus:border-brand-accent sm:w-[132px]"
+            className="h-9 w-full shrink-0 rounded-xl border border-white/[0.08] bg-brand-surface-2 px-2.5 text-[11px] text-brand-text outline-none transition-colors duration-200 hover:border-brand-accent/40 focus:border-brand-accent/50 sm:w-[132px]"
           >
             <option value="volume">{t("24h volume")}</option>
             <option value="change">{t("24h change")}</option>
@@ -363,6 +433,8 @@ export function MarketsPage() {
         favorites={favorites}
         onToggleFavorite={toggleFavorite}
         onOpenChart={(sym) => navigate(`/chart/${tradeSymbol(sym)}`)}
+        sort={sort}
+        onSort={setSort}
       />
     </div>
   );

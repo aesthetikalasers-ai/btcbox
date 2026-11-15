@@ -84,7 +84,7 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
         </div>
       </nav>
       <div className="px-3 pb-4">
-        <LanguageMenu variant="drawer" />
+        <LanguageMenu />
       </div>
     </aside>
   );

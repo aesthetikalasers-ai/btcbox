@@ -1,6 +1,6 @@
 ﻿
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { RefreshCw, TrendingUp, TrendingDown, Clock3, ShieldCheck, ShieldAlert, Zap, BarChart2, Award } from "lucide-react";
+import { RefreshCw, TrendingUp, TrendingDown, Clock3, ShieldCheck, ShieldAlert, BarChart2, Award } from "lucide-react";
 import { Badge } from "../../components/ui/badge";
 import { Button } from "../../components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/card";
@@ -251,31 +251,25 @@ export function SecondsPage() {
   return (
     <>
       <TradeProductNav />
-      <div className="mx-auto flex w-full max-w-[1520px] min-w-0 flex-col gap-4 p-3 pb-32 sm:gap-5 sm:p-4 md:p-6 lg:p-8 lg:pb-8">
-        {/* Header & Asset Bar */}
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-brand-accent/10 text-brand-accent">
-              <Zap className="h-6 w-6" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="type-page-title text-brand-text">{t("Seconds")}</h1>
-                <Badge variant="outline" className="border-brand-accent/40 bg-brand-accent/10 text-brand-accent text-xs">Binary Option</Badge>
-              </div>
-              <p className="text-xs text-brand-text-secondary mt-0.5">{t("High-frequency binary settlement with guaranteed fixed return rates.")}</p>
-            </div>
-          </div>
+      <div className="relative mx-auto flex w-full max-w-[1520px] min-w-0 flex-col gap-4 p-3 pb-32 sm:gap-5 sm:p-4 md:p-6 lg:p-8 lg:pb-8">
+        {/* Ambient multi-layer glow + glass highlight ring, matching Dashboard / Markets. */}
+        <div aria-hidden="true" className="pointer-events-none absolute -top-20 right-0 h-72 w-72 rounded-full bg-brand-accent/10 blur-[90px]" />
+        <div aria-hidden="true" className="pointer-events-none absolute -top-8 right-10 h-36 w-36 rounded-full bg-brand-accent/20 blur-[45px]" />
+        {/* Header & Asset Bar（币安风格：紧凑币种切换行，无大标题卡） */}
+        <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             {["BTC", "ETH", "SOL"].map((coin) => (
-              <button key={coin} type="button" onClick={() => setSymbol(coin)} className={`h-9 px-3 rounded-xl font-bold text-xs transition-all ${symbol === coin ? "bg-brand-accent text-[#05201A] shadow-md" : "bg-brand-surface border border-brand-border text-brand-text-muted hover:text-brand-text"}`}>
+              <button key={coin} type="button" onClick={() => setSymbol(coin)} className={`h-9 px-3 rounded-md font-bold text-[13px] transition-all ${symbol === coin ? "bg-brand-accent text-[#05201A]" : "bg-brand-surface border border-brand-border text-brand-text-muted hover:text-brand-text"}`}>
                 {coin}/USDT
               </button>
             ))}
-            <button type="button" aria-label={t("Refresh")} title={t("Refresh")} onClick={refresh} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-brand-border bg-brand-surface text-brand-text-muted transition-colors hover:border-brand-accent/40 hover:text-brand-accent">
-              <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
-            </button>
           </div>
+          <span className="font-mono text-lg font-bold text-brand-text tabular-nums">
+            {ticker ? ticker.price.toLocaleString(locale, { minimumFractionDigits: 2 }) : "—"}
+            <span className={"ml-2 text-xs font-mono font-bold px-1.5 py-0.5 rounded " + (Number(ticker?.chg || 0) >= 0 ? "text-profit bg-profit/10" : "text-loss bg-loss/10")}>
+              {ticker ? (Number(ticker.chg) >= 0 ? "+" : "") + Number(ticker.chg).toFixed(2) + "%" : ""}
+            </span>
+          </span>
         </div>
 
         {notice ? <div role="status" className="rounded-xl border border-brand-success/30 bg-brand-success/10 p-3 text-xs font-semibold text-brand-success flex items-center gap-2"><ShieldCheck className="h-4 w-4 shrink-0" />{notice}</div> : null}
@@ -362,11 +356,11 @@ export function SecondsPage() {
               </div>
 
               <div className="grid grid-cols-2 gap-3 pt-1">
-                <button type="button" disabled={submitting || !!pendingIntent} onClick={() => submitSeconds("up")} className="h-12 rounded-xl bg-profit text-[#05201A] font-bold text-sm flex items-center justify-center gap-2 hover:bg-profit/90 active:scale-[0.99] transition-transform disabled:opacity-50 shadow-lg">
+                <button type="button" disabled={submitting || !!pendingIntent} onClick={() => submitSeconds("up")} className="h-11 rounded-md bg-profit text-[#05201A] font-bold text-[15px] flex items-center justify-center gap-2 hover:bg-profit/90 active:scale-[0.99] transition-transform disabled:opacity-50">
                   <TrendingUp className="h-5 w-5 stroke-[2.5]" />
                   <span>{t("Buy up (long)")} (+{currentRate}%)</span>
                 </button>
-                <button type="button" disabled={submitting || !!pendingIntent} onClick={() => submitSeconds("down")} className="h-12 rounded-xl bg-loss text-white font-bold text-sm flex items-center justify-center gap-2 hover:bg-loss/90 active:scale-[0.99] transition-transform disabled:opacity-50 shadow-lg">
+                <button type="button" disabled={submitting || !!pendingIntent} onClick={() => submitSeconds("down")} className="h-11 rounded-md bg-loss text-white font-bold text-[15px] flex items-center justify-center gap-2 hover:bg-loss/90 active:scale-[0.99] transition-transform disabled:opacity-50">
                   <TrendingDown className="h-5 w-5 stroke-[2.5]" />
                   <span>{t("Buy down (short)")} (+{currentRate}%)</span>
                 </button>

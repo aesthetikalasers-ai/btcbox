@@ -3,13 +3,14 @@ import { AuthRestoreState } from "../../components/AuthRestoreState";
 import { multiplyDecimalStrings, compareDecimalStrings } from "../../lib/decimal";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { RefreshCw, TrendingUp, TrendingDown, Clock3, ShieldAlert, Send, MessageCircle, ArrowLeft, ChevronRight, ChevronDown, ChevronUp, KeyRound, Copy, Check, LineChart, Plus, Minus, History, Layers, CandlestickChart } from "lucide-react";
-import { ApiError, getAccount, getOrders, getMarkets, getSpotMarketPairs, getKlines, getOrderBook, getTradingStatus, submitSpotOrder, cancelSpotOrder, getSecondsPositions, getSecondsPolicy, submitSecondsOrder, settleSecondsPosition, getSupportMessages, sendSupportMessage, getDepositAddress, getSavedCryptoAddresses, getSelectedCryptoAddress, getWithdrawalConfig, submitWithdrawal, getEarnCatalog, submitEarnAction, getPerpMarkets, type PerpMarket, type EarnProduct, type EarnPosition, type SavedCryptoAddress, type AccountBalance, type AccountSnapshot, type DepositRecord, type OrderRecord, type MarketTicker, type MarketCandle, type OrderBookSnapshot, type SpotMarketPair, type TradingStatus, type SecondsPositionsSnapshot, type SecondsOrderInput, type SecondsPolicyResponse, type SupportMessage, type SelectedCryptoAddress, type WithdrawalConfig, type WithdrawalRecord, submitKyc } from "../../lib/api";
+import { RefreshCw, TrendingUp, TrendingDown, Clock3, ShieldAlert, ArrowLeft, ChevronRight, ChevronDown, ChevronUp, KeyRound, Copy, Check, LineChart, Plus, Minus, History, Layers, CandlestickChart } from "lucide-react";
+import { ApiError, getAccount, getOrders, getMarkets, getSpotMarketPairs, getKlines, getOrderBook, getTradingStatus, submitSpotOrder, cancelSpotOrder, getSecondsPositions, getSecondsPolicy, submitSecondsOrder, settleSecondsPosition, getDepositAddress, getSavedCryptoAddresses, getSelectedCryptoAddress, getWithdrawalConfig, submitWithdrawal, getEarnCatalog, submitEarnAction, getPerpMarkets, getSupportMessages, sendSupportMessage, type PerpMarket, type EarnProduct, type EarnPosition, type SavedCryptoAddress, type AccountBalance, type AccountSnapshot, type DepositRecord, type OrderRecord, type MarketTicker, type MarketCandle, type OrderBookSnapshot, type SpotMarketPair, type TradingStatus, type SecondsPositionsSnapshot, type SecondsOrderInput, type SecondsPolicyResponse, type SelectedCryptoAddress, type WithdrawalConfig, type WithdrawalRecord, type SupportMessage, submitKyc } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
+import { ChartDrawer } from "../trade/ChartDrawer";
 import { useTrading } from "../../lib/trading";
 
 import type { ReactNode } from "react";
-import { ArrowUpRight, LockKeyhole, Wallet, ChartNoAxesCombined, ArrowLeftRight, Sprout, BadgeCheck, ShieldCheck, Headset } from "lucide-react";
+import { ArrowUpRight, LockKeyhole, Wallet, ChartNoAxesCombined, ArrowLeftRight, Sprout, BadgeCheck, ShieldCheck, Headset, Send } from "lucide-react";
 import { Badge } from "../../components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
@@ -24,8 +25,8 @@ import { priceDeviationPct, shouldConfirmOrder } from "../trade/orderConfirmPoli
 import { useMarketStreamEvent } from "../../lib/useMarketStreamEvent";
 import { SupportFaq } from "../support/SupportFaq";
 
-type PageFrameTone = "trading"|"earn"|"assets"|"support"|"account"|"orders"|"market";
-function PageFrame({eyebrow,title,description,children,className="",tone,backTo,onBack}:{eyebrow?:string;title:string;description?:string;children:ReactNode;className?:string;tone:PageFrameTone;backTo?:string;onBack?:()=>void}){
+export type PageFrameTone = "trading"|"earn"|"assets"|"support"|"account"|"orders"|"market";
+export function PageFrame({eyebrow,title,description,children,className="",tone,backTo,onBack}:{eyebrow?:string;title:string;description?:string;children:ReactNode;className?:string;tone:PageFrameTone;backTo?:string;onBack?:()=>void}){
  const {t}=useI18n();
  const isSpot = className.includes("spot-terminal");
  const backControl = onBack
@@ -33,7 +34,7 @@ function PageFrame({eyebrow,title,description,children,className="",tone,backTo,
   : backTo
     ? <Link to={backTo} className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-brand-border text-brand-text-muted transition-colors hover:border-brand-accent/40 hover:text-brand-text" aria-label="Back"><ArrowLeft className="h-4 w-4"/></Link>
     : null;
- return <div className={`${className} tone-${tone} mx-auto flex w-full max-w-[1520px] min-w-0 flex-col ${isSpot ? "!gap-1 !p-1.5 sm:!p-2.5" : "gap-5 p-3 sm:p-4 md:p-6 lg:p-8"}`}><div className={`flex min-w-0 items-center gap-3 ${isSpot ? "hidden" : ""}`}>{backControl}<h1 className="type-page-title min-w-0 truncate text-brand-text">{t(title)}</h1></div>{children}</div>;
+ return <div className={`${className} tone-${tone} relative mx-auto flex w-full max-w-[1520px] min-w-0 flex-col ${isSpot ? "!gap-1 !p-1.5 sm:!p-2.5" : "gap-5 p-3 sm:p-4 md:p-6 lg:p-8"}`}><div aria-hidden="true" className="pointer-events-none absolute -top-20 right-0 h-72 w-72 rounded-full bg-brand-accent/10 blur-[90px]" /><div aria-hidden="true" className="pointer-events-none absolute -top-8 right-10 h-36 w-36 rounded-full bg-brand-accent/20 blur-[45px]" /><div className={`relative flex min-w-0 items-center gap-3 ${isSpot ? "hidden" : ""}`}>{backControl}<h1 className="type-page-title min-w-0 truncate text-brand-text">{t(title)}</h1></div>{children}</div>;
 }
 /**
  * Displays the TradeHub service directory and its available product entry points.
@@ -140,7 +141,7 @@ export function AssetsPage(){
  const amount=(raw:number|string|undefined)=>formatDecimalAmount(raw,numberLocale,10);
  const balances: Array<[string, AccountBalance]> = account ? Object.entries(account.balances) as Array<[string, AccountBalance]> : [];
  return <PageFrame title="Assets" tone="assets">
-  <div className="flex flex-wrap items-center justify-between gap-3"><div className="flex items-center gap-2"><Badge variant="outline" className="border-brand-border">{t("Live account data")}</Badge>{account&&!loading?<span className="text-xs text-brand-text-muted">{balances.length} {t("assets")}</span>:null}</div><Button size="sm" variant="outline" disabled={loading} onClick={()=>setReload((n)=>n+1)}><RefreshCw className={"mr-2 h-4 w-4 "+(loading?"animate-spin":"")}/>{t("Refresh")}</Button></div>
+  <div className="flex flex-wrap items-center justify-between gap-3"><div className="flex items-center gap-2"><Badge variant="outline" className="border-brand-border">{t("Live account data")}</Badge>{account&&!loading?<span className="text-xs text-brand-text-muted">{balances.length} {t("assets")}</span>:null}</div></div>
   {loading?<Card className="border-brand-border bg-brand-surface"><CardContent className="p-6 text-sm text-brand-text-muted" role="status">{t("Loading account balances…")}</CardContent></Card>
    :error?<Card className="border-brand-danger/30 bg-brand-surface"><CardContent className="flex flex-wrap items-center justify-between gap-3 p-5"><p className="text-sm text-brand-danger" role="alert">{t(error)}</p><Button size="sm" variant="outline" onClick={()=>setReload((n)=>n+1)}>{t("Try again")}</Button></CardContent></Card>
    :account?<>
@@ -148,7 +149,7 @@ export function AssetsPage(){
      <Card className="relative overflow-hidden border-brand-teal/25 bg-brand-surface ring-1 ring-brand-teal/[0.05]"><span aria-hidden="true" className="absolute inset-y-0 left-0 w-1 bg-brand-teal"/><CardContent className="flex flex-wrap items-center justify-between gap-4 p-4 sm:p-5"><div className="min-w-0"><p className="type-meta pl-1 font-semibold uppercase tracking-wide text-brand-text-muted">{t("Estimated account value")}</p><p className="mt-2 break-all text-2xl font-bold tabular-nums text-brand-text sm:text-3xl">{account.valuation_complete?amount(account.totalUsdt)+" USDT":"—"}</p></div><div className="flex flex-wrap gap-2"><Button asChild className="min-h-11"><Link to="/deposit">{t("Deposit")}</Link></Button><Button asChild variant="outline" className="min-h-11"><Link to="/withdraw">{t("Withdraw")}</Link></Button></div></CardContent></Card>
     </section>
     <section className="space-y-3"><div className="flex items-center justify-between"><h2 className="type-section-title">{t("Your assets")}</h2><span className="text-xs text-brand-text-muted">{balances.length}</span></div>
-     {balances.length?balances.map(([asset,balance],index)=><Card key={asset} className={"relative overflow-hidden border-brand-border bg-brand-surface transition-colors hover:border-brand-teal/20 "+(index%3===0?"border-l-2 border-l-brand-teal":index%3===1?"border-l-2 border-l-brand-cyan":"border-l-2 border-l-brand-violet")}><CardContent className="grid grid-cols-2 gap-3 p-4 sm:grid-cols-4 sm:p-5"><div className="flex min-w-0 items-center gap-3"><TokenIcon symbol={asset} className="h-9 w-9 shrink-0"/><div className="min-w-0"><p className="text-xs text-brand-text-muted">{t("Asset")}</p><p className="mt-1 truncate font-semibold">{asset}</p></div></div><div><p className="text-xs text-brand-text-muted">{t("Available")}</p><p className="mt-1 break-all font-medium tabular-nums">{amount(balance.free)}</p></div><div><p className="text-xs text-brand-text-muted">{t("In orders")}</p><p className="mt-1 break-all font-medium tabular-nums">{amount(balance.frozen)}</p></div><div><p className="text-xs text-brand-text-muted">{t("USDT value")}</p><p className="mt-1 break-all font-medium tabular-nums">{balance.usdt===undefined?"—":amount(balance.usdt)}</p></div></CardContent></Card>)
+     {balances.length?balances.map(([asset,balance],index)=><Card key={asset} className={"relative -mx-3 overflow-hidden rounded-none border-brand-border bg-brand-surface transition-colors hover:border-brand-teal/20 sm:-mx-4 md:mx-0 md:rounded-xl "+(index%3===0?"border-l-2 border-l-brand-teal":index%3===1?"border-l-2 border-l-brand-cyan":"border-l-2 border-l-brand-violet")}><CardContent className="grid grid-cols-2 gap-3 p-4 sm:grid-cols-4 sm:p-5"><div className="flex min-w-0 items-center gap-3"><TokenIcon symbol={asset} className="h-9 w-9 shrink-0"/><div className="min-w-0"><p className="text-xs text-brand-text-muted">{t("Asset")}</p><p className="mt-1 truncate font-semibold">{asset}</p></div></div><div><p className="text-xs text-brand-text-muted">{t("Available")}</p><p className="mt-1 break-all font-medium tabular-nums">{amount(balance.free)}</p></div><div><p className="text-xs text-brand-text-muted">{t("In orders")}</p><p className="mt-1 break-all font-medium tabular-nums">{amount(balance.frozen)}</p></div><div><p className="text-xs text-brand-text-muted">{t("USDT value")}</p><p className="mt-1 break-all font-medium tabular-nums">{balance.usdt===undefined?"—":amount(balance.usdt)}</p></div></CardContent></Card>)
       :<Card className="border-brand-border bg-brand-surface"><CardContent className="p-5 text-sm text-brand-text-muted">{t("No asset balances were returned by the account service.")}</CardContent></Card>}
     </section>
    </>:null}
@@ -185,9 +186,9 @@ export function MyPage(){
  },[status,reload]);
  const links=[
   {title:"Orders",to:"/orders",icon:ChartNoAxesCombined,surface:"border-brand-info/25 bg-brand-surface",iconTone:"bg-brand-info/10 text-brand-info",hoverTone:"hover:border-brand-info/45"},
-  {title:"Support",description:"Contact the BTCBOX support team.",to:"/support",icon:Headset,surface:"border-brand-violet/25 bg-brand-surface",iconTone:"bg-brand-violet/10 text-brand-violet",hoverTone:"hover:border-brand-violet/45"},
-  {title:"Settings",description:"Manage sign-in methods and account security.",to:"/settings",icon:ShieldCheck,surface:"border-brand-teal/25 bg-brand-surface",iconTone:"bg-brand-teal/10 text-brand-teal",hoverTone:"hover:border-brand-teal/45"},
-  {title:"Trust centre",description:"Fees, trading rules, risk disclosure and live platform status.",to:"/trust",icon:ShieldCheck,surface:"border-brand-border bg-brand-surface",iconTone:"bg-brand-surface-2 text-brand-text-muted",hoverTone:"hover:border-brand-border-strong"},
+  {title:"Support",to:"/support",icon:Headset,surface:"border-brand-violet/25 bg-brand-surface",iconTone:"bg-brand-violet/10 text-brand-violet",hoverTone:"hover:border-brand-violet/45"},
+  {title:"Settings",to:"/settings",icon:ShieldCheck,surface:"border-brand-teal/25 bg-brand-surface",iconTone:"bg-brand-teal/10 text-brand-teal",hoverTone:"hover:border-brand-teal/45"},
+  {title:"Trust centre",to:"/trust",icon:ShieldCheck,surface:"border-brand-border bg-brand-surface",iconTone:"bg-brand-surface-2 text-brand-text-muted",hoverTone:"hover:border-brand-border-strong"},
  ];
  return <PageFrame title="My account" tone="account">
   {status==="loading"?<AuthRestoreState label="Loading account profile…"/>
@@ -197,16 +198,16 @@ export function MyPage(){
     <div className="flex items-center gap-2 shrink-0"><Button asChild size="sm" className="min-w-[88px]"><Link to="/login">{t("Sign in")}</Link></Button><Button asChild size="sm" variant="outline" className="min-w-[88px]"><Link to="/register">{t("Create account")}</Link></Button></div>
    </CardContent></Card>
    <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-    <div className="flex flex-col rounded-xl border border-brand-border bg-brand-surface p-4"><p className="text-xs text-brand-text-muted font-medium">{t("Estimated account value")}</p><p className="mt-2 text-xl font-bold font-mono tracking-tight text-brand-text">•••••• <span className="text-xs font-normal text-brand-text-muted">USDT</span></p><div className="mt-2.5 flex items-center gap-2"><Link to="/login" className="text-xs text-brand-accent font-semibold hover:underline">{t("Sign in to view")}</Link></div></div>
-    <div className="flex flex-col rounded-xl border border-brand-border bg-brand-surface p-4"><p className="text-xs text-brand-text-muted font-medium">{t("Security tier")}</p><p className="mt-2 text-base font-bold text-brand-text">Level 2</p><span className="mt-2.5 text-xs text-brand-success font-medium flex items-center gap-1"><ShieldCheck className="h-3.5 w-3.5"/> 2FA / Passkey</span></div>
-    <div className="flex flex-col rounded-xl border border-brand-border bg-brand-surface p-4"><p className="text-xs text-brand-text-muted font-medium">{t("Fee tier")}</p><p className="mt-2 text-base font-bold text-brand-text">VIP 0</p><span className="mt-2.5 text-xs text-brand-text-secondary">Maker 0.1% / Taker 0.1%</span></div>
-    <div className="flex flex-col rounded-xl border border-brand-border bg-brand-surface p-4"><p className="text-xs text-brand-text-muted font-medium">{t("Affiliate Program")}</p><p className="mt-2 text-base font-bold text-brand-text">Up to 40%</p><Link to="/register" className="mt-2.5 text-xs text-brand-accent font-semibold hover:underline">{t("Join affiliate")}</Link></div>
+    <div className="flex flex-col rounded-xl border border-white/[0.08] bg-brand-surface p-4 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.12)] transition-all duration-200"><p className="text-xs text-brand-text-muted font-medium">{t("Estimated account value")}</p><p className="mt-2 text-xl font-bold font-mono tracking-tight tabular-nums text-brand-text">•••••• <span className="text-xs font-normal text-brand-text-muted">USDT</span></p><div className="mt-2.5 flex items-center gap-2"><Link to="/login" className="text-xs text-brand-accent font-semibold hover:underline">{t("Sign in to view")}</Link></div></div>
+    <div className="flex flex-col rounded-xl border border-white/[0.08] bg-brand-surface p-4 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.12)] transition-all duration-200"><p className="text-xs text-brand-text-muted font-medium">{t("Security tier")}</p><p className="mt-2 text-base font-bold text-brand-text">Level 2</p><span className="mt-2.5 text-xs text-brand-success font-medium flex items-center gap-1"><ShieldCheck className="h-3.5 w-3.5"/> 2FA / Passkey</span></div>
+    <div className="flex flex-col rounded-xl border border-white/[0.08] bg-brand-surface p-4 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.12)] transition-all duration-200"><p className="text-xs text-brand-text-muted font-medium">{t("Fee tier")}</p><p className="mt-2 text-base font-bold text-brand-text">VIP 0</p><span className="mt-2.5 text-xs text-brand-text-secondary">Maker 0.1% / Taker 0.1%</span></div>
+    <div className="flex flex-col rounded-xl border border-white/[0.08] bg-brand-surface p-4 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.12)] transition-all duration-200"><p className="text-xs text-brand-text-muted font-medium">{t("Affiliate Program")}</p><p className="mt-2 text-base font-bold text-brand-text">Up to 40%</p><Link to="/register" className="mt-2.5 text-xs text-brand-accent font-semibold hover:underline">{t("Join affiliate")}</Link></div>
    </div>
   </div>
   :loading?<Card className="border-brand-border bg-brand-surface"><CardContent className="p-6 text-sm text-brand-text-muted" role="status">{t("Loading account profile…")}</CardContent></Card>
   :error?<Card className="border-brand-danger/30 bg-brand-surface"><CardContent className="flex flex-wrap items-center justify-between gap-3 p-5"><p className="text-sm text-brand-danger" role="alert">{t(error)}</p><Button size="sm" variant="outline" onClick={()=>setReload((n)=>n+1)}>{t("Try again")}</Button></CardContent></Card>
   :account?<div className="space-y-4">
-   <Card className="border-brand-border bg-brand-surface"><CardContent className="flex flex-wrap items-center gap-4 p-5 sm:p-6">
+   <Card className="border border-white/[0.08] bg-brand-surface shadow-[inset_0_1px_0_0_rgba(255,255,255,0.12)]"><CardContent className="flex flex-wrap items-center gap-4 p-5 sm:p-6">
     <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-brand-accent/30 to-brand-cyan/20 text-xl font-bold text-brand-accent">{(account.username||account.email||"U").charAt(0).toUpperCase()}</div>
     <div className="min-w-0 flex-1">
      <p className="truncate text-lg font-bold text-brand-text">{account.username||account.email||"U"}</p>
@@ -218,13 +219,14 @@ export function MyPage(){
      </div>
     </div>
    </CardContent></Card>
-   <div className="divide-y divide-brand-border-subtle overflow-hidden rounded-xl border border-brand-border bg-brand-surface">
+   <div className="divide-y divide-brand-border-subtle overflow-hidden rounded-xl border border-white/[0.08] bg-brand-surface shadow-[inset_0_1px_0_0_rgba(255,255,255,0.12)]">
+    <Link to="/address-book" className="flex min-h-[52px] items-center gap-3 px-4 transition-colors hover:bg-brand-surface-2"><span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand-cyan/10 text-brand-cyan"><Wallet className="h-4 w-4"/></span><span className="min-w-0 flex-1 text-sm font-semibold text-brand-text">{t("Address book")}</span><ChevronRight className="h-4 w-4 shrink-0 text-brand-text-muted"/></Link>
     <Link to="/kyc" className="flex min-h-[52px] items-center gap-3 px-4 transition-colors hover:bg-brand-surface-2"><span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand-cyan/10 text-brand-cyan"><BadgeCheck className="h-4 w-4"/></span><span className="min-w-0 flex-1 text-sm font-semibold text-brand-text">{t("Verification")}</span><span className={`shrink-0 text-sm font-semibold ${normalizeKycStatus(account.kyc?.status)==="verified"?"text-brand-success":normalizeKycStatus(account.kyc?.status)==="rejected"?"text-brand-danger":"text-brand-text-muted"}`}>{kycStatusLabel(normalizeKycStatus(account.kyc?.status),t)}</span><ChevronRight className="h-4 w-4 shrink-0 text-brand-text-muted"/></Link>
     <Link to="/settings" className="flex min-h-[52px] items-center gap-3 px-4 transition-colors hover:bg-brand-surface-2"><span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand-teal/10 text-brand-teal"><ShieldCheck className="h-4 w-4"/></span><span className="min-w-0 flex-1 text-sm font-semibold text-brand-text">{t("Two-factor authentication")}</span><span className={`shrink-0 text-sm font-semibold ${account.twofa_enabled?"text-brand-success":"text-brand-text-muted"}`}>{account.twofa_enabled?t("Enabled"):t("Not enabled")}</span><ChevronRight className="h-4 w-4 shrink-0 text-brand-text-muted"/></Link>
     <Link to="/settings" className="flex min-h-[52px] items-center gap-3 px-4 transition-colors hover:bg-brand-surface-2"><span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand-violet/10 text-brand-violet"><KeyRound className="h-4 w-4"/></span><span className="min-w-0 flex-1 text-sm font-semibold text-brand-text">{t("Linked sign-in methods")}</span><span className="shrink-0 text-sm font-semibold text-brand-text-secondary">{(account.auth_providers||[]).length?(account.auth_providers||[]).length:t("Not linked")}</span><ChevronRight className="h-4 w-4 shrink-0 text-brand-text-muted"/></Link>
    </div>
   </div>:null}
-  <div className="account-actions">{links.map(({title,description,to,icon:Icon})=><Link key={to} to={to} className="group flex min-w-0 items-center gap-3 p-4 transition-colors hover:bg-brand-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-accent/60"><span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-brand-accent/10 text-brand-accent"><Icon className="h-5 w-5"/></span><span className="min-w-0 flex-1"><span className="block text-sm font-semibold text-brand-text">{t(title)}</span>{description?<span className="mt-1 block text-xs leading-5 text-brand-text-muted">{t(description)}</span>:null}</span><ChevronRight className="h-4 w-4 shrink-0 text-brand-text-muted transition-colors group-hover:text-brand-text"/></Link>)}</div>
+  <div className="account-actions">{links.map(({title,to,icon:Icon})=><Link key={to} to={to} className="group flex min-w-0 items-center gap-3 p-4 transition-all duration-200 hover:bg-brand-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-accent/60"><span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-brand-accent/10 text-brand-accent"><Icon className="h-5 w-5"/></span><span className="min-w-0 flex-1"><span className="block text-sm font-semibold text-brand-text">{t(title)}</span></span><ChevronRight className="h-4 w-4 shrink-0 text-brand-text-muted transition-colors group-hover:text-brand-text"/></Link>)}</div>
   {status==="authenticated"?<Button variant="outline" className="w-full border-brand-danger/30 text-brand-danger hover:bg-brand-danger/5 hover:text-brand-danger" onClick={()=>void handleSignOut()}>{t("Sign out")}</Button>:null}
  </PageFrame>;
 }
@@ -287,11 +289,16 @@ export function SpotTradingPage(){
  const [compactTrade,setCompactTrade]=useState(()=>window.matchMedia("(max-width: 1279px)").matches);
  const [chartOpen,setChartOpen]=useState(false);
  const [pairSymbols,setPairSymbols]=useState<string[]>([]);
+ // `isPhone` (<=767px) hides the market-list drawer on phones; the order form and
+ // order book stay side-by-side (Binance-style dual column) at every width.
+ const [isPhone,setIsPhone]=useState(()=>window.matchMedia("(max-width: 767px)").matches);
  useEffect(()=>{
   const media=window.matchMedia("(max-width: 1279px)");
-  const update=()=>{setCompactTrade(media.matches);setChartOpen(false);};
+  const phone=window.matchMedia("(max-width: 767px)");
+  const update=()=>{setCompactTrade(media.matches);setChartOpen(false);setIsPhone(phone.matches);};
   media.addEventListener("change",update);
-  return ()=>media.removeEventListener("change",update);
+  phone.addEventListener("change",update);
+  return ()=>{media.removeEventListener("change",update);phone.removeEventListener("change",update);};
  },[]);
  const [candles,setCandles]=useState<MarketCandle[]>([]);
  const [book,setBook]=useState<OrderBookSnapshot|null>(null);
@@ -698,22 +705,22 @@ export function SpotTradingPage(){
     </Dialog.Trigger>
    </div>
    {notice?<div role="status" className="rounded-xl border border-brand-success/25 bg-brand-success/5 p-2 text-xs text-brand-success">{t(notice)}</div>:null}
-   <div className="flex items-center justify-between px-1.5 py-1 rounded-lg bg-brand-surface/40 border border-brand-border/40">
-    <div className="flex items-baseline gap-2">
-     <span className="text-xl font-bold font-mono tracking-tight text-brand-text tabular-nums">
+   <div className="flex items-baseline justify-between px-1.5 py-1">
+    <div className="flex min-w-0 shrink-0 items-baseline gap-2">
+     <span className="text-[20px] font-bold font-mono tracking-tight text-brand-text tabular-nums">
       {displayTicker ? amountText(displayTicker.price) : "—"}
      </span>
      <span className={"text-xs font-bold font-mono tabular-nums " + (Number(ticker?.chg||0) >= 0 ? "text-profit" : "text-loss")}>
       {displayTicker ? (Number(displayTicker.chg) >= 0 ? "+" : "") + Number(displayTicker.chg).toFixed(2) + "%" : "—"}
      </span>
     </div>
-    <div className="flex items-center gap-4 text-[11px] font-mono tabular-nums">
-     <div className="flex items-center gap-1.5">
-      <span className="text-brand-text-muted">{t("High")}</span>
+    <div className="flex shrink-0 items-center gap-2 text-[11px] font-mono tabular-nums text-brand-text-muted">
+     <div className="flex items-center gap-1">
+      <span>{t("High")}</span>
       <span className="text-brand-text font-medium">{displayTicker ? amountText(displayTicker.high) : "—"}</span>
      </div>
-     <div className="flex items-center gap-1.5">
-      <span className="text-brand-text-muted">{t("Low")}</span>
+     <div className="flex items-center gap-1">
+      <span>{t("Low")}</span>
       <span className="text-brand-text font-medium">{displayTicker ? amountText(displayTicker.low) : "—"}</span>
      </div>
      <Link to={`/chart/${symbol}`} aria-label={t("Candlestick chart")} title={t("Candlestick chart")} className="flex h-9 w-9 items-center justify-center rounded-lg text-brand-text-muted transition-colors hover:bg-brand-surface-2 hover:text-brand-accent">
@@ -722,7 +729,7 @@ export function SpotTradingPage(){
     </div>
    </div>
   <div className="exchange-workspace" data-pairs-collapsed={pairsDrawerOpen?undefined:"true"} data-orders-maximized={ordersMaximized?"true":undefined}>
-    <nav className="exchange-pairs" aria-label={t("Markets")}>
+    <nav className="exchange-pairs" aria-label={t("Markets")} style={isPhone?{display:"none"}:undefined}>
       <button type="button" className="pairs-drawer-toggle" aria-label={t("Toggle market list")} aria-expanded={pairsDrawerOpen} onClick={()=>setPairsDrawerOpen(v=>!v)}>
         <span className="pairs-drawer-toggle-label">{t("Markets")}</span>
         <ChevronRight className="h-4 w-4" />
@@ -790,8 +797,8 @@ export function SpotTradingPage(){
     <Card id="trade-entry" className="exchange-entry scroll-mt-16 border-brand-border bg-brand-surface">
      <CardContent className="space-y-1.5 p-1.5">
       <div className="spot-side grid grid-cols-2 gap-1.5">
-       <button type="button" aria-pressed={side==="buy"} onClick={()=>setSide("buy")} disabled={busy||!!pendingIntent||pendingIntentInvalid} className={`h-8 rounded-md font-bold text-xs transition-colors ${side==="buy"?"bg-profit text-[#05201A]":"bg-brand-surface-2 text-brand-text-muted hover:text-brand-text"}`}>{t("Buy")}</button>
-       <button type="button" aria-pressed={side==="sell"} onClick={()=>setSide("sell")} disabled={busy||!!pendingIntent} className={`h-8 rounded-md font-bold text-xs transition-colors ${side==="sell"?"bg-loss text-white":"bg-brand-surface-2 text-brand-text-muted hover:text-brand-text"}`}>{t("Sell")}</button>
+       <button type="button" aria-pressed={side==="buy"} onClick={()=>setSide("buy")} disabled={busy||!!pendingIntent||pendingIntentInvalid} className={`h-9 rounded-md font-bold text-[13px] transition-colors ${side==="buy"?"bg-profit text-[#05201A]":"bg-brand-surface-2 text-brand-text-muted hover:text-brand-text"}`}>{t("Buy")}</button>
+       <button type="button" aria-pressed={side==="sell"} onClick={()=>setSide("sell")} disabled={busy||!!pendingIntent} className={`h-9 rounded-md font-bold text-[13px] transition-colors ${side==="sell"?"bg-loss text-white":"bg-brand-surface-2 text-brand-text-muted hover:text-brand-text"}`}>{t("Sell")}</button>
       </div>
 
       <div className="flex items-center justify-between py-0">
@@ -836,7 +843,7 @@ export function SpotTradingPage(){
         <span className="font-mono font-semibold tabular-nums text-brand-text-secondary">{status==="authenticated"&&availableBalances[side==="buy"?"USDT":base]?.free!==undefined?formatDecimalAmount(availableBalances[side==="buy"?"USDT":base].free,localeTags[language]):"--"} {side==="buy"?"USDT":base}</span>
        </div>
 
-       <Button className={`w-full h-10 font-bold text-xs ${side==="buy"?"bg-profit text-[#05201A] hover:bg-profit/90":"bg-loss text-white hover:bg-loss/90"}`} type="submit" disabled={busy||pendingIntentInvalid||(!pendingIntent&&(!orderInputsValid||balanceUnavailable||insufficientBalance))||(!ticker||marketSnapshotStale)&&!pendingIntent||(!spotPairEnabled&&!pendingIntent)||(!tradingStatus?.spot_order_entry_enabled&&!pendingIntent)||(orderType==="limit"&&!price)||!quantity}>
+       <Button className={`w-full h-11 font-bold text-[15px] ${side==="buy"?"bg-profit text-[#05201A] hover:bg-profit/90":"bg-loss text-white hover:bg-loss/90"}`} type="submit" disabled={busy||pendingIntentInvalid||(!pendingIntent&&(!orderInputsValid||balanceUnavailable||insufficientBalance))||(!ticker||marketSnapshotStale)&&!pendingIntent||(!spotPairEnabled&&!pendingIntent)||(!tradingStatus?.spot_order_entry_enabled&&!pendingIntent)||(orderType==="limit"&&!price)||!quantity}>
         {status!=="authenticated"?t("Sign in to trade"):busy?t("Submitting…"):pendingIntent?t("Retry same order"):insufficientBalance?t("Insufficient available balance"):side==="buy"?`${t("Buy")} ${base}`:`${t("Sell")} ${base}`}
        </Button>
       </form>
@@ -854,7 +861,7 @@ export function SpotTradingPage(){
        {bids.length ? <div className="space-y-0.5">{bids.map((row,index)=><div key={index} onClick={()=>{setPrice(String(row[0]));}} className="spot-book-row font-mono tabular-nums cursor-pointer hover:opacity-80 transition-opacity" data-side="bid" style={{backgroundSize:bidDepth[index]+"% 100%"}}><span title={String(row[0])} className="text-left text-profit">{formatDepthPrice(row[0])}</span><span title={String(row[1])} className="text-right text-brand-text-muted">{formatDepthQty(row[1])}</span></div>)}</div> : null}
       </div>
       <div className="mt-1.5 flex items-center justify-between gap-2 border-t border-brand-border/40 pt-2">
-       <select value={depthPrecision} onChange={event=>setDepthPrecision(event.target.value as "0.01"|"0.1"|"1")} aria-label={t("Price precision")} className="h-8 rounded-md border border-brand-border bg-brand-surface-2 px-2 text-xs font-semibold text-brand-text outline-none focus-visible:border-brand-accent/60 cursor-pointer">
+       <select value={depthPrecision} onChange={event=>setDepthPrecision(event.target.value as "0.01"|"0.1"|"1")} aria-label={t("Price precision")} className="h-6 rounded bg-[#2b3139] px-2 text-[11px] font-medium text-[#eaecef] outline-none focus-visible:border-brand-accent/60 cursor-pointer">
         <option value="0.01" className="bg-brand-surface">0.01</option>
         <option value="0.1" className="bg-brand-surface">0.1</option>
         <option value="1" className="bg-brand-surface">1</option>
@@ -915,6 +922,7 @@ export function SpotTradingPage(){
       </div>
      </CardContent>
     </Card>
+    {isPhone ? <ChartDrawer symbol={symbol} /> : null}
   </div>
  </PageFrame></Dialog.Root>;
 }
@@ -1434,7 +1442,7 @@ export function KycPage(){
    <Button type="submit" block disabled={submitting||!name.trim()||!idNumber.trim()||!documentFile}>{submitting?t("Submitting…"):t("Submit for review")}</Button>
    {submitError?<p role="alert" className="text-sm text-brand-danger">{t(submitError)}</p>:null}{notice?<p role="status" className="text-sm text-brand-success">{notice}</p>:null}
   </form></CardContent></Card>:null}
-  <div className="flex flex-wrap gap-2"><Button asChild variant="outline"><Link to="/support">{t("Contact support")}</Link></Button><Button size="sm" variant="ghost" onClick={()=>setReload(n=>n+1)}>{t("Refresh status")}</Button></div></div>:null}
+  </div>:null}
  </PageFrame>;
 }
 
@@ -1447,62 +1455,69 @@ export function KycPage(){
 export function SupportPage(){
  const {t,language}=useI18n();
  const navigate=useNavigate();
- const [messages,setMessages]=useState<SupportMessage[]>([]);
- const [draft,setDraft]=useState("");
- const [loading,setLoading]=useState(true);
- const [sending,setSending]=useState(false);
- const [error,setError]=useState("");
- const [sendError,setSendError]=useState("");
- const [reload,setReload]=useState(0);
- const [pendingRequestId,setPendingRequestId]=useState<string>("");
  const {status}=useAuth();
+ const [messages,setMessages]=useState<SupportMessage[]>([]);
+ const [loading,setLoading]=useState(status==="authenticated");
+ const [error,setError]=useState("");
+ const [reload,setReload]=useState(0);
+ const [draft,setDraft]=useState("");
+ const [sending,setSending]=useState(false);
+ const [sendError,setSendError]=useState("");
+ const [sendMessage,setSendMessage]=useState("");
+ const listRef=useRef<HTMLDivElement>(null);
  useEffect(()=>{
-  if(status!=="authenticated"){setMessages([]);setLoading(false);return;}
+  if(status!=="authenticated"){setLoading(false);setMessages([]);return;}
   const controller=new AbortController();
-  setLoading(true);setMessages([]);setError("");
-  getSupportMessages(controller.signal).then(setMessages).catch((reason:unknown)=>{
+  setLoading(true);setError("");
+  getSupportMessages(controller.signal).then(list=>{
+   if(!controller.signal.aborted){setMessages(list);setError("");}
+  }).catch((reason:unknown)=>{
    if(reason instanceof Error&&reason.name==="AbortError")return;
    if(!controller.signal.aborted){setMessages([]);setError(reason instanceof Error?reason.message:"Support conversation is temporarily unavailable.");}
   }).finally(()=>{if(!controller.signal.aborted)setLoading(false);});
   return ()=>controller.abort();
- },[reload,status]);
- const submit=async(event:FormEvent<HTMLFormElement>)=>{
+ },[status,reload]);
+ useEffect(()=>{listRef.current?.scrollTo({top:listRef.current.scrollHeight,behavior:"smooth"});},[messages]);
+ const send=async(event:FormEvent<HTMLFormElement>)=>{
   event.preventDefault();
-  const message=draft.trim();
-  if(status!=="authenticated"||!message||sending)return;
-  const requestId=pendingRequestId||("MSG"+crypto.randomUUID().replace(/-/g,"")).slice(0,64);
-  if(!pendingRequestId)setPendingRequestId(requestId);
-  setSending(true);setSendError("");
+  if(sending||!draft.trim())return;
+  let requestId:string;
+  try{requestId=window.crypto.randomUUID();}
+  catch{setSendError("Secure request IDs are unavailable in this browser. No message was sent.");return;}
+  setSending(true);setSendError("");setSendMessage("");
+  const content=draft.trim();
   try{
-   await sendSupportMessage(message,requestId);
+   const result=await sendSupportMessage(content,requestId);
    setDraft("");
-   setPendingRequestId("");
+   if(!result.duplicate)setMessages(current=>[...current,{id:result.message_id||requestId,from:"user",content,time:result.time||new Date().toISOString()}]);
+   setSendMessage(result.duplicate?t("Your message was already received."):t("Message sent."));
    setReload(n=>n+1);
   }catch(reason){
-   setSendError(reason instanceof Error?reason.message:"Message could not be sent. Please try again.");
+   setSendError(reason instanceof Error?reason.message:"Your message could not be sent.");
   }finally{setSending(false);}
  };
- const date=(raw:string)=>{const parsed=new Date(raw);return Number.isNaN(parsed.getTime())?raw:parsed.toLocaleString(localeTags[language]);};
- if(status!=="authenticated")return <PageFrame title="Customer support" tone="support" onBack={()=>navigate(-1)}>
+ const date=(raw?:string)=>{if(!raw)return "—";const parsed=new Date(raw);return Number.isNaN(parsed.getTime())?raw:parsed.toLocaleString(localeTags[language]);};
+ return <PageFrame title="Customer support" tone="support" onBack={()=>navigate(-1)}>
   <div className="grid min-w-0 items-start gap-4 lg:grid-cols-[minmax(0,1.12fr)_minmax(360px,.88fr)] lg:gap-5">
    <SupportFaq />
-   <Card className="overflow-hidden border-brand-accent/25 bg-brand-surface ring-1 ring-brand-accent/[0.04] lg:sticky lg:top-6 self-start"><div className="h-1 bg-brand-surface"/><CardHeader className="bg-brand-surface"><div className="flex items-center gap-3"><span className="flex h-11 w-11 items-center justify-center rounded-xl bg-brand-accent/10 text-brand-accent"><Headset className="h-5 w-5"/></span><div><CardTitle>{t("BTCBOX Help Center")}</CardTitle><CardDescription>{t("Public support information is available without signing in.")}</CardDescription></div></div></CardHeader><CardContent className="space-y-3 text-sm text-brand-text-secondary"><p>{t("For account-specific questions, deposit or withdrawal reviews, and private conversation history, sign in to your BTCBOX account first.")}</p><Button asChild><Link to="/login">{t("Sign in to contact support")}</Link></Button></CardContent></Card>
+   {status==="authenticated"?<Card className="overflow-hidden border border-white/[0.08] bg-brand-surface shadow-[inset_0_1px_0_0_rgba(255,255,255,0.12)] lg:sticky lg:top-6 self-start"><CardHeader className="border-b border-brand-border bg-brand-surface-2/60"><div className="flex items-center gap-3"><span className="flex h-11 w-11 items-center justify-center rounded-xl bg-brand-accent/10 text-brand-accent"><Headset className="h-5 w-5"/></span><div><CardTitle>{t("Your conversation")}</CardTitle><CardDescription>{t("Ask about deposits, withdrawals, verification, or account issues.")}</CardDescription></div></div></CardHeader><CardContent className="flex flex-col gap-3">
+    {loading?<p className="p-6 text-center text-sm text-brand-text-muted" role="status">{t("Loading conversation…")}</p>
+    :error?<div className="rounded-xl border border-brand-danger/30 bg-brand-surface p-4"><p className="text-sm text-brand-danger" role="alert">{t(error)}</p><Button size="sm" variant="outline" className="mt-2" onClick={()=>setReload(n=>n+1)}>{t("Try again")}</Button></div>
+    :<>
+     <div ref={listRef} className="max-h-72 space-y-2 overflow-y-auto pr-1">
+      {messages.length===0?<p className="rounded-xl border border-dashed border-brand-border p-4 text-sm text-brand-text-muted">{t("No messages yet. Start a conversation below.")}</p>
+      :messages.map(item=> <div key={item.id} className={`flex ${item.from==="user"?"justify-end":"justify-start"}`}><div className={`max-w-[85%] rounded-xl px-3 py-2 text-sm ${item.from==="user"?"bg-brand-accent/15 text-brand-text":"bg-brand-surface-2 text-brand-text-secondary"}`}><p className="whitespace-pre-wrap break-words">{item.content}</p><p className="mt-1 text-[10px] text-brand-text-muted">{date(item.time)}</p></div></div>)}
+     </div>
+     <form onSubmit={send} className="space-y-2">
+      <textarea value={draft} onChange={event=>setDraft(event.target.value)} maxLength={2000} rows={3} placeholder={t("Type your message (1–2,000 characters)")} className="w-full resize-none rounded-xl border border-brand-border bg-brand-surface-2 px-3 py-2 text-sm text-brand-text outline-none transition-colors placeholder:text-brand-text-muted focus:border-brand-accent/60 focus:ring-2 focus:ring-brand-accent/15"/>
+      {sendError?<p role="alert" className="text-sm text-brand-danger">{sendError}</p>:null}
+      {sendMessage?<p role="status" className="text-sm text-brand-success">{sendMessage}</p>:null}
+      <Button type="submit" disabled={sending||!draft.trim()} className="min-h-11 w-full"><Send className="mr-2 h-4 w-4"/>{sending?t("Sending…"):t("Send message")}</Button>
+     </form>
+    </>}
+   </CardContent></Card>
+   :<Card className="overflow-hidden border border-white/[0.08] bg-brand-surface shadow-[inset_0_1px_0_0_rgba(255,255,255,0.12)] lg:sticky lg:top-6 self-start"><CardHeader className="bg-brand-surface"><div className="flex items-center gap-3"><span className="flex h-11 w-11 items-center justify-center rounded-xl bg-brand-accent/10 text-brand-accent"><Headset className="h-5 w-5"/></span><div><CardTitle>{t("BTCBOX Help Center")}</CardTitle><CardDescription>{t("Public support information is available without signing in.")}</CardDescription></div></div></CardHeader><CardContent className="space-y-3 text-sm text-brand-text-secondary"><p>{t("For account-specific questions, deposit or withdrawal reviews, and private conversation history, sign in to your BTCBOX account first.")}</p><Button asChild><Link to="/login">{t("Sign in to contact support")}</Link></Button></CardContent></Card>}
   </div>
- </PageFrame>;
- return <PageFrame title="Customer support" tone="support" onBack={()=>navigate(-1)}>
-  <SupportFaq />
-  <div className="flex items-center justify-between gap-3"><Badge variant="outline" className="border-brand-border"><MessageCircle className="mr-1.5 h-3.5 w-3.5"/>{t("Private account conversation")}</Badge><Button size="sm" variant="outline" disabled={loading} onClick={()=>setReload(n=>n+1)}><RefreshCw className={"mr-2 h-4 w-4 "+(loading?"animate-spin":"")}/>{t("Refresh")}</Button></div>
-  {loading?<Card aria-busy={loading} className="border-brand-border bg-brand-surface"><CardContent className="p-6 text-sm text-brand-text-muted" role="status">{t("Loading support conversation…")}</CardContent></Card>
-  :error?<Card className="border-brand-danger/30 bg-brand-surface"><CardContent className="flex flex-wrap items-center justify-between gap-3 p-5"><p className="text-sm text-brand-danger" role="alert">{t(error)}</p><Button size="sm" variant="outline" onClick={()=>setReload(n=>n+1)}>{t("Try again")}</Button></CardContent></Card>
-  :<Card aria-busy={loading} className="overflow-hidden border-brand-accent/20 bg-brand-surface ring-1 ring-brand-accent/[0.035]"><CardHeader className="border-b border-brand-border bg-brand-surface"><div className="flex min-w-0 items-center gap-3"><span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand-accent/10 text-brand-accent"><MessageCircle className="h-4 w-4"/></span><div className="min-w-0"><CardTitle>{t("Conversation")}</CardTitle><CardDescription>{messages.length} {t("messages · newest 50 available")}</CardDescription></div></div></CardHeader><CardContent className="space-y-3">
-   {messages.length?messages.map(message=><div key={message.id} className={"flex "+(message.from==="user"?"justify-end":"justify-start")}><div className={"max-w-[92%] rounded-xl border p-3 shadow-[0_6px_20px_rgba(0,0,0,.12)] sm:max-w-[80%] sm:p-4 "+(message.from==="user"?"border-brand-indigo/25 bg-brand-indigo/[.09]":"border-brand-border bg-brand-surface-2/80")}><div className="mb-1 flex flex-wrap items-center gap-2 text-[11px] text-brand-text-muted"><span className="font-semibold uppercase">{message.from==="user"?t("You"):t("BTCBOX support")}</span><span>{date(message.time)}</span></div><p className="whitespace-pre-wrap break-words text-sm">{message.content}</p></div></div>)
-   :<div className="rounded-xl border border-dashed border-brand-border px-4 py-10 text-center"><MessageCircle className="mx-auto mb-3 h-6 w-6 text-brand-text-muted"/><p className="font-semibold">{t("No messages yet")}</p><p className="mt-1 text-sm text-brand-text-muted">{t("Send a message below to start a conversation with support.")}</p></div>}
-  </CardContent></Card>}
-  <Card aria-busy={sending} className="overflow-hidden border-brand-accent/20 bg-brand-surface ring-1 ring-brand-accent/[0.035]"><CardHeader className="border-b border-brand-border bg-brand-surface"><div className="flex min-w-0 items-center gap-3"><span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand-accent/10 text-brand-accent"><Send className="h-4 w-4"/></span><div className="min-w-0"><CardTitle>{t("Send a message")}</CardTitle><CardDescription>{t("Do not send passwords, two-factor codes, or wallet recovery phrases.")}</CardDescription></div></div></CardHeader><CardContent className="p-5 sm:p-6"><form aria-busy={sending} className="space-y-4" onSubmit={submit}>
-   <textarea id="support-message" value={draft} onChange={event=>setDraft(event.target.value)} maxLength={2000} rows={4} placeholder={t("Describe how we can help…")} aria-label={t("Support message")} aria-describedby="support-message-counter" className="min-h-36 w-full resize-y rounded-xl border border-brand-border bg-brand-surface-2 p-4 text-sm leading-6 text-brand-text outline-none placeholder:text-brand-text-muted transition-colors focus:border-brand-cyan/60 focus:ring-2 focus:ring-brand-cyan/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-cyan/30 focus-visible:ring-offset-2 focus-visible:ring-offset-brand-surface-2 disabled:cursor-not-allowed disabled:opacity-60" disabled={sending}/>
-   <div className="flex flex-wrap items-center justify-between gap-3"><span id="support-message-counter" className="text-xs tabular-nums text-brand-text-muted">{draft.length}/2000</span><Button type="submit" aria-busy={sending} className="min-h-11 w-full bg-primary text-primary-foreground hover:bg-primary/90 sm:w-auto" disabled={sending||!draft.trim()||draft.trim().length>2000}><Send className="mr-2 h-4 w-4"/>{sending?t("Sending…"):t("Send message")}</Button></div>
-   {sendError?<p className="text-sm text-brand-danger" role="alert">{t(sendError)}</p>:null}
-  </form></CardContent></Card>
  </PageFrame>;
 }
 
@@ -1565,14 +1580,14 @@ export function DepositPage(){
  const changeCoin=(next:string)=>{setAddress("");setError("");setCopyMessage("");setCoin(next);setNetwork(depositNetworks[next][0]);};
  const changeNetwork=(next:string)=>{setAddress("");setError("");setCopyMessage("");setNetwork(next);};
  return <PageFrame title="Deposit" tone="assets" backTo="/assets">
-  <Card className="relative overflow-hidden border-brand-accent/25 bg-brand-surface ring-1 ring-brand-accent/[0.045]"><span aria-hidden="true" className="absolute inset-x-0 top-0 h-1 bg-brand-surface"/><CardHeader className="border-b border-brand-border bg-brand-surface"><div className="flex items-center gap-3"><span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-accent/10 text-brand-accent"><Wallet className="h-5 w-5"/></span><div><CardTitle>{t("Deposit address")}</CardTitle><CardDescription>{t("Always verify the asset and network before sending funds.")}</CardDescription></div></div></CardHeader><CardContent className="space-y-5 p-4 sm:p-6">
+  <Card className="relative overflow-hidden border border-white/[0.08] bg-brand-surface shadow-[inset_0_1px_0_0_rgba(255,255,255,0.12)]"><span aria-hidden="true" className="absolute inset-x-0 top-0 h-1 bg-brand-surface"/><CardHeader className="border-b border-brand-border bg-brand-surface"><div className="flex items-center gap-3"><span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-accent/10 text-brand-accent"><Wallet className="h-5 w-5"/></span><div><CardTitle>{t("Deposit address")}</CardTitle><CardDescription>{t("Always verify the asset and network before sending funds.")}</CardDescription></div></div></CardHeader><CardContent className="space-y-5 p-4 sm:p-6">
    <div className="grid gap-3 sm:grid-cols-2"><label className="space-y-1.5 text-sm"><span className="text-brand-text-muted">{t("Asset")}</span><select value={coin} onChange={e=>changeCoin(e.target.value)} className="h-12 w-full rounded-xl border border-brand-border bg-brand-surface-2 px-3 py-3 text-sm text-brand-text outline-none transition-colors focus:border-brand-accent/60 focus:ring-2 focus:ring-brand-accent/15">{Object.keys(depositNetworks).map(x=><option key={x}>{x}</option>)}</select></label><label className="space-y-1.5 text-sm"><span className="text-brand-text-muted">{t("Network")}</span><select value={network} onChange={e=>changeNetwork(e.target.value)} className="h-12 w-full rounded-xl border border-brand-border bg-brand-surface-2 p-3 text-sm text-brand-text outline-none transition-colors focus:border-brand-accent/60 focus:ring-2 focus:ring-brand-accent/15">{depositNetworks[coin].map(x=><option key={x}>{x}</option>)}</select></label></div>
    {loading?<p className="rounded-xl border border-brand-border p-4 text-sm text-brand-text-muted" role="status">{t("Loading configured deposit address…")}</p>
     :error?<div className="rounded-xl border border-brand-danger/30 bg-brand-danger/[.04] p-4"><p className="text-sm text-brand-danger" role="alert">{t(error)}</p><Button className="mt-3" size="sm" variant="outline" onClick={()=>setReload(n=>n+1)}>{t("Try again")}</Button></div>
    :<div className="space-y-2"><p className="text-xs font-semibold uppercase tracking-wide text-brand-text-muted">{coin} · {network}</p><div className="rounded-xl border border-brand-accent/20 bg-brand-surface p-4 ring-1 ring-brand-accent/[0.04]"><p className="mb-2 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[.14em] text-brand-text-muted"><ShieldCheck className="h-3.5 w-3.5 text-brand-accent"/>{t("Verified network destination")}</p><div className="break-all font-mono text-sm leading-6 text-brand-text">{address}</div></div><Button variant="outline" size="sm" className="min-h-11 w-full sm:w-auto" disabled={!address} onClick={copyAddress}>{t("Copy address")}</Button>{copyMessage?<p className="text-xs text-brand-text-muted" role="status" aria-live="polite">{t(copyMessage)}</p>:null}</div>}
    <div className="rounded-xl border border-brand-border bg-brand-surface-2/60 p-4 text-sm text-brand-text-secondary"><p className="flex items-center gap-2 font-semibold text-brand-text"><ShieldAlert className="h-4 w-4 text-brand-text-muted"/>{t("Important")}</p><p className="mt-1">{t("Send only the selected asset on the selected network. Sending unsupported assets or using another network may result in permanent loss. After the transfer, BTCBOX staff verify receipt and manually credit the account. This page does not create a deposit order or automatically credit funds.")}</p></div>
   </CardContent></Card>
-  <Card className="overflow-hidden border-brand-border bg-brand-surface "><CardHeader className="border-b border-brand-border bg-brand-surface-2/60"><div className="flex flex-wrap items-center justify-between gap-3"><div className="flex items-center gap-3"><span className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand-accent/10 text-brand-accent"><Clock3 className="h-4 w-4"/></span><div><CardTitle>{t("Deposit history")}</CardTitle><CardDescription>{t("Track deposits verified and credited by BTCBOX staff.")}</CardDescription></div></div><Button size="sm" variant="outline" disabled={historyLoading} onClick={()=>setHistoryReload(value=>value+1)}><RefreshCw className={"mr-2 h-4 w-4 "+(historyLoading?"animate-spin":"")}/>{t("Refresh")}</Button></div></CardHeader><CardContent className="space-y-3 p-5 sm:p-6">
+  <Card className="overflow-hidden border border-white/[0.08] bg-brand-surface shadow-[inset_0_1px_0_0_rgba(255,255,255,0.12)]"><CardHeader className="border-b border-brand-border bg-brand-surface-2/60"><div className="flex flex-wrap items-center justify-between gap-3"><div className="flex items-center gap-3"><span className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand-accent/10 text-brand-accent"><Clock3 className="h-4 w-4"/></span><CardTitle>{t("Deposit history")}</CardTitle></div></div></CardHeader><CardContent className="space-y-3 p-5 sm:p-6">
    {historyLoading?<p className="text-sm text-brand-text-muted" role="status">{t("Loading deposit history…")}</p>
    :historyError?<p className="text-sm text-brand-danger" role="alert">{t(historyError)}</p>
    :depositHistory.length?depositHistory.map((item,index)=><div key={item.id||`${item.time||"deposit"}-${item.coin}-${index}`} className="flex flex-wrap items-start justify-between gap-3 rounded-xl border border-brand-border bg-brand-surface-2/40 p-4 transition-colors hover:bg-brand-surface-2/70"><div className="min-w-0"><p className="font-semibold">{item.amount} {item.coin} · {item.network||"—"}</p><p className="mt-1 text-xs text-brand-text-muted">{item.time||"—"}</p>{item.reference||item.txid?<p className="mt-1 break-all text-xs text-brand-text-muted">{t("Reference")}: {item.reference||item.txid}</p>:null}</div><Badge variant={depositStatusBadgeVariant(normalizeDepositStatus(item.status))}>{depositStatusLabel(normalizeDepositStatus(item.status), t)}</Badge></div>)
@@ -1665,7 +1680,7 @@ export function EarnPage(){
   }finally{setBusy(false);}
  };
  return <PageFrame title="Earn" tone="earn" backTo="/assets">
-  <div className="flex flex-wrap items-center justify-between gap-3"><div className="flex items-center gap-2"><span className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-success/10 text-brand-success"><Sprout className="h-4 w-4"/></span><div><p className="text-sm font-semibold text-brand-text">{t("BTCBOX Earn")}</p><p className="text-xs text-brand-text-muted">{t("Live catalog · account-backed positions")}</p></div><Badge variant="outline" className="border-brand-success/25 text-brand-success">{t("Live product catalog")}</Badge></div><Button size="sm" variant="outline" disabled={loading||busy} onClick={()=>setReload(n=>n+1)}><RefreshCw className={"mr-2 h-4 w-4 "+(loading?"animate-spin":"")}/>{t("Refresh")}</Button></div>
+  <div className="flex flex-wrap items-center justify-between gap-3"><div className="flex items-center gap-2"><span className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-success/10 text-brand-success"><Sprout className="h-4 w-4"/></span><div><p className="text-sm font-semibold text-brand-text">{t("BTCBOX Earn")}</p><p className="text-xs text-brand-text-muted">{t("Live catalog · account-backed positions")}</p></div><Badge variant="outline" className="border-brand-success/25 text-brand-success">{t("Live product catalog")}</Badge></div></div>
   {loading?<Card aria-busy={loading} className="border-brand-border bg-brand-surface"><CardContent className="space-y-3 p-5" role="status"><div className="h-4 w-1/3 animate-pulse rounded bg-brand-surface-2"/><div className="grid gap-3 sm:grid-cols-3"><div className="h-20 animate-pulse rounded-xl bg-brand-surface-2"/><div className="h-20 animate-pulse rounded-xl bg-brand-surface-2"/><div className="h-20 animate-pulse rounded-xl bg-brand-surface-2"/></div><p className="text-sm text-brand-text-muted">{t("Loading Earn products and positions…")}</p></CardContent></Card>
   :<>
    {signedOut?<div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-brand-border bg-brand-surface p-3"><p className="text-sm text-brand-text-muted">{t("Please sign in to view your account data")}</p><Button asChild size="sm" className="h-10"><Link to="/login">{t("Go to sign in")}</Link></Button></div>:error?<div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-brand-danger/30 p-3"><p className="text-sm text-brand-danger" role="alert">{t(error)}</p><Button size="sm" variant="outline" onClick={()=>setReload(n=>n+1)}>{t("Try again")}</Button></div>:null}
@@ -1728,14 +1743,14 @@ export function WithdrawPage(){
   Promise.all([getAccount(controller.signal),getSavedCryptoAddresses(controller.signal),getWithdrawalConfig(controller.signal)])
    .then(([snapshot,book,withdrawalConfig])=>{
     if(controller.signal.aborted)return;
-    setAccount(snapshot);setAddresses(book);setConfig(withdrawalConfig);
-    const usable=book.filter(item=>!item.blocked&&!item.unbound);
+    setAccount(snapshot);setAddresses(book.filter((item):item is SavedCryptoAddress=>item.type==="crypto"));setConfig(withdrawalConfig);
+    const usable=book.filter((item):item is SavedCryptoAddress=>item.type==="crypto"&&!item.blocked&&!item.unbound);
     const storageKey="btcbox.withdraw.pending.v1."+snapshot.uid;
     try{
      const raw=window.localStorage.getItem(storageKey);
      if(raw){
       const saved=JSON.parse(raw);
-      const savedAddress=book.find(item=>item.id===saved?.address_id);
+      const savedAddress=usable.find(item=>item.id===saved?.address_id);
       if(saved&&saved.version===1&&typeof saved.request_id==="string"&&/^[A-Za-z0-9_-]{16,100}$/.test(saved.request_id)&&typeof saved.amount==="string"&&typeof saved.address==="string"&&savedAddress&&!savedAddress.blocked&&!savedAddress.unbound&&savedAddress.coin===saved.coin&&savedAddress.network===saved.network){
        setPendingIntent(saved);setSelectedId(saved.address_id);setAmount(saved.amount);
       }else{setPendingIntentInvalid(true);setError("A saved withdrawal request cannot be matched to its original destination. Contact support before creating another withdrawal.");}
@@ -1827,13 +1842,13 @@ export function WithdrawPage(){
   {loading?<Card className="border-brand-border bg-brand-surface"><CardContent className="p-5 text-sm text-brand-text-muted" role="status">{t("Loading wallet and saved addresses…")}</CardContent></Card>
   :error&&!account?<Card className="border-brand-danger/30 bg-brand-surface"><CardContent className="flex flex-wrap items-center justify-between gap-3 p-5"><p className="text-sm text-brand-danger" role="alert">{t(error)}</p><Button size="sm" variant="outline" onClick={()=>setReload(n=>n+1)}>{t("Try again")}</Button></CardContent></Card>
   :<>
-   <Card aria-busy={loading} className="overflow-hidden border-brand-cyan/20 bg-brand-surface ring-1 ring-brand-cyan/[0.04]"><CardHeader className="border-b border-brand-border bg-brand-surface"><div className="flex min-w-0 items-center gap-3"><span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand-cyan/10 text-brand-cyan"><Wallet className="h-4 w-4"/></span><div className="min-w-0"><CardTitle>{t("Available balances")}</CardTitle><CardDescription>{account?.valuation_complete?t("Estimated total value"):t("Some asset prices are unavailable; total valuation is incomplete.")}</CardDescription></div></div></CardHeader><CardContent className="p-4 sm:p-5">
+   <Card aria-busy={loading} className="overflow-hidden border border-white/[0.08] bg-brand-surface shadow-[inset_0_1px_0_0_rgba(255,255,255,0.12)]"><CardHeader className="border-b border-brand-border bg-brand-surface"><div className="flex min-w-0 items-center gap-3"><span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand-cyan/10 text-brand-cyan"><Wallet className="h-4 w-4"/></span><div className="min-w-0"><CardTitle>{t("Available balances")}</CardTitle><CardDescription>{account?.valuation_complete?t("Estimated total value"):t("Some asset prices are unavailable; total valuation is incomplete.")}</CardDescription></div></div></CardHeader><CardContent className="p-4 sm:p-5">
     {Object.keys(account?.balances||{}).length===0?<p className="rounded-xl border border-dashed border-brand-border p-5 text-sm text-brand-text-muted">{t("No asset balances are currently available.")}</p>:<div className="grid grid-cols-1 gap-3 min-[420px]:grid-cols-2 xl:grid-cols-3">
     {(Object.entries(account?.balances||{}) as Array<[string,AccountBalance]>).map(([asset,row],index)=><div key={asset} className="relative overflow-hidden rounded-xl border border-brand-border bg-brand-surface-2/60 p-4"><div className={"absolute inset-y-0 left-0 w-1 "+(index%3===0?"bg-brand-cyan":index%3===1?"bg-brand-violet":"bg-brand-teal")}/><div className="flex items-center gap-3"><TokenIcon symbol={asset} className="h-9 w-9"/><div className="min-w-0"><p className="font-semibold text-brand-text">{asset}</p><p className="type-meta text-brand-text-muted">{t("Wallet balance")}</p></div></div><div className="mt-4 grid grid-cols-2 gap-2"><div className="rounded-lg bg-brand-bg/70 p-3"><p className="type-meta text-brand-text-muted">{t("Available")}</p><p className="mt-1 break-all text-sm font-semibold tabular-nums text-brand-text">{String(row.free??"0")}</p></div><div className="rounded-lg bg-brand-bg/70 p-3"><p className="type-meta text-brand-text-muted">{t("Frozen")}</p><p className="mt-1 break-all text-sm font-semibold tabular-nums text-brand-text-secondary">{String(row.frozen??"0")}</p></div></div></div>)}
     </div>}
    </CardContent></Card>
 
-   <Card aria-busy={submitting} className="relative overflow-hidden border-brand-accent/25 bg-brand-surface ring-1 ring-brand-accent/[0.045]"><span aria-hidden="true" className="absolute inset-x-0 top-0 h-1 bg-brand-surface"/><CardHeader className="border-b border-brand-border bg-brand-surface"><div className="flex min-w-0 items-center gap-3"><span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-accent/10 text-brand-accent"><ArrowUpRight className="h-5 w-5"/></span><div className="min-w-0"><CardTitle>{t("Submit withdrawal")}</CardTitle><CardDescription>{t("Select a saved address. Asset and network are taken from that address; staff review and manually pay approved requests.")}</CardDescription></div></div></CardHeader><CardContent className="p-4 sm:p-6">
+   <Card aria-busy={submitting} className="relative overflow-hidden border border-white/[0.08] bg-brand-surface shadow-[inset_0_1px_0_0_rgba(255,255,255,0.12)]"><span aria-hidden="true" className="absolute inset-x-0 top-0 h-1 bg-brand-surface"/><CardHeader className="border-b border-brand-border bg-brand-surface"><div className="flex min-w-0 items-center gap-3"><span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-accent/10 text-brand-accent"><ArrowUpRight className="h-5 w-5"/></span><div className="min-w-0"><CardTitle>{t("Submit withdrawal")}</CardTitle><CardDescription>{t("Select a saved address. Asset and network are taken from that address; staff review and manually pay approved requests.")}</CardDescription></div></div></CardHeader><CardContent className="p-4 sm:p-6">
     {usableAddresses.length===0?<div className="rounded-xl border border-dashed border-brand-border p-5 text-sm text-brand-text-muted">{t("No eligible saved withdrawal addresses are available. Add an address to your address book or contact support.")}</div>
     :<form aria-busy={submitting} className="space-y-4" onSubmit={submit}>
      <label className="block space-y-1.5 text-sm"><span className="text-brand-text-muted">{t("Saved withdrawal address")}</span><select value={selectedId} disabled={!!pendingIntent||pendingIntentInvalid||submitting} onChange={event=>{setSelectedId(event.target.value);setError("");}} className="h-12 w-full rounded-xl border border-brand-border bg-brand-surface-2 px-3 py-3 text-sm text-brand-text outline-none transition-colors focus:border-brand-accent/60 focus:ring-2 focus:ring-brand-accent/15">{usableAddresses.map(item=><option key={item.id} value={item.id}>{item.coin} · {item.network} · {item.address}</option>)}</select></label>
@@ -1850,12 +1865,12 @@ export function WithdrawPage(){
     </form>}
    </CardContent></Card>
 
-   <Card className="overflow-hidden border-brand-border bg-brand-surface "><CardHeader className="border-b border-brand-border bg-brand-surface-2/60"><CardTitle>{t("Withdrawal history")}</CardTitle><CardDescription>{t("Track staff review and manual payout completion. Approval does not mean the transfer has been sent.")}</CardDescription></CardHeader><CardContent className="space-y-2">
+   <Card className="overflow-hidden border border-white/[0.08] bg-brand-surface shadow-[inset_0_1px_0_0_rgba(255,255,255,0.12)]"><CardHeader className="border-b border-brand-border bg-brand-surface-2/60"><CardTitle>{t("Withdrawal history")}</CardTitle></CardHeader><CardContent className="space-y-2">
     {account?.withdrawals?.length?account.withdrawals.slice().reverse().map((item:WithdrawalRecord)=> <div key={item.id} className="flex flex-wrap items-start justify-between gap-3 rounded-xl border border-brand-border bg-brand-surface-2/40 p-4 transition-colors hover:bg-brand-surface-2/70"><div className="min-w-0"><p className="font-semibold">{item.amount} {item.coin} · {item.network||"—"}</p><p className="mt-1 break-all text-xs text-brand-text-muted">{item.address||"—"}</p><p className="mt-1 text-xs text-brand-text-muted">{item.time||item.paid_at||"—"}</p>{item.payout_reference||item.txid?<p className="mt-1 break-all text-xs text-brand-text-muted">TxID / reference: {item.payout_reference||item.txid}</p>:null}</div><Badge variant={withdrawalStatusBadgeVariant(normalizeWithdrawalStatus(item.status))}>{withdrawalStatusLabel(normalizeWithdrawalStatus(item.status), t)}</Badge></div>)
     :<p className="rounded-xl border border-dashed border-brand-border p-5 text-sm text-brand-text-muted">{t("No withdrawal requests have been returned for this account.")}</p>}
    </CardContent></Card>
 
-   <Card className="overflow-hidden border-brand-border bg-brand-surface "><CardHeader className="border-b border-brand-border bg-brand-surface-2/60"><CardTitle>{t("Saved crypto addresses")}</CardTitle><CardDescription>{t("Full addresses are only retrieved for the address selected for withdrawal.")}</CardDescription></CardHeader><CardContent className="space-y-2">
+   <Card className="overflow-hidden border border-white/[0.08] bg-brand-surface shadow-[inset_0_1px_0_0_rgba(255,255,255,0.12)]"><CardHeader className="border-b border-brand-border bg-brand-surface-2/60"><CardTitle>{t("Saved crypto addresses")}</CardTitle><CardDescription>{t("Full addresses are only retrieved for the address selected for withdrawal.")}</CardDescription></CardHeader><CardContent className="space-y-2">
     {addresses.length?addresses.map(item=><div key={item.id} className="rounded-xl border border-brand-border p-3"><div className="flex flex-wrap items-center justify-between gap-2"><span className="font-semibold">{item.coin} · {item.network}</span><Badge variant={item.blocked||item.unbound?"destructive":"outline"}>{item.blocked?"Blocked":item.unbound?"Unbound":"Saved"}</Badge></div><p className="mt-2 break-all font-mono text-sm text-brand-text-muted">{item.address}</p>{item.note?<p className="mt-1 text-xs text-brand-text-muted">{item.note}</p>:null}</div>)
     :<p className="rounded-xl border border-dashed border-brand-border p-5 text-sm text-brand-text-muted">{t("No saved crypto withdrawal addresses were found.")}</p>}
    </CardContent></Card>

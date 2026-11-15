@@ -151,6 +151,19 @@ a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
   input, select, textarea { font-size: 16px !important; }
 }
 
+/* Compact trade form (H5 perpetual order entry): the dense Binance-style order
+   form intentionally uses small, text-hugging controls. These scoped rules
+   outrank the global 44px mobile button floor above without affecting any other
+   page. */
+@media (max-width: 640px) {
+  .compact-trade-form button { min-height: 0; }
+  .compact-trade-form input,
+  .compact-trade-form select {
+    min-height: 0;
+    font-size: 13px !important;
+  }
+}
+
 @layer utilities {
   .custom-scrollbar::-webkit-scrollbar { height: 4px; width: 4px; }
   .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255,255,255,.10); border-radius: 999px; }
@@ -179,6 +192,7 @@ a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
 .tone-earn { --page-accent: #21C7A8; --page-accent-soft: rgba(33,199,168,.08); }
 .tone-support { --page-accent: #21C7A8; --page-accent-soft: rgba(33,199,168,.08); }
 .tone-admin { --page-accent: #21C7A8; --page-accent-soft: rgba(33,199,168,.08); }
+.tone-home { --page-accent: #21C7A8; --page-accent-soft: rgba(33,199,168,.08); }
 .page-accent { color: var(--page-accent, var(--brand-accent)); }
 .page-accent-surface { background: var(--page-accent-soft, rgba(56,189,248,.08)); }
 
@@ -224,6 +238,10 @@ a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
   0%, 100% { opacity: 1; transform: scale(1); }
   50% { opacity: .45; transform: scale(.82); }
 }
+@keyframes ticker-scroll {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
 @layer utilities {
   .anim-fade-up { animation: fadeInUp .55s cubic-bezier(.22,.61,.36,1) both; }
   .anim-fade-in { animation: fadeIn .5s ease-out both; }
@@ -264,7 +282,7 @@ a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
   .balance-row { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:14px; align-items:center; padding:16px; border-bottom:1px solid var(--color-brand-border); }
   .balance-row:last-child { border-bottom:0; }
   .balance-row > :first-child { grid-column:1 / -1; }
-  .account-actions { display:grid; grid-template-columns:minmax(0,1fr); overflow:hidden; border:1px solid var(--color-brand-border); border-radius:12px; }
+  .account-actions { display:grid; grid-template-columns:minmax(0,1fr); overflow:hidden; border:1px solid rgba(255,255,255,.08); box-shadow:inset 0 1px 0 0 rgba(255,255,255,.12); border-radius:12px; background:var(--color-brand-surface); }
   .account-actions > a { border:0; border-radius:0; border-bottom:1px solid var(--color-brand-border); box-shadow:none; background:var(--color-brand-surface); }
   .account-actions > a:last-child { border-bottom:0; }
   table { font-variant-numeric:tabular-nums; }
@@ -296,7 +314,34 @@ a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
 
 
 /* Spot terminal: one scoped layout system, independent from account/admin cards. */
-.spot-terminal { gap:12px; }
+.spot-terminal { gap:12px; position:relative; }
+/* Ambient multi-layer glow behind the spot terminal (non-interactive, clipped to container). */
+.spot-terminal::before {
+  content: "";
+  position: absolute;
+  top: -80px;
+  right: 0;
+  width: 288px;
+  height: 288px;
+  border-radius: 9999px;
+  background: color-mix(in srgb, var(--color-brand-accent) 10%, transparent);
+  filter: blur(90px);
+  pointer-events: none;
+  z-index: 0;
+}
+.spot-terminal::after {
+  content: "";
+  position: absolute;
+  top: -32px;
+  right: 40px;
+  width: 144px;
+  height: 144px;
+  border-radius: 9999px;
+  background: color-mix(in srgb, var(--color-brand-accent) 20%, transparent);
+  filter: blur(45px);
+  pointer-events: none;
+  z-index: 0;
+}
 .spot-terminal > :first-child .page-accent { display:none; }
 .spot-terminal .type-page-title { font-size:22px; }
 .spot-quote { border:0; border-radius:0; box-shadow:none; background:transparent; }
@@ -351,29 +396,19 @@ a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
    `max-width: 767.98px` so the 4-column desktop workspace is unaffected.
    ======================================================================== */
 @media (max-width: 767.98px) {
-  /* --- Mobile single-column workspace (Binance app aesthetic) ------------ */
-  /* The desktop grid squeezes order book + order entry side-by-side below
-     768px, disconnecting the precision selector and depth footer. On mobile the
-     workspace collapses to one column and each panel stacks full-width in
-     document order (order book → order entry → orders), keeping every control
-     (precision select, view toggles) inside its own card header/footer. */
+  /* --- Mobile dual-column workspace (Binance-style) ----------------------- */
+  /* Order form (left 7fr) + order book (right 5fr) stay side-by-side on phones;
+     the orders panel spans full width below them. */
   .exchange-workspace {
-    display: flex;
-    flex-direction: column;
+    display: grid;
+    grid-template-columns: minmax(0, 58fr) minmax(0, 42fr);
     gap: 8px;
+    align-items: stretch;
   }
-  .exchange-workspace > .exchange-chart,
-  .exchange-workspace > .exchange-depth,
-  .exchange-workspace > .exchange-entry,
-  .exchange-workspace > .exchange-orders {
-    grid-column: auto;
-    grid-row: auto;
-    width: 100%;
-  }
-  /* Order book first, order entry second, orders last (natural source order). */
-  .exchange-workspace > .exchange-depth { order: 1; }
-  .exchange-workspace > .exchange-entry { order: 2; }
-  .exchange-workspace > .exchange-orders { order: 3; }
+  .exchange-workspace > .exchange-entry { grid-column: 1; grid-row: 1; }
+  .exchange-workspace > .exchange-depth { grid-column: 2; grid-row: 1; }
+  .exchange-workspace > .exchange-orders { grid-column: 1 / -1; grid-row: 2; }
+  .exchange-workspace > .exchange-chart { grid-column: 1 / -1; grid-row: auto; }
 
   /* --- Compact inline chart inside the header-triggered drawer ------------ */
   .exchange-chart--compact {
@@ -788,12 +823,13 @@ html { overflow-x: hidden; }
    Mobile app tab bar (< 768px): 56px content height + safe-area padding,
    hairline top border, dark translucent surface with a blur, brand-green
    active state and muted slate inactive state. */
-.bf-bottom-nav { position: fixed; left: 0; right: 0; bottom: 0; z-index: 50; display: flex; flex-direction: row; justify-content: space-around; align-items: stretch; width: 100%; height: calc(56px + env(safe-area-inset-bottom)); border-top: 1px solid rgba(255, 255, 255, 0.08); background: rgba(11, 14, 17, 0.94); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); padding-bottom: max(0px, env(safe-area-inset-bottom)); padding-top: 0; box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.35); }
-.bf-bottom-nav-item { display: flex; flex: 1 1 0; flex-direction: column; align-items: center; justify-content: center; gap: 2px; height: 56px; min-height: 56px; min-width: 0; padding-inline: 0.5px; border-radius: 0; color: #848E9C; font-size: 10px; font-weight: 700; line-height: 1.1; text-align: center; transition: color 0.15s ease; text-decoration: none; background: transparent; }
+.bf-bottom-nav { position: fixed; left: 0; right: 0; bottom: 0; z-index: 50; display: flex; flex-direction: row; justify-content: space-around; align-items: stretch; width: 100%; height: calc(56px + env(safe-area-inset-bottom)); border-top: 1px solid rgba(255, 255, 255, 0.10); background: rgba(11, 14, 17, 0.90); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); padding-bottom: max(0px, env(safe-area-inset-bottom)); padding-top: 0; box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.35); }
+.bf-bottom-nav-item { position: relative; display: flex; flex: 1 1 0; flex-direction: column; align-items: center; justify-content: center; gap: 2px; height: 56px; min-height: 56px; min-width: 0; padding-inline: 0.5px; border-radius: 0; color: #848E9C; font-size: 10px; font-weight: 700; line-height: 1.1; text-align: center; transition: color 0.15s ease; text-decoration: none; background: transparent; }
 .bf-bottom-nav-item .bf-nav-icon { width: 22px; height: 22px; flex-shrink: 0; color: currentColor; transition: color 0.15s ease, transform 0.15s ease; }
 .bf-bottom-nav-item:hover, .bf-bottom-nav-item:focus-visible { color: var(--color-brand-text-secondary); outline: none; }
 .bf-bottom-nav-item--active { background: transparent; color: #0ECB81; }
 .bf-bottom-nav-item--active .bf-nav-icon { color: #0ECB81; }
+.bf-bottom-nav-item--active::before { content: ""; position: absolute; top: 0; left: 50%; transform: translateX(-50%); width: 20px; height: 3px; border-radius: 0 0 3px 3px; background: #0ECB81; box-shadow: 0 0 8px rgba(14, 203, 129, 0.7); }
 
 .bf-bottom-nav-label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
 
@@ -832,4 +868,19 @@ html { overflow-x: hidden; }
 @media (min-width: 640px) { .bf-subpage-content { padding: 16px; } }
 @media (min-width: 768px) { .bf-subpage-content { padding: 24px; } }
 @media (min-width: 1024px) { .bf-subpage-content { padding: 32px; } }
+
+/* === Professional mobile trade UI: drawer + scroll-snap helpers (tokens only) === */
+@layer components {
+  /* Fixed bottom chart drawer: sits directly above the 56px bottom tab bar, centred
+     at 430px for the H5 terminal. The panel expands upward from the same anchor so it
+     never overlaps the global bottom navigation (z-index 50). */
+  .trade-drawer-root { position: fixed; left: 0; right: 0; z-index: 30; bottom: calc(56px + env(safe-area-inset-bottom)); max-width: 430px; margin: 0 auto; }
+  .trade-drawer-panel { display: flex; flex-direction: column; border-top: 1px solid #2b3139; border-left: 1px solid #2b3139; border-right: 1px solid #2b3139; border-bottom: 0; border-radius: 0; background: #1e2329; box-shadow: 0 -4px 12px rgba(0,0,0,0.3); overflow: hidden; transition: height .28s cubic-bezier(.22,.61,.36,1); will-change: height; }
+  .trade-drawer-root.is-dragging .trade-drawer-panel { transition: none; }
+  .trade-drawer-handle { touch-action: none; cursor: grab; }
+  .trade-drawer-handle:active { cursor: grabbing; }
+  /* Hidden scrollbars for the product nav and the horizontal snap scroller (scroll position still indicated by dots). */
+  .trade-nav-scroll, .trade-snap-x { scrollbar-width: none; -ms-overflow-style: none; -webkit-overflow-scrolling: touch; }
+  .trade-nav-scroll::-webkit-scrollbar, .trade-snap-x::-webkit-scrollbar { display: none; width: 0; height: 0; }
+}
 

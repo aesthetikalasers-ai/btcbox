@@ -1,9 +1,11 @@
 import type {
   AccountSnapshot,
+  EarnProduct,
   MarketCandle,
   MarketTicker,
   OrderBookSnapshot,
   OrderRecord,
+  PerpMarket,
   SpotMarketPair,
   TradingStatus,
 } from "./api";
@@ -158,7 +160,11 @@ export function getDemoAccount(): AccountSnapshot {
     uid: "DEMO-0001",
     email: "demo@btcbox.invalid",
     username: "demo_trader",
-    has_login_password: false,
+    // Demo preview represents a fully-onboarded account: a username *and* a login
+    // password are already set. Keeping this true means `setSignedIn` computes
+    // `needsCredentials=false` and the AccountSetupGate never force-redirects a
+    // demo visitor to /account-setup.
+    has_login_password: true,
     auth_providers: [],
     balances: {
       BTC: { free: "0.08425", frozen: "0.012", usdt: "6585.48", valuation_available: true },
@@ -178,6 +184,25 @@ export function getDemoOrders(): OrderRecord[] {
   return [];
 }
 
+/**
+ * Preview fallback for the Earn catalog, used when `DEMO_PREVIEW_ACTIVE` is on.
+ * Mirrors the shape of {@link getEarnCatalog} so the Earn page renders a
+ * populated product list for design review instead of an empty catalog.
+ * `actions_enabled` is false: demo preview is read-only and never mutates funds.
+ */
+export function getDemoEarnCatalog(): { products: EarnProduct[]; actions_enabled: boolean } {
+  return {
+    actions_enabled: false,
+    products: [
+      { product_id: "flex_USDT", asset: "USDT", product_type: "demand", apy_percent: 4.8, term_days: 0, early_fee_percent: 0, amount_scale: 2 },
+      { product_id: "flex_BTC", asset: "BTC", product_type: "demand", apy_percent: 1.2, term_days: 0, early_fee_percent: 0, amount_scale: 6 },
+      { product_id: "flex_ETH", asset: "ETH", product_type: "demand", apy_percent: 2.1, term_days: 0, early_fee_percent: 0, amount_scale: 6 },
+      { product_id: "fixed30_USDT", asset: "USDT", product_type: "fixed", apy_percent: 8.5, term_days: 30, early_fee_percent: 1.5, amount_scale: 2 },
+      { product_id: "fixed90_USDT", asset: "USDT", product_type: "fixed", apy_percent: 11.0, term_days: 90, early_fee_percent: 2.5, amount_scale: 2 },
+    ],
+  };
+}
+
 export function getDemoAuthClientConfig() {
   return {
     ok: true as const,
@@ -194,4 +219,40 @@ export function exitDemoPreview(): void {
   } finally {
     window.location.assign("/home?demo=0");
   }
+}
+
+/**
+ * Preview fallback for the perpetual-contract market catalogue, used when
+ * `DEMO_PREVIEW_ACTIVE` is on. Mirrors the shape of {@link getPerpMarkets} so
+ * the Contract terminal renders a complete, populated workspace for design
+ * review instead of an empty "no markets enabled" state.
+ *
+ * Every row is synthetic and tagged via the `symbol` namespace; mark/index
+ * prices are seeded from the same deterministic market table used by the spot
+ * preview. Never presented as live quotes.
+ */
+export function getDemoPerpMarkets(): PerpMarket[] {
+  const baseMarkets: Array<{ sym: string; price: number; maxLeverage: number }> = [
+    { sym: "BTC", price: 68420.55, maxLeverage: 100 },
+    { sym: "ETH", price: 3528.4, maxLeverage: 75 },
+    { sym: "SOL", price: 182.3, maxLeverage: 50 },
+    { sym: "BNB", price: 602.15, maxLeverage: 50 },
+    { sym: "XRP", price: 0.6124, maxLeverage: 50 },
+    { sym: "DOGE", price: 0.1543, maxLeverage: 25 },
+  ];
+  return baseMarkets.map(({ sym, price, maxLeverage }) => ({
+    symbol: `${sym}USDT`,
+    base_asset: sym,
+    quote_asset: "USDT",
+    status: "trading",
+    max_leverage: maxLeverage,
+    price_tick: sym === "XRP" || sym === "DOGE" ? "0.0001" : "0.01",
+    quantity_step: "0.0001",
+    min_quantity: "0.0001",
+    funding_interval_sec: 28800,
+    funding_rate_cap: 0.0075,
+    next_funding_at: null,
+    mark_price: price,
+    index_price: price * 0.9998,
+  }));
 }

@@ -2,11 +2,13 @@ import {
   DEMO_PREVIEW_ACTIVE,
   getDemoAccount,
   getDemoAuthClientConfig,
+  getDemoEarnCatalog,
   getDemoKlines,
   getDemoMarketPairs,
   getDemoMarkets,
   getDemoOrderBook,
   getDemoOrders,
+  getDemoPerpMarkets,
   getDemoTradingStatus,
   getSampleMarketPairs,
   getSampleMarkets,
@@ -504,6 +506,7 @@ export interface EarnActionResult {
 }
 
 export async function getEarnCatalog(signal?: AbortSignal): Promise<EarnCatalogSnapshot> {
+  if (DEMO_PREVIEW_ACTIVE) return getDemoEarnCatalog();
   const payload = await readAuthenticated<{ ok: true; products: EarnProduct[]; actions_enabled: boolean }>("earn/products", signal);
   if (!Array.isArray(payload.products) || typeof payload.actions_enabled !== "boolean" ||
       !payload.products.every((item) => item && typeof item.product_id === "string" &&
@@ -994,12 +997,51 @@ export interface SavedCryptoAddress {
   id: string; type: "crypto"; coin: string; network: string; address: string;
   note?: string; created_at?: string; flagged?: boolean; blocked?: boolean; unbound?: boolean;
 }
-export async function getSavedCryptoAddresses(signal?: AbortSignal): Promise<SavedCryptoAddress[]> {
-  const payload = await readAuthenticated<{ ok: true; addresses: SavedCryptoAddress[] }>("addresses", signal);
+
+/** Bank account (fiat withdrawal method) saved in the address book. */
+export interface BankAddress {
+  id: string; type: "bank";
+  account_holder: string; bank_name: string;
+  account_number: string; routing_number: string;
+  swift?: string; bank_address: string;
+  note?: string; created_at?: string; flagged?: boolean; blocked?: boolean; unbound?: boolean;
+}
+
+export type SavedAddress = SavedCryptoAddress | BankAddress;
+
+/** Input for creating a crypto address entry. */
+export interface CryptoAddressInput {
+  type: "crypto"; coin: string; network: string; address: string; note?: string;
+}
+
+/** Input for creating a bank (fiat) address entry. */
+export interface BankAddressInput {
+  type: "bank"; account_holder: string; bank_name: string;
+  account_number: string; routing_number: string;
+  swift?: string; bank_address: string; note?: string;
+}
+
+export async function addAddress(input: CryptoAddressInput | BankAddressInput): Promise<{ msg: string; address: SavedAddress }> {
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE_URL}/addresses`, {
+      method: "POST", credentials: "include",
+      headers: { Accept: "application/json", "Content-Type": "application/json" },
+      cache: "no-store", body: JSON.stringify(input),
+    });
+  } catch {
+    throw new ApiError("Unable to reach BTCBOX address book. Please try again.", 0, "NETWORK_ERROR");
+  }
+  const payload = await response.json().catch(() => null) as { ok?: boolean; msg?: string; code?: string; need_login?: boolean; address?: SavedAddress } | null;
+  if (!response.ok || !payload || payload.ok !== true) {
+    throw new ApiError(payload?.msg || "Your address could not be added.", payload?.need_login ? 401 : response.status, payload?.code);
+  }
+  return { msg: payload.msg || "Submitted successfully.", address: payload.address as SavedAddress };
+}
+export async function getSavedCryptoAddresses(signal?: AbortSignal): Promise<SavedAddress[]> {
+  const payload = await readAuthenticated<{ ok: true; addresses: SavedAddress[] }>("addresses", signal);
   if (!Array.isArray(payload.addresses)) throw new ApiError("BTCBOX returned an invalid address book.", 502, "INVALID_ADDRESS_BOOK");
-  return payload.addresses.filter((item) => item && item.type === "crypto" &&
-    typeof item.id === "string" && typeof item.coin === "string" &&
-    typeof item.network === "string" && typeof item.address === "string")
+  return payload.addresses.filter((item) => item && typeof item.id === "string" && (item.type === "crypto" || item.type === "bank"))
     .map((item) => ({ ...item, blocked: item.blocked === true, unbound: item.unbound === true }));
 }
 export interface SelectedCryptoAddress {
@@ -1423,6 +1465,7 @@ export interface PerpOrderInput {
   clientOrderId: string;
 }
 export async function getPerpMarkets(signal?: AbortSignal): Promise<PerpMarket[]> {
+  if (DEMO_PREVIEW_ACTIVE) return getDemoPerpMarkets();
   const payload = await readAuthenticated<{ ok: true; markets: PerpMarket[] }>("perpetual/markets", signal);
   if (!Array.isArray(payload.markets)) throw new ApiError("Perpetual market catalogue is unavailable.", 502, "INVALID_PERP_MARKETS");
   return payload.markets.filter((m) => m && typeof m.symbol === "string" && typeof m.max_leverage === "number");
@@ -1472,27 +1515,32 @@ export async function closePerpPosition(input: { symbol: string; clientOrderId: 
   return { order_id: payload.order_id || "", status: payload.status || "accepted", duplicate: payload.duplicate === true };
 }
 export async function getPerpOpenOrders(signal?: AbortSignal): Promise<PerpOrder[]> {
+  if (DEMO_PREVIEW_ACTIVE) return [];
   const payload = await readAuthenticated<{ ok: true; orders: PerpOrder[] }>("perpetual/orders", signal);
   if (!Array.isArray(payload.orders)) throw new ApiError("Perpetual open orders are unavailable.", 502, "INVALID_PERP_ORDERS");
   return payload.orders;
 }
 export async function getPerpOrderHistory(signal?: AbortSignal): Promise<PerpOrder[]> {
+  if (DEMO_PREVIEW_ACTIVE) return [];
   const payload = await readAuthenticated<{ ok: true; orders: PerpOrder[] }>("perpetual/orders?history=true", signal);
   if (!Array.isArray(payload.orders)) throw new ApiError("Perpetual order history is unavailable.", 502, "INVALID_PERP_ORDER_HISTORY");
   return payload.orders;
 }
 export async function getPerpPositions(signal?: AbortSignal): Promise<PerpPosition[]> {
+  if (DEMO_PREVIEW_ACTIVE) return [];
   const payload = await readAuthenticated<{ ok: true; positions: PerpPosition[] }>("perpetual/positions", signal);
   if (!Array.isArray(payload.positions)) throw new ApiError("Perpetual positions are unavailable.", 502, "INVALID_PERP_POSITIONS");
   return payload.positions;
 }
 export async function getPerpTrades(symbol: string, signal?: AbortSignal): Promise<PerpTrade[]> {
+  if (DEMO_PREVIEW_ACTIVE) return [];
   const query = new URLSearchParams({ symbol });
   const payload = await readAuthenticated<{ ok: true; trades: PerpTrade[] }>(`perpetual/trades?${query.toString()}`, signal);
   if (!Array.isArray(payload.trades)) throw new ApiError("Perpetual trade history is unavailable.", 502, "INVALID_PERP_TRADES");
   return payload.trades;
 }
 export async function getPerpFundingHistory(symbol: string, signal?: AbortSignal): Promise<PerpFundingRecord[]> {
+  if (DEMO_PREVIEW_ACTIVE) return [];
   const query = new URLSearchParams({ symbol });
   const payload = await readAuthenticated<{ ok: true; funding: PerpFundingRecord[] }>(`perpetual/funding?${query.toString()}`, signal);
   if (!Array.isArray(payload.funding)) throw new ApiError("Perpetual funding history is unavailable.", 502, "INVALID_PERP_FUNDING");

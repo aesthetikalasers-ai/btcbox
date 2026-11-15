@@ -170,8 +170,8 @@ export function AuthPage({ mode, redirectTo }: { mode: "login" | "register"; red
                 : t("Sign in with Google or connect your wallet, then complete your BTCBOX account setup.")}
             </CardDescription>}
             {status !== "two-factor" && <div data-testid="auth-mode-switcher" className="grid grid-cols-2 rounded-xl border border-brand-border bg-brand-surface-2 p-1 text-sm font-semibold">
-              <Link to="/login" className={`flex min-h-10 items-center justify-center rounded-lg transition-colors ${!registering ? "bg-primary text-primary-foreground shadow-sm" : "text-brand-text-secondary hover:text-brand-text"}`}>{t("Sign in")}</Link>
-              <Link to="/register" className={`flex min-h-10 items-center justify-center rounded-lg transition-colors ${registering ? "bg-primary text-primary-foreground shadow-sm" : "text-brand-text-secondary hover:text-brand-text"}`}>{t("Create account")}</Link>
+              <Link to="/login" className={`flex min-h-10 items-center justify-center rounded-lg transition-colors ${!registering ? "bg-brand-accent text-[#05201A] shadow-sm" : "text-brand-text-secondary hover:text-brand-text"}`}>{t("Sign in")}</Link>
+              <Link to="/register" className={`flex min-h-10 items-center justify-center rounded-lg transition-colors ${registering ? "bg-brand-accent text-[#05201A] shadow-sm" : "text-brand-text-secondary hover:text-brand-text"}`}>{t("Create account")}</Link>
             </div>}
           </CardHeader>
           <CardContent className="space-y-4 px-5 pb-6 sm:px-8 sm:pb-8">
@@ -194,11 +194,11 @@ export function AuthPage({ mode, redirectTo }: { mode: "login" | "register"; red
             </form> : <>
               {mode === "login" && <form className="space-y-3" aria-busy={busy} onSubmit={submitUsernameLogin}>
                 <div>
-                  <label htmlFor="btcbox-username" className="block text-sm text-gray-400 mb-1.5">{t("Username")}</label>
+                  <label htmlFor="btcbox-username" className="block text-sm text-brand-text-muted mb-1.5">{t("Username")}</label>
                   <Input id="btcbox-username" className="h-12" value={username} onChange={event => setUsername(event.target.value.toLowerCase())} autoComplete="username" minLength={3} maxLength={24} pattern="[a-z0-9][a-z0-9_]{2,23}" placeholder={t("Enter your BTCBOX username")} required />
                 </div>
                 <div>
-                  <label htmlFor="btcbox-password" className="block text-sm text-gray-400 mb-1.5">{t("Password")}</label>
+                  <label htmlFor="btcbox-password" className="block text-sm text-brand-text-muted mb-1.5">{t("Password")}</label>
                   <div className="relative">
                     <Input id="btcbox-password" aria-label={t("Password")} className="h-12 pr-10" type={showPassword ? "text" : "password"} value={password} onChange={event => setPassword(event.target.value)} autoComplete="current-password" minLength={12} maxLength={128} placeholder={t("Enter your password")} required />
                     <button type="button" aria-label={t(showPassword ? "Hide password" : "Show password")} aria-pressed={showPassword} onClick={() => setShowPassword(value => !value)} className="absolute right-3 top-1/2 -translate-y-1/2 flex h-6 w-6 items-center justify-center rounded text-brand-text-muted transition-colors hover:text-brand-text">{showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}</button>
@@ -211,11 +211,11 @@ export function AuthPage({ mode, redirectTo }: { mode: "login" | "register"; red
 
               {mode === "register" && <form className="space-y-3" aria-busy={busy} onSubmit={submitEmailRegister}>
                 <div>
-                  <label htmlFor="btcbox-email" className="block text-sm text-gray-400 mb-1.5">{t("Email")}</label>
+                  <label htmlFor="btcbox-email" className="block text-sm text-brand-text-muted mb-1.5">{t("Email")}</label>
                   <Input id="btcbox-email" className="h-12" type="email" value={registerEmail} onChange={event => setRegisterEmail(event.target.value)} autoComplete="email" placeholder={t("Enter your email address")} required />
                 </div>
                 <div>
-                  <label htmlFor="btcbox-register-password" className="block text-sm text-gray-400 mb-1.5">{t("Password")}</label>
+                  <label htmlFor="btcbox-register-password" className="block text-sm text-brand-text-muted mb-1.5">{t("Password")}</label>
                   <div className="relative"><Input id="btcbox-register-password" aria-label={t("Password")} className="h-12 pr-10" type={showRegisterPassword ? "text" : "password"} value={registerPassword} onChange={event => setRegisterPassword(event.target.value)} autoComplete="new-password" minLength={12} maxLength={128} placeholder={t("At least 12 characters")} required /><button type="button" aria-label={t(showRegisterPassword ? "Hide password" : "Show password")} aria-pressed={showRegisterPassword} onClick={() => setShowRegisterPassword(value => !value)} className="absolute right-3 top-1/2 -translate-y-1/2 flex h-6 w-6 items-center justify-center rounded text-brand-text-muted transition-colors hover:text-brand-text">{showRegisterPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}</button></div>
                 </div>
                 <Button type="submit" className="min-h-12 w-full" aria-busy={busy} disabled={busy || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(registerEmail) || registerPassword.length < 12}>

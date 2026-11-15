@@ -25,8 +25,10 @@ const KycPage = lazy(() => import("./features/pages/Pages").then((m) => ({ defau
 const SupportPage = lazy(() => import("./features/pages/Pages").then((m) => ({ default: m.SupportPage })));
 const DepositPage = lazy(() => import("./features/pages/Pages").then((m) => ({ default: m.DepositPage })));
 const WithdrawPage = lazy(() => import("./features/pages/Pages").then((m) => ({ default: m.WithdrawPage })));
+const AddressBookPage = lazy(() => import("./features/pages/AddressBookPage").then((m) => ({ default: m.AddressBookPage })));
 const EarnPage = lazy(() => import("./features/pages/Pages").then((m) => ({ default: m.EarnPage })));
 const ContractPage = lazy(() => import("./features/pages/ContractPage").then((m) => ({ default: m.ContractPage })));
+const MobileTradeTerminal = lazy(() => import("./features/trade/ProfessionalMobileTradeTerminal"));
 const KlineChartPage = lazy(() => import("./features/pages/KlineChartPage").then((m) => ({ default: m.KlineChartPage })));
 const NotFoundPage = lazy(() => import("./features/pages/NotFoundPage").then((m) => ({ default: m.NotFoundPage })));
 const TrustCenterPage = lazy(() => import("./features/trust/TrustCenterPage").then((m) => ({ default: m.TrustCenterPage })));
@@ -78,6 +80,12 @@ function SignInPrompt() {
 function ProtectedAccountRoute({ children }: { children: ReactNode }) {
   const { status } = useAuth();
   if (status === "loading") return <AuthRestoreState />;
+  // Local development preview: render the page even when not authenticated so the
+  // UI/layout can be inspected without a real session. Server-side authorization
+  // remains the source of truth (every account API still answers AUTH_REQUIRED,
+  // and the page renders its own explicit sign-in prompt where data is gated).
+  // This bypass is compiled out of production builds (import.meta.env.DEV is false).
+  if (import.meta.env.DEV) return <>{children}</>;
   if (status !== "authenticated") return <SignInPrompt />;
   return <>{children}</>;
 }
@@ -110,8 +118,10 @@ function CustomerRoutes() {
     <Route path="/orders" element={<ProtectedAccountRoute><OrdersPage /></ProtectedAccountRoute>} />
     <Route path="/deposit" element={<ProtectedAccountRoute><DepositPage /></ProtectedAccountRoute>} />
     <Route path="/withdraw" element={<ProtectedAccountRoute><WithdrawPage /></ProtectedAccountRoute>} />
+    <Route path="/address-book" element={<ProtectedAccountRoute><AddressBookPage /></ProtectedAccountRoute>} />
     <Route path="/earn" element={<ProtectedAccountRoute><EarnPage /></ProtectedAccountRoute>} />
-    <Route path="/contract" element={<ProtectedAccountRoute><ContractPage /></ProtectedAccountRoute>} />
+    <Route path="/contract" element={<DemoRoute><ContractPage /></DemoRoute>} />
+    <Route path="/mobile-terminal" element={<DemoRoute><MobileTradeTerminal /></DemoRoute>} />
     <Route path="/login" element={<AuthPage mode="login" />} /><Route path="/register" element={<AuthPage mode="register" />} /><Route path="/account-setup" element={<AccountSetupPage />} /><Route path="/auth/react-callback" element={<AuthCallbackPage />} />
     <Route path="/kyc" element={<ProtectedAccountRoute><KycPage /></ProtectedAccountRoute>} />
     <Route path="/support" element={<SupportPage />} />

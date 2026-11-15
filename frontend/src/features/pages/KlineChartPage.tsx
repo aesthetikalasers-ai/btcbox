@@ -290,7 +290,7 @@ export function KlineChartPage() {
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
                   <span className="truncate text-lg font-bold text-brand-text">{base}/USDT</span>
-                  <Badge variant="outline" className={cn("border-0 font-mono tabular-nums", rising ? "bg-[#0ECB81]/15 text-[#0ECB81]" : "bg-[#F6465D]/15 text-[#F6465D]")}>
+                  <Badge variant="outline" className={cn("border-0 font-mono tabular-nums", rising ? "bg-brand-accent/15 text-brand-accent" : "bg-brand-danger/15 text-brand-danger")}>
                     {rising ? "+" : ""}{chg.toFixed(2)}%
                   </Badge>
                 </div>
@@ -428,14 +428,14 @@ export function KlineChartPage() {
                 <div className="space-y-0.5">
                   {asks.map((row, i) => (
                     <div key={`a${i}`} className="grid grid-cols-3 gap-2 text-xs">
-                      <span className="text-[#F6465D]">{fmt(row[0], locale, Number(row[0]) >= 100 ? 2 : 4)}</span>
+                      <span className="text-brand-danger">{fmt(row[0], locale, Number(row[0]) >= 100 ? 2 : 4)}</span>
                       <span className="text-right text-brand-text-muted">{fmt(row[1], locale, 4)}</span>
                       <span className="text-right text-brand-text-muted">{fmt(Number(row[1]) * (i + 1), locale, 4)}</span>
                     </div>
                   ))}
                 </div>
                 <div className="my-1.5 flex items-center justify-between border-y border-brand-border/40 py-1">
-                  <span className="font-mono text-sm font-bold tabular-nums" style={{ color: rising ? "#0ECB81" : "#F6465D" }}>
+                  <span className="font-mono text-sm font-bold tabular-nums" style={{ color: rising ? "var(--color-brand-accent)" : "var(--color-brand-danger)" }}>
                     {fmt(price, locale, price >= 100 ? 2 : 4)}
                   </span>
                   <span className="text-[10px] text-brand-text-muted">{rising ? "↑" : "↓"}</span>
@@ -443,7 +443,7 @@ export function KlineChartPage() {
                 <div className="space-y-0.5">
                   {bids.map((row, i) => (
                     <div key={`b${i}`} className="grid grid-cols-3 gap-2 text-xs">
-                      <span className="text-[#0ECB81]">{fmt(row[0], locale, Number(row[0]) >= 100 ? 2 : 4)}</span>
+                      <span className="text-brand-accent">{fmt(row[0], locale, Number(row[0]) >= 100 ? 2 : 4)}</span>
                       <span className="text-right text-brand-text-muted">{fmt(row[1], locale, 4)}</span>
                       <span className="text-right text-brand-text-muted">{fmt(Number(row[1]) * (i + 1), locale, 4)}</span>
                     </div>
@@ -461,7 +461,7 @@ export function KlineChartPage() {
                 <div className="space-y-0.5">
                   {recentTrades.map((row) => (
                     <div key={row.id} className="grid grid-cols-3 gap-2 text-xs">
-                      <span className={row.side === "buy" ? "text-[#0ECB81]" : "text-[#F6465D]"}>
+                      <span className={row.side === "buy" ? "text-brand-accent" : "text-brand-danger"}>
                         {fmt(row.price, locale, row.price >= 100 ? 2 : 4)}
                       </span>
                       <span className="text-right text-brand-text-muted">{row.qty.toFixed(4)}</span>
@@ -491,7 +491,7 @@ export function KlineChartPage() {
                   </div>
                   <div className="rounded-lg bg-brand-surface-2 p-3">
                     <p className="text-[11px] text-brand-text-muted">{t("24h change")}</p>
-                    <p className={cn("mt-0.5 font-mono text-sm font-semibold tabular-nums", rising ? "text-[#0ECB81]" : "text-[#F6465D]")}>
+                    <p className={cn("mt-0.5 font-mono text-sm font-semibold tabular-nums", rising ? "text-brand-accent" : "text-brand-danger")}>
                       {rising ? "+" : ""}{chg.toFixed(2)}%
                     </p>
                   </div>
@@ -508,14 +508,14 @@ export function KlineChartPage() {
           <button
             type="button"
             onClick={() => goTrade("buy")}
-            className="flex h-12 items-center justify-center rounded-xl bg-[#0ECB81] text-sm font-bold text-[#05201A] transition-transform hover:bg-[#0ECB81]/90 active:scale-[0.99]"
+            className="flex h-12 items-center justify-center rounded-xl bg-brand-accent text-sm font-bold text-black transition-transform hover:bg-brand-hover active:scale-[0.99]"
           >
             {t("Buy")}
           </button>
           <button
             type="button"
             onClick={() => goTrade("sell")}
-            className="flex h-12 items-center justify-center rounded-xl bg-[#F6465D] text-sm font-bold text-white transition-transform hover:bg-[#F6465D]/90 active:scale-[0.99]"
+            className="flex h-12 items-center justify-center rounded-xl bg-brand-danger text-sm font-bold text-white transition-transform hover:bg-brand-danger/90 active:scale-[0.99]"
           >
             {t("Sell")}
           </button>

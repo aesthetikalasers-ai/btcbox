@@ -14,8 +14,11 @@ import { useI18n } from "../../lib/i18n";
 export function TrustPage({ title, lead, children }: { title: string; lead?: string; children: ReactNode }) {
   const { t } = useI18n();
   return (
-    <div className="mx-auto flex w-full min-w-0 max-w-[1100px] flex-col gap-4 p-4 sm:p-6">
-      <header className="flex min-w-0 items-start gap-3">
+    <div className="relative mx-auto flex w-full min-w-0 max-w-[1100px] flex-col gap-4 p-4 sm:p-6">
+      {/* Ambient multi-layer glow + glass highlight, matching the rest of the app. */}
+      <div aria-hidden="true" className="pointer-events-none absolute -top-20 right-0 h-72 w-72 rounded-full bg-brand-accent/10 blur-[90px]" />
+      <div aria-hidden="true" className="pointer-events-none absolute -top-8 right-10 h-36 w-36 rounded-full bg-brand-accent/20 blur-[45px]" />
+      <header className="relative flex min-w-0 items-start gap-3">
         <Link
           to="/me"
           aria-label={t("Back")}
@@ -37,7 +40,7 @@ export function TrustPage({ title, lead, children }: { title: string; lead?: str
 export function TrustSection({ title, description, children }: { title: string; description?: string; children: ReactNode }) {
   const { t } = useI18n();
   return (
-    <section className="overflow-hidden rounded-md border border-brand-border bg-brand-surface">
+    <section className="overflow-hidden rounded-md border border-white/[0.08] bg-brand-surface shadow-[inset_0_1px_0_0_rgba(255,255,255,0.12)]">
       <div className="border-b border-brand-border px-3 py-2.5 sm:px-4">
         <h2 className="text-[13px] font-semibold text-brand-text">{t(title)}</h2>
         {description ? <p className="mt-0.5 text-[11px] leading-relaxed text-brand-text-muted">{t(description)}</p> : null}

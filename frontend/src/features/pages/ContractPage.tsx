@@ -1,6 +1,6 @@
 ﻿import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@radix-ui/react-dialog";
-import { AlertCircle, BarChart3, CheckCircle2, Inbox, Minus, Plus, RefreshCw, TrendingDown, TrendingUp, TriangleAlert } from "lucide-react";
+import { AlertCircle, BarChart3, CheckCircle2, ChevronDown, Inbox, Minus, MoreHorizontal, Plus, TrendingDown, TrendingUp, TriangleAlert } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Badge } from "../../components/ui/badge";
 import { Button } from "../../components/ui/button";
@@ -12,6 +12,7 @@ import {
   ApiError,
   cancelPerpOrder,
   closePerpPosition,
+  getAccount,
   getPerpFundingHistory,
   getPerpMarkets,
   getPerpOpenOrders,
@@ -19,6 +20,7 @@ import {
   getPerpPositions,
   getPerpTrades,
   submitPerpOrder,
+  type AccountBalance,
   type PerpMarket,
   type PerpOrder,
   type PerpPosition,
@@ -27,7 +29,7 @@ import { useAuth } from "../../lib/auth";
 import { useMarketStream } from "../../lib/useMarketStream";
 import { localeTags, useI18n } from "../../lib/i18n";
 import { TradeProductNav } from "../trade/TradeProductNav";
-import { PositionRiskPanel } from "../trade/PositionRiskPanel";
+import { PositionRiskPanel, fromPerpPosition } from "../trade/PositionRiskPanel";
 import { TradesPanel } from "../trade/TradesPanel";
 import { useMarketStreamEvent } from "../../lib/useMarketStreamEvent";
 import { OrderBookDepth } from "../trade/OrderBookDepth";
@@ -35,7 +37,6 @@ import { ChartDrawer } from "../trade/ChartDrawer";
 import { cn } from "../../lib/utils";
 
 type Tab = "open" | "history" | "trades" | "funding";
-type MobileSegment = "order" | "book" | "positions";
 
 const EM_DASH = "—";
 
@@ -121,20 +122,11 @@ function sideBadge(side: string, t: (value: string) => string) {
   );
 }
 
-function Metric({ label, value, tone }: { label: string; value: string; tone?: string }) {
-  return (
-    <div className="min-w-0 bg-brand-surface px-3 py-2.5 sm:px-4">
-      <dt className="truncate text-[11px] font-medium text-brand-text-muted">{label}</dt>
-      <dd className={cn("bf-tabular mt-0.5 truncate font-mono text-[13px] font-semibold sm:text-sm", tone ?? "text-brand-text")}>{value}</dd>
-    </div>
-  );
-}
-
 
 export function ContractPage() {
   const { t, language } = useI18n();
   const { status } = useAuth();
-  const { getTicker } = useMarketStream();
+  const { tickers } = useMarketStream({ tickers: true });
   const locale = localeTags[language];
   const [markets, setMarkets] = useState<PerpMarket[]>([]);
   const [marketsLoading, setMarketsLoading] = useState(true);
@@ -142,12 +134,10 @@ export function ContractPage() {
   const [symbol, setSymbol] = useState("");
   const [orderType, setOrderType] = useState<"market" | "limit">("limit");
   const [side, setSide] = useState<"buy" | "sell">("buy");
-  const [leverage, setLeverage] = useState(10);
   const [price, setPrice] = useState("");
   const [quantity, setQuantity] = useState("");
   const [reduceOnly, setReduceOnly] = useState(false);
   const [closePosition, setClosePosition] = useState(false);
-  const [marginMode, setMarginMode] = useState<"cross" | "isolated">("cross");
   const [leveragePills, setLeveragePills] = useState<10 | 20 | 50 | 100>(10);
   const [busy, setBusy] = useState(false);
   const [submitError, setSubmitError] = useState("");
@@ -162,9 +152,35 @@ export function ContractPage() {
   const [tabLoading, setTabLoading] = useState(false);
   const [tab, setTab] = useState<Tab>("open");
   const [reload, setReload] = useState(0);
-  const [mobileSegTab, setMobileSegTab] = useState<"positions" | "open">("positions");
-  const [mobileSegment, setMobileSegment] = useState<MobileSegment>("order");
+  const [mobileSegTab, setMobileSegTab] = useState<"positions" | "open" | "history">("positions");
   const [dialogOpen, setDialogOpen] = useState(false);
+  // 交易对选择弹窗：深色抽屉，遍历 markets，支持搜索。
+  const [symbolPickerOpen, setSymbolPickerOpen] = useState(false);
+  const [symbolSearch, setSymbolSearch] = useState("");
+  // 移动端盘口深度聚合精度（点击循环切换）。
+  const [depthStep, setDepthStep] = useState<"0.001" | "0.01" | "0.1" | "1">("0.001");
+  // Mobile compact order form (Binance-style): open/close intent, quick percentage
+  // of available balance, and TP/SL toggle. These are presentation-only helpers;
+  // they map onto the existing side / reduceOnly / closePosition order fields.
+  const [mobileSideTab, setMobileSideTab] = useState<"open" | "close">("open");
+  const [mobilePercent, setMobilePercent] = useState(0);
+  const [mobileTpSl, setMobileTpSl] = useState(false);
+  // Popover open state for the mobile leverage multiplier picker (Binance-style
+  // tap-to-open dropdown instead of inline pills).
+  const [leverageOpen, setLeverageOpen] = useState(false);
+  // Initial-margin input (USDT) for the mobile order form. Typing here derives the
+  // equivalent contract quantity (margin × leverage / price) and writes it back to
+  // `quantity`, keeping a single source of truth for order submission.
+  const [marginInput, setMarginInput] = useState("");
+  // Countdown to the next funding settlement (mobile funding-rate row). Derived
+  // from the selected market's `next_funding_at`; falls back to a rolling 8h
+  // interval anchored to the hour so the row always shows a live countdown.
+  const [fundingCountdown, setFundingCountdown] = useState("");
+  // Available USDT balance (free margin) for the compact mobile order form. Fetched
+  // from the account endpoint so the "available" and "openable" figures track the
+  // real wallet instead of hard-coded placeholders. In demo preview this resolves
+  // to the synthetic demo account.
+  const [availableUsdt, setAvailableUsdt] = useState<number | null>(null);
 
   const selectedMarket = useMemo(() => markets.find((m) => m.symbol === symbol) ?? markets[0], [markets, symbol]);
   const maxLeverage = selectedMarket?.max_leverage ?? 1;
@@ -172,6 +188,14 @@ export function ContractPage() {
   const markPrice = selectedMarket?.mark_price ?? null;
   const indexPrice = selectedMarket?.index_price ?? null;
   const depthMid = markPrice !== null && Number(markPrice) > 0 ? Number(markPrice) : undefined;
+
+  // Live 24h ticker for the selected contract symbol (Binance-style header).
+  // Falls back to the mark price from the market catalogue when the stream has
+  // not produced a ticker for this symbol yet.
+  const baseAsset = selectedMarket?.base_asset ?? (symbol ? symbol.replace(/USDT$/i, "") : "BTC");
+  const liveTicker = useMemo(() => tickers.find((tk) => tk.sym.toUpperCase() === baseAsset.toUpperCase()) ?? null, [tickers, baseAsset]);
+  const displayPrice = liveTicker?.price ?? (markPrice !== null && markPrice !== undefined ? Number(markPrice) : null);
+  const displayChg = liveTicker?.chg ?? null;
 
   // The perpetual page shows the same underlying book as the spot pair, so the
   // stream is only opened when the contract symbol is a valid spot symbol.
@@ -196,9 +220,43 @@ export function ContractPage() {
     ? `${(Number(selectedMarket.funding_rate_cap) * 100).toFixed(4)}%`
     : EM_DASH;
 
+  // Deterministic demo order book so the compact mobile depth panel always renders
+  // something meaningful — even in demo preview where the live depth stream is not
+  // available. Prices are seeded from the mark price; never presented as live.
+  const demoDepthBook = useMemo(() => {
+    const mid = Number(markPrice ?? NaN);
+    if (!Number.isFinite(mid) || mid <= 0) return null;
+    const tick = Math.max(0.01, mid * 0.0001);
+    const bids: [string, string][] = [];
+    const asks: [string, string][] = [];
+    for (let i = 0; i < 6; i += 1) {
+      const spread = tick * (i + 1);
+      // Deterministic pseudo-random sizes (no Math.random, keeps render stable).
+      const size = (0.08 + ((i * 137) % 100) / 100 * 1.5).toFixed(4);
+      bids.push([(mid - spread).toFixed(2), size]);
+      asks.push([(mid + spread).toFixed(2), size]);
+    }
+    return { bids, asks };
+  }, [markPrice]);
+
+  const mobileDepthBook = liveDepth.data ?? demoDepthBook;
+
+  // Buy/sell depth ratio for the mobile order book footer (Binance-style split bar).
+  // Pure presentation; never used for order sizing.
+  const depthRatio = useMemo(() => {
+    const book = mobileDepthBook;
+    if (!book) return null;
+    const bidTotal = book.bids.reduce((sum, [, qty]) => sum + Number(qty || 0), 0);
+    const askTotal = book.asks.reduce((sum, [, qty]) => sum + Number(qty || 0), 0);
+    const total = bidTotal + askTotal;
+    if (!Number.isFinite(total) || total <= 0) return null;
+    const bidPct = (bidTotal / total) * 100;
+    return { bidPct: Math.min(100, Math.max(0, bidPct)), askPct: 100 - Math.min(100, Math.max(0, bidPct)) };
+  }, [mobileDepthBook]);
+
   useEffect(() => {
-    if (leverage > maxLeverage) setLeverage(maxLeverage);
-  }, [maxLeverage, leverage]);
+    if (leveragePills > maxLeverage) setLeveragePills(maxLeverage as 10 | 20 | 50 | 100);
+  }, [maxLeverage, leveragePills]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -218,6 +276,53 @@ export function ContractPage() {
       .finally(() => { if (!controller.signal.aborted) setMarketsLoading(false); });
     return () => controller.abort();
   }, [reload, t]);
+
+  // Resolve the USDT free balance for the mobile order entry's "available" row.
+  // Works for both live accounts and the demo preview (getAccount returns the
+  // synthetic demo account when DEMO_PREVIEW_ACTIVE is set). Never blocks the
+  // rest of the terminal: on failure we keep the previous value / show a dash.
+  useEffect(() => {
+    const controller = new AbortController();
+    getAccount(controller.signal)
+      .then((snapshot) => {
+        if (controller.signal.aborted) return;
+        const usdt: AccountBalance | undefined = snapshot.balances?.USDT;
+        const free = usdt ? Number(usdt.free) : NaN;
+        setAvailableUsdt(Number.isFinite(free) ? free : null);
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) setAvailableUsdt(null);
+      });
+    return () => controller.abort();
+  }, []);
+
+  // Live countdown to the next funding settlement. Anchored to the market's
+  // `next_funding_at` when available, otherwise to the top of the current 8-hour
+  // window (00:00 / 08:00 / 16:00 UTC) so the mobile row always ticks.
+  useEffect(() => {
+    const fmt = (ms: number) => {
+      if (ms <= 0) return "00:00:00";
+      const total = Math.floor(ms / 1000);
+      const h = Math.floor(total / 3600);
+      const m = Math.floor((total % 3600) / 60);
+      const s = total % 60;
+      const pad = (n: number) => String(n).padStart(2, "0");
+      return `${pad(h)}:${pad(m)}:${pad(s)}`;
+    };
+    const tick = () => {
+      const next = selectedMarket?.next_funding_at ? new Date(selectedMarket.next_funding_at).getTime() : null;
+      let target = next;
+      if (!target || !Number.isFinite(target)) {
+        const interval = selectedMarket?.funding_interval_sec || 28800;
+        const now = Date.now();
+        target = Math.ceil(now / (interval * 1000)) * (interval * 1000);
+      }
+      setFundingCountdown(fmt(target - Date.now()));
+    };
+    tick();
+    const id = window.setInterval(tick, 1000);
+    return () => window.clearInterval(id);
+  }, [selectedMarket]);
 
   useEffect(() => {
     if (status !== "authenticated") {
@@ -265,6 +370,40 @@ export function ContractPage() {
     if (!Number.isFinite(qty) || qty <= 0 || !Number.isFinite(px) || px <= 0 || effectiveLeverage < 1) return null;
     return roundTo(div(mul(px, qty), effectiveLeverage), 2);
   }, [quantity, price, orderType, markPrice, effectiveLeverage]);
+
+  // Maximum openable contract quantity at the current leverage: available USDT ×
+  // leverage / entry price. Pure display for the mobile "openable" row — the
+  // actual order still goes through server-side margin checks.
+  const openableQty = useMemo(() => {
+    if (availableUsdt === null || !Number.isFinite(availableUsdt) || availableUsdt <= 0) return null;
+    const px = Number(markPrice ?? NaN);
+    if (!Number.isFinite(px) || px <= 0 || effectiveLeverage < 1) return null;
+    return roundTo(div(mul(availableUsdt, effectiveLeverage), px), 6);
+  }, [availableUsdt, markPrice, effectiveLeverage]);
+
+  // Typing an initial margin derives the equivalent contract quantity and syncs it
+  // back into `quantity` (single source of truth for submission). Empty input
+  // clears the quantity.
+  const handleMarginChange = (raw: string) => {
+    const value = sanitizeDecimal(raw, 2);
+    setMarginInput(value);
+    const margin = Number(value);
+    const px = Number(markPrice ?? NaN);
+    if (!value || !Number.isFinite(margin) || margin <= 0 || !Number.isFinite(px) || px <= 0 || effectiveLeverage < 1) {
+      setQuantity("");
+      return;
+    }
+    const qty = div(mul(margin, effectiveLeverage), px);
+    setQuantity(qty > 0 ? qty.toFixed(quantityDecimals) : "");
+  };
+
+  // Quick percentage of available balance → margin (and therefore quantity).
+  const applyMarginPercent = (pct: number) => {
+    setMobilePercent(pct);
+    if (availableUsdt === null || !Number.isFinite(availableUsdt) || availableUsdt <= 0) return;
+    const margin = roundTo(mul(availableUsdt, pct / 100), 2);
+    handleMarginChange(String(margin));
+  };
 
   async function submitOrder(event: FormEvent) {
     event.preventDefault();
@@ -393,14 +532,7 @@ export function ContractPage() {
       <CardContent className="pt-4">
         <PositionRiskPanel
           positions={positions.map((pos) => ({
-            id: pos.position_id,
-            symbol: pos.symbol,
-            side: pos.side === "buy" || pos.side === "long" ? "long" : "short",
-            quantity: Number(pos.quantity),
-            entryPrice: Number(pos.entry_price),
-            markPrice: Number.isFinite(Number(pos.mark_price)) ? Number(pos.mark_price) : null,
-            liquidationPrice: Number.isFinite(Number(pos.liquidation_price)) ? Number(pos.liquidation_price) : null,
-            margin: Number.isFinite(Number(pos.margin)) ? Number(pos.margin) : null,
+            ...fromPerpPosition(pos),
             leverage: Number.isFinite(Number(pos.leverage)) ? Number(pos.leverage) : effectiveLeverage,
           }))}
           emptyHint="Open a position to see its liquidation distance and margin ratio."
@@ -446,21 +578,60 @@ export function ContractPage() {
     </div>
   );
 
-  const mobilePositionsAndOrders = (
-    <Card className="border-brand-border bg-brand-surface">
-      <CardHeader className="border-b border-brand-border/60 pb-0">
-        <div className="flex gap-4" role="tablist">
-          {([["positions", t("Positions")], ["open", t("Open orders")]] as const).map(([key, label]) => (
-            <button key={key} type="button" role="tab" aria-selected={mobileSegTab === key} onClick={() => setMobileSegTab(key)}
-              className={cn("relative pb-2.5 text-xs font-bold transition-colors", mobileSegTab === key ? "text-brand-text" : "text-brand-text-muted hover:text-brand-text-secondary")}>
-              {label}
-              {mobileSegTab === key ? <span className="absolute inset-x-0 bottom-0 h-0.5 rounded-full bg-brand-accent" /> : null}
-            </button>
-          ))}
+  const mobileHistoryBody = orderHistory.length === 0 ? (
+    <EmptyState icon={Inbox} title={t("No order history")} hint={t("Filled and cancelled orders will appear here.")} />
+  ) : (
+    <div className="space-y-2 px-3">
+      {orderHistory.map((o) => (
+        <div key={o.order_id} className="rounded-lg bg-[#1e2329] px-3 py-2.5">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-[12px] font-bold text-[#eaecef]">{o.symbol}</span>
+            {sideBadge(o.side, t)}
+          </div>
+          <div className="mt-1.5 grid grid-cols-2 gap-x-3 gap-y-1 font-mono text-[11px]">
+            <div className="flex justify-between"><span className="text-[10px] text-brand-text-muted">{t("Type")}</span><span className="uppercase text-brand-text-secondary">{o.type}</span></div>
+            <div className="flex justify-between"><span className="text-[10px] text-brand-text-muted">{t("Price")}</span><span className="text-brand-text">{money(o.price, locale)}</span></div>
+            <div className="flex justify-between"><span className="text-[10px] text-brand-text-muted">{t("Quantity")}</span><span className="text-brand-text">{money(o.quantity, locale, 6)}</span></div>
+            <div className="flex justify-between"><span className="text-[10px] text-brand-text-muted">{t("Status")}</span><span className="text-brand-text-secondary">{o.status}</span></div>
+          </div>
         </div>
-      </CardHeader>
-      <CardContent className="pt-3">{mobileSegTab === "positions" ? positionsBody : openOrdersBody}</CardContent>
-    </Card>
+      ))}
+    </div>
+  );
+
+  const mobileSegLabels: Array<["positions" | "open" | "history", string, number]> = [
+    ["positions", t("Positions"), positions.length],
+    ["open", t("Open orders"), openOrders.length],
+    ["history", t("History"), orderHistory.length],
+  ];
+
+  // 移动端底部订单/仓位区的精简居中空状态（弱化图标 + 单行小字提示）。
+  const mobileEmpty = (text: string) => (
+    <div className="flex flex-col items-center justify-center py-8 text-center">
+      <Inbox className="mb-1.5 h-7 w-7 text-[#474d57]" aria-hidden="true" />
+      <p className="text-xs text-[#848e9c]">{text}</p>
+    </div>
+  );
+
+  const mobilePositionsAndOrders = (
+    <div className="flex-1">
+      <div className="sticky top-0 z-10 flex h-9 items-end gap-4 border-b border-white/5 bg-[#0b0e11] px-3.5" role="tablist" aria-label={t("Orders and history")}>
+        {mobileSegLabels.map(([key, label, count]) => (
+          <button key={key} type="button" role="tab" aria-selected={mobileSegTab === key} onClick={() => setMobileSegTab(key)}
+            className={cn("relative flex h-full items-center text-[13px] font-semibold transition-colors", mobileSegTab === key ? "text-[#eaecef]" : "text-brand-text-muted hover:text-brand-text-secondary")}>
+            {label} ({count})
+            {mobileSegTab === key ? <span className="absolute inset-x-0 bottom-0 h-[2px] rounded-full bg-[#f0b90b]" /> : null}
+          </button>
+        ))}
+      </div>
+      <div className="pt-3">
+        {mobileSegTab === "positions"
+          ? (positions.length === 0 && !positionsLoading && !positionsError ? mobileEmpty(t("No positions")) : positionsBody)
+          : mobileSegTab === "open"
+            ? (openOrders.length === 0 && !positionsLoading ? mobileEmpty(t("No orders")) : openOrdersBody)
+            : (orderHistory.length === 0 ? mobileEmpty(t("No history")) : mobileHistoryBody)}
+      </div>
+    </div>
   );
 
 
@@ -543,8 +714,7 @@ export function ContractPage() {
             </div>
             <div className="mt-2 flex items-center justify-between gap-2 rounded-lg border border-brand-border bg-brand-surface-2/60 px-3 py-2">
               <span className="text-xs text-brand-text-muted">{t("Margin mode")}</span>
-              <button type="button" aria-pressed={marginMode === "cross"} onClick={() => setMarginMode("cross")} className={`min-h-8 rounded-md px-3 text-xs font-semibold transition-all duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent/50 ${marginMode === "cross" ? "bg-brand-accent/15 text-brand-accent" : "text-brand-text-muted hover:text-brand-text"}`}>{t("Cross")}</button>
-              <button type="button" aria-pressed={marginMode === "isolated"} onClick={() => setMarginMode("isolated")} className={`min-h-8 rounded-md px-3 text-xs font-semibold transition-all duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent/50 ${marginMode === "isolated" ? "bg-brand-accent/15 text-brand-accent" : "text-brand-text-muted hover:text-brand-text"}`}>{t("Isolated")}</button>
+              <span className="text-xs font-semibold text-brand-text">{t("Cross")}</span>
             </div>
           </div>
 
@@ -609,6 +779,172 @@ export function ContractPage() {
       </CardContent>
     </Card>
   );
+
+
+  // Mobile-only compact order entry (Binance futures style). Kept separate from
+  // `orderEntryCard` so the desktop layout stays untouched.
+  const mobileOrderEntry = (
+    <form onSubmit={(e) => void submitOrder(e)} className="compact-trade-form flex h-full flex-col gap-1.5 text-[#eaecef]">
+      {/* 开仓 / 平仓 胶囊切换（币安风格 h-9 大胶囊） */}
+      <div className="grid grid-cols-2 gap-1 rounded-md bg-[#1e2329] p-[3px]" role="group" aria-label={t("Position intent")}>
+        {(["open", "close"] as const).map((kind) => (
+          <button key={kind} type="button" aria-pressed={mobileSideTab === kind}
+            onClick={() => { setMobileSideTab(kind); setReduceOnly(kind === "close"); setClosePosition(kind === "close"); }}
+            className={cn("rounded py-2 text-[13px] leading-none font-semibold transition-colors", mobileSideTab === kind ? "bg-[#2b3139] text-white" : "text-[#848e9c] hover:text-[#eaecef]")}>
+            {kind === "open" ? t("Open position") : t("Close position")}
+          </button>
+        ))}
+      </div>
+
+      {/* 全仓（固定）+ 杠杆（币安风格 h-[32px]） */}
+      <div className="relative grid grid-cols-2 gap-2">
+        <button type="button"
+          className="flex h-8 items-center justify-between rounded-md bg-[#2b3139] px-3 text-[13px] leading-none font-medium text-[#eaecef]">
+          <span>{t("Cross")}</span>
+          <span className="text-[11px] leading-none text-[#848e9c]">▾</span>
+        </button>
+        <button type="button" aria-expanded={leverageOpen} onClick={() => setLeverageOpen((v) => !v)}
+          className="flex h-8 items-center justify-between rounded-md bg-[#2b3139] px-3 text-[13px] leading-none font-semibold text-brand-accent transition-colors hover:opacity-90">
+          <span>{effectiveLeverage}×</span>
+          <span className={cn("text-[11px] leading-none text-[#848e9c] transition-transform", leverageOpen && "rotate-180")}>▾</span>
+        </button>
+        {leverageOpen ? (
+          <div className="absolute right-0 top-full z-20 mt-1 w-[calc(50%-3px)] overflow-hidden rounded-md border border-brand-border bg-brand-surface shadow-lg shadow-black/40">
+            {([10, 20, 50, 100] as const).filter((n) => n <= maxLeverage).map((n) => (
+              <button key={n} type="button" onClick={() => { setLeveragePills(n); setLeverageOpen(false); }}
+                className={cn("flex w-full items-center justify-between px-3 py-2.5 text-xs transition-colors hover:bg-brand-surface-hover",
+                  effectiveLeverage === n ? "font-bold text-brand-accent" : "font-medium text-brand-text-secondary")}>
+                <span>{n}×</span>
+                {effectiveLeverage === n ? <span className="text-brand-accent">✓</span> : null}
+              </button>
+            ))}
+          </div>
+        ) : null}
+      </div>
+
+      {/* 委托类型 Select（币安风格 h-9） */}
+      <div className="relative">
+        <label className="sr-only" htmlFor="mobile-order-type">{t("Order type")}</label>
+        <Select
+          id="mobile-order-type"
+          value={orderType}
+          onChange={(event) => setOrderType(event.target.value as "limit" | "market")}
+          className="h-9 w-full rounded-md bg-[#2b3139] px-3 text-[13px] font-medium text-[#eaecef]"
+        >
+          <option value="market">{t("Market")}</option>
+          <option value="limit">{t("Limit")}</option>
+        </Select>
+        <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[11px] text-[#848e9c]">▾</span>
+      </div>
+
+      {/* 价格 / 市价提示 输入（币安风格 h-10） */}
+      <div className="flex h-10 items-center justify-between rounded-md bg-[#2b3139] px-3">
+        {orderType === "market" ? (
+          <input type="text" disabled
+            placeholder={t("Filled at the best available market price")}
+            aria-label={t("Price")}
+            className="w-full bg-transparent text-[13px] font-medium text-[#848e9c] outline-none placeholder:text-[#848e9c]" />
+        ) : (
+          <input type="text" inputMode="decimal" value={price}
+            onChange={(e) => setPrice(sanitizeDecimal(e.target.value, priceDecimals))}
+            placeholder={markPrice === null ? t("Price") : money(markPrice, "en-US", 2)}
+            aria-label={t("Price")}
+            className="w-full bg-transparent font-mono text-[13px] font-medium tabular-nums outline-none placeholder:text-[#848e9c]" />
+        )}
+        <span className="ml-2 shrink-0 text-[11px] font-medium text-[#848e9c]">USDT ▾</span>
+      </div>
+
+      {/* 市价模式：初始保证金 (USDT) 输入（币安风格 h-10） */}
+      {orderType === "market" ? (
+        <div className="flex h-10 items-center justify-between rounded-md bg-[#2b3139] px-3">
+          <input type="text" inputMode="decimal" value={marginInput}
+            onChange={(e) => handleMarginChange(e.target.value)}
+            placeholder={t("Initial margin")} aria-label={t("Initial margin")}
+            className="w-full bg-transparent font-mono text-[13px] font-medium tabular-nums outline-none placeholder:text-[#848e9c]" />
+          <span className="ml-2 shrink-0 text-[11px] font-medium text-[#848e9c]">USDT</span>
+        </div>
+      ) : null}
+
+      {/* 数量 (BTC) 输入（币安风格 h-10） */}
+      <div className="flex h-10 items-center justify-between rounded-md bg-[#2b3139] px-3">
+        <input type="text" inputMode="decimal" value={quantity}
+          onChange={(e) => setQuantity(sanitizeDecimal(e.target.value, quantityDecimals))}
+          placeholder={selectedMarket ? `${selectedMarket.min_quantity}` : "0.0000"}
+          aria-label={t("Quantity")}
+          className="w-full bg-transparent font-mono text-[13px] font-medium tabular-nums outline-none placeholder:text-[#848e9c]" />
+        <span className="ml-2 shrink-0 text-[11px] font-medium text-[#848e9c]">{selectedMarket?.base_asset ?? "BTC"}</span>
+      </div>
+
+      {/* 百分比快速下单（币安风格：菱形手柄 + 小圆点轨道） */}
+      <div className="relative flex w-full items-center justify-between" style={{ height: 20 }}>
+        {/* 底层细轨道 */}
+        <div className="absolute inset-x-0 bg-[#2b3139]" style={{ height: 2 }} />
+        {/* 已选进度（绿色，纯水平细线） */}
+        <div className="absolute left-0 bg-brand-accent" style={{ height: 2, width: `${mobilePercent}%` }} />
+        {/* 5 个刻度点 0/25/50/75/100（点击填入对应比例） */}
+        {[0, 25, 50, 75, 100].map((step) => (
+          <button key={step} type="button" onClick={() => applyMarginPercent(step)} aria-label={`${step}%`}
+            className="relative z-10 flex items-center justify-center"
+            style={{
+              width: 20,
+              height: 20,
+              padding: 0,
+              border: "none",
+              background: "transparent",
+              appearance: "none",
+              flexShrink: 0,
+            }}>
+            {/* 当前选中位置显示菱形手柄，其余为小圆点 */}
+            {mobilePercent === step ? (
+              <span style={{
+                width: 10,
+                height: 10,
+                transform: "rotate(45deg)",
+                backgroundColor: "#eaecef",
+                display: "block",
+              }} />
+            ) : (
+              <span style={{
+                width: 6,
+                height: 6,
+                borderRadius: "50%",
+                backgroundColor: mobilePercent >= step ? "#0ecb81" : "#1e2329",
+                border: mobilePercent >= step ? "none" : "1.5px solid #4a5158",
+                display: "block",
+              }} />
+            )}
+          </button>
+        ))}
+      </div>
+
+      {/* 可用 / 可开 辅助行（币安节奏：按钮前） */}
+      <div className="space-y-1 text-[12px] tabular-nums">
+        <div className="flex justify-between"><span className="text-[#848e9c]">{t("Available")}</span><span className="text-[#eaecef]">{availableUsdt === null ? EM_DASH : `${money(availableUsdt, locale, 2)} USDT`} ⇄</span></div>
+        <div className="flex justify-between"><span className="text-[#848e9c]">{t("Openable")}</span><span className="text-[#eaecef]">{openableQty === null ? EM_DASH : `${money(openableQty, locale, 4)} ${selectedMarket?.base_asset ?? "BTC"}`}</span></div>
+      </div>
+
+      {/* 开多 / 平多 按钮（币安风格 h-11） */}
+      <button type="submit" onClick={() => setSide("buy")} disabled={busy}
+        className="relative flex h-11 w-full items-center justify-center rounded-md bg-brand-success text-[15px] font-bold text-white transition hover:opacity-90 active:scale-[0.99] disabled:opacity-60">
+        <span>{mobileSideTab === "open" ? t("Long") : t("Close short")}</span>
+        <span className="absolute right-3 text-[11px] font-normal opacity-90">{mobileSideTab === "open" ? t("Up") : ""}</span>
+      </button>
+
+      {/* 可平 辅助行（币安节奏：两个按钮之间） */}
+      <div className="flex justify-between text-[12px] tabular-nums"><span className="text-[#848e9c]">{t("Closeable")}</span><span className="text-[#eaecef]">0.00 USDT</span></div>
+
+      {/* 开空 / 平空 按钮（币安风格 h-11） */}
+      <button type="submit" onClick={() => setSide("sell")} disabled={busy}
+        className="relative flex h-11 w-full items-center justify-center rounded-md bg-brand-danger text-[15px] font-bold text-white transition hover:opacity-90 active:scale-[0.99] disabled:opacity-60">
+        <span>{mobileSideTab === "open" ? t("Short") : t("Close long")}</span>
+        <span className="absolute right-3 text-[11px] font-normal opacity-90">{mobileSideTab === "open" ? t("Down") : ""}</span>
+      </button>
+
+      {submitError ? <p role="alert" className="flex items-start gap-1.5 rounded-md border border-brand-danger/30 bg-brand-danger/10 p-2 text-[11px] text-brand-danger"><AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />{submitError}</p> : null}
+      {submitOk ? <p role="status" className="flex items-start gap-1.5 rounded-md border border-brand-success/30 bg-brand-success/10 p-2 text-[11px] text-brand-success"><CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0" />{submitOk}</p> : null}
+    </form>
+  );
+
 
 
   const historyBody = () => {
@@ -699,49 +1035,49 @@ export function ContractPage() {
 
   return (
     <>
-      <TradeProductNav />
-      <div className="mx-auto flex w-full min-w-0 max-w-[1560px] flex-col gap-4 px-3 pb-6 pt-3 sm:px-4 sm:pt-4 md:px-6 lg:px-8">
-        <header className="flex min-w-0 flex-col gap-3 rounded-xl border border-brand-border bg-brand-surface p-3 sm:p-4 lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2">
-            <div className="flex min-w-0 items-center gap-2">
-              <h1 className="type-page-title truncate text-brand-text">{selectedMarket?.symbol ?? "BTCUSDT"}</h1>
-              <Badge variant="outline" className="shrink-0 border-brand-violet/30 bg-brand-violet/10 text-[11px] text-brand-violet">{t("Perpetual")}</Badge>
-              {selectedMarket ? <Badge variant="warning" className="shrink-0 text-[11px]">{t(selectedMarket.status === "trading" ? "Live trading" : "Read only")}</Badge> : null}
+      {/* 全出血通栏：产品切换栏 + 行情 header 无缝融合（局部覆盖，不影响其他页面） */}
+      <div className="w-full bg-[#0b0e11] [&>nav]:!bg-[#0b0e11]">
+        <TradeProductNav leftIndent="px-5 sm:px-6 md:px-8 lg:px-8" />
+      </div>
+      <div className="mx-auto flex min-h-dvh w-full min-w-0 max-w-[430px] flex-col bg-[#0b0e11] px-0 pb-24 text-[#eaecef] lg:max-w-[1560px] lg:gap-4 lg:px-8 lg:pb-6 lg:pt-4">
+        <header className="flex min-w-0 flex-col justify-center gap-2 px-3.5 pt-2.5 pb-1 lg:h-auto lg:rounded-xl lg:border lg:border-brand-border lg:bg-brand-surface lg:px-4 lg:py-2">
+          {/* 行 1：合约名（市场选择）+ 永续标签 + 图表/更多 图标 */}
+          <div className="flex min-w-0 items-center gap-2">
+            <div className="relative min-w-0">
+              <button
+                type="button"
+                onClick={() => setSymbolPickerOpen(true)}
+                disabled={markets.length === 0}
+                className="flex min-w-0 items-center gap-1 rounded text-[18px] font-bold leading-none text-brand-text transition-colors hover:text-brand-text-secondary"
+              >
+                <span className="truncate">{selectedMarket?.symbol ?? "BTCUSDT"}</span>
+                <ChevronDown className="h-4 w-4 shrink-0 text-brand-text-muted" aria-hidden="true" />
+              </button>
             </div>
-            <div className="flex min-w-0 items-baseline gap-1.5">
-              <span className="bf-tabular font-mono text-xl font-semibold text-brand-text sm:text-2xl">{money(markPrice, locale)}</span>
-              <span className="text-[11px] font-medium text-brand-text-muted">USDT</span>
+            <Badge variant="outline" className="shrink-0 border-brand-violet/30 bg-brand-violet/10 px-1.5 py-0.5 text-[11px] leading-none text-brand-violet">{t("Perpetual")}</Badge>
+            <div className="ml-auto flex shrink-0 items-center gap-1">
+              <Button type="button" variant="ghost" size="icon" aria-label={t("Chart")} className="h-8 w-8 text-brand-text-muted" onClick={() => setDialogOpen(true)}>
+                <BarChart3 className="h-4 w-4" aria-hidden="true" />
+              </Button>
+              <Button type="button" variant="ghost" size="icon" aria-label={t("More")} className="h-8 w-8 text-brand-text-muted">
+                <MoreHorizontal className="h-4 w-4" aria-hidden="true" />
+              </Button>
             </div>
           </div>
-          <div className="flex min-w-0 items-center gap-2">
-            <div className="min-w-0 flex-1 sm:flex-none">
-              <label className="sr-only" htmlFor="perp-market-select">{t("Market")}</label>
-              <Select
-                id="perp-market-select"
-                value={selectedMarket?.symbol ?? ""}
-                onChange={(event) => setSymbol(event.target.value)}
-                disabled={markets.length === 0}
-                className="h-11 w-full min-w-0 sm:w-[180px]"
-              >
-                {markets.length === 0 ? <option value="">{t("No markets enabled")}</option> : null}
-                {markets.map((market) => <option key={market.symbol} value={market.symbol}>{market.symbol}</option>)}
-              </Select>
+          {/* 行 2：大号最新价 + 涨跌幅（左），标记/指数价（右侧右对齐），避免重叠 */}
+          <div className="flex min-w-0 items-baseline justify-between gap-2">
+            <div className="flex min-w-0 shrink-0 items-baseline gap-2">
+              <span className={cn("bf-tabular font-mono text-[20px] font-bold leading-none", displayChg !== null ? (displayChg >= 0 ? "text-brand-success" : "text-brand-danger") : "text-brand-text")}>{displayPrice !== null && displayPrice !== undefined ? money(displayPrice, locale) : EM_DASH}</span>
+              <span className={cn("bf-tabular font-mono text-[12px] font-semibold", displayChg !== null ? (displayChg >= 0 ? "text-brand-success" : "text-brand-danger") : "text-brand-text-muted")}>
+                {displayChg !== null ? `${displayChg >= 0 ? "+" : ""}${displayChg.toFixed(2)}%` : EM_DASH}
+              </span>
             </div>
-            <Button type="button" variant="outline" size="sm" className="h-11 shrink-0" onClick={() => setDialogOpen(true)}>
-              <BarChart3 className="h-4 w-4" aria-hidden="true" /><span className="hidden sm:inline">{t("Chart")}</span>
-            </Button>
-            <Button type="button" variant="outline" size="icon" aria-label={t("Refresh")} className="h-11 w-11 shrink-0" onClick={() => setReload((n) => n + 1)}>
-              <RefreshCw className={cn("h-4 w-4", marketsLoading && "animate-spin")} aria-hidden="true" />
-            </Button>
+            <div className="hidden min-w-0 shrink-0 items-center gap-2 text-right text-[11px] text-brand-text-muted lg:flex">
+              <span className="flex items-center gap-1"><span>{t("Mark")}</span><span className="bf-tabular font-mono text-brand-text-secondary">{money(markPrice, locale)}</span></span>
+              <span className="flex items-center gap-1"><span>{t("Index")}</span><span className="bf-tabular font-mono text-brand-text-secondary">{money(indexPrice, locale)}</span></span>
+            </div>
           </div>
         </header>
-
-        <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-brand-border bg-brand-border sm:grid-cols-4">
-          <Metric label={t("Mark price")} value={`${money(markPrice, locale)} USDT`} />
-          <Metric label={t("Index price")} value={money(indexPrice, locale)} />
-          <Metric label={t("Funding rate cap")} value={fundingRatePct} />
-          <Metric label={t("Max leverage")} value={`${maxLeverage}×`} tone="text-brand-violet" />
-        </dl>
 
         {marketsError ? (
           <Card className="border-brand-danger/30 bg-brand-surface">
@@ -769,18 +1105,98 @@ export function ContractPage() {
         {markets.length > 0 ? (
           <>
             <div className="lg:hidden">
-              <div className="grid grid-cols-3 gap-1 rounded-xl border border-brand-border bg-brand-surface p-1 text-xs font-semibold" role="tablist" aria-label={t("Trading panels")}>
-                {([["order", t("Quick order")], ["book", t("Order book")], ["positions", t("Positions")]] as const).map(([key, label]) => (
-                  <button key={key} type="button" role="tab" aria-selected={mobileSegment === key} onClick={() => setMobileSegment(key)}
-                    className={cn("min-h-10 rounded-lg px-1 transition-colors", mobileSegment === key ? "bg-brand-surface-2 text-brand-text" : "text-brand-text-muted hover:text-brand-text")}>
-                    {label}
-                  </button>
-                ))}
+              {/* 左右双栏：左下单 + 右紧凑盘口（底边严格齐平），顶部加呼吸间距 */}
+              <div className="compact-trade-form mt-2.5 grid grid-cols-[1.28fr_1fr] items-stretch gap-2.5 border-t border-[#2b3139]/40 px-3 pt-2">
+                {/* 左：移动端紧凑下单表单 */}
+                <div className="flex min-w-0 flex-col">{mobileOrderEntry}</div>
+
+                {/* 右：Binance 紧凑盘口（顶部对齐，精度框 mt-auto 推底对齐左栏主按钮） */}
+                <div className="flex min-w-0 flex-col justify-start text-[10px] tabular-nums">
+                  {/* 顶部：资金费率 + 倒计时 */}
+                  <div className="flex items-center justify-between pb-1">
+                    <span className="text-[10px] text-brand-text-muted">{t("Funding rate")}</span>
+                    <span className="text-right">
+                      <span className="font-mono text-[11px] font-semibold text-brand-text-secondary">{fundingRatePct}</span>
+                      <span className="ml-1.5 font-mono text-[11px] text-brand-text-muted">{fundingCountdown}</span>
+                    </span>
+                  </div>
+
+                  {/* 表头（币安风格：币种名 + 单位分两行） */}
+                  <div className="grid grid-cols-[1.1fr_0.9fr] border-b border-white/5 pb-0.5 font-semibold leading-tight text-[10px] text-brand-text-muted">
+                    <span>{t("Price")}<br />(USDT)</span>
+                    <span className="text-right">{t("Quantity")}<br />(USDT)</span>
+                  </div>
+                  {(() => {
+                    const asks = mobileDepthBook ? mobileDepthBook.asks.slice(0, 5).reverse() : [];
+                    const bids = mobileDepthBook ? mobileDepthBook.bids.slice(0, 5) : [];
+                    let max = 0;
+                    for (const [, q] of [...asks, ...bids]) { const n = Number(q); if (n > max) max = n; }
+                    const fmt = (v: unknown) => (v === undefined || v === null || v === "" ? "—" : Number(v).toLocaleString("en-US", { maximumFractionDigits: 8 }));
+                    return (
+                      <>
+                        <div className="flex flex-col space-y-0.5">
+                          {asks.map((row, i) => {
+                            const depth = max ? (Number(row[1]) / max) * 100 : 0;
+                            return (
+                              <div key={`a${i}`} className="relative grid grid-cols-[1.1fr_0.9fr] h-[21px] leading-[21px] text-[11px]">
+                                <span className="absolute inset-y-0 right-0 bg-[#f6465d]/15 transition-all duration-150" style={{ width: `${depth}%` }} />
+                                <span className="relative text-left text-[#f6465d]">{fmt(row[0])}</span>
+                                <span className="relative text-right text-gray-300">{fmt(row[1])}</span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                        <div className="my-0.5 text-center leading-tight">
+                          <div className="text-[17px] font-bold leading-none text-brand-success">{fmt(depthMid)}</div>
+                          <div className="mt-0.5 text-[11px] text-[#848e9c] underline decoration-dotted underline-offset-2">{fmt(markPrice)}</div>
+                        </div>
+                        <div className="flex flex-col space-y-0.5">
+                          {bids.map((row, i) => {
+                            const depth = max ? (Number(row[1]) / max) * 100 : 0;
+                            return (
+                              <div key={`b${i}`} className="relative grid grid-cols-[1.1fr_0.9fr] h-[21px] leading-[21px] text-[11px]">
+                                <span className="absolute inset-y-0 right-0 bg-[#0ecb81]/15 transition-all duration-150" style={{ width: `${depth}%` }} />
+                                <span className="relative text-left text-[#0ecb81]">{fmt(row[0])}</span>
+                                <span className="relative text-right text-gray-300">{fmt(row[1])}</span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </>
+                    );
+                  })()}
+
+                  {/* 底部：多空比例条 + 精度 Select + 盘口切换（mt-auto 推底对齐左栏开空按钮） */}
+                  <div className="mt-auto space-y-1 pt-1">
+                    {depthRatio ? (
+                      <div className="flex items-center justify-between text-[10px] tabular-nums">
+                        <span className="text-brand-success">{depthRatio.bidPct.toFixed(2)}%</span>
+                        <div className="mx-1.5 h-1 flex-1 overflow-hidden rounded-full bg-brand-danger/40">
+                          <div className="h-full bg-brand-success" style={{ width: `${depthRatio.bidPct}%` }} />
+                        </div>
+                        <span className="text-brand-danger">{depthRatio.askPct.toFixed(2)}%</span>
+                      </div>
+                    ) : null}
+                    <div className="flex items-center gap-1">
+                      <button type="button"
+                        onClick={() => setDepthStep((cur) => cur === "0.001" ? "0.01" : cur === "0.01" ? "0.1" : cur === "0.1" ? "1" : "0.001")}
+                        className="flex h-6 flex-1 items-center justify-between rounded bg-[#2b3139] px-2 text-[11px] leading-none text-[#eaecef]">
+                        <span>{depthStep}</span>
+                        <span className="text-[10px] leading-none text-[#848e9c]">▾</span>
+                      </button>
+                      <button type="button" aria-label={t("Order book view")}
+                        className="flex h-6 w-6 shrink-0 items-center justify-center rounded bg-[#2b3139] text-[#848e9c]">
+                        <span className="text-[11px] leading-none">☰</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
               </div>
-              <div className="mt-3">
-                {mobileSegment === "order" ? orderEntryCard : null}
-                {mobileSegment === "book" ? <OrderBookDepth mid={depthMid} book={liveDepth.data} streamState={liveDepth.state} /> : null}
-                {mobileSegment === "positions" ? <div className="space-y-3">{signedOut ? null : positionsCard}{signedOut ? null : positionRiskCard}{mobilePositionsAndOrders}{positionsError ? <p className="text-xs text-brand-danger" role="alert">{positionsError}</p> : null}</div> : null}
+
+              {/* 持仓 / 委托（下方全宽）：分段页签已含持仓明细 */}
+              <div className="mt-2 flex flex-1 flex-col">
+                {mobilePositionsAndOrders}
+                {positionsError ? <p className="px-3 text-xs text-brand-danger" role="alert">{positionsError}</p> : null}
               </div>
             </div>
 
@@ -800,17 +1216,72 @@ export function ContractPage() {
         ) : null}
       </div>
 
+      {/* 交易对选择弹窗：深色抽屉，搜索 + 遍历 markets */}
+      <Dialog open={symbolPickerOpen} onOpenChange={(open) => { setSymbolPickerOpen(open); if (!open) setSymbolSearch(""); }}>
+        <DialogContent className="fixed inset-x-0 bottom-0 z-[80] mx-auto w-full max-w-[430px] rounded-t-2xl border border-[#2b3139] bg-[#1e2329] p-0 pb-[calc(env(safe-area-inset-bottom)+0.5rem)] sm:max-w-[430px]">
+          <div className="flex items-center gap-2 px-3 pt-3">
+            <DialogTitle className="min-w-0 flex-1 text-sm font-bold text-[#eaecef]">{t("Select market")}</DialogTitle>
+            <DialogDescription className="sr-only">{t("Choose a perpetual contract symbol")}</DialogDescription>
+            <button type="button" onClick={() => setSymbolPickerOpen(false)} className="flex h-7 w-7 items-center justify-center rounded text-brand-text-muted hover:bg-brand-surface-hover" aria-label={t("Close")}>
+              <ChevronDown className="h-4 w-4 rotate-180" aria-hidden="true" />
+            </button>
+          </div>
+          <div className="px-3 pt-2">
+            <input
+              type="text"
+              value={symbolSearch}
+              onChange={(e) => setSymbolSearch(e.target.value)}
+              placeholder={t("Search symbol")}
+              className="h-9 w-full rounded-md border border-[#2b3139] bg-[#161a1e] px-3 text-sm text-[#eaecef] outline-none placeholder:text-brand-text-muted focus:border-brand-accent"
+            />
+          </div>
+          <div className="mt-2 max-h-[60vh] overflow-y-auto px-3 pb-2">
+            {markets
+              .filter((m) => m.symbol.toLowerCase().includes(symbolSearch.trim().toLowerCase()))
+              .map((m) => {
+                const base = m.base_asset ?? m.symbol.replace(/USDT$/i, "");
+                const tk = tickers.find((t) => t.sym.toUpperCase() === base.toUpperCase()) ?? null;
+                const chg = tk?.chg ?? null;
+                return (
+                  <button
+                    key={m.symbol}
+                    type="button"
+                    onClick={() => { setSymbol(m.symbol); setSymbolPickerOpen(false); setSymbolSearch(""); }}
+                    className={cn(
+                      "flex w-full items-center justify-between rounded-md px-3 py-2.5 text-left transition-colors hover:bg-[#2b3139]/60",
+                      m.symbol === selectedMarket?.symbol ? "bg-[#2b3139]/40" : "",
+                    )}
+                  >
+                    <span className="text-sm font-medium text-[#eaecef]">{m.symbol}</span>
+                    <span className="flex items-center gap-3 text-right">
+                      <span className="bf-tabular font-mono text-sm text-[#eaecef]">{tk?.price !== undefined && tk?.price !== null ? money(Number(tk.price), locale) : EM_DASH}</span>
+                      <span className={cn("bf-tabular w-16 font-mono text-xs", chg !== null ? (chg >= 0 ? "text-brand-success" : "text-brand-danger") : "text-brand-text-muted")}>
+                        {chg !== null ? `${chg >= 0 ? "+" : ""}${chg.toFixed(2)}%` : EM_DASH}
+                      </span>
+                    </span>
+                  </button>
+                );
+              })}
+            {markets.filter((m) => m.symbol.toLowerCase().includes(symbolSearch.trim().toLowerCase())).length === 0 ? (
+              <p className="px-3 py-6 text-center text-xs text-brand-text-muted">{t("No matching market")}</p>
+            ) : null}
+          </div>
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-h-[85vh] overflow-y-auto border border-brand-border bg-brand-surface sm:max-w-[900px]">
           <div className="flex flex-wrap items-center justify-between gap-2 pb-2">
             <DialogTitle className="text-sm font-bold">{t("Chart")} — {selectedMarket?.symbol ?? "BTCUSDT"}</DialogTitle>
             <DialogDescription className="text-xs text-brand-text-muted">{t("Perpetual contract candlestick chart")}</DialogDescription>
           </div>
-          <div className="h-[420px] w-full">
-            <ChartDrawer symbol={selectedMarket?.symbol ?? "BTC/USDT"} />
-          </div>
         </DialogContent>
       </Dialog>
+
+      {/* 移动端底部常驻 K 线抽屉（默认收起） */}
+      <div className="lg:hidden">
+        <ChartDrawer symbol={selectedMarket?.symbol ?? "BTC/USDT"} />
+      </div>
     </>
   );
 }

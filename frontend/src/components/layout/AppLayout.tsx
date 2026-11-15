@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import { useLocation } from "react-router-dom";
 import { Topbar } from "./Topbar";
 import { BottomNav } from "./BottomNav";
@@ -9,7 +9,7 @@ import { useNavigationTier } from "../../lib/navigation";
 
 /**
  * Renders the shared application shell and coordinates responsive navigation.
- * Closes the mobile menu and resets the content scroll position when routes change.
+ * Resets the content scroll position when routes change.
  *
  * The shell is tiered:
  * - top-level pages keep the global logo header and the fixed 5-tab bottom nav;
@@ -17,37 +17,23 @@ import { useNavigationTier } from "../../lib/navigation";
  *   back affordance and page title become the primary navigation.
  */
 export function AppLayout({ children }: { children: ReactNode }) {
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const { t } = useI18n();
   const location = useLocation();
   const tier = useNavigationTier(location.pathname);
   const isSubPage = tier === "sub";
   const mainRef = useRef<HTMLElement>(null);
 
-  const menuTrigger = useRef<HTMLButtonElement>(null);
-
-  // 路由变化时关闭菜单并重置滚动条（合并了两边的路径监听）
+  // 路由变化时重置滚动条
   useEffect(() => {
-    setIsMobileMenuOpen(false);
     mainRef.current?.scrollTo({ top: 0, behavior: "auto" });
   }, [location.pathname]);
-
-  // 监听大屏幕自动关闭移动端菜单
-  useEffect(() => {
-    const desktop = window.matchMedia("(min-width: 1024px)");
-    const closeOnDesktop = () => { if (desktop.matches) setIsMobileMenuOpen(false); };
-    desktop.addEventListener("change", closeOnDesktop);
-    return () => desktop.removeEventListener("change", closeOnDesktop);
-  }, []);
 
   return (
     <div className="flex h-dvh min-h-screen min-h-[100dvh] w-full overflow-hidden bg-brand-bg text-brand-text">
       <div className="relative z-10 flex h-full min-w-0 flex-1 flex-col overflow-hidden">
         {/* Sub-pages own their header through SubPageLayout, so the global logo
             header and the bottom tab bar are intentionally omitted for that tier. */}
-        {!isSubPage && (
-          <Topbar menuButtonRef={menuTrigger} menuOpen={isMobileMenuOpen} onMenuClick={() => setIsMobileMenuOpen((open) => !open)} />
-        )}
+        {!isSubPage && <Topbar />}
         {false && DEMO_PREVIEW_ACTIVE && <div role="status" className="flex h-6 items-center gap-2 border-b border-brand-border-subtle bg-brand-surface-2 px-3 py-1 leading-6 text-[10px] sm:px-5">
           <span className="text-brand-text-muted capitalize">demo</span>
           <span className="text-brand-text text-nounderline hover:opacity-80 transition-opacity">Preview</span>

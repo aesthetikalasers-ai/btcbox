@@ -121,7 +121,7 @@ export function LanguageMenu() {
         <div
           role="dialog"
           aria-label={t("Language")}
-          className="absolute right-0 z-50 mt-2 w-72 max-w-[85vw] overflow-hidden rounded-xl border border-brand-border bg-brand-surface-2 shadow-xl shadow-black/40"
+          className="absolute right-0 z-50 mt-2 w-60 max-w-[85vw] overflow-hidden rounded-xl border border-brand-border bg-brand-surface-2 shadow-xl shadow-black/40"
         >
           <div className="flex items-center justify-between gap-2 px-4 pb-2 pt-3">
             <span className="type-card-title text-brand-text">{t("Language")}</span>
