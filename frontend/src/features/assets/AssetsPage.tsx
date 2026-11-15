@@ -200,6 +200,7 @@ export function AssetsPage() {
                   </div>
                   <div className="shrink-0 text-right">
                     <p className="font-mono text-sm font-bold tabular-nums text-brand-text">{formatDecimalAmount(balance.free, numberLocale)}</p>
+                    <p className="mt-0.5 text-[11px] tabular-nums text-brand-text-muted">{t("In orders")}: {formatDecimalAmount(balance.frozen, numberLocale)}</p>
                     {balance.valuation_available === true && balance.usdt !== undefined ? <p className="mt-0.5 text-[11px] tabular-nums text-brand-text-muted">{formatDecimalAmount(balance.usdt, numberLocale)} USDT</p> : null}
                   </div>
                 </div>

@@ -115,7 +115,7 @@ export function AccountSecurityPage() {
                 {row.linked ? (
                   <span className="truncate font-mono text-brand-text-muted">{row.value || t("Connected")}</span>
                 ) : (
-                  <span className="font-medium text-brand-accent">{t("Connect")}</span>
+                  <span className="font-medium text-brand-accent">{t(row.key === "google" ? "Link Google" : row.key === "ethereum" ? "Link Ethereum wallet" : "Link Solana wallet")}</span>
                 )}
                 <ChevronRight className="h-4 w-4 text-brand-text-muted" />
               </span>
@@ -184,6 +184,7 @@ export function AccountSecurityPage() {
               <div className="space-y-3">
                 {!identityLinkSourceVerified ? (
                   <div className="space-y-3">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-brand-accent">{t("Step 1 · Verify an existing method")}</p>
                     <p className="text-sm text-brand-text-secondary">{t("First verify a method already connected to this account.")}</p>
                     <div className="grid gap-2">
                       {hasGoogle && <Button variant="outline" aria-busy={busy} disabled={busy || !googleEnabled} onClick={() => void reauthenticateIdentityLinkWithGoogle()}>{t("Verify with Google")}</Button>}
@@ -192,13 +193,14 @@ export function AccountSecurityPage() {
                     </div>
                     {identityLinkNeedsTwoFactor && (
                       <form className="space-y-2" aria-busy={busy} onSubmit={async (event) => { event.preventDefault(); if (busy) return; try { await completeIdentityLinkReauthTwoFactor(twoFactorCode); setTwoFactorCode(""); } catch {} }}>
-                        <label className="block space-y-1.5 text-sm"><span className="text-brand-text-secondary">{t("Authenticator code")}</span><Input value={twoFactorCode} onChange={(event) => setTwoFactorCode(event.target.value.replace(/\D/g, "").slice(0, 6))} inputMode="numeric" autoComplete="one-time-code" maxLength={6} placeholder={t("Enter your 2FA code")} required /></label>
+                        <label className="block space-y-1.5 text-sm"><span className="text-brand-text-secondary">{t("Authenticator code (required when account 2FA is enabled)")}</span><Input value={twoFactorCode} onChange={(event) => setTwoFactorCode(event.target.value.replace(/\D/g, "").slice(0, 6))} inputMode="numeric" autoComplete="one-time-code" maxLength={6} placeholder={t("Enter your 2FA code")} required /></label>
                         <Button type="submit" className="w-full" aria-busy={busy} disabled={busy || twoFactorCode.length !== 6}>{t("Confirm existing identity")}</Button>
                       </form>
                     )}
                   </div>
                 ) : (
                   <div className="space-y-3">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-brand-accent">{t("Step 2 · Verify the new method")}</p>
                     <p className="text-sm text-brand-success">{t("Existing identity verified. Connect the new method.")}</p>
                     {sheet === "link-ethereum" && (
                       ethereumWallets.length > 1 ? (

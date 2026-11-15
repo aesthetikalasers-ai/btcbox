@@ -10,7 +10,7 @@ import { ChartDrawer } from "../trade/ChartDrawer";
 import { useTrading } from "../../lib/trading";
 
 import type { ReactNode } from "react";
-import { ArrowUpRight, LockKeyhole, Wallet, ChartNoAxesCombined, ArrowLeftRight, Sprout, BadgeCheck, ShieldCheck, Headset, History, Minus, Plus, Columns2 } from "lucide-react";
+import { ArrowUpRight, LockKeyhole, Wallet, ChartNoAxesCombined, ArrowLeftRight, Sprout, BadgeCheck, ShieldCheck, Headset, Send, Columns2 } from "lucide-react";
 import { Badge } from "../../components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
@@ -26,9 +26,9 @@ import { useMarketStreamEvent } from "../../lib/useMarketStreamEvent";
 import { SupportFaq } from "../support/SupportFaq";
 
 type PageFrameTone = "trading"|"earn"|"assets"|"support"|"account"|"orders"|"market";
-function PageFrame({eyebrow,title,description,children,className="",tone,backTo,action}:{eyebrow?:string;title:string;description?:string;children:ReactNode;className?:string;tone:PageFrameTone;backTo?:string;action?:ReactNode}){
+export function PageFrame({eyebrow,title,description,children,className="",tone,backTo,action,onBack}:{eyebrow?:string;title:string;description?:string;children:ReactNode;className?:string;tone:PageFrameTone;backTo?:string;action?:ReactNode;onBack?:()=>void}){
  const {t}=useI18n();
- return <div className={`${className} tone-${tone} mx-auto flex w-full max-w-[1520px] min-w-0 flex-col gap-5 p-3 sm:p-4 md:p-6 lg:p-8`}><div className="flex min-w-0 items-center justify-between gap-3">{backTo?<Link to={backTo} className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-brand-border text-brand-text-muted transition-colors hover:border-brand-accent/40 hover:text-brand-text" aria-label="Back"><ArrowLeft className="h-4 w-4"/></Link>:null}<h1 className="type-page-title min-w-0 truncate text-brand-text">{t(title)}</h1>{action}</div>{children}</div>;
+ return <div className={`${className} tone-${tone} mx-auto flex w-full max-w-[1520px] min-w-0 flex-col gap-5 p-3 sm:p-4 md:p-6 lg:p-8`}><div className="flex min-w-0 items-center justify-between gap-3">{onBack?<button type="button" onClick={onBack} className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-brand-border text-brand-text-muted transition-colors hover:border-brand-accent/40 hover:text-brand-text" aria-label="Back"><ArrowLeft className="h-4 w-4"/></button>:backTo?<Link to={backTo} className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-brand-border text-brand-text-muted transition-colors hover:border-brand-accent/40 hover:text-brand-text" aria-label="Back"><ArrowLeft className="h-4 w-4"/></Link>:null}<h1 className="type-page-title min-w-0 truncate text-brand-text">{t(title)}</h1>{action}</div>{children}</div>;
 }
 /**
  * Displays the TradeHub service directory and its available product entry points.
@@ -282,10 +282,6 @@ export function SpotTradingPage(){
  const [chartInterval,setChartInterval]=useState("1h");
  const [compactTrade,setCompactTrade]=useState(()=>window.matchMedia("(max-width: 1279px)").matches);
  const [chartOpen,setChartOpen]=useState(false);
- const [depthPrecision,setDepthPrecision]=useState("0.01");
- const [bookView,setBookView]=useState<"both"|"bids"|"asks">("both");
- const [bottomTab,setBottomTab]=useState<"orders"|"assets">("orders");
- const [orderType,setOrderType]=useState<"limit"|"market">("limit");
  const [pairSymbols,setPairSymbols]=useState<string[]>([]);
  // `isPhone` (<=767px) hides the market-list drawer on phones; the order form and
  // order book stay side-by-side (Binance-style dual column) at every width.
@@ -327,7 +323,8 @@ export function SpotTradingPage(){
  const [marketFeedWarning,setMarketFeedWarning]=useState("");
  const [chartFeedWarning,setChartFeedWarning]=useState("");
  const [depthPrecision,setDepthPrecision]=useState<"0.01"|"0.1"|"1">("0.01");
- const [bookView,setBookView]=useState<"both"|"buy"|"sell">("both");
+ const [bookView,setBookView]=useState<"both"|"bids"|"asks">("both");
+ const [bottomTab,setBottomTab]=useState<"orders"|"assets">("orders");
  const [orderType,setOrderType]=useState<"limit"|"market">("limit");
  const [activeOrderTab,setActiveOrderTab]=useState<"orders"|"assets">("orders");
  // Terminal layout interactions (Binance-style 4-column grid):
@@ -398,6 +395,7 @@ export function SpotTradingPage(){
     setError(pairResult.reason instanceof Error?pairResult.reason.message:"Spot-market catalogue is unavailable.");
    }
    if(accountResult.status==="fulfilled"){setAccountUid(accountResult.value.uid);setAvailableBalances(accountResult.value.balances);}
+   else if(accountResult.reason instanceof ApiError && accountResult.reason.code==="AUTH_REQUIRED"){setAccountUid("");setAvailableBalances({});}
    // Missing account data is represented by unavailable balances and disabled order entry;
    // keep it out of the prominent market-status banner to preserve the trading viewport.
    if(marketResult.status==="fulfilled"){
@@ -650,6 +648,7 @@ export function SpotTradingPage(){
   <TradeProductNav />
   {error?<div role="alert" className="rounded-xl border border-brand-danger/30 bg-brand-danger/5 p-3 text-sm text-brand-danger">{t(error)}</div>:null}{effectiveMarketFeedWarning?<div role="status" className="rounded-xl border border-brand-warning/25 bg-brand-warning/5 p-3 text-sm text-brand-warning">{t(effectiveMarketFeedWarning)}</div>:null}{chartFeedWarning?<div role="status" className="rounded-xl border border-brand-warning/25 bg-brand-warning/5 p-3 text-sm text-brand-warning">{t(chartFeedWarning)}</div>:null}{notice?<div role="status" className="rounded-xl border border-brand-success/25 bg-brand-success/5 p-3 text-sm text-brand-success">{t(notice)}</div>:null}
       <Card className="spot-quote"><CardContent className="spot-quote-grid"><div><p className="text-xs text-brand-text-muted">{t("Last price")}</p><p className="mt-1 text-xl font-semibold tabular-nums">{displayTicker?amountText(displayTicker.price):"—"} <span className="text-xs text-brand-text-muted">USDT</span></p></div><div><p className="text-xs text-brand-text-muted">{t("24h change")}</p><p className={"mt-1 font-semibold tabular-nums "+(Number(ticker?.chg||0)>=0?"text-profit":"text-loss")}>{displayTicker?Number(displayTicker.chg).toFixed(2)+"%":"—"}</p></div><div><p className="text-xs text-brand-text-muted">{t("24h high")}</p><p className="mt-1 font-medium tabular-nums">{displayTicker?amountText(displayTicker.high):"—"}</p></div><div><p className="text-xs text-brand-text-muted">{t("24h low")}</p><p className="mt-1 font-medium tabular-nums">{displayTicker?amountText(displayTicker.low):"—"}</p></div></CardContent></Card>
+  <p className="px-1 text-[11px] text-brand-text-muted" aria-live="polite">{marketUpdatedAt?t("Snapshot checked")+": "+new Date(marketUpdatedAt).toLocaleString(localeTags[language]):t("Waiting for live data")}</p>
   <div className="exchange-workspace">
 
        <div className="grid grid-cols-4 gap-1">
@@ -664,7 +663,7 @@ export function SpotTradingPage(){
     <section id="trade-orders" className="exchange-orders scroll-mt-16"><div className="spot-bottom-tabs" role="tablist" aria-label={t("Trading details")}><button type="button" role="tab" aria-selected={bottomTab==="orders"} className={bottomTab==="orders"?"is-active":""} onClick={()=>setBottomTab("orders")}>{t("Open orders")} ({openOrders.length})</button><button type="button" role="tab" aria-selected={bottomTab==="assets"} className={bottomTab==="assets"?"is-active":""} onClick={()=>setBottomTab("assets")}>{t("Current assets")}</button><Link to="/orders" aria-label={t("Order history")} title={t("Order history")}><History className="h-4 w-4"/></Link></div>{bottomTab==="orders"?<div className="space-y-2">{openOrders.length?openOrders.map((item,index)=>{const id=String(item.order_id??item.id??index);return <div key={id} className="spot-order-row"><div className="spot-order-summary"><p className="font-semibold">{item.symbol||symbol} · {item.side==="buy"?t("Buy"):item.side==="sell"?t("Sell"):item.side||"—"}</p><p className="spot-order-values">{t("Price")} {amountText(item.price)} · {t("Remaining")} {amountText(item.remaining_quantity??item.quantity)}</p><Badge variant="outline">{item.status}</Badge></div><Button size="sm" variant="outline" disabled={busy||!tradingStatus?.spot_cancel_enabled} onClick={()=>void cancelOrder(item)}>{cancelRequestIds[id]?t("Retry cancel"):t("Cancel")}</Button></div>;}):<p className="spot-orders-empty text-sm text-brand-text-muted">{t("No open orders")}</p>}</div>:<div className="spot-asset-strip"><div><span>{t("Available")} · {base}</span><strong>{availableBalances[base]?.free!==undefined?amountText(availableBalances[base].free):"—"}</strong></div><div><span>{t("Available")} · USDT</span><strong>{availableBalances.USDT?.free!==undefined?amountText(availableBalances.USDT.free):"—"}</strong></div><Link to="/assets">{t("View assets")}</Link></div>}</section>
 
     <Card id="trade-entry" className="exchange-entry scroll-mt-16 border-brand-border bg-brand-surface"><CardHeader><div className="spot-side grid grid-cols-2 gap-2"><Button aria-pressed={side==="buy"} variant={side==="buy"?"default":"outline"} onClick={()=>setSide("buy")} disabled={busy||!!pendingIntent||pendingIntentInvalid}>{t("Buy")}</Button><Button aria-pressed={side==="sell"} variant={side==="sell"?"destructive":"outline"} onClick={()=>setSide("sell")} disabled={busy||!!pendingIntent}>{t("Sell")}</Button></div></CardHeader><CardContent className="space-y-3"><label className="spot-order-type"><span className="sr-only">{t("Order type")}</span><select aria-label={t("Order type")} value={orderType} disabled={busy||!!pendingIntent} onChange={event=>setOrderType(event.target.value as "limit"|"market")}><option value="limit">{t("Limit order")}</option><option value="market">{t("Market order")}</option></select></label>{orderType==="market"?<div className="spot-policy">{t("Market orders are unavailable under the current trading contract. Switch to limit order to continue.")}</div>:null}<p className="spot-available"><span>{t("Available balance")}</span><strong>{availableBalances[side==="buy"?"USDT":base]?.free!==undefined?formatDecimalAmount(availableBalances[side==="buy"?"USDT":base].free,localeTags[language]):"—"} {side==="buy"?"USDT":base}</strong></p><form className="space-y-3" onSubmit={event=>void submitOrder(event)}><label className="block space-y-1 text-sm"><span>{t("Limit price (USDT)")}</span><div className="spot-price-control"><button type="button" aria-label={t("Decrease price")} disabled={busy||!!pendingIntent} onClick={()=>adjustPrice(-1)}><Minus className="h-3.5 w-3.5"/></button><input aria-label={t("Limit price (USDT)")} value={price} onChange={event=>setPrice(event.target.value)} disabled={busy||!!pendingIntent} inputMode="decimal" className="h-12 min-w-0 flex-1 rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-3 text-sm text-brand-text outline-none transition-colors placeholder:text-brand-text-muted focus:border-brand-accent/60 focus:ring-2 focus:ring-brand-accent/15" required/><button type="button" aria-label={t("Increase price")} disabled={busy||!!pendingIntent} onClick={()=>adjustPrice(1)}><Plus className="h-3.5 w-3.5"/></button></div></label><label className="block space-y-1 text-sm"><span>{t("Quantity") } · {base}</span><input value={quantity} onChange={event=>setQuantity(event.target.value)} disabled={busy||!!pendingIntent} inputMode="decimal" className="h-12 w-full rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-3 text-sm text-brand-text outline-none transition-colors placeholder:text-brand-text-muted focus:border-brand-accent/60 focus:ring-2 focus:ring-brand-accent/15" required/></label><div className="grid grid-cols-4 gap-1.5">{[25,50,75,100].map(pct=><button key={pct} type="button" disabled={busy||!!pendingIntent} onClick={()=>{const free=Number(availableBalances[side==="buy"?"USDT":base]?.free||0);const px=Number(price);if(side==="buy"&&px>0)setQuantity(((free*pct/100)/px).toFixed(6).replace(/\.?0+$/,""));else if(side==="sell")setQuantity((free*pct/100).toFixed(6).replace(/\.?0+$/,""));}} className="min-h-9 rounded-lg border border-brand-border bg-brand-surface-2 text-xs font-semibold tabular-nums text-brand-text-muted transition-colors hover:border-brand-accent/40 hover:text-brand-accent disabled:opacity-50">{pct}%</button>)}</div><p className="spot-total">{t("Estimated total")}: {price&&quantity&&Number(price)>0&&Number(quantity)>0?amountText(multiplyDecimalStrings(price,quantity))+" USDT":"—"}</p>{pendingIntent?<p className="break-all text-xs text-brand-warning">{t("Unconfirmed request ID. Keep the form unchanged and retry with the same ID.")} · {pendingIntent.client_order_id}</p>:null}<Button className="w-full" type="submit" disabled={busy||pendingIntentInvalid||(!pendingIntent&&(!orderInputsValid||balanceUnavailable||insufficientBalance))||(!ticker||marketSnapshotStale)&&!pendingIntent||(!spotPairEnabled&&!pendingIntent)||(!tradingStatus?.spot_order_entry_enabled&&!pendingIntent)||!price||!quantity||orderType!=="limit"}>{busy?t("Submitting…"):pendingIntent?t("Retry same order"):insufficientBalance?t("Insufficient available balance"):side==="buy"?t("Place buy limit order"):t("Place sell limit order")}</Button>{!tradingStatus?.spot_order_entry_enabled?<div className="spot-policy">{t("Spot order execution is disabled by server policy. No order can be placed until the matching engine is approved and enabled.")}</div>:null}</form></CardContent></Card>
-    <Card aria-label={t("Order book")} id="trade-depth" className="exchange-depth scroll-mt-16 border-brand-border bg-brand-surface"><CardHeader><CardTitle>{t("Order book")}</CardTitle></CardHeader><CardContent className="space-y-2"><div className="spot-book-columns"><span>{t("Price")}</span><span>{t("Quantity")}</span></div><div className="exchange-book-levels"><div className={bookView==="bids"?"hidden":""}><p className="mb-1 text-xs font-semibold text-loss">{t("Asks")}</p>{asks.length?asks.map((row,index)=><div key={index} className="spot-book-row font-mono tabular-nums" data-side="ask" style={{backgroundSize:askDepth[index]+"% 100%"}}><span title={String(row[0])} className="text-right text-loss">{amountText(row[0])}</span><span title={String(row[1])} className="text-right text-brand-text-muted">{amountText(row[1])}</span></div>):<p className="text-xs text-brand-text-muted">—</p>}</div><p className="spot-mid-price font-mono tabular-nums text-right">{displayTicker?amountText(displayTicker.price):"—"}</p><div className={bookView==="asks"?"hidden":""}><p className="mb-1 text-xs font-semibold text-profit">{t("Bids")}</p>{bids.length?bids.map((row,index)=><div key={index} className="spot-book-row font-mono tabular-nums" data-side="bid" style={{backgroundSize:bidDepth[index]+"% 100%"}}><span title={String(row[0])} className="text-right text-profit">{amountText(row[0])}</span><span title={String(row[1])} className="text-right text-brand-text-muted">{amountText(row[1])}</span></div>):<p className="text-xs text-brand-text-muted">—</p>}</div></div><div className="spot-book-toolbar"><label><span className="sr-only">{t("Depth precision")}</span><select aria-label={t("Depth precision")} value={depthPrecision} onChange={event=>setDepthPrecision(event.target.value)}><option value="0.01">0.01</option><option value="0.1">0.1</option><option value="1">1</option></select></label><div className="spot-book-view" role="group" aria-label={t("Order book view")}><button type="button" aria-label={t("Both sides")} aria-pressed={bookView==="both"} onClick={()=>setBookView("both")}><Columns2 className="h-3.5 w-3.5"/></button><button type="button" aria-label={t("Bids only")} aria-pressed={bookView==="bids"} onClick={()=>setBookView("bids")}><TrendingUp className="h-3.5 w-3.5"/></button><button type="button" aria-label={t("Asks only")} aria-pressed={bookView==="asks"} onClick={()=>setBookView("asks")}><TrendingDown className="h-3.5 w-3.5"/></button></div></div></CardContent></Card>
+    <Card aria-label={t("Order book")} id="trade-depth" className="exchange-depth scroll-mt-16 border-brand-border bg-brand-surface"><CardHeader><CardTitle>{t("Order book")}</CardTitle></CardHeader><CardContent className="space-y-2"><div className="spot-book-columns"><span>{t("Price")}</span><span>{t("Quantity")}</span></div><div className="exchange-book-levels"><div className={bookView==="bids"?"hidden":""}><p className="mb-1 text-xs font-semibold text-loss">{t("Asks")}</p>{asks.length?asks.map((row,index)=><div key={index} className="spot-book-row font-mono tabular-nums" data-side="ask" style={{backgroundSize:askDepth[index]+"% 100%"}}><span title={String(row[0])} className="text-right text-loss">{amountText(row[0])}</span><span title={String(row[1])} className="text-right text-brand-text-muted">{amountText(row[1])}</span></div>):<p className="text-xs text-brand-text-muted">—</p>}</div><p className="spot-mid-price font-mono tabular-nums text-right">{displayTicker?amountText(displayTicker.price):"—"}</p><div className={bookView==="asks"?"hidden":""}><p className="mb-1 text-xs font-semibold text-profit">{t("Bids")}</p>{bids.length?bids.map((row,index)=><div key={index} className="spot-book-row font-mono tabular-nums" data-side="bid" style={{backgroundSize:bidDepth[index]+"% 100%"}}><span title={String(row[0])} className="text-right text-profit">{amountText(row[0])}</span><span title={String(row[1])} className="text-right text-brand-text-muted">{amountText(row[1])}</span></div>):<p className="text-xs text-brand-text-muted">—</p>}</div></div><div className="spot-book-toolbar"><label><span className="sr-only">{t("Depth precision")}</span><select aria-label={t("Depth precision")} value={depthPrecision} onChange={event=>setDepthPrecision(event.target.value as "0.01"|"0.1"|"1")}><option value="0.01">0.01</option><option value="0.1">0.1</option><option value="1">1</option></select></label><div className="spot-book-view" role="group" aria-label={t("Order book view")}><button type="button" aria-label={t("Both sides")} aria-pressed={bookView==="both"} onClick={()=>setBookView("both")}><Columns2 className="h-3.5 w-3.5"/></button><button type="button" aria-label={t("Bids only")} aria-pressed={bookView==="bids"} onClick={()=>setBookView("bids")}><TrendingUp className="h-3.5 w-3.5"/></button><button type="button" aria-label={t("Asks only")} aria-pressed={bookView==="asks"} onClick={()=>setBookView("asks")}><TrendingDown className="h-3.5 w-3.5"/></button></div></div></CardContent></Card>
   </div>
  </PageFrame></Dialog.Root>;
 }
@@ -838,44 +837,116 @@ export function SecondsPage(){
 
  const refresh=()=>setReload(value=>value+1);
  const clearPending=()=>{
-  if(storageKey){try{window.localStorage.removeItem(storageKey);}catch{}}
+  if(storageKey){
+   try{window.localStorage.removeItem(storageKey);}
+   catch{setError(t("The saved Seconds request could not be cleared. Keep this request and retry only with the same request ID."));return false;}
+  }
   setPendingIntent(null);
+  return true;
  };
- const activePolicy=policy?.policy;
- const canSubmit=!!activePolicy&&!!policy?.actions_enabled&&!!snapshot&&!snapshot.cutover_incomplete&&!loading&&!submitting&&!pendingIntent&&
-  activePolicy.symbols.includes(symbol)&&activePolicy.durations_sec.includes(duration)&&
-  Number.isFinite(Number(amount))&&Number(amount)>=Number(activePolicy.min_stake)&&Number(amount)<=Number(activePolicy.max_stake);
- return <div className="seconds-trading-page mx-auto flex w-full max-w-[1520px] flex-col gap-4 p-3 sm:gap-5 sm:p-4 md:p-6 lg:p-8">
-  <div className="flex flex-wrap items-start justify-between gap-3"><div className="min-w-0"><div className="mb-2"><Link to="/trade-hub" className="inline-flex items-center gap-1 text-xs font-medium text-brand-text-muted transition-colors hover:text-brand-text"><ArrowLeft className="h-3.5 w-3.5"/>{t("Trade hub")}</Link></div><h1 className="type-page-title text-brand-text">{t("Seconds contracts")}</h1><p className="type-body mt-2 max-w-2xl text-brand-text-secondary">{t("Place orders under the active BTCBOX policy. Every position has its own frozen amount, timer and server-side settlement.")}</p></div><Button variant="outline" size="sm" disabled={loading} onClick={refresh}><RefreshCw className={"mr-2 h-4 w-4 "+(loading?"animate-spin":"")}/>{t("Refresh")}</Button></div>
-  <Card className="border-brand-border bg-brand-surface"><CardHeader><CardTitle>{t("Active contract policy")}</CardTitle><CardDescription>{activePolicy?t("Policy version")+" "+activePolicy.policy_version:t("Market maintenance")}</CardDescription></CardHeader><CardContent className="seconds-policy-grid grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-   <div><p className="text-xs text-brand-text-muted">{t("Winning profit rate")}</p><p className="mt-1 font-semibold text-brand-text">{activePolicy?(activePolicy.payout_bps/100).toFixed(2)+"%": "—"}</p></div>
-   <div><p className="text-xs text-brand-text-muted">{t("Minimum amount")}</p><p className="mt-1 font-semibold text-brand-text">{activePolicy?money(activePolicy.min_stake)+" USDT":"—"}</p></div>
-   <div><p className="text-xs text-brand-text-muted">{t("Maximum amount")}</p><p className="mt-1 font-semibold text-brand-text">{activePolicy?money(activePolicy.max_stake)+" USDT":"—"}</p></div>
-   <div><p className="text-xs text-brand-text-muted">{t("Open exposure limit")}</p><p className="mt-1 font-semibold text-brand-text">{activePolicy?.per_user_open_exposure==null?t("No aggregate cap configured"):money(activePolicy.per_user_open_exposure)+" USDT"}</p></div>
-  </CardContent></Card>
-  {policyError?<Card className="border-brand-warning/30 bg-brand-surface"><CardContent className="p-4 text-sm text-brand-warning" role="alert">{t(policyError)}</CardContent></Card>:null}
-  {policy&&!policy.actions_enabled?<Card className="border-brand-warning/30 bg-brand-surface"><CardContent className="p-4 text-sm text-brand-warning" role="status">{t("Trading is temporarily unavailable. Please try again later.")}</CardContent></Card>:null}
-  {error?<Card className="border-brand-danger/30 bg-brand-surface"><CardContent className="p-4 text-sm text-brand-danger" role="alert">{t(error)}</CardContent></Card>:null}
-  {notice?<Card className="border-brand-success/30 bg-brand-surface"><CardContent className="p-4 text-sm text-brand-success" role="status">{notice}</CardContent></Card>:null}
-  <Card className="border-brand-border bg-brand-surface"><CardHeader><CardTitle>{t("New position")}</CardTitle><CardDescription>{t("The backend validates every order against the active policy and reserves funds atomically.")}</CardDescription></CardHeader><CardContent>
-   <form aria-busy={submitting} onSubmit={submit} className="grid gap-4 md:grid-cols-2">
-    <label className="space-y-1.5 text-sm"><span className="text-brand-text-muted">{t("Market")}</span><select value={symbol} onChange={event=>setSymbol(event.target.value)} disabled={!activePolicy||!!pendingIntent} className="h-12 w-full rounded-xl border border-brand-border bg-brand-surface-2 px-3 py-3 text-sm text-brand-text outline-none transition-colors focus:border-brand-accent/60 focus:ring-2 focus:ring-brand-accent/15">{(activePolicy?.symbols||[]).map(item=><option key={item} value={item}>{item}/USDT</option>)}</select></label>
-    <label className="space-y-1.5 text-sm"><span className="text-brand-text-muted">{t("Duration")}</span><select value={duration} onChange={event=>setDuration(Number(event.target.value))} disabled={!activePolicy||!!pendingIntent} className="h-12 w-full rounded-xl border border-brand-border bg-brand-surface-2 px-3 py-3 text-sm text-brand-text outline-none transition-colors focus:border-brand-accent/60 focus:ring-2 focus:ring-brand-accent/15">{(activePolicy?.durations_sec||[]).map(item=><option key={item} value={item}>{item}s</option>)}</select></label>
-    <label className="space-y-1.5 text-sm"><span className="text-brand-text-muted">{t("Amount (USDT)")}</span><input inputMode="decimal" type="number" min={activePolicy?String(activePolicy.min_stake):undefined} max={activePolicy?String(activePolicy.max_stake):undefined} step="any" value={pendingIntent?.amount??amount} onChange={event=>setAmount(event.target.value)} disabled={!activePolicy||!!pendingIntent} className="h-12 w-full rounded-xl border border-brand-border bg-brand-surface-2 px-3 py-3 text-sm text-brand-text outline-none transition-colors focus:border-brand-accent/60 focus:ring-2 focus:ring-brand-accent/15" placeholder={activePolicy?String(activePolicy.min_stake):"—"}/></label>
-    <div className="space-y-1.5 text-sm"><span className="text-brand-text-muted">{t("Direction")}</span><div className="grid grid-cols-2 gap-2"><Button type="button" variant={direction==="up"?"default":"outline"} disabled={!!pendingIntent} onClick={()=>setDirection("up")}><TrendingUp className="mr-2 h-4 w-4"/>{t("Up")}</Button><Button type="button" variant={direction==="down"?"destructive":"outline"} disabled={!!pendingIntent} onClick={()=>setDirection("down")}><TrendingDown className="mr-2 h-4 w-4"/>{t("Down")}</Button></div></div>
-    <div className="flex flex-wrap items-center justify-between gap-3 md:col-span-2">
-     <p className="text-xs text-brand-text-muted">{t("Minimum payout is 85%; rates may vary by product.")}</p>
-     <Button type="submit" disabled={submitting||!policy?.actions_enabled||(!pendingIntent&&!canSubmit)}>{submitting?t("Submitting…"):pendingIntent?t("Retry same request"):t("Open position")}</Button>
+ const sendIntent=async(intent:SecondsOrderInput)=>{
+  if(submitting)return;
+  setSubmitting(true);setError("");setNotice("");
+  try{
+   const result=await submitSecondsOrder(intent);
+   const latest=await getSecondsPositions();
+   setSnapshot(latest);
+   const confirmed=latest.open.some(position=>position.position_id===result.position_id);
+   if(!confirmed){
+    setError(t("The order response arrived, but the positions list has not confirmed it. Do not create another order; retry this same request."));
+    return;
+   }
+   if(!clearPending())return;
+   setNotice(result.duplicate?t("This order was already received and has been confirmed."):t("Order confirmed. Funds are reserved and the position has its own settlement time."));
+  }catch(reason){
+   setError(reason instanceof Error?reason.message:t("Order status is unconfirmed. Keep this request and retry only with the same request ID."));
+  }finally{setSubmitting(false);}
+ };
+ const retryPendingIntent=()=>{if(pendingIntent)void sendIntent(pendingIntent);};
+
+ const submitSeconds=async(dir: "up" | "down")=>{
+  if(submitting)return;
+  if(policy?.actions_enabled!==true){
+   setError(t("Seconds order entry is currently disabled by server policy."));
+   return;
+  }
+  if(pendingIntent){
+   setError(t("An earlier Seconds request is still unconfirmed. Retry the same request before placing a new one."));
+   return;
+  }
+  if(!storageKey){
+   setError(t("Account identity is unavailable. No order was sent."));
+   return;
+  }
+  const numeric=Number(amount);
+  if(!Number.isFinite(numeric)||numeric<=0){
+   setError(t("Enter an amount greater than zero."));return;
+  }
+  const intent:SecondsOrderInput={
+   request_id:window.crypto.randomUUID().replace(/-/g,""),
+   symbol,
+   direction:dir,
+   duration_sec:duration,
+   amount:amount.trim()
+  };
+  try{window.localStorage.setItem(storageKey,JSON.stringify(intent));}
+  catch{
+   setError(t("This browser cannot safely save the order request. No order was sent."));
+   return;
+  }
+  setPendingIntent(intent);
+  await sendIntent(intent);
+ };
+
+ const currentRate = DURATION_OPTIONS.find(d => d.sec === duration)?.rate || 85;
+ const profitExpect = Number(amount) > 0 ? (Number(amount) * (1 + currentRate / 100)).toFixed(2) : "0.00";
+ const openCount = snapshot?.open.length || 0;
+
+ return <PageFrame title={t("Seconds")} className="spot-terminal !gap-1.5 !p-1.5 sm:!p-3" tone="trading">
+  {/* 1. 顶部模式导航栏 */}
+  <div className="px-0.5"><TradeProductNav /></div>
+
+  {/* 2. 交易对切换与行情条 (完全对齐现货风格) */}
+  <div className="flex items-center justify-between px-1 py-1 -mt-0.5">
+   <div className="flex items-center gap-2">
+    <span className="text-base font-bold text-brand-text tracking-tight flex items-center gap-1.5">
+     <span className="text-sm text-brand-text-muted">≡</span>
+     {symbol}/USDT
+    </span>
+    <span className={"text-[10px] font-semibold px-1.5 py-0.5 rounded " + (Number(ticker?.chg||0)>=0?"text-profit bg-profit/10":"text-loss bg-loss/10")}>
+     {ticker ? (Number(ticker.chg)>=0?"+":"") + Number(ticker.chg).toFixed(2) + "%" : "+2.45%"}
+    </span>
+   </div>
+   <div className="flex items-center gap-1">
+    {["BTC","ETH","SOL"].map(coin=><button key={coin} type="button" onClick={()=>setSymbol(coin)} className={"px-2 py-0.5 rounded text-[11px] font-bold transition-colors "+(symbol===coin?"bg-brand-accent/20 text-brand-accent":"text-brand-text-muted hover:text-brand-text")}>{coin}</button>)}
+   </div>
+  </div>
+
+  {/* 行情卡片 */}
+  <div className="flex items-center justify-between px-2 py-1 rounded-lg bg-brand-surface/40 border border-brand-border/40">
+   <div className="flex items-baseline gap-2">
+    <span className="text-xl font-bold font-mono tracking-tight text-brand-text tabular-nums">
+     {ticker ? ticker.price.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2}) : "—"}
+    </span>
+    <span className={"text-xs font-bold font-mono tabular-nums " + (Number(ticker?.chg||0) >= 0 ? "text-profit" : "text-loss")}>
+     {ticker ? (Number(ticker.chg) >= 0 ? "+" : "") + Number(ticker.chg).toFixed(2) + "%" : "—"}
+    </span>
+   </div>
+   <div className="flex items-center gap-4 text-[11px] font-mono tabular-nums">
+    <div className="flex items-center gap-1.5">
+     <span className="text-brand-text-muted">{t("High")}</span>
+     <span className="text-brand-text font-medium">{ticker ? Number(ticker.high).toLocaleString() : "—"}</span>
     </div>
     <div className="flex items-center gap-1.5">
      <span className="text-brand-text-muted">{t("Low")}</span>
      <span className="text-brand-text font-medium">{ticker ? Number(ticker.low).toLocaleString() : "—"}</span>
     </div>
-   </form>
-  </CardContent></Card>
+   </div>
+  </div>
 
   {notice?<div role="status" className="rounded-lg border border-brand-success/25 bg-brand-success/5 p-1.5 text-xs text-brand-success">{notice}</div>:null}
   {error?<div role="alert" className="rounded-lg border border-brand-danger/25 bg-brand-danger/5 p-1.5 text-xs text-brand-danger">{error}</div>:null}
+  {pendingIntent?<div role="status" className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-brand-warning/30 bg-brand-warning/5 p-2 text-xs text-brand-text"><span>{t("An earlier Seconds request is still unconfirmed. Retry the same request before placing a new one.")}</span><Button type="button" size="sm" variant="outline" disabled={submitting} onClick={retryPendingIntent}>{t("Retry same request")}</Button></div>:null}
 
   {/* 3. 中间实时分时 / K线走势图区 */}
   <div className="rounded-xl border border-brand-border bg-brand-surface p-2.5 space-y-1.5">
@@ -943,11 +1014,11 @@ export function SecondsPage(){
 
    {/* 双色买涨/买跌按钮 */}
    <div className="grid grid-cols-2 gap-2 pt-0.5">
-    <button type="button" disabled={submitting} onClick={()=>submitSeconds("up")} className="h-10 rounded-lg bg-profit text-[#05201A] font-bold text-sm flex items-center justify-center gap-1.5 hover:bg-profit/90 active:scale-[0.99] transition-transform disabled:opacity-50">
+    <button type="button" disabled={submitting||!!pendingIntent} onClick={()=>submitSeconds("up")} className="h-10 rounded-lg bg-profit text-[#05201A] font-bold text-sm flex items-center justify-center gap-1.5 hover:bg-profit/90 active:scale-[0.99] transition-transform disabled:opacity-50">
      <TrendingUp className="h-4 w-4 stroke-[2.5]" />
      <span>{t("Buy up")} ({currentRate}%)</span>
     </button>
-    <button type="button" disabled={submitting} onClick={()=>submitSeconds("down")} className="h-10 rounded-lg bg-loss text-white font-bold text-sm flex items-center justify-center gap-1.5 hover:bg-loss/90 active:scale-[0.99] transition-transform disabled:opacity-50">
+    <button type="button" disabled={submitting||!!pendingIntent} onClick={()=>submitSeconds("down")} className="h-10 rounded-lg bg-loss text-white font-bold text-sm flex items-center justify-center gap-1.5 hover:bg-loss/90 active:scale-[0.99] transition-transform disabled:opacity-50">
      <TrendingDown className="h-4 w-4 stroke-[2.5]" />
      <span>{t("Buy down")} ({currentRate}%)</span>
     </button>
@@ -1165,13 +1236,15 @@ export function SupportPage(){
  const [reload,setReload]=useState(0);
  const [draft,setDraft]=useState("");
  const [sending,setSending]=useState(false);
+ const [pendingRequestId,setPendingRequestId]=useState("");
+ const [pendingRequestContent,setPendingRequestContent]=useState("");
  const [sendError,setSendError]=useState("");
  const [sendMessage,setSendMessage]=useState("");
  const listRef=useRef<HTMLDivElement>(null);
  useEffect(()=>{
   if(status!=="authenticated"){setLoading(false);setMessages([]);return;}
   const controller=new AbortController();
-  setLoading(true);setError("");
+  setLoading(true);setMessages([]);setError("");
   getSupportMessages(controller.signal).then(list=>{
    if(!controller.signal.aborted){setMessages(list);setError("");}
   }).catch((reason:unknown)=>{
@@ -1183,16 +1256,20 @@ export function SupportPage(){
  useEffect(()=>{listRef.current?.scrollTo({top:listRef.current.scrollHeight,behavior:"smooth"});},[messages]);
  const send=async(event:FormEvent<HTMLFormElement>)=>{
   event.preventDefault();
-  if(sending||!draft.trim())return;
-  let requestId:string;
-  try{requestId=window.crypto.randomUUID();}
-  catch{setSendError("Secure request IDs are unavailable in this browser. No message was sent.");return;}
+  if(sending)return;
+  const message=pendingRequestId?pendingRequestContent:draft.trim();
+  if(!message)return;
+  let requestId=pendingRequestId;
+  if(!requestId){
+   try{requestId=window.crypto.randomUUID();}
+   catch{setSendError("Secure request IDs are unavailable in this browser. No message was sent.");return;}
+   setPendingRequestId(requestId);setPendingRequestContent(message);
+  }
   setSending(true);setSendError("");setSendMessage("");
-  const content=draft.trim();
   try{
-   const result=await sendSupportMessage(content,requestId);
-   setDraft("");
-   if(!result.duplicate)setMessages(current=>[...current,{id:result.message_id||requestId,from:"user",content,time:result.time||new Date().toISOString()}]);
+   const result=await sendSupportMessage(message,requestId);
+   setDraft("");setPendingRequestId("");setPendingRequestContent("");
+   if(!result.duplicate)setMessages(current=>[...current,{id:result.message_id||requestId,from:"user",content:message,time:result.time||new Date().toISOString()}]);
    setSendMessage(result.duplicate?t("Your message was already received."):t("Message sent."));
    setReload(n=>n+1);
   }catch(reason){
@@ -1212,10 +1289,10 @@ export function SupportPage(){
       :messages.map(item=> <div key={item.id} className={`flex ${item.from==="user"?"justify-end":"justify-start"}`}><div className={`max-w-[85%] rounded-xl px-3 py-2 text-sm ${item.from==="user"?"bg-brand-accent/15 text-brand-text":"bg-brand-surface-2 text-brand-text-secondary"}`}><p className="whitespace-pre-wrap break-words">{item.content}</p><p className="mt-1 text-[10px] text-brand-text-muted">{date(item.time)}</p></div></div>)}
      </div>
      <form onSubmit={send} className="space-y-2">
-      <textarea value={draft} onChange={event=>setDraft(event.target.value)} maxLength={2000} rows={3} placeholder={t("Type your message (1–2,000 characters)")} className="w-full resize-none rounded-xl border border-brand-border bg-brand-surface-2 px-3 py-2 text-sm text-brand-text outline-none transition-colors placeholder:text-brand-text-muted focus:border-brand-accent/60 focus:ring-2 focus:ring-brand-accent/15"/>
+      <textarea value={pendingRequestId?pendingRequestContent:draft} onChange={event=>setDraft(event.target.value)} disabled={sending||!!pendingRequestId} maxLength={2000} rows={3} placeholder={t("Type your message (1–2,000 characters)")} className="w-full resize-none rounded-xl border border-brand-border bg-brand-surface-2 px-3 py-2 text-sm text-brand-text outline-none transition-colors placeholder:text-brand-text-muted focus:border-brand-accent/60 focus:ring-2 focus:ring-brand-accent/15"/>
       {sendError?<p role="alert" className="text-sm text-brand-danger">{sendError}</p>:null}
       {sendMessage?<p role="status" className="text-sm text-brand-success">{sendMessage}</p>:null}
-      <Button type="submit" disabled={sending||!draft.trim()} className="min-h-11 w-full"><Send className="mr-2 h-4 w-4"/>{sending?t("Sending…"):t("Send message")}</Button>
+      <Button type="submit" disabled={sending||(!draft.trim()&&!pendingRequestId)} className="min-h-11 w-full"><Send className="mr-2 h-4 w-4"/>{sending?t("Sending…"):pendingRequestId?t("Retry same request"):t("Send message")}</Button>
      </form>
     </>}
    </CardContent></Card>
@@ -1578,5 +1655,5 @@ export function WithdrawPage(){
     :<p className="rounded-xl border border-dashed border-brand-border p-5 text-sm text-brand-text-muted">{t("No saved crypto withdrawal addresses were found.")}</p>}
    </CardContent></Card>
   </>}
- </div>;
+ </PageFrame>;
 }
