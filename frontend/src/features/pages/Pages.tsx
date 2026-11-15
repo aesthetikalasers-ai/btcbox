@@ -647,6 +647,7 @@ export function SpotTradingPage(){
   <TradeProductNav />
   {error?<div role="alert" className="rounded-xl border border-brand-danger/30 bg-brand-danger/5 p-3 text-sm text-brand-danger">{t(error)}</div>:null}{effectiveMarketFeedWarning?<div role="status" className="rounded-xl border border-brand-warning/25 bg-brand-warning/5 p-3 text-sm text-brand-warning">{t(effectiveMarketFeedWarning)}</div>:null}{chartFeedWarning?<div role="status" className="rounded-xl border border-brand-warning/25 bg-brand-warning/5 p-3 text-sm text-brand-warning">{t(chartFeedWarning)}</div>:null}{notice?<div role="status" className="rounded-xl border border-brand-success/25 bg-brand-success/5 p-3 text-sm text-brand-success">{t(notice)}</div>:null}
       <Card className="spot-quote"><CardContent className="spot-quote-grid"><div><p className="text-xs text-brand-text-muted">{t("Last price")}</p><p className="mt-1 text-xl font-semibold tabular-nums">{displayTicker?amountText(displayTicker.price):"—"} <span className="text-xs text-brand-text-muted">USDT</span></p></div><div><p className="text-xs text-brand-text-muted">{t("24h change")}</p><p className={"mt-1 font-semibold tabular-nums "+(Number(ticker?.chg||0)>=0?"text-profit":"text-loss")}>{displayTicker?Number(displayTicker.chg).toFixed(2)+"%":"—"}</p></div><div><p className="text-xs text-brand-text-muted">{t("24h high")}</p><p className="mt-1 font-medium tabular-nums">{displayTicker?amountText(displayTicker.high):"—"}</p></div><div><p className="text-xs text-brand-text-muted">{t("24h low")}</p><p className="mt-1 font-medium tabular-nums">{displayTicker?amountText(displayTicker.low):"—"}</p></div></CardContent></Card>
+  <p className="px-1 text-[11px] text-brand-text-muted" aria-live="polite">{marketUpdatedAt?t("Snapshot checked")+": "+new Date(marketUpdatedAt).toLocaleString(localeTags[language]):t("Waiting for live data")}</p>
   <div className="exchange-workspace">
 
        <div className="grid grid-cols-4 gap-1">
@@ -1207,7 +1208,7 @@ export function SupportPage(){
  useEffect(()=>{
   if(status!=="authenticated"){setLoading(false);setMessages([]);return;}
   const controller=new AbortController();
-  setLoading(true);setError("");
+  setLoading(true);setMessages([]);setError("");
   getSupportMessages(controller.signal).then(list=>{
    if(!controller.signal.aborted){setMessages(list);setError("");}
   }).catch((reason:unknown)=>{
