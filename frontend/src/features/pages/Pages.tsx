@@ -10,7 +10,7 @@ import { ChartDrawer } from "../trade/ChartDrawer";
 import { useTrading } from "../../lib/trading";
 
 import type { ReactNode } from "react";
-import { ArrowUpRight, LockKeyhole, Wallet, ChartNoAxesCombined, ArrowLeftRight, Sprout, BadgeCheck, ShieldCheck, Headset, History, Minus, Plus, Columns2 } from "lucide-react";
+import { ArrowUpRight, LockKeyhole, Wallet, ChartNoAxesCombined, ArrowLeftRight, Sprout, BadgeCheck, ShieldCheck, Headset, Send, Columns2 } from "lucide-react";
 import { Badge } from "../../components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
@@ -26,9 +26,9 @@ import { useMarketStreamEvent } from "../../lib/useMarketStreamEvent";
 import { SupportFaq } from "../support/SupportFaq";
 
 type PageFrameTone = "trading"|"earn"|"assets"|"support"|"account"|"orders"|"market";
-function PageFrame({eyebrow,title,description,children,className="",tone,backTo,action}:{eyebrow?:string;title:string;description?:string;children:ReactNode;className?:string;tone:PageFrameTone;backTo?:string;action?:ReactNode}){
+export function PageFrame({eyebrow,title,description,children,className="",tone,backTo,action,onBack}:{eyebrow?:string;title:string;description?:string;children:ReactNode;className?:string;tone:PageFrameTone;backTo?:string;action?:ReactNode;onBack?:()=>void}){
  const {t}=useI18n();
- return <div className={`${className} tone-${tone} mx-auto flex w-full max-w-[1520px] min-w-0 flex-col gap-5 p-3 sm:p-4 md:p-6 lg:p-8`}><div className="flex min-w-0 items-center justify-between gap-3">{backTo?<Link to={backTo} className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-brand-border text-brand-text-muted transition-colors hover:border-brand-accent/40 hover:text-brand-text" aria-label="Back"><ArrowLeft className="h-4 w-4"/></Link>:null}<h1 className="type-page-title min-w-0 truncate text-brand-text">{t(title)}</h1>{action}</div>{children}</div>;
+ return <div className={`${className} tone-${tone} mx-auto flex w-full max-w-[1520px] min-w-0 flex-col gap-5 p-3 sm:p-4 md:p-6 lg:p-8`}><div className="flex min-w-0 items-center justify-between gap-3">{onBack?<button type="button" onClick={onBack} className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-brand-border text-brand-text-muted transition-colors hover:border-brand-accent/40 hover:text-brand-text" aria-label="Back"><ArrowLeft className="h-4 w-4"/></button>:backTo?<Link to={backTo} className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-brand-border text-brand-text-muted transition-colors hover:border-brand-accent/40 hover:text-brand-text" aria-label="Back"><ArrowLeft className="h-4 w-4"/></Link>:null}<h1 className="type-page-title min-w-0 truncate text-brand-text">{t(title)}</h1>{action}</div>{children}</div>;
 }
 /**
  * Displays the TradeHub service directory and its available product entry points.
@@ -282,10 +282,6 @@ export function SpotTradingPage(){
  const [chartInterval,setChartInterval]=useState("1h");
  const [compactTrade,setCompactTrade]=useState(()=>window.matchMedia("(max-width: 1279px)").matches);
  const [chartOpen,setChartOpen]=useState(false);
- const [depthPrecision,setDepthPrecision]=useState("0.01");
- const [bookView,setBookView]=useState<"both"|"bids"|"asks">("both");
- const [bottomTab,setBottomTab]=useState<"orders"|"assets">("orders");
- const [orderType,setOrderType]=useState<"limit"|"market">("limit");
  const [pairSymbols,setPairSymbols]=useState<string[]>([]);
  // `isPhone` (<=767px) hides the market-list drawer on phones; the order form and
  // order book stay side-by-side (Binance-style dual column) at every width.
@@ -841,38 +837,77 @@ export function SecondsPage(){
   if(storageKey){try{window.localStorage.removeItem(storageKey);}catch{}}
   setPendingIntent(null);
  };
- const activePolicy=policy?.policy;
- const canSubmit=!!activePolicy&&!!policy?.actions_enabled&&!!snapshot&&!snapshot.cutover_incomplete&&!loading&&!submitting&&!pendingIntent&&
-  activePolicy.symbols.includes(symbol)&&activePolicy.durations_sec.includes(duration)&&
-  Number.isFinite(Number(amount))&&Number(amount)>=Number(activePolicy.min_stake)&&Number(amount)<=Number(activePolicy.max_stake);
- return <div className="seconds-trading-page mx-auto flex w-full max-w-[1520px] flex-col gap-4 p-3 sm:gap-5 sm:p-4 md:p-6 lg:p-8">
-  <div className="flex flex-wrap items-start justify-between gap-3"><div className="min-w-0"><div className="mb-2"><Link to="/trade-hub" className="inline-flex items-center gap-1 text-xs font-medium text-brand-text-muted transition-colors hover:text-brand-text"><ArrowLeft className="h-3.5 w-3.5"/>{t("Trade hub")}</Link></div><h1 className="type-page-title text-brand-text">{t("Seconds contracts")}</h1><p className="type-body mt-2 max-w-2xl text-brand-text-secondary">{t("Place orders under the active BTCBOX policy. Every position has its own frozen amount, timer and server-side settlement.")}</p></div><Button variant="outline" size="sm" disabled={loading} onClick={refresh}><RefreshCw className={"mr-2 h-4 w-4 "+(loading?"animate-spin":"")}/>{t("Refresh")}</Button></div>
-  <Card className="border-brand-border bg-brand-surface"><CardHeader><CardTitle>{t("Active contract policy")}</CardTitle><CardDescription>{activePolicy?t("Policy version")+" "+activePolicy.policy_version:t("Market maintenance")}</CardDescription></CardHeader><CardContent className="seconds-policy-grid grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-   <div><p className="text-xs text-brand-text-muted">{t("Winning profit rate")}</p><p className="mt-1 font-semibold text-brand-text">{activePolicy?(activePolicy.payout_bps/100).toFixed(2)+"%": "—"}</p></div>
-   <div><p className="text-xs text-brand-text-muted">{t("Minimum amount")}</p><p className="mt-1 font-semibold text-brand-text">{activePolicy?money(activePolicy.min_stake)+" USDT":"—"}</p></div>
-   <div><p className="text-xs text-brand-text-muted">{t("Maximum amount")}</p><p className="mt-1 font-semibold text-brand-text">{activePolicy?money(activePolicy.max_stake)+" USDT":"—"}</p></div>
-   <div><p className="text-xs text-brand-text-muted">{t("Open exposure limit")}</p><p className="mt-1 font-semibold text-brand-text">{activePolicy?.per_user_open_exposure==null?t("No aggregate cap configured"):money(activePolicy.per_user_open_exposure)+" USDT"}</p></div>
-  </CardContent></Card>
-  {policyError?<Card className="border-brand-warning/30 bg-brand-surface"><CardContent className="p-4 text-sm text-brand-warning" role="alert">{t(policyError)}</CardContent></Card>:null}
-  {policy&&!policy.actions_enabled?<Card className="border-brand-warning/30 bg-brand-surface"><CardContent className="p-4 text-sm text-brand-warning" role="status">{t("Trading is temporarily unavailable. Please try again later.")}</CardContent></Card>:null}
-  {error?<Card className="border-brand-danger/30 bg-brand-surface"><CardContent className="p-4 text-sm text-brand-danger" role="alert">{t(error)}</CardContent></Card>:null}
-  {notice?<Card className="border-brand-success/30 bg-brand-surface"><CardContent className="p-4 text-sm text-brand-success" role="status">{notice}</CardContent></Card>:null}
-  <Card className="border-brand-border bg-brand-surface"><CardHeader><CardTitle>{t("New position")}</CardTitle><CardDescription>{t("The backend validates every order against the active policy and reserves funds atomically.")}</CardDescription></CardHeader><CardContent>
-   <form aria-busy={submitting} onSubmit={submit} className="grid gap-4 md:grid-cols-2">
-    <label className="space-y-1.5 text-sm"><span className="text-brand-text-muted">{t("Market")}</span><select value={symbol} onChange={event=>setSymbol(event.target.value)} disabled={!activePolicy||!!pendingIntent} className="h-12 w-full rounded-xl border border-brand-border bg-brand-surface-2 px-3 py-3 text-sm text-brand-text outline-none transition-colors focus:border-brand-accent/60 focus:ring-2 focus:ring-brand-accent/15">{(activePolicy?.symbols||[]).map(item=><option key={item} value={item}>{item}/USDT</option>)}</select></label>
-    <label className="space-y-1.5 text-sm"><span className="text-brand-text-muted">{t("Duration")}</span><select value={duration} onChange={event=>setDuration(Number(event.target.value))} disabled={!activePolicy||!!pendingIntent} className="h-12 w-full rounded-xl border border-brand-border bg-brand-surface-2 px-3 py-3 text-sm text-brand-text outline-none transition-colors focus:border-brand-accent/60 focus:ring-2 focus:ring-brand-accent/15">{(activePolicy?.durations_sec||[]).map(item=><option key={item} value={item}>{item}s</option>)}</select></label>
-    <label className="space-y-1.5 text-sm"><span className="text-brand-text-muted">{t("Amount (USDT)")}</span><input inputMode="decimal" type="number" min={activePolicy?String(activePolicy.min_stake):undefined} max={activePolicy?String(activePolicy.max_stake):undefined} step="any" value={pendingIntent?.amount??amount} onChange={event=>setAmount(event.target.value)} disabled={!activePolicy||!!pendingIntent} className="h-12 w-full rounded-xl border border-brand-border bg-brand-surface-2 px-3 py-3 text-sm text-brand-text outline-none transition-colors focus:border-brand-accent/60 focus:ring-2 focus:ring-brand-accent/15" placeholder={activePolicy?String(activePolicy.min_stake):"—"}/></label>
-    <div className="space-y-1.5 text-sm"><span className="text-brand-text-muted">{t("Direction")}</span><div className="grid grid-cols-2 gap-2"><Button type="button" variant={direction==="up"?"default":"outline"} disabled={!!pendingIntent} onClick={()=>setDirection("up")}><TrendingUp className="mr-2 h-4 w-4"/>{t("Up")}</Button><Button type="button" variant={direction==="down"?"destructive":"outline"} disabled={!!pendingIntent} onClick={()=>setDirection("down")}><TrendingDown className="mr-2 h-4 w-4"/>{t("Down")}</Button></div></div>
-    <div className="flex flex-wrap items-center justify-between gap-3 md:col-span-2">
-     <p className="text-xs text-brand-text-muted">{t("Minimum payout is 85%; rates may vary by product.")}</p>
-     <Button type="submit" disabled={submitting||!policy?.actions_enabled||(!pendingIntent&&!canSubmit)}>{submitting?t("Submitting…"):pendingIntent?t("Retry same request"):t("Open position")}</Button>
+
+ const submitSeconds=async(dir: "up" | "down")=>{
+  if(submitting) return;
+  const numeric=Number(amount);
+  if(!Number.isFinite(numeric)||numeric<=0){
+   setError(t("Please enter a valid investment amount")); return;
+  }
+  const intent: SecondsOrderInput={
+   request_id:window.crypto.randomUUID().replace(/-/g,""),
+   symbol,
+   direction: dir,
+   duration_sec:duration,
+   amount:amount.trim()
+  };
+  setSubmitting(true);setError("");setNotice("");
+  try{
+   const result=await submitSecondsOrder(intent);
+   const latest=await getSecondsPositions();
+   setSnapshot(latest);
+   clearPending();
+   setNotice(result.duplicate?t("Order confirmed"):t("Seconds order placed successfully. Funds are locked and will settle automatically at expiry."));
+  }catch(reason){
+   setError(reason instanceof Error?reason.message:t("Order not confirmed. Please check your funds and try again."));
+  }finally{setSubmitting(false);}
+ };
+
+ const currentRate = DURATION_OPTIONS.find(d => d.sec === duration)?.rate || 85;
+ const profitExpect = Number(amount) > 0 ? (Number(amount) * (1 + currentRate / 100)).toFixed(2) : "0.00";
+ const openCount = snapshot?.open.length || 0;
+
+ return <PageFrame title={t("Seconds")} className="spot-terminal !gap-1.5 !p-1.5 sm:!p-3" tone="trading">
+  {/* 1. 顶部模式导航栏 */}
+  <div className="px-0.5"><TradeProductNav /></div>
+
+  {/* 2. 交易对切换与行情条 (完全对齐现货风格) */}
+  <div className="flex items-center justify-between px-1 py-1 -mt-0.5">
+   <div className="flex items-center gap-2">
+    <span className="text-base font-bold text-brand-text tracking-tight flex items-center gap-1.5">
+     <span className="text-sm text-brand-text-muted">≡</span>
+     {symbol}/USDT
+    </span>
+    <span className={"text-[10px] font-semibold px-1.5 py-0.5 rounded " + (Number(ticker?.chg||0)>=0?"text-profit bg-profit/10":"text-loss bg-loss/10")}>
+     {ticker ? (Number(ticker.chg)>=0?"+":"") + Number(ticker.chg).toFixed(2) + "%" : "+2.45%"}
+    </span>
+   </div>
+   <div className="flex items-center gap-1">
+    {["BTC","ETH","SOL"].map(coin=><button key={coin} type="button" onClick={()=>setSymbol(coin)} className={"px-2 py-0.5 rounded text-[11px] font-bold transition-colors "+(symbol===coin?"bg-brand-accent/20 text-brand-accent":"text-brand-text-muted hover:text-brand-text")}>{coin}</button>)}
+   </div>
+  </div>
+
+  {/* 行情卡片 */}
+  <div className="flex items-center justify-between px-2 py-1 rounded-lg bg-brand-surface/40 border border-brand-border/40">
+   <div className="flex items-baseline gap-2">
+    <span className="text-xl font-bold font-mono tracking-tight text-brand-text tabular-nums">
+     {ticker ? ticker.price.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2}) : "—"}
+    </span>
+    <span className={"text-xs font-bold font-mono tabular-nums " + (Number(ticker?.chg||0) >= 0 ? "text-profit" : "text-loss")}>
+     {ticker ? (Number(ticker.chg) >= 0 ? "+" : "") + Number(ticker.chg).toFixed(2) + "%" : "—"}
+    </span>
+   </div>
+   <div className="flex items-center gap-4 text-[11px] font-mono tabular-nums">
+    <div className="flex items-center gap-1.5">
+     <span className="text-brand-text-muted">{t("High")}</span>
+     <span className="text-brand-text font-medium">{ticker ? Number(ticker.high).toLocaleString() : "—"}</span>
     </div>
     <div className="flex items-center gap-1.5">
      <span className="text-brand-text-muted">{t("Low")}</span>
      <span className="text-brand-text font-medium">{ticker ? Number(ticker.low).toLocaleString() : "—"}</span>
     </div>
-   </form>
-  </CardContent></Card>
+   </div>
+  </div>
 
   {notice?<div role="status" className="rounded-lg border border-brand-success/25 bg-brand-success/5 p-1.5 text-xs text-brand-success">{notice}</div>:null}
   {error?<div role="alert" className="rounded-lg border border-brand-danger/25 bg-brand-danger/5 p-1.5 text-xs text-brand-danger">{error}</div>:null}
@@ -1027,7 +1062,7 @@ export function SecondsPage(){
     )}
    </div>
   </div>
- </div>;
+ </PageFrame>;
 }
 
 async function prepareKycDocumentImage(file: File): Promise<{
