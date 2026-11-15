@@ -115,7 +115,7 @@ export function AccountSecurityPage() {
                 {row.linked ? (
                   <span className="truncate font-mono text-brand-text-muted">{row.value || t("Connected")}</span>
                 ) : (
-                  <span className="font-medium text-brand-accent">{t(row.key === "google" ? "Link Google" : "Connect")}</span>
+                  <span className="font-medium text-brand-accent">{t(row.key === "google" ? "Link Google" : row.key === "ethereum" ? "Link Ethereum wallet" : "Link Solana wallet")}</span>
                 )}
                 <ChevronRight className="h-4 w-4 text-brand-text-muted" />
               </span>
