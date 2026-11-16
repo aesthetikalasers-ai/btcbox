@@ -51,9 +51,19 @@ test('wallet overview is owner-scoped and uses exact decimal arithmetic', async 
   assert.equal(url.searchParams.get('select'), 'wallet_account_id,asset_code,available,frozen,version,updated_at');
   assert.equal(requestedHeaders.Authorization, 'Bearer test-service-role-only');
   assert.deepEqual(result.body.wallet.accounts[0], {
-    asset: 'USDT', available: '9007199254740993.123456789012345678', frozen: '0.000000000000000001', total: '9007199254740993.123456789012345679', version: 4, updated_at: '2026-11-16T00:00:00Z'
+    asset: 'USDT', available: '9007199254740993.123456789012345678', frozen: '0.000000000000000001', total: '9007199254740993.123456789012345679', version: '4', updated_at: '2026-11-16T00:00:00Z'
   });
   assert.equal(JSON.stringify(result.body).includes('private_key'), false);
+});
+
+test('wallet overview preserves bigint account versions beyond JavaScript safe integer range', async () => {
+  global.fetch = async () => ({
+    ok: true,
+    text: async () => '[{"wallet_account_id":"large-version","asset_code":"BTC","available":1,"frozen":0,"version":9007199254740993,"updated_at":"2026-11-16T00:00:00Z"}]'
+  });
+  const result = await handleWalletRoute({ path: 'wallet', method: 'GET', user: { supabase_user_id: USER_ID } });
+  assert.equal(result.status, 200);
+  assert.equal(result.body.wallet.accounts[0].version, '9007199254740993');
 });
 
 test('wallet overview hides every asset whose available and frozen balances are zero', async () => {
