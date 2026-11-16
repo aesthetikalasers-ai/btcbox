@@ -21,9 +21,11 @@ export function NewListingsPage() {
   const [pairs, setPairs] = useState<SpotMarketPair[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [reload, setReload] = useState(0);
 
   useEffect(() => {
     const controller = new AbortController();
+    setLoading(true);
     getSpotMarketPairs(controller.signal)
       .then((result) => { if (!controller.signal.aborted) setPairs(result); })
       .catch((reason: unknown) => {
@@ -32,7 +34,7 @@ export function NewListingsPage() {
       })
       .finally(() => { if (!controller.signal.aborted) setLoading(false); });
     return () => controller.abort();
-  }, []);
+  }, [reload]);
 
   return (
     <PageFrame title="New listings" tone="market" backTo="/me">
@@ -82,7 +84,12 @@ export function NewListingsPage() {
 
         {error ? (
           <Card className="border-brand-danger/30 bg-brand-surface">
-            <CardContent className="p-6 text-center text-sm text-brand-danger" role="alert">{t(error)}</CardContent>
+            <CardContent className="p-6 text-center text-sm text-brand-danger" role="alert">
+              <p>{t(error)}</p>
+              <Button size="sm" variant="outline" className="mt-3" onClick={() => { setError(""); setLoading(true); setReload(n => n + 1); }}>
+                {t("Try again")}
+              </Button>
+            </CardContent>
           </Card>
         ) : null}
 

@@ -49,6 +49,15 @@ export function SupportChat() {
 
   useEffect(() => { listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: "smooth" }); }, [messages]);
 
+  // Poll for staff replies while the conversation is open. The top bar already
+  // refreshes its unread badge every 60s; without this the visitor had to reload
+  // the page to see the reply the badge was announcing.
+  useEffect(() => {
+    if (status !== "authenticated") return;
+    const timer = window.setInterval(() => setReload(n => n + 1), 30_000);
+    return () => window.clearInterval(timer);
+  }, [status]);
+
   const send = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (sending) return;
@@ -100,7 +109,7 @@ export function SupportChat() {
       </CardHeader>
       <CardContent className="flex flex-col gap-3 p-4">
         {loading ? <p role="status" className="text-sm text-brand-text-muted">{t("Loading…")}</p> : null}
-        {error ? <p role="alert" className="text-sm text-brand-danger">{error}</p> : null}
+        {error ? <p role="alert" className="text-sm text-brand-danger">{t(error)}</p> : null}
         <div ref={listRef} className="max-h-72 space-y-2 overflow-y-auto pr-1">
           {messages.length === 0 ? (
             <p className="rounded-xl border border-dashed border-brand-border p-4 text-sm text-brand-text-muted">
@@ -127,6 +136,9 @@ export function SupportChat() {
           />
           {sendError ? <p role="alert" className="text-sm text-brand-danger">{sendError}</p> : null}
           {sendMessage ? <p role="status" className="text-sm text-brand-success">{sendMessage}</p> : null}
+          <div className="flex items-center justify-end">
+            <span className="text-[11px] tabular-nums text-brand-text-muted">{draft.length}/2000</span>
+          </div>
           <Button type="submit" disabled={sending || (!draft.trim() && !pendingRequestId)} className="min-h-11 w-full">
             <Send className="mr-2 h-4 w-4" />
             {sending ? t("Sending…") : pendingRequestId ? t("Retry same request") : t("Send message")}
