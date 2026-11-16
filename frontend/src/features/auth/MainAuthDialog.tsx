@@ -5,7 +5,7 @@ import { useAuth } from "../../lib/auth";
 import { useI18n } from "../../lib/i18n";
 import { AuthPage } from "./AuthPages";
 
-export function MainAuthDialog({ open, mode, onOpenChange, onModeChange }: {
+export function MainAuthDialog({ open, mode, onOpenChange, onModeChange, openerRef }: {
   open: boolean;
   mode: "login" | "register";
   onOpenChange: (open: boolean) => void;
