@@ -257,7 +257,7 @@ async function probeWeb3ChainEnabled(authUrl, authKey, chain) {
 async function detectWeb3ProviderEnabled() {
   const now = Date.now();
   const cached = _authProviderCache.web3;
-  if (cached.value !== null && cached.expiresAt > now) return cached.value;
+  if (cached.expiresAt > now) return cached.value;
   const authUrl = String(process.env.SUPABASE_AUTH_URL || process.env.SUPABASE_URL || '').replace(/\/+$/, '');
   const authKey = getPublishableKey();
   if (!authUrl || !authKey) {
