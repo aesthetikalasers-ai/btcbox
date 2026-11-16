@@ -1421,4 +1421,15 @@ test("homepage authentication opens an in-place dialog and mode switches stay in
   await expect(dialog.getByRole("heading", { name: "Welcome back", exact: true })).toBeVisible();
   await expect(dialog).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+
+  await page.keyboard.press("Escape");
+  await expect(dialog).toBeHidden();
+  const signInOpener = page.getByRole("button", { name: "Sign in", exact: true }).first();
+  await expect(signInOpener).toBeFocused();
+
+  await signInOpener.click();
+  await expect(dialog).toBeVisible();
+  await dialog.getByRole("link", { name: "Explore markets" }).click();
+  await expect(page).toHaveURL(/\\/markets$/);
+  await expect(dialog).toBeHidden();
 });
