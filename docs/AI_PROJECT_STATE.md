@@ -156,3 +156,34 @@
 - 本次未修改生产数据库、未合并 main/working、未部署。
 
 **下一项唯一优先任务：** 先与 AI 2 对齐 UI adapter 与 disabled/demo 状态；同时在后端定位权威手续费结算事件和 Auth 用户 ID 关联字段，确认后再设计可执行迁移与 API，不提前开启真实返佣。
+
+
+## 2026-11-17 — Referral fee-source investigation (AI 1)
+
+**分支：** `feat/wallet-api-contract-v1`（隔离功能分支；与 `working` 已分歧，禁止盲目合并）  
+**本轮合同更新提交：** `a8e27d3a99bbb8fedce9210bc74c0c25744b68fe`  
+**本轮状态记录：** 本次同步后提交 SHA 待回读核实。
+
+### 已完成的只读核查
+- 当前 Supabase 项目 `zlozsutefnmgwwzrlipt`：`financial_matching_markets` 的 Maker/Taker fee 两条 CHECK 约束均强制为 0。
+- 实际部署的 `submit_limit_order_matching_v1`：现货撮合只写买卖双方四条成交资产账本腿，不计算手续费、不扣手续费、不向手续费账户入账。
+- 实际部署的 `execute_spot_trade_atomic`：只写两种交易资产账本腿，无手续费逻辑。
+- 当前 Supabase 不存在任何 `perpetual_*`、`btcbox_referral_*`、invite、commission、reward 业务表。
+- 仓库 `0041_perpetual_contract_v1.sql` 有未来可用的手续费路径：按 Maker/Taker 费率计算手续费、从交易者结算中扣除，并在同一成交 operation 下向保险基金账户写入 ledger；但该迁移当前未反映在连接的 Supabase 项目中，市场费率默认仍为 0。它只能视为未来候选来源，不能视为现有线上功能。
+- 已确认身份映射结构：`btcbox_auth_accounts.supabase_user_id (uuid) -> btcbox_user_id (text)`；财务业务表用 `btcbox_users.user_id (text)`。返佣关系应使用服务端验证后的 canonical BTCBOX user ID，不应以 email 作为关系主键。
+- 已把以上真实核查结果写入 `docs/REFERRAL_REWARDS_API_CONTRACT_V1.md`，并明确现阶段返佣必须关闭，不能从成交额伪造佣金。
+
+### 当前阶段与未满足条件
+- Referral 合同：已建立，持续完善中；不代表数据库/API 已实现。
+- Referral schema/API：NOT VERIFIED / 尚未实施。
+- 真实手续费源：NOT AVAILABLE（现货费率强制为 0；永续 schema 未应用；费率也未获所有者批准）。
+- 返佣比例、可返佣产品、合资格交易、结算等待期、封顶、冲正、发放币种及收入分配政策：待所有者确认。
+- 隔离数据库 SQL 集成测试、身份绑定端到端测试：NOT VERIFIED。
+- 本轮只读核查，无生产 DDL、无写入、无真实资金操作、无部署。
+
+### 分支基线风险
+- 当前功能分支相对 `working`：ahead 85 / behind 12；merge base `2a3e6f929bf3dc1c4feee0a39c0294cbda4b717b`；`working` HEAD `1546cc0e9414776e3021017969ebf825c893cdb0`。
+- 按协调规则，禁止盲目合并；后续应用代码必须先解决共同开发分支基线/整合路径，避免继续扩大分歧。
+- 本轮未合并、未部署、未修改生产数据库。
+
+**下一项唯一优先任务：** 在确定分支整合路径后，先建立可关闭的 referral code / immutable attribution 数据层和服务端身份校验测试；真实佣金记账继续被真实手续费事件与所有者政策审批双重门控。
