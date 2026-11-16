@@ -62,6 +62,7 @@ function DemoRoute({ children }: { children: ReactNode }) {
 // seeing a locked screen and can sign in / register in place.
 function SignInPrompt() {
   const { t } = useI18n();
+  const { openAuthDialog } = useAuthDialog();
   return (
     <div className="mx-auto flex w-full max-w-xl flex-col items-center justify-center px-4 py-16 text-center">
       <span className="mb-5 flex h-16 w-16 items-center justify-center rounded-2xl border border-brand-accent/20 bg-brand-accent/10 text-brand-accent">
@@ -70,8 +71,8 @@ function SignInPrompt() {
       <h2 className="text-xl font-semibold text-brand-text">{t("Sign in to your account")}</h2>
       <p className="mt-2 max-w-md text-sm leading-6 text-brand-text-muted">{t("Sign in to view balances, orders, and security settings.")}</p>
       <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
-        <Button asChild className="min-h-12 px-6 text-sm font-bold"><Link to="/login">{t("Sign in")}</Link></Button>
-        <Button asChild variant="secondary" className="min-h-12 px-6 text-sm font-bold"><Link to="/register">{t("Create account")}</Link></Button>
+        <Button type="button" onClick={() => openAuthDialog("login")} className="min-h-12 px-6 text-sm font-bold">{t("Sign in")}</Button>
+        <Button type="button" variant="secondary" onClick={() => openAuthDialog("register")} className="min-h-12 px-6 text-sm font-bold">{t("Create account")}</Button>
       </div>
     </div>
   );
