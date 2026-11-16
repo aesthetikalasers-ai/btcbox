@@ -107,14 +107,14 @@
 
 ## 2026-11-17 — Wallet API 后端继续推进（AI 1）
 
-**当前实际工作分支：** `feat/wallet-api-contract-v1`（既有功能分支；本轮未新建分支）。本轮 AI 1 最近状态文档提交：`42e1fe6f256d626038ee0ee0b76d101ed655989f`。这不是 main/working 的更新；未合并、未部署。
+**当前实际工作分支：** `feat/wallet-api-contract-v1`（既有功能分支；本轮未新建分支）。本轮 AI 1 最近状态文档提交：`8ac87d91488594377f2f991c2eabe799f9e01756`；最近一笔后端/测试提交：`ac5e9d90d3c261ba3220be019b9f31fb613a459e`。这不是 main/working 的更新；未合并、未部署。
 
 ### 已完成源码工作
 - 修复钱包账户 `version` 的 PostgreSQL BIGINT 字符串校验；后端 CI run `43903136961` 已通过统一构建、后端测试、本地前后端集成、fail-closed 部署配置预检及产物/入口检查。该 CI 仅验证当时提交，不覆盖本节后来新增的身份映射与转账草稿。
 - 新增 `persistSupabaseAuthMapping` 服务端 helper：只使用经过 Supabase `/auth/v1/user` 验证的 UUID 和服务端 BTCBOX `uid`，调用 server-only RPC。现有账户在 2FA 早退前处理；新账户先保存 BTCBOX state 再尝试持久映射。
 - 身份映射调用受 `BTCBOX_AUTH_MAPPING_RPC_ENABLED=1` 显式开关控制；默认关闭。未应用 migration 前不得开启，避免登录路径调用不存在的 RPC。
 - 新增 `backend/supabase/sql/0042_btcbox_auth_mapping_registration_v1.sql` 草稿：同一事务内创建 Exchange 身份主表记录，并调用现有身份映射/身份元数据 RPC；仅授权 service_role，不写入密码或密钥。
-- 新增 `backend/supabase/sql/0043_btcbox_wallet_exchange_transfer_v1.sql` 草稿：定义 Wallet↔Exchange 单 PostgreSQL 事务、固定 Wallet→Exchange 的锁顺序、服务端身份映射、资产/账户状态校验、幂等和双账本写入。新增的转账 RPC 目前没有 API 路由调用，也没有应用到 Supabase。
+- 新增 `backend/supabase/sql/0043_btcbox_wallet_exchange_transfer_v1.sql` 草稿：定义 Wallet↔Exchange 单 PostgreSQL 事务、固定 Wallet→Exchange 的锁顺序、服务端身份映射、资产/账户状态校验、幂等和双账本写入。新增的转账 RPC 目前没有 API 路由调用，也没有应用到 Supabase；已补充空方向拒绝和按用户幂等键串行化。
 - 新增 `backend/tests/auth-mapping-rpc.test.js` 与 `backend/tests/wallet-exchange-transfer-contract.test.js`，覆盖身份映射调用合同及双账本转账 SQL 合同。
 - 更新 `docs/WALLET_API_CONTRACT_V1.md`，记录 CI、身份映射门槛和转账 SQL 草稿状态。
 
