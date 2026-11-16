@@ -1,3 +1,4 @@
+# Shared CI fan-out path: backend, PostgreSQL, and frontend workflows all watch this file.
 name: BTCBOX frontend CI
 
 on:
