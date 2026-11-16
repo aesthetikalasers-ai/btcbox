@@ -10,7 +10,7 @@ import { useI18n } from "./lib/i18n";
 import { Button } from "./components/ui/button";
 import { LockKeyhole } from "lucide-react";
 import { AccountNoticeModal } from "./components/AccountNoticeModal";
-import { AuthDialogProvider } from "./lib/auth-dialog";
+import { AuthDialogProvider, useAuthDialog } from "./lib/auth-dialog";
 
 const Dashboard = lazy(() => import("./features/dashboard/Dashboard").then((m) => ({ default: m.Dashboard })));
 const MarketsPage = lazy(() => import("./features/markets/MarketsPage").then((m) => ({ default: m.MarketsPage })));
