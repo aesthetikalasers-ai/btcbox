@@ -30,7 +30,7 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
   return (
     <aside className="flex h-full w-full shrink-0 flex-col border-r border-brand-border bg-brand-sidebar pt-[env(safe-area-inset-top)] lg:w-[224px]">
       <div className="mt-1 flex h-16 items-center justify-between px-5">
-        <NavLink to="/home" className="min-w-0" onClick={onClose}><BrandLogo /></NavLink>
+        <NavLink to="/home" className="min-w-0" onClick={onClose}><BrandLogo variant="white" size="sm" /></NavLink>
         {onClose && (
           <button type="button" aria-label={t("Close navigation")} onClick={onClose} className={cn("flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-brand-text-muted transition-colors hover:bg-brand-surface-hover lg:hidden", focusRing)}>
             <X className="h-5 w-5" />

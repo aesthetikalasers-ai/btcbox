@@ -42,7 +42,7 @@ export function AccountSetupPage() {
   };
 
   return <main className="tone-support relative mx-auto flex min-h-[100dvh] w-full max-w-[640px] flex-col items-center justify-center gap-6 p-4 sm:p-6">
-    <div className="w-full flex justify-center"><BrandLogo variant="icon" /></div>
+    <div className="w-full flex justify-center"><BrandLogo variant="icon" size="lg" /></div>
     <Card className="w-full overflow-hidden border-brand-accent/20 bg-brand-surface shadow-2xl shadow-black/20">
       <div className="h-1 bg-brand-accent"/>
       <CardHeader className="gap-3 border-b border-brand-border/70 bg-brand-surface p-6 text-center sm:p-8">

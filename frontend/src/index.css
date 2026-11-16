@@ -171,6 +171,29 @@ a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
 }
 
 @layer components {
+  /*
+   * Optical trim for the official BTCBOX PNGs.
+   *
+   * The shipped files carry large transparent margins inside their canvas, so
+   * rendering them at a plain h-* box makes the visible artwork look ~30%
+   * smaller than the box and read as "too small" in the header.
+   *
+   * Measured ink bounds of the unmodified originals:
+   *   btcbox-logo-white.png 1113x689 -> ink y 213..426 (31% top pad, 38% bottom pad)
+   *   btcbox-icon.png       1027x1027 -> ink y  57..928 (6% top pad, 10% bottom pad)
+   *
+   * We scale the artwork up (1/inkRatio) and offset it by the padding
+   * asymmetry so the ink fills the intended box and stays optically centered.
+   * This is a pure CSS transform: the pixels, colours and aspect ratio are
+   * untouched, which keeps the brand terms (no crop / no distortion / no
+   * recolour) satisfied.
+   */
+  .brand-logo-ink {
+    transform-origin: center center;
+    /* --brand-ink-offset is a fraction of the canvas height; translateY needs a % */
+    transform: scale(calc(1 / var(--brand-ink-scale, 1))) translateY(calc(var(--brand-ink-offset, 0) * 100%));
+  }
+
   .type-display { font-size: clamp(1.875rem, 5vw, 2.5rem); line-height: 1.08; font-weight: 750; letter-spacing: -.045em; font-variant-numeric: tabular-nums; }
   .type-page-title { font-size: clamp(1.5rem, 3.5vw, 1.875rem); line-height: 1.18; font-weight: 650; letter-spacing: -.035em; }
   .type-section-title { font-size: 1.0625rem; line-height: 1.35; font-weight: 600; letter-spacing: -.015em; }

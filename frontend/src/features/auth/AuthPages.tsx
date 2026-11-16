@@ -33,7 +33,7 @@ export function AuthPage({ mode }: { mode: AuthMode; redirectTo?: string }) {
     <div className="grid w-full items-center gap-4">
       <div className="mx-auto w-full max-w-[480px]">
         <div className="mb-5 flex items-center justify-between">
-          <Link to="/home" aria-label={t("BTCBOX home")}><BrandLogo compact /></Link>
+          <Link to="/home" aria-label={t("BTCBOX home")}><BrandLogo variant="white" size="sm" /></Link>
           <Link to="/markets" className="inline-flex min-h-10 items-center gap-1.5 rounded-lg border border-brand-accent/25 bg-brand-accent/[0.07] px-3 text-xs font-semibold text-brand-accent transition-colors hover:border-brand-accent/45 hover:bg-brand-accent/[0.12] hover:text-brand-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent/70"><ChartNoAxesCombined className="h-3.5 w-3.5" />{t("Explore markets")} <ArrowRight className="h-3.5 w-3.5" /></Link>
         </div>
         <Card className="w-full overflow-hidden border-brand-accent/20 bg-brand-surface">

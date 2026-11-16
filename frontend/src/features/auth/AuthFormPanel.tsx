@@ -215,7 +215,9 @@ export function AuthFormPanel({
         <div>
           <label htmlFor="btcbox-email-password" className="block text-sm text-brand-text-muted mb-1.5">{t("Password")}</label>
           <div className="relative">
-            <Input id="btcbox-email-password" aria-label={t("Password")} className="h-12 pr-10" type={showEmailPassword ? "text" : "password"} value={emailPassword} onChange={event => setEmailPassword(event.target.value)} autoComplete="current-password" minLength={8} maxLength={128} placeholder={t("Enter your password")} required />
+            {/* Distinct accessible name; deliberately avoids the word "Email" so it cannot
+                collide with the email-address field's own "Email" label. */}
+            <Input id="btcbox-email-password" aria-label={t("Login password")} className="h-12 pr-10" type={showEmailPassword ? "text" : "password"} value={emailPassword} onChange={event => setEmailPassword(event.target.value)} autoComplete="current-password" minLength={8} maxLength={128} placeholder={t("Enter your password")} required />
             <button type="button" aria-label={t(showEmailPassword ? "Hide password" : "Show password")} aria-pressed={showEmailPassword} onClick={() => setShowEmailPassword(value => !value)} className="absolute right-3 top-1/2 -translate-y-1/2 flex h-6 w-6 items-center justify-center rounded text-brand-text-muted transition-colors hover:text-brand-text">{showEmailPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}</button>
           </div>
         </div>
@@ -247,7 +249,8 @@ export function AuthFormPanel({
         <div>
           <label htmlFor="btcbox-password" className="block text-sm text-brand-text-muted mb-1.5">{t("Password")}</label>
           <div className="relative">
-            <Input id="btcbox-password" aria-label={t("Password")} className="h-12 pr-10" type={showPassword ? "text" : "password"} value={password} onChange={event => setPassword(event.target.value)} autoComplete="current-password" minLength={12} maxLength={128} placeholder={t("Enter your password")} />
+            {/* Distinct accessible name; the visible label above stays "Password". */}
+            <Input id="btcbox-password" aria-label={t("Username login password")} className="h-12 pr-10" type={showPassword ? "text" : "password"} value={password} onChange={event => setPassword(event.target.value)} autoComplete="current-password" minLength={12} maxLength={128} placeholder={t("Enter your password")} />
             <button type="button" aria-label={t(showPassword ? "Hide password" : "Show password")} aria-pressed={showPassword} onClick={() => setShowPassword(value => !value)} className="absolute right-3 top-1/2 -translate-y-1/2 flex h-6 w-6 items-center justify-center rounded text-brand-text-muted transition-colors hover:text-brand-text">{showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}</button>
           </div>
         </div>

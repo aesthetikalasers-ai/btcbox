@@ -124,7 +124,9 @@ test("email sign-in never requests a Web3 wallet connection", async ({ page }) =
   await page.getByRole("button", { name: "Sign in", exact: true }).first().click();
   const dialog = page.getByRole("dialog");
   await dialog.getByLabel("Email").fill("someone@example.com");
-  await dialog.getByLabel("Password", { exact: true }).fill("correct-horse-battery");
+  // The email-login password field has its own accessible name ("Login password")
+  // so it can be told apart from the username-login password field.
+  await dialog.getByLabel("Login password", { exact: true }).fill("correct-horse-battery");
   await dialog.getByRole("button", { name: "Sign in with email" }).click();
 
   // Allow the (aborted) Supabase request to settle, then assert no wallet call.

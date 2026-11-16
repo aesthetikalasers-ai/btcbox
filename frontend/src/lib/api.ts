@@ -970,6 +970,24 @@ export async function getSupportMessages(signal?: AbortSignal): Promise<SupportM
   return payload.messages;
 }
 
+/**
+ * Number of unread support replies for the signed-in account.
+ *
+ * Backed by `GET /api/chat/unread` (see backend/api-core.js): the server compares
+ * each admin message timestamp against the account's `last_read_chat_at`, so the
+ * count is authoritative and cannot drift client-side. Failures degrade to 0 —
+ * a badge is never worth breaking the account page over.
+ */
+export async function getSupportUnread(signal?: AbortSignal): Promise<number> {
+  try {
+    const payload = await readAuthenticated<{ ok: true; unread: number }>("chat/unread", signal);
+    return Number.isFinite(payload.unread) && payload.unread > 0 ? Math.floor(payload.unread) : 0;
+  } catch (reason) {
+    if (reason instanceof Error && reason.name === "AbortError") throw reason;
+    return 0;
+  }
+}
+
 export async function sendSupportMessage(content: string, requestId?: string): Promise<{ duplicate?: boolean; message_id?: string; time?: string }> {
   const normalized = content.trim();
   if (!normalized || normalized.length > 2000) {

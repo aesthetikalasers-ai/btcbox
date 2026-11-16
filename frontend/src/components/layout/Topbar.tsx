@@ -29,8 +29,11 @@ export function Topbar() {
     <header className="relative z-30 flex min-h-16 shrink-0 items-center justify-between gap-2 border-b border-brand-border bg-brand-bg/95 px-4 py-3 pt-[calc(env(safe-area-inset-top)+0.75rem)] backdrop-blur-xl sm:px-5 md:px-6">
       <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
         <Link to="/home" aria-label="BTCBOX home" className="flex min-w-0 shrink-0 items-center">
-          <BrandLogo variant="mark" className="sm:hidden" />
-          <BrandLogo variant="white" className="hidden sm:inline-flex" />
+          {/* Phone: the stacked official mark (diamond + BTCBOX), scaled so the
+              visible diamond is clearly readable at 375px. */}
+          <BrandLogo variant="icon" size="xs" className="sm:hidden" />
+          {/* Tablet and up: horizontal white wordmark, trimmed so the ink fills its box. */}
+          <BrandLogo variant="white" size="sm" className="hidden sm:inline-flex" />
         </Link>
         <form onSubmit={submitSearch} role="search" className="relative hidden min-w-0 sm:block">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-brand-text-muted" />
