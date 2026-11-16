@@ -107,7 +107,7 @@
 
 ## 2026-11-17 — Wallet API 后端继续推进（AI 1）
 
-**当前实际工作分支：** `feat/wallet-api-contract-v1`（既有功能分支；本轮未新建分支）。本轮 AI 1 最近状态文档提交：`8ac87d91488594377f2f991c2eabe799f9e01756`；最近一笔后端/测试提交：`ac5e9d90d3c261ba3220be019b9f31fb613a459e`。这不是 main/working 的更新；未合并、未部署。
+**当前实际工作分支：** `feat/wallet-api-contract-v1`（既有功能分支；本轮未新建分支）。 与 `working` 最新比较为 **82 commits ahead / 12 commits behind**，共同开发分支 HEAD 为 `1546cc0e9414776e3021017969ebf825c893cdb0`；当前存在明显分歧，禁止盲目合并。本轮 AI 1 最近状态文档提交：`8ac87d91488594377f2f991c2eabe799f9e01756`；最近一笔后端/测试提交：`ac5e9d90d3c261ba3220be019b9f31fb613a459e`。这不是 main/working 的更新；未合并、未部署。
 
 ### 已完成源码工作
 - 修复钱包账户 `version` 的 PostgreSQL BIGINT 字符串校验；后端 CI run `43903136961` 已通过统一构建、后端测试、本地前后端集成、fail-closed 部署配置预检及产物/入口检查。该 CI 仅验证当时提交，不覆盖本节后来新增的身份映射与转账草稿。
