@@ -191,7 +191,7 @@ async function detectAuthProviderEnabled(provider) {
   const providerName = provider === 'web3' ? 'web3' : 'google';
   const now = Date.now();
   const cached = _authProviderCache[providerName];
-  if (cached.value !== null && cached.expiresAt > now) return cached.value;
+  if (cached.expiresAt > now) return cached.value;
   const authUrl = String(process.env.SUPABASE_AUTH_URL || process.env.SUPABASE_URL || '').replace(/\/+$/, '');
   const authKey = getPublishableKey();
   if (!authUrl || !authKey) {
@@ -218,7 +218,62 @@ async function detectAuthProviderEnabled(provider) {
   }
 }
 async function detectGoogleProviderEnabled() { return detectAuthProviderEnabled('google'); }
-async function detectWeb3ProviderEnabled() { return detectAuthProviderEnabled('web3'); }
+// Supabase Auth's public GET /settings response intentionally omits Web3
+// providers. Probe the Web3 grant endpoint with an incomplete, non-signable
+// request instead: a provider-disabled response is authoritative; a request
+// validation/signature-format response means that chain's provider is enabled.
+// No wallet signature is supplied, so this probe cannot create or authenticate a user.
+async function probeWeb3ChainEnabled(authUrl, authKey, chain) {
+  try {
+    const res = await fetch(authUrl + '/auth/v1/token?grant_type=web3', {
+      method: 'POST',
+      headers: {
+        'apikey': authKey,
+        'Authorization': 'Bearer ' + authKey,
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      },
+      body: JSON.stringify({ chain }),
+      signal: AbortSignal.timeout(4000)
+    });
+    let data = {};
+    try { data = await res.json(); } catch (_) {}
+    const message = String(data.msg || data.message || data.error_description || data.error || '').toLowerCase();
+    const errorCode = String(data.code || data.error_code || '').toLowerCase();
+    if (/web3 provider is disabled|provider is disabled/.test(message)) return false;
+    // CAPTCHA middleware can reject this unsigned probe before Web3 provider
+    // validation. Such a response says nothing about provider availability.
+    if (errorCode === 'captcha_failed' || /captcha/.test(message)) return null;
+    // Only a recognized Web3 payload-validation response proves the provider
+    // is enabled. A generic 400/422 may come from unrelated middleware.
+    const web3ValidationError =
+      /(missing|required|invalid).*(message|signature)|(message|signature).*(missing|required|invalid)/.test(message);
+    if (res.ok || ((res.status === 400 || res.status === 422) && web3ValidationError)) return true;
+    return null;
+  } catch (_) {
+    return null;
+  }
+}
+async function detectWeb3ProviderEnabled() {
+  const now = Date.now();
+  const cached = _authProviderCache.web3;
+  if (cached.expiresAt > now) return cached.value;
+  const authUrl = String(process.env.SUPABASE_AUTH_URL || process.env.SUPABASE_URL || '').replace(/\/+$/, '');
+  const authKey = getPublishableKey();
+  if (!authUrl || !authKey) {
+    _authProviderCache.web3 = { value: false, expiresAt: now + 60 * 1000 };
+    return false;
+  }
+  const results = await Promise.all([
+    probeWeb3ChainEnabled(authUrl, authKey, 'ethereum'),
+    probeWeb3ChainEnabled(authUrl, authKey, 'solana')
+  ]);
+  const enabled = results.some(value => value === true)
+    ? true
+    : (results.every(value => value === false) ? false : null);
+  _authProviderCache.web3 = { value: enabled, expiresAt: now + (enabled === null ? 15 : 60) * 1000 };
+  return enabled;
+}
 // ===== CORS（SPA 与后端跨域必需）=====
 // 带 credentials 时 Access-Control-Allow-Origin 不能用 *，必须反射具体 Origin。
 // _currentEvent 在 handleRequest 入口赋值，供 json() 合并 CORS 头使用。
