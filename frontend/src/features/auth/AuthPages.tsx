@@ -31,6 +31,7 @@ export function AuthPage({ mode, redirectTo, embedded = false, onModeChange }: {
   const [walletMenuOpen, setWalletMenuOpen] = useState(false);
   const [googleStarted, setGoogleStarted] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
   const registering = mode === "register";
   const switchAuthMode = (next: "login" | "register") => onModeChange ? onModeChange(next) : navigate(next === "login" ? "/login" : "/register");
 
@@ -88,7 +89,7 @@ export function AuthPage({ mode, redirectTo, embedded = false, onModeChange }: {
 
   const identityButtons = <>
     <div className="grid grid-cols-2 gap-3 max-[360px]:grid-cols-1" data-testid="auth-provider-buttons">
-      <Button type="button" variant="outline" className="h-12 min-h-12 w-full justify-center gap-2 px-3" aria-busy={busy || googleStarted} disabled={!googleEnabled || busy || status !== "anonymous" || googleStarted} title={!googleEnabled ? t("Google sign-in is temporarily unavailable.") : undefined} onClick={() => { setGoogleStarted(true); void signInWithGoogle(registering ? "register" : "login"); }}>
+      <Button type="button" variant="outline" className="h-12 min-h-12 w-full justify-center gap-2 px-3" aria-busy={busy || googleStarted} disabled={!googleEnabled || busy || status !== "anonymous" || googleStarted} title={!googleEnabled ? t("Google sign-in is temporarily unavailable.") : undefined} onClick={() => { setGoogleStarted(true); try { if (embedded) window.sessionStorage.setItem("btcbox:oauth:return-to", location.pathname + location.search + location.hash); else window.sessionStorage.removeItem("btcbox:oauth:return-to"); } catch { /* Session storage may be unavailable; retain the standalone fallback. */ } void signInWithGoogle(registering ? "register" : "login"); }}>
         <svg aria-hidden="true" viewBox="0 0 48 48" className="h-5 w-5 shrink-0">
           <path fill="#4285F4" d="M43.6 24.5c0-1.4-.1-2.8-.4-4.1H24v7.8h11c-.5 2.5-1.9 4.6-4 6l6.4 5c3.8-3.5 6.2-8.6 6.2-14.7z"/>
           <path fill="#34A853" d="M24 44c5.5 0 10.1-1.8 13.4-4.8l-6.4-5c-1.8 1.2-4.1 2-7 2-5.4 0-10-3.7-11.6-8.6l-6.6 5.1C9.1 39.3 16 44 24 44z"/>
@@ -238,8 +239,19 @@ export function AuthCallbackPage() {
     }
   }, [finishOAuth, status]);
   useEffect(() => {
-    if (status === "authenticated") navigate(callbackIntent === "register" ? "/me" : "/home", { replace: true });
-    else if (status === "two-factor") navigate("/login", { replace: true });
+    if (status === "authenticated") {
+      let returnTo: string | null = null;
+      try {
+        const stored = window.sessionStorage.getItem("btcbox:oauth:return-to");
+        window.sessionStorage.removeItem("btcbox:oauth:return-to");
+        // Accept only same-origin app paths; never allow an external or callback loop redirect.
+        if (stored && stored.startsWith("/") && !stored.startsWith("//") && !stored.startsWith("/auth/react-callback")) returnTo = stored;
+      } catch { /* Session storage may be unavailable; use the existing standalone destination. */ }
+      navigate(returnTo || (callbackIntent === "register" ? "/me" : "/home"), { replace: true });
+    } else if (status === "two-factor") {
+      try { window.sessionStorage.removeItem("btcbox:oauth:return-to"); } catch { /* Ignore unavailable session storage. */ }
+      navigate("/login", { replace: true });
+    }
   }, [status, navigate, callbackIntent]);
   useEffect(() => {
     if (!error || status !== "anonymous") return;
