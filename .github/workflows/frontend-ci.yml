@@ -5,9 +5,12 @@ on:
     paths:
       - "frontend/**"
       - ".github/workflows/frontend-ci.yml"
+      - "backend/**"
   push:
     branches: 
       - main
+      - "integration/btcbox-mainline-consolidation-20261112"
+      - "integration/btcbox-mainline-consolidation-20261116"
       - "feature/btcbox-complete-redesign"
       - "feature/btcbox-react-frontend-20261104"
       - "feat/btcbox-web3-auth-20261105"
@@ -16,6 +19,7 @@ on:
     paths:
       - "frontend/**"
       - ".github/workflows/frontend-ci.yml"
+      - "backend/**"
 
 jobs:
   build:
