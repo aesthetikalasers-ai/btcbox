@@ -116,6 +116,16 @@ export function TradeHubPage(){
   </section>
  </PageFrame>;
 }
+function hasPositiveWalletAmount(value: number|string|undefined): boolean {
+ if(typeof value==="number")return Number.isFinite(value)&&value>0;
+ const raw=String(value??"0").trim();
+ if(!/^(?:0|[1-9]\\d*)(?:\\.\\d{1,18})?$/.test(raw))return false;
+ const [whole,fraction=""]=raw.split(".");
+ return BigInt(whole)*10n**18n+BigInt(fraction.padEnd(18,"0"))>0n;
+}
+function hasWalletFunds(balance: AccountBalance): boolean {
+ return hasPositiveWalletAmount(balance.free)||hasPositiveWalletAmount(balance.frozen);
+}
 export function AssetsPage(){
  const {t,language}=useI18n();
  const numberLocale=localeTags[language];
@@ -133,7 +143,11 @@ export function AssetsPage(){
   return ()=>controller.abort();
  },[reload]);
  const amount=(raw:number|string|undefined)=>formatDecimalAmount(raw,numberLocale,10);
- const balances: Array<[string, AccountBalance]> = account ? Object.entries(account.balances) as Array<[string, AccountBalance]> : [];
+ // Only show assets with real available or frozen funds. The account service may
+ // seed empty rows for supported currencies; those rows are not user-held assets.
+ const balances: Array<[string, AccountBalance]> = account
+  ? (Object.entries(account.balances) as Array<[string, AccountBalance]>).filter(([,balance])=>hasWalletFunds(balance))
+  : [];
  return <PageFrame title="Assets" tone="assets">
   <div className="flex flex-wrap items-center justify-between gap-3"><div className="flex items-center gap-2"><Badge variant="outline" className="border-brand-border">{t("Live account data")}</Badge>{account&&!loading?<span className="text-xs text-brand-text-muted">{balances.length} {t("assets")}</span>:null}</div></div>
   {loading?<Card className="border-brand-border bg-brand-surface"><CardContent className="p-6 text-sm text-brand-text-muted" role="status">{t("Loading account balances…")}</CardContent></Card>
