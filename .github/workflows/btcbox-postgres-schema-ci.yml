@@ -9,9 +9,12 @@ on:
       - 'backend/scripts/test-postgres-schema-bootstrap.sh'
       - 'backend/tests/postgres-financial-lifecycle.integration.sql'
       - '.github/workflows/btcbox-postgres-schema-ci.yml'
+      - '.github/workflows/frontend-ci.yml'
   push:
     branches:
       - main
+      - integration/btcbox-mainline-consolidation-20261112
+      - integration/btcbox-mainline-consolidation-20261116
       - fix/post-merge-db-bootstrap-seconds-20261106
     paths:
       - 'backend/supabase/sql/**'
