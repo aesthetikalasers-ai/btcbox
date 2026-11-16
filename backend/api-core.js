@@ -243,7 +243,7 @@ async function probeWeb3ChainEnabled(authUrl, authKey, chain) {
     // Inspect every known field and normalize an optional HTTP status prefix.
     const messages = [data.msg, data.message, data.error_description, data.error]
       .filter(value => typeof value === 'string')
-      .map(value => value.toLowerCase().replace(/^\\d{3}:\\s*/, ''));
+      .map(value => value.toLowerCase().replace(/^\d{3}:\s*/, ''));
     const errorCodes = [data.code, data.error_code]
       .filter(value => typeof value === 'string')
       .map(value => value.toLowerCase());
