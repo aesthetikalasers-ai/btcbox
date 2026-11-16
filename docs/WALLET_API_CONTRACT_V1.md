@@ -52,7 +52,7 @@ Returns the signed-in user's wallet overview.
         "available": "0.25",
         "frozen": "0",
         "total": "0.25",
-        "version": 0
+        "version": "0"
       }
     ],
     "updated_at": "2026-01-01T00:00:00.000Z"
@@ -110,7 +110,7 @@ Records an explicit, versioned consent before any key-custody action. Return a c
 
 Accepts only a server-generated or envelope-encrypted key payload after a valid consent and policy check. Plaintext private keys, seed phrases, or recovery phrases must never be sent to ordinary application logs, analytics, audit metadata, or a browser-readable API response. Encryption/decryption and signing must be delegated to an approved KMS/HSM or isolated key service. If that provider is not configured, return `KEY_CUSTODY_UNAVAILABLE`.
 
-- **Latest backend changes (2026-11-16):** ledger cursors are rejected when they exceed PostgreSQL `BIGINT`; the wallet address POST route now receives the parsed request body, validates asset/network syntax, and fails closed until an approved network registry and custody adapter exist. Unit tests cover malformed and valid-but-unavailable address requests. These latest commits have not yet been confirmed by a new CI run.
+- **Latest backend changes (2026-11-16):** ledger cursors and account `version` values are validated against PostgreSQL `BIGINT`; account versions are serialized as decimal strings to avoid JavaScript safe-integer precision loss. The wallet address POST route receives the parsed request body, validates asset/network syntax, and fails closed until an approved network registry and custody adapter exist. Unit tests cover large account versions and malformed/valid-but-unavailable address requests. These latest commits have not yet been confirmed by a new CI run.
 
 ## 4. Error envelope
 
