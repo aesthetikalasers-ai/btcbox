@@ -1415,7 +1415,7 @@ test("homepage authentication opens an in-place dialog and mode switches stay in
   await dialog.getByTestId("auth-mode-switcher").getByRole("button", { name: "Create account", exact: true }).click();
   await expect(dialog.getByRole("heading", { name: "Create your BTCBOX account" })).toBeVisible();
   await expect(dialog.getByLabel("Email")).toBeVisible();
-  await expect(page).toHaveURL(/\\/home$/);
+  await expect(page).toHaveURL(/\/home$/);
 
   await dialog.getByTestId("auth-mode-switcher").getByRole("button", { name: "Sign in", exact: true }).click();
   await expect(dialog.getByRole("heading", { name: "Welcome back", exact: true })).toBeVisible();
