@@ -147,11 +147,14 @@ test('auth entry exposes a side-by-side sign-in/register choice and truthfully g
   const provider = read('../frontend/src/lib/auth.tsx');
   const api = read('../frontend/src/lib/api.ts');
   assert.ok(page.includes('data-testid="auth-mode-switcher"'));
+  assert.ok(page.includes('data-testid="auth-mobile-shell"'));
+  assert.ok(!page.includes('max-w-[1120px]'));
+  assert.ok(!page.includes('lg:grid-cols-[minmax(0,1.05fr)'));
   assert.ok(page.includes('walletEnabled'));
   assert.ok(page.includes('Wallet sign-in is temporarily unavailable.'));
   assert.ok(page.includes('value="zh-CN"'));
   assert.ok(api.includes('wallet_enabled: boolean | null'));
-  assert.ok(provider.includes('setWalletEnabled(config.wallet_enabled === true)'));
+  assert.ok(provider.includes('setWalletEnabled(config.wallet_enabled !== false)'));
   assert.ok(provider.includes('"/auth/react-callback?intent=" + intent'));
 });
 
@@ -213,4 +216,23 @@ test('React auth callback is single-flight under StrictMode effect replay', () =
   assert.ok(auth.includes('if (callbackLock.current) return;'));
   assert.ok(auth.includes('callbackLock.current = true;'));
   assert.ok(auth.includes('finally { callbackLock.current = false; setBusy(false); }'));
+});
+
+test('public market page exposes live market categories without changing order execution paths', () => {
+  const page = read('../frontend/src/features/markets/MarketsPage.tsx');
+  const api = read('../frontend/src/lib/api.ts');
+  assert.ok(page.includes('data-testid="public-market-page"'));
+  assert.ok(page.includes('["hot", "Hot"]'));
+  assert.ok(page.includes('["gainers", "Gainers"]'));
+  assert.ok(page.includes('getMarkets(controller.signal)'));
+  assert.ok(page.includes('setSort("volume")'));
+  assert.ok(api.includes('export async function getMarkets'));
+});
+
+test('Google and wallet sign-ups enter BTCBOX without mandatory username/password onboarding', () => {
+  const app = read('../frontend/src/App.tsx');
+  assert.ok(app.includes('Provider-authenticated users enter BTCBOX immediately'));
+  assert.ok(!app.includes('needsCredentials &&'));
+  assert.ok(app.includes('path="/account-setup" element={<Navigate to="/me" replace />}'));
+  assert.ok(!app.includes('<AccountSetupPage'));
 });

@@ -16,7 +16,7 @@ import { useI18n, type Language } from "../../lib/i18n";
 export function AuthPage({ mode, redirectTo }: { mode: "login" | "register"; redirectTo?: string }) {
   const { t, language, setLanguage, canChangeLanguage } = useI18n();
   const {
-    status, needsCredentials, busy, error, notice, googleEnabled, walletEnabled, ethereumWallets,
+    status, busy, error, notice, googleEnabled, walletEnabled, ethereumWallets,
     signInWithGoogle, signInWithUsername, signInWithWeb3, signUpWithEmail,
     verifyTwoFactor, clearError,
   } = useAuth();
@@ -42,8 +42,8 @@ export function AuthPage({ mode, redirectTo }: { mode: "login" | "register"; red
   useEffect(() => { if (!busy) setGoogleStarted(false); }, [busy]);
 
   useEffect(() => {
-    if (status === "authenticated") navigate(needsCredentials ? "/account-setup" : (redirectTo || (registering ? "/me" : "/home")), { replace: true });
-  }, [status, needsCredentials, navigate, redirectTo, registering]);
+    if (status === "authenticated") navigate(redirectTo || (registering ? "/me" : "/home"), { replace: true });
+  }, [status, navigate, redirectTo, registering]);
 
   if (status === "loading") return <AuthRestoreState />;
   // Never render the clickable sign-in form while a sign-in is already in progress
@@ -73,14 +73,14 @@ export function AuthPage({ mode, redirectTo }: { mode: "login" | "register"; red
   const walletButtons = <div className="mt-2 grid gap-2" role="group" aria-label={t("Wallet")}>
     {ethereumWallets.length > 0
       ? ethereumWallets.map((wallet) => (
-        <Button key={wallet.info.uuid} type="button" variant="outline" className="min-h-11 w-full justify-start" aria-busy={busy} disabled={!walletEnabled || busy || status !== "anonymous"} onClick={() => void signInWithWeb3("ethereum", wallet.provider)}>
+        <Button key={wallet.info.uuid} type="button" variant="outline" className="min-h-11 w-full justify-start" aria-busy={busy} disabled={walletEnabled === false || busy || status !== "anonymous"} onClick={() => void signInWithWeb3("ethereum", wallet.provider)}>
           <Wallet className="mr-2 h-4 w-4" /> {t("Continue with {wallet}").replace("{wallet}", wallet.info.name)}
         </Button>
       ))
-      : <Button type="button" variant="outline" className="min-h-11 w-full justify-start" aria-busy={busy} disabled={!walletEnabled || busy || status !== "anonymous"} onClick={() => void signInWithWeb3("ethereum")}>
+      : <Button type="button" variant="outline" className="min-h-11 w-full justify-start" aria-busy={busy} disabled={walletEnabled === false || busy || status !== "anonymous"} onClick={() => void signInWithWeb3("ethereum")}>
         <Wallet className="mr-2 h-4 w-4" /> {t("Connect Ethereum wallet")}
       </Button>}
-    <Button type="button" variant="outline" className="min-h-11 w-full justify-start" aria-busy={busy} disabled={!walletEnabled || busy || status !== "anonymous"} onClick={() => void signInWithWeb3("solana")}>
+    <Button type="button" variant="outline" className="min-h-11 w-full justify-start" aria-busy={busy} disabled={walletEnabled === false || busy || status !== "anonymous"} onClick={() => void signInWithWeb3("solana")}>
       <Wallet className="mr-2 h-4 w-4" /> {t("Connect Solana wallet")}
     </Button>
   </div>;
@@ -96,47 +96,19 @@ export function AuthPage({ mode, redirectTo }: { mode: "login" | "register"; red
         </svg>
         <span className="truncate">{googleStarted ? t("Redirecting…") : t("Google")}</span>
       </Button>
-      <Button type="button" variant="outline" className="h-12 min-h-12 w-full justify-center gap-2 px-3" aria-expanded={walletMenuOpen} aria-controls="auth-wallet-options" aria-busy={busy} disabled={!walletEnabled || busy || status !== "anonymous"} title={!walletEnabled ? t("Wallet sign-in is temporarily unavailable.") : undefined} onClick={() => setWalletMenuOpen(open => !open)}>
+      <Button type="button" variant="outline" className="h-12 min-h-12 w-full justify-center gap-2 px-3" aria-expanded={walletMenuOpen} aria-controls="auth-wallet-options" aria-busy={busy} disabled={walletEnabled === false || busy || status !== "anonymous"} title={walletEnabled === false ? t("Wallet sign-in is temporarily unavailable.") : undefined} onClick={() => setWalletMenuOpen(open => !open)}>
         <Wallet className="h-5 w-5 shrink-0" /> <span>{t("Wallet")}</span>
       </Button>
     </div>
     {!googleEnabled && <p className="text-xs text-brand-text-muted" role="status">{t("Google sign-in is temporarily unavailable.")}</p>}
-    {!walletEnabled && <p className="text-xs text-brand-text-muted" role="status">{t("Wallet sign-in is temporarily unavailable.")}</p>}
+    {walletEnabled === false && <p className="text-xs text-brand-text-muted" role="status">{t("Wallet sign-in is temporarily unavailable.")}</p>}
     {walletMenuOpen && <div id="auth-wallet-options">{walletButtons}</div>}
   </>;
 
-  return <main className="tone-support relative mx-auto flex min-h-[100dvh] w-full max-w-[1120px] items-center px-3 py-6 sm:px-6 sm:py-10 lg:px-8">
-    <div className="grid w-full items-center gap-6 lg:grid-cols-[minmax(0,1.05fr)_minmax(380px,.95fr)] lg:gap-16">
-      <section className="hidden min-w-0 flex-col justify-center lg:flex">
-        <Link to="/home" className="mb-12 w-fit"><BrandLogo /></Link>
-        <p className="mb-4 flex items-center gap-2 text-xs font-bold uppercase tracking-[.2em] text-brand-accent"><span className="h-1.5 w-1.5 rounded-full bg-brand-success" /> {t("Digital asset exchange")}</p>
-        <h1 className="max-w-[560px] text-3xl font-semibold leading-[1.12] tracking-tight text-brand-text xl:text-4xl">
-          {registering ? t("A clearer way to enter the digital asset market.") : t("Welcome back to your market.")}
-        </h1>
-        <p className="mt-5 max-w-[480px] text-base leading-7 text-brand-text-secondary">
-          {registering
-            ? t("Create your BTCBOX account with Google or your wallet, then complete your account setup.")
-            : t("Access your BTCBOX account with your username, Google or a supported crypto wallet.")}
-        </p>
-        <div className="mt-9 grid max-w-[520px] gap-3 sm:grid-cols-2">
-          <div className="rounded-xl border border-brand-border bg-brand-surface p-4">
-            <ChartNoAxesCombined className="mb-3 h-5 w-5 text-brand-accent" />
-            <p className="text-sm font-semibold text-brand-text">{t("Public market access")}</p>
-            <p className="mt-1 text-xs leading-5 text-brand-text-muted">{t("Explore market information before signing in.")}</p>
-          </div>
-          <div className="rounded-xl border border-brand-border bg-brand-surface p-4">
-            <ShieldCheck className="mb-3 h-5 w-5 text-brand-success" />
-            <p className="text-sm font-semibold text-brand-text">{t("Account-first controls")}</p>
-            <p className="mt-1 text-xs leading-5 text-brand-text-muted">{t("Personal assets and account actions stay protected.")}</p>
-          </div>
-        </div>
-        <Link to="/markets" className="mt-8 inline-flex min-h-12 w-fit items-center gap-2 rounded-xl border border-brand-accent/30 bg-brand-accent/[0.08] px-4 text-sm font-semibold text-brand-accent shadow-sm shadow-brand-accent/[0.06] transition-all hover:border-brand-accent/50 hover:bg-brand-accent/[0.13] hover:text-brand-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent/70">
-          <ChartNoAxesCombined className="h-4 w-4" /> {t("Explore public markets")} <ArrowRight className="h-4 w-4" />
-        </Link>
-      </section>
-
+  return <main data-testid="auth-mobile-shell" className="tone-support relative mx-auto flex min-h-[100dvh] w-full max-w-[520px] items-center justify-center px-3 py-4 sm:px-3 sm:py-5">
+    <div className="grid w-full items-center gap-4">
       <div className="mx-auto w-full max-w-[480px]">
-        <div className="mb-5 flex items-center justify-between lg:hidden">
+        <div className="mb-5 flex items-center justify-between">
           <Link to="/home" aria-label={t("BTCBOX home")}><BrandLogo compact /></Link>
           <Link to="/markets" className="inline-flex min-h-10 items-center gap-1.5 rounded-lg border border-brand-accent/25 bg-brand-accent/[0.07] px-3 text-xs font-semibold text-brand-accent transition-colors hover:border-brand-accent/45 hover:bg-brand-accent/[0.12] hover:text-brand-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent/70"><ChartNoAxesCombined className="h-3.5 w-3.5" />{t("Explore markets")} <ArrowRight className="h-3.5 w-3.5" /></Link>
         </div>
@@ -167,7 +139,7 @@ export function AuthPage({ mode, redirectTo }: { mode: "login" | "register"; red
             {(status === "two-factor" || registering) && <CardDescription className="max-w-[380px] text-sm leading-6 text-brand-text-muted">
               {status === "two-factor"
                 ? t("Enter your authenticator code to finish signing in.")
-                : t("Sign in with Google or connect your wallet, then complete your BTCBOX account setup.")}
+                : t("Sign in with Google or connect your wallet to enter BTCBOX directly.")}
             </CardDescription>}
             {status !== "two-factor" && <div data-testid="auth-mode-switcher" className="grid grid-cols-2 rounded-xl border border-brand-border bg-brand-surface-2 p-1 text-sm font-semibold">
               <Link to="/login" className={`flex min-h-10 items-center justify-center rounded-lg transition-colors ${!registering ? "bg-brand-accent text-[#05201A] shadow-sm" : "text-brand-text-secondary hover:text-brand-text"}`}>{t("Sign in")}</Link>
@@ -246,7 +218,7 @@ export function AuthPage({ mode, redirectTo }: { mode: "login" | "register"; red
 
 export function AuthCallbackPage() {
   const { t } = useI18n();
-  const { finishOAuth, status, needsCredentials, error, busy, completePasswordRecovery } = useAuth();
+  const { finishOAuth, status, error, busy, completePasswordRecovery } = useAuth();
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [recoveryError, setRecoveryError] = useState("");
@@ -265,9 +237,9 @@ export function AuthCallbackPage() {
     }
   }, [finishOAuth, status]);
   useEffect(() => {
-    if (status === "authenticated") navigate(needsCredentials ? "/account-setup" : (callbackIntent === "register" ? "/me" : "/home"), { replace: true });
+    if (status === "authenticated") navigate(callbackIntent === "register" ? "/me" : "/home", { replace: true });
     else if (status === "two-factor") navigate("/login", { replace: true });
-  }, [status, needsCredentials, navigate, callbackIntent]);
+  }, [status, navigate, callbackIntent]);
   useEffect(() => {
     if (!error || status !== "anonymous") return;
     const redirectId = window.setTimeout(() => navigate(effectiveDestination, { replace: true }), 6000);

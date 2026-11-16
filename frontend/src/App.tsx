@@ -4,7 +4,6 @@ import { Link, Navigate, Route, Routes, useLocation, useNavigate } from "react-r
 import { AppLayout } from "./components/layout/AppLayout";
 import { I18nProvider } from "./lib/i18n";
 import { AuthCallbackPage, AuthPage } from "./features/auth/AuthPages";
-import { AccountSetupPage } from "./features/auth/AccountSetupPage";
 import { AccountSecurityPage } from "./features/account/AccountSecurityPage";
 import { useAuth } from "./lib/auth";
 import { useI18n } from "./lib/i18n";
@@ -90,15 +89,9 @@ function ProtectedAccountRoute({ children }: { children: ReactNode }) {
   return <>{children}</>;
 }
 
-// Signed-in users who have not yet saved BTCBOX credentials (Google / wallet
-// sign-ups) must finish account setup before using the terminal. Visitors who
-// are not signed in keep the public demo experience untouched.
+// Provider-authenticated users enter BTCBOX immediately. A BTCBOX username
+// and a second local password are optional legacy credentials, not an onboarding gate.
 function AccountSetupGate({ children }: { children: ReactNode }) {
-  const { status, needsCredentials } = useAuth();
-  const location = useLocation();
-  if (status === "authenticated" && needsCredentials && location.pathname !== "/account-setup") {
-    return <Navigate to="/account-setup" replace />;
-  }
   return <>{children}</>;
 }
 function RouteLoading() {
@@ -107,7 +100,7 @@ function RouteLoading() {
 }
 function CustomerRoutes() {
   const location = useLocation();
-  const isStandaloneAuthRoute = ["/login", "/register", "/account-setup", "/auth/react-callback"].includes(location.pathname);
+  const isStandaloneAuthRoute = ["/login", "/register", "/auth/react-callback"].includes(location.pathname);
   const content = <div key={location.pathname} className="anim-fade-in min-w-0 flex-1"><AccountSetupGate><Suspense fallback={<RouteLoading />}><Routes>
     <Route path="/home" element={<DemoRoute><Dashboard /></DemoRoute>} /><Route path="/markets" element={<DemoRoute><MarketsPage /></DemoRoute>} />
     <Route path="/trade-hub" element={<TradeHubPage />} /><Route path="/trade" element={<TradeRedirect />} />
@@ -122,7 +115,7 @@ function CustomerRoutes() {
     <Route path="/earn" element={<ProtectedAccountRoute><EarnPage /></ProtectedAccountRoute>} />
     <Route path="/contract" element={<DemoRoute><ContractPage /></DemoRoute>} />
     <Route path="/mobile-terminal" element={<DemoRoute><MobileTradeTerminal /></DemoRoute>} />
-    <Route path="/login" element={<AuthPage mode="login" />} /><Route path="/register" element={<AuthPage mode="register" />} /><Route path="/account-setup" element={<AccountSetupPage />} /><Route path="/auth/react-callback" element={<AuthCallbackPage />} />
+    <Route path="/login" element={<AuthPage mode="login" />} /><Route path="/register" element={<AuthPage mode="register" />} /><Route path="/account-setup" element={<Navigate to="/me" replace />} /><Route path="/auth/react-callback" element={<AuthCallbackPage />} />
     <Route path="/kyc" element={<ProtectedAccountRoute><KycPage /></ProtectedAccountRoute>} />
     <Route path="/support" element={<SupportPage />} />
     {/* Trust pages are public reference material: no sign-in required. */}
