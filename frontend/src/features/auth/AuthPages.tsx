@@ -13,7 +13,7 @@ import { useI18n, type Language } from "../../lib/i18n";
  * Renders the login or registration experience selected by the route.
  * Handles form state while delegating authentication decisions to the auth provider.
  */
-export function AuthPage({ mode, redirectTo }: { mode: "login" | "register"; redirectTo?: string }) {
+export function AuthPage({ mode, redirectTo, embedded = false, onModeChange }: { mode: "login" | "register"; redirectTo?: string; embedded?: boolean; onModeChange?: (mode: "login" | "register") => void }) {
   const { t, language, setLanguage, canChangeLanguage } = useI18n();
   const {
     status, busy, error, notice, googleEnabled, walletEnabled, ethereumWallets,
@@ -105,7 +105,7 @@ export function AuthPage({ mode, redirectTo }: { mode: "login" | "register"; red
     {walletMenuOpen && <div id="auth-wallet-options">{walletButtons}</div>}
   </>;
 
-  return <main data-testid="auth-mobile-shell" className="tone-support relative mx-auto flex min-h-[100dvh] w-full max-w-[520px] items-center justify-center px-3 py-4 sm:px-3 sm:py-5">
+  return <main data-testid="auth-mobile-shell" className={`tone-support relative mx-auto flex w-full max-w-[520px] items-center justify-center px-3 py-4 sm:px-3 sm:py-5 ${embedded ? "min-h-0" : "min-h-[100dvh]"}`}>
     <div className="grid w-full items-center gap-4">
       <div className="mx-auto w-full max-w-[480px]">
         <div className="mb-5 flex items-center justify-between">
@@ -142,8 +142,8 @@ export function AuthPage({ mode, redirectTo }: { mode: "login" | "register"; red
                 : t("Sign in with Google or connect your wallet to enter BTCBOX directly.")}
             </CardDescription>}
             {status !== "two-factor" && <div data-testid="auth-mode-switcher" className="grid grid-cols-2 rounded-xl border border-brand-border bg-brand-surface-2 p-1 text-sm font-semibold">
-              <Link to="/login" className={`flex min-h-10 items-center justify-center rounded-lg transition-colors ${!registering ? "bg-brand-accent text-[#05201A] shadow-sm" : "text-brand-text-secondary hover:text-brand-text"}`}>{t("Sign in")}</Link>
-              <Link to="/register" className={`flex min-h-10 items-center justify-center rounded-lg transition-colors ${registering ? "bg-brand-accent text-[#05201A] shadow-sm" : "text-brand-text-secondary hover:text-brand-text"}`}>{t("Create account")}</Link>
+              <button type="button" onClick={() => onModeChange ? onModeChange("login") : navigate("/login")} className={`flex min-h-10 items-center justify-center rounded-lg transition-colors ${!registering ? "bg-brand-accent text-[#05201A] shadow-sm" : "text-brand-text-secondary hover:text-brand-text"}`}>{t("Sign in")}</button>
+              <button type="button" onClick={() => onModeChange ? onModeChange("register") : navigate("/register")} className={`flex min-h-10 items-center justify-center rounded-lg transition-colors ${registering ? "bg-brand-accent text-[#05201A] shadow-sm" : "text-brand-text-secondary hover:text-brand-text"}`}>{t("Create account")}</button>
             </div>}
           </CardHeader>
           <CardContent className="space-y-4 px-5 pb-6 sm:px-8 sm:pb-8">
