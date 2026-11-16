@@ -170,9 +170,15 @@ test('wallet ledger returns signed exact deltas and owner-scoped operation metad
   assert.equal(result.body.next_cursor, null);
 });
 
-test('wallet address generation fails closed when no provider is configured', async () => {
+test('wallet address generation validates input and fails closed without an approved provider', async () => {
   global.fetch = async () => { throw new Error('must not call'); };
-  const result = await handleWalletRoute({ path: 'wallet/addresses', method: 'POST', user: { supabase_user_id: USER_ID } });
+  const invalid = await handleWalletRoute({ path: 'wallet/addresses', method: 'POST', user: { supabase_user_id: USER_ID }, body: { asset: 'USDT;DROP', network: 'TRC20' } });
+  assert.equal(invalid.status, 400);
+  assert.equal(invalid.body.code, 'INVALID_ASSET');
+  const missingNetwork = await handleWalletRoute({ path: 'wallet/addresses', method: 'POST', user: { supabase_user_id: USER_ID }, body: { asset: 'USDT' } });
+  assert.equal(missingNetwork.status, 400);
+  assert.equal(missingNetwork.body.code, 'INVALID_NETWORK');
+  const result = await handleWalletRoute({ path: 'wallet/addresses', method: 'POST', user: { supabase_user_id: USER_ID }, body: { asset: 'USDT', network: 'TRC20' } });
   assert.equal(result.status, 503);
   assert.equal(result.body.code, 'WALLET_PROVIDER_UNAVAILABLE');
 });
