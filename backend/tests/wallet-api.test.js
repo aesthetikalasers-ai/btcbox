@@ -124,6 +124,14 @@ test('wallet ledger rejects invalid cursors and ignores client-supplied owner id
     query: { cursor: '0 OR 1=1', user_id: OTHER_USER_ID }
   });
   assert.equal(badCursor.status, 400);
+  assert.equal(badCursor.body.code, 'INVALID_CURSOR');
+  const oversizedCursor = await handleWalletRoute({
+    path: 'wallet/ledger', method: 'GET',
+    user: { supabase_user_id: USER_ID },
+    query: { cursor: '9223372036854775808' }
+  });
+  assert.equal(oversizedCursor.status, 400);
+  assert.equal(oversizedCursor.body.code, 'INVALID_CURSOR');
   assert.equal(called, false);
 });
 
