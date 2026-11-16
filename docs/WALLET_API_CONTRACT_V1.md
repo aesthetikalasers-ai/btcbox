@@ -129,7 +129,7 @@ The backend must verify exact function signatures, grants, RLS policies, constra
 
 The live Auth schema also has an `auth.users` insert/update trigger that creates the corresponding wallet profile and seeds one wallet account for every active asset. The current project has zero Auth users, profiles, and wallet accounts; a newly created Auth user should therefore receive the nine currently active asset accounts through this trigger, not through a manual balance insert.
 
-**Migration source gap:** the 2026-11-16 wallet foundation migrations appear in the live Supabase migration history but their SQL source files are not yet present in `backend/supabase/sql/`, and the empty-database bootstrap does not yet apply them. This must be reconciled before claiming a clean database bootstrap can recreate the Wallet schema. Do not solve this by manually inserting user rows or by opening direct client table permissions.
+**Current deployment topology (owner decision, 2026-11-16):** during the build phase, Wallet and Exchange use the same Supabase project/server database and shared Auth. Keep Wallet and Exchange business tables, accounts, balances, ledgers, addresses, and permissions logically isolated even though they reside in one database. Physical database/service separation is deferred until the system is stable. Test accounts and test data do not need to be restored. The migration-source/bootstrap gap is a later repository reproducibility task and does not block current development.
 
 ## 6. Acceptance gates
 
