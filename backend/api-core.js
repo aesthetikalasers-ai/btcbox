@@ -1479,7 +1479,7 @@ async function handleRequest(event, context) {
       return json({ ok: false, msg: 'Authentication service temporarily unavailable. Please try again later.' }, 503);
     }
     const email = String(identity && identity.email || '').trim().toLowerCase();
-    const supabaseUserId = String(identity && identity.id || '').trim();
+    const supabaseUserId = String(identity && identity.id || '').trim().toLowerCase();
     if (!isSupabaseUserId(supabaseUserId)) {
       return json({ ok: false, code: 'INVALID_SUPABASE_IDENTITY', msg: 'The verified account identity could not be confirmed. Please sign in again.' }, 403);
     }
