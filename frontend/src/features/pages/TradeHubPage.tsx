@@ -17,7 +17,7 @@ function PageFrame({ title, children, tone }: { title: string; children: ReactNo
     <div className={`tone-${tone} mx-auto flex w-full max-w-[1520px] min-w-0 flex-col gap-6 p-3 sm:p-4 md:p-6 lg:p-8`}>
       <div className="flex min-w-0 items-center justify-between">
         <h1 className="type-page-title min-w-0 truncate text-brand-text font-bold">{t(title)}</h1>
-        <Badge variant="outline" className="border-brand-accent/30 bg-brand-accent/10 text-brand-accent text-xs">BTCBOX Pro Portal</Badge>
+        <Badge variant="outline" className="border-brand-accent/30 bg-brand-accent/10 text-brand-accent text-xs">{t("Pro Portal")}</Badge>
       </div>
       {children}
     </div>
@@ -189,12 +189,12 @@ export function TradeHubPage() {
                 <CardHeader className="py-4">
                   <div className="flex items-center justify-between">
                     <CardTitle className="text-base font-bold">{pair.base_asset}/{pair.quote_asset}</CardTitle>
-                    <Badge variant="outline" className="border-brand-success/30 text-brand-success text-[10px]">Active</Badge>
+                    <Badge variant="outline" className="border-brand-success/30 text-brand-success text-[10px]">{t("Active")}</Badge>
                   </div>
                   <CardDescription className="text-xs mt-1">{t("Instant spot execution pair")}</CardDescription>
                 </CardHeader>
                 <CardContent className="flex items-center justify-between pt-0 pb-4">
-                  <span className="text-xs text-brand-text-muted font-mono">USDT Market</span>
+                  <span className="text-xs text-brand-text-muted font-mono">{pair.quote_asset} {t("Market")}</span>
                   <Button asChild size="sm" variant="outline" className="h-8 text-xs font-semibold hover:border-brand-accent hover:text-brand-accent">
                     <Link to={"/trade/" + pair.base_asset + pair.quote_asset}>{t("Open")} <ArrowUpRight className="ml-1 h-3.5 w-3.5" /></Link>
                   </Button>
