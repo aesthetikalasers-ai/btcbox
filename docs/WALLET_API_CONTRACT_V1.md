@@ -127,6 +127,10 @@ The live Supabase project currently exposes wallet tables for assets, wallet acc
 
 The backend must verify exact function signatures, grants, RLS policies, constraints, and migration provenance before calling these routines. The presence of a table or function in the database does not prove that its API, authorization, or runtime behavior is complete.
 
+The live Auth schema also has an `auth.users` insert/update trigger that creates the corresponding wallet profile and seeds one wallet account for every active asset. The current project has zero Auth users, profiles, and wallet accounts; a newly created Auth user should therefore receive the nine currently active asset accounts through this trigger, not through a manual balance insert.
+
+**Migration source gap:** the 2026-11-16 wallet foundation migrations appear in the live Supabase migration history but their SQL source files are not yet present in `backend/supabase/sql/`, and the empty-database bootstrap does not yet apply them. This must be reconciled before claiming a clean database bootstrap can recreate the Wallet schema. Do not solve this by manually inserting user rows or by opening direct client table permissions.
+
 ## 6. Acceptance gates
 
 1. Session identity is resolved server-side; cross-user reads/writes are denied.
