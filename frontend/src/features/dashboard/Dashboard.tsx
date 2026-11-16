@@ -171,7 +171,7 @@ function QuickActions() {
             <span className="relative flex h-12 w-12 items-center justify-center rounded-2xl border border-white/[0.08] bg-gradient-to-b from-brand-surface-hover to-brand-surface-2 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.12)] text-brand-text-secondary transition-all duration-300 group-hover:scale-105 group-hover:text-brand-accent group-hover:border-brand-accent/30 group-hover:shadow-[0_8px_30px_rgba(14,203,129,0.12)]">
               <entry.icon className="h-5 w-5" strokeWidth={1.75} />
               {entry.badge && (
-                <span className="absolute -right-1 -top-1 rounded-full bg-brand-accent px-1 py-0.5 text-[8px] font-bold leading-none text-black">
+                <span className="absolute -right-0.5 -top-0.5 rounded-full bg-brand-accent px-1 py-0.5 text-[10px] font-bold leading-none text-black">
                   {entry.badge}
                 </span>
               )}
