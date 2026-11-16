@@ -151,6 +151,25 @@ a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
   input, select, textarea { font-size: 16px !important; }
 }
 
+/* Touch-target floor follows the *pointer*, not the viewport width. A tablet is
+   wider than 640px but still thumb-driven, so its header actions must not fall
+   back to the 32-36px desktop sizes. Scoped to the chrome so inline links inside
+   prose never inflate a paragraph's line box. */
+@media (pointer: coarse) {
+  header a,
+  header button,
+  .bf-bottom-nav a,
+  .bf-bottom-nav button { min-height: 44px; }
+}
+
+/* There is no hover on a touch screen, and the tap highlight is disabled above,
+   so a press must still be visible. Without this, tapping a card looks like
+   nothing happened until the next route paints. */
+@media (hover: none) {
+  button:active { transform: scale(.97); }
+  a[href]:active { opacity: .82; }
+}
+
 /* Compact trade form (H5 perpetual order entry): the dense Binance-style order
    form intentionally uses small, text-hugging controls. These scoped rules
    outrank the global 44px mobile button floor above without affecting any other
