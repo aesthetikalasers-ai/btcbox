@@ -1,6 +1,5 @@
 // BTCBOX shared API handler for Vercel Node Functions.
 // Persistent state and financial records require Supabase; no Netlify Blobs fallback.
-const { handleWalletRoute } = require('./wallet-api');
 const crypto = require('crypto');
 const { authorizeSupabaseAdmin } = require('./admin-auth');
 const { hasAdminPermission } = require('./admin-rbac');
@@ -1680,8 +1679,11 @@ async function handleRequest(event, context) {
 
   // Wallet reads are isolated from Exchange balances and always use the verified
   // Supabase identity attached to this authenticated BTCBOX session.
-  const walletApiResponse = await handleWalletRoute({ path, method, user, query: event.queryStringParameters || {} });
-  if (walletApiResponse) return json(walletApiResponse.body, walletApiResponse.status);
+  if (path === 'wallet' || path.startsWith('wallet/')) {
+    const { handleWalletRoute } = require('./wallet-api');
+    const walletApiResponse = await handleWalletRoute({ path, method, user, query: event.queryStringParameters || {} });
+    if (walletApiResponse) return json(walletApiResponse.body, walletApiResponse.status);
+  }
 
 
   // ---------- POST /api/auth/link-identity/reauth ----------
