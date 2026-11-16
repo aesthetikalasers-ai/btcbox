@@ -1677,6 +1677,12 @@ async function handleRequest(event, context) {
   // ---------- 以下接口需要登录 ----------
   const user = getUser(db, event);
 
+  // Wallet reads are isolated from Exchange balances and always use the verified
+  // Supabase identity attached to this authenticated BTCBOX session.
+  const walletApiResponse = await handleWalletRoute({ path, method, user, query: event.queryStringParameters || {} });
+  if (walletApiResponse) return json(walletApiResponse.body, walletApiResponse.status);
+
+
   // ---------- POST /api/auth/link-identity/reauth ----------
   // Freshly prove control of an identity already linked to this BTCBOX account.
   if (path === 'auth/link-identity/reauth' && method === 'POST') {
