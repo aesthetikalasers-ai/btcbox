@@ -52,7 +52,7 @@ test('registration RPC does not grant public access or write plaintext credentia
 function extractMappingFunction(context) {
   const start = source.indexOf('async function persistSupabaseAuthMapping(');
   assert.ok(start >= 0);
-  const end = source.indexOf('\\n}', start);
+  const end = source.indexOf('\n}', start);
   assert.ok(end > start);
   return vm.runInNewContext('(' + source.slice(start, end + 2) + ')', context);
 }
