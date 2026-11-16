@@ -111,7 +111,7 @@ async function handleWalletRoute({ path, method, user, query: queryParams = {} }
           version,
           updated_at: row.updated_at
         };
-      });
+      }).filter(account => decimalToUnits(account.total) > 0n);
 
       const updatedAt = accounts.map(account => account.updated_at).filter(Boolean).sort().slice(-1)[0] || null;
       return response(200, { ok: true, wallet: { accounts, updated_at: updatedAt } });
