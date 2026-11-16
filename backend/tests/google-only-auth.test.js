@@ -228,3 +228,11 @@ test('public market page exposes live market categories without changing order e
   assert.ok(page.includes('setSort("volume")'));
   assert.ok(api.includes('export async function getMarkets'));
 });
+
+test('Google and wallet sign-ups enter BTCBOX without mandatory username/password onboarding', () => {
+  const app = read('../frontend/src/App.tsx');
+  assert.ok(app.includes('Provider-authenticated users enter BTCBOX immediately'));
+  assert.ok(!app.includes('needsCredentials &&'));
+  assert.ok(app.includes('path="/account-setup" element={<Navigate to="/me" replace />}'));
+  assert.ok(!app.includes('<AccountSetupPage'));
+});
