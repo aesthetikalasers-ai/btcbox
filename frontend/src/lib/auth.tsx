@@ -449,8 +449,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!data.session?.access_token) throw new Error("The wallet did not return a valid sign-in session. Please try again.");
       await acceptSupabaseSession(data.session.access_token);
     } catch (cause) {
-      const message = cause instanceof Error ? cause.message : "Wallet sign-in failed.";
-      setError(message.toLowerCase().includes("provider is disabled") ? "This wallet network is not enabled in BTCBOX authentication settings." : message);
+      const message = cause instanceof Error ? cause.message : "";
+      const normalized = message.toLowerCase();
+      // Never expose raw wallet/Supabase SDK diagnostics in the login UI.
+      // These failures are actionable only as user-facing wallet availability messages.
+      if (normalized.includes("provider is disabled") || normalized.includes("provider is not enabled")) {
+        setError("This wallet network is temporarily unavailable. Please use another sign-in method.");
+      } else if (chain === "ethereum" && (
+        normalized.includes("eth_requestaccounts") ||
+        normalized.includes("wallet method") ||
+        normalized.includes("ethereum provider") ||
+        normalized.includes("no ethereum provider") ||
+        normalized.includes("@supabase/auth-js")
+      )) {
+        setError("No compatible Ethereum wallet was detected. Please install or unlock a supported wallet, then try again.");
+      } else if (chain === "solana" && (
+        normalized.includes("window.solana") ||
+        normalized.includes("solana wallet interface") ||
+        normalized.includes("wallet method") ||
+        normalized.includes("@supabase/auth-js")
+      )) {
+        setError("No compatible Solana wallet was detected. Please install or unlock a supported wallet, then try again.");
+      } else if (/user rejected|user denied|request rejected/i.test(message)) {
+        setError("Wallet connection was cancelled. You can try again or sign in with your username and password.");
+      } else {
+        setError("Wallet sign-in could not be completed. Please check that your wallet is installed and unlocked, or use another sign-in method.");
+      }
     } finally { setBusy(false); }
   }, [acceptSupabaseSession, walletEnabled]);
 
