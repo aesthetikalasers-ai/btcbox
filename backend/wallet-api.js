@@ -2,6 +2,7 @@
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const ASSET_RE = /^[A-Z0-9]{2,16}$/;
+const NETWORK_RE = /^[A-Z0-9_-]{2,24}$/;
 const PAGE_SIZE = 50;
 
 function response(status, body) {
@@ -107,8 +108,14 @@ async function handleWalletRoute({ path, method, user, query: queryParams = {} }
   }
 
   if (path === 'wallet/addresses' && method === 'GET') {
+    const asset = queryParams.asset === undefined ? '' : String(queryParams.asset).trim().toUpperCase();
+    const network = queryParams.network === undefined ? '' : String(queryParams.network).trim().toUpperCase();
+    if (asset && !ASSET_RE.test(asset)) return apiError(400, 'INVALID_ASSET', 'Invalid asset filter.');
+    if (network && !NETWORK_RE.test(network)) return apiError(400, 'INVALID_NETWORK', 'Invalid network filter.');
     try {
       const query = { select: 'wallet_address_id,asset_code,network_code,address,address_status,is_primary,created_at', user_id: 'eq.' + userId, order: 'created_at.desc', limit: String(PAGE_SIZE) };
+      if (asset) query.asset_code = 'eq.' + asset;
+      if (network) query.network_code = 'eq.' + network;
       const rows = await selectRows('btcbox_wallet_addresses', query, config);
       return response(200, {
         ok: true,
@@ -158,13 +165,14 @@ async function handleWalletRoute({ path, method, user, query: queryParams = {} }
       const operationMap = new Map(operations.map(item => [String(item.operation_id), item]));
       const entries = page.map(row => {
         const operation = operationMap.get(String(row.operation_id));
+        if (!operation) throw new Error('Wallet operation record missing');
         return {
           id: String(row.ledger_id),
           operation_id: row.operation_id,
           asset: row.asset_code,
-          type: operation ? operation.operation_type : 'wallet_operation',
-          status: operation ? operation.status : 'applied',
-          available_delta: normalizeSignedAmount(row.available_delta).replace(/^0(?=\.)/, '0'),
+          type: operation.operation_type,
+          status: operation.status,
+          available_delta: normalizeSignedAmount(row.available_delta),
           frozen_delta: normalizeSignedAmount(row.frozen_delta),
           available_after: normalizeAmount(row.available_after),
           frozen_after: normalizeAmount(row.frozen_after),
