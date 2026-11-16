@@ -480,7 +480,7 @@ test("provider-authenticated users enter BTCBOX without forced username or passw
 
   await page.goto("/account-setup");
 
-  await expect(page).toHaveURL(/\\/me$/);
+  await expect(page).toHaveURL(new RegExp("/me$"));
   await expect(page.getByRole("heading", { name: "My account", exact: true })).toBeVisible();
   expect(credentialRequests).toEqual([]);
 });
