@@ -95,3 +95,11 @@
 - `20261116064230 btcbox_auth_user_bootstrap_rpc_v1`
 
 - 钱包表已启用 RLS，当前没有面向 anon/authenticated 的直接表访问策略；后端只通过服务端 service-role 只读查询并附带会话 owner 过滤。Supabase Advisor 对“RLS enabled, no policy”给出 INFO 项；此设计是 fail-closed，不应为了消除提示而开放客户端表权限。
+
+
+### 2026-11-16 — 钱包空余额币种显示规则
+
+- 按所有者要求：用户没有某币种资产时，不在钱包资产列表中自动显示该币种。
+- `GET /api/wallet` 现仅返回 `available + frozen > 0` 的资产账户；初始化时创建的零余额账户不再出现在 API 返回列表，因此 UI 不应显示空余额币种。
+- 可用余额或冻结余额任一大于 0 时，该币种仍显示；全部币种余额为 0 时返回空数组，由 UI 显示空钱包状态。
+- 已增加测试覆盖：混合零余额/非零余额时只显示有资产币种；全部为零时返回空列表。
