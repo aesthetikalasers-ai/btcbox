@@ -2,7 +2,6 @@
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const ASSET_RE = /^[A-Z0-9]{2,16}$/;
-const NETWORK_RE = /^[A-Z0-9_-]{2,24}$/;
 const PAGE_SIZE = 50;
 
 function response(status, body) {
@@ -25,6 +24,12 @@ function unitsToDecimal(units) {
 function normalizeAmount(value) {
   const raw = String(value);
   if (!/^(?:0|[1-9]\d*)(?:\.\d{1,18})?$/.test(raw)) throw new Error('Invalid wallet decimal');
+  return raw;
+}
+
+function normalizeSignedAmount(value) {
+  const raw = String(value);
+  if (!/^-?(?:0|[1-9]\d*)(?:\.\d{1,18})?$/.test(raw)) throw new Error('Invalid wallet decimal');
   return raw;
 }
 
@@ -159,8 +164,8 @@ async function handleWalletRoute({ path, method, user, query: queryParams = {} }
           asset: row.asset_code,
           type: operation ? operation.operation_type : 'wallet_operation',
           status: operation ? operation.status : 'applied',
-          available_delta: normalizeAmount(row.available_delta).replace(/^0(?=\.)/, '0'),
-          frozen_delta: normalizeAmount(row.frozen_delta),
+          available_delta: normalizeSignedAmount(row.available_delta).replace(/^0(?=\.)/, '0'),
+          frozen_delta: normalizeSignedAmount(row.frozen_delta),
           available_after: normalizeAmount(row.available_after),
           frozen_after: normalizeAmount(row.frozen_after),
           created_at: row.created_at
