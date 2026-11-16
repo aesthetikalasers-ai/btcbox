@@ -7,7 +7,7 @@
  * semantic token architecture. Financial states remain explicit.
  */
 @theme {
-  --font-sans: "IBM Plex Sans", "Inter", "Noto Sans JP", "Noto Sans SC", "PingFang SC", "Microsoft YaHei", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", "Microsoft YaHei", Roboto, "Helvetica Neue", Arial, "Noto Sans JP", "Noto Sans SC", "Noto Sans Khmer", sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, monospace;
 
   /* === Phase 3 Premium Visual System —UIUX-EXECUTION-PLAN.md Step 4-8 === */
@@ -909,4 +909,71 @@ a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
     grid-row: 3;
     margin-top: 0;
   }
+}
+
+
+/* BTCBOX responsive primary navigation: fixed horizontal mobile tab bar.
+   Keep the desktop sidebar/navigation tier independent from this mobile-only bar. */
+.bf-bottom-nav {
+  position: fixed;
+  inset-inline: 0;
+  bottom: 0;
+  z-index: 40;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  align-items: stretch;
+  width: 100%;
+  min-width: 0;
+  min-height: calc(60px + env(safe-area-inset-bottom));
+  padding: 6px 4px calc(6px + env(safe-area-inset-bottom));
+  border-top: 1px solid var(--color-brand-border);
+  background: color-mix(in srgb, var(--color-brand-bg) 94%, transparent);
+  -webkit-backdrop-filter: blur(18px);
+  backdrop-filter: blur(18px);
+}
+.bf-bottom-nav-item {
+  display: flex;
+  min-width: 0;
+  min-height: 48px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  overflow: hidden;
+  border-radius: 9px;
+  color: var(--color-brand-text-muted);
+  text-decoration: none;
+  white-space: nowrap;
+}
+.bf-bottom-nav-item--active {
+  color: var(--color-brand-accent);
+  background: color-mix(in srgb, var(--color-brand-accent) 9%, transparent);
+}
+.bf-nav-icon { width: 20px; height: 20px; flex: 0 0 auto; }
+.bf-bottom-nav-label {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+}
+@media (min-width: 1024px) {
+  .bf-bottom-nav { display: none; }
+}
+@media (max-width: 360px) {
+  .bf-bottom-nav { padding-inline: 2px; }
+  .bf-bottom-nav-label { font-size: 9px; }
+}
+
+/* Native system typography with stable financial figures. */
+html, body, button, input, select, textarea {
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text",
+    "Segoe UI", "Microsoft YaHei", Roboto, "Helvetica Neue", Arial,
+    "Noto Sans JP", "Noto Sans SC", "Noto Sans Khmer", sans-serif;
+}
+.bf-tabular, .font-mono, [class*="tabular-nums"], table,
+[data-financial-number="true"] {
+  font-variant-numeric: tabular-nums lining-nums;
 }
