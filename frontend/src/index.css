@@ -1,3 +1,4 @@
+@import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800&family=Noto+Sans+JP:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;600;700&family=Noto+Sans+Khmer:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap");
 @import "tailwindcss";
 
 /*
@@ -6,7 +7,7 @@
  * semantic token architecture. Financial states remain explicit.
  */
 @theme {
-  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", "Microsoft YaHei", Roboto, "Helvetica Neue", Arial, "Noto Sans JP", "Noto Sans SC", "Noto Sans Khmer", sans-serif;
+  --font-sans: "IBM Plex Sans", "Inter", "Noto Sans JP", "Noto Sans SC", "PingFang SC", "Microsoft YaHei", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, monospace;
 
   /* === Phase 3 Premium Visual System —UIUX-EXECUTION-PLAN.md Step 4-8 === */
@@ -966,12 +967,7 @@ a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
   .bf-bottom-nav-label { font-size: 9px; }
 }
 
-/* Native system typography with stable financial figures. */
-html, body, button, input, select, textarea {
-  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text",
-    "Segoe UI", "Microsoft YaHei", Roboto, "Helvetica Neue", Arial,
-    "Noto Sans JP", "Noto Sans SC", "Noto Sans Khmer", sans-serif;
-}
+/* Stable financial figures: tabular digits so prices never jitter while ticking. */
 .bf-tabular, .font-mono, [class*="tabular-nums"], table,
 [data-financial-number="true"] {
   font-variant-numeric: tabular-nums lining-nums;
