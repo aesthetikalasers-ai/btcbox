@@ -13,7 +13,7 @@ import { useI18n, type Language } from "../../lib/i18n";
  * Renders the login or registration experience selected by the route.
  * Handles form state while delegating authentication decisions to the auth provider.
  */
-export function AuthPage({ mode, redirectTo }: { mode: "login" | "register"; redirectTo?: string }) {
+export function AuthPage({ mode, redirectTo, embedded = false, onModeChange }: { mode: "login" | "register"; redirectTo?: string; embedded?: boolean; onModeChange?: (mode: "login" | "register") => void }) {
   const { t, language, setLanguage, canChangeLanguage } = useI18n();
   const {
     status, busy, error, notice, googleEnabled, walletEnabled, ethereumWallets,
@@ -31,7 +31,9 @@ export function AuthPage({ mode, redirectTo }: { mode: "login" | "register"; red
   const [walletMenuOpen, setWalletMenuOpen] = useState(false);
   const [googleStarted, setGoogleStarted] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
   const registering = mode === "register";
+  const switchAuthMode = (next: "login" | "register") => onModeChange ? onModeChange(next) : navigate(next === "login" ? "/login" : "/register");
 
   useEffect(() => {
     clearError();
@@ -42,7 +44,7 @@ export function AuthPage({ mode, redirectTo }: { mode: "login" | "register"; red
   useEffect(() => { if (!busy) setGoogleStarted(false); }, [busy]);
 
   useEffect(() => {
-    if (status === "authenticated") navigate(redirectTo || (registering ? "/me" : "/home"), { replace: true });
+    if (status === "authenticated" && !embedded) navigate(redirectTo || (registering ? "/me" : "/home"), { replace: true });
   }, [status, navigate, redirectTo, registering]);
 
   if (status === "loading") return <AuthRestoreState />;
@@ -87,7 +89,7 @@ export function AuthPage({ mode, redirectTo }: { mode: "login" | "register"; red
 
   const identityButtons = <>
     <div className="grid grid-cols-2 gap-3 max-[360px]:grid-cols-1" data-testid="auth-provider-buttons">
-      <Button type="button" variant="outline" className="h-12 min-h-12 w-full justify-center gap-2 px-3" aria-busy={busy || googleStarted} disabled={!googleEnabled || busy || status !== "anonymous" || googleStarted} title={!googleEnabled ? t("Google sign-in is temporarily unavailable.") : undefined} onClick={() => { setGoogleStarted(true); void signInWithGoogle(registering ? "register" : "login"); }}>
+      <Button type="button" variant="outline" className="h-12 min-h-12 w-full justify-center gap-2 px-3" aria-busy={busy || googleStarted} disabled={!googleEnabled || busy || status !== "anonymous" || googleStarted} title={!googleEnabled ? t("Google sign-in is temporarily unavailable.") : undefined} onClick={() => { setGoogleStarted(true); try { if (embedded) window.sessionStorage.setItem("btcbox:oauth:return-to", location.pathname + location.search + location.hash); else window.sessionStorage.removeItem("btcbox:oauth:return-to"); } catch { /* Session storage may be unavailable; retain the standalone fallback. */ } void signInWithGoogle(registering ? "register" : "login"); }}>
         <svg aria-hidden="true" viewBox="0 0 48 48" className="h-5 w-5 shrink-0">
           <path fill="#4285F4" d="M43.6 24.5c0-1.4-.1-2.8-.4-4.1H24v7.8h11c-.5 2.5-1.9 4.6-4 6l6.4 5c3.8-3.5 6.2-8.6 6.2-14.7z"/>
           <path fill="#34A853" d="M24 44c5.5 0 10.1-1.8 13.4-4.8l-6.4-5c-1.8 1.2-4.1 2-7 2-5.4 0-10-3.7-11.6-8.6l-6.6 5.1C9.1 39.3 16 44 24 44z"/>
@@ -105,7 +107,7 @@ export function AuthPage({ mode, redirectTo }: { mode: "login" | "register"; red
     {walletMenuOpen && <div id="auth-wallet-options">{walletButtons}</div>}
   </>;
 
-  return <main data-testid="auth-mobile-shell" className="tone-support relative mx-auto flex min-h-[100dvh] w-full max-w-[520px] items-center justify-center px-3 py-4 sm:px-3 sm:py-5">
+  return <main data-testid="auth-mobile-shell" className={`tone-support relative mx-auto flex w-full max-w-[520px] items-center justify-center px-3 py-4 sm:px-3 sm:py-5 ${embedded ? "min-h-0" : "min-h-[100dvh]"}`}>
     <div className="grid w-full items-center gap-4">
       <div className="mx-auto w-full max-w-[480px]">
         <div className="mb-5 flex items-center justify-between">
@@ -142,16 +144,16 @@ export function AuthPage({ mode, redirectTo }: { mode: "login" | "register"; red
                 : t("Sign in with Google or connect your wallet to enter BTCBOX directly.")}
             </CardDescription>}
             {status !== "two-factor" && <div data-testid="auth-mode-switcher" className="grid grid-cols-2 rounded-xl border border-brand-border bg-brand-surface-2 p-1 text-sm font-semibold">
-              <Link to="/login" className={`flex min-h-10 items-center justify-center rounded-lg transition-colors ${!registering ? "bg-brand-accent text-[#05201A] shadow-sm" : "text-brand-text-secondary hover:text-brand-text"}`}>{t("Sign in")}</Link>
-              <Link to="/register" className={`flex min-h-10 items-center justify-center rounded-lg transition-colors ${registering ? "bg-brand-accent text-[#05201A] shadow-sm" : "text-brand-text-secondary hover:text-brand-text"}`}>{t("Create account")}</Link>
+              <button type="button" onClick={() => switchAuthMode("login")} className={`flex min-h-10 items-center justify-center rounded-lg transition-colors ${!registering ? "bg-brand-accent text-[#05201A] shadow-sm" : "text-brand-text-secondary hover:text-brand-text"}`}>{t("Sign in")}</button>
+              <button type="button" onClick={() => switchAuthMode("register")} className={`flex min-h-10 items-center justify-center rounded-lg transition-colors ${registering ? "bg-brand-accent text-[#05201A] shadow-sm" : "text-brand-text-secondary hover:text-brand-text"}`}>{t("Create account")}</button>
             </div>}
           </CardHeader>
           <CardContent className="space-y-4 px-5 pb-6 sm:px-8 sm:pb-8">
             {error && <div role="alert" className="flex items-start justify-between gap-3 rounded-lg border border-loss/30 bg-loss/10 p-3 text-sm text-loss">
-              <span className="min-w-0 break-words">{t(error)}{/already registered|already linked/i.test(error) && <> <Link to="/login" className="font-semibold underline underline-offset-4 hover:opacity-80">{t("Go to sign in")}</Link></>}</span>
+              <span className="min-w-0 break-words">{t(error)}{/already registered|already linked/i.test(error) && <> {embedded ? <button type="button" onClick={() => switchAuthMode("login")} className="font-semibold underline underline-offset-4 hover:opacity-80">{t("Go to sign in")}</button> : <Link to="/login" className="font-semibold underline underline-offset-4 hover:opacity-80">{t("Go to sign in")}</Link>}</>}</span>
               <button type="button" aria-label={t("Dismiss sign-in error")} className="flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-lg px-2 text-xs font-semibold underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent/70" onClick={clearError}>{t("Dismiss")}</button>
             </div>}
-            {notice && <div role="status" className="space-y-2 rounded-lg border border-brand-border bg-brand-surface-2 p-3 text-sm text-brand-text-secondary"><p>{t(notice)}</p>{registering && <Link to="/login" className="font-semibold text-brand-accent underline underline-offset-4 hover:opacity-80">{t("Go to sign in")}</Link>}</div>}
+            {notice && <div role="status" className="space-y-2 rounded-lg border border-brand-border bg-brand-surface-2 p-3 text-sm text-brand-text-secondary"><p>{t(notice)}</p>{registering && (embedded ? <button type="button" onClick={() => switchAuthMode("login")} className="font-semibold text-brand-accent underline underline-offset-4 hover:opacity-80">{t("Go to sign in")}</button> : <Link to="/login" className="font-semibold text-brand-accent underline underline-offset-4 hover:opacity-80">{t("Go to sign in")}</Link>)}</div>}
 
             {status === "two-factor" ? <form className="space-y-3" aria-busy={verifyBusy} onSubmit={async event => {
               event.preventDefault(); if (verifyBusy) return; setVerifyBusy(true);
@@ -202,8 +204,8 @@ export function AuthPage({ mode, redirectTo }: { mode: "login" | "register"; red
 
             <div className="border-t border-brand-border pt-4 text-center text-sm text-brand-text-secondary">
               {mode === "login"
-                ? <>{t("New to BTCBOX?")} <Link className="font-semibold text-brand-accent underline-offset-4 hover:underline" to="/register">{t("Create account")}</Link></>
-                : <>{t("Already have an account?")} <Link className="font-semibold text-brand-accent underline-offset-4 hover:underline" to="/login">{t("Sign in")}</Link></>}
+                ? <>{t("New to BTCBOX?")} {embedded ? <button type="button" className="font-semibold text-brand-accent underline-offset-4 hover:underline" onClick={() => switchAuthMode("register")}>{t("Create account")}</button> : <Link className="font-semibold text-brand-accent underline-offset-4 hover:underline" to="/register">{t("Create account")}</Link>}</>
+                : <>{t("Already have an account?")} {embedded ? <button type="button" className="font-semibold text-brand-accent underline-offset-4 hover:underline" onClick={() => switchAuthMode("login")}>{t("Sign in")}</button> : <Link className="font-semibold text-brand-accent underline-offset-4 hover:underline" to="/login">{t("Sign in")}</Link>}</>}
             </div>
             <div className="border-t border-brand-border/80 pt-3">
               <Link to="/home" className="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-brand-border bg-brand-surface-2/70 px-4 text-sm font-medium text-brand-text-secondary shadow-sm transition-all hover:border-brand-accent/35 hover:bg-brand-surface-hover hover:text-brand-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent/70"><ArrowLeft className="h-4 w-4" /> {t("Back to BTCBOX")}</Link>
@@ -237,8 +239,19 @@ export function AuthCallbackPage() {
     }
   }, [finishOAuth, status]);
   useEffect(() => {
-    if (status === "authenticated") navigate(callbackIntent === "register" ? "/me" : "/home", { replace: true });
-    else if (status === "two-factor") navigate("/login", { replace: true });
+    if (status === "authenticated") {
+      let returnTo: string | null = null;
+      try {
+        const stored = window.sessionStorage.getItem("btcbox:oauth:return-to");
+        window.sessionStorage.removeItem("btcbox:oauth:return-to");
+        // Accept only same-origin app paths; never allow an external or callback loop redirect.
+        if (stored && stored.startsWith("/") && !stored.startsWith("//") && !stored.startsWith("/auth/react-callback")) returnTo = stored;
+      } catch { /* Session storage may be unavailable; use the existing standalone destination. */ }
+      navigate(returnTo || (callbackIntent === "register" ? "/me" : "/home"), { replace: true });
+    } else if (status === "two-factor") {
+      try { window.sessionStorage.removeItem("btcbox:oauth:return-to"); } catch { /* Ignore unavailable session storage. */ }
+      navigate("/login", { replace: true });
+    }
   }, [status, navigate, callbackIntent]);
   useEffect(() => {
     if (!error || status !== "anonymous") return;

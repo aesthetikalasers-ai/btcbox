@@ -4,8 +4,9 @@ import { multiplyDecimalStrings, compareDecimalStrings } from "../../lib/decimal
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { RefreshCw, TrendingUp, TrendingDown, Clock3, ShieldAlert, ArrowLeft, ChevronRight, ChevronDown, ChevronUp, KeyRound, Copy, Check, LineChart, Plus, Minus, History, Layers, CandlestickChart } from "lucide-react";
-import { ApiError, getAccount, getOrders, getMarkets, getSpotMarketPairs, getKlines, getOrderBook, getTradingStatus, submitSpotOrder, cancelSpotOrder, getSecondsPositions, getSecondsPolicy, submitSecondsOrder, settleSecondsPosition, getDepositAddress, getSavedCryptoAddresses, getSelectedCryptoAddress, getWithdrawalConfig, submitWithdrawal, getEarnCatalog, submitEarnAction, getPerpMarkets, getSupportMessages, sendSupportMessage, type PerpMarket, type EarnProduct, type EarnPosition, type SavedCryptoAddress, type AccountBalance, type AccountSnapshot, type DepositRecord, type OrderRecord, type MarketTicker, type MarketCandle, type OrderBookSnapshot, type SpotMarketPair, type TradingStatus, type SecondsPositionsSnapshot, type SecondsOrderInput, type SecondsPolicyResponse, type SelectedCryptoAddress, type WithdrawalConfig, type WithdrawalRecord, type SupportMessage, submitKyc } from "../../lib/api";
+import { ApiError, getAccount, getOrders, getMarkets, getSpotMarketPairs, getKlines, getOrderBook, getTradingStatus, submitSpotOrder, cancelSpotOrder, getSecondsPositions, getSecondsPolicy, submitSecondsOrder, settleSecondsPosition, getDepositAddress, getSavedCryptoAddresses, getSelectedCryptoAddress, getWithdrawalConfig, submitWithdrawal, getEarnCatalog, submitEarnAction, getPerpMarkets, getSupportMessages, sendSupportMessage, getSupportUnread, type PerpMarket, type EarnProduct, type EarnPosition, type SavedCryptoAddress, type AccountBalance, type AccountSnapshot, type DepositRecord, type OrderRecord, type MarketTicker, type MarketCandle, type OrderBookSnapshot, type SpotMarketPair, type TradingStatus, type SecondsPositionsSnapshot, type SecondsOrderInput, type SecondsPolicyResponse, type SelectedCryptoAddress, type WithdrawalConfig, type WithdrawalRecord, type SupportMessage, submitKyc } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
+import { useAuthDialog } from "../../lib/auth-dialog";
 import { ChartDrawer } from "../trade/ChartDrawer";
 import { useTrading } from "../../lib/trading";
 
@@ -153,7 +154,9 @@ export function AssetsPage(){
 export function MyPage(){
  const {t}=useI18n();
  const {status,signOut}=useAuth();
+ const {openAuthDialog}=useAuthDialog();
  const navigate=useNavigate();
+ const [supportUnread,setSupportUnread]=useState(0);
  const [account,setAccount]=useState<AccountSnapshot|null>(null);
  const [loading,setLoading]=useState(status==="loading");
  const [error,setError]=useState("");
@@ -178,6 +181,14 @@ export function MyPage(){
   }).finally(()=>{if(!controller.signal.aborted)setLoading(false);});
   return ()=>controller.abort();
  },[status,reload]);
+ // Authoritative unread support reply count (GET /api/chat/unread).
+ // Loaded independently so a badge failure never blocks the account profile.
+ useEffect(()=>{
+  if(status!=="authenticated"){setSupportUnread(0);return;}
+  const controller=new AbortController();
+  getSupportUnread(controller.signal).then((count)=>{if(!controller.signal.aborted)setSupportUnread(count);}).catch(()=>{});
+  return ()=>controller.abort();
+ },[status,reload]);
  const links=[
   {title:"Orders",to:"/orders",icon:ChartNoAxesCombined,surface:"border-brand-info/25 bg-brand-surface",iconTone:"bg-brand-info/10 text-brand-info",hoverTone:"hover:border-brand-info/45"},
   {title:"Support",to:"/support",icon:Headset,surface:"border-brand-violet/25 bg-brand-surface",iconTone:"bg-brand-violet/10 text-brand-violet",hoverTone:"hover:border-brand-violet/45"},
@@ -189,7 +200,7 @@ export function MyPage(){
   :status!=="authenticated"?<div className="space-y-4">
    <Card className="border-brand-border bg-brand-surface overflow-hidden"><CardContent className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5">
     <div className="flex items-center gap-3.5"><div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-brand-accent/25 bg-brand-accent/10 text-brand-accent"><LockKeyhole className="h-5 w-5"/></div><div><p className="font-bold text-base text-brand-text">{t("Sign in to your account")}</p><p className="text-xs text-brand-text-muted mt-0.5">{t("Sign in to view balances, orders, and security settings.")}</p></div></div>
-    <div className="flex items-center gap-2 shrink-0"><Button asChild size="sm" className="min-w-[88px]"><Link to="/login">{t("Sign in")}</Link></Button><Button asChild size="sm" variant="outline" className="min-w-[88px]"><Link to="/register">{t("Create account")}</Link></Button></div>
+    <div className="flex items-center gap-2 shrink-0"><Button type="button" size="sm" className="min-w-[88px]" onClick={()=>openAuthDialog("login")}>{t("Sign in")}</Button><Button type="button" size="sm" variant="outline" className="min-w-[88px]" onClick={()=>openAuthDialog("register")}>{t("Create account")}</Button></div>
    </CardContent></Card>
    <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
     <div className="flex flex-col rounded-xl border border-white/[0.08] bg-brand-surface p-4 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.12)] transition-all duration-200"><p className="text-xs text-brand-text-muted font-medium">{t("Estimated account value")}</p><p className="mt-2 text-xl font-bold font-mono tracking-tight tabular-nums text-brand-text">•••••• <span className="text-xs font-normal text-brand-text-muted">USDT</span></p><div className="mt-2.5 flex items-center gap-2"><Link to="/login" className="text-xs text-brand-accent font-semibold hover:underline">{t("Sign in to view")}</Link></div></div>
@@ -220,7 +231,11 @@ export function MyPage(){
     <Link to="/settings" className="flex min-h-[52px] items-center gap-3 px-4 transition-colors hover:bg-brand-surface-2"><span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand-violet/10 text-brand-violet"><KeyRound className="h-4 w-4"/></span><span className="min-w-0 flex-1 text-sm font-semibold text-brand-text">{t("Linked sign-in methods")}</span><span className="shrink-0 text-sm font-semibold text-brand-text-secondary">{(account.auth_providers||[]).length?(account.auth_providers||[]).length:t("Not linked")}</span><ChevronRight className="h-4 w-4 shrink-0 text-brand-text-muted"/></Link>
    </div>
   </div>:null}
-  <div className="account-actions">{links.map(({title,to,icon:Icon})=><Link key={to} to={to} className="group flex min-w-0 items-center gap-3 p-4 transition-all duration-200 hover:bg-brand-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-accent/60"><span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-brand-accent/10 text-brand-accent"><Icon className="h-5 w-5"/></span><span className="min-w-0 flex-1"><span className="block text-sm font-semibold text-brand-text">{t(title)}</span></span><ChevronRight className="h-4 w-4 shrink-0 text-brand-text-muted transition-colors group-hover:text-brand-text"/></Link>)}</div>
+  <div className="account-actions">{links.map(({title,to,icon:Icon})=>{
+   // The support row carries a live unread badge so a reply is never missed.
+   const unread=to==="/support"?supportUnread:0;
+   return <Link key={to} to={to} className="group flex min-w-0 items-center gap-3 p-4 transition-all duration-200 hover:bg-brand-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-accent/60"><span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-brand-accent/10 text-brand-accent"><Icon className="h-5 w-5"/></span><span className="min-w-0 flex-1"><span className="block text-sm font-semibold text-brand-text">{t(title)}</span></span>{unread>0?<span className="shrink-0 rounded-full bg-brand-danger px-1.5 py-0.5 text-[10px] font-bold leading-none text-white tabular-nums" aria-label={t("Unread support replies")}>{unread>99?"99+":unread}</span>:null}<ChevronRight className="h-4 w-4 shrink-0 text-brand-text-muted transition-colors group-hover:text-brand-text"/></Link>;
+  })}</div>
   {status==="authenticated"?<Button variant="outline" className="w-full border-brand-danger/30 text-brand-danger hover:bg-brand-danger/5 hover:text-brand-danger" onClick={()=>void handleSignOut()}>{t("Sign out")}</Button>:null}
  </PageFrame>;
 }

@@ -938,6 +938,20 @@ export interface SupportMessage {
   time: string;
 }
 
+/** One help-centre entry as published to customers (enabled entries only). */
+export interface SupportFaqEntry {
+  id: string;
+  question: string;
+  answer: string;
+}
+
+/** One help-centre entry as managed by staff, including disabled entries. */
+export interface AdminSupportFaqEntry extends SupportFaqEntry {
+  order: number;
+  enabled: boolean;
+  updated_at: string;
+}
+
 export async function submitKyc(input: {
   name: string;
   id_type: "passport" | "id_card" | "driver_license";
@@ -968,6 +982,50 @@ export async function getSupportMessages(signal?: AbortSignal): Promise<SupportM
     throw new ApiError("BTCBOX returned an invalid support conversation.", 502, "INVALID_SUPPORT_RESPONSE");
   }
   return payload.messages;
+}
+
+/**
+ * Number of unread support replies for the signed-in account.
+ *
+ * Backed by `GET /api/chat/unread` (see backend/api-core.js): the server compares
+ * each admin message timestamp against the account's `last_read_chat_at`, so the
+ * count is authoritative and cannot drift client-side. Failures degrade to 0 —
+ * a badge is never worth breaking the account page over.
+ */
+export async function getSupportUnread(signal?: AbortSignal): Promise<number> {
+  try {
+    const payload = await readAuthenticated<{ ok: true; unread: number }>("chat/unread", signal);
+    return Number.isFinite(payload.unread) && payload.unread > 0 ? Math.floor(payload.unread) : 0;
+  } catch (reason) {
+    if (reason instanceof Error && reason.name === "AbortError") throw reason;
+    return 0;
+  }
+}
+
+/**
+ * Help-centre entries for the signed-out and signed-in support page.
+ *
+ * Content is owned by the backend (`support_faq` in the persisted state document)
+ * so operations can edit it from the administrator console without a deploy.
+ * An unavailable or empty catalogue returns an empty array: the page then shows
+ * an honest empty state instead of inventing answers.
+ */
+export async function getSupportFaq(signal?: AbortSignal): Promise<SupportFaqEntry[]> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/support/faq`, {
+      method: "GET", credentials: "include", headers: { Accept: "application/json" },
+      cache: "no-store", signal,
+    });
+    if (!response.ok) return [];
+    const payload = await response.json().catch(() => null) as { ok?: boolean; entries?: SupportFaqEntry[] } | null;
+    if (!payload || payload.ok !== true || !Array.isArray(payload.entries)) return [];
+    return payload.entries.filter((entry): entry is SupportFaqEntry =>
+      !!entry && typeof entry.id === "string" && typeof entry.question === "string" && typeof entry.answer === "string"
+    );
+  } catch (reason) {
+    if (reason instanceof Error && reason.name === "AbortError") throw reason;
+    return [];
+  }
 }
 
 export async function sendSupportMessage(content: string, requestId?: string): Promise<{ duplicate?: boolean; message_id?: string; time?: string }> {
@@ -1381,6 +1439,21 @@ export async function getAdminOrders(token: string, signal?: AbortSignal) {
 }
 export async function getAdminSupportMessages(token: string, signal?: AbortSignal) {
   return adminRequest<{ ok: true; messages: SupportMessage[] }>(token, "admin/support/messages", { signal });
+}
+export async function getAdminSupportFaq(token: string, signal?: AbortSignal) {
+  return adminRequest<{ ok: true; entries: AdminSupportFaqEntry[] }>(token, "admin/support/faq", { signal });
+}
+export async function saveAdminSupportFaq(token: string, input: { id?: string; question: string; answer: string; order: number; enabled: boolean }) {
+  return adminRequest<{ ok: true; created: boolean; entry: AdminSupportFaqEntry; audit_sync_pending?: boolean }>(token, "admin/support/faq", {
+    method: "POST",
+    body: { ...input },
+  });
+}
+export async function deleteAdminSupportFaq(token: string, id: string) {
+  return adminRequest<{ ok: true; deleted: string; audit_sync_pending?: boolean }>(token, "admin/support/faq/delete", {
+    method: "POST",
+    body: { id },
+  });
 }
 export async function adminReplySupport(token: string, uid: string, content: string, requestId: string) {
   return adminRequest<{ ok: true; duplicate?: boolean; message_id?: string; audit_sync_pending?: boolean }>(token, "admin/support/reply", {

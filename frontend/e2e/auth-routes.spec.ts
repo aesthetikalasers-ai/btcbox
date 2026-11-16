@@ -1025,7 +1025,7 @@ test("public preview landing page is available signed out with market data and r
   await expect(page.getByRole("banner")).toBeVisible();
   await expect(page.locator("nav[aria-label='Primary navigation']").last()).toBeVisible();
   await expect(page.locator("section").first().locator("[aria-label='BTCBOX Exchange']")).toBeHidden();
-  await expect(page.getByRole("link", { name: /Create account/i }).first()).toHaveAttribute("href", "/register");
+  await expect(page.getByRole("button", { name: "Create account", exact: true }).first()).toBeVisible();
   await expect(page.getByRole("heading", { name: "Market overview" })).toBeVisible();
   await expect(page.getByText(/Live market feed|Connecting/)).toBeVisible();
   await page.getByText("Market data", { exact: true }).click();
@@ -1401,4 +1401,35 @@ test('Japanese account descriptions use the selected customer language', async (
   await expect(page.getByText('BTCBOXのカスタマーサポートにお問い合わせください。')).toBeVisible();
   await expect(page.getByText('ログイン方法とアカウントのセキュリティを管理します。')).toBeVisible();
   await expect(page.getByText('Contact the BTCBOX support team.',{exact:true})).toHaveCount(0);
+});
+
+
+test("homepage authentication opens an in-place dialog and mode switches stay inside it", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/home");
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
+
+  const dialog = page.getByRole("dialog");
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByRole("heading", { name: "Welcome back", exact: true })).toBeVisible();
+  await dialog.getByTestId("auth-mode-switcher").getByRole("button", { name: "Create account", exact: true }).click();
+  await expect(dialog.getByRole("heading", { name: "Create your BTCBOX account" })).toBeVisible();
+  await expect(dialog.getByLabel("Email")).toBeVisible();
+  await expect(page).toHaveURL(/\/home$/);
+
+  await dialog.getByTestId("auth-mode-switcher").getByRole("button", { name: "Sign in", exact: true }).click();
+  await expect(dialog.getByRole("heading", { name: "Welcome back", exact: true })).toBeVisible();
+  await expect(dialog).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+
+  await page.keyboard.press("Escape");
+  await expect(dialog).toBeHidden();
+  const signInOpener = page.getByRole("button", { name: "Sign in", exact: true }).first();
+  await expect(signInOpener).toBeFocused();
+
+  await signInOpener.click();
+  await expect(dialog).toBeVisible();
+  await dialog.getByRole("link", { name: "Explore markets" }).click();
+  await expect(page).toHaveURL(/\/markets$/);
+  await expect(dialog).toBeHidden();
 });
