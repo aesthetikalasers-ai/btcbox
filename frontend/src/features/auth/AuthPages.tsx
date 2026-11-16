@@ -16,7 +16,7 @@ import { useI18n, type Language } from "../../lib/i18n";
 export function AuthPage({ mode, redirectTo }: { mode: "login" | "register"; redirectTo?: string }) {
   const { t, language, setLanguage, canChangeLanguage } = useI18n();
   const {
-    status, needsCredentials, busy, error, notice, googleEnabled, walletEnabled, ethereumWallets,
+    status, busy, error, notice, googleEnabled, walletEnabled, ethereumWallets,
     signInWithGoogle, signInWithUsername, signInWithWeb3, signUpWithEmail,
     verifyTwoFactor, clearError,
   } = useAuth();
@@ -42,8 +42,8 @@ export function AuthPage({ mode, redirectTo }: { mode: "login" | "register"; red
   useEffect(() => { if (!busy) setGoogleStarted(false); }, [busy]);
 
   useEffect(() => {
-    if (status === "authenticated") navigate(needsCredentials ? "/account-setup" : (redirectTo || (registering ? "/me" : "/home")), { replace: true });
-  }, [status, needsCredentials, navigate, redirectTo, registering]);
+    if (status === "authenticated") navigate(redirectTo || (registering ? "/me" : "/home"), { replace: true });
+  }, [status, navigate, redirectTo, registering]);
 
   if (status === "loading") return <AuthRestoreState />;
   // Never render the clickable sign-in form while a sign-in is already in progress
@@ -139,7 +139,7 @@ export function AuthPage({ mode, redirectTo }: { mode: "login" | "register"; red
             {(status === "two-factor" || registering) && <CardDescription className="max-w-[380px] text-sm leading-6 text-brand-text-muted">
               {status === "two-factor"
                 ? t("Enter your authenticator code to finish signing in.")
-                : t("Sign in with Google or connect your wallet, then complete your BTCBOX account setup.")}
+                : t("Sign in with Google or connect your wallet to enter BTCBOX directly.")}
             </CardDescription>}
             {status !== "two-factor" && <div data-testid="auth-mode-switcher" className="grid grid-cols-2 rounded-xl border border-brand-border bg-brand-surface-2 p-1 text-sm font-semibold">
               <Link to="/login" className={`flex min-h-10 items-center justify-center rounded-lg transition-colors ${!registering ? "bg-brand-accent text-[#05201A] shadow-sm" : "text-brand-text-secondary hover:text-brand-text"}`}>{t("Sign in")}</Link>
@@ -218,7 +218,7 @@ export function AuthPage({ mode, redirectTo }: { mode: "login" | "register"; red
 
 export function AuthCallbackPage() {
   const { t } = useI18n();
-  const { finishOAuth, status, needsCredentials, error, busy, completePasswordRecovery } = useAuth();
+  const { finishOAuth, status, error, busy, completePasswordRecovery } = useAuth();
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [recoveryError, setRecoveryError] = useState("");
@@ -237,9 +237,9 @@ export function AuthCallbackPage() {
     }
   }, [finishOAuth, status]);
   useEffect(() => {
-    if (status === "authenticated") navigate(needsCredentials ? "/account-setup" : (callbackIntent === "register" ? "/me" : "/home"), { replace: true });
+    if (status === "authenticated") navigate(callbackIntent === "register" ? "/me" : "/home", { replace: true });
     else if (status === "two-factor") navigate("/login", { replace: true });
-  }, [status, needsCredentials, navigate, callbackIntent]);
+  }, [status, navigate, callbackIntent]);
   useEffect(() => {
     if (!error || status !== "anonymous") return;
     const redirectId = window.setTimeout(() => navigate(effectiveDestination, { replace: true }), 6000);
