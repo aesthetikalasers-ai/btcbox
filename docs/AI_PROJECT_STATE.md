@@ -44,7 +44,7 @@
 
 ## 2026-11-16 — 钱包产品定位与双 AI 职责更新
 
-- 所有者确认：BTCBOX Wallet 是独立产品，可由 BTCBOX Exchange 提供入口，也可独立访问；Wallet 与 Exchange 仅共享统一身份认证，不默认共用业务资料、余额、账本、地址、交易记录或业务数据库。
+- 所有者最新决定（2026-11-16）：建设阶段 Wallet 与 Exchange 暂时共用同一 Supabase 项目/服务器数据库和 Auth，不急于拆库。产品域、业务资料、资产账户、余额、账本、地址、交易记录和权限仍分别隔离；同库不等于共用资金账本。系统搭建稳定后再规划物理拆分。测试账号和测试数据无需保留，不执行恢复。
 - 两个系统通过明确授权、可审计、幂等 API 进行必要联通；例如用户主动发起的钱包与交易所间转账。
 - 第三方 API 可作为底层区块链节点、链上数据、交易广播等基础设施；BTCBOX 保留钱包产品、业务 API、账户和账本控制权。密钥管理与签名必须安全隔离。
 - 双 AI 分工固定：AI 1（本助手）负责钱包架构、后端 API、数据库、业务逻辑、安全、测试、前后端整合及规划/状态维护；AI 2 负责视觉蓝图、页面、交互、手机/桌面适配及 UI 验收。**不再设置 AI 3 或第三位协调负责人。**
@@ -66,14 +66,14 @@
 - Supabase 仅执行只读结构、迁移、权限和行数核对；未执行 DDL、数据写入或生产资金操作。钱包相关表当前均为 0 行；无已配置地址派生/托管服务，实时 API E2E 仍为 NOT VERIFIED。
 - 本批未修改交易页、未合并 `main`/`working`、未部署。功能分支与共同开发分支仍需单独评估差异后才能整合。
 
-**下一项唯一优先任务：** 恢复并归档已应用的 Wallet 基础迁移 SQL 到仓库，补齐空库 bootstrap 清单与 PostgreSQL schema CI，并确保该恢复只作用于代码仓库/隔离测试库、不向当前 Supabase 项目重放 DDL。完成迁移可复现性后，再确认地址派生/托管服务与测试网络方案。
+**下一项优先任务：** 在当前共用 Supabase 项目/数据库继续完成钱包真实业务能力，不另建服务器或数据库。测试账号/测试数据无需保留，不做数据恢复；钱包迁移 SQL 源文件整理可后置，不作为开发阻塞项。
 
 
 ### Supabase 钱包基础设施核对补充（只读）
 
 - 当前 Supabase 项目已应用钱包基础迁移；`auth.users` 上存在 `btcbox_auth_user_initialize_v1` 触发器，调用 `btcbox_initialize_auth_user_v1()`。该 SECURITY DEFINER 函数在安全固定的 search_path 下创建 `btcbox_user_profiles`，并为全部 active `btcbox_assets` 创建 `btcbox_wallet_accounts`。
 - 当前 active 钱包资产为 ADA、AVAX、BNB、BTC、DOGE、ETH、SOL、USDT、XRP，共 9 种。当前 `auth.users`、钱包 profile 和 wallet account 均为 0 行；这是测试账号清理后的空库状态，不需要手工插入用户或余额。新 Auth 用户创建时应由触发器自动初始化账户。
-- 发现一个需要在后续补齐的可复现性缺口：上述 2026-11-16 钱包基础迁移已存在于 Supabase migration history，但对应 SQL 文件尚未纳入仓库 `backend/supabase/sql/`，且 `bootstrap-empty-database.sh` 当前只执行 0001–0041 的既有清单。因此，**当前线上 schema 已存在不等于新空库 bootstrap 能重建 Wallet schema**。需恢复/归档这些迁移源文件，并将其纳入空库 bootstrap 与 PostgreSQL schema CI；在此之前不得声称空库重建包含 Wallet。
+- 工程记录：当前 Supabase 已应用的钱包基础迁移 SQL 尚未完整纳入仓库空库 bootstrap 清单。这是未来需要整理的可复现性事项，不要求恢复测试账号/测试数据，也不阻塞在现有数据库继续开发。
 
 已核对的相关 Supabase migration history（需逐项恢复源 SQL，不能凭名称猜写）：
 - `20261116053214 btcbox_canonical_user_wallet_foundation_v1`
