@@ -32,6 +32,7 @@ export function AuthPage({ mode, redirectTo, embedded = false, onModeChange }: {
   const [googleStarted, setGoogleStarted] = useState(false);
   const navigate = useNavigate();
   const registering = mode === "register";
+  const switchAuthMode = (next: "login" | "register") => onModeChange ? onModeChange(next) : navigate(next === "login" ? "/login" : "/register");
 
   useEffect(() => {
     clearError();
@@ -142,16 +143,16 @@ export function AuthPage({ mode, redirectTo, embedded = false, onModeChange }: {
                 : t("Sign in with Google or connect your wallet to enter BTCBOX directly.")}
             </CardDescription>}
             {status !== "two-factor" && <div data-testid="auth-mode-switcher" className="grid grid-cols-2 rounded-xl border border-brand-border bg-brand-surface-2 p-1 text-sm font-semibold">
-              <button type="button" onClick={() => onModeChange ? onModeChange("login") : navigate("/login")} className={`flex min-h-10 items-center justify-center rounded-lg transition-colors ${!registering ? "bg-brand-accent text-[#05201A] shadow-sm" : "text-brand-text-secondary hover:text-brand-text"}`}>{t("Sign in")}</button>
-              <button type="button" onClick={() => onModeChange ? onModeChange("register") : navigate("/register")} className={`flex min-h-10 items-center justify-center rounded-lg transition-colors ${registering ? "bg-brand-accent text-[#05201A] shadow-sm" : "text-brand-text-secondary hover:text-brand-text"}`}>{t("Create account")}</button>
+              <button type="button" onClick={() => switchAuthMode("login")} className={`flex min-h-10 items-center justify-center rounded-lg transition-colors ${!registering ? "bg-brand-accent text-[#05201A] shadow-sm" : "text-brand-text-secondary hover:text-brand-text"}`}>{t("Sign in")}</button>
+              <button type="button" onClick={() => switchAuthMode("register")} className={`flex min-h-10 items-center justify-center rounded-lg transition-colors ${registering ? "bg-brand-accent text-[#05201A] shadow-sm" : "text-brand-text-secondary hover:text-brand-text"}`}>{t("Create account")}</button>
             </div>}
           </CardHeader>
           <CardContent className="space-y-4 px-5 pb-6 sm:px-8 sm:pb-8">
             {error && <div role="alert" className="flex items-start justify-between gap-3 rounded-lg border border-loss/30 bg-loss/10 p-3 text-sm text-loss">
-              <span className="min-w-0 break-words">{t(error)}{/already registered|already linked/i.test(error) && <> <Link to="/login" className="font-semibold underline underline-offset-4 hover:opacity-80">{t("Go to sign in")}</Link></>}</span>
+              <span className="min-w-0 break-words">{t(error)}{/already registered|already linked/i.test(error) && <> {embedded ? <button type="button" onClick={() => switchAuthMode("login")} className="font-semibold underline underline-offset-4 hover:opacity-80">{t("Go to sign in")}</button> : <Link to="/login" className="font-semibold underline underline-offset-4 hover:opacity-80">{t("Go to sign in")}</Link>}</>}</span>
               <button type="button" aria-label={t("Dismiss sign-in error")} className="flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-lg px-2 text-xs font-semibold underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent/70" onClick={clearError}>{t("Dismiss")}</button>
             </div>}
-            {notice && <div role="status" className="space-y-2 rounded-lg border border-brand-border bg-brand-surface-2 p-3 text-sm text-brand-text-secondary"><p>{t(notice)}</p>{registering && <Link to="/login" className="font-semibold text-brand-accent underline underline-offset-4 hover:opacity-80">{t("Go to sign in")}</Link>}</div>}
+            {notice && <div role="status" className="space-y-2 rounded-lg border border-brand-border bg-brand-surface-2 p-3 text-sm text-brand-text-secondary"><p>{t(notice)}</p>{registering && {embedded ? <button type="button" onClick={() => switchAuthMode("login")} className="font-semibold text-brand-accent underline underline-offset-4 hover:opacity-80">{t("Go to sign in")}</button> : <Link to="/login" className="font-semibold text-brand-accent underline underline-offset-4 hover:opacity-80">{t("Go to sign in")}</Link>}}</div>}
 
             {status === "two-factor" ? <form className="space-y-3" aria-busy={verifyBusy} onSubmit={async event => {
               event.preventDefault(); if (verifyBusy) return; setVerifyBusy(true);
@@ -202,8 +203,8 @@ export function AuthPage({ mode, redirectTo, embedded = false, onModeChange }: {
 
             <div className="border-t border-brand-border pt-4 text-center text-sm text-brand-text-secondary">
               {mode === "login"
-                ? <>{t("New to BTCBOX?")} <Link className="font-semibold text-brand-accent underline-offset-4 hover:underline" to="/register">{t("Create account")}</Link></>
-                : <>{t("Already have an account?")} <Link className="font-semibold text-brand-accent underline-offset-4 hover:underline" to="/login">{t("Sign in")}</Link></>}
+                ? <>{t("New to BTCBOX?")} {embedded ? <button type="button" className="font-semibold text-brand-accent underline-offset-4 hover:underline" onClick={() => switchAuthMode("register")}>{t("Create account")}</button> : <Link className="font-semibold text-brand-accent underline-offset-4 hover:underline" to="/register">{t("Create account")}</Link>}</>
+                : <>{t("Already have an account?")} {embedded ? <button type="button" className="font-semibold text-brand-accent underline-offset-4 hover:underline" onClick={() => switchAuthMode("login")}>{t("Sign in")}</button> : <Link className="font-semibold text-brand-accent underline-offset-4 hover:underline" to="/login">{t("Sign in")}</Link>}</>}
             </div>
             <div className="border-t border-brand-border/80 pt-3">
               <Link to="/home" className="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-brand-border bg-brand-surface-2/70 px-4 text-sm font-medium text-brand-text-secondary shadow-sm transition-all hover:border-brand-accent/35 hover:bg-brand-surface-hover hover:text-brand-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent/70"><ArrowLeft className="h-4 w-4" /> {t("Back to BTCBOX")}</Link>
