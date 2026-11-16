@@ -6,7 +6,7 @@ import { getMarkets, type MarketTicker } from "../../lib/api";
 import { useI18n, localeTags } from "../../lib/i18n";
 
 type SortKey = "volume" | "change" | "price";
-type MarketFilter = "all" | "favorites" | "gainers" | "losers";
+type MarketFilter = "all" | "hot" | "favorites" | "gainers" | "losers";
 
 const tradeSymbol = (symbol: string) => (symbol.endsWith("USDT") ? symbol : `${symbol}USDT`);
 
@@ -340,9 +340,10 @@ export function MarketsPage() {
 
   const filters: Array<[MarketFilter, string]> = [
     ["all", "All"],
-    ["favorites", "Favorites"],
+    ["hot", "Hot"],
     ["gainers", "Gainers"],
     ["losers", "Losers"],
+    ["favorites", "Favorites"],
   ];
 
   const visibleMarkets = useMemo(() => {
@@ -363,7 +364,7 @@ export function MarketsPage() {
 
 
   return (
-    <div className="tone-markets relative mx-auto flex w-full min-w-0 flex-col gap-3 p-4 sm:p-5">
+    <div data-testid="public-market-page" className="tone-markets relative mx-auto flex w-full min-w-0 flex-col gap-3 p-4 sm:p-5">
       {/* Ambient multi-layer glow (subtle, top-right, non-interactive). */}
       <div aria-hidden="true" className="pointer-events-none absolute -top-20 right-0 h-72 w-72 rounded-full bg-brand-accent/10 blur-[90px]" />
       <div aria-hidden="true" className="pointer-events-none absolute -top-8 right-10 h-36 w-36 rounded-full bg-brand-accent/20 blur-[45px]" />
@@ -401,7 +402,7 @@ export function MarketsPage() {
                 key={key}
                 type="button"
                 aria-pressed={filter === key}
-                onClick={() => setFilter(key)}
+                onClick={() => { setFilter(key); if (key === "hot") setSort("volume"); if (key === "gainers" || key === "losers") setSort("change"); }}
                 className={`shrink-0 rounded-full border px-3 py-1.5 text-[11px] font-medium transition-colors ${
                   filter === key
                     ? "border-brand-accent/50 bg-brand-accent/15 text-brand-accent"
