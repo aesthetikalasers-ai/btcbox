@@ -173,7 +173,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const config = await getAuthClientConfig(controller.signal);
         if (!active) return;
         setGoogleEnabled(config.google_enabled === true);
-        setWalletEnabled(config.wallet_enabled === true);
+        setWalletEnabled(config.wallet_enabled !== false);
         // Load the authentication SDK only after server configuration is available.
         // Session restoration remains in this same initialization sequence.
         const { createClient } = await import("@supabase/supabase-js");
