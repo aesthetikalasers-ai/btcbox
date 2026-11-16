@@ -1681,7 +1681,7 @@ async function handleRequest(event, context) {
   // Supabase identity attached to this authenticated BTCBOX session.
   if (path === 'wallet' || path.startsWith('wallet/')) {
     const { handleWalletRoute } = require('./wallet-api');
-    const walletApiResponse = await handleWalletRoute({ path, method, user, query: event.queryStringParameters || {} });
+    const walletApiResponse = await handleWalletRoute({ path, method, user, query: event.queryStringParameters || {}, body });
     if (walletApiResponse) return json(walletApiResponse.body, walletApiResponse.status);
   }
 
