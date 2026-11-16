@@ -74,4 +74,24 @@
 - 当前 Supabase 项目已应用钱包基础迁移；`auth.users` 上存在 `btcbox_auth_user_initialize_v1` 触发器，调用 `btcbox_initialize_auth_user_v1()`。该 SECURITY DEFINER 函数在安全固定的 search_path 下创建 `btcbox_user_profiles`，并为全部 active `btcbox_assets` 创建 `btcbox_wallet_accounts`。
 - 当前 active 钱包资产为 ADA、AVAX、BNB、BTC、DOGE、ETH、SOL、USDT、XRP，共 9 种。当前 `auth.users`、钱包 profile 和 wallet account 均为 0 行；这是测试账号清理后的空库状态，不需要手工插入用户或余额。新 Auth 用户创建时应由触发器自动初始化账户。
 - 发现一个需要在后续补齐的可复现性缺口：上述 2026-11-16 钱包基础迁移已存在于 Supabase migration history，但对应 SQL 文件尚未纳入仓库 `backend/supabase/sql/`，且 `bootstrap-empty-database.sh` 当前只执行 0001–0041 的既有清单。因此，**当前线上 schema 已存在不等于新空库 bootstrap 能重建 Wallet schema**。需恢复/归档这些迁移源文件，并将其纳入空库 bootstrap 与 PostgreSQL schema CI；在此之前不得声称空库重建包含 Wallet。
+
+已核对的相关 Supabase migration history（需逐项恢复源 SQL，不能凭名称猜写）：
+- `20261116053214 btcbox_canonical_user_wallet_foundation_v1`
+- `20261116053252 btcbox_auth_trigger_security_and_retention_v1`
+- `20261116053322 btcbox_atomic_wallet_operation_rpc_v1`
+- `20261116053410 btcbox_wallet_asset_account_seeding_v1`
+- `20261116053437 btcbox_wallet_foreign_key_indexes_v1`
+- `20261116061921 restrict_wallet_trigger_function_execution_v1`
+- `20261116062333 btcbox_hybrid_wallet_secure_key_vault_foundation_v1`
+- `20261116062346 btcbox_hybrid_wallet_security_triggers_v1`
+- `20261116062407 btcbox_hybrid_wallet_key_foreign_key_indexes_v1`
+- `20261116062444 btcbox_platform_owner_security_approval_foundation_v1`
+- `20261116062452 btcbox_owner_security_foreign_key_indexes_v1`
+- `20261116062527 btcbox_existing_business_foreign_key_indexes_v1`
+- `20261116062655 btcbox_consent_gated_encrypted_key_write_rpcs_v1`
+- `20261116062729 btcbox_external_wallet_verification_rpcs_v1`
+- `20261116062800 btcbox_wallet_ledger_owner_asset_integrity_v1`
+- `20261116062822 btcbox_wallet_ledger_composite_fk_indexes_v1`
+- `20261116064230 btcbox_auth_user_bootstrap_rpc_v1`
+
 - 钱包表已启用 RLS，当前没有面向 anon/authenticated 的直接表访问策略；后端只通过服务端 service-role 只读查询并附带会话 owner 过滤。Supabase Advisor 对“RLS enabled, no policy”给出 INFO 项；此设计是 fail-closed，不应为了消除提示而开放客户端表权限。
