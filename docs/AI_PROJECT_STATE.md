@@ -131,3 +131,28 @@
 - 充值地址托管/派生服务、链上 watcher、提现签名广播、外部钱包验证和 KMS/HSM 仍未配置或未完成。
 
 **下一项唯一优先任务：** 核实本轮 backend CI 对新增测试/SQL 草稿的结果并修复失败；之后在隔离环境验证 0042/0043 的 SQL 和权限合同。保持功能分支隔离，不合并、不部署、不对生产数据库写入。
+
+
+## 2026-11-17 — Referral / Rewards API 合同第一版（AI 1）
+
+**当前分支：** `feat/wallet-api-contract-v1`  
+**本次合同提交：** `dc553f7f5f70f3089105219381d096a52d5622d1`  
+**新增文件：** `docs/REFERRAL_REWARDS_API_CONTRACT_V1.md`
+
+### 已完成
+- 按所有者决定采用 UI/后端并行方案：AI 2 可先做 Referral / Rewards 页面和独立 Mock 适配层；AI 1 负责后端规则、数据模型、API、安全和测试。
+- 新合同定义了两级邀请关系（L1/L2）的技术边界、服务端身份归属、不可变邀请绑定、反自邀/循环约束、只按真实已结算手续费产生佣金、冲正/撤销、幂等和受控派发。
+- 规划 API：`GET /api/referral/overview`、`GET /api/referral/code`、`GET /api/referral/invites`、`GET /api/referral/commissions`、`GET /api/referral/policy`；邀请链接轮换与派奖暂时禁用，等待政策审批。
+- 明确 Rewards 与 Launchpad 是不同产品模块，禁止把两个入口都伪装成有效返佣入口或继续指向无关 `/trade-hub`。
+- Supabase 只读核对未发现 referral/invite/reward/commission 业务表。
+- 已核对现有现货撮合手续费率当前受数据库约束为 0；因此不能按成交量伪造返佣。返佣必须等待权威手续费真实扣收/结算事件。
+- 明确 Mock 只能在独立 adapter 中，所有 Mock 页面标注 Demo/Preview；真实关闭状态必须如实展示 disabled/empty。
+
+### 未完成 / NOT VERIFIED
+- 尚未创建或应用返佣数据库迁移；未创建 API 路由；未产生真实返佣或派奖。
+- L1/L2 费率、可返佣产品范围、币种、门槛、封顶、结算等待期、冲正与合规文案尚未得到所有者确认。
+- 当前现货交易手续费仍为 0；权威 fee-settlement event 尚需定位并确认。
+- 新合同文档未运行代码测试（文档提交，不适用应用构建）；尚未确认与 AI 2 的 UI adapter 对接。
+- 本次未修改生产数据库、未合并 main/working、未部署。
+
+**下一项唯一优先任务：** 先与 AI 2 对齐 UI adapter 与 disabled/demo 状态；同时在后端定位权威手续费结算事件和 Auth 用户 ID 关联字段，确认后再设计可执行迁移与 API，不提前开启真实返佣。
