@@ -69,6 +69,24 @@ test('wallet address listing returns only public address fields and is owner-sco
   assert.equal(JSON.stringify(result.body).includes('derivation_reference'), false);
 });
 
+test('wallet address filters are validated and cannot override session ownership', async () => {
+  let requestedUrl = '';
+  global.fetch = async url => {
+    requestedUrl = String(url);
+    return { ok: true, json: async () => [] };
+  };
+  const result = await handleWalletRoute({
+    path: 'wallet/addresses', method: 'GET',
+    user: { supabase_user_id: USER_ID },
+    query: { asset: 'usdt', network: 'trc20', user_id: OTHER_USER_ID }
+  });
+  const url = new URL(requestedUrl);
+  assert.equal(result.status, 200);
+  assert.equal(url.searchParams.get('user_id'), 'eq.' + USER_ID);
+  assert.equal(url.searchParams.get('asset_code'), 'eq.USDT');
+  assert.equal(url.searchParams.get('network_code'), 'eq.TRC20');
+});
+
 test('wallet ledger rejects invalid cursors and ignores client-supplied owner identifiers', async () => {
   let called = false;
   global.fetch = async () => { called = true; throw new Error('must not call'); };
