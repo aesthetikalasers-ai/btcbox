@@ -1316,7 +1316,8 @@ export function SupportPage(){
 }
 
 
-const depositNetworks:Record<string,string[]>={BTC:["BTC"],ETH:["ERC20"],USDT:["TRC20","ERC20","BEP20"],SOL:["SOL"],BNB:["BEP20"],USDC:["ERC20"],ADA:["Cardano"],AVAX:["AVAX-C"],DOT:["Polkadot"],LINK:["ERC20"],LTC:["LTC"],MATIC:["Polygon"],UNI:["ERC20"],TRX:["TRC20"],BCH:["BCH"],ATOM:["Cosmos"],ETC:["ETC"]};
+// Only expose combinations accepted by the deposit API adapter.
+const depositNetworks:Record<string,string[]>={BTC:["BTC"],ETH:["ERC20"],USDT:["TRC20","ERC20","BEP20"],SOL:["SOL"],BNB:["BEP20"],USDC:["ERC20"]};
 /**
  * Displays deposit instructions, address selection, and deposit history.
  * Uses the configured deposit networks and existing wallet data sources.
@@ -1327,8 +1328,8 @@ export function DepositPage(){
  const [historyLoading,setHistoryLoading]=useState(true);
  const [historyError,setHistoryError]=useState("");
  const [historyReload,setHistoryReload]=useState(0);
- const [coin,setCoin]=useState("USDT");
- const [network,setNetwork]=useState("TRC20");
+ const [coin,setCoin]=useState("");
+ const [network,setNetwork]=useState("");
  const [address,setAddress]=useState("");
  const [loading,setLoading]=useState(false);
  const [error,setError]=useState("");
@@ -1346,7 +1347,9 @@ export function DepositPage(){
  };
  useEffect(()=>{
   const controller=new AbortController();
-  setAddress("");setError("");setCopyMessage("");setLoading(true);
+  setAddress("");setError("");setCopyMessage("");
+  if(!coin||!network){setLoading(false);return ()=>controller.abort();}
+  setLoading(true);
   getDepositAddress(coin,network,controller.signal).then(value=>{
    if(!controller.signal.aborted)setAddress(value);
   }).catch(reason=>{
@@ -1371,12 +1374,13 @@ export function DepositPage(){
   document.addEventListener("visibilitychange",refreshWhenVisible);
   return ()=>document.removeEventListener("visibilitychange",refreshWhenVisible);
  },[]);
- const changeCoin=(next:string)=>{setAddress("");setError("");setCopyMessage("");setCoin(next);setNetwork(depositNetworks[next][0]);};
+ const changeCoin=(next:string)=>{setAddress("");setError("");setCopyMessage("");setCoin(next);setNetwork(depositNetworks[next]?.[0]||"");};
  const changeNetwork=(next:string)=>{setAddress("");setError("");setCopyMessage("");setNetwork(next);};
  return <PageFrame title="Deposit" tone="assets" backTo="/assets">
   <Card className="relative overflow-hidden border border-white/[0.08] bg-brand-surface shadow-[inset_0_1px_0_0_rgba(255,255,255,0.12)]"><span aria-hidden="true" className="absolute inset-x-0 top-0 h-1 bg-brand-surface"/><CardHeader className="border-b border-brand-border bg-brand-surface"><div className="flex items-center gap-3"><span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-accent/10 text-brand-accent"><Wallet className="h-5 w-5"/></span><div><CardTitle>{t("Deposit address")}</CardTitle><CardDescription>{t("Always verify the asset and network before sending funds.")}</CardDescription></div></div></CardHeader><CardContent className="space-y-5 p-4 sm:p-6">
-   <div className="grid gap-3 sm:grid-cols-2"><label className="space-y-1.5 text-sm"><span className="text-brand-text-muted">{t("Asset")}</span><select value={coin} onChange={e=>changeCoin(e.target.value)} className="h-12 w-full rounded-xl border border-brand-border bg-brand-surface-2 px-3 py-3 text-sm text-brand-text outline-none transition-colors focus:border-brand-accent/60 focus:ring-2 focus:ring-brand-accent/15">{Object.keys(depositNetworks).map(x=><option key={x}>{x}</option>)}</select></label><label className="space-y-1.5 text-sm"><span className="text-brand-text-muted">{t("Network")}</span><select value={network} onChange={e=>changeNetwork(e.target.value)} className="h-12 w-full rounded-xl border border-brand-border bg-brand-surface-2 p-3 text-sm text-brand-text outline-none transition-colors focus:border-brand-accent/60 focus:ring-2 focus:ring-brand-accent/15">{depositNetworks[coin].map(x=><option key={x}>{x}</option>)}</select></label></div>
-   {loading?<p className="rounded-xl border border-brand-border p-4 text-sm text-brand-text-muted" role="status">{t("Loading configured deposit address…")}</p>
+   <div className="grid gap-3 sm:grid-cols-2"><label className="space-y-1.5 text-sm"><span className="text-brand-text-muted">{t("Asset")}</span><select value={coin} onChange={e=>changeCoin(e.target.value)} className="h-12 w-full rounded-xl border border-brand-border bg-brand-surface-2 px-3 py-3 text-sm text-brand-text outline-none transition-colors focus:border-brand-accent/60 focus:ring-2 focus:ring-brand-accent/15"><option value="">{t("Select an asset")}</option>{Object.keys(depositNetworks).map(x=><option key={x} value={x}>{x}</option>)}</select></label><label className="space-y-1.5 text-sm"><span className="text-brand-text-muted">{t("Network")}</span><select value={network} disabled={!coin} onChange={e=>changeNetwork(e.target.value)} className="h-12 w-full rounded-xl border border-brand-border bg-brand-surface-2 p-3 text-sm text-brand-text outline-none transition-colors focus:border-brand-accent/60 focus:ring-2 focus:ring-brand-accent/15"><option value="">{t("Select a network")}</option>{(depositNetworks[coin]||[]).map(x=><option key={x} value={x}>{x}</option>)}</select></label></div>
+   {!coin||!network?<p className="rounded-xl border border-dashed border-brand-border p-4 text-sm text-brand-text-muted">{t("Select a supported asset and network to check deposit availability.")}</p>
+    :loading?<p className="rounded-xl border border-brand-border p-4 text-sm text-brand-text-muted" role="status">{t("Loading configured deposit address…")}</p>
     :error?<div className="rounded-xl border border-brand-danger/30 bg-brand-danger/[.04] p-4"><p className="text-sm text-brand-danger" role="alert">{t(error)}</p><Button className="mt-3" size="sm" variant="outline" onClick={()=>setReload(n=>n+1)}>{t("Try again")}</Button></div>
    :<div className="space-y-2"><p className="text-xs font-semibold uppercase tracking-wide text-brand-text-muted">{coin} · {network}</p><div className="rounded-xl border border-brand-accent/20 bg-brand-surface p-4 ring-1 ring-brand-accent/[0.04]"><p className="mb-2 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[.14em] text-brand-text-muted"><ShieldCheck className="h-3.5 w-3.5 text-brand-accent"/>{t("Verified network destination")}</p><div className="break-all font-mono text-sm leading-6 text-brand-text">{address}</div></div><Button variant="outline" size="sm" className="min-h-11 w-full sm:w-auto" disabled={!address} onClick={copyAddress}>{t("Copy address")}</Button>{copyMessage?<p className="text-xs text-brand-text-muted" role="status" aria-live="polite">{t(copyMessage)}</p>:null}</div>}
    <div className="rounded-xl border border-brand-border bg-brand-surface-2/60 p-4 text-sm text-brand-text-secondary"><p className="flex items-center gap-2 font-semibold text-brand-text"><ShieldAlert className="h-4 w-4 text-brand-text-muted"/>{t("Important")}</p><p className="mt-1">{t("Send only the selected asset on the selected network. Sending unsupported assets or using another network may result in permanent loss. After the transfer, BTCBOX staff verify receipt and manually credit the account. This page does not create a deposit order or automatically credit funds.")}</p></div>
