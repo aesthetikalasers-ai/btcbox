@@ -103,7 +103,7 @@ async function handleWalletRoute({ path, method, user, query: queryParams = {}, 
         const frozen = normalizeAmount(row.frozen);
         const total = unitsToDecimal(decimalToUnits(available) + decimalToUnits(frozen));
         const version = String(row.version);
-        if (!/^(?:0|[1-9]\\d{0,18})$/.test(version) || BigInt(version) > MAX_PG_BIGINT) throw new Error('Invalid wallet account version');
+        if (!/^(?:0|[1-9]\d{0,18})$/.test(version) || BigInt(version) > MAX_PG_BIGINT) throw new Error('Invalid wallet account version');
         return {
           asset: String(row.asset_code),
           available,
