@@ -134,6 +134,42 @@ function isSupabaseUserId(value) {
   return typeof value === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
 }
 
+// Persist the verified Supabase UUID -> BTCBOX internal user mapping through a
+// server-only atomic RPC. The UUID is used as the stable provider subject; email
+// is metadata only and is never used as an authorization or account-link key.
+async function persistSupabaseAuthMapping(user, identity, authProvider, walletIdentity) {
+  if (!supabaseStorageConfigured()) return false;
+  const supabaseUserId = String(identity && identity.id || '').trim();
+  const btcboxUserId = String(user && user.uid || '').trim();
+  if (!isSupabaseUserId(supabaseUserId) ||
+      !/^[1-9][0-9]{0,31}$/.test(btcboxUserId) ||
+      !['email', 'google', 'web3'].includes(authProvider)) return false;
+
+  const base = String(process.env.SUPABASE_URL || '').replace(/\\/+$/, '');
+  const wallet = authProvider === 'web3' && walletIdentity ? walletIdentity : null;
+  const payload = {
+    p_supabase_user_id: supabaseUserId,
+    p_btcbox_user_id: btcboxUserId,
+    p_provider: authProvider,
+    p_provider_subject: supabaseUserId,
+    p_email: typeof (identity && identity.email) === 'string' ? identity.email.trim().toLowerCase() || null : null,
+    p_wallet_chain: wallet ? String(wallet.chain || '') : null,
+    p_wallet_address: wallet ? String(wallet.address || '') : null
+  };
+  try {
+    const result = await fetch(base + '/rest/v1/rpc/btcbox_register_auth_account_v1', {
+      method: 'POST',
+      headers: supabaseHeaders(),
+      body: JSON.stringify(payload),
+      signal: AbortSignal.timeout(7000)
+    });
+    if (!result.ok) return false;
+    return (await result.json()) === true;
+  } catch (_) {
+    return false;
+  }
+}
+
 // Read auth_time from a JWT only after the exact token has been accepted by
 // Supabase's /auth/v1/user endpoint. The external verification authenticates
 // the signed claims; this helper deliberately performs no local trust decision.
@@ -1478,6 +1514,14 @@ async function handleRequest(event, context) {
       }
     }
     if (user && user.frozen) return json({ ok: false, code: 'ACCOUNT_FROZEN', msg: 'Account frozen. Please contact support.' }, 403);
+    let authMappingPersisted = process.env.BTCBOX_AUTH_MAPPING_RPC_ENABLED !== '1';
+    // Existing accounts are mapped before a possible 2FA early return.
+    if (!authMappingPersisted && user) {
+      authMappingPersisted = await persistSupabaseAuthMapping(user, identity, authProvider, walletIdentity);
+      if (!authMappingPersisted) {
+        return json({ ok: false, code: 'AUTH_ACCOUNT_MAPPING_UNAVAILABLE', msg: 'Authentication is temporarily unavailable. Please try again.' }, 503);
+      }
+    }
     // Preserve the existing account's second factor for all Supabase sign-ins.
     // The temporary token can only be exchanged through /api/login/2fa and never creates a session by itself.
     if (user && user.twofa_enabled) {
@@ -1524,6 +1568,16 @@ async function handleRequest(event, context) {
         if (!user.wallet_address) { user.wallet_address = walletIdentity.address; user.wallet_chain = walletIdentity.chain; }
       }
       user.auth_providers = Array.from(new Set([].concat(user.auth_providers || [], authProviders)));
+    }
+    // For a newly created account, persist its internal ID before creating the
+    // relational mapping. A failed mapping can then be retried on the next login.
+    if (!authMappingPersisted) {
+      try { await saveDB(db); }
+      catch (_) { return json({ ok: false, code: 'PERSISTENCE_UNAVAILABLE', msg: 'Authentication is temporarily unavailable. Please try again.' }, 503); }
+      authMappingPersisted = await persistSupabaseAuthMapping(user, identity, authProvider, walletIdentity);
+      if (!authMappingPersisted) {
+        return json({ ok: false, code: 'AUTH_ACCOUNT_MAPPING_UNAVAILABLE', msg: 'Authentication is temporarily unavailable. Please try again.' }, 503);
+      }
     }
     user.last_login = nowStr();
     const token = genToken();
