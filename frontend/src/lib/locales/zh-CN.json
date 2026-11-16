@@ -1447,6 +1447,7 @@
   "No balances or account figures are shown while signed out.": "未登录状态下不会显示任何余额或账户数值。",
   "Sign in with Google or connect your wallet to enter BTCBOX directly.": "使用 Google 登录或连接钱包即可直接进入 BTCBOX。",
   "Pro Portal": "专业交易门户",
+  "Loading order book": "正在加载盘口",
   "Username login password": "用户名登录密码",
   "Sign in to view your rewards": "登录后查看你的奖励",
   "Your invite code and reward records appear here once you sign in.": "登录后将在此显示你的邀请码与奖励记录。",
