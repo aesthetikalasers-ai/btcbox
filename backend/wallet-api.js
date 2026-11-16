@@ -4,6 +4,7 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-
 const ASSET_RE = /^[A-Z0-9]{2,16}$/;
 const NETWORK_RE = /^[A-Z0-9_-]{2,24}$/;
 const PAGE_SIZE = 50;
+const MAX_PG_BIGINT = 9223372036854775807n;
 
 function response(status, body) {
   return { status, body: Object.assign({ request_id: require('node:crypto').randomUUID() }, body) };
@@ -59,7 +60,7 @@ async function selectRows(table, params, config) {
     const raw = await result.text();
     // PostgREST emits PostgreSQL numeric/bigint columns as JSON numbers. Quote
     // wallet monetary values and ledger IDs before parsing so JS never rounds them.
-    const lossless = raw.replace(/(?<!\\)("(?:available|frozen|available_delta|frozen_delta|available_after|frozen_after|ledger_id)"\s*:\s*)(-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?)/g, '$1"$2"');
+    const lossless = raw.replace(/(?<!\\)("(?:available|frozen|available_delta|frozen_delta|available_after|frozen_after|ledger_id|version)"\s*:\s*)(-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?)/g, '$1"$2"');
     rows = JSON.parse(lossless);
   } else {
     // Compatibility for lightweight unit-test response doubles. Real Fetch
