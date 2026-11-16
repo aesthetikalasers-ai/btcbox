@@ -44,8 +44,9 @@
 ## 2026-11-16 阶段 0 基线核查记录（本助手：数据库负责人）
 
 ### 分支与代码基线
-- `main` HEAD：`910d7f1ea270d995f1c065c9f0a69ddff141310a`
-- `working` HEAD：`e05f429a0c209c38ad45f20a17425ef9d4c690f9`
+- `main` HEAD（本轮基线核查时）：`910d7f1ea270d995f1c065c9f0a69ddff141310a`
+- `working` HEAD（本轮基线核查、状态记录提交之前）：`e05f429a0c209c38ad45f20a17425ef9d4c690f9`
+- 本次基线记录提交：`169f0a105c2c2a46552fa5fcf90a0c3c885a1ddf`（仅更新本状态文档）
 - GitHub compare 返回：`diverged`，双方各有 7 个独有提交；本次未合并、重置或改写任何分支。
 - 前端入口：`frontend/`（React/Vite）；后端/API：`backend/`；数据库 SQL：`backend/supabase/sql/`；后端测试：`backend/tests/`。
 - `backend/package.json` 提供 `npm test`、`npm run build`、`npm run test:integration`；部署构建说明以 `backend/README.md` 为准。
