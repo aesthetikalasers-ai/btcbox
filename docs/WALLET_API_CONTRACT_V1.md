@@ -23,7 +23,17 @@ Status: interface contract for parallel frontend/backend implementation. This do
 
 These legacy routes must not be silently repurposed as custodial wallet-generation APIs.
 
-## 3. Proposed wallet API (new routes; not yet implemented)
+## 3. Wallet API (contract and implementation status)
+
+**Source status on `feat/wallet-api-contract-v1` (2026-11-16):** the read-only overview, address-list, and ledger routes are implemented and passed backend CI. This is source/CI evidence only; these changes are not merged or deployed, and live authenticated endpoint behavior has not yet been verified.
+
+- `GET /api/wallet`: implemented; reads only the authenticated user's wallet accounts and returns exact decimal strings. Empty account sets remain empty; no Exchange balance fallback or synthetic zero rows.
+- `GET /api/wallet/addresses`: implemented; supports asset/network filters and returns only public address metadata. Derivation references and key material are excluded.
+- `GET /api/wallet/ledger`: implemented; owner-scoped cursor pagination, signed exact decimal deltas, and operation type/status lookup.
+- `POST /api/wallet/addresses`: deliberately returns `WALLET_PROVIDER_UNAVAILABLE` until an approved custody/address-derivation provider is configured. No shared placeholder address is returned.
+- External-wallet verification and key-consent/key-custody routes are not implemented yet and fail closed.
+
+The connected Supabase schema was checked read-only. On 2026-11-16, wallet profile, account, address, ledger, operation, encrypted-key-vault, and external-wallet tables each contained zero rows. UI must show genuine empty states rather than inventing wallet balances or addresses.
 
 ### GET `/api/wallet`
 
