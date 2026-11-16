@@ -27,7 +27,7 @@ These legacy routes must not be silently repurposed as custodial wallet-generati
 
 **Source status on `feat/wallet-api-contract-v1` (2026-11-16):** the read-only overview, address-list, and ledger routes are implemented and passed backend CI. This is source/CI evidence only; these changes are not merged or deployed, and live authenticated endpoint behavior has not yet been verified.
 
-- `GET /api/wallet`: implemented; reads only the authenticated user's wallet accounts and returns exact decimal strings. Empty account sets remain empty; no Exchange balance fallback or synthetic zero rows.
+- `GET /api/wallet`: implemented; reads only the authenticated user's wallet accounts and returns exact decimal strings. Empty account sets remain empty; no Exchange balance fallback or synthetic zero rows. **Zero-balance asset accounts are filtered out:** an asset appears only when available + frozen is greater than zero. Newly initialized empty BTC/ETH/etc. account rows must not cause coin types to appear in the user's wallet UI.
 - `GET /api/wallet/addresses`: implemented; supports asset/network filters and returns only public address metadata. Derivation references and key material are excluded.
 - `GET /api/wallet/ledger`: implemented; owner-scoped cursor pagination, signed exact decimal deltas, and operation type/status lookup.
 - `POST /api/wallet/addresses`: deliberately returns `WALLET_PROVIDER_UNAVAILABLE` until an approved custody/address-derivation provider is configured. No shared placeholder address is returned.
