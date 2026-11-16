@@ -182,7 +182,7 @@
 - 本轮只读核查，无生产 DDL、无写入、无真实资金操作、无部署。
 
 ### 分支基线风险
-- 当前功能分支相对 `working`：ahead 85 / behind 12；merge base `2a3e6f929bf3dc1c4feee0a39c0294cbda4b717b`；`working` HEAD `1546cc0e9414776e3021017969ebf825c893cdb0`。
+- 当前功能分支相对 `working`：ahead 87 / behind 12（本次文档提交后重新比较）；merge base `2a3e6f929bf3dc1c4feee0a39c0294cbda4b717b`；`working` HEAD `1546cc0e9414776e3021017969ebf825c893cdb0`。
 - 按协调规则，禁止盲目合并；后续应用代码必须先解决共同开发分支基线/整合路径，避免继续扩大分歧。
 - 本轮未合并、未部署、未修改生产数据库。
 
