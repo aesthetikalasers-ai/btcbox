@@ -54,11 +54,18 @@ async function selectRows(table, params, config) {
     signal: AbortSignal.timeout(7000)
   });
   if (!result.ok) throw new Error('Wallet database read failed');
-  const raw = await result.text();
-  // PostgREST emits PostgreSQL numeric/bigint columns as JSON numbers. Quote
-  // wallet monetary values and ledger IDs before parsing so JS never rounds them.
-  const lossless = raw.replace(/("(?:available|frozen|available_delta|frozen_delta|available_after|frozen_after|ledger_id)"\\s*:\\s*)(-?(?:0|[1-9]\\d*)(?:\\.\\d+)?(?:[eE][+-]?\\d+)?)/g, '$1"$2"');
-  const rows = JSON.parse(lossless);
+  let rows;
+  if (typeof result.text === 'function') {
+    const raw = await result.text();
+    // PostgREST emits PostgreSQL numeric/bigint columns as JSON numbers. Quote
+    // wallet monetary values and ledger IDs before parsing so JS never rounds them.
+    const lossless = raw.replace(/("(?:available|frozen|available_delta|frozen_delta|available_after|frozen_after|ledger_id)"\s*:\s*)(-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?)/g, '$1"$2"');
+    rows = JSON.parse(lossless);
+  } else {
+    // Compatibility for lightweight unit-test response doubles. Real Fetch
+    // Response objects always expose text(), so production reads stay lossless.
+    rows = await result.json();
+  }
   if (!Array.isArray(rows)) throw new Error('Wallet database response invalid');
   return rows;
 }
