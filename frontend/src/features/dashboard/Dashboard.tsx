@@ -152,14 +152,15 @@ function BannerCarousel({ markets }: { markets: MarketTicker[] }) {
  */
 function QuickActions() {
   const { t } = useI18n();
-  const entries = [
+  // `badge` is optional: it is reserved for campaigns that are genuinely live.
+  const entries: Array<{ to: string; label: string; icon: typeof ArrowLeftRight; badge?: string }> = [
     { to: "/trade", label: t("Spot"), icon: ArrowLeftRight },
     { to: "/contract", label: t("Perpetual"), icon: TrendingUp },
     { to: "/seconds", label: t("Seconds"), icon: ChartNoAxesCombined },
     { to: "/earn", label: t("Earn"), icon: Sprout },
     { to: "/deposit", label: t("Deposit"), icon: ArrowDownToLine },
-    { to: "/trade-hub", label: t("Rewards"), icon: Gift, badge: t("HOT") },
-    { to: "/trade-hub", label: t("Launchpad"), icon: Rocket, badge: t("NEW") },
+    { to: "/rewards", label: t("Rewards"), icon: Gift },
+    { to: "/new-listings", label: t("Launchpad"), icon: Rocket },
     { to: "/support", label: t("More"), icon: Users },
   ];
   return (
