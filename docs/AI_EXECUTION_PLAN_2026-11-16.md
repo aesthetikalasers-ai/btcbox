@@ -150,3 +150,5 @@ BTCBOX Wallet 是独立钱包产品，可从 BTCBOX Exchange 的钱包入口进�
 AI 1 已在 `feat/wallet-api-contract-v1` 完成钱包只读 API 第一批源码：资产概览、充值地址列表、账本历史。实现细节、字段和限制以 `docs/WALLET_API_CONTRACT_V1.md` 为准。后端 CI 的 build、test、integration、preflight 和 output checks 均通过（验证提交 `8b33b43de7d4ade86fb998b98a540b04d48787d2`）。这不等于生产部署或真实链上 E2E 已通过。
 
 仍未完成：托管服务/地址派生、链上监听和确认、提现签名/广播、外部钱包验证、密钥同意与 KMS/HSM 接入、Exchange-Wallet 授权转账、真实登录态 Preview 验收。未确认服务商前，不开放地址生成和资金写入。
+
+**下一项优先任务：** 将当前 Supabase 已应用的 Wallet 基础迁移恢复为仓库可复现的 SQL 源文件，补齐空库 bootstrap 与 PostgreSQL schema CI；只在隔离测试库验证，不向当前 Supabase 项目重放 DDL。
