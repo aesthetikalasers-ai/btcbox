@@ -37,6 +37,7 @@ const FeesPage = lazy(() => import("./features/trust/FeesPage").then((m) => ({ d
 const RulesPage = lazy(() => import("./features/trust/RulesPage").then((m) => ({ default: m.RulesPage })));
 const RiskPage = lazy(() => import("./features/trust/RiskPage").then((m) => ({ default: m.RiskPage })));
 const SecurityPage = lazy(() => import("./features/trust/SecurityPage").then((m) => ({ default: m.SecurityPage })));
+const RewardsPage = lazy(() => import("./features/pages/RewardsPage").then((m) => ({ default: m.RewardsPage })));
 
 // Trade entry opens the spot terminal directly on BTC/USDT without any backend
 // round-trip, so users always land on a live trading page.
@@ -119,7 +120,7 @@ function AuthRouteEntry({ mode }: { mode: "login" | "register" }) {
 
 function RouteLoading() {
   const { t } = useI18n();
-  return <div className="mx-auto flex min-h-[240px] w-full max-w-[1200px] items-center justify-center p-6" role="status" aria-live="polite"><div className="flex items-center gap-3 text-sm text-brand-text-muted"><span className="h-4 w-4 animate-spin rounded-full border-2 border-white/15 border-t-brand-accent" />{t("Loading…")}</div></div>;
+  return <div className="mx-auto flex min-h-60 w-full max-w-[1200px] items-center justify-center p-6" role="status" aria-live="polite"><div className="flex items-center gap-3 text-sm text-brand-text-muted"><span className="h-4 w-4 animate-spin rounded-full border-2 border-white/15 border-t-brand-accent" />{t("Loading…")}</div></div>;
 }
 function CustomerRoutes() {
   const location = useLocation();
@@ -141,6 +142,8 @@ function CustomerRoutes() {
     <Route path="/login" element={<AuthRouteEntry mode="login" />} /><Route path="/register" element={<AuthRouteEntry mode="register" />} /><Route path="/account-setup" element={<Navigate to="/me" replace />} /><Route path="/auth/react-callback" element={<AuthCallbackPage />} />
     <Route path="/kyc" element={<ProtectedAccountRoute><KycPage /></ProtectedAccountRoute>} />
     <Route path="/support" element={<SupportPage />} />
+    {/* Rewards shows only backend-reported values and an honest notice when the programme is not open. */}
+    <Route path="/rewards" element={<RewardsPage />} />
     {/* Trust pages are public reference material: no sign-in required. */}
     <Route path="/trust" element={<TrustCenterPage />} />
     <Route path="/transparency" element={<TransparencyPage />} />

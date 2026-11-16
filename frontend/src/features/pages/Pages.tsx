@@ -4,13 +4,14 @@ import { multiplyDecimalStrings, compareDecimalStrings } from "../../lib/decimal
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { RefreshCw, TrendingUp, TrendingDown, Clock3, ShieldAlert, ArrowLeft, ChevronRight, ChevronDown, ChevronUp, KeyRound, Copy, Check, LineChart, Plus, Minus, History, Layers, CandlestickChart } from "lucide-react";
-import { ApiError, getAccount, getOrders, getMarkets, getSpotMarketPairs, getKlines, getOrderBook, getTradingStatus, submitSpotOrder, cancelSpotOrder, getSecondsPositions, getSecondsPolicy, submitSecondsOrder, settleSecondsPosition, getDepositAddress, getSavedCryptoAddresses, getSelectedCryptoAddress, getWithdrawalConfig, submitWithdrawal, getEarnCatalog, submitEarnAction, getPerpMarkets, getSupportMessages, sendSupportMessage, type PerpMarket, type EarnProduct, type EarnPosition, type SavedCryptoAddress, type AccountBalance, type AccountSnapshot, type DepositRecord, type OrderRecord, type MarketTicker, type MarketCandle, type OrderBookSnapshot, type SpotMarketPair, type TradingStatus, type SecondsPositionsSnapshot, type SecondsOrderInput, type SecondsPolicyResponse, type SelectedCryptoAddress, type WithdrawalConfig, type WithdrawalRecord, type SupportMessage, submitKyc } from "../../lib/api";
+import { ApiError, getAccount, getOrders, getMarkets, getSpotMarketPairs, getKlines, getOrderBook, getTradingStatus, submitSpotOrder, cancelSpotOrder, getSecondsPositions, getSecondsPolicy, submitSecondsOrder, settleSecondsPosition, getDepositAddress, getSavedCryptoAddresses, getSelectedCryptoAddress, getWithdrawalConfig, submitWithdrawal, getEarnCatalog, submitEarnAction, getPerpMarkets, getSupportMessages, sendSupportMessage, type PerpMarket, type EarnProduct, type EarnPosition, type SavedCryptoAddress, type AccountBalance, type AccountSnapshot, type DepositRecord, type OrderRecord, type MarketTicker, type MarketCandle, type OrderBookSnapshot, type SpotMarketPair, type TradingStatus, type SecondsPositionsSnapshot, type SecondsOrderInput, type SecondsPolicyResponse, type SelectedCryptoAddress, type WithdrawalConfig, type WithdrawalRecord, type SupportMessage, submitKyc, getSupportUnread } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
+import { useAuthDialog } from "../../lib/auth-dialog";
 import { ChartDrawer } from "../trade/ChartDrawer";
 import { useTrading } from "../../lib/trading";
 
 import type { ReactNode } from "react";
-import { ArrowUpRight, LockKeyhole, Wallet, ChartNoAxesCombined, ArrowLeftRight, Sprout, BadgeCheck, ShieldCheck, Headset, Send, Columns2 } from "lucide-react";
+import { ArrowUpRight, LockKeyhole, Wallet, ChartNoAxesCombined, ArrowLeftRight, Sprout, BadgeCheck, ShieldCheck, Headset, Send, Columns2, Gift } from "lucide-react";
 import { Badge } from "../../components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
@@ -153,12 +154,15 @@ export function AssetsPage(){
 export function MyPage(){
  const {t}=useI18n();
  const {status,signOut}=useAuth();
+ const {openAuthDialog}=useAuthDialog();
  const navigate=useNavigate();
  const [account,setAccount]=useState<AccountSnapshot|null>(null);
  const [loading,setLoading]=useState(status==="loading");
  const [error,setError]=useState("");
  const [reload,setReload]=useState(0);
  const [uidCopied,setUidCopied]=useState(false);
+ // Authoritative unread support reply count (GET /api/chat/unread).
+ const [supportUnread,setSupportUnread]=useState(0);
  const maskEmail=(email:string)=>{const at=email.indexOf("@");if(at<=2)return email;const head=email.slice(0,2);const tail=email.slice(Math.max(2,at-2),at);return head+"***"+tail+email.slice(at);};
  const copyUid=async()=>{if(!account?.uid)return;try{await navigator.clipboard.writeText(account.uid);setUidCopied(true);window.setTimeout(()=>setUidCopied(false),1800);}catch{}};
  const handleSignOut=async()=>{try{await signOut();}catch{}navigate("/home");};
@@ -178,8 +182,16 @@ export function MyPage(){
   }).finally(()=>{if(!controller.signal.aborted)setLoading(false);});
   return ()=>controller.abort();
  },[status,reload]);
+ // Load the unread badge independently: a badge failure must never block the profile.
+ useEffect(()=>{
+  if(status!=="authenticated"){setSupportUnread(0);return;}
+  const controller=new AbortController();
+  getSupportUnread(controller.signal).then((count)=>{if(!controller.signal.aborted)setSupportUnread(count);}).catch(()=>{});
+  return ()=>controller.abort();
+ },[status,reload]);
  const links=[
   {title:"Orders",to:"/orders",icon:ChartNoAxesCombined,surface:"border-brand-info/25 bg-brand-surface",iconTone:"bg-brand-info/10 text-brand-info",hoverTone:"hover:border-brand-info/45"},
+  {title:"Referral & Rewards",to:"/rewards",icon:Gift,surface:"border-brand-accent/25 bg-brand-surface",iconTone:"bg-brand-accent/10 text-brand-accent",hoverTone:"hover:border-brand-accent/45"},
   {title:"Support",to:"/support",icon:Headset,surface:"border-brand-violet/25 bg-brand-surface",iconTone:"bg-brand-violet/10 text-brand-violet",hoverTone:"hover:border-brand-violet/45"},
   {title:"Settings",to:"/settings",icon:ShieldCheck,surface:"border-brand-teal/25 bg-brand-surface",iconTone:"bg-brand-teal/10 text-brand-teal",hoverTone:"hover:border-brand-teal/45"},
   {title:"Trust centre",to:"/trust",icon:ShieldCheck,surface:"border-brand-border bg-brand-surface",iconTone:"bg-brand-surface-2 text-brand-text-muted",hoverTone:"hover:border-brand-border-strong"},
@@ -189,14 +201,12 @@ export function MyPage(){
   :status!=="authenticated"?<div className="space-y-4">
    <Card className="border-brand-border bg-brand-surface overflow-hidden"><CardContent className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5">
     <div className="flex items-center gap-3.5"><div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-brand-accent/25 bg-brand-accent/10 text-brand-accent"><LockKeyhole className="h-5 w-5"/></div><div><p className="font-bold text-base text-brand-text">{t("Sign in to your account")}</p><p className="text-xs text-brand-text-muted mt-0.5">{t("Sign in to view balances, orders, and security settings.")}</p></div></div>
-    <div className="flex items-center gap-2 shrink-0"><Button asChild size="sm" className="min-w-[88px]"><Link to="/login">{t("Sign in")}</Link></Button><Button asChild size="sm" variant="outline" className="min-w-[88px]"><Link to="/register">{t("Create account")}</Link></Button></div>
+    <div className="flex items-center gap-2 shrink-0"><Button size="sm" className="min-w-[88px]" onClick={()=>openAuthDialog("login")}>{t("Sign in")}</Button><Button size="sm" variant="outline" className="min-w-[88px]" onClick={()=>openAuthDialog("register")}>{t("Create account")}</Button></div>
    </CardContent></Card>
-   <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-    <div className="flex flex-col rounded-xl border border-white/[0.08] bg-brand-surface p-4 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.12)] transition-all duration-200"><p className="text-xs text-brand-text-muted font-medium">{t("Estimated account value")}</p><p className="mt-2 text-xl font-bold font-mono tracking-tight tabular-nums text-brand-text">•••••• <span className="text-xs font-normal text-brand-text-muted">USDT</span></p><div className="mt-2.5 flex items-center gap-2"><Link to="/login" className="text-xs text-brand-accent font-semibold hover:underline">{t("Sign in to view")}</Link></div></div>
-    <div className="flex flex-col rounded-xl border border-white/[0.08] bg-brand-surface p-4 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.12)] transition-all duration-200"><p className="text-xs text-brand-text-muted font-medium">{t("Security tier")}</p><p className="mt-2 text-base font-bold text-brand-text">Level 2</p><span className="mt-2.5 text-xs text-brand-success font-medium flex items-center gap-1"><ShieldCheck className="h-3.5 w-3.5"/> 2FA / Passkey</span></div>
-    <div className="flex flex-col rounded-xl border border-white/[0.08] bg-brand-surface p-4 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.12)] transition-all duration-200"><p className="text-xs text-brand-text-muted font-medium">{t("Fee tier")}</p><p className="mt-2 text-base font-bold text-brand-text">VIP 0</p><span className="mt-2.5 text-xs text-brand-text-secondary">Maker 0.1% / Taker 0.1%</span></div>
-    <div className="flex flex-col rounded-xl border border-white/[0.08] bg-brand-surface p-4 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.12)] transition-all duration-200"><p className="text-xs text-brand-text-muted font-medium">{t("Affiliate Program")}</p><p className="mt-2 text-base font-bold text-brand-text">Up to 40%</p><Link to="/register" className="mt-2.5 text-xs text-brand-accent font-semibold hover:underline">{t("Join affiliate")}</Link></div>
-   </div>
+    <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-white/[0.08] bg-brand-surface p-4 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.12)]">
+     <p className="min-w-0 flex-1 text-xs leading-5 text-brand-text-muted">{t("Your balances, open orders and security settings appear here once you sign in.")}</p>
+     <p className="text-xs text-brand-text-muted">{t("No balances or account figures are shown while signed out.")}</p>
+    </div>
   </div>
   :loading?<Card className="border-brand-border bg-brand-surface"><CardContent className="p-6 text-sm text-brand-text-muted" role="status">{t("Loading account profile…")}</CardContent></Card>
   :error?<Card className="border-brand-danger/30 bg-brand-surface"><CardContent className="flex flex-wrap items-center justify-between gap-3 p-5"><p className="text-sm text-brand-danger" role="alert">{t(error)}</p><Button size="sm" variant="outline" onClick={()=>setReload((n)=>n+1)}>{t("Try again")}</Button></CardContent></Card>
@@ -220,7 +230,11 @@ export function MyPage(){
     <Link to="/settings" className="flex min-h-[52px] items-center gap-3 px-4 transition-colors hover:bg-brand-surface-2"><span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand-violet/10 text-brand-violet"><KeyRound className="h-4 w-4"/></span><span className="min-w-0 flex-1 text-sm font-semibold text-brand-text">{t("Linked sign-in methods")}</span><span className="shrink-0 text-sm font-semibold text-brand-text-secondary">{(account.auth_providers||[]).length?(account.auth_providers||[]).length:t("Not linked")}</span><ChevronRight className="h-4 w-4 shrink-0 text-brand-text-muted"/></Link>
    </div>
   </div>:null}
-  <div className="account-actions">{links.map(({title,to,icon:Icon})=><Link key={to} to={to} className="group flex min-w-0 items-center gap-3 p-4 transition-all duration-200 hover:bg-brand-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-accent/60"><span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-brand-accent/10 text-brand-accent"><Icon className="h-5 w-5"/></span><span className="min-w-0 flex-1"><span className="block text-sm font-semibold text-brand-text">{t(title)}</span></span><ChevronRight className="h-4 w-4 shrink-0 text-brand-text-muted transition-colors group-hover:text-brand-text"/></Link>)}</div>
+  <div className="account-actions">{links.map(({title,to,icon:Icon})=>{
+   // The support row carries a live unread badge so a reply is never missed.
+   const unread=to==="/support"?supportUnread:0;
+   return <Link key={to} to={to} className="group flex min-w-0 items-center gap-3 p-4 transition-all duration-200 hover:bg-brand-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-accent/60"><span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-brand-accent/10 text-brand-accent"><Icon className="h-5 w-5"/></span><span className="min-w-0 flex-1"><span className="block text-sm font-semibold text-brand-text">{t(title)}</span></span>{unread>0?<span className="shrink-0 rounded-full bg-brand-danger px-1.5 py-0.5 text-[10px] font-bold leading-none text-white tabular-nums" aria-label={t("Unread support replies")}>{unread>99?"99+":unread}</span>:null}<ChevronRight className="h-4 w-4 shrink-0 text-brand-text-muted transition-colors group-hover:text-brand-text"/></Link>;
+  })}</div>
   {status==="authenticated"?<Button variant="outline" className="w-full border-brand-danger/30 text-brand-danger hover:bg-brand-danger/5 hover:text-brand-danger" onClick={()=>void handleSignOut()}>{t("Sign out")}</Button>:null}
  </PageFrame>;
 }
