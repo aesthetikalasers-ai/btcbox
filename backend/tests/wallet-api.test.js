@@ -42,7 +42,7 @@ test('wallet overview is owner-scoped and uses exact decimal arithmetic', async 
   global.fetch = async (url, options) => {
     requestedUrl = String(url);
     requestedHeaders = options.headers;
-    return { ok: true, json: async () => [{ wallet_account_id: 'a', asset_code: 'USDT', available: '1.23', frozen: '0.77', version: 4, updated_at: '2026-11-16T00:00:00Z' }] };
+    return { ok: true, text: async () => '[{"wallet_account_id":"a","asset_code":"USDT","available":9007199254740993.123456789012345678,"frozen":0.000000000000000001,"version":4,"updated_at":"2026-11-16T00:00:00Z"}]' };
   };
   const result = await handleWalletRoute({ path: 'wallet', method: 'GET', user: { supabase_user_id: USER_ID } });
   const url = new URL(requestedUrl);
@@ -51,7 +51,7 @@ test('wallet overview is owner-scoped and uses exact decimal arithmetic', async 
   assert.equal(url.searchParams.get('select'), 'wallet_account_id,asset_code,available,frozen,version,updated_at');
   assert.equal(requestedHeaders.Authorization, 'Bearer test-service-role-only');
   assert.deepEqual(result.body.wallet.accounts[0], {
-    asset: 'USDT', available: '1.23', frozen: '0.77', total: '2', version: 4, updated_at: '2026-11-16T00:00:00Z'
+    asset: 'USDT', available: '9007199254740993.123456789012345678', frozen: '0.000000000000000001', total: '9007199254740993.123456789012345679', version: 4, updated_at: '2026-11-16T00:00:00Z'
   });
   assert.equal(JSON.stringify(result.body).includes('private_key'), false);
 });
