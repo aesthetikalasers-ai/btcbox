@@ -110,7 +110,7 @@ Records an explicit, versioned consent before any key-custody action. Return a c
 
 Accepts only a server-generated or envelope-encrypted key payload after a valid consent and policy check. Plaintext private keys, seed phrases, or recovery phrases must never be sent to ordinary application logs, analytics, audit metadata, or a browser-readable API response. Encryption/decryption and signing must be delegated to an approved KMS/HSM or isolated key service. If that provider is not configured, return `KEY_CUSTODY_UNAVAILABLE`.
 
-- **Latest backend changes (2026-11-16):** ledger cursors and account `version` values are validated against PostgreSQL `BIGINT`; account versions are serialized as decimal strings to avoid JavaScript safe-integer precision loss. The wallet address POST route receives the parsed request body, validates asset/network syntax, and fails closed until an approved network registry and custody adapter exist. Unit tests cover large account versions and malformed/valid-but-unavailable address requests. These latest commits have not yet been confirmed by a new CI run.
+- **Latest backend changes (2026-11-16):** ledger cursors and account `version` values are validated against PostgreSQL `BIGINT`; account versions are serialized as decimal strings to avoid JavaScript safe-integer precision loss. The wallet address POST route receives the parsed request body, validates asset/network syntax, and fails closed until an approved network registry and custody adapter exist. Unit tests cover large account versions and malformed/valid-but-unavailable address requests. CI initially exposed an over-escaped digit regex in the new version validator; this was corrected in commit `aaaa8b8`, and the backend CI rerun is in progress.
 
 ## 4. Error envelope
 
@@ -132,6 +132,8 @@ The live Supabase project currently exposes wallet tables for assets, wallet acc
 
 The backend must verify exact function signatures, grants, RLS policies, constraints, and migration provenance before calling these routines. The presence of a table or function in the database does not prove that its API, authorization, or runtime behavior is complete.
 
+**Wallet↔Exchange identity and ledger boundary (read-only verification, 2026-11-16):** `btcbox_wallet_accounts.user_id` is a UUID referencing `btcbox_user_profiles.user_id`; Exchange `financial_accounts.user_id` is a text BTCBOX user ID. The database contains a one-to-one `btcbox_auth_accounts` mapping (`supabase_user_id` UUID ↔ `btcbox_user_id` text) and a corresponding `btcbox_auth_identities` table, but both mapping tables currently contain zero rows. The current API login/session path keeps linked Supabase IDs and the BTCBOX internal `uid` in the server-side `btcbox_state` user record; it does not yet persist this mapping into those relational tables. Existing `create_withdrawal_atomic` and `verify_and_credit_deposit_atomic` operate on the legacy Exchange `financial_accounts`/`financial_ledger` path, not the new Wallet tables. `btcbox_apply_wallet_operation_v1` operates on only one Wallet account. Therefore none of these routines is a valid Wallet↔Exchange transfer implementation. Before exposing transfer, persist/verify the one-to-one identity mapping, add a single PostgreSQL transaction that locks both account rows in deterministic order, debits one available balance and credits the other, writes both ledgers with one shared transfer reference and idempotency record, and has explicit least-privilege grants. Do not implement this as two independent RPC calls.
+
 The live Auth schema also has an `auth.users` insert/update trigger that creates the corresponding wallet profile and seeds one wallet account for every active asset. The current project has zero Auth users, profiles, and wallet accounts; a newly created Auth user should therefore receive the nine currently active asset accounts through this trigger, not through a manual balance insert.
 
 **Current deployment topology (owner decision, 2026-11-16):** during the build phase, Wallet and Exchange use the same Supabase project/server database and shared Auth. Keep Wallet and Exchange business tables, accounts, balances, ledgers, addresses, and permissions logically isolated even though they reside in one database. Physical database/service separation is deferred until the system is stable. Test accounts and test data do not need to be restored. The migration-source/bootstrap gap is a later repository reproducibility task and does not block current development.
@@ -149,8 +151,11 @@ The live Auth schema also has an `auth.users` insert/update trigger that creates
 
 ## 7. Implementation order
 
-1. Implement and test read-only wallet overview, address listing, and ledger history.
-2. Implement provider-backed address allocation only after custody/network provider configuration is verified.
-3. Implement external-wallet challenge and confirmation.
-4. Implement consent and encrypted-key custody only after KMS/HSM integration and threat-model review.
-5. Connect the React Assets/Deposit/Withdraw pages without changing the locked trading terminal layout.
+1. Complete and pass CI for read-only wallet overview, address listing, and ledger history.
+2. Persist and verify the one-to-one Supabase Auth UUID ↔ BTCBOX internal user ID mapping; reconcile server-side session identity with relational auth mapping.
+3. Design and test a single-transaction Wallet↔Exchange transfer operation with dual ledger entries and idempotency; keep its migration unapplied until explicitly approved.
+4. Implement provider-backed address allocation only after custody/network provider configuration is verified.
+5. Integrate trusted chain observations for deposit credit; never accept client-supplied confirmations or amount as proof.
+6. Implement wallet withdrawal lifecycle only after Wallet-specific ledger, fee/risk policy, admin review, signing and broadcast boundaries are defined; do not blindly reuse legacy Exchange withdrawal RPCs.
+7. Implement external-wallet challenge/confirmation and consented encrypted-key custody only after provider/KMS/HSM review.
+8. Connect React Assets/Deposit/Withdraw pages without changing the locked trading terminal layout.
