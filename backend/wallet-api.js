@@ -152,7 +152,7 @@ async function handleWalletRoute({ path, method, user, query: queryParams = {} }
       const asset = queryParams.asset === undefined ? '' : String(queryParams.asset).trim().toUpperCase();
     const cursor = queryParams.cursor === undefined ? '' : String(queryParams.cursor).trim();
     if (asset && !ASSET_RE.test(asset)) return apiError(400, 'INVALID_ASSET', 'Invalid asset filter.');
-    if (cursor && !/^[1-9]\d{0,18}$/.test(cursor)) return apiError(400, 'INVALID_CURSOR', 'Invalid ledger cursor.');
+    if (cursor && (!/^[1-9]\d{0,18}$/.test(cursor) || BigInt(cursor) > MAX_PG_BIGINT)) return apiError(400, 'INVALID_CURSOR', 'Invalid ledger cursor.');
 
     try {
       const query = {
