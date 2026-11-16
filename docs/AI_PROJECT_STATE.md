@@ -70,3 +70,34 @@
 - 阶段 0 总体：**进行中，退出条件尚未全部满足**。不能宣告阶段 0 通过。
 - 下一项唯一优先任务：在可执行的 working 工作区运行 `npm test --prefix backend` 与 `npm run build --prefix backend`，记录基线结果；前端 AI 继续阶段 1，本助手不改动其负责的前端文件。
 
+## 2026-11-16 Supabase 实时只读核查补充（本助手：数据库负责人）
+
+### 核查对象与数据状态
+- Supabase 当前唯一可见项目：`zlozsutefnmgwwzrlipt`（ACTIVE_HEALTHY，Postgres 17.11）；本次仅执行只读查询与 Advisor 查询。
+- 当前实时统计：public 基础表 39 张；Auth 用户 0；`btcbox_state` 1 行；Earn 产品目录 7 行；Earn 持仓 0 行；`financial_accounts` 0 行；`financial_operations` 0 行；`financial_ledger` 0 行；`financial_audit_log` 18 行。
+- 备份 schema `btcbox_rebuild_backup_20261116` 当前包含 37 张表。不得因 Auth 用户为 0 就把数据库认定为空库；业务状态表、审计表、产品目录及备份仍存在。
+- Earn 产品目录现有 7 项：USDT/BTC/ETH 的 demand 配置及 USDT 30/90/180 天 fixed 配置；本轮没有修改任何产品参数。
+- 当前已记录的 Supabase migration history 至少包含 23 项，最新为 `20261116064230 btcbox_auth_user_bootstrap_rpc_v1`；其中 2026-11-16 钱包账户、混合钱包密钥保险库、用户同意/授权、外部钱包验证、钱包账本完整性等迁移已在 hosted 项目记录中。
+
+### 权限只读核查
+- `earn_product_catalog`、`earn_positions`、`financial_accounts`、`financial_operations`、`financial_ledger` 与所抽查钱包表均启用 RLS。
+- 上述抽查表没有直接授予 `anon` 或 `authenticated` 表级权限；受检 Earn/金融 RPC 的 EXECUTE 授权为 `service_role`（另有数据库 owner），未发现给 `anon`/`authenticated` 的直接 EXECUTE 授权。
+- Advisor 报告存在大量 “RLS enabled, no policy” INFO 项；对本轮抽查的财务表，当前访问依赖 service-role RPC 而不是用户端直连策略。此设计仍须在完整 API 路径验收时确认，不能把 INFO 项一律当成安全漏洞或一律忽略。
+- 健康 Advisor 本次没有返回 health lint 项；性能 Advisor 返回 unused-index INFO 项，不在当前阶段删除索引。
+
+### 发现的仓库/数据库版本控制差异
+- hosted migration history 已包含上述 2026-11-16 钱包相关迁移，但 `working` 仓库的 `backend/supabase/sql/` 仍是 35 个 canonical SQL 文件，`backend/supabase/existing-schema-upgrades/` 仅有 1 个文件；本次未在仓库发现与这些 hosted 钱包迁移一一对应的可复现 SQL 源文件。
+- 这是数据库可复现性/源码同步风险：hosted schema 已变化，但仓库当前迁移目录未完整体现。不得用新建空库 bootstrap 来掩盖差异，也不得擅自回滚 hosted 迁移。阶段 2 开始前应先从已审核的 migration source/部署记录补齐版本化 SQL，再进行 Earn 数据库扩展。
+- `financial_db.py` 与 `financial_storage_guard.py` 当前仍明确禁止切换余额权威到 Supabase；本轮实时查询确认金融账本相关表目前没有用户资金行，但这不等于已完成全链路切换。
+
+### CI 基线补充
+- 对本轮文档提交 `38ebf205772e9ebfcb6323109e767af516f29bd8`，GitHub Actions 的 `backend-ci.yml` run 结论为 `failure`，但 jobs API 返回 0 个 job，失败原因 **NOT VERIFIED**；同一提交的 CI Watchdog workflow 为 `success`。不能据此宣称后端测试通过或断言是代码构建失败。
+- 本轮仍未在可执行工作区运行 `npm test --prefix backend`、`npm run build --prefix backend` 或 PostgreSQL 隔离测试。
+
+### 阶段 0 更新结论
+- 远程分支、代码入口、hosted 数据表/迁移状态及抽查权限：**PASS（只读核查）**。
+- 构建/后端测试/隔离数据库测试：**NOT VERIFIED**。
+- hosted migration 与仓库 SQL 源码同步：**NEEDS FIX（需在后续数据库阶段先恢复可复现来源）**。
+- 阶段 0 总体仍为 **进行中**，不得进入生产写入或宣布阶段验收通过。
+- 下一项唯一优先任务：取得可执行的 working 工作区，完成后端基线测试并定位 backend-ci workflow failure 的真实原因；阶段 1 认证弹窗由前端负责人继续推进。
+
