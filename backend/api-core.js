@@ -247,7 +247,7 @@ async function probeWeb3ChainEnabled(authUrl, authKey, chain) {
     // Only a recognized Web3 payload-validation response proves the provider
     // is enabled. A generic 400/422 may come from unrelated middleware.
     const web3ValidationError =
-      /(missing|required|invalid).*(message|signature)|(message|signature).*(missing|required|invalid)/.test(message);
+      errorCode === 'validation_failed' && /^message is too short$/.test(message);
     if (res.ok || ((res.status === 400 || res.status === 422) && web3ValidationError)) return true;
     return null;
   } catch (_) {

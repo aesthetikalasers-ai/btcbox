@@ -156,6 +156,13 @@ test('auth entry exposes a side-by-side sign-in/register choice and truthfully g
 });
 
 
+test('Web3 provider probe only accepts the exact Supabase short-message validation response', () => {
+  const core = read('api-core.js');
+  assert.ok(core.includes("errorCode === 'validation_failed' && /^message is too short$/.test(message)"));
+  assert.ok(core.includes("if (errorCode === 'captcha_failed' || /captcha/.test(message)) return null;"));
+  assert.ok(!core.includes("too short).*(message|signature)"));
+});
+
 test('React auth preserves Supabase email and Google alongside existing username and wallet identity paths', () => {
   const backend = read('api-core.js');
   const auth = read('../frontend/src/lib/auth.tsx');
