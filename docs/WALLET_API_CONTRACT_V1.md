@@ -33,7 +33,7 @@ These legacy routes must not be silently repurposed as custodial wallet-generati
 - Deposit selector starts with no asset/network selected; it exposes only BTC, ETH, USDT, SOL, BNB, and USDC combinations accepted by the current frontend deposit API adapter. It does not imply address-generation availability; the API must return a real configured address before one is shown.
 - Withdrawal overview also hides seeded zero-balance rows; a currency with frozen funds remains visible, while withdrawal eligibility still depends on positive available balance and server-side checks.
 - `GET /api/wallet/ledger`: implemented; owner-scoped cursor pagination, signed exact decimal deltas, and operation type/status lookup.
-- `POST /api/wallet/addresses`: deliberately returns `WALLET_PROVIDER_UNAVAILABLE` until an approved custody/address-derivation provider is configured. No shared placeholder address is returned.
+- `POST /api/wallet/addresses`: parses and validates the requested asset/network code, then deliberately returns `WALLET_PROVIDER_UNAVAILABLE` until an approved network allow-list and custody/address-derivation provider are configured. No address is derived, persisted, or returned, and no shared placeholder address is used. The current validation is syntactic only; it does not mean the asset/network pair is approved.
 - External-wallet verification and key-consent/key-custody routes are not implemented yet and fail closed.
 
 The connected Supabase schema was checked read-only. On 2026-11-16, wallet profile, account, address, ledger, operation, encrypted-key-vault, and external-wallet tables each contained zero rows. UI must show genuine empty states rather than inventing wallet balances or addresses.
@@ -109,6 +109,8 @@ Records an explicit, versioned consent before any key-custody action. Return a c
 ### POST `/api/wallet/keys` (restricted; not part of initial UI integration)
 
 Accepts only a server-generated or envelope-encrypted key payload after a valid consent and policy check. Plaintext private keys, seed phrases, or recovery phrases must never be sent to ordinary application logs, analytics, audit metadata, or a browser-readable API response. Encryption/decryption and signing must be delegated to an approved KMS/HSM or isolated key service. If that provider is not configured, return `KEY_CUSTODY_UNAVAILABLE`.
+
+- **Latest backend changes (2026-11-16):** ledger cursors are rejected when they exceed PostgreSQL `BIGINT`; the wallet address POST route now receives the parsed request body, validates asset/network syntax, and fails closed until an approved network registry and custody adapter exist. Unit tests cover malformed and valid-but-unavailable address requests. These latest commits have not yet been confirmed by a new CI run.
 
 ## 4. Error envelope
 
