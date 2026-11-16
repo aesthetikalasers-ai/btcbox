@@ -85,6 +85,7 @@ declare
 begin
   if p_supabase_user_id is null
      or coalesce(p_asset_code, '') !~ '^[A-Z0-9]{2,16}$'
+     or p_direction is null
      or p_direction not in ('wallet_to_exchange','exchange_to_wallet')
      or p_amount is null or p_amount <= 0
      or p_amount >= 100000000000000000000
@@ -94,10 +95,10 @@ begin
     raise exception 'Invalid internal transfer request' using errcode = '22023';
   end if;
 
-  -- Serialize same-user/same-asset transfers. Every transfer locks Wallet
-  -- first and Exchange second, regardless of direction, to avoid deadlocks.
+  -- Serialize retries by user/idempotency key. Account rows are then locked
+  -- Wallet first and Exchange second, regardless of direction, to avoid deadlocks.
   perform pg_catalog.pg_advisory_xact_lock(
-    pg_catalog.hashtextextended(p_supabase_user_id::text || ':' || p_asset_code, 0)
+    pg_catalog.hashtextextended(p_supabase_user_id::text || ':' || p_idempotency_key, 0)
   );
 
   select a.btcbox_user_id into v_btcbox_user_id
