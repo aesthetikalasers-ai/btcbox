@@ -43,7 +43,7 @@ export function AuthPage({ mode, redirectTo, embedded = false, onModeChange }: {
   useEffect(() => { if (!busy) setGoogleStarted(false); }, [busy]);
 
   useEffect(() => {
-    if (status === "authenticated") navigate(redirectTo || (registering ? "/me" : "/home"), { replace: true });
+    if (status === "authenticated" && !embedded) navigate(redirectTo || (registering ? "/me" : "/home"), { replace: true });
   }, [status, navigate, redirectTo, registering]);
 
   if (status === "loading") return <AuthRestoreState />;
