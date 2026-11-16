@@ -238,7 +238,7 @@ async function probeWeb3ChainEnabled(authUrl, authKey, chain) {
     });
     let data = {};
     try { data = await res.json(); } catch (_) {}
-    const message = String(data.msg || data.message || data.error_description || data.error || '').toLowerCase();
+    const message = String(data.msg || data.message || data.error_description || data.error || '').toLowerCase().replace(/^\\d{3}:\\s*/, '');
     const errorCode = String(data.code || data.error_code || '').toLowerCase();
     if (/web3 provider is disabled|provider is disabled/.test(message)) return false;
     // CAPTCHA middleware can reject this unsigned probe before Web3 provider
