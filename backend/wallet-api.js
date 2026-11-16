@@ -59,7 +59,7 @@ async function selectRows(table, params, config) {
     const raw = await result.text();
     // PostgREST emits PostgreSQL numeric/bigint columns as JSON numbers. Quote
     // wallet monetary values and ledger IDs before parsing so JS never rounds them.
-    const lossless = raw.replace(/("(?:available|frozen|available_delta|frozen_delta|available_after|frozen_after|ledger_id)"\s*:\s*)(-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?)/g, '$1"$2"');
+    const lossless = raw.replace(/(?<!\\)/("(?:available|frozen|available_delta|frozen_delta|available_after|frozen_after|ledger_id)"\s*:\s*)(-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?)/g, '$1"$2"');
     rows = JSON.parse(lossless);
   } else {
     // Compatibility for lightweight unit-test response doubles. Real Fetch
@@ -101,12 +101,14 @@ async function handleWalletRoute({ path, method, user, query: queryParams = {} }
         const available = normalizeAmount(row.available);
         const frozen = normalizeAmount(row.frozen);
         const total = unitsToDecimal(decimalToUnits(available) + decimalToUnits(frozen));
+        const version = Number(row.version);
+        if (!Number.isSafeInteger(version) || version < 0) throw new Error('Invalid wallet account version');
         return {
           asset: String(row.asset_code),
           available,
           frozen,
           total,
-          version: Number(row.version),
+          version,
           updated_at: row.updated_at
         };
       });
