@@ -75,7 +75,7 @@ function apiError(status, code, msg) {
   return response(status, { ok: false, code, msg });
 }
 
-async function handleWalletRoute({ path, method, user, query: queryParams = {} }) {
+async function handleWalletRoute({ path, method, user, query: queryParams = {}, body = {} }) {
   if (!/^wallet(?:\/|$)/.test(String(path || ''))) return null;
 
   if (!user) return apiError(401, 'UNAUTHENTICATED', 'Please sign in to access your wallet.');
@@ -204,7 +204,13 @@ async function handleWalletRoute({ path, method, user, query: queryParams = {} }
   }
 
   if (path === 'wallet/addresses' && method === 'POST') {
-    return apiError(503, 'WALLET_PROVIDER_UNAVAILABLE', 'Address generation is not available until a custody provider is configured.');
+    const asset = typeof body.asset === 'string' ? body.asset.trim().toUpperCase() : '';
+    const network = typeof body.network === 'string' ? body.network.trim().toUpperCase() : '';
+    if (!ASSET_RE.test(asset)) return apiError(400, 'INVALID_ASSET', 'A valid asset code is required.');
+    if (!NETWORK_RE.test(network)) return apiError(400, 'INVALID_NETWORK', 'A valid network code is required.');
+    // No allow-listed asset/network registry or custody adapter is configured yet.
+    // Never derive, persist, or return an address until both are independently approved.
+    return apiError(503, 'WALLET_PROVIDER_UNAVAILABLE', 'Address generation is not available until an approved network and custody provider are configured.');
   }
 
   if (['wallet/external/challenge', 'wallet/external/confirm', 'wallet/key-consents', 'wallet/keys'].includes(path)) {
