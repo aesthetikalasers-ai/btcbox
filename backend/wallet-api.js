@@ -57,7 +57,7 @@ function apiError(status, code, msg) {
   return response(status, { ok: false, code, msg });
 }
 
-async function handleWalletRoute({ path, method, user }) {
+async function handleWalletRoute({ path, method, user, query: queryParams = {} }) {
   if (!/^wallet(?:\/|$)/.test(String(path || ''))) return null;
 
   if (!user) return apiError(401, 'UNAUTHENTICATED', 'Please sign in to access your wallet.');
@@ -94,7 +94,8 @@ async function handleWalletRoute({ path, method, user }) {
         };
       });
 
-      return response(200, { ok: true, wallet: { accounts, updated_at: new Date().toISOString() } });
+      const updatedAt = accounts.map(account => account.updated_at).filter(Boolean).sort().slice(-1)[0] || null;
+      return response(200, { ok: true, wallet: { accounts, updated_at: updatedAt } });
     } catch (_) {
       return apiError(503, 'WALLET_READ_UNAVAILABLE', 'Wallet balances are temporarily unavailable.');
     }
@@ -122,8 +123,7 @@ async function handleWalletRoute({ path, method, user }) {
   }
 
   if (path === 'wallet/ledger' && method === 'GET') {
-    const queryParams = arguments[0] && arguments[0].query || {};
-    const asset = queryParams.asset === undefined ? '' : String(queryParams.asset).trim().toUpperCase();
+      const asset = queryParams.asset === undefined ? '' : String(queryParams.asset).trim().toUpperCase();
     const cursor = queryParams.cursor === undefined ? '' : String(queryParams.cursor).trim();
     if (asset && !ASSET_RE.test(asset)) return apiError(400, 'INVALID_ASSET', 'Invalid asset filter.');
     if (cursor && !/^[1-9]\d{0,18}$/.test(cursor)) return apiError(400, 'INVALID_CURSOR', 'Invalid ledger cursor.');
