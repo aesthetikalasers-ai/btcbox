@@ -1,6 +1,6 @@
 # BTCBOX — 项目交接状态
 
-**更新日期：** 2026-11-16  
+**更新日期：** 2026-11-17  
 **仓库：** `avali9308-code/btcboxcdt`  
 **状态：** 协作规则、执行规划及规划纪律已更新；功能开发尚未据此宣告完成。
 
@@ -103,3 +103,31 @@
 - `GET /api/wallet` 现仅返回 `available + frozen > 0` 的资产账户；初始化时创建的零余额账户不再出现在 API 返回列表，因此 UI 不应显示空余额币种。
 - 可用余额或冻结余额任一大于 0 时，该币种仍显示；全部币种余额为 0 时返回空数组，由 UI 显示空钱包状态。
 - 已增加测试覆盖：混合零余额/非零余额时只显示有资产币种；全部为零时返回空列表。
+
+
+## 2026-11-17 — Wallet API 后端继续推进（AI 1）
+
+**当前实际工作分支：** `feat/wallet-api-contract-v1`（既有功能分支；本轮未新建分支）。本轮 AI 1 最近状态文档提交：`42e1fe6f256d626038ee0ee0b76d101ed655989f`。这不是 main/working 的更新；未合并、未部署。
+
+### 已完成源码工作
+- 修复钱包账户 `version` 的 PostgreSQL BIGINT 字符串校验；后端 CI run `43903136961` 已通过统一构建、后端测试、本地前后端集成、fail-closed 部署配置预检及产物/入口检查。该 CI 仅验证当时提交，不覆盖本节后来新增的身份映射与转账草稿。
+- 新增 `persistSupabaseAuthMapping` 服务端 helper：只使用经过 Supabase `/auth/v1/user` 验证的 UUID 和服务端 BTCBOX `uid`，调用 server-only RPC。现有账户在 2FA 早退前处理；新账户先保存 BTCBOX state 再尝试持久映射。
+- 身份映射调用受 `BTCBOX_AUTH_MAPPING_RPC_ENABLED=1` 显式开关控制；默认关闭。未应用 migration 前不得开启，避免登录路径调用不存在的 RPC。
+- 新增 `backend/supabase/sql/0042_btcbox_auth_mapping_registration_v1.sql` 草稿：同一事务内创建 Exchange 身份主表记录，并调用现有身份映射/身份元数据 RPC；仅授权 service_role，不写入密码或密钥。
+- 新增 `backend/supabase/sql/0043_btcbox_wallet_exchange_transfer_v1.sql` 草稿：定义 Wallet↔Exchange 单 PostgreSQL 事务、固定 Wallet→Exchange 的锁顺序、服务端身份映射、资产/账户状态校验、幂等和双账本写入。新增的转账 RPC 目前没有 API 路由调用，也没有应用到 Supabase。
+- 新增 `backend/tests/auth-mapping-rpc.test.js` 与 `backend/tests/wallet-exchange-transfer-contract.test.js`，覆盖身份映射调用合同及双账本转账 SQL 合同。
+- 更新 `docs/WALLET_API_CONTRACT_V1.md`，记录 CI、身份映射门槛和转账 SQL 草稿状态。
+
+### 只读数据库核对
+- `btcbox_auth_accounts`、`btcbox_auth_identities`、`btcbox_users`、`btcbox_user_profiles` 当前均为 0 行。
+- 已确认现有 `link_btcbox_auth_account` 与 `register_btcbox_auth_identity` RPC 只授权 service_role；前者要求 `btcbox_users` 记录，而 Auth 用户初始化触发器只创建 Wallet profile/account，不创建 `btcbox_users`。这正是 0042 草稿补齐的断层。
+- Wallet 余额 API 继续隐藏 available 与 frozen 都为 0 的币种；只有冻结余额大于 0 时仍显示。
+- 只执行了只读 SQL；没有执行 DDL、生产数据写入、真实资金操作、环境变量修改或部署。
+
+### 未验证 / 阻塞
+- 本轮身份映射和双账本草稿在最近一次已确认 CI `43903136961` 之后新增，**新提交的 CI 结果尚未核实（NOT VERIFIED）**。
+- 0042/0043 仅为仓库 SQL 草稿，未在生产或任何共享数据库执行；仍需在隔离数据库进行 SQL 集成测试和权限复核。
+- `BTCBOX_AUTH_MAPPING_RPC_ENABLED` 必须保持 unset/非 1；转账 RPC 不可从 API 暴露。
+- 充值地址托管/派生服务、链上 watcher、提现签名广播、外部钱包验证和 KMS/HSM 仍未配置或未完成。
+
+**下一项唯一优先任务：** 核实本轮 backend CI 对新增测试/SQL 草稿的结果并修复失败；之后在隔离环境验证 0042/0043 的 SQL 和权限合同。保持功能分支隔离，不合并、不部署、不对生产数据库写入。
