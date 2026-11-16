@@ -2,7 +2,7 @@ import { useSyncExternalStore } from "react";
 import { liveMarketEngine } from "./marketData";
 import type { MarketTicker } from "./api";
 
-export type MarketStreamStatus = "live" | "simulated";
+export type MarketStreamStatus = import("./marketData").MarketStatus;
 
 // 稳定的模块级函数引用：useSyncExternalStore 的 subscribe 若每次渲染都新建闭包，
 // React 会反复退订/重订，并可能触发额外的重渲染。
@@ -10,17 +10,17 @@ const EMPTY_TICKERS: MarketTicker[] = [];
 const subscribeToEngine = (onStoreChange: () => void) => liveMarketEngine.subscribe(onStoreChange);
 // 未请求行情时使用的空订阅：返回一个不注册任何监听的清理函数。
 const subscribeNoop = () => () => {};
-const getServerSnapshotStatus = () => "simulated" as MarketStreamStatus;
+const getServerSnapshotStatus = () => "unavailable" as MarketStreamStatus;
 const getServerSnapshotTickers = () => EMPTY_TICKERS;
 
 /**
- * 统一实时行情 Hook：订阅 Binance 公共行情引擎，并暴露数据源连接状态。
+ * 统一行情 Hook：订阅后端的行情引擎（数据来自本交易所自己的 /api/market），
+ * 并暴露数据新鲜度。
  *
- * - 引擎内部已实现 3 秒连接超时与离线自动降级，任何网络阻断都会无缝切换到
- *   高保真模拟 tick 生成器，绝不向用户弹出错误提示。
- * - `status` 为 "live"（Binance 直连）或 "simulated"（模拟行情模式）。
- * - `tickers` 会随行情刷新触发重渲染（每 1.8 秒）。若页面只需要 `status`
- *   或按需读取 `getTicker()`，请传 `{ tickers: false }` 避免无谓的整树重渲染。
+ * - 引擎只从同源 /api/market 取价，**不会**再向浏览器里制造或臆测任何价格：
+ *   拉取失败时保留最后已知价格并标记为 stale，从未取到数据则标记 unavailable。
+ * - 浏览器不直连第三方交易所：那条路径被部署的 CSP 拦截，且在部分区域不可用。
+ * - `tickers` 只在价格真正变化时更换引用，因此不会每 1.8 秒触发整树重渲染。
  */
 export function useMarketStream(options: { tickers?: boolean } = {}) {
   const wantsTickers = options.tickers ?? false;
