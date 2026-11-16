@@ -1,5 +1,6 @@
 // BTCBOX shared API handler for Vercel Node Functions.
 // Persistent state and financial records require Supabase; no Netlify Blobs fallback.
+const { handleWalletRoute } = require('./wallet-api');
 const crypto = require('crypto');
 const { authorizeSupabaseAdmin } = require('./admin-auth');
 const { hasAdminPermission } = require('./admin-rbac');
