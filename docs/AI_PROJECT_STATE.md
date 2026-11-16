@@ -128,3 +128,15 @@
 - 下一项唯一优先任务：恢复可执行的 `working` 工作区或查明 Backend CI 在无 job 情况下失败的原因，然后运行后端测试与构建；前端负责人继续阶段 1，本助手不改前端文件。
 
 本节仅记录源码和 Supabase 的只读核查；未执行 DDL、数据写入、迁移、Auth 清理、资金操作或部署。
+
+
+## 2026-11-16 CI 阻塞诊断续记（数据库负责人）
+
+- 本轮开始时远程 main HEAD：910d7f1ea270d995f1c065c9f0a69ddff141310a；working HEAD：72c9cbbaca44a0bbe574c052bffae402d604e614。当前两者读取结果与本节记录时一致。
+- 对 working HEAD 的 Backend CI run 43831198025 重新查询：状态 completed / failure，Jobs API 返回 jobs: []，没有可读取的 job 日志或测试步骤。因此失败发生在 job 可见执行之前或 workflow/run 编排层；具体原因仍 NOT VERIFIED，不能归咎于业务测试、Node 版本或 SQL。
+- 同一 SHA 的 Check Runs API 返回 test = success，但该 check 对应另一个 CI Watchdog workflow run 43831200194，不是 Backend CI。不能把这个 success 当作 backend tests/build 已通过。
+- Supabase Preview check 为 skipped，提示 working 未关联 Supabase Branch；这不等于 hosted 项目迁移失败，也不允许因此对 hosted 数据库直接执行迁移。
+- GitHub connector 对 .github/workflows/backend-ci.yml 的路径读取返回内容与目标路径不一致（返回前端 AuthPages 源码，而目录 API 所列文件 SHA/大小为另一对象）。因此本轮无法可靠审阅 workflow YAML 内容，不能安全修复或改写该 workflow。
+- 本轮没有修改 workflow、应用代码或 SQL；没有重跑 workflow、没有 DDL/数据写入、没有部署。
+- 阶段 0 状态不变：远程 refs 与数据库只读基线 PASS；后端构建/测试 NOT VERIFIED；迁移源文件可复现性 NEEDS FIX；阶段 0 仍未通过。
+- 下一项唯一优先任务：取得可靠的 workflow 文件内容或可执行工作区，再定位 Backend CI 无 job 的失败原因并运行后端测试/构建。阶段 1 认证弹窗由前端负责人继续；数据库负责人不越权改其文件。
