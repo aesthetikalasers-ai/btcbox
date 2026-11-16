@@ -1,3 +1,95 @@
+# CURRENT AUTHORITATIVE INSTRUCTIONS — 2026-11-16
+
+> **Priority:** This section is the current owner-approved instruction set for work started on 2026-11-16. It supersedes conflicting historical role assignments, branch names, UI directions, and task queues elsewhere in this long-running coordination log. Older entries remain historical evidence only; do not treat them as current authorization.
+
+## 1. Source of truth and change safety
+
+- Canonical development baseline for the current work: repository `avali9308-code/btcboxcdt`, branch `main`. Read the latest `main` before starting a task; do not assume older SHAs or branches are current.
+- This coordination update is isolated on `docs/ai-coordination-current-20261116`. Do not write this planning change directly to `main`.
+- Implement code on a dedicated task branch created from the current `main`; do not push directly to `main`, merge, publish, or trigger a production deployment.
+- The owner downloads `main` locally for preview and acceptance. Do not overwrite, reset, or otherwise interfere with the owner's local working tree or another AI's working files.
+- No production database writes, destructive cleanup, real deposits/withdrawals/orders, or real financial posting as part of UI/QA work.
+- Do not change Supabase project settings, Auth providers, keys, secrets, or environment values without separate explicit authorization.
+- Keep the existing BTCBOX brand and visual language. Do not redesign the whole product or make unrelated broad changes.
+
+## 2. Current work ownership and file boundaries
+
+- **Code/UI AI:** implement the agreed customer-facing UI, authentication entry experience, Earn UI, Admin UI, and the backend HTTP/API integration assigned to that AI. Work only on its own task branch and report exact files/commit.
+- **This assistant:** owns Supabase database structure, database migrations/RPCs, wallet ledger integrity, and the database-side Earn/wallet foundations. Do not duplicate or overwrite the Code/UI AI's application files.
+- Agree on request/response contracts before wiring UI to database-backed endpoints. Use one owner per file; if a shared file must change, coordinate first rather than editing it concurrently.
+- Neither AI may invent completed work, tests, provider connectivity, live balances, or deployed status. Label evidence as implemented, tested, or not verified accurately.
+
+## 3. Guest-first authentication experience — current UI decision
+
+- Login and registration are launched as **modal dialogs from the public preview/application page**, not as separate full-screen customer pages.
+- Top-bar **Sign in** opens the login state; **Create account** opens the registration state. The same dialog allows switching between login and registration without a page reload.
+- Closing the dialog returns the visitor to the same page and preserves the current page context.
+- Support the existing enabled Supabase Email and Google authentication methods. Do not silently remove email/password registration or login, and do not force a Google-only registration policy.
+- Specifically inspect the backend registration path and configuration (including `GOOGLE_ONLY_AUTH`): it must not be enabled as `true` when the approved product behavior is email/password plus Google. Do not change provider settings or secrets as a shortcut.
+- Preserve the required Supabase OAuth callback/redirect flow. Google may navigate to the provider and back; after callback, restore the application session and route correctly.
+- Keep password recovery, email verification, invalid credentials, already-registered, loading, success, and failure states understandable and localized. Avoid raw technical errors where a safe customer-facing message can be shown.
+- Do not show unrelated wallet/Web3 connection errors during ordinary email or Google authentication (for example, `eth_requestAccounts` missing/invalid).
+- Legacy `/login` and `/register` URLs may remain compatible, but should open the corresponding dialog or safely route into the guest-first flow rather than render the old standalone full-screen auth pages.
+- Do not rewrite Supabase authentication or alter the existing provider configuration as part of this UI task.
+
+## 4. Earn business rules — do not reinterpret or hardcode
+
+The following owner-defined rules are authoritative:
+
+### Flexible/current earnings
+- A user holding an asset that qualifies under the configured product rules is enrolled by default for flexible/current earnings.
+- No separate subscription/application is required for this default flexible earning.
+- Flexible/current earning does not lock the user's assets.
+- Eligibility, supported assets, rates, calculation cadence, and payout rules are controlled by product configuration; do not invent additional eligibility rules.
+
+### Fixed-term earning
+- Fixed-term products are **opt-in only**. The user must explicitly select the product, asset, amount, and term and confirm participation.
+- Fixed-term participation provides additional earnings on top of the applicable flexible/current earning, according to the configured product rules.
+- Do not automatically subscribe users to a fixed-term product.
+- Rates, supported assets, terms, product status, and other product parameters must be read from backend/database configuration, not hardcoded product-ID allowlists or inferred from product IDs.
+
+### Wallet and ledger integrity
+- Earn is part of the wallet/financial system, not a disconnected display-only feature.
+- Principal, available balance, locked/frozen amount, accrued earnings, payout, subscription, maturity, and release must be represented by the appropriate real wallet/ledger operations.
+- Every financial state change must be traceable and idempotent. Do not implement earnings by directly editing a displayed balance or inserting fabricated profit.
+- Do not promise a rate, guaranteed return, funding source, or payout schedule unless that value is explicitly configured and supported by the product rules.
+- If a real API or calculation is not ready, clearly mark the affected state as unavailable/not yet connected; never present mock values as real user funds or earnings.
+
+## 5. Earn and Admin implementation scope
+
+- Extend the existing Earn route/page and existing product/API structures; do not create a competing second Earn system.
+- Customer Earn UI should expose configured flexible/current earnings, available fixed-term products, the user's actual positions/participations, term/maturity details where applicable, and actual earnings/payout history.
+- Admin UI should add or complete Earn product/configuration and operational views within the existing Admin architecture and permission model.
+- Admin-configurable fields should come from persisted product configuration. Do not introduce new business rules, rates, asset lists, terms, or fees without owner approval.
+- The existing backend must resolve product eligibility and asset/term parameters from database configuration. Remove or replace hardcoded product-ID-to-asset assumptions only within the approved Earn implementation scope.
+- UI, API, wallet, and ledger must agree on one documented contract. Never make the UI imply that an operation succeeded before the server confirms it.
+
+## 6. Protected areas and non-goals
+
+- Preserve the existing trading page layout and core Spot/Perpetual/Seconds behavior, including market data, order book, order entry, order placement/cancellation, and existing wallet integration.
+- No unrelated trade-page redesign, route-wide refactor, authentication rewrite, wallet-key custody redesign, or permission-system replacement is included in this task.
+- Do not change the current brand identity or replace the existing visual language with a new template.
+- No production deployment, merge to `main`, production financial operation, or production database reset is authorized by this plan.
+
+## 7. Required execution order
+
+1. Read the current `main` source and identify the existing auth, Earn, Admin, wallet API, and database integration points. Do only task-scoped inspection; do not launch another broad audit.
+2. Implement the guest-first login/register dialog and verify Email + Google flows without changing Auth provider settings.
+3. Implement Earn UI and Admin configuration surfaces against the agreed API contract.
+4. Integrate the configured flexible/current and opt-in fixed-term rules with the wallet/ledger foundations.
+5. Run focused build, type, unit, API-contract, auth-flow, and responsive checks. Keep test accounts/data isolated and never post real funds.
+6. Deliver a concise handoff with changed files, task branch and exact commit SHA, test commands/results, screenshots at required widths, known gaps, and explicit confirmation that no merge/deployment/production financial operation occurred.
+
+## 8. Visual and functional acceptance
+
+- Test widths: **375, 390, 430, 768, 1366, 1440, and 1920 px**, including continuous behavior between breakpoints.
+- Independently inspect mobile and desktop layouts, modal focus/close/switch behavior, text wrapping, loading/error/empty/success notifications, and localization.
+- Preserve accessible keyboard/focus behavior and usable touch targets.
+- A page is not accepted merely because it renders. Authentication must use the real configured provider flow; Earn and wallet figures must come from real API/database responses or be explicitly shown as unavailable.
+- Report each area as **PASS**, **NEEDS FIX**, or **NOT VERIFIED**. Do not label the overall task complete while any required critical path remains unverified.
+
+---
+
 <!-- coderabbit-ai-generated:v1 -->
 
 <!-- coderabbit-ai-generated-section:v1:bb3eaf17aaa7ca40a83801916ad3b450e0a201c28d7029e918b9d3421f7a2a58 -->
