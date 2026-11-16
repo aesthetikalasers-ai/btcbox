@@ -6,6 +6,7 @@ import { useAuth } from "../../lib/auth";
 import { BrandLogo } from "../BrandLogo";
 import { LanguageMenu } from "./LanguageMenu";
 import { Button } from "../ui/button";
+import { useAuthDialog } from "../../lib/auth-dialog";
 /**
  * Renders the global header, search control, quick market/trade entries,
  * language selector, and the authenticated account control.
@@ -14,6 +15,7 @@ import { Button } from "../ui/button";
 export function Topbar() {
   const { t } = useI18n();
   const { status, email } = useAuth();
+  const { openAuthDialog } = useAuthDialog();
   const [search, setSearch] = useState("");
   const navigate = useNavigate();
   const authenticated = status === "authenticated";
@@ -56,10 +58,10 @@ export function Topbar() {
         ) : (
           <>
             <div className="hidden items-center gap-2 sm:flex">
-              <Button asChild size="sm" variant="ghost" className="h-8 rounded-full border border-brand-accent/30 bg-brand-accent/15 px-3.5 text-brand-accent transition-transform hover:scale-[1.03] active:scale-95"><Link to="/login">{t("Sign in")}</Link></Button>
-              <Button asChild size="sm" className="h-8"><Link to="/register">{t("Create account")}</Link></Button>
+              <Button type="button" size="sm" variant="ghost" onClick={() => openAuthDialog("login")} className="h-9 rounded-full border border-brand-accent/30 bg-brand-accent/15 px-3.5 text-brand-accent transition-transform hover:scale-[1.03] active:scale-95">{t("Sign in")}</Button>
+              <Button type="button" size="sm" onClick={() => openAuthDialog("register")} className="h-9">{t("Create account")}</Button>
             </div>
-            <Link to="/login" className="flex h-8 items-center rounded-full border border-brand-accent/30 bg-brand-accent/15 px-3.5 text-sm font-semibold text-brand-accent transition-transform hover:scale-[1.03] active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent sm:hidden">{t("Sign in")}</Link>
+            <button type="button" onClick={() => openAuthDialog("login")} className="flex h-9 items-center rounded-full border border-brand-accent/30 bg-brand-accent/15 px-3.5 text-sm font-semibold text-brand-accent transition-transform hover:scale-[1.03] active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent sm:hidden">{t("Sign in")}</button>
           </>
         )}
         <Link to="/support" aria-label={t("Support")} title={t("Support")} className="flex h-8 items-center gap-1.5 rounded-lg border border-brand-border-subtle bg-brand-surface-2 px-2.5 text-brand-text-secondary transition-colors hover:bg-brand-surface-hover hover:text-brand-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent/60">
