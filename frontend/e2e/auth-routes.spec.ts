@@ -121,9 +121,9 @@ test("registration route offers Google and wallet identity creation", async ({ p
   await expect(page.getByRole("heading", { name: "Create your BTCBOX account" })).toBeVisible();
   await expect(page.getByRole("banner")).toHaveCount(0);
   await expect(page.getByRole("navigation", { name: "Primary navigation" })).toHaveCount(0);
-  await expect(page.getByLabel("Email address")).toHaveCount(0);
-  await expect(page.getByLabel("Email password")).toHaveCount(0);
-  await expect(page.getByRole("button", { name: "Create account with email" })).toHaveCount(0);
+  await expect(page.getByLabel("Email")).toBeVisible();
+  await expect(page.getByLabel("Password", { exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Create account with email" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Google" })).toBeDisabled();
   await expect(page.getByRole("button", { name: "Wallet" })).toBeVisible();
   await page.getByRole("button", { name: "Wallet" }).click();
@@ -133,7 +133,7 @@ test("registration route offers Google and wallet identity creation", async ({ p
 });
 
 
-test("registration does not expose retired email signup", async ({ page }) => {
+test("registration keeps Supabase email signup alongside Google and wallet", async ({ page }) => {
   const forbiddenRequests: string[] = [];
   page.on("request", request => {
     const url = new URL(request.url());
@@ -141,9 +141,9 @@ test("registration does not expose retired email signup", async ({ page }) => {
   });
   await page.goto("/register");
   await expect(page.getByRole("button", { name: "Wallet", exact: true })).toBeVisible();
-  await expect(page.getByLabel("Email address")).toHaveCount(0);
-  await expect(page.getByRole("button", { name: "Forgot password?" })).toHaveCount(0);
-  await expect(page.getByRole("button", { name: "Create account with email" })).toHaveCount(0);
+  await expect(page.getByLabel("Email")).toBeVisible();
+  await expect(page.getByLabel("Password", { exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Create account with email" })).toBeVisible();
   expect(forbiddenRequests).toEqual([]);
 });
 
@@ -471,49 +471,18 @@ test("username login submits BTCBOX credentials to the username endpoint and sur
   expect(submitted).toEqual({ username: "qa_user", password: "a-secure-test-password" });
 });
 
-test("first verified Google or wallet identity can set username and password on the same BTCBOX account", async ({ page }) => {
-  const credentialRequests: Array<{ username?: string; password?: string; current_password?: string }> = [];
-  let credentialsSaved = false;
-  await page.route("**/api/account", async (route) => {
-    await route.fulfill({
-      status: 200,
-      contentType: "application/json",
-      body: JSON.stringify({
-        ok: true,
-        uid: "e2e-new-identity",
-        email: "",
-        username: credentialsSaved ? "new_user_01" : "",
-        has_login_password: credentialsSaved,
-        balances: {},
-        unpriced_assets: [],
-        kyc: { status: "not_submitted" },
-        twofa_enabled: false,
-      }),
-    });
-  });
+test("provider-authenticated users enter BTCBOX without forced username or password setup", async ({ page }) => {
+  const credentialRequests: string[] = [];
   await page.route("**/api/account/credentials", async (route) => {
-    credentialRequests.push(route.request().postDataJSON());
-    credentialsSaved = true;
-    await route.fulfill({
-      status: 200,
-      contentType: "application/json",
-      body: JSON.stringify({ ok: true, username: "new_user_01", has_login_password: true }),
-    });
+    credentialRequests.push(route.request().url());
+    await route.fulfill({ status: 500, json: { ok: false } });
   });
 
   await page.goto("/account-setup");
-  await expect(page.getByRole("heading", { name: "Set up your BTCBOX account" })).toBeVisible();
-  await page.getByLabel("Choose a username").fill("new_user_01");
-  await page.getByLabel("Create a password").fill("a-secure-test-password");
-  await page.getByLabel("Confirm password").fill("a-secure-test-password");
-  await page.getByRole("button", { name: "Save BTCBOX credentials" }).click();
 
-  await expect(page).toHaveURL(/\/home$/);
-  expect(credentialRequests).toEqual([{
-    username: "new_user_01",
-    password: "a-secure-test-password",
-    current_password: "",
-  }]);
+  await expect(page).toHaveURL(/\\/me$/);
+  await expect(page.getByRole("heading", { name: "My account", exact: true })).toBeVisible();
+  expect(credentialRequests).toEqual([]);
 });
 
 test("OAuth callback cancellation returns a visible recovery path without creating a BTCBOX session", async ({ page }) => {
