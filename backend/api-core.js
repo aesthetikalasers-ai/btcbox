@@ -191,7 +191,7 @@ async function detectAuthProviderEnabled(provider) {
   const providerName = provider === 'web3' ? 'web3' : 'google';
   const now = Date.now();
   const cached = _authProviderCache[providerName];
-  if (cached.value !== null && cached.expiresAt > now) return cached.value;
+  if (cached.expiresAt > now) return cached.value;
   const authUrl = String(process.env.SUPABASE_AUTH_URL || process.env.SUPABASE_URL || '').replace(/\/+$/, '');
   const authKey = getPublishableKey();
   if (!authUrl || !authKey) {
@@ -239,10 +239,16 @@ async function probeWeb3ChainEnabled(authUrl, authKey, chain) {
     let data = {};
     try { data = await res.json(); } catch (_) {}
     const message = String(data.msg || data.message || data.error_description || data.error || '').toLowerCase();
+    const errorCode = String(data.code || data.error_code || '').toLowerCase();
     if (/web3 provider is disabled|provider is disabled/.test(message)) return false;
-    // 400/422 here are expected for the deliberately incomplete request when
-    // the provider is enabled (missing SIWE/SIWS message or signature).
-    if (res.status === 400 || res.status === 422 || res.ok) return true;
+    // CAPTCHA middleware can reject this unsigned probe before Web3 provider
+    // validation. Such a response says nothing about provider availability.
+    if (errorCode === 'captcha_failed' || /captcha/.test(message)) return null;
+    // Only a recognized Web3 payload-validation response proves the provider
+    // is enabled. A generic 400/422 may come from unrelated middleware.
+    const web3ValidationError =
+      /(missing|required|invalid).*(message|signature)|(message|signature).*(missing|required|invalid)/.test(message);
+    if (res.ok || ((res.status === 400 || res.status === 422) && web3ValidationError)) return true;
     return null;
   } catch (_) {
     return null;
