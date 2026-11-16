@@ -21,6 +21,7 @@ declare
 begin
   if p_supabase_user_id is null
      or nullif(p_btcbox_user_id, '') is null
+     or p_provider is null
      or p_provider not in ('email', 'google', 'web3')
      or p_provider_subject is distinct from p_supabase_user_id::text
      or (p_provider in ('email', 'google') and (p_wallet_chain is not null or p_wallet_address is not null))
