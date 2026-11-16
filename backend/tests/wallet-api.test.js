@@ -70,6 +70,20 @@ test('wallet overview hides every asset whose available and frozen balances are 
   assert.equal(result.body.wallet.updated_at, null);
 });
 
+test('wallet overview keeps an asset visible when only its frozen balance is positive', async () => {
+  global.fetch = async () => ({
+    ok: true,
+    json: async () => [
+      { wallet_account_id: 'frozen-usdt', asset_code: 'USDT', available: '0', frozen: '0.250000000000000001', version: 1, updated_at: '2026-11-16T00:00:00Z' },
+      { wallet_account_id: 'zero-btc', asset_code: 'BTC', available: '0', frozen: '0', version: 0, updated_at: '2026-11-16T00:00:00Z' }
+    ]
+  });
+  const result = await handleWalletRoute({ path: 'wallet', method: 'GET', user: { supabase_user_id: USER_ID } });
+  assert.equal(result.status, 200);
+  assert.deepEqual(result.body.wallet.accounts.map(account => account.asset), ['USDT']);
+  assert.equal(result.body.wallet.accounts[0].total, '0.250000000000000001');
+});
+
 test('wallet address listing returns only public address fields and is owner-scoped', async () => {
   let requestedUrl = '';
   global.fetch = async url => {
