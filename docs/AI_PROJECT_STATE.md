@@ -51,3 +51,19 @@
 - UI 可先使用明确标记的 Mock 数据并通过 API 适配层并行开发；不得把 Mock 冒充真实业务。
 - 已更新 `docs/AI_COORDINATION.md` 与 `docs/AI_EXECUTION_PLAN_2026-11-16.md`。本次仅更新项目文档，没有修改应用代码、数据库、生产配置，也没有部署。
 - 当前功能实现状态：钱包 UI 与新增真实钱包 API 尚未因本次文档更新而完成；逐项状态仍为 NOT VERIFIED，须以代码和测试证据为准。
+
+
+## 2026-11-16 — AI 1 钱包只读 API 第一批交付
+
+- 当前开发分支：`feat/wallet-api-contract-v1`；本批代码基线提交：`8b33b43de7d4ade86fb998b98a540b04d48787d2`（随后仅更新本状态/合同文档）。
+- 新增 `backend/wallet-api.js`，并在 `backend/api-core.js` 中仅对 `/api/wallet/*` 按需加载，避免影响既有认证隔离测试。
+- 已实现：`GET /api/wallet`、`GET /api/wallet/addresses`、`GET /api/wallet/ledger`；均从登录会话中的服务端 Supabase 身份确定 owner，不接受客户端 user_id 授权。
+- 已实现保护：服务端 service-role 访问、owner 过滤、只读字段白名单、账本金额/BigInt ID 无损解析、十进制精确合计、分页游标校验、错误信息脱敏。
+- 地址生成 `POST /api/wallet/addresses` 在未配置托管/派生服务时 fail-closed；外部钱包验证与密钥同意/托管 API 尚未实现，不得对外宣称已完成。
+- 新增 `backend/tests/wallet-api.test.js`，覆盖身份隔离、地址过滤、负数账本变动、金额精度、服务故障和地址服务未配置等场景。
+- 恢复了本分支损坏的 `.github/workflows/backend-ci.yml`（此前文件内容误为 React 登录页源码），采用仓库历史有效 CI 配置并纳入本分支。
+- GitHub Actions 后端 CI：构建、后端测试、本地集成、部署配置预检及产物检查均通过；验证提交：`8b33b43de7d4ade86fb998b98a540b04d48787d2`。见 [CI run](https://github.com/avali9308-code/btcboxcdt/actions/runs/43846023277)。
+- Supabase 仅执行只读结构、迁移、权限和行数核对；未执行 DDL、数据写入或生产资金操作。钱包相关表当前均为 0 行；无已配置地址派生/托管服务，实时 API E2E 仍为 NOT VERIFIED。
+- 本批未修改交易页、未合并 `main`/`working`、未部署。功能分支与共同开发分支仍需单独评估差异后才能整合。
+
+**下一项唯一优先任务：** 确认并选择钱包地址派生/托管服务及测试网络方案，再实现 provider adapter、地址分配与链上充值监听；在服务商和密钥配置未确认前继续保持地址生成和资金写入关闭。
