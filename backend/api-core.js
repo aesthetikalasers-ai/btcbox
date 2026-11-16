@@ -139,7 +139,7 @@ function isSupabaseUserId(value) {
 // is metadata only and is never used as an authorization or account-link key.
 async function persistSupabaseAuthMapping(user, identity, authProvider, walletIdentity) {
   if (!supabaseStorageConfigured()) return false;
-  const supabaseUserId = String(identity && identity.id || '').trim();
+  const supabaseUserId = String(identity && identity.id || '').trim().toLowerCase();
   const btcboxUserId = String(user && user.uid || '').trim();
   if (!isSupabaseUserId(supabaseUserId) ||
       !/^[1-9][0-9]{0,31}$/.test(btcboxUserId) ||
