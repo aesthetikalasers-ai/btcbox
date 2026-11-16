@@ -29,6 +29,7 @@ These legacy routes must not be silently repurposed as custodial wallet-generati
 
 - `GET /api/wallet`: implemented; reads only the authenticated user's wallet accounts and returns exact decimal strings. Empty account sets remain empty; no Exchange balance fallback or synthetic zero rows. **Zero-balance asset accounts are filtered out:** an asset appears only when available + frozen is greater than zero. Newly initialized empty BTC/ETH/etc. account rows must not cause coin types to appear in the user's wallet UI.
 - `GET /api/wallet/addresses`: implemented; supports asset/network filters and returns only public address metadata. Derivation references and key material are excluded.
+- Frontend `/assets` list: filters seeded/empty account rows and displays a currency only when available or frozen balance is positive. Deposit asset choices remain a separate supported-network catalogue so a user can choose a currency to receive for the first time.
 - `GET /api/wallet/ledger`: implemented; owner-scoped cursor pagination, signed exact decimal deltas, and operation type/status lookup.
 - `POST /api/wallet/addresses`: deliberately returns `WALLET_PROVIDER_UNAVAILABLE` until an approved custody/address-derivation provider is configured. No shared placeholder address is returned.
 - External-wallet verification and key-consent/key-custody routes are not implemented yet and fail closed.
@@ -46,9 +47,9 @@ Returns the signed-in user's wallet overview.
     "accounts": [
       {
         "asset": "USDT",
-        "available": "0",
+        "available": "0.25",
         "frozen": "0",
-        "total": "0",
+        "total": "0.25",
         "version": 0
       }
     ],
