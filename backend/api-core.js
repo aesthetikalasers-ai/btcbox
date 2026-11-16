@@ -145,7 +145,7 @@ async function persistSupabaseAuthMapping(user, identity, authProvider, walletId
       !/^[1-9][0-9]{0,31}$/.test(btcboxUserId) ||
       !['email', 'google', 'web3'].includes(authProvider)) return false;
 
-  const base = String(process.env.SUPABASE_URL || '').replace(/\\/+$/, '');
+  const base = String(process.env.SUPABASE_URL || '').replace(/\/+$/, '');
   const wallet = authProvider === 'web3' && walletIdentity ? walletIdentity : null;
   const payload = {
     p_supabase_user_id: supabaseUserId,
