@@ -160,7 +160,7 @@ test('Web3 provider probe checks all Supabase error fields without accepting unr
   const core = read('api-core.js');
   assert.ok(core.includes('[data.msg, data.message, data.error_description, data.error]'));
   assert.ok(core.includes('[data.code, data.error_code]'));
-  assert.ok(core.includes(".toLowerCase().replace(/^\\\\d{3}:\\\\s*/, '')"));
+  assert.ok(core.includes(".toLowerCase().replace(/^\\d{3}:\\s*/, '')"));
   assert.ok(core.includes("errorCodes.includes('validation_failed') && messages.some(message => /^message is too short$/.test(message))"));
   assert.ok(core.includes("errorCodes.includes('captcha_failed') || messages.some(message => /captcha/.test(message))"));
   assert.ok(core.includes("messages.some(message => /web3 provider is disabled|provider is disabled/.test(message))"));
