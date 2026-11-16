@@ -4,14 +4,14 @@ import { multiplyDecimalStrings, compareDecimalStrings } from "../../lib/decimal
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { RefreshCw, TrendingUp, TrendingDown, Clock3, ShieldAlert, ArrowLeft, ChevronRight, ChevronDown, ChevronUp, KeyRound, Copy, Check, LineChart, Plus, Minus, History, Layers, CandlestickChart } from "lucide-react";
-import { ApiError, getAccount, getOrders, getMarkets, getSpotMarketPairs, getKlines, getOrderBook, getTradingStatus, submitSpotOrder, cancelSpotOrder, getSecondsPositions, getSecondsPolicy, submitSecondsOrder, settleSecondsPosition, getDepositAddress, getSavedCryptoAddresses, getSelectedCryptoAddress, getWithdrawalConfig, submitWithdrawal, getEarnCatalog, submitEarnAction, getPerpMarkets, getSupportMessages, sendSupportMessage, getSupportUnread, type PerpMarket, type EarnProduct, type EarnPosition, type SavedCryptoAddress, type AccountBalance, type AccountSnapshot, type DepositRecord, type OrderRecord, type MarketTicker, type MarketCandle, type OrderBookSnapshot, type SpotMarketPair, type TradingStatus, type SecondsPositionsSnapshot, type SecondsOrderInput, type SecondsPolicyResponse, type SelectedCryptoAddress, type WithdrawalConfig, type WithdrawalRecord, type SupportMessage, submitKyc } from "../../lib/api";
+import { ApiError, getAccount, getOrders, getMarkets, getSpotMarketPairs, getKlines, getOrderBook, getTradingStatus, submitSpotOrder, cancelSpotOrder, getSecondsPositions, getSecondsPolicy, submitSecondsOrder, settleSecondsPosition, getDepositAddress, getSavedCryptoAddresses, getSelectedCryptoAddress, getWithdrawalConfig, submitWithdrawal, getEarnCatalog, submitEarnAction, getPerpMarkets, getSupportUnread, type PerpMarket, type EarnProduct, type EarnPosition, type SavedCryptoAddress, type AccountBalance, type AccountSnapshot, type DepositRecord, type OrderRecord, type MarketTicker, type MarketCandle, type OrderBookSnapshot, type SpotMarketPair, type TradingStatus, type SecondsPositionsSnapshot, type SecondsOrderInput, type SecondsPolicyResponse, type SelectedCryptoAddress, type WithdrawalConfig, type WithdrawalRecord, submitKyc } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
 import { useAuthDialog } from "../../lib/auth-dialog";
 import { ChartDrawer } from "../trade/ChartDrawer";
 import { useTrading } from "../../lib/trading";
 
 import type { ReactNode } from "react";
-import { ArrowUpRight, LockKeyhole, Wallet, ChartNoAxesCombined, ArrowLeftRight, Sprout, BadgeCheck, ShieldCheck, Headset, Send, Columns2, Gift, Rocket } from "lucide-react";
+import { ArrowUpRight, LockKeyhole, Wallet, ChartNoAxesCombined, ArrowLeftRight, Sprout, BadgeCheck, ShieldCheck, Headset, Columns2, Gift, Rocket } from "lucide-react";
 import { Badge } from "../../components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
@@ -25,6 +25,7 @@ import { OrderConfirmDialog, type OrderPreview } from "../trade/OrderConfirmDial
 import { priceDeviationPct, shouldConfirmOrder } from "../trade/orderConfirmPolicy";
 import { useMarketStreamEvent } from "../../lib/useMarketStreamEvent";
 import { SupportFaq } from "../support/SupportFaq";
+import { SupportChat } from "../support/SupportChat";
 
 type PageFrameTone = "trading"|"earn"|"assets"|"support"|"account"|"orders"|"market";
 export function PageFrame({eyebrow,title,description,children,className="",tone,backTo,action,onBack}:{eyebrow?:string;title:string;description?:string;children:ReactNode;className?:string;tone:PageFrameTone;backTo?:string;action?:ReactNode;onBack?:()=>void}){
@@ -1244,80 +1245,18 @@ export function KycPage(){
  * Preserves the existing message submission and retrieval behavior.
  */
 export function SupportPage(){
- const {t,language}=useI18n();
+ const {t}=useI18n();
  const navigate=useNavigate();
  const {status}=useAuth();
- const [messages,setMessages]=useState<SupportMessage[]>([]);
- const [loading,setLoading]=useState(status==="authenticated");
- const [error,setError]=useState("");
- const [reload,setReload]=useState(0);
- const [draft,setDraft]=useState("");
- const [sending,setSending]=useState(false);
- const [pendingRequestId,setPendingRequestId]=useState("");
- const [pendingRequestContent,setPendingRequestContent]=useState("");
- const [sendError,setSendError]=useState("");
- const [sendMessage,setSendMessage]=useState("");
- const listRef=useRef<HTMLDivElement>(null);
- useEffect(()=>{
-  if(status!=="authenticated"){setLoading(false);setMessages([]);return;}
-  const controller=new AbortController();
-  setLoading(true);setMessages([]);setError("");
-  getSupportMessages(controller.signal).then(list=>{
-   if(!controller.signal.aborted){setMessages(list);setError("");}
-  }).catch((reason:unknown)=>{
-   if(reason instanceof Error&&reason.name==="AbortError")return;
-   if(!controller.signal.aborted){setMessages([]);setError(reason instanceof Error?reason.message:"Support conversation is temporarily unavailable.");}
-  }).finally(()=>{if(!controller.signal.aborted)setLoading(false);});
-  return ()=>controller.abort();
- },[status,reload]);
- useEffect(()=>{listRef.current?.scrollTo({top:listRef.current.scrollHeight,behavior:"smooth"});},[messages]);
- const send=async(event:FormEvent<HTMLFormElement>)=>{
-  event.preventDefault();
-  if(sending)return;
-  const message=pendingRequestId?pendingRequestContent:draft.trim();
-  if(!message)return;
-  let requestId=pendingRequestId;
-  if(!requestId){
-   try{requestId=window.crypto.randomUUID();}
-   catch{setSendError("Secure request IDs are unavailable in this browser. No message was sent.");return;}
-   setPendingRequestId(requestId);setPendingRequestContent(message);
-  }
-  setSending(true);setSendError("");setSendMessage("");
-  try{
-   const result=await sendSupportMessage(message,requestId);
-   setDraft("");setPendingRequestId("");setPendingRequestContent("");
-   if(!result.duplicate)setMessages(current=>[...current,{id:result.message_id||requestId,from:"user",content:message,time:result.time||new Date().toISOString()}]);
-   setSendMessage(result.duplicate?t("Your message was already received."):t("Message sent."));
-   setReload(n=>n+1);
-  }catch(reason){
-   setSendError(reason instanceof Error?reason.message:"Your message could not be sent.");
-  }finally{setSending(false);}
- };
- const date=(raw?:string)=>{if(!raw)return "—";const parsed=new Date(raw);return Number.isNaN(parsed.getTime())?raw:parsed.toLocaleString(localeTags[language]);};
+ // The conversation itself lives in features/support/SupportChat so the support
+ // module owns its own state, retry contract and API calls.
  return <PageFrame title="Customer support" tone="support" onBack={()=>navigate(-1)}>
   <div className="grid min-w-0 items-start gap-4 lg:grid-cols-[minmax(0,1.12fr)_minmax(360px,.88fr)] lg:gap-5">
    <SupportFaq />
-   {status==="authenticated"?<Card className="overflow-hidden border border-white/[0.08] bg-brand-surface shadow-[inset_0_1px_0_0_rgba(255,255,255,0.12)] lg:sticky lg:top-6 self-start"><CardHeader className="border-b border-brand-border bg-brand-surface-2/60"><div className="flex items-center gap-3"><span className="flex h-11 w-11 items-center justify-center rounded-xl bg-brand-accent/10 text-brand-accent"><Headset className="h-5 w-5"/></span><div><CardTitle>{t("Your conversation")}</CardTitle><CardDescription>{t("Ask about deposits, withdrawals, verification, or account issues.")}</CardDescription></div></div></CardHeader><CardContent className="flex flex-col gap-3">
-    {loading?<p className="p-6 text-center text-sm text-brand-text-muted" role="status">{t("Loading conversation…")}</p>
-    :error?<div className="rounded-xl border border-brand-danger/30 bg-brand-surface p-4"><p className="text-sm text-brand-danger" role="alert">{t(error)}</p><Button size="sm" variant="outline" className="mt-2" onClick={()=>setReload(n=>n+1)}>{t("Try again")}</Button></div>
-    :<>
-     <div ref={listRef} className="max-h-72 space-y-2 overflow-y-auto pr-1">
-      {messages.length===0?<p className="rounded-xl border border-dashed border-brand-border p-4 text-sm text-brand-text-muted">{t("No messages yet. Start a conversation below.")}</p>
-      :messages.map(item=> <div key={item.id} className={`flex ${item.from==="user"?"justify-end":"justify-start"}`}><div className={`max-w-[85%] rounded-xl px-3 py-2 text-sm ${item.from==="user"?"bg-brand-accent/15 text-brand-text":"bg-brand-surface-2 text-brand-text-secondary"}`}><p className="whitespace-pre-wrap break-words">{item.content}</p><p className="mt-1 text-[10px] text-brand-text-muted">{date(item.time)}</p></div></div>)}
-     </div>
-     <form onSubmit={send} className="space-y-2">
-      <textarea value={pendingRequestId?pendingRequestContent:draft} onChange={event=>setDraft(event.target.value)} disabled={sending||!!pendingRequestId} maxLength={2000} rows={3} placeholder={t("Type your message (1–2,000 characters)")} className="w-full resize-none rounded-xl border border-brand-border bg-brand-surface-2 px-3 py-2 text-sm text-brand-text outline-none transition-colors placeholder:text-brand-text-muted focus:border-brand-accent/60 focus:ring-2 focus:ring-brand-accent/15"/>
-      {sendError?<p role="alert" className="text-sm text-brand-danger">{sendError}</p>:null}
-      {sendMessage?<p role="status" className="text-sm text-brand-success">{sendMessage}</p>:null}
-      <Button type="submit" disabled={sending||(!draft.trim()&&!pendingRequestId)} className="min-h-11 w-full"><Send className="mr-2 h-4 w-4"/>{sending?t("Sending…"):pendingRequestId?t("Retry same request"):t("Send message")}</Button>
-     </form>
-    </>}
-   </CardContent></Card>
-   :<Card className="overflow-hidden border border-white/[0.08] bg-brand-surface shadow-[inset_0_1px_0_0_rgba(255,255,255,0.12)] lg:sticky lg:top-6 self-start"><CardHeader className="bg-brand-surface"><div className="flex items-center gap-3"><span className="flex h-11 w-11 items-center justify-center rounded-xl bg-brand-accent/10 text-brand-accent"><Headset className="h-5 w-5"/></span><div><CardTitle>{t("BTCBOX Help Center")}</CardTitle><CardDescription>{t("Public support information is available without signing in.")}</CardDescription></div></div></CardHeader><CardContent className="space-y-3 text-sm text-brand-text-secondary"><p>{t("For account-specific questions, deposit or withdrawal reviews, and private conversation history, sign in to your BTCBOX account first.")}</p><Button asChild><Link to="/login">{t("Sign in to contact support")}</Link></Button></CardContent></Card>}
+   {status==="authenticated"?<SupportChat />:<Card className="self-start overflow-hidden border border-white/[0.08] bg-brand-surface shadow-[inset_0_1px_0_0_rgba(255,255,255,0.12)] lg:sticky lg:top-6"><CardHeader className="bg-brand-surface"><div className="flex items-center gap-3"><span className="flex h-11 w-11 items-center justify-center rounded-xl bg-brand-accent/10 text-brand-accent"><Headset className="h-5 w-5"/></span><div><CardTitle>{t("BTCBOX Help Center")}</CardTitle><CardDescription>{t("Public support information is available without signing in.")}</CardDescription></div></div></CardHeader><CardContent className="space-y-3 text-sm text-brand-text-secondary"><p>{t("For account-specific questions, deposit or withdrawal reviews, and private conversation history, sign in to your BTCBOX account first.")}</p><Button asChild><Link to="/login">{t("Sign in to contact support")}</Link></Button></CardContent></Card>}
   </div>
  </PageFrame>;
 }
-
 
 const depositNetworks:Record<string,string[]>={BTC:["BTC"],ETH:["ERC20"],USDT:["TRC20","ERC20","BEP20"],SOL:["SOL"],BNB:["BEP20"],USDC:["ERC20"],ADA:["Cardano"],AVAX:["AVAX-C"],DOT:["Polkadot"],LINK:["ERC20"],LTC:["LTC"],MATIC:["Polygon"],UNI:["ERC20"],TRX:["TRC20"],BCH:["BCH"],ATOM:["Cosmos"],ETC:["ETC"]};
 /**
