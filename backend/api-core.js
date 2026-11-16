@@ -238,16 +238,23 @@ async function probeWeb3ChainEnabled(authUrl, authKey, chain) {
     });
     let data = {};
     try { data = await res.json(); } catch (_) {}
-    const message = String(data.msg || data.message || data.error_description || data.error || '').toLowerCase().replace(/^\d{3}:\s*/, '');
-    const errorCode = String(data.code || data.error_code || '').toLowerCase();
-    if (/web3 provider is disabled|provider is disabled/.test(message)) return false;
+    // Supabase/Auth gateways may expose the same failure in different fields,
+    // and a generic "message" field must not mask the more specific "error".
+    // Inspect every known field and normalize an optional HTTP status prefix.
+    const messages = [data.msg, data.message, data.error_description, data.error]
+      .filter(value => typeof value === 'string')
+      .map(value => value.toLowerCase().replace(/^\\d{3}:\\s*/, ''));
+    const errorCodes = [data.code, data.error_code]
+      .filter(value => typeof value === 'string')
+      .map(value => value.toLowerCase());
+    if (messages.some(message => /web3 provider is disabled|provider is disabled/.test(message))) return false;
     // CAPTCHA middleware can reject this unsigned probe before Web3 provider
     // validation. Such a response says nothing about provider availability.
-    if (errorCode === 'captcha_failed' || /captcha/.test(message)) return null;
-    // Only a recognized Web3 payload-validation response proves the provider
+    if (errorCodes.includes('captcha_failed') || messages.some(message => /captcha/.test(message))) return null;
+    // Only the exact known Web3 payload-validation response proves the provider
     // is enabled. A generic 400/422 may come from unrelated middleware.
     const web3ValidationError =
-      errorCode === 'validation_failed' && /^message is too short$/.test(message);
+      errorCodes.includes('validation_failed') && messages.some(message => /^message is too short$/.test(message));
     if (res.ok || ((res.status === 400 || res.status === 422) && web3ValidationError)) return true;
     return null;
   } catch (_) {
