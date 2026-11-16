@@ -42,7 +42,7 @@ test('wallet overview is owner-scoped and uses exact decimal arithmetic', async 
   global.fetch = async (url, options) => {
     requestedUrl = String(url);
     requestedHeaders = options.headers;
-    return { ok: true, text: async () => '[{"wallet_account_id":"a","asset_code":"USDT","available":9007199254740993.123456789012345678,"frozen":0.000000000000000001,"version":4,"updated_at":"2026-11-16T00:00:00Z"}]' };
+    return { ok: true, text: async () => '[{"wallet_account_id":"a","asset_code":"USDT","available":9007199254740993.123456789012345678,"frozen":0.000000000000000001,"version":4,"updated_at":"2026-11-16T00:00:00Z"},{"wallet_account_id":"b","asset_code":"BTC","available":0,"frozen":0,"version":0,"updated_at":"2026-11-16T00:00:00Z"}]' };
   };
   const result = await handleWalletRoute({ path: 'wallet', method: 'GET', user: { supabase_user_id: USER_ID } });
   const url = new URL(requestedUrl);
@@ -54,6 +54,20 @@ test('wallet overview is owner-scoped and uses exact decimal arithmetic', async 
     asset: 'USDT', available: '9007199254740993.123456789012345678', frozen: '0.000000000000000001', total: '9007199254740993.123456789012345679', version: 4, updated_at: '2026-11-16T00:00:00Z'
   });
   assert.equal(JSON.stringify(result.body).includes('private_key'), false);
+});
+
+test('wallet overview hides every asset whose available and frozen balances are zero', async () => {
+  global.fetch = async () => ({
+    ok: true,
+    json: async () => [
+      { wallet_account_id: 'zero-btc', asset_code: 'BTC', available: '0', frozen: '0', version: 0, updated_at: '2026-11-16T00:00:00Z' },
+      { wallet_account_id: 'zero-eth', asset_code: 'ETH', available: '0.000', frozen: '0.000', version: 0, updated_at: '2026-11-16T00:00:00Z' }
+    ]
+  });
+  const result = await handleWalletRoute({ path: 'wallet', method: 'GET', user: { supabase_user_id: USER_ID } });
+  assert.equal(result.status, 200);
+  assert.deepEqual(result.body.wallet.accounts, []);
+  assert.equal(result.body.wallet.updated_at, null);
 });
 
 test('wallet address listing returns only public address fields and is owner-scoped', async () => {
