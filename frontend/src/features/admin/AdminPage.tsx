@@ -28,6 +28,9 @@ import {
   getAdminSecondsOpenPositions,
   getAdminSpotMarkets,
   getAdminSupportMessages,
+  getAdminSupportFaq,
+  saveAdminSupportFaq,
+  deleteAdminSupportFaq,
   getAdminUser,
   getAdminUsers,
   getAdminWithdrawals,
@@ -39,6 +42,7 @@ import {
   type AdminKycRecord,
   type AdminSession,
   type AdminSpotMarket,
+  type AdminSupportFaqEntry,
   type AdminSecondsOpenPosition,
   type AdminSecondsOpenPositionsSnapshot,
   type AdminUserRecord,
@@ -46,7 +50,7 @@ import {
 } from "../../lib/api";
 
 type ReviewDialogState = { kind: "withdrawal"; id: string } | { kind: "kyc"; uid: string };
-type Tab = "overview" | "users" | "deposits" | "withdrawals" | "kyc" | "audit" | "orders" | "support" | "admins" | "seconds" | "markets";
+type Tab = "overview" | "users" | "deposits" | "withdrawals" | "kyc" | "audit" | "orders" | "support" | "support-faq" | "admins" | "seconds" | "markets";
 const tabs: Array<{ id: Tab; label: string; permission: string }> = [
   { id: "overview", label: "Overview", permission: "dashboard.read" },
   { id: "users", label: "Users & manual credit", permission: "users.read" },
@@ -56,6 +60,7 @@ const tabs: Array<{ id: Tab; label: string; permission: string }> = [
   { id: "audit", label: "Audit log", permission: "financial_audit.read" },
   { id: "orders", label: "Orders", permission: "orders.read" },
   { id: "support", label: "Support", permission: "support.read" },
+  { id: "support-faq", label: "Help centre", permission: "support.manage" },
   { id: "seconds", label: "Seconds policy", permission: "seconds_policy.read" },
   { id: "markets", label: "Spot markets", permission: "system_config.read" },
 ];
@@ -137,6 +142,15 @@ export function AdminPage() {
   const [orders, setOrders] = useState<Array<Record<string, unknown>>>([]);
   const [ordersSource, setOrdersSource] = useState("unknown");
   const [support, setSupport] = useState<Array<Record<string, unknown>>>([]);
+  // Help-centre editor state. Content lives in the backend state document, so the
+  // console is the only place FAQs are created or changed.
+  const [supportFaq, setSupportFaq] = useState<AdminSupportFaqEntry[]>([]);
+  const [supportFaqBusy, setSupportFaqBusy] = useState(false);
+  const [supportFaqEditingId, setSupportFaqEditingId] = useState("");
+  const [supportFaqQuestion, setSupportFaqQuestion] = useState("");
+  const [supportFaqAnswer, setSupportFaqAnswer] = useState("");
+  const [supportFaqOrder, setSupportFaqOrder] = useState("0");
+  const [supportFaqEnabled, setSupportFaqEnabled] = useState(true);
   const [supportReply, setSupportReply] = useState<Record<string, string>>({});
   const [supportReplyRequestIds, setSupportReplyRequestIds] = useState<Record<string, string>>({});
   const [adminMemberships, setAdminMemberships] = useState<Array<{user_id:string;status:"active"|"suspended"|"revoked";revision:number;permissions:string[];created_at?:string;updated_at?:string}>>([]);
@@ -343,6 +357,12 @@ export function AdminPage() {
           if (requestId !== tabLoadRequestRef.current || queueRequestId !== supportQueueRequestRef.current) return;
           throw reason;
         }
+      }
+      if (tab === "support-faq") {
+        setSupportFaq([]);
+        const snapshot = await getAdminSupportFaq(token);
+        if (requestId !== tabLoadRequestRef.current) return;
+        setSupportFaq(snapshot.entries || []);
       }
       if (tab === "seconds") {
         setSecondsPolicy(null);
@@ -772,6 +792,79 @@ export function AdminPage() {
     }
   };
 
+  const refreshSupportFaq = async () => {
+    if (!token) return;
+    setError(""); setNotice("");
+    try {
+      const snapshot = await getAdminSupportFaq(token);
+      setSupportFaq(snapshot.entries || []);
+    } catch (reason) {
+      setSupportFaq([]);
+      setError(reason instanceof Error ? reason.message : "Help-centre entries could not be loaded.");
+    }
+  };
+
+  const resetSupportFaqForm = () => {
+    setSupportFaqEditingId("");
+    setSupportFaqQuestion("");
+    setSupportFaqAnswer("");
+    setSupportFaqOrder("0");
+    setSupportFaqEnabled(true);
+  };
+
+  const startEditSupportFaq = (entry: AdminSupportFaqEntry) => {
+    setSupportFaqEditingId(entry.id);
+    setSupportFaqQuestion(entry.question);
+    setSupportFaqAnswer(entry.answer);
+    setSupportFaqOrder(String(entry.order));
+    setSupportFaqEnabled(entry.enabled);
+    setError(""); setNotice("");
+  };
+
+  const saveSupportFaqEntry = async () => {
+    if (!token || supportFaqBusy) return;
+    const question = supportFaqQuestion.trim();
+    const answer = supportFaqAnswer.trim();
+    if (question.length < 4 || answer.length < 4) {
+      setError("Enter a question and an answer of at least 4 characters each.");
+      return;
+    }
+    const order = Number(supportFaqOrder || 0);
+    if (!Number.isFinite(order) || order < 0 || order > 9999) {
+      setError("Order must be a number between 0 and 9,999.");
+      return;
+    }
+    setSupportFaqBusy(true); setError(""); setNotice("");
+    try {
+      await saveAdminSupportFaq(token, {
+        ...(supportFaqEditingId ? { id: supportFaqEditingId } : {}),
+        question, answer, order: Math.round(order), enabled: supportFaqEnabled,
+      });
+      resetSupportFaqForm();
+      await refreshSupportFaq();
+      setNotice("Help-centre entry saved.");
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "The help-centre entry was not saved.");
+    } finally {
+      setSupportFaqBusy(false);
+    }
+  };
+
+  const removeSupportFaqEntry = async (id: string) => {
+    if (!token || supportFaqBusy) return;
+    setSupportFaqBusy(true); setError(""); setNotice("");
+    try {
+      await deleteAdminSupportFaq(token, id);
+      if (supportFaqEditingId === id) resetSupportFaqForm();
+      await refreshSupportFaq();
+      setNotice("Help-centre entry deleted.");
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "The help-centre entry was not deleted.");
+    } finally {
+      setSupportFaqBusy(false);
+    }
+  };
+
   const replySupport = async (uid: string) => {
     if (!token || supportReplyLocksRef.current[uid]) return;
     const content = (supportReply[uid] || "").trim();
@@ -981,6 +1074,62 @@ export function AdminPage() {
     {!loading && tab === "orders" ? <Card><CardHeader><div className="flex flex-wrap items-start justify-between gap-2"><div><CardTitle>{adminText("Orders")}</CardTitle><CardDescription>{ordersSource === "postgres_financial_matching" ? adminText("Customer order history and this administrator view use the canonical PostgreSQL matching orders.") : ordersSource === "legacy_state" ? adminText("Legacy state fallback is active because matching-engine mode was not requested.") : adminText("Order data source is not confirmed.")}</CardDescription></div><Badge variant={ordersSource === "postgres_financial_matching" ? "default" : "destructive"}>{ordersSource === "postgres_financial_matching" ? adminText("Source: PostgreSQL matching") : ordersSource === "legacy_state" ? adminText("Source: legacy state") : adminText("Source: unknown")}</Badge></div></CardHeader><CardContent><div className="overflow-x-auto"><table className="w-full min-w-[700px] text-left text-sm"><thead><tr className="border-b border-brand-border bg-brand-surface-2/50 type-label uppercase tracking-wide text-brand-text-muted"><th className="px-3 py-2.5">{adminText("ID")}</th><th className="px-3 py-2.5">{adminText("User")}</th><th className="px-3 py-2.5">{adminText("Symbol")}</th><th className="px-3 py-2.5">{adminText("Side")}</th><th className="px-3 py-2.5">{adminText("Status")}</th><th className="px-3 py-2.5">{adminText("Created")}</th></tr></thead><tbody>{orders.map((item,index)=><tr key={asText(item.id)||index} className="border-b border-brand-border-subtle transition-colors hover:bg-brand-surface-hover/40"><td className="px-3 py-2.5 font-mono text-xs">{asText(item.id)}</td><td className="px-3 py-2.5">{asText(item.uid||item.user_id)}</td><td className="px-3 py-2.5 font-medium">{asText(item.symbol)}</td><td className="px-3 py-2.5">{adminText(asText(item.side))}</td><td className="px-3 py-2.5"><Badge variant={statusVariant(asText(item.status))}>{adminText(asText(item.status))}</Badge></td><td className="whitespace-nowrap px-3 py-2.5">{formatDate(item.created_at||item.time)}</td></tr>)}{orders.length===0 ? <tr><td colSpan={6} className="px-3 py-10 text-center text-sm text-brand-text-muted">暂无订单记录。</td></tr> : null}</tbody></table></div></CardContent></Card> : null}
 
     {!loading && tab === "support" ? <Card><CardHeader className="flex flex-row items-center justify-between"><CardTitle>{adminText("Support messages")}</CardTitle><Button size="sm" variant="outline" disabled={busy} onClick={()=>void refreshSupportQueue()}>{adminText("Refresh queue")}</Button></CardHeader><CardContent className="space-y-3">{support.map((item,index)=>{const uid=asText(item.uid||item.user_id);return <div key={asText(item.id)||index} className="rounded-xl border border-brand-border p-3"><p className="text-xs text-brand-text-muted">{uid} · {formatDate(item.created_at||item.time)}</p><p className="mt-2 whitespace-pre-wrap text-sm">{asText(item.content||item.message)}</p><textarea value={supportReply[uid]||""} onChange={event=>{setSupportReply(current=>({...current,[uid]:event.target.value}));try { setSupportReplyRequestIds(current=>({...current,[uid]:window.crypto.randomUUID()})); } catch { setError("Secure support reply request IDs are unavailable in this browser. No reply was sent."); }}} rows={2} className="mt-3 w-full rounded-lg border border-brand-border bg-brand-surface-2 p-2 text-sm text-brand-text" placeholder={adminText("Reply to customer")}/><Button size="sm" className="mt-2" disabled={busy||!supportReply[uid]?.trim()||!hasPermission("support.reply")} onClick={()=>void replySupport(uid)}>{adminText("Send reply")}</Button></div>;})}{support.length===0 ? <p className="rounded-lg border border-dashed border-brand-border p-6 text-center text-sm text-brand-text-muted">暂无客服消息。</p> : null}</CardContent></Card> : null}
+    {!loading && tab === "support-faq" ? <div className="grid gap-4 xl:grid-cols-[minmax(0,1.05fr)_minmax(340px,0.95fr)]">
+      <Card>
+        <CardHeader>
+          <div className="flex flex-wrap items-start justify-between gap-2">
+            <div>
+              <CardTitle>{adminText("Help centre entries")}</CardTitle>
+              <CardDescription>{adminText("Published to the customer support page. Hidden entries stay here but customers never see them.")}</CardDescription>
+            </div>
+            <Button size="sm" variant="outline" disabled={supportFaqBusy} onClick={()=>void refreshSupportFaq()}>{adminText("Refresh")}</Button>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {supportFaq.map(entry=><div key={entry.id} className="rounded-xl border border-brand-border p-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge variant={entry.enabled ? "success" : "outline"}>{entry.enabled ? adminText("Published") : adminText("Hidden")}</Badge>
+              <span className="type-meta text-brand-text-muted">{adminText("Order")} {entry.order}</span>
+              <span className="ml-auto font-mono text-[11px] text-brand-text-muted">{entry.id}</span>
+            </div>
+            <p className="mt-2 text-sm font-semibold text-brand-text">{entry.question}</p>
+            <p className="mt-1 whitespace-pre-wrap text-xs leading-5 text-brand-text-secondary">{entry.answer}</p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <Button size="sm" variant="outline" disabled={supportFaqBusy || !hasPermission("support.manage")} onClick={()=>startEditSupportFaq(entry)}>{adminText("Edit")}</Button>
+              <Button size="sm" variant="outline" className="border-brand-danger/30 text-brand-danger hover:bg-brand-danger/5 hover:text-brand-danger" disabled={supportFaqBusy || !hasPermission("support.manage")} onClick={()=>void removeSupportFaqEntry(entry.id)}>{adminText("Delete")}</Button>
+            </div>
+          </div>)}
+          {supportFaq.length === 0 ? <p className="rounded-lg border border-dashed border-brand-border p-6 text-center text-sm text-brand-text-muted">{adminText("No help-centre entries yet.")}</p> : null}
+        </CardContent>
+      </Card>
+      <Card>
+        <CardHeader>
+          <CardTitle>{supportFaqEditingId ? adminText("Edit help-centre entry") : adminText("New help-centre entry")}</CardTitle>
+          <CardDescription>{adminText("Stored in the backend state document; customers receive enabled entries in this order.")}</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <label className="block text-xs font-semibold text-brand-text-secondary">{adminText("Question")}
+            <input value={supportFaqQuestion} onChange={event=>setSupportFaqQuestion(event.target.value)} maxLength={300} className="mt-1 w-full rounded-lg border border-brand-border bg-brand-surface-2 p-2 text-sm text-brand-text" placeholder={adminText("How do I verify my account?")} />
+          </label>
+          <label className="block text-xs font-semibold text-brand-text-secondary">{adminText("Answer")}
+            <textarea value={supportFaqAnswer} onChange={event=>setSupportFaqAnswer(event.target.value)} rows={6} maxLength={4000} className="mt-1 w-full rounded-lg border border-brand-border bg-brand-surface-2 p-2 text-sm text-brand-text" placeholder={adminText("Explain the steps clearly.")} />
+          </label>
+          <div className="flex flex-wrap items-end gap-3">
+            <label className="block text-xs font-semibold text-brand-text-secondary">{adminText("Order")}
+              <input value={supportFaqOrder} onChange={event=>setSupportFaqOrder(event.target.value)} inputMode="numeric" className="mt-1 w-24 rounded-lg border border-brand-border bg-brand-surface-2 p-2 text-sm text-brand-text" />
+            </label>
+            <label className="flex items-center gap-2 pb-2 text-xs font-semibold text-brand-text-secondary">
+              <input type="checkbox" checked={supportFaqEnabled} onChange={event=>setSupportFaqEnabled(event.target.checked)} className="h-4 w-4" />
+              {adminText("Show to customers")}
+            </label>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button size="sm" disabled={supportFaqBusy || !hasPermission("support.manage")} onClick={()=>void saveSupportFaqEntry()}>{supportFaqBusy ? adminText("Saving…") : adminText("Save entry")}</Button>
+            <Button size="sm" variant="outline" disabled={supportFaqBusy} onClick={resetSupportFaqForm}>{adminText("Clear form")}</Button>
+          </div>
+        </CardContent>
+      </Card>
+    </div> : null}
     {!loading && tab === "markets" ? <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(340px,0.9fr)]">
       <Card><CardHeader><CardTitle>{adminText("Spot market catalogue")}</CardTitle><CardDescription>{adminText("Only enabled pairs accept limit orders. Market orders remain disabled; maker/taker fees stay at zero until fee movements are implemented atomically.")}</CardDescription></CardHeader><CardContent className="space-y-3">
         {spotMarkets.length ? <div className="overflow-x-auto"><table className="w-full min-w-[620px] text-left text-sm"><thead><tr className="border-b border-brand-border bg-brand-surface-2/50 type-label uppercase tracking-wide text-brand-text-muted"><th className="px-3 py-2.5">{adminText("Pair")}</th><th className="px-3 py-2.5">{adminText("Status")}</th><th className="px-3 py-2.5 text-right">{adminText("Tick / step")}</th><th className="px-3 py-2.5 text-right">{adminText("Min quantity / notional")}</th><th className="px-3 py-2.5 text-right">{adminText("Action")}</th></tr></thead><tbody>{spotMarkets.map(market=><tr key={market.base_asset + "/" + market.quote_asset} className="border-b border-brand-border-subtle transition-colors hover:bg-brand-surface-hover/40"><td className="px-3 py-2.5 font-semibold">{market.base_asset}/{market.quote_asset}</td><td className="px-3 py-2.5"><Badge variant={market.enabled ? "success" : "outline"}>{market.enabled ? adminText("Enabled") : adminText("Disabled")}</Badge></td><td className="px-3 py-2.5 text-right text-xs tabular-nums">{asText(market.price_tick)} / {asText(market.quantity_step)}</td><td className="px-3 py-2.5 text-right text-xs tabular-nums">{asText(market.min_quantity)} / {asText(market.min_notional)}</td><td className="px-3 py-2.5 text-right"><Button size="sm" variant="outline" disabled={busy || !!spotMarketRequestId || !hasPermission("system_config.write")} onClick={()=>setSpotMarketDraft({base_asset:market.base_asset,quote_asset:market.quote_asset,enabled:market.enabled,price_tick:String(market.price_tick),quantity_step:String(market.quantity_step),min_quantity:String(market.min_quantity),min_notional:String(market.min_notional),min_limit_price:market.min_limit_price==null?"":String(market.min_limit_price),max_limit_price:market.max_limit_price==null?"":String(market.max_limit_price),reason:""})}>{adminText("Edit")}</Button></td></tr>)}</tbody></table></div> : <p className="text-sm text-brand-text-muted">{adminText("No spot pairs have been configured yet.")}</p>}

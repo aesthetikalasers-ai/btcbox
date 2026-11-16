@@ -1,42 +1,63 @@
-import { useState } from "react";
-import { ChevronDown, HelpCircle } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { ChevronDown, HelpCircle, RefreshCw } from "lucide-react";
+import { Button } from "../../components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/card";
+import { getSupportFaq, type SupportFaqEntry } from "../../lib/api";
 import { useI18n } from "../../lib/i18n";
 import { cn } from "../../lib/utils";
 
-// Help copy is part of the dictionary, so the FAQ follows the visitor's language
-// without a separate content store. Human replies stay in the agent's language.
-const ENTRIES: Array<{ question: string; answer: string }> = [
-  {
-    question: "How do I create and verify my BTCBOX account?",
-    answer: "Register with a username, set a login password, then open Identity verification from your account page and submit the requested documents. Verified accounts can deposit, withdraw and place larger orders.",
-  },
-  {
-    question: "How long do deposits and withdrawals take?",
-    answer: "Deposits are credited after the network confirmations required for that asset. Withdrawal requests are reviewed by the BTCBOX team and broadcast after approval. The current status of each request is listed under Withdrawals in Assets.",
-  },
-  {
-    question: "Which products does BTCBOX offer?",
-    answer: "Four products: Spot for listed pairs against USDT, Seconds for short-duration directional rounds, Contract for perpetual markets with funding and positions, and Earn for flexible and fixed-term yield on idle balances.",
-  },
-  {
-    question: "How do I keep my account secure?",
-    answer: "Enable two-factor authentication under Account security, use a password that is unique to BTCBOX and never share verification codes. BTCBOX staff will never ask for your password, two-factor codes or wallet recovery phrase.",
-  },
-  {
-    question: "What should I do when a market or an order fails?",
-    answer: "Check the feed status on the Markets page first: stale snapshots hide quotes until fresh data arrives. Rejected orders show the reason returned by the trading service. If the problem persists, send the symbol, time and error text to support from this page.",
-  },
-  {
-    question: "How are support replies handled?",
-    answer: "Messages sent here are stored in your private account conversation and answered by the support team in the order they are received. Replies appear in this conversation and in the notification bell. We do not use automated answers, so every message is read by a person.",
-  },
-];
+// Help copy is owned by the backend (`support_faq` in the persisted state document)
+// so operations can add, edit, reorder, disable or delete articles from the
+// administrator console without shipping a new frontend build. Nothing is
+// hard-coded here: when the catalogue is empty or unreachable the component says
+// so instead of showing stale bundled answers.
+//
+// The six identifiers below are the articles BTCBOX ships by default. Their copy
+// lives in the translation dictionary, so passing them through `t()` keeps the
+// help centre localised. Staff-authored articles are rendered verbatim, which is
+// why they are not passed through `t()` (that would only emit missing-key noise).
+const DEFAULT_FAQ_IDS = new Set([
+  "faq-account-verification",
+  "faq-deposit-withdrawal-time",
+  "faq-products",
+  "faq-account-security",
+  "faq-order-failures",
+  "faq-support-replies",
+]);
 
 export function SupportFaq() {
   const { t } = useI18n();
-  const [open, setOpen] = useState<number[]>([0]);
-  const toggle = (index: number) => setOpen((current) => current.includes(index) ? current.filter((item) => item !== index) : [...current, index]);
+  const [entries, setEntries] = useState<SupportFaqEntry[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [failed, setFailed] = useState(false);
+  const [open, setOpen] = useState<string[]>([]);
+  const [reload, setReload] = useState(0);
+  const autoOpened = useRef(false);
+  const toggle = (id: string) => setOpen((current) => current.includes(id) ? current.filter((item) => item !== id) : [...current, id]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    setLoading(true);
+    setFailed(false);
+    getSupportFaq(controller.signal)
+      .then((items) => {
+        if (controller.signal.aborted) return;
+        setEntries(items);
+        // Expand the first article once, matching the previous static list.
+        if (!autoOpened.current && items.length > 0) {
+          autoOpened.current = true;
+          setOpen([items[0].id]);
+        }
+      })
+      .catch((reason: unknown) => {
+        if (reason instanceof Error && reason.name === "AbortError") return;
+        if (!controller.signal.aborted) { setEntries([]); setFailed(true); }
+      })
+      .finally(() => { if (!controller.signal.aborted) setLoading(false); });
+    return () => controller.abort();
+  }, [reload]);
+
+  const label = (entry: SupportFaqEntry, value: string) => DEFAULT_FAQ_IDS.has(entry.id) ? t(value) : value;
 
   return (
     <Card className="overflow-hidden border-brand-border bg-brand-surface p-0">
@@ -50,28 +71,31 @@ export function SupportFaq() {
         </div>
       </CardHeader>
       <CardContent className="divide-y divide-brand-border-subtle p-0">
-        {ENTRIES.map(({ question, answer }, index) => {
-          const expanded = open.includes(index);
+        {loading ? <p className="p-4 text-sm text-brand-text-muted sm:p-5" role="status">{t("Loading help articles…")}</p>
+        : failed ? <div className="p-4 sm:p-5"><p className="text-sm text-brand-text-muted" role="alert">{t("Help articles could not be loaded.")}</p><Button type="button" size="sm" variant="outline" className="mt-3" onClick={() => setReload((n) => n + 1)}><RefreshCw className="mr-2 h-4 w-4" />{t("Try again")}</Button></div>
+        : entries.length === 0 ? <p className="p-4 text-sm text-brand-text-muted sm:p-5">{t("Help articles are being prepared. You can still send a message to support.")}</p>
+        : entries.map((entry, index) => {
+          const expanded = open.includes(entry.id);
           const panelId = `support-faq-panel-${index}`;
           const triggerId = `support-faq-trigger-${index}`;
           return (
-            <div key={question}>
+            <div key={entry.id}>
               <h3 className="m-0">
                 <button
                   id={triggerId}
                   type="button"
                   aria-expanded={expanded}
                   aria-controls={panelId}
-                  onClick={() => toggle(index)}
+                  onClick={() => toggle(entry.id)}
                   className="flex min-h-12 w-full min-w-0 items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-brand-surface-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-accent/70 sm:px-5"
                 >
-                  <span className="min-w-0 flex-1 text-sm font-semibold text-brand-text">{t(question)}</span>
+                  <span className="min-w-0 flex-1 text-sm font-semibold text-brand-text">{label(entry, entry.question)}</span>
                   <ChevronDown aria-hidden="true" className={cn("h-4 w-4 shrink-0 text-brand-text-muted transition-transform", expanded && "rotate-180")} />
                 </button>
               </h3>
               {expanded && (
                 <div id={panelId} role="region" aria-labelledby={triggerId} className="anim-fade-in px-4 pb-4 sm:px-5">
-                  <p className="text-sm leading-6 text-brand-text-secondary">{t(answer)}</p>
+                  <p className="whitespace-pre-wrap break-words text-sm leading-6 text-brand-text-secondary">{label(entry, entry.answer)}</p>
                 </div>
               )}
             </div>

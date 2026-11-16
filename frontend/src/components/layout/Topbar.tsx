@@ -1,11 +1,13 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Search, User, ArrowLeftRight, ChartNoAxesCombined, Headset } from "lucide-react";
 import { useI18n } from "../../lib/i18n";
 import { useAuth } from "../../lib/auth";
+import { getSupportUnread } from "../../lib/api";
 import { BrandLogo } from "../BrandLogo";
 import { LanguageMenu } from "./LanguageMenu";
 import { Button } from "../ui/button";
+import { useAuthDialog } from "../../lib/auth-dialog";
 /**
  * Renders the global header, search control, quick market/trade entries,
  * language selector, and the authenticated account control.
@@ -14,9 +16,21 @@ import { Button } from "../ui/button";
 export function Topbar() {
   const { t } = useI18n();
   const { status, email } = useAuth();
+  const { openAuthDialog } = useAuthDialog();
   const [search, setSearch] = useState("");
   const navigate = useNavigate();
   const authenticated = status === "authenticated";
+  const [supportUnread, setSupportUnread] = useState(0);
+  // Unread support replies come from the backend counter (GET /api/chat/unread),
+  // refreshed while the session is active so a staff reply is never missed.
+  useEffect(() => {
+    if (!authenticated) { setSupportUnread(0); return; }
+    let active = true;
+    const load = () => { getSupportUnread().then((count) => { if (active) setSupportUnread(count); }).catch(() => {}); };
+    load();
+    const timer = window.setInterval(load, 60000);
+    return () => { active = false; window.clearInterval(timer); };
+  }, [authenticated]);
   const submitSearch = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const query = search.trim();
@@ -56,15 +70,16 @@ export function Topbar() {
         ) : (
           <>
             <div className="hidden items-center gap-2 sm:flex">
-              <Button asChild size="sm" variant="ghost" className="h-8 rounded-full border border-brand-accent/30 bg-brand-accent/15 px-3.5 text-brand-accent transition-transform hover:scale-[1.03] active:scale-95"><Link to="/login">{t("Sign in")}</Link></Button>
-              <Button asChild size="sm" className="h-8"><Link to="/register">{t("Create account")}</Link></Button>
+              <Button type="button" size="sm" variant="ghost" onClick={() => openAuthDialog("login")} className="h-9 rounded-full border border-brand-accent/30 bg-brand-accent/15 px-3.5 text-brand-accent transition-transform hover:scale-[1.03] active:scale-95">{t("Sign in")}</Button>
+              <Button type="button" size="sm" onClick={() => openAuthDialog("register")} className="h-9">{t("Create account")}</Button>
             </div>
-            <Link to="/login" className="flex h-8 items-center rounded-full border border-brand-accent/30 bg-brand-accent/15 px-3.5 text-sm font-semibold text-brand-accent transition-transform hover:scale-[1.03] active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent sm:hidden">{t("Sign in")}</Link>
+            <button type="button" onClick={() => openAuthDialog("login")} className="flex h-9 items-center rounded-full border border-brand-accent/30 bg-brand-accent/15 px-3.5 text-sm font-semibold text-brand-accent transition-transform hover:scale-[1.03] active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent sm:hidden">{t("Sign in")}</button>
           </>
         )}
-        <Link to="/support" aria-label={t("Support")} title={t("Support")} className="flex h-8 items-center gap-1.5 rounded-lg border border-brand-border-subtle bg-brand-surface-2 px-2.5 text-brand-text-secondary transition-colors hover:bg-brand-surface-hover hover:text-brand-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent/60">
+        <Link to="/support" aria-label={t("Support")} title={t("Support")} className="relative flex h-9 items-center gap-1.5 rounded-lg border border-brand-border-subtle bg-brand-surface-2 px-2.5 text-brand-text-secondary transition-colors hover:bg-brand-surface-hover hover:text-brand-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent/60">
           <Headset className="h-[17px] w-[17px]" />
           <span className="hidden text-sm font-semibold md:inline">{t("Support")}</span>
+          {supportUnread > 0 ? <span className="absolute -right-1.5 -top-1.5 flex h-4.5 min-w-4.5 items-center justify-center rounded-full bg-brand-danger px-1 text-[10px] font-bold leading-none text-white tabular-nums" aria-label={t("Unread support replies")}>{supportUnread > 99 ? "99+" : supportUnread}</span> : null}
         </Link>
         <LanguageMenu />
       </div>

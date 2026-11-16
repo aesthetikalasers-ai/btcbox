@@ -635,6 +635,7 @@ async function loadDB() {
         const seeded = await seedResponse.json();
         if (seeded === true) {
           mergeDepositAddresses(initialState);
+          normalizeSupportFaq(initialState);
           return attachRevision(initialState, 1);
         }
         const retryResponse = await fetch(base + '/rest/v1/btcbox_state?select=revision,data&id=eq.main', { headers: supabaseHeaders() });
@@ -646,11 +647,13 @@ async function loadDB() {
         }
         const data = JSON.parse(JSON.stringify(retryRows[0].data));
         mergeDepositAddresses(data);
+        normalizeSupportFaq(data);
         return attachRevision(data, retryRows[0].revision);
       }
       if (rows.length === 1 && rows[0] && rows[0].data && rows[0].data.users) {
         const data = JSON.parse(JSON.stringify(rows[0].data));
         mergeDepositAddresses(data);
+        normalizeSupportFaq(data);
         return attachRevision(data, rows[0].revision);
       }
       // Multiple or malformed rows indicate a broken state contract; never reset or overwrite them.
@@ -722,11 +725,59 @@ function depositAddressFromEnv(networkKey) {
   }
   return raw;
 }
+// Help-centre (FAQ) entries live inside the persisted state document instead of
+// being hard-coded in the customer bundle, so operations can add, edit, reorder,
+// disable or delete them from the administrator console without a frontend deploy.
+// Default copy stays in English in storage: the customer UI already translates
+// these exact strings through its dictionary, while staff-authored entries are
+// shown verbatim.
+const DEFAULT_SUPPORT_FAQ = Object.freeze([
+  {
+    id: 'faq-account-verification', order: 10, enabled: true,
+    question: 'How do I create and verify my BTCBOX account?',
+    answer: 'Register with a username, set a login password, then open Identity verification from your account page and submit the requested documents. Verified accounts can deposit, withdraw and place larger orders.'
+  },
+  {
+    id: 'faq-deposit-withdrawal-time', order: 20, enabled: true,
+    question: 'How long do deposits and withdrawals take?',
+    answer: 'Deposits are credited after the network confirmations required for that asset. Withdrawal requests are reviewed by the BTCBOX team and broadcast after approval. The current status of each request is listed under Withdrawals in Assets.'
+  },
+  {
+    id: 'faq-products', order: 30, enabled: true,
+    question: 'Which products does BTCBOX offer?',
+    answer: 'Four products: Spot for listed pairs against USDT, Seconds for short-duration directional rounds, Contract for perpetual markets with funding and positions, and Earn for flexible and fixed-term yield on idle balances.'
+  },
+  {
+    id: 'faq-account-security', order: 40, enabled: true,
+    question: 'How do I keep my account secure?',
+    answer: 'Enable two-factor authentication under Account security, use a password that is unique to BTCBOX and never share verification codes. BTCBOX staff will never ask for your password, two-factor codes or wallet recovery phrase.'
+  },
+  {
+    id: 'faq-order-failures', order: 50, enabled: true,
+    question: 'What should I do when a market or an order fails?',
+    answer: 'Check the feed status on the Markets page first: stale snapshots hide quotes until fresh data arrives. Rejected orders show the reason returned by the trading service. If the problem persists, send the symbol, time and error text to support from this page.'
+  },
+  {
+    id: 'faq-support-replies', order: 60, enabled: true,
+    question: 'How are support replies handled?',
+    answer: 'Messages sent here are stored in your private account conversation and answered by the support team in the order they are received. Replies appear in this conversation and in the notification bell. We do not use automated answers, so every message is read by a person.'
+  }
+]);
+function supportFaqDefaults() {
+  return DEFAULT_SUPPORT_FAQ.map(function (entry) { return Object.assign({}, entry); });
+}
+// Older state documents predate the help-centre field: seed the shipped defaults
+// once instead of serving an empty FAQ. Existing staff edits are never replaced.
+function normalizeSupportFaq(db) {
+  if (!Array.isArray(db.support_faq)) db.support_faq = supportFaqDefaults();
+  return db.support_faq;
+}
 function defaultDB() {
   return {
     users: {},
     sessions: {},
     next_uid: 16588,
+    support_faq: supportFaqDefaults(),
     deposit_addresses: {
       "USDT-TRC20": depositAddressFromEnv("USDT-TRC20"),
       "USDT-ERC20": depositAddressFromEnv("USDT-ERC20"),
@@ -2981,6 +3032,21 @@ async function handleRequest(event, context) {
     return json({ ok: true, messages: user.support_messages.slice(-50) });
   }
 
+  // ---------- GET /api/support/faq（帮助中心公开条目）----------
+  // Public and unauthenticated on purpose: the help centre is visible before
+  // sign-in. Only enabled entries are exposed, ordered by the staff-set order.
+  if (path === 'support/faq' && method === 'GET') {
+    const entries = normalizeSupportFaq(db)
+      .filter(function (entry) { return entry && entry.enabled !== false; })
+      .slice()
+      .sort(function (a, b) { return Number(a.order || 0) - Number(b.order || 0) || String(a.id).localeCompare(String(b.id)); })
+      .map(function (entry) {
+        return { id: String(entry.id), question: String(entry.question || ''), answer: String(entry.answer || '') };
+      })
+      .filter(function (entry) { return entry.question && entry.answer; });
+    return json({ ok: true, entries: entries });
+  }
+
   // ---------- POST /api/settings/password ----------
   if (path === 'settings/password' && method === 'POST') {
     if (!user) return json({ ok: false, msg: 'Not signed in.', need_login: true }, 401);
@@ -3218,6 +3284,8 @@ async function handleRequest(event, context) {
       if (route === 'orders' && verb === 'GET') return 'orders.read';
       if (route === 'support/messages' && verb === 'GET') return 'support.read';
       if (route === 'support/reply' && verb === 'POST') return 'support.reply';
+      if (route === 'support/faq' && verb === 'GET') return 'support.read';
+      if ((route === 'support/faq' || route === 'support/faq/delete') && verb === 'POST') return 'support.manage';
       if (route === 'push' && verb === 'POST') return 'announcements.manage';
       if (route === 'audit-logs' && verb === 'GET') return 'financial_audit.read';
       if (route === 'spot-markets' && verb === 'GET') return 'system_config.read';
@@ -4189,6 +4257,94 @@ async function handleRequest(event, context) {
       });
       list.sort(function (a, b) { return (a.time < b.time) ? 1 : -1; });
       return json({ ok: true, messages: list.slice(0, 100) });
+    }
+
+    // ---------- Admin: help centre (FAQ) ----------
+    // GET /api/admin/support/faq — full list (disabled entries included) so staff
+    // can re-enable or delete them. Permission: support.read.
+    if (sub === 'support/faq' && method === 'GET') {
+      const entries = normalizeSupportFaq(db).slice()
+        .sort(function (a, b) { return Number(a.order || 0) - Number(b.order || 0) || String(a.id).localeCompare(String(b.id)); })
+        .map(function (entry) {
+          return {
+            id: String(entry.id),
+            question: String(entry.question || ''),
+            answer: String(entry.answer || ''),
+            order: Number(entry.order || 0),
+            enabled: entry.enabled !== false,
+            updated_at: entry.updated_at || ''
+          };
+        });
+      return json({ ok: true, entries: entries });
+    }
+
+    // POST /api/admin/support/faq — create or update one entry. Permission: support.manage.
+    // Missing `id` creates a new entry; an existing `id` updates it in place so the
+    // customer-facing order and links stay stable.
+    if (sub === 'support/faq' && method === 'POST') {
+      const question = String(body.question || '').trim();
+      const answer = String(body.answer || '').trim();
+      const requestedId = String(body.id || '').trim();
+      const order = body.order === undefined || body.order === null || body.order === '' ? 0 : Number(body.order);
+      if (question.length < 4 || question.length > 300) {
+        return json({ ok: false, code: 'INVALID_FAQ_QUESTION', msg: 'A question between 4 and 300 characters is required.' }, 400);
+      }
+      if (answer.length < 4 || answer.length > 4000) {
+        return json({ ok: false, code: 'INVALID_FAQ_ANSWER', msg: 'An answer between 4 and 4,000 characters is required.' }, 400);
+      }
+      if (!Number.isFinite(order) || order < 0 || order > 9999) {
+        return json({ ok: false, code: 'INVALID_FAQ_ORDER', msg: 'Order must be a number between 0 and 9,999.' }, 400);
+      }
+      if (requestedId && !/^[A-Za-z0-9_-]{1,64}$/.test(requestedId)) {
+        return json({ ok: false, code: 'INVALID_FAQ_ID', msg: 'FAQ identifiers may only contain letters, numbers, hyphens and underscores.' }, 400);
+      }
+      const entries = normalizeSupportFaq(db);
+      if (entries.length > 200) {
+        return json({ ok: false, code: 'FAQ_LIMIT_REACHED', msg: 'The help centre already contains the maximum number of entries.' }, 409);
+      }
+      const enabled = body.enabled === undefined ? true : body.enabled === true || body.enabled === 'true';
+      const clash = requestedId ? entries.filter(function (entry) { return entry && entry.id !== requestedId && String(entry.question).trim() === question; }) : entries.filter(function (entry) { return entry && String(entry.question).trim() === question; });
+      if (clash.length) {
+        return json({ ok: false, code: 'FAQ_DUPLICATE_QUESTION', msg: 'Another help-centre entry already uses this question.' }, 409);
+      }
+      const existing = requestedId ? entries.find(function (entry) { return entry && entry.id === requestedId; }) : null;
+      let entry;
+      if (existing) {
+        existing.question = question;
+        existing.answer = answer;
+        existing.order = Math.round(order);
+        existing.enabled = enabled;
+        existing.updated_at = nowStr();
+        entry = existing;
+      } else {
+        entry = {
+          id: requestedId || 'faq-' + crypto.randomBytes(6).toString('hex'),
+          question: question,
+          answer: answer,
+          order: Math.round(order),
+          enabled: enabled,
+          updated_at: nowStr()
+        };
+        entries.push(entry);
+      }
+      await auditAdmin('support_faq_' + (existing ? 'update' : 'create'), entry.id, 'Help-centre entry saved; enabled=' + entry.enabled + '; order=' + entry.order, adminUserId);
+      await saveDB(db);
+      const auditFlush = await flushAdminAuditOutbox();
+      return json({ ok: true, created: !existing, entry: entry, audit_sync_pending: auditFlush.pending });
+    }
+
+    // POST /api/admin/support/faq/delete — remove one entry. Permission: support.manage.
+    if (sub === 'support/faq/delete' && method === 'POST') {
+      const id = String(body.id || '').trim();
+      if (!id) return json({ ok: false, code: 'FAQ_ID_REQUIRED', msg: 'A help-centre entry identifier is required.' }, 400);
+      const entries = normalizeSupportFaq(db);
+      const index = entries.findIndex(function (entry) { return entry && entry.id === id; });
+      if (index < 0) return json({ ok: false, code: 'FAQ_NOT_FOUND', msg: 'This help-centre entry no longer exists.' }, 404);
+      entries.splice(index, 1);
+      await auditAdmin('support_faq_delete', id, 'Help-centre entry deleted', adminUserId);
+      await saveDB(db);
+      const auditFlush = await flushAdminAuditOutbox();
+      return json({ ok: true, deleted: id, audit_sync_pending: auditFlush.pending });
     }
     // ---------- Admin: Perpetual markets / liquidations / insurance fund ----------
     if (sub.startsWith('perpetual/')) {
