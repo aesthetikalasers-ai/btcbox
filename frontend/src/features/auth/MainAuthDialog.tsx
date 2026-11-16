@@ -1,5 +1,5 @@
 import * as Dialog from "@radix-ui/react-dialog";
-import { useEffect } from "react";
+import { useEffect, type RefObject } from "react";
 import { X } from "lucide-react";
 import { useAuth } from "../../lib/auth";
 import { useI18n } from "../../lib/i18n";
@@ -10,7 +10,7 @@ export function MainAuthDialog({ open, mode, onOpenChange, onModeChange }: {
   mode: "login" | "register";
   onOpenChange: (open: boolean) => void;
   onModeChange: (mode: "login" | "register") => void;
-  openerRef: React.RefObject<HTMLElement | null>;
+  openerRef: RefObject<HTMLElement | null>;
 }) {
   const { status } = useAuth();
   const { t } = useI18n();
