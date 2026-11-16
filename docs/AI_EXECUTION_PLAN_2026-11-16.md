@@ -143,3 +143,10 @@ BTCBOX Wallet 是独立钱包产品，可从 BTCBOX Exchange 的钱包入口进�
 - 双方共同确认接口字段和状态语义；同一文件不得并发修改。
 - 只有真实后端链路、UI、账户边界、安全及测试证据全部满足后，才可标记相应功能完成。
 - 现有交易页锁定布局及交易核心流程继续受保护；未经所有者明确授权不得更改、合并 main 或部署。
+
+
+### Wallet API implementation update — 2026-11-16
+
+AI 1 已在 `feat/wallet-api-contract-v1` 完成钱包只读 API 第一批源码：资产概览、充值地址列表、账本历史。实现细节、字段和限制以 `docs/WALLET_API_CONTRACT_V1.md` 为准。后端 CI 的 build、test、integration、preflight 和 output checks 均通过（验证提交 `8b33b43de7d4ade86fb998b98a540b04d48787d2`）。这不等于生产部署或真实链上 E2E 已通过。
+
+仍未完成：托管服务/地址派生、链上监听和确认、提现签名/广播、外部钱包验证、密钥同意与 KMS/HSM 接入、Exchange-Wallet 授权转账、真实登录态 Preview 验收。未确认服务商前，不开放地址生成和资金写入。
