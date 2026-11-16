@@ -122,3 +122,17 @@ Exact FK targets and user-ID data types must be confirmed against the active Aut
 6. Enable payouts only after ledger atomicity, reconciliation, admin approvals and audit tests pass.
 
 Until gates 1-5 pass, referral remains preview-only and no real commission balance is promised.
+
+## 10. Fee-source verification update (2026-11-17)
+
+The live connected Supabase project was queried read-only. Findings:
+
+- `financial_matching_markets` exists and both live constraints enforce `maker_fee_rate = 0` and `taker_fee_rate = 0`.
+- The live `submit_limit_order_matching_v1` function writes four spot fill ledger legs (buyer base/quote and seller base/quote) but contains no fee calculation, fee debit, or fee recipient ledger leg.
+- The live `execute_spot_trade_atomic` function also writes only the two traded-asset ledger legs and has no fee handling.
+- No `perpetual_*` tables currently exist in the connected project. No referral/invite/reward/commission tables exist either.
+- The repository's `0041_perpetual_contract_v1.sql` source defines `maker_fee` and `taker_fee`, subtracts them from the respective trader settlement, and credits their sum to the configured insurance account in the same fill operation/ledger transaction. However, market fee rates default to zero, and this migration is not currently reflected in the connected database (the live `perpetual_*` tables are absent). Therefore it is a potential future authoritative fee source, not a live source today.
+- Auth/business identity mapping is `btcbox_auth_accounts.supabase_user_id (uuid) -> btcbox_user_id (text)`; business financial tables use `btcbox_users.user_id (text)`. New referral attribution should key on canonical `btcbox_user_id` only after the verified session-to-BTCBOX identity mapping is present. Do not store a raw email as the relationship key.
+- No live referral code, attribution, or commission source currently exists. No fee-bearing trade path was identified as enabled in the connected database.
+
+**Conclusion:** No real referral commission can currently accrue. Keep programme and payouts disabled. The first technical prerequisite is to establish a real fee-bearing settlement path and event identity. Spot needs an atomic fee debit + fee recipient ledger leg before any fee referral can be attached. Perpetual can become a candidate only after migration, nonzero approved fee policy, runtime enablement, and isolated live-DB reconciliation tests. Do not treat the insurance-fund credit as automatically equivalent to distributable platform revenue; revenue ownership and referral split must be explicitly approved.
