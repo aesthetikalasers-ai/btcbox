@@ -1430,6 +1430,6 @@ test("homepage authentication opens an in-place dialog and mode switches stay in
   await signInOpener.click();
   await expect(dialog).toBeVisible();
   await dialog.getByRole("link", { name: "Explore markets" }).click();
-  await expect(page).toHaveURL(/\\/markets$/);
+  await expect(page).toHaveURL(/\/markets$/);
   await expect(dialog).toBeHidden();
 });
