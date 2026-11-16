@@ -7,6 +7,9 @@ export default defineConfig({
   retries: process.env.CI ? 1 : 0,
   workers: process.env.CI ? 2 : undefined,
   reporter: "list",
+  timeout: 45_000,
+  globalTimeout: 15 * 60_000,
+  expect: { timeout: 10_000 },
   use: {
     baseURL: "http://127.0.0.1:4173",
     // Existing E2E assertions use English copy. Pin the test baseline explicitly
