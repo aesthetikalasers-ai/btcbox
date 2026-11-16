@@ -22,6 +22,8 @@ test('Transfer locks Wallet first and Exchange second for both directions', () =
   const exchangeLock = migration.indexOf('from public.financial_accounts e');
   assert.ok(walletLock >= 0 && exchangeLock > walletLock);
   assert.ok(migration.includes('pg_advisory_xact_lock'));
+  assert.ok(migration.includes('p_supabase_user_id::text || \':\' || p_idempotency_key'));
+  assert.ok(migration.includes('p_direction is null'));
   assert.ok(migration.includes('for update'));
 });
 
