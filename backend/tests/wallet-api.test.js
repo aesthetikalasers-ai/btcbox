@@ -69,13 +69,51 @@ test('wallet address listing returns only public address fields and is owner-sco
   assert.equal(JSON.stringify(result.body).includes('derivation_reference'), false);
 });
 
-test('wallet ledger rejects invalid cursors and never accepts a client-supplied owner', async () => {
+test('wallet ledger rejects invalid cursors and ignores client-supplied owner identifiers', async () => {
   let called = false;
   global.fetch = async () => { called = true; throw new Error('must not call'); };
-  const badCursor = await handleWalletRoute({ path: 'wallet/ledger', method: 'GET', user: { supabase_user_id: USER_ID }, query: { cursor: '0 OR 1=1' } });
+  const badCursor = await handleWalletRoute({
+    path: 'wallet/ledger', method: 'GET',
+    user: { supabase_user_id: USER_ID },
+    query: { cursor: '0 OR 1=1', user_id: OTHER_USER_ID }
+  });
   assert.equal(badCursor.status, 400);
   assert.equal(called, false);
-  assert.notEqual(USER_ID, OTHER_USER_ID);
+});
+
+test('wallet ledger returns signed exact deltas and owner-scoped operation metadata', async () => {
+  const requested = [];
+  global.fetch = async (url) => {
+    requested.push(String(url));
+    if (String(url).includes('/btcbox_wallet_ledger?')) {
+      return { ok: true, json: async () => [{
+        ledger_id: '12',
+        operation_id: '33333333-3333-4333-8333-333333333333',
+        asset_code: 'USDT',
+        available_delta: '-1.25',
+        frozen_delta: '0',
+        available_after: '8.75',
+        frozen_after: '0',
+        created_at: '2026-11-16T00:00:00Z'
+      }] };
+    }
+    return { ok: true, json: async () => [{
+      operation_id: '33333333-3333-4333-8333-333333333333',
+      operation_type: 'withdraw_freeze',
+      status: 'applied'
+    }] };
+  };
+  const result = await handleWalletRoute({
+    path: 'wallet/ledger', method: 'GET',
+    user: { supabase_user_id: USER_ID },
+    query: { asset: 'usdt', user_id: OTHER_USER_ID }
+  });
+  assert.equal(result.status, 200);
+  assert.equal(result.body.entries[0].available_delta, '-1.25');
+  assert.equal(result.body.entries[0].type, 'withdraw_freeze');
+  assert.equal(new URL(requested[0]).searchParams.get('user_id'), 'eq.' + USER_ID);
+  assert.equal(new URL(requested[1]).searchParams.get('user_id'), 'eq.' + USER_ID);
+  assert.equal(result.body.next_cursor, null);
 });
 
 test('wallet address generation fails closed when no provider is configured', async () => {
