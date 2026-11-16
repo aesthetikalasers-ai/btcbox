@@ -67,3 +67,11 @@
 - 本批未修改交易页、未合并 `main`/`working`、未部署。功能分支与共同开发分支仍需单独评估差异后才能整合。
 
 **下一项唯一优先任务：** 确认并选择钱包地址派生/托管服务及测试网络方案，再实现 provider adapter、地址分配与链上充值监听；在服务商和密钥配置未确认前继续保持地址生成和资金写入关闭。
+
+
+### Supabase 钱包基础设施核对补充（只读）
+
+- 当前 Supabase 项目已应用钱包基础迁移；`auth.users` 上存在 `btcbox_auth_user_initialize_v1` 触发器，调用 `btcbox_initialize_auth_user_v1()`。该 SECURITY DEFINER 函数在安全固定的 search_path 下创建 `btcbox_user_profiles`，并为全部 active `btcbox_assets` 创建 `btcbox_wallet_accounts`。
+- 当前 active 钱包资产为 ADA、AVAX、BNB、BTC、DOGE、ETH、SOL、USDT、XRP，共 9 种。当前 `auth.users`、钱包 profile 和 wallet account 均为 0 行；这是测试账号清理后的空库状态，不需要手工插入用户或余额。新 Auth 用户创建时应由触发器自动初始化账户。
+- 发现一个需要在后续补齐的可复现性缺口：上述 2026-11-16 钱包基础迁移已存在于 Supabase migration history，但对应 SQL 文件尚未纳入仓库 `backend/supabase/sql/`，且 `bootstrap-empty-database.sh` 当前只执行 0001–0041 的既有清单。因此，**当前线上 schema 已存在不等于新空库 bootstrap 能重建 Wallet schema**。需恢复/归档这些迁移源文件，并将其纳入空库 bootstrap 与 PostgreSQL schema CI；在此之前不得声称空库重建包含 Wallet。
+- 钱包表已启用 RLS，当前没有面向 anon/authenticated 的直接表访问策略；后端只通过服务端 service-role 只读查询并附带会话 owner 过滤。Supabase Advisor 对“RLS enabled, no policy”给出 INFO 项；此设计是 fail-closed，不应为了消除提示而开放客户端表权限。
