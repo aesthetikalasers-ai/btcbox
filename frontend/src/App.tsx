@@ -10,6 +10,7 @@ import { useI18n } from "./lib/i18n";
 import { Button } from "./components/ui/button";
 import { LockKeyhole } from "lucide-react";
 import { AccountNoticeModal } from "./components/AccountNoticeModal";
+import { AuthDialogProvider } from "./lib/auth-dialog";
 
 const Dashboard = lazy(() => import("./features/dashboard/Dashboard").then((m) => ({ default: m.Dashboard })));
 const MarketsPage = lazy(() => import("./features/markets/MarketsPage").then((m) => ({ default: m.MarketsPage })));
@@ -129,7 +130,7 @@ function CustomerRoutes() {
     <Route path="/" element={<Navigate to="/home" replace />} />
     <Route path="*" element={<NotFoundPage />} />
   </Routes></Suspense></AccountSetupGate><AccountNoticeModal /></div>;
-  return isStandaloneAuthRoute ? content : <AppLayout>{content}</AppLayout>;
+  return <AuthDialogProvider>{isStandaloneAuthRoute ? content : <AppLayout>{content}</AppLayout>}</AuthDialogProvider>;
 }
 export default function App() {
   const { pathname } = useLocation();
