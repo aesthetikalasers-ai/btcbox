@@ -1,5 +1,7 @@
 import * as Dialog from "@radix-ui/react-dialog";
+import { useEffect } from "react";
 import { X } from "lucide-react";
+import { useAuth } from "../../lib/auth";
 import { AuthPage } from "./AuthPages";
 
 export function MainAuthDialog({ open, mode, onOpenChange, onModeChange }: {
@@ -8,6 +10,8 @@ export function MainAuthDialog({ open, mode, onOpenChange, onModeChange }: {
   onOpenChange: (open: boolean) => void;
   onModeChange: (mode: "login" | "register") => void;
 }) {
+  const { status } = useAuth();
+  useEffect(() => { if (status === "authenticated") onOpenChange(false); }, [status, onOpenChange]);
   return <Dialog.Root open={open} onOpenChange={onOpenChange}>
     <Dialog.Portal>
       <Dialog.Overlay className="fixed inset-0 z-[300] bg-black/75 backdrop-blur-sm" />
