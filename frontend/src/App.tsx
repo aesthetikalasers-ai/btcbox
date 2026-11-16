@@ -6,6 +6,7 @@ import { I18nProvider } from "./lib/i18n";
 import { AuthCallbackPage, AuthPage } from "./features/auth/AuthPages";
 import { AccountSecurityPage } from "./features/account/AccountSecurityPage";
 import { useAuth } from "./lib/auth";
+import { useAuthDialog, AuthDialogProvider } from "./lib/auth-dialog";
 import { useI18n } from "./lib/i18n";
 import { Button } from "./components/ui/button";
 import { LockKeyhole } from "lucide-react";
@@ -61,6 +62,7 @@ function DemoRoute({ children }: { children: ReactNode }) {
 // seeing a locked screen and can sign in / register in place.
 function SignInPrompt() {
   const { t } = useI18n();
+  const { openAuthDialog } = useAuthDialog();
   return (
     <div className="mx-auto flex w-full max-w-xl flex-col items-center justify-center px-4 py-16 text-center">
       <span className="mb-5 flex h-16 w-16 items-center justify-center rounded-2xl border border-brand-accent/20 bg-brand-accent/10 text-brand-accent">
@@ -69,8 +71,8 @@ function SignInPrompt() {
       <h2 className="text-xl font-semibold text-brand-text">{t("Sign in to your account")}</h2>
       <p className="mt-2 max-w-md text-sm leading-6 text-brand-text-muted">{t("Sign in to view balances, orders, and security settings.")}</p>
       <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
-        <Button asChild className="min-h-12 px-6 text-sm font-bold"><Link to="/login">{t("Sign in")}</Link></Button>
-        <Button asChild variant="secondary" className="min-h-12 px-6 text-sm font-bold"><Link to="/register">{t("Create account")}</Link></Button>
+        <Button className="min-h-12 px-6 text-sm font-bold" onClick={() => openAuthDialog("login")}>{t("Sign in")}</Button>
+        <Button variant="secondary" className="min-h-12 px-6 text-sm font-bold" onClick={() => openAuthDialog("register")}>{t("Create account")}</Button>
       </div>
     </div>
   );
@@ -94,13 +96,34 @@ function ProtectedAccountRoute({ children }: { children: ReactNode }) {
 function AccountSetupGate({ children }: { children: ReactNode }) {
   return <>{children}</>;
 }
+// Compatibility entry for the legacy /login and /register URLs.
+//
+// The paths keep working (bookmarks, external links, OAuth redirects), but they
+// now open the shared authentication dialog on top of the public home page
+// instead of rendering a separate full-screen authentication implementation.
+function AuthRouteEntry({ mode }: { mode: "login" | "register" }) {
+  const navigate = useNavigate();
+  const { status } = useAuth();
+  const { openAuthDialog } = useAuthDialog();
+  useEffect(() => {
+    if (status === "loading") return;
+    if (status === "authenticated") {
+      navigate(mode === "register" ? "/me" : "/home", { replace: true });
+      return;
+    }
+    navigate("/home", { replace: true });
+    openAuthDialog(mode);
+  }, [mode, status, navigate, openAuthDialog]);
+  return <AuthRestoreState />;
+}
+
 function RouteLoading() {
   const { t } = useI18n();
   return <div className="mx-auto flex min-h-[240px] w-full max-w-[1200px] items-center justify-center p-6" role="status" aria-live="polite"><div className="flex items-center gap-3 text-sm text-brand-text-muted"><span className="h-4 w-4 animate-spin rounded-full border-2 border-white/15 border-t-brand-accent" />{t("Loading…")}</div></div>;
 }
 function CustomerRoutes() {
   const location = useLocation();
-  const isStandaloneAuthRoute = ["/login", "/register", "/auth/react-callback"].includes(location.pathname);
+  const isStandaloneAuthRoute = location.pathname === "/auth/react-callback";
   const content = <div key={location.pathname} className="anim-fade-in min-w-0 flex-1"><AccountSetupGate><Suspense fallback={<RouteLoading />}><Routes>
     <Route path="/home" element={<DemoRoute><Dashboard /></DemoRoute>} /><Route path="/markets" element={<DemoRoute><MarketsPage /></DemoRoute>} />
     <Route path="/trade-hub" element={<TradeHubPage />} /><Route path="/trade" element={<TradeRedirect />} />
@@ -115,7 +138,7 @@ function CustomerRoutes() {
     <Route path="/earn" element={<ProtectedAccountRoute><EarnPage /></ProtectedAccountRoute>} />
     <Route path="/contract" element={<DemoRoute><ContractPage /></DemoRoute>} />
     <Route path="/mobile-terminal" element={<DemoRoute><MobileTradeTerminal /></DemoRoute>} />
-    <Route path="/login" element={<AuthPage mode="login" />} /><Route path="/register" element={<AuthPage mode="register" />} /><Route path="/account-setup" element={<Navigate to="/me" replace />} /><Route path="/auth/react-callback" element={<AuthCallbackPage />} />
+    <Route path="/login" element={<AuthRouteEntry mode="login" />} /><Route path="/register" element={<AuthRouteEntry mode="register" />} /><Route path="/account-setup" element={<Navigate to="/me" replace />} /><Route path="/auth/react-callback" element={<AuthCallbackPage />} />
     <Route path="/kyc" element={<ProtectedAccountRoute><KycPage /></ProtectedAccountRoute>} />
     <Route path="/support" element={<SupportPage />} />
     {/* Trust pages are public reference material: no sign-in required. */}
@@ -133,9 +156,13 @@ function CustomerRoutes() {
 }
 export default function App() {
   const { pathname } = useLocation();
-  return <I18nProvider fixedLanguage={/^\/admin\/?$/i.test(pathname) ? "zh-CN" : undefined}><Suspense fallback={<RouteLoading />}><Routes>
-    <Route path="/admin" element={<AdminPage />} />
-    <Route path="/*" element={<CustomerRoutes />} />
-  </Routes></Suspense></I18nProvider>;
+  return <I18nProvider fixedLanguage={/^\/admin\/?$/i.test(pathname) ? "zh-CN" : undefined}>
+    <AuthDialogProvider>
+      <Suspense fallback={<RouteLoading />}><Routes>
+        <Route path="/admin" element={<AdminPage />} />
+        <Route path="/*" element={<CustomerRoutes />} />
+      </Routes></Suspense>
+    </AuthDialogProvider>
+  </I18nProvider>;
 }
 

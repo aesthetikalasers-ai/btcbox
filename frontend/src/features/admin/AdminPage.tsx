@@ -6,7 +6,7 @@ import { Button } from "../../components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/card";
 import { useAuth } from "../../lib/auth";
 import { adminText } from "../../lib/admin-i18n";
-import { AuthPage } from "../auth/AuthPages";
+import { AuthFormPanel } from "../auth/AuthFormPanel";
 import {
   ApiError,
   adminApproveKyc,
@@ -916,7 +916,7 @@ export function AdminPage() {
   };
 
   if (authStatus === "loading") return <AuthRestoreState />;
-  if (authStatus === "anonymous" || authStatus === "two-factor" || authStatus === "password-recovery") return <div className="mx-auto max-w-3xl p-4 md:p-6"><AuthPage mode="login" redirectTo="/admin" /></div>;
+  if (authStatus === "anonymous" || authStatus === "two-factor" || authStatus === "password-recovery") return <div className="mx-auto max-w-3xl p-4 md:p-6"><div className="rounded-2xl border border-brand-accent/20 bg-brand-surface p-5"><AuthFormPanel mode="login" redirectTo="/admin" /></div></div>;
   if (loading && !session) return <div className="mx-auto max-w-7xl p-6"><Card><CardContent className="p-8 text-sm text-brand-text-muted">{adminText("Verifying administrator identity…")}</CardContent></Card></div>;
   if (!session) return <div className="mx-auto max-w-3xl p-6"><Card><CardHeader><CardTitle>{adminText("BTCBOX Administrator")}</CardTitle><CardDescription>{adminText("Administrator access requires a verified Supabase Auth identity with an active BTCBOX administrator membership.")}</CardDescription></CardHeader><CardContent><p className="text-sm text-brand-danger">{adminText(error || "Administrator membership was not found.")}</p></CardContent></Card></div>;
 

@@ -1,3 +1,82 @@
+# BTCBOX — 项目交接状态（最新续接摘要）
+
+**更新日期：** 2026-11-16
+**仓库：** `avali9308-code/btcboxcdt`
+**当前阶段：** 阶段 1（认证弹窗）开发中 — **尚未验收**
+
+---
+
+## 0. 会话交接摘要（新对话请从这里开始）
+
+### 分支与基线
+- 开发分支：`working`（本地已检出并跟踪 `origin/working`）
+- 本次改动前基线 SHA：`e05f429a0c209c38ad45f20a17425ef9d4c690f9`
+- `origin/main` = `910d7f1ea270d995f1c065c9f0a69ddff141310a`
+- `main` 与 `working` 代码树一致（仅文档提交差异）。**未修改 / 未推送 / 未合并 `main`，无部署，无真实资金操作。**
+- 改动**尚未提交 commit**（工作区有未提交修改，SHA 需提交后补记）。
+
+### 本次已完成并已验证
+| 事项 | 结果 |
+|---|---|
+| 阅读 4 份 AI 文档（COORDINATION / EXECUTION_PLAN / PROJECT_STATE / STATUS_TEMPLATE） | 完成 |
+| 基线 `npx tsc --noEmit` | PASS |
+| 基线 `npm run build` | PASS |
+| `npm install`（仓库无 lockfile，138 packages） | 完成 |
+| Playwright chromium 安装 | 完成 |
+| 新建 `features/auth/AuthFormPanel.tsx`（统一表单：Email 登录/注册、Google、Wallet、忘记密码、用户名高级登录） | 完成 |
+| 新建 `features/auth/AuthDialog.tsx`（Radix 弹窗，可开关/切换/关闭保留上下文） | 完成 |
+| 新建 `lib/auth-dialog.tsx`（`AuthDialogProvider` + `useAuthDialog`） | 完成 |
+| 拆分 `features/auth/AuthCallbackPage.tsx` | 完成 |
+| `features/auth/AuthPages.tsx` 改为复用共享表单的兼容壳 | 完成 |
+| `components/layout/Topbar.tsx` Sign in / Create account 改为开弹窗 | 完成 |
+| `App.tsx`：`SignInPrompt` 开弹窗；`/login`、`/register` → `AuthRouteEntry`（开弹窗并回首页） | 完成 |
+| `features/admin/AdminPage.tsx` 登录改用 `AuthFormPanel redirectTo="/admin"` | 完成 |
+| 8 个语言文件（en/ja/zh-CN/es/pt/it/de/vi）新增 19 个 key | 完成 |
+| 改动后 `npx tsc --noEmit` | PASS |
+| 改动后 `npm run build` | PASS（✓ built in 16.07s） |
+| 改动后 `npm run check:i18n` | PASS（1439 keys；0 missing / 0 duplicate / 0 未登记） |
+
+### 已修复的严重缺陷（务必记住）
+**白屏事故**：`AuthDialogProvider` 最初放在 `main.tsx` 中 `App` 外层，但 `useAuthDialog()` 的使用方（`SignInPrompt`）位于 `I18nProvider` 内部，导致 `useI18n must be used inside I18nProvider` 整页白屏。
+**修复**：将 `AuthDialogProvider` 移入 `App.tsx`，置于 `I18nProvider` 内部、`Routes` 外层。
+**规则**：凡调整 Provider 层级，必须用真实页面探测（Playwright）回归一次，不能只看 build 通过。
+
+### 下一步唯一优先任务（NOT VERIFIED，接续者立即执行）
+用 Playwright 实测认证弹窗 6 条验收路径并修复失败项：
+
+```bash
+cd /c/Users/Administrator/Desktop/btcboxcdt/frontend
+npx playwright test e2e/auth-dialog.spec.ts --project=desktop-chromium --reporter=line
+```
+
+测试文件已写好：`frontend/e2e/auth-dialog.spec.ts`
+1. Topbar「Sign in」打开弹窗且 URL 不变
+2. 弹窗内 Sign in / Create account 原地切换
+3. 关闭弹窗仍停留原页面且市场内容仍在
+4. 弹窗内 Forgot password 可达并可返回
+5. `/login`、`/register` 打开弹窗而非独立全屏页
+6. Email 登录不得触发任何钱包 provider 调用
+
+**当前状态**：白屏修复后**尚未重跑** → 全部标记 NOT VERIFIED。
+
+### 已知待处理问题
+1. **`e2e/auth-routes.spec.ts` 与阶段 1 要求冲突（NEEDS FIX）**：其中多个用例断言「Email 登录 / 找回密码 / Create account with email 应不存在」（`toHaveCount(0)`），与本阶段「保留 Email 登录注册」矛盾，必然失败，需改写为正向断言。
+2. `AuthPages.tsx` 中的 `AuthPage` 已不被任何路由使用，暂保留导出，未验证前不要删除。
+3. 本地工作区 `references/btcbox-v33` 显示 deleted，属既有本地状态，**不要提交**。
+
+### 本地服务（可复用）
+- dev（热更新）：`http://127.0.0.1:5173`
+- preview（构建产物）：`http://127.0.0.1:4174`
+- Playwright webServer 端口：`4173`
+
+### 环境要点
+- Windows Git Bash；路径用 `/c/...`
+- 前端目录：`/c/Users/Administrator/Desktop/btcboxcdt/frontend`
+- 产品默认语言为**日语**；E2E 断言英文需通过 `localStorage: btcbox-language=en` 固定
+
+---
+
+
 # BTCBOX — 项目交接状态
 
 **更新日期：** 2026-11-16  
