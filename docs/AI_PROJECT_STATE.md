@@ -101,3 +101,30 @@
 - 阶段 0 总体仍为 **进行中**，不得进入生产写入或宣布阶段验收通过。
 - 下一项唯一优先任务：取得可执行的 working 工作区，完成后端基线测试并定位 backend-ci workflow failure 的真实原因；阶段 1 认证弹窗由前端负责人继续推进。
 
+
+
+## 2026-11-16 数据库负责人继续核查（只读补充）
+
+### 本轮分支与入口确认
+- `main` HEAD：`910d7f1ea270d995f1c065c9f0a69ddff141310a`。
+- `working` HEAD：`7cb80f67c2645ed12066f9facfe076b524e5cb09`（本轮开始时读取；其父提交为 `38ebf205772e9ebfcb6323109e767af516f29bd8`）。
+- 后端统一 API 入口为 `backend/api/[...path].js` → `backend/api-adapter.js` → `backend/api-core.js`。
+- `backend/api-core.js` 的 Earn 订阅/赎回路由要求服务端已识别的 `user`，以 `user.uid` 生成 RPC 的 `p_user_id`，并在调用前检查 `financialWritesEnabled()`、共享限流和幂等请求 ID；未通过切换门禁时返回 503，不回退到 JSON 钱包写入。
+- `backend/financial_db.py` 暴露订阅/赎回 RPC transport；`backend/financial_storage_guard.py` 仍只允许 `legacy_json`。数据库存在 RPC 不等于应用已完成 PostgreSQL 余额权威切换。
+
+### Earn 与钱包实时只读复核
+- 当前 migration history 返回 23 项，最新为 `20261116064230 btcbox_auth_user_bootstrap_rpc_v1`。
+- 当前 `earn_product_catalog` 为 7 行，`earn_positions` 为 0 行；`financial_accounts`、`financial_operations`、`financial_ledger`、`btcbox_wallet_accounts`、`btcbox_wallet_ledger` 均为 0 行。
+- 对 `earn_product_catalog`、`earn_positions`、`financial_accounts`、`financial_ledger`、`financial_operations` 及三张 `btcbox_wallet_*` 表：均启用 RLS；`pg_policies` 未返回这些表的策略；逐项验证 `anon` 与 `authenticated` 均无 SELECT/INSERT/UPDATE/DELETE 表权限，`service_role` 有受检表的 SELECT 权限。
+- 当前 Earn RPC `subscribe_earn_atomic`、`redeem_earn_atomic` 均为 `SECURITY INVOKER`，ACL 仅允许 `postgres` 与 `service_role` 执行；未发现客户端角色直接执行授权。
+- Supabase Security Advisor 的 46 项 `rls_enabled_no_policy` 均为 INFO。对本轮抽查的财务表，RLS + 无客户端表权限 + service-role RPC 是当前访问模式；不应为了消除 INFO 而直接给客户端开放表权限。
+- Health Advisor 返回 0 项。Performance Advisor 返回的 INFO 主要涉及备份 schema 无主键及未使用索引；本轮未删除索引、未改备份表。
+
+### CI 结果与阶段状态
+- 当前 `working` 最新提交 `7cb80f67c2645ed12066f9facfe076b524e5cb09` 的 CI Watchdog 为 success；该 docs-only 提交没有对应的 `backend-ci.yml` 测试结果。
+- 最近可见的 Backend CI run `43828966950`（提交 `38ebf205772e9ebfcb6323109e767af516f29bd8`）结论为 failure，Jobs API 返回 0 个 job；根因仍 **NOT VERIFIED**，不能推断为代码测试失败或通过。
+- 本轮没有本地可执行仓库工作区；`npm test --prefix backend`、`npm run build --prefix backend`、PostgreSQL 隔离测试均 **NOT VERIFIED**。
+- 阶段 0：远程 refs、API 入口、实时数据库对象/权限抽查 **PASS**；可执行构建/测试 **NOT VERIFIED**；hosted migration 与仓库 canonical SQL 的可复现性差异 **NEEDS FIX**。阶段 0 总体仍 **进行中**，不得进入阶段 2 实施或宣告阶段通过。
+- 下一项唯一优先任务：恢复可执行的 `working` 工作区或查明 Backend CI 在无 job 情况下失败的原因，然后运行后端测试与构建；前端负责人继续阶段 1，本助手不改前端文件。
+
+本节仅记录源码和 Supabase 的只读核查；未执行 DDL、数据写入、迁移、Auth 清理、资金操作或部署。
