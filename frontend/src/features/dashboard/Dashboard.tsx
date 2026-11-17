@@ -152,14 +152,15 @@ function BannerCarousel({ markets }: { markets: MarketTicker[] }) {
  */
 function QuickActions() {
   const { t } = useI18n();
-  const entries = [
+  // `badge` is optional: it is reserved for campaigns that are genuinely live.
+  const entries: Array<{ to: string; label: string; icon: typeof ArrowLeftRight; badge?: string }> = [
     { to: "/trade", label: t("Spot"), icon: ArrowLeftRight },
     { to: "/contract", label: t("Perpetual"), icon: TrendingUp },
     { to: "/seconds", label: t("Seconds"), icon: ChartNoAxesCombined },
     { to: "/earn", label: t("Earn"), icon: Sprout },
     { to: "/deposit", label: t("Deposit"), icon: ArrowDownToLine },
-    { to: "/trade-hub", label: t("Rewards"), icon: Gift, badge: t("HOT") },
-    { to: "/trade-hub", label: t("Launchpad"), icon: Rocket, badge: t("NEW") },
+    { to: "/rewards", label: t("Rewards"), icon: Gift },
+    { to: "/new-listings", label: t("Launchpad"), icon: Rocket },
     { to: "/support", label: t("More"), icon: Users },
   ];
   return (
@@ -170,7 +171,7 @@ function QuickActions() {
             <span className="relative flex h-12 w-12 items-center justify-center rounded-2xl border border-white/[0.08] bg-gradient-to-b from-brand-surface-hover to-brand-surface-2 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.12)] text-brand-text-secondary transition-all duration-300 group-hover:scale-105 group-hover:text-brand-accent group-hover:border-brand-accent/30 group-hover:shadow-[0_8px_30px_rgba(14,203,129,0.12)]">
               <entry.icon className="h-5 w-5" strokeWidth={1.75} />
               {entry.badge && (
-                <span className="absolute -right-1 -top-1 rounded-full bg-brand-accent px-1 py-0.5 text-[8px] font-bold leading-none text-black">
+                <span className="absolute -right-0.5 -top-0.5 rounded-full bg-brand-accent px-1 py-0.5 text-[10px] font-bold leading-none text-black">
                   {entry.badge}
                 </span>
               )}

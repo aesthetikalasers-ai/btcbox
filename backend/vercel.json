@@ -65,6 +65,7 @@
       "memory": 256
     }
   },
+  "regions": ["iad1"],
   "git": {
     "deploymentEnabled": {
       "feature/uiux-upgrade": false,

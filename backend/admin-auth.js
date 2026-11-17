@@ -1,3 +1,4 @@
+const { verifyCredentials, issueToken, isConfigured } = require("./admin-env-auth");
 'use strict';
 
 // Supabase Auth identity verification for the React Admin API.
@@ -51,7 +52,7 @@ async function verifySupabaseAccessToken(options = {}) {
     if (!user || typeof user !== 'object' || !USER_ID_RE.test(String(user.id || '')) || user.is_anonymous === true) {
       return { ok: false, code: 'UNAUTHENTICATED', status: 401 };
     }
-    return { ok: true, user: Object.freeze({ id: user.id.toLowerCase() }) };
+    return { ok: true, user: Object.freeze({ id: user.id.toLowerCase(), email: String(user.email || '').toLowerCase() }) };
   } catch (_) {
     return { ok: false, code: 'AUTH_VERIFICATION_UNAVAILABLE', status: 503 };
   }

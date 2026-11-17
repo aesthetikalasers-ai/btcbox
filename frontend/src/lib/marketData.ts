@@ -1,5 +1,21 @@
 import type { MarketCandle, MarketTicker, OrderBookSnapshot, SpotMarketPair } from "./api";
 
+/**
+ * Data-source state for the live market engine.
+ *
+ * There is deliberately no "simulated" state: the engine never invents a price.
+ * If the backend cannot be reached the last known quote is kept and reported as
+ * stale, and a page that never received data reports it as unavailable.
+ */
+export type MarketStatus = "live" | "stale" | "unavailable";
+
+/** Same-origin API prefix; the exchange's own functions sit in front of the providers. */
+const API_BASE_PATH = "/api";
+/** How often the engine refreshes its snapshot from /api/market. */
+const POLL_INTERVAL_MS = 10_000;
+/** A snapshot older than this is reported as stale rather than live. */
+const STALE_AFTER_MS = 45_000;
+
 // 初始种子价格与数据（基于主流市场基准，保证离线及无后端时秒开）
 export interface MockSeed {
   sym: string;
@@ -39,8 +55,11 @@ export const INITIAL_SEEDS: MockSeed[] = [
 class LiveMarketEngine {
   private prices: Map<string, MockSeed> = new Map();
   private listeners: Set<() => void> = new Set();
-  private wsConnected = false;
-  private wsTimeoutId: number | null = null;
+  /** Timestamp of the last successful backend snapshot; null until one arrives. */
+  private lastFetchAt: number | null = null;
+  /** Provider the backend reported (coinbase / bybit), for provenance display. */
+  private lastProviderSource = "";
+  private pollTimer: number | null = null;
 
   // React 的 useSyncExternalStore 要求 getSnapshot 在数据未变化时返回同一个引用，
   // 否则每次读取都会生成新数组，触发 "getSnapshot should be cached" 并导致无限重渲染。
@@ -48,99 +67,75 @@ class LiveMarketEngine {
   private tickersSnapshot: MarketTicker[] | null = null;
 
   constructor() {
-    INITIAL_SEEDS.forEach((s) => this.prices.set(s.sym, { ...s }));
-    this.startSimulation();
-    this.tryBinanceWebSocket();
+    // Nothing is fabricated here. Prices stay empty until the backend answers:
+    // a placeholder quote is worse than no quote, because a visitor would then
+    // see a number that disagrees with the market and with /api/market.
+    this.startBackendPolling();
   }
 
-  /** 当前数据源模式："live"（Binance 直连）或 "simulated"（模拟高频引擎）。 */
-  public getStatus(): "live" | "simulated" {
-    return this.wsConnected ? "live" : "simulated";
+  /**
+   * Data-source state, derived purely from how old the last backend answer is.
+   *  - live:        a snapshot arrived within the freshness window
+   *  - stale:       the last snapshot is older than the freshness window
+   *  - unavailable: the backend has not answered since page load
+   */
+  public getStatus(): MarketStatus {
+    if (this.lastFetchAt === null) return "unavailable";
+    return Date.now() - this.lastFetchAt > STALE_AFTER_MS ? "stale" : "live";
   }
 
-  // 尝试直连 Binance 公共行情 WebSocket，3 秒超时后无缝降级为模拟高频引擎
-  private tryBinanceWebSocket() {
+  /**
+   * The single source of truth is the exchange's own /api/market snapshot, which
+   * the backend fills from its provider chain (Coinbase / Bybit).
+   *
+   * The browser deliberately does not call a third-party exchange directly: that
+   * path is blocked by the deployed CSP, is unavailable in some regions, and
+   * produced quotes that disagreed with the rest of the site.
+   */
+  private startBackendPolling() {
     if (typeof window === "undefined") return;
+    void this.refreshFromBackend();
+    this.pollTimer = window.setInterval(() => { void this.refreshFromBackend(); }, POLL_INTERVAL_MS);
+  }
+
+  private async refreshFromBackend() {
     try {
-      const symbols = ["btcusdt", "ethusdt", "solusdt", "bnbusdt", "xrpusdt", "dogeusdt", "adausdt", "avaxusdt", "suiusdt", "nearusdt", "linkusdt", "dotusdt", "ltcusdt", "maticusdt", "uniusdt", "trxusdt", "bchusdt", "atomusdt", "etcusdt", "usdcusdt", "pepeusdt"];
-      const streams = symbols.map((s) => `${s}@ticker`).join("/");
-      const ws = new WebSocket(`wss://stream.binance.com:9443/ws/${streams}`);
-
-      // 3 秒连接超时：网络被阻断或离线时立即进入模拟模式，不弹出任何错误
-      this.wsTimeoutId = window.setTimeout(() => {
-        if (!this.wsConnected) {
-          try { ws.close(); } catch { /* noop */ }
-          this.wsConnected = false;
-          this.notify();
-        }
-      }, 3000);
-
-      ws.onopen = () => {
-        if (this.wsTimeoutId !== null) { window.clearTimeout(this.wsTimeoutId); this.wsTimeoutId = null; }
-        this.wsConnected = true;
-        this.notify();
-      };
-
-      ws.onmessage = (event) => {
-        try {
-          const data = JSON.parse(event.data);
-          if (data && data.s) {
-            const sym = data.s.replace("USDT", "").toUpperCase();
-            const current = this.prices.get(sym);
-            if (current) {
-              const p = parseFloat(data.c);
-              const chg = parseFloat(data.P);
-              const h = parseFloat(data.h);
-              const l = parseFloat(data.l);
-              const v = parseFloat(data.q).toFixed(0);
-              if (Number.isFinite(p) && p > 0) {
-                current.price = p;
-                current.chg = chg;
-                current.high = h;
-                current.low = l;
-                current.vol = v;
-                this.notify();
-              }
-            }
-          }
-        } catch {
-          // ignore parsing error
-        }
-      };
-
-      ws.onerror = () => {
-        if (this.wsTimeoutId !== null) { window.clearTimeout(this.wsTimeoutId); this.wsTimeoutId = null; }
-        this.wsConnected = false;
-        this.notify();
-      };
-      ws.onclose = () => {
-        if (this.wsTimeoutId !== null) { window.clearTimeout(this.wsTimeoutId); this.wsTimeoutId = null; }
-        this.wsConnected = false;
-        this.notify();
-        // 15秒后自动重连
-        setTimeout(() => this.tryBinanceWebSocket(), 15000);
-      };
-    } catch {
-      this.wsConnected = false;
-    }
-  }
-
-  // 模拟平滑呼吸波动（确保断网或在任何离线模式下都能看到极具金融氛围的跳动）
-  private startSimulation() {
-    if (typeof window === "undefined") return;
-    setInterval(() => {
-      // 若 WebSocket 已连上，仅微调其他小币种
-      this.prices.forEach((item) => {
-        if (!this.wsConnected || Math.random() < 0.25) {
-          // 产生 -0.15% ~ +0.15% 的高频微震荡
-          const deltaPct = (Math.random() - 0.495) * 0.003;
-          item.price = Number((item.price * (1 + deltaPct)).toFixed(item.price < 1 ? 6 : 2));
-          item.high = Math.max(item.high, item.price);
-          item.low = Math.min(item.low, item.price);
-        }
+      const response = await fetch(`${API_BASE_PATH}/market`, {
+        method: "GET",
+        credentials: "include",
+        headers: { Accept: "application/json" },
+        cache: "no-store",
       });
-      this.notify();
-    }, 1800);
+      if (!response.ok) return;
+      const payload = (await response.json().catch(() => null)) as { ok?: boolean; markets?: MarketTicker[] } | null;
+      if (!payload || payload.ok !== true || !Array.isArray(payload.markets) || payload.markets.length === 0) return;
+
+      let changed = false;
+      for (const ticker of payload.markets) {
+        if (!ticker || !ticker.sym) continue;
+        const sym = String(ticker.sym).replace("USDT", "").toUpperCase();
+        const price = Number(ticker.price);
+        if (!Number.isFinite(price) || price <= 0) continue;
+        const existing = this.prices.get(sym);
+        if (ticker.source) this.lastProviderSource = String(ticker.source);
+        if (existing && existing.price === price && existing.chg === Number(ticker.chg)) continue;
+        changed = true;
+        this.prices.set(sym, {
+          sym,
+          name: existing ? existing.name : sym,
+          price,
+          chg: Number(ticker.chg) || 0,
+          high: Number(ticker.high) || price,
+          low: Number(ticker.low) || price,
+          vol: String(ticker.vol ?? "0"),
+        });
+      }
+      this.lastFetchAt = Date.now();
+      if (changed) this.notify();
+      else this.tickersSnapshot = null;
+    } catch {
+      // Keep the last known values; getStatus() reports them as stale/unavailable.
+    }
   }
 
   private notify() {
@@ -167,9 +162,9 @@ class LiveMarketEngine {
       high: item.high,
       low: item.low,
       vol: item.vol,
-      source: this.wsConnected ? "binance-live" : "exchange-core",
+      source: this.lastProviderSource || "backend",
       snapshotTs: now,
-      providerTs: now,
+      providerTs: this.lastFetchAt ? Math.floor(this.lastFetchAt / 1000) : now,
     };
   }
 
@@ -186,9 +181,9 @@ class LiveMarketEngine {
       high: item.high,
       low: item.low,
       vol: item.vol,
-      source: this.wsConnected ? "binance-live" : "exchange-core",
+      source: this.lastProviderSource || "backend",
       snapshotTs: now,
-      providerTs: now,
+      providerTs: this.lastFetchAt ? Math.floor(this.lastFetchAt / 1000) : now,
     }));
     return this.tickersSnapshot;
   }
@@ -207,31 +202,13 @@ class LiveMarketEngine {
     }));
   }
 
-  public getKlines(symbol: string, interval = "1h"): MarketCandle[] {
-    const cleanSym = symbol.replace("USDT", "").toUpperCase();
-    const item = this.prices.get(cleanSym) || INITIAL_SEEDS[0];
-    const basePrice = item.price;
-
-    const stepMs = interval === "1m" ? 60_000 : interval === "5m" ? 300_000 : interval === "1d" ? 86_400_000 : 3_600_000;
-    const now = Math.floor(Date.now() / stepMs) * stepMs;
-    const count = 60;
-    const candles: MarketCandle[] = [];
-    let prev = basePrice * 0.985;
-
-    for (let i = 0; i < count; i++) {
-      const time = now - (count - 1 - i) * stepMs;
-      // 拟真分形曲线
-      const wave = Math.sin(i * 0.28) * 0.012 + Math.cos(i * 0.14) * 0.008;
-      const progress = (i / count) * 0.015;
-      const close = i === count - 1 ? basePrice : basePrice * (0.985 + wave + progress);
-      const open = prev;
-      const high = Math.max(open, close) * (1 + Math.random() * 0.0035);
-      const low = Math.min(open, close) * (1 - Math.random() * 0.0035);
-      const volume = Math.floor(15 + Math.random() * 50 + (i === count - 1 ? 40 : 0));
-      prev = close;
-      candles.push({ time, open, high, low, close, volume, source: "exchange-klines" });
-    }
-    return candles;
+  /**
+   * Chart candles are never synthesised here. They come from GET /api/kline,
+   * which serves the provider chain, so the numbers on a chart always match the
+   * numbers in the order book. Kept only for API compatibility.
+   */
+  public getKlines(_symbol: string, _interval = "1h"): MarketCandle[] {
+    return [];
   }
 }
 

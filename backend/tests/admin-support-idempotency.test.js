@@ -78,12 +78,13 @@ test('customer support chat send is idempotent by request_id and the SupportPage
   // Delivered user message carries request_id for reconciliation.
   assert.ok(route.includes('entry.request_id = requestId'));
   assert.ok(route.includes('await saveDB(db)'));
-  // Frontend SupportPage generates a stable request id and keeps it until send
-  // succeeds, so a retry after a lost response cannot duplicate the message.
-  const pages = fs.readFileSync(path.resolve(root, '../frontend/src/features/pages/Pages.tsx'), 'utf8');
-  assert.ok(pages.includes('pendingRequestId'));
-  assert.ok(pages.includes('sendSupportMessage(message,requestId)'));
-  assert.ok(pages.includes('crypto.randomUUID()'));
+  // Frontend support conversation generates a stable request id and keeps it until
+  // send succeeds, so a retry after a lost response cannot duplicate the message.
+  // The chat lives in the support feature module, not in the page shell.
+  const chat = fs.readFileSync(path.resolve(root, '../frontend/src/features/support/SupportChat.tsx'), 'utf8');
+  assert.ok(chat.includes('pendingRequestId'));
+  assert.ok(chat.includes('sendSupportMessage(message, requestId)'));
+  assert.ok(chat.includes('crypto.randomUUID()'));
   const client = fs.readFileSync(path.resolve(root, '../frontend/src/lib/api.ts'), 'utf8');
   assert.ok(client.includes('sendSupportMessage(content: string, requestId?: string)'));
   assert.ok(client.includes('request_id: requestId'));

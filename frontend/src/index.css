@@ -1,3 +1,4 @@
+@import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800&family=Noto+Sans+JP:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;600;700&family=Noto+Sans+Khmer:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap");
 @import "tailwindcss";
 
 /*
@@ -6,7 +7,7 @@
  * semantic token architecture. Financial states remain explicit.
  */
 @theme {
-  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", "Microsoft YaHei", Roboto, "Helvetica Neue", Arial, "Noto Sans JP", "Noto Sans SC", "Noto Sans Khmer", sans-serif;
+  --font-sans: "IBM Plex Sans", "Inter", "Noto Sans JP", "Noto Sans SC", "PingFang SC", "Microsoft YaHei", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, monospace;
 
   /* === Phase 3 Premium Visual System —UIUX-EXECUTION-PLAN.md Step 4-8 === */
@@ -150,6 +151,25 @@ a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
   input, select, textarea { font-size: 16px !important; }
 }
 
+/* Touch-target floor follows the *pointer*, not the viewport width. A tablet is
+   wider than 640px but still thumb-driven, so its header actions must not fall
+   back to the 32-36px desktop sizes. Scoped to the chrome so inline links inside
+   prose never inflate a paragraph's line box. */
+@media (pointer: coarse) {
+  header a,
+  header button,
+  .bf-bottom-nav a,
+  .bf-bottom-nav button { min-height: 44px; }
+}
+
+/* There is no hover on a touch screen, and the tap highlight is disabled above,
+   so a press must still be visible. Without this, tapping a card looks like
+   nothing happened until the next route paints. */
+@media (hover: none) {
+  button:active { transform: scale(.97); }
+  a[href]:active { opacity: .82; }
+}
+
 /* Compact trade form (H5 perpetual order entry): the dense Binance-style order
    form intentionally uses small, text-hugging controls. These scoped rules
    outrank the global 44px mobile button floor above without affecting any other
@@ -203,6 +223,16 @@ a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
     transition-duration: .01ms !important;
   }
 }
+
+/* A quote that just changed gets one short accent pulse. Deliberately neutral:
+   the colour marks "this number updated" without claiming the direction — the
+   24h change already carries direction. Replays because React remounts the node
+   when its key (the price text) changes. */
+@keyframes priceTickPulse {
+  0% { color: var(--color-brand-accent); }
+  100% { color: inherit; }
+}
+.anim-price-tick { animation: priceTickPulse .7s ease-out; }
 
 /* Live price flash: replays on remount (keyed by price value) */
 @keyframes priceFlashUp {
@@ -381,7 +411,7 @@ a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
 .spot-book-toolbar { display:flex; align-items:center; justify-content:space-between; gap:4px; flex-wrap:wrap; padding-top:4px; border-top:1px solid var(--color-brand-border); }
 .spot-book-toolbar select { width:58px; min-width:58px; height:34px; min-height:34px; border:1px solid var(--color-brand-border); border-radius:5px; padding:0 4px; background:var(--color-brand-surface-2); color:var(--color-brand-text-secondary); font:600 11px var(--font-mono); }
 .spot-book-view { display:flex; align-items:center; gap:2px; }
-.spot-book-view button { display:inline-flex; width:25px; min-width:25px; min-height:34px; align-items:center; justify-content:center; border:1px solid transparent; border-radius:5px; color:var(--color-brand-text-muted); }
+.spot-book-view button { display:inline-flex; width:32px; min-width:32px; min-height:34px; align-items:center; justify-content:center; border:1px solid transparent; border-radius:5px; color:var(--color-brand-text-muted); }
 .spot-book-view button[aria-pressed="true"] { border-color:var(--color-brand-accent); background:var(--page-accent-soft,rgba(33,199,168,.08)); color:var(--color-brand-accent); }
 .spot-bottom-tabs { display:flex; align-items:center; gap:20px; min-height:42px; border-bottom:1px solid var(--color-brand-border); }
 .spot-bottom-tabs button,.spot-bottom-tabs a { position:relative; display:inline-flex; min-height:42px; align-items:center; gap:5px; padding:0 1px; color:var(--color-brand-text-muted); font-size:13px; white-space:nowrap; }
@@ -966,12 +996,7 @@ a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
   .bf-bottom-nav-label { font-size: 9px; }
 }
 
-/* Native system typography with stable financial figures. */
-html, body, button, input, select, textarea {
-  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text",
-    "Segoe UI", "Microsoft YaHei", Roboto, "Helvetica Neue", Arial,
-    "Noto Sans JP", "Noto Sans SC", "Noto Sans Khmer", sans-serif;
-}
+/* Stable financial figures: tabular digits so prices never jitter while ticking. */
 .bf-tabular, .font-mono, [class*="tabular-nums"], table,
 [data-financial-number="true"] {
   font-variant-numeric: tabular-nums lining-nums;

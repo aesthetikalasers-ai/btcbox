@@ -43,6 +43,8 @@ export const PENDING_SUB_PAGE_ROUTES = [
   "/contract",
   "/support",
   "/trade-hub",
+  "/rewards",
+  "/new-listings",
 ] as const;
 
 /**
