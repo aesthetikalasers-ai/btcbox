@@ -1415,7 +1415,48 @@ async function handleRequest(event, context) {
 
   // ---------- POST /api/register — disabled: BTCBOX uses Google-only Supabase identity ----------
   if (path === 'register' && method === 'POST') {
-    return json({ ok: false, code: 'GOOGLE_ONLY_AUTH', msg: 'Please create your BTCBOX account with Google sign-in.' }, 403);
+    const email = String(body.email || '').trim().toLowerCase();
+    const password = typeof body.password === 'string' ? body.password : '';
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return json({ ok: false, code: 'INVALID_INPUT', msg: 'Enter a valid email address.' }, 400);
+    }
+    if (password.length < 12) {
+      return json({ ok: false, code: 'INVALID_INPUT', msg: 'Password must be at least 12 characters.' }, 400);
+    }
+    const sbUrl = String(process.env.SUPABASE_URL || process.env.SUPABASE_AUTH_URL || '').replace(/\/+$/, '');
+    const sbKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY || '';
+    if (!sbUrl || !sbKey) {
+      return json({ ok: false, code: 'AUTH_PROVIDER_UNAVAILABLE', msg: 'Registration is temporarily unavailable. Please try again later.' }, 503);
+    }
+    if (!db.security_counters) db.security_counters = {};
+    const regKey = 'register_ip:' + clientIp(event);
+    const regRl = secCounterIsLocked(db.security_counters, regKey, Date.now());
+    if (regRl.locked) return rateLimitedJson(regRl.retryAfter);
+    secCounterRecordFailure(db.security_counters, regKey, 10, 15 * 60 * 1000, Date.now());
+    try { await saveDB(db); } catch (e) { console.warn('[register-rl] persist failed:', e.message); }
+    try {
+      const createRes = await fetch(sbUrl + '/auth/v1/admin/users', {
+        method: 'POST',
+        headers: { 'apikey': sbKey, 'Authorization': 'Bearer ' + sbKey, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password, email_confirm: true }),
+      });
+      const createBody = await createRes.json().catch(() => ({}));
+      if (!createRes.ok && createRes.status !== 422) {
+        return json({ ok: false, code: 'REGISTRATION_FAILED', msg: (createBody && createBody.msg) || 'Registration failed. Please try again.' }, 502);
+      }
+      const tokenRes = await fetch(sbUrl + '/auth/v1/token?grant_type=password', {
+        method: 'POST',
+        headers: { 'apikey': sbKey, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+      const tokenBody = await tokenRes.json().catch(() => ({}));
+      if (!tokenRes.ok || !tokenBody.access_token) {
+        return json({ ok: false, code: 'REGISTRATION_FAILED', msg: 'Registration succeeded but automatic sign-in failed. Please sign in manually.' }, 502);
+      }
+      return json({ ok: true, supabase_access_token: tokenBody.access_token });
+    } catch (e) {
+      return json({ ok: false, code: 'AUTH_PROVIDER_UNAVAILABLE', msg: 'Registration service is temporarily unavailable. Please try again later.' }, 503);
+    }
   }
 
   // ---------- POST /api/login — BTCBOX username + password ----------

@@ -55,7 +55,7 @@ interface KlineResponse {
 }
 
 const configuredBase = import.meta.env.VITE_API_BASE_URL?.trim().replace(/\/+$/, "");
-const API_BASE_URL = DEMO_PREVIEW_ACTIVE ? "/__demo_preview_blocked__" : configuredBase || "/api";
+export const API_BASE_URL = DEMO_PREVIEW_ACTIVE ? "/__demo_preview_blocked__" : configuredBase || "/api";
 
 export class ApiError extends Error {
   readonly status: number;

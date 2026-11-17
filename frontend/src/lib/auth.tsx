@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { completeLogin2fa, exchangeSupabaseSession, getAccount, getAuthClientConfig, linkSupabaseIdentity as linkIdentityRequest, reauthenticateIdentityForLink as reauthenticateIdentityForLinkRequest, loginWithUsername, logout, reauthenticateBtcboxCredentials as reauthenticateCredentialsRequest, recoverBtcboxCredentials as recoverCredentialsRequest, setBtcboxCredentials as saveCredentialsRequest, type AccountRestriction } from "./api";
+import { completeLogin2fa, exchangeSupabaseSession, getAccount, getAuthClientConfig, linkSupabaseIdentity as linkIdentityRequest, reauthenticateIdentityForLink as reauthenticateIdentityForLinkRequest, loginWithUsername, logout, reauthenticateBtcboxCredentials as reauthenticateCredentialsRequest, recoverBtcboxCredentials as recoverCredentialsRequest, setBtcboxCredentials as saveCredentialsRequest, API_BASE_URL, type AccountRestriction } from "./api";
 
 type AuthStatus = "loading" | "anonymous" | "authenticated" | "two-factor" | "password-recovery";
 
@@ -493,14 +493,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signUpWithEmail = useCallback(async (address: string, password: string) => {
     setBusy(true); setError(""); setNotice("");
     try {
-      if (!clientRef.current) throw new Error("Authentication is still initializing. Please try again.");
-      const { data, error: authError } = await clientRef.current.auth.signUp({
-        email: address.trim(), password,
-        options: { emailRedirectTo: window.location.origin + "/auth/react-callback" },
+      const response = await fetch(`${API_BASE_URL}/register`, {
+        method: "POST", credentials: "include",
+        headers: { Accept: "application/json", "Content-Type": "application/json" },
+        cache: "no-store",
+        body: JSON.stringify({ email: address.trim(), password }),
       });
-      if (authError) throw authError;
-      if (data.session?.access_token) await acceptSupabaseSession(data.session.access_token);
-      else setNotice("Registration received. Please check your email and confirm your address before signing in.");
+      const payload = await response.json().catch(() => null) as { ok?: boolean; supabase_access_token?: string; msg?: string } | null;
+      if (!response.ok || !payload || payload.ok !== true || !payload.supabase_access_token) {
+        throw new Error(payload?.msg || "Email registration failed.");
+      }
+      await acceptSupabaseSession(payload.supabase_access_token);
     } catch (cause) { setError(cause instanceof Error ? cause.message : "Email registration failed."); throw cause; }
     finally { setBusy(false); }
   }, [acceptSupabaseSession]);

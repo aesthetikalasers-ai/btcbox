@@ -17,7 +17,7 @@ export function AuthPage({ mode, redirectTo, embedded = false, onModeChange }: {
   const { t, language, setLanguage, canChangeLanguage } = useI18n();
   const {
     status, busy, error, notice, googleEnabled, walletEnabled, ethereumWallets,
-    signInWithGoogle, signInWithUsername, signInWithWeb3, signUpWithEmail,
+    signInWithEmail, signInWithGoogle, signInWithUsername, signInWithWeb3, signUpWithEmail,
     verifyTwoFactor, clearError,
   } = useAuth();
   const [username, setUsername] = useState("");
@@ -62,7 +62,7 @@ export function AuthPage({ mode, redirectTo, embedded = false, onModeChange }: {
   const submitUsernameLogin = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (busy) return;
-    try { await signInWithUsername(username, password); }
+    try { if (username.includes("@")) await signInWithEmail(username, password); else await signInWithUsername(username, password); }
     catch { /* AuthProvider displays the safe error. */ }
   };
   const submitEmailRegister = async (event: FormEvent<HTMLFormElement>) => {
@@ -169,7 +169,7 @@ export function AuthPage({ mode, redirectTo, embedded = false, onModeChange }: {
               {mode === "login" && <form className="space-y-3" aria-busy={busy} onSubmit={submitUsernameLogin}>
                 <div>
                   <label htmlFor="btcbox-username" className="block text-sm text-brand-text-muted mb-1.5">{t("Username")}</label>
-                  <Input id="btcbox-username" className="h-12" value={username} onChange={event => setUsername(event.target.value.toLowerCase())} autoComplete="username" minLength={3} maxLength={24} pattern="[a-z0-9][a-z0-9_]{2,23}" placeholder={t("Enter your BTCBOX username")} required />
+                  <Input id="btcbox-username" className="h-12" value={username} onChange={event => setUsername(event.target.value.toLowerCase())} autoComplete="username" minLength={3} maxLength={128} pattern="[a-z0-9@._-]{3,}" placeholder={t("Enter your BTCBOX username")} required />
                 </div>
                 <div>
                   <label htmlFor="btcbox-password" className="block text-sm text-brand-text-muted mb-1.5">{t("Password")}</label>
