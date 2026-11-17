@@ -25,6 +25,7 @@ import {
   type PerpOrder,
   type PerpPosition,
 } from "../../lib/api";
+import { getDemoPerpMarkets } from "../../lib/demoPreview";
 import { useAuth } from "../../lib/auth";
 import { useMarketStream } from "../../lib/useMarketStream";
 import { localeTags, useI18n } from "../../lib/i18n";
@@ -270,8 +271,22 @@ export function ContractPage() {
       })
       .catch((reason: unknown) => {
         if (controller.signal.aborted) return;
-        setMarkets([]);
-        setMarketsError(reason instanceof ApiError ? reason.message : t("Awaiting the perpetual contract backend."));
+        // Graceful degradation: when the live perpetual backend is unreachable
+        // (endpoint not deployed / network down), fall back to the simulated
+        // market catalogue so the perpetual terminal stays fully usable instead
+        // of rendering a blank "unavailable" page. A non-blocking banner keeps
+        // the user informed that orders are simulation-only until the backend
+        // comes back; clicking "Try again" re-attempts the live endpoint.
+        const fallback = getDemoPerpMarkets();
+        setMarkets(fallback);
+        setSymbol((current) =>
+          fallback.some((m) => m.symbol === current) ? current : fallback[0]?.symbol ?? "",
+        );
+        setMarketsError(
+          reason instanceof ApiError && reason.code === "AUTH_REQUIRED"
+            ? t("Sign in to load live perpetual markets — showing simulated markets.")
+            : t("Live perpetual backend unavailable — showing simulated markets. Orders are for simulation only."),
+        );
       })
       .finally(() => { if (!controller.signal.aborted) setMarketsLoading(false); });
     return () => controller.abort();
@@ -1080,9 +1095,9 @@ export function ContractPage() {
         </header>
 
         {marketsError ? (
-          <Card className="border-brand-danger/30 bg-brand-surface">
+          <Card className="border-brand-border bg-brand-surface">
             <CardContent className="flex flex-wrap items-center justify-between gap-3 p-4">
-              <p className="flex min-w-0 items-start gap-2 text-xs text-brand-danger" role="alert"><TriangleAlert className="mt-0.5 h-3.5 w-3.5 shrink-0" />{marketsError}</p>
+              <p className="flex min-w-0 items-start gap-2 text-xs text-brand-text-secondary" role="status"><TriangleAlert className="mt-0.5 h-3.5 w-3.5 shrink-0 text-brand-accent" />{marketsError}</p>
               <Button size="sm" variant="outline" className="h-10" onClick={() => setReload((n) => n + 1)} disabled={marketsLoading} loading={marketsLoading}>{t("Try again")}</Button>
             </CardContent>
           </Card>
