@@ -250,3 +250,8 @@ npx playwright test e2e/auth-dialog.spec.ts --project=desktop-chromium --reporte
 - 下一项唯一优先任务：取得可执行的 `working` 工作区或针对精确 `working` SHA 的可读取 CI 运行证据，执行后端测试、构建及隔离 PostgreSQL bootstrap，完成阶段 0 基线。阶段 1 认证弹窗由应用开发 AI 负责；阶段 2 的 0042 与 Earn 自动活期入账设计必须等阶段 1 完成后再按规划推进。
 
 本节仅为阶段 0 源码/refs/CI 元数据记录；未进行生产或 hosted 写操作。
+
+
+## 2026-11-17 状态记录提交回执
+- 本轮阶段 0 基线与集成分支复核记录的首次提交 SHA：`fdf4d529a3d1969bab1584297858f7c744c80573`（仅更新 `docs/AI_PROJECT_STATE.md`；未修改应用/SQL/测试）。
+- 首次记录提交后的 working HEAD 已再次核实；后续仅补充此回执，不改变前述测试与发布状态。
