@@ -255,3 +255,12 @@ npx playwright test e2e/auth-dialog.spec.ts --project=desktop-chromium --reporte
 ## 2026-11-17 状态记录提交回执
 - 本轮阶段 0 基线与集成分支复核记录的首次提交 SHA：`fdf4d529a3d1969bab1584297858f7c744c80573`（仅更新 `docs/AI_PROJECT_STATE.md`；未修改应用/SQL/测试）。
 - 首次记录提交后的 working HEAD 已再次核实；后续仅补充此回执，不改变前述测试与发布状态。
+
+
+## 2026-11-17 应用端 Trade Hub / 路由测试只读交接（数据库负责人发现，应用开发 AI 负责）
+
+- 当前 main 的 `frontend/src/features/pages/TradeHubPage.tsx` blob `016b018db75c87ea73703bf9d82190c4dbfb391c`，第 87 行使用 `grid gap-4 sm:grid-cols-2 lg:grid-cols-4`；第 94–154 行四张卡片实际为 Spot、Perpetual、Seconds、Earn。按 Tailwind 默认 `sm=640px`，375px 不会启用两列，实际为单列。
+- 当前 main 的 `frontend/e2e/four-products.spec.ts` blob `1ff9fad9cab2951617f96ffd442c1bf55570c298`，第 4 行要求 Spot / Seconds / Contract / Earn 且禁止 Futures；第 22–34 行断言这些名称；第 39–47 行又要求 375px 两列。该测试的业务分类与所有者已明确的四入口要求不一致，且与 TradeHub 当前真实标题（Spot / Perpetual / Seconds / Earn）不一致。按所有者已明确的产品边界，应由应用负责人调整为 Spot、Contract（说明当前接入秒合约）、Earn、Futures（无期货引擎时显示不可用）；不能把 Seconds 和 Perpetual 拆成两个独立入口，也不能把 Perpetual/Seconds 冒充 Futures。
+- 当前 main 的 `frontend/e2e/responsive-visual-qa.spec.ts` blob `99336537cb69069f75cf60f6f9fe31d0b769af75` 已覆盖固定宽度 375/390/430/768/1366/1440/1920 及多个中间宽度，并包含 `/trade-hub`；但通用路由/溢出断言不等于四卡片 2×2 几何验收。专项测试虽然尝试断言 375px 两列，但需与正确业务卡片语义一起更新。
+- 当前 main 的 `frontend/e2e/auth-routes.spec.ts` blob `52bd91700e93f96e163a7a0d9c6c29e68d7b6096` 第 35–46 行仍断言旧式独立登录页、Username/Password、无 Email 登录、Google disabled；第 119–130 行注册页断言与旧式全屏流程相关。它与最新协作规则/阶段 1 的预览页弹窗、Email/Password + Google 流程存在契约冲突。应用开发 AI 应按阶段 1 的真实产品流程修订测试，不能由数据库负责人修改前端测试。
+- 本轮仅静态读取源码与测试文件；未运行 Playwright、未声称 375px 实测失败、未修改任何前端文件。以上均为明确的源码/断言冲突，运行结果仍 **NOT VERIFIED**。
