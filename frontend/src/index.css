@@ -409,7 +409,7 @@ a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
 .spot-price-control button:hover:not(:disabled) { border-color:var(--color-brand-accent); color:var(--color-brand-accent); }
 .spot-price-control button:disabled { opacity:.45; }
 .spot-book-toolbar { display:flex; align-items:center; justify-content:space-between; gap:4px; flex-wrap:wrap; padding-top:4px; border-top:1px solid var(--color-brand-border); }
-.spot-book-toolbar select { width:58px; min-width:58px; height:34px; min-height:34px; border:1px solid var(--color-brand-border); border-radius:5px; padding:0 4px; background:var(--color-brand-surface-2); color:var(--color-brand-text-secondary); font:600 11px var(--font-mono); }
+.spot-book-toolbar select { width:64px; min-width:64px; flex:0 0 auto; height:34px; min-height:34px; border:1px solid var(--color-brand-border); border-radius:5px; padding:0 6px; background:var(--color-brand-surface-2); color:var(--color-brand-text-secondary); font:600 10.5px/1 var(--font-mono); text-align:center; appearance:auto; }
 .spot-book-view { display:flex; align-items:center; gap:2px; }
 .spot-book-view button { display:inline-flex; width:32px; min-width:32px; min-height:34px; align-items:center; justify-content:center; border:1px solid transparent; border-radius:5px; color:var(--color-brand-text-muted); }
 .spot-book-view button[aria-pressed="true"] { border-color:var(--color-brand-accent); background:var(--page-accent-soft,rgba(33,199,168,.08)); color:var(--color-brand-accent); }
