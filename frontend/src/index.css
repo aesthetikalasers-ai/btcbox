@@ -1172,3 +1172,72 @@ a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
 
 /* Cumulative column hidden on desktop/tablet (2-column book preserved). */
 .spot-book-cum { display: none; }
+
+/* ========================================================================
+   Dual-column trading (entry left / depth right) + chart drawer overlay.
+   Chart is no longer in the workspace grid; it lives in a bottom sheet.
+   ======================================================================== */
+@media (min-width: 768px) {
+  .exchange-workspace {
+    grid-template-columns: minmax(0, 55fr) minmax(0, 45fr);
+    gap: 12px;
+    align-items: start;
+  }
+  .exchange-workspace > .exchange-entry { grid-column: 1; grid-row: 1; }
+  .exchange-workspace > .exchange-depth { grid-column: 2; grid-row: 1; }
+  .exchange-workspace > .exchange-orders { grid-column: 1 / -1; grid-row: 2; margin-top: 0; }
+  .exchange-pairs { display: none; }
+  /* 3-column order book with cumulative on tablet/desktop too. */
+  .spot-book-cum { display: inline; }
+  .spot-book-columns,
+  .spot-book-row { grid-template-columns: minmax(0,1.2fr) minmax(0,1fr) minmax(0,1fr); }
+  .spot-book-row { min-height: 24px; height: 24px; line-height: 24px; }
+}
+
+/* Chart drawer: bottom sheet overlay (Radix Dialog.Content reset). */
+.spot-chart-overlay {
+  position: fixed; inset: 0; z-index: 60;
+  background: rgba(0, 0, 0, .6);
+  animation: spotOverlayIn .2s ease-out;
+}
+@keyframes spotOverlayIn { from { opacity: 0; } to { opacity: 1; } }
+.spot-chart-drawer {
+  position: fixed !important;
+  left: 0 !important; right: 0 !important; bottom: 0 !important; top: auto !important;
+  transform: none !important;
+  z-index: 61;
+  max-height: 82dvh;
+  overflow-y: auto;
+  margin: 0;
+  width: 100%;
+  background: var(--color-brand-surface);
+  border: 1px solid var(--color-brand-border);
+  border-bottom: 0;
+  border-radius: 16px 16px 0 0;
+  padding: 14px;
+  box-shadow: 0 -20px 60px rgba(0, 0, 0, .5);
+  animation: spotDrawerIn .28s cubic-bezier(.16,1,.3,1);
+}
+@keyframes spotDrawerIn { from { transform: translateY(100%) !important; } to { transform: translateY(0) !important; } }
+.spot-chart-close {
+  position: absolute; top: 10px; right: 14px; z-index: 2;
+  width: 32px; height: 32px; min-height: 32px;
+  border-radius: 999px;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: var(--color-brand-surface-2);
+  color: var(--color-brand-text);
+  border: 1px solid var(--color-brand-border);
+  font-size: 18px; line-height: 1; cursor: pointer;
+}
+.spot-chart-drawer .exchange-chart { border: 0; box-shadow: none; background: transparent; }
+.spot-chart-drawer .exchange-chart > div { padding: 0 40px 0 0; }
+.spot-chart-drawer .exchange-chart > div:first-child { padding-bottom: 10px; }
+.spot-chart-drawer .trade-candles { height: 55dvh; min-height: 320px; }
+
+/* Clickable order book rows (price fill + side switch). */
+.spot-book-row--click { cursor: pointer; transition: filter .12s ease; }
+.spot-book-row--click:hover { filter: brightness(1.3); }
+
+/* Compact 5 quick-price buttons. */
+.spot-quick-prices { margin-top: -2px; }
+.spot-quick-prices button { min-height: 28px; }
