@@ -219,3 +219,34 @@ npx playwright test e2e/auth-dialog.spec.ts --project=desktop-chromium --reporte
 - 本轮没有修改 workflow、应用代码或 SQL；没有重跑 workflow、没有 DDL/数据写入、没有部署。
 - 阶段 0 状态不变：远程 refs 与数据库只读基线 PASS；后端构建/测试 NOT VERIFIED；迁移源文件可复现性 NEEDS FIX；阶段 0 仍未通过。
 - 下一项唯一优先任务：取得可靠的 workflow 文件内容或可执行工作区，再定位 Backend CI 无 job 的失败原因并运行后端测试/构建。阶段 1 认证弹窗由前端负责人继续；数据库负责人不越权改其文件。
+
+
+## 2026-11-17 阶段 0 基线与集成分支复核（数据库负责人）
+
+### 正式规则与分支状态
+- 已尝试读取用户指定的 `chore/shared-ai-coordination`，该分支当前无法解析；分支搜索未找到该名称。以最新正式基准 `main` 上的 `docs/AI_COORDINATION.md` 为准（blob `190ab6ecf712dde2df62109692514e6cab1e431f`）：唯一基准为 `main`，唯一共同开发分支为 `working`；数据库 AI 负责 Supabase schema、migrations、RPC、钱包账本完整性及 Earn/钱包数据库基础。不得创建长期集成分支、直接推送 main 或未经批准合并/部署。
+- 本轮核实的 HEAD：`main=dc7268c73b8fa4370790160e2f882bc19e4d7226`；`working=06f468c1856b2b2917fd98aa43da1206f74bb702`。GitHub compare：main 领先 working 44 个提交，working 有 16 个独有提交，双方已分叉；未同步、重置或改写。
+- 用户指定的 `integration/btcbox-mainline-consolidation-20261108` 当前不存在（分支搜索无结果，compare 返回 404），因此没有可核实的该分支 HEAD 或 CI。
+- 另一个历史候选 `integration/btcbox-mainline-consolidation-20261116` HEAD 为 `e6999067fe6e7500ce2279d7c0535aeb33e646d8`；相对 main 为 11 ahead / 57 behind，已严重落后。该分支不是当前正式共同开发分支，本轮只读检查，没有继续写入。
+
+### PR #67 与精确 SHA 证据
+- GitHub PR 搜索：PR #67 未出现在 open 结果，出现在 closed 结果；因此当前不能称其为 open Draft。连接器未提供可核实的 `merged_at` / 当前 PR head 字段，不将 CLOSED 自动等同 MERGED。
+- PR 描述中最近可见的候选 head 为 `3d7f96352b214b386be410ab619b043898fef6c2`。该 SHA 对应 Backend run `42456223737`、PostgreSQL run `42456223768`、Frontend run `42456223776`，三项均 completed / success；各自唯一 job 的所有列出步骤均 success。该 SHA 的 combined status 另有 Vercel failure（Hobby build-rate-limit），不是 GitHub Actions 失败。
+- 仓库中存在 merge commit `fbf301f88c5c19db94ea1546c590667a8818e842`，且 compare 确认它是当前 main 的祖先；但 `3d7f963...` 与该 merge commit 的 ancestry compare 为 diverged，不能把上述三项 CI 结果冒充为该 merge commit 或实际合并 head 的结果。merge commit 本身的 PR-triggered Actions 查询为空，combined status 仅见 Vercel success。PR #67 的真实合并标志/实际合并 head仍 **NOT VERIFIED**。
+- 当前 main SHA `dc7268c...`、working SHA `06f468c...`、历史候选 SHA `e699906...` 的 commit-workflow 查询均未返回可见 PR-triggered runs；各 SHA combined status 也没有可证明完整 Actions 的结果。该查询封装只列 PR-triggered runs，故这些 SHA 的全部 push/dispatch Actions 状态均标记 **NOT VERIFIED**，不推断为没有运行或通过。
+
+### 数据库/API 契约复核（只读源码）
+- 当前 main 的 canonical migration order 列出 34 个 SQL 文件，最后为 `0041_perpetual_contract_v1.sql`；main 不存在 `0042_financial_operation_type_allowlist_reconciliation_v1.sql`。
+- `0039_withdrawal_approve_no_burn_v1.sql` 允许 `withdraw_paid`、`seconds_open`、`seconds_settle`；`0041` 随后重建同一 CHECK constraint，却遗漏这三种既有 operation type。结果是 canonical fresh bootstrap 完成后，后续手动提现完成及 Seconds 开仓/结算写入会被 operation_type CHECK 拒绝。历史候选 11-16 含 `0042`（blob `bee8d82c5525a68ee67c5f05a053c623e0eea199`）恢复完整 allow-list，并新增 `financial-operation-types-contract.test.js`（blob `b6c88a94da403dbdd384d207dcee07e557e8cb66`）断言最终 CHECK 是先前 canonical operation types 的并集；但它尚未进入 main，且候选分支落后 57 个提交。建议在阶段 2 的 main-derived working 基础上纳入迁移、bootstrap allowlist、Docker init allowlist 和回归测试；不得将 0042 当作现有 hosted schema 的增量升级脚本。
+- Earn 当前实现入口：`backend/api-core.js`（blob `b713d696c9e0cb0c898fa4b549a8d054c23a838b`，约 2627–2700 行）；数据库合同为 `0006_financial_earn_policy_v5.sql`（blob `9da5f917fb90ddb9b5b040cc1a6544cddf096228`），读取合同为 `0011_financial_read_api_earn_v1.sql`（blob `cbcba43f763f4dae22eff176ceb90bc0126c903d`）。
+- API 的 GET catalog 要求登录，从 `earn_product_catalog` 读取并校验 active 产品，数据库不可用/数据无效时返回 503。POST 要求服务端识别的 user、拒绝冻结账户、检查 `financialWritesEnabled()`、共享 rate limit 和 request ID，RPC 的 `p_user_id` 使用 `user.uid`；未通过财务开关时 503 且不回退 JSON 钱包。SQL 的 `subscribe_earn_atomic` 由 0006 从 active catalog 再验证资产、精度并快照产品规则；0006 删除 0005 的旧五参数（含客户端 payout）赎回函数，改为四参数 `redeem_earn_atomic(p_position_id,p_user_id,p_request_id,p_request_hash)`，与当前 API 请求字段一致，赎回金额由数据库按快照计算。RPC 为 SECURITY INVOKER、空 search_path，EXECUTE 限制给 service_role。以上是源码契约，不代表 hosted 授权/运行已验证。
+- API owner 仍有一处配置契约差异：订阅路由硬编码七个 product ID 的 Set，并通过 product ID 后缀推导 asset；而正式规则要求产品、资产、资格、期限及收益参数由持久化配置驱动。建议应用开发 AI 在服务端从 catalog 解析 active product 的 asset，再传入 RPC；SQL 继续在事务内重验 active、asset 与精度。数据库负责人本轮不修改 `backend/api-core.js`。
+- 当前 0006 的 demand 产品仍通过显式 subscribe 创建 position，收益在 redeem 时按 elapsed time 计算；本轮搜索没有发现独立的自动资格登记/周期性 Earn accrual worker 或 accrual ledger RPC。它尚不能证明正式规则要求的“符合资格的持币用户默认享有活期收益、无需申购”的完整自动入账链路。此为阶段 2 的核心数据库设计缺口，当前阶段不插队实现。
+- 已有 `backend/tests/rpc-source-contract.test.js` 覆盖 Earn RPC 签名/请求 hash 等源码合同，`shared-rate-limit.test.js` 覆盖 Earn rate-limit scope；这些是测试存在性证据，本轮未执行测试。
+
+### 阶段与验证状态
+- 当前仍为阶段 0：实现入口、负责人、API/SQL 边界及主要基线问题已明确；本轮未取得可执行工作区，未运行 `npm test --prefix backend`、`npm run build --prefix backend` 或隔离 PostgreSQL bootstrap。阶段 0 退出条件尚未全部满足，整体 **进行中**。
+- 本轮没有修改应用代码、SQL、测试或 hosted Supabase；没有执行 DDL/DML、Auth 设置、财务操作、Vercel 修改、合并或部署。Hosted 数据库本轮未访问，实时状态 **NOT VERIFIED**。
+- 下一项唯一优先任务：取得可执行的 `working` 工作区或针对精确 `working` SHA 的可读取 CI 运行证据，执行后端测试、构建及隔离 PostgreSQL bootstrap，完成阶段 0 基线。阶段 1 认证弹窗由应用开发 AI 负责；阶段 2 的 0042 与 Earn 自动活期入账设计必须等阶段 1 完成后再按规划推进。
+
+本节仅为阶段 0 源码/refs/CI 元数据记录；未进行生产或 hosted 写操作。
