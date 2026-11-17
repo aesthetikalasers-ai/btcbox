@@ -932,7 +932,7 @@ export function SecondsPage(){
      {symbol}/USDT
     </span>
     <span className={"text-[10px] font-semibold px-1.5 py-0.5 rounded " + (Number(ticker?.chg||0)>=0?"text-profit bg-profit/10":"text-loss bg-loss/10")}>
-     {ticker ? (Number(ticker.chg)>=0?"+":"") + Number(ticker.chg).toFixed(2) + "%" : "+2.45%"}
+     {ticker ? (Number(ticker.chg)>=0?"+":"") + Number(ticker.chg).toFixed(2) + "%" : "—"}
     </span>
    </div>
    <div className="flex items-center gap-1">

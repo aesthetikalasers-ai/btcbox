@@ -35,7 +35,7 @@ export default function ProfessionalMobileTradeTerminal() {
         .then((rows) => {
           if (cancelled) return;
           const found = rows.find((m) => m.sym.toUpperCase() === "BTC") || null;
-          if (found) { setMarkPrice(found.price); setChangePct(found.chg); }
+          if (found) { setMarkPrice(Number.isFinite(found.price) ? found.price : null); setChangePct(Number.isFinite(Number(found.chg)) ? Number(found.chg) : 0); }
         })
         .catch(() => {});
     };
