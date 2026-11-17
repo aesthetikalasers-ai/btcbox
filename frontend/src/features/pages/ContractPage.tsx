@@ -923,6 +923,16 @@ export function ContractPage() {
         <div className="flex justify-between"><span className="text-[#848e9c]">{t("Openable")}</span><span className="text-[#eaecef]">{openableQty === null ? EM_DASH : `${money(openableQty, locale, 4)} ${selectedMarket?.base_asset ?? "BTC"}`}</span></div>
       </div>
 
+      {/* 止盈 / 止损 勾选（币安节奏：可用下方） */}
+      <label className="flex items-center gap-2 text-[12px] text-[#848e9c]">
+        <input type="checkbox" checked={mobileTpSl} onChange={(e) => setMobileTpSl(e.target.checked)}
+          className="h-3.5 w-3.5 rounded border-[#4a5158] bg-transparent accent-[#f0b90b]" />
+        {t("Take profit / Stop loss")}
+      </label>
+
+      {/* 可开保证金（币安节奏：开多按钮上方） */}
+      <div className="flex justify-between text-[12px] tabular-nums"><span className="text-[#848e9c]">{t("Open margin")}</span><span className="text-[#eaecef]">{estimatedMargin === null ? "0 USDT" : `${money(estimatedMargin, locale, 2)} USDT`}</span></div>
+
       {/* 开多 / 平多 按钮（币安风格 h-11） */}
       <button type="submit" onClick={() => setSide("buy")} disabled={busy}
         className="relative flex h-11 w-full items-center justify-center rounded-md bg-brand-success text-[15px] font-bold text-white transition hover:opacity-90 active:scale-[0.99] disabled:opacity-60">

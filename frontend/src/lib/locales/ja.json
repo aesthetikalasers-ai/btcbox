@@ -1467,6 +1467,6 @@
   "Level": "階層",
   "Referral & Rewards": "紹介と報酬",
   "Launchpad subscriptions open per project. No subscription window is open right now, so no quota is shown.": "ローンチパッドの申込はプロジェクトごとに受付します。現在受付中の期間はないため、割当量は表示していません。",
-  "No newly listed pair is published yet.": "新規上場の取引ペアはまだ公開されていません。"
-
+  "No newly listed pair is published yet.": "新規上場の取引ペアはまだ公開されていません。",
+  "Open margin": "必要証拠金"
 }
