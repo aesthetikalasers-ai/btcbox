@@ -660,9 +660,9 @@ a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
 @media (max-width:1279px) {
  .exchange-entry,.exchange-depth { border:0; background:transparent; }
  .exchange-entry > div,.exchange-depth > div { padding:0; }
- .exchange-entry > div:first-child,.exchange-depth > div:first-child { padding-bottom:14px; }
- .exchange-entry > div:first-child p,.exchange-depth > div:first-child p { display:none; }
- .exchange-entry > div:first-child,.exchange-depth > div:first-child { font-size:14px; }
+ .exchange-entry > div:first-child { padding-bottom:8px; }
+ .exchange-entry > div:first-child p { display:none; }
+ .exchange-entry > div:first-child { font-size:14px; }
  .exchange-entry p { overflow-wrap:anywhere; }
  .exchange-entry button { padding-inline:6px; }
  .spot-price-control button { min-height:40px; padding-inline:0; }
@@ -1001,3 +1001,174 @@ a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
 [data-financial-number="true"] {
   font-variant-numeric: tabular-nums lining-nums;
 }
+
+/* ========================================================================
+   Mobile Spot Trading refactor (Binance-style single column):
+   quote strip -> order book -> order entry -> collapsible orders tabs.
+   Scoped to <=767.98px; desktop 4-column grid untouched.
+   ======================================================================== */
+@media (max-width: 767.98px) {
+  .spot-terminal { gap: 8px; }
+
+  /* --- Compact quote header strip --------------------------------------- */
+  .spot-quote-strip {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 2px 2px 8px;
+    border-bottom: 1px solid var(--color-brand-border);
+  }
+  .spot-quote-main {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    flex-wrap: wrap;
+    min-width: 0;
+  }
+  .spot-quote-pair {
+    font-size: 13px;
+    font-weight: 650;
+    color: var(--color-brand-text);
+    letter-spacing: .01em;
+  }
+  .spot-quote-price {
+    font-size: clamp(22px, 6.5vw, 30px);
+    font-weight: 700;
+    line-height: 1.1;
+    letter-spacing: -.03em;
+    font-variant-numeric: tabular-nums;
+  }
+  .spot-quote-chg {
+    display: inline-flex;
+    align-items: center;
+    min-height: 22px;
+    padding: 1px 8px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 650;
+    font-variant-numeric: tabular-nums;
+    background: color-mix(in srgb, currentColor 12%, transparent);
+  }
+  .spot-quote-meta {
+    display: flex;
+    gap: 14px;
+    flex-wrap: wrap;
+    font-size: 11px;
+    color: var(--color-brand-text-muted);
+    font-variant-numeric: tabular-nums;
+  }
+  .spot-quote-meta b { font-weight: 600; color: var(--color-brand-text-secondary); }
+  .spot-snapshot-text {
+    margin: 0;
+    padding: 0 2px;
+    font-size: 10px;
+    color: var(--color-brand-text-muted);
+    opacity: .75;
+  }
+
+  /* --- Single-column stacked workspace (depth above entry) -------------- */
+  .exchange-workspace {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 8px;
+    align-items: start;
+  }
+  .exchange-workspace > .exchange-depth,
+  .exchange-workspace > .exchange-entry,
+  .exchange-workspace > .exchange-orders {
+    grid-column: 1;
+    grid-row: auto;
+    margin-top: 0;
+  }
+  /* Reset desktop/tablet baseline-push margins that stretch stacked cards. */
+  .exchange-depth > div > div:last-child,
+  .exchange-entry > div form > button[type="submit"] { margin-top: 0; }
+  .exchange-depth > div:last-child {
+    margin-top: 0;
+    padding-top: 0;
+    border-top: 0;
+    flex: 0 0 auto;
+  }
+  .exchange-entry > div form { flex: 0 0 auto; gap: 8px; }
+
+  /* --- Order book: 3 columns (price | qty | cumulative), dense rows ----- */
+  .spot-book-cum { display: inline; }
+  .spot-book-columns,
+  .spot-book-row {
+    grid-template-columns: minmax(0,1.2fr) minmax(0,1fr) minmax(0,1fr);
+    gap: 4px;
+    font-size: 11px;
+  }
+  .spot-book-columns { margin-bottom: 2px; padding: 0 2px; font-size: 10px; }
+  .spot-book-columns span:first-child { text-align: right; }
+  .spot-book-row {
+    min-height: 22px;
+    height: 22px;
+    line-height: 22px;
+    padding: 0 2px;
+    border-radius: 2px;
+  }
+  .spot-book-row span:first-child { text-align: right; }
+  .spot-mid-price {
+    margin-block: 2px;
+    padding: 4px 2px;
+    border-block: 1px solid var(--color-brand-border);
+    font: 700 16px/22px var(--font-mono);
+    text-align: left;
+  }
+  .exchange-book-levels { gap: 1px; }
+  .exchange-book-levels > div { gap: 1px; }
+
+  /* Depth toolbar moved to top-right; remove the footer border. */
+  .spot-book-toolbar {
+    justify-content: flex-end;
+    border-top: 0;
+    padding-top: 0;
+    padding-bottom: 4px;
+    margin-bottom: 2px;
+    border-bottom: 1px solid var(--color-brand-border);
+  }
+  .spot-book-toolbar select { height: 28px; min-height: 28px; }
+  .spot-book-view button { min-height: 28px; width: 28px; min-width: 28px; }
+
+  /* --- Compact order entry ---------------------------------------------- */
+  .spot-entry-head { padding: 0 0 8px; margin: 0; }
+  .spot-entry-head > div { margin: 0; }
+  .spot-side button { min-height: 40px; border-radius: 6px; }
+  .spot-order-type select { height: 34px; min-height: 34px; font-size: 12px; }
+  .spot-price-control { gap: 4px; }
+  .spot-price-control button { width: 32px; min-width: 32px; min-height: 36px; }
+  .exchange-entry input { height: 40px; padding: 8px 10px; font-size: 15px; }
+  .exchange-entry form > button.spot-submit {
+    min-height: 46px;
+    height: 46px;
+    border-radius: 8px;
+    font-weight: 700;
+    letter-spacing: .02em;
+  }
+  .exchange-entry form > button.spot-submit--buy {
+    background: var(--color-profit, #0ecb81);
+    color: #051a14;
+    border-color: transparent;
+  }
+  .exchange-entry form > button.spot-submit--sell {
+    background: var(--color-loss, #f6465d);
+    color: #fff;
+    border-color: transparent;
+  }
+  .exchange-entry form > button.spot-submit:disabled { opacity: .5; }
+  .spot-available { padding: 0; font-size: 11px; }
+  .spot-total { padding-block: 2px; font-size: 11px; }
+
+  /* --- Collapsible bottom orders tabs ----------------------------------- */
+  .exchange-orders { margin-top: 0; }
+  .spot-bottom-tabs { min-height: 36px; gap: 16px; }
+  .spot-bottom-tabs button,
+  .spot-bottom-tabs a { min-height: 36px; font-size: 12px; }
+  .spot-order-row { padding: 10px 0; }
+  .spot-orders-empty { padding-block: 14px; }
+  .spot-asset-strip { padding: 10px 2px; }
+}
+
+/* Cumulative column hidden on desktop/tablet (2-column book preserved). */
+.spot-book-cum { display: none; }
