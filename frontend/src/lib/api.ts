@@ -13,6 +13,17 @@ import {
   getSampleMarketPairs,
   getSampleMarkets,
 } from "./demoPreview";
+import {
+  demoCancelPerpOrder,
+  demoClosePerpPosition,
+  demoLedgerPerpOpenOrders,
+  demoLedgerPerpOrderHistory,
+  demoLedgerPerpPositions,
+  demoLedgerPerpTrades,
+  demoLedgerSpotOrders,
+  demoPlacePerpOrder,
+  demoPlaceSpotOrder,
+} from "./localPaper";
 
 export interface MarketTicker {
   sym: string;
@@ -279,7 +290,7 @@ export async function getOrderBook(symbol = "BTCUSDT", signal?: AbortSignal): Pr
 export interface SpotOrderInput { symbol: string; side: "buy" | "sell"; type: "limit"; qty: string; price: string; client_order_id: string; }
 export interface SpotOrderResult { order_id: string; status: string; price: number | string; quantity: number | string; remaining_quantity?: number | string; duplicate: boolean; }
 export async function submitSpotOrder(input: SpotOrderInput): Promise<SpotOrderResult> {
-  if (DEMO_PREVIEW_ACTIVE) rejectDemoFinancialAction();
+  if (DEMO_PREVIEW_ACTIVE) return demoPlaceSpotOrder(input);
   let response: Response;
   try {
     response = await fetch(`${API_BASE_URL}/order`, { method: "POST", credentials: "include", cache: "no-store", headers: { Accept: "application/json", "Content-Type": "application/json" }, body: JSON.stringify(input) });
@@ -293,7 +304,7 @@ export async function submitSpotOrder(input: SpotOrderInput): Promise<SpotOrderR
   return payload;
 }
 export async function cancelSpotOrder(input: { order_id: string; client_cancel_id: string }): Promise<{ order_id: string; status: string; duplicate: boolean }> {
-  if (DEMO_PREVIEW_ACTIVE) rejectDemoFinancialAction();
+  if (DEMO_PREVIEW_ACTIVE) return { order_id: input.order_id, status: "canceled", duplicate: false };
   let response: Response;
   try {
     response = await fetch(`${API_BASE_URL}/order/cancel`, { method: "POST", credentials: "include", cache: "no-store", headers: { Accept: "application/json", "Content-Type": "application/json" }, body: JSON.stringify(input) });
@@ -542,7 +553,7 @@ export async function submitEarnAction(
 }
 
 export async function getOrders(signal?: AbortSignal): Promise<OrderRecord[]> {
-  if (DEMO_PREVIEW_ACTIVE) return getDemoOrders();
+  if (DEMO_PREVIEW_ACTIVE) return demoLedgerSpotOrders();
   const payload = await readAuthenticated<{ ok: true; orders: OrderRecord[] }>("orders", signal);
   if (!Array.isArray(payload.orders)) {
     throw new ApiError("BTCBOX returned an invalid order response.", 502, "INVALID_ORDER_RESPONSE");
@@ -1544,7 +1555,7 @@ export async function getPerpMarkets(signal?: AbortSignal): Promise<PerpMarket[]
   return payload.markets.filter((m) => m && typeof m.symbol === "string" && typeof m.max_leverage === "number");
 }
 export async function submitPerpOrder(input: PerpOrderInput): Promise<{ order_id: string; status: string; duplicate?: boolean }> {
-  if (DEMO_PREVIEW_ACTIVE) rejectDemoFinancialAction();
+  if (DEMO_PREVIEW_ACTIVE) return demoPlacePerpOrder(input);
   const body = {
     symbol: input.symbol, type: input.type, side: input.side, quantity: input.quantity,
     leverage: input.leverage, reduce_only: input.reduceOnly === true, close_position: input.closePosition === true,
@@ -1564,7 +1575,7 @@ export async function submitPerpOrder(input: PerpOrderInput): Promise<{ order_id
   return { order_id: payload.order_id, status: payload.status || "open", duplicate: payload.duplicate === true };
 }
 export async function cancelPerpOrder(input: { orderId: string; clientCancelId: string }): Promise<{ order_id: string; status: string; duplicate?: boolean }> {
-  if (DEMO_PREVIEW_ACTIVE) rejectDemoFinancialAction();
+  if (DEMO_PREVIEW_ACTIVE) return demoCancelPerpOrder(input.orderId);
   let response: Response;
   try {
     response = await fetch(`${API_BASE_URL}/perpetual/order`, { method: "DELETE", credentials: "include", cache: "no-store", headers: { Accept: "application/json", "Content-Type": "application/json" }, body: JSON.stringify({ order_id: input.orderId, client_cancel_id: input.clientCancelId }) });
@@ -1576,7 +1587,7 @@ export async function cancelPerpOrder(input: { orderId: string; clientCancelId: 
   return { order_id: payload.order_id || input.orderId, status: payload.status || "canceled", duplicate: payload.duplicate === true };
 }
 export async function closePerpPosition(input: { symbol: string; clientOrderId: string }): Promise<{ order_id: string; status: string; duplicate?: boolean }> {
-  if (DEMO_PREVIEW_ACTIVE) rejectDemoFinancialAction();
+  if (DEMO_PREVIEW_ACTIVE) return demoClosePerpPosition(input.symbol);
   let response: Response;
   try {
     response = await fetch(`${API_BASE_URL}/perpetual/close-position`, { method: "POST", credentials: "include", cache: "no-store", headers: { Accept: "application/json", "Content-Type": "application/json" }, body: JSON.stringify({ symbol: input.symbol, client_order_id: input.clientOrderId }) });
@@ -1588,25 +1599,25 @@ export async function closePerpPosition(input: { symbol: string; clientOrderId: 
   return { order_id: payload.order_id || "", status: payload.status || "accepted", duplicate: payload.duplicate === true };
 }
 export async function getPerpOpenOrders(signal?: AbortSignal): Promise<PerpOrder[]> {
-  if (DEMO_PREVIEW_ACTIVE) return [];
+  if (DEMO_PREVIEW_ACTIVE) return demoLedgerPerpOpenOrders();
   const payload = await readAuthenticated<{ ok: true; orders: PerpOrder[] }>("perpetual/orders", signal);
   if (!Array.isArray(payload.orders)) throw new ApiError("Perpetual open orders are unavailable.", 502, "INVALID_PERP_ORDERS");
   return payload.orders;
 }
 export async function getPerpOrderHistory(signal?: AbortSignal): Promise<PerpOrder[]> {
-  if (DEMO_PREVIEW_ACTIVE) return [];
+  if (DEMO_PREVIEW_ACTIVE) return demoLedgerPerpOrderHistory();
   const payload = await readAuthenticated<{ ok: true; orders: PerpOrder[] }>("perpetual/orders?history=true", signal);
   if (!Array.isArray(payload.orders)) throw new ApiError("Perpetual order history is unavailable.", 502, "INVALID_PERP_ORDER_HISTORY");
   return payload.orders;
 }
 export async function getPerpPositions(signal?: AbortSignal): Promise<PerpPosition[]> {
-  if (DEMO_PREVIEW_ACTIVE) return [];
+  if (DEMO_PREVIEW_ACTIVE) return demoLedgerPerpPositions();
   const payload = await readAuthenticated<{ ok: true; positions: PerpPosition[] }>("perpetual/positions", signal);
   if (!Array.isArray(payload.positions)) throw new ApiError("Perpetual positions are unavailable.", 502, "INVALID_PERP_POSITIONS");
   return payload.positions;
 }
 export async function getPerpTrades(symbol: string, signal?: AbortSignal): Promise<PerpTrade[]> {
-  if (DEMO_PREVIEW_ACTIVE) return [];
+  if (DEMO_PREVIEW_ACTIVE) return demoLedgerPerpTrades();
   const query = new URLSearchParams({ symbol });
   const payload = await readAuthenticated<{ ok: true; trades: PerpTrade[] }>(`perpetual/trades?${query.toString()}`, signal);
   if (!Array.isArray(payload.trades)) throw new ApiError("Perpetual trade history is unavailable.", 502, "INVALID_PERP_TRADES");
