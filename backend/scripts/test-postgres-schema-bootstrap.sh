@@ -191,6 +191,35 @@ BEGIN
 END
 $verify$;
 
+DO $operation_types$
+DECLARE
+  v_definition text;
+  v_type text;
+BEGIN
+  SELECT pg_get_constraintdef(c.oid)
+    INTO v_definition
+    FROM pg_constraint c
+   WHERE c.conrelid='public.financial_operations'::regclass
+     AND c.conname='financial_operations_operation_type_check'
+     AND c.convalidated;
+  IF v_definition IS NULL THEN
+    RAISE EXCEPTION 'final financial operation CHECK constraint is missing or unvalidated';
+  END IF;
+  FOREACH v_type IN ARRAY ARRAY[
+    'deposit_credit','withdraw_freeze','withdraw_approve','withdraw_reject',
+    'withdraw_paid','earn_subscribe','earn_redeem','admin_adjustment',
+    'spot_trade','spot_order_reserve','spot_order_cancel','seconds_open',
+    'seconds_settle','migration_opening_balance','perp_order_reserve',
+    'perp_trade','perp_order_cancel','perp_funding','perp_liquidation',
+    'perp_insurance_cover','perp_bad_debt'
+  ] LOOP
+    IF position(quote_literal(v_type) IN v_definition)=0 THEN
+      RAISE EXCEPTION 'final financial operation CHECK constraint is missing %', v_type;
+    END IF;
+  END LOOP;
+END
+$operation_types$;
+
 SELECT 'BTCBOX PostgreSQL schema bootstrap and RLS/grant verification passed' AS result;
 SQL
 
