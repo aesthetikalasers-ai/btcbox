@@ -28,9 +28,9 @@ const BRAND_ASSETS = {
 // by the intrinsic PNG dimensions, so no cropping or distortion can occur.
 const SIZE_CLASSES = {
   icon: "h-14 w-14 sm:h-16 sm:w-16",
-  mark: "h-9 w-9 sm:h-10 sm:w-10", // header brand mark: diamond-only, no wordmark
-  compact: "h-10 sm:h-12", // horizontal wordmark: 40–48px tall
-  full: "h-10 sm:h-12",
+  mark: "h-11 w-11 sm:h-12 sm:w-12", // header brand mark: diamond-only, no wordmark
+  compact: "h-11 sm:h-12", // horizontal wordmark: 44–48px tall
+  full: "h-11 sm:h-12",
 } as const;
 
 export function BrandLogo({ compact = false, variant = "white", className }: BrandLogoProps) {
@@ -48,7 +48,12 @@ export function BrandLogo({ compact = false, variant = "white", className }: Bra
   return (
     <span className={cn("relative inline-flex shrink-0 items-center justify-center align-middle", className)}>
       <img src={asset.src} alt="BTCBOX" width={asset.width} height={asset.height}
-        className={cn("pointer-events-none w-auto object-contain", sizeClass)} decoding="async" />
+        className={cn("pointer-events-none w-auto object-contain", sizeClass)}
+        decoding="async"
+        // Ask the browser for a high-quality downscale instead of the default
+        // fast/aliased path, so the wordmark stays crisp at header size.
+        style={{ imageRendering: "auto" }}
+        fetchPriority="high" />
     </span>
   );
 }

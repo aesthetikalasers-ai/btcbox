@@ -1468,5 +1468,19 @@
   "Referral & Rewards": "紹介と報酬",
   "Launchpad subscriptions open per project. No subscription window is open right now, so no quota is shown.": "ローンチパッドの申込はプロジェクトごとに受付します。現在受付中の期間はないため、割当量は表示していません。",
   "No newly listed pair is published yet.": "新規上場の取引ペアはまだ公開されていません。",
-  "Open margin": "必要証拠金"
+  "Open margin": "必要証拠金",
+  "New coin mining": "新規コインのマイニング",
+  "Stake for new listings and share the launchpool rewards.": "新規上場にステークしてローンチプール報酬を分け合いましょう。",
+  "Join": "参加する",
+  "Upcoming": "近日公開",
+  "Next listing": "次回上場",
+  "New spot pairs are reviewed continuously. The next listing will appear in this slot.": "新しい現物ペアは継続的に審査されます。次回の上場はこの枠に表示されます。",
+  "Mining": "マイニング",
+  "Stake to earn": "ステークして稼ぐ",
+  "Lock idle assets to share the launchpool allocation when a new project opens.": "新規プロジェクト開始時に、遊休資産をロックしてローンチプールの割当を共有できます。",
+  "Learn more": "詳細を見る",
+  "New listings showcase": "新規上場の紹介",
+  "Previous": "前へ",
+  "Next": "次へ",
+  "Slide": "スライド"
 }

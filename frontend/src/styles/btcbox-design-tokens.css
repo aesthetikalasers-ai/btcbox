@@ -1,0 +1,81 @@
+/* BTCBOX Design System Tokens */
+/* These tokens centralize visual specifications per the 11-spec design system. */
+
+:root {
+  /* Color Token System */
+  --color-bg-primary: #0b0e11;
+  --color-bg-card: #181a20;
+  --color-bg-surface: #202329;
+  --color-bg-elevated: #2b3139;
+  --color-bg-hover: #2b3139;
+
+  --color-border: rgba(255,255,255,0.08);
+  --color-border-strong: rgba(255,255,255,0.14);
+  --color-border-subtle: rgba(255,255,255,0.06);
+
+  --color-text-primary: #eaecef;
+  --color-text-secondary: #848e9c;
+  --color-text-disabled: #5e6673;
+
+  --color-up: #0ecb81;
+  --color-down: #f6465d;
+  --color-up-strong: #09a36b;
+  --color-down-strong: #d9384f;
+
+  --color-brand-accent: #0ecb81;
+  --color-brand-danger: #f6465d;
+  --color-brand-bg: #0b0e11;
+  --color-brand-surface: #181a20;
+  --color-brand-surface-2: #12161c;
+  --color-brand-surface-hover: #1e2329;
+  --color-brand-border: rgba(255,255,255,0.08);
+  --color-brand-border-strong: rgba(255,255,255,0.14);
+
+  /* Financial state colors */
+  --color-positive: #0ecb81;
+  --color-negative: #f6465d;
+  --color-warning-state: #a2b0be;
+  --color-information: #72aef2;
+  --color-neutral-state: #a2b0be;
+
+  /* Chart colors */
+  --color-chart-1: #d4d4d8;
+  --color-chart-2: #0ecb81;
+  --color-chart-3: #94a3b8;
+  --color-chart-4: #a2b0be;
+  --color-chart-5: #52525b;
+}
+
+:root {
+  color-scheme: dark;
+  --background: #0b0e11;
+  --foreground: #ffffff;
+  --card: #181a20;
+  --card-foreground: #ffffff;
+  --popover: #1e2329;
+  --popover-foreground: #ffffff;
+  --primary: #0ecb81;
+  --primary-foreground: #05201a;
+  --secondary: #1e2329;
+  --secondary-foreground: #ffffff;
+  --muted: #12161c;
+  --muted-foreground: #848e9c;
+  --accent: #1e2329;
+  --accent-foreground: #ffffff;
+  --destructive: #f6465d;
+  --border: #2b3139;
+  --input: #2b3139;
+  --ring: #0ecb81;
+
+  --brand-accent: #0ecb81;
+  --brand-success: #0ecb81;
+  --brand-danger: #f6465d;
+  --brand-warning: #848e9c;
+  --brand-info: #72aef2;
+  --surface-raised: #1e2329;
+  --surface-overlay: #232a30;
+  --border-strong: #3a424b;
+  --text-high: #ffffff;
+  --text-medium: #b7bdc6;
+  --text-low: #474d57;
+}

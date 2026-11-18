@@ -226,13 +226,17 @@ export function ContractPage() {
   const demoDepthBook = useMemo(() => {
     const mid = Number(markPrice ?? NaN);
     if (!Number.isFinite(mid) || mid <= 0) return null;
-    const tick = Math.max(0.01, mid * 0.0001);
+    // Tight, realistic spread: one tick away (≈0.01%), then increasing steps, so
+    // the best ask/bid sit right against the mid price instead of floating far
+    // above/below it (which reads like a mirrored/again-flipped book).
+    const tick = Math.max(0.01, Number(mid.toFixed(2)) * 0.0001 * 0.1);
     const bids: [string, string][] = [];
     const asks: [string, string][] = [];
     for (let i = 0; i < 6; i += 1) {
       const spread = tick * (i + 1);
       // Deterministic pseudo-random sizes (no Math.random, keeps render stable).
       const size = (0.08 + ((i * 137) % 100) / 100 * 1.5).toFixed(4);
+      // bids descend from best (closest to mid) downward; asks ascend away from mid.
       bids.push([(mid - spread).toFixed(2), size]);
       asks.push([(mid + spread).toFixed(2), size]);
     }

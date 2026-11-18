@@ -37,7 +37,7 @@ export function Topbar() {
     navigate(query ? `/markets?q=${encodeURIComponent(query)}` : "/markets");
   };
   return (
-    <header className="relative z-30 flex min-h-16 shrink-0 items-center justify-between gap-2 border-b border-brand-border bg-brand-bg/95 px-4 py-3 pt-[calc(env(safe-area-inset-top)+0.75rem)] backdrop-blur-xl sm:px-5 md:px-6">
+    <header className="relative z-30 flex min-h-[4.5rem] shrink-0 items-center justify-between gap-2 border-b border-brand-border bg-brand-bg/95 px-4 py-2.5 pt-[calc(env(safe-area-inset-top)+0.625rem)] backdrop-blur-xl sm:px-5 md:px-6">
       <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
         <Link to="/home" aria-label="BTCBOX home" className="flex min-w-0 shrink-0 items-center">
           <BrandLogo variant="mark" className="sm:hidden" />

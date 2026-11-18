@@ -1,0 +1,4 @@
+src/components/ChartSection.tsx(54,6): error TS17008: JSX element 'div' has no corresponding closing tag.
+src/components/ChartSection.tsx(56,8): error TS17008: JSX element 'div' has no corresponding closing tag.
+src/components/ChartSection.tsx(77,2): error TS1005: '</' expected.
+src/components/ChartSection.tsx(77,2): error TS1160: Unterminated template literal.

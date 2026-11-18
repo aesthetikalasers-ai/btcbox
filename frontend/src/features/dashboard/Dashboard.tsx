@@ -5,8 +5,11 @@ import {
   ArrowLeftRight,
   ArrowRight,
   ChartNoAxesCombined,
+  ChevronRight,
+  ClipboardList,
   Gift,
   Rocket,
+  Sparkles,
   Sprout,
   TrendingUp,
   Users,
@@ -160,8 +163,8 @@ function QuickActions() {
     { to: "/earn", label: t("Earn"), icon: Sprout },
     { to: "/deposit", label: t("Deposit"), icon: ArrowDownToLine },
     { to: "/rewards", label: t("Rewards"), icon: Gift },
-    { to: "/new-listings", label: t("Launchpad"), icon: Rocket },
-    { to: "/support", label: t("More"), icon: Users },
+    { to: "/orders", label: t("Orders"), icon: ClipboardList },
+    { to: "/support", label: t("Support"), icon: Users },
   ];
   return (
     <section aria-label={t("Quick access")}>
@@ -181,6 +184,42 @@ function QuickActions() {
         ))}
       </div>
     </section>
+  );
+}
+
+/**
+ * Prominent entry button for the new-coin mining / launchpad programme.
+ *
+ * Deliberately a single wide CTA rather than a 9th quick-action tile: mining is
+ * a campaign surface, not a core trading tab, so it reads as an invitation while
+ * still sitting at the top of the home screen next to Rewards.
+ */
+function MiningButton() {
+  const { t } = useI18n();
+  return (
+    <Link
+      to="/new-listings"
+      className="group relative flex min-w-0 items-center gap-3 overflow-hidden rounded-xl border border-brand-warning/30 bg-gradient-to-r from-brand-warning/[0.14] via-brand-surface to-brand-surface p-3 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.10)] transition-all duration-300 hover:border-brand-warning/50 hover:shadow-[0_10px_34px_-12px_rgba(240,185,11,0.5)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-warning/60"
+    >
+      {/* Ambient glow that brightens on hover. */}
+      <span aria-hidden="true" className="pointer-events-none absolute -right-6 -top-8 h-24 w-24 rounded-full bg-brand-warning/20 blur-2xl transition-opacity duration-300 group-hover:opacity-100 opacity-70" />
+      <span className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-brand-warning/15 text-brand-warning shadow-[inset_0_1px_0_0_rgba(255,255,255,0.18)]">
+        <Rocket className="h-5 w-5" strokeWidth={1.9} />
+      </span>
+      <span className="relative min-w-0 flex-1">
+        <span className="flex items-center gap-1.5">
+          <span className="truncate text-sm font-bold text-brand-text">{t("New coin mining")}</span>
+          <Sparkles className="h-3.5 w-3.5 shrink-0 text-brand-warning" strokeWidth={2} />
+        </span>
+        <span className="mt-0.5 block truncate text-[11px] leading-relaxed text-brand-text-muted">
+          {t("Stake for new listings and share the launchpool rewards.")}
+        </span>
+      </span>
+      <span className="relative flex h-8 shrink-0 items-center gap-1 rounded-lg bg-brand-warning px-3 text-xs font-bold text-black transition-transform duration-200 group-hover:scale-[1.04]">
+        {t("Join")}
+        <ChevronRight className="h-3.5 w-3.5" strokeWidth={2.5} />
+      </span>
+    </Link>
   );
 }
 
@@ -381,6 +420,7 @@ export function Dashboard() {
       <BannerCarousel markets={markets} />
       <TickerMarquee markets={markets} locale={locale} />
       <QuickActions />
+      <MiningButton />
       <MarketTable markets={markets} locale={locale} onViewAll={() => navigate("/markets")} />
     </div>
   );

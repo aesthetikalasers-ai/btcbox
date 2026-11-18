@@ -1468,5 +1468,19 @@
   "Referral & Rewards": "邀请与奖励",
   "Launchpad subscriptions open per project. No subscription window is open right now, so no quota is shown.": "打新认购按项目开放。当前没有开放中的认购期，因此不显示额度。",
   "No newly listed pair is published yet.": "暂未发布新上线的交易对。",
-  "Open margin": "可开保证金"
+  "Open margin": "可开保证金",
+  "New coin mining": "新币挖矿",
+  "Stake for new listings and share the launchpool rewards.": "质押赚币，参与新币上线并瓜分矿池奖励。",
+  "Join": "立即参与",
+  "Upcoming": "即将上线",
+  "Next listing": "下一个上线项目",
+  "New spot pairs are reviewed continuously. The next listing will appear in this slot.": "平台持续审核新的现货交易对，下一个上线项目会展示在此卡位。",
+  "Mining": "挖矿",
+  "Stake to earn": "质押赚收益",
+  "Lock idle assets to share the launchpool allocation when a new project opens.": "新项目开放时，锁定闲置资产即可参与矿池额度分配。",
+  "Learn more": "了解更多",
+  "New listings showcase": "新币展示",
+  "Previous": "上一个",
+  "Next": "下一个",
+  "Slide": "第"
 }

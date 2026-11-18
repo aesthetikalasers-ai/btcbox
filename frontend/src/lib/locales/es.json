@@ -1468,5 +1468,19 @@
   "Referral & Rewards": "Invitaciones y recompensas",
   "Launchpad subscriptions open per project. No subscription window is open right now, so no quota is shown.": "Las suscripciones de Launchpad se abren por proyecto. Ahora mismo no hay ninguna ventana abierta, por lo que no se muestra ningún cupo.",
   "No newly listed pair is published yet.": "Todavía no se ha publicado ningún par recién listado.",
-  "Open margin": "Margen de apertura"
+  "Open margin": "Margen de apertura",
+  "New coin mining": "Minería de nuevas monedas",
+  "Stake for new listings and share the launchpool rewards.": "Haz staking para nuevos listados y comparte las recompensas del launchpool.",
+  "Join": "Participar",
+  "Upcoming": "Próximamente",
+  "Next listing": "Próximo listado",
+  "New spot pairs are reviewed continuously. The next listing will appear in this slot.": "Los nuevos pares spot se revisan continuamente. El próximo listado aparecerá en este espacio.",
+  "Mining": "Minería",
+  "Stake to earn": "Haz staking para ganar",
+  "Lock idle assets to share the launchpool allocation when a new project opens.": "Bloquea activos inactivos para compartir la asignación del launchpool cuando se abra un nuevo proyecto.",
+  "Learn more": "Más información",
+  "New listings showcase": "Nuevos listados",
+  "Previous": "Anterior",
+  "Next": "Siguiente",
+  "Slide": "Diapositiva"
 }
