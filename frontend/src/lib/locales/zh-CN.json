@@ -1482,5 +1482,9 @@
   "New listings showcase": "新币展示",
   "Previous": "上一个",
   "Next": "下一个",
-  "Slide": "第"
+  "Slide": "第",
+  "Decrease quantity": "减少数量",
+  "Increase quantity": "增加数量",
+  "Collapse": "收起",
+  "Expand": "展开"
 }

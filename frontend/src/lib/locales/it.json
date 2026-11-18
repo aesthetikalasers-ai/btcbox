@@ -1482,5 +1482,9 @@
   "New listings showcase": "Nuovi listaggi",
   "Previous": "Precedente",
   "Next": "Successivo",
-  "Slide": "Diapositiva"
+  "Slide": "Diapositiva",
+  "Decrease quantity": "Riduci quantità",
+  "Increase quantity": "Aumenta quantità",
+  "Collapse": "Comprimi",
+  "Expand": "Espandi"
 }

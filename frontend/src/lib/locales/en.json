@@ -1482,5 +1482,9 @@
   "New listings showcase": "New listings showcase",
   "Previous": "Previous",
   "Next": "Next",
-  "Slide": "Slide"
+  "Slide": "Slide",
+  "Decrease quantity": "Decrease quantity",
+  "Increase quantity": "Increase quantity",
+  "Collapse": "Collapse",
+  "Expand": "Expand"
 }

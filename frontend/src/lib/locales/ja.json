@@ -1482,5 +1482,9 @@
   "New listings showcase": "新規上場の紹介",
   "Previous": "前へ",
   "Next": "次へ",
-  "Slide": "スライド"
+  "Slide": "スライド",
+  "Decrease quantity": "数量を減らす",
+  "Increase quantity": "数量を増やす",
+  "Collapse": "折りたたむ",
+  "Expand": "展開する"
 }
