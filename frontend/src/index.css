@@ -368,6 +368,8 @@ a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
 
 /* Spot terminal: one scoped layout system, independent from account/admin cards. */
 .spot-terminal { gap:12px; position:relative; }
+/* Mobile-only trade tabs (Buy | Sell | Order book). Shown under 768px only. */
+.spot-mobile-tabs { display:none; }
 /* Spec §2/§7: trading pages use 16px page padding and 8px card gaps — the
    generic 32px page padding wastes vertical budget the order form needs. */
 .spot-terminal { padding:12px; }
@@ -499,19 +501,8 @@ a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
    `max-width: 767.98px` so the 4-column desktop workspace is unaffected.
    ======================================================================== */
 @media (max-width: 767.98px) {
-  /* --- Mobile dual-column workspace (Binance-style) ----------------------- */
-  /* Order form (left 7fr) + order book (right 5fr) stay side-by-side on phones;
-     the orders panel spans full width below them. */
-  .exchange-workspace {
-    display: grid;
-    grid-template-columns: minmax(0, 58fr) minmax(0, 42fr);
-    gap: 8px;
-    align-items: stretch;
-  }
-  .exchange-workspace > .exchange-entry { grid-column: 1; grid-row: 1; }
-  .exchange-workspace > .exchange-depth { grid-column: 2; grid-row: 1; }
-  .exchange-workspace > .exchange-orders { grid-column: 1 / -1; grid-row: 2; }
-  .exchange-workspace > .exchange-chart { grid-column: 1 / -1; grid-row: auto; }
+  /* --- Mobile workspace: single column, driven by the trade tabs ----------
+     The panel choice lives in `.spot-mobile-tabs` further below. */
 
   /* --- Compact inline chart inside the header-triggered drawer ------------ */
   .exchange-chart--compact {
@@ -775,73 +766,40 @@ a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
   }
   .spot-terminal > .exchange-workspace {
     min-height: 0;
-    overflow: hidden;
   }
   .spot-terminal .exchange-workspace {
     min-height: 0;
     height: 100%;
     align-content: start;
-    /* Row 1 = depth + order entry, row 2 = orders panel. Spec §5 gives the
-       orders panel a 240px default height, so it owns a fixed track and the
-       trading row absorbs whatever is left. */
-    grid-template-rows: minmax(0, 1fr) auto;
+    /* Row 1 = depth + order entry, row 2 = orders panel. Row 1 may shrink to
+       `min-content` at worst (the book keeps its 6 levels, the form keeps its
+       fields); row 2 is the fixed 240–300px orders panel from spec §5. */
+    grid-template-rows: minmax(min-content, 1fr) auto;
   }
-  /* Inside the workspace, the orders panel sits on row 2 and must be able to
-     shrink; the depth/entry row keeps at least its own content height. */
+  /* Inside the workspace the orders panel owns row 2 and scrolls its own body. */
   .spot-terminal .exchange-orders {
     display: flex;
     flex-direction: column;
     min-height: 0;
-    /* Spec §5: 240px default panel height, capped so it never eats the chart. */
     max-height: 300px;
-    /* When the viewport is too short, the orders panel gives height back to the
-       order form first (the form owns the money). */
-    flex: 0 1 auto;
     margin-top: 8px;
   }
   .spot-terminal .exchange-orders > * { min-height: 0; }
-  /* The order-entry card can be taller than its grid row (price + amount +
-     percentage + CTA + policy notice). Let its body scroll instead of bleeding
-     over the orders panel below. */
-  .spot-terminal .exchange-entry {
-    overflow: hidden;
-  }
-  .spot-terminal .exchange-entry > div:not(:first-child) {
-    overflow-y: auto;
-    min-height: 0;
-  }
+  /* Both trading cards keep their natural height and scroll internally when the
+     viewport cannot show everything. No `max-height`/`align-self` overrides:
+     those clipped the book and left empty space inside the order form. */
   .exchange-chart, .exchange-entry, .exchange-depth, .exchange-orders {
     min-height: 0;
-    overflow: hidden;
   }
-  /* Every region scrolls its own body; nothing may bleed into a sibling row. */
-  .exchange-chart,
-  .exchange-entry,
-  .exchange-depth {
-    max-height: 100%;
-  }
-  /* The order form is the primary action: it keeps its natural height inside
-     the row and scrolls only when the viewport leaves it no choice. The book
-     yields its extra levels to internal scrolling instead of stealing height. */
-  .spot-terminal .exchange-entry {
-    align-self: start;
-    max-height: 100%;
+  .spot-terminal .exchange-entry,
+  .spot-terminal .exchange-depth {
     display: flex;
     flex-direction: column;
-    min-height: 0;
   }
-  .spot-terminal .exchange-entry > [class*="p-"],
-  .spot-terminal .exchange-entry > div:last-child {
-    min-height: 0;
-    overflow-y: auto;
-  }
-  .spot-terminal .exchange-depth {
-    align-self: stretch;
-    max-height: 100%;
-  }
+  .spot-terminal .exchange-entry > div:last-child,
   .spot-terminal .exchange-depth > div:last-child {
-    overflow-y: auto;
     min-height: 0;
+    overflow-y: auto;
   }
   .exchange-chart > div:last-child,
   .exchange-entry > div:last-child,
@@ -1185,7 +1143,35 @@ a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
     opacity: .75;
   }
 
-  /* --- Single-column stacked workspace (depth above entry) -------------- */
+  /* --- Mobile trade tabs: Buy | Sell | Order book -------------------------
+     Design board Trade screen defines three tabs, so the order form and the
+     order book never share the phone viewport. `data-mobile-panel` on the
+     workspace drives which panel is shown; both stay in the DOM so order-book
+     interaction (tap a level to set price) and a11y references keep working.
+     This replaces the earlier contradictory 58fr/42fr dual-column declaration. */
+  .spot-mobile-tabs {
+    display: flex;
+    align-items: stretch;
+    gap: 4px;
+    margin-bottom: 8px;
+    padding: 3px;
+    border: 1px solid var(--color-brand-border);
+    border-radius: 8px;
+    background: var(--color-brand-surface-2);
+  }
+  .spot-mobile-tabs button {
+    flex: 1 1 0;
+    min-height: 40px;
+    border-radius: 6px;
+    color: var(--color-brand-text-muted);
+    font-size: 13px;
+    font-weight: 600;
+    transition: background-color .15s ease, color .15s ease;
+  }
+  .spot-mobile-tabs button.is-active { background: var(--color-brand-surface); color: var(--color-brand-text); }
+  .spot-mobile-tabs button[aria-selected="true"]:first-child { color: var(--color-profit); }
+  .spot-mobile-tabs button[aria-selected="true"]:nth-child(2) { color: var(--color-loss); }
+
   .exchange-workspace {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
@@ -1198,6 +1184,12 @@ a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
     grid-column: 1;
     grid-row: auto;
     margin-top: 0;
+  }
+  /* Only the selected panel is displayed. */
+  .exchange-workspace[data-mobile-panel="buy"] > .exchange-depth,
+  .exchange-workspace[data-mobile-panel="sell"] > .exchange-depth,
+  .exchange-workspace[data-mobile-panel="book"] > .exchange-entry {
+    display: none;
   }
   /* Reset desktop/tablet baseline-push margins that stretch stacked cards. */
   .exchange-depth > div > div:last-child,
@@ -1251,6 +1243,11 @@ a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
   }
   .spot-book-toolbar select { height: 28px; min-height: 28px; }
   .spot-book-view button { min-height: 28px; width: 28px; min-width: 28px; }
+
+  /* The mobile Buy/Sell tabs already choose the side, so the in-form switch is
+     redundant there. Desktop keeps it (no tabs above 768px). */
+  .spot-entry-head .spot-side { display: none; }
+  .spot-entry-head { padding: 0 0 4px; }
 
   /* --- Compact order entry ---------------------------------------------- */
   .spot-entry-head { padding: 0 0 8px; margin: 0; }
@@ -1329,9 +1326,9 @@ a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
   left: 0 !important; right: 0 !important; bottom: 0 !important; top: auto !important;
   transform: none !important;
   z-index: 61;
-  /* Spec §5: initial 65dvh, expandable to 92dvh. `max-height` is clamped so the
-     drawer always leaves the top 8% of the viewport (and the safe area) visible. */
-  min-height: 65dvh;
+  /* Spec §5: the drawer opens around 65dvh and may grow to 92dvh. It must never
+     exceed the viewport minus the safe area, and it never forces a minimum: a
+     `min-height` here made a short chart panel overflow the 840px guard. */
   max-height: min(92dvh, calc(100dvh - env(safe-area-inset-top) - 8px));
   overflow-y: auto;
   margin: 0;

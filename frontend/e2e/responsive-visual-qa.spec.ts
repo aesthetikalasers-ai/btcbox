@@ -164,18 +164,22 @@ async function assertPageAtWidth(
     await expect(page.getByTestId("spot-availability")).toHaveText("Unavailable");
   }
   if (route.path === "/trade/BTCUSDT" && width <= 768) {
+    // Design board Trade screen: three tabs, one panel visible at a time.
     const orderbook = page.locator(".exchange-workspace > .exchange-depth");
     const orderForm = page.locator(".exchange-workspace > .exchange-entry");
-    await expect(orderbook).toBeVisible();
     await expect(orderForm).toBeVisible();
-    const [bookBox, formBox] = await Promise.all([orderbook.boundingBox(), orderForm.boundingBox()]);
+    await expect(orderbook).toBeHidden();
+    await page.getByRole("tab", { name: "Order book", exact: true }).click();
+    await expect(orderbook).toBeVisible();
+    await expect(orderForm).toBeHidden();
+    const bookBox = await orderbook.boundingBox();
     expect(bookBox, "Mobile orderbook must have a layout box.").not.toBeNull();
-    expect(formBox, "Mobile order form must have a layout box.").not.toBeNull();
-    expect(bookBox!.x, "The mobile orderbook must remain on the left.").toBeLessThan(formBox!.x);
     expect(
       bookBox!.x + bookBox!.width,
-      "The mobile orderbook and order form must not overlap.",
-    ).toBeLessThanOrEqual(formBox!.x + 1);
+      "The mobile orderbook must not overflow the viewport.",
+    ).toBeLessThanOrEqual(width);
+    await page.getByRole("tab", { name: "Buy", exact: true }).click();
+    await expect(orderForm).toBeVisible();
 
     const chartTrigger = page.locator("#trade-chart-open");
     await expect(chartTrigger, "Mobile spot trading must expose the chart drawer trigger.").toBeVisible();
