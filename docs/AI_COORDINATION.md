@@ -6813,3 +6813,45 @@ Fresh backend493/493,decimal4/4,build/lint and all944translation keys pass. Eigh
 
 
 <!-- /coderabbit-ai-generated:v1 -->
+
+## BTCBOX integration batch — 2026-11-18
+
+### Source of authority and branch state
+- The requested branch `chore/shared-ai-coordination` is absent from the current branch inventory. Read this document first from `docs/ai-coordination-current-20261116` at `8f39e8a9019c6a2f05b61b4e070bea39d17e2f6e`; its 2026-11-16 top section remains the current owner-approved authority.
+- Current canonical `main` baseline observed: `23d668158811f4b5e4bcb744d2314cd6d9a57770`.
+- The requested old branch `integration/btcbox-mainline-consolidation-20261108` is absent. The existing `integration/btcbox-mainline-consolidation-20261116` head is `e6999067fe6e7500ce2279d7c0535aeb33e646d8`, 11 commits ahead / 77 behind current main. It was left unchanged.
+- Created a fresh dedicated task branch from current main, `integration/btcbox-mainline-consolidation-20261118`, final head `3c40949c684dc66d5c9f391f7877a1dec610cac4` (2 commits ahead, 0 behind main). No PR was created; no merge or deployment was performed.
+
+### PR #67 verification
+- GitHub metadata reports PR #67 **closed and merged**, not Draft: merged at `2026-11-08T16:24:57Z`, merge commit `fbf301f88c5c19db94ea1546c590667a8818e842`. That merge commit is an ancestor of current main.
+- Actual PR head metadata is `c53fa948a599b560c1319726adfb57be6828b0fa` on the now-absent 20261108 branch. The PR description separately names `54d9b552a83eccfabc9fdf4a155ac9f2e072caae`; treat the GitHub PR metadata head as authoritative.
+- At actual head `c53fa...`: Backend CI, PostgreSQL schema CI, and Frontend CI all completed successfully; Vercel status was success. At the description-only SHA `54d9...`: the three GitHub Actions workflows passed, but the combined Vercel status failed with the build-rate-limit upgrade link.
+- PR #67 has zero review records and zero review threads. An owner issue comment at 2026-11-08 14:17 UTC said it remained Draft/unmerged; GitHub metadata shows it was merged later at 16:24 UTC. This is an unresolved process/approval discrepancy. Do not attempt to unmerge or rewrite the historical PR; it cannot now be made Draft.
+
+### Database integration change — implemented on the task branch
+- Source review found that `0041_perpetual_contract_v1.sql` replaced `financial_operations_operation_type_check` with the Perpetual allow-list but omitted previously supported `withdraw_paid`, `seconds_open`, and `seconds_settle` values preserved by earlier canonical migrations.
+- Added `0042_financial_operation_type_allowlist_reconciliation_v1.sql`. It replaces the constraint in one atomic `ALTER TABLE` statement with the exact 21-value union from the prior canonical SQL contracts. It changes no rows, balances, ledger entries, RPC bodies, RLS policies, grants, or Auth configuration.
+- Added source-level exact-union/atomic-DDL test `backend/tests/financial-operation-types-contract.test.js`; updated both empty-database and Docker migration allow-lists; updated the migration order to 35 canonical files; added a disposable-PostgreSQL assertion that the final constraint is validated and contains all 21 values; and updated the Perpetual live-test plan to migrations 0001–0042.
+- Preserved the existing empty-database and remote-bootstrap confirmation guards. No hosted Supabase DDL/RLS/data/Auth operation was performed.
+
+### Exact-head CI evidence for `3c40949c684dc66d5c9f391f7877a1dec610cac4`
+- PostgreSQL schema CI run `44233816570`: **PASS**. It applied all 35 canonical SQL files to disposable PostgreSQL, including `0042`; the final financial-operation CHECK, RLS and service-role grant verification completed successfully.
+- Backend CI run `44233816475`: **FAIL**. Unified site build passed. Backend tests: 548 total, 544 passed, 4 failed. The new exact-union test passed. Integration tests, deployment preflight and output-verification steps were skipped because the backend test step failed.
+- Claude Watchdog test run `44233816424`: **PASS**.
+- Supabase Preview check: **SKIPPED**. No hosted Supabase operation was attempted.
+- No Frontend CI was triggered on this DB-only task branch.
+
+### Unresolved failures and ownership handoff
+- `backend/tests/admin-auth.test.js:31`: expected `{ok:true,user:{id}}`; actual normalized identity includes `email: ''`. The auth/API owner should decide whether the response omits an empty email or the test contract accepts it.
+- `backend/tests/google-only-auth.test.js:17`: asserts `signInWithEmail` is absent. `backend/tests/google-only-identity.test.js:67`: requires a `GOOGLE_ONLY_AUTH` guard. Both conflict with the current owner-approved 2026-11-16 decision to retain Email/password and Google. Code/UI owner should update these stale Google-only tests; do not enable Google-only policy or change provider settings.
+- `backend/tests/spot-trading-live-refresh.test.js:236`: asserts SupportPage contains an exact inline state string. Current `frontend/src/features/pages/Pages.tsx` delegates conversation state to `frontend/src/features/support/SupportChat.tsx`, which clears messages before loading; update the test to inspect the owning component or observable behavior, not a stale source substring.
+- On the old integration head `e699906...`, Frontend CI run `43798073456` passed install, lint, decimal checks and build, but failed desktop/mobile route smoke: 134 failed, 1 flaky, 231 passed, 4 skipped. Failures span auth, product grid, chart/market-feed, i18n, navigation, redesign and responsive route cases. The responsive suite contains all required fixed widths (375/390/430/768/1366/1440/1920), a 27-width continuity sweep, and 17 routes; its API is mocked, so it is visual/route QA only, not live provider or account verification.
+- Current main head `23d668...` also has Backend CI failure (the same four tests) and Frontend CI failure (browser route smoke). Mirror, Watchdog test and Supabase Preview checks passed; Vercel combined status was success. Do not infer release readiness from those passing checks.
+- Perpetual API/SQL source tests cover default-off gating, request IDs/hashes, duplicate replay and payload mismatch, advisory locks, service-role-only function grants, RLS and admin permission checks. The ten disposable live-Postgres concurrency/restart/funding/liquidation scenarios in `backend/tests/perpetual-live-db-scenarios.md` remain **NOT RUN**; source-level tests and empty-schema bootstrap do not replace them.
+- Earlier PR #67 owner comments reported hosted schema gaps and no Auth users/Admin membership. Those comments were not independently revalidated in this batch; hosted auth, live balances, financial execution and production schema readiness remain **NOT VERIFIED**.
+
+### Release status and next actions
+- Overall release readiness: **NOT READY**. Mainline backend and frontend CI are red; no formal PR #67 review approvals exist; Perpetual live-Postgres scenarios remain unexecuted; hosted schema/auth parity and visual acceptance are not verified.
+- Code/UI owner: reconcile the four backend failures above with the 2026-11-16 auth decision and SupportChat ownership; repair the route suite and rerun the complete responsive matrix on the current mainline.
+- Database owner: retain `integration/btcbox-mainline-consolidation-20261118` unmerged; after owner review, run the ten Perpetual scenarios on a disposable isolated PostgreSQL instance with fixture data and preserve ledger reconciliation evidence. Prepare a separate, owner-reviewed hosted upgrade plan only if later authorized.
+- Owner/release approver: review the exact task head and CI evidence before any PR approval. No merge, production deployment, Vercel modification, hosted Supabase write, or real financial operation occurred in this batch.
