@@ -750,7 +750,7 @@ a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
    Scoped to desktop (>=1280px) where the full 4-column grid is active;
    mobile keeps its existing orderbook-left / entry-right document flow.
    ======================================================================== */
-@media (min-width:1280px) {
+@media (min-width:1024px) {
   /* Lock the terminal to the viewport so only inner regions scroll.
      Track budget (spec §6): title + nav + notices + quote strip are `auto`;
      the workspace takes the rest and never goes below the trading minimum.
@@ -771,10 +771,40 @@ a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
     min-height: 0;
     height: 100%;
     align-content: start;
-    /* Row 1 = depth + order entry, row 2 = orders panel. Row 1 may shrink to
-       `min-content` at worst (the book keeps its 6 levels, the form keeps its
-       fields); row 2 is the fixed 240–300px orders panel from spec §5. */
+    /* Spec §6 three-column desktop workspace: chart in the centre, order book
+       and order entry on the right. The chart takes the remaining space and
+       never drops below its 400px minimum. */
+    grid-template-columns: minmax(400px, 1fr) minmax(260px, 320px) minmax(300px, 360px);
     grid-template-rows: minmax(min-content, 1fr) auto;
+  }
+  .spot-terminal .exchange-workspace > .exchange-chart { grid-column: 1; grid-row: 1; }
+  .spot-terminal .exchange-workspace > .exchange-depth { grid-column: 2; grid-row: 1; }
+  .spot-terminal .exchange-workspace > .exchange-entry { grid-column: 3; grid-row: 1; }
+  /* Orders panel spans the whole workspace on the second row (spec §5). */
+  .spot-terminal .exchange-workspace > .exchange-orders { grid-column: 1 / -1; grid-row: 2; }
+  /* 1024–1279px (spec §6 "compact desktop"): the chart keeps the centre column
+     and the book/entry stack in a single right-hand column so no region is
+     squeezed below its usable width. The orders panel stays full-width below. */
+  @media (max-width:1279px) {
+    /* Short compact-desktop viewports cannot fit the locked viewport budget:
+       release the height lock and let the page scroll instead of overlapping. */
+    .spot-terminal {
+      height: auto;
+      overflow: visible;
+      grid-template-rows: auto;
+      padding-bottom: 16px;
+    }
+    .spot-terminal .exchange-workspace {
+      grid-template-columns: minmax(400px, 1fr) minmax(300px, 360px);
+      grid-template-rows: auto minmax(0, 1fr) auto;
+      height: auto;
+    }
+    /* Chart spans the full right-hand stack height; the book and the order form
+       each take one row inside that column so they never overlap. */
+    .spot-terminal .exchange-workspace > .exchange-chart { grid-column: 1; grid-row: 1 / span 2; }
+    .spot-terminal .exchange-workspace > .exchange-depth { grid-column: 2; grid-row: 1; }
+    .spot-terminal .exchange-workspace > .exchange-entry { grid-column: 2; grid-row: 2; }
+    .spot-terminal .exchange-workspace > .exchange-orders { grid-column: 1 / -1; grid-row: 3; }
   }
   /* Inside the workspace the orders panel owns row 2 and scrolls its own body. */
   .spot-terminal .exchange-orders {
@@ -795,6 +825,14 @@ a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
   .spot-terminal .exchange-depth {
     display: flex;
     flex-direction: column;
+  }
+  /* Cards align to the top of their row and keep their natural height: the
+     book lists 6 levels and the form ends at its CTA. Stretching them to the
+     chart's height produced large empty areas and a clipped extra row. */
+  .spot-terminal .exchange-depth,
+  .spot-terminal .exchange-entry {
+    align-self: start;
+    max-height: 100%;
   }
   .spot-terminal .exchange-entry > div:last-child,
   .spot-terminal .exchange-depth > div:last-child {
