@@ -1,7 +1,7 @@
 # Perpetual v1 — Required Live-Postgres Scenarios (Phase 7)
 
 These scenarios MUST be run against a disposable isolated PostgreSQL/Supabase instance with all
-migrations 0001–0041 applied, before any financial cutover. Source-level contract tests
+migrations 0001–0042 applied, before any financial cutover. Source-level contract tests
 (`perpetual-api-contract.test.js`, `perpetual-sql-contract.test.js`) do NOT substitute for these.
 Preserve SQL logs, setup, assertions, and reconciliation output for each.
 
@@ -36,7 +36,7 @@ For every scenario, assert after each step:
 
 ## Additional required (non-scenario) gates
 
-- Apply 0041 to empty DB and verify all 7 functions created with exact signatures, RLS enabled, EXECUTE only to `service_role`, `__perp_insurance__` row present.
+- Apply migrations 0001–0042 to an empty DB and verify all 7 Perpetual functions have exact signatures, RLS is enabled, EXECUTE is granted only to `service_role`, `__perp_insurance__` exists, and the final `financial_operations.operation_type` CHECK retains the full 21-value union including `withdraw_paid`, `seconds_open`, and `seconds_settle`.
 - Verify `perp_latest_mark_price` returns `max_deviation_pct` and `source_count` columns (regression guard).
 - Verify market IOC with zero fills (reduce-only): no `financial_ledger` row with NULL operation_id, no reserve (v_reserve=0), order status=cancelled.
 - Verify flip (close + open opposite in one fill) accounting: old margin fully released, new margin locked, position_history row for old side, new position row, ledger reconciles.
