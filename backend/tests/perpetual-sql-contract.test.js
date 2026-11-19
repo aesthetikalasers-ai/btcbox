@@ -9,6 +9,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const root = path.resolve(__dirname, '..');
 const sql = fs.readFileSync(path.join(root, 'supabase/sql/0041_perpetual_contract_v1.sql'), 'utf8');
+const fundingFixSql = fs.readFileSync(path.join(root, 'supabase/sql/0043_perpetual_funding_settlement_idempotency_v1.sql'), 'utf8');
 
 test('0041 extends operation_type with perp_* and reuses financial_accounts/operations/ledger', () => {
   assert.ok(sql.includes("'perp_order_reserve'"));
@@ -145,6 +146,21 @@ test('grant/revoke signatures match the 7 function arg lists exactly', () => {
     assert.ok(sql.includes('revoke all on function public.' + fn + ' from public, anon, authenticated'), 'missing revoke: ' + fn);
     assert.ok(sql.includes('grant execute on function public.' + fn + ' to service_role'), 'missing grant: ' + fn);
   }
+});
+
+test('0043 funding settlement serializes retries, trusts the persisted rate and updates funding_paid once', () => {
+  const start = fundingFixSql.indexOf('create or replace function public.perp_settle_funding_one');
+  const end = fundingFixSql.indexOf('revoke all on function public.perp_settle_funding_one');
+  assert.ok(start >= 0 && end > start, '0043 funding RPC replacement missing');
+  const fn = fundingFixSql.slice(start, end);
+  const lockAt = fn.indexOf('pg_advisory_xact_lock(hashtextextended(v_idem, 0))');
+  const replayAt = fn.indexOf('if exists (select 1 from public.financial_operations where idempotency_key=v_idem)');
+  assert.ok(lockAt >= 0 && replayAt > lockAt, 'funding idempotency lock must precede replay lookup');
+  assert.ok(/p_rate\s+is distinct from\s+v_rate\.rate/i.test(fn), 'caller rate must match persisted rate');
+  assert.ok(/then -v_rate\.rate else v_rate\.rate end/i.test(fn), 'settlement must use persisted rate');
+  const fundingPaidUpdates = fn.match(/funding_paid\s*=\s*funding_paid\s*-\s*v_payment/gi) || [];
+  assert.equal(fundingPaidUpdates.length, 1, 'funding_paid must be updated exactly once');
+  assert.ok(fn.includes("raise exception 'funding rate does not match persisted funding rate'"));
 });
 
 test('no check constraint weakened: max_leverage bounded 1-100, mmr bounded, fees >=0, status enum closed', () => {

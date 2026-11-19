@@ -1,7 +1,7 @@
 # Perpetual v1 — Required Live-Postgres Scenarios (Phase 7)
 
 These scenarios MUST be run against a disposable isolated PostgreSQL/Supabase instance with all
-migrations 0001–0042 applied, before any financial cutover. Source-level contract tests
+migrations 0001–0043 applied, before any financial cutover. Source-level contract tests
 (`perpetual-api-contract.test.js`, `perpetual-sql-contract.test.js`) do NOT substitute for these.
 Preserve SQL logs, setup, assertions, and reconciliation output for each.
 
@@ -28,7 +28,7 @@ For every scenario, assert after each step:
 
 7. **Partial-fill then cancel** — submit large limit order that partially fills (resting book), then cancel with `client_cancel_id`. Assert only filled portion's margin released at fill; cancel releases remaining reserved_margin exactly; order status=cancelled, reserved_margin=0, frozen reconciles. Cancel again (same client_cancel_id) → duplicate, no double release.
 
-8. **Double funding settlement (idempotency)** — run `perp_settle_funding_one` twice for same (symbol, funding_at, user). Second returns `duplicate=true`; exactly one `perp_funding` operation, exactly one ledger leg, exactly one `perpetual_funding_history` row. Funding payment sign: long pays short when rate>0 (long available decreases, short increases) and vice versa.
+8. **Double funding settlement (idempotency)** — run `perp_settle_funding_one` twice sequentially and concurrently for the same (symbol, funding_at, user). Exact retry returns `duplicate=true`; concurrent calls serialize and produce one original plus one duplicate, never a unique-key failure or double debit. A caller-supplied rate different from the persisted `perpetual_funding_rates.rate` must fail closed, including after the first settlement. Assert exactly one `perp_funding` operation, one ledger leg and one history row per user. When available is insufficient, the remainder is debited from isolated margin and `funding_paid` changes exactly once. Funding sign: long pays short when rate>0 (long available/frozen decreases, short available increases) and vice versa.
 
 9. **Simultaneous close + liquidation race** — concurrently (two sessions) issue a user close market order and trigger `perp_liquidate_position` for the same position. Assert exactly one succeeds (the other returns `no_position` or duplicate); no double release of isolated margin, no negative balance, position history written exactly once, total frozen delta = isolated_margin + open-order reserved_margin.
 
@@ -36,7 +36,7 @@ For every scenario, assert after each step:
 
 ## Additional required (non-scenario) gates
 
-- Apply migrations 0001–0042 to an empty DB and verify all 7 Perpetual functions have exact signatures, RLS is enabled, EXECUTE is granted only to `service_role`, `__perp_insurance__` exists, and the final `financial_operations.operation_type` CHECK retains the full 21-value union including `withdraw_paid`, `seconds_open`, and `seconds_settle`.
+- Apply migrations 0001–0043 to an empty DB and verify all 7 Perpetual functions have exact signatures, RLS is enabled, EXECUTE is granted only to `service_role`, `__perp_insurance__` exists, and the final `financial_operations.operation_type` CHECK retains the full 21-value union including `withdraw_paid`, `seconds_open`, and `seconds_settle`.
 - Verify `perp_latest_mark_price` returns `max_deviation_pct` and `source_count` columns (regression guard).
 - Verify market IOC with zero fills (reduce-only): no `financial_ledger` row with NULL operation_id, no reserve (v_reserve=0), order status=cancelled.
 - Verify flip (close + open opposite in one fill) accounting: old margin fully released, new margin locked, position_history row for old side, new position row, ledger reconciles.

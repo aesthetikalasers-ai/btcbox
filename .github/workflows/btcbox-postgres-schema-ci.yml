@@ -9,6 +9,7 @@ on:
       - 'backend/scripts/test-postgres-schema-bootstrap.sh'
       - 'backend/tests/postgres-financial-lifecycle.integration.sql'
       - 'backend/tests/perpetual-live-db-scenarios.md'
+      - 'backend/tests/perpetual-live-db.integration.sql'
       - '.github/workflows/btcbox-postgres-schema-ci.yml'
   push:
     branches:

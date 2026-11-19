@@ -34,6 +34,8 @@ DECLARE
   v_market_requests regclass := to_regclass('private.spot_market_request_idempotency');
   v_proc regprocedure;
   v_signature text;
+  v_table text;
+  v_table_oid regclass;
 BEGIN
   IF v_accounts IS NULL OR v_withdrawals IS NULL OR v_spot_orders IS NULL
      OR v_spot_trades IS NULL OR v_cancel_requests IS NULL OR v_admin_members IS NULL THEN
@@ -68,6 +70,71 @@ BEGIN
   IF NOT (SELECT relrowsecurity FROM pg_class WHERE oid=v_market_requests) THEN
     RAISE EXCEPTION 'private.spot_market_request_idempotency must have RLS enabled';
   END IF;
+
+  -- Verify every Perpetual table is present, RLS-enabled, and unavailable to browser roles.
+  FOREACH v_table IN ARRAY ARRAY[
+    'perpetual_markets','perpetual_orders','perpetual_positions','perpetual_trades',
+    'perpetual_cancel_requests','perpetual_funding_rates','perpetual_funding_history',
+    'perpetual_mark_price_feed','perpetual_liquidation_events','perpetual_position_history'
+  ] LOOP
+    v_table_oid := to_regclass('public.' || quote_ident(v_table));
+    IF v_table_oid IS NULL THEN
+      RAISE EXCEPTION 'required Perpetual table is missing: %',v_table;
+    END IF;
+    IF NOT (SELECT relrowsecurity FROM pg_class WHERE oid=v_table_oid) THEN
+      RAISE EXCEPTION 'Perpetual table must have RLS enabled: %',v_table;
+    END IF;
+    IF has_table_privilege('anon',v_table_oid,'SELECT')
+       OR has_table_privilege('anon',v_table_oid,'INSERT')
+       OR has_table_privilege('anon',v_table_oid,'UPDATE')
+       OR has_table_privilege('anon',v_table_oid,'DELETE')
+       OR has_table_privilege('authenticated',v_table_oid,'SELECT')
+       OR has_table_privilege('authenticated',v_table_oid,'INSERT')
+       OR has_table_privilege('authenticated',v_table_oid,'UPDATE')
+       OR has_table_privilege('authenticated',v_table_oid,'DELETE') THEN
+      RAISE EXCEPTION 'Perpetual table is directly accessible to anon/authenticated: %',v_table;
+    END IF;
+    IF NOT has_table_privilege('service_role',v_table_oid,'SELECT')
+       OR NOT has_table_privilege('service_role',v_table_oid,'INSERT')
+       OR NOT has_table_privilege('service_role',v_table_oid,'UPDATE') THEN
+      RAISE EXCEPTION 'Perpetual service_role table grants are incomplete: %',v_table;
+    END IF;
+    IF v_table='perpetual_positions' THEN
+      IF NOT has_table_privilege('service_role',v_table_oid,'DELETE') THEN
+        RAISE EXCEPTION 'service_role requires DELETE only on perpetual_positions';
+      END IF;
+    ELSIF has_table_privilege('service_role',v_table_oid,'DELETE') THEN
+      RAISE EXCEPTION 'service_role has unexpected DELETE on Perpetual table: %',v_table;
+    END IF;
+  END LOOP;
+
+  -- Exact signatures, invoker security, pinned search_path, and service-role-only EXECUTE.
+  FOREACH v_signature IN ARRAY ARRAY[
+    'public.perp_submit_order(text,text,text,text,text,numeric,numeric,integer,boolean,boolean,text)',
+    'public.perp_cancel_order(text,text,text)',
+    'public.perp_record_mark_price(text,numeric,numeric,jsonb,integer)',
+    'public.perp_settle_funding_one(text,timestamptz,numeric,text)',
+    'public.perp_liquidate_position(text,text)',
+    'public.perp_latest_mark_price(text,integer)',
+    'public.perp_apply_fill_to_position(text,text,text,numeric,numeric,integer,numeric)'
+  ] LOOP
+    v_proc := to_regprocedure(v_signature);
+    IF v_proc IS NULL
+       OR NOT has_function_privilege('service_role',v_proc,'EXECUTE')
+       OR has_function_privilege('anon',v_proc,'EXECUTE')
+       OR has_function_privilege('authenticated',v_proc,'EXECUTE') THEN
+      RAISE EXCEPTION 'Perpetual RPC must be service-role-only with exact signature: %',v_signature;
+    END IF;
+    IF (SELECT prosecdef FROM pg_proc WHERE oid=v_proc) THEN
+      RAISE EXCEPTION 'Perpetual RPC must be SECURITY INVOKER: %',v_signature;
+    END IF;
+    IF NOT EXISTS (
+      SELECT 1 FROM pg_proc p, unnest(coalesce(p.proconfig,ARRAY[]::text[])) AS cfg(setting)
+      WHERE p.oid=v_proc AND cfg.setting='search_path=""'
+    ) THEN
+      RAISE EXCEPTION 'Perpetual RPC must pin an empty search_path: %',v_signature;
+    END IF;
+  END LOOP;
 
   v_proc := to_regprocedure('public.admin_manual_deposit_atomic(text,text,text,text,numeric,text,text,text,text)');
   IF v_proc IS NULL OR NOT has_function_privilege('service_role',v_proc,'EXECUTE')
@@ -225,3 +292,6 @@ SQL
 
 echo '[test] Executing financial lifecycle RPCs inside a rolled-back PostgreSQL transaction.'
 psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f backend/tests/postgres-financial-lifecycle.integration.sql
+
+echo '[test] Executing Perpetual funding settlement checks inside a rolled-back PostgreSQL transaction.'
+psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f backend/tests/perpetual-live-db.integration.sql
