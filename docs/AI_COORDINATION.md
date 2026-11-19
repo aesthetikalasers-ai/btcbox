@@ -6900,3 +6900,19 @@ Fresh backend493/493,decimal4/4,build/lint and all944translation keys pass. Eigh
 - API/worker owner: fix the `perp_submit_order` response contract and funding-worker retry/advance behavior described above.
 - DB owner: run the remaining disposable-PostgreSQL Perpetual scenarios, including a two-session funding retry race, then preserve exact-head evidence.
 - Owner/release approvers: review the task branch and outstanding cross-team evidence. Do not merge or deploy from this run. No hosted Supabase DDL/DML/Auth/flag changes, Vercel changes, production deployment, real financial operations, or locked trading-page layout changes were performed.
+
+
+### 2026-11-19 addendum — background Perpetual workers bypass the API feature gate
+
+A further fail-closed review found a cross-team release blocker that was not included in the first 2026-11-19 handoff:
+
+- `backend/api-core.js:377-405` gates API Perpetual writes through `perpetualEngineEnabled()` and the full financial cutover.
+- `backend/scripts/perp-funding-worker.js:25-58` checks only `SUPABASE_URL` and the service key, selects enabled markets/open positions, calls `perp_settle_funding_one`, and then attempts to mark the rate settled/advance the next interval. It does not check `FINANCIAL_PERPETUAL_ENGINE_ENABLED` or the full financial cutover.
+- `backend/scripts/perp-liquidation-worker.js:25-30` likewise checks only the URL/service key, reads all open positions, and calls `perp_liquidate_position` without a worker-side feature/cutover guard.
+- The mark-price worker also has no engine flag, but it only records market-price observations and does not itself move balances.
+
+This does **not** prove either financial worker is currently scheduled or running; runtime schedules and hosted environment variables were not inspected. It does prove the source-level API gate is not a complete gate for background financial RPC callers.
+
+**Owner decision required:** define whether funding and liquidation are allowed to continue when new Perpetual order entry is disabled. If they are allowed for risk management, give them explicit separate worker flags that default OFF and require the full Postgres financial cutover; liquidation may be independently approved as a safety-only path. If they are not approved, require the engine flag and cutover in both workers. Add default-off tests for each worker and ensure the scheduler cannot invoke financial RPCs when the relevant gate is absent. Do not change hosted environment variables or schedules as part of this source review.
+
+Ownership: backend worker/API owner. No worker source, scheduler, Vercel, hosted Supabase, or runtime flag was changed in this run. Treat this as a release blocker until the owner documents the intended safety policy and exact-head tests prove it.
