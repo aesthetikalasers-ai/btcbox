@@ -149,10 +149,11 @@ test('grant/revoke signatures match the 7 function arg lists exactly', () => {
 });
 
 test('0043 funding settlement serializes retries, trusts the persisted rate and updates funding_paid once', () => {
-  const start = fundingFixSql.indexOf('create or replace function public.perp_settle_funding_one');
-  const end = fundingFixSql.indexOf('revoke all on function public.perp_settle_funding_one');
+  const normalized = fundingFixSql.toLowerCase();
+  const start = normalized.indexOf('create or replace function public.perp_settle_funding_one');
+  const end = normalized.indexOf('revoke all on function public.perp_settle_funding_one');
   assert.ok(start >= 0 && end > start, '0043 funding RPC replacement missing');
-  const fn = fundingFixSql.slice(start, end);
+  const fn = normalized.slice(start, end);
   const lockAt = fn.indexOf('pg_advisory_xact_lock(hashtextextended(v_idem, 0))');
   const replayAt = fn.indexOf('if exists (select 1 from public.financial_operations where idempotency_key=v_idem)');
   assert.ok(lockAt >= 0 && replayAt > lockAt, 'funding idempotency lock must precede replay lookup');
