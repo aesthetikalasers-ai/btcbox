@@ -6855,3 +6855,48 @@ Fresh backend493/493,decimal4/4,build/lint and all944translation keys pass. Eigh
 - Code/UI owner: reconcile the four backend failures above with the 2026-11-16 auth decision and SupportChat ownership; repair the route suite and rerun the complete responsive matrix on the current mainline.
 - Database owner: retain `integration/btcbox-mainline-consolidation-20261118` unmerged; after owner review, run the ten Perpetual scenarios on a disposable isolated PostgreSQL instance with fixture data and preserve ledger reconciliation evidence. Prepare a separate, owner-reviewed hosted upgrade plan only if later authorized.
 - Owner/release approver: review the exact task head and CI evidence before any PR approval. No merge, production deployment, Vercel modification, hosted Supabase write, or real financial operation occurred in this batch.
+
+
+### 2026-11-19 integration continuation — Perpetual funding hardening and exact-head evidence
+
+#### Authority and branch reconciliation
+- The requested `chore/shared-ai-coordination` branch is absent. The current owner-approved coordination log is `docs/ai-coordination-current-20261116`; this run read it at `3434dab16cd4f2d889bfcc4dcf49f20127fb0aa8` before making changes.
+- The requested `integration/btcbox-mainline-consolidation-20261108` branch is absent. The active dedicated task branch is `integration/btcbox-mainline-consolidation-20261118`.
+- The task branch is based on current `main` `23d668158811f4b5e4bcb744d2314cd6d9a57770`, ahead by 4 commits and behind by 0. Exact current task HEAD: `fa43074803659c0a76ca57733248875cdc1f765c`.
+- PR #67 is not Draft: GitHub reports it closed and merged on 2026-11-08, with head `c53fa948a599b560c1319726adfb57be6828b0fa` and merge commit `fbf301f88c5c19db94ea1546c590667a8818e842`. It has 0 reviews and 0 review threads. Its body still contains stale Draft/unmerged statements. The old `integration/btcbox-mainline-consolidation-20261108` branch is no longer present. No attempt was made to revert, reopen, or alter the merged PR.
+
+#### Changes on the integration branch
+- `a6655d060dde60643d994a3982abefddef828d5b` adds `0043_perpetual_funding_settlement_idempotency_v1.sql`, a disposable-PostgreSQL funding integration test, Perpetual table/RPC RLS and grant verification, bootstrap-list updates, and release/scenario documentation.
+- `fa43074803659c0a76ca57733248875cdc1f765c` fixes the new source-test matcher to be case-insensitive and adds the new live-DB test path to both push and pull-request CI path filters.
+- Migration 0043 keeps the existing RPC signature but:
+  1. serializes the deterministic (symbol, funding interval, user) idempotency key before replay lookup;
+  2. rejects a caller-supplied rate that differs from the persisted `perpetual_funding_rates.rate`, then uses the persisted rate;
+  3. removes the duplicate `funding_paid` increment in the isolated-margin debit branch, leaving one update for the complete payment;
+  4. reasserts SECURITY INVOKER, empty `search_path`, and service-role-only EXECUTE.
+- Empty-database and Docker bootstrap allowlists now include 36 canonical migrations. The PostgreSQL verifier checks all 10 Perpetual tables for RLS and browser-role denial, the exact 7 RPC signatures for invoker security/empty search_path/service-role-only EXECUTE, and the one intentional service-role DELETE grant on `perpetual_positions`.
+- The new rolled-back PostgreSQL integration test opens a real matched long/short pair, funds a positive-rate interval, verifies a margin-funded long debit, exact replay, changed-rate rejection, signed `funding_paid`, one operation/history/ledger leg per user, frozen-margin reconciliation, and account-to-ledger reconciliation.
+
+#### Exact-head CI evidence — `fa43074803659c0a76ca57733248875cdc1f765c`
+- PostgreSQL schema CI [44451166858](https://github.com/avali9308-code/btcboxcdt/actions/runs/44451166858): PASS. All 36 migrations applied to disposable PostgreSQL 16; RLS/grant checks passed; existing financial lifecycle integration passed; new Perpetual funding integration passed.
+- Backend CI [44451166797](https://github.com/avali9308-code/btcboxcdt/actions/runs/44451166797): FAIL. Unified build passed; 549 tests = 545 passed / 4 failed. The new 0043 source-contract test passed. The four failures are outside this DB task:
+  - `backend/tests/admin-auth.test.js:31`: expected the Supabase user object to omit `email`; actual verified identity includes `email: ''`.
+  - `backend/tests/google-only-auth.test.js:17`: expects `signInWithEmail` to be absent, conflicting with the approved Email + Google authentication decision.
+  - `backend/tests/google-only-identity.test.js:67`: expects `GOOGLE_ONLY_AUTH` and disabled email registration, also conflicting with Email + Google.
+  - `backend/tests/spot-trading-live-refresh.test.js:236`: expects the old Support loading-state source sequence `setLoading(true);setMessages([]);setError("")`; the Support view implementation has changed.
+  Backend/frontend integration tests and fail-closed deployment preflight were skipped after the test failure.
+- Claude Watchdog [44451166709](https://github.com/avali9308-code/btcboxcdt/actions/runs/44451166709): PASS.
+- Supabase Preview check `135315177784`: SKIPPED. No Frontend CI run was triggered for this DB-only task head.
+- The exact current `main` SHA `23d668158811f4b5e4bcb744d2314cd6d9a57770` has Frontend CI [44164115793](https://github.com/avali9308-code/btcboxcdt/actions/runs/44164115793) FAIL and Backend CI [44164115810](https://github.com/avali9308-code/btcboxcdt/actions/runs/44164115810) FAIL; Watchdog passed. The Frontend run reports 45 failed, 105 passed and 222 not run, across route/auth, chart reliability, product routing, i18n/language loading, market-feed fail-closed and navigation/accessibility coverage. This is not visual acceptance.
+- Historical PR #67 head `c53fa948a599b560c1319726adfb57be6828b0fa` and merge commit `fbf301f88c5c19db94ea1546c590667a8818e842` each have Backend, PostgreSQL schema and Frontend CI PASS. Those historical green runs do not clear current-head failures or hosted-schema drift.
+
+#### Cross-team contract risks recorded, not changed
+- **API response parity:** `backend/supabase/sql/0041_perpetual_contract_v1.sql:611-612` returns a fresh successful `perp_submit_order` response without `status`, while `backend/api-core.js:2920` maps `status: result.status`. Duplicate replay includes status at SQL line 400. Proposed owner fix: add status to every successful SQL response or have the API derive a stable status from returned fill/remaining quantities. API file was not changed.
+- **Funding worker retry safety:** `backend/scripts/perp-funding-worker.js:37-58` does not inspect the funding-rate insert HTTP response; per-user settlement errors are caught/logged, but the worker still marks the rate `settled=true` and advances `next_funding_at` unconditionally. Proposed owner fix: check insert/patch HTTP status, track every per-user settlement as success/duplicate, and do not mark/advance an interval while any settlement failed; keep it retryable. Worker file was not changed.
+- **Concurrent funding execution:** migration 0043 now serializes same-key calls, and source-contract coverage verifies lock ordering. The two-session live race itself remains unexecuted; scenario 8 in `backend/tests/perpetual-live-db-scenarios.md` still requires one concurrent original plus one duplicate with no unique-key error.
+
+#### Release status and next actions
+- Release status remains **NOT READY**. The focused funding integration and Perpetual RLS/grant checks passed only on disposable PostgreSQL. The remaining Perpetual live scenario groups, including concurrent funding, concurrent close/liquidation, worker restart/connection interruption and liquidation/insurance/bad-debt cases, remain unverified.
+- Code/UI owners: reconcile the four Backend CI failures without violating Email + Google; repair the current Frontend route/responsive failures and rerun desktop/mobile checks.
+- API/worker owner: fix the `perp_submit_order` response contract and funding-worker retry/advance behavior described above.
+- DB owner: run the remaining disposable-PostgreSQL Perpetual scenarios, including a two-session funding retry race, then preserve exact-head evidence.
+- Owner/release approvers: review the task branch and outstanding cross-team evidence. Do not merge or deploy from this run. No hosted Supabase DDL/DML/Auth/flag changes, Vercel changes, production deployment, real financial operations, or locked trading-page layout changes were performed.
