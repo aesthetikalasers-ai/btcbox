@@ -21,6 +21,10 @@ export function AppLayout({ children }: { children: ReactNode }) {
   const location = useLocation();
   const tier = useNavigationTier(location.pathname);
   const isSubPage = tier === "sub";
+  // The desktop trading terminal owns its viewport: it locks to 100dvh, hides
+  // the trailing footer, and only its own panels scroll. Below 1280px the trade
+  // page keeps the normal document flow (the data attribute is CSS-gated).
+  const isTerminalRoute = /^\/trade\/[^/]+$/i.test(location.pathname);
   const mainRef = useRef<HTMLElement>(null);
 
   // 路由变化时重置滚动条
@@ -39,11 +43,12 @@ export function AppLayout({ children }: { children: ReactNode }) {
           <span className="text-brand-text text-nounderline hover:opacity-80 transition-opacity">Preview</span>
           <button type="button" onClick={exitDemoPreview} className="min-h-5 min-w-8 rounded-md px-1.5 text-xs font-medium text-brand-text underline underline-offset-1 hover:bg-brand-surface-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent/60">{t("Exit")}</button>
         </div>}
-        <main ref={mainRef} tabIndex={-1} className={`min-h-0 flex-1 overflow-y-auto focus:outline-none ${isSubPage ? "pb-0" : "pb-[calc(60px+env(safe-area-inset-bottom))] lg:pb-0"}`}>
+        <main ref={mainRef} tabIndex={-1} data-terminal-route={isTerminalRoute ? "true" : undefined} className={`min-h-0 flex-1 overflow-y-auto focus:outline-none ${isSubPage ? "pb-0" : "pb-[calc(60px+env(safe-area-inset-bottom))] lg:pb-0"}`}>
           {children}
           {/* Footer lives inside the scroll container so it trails the content
-              instead of being pinned above the mobile tab bar. */}
-          {!isSubPage && <SiteFooter />}
+              instead of being pinned above the mobile tab bar. The terminal
+              route hides it: a locked trading viewport has no room for it. */}
+          {!isSubPage && !isTerminalRoute && <SiteFooter />}
         </main>
       </div>
       {!isSubPage && <BottomNav />}

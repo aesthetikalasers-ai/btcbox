@@ -264,12 +264,15 @@ test('spot terminal removes the market sub-toolbar and shows exactly four ask an
       // Phones show the order book through its tab; the form is hidden then.
       await page.getByRole('tab', {name:'Order book', exact:true}).click();
     }
-    await expect(page.locator('#trade-depth .spot-book-row[data-side="ask"]')).toHaveCount(4);
-    await expect(page.locator('#trade-depth .spot-book-row[data-side="bid"]')).toHaveCount(4);
+    // The fixture supplies six price levels; the book renders all of them
+    // (spec §E caps a side at ten levels, so six are shown in full).
+    await expect(page.locator('#trade-depth .spot-book-row[data-side="ask"]')).toHaveCount(6);
+    await expect(page.locator('#trade-depth .spot-book-row[data-side="bid"]')).toHaveCount(6);
     if (width > 768) await expect(page.locator('#trade-entry')).toBeVisible();
     const row = page.locator('#trade-depth .spot-book-row').first();
     await expect(row).toBeVisible();
-    expect(await row.evaluate(el => parseFloat(getComputedStyle(el).lineHeight))).toBe(24);
+    // Spec §E: 24px rows on desktop, 28px on phones.
+    expect(await row.evaluate(el => parseFloat(getComputedStyle(el).lineHeight))).toBe(width <= 768 ? 28 : 24);
   }
 });
 
@@ -292,8 +295,8 @@ test('spot mobile trading controls keep the chart, book precision, order tabs an
   await expect(page.locator('.spot-shortcuts')).toHaveCount(0);
   await expect(page.getByRole('alert')).toHaveCount(0);
   await page.getByRole('tab',{name:'Order book',exact:true}).click();
-  await expect(page.locator('#trade-depth .spot-book-row[data-side="ask"]')).toHaveCount(4);
-  await expect(page.locator('#trade-depth .spot-book-row[data-side="bid"]')).toHaveCount(4);
+  await expect(page.locator('#trade-depth .spot-book-row[data-side="ask"]')).toHaveCount(6);
+  await expect(page.locator('#trade-depth .spot-book-row[data-side="bid"]')).toHaveCount(6);
 
   const precision=page.getByLabel('Depth precision');
   await expect(precision).toHaveValue('0.01');
@@ -301,7 +304,7 @@ test('spot mobile trading controls keep the chart, book precision, order tabs an
   await expect(page.locator('#trade-depth .spot-book-row[data-side="ask"]')).toHaveCount(2);
   await expect(page.locator('#trade-depth .spot-book-row[data-side="bid"]')).toHaveCount(2);
   await precision.selectOption('0.01');
-  await expect(page.locator('#trade-depth .spot-book-row[data-side="ask"]')).toHaveCount(4);
+  await expect(page.locator('#trade-depth .spot-book-row[data-side="ask"]')).toHaveCount(6);
 
   await page.getByRole('button',{name:'Bids only'}).click();
   await expect(page.locator('#trade-depth .spot-book-row[data-side="ask"]').first()).toBeHidden();
@@ -310,7 +313,7 @@ test('spot mobile trading controls keep the chart, book precision, order tabs an
   await expect(page.locator('#trade-depth .spot-book-row[data-side="ask"]').first()).toBeVisible();
   await expect(page.locator('#trade-depth .spot-book-row[data-side="bid"]').first()).toBeHidden();
   await page.getByRole('button',{name:'Both sides'}).click();
-  await expect(page.locator('#trade-depth .spot-book-row[data-side="bid"]')).toHaveCount(4);
+  await expect(page.locator('#trade-depth .spot-book-row[data-side="bid"]')).toHaveCount(6);
 
   await page.getByRole('tab',{name:'Buy',exact:true}).click();
   const orderType=page.getByLabel('Order type');

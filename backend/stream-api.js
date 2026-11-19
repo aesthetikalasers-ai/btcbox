@@ -27,6 +27,7 @@ const {
   writeComment,
   readOrderBook,
   readTrades,
+  readRecentTrades,
 } = require('./stream-core.js');
 
 const ALLOWED_ORIGINS = (process.env.CORS_ALLOWED_ORIGINS || 'https://btcboxcdt.vercel.app').split(',').map((s) => s.trim()).filter(Boolean);
@@ -121,12 +122,12 @@ module.exports = async function streamHandler(req, res) {
           });
         }
       } else {
-        const trades = await readTrades(rawSymbol);
+        const recent = await readRecentTrades(rawSymbol);
         if (closed) return;
-        if (!trades) {
+        if (!recent) {
           writeFrame(res, 'stream-error', { code: 'TRADES_DATA_UNAVAILABLE', msg: 'Recent trades unavailable.' });
         } else {
-          writeFrame(res, 'update', { ok: true, source: 'bybit', trades });
+          writeFrame(res, 'update', { ok: true, source: recent.source, trades: recent.trades });
         }
       }
     } finally {

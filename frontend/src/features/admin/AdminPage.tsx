@@ -70,7 +70,7 @@ const depositAddressKeys = [
   "ETH-ERC20", "SOL-SOL", "BNB-BEP20", "USDC-ERC20",
 ];
 const assets = ["USDT", "BTC", "ETH", "SOL", "BNB", "USDC"];
-const spotAssets = ["USDT", "USDC", "BTC", "ETH", "SOL", "BNB", "XRP", "DOGE", "ADA", "AVAX", "LINK", "DOT", "TRX", "LTC", "BCH", "NEAR", "UNI", "ATOM", "ETC"];
+const spotAssets = ["USDT", "USDC", "BTC", "ETH", "SOL", "BNB", "XRP", "DOGE", "ADA", "AVAX", "LINK", "DOT", "TRX", "LTC", "BCH", "NEAR", "UNI", "ATOM", "ETC", "APT", "ARB", "OP", "SUI", "INJ", "TIA", "FIL"];
 
 function asText(value: unknown) {
   return value === null || value === undefined ? "—" : String(value);

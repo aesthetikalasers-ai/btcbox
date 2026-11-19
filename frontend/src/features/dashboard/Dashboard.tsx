@@ -211,7 +211,7 @@ function MiningButton() {
           <span className="truncate text-sm font-bold text-brand-text">{t("New coin mining")}</span>
           <Sparkles className="h-3.5 w-3.5 shrink-0 text-brand-warning" strokeWidth={2} />
         </span>
-        <span className="mt-0.5 block truncate text-[11px] leading-relaxed text-brand-text-muted">
+        <span className="mt-0.5 block text-[11px] leading-relaxed text-brand-text-muted [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2] overflow-hidden">
           {t("Stake for new listings and share the launchpool rewards.")}
         </span>
       </span>

@@ -11,7 +11,6 @@ import {
   getDemoPerpMarkets,
   getDemoTradingStatus,
   getSampleMarketPairs,
-  getSampleMarkets,
 } from "./demoPreview";
 import {
   demoCancelPerpOrder,
@@ -67,6 +66,13 @@ interface KlineResponse {
 
 const configuredBase = import.meta.env.VITE_API_BASE_URL?.trim().replace(/\/+$/, "");
 export const API_BASE_URL = DEMO_PREVIEW_ACTIVE ? "/__demo_preview_blocked__" : configuredBase || "/api";
+
+/**
+ * Single user-visible message for a market-data outage. Shown verbatim by the
+ * terminal, the markets page and the dashboard, so an operator reading a
+ * screenshot knows which upstream failed instead of guessing.
+ */
+export const MARKET_UNAVAILABLE_MESSAGE = "行情连接已断开，暂时无法获取最新价格。请稍后重试。";
 
 export class ApiError extends Error {
   readonly status: number;
@@ -141,40 +147,56 @@ export async function getSpotMarketPairs(signal?: AbortSignal): Promise<SpotMark
   return getSampleMarketPairs();
 }
 
+/**
+ * Fetches the live market snapshot.
+ *
+ * Throws instead of falling back to a sample table. A previous version returned
+ * `getSampleMarkets()` on failure, which put plausible-looking prices on screen
+ * while the backend was down — indistinguishable from real data, and therefore
+ * more dangerous than an empty panel. Callers render `error.message` so the
+ * outage is visible to users and developers alike.
+ */
 export async function getMarkets(signal?: AbortSignal): Promise<MarketTicker[]> {
   if (DEMO_PREVIEW_ACTIVE) return getDemoMarkets();
+  let response: Response;
   try {
-    const response = await fetch(`${API_BASE_URL}/market`, {
+    response = await fetch(`${API_BASE_URL}/market`, {
       method: "GET",
       credentials: "include",
       headers: { Accept: "application/json" },
       cache: "no-store",
       signal,
     });
-    if (response.ok) {
-      const payload = (await response.json().catch(() => null)) as MarketResponse | null;
-      if (payload && payload.ok === true && Array.isArray(payload.markets) && payload.markets.length > 0) {
-        return payload.markets.filter((item) =>
-          item &&
-          typeof item.sym === "string" &&
-          Number.isFinite(item.price) && item.price > 0
-        ).map(item => {
-          const snapshot = payload.data?.[item.sym];
-          return {
-            ...item,
-            snapshotTs: Number.isFinite(snapshot?.ts) && Number(snapshot?.ts) > 0 ? Number(snapshot?.ts) : Math.floor(Date.now() / 1000),
-            providerTs: Number.isFinite(snapshot?.providerTs) && Number(snapshot?.providerTs) > 0 ? Number(snapshot?.providerTs) : Math.floor(Date.now() / 1000),
-            source: typeof snapshot?.source === "string" ? snapshot.source : item.source,
-          };
-        });
-      }
-    }
   } catch (error) {
     if (error instanceof Error && error.name === "AbortError") throw error;
+    throw new ApiError(MARKET_UNAVAILABLE_MESSAGE, 0, "NETWORK_ERROR");
   }
-  // Local preview without a backend: render the sample table rather than an
-  // empty page. Rows stay tagged `sample-data` and trading actions stay closed.
-  return getSampleMarkets();
+
+  const payload = (await response.json().catch(() => null)) as (MarketResponse & { code?: string }) | null;
+  if (!response.ok || !payload || payload.ok !== true) {
+    throw new ApiError(MARKET_UNAVAILABLE_MESSAGE, response.status, payload?.code || "MARKET_DATA_UNAVAILABLE");
+  }
+  if (!Array.isArray(payload.markets) || payload.markets.length === 0) {
+    throw new ApiError(MARKET_UNAVAILABLE_MESSAGE, response.status, "MARKET_DATA_EMPTY");
+  }
+
+  const rows = payload.markets
+    .filter((item) => item && typeof item.sym === "string" && Number.isFinite(item.price) && item.price > 0)
+    .map(item => {
+      const snapshot = payload.data?.[item.sym];
+      return {
+        ...item,
+        snapshotTs: Number.isFinite(snapshot?.ts) && Number(snapshot?.ts) > 0 ? Number(snapshot?.ts) : Math.floor(Date.now() / 1000),
+        providerTs: Number.isFinite(snapshot?.providerTs) && Number(snapshot?.providerTs) > 0 ? Number(snapshot?.providerTs) : Math.floor(Date.now() / 1000),
+        source: typeof snapshot?.source === "string" ? snapshot.source : item.source,
+      };
+    });
+
+  // Every row failed validation: the provider answered, but with nothing usable.
+  if (rows.length === 0) {
+    throw new ApiError(MARKET_UNAVAILABLE_MESSAGE, response.status, "MARKET_DATA_INVALID");
+  }
+  return rows;
 }
 
 export async function getKlines(
@@ -286,6 +308,32 @@ export async function getOrderBook(symbol = "BTCUSDT", signal?: AbortSignal): Pr
     if (error instanceof Error && error.name === "AbortError" && signal?.aborted) throw error;
   }
   return null;
+}
+export interface UsdtUsdRate { rate: number; source: string; stale?: boolean; }
+/**
+ * USDT → USD conversion rate for the "≈ $" hint under the order-book mid price.
+ *
+ * The trading pair is quoted in USDT, which is not exactly one dollar, so the
+ * hint must be computed rather than echoed. On any failure this returns the
+ * caller's neutral fallback (0.99999) with `stale: true` — the UI then still
+ * shows an approximation instead of a blank or an invented exact figure.
+ */
+export async function getUsdtUsdRate(fallback = 0.99999, signal?: AbortSignal): Promise<UsdtUsdRate> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/fx/usdt-usd`, {
+      credentials: "include", cache: "no-store", signal, headers: { Accept: "application/json" },
+    });
+    if (response.ok) {
+      const payload = await response.json().catch(() => null) as { ok?: boolean; rate?: number; source?: string; stale?: boolean } | null;
+      const rate = Number(payload?.rate);
+      if (payload?.ok === true && Number.isFinite(rate) && rate > 0.5 && rate < 1.5) {
+        return { rate, source: payload.source || "unknown", stale: payload.stale === true };
+      }
+    }
+  } catch (error) {
+    if (error instanceof Error && error.name === "AbortError") throw error;
+  }
+  return { rate: fallback, source: "fallback", stale: true };
 }
 export interface SpotOrderInput { symbol: string; side: "buy" | "sell"; type: "limit"; qty: string; price: string; client_order_id: string; }
 export interface SpotOrderResult { order_id: string; status: string; price: number | string; quantity: number | string; remaining_quantity?: number | string; duplicate: boolean; }

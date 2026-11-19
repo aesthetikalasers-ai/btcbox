@@ -20,13 +20,21 @@ const TIMEFRAMES: Array<{ key: TimeframeKey; interval: string; label: string }> 
   { key: "1d", interval: "1d", label: "1D" },
 ];
 
-// Collapsed bar height (36px) and the fixed narrow K-line band (210px) requested
-// for the H5 perpetual terminal. No full-screen overlay state is used.
+// Collapsed bar height (36px) and a viewport-relative expanded band. The drawer
+// opens to ~50dvh (matching the reference screenshot's 2/3-height chart) and can
+// be dragged up to 75dvh; it never covers the whole screen.
 const HEADER_H = 36;
-const EXPANDED_H = 210;
+const EXPANDED_DVH = 50;
+const MAX_DVH = 75;
 
-function snapHeights(): { collapsed: number; expanded: number } {
-  return { collapsed: HEADER_H, expanded: EXPANDED_H };
+/** Resolve dvh-based heights to px against the current viewport. */
+function snapHeights(): { collapsed: number; expanded: number; max: number } {
+  const vh = typeof window !== "undefined" ? window.innerHeight : 800;
+  return {
+    collapsed: HEADER_H,
+    expanded: Math.round((vh * EXPANDED_DVH) / 100),
+    max: Math.round((vh * MAX_DVH) / 100),
+  };
 }
 
 /**
@@ -35,7 +43,7 @@ function snapHeights(): { collapsed: number; expanded: number } {
  * handle can be dragged between the two; tapping the collapsed bar expands it.
  * Candlesticks are rendered with lightweight-charts v5 from the BTCBOX candle API.
  */
-export function ChartDrawer({ symbol = "BTC/USDT" }: { symbol?: string }) {
+export function ChartDrawer({ symbol = "BTC/USDT", marketType = "perpetual" }: { symbol?: string; marketType?: "spot" | "perpetual" }) {
   const { t } = useI18n();
   const [snap, setSnap] = useState<Snap>("collapsed");
   const [timeframe, setTimeframe] = useState<TimeframeKey>("Line");
@@ -139,6 +147,9 @@ export function ChartDrawer({ symbol = "BTC/USDT" }: { symbol?: string }) {
 
   const nearestSnap = useCallback((h: number): Snap => {
     const hs = snapHeights();
+    // Anything dragged past the 65dvh open position settles at the 92dvh ceiling;
+    // below that it snaps to the collapsed bar or the 65dvh open band.
+    if (h > hs.expanded) return "expanded";
     const dists: Array<[Snap, number]> = [["collapsed", Math.abs(h - hs.collapsed)], ["expanded", Math.abs(h - hs.expanded)]];
     dists.sort((a, b) => a[1] - b[1]);
     return dists[0][0];
@@ -155,7 +166,7 @@ export function ChartDrawer({ symbol = "BTC/USDT" }: { symbol?: string }) {
     const dy = d.startY - e.clientY;
     if (Math.abs(dy) > 4) d.moved = true;
     const hs = snapHeights();
-    setDragHeight(Math.max(hs.collapsed, Math.min(hs.expanded, d.startHeight + dy)));
+    setDragHeight(Math.max(hs.collapsed, Math.min(hs.max, d.startHeight + dy)));
   };
   const onPointerUp = (e: ReactPointerEvent<HTMLDivElement>) => {
     const d = dragRef.current;
@@ -184,7 +195,7 @@ export function ChartDrawer({ symbol = "BTC/USDT" }: { symbol?: string }) {
             className="flex h-9 w-full shrink-0 select-none items-center justify-between px-3.5 text-[12px] text-[#eaecef]"
             aria-label={t("Expand chart")}
           >
-            <span className="min-w-0 flex-1 truncate text-left" style={{ transform: "translateY(-2px)" }}>{pairSymbol} {t("Perpetual")} {t("Chart")}</span>
+            <span className="min-w-0 flex-1 truncate text-left" style={{ transform: "translateY(-2px)" }}>{pairSymbol} {marketType === "spot" ? t("Spot") : t("Perpetual")} {t("Chart")}</span>
             <ChevronUp className="ml-2 h-4 w-4 shrink-0 text-brand-text-muted" style={{ transform: "translateY(-2px)" }} />
           </button>
         ) : (
@@ -201,10 +212,19 @@ export function ChartDrawer({ symbol = "BTC/USDT" }: { symbol?: string }) {
               <span className="h-0.5 w-8 rounded-full bg-brand-border" />
             </div>
             {/* Single-line header: title + timeframe pills + fullscreen/collapse. */}
+            {/* Single-line header: title + timeframe pills + fullscreen/collapse.
+                The title itself is a tap target so the sheet closes on a second
+                tap of the same label the user opened it with. */}
             <div className="flex h-7 shrink-0 select-none items-center gap-2 px-3 text-[11px]">
-              <span className="min-w-0 flex-1 truncate font-semibold text-[#eaecef]">
-                {pairSymbol} {t("Perpetual")} {t("Chart")}
-              </span>
+              <button
+                type="button"
+                onClick={toggleCollapse}
+                className="flex min-w-0 flex-1 items-center gap-1 text-left font-semibold text-[#eaecef]"
+                aria-label={t("Collapse chart")}
+              >
+                <span className="min-w-0 truncate">{pairSymbol} {marketType === "spot" ? t("Spot") : t("Perpetual")} {t("Chart")}</span>
+                <ChevronDown className="h-3 w-3 shrink-0 text-brand-text-muted" />
+              </button>
               <div className="flex shrink-0 items-center gap-0.5">
                 {TIMEFRAMES.map((tf) => (
                   <button

@@ -470,7 +470,7 @@ async function readFinancialAccountSnapshot(userId) {
   return result;
 }
 
-var DEFAULT_SPOT_CATALOG = ['BTC','ETH','SOL','BNB','XRP','DOGE','ADA','AVAX','LINK','DOT','LTC','TRX','ATOM','NEAR','UNI','BCH','ETC'].map(function (base) { return { base_asset: base, quote_asset: 'USDT', enabled: true, price_tick: '0.01', quantity_step: '0.00001', min_quantity: '0.00001', min_notional: '5', min_limit_price: null, max_limit_price: null }; });
+var DEFAULT_SPOT_CATALOG = ['BTC','ETH','SOL','BNB','XRP','DOGE','ADA','AVAX','LINK','DOT','LTC','TRX','ATOM','NEAR','UNI','BCH','ETC','APT','ARB','OP','SUI','INJ','TIA','FIL'].map(function (base) { return { base_asset: base, quote_asset: 'USDT', enabled: true, price_tick: '0.01', quantity_step: '0.00001', min_quantity: '0.00001', min_notional: '5', min_limit_price: null, max_limit_price: null }; });
 async function readSpotMarketCatalog() {
   try {
   if (!supabaseStorageConfigured()) throw new Error('Spot market catalogue unavailable');
@@ -508,6 +508,7 @@ async function readSpotMarketCatalog() {
 const SUPPORTED_LEDGER_ASSETS = new Set([
   'USDT', 'USDC', 'BTC', 'ETH', 'SOL', 'BNB',
   'XRP', 'DOGE', 'ADA', 'AVAX', 'LINK', 'DOT', 'TRX', 'LTC', 'BCH', 'NEAR', 'UNI', 'ATOM', 'ETC',
+  'APT', 'ARB', 'OP', 'SUI', 'INJ', 'TIA', 'FIL',
 ]);
 
 async function readAdminAccountBalances(userIds) {
@@ -2503,9 +2504,19 @@ async function handleRequest(event, context) {
 
   // ---------- GET /api/market ----------
   if (path === 'market' && method === 'GET') {
-    // Coinbase is the primary source. Bybit is used only for symbols whose Coinbase
-    // product/statistics are unavailable. Both sources are explicitly restricted to
-    // BASE-USDT spot pairs so USDT and USD quotes are never silently mixed.
+    /**
+     * Provider chain, ordered by regional reachability.
+     *
+     * The deployment region is `iad1` (US-East), where `api.binance.com` answers
+     * HTTP 451 and Coinbase/Bybit are reachable but list very few USDT pairs.
+     * `data-api.binance.vision` is Binance's public market-data host and is NOT
+     * geo-blocked, so it goes first: it is the only source that can serve the
+     * whole catalogue from a US edge. Coinbase and Bybit remain as fallbacks and
+     * for symbols Binance Vision does not quote.
+     *
+     * Per-symbol provenance is preserved — every row's price/change/high/low come
+     * from exactly one provider and are never averaged across sources.
+     */
     let bases;
     try {
       const catalog = await readSpotMarketCatalog();
@@ -2532,11 +2543,46 @@ async function handleRequest(event, context) {
     };
     const marketsByBase = {};
     let coinbaseAvailable = false;
+
+    /**
+     * Primary source: Binance public market data (`data-api.binance.vision`).
+     *
+     * This host is Binance's public-data mirror and is not geo-blocked, so it is
+     * the only provider that can serve a full USDT catalogue from the US-East
+     * (`iad1`) edge we deploy to. One request covers every base via the
+     * `symbols=[...]` parameter. Rows that fail validation are dropped, never
+     * patched with another provider's fields.
+     */
     try {
+      const symbols = bases.map(base => base + 'USDT');
+      const rows = await fetchJson('https://data-api.binance.vision/api/v3/ticker/24hr?symbols=' + encodeURIComponent(JSON.stringify(symbols)));
+      if (!Array.isArray(rows)) throw new Error('invalid Binance Vision ticker payload');
+      const bySymbol = new Map(rows.filter(r => r && typeof r.symbol === 'string').map(r => [r.symbol, r]));
+      for (const base of bases) {
+        const row = bySymbol.get(base + 'USDT');
+        if (!row) continue;
+        const closeTime = Number(row.closeTime);
+        const providerTs = Number.isFinite(closeTime) && closeTime > 0 ? Math.floor(closeTime / 1000) : null;
+        const normalized = normalize(base, {
+          price: Number(row.lastPrice),
+          high: Number(row.highPrice),
+          low: Number(row.lowPrice),
+          chg: Number(row.priceChangePercent),
+          vol: Number(row.quoteVolume),
+        }, 'binance-vision', providerTs);
+        if (normalized) marketsByBase[base] = normalized;
+      }
+    } catch (_) {
+      // Fall through to Coinbase / Bybit below; never invent a price.
+    }
+
+    const missingAfterBinance = bases.filter(base => !marketsByBase[base]);
+    try {
+      if (!missingAfterBinance.length) throw new Error('binance covered every base');
       const products = await fetchJson('https://api.exchange.coinbase.com/products');
       if (!Array.isArray(products)) throw new Error('invalid Coinbase product list');
       const enabled = new Set(products.filter(p => p && p.quote_currency === 'USDT' && p.status === 'online' && p.trading_disabled !== true).map(p => p.id));
-      const coinbaseRows = await Promise.all(bases.map(async base => {
+      const coinbaseRows = await Promise.all(missingAfterBinance.map(async base => {
         const productId = base + '-USDT';
         if (!enabled.has(productId)) return null;
         try {
@@ -2594,7 +2640,9 @@ async function handleRequest(event, context) {
     // Public market snapshots contain no user data. Allow short shared-cache reuse
     // so free serverless plans do not fetch every provider for every browser poll.
     // Authenticated/private/financial endpoints retain the default no-store policy.
-    return json({ ok: true, markets: out, data: dataObj, source: missingBases.length ? 'coinbase_primary_bybit_fallback' : 'coinbase' }, 200, { 'Cache-Control': 'public, max-age=0, s-maxage=2, stale-while-revalidate=1' });
+    const usedProviders = [...new Set(out.map(row => row.source).filter(Boolean))];
+    const snapshotSource = usedProviders.length === 1 ? usedProviders[0] : usedProviders.length ? usedProviders.join('+') : 'unavailable';
+    return json({ ok: true, markets: out, data: dataObj, source: snapshotSource }, 200, { 'Cache-Control': 'public, max-age=0, s-maxage=2, stale-while-revalidate=1' });
   }
 
   // Public capability snapshot. Financial order writes remain fail-closed unless

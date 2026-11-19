@@ -196,7 +196,7 @@ export function AssetsPage() {
                   <TokenIcon symbol={coin} className="h-9 w-9 shrink-0" />
                   <div className="min-w-0 flex-1">
                     <p className="font-semibold text-brand-text">{coin}</p>
-                    <p className="mt-0.5 truncate text-[11px] text-brand-text-muted">{coinName}</p>
+                    <p className="mt-0.5 truncate text-[11px] text-brand-text-muted">{t(coinName)}</p>
                   </div>
                   <div className="shrink-0 text-right">
                     <p className="font-mono text-sm font-bold tabular-nums text-brand-text">{formatDecimalAmount(balance.free, numberLocale)}</p>

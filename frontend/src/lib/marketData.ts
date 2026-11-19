@@ -9,8 +9,15 @@ import type { MarketCandle, MarketTicker, OrderBookSnapshot, SpotMarketPair } fr
  */
 export type MarketStatus = "live" | "stale" | "unavailable";
 
-/** Same-origin API prefix; the exchange's own functions sit in front of the providers. */
-const API_BASE_PATH = "/api";
+/**
+ * API prefix for the live market engine.
+ *
+ * Same-origin `/api` in production. In a split-origin preview (frontend on 4175,
+ * market gateway on 8080) it must follow `VITE_API_BASE_URL`, otherwise this
+ * engine silently polls a path the dev server does not serve, every ticker stays
+ * empty, and the trade headers lose their 24h change with no visible error.
+ */
+const API_BASE_PATH = (import.meta.env.VITE_API_BASE_URL?.trim().replace(/\/+$/, "")) || "/api";
 /** How often the engine refreshes its snapshot from /api/market. */
 const POLL_INTERVAL_MS = 10_000;
 /** A snapshot older than this is reported as stale rather than live. */

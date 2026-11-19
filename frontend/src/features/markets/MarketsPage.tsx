@@ -145,7 +145,7 @@ function MarketTable({ markets, locale, loading, error, favorites, onToggleFavor
                   <TokenIcon symbol={market.sym} className="h-7 w-7 shrink-0" />
                   <span className="min-w-0">
                     <span className="block truncate text-[14px] font-semibold leading-tight text-brand-text">{market.sym}</span>
-                    <span className="mt-0.5 block truncate text-[11px] leading-tight text-brand-text-muted">{ASSET_NAMES[market.sym] || market.sym}</span>
+                    <span className="mt-0.5 block truncate text-[11px] leading-tight text-brand-text-muted">{t(ASSET_NAMES[market.sym] || market.sym)}</span>
                   </span>
                 </Link>
                 <button
@@ -205,7 +205,7 @@ function MarketTable({ markets, locale, loading, error, favorites, onToggleFavor
                     <TokenIcon symbol={market.sym} className="h-5 w-5 shrink-0" />
                     <Link to={`/trade/${tradeSymbol(market.sym)}`} className="min-w-0">
                       <span className="block truncate text-[13px] font-semibold leading-tight text-brand-text">{market.sym}</span>
-                      <span className="block truncate text-[10px] leading-tight text-brand-text-muted">{ASSET_NAMES[market.sym] || market.sym}</span>
+                      <span className="block truncate text-[10px] leading-tight text-brand-text-muted">{t(ASSET_NAMES[market.sym] || market.sym)}</span>
                     </Link>
                     <button
                       type="button"

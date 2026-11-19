@@ -20,7 +20,26 @@
  * explicit unavailable payload and the UI shows its honest error state.
  */
 
-const DEFAULT_SYMBOLS = ['BTC', 'ETH', 'SOL', 'BNB', 'XRP', 'DOGE'];
+/**
+ * Tradable base assets, quoted against USDT.
+ *
+ * This is an explicit allow-list, not a discovered list: every entry is a pair
+ * the UI is allowed to show, and the gateway drops any entry the provider does
+ * not actually quote (see `binanceMarket`). Keeping it explicit means a
+ * provider outage can never widen the catalogue, and no price is ever invented
+ * for a symbol we did not intend to list.
+ *
+ * Ordered roughly by market cap so the default rail reads like a tier-1
+ * exchange rather than alphabetically. Extending this array is the only change
+ * needed to expose more pairs — `getMarket` sends them all in one request, well
+ * inside Binance's per-call symbol limit.
+ */
+const DEFAULT_SYMBOLS = [
+  'BTC', 'ETH', 'SOL', 'BNB', 'XRP', 'DOGE',
+  'ADA', 'AVAX', 'LINK', 'DOT', 'LTC', 'TRX',
+  'ATOM', 'NEAR', 'UNI', 'BCH', 'ETC', 'APT',
+  'ARB', 'OP', 'SUI', 'INJ', 'TIA', 'FIL',
+];
 
 /** Provider descriptors. `id` is what callers put in MARKET_PROVIDER_ORDER. */
 const PROVIDERS = {
@@ -51,9 +70,23 @@ const KLINE_INTERVALS = new Set(['1m', '5m', '15m', '1h', '4h', '1d', '1w']);
 /** Cached upstream reads so a busy UI cannot exhaust provider rate limits. */
 const CACHE = new Map();
 
+/**
+ * Refresh cadence the UI polls at (1500 ms). Cache TTLs are derived from it so a
+ * poll never waits on an upstream round-trip but providers are still contacted at
+ * most once per tick. Keeping this in one place means a faster client poll cannot
+ * silently multiply upstream traffic.
+ */
+const TICKER_TTL_MS = 1500;
+const KLINE_TTL_MS = 5000;
+const DEPTH_TTL_MS = 1000;
+
 function providerOrder() {
   const raw = process.env.MARKET_PROVIDER_ORDER;
-  const list = (raw ? raw.split(',') : ['binance-vision', 'binance-us', 'coinbase'])
+  // Default is a genuine two-source chain: Binance Vision (full catalogue, not
+  // geo-blocked) raced against Coinbase (independent operator). Racing both means
+  // a single provider outage cannot empty the ticker, and the fastest usable
+  // answer wins — see `raceProviders`.
+  const list = (raw ? raw.split(',') : ['binance-vision', 'coinbase', 'binance-us'])
     .map((s) => s.trim())
     .filter((s) => s && PROVIDERS[s]);
   return list.length ? list : ['binance-vision'];
@@ -226,23 +259,137 @@ async function binanceDepth(provider, symbol, limit, timeoutMs) {
  * Public API — every entry point returns the frontend's normalised shape.
  * ------------------------------------------------------------------------- */
 
+/**
+ * Last successful snapshot, used as a degraded fallback when every provider is
+ * unreachable. Kept module-level (not in CACHE) because CACHE entries expire by
+ * TTL, whereas this one must survive an outage of arbitrary length.
+ */
+let lastGoodMarket = null;
+
+/** Records a payload as the fallback baseline, ignoring stale replays. */
+function rememberGoodMarket(payload) {
+  if (payload && payload.ok === true && !payload.stale && Array.isArray(payload.markets) && payload.markets.length) {
+    lastGoodMarket = payload;
+  }
+}
+
+/**
+ * Races every provider and returns as soon as one covers enough of the request.
+ *
+ * `Promise.all` is deliberately avoided here: it waits for the slowest branch, so
+ * an unreachable upstream (binance.us / coinbase from a region that cannot see
+ * them) still costs the full timeout even when binance-vision answered in 120ms.
+ * Instead every provider is started immediately and the first sufficiently
+ * complete answer wins; slower branches keep running but stop blocking the
+ * response, so their results only matter on the merge/fallback path.
+ */
+async function raceProviders(candidates, run, isUsable) {
+  if (!candidates.length) return { winner: null, results: [] };
+
+  return new Promise((resolve) => {
+    const results = [];
+    let pending = candidates.length;
+    let settledOut = false;
+
+    const finish = (winner) => {
+      if (settledOut) return;
+      settledOut = true;
+      resolve({ winner, results });
+    };
+
+    candidates.forEach(async (id) => {
+      try {
+        const payload = await run(id);
+        results.push({ id, payload });
+        // First usable answer ends the wait; the rest are collected in the
+        // background for the fallback path (already-populated `results`).
+        if (payload && isUsable(payload)) finish(payload);
+      } catch (error) {
+        results.push({ id, error });
+      } finally {
+        pending -= 1;
+        if (pending === 0 && !settledOut) finish(null);
+      }
+    });
+  });
+}
+
+/**
+ * Reads the market snapshot across every provider and merges the result.
+ *
+ * Why this is not a simple "try each provider in order" loop:
+ *
+ *  - Latency: the previous serial loop waited a full `timeoutMs` per provider, so
+ *    a black-holed upstream on a US edge cost up to 3 x timeoutMs (18s) before
+ *    the page rendered. Providers are now raced in parallel and the fastest
+ *    usable answer wins.
+ *  - Silent shrinkage: `binanceMarket` skips symbols it cannot quote, so a
+ *    provider that only lists 3 of our 24 bases would still return `ok: true`
+ *    with 3 rows — the UI would read that as "21 pairs delisted". A provider is
+ *    now only accepted outright if it covers most of the requested bases;
+ *    otherwise its rows are merged with the other providers' rows.
+ *  - Region split: a US edge may only reach binance.us while an EU edge may only
+ *    reach binance-vision. Merging keeps both audiences on the widest catalogue
+ *    each can actually see.
+ *
+ * Per-symbol provenance is preserved: a symbol's price/change/high/low always
+ * come from ONE provider, never averaged across sources.
+ */
 async function getMarket({ symbols = DEFAULT_SYMBOLS, timeoutMs = 6000 } = {}) {
   const bases = symbols.map((s) => String(s).toUpperCase().replace(/USDT$/, ''));
-  let lastError = null;
+  const candidates = providerOrder().filter((id) => PROVIDERS[id].supports.includes('market'));
+  const threshold = Math.max(1, Math.ceil(bases.length * 0.6));
 
-  for (const id of providerOrder()) {
+  const run = (id) => {
     const provider = PROVIDERS[id];
-    if (!provider.supports.includes('market')) continue;
     const reader = id === 'coinbase' ? coinbaseMarket : binanceMarket;
-    try {
-      return await cached(`market:${id}:${bases.join(',')}`, 1500, () =>
-        reader(provider, bases, timeoutMs),
-      );
-    } catch (error) {
-      lastError = error;
+    return cached(`market:${id}:${bases.join(',')}`, TICKER_TTL_MS, () => reader(provider, bases, timeoutMs));
+  };
+
+  // Fast path: return the first provider that covers most of the request.
+  const { winner } = await raceProviders(
+    candidates,
+    run,
+    (payload) => Array.isArray(payload.markets) && payload.markets.length >= threshold,
+  );
+  if (winner) {
+    rememberGoodMarket(winner);
+    return winner;
+  }
+
+  // Slow path: no single provider was complete. Re-collect whatever succeeded
+  // (cache makes the re-run nearly free) and merge per symbol.
+  const settled = await Promise.all(
+    candidates.map(async (id) => {
+      try {
+        return { id, payload: await run(id) };
+      } catch (error) {
+        return { id, error };
+      }
+    }),
+  );
+  const wins = settled.filter((r) => r.payload);
+  if (wins.length) {
+    const merged = mergeMarketPayloads(wins.map((r) => r.payload), bases);
+    if (merged.markets.length) {
+      rememberGoodMarket(merged);
+      return merged;
     }
   }
 
+  // Everything failed. Serve the last good snapshot rather than a blank page —
+  // a minute-old quote is strictly more useful than "no data" on a trading UI.
+  const stale = lastGoodMarket;
+  if (stale) {
+    return {
+      ...stale,
+      stale: true,
+      degraded: true,
+      msg: 'Live market data is temporarily unavailable. Showing the last known snapshot.',
+    };
+  }
+
+  const lastError = settled.map((r) => r.error).filter(Boolean).pop();
   return {
     ok: false,
     code: 'MARKET_DATA_UNAVAILABLE',
@@ -251,28 +398,129 @@ async function getMarket({ symbols = DEFAULT_SYMBOLS, timeoutMs = 6000 } = {}) {
   };
 }
 
+/**
+ * Merges per-symbol rows from several providers, taking the first provider that
+ * supplied each base. Each symbol stays internally consistent (its price and its
+ * 24h change come from the same upstream).
+ */
+function mergeMarketPayloads(payloads, bases) {
+  const bySymbol = new Map();
+  const data = {};
+  for (const payload of payloads) {
+    for (const row of payload.markets) {
+      if (bySymbol.has(row.sym)) continue;
+      bySymbol.set(row.sym, row);
+      if (payload.data && payload.data[row.sym]) data[row.sym] = payload.data[row.sym];
+    }
+  }
+  const markets = bases.map((base) => bySymbol.get(base)).filter(Boolean);
+  return {
+    ok: true,
+    markets,
+    data,
+    source: 'merged',
+    providers: payloads.map((p) => p.source).filter(Boolean),
+  };
+}
+
+/** Last good kline/depth payloads, mirroring `lastGoodMarket`. */
+const lastGoodKline = new Map();
+const lastGoodDepth = new Map();
+
+/**
+ * USDT → USD rate, used only to render the "≈ $" hint under the mid price.
+ *
+ * Why a real rate and not a constant: BTC/USDT is quoted in USDT, and USDT is a
+ * stablecoin that trades at a small but real discount or premium to the dollar.
+ * Writing `≈ $63,879` straight from a USDT price would silently assert
+ * 1 USDT = 1 USD. This reads the actual pair instead, and falls back to
+ * `USDT_USD_FALLBACK` (0.99999) only when no provider answers, so the label is
+ * a real conversion in the normal case and a conservative approximation during
+ * an outage — never an invented exact number.
+ *
+ * The two providers are raced in parallel with a short timeout: this value only
+ * decorates a hint, so it must never delay first paint. A serial chain of two
+ * 5s timeouts previously made the first request after boot block for 10s.
+ */
+const USDT_USD_FALLBACK = 0.99999;
+const USDT_USD_TTL_MS = 30000;
+const USDT_USD_TIMEOUT_MS = 1500;
+let lastGoodUsdtUsd = null;
+
+/** Plausibility window for a stablecoin peg; anything outside is discarded. */
+const isPlausibleUsdtUsd = (rate) => Number.isFinite(rate) && rate > 0.5 && rate < 1.5;
+
+async function getUsdtUsd({ timeoutMs = USDT_USD_TIMEOUT_MS } = {}) {
+  const cached = CACHE.get('usdt-usd');
+  const now = Date.now();
+  if (cached && now - cached.at < USDT_USD_TTL_MS) return cached.promise;
+
+  const promise = (async () => {
+    // Both providers are started immediately; the fastest plausible answer wins.
+    const attempts = [
+      fetchJson('https://api.exchange.coinbase.com/products/USDT-USD/ticker', timeoutMs)
+        .then((p) => ({ rate: num(p && p.price), source: 'coinbase' })),
+      fetchJson('https://api.bybit.com/v5/market/tickers?category=spot&symbol=USDTUSD', timeoutMs)
+        .then((p) => {
+          const row = p && p.result && p.result.list && p.result.list[0];
+          return { rate: num(row && row.lastPrice), source: 'bybit' };
+        }),
+    ].map((attempt) => attempt.catch(() => null));
+
+    const settled = await Promise.all(attempts);
+    const good = settled.find((row) => row && isPlausibleUsdtUsd(row.rate));
+    if (good) {
+      lastGoodUsdtUsd = good.rate;
+      return { ok: true, rate: good.rate, source: good.source };
+    }
+
+    const stale = lastGoodUsdtUsd ?? USDT_USD_FALLBACK;
+    return {
+      ok: true,
+      rate: stale,
+      source: lastGoodUsdtUsd === null ? 'fallback' : 'stale',
+      stale: true,
+    };
+  })().catch((error) => {
+    CACHE.delete('usdt-usd');
+    throw error;
+  });
+
+  CACHE.set('usdt-usd', { at: now, promise });
+  return promise;
+}
+
 async function getKlines({ symbol = 'BTCUSDT', interval = '1h', limit = 300, timeoutMs = 6000 } = {}) {
   const sym = String(symbol).toUpperCase().replace('-', '');
   const safeLimit = Math.min(Math.max(Number(limit) || 300, 1), 1000);
   const safeInterval = KLINE_INTERVALS.has(interval) ? interval : '1h';
-  let lastError = null;
+  const cacheKey = `kline:${sym}:${safeInterval}:${safeLimit}`;
 
-  for (const id of providerOrder()) {
-    const provider = PROVIDERS[id];
-    if (!provider.supports.includes('kline')) continue;
-    try {
-      return await cached(`kline:${id}:${sym}:${safeInterval}:${safeLimit}`, 5000, () =>
-        binanceKlines(provider, sym, safeInterval, safeLimit, timeoutMs),
-      );
-    } catch (error) {
-      lastError = error;
-    }
+  const candidates = providerOrder().filter((id) => PROVIDERS[id].supports.includes('kline'));
+  // First non-empty candle set wins; a stalled provider must not delay the chart.
+  const { winner } = await raceProviders(
+    candidates,
+    (id) => cached(`${cacheKey}:${id}`, KLINE_TTL_MS, () =>
+      binanceKlines(PROVIDERS[id], sym, safeInterval, safeLimit, timeoutMs),
+    ),
+    (payload) => Array.isArray(payload.klines) && payload.klines.length > 0,
+  );
+  if (winner) {
+    lastGoodKline.set(cacheKey, winner);
+    return winner;
+  }
+
+  // Degraded: replay the last candle set so the chart keeps its shape instead of
+  // collapsing to an empty canvas mid-session.
+  const stale = lastGoodKline.get(cacheKey);
+  if (stale) {
+    return { ...stale, stale: true, degraded: true, msg: 'Live candles are temporarily unavailable. Showing the last known chart.' };
   }
 
   return {
     ok: false,
     code: 'KLINE_UNAVAILABLE',
-    msg: lastError ? String(lastError.message || lastError) : 'Chart data unavailable.',
+    msg: 'Chart data unavailable.',
     source: 'unavailable',
   };
 }
@@ -280,27 +528,34 @@ async function getKlines({ symbol = 'BTCUSDT', interval = '1h', limit = 300, tim
 async function getDepth({ symbol = 'BTCUSDT', limit = 100, timeoutMs = 6000 } = {}) {
   const sym = String(symbol).toUpperCase().replace('-', '');
   const safeLimit = Math.min(Math.max(Number(limit) || 100, 5), 500);
-  let lastError = null;
+  const cacheKey = `depth:${sym}:${safeLimit}`;
 
-  for (const id of providerOrder()) {
-    const provider = PROVIDERS[id];
-    if (!provider.supports.includes('depth')) continue;
-    try {
-      return await cached(`depth:${id}:${sym}:${safeLimit}`, 1000, () =>
-        binanceDepth(provider, sym, safeLimit, timeoutMs),
-      );
-    } catch (error) {
-      lastError = error;
-    }
+  const candidates = providerOrder().filter((id) => PROVIDERS[id].supports.includes('depth'));
+  // Fastest usable book wins; never block the panel on a stalled provider.
+  const { winner } = await raceProviders(
+    candidates,
+    (id) => cached(`${cacheKey}:${id}`, DEPTH_TTL_MS, () =>
+      binanceDepth(PROVIDERS[id], sym, safeLimit, timeoutMs),
+    ),
+    (payload) => Array.isArray(payload.bids) && payload.bids.length > 0 && Array.isArray(payload.asks) && payload.asks.length > 0,
+  );
+  if (winner) {
+    lastGoodDepth.set(cacheKey, winner);
+    return winner;
+  }
+
+  const stale = lastGoodDepth.get(cacheKey);
+  if (stale) {
+    return { ...stale, stale: true, degraded: true, msg: 'Live order book is temporarily unavailable. Showing the last known book.' };
   }
 
   return {
     ok: false,
     code: 'DEPTH_UNAVAILABLE',
-    msg: lastError ? String(lastError.message || lastError) : 'Order book unavailable.',
+    msg: 'Order book unavailable.',
     source: 'unavailable',
   };
 }
 
-module.exports = { getMarket, getKlines, getDepth, PROVIDERS, DEFAULT_SYMBOLS, KLINE_INTERVALS };
+module.exports = { getMarket, getKlines, getDepth, getUsdtUsd, PROVIDERS, DEFAULT_SYMBOLS, KLINE_INTERVALS };
 

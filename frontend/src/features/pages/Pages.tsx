@@ -2,9 +2,9 @@ import * as Dialog from "@radix-ui/react-dialog";
 import { AuthRestoreState } from "../../components/AuthRestoreState";
 import { multiplyDecimalStrings, compareDecimalStrings } from "../../lib/decimal";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { useEffect, useRef, useState, type FormEvent } from "react";
-import { RefreshCw, TrendingUp, TrendingDown, Clock3, ShieldAlert, ArrowLeft, ChevronRight, ChevronDown, ChevronUp, KeyRound, Copy, Check, LineChart, Plus, Minus, History, Layers, CandlestickChart } from "lucide-react";
-import { ApiError, getAccount, getOrders, getMarkets, getSpotMarketPairs, getKlines, getOrderBook, getTradingStatus, submitSpotOrder, cancelSpotOrder, getSecondsPositions, getSecondsPolicy, submitSecondsOrder, settleSecondsPosition, getDepositAddress, getSavedCryptoAddresses, getSelectedCryptoAddress, getWithdrawalConfig, submitWithdrawal, getEarnCatalog, submitEarnAction, getPerpMarkets, getSupportUnread, type PerpMarket, type EarnProduct, type EarnPosition, type SavedCryptoAddress, type AccountBalance, type AccountSnapshot, type DepositRecord, type OrderRecord, type MarketTicker, type MarketCandle, type OrderBookSnapshot, type SpotMarketPair, type TradingStatus, type SecondsPositionsSnapshot, type SecondsOrderInput, type SecondsPolicyResponse, type SelectedCryptoAddress, type WithdrawalConfig, type WithdrawalRecord, submitKyc } from "../../lib/api";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { RefreshCw, TrendingUp, TrendingDown, Clock3, ShieldAlert, ArrowLeft, ChevronRight, ChevronDown, ChevronUp, ChevronsLeft, ChevronsRight, KeyRound, Copy, Check, LineChart, Plus, Minus, History, Layers, CandlestickChart, WifiOff, Search } from "lucide-react";
+import { ApiError, getAccount, getOrders, getMarkets, getSpotMarketPairs, getKlines, getOrderBook, getUsdtUsdRate, getTradingStatus, submitSpotOrder, cancelSpotOrder, getSecondsPositions, getSecondsPolicy, submitSecondsOrder, settleSecondsPosition, getDepositAddress, getSavedCryptoAddresses, getSelectedCryptoAddress, getWithdrawalConfig, submitWithdrawal, getEarnCatalog, submitEarnAction, getPerpMarkets, getSupportUnread, type PerpMarket, type EarnProduct, type EarnPosition, type SavedCryptoAddress, type AccountBalance, type AccountSnapshot, type DepositRecord, type OrderRecord, type MarketTicker, type MarketCandle, type OrderBookSnapshot, type SpotMarketPair, type TradingStatus, type SecondsPositionsSnapshot, type SecondsOrderInput, type SecondsPolicyResponse, type SelectedCryptoAddress, type WithdrawalConfig, type WithdrawalRecord, submitKyc } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
 import { useAuthDialog } from "../../lib/auth-dialog";
 import { ChartDrawer } from "../trade/ChartDrawer";
@@ -20,15 +20,22 @@ import { CHART_THEME } from "../../lib/chartTheme";
 import { normalizeEarnStatus, earnStatusLabel, earnStatusBadgeVariant, normalizeDepositStatus, depositStatusLabel, depositStatusBadgeVariant, normalizeWithdrawalStatus, withdrawalStatusLabel, withdrawalStatusBadgeVariant, normalizeKycStatus, kycStatusLabel, normalizeKycDocumentType, kycDocumentTypeLabel } from "../../lib/status-mapping";
 import { TokenIcon } from "../../components/ui/TokenIcon";
 import { PriceBadge } from "../../components/ui/PriceBadge";
-import { CandlestickSeries, ColorType, createChart, type UTCTimestamp } from "lightweight-charts";
+import { CandlestickSeries, ColorType, createChart, type UTCTimestamp, type IChartApi, type IPriceLine, type ISeriesApi } from "lightweight-charts";
 import { TradeProductNav } from "../trade/TradeProductNav";
+import { MarketPickerDialog } from "../trade/MarketPickerDialog";
 import { OrderConfirmDialog, type OrderPreview } from "../trade/OrderConfirmDialog";
 import { priceDeviationPct, shouldConfirmOrder } from "../trade/orderConfirmPolicy";
 import { useMarketStreamEvent } from "../../lib/useMarketStreamEvent";
 import { SupportFaq } from "../support/SupportFaq";
 import { SupportChat } from "../support/SupportChat";
+import { TerminalOrderBook, aggregateLevels, precisionOptionsFor, DECIMALS_BY_PRECISION, type DepthPrecision, type BookView } from "../trade/TerminalOrderBook";
+import { TerminalOrderForm, type OrderType } from "../trade/TerminalOrderForm";
+import { TradesPanel } from "../trade/TradesPanel";
+import { BottomOrderPanel } from "../trade/BottomOrderPanel";
 
 type PageFrameTone = "trading"|"earn"|"assets"|"support"|"account"|"orders"|"market";
+/** Handles to the live K-line chart, so ticks update the price line in place. */
+type ChartHandle = { chart: IChartApi; series: ISeriesApi<"Candlestick">; priceLine: IPriceLine };
 export function PageFrame({eyebrow,title,description,children,className="",tone,backTo,action,onBack}:{eyebrow?:string;title:string;description?:string;children:ReactNode;className?:string;tone:PageFrameTone;backTo?:string;action?:ReactNode;onBack?:()=>void}){
  const {t}=useI18n();
  return <div className={`${className} tone-${tone} mx-auto flex w-full max-w-[1520px] min-w-0 flex-col gap-5 p-3 sm:p-4 md:p-6 lg:p-8`}><div className="flex min-w-0 items-center justify-between gap-3">{onBack?<button type="button" onClick={onBack} className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-brand-border text-brand-text-muted transition-colors hover:border-brand-accent/40 hover:text-brand-text" aria-label={t("Back")}><ArrowLeft className="h-4 w-4"/></button>:backTo?<Link to={backTo} className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-brand-border text-brand-text-muted transition-colors hover:border-brand-accent/40 hover:text-brand-text" aria-label={t("Back")}><ArrowLeft className="h-4 w-4"/></Link>:null}<h1 className="type-page-title min-w-0 truncate text-brand-text">{t(title)}</h1>{action}</div>{children}</div>;
@@ -209,7 +216,7 @@ export function MyPage(){
    <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
     <div className="flex flex-col rounded-xl border border-white/[0.08] bg-brand-surface p-4 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.12)] transition-all duration-200"><p className="text-xs text-brand-text-muted font-medium">{t("Estimated account value")}</p><p className="mt-2 text-xl font-bold font-mono tracking-tight tabular-nums text-brand-text">•••••• <span className="text-xs font-normal text-brand-text-muted">USDT</span></p><div className="mt-2.5 flex items-center gap-2"><Link to="/login" className="text-xs text-brand-accent font-semibold hover:underline">{t("Sign in to view")}</Link></div></div>
     <div className="flex flex-col rounded-xl border border-white/[0.08] bg-brand-surface p-4 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.12)] transition-all duration-200"><p className="text-xs text-brand-text-muted font-medium">{t("Security tier")}</p><p className="mt-2 text-base font-bold text-brand-text">Level 2</p><span className="mt-2.5 text-xs text-brand-success font-medium flex items-center gap-1"><ShieldCheck className="h-3.5 w-3.5"/> 2FA / Passkey</span></div>
-    <div className="flex flex-col rounded-xl border border-white/[0.08] bg-brand-surface p-4 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.12)] transition-all duration-200"><p className="text-xs text-brand-text-muted font-medium">{t("Fee tier")}</p><p className="mt-2 text-base font-bold text-brand-text">VIP 0</p><span className="mt-2.5 text-xs text-brand-text-secondary">Maker 0.1% / Taker 0.1%</span></div>
+    <div className="flex flex-col rounded-xl border border-white/[0.08] bg-brand-surface p-4 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.12)] transition-all duration-200"><p className="text-xs text-brand-text-muted font-medium">{t("Fee tier")}</p><p className="mt-2 text-base font-bold text-brand-text">VIP 0</p><span className="mt-2.5 text-xs text-brand-text-secondary">{t("Maker 0.1% / Taker 0.1%")}</span></div>
     <div className="flex flex-col rounded-xl border border-white/[0.08] bg-brand-surface p-4 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.12)] transition-all duration-200"><p className="text-xs text-brand-text-muted font-medium">{t("Affiliate Program")}</p><p className="mt-2 text-base font-bold text-brand-text">Up to 40%</p><Link to="/register" className="mt-2.5 text-xs text-brand-accent font-semibold hover:underline">{t("Join affiliate")}</Link></div>
    </div>
   </div>
@@ -295,17 +302,30 @@ export function SpotTradingPage(){
  const symbol=requestedSymbol.endsWith("USDT")?requestedSymbol:requestedSymbol+"USDT";
  const {t,language}=useI18n();
  const {placeSpotOrder}=useTrading();
+ const {openAuthDialog}=useAuthDialog();
+ const navigate=useNavigate();
  const [paperToast,setPaperToast]=useState("");
  const [ticker,setTicker]=useState<MarketTicker|null>(null);
  const [spotPairEnabled,setSpotPairEnabled]=useState(false);
  const [chartInterval,setChartInterval]=useState("1h");
- // `compactTrade` (<=1023px) means "no inline chart": the chart moves into the
- // safe-area drawer. At 1024px and above the desktop workspace owns the chart,
- // per spec §6 (desktop starts at 1024px).
- const DESKTOP_TRADE_QUERY="(max-width: 1023px)";
+ // `compactTrade` (<=1279px) means "no inline chart": the chart moves into the
+ // safe-area drawer and the document-flow dual-column workspace is used. At
+ // 1280px and above (xl) the viewport-locked pro terminal owns the chart, matching
+ // the `.spot-terminal--pro` CSS that only applies at 1280px and up.
+ const DESKTOP_TRADE_QUERY="(max-width: 1279px)";
  const [compactTrade,setCompactTrade]=useState(()=>window.matchMedia(DESKTOP_TRADE_QUERY).matches);
  const [chartOpen,setChartOpen]=useState(false);
  const [pairSymbols,setPairSymbols]=useState<string[]>([]);
+ /** Spot pair switcher dialog (desktop terminal header). */
+ const [pairPickerOpen,setPairPickerOpen]=useState(false);
+ /**
+  * Persistent market list for the desktop terminal (Binance-style left rail):
+  * every enabled pair with its live price and 24h change. This is the primary
+  * way to switch pairs, so switching never hides the chart behind a modal.
+  */
+ const [marketList,setMarketList]=useState<MarketTicker[]>([]);
+ const [marketFilter,setMarketFilter]=useState("");
+ const [pairRailOpen,setPairRailOpen]=useState(true);
  // `isPhone` (<=767px) hides the market-list drawer on phones; the order form and
  // order book stay side-by-side (Binance-style dual column) at every width.
  const [isPhone,setIsPhone]=useState(()=>window.matchMedia("(max-width: 767px)").matches);
@@ -349,12 +369,29 @@ export function SpotTradingPage(){
  const [marketClockNow,setMarketClockNow]=useState(Date.now());
  const [marketFeedWarning,setMarketFeedWarning]=useState("");
  const [chartFeedWarning,setChartFeedWarning]=useState("");
- const [depthPrecision,setDepthPrecision]=useState<"0.01"|"0.1"|"1">("0.01");
+ const [depthPrecision,setDepthPrecision]=useState<DepthPrecision>("0.01");
  const [bookView,setBookView]=useState<"both"|"bids"|"asks">("both");
- const [bottomTab,setBottomTab]=useState<"orders"|"assets">("orders");
+ /** Desktop "expand book": hides the tape so the depth column owns its space. */
+ const [bookExpanded,setBookExpanded]=useState(false);
+ /**
+  * Incremented by the feed-outage retry button. The initial-load effect already
+  * keys on `reload`, so bumping this re-runs the market fetch without touching
+  * the order form or a pending order intent.
+  */
+ const [refreshTick,setRefreshTick]=useState(0);
+ const [bottomTab,setBottomTab]=useState<"orders"|"history"|"fills"|"assets">("orders");
  const [ordersExpanded,setOrdersExpanded]=useState(true);
  const [orderType,setOrderType]=useState<"limit"|"market">("limit");
  const [activeOrderTab,setActiveOrderTab]=useState<"orders"|"assets">("orders");
+ // Desktop terminal presentation state:
+ // - `auth.status` decides whether the submit CTA places an order or opens sign-in
+ //   (the desktop terminal hides the header user menu, so it reads the same store).
+ // - system-level policy warnings collapse into one dismissible banner instead of
+ //   competing with the order form for the trading viewport.
+ const {status:authStatus}=useAuth();
+ const [dismissedBanners,setDismissedBanners]=useState<string[]>([]);
+ const [orderSizePercent,setOrderSizePercent]=useState(0);
+ const [chartLastPrice,setChartLastPrice]=useState<number|null>(null);
  // Terminal layout interactions (Binance-style 4-column grid):
  // - right market-list drawer collapses to a thin strip
  // - bottom orders panel can be maximized drawer-style over the grid
@@ -363,6 +400,9 @@ export function SpotTradingPage(){
 
  const [chartNode,setChartNode]=useState<HTMLDivElement|null>(null);
  const chartTrigger=useRef<HTMLButtonElement|null>(null);
+ // Handles to the created chart so live ticks update the price line instead of
+ // tearing the chart down and rebuilding it.
+ const chartRef=useRef<ChartHandle|null>(null);
  const base=symbol.endsWith("USDT")?symbol.slice(0,-4):"BTC";
  const pendingStorageKey=accountUid?"btcbox.spot.pending.v1."+accountUid+"."+symbol:"";
   // A quote older than 90s is treated as stale: the submit path refuses new
@@ -370,6 +410,28 @@ export function SpotTradingPage(){
  // exchange snapshot time, never the browser's receipt time.
  const marketSnapshotStale=!!ticker&&(!marketUpdatedAt||marketClockNow-marketUpdatedAt>90_000);
  const displayTicker=ticker;
+ /**
+  * Depth steps this pair can actually use, derived from its price. A 0.01 bucket
+  * would merge ARB's 0.1277 book into one row and print a 0.13 best bid. The
+  * user's explicit choice is kept while it is still valid for the pair, so a
+  * stale selection can never outlive a symbol change.
+  */
+ const pairPrecisionOptions=useMemo(()=>precisionOptionsFor(displayTicker?Number(displayTicker.price):null),[displayTicker?.price]);
+ const effectiveDepthPrecision:DepthPrecision=pairPrecisionOptions.includes(depthPrecision)?depthPrecision:pairPrecisionOptions[0];
+ /**
+  * USDT→USD rate behind the "≈ $" hint under the mid price. Polled at a slow
+  * cadence because the peg moves in basis points, and falling back to 0.99999
+  * keeps the hint readable if the FX endpoint is unavailable.
+  */
+ const [usdtUsd,setUsdtUsd]=useState(0.99999);
+ useEffect(()=>{
+  const controller=new AbortController();
+  let cancelled=false;
+  const load=()=>{getUsdtUsdRate(0.99999,controller.signal).then(r=>{if(!cancelled)setUsdtUsd(r.rate);}).catch(()=>{});};
+  load();
+  const timer=window.setInterval(load,60000);
+  return ()=>{cancelled=true;controller.abort();window.clearInterval(timer);};
+ },[]);
  const orderBookSnapshotStale=!!book&&(!book.snapshotTs||marketClockNow-book.snapshotTs*1000>90_000);
  // Live order book, streamed over SSE. The polled `book` remains the fallback
  // so a blocked SSE endpoint degrades to slightly staler data instead of
@@ -392,7 +454,28 @@ export function SpotTradingPage(){
  // Streamed data wins; the polled snapshot is a fallback only while the stream
  // has not delivered a frame yet. A stale snapshot is never rendered as live.
  const displayBook=orderBookSnapshotStale?null:(liveDepth.data??book);
+ /**
+  * Last trade price for the chart price line.
+  *
+  * Priority: live top-of-book mid (densest, updates every stream frame) →
+  * exchange snapshot price. A stale book contributes nothing, and with no
+  * timestamped quote at all the value is `null` so the chart keeps the candle
+  * close instead of inventing a price.
+  */
+ const lastTradePrice=(():number|null=>{
+  const topAsk=Number(displayBook?.asks?.[0]?.[0]);
+  const topBid=Number(displayBook?.bids?.[0]?.[0]);
+  if(Number.isFinite(topAsk)&&Number.isFinite(topBid)&&topAsk>0&&topBid>0)return (topAsk+topBid)/2;
+  const snapshot=Number(displayTicker?.price);
+  if(Number.isFinite(snapshot)&&snapshot>0)return snapshot;
+  return null;
+ })();
  const effectiveMarketFeedWarning=marketFeedWarning;
+ // A failed `/api/market` leaves `ticker` null. Without a real quote there is no
+ // price, no 24h stats and no basis for pricing an order, so the terminal shows
+ // an explicit degraded state with a retry instead of blank fields that read as
+ // zero. No sample value is ever substituted.
+ const marketUnavailable=!ticker;
 
  useEffect(()=>{
   if(!ticker||marketSnapshotStale){
@@ -428,6 +511,8 @@ export function SpotTradingPage(){
    // keep it out of the prominent market-status banner to preserve the trading viewport.
    if(marketResult.status==="fulfilled"){
     const marketBase=symbol.endsWith("USDT")?symbol.slice(0,-4):symbol;
+    // Keep the whole snapshot so the rail can list every tradable pair.
+    setMarketList(marketResult.value);
     const selected=marketResult.value.find(item=>item.sym.toUpperCase()===marketBase)||null;
     if(selected){
      setTicker(selected);
@@ -445,7 +530,7 @@ export function SpotTradingPage(){
    else if(ordersResult.reason instanceof ApiError && ordersResult.reason.code!=="AUTH_REQUIRED")setError(ordersResult.reason.message);
   }).finally(()=>{if(!controller.signal.aborted)setLoading(false);});
   return ()=>controller.abort();
- },[symbol,reload]);
+ },[symbol,reload,refreshTick]);
 
  // The initial route load above also fetches account/order state. Keep the
  // public ticker and order book fresh independently without reloading the form
@@ -477,7 +562,11 @@ export function SpotTradingPage(){
     setMarketFeedWarning(failed?"Live market data is temporarily unavailable.":"");
    }).finally(()=>{window.clearTimeout(timeoutId);refreshing=false;});
   };
-  const refreshId=window.setInterval(refreshMarketData,5000);
+// The ticker and order book refresh at 1.5 s: fast enough to read as live, slow
+// enough that the gateway's own cache (TICKER_TTL_MS = 1500) absorbs the load so
+// providers are hit at most once per tick regardless of how many browsers poll.
+const MARKET_POLL_MS = 1500;
+  const refreshId=window.setInterval(refreshMarketData,MARKET_POLL_MS);
   return ()=>{cancelled=true;window.clearInterval(refreshId);};
  },[symbol]);
 
@@ -539,10 +628,26 @@ export function SpotTradingPage(){
   const series=chart.addSeries(CandlestickSeries,{upColor:CHART_THEME.up,downColor:CHART_THEME.down,borderVisible:false,wickUpColor:CHART_THEME.up,wickDownColor:CHART_THEME.down});
   series.setData(candles.map(item=>({time:Math.floor(item.time/1000) as UTCTimestamp,open:item.open,high:item.high,low:item.low,close:item.close})).sort((a,b)=>Number(a.time)-Number(b.time)));
   chart.timeScale().fitContent();
+  // The last-trade price line keeps the price scale aligned with the order book:
+  // without it the axis was only as wide as the fetched candles, so a price that
+  // moved past the newest close looked clipped at the right edge.
+  const priceLine=series.createPriceLine({price: candles[candles.length-1].close, color: CHART_THEME.text, lineWidth: 1, lineStyle: 2, axisLabelVisible: true, title: ""});
+  chartRef.current={chart,series,priceLine};
   const observer=new ResizeObserver(entries=>{const width=entries[0]?.contentRect.width;if(width)chart.applyOptions({width:Math.floor(width),height:Math.floor(entries[0].contentRect.height)||320});});
   observer.observe(node);
-  return ()=>{observer.disconnect();chart.remove();};
+  return ()=>{observer.disconnect();chartRef.current=null;chart.remove();};
  },[candles,compactTrade,chartOpen,chartNode]);
+
+ // The live last trade drives the synced price line. Applied as an update (never
+ // a chart rebuild) and throttled to animation cadence so a fast tape cannot
+ // re-render the terminal on every tick.
+ useEffect(()=>{
+  if(!chartRef.current||lastTradePrice===null)return;
+  const frame=window.requestAnimationFrame(()=>{
+   try{chartRef.current?.series.applyOptions({priceLineColor:CHART_THEME.text,lastValueVisible:true});chartRef.current?.priceLine.applyOptions({price:lastTradePrice});}catch{}
+  });
+  return ()=>window.cancelAnimationFrame(frame);
+ },[lastTradePrice]);
 
  const orderInputsValid=/^(?:0|[1-9]\d*)(?:\.\d{1,18})?$/.test(price)&&/^(?:0|[1-9]\d*)(?:\.\d{1,18})?$/.test(quantity)&&compareDecimalStrings(price,"0")===1&&compareDecimalStrings(quantity,"0")===1;
  const requiredBalance=side==="buy"?multiplyDecimalStrings(price,quantity):quantity;
@@ -668,9 +773,11 @@ export function SpotTradingPage(){
   const next=Math.max(0,current+direction*10**-decimals);
   setQuantity(next>0?next.toFixed(Math.max(decimals,0)).replace(/\.?0+$/,""):"");
  };
- const aggregateLevels=(rows:Array<[string|number,string|number]>,bookSide:"ask"|"bid")=>{const step=Number(depthPrecision);const decimals=depthPrecision==="1"?0:depthPrecision==="0.1"?1:2;const grouped=new Map<number,number>();for(const row of rows){const px=Number(row[0]),qty=Number(row[1]);if(!Number.isFinite(px)||!Number.isFinite(qty)||qty<=0)continue;const units=px/step;const bucket=Number(((bookSide==="ask"?Math.ceil(units-1e-8):Math.floor(units+1e-8))*step).toFixed(decimals));grouped.set(bucket,(grouped.get(bucket)||0)+qty);}return Array.from(grouped.entries()).sort((a,b)=>bookSide==="ask"?a[0]-b[0]:b[0]-a[0]).slice(0,6).map(([px,qty])=>[px.toFixed(decimals),String(qty)] as [string,string]);};
+ // Six levels per side in both presentations (phone and desktop), matching the
+ // professional exchange layout: 6 asks + mid + 6 bids.
+ const aggregateLevelsForBook=(rows:Array<[string|number,string|number]>,bookSide:"ask"|"bid")=>aggregateLevels(rows,bookSide,Number(effectiveDepthPrecision),6);
  const openOrders=orders.filter(item=>["open","partially_filled","partially-filled","pending"].includes(String(item.status||"").toLowerCase()));
- const asks=aggregateLevels(displayBook?.asks||[],"ask").reverse();const bids=aggregateLevels(displayBook?.bids||[],"bid");
+ const asks=aggregateLevelsForBook(displayBook?.asks||[],"ask").reverse();const bids=aggregateLevelsForBook(displayBook?.bids||[],"bid");
  const cumulativeOf=(rows:Array<[string,string]>,fromTop:boolean)=>{let acc=0;const out:number[]=new Array(rows.length).fill(0);const order=fromTop?rows.map((_,i)=>i):rows.map((_,i)=>i).reverse();for(const i of order){acc+=Number(rows[i][1])||0;out[i]=acc;}return out;};
  const askCumulative=cumulativeOf(asks,false);const bidCumulative=cumulativeOf(bids,true);
  // Relative cumulative displayed depth only; never used for order sizing or financial validation.
@@ -685,18 +792,277 @@ export function SpotTradingPage(){
  };
  const askDepth=depthWidths(asks),bidDepth=depthWidths(bids);
  const chartPanel=(<Card aria-label={t("Price chart")} id="trade-chart" className="exchange-chart scroll-mt-16 border-brand-border bg-brand-surface"><CardHeader className="flex flex-row flex-wrap items-start justify-between gap-3"><div><CardTitle>{t("Price chart")}</CardTitle><CardDescription>{symbol} · {chartInterval}</CardDescription></div><div className="flex flex-wrap gap-1" aria-label={t("Chart")}>{["1m","5m","1h","1d"].map(interval=><Button key={interval} type="button" size="sm" variant={chartInterval===interval?"secondary":"ghost"} aria-pressed={chartInterval===interval} onClick={()=>setChartInterval(interval)}>{interval}</Button>)}</div></CardHeader><CardContent><div ref={setChartNode} className="trade-candles min-h-[320px] w-full">{!candles.length&&!loading?<p className="p-5 text-sm text-brand-text-muted">{t("No verified candle data is available for this market.")}</p>:null}</div></CardContent></Card>);
- return <Dialog.Root open={chartOpen} onOpenChange={setChartOpen}><PageFrame title={symbol} className="spot-terminal" tone="trading" action={<Button id="trade-chart-open" ref={chartTrigger} type="button" size="sm" variant="ghost" aria-label={t("Price chart")} onClick={()=>setChartOpen(true)}><ChartNoAxesCombined className="h-5 w-5"/></Button>}>
+ // ---------------------------------------------------------------------------
+ // Desktop trading terminal (>=1280px)
+ //
+ // A strict three-column terminal locked to the viewport height, matching the
+ // information density of tier-1 exchanges:
+ //   left  58%  ticker bar → K-line → collapsible orders/history/assets panel
+ //   middle 20% order book + recent trades
+ //   right  22% order form (buy/sell, limit/market, balance, slider)
+ // Below this breakpoint the existing mobile/compact flow is untouched.
+ // ---------------------------------------------------------------------------
+ const isAuthenticated=authStatus==="authenticated";
+ const tradingInactive=!!tradingStatus&&tradingStatus.spot_order_entry_enabled!==true;
+ const staleSnapshot=!!ticker&&marketSnapshotStale;
+ const bannerKey=[effectiveMarketFeedWarning,chartFeedWarning,tradingInactive?"engine":"",staleSnapshot?"stale":""].join("|");
+ const bannerVisible=(effectiveMarketFeedWarning||chartFeedWarning||tradingInactive||staleSnapshot)&&!dismissedBanners.includes(bannerKey);
+ const bannerText=[effectiveMarketFeedWarning,chartFeedWarning,staleSnapshot?t("Market snapshot is older than 90 seconds. Quotes and new order entry are disabled until fresh data arrives."):"",tradingInactive?t("Spot order execution is disabled by server policy. No order can be placed until the matching engine is approved and enabled."):""].filter(Boolean).join(" · ");
+ const bannerDismissed=!bannerVisible&&dismissedBanners.includes(bannerKey);
+ const orderHistory=orders.filter(item=>!["open","partially_filled","partially-filled","pending"].includes(String(item.status||"").toLowerCase()));
+ // Executed orders only. Derived from the same authenticated `/api/orders`
+ // payload — the fills tab never invents a trade or a fee.
+ const filledOrders=orderHistory.filter(item=>["filled","completed","partially_filled","partially-filled"].includes(String(item.status||"").toLowerCase()));
+ const entryDisabledReason=!tradingStatus?t("Spot execution status is unavailable. Order entry is disabled."):tradingInactive?t("Spot order execution is disabled by server policy. No order can be placed until the matching engine is approved and enabled."):staleSnapshot?t("Market snapshot is older than 90 seconds. Quotes and new order entry are disabled until fresh data arrives."):!spotPairEnabled?t("This spot market is not enabled by BTCBOX operators."):"";
+ const pickBookPrice=(nextPrice:string)=>{
+    // Format with the SAME precision the book is displaying, so picking a level
+    // never changes how many decimals the limit input shows ("62576.01" vs "62572").
+    const decimals = DECIMALS_BY_PRECISION[effectiveDepthPrecision];
+    setPrice(Number(nextPrice).toFixed(decimals));
+    setIsPriceManual(true);
+    setOrderSizePercent(0);
+  };
+ const terminalChart=(
+  <section className="term-chart" aria-label={t("Price chart")}>
+   <div className="term-panel-head">
+    <span className="term-panel-title">{base}/USDT <span className="text-brand-text-muted">· {t("Price chart")}</span></span>
+    <div className="term-chart-toolbar" role="group" aria-label={t("Chart")}>
+     {["1m","5m","15m","1h","4h","1d"].map(interval=><button key={interval} type="button" aria-pressed={chartInterval===interval} onClick={()=>setChartInterval(interval)}>{interval}</button>)}
+    </div>
+   </div>
+   <div className="term-chart-body">
+    <div ref={setChartNode} className="trade-candles h-full w-full">{!candles.length&&!loading?<p className="p-5 text-[12px] text-brand-text-muted">{t("No verified candle data is available for this market.")}</p>:null}</div>
+   </div>
+  </section>
+ );
+ const bottomTabs=[
+  ["orders",t("Open orders")+" ("+openOrders.length+")"],
+  ["history",t("Order history")],
+  ["fills",t("Trade history")],
+  ["assets",t("Assets")],
+ ] as const;
+ const renderBottomBody=()=>{
+  if(bottomTab==="orders")return <div id="trade-orders-body" className="term-tab-body">{openOrders.length?openOrders.map((item,index)=>{const id=String(item.order_id??item.id??index);return <div key={id} className="spot-order-row"><div className="spot-order-summary"><p className="font-semibold">{item.symbol||symbol} · {item.side==="buy"?t("Buy"):item.side==="sell"?t("Sell"):item.side||"—"} · <span className="tabular-nums">{amountText(item.price)}</span></p><p className="spot-order-values">{t("Remaining")} <span className="font-mono tabular-nums">{amountText(item.remaining_quantity??item.quantity)}</span></p><Badge variant="outline">{item.status}</Badge></div><Button size="sm" variant="outline" disabled={busy||!tradingStatus?.spot_cancel_enabled} onClick={()=>void cancelOrder(item)}>{cancelRequestIds[id]?t("Retry cancel"):t("Cancel")}</Button></div>;}):<p className="spot-orders-empty text-[12px] text-brand-text-muted">{isAuthenticated?t("Open orders will appear here once submitted and before they fill."):t("Sign in to view open orders.")}</p>}</div>;
+  if(bottomTab==="history")return <div className="term-tab-body">{orderHistory.length?orderHistory.slice(0,40).map((item,index)=>{const id=String(item.order_id??item.id??index);return <div key={id} className="spot-order-row"><div className="spot-order-summary"><p className="font-semibold">{item.symbol||symbol} · {item.side==="buy"?t("Buy"):item.side==="sell"?t("Sell"):item.side||"—"} · <span className="tabular-nums">{amountText(item.price)}</span></p><p className="spot-order-values">{t("Quantity")} <span className="font-mono tabular-nums">{amountText(item.quantity)}</span></p><Badge variant="outline">{item.status}</Badge></div></div>;}):<p className="spot-orders-empty text-[12px] text-brand-text-muted">{isAuthenticated?t("Filled and cancelled orders will appear here."):t("Sign in to view order history.")}</p>}<div className="pt-2"><Link to="/orders" className="text-[12px] font-semibold text-brand-accent hover:underline">{t("Order history")} →</Link></div></div>;
+  if(bottomTab==="fills")return <div className="term-tab-body">{filledOrders.length?filledOrders.slice(0,40).map((item,index)=>{const id=String(item.order_id??item.id??index);const filled=item.quantity!==undefined&&item.remaining_quantity!==undefined?String(Number(item.quantity)-Number(item.remaining_quantity)):item.quantity;return <div key={id} className="spot-order-row"><div className="spot-order-summary"><p className="font-semibold">{item.symbol||symbol} · {item.side==="buy"?t("Buy"):item.side==="sell"?t("Sell"):item.side||"—"} · <span className="tabular-nums">{amountText(item.price)}</span></p><p className="spot-order-values">{t("Filled")} <span className="font-mono tabular-nums">{filled!==undefined&&filled!==null&&Number.isFinite(Number(filled))?amountText(filled):"—"}</span></p><Badge variant="outline">{item.status}</Badge></div></div>;}):<p className="spot-orders-empty text-[12px] text-brand-text-muted">{isAuthenticated?t("Filled trades will appear here once your orders execute."):t("Sign in to view your trade history.")}</p>}<div className="pt-2"><Link to="/orders" className="text-[12px] font-semibold text-brand-accent hover:underline">{t("Trade history")} →</Link></div></div>;
+  return <div className="spot-asset-strip term-tab-body"><div><span>{t("Available")} · {base}</span><strong>{availableBalances[base]?.free!==undefined?amountText(availableBalances[base].free):"—"}</strong></div><div><span>{t("Available")} · USDT</span><strong>{availableBalances.USDT?.free!==undefined?amountText(availableBalances.USDT.free):"—"}</strong></div><Link to="/assets">{t("View assets")}</Link></div>;
+ };
+ const proTerminal=<>
+  <div className="spot-terminal spot-terminal--pro tone-trading">
+   {/* No product tabs here: the global header already renders Spot / Perpetual /
+       Seconds / Earn directly above this terminal, so repeating them consumed a
+       full 34px row of viewport-locked trading space. */}
+   <header className="term-top">
+    <div className="term-top-id">
+     {/* Pair switcher. Without it the terminal was pinned to whatever symbol the
+        URL contained, with no way to change markets. */}
+     <button
+      type="button"
+      className="term-top-pair term-top-pair--button"
+      aria-haspopup="dialog"
+      aria-expanded={pairPickerOpen}
+      aria-label={t("Select market")}
+      onClick={()=>setPairPickerOpen(true)}
+      disabled={pairSymbols.length===0}
+     >
+      {base}/USDT
+      <ChevronDown className="h-3.5 w-3.5 shrink-0 opacity-60" aria-hidden="true"/>
+     </button>
+     <PriceBadge className="spot-quote-chg" value={displayTicker?displayTicker.chg:null} unit="percent" decimals={2} ariaLabel={t("24h change")} />
+    </div>
+    <span className="term-top-price font-mono tabular-nums"><span key={displayTicker?amountText(displayTicker.price):"—"} className={"inline-block anim-price-tick "+(Number(ticker?.chg||0)>=0?"text-profit":"text-loss")}>{displayTicker?amountText(displayTicker.price):"—"}</span></span>
+    <div className="term-top-stats">
+     <div><span>{t("24h high")}</span><b>{displayTicker?amountText(displayTicker.high):"—"}</b></div>
+     <div><span>{t("24h low")}</span><b>{displayTicker?amountText(displayTicker.low):"—"}</b></div>
+     <div><span>{t("24h volume")}</span><b>{displayTicker&&displayTicker.vol!==undefined&&displayTicker.vol!==null?amountText(displayTicker.vol):"—"}</b></div>
+    </div>
+    <div className="term-top-links">
+     <Link to="/assets" className="term-top-link"><Wallet className="h-3.5 w-3.5" aria-hidden="true"/>{t("Assets")}</Link>
+     <Link to="/orders" className="term-top-link"><History className="h-3.5 w-3.5" aria-hidden="true"/>{t("Order history")}</Link>
+     {/* Sign-in / registration deliberately absent: the global header owns those
+        actions, and showing them twice put two competing CTAs next to the
+        ticker. */}
+    </div>
+   </header>
+   {/* Market-data outage: distinct from the policy banner below. A trader must
+       be able to tell "the server refused orders" apart from "the price feed is
+       down", so this state gets its own colour, its own retry and no dismissal
+       (a stale screen should not be permanently silent). */}
+   {marketUnavailable?<div className="term-feeddown" role="alert">
+    <WifiOff className="h-4 w-4 shrink-0" aria-hidden="true"/>
+    <span className="min-w-0 flex-1">{t("行情连接已断开，暂时无法获取最新价格。请稍后重试。")}</span>
+    <button type="button" className="term-feeddown-retry" onClick={()=>setRefreshTick(value=>value+1)}>
+     <RefreshCw className="h-3.5 w-3.5" aria-hidden="true"/>{t("Retry")}
+    </button>
+   </div>:null}
+   {bannerVisible?<div className="term-banner" role="status"><ShieldAlert className="h-4 w-4 shrink-0" aria-hidden="true"/><span className="min-w-0 flex-1">{bannerText}</span>
+    {/* The notice reports a server-side policy, not a per-account permission,
+        so the action links to the real explanation instead of implying the
+        user can unlock trading themselves. */}
+    <Link to="/support" className="term-banner-action">{t("Details")}</Link>
+    <button type="button" className="term-banner-close" aria-label={t("Dismiss")} onClick={()=>setDismissedBanners(current=>[...current,bannerKey])}>×</button></div>:null}
+   {bannerDismissed?<div className="term-banner-reopen"><ShieldAlert className="h-3.5 w-3.5" aria-hidden="true"/><span>{t("System notices hidden")}</span><button type="button" onClick={()=>setDismissedBanners(current=>current.filter(key=>key!==bannerKey))}>{t("Expand")}</button></div>:null}
+   <div className={"term-layout"+(pairRailOpen?"":" is-rail-collapsed")}>
+    {/* Binance-style market rail: always visible on wide screens so switching
+        pairs is one click, with search for long lists. Collapses to a narrow
+        strip to give the chart full width when the trader is focused. */}
+    <aside className="term-col term-col--pairs" aria-label={t("Markets")} data-open={pairRailOpen?"true":"false"}>
+     <button type="button" className="term-rail-toggle" aria-expanded={pairRailOpen} aria-label={pairRailOpen?t("Collapse market list"):t("Expand market list")} title={pairRailOpen?t("Collapse market list"):t("Expand market list")} onClick={()=>setPairRailOpen(value=>!value)}>
+      {pairRailOpen?<ChevronsLeft className="h-3.5 w-3.5"/>:<ChevronsRight className="h-3.5 w-3.5"/>}
+     </button>
+     {pairRailOpen?<>
+      <div className="term-rail-search">
+       <Search className="h-3.5 w-3.5 shrink-0" aria-hidden="true"/>
+       <input type="search" value={marketFilter} onChange={event=>setMarketFilter(event.target.value)} placeholder={t("Search")} aria-label={t("Search BTCBOX")}/>
+      </div>
+      <div className="term-rail-head"><span>{t("Pair")}</span><span className="text-right">{t("Last price")}</span><span className="text-right">24h</span></div>
+      <div className="term-rail-list">
+       {(()=>{
+        const query=marketFilter.trim().toUpperCase();
+        const rows=marketList.filter(item=>!query||item.sym.toUpperCase().includes(query));
+        if(!rows.length)return <p className="term-rail-empty">{t("No matching markets.")}</p>;
+        return rows.map(item=>{
+         const isActive=item.sym.toUpperCase()===base.toUpperCase();
+         const up=Number(item.chg)>=0;
+         return <button key={item.sym} type="button" className={"term-rail-row"+(isActive?" is-active":"")} aria-current={isActive?"true":undefined} onClick={()=>{if(!isActive)navigate(`/trade/${item.sym}USDT`);}}>
+          <span className="term-rail-pair">{item.sym}<span className="term-rail-quote">/USDT</span></span>
+          <span className="term-rail-price">{amountText(item.price)}</span>
+          <span className={"term-rail-chg "+(up?"text-profit":"text-loss")}>{up?"+":""}{Number(item.chg).toFixed(2)}%</span>
+         </button>;
+        });
+       })()}
+      </div>
+     </>:null}
+    </aside>
+    <div className="term-col term-col--main">
+     {terminalChart}
+     <section id="trade-orders" className="term-bottom" aria-label={t("Trading details")}>
+      <BottomOrderPanel
+       className="term-bottom-panel"
+       ariaLabel={t("Trading details")}
+       tabs={bottomTabs.map(([key,label])=>({key,label}))}
+       active={bottomTab}
+       onActiveChange={(key)=>{setBottomTab(key as typeof bottomTab);setOrdersExpanded(true);}}
+       expanded={ordersExpanded}
+       onToggle={()=>setOrdersExpanded(value=>!value)}
+      >
+       {renderBottomBody()}
+      </BottomOrderPanel>
+     </section>
+    </div>
+    <section className={"term-col term-col--book"+(bookExpanded?" is-expanded":"")} aria-label={t("Order book")}>
+     {/* Desktop-only: gives the depth ladder the whole column when a trader
+         wants to read thickness rather than the tape. Pure layout, no data
+         change. */}
+     <button type="button" className="term-book-expand" aria-pressed={bookExpanded} aria-label={bookExpanded?t("Collapse order book"):t("Expand order book")} title={bookExpanded?t("Collapse order book"):t("Expand order book")} onClick={()=>setBookExpanded(value=>!value)}>
+      {bookExpanded?<ChevronsRight className="h-3.5 w-3.5"/>:<ChevronsLeft className="h-3.5 w-3.5"/>}
+     </button>
+     <TerminalOrderBook
+      book={displayBook}
+      lastPrice={displayTicker?amountText(displayTicker.price):""}
+      changePercent={Number(ticker?.chg||0)}
+      precision={effectiveDepthPrecision}
+      onPrecisionChange={value=>setDepthPrecision(value)}
+      view={bookView as BookView}
+      onViewChange={value=>setBookView(value)}
+      onPickPrice={pickBookPrice}
+      usdtUsd={usdtUsd}
+      rows={6}
+     />
+     <div className="term-rt">
+      <TradesPanel symbol={symbol} />
+     </div>
+    </section>
+    <aside id="trade-entry" className="term-col term-col--entry" aria-label={t("Order form")}>
+     <TerminalOrderForm
+      base={base}
+      side={side}
+      onSideChange={setSide}
+      orderType={orderType as OrderType}
+      onOrderTypeChange={value=>setOrderType(value)}
+      price={price}
+      onPriceChange={value=>{setPrice(value);setIsPriceManual(true);}}
+      quantity={quantity}
+      onQuantityChange={value=>{setQuantity(value);setOrderSizePercent(0);}}
+      availableBalance={availableBalances[side==="buy"?"USDT":base]?.free}
+      availableAsset={side==="buy"?"USDT":base}
+      isAuthenticated={isAuthenticated}
+      orderEntryEnabled={tradingStatus?tradingStatus.spot_order_entry_enabled:null}
+      disabledReason={entryDisabledReason}
+      busy={busy}
+      pendingRequestId={pendingIntent?.client_order_id||""}
+      pendingIntentInvalid={pendingIntentInvalid}
+      onSubmit={()=>void submitOrder({preventDefault(){}} as FormEvent<HTMLFormElement>)}
+      sliderValue={orderSizePercent}
+      onSliderChange={setOrderSizePercent}
+      onRequestSignIn={()=>openAuthDialog("login")}
+     />
+    </aside>
+   </div>
+   {/* Spot pair switcher. Lists only the pairs the backend says are enabled, so
+   {/* Spot pair switcher. Lists only the pairs the backend says are enabled, so
+       nothing here can route to a market the exchange does not serve. Shares the
+       same dialog component as the perpetual page. */}
+   <MarketPickerDialog
+    open={pairPickerOpen}
+    onOpenChange={setPairPickerOpen}
+    description={t("Choose a spot trading pair")}
+    emptyLabel={pairSymbols.length?t("No matching markets."):t("No spot markets are currently enabled.")}
+    activeId={symbol}
+    items={pairSymbols.map(pair=>{
+     const ticker=marketList.find(item=>`${item.sym}USDT`===pair)||marketList.find(item=>item.sym===pair);
+     return {
+      id:pair,
+      label:`${pair.replace(/USDT$/,"")}/USDT`,
+      price:ticker?amountText(ticker.price):null,
+      changePct:ticker&&Number.isFinite(Number(ticker.chg))?Number(ticker.chg):null,
+     };
+    })}
+    onSelect={(pair)=>navigate(`/trade/${pair}`)}
+   />
+  </div>
+ </>;
+ // Two presentations of the same trading state:
+ // - `proTerminal`: the viewport-locked three-column terminal (desktop only).
+ // - `compactTerminal`: the document-flow layout used below 1280px, where the
+ //   order form, order book and chart drawer stack per the mobile design board.
+ // One `<Dialog.Root>` renders either presentation, so the chart drawer, focus
+ // return and overlay stay identical across breakpoints.
+ const compactTerminal=<PageFrame title={symbol} className="spot-terminal" tone="trading">
   <TradeProductNav />
   {error?<div role="alert" className="rounded-xl border border-brand-danger/30 bg-brand-danger/5 p-3 text-sm text-brand-danger">{t(error)}</div>:null}{effectiveMarketFeedWarning?<div role="status" className="rounded-xl border border-brand-warning/25 bg-brand-warning/5 p-3 text-sm text-brand-warning">{t(effectiveMarketFeedWarning)}</div>:null}{chartFeedWarning?<div role="status" className="rounded-xl border border-brand-warning/25 bg-brand-warning/5 p-3 text-sm text-brand-warning">{t(chartFeedWarning)}</div>:null}{notice?<div role="status" className="rounded-xl border border-brand-success/25 bg-brand-success/5 p-3 text-sm text-brand-success">{t(notice)}</div>:null}
   <div className="spot-quote-strip">
    <div className="spot-quote-main">
-    <span className="spot-quote-pair">{base}/USDT</span>
+    <button type="button" onClick={()=>setPairPickerOpen(true)} aria-haspopup="dialog" aria-expanded={pairPickerOpen} aria-label={t("Select market")}
+      className="spot-quote-pair inline-flex items-center gap-1 rounded transition-colors hover:text-brand-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent/40">
+      {base}/USDT<ChevronDown className="h-3.5 w-3.5 shrink-0" aria-hidden="true"/>
+    </button>
+    <span className="spot-quote-badge">{t("Spot")}</span>
     <span className={"spot-quote-price font-mono tabular-nums "+(Number(ticker?.chg||0)>=0?"text-profit":"text-loss")}>{displayTicker?amountText(displayTicker.price):"—"}</span>
-    <PriceBadge className="spot-quote-chg" value={displayTicker ? displayTicker.chg : null} unit="percent" decimals={2} ariaLabel={displayTicker ? t("24h change") + " " + Number(displayTicker.chg).toFixed(2) + "%" : t("24h change")} />
+    {displayTicker ? <PriceBadge className="spot-quote-chg" value={displayTicker.chg} unit="percent" decimals={2} ariaLabel={t("24h change") + " " + Number(displayTicker.chg).toFixed(2) + "%"} /> : null}
    </div>
-   <div className="spot-quote-meta font-mono tabular-nums"><span>{t("24h high")} <b>{displayTicker?amountText(displayTicker.high):"—"}</b></span><span>{t("24h low")} <b>{displayTicker?amountText(displayTicker.low):"—"}</b></span></div>
+   <div className="spot-quote-meta font-mono tabular-nums"><span>{t("24h high")} <b>{displayTicker?amountText(displayTicker.high):"—"}</b></span><span>{t("24h low")} <b>{displayTicker?amountText(displayTicker.low):"—"}</b></span><Button id="trade-chart-open" ref={chartTrigger} type="button" size="sm" variant="ghost" aria-label={t("Price chart")} onClick={()=>setChartOpen(true)} className="ml-auto h-7 w-7 shrink-0 p-0 text-brand-text-muted"><ChartNoAxesCombined className="h-4 w-4"/></Button></div>
   </div>
-  <p className="spot-snapshot-text" aria-live="polite">{marketUpdatedAt?t("Snapshot checked")+": "+new Date(marketUpdatedAt).toLocaleString(localeTags[language]):t("Waiting for live data")}</p>
+  {/* Pair switcher for the compact (document-flow) terminal. The desktop
+      terminal mounts its own copy; both read the same enabled-pair list so a
+      phone user can change market without going back to /markets. */}
+  <MarketPickerDialog
+   open={pairPickerOpen}
+   onOpenChange={setPairPickerOpen}
+   description={t("Choose a spot trading pair")}
+   emptyLabel={pairSymbols.length?t("No matching markets."):t("No spot markets are currently enabled.")}
+   activeId={symbol}
+   items={pairSymbols.map(pair=>{
+    const ticker=marketList.find(item=>`${item.sym}USDT`===pair)||marketList.find(item=>item.sym===pair);
+    return {
+     id:pair,
+     label:`${pair.replace(/USDT$/,"")}/USDT`,
+     price:ticker?amountText(ticker.price):null,
+     changePct:ticker&&Number.isFinite(Number(ticker.chg))?Number(ticker.chg):null,
+    };
+   })}
+   onSelect={(pair)=>navigate(`/trade/${pair}`)}
+  />
   {/* Mobile trade tabs — design board Trade screen: Buy | Sell | Order book.
      Only one panel is mounted at a time on phones; desktop keeps its grid. */}
   <div className="spot-mobile-tabs" role="tablist" aria-label={t("Trading panel")} data-active={mobilePanel}>
@@ -713,11 +1079,34 @@ export function SpotTradingPage(){
         Phones never mount it inline — they use the safe-area drawer instead, so
         only one `setChartNode` target exists at a time. */}
     {!compactTrade&&!isPhone?!chartOpen&&chartPanel:null}
-    <Card aria-label={t("Order book")} id="trade-depth" className="exchange-depth scroll-mt-16 border-brand-border bg-brand-surface"><CardContent className="spot-depth-content space-y-1.5"><div className="spot-book-toolbar spot-book-toolbar--top"><label><span className="sr-only">{t("Depth precision")}</span><select aria-label={t("Depth precision")} value={depthPrecision} onChange={event=>setDepthPrecision(event.target.value as "0.01"|"0.1"|"1")}><option value="0.01">0.01</option><option value="0.1">0.1</option><option value="1">1</option></select></label><div className="spot-book-view" role="group" aria-label={t("Order book view")}><button type="button" aria-label={t("Both sides")} aria-pressed={bookView==="both"} onClick={()=>setBookView("both")}><Columns2 className="h-3.5 w-3.5"/></button><button type="button" aria-label={t("Bids only")} aria-pressed={bookView==="bids"} onClick={()=>setBookView("bids")}><TrendingUp className="h-3.5 w-3.5"/></button><button type="button" aria-label={t("Asks only")} aria-pressed={bookView==="asks"} onClick={()=>setBookView("asks")}><TrendingDown className="h-3.5 w-3.5"/></button></div></div>{displayBook?<><div className="spot-book-columns"><span>{t("Price")}</span><span>{t("Quantity")}</span><span className="spot-book-cum"></span></div><div className="exchange-book-levels"><div className={bookView==="bids"?"hidden":""}>{asks.length?asks.map((row,index)=><div key={index} className="spot-book-row spot-book-row--click font-mono tabular-nums cursor-pointer" data-side="ask" style={{backgroundSize:askDepth[index]+"% 100%"}} onClick={()=>{setPrice(String(row[0]));setSide("buy");setIsPriceManual(true);}}><span title={String(row[0])} className="text-right text-loss">{amountText(row[0])}</span><span title={String(row[1])} className="text-right text-brand-text-muted">{amountText(row[1])}</span><span className="spot-book-cum text-right text-brand-text-muted">{amountText(askCumulative[index])}</span></div>):<p className="text-xs text-brand-text-muted">—</p>}</div><p className="spot-mid-price font-mono tabular-nums"><span className={"inline-flex items-center gap-1 "+(Number(ticker?.chg||0)>=0?"text-profit":"text-loss")}>{Number(ticker?.chg||0)>=0?<TrendingUp className="h-4 w-4"/>:<TrendingDown className="h-4 w-4"/>}<span key={displayTicker?amountText(displayTicker.price):"—"} className="inline-block anim-price-tick font-bold">{displayTicker?amountText(displayTicker.price):"—"}</span></span></p><div className={bookView==="asks"?"hidden":""}>{bids.length?bids.map((row,index)=><div key={index} className="spot-book-row spot-book-row--click font-mono tabular-nums cursor-pointer" data-side="bid" style={{backgroundSize:bidDepth[index]+"% 100%"}} onClick={()=>{setPrice(String(row[0]));setSide("sell");setIsPriceManual(true);}}><span title={String(row[0])} className="text-right text-profit">{amountText(row[0])}</span><span title={String(row[1])} className="text-right text-brand-text-muted">{amountText(row[1])}</span><span className="spot-book-cum text-right text-brand-text-muted">{amountText(bidCumulative[index])}</span></div>):<p className="text-xs text-brand-text-muted">—</p>}</div></div></>:<div className="space-y-1.5 py-2" role="status" aria-label={t("Loading order book")}>{[0,1,2,3,4,5,6,7].map(i=><div key={i} className="h-5 animate-pulse rounded bg-brand-surface-2"/>)}</div>}</CardContent></Card>
-    <Card id="trade-entry" className="exchange-entry scroll-mt-16 border-brand-border bg-brand-surface"><CardHeader className="spot-entry-head"><div className="spot-side grid grid-cols-2 gap-1.5"><Button aria-pressed={side==="buy"} variant={side==="buy"?"default":"outline"} onClick={()=>setSide("buy")} disabled={busy||!!pendingIntent||pendingIntentInvalid}>{t("Buy")}</Button><Button aria-pressed={side==="sell"} variant={side==="sell"?"destructive":"outline"} onClick={()=>setSide("sell")} disabled={busy||!!pendingIntent}>{t("Sell")}</Button></div></CardHeader><CardContent className="space-y-2"><label className="spot-order-type"><span className="sr-only">{t("Order type")}</span><select aria-label={t("Order type")} value={orderType} disabled={busy||!!pendingIntent} onChange={event=>setOrderType(event.target.value as "limit"|"market")}><option value="limit">{t("Limit order")}</option><option value="market">{t("Market order")}</option></select></label>{orderType==="market"?<div className="spot-policy">{t("Market orders are unavailable under the current trading contract. Switch to limit order to continue.")}</div>:null}<p className="spot-available"><span>{t("Available balance")}</span><strong>{availableBalances[side==="buy"?"USDT":base]?.free!==undefined?formatDecimalAmount(availableBalances[side==="buy"?"USDT":base].free,localeTags[language]):"—"} {side==="buy"?"USDT":base}</strong></p><form className="space-y-2" onSubmit={event=>void submitOrder(event)}><label className="block space-y-1 text-sm"><span>{t("Limit price (USDT)")}</span><div className="spot-price-control"><button type="button" aria-label={t("Decrease price")} disabled={busy||!!pendingIntent} onClick={()=>adjustPrice(-1)}><Minus className="h-3.5 w-3.5"/></button><input aria-label={t("Limit price (USDT)")} value={price} onChange={event=>setPrice(event.target.value)} disabled={busy||!!pendingIntent} inputMode="decimal" className="h-11 min-w-0 flex-1 rounded-lg border border-brand-border bg-brand-surface-2 px-3 text-sm text-brand-text outline-none transition-colors placeholder:text-brand-text-muted focus:border-brand-accent/60 focus:ring-2 focus:ring-brand-accent/15" required/><button type="button" aria-label={t("Increase price")} disabled={busy||!!pendingIntent} onClick={()=>adjustPrice(1)}><Plus className="h-3.5 w-3.5"/></button></div></label><div className="spot-quick-prices grid grid-cols-5 gap-1">{[-1,-0.5,0,0.5,1].map(pct=>{const basePx=Number(displayTicker?.price||0);const px=basePx*(1+pct/100);const dec=Math.min(8,Math.max(2,(String(displayTicker?.price||"1").split(".")[1]||"").length));return <button key={pct} type="button" disabled={busy||!!pendingIntent||!basePx} onClick={()=>{setPrice(px.toFixed(dec));setIsPriceManual(true);}} className="min-h-7 rounded-md border border-brand-border bg-brand-surface-2 text-[10px] font-semibold tabular-nums text-brand-text-muted transition-colors hover:border-brand-accent/40 hover:text-brand-accent disabled:opacity-50">{pct===0?"≈":(pct>0?"+":"")+pct+"%"}</button>;})}</div><label className="block space-y-1 text-sm"><span>{t("Quantity")} · {base}</span><div className="spot-qty-control"><button type="button" aria-label={t("Decrease quantity")} disabled={busy||!!pendingIntent} onClick={()=>adjustQuantity(-1)}><Minus className="h-3.5 w-3.5"/></button><input value={quantity} onChange={event=>setQuantity(event.target.value)} disabled={busy||!!pendingIntent} inputMode="decimal" className="h-11 min-w-0 flex-1 rounded-lg border border-brand-border bg-brand-surface-2 px-3 text-sm text-brand-text outline-none transition-colors placeholder:text-brand-text-muted focus:border-brand-accent/60 focus:ring-2 focus:ring-brand-accent/15" required/><button type="button" aria-label={t("Increase quantity")} disabled={busy||!!pendingIntent} onClick={()=>adjustQuantity(1)}><Plus className="h-3.5 w-3.5"/></button></div></label><div className="grid grid-cols-4 gap-1">{[25,50,75,100].map(pct=><button key={pct} type="button" disabled={busy||!!pendingIntent} onClick={()=>{const free=Number(availableBalances[side==="buy"?"USDT":base]?.free||0);const px=Number(price);if(side==="buy"&&px>0)setQuantity(((free*pct/100)/px).toFixed(6).replace(/\.?0+$/,""));else if(side==="sell")setQuantity((free*pct/100).toFixed(6).replace(/\.?0+$/,""));}} className="min-h-8 rounded-md border border-brand-border bg-brand-surface-2 text-xs font-semibold tabular-nums text-brand-text-muted transition-colors hover:border-brand-accent/40 hover:text-brand-accent disabled:opacity-50">{pct}%</button>)}</div><p className="spot-total">{t("Estimated total")}: {price&&quantity&&Number(price)>0&&Number(quantity)>0?amountText(multiplyDecimalStrings(price,quantity))+" USDT":"—"}</p>{pendingIntent?<p className="break-all text-xs text-brand-warning">{t("Unconfirmed request ID. Keep the form unchanged and retry with the same ID.")} · {pendingIntent.client_order_id}</p>:null}<Button className={"w-full spot-submit spot-submit--"+side} type="submit" disabled={busy||pendingIntentInvalid||(!pendingIntent&&(!orderInputsValid||balanceUnavailable||insufficientBalance))||(!ticker||marketSnapshotStale)&&!pendingIntent||(!spotPairEnabled&&!pendingIntent)||(!tradingStatus?.spot_order_entry_enabled&&!pendingIntent)||!price||!quantity||orderType!=="limit"}>{busy?t("Submitting…"):pendingIntent?t("Retry same order"):insufficientBalance?t("Insufficient available balance"):side==="buy"?t("Place buy limit order"):t("Place sell limit order")}</Button>{!tradingStatus?.spot_order_entry_enabled?<div className="spot-policy">{t("Spot order execution is disabled by server policy. No order can be placed until the matching engine is approved and enabled.")}</div>:null}</form></CardContent></Card>
-    <section id="trade-orders" className="exchange-orders scroll-mt-16"><div className="spot-bottom-tabs" role="tablist" aria-label={t("Trading details")}><button type="button" role="tab" aria-selected={bottomTab==="orders"&&ordersExpanded} className={bottomTab==="orders"?"is-active":""} onClick={()=>{setBottomTab("orders");setOrdersExpanded(v=>bottomTab!=="orders"?!0:!v);}}>{t("Open orders")} ({openOrders.length})</button><button type="button" role="tab" aria-selected={bottomTab==="assets"&&ordersExpanded} className={bottomTab==="assets"?"is-active":""} onClick={()=>{setBottomTab("assets");setOrdersExpanded(v=>bottomTab!=="assets"?!0:!v);}}>{t("Current assets")}</button><Link to="/orders" aria-label={t("Order history")} title={t("Order history")}><History className="h-4 w-4"/></Link><button type="button" className="spot-bottom-toggle" aria-expanded={ordersExpanded} aria-controls="trade-orders-body" aria-label={ordersExpanded?t("Collapse"):t("Expand")} title={ordersExpanded?t("Collapse"):t("Expand")} onClick={()=>setOrdersExpanded(v=>!v)}>{ordersExpanded?<ChevronDown className="h-4 w-4"/>:<ChevronUp className="h-4 w-4"/>}</button></div>{ordersExpanded?(bottomTab==="orders"?<div id="trade-orders-body" className="space-y-1">{openOrders.length?openOrders.map((item,index)=>{const id=String(item.order_id??item.id??index);return <div key={id} className="spot-order-row"><div className="spot-order-summary"><p className="font-semibold">{item.symbol||symbol} · {item.side==="buy"?t("Buy"):item.side==="sell"?t("Sell"):item.side||"—"}</p><p className="spot-order-values">{t("Price")} {amountText(item.price)} · {t("Remaining")} {amountText(item.remaining_quantity??item.quantity)}</p><Badge variant="outline">{item.status}</Badge></div><Button size="sm" variant="outline" disabled={busy||!tradingStatus?.spot_cancel_enabled} onClick={()=>void cancelOrder(item)}>{cancelRequestIds[id]?t("Retry cancel"):t("Cancel")}</Button></div>;}):<p className="spot-orders-empty text-sm text-brand-text-muted">{t("No open orders")}</p>}</div>:<div className="spot-asset-strip"><div><span>{t("Available")} · {base}</span><strong>{availableBalances[base]?.free!==undefined?amountText(availableBalances[base].free):"—"}</strong></div><div><span>{t("Available")} · USDT</span><strong>{availableBalances.USDT?.free!==undefined?amountText(availableBalances.USDT.free):"—"}</strong></div><Link to="/assets">{t("View assets")}</Link></div>):null}</section>
+    <Card aria-label={t("Order book")} id="trade-depth" className="exchange-depth scroll-mt-16 border-brand-border bg-brand-surface"><CardContent className="spot-depth-content space-y-1.5"><div className="spot-book-toolbar spot-book-toolbar--top"><label><span className="sr-only">{t("Depth precision")}</span><select aria-label={t("Depth precision")} value={effectiveDepthPrecision} onChange={event=>setDepthPrecision(event.target.value as DepthPrecision)}>{pairPrecisionOptions.map(option=><option key={option} value={option}>{option}</option>)}</select></label><div className="spot-book-view" role="group" aria-label={t("Order book")}><button type="button" aria-label={t("Both sides")} aria-pressed={bookView==="both"} onClick={()=>setBookView("both")}><Columns2 className="h-3.5 w-3.5"/></button><button type="button" aria-label={t("Bids only")} aria-pressed={bookView==="bids"} onClick={()=>setBookView("bids")}><TrendingUp className="h-3.5 w-3.5"/></button><button type="button" aria-label={t("Asks only")} aria-pressed={bookView==="asks"} onClick={()=>setBookView("asks")}><TrendingDown className="h-3.5 w-3.5"/></button></div></div>{displayBook?<><div className="spot-book-columns"><span>{t("Price")}</span><span>{t("Quantity")}</span><span className="spot-book-cum"></span></div><div className="exchange-book-levels"><div className={bookView==="bids"?"hidden":""}>{asks.length?asks.map((row,index)=><div key={index} className="spot-book-row spot-book-row--click font-mono tabular-nums cursor-pointer" data-side="ask" style={{backgroundSize:askDepth[index]+"% 100%"}} onClick={()=>{setPrice(String(row[0]));setSide("buy");setIsPriceManual(true);}}><span title={String(row[0])} className="text-right text-loss">{amountText(row[0])}</span><span title={String(row[1])} className="text-right text-brand-text-muted">{amountText(row[1])}</span><span className="spot-book-cum text-right text-brand-text-muted">{amountText(askCumulative[index])}</span></div>):<p className="text-xs text-brand-text-muted">—</p>}</div><p className="spot-mid-price font-mono tabular-nums"><span className={"inline-flex items-center gap-1 "+(Number(ticker?.chg||0)>=0?"text-profit":"text-loss")}>{Number(ticker?.chg||0)>=0?<TrendingUp className="h-4 w-4"/>:<TrendingDown className="h-4 w-4"/>}<span key={displayTicker?amountText(displayTicker.price):"—"} className="inline-block anim-price-tick font-bold">{displayTicker?amountText(displayTicker.price):"—"}</span></span></p><div className={bookView==="asks"?"hidden":""}>{bids.length?bids.map((row,index)=><div key={index} className="spot-book-row spot-book-row--click font-mono tabular-nums cursor-pointer" data-side="bid" style={{backgroundSize:bidDepth[index]+"% 100%"}} onClick={()=>{setPrice(String(row[0]));setSide("sell");setIsPriceManual(true);}}><span title={String(row[0])} className="text-right text-profit">{amountText(row[0])}</span><span title={String(row[1])} className="text-right text-brand-text-muted">{amountText(row[1])}</span><span className="spot-book-cum text-right text-brand-text-muted">{amountText(bidCumulative[index])}</span></div>):<p className="text-xs text-brand-text-muted">—</p>}</div></div></>:<div className="space-y-1.5 py-2" role="status" aria-label={t("Loading order book")}>{[0,1,2,3,4,5,6,7].map(i=><div key={i} className="h-5 animate-pulse rounded bg-brand-surface-2"/>)}</div>}</CardContent></Card>
+    <Card id="trade-entry" className="exchange-entry scroll-mt-16 border-brand-border bg-brand-surface"><CardHeader className="spot-entry-head"><div className="spot-side grid grid-cols-2 gap-1.5"><Button aria-pressed={side==="buy"} variant={side==="buy"?"default":"outline"} onClick={()=>setSide("buy")} disabled={busy||!!pendingIntent||pendingIntentInvalid}>{t("Buy")}</Button><Button aria-pressed={side==="sell"} variant={side==="sell"?"destructive":"outline"} onClick={()=>setSide("sell")} disabled={busy||!!pendingIntent}>{t("Sell")}</Button></div></CardHeader><CardContent className="space-y-2"><label className="spot-order-type"><span className="sr-only">{t("Order type")}</span><select aria-label={t("Order type")} value={orderType} disabled={busy||!!pendingIntent} onChange={event=>setOrderType(event.target.value as "limit"|"market")}><option value="limit">{t("Limit order")}</option><option value="market">{t("Market order")}</option></select></label>{orderType==="market"?<div className="spot-policy">{t("Market orders are unavailable under the current trading contract. Switch to limit order to continue.")}</div>:null}<p className="spot-available"><span>{t("Available balance")}</span><strong>{availableBalances[side==="buy"?"USDT":base]?.free!==undefined?formatDecimalAmount(availableBalances[side==="buy"?"USDT":base].free,localeTags[language]):"—"} {side==="buy"?"USDT":base}</strong></p><form className="space-y-2" onSubmit={event=>void submitOrder(event)}><label className="block space-y-1 text-sm"><span>{t("Limit price (USDT)")}</span><div className="spot-price-control"><button type="button" aria-label={t("Decrease price")} disabled={busy||!!pendingIntent} onClick={()=>adjustPrice(-1)}><Minus className="h-3.5 w-3.5"/></button><input aria-label={t("Limit price (USDT)")} value={price} onChange={event=>setPrice(event.target.value)} disabled={busy||!!pendingIntent} inputMode="decimal" className="h-11 min-w-0 flex-1 rounded-lg border border-brand-border bg-brand-surface-2 px-3 text-sm text-brand-text outline-none transition-colors placeholder:text-brand-text-muted focus:border-brand-accent/60 focus:ring-2 focus:ring-brand-accent/15" required/><button type="button" aria-label={t("Increase price")} disabled={busy||!!pendingIntent} onClick={()=>adjustPrice(1)}><Plus className="h-3.5 w-3.5"/></button></div></label><div className="spot-quick-prices grid grid-cols-5 gap-1">{[-1,-0.5,0,0.5,1].map(pct=>{const basePx=Number(displayTicker?.price||0);const px=basePx*(1+pct/100);const dec=Math.min(8,Math.max(2,(String(displayTicker?.price||"1").split(".")[1]||"").length));return <button key={pct} type="button" disabled={busy||!!pendingIntent||!basePx} onClick={()=>{setPrice(px.toFixed(dec));setIsPriceManual(true);}} className="min-h-7 rounded-md border border-brand-border bg-brand-surface-2 text-[10px] font-semibold tabular-nums text-brand-text-muted transition-colors hover:border-brand-accent/40 hover:text-brand-accent disabled:opacity-50">{pct===0?t("Latest"):(pct>0?"+":"")+pct+"%"}</button>;})}</div><label className="block space-y-1 text-sm"><span>{t("Quantity")} · {base}</span><div className="spot-qty-control"><button type="button" aria-label={t("Decrease quantity")} disabled={busy||!!pendingIntent} onClick={()=>adjustQuantity(-1)}><Minus className="h-3.5 w-3.5"/></button><input aria-label={t("Quantity")+" · "+base} value={quantity} onChange={event=>setQuantity(event.target.value)} disabled={busy||!!pendingIntent} inputMode="decimal" className="h-11 min-w-0 flex-1 rounded-lg border border-brand-border bg-brand-surface-2 px-3 text-sm text-brand-text outline-none transition-colors placeholder:text-brand-text-muted focus:border-brand-accent/60 focus:ring-2 focus:ring-brand-accent/15" required/><button type="button" aria-label={t("Increase quantity")} disabled={busy||!!pendingIntent} onClick={()=>adjustQuantity(1)}><Plus className="h-3.5 w-3.5"/></button></div></label><div className="grid grid-cols-4 gap-1">{[25,50,75,100].map(pct=><button key={pct} type="button" disabled={busy||!!pendingIntent} onClick={()=>{const free=Number(availableBalances[side==="buy"?"USDT":base]?.free||0);const px=Number(price);if(side==="buy"&&px>0)setQuantity(((free*pct/100)/px).toFixed(6).replace(/\.?0+$/,""));else if(side==="sell")setQuantity((free*pct/100).toFixed(6).replace(/\.?0+$/,""));}} className="min-h-8 rounded-md border border-brand-border bg-brand-surface-2 text-xs font-semibold tabular-nums text-brand-text-muted transition-colors hover:border-brand-accent/40 hover:text-brand-accent disabled:opacity-50">{pct}%</button>)}</div><p className="spot-total hidden">{t("Estimated total")}: {price&&quantity&&Number(price)>0&&Number(quantity)>0?amountText(multiplyDecimalStrings(price,quantity))+" USDT":"—"}</p>{pendingIntent?<p className="break-all text-xs text-brand-warning">{t("Unconfirmed request ID. Keep the form unchanged and retry with the same ID.")} · {pendingIntent.client_order_id}</p>:null}<Button className={"w-full spot-submit spot-submit--"+side} type="submit" disabled={busy||pendingIntentInvalid||(!pendingIntent&&(!orderInputsValid||balanceUnavailable||insufficientBalance))||(!ticker||marketSnapshotStale)&&!pendingIntent||(!spotPairEnabled&&!pendingIntent)||(!tradingStatus?.spot_order_entry_enabled&&!pendingIntent)||!price||!quantity||orderType!=="limit"}>{busy?t("Submitting…"):pendingIntent?t("Retry same order"):insufficientBalance?t("Insufficient available balance"):side==="buy"?t("Buy")+" "+base:t("Sell")+" "+base}</Button>{!tradingStatus?.spot_order_entry_enabled?<div className="spot-policy hidden">{t("Spot order execution is disabled by server policy. No order can be placed until the matching engine is approved and enabled.")}</div>:null}</form></CardContent></Card>
+    <BottomOrderPanel
+    id="trade-orders"
+    className="exchange-orders scroll-mt-16"
+    ariaLabel={t("Trading details")}
+    tabs={[{key:"orders",label:`${t("Open orders")} (${openOrders.length})`},{key:"assets",label:t("Current assets")}]}
+    active={bottomTab}
+    onActiveChange={(key)=>{setBottomTab(key as "orders"|"assets");setOrdersExpanded(v=>bottomTab!==key?true:!v);}}
+    expanded={ordersExpanded}
+    onToggle={()=>setOrdersExpanded(v=>!v)}
+    trailing={<Link to="/orders" aria-label={t("Order history")} title={t("Order history")}><History className="h-4 w-4"/></Link>}
+   >{ordersExpanded?(bottomTab==="orders"?<div id="trade-orders-body" className="space-y-1">{openOrders.length?openOrders.map((item,index)=>{const id=String(item.order_id??item.id??index);return <div key={id} className="spot-order-row"><div className="spot-order-summary"><p className="font-semibold">{item.symbol||symbol} · {item.side==="buy"?t("Buy"):item.side==="sell"?t("Sell"):item.side||"—"}</p><p className="spot-order-values">{t("Price")} {amountText(item.price)} · {t("Remaining")} {amountText(item.remaining_quantity??item.quantity)}</p><Badge variant="outline">{item.status}</Badge></div><Button size="sm" variant="outline" disabled={busy||!tradingStatus?.spot_cancel_enabled} onClick={()=>void cancelOrder(item)}>{cancelRequestIds[id]?t("Retry cancel"):t("Cancel")}</Button></div>;}):<p className="spot-orders-empty text-sm text-brand-text-muted">{t("No open orders")}</p>}</div>:<div className="spot-asset-strip"><div><span>{t("Available")} · {base}</span><strong>{availableBalances[base]?.free!==undefined?amountText(availableBalances[base].free):"—"}</strong></div><div><span>{t("Available")} · USDT</span><strong>{availableBalances.USDT?.free!==undefined?amountText(availableBalances.USDT.free):"—"}</strong></div><Link to="/assets">{t("View assets")}</Link></div>):null}</BottomOrderPanel>
   </div>
- </PageFrame><Dialog.Portal><Dialog.Overlay className="spot-chart-overlay"/><Dialog.Content className="spot-chart-drawer" aria-label={t("Price chart")} onCloseAutoFocus={event=>{event.preventDefault();chartTrigger.current?.focus();}}><button type="button" className="spot-chart-close" aria-label="Close chart" onClick={()=>setChartOpen(false)}>×</button>{chartPanel}</Dialog.Content></Dialog.Portal></Dialog.Root>;
+  {/* 最新成交（成交明细）：放在双栏交易网格之后，避免成为网格的一列 */}
+  <section aria-label={t("Recent trades")} className="mt-2 min-w-0">
+    <TradesPanel symbol={symbol} limit={6} />
+  </section>
+
+ </PageFrame>;
+ const terminalBody=compactTrade||isPhone?compactTerminal:proTerminal;
+ // Phones use the same bottom-anchored K-line drawer as the perpetual page
+ // (65dvh-style sheet pinned above the bottom nav). Tablets/desktop keep the
+ // inline chart panel inside their workspace grid.
+ if (isPhone) {
+  return <><ChartDrawer symbol={symbol} marketType="spot" />{terminalBody}</>;
+ }
+ return <Dialog.Root open={chartOpen} onOpenChange={setChartOpen}>{terminalBody}<Dialog.Portal><Dialog.Overlay className="spot-chart-overlay"/><Dialog.Content className="spot-chart-drawer" aria-label={t("Price chart")} onCloseAutoFocus={event=>{event.preventDefault();chartTrigger.current?.focus();}}><button type="button" className="spot-chart-close" aria-label="Close chart" onClick={()=>setChartOpen(false)}>×</button>{chartPanel}</Dialog.Content></Dialog.Portal></Dialog.Root>;
 }
 
 export function SectionPage({title,description}:{title:string;description:string}){const {t}=useI18n();return <PageFrame title={title} tone="market"><Card className="border-brand-border bg-brand-surface"><CardContent className="flex flex-wrap items-start gap-3 p-4 sm:p-5"><span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-brand-border bg-brand-surface-2 text-brand-text-muted"><LockKeyhole className="h-5 w-5"/></span><Badge variant="outline" className="shrink-0 border-brand-border text-brand-text-muted">{t("Unavailable")}</Badge><p className="type-body-compact min-w-0 flex-1 text-brand-text-muted">{t("This service is not currently available. Please check back later.")}</p></CardContent></Card></PageFrame>}
@@ -955,10 +1344,10 @@ export function SecondsPage(){
  const openCount = snapshot?.open.length || 0;
 
  return <PageFrame title={t("Seconds")} className="spot-terminal !gap-1.5 !p-1.5 sm:!p-3" tone="trading">
-  {/* 1. 顶部模式导航栏 */}
-  <div className="px-0.5"><TradeProductNav /></div>
+  {/* The global header already carries the product switcher; repeating it here
+      pushed the seconds workspace down by a full row. */}
 
-  {/* 2. 交易对切换与行情条 (完全对齐现货风格) */}
+  {/* 1. 交易对切换与行情条 (完全对齐现货风格) */}
   <div className="flex items-center justify-between px-1 py-1 -mt-0.5">
    <div className="flex items-center gap-2">
     <span className="text-base font-bold text-brand-text tracking-tight flex items-center gap-1.5">
@@ -1485,12 +1874,13 @@ export function WithdrawPage(){
  const [actionMessage,setActionMessage]=useState("");
  const [pendingIntent,setPendingIntent]=useState<{version:1;request_id:string;address_id:string;coin:string;network:string;amount:string;address:string;created_at:number}|null>(null);
  const [pendingIntentInvalid,setPendingIntentInvalid]=useState(false);
+ const [needsSignIn,setNeedsSignIn]=useState(false);
  const submitLockRef=useRef(false);
  const [reload,setReload]=useState(0);
 
  useEffect(()=>{
   const controller=new AbortController();
-  setLoading(true);setAccount(null);setAddresses([]);setConfig(null);setSelectedAddress(null);setError("");
+  setLoading(true);setAccount(null);setAddresses([]);setConfig(null);setSelectedAddress(null);setError("");setNeedsSignIn(false);
   Promise.all([getAccount(controller.signal),getSavedCryptoAddresses(controller.signal),getWithdrawalConfig(controller.signal)])
    .then(([snapshot,book,withdrawalConfig])=>{
     if(controller.signal.aborted)return;
@@ -1512,7 +1902,12 @@ export function WithdrawPage(){
     if(reason instanceof Error&&reason.name==="AbortError")return;
     if(!controller.signal.aborted){
     setAccount(null);setAddresses([]);setConfig(null);setSelectedAddress(null);
-    setError(reason instanceof Error?reason.message:"Wallet data is temporarily unavailable.");
+    // A signed-out visitor is not an error: show the same localized sign-in
+    // prompt as every other account page instead of a red alert carrying the
+    // server's raw English message plus a retry that can never succeed.
+    const signedOut=reason instanceof ApiError&&(reason.status===401||reason.code==="AUTH_REQUIRED");
+    setNeedsSignIn(signedOut);
+    setError(signedOut?"":(reason instanceof Error?reason.message:"Wallet data is temporarily unavailable."));
    }
    })
    .finally(()=>{if(!controller.signal.aborted)setLoading(false);});
@@ -1591,6 +1986,7 @@ export function WithdrawPage(){
  };
  return <PageFrame title="Withdraw" tone="assets" backTo="/assets">
   {loading?<Card className="border-brand-border bg-brand-surface"><CardContent className="p-5 text-sm text-brand-text-muted" role="status">{t("Loading wallet and saved addresses…")}</CardContent></Card>
+  :needsSignIn?<Card className="border-brand-border bg-brand-surface"><CardContent className="flex flex-wrap items-center justify-between gap-3 p-4"><p className="text-xs text-brand-text-muted">{t("Please sign in to view your account data")}</p><Button asChild size="sm" className="h-10"><Link to="/login">{t("Go to sign in")}</Link></Button></CardContent></Card>
   :error&&!account?<Card className="border-brand-danger/30 bg-brand-surface"><CardContent className="flex flex-wrap items-center justify-between gap-3 p-5"><p className="text-sm text-brand-danger" role="alert">{t(error)}</p><Button size="sm" variant="outline" onClick={()=>setReload(n=>n+1)}>{t("Try again")}</Button></CardContent></Card>
   :<>
    <Card aria-busy={loading} className="overflow-hidden border border-white/[0.08] bg-brand-surface shadow-[inset_0_1px_0_0_rgba(255,255,255,0.12)]"><CardHeader className="border-b border-brand-border bg-brand-surface"><div className="flex min-w-0 items-center gap-3"><span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand-cyan/10 text-brand-cyan"><Wallet className="h-4 w-4"/></span><div className="min-w-0"><CardTitle>{t("Available balances")}</CardTitle><CardDescription>{account?.valuation_complete?t("Estimated total value"):t("Some asset prices are unavailable; total valuation is incomplete.")}</CardDescription></div></div></CardHeader><CardContent className="p-4 sm:p-5">
