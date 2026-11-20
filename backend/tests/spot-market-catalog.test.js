@@ -20,6 +20,10 @@ test('public spot-market catalogue is sourced from operator configuration', () =
   assert.ok(routeBlock.includes('markets.filter(market => market.enabled)'));
   assert.ok(backend.includes("market.quote_asset !== 'USDT'"));
   assert.ok(backend.includes("quoteAsset !== 'USDT'"));
+  assert.ok(!backend.includes("DEFAULT_SPOT_CATALOG"), "catalogue read failures must not activate a seeded market list");
+  assert.match(backend, /catch \(error\) \{ throw new Error\('Spot market catalogue unavailable:/);
+  assert.ok(api.includes("MARKET_CATALOG_UNAVAILABLE"));
+  assert.ok(!api.includes("return getSampleMarketPairs()"), "the public client must not fabricate a pair list");
 });
 
 test('market ticker, candles and depth are gated by enabled spot pairs', () => {
