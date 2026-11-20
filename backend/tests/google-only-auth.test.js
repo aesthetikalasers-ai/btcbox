@@ -14,7 +14,7 @@ test('legacy static auth support files remain valid JavaScript', () => {
   }
 });
 
-test('React login and registration expose username, email, Google and wallet authentication', () => {
+test('React registration uses Google or wallet; legacy username/email sign-in remains available', () => {
   const authPage = fs.readFileSync(path.resolve(root, '..', 'frontend/src/features/auth/AuthPages.tsx'), 'utf8');
   assert.ok(authPage.includes('signInWithUsername'));
   assert.ok(authPage.includes('Google'));
@@ -22,7 +22,8 @@ test('React login and registration expose username, email, Google and wallet aut
   assert.ok(authPage.includes('Connect Ethereum wallet'));
   assert.ok(authPage.includes('Connect Solana wallet'));
   assert.ok(authPage.includes('signInWithEmail'));
-  assert.ok(authPage.includes('signUpWithEmail')); // email registration supported via Supabase Auth
+  assert.ok(!authPage.includes('signUpWithEmail'));
+  assert.ok(!authPage.includes('Create account with email'))
   assert.ok(!authPage.includes('requestPasswordReset'));
   assert.ok(authPage.includes('completePasswordRecovery'));
   assert.ok(authPage.includes('Username or email'));
