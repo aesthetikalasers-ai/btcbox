@@ -112,14 +112,17 @@ test('spot UI labels server snapshot time and does not substitute browser receip
 
 const authPage = fs.readFileSync(path.resolve(__dirname, '../../frontend/src/features/auth/AuthPages.tsx'), 'utf8');
 
-test('sign-in and registration pages expose Google and wallet auth; email/password entry removed', () => {
+test('sign-in and registration pages expose email, Google and wallet auth', () => {
   assert.ok(authPage.includes('Google'));
   assert.ok(authPage.includes('Wallet'));
   assert.ok(authPage.includes('signInWithGoogle'));
   assert.ok(authPage.includes('Connect Ethereum wallet'));
   assert.ok(authPage.includes('Connect Solana wallet'));
   assert.ok(authPage.includes('signInWithWeb3'));
-  assert.ok(authPage.includes('Sign in with username'));
+  assert.ok(authPage.includes('Username or email'));
+  assert.ok(authPage.includes('signInWithEmail'));
+  assert.ok(authPage.includes('signUpWithEmail'));
+  assert.ok(authPage.includes('Create account with email'));
 
   assert.ok(!authPage.includes('requestPasswordReset'));
   assert.ok(authPage.includes('completePasswordRecovery'));
