@@ -30,7 +30,8 @@ const {
   readRecentTrades,
 } = require('./stream-core.js');
 
-const ALLOWED_ORIGINS = (process.env.CORS_ALLOWED_ORIGINS || 'https://btcboxcdt.vercel.app').split(',').map((s) => s.trim()).filter(Boolean);
+// Fail-closed default: production origins must be supplied via CORS_ALLOWED_ORIGINS.
+const ALLOWED_ORIGINS = (process.env.CORS_ALLOWED_ORIGINS || '').split(',').map((s) => s.trim()).filter(Boolean);
 
 function resolveCorsOrigin(req) {
   const origin = (req.headers && (req.headers.origin || req.headers.Origin)) || '';

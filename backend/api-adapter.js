@@ -1,8 +1,9 @@
 'use strict';
 const { handler } = require('./api-core.js');
 const MAX_BODY_BYTES = 1024 * 1024;
-// CORS 默认仅生产域名；localhost 仅在 CONTEXT=dev 时加入（CONTEXT 默认 production）。
-const DEFAULT_CORS_ALLOWED_ORIGINS = 'https://btcboxcdt.vercel.app';
+// Fail-closed default: no production origin baked into source; production must
+// set CORS_ALLOWED_ORIGINS explicitly. localhost is added only under CONTEXT=dev.
+const DEFAULT_CORS_ALLOWED_ORIGINS = '';
 const DEV_CORS_ORIGINS = ['http://localhost:3000', 'http://localhost:8000', 'http://127.0.0.1:3000', 'http://127.0.0.1:8000'];
 let _corsAllowedOrigins = null;
 function corsErrorHeaders(req) {

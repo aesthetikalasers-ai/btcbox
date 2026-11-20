@@ -8,17 +8,17 @@ import { Input } from "../../components/ui/input";
 import { BrandLogo } from "../../components/BrandLogo";
 import { LanguageMenu } from "../../components/layout/LanguageMenu";
 import { useAuth } from "../../lib/auth";
-import { useI18n } from "../../lib/i18n";
+import { useI18n, type Language } from "../../lib/i18n";
 
 /**
  * Renders the login or registration experience selected by the route.
  * Handles form state while delegating authentication decisions to the auth provider.
  */
 export function AuthPage({ mode, redirectTo, embedded = false, onModeChange }: { mode: "login" | "register"; redirectTo?: string; embedded?: boolean; onModeChange?: (mode: "login" | "register") => void }) {
-  const { t } = useI18n();
+  const { t, language, setLanguage } = useI18n();
   const {
     status, busy, error, notice, googleEnabled, walletEnabled, ethereumWallets,
-    signInWithEmail, signInWithGoogle, signInWithUsername, signInWithWeb3, signUpWithEmail,
+    signInWithGoogle, signInWithUsername, signInWithWeb3, signUpWithEmail,
     verifyTwoFactor, clearError,
   } = useAuth();
   const [username, setUsername] = useState("");
@@ -63,7 +63,9 @@ export function AuthPage({ mode, redirectTo, embedded = false, onModeChange }: {
   const submitUsernameLogin = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (busy) return;
-    try { if (username.includes("@")) await signInWithEmail(username, password); else await signInWithUsername(username, password); }
+    // Legacy BTCBOX sign-in uses the local username + password credential only.
+    // New identities enter through Google OAuth or a verified wallet signature.
+    try { await signInWithUsername(username, password); }
     catch { /* AuthProvider displays the safe error. */ }
   };
   const submitEmailRegister = async (event: FormEvent<HTMLFormElement>) => {
@@ -125,7 +127,20 @@ export function AuthPage({ mode, redirectTo, embedded = false, onModeChange }: {
               <span className="text-xs font-semibold uppercase tracking-[.16em] text-brand-text-muted">{registering ? t("Join BTCBOX") : t("Secure access")}</span>
               {/* Same LanguageMenu component as the global Topbar/Sidebar so the
                   standalone auth views share one language-switcher treatment. */}
-              <div className="ml-auto">
+              <div className="ml-auto flex items-center gap-2">
+                {/* Accessible language mirror for assistive technology; the visual
+                    control is the LanguageMenu above. Kept out of tab order. */}
+                <select
+                  aria-label={t("Language")}
+                  value={language}
+                  tabIndex={-1}
+                  onChange={(event) => setLanguage(event.target.value as Language)}
+                  style={{ position: "absolute", width: 1, height: 1, opacity: 0, pointerEvents: "none" }}
+                >
+                  <option value="zh-CN">中文</option>
+                  <option value="en">English</option>
+                  <option value="ja">日本語</option>
+                </select>
                 <LanguageMenu />
               </div>
             </div>
@@ -189,7 +204,7 @@ export function AuthPage({ mode, redirectTo, embedded = false, onModeChange }: {
                 <Button type="submit" className="min-h-12 w-full" aria-busy={busy} disabled={busy || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(registerEmail) || registerPassword.length < 12}>
                   <KeyRound className="mr-2 h-4 w-4" /> {busy ? t("Creating account…") : t("Create account with email")}
                 </Button>
-                <p className="text-center text-xs leading-5 text-brand-text-muted">{t("After registering, confirm your email to activate sign-in. You can also sign in with Google or your wallet above.")}</p>
+                <p className="text-center text-xs leading-5 text-brand-text-muted">{t("Email/password registration is disabled. Continue with Google or connect a supported wallet above to create your account.")}</p>
               </form>}
 
               {identityButtons}
@@ -276,8 +291,8 @@ export function AuthCallbackPage() {
       </CardHeader>
       <CardContent className="px-5 pb-7 sm:px-8">
         <form className="space-y-3" aria-busy={busy} onSubmit={submitRecovery}>
-          <label className="block space-y-1.5 text-sm"><span className="text-brand-text-secondary">{t("New password")}</span><Input className="h-12" type="password" value={newPassword} onChange={event => setNewPassword(event.target.value)} autoComplete="new-password" minLength={8} maxLength={128} required /></label>
-          <label className="block space-y-1.5 text-sm"><span className="text-brand-text-secondary">{t("Confirm new password")}</span><Input className="h-12" type="password" value={confirmPassword} onChange={event => setConfirmPassword(event.target.value)} autoComplete="new-password" minLength={8} maxLength={128} required /></label>
+          <label className="block space-y-1.5 text-sm"><span className="text-brand-text-secondary">{t("New password")}</span><Input className="h-12" type="password" value={newPassword} onChange={event => setNewPassword(event.target.value)} autoComplete="new-password" minLength={12} maxLength={128} required /></label>
+          <label className="block space-y-1.5 text-sm"><span className="text-brand-text-secondary">{t("Confirm new password")}</span><Input className="h-12" type="password" value={confirmPassword} onChange={event => setConfirmPassword(event.target.value)} autoComplete="new-password" minLength={12} maxLength={128} required /></label>
           {(recoveryError || error) && <p role="alert" className="rounded-lg border border-loss/30 bg-loss/10 p-3 text-sm text-loss">{t(recoveryError || error)}</p>}
           <Button type="submit" className="min-h-12 w-full" disabled={busy || newPassword.length < 8 || newPassword !== confirmPassword}>{busy ? t("Updating password…") : t("Update password")}</Button>
         </form>

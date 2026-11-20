@@ -119,9 +119,10 @@ export function TerminalOrderForm(props: TerminalOrderFormProps) {
   };
 
   const balanceText = availableBalance === undefined ? "—" : formatDecimalAmount(availableBalance, locale);
-  const insufficient = availableBalance !== undefined && amount && DECIMAL_PATTERN.test(amount)
-    ? compareDecimalStrings(String(availableBalance), amount) < 0
-    : false;
+  const balanceCompare = availableBalance !== undefined && amount && DECIMAL_PATTERN.test(amount)
+    ? compareDecimalStrings(String(availableBalance), amount)
+    : undefined;
+  const insufficient = balanceCompare !== undefined && balanceCompare < 0;
 
   const quickPriceDecimals = Math.min(8, Math.max(2, (price.split(".")[1] || "").length));
   const stepPrice = 10 ** -quickPriceDecimals;

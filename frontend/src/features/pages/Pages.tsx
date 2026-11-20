@@ -207,7 +207,7 @@ export function MyPage(){
    if(reason instanceof Error&&reason.name==="AbortError")return;
    if(!controller.signal.aborted){
     setAccount(null);
-    setError(localizedFailure(reason,"Account data is temporarily unavailable."));
+    setError(localizedFailure(reason,"Account profile is temporarily unavailable."));
    }
   }).finally(()=>{if(!controller.signal.aborted)setLoading(false);});
   return ()=>controller.abort();
@@ -584,11 +584,9 @@ export function SpotTradingPage(){
     setMarketFeedWarning(failed?"Live market data is temporarily unavailable.":"");
    }).finally(()=>{window.clearTimeout(timeoutId);refreshing=false;});
   };
-// The ticker and order book refresh at 1.5 s: fast enough to read as live, slow
-// enough that the gateway's own cache (TICKER_TTL_MS = 1500) absorbs the load so
-// providers are hit at most once per tick regardless of how many browsers poll.
-const MARKET_POLL_MS = 1500;
-  const refreshId=window.setInterval(refreshMarketData,MARKET_POLL_MS);
+// The ticker and order book poll every 5 s; the gateway cache window absorbs
+// shared load, while the local 90 s staleness guard disables entry on a gap.
+  const refreshId=window.setInterval(refreshMarketData,5000);
   return ()=>{cancelled=true;window.clearInterval(refreshId);};
  },[symbol]);
 
@@ -897,6 +895,7 @@ const MARKET_POLL_MS = 1500;
      <div><span>{t("24h high")}</span><b>{displayTicker?amountText(displayTicker.high):"—"}</b></div>
      <div><span>{t("24h low")}</span><b>{displayTicker?amountText(displayTicker.low):"—"}</b></div>
      <div><span>{t("24h volume")}</span><b>{displayTicker&&displayTicker.vol!==undefined&&displayTicker.vol!==null?amountText(displayTicker.vol):"—"}</b></div>
+     <div className="term-snapshot"><span>{t("Snapshot checked")}</span><b data-snapshot-ts={displayTicker?.snapshotTs ?? null}>{marketUpdatedAt ? new Date(marketUpdatedAt).toLocaleTimeString() : "—"}</b></div>
     </div>
     <div className="term-top-links">
      <Link to="/assets" className="term-top-link"><Wallet className="h-3.5 w-3.5" aria-hidden="true"/>{t("Assets")}</Link>
@@ -1612,13 +1611,11 @@ export function KycPage(){
   const controller=new AbortController();setLoading(true);setAccount(null);setError("");
   getAccount(controller.signal).then(data=>{setAccount(data);setName(current=>current||data.kyc?.name||"");setIdType(current=>data.kyc?.id_type==="passport"||data.kyc?.id_type==="driver_license"?data.kyc.id_type:current);}).catch((reason:unknown)=>{
    if(reason instanceof Error&&reason.name==="AbortError")return;
-   if(!controller.signal.aborted){
-    // Local development renders the form without a session; a 401 is expected
-    // there and must not replace the page with an error card.
-    const authRequired=reason instanceof ApiError&&(reason.status===401||reason.code==="AUTH_REQUIRED");
-    if(authRequired&&DEV_OPEN_ACCOUNT_PAGES){setAccount({...DEV_ACCOUNT_PLACEHOLDER} as unknown as AccountSnapshot);setError("");}
-    else{setAccount(null);setError(reason instanceof Error?reason.message:"Verification status is temporarily unavailable.");}
-   }
+   // Local development renders the form without a session; a 401 is expected
+   // there and must not replace the page with an error card.
+   const authRequired=reason instanceof ApiError&&(reason.status===401||reason.code==="AUTH_REQUIRED");
+   if(authRequired&&DEV_OPEN_ACCOUNT_PAGES){if(!controller.signal.aborted){setAccount({...DEV_ACCOUNT_PLACEHOLDER} as unknown as AccountSnapshot);setError("");}return;}
+   if(!controller.signal.aborted){setAccount(null);setError(reason instanceof Error?reason.message:"Verification status is temporarily unavailable.");}
   }).finally(()=>{if(!controller.signal.aborted)setLoading(false);});
   return ()=>controller.abort();
  },[reload]);

@@ -12,6 +12,7 @@ function friendlyAuthErrorMessage(cause: unknown): string {
   if (code === "IDENTITY_IN_USE") return "This wallet is already linked to another BTCBOX account. Please sign in with that account.";
   if (code === "ACCOUNT_FROZEN") return "This BTCBOX account is frozen. Please contact support.";
   if (code === "AUTH_PROVIDER_NOT_ALLOWED") return "This sign-in method is not available. Please use another method.";
+  if (code === "GOOGLE_ONLY_AUTH") return "Email/password registration is disabled. Continue with Google or connect a supported wallet.";
   if (code === "GOOGLE_PROVIDER_UNAVAILABLE") return "Google sign-in is temporarily unavailable. Please try again later.";
   if (code === "INVALID_SUPABASE_IDENTITY") return "The sign-in identity could not be verified. Please try again.";
   const rawMessage = cause instanceof Error ? cause.message : "";
@@ -76,10 +77,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [notice, setNotice] = useState("");
   const [googleEnabled, setGoogleEnabled] = useState(true);
   const [walletEnabled, setWalletEnabled] = useState(false);
-  const [identityLinkSourceVerified, setIdentityLinkSourceVerified] = useState(
-  // Initialize based on whether user is already authenticated with a method
-  status === "authenticated"
-);
+  const [identityLinkSourceVerified, setIdentityLinkSourceVerified] = useState(false);
   const [pendingIdentityLinkToken, setPendingIdentityLinkToken] = useState("");
   const [identityLinkNeedsTwoFactor, setIdentityLinkNeedsTwoFactor] = useState(false);
   const [needsCredentials, setNeedsCredentials] = useState(false);

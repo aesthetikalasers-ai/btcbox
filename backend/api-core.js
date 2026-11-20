@@ -290,7 +290,10 @@ let _currentEvent = null;
 // explicitly listed in CORS_ALLOWED_ORIGINS (comma-separated). Unlisted
 // origins receive no Access-Control-Allow-Origin header, so the browser blocks
 // response reading. Same-origin requests never send an Origin header and are unaffected.
-const DEFAULT_CORS_ALLOWED_ORIGINS = 'https://btcboxcdt.vercel.app';
+// Fail-closed default: no production origin is baked into source. Production
+// deployments must list explicit origins in CORS_ALLOWED_ORIGINS (comma-separated).
+// localhost origins are appended only when CONTEXT=dev.
+const DEFAULT_CORS_ALLOWED_ORIGINS = '';
 const DEV_CORS_ORIGINS = ['http://localhost:3000', 'http://localhost:8000', 'http://127.0.0.1:3000', 'http://127.0.0.1:8000'];
 let _corsAllowedOrigins = null;
 function corsAllowedOrigins() {
@@ -1342,9 +1345,11 @@ async function handleRequest(event, context) {
   if (path === 'auth-health' && method === 'GET') {
     const authUrl = String(process.env.SUPABASE_AUTH_URL || '').replace(/\/+$/, '');
     const authKey = getPublishableKey();
-    const expectedAuthUrl = 'https://zlozsutefnmgwwzrlipt.supabase.co';
     const configured = Boolean(authUrl && authKey);
-    const projectMatches = authUrl === expectedAuthUrl;
+    // Compatibility flag: the configured environment URL is the authority.
+    // Never bake a production project URL into source; a stale checkout must not
+    // silently validate against the wrong Supabase tenant.
+    const projectMatches = configured;
     const googleEnabled = configured ? await detectGoogleProviderEnabled() : false;
     return json({
       ok: configured && projectMatches,
@@ -1414,50 +1419,16 @@ async function handleRequest(event, context) {
     return json({ ok: false, code: 'VERIFICATION_UNAVAILABLE', msg: 'Verification is temporarily unavailable. Please try again later.' }, 503);
   }
 
-  // ---------- POST /api/register — disabled: BTCBOX uses Google-only Supabase identity ----------
+  // ---------- POST /api/register — disabled: BTCBOX identity provisioning is
+  // Supabase-verified (Google / Web3 provider grants). Open email/password
+  // registration with the service-role key would bypass email confirmation and
+  // must stay closed fail-closed. The client maps this code to a safe notice.
   if (path === 'register' && method === 'POST') {
-    const email = String(body.email || '').trim().toLowerCase();
-    const password = typeof body.password === 'string' ? body.password : '';
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      return json({ ok: false, code: 'INVALID_INPUT', msg: 'Enter a valid email address.' }, 400);
-    }
-    if (password.length < 12) {
-      return json({ ok: false, code: 'INVALID_INPUT', msg: 'Password must be at least 12 characters.' }, 400);
-    }
-    const sbUrl = String(process.env.SUPABASE_URL || process.env.SUPABASE_AUTH_URL || '').replace(/\/+$/, '');
-    const sbKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY || '';
-    if (!sbUrl || !sbKey) {
-      return json({ ok: false, code: 'AUTH_PROVIDER_UNAVAILABLE', msg: 'Registration is temporarily unavailable. Please try again later.' }, 503);
-    }
-    if (!db.security_counters) db.security_counters = {};
-    const regKey = 'register_ip:' + clientIp(event);
-    const regRl = secCounterIsLocked(db.security_counters, regKey, Date.now());
-    if (regRl.locked) return rateLimitedJson(regRl.retryAfter);
-    secCounterRecordFailure(db.security_counters, regKey, 10, 15 * 60 * 1000, Date.now());
-    try { await saveDB(db); } catch (e) { console.warn('[register-rl] persist failed:', e.message); }
-    try {
-      const createRes = await fetch(sbUrl + '/auth/v1/admin/users', {
-        method: 'POST',
-        headers: { 'apikey': sbKey, 'Authorization': 'Bearer ' + sbKey, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password, email_confirm: true }),
-      });
-      const createBody = await createRes.json().catch(() => ({}));
-      if (!createRes.ok && createRes.status !== 422) {
-        return json({ ok: false, code: 'REGISTRATION_FAILED', msg: (createBody && createBody.msg) || 'Registration failed. Please try again.' }, 502);
-      }
-      const tokenRes = await fetch(sbUrl + '/auth/v1/token?grant_type=password', {
-        method: 'POST',
-        headers: { 'apikey': sbKey, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
-      });
-      const tokenBody = await tokenRes.json().catch(() => ({}));
-      if (!tokenRes.ok || !tokenBody.access_token) {
-        return json({ ok: false, code: 'REGISTRATION_FAILED', msg: 'Registration succeeded but automatic sign-in failed. Please sign in manually.' }, 502);
-      }
-      return json({ ok: true, supabase_access_token: tokenBody.access_token });
-    } catch (e) {
-      return json({ ok: false, code: 'AUTH_PROVIDER_UNAVAILABLE', msg: 'Registration service is temporarily unavailable. Please try again later.' }, 503);
-    }
+    return json({
+      ok: false,
+      code: 'GOOGLE_ONLY_AUTH',
+      msg: 'Email/password registration is disabled. Continue with Google or connect a supported wallet to create your BTCBOX account.',
+    }, 403);
   }
 
   // ---------- POST /api/login — BTCBOX username + password ----------
