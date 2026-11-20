@@ -119,8 +119,9 @@ export function TerminalOrderForm(props: TerminalOrderFormProps) {
   };
 
   const balanceText = availableBalance === undefined ? "—" : formatDecimalAmount(availableBalance, locale);
-  const balanceCompare = availableBalance !== undefined && amount && DECIMAL_PATTERN.test(amount)
-    ? compareDecimalStrings(String(availableBalance), amount)
+  const balanceRequirement = side === "sell" ? quantity : amount;
+  const balanceCompare = availableBalance !== undefined && balanceRequirement && DECIMAL_PATTERN.test(balanceRequirement)
+    ? compareDecimalStrings(String(availableBalance), balanceRequirement)
     : undefined;
   const insufficient = balanceCompare !== undefined && balanceCompare < 0;
 
