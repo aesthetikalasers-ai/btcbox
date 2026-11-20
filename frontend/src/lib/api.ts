@@ -310,13 +310,13 @@ export async function getOrderBook(symbol = "BTCUSDT", signal?: AbortSignal): Pr
   } catch (error) {
     if (error instanceof ApiError && error.code === "INVALID_ORDER_BOOK") throw error;
     if (error instanceof Error && error.name === "AbortError" && signal?.aborted) throw error;
-    // Network error — fall back to demo order book silently so the UI never
-    // shows a blank order book or an error banner.
-    return getDemoOrderBook(symbol);
+    // Live depth must never be replaced by fabricated levels. The caller
+    // renders an unavailable state and keeps order submission fail-closed.
+    return null;
   }
-  // If the payload was empty or malformed in a way not caught above, fall
-  // back to demo data instead of rendering a blank order book.
-  return getDemoOrderBook(symbol);
+  // A missing or malformed live payload is unavailable, not a reason to invent
+  // prices or quantities that could be mistaken for executable liquidity.
+  return null;
 }
 export interface UsdtUsdRate { rate: number; source: string; stale?: boolean; }
 /**
