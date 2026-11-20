@@ -1127,7 +1127,7 @@ export function SpotTradingPage(){
  // (65dvh-style sheet pinned above the bottom nav). Tablets/desktop keep the
  // inline chart panel inside their workspace grid.
  if (isPhone) {
-  return <><ChartDrawer symbol={symbol} marketType="spot" />{terminalBody}</>;
+  return <><ChartDrawer symbol={symbol} marketType="spot" open={chartOpen} onOpenChange={setChartOpen} />{terminalBody}</>;
  }
  return <Dialog.Root open={chartOpen} onOpenChange={setChartOpen}>{terminalBody}<Dialog.Portal><Dialog.Overlay className="spot-chart-overlay"/><Dialog.Content className="spot-chart-drawer" aria-label={t("Price chart")} onCloseAutoFocus={event=>{event.preventDefault();chartTrigger.current?.focus();}}><button type="button" className="spot-chart-close" aria-label="Close chart" onClick={()=>setChartOpen(false)}>×</button>{chartPanel}</Dialog.Content></Dialog.Portal></Dialog.Root>;
 }
