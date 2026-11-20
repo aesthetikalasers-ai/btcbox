@@ -138,6 +138,7 @@ export function ContractPage() {
   const [markets, setMarkets] = useState<PerpMarket[]>([]);
   const [marketsLoading, setMarketsLoading] = useState(true);
   const [marketsError, setMarketsError] = useState("");
+  const [marketsFallback, setMarketsFallback] = useState(false);
   const [symbol, setSymbol] = useState("");
   const [orderType, setOrderType] = useState<"market" | "limit">("limit");
   const [side, setSide] = useState<"buy" | "sell">("buy");
@@ -190,7 +191,6 @@ export function ContractPage() {
   // they map onto the existing side / reduceOnly / closePosition order fields.
   const [mobileSideTab, setMobileSideTab] = useState<"open" | "close">("open");
   const [mobilePercent, setMobilePercent] = useState(0);
-  const [mobileTpSl, setMobileTpSl] = useState(false);
   // Initial-margin input (USDT) for the mobile order form. Typing here derives the
   // equivalent contract quantity (margin × leverage / price) and writes it back to
   // `quantity`, keeping a single source of truth for order submission.
@@ -334,6 +334,7 @@ export function ContractPage() {
       .then((rows) => {
         if (controller.signal.aborted) return;
         setMarkets(rows);
+        setMarketsFallback(false);
         setSymbol((current) => (rows.some((m) => m.symbol === current) ? current : rows[0]?.symbol ?? ""));
       })
       .catch((reason: unknown) => {
@@ -346,11 +347,8 @@ export function ContractPage() {
         setSymbol((current) =>
           fallback.some((market) => market.symbol === current) ? current : fallback[0]?.symbol ?? "",
         );
-        setMarketsError(
-          reason instanceof ApiError && reason.code === "AUTH_REQUIRED"
-            ? t("Sign in to load live perpetual markets — showing simulated markets.")
-            : t("Live perpetual backend unavailable — showing simulated markets. Orders are for simulation only."),
-        );
+        setMarketsFallback(true);
+        setMarketsError(t("Perpetual market data is temporarily unavailable."));
       })
       .finally(() => { if (!controller.signal.aborted) setMarketsLoading(false); });
     return () => controller.abort();
@@ -487,6 +485,7 @@ export function ContractPage() {
   async function submitOrder(event: FormEvent) {
     event.preventDefault();
     if (!selectedMarket || busy) return;
+    if (marketsFallback) { setSubmitError(t("Live perpetual market data is unavailable. No order was sent.")); return; }
     setSubmitError("");
     setSubmitOk("");
     if (orderType === "limit" && (!price || Number(price) <= 0)) { setSubmitError(t("Enter a valid price.")); return; }
@@ -992,13 +991,6 @@ export function ContractPage() {
         <div className="min-w-0 truncate"><span className="text-brand-text-muted">{t("Available")}</span> <span className="text-brand-text">{availableUsdt === null ? EM_DASH : `${money(availableUsdt, locale, 2)} USDT`}</span></div>
         <div className="min-w-0 truncate text-right"><span className="text-brand-text-muted">{t("Openable")}</span> <span className="text-brand-text">{openableQty === null ? EM_DASH : `${money(openableQty, locale, 4)} ${baseAsset}`}</span></div>
       </div>
-
-      {/* 止盈 / 止损 勾选（币安节奏：可用下方） */}
-      <label className="flex items-center gap-1 text-[12px] text-brand-text-muted">
-        <input type="checkbox" checked={mobileTpSl} onChange={(e) => setMobileTpSl(e.target.checked)}
-          className="h-3.5 w-3.5 rounded border-brand-border-strong bg-transparent accent-brand-warning" />
-        {t("Take profit / Stop loss")}
-      </label>
 
       {/* 可开保证金（币安节奏：开多按钮上方） */}
       <div className="flex justify-between text-[12px] tabular-nums"><span className="text-brand-text-muted">{t("Open margin")}</span><span className="text-brand-text">{estimatedMargin === null ? "0 USDT" : `${money(estimatedMargin, locale, 2)} USDT`}</span></div>
