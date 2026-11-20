@@ -473,7 +473,6 @@ async function readFinancialAccountSnapshot(userId) {
   return result;
 }
 
-var DEFAULT_SPOT_CATALOG = ['BTC','ETH','SOL','BNB','XRP','DOGE','ADA','AVAX','LINK','DOT','LTC','TRX','ATOM','NEAR','UNI','BCH','ETC','APT','ARB','OP','SUI','INJ','TIA','FIL'].map(function (base) { return { base_asset: base, quote_asset: 'USDT', enabled: true, price_tick: '0.01', quantity_step: '0.00001', min_quantity: '0.00001', min_notional: '5', min_limit_price: null, max_limit_price: null }; });
 async function readSpotMarketCatalog() {
   try {
   if (!supabaseStorageConfigured()) throw new Error('Spot market catalogue unavailable');
@@ -504,7 +503,7 @@ async function readSpotMarketCatalog() {
       max_limit_price: market.max_limit_price == null ? null : String(market.max_limit_price),
     };
   });
-  } catch (_) { return DEFAULT_SPOT_CATALOG; }
+  } catch (error) { throw new Error('Spot market catalogue unavailable: ' + (error && error.message ? error.message : 'storage read failed')); }
 }
 
 // Keep this list aligned with spot pair support, manual-deposit assets, and admin asset controls.
