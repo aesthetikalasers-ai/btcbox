@@ -43,7 +43,7 @@ function snapHeights(): { collapsed: number; expanded: number; max: number } {
  * handle can be dragged between the two; tapping the collapsed bar expands it.
  * Candlesticks are rendered with lightweight-charts v5 from the BTCBOX candle API.
  */
-export function ChartDrawer({ symbol = "BTC/USDT", marketType = "perpetual" }: { symbol?: string; marketType?: "spot" | "perpetual" }) {
+export function ChartDrawer({ symbol = "BTC/USDT", marketType = "perpetual", open, onOpenChange }: { symbol?: string; marketType?: "spot" | "perpetual"; open?: boolean; onOpenChange?: (open: boolean) => void }) {
   const { t } = useI18n();
   const [snap, setSnap] = useState<Snap>("collapsed");
   const [timeframe, setTimeframe] = useState<TimeframeKey>("Line");
@@ -58,6 +58,11 @@ export function ChartDrawer({ symbol = "BTC/USDT", marketType = "perpetual" }: {
     return normalized.endsWith("USDT") ? normalized : normalized + "USDT";
   }, [symbol]);
   const chartInterval = timeframe === "Line" ? "1m" : timeframe;
+
+  useEffect(() => {
+    if (open === true) setSnap("expanded");
+    else if (open === false) setSnap("collapsed");
+  }, [open]);
 
   const heights = useMemo(snapHeights, []);
   const collapsed = snap === "collapsed" && dragHeight === null;
@@ -178,11 +183,17 @@ export function ChartDrawer({ symbol = "BTC/USDT", marketType = "perpetual" }: {
       setDragHeight(null);
       return;
     }
-    setSnap(nearestSnap(dragHeight ?? renderedHeight));
+    const nextSnap = nearestSnap(dragHeight ?? renderedHeight);
+    setSnap(nextSnap);
+    onOpenChange?.(nextSnap === "expanded");
     setDragHeight(null);
   };
 
-  const toggleCollapse = () => setSnap((s) => (s === "collapsed" ? "expanded" : "collapsed"));
+  const toggleCollapse = () => setSnap((current) => {
+    const next = current === "collapsed" ? "expanded" : "collapsed";
+    onOpenChange?.(next === "expanded");
+    return next;
+  });
 
   return (
     <div className={cn("trade-drawer-root", isDragging && "is-dragging")} role="region" aria-label={t("Price chart")}>
