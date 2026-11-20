@@ -432,6 +432,7 @@ export function SpotTradingPage(){
  // exchange snapshot time, never the browser's receipt time.
  const marketSnapshotStale=!!ticker&&(!marketUpdatedAt||marketClockNow-marketUpdatedAt>90_000);
  const displayTicker=ticker;
+ const tickerIsFallback=ticker?.source==="demo-preview"||ticker?.source==="sample-data";
  /**
   * Depth steps this pair can actually use, derived from its price. A 0.01 bucket
   * would merge ARB's 0.1277 book into one row and print a 0.13 best bid. The
@@ -540,7 +541,7 @@ export function SpotTradingPage(){
      setTicker(selected);
      setMarketUpdatedAt(selected.snapshotTs?selected.snapshotTs*1000:null);
      setMarketFeedWarning("");
-     if(!isPriceManual){ setPrice(String(selected.price)); }
+     if(!isPriceManual && selected.source!=="demo-preview" && selected.source!=="sample-data"){ setPrice(String(selected.price)); }
     }else{setTicker(null);setMarketUpdatedAt(null);setPrice("");setMarketFeedWarning("Market data is temporarily unavailable for this pair.");}
    }else{setTicker(null);setMarketUpdatedAt(null);setPrice("");setError(marketResult.reason instanceof Error?marketResult.reason.message:"Live market data is unavailable.");}
    // initial load: a null book means the depth feed is unavailable, and the
@@ -576,7 +577,7 @@ export function SpotTradingPage(){
      if(selected){
       setTicker(selected);
       setMarketUpdatedAt(selected.snapshotTs?selected.snapshotTs*1000:null);
-      if(!isPriceManual && selected.price){ setPrice(String(selected.price)); }
+      if(!isPriceManual && selected.price && selected.source!=="demo-preview" && selected.source!=="sample-data"){ setPrice(String(selected.price)); }
      }else{setTicker(null);setMarketUpdatedAt(null);failed=true;}
     }else{setTicker(null);setMarketUpdatedAt(null);failed=true;}
     if(bookResult.status==="fulfilled"){setBook(bookResult.value);if(!bookResult.value)failed=true;}
@@ -683,10 +684,11 @@ export function SpotTradingPage(){
   event.preventDefault();
   if(orderType!=="limit"){setError("Market orders are not supported by the current trading contract. No order was sent.");return;}
   if(pendingIntentInvalid){setError("A saved spot order request must be reconciled before another order can be placed.");return;}
-  if((!ticker||marketSnapshotStale)&&!pendingIntent){setError("A fresh timestamped market snapshot is required before placing a new order. No order was sent.");return;}
+  if(tickerIsFallback&&!pendingIntent){setError("Live market data is unavailable. No order was sent.");return;}
+   if((!ticker||marketSnapshotStale)&&!pendingIntent){setError("A fresh timestamped market snapshot is required before placing a new order. No order was sent.");return;}
   if(!spotPairEnabled&&!pendingIntent){setError("This spot pair is not enabled by BTCBOX operators. No order was sent.");return;}
   if(!tradingStatus?.spot_order_entry_enabled&&!pendingIntent){setError("Spot order execution is currently disabled by server policy. No order was placed.");return;}
-  if(!pendingIntent&&(!orderInputsValid||balanceUnavailable||insufficientBalance)){setError(insufficientBalance?"Insufficient available balance":"Account identity is unavailable. No order was sent.");return;}
+  if(!pendingIntent&&(!orderInputsValid||balanceUnavailable||insufficientBalance||tickerIsFallback)){setError(insufficientBalance?"Insufficient available balance":"Account identity is unavailable. No order was sent.");return;}
   // A retained pending intent is already mid-flight from a previous attempt and
   // must be retried as-is; it never goes through the confirmation dialog again.
   if(pendingIntent){await sendOrder(pendingIntent, false);return;}
