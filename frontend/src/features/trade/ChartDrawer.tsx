@@ -64,7 +64,12 @@ export function ChartDrawer({ symbol = "BTC/USDT", marketType = "perpetual", ope
     else if (open === false) setSnap("collapsed");
   }, [open]);
 
-  const heights = useMemo(snapHeights, []);
+  const [heights, setHeights] = useState(snapHeights);
+  useEffect(() => {
+    const updateHeights = () => setHeights(snapHeights());
+    window.addEventListener("resize", updateHeights);
+    return () => window.removeEventListener("resize", updateHeights);
+  }, []);
   const collapsed = snap === "collapsed" && dragHeight === null;
   const renderedHeight = dragHeight ?? heights[snap];
 
