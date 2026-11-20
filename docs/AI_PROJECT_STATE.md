@@ -101,4 +101,4 @@ GitHub Actions API 按 `head_sha` 精确过滤，返回总计 3 个 workflow run
 - 本轮未修改 hosted Supabase、Auth、Vercel、环境变量或真实资金；未部署；未合并；未改动锁定的交易页布局。
 
 ### 下一步唯一优先任务
-由 API/Backend owner 先修复并增加 `perp-funding-worker.js` 的失败关闭/可重试测试，明确 liquidation worker 在引擎关闭时的安全策略；在该修复前，不得将 Perpetual 后台资金工作进程标记为可发布。数据库 AI 不越权修改 worker 文件，后续仅复核 SQL/RPC 与其确定后的接口合同。
+当前正式执行规划与状态文件对阶段位置存在冲突（main 版本为阶段 0；working 状态顶部为阶段 1 认证弹窗开发中，后段又记载阶段 0）。在冲突收敛前不得宣告阶段 0/1 退出，也不得提前启动 Earn 阶段。按 working 状态顶部已列明的待验收项，下一项优先任务是由应用开发 AI 在 `working` 完成 `frontend/e2e/auth-dialog.spec.ts` 六条路径的 Playwright 实测并修复失败项；项目负责人/协调负责人同步统一阶段状态与长期分支策略。上述 Perpetual worker 风险作为后续集成发布阻塞记录保留：进入对应阶段后由 API/Backend owner 修复 funding worker 的失败关闭/可重试行为，并明确 liquidation worker 在引擎关闭时的安全策略。数据库 AI 不越权修改 worker 文件。
