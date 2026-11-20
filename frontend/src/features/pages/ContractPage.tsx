@@ -836,7 +836,7 @@ export function ContractPage() {
 
           <Button
             type="submit"
-            disabled={busy || !selectedMarket || (orderType === "limit" && !price) || !quantity}
+            disabled={busy || marketsFallback || !selectedMarket || (orderType === "limit" && !price) || !quantity}
             loading={busy}
             className={cn("min-h-11 w-full text-xs font-bold", side === "buy" ? "bg-brand-accent text-[#05201A] hover:bg-brand-accent/90" : "bg-brand-danger text-white hover:bg-brand-danger/90")}
           >
@@ -1002,12 +1002,12 @@ export function ContractPage() {
           标签用「買い/売り」+ 方向图标而不是「ロング（買い）」：93px 宽的半栏放不下
           带括号的长标签，会被截断成「ロング…」。 */}
       <div className="grid grid-cols-2 gap-1">
-        <button type="submit" onClick={() => setSide("buy")} disabled={busy}
+        <button type="submit" onClick={() => setSide("buy")} disabled={busy || marketsFallback}
           className="flex h-10 w-full items-center justify-center gap-1 rounded-lg bg-brand-success text-[13px] font-bold text-white transition hover:opacity-90 active:scale-[0.99] disabled:opacity-60">
           <span className="whitespace-nowrap">{mobileSideTab === "open" ? t("Buy") : t("Close short")}</span>
           <TrendingUp className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
         </button>
-        <button type="submit" onClick={() => setSide("sell")} disabled={busy}
+        <button type="submit" onClick={() => setSide("sell")} disabled={busy || marketsFallback}
           className="flex h-10 w-full items-center justify-center gap-1 rounded-lg bg-brand-danger text-[13px] font-bold text-white transition hover:opacity-90 active:scale-[0.99] disabled:opacity-60">
           <span className="whitespace-nowrap">{mobileSideTab === "open" ? t("Sell") : t("Close long")}</span>
           <TrendingDown className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
