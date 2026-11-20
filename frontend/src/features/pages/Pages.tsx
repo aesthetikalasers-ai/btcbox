@@ -933,6 +933,8 @@ export function SpotTradingPage(){
         user can unlock trading themselves. */}
     <Link to="/support" className="term-banner-action">{t("Details")}</Link>
     <button type="button" className="term-banner-close" aria-label={t("Dismiss")} onClick={()=>setDismissedBanners(current=>[...current,bannerKey])}>×</button></div>:null}
+   {error?<div role="alert" aria-live="assertive" className="term-banner">{t(error)}</div>:null}
+   {notice?<div role="status" aria-live="polite" className="term-banner">{t(notice)}</div>:null}
    {bannerDismissed?<div className="term-banner-reopen"><ShieldAlert className="h-3.5 w-3.5" aria-hidden="true"/><span>{t("System notices hidden")}</span><button type="button" onClick={()=>setDismissedBanners(current=>current.filter(key=>key!==bannerKey))}>{t("Expand")}</button></div>:null}
    <div className={"term-layout"+(pairRailOpen?"":" is-rail-collapsed")}>
     {/* Binance-style market rail: always visible on wide screens so switching
