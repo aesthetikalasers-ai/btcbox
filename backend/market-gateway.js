@@ -264,12 +264,13 @@ async function binanceDepth(provider, symbol, limit, timeoutMs) {
  * unreachable. Kept module-level (not in CACHE) because CACHE entries expire by
  * TTL, whereas this one must survive an outage of arbitrary length.
  */
-let lastGoodMarket = null;
+const lastGoodMarkets = new Map();
 
-/** Records a payload as the fallback baseline, ignoring stale replays. */
-function rememberGoodMarket(payload) {
+/** Records a payload against its normalized symbol selection, ignoring stale replays. */
+function rememberGoodMarket(payload, bases) {
   if (payload && payload.ok === true && !payload.stale && Array.isArray(payload.markets) && payload.markets.length) {
-    lastGoodMarket = payload;
+    const key = [...new Set(bases)].sort().join(',');
+    lastGoodMarkets.set(key, payload);
   }
 }
 
@@ -339,6 +340,7 @@ async function getMarket({ symbols = DEFAULT_SYMBOLS, timeoutMs = 6000 } = {}) {
   const bases = symbols.map((s) => String(s).toUpperCase().replace(/USDT$/, ''));
   const candidates = providerOrder().filter((id) => PROVIDERS[id].supports.includes('market'));
   const threshold = Math.max(1, Math.ceil(bases.length * 0.6));
+  const snapshotKey = [...new Set(bases)].sort().join(',');
 
   const run = (id) => {
     const provider = PROVIDERS[id];
@@ -353,7 +355,7 @@ async function getMarket({ symbols = DEFAULT_SYMBOLS, timeoutMs = 6000 } = {}) {
     (payload) => Array.isArray(payload.markets) && payload.markets.length >= threshold,
   );
   if (winner) {
-    rememberGoodMarket(winner);
+    rememberGoodMarket(winner, bases);
     return winner;
   }
 
@@ -372,21 +374,28 @@ async function getMarket({ symbols = DEFAULT_SYMBOLS, timeoutMs = 6000 } = {}) {
   if (wins.length) {
     const merged = mergeMarketPayloads(wins.map((r) => r.payload), bases);
     if (merged.markets.length) {
-      rememberGoodMarket(merged);
+      rememberGoodMarket(merged, bases);
       return merged;
     }
   }
 
   // Everything failed. Serve the last good snapshot rather than a blank page —
   // a minute-old quote is strictly more useful than "no data" on a trading UI.
-  const stale = lastGoodMarket;
+  const stale = lastGoodMarkets.get(snapshotKey);
   if (stale) {
-    return {
-      ...stale,
-      stale: true,
-      degraded: true,
-      msg: 'Live market data is temporarily unavailable. Showing the last known snapshot.',
-    };
+    const requested = new Set(bases);
+    const markets = stale.markets.filter((row) => requested.has(String(row.sym || '').toUpperCase()));
+    const data = Object.fromEntries(Object.entries(stale.data || {}).filter(([symbol]) => requested.has(String(symbol).toUpperCase())));
+    if (markets.length) {
+      return {
+        ...stale,
+        markets,
+        data,
+        stale: true,
+        degraded: true,
+        msg: 'Live market data is temporarily unavailable. Showing the last known snapshot.',
+      };
+    }
   }
 
   const lastError = settled.map((r) => r.error).filter(Boolean).pop();
