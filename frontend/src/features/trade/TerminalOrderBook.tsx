@@ -61,7 +61,7 @@ export function aggregateLevels(
   step: number,
   limit = 100,
 ): Array<[string, string]> {
-  const decimals = step === 1 ? 0 : step === 0.1 ? 1 : 2;
+  const decimals = Math.max(0, Math.min(8, (String(step).split(".")[1] || "").length));
   const buckets = new Map<number, number>();
   for (const row of rows) {
     const price = Number(row[0]);
