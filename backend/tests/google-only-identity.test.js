@@ -15,6 +15,7 @@ function extractFunction(name, context = {}) {
 }
 
 const getSingleSupabaseAuthProvider = extractFunction('getSingleSupabaseAuthProvider');
+const getSupabaseLoginProvider = extractFunction('getSupabaseLoginProvider', { getSingleSupabaseAuthProvider });
 const isValidAuthEmail = extractFunction('isValidAuthEmail');
 const getSupabaseWalletIdentity = extractFunction('getSupabaseWalletIdentity', { getSingleSupabaseAuthProvider });
 const isSupabaseUserId = extractFunction('isSupabaseUserId');
@@ -50,6 +51,36 @@ test('only one server-verified Google, Email or Web3 Supabase identity is accept
   assert.equal(getSingleSupabaseAuthProvider(null), null);
 });
 
+test('Google login accepts one server-verified Google identity linked to an email identity', () => {
+  const linked = {
+    app_metadata: { provider: 'email', providers: ['email', 'google'] },
+    identities: [{ provider: 'email' }, { provider: 'google' }],
+    user_metadata: { provider: 'untrusted-user-value' }
+  };
+  assert.equal(getSingleSupabaseAuthProvider(linked), null, 'the strict single-provider helper remains strict');
+  assert.equal(getSupabaseLoginProvider(linked), 'google', 'a verified linked Google identity must remain usable for sign-in');
+  assert.equal(getSupabaseLoginProvider({
+    app_metadata: { provider: 'google', providers: ['google', 'email'] },
+    identities: [{ provider: 'google' }, { provider: 'email' }]
+  }), 'google');
+  assert.equal(getSupabaseLoginProvider({
+    app_metadata: { provider: 'google', providers: ['google', 'web3'] },
+    identities: [{ provider: 'google' }, { provider: 'web3' }]
+  }), 'google');
+  assert.equal(getSupabaseLoginProvider({
+    app_metadata: { provider: 'email', providers: ['email', 'google'] },
+    identities: [{ provider: 'email' }, { provider: 'web3' }]
+  }), null, 'provider metadata and server-issued identities must agree');
+  assert.equal(getSupabaseLoginProvider({
+    app_metadata: { provider: 'google', providers: ['google', 'google'] },
+    identities: [{ provider: 'google' }, { provider: 'google' }]
+  }), null, 'duplicate provider identities must fail closed');
+  assert.equal(getSupabaseLoginProvider({
+    app_metadata: { provider: 'google', providers: ['google', 'unsupported'] },
+    identities: [{ provider: 'google' }, { provider: 'unsupported' }]
+  }), null, 'unsupported linked providers must fail closed');
+});
+
 test('Google identity exchange validates a normal email address without accepting whitespace', () => {
   assert.equal(isValidAuthEmail('user@example.com'), true);
   assert.equal(isValidAuthEmail('first.last+btc@example.co'), true);
@@ -80,7 +111,7 @@ test('legacy email registration stays disabled while BTCBOX username/password lo
   assert.doesNotMatch(register, /hashPassword\(/);
 });
 
-test('local account only accepts explicitly linked Supabase identity IDs', () => {
+test('local account lookup remains UUID-first and refuses unverified identity mismatches', () => {
   assert.ok(source.includes("if (user && !isSupabaseIdentityLinked(user, supabaseUserId))"));
   assert.ok(source.includes("if (!user && email) user = Object.values(db.users).find"));
   assert.ok(source.includes("user.supabase_user_ids.push(linkedId)"));
