@@ -1434,13 +1434,11 @@ a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
   .spot-book-columns { margin-bottom: 2px; padding: 0 2px; font-size: 10px; }
   .spot-book-columns span:first-child { text-align: left; }
   .spot-book-row {
-    /* 24px rows on phone too: 18px packed the six levels of each side into an
-       unreadable strip. 24px matches the desktop book (`.term-book-body`) so the
-       two presentations feel like the same instrument, and it still leaves room
-       for six asks + mid + six bids inside the dual-column phone layout. */
-    min-height: 24px;
-    height: 24px;
-    line-height: 24px;
+    /* Keep phone depth rows at the 28px trading-terminal size for readable
+       price precision and reliable touch selection. */
+    min-height: 28px;
+    height: 28px;
+    line-height: 28px;
     padding: 0 2px;
     border-radius: 2px;
     font-size: 11px;
