@@ -50,9 +50,20 @@ test('V211 chart drawer and interval switches preserve the edited order',async({
   test.setTimeout(60000);
   await page.goto('/trade/ETH',{waitUntil:'domcontentloaded'});
   await expect(page.getByRole('link',{name:/≡ ETH\/USDT/})).toBeVisible();
-  if(page.viewportSize()!.width<1280) await page.getByRole('button',{name:'Price chart',exact:true}).click();
+  if(page.viewportSize()!.width<1280) {
+    await page.getByRole('button',{name:'Price chart',exact:true}).click();
+    if(page.viewportSize()!.width<768) {
+      const chartRegion=page.getByRole('region',{name:'Price chart'});
+      await expect(chartRegion).toBeVisible();
+      await expect(chartRegion.getByRole('button',{name:'Collapse chart'})).toBeVisible();
+      await chartRegion.getByRole('button',{name:'Collapse chart'}).click();
+    } else {
+      const drawer=page.getByRole('dialog');
+      await expect(drawer).toBeVisible();
+      await drawer.getByRole('button',{name:'Close chart'}).click();
+    }
+  }
   await expect(page.getByRole('heading',{name:'Price chart',exact:true})).toBeVisible();
-  if(page.viewportSize()!.width<1280) await page.getByRole('button',{name:'Close',exact:true}).click();
   const price=page.getByLabel('Limit price (USDT)');
   await price.fill('0.1');
   await page.getByLabel('Quantity · ETH').fill('0.2');
@@ -140,18 +151,16 @@ test('V211 phone trade tabs switch panels and keep the chart in a safe-area draw
   const entry=page.locator('#trade-entry'), book=page.locator('#trade-depth');
   await expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
   if(width<768){
-   // Design board Trade screen: Buy | Sell | Order book tabs, one panel at a time.
-   await expect(page.locator('.spot-mobile-tabs')).toBeVisible();
+   // Phone uses a two-column order-entry + order-book workspace, not hidden tabs.
+   await expect(page.locator('.spot-mobile-tabs')).toBeHidden();
    await expect(entry).toBeVisible();
-   await expect(book).toBeHidden();
-   await page.getByRole('tab',{name:'Order book',exact:true}).click();
    await expect(book).toBeVisible();
-   await expect(entry).toBeHidden();
-   await page.getByRole('tab',{name:'Buy',exact:true}).click();
-   await expect(entry).toBeVisible();
-   await expect(book).toBeHidden();
+   await expect(entry.getByRole('button',{name:'Buy',exact:true})).toBeVisible();
+   await expect(entry.getByRole('button',{name:'Sell',exact:true})).toBeVisible();
+   const b=(await book.boundingBox())!;
+   expect(b.x+b.width).toBeLessThanOrEqual(width);
   }else{
-   // Desktop/tablet workspace: order entry left, order book right.
+   // Tablet/desktop workspace: order entry left, order book right.
    await expect(entry).toBeVisible();await expect(book).toBeVisible();
    const e=(await entry.boundingBox())!,b=(await book.boundingBox())!;
    expect(e.x+e.width).toBeLessThanOrEqual(b.x);expect(Math.abs(e.y-b.y)).toBeLessThan(2);
@@ -160,14 +169,26 @@ test('V211 phone trade tabs switch panels and keep the chart in a safe-area draw
    await expect(page.locator('#trade-chart')).toHaveCount(0);
    const trigger=page.getByRole('button',{name:'Price chart',exact:true});
    for(let i=0;i<2;i++){
-    await trigger.click();const drawer=page.getByRole('dialog');await expect(drawer).toBeVisible();
-    await expect(drawer.locator('canvas').first()).toBeVisible();
-    const d=(await drawer.boundingBox())!;
-    // The drawer is bottom-anchored (bottom:0) by design; assert it never
-    // exceeds the safe-area cap and never overflows the viewport.
-    expect(d.height).toBeLessThanOrEqual(840);
-    expect(d.y+d.height).toBeLessThanOrEqual(900);
-    await page.keyboard.press('Escape');await expect(drawer).toHaveCount(0);await expect(trigger).toBeFocused();
+    await trigger.click();
+    if(width<768){
+     const region=page.getByRole('region',{name:'Price chart'});
+     await expect(region).toBeVisible();
+     const panel=page.locator('.trade-drawer-panel');
+     const d=(await panel.boundingBox())!;
+     expect(d.height).toBeGreaterThan(44);
+     expect(d.height).toBeLessThanOrEqual(840);
+     expect(d.y+d.height).toBeLessThanOrEqual(900);
+     await region.getByRole('button',{name:'Collapse chart'}).click();
+     await expect.poll(async()=>((await panel.boundingBox())?.height??999)).toBeLessThanOrEqual(50);
+    }else{
+     const drawer=page.getByRole('dialog');await expect(drawer).toBeVisible();
+     await expect(drawer.locator('canvas').first()).toBeVisible();
+     const d=(await drawer.boundingBox())!;
+     expect(d.height).toBeLessThanOrEqual(840);
+     expect(d.y+d.height).toBeLessThanOrEqual(900);
+     await drawer.getByRole('button',{name:'Close chart'}).click();
+     await expect(drawer).toHaveCount(0);await expect(trigger).toBeFocused();
+    }
    }
   }else{
    // Desktop has no inline chart region today: the chart is only reachable
