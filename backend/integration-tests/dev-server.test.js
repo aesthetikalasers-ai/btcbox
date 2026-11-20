@@ -41,11 +41,15 @@ test('local integration serves real JSON APIs and SPA deep links on one origin',
   const health = await fetch(base + '/api/healthz');
   assert.equal((await health.json()).ok, true);
   const market = await fetch(base + '/api/market');
-  assert.equal(market.status, 200);
+  // A local server without an explicitly configured market catalogue must not
+  // substitute seeded prices. The public market endpoint fails closed instead.
+  assert.equal(market.status, 503);
   assert.match(market.headers.get('content-type'), /application\/json/);
   const marketPayload = await market.json();
-  assert.equal(marketPayload.ok, true);
-  assert.ok(marketPayload.data && typeof marketPayload.data === 'object');
+  assert.equal(marketPayload.ok, false);
+  assert.equal(marketPayload.code, 'MARKET_CATALOG_UNAVAILABLE');
+  assert.deepEqual(marketPayload.markets, []);
+  assert.deepEqual(marketPayload.data, {});
   const page = await fetch(base + '/trade/BTCUSDT');
   assert.equal(page.status, 200);
   assert.match(await page.text(), /id="root"/);
