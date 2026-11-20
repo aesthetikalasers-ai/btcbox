@@ -181,7 +181,7 @@ export function AuthPage({ mode, redirectTo, embedded = false, onModeChange }: {
               {mode === "login" && <form className="space-y-3" aria-busy={busy} onSubmit={submitUsernameLogin}>
                 <div>
                   <label htmlFor="btcbox-username" className="block text-sm text-brand-text-muted mb-1.5">{t("Username or email")}</label>
-                  <Input id="btcbox-username" className="h-12" value={username} onChange={event => setUsername(event.target.value.toLowerCase())} autoComplete="username" minLength={3} maxLength={128} pattern="[a-z0-9@._-]{3,}" placeholder={t("Enter your username or email")} required />
+                  <Input id="btcbox-username" className="h-12" value={username} onChange={event => setUsername(event.target.value.toLowerCase())} autoComplete="username" minLength={3} maxLength={128} pattern="[a-z0-9@._+-]{3,}" placeholder={t("Enter your username or email")} required />
                 </div>
                 <div>
                   <label htmlFor="btcbox-password" className="block text-sm text-brand-text-muted mb-1.5">{t("Password")}</label>
