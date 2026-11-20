@@ -42,8 +42,8 @@ function getPublishableKey() {
 // supabase-login call does not pay an extra round trip. Returns true / false, or
 // null if the status cannot be determined (settings endpoint unreachable).
 let _authProviderCache = { google: { value: null, expiresAt: 0 }, web3: { value: null, expiresAt: 0 } };
-// Accept only one server-verified Supabase identity. Mixed/linked identities are
-// deliberately rejected until an explicit, audited account-linking flow exists.
+// Strict single-provider helper retained for wallet-claim extraction and
+// sensitive re-authentication paths that require an unambiguous provider.
 function getSingleSupabaseAuthProvider(identity) {
   if (!identity || typeof identity !== 'object') return null;
   const appMetadata = identity.app_metadata && typeof identity.app_metadata === 'object' ? identity.app_metadata : {};
@@ -53,6 +53,32 @@ function getSingleSupabaseAuthProvider(identity) {
   if (!['google', 'email', 'web3'].includes(provider) || providers.length !== 1 || providers[0] !== provider) return null;
   if (identities.length !== 1 || !identities[0] || String(identities[0].provider || '').toLowerCase() !== provider) return null;
   return provider;
+}
+
+// Supabase can securely link an email identity and Google identity to one
+// auth.users UUID. The resulting server-verified user has multiple providers,
+// but the OAuth token is still valid. Accept that shape only when app_metadata
+// and the server-issued identities list agree exactly, every provider is
+// supported, and there is exactly one Google identity. Never trust user_metadata.
+function getSupabaseLoginProvider(identity) {
+  const singleProvider = getSingleSupabaseAuthProvider(identity);
+  if (singleProvider) return singleProvider;
+  if (!identity || typeof identity !== 'object') return null;
+  const appMetadata = identity.app_metadata && typeof identity.app_metadata === 'object' ? identity.app_metadata : {};
+  const primaryProvider = String(appMetadata.provider || '').toLowerCase();
+  const providers = Array.isArray(appMetadata.providers) ? appMetadata.providers.map(p => String(p || '').toLowerCase()) : [];
+  const identities = Array.isArray(identity.identities) ? identity.identities : [];
+  const allowed = new Set(['google', 'email', 'web3']);
+  if (!allowed.has(primaryProvider) || providers.length < 2 ||
+      providers.some(provider => !allowed.has(provider)) ||
+      new Set(providers).size !== providers.length ||
+      identities.length !== providers.length) return null;
+  const identityProviders = identities.map(item => String(item && item.provider || '').toLowerCase());
+  if (identityProviders.some(provider => !allowed.has(provider)) ||
+      new Set(identityProviders).size !== identityProviders.length ||
+      providers.some(provider => !identityProviders.includes(provider)) ||
+      identityProviders.some(provider => !providers.includes(provider))) return null;
+  return providers.includes('google') ? 'google' : null;
 }
 function getSupabaseWalletIdentity(identity) {
   if (!identity || typeof identity !== 'object' || getSingleSupabaseAuthProvider(identity) !== 'web3') return null;
@@ -1510,7 +1536,7 @@ async function handleRequest(event, context) {
     if (!isSupabaseUserId(supabaseUserId)) {
       return json({ ok: false, code: 'INVALID_SUPABASE_IDENTITY', msg: 'The verified account identity could not be confirmed. Please sign in again.' }, 403);
     }
-    const authProvider = getSingleSupabaseAuthProvider(identity);
+    const authProvider = getSupabaseLoginProvider(identity);
     if (!authProvider) {
       return json({ ok: false, code: 'AUTH_PROVIDER_NOT_ALLOWED', msg: 'This account uses multiple or unsupported sign-in methods. Please contact support.' }, 403);
     }
