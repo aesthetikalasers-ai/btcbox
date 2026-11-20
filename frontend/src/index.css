@@ -1362,14 +1362,19 @@ a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
     color: var(--color-brand-text-faint);
   }
 
-  /* --- Mobile trade tabs: Buy | Sell | Order book -------------------------
-     Design board Trade screen defines three tabs, so the order form and the
-     order book never share the phone viewport. `data-mobile-panel` on the
-     workspace drives which panel is shown; both stay in the DOM so order-book
-     interaction (tap a level to set price) and a11y references keep working.
-     This replaces the earlier contradictory 58fr/42fr dual-column declaration. */
+  /* Phone trading is deliberately single-panel: a 320px viewport cannot
+     provide a usable professional order form and readable depth ladder in
+     two columns. Keep both panels mounted, but expose Buy / Sell / Order book
+     tabs and let the selected panel use the full content width. */
   .spot-mobile-tabs {
-    display: none;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    min-height: 44px;
+    padding: 3px;
+    border: 1px solid var(--color-brand-border);
+    border-radius: 8px;
+    background: var(--color-brand-surface-2);
   }
   .spot-mobile-tabs button {
     flex: 1 1 0;
@@ -1384,26 +1389,26 @@ a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
   .spot-mobile-tabs button[aria-selected="true"]:first-child { color: var(--color-profit); }
   .spot-mobile-tabs button[aria-selected="true"]:nth-child(2) { color: var(--color-loss); }
 
-  /* Phone: dual column (left = order form, right = order book) matching the
-     perpetual page and the Binance mobile futures layout. The three-tab panel
-     switcher is retired; both panels stay side by side on every phone width. */
   .exchange-workspace {
     display: grid;
-    grid-template-columns: minmax(0, 55fr) minmax(0, 45fr);
-    gap: 6px;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 8px;
     align-items: start;
   }
-  .exchange-workspace > .exchange-entry {
+  .exchange-workspace > .exchange-entry,
+  .exchange-workspace > .exchange-depth {
     grid-column: 1;
     grid-row: 1;
     margin-top: 0;
     min-width: 0;
+    width: 100%;
   }
-  .exchange-workspace > .exchange-depth {
-    grid-column: 2;
-    grid-row: 1;
-    margin-top: 0;
-    min-width: 0;
+  .exchange-workspace[data-mobile-panel="buy"] > .exchange-depth,
+  .exchange-workspace[data-mobile-panel="sell"] > .exchange-depth {
+    display: none;
+  }
+  .exchange-workspace[data-mobile-panel="book"] > .exchange-entry {
+    display: none;
   }
   .exchange-workspace > .exchange-orders {
     grid-column: 1 / -1;
