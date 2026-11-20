@@ -9,7 +9,6 @@ import { useAuth } from "../../lib/auth";
 import { DEV_ACCOUNT_PLACEHOLDER, DEV_OPEN_ACCOUNT_PAGES } from "../../lib/devAccess";
 import { useAuthDialog } from "../../lib/auth-dialog";
 import { ChartDrawer } from "../trade/ChartDrawer";
-import { useTrading } from "../../lib/trading";
 
 import type { ReactNode } from "react";
 import { ArrowUpRight, LockKeyhole, Wallet, ChartNoAxesCombined, ArrowLeftRight, Sprout, BadgeCheck, ShieldCheck, Headset, Columns2, Gift, Rocket } from "lucide-react";
@@ -323,10 +322,8 @@ export function SpotTradingPage(){
  const requestedSymbol=(routeSymbol||"BTCUSDT").toUpperCase();
  const symbol=requestedSymbol.endsWith("USDT")?requestedSymbol:requestedSymbol+"USDT";
  const {t,language}=useI18n();
- const {placeSpotOrder}=useTrading();
  const {openAuthDialog}=useAuthDialog();
  const navigate=useNavigate();
- const [paperToast,setPaperToast]=useState("");
  const [ticker,setTicker]=useState<MarketTicker|null>(null);
  const [spotPairEnabled,setSpotPairEnabled]=useState(false);
  const [chartInterval,setChartInterval]=useState("1h");
@@ -719,16 +716,8 @@ export function SpotTradingPage(){
    catch{setError("This browser cannot safely save the order request. No order was sent.");return;}
    setPendingIntent(intent);
   }
-  // 纸面交易引擎：客户端即时成交并记录订单（演示账户）
-  if(persistIntent){
-   const paperPrice=Number(intent.price);
-   const paperQty=Number(intent.qty);
-   const result=placeSpotOrder({symbol,base,side:intent.side,type:"limit",price:paperPrice,quantity:paperQty});
-   if(!result.ok){setPaperToast(result.reason||t("Order not filled"));return;}
-   setPaperToast(`${t("Filled")}: ${intent.side==="buy"?t("Buy"):t("Sell")} ${paperQty} ${base} @ ${paperPrice}`);
-   setQuantity("");
-   window.setTimeout(()=>setPaperToast(""),2600);
-  }
+  // Orders are executed and confirmed only by the exchange API. The browser
+  // must never create a local fill or mutate a paper ledger in the live terminal.
   setBusy(true);setError("");setNotice("");
   let orderAccepted=false;
   try{
