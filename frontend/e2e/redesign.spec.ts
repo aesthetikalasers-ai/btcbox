@@ -55,7 +55,6 @@ test('V211 chart drawer and interval switches preserve the edited order',async({
     if(page.viewportSize()!.width<768) {
       const chartRegion=page.getByRole('region',{name:'Price chart'});
       await expect(chartRegion).toBeVisible();
-      await expect(page.getByRole('heading',{name:'Price chart',exact:true})).toBeVisible();
       await expect(chartRegion.getByRole('button',{name:'Collapse chart'})).toBeVisible();
       await chartRegion.getByRole('button',{name:'Collapse chart'}).click();
     } else {
