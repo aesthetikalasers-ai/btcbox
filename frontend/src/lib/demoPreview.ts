@@ -15,19 +15,19 @@ const demoQuery = new URLSearchParams(window.location.search).get("demo");
 // Local-dev switch: when VITE_FORCE_DEMO=1 (set in .env.local, gitignored), the
 // whole app boots straight into the offline demo account so every screen is
 // usable without Supabase. ?demo=0 still forces live mode as an escape hatch.
-const forceDemo = import.meta.env.VITE_FORCE_DEMO === "1";
+// Demo data is a local-development aid only. A query string or stale browser
+// storage must never switch a production customer into a simulated exchange.
+const forceDemo = import.meta.env.DEV && import.meta.env.VITE_FORCE_DEMO === "1";
+let demoEnabled = false;
 
-// Demo preview is opt-in by default: the app reads live data from the real API
-// endpoints. Enable the isolated mock with ?demo=1 (kept until ?demo=0), or
-// force it for local development through VITE_FORCE_DEMO.
-let demoEnabled = forceDemo || demoQuery === "1";
-
-try {
-  if (demoQuery === "1") window.localStorage.setItem(STORAGE_KEY, "1");
-  else if (demoQuery === "0") window.localStorage.removeItem(STORAGE_KEY);
-  demoEnabled = demoQuery === "0" ? false : (forceDemo || demoQuery === "1" || (demoQuery === null && window.localStorage.getItem(STORAGE_KEY) === "1"));
-} catch {
-  demoEnabled = forceDemo || demoQuery === "1";
+if (import.meta.env.DEV) {
+  try {
+    if (demoQuery === "1") window.localStorage.setItem(STORAGE_KEY, "1");
+    else if (demoQuery === "0") window.localStorage.removeItem(STORAGE_KEY);
+    demoEnabled = demoQuery === "0" ? false : (forceDemo || demoQuery === "1" || (demoQuery === null && window.localStorage.getItem(STORAGE_KEY) === "1"));
+  } catch {
+    demoEnabled = forceDemo || demoQuery === "1";
+  }
 }
 
 export const DEMO_PREVIEW_ACTIVE = demoEnabled;
