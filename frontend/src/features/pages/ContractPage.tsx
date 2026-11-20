@@ -28,6 +28,7 @@ import {
   type PerpOrder,
   type PerpPosition,
 } from "../../lib/api";
+import { getDemoPerpMarkets } from "../../lib/demoPreview";
 import { useAuth } from "../../lib/auth";
 import { useMarketStream } from "../../lib/useMarketStream";
 import { localeTags, useI18n } from "../../lib/i18n";
@@ -337,8 +338,19 @@ export function ContractPage() {
       })
       .catch((reason: unknown) => {
         if (controller.signal.aborted) return;
-        setMarkets([]);
-        setMarketsError(reason instanceof ApiError ? reason.message : t("Awaiting the perpetual contract backend."));
+        // Keep the terminal available when the live perpetual catalogue is
+        // unreachable. This catalogue is explicitly marked as simulated; it
+        // must not be represented as a live market feed.
+        const fallback = getDemoPerpMarkets();
+        setMarkets(fallback);
+        setSymbol((current) =>
+          fallback.some((market) => market.symbol === current) ? current : fallback[0]?.symbol ?? "",
+        );
+        setMarketsError(
+          reason instanceof ApiError && reason.code === "AUTH_REQUIRED"
+            ? t("Sign in to load live perpetual markets — showing simulated markets.")
+            : t("Live perpetual backend unavailable — showing simulated markets. Orders are for simulation only."),
+        );
       })
       .finally(() => { if (!controller.signal.aborted) setMarketsLoading(false); });
     return () => controller.abort();
