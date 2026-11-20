@@ -1470,7 +1470,7 @@ a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
 
   /* The mobile Buy/Sell tabs already choose the side, so the in-form switch is
      redundant there. Desktop keeps it (no tabs above 768px). */
-  .spot-entry-head .spot-side { display: none; }
+  .spot-entry-head .spot-side { display: grid; }
   .spot-entry-head { padding: 0 0 4px; }
 
   /* --- Compact order entry ---------------------------------------------- */
