@@ -491,17 +491,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signUpWithEmail = useCallback(async (address: string, password: string) => {
     setBusy(true); setError(""); setNotice("");
     try {
-      const response = await fetch(`${API_BASE_URL}/register`, {
-        method: "POST", credentials: "include",
-        headers: { Accept: "application/json", "Content-Type": "application/json" },
-        cache: "no-store",
-        body: JSON.stringify({ email: address.trim(), password }),
+      const client = clientRef.current;
+      if (!client) throw new Error("Authentication is still initializing. Please try again.");
+      const email = address.trim().toLowerCase();
+      const { data, error: authError } = await client.auth.signUp({
+        email,
+        password,
+        options: {
+          emailRedirectTo: window.location.origin + "/auth/react-callback?intent=register",
+        },
       });
-      const payload = await response.json().catch(() => null) as { ok?: boolean; supabase_access_token?: string; msg?: string } | null;
-      if (!response.ok || !payload || payload.ok !== true || !payload.supabase_access_token) {
-        throw new Error(payload?.msg || "Email registration failed.");
+      if (authError) throw authError;
+      const confirmed = !!(data.user?.email_confirmed_at || data.user?.confirmed_at);
+      if (data.session?.access_token && confirmed) {
+        await acceptSupabaseSession(data.session.access_token);
+      } else {
+        setNotice("Check your email for a confirmation link. After confirming, return to BTCBOX to finish creating your account.");
       }
-      await acceptSupabaseSession(payload.supabase_access_token);
     } catch (cause) { setError(cause instanceof Error ? cause.message : "Email registration failed."); throw cause; }
     finally { setBusy(false); }
   }, [acceptSupabaseSession]);
@@ -561,7 +567,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       const { data, error: sessionError } = await client.auth.getSession();
       if (sessionError) throw sessionError;
-      if (!data.session?.access_token) throw new Error("Google authorization did not return a session.");
+      if (!data.session?.access_token) throw new Error("Authentication did not return a valid session.");
       if (url.searchParams.get("flow") === "credential-recovery") {
         try {
           await reauthenticateCredentialsRequest(data.session.access_token);
