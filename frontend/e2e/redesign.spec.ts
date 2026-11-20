@@ -153,14 +153,22 @@ test('V211 phone trade tabs switch panels and keep the chart in a safe-area draw
   const entry=page.locator('#trade-entry'), book=page.locator('#trade-depth');
   await expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
   if(width<768){
-   // Phone uses a two-column order-entry + order-book workspace, not hidden tabs.
-   await expect(page.locator('.spot-mobile-tabs')).toBeHidden();
+   // Phone gets a full-width order form or depth ladder, never a squeezed two-column workstation.
+   const tabs=page.locator('.spot-mobile-tabs');
+   await expect(tabs).toBeVisible();
    await expect(entry).toBeVisible();
-   await expect(book).toBeVisible();
+   await expect(book).toBeHidden();
+   await expect(tabs.getByRole('tab',{name:'Buy',exact:true})).toHaveAttribute('aria-selected','true');
    await expect(entry.getByRole('button',{name:'Buy',exact:true})).toBeVisible();
    await expect(entry.getByRole('button',{name:'Sell',exact:true})).toBeVisible();
+   await tabs.getByRole('tab',{name:'Order book',exact:true}).click();
+   await expect(book).toBeVisible();
+   await expect(entry).toBeHidden();
    const b=(await book.boundingBox())!;
-   expect(b.x+b.width).toBeLessThanOrEqual(width);
+   expect(b.width).toBeGreaterThan(width-24);
+   await tabs.getByRole('tab',{name:'Sell',exact:true}).click();
+   await expect(entry).toBeVisible();
+   await expect(book).toBeHidden();
   }else{
    // Tablet/desktop workspace: order entry left, order book right.
    await expect(entry).toBeVisible();await expect(book).toBeVisible();
