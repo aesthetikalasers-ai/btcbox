@@ -218,9 +218,6 @@ export function AuthCallbackPage() {
   const location = useLocation();
   const callbackIntent = new URLSearchParams(location.search).get("intent");
   const callbackDestination = callbackIntent === "register" ? "/register" : "/login";
-  // Identity-conflict errors mean the account already exists -> send to sign-in, not back to register.
-  const accountExistsError = !!error && /already registered|already linked|account is frozen/i.test(error);
-  const effectiveDestination = accountExistsError ? "/login" : callbackDestination;
   useEffect(() => {
     if (!oauthAttempted.current && status !== "loading" && status !== "authenticated" && status !== "two-factor" && status !== "password-recovery") {
       oauthAttempted.current = true;
@@ -242,11 +239,8 @@ export function AuthCallbackPage() {
       navigate("/login", { replace: true });
     }
   }, [status, navigate, callbackIntent]);
-  useEffect(() => {
-    if (!error || status !== "anonymous") return;
-    const redirectId = window.setTimeout(() => navigate(effectiveDestination, { replace: true }), 6000);
-    return () => window.clearTimeout(redirectId);
-  }, [effectiveDestination, error, navigate, status]);
+  // Keep callback errors visible until the user chooses where to go. A timed
+  // redirect hid provisioning failures and made Google registration look silent.
   const submitRecovery = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setRecoveryError("");
