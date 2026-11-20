@@ -304,8 +304,10 @@ export function ContractPage() {
     && (!depthSnapshot.snapshotTs || Date.now() - depthSnapshot.snapshotTs * 1000 > 90_000);
   // Streamed frames win; the polled snapshot is the fallback until the stream
   // delivers one. Both paths carry real provider levels — nothing is synthesised.
+  const streamDepthFresh = liveDepth.updatedAt !== null
+    && Date.now() - liveDepth.updatedAt <= 90_000;
   const displayBook: { bids: [string, string][]; asks: [string, string][] } | null =
-    liveDepth.data ?? (depthSnapshotStale ? null : depthSnapshot ?? null);
+    streamDepthFresh ? liveDepth.data : (depthSnapshotStale ? null : depthSnapshot ?? null);
 
   const mobileDepthBook = displayBook;
 
