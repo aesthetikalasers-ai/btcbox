@@ -18,7 +18,7 @@ export function AuthPage({ mode, redirectTo, embedded = false, onModeChange }: {
   const { t, language, setLanguage } = useI18n();
   const {
     status, busy, error, notice, googleEnabled, walletEnabled, ethereumWallets,
-    signInWithGoogle, signInWithUsername, signInWithWeb3, signUpWithEmail,
+    signInWithGoogle, signInWithUsername, signInWithEmail, signInWithWeb3, signUpWithEmail,
     verifyTwoFactor, clearError,
   } = useAuth();
   const [username, setUsername] = useState("");
@@ -63,9 +63,12 @@ export function AuthPage({ mode, redirectTo, embedded = false, onModeChange }: {
   const submitUsernameLogin = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (busy) return;
-    // Legacy BTCBOX sign-in uses the local username + password credential only.
-    // New identities enter through Google OAuth or a verified wallet signature.
-    try { await signInWithUsername(username, password); }
+    // Existing email-only accounts retain their direct Supabase sign-in path;
+    // BTCBOX usernames continue through the local credential endpoint.
+    try {
+      if (username.includes("@")) await signInWithEmail(username, password);
+      else await signInWithUsername(username, password);
+    }
     catch { /* AuthProvider displays the safe error. */ }
   };
   const submitEmailRegister = async (event: FormEvent<HTMLFormElement>) => {
@@ -177,8 +180,8 @@ export function AuthPage({ mode, redirectTo, embedded = false, onModeChange }: {
             </form> : <>
               {mode === "login" && <form className="space-y-3" aria-busy={busy} onSubmit={submitUsernameLogin}>
                 <div>
-                  <label htmlFor="btcbox-username" className="block text-sm text-brand-text-muted mb-1.5">{t("Username")}</label>
-                  <Input id="btcbox-username" className="h-12" value={username} onChange={event => setUsername(event.target.value.toLowerCase())} autoComplete="username" minLength={3} maxLength={128} pattern="[a-z0-9@._-]{3,}" placeholder={t("Enter your BTCBOX username")} required />
+                  <label htmlFor="btcbox-username" className="block text-sm text-brand-text-muted mb-1.5">{t("Username or email")}</label>
+                  <Input id="btcbox-username" className="h-12" value={username} onChange={event => setUsername(event.target.value.toLowerCase())} autoComplete="username" minLength={3} maxLength={128} pattern="[a-z0-9@._-]{3,}" placeholder={t("Enter your username or email")} required />
                 </div>
                 <div>
                   <label htmlFor="btcbox-password" className="block text-sm text-brand-text-muted mb-1.5">{t("Password")}</label>
@@ -188,7 +191,7 @@ export function AuthPage({ mode, redirectTo, embedded = false, onModeChange }: {
                   </div>
                 </div>
                 <Button type="submit" className="min-h-12 w-full" aria-busy={busy} disabled={busy || username.length < 3 || password.length < 12}>
-                  <KeyRound className="mr-2 h-4 w-4" /> {busy ? t("Signing in…") : t("Sign in with username")}
+                  <KeyRound className="mr-2 h-4 w-4" /> {busy ? t("Signing in…") : t("Sign in")}
                 </Button>
               </form>}
 
@@ -204,7 +207,6 @@ export function AuthPage({ mode, redirectTo, embedded = false, onModeChange }: {
                 <Button type="submit" className="min-h-12 w-full" aria-busy={busy} disabled={busy || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(registerEmail) || registerPassword.length < 12}>
                   <KeyRound className="mr-2 h-4 w-4" /> {busy ? t("Creating account…") : t("Create account with email")}
                 </Button>
-                <p className="text-center text-xs leading-5 text-brand-text-muted">{t("Email/password registration is disabled. Continue with Google or connect a supported wallet above to create your account.")}</p>
               </form>}
 
               {identityButtons}
