@@ -164,16 +164,22 @@ async function assertPageAtWidth(
     await expect(page.getByTestId("spot-availability")).toHaveText("Unavailable");
   }
   if (route.path === "/trade/BTCUSDT" && width < 768) {
-    // Phone trading uses the two-column order-entry + order-book workspace.
+    // Full-width phone panels are switched deliberately; never squeeze the
+    // order form and depth ladder into narrow side-by-side columns.
     const orderbook = page.locator(".exchange-workspace > .exchange-depth");
     const orderForm = page.locator(".exchange-workspace > .exchange-entry");
+    const tabs = page.locator(".spot-mobile-tabs");
+    await expect(tabs).toBeVisible();
     await expect(orderForm).toBeVisible();
-    await expect(orderbook).toBeVisible();
+    await expect(orderbook).toBeHidden();
     await expect(page.getByRole("button", { name: "Buy", exact: true }).first()).toBeVisible();
     await expect(page.getByRole("button", { name: "Sell", exact: true }).first()).toBeVisible();
+    await tabs.getByRole("tab", { name: "Order book", exact: true }).click();
+    await expect(orderbook).toBeVisible();
+    await expect(orderForm).toBeHidden();
     const bookBox = await orderbook.boundingBox();
     expect(bookBox, "Phone orderbook must have a layout box.").not.toBeNull();
-    expect(bookBox!.x + bookBox!.width, "Phone orderbook must not overflow the viewport.").toBeLessThanOrEqual(width);
+    expect(bookBox!.width, "Phone orderbook must use the available width.").toBeGreaterThan(width - 24);
 
     const chartTrigger = page.locator("#trade-chart-open");
     await expect(chartTrigger, "Phone spot trading must expose the chart drawer trigger.").toBeVisible();
