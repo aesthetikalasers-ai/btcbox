@@ -18,15 +18,12 @@ export function AuthPage({ mode, redirectTo, embedded = false, onModeChange }: {
   const { t, language, setLanguage } = useI18n();
   const {
     status, busy, error, notice, googleEnabled, walletEnabled, ethereumWallets,
-    signInWithGoogle, signInWithUsername, signInWithEmail, signInWithWeb3, signUpWithEmail,
+    signInWithGoogle, signInWithUsername, signInWithEmail, signInWithWeb3,
     verifyTwoFactor, clearError,
   } = useAuth();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [registerEmail, setRegisterEmail] = useState("");
-  const [registerPassword, setRegisterPassword] = useState("");
-  const [showRegisterPassword, setShowRegisterPassword] = useState(false);
   const [verifyCode, setVerifyCode] = useState("");
   const [verifyBusy, setVerifyBusy] = useState(false);
   const [walletMenuOpen, setWalletMenuOpen] = useState(false);
@@ -69,12 +66,6 @@ export function AuthPage({ mode, redirectTo, embedded = false, onModeChange }: {
       if (username.includes("@")) await signInWithEmail(username, password);
       else await signInWithUsername(username, password);
     }
-    catch { /* AuthProvider displays the safe error. */ }
-  };
-  const submitEmailRegister = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (busy) return;
-    try { await signUpWithEmail(registerEmail, registerPassword); }
     catch { /* AuthProvider displays the safe error. */ }
   };
 
@@ -195,19 +186,6 @@ export function AuthPage({ mode, redirectTo, embedded = false, onModeChange }: {
                 </Button>
               </form>}
 
-              {mode === "register" && <form className="space-y-3" aria-busy={busy} onSubmit={submitEmailRegister}>
-                <div>
-                  <label htmlFor="btcbox-email" className="block text-sm text-brand-text-muted mb-1.5">{t("Email")}</label>
-                  <Input id="btcbox-email" className="h-12" type="email" value={registerEmail} onChange={event => setRegisterEmail(event.target.value)} autoComplete="email" placeholder={t("Enter your email address")} required />
-                </div>
-                <div>
-                  <label htmlFor="btcbox-register-password" className="block text-sm text-brand-text-muted mb-1.5">{t("Password")}</label>
-                  <div className="relative"><Input id="btcbox-register-password" aria-label={t("Password")} className="h-12 pr-10" type={showRegisterPassword ? "text" : "password"} value={registerPassword} onChange={event => setRegisterPassword(event.target.value)} autoComplete="new-password" minLength={12} maxLength={128} placeholder={t("At least 12 characters")} required /><button type="button" aria-label={t(showRegisterPassword ? "Hide password" : "Show password")} aria-pressed={showRegisterPassword} onClick={() => setShowRegisterPassword(value => !value)} className="absolute right-3 top-1/2 -translate-y-1/2 flex h-6 w-6 items-center justify-center rounded text-brand-text-muted transition-colors hover:text-brand-text">{showRegisterPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}</button></div>
-                </div>
-                <Button type="submit" className="min-h-12 w-full" aria-busy={busy} disabled={busy || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(registerEmail) || registerPassword.length < 12}>
-                  <KeyRound className="mr-2 h-4 w-4" /> {busy ? t("Creating account…") : t("Create account with email")}
-                </Button>
-              </form>}
 
               {identityButtons}
 
