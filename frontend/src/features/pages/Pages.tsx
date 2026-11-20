@@ -471,9 +471,10 @@ export function SpotTradingPage(){
    return {...b,bids,asks};
   },
  });
- // Streamed data wins; the polled snapshot is a fallback only while the stream
- // has not delivered a frame yet. A stale snapshot is never rendered as live.
- const displayBook=orderBookSnapshotStale?null:(liveDepth.data??book);
+ // Prefer SSE depth while its last frame is fresh. If the stream stalls,
+ // fall back to the newest polled provider snapshot instead of pinning an old frame.
+ const streamDepthFresh=liveDepth.updatedAt!==null&&Date.now()-liveDepth.updatedAt<=90_000;
+ const displayBook=streamDepthFresh?liveDepth.data:(orderBookSnapshotStale?null:book);
  /**
   * Last trade price for the chart price line.
   *
