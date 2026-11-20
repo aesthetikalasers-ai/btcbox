@@ -133,13 +133,13 @@ test('React auth server endpoints retain exact POST contracts and legacy callbac
   assert.ok(!vercel.includes('/legacy-index.html'));
 });
 
-test('OAuth callback renders an error once instead of retrying a consumed authorization code', () => {
+test('OAuth callback does not retry a consumed code and keeps provisioning errors visible', () => {
   const callback = read('../frontend/src/features/auth/AuthPages.tsx');
   assert.ok(callback.includes('const oauthAttempted = useRef(false)'));
   assert.ok(callback.includes('if (!oauthAttempted.current && status !== "loading"'));
   assert.ok(callback.includes('oauthAttempted.current = true;'));
   assert.ok(callback.includes('callbackIntent === "register" ? "/register" : "/login"'));
-  assert.ok(callback.includes('window.setTimeout'));
+  assert.ok(!callback.includes('window.setTimeout'), 'callback errors must remain visible until the user acts');
 });
 
 test('auth entry exposes a side-by-side sign-in/register choice and truthfully gates wallet access', () => {
