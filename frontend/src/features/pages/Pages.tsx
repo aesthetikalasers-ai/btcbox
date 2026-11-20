@@ -738,6 +738,26 @@ export function SpotTradingPage(){
    }
   }finally{setBusy(false);}
  };
+ const confirmOrderPreview = () => {
+  const preview = orderPreview;
+  if (!preview || busy) return;
+  setOrderPreview(null);
+  void sendOrder({
+   symbol,
+   side: preview.side,
+   type: "limit",
+   qty: preview.quantity,
+   price: preview.price,
+   client_order_id: window.crypto.randomUUID(),
+  }, true);
+ };
+ const orderConfirmation = <OrderConfirmDialog
+  open={!!orderPreview}
+  preview={orderPreview}
+  busy={busy}
+  onCancel={() => setOrderPreview(null)}
+  onConfirm={confirmOrderPreview}
+ />;
  const cancelOrder=async(order:OrderRecord)=>{
   const orderId=String(order.order_id??order.id??"");if(!orderId)return;
   if(!accountUid){setError("Account identity is unavailable. Cancellation was not sent.");return;}
@@ -1111,7 +1131,7 @@ export function SpotTradingPage(){
   </section>
 
  </PageFrame>;
- const terminalBody=compactTrade||isPhone?compactTerminal:proTerminal;
+ const terminalBody=compactTrade||isPhone?<>{compactTerminal}{orderConfirmation}</>:<>{proTerminal}{orderConfirmation}</>;
  // Phones use the same bottom-anchored K-line drawer as the perpetual page
  // (65dvh-style sheet pinned above the bottom nav). Tablets/desktop keep the
  // inline chart panel inside their workspace grid.
