@@ -10,7 +10,6 @@ import {
   getDemoOrders,
   getDemoPerpMarkets,
   getDemoTradingStatus,
-  getSampleMarketPairs,
 } from "./demoPreview";
 import {
   demoCancelPerpOrder,
@@ -141,10 +140,7 @@ export async function getSpotMarketPairs(signal?: AbortSignal): Promise<SpotMark
   } catch (error) {
     if (error instanceof Error && error.name === "AbortError") throw error;
   }
-  // Never fabricate a pair catalogue: an unavailable backend renders the
-  // sample catalogue used by local preview, so navigation keeps working while
-  // order entry stays closed by the server-side trading status.
-  return getSampleMarketPairs();
+  throw new ApiError("Spot market catalogue is unavailable. No markets can be shown until the exchange configuration is restored.", 503, "MARKET_CATALOG_UNAVAILABLE");
 }
 
 /**
@@ -169,19 +165,15 @@ export async function getMarkets(signal?: AbortSignal): Promise<MarketTicker[]> 
     });
   } catch (error) {
     if (error instanceof Error && error.name === "AbortError") throw error;
-    // Silently fall back to demo market snapshot so the UI always shows prices,
-    // change %, and chart data without an error banner.
-    return getDemoMarkets();
+    throw new ApiError(MARKET_UNAVAILABLE_MESSAGE, 0, "NETWORK_ERROR");
   }
 
   const payload = (await response.json().catch(() => null)) as (MarketResponse & { code?: string }) | null;
   if (!response.ok || !payload || payload.ok !== true) {
-    // Silently fall back to demo market snapshot instead of showing an error banner.
-    return getDemoMarkets();
+    throw new ApiError(payload?.msg || MARKET_UNAVAILABLE_MESSAGE, response.status, payload?.code || "MARKET_DATA_UNAVAILABLE");
   }
   if (!Array.isArray(payload.markets) || payload.markets.length === 0) {
-    // Silently fall back to demo market snapshot instead of showing an error banner.
-    return getDemoMarkets();
+    throw new ApiError(payload?.msg || MARKET_UNAVAILABLE_MESSAGE, response.status, payload?.code || "MARKET_DATA_UNAVAILABLE");
   }
 
   const rows = payload.markets
@@ -196,12 +188,8 @@ export async function getMarkets(signal?: AbortSignal): Promise<MarketTicker[]> 
       };
     });
 
-  // Every row failed validation: the provider answered, but with nothing usable.
-  // Silently fall back to demo market snapshot instead of showing an error banner,
-  // so the UI always shows prices, change %, and chart data without interruption.
-  if (rows.length === 0) {
-    return getDemoMarkets();
-  }
+  // Empty or malformed provider data is an outage, never a reason to display seeded prices as live.
+  if (rows.length === 0) throw new ApiError(MARKET_UNAVAILABLE_MESSAGE, 502, "MARKET_DATA_INVALID");
   return rows;
 }
 
