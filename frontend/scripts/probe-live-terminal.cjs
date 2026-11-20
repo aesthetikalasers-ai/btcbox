@@ -1,19 +1,15 @@
-robe: opens the desktop trading terminal against the REAL local market
-  * gateway(backend / market - server.js on : 8080) with NO API mocking, then reports
-    * every / api request outcome plus what actually rendered.
+/**
+ * Opens the trading terminal against the real local market gateway (or the
+ * optional Playwright mock) and reports API outcomes plus rendered state.
  *
- * Usage: node scripts / probe - live - terminal.cjs[width][height][baseUrl][--mock]
-  * node scripts / probe - live - terminal.cjs 1920 1080 http://127.0.0.1:4173
+ * Usage:
+ *   node scripts/probe-live-terminal.cjs [width] [height] [baseUrl] [--mock]
  *
- * With`--mock` every `/api/*` call is served by scripts / probe - mocks.cjs instead
-  * of the real gateway.Note this mirrors a real e2e wrinkle: `page.route`
-    * matches the request URL as issued, so a mock registered for `**\/api/**`
-      * still intercepts`http://127.0.0.1:8080/api/...`(that pattern matches any
-        * substring), while `url.pathname === "/api/market"` checks inside the handler
-          * still line up.Cross - origin mocks must therefore also stub the CORS preflight.
+ * Example:
+ *   node scripts/probe-live-terminal.cjs 1920 1080 http://127.0.0.1:4173
  *
- * Purpose: distinguish "layout broke" from "data never arrived" when the chart
-  * or order book looks empty.Prints a verdict block at the end.
+ * Purpose: distinguish layout failures from market-data delivery failures
+ * when the chart or order book appears empty.
  */
 const { chromium } = require("@playwright/test");
 
