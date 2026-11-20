@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { completeLogin2fa, exchangeSupabaseSession, getAccount, getAuthClientConfig, linkSupabaseIdentity as linkIdentityRequest, reauthenticateIdentityForLink as reauthenticateIdentityForLinkRequest, loginWithUsername, logout, reauthenticateBtcboxCredentials as reauthenticateCredentialsRequest, recoverBtcboxCredentials as recoverCredentialsRequest, setBtcboxCredentials as saveCredentialsRequest, API_BASE_URL, type AccountRestriction } from "./api";
+import { completeLogin2fa, exchangeSupabaseSession, getAccount, getAuthClientConfig, linkSupabaseIdentity as linkIdentityRequest, reauthenticateIdentityForLink as reauthenticateIdentityForLinkRequest, loginWithUsername, logout, reauthenticateBtcboxCredentials as reauthenticateCredentialsRequest, recoverBtcboxCredentials as recoverCredentialsRequest, setBtcboxCredentials as saveCredentialsRequest, type AccountRestriction } from "./api";
 
 type AuthStatus = "loading" | "anonymous" | "authenticated" | "two-factor" | "password-recovery";
 
@@ -12,6 +12,7 @@ function friendlyAuthErrorMessage(cause: unknown): string {
   if (code === "IDENTITY_IN_USE") return "This wallet is already linked to another BTCBOX account. Please sign in with that account.";
   if (code === "ACCOUNT_FROZEN") return "This BTCBOX account is frozen. Please contact support.";
   if (code === "AUTH_PROVIDER_NOT_ALLOWED") return "This sign-in method is not available. Please use another method.";
+  if (code === "GOOGLE_ONLY_AUTH") return "Email/password registration is disabled. Continue with Google or connect a supported wallet.";
   if (code === "GOOGLE_PROVIDER_UNAVAILABLE") return "Google sign-in is temporarily unavailable. Please try again later.";
   if (code === "INVALID_SUPABASE_IDENTITY") return "The sign-in identity could not be verified. Please try again.";
   const rawMessage = cause instanceof Error ? cause.message : "";
@@ -76,10 +77,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [notice, setNotice] = useState("");
   const [googleEnabled, setGoogleEnabled] = useState(true);
   const [walletEnabled, setWalletEnabled] = useState(false);
-  const [identityLinkSourceVerified, setIdentityLinkSourceVerified] = useState(
-  // Initialize based on whether user is already authenticated with a method
-  status === "authenticated"
-);
+  const [identityLinkSourceVerified, setIdentityLinkSourceVerified] = useState(false);
   const [pendingIdentityLinkToken, setPendingIdentityLinkToken] = useState("");
   const [identityLinkNeedsTwoFactor, setIdentityLinkNeedsTwoFactor] = useState(false);
   const [needsCredentials, setNeedsCredentials] = useState(false);
@@ -493,17 +491,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signUpWithEmail = useCallback(async (address: string, password: string) => {
     setBusy(true); setError(""); setNotice("");
     try {
-      const response = await fetch(`${API_BASE_URL}/register`, {
-        method: "POST", credentials: "include",
-        headers: { Accept: "application/json", "Content-Type": "application/json" },
-        cache: "no-store",
-        body: JSON.stringify({ email: address.trim(), password }),
+      const client = clientRef.current;
+      if (!client) throw new Error("Authentication is still initializing. Please try again.");
+      const email = address.trim().toLowerCase();
+      const { data, error: authError } = await client.auth.signUp({
+        email,
+        password,
+        options: {
+          emailRedirectTo: window.location.origin + "/auth/react-callback?intent=register",
+        },
       });
-      const payload = await response.json().catch(() => null) as { ok?: boolean; supabase_access_token?: string; msg?: string } | null;
-      if (!response.ok || !payload || payload.ok !== true || !payload.supabase_access_token) {
-        throw new Error(payload?.msg || "Email registration failed.");
+      if (authError) throw authError;
+      const confirmed = !!(data.user?.email_confirmed_at || data.user?.confirmed_at);
+      if (data.session?.access_token && confirmed) {
+        await acceptSupabaseSession(data.session.access_token);
+      } else {
+        setNotice("Check your email for a confirmation link. After confirming, return to BTCBOX to finish creating your account.");
       }
-      await acceptSupabaseSession(payload.supabase_access_token);
     } catch (cause) { setError(cause instanceof Error ? cause.message : "Email registration failed."); throw cause; }
     finally { setBusy(false); }
   }, [acceptSupabaseSession]);
@@ -563,7 +567,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       const { data, error: sessionError } = await client.auth.getSession();
       if (sessionError) throw sessionError;
-      if (!data.session?.access_token) throw new Error("Google authorization did not return a session.");
+      if (!data.session?.access_token) throw new Error("Authentication did not return a valid session.");
       if (url.searchParams.get("flow") === "credential-recovery") {
         try {
           await reauthenticateCredentialsRequest(data.session.access_token);

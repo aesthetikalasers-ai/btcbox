@@ -12,7 +12,10 @@ import { getNavigationTier, getTierFallback } from "../../lib/navigation";
  */
 function goBack(navigate: ReturnType<typeof useNavigate>, pathname: string) {
   const state = typeof window !== "undefined" ? (window.history.state as { idx?: number } | null) : null;
-  const canGoBack = typeof state?.idx === "number" ? state.idx > 0 : window.history.length > 1;
+  // Use browser history back whenever there's more than 1 entry in the session history.
+  // This naturally returns the user to the previous page (e.g., from /earn back to /seconds
+  // or /trade) instead of always falling through to /home.
+  const canGoBack = window.history.length > 1;
   if (canGoBack) navigate(-1);
   else navigate(getTierFallback(getNavigationTier(pathname)), { replace: true });
 }

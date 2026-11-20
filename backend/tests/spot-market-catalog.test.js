@@ -100,9 +100,10 @@ test('order book snapshots normalize provider levels and expose source-specific 
   assert.ok(pages.includes('(!ticker||marketSnapshotStale)&&!pendingIntent'));
   assert.ok(!pages.includes('displayTicker?.source'), 'ticker source badge must not be rendered');
   assert.ok(pages.includes('const orderBookSnapshotStale=!!book&&(!book.snapshotTs||marketClockNow-book.snapshotTs*1000>90_000)'));
-  assert.ok(pages.includes('const displayBook=orderBookSnapshotStale?null:(liveDepth.data??book)'));
-  // A stale book is never rendered: the panel receives `null` instead of data.
-  assert.ok(pages.includes('const displayBook=orderBookSnapshotStale?null'), 'stale book must not be rendered as live');
+  assert.ok(pages.includes('const streamDepthFresh=liveDepth.updatedAt!==null&&Date.now()-liveDepth.updatedAt<=90_000'));
+  assert.ok(pages.includes('const displayBook=streamDepthFresh?liveDepth.data:(orderBookSnapshotStale?null:book)'));
+  // A stale stream frame cannot shadow a newer polled provider snapshot.
+  assert.ok(pages.includes('orderBookSnapshotStale?null:book'), 'stale polled book must not be rendered as live');
   // Provider source badges were intentionally removed from the trader-facing UI.
   assert.ok(!pages.includes('displayBook?.source'), 'order book source must not be rendered');
 });

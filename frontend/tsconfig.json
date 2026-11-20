@@ -15,5 +15,9 @@
     "paths": { "@/*": ["./src/*"] },
     "allowImportingTsExtensions": true,
     "noEmit": true
-  }
+  },
+  // `src/_unused` holds detached experiments that no route or page imports.
+  // They are retained for reference but must not block the build. `e2e` contains
+  // Playwright specs compiled/run separately; they are not part of the app bundle.
+  "exclude": ["node_modules", "dist", "src/_unused", "scripts", "e2e"]
 }

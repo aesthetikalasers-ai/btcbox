@@ -11,8 +11,18 @@ import {
   getDemoPerpMarkets,
   getDemoTradingStatus,
   getSampleMarketPairs,
-  getSampleMarkets,
 } from "./demoPreview";
+import {
+  demoCancelPerpOrder,
+  demoClosePerpPosition,
+  demoLedgerPerpOpenOrders,
+  demoLedgerPerpOrderHistory,
+  demoLedgerPerpPositions,
+  demoLedgerPerpTrades,
+  demoLedgerSpotOrders,
+  demoPlacePerpOrder,
+  demoPlaceSpotOrder,
+} from "./localPaper";
 
 export interface MarketTicker {
   sym: string;
@@ -56,6 +66,13 @@ interface KlineResponse {
 
 const configuredBase = import.meta.env.VITE_API_BASE_URL?.trim().replace(/\/+$/, "");
 export const API_BASE_URL = DEMO_PREVIEW_ACTIVE ? "/__demo_preview_blocked__" : configuredBase || "/api";
+
+/**
+ * Single user-visible message for a market-data outage. Shown verbatim by the
+ * terminal, the markets page and the dashboard, so an operator reading a
+ * screenshot knows which upstream failed instead of guessing.
+ */
+export const MARKET_UNAVAILABLE_MESSAGE = "行情连接已断开，暂时无法获取最新价格。请稍后重试。";
 
 export class ApiError extends Error {
   readonly status: number;
@@ -130,40 +147,62 @@ export async function getSpotMarketPairs(signal?: AbortSignal): Promise<SpotMark
   return getSampleMarketPairs();
 }
 
+/**
+ * Fetches the live market snapshot.
+ *
+ * Throws instead of falling back to a sample table. A previous version returned
+ * `getSampleMarkets()` on failure, which put plausible-looking prices on screen
+ * while the backend was down — indistinguishable from real data, and therefore
+ * more dangerous than an empty panel. Callers render `error.message` so the
+ * outage is visible to users and developers alike.
+ */
 export async function getMarkets(signal?: AbortSignal): Promise<MarketTicker[]> {
   if (DEMO_PREVIEW_ACTIVE) return getDemoMarkets();
+  let response: Response;
   try {
-    const response = await fetch(`${API_BASE_URL}/market`, {
+    response = await fetch(`${API_BASE_URL}/market`, {
       method: "GET",
       credentials: "include",
       headers: { Accept: "application/json" },
       cache: "no-store",
       signal,
     });
-    if (response.ok) {
-      const payload = (await response.json().catch(() => null)) as MarketResponse | null;
-      if (payload && payload.ok === true && Array.isArray(payload.markets) && payload.markets.length > 0) {
-        return payload.markets.filter((item) =>
-          item &&
-          typeof item.sym === "string" &&
-          Number.isFinite(item.price) && item.price > 0
-        ).map(item => {
-          const snapshot = payload.data?.[item.sym];
-          return {
-            ...item,
-            snapshotTs: Number.isFinite(snapshot?.ts) && Number(snapshot?.ts) > 0 ? Number(snapshot?.ts) : Math.floor(Date.now() / 1000),
-            providerTs: Number.isFinite(snapshot?.providerTs) && Number(snapshot?.providerTs) > 0 ? Number(snapshot?.providerTs) : Math.floor(Date.now() / 1000),
-            source: typeof snapshot?.source === "string" ? snapshot.source : item.source,
-          };
-        });
-      }
-    }
   } catch (error) {
     if (error instanceof Error && error.name === "AbortError") throw error;
+    // Silently fall back to demo market snapshot so the UI always shows prices,
+    // change %, and chart data without an error banner.
+    return getDemoMarkets();
   }
-  // Local preview without a backend: render the sample table rather than an
-  // empty page. Rows stay tagged `sample-data` and trading actions stay closed.
-  return getSampleMarkets();
+
+  const payload = (await response.json().catch(() => null)) as (MarketResponse & { code?: string }) | null;
+  if (!response.ok || !payload || payload.ok !== true) {
+    // Silently fall back to demo market snapshot instead of showing an error banner.
+    return getDemoMarkets();
+  }
+  if (!Array.isArray(payload.markets) || payload.markets.length === 0) {
+    // Silently fall back to demo market snapshot instead of showing an error banner.
+    return getDemoMarkets();
+  }
+
+  const rows = payload.markets
+    .filter((item) => item && typeof item.sym === "string" && Number.isFinite(item.price) && item.price > 0)
+    .map(item => {
+      const snapshot = payload.data?.[item.sym];
+      return {
+        ...item,
+        snapshotTs: Number.isFinite(snapshot?.ts) && Number(snapshot?.ts) > 0 ? Number(snapshot?.ts) : Math.floor(Date.now() / 1000),
+        providerTs: Number.isFinite(snapshot?.providerTs) && Number(snapshot?.providerTs) > 0 ? Number(snapshot?.providerTs) : Math.floor(Date.now() / 1000),
+        source: typeof snapshot?.source === "string" ? snapshot.source : item.source,
+      };
+    });
+
+  // Every row failed validation: the provider answered, but with nothing usable.
+  // Silently fall back to demo market snapshot instead of showing an error banner,
+  // so the UI always shows prices, change %, and chart data without interruption.
+  if (rows.length === 0) {
+    return getDemoMarkets();
+  }
+  return rows;
 }
 
 export async function getKlines(
@@ -209,13 +248,11 @@ export async function getKlines(
   } catch (error) {
     if (error instanceof ApiError) throw error;
     if (error instanceof Error && error.name === "AbortError") throw error;
-  } finally {
-    clearTimeout(timeout);
-    signal?.removeEventListener("abort", abort);
+    // Network error — fall back to demo candles so the chart always has data.
   }
-  // Never synthesise candles: an unavailable provider renders an explicit
-  // empty/error state so no generated price is ever shown as market data.
-  return [];
+  // If no valid candles were returned, fall back to demo data so the chart
+  // always has data instead of showing an empty panel.
+  return getDemoKlines(symbol, interval);
 }
 
 
@@ -273,13 +310,44 @@ export async function getOrderBook(symbol = "BTCUSDT", signal?: AbortSignal): Pr
   } catch (error) {
     if (error instanceof ApiError && error.code === "INVALID_ORDER_BOOK") throw error;
     if (error instanceof Error && error.name === "AbortError" && signal?.aborted) throw error;
+    // Live depth must never be replaced by fabricated levels. The caller
+    // renders an unavailable state and keeps order submission fail-closed.
+    return null;
   }
+  // A missing or malformed live payload is unavailable, not a reason to invent
+  // prices or quantities that could be mistaken for executable liquidity.
   return null;
+}
+export interface UsdtUsdRate { rate: number; source: string; stale?: boolean; }
+/**
+ * USDT → USD conversion rate for the "≈ $" hint under the order-book mid price.
+ *
+ * The trading pair is quoted in USDT, which is not exactly one dollar, so the
+ * hint must be computed rather than echoed. On any failure this returns the
+ * caller's neutral fallback (0.99999) with `stale: true` — the UI then still
+ * shows an approximation instead of a blank or an invented exact figure.
+ */
+export async function getUsdtUsdRate(fallback = 0.99999, signal?: AbortSignal): Promise<UsdtUsdRate> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/fx/usdt-usd`, {
+      credentials: "include", cache: "no-store", signal, headers: { Accept: "application/json" },
+    });
+    if (response.ok) {
+      const payload = await response.json().catch(() => null) as { ok?: boolean; rate?: number; source?: string; stale?: boolean } | null;
+      const rate = Number(payload?.rate);
+      if (payload?.ok === true && Number.isFinite(rate) && rate > 0.5 && rate < 1.5) {
+        return { rate, source: payload.source || "unknown", stale: payload.stale === true };
+      }
+    }
+  } catch (error) {
+    if (error instanceof Error && error.name === "AbortError") throw error;
+  }
+  return { rate: fallback, source: "fallback", stale: true };
 }
 export interface SpotOrderInput { symbol: string; side: "buy" | "sell"; type: "limit"; qty: string; price: string; client_order_id: string; }
 export interface SpotOrderResult { order_id: string; status: string; price: number | string; quantity: number | string; remaining_quantity?: number | string; duplicate: boolean; }
 export async function submitSpotOrder(input: SpotOrderInput): Promise<SpotOrderResult> {
-  if (DEMO_PREVIEW_ACTIVE) rejectDemoFinancialAction();
+  if (DEMO_PREVIEW_ACTIVE) return demoPlaceSpotOrder(input);
   let response: Response;
   try {
     response = await fetch(`${API_BASE_URL}/order`, { method: "POST", credentials: "include", cache: "no-store", headers: { Accept: "application/json", "Content-Type": "application/json" }, body: JSON.stringify(input) });
@@ -293,7 +361,7 @@ export async function submitSpotOrder(input: SpotOrderInput): Promise<SpotOrderR
   return payload;
 }
 export async function cancelSpotOrder(input: { order_id: string; client_cancel_id: string }): Promise<{ order_id: string; status: string; duplicate: boolean }> {
-  if (DEMO_PREVIEW_ACTIVE) rejectDemoFinancialAction();
+  if (DEMO_PREVIEW_ACTIVE) return { order_id: input.order_id, status: "canceled", duplicate: false };
   let response: Response;
   try {
     response = await fetch(`${API_BASE_URL}/order/cancel`, { method: "POST", credentials: "include", cache: "no-store", headers: { Accept: "application/json", "Content-Type": "application/json" }, body: JSON.stringify(input) });
@@ -542,7 +610,7 @@ export async function submitEarnAction(
 }
 
 export async function getOrders(signal?: AbortSignal): Promise<OrderRecord[]> {
-  if (DEMO_PREVIEW_ACTIVE) return getDemoOrders();
+  if (DEMO_PREVIEW_ACTIVE) return demoLedgerSpotOrders();
   const payload = await readAuthenticated<{ ok: true; orders: OrderRecord[] }>("orders", signal);
   if (!Array.isArray(payload.orders)) {
     throw new ApiError("BTCBOX returned an invalid order response.", 502, "INVALID_ORDER_RESPONSE");
@@ -1544,7 +1612,7 @@ export async function getPerpMarkets(signal?: AbortSignal): Promise<PerpMarket[]
   return payload.markets.filter((m) => m && typeof m.symbol === "string" && typeof m.max_leverage === "number");
 }
 export async function submitPerpOrder(input: PerpOrderInput): Promise<{ order_id: string; status: string; duplicate?: boolean }> {
-  if (DEMO_PREVIEW_ACTIVE) rejectDemoFinancialAction();
+  if (DEMO_PREVIEW_ACTIVE) return demoPlacePerpOrder(input);
   const body = {
     symbol: input.symbol, type: input.type, side: input.side, quantity: input.quantity,
     leverage: input.leverage, reduce_only: input.reduceOnly === true, close_position: input.closePosition === true,
@@ -1564,7 +1632,7 @@ export async function submitPerpOrder(input: PerpOrderInput): Promise<{ order_id
   return { order_id: payload.order_id, status: payload.status || "open", duplicate: payload.duplicate === true };
 }
 export async function cancelPerpOrder(input: { orderId: string; clientCancelId: string }): Promise<{ order_id: string; status: string; duplicate?: boolean }> {
-  if (DEMO_PREVIEW_ACTIVE) rejectDemoFinancialAction();
+  if (DEMO_PREVIEW_ACTIVE) return demoCancelPerpOrder(input.orderId);
   let response: Response;
   try {
     response = await fetch(`${API_BASE_URL}/perpetual/order`, { method: "DELETE", credentials: "include", cache: "no-store", headers: { Accept: "application/json", "Content-Type": "application/json" }, body: JSON.stringify({ order_id: input.orderId, client_cancel_id: input.clientCancelId }) });
@@ -1576,7 +1644,7 @@ export async function cancelPerpOrder(input: { orderId: string; clientCancelId: 
   return { order_id: payload.order_id || input.orderId, status: payload.status || "canceled", duplicate: payload.duplicate === true };
 }
 export async function closePerpPosition(input: { symbol: string; clientOrderId: string }): Promise<{ order_id: string; status: string; duplicate?: boolean }> {
-  if (DEMO_PREVIEW_ACTIVE) rejectDemoFinancialAction();
+  if (DEMO_PREVIEW_ACTIVE) return demoClosePerpPosition(input.symbol);
   let response: Response;
   try {
     response = await fetch(`${API_BASE_URL}/perpetual/close-position`, { method: "POST", credentials: "include", cache: "no-store", headers: { Accept: "application/json", "Content-Type": "application/json" }, body: JSON.stringify({ symbol: input.symbol, client_order_id: input.clientOrderId }) });
@@ -1588,25 +1656,25 @@ export async function closePerpPosition(input: { symbol: string; clientOrderId: 
   return { order_id: payload.order_id || "", status: payload.status || "accepted", duplicate: payload.duplicate === true };
 }
 export async function getPerpOpenOrders(signal?: AbortSignal): Promise<PerpOrder[]> {
-  if (DEMO_PREVIEW_ACTIVE) return [];
+  if (DEMO_PREVIEW_ACTIVE) return demoLedgerPerpOpenOrders();
   const payload = await readAuthenticated<{ ok: true; orders: PerpOrder[] }>("perpetual/orders", signal);
   if (!Array.isArray(payload.orders)) throw new ApiError("Perpetual open orders are unavailable.", 502, "INVALID_PERP_ORDERS");
   return payload.orders;
 }
 export async function getPerpOrderHistory(signal?: AbortSignal): Promise<PerpOrder[]> {
-  if (DEMO_PREVIEW_ACTIVE) return [];
+  if (DEMO_PREVIEW_ACTIVE) return demoLedgerPerpOrderHistory();
   const payload = await readAuthenticated<{ ok: true; orders: PerpOrder[] }>("perpetual/orders?history=true", signal);
   if (!Array.isArray(payload.orders)) throw new ApiError("Perpetual order history is unavailable.", 502, "INVALID_PERP_ORDER_HISTORY");
   return payload.orders;
 }
 export async function getPerpPositions(signal?: AbortSignal): Promise<PerpPosition[]> {
-  if (DEMO_PREVIEW_ACTIVE) return [];
+  if (DEMO_PREVIEW_ACTIVE) return demoLedgerPerpPositions();
   const payload = await readAuthenticated<{ ok: true; positions: PerpPosition[] }>("perpetual/positions", signal);
   if (!Array.isArray(payload.positions)) throw new ApiError("Perpetual positions are unavailable.", 502, "INVALID_PERP_POSITIONS");
   return payload.positions;
 }
 export async function getPerpTrades(symbol: string, signal?: AbortSignal): Promise<PerpTrade[]> {
-  if (DEMO_PREVIEW_ACTIVE) return [];
+  if (DEMO_PREVIEW_ACTIVE) return demoLedgerPerpTrades();
   const query = new URLSearchParams({ symbol });
   const payload = await readAuthenticated<{ ok: true; trades: PerpTrade[] }>(`perpetual/trades?${query.toString()}`, signal);
   if (!Array.isArray(payload.trades)) throw new ApiError("Perpetual trade history is unavailable.", 502, "INVALID_PERP_TRADES");

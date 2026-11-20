@@ -27,11 +27,13 @@
   --color-brand-border-subtle: #2B3139;
   --color-brand-border-strong: #3A424B;
   --color-border-focus: #0ECB81;
-  /* Text (Step 6) — three-tier hierarchy: primary / secondary / disabled */
+  /* Text (Step 6) — three-tier hierarchy: primary / secondary / disabled.
+     Muted was #848E9C, which failed WCAG contrast against the #0B0E11 surface
+     and made form labels ("Available balance", "Limit price") hard to read. */
   --color-brand-text: #FFFFFF;
   --color-brand-text-secondary: #B7BDC6;
-  --color-brand-text-muted: #848E9C;
-  --color-brand-text-faint: #5E6673;
+  --color-brand-text-muted: #A6B0BD;
+  --color-brand-text-faint: #6B7480;
   --color-brand-text-disabled: #474D57;
 
   /* Financial states (Step 7) — preserve existing up/down convention; neutral slate replaces yellow/gold across the site */
@@ -44,9 +46,9 @@
   --color-brand-teal: #0ECB81;
   --color-brand-violet: #a78bfa;
   --color-brand-indigo: #818cf8;
-  --color-brand-orange: #A2B0BE;
+  --color-brand-orange: #f0b90b;
   --color-brand-info: #72AEF2;
-  --color-brand-warning: #A2B0BE;
+  --color-brand-warning: #f0b90b;
   --color-brand-success: #0ECB81;
   --color-brand-danger: #F6465D;
   --color-profit: #0ECB81;
@@ -81,6 +83,20 @@
 
 :root {
   color-scheme: dark;
+  /* --- Trading control rhythm (Bybit-style ladder) -------------------------
+     One set of sizes for every terminal control so the spot and perpetual
+     columns stop drifting: 40px controls, 30px quick pills, 44px CTAs, 8px
+     radii. `--bf-chart-bar-h` is the collapsed K-line bar; `--bf-nav-h` is the
+     bottom tab bar. Both are reserved at the end of every scroll container so
+     the last table row is never covered. */
+  --bf-control-h: 40px;
+  --bf-quick-h: 30px;
+  --bf-cta-h: 44px;
+  --bf-radius: 8px;
+  --bf-radius-sm: 6px;
+  --bf-nav-h: 60px;
+  --bf-chart-bar-h: 36px;
+  --bf-chart-clearance: calc(var(--bf-chart-bar-h) + 16px);
   --background: #0B0E11;
   --foreground: #FFFFFF;
   --card: #181A20;
@@ -103,7 +119,7 @@
   --brand-accent: #0ECB81;
   --brand-success: #0ECB81;
   --brand-danger: #F6465D;
-  --brand-warning: #848E9C;
+  --brand-warning: #f0b90b;
   --brand-info: #72AEF2;
   --surface-raised: #1E2329;
   --surface-overlay: #232A30;
@@ -128,12 +144,22 @@ body {
 button, input, select, textarea { font: inherit; }
 button { touch-action: manipulation; }
 input:not([type="checkbox"]):not([type="radio"]), select { min-height: 44px; }
+/* The 44px touch minimum above keeps mobile targets honest, but the desktop
+   header is a 56px information-dense bar: a 44px search field left only 6px of
+   breathing room and pushed the visual weight off the product tabs. */
+header.topbar input:not([type="checkbox"]):not([type="radio"]) { min-height: 0; }
+/* Same reason for the compact controls on the right of the bar. */
+header.topbar button { min-height: 0; }
 textarea { min-height: 104px; }
 input[type="checkbox"], input[type="radio"] { accent-color: var(--brand-accent); }
 a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
-/* Financial typography: keep all numbers/monospace figures aligned and jitter-free. */
+/* Financial typography: keep all numbers/monospace figures aligned and jitter-free.
+   Both declarations are required by the design spec: `font-variant-numeric`
+   handles modern engines, `font-feature-settings` covers older WebKit builds. */
 .font-mono, [class*="font-mono"], [class*="tabular-nums"], .bf-tabular {
   font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+  letter-spacing: 0;
 }
 /* Interactive touch targets: never drop below the 44px accessibility floor on pointer devices. */
 @media (pointer: coarse) {
@@ -144,6 +170,26 @@ a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: rgba(255,255,255,.10); border-radius: 999px; }
 ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,.20); }
+
+/* ---------------------------------------------------------------------------
+   Design-system foundations (BTCBOX trade spec §7 / §26).
+   1. Price figures must never reflow: tabular numerals plus a reserved minimum
+      width keep the quote header and PnL columns from jumping on every update.
+   2. Decorative motion is opt-out. Trading transitions (tab, drawer, modal) are
+      kept, but nothing may loop or animate the background.
+   --------------------------------------------------------------------------- */
+.anim-price-tick { display: inline-block; min-width: 1ch; }
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: .001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
 
 @media (max-width: 640px) {
   body { font-size: 15px; }
@@ -228,23 +274,28 @@ a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
    the colour marks "this number updated" without claiming the direction — the
    24h change already carries direction. Replays because React remounts the node
    when its key (the price text) changes. */
+/* Price tick: a short, low-amplitude settle instead of a colour flash. The old
+   version recoloured the entire number to accent green on every tick, which read
+   as strobing on a busy tape. A 2px rise plus a faint upward reticle fades out
+   before the next tick, so fast updates stay legible. */
 @keyframes priceTickPulse {
-  0% { color: var(--color-brand-accent); }
-  100% { color: inherit; }
+  0% { opacity: .72; transform: translateY(1.5px); }
+  100% { opacity: 1; transform: translateY(0); }
 }
-.anim-price-tick { animation: priceTickPulse .7s ease-out; }
+.anim-price-tick { animation: priceTickPulse .34s cubic-bezier(.2,.7,.3,1); }
 
-/* Live price flash: replays on remount (keyed by price value) */
+/* Live price flash: replays on remount (keyed by price value). Softer tint and a
+   shorter tail so consecutive trades do not stack into a solid block of colour. */
 @keyframes priceFlashUp {
-  0% { background-color: rgba(53,214,166,.28); color: #35D6A6; }
+  0% { background-color: rgba(14,203,129,.16); }
   100% { background-color: transparent; }
 }
 @keyframes priceFlashDown {
-  0% { background-color: rgba(240,107,120,.28); color: #F06B78; }
+  0% { background-color: rgba(246,70,93,.16); }
   100% { background-color: transparent; }
 }
-.price-flash-up { animation: priceFlashUp .9s ease-out; border-radius: 6px; padding: 0 4px; margin: 0 -4px; }
-.price-flash-down { animation: priceFlashDown .9s ease-out; border-radius: 6px; padding: 0 4px; margin: 0 -4px; }
+.price-flash-up { animation: priceFlashUp .62s ease-out; border-radius: 6px; padding: 0 4px; margin: 0 -4px; }
+.price-flash-down { animation: priceFlashDown .62s ease-out; border-radius: 6px; padding: 0 4px; margin: 0 -4px; }
 
 /* ---- Entrance & micro-interaction animations (institutional, restrained) ---- */
 @keyframes fadeInUp {
@@ -344,6 +395,73 @@ a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
 
 /* Spot terminal: one scoped layout system, independent from account/admin cards. */
 .spot-terminal { gap:12px; position:relative; }
+/* Gap between the dual-column trading area and the positions/orders block.
+   .5rem (8px) keeps them visually separate without the ~24px void the generic
+   gap produced, so the order panel's submit button sits close to the book's
+   bottom edge instead of floating above a large empty band. */
+.exchange-orders { margin-top:.5rem; }
+/* The book is a few pixels shorter than the order panel once the estimated-total
+   and policy rows are hidden. Padding the book column keeps both bottoms on the
+   same line so the dual-column block reads as one panel. */
+@media (min-width:768px) {
+  .exchange-depth { padding-bottom:16px; }
+}
+/* 768–1023px stacks the chart above the dual column, so the book lands on a
+   different baseline; too much bottom padding reads as a gap here. */
+@media (min-width:768px) and (max-width:1023.98px) {
+  .exchange-depth { padding-bottom:0; }
+}
+/* On phones the two columns sit side by side too, and the book is likewise a few
+   pixels short of the order panel; match the same bottom line. */
+@media (max-width:767.98px) {
+  .exchange-depth { padding-bottom:16px; }
+}
+/* Below 393px the order form wraps one extra line, so the panel is ~12px taller
+   than the book. A tighter book padding keeps the two bottoms within a few
+   pixels instead of overshooting. */
+@media (max-width:392.98px) {
+  .exchange-depth { padding-bottom:12px; }
+}
+/* Mobile-only trade tabs (Buy | Sell | Order book). Shown under 768px only. */
+.spot-mobile-tabs { display:none; }
+/* Spec §2/§7: the trading terminal is full-bleed — 16px page margins and 8px
+   card gaps. The generic PageFrame caps content at `max-w-[1520px]` and pads
+   32px, which wasted ~400px on a 1920 display and forced every card to scroll
+   internally. `max-width:none` lets the workspace use the whole viewport. */
+.spot-terminal { padding:12px; max-width:none; }
+/* Phones/tablets: reserve the collapsed K-line bar (36px) + gap at the end of the
+   scroll container. The global bottom tab bar (60px + safe area) is already
+   padded by AppLayout's main, so this only adds the drawer clearance — the last
+   order row can no longer sit underneath the chart bar. */
+@media (max-width:1023px) {
+  /* Reserve the collapsed K-line bar (36px) plus breathing room so the last
+     block — the recent-trades card — is never sliced by the drawer. */
+  .spot-terminal { padding-bottom: calc(var(--bf-chart-bar-h) + 48px); }
+}
+@media (min-width:1024px) {
+  .spot-terminal { padding:16px; gap:8px; max-width:none; }
+}
+/* The pair is already displayed in the quote strip directly below, so keeping the
+   page H1 as well stacked two identical headers on a phone and pushed the trade
+   area down by ~46px. Visually hidden (not removed) so the document keeps its
+   accessible heading and existing tests still find the title. */
+@media (max-width: 767.98px) {
+  /* Tighter vertical rhythm: the quote strip already repeats the pair, so the
+     page-level 20px gaps only pushed the trade area below the fold. */
+  .spot-terminal { gap: 10px; padding-top: 8px; }
+  .spot-terminal .type-page-title {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+    border: 0;
+  }
+}
+
 /* Ambient multi-layer glow behind the spot terminal (non-interactive, clipped to container). */
 .spot-terminal::before {
   content: "";
@@ -382,6 +500,17 @@ a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
 .spot-quote-grid > div:nth-child(n+3) p { margin:0; font-size:12px; }
 .spot-shortcuts { gap:8px; padding-bottom:4px; }
 .spot-shortcuts > * { min-height:40px; border-radius:6px; font-size:12px; }
+/* Quote strip — desktop baseline. Spec §04 sets the last-trade figure to
+   24px/700 and the pair name to 16px/600; the mobile block below only overrides
+   them for narrow screens. Without this baseline the figure inherited 15px. */
+.spot-quote-strip { display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; min-height:56px; padding:0 0 10px; border-bottom:1px solid var(--color-brand-border); }
+.spot-quote-main { display:flex; align-items:baseline; gap:12px; min-width:0; }
+.spot-quote-pair { font-size:16px; font-weight:600; color:var(--color-brand-text); white-space:nowrap; }
+.spot-quote-badge { display:inline-flex; align-items:center; height:16px; padding:0 5px; border-radius:3px; background:color-mix(in srgb, var(--color-brand-accent) 16%, transparent); color:var(--color-brand-accent); font-size:10px; font-weight:700; letter-spacing:.02em; line-height:1; }
+.spot-quote-price { font-size:24px; font-weight:700; line-height:1.15; letter-spacing:-.02em; font-variant-numeric:tabular-nums; font-feature-settings:"tnum" 1; }
+.spot-quote-meta { display:flex; align-items:center; gap:14px; font-size:11px; color:var(--color-brand-text-muted); white-space:nowrap; }
+.spot-quote-meta b { font-weight:600; color:var(--color-brand-text-secondary); }
+.spot-snapshot-text { font-size:11px; color:var(--color-brand-text-faint); }
 .exchange-workspace { display:grid; grid-template-columns:minmax(0,43fr) minmax(0,57fr); gap:12px; align-items:start; }
 .exchange-pairs { display:none; }
 .exchange-chart,.exchange-entry,.exchange-depth,.exchange-orders { min-width:0; border-radius:6px; box-shadow:none; }
@@ -392,29 +521,35 @@ a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
 .exchange-book-levels { display:flex; flex-direction:column; gap:6px; }
 .spot-book-columns,.spot-book-row { display:grid; grid-template-columns:minmax(0,1.35fr) minmax(0,1fr); gap:6px; text-align:right; font-size:12px; font-variant-numeric:tabular-nums; }
 .spot-book-columns { font-size:11px; color:var(--color-brand-text-muted); margin-bottom:6px; }
-.spot-book-row { line-height:24px; background-position:right center; background-repeat:no-repeat; font-family:var(--font-mono); }
+.spot-book-row { line-height:24px; padding-right:10px; background-position:right center; background-repeat:no-repeat; font-family:var(--font-mono); }
 .spot-book-row[data-side="ask"] { background-image:linear-gradient(rgb(240 107 120 / .12),rgb(240 107 120 / .12)); }
 .spot-book-row[data-side="bid"] { background-image:linear-gradient(rgb(53 214 166 / .12),rgb(53 214 166 / .12)); }
 .spot-book-columns span:first-child { text-align:left; }
 .spot-mid-price { margin-block:2px; padding-block:8px; border-block:1px solid var(--color-brand-border); font:700 19px/26px var(--font-mono); }
-.spot-book-row span { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.spot-book-row span { min-width:0; overflow:hidden; white-space:nowrap; }
 .spot-book-row span:first-child { text-align:left; }
-.spot-side button { min-height:44px; border-radius:6px; font-weight:650; }
+.spot-side button { min-height:var(--bf-cta-h); border-radius:var(--bf-radius); font-weight:650; }
 .spot-side button[aria-pressed="true"]:first-child { background:var(--color-profit); color:#051a14; }
 .spot-side button[aria-pressed="true"]:last-child { background:var(--color-loss); color:#fff; }
 .spot-order-type { display:block; }
-.spot-order-type select { width:100%; min-height:38px; height:38px; border:1px solid var(--color-brand-border); border-radius:6px; padding:0 10px; background:var(--color-brand-surface-2); color:var(--color-brand-text); font-size:13px; font-weight:600; }
+.spot-order-type select { width:100%; min-height:var(--bf-control-h); height:var(--bf-control-h); border:1px solid var(--color-brand-border); border-radius:var(--bf-radius-sm); padding:0 10px; background:var(--color-brand-surface-2); color:var(--color-brand-text); font-size:13px; font-weight:600; }
 .spot-price-control { display:flex; align-items:center; gap:6px; }
-.spot-price-control button { display:inline-flex; width:36px; min-width:36px; min-height:40px; align-items:center; justify-content:center; border:1px solid var(--color-brand-border); border-radius:6px; background:var(--color-brand-surface-2); color:var(--color-brand-text-secondary); }
+.spot-price-control button { display:inline-flex; width:36px; min-width:36px; min-height:var(--bf-control-h); align-items:center; justify-content:center; border:1px solid var(--color-brand-border); border-radius:var(--bf-radius-sm); background:var(--color-brand-surface-2); color:var(--color-brand-text-secondary); }
 .spot-price-control button:hover:not(:disabled) { border-color:var(--color-brand-accent); color:var(--color-brand-accent); }
 .spot-price-control button:disabled { opacity:.45; }
-.spot-book-toolbar { display:flex; align-items:center; justify-content:space-between; gap:4px; flex-wrap:wrap; padding-top:4px; border-top:1px solid var(--color-brand-border); }
-.spot-book-toolbar select { width:64px; min-width:64px; flex:0 0 auto; height:34px; min-height:34px; border:1px solid var(--color-brand-border); border-radius:5px; padding:0 6px; background:var(--color-brand-surface-2); color:var(--color-brand-text-secondary); font:600 10.5px/1 var(--font-mono); text-align:center; appearance:auto; }
-.spot-book-view { display:flex; align-items:center; gap:2px; }
-.spot-book-view button { display:inline-flex; width:32px; min-width:32px; min-height:34px; align-items:center; justify-content:center; border:1px solid transparent; border-radius:5px; color:var(--color-brand-text-muted); }
+/* Quantity stepper (spec §27). Same geometry as the price control so the two
+   inputs read as one system; the inner input already owns its own border. */
+.spot-qty-control { display:flex; align-items:center; gap:6px; }
+.spot-qty-control button { display:inline-flex; width:36px; min-width:36px; min-height:var(--bf-control-h); align-items:center; justify-content:center; border:1px solid var(--color-brand-border); border-radius:var(--bf-radius-sm); background:var(--color-brand-surface-2); color:var(--color-brand-text-secondary); transition:border-color .12s ease, color .12s ease; }
+.spot-qty-control button:hover:not(:disabled) { border-color:var(--color-brand-accent); color:var(--color-brand-accent); }
+.spot-qty-control button:disabled { opacity:.45; }
+.spot-book-toolbar { display:flex; align-items:center; justify-content:space-between; gap:4px; flex-wrap:nowrap; padding-top:4px; border-top:1px solid var(--color-brand-border); }
+.spot-book-toolbar select { width:64px; min-width:64px; flex:0 0 auto; height:34px; min-height:34px; border:1px solid var(--color-brand-border); border-radius:5px; padding:0 6px; background:var(--color-brand-surface-2); color:var(--color-brand-text-secondary); font:600 10.5px/1 var(--font-mono); font-variant-numeric:tabular-nums; text-align:center; appearance:auto; }
+.spot-book-view { display:flex; align-items:center; gap:2px; flex:0 0 auto; }
+.spot-book-view button { display:inline-flex; width:28px; min-width:28px; min-height:30px; align-items:center; justify-content:center; border:1px solid transparent; border-radius:var(--bf-radius-sm); color:var(--color-brand-text-muted); }
 .spot-book-view button[aria-pressed="true"] { border-color:var(--color-brand-accent); background:var(--page-accent-soft,rgba(33,199,168,.08)); color:var(--color-brand-accent); }
-.spot-bottom-tabs { display:flex; align-items:center; gap:20px; min-height:42px; border-bottom:1px solid var(--color-brand-border); }
-.spot-bottom-tabs button,.spot-bottom-tabs a { position:relative; display:inline-flex; min-height:42px; align-items:center; gap:5px; padding:0 1px; color:var(--color-brand-text-muted); font-size:13px; white-space:nowrap; }
+.spot-bottom-tabs { display:flex; align-items:center; gap:20px; min-height:44px; border-bottom:1px solid var(--color-brand-border); }
+.spot-bottom-tabs button,.spot-bottom-tabs a { position:relative; display:inline-flex; min-height:44px; align-items:center; gap:5px; padding:0 1px; color:var(--color-brand-text-muted); font-size:13px; white-space:nowrap; }
 .spot-bottom-tabs button.is-active { color:var(--color-brand-text); font-weight:650; }
 .spot-bottom-tabs button.is-active::after { position:absolute; right:0; bottom:-1px; left:0; height:2px; background:var(--color-brand-accent); content:""; }
 .spot-bottom-tabs a { margin-left:auto; justify-content:center; width:36px; }
@@ -425,16 +560,28 @@ a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
 .spot-asset-strip a { color:var(--color-brand-accent); white-space:nowrap; }
 .spot-available { display:flex; flex-wrap:wrap; justify-content:space-between; gap:4px; font-size:11px; color:var(--color-brand-text-muted); }
 .spot-available strong { font-weight:500; color:var(--color-brand-text); font-variant-numeric:tabular-nums; }
-.exchange-entry input { height:46px; border-radius:6px; padding:10px; font-size:16px; font-variant-numeric:tabular-nums; }
-.exchange-entry form > button { min-height:48px; border-radius:6px; white-space:normal; font-weight:650; }
-.spot-policy { margin-top:12px; padding:0 0 0 8px; border-left:2px solid var(--color-brand-border); color:var(--color-brand-text-muted); font-size:11px; line-height:1.6; }
+.exchange-entry input { height:var(--bf-control-h); border-radius:var(--bf-radius-sm); padding:10px; font-size:16px; font-variant-numeric:tabular-nums; }
+.exchange-entry form > button { min-height:46px; border-radius:var(--bf-radius); white-space:normal; font-weight:650; }
+.spot-policy { display:flex; align-items:flex-start; gap:6px; margin-top:8px; padding:6px 8px; border:1px solid color-mix(in srgb, var(--color-brand-warning, #f0b90b) 28%, transparent); border-left-width:2px; border-radius:var(--bf-radius-sm); background:color-mix(in srgb, var(--color-brand-warning, #f0b90b) 7%, transparent); color:var(--color-brand-text-secondary); font-size:11px; line-height:1.5; }
 .spot-total { padding-block:6px; font-size:12px; color:var(--color-brand-text-secondary); font-variant-numeric:tabular-nums; }
-.spot-order-row { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:14px 0; border-bottom:1px solid var(--color-brand-border); }
+/* Explicitly collapse these two rows when marked hidden: both have authored
+   `display`-affecting rules below, so relying on the utility class alone is
+   fragile. Removing them from the flow is what lets the submit button meet the
+   order book's bottom edge. */
+.spot-total.hidden, .spot-policy.hidden { display:none !important; }
+.spot-order-row { display:flex; align-items:center; justify-content:space-between; gap:12px; min-height:44px; padding:8px 0; border-bottom:1px solid var(--color-brand-border); }
 .spot-order-row:last-child { border-bottom:0; }
 .spot-order-summary { min-width:0; display:grid; gap:6px; }
 .spot-order-values { font-size:12px; color:var(--color-brand-text-muted); font-variant-numeric:tabular-nums; overflow-wrap:anywhere; }
+/* Collapse / expand affordance for the orders panel (spec §5). The icon button
+   sits at the end of the tab row and is the only way to shrink the panel. */
+.spot-bottom-toggle { display:inline-flex; width:36px; min-width:36px; min-height:44px; align-items:center; justify-content:center; margin-left:auto; color:var(--color-brand-text-muted); transition:color .12s ease; }
+.spot-bottom-toggle:hover { color:var(--color-brand-text); }
+.spot-bottom-toggle:focus-visible { outline:2px solid var(--ring); outline-offset:-2px; border-radius:6px; }
 .spot-orders-empty { padding-block:20px; text-align:center; }
-.exchange-orders > div:first-child { padding-bottom:12px; }
+/* Spec §4/§2: the tab row is exactly 44px. The old 12px bottom padding
+   inflated it to 57px and pushed the table header out of alignment. */
+.exchange-orders > div:first-child { padding-bottom:0; }
 .exchange-orders > div:first-child > p { font-size:12px; line-height:1.5; }
 /* Drawer bottom inset keeps a 60px clearing line (56px, tab bar + 4px visual gap). */
 .trade-drawer-mask { position:fixed; inset:0 0 calc(60px + env(safe-area-inset-bottom)); z-index:40; background:rgb(0 0 0 / .65); }
@@ -446,19 +593,8 @@ a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
    `max-width: 767.98px` so the 4-column desktop workspace is unaffected.
    ======================================================================== */
 @media (max-width: 767.98px) {
-  /* --- Mobile dual-column workspace (Binance-style) ----------------------- */
-  /* Order form (left 7fr) + order book (right 5fr) stay side-by-side on phones;
-     the orders panel spans full width below them. */
-  .exchange-workspace {
-    display: grid;
-    grid-template-columns: minmax(0, 58fr) minmax(0, 42fr);
-    gap: 8px;
-    align-items: stretch;
-  }
-  .exchange-workspace > .exchange-entry { grid-column: 1; grid-row: 1; }
-  .exchange-workspace > .exchange-depth { grid-column: 2; grid-row: 1; }
-  .exchange-workspace > .exchange-orders { grid-column: 1 / -1; grid-row: 2; }
-  .exchange-workspace > .exchange-chart { grid-column: 1 / -1; grid-row: auto; }
+  /* --- Mobile workspace: single column, driven by the trade tabs ----------
+     The panel choice lives in `.spot-mobile-tabs` further below. */
 
   /* --- Compact inline chart inside the header-triggered drawer ------------ */
   .exchange-chart--compact {
@@ -536,19 +672,18 @@ a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
   }
   .spot-book-columns {
     margin-bottom: 4px;
-    padding: 0 4px;
-    font-size: 10.5px;
+    padding: 0 10px 0 4px;
+    font-size: 10px;
   }
   .spot-book-row {
-    /* Overrides the global `@media (pointer: coarse)` 44px touch floor: the
-       dense mobile order book requires a 26px row (matches the e2e lineHeight
-       contract). Full-width depth rows keep the tap target usable. */
-    min-height: 26px;
-    height: 26px;
-    line-height: 26px;
-    /* Dense 2px/4px rhythm; the fixed height keeps the row band compact. */
-    padding: 2px 4px;
-    border-radius: 3px;
+    /* Binance mobile density: 18px rows keep the whole ladder compact so the
+       page does not grow taller than a phone viewport. The 10px right padding
+       keeps the quantity column and the depth bar's end off the screen edge. */
+    min-height: 18px;
+    height: 18px;
+    line-height: 18px;
+    padding: 0 10px 0 4px;
+    border-radius: 2px;
     font-variant-numeric: tabular-nums;
   }
   .spot-book-row[data-side="ask"] {
@@ -588,13 +723,23 @@ a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
     font-variant-numeric: tabular-nums;
   }
   .exchange-entry form > button {
-    min-height: 44px;
-    height: 44px;
+    min-height: 36px;
+    height: 36px;
     border-radius: 6px;
   }
   .exchange-entry form > div > button:not([type="submit"]) {
     border-radius: 4px;
   }
+  /* Binance-mobile dense inputs: 34px height keeps the form short. */
+  .exchange-entry input {
+    height: 34px;
+    min-height: 34px;
+    border-radius: 6px;
+    padding: 0 8px;
+    font-size: 13px;
+  }
+  .exchange-entry form > div,
+  .exchange-entry form > label { gap: 4px; }
 
   /* --- Bottom baseline alignment of both columns ------------------------- */
   /* Both columns stretch to the same grid row height. Each column's content
@@ -706,23 +851,172 @@ a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
    Scoped to desktop (>=1280px) where the full 4-column grid is active;
    mobile keeps its existing orderbook-left / entry-right document flow.
    ======================================================================== */
-@media (min-width:1280px) {
-  /* Lock the terminal to the viewport so only inner regions scroll. */
+@media (min-width:1024px) {
+  /* Lock the terminal to the viewport so only inner regions scroll.
+     Track budget (spec §6): title + nav + notices + quote strip are `auto`;
+     The terminal flows naturally: it scrolls with the page instead of locking
+     to the viewport. A viewport lock forced every card to scroll internally,
+     which is what made the desktop page hard to use. */
   .spot-terminal {
-    height: calc(100dvh - 60px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
-    overflow: hidden;
     display: grid;
-    grid-template-rows: auto auto auto auto auto minmax(0,1fr);
+    grid-template-rows: auto auto auto auto auto;
     align-content: start;
+    min-height: 0;
+  }
+  .spot-terminal > .exchange-workspace {
+    min-height: 0;
   }
   .spot-terminal .exchange-workspace {
     min-height: 0;
-    height: 100%;
     align-content: start;
+    /* Spec §6: three columns (280px book, flexible chart, 320px order entry)
+       on one row, with the orders panel full-width underneath. Rows size to
+       content; the page scrolls as a whole. */
+    grid-template-columns: minmax(400px, 1fr) minmax(260px, 280px) minmax(300px, 320px);
+    grid-template-rows: auto auto;
   }
+  .spot-terminal .exchange-workspace > .exchange-chart { grid-column: 1; grid-row: 1; }
+  .spot-terminal .exchange-workspace > .exchange-depth { grid-column: 2; grid-row: 1; }
+  .spot-terminal .exchange-workspace > .exchange-entry { grid-column: 3; grid-row: 1; }
+  /* Orders panel spans the whole workspace on the second row (spec §5). */
+  .spot-terminal .exchange-workspace > .exchange-orders { grid-column: 1 / -1; grid-row: 2; }
+
+  /* Inline chart height (spec §3/§6): 520–680px recommended range. The global
+     `.trade-candles` rules pin 600/520px, which either overflowed the viewport
+     or collapsed the chart once the row was capped. The chart now fills its
+     card body, and the card body fills the row track. */
+  .spot-terminal .exchange-chart {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    /* Stretch to the row so the chart owns the full track height (spec §6:
+       520–680px). `align-self:start` on the sibling cards keeps them compact. */
+    align-self: stretch;
+  }
+  .spot-terminal .exchange-chart > div:last-child {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-height: 0;
+  }
+  .spot-terminal .exchange-chart .trade-candles {
+    height: auto;
+    min-height: 300px;
+    flex: 1 1 auto;
+    overflow: hidden;
+  }
+  /* The shared Card component ships 24px padding, which shrank the order form's
+     usable width and pushed every control off the spec. Trading cards use the
+     design-system value instead. */
+  .spot-terminal .exchange-chart > div,
+  .spot-terminal .exchange-depth > div,
+  .spot-terminal .exchange-entry > div {
+    padding: 16px;
+  }
+  .spot-terminal .exchange-chart,
+  .spot-terminal .exchange-depth,
+  .spot-terminal .exchange-entry,
+  .spot-terminal .exchange-orders {
+    border-radius: 8px;
+  }
+  /* Cards keep their natural height: ten book levels and the whole order form
+     are shown in full and the page scrolls as one surface. Per-card scrolling
+     was removed — nested scroll areas made the desktop page hard to use. */
+  .spot-terminal .exchange-depth,
+  .spot-terminal .exchange-entry {
+    max-height: none;
+    overflow: visible;
+  }
+  .spot-terminal .exchange-depth > div:last-child,
+  .spot-terminal .exchange-entry > div:last-child {
+    min-height: 0;
+    overflow-y: visible;
+  }
+
+  /* --- Controls (spec §06: input 40px; §05: button 44px) ---------------- */
+  /* Spec §1.3 lists 44px buttons for the desktop trade page and §05 lists 44px
+     for trade buttons; §1.3's 48px applies to the mobile layout. Desktop trade
+     controls follow the 40/44 pair so the form fits the 320–360px column. */
+  .spot-terminal .exchange-entry input {
+    height: 40px;
+    min-height: 40px;
+    font-size: 14px;
+    border-radius: 6px;
+  }
+  .spot-terminal .exchange-entry select {
+    height: 40px;
+    min-height: 40px;
+    border-radius: 6px;
+  }
+  .spot-terminal .spot-price-control button,
+  .spot-terminal .spot-qty-control button {
+    min-height: 40px;
+    width: 36px;
+  }
+  .spot-terminal .exchange-entry form > button[type="submit"],
+  .spot-terminal .exchange-entry .spot-submit {
+    height: 44px;
+    min-height: 44px;
+    border-radius: 6px;
+    font-size: 14px;
+  }
+  .spot-terminal .spot-side button {
+    min-height: 40px;
+    border-radius: 6px;
+  }
+  /* 1024–1279px (spec §6 "compact desktop"): the chart keeps the centre column
+     and the book/entry stack in a single right-hand column so no region is
+     squeezed below its usable width. The orders panel stays full-width below. */
+  @media (max-width:1279px) {
+    /* Short compact-desktop viewports cannot fit the locked viewport budget:
+       release the height lock and let the page scroll instead of overlapping. */
+    .spot-terminal {
+      height: auto;
+      overflow: visible;
+      grid-template-rows: auto;
+      padding-bottom: 16px;
+    }
+    .spot-terminal .exchange-workspace {
+      grid-template-columns: minmax(400px, 1fr) minmax(300px, 360px);
+      grid-template-rows: auto minmax(0, 1fr) auto;
+      height: auto;
+    }
+    /* Chart spans the full right-hand stack height; the book and the order form
+       each take one row inside that column so they never overlap. */
+    .spot-terminal .exchange-workspace > .exchange-chart { grid-column: 1; grid-row: 1 / span 2; }
+    .spot-terminal .exchange-workspace > .exchange-depth { grid-column: 2; grid-row: 1; }
+    .spot-terminal .exchange-workspace > .exchange-entry { grid-column: 2; grid-row: 2; }
+    .spot-terminal .exchange-workspace > .exchange-orders { grid-column: 1 / -1; grid-row: 3; }
+  }
+  /* Inside the workspace the orders panel owns row 2 and sizes to its content. */
+  .spot-terminal .exchange-orders {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    margin-top: 8px;
+  }
+  .spot-terminal .exchange-orders > * { min-height: 0; }
+  /* Both trading cards keep their natural height and scroll internally when the
+     viewport cannot show everything. No `max-height`/`align-self` overrides:
+     those clipped the book and left empty space inside the order form. */
   .exchange-chart, .exchange-entry, .exchange-depth, .exchange-orders {
     min-height: 0;
-    overflow: hidden;
+  }
+  .spot-terminal .exchange-entry,
+  .spot-terminal .exchange-depth {
+    display: flex;
+    flex-direction: column;
+  }
+  /* Cards align to the top of their row and keep their natural height. */
+  .spot-terminal .exchange-depth,
+  .spot-terminal .exchange-entry {
+    align-self: start;
+    max-height: none;
+  }
+  .spot-terminal .exchange-entry > div:last-child,
+  .spot-terminal .exchange-depth > div:last-child {
+    min-height: 0;
+    overflow-y: visible;
   }
   .exchange-chart > div:last-child,
   .exchange-entry > div:last-child,
@@ -1008,52 +1302,55 @@ a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
    Scoped to <=767.98px; desktop 4-column grid untouched.
    ======================================================================== */
 @media (max-width: 767.98px) {
-  .spot-terminal { gap: 8px; }
+  .spot-terminal { gap: 6px; padding-top: 4px; }
 
-  /* --- Compact quote header strip --------------------------------------- */
+  /* --- Compact quote header strip (left-aligned, dense) ------------------ */
   .spot-quote-strip {
     display: flex;
     flex-direction: column;
-    gap: 4px;
-    padding: 2px 2px 8px;
+    gap: 2px;
+    padding: 4px 2px 4px;
     border-bottom: 1px solid var(--color-brand-border);
+    align-items: flex-start;
   }
   .spot-quote-main {
     display: flex;
     align-items: baseline;
-    gap: 10px;
+    gap: 6px;
     flex-wrap: wrap;
     min-width: 0;
   }
   .spot-quote-pair {
-    font-size: 13px;
-    font-weight: 650;
-    color: var(--color-brand-text);
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 1.4;
+    color: var(--color-brand-text-muted);
     letter-spacing: .01em;
   }
   .spot-quote-price {
-    font-size: clamp(22px, 6.5vw, 30px);
+    font-size: 13px;
     font-weight: 700;
-    line-height: 1.1;
-    letter-spacing: -.03em;
+    line-height: 1.2;
+    letter-spacing: -.01em;
     font-variant-numeric: tabular-nums;
   }
   .spot-quote-chg {
     display: inline-flex;
     align-items: center;
-    min-height: 22px;
-    padding: 1px 8px;
-    border-radius: 999px;
-    font-size: 12px;
+    min-height: 0;
+    padding: 0 4px;
+    border-radius: 4px;
+    font-size: 10px;
     font-weight: 650;
+    line-height: 1.4;
     font-variant-numeric: tabular-nums;
-    background: color-mix(in srgb, currentColor 12%, transparent);
+    background: color-mix(in srgb, currentColor 14%, transparent);
   }
   .spot-quote-meta {
     display: flex;
-    gap: 14px;
+    gap: 8px;
     flex-wrap: wrap;
-    font-size: 11px;
+    font-size: 10px;
     color: var(--color-brand-text-muted);
     font-variant-numeric: tabular-nums;
   }
@@ -1062,23 +1359,56 @@ a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
     margin: 0;
     padding: 0 2px;
     font-size: 10px;
-    color: var(--color-brand-text-muted);
-    opacity: .75;
+    color: var(--color-brand-text-faint);
   }
 
-  /* --- Single-column stacked workspace (depth above entry) -------------- */
+  /* --- Mobile trade tabs: Buy | Sell | Order book -------------------------
+     Design board Trade screen defines three tabs, so the order form and the
+     order book never share the phone viewport. `data-mobile-panel` on the
+     workspace drives which panel is shown; both stay in the DOM so order-book
+     interaction (tap a level to set price) and a11y references keep working.
+     This replaces the earlier contradictory 58fr/42fr dual-column declaration. */
+  .spot-mobile-tabs {
+    display: none;
+  }
+  .spot-mobile-tabs button {
+    flex: 1 1 0;
+    min-height: 40px;
+    border-radius: 6px;
+    color: var(--color-brand-text-muted);
+    font-size: 13px;
+    font-weight: 600;
+    transition: background-color .15s ease, color .15s ease;
+  }
+  .spot-mobile-tabs button.is-active { background: var(--color-brand-surface); color: var(--color-brand-text); }
+  .spot-mobile-tabs button[aria-selected="true"]:first-child { color: var(--color-profit); }
+  .spot-mobile-tabs button[aria-selected="true"]:nth-child(2) { color: var(--color-loss); }
+
+  /* Phone: dual column (left = order form, right = order book) matching the
+     perpetual page and the Binance mobile futures layout. The three-tab panel
+     switcher is retired; both panels stay side by side on every phone width. */
   .exchange-workspace {
     display: grid;
-    grid-template-columns: minmax(0, 1fr);
-    gap: 8px;
+    grid-template-columns: minmax(0, 55fr) minmax(0, 45fr);
+    gap: 6px;
     align-items: start;
   }
-  .exchange-workspace > .exchange-depth,
-  .exchange-workspace > .exchange-entry,
-  .exchange-workspace > .exchange-orders {
+  .exchange-workspace > .exchange-entry {
     grid-column: 1;
-    grid-row: auto;
+    grid-row: 1;
     margin-top: 0;
+    min-width: 0;
+  }
+  .exchange-workspace > .exchange-depth {
+    grid-column: 2;
+    grid-row: 1;
+    margin-top: 0;
+    min-width: 0;
+  }
+  .exchange-workspace > .exchange-orders {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    margin-top: 8px;
   }
   /* Reset desktop/tablet baseline-push margins that stretch stacked cards. */
   .exchange-depth > div > div:last-child,
@@ -1091,57 +1421,67 @@ a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
   }
   .exchange-entry > div form { flex: 0 0 auto; gap: 8px; }
 
-  /* --- Order book: 3 columns (price | qty | cumulative), dense rows ----- */
-  .spot-book-cum { display: inline; }
+  /* --- Order book: 2 columns on phone (price | qty), hide cumulative to give price room ----- */
+  .spot-book-cum { display: none; }
   .spot-book-columns,
   .spot-book-row {
-    grid-template-columns: minmax(0,1.2fr) minmax(0,1fr) minmax(0,1fr);
+    grid-template-columns: minmax(70px,1fr) minmax(0,1fr);
     gap: 4px;
+    /* Spec §04/§E: order-book numerals are 12px on both desktop and phone.
+       A smaller size here used to clip the price precision on 360–430px. */
     font-size: 11px;
   }
   .spot-book-columns { margin-bottom: 2px; padding: 0 2px; font-size: 10px; }
-  .spot-book-columns span:first-child { text-align: right; }
+  .spot-book-columns span:first-child { text-align: left; }
   .spot-book-row {
-    min-height: 22px;
-    height: 22px;
-    line-height: 22px;
+    /* Keep phone depth rows at the 28px trading-terminal size for readable
+       price precision and reliable touch selection. */
+    min-height: 28px;
+    height: 28px;
+    line-height: 28px;
     padding: 0 2px;
     border-radius: 2px;
+    font-size: 11px;
   }
-  .spot-book-row span:first-child { text-align: right; }
+  .spot-book-row span:first-child { text-align: left; }
   .spot-mid-price {
-    margin-block: 2px;
-    padding: 4px 2px;
+    margin-block: 1px;
+    padding: 2px 2px;
     border-block: 1px solid var(--color-brand-border);
-    font: 700 16px/22px var(--font-mono);
+    font: 700 14px/20px var(--font-mono);
     text-align: left;
   }
-  .exchange-book-levels { gap: 1px; }
-  .exchange-book-levels > div { gap: 1px; }
+  .exchange-book-levels { gap: 0; }
+  .exchange-book-levels > div { gap: 0; }
 
   /* Depth toolbar moved to top-right; remove the footer border. */
   .spot-book-toolbar {
     justify-content: flex-end;
     border-top: 0;
     padding-top: 0;
-    padding-bottom: 4px;
-    margin-bottom: 2px;
+    padding-bottom: 3px;
+    margin-bottom: 1px;
     border-bottom: 1px solid var(--color-brand-border);
   }
-  .spot-book-toolbar select { height: 28px; min-height: 28px; }
-  .spot-book-view button { min-height: 28px; width: 28px; min-width: 28px; }
+  .spot-book-toolbar select { width:58px; min-width:58px; height:28px; min-height:28px; padding:0 1px; }
+  .spot-book-view button { min-height:28px; width:26px; min-width:26px; }
+
+  /* The mobile Buy/Sell tabs already choose the side, so the in-form switch is
+     redundant there. Desktop keeps it (no tabs above 768px). */
+  .spot-entry-head .spot-side { display: grid; }
+  .spot-entry-head { padding: 0 0 4px; }
 
   /* --- Compact order entry ---------------------------------------------- */
-  .spot-entry-head { padding: 0 0 8px; margin: 0; }
+  .spot-entry-head { padding: 0 0 6px; margin: 0; }
   .spot-entry-head > div { margin: 0; }
-  .spot-side button { min-height: 40px; border-radius: 6px; }
-  .spot-order-type select { height: 34px; min-height: 34px; font-size: 12px; }
+  .spot-side button { min-height: 36px; border-radius: 6px; }
+  .spot-order-type select { height: 32px; min-height: 32px; font-size: 12px; }
   .spot-price-control { gap: 4px; }
-  .spot-price-control button { width: 32px; min-width: 32px; min-height: 36px; }
-  .exchange-entry input { height: 40px; padding: 8px 10px; font-size: 15px; }
+  .spot-price-control button { width: 32px; min-width: 32px; min-height: 32px; }
+  .exchange-entry input { height: 36px; padding: 8px 10px; font-size: 15px; }
   .exchange-entry form > button.spot-submit {
-    min-height: 46px;
-    height: 46px;
+    min-height: 40px;
+    height: 40px;
     border-radius: 8px;
     font-weight: 700;
     letter-spacing: .02em;
@@ -1162,12 +1502,14 @@ a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
 
   /* --- Collapsible bottom orders tabs ----------------------------------- */
   .exchange-orders { margin-top: 0; }
-  .spot-bottom-tabs { min-height: 36px; gap: 16px; }
+  /* Spec §5: the mobile tab bar is 40px; the toggle keeps a 40px hit area. */
+  .spot-bottom-tabs { min-height: 36px; gap: 12px; }
   .spot-bottom-tabs button,
   .spot-bottom-tabs a { min-height: 36px; font-size: 12px; }
-  .spot-order-row { padding: 10px 0; }
-  .spot-orders-empty { padding-block: 14px; }
-  .spot-asset-strip { padding: 10px 2px; }
+  .spot-bottom-toggle { min-height: 36px; }
+  .spot-order-row { padding: 8px 0; min-height: 36px; }
+  .spot-orders-empty { padding-block: 12px; }
+  .spot-asset-strip { padding: 8px 2px; }
 }
 
 /* Cumulative column hidden on desktop/tablet (2-column book preserved). */
@@ -1190,7 +1532,7 @@ a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
   /* 3-column order book with cumulative on tablet/desktop too. */
   .spot-book-cum { display: inline; }
   .spot-book-columns,
-  .spot-book-row { grid-template-columns: minmax(0,1.2fr) minmax(0,1fr) minmax(0,1fr); }
+  .spot-book-row { grid-template-columns: minmax(70px,1.4fr) minmax(0,1fr) minmax(0,1fr); }
   .spot-book-row { min-height: 24px; height: 24px; line-height: 24px; }
 }
 
@@ -1206,7 +1548,10 @@ a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
   left: 0 !important; right: 0 !important; bottom: 0 !important; top: auto !important;
   transform: none !important;
   z-index: 61;
-  max-height: 82dvh;
+  /* Spec §5: the drawer opens around 65dvh and may grow to 92dvh. It must never
+     exceed the viewport minus the safe area, and it never forces a minimum: a
+     `min-height` here made a short chart panel overflow the 840px guard. */
+  max-height: min(92dvh, calc(100dvh - env(safe-area-inset-top) - 8px));
   overflow-y: auto;
   margin: 0;
   width: 100%;
@@ -1238,6 +1583,1181 @@ a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
 .spot-book-row--click { cursor: pointer; transition: filter .12s ease; }
 .spot-book-row--click:hover { filter: brightness(1.3); }
 
-/* Compact 5 quick-price buttons. */
-.spot-quick-prices { margin-top: -2px; }
-.spot-quick-prices button { min-height: 28px; }
+/* ----------------------------------------------------------------------------
+   Bottom-anchored K-line drawer (Binance mobile style).
+   Collapsed: a single 36px bar pinned above the fixed bottom nav.
+   Expanded: the panel grows upward from the bottom (65dvh, draggable to 92dvh).
+   The root is an overlay that never blocks the trade form while collapsed.
+   ---------------------------------------------------------------------------- */
+.trade-drawer-root {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: calc(56px + env(safe-area-inset-bottom));
+  z-index: 45;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  pointer-events: none;
+}
+.trade-drawer-root > * { pointer-events: auto; }
+.trade-drawer-panel {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 430px;
+  margin: 0 auto;
+  overflow: hidden;
+  background: var(--color-brand-surface);
+  border-top: 1px solid var(--color-brand-border);
+  border-radius: 12px 12px 0 0;
+  transition: height .2s ease;
+}
+.trade-drawer-root.is-dragging .trade-drawer-panel { transition: none; }
+.trade-drawer-handle { touch-action: none; cursor: grab; }
+.trade-drawer-handle:active { cursor: grabbing; }
+/* Desktop: the drawer is not used (chart is inline), hide it above 1024px. */
+@media (min-width: 1024px) {
+  .trade-drawer-root { display: none; }
+}
+
+/* ------------------------------------------------------------------------- *
+ * Shared bottom order panel (spot / perpetual / seconds).
+ *
+ * One strip, one underline, one collapse arrow, one empty state. The tab row
+ * scrolls horizontally with `shrink-0` tabs so a long localised label ("未約定
+ * 注文 (3)") never wraps or gets clipped in half on a 320–430px viewport.
+ * ------------------------------------------------------------------------- */
+.bf-bottom-panel { display: flex; min-width: 0; flex-direction: column; }
+.bf-tab-strip {
+  display: flex;
+  min-width: 0;
+  min-height: 40px;
+  align-items: center;
+  gap: 18px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  border-bottom: 1px solid var(--color-brand-border);
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.bf-tab-strip::-webkit-scrollbar { display: none; }
+.bf-tab-strip__tab {
+  position: relative;
+  display: inline-flex;
+  min-height: 40px;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 5px;
+  padding: 0 1px;
+  white-space: nowrap;
+  color: var(--color-brand-text-muted);
+  font-size: 13px;
+  transition: color .12s ease;
+}
+.bf-tab-strip__tab:hover { color: var(--color-brand-text-secondary); }
+.bf-tab-strip__tab.is-active { color: var(--color-brand-text); font-weight: 650; }
+.bf-tab-strip__tab.is-active::after {
+  position: absolute;
+  right: 0;
+  bottom: -1px;
+  left: 0;
+  height: 2px;
+  border-radius: 999px;
+  background: var(--color-brand-accent);
+  content: "";
+}
+.bf-tab-strip__actions {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 2px;
+  margin-left: auto;
+}
+.bf-tab-toggle {
+  display: inline-flex;
+  width: 32px;
+  min-height: 40px;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-brand-text-muted);
+  transition: color .12s ease;
+}
+.bf-tab-toggle:hover { color: var(--color-brand-text); }
+.bf-tab-body { min-width: 0; padding-top: 12px; }
+.bf-tab-empty {
+  padding-block: 20px;
+  text-align: center;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--color-brand-text-muted);
+}
+.term-bottom-panel { height: 100%; min-height: 0; }
+.term-bottom-panel .bf-tab-strip { padding: 0 10px; }
+.term-bottom-panel .bf-tab-body { min-height: 0; flex: 1; overflow-y: auto; padding: 2px 10px 8px; }
+@media (max-width: 767.98px) {
+  .bf-tab-strip { min-height: 36px; gap: 14px; }
+  .bf-tab-strip__tab { min-height: 36px; font-size: 12px; }
+  .bf-tab-toggle { min-height: 36px; width: 30px; }
+  .bf-tab-body { padding-top: 10px; }
+  .bf-tab-empty { padding-block: 14px; }
+}
+
+/* Compact 5 quick-price buttons (-1% / -0.5% / ≈ / +0.5% / +1%).
+   One type scale, one inner padding and one gap for every label: the percentage
+   labels are wider than the "≈" glyph, so mixed spacing made the row look
+   squeezed and risked a wrap on 320–430px viewports.
+   Touch height is unified with every other quick-select pill site-wide
+   (percent chips, ratio chips): 36px min-height + 6px radius. */
+.spot-quick-prices { margin-top: -2px; gap: 6px; }
+.spot-quick-prices button {
+  min-height: 36px;
+  padding-inline: 4px;
+  border-radius: var(--bf-radius-sm);
+  font-size: 10px;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* Perpetual chart dialog.
+   Radix `Dialog.Content` renders in a portal with no positioning of its own, so
+   an auto-height content box collapsed to a ~30px strip at the end of the
+   document and the chart never received a drawing surface. These rules give it a
+   real fixed, centred modal box on every breakpoint. */
+.term-chart-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 300;
+  background: rgb(0 0 0 / .65);
+  backdrop-filter: blur(2px);
+}
+.term-chart-dialog {
+  position: fixed;
+  z-index: 301;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  width: min(900px, calc(100vw - 24px));
+  max-height: min(88dvh, 680px);
+  padding: 12px;
+  border: 1px solid var(--color-brand-border);
+  border-radius: 12px;
+  background: var(--color-brand-surface);
+  box-shadow: 0 18px 48px rgb(0 0 0 / .5);
+  overflow: auto;
+}
+.term-chart-dialog__close {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  font-size: 18px;
+  line-height: 1;
+  color: var(--color-brand-text-muted);
+}
+.term-chart-dialog__close:hover { background: var(--color-brand-surface-hover); color: var(--color-brand-text); }
+
+/* The terminal route never scrolls the outer shell on desktop: the workspace
+   owns its own 100dvh budget. Below 1280px the page keeps normal scrolling so
+   the stacked mobile panels remain reachable. */
+@media (min-width: 1280px) {
+  main[data-terminal-route="true"] { overflow: hidden; padding-bottom: 0; }
+}
+
+/* ========================================================================
+   DESKTOP TRADING TERMINAL (>= 1280px)
+   A strict three-column, viewport-locked terminal:
+     left   58%  ticker bar → K-line → collapsible orders/history/assets
+     middle 20%  order book + recent trades
+     right  22%  order form
+   Everything below is scoped to `.spot-terminal--pro` so the compact
+   (<1280px) trading flow and every other page keep their existing layout.
+   ======================================================================== */
+@media (min-width: 1280px) {
+  /* --- Lock the terminal to the viewport ------------------------------- */
+  /* The shell already owns the scrolling container, so the terminal claims the
+     full available height, drops its duplicated page banner title and scrolls
+     only inside its panels. */
+  .spot-terminal.spot-terminal--pro {
+    /* Must match the real Topbar height: `h-14` = 56px at >=1280px. Any
+       mismatch leaves the grid taller than <main>, and because <main> is
+       overflow:hidden on this route the extra height is unreachable. */
+    --pro-header: 3.5rem;
+    display: grid;
+    /* ticker bar → (optional) notices → workspace. The product tabs live in the
+       global header, not here, so there is no dedicated tab row. */
+    grid-template-rows: auto auto minmax(0, 1fr);
+    gap: 8px;
+    height: calc(100dvh - var(--pro-header) - env(safe-area-inset-top));
+    min-height: 0;
+    margin: 0;
+    padding: 0 10px 10px;
+    overflow: hidden;
+    max-width: none;
+    width: 100%;
+  }
+  .spot-terminal--pro::before,
+  .spot-terminal--pro::after { display: none; }
+  /* The PageFrame title duplicates the pair name from the ticker bar. */
+  .spot-terminal--pro > .page-frame-title { display: none; }
+
+  /* --- Locked ticker bar ---------------------------------------------- */
+  .term-top {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    min-width: 0;
+    min-height: 52px;
+    padding: 2px 0 6px;
+    border-bottom: 1px solid var(--color-brand-border);
+  }
+  .term-top-id { display: flex; align-items: center; gap: 8px; min-width: 0; }
+  .term-top-pair {
+    /* Spec §1.2: pair name is 16px/600 — secondary to the 24px last price. */
+    font-size: 16px;
+    font-weight: 600;
+    line-height: 1.2;
+    letter-spacing: -.01em;
+    color: var(--color-brand-text-secondary);
+    white-space: nowrap;
+  }
+  /* The pair title doubles as the market switcher trigger. */
+  .term-top-pair--button {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 5px 2px 0;
+    border-radius: 5px;
+    transition: color .12s ease, background-color .12s ease;
+  }
+  .term-top-pair--button:hover:not(:disabled) { color: var(--color-brand-accent); }
+  .term-top-pair--button:disabled { cursor: default; }
+
+  /* --- Spot pair switcher dialog --------------------------------------- */
+  .term-pair-overlay { position: fixed; inset: 0; z-index: 300; background: rgb(0 0 0 / .6); backdrop-filter: blur(2px); }
+  .term-pair-dialog {
+    position: fixed;
+    z-index: 301;
+    left: 50%;
+    top: 96px;
+    transform: translateX(-50%);
+    display: flex;
+    flex-direction: column;
+    width: min(360px, calc(100vw - 24px));
+    max-height: min(60vh, 520px);
+    border: 1px solid var(--color-brand-border);
+    border-radius: 10px;
+    background: var(--color-brand-surface);
+    box-shadow: 0 18px 48px rgb(0 0 0 / .5);
+    overflow: hidden;
+  }
+  .term-pair-dialog__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--color-brand-border);
+  }
+  .term-pair-dialog__title { font-size: 13px; font-weight: 650; color: var(--color-brand-text); }
+  .term-pair-dialog__close {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    border-radius: 5px;
+    font-size: 16px;
+    line-height: 1;
+    color: var(--color-brand-text-muted);
+  }
+  .term-pair-dialog__close:hover { background: var(--color-brand-surface-hover); color: var(--color-brand-text); }
+  .term-pair-dialog__search { padding: 8px 8px 0; }
+  .term-pair-dialog__search input {
+    height: 30px;
+    width: 100%;
+    padding: 0 10px;
+    border: 1px solid var(--color-brand-border);
+    border-radius: 6px;
+    background: var(--color-brand-surface-2);
+    font-size: 12px;
+    color: var(--color-brand-text);
+    outline: none;
+  }
+  .term-pair-dialog__search input::placeholder { color: var(--color-brand-text-muted); }
+  .term-pair-dialog__search input:focus { border-color: color-mix(in srgb, var(--color-brand-accent) 55%, transparent); }
+  .term-pair-option__label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .term-pair-option__values { display: inline-flex; align-items: baseline; gap: 10px; margin-left: auto; }
+  .term-pair-option__price { font-size: 12px; color: var(--color-brand-text); }
+  .term-pair-option__chg { min-width: 56px; text-align: right; font-size: 11.5px; color: var(--color-brand-text-muted); }
+  .term-pair-option__chg.is-up { color: var(--color-profit); }
+  .term-pair-option__chg.is-down { color: var(--color-loss); }
+  .term-pair-dialog__list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; padding: 8px; overflow-y: auto; min-height: 0; }
+  .term-pair-option {
+    height: 34px;
+    padding: 0 10px;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    font-size: 12.5px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    text-align: left;
+    color: var(--color-brand-text-secondary);
+    background: var(--color-brand-surface-2);
+  }
+  .term-pair-option:hover { color: var(--color-brand-text); border-color: var(--color-brand-border); }
+  .term-pair-option.is-active {
+    color: var(--color-brand-accent);
+    border-color: color-mix(in srgb, var(--color-brand-accent) 40%, transparent);
+    background: color-mix(in srgb, var(--color-brand-accent) 10%, transparent);
+  }
+  .term-pair-dialog__empty { grid-column: 1 / -1; padding: 16px 8px; text-align: center; font-size: 12px; color: var(--color-brand-text-muted); }
+  .term-top-price {
+    /* Spec §1.2: the last price is the dominant figure — 24px/700. */
+    font-size: 24px;
+    font-weight: 700;
+    line-height: 1.2;
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum" 1;
+    white-space: nowrap;
+  }
+  .term-top-stats { display: flex; align-items: center; gap: 22px; min-width: 0; overflow: hidden; }
+  .term-top-stats > div { display: grid; gap: 1px; min-width: 0; }
+  .term-top-stats span { font-size: 11px; line-height: 1.2; color: var(--color-brand-text-muted); white-space: nowrap; }
+  .term-top-stats b {
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 1.3;
+    color: var(--color-brand-text-secondary);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+  .term-top-links { display: flex; align-items: center; gap: 6px; margin-left: auto; flex-shrink: 0; }
+
+  .term-top-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    height: 28px;
+    padding: 0 9px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--color-brand-text-muted);
+    white-space: nowrap;
+    transition: color .12s ease, background-color .12s ease;
+  }
+  .term-top-link:hover { color: var(--color-brand-text); background: var(--color-brand-surface-hover); }
+  .term-top-cta {
+    display: inline-flex;
+    align-items: center;
+    height: 28px;
+    padding: 0 12px;
+    border-radius: 6px;
+    background: var(--color-brand-accent);
+    color: #051a14;
+    font-size: 12px;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+  .term-top-cta:hover { background: var(--color-brand-hover); }
+
+  /* --- Dismissible system-notice banner ------------------------------- */
+  .term-banner {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    padding: 7px 10px;
+    border: 1px solid color-mix(in srgb, var(--color-brand-warning, #f0b90b) 30%, transparent);
+    border-radius: 6px;
+    background: color-mix(in srgb, var(--color-brand-warning, #f0b90b) 8%, transparent);
+    color: var(--color-brand-warning, #f0b90b);
+    font-size: 12px;
+    line-height: 1.45;
+  }
+  .term-banner-close {
+    display: inline-flex;
+    width: 22px;
+    height: 22px;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    border-radius: 5px;
+    color: inherit;
+    font-size: 16px;
+    line-height: 1;
+  }
+  .term-banner-close:hover { background: rgb(255 255 255 / .08); }
+  /* Real destination for the policy notice: /support explains the matching
+     engine status. It never claims the visitor can unlock trading. */
+  .term-banner-action {
+    flex-shrink: 0;
+    padding: 3px 8px;
+    border: 1px solid var(--color-brand-border);
+    border-radius: 5px;
+    font-size: 11.5px;
+    font-weight: 600;
+    color: var(--color-brand-text);
+    white-space: nowrap;
+  }
+  .term-banner-action:hover { background: rgb(255 255 255 / .08); }
+  /* Market-feed outage: deliberately uses the loss colour so it cannot be
+     confused with the amber policy notice below it. Not dismissible — a screen
+     showing no live price must keep saying so. */
+  .term-feeddown {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 10px;
+    border: 1px solid color-mix(in srgb, var(--color-loss) 40%, transparent);
+    border-radius: 8px;
+    background: color-mix(in srgb, var(--color-loss) 10%, transparent);
+    color: var(--color-loss);
+    font-size: 12px;
+    font-weight: 600;
+  }
+  .term-feeddown-retry {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    flex-shrink: 0;
+    height: 24px;
+    padding: 0 9px;
+    border: 1px solid color-mix(in srgb, var(--color-loss) 45%, transparent);
+    border-radius: 5px;
+    color: var(--color-loss);
+    font-size: 11.5px;
+    font-weight: 650;
+  }
+  .term-feeddown-retry:hover { background: color-mix(in srgb, var(--color-loss) 18%, transparent); }
+  .term-banner-reopen { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--color-brand-text-muted); }
+  .term-banner-reopen button { font-weight: 600; color: var(--color-brand-accent); text-decoration: underline; text-underline-offset: 2px; }
+
+  /* --- Three-column workspace ----------------------------------------- */
+  .term-layout {
+    display: grid;
+    /* Market rail | chart + orders | book + tape | order form.
+       The rail was 172px, which truncated "BTC/USDT" to "BTC/…". 260px shows
+       the full pair name plus the price and 24h columns without clipping. */
+    grid-template-columns: 260px minmax(0, 44fr) minmax(260px, 20fr) minmax(300px, 22fr);
+    gap: 8px;
+    min-height: 0;
+    height: 100%;
+  }
+  /* Collapsed rail keeps a 28px strip so the toggle stays reachable. */
+  .term-layout.is-rail-collapsed { grid-template-columns: 28px minmax(0, 50fr) minmax(260px, 22fr) minmax(300px, 24fr); }
+  .term-col { display: flex; flex-direction: column; min-width: 0; min-height: 0; gap: 8px; }
+  /* --- Market rail (leftmost column) ------------------------------------ */
+  .term-col--pairs {
+    position: relative;
+    border: 1px solid var(--color-brand-border);
+    border-radius: 8px;
+    background: var(--color-brand-surface);
+    overflow: hidden;
+  }
+  .term-col--pairs[data-open="false"] { align-items: center; padding-top: 4px; }
+  .term-rail-toggle {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    z-index: 2;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    border-radius: 4px;
+    color: var(--color-brand-text-muted);
+  }
+  .term-rail-toggle:hover { color: var(--color-brand-text); background: var(--color-brand-surface-hover); }
+  .term-col--pairs[data-open="false"] .term-rail-toggle { position: static; }
+  .term-rail-search {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin: 6px 6px 0;
+    padding: 0 8px;
+    height: 28px;
+    border: 1px solid var(--color-brand-border);
+    border-radius: 6px;
+    background: var(--color-brand-surface-2);
+    color: var(--color-brand-text-muted);
+  }
+  .term-rail-search:focus-within { border-color: color-mix(in srgb, var(--color-brand-accent) 55%, transparent); }
+  .term-rail-search input {
+    min-width: 0;
+    flex: 1 1 auto;
+    background: transparent;
+    border: 0;
+    outline: none;
+    font-size: 11.5px;
+    color: var(--color-brand-text);
+  }
+  .term-rail-search input::placeholder { color: var(--color-brand-text-muted); }
+  .term-rail-head {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto 56px;
+    gap: 6px;
+    padding: 8px 10px 4px;
+    font-size: 10px;
+    color: var(--color-brand-text-muted);
+  }
+  .term-rail-list { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding-bottom: 6px; }
+  .term-rail-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto 56px;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+    height: 27px;
+    padding: 0 10px;
+    font-size: 11.5px;
+    font-variant-numeric: tabular-nums;
+    color: var(--color-brand-text-secondary);
+    border-left: 2px solid transparent;
+  }
+  .term-rail-row:hover { background: var(--color-brand-surface-hover); color: var(--color-brand-text); }
+  .term-rail-row.is-active {
+    border-left-color: var(--color-brand-accent);
+    background: color-mix(in srgb, var(--color-brand-accent) 8%, transparent);
+    color: var(--color-brand-text);
+  }
+  .term-rail-pair { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+  .term-rail-quote { color: var(--color-brand-text-muted); font-weight: 500; }
+  .term-rail-price { text-align: right; }
+  .term-rail-chg { text-align: right; font-weight: 600; }
+  .term-rail-empty { padding: 14px 10px; text-align: center; font-size: 11.5px; color: var(--color-brand-text-muted); }
+  /* The left column is `1fr` (chart) + `auto` (orders). With an intrinsic-height
+     chart, the `auto` row only takes the panel's min-content height and the
+     chart then grows past the column. Giving the panel a fixed 240px and
+     letting the chart take the remaining `1fr` keeps the whole column inside
+     its budget, which is what makes the orders area actually reach the spec'd
+     size instead of collapsing to a 150px strip. */
+  .term-col--main { display: grid; grid-template-rows: minmax(0, 1fr) clamp(240px, 30%, 340px); }
+  .term-col--book {
+    border: 1px solid var(--color-brand-border);
+    border-radius: 8px;
+    background: var(--color-brand-surface);
+    overflow: hidden;
+  }
+  .term-col--entry {
+    border: 1px solid var(--color-brand-border);
+    border-radius: 8px;
+    background: var(--color-brand-surface);
+    padding: 16px;
+    overflow-y: auto;
+  }
+  .term-col--main > * { min-height: 0; }
+  .term-chart,
+  .term-bottom {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    border: 1px solid var(--color-brand-border);
+    border-radius: 8px;
+    background: var(--color-brand-surface);
+    overflow: hidden;
+  }
+  .term-panel-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    min-height: 36px;
+    padding: 0 10px;
+    border-bottom: 1px solid var(--color-brand-border);
+  }
+  .term-panel-title { font-size: 13px; font-weight: 650; color: var(--color-brand-text); white-space: nowrap; }
+  .term-chart-toolbar { display: flex; align-items: center; gap: 1px; }
+  .term-chart-toolbar button {
+    height: 24px;
+    padding: 0 7px;
+    border-radius: 5px;
+    color: var(--color-brand-text-muted);
+    font-size: 11.5px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    transition: color .12s ease, background-color .12s ease;
+  }
+  .term-chart-toolbar button:hover { color: var(--color-brand-text); background: var(--color-brand-surface-hover); }
+  .term-chart-toolbar button[aria-pressed="true"] { color: var(--color-brand-accent); background: color-mix(in srgb, var(--color-brand-accent) 12%, transparent); }
+  /* The candle canvas fills the remaining column height instead of the fixed
+     520/600px global heights, which forced the terminal to scroll. */
+  .term-chart-body { position: relative; flex: 1; min-height: 240px; overflow: hidden; }
+  .term-chart-body .trade-candles { height: 100%; max-height: none; width: 100%; overflow: hidden; }
+  /* Leave room for the price-axis labels so the latest price is never clipped.
+     Padding is applied to the host, so the chart's own ResizeObserver sees the
+     reduced content box and the canvas grows to fill it instead of leaving the
+     padded strip as dead space on the right. */
+  .term-chart-body .trade-candles { padding-right: 6px; box-sizing: border-box; }
+  .term-chart-body .trade-candles > canvas { max-width: 100%; }
+
+  /* --- Bottom orders / history / assets panel -------------------------- */
+  /* Spec §3.4: the orders area defaults to 240px and may grow to 320px. The
+     old `max-height: 34vh` + `min-height: 152px` pair left the chart with the
+     whole `1fr` of the left column and pinned this panel at its 152px floor,
+     so on a 1080px-tall screen the chart took 732px while the orders area got
+     152px — a wall of empty space in the panel and a needlessly huge chart.
+     `clamp()` gives the panel a real share of the column instead. */
+  .term-bottom { max-height: none; height: clamp(240px, 30%, 340px); }
+  .term-bottom:has(.term-tab-body) { min-height: 0; }
+  .term-bottom-tabs { padding: 0 10px; gap: 18px; }
+  .term-tab-body { overflow-y: auto; min-height: 0; padding: 2px 10px 8px; }
+
+  /* --- Middle column: order book + trades ------------------------------ */
+  /* "Expand book" control: sits on the column edge, desktop only (the phone
+     layout has no tape column to reclaim). */
+  .term-col--book { position: relative; }
+  .term-col--book.is-expanded > .term-rt { display: none; }
+  .term-col--book.is-expanded > div:first-of-type { flex: 1 1 auto; height: auto; min-height: 0; }
+  .term-book-expand {
+    position: absolute;
+    top: 6px;
+    right: 44px;
+    z-index: 2;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 20px;
+    border-radius: 4px;
+    color: var(--color-brand-text-muted);
+    background: var(--color-brand-surface);
+  }
+  .term-book-expand:hover { color: var(--color-brand-text); background: var(--color-brand-surface-hover); }
+  .term-book-expand[aria-pressed="true"] { color: var(--color-brand-accent); }
+  .term-book-head {
+    display: grid;
+    grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 1fr);
+    gap: 6px;
+    padding: 7px 10px 4px;
+    font-size: 11px;
+    color: var(--color-brand-text-muted);
+  }
+  .term-book-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+    padding: 0 10px 6px;
+    border-bottom: 1px solid var(--color-brand-border);
+  }
+  .term-seg {
+    display: inline-flex;
+    align-items: center;
+    gap: 1px;
+    padding: 2px;
+    border: 1px solid var(--color-brand-border);
+    border-radius: 5px;
+    background: var(--color-brand-bg);
+  }
+  .term-seg button {
+    height: 20px;
+    min-width: 34px;
+    padding: 0 4px;
+    border-radius: 4px;
+    color: var(--color-brand-text-muted);
+    font-size: 11px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+  .term-seg button[aria-pressed="true"] { background: var(--color-brand-surface-hover); color: var(--color-brand-text); }
+  .term-icon-group { display: inline-flex; align-items: center; gap: 1px; }
+  .term-icon-group button {
+    display: inline-flex;
+    width: 26px;
+    height: 24px;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid transparent;
+    border-radius: 5px;
+    color: var(--color-brand-text-muted);
+  }
+  .term-icon-group button:hover { color: var(--color-brand-text); }
+  .term-icon-group button[aria-pressed="true"] {
+    border-color: color-mix(in srgb, var(--color-brand-accent) 45%, transparent);
+    color: var(--color-brand-accent);
+  }
+  .term-book-body { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; overflow-y: auto; overflow-x: hidden; }
+  /* The book body owns a fixed height so Recent trades keeps its slot. Its
+     children are ask/bid containers, the mid-price bar and the footer note;
+     `min-height: 0` lets the row stacks scroll inside instead of expanding. */
+  .term-book-body > [data-book-side] { flex: 0 0 auto; min-height: 0; overflow: hidden; }
+  .term-book-body > [data-book-side][class*="hidden"] { display: none; }
+  .term-book-body .spot-book-row {
+    position: relative;
+    /* 24px rows (was 21px): the phone book is read with a thumb, and 21px rows
+       crowded the tap targets and the numerals together. 24px still fits six
+       levels per side plus the mid bar on a 375px-wide screen. */
+    min-height: 24px;
+    height: 24px;
+    line-height: 24px;
+    padding: 0 14px 0 10px;
+    border-radius: 0;
+    overflow: hidden;
+  }
+  /* Depth histogram bar behind the numerals. Absolutely positioned so it never
+     participates in the 3-column grid; `width` is set inline from the
+     cumulative size, giving the stair-step profile a real book has. */
+  .term-book-body .spot-book-depth {
+    position: absolute;
+    inset-block: 0;
+    left: 0;
+    display: block;
+    pointer-events: none;
+    transition: width .18s ease-out;
+  }
+  .term-book-body .spot-book-depth[data-side="ask"] {
+    background: linear-gradient(to right, transparent, rgb(240 107 120 / .16));
+    border-right: 1px solid rgb(240 107 120 / .32);
+  }
+  .term-book-body .spot-book-depth[data-side="bid"] {
+    background: linear-gradient(to right, transparent, rgb(53 214 166 / .16));
+    border-right: 1px solid rgb(53 214 166 / .32);
+  }
+  .term-book-body .spot-book-row > span:not(.spot-book-depth) { position: relative; z-index: 1; }
+  .term-book-body .spot-book-columns { padding: 0 14px 0 10px; }
+  .term-book-mid {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 30px;
+    padding: 0 14px 0 10px;
+    border-block: 1px solid var(--color-brand-border);
+  }
+  .term-book-mid-price {
+    font-family: var(--font-mono);
+    font-size: 17px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    line-height: 1.1;
+  }
+  .term-book-mid-spread { font-size: 11px; color: var(--color-brand-text-muted); font-variant-numeric: tabular-nums; }
+  /* Auxiliary quote line under the mid price ("≈ $63,377.49"), tier-1 style. */
+  .term-book-mid-alt {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    min-height: 16px;
+    padding: 0 14px 0 10px;
+    border-bottom: 1px solid var(--color-brand-border);
+    font-size: 10px;
+    color: var(--color-brand-text-faint);
+  }
+  .term-book-mid-alt-label { opacity: .8; }
+  /* Buy/sell pressure bar closing the book. */
+  .term-book-ratio {
+    position: relative;
+    display: flex;
+    height: 18px;
+    overflow: hidden;
+    border-top: 1px solid var(--color-brand-border);
+    background: var(--color-brand-bg);
+  }
+  .term-book-ratio-buy { background: color-mix(in srgb, var(--color-brand-success) 22%, transparent); }
+  .term-book-ratio-sell { background: color-mix(in srgb, var(--color-brand-danger) 22%, transparent); }
+  .term-book-ratio-labels {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 10px;
+    font-size: 10px;
+    font-weight: 700;
+  }
+  .term-book-foot {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 5px 10px;
+    border-top: 1px solid var(--color-brand-border);
+    font-size: 10px;
+    color: var(--color-brand-text-faint);
+  }
+  /* Recent trades sits under the book and scrolls on its own. */
+  /* The book is the primary reference: it takes the flexible share of the
+     middle column (rendering all 10+10 levels plus the mid price), and the
+     tape claims the remainder. `flex: 1 1 auto` on the ladder and a fixed
+     minimum on the tape gives the book room to grow while the tape never
+     collapses to zero. */
+  .term-col--book > div:first-child { flex: 1 1 auto; height: auto; min-height: 0; }
+  .term-rt { flex: 0 0 auto; height: 240px; min-height: 160px; overflow: hidden; display: flex; flex-direction: column; }
+  .term-rt > div {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    border: 0;
+    border-top: 1px solid var(--color-brand-border);
+    border-radius: 0;
+    overflow: hidden;
+  }
+  .term-rt table { display: block; overflow-y: auto; min-height: 0; }
+  .term-rt thead { display: table; width: 100%; table-layout: fixed; }
+  .term-rt tbody { display: table; width: 100%; table-layout: fixed; }
+  /* Recent-trades header reads as a panel title, matching the book header. */
+  .term-rt > div > div:first-child { min-height: 30px; padding: 0 10px; }
+
+  /* --- Right column: order form --------------------------------------- */
+  .term-form { display: flex; flex-direction: column; gap: 8px; min-width: 0; position: relative; }
+  /* Signed-out form: every control is already `disabled`, but the muted styling
+     was too close to the enabled state, so the panel looked typeable. Dim the
+     whole form, show a not-allowed cursor, and keep the call-to-action at full
+     strength so the one available action stands out. */
+  .term-form--locked > *:not(.term-submit):not(.term-form-note):not(.term-form-gate) { opacity: .55; }
+  .term-form--locked input:disabled,
+  .term-form--locked button:disabled,
+  .term-form--locked select:disabled { cursor: not-allowed; }
+  .term-form--locked .term-submit,
+  .term-form--locked .term-form-note { opacity: 1; }
+  /* Invisible click target over the disabled controls. `disabled` inputs do not
+     dispatch click events, so without this the panel ignored every tap. The
+     overlay must sit on top to receive those clicks, and the submit CTA plus
+     the note are lifted above it so they keep their own behaviour. */
+  .term-form-gate {
+    position: absolute;
+    inset: 0;
+    z-index: 3;
+    cursor: pointer;
+    background: transparent;
+    border: 0;
+  }
+  /* Every form submit is lifted above the gate, including the one inside the
+     signed-out card. Scoping this to `.term-form .term-submit` stopped matching
+     once the CTA moved into `.term-signin-card`, which left the only actionable
+     control covered by the gate overlay. */
+  .term-form .term-submit,
+  .term-form .term-form-note,
+  .term-signin-card { position: relative; z-index: 4; }
+  /* Signed-out call to action. Reads as a distinct layer above the dimmed
+     inputs: bordered, softly lit, and with a heading that says what is locked. */
+  .term-signin-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    padding: 14px 12px 12px;
+    border: 1px solid color-mix(in srgb, var(--color-brand-accent) 22%, transparent);
+    border-radius: 8px;
+    background:
+      radial-gradient(120% 90% at 50% 0%, color-mix(in srgb, var(--color-brand-accent) 10%, transparent), transparent 70%),
+      var(--color-brand-surface-2);
+  }
+  .term-signin-card__icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    border-radius: 999px;
+    color: var(--color-brand-accent);
+    background: color-mix(in srgb, var(--color-brand-accent) 14%, transparent);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-brand-accent) 30%, transparent);
+  }
+  .term-signin-card__title { font-size: 13px; font-weight: 650; color: var(--color-brand-text); }
+  .term-signin-card__hint {
+    margin-bottom: 2px;
+    font-size: 11px;
+    line-height: 1.45;
+    text-align: center;
+    color: var(--color-brand-text-muted);
+  }
+  .term-signin-card .term-submit { width: 100%; margin-top: 2px; }
+  .term-side-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+  .term-side-tabs button {
+    height: 34px;
+    border-radius: 6px;
+    border: 1px solid var(--color-brand-border);
+    background: var(--color-brand-surface-2);
+    color: var(--color-brand-text-muted);
+    font-size: 13px;
+    font-weight: 700;
+    transition: background-color .12s ease, color .12s ease, border-color .12s ease;
+  }
+  .term-side-tabs button.is-buy { background: var(--color-profit, #0ECB81); border-color: transparent; color: #051a14; }
+  .term-side-tabs button.is-sell { background: var(--color-loss, #F6465D); border-color: transparent; color: #fff; }
+  .term-side-tabs button:disabled { opacity: .55; }
+  .term-type-tab {
+    height: 28px;
+    border-radius: 5px;
+    border: 1px solid transparent;
+    color: var(--color-brand-text-muted);
+    font-size: 12px;
+    font-weight: 600;
+  }
+  .term-type-tab.is-active { border-color: var(--color-brand-border); background: var(--color-brand-surface-2); color: var(--color-brand-text); }
+  .term-type-tab:hover:not(.is-active) { color: var(--color-brand-text-secondary); }
+  /* The visible tabs handle the choice; the native select stays for a11y and
+     keyboard users but must not add chrome to the dense panel. */
+  .term-type-select {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    min-height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+    border: 0;
+  }
+  .term-balance {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 6px 8px;
+    border-radius: 6px;
+    background: var(--color-brand-surface-2);
+  }
+  .term-balance-label { display: block; font-size: 10px; color: var(--color-brand-text-muted); }
+  .term-balance-value {
+    margin: 0;
+    font-family: var(--font-mono);
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--color-brand-text);
+    font-variant-numeric: tabular-nums;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .term-balance-actions { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
+  .term-balance-icon {
+    display: inline-flex;
+    width: 24px;
+    height: 24px;
+    align-items: center;
+    justify-content: center;
+    border-radius: 5px;
+    border: 1px solid var(--color-brand-border);
+    color: var(--color-brand-text-muted);
+    transition: color .12s ease, border-color .12s ease;
+  }
+  .term-balance-icon:hover { color: var(--color-brand-accent); border-color: color-mix(in srgb, var(--color-brand-accent) 45%, transparent); }
+  .term-field { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+  .term-field-label {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+    font-size: 11.5px;
+    color: var(--color-brand-text-muted);
+  }
+  .term-stepper { display: inline-flex; align-items: center; gap: 2px; }
+  .term-stepper button {
+    display: inline-flex;
+    width: 20px;
+    height: 20px;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    border: 1px solid var(--color-brand-border);
+    color: var(--color-brand-text-muted);
+  }
+  .term-stepper button:hover:not(:disabled) { color: var(--color-brand-text); border-color: var(--color-brand-border-strong); }
+  .term-stepper button:disabled { opacity: .45; }
+  .term-input-wrap {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    height: 38px;
+    padding: 0 10px;
+    border: 1px solid var(--color-brand-border);
+    border-radius: 6px;
+    background: var(--color-brand-surface-2);
+    transition: border-color .12s ease;
+  }
+  .term-input-wrap:focus-within { border-color: color-mix(in srgb, var(--color-brand-accent) 60%, transparent); }
+  .term-input {
+    min-width: 0;
+    flex: 1;
+    height: 100%;
+    min-height: 0;
+    border: 0;
+    background: transparent;
+    color: var(--color-brand-text);
+    font-family: var(--font-mono);
+    font-size: 13.5px;
+    font-variant-numeric: tabular-nums;
+    outline: none;
+  }
+  .term-input:disabled { color: var(--color-brand-text-muted); }
+  .term-input-suffix { flex-shrink: 0; font-size: 11.5px; font-weight: 600; color: var(--color-brand-text-muted); }
+  .term-quick-prices { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 4px; }
+  /* Quick-select pills share the site-wide touch geometry: 36px min-height
+     and 6px radius, matching the spot quick prices and ratio chips. */
+  .term-quick-prices button {
+    min-height: 36px;
+    padding: 0 4px;
+    border-radius: var(--bf-radius-sm);
+    border: 1px solid var(--color-brand-border);
+    background: var(--color-brand-surface-2);
+    color: var(--color-brand-text-muted);
+    font-size: 10px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    transition: color .12s ease, border-color .12s ease;
+  }
+  .term-quick-prices button:hover:not(:disabled) { color: var(--color-brand-accent); border-color: color-mix(in srgb, var(--color-brand-accent) 40%, transparent); }
+  .term-quick-prices button:disabled { opacity: .45; }
+  /* --- Balance-percentage slider ---------------------------------------- */
+  .term-slider { display: flex; flex-direction: column; gap: 4px; padding-top: 2px; }
+  .term-slider input[type="range"] {
+    --slider-fill: 0%;
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    /* Overrides the global `input { min-height: 44px }` mobile tap-target rule:
+       a range track is 4px, only its thumb needs a comfortable hit area. */
+    height: 18px;
+    min-height: 18px;
+    padding: 0;
+    border: 0;
+    background: linear-gradient(
+      to right,
+      var(--color-brand-accent) 0%,
+      var(--color-brand-accent) var(--slider-fill),
+      var(--color-brand-border) var(--slider-fill),
+      var(--color-brand-border) 100%
+    ) center / 100% 4px no-repeat;
+    outline: none;
+    cursor: pointer;
+  }
+  .term-slider input[type="range"]:disabled { opacity: .45; cursor: not-allowed; }
+  .term-slider input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 12px;
+    height: 12px;
+    border-radius: 999px;
+    border: 2px solid var(--color-brand-accent);
+    background: var(--color-brand-surface);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-brand-accent) 16%, transparent);
+  }
+  .term-slider input[type="range"]::-moz-range-thumb {
+    width: 12px;
+    height: 12px;
+    border-radius: 999px;
+    border: 2px solid var(--color-brand-accent);
+    background: var(--color-brand-surface);
+  }
+  .term-slider input[type="range"]:focus-visible::-webkit-slider-thumb {
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-brand-accent) 30%, transparent);
+  }
+  .term-slider-stops { display: flex; align-items: center; justify-content: space-between; }
+  .term-slider-stops button {
+    min-height: 36px;
+    padding: 0 2px;
+    font-size: 11.5px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    color: var(--color-brand-text-muted);
+    transition: color .12s ease;
+  }
+  .term-slider-stops button:hover:not(:disabled) { color: var(--color-brand-text); }
+  .term-slider-stops button[aria-pressed="true"] { color: var(--color-brand-accent); }
+  .term-slider-stops button:disabled { opacity: .45; }
+  .term-total {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    font-size: 11.5px;
+    color: var(--color-brand-text-muted);
+  }
+  .term-total strong { font-size: 12.5px; color: var(--color-brand-text); }
+  /* --- Submit CTA: the account gate when signed out --------------------- */
+  .term-submit {
+    display: inline-flex;
+    width: 100%;
+    height: 40px;
+    min-height: 40px;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    border-radius: 6px;
+    border: 1px solid transparent;
+    font-size: 13.5px;
+    font-weight: 700;
+    letter-spacing: .01em;
+    white-space: normal;
+    transition: filter .12s ease, opacity .12s ease;
+  }
+  .term-submit:hover { filter: brightness(1.06); }
+  .term-submit:disabled { opacity: .5; filter: none; cursor: not-allowed; }
+  .term-submit--buy { background: var(--color-profit, #0ECB81); color: #051a14; }
+  .term-submit--sell { background: var(--color-loss, #F6465D); color: #fff; }
+  .term-submit--brand { background: var(--color-brand-accent); color: #051a14; }
+  .term-form-note {
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+    font-size: 11px;
+    line-height: 1.45;
+    color: var(--color-brand-text-muted);
+  }
+
+  /* --- Compact-desktop safety (1280–1439px keeps the same 3 columns) --- */
+  .term-top-stats { gap: 16px; }
+}
+
+/* Short desktop viewports (laptops with browser chrome, 1366×768 class):
+   the three columns cannot all fit above the fold, so the terminal releases
+   the viewport lock and scrolls as one surface.
+   Without this the grid kept `height: calc(100dvh - 4.5rem)` while
+   `.term-layout` collapsed to `height:auto`; the chart then fell back to its
+   520px intrinsic height and the terminal grew to ~1500px inside a
+   `overflow:hidden` <main>, so the orders/history/assets panel and the lower
+   half of the order book could never be reached by scrolling. */
+@media (min-width: 1280px) and (max-height: 760px) {
+  /* The shell must scroll again: the locked viewport is what hid the panel. */
+  main[data-terminal-route="true"] { overflow-y: auto; }
+
+  .spot-terminal.spot-terminal--pro {
+    height: auto;
+    min-height: 0;
+    overflow: visible;
+  }
+  .term-layout { height: auto; align-items: start; }
+
+  /* Each column keeps its own height. Previously every column stretched to the
+     row, so the tallest one decided a 630px row and the shorter ones showed
+     dead space underneath. */
+  .term-col--main,
+  .term-col--entry { align-self: start; }
+  /* `.term-col--book` is `display:flex` by default; as a block its two panes
+     stack at their declared heights instead of competing for the row. */
+  .term-col--book { align-self: start; display: block; }
+  .term-col--book > * { width: 100%; }
+
+  /* Chart + orders panel set the row height, so the middle column is sized to
+     match: a bounded level area + a bounded tape + their headers/footers. */
+  .term-col--main { grid-template-rows: minmax(300px, 40vh) auto; }
+  .term-chart-body { min-height: 260px; }
+  /* `flex:1` alone lets the level list expand to every fetched row (20 levels)
+     and push the tape away; a fixed height keeps ~10 levels visible and lets
+     the rest scroll inside. Sizes are chosen so the middle column (book +
+     tape) matches the left column (chart + orders panel) instead of setting a
+     taller row that forces extra page scroll. */
+  .term-book-body { flex: 0 0 auto; height: 210px; max-height: 210px; }
+  .term-rt { flex: 0 0 auto; height: 186px; min-height: 170px; }
+  /* Expanded book overrides the short-viewport caps: the tape is hidden, so the
+     ladder can take the full natural height instead of staying at 210px. The
+     column is `display: block` here, so this is a plain height override, not a
+     flex change. */
+  .term-col--book.is-expanded > div:first-of-type { height: auto; }
+  .term-col--book.is-expanded .term-book-body { flex: 0 0 auto; height: auto; max-height: none; }
+}
+

@@ -34,15 +34,12 @@ export function SupportChat() {
   useEffect(() => {
     if (status !== "authenticated") { setLoading(false); setMessages([]); return; }
     const controller = new AbortController();
-    setLoading(true); setMessages([]); setError("");
+    setLoading(true);setMessages([]);setError("");
     getSupportMessages(controller.signal).then(list => {
       if (!controller.signal.aborted) { setMessages(list); setError(""); }
     }).catch((reason: unknown) => {
       if (reason instanceof Error && reason.name === "AbortError") return;
-      if (!controller.signal.aborted) {
-        setMessages([]);
-        setError(reason instanceof Error ? reason.message : "Support conversation is temporarily unavailable.");
-      }
+      if(!controller.signal.aborted){setMessages([]);setError(reason instanceof Error ? reason.message : "Support conversation is temporarily unavailable.");}
     }).finally(() => { if (!controller.signal.aborted) setLoading(false); });
     return () => controller.abort();
   }, [status, reload]);

@@ -112,14 +112,17 @@ test('spot UI labels server snapshot time and does not substitute browser receip
 
 const authPage = fs.readFileSync(path.resolve(__dirname, '../../frontend/src/features/auth/AuthPages.tsx'), 'utf8');
 
-test('sign-in and registration pages expose Google and wallet auth; email/password entry removed', () => {
+test('sign-in and registration pages expose email, Google and wallet auth', () => {
   assert.ok(authPage.includes('Google'));
   assert.ok(authPage.includes('Wallet'));
   assert.ok(authPage.includes('signInWithGoogle'));
   assert.ok(authPage.includes('Connect Ethereum wallet'));
   assert.ok(authPage.includes('Connect Solana wallet'));
   assert.ok(authPage.includes('signInWithWeb3'));
-  assert.ok(authPage.includes('Sign in with username'));
+  assert.ok(authPage.includes('Username or email'));
+  assert.ok(authPage.includes('signInWithEmail'));
+  assert.ok(authPage.includes('signUpWithEmail'));
+  assert.ok(authPage.includes('Create account with email'));
 
   assert.ok(!authPage.includes('requestPasswordReset'));
   assert.ok(authPage.includes('completePasswordRecovery'));
@@ -249,9 +252,9 @@ test('withdrawal, KYC and support views clear stale private records before accou
   assert.ok(kyc.includes('setAccount(null);setError('));
   assert.ok(kyc.includes('if(!controller.signal.aborted){setAccount(null);setError('));
 
-  const supportStart = pages.indexOf('export function SupportPage()');
-  const supportEnd = pages.indexOf('export function ', supportStart + 25);
-  const support = pages.slice(supportStart, supportEnd > supportStart ? supportEnd : undefined);
+  // The support conversation lives in SupportChat; the page component only
+  // composes it, so the stale-record contract is checked against that module.
+  const support = fs.readFileSync(path.resolve(__dirname, '../../frontend/src/features/support/SupportChat.tsx'), 'utf8');
   assert.ok(support.includes('setLoading(true);setMessages([]);setError("")'));
   assert.ok(support.includes('if(!controller.signal.aborted){setMessages([]);setError('));
 });

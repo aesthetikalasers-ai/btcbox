@@ -4,18 +4,24 @@ import { Loader2 } from "lucide-react";
 import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "../../lib/utils";
 
+// Disabled states are deliberately split by variant (Step 12):
+// - Primary/destructive CTAs turn into a neutral grey surface with muted text,
+//   so "clickable" (solid emerald) vs "not ready" (grey) is unmistakable —
+//   e.g. the sign-in and 2FA submit buttons before the form is valid.
+// - Outline/secondary/ghost/link controls keep the translucent dim so their
+//   border layout stays unchanged while disabled.
 const variants = cva(
-  "inline-flex min-w-0 max-w-full select-none items-center justify-center gap-2 whitespace-normal text-center leading-tight rounded-lg text-sm font-semibold tracking-[0.005em] transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent/60 focus-visible:ring-offset-2 focus-visible:ring-offset-brand-bg disabled:pointer-events-none disabled:opacity-45 active:translate-y-px",
+  "inline-flex min-w-0 max-w-full select-none items-center justify-center gap-2 whitespace-normal text-center leading-tight rounded-lg text-sm font-semibold tracking-[0.005em] transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent/60 focus-visible:ring-offset-2 focus-visible:ring-offset-brand-bg disabled:pointer-events-none disabled:cursor-not-allowed active:translate-y-px",
   {
     variants: {
       variant: {
         // Primary: brand teal background + dark text for contrast (Step 12).
-        default: "bg-primary text-primary-foreground shadow-sm hover:brightness-105",
-        destructive: "bg-destructive text-white shadow-sm hover:brightness-110",
-        outline: "border border-brand-border-strong bg-transparent text-brand-text shadow-sm hover:border-brand-accent/60 hover:bg-white/[0.045]",
-        secondary: "border border-brand-border bg-brand-surface-2 text-brand-text shadow-sm hover:border-white/15 hover:bg-white/[0.055]",
-        ghost: "text-brand-text-secondary hover:bg-white/[0.045] hover:text-brand-text",
-        link: "min-h-0 h-auto rounded-none p-0 text-primary text-left underline-offset-4 hover:underline",
+        default: "bg-primary text-primary-foreground shadow-sm hover:brightness-105 disabled:bg-brand-surface-2 disabled:text-brand-text-disabled disabled:shadow-none",
+        destructive: "bg-destructive text-white shadow-sm hover:brightness-110 disabled:bg-brand-surface-2 disabled:text-brand-text-disabled disabled:shadow-none",
+        outline: "border border-brand-border-strong bg-transparent text-brand-text shadow-sm hover:border-brand-accent/60 hover:bg-white/[0.045] disabled:opacity-45",
+        secondary: "border border-brand-border bg-brand-surface-2 text-brand-text shadow-sm hover:border-white/15 hover:bg-white/[0.055] disabled:opacity-45",
+        ghost: "text-brand-text-secondary hover:bg-white/[0.045] hover:text-brand-text disabled:opacity-45",
+        link: "min-h-0 h-auto rounded-none p-0 text-primary text-left underline-offset-4 hover:underline disabled:opacity-45",
       },
       size: {
         default: "min-h-11 h-auto px-4 py-2 sm:px-5",

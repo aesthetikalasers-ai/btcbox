@@ -41,9 +41,9 @@ export function TransparencyPage() {
       <TrustSection title="How custody works">
         <div>
           {mechanics.map((item) => (
-            <div key={item.title} className="border-b border-brand-border/60 px-3 py-3.5 last:border-b-0 sm:px-4">
-              <h3 className="text-[12.5px] font-semibold text-brand-text">{t(item.title)}</h3>
-              <p className="mt-1 text-[12px] leading-relaxed text-brand-text-muted">{t(item.body)}</p>
+            <div key={item.title} className="border-b border-brand-border/60 px-4 py-4 sm:px-5 sm:py-5 last:border-b-0">
+              <h3 className="text-[14px] sm:text-[15px] font-bold text-brand-text tracking-tight">{t(item.title)}</h3>
+              <p className="mt-1.5 text-[13px] leading-relaxed text-brand-text-secondary">{t(item.body)}</p>
             </div>
           ))}
         </div>
@@ -55,9 +55,9 @@ export function TransparencyPage() {
         title="Proof of reserves"
         description="An independent attestation of customer liabilities against held assets."
       >
-        <div className="px-3 py-6 text-center sm:px-4">
-          <p className="text-[12px] font-medium text-brand-text-secondary">{t("No independent attestation has been published yet.")}</p>
-          <p className="mx-auto mt-1.5 max-w-md text-[11px] leading-relaxed text-brand-text-muted">
+        <div className="px-4 py-6 text-center sm:px-5 sm:py-8">
+          <p className="text-[13px] font-medium text-brand-text-secondary">{t("No independent attestation has been published yet.")}</p>
+          <p className="mx-auto mt-2 max-w-md text-[12px] leading-relaxed text-brand-text-muted">
             {t("BTCBOX will publish the auditor name, reporting period and methodology here once an attestation is complete. Until then, no reserve ratio is claimed on this page.")}
           </p>
         </div>
@@ -67,8 +67,8 @@ export function TransparencyPage() {
         title="Security incidents"
         description="Any incident affecting customer funds or data is disclosed here."
       >
-        <div className="px-3 py-6 text-center sm:px-4">
-          <p className="text-[12px] text-brand-text-muted">{t("No incidents have been reported.")}</p>
+        <div className="px-4 py-6 text-center sm:px-5 sm:py-8">
+          <p className="text-[13px] text-brand-text-muted">{t("No incidents have been reported.")}</p>
         </div>
       </TrustSection>
     </TrustPage>

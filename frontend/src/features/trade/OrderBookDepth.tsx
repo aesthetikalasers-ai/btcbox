@@ -79,7 +79,7 @@ function decimalsFor(precision: number): number {
  *   - `book` omitted   -> renders a deterministic demo book, explicitly badged
  *     "Demo data". Never presented as live.
  */
-export function OrderBookDepth({ mid = 67000, book, streamState }: { mid?: number; book?: DepthLevels | null; streamState?: "idle" | "connecting" | "live" | "degraded" | "closed" }) {
+export function OrderBookDepth({ mid = 67000, book, streamState, usdtUsd = 0.99999 }: { mid?: number; book?: DepthLevels | null; streamState?: "idle" | "connecting" | "live" | "degraded" | "closed"; /** USDT→USD rate for the "≈ $" hint; defaults to the neutral 0.99999. */ usdtUsd?: number }) {
   const { t, language } = useI18n();
   const numberLocale = localeTags[language] || "en-US";
   const [precision, setPrecision] = useState<number>(0.01);
@@ -91,8 +91,8 @@ export function OrderBookDepth({ mid = 67000, book, streamState }: { mid?: numbe
   const levelled = useMemo(() => {
     if (isLive) {
       return {
-        asks: book ? levelsFromBook(book.asks, "ask", 9) : [],
-        bids: book ? levelsFromBook(book.bids, "bid", 9) : [],
+        asks: book ? levelsFromBook(book.asks, "ask", 6) : [],
+        bids: book ? levelsFromBook(book.bids, "bid", 6) : [],
       };
     }
     return { asks: buildLevels(mid, true, "ask"), bids: buildLevels(mid, true, "bid") };
@@ -102,8 +102,20 @@ export function OrderBookDepth({ mid = 67000, book, streamState }: { mid?: numbe
   const fmt = (v: number, digits = decimals) =>
     v.toLocaleString(numberLocale, { minimumFractionDigits: digits, maximumFractionDigits: digits });
 
+  /* Dollar value of the mid price. The contract is quoted in USDT, so this is a
+     real conversion (`mid × usdtUsd`) rather than the USDT figure relabelled with
+     a "$". The caller supplies the live rate; 0.99999 is the neutral fallback. */
+  const usdText = useMemo(() => {
+    const rate = Number(usdtUsd);
+    if (!Number.isFinite(mid) || mid <= 0 || !Number.isFinite(rate) || rate <= 0) return "";
+    return "$" + (mid * rate).toLocaleString(numberLocale, { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+  }, [mid, usdtUsd, decimals, numberLocale]);
+
   const renderRow = (level: Level, side: "ask" | "bid", keyId: string) => (
-    <div key={keyId} className="relative grid grid-cols-3 gap-2 py-[3px] text-right font-mono text-[11px] leading-5 tabular-nums sm:text-xs">
+    /* 24px row rhythm matching the spot book (`TerminalOrderBook`): 3px vertical
+       padding on an 18px line box. Nine levels per side made the panel scroll and
+       pushed the long/short ratio bar off-screen; six fits without scrolling. */
+    <div key={keyId} className="relative grid grid-cols-3 gap-2 py-[3px] text-right font-mono text-[11px] leading-[18px] tabular-nums sm:text-xs">
       <span
         aria-hidden="true"
         className={
@@ -195,7 +207,10 @@ export function OrderBookDepth({ mid = 67000, book, streamState }: { mid?: numbe
         {view === "both" ? (
           <div className="flex items-center justify-between border-y border-brand-border-subtle py-2">
             <span className="text-[11px] uppercase tracking-wide text-brand-text-muted">{t("Mid price")}</span>
-            <span className="font-mono text-lg font-bold tabular-nums text-brand-success">{fmt(mid)} <span className="text-xs font-medium">USDT</span></span>
+            <span className="flex flex-col items-end">
+              <span className="font-mono text-lg font-bold tabular-nums text-brand-success">{fmt(mid)} <span className="text-xs font-medium">USDT</span></span>
+              {usdText ? <span className="font-mono text-[10px] tabular-nums text-brand-text-muted">≈ {usdText}</span> : null}
+            </span>
           </div>
         ) : null}
         {view !== "asks" ? (

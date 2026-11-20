@@ -5,10 +5,10 @@ import { useEffect, useState } from "react";
 // import.meta.glob returns a map of "path" -> dynamic import(); we resolve the
 // exact color icon for a symbol at render time and fall back to the local
 // monogram disc when the symbol is missing from the set.
-const cryptoIconModules = import.meta.glob<string>("/node_modules/cryptocurrency-icons/svg/color/*.svg", { eager: true, import: "default" });
+const cryptoIconModules = import.meta.glob<string>("../../../node_modules/cryptocurrency-icons/svg/color/*.svg", { eager: true, import: "default" });
 
 const iconUrlFor = (symbol: string): string | undefined => {
-  const key = `/node_modules/cryptocurrency-icons/svg/color/${symbol.toLowerCase()}.svg`;
+  const key = `../../../node_modules/cryptocurrency-icons/svg/color/${symbol.toLowerCase()}.svg`;
   return cryptoIconModules[key];
 };
 

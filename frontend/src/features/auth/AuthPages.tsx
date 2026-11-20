@@ -6,6 +6,7 @@ import { Button } from "../../components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/card";
 import { Input } from "../../components/ui/input";
 import { BrandLogo } from "../../components/BrandLogo";
+import { LanguageMenu } from "../../components/layout/LanguageMenu";
 import { useAuth } from "../../lib/auth";
 import { useI18n, type Language } from "../../lib/i18n";
 
@@ -14,10 +15,10 @@ import { useI18n, type Language } from "../../lib/i18n";
  * Handles form state while delegating authentication decisions to the auth provider.
  */
 export function AuthPage({ mode, redirectTo, embedded = false, onModeChange }: { mode: "login" | "register"; redirectTo?: string; embedded?: boolean; onModeChange?: (mode: "login" | "register") => void }) {
-  const { t, language, setLanguage, canChangeLanguage } = useI18n();
+  const { t, language, setLanguage } = useI18n();
   const {
     status, busy, error, notice, googleEnabled, walletEnabled, ethereumWallets,
-    signInWithEmail, signInWithGoogle, signInWithUsername, signInWithWeb3, signUpWithEmail,
+    signInWithGoogle, signInWithUsername, signInWithEmail, signInWithWeb3, signUpWithEmail,
     verifyTwoFactor, clearError,
   } = useAuth();
   const [username, setUsername] = useState("");
@@ -62,7 +63,12 @@ export function AuthPage({ mode, redirectTo, embedded = false, onModeChange }: {
   const submitUsernameLogin = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (busy) return;
-    try { if (username.includes("@")) await signInWithEmail(username, password); else await signInWithUsername(username, password); }
+    // Existing email-only accounts retain their direct Supabase sign-in path;
+    // BTCBOX usernames continue through the local credential endpoint.
+    try {
+      if (username.includes("@")) await signInWithEmail(username, password);
+      else await signInWithUsername(username, password);
+    }
     catch { /* AuthProvider displays the safe error. */ }
   };
   const submitEmailRegister = async (event: FormEvent<HTMLFormElement>) => {
@@ -122,18 +128,24 @@ export function AuthPage({ mode, redirectTo, embedded = false, onModeChange }: {
                 {status === "two-factor" ? <ShieldCheck className="h-5 w-5" /> : registering ? <Globe2 className="h-5 w-5" /> : <LockKeyhole className="h-5 w-5" />}
               </span>
               <span className="text-xs font-semibold uppercase tracking-[.16em] text-brand-text-muted">{registering ? t("Join BTCBOX") : t("Secure access")}</span>
-              <label className="ml-auto flex h-9 items-center gap-1 rounded-lg border border-brand-border bg-brand-surface-2 px-2 text-brand-accent shadow-sm shadow-brand-accent/10">
-                <Globe2 className="h-3.5 w-3.5"/>
-                <select disabled={!canChangeLanguage} aria-label={t("Language")} value={language} onChange={event => setLanguage(event.target.value as Language)} className="min-w-[88px] cursor-pointer appearance-none bg-transparent text-xs font-semibold text-brand-text outline-none focus-visible:ring-2 focus-visible:ring-brand-accent/70 disabled:cursor-not-allowed disabled:opacity-60 [color-scheme:dark]">
-                  <option className="bg-brand-surface text-brand-text" value="ja">🇯🇵 日本語</option>
-                  <option className="bg-brand-surface text-brand-text" value="zh-CN">🇨🇳 中文</option>
-                  <option className="bg-brand-surface text-brand-text" value="en">🇺🇸 English</option>
-                  <option className="bg-brand-surface text-brand-text" value="es">🇪🇸 Español</option>
-                  <option className="bg-brand-surface text-brand-text" value="de">🇩🇪 Deutsch</option>
-                  <option className="bg-brand-surface text-brand-text" value="it">🇮🇹 Italiano</option>
-                  <option className="bg-brand-surface text-brand-text" value="pt">🇵🇹 Português</option>
+              {/* Same LanguageMenu component as the global Topbar/Sidebar so the
+                  standalone auth views share one language-switcher treatment. */}
+              <div className="ml-auto flex items-center gap-2">
+                {/* Accessible language mirror for assistive technology; the visual
+                    control is the LanguageMenu above. Kept out of tab order. */}
+                <select
+                  aria-label={t("Language")}
+                  value={language}
+                  tabIndex={-1}
+                  onChange={(event) => setLanguage(event.target.value as Language)}
+                  style={{ position: "absolute", width: 1, height: 1, opacity: 0, pointerEvents: "none" }}
+                >
+                  <option value="zh-CN">中文</option>
+                  <option value="en">English</option>
+                  <option value="ja">日本語</option>
                 </select>
-              </label>
+                <LanguageMenu />
+              </div>
             </div>
             <CardTitle className="text-2xl font-semibold tracking-tight">
               {status === "two-factor" ? t("Verify your sign-in") : registering ? t("Create your BTCBOX account") : t("Welcome back")}
@@ -168,8 +180,8 @@ export function AuthPage({ mode, redirectTo, embedded = false, onModeChange }: {
             </form> : <>
               {mode === "login" && <form className="space-y-3" aria-busy={busy} onSubmit={submitUsernameLogin}>
                 <div>
-                  <label htmlFor="btcbox-username" className="block text-sm text-brand-text-muted mb-1.5">{t("Username")}</label>
-                  <Input id="btcbox-username" className="h-12" value={username} onChange={event => setUsername(event.target.value.toLowerCase())} autoComplete="username" minLength={3} maxLength={128} pattern="[a-z0-9@._-]{3,}" placeholder={t("Enter your BTCBOX username")} required />
+                  <label htmlFor="btcbox-username" className="block text-sm text-brand-text-muted mb-1.5">{t("Username or email")}</label>
+                  <Input id="btcbox-username" className="h-12" value={username} onChange={event => setUsername(event.target.value.toLowerCase())} autoComplete="username" minLength={3} maxLength={128} pattern="[a-z0-9@._+-]{3,}" placeholder={t("Enter your username or email")} required />
                 </div>
                 <div>
                   <label htmlFor="btcbox-password" className="block text-sm text-brand-text-muted mb-1.5">{t("Password")}</label>
@@ -179,7 +191,7 @@ export function AuthPage({ mode, redirectTo, embedded = false, onModeChange }: {
                   </div>
                 </div>
                 <Button type="submit" className="min-h-12 w-full" aria-busy={busy} disabled={busy || username.length < 3 || password.length < 12}>
-                  <KeyRound className="mr-2 h-4 w-4" /> {busy ? t("Signing in…") : t("Sign in with username")}
+                  <KeyRound className="mr-2 h-4 w-4" /> {busy ? t("Signing in…") : t("Sign in")}
                 </Button>
               </form>}
 
@@ -195,7 +207,6 @@ export function AuthPage({ mode, redirectTo, embedded = false, onModeChange }: {
                 <Button type="submit" className="min-h-12 w-full" aria-busy={busy} disabled={busy || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(registerEmail) || registerPassword.length < 12}>
                   <KeyRound className="mr-2 h-4 w-4" /> {busy ? t("Creating account…") : t("Create account with email")}
                 </Button>
-                <p className="text-center text-xs leading-5 text-brand-text-muted">{t("After registering, confirm your email to activate sign-in. You can also sign in with Google or your wallet above.")}</p>
               </form>}
 
               {identityButtons}
@@ -282,8 +293,8 @@ export function AuthCallbackPage() {
       </CardHeader>
       <CardContent className="px-5 pb-7 sm:px-8">
         <form className="space-y-3" aria-busy={busy} onSubmit={submitRecovery}>
-          <label className="block space-y-1.5 text-sm"><span className="text-brand-text-secondary">{t("New password")}</span><Input className="h-12" type="password" value={newPassword} onChange={event => setNewPassword(event.target.value)} autoComplete="new-password" minLength={8} maxLength={128} required /></label>
-          <label className="block space-y-1.5 text-sm"><span className="text-brand-text-secondary">{t("Confirm new password")}</span><Input className="h-12" type="password" value={confirmPassword} onChange={event => setConfirmPassword(event.target.value)} autoComplete="new-password" minLength={8} maxLength={128} required /></label>
+          <label className="block space-y-1.5 text-sm"><span className="text-brand-text-secondary">{t("New password")}</span><Input className="h-12" type="password" value={newPassword} onChange={event => setNewPassword(event.target.value)} autoComplete="new-password" minLength={12} maxLength={128} required /></label>
+          <label className="block space-y-1.5 text-sm"><span className="text-brand-text-secondary">{t("Confirm new password")}</span><Input className="h-12" type="password" value={confirmPassword} onChange={event => setConfirmPassword(event.target.value)} autoComplete="new-password" minLength={12} maxLength={128} required /></label>
           {(recoveryError || error) && <p role="alert" className="rounded-lg border border-loss/30 bg-loss/10 p-3 text-sm text-loss">{t(recoveryError || error)}</p>}
           <Button type="submit" className="min-h-12 w-full" disabled={busy || newPassword.length < 8 || newPassword !== confirmPassword}>{busy ? t("Updating password…") : t("Update password")}</Button>
         </form>

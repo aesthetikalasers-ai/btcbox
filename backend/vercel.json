@@ -63,6 +63,14 @@
     "api/stream.js": {
       "maxDuration": 300,
       "memory": 256
+    },
+    "api/router.js": {
+      "maxDuration": 30,
+      "memory": 512
+    },
+    "api/[...path].js": {
+      "maxDuration": 30,
+      "memory": 512
     }
   },
   "regions": ["iad1"],

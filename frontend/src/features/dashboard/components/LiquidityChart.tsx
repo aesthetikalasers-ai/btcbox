@@ -52,6 +52,8 @@ export function LiquidityChart({ candles = [] }: { candles?: MarketCandle[] }) {
       timeScale: {
         borderColor: CHART_THEME.border,
         timeVisible: true,
+        rightOffset: 6,
+        minBarSpacing: 5,
       },
       handleScroll: { vertTouchDrag: false, horzTouchDrag: true },
       handleScale: { pinch: true },

@@ -70,6 +70,29 @@ const normalizeLevels = (rows) => (Array.isArray(rows) ? rows : [])
   .map((row) => [String(row[0]), String(row[1])]);
 
 /**
+ * Binance REST depth for a full pair symbol (e.g. `BTCUSDT`).
+ *
+ * Tried first: it is the provider that already answers `/api/depth` for this
+ * deployment (`market-gateway`). Coinbase does not quote arbitrary `*-USDT`
+ * products and Bybit's spot host is geo-restricted on some networks, so those
+ * two providers alone left the depth stream permanently on
+ * `DEPTH_DATA_UNAVAILABLE` while the polled endpoint right above it was live.
+ */
+async function readOrderBookFromBinance(symbol, limit = 20) {
+  try {
+    const payload = await fetchJson(
+      `https://data-api.binance.vision/api/v3/depth?symbol=${encodeURIComponent(symbol)}&limit=${limit}`,
+    );
+    const bids = normalizeLevels(payload && payload.bids).sort((l, r) => Number(r[0]) - Number(l[0])).slice(0, 20);
+    const asks = normalizeLevels(payload && payload.asks).sort((l, r) => Number(l[0]) - Number(r[0])).slice(0, 20);
+    if (!bids.length || !asks.length) return null;
+    return { source: 'binance-vision', bids, asks, providerTs: null };
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Reads the live order book using the same provider chain as GET /api/depth so
  * the stream and the polled endpoint can never disagree about where data comes
  * from.
@@ -78,6 +101,9 @@ const normalizeLevels = (rows) => (Array.isArray(rows) ? rows : [])
  * error frame rather than fabricating levels.
  */
 async function readOrderBook(symbol, base) {
+  const binance = await readOrderBookFromBinance(symbol);
+  if (binance) return binance;
+
   try {
     const book = await fetchJson(`https://api.exchange.coinbase.com/products/${encodeURIComponent(base + '-USDT')}/book?level=2`);
     const bids = normalizeLevels(book.bids).sort((l, r) => Number(r[0]) - Number(l[0])).slice(0, 20);
@@ -121,6 +147,55 @@ async function readTrades(symbol) {
   }
 }
 
+/**
+ * Recent trades for the depth stream's providers.
+ *
+ * Bybit is unreachable from some networks (its spot host is geo-restricted and
+ * is not covered by the local gateway's provider order), which left the
+ * terminal's "Recent trades" panel permanently degraded while the order book
+ * right above it was live. Binance's public `aggTrades` endpoint is reachable
+ * wherever the kline/depth providers already are, so it is used as a fallback.
+ * The response shape is normalised to the same `{price, size, side, ts}` rows;
+ * nothing is synthesised — an unavailable provider still returns `null`.
+ */
+async function readTradesFromBinance(symbol, limit = 30) {
+  try {
+    const payload = await fetchJson(
+      `https://data-api.binance.vision/api/v3/aggTrades?symbol=${encodeURIComponent(symbol)}&limit=${limit}`,
+    );
+    if (!Array.isArray(payload)) return null;
+    const trades = payload
+      .filter((row) => row && Number.isFinite(Number(row.p)) && Number.isFinite(Number(row.q)))
+      .map((row) => ({
+        price: String(row.p),
+        size: String(row.q),
+        // `m` is true when the buyer was the maker, i.e. the aggressor sold.
+        side: row.m === true ? 'sell' : 'buy',
+        ts: Number(row.T) || Date.now(),
+      }));
+    return trades.length ? trades : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Reads recent trades with provider fallback.
+ *
+ * Binance is tried first: it is the same host that already serves
+ * `/api/kline` and `/api/depth` for this deployment, so it is reachable
+ * wherever the order book is. Bybit is attempted only as a fallback — from
+ * geo-restricted networks its host stalls until the upstream timeout, which
+ * delayed the first frame of the stream by ~6 s.
+ */
+async function readRecentTrades(symbol) {
+  const binance = await readTradesFromBinance(symbol);
+  if (binance) return { trades: binance, source: 'binance-vision' };
+  const bybit = await readTrades(symbol);
+  if (bybit) return { trades: bybit, source: 'bybit' };
+  return null;
+}
+
 module.exports = {
   DEPTH_INTERVAL_MS,
   TRADES_INTERVAL_MS,
@@ -133,4 +208,6 @@ module.exports = {
   normalizeLevels,
   readOrderBook,
   readTrades,
+  readTradesFromBinance,
+  readRecentTrades,
 };

@@ -9,8 +9,15 @@ import type { MarketCandle, MarketTicker, OrderBookSnapshot, SpotMarketPair } fr
  */
 export type MarketStatus = "live" | "stale" | "unavailable";
 
-/** Same-origin API prefix; the exchange's own functions sit in front of the providers. */
-const API_BASE_PATH = "/api";
+/**
+ * API prefix for the live market engine.
+ *
+ * Same-origin `/api` in production. In a split-origin preview (frontend on 4175,
+ * market gateway on 8080) it must follow `VITE_API_BASE_URL`, otherwise this
+ * engine silently polls a path the dev server does not serve, every ticker stays
+ * empty, and the trade headers lose their 24h change with no visible error.
+ */
+const API_BASE_PATH = (import.meta.env.VITE_API_BASE_URL?.trim().replace(/\/+$/, "")) || "/api";
 /** How often the engine refreshes its snapshot from /api/market. */
 const POLL_INTERVAL_MS = 10_000;
 /** A snapshot older than this is reported as stale rather than live. */
@@ -50,6 +57,37 @@ export const INITIAL_SEEDS: MockSeed[] = [
   { sym: "USDC", name: "USD Coin", price: 1.0001, chg: 0.01, high: 1.0003, low: 0.9998, vol: "520000000" },
   { sym: "PEPE", name: "Pepe", price: 0.0000185, chg: 11.4, high: 0.0000198, low: 0.0000165, vol: "380000000" },
 ];
+
+export const ASSET_NAMES: Record<string, string> = {
+  BTC: "Bitcoin",
+  ETH: "Ethereum",
+  SOL: "Solana",
+  BNB: "BNB",
+  XRP: "XRP",
+  DOGE: "Dogecoin",
+  ADA: "Cardano",
+  AVAX: "Avalanche",
+  SUI: "Sui",
+  NEAR: "NEAR Protocol",
+  LINK: "Chainlink",
+  DOT: "Polkadot",
+  LTC: "Litecoin",
+  MATIC: "Polygon",
+  UNI: "Uniswap",
+  TRX: "TRON",
+  BCH: "Bitcoin Cash",
+  ATOM: "Cosmos",
+  ETC: "Ethereum Classic",
+  USDC: "USD Coin",
+  USDT: "Tether USD",
+  PEPE: "Pepe",
+};
+
+export const getAssetName = (sym: string): string => {
+  const base = sym.replace(/USDT$/, "");
+  return ASSET_NAMES[base] || ASSET_NAMES[sym] || base;
+};
+
 
 // 内存中维持最新价格状态，并产生平滑的高频跳动
 class LiveMarketEngine {
