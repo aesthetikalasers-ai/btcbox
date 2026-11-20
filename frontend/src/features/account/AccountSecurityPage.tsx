@@ -5,7 +5,21 @@ import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
 import { getAccount, type AccountSnapshot } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
+import { useAuthDialog } from "../../lib/auth-dialog";
+import { DEV_OPEN_ACCOUNT_PAGES } from "../../lib/devAccess";
 import { useI18n } from "../../lib/i18n";
+
+/**
+ * Authentication initialization failures are reported by the local market
+ * gateway in English operator copy. Translate that reply to a shipped message so
+ * the localized account screen never renders an English alert.
+ */
+function localizedAuthError(message: string, t: (key: string) => string) {
+  if (/AUTH_CLIENT_CONFIG_UNAVAILABLE|authentication is not configured for the local market gateway|BTCBOX authentication is not configured/i.test(message)) {
+    return t("Authentication is unavailable. Please reload and try again.");
+  }
+  return message ? t(message) : "";
+}
 
 /**
  * Account security — minimal 3-block layout (identity card / login methods /
@@ -15,6 +29,7 @@ export function AccountSecurityPage() {
   const { t } = useI18n();
   const { status, busy, error, notice, email, googleEnabled, ethereumWallets, identityLinkSourceVerified, identityLinkNeedsTwoFactor, reauthenticateIdentityLinkWithGoogle, reauthenticateIdentityLinkWithWeb3, completeIdentityLinkReauthTwoFactor, linkGoogleIdentity, linkWeb3Identity, credentialRecoveryReady, credentialRecoveryNeedsTwoFactor, reauthenticateCredentialsWithGoogle, reauthenticateCredentialsWithWeb3, completeCredentialRecoveryTwoFactor, recoverBtcboxPassword } = useAuth();
   const [account, setAccount] = useState<AccountSnapshot | null>(null);
+  const { openAuthDialog } = useAuthDialog();
   const [loadError, setLoadError] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmNewPassword, setConfirmNewPassword] = useState("");
@@ -34,14 +49,18 @@ export function AccountSecurityPage() {
   }, [status, notice]);
 
   if (status === "loading") return <div role="status" aria-live="polite" className="mx-auto flex min-h-[40vh] items-center justify-center text-sm text-brand-text-muted">{t("Loading account security…")}</div>;
-  if (status !== "authenticated") return <Navigate to="/login" replace />;
+  // Local development opens the page so the layout can be edited; a production
+  // build still redirects because `import.meta.env.DEV` compiles to false.
+  if (status !== "authenticated" && !DEV_OPEN_ACCOUNT_PAGES) return <Navigate to="/login" replace />;
 
   const identities = account?.linked_identities || [];
   const hasGoogle = identities.some((identity) => identity.provider === "google") || account?.auth_providers?.includes("google") === true;
   const hasEthereum = account?.wallet_chain === "ethereum" || identities.some((identity) => identity.provider === "web3" && identity.wallet_chain === "ethereum");
   const hasSolana = account?.wallet_chain === "solana" || identities.some((identity) => identity.provider === "web3" && identity.wallet_chain === "solana");
   const primaryAddress = account?.wallet_address || "";
-  const primaryName = account?.username || email || "BTCBOX user";
+  // A signed-out visitor must not be presented as a verified identity.
+  const signedIn = status === "authenticated";
+  const primaryName = signedIn ? account?.username || email || "—" : t("Not signed in");
   const uid = account?.uid || "";
 
   const copyUid = async () => {
@@ -73,7 +92,7 @@ export function AccountSecurityPage() {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3.5">
             <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-tr from-brand-accent to-brand-cyan text-sm font-bold text-black">
-              {primaryName.charAt(0).toUpperCase()}
+              {signedIn ? primaryName.charAt(0).toUpperCase() : <Lock className="h-5 w-5" />}
             </div>
             <div className="min-w-0">
               <div className="flex items-center gap-2">
@@ -85,18 +104,24 @@ export function AccountSecurityPage() {
                 )}
               </div>
               <div className="mt-1 flex items-center gap-2 text-xs text-brand-text-muted">
-                <span className="truncate font-mono">{primaryAddress || `UID: ${uid}`}</span>
+                <span className="truncate font-mono">{signedIn ? primaryAddress || `UID: ${uid}` : t("Sign in to view")}</span>
               </div>
             </div>
           </div>
-          <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-brand-accent/30 bg-brand-accent/10 px-2.5 py-1 text-xs font-semibold text-brand-accent">
-            {t("Verified")}
-          </span>
+          {signedIn ? (
+            <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-brand-accent/30 bg-brand-accent/10 px-2.5 py-1 text-xs font-semibold text-brand-accent">
+              {t("Verified")}
+            </span>
+          ) : (
+            <Button type="button" size="sm" className="h-8 shrink-0 px-3 text-xs" onClick={() => openAuthDialog("login")}>
+              {t("Sign in")}
+            </Button>
+          )}
         </div>
         {uid && <div className="mt-4 border-t border-white/10 pt-3 text-xs text-brand-text-muted">UID: {uid}</div>}
       </div>
 
-      {(error || loadError) && <p role="alert" className="rounded-xl border border-brand-danger/25 bg-brand-danger/[0.06] p-3 text-sm leading-6 text-brand-danger">{t(error || loadError)}</p>}
+      {localizedAuthError(error || loadError, t) && <p role="alert" className="rounded-xl border border-brand-danger/25 bg-brand-danger/[0.06] p-3 text-sm leading-6 text-brand-danger">{localizedAuthError(error || loadError, t)}</p>}
       {notice && <p role="status" className="rounded-xl border border-brand-success/20 bg-brand-success/[0.05] p-3 text-sm leading-6 text-brand-text-secondary">{t(notice)}</p>}
 
       {/* 2. Login methods */}

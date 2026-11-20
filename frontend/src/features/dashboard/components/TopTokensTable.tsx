@@ -1,6 +1,7 @@
 import { Card } from "./Card";
 import { TokenIcon } from "../../../components/ui/TokenIcon";
 import type { MarketTicker } from "../../../lib/api";
+import { getAssetName } from "../../../lib/marketData";
 import { useI18n, localeTags } from "../../../lib/i18n";
 
 function price(value: number, locale: string) {
@@ -25,8 +26,19 @@ export function TopTokensTable({ markets = [] }: { markets?: MarketTicker[] }) {
             </tr></thead>
             <tbody>{markets.map((item) => (
               <tr key={item.sym} className="border-b border-brand-border-subtle transition-colors last:border-0 hover:bg-brand-surface-hover">
-                <td className="h-16 whitespace-nowrap px-4 py-2 text-left md:px-6"><div className="flex items-center gap-3"><TokenIcon symbol={item.sym} className="h-8 w-8 shrink-0"/><p className="text-sm font-semibold text-brand-text">{item.sym}/USDT</p></div></td>
-                <td className="whitespace-nowrap px-4 text-right font-mono text-base font-semibold tabular-nums text-brand-text md:px-6">{price(item.price, numberLocale)}</td>
+                <td className="h-16 whitespace-nowrap px-4 py-2 text-left md:px-6">
+                  <div className="flex items-center gap-3">
+                    <TokenIcon symbol={item.sym} className="h-8 w-8 shrink-0"/>
+                    <div className="min-w-0">
+                      <div className="flex items-baseline gap-1 min-w-0">
+                        <span className="text-sm font-bold text-brand-text">{item.sym}</span>
+                        <span className="text-xs font-medium text-brand-text-muted shrink-0">/USDT</span>
+                      </div>
+                      <p className="text-xs text-brand-text-muted">{t(getAssetName(item.sym))}</p>
+                    </div>
+                  </div>
+                </td>
+                <td className="whitespace-nowrap px-4 text-right font-mono text-[16px] font-bold tabular-nums text-brand-text md:px-6">{price(item.price, numberLocale)}</td>
                 <td className="whitespace-nowrap px-4 text-right md:px-6"><span className={`inline-flex min-w-[76px] justify-center rounded-md px-2.5 py-1 text-xs font-bold tabular-nums text-white ${item.chg >= 0 ? "bg-profit" : "bg-loss"}`}>{item.chg > 0 ? "+" : ""}{item.chg.toLocaleString(numberLocale, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%</span></td>
               </tr>
             ))}</tbody>

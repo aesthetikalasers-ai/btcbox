@@ -54,7 +54,7 @@ export function KlinePanel({ symbol, height = 480 }: { symbol: string; height?: 
       },
       grid: { vertLines: { color: CHART_THEME.grid }, horzLines: { color: CHART_THEME.grid } },
       rightPriceScale: { borderColor: CHART_THEME.border },
-      timeScale: { borderColor: CHART_THEME.border, timeVisible: true, secondsVisible: false },
+      timeScale: { borderColor: CHART_THEME.border, timeVisible: true, secondsVisible: false, rightOffset: 6, minBarSpacing: 5 },
       handleScroll: { vertTouchDrag: false, horzTouchDrag: true },
       handleScale: { pinch: true },
     });

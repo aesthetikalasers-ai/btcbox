@@ -1709,10 +1709,12 @@ a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
 /* Compact 5 quick-price buttons (-1% / -0.5% / ≈ / +0.5% / +1%).
    One type scale, one inner padding and one gap for every label: the percentage
    labels are wider than the "≈" glyph, so mixed spacing made the row look
-   squeezed and risked a wrap on 320–430px viewports. */
+   squeezed and risked a wrap on 320–430px viewports.
+   Touch height is unified with every other quick-select pill site-wide
+   (percent chips, ratio chips): 36px min-height + 6px radius. */
 .spot-quick-prices { margin-top: -2px; gap: 6px; }
 .spot-quick-prices button {
-  min-height: var(--bf-quick-h);
+  min-height: 36px;
   padding-inline: 4px;
   border-radius: var(--bf-radius-sm);
   font-size: 10px;
@@ -2596,10 +2598,12 @@ a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
   .term-input:disabled { color: var(--color-brand-text-muted); }
   .term-input-suffix { flex-shrink: 0; font-size: 11.5px; font-weight: 600; color: var(--color-brand-text-muted); }
   .term-quick-prices { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 4px; }
+  /* Quick-select pills share the site-wide touch geometry: 36px min-height
+     and 6px radius, matching the spot quick prices and ratio chips. */
   .term-quick-prices button {
-    height: 24px;
+    min-height: 36px;
     padding: 0 4px;
-    border-radius: 5px;
+    border-radius: var(--bf-radius-sm);
     border: 1px solid var(--color-brand-border);
     background: var(--color-brand-surface-2);
     color: var(--color-brand-text-muted);
@@ -2656,7 +2660,7 @@ a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
   }
   .term-slider-stops { display: flex; align-items: center; justify-content: space-between; }
   .term-slider-stops button {
-    min-height: 22px;
+    min-height: 36px;
     padding: 0 2px;
     font-size: 11.5px;
     font-weight: 600;

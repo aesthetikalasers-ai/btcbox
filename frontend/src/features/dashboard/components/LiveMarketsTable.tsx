@@ -4,6 +4,7 @@ import { Link, useSearchParams } from "react-router-dom";
 import { TokenIcon } from "../../../components/ui/TokenIcon";
 import { Card } from "./Card";
 import type { MarketTicker } from "../../../lib/api";
+import { getAssetName } from "../../../lib/marketData";
 import { useI18n, localeTags } from "../../../lib/i18n";
 
 const names: Record<string, string> = {
@@ -27,7 +28,7 @@ const formatCompact = (value: number | string | undefined | null, locale: string
 };
 
 function Change({ value, locale }: { value: number; locale: string }) {
-  return <span className={`inline-flex min-w-[76px] justify-center rounded-md px-2.5 py-1 text-xs font-semibold tabular-nums ${value >= 0 ? "bg-profit/10 text-profit" : "bg-loss/10 text-loss"}`}>
+  return <span className={`inline-flex min-w-[76px] justify-center rounded-md px-2.5 py-1 text-xs font-semibold tabular-nums ${value >= 0 ? "bg-profit/[0.07] text-profit" : "bg-loss/[0.07] text-loss"}`}>
     {value > 0 ? "+" : ""}{value.toLocaleString(locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%
   </span>;
 }
@@ -135,12 +136,15 @@ export function LiveMarketsTable({ markets, loading, error }: {
                 <div className="flex min-w-0 items-center gap-3">
                   <TokenIcon symbol={item.sym} className="h-9 w-9 shrink-0" />
                   <div className="min-w-0">
-                    <p className="truncate text-sm font-semibold text-brand-text">{item.sym}/USDT</p>
-                    <p className="type-meta mt-0.5 truncate text-brand-text-muted">{t("24h volume")} {formatCompact(item.vol, numberLocale)}</p>
+                    <div className="flex items-baseline gap-1 min-w-0">
+                      <span className="truncate text-sm font-bold text-brand-text">{item.sym}</span>
+                      <span className="text-[11px] font-medium text-brand-text-muted shrink-0">/USDT</span>
+                    </div>
+                    <p className="type-meta mt-0.5 truncate text-brand-text-muted">{t(getAssetName(item.sym))}</p>
                   </div>
                 </div>
                 <div className="flex shrink-0 flex-col items-end gap-1.5">
-                  <span key={item.price} className={"font-mono text-base font-semibold tabular-nums text-brand-text "+flashClassOf(item.sym)}>{price(item.price, numberLocale)}</span>
+                  <span key={item.price} className={"font-mono text-[17px] font-bold tabular-nums text-brand-text "+flashClassOf(item.sym)}>{price(item.price, numberLocale)}</span>
                   <Change value={item.chg} locale={numberLocale} />
                 </div>
               </Link></div>
@@ -159,11 +163,15 @@ export function LiveMarketsTable({ markets, loading, error }: {
                     <div className="flex items-center gap-3">
                       {favoriteButton(item.sym)}<TokenIcon symbol={item.sym} className="h-8 w-8 shrink-0" />
                       <Link to={`/trade/${item.sym.endsWith("USDT") ? item.sym : item.sym + "USDT"}`} aria-label={`${item.sym} spot trading`} className="group min-w-0 rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent">
-                        <p className="text-sm font-semibold text-brand-text group-hover:text-brand-accent">{names[item.sym] || item.sym}</p><p className="text-xs text-brand-text-muted">{item.sym}/USDT</p>
+                        <div className="flex items-baseline gap-1 min-w-0">
+                          <span className="text-sm font-bold text-brand-text group-hover:text-brand-accent">{item.sym}</span>
+                          <span className="text-xs font-medium text-brand-text-muted shrink-0">/USDT</span>
+                        </div>
+                        <p className="text-xs text-brand-text-muted">{t(getAssetName(item.sym))}</p>
                       </Link>
                     </div>
                   </td>
-                  <td className="whitespace-nowrap px-4 font-mono text-base font-semibold tabular-nums text-brand-text md:px-6"><span key={item.price} className={flashClassOf(item.sym)}>{price(item.price, numberLocale)}</span></td>
+                  <td className="whitespace-nowrap px-4 font-mono text-[16px] font-bold tabular-nums text-brand-text md:px-6"><span key={item.price} className={flashClassOf(item.sym)}>{price(item.price, numberLocale)}</span></td>
                   <td className="whitespace-nowrap px-4 md:px-6"><Change value={item.chg} locale={numberLocale} /></td>
                   <td className="whitespace-nowrap px-4 text-right font-mono text-sm tabular-nums text-brand-text-secondary md:px-6">{formatCompact(item.vol, numberLocale)} USDT</td>
                   <td className="whitespace-nowrap px-4 text-right font-mono text-sm tabular-nums text-brand-text-secondary md:px-6">{price(item.high, numberLocale)}</td>

@@ -58,6 +58,37 @@ export const INITIAL_SEEDS: MockSeed[] = [
   { sym: "PEPE", name: "Pepe", price: 0.0000185, chg: 11.4, high: 0.0000198, low: 0.0000165, vol: "380000000" },
 ];
 
+export const ASSET_NAMES: Record<string, string> = {
+  BTC: "Bitcoin",
+  ETH: "Ethereum",
+  SOL: "Solana",
+  BNB: "BNB",
+  XRP: "XRP",
+  DOGE: "Dogecoin",
+  ADA: "Cardano",
+  AVAX: "Avalanche",
+  SUI: "Sui",
+  NEAR: "NEAR Protocol",
+  LINK: "Chainlink",
+  DOT: "Polkadot",
+  LTC: "Litecoin",
+  MATIC: "Polygon",
+  UNI: "Uniswap",
+  TRX: "TRON",
+  BCH: "Bitcoin Cash",
+  ATOM: "Cosmos",
+  ETC: "Ethereum Classic",
+  USDC: "USD Coin",
+  USDT: "Tether USD",
+  PEPE: "Pepe",
+};
+
+export const getAssetName = (sym: string): string => {
+  const base = sym.replace(/USDT$/, "");
+  return ASSET_NAMES[base] || ASSET_NAMES[sym] || base;
+};
+
+
 // 内存中维持最新价格状态，并产生平滑的高频跳动
 class LiveMarketEngine {
   private prices: Map<string, MockSeed> = new Map();

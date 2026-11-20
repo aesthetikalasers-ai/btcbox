@@ -3,6 +3,7 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Search, Star } from "lucide-react";
 import { TokenIcon } from "../../components/ui/TokenIcon";
 import { getMarkets, type MarketTicker } from "../../lib/api";
+import { getAssetName } from "../../lib/marketData";
 import { useI18n, localeTags } from "../../lib/i18n";
 
 type SortKey = "volume" | "change" | "price";
@@ -132,7 +133,7 @@ function MarketTable({ markets, locale, loading, error, favorites, onToggleFavor
       <div className="md:hidden">
         <div className="flex items-center gap-2 border-b border-brand-border px-3 py-2 text-[10px] font-medium uppercase tracking-wide text-brand-text-muted">
           <span className="min-w-0 flex-1">{t("Pair")}</span>
-          <span className="w-[88px] text-right">{t("Last price")}</span>
+          <span className="w-[94px] text-right">{t("Last price")}</span>
           <span className="w-[72px] text-right">{t("24h change")}</span>
         </div>
         {markets.map((market) => {
@@ -144,8 +145,11 @@ function MarketTable({ markets, locale, loading, error, favorites, onToggleFavor
                 <Link to={`/trade/${tradeSymbol(market.sym)}`} className="flex min-w-0 items-center gap-2">
                   <TokenIcon symbol={market.sym} className="h-7 w-7 shrink-0" />
                   <span className="min-w-0">
-                    <span className="block truncate text-[14px] font-semibold leading-tight text-brand-text">{market.sym}</span>
-                    <span className="mt-0.5 block truncate text-[11px] leading-tight text-brand-text-muted">{t(ASSET_NAMES[market.sym] || market.sym)}</span>
+                    <span className="flex items-baseline gap-1 min-w-0">
+                      <span className="block truncate text-[14.5px] font-bold leading-tight text-brand-text">{market.sym}</span>
+                      <span className="text-[11px] font-medium text-brand-text-muted shrink-0">/USDT</span>
+                    </span>
+                    <span className="mt-0.5 block truncate text-[11px] leading-tight text-brand-text-muted">{t(getAssetName(market.sym))}</span>
                   </span>
                 </Link>
                 <button
@@ -158,13 +162,13 @@ function MarketTable({ markets, locale, loading, error, favorites, onToggleFavor
                   <Star className={`h-4 w-4 ${isFavorite ? "fill-brand-accent text-brand-accent" : ""}`} />
                 </button>
               </div>
-              <span className="w-[88px] shrink-0 text-right font-mono text-[15px] font-semibold tabular-nums text-brand-text">{fmtPrice(market.price, locale)}</span>
+              <span className="w-[94px] shrink-0 text-right font-mono text-[16px] font-bold tabular-nums text-brand-text leading-tight">{fmtPrice(market.price, locale)}</span>
               <button
                 type="button"
                 aria-label={`${t(isFavorite ? "Remove from favorites" : "Add to favorites")} ${market.sym}`}
                 aria-pressed={isFavorite}
                 onClick={() => onToggleFavorite(market.sym)}
-                className={`flex h-7 w-[72px] shrink-0 items-center justify-center rounded-md px-1 font-mono text-[13px] font-semibold tabular-nums transition-colors duration-200 ${up ? "bg-brand-accent/10 text-brand-accent" : "bg-brand-danger/10 text-brand-danger"}`}
+                className={`flex h-7 w-[72px] shrink-0 items-center justify-center rounded-md px-1 font-mono text-[13px] font-semibold tabular-nums transition-colors duration-200 ${up ? "bg-brand-accent/[0.07] text-brand-accent" : "bg-brand-danger/[0.07] text-brand-danger"}`}
               >
                 {fmtChange(market.chg, locale)}
               </button>
@@ -204,8 +208,11 @@ function MarketTable({ markets, locale, loading, error, favorites, onToggleFavor
                   <div className="flex min-w-0 items-center gap-2">
                     <TokenIcon symbol={market.sym} className="h-5 w-5 shrink-0" />
                     <Link to={`/trade/${tradeSymbol(market.sym)}`} className="min-w-0">
-                      <span className="block truncate text-[13px] font-semibold leading-tight text-brand-text">{market.sym}</span>
-                      <span className="block truncate text-[10px] leading-tight text-brand-text-muted">{t(ASSET_NAMES[market.sym] || market.sym)}</span>
+                      <div className="flex items-baseline gap-1 min-w-0">
+                        <span className="block truncate text-[13px] font-bold leading-tight text-brand-text">{market.sym}</span>
+                        <span className="text-[10px] font-medium text-brand-text-muted shrink-0">/USDT</span>
+                      </div>
+                      <span className="block truncate text-[10px] leading-tight text-brand-text-muted">{t(getAssetName(market.sym))}</span>
                     </Link>
                     <button
                       type="button"
@@ -219,10 +226,10 @@ function MarketTable({ markets, locale, loading, error, favorites, onToggleFavor
                   </div>
                 </td>
                 <td className="px-1 py-2.5 text-right">
-                  <span className="font-mono text-[13px] font-medium tabular-nums text-brand-text">{fmtPrice(market.price, locale)}</span>
+                  <span className="font-mono text-[15px] font-bold tabular-nums text-brand-text">{fmtPrice(market.price, locale)}</span>
                 </td>
                 <td className="px-3 py-2.5 text-right">
-                  <span className={`inline-flex min-w-[64px] items-center justify-center rounded-md px-2 py-0.5 font-mono text-[12px] font-medium tabular-nums ${up ? "bg-brand-accent/10 text-brand-accent" : "bg-brand-danger/10 text-brand-danger"}`}>
+                  <span className={`inline-flex min-w-[64px] items-center justify-center rounded-md px-2 py-0.5 font-mono text-[12px] font-semibold tabular-nums ${up ? "bg-brand-accent/[0.07] text-brand-accent" : "bg-brand-danger/[0.07] text-brand-danger"}`}>
                     {fmtChange(market.chg, locale)}
                   </span>
                 </td>

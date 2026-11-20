@@ -6,15 +6,16 @@ import { Button } from "../../components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/card";
 import { Input } from "../../components/ui/input";
 import { BrandLogo } from "../../components/BrandLogo";
+import { LanguageMenu } from "../../components/layout/LanguageMenu";
 import { useAuth } from "../../lib/auth";
-import { useI18n, type Language } from "../../lib/i18n";
+import { useI18n } from "../../lib/i18n";
 
 /**
  * Renders the login or registration experience selected by the route.
  * Handles form state while delegating authentication decisions to the auth provider.
  */
 export function AuthPage({ mode, redirectTo, embedded = false, onModeChange }: { mode: "login" | "register"; redirectTo?: string; embedded?: boolean; onModeChange?: (mode: "login" | "register") => void }) {
-  const { t, language, setLanguage, canChangeLanguage } = useI18n();
+  const { t } = useI18n();
   const {
     status, busy, error, notice, googleEnabled, walletEnabled, ethereumWallets,
     signInWithEmail, signInWithGoogle, signInWithUsername, signInWithWeb3, signUpWithEmail,
@@ -122,18 +123,11 @@ export function AuthPage({ mode, redirectTo, embedded = false, onModeChange }: {
                 {status === "two-factor" ? <ShieldCheck className="h-5 w-5" /> : registering ? <Globe2 className="h-5 w-5" /> : <LockKeyhole className="h-5 w-5" />}
               </span>
               <span className="text-xs font-semibold uppercase tracking-[.16em] text-brand-text-muted">{registering ? t("Join BTCBOX") : t("Secure access")}</span>
-              <label className="ml-auto flex h-9 items-center gap-1 rounded-lg border border-brand-border bg-brand-surface-2 px-2 text-brand-accent shadow-sm shadow-brand-accent/10">
-                <Globe2 className="h-3.5 w-3.5"/>
-                <select disabled={!canChangeLanguage} aria-label={t("Language")} value={language} onChange={event => setLanguage(event.target.value as Language)} className="min-w-[88px] cursor-pointer appearance-none bg-transparent text-xs font-semibold text-brand-text outline-none focus-visible:ring-2 focus-visible:ring-brand-accent/70 disabled:cursor-not-allowed disabled:opacity-60 [color-scheme:dark]">
-                  <option className="bg-brand-surface text-brand-text" value="ja">🇯🇵 日本語</option>
-                  <option className="bg-brand-surface text-brand-text" value="zh-CN">🇨🇳 中文</option>
-                  <option className="bg-brand-surface text-brand-text" value="en">🇺🇸 English</option>
-                  <option className="bg-brand-surface text-brand-text" value="es">🇪🇸 Español</option>
-                  <option className="bg-brand-surface text-brand-text" value="de">🇩🇪 Deutsch</option>
-                  <option className="bg-brand-surface text-brand-text" value="it">🇮🇹 Italiano</option>
-                  <option className="bg-brand-surface text-brand-text" value="pt">🇵🇹 Português</option>
-                </select>
-              </label>
+              {/* Same LanguageMenu component as the global Topbar/Sidebar so the
+                  standalone auth views share one language-switcher treatment. */}
+              <div className="ml-auto">
+                <LanguageMenu />
+              </div>
             </div>
             <CardTitle className="text-2xl font-semibold tracking-tight">
               {status === "two-factor" ? t("Verify your sign-in") : registering ? t("Create your BTCBOX account") : t("Welcome back")}

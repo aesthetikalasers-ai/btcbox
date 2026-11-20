@@ -18,5 +18,5 @@
   },
   // `src/_unused` holds detached experiments that no route or page imports.
   // They are retained for reference but must not block the build.
-  "exclude": ["node_modules", "dist", "src/_unused"]
+  "exclude": ["node_modules", "dist", "src/_unused", "scripts"]
 }

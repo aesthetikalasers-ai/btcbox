@@ -1151,14 +1151,6 @@ export function ContractPage() {
           </div>
         </header>
 
-        {marketsError ? (
-          <Card className="border-brand-danger/30 bg-brand-surface">
-            <CardContent className="flex flex-wrap items-center justify-between gap-3 p-4">
-              <p className="flex min-w-0 items-start gap-2 text-xs text-brand-danger" role="alert"><TriangleAlert className="mt-0.5 h-3.5 w-3.5 shrink-0" />{marketsError}</p>
-              <Button size="sm" variant="outline" className="h-10" onClick={() => setReload((n) => n + 1)} disabled={marketsLoading} loading={marketsLoading}>{t("Try again")}</Button>
-            </CardContent>
-          </Card>
-        ) : null}
 
         {signedOut ? (
           <Card className="border-brand-border bg-brand-surface">

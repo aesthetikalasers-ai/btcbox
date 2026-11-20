@@ -1,4 +1,4 @@
-﻿
+
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { RefreshCw, TrendingUp, TrendingDown, Clock3, ShieldCheck, ShieldAlert, BarChart2, Award, ChevronDown } from "lucide-react";
 import { Badge } from "../../components/ui/badge";
@@ -161,13 +161,13 @@ export function SecondsPage() {
     if (!node || !candles.length || node.clientWidth <= 0) return;
     const chart = createChart(node, {
       width: node.clientWidth,
-      height: node.clientHeight || 220,
+      height: node.clientHeight || 195,
       handleScroll: { vertTouchDrag: false, horzTouchDrag: true },
       handleScale: { pinch: true },
       layout: { attributionLogo: false, background: { type: ColorType.Solid, color: CHART_THEME.background }, textColor: CHART_THEME.text, fontSize: 10 },
       grid: { vertLines: { color: CHART_THEME.grid }, horzLines: { color: CHART_THEME.grid } },
       rightPriceScale: { borderColor: CHART_THEME.border },
-      timeScale: { borderColor: CHART_THEME.border, timeVisible: true, secondsVisible: false }
+      timeScale: { borderColor: CHART_THEME.border, timeVisible: true, secondsVisible: false, rightOffset: 6, minBarSpacing: 5 }
     });
     const series = chart.addSeries(CandlestickSeries, {
       upColor: CHART_THEME.up, downColor: CHART_THEME.down, borderVisible: false, wickUpColor: CHART_THEME.up, wickDownColor: CHART_THEME.down
@@ -307,13 +307,13 @@ export function SecondsPage() {
         ) : null}
 
         {/* Grid Workspace: Chart + Order Entry */}
-        <div className="grid gap-4 lg:grid-cols-[minmax(0,1.4fr)_minmax(380px,1fr)]">
+        <div className="grid gap-3 sm:gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
           {/* Left: Chart & Market Ticker */}
-          <div className="space-y-4">
+          <div className="space-y-3 sm:space-y-4">
             <Card className="border-brand-border bg-brand-surface shadow-xl overflow-hidden">
               <CardHeader className="flex min-w-0 flex-row items-center justify-between gap-2 border-b border-brand-border/40 px-3 py-2 sm:px-4">
                 <div className="flex min-w-0 shrink-0 items-center gap-1.5 whitespace-nowrap">
-                  <span className="truncate font-mono text-sm font-bold text-brand-text">{symbol}/USDT</span>
+                  <span className="font-mono text-sm font-bold text-brand-text">{symbol}/USDT</span>
                 </div>
                 {/* 周期栏：横向滚动 + shrink-0，任何语言下「分时」都不竖排/半截硬切 */}
                 <div className="no-scrollbar -mr-1 flex min-w-0 flex-1 items-center justify-end gap-0.5 overflow-x-auto whitespace-nowrap">
@@ -325,8 +325,8 @@ export function SecondsPage() {
                   ))}
                 </div>
               </CardHeader>
-              <CardContent className="p-3">
-                <div ref={setChartNode} className="h-[280px] sm:h-[340px] w-full" />
+              <CardContent className="p-2 sm:p-3">
+                <div ref={setChartNode} className="h-[195px] sm:h-[320px] md:h-[360px] w-full" />
               </CardContent>
             </Card>
           </div>
@@ -337,13 +337,13 @@ export function SecondsPage() {
               <h2 className="flex shrink-0 items-center gap-1.5 text-[13px] font-bold text-brand-text"><Award className="h-4 w-4 text-brand-accent" aria-hidden="true" />{t("Instant Order Entry")}</h2>
               <p className="truncate text-[11px] text-brand-text-muted">{t("Pick a duration and direction; the round settles automatically.")}</p>
             </div>
-            <div className="space-y-3 pt-2.5">
+            <div className="space-y-2.5 pt-2">
               <div>
                 <div className="flex justify-between items-center mb-2 text-xs">
                   <span className="text-brand-text-muted font-medium">{t("Settlement duration")}</span>
                   <span className="text-brand-accent font-mono font-bold">{t("Return rate")}: +{currentRate}%</span>
                 </div>
-                <div className="grid grid-cols-4 gap-1.5">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
                   {DURATION_OPTIONS.map((opt) => (
                     <button key={opt.sec} type="button" onClick={() => setDuration(opt.sec)} className={`flex flex-col items-center justify-center rounded-lg border py-1.5 transition-all ${duration === opt.sec ? "border-brand-accent bg-brand-accent/20 text-brand-accent shadow-sm shadow-brand-accent/20 font-bold" : "border-brand-border/50 bg-brand-surface text-brand-text-muted hover:border-brand-border-strong hover:text-brand-text"}`}>
                       <span className="font-mono text-xs">{opt.label}</span>

@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
-import { Plus, Wallet, Landmark, RefreshCw } from "lucide-react";
+import { ChevronDown, Globe, Landmark, Plus, RefreshCw, Wallet } from "lucide-react";
 import { useAuth } from "../../lib/auth";
+import { DEV_OPEN_ACCOUNT_PAGES } from "../../lib/devAccess";
 import { useI18n, localeTags } from "../../lib/i18n";
+import { cn } from "../../lib/utils";
 import { addAddress, getSavedCryptoAddresses, type SavedAddress, type SavedCryptoAddress, type BankAddress } from "../../lib/api";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/card";
 import { Badge } from "../../components/ui/badge";
@@ -43,6 +45,7 @@ export function AddressBookPage() {
   const [routingNumber, setRoutingNumber] = useState("");
   const [swift, setSwift] = useState("");
   const [bankAddress, setBankAddress] = useState("");
+  const [showWireDetails, setShowWireDetails] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState("");
   const [formMessage, setFormMessage] = useState("");
@@ -70,12 +73,18 @@ export function AddressBookPage() {
   const resetForm = () => {
     setAddress(""); setNote("");
     setAccountHolder(""); setBankName(""); setAccountNumber(""); setRoutingNumber(""); setSwift(""); setBankAddress("");
+    setShowWireDetails(false);
     setFormError(""); setFormMessage("");
   };
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (submitting) return;
+    if (tab === "bank" && (!routingNumber.trim() || !bankAddress.trim())) {
+      setShowWireDetails(true);
+      setFormError(t("Please fill in the required wire routing and bank address fields."));
+      return;
+    }
     setFormError(""); setFormMessage("");
     setSubmitting(true);
     try {
@@ -110,7 +119,7 @@ export function AddressBookPage() {
 
   return (
     <PageFrame title={t("Address book")} tone="assets" backTo="/me">
-      {signedOut ? (
+      {signedOut && !DEV_OPEN_ACCOUNT_PAGES ? (
         <Card className="border-brand-border bg-brand-surface">
           <CardContent className="flex flex-col items-center gap-3 p-6 text-center">
             <Wallet className="h-6 w-6 text-brand-text-muted" />
@@ -149,25 +158,53 @@ export function AddressBookPage() {
                   </div>
                 ) : (
 
-                  <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="grid gap-3 sm:grid-cols-2">
                     <label className="space-y-1.5 text-sm"><span className="text-brand-text-muted">{t("Account holder")}</span>
                       <input value={accountHolder} onChange={(e) => setAccountHolder(e.target.value)} required placeholder={t("Full name on the account")} className={inputCls} />
                     </label>
                     <label className="space-y-1.5 text-sm"><span className="text-brand-text-muted">{t("Bank name")}</span>
                       <input value={bankName} onChange={(e) => setBankName(e.target.value)} required placeholder={t("Your bank")} className={inputCls} />
                     </label>
-                    <label className="space-y-1.5 text-sm"><span className="text-brand-text-muted">{t("Account number")}</span>
+                    <label className="space-y-1.5 text-sm sm:col-span-2"><span className="text-brand-text-muted">{t("Account number")}</span>
                       <input value={accountNumber} onChange={(e) => setAccountNumber(e.target.value)} required inputMode="numeric" placeholder={t("4–34 digits")} className={inputCls} />
                     </label>
-                    <label className="space-y-1.5 text-sm"><span className="text-brand-text-muted">{t("Routing number")}</span>
-                      <input value={routingNumber} onChange={(e) => setRoutingNumber(e.target.value)} required inputMode="numeric" placeholder={t("9 digits")} className={inputCls} />
-                    </label>
-                    <label className="space-y-1.5 text-sm"><span className="text-brand-text-muted">{t("SWIFT / BIC (optional)")}</span>
-                      <input value={swift} onChange={(e) => setSwift(e.target.value)} placeholder={t("8 or 11 characters")} className={inputCls} />
-                    </label>
-                    <label className="space-y-1.5 text-sm sm:col-span-2"><span className="text-brand-text-muted">{t("Bank address")}</span>
-                      <input value={bankAddress} onChange={(e) => setBankAddress(e.target.value)} required placeholder={t("Bank branch address")} className={inputCls} />
-                    </label>
+
+                    {/* Grouped & collapsible international wire fields */}
+                    <div className="overflow-hidden rounded-xl border border-brand-border/70 bg-brand-surface-2/40 sm:col-span-2">
+                      <button
+                        type="button"
+                        onClick={() => setShowWireDetails((v) => !v)}
+                        className="flex w-full items-center justify-between px-3.5 py-2.5 text-xs font-semibold text-brand-text transition-colors hover:bg-brand-surface-hover/60"
+                        aria-expanded={showWireDetails}
+                      >
+                        <span className="flex items-center gap-2">
+                          <Globe className="h-4 w-4 text-brand-accent" />
+                          <span>{t("International wire & branch details")}</span>
+                          <span className="rounded bg-brand-surface px-1.5 py-0.5 text-[10px] font-normal text-brand-text-muted">
+                            {showWireDetails ? t("Collapse") : t("Expand")}
+                          </span>
+                        </span>
+                        <ChevronDown className={cn("h-4 w-4 text-brand-text-muted transition-transform duration-200", showWireDetails && "rotate-180")} />
+                      </button>
+                      {showWireDetails && (
+                        <div className="space-y-3 border-t border-brand-border/70 p-3 sm:p-4">
+                          <div className="grid gap-3 sm:grid-cols-2">
+                            <label className="space-y-1 text-xs">
+                              <span className="text-brand-text-muted">{t("Routing number")}</span>
+                              <input value={routingNumber} onChange={(e) => setRoutingNumber(e.target.value)} required={showWireDetails} inputMode="numeric" placeholder={t("9 digits")} className="h-10 w-full rounded-lg border border-brand-border bg-brand-surface px-3 text-sm text-brand-text outline-none focus:border-brand-accent/60" />
+                            </label>
+                            <label className="space-y-1 text-xs">
+                              <span className="text-brand-text-muted">{t("SWIFT / BIC (optional)")}</span>
+                              <input value={swift} onChange={(e) => setSwift(e.target.value)} placeholder={t("8 or 11 characters")} className="h-10 w-full rounded-lg border border-brand-border bg-brand-surface px-3 text-sm text-brand-text outline-none focus:border-brand-accent/60" />
+                            </label>
+                            <label className="space-y-1 text-xs sm:col-span-2">
+                              <span className="text-brand-text-muted">{t("Bank address")}</span>
+                              <input value={bankAddress} onChange={(e) => setBankAddress(e.target.value)} required={showWireDetails} placeholder={t("Bank branch address")} className="h-10 w-full rounded-lg border border-brand-border bg-brand-surface px-3 text-sm text-brand-text outline-none focus:border-brand-accent/60" />
+                            </label>
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 )}
 

@@ -186,7 +186,7 @@ export default function ProfessionalMobileTradeTerminal() {
                     key={p}
                     type="button"
                     onClick={() => applyRatio(p)}
-                    className={`py-0.5 rounded border text-[10px] font-semibold tabular-nums transition-colors ${ratio === p ? "border-[#0ecb81]/40 text-[#0ecb81]" : "border-white/10 text-gray-400 hover:text-white"}`}
+                    className={`flex min-h-9 items-center justify-center rounded-md border text-[10px] font-semibold tabular-nums transition-colors ${ratio === p ? "border-[#0ecb81]/40 text-[#0ecb81]" : "border-white/10 text-gray-400 hover:text-white"}`}
                   >
                     {p}%
                   </button>

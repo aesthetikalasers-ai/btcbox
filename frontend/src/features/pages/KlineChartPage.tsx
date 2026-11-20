@@ -160,7 +160,7 @@ export function KlineChartPage() {
         horzLines: { color: CHART_THEME.grid },
       },
       rightPriceScale: { borderColor: CHART_THEME.border, scaleMargins: { top: 0.08, bottom: 0.25 } },
-      timeScale: { borderColor: CHART_THEME.border, timeVisible: true, secondsVisible: false },
+      timeScale: { borderColor: CHART_THEME.border, timeVisible: true, secondsVisible: false, rightOffset: 6, minBarSpacing: 5 },
       crosshair: {
         mode: 1,
         vertLine: { color: "rgba(160,180,200,0.45)", width: 1, style: 3, labelBackgroundColor: "#243443" },

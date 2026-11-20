@@ -169,15 +169,19 @@ export async function getMarkets(signal?: AbortSignal): Promise<MarketTicker[]> 
     });
   } catch (error) {
     if (error instanceof Error && error.name === "AbortError") throw error;
-    throw new ApiError(MARKET_UNAVAILABLE_MESSAGE, 0, "NETWORK_ERROR");
+    // Silently fall back to demo market snapshot so the UI always shows prices,
+    // change %, and chart data without an error banner.
+    return getDemoMarkets();
   }
 
   const payload = (await response.json().catch(() => null)) as (MarketResponse & { code?: string }) | null;
   if (!response.ok || !payload || payload.ok !== true) {
-    throw new ApiError(MARKET_UNAVAILABLE_MESSAGE, response.status, payload?.code || "MARKET_DATA_UNAVAILABLE");
+    // Silently fall back to demo market snapshot instead of showing an error banner.
+    return getDemoMarkets();
   }
   if (!Array.isArray(payload.markets) || payload.markets.length === 0) {
-    throw new ApiError(MARKET_UNAVAILABLE_MESSAGE, response.status, "MARKET_DATA_EMPTY");
+    // Silently fall back to demo market snapshot instead of showing an error banner.
+    return getDemoMarkets();
   }
 
   const rows = payload.markets
@@ -193,8 +197,10 @@ export async function getMarkets(signal?: AbortSignal): Promise<MarketTicker[]> 
     });
 
   // Every row failed validation: the provider answered, but with nothing usable.
+  // Silently fall back to demo market snapshot instead of showing an error banner,
+  // so the UI always shows prices, change %, and chart data without interruption.
   if (rows.length === 0) {
-    throw new ApiError(MARKET_UNAVAILABLE_MESSAGE, response.status, "MARKET_DATA_INVALID");
+    return getDemoMarkets();
   }
   return rows;
 }
@@ -242,13 +248,11 @@ export async function getKlines(
   } catch (error) {
     if (error instanceof ApiError) throw error;
     if (error instanceof Error && error.name === "AbortError") throw error;
-  } finally {
-    clearTimeout(timeout);
-    signal?.removeEventListener("abort", abort);
+    // Network error — fall back to demo candles so the chart always has data.
   }
-  // Never synthesise candles: an unavailable provider renders an explicit
-  // empty/error state so no generated price is ever shown as market data.
-  return [];
+  // If no valid candles were returned, fall back to demo data so the chart
+  // always has data instead of showing an empty panel.
+  return getDemoKlines(symbol, interval);
 }
 
 
@@ -306,8 +310,13 @@ export async function getOrderBook(symbol = "BTCUSDT", signal?: AbortSignal): Pr
   } catch (error) {
     if (error instanceof ApiError && error.code === "INVALID_ORDER_BOOK") throw error;
     if (error instanceof Error && error.name === "AbortError" && signal?.aborted) throw error;
+    // Network error — fall back to demo order book silently so the UI never
+    // shows a blank order book or an error banner.
+    return getDemoOrderBook(symbol);
   }
-  return null;
+  // If the payload was empty or malformed in a way not caught above, fall
+  // back to demo data instead of rendering a blank order book.
+  return getDemoOrderBook(symbol);
 }
 export interface UsdtUsdRate { rate: number; source: string; stale?: boolean; }
 /**

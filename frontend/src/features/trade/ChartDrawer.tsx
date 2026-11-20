@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { AreaSeries, CandlestickSeries, ColorType, createChart, type IChartApi, type ISeriesApi, type UTCTimestamp } from "lightweight-charts";
-import { ChevronDown, ChevronUp, Maximize2 } from "lucide-react";
+import { ChevronDown, ChevronUp, Maximize2, TrendingUp } from "lucide-react";
 import { useI18n } from "../../lib/i18n";
 import { cn } from "../../lib/utils";
 import { getKlines, type MarketCandle } from "../../lib/api";
@@ -20,10 +20,10 @@ const TIMEFRAMES: Array<{ key: TimeframeKey; interval: string; label: string }> 
   { key: "1d", interval: "1d", label: "1D" },
 ];
 
-// Collapsed bar height (36px) and a viewport-relative expanded band. The drawer
+// Collapsed bar height (44px) and a viewport-relative expanded band. The drawer
 // opens to ~50dvh (matching the reference screenshot's 2/3-height chart) and can
 // be dragged up to 75dvh; it never covers the whole screen.
-const HEADER_H = 36;
+const HEADER_H = 44;
 const EXPANDED_DVH = 50;
 const MAX_DVH = 75;
 
@@ -83,7 +83,7 @@ export function ChartDrawer({ symbol = "BTC/USDT", marketType = "perpetual" }: {
       },
       grid: { vertLines: { color: CHART_THEME.grid }, horzLines: { color: CHART_THEME.grid } },
       rightPriceScale: { borderColor: CHART_THEME.border },
-      timeScale: { borderColor: CHART_THEME.border, timeVisible: true, secondsVisible: false },
+      timeScale: { borderColor: CHART_THEME.border, timeVisible: true, secondsVisible: false, rightOffset: 6, minBarSpacing: 5 },
       handleScroll: { vertTouchDrag: false, horzTouchDrag: true },
       handleScale: { pinch: true },
       crosshair: {
@@ -186,17 +186,39 @@ export function ChartDrawer({ symbol = "BTC/USDT", marketType = "perpetual" }: {
 
   return (
     <div className={cn("trade-drawer-root", isDragging && "is-dragging")} role="region" aria-label={t("Price chart")}>
-      <div className="trade-drawer-panel" style={{ height: renderedHeight }}>
-        {/* Collapsed bar — single tap target showing the pair + chart label. */}
+      <div
+        className={cn(
+          "trade-drawer-panel transition-all",
+          collapsed && "border-t-2 border-brand-accent/50 shadow-[0_-6px_20px_rgba(0,0,0,0.5),inset_0_1px_0_0_rgba(14,203,129,0.35)] bg-gradient-to-r from-brand-surface via-brand-surface-2 to-brand-surface"
+        )}
+        style={{ height: renderedHeight }}
+      >
+        {/* Collapsed bar — single tap target showing the pair + chart label with enhanced visual affordance. */}
         {collapsed ? (
           <button
             type="button"
             onClick={toggleCollapse}
-            className="flex h-9 w-full shrink-0 select-none items-center justify-between px-3.5 text-[12px] text-[#eaecef]"
+            className="group relative flex h-11 w-full shrink-0 select-none items-center justify-between px-3.5 text-[13px] text-brand-text transition-colors hover:bg-brand-surface-hover/60 active:bg-brand-surface-hover"
             aria-label={t("Expand chart")}
           >
-            <span className="min-w-0 flex-1 truncate text-left" style={{ transform: "translateY(-2px)" }}>{pairSymbol} {marketType === "spot" ? t("Spot") : t("Perpetual")} {t("Chart")}</span>
-            <ChevronUp className="ml-2 h-4 w-4 shrink-0 text-brand-text-muted" style={{ transform: "translateY(-2px)" }} />
+            {/* Top pill drag handle indicator */}
+            <span className="pointer-events-none absolute left-1/2 top-1 h-1 w-9 -translate-x-1/2 rounded-full bg-brand-text-muted/40 transition-colors group-hover:bg-brand-accent/70" />
+            
+            <div className="flex min-w-0 flex-1 items-center gap-2 pt-1">
+              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md border border-brand-accent/30 bg-brand-accent/15 text-brand-accent shadow-sm">
+                <TrendingUp className="h-3.5 w-3.5" />
+              </span>
+              <span className="truncate font-semibold tracking-tight text-brand-text">
+                {pairSymbol} {marketType === "spot" ? t("Spot") : t("Perpetual")} {t("Chart")}
+              </span>
+            </div>
+
+            <div className="ml-2 flex shrink-0 items-center gap-1.5 pt-1">
+              <span className="inline-flex items-center gap-1 rounded-full border border-brand-accent/40 bg-brand-accent/15 px-2.5 py-0.5 text-[11px] font-bold text-brand-accent shadow-sm transition-transform group-hover:scale-105">
+                <ChevronUp className="h-3.5 w-3.5 stroke-[2.5]" />
+                <span>{t("Expand")}</span>
+              </span>
+            </div>
           </button>
         ) : (
           <>
