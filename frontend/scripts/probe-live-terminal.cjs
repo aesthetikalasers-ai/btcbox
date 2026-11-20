@@ -20,7 +20,7 @@ const { chromium } = require("@playwright/test");
 (async () => {
   const args = process.argv.slice(2).filter((a) => !a.startsWith("--"));
   const useMock = process.argv.includes("--mock");
-  const width = Numb(args[0] || 1920);
+  const width = Number(args[0] || 1920);
   const height = Number(args[1] || 1080);
   const base = args[2] || "http://127.0.0.1:4173";
 
