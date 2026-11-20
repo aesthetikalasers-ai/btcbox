@@ -19,6 +19,8 @@ export interface StreamResult<T> {
   state: StreamState;
   /** Machine-readable code from the last `error` frame, if any. */
   errorCode: string | null;
+  /** Local receipt time of the most recent validated frame. */
+  updatedAt: number | null;
 }
 
 const API_BASE = (import.meta.env.VITE_API_BASE_URL?.trim().replace(/\/+$/, "")) || "/api";
@@ -38,6 +40,7 @@ export function useMarketStreamEvent<T>({ channel, symbol, enabled = true, parse
   const [data, setData] = useState<T | null>(null);
   const [state, setState] = useState<StreamState>("idle");
   const [errorCode, setErrorCode] = useState<string | null>(null);
+  const [updatedAt, setUpdatedAt] = useState<number | null>(null);
   const parseRef = useRef(parse);
   parseRef.current = parse;
 
@@ -50,6 +53,7 @@ export function useMarketStreamEvent<T>({ channel, symbol, enabled = true, parse
     setState("connecting");
     setErrorCode(null);
     setData(null);
+    setUpdatedAt(null);
 
     const source = new EventSource(
       `${API_BASE}/stream/${channel}?symbol=${encodeURIComponent(symbol)}`,
@@ -63,6 +67,7 @@ export function useMarketStreamEvent<T>({ channel, symbol, enabled = true, parse
       const parsed = parseRef.current(payload);
       if (parsed === null) return;
       setData(parsed);
+      setUpdatedAt(Date.now());
       setState("live");
       setErrorCode(null);
     };
@@ -107,5 +112,5 @@ export function useMarketStreamEvent<T>({ channel, symbol, enabled = true, parse
     };
   }, [channel, symbol, enabled]);
 
-  return { data, state, errorCode };
+  return { data, state, errorCode, updatedAt };
 }
