@@ -23,11 +23,10 @@ test('React registration uses Google or wallet; legacy username/email sign-in re
   assert.ok(authPage.includes('Connect Solana wallet'));
   assert.ok(authPage.includes('signInWithEmail'));
   assert.ok(!authPage.includes('signUpWithEmail'));
-  assert.ok(!authPage.includes('Create account with email'))
+  assert.ok(!authPage.includes('Create account with email'));
   assert.ok(!authPage.includes('requestPasswordReset'));
   assert.ok(authPage.includes('completePasswordRecovery'));
   assert.ok(authPage.includes('Username or email'));
-  assert.ok(authPage.includes('Create account with email'));
 });
 
 test('legacy static Google OAuth callback retains same-origin return-target safeguards', () => {
@@ -170,7 +169,7 @@ test('Web3 provider probe checks all Supabase error fields without accepting unr
   assert.ok(core.includes("messages.some(message => /web3 provider is disabled|provider is disabled/.test(message))"));
   assert.ok(!core.includes("too short).*(message|signature)"));
 });
-test('React auth preserves Supabase email and Google alongside existing username and wallet identity paths', () => {
+test('React auth preserves legacy email sign-in and Google registration alongside username and wallet paths', () => {
   const backend = read('api-core.js');
   const auth = read('../frontend/src/lib/auth.tsx');
   const pages = read('../frontend/src/features/auth/AuthPages.tsx');
@@ -189,10 +188,12 @@ test('React auth preserves Supabase email and Google alongside existing username
   assert.ok(auth.includes('setBtcboxCredentials'));
   assert.ok(auth.includes('linkGoogleIdentity'));
   assert.ok(auth.includes('linkWeb3Identity'));
-  assert.ok(auth.includes('signInWithEmail') && auth.includes('signUpWithEmail'));
+  assert.ok(auth.includes('signInWithEmail') && !auth.includes('signUpWithEmail'));
+  assert.ok(backend.includes('function getSupabaseLoginProvider(identity)'));
+  assert.ok(backend.includes('const authProvider = getSupabaseLoginProvider(identity);'));
   assert.ok(auth.includes('requestPasswordReset') && auth.includes('completePasswordRecovery'));
   assert.ok(auth.includes('flowType: "pkce"'));
-  for (const required of ['Username or email', 'Create account with email', 'Google', 'Connect Ethereum wallet', 'Connect Solana wallet']) assert.ok(pages.includes(required), 'auth page must expose ' + required);
+  for (const required of ['Username or email', 'Google', 'Connect Ethereum wallet', 'Connect Solana wallet']) assert.ok(pages.includes(required), 'auth page must expose ' + required);
   assert.ok(!pages.includes('No email registration is required'));
   assert.ok(auth.includes('eip6963:announceProvider'));
   assert.ok(auth.includes('eip6963:requestProvider'));
