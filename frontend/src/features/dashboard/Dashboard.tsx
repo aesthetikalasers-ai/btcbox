@@ -5,8 +5,11 @@ import {
   ArrowLeftRight,
   ArrowRight,
   ChartNoAxesCombined,
+  ChevronRight,
+  ClipboardList,
   Gift,
   Rocket,
+  Sparkles,
   Sprout,
   TrendingUp,
   Users,
@@ -14,6 +17,7 @@ import {
 import { TokenIcon } from "../../components/ui/TokenIcon";
 import { HotFlameIcon } from "../../components/ui/HotFlameIcon";
 import { getMarkets, type MarketTicker } from "../../lib/api";
+import { getAssetName } from "../../lib/marketData";
 import { useI18n, localeTags } from "../../lib/i18n";
 
 const pairSymbol = (symbol: string) => (symbol.endsWith("USDT") ? symbol : `${symbol}USDT`);
@@ -51,7 +55,7 @@ function TickerMarquee({ markets, locale }: { markets: MarketTicker[]; locale: s
               <span className="text-xs font-semibold text-brand-text">{m.sym}</span>
               <span className="font-mono text-xs font-medium tabular-nums text-brand-text-secondary">{fmtPrice(m.price, locale)}</span>
               <span
-                className={`inline-flex items-center rounded px-1.5 py-0.5 font-mono text-[11px] font-semibold tabular-nums ${up ? "bg-brand-accent/10 text-brand-accent" : "bg-brand-danger/10 text-brand-danger"}`}
+                className={`inline-flex items-center rounded px-1.5 py-0.5 font-mono text-[11px] font-semibold tabular-nums ${up ? "bg-brand-accent/[0.07] text-brand-accent" : "bg-brand-danger/[0.07] text-brand-danger"}`}
               >
                 {fmtChange(m.chg, locale)}
               </span>
@@ -160,8 +164,8 @@ function QuickActions() {
     { to: "/earn", label: t("Earn"), icon: Sprout },
     { to: "/deposit", label: t("Deposit"), icon: ArrowDownToLine },
     { to: "/rewards", label: t("Rewards"), icon: Gift },
-    { to: "/new-listings", label: t("Launchpad"), icon: Rocket },
-    { to: "/support", label: t("More"), icon: Users },
+    { to: "/orders", label: t("Orders"), icon: ClipboardList },
+    { to: "/support", label: t("Support"), icon: Users },
   ];
   return (
     <section aria-label={t("Quick access")}>
@@ -181,6 +185,42 @@ function QuickActions() {
         ))}
       </div>
     </section>
+  );
+}
+
+/**
+ * Prominent entry button for the new-coin mining / launchpad programme.
+ *
+ * Deliberately a single wide CTA rather than a 9th quick-action tile: mining is
+ * a campaign surface, not a core trading tab, so it reads as an invitation while
+ * still sitting at the top of the home screen next to Rewards.
+ */
+function MiningButton() {
+  const { t } = useI18n();
+  return (
+    <Link
+      to="/new-listings"
+      className="group relative flex min-w-0 items-center gap-3 overflow-hidden rounded-xl border border-brand-accent/25 bg-gradient-to-r from-brand-accent/[0.10] via-brand-surface to-brand-surface p-3 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.10)] transition-all duration-300 hover:border-brand-accent/40 hover:shadow-[0_10px_34px_-12px_rgba(14,203,129,0.30)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent/60"
+    >
+      {/* Ambient glow that brightens on hover. */}
+      <span aria-hidden="true" className="pointer-events-none absolute -right-6 -top-8 h-24 w-24 rounded-full bg-brand-accent/15 blur-2xl transition-opacity duration-300 group-hover:opacity-100 opacity-70" />
+      <span className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-brand-accent/10 text-brand-accent shadow-[inset_0_1px_0_0_rgba(255,255,255,0.18)]">
+        <Rocket className="h-5 w-5" strokeWidth={1.9} />
+      </span>
+      <span className="relative min-w-0 flex-1">
+        <span className="flex items-center gap-1.5">
+          <span className="truncate text-sm font-bold text-brand-text">{t("New coin mining")}</span>
+          <Sparkles className="h-3.5 w-3.5 shrink-0 text-brand-accent" strokeWidth={2} />
+        </span>
+        <span className="mt-0.5 block text-[11px] leading-relaxed text-brand-text-muted [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2] overflow-hidden">
+          {t("Stake for new listings and share the launchpool rewards.")}
+        </span>
+      </span>
+      <span className="relative flex h-8 shrink-0 items-center gap-1 rounded-lg border border-brand-accent/30 bg-brand-accent/15 px-3 text-xs font-bold text-brand-accent transition-transform duration-200 group-hover:scale-[1.04]">
+        {t("Join")}
+        <ChevronRight className="h-3.5 w-3.5" strokeWidth={2.5} />
+      </span>
+    </Link>
   );
 }
 
@@ -265,14 +305,15 @@ function MarketTable({ markets, locale, onViewAll }: { markets: MarketTicker[]; 
             >
               <TokenIcon symbol={m.sym} className="h-7 w-7 shrink-0" />
               <span className="min-w-0 flex-1">
-                <span className="flex items-center gap-1">
-                  <span className="truncate text-[15px] font-semibold leading-tight text-brand-text">{m.sym}</span>
+                <span className="flex items-baseline gap-1 min-w-0">
+                  <span className="truncate text-[15px] font-bold leading-tight text-brand-text">{m.sym}</span>
+                  <span className="text-[11px] font-medium text-brand-text-muted shrink-0">/USDT</span>
                   {isHot ? <HotFlameIcon className="h-3.5 w-3.5 shrink-0" /> : null}
                 </span>
-                <span className="mt-0.5 block truncate text-[11px] font-normal leading-tight text-brand-text-muted">/USDT</span>
+                <span className="mt-0.5 block truncate text-[11px] font-normal leading-tight text-brand-text-muted">{t(getAssetName(m.sym))}</span>
               </span>
               <span className="shrink-0 text-right">
-                <span className="block text-[16px] font-semibold leading-tight tabular-nums text-brand-text">{fmtPrice(m.price, locale)}</span>
+                <span className="block font-mono text-[17px] font-bold leading-tight tabular-nums text-brand-text">{fmtPrice(m.price, locale)}</span>
               </span>
               <span
                 className={`flex h-7 min-w-[76px] shrink-0 items-center justify-center rounded-md px-2 text-[13px] font-semibold tabular-nums ${up ? "bg-brand-accent/10 text-brand-accent" : "bg-brand-danger/10 text-brand-danger"}`}
@@ -302,16 +343,19 @@ function MarketTable({ markets, locale, onViewAll }: { markets: MarketTicker[]; 
                   <Link to={`/trade/${pairSymbol(m.sym)}`} className="flex min-w-0 items-center gap-2">
                     <TokenIcon symbol={m.sym} className="h-[18px] w-[18px] shrink-0" />
                     <span className="min-w-0">
-                      <span className="block truncate text-[13px] font-semibold leading-tight text-brand-text">{m.sym}</span>
-                      <span className="block truncate text-[10px] leading-tight text-brand-text-muted">/USDT</span>
+                      <div className="flex items-baseline gap-1 min-w-0">
+                        <span className="block truncate text-[13px] font-bold leading-tight text-brand-text">{m.sym}</span>
+                        <span className="text-[10px] font-medium text-brand-text-muted shrink-0">/USDT</span>
+                      </div>
+                      <span className="block truncate text-[10px] leading-tight text-brand-text-muted">{t(getAssetName(m.sym))}</span>
                     </span>
                   </Link>
                 </td>
                 <td className="px-1 py-2 text-right">
-                  <span className="font-mono text-[13px] font-medium tabular-nums text-brand-text">{fmtPrice(m.price, locale)}</span>
+                  <span className="font-mono text-[15px] font-bold tabular-nums text-brand-text">{fmtPrice(m.price, locale)}</span>
                 </td>
                 <td className="px-3 py-2 text-right">
-                  <span className={`inline-flex min-w-[64px] items-center justify-center rounded-md px-2 py-0.5 font-mono text-[12px] font-medium tabular-nums ${up ? "bg-brand-accent/10 text-brand-accent" : "bg-brand-danger/10 text-brand-danger"}`}>
+                  <span className={`inline-flex min-w-[64px] items-center justify-center rounded-md px-2 py-0.5 font-mono text-[12px] font-semibold tabular-nums ${up ? "bg-brand-accent/[0.07] text-brand-accent" : "bg-brand-danger/[0.07] text-brand-danger"}`}>
                     {fmtChange(m.chg, locale)}
                   </span>
                 </td>
@@ -381,6 +425,7 @@ export function Dashboard() {
       <BannerCarousel markets={markets} />
       <TickerMarquee markets={markets} locale={locale} />
       <QuickActions />
+      <MiningButton />
       <MarketTable markets={markets} locale={locale} onViewAll={() => navigate("/markets")} />
     </div>
   );

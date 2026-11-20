@@ -50,6 +50,8 @@ export function VolumeChart({ candles = [] }: { candles?: MarketCandle[] }) {
       timeScale: {
         borderColor: CHART_THEME.border,
         timeVisible: false,
+        rightOffset: 6,
+        minBarSpacing: 5,
       },
       handleScroll: { vertTouchDrag: false, horzTouchDrag: true },
       handleScale: { pinch: true },

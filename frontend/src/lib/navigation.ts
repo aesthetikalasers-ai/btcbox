@@ -104,3 +104,32 @@ export function useHistoryDepth() {
 export function useNavigationTier(pathname: string): NavigationTier {
   return useMemo(() => getNavigationTier(pathname), [pathname]);
 }
+
+/** 当 /earn 页面点击返回时，依据来源路由与 history.state 决定回退目标。
+ * 优先返回秒合约(/seconds)或交易页(/trade/:symbol)，避免跳往 /assets。
+ * 当无法确定来源时回退到 /seconds（默认保持在秒合约上下文）。
+ */
+export function resolveEarnBackTarget(options?: {
+  fromPath?: string | null;
+  referrerPath?: string | null;
+  historyStateFrom?: string | null;
+}): string {
+  const candidates = [
+    options?.historyStateFrom,
+    options?.fromPath,
+    options?.referrerPath,
+  ]
+    .map((v) => (v ?? "").trim().toLowerCase())
+    .filter(Boolean);
+
+  for (const candidate of candidates) {
+    if (candidate.startsWith("/seconds")) return "/seconds";
+    if (candidate.startsWith("/contract")) return "/contract";
+    if (candidate.startsWith("/trade")) return candidate;
+    if (candidate.startsWith("/markets")) return "/markets";
+    if (candidate.startsWith("/home") || candidate === "/") return "/home";
+  }
+
+  // 默认回退到秒合约，避免直接跳入资产账户页
+  return "/seconds";
+}

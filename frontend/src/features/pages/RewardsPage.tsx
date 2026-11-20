@@ -6,6 +6,7 @@ import { Badge } from "../../components/ui/badge";
 import { Button } from "../../components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/card";
 import { useAuth } from "../../lib/auth";
+import { DEV_OPEN_ACCOUNT_PAGES } from "../../lib/devAccess";
 import { useAuthDialog } from "../../lib/auth-dialog";
 import { useI18n } from "../../lib/i18n";
 import { getReferralData, referralShareUrl, type ReferralData } from "../../lib/referral";
@@ -77,7 +78,7 @@ export function RewardsPage() {
     return <PageFrame title="Rewards & referrals" tone="account"><AuthRestoreState label="Loading reward information…" /></PageFrame>;
   }
 
-  if (status !== "authenticated") {
+  if (status !== "authenticated" && !DEV_OPEN_ACCOUNT_PAGES) {
     return <PageFrame title="Rewards & referrals" tone="account">
       <Card className="border-brand-border bg-brand-surface">
         <CardContent className="flex flex-col items-start gap-4 p-5 sm:flex-row sm:items-center sm:justify-between">

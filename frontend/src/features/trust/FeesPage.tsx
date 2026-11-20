@@ -25,7 +25,7 @@ function TradingFeeCard({ title, description, enabled }: { title: string; descri
               <p className="text-[13px] font-semibold tabular-nums text-brand-text">{t("Maker")} · 0%</p>
               <p className="mt-0.5 text-[13px] font-semibold tabular-nums text-brand-text">{t("Taker")} · 0%</p>
             </div>
-            <span className="shrink-0 rounded border border-brand-border px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-brand-text-muted">
+            <span className="shrink-0 rounded-md border border-brand-accent/25 bg-brand-accent/[0.08] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-brand-accent">
               {t("No fee")}
             </span>
           </div>

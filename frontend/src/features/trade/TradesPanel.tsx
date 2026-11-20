@@ -40,7 +40,7 @@ const STATE_DOT: Record<StreamState, string> = {
  * the last known tape rather than clearing it — a trader reading the tape needs
  * to know whether what they see is current.
  */
-export function TradesPanel({ symbol }: { symbol: string }) {
+export function TradesPanel({ symbol, limit = 30 }: { symbol: string; limit?: number }) {
   const { t, language } = useI18n();
   const locale = localeTags[language] || "en-US";
   const { data, state, errorCode } = useMarketStreamEvent<Trade[]>({
@@ -49,7 +49,7 @@ export function TradesPanel({ symbol }: { symbol: string }) {
     parse: parseTrades,
   });
 
-  const rows = useMemo(() => data ?? [], [data]);
+  const rows = useMemo(() => (data ?? []).slice(0, limit), [data, limit]);
 
   const fmtPrice = (value: string) =>
     Number(value).toLocaleString(locale, { minimumFractionDigits: 2, maximumFractionDigits: Number(value) >= 1 ? 2 : 8 });

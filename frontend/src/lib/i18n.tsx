@@ -71,14 +71,15 @@ type I18nValue = { language: Language; canChangeLanguage: boolean; setLanguage: 
 const missingTranslationWarnings = new Set<string>();
 
 function translateText(language: Language, text: string): string {
-  const translated = dictionaries[language]?.[text] ?? loadingMessages[language][text];
+  const loading = (loadingMessages as Record<Language, Record<string, string>>)[language];
+  const translated = dictionaries[language]?.[text] ?? loading?.[text];
   if (translated !== undefined) return translated;
   const warningKey = `${language}:${text}`;
   if (!missingTranslationWarnings.has(warningKey)) {
     missingTranslationWarnings.add(warningKey);
     console.warn(`[BTCBOX i18n] Missing ${language} translation for: ${text}`);
   }
-  return english[text] ?? text;
+  return (english as Record<string, string>)[text] ?? text;
 }
 const I18nContext = createContext<I18nValue | null>(null);
 

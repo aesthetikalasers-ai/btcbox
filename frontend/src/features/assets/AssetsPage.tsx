@@ -8,6 +8,7 @@ import { formatDecimalAmount, localeTags, useI18n } from "../../lib/i18n";
 import { TokenIcon } from "../../components/ui/TokenIcon";
 import { useAuth } from "../../lib/auth";
 import { useTrading } from "../../lib/trading";
+import { DEV_OPEN_ACCOUNT_PAGES } from "../../lib/devAccess";
 
 const PINNED_COINS = ["BTC", "ETH", "USDT"];
 
@@ -124,7 +125,10 @@ export function AssetsPage() {
       <div className="relative flex flex-wrap items-center justify-between gap-3">
         <h1 className="type-page-title text-brand-text">{t("Assets")}</h1>
       </div>
-      {!authenticated ? (
+      {/* Signed-out visitors get a sign-in card in production builds. In local
+          development the layout is rendered directly so the page can be worked
+          on without a session (every account API still answers AUTH_REQUIRED). */}
+      {!authenticated && !DEV_OPEN_ACCOUNT_PAGES ? (
         <Card className="border-brand-border bg-brand-surface">
           <CardContent className="flex flex-col items-center justify-center px-6 py-16 text-center">
             <span className="mb-5 flex h-16 w-16 items-center justify-center rounded-2xl border border-brand-accent/20 bg-brand-accent/10 text-brand-accent">
@@ -140,7 +144,10 @@ export function AssetsPage() {
         </Card>
       ) : (
         <>
-      {error && <Card className="border-brand-danger/25 bg-brand-danger/[0.045]"><CardContent className="flex flex-wrap items-center justify-between gap-3 p-4"><p className="type-body-compact text-brand-danger" role="alert">{t(error)}</p>{signedOut && <Button asChild size="sm"><Link to="/login">{t("Sign in")}</Link></Button>}</CardContent></Card>}
+      {/* The auth error is a rendering artifact in dev-open mode: the wall is
+          gone, so surfacing "Sign in to view your assets." as a red alert would
+          be misleading. Real service errors still show. */}
+      {error && (authenticated || !DEV_OPEN_ACCOUNT_PAGES) && <Card className="border-brand-danger/25 bg-brand-danger/[0.045]"><CardContent className="flex flex-wrap items-center justify-between gap-3 p-4"><p className="type-body-compact text-brand-danger" role="alert">{t(error)}</p>{signedOut && <Button asChild size="sm"><Link to="/login">{t("Sign in")}</Link></Button>}</CardContent></Card>}
       <Card className="relative isolate overflow-hidden border border-white/10 bg-white/[0.03] shadow-2xl backdrop-blur-md">
         <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-transparent via-brand-accent/60 to-transparent" />
         <CardContent className="relative flex flex-col gap-4 p-5 sm:p-6">
@@ -196,7 +203,7 @@ export function AssetsPage() {
                   <TokenIcon symbol={coin} className="h-9 w-9 shrink-0" />
                   <div className="min-w-0 flex-1">
                     <p className="font-semibold text-brand-text">{coin}</p>
-                    <p className="mt-0.5 truncate text-[11px] text-brand-text-muted">{coinName}</p>
+                    <p className="mt-0.5 truncate text-[11px] text-brand-text-muted">{t(coinName)}</p>
                   </div>
                   <div className="shrink-0 text-right">
                     <p className="font-mono text-sm font-bold tabular-nums text-brand-text">{formatDecimalAmount(balance.free, numberLocale)}</p>
@@ -217,8 +224,8 @@ export function AssetsPage() {
           })}
         </div>
       </Card>
-      : (signedOut || error) ? <Card className="border-brand-border bg-brand-surface"><CardContent className="flex flex-col items-center px-5 py-12 text-center"><Wallet className="mb-3 h-9 w-9 page-accent"/><p className="type-card-title text-brand-text">{t(signedOut ? "Sign in required" : "Assets could not be loaded")}</p><p className="type-body-compact mt-2 max-w-md text-brand-text-muted">{t(signedOut ? "Your private balances are available after you sign in." : "Refresh after the account service is available. No balance values have been fabricated.")}</p></CardContent></Card>
-      : null}
+      : (authenticated && (signedOut || error)) ? <Card className="border-brand-border bg-brand-surface"><CardContent className="flex flex-col items-center px-5 py-12 text-center"><Wallet className="mb-3 h-9 w-9 page-accent"/><p className="type-card-title text-brand-text">{t(signedOut ? "Sign in required" : "Assets could not be loaded")}</p><p className="type-body-compact mt-2 max-w-md text-brand-text-muted">{t(signedOut ? "Your private balances are available after you sign in." : "Refresh after the account service is available. No balance values have been fabricated.")}</p></CardContent></Card>
+      : <Card className="border-brand-border bg-brand-surface"><CardContent className="flex flex-col items-center px-5 py-12 text-center"><Wallet className="mb-3 h-9 w-9 page-accent"/><p className="type-body-compact text-brand-text-muted">{t("No asset balances are currently available.")}</p></CardContent></Card>}
         </>
       )}
     </div>

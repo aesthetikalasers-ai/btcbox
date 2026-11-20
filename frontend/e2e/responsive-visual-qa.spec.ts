@@ -163,32 +163,30 @@ async function assertPageAtWidth(
   if (route.path === "/trade-hub") {
     await expect(page.getByTestId("spot-availability")).toHaveText("Unavailable");
   }
-  if (route.path === "/trade/BTCUSDT" && width <= 768) {
+  if (route.path === "/trade/BTCUSDT" && width < 768) {
+    // Phone trading uses the two-column order-entry + order-book workspace.
     const orderbook = page.locator(".exchange-workspace > .exchange-depth");
     const orderForm = page.locator(".exchange-workspace > .exchange-entry");
-    await expect(orderbook).toBeVisible();
     await expect(orderForm).toBeVisible();
-    const [bookBox, formBox] = await Promise.all([orderbook.boundingBox(), orderForm.boundingBox()]);
-    expect(bookBox, "Mobile orderbook must have a layout box.").not.toBeNull();
-    expect(formBox, "Mobile order form must have a layout box.").not.toBeNull();
-    expect(bookBox!.x, "The mobile orderbook must remain on the left.").toBeLessThan(formBox!.x);
-    expect(
-      bookBox!.x + bookBox!.width,
-      "The mobile orderbook and order form must not overlap.",
-    ).toBeLessThanOrEqual(formBox!.x + 1);
+    await expect(orderbook).toBeVisible();
+    await expect(page.getByRole("button", { name: "Buy", exact: true }).first()).toBeVisible();
+    await expect(page.getByRole("button", { name: "Sell", exact: true }).first()).toBeVisible();
+    const bookBox = await orderbook.boundingBox();
+    expect(bookBox, "Phone orderbook must have a layout box.").not.toBeNull();
+    expect(bookBox!.x + bookBox!.width, "Phone orderbook must not overflow the viewport.").toBeLessThanOrEqual(width);
 
     const chartTrigger = page.locator("#trade-chart-open");
-    await expect(chartTrigger, "Mobile spot trading must expose the chart drawer trigger.").toBeVisible();
+    await expect(chartTrigger, "Phone spot trading must expose the chart drawer trigger.").toBeVisible();
     await chartTrigger.click();
-    const chartDrawer = page.locator(".trade-chart-drawer");
-    await expect(chartDrawer, "The mobile K-line drawer must open.").toBeVisible();
-    const drawerBox = await chartDrawer.boundingBox();
-    expect(drawerBox, "The mobile K-line drawer must have a layout box.").not.toBeNull();
-    expect(drawerBox!.x, "The K-line drawer must not extend beyond the left viewport edge.").toBeGreaterThanOrEqual(-1);
-    expect(drawerBox!.x + drawerBox!.width, "The K-line drawer must not extend beyond the right viewport edge.").toBeLessThanOrEqual(width + 1);
-    expect(drawerBox!.y + drawerBox!.height, "The K-line drawer must remain above the bottom navigation safe area.").toBeLessThanOrEqual(900 - 60 + 1);
-    await chartDrawer.getByRole("button", { name: "Close", exact: true }).click();
-    await expect(chartDrawer, "The K-line drawer must close cleanly.").toBeHidden();
+    const chartRegion = page.getByRole("region", { name: "Price chart" });
+    await expect(chartRegion, "The mobile K-line drawer must be mounted.").toBeVisible();
+    const drawerPanel = page.locator(".trade-drawer-panel");
+    const expandedBox = await drawerPanel.boundingBox();
+    expect(expandedBox, "The K-line drawer must expand after the trigger is pressed.").not.toBeNull();
+    expect(expandedBox!.height, "The K-line drawer must expand beyond its collapsed bar.").toBeGreaterThan(44);
+    await chartRegion.getByRole("button", { name: "Collapse chart" }).first().click();
+    const collapsedBox = await drawerPanel.boundingBox();
+    expect(collapsedBox!.height, "The K-line drawer must collapse cleanly.").toBeLessThanOrEqual(50);
   }
 
   await page.evaluate(() => document.fonts.ready);

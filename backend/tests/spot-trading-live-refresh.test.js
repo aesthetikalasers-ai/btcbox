@@ -249,9 +249,9 @@ test('withdrawal, KYC and support views clear stale private records before accou
   assert.ok(kyc.includes('setAccount(null);setError('));
   assert.ok(kyc.includes('if(!controller.signal.aborted){setAccount(null);setError('));
 
-  const supportStart = pages.indexOf('export function SupportPage()');
-  const supportEnd = pages.indexOf('export function ', supportStart + 25);
-  const support = pages.slice(supportStart, supportEnd > supportStart ? supportEnd : undefined);
+  // The support conversation lives in SupportChat; the page component only
+  // composes it, so the stale-record contract is checked against that module.
+  const support = fs.readFileSync(path.resolve(__dirname, '../../frontend/src/features/support/SupportChat.tsx'), 'utf8');
   assert.ok(support.includes('setLoading(true);setMessages([]);setError("")'));
   assert.ok(support.includes('if(!controller.signal.aborted){setMessages([]);setError('));
 });
