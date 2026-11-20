@@ -14,25 +14,24 @@ import { useI18n } from "../../lib/i18n";
 export function TrustPage({ title, lead, children }: { title: string; lead?: string; children: ReactNode }) {
   const { t } = useI18n();
   return (
-    <div className="relative mx-auto flex w-full min-w-0 max-w-[1100px] flex-col gap-4 p-4 sm:p-6">
-      {/* Ambient multi-layer glow + glass highlight, matching the rest of the app. */}
-      <div aria-hidden="true" className="pointer-events-none absolute -top-20 right-0 h-72 w-72 rounded-full bg-brand-accent/10 blur-[90px]" />
-      <div aria-hidden="true" className="pointer-events-none absolute -top-8 right-10 h-36 w-36 rounded-full bg-brand-accent/20 blur-[45px]" />
-      <header className="relative flex min-w-0 items-start gap-3">
+    <main className="mx-auto flex w-full min-w-0 max-w-[960px] flex-col gap-6 px-4 py-6 text-brand-text sm:px-6 sm:py-8 lg:px-8">
+      <header className="flex min-w-0 items-start gap-3 border-b border-brand-border/70 pb-5">
         <Link
           to="/me"
           aria-label={t("Back")}
-          className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-brand-border text-brand-text-muted transition-colors hover:border-brand-border-strong hover:text-brand-text"
+          className="mt-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-brand-text-muted transition-colors hover:bg-brand-surface-2 hover:text-brand-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent/70"
         >
           <ArrowLeft className="h-4 w-4" />
         </Link>
         <div className="min-w-0">
-          <h1 className="text-[20px] sm:text-[22px] font-bold leading-tight text-brand-text">{t(title)}</h1>
-          {lead ? <p className="mt-1.5 text-[13px] leading-relaxed text-brand-text-secondary">{t(lead)}</p> : null}
+          <h1 className="text-[24px] font-semibold leading-tight tracking-tight text-brand-text sm:text-[28px]">{t(title)}</h1>
+          {lead ? <p className="mt-2 max-w-[72ch] text-[14px] leading-7 text-brand-text-secondary sm:text-[15px]">{t(lead)}</p> : null}
         </div>
       </header>
-      {children}
-    </div>
+      <div className="min-w-0 space-y-6 text-[14px] leading-7 text-brand-text-secondary sm:text-[15px]">
+        {children}
+      </div>
+    </main>
   );
 }
 
@@ -40,10 +39,10 @@ export function TrustPage({ title, lead, children }: { title: string; lead?: str
 export function TrustSection({ title, description, children }: { title: string; description?: string; children: ReactNode }) {
   const { t } = useI18n();
   return (
-    <section className="overflow-hidden rounded-md border border-white/[0.08] bg-brand-surface shadow-[inset_0_1px_0_0_rgba(255,255,255,0.12)]">
-      <div className="border-b border-brand-border px-4 py-3 sm:px-5 sm:py-3.5">
-        <h2 className="text-sm sm:text-base font-bold text-brand-text">{t(title)}</h2>
-        {description ? <p className="mt-1 text-xs sm:text-[13px] leading-relaxed text-brand-text-muted">{t(description)}</p> : null}
+    <section className="overflow-hidden rounded-lg border border-brand-border bg-brand-surface">
+      <div className="border-b border-brand-border px-4 py-4 sm:px-5 sm:py-5">
+        <h2 className="text-[15px] font-semibold leading-6 text-brand-text sm:text-base">{t(title)}</h2>
+        {description ? <p className="mt-1.5 max-w-[76ch] text-[13px] leading-6 text-brand-text-muted sm:text-sm">{t(description)}</p> : null}
       </div>
       {children}
     </section>
@@ -54,9 +53,9 @@ export function TrustSection({ title, description, children }: { title: string; 
 export function TrustRow({ label, value }: { label: string; value: string }) {
   const { t } = useI18n();
   return (
-    <div className="flex min-w-0 items-baseline justify-between gap-3 border-b border-brand-border/60 px-4 py-3.5 last:border-b-0 sm:px-5 sm:py-4">
-      <span className="min-w-0 text-[13px] text-brand-text-muted">{t(label)}</span>
-      <span className="min-w-0 shrink-0 text-right text-[13px] font-semibold text-brand-text">{t(value)}</span>
+    <div className="flex min-w-0 items-baseline justify-between gap-4 border-b border-brand-border/60 px-4 py-4 last:border-b-0 sm:px-5 sm:py-4">
+      <span className="min-w-0 text-[14px] leading-6 text-brand-text-muted">{t(label)}</span>
+      <span className="min-w-0 shrink-0 text-right text-[14px] font-semibold leading-6 text-brand-text">{t(value)}</span>
     </div>
   );
 }
