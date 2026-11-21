@@ -241,11 +241,15 @@ export function ContractPage() {
   // not produced a ticker for this symbol yet.
   const baseAsset = selectedMarket?.base_asset ?? (symbol ? symbol.replace(/USDT$/i, "") : "BTC");
   const liveTicker = useMemo(() => tickers.find((tk) => tk.sym.toUpperCase() === baseAsset.toUpperCase()) ?? null, [tickers, baseAsset]);
-  const displayPrice = liveTicker?.price ?? (markPrice !== null && markPrice !== undefined ? Number(markPrice) : null);
-  const displayChg = liveTicker?.chg ?? null;
+  const contractMarkPrice = markPrice !== null && Number(markPrice) > 0 ? Number(markPrice) : null;
+  // When no contract mark is available, show the spot ticker only as an
+  // explicitly labelled underlying reference — never as a perpetual mark price.
+  const displayPrice = contractMarkPrice ?? liveTicker?.price ?? null;
+  const displayPriceLabel = contractMarkPrice !== null ? t("Mark price") : t("Spot reference");
+  const displayChg = null;
 
-  // The perpetual page shows the same underlying book as the spot pair, so the
-  // stream is only opened when the contract symbol is a valid spot symbol.
+  // The contract page currently has no contract-specific depth endpoint. This is
+  // explicitly displayed as underlying spot reference depth, never execution depth.
   // NOTE: the base asset can be as short as 2 characters ("BTCUSDT"), so the
   // quantifier must not require five — `{5,20}` silently rejected every normal
   // pair and left the order book permanently on "waiting".
@@ -266,8 +270,8 @@ export function ContractPage() {
     },
   });
 
-  const fundingRatePct = selectedMarket?.funding_rate_cap !== undefined && selectedMarket.funding_rate_cap !== null
-    ? `${(Number(selectedMarket.funding_rate_cap) * 100).toFixed(4)}%`
+  const fundingRateCapPct = selectedMarket?.funding_rate_cap !== undefined && selectedMarket.funding_rate_cap !== null
+    ? `≤ ${(Number(selectedMarket.funding_rate_cap) * 100).toFixed(4)}%`
     : EM_DASH;
 
   // Polled depth snapshot. The SSE stream is the primary path, but a blocked or
@@ -370,9 +374,7 @@ export function ContractPage() {
     return () => controller.abort();
   }, []);
 
-  // Live countdown to the next funding settlement. Anchored to the market's
-  // `next_funding_at` when available, otherwise to the top of the current 8-hour
-  // window (00:00 / 08:00 / 16:00 UTC) so the mobile row always ticks.
+  // Countdown is shown only when the backend supplies the actual next funding time.
   useEffect(() => {
     const fmt = (ms: number) => {
       if (ms <= 0) return "00:00:00";
@@ -384,12 +386,12 @@ export function ContractPage() {
       return `${pad(h)}:${pad(m)}:${pad(s)}`;
     };
     const tick = () => {
-      const next = selectedMarket?.next_funding_at ? new Date(selectedMarket.next_funding_at).getTime() : null;
-      let target = next;
-      if (!target || !Number.isFinite(target)) {
-        const interval = selectedMarket?.funding_interval_sec || 28800;
-        const now = Date.now();
-        target = Math.ceil(now / (interval * 1000)) * (interval * 1000);
+      const target = selectedMarket?.next_funding_at
+        ? new Date(selectedMarket.next_funding_at).getTime()
+        : null;
+      if (target === null || !Number.isFinite(target)) {
+        setFundingCountdown("");
+        return;
       }
       setFundingCountdown(fmt(target - Date.now()));
     };
@@ -1139,6 +1141,7 @@ export function ContractPage() {
           </div>
           {/* 币安式：涨跌幅紧跟交易对名下方（红绿醒目） */}
           <div className="flex min-w-0 items-baseline gap-2">
+            <span className="shrink-0 text-[10px] text-brand-text-muted">{displayPriceLabel}</span>
             <span className={cn("bf-tabular font-mono text-[24px] font-bold leading-none", displayChg !== null ? (displayChg >= 0 ? "text-brand-success" : "text-brand-danger") : "text-brand-text")}>{displayPrice !== null && displayPrice !== undefined ? money(displayPrice, locale) : EM_DASH}</span>
             {/* 无行情时不再渲染孤立的“—”涨跌幅占位 */}
             {displayChg !== null ? (
@@ -1181,10 +1184,10 @@ export function ContractPage() {
                 <div className="flex min-w-0 flex-col justify-start pr-3 pb-[68px] text-[11px] tabular-nums">
                   {/* 顶部：资金费率 + 倒计时（禁止折行） */}
                   <div className="flex items-center justify-between gap-1 whitespace-nowrap pb-1">
-                    <span className="shrink-0 text-[11px] text-brand-text-muted">{t("Funding rate")}</span>
+                    <span className="shrink-0 text-[11px] text-brand-text-muted">{t("Funding rate cap")}</span>
                     <span className="min-w-0 text-right">
-                      <span className="whitespace-nowrap font-mono text-[11px] font-semibold tabular-nums text-brand-text-secondary">{fundingRatePct}</span>
-                      <span className="ml-1.5 whitespace-nowrap font-mono text-[11px] tabular-nums text-brand-text-muted">{fundingCountdown}</span>
+                      <span className="whitespace-nowrap font-mono text-[11px] font-semibold tabular-nums text-brand-text-secondary">{fundingRateCapPct}</span>
+                      <span className="ml-1.5 whitespace-nowrap font-mono text-[11px] tabular-nums text-brand-text-muted">{fundingCountdown || "—"}</span>
                     </span>
                   </div>
 
