@@ -177,15 +177,30 @@ export async function getMarkets(signal?: AbortSignal): Promise<MarketTicker[]> 
     throw new ApiError(payload?.msg || MARKET_UNAVAILABLE_MESSAGE, response.status, payload?.code || "MARKET_DATA_UNAVAILABLE");
   }
 
+  const hasFiniteValue = (value: unknown) =>
+    value !== null && value !== undefined && value !== "" && Number.isFinite(Number(value));
   const rows = payload.markets
-    .filter((item) => item && typeof item.sym === "string" && Number.isFinite(item.price) && item.price > 0)
+    .filter((item) =>
+      item &&
+      typeof item.sym === "string" &&
+      hasFiniteValue(item.price) && Number(item.price) > 0 &&
+      hasFiniteValue(item.chg) &&
+      hasFiniteValue(item.high) && Number(item.high) > 0 &&
+      hasFiniteValue(item.low) && Number(item.low) > 0 &&
+      hasFiniteValue(item.vol) && Number(item.vol) >= 0
+    )
     .map(item => {
       const snapshot = payload.data?.[item.sym];
       return {
-        ...item,
+        sym: item.sym,
+        price: Number(item.price),
+        chg: Number(item.chg),
+        high: Number(item.high),
+        low: Number(item.low),
+        vol: String(item.vol),
         snapshotTs: Number.isFinite(snapshot?.ts) && Number(snapshot?.ts) > 0 ? Number(snapshot?.ts) : undefined,
         providerTs: Number.isFinite(snapshot?.providerTs) && Number(snapshot?.providerTs) > 0 ? Number(snapshot?.providerTs) : null,
-        source: typeof snapshot?.source === "string" ? snapshot.source : item.source,
+        source: typeof snapshot?.source === "string" ? snapshot.source : typeof item.source === "string" ? item.source : "",
       };
     });
 
