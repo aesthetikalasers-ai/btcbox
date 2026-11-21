@@ -228,3 +228,16 @@ test("spot trading provenance shows the actual source for each feed", () => {
   assert.ok(page.includes("displayBook?.source"));
   assert.ok(page.includes("chartSource"));
 });
+
+test("market ticker rows require real price, change, high, low and volume values", () => {
+  const api = fs.readFileSync(path.join(root, "lib/api.ts"), "utf8");
+  assert.ok(api.includes("hasFiniteValue(item.price)"));
+  assert.ok(api.includes("hasFiniteValue(item.chg)"));
+  assert.ok(api.includes("hasFiniteValue(item.high)"));
+  assert.ok(api.includes("hasFiniteValue(item.low)"));
+  assert.ok(api.includes("hasFiniteValue(item.vol)"));
+  assert.ok(api.includes("Number(item.price) > 0"));
+
+  const spot = fs.readFileSync(path.join(root, "features/pages/Pages.tsx"), "utf8");
+  assert.ok(spot.includes("!ticker?.source"));
+});
