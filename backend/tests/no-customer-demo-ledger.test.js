@@ -66,3 +66,23 @@ test("unused hardcoded market seed prices are not shipped in the live market eng
   assert.ok(!market.includes("MockSeed"));
   assert.ok(market.includes("Nothing is fabricated here"));
 });
+
+test("new server-side customer accounts start with zero balances", () => {
+  const backendRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+  const source = fs.readFileSync(path.join(backendRoot, "api-core.js"), "utf8");
+  const emptyBalances = source.match(/function emptyBalances\(\)\s*\{([\s\S]*?)\n\}/);
+  assert.ok(emptyBalances, "server zero-balance initializer must exist");
+  assert.match(emptyBalances[1], /USDT:\s*\{\s*free:\s*0,\s*frozen:\s*0\s*\}/);
+  assert.ok(source.includes("balances: emptyBalances(), orders: [], deposits: [], withdrawals: [], earn_records: [], support_messages: []"));
+});
+
+test("no customer-facing component reads the local paper-trading context", () => {
+  const walk = (dir) => fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+    const full = path.join(dir, entry.name);
+    if (entry.isDirectory()) return walk(full);
+    return /\.(tsx?|jsx?)$/.test(entry.name) ? [full] : [];
+  });
+  const files = walk(root).filter((file) => !file.endsWith("/lib/trading.tsx"));
+  const consumers = files.filter((file) => fs.readFileSync(file, "utf8").includes("useTrading"));
+  assert.deepEqual(consumers, [], "paper-trading context must not be consumed by customer pages or components");
+});
