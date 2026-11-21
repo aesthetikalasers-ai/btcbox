@@ -242,6 +242,7 @@ export function SecondsPage() {
 
   return (
     <>
+      <h1 className="sr-only">{t("Seconds contracts")}</h1>
       {/* The global header owns the product switcher (Spot / Perpetual /
           Seconds / Earn). Rendering a second copy here duplicated the tabs and
           cost a full row above the workspace. */}
