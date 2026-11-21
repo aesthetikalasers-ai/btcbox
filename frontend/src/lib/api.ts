@@ -33,7 +33,7 @@ export interface MarketTicker {
   source: string;
   /** Server snapshot time (Unix seconds), not an exchange event timestamp. */
   snapshotTs?: number;
-  /** Provider-supplied timestamp (Unix seconds): Coinbase last-trade time or Bybit response time; not a universal exchange-event timestamp. */
+  /** Timestamp supplied by the selected upstream provider (Unix seconds), when available; never synthesized by the browser. */
   providerTs?: number;
 }
 

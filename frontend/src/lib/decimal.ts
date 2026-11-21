@@ -84,3 +84,15 @@ export function roundDecimalToStep(value: string, step: string): string {
   const rounded = remainder * 2n >= stepInt ? quotient + 1n : quotient;
   return formatScaledDecimal(rounded * stepInt, scale);
 }
+
+
+/** Divide non-negative decimal strings, flooring to the requested decimal precision. */
+export function divideDecimalStrings(left: string, right: string, precision = 18): string | undefined {
+  const a = decimalParts(left), b = decimalParts(right);
+  if (!a || !b || b.whole <= 0n || !Number.isInteger(precision) || precision < 0 || precision > 36) return undefined;
+  const exponent = precision + b.scale - a.scale;
+  let numerator = a.whole, denominator = b.whole;
+  if (exponent >= 0) numerator *= 10n ** BigInt(exponent);
+  else denominator *= 10n ** BigInt(-exponent);
+  return formatScaledDecimal(numerator / denominator, precision);
+}

@@ -11,6 +11,7 @@ test("market precision helpers enforce exact tick and quantity steps", async ({ 
       invalidQuantity: decimal.isDecimalMultipleOfStep("0.0012", "0.0005"),
       floor: decimal.floorDecimalToStep("0.00129", "0.0001"),
       add: decimal.addDecimalStep("65000.00", "0.01", 1),
+      divide: decimal.divideDecimalStrings("25", "65000", 18),
     };
   });
   expect(result).toEqual({
@@ -20,6 +21,7 @@ test("market precision helpers enforce exact tick and quantity steps", async ({ 
     invalidQuantity: false,
     floor: "0.0012",
     add: "65000.01",
+    divide: "0.000384615384615384",
   });
 });
 
