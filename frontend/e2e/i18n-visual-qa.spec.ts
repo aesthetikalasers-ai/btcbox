@@ -76,11 +76,27 @@ for (const locale of activeLocales) {
           });
           return;
         }
-        if (pathname === "/api/market" || pathname === "/api/market/pairs") {
+        if (pathname === "/api/market") {
+          const now = Math.floor(Date.now() / 1000);
           await route.fulfill({
             status: 200,
             contentType: "application/json",
-            body: JSON.stringify({ ok: true, markets: [], data: {} }),
+            body: JSON.stringify({
+              ok: true,
+              markets: [{ sym: "BTC", price: 65000, chg: 1.2, high: 66000, low: 64000, vol: "1000000", source: "e2e-fixture" }],
+              data: { BTC: { ts: now, providerTs: now, source: "e2e-fixture" } },
+            }),
+          });
+          return;
+        }
+        if (pathname === "/api/market/pairs") {
+          await route.fulfill({
+            status: 200,
+            contentType: "application/json",
+            body: JSON.stringify({
+              ok: true,
+              markets: [{ base_asset: "BTC", quote_asset: "USDT", enabled: true, price_tick: "0.01", quantity_step: "0.00001", min_quantity: "0.00001", min_notional: "5" }],
+            }),
           });
           return;
         }
