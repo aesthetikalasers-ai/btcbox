@@ -311,3 +311,12 @@ test("launchpool page never fabricates upcoming projects or campaign statistics"
   assert.ok(!dashboard.includes("Stake for new listings and share the launchpool rewards."));
   assert.ok(dashboard.includes("Trading workspace"));
 });
+
+test("shared Pages module does not retain obsolete duplicate customer screens", () => {
+  const pages = fs.readFileSync(path.join(root, "features/pages/Pages.tsx"), "utf8");
+  assert.ok(!pages.includes("export function TradeHubPage"));
+  assert.ok(!pages.includes("export function AssetsPage"));
+  assert.ok(!pages.includes("export function OrdersPage"));
+  assert.ok(!pages.includes("export function SecondsPage"));
+  assert.ok(!pages.includes("100x leverage"));
+});
