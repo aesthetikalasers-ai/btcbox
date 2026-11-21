@@ -143,6 +143,7 @@ export default function App() {
   const { pathname } = useLocation();
   return <I18nProvider fixedLanguage={/^\/admin\/?$/i.test(pathname) ? "zh-CN" : undefined}><Suspense fallback={<RouteLoading />}><Routes>
     <Route path="/admin" element={<AdminPage />} />
+    <Route path="/admin/*" element={<AdminPage />} />
     <Route path="/*" element={<CustomerRoutes />} />
   </Routes></Suspense></I18nProvider>;
 }
