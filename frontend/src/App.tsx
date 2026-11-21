@@ -108,7 +108,7 @@ function CustomerRoutes() {
     <Route path="/trade-hub" element={<TradeHubPage />} /><Route path="/trade" element={<TradeRedirect />} />
     <Route path="/trade/:symbol" element={<SpotTradingPage />} />
     <Route path="/chart/:symbol" element={<PublicRoute><KlineChartPage /></PublicRoute>} />
-    <Route path="/seconds" element={<ProtectedAccountRoute><SecondsPage /></ProtectedAccountRoute>} />
+    <Route path="/seconds" element={<PublicRoute><SecondsPage /></PublicRoute>} />
     <Route path="/assets" element={<ProtectedAccountRoute><AssetsPage /></ProtectedAccountRoute>} /><Route path="/me" element={<MyPage />} />
     <Route path="/orders" element={<ProtectedAccountRoute><OrdersPage /></ProtectedAccountRoute>} />
     <Route path="/deposit" element={<ProtectedAccountRoute><DepositPage /></ProtectedAccountRoute>} />
