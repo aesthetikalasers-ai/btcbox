@@ -1713,5 +1713,9 @@
   "Provider age": "プロバイダー更新からの経過時間",
   "Data source": "データソース",
   "Market data source could not be verified. Trading is disabled.": "市場データの提供元を確認できないため、取引は無効になっています。",
-  "Market snapshot is stale or missing. Quotes are hidden until a fresh snapshot arrives.": "市場スナップショットが古いか取得できません。最新データが届くまで価格表示を停止します。"
+  "Market snapshot is stale or missing. Quotes are hidden until a fresh snapshot arrives.": "市場スナップショットが古いか取得できません。最新データが届くまで価格表示を停止します。",
+  "Browse supported spot pairs and their live market data.": "対応する現物取引ペアとリアルタイムの市場データを確認できます。",
+  "Earn products": "Earn商品",
+  "Review the products and terms currently published in BTCBOX Earn.": "BTCBOX Earnで現在公開されている商品と条件を確認できます。",
+  "Open spot, perpetual and seconds trading products from one place.": "現物、無期限、秒契約の商品をまとめて利用できます。"
 }
