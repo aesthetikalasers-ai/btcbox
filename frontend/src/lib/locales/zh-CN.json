@@ -477,6 +477,7 @@
   "Already have an account?": "已经有账户？",
   "Back to BTCBOX": "返回 BTCBOX",
   "Protected account access · Public markets remain available without signing in": "受保护的账户访问 · 无需登录即可浏览公开市场",
+    "Use a password between 12 and 128 characters.": "密码长度必须为 12 至 128 个字符。",
   "Use a password between 8 and 128 characters.": "密码长度必须为 8 至 128 个字符。",
   "The passwords do not match.": "两次输入的密码不一致。",
   "Password could not be updated.": "无法更新密码。",

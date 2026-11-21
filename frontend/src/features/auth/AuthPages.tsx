@@ -19,7 +19,7 @@ export function AuthPage({ mode, redirectTo, embedded = false, onModeChange }: {
   const {
     status, busy, error, notice, googleEnabled, walletEnabled, ethereumWallets,
     signInWithGoogle, signInWithUsername, signInWithEmail, signUpWithEmail, signInWithWeb3,
-    verifyTwoFactor, clearError,
+    requestPasswordReset, verifyTwoFactor, clearError,
   } = useAuth();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -27,6 +27,8 @@ export function AuthPage({ mode, redirectTo, embedded = false, onModeChange }: {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [localFormError, setLocalFormError] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [showPasswordReset, setShowPasswordReset] = useState(false);
+  const [resetEmail, setResetEmail] = useState("");
   const [verifyCode, setVerifyCode] = useState("");
   const [verifyBusy, setVerifyBusy] = useState(false);
   const [walletMenuOpen, setWalletMenuOpen] = useState(false);
@@ -42,6 +44,8 @@ export function AuthPage({ mode, redirectTo, embedded = false, onModeChange }: {
     setEmailAddress("");
     setPassword("");
     setConfirmPassword("");
+    setShowPasswordReset(false);
+    setResetEmail("");
     setWalletMenuOpen(false);
   }, [mode]);
   // Once a Google OAuth redirect has started, keep the button disabled until the
@@ -74,6 +78,13 @@ export function AuthPage({ mode, redirectTo, embedded = false, onModeChange }: {
       else await signInWithUsername(username, password);
     }
     catch { /* AuthProvider displays the safe error. */ }
+  };
+
+  const submitPasswordReset = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (busy) return;
+    try { await requestPasswordReset(resetEmail.trim()); }
+    catch { /* AuthProvider displays a generic, privacy-safe response. */ }
   };
 
   const submitEmailRegistration = async (event: FormEvent<HTMLFormElement>) => {
@@ -199,7 +210,7 @@ export function AuthPage({ mode, redirectTo, embedded = false, onModeChange }: {
               </label>
               <Button type="submit" className="min-h-12 w-full" disabled={verifyBusy || verifyCode.length < 6}>{verifyBusy ? t("Verifying…") : t("Verify and continue")}</Button>
             </form> : <>
-              {mode === "login" && <form className="space-y-3" aria-busy={busy} onSubmit={submitUsernameLogin}>
+              {mode === "login" && !showPasswordReset && <form className="space-y-3" aria-busy={busy} onSubmit={submitUsernameLogin}>
                 <div>
                   <label htmlFor="btcbox-username" className="block text-sm text-brand-text-muted mb-1.5">{t("Username or email")}</label>
                   <Input id="btcbox-username" className="h-12" value={username} onChange={event => setUsername(event.target.value.toLowerCase())} autoComplete="username" minLength={3} maxLength={128} pattern="[a-z0-9@._+-]{3,}" placeholder={t("Enter your username or email")} required />
@@ -214,8 +225,22 @@ export function AuthPage({ mode, redirectTo, embedded = false, onModeChange }: {
                 <Button type="submit" className="min-h-12 w-full" aria-busy={busy} disabled={busy || username.length < 3 || password.length < 12}>
                   <KeyRound className="mr-2 h-4 w-4" /> {busy ? t("Signing in…") : t("Sign in")}
                 </Button>
+                <div className="text-right">
+                  <button type="button" className="min-h-11 px-1 text-sm font-semibold text-brand-accent underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent/70" onClick={() => { setResetEmail(username.includes("@") ? username : ""); clearError(); setLocalFormError(""); setShowPasswordReset(true); }}>{t("Forgot password?")}</button>
+                </div>
               </form>}
 
+              {mode === "login" && showPasswordReset && <form className="space-y-3" aria-busy={busy} onSubmit={submitPasswordReset}>
+                <p className="text-sm leading-6 text-brand-text-secondary">{t("Enter the email address for your BTCBOX account and we will send a secure reset link.")}</p>
+                <div>
+                  <label htmlFor="btcbox-reset-email" className="mb-1.5 block text-sm text-brand-text-muted">{t("Email")}</label>
+                  <Input id="btcbox-reset-email" className="h-12" type="email" value={resetEmail} onChange={event => setResetEmail(event.target.value)} autoComplete="email" maxLength={254} placeholder={t("Enter your email address")} required />
+                </div>
+                <Button type="submit" className="min-h-12 w-full" aria-busy={busy} disabled={busy || !resetEmail.trim()}>
+                  <KeyRound className="mr-2 h-4 w-4" /> {busy ? t("Sending reset link…") : t("Send reset link")}
+                </Button>
+                <button type="button" className="min-h-11 w-full text-sm font-semibold text-brand-text-secondary underline-offset-4 hover:text-brand-text hover:underline" onClick={() => { setShowPasswordReset(false); clearError(); }}>{t("Sign in")}</button>
+              </form>}
 
               {mode === "register" && <form className="space-y-3" aria-busy={busy} onSubmit={submitEmailRegistration}>
                 <div>
@@ -235,7 +260,7 @@ export function AuthPage({ mode, redirectTo, embedded = false, onModeChange }: {
                 </Button>
               </form>}
 
-              {identityButtons}
+              {(mode === "register" || !showPasswordReset) && identityButtons}
 
             </>}
 
@@ -292,8 +317,8 @@ export function AuthCallbackPage() {
   const submitRecovery = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setRecoveryError("");
-    if (newPassword.length < 8 || newPassword.length > 128) {
-      setRecoveryError("Use a password between 8 and 128 characters.");
+    if (newPassword.length < 12 || newPassword.length > 128) {
+      setRecoveryError("Use a password between 12 and 128 characters.");
       return;
     }
     if (newPassword !== confirmPassword) {
@@ -316,7 +341,7 @@ export function AuthCallbackPage() {
           <label className="block space-y-1.5 text-sm"><span className="text-brand-text-secondary">{t("New password")}</span><Input className="h-12" type="password" value={newPassword} onChange={event => setNewPassword(event.target.value)} autoComplete="new-password" minLength={12} maxLength={128} required /></label>
           <label className="block space-y-1.5 text-sm"><span className="text-brand-text-secondary">{t("Confirm new password")}</span><Input className="h-12" type="password" value={confirmPassword} onChange={event => setConfirmPassword(event.target.value)} autoComplete="new-password" minLength={12} maxLength={128} required /></label>
           {(recoveryError || error) && <p role="alert" className="rounded-lg border border-loss/30 bg-loss/10 p-3 text-sm text-loss">{t(recoveryError || error)}</p>}
-          <Button type="submit" className="min-h-12 w-full" disabled={busy || newPassword.length < 8 || newPassword !== confirmPassword}>{busy ? t("Updating password…") : t("Update password")}</Button>
+          <Button type="submit" className="min-h-12 w-full" disabled={busy || newPassword.length < 12 || newPassword !== confirmPassword}>{busy ? t("Updating password…") : t("Update password")}</Button>
         </form>
       </CardContent>
     </Card>
