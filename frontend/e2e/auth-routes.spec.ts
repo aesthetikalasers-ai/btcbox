@@ -34,7 +34,7 @@ test.beforeEach(async ({ page }) => {
 test("login route exposes BTCBOX username, Google and wallet sign-in", async ({ page }) => {
   await page.goto("/login");
 
-  await expect(page.getByRole("heading", { name: "Welcome back", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Sign in to your account", exact: true })).toBeVisible();
   await expect(page.getByRole("banner")).toHaveCount(0);
   await expect(page.getByRole("navigation", { name: "Primary navigation" })).toHaveCount(0);
   await expect(page.getByLabel("Username")).toBeVisible();
@@ -1001,7 +1001,7 @@ test("Admin queue reload failure never leaves stale withdrawal actions visible",
   expect(queueReads).toBeGreaterThanOrEqual(2);
 });
 
-test("trade chooser exposes exactly the four customer products (Spot/Seconds/Contract/Earn) without a Futures entry", async ({ page }) => {
+test("trade chooser exposes exactly the four customer products (Spot/Perpetual/Seconds/Earn) without a Futures entry", async ({ page }) => {
   await page.route("**/api/market/pairs", route => route.fulfill({
     status: 200,
     contentType: "application/json",
@@ -1017,13 +1017,13 @@ test("trade chooser exposes exactly the four customer products (Spot/Seconds/Con
   await expect(page.getByRole("heading", { name: "Seconds" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "BTC/USDT" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Earn", exact: true })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Contract", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Perpetual", exact: true })).toBeVisible();
   await expect(page.getByText("Futures", { exact: true })).toHaveCount(0);
   await expect(page.getByText("Unavailable", { exact: true })).toBeVisible();
   const earnEntry = page.locator('a[href="/earn"]:visible').last();
   await expect(earnEntry).toHaveAttribute("href", "/earn");
 
-  // The Earn entrance is public; personal positions and any financial action remain login-gated.
+  // The Earn entry is visible publicly; the catalog and positions remain login-gated.
   await earnEntry.click();
   await expect(page).toHaveURL(/\/login$/);
   await expect(page.getByRole("heading", { name: "Welcome back", exact: true })).toBeVisible();
