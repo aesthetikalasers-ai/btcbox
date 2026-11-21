@@ -227,3 +227,14 @@ test('public build excludes the retired legacy admin shell while retaining the R
   assert.ok(reactApp.includes('<Route path="/admin" element={<AdminPage />} />'));
   assert.ok(reactAdminPage.includes('getSupabaseAccessToken'));
 });
+
+
+test('admin portal has a dedicated sign-in surface and owns nested admin routes', () => {
+  const app = fs.readFileSync(path.join(root, '../frontend/src/App.tsx'), 'utf8');
+  const adminPage = fs.readFileSync(path.resolve(root, '../frontend/src/features/admin/AdminPage.tsx'), 'utf8');
+  assert.ok(app.includes('<Route path="/admin" element={<AdminPage />} />'));
+  assert.ok(app.includes('<Route path="/admin/*" element={<AdminPage />} />'));
+  assert.ok(adminPage.includes('BTCBOX · ADMINISTRATION'));
+  assert.ok(adminPage.includes('Administrator sign in'));
+  assert.ok(adminPage.includes('redirectTo="/admin"'));
+});
