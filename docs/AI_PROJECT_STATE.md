@@ -102,3 +102,46 @@ GitHub Actions API 按 `head_sha` 精确过滤，返回总计 3 个 workflow run
 
 ### 下一步唯一优先任务
 当前正式执行规划与状态文件对阶段位置存在冲突（main 版本为阶段 0；working 状态顶部为阶段 1 认证弹窗开发中，后段又记载阶段 0）。在冲突收敛前不得宣告阶段 0/1 退出，也不得提前启动 Earn 阶段。按 working 状态顶部已列明的待验收项，下一项优先任务是由应用开发 AI 在 `working` 完成 `frontend/e2e/auth-dialog.spec.ts` 六条路径的 Playwright 实测并修复失败项；项目负责人/协调负责人同步统一阶段状态与长期分支策略。上述 Perpetual worker 风险作为后续集成发布阻塞记录保留：进入对应阶段后由 API/Backend owner 修复 funding worker 的失败关闭/可重试行为，并明确 liquidation worker 在引擎关闭时的安全策略。数据库 AI 不越权修改 worker 文件。
+
+
+## 2026-11-21 集成分支续接核查（数据库负责人）
+
+### 协作规则与阶段
+- 首先读取用户指定的 `chore/shared-ai-coordination` 上 `docs/AI_COORDINATION.md`，GitHub 返回 404，分支搜索也无该 ref。随后读取 `main` 与 `working` 的同一路径，两者 blob SHA 均为 `190ab6ecf712dde2df62109692514e6cab1e431f`。
+- 当前规则仍指定 `main` 为唯一正式基准、`working` 为唯一共同开发分支；数据库 AI 负责 SQL/RPC/账本/数据库侧授权与幂等，应用开发 AI 负责 API、worker 和前端。按所有者本轮明确要求，本次只在已经存在的集成分支补充交接记录，没有创建新分支。
+- 阶段位置仍有冲突：`main` 的项目状态文件记录阶段 0；`working` 顶部记录阶段 1 认证弹窗开发中，但后段仍有阶段 0 记录。执行计划要求阶段按退出条件推进。阶段 0/1 均未被本轮宣告通过；Earn 阶段不得提前启动。
+
+### 远程 refs 与 PR
+- `main` HEAD：`c5a08fca80d43b12dd40544f86e9ec8949922609`。
+- `working` HEAD：`adadd07fba032b20e35ebb03f3ff63fd1146ac1b`（与本轮 compare 核对结果一致）。
+- 本集成分支 `integration/btcbox-mainline-consolidation-20261118` HEAD：`8fddcdc101b668cd2a1e07d155e2ccc32bc93592`；以该 SHA 为 base 与分支 ref compare，结果 identical（ahead 0 / behind 0）。
+- `integration/btcbox-mainline-consolidation-20261108` 不存在；分支搜索返回空。
+- 当前 `main...integration/20261118` compare 为 diverged：集成分支 ahead 7、behind 66，merge-base 为 `23d668158811f4b5e4bcb744d2314cd6d9a57770`。该集成候选明显落后于 main；本轮未 rebase、merge、reset 或强推。
+- PR #67 issue 状态为 closed（closed_at `2026-11-08T16:24:57Z`）；其记录的 merge commit `fbf301f88c5c19db94ea1546c590667a8818e842` 已由 compare 证实是当前 main 的祖先。PR #67 不能再设为 Draft；review submissions 与 review threads 当前查询均为空。不要把 PR 描述中的历史 Draft 文字当作当前状态。
+
+### 精确 SHA 的 Actions 证据
+- 当前集成 HEAD `8fddcdc101b668cd2a1e07d155e2ccc32bc93592`：commit-workflow-runs 查询（该连接器只返回 PR-triggered runs）为 0；combined commit statuses 为 0。不能据此声称所有 push/dispatch workflow 都没有运行。
+- Run `44669537115` 的 job checkout 日志明确检出上述 exact SHA；job API summary 显示 job `test` conclusion=success，但同一 job 解码日志中 `npm ci` 报 EUSAGE（仓库根目录没有 package-lock.json/npm-shrinkwrap），并显示进程 exit code 1。该 summary/log 不一致，且这不是 Backend、Frontend 或 PostgreSQL Schema CI；因此将当前 exact-head 应用测试状态记为 **NOT VERIFIED**，不能把该 Watchdog run 当作应用测试通过。
+- 最近的代码基线 `fa43074803659c0a76ca57733248875cdc1f765c` 与当前 HEAD 比较为 ahead 3 / behind 0；中间新增内容仅修改 `docs/AI_PROJECT_STATE.md`。该代码 SHA 的历史 Actions：PostgreSQL Schema CI `44451166858` PASS；Backend CI `44451166797` FAIL（549 项中 545 pass、4 fail）；Claude Watchdog `44451166709` PASS。它们不是当前 exact HEAD 的完整 CI 验收。
+- Backend 四项已知失败仍为：`admin-auth.test.js:31` 空 email 返回形状；`google-only-auth.test.js:17` 与 Email + Google 决策冲突；`google-only-identity.test.js:67` 仍要求 GOOGLE_ONLY_AUTH；`spot-trading-live-refresh.test.js:236` 依赖旧 Support 组件状态。归应用/API owner，不由数据库 AI 修改。
+- 当前集成 HEAD 的 Frontend/route/responsive CI 为 **NOT VERIFIED**；历史集成分支上的截图或旧 CI 不替代当前 exact-head 结果。
+
+### SQL / API 合同、幂等与授权复核
+- main 当前 `backend/api-core.js` blob `da0d50e2765770d78e3521d412fa52fc4fad138d`，集成分支对应 blob `b5def277c81888b88f877c94ac349e7d5fe1ae07`。逐段比较 Perpetual API route block，两个版本内容完全一致（13,281 字符）；main 后续 API 改动没有改变该 Perpetual route block。
+- main 的 canonical SQL `0041_perpetual_contract_v1.sql` blob `824514a8c076452de0ec882634789df197d22dc9`：`perp_submit_order` 参数签名与 API payload 对齐；SQL 使用 user/client_order_id advisory lock、校验重放 payload；`perp_cancel_order` 以 user/client_cancel_id 加锁并绑定 order_id。两个函数均 SECURITY INVOKER、空 search_path，客户端角色没有 EXECUTE 授权，service_role 有 EXECUTE 授权。
+- 集成分支 `0043_perpetual_funding_settlement_idempotency_v1.sql` blob `8c7e5d60eff1762c697ef7a95955967a6a8ddc15` 保持 `perp_settle_funding_one(text,timestamptz,numeric,text)` 原签名；检查持久化 rate 与 p_rate 一致、对相同 funding/user 幂等键取得 advisory transaction lock、同一事务内写 financial_operations / financial_ledger / position funding_paid / funding_history；SECURITY INVOKER、空 search_path，REVOKE PUBLIC/anon/authenticated，仅 GRANT service_role。
+- API 从服务端会话的 `user.uid` 传入 p_user_id；订单/撤单要求客户端幂等键；Perpetual write gate 要求 `FINANCIAL_PERPETUAL_ENGINE_ENABLED === '1'` 且完整 `financialWritesEnabled()`，`perpRpc` 再次检查该 gate。源码合同静态一致，但没有证明 hosted Supabase 已应用 0042/0043。
+- main 仍以 0041 为 canonical SQL；集成分支独有 0042/0043。main 自 merge-base 以来的 66 个提交中，本轮筛查未发现后续 SQL/perpetual migration 文件变化；但分支整体落后 66 个提交，不能据此视为可直接合并。
+- API close-position route 读取当前用户 position 后再提交 reduce-only market order；route block 未见与 order/cancel 相同的显式 shared rate-limit 调用。请 API owner 确认是否有统一上层限流覆盖，若没有，应补 route-level rate-limit 与重复/并发 close 测试。数据库 AI 不修改 API 文件。
+
+### Worker fail-closed / release 风险（应用/API Backend owner）
+- `backend/scripts/perp-funding-worker.js` blob `48da054ba1ad486d344869b6e8d58f7fe57ca814` 仍将 REST GET 非 2xx 转为空数组；rate insert/PATCH 不校验 HTTP 状态；单个用户结算异常只记录日志，随后仍可能把 rate 标记 settled、推进 next_funding_at 并 exit 0。worker 当前将 funding rate 固定为 0（注释说明 premium index 尚未接入）。0043 的数据库幂等修复不能弥补 worker 的部分失败编排缺口。
+- `backend/scripts/perp-liquidation-worker.js` blob `87c509bf4a225684aca71076205acb7b10c767a3` 同样把 REST GET 非 2xx 转为空数组；worker 本身未显式检查 Perpetual/full financial write gate。若新订单关闭时仍允许保护性强平，必须由 owner 定义单独、可审计的 liquidation safety gate；不能默认绕过总门禁。
+- `backend/tests/perpetual-api-contract.test.js` blob `d34e21290a209c2bb4721da67988f8b7de0b8787` 的 worker 覆盖仅检查文件/密钥/RPC 字符串及少量标记，未模拟非 2xx、部分用户失败、rate insert/PATCH 失败、重启重试或 gate 关闭。worker runtime/scheduler 是否启用仍 NOT VERIFIED。
+- 上述 worker/API 文件归应用/API Backend owner；本轮只记录证据与建议，未修改其文件、未运行 worker。
+
+### 验收状态与下一步
+- SQL 0042/0043 的历史 disposable PostgreSQL CI 证据仍可作为该代码 SHA 的迁移验证；当前 exact HEAD 的 Backend/Frontend/PostgreSQL 全套 CI、阶段 1 六条 auth-dialog Playwright 路径、响应式视觉验收、hosted schema/Auth、worker scheduler/runtime、真实资金执行均 **NOT VERIFIED**。
+- 集成候选状态：**NOT READY**（当前 exact-head 应用 CI 不完整；Backend 基线有 4 项失败；worker 部分失败可能误推进周期；集成分支落后 main 66 个提交；阶段 0/1 状态冲突）。
+- 本轮仅更新本状态文档；未修改 SQL/API/worker/frontend 源码；未执行 hosted Supabase 写入、Auth/Vercel 设置修改、生产部署、合并、真实资金操作或交易页布局变更。
+- 下一项唯一优先任务：由应用开发 AI 在正式共同开发分支完成 `frontend/e2e/auth-dialog.spec.ts` 六条 Playwright 验收并修复失败项，同时由项目 owner 统一阶段 0/1 与分支策略；API/Backend owner 后续按本节证据修复 worker 失败关闭/重试并补模拟 HTTP 失败测试。数据库 AI 不越权修改应用文件。
