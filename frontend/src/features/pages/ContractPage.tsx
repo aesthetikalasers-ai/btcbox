@@ -990,7 +990,7 @@ export function ContractPage() {
       </div>
 
       {/* 可开保证金（币安节奏：开多按钮上方） */}
-      <div className="flex justify-between text-[12px] tabular-nums"><span className="text-brand-text-muted">{t("Open margin")}</span><span className="text-brand-text">{estimatedMargin === null ? "0 USDT" : `${money(estimatedMargin, locale, 2)} USDT`}</span></div>
+      <div className="flex justify-between text-[12px] tabular-nums"><span className="text-brand-text-muted">{t("Open margin")}</span><span className="text-brand-text">{estimatedMargin === null ? EM_DASH : `${money(estimatedMargin, locale, 2)} USDT`}</span></div>
 
       {/* 开多 / 开空 按钮：与桌面端下单卡一致地左右并排，底部不再被常驻 K 线
           折叠条遮挡（垂直堆叠时最后一颗按钮会落在折叠条下方）。
