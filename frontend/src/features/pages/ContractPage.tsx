@@ -160,7 +160,7 @@ export function ContractPage() {
    * conversion. Falls back to 0.99999 when the FX endpoint is unavailable, so the
    * line still renders an honest approximation instead of a blank.
    */
-  const [usdtUsd, setUsdtUsd] = useState(0.99999);
+  const [usdtUsd, setUsdtUsd] = useState<number | null>(null);
   useEffect(() => {
     const controller = new AbortController();
     let cancelled = false;
