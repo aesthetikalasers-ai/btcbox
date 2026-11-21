@@ -96,7 +96,8 @@ export function OrderBookDepth({ mid, book, streamState, usdtUsd }: { mid?: numb
   return (
     <Card className="border-brand-border bg-brand-surface">
       <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2">
-        <CardTitle className="text-sm">{t("Order book")}</CardTitle>
+        <CardTitle className="text-sm">{t("Underlying spot order book")}</CardTitle>
+            <CardDescription>{t("Spot reference only — not the perpetual execution book.")}</CardDescription>
         <div className="flex items-center gap-1">
           <Badge variant="outline" className="border-brand-border-subtle bg-brand-surface-2 text-brand-text-muted">
             <span
