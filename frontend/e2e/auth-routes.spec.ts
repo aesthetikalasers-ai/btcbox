@@ -149,6 +149,49 @@ test("registration keeps Supabase email signup alongside Google and wallet", asy
   expect(forbiddenRequests).toEqual([]);
 });
 
+test("email registration uses Supabase confirmation and does not bypass BTCBOX provisioning", async ({ page }) => {
+  let signupEmail = "";
+  let confirmationRedirect = "";
+  const accountProvisioningRequests: string[] = [];
+  page.on("request", request => {
+    const pathname = new URL(request.url()).pathname;
+    if (pathname === "/api/register" || pathname === "/api/supabase-login") accountProvisioningRequests.push(pathname);
+  });
+  await page.route("**/auth/v1/signup**", async route => {
+    const requestUrl = new URL(route.request().url());
+    signupEmail = String(route.request().postDataJSON()?.email || "");
+    confirmationRedirect = requestUrl.searchParams.get("redirect_to") || "";
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        id: "e2e-email-user",
+        aud: "authenticated",
+        role: "authenticated",
+        email: signupEmail,
+        email_confirmed_at: null,
+        app_metadata: { provider: "email", providers: ["email"] },
+        user_metadata: {},
+        identities: [],
+        created_at: "2026-11-21T00:00:00.000Z",
+        updated_at: "2026-11-21T00:00:00.000Z",
+        confirmation_sent_at: "2026-11-21T00:00:00.000Z"
+      })
+    });
+  });
+
+  await page.goto("/register");
+  await page.getByLabel("Email", { exact: true }).fill("new-user@example.invalid");
+  await page.getByLabel("Password", { exact: true }).fill("StrongPassphrase123");
+  await page.getByLabel("Confirm password", { exact: true }).fill("StrongPassphrase123");
+  await page.getByRole("button", { name: "Create account with email" }).click();
+
+  await expect(page.getByText("Registration received. Please check your email and confirm your address before signing in.")).toBeVisible();
+  expect(signupEmail).toBe("new-user@example.invalid");
+  expect(confirmationRedirect).toMatch(/\/auth\/react-callback\?intent=register$/);
+  expect(accountProvisioningRequests).toEqual([]);
+});
+
 test("login does not expose retired email recovery", async ({ page }) => {
   const forbiddenRequests: string[] = [];
   page.on("request", request => {
