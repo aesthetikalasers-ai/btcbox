@@ -1874,7 +1874,7 @@ export function EarnPage(){
  // Signed-out and empty states share one compact notice instead of repeated cards.
  const hasEarnData=products.length>0||positions.length>0;
  const requestIdFor=(key:string)=>requestIds[key]||crypto.randomUUID();
- const number=(value:number|string|undefined)=>{const n=Number(value);return Number.isFinite(n)?n.toLocaleString(localeTags[language],{maximumFractionDigits:10}):"—";};
+ const number=(value:number|string|null|undefined)=>{if(value===null||value===undefined||value==="")return "—";const n=Number(value);return Number.isFinite(n)?n.toLocaleString(localeTags[language],{maximumFractionDigits:10}):"—";};
  const operate=async(event:FormEvent<HTMLFormElement>)=>{
   event.preventDefault();
   if(!selected||!actionsEnabled||busy)return;
