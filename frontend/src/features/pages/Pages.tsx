@@ -431,7 +431,7 @@ export function SpotTradingPage(){
  // exchange snapshot time, never the browser's receipt time.
  const marketSnapshotStale=!!ticker&&(!marketUpdatedAt||marketClockNow-marketUpdatedAt>90_000);
  const displayTicker=ticker;
- const tickerIsFallback=ticker?.source==="demo-preview"||ticker?.source==="sample-data";
+ const tickerIsFallback=!ticker?.source||ticker.source==="demo-preview"||ticker.source==="sample-data";
  /**
   * Depth steps this pair can actually use, derived from its price. A 0.01 bucket
   * would merge ARB's 0.1277 book into one row and print a 0.13 best bid. The
