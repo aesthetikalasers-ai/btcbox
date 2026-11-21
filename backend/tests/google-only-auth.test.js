@@ -14,7 +14,7 @@ test('legacy static auth support files remain valid JavaScript', () => {
   }
 });
 
-test('React registration uses Google or wallet; legacy username/email sign-in remains available', () => {
+test('React registration offers confirmed email signup alongside Google and wallet; legacy username/email sign-in remains available', () => {
   const authPage = fs.readFileSync(path.resolve(root, '..', 'frontend/src/features/auth/AuthPages.tsx'), 'utf8');
   assert.ok(authPage.includes('signInWithUsername'));
   assert.ok(authPage.includes('Google'));
@@ -22,8 +22,8 @@ test('React registration uses Google or wallet; legacy username/email sign-in re
   assert.ok(authPage.includes('Connect Ethereum wallet'));
   assert.ok(authPage.includes('Connect Solana wallet'));
   assert.ok(authPage.includes('signInWithEmail'));
-  assert.ok(!authPage.includes('signUpWithEmail'));
-  assert.ok(!authPage.includes('Create account with email'));
+  assert.ok(authPage.includes('signUpWithEmail'));
+  assert.ok(authPage.includes('Create account with email'));
   assert.ok(!authPage.includes('requestPasswordReset'));
   assert.ok(authPage.includes('completePasswordRecovery'));
   assert.ok(authPage.includes('Username or email'));
@@ -188,7 +188,8 @@ test('React auth preserves legacy email sign-in and Google registration alongsid
   assert.ok(auth.includes('setBtcboxCredentials'));
   assert.ok(auth.includes('linkGoogleIdentity'));
   assert.ok(auth.includes('linkWeb3Identity'));
-  assert.ok(auth.includes('signInWithEmail') && !auth.includes('signUpWithEmail'));
+  assert.ok(auth.includes('signInWithEmail') && auth.includes('signUpWithEmail'));
+  assert.ok(auth.includes('emailRedirectTo: window.location.origin + "/auth/react-callback?intent=register"'));
   assert.ok(backend.includes('function getSupabaseLoginProvider(identity)'));
   assert.ok(backend.includes('const authProvider = getSupabaseLoginProvider(identity);'));
   assert.ok(auth.includes('requestPasswordReset') && auth.includes('completePasswordRecovery'));
