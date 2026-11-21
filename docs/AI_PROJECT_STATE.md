@@ -145,3 +145,41 @@ GitHub Actions API 按 `head_sha` 精确过滤，返回总计 3 个 workflow run
 - 集成候选状态：**NOT READY**（当前 exact-head 应用 CI 不完整；Backend 基线有 4 项失败；worker 部分失败可能误推进周期；集成分支落后 main 66 个提交；阶段 0/1 状态冲突）。
 - 本轮仅更新本状态文档；未修改 SQL/API/worker/frontend 源码；未执行 hosted Supabase 写入、Auth/Vercel 设置修改、生产部署、合并、真实资金操作或交易页布局变更。
 - 下一项唯一优先任务：由应用开发 AI 在正式共同开发分支完成 `frontend/e2e/auth-dialog.spec.ts` 六条 Playwright 验收并修复失败项，同时由项目 owner 统一阶段 0/1 与分支策略；API/Backend owner 后续按本节证据修复 worker 失败关闭/重试并补模拟 HTTP 失败测试。数据库 AI 不越权修改应用文件。
+
+
+## 2026-11-21 第二批数据库幂等修复与集成验收记录
+
+### 新发现与修复
+- 在 main 与集成分支共同的 `0041_perpetual_contract_v1.sql`（blob `824514a8c076452de0ec882634789df197d22dc9`）中，`perp_submit_order` 的 replay payload 比较此前只检查 symbol/type/side/leverage/quantity/price，没有比较已持久化的 `reduce_only` 和 `close_position`。API 的 close-position 路径会发送 `reduce_only=true, close_position=true`；若同一用户复用已有 open-order 的 `client_order_id`，旧 RPC 可能返回旧订单的 duplicate 响应，而不是拒绝不同意图。
+- 新增 `0044_perpetual_order_idempotency_flags_v1.sql`，blob `5b7c4d4b747ed5c3caae543f74d3479c67efbece`，创建提交 `7405551d275cf438ed0232cc50de52a3409a00fd`。该 migration 保持 `perp_submit_order` 原参数签名，先将两个 boolean flag 归一化为 false/true，再将 `v_existing.reduce_only` 与 `p_reduce_only`、`v_existing.close_position` 与 `p_close_position` 纳入 replay mismatch 检查，并将两个 flag 加入 reserve request hash。保留 SECURITY INVOKER、空 search_path；REVOKE PUBLIC/anon/authenticated，仅 GRANT service_role。
+- 新增静态合同断言，要求 0044 明确比较两个 flag；新增 disposable PostgreSQL 集成场景：用同一 client_order_id 改变 reduce_only 或 close_position 均必须抛出 `client order id payload mismatch`，不得创建新订单或改变资金状态。
+- canonical migration inventory 从 36 项扩展到 37 项；已同步 empty-database bootstrap、Docker init allowlist、迁移顺序文档、migration inventory test 与 Perpetual live-Postgres 场景说明。没有修改 0041 历史 migration，也没有修改 API/worker/frontend 文件。
+
+### 本批提交与 refs
+- 0044 migration：`7405551d275cf438ed0232cc50de52a3409a00fd`。
+- Bootstrap allowlist：`e7dcbf26414f92e6f9d37c6d97515220de068217`。
+- Docker allowlist：`bf398ce8f9f052f927a5b64aa2e199bfdf42f8f4`。
+- Migration order/release doc：`3e5ef18e09a0df83bb948ec84406be9d8e652ea5`。
+- Perpetual SQL contract test：`ebad0607d50ad3e6b415c2b6f2515d9fa4557c78`。
+- Disposable PostgreSQL integration scenario：`b6537feae4a0f1c04b06eb4b58a03114e03296ff`。
+- Live-Postgres scenario checklist：`2a61bba5c529c3f114de8968553121a4e4fdc110`。
+- Migration inventory test / 本批代码与测试最终 SHA：`71c30df52ec90b554c46b5de82ceec662f9d4d1a`。
+- 本批提交后的集成分支与该 SHA compare 为 identical；相对当前 main `c5a08fca80d43b12dd40544f86e9ec8949922609`，分支 diverged：ahead 16 / behind 66，merge-base 仍为 `23d668158811f4b5e4bcb744d2314cd6d9a57770`。未 rebase、merge、reset 或强推。
+
+### 本批 CI 与证据边界
+- 对代码/测试 SHA `71c30df52ec90b554c46b5de82ceec662f9d4d1a`，commit-workflow-runs 查询（仅 PR-triggered runs）返回 0，combined commit statuses 返回 0。当前连接器无法列出该分支 push-triggered Actions 的完整 run 列表；因此 Backend CI 与 PostgreSQL Schema CI 的本批结果均记为 **NOT VERIFIED**，不得声称通过。
+- 本批变更路径符合仓库现有 workflow 的 push 触发条件：Backend CI 监听该集成分支的 `backend/**`；PostgreSQL Schema CI 监听该集成分支的 `backend/supabase/sql/**`、bootstrap 与 Perpetual integration SQL。是否已启动、最终 run SHA 与 job 结论仍须从 Actions run 详情核实。
+- 之前代码基线 `fa43074803659c0a76ca57733248875cdc1f765c` 的历史证据仍是 PostgreSQL Schema CI PASS、Backend CI 4 项失败；这些历史结果不能代替 0044 的当前 SHA 验证。
+- 当前 exact code SHA 没有可核实的 Frontend CI；响应式/route/视觉验收仍 NOT VERIFIED。
+
+### 仍未解决的跨团队问题
+- `backend/scripts/perp-funding-worker.js` 与 `perp-liquidation-worker.js` 的 REST 读取失败被折叠为空数组、资金费率部分用户失败仍可能推进周期、worker 自身 gate 等风险仍属于 API/Backend owner；本批没有越权修改。
+- API close-position route 未见与 order/cancel 相同的显式 route-level shared rate limit；由 API owner 确认是否有全局限流覆盖，并补并发/重复 close 测试。
+- `chore/shared-ai-coordination` 仍不存在；PR #67 已 closed 且其 merge commit 是 main 祖先，无法再设 Draft；旧 integration 20261108 分支不存在。
+- 阶段 0/1 记录冲突仍未解决；hosted Supabase 是否安装 0042–0044、Auth 状态、worker scheduler/runtime、真实金融执行、视觉验收均 NOT VERIFIED。
+
+### 本批结论与下一步
+- 本批 SQL/API 合同签名保持兼容，订单幂等 payload 的两个缺失 intent flag 已在新增 0044 中修复并添加静态/实际 PostgreSQL 测试。
+- 集成发布状态仍为 **NOT READY**：本批 exact-SHA CI 尚未核实，分支落后 main 66 个提交，Backend 旧基线仍有 4 项失败，worker fail-closed 风险未修复，阶段/分支策略冲突未收敛。
+- 下一项唯一优先任务：先取得并核实本批 exact SHA 的 Backend CI 与 PostgreSQL Schema CI 完整 run/job 结果；若失败，按归属修复本数据库分支内的 SQL/test 问题，应用/API 与响应式问题继续交由对应 owner。不得据此触碰 hosted Supabase 或生产部署。
+- 本批只修改集成分支上的 SQL migration、数据库测试、bootstrap inventory 与状态文档；没有修改 Vercel、hosted Supabase、Auth、生产环境或锁定交易页布局，没有执行真实资金操作。
