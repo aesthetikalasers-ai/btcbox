@@ -1717,5 +1717,8 @@
   "Browse supported spot pairs and their live market data.": "Browse supported spot pairs and their live market data.",
   "Earn products": "Earn products",
   "Review the products and terms currently published in BTCBOX Earn.": "Review the products and terms currently published in BTCBOX Earn.",
-  "Open spot, perpetual and seconds trading products from one place.": "Open spot, perpetual and seconds trading products from one place."
+  "Open spot, perpetual and seconds trading products from one place.": "Open spot, perpetual and seconds trading products from one place.",
+  "Launchpool is not currently available": "Launchpool is not currently available",
+  "No verified launchpool campaigns are currently published. Staking pools, reward rates and campaign statistics will appear here only when confirmed campaign data is available.": "No verified launchpool campaigns are currently published. Staking pools, reward rates and campaign statistics will appear here only when confirmed campaign data is available.",
+  "View Earn products": "View Earn products"
 }
