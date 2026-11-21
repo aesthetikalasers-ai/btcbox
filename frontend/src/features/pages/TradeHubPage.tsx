@@ -73,7 +73,7 @@ export function TradeHubPage() {
       action={<Badge variant="outline" className="shrink-0 border-brand-accent/30 bg-brand-accent/10 text-xs text-brand-accent">{t("Pro Portal")}</Badge>}
     >
       {/* 4 Core Trading Product Cards (Institutional Grid) */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
         {/* Spot Card */}
         <Card className="card-lift border-brand-border bg-brand-surface shadow-xl flex flex-col justify-between">
           <CardHeader>
