@@ -64,3 +64,14 @@ test('customer KYC form requires a compressed identity image', () => {
   assert.ok(api.includes('document_image_base64: string'));
   assert.ok(admin.includes('Open secure image'));
 });
+
+test('KYC private Storage bucket setup is idempotent and keeps customer access closed', () => {
+  const setup = read('backend/supabase/operations/kyc-document-storage-bucket.sql');
+  assert.ok(setup.includes("'kyc-documents'"));
+  assert.ok(setup.includes("public"));
+  assert.ok(setup.includes("false"));
+  assert.ok(setup.includes("524288"));
+  assert.ok(setup.includes("ARRAY['image/jpeg', 'image/png', 'image/webp']"));
+  assert.ok(setup.includes("ON CONFLICT (id) DO UPDATE"));
+  assert.ok(setup.includes("Do not add anon/authenticated read or write policies"));
+});

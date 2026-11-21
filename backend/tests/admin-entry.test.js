@@ -70,6 +70,13 @@ test('Vercel serves /admin through the React SPA instead of the legacy admin.htm
   assert.ok(vercelConfig.redirects.some((rule) => rule.source === '/admin.html' && rule.destination === '/admin'));
 });
 
+test('standalone Admin Google sign-in preserves its internal OAuth return path', () => {
+  assert.ok(authPages.includes('const requestedReturnTo = redirectTo ||'));
+  assert.ok(authPages.includes('window.sessionStorage.setItem("btcbox:oauth:return-to", requestedReturnTo)'));
+  assert.ok(authPages.includes('!requestedReturnTo.startsWith("//")'));
+  assert.ok(authPages.includes('navigate(returnTo || (callbackIntent === "register" ? "/me" : "/home")'));
+});
+
 test('React admin route uses verified Supabase Auth identity and server-side role permissions', () => {
   assert.ok(reactApp.includes('const AdminPage = lazy(() => import("./features/admin/AdminPage")'));
   assert.ok(reactApp.includes('<Route path="/admin" element={<AdminPage />} />'));
