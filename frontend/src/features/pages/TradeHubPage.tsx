@@ -66,7 +66,7 @@ export function TradeHubPage() {
   const spotStatusLabel = pairsLoading || (!tradingStatus && !tradingStatusError) ? t("Checking availability") : pairsError || tradingStatusError || spotPairs.length === 0 ? t("Unavailable") : spotExecutionEnabled ? t("Order entry enabled") : t("Read-only");
   const secondsStatusLabel = secondsAvailability === "enabled" ? t("Order entry enabled") : secondsAvailability === "sign-in" ? t("Sign in required") : secondsAvailability === "loading" ? t("Checking availability") : secondsAvailability === "read-only" ? t("Read-only") : t("Unavailable");
   const earnStatusLabel = earnAvailability === "enabled" ? t("Products available") : earnAvailability === "sign-in" ? t("Sign in required") : earnAvailability === "loading" ? t("Checking availability") : earnAvailability === "read-only" ? t("Read-only") : earnAvailability === "empty" ? t("No products") : t("Unavailable");
-  const perpStatusLabel = perpAvailability === "enabled" ? t("Live trading") : perpAvailability === "sign-in" ? t("Sign in required") : perpAvailability === "loading" ? t("Checking availability") : perpAvailability === "read-only" ? t("Markets read-only") : t("Unavailable");
+  const perpStatusLabel = perpAvailability === "enabled" ? t("Live trading") : perpAvailability === "sign-in" ? t("Sign in required") : perpAvailability === "loading" ? t("Checking availability") : perpAvailability === "read-only" ? t("Limited availability") : t("Unavailable");
 
 
 
