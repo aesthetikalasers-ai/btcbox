@@ -155,7 +155,7 @@ export function SecondsPage() {
       upColor: CHART_THEME.up, downColor: CHART_THEME.down, borderVisible: false, wickUpColor: CHART_THEME.up, wickDownColor: CHART_THEME.down
     });
     series.setData(candles.map((item) => ({
-      time: Math.floor(item.time / 1000) as UTCTimestamp,
+      time: Math.floor(item.time) as UTCTimestamp,
       open: item.open, high: item.high, low: item.low, close: item.close
     })).sort((a, b) => Number(a.time) - Number(b.time)));
     chart.timeScale().fitContent();
