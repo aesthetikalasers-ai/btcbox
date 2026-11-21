@@ -33,8 +33,9 @@ export function SecondsPage() {
   const { t, language } = useI18n();
   const locale = localeTags[language];
   const { status } = useAuth();
-  const signedOut = status !== "authenticated";
+  const signedOut = status === "unauthenticated";
   const [snapshot, setSnapshot] = useState<SecondsPositionsSnapshot | null>(null);
+  const [positionsLoadError, setPositionsLoadError] = useState(false);
   const [policy, setPolicy] = useState<SecondsPolicyResponse | null>(null);
   const [uid, setUid] = useState("");
   const [loading, setLoading] = useState(true);
@@ -55,6 +56,9 @@ export function SecondsPage() {
   const [activeTab, setActiveTab] = useState<"positions" | "orders" | "history">("positions");
   const [bottomExpanded, setBottomExpanded] = useState(true);
   const [ticker, setTicker] = useState<MarketTicker | null>(null);
+  const [marketFeedError, setMarketFeedError] = useState(false);
+  const [chartUpdatedAt, setChartUpdatedAt] = useState<number | null>(null);
+  const [chartFeedError, setChartFeedError] = useState(false);
   const [availableUSDT, setAvailableUSDT] = useState<string | null>(null);
   // Durable order intent: the exact request is persisted per account+symbol so
   // a network failure can be retried with the SAME request_id (a new id would
@@ -82,12 +86,22 @@ export function SecondsPage() {
 
   useEffect(() => {
     let cancelled = false;
+    setTicker(null);
+    setMarketFeedError(false);
     const loadMarket = () => {
       getMarkets().then((mkts) => {
         if (cancelled) return;
         const found = mkts.find((m) => m.sym.toUpperCase() === symbol.toUpperCase());
-        if (found) setTicker(found);
-      }).catch(() => {});
+        if (found) {
+          setTicker(found);
+          setMarketFeedError(false);
+        } else {
+          setTicker(null);
+          setMarketFeedError(true);
+        }
+      }).catch(() => {
+        if (!cancelled) setMarketFeedError(true);
+      });
     };
     loadMarket();
     const timer = window.setInterval(loadMarket, 3000);
@@ -96,8 +110,31 @@ export function SecondsPage() {
 
   useEffect(() => {
     const controller = new AbortController();
+    if (status === "loading") {
+      setLoading(true);
+      return () => controller.abort();
+    }
+    if (status !== "authenticated") {
+      setUid("");
+      setSnapshot(null);
+      setPositionsLoadError(false);
+      setPolicy(null);
+      setAvailableUSDT(null);
+      setPendingIntent(null);
+      setError("");
+      setLoading(false);
+      return () => controller.abort();
+    }
+
     setLoading(true);
     setError("");
+    setUid("");
+    setSnapshot(null);
+    setPositionsLoadError(false);
+    setPolicy(null);
+    setAvailableUSDT(null);
+    setPendingIntent(null);
+
     Promise.allSettled([getAccount(controller.signal), getSecondsPositions(controller.signal), getSecondsPolicy(controller.signal)])
       .then(([accountResult, positionsResult, policyResult]) => {
         if (controller.signal.aborted) return;
@@ -115,13 +152,22 @@ export function SecondsPage() {
               if (stored) setPendingIntent(JSON.parse(stored) as SecondsOrderInput);
             } catch { /* ignore unreadable storage */ }
           }
+        } else {
+          setError(t("Your available balance could not be verified. No order was sent."));
         }
-        if (positionsResult.status === "fulfilled") setSnapshot(positionsResult.value);
+        if (positionsResult.status === "fulfilled") {
+          setSnapshot(positionsResult.value);
+          setPositionsLoadError(false);
+        } else {
+          setSnapshot(null);
+          setPositionsLoadError(true);
+        }
         if (policyResult.status === "fulfilled") setPolicy(policyResult.value);
+        else setPolicy(null);
       })
       .finally(() => { if (!controller.signal.aborted) setLoading(false); });
     return () => controller.abort();
-  }, [reload]);
+  }, [reload, status, symbol]);
 
   useEffect(() => {
     const node = chartNode;
