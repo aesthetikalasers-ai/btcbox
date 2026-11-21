@@ -1725,5 +1725,6 @@
   "Markets read-only": "Mercati in sola lettura",
   "Review available USDT-margined perpetual markets and their server-configured limits.": "Consulta i mercati perpetual con margine USDT disponibili e i relativi limiti configurati dal server.",
   "Submit positions only when server policy is enabled, with server-managed settlement.": "Invia posizioni solo quando la policy del server è attiva, con regolamento gestito dal server.",
-  "View Earn products, yields and terms published by BTCBOX.": "Consulta i prodotti Earn, i rendimenti e le condizioni pubblicati da BTCBOX."
+  "View Earn products, yields and terms published by BTCBOX.": "Consulta i prodotti Earn, i rendimenti e le condizioni pubblicati da BTCBOX.",
+  "Limited availability": "Disponibilità limitata"
 }
