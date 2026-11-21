@@ -38,6 +38,7 @@ export interface MarketTicker {
 }
 
 export interface MarketCandle {
+  /** Unix timestamp in seconds for the chart library. */
   time: number;
   open: number;
   high: number;
