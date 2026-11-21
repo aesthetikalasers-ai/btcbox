@@ -645,7 +645,7 @@ export function SpotTradingPage(){
   if(!node||!candles.length||node.clientWidth<=0||(compactTrade&&!chartOpen))return;
   const chart=createChart(node,{width:node.clientWidth,height:node.clientHeight||320,handleScroll:{vertTouchDrag:false,horzTouchDrag:true},handleScale:{pinch:true},layout:{attributionLogo:false,background:{type:ColorType.Solid,color:CHART_THEME.background},textColor:CHART_THEME.text},grid:{vertLines:{color:CHART_THEME.grid},horzLines:{color:CHART_THEME.grid}},rightPriceScale:{borderColor:CHART_THEME.border},timeScale:{borderColor:CHART_THEME.border,timeVisible:true,secondsVisible:false,rightOffset:6,minBarSpacing:5}});
   const series=chart.addSeries(CandlestickSeries,{upColor:CHART_THEME.up,downColor:CHART_THEME.down,borderVisible:false,wickUpColor:CHART_THEME.up,wickDownColor:CHART_THEME.down});
-  series.setData(candles.map(item=>({time:Math.floor(item.time/1000) as UTCTimestamp,open:item.open,high:item.high,low:item.low,close:item.close})).sort((a,b)=>Number(a.time)-Number(b.time)));
+  series.setData(candles.map(item=>({time:Math.floor(item.time) as UTCTimestamp,open:item.open,high:item.high,low:item.low,close:item.close})).sort((a,b)=>Number(a.time)-Number(b.time)));
   chart.timeScale().fitContent();
   // The last-trade price line keeps the price scale aligned with the order book:
   // without it the axis was only as wide as the fetched candles, so a price that
@@ -1273,7 +1273,7 @@ export function SecondsPage(){
    wickDownColor: CHART_THEME.down
   });
   series.setData(candles.map(item => ({
-   time: Math.floor(item.time / 1000) as UTCTimestamp,
+   time: Math.floor(item.time) as UTCTimestamp,
    open: item.open,
    high: item.high,
    low: item.low,
