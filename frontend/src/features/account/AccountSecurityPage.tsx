@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from "react";
+import { createPortal } from "react-dom";
 import { Navigate } from "react-router-dom";
 import { Check, ChevronRight, Copy, Lock, ShieldCheck, Smartphone, Wallet, X } from "lucide-react";
 import { Button } from "../../components/ui/button";
@@ -191,8 +192,8 @@ export function AccountSecurityPage() {
       </div>
 
       {/* Bottom sheet */}
-      {sheet && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-sm" onClick={() => setSheet(null)}>
+      {sheet && createPortal(
+        <div className="fixed inset-0 z-[100] flex items-end justify-center bg-black/60 backdrop-blur-sm" onClick={() => setSheet(null)}>
           <div className="w-full max-w-2xl rounded-t-2xl border border-brand-border bg-brand-surface-2 p-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))] shadow-2xl" onClick={(e) => e.stopPropagation()}>
             <div className="mb-4 flex items-start justify-between">
               <h3 className="text-lg font-bold text-brand-text">
@@ -281,7 +282,7 @@ export function AccountSecurityPage() {
             )}
           </div>
         </div>
-      )}
+      ), document.body)}
     </div>
   ;
 }
