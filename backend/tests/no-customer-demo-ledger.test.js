@@ -249,3 +249,10 @@ test("admin does not invent zero balances or allow credits against an unknown le
   assert.ok(!admin.includes('balances?.[coin]?.free ?? "0"'));
   assert.ok(admin.includes("Manual credit is disabled until the user's PostgreSQL ledger balance source is confirmed."));
 });
+
+test("obsolete hard-coded seconds page is not left in the shared pages module", () => {
+  const pages = fs.readFileSync(path.join(root, "features/pages/Pages.tsx"), "utf8");
+  assert.ok(!pages.includes("export function SecondsPage"));
+  assert.ok(!pages.includes("DURATION_OPTIONS"));
+  assert.ok(!pages.includes("QUICK_AMOUNTS"));
+});
