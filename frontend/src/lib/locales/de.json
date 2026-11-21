@@ -463,7 +463,7 @@
   "Already have an account?": "Sie haben bereits ein Konto?",
   "Back to BTCBOX": "Zurück zu BTCBOX",
   "Protected account access · Public markets remain available without signing in": "Geschützter Kontozugriff · Öffentliche Märkte bleiben ohne Anmeldung verfügbar",
-    "Use a password between 12 and 128 characters.": "Verwenden Sie ein Passwort mit 12 bis 128 Zeichen.",
+  "Use a password between 12 and 128 characters.": "Verwenden Sie ein Passwort mit 12 bis 128 Zeichen.",
   "Use a password between 8 and 128 characters.": "Verwenden Sie ein Passwort mit 8 bis 128 Zeichen.",
   "The passwords do not match.": "Die Passwörter stimmen nicht überein.",
   "Password could not be updated.": "Das Passwort konnte nicht aktualisiert werden.",
@@ -1696,5 +1696,15 @@
   "Latest": "Akt.",
   "Return rate": "Rendite",
   "Pick a duration and direction; the round settles automatically.": "Wähle Dauer und Richtung; die Runde wird automatisch abgerechnet.",
-  "Choose a short-term contract pair": "Kurzfristiges Kontraktpaar wählen"
+  "Choose a short-term contract pair": "Kurzfristiges Kontraktpaar wählen",
+  "Spot reference": "Spot-Referenz",
+  "Underlying spot order book": "Spot-Orderbuch des Basiswerts",
+  "Spot reference only — not the perpetual execution book.": "Nur Spot-Referenz — nicht das Ausführungsorderbuch der Perpetuals.",
+  "Spot reference depth": "Spot-Referenztiefe",
+  "The active seconds policy is unavailable. Payout rates and order entry are disabled until it can be verified.": "Die aktive Sekundenkontrakt-Richtlinie ist nicht verfügbar. Auszahlungsraten und Auftragseingabe bleiben deaktiviert, bis sie verifiziert werden kann.",
+  "The active seconds policy is unavailable. No order was sent.": "Die aktive Sekundenrichtlinie ist nicht verfügbar. Es wurde keine Order gesendet.",
+  "Your available balance could not be verified. No order was sent.": "Das verfügbare Guthaben konnte nicht verifiziert werden. Es wurde keine Order gesendet.",
+  "Amount is outside the active policy limits.": "Der Betrag liegt außerhalb der aktiven Richtliniengrenzen.",
+  "Insufficient available USDT balance.": "Nicht genügend verfügbares USDT-Guthaben.",
+  "This market or duration is not enabled by the active policy.": "Dieser Markt oder diese Laufzeit ist durch die aktive Richtlinie nicht freigegeben."
 }
