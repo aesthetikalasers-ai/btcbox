@@ -136,3 +136,24 @@ test("USDT to USD display never invents a near-parity fallback rate", () => {
     assert.ok(!source.includes("0.99999"));
   }
 });
+
+test("order books never synthesize depth or neutral buy/sell pressure", () => {
+  const depth = fs.readFileSync(path.join(root, "features/trade/OrderBookDepth.tsx"), "utf8");
+  assert.ok(!depth.includes("buildLevels"));
+  assert.ok(!depth.includes("mulberry32"));
+  assert.ok(!depth.includes("67000"));
+  assert.ok(depth.includes("book: DepthLevels | null"));
+
+  const terminal = fs.readFileSync(path.join(root, "features/trade/TerminalOrderBook.tsx"), "utf8");
+  assert.ok(!terminal.includes("return { buy: 50, sell: 50 }"));
+  assert.ok(terminal.includes("return null"));
+  assert.ok(terminal.includes("{pressure ? ("));
+});
+
+test("spot and perpetual pages do not seed a guessed USDT/USD rate", () => {
+  for (const file of ["features/pages/Pages.tsx", "features/pages/ContractPage.tsx"]) {
+    const source = fs.readFileSync(path.join(root, file), "utf8");
+    assert.ok(source.includes("useState<number | null>(null)"));
+    assert.ok(!source.includes("0.99999"));
+  }
+});
