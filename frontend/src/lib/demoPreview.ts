@@ -126,7 +126,7 @@ export function getDemoKlines(symbol: string, interval: string): MarketCandle[] 
     const low = Math.min(open, close) * 0.998;
     previousClose = close;
     return {
-      time,
+      time: Math.floor(time / 1000),
       open,
       high,
       low,
