@@ -1283,9 +1283,10 @@ test("registration layout adapts from mobile to desktop without losing the ident
     await expect(page.getByRole("button", { name: "Connect Ethereum wallet" })).toBeVisible();
     await expect(page.getByRole("button", { name: "Connect Solana wallet" })).toBeVisible();
     await expect(page.getByTestId("auth-mode-switcher").getByRole("link", { name: "Sign in", exact: true })).toHaveAttribute("href", "/login");
-    await expect(page.getByLabel("Email address")).toHaveCount(0);
-    await expect(page.getByRole("button", { name: "Create account with email" })).toHaveCount(0);
-    await expect(page.getByLabel("Username")).toHaveCount(0);
+    await expect(page.getByLabel("Email", { exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Create account with email" })).toBeVisible();
+    await expect(page.getByLabel("Password", { exact: true })).toBeVisible();
+    await expect(page.getByLabel("Confirm password", { exact: true })).toBeVisible();
     const dimensions = await page.evaluate(() => ({
       viewport: document.documentElement.clientWidth,
       content: document.documentElement.scrollWidth,
