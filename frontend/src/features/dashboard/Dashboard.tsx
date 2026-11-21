@@ -88,9 +88,9 @@ function BannerCarousel({ markets }: { markets: MarketTicker[] }) {
   const btc = markets.find((market) => market.sym === "BTC");
   const btcUp = (btc?.chg ?? 0) >= 0;
   const slides: BannerSlide[] = [
-    { title: t("New token listings"), sub: t("Discover the latest assets listed on BTCBOX"), to: "/markets", gradient: "from-brand-accent/40 via-brand-surface to-brand-surface", glow: "radial-gradient(120% 120% at 100% 100%, color-mix(in srgb, var(--color-brand-accent) 26%, transparent), transparent 60%)", glowTop: "radial-gradient(90% 90% at 0% 0%, color-mix(in srgb, var(--color-brand-accent) 18%, transparent), transparent 55%)" },
-    { title: t("Staking rewards"), sub: t("Earn passive rewards on your idle assets"), to: "/earn", gradient: "from-brand-violet/40 via-brand-surface to-brand-surface", glow: "radial-gradient(120% 120% at 100% 100%, color-mix(in srgb, var(--color-brand-violet) 26%, transparent), transparent 60%)", glowTop: "radial-gradient(90% 90% at 0% 0%, color-mix(in srgb, var(--color-brand-violet) 18%, transparent), transparent 55%)" },
-    { title: t("Trading competition"), sub: t("Compete, trade, and win exclusive prizes"), to: "/trade-hub", gradient: "from-brand-cyan/40 via-brand-surface to-brand-surface", glow: "radial-gradient(120% 120% at 100% 100%, color-mix(in srgb, var(--color-brand-cyan) 26%, transparent), transparent 60%)", glowTop: "radial-gradient(90% 90% at 0% 0%, color-mix(in srgb, var(--color-brand-cyan) 18%, transparent), transparent 55%)" },
+    { title: t("Supported markets"), sub: t("Browse supported spot pairs and their live market data."), to: "/markets", gradient: "from-brand-accent/40 via-brand-surface to-brand-surface", glow: "radial-gradient(120% 120% at 100% 100%, color-mix(in srgb, var(--color-brand-accent) 26%, transparent), transparent 60%)", glowTop: "radial-gradient(90% 90% at 0% 0%, color-mix(in srgb, var(--color-brand-accent) 18%, transparent), transparent 55%)" },
+    { title: t("Earn products"), sub: t("Review the products and terms currently published in BTCBOX Earn."), to: "/earn", gradient: "from-brand-violet/40 via-brand-surface to-brand-surface", glow: "radial-gradient(120% 120% at 100% 100%, color-mix(in srgb, var(--color-brand-violet) 26%, transparent), transparent 60%)", glowTop: "radial-gradient(90% 90% at 0% 0%, color-mix(in srgb, var(--color-brand-violet) 18%, transparent), transparent 55%)" },
+    { title: t("Trading workspace"), sub: t("Open spot, perpetual and seconds trading products from one place."), to: "/trade-hub", gradient: "from-brand-cyan/40 via-brand-surface to-brand-surface", glow: "radial-gradient(120% 120% at 100% 100%, color-mix(in srgb, var(--color-brand-cyan) 26%, transparent), transparent 60%)", glowTop: "radial-gradient(90% 90% at 0% 0%, color-mix(in srgb, var(--color-brand-cyan) 18%, transparent), transparent 55%)" },
   ];
 
   useEffect(() => {
@@ -188,187 +188,6 @@ function QuickActions() {
   );
 }
 
-/**
- * Prominent entry button for the new-coin mining / launchpad programme.
- *
- * Deliberately a single wide CTA rather than a 9th quick-action tile: mining is
- * a campaign surface, not a core trading tab, so it reads as an invitation while
- * still sitting at the top of the home screen next to Rewards.
- */
-function MiningButton() {
-  const { t } = useI18n();
-  return (
-    <Link
-      to="/new-listings"
-      className="group relative flex min-w-0 items-center gap-3 overflow-hidden rounded-xl border border-brand-accent/25 bg-gradient-to-r from-brand-accent/[0.10] via-brand-surface to-brand-surface p-3 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.10)] transition-all duration-300 hover:border-brand-accent/40 hover:shadow-[0_10px_34px_-12px_rgba(14,203,129,0.30)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent/60"
-    >
-      {/* Ambient glow that brightens on hover. */}
-      <span aria-hidden="true" className="pointer-events-none absolute -right-6 -top-8 h-24 w-24 rounded-full bg-brand-accent/15 blur-2xl transition-opacity duration-300 group-hover:opacity-100 opacity-70" />
-      <span className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-brand-accent/10 text-brand-accent shadow-[inset_0_1px_0_0_rgba(255,255,255,0.18)]">
-        <Rocket className="h-5 w-5" strokeWidth={1.9} />
-      </span>
-      <span className="relative min-w-0 flex-1">
-        <span className="flex items-center gap-1.5">
-          <span className="truncate text-sm font-bold text-brand-text">{t("New coin mining")}</span>
-          <Sparkles className="h-3.5 w-3.5 shrink-0 text-brand-accent" strokeWidth={2} />
-        </span>
-        <span className="mt-0.5 block text-[11px] leading-relaxed text-brand-text-muted [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2] overflow-hidden">
-          {t("Stake for new listings and share the launchpool rewards.")}
-        </span>
-      </span>
-      <span className="relative flex h-8 shrink-0 items-center gap-1 rounded-lg border border-brand-accent/30 bg-brand-accent/15 px-3 text-xs font-bold text-brand-accent transition-transform duration-200 group-hover:scale-[1.04]">
-        {t("Join")}
-        <ChevronRight className="h-3.5 w-3.5" strokeWidth={2.5} />
-      </span>
-    </Link>
-  );
-}
-
-/**
- * Compact market table. Uses a real <table> so column widths stay locked while
- * prices tick — the whole point of tabular-nums in a trading terminal.
- */
-function MarketTable({ markets, locale, onViewAll }: { markets: MarketTicker[]; locale: string; onViewAll: () => void }) {
-  const { t } = useI18n();
-  const tabs = useMemo(
-    () =>
-      [
-        { key: "hot", label: t("Hot pairs") },
-        { key: "gainers", label: t("Gainers") },
-        { key: "new", label: t("New listings") },
-        { key: "volume", label: t("24h volume") },
-      ] as const,
-    [t],
-  );
-  type TabKey = (typeof tabs)[number]["key"];
-  const [tab, setTab] = useState<TabKey>("hot");
-  const rows = useMemo(() => {
-    const list = [...markets];
-    if (tab === "gainers") list.sort((a, b) => b.chg - a.chg);
-    else if (tab === "volume") list.sort((a, b) => Number(b.vol) - Number(a.vol));
-    else if (tab === "new") list.sort((a, b) => (b.providerTs ?? b.snapshotTs ?? 0) - (a.providerTs ?? a.snapshotTs ?? 0));
-    else list.sort((a, b) => Number(b.vol) - Number(a.vol));
-    return list.slice(0, 8);
-  }, [markets, tab]);
-  if (rows.length === 0) return null;
-
-  return (
-    <section aria-label={t("Market overview")} className="overflow-hidden rounded-xl border border-white/[0.08] bg-brand-surface shadow-[inset_0_1px_0_0_rgba(255,255,255,0.12)] transition-all duration-300 hover:border-brand-accent/30 hover:shadow-[0_8px_30px_rgba(14,203,129,0.12)]">
-      <div className="flex items-center justify-between border-b border-brand-border px-3 py-2.5">
-        <h2 className="text-[13px] font-semibold text-brand-text">{t("Market overview")}</h2>
-        <button
-          type="button"
-          onClick={onViewAll}
-          className="flex items-center gap-0.5 text-[11px] font-medium text-brand-text-muted transition-colors hover:text-brand-accent"
-        >
-          {t("View all markets")}
-          <ArrowRight className="h-3 w-3" />
-        </button>
-      </div>
-
-      {/* Horizontal sub-tabs: Hot / Gainers / New / Volume. */}
-      <div className="flex items-center gap-1 overflow-x-auto border-b border-brand-border px-2 py-1.5" role="tablist" aria-label={t("Market overview")}>
-        {tabs.map((tabItem) => (
-          <button
-            key={tabItem.key}
-            type="button"
-            role="tab"
-            aria-selected={tab === tabItem.key}
-            onClick={() => setTab(tabItem.key)}
-            className={`shrink-0 rounded-full border px-3 py-1 text-[11px] font-semibold transition-colors ${
-              tab === tabItem.key
-                ? "border-brand-accent/50 bg-brand-accent/15 text-brand-accent"
-                : "border-transparent text-brand-text-muted hover:text-brand-text"
-            }`}
-          >
-            {tabItem.label}
-          </button>
-        ))}
-      </div>
-
-      {/* Mobile: single-column list — icon+symbol left, price right, change pill. */}
-      <div className="sm:hidden">
-        {/* Column header row for a true exchange feel. */}
-        <div className="flex items-center gap-3 border-b border-brand-border px-3 py-2 text-[10px] font-medium uppercase tracking-wide text-brand-text-muted">
-          <span className="min-w-0 flex-1">{t("Pair")}</span>
-          <span className="w-[76px] text-right">{t("Last price")}</span>
-          <span className="w-[76px] text-right">{t("24h change")}</span>
-        </div>
-        {rows.map((m, idx) => {
-          const up = m.chg >= 0;
-          const isHot = (tab === "hot" || tab === "gainers") && idx < 3;
-          return (
-            <Link
-              key={m.sym}
-              to={`/trade/${pairSymbol(m.sym)}`}
-              className="flex min-w-0 items-center gap-3 border-b border-brand-border-subtle px-3 py-3 last:border-b-0 transition-colors hover:bg-brand-surface-hover/50"
-            >
-              <TokenIcon symbol={m.sym} className="h-7 w-7 shrink-0" />
-              <span className="min-w-0 flex-1">
-                <span className="flex items-baseline gap-1 min-w-0">
-                  <span className="truncate text-[15px] font-bold leading-tight text-brand-text">{m.sym}</span>
-                  <span className="text-[11px] font-medium text-brand-text-muted shrink-0">/USDT</span>
-                  {isHot ? <HotFlameIcon className="h-3.5 w-3.5 shrink-0" /> : null}
-                </span>
-                <span className="mt-0.5 block truncate text-[11px] font-normal leading-tight text-brand-text-muted">{t(getAssetName(m.sym))}</span>
-              </span>
-              <span className="shrink-0 text-right">
-                <span className="block font-mono text-[17px] font-bold leading-tight tabular-nums text-brand-text">{fmtPrice(m.price, locale)}</span>
-              </span>
-              <span
-                className={`flex h-7 min-w-[76px] shrink-0 items-center justify-center rounded-md px-2 text-[13px] font-semibold tabular-nums ${up ? "bg-brand-accent/10 text-brand-accent" : "bg-brand-danger/10 text-brand-danger"}`}
-              >
-                {fmtChange(m.chg, locale)}
-              </span>
-            </Link>
-          );
-        })}
-      </div>
-
-      {/* Desktop: fixed-column table. */}
-      <table className="hidden w-full table-fixed border-collapse sm:table">
-        <thead>
-          <tr className="border-b border-brand-border text-xs font-medium text-brand-text-muted">
-            <th scope="col" className="w-[38%] px-3 py-2 text-left font-medium">{t("Pair")}</th>
-            <th scope="col" className="w-[30%] px-1 py-2 text-right font-medium">{t("Last price")}</th>
-            <th scope="col" className="w-[32%] px-3 py-2 text-right font-medium">{t("24h change")}</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((m) => {
-            const up = m.chg >= 0;
-            return (
-              <tr key={m.sym} className="border-b border-brand-border-subtle last:border-b-0 transition-colors hover:bg-brand-surface-hover/50">
-                <td className="px-3 py-2">
-                  <Link to={`/trade/${pairSymbol(m.sym)}`} className="flex min-w-0 items-center gap-2">
-                    <TokenIcon symbol={m.sym} className="h-[18px] w-[18px] shrink-0" />
-                    <span className="min-w-0">
-                      <div className="flex items-baseline gap-1 min-w-0">
-                        <span className="block truncate text-[13px] font-bold leading-tight text-brand-text">{m.sym}</span>
-                        <span className="text-[10px] font-medium text-brand-text-muted shrink-0">/USDT</span>
-                      </div>
-                      <span className="block truncate text-[10px] leading-tight text-brand-text-muted">{t(getAssetName(m.sym))}</span>
-                    </span>
-                  </Link>
-                </td>
-                <td className="px-1 py-2 text-right">
-                  <span className="font-mono text-[15px] font-bold tabular-nums text-brand-text">{fmtPrice(m.price, locale)}</span>
-                </td>
-                <td className="px-3 py-2 text-right">
-                  <span className={`inline-flex min-w-[64px] items-center justify-center rounded-md px-2 py-0.5 font-mono text-[12px] font-semibold tabular-nums ${up ? "bg-brand-accent/[0.07] text-brand-accent" : "bg-brand-danger/[0.07] text-brand-danger"}`}>
-                    {fmtChange(m.chg, locale)}
-                  </span>
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
-    </section>
-  );
-}
-
-
 export function Dashboard() {
   const { language, t } = useI18n();
   const locale = localeTags[language];
@@ -425,7 +244,6 @@ export function Dashboard() {
       <BannerCarousel markets={markets} />
       <TickerMarquee markets={markets} locale={locale} />
       <QuickActions />
-      <MiningButton />
       <MarketTable markets={markets} locale={locale} onViewAll={() => navigate("/markets")} />
     </div>
   );
