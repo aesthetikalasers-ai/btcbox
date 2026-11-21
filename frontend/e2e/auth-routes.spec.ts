@@ -172,7 +172,6 @@ test("email registration uses Supabase confirmation and does not bypass BTCBOX p
         email_confirmed_at: null,
         app_metadata: { provider: "email", providers: ["email"] },
         user_metadata: {},
-        identities: [],
         created_at: "2026-11-21T00:00:00.000Z",
         updated_at: "2026-11-21T00:00:00.000Z",
         confirmation_sent_at: "2026-11-21T00:00:00.000Z"
