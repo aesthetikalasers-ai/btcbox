@@ -1,6 +1,6 @@
 
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { RefreshCw, TrendingUp, TrendingDown, Clock3, ShieldCheck, ShieldAlert, BarChart2, Award, ChevronDown } from "lucide-react";
+import { RefreshCw, TrendingUp, TrendingDown, ShieldCheck, ShieldAlert, BarChart2, Award, ChevronDown } from "lucide-react";
 import { Badge } from "../../components/ui/badge";
 import { Button } from "../../components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/card";
@@ -19,7 +19,6 @@ import {
   type MarketTicker,
 } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
-import { useTrading } from "../../lib/trading";
 import { useMarketStream } from "../../lib/useMarketStream";
 import { useI18n, localeTags } from "../../lib/i18n";
 import { Link } from "react-router-dom";
@@ -41,7 +40,6 @@ export function SecondsPage() {
   const locale = localeTags[language];
   const { status } = useAuth();
   const signedOut = status !== "authenticated";
-  const { placeSecondsOrder, settleSecondsTrade, lastSettleResult, dismissSettleResult, openSecondsTrade } = useTrading();
   const { status: marketStatus } = useMarketStream();
   const [snapshot, setSnapshot] = useState<SecondsPositionsSnapshot | null>(null);
   const [policy, setPolicy] = useState<SecondsPolicyResponse | null>(null);
@@ -66,7 +64,6 @@ export function SecondsPage() {
   const [bottomExpanded, setBottomExpanded] = useState(true);
   const [ticker, setTicker] = useState<MarketTicker | null>(null);
   const [availableUSDT, setAvailableUSDT] = useState<string>("0.00");
-  const [activeCountdown, setActiveCountdown] = useState<{ dir: "up" | "down"; endsAt: number; amount: string; payout: string } | null>(null);
   // Durable order intent: the exact request is persisted per account+symbol so
   // a network failure can be retried with the SAME request_id (a new id would
   // risk a duplicate position). While it is pending, entry stays locked.
@@ -88,16 +85,6 @@ export function SecondsPage() {
     const timer = window.setInterval(() => setClockNow(Date.now()), 1000);
     return () => window.clearInterval(timer);
   }, []);
-
-  // 纸面秒合约自动结算：倒计时归零时对比入场价与到期价
-  useEffect(() => {
-    if (!openSecondsTrade || openSecondsTrade.ends_at > Date.now()) return;
-    const settlePrice = ticker ? ticker.price : openSecondsTrade.entry_price;
-    settleSecondsTrade(openSecondsTrade.id, settlePrice);
-    setActiveCountdown(null);
-    // 结算后刷新后端持仓视图
-    getSecondsPositions().then(setSnapshot).catch(() => {});
-  }, [openSecondsTrade, clockNow, ticker, settleSecondsTrade]);
 
   useEffect(() => {
     let cancelled = false;
@@ -389,26 +376,6 @@ export function SecondsPage() {
                   <span>{t("Buy down (short)")} (+{currentRate}%)</span>
                 </button>
               </div>
-              {activeCountdown ? (
-                <div className="rounded-xl border border-brand-accent/40 bg-brand-accent/[0.06] p-3">
-                  <div className="flex items-center justify-between">
-                    <span className="flex items-center gap-2 text-sm font-bold text-brand-text">
-                      {activeCountdown.dir === "up" ? <TrendingUp className="h-4 w-4 text-profit" /> : <TrendingDown className="h-4 w-4 text-loss" />}
-                      {activeCountdown.dir === "up" ? t("Buy up (long)") : t("Buy down (short)")}
-                    </span>
-                    <span className="font-mono text-2xl font-bold tabular-nums text-brand-accent">
-                      {Math.max(0, Math.ceil((activeCountdown.endsAt - clockNow) / 1000))}s
-                    </span>
-                  </div>
-                  <div className="mt-2 flex items-center justify-between text-xs text-brand-text-muted">
-                    <span>{t("Stake")} {activeCountdown.amount} USDT</span>
-                    <span>{t("Expected return")} <span className="font-mono font-semibold tabular-nums text-profit">{activeCountdown.payout} USDT</span></span>
-                  </div>
-                  <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-brand-surface-2">
-                    <div className="h-full rounded-full bg-brand-accent transition-all duration-1000" style={{ width: `${Math.min(100, Math.max(0, (activeCountdown.endsAt - clockNow) / (duration * 1000) * 100))}%` }} />
-                  </div>
-                </div>
-              ) : null}
             </div>
             {/* 最新成交（成交明细）：与永续/现货共用 TradesPanel，窄屏只显示最近 8 条 */}
             <div className="mt-3 border-t border-brand-border/60 pt-3">
@@ -526,25 +493,7 @@ export function SecondsPage() {
             )}
         </BottomOrderPanel>
       </div>
-      {lastSettleResult ? (
-        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-xs rounded-2xl border border-brand-border bg-brand-surface p-6 text-center shadow-overlay">
-            <div className={`mx-auto flex h-14 w-14 items-center justify-center rounded-full ${lastSettleResult.outcome === "won" ? "bg-brand-success/15 text-brand-success" : lastSettleResult.outcome === "tie" ? "bg-brand-text-muted/15 text-brand-text-muted" : "bg-brand-danger/15 text-brand-danger"}`}>
-              {lastSettleResult.outcome === "won" ? <TrendingUp className="h-7 w-7" /> : lastSettleResult.outcome === "tie" ? <Clock3 className="h-7 w-7" /> : <TrendingDown className="h-7 w-7" />}
-            </div>
-            <h3 className="mt-4 text-lg font-bold text-brand-text">
-              {lastSettleResult.outcome === "won" ? t("Congratulations! Profitable settlement") : lastSettleResult.outcome === "tie" ? t("Tie settlement") : t("This round was a loss")}
-            </h3>
-            <p className="mt-2 font-mono text-2xl font-bold tabular-nums" style={{ color: lastSettleResult.outcome === "won" ? CHART_THEME.up : lastSettleResult.outcome === "tie" ? CHART_THEME.text : CHART_THEME.down }}>
-              {lastSettleResult.outcome === "won" ? "+" : lastSettleResult.outcome === "tie" ? "" : "-"}{lastSettleResult.payout.toFixed(2)} USDT
-            </p>
-            <p className="mt-1 text-xs text-brand-text-muted">{t("Staked principal")} {lastSettleResult.amount.toFixed(2)} USDT</p>
-            <button type="button" onClick={dismissSettleResult} className="mt-5 flex min-h-11 w-full items-center justify-center rounded-xl bg-brand-accent text-sm font-bold text-[#05201A] transition-colors hover:bg-brand-accent/90">
-              {t("Got it")}
-            </button>
-          </div>
-        </div>
-      ) : null}
+
     </>
   );
 }
