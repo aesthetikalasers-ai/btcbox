@@ -1712,5 +1712,9 @@
   "Provider age": "Độ cũ của nhà cung cấp",
   "Data source": "Nguồn dữ liệu",
   "Market data source could not be verified. Trading is disabled.": "Không thể xác minh nguồn dữ liệu thị trường. Giao dịch đã bị vô hiệu hóa.",
-  "Market snapshot is stale or missing. Quotes are hidden until a fresh snapshot arrives.": "Ảnh chụp dữ liệu thị trường đã cũ hoặc bị thiếu. Báo giá sẽ bị ẩn cho đến khi có dữ liệu mới."
+  "Market snapshot is stale or missing. Quotes are hidden until a fresh snapshot arrives.": "Ảnh chụp dữ liệu thị trường đã cũ hoặc bị thiếu. Báo giá sẽ bị ẩn cho đến khi có dữ liệu mới.",
+  "Browse supported spot pairs and their live market data.": "Xem các cặp giao dịch spot được hỗ trợ và dữ liệu thị trường trực tiếp.",
+  "Earn products": "Sản phẩm Earn",
+  "Review the products and terms currently published in BTCBOX Earn.": "Xem các sản phẩm và điều khoản hiện được công bố trong BTCBOX Earn.",
+  "Open spot, perpetual and seconds trading products from one place.": "Truy cập các sản phẩm spot, perpetual và seconds tại cùng một nơi."
 }
