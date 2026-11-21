@@ -80,11 +80,21 @@ export function AuthPage({ mode, redirectTo, embedded = false, onModeChange }: {
     event.preventDefault();
     if (busy) return;
     setLocalFormError("");
-    if (password !== confirmPassword) {
+    // Read the submitted DOM values as well as React state. Mobile browsers and
+    // password managers can autofill fields without dispatching React onChange.
+    const formData = new FormData(event.currentTarget);
+    const submittedEmail = String(formData.get("email") || "").trim();
+    const submittedPassword = String(formData.get("password") || "");
+    const submittedConfirmation = String(formData.get("confirmPassword") || "");
+    if (!submittedEmail || submittedPassword.length < 12 || submittedConfirmation.length < 12) {
+      setLocalFormError("Please complete all fields using a valid email and a password of at least 12 characters.");
+      return;
+    }
+    if (submittedPassword !== submittedConfirmation) {
       setLocalFormError("Passwords do not match.");
       return;
     }
-    try { await signUpWithEmail(emailAddress, password); }
+    try { await signUpWithEmail(submittedEmail, submittedPassword); }
     catch { /* AuthProvider displays a safe registration error. */ }
   };
 
@@ -210,17 +220,17 @@ export function AuthPage({ mode, redirectTo, embedded = false, onModeChange }: {
               {mode === "register" && <form className="space-y-3" aria-busy={busy} onSubmit={submitEmailRegistration}>
                 <div>
                   <label htmlFor="btcbox-register-email" className="mb-1.5 block text-sm text-brand-text-muted">{t("Email")}</label>
-                  <Input id="btcbox-register-email" className="h-12" type="email" value={emailAddress} onChange={event => setEmailAddress(event.target.value)} autoComplete="email" maxLength={254} placeholder={t("Enter your email address")} required />
+                  <Input id="btcbox-register-email" name="email" className="h-12" type="email" value={emailAddress} onChange={event => setEmailAddress(event.target.value)} autoComplete="email" maxLength={254} placeholder={t("Enter your email address")} required />
                 </div>
                 <div>
                   <label htmlFor="btcbox-register-password" className="mb-1.5 block text-sm text-brand-text-muted">{t("Password")}</label>
-                  <Input id="btcbox-register-password" className="h-12" type={showPassword ? "text" : "password"} value={password} onChange={event => setPassword(event.target.value)} autoComplete="new-password" minLength={12} maxLength={128} placeholder={t("Enter your password")} required />
+                  <Input id="btcbox-register-password" name="password" className="h-12" type={showPassword ? "text" : "password"} value={password} onChange={event => setPassword(event.target.value)} autoComplete="new-password" minLength={12} maxLength={128} placeholder={t("Enter your password")} required />
                 </div>
                 <div>
                   <label htmlFor="btcbox-register-confirm-password" className="mb-1.5 block text-sm text-brand-text-muted">{t("Confirm password")}</label>
-                  <Input id="btcbox-register-confirm-password" className="h-12" type="password" value={confirmPassword} onChange={event => setConfirmPassword(event.target.value)} autoComplete="new-password" minLength={12} maxLength={128} placeholder={t("Confirm password")} required />
+                  <Input id="btcbox-register-confirm-password" name="confirmPassword" className="h-12" type="password" value={confirmPassword} onChange={event => setConfirmPassword(event.target.value)} autoComplete="new-password" minLength={12} maxLength={128} placeholder={t("Confirm password")} required />
                 </div>
-                <Button type="submit" className="min-h-12 w-full" aria-busy={busy} disabled={busy || emailAddress.trim().length < 5 || password.length < 12 || confirmPassword.length < 12}>
+                <Button type="submit" className="min-h-12 w-full" aria-busy={busy} disabled={busy}>
                   <KeyRound className="mr-2 h-4 w-4" /> {busy ? t("Submitting…") : t("Create account with email")}
                 </Button>
               </form>}
