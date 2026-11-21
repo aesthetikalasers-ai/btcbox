@@ -40,6 +40,7 @@ export function LiveMarketsTable({ markets, loading, error }: {
 }) {
   const { t, language } = useI18n();
   const [sort, setSort] = useState("volume");
+  const [showMarketData, setShowMarketData] = useState(false);
   const [favoritesOnly, setFavoritesOnly] = useState(false);
   const [favorites, setFavorites] = useState<string[]>(() => {
     try { const saved: unknown = JSON.parse(localStorage.getItem("btcbox.market-favorites") || "[]"); return Array.isArray(saved) ? saved.filter((item): item is string => typeof item === "string").slice(0, 200) : []; } catch { return []; }
@@ -105,8 +106,22 @@ export function LiveMarketsTable({ markets, loading, error }: {
         <div className="min-w-0">
           <h2 className="type-section-title text-brand-text">{t("Spot markets")}</h2>
         </div>
-        {loading || feedError ? <span className="shrink-0 rounded-md border border-brand-border bg-brand-surface-2 px-3 py-2 text-xs font-semibold text-brand-text-secondary">{loading ? t("Loading…") : t("Unavailable")}</span> : visibleMarkets.length > 0 ? <span className="shrink-0 rounded-md border border-brand-border bg-brand-surface-2 px-3 py-2 text-xs font-semibold text-brand-text-secondary">{visibleMarkets.length} {t("pairs")}</span> : null}
+        <div className="flex shrink-0 items-center gap-2">
+          {loading || feedError ? <span className="rounded-md border border-brand-border bg-brand-surface-2 px-3 py-2 text-xs font-semibold text-brand-text-secondary">{loading ? t("Loading…") : t("Unavailable")}</span> : visibleMarkets.length > 0 ? <span className="rounded-md border border-brand-border bg-brand-surface-2 px-3 py-2 text-xs font-semibold text-brand-text-secondary">{visibleMarkets.length} {t("pairs")}</span> : null}
+          <button type="button" aria-expanded={showMarketData} aria-controls="market-data-details" onClick={() => setShowMarketData((value) => !value)} className="min-h-10 rounded-lg border border-brand-border bg-brand-surface-2 px-3 text-xs font-semibold text-brand-text-secondary hover:border-brand-accent hover:text-brand-accent">
+            {t("Market data")}
+          </button>
+        </div>
       </div>
+      {showMarketData ? (
+        <div id="market-data-details" role="region" aria-label={t("Market data")} className="grid grid-cols-2 gap-x-4 gap-y-2 border-b border-brand-border bg-brand-surface-2/40 px-4 py-3 text-xs md:grid-cols-3 md:px-6">
+          <div><span className="block text-brand-text-muted">{t("Server snapshot")}</span><strong className="mt-0.5 block font-mono tabular-nums text-brand-text">{snapshotTime || "—"}</strong></div>
+          <div><span className="block text-brand-text-muted">{t("Provider snapshot")}</span><strong className="mt-0.5 block font-mono tabular-nums text-brand-text">{providerTime || "—"}</strong></div>
+          <div><span className="block text-brand-text-muted">{t("Provider")}</span><strong className="mt-0.5 block text-brand-text">{providerSource || "—"}</strong></div>
+          <div><span className="block text-brand-text-muted">{t("Snapshot age")}</span><strong className="mt-0.5 block font-mono tabular-nums text-brand-text">{snapshotAgeSeconds === null ? "—" : `${snapshotAgeSeconds}s`}</strong></div>
+          <div><span className="block text-brand-text-muted">{t("Provider age")}</span><strong className="mt-0.5 block text-brand-text">{providerAgeLabel || "—"}</strong></div>
+        </div>
+      ) : null}
       {displayMarkets.length > 0 && <div className="grid gap-3 border-b border-brand-border px-4 py-3 md:grid-cols-[minmax(180px,1fr)_auto] md:items-center md:px-6">
         <label className="relative block">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-brand-text-muted" />
