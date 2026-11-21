@@ -1710,5 +1710,6 @@
   "Return to registration": "Torna alla registrazione",
   "Provider": "Provider",
   "Snapshot age": "Età dello snapshot",
-  "Provider age": "Età del provider"
+  "Provider age": "Età del provider",
+  "Data source": "Fonte dei dati"
 }
