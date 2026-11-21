@@ -43,3 +43,18 @@ test("perpetual market failures never fall back to synthetic customer markets", 
   assert.ok(page.includes("markets.length === 0 && !marketsLoading"));
   assert.ok(page.includes("marketsError || t("));
 });
+
+test("production market data has no dormant hardcoded seed-price table", () => {
+  const market = fs.readFileSync(path.join(root, "lib/marketData.ts"), "utf8");
+  assert.ok(!market.includes("INITIAL_SEEDS"));
+  assert.ok(!market.includes("MockSeed"));
+  assert.ok(market.includes("Nothing is fabricated here"));
+});
+
+test("offline demo preview can only be enabled in development builds", () => {
+  const preview = fs.readFileSync(path.join(root, "lib/demoPreview.ts"), "utf8");
+  assert.ok(preview.includes("const forceDemo = import.meta.env.DEV &&"));
+  assert.ok(preview.includes("if (import.meta.env.DEV) {"));
+  assert.ok(preview.indexOf("if (import.meta.env.DEV) {") < preview.indexOf("demoEnabled = demoQuery"));
+  assert.ok(preview.includes("export const DEMO_PREVIEW_ACTIVE = demoEnabled"));
+});
