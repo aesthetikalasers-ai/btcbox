@@ -28,7 +28,6 @@ import {
   type PerpOrder,
   type PerpPosition,
 } from "../../lib/api";
-import { getDemoPerpMarkets } from "../../lib/demoPreview";
 import { useAuth } from "../../lib/auth";
 import { useMarketStream } from "../../lib/useMarketStream";
 import { localeTags, useI18n } from "../../lib/i18n";
@@ -339,16 +338,13 @@ export function ContractPage() {
         setMarketsFallback(false);
         setSymbol((current) => (rows.some((m) => m.symbol === current) ? current : rows[0]?.symbol ?? ""));
       })
-      .catch((reason: unknown) => {
+      .catch(() => {
         if (controller.signal.aborted) return;
-        // Keep the terminal available when the live perpetual catalogue is
-        // unreachable. This catalogue is explicitly marked as simulated; it
-        // must not be represented as a live market feed.
-        const fallback = getDemoPerpMarkets();
-        setMarkets(fallback);
-        setSymbol((current) =>
-          fallback.some((market) => market.symbol === current) ? current : fallback[0]?.symbol ?? "",
-        );
+        // Never replace an unavailable live contract catalogue with synthetic
+        // markets. An empty catalogue keeps order entry closed until the
+        // backend returns real, enabled markets again.
+        setMarkets([]);
+        setSymbol("");
         setMarketsFallback(true);
         setMarketsError(t("Perpetual market data is temporarily unavailable."));
       })
@@ -1168,8 +1164,8 @@ export function ContractPage() {
         ) : null}
 
 
-        {marketsLoading && markets.length === 0 ? <TableSkeleton rows={4} /> : markets.length === 0 && !marketsError ? (
-          <EmptyState icon={Inbox} title={t("No markets enabled")} hint={t("Perpetual contract trading is currently unavailable.")} action={<Button size="sm" variant="outline" onClick={() => setReload((n) => n + 1)}>{t("Try again")}</Button>} />
+        {marketsLoading && markets.length === 0 ? <TableSkeleton rows={4} /> : markets.length === 0 && !marketsLoading ? (
+          <EmptyState icon={Inbox} title={t("No live perpetual markets available")} hint={marketsError || t("Perpetual contract trading is currently unavailable.")} action={<Button size="sm" variant="outline" onClick={() => setReload((n) => n + 1)}>{t("Try again")}</Button>} />
         ) : null}
 
         {markets.length > 0 ? (
