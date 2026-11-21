@@ -28,7 +28,7 @@ function localizedAuthError(message: string, t: (key: string) => string) {
  */
 export function AccountSecurityPage() {
   const { t } = useI18n();
-  const { status, busy, error, notice, email, googleEnabled, ethereumWallets, identityLinkSourceVerified, identityLinkNeedsTwoFactor, reauthenticateIdentityLinkWithGoogle, reauthenticateIdentityLinkWithWeb3, completeIdentityLinkReauthTwoFactor, linkGoogleIdentity, linkWeb3Identity, credentialRecoveryReady, credentialRecoveryNeedsTwoFactor, reauthenticateCredentialsWithGoogle, reauthenticateCredentialsWithWeb3, completeCredentialRecoveryTwoFactor, recoverBtcboxPassword } = useAuth();
+  const { status, busy, error, notice, email, googleEnabled, ethereumWallets, identityLinkSourceVerified, identityLinkNeedsTwoFactor, reauthenticateIdentityLinkWithGoogle, reauthenticateIdentityLinkWithWeb3, completeIdentityLinkReauthTwoFactor, linkGoogleIdentity, linkWeb3Identity, setSupabaseLoginPassword } = useAuth();
   const [account, setAccount] = useState<AccountSnapshot | null>(null);
   const { openAuthDialog } = useAuthDialog();
   const [loadError, setLoadError] = useState("");
@@ -243,35 +243,22 @@ export function AccountSecurityPage() {
             )}
 
             {sheet === "password" && (
-              <div className="space-y-3">
-                {credentialRecoveryReady ? (
-                  <form className="space-y-3" aria-busy={busy} onSubmit={async (event: FormEvent<HTMLFormElement>) => {
-                    event.preventDefault();
-                    if (busy || newPassword !== confirmNewPassword) return;
-                    try { await recoverBtcboxPassword(newPassword); setNewPassword(""); setConfirmNewPassword(""); setSheet(null); } catch {}
-                  }}>
-                    <label className="block space-y-1.5 text-sm"><span className="text-brand-text-secondary">{t("New password")}</span><Input type="password" value={newPassword} onChange={(event) => setNewPassword(event.target.value)} autoComplete="new-password" minLength={12} maxLength={128} placeholder={t("At least 12 characters")} required /></label>
-                    <label className="block space-y-1.5 text-sm"><span className="text-brand-text-secondary">{t("Confirm new password")}</span><Input type="password" value={confirmNewPassword} onChange={(event) => setConfirmNewPassword(event.target.value)} autoComplete="new-password" minLength={12} maxLength={128} required /></label>
-                    {confirmNewPassword && newPassword !== confirmNewPassword && <p role="alert" className="text-sm text-brand-danger">{t("Passwords do not match.")}</p>}
-                    <Button type="submit" className="w-full" aria-busy={busy} disabled={busy || newPassword.length < 12 || newPassword !== confirmNewPassword}>{t("Save new password")}</Button>
-                  </form>
-                ) : credentialRecoveryNeedsTwoFactor ? (
-                  <form className="space-y-3" aria-busy={busy} onSubmit={async (event) => { event.preventDefault(); if (busy) return; try { await completeCredentialRecoveryTwoFactor(twoFactorCode); setTwoFactorCode(""); } catch {} }}>
-                    <label className="block space-y-1.5 text-sm"><span className="text-brand-text-secondary">{t("Authenticator code")}</span><Input value={twoFactorCode} onChange={(event) => setTwoFactorCode(event.target.value.replace(/\D/g, "").slice(0, 6))} inputMode="numeric" autoComplete="one-time-code" maxLength={6} placeholder={t("Enter your 2FA code")} required /></label>
-                    <Button type="submit" className="w-full" aria-busy={busy} disabled={busy || twoFactorCode.length < 6}>{t("Verify and continue")}</Button>
-                  </form>
-                ) : (
-                  <div className="space-y-3">
-                    <p className="text-sm text-brand-text-secondary">{t("Verify a connected Google account or wallet to open a reset window.")}</p>
-                    <div className="grid gap-2">
-                      {hasGoogle && <Button variant="outline" aria-busy={busy} disabled={busy || !googleEnabled} onClick={() => void reauthenticateCredentialsWithGoogle()}>{t("Verify with Google")}</Button>}
-                      {hasEthereum && <Button variant="outline" aria-busy={busy} disabled={busy} onClick={() => ethereumWallets.length > 1 ? undefined : void reauthenticateCredentialsWithWeb3("ethereum", twoFactorCode, ethereumWallets[0]?.provider)}>{t("Verify with Ethereum wallet")}</Button>}
-                      {hasSolana && <Button variant="outline" aria-busy={busy} disabled={busy} onClick={() => void reauthenticateCredentialsWithWeb3("solana", twoFactorCode)}>{t("Verify with Solana wallet")}</Button>}
-                    </div>
-                    {!hasGoogle && !hasEthereum && !hasSolana && <p className="text-sm text-brand-text-muted">{t("No connected method available for password recovery.")}</p>}
-                  </div>
-                )}
-              </div>
+              <form className="space-y-3" aria-busy={busy} onSubmit={async (event: FormEvent<HTMLFormElement>) => {
+                event.preventDefault();
+                if (busy || newPassword !== confirmNewPassword || newPassword.length < 12) return;
+                try {
+                  await setSupabaseLoginPassword(newPassword);
+                  setAccount((current) => current ? { ...current, has_login_password: true } : current);
+                  setNewPassword(""); setConfirmNewPassword(""); setSheet(null);
+                } catch {}
+              }}>
+                <p className="text-sm text-brand-text-secondary">{t("Set a password for this same Google account. You can then sign in with either Google or this email and password; your account and UID stay the same.")}</p>
+                <label className="block space-y-1.5 text-sm"><span className="text-brand-text-secondary">{t("New password")}</span><Input type="password" value={newPassword} onChange={(event) => setNewPassword(event.target.value)} autoComplete="new-password" minLength={12} maxLength={128} placeholder={t("At least 12 characters")} required /></label>
+                <label className="block space-y-1.5 text-sm"><span className="text-brand-text-secondary">{t("Confirm new password")}</span><Input type="password" value={confirmNewPassword} onChange={(event) => setConfirmNewPassword(event.target.value)} autoComplete="new-password" minLength={12} maxLength={128} required /></label>
+                {confirmNewPassword && newPassword !== confirmNewPassword && <p role="alert" className="text-sm text-brand-danger">{t("Passwords do not match.")}</p>}
+                {error && <p role="alert" className="text-sm text-brand-danger">{t(error)}</p>}
+                <Button type="submit" className="w-full" aria-busy={busy} disabled={busy || newPassword.length < 12 || newPassword !== confirmNewPassword}>{t("Save new password")}</Button>
+              </form>
             )}
 
             {sheet === "2fa" && (
