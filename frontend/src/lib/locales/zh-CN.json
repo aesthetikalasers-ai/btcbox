@@ -1711,5 +1711,7 @@
   "Provider": "数据提供方",
   "Snapshot age": "快照时间差",
   "Provider age": "上游更新时间差",
-  "Data source": "数据来源"
+  "Data source": "数据来源",
+  "Market data source could not be verified. Trading is disabled.": "无法核实行情数据来源，交易功能已禁用。",
+  "Market snapshot is stale or missing. Quotes are hidden until a fresh snapshot arrives.": "行情快照已过期或缺失，收到最新快照前将隐藏报价。"
 }
