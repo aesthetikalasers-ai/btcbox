@@ -20,7 +20,8 @@
     "preview": "vite preview --host 0.0.0.0",
     "lint": "tsc --noEmit",
     "test:e2e": "playwright test",
-    "check:i18n": "node scripts/check-i18n.mjs"
+    "check:i18n": "node scripts/check-i18n.mjs",
+    "check:supabase-auth": "node scripts/check-supabase-auth.mjs"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.15",
