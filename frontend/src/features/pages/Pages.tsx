@@ -502,11 +502,11 @@ export function SpotTradingPage(){
  // price, no 24h stats and no basis for pricing an order, so the terminal shows
  // an explicit degraded state with a retry instead of blank fields that read as
  // zero. No sample value is ever substituted.
- const marketUnavailable=!ticker;
+ const marketUnavailable=!displayTicker||marketSnapshotStale;
 
  useEffect(()=>{
-  if(!ticker||marketSnapshotStale){
-   if(!ticker||price===String(ticker.price))setPrice("");
+  if(!displayTicker||marketSnapshotStale){
+   if(!displayTicker||price===String(ticker?.price))setPrice("");
   }
  },[ticker,marketSnapshotStale,price]);
 
@@ -908,7 +908,7 @@ export function SpotTradingPage(){
      </button>
      <PriceBadge className="spot-quote-chg" value={displayTicker?displayTicker.chg:null} unit="percent" decimals={2} ariaLabel={t("24h change")} />
     </div>
-    <span className="term-top-price font-mono tabular-nums"><span key={displayTicker?amountText(displayTicker.price):"—"} className={"inline-block anim-price-tick "+(Number(ticker?.chg||0)>=0?"text-profit":"text-loss")}>{displayTicker?amountText(displayTicker.price):"—"}</span></span>
+    <span className="term-top-price font-mono tabular-nums"><span key={displayTicker?amountText(displayTicker.price):"—"} className={"inline-block anim-price-tick "+(displayTicker?.chg===undefined||displayTicker?.chg===null?"text-brand-text":displayTicker.chg>=0?"text-profit":"text-loss")}>{displayTicker?amountText(displayTicker.price):"—"}</span></span>
     <div className="term-top-stats">
      <div><span>{t("24h high")}</span><b>{displayTicker?amountText(displayTicker.high):"—"}</b></div>
      <div><span>{t("24h low")}</span><b>{displayTicker?amountText(displayTicker.low):"—"}</b></div>
@@ -934,7 +934,7 @@ export function SpotTradingPage(){
        (a stale screen should not be permanently silent). */}
    {marketUnavailable?<div className="term-feeddown" role="alert">
     <WifiOff className="h-4 w-4 shrink-0" aria-hidden="true"/>
-    <span className="min-w-0 flex-1">{t("行情连接已断开，暂时无法获取最新价格。请稍后重试。")}</span>
+    <span className="min-w-0 flex-1">{t(effectiveMarketFeedWarning || "行情连接已断开，暂时无法获取最新价格。请稍后重试.")}</span>
     <button type="button" className="term-feeddown-retry" onClick={()=>setRefreshTick(value=>value+1)}>
      <RefreshCw className="h-3.5 w-3.5" aria-hidden="true"/>{t("Retry")}
     </button>
@@ -1006,7 +1006,7 @@ export function SpotTradingPage(){
      <TerminalOrderBook
       book={displayBook}
       lastPrice={displayTicker?amountText(displayTicker.price):""}
-      changePercent={Number(ticker?.chg||0)}
+      changePercent={displayTicker?.chg??null}
       precision={effectiveDepthPrecision}
       onPrecisionChange={value=>setDepthPrecision(value)}
       view={bookView as BookView}
@@ -1061,7 +1061,7 @@ export function SpotTradingPage(){
       id:pair,
       label:`${pair.replace(/USDT$/,"")}/USDT`,
       price:ticker?amountText(ticker.price):null,
-      changePct:ticker&&Number.isFinite(Number(ticker.chg))?Number(ticker.chg):null,
+      changePct:displayTicker&&Number.isFinite(Number(displayTicker.chg))?Number(displayTicker.chg):null,
      };
     })}
     onSelect={(pair)=>navigate(`/trade/${pair}`)}
@@ -1084,7 +1084,7 @@ export function SpotTradingPage(){
       {base}/USDT<ChevronDown className="h-3.5 w-3.5 shrink-0" aria-hidden="true"/>
     </button>
     <span className="spot-quote-badge">{t("Spot")}</span>
-    <span className={"spot-quote-price font-mono tabular-nums "+(Number(ticker?.chg||0)>=0?"text-profit":"text-loss")}>{displayTicker?amountText(displayTicker.price):"—"}</span>
+    <span className={"spot-quote-price font-mono tabular-nums "+(displayTicker?.chg===undefined||displayTicker?.chg===null?"text-brand-text":displayTicker.chg>=0?"text-profit":"text-loss")}>{displayTicker?amountText(displayTicker.price):"—"}</span>
     {displayTicker ? <PriceBadge className="spot-quote-chg" value={displayTicker.chg} unit="percent" decimals={2} ariaLabel={t("24h change") + " " + Number(displayTicker.chg).toFixed(2) + "%"} /> : null}
    </div>
    <div className="spot-quote-meta font-mono tabular-nums"><span>{t("24h high")} <b>{displayTicker?amountText(displayTicker.high):"—"}</b></span><span>{t("24h low")} <b>{displayTicker?amountText(displayTicker.low):"—"}</b></span><Button id="trade-chart-open" ref={chartTrigger} type="button" size="sm" variant="ghost" aria-label={t("Price chart")} onClick={()=>setChartOpen(true)} className="ml-auto h-7 w-7 shrink-0 p-0 text-brand-text-muted"><ChartNoAxesCombined className="h-4 w-4"/></Button></div>
@@ -1104,7 +1104,7 @@ export function SpotTradingPage(){
      id:pair,
      label:`${pair.replace(/USDT$/,"")}/USDT`,
      price:ticker?amountText(ticker.price):null,
-     changePct:ticker&&Number.isFinite(Number(ticker.chg))?Number(ticker.chg):null,
+     changePct:displayTicker&&Number.isFinite(Number(displayTicker.chg))?Number(displayTicker.chg):null,
     };
    })}
    onSelect={(pair)=>navigate(`/trade/${pair}`)}
@@ -1401,7 +1401,7 @@ export function SecondsPage(){
      {symbol}/USDT
     </span>
     <span className={"text-[10px] font-semibold px-1.5 py-0.5 rounded " + (Number(ticker?.chg||0)>=0?"text-profit bg-profit/10":"text-loss bg-loss/10")}>
-     {ticker ? (Number(ticker.chg)>=0?"+":"") + Number(ticker.chg).toFixed(2) + "%" : "—"}
+     {displayTicker ? (displayTicker.chg>=0?"+":"") + Number(displayTicker.chg).toFixed(2) + "%" : "—"}
     </span>
    </div>
    <div className="flex items-center gap-1">
@@ -1415,18 +1415,18 @@ export function SecondsPage(){
     <span className="text-xl font-bold font-mono tracking-tight text-brand-text tabular-nums">
      {ticker ? ticker.price.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2}) : "—"}
     </span>
-    <span className={"text-xs font-bold font-mono tabular-nums " + (Number(ticker?.chg||0) >= 0 ? "text-profit" : "text-loss")}>
-     {ticker ? (Number(ticker.chg) >= 0 ? "+" : "") + Number(ticker.chg).toFixed(2) + "%" : "—"}
+    <span className={"text-xs font-bold font-mono tabular-nums " + (displayTicker?.chg===undefined||displayTicker?.chg===null?"text-brand-text":displayTicker.chg>=0?"text-profit":"text-loss")}>
+     {displayTicker ? (displayTicker.chg >= 0 ? "+" : "") + Number(displayTicker.chg).toFixed(2) + "%" : "—"}
     </span>
    </div>
    <div className="flex items-center gap-4 text-[11px] font-mono tabular-nums">
     <div className="flex items-center gap-1.5">
      <span className="text-brand-text-muted">{t("High")}</span>
-     <span className="text-brand-text font-medium">{ticker ? Number(ticker.high).toLocaleString() : "—"}</span>
+     <span className="text-brand-text font-medium">{displayTicker ? Number(displayTicker.high).toLocaleString() : "—"}</span>
     </div>
     <div className="flex items-center gap-1.5">
      <span className="text-brand-text-muted">{t("Low")}</span>
-     <span className="text-brand-text font-medium">{ticker ? Number(ticker.low).toLocaleString() : "—"}</span>
+     <span className="text-brand-text font-medium">{displayTicker ? Number(displayTicker.low).toLocaleString() : "—"}</span>
     </div>
    </div>
   </div>
