@@ -32,32 +32,6 @@ function levelsFromBook(rows: Array<[string, string]>, side: "ask" | "bid", limi
   return side === "ask" ? levels.reverse() : levels;
 }
 
-/** Deterministic PRNG so the fallback book is stable across renders. */
-function mulberry32(seed: number) {
-  return () => {
-    seed |= 0; seed = (seed + 0x6d2b79f5) | 0;
-    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
-
-function buildLevels(mid: number, tickUp: boolean, side: "ask" | "bid"): Level[] {
-  const rand = mulberry32(side === "ask" ? 99173 : 44129);
-  const tick = Math.max(0.5, mid * 0.0001);
-  const levels: Level[] = [];
-  let cumul = 0;
-  for (let i = 0; i < 9; i++) {
-    const price = side === "ask" ? mid + tick * (i + 1) * (1 + rand() * 0.4) : mid - tick * (i + 1) * (1 + rand() * 0.4);
-    const size = 0.05 + rand() * 1.8;
-    cumul += size;
-    levels.push({ price, size, total: cumul, depthPct: 0 });
-  }
-  const maxCumul = cumul;
-  for (const l of levels) l.depthPct = Math.min(100, (l.total / maxCumul) * 100);
-  // Asks render highest->lowest (toward the mid); bids render lowest->highest (toward mid).
-  return side === "ask" ? levels.reverse() : levels;
-}
 
 
 /** Available price precisions for the order book. */
@@ -71,32 +45,20 @@ function decimalsFor(precision: number): number {
 }
 
 /**
- * Order-book depth panel.
- *
- * Two modes:
- *   - `book` supplied  -> renders the live feed (streamed or polled). This is
- *     the production path.
- *   - `book` omitted   -> renders a deterministic demo book, explicitly badged
- *     "Demo data". Never presented as live.
+ * Order-book depth panel. It renders only backend/provider depth levels.
+ * Missing or stale depth is an unavailable state, never a synthetic book.
  */
-export function OrderBookDepth({ mid = 67000, book, streamState, usdtUsd = 0.99999 }: { mid?: number; book?: DepthLevels | null; streamState?: "idle" | "connecting" | "live" | "degraded" | "closed"; /** USDT→USD rate for the "≈ $" hint; defaults to the neutral 0.99999. */ usdtUsd?: number }) {
+export function OrderBookDepth({ mid, book, streamState, usdtUsd }: { mid?: number; book: DepthLevels | null; streamState?: "idle" | "connecting" | "live" | "degraded" | "closed"; usdtUsd?: number | null }) {
   const { t, language } = useI18n();
   const numberLocale = localeTags[language] || "en-US";
   const [precision, setPrecision] = useState<number>(0.01);
   const [view, setView] = useState<ViewMode>("both");
   const decimals = decimalsFor(precision);
-  // Live feed takes precedence; the demo book is only used when no book is
-  // passed at all (and is badged accordingly below).
-  const isLive = book !== undefined;
-  const levelled = useMemo(() => {
-    if (isLive) {
-      return {
-        asks: book ? levelsFromBook(book.asks, "ask", 6) : [],
-        bids: book ? levelsFromBook(book.bids, "bid", 6) : [],
-      };
-    }
-    return { asks: buildLevels(mid, true, "ask"), bids: buildLevels(mid, true, "bid") };
-  }, [isLive, book, mid]);
+  const hasBook = book !== null;
+  const levelled = useMemo(() => ({
+    asks: book ? levelsFromBook(book.asks, "ask", 6) : [],
+    bids: book ? levelsFromBook(book.bids, "bid", 6) : [],
+  }), [book]);
   const asks = levelled.asks;
   const bids = levelled.bids;
   const fmt = (v: number, digits = decimals) =>
@@ -136,19 +98,15 @@ export function OrderBookDepth({ mid = 67000, book, streamState, usdtUsd = 0.999
       <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2">
         <CardTitle className="text-sm">{t("Order book")}</CardTitle>
         <div className="flex items-center gap-1">
-          {isLive ? (
-            <Badge variant="outline" className="border-brand-border-subtle bg-brand-surface-2 text-brand-text-muted">
-              <span
-                aria-hidden="true"
-                className={`mr-1 inline-block h-1.5 w-1.5 rounded-full ${
-                  streamState === "live" ? "bg-brand-accent" : streamState === "degraded" ? "bg-brand-danger" : "bg-brand-text-disabled"
-                }`}
-              />
-              {streamState === "live" ? t("Live") : streamState === "degraded" ? t("Degraded") : t("Idle")}
-            </Badge>
-          ) : (
-            <Badge variant="outline" className="border-brand-border-subtle bg-brand-surface-2 text-brand-text-muted">{t("Demo data")}</Badge>
-          )}
+          <Badge variant="outline" className="border-brand-border-subtle bg-brand-surface-2 text-brand-text-muted">
+            <span
+              aria-hidden="true"
+              className={`mr-1 inline-block h-1.5 w-1.5 rounded-full ${
+                hasBook ? "bg-brand-accent" : streamState === "degraded" ? "bg-brand-danger" : "bg-brand-text-disabled"
+              }`}
+            />
+            {hasBook ? t("Live") : streamState === "degraded" ? t("Degraded") : t("Idle")}
+          </Badge>
           {/* Precision selector — compact segmented control, touch-friendly. */}
           <div className="flex items-center rounded-md border border-brand-border/60 bg-brand-surface-2/60 p-0.5" role="group" aria-label={t("Order book precision")}>
             {PRECISIONS.map((p) => (
@@ -186,7 +144,7 @@ export function OrderBookDepth({ mid = 67000, book, streamState, usdtUsd = 0.999
         </div>
       </CardHeader>
       <CardContent className="space-y-1.5">
-        {isLive && !book ? (
+        {!book ? (
           <div className="py-10 text-center">
             <p className="text-[11.5px] text-brand-text-muted">
               {streamState === "degraded" ? t("Order book is temporarily unavailable.") : t("Waiting for the order book…")}
