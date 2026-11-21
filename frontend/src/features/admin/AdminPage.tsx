@@ -1009,7 +1009,20 @@ export function AdminPage() {
   };
 
   if (authStatus === "loading") return <AuthRestoreState />;
-  if (authStatus === "anonymous" || authStatus === "two-factor" || authStatus === "password-recovery") return <div className="mx-auto max-w-3xl p-4 md:p-6"><AuthPage mode="login" redirectTo="/admin" /></div>;
+  if (authStatus === "anonymous" || authStatus === "two-factor" || authStatus === "password-recovery") return <main className="min-h-screen bg-brand-bg px-4 py-8 sm:py-12">
+    <div className="mx-auto flex w-full max-w-4xl flex-col gap-6">
+      <header className="border-b border-brand-border pb-5">
+        <BrandLogo compact />
+        <p className="mt-4 text-xs font-semibold uppercase tracking-[0.2em] text-brand-accent">BTCBOX · ADMINISTRATION</p>
+        <h1 className="mt-2 text-2xl font-bold tracking-tight text-brand-text sm:text-3xl">{adminText("Administrator sign in")}</h1>
+        <p className="mt-2 max-w-2xl text-sm leading-6 text-brand-text-muted">{adminText("This is the private BTCBOX control center. Sign in with the Google or email identity that has been granted administrator access. Customer trading pages and balances are not part of this portal.")}</p>
+      </header>
+      <section aria-label={adminText("Administrator authentication")} className="w-full">
+        <AuthPage mode="login" redirectTo="/admin" />
+      </section>
+      <p className="text-center text-xs text-brand-text-muted">{adminText("Access is verified against the BTCBOX administrator membership database after sign in.")}</p>
+    </div>
+  </main>;
   if (loading && !session) return <div className="mx-auto max-w-7xl p-6"><Card><CardContent className="p-8 text-sm text-brand-text-muted">{adminText("Verifying administrator identity…")}</CardContent></Card></div>;
   if (!session) return <div className="mx-auto max-w-3xl p-6"><Card><CardHeader><CardTitle>{adminText("BTCBOX Administrator")}</CardTitle><CardDescription>{adminText("Administrator access requires a verified Supabase Auth identity with an active BTCBOX administrator membership.")}</CardDescription></CardHeader><CardContent><p className="text-sm text-brand-danger">{adminText(error || "Administrator membership was not found.")}</p></CardContent></Card></div>;
 
