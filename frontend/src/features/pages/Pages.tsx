@@ -494,7 +494,7 @@ export function SpotTradingPage(){
   return null;
  })();
  const effectiveMarketFeedWarning=marketFeedWarning;
- const marketDataSourceLabel=`${t("Ticker")}: ${displayTicker?.source||"—"} · ${t("Order book")}: ${displayBook?.source||book?.source||"—"} · ${t("Chart")}: ${chartSource||"—"}`;
+ const marketDataSourceLabel=`${t("Ticker")}: ${displayTicker?.source||"—"} · ${t("Order book")}: ${displayBook?.source||"—"} · ${t("Chart")}: ${chartSource||"—"}`;
  const providerTimestamp=displayTicker?.providerTs??null;
  const providerTime=providerTimestamp&&providerTimestamp>0?new Date(providerTimestamp*1000).toLocaleTimeString():"—";
  const serverSnapshotTime=marketUpdatedAt?new Date(marketUpdatedAt).toLocaleTimeString():"—";
