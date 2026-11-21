@@ -192,6 +192,7 @@ class LiveMarketEngine {
           existing.low !== row.low ||
           existing.vol !== row.vol ||
           existing.source !== row.source ||
+          existing.snapshotTs !== row.snapshotTs ||
           existing.providerTs !== row.providerTs
         ) changed = true;
       }
