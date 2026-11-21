@@ -514,7 +514,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (data.session?.access_token && !emailConfirmed) {
         await client.auth.signOut();
       }
-      setNotice("Registration received. Please check your email and confirm your address before signing in.");
+      setNotice("If this email is already linked to a BTCBOX account, choose Sign in and use your original sign-in method. If this is a new registration, check your inbox for the confirmation email; also check your spam folder.");
     } catch (cause) {
       // Keep provider diagnostics out of the registration UI. Supabase may
       // intentionally return indistinguishable responses for existing addresses.
