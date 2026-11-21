@@ -1725,5 +1725,6 @@
   "Markets read-only": "マーケット閲覧のみ",
   "Review available USDT-margined perpetual markets and their server-configured limits.": "利用可能なUSDT建て無期限市場とサーバー設定の取引制限を確認できます。",
   "Submit positions only when server policy is enabled, with server-managed settlement.": "サーバーポリシーが有効な場合のみポジションを送信でき、決済はサーバーが管理します。",
-  "View Earn products, yields and terms published by BTCBOX.": "BTCBOXが公開しているEarn商品、利回り、条件を確認できます。"
+  "View Earn products, yields and terms published by BTCBOX.": "BTCBOXが公開しているEarn商品、利回り、条件を確認できます。",
+  "Limited availability": "利用制限あり"
 }
