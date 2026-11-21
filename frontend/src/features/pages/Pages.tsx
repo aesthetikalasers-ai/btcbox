@@ -431,7 +431,7 @@ export function SpotTradingPage(){
  // exchange snapshot time, never the browser's receipt time.
  const marketSnapshotStale=!!ticker&&(!marketUpdatedAt||marketClockNow-marketUpdatedAt>90_000);
  const tickerIsFallback=!ticker?.source||ticker.source==="demo-preview"||ticker.source==="sample-data";
- const displayTicker=tickerIsFallback?null:ticker;
+ const displayTicker=tickerIsFallback||marketSnapshotStale?null:ticker;
  /**
   * Depth steps this pair can actually use, derived from its price. A 0.01 bucket
   * would merge ARB's 0.1277 book into one row and print a 0.13 best bid. The
@@ -493,9 +493,9 @@ export function SpotTradingPage(){
   if(Number.isFinite(snapshot)&&snapshot>0)return snapshot;
   return null;
  })();
- const effectiveMarketFeedWarning=marketFeedWarning||(ticker&&tickerIsFallback?t("Market data source could not be verified. Trading is disabled."): "");
- const marketDataSourceLabel=`${t("Ticker")}: ${displayTicker?.source||"—"} · ${t("Order book")}: ${displayBook?.source||"—"} · ${t("Chart")}: ${chartSource||"—"}`;
- const providerTimestamp=displayTicker?.providerTs??null;
+ const effectiveMarketFeedWarning=marketFeedWarning||(ticker&&tickerIsFallback?t("Market data source could not be verified. Trading is disabled."):marketSnapshotStale?t("Market snapshot is stale or missing. Quotes are hidden until a fresh snapshot arrives."):"");
+ const marketDataSourceLabel=`${t("Ticker")}: ${ticker?.source||"—"} · ${t("Order book")}: ${displayBook?.source||"—"} · ${t("Chart")}: ${chartSource||"—"}`;
+ const providerTimestamp=ticker?.providerTs??null;
  const providerTime=providerTimestamp&&providerTimestamp>0?new Date(providerTimestamp*1000).toLocaleTimeString():"—";
  const serverSnapshotTime=marketUpdatedAt?new Date(marketUpdatedAt).toLocaleTimeString():"—";
  // A failed `/api/market` leaves `ticker` null. Without a real quote there is no
