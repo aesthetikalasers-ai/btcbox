@@ -238,8 +238,7 @@ export function TerminalOrderBook({
 
   /* Buy/sell pressure bar, tier-1 convention: share of visible size sitting on
      each side, measured in quote terms so a 1-unit ask and a 1-unit bid at
-     different prices weigh correctly. Falls back to 50/50 when the book is
-     empty so the bar never collapses. */
+     different prices weigh correctly. No ratio is shown when either side is empty. */
   const pressure = useMemo(() => {
     const askNotional = asks.reduce((sum, row) => sum + Number(row[0]) * Number(row[1]), 0);
     const bidNotional = bids.reduce((sum, row) => sum + Number(row[0]) * Number(row[1]), 0);
