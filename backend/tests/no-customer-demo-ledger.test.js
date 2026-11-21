@@ -54,14 +54,6 @@ test("production market data has no dormant hardcoded seed-price table", () => {
 test("offline demo preview can only be enabled in development builds", () => {
   const preview = fs.readFileSync(path.join(root, "lib/demoPreview.ts"), "utf8");
   assert.ok(preview.includes("const forceDemo = import.meta.env.DEV &&"));
-  assert.ok(preview.includes("if (import.meta.env.DEV) {"));
-  assert.ok(preview.indexOf("if (import.meta.env.DEV) {") < preview.indexOf("demoEnabled = demoQuery"));
-  assert.ok(preview.includes("export const DEMO_PREVIEW_ACTIVE = demoEnabled"));
-});
-
-test("offline demo preview can only be enabled in development builds", () => {
-  const preview = fs.readFileSync(path.join(root, "lib/demoPreview.ts"), "utf8");
-  assert.ok(preview.includes("const forceDemo = import.meta.env.DEV &&"));
   const gate = preview.indexOf("if (import.meta.env.DEV) {");
   const activation = preview.indexOf("demoEnabled = demoQuery");
   assert.ok(gate >= 0 && activation > gate, "query and localStorage activation must stay inside the DEV gate");
