@@ -6,10 +6,15 @@ import test from "node:test";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../frontend/src");
 
-test("customer app does not mount a local demo trading wallet", () => {
+test("customer app keeps the provider but makes the local paper ledger development-only", () => {
   const entry = fs.readFileSync(path.join(root, "main.tsx"), "utf8");
   assert.ok(entry.includes("TradingProvider"), "trading context must remain mounted");
   assert.ok(!entry.includes("TradingInitializer"), "automatic demo wallet initialization must stay disabled");
+
+  const trading = fs.readFileSync(path.join(root, "lib/trading.tsx"), "utf8");
+  assert.ok(trading.includes("import.meta.env.DEV ? loadLedger() : emptyLedger()"));
+  assert.ok(trading.includes("if (!import.meta.env.DEV) return;"));
+  assert.ok(trading.includes('if (import.meta.env.DEV && status === "authenticated") initializeDemoWallet();'));
 });
 
 test("real asset balances are sourced only from the backend account snapshot", () => {
