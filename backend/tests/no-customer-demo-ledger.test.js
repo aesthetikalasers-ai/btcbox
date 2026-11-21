@@ -186,3 +186,31 @@ test("seconds payout and limits come only from the active server policy", () => 
   assert.ok(!page.includes("rate: 85"));
   assert.ok(!page.includes('useState<string>("0.00")'));
 });
+
+test("public market provenance keeps server and provider timestamps separate", () => {
+  const marketTable = fs.readFileSync(path.join(root, "features/dashboard/components/LiveMarketsTable.tsx"), "utf8");
+  assert.ok(marketTable.includes('t("Server snapshot")'));
+  assert.ok(marketTable.includes('t("Provider snapshot")'));
+  assert.ok(marketTable.includes("providerTimestamp"));
+  assert.ok(!marketTable.includes("providerTs ?? snapshotTs"));
+
+  const spotPage = fs.readFileSync(path.join(root, "features/pages/Pages.tsx"), "utf8");
+  assert.ok(spotPage.includes("marketDataSourceLabel"));
+  assert.ok(spotPage.includes("displayBook?.source"));
+  assert.ok(spotPage.includes("rows.find(row=>typeof row.source==="));
+  const api = fs.readFileSync(path.join(root, "lib/api.ts"), "utf8");
+  assert.ok(api.includes("source: candle.source ?? candleSource"));
+});
+
+test("perpetual page labels spot data and funding caps honestly", () => {
+  const page = fs.readFileSync(path.join(root, "features/pages/ContractPage.tsx"), "utf8");
+  assert.ok(page.includes('t("Spot reference")'));
+  assert.ok(page.includes('t("Funding rate cap")'));
+  assert.ok(page.includes("fundingRateCapPct"));
+  assert.ok(page.includes('setFundingCountdown("")'));
+  assert.ok(!page.includes("Math.ceil(now / (interval * 1000))"));
+  assert.ok(page.includes("estimatedMargin === null ? EM_DASH"));
+  const depth = fs.readFileSync(path.join(root, "features/trade/OrderBookDepth.tsx"), "utf8");
+  assert.ok(depth.includes('t("Underlying spot order book")'));
+  assert.ok(depth.includes('t("Spot reference only — not the perpetual execution book.")'));
+});
