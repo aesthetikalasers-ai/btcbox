@@ -48,6 +48,7 @@ type AuthContextValue = {
   reauthenticateCredentialsWithWeb3: (chain: "ethereum" | "solana", twoFactorCode?: string, wallet?: unknown) => Promise<void>;
   completeCredentialRecoveryTwoFactor: (code: string) => Promise<void>;
   recoverBtcboxPassword: (password: string) => Promise<void>;
+  setSupabaseLoginPassword: (password: string) => Promise<void>;
   identityLinkSourceVerified: boolean; identityLinkNeedsTwoFactor: boolean;
   reauthenticateIdentityLinkWithGoogle: () => Promise<void>;
   completeIdentityLinkReauthTwoFactor: (code: string) => Promise<void>;
@@ -314,6 +315,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       throw cause;
     } finally { setBusy(false); }
   }, [setSignedIn]);
+
+  // Set a password on the currently authenticated Supabase user. This keeps the
+  // Google identity and email/password credential on the same auth.users UUID.
+  const setSupabaseLoginPassword = useCallback(async (password: string) => {
+    setBusy(true); setError(""); setNotice("");
+    try {
+      const client = clientRef.current;
+      if (!client) throw new Error("Authentication is still initializing. Please try again.");
+      const { data, error: updateError } = await client.auth.updateUser({ password });
+      if (updateError) throw updateError;
+      if (!data.user) throw new Error("The login password could not be confirmed. Please try again.");
+      setNotice("Your email login password is ready. You can now sign in with this email and password or continue with Google.");
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Login password could not be saved.");
+      throw cause;
+    } finally { setBusy(false); }
+  }, []);
 
   const reauthenticateIdentityLinkWithGoogle = useCallback(async () => {
     setBusy(true); setError(""); setNotice("");
@@ -705,10 +723,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const value = useMemo(() => ({
     status, initializationIssue, email, busy, error, notice, googleEnabled, walletEnabled, identityLinkSourceVerified, identityLinkNeedsTwoFactor, completeIdentityLinkReauthTwoFactor, needsCredentials, credentialRecoveryReady, credentialRecoveryNeedsTwoFactor, ethereumWallets, accountRestriction, signInWithGoogle, reauthenticateIdentityLinkWithGoogle, reauthenticateIdentityLinkWithWeb3, linkGoogleIdentity, linkWeb3Identity, signInWithUsername, setBtcboxCredentials, reauthenticateCredentialsWithGoogle, reauthenticateCredentialsWithWeb3, completeCredentialRecoveryTwoFactor, recoverBtcboxPassword, signInWithWeb3, signInWithEmail, signUpWithEmail,
-    requestPasswordReset, completePasswordRecovery, finishOAuth, verifyTwoFactor, getSupabaseAccessToken, signOut,
+    requestPasswordReset, completePasswordRecovery, finishOAuth, verifyTwoFactor, getSupabaseAccessToken, signOut, setSupabaseLoginPassword,
     clearError: () => setError(""),
   }), [status, initializationIssue, email, busy, error, notice, googleEnabled, walletEnabled, identityLinkSourceVerified, identityLinkNeedsTwoFactor, completeIdentityLinkReauthTwoFactor, needsCredentials, credentialRecoveryReady, credentialRecoveryNeedsTwoFactor, ethereumWallets, accountRestriction, signInWithGoogle, linkGoogleIdentity, linkWeb3Identity, signInWithUsername, setBtcboxCredentials, reauthenticateCredentialsWithGoogle, reauthenticateCredentialsWithWeb3, completeCredentialRecoveryTwoFactor, recoverBtcboxPassword, signInWithWeb3, signInWithEmail,
-    signUpWithEmail, requestPasswordReset, completePasswordRecovery, finishOAuth, verifyTwoFactor, getSupabaseAccessToken, signOut, reauthenticateIdentityLinkWithGoogle, reauthenticateIdentityLinkWithWeb3]);
+    signUpWithEmail, requestPasswordReset, completePasswordRecovery, finishOAuth, verifyTwoFactor, getSupabaseAccessToken, signOut, setSupabaseLoginPassword, reauthenticateIdentityLinkWithGoogle, reauthenticateIdentityLinkWithWeb3]);
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
