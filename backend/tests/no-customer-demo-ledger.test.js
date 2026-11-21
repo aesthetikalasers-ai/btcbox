@@ -296,3 +296,18 @@ test("Earn page does not advertise hard-coded APY products", () => {
   assert.ok(!pages.includes('rate:"4.50"'));
   assert.ok(!pages.includes('t("Featured products")'));
 });
+
+test("launchpool page never fabricates upcoming projects or campaign statistics", () => {
+  const launchpool = fs.readFileSync(path.join(root, "features/pages/NewListingsPage.tsx"), "utf8");
+  assert.ok(launchpool.includes("No verified launchpool campaigns are currently published."));
+  assert.ok(!launchpool.includes("UPCOMING_PROJECTS"));
+  assert.ok(!launchpool.includes("totalStaked"));
+  assert.ok(!launchpool.includes("participants"));
+  assert.ok(!launchpool.includes("status: \"upcoming\""));
+
+  const dashboard = fs.readFileSync(path.join(root, "features/dashboard/Dashboard.tsx"), "utf8");
+  assert.ok(!dashboard.includes("MiningButton"));
+  assert.ok(!dashboard.includes("Trading competition"));
+  assert.ok(!dashboard.includes("Stake for new listings and share the launchpool rewards."));
+  assert.ok(dashboard.includes("Trading workspace"));
+});
