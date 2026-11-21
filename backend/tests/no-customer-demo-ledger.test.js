@@ -102,3 +102,13 @@ test("production K-line requests never fall back to synthetic candles", () => {
   assert.ok(getKlines.includes("rawTime / 1000"));
   assert.ok(getKlines.includes("bySecond.set(time"));
 });
+
+test("market quote provenance never invents provider timestamps", () => {
+  const api = fs.readFileSync(path.join(root, "lib/api.ts"), "utf8");
+  const start = api.indexOf("export async function getMarkets(");
+  const end = api.indexOf("export async function getKlines(", start);
+  const getMarkets = api.slice(start, end);
+  assert.ok(getMarkets.includes(": undefined"));
+  assert.ok(getMarkets.includes(": null"));
+  assert.ok(!getMarkets.includes("Math.floor(Date.now() / 1000)"));
+});
