@@ -443,11 +443,11 @@ export function SpotTradingPage(){
   * cadence because the peg moves in basis points, and falling back to 0.99999
   * keeps the hint readable if the FX endpoint is unavailable.
   */
- const [usdtUsd,setUsdtUsd]=useState(0.99999);
+ const [usdtUsd,setUsdtUsd]=useState<number | null>(null);
  useEffect(()=>{
   const controller=new AbortController();
   let cancelled=false;
-  const load=()=>{getUsdtUsdRate(0.99999,controller.signal).then(r=>{if(!cancelled)setUsdtUsd(r.rate);}).catch(()=>{});};
+  const load=()=>{getUsdtUsdRate(controller.signal).then(r=>{if(!cancelled)setUsdtUsd(r.rate);}).catch(()=>{});};
   load();
   const timer=window.setInterval(load,60000);
   return ()=>{cancelled=true;controller.abort();window.clearInterval(timer);};
