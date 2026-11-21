@@ -1707,5 +1707,8 @@
   "Amount is outside the active policy limits.": "L'importo non rientra nei limiti della policy attiva.",
   "Insufficient available USDT balance.": "Saldo USDT disponibile insufficiente.",
   "This market or duration is not enabled by the active policy.": "Questo mercato o questa durata non è abilitata dalla policy attiva.",
-  "Return to registration": "Torna alla registrazione"
+  "Return to registration": "Torna alla registrazione",
+  "Provider": "Provider",
+  "Snapshot age": "Età dello snapshot",
+  "Provider age": "Età del provider"
 }
