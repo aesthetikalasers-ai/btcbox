@@ -1710,5 +1710,7 @@
   "Provider": "Nhà cung cấp",
   "Snapshot age": "Độ cũ của bản chụp",
   "Provider age": "Độ cũ của nhà cung cấp",
-  "Data source": "Nguồn dữ liệu"
+  "Data source": "Nguồn dữ liệu",
+  "Market data source could not be verified. Trading is disabled.": "Không thể xác minh nguồn dữ liệu thị trường. Giao dịch đã bị vô hiệu hóa.",
+  "Market snapshot is stale or missing. Quotes are hidden until a fresh snapshot arrives.": "Ảnh chụp dữ liệu thị trường đã cũ hoặc bị thiếu. Báo giá sẽ bị ẩn cho đến khi có dữ liệu mới."
 }
