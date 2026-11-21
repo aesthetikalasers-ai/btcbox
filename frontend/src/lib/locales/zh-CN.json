@@ -477,7 +477,7 @@
   "Already have an account?": "已经有账户？",
   "Back to BTCBOX": "返回 BTCBOX",
   "Protected account access · Public markets remain available without signing in": "受保护的账户访问 · 无需登录即可浏览公开市场",
-    "Use a password between 12 and 128 characters.": "密码长度必须为 12 至 128 个字符。",
+  "Use a password between 12 and 128 characters.": "密码长度必须为 12 至 128 个字符。",
   "Use a password between 8 and 128 characters.": "密码长度必须为 8 至 128 个字符。",
   "The passwords do not match.": "两次输入的密码不一致。",
   "Password could not be updated.": "无法更新密码。",
@@ -1430,7 +1430,6 @@
   "Choose a perpetual contract symbol": "选择永续合约交易对",
   "Search symbol": "搜索交易对",
   "No matching market": "无匹配市场",
-
   "Fullscreen chart": "全屏图表",
   "Create an account with email, Google or a wallet.": "使用邮箱、Google 或钱包创建账户。",
   "Sign in with email, Google or a wallet to access your BTCBOX account.": "使用邮箱、Google 或钱包登录以访问您的 BTCBOX 账户。",
@@ -1697,5 +1696,15 @@
   "Latest": "最新",
   "Return rate": "收益率",
   "Pick a duration and direction; the round settles automatically.": "选择周期与方向即可下单，回合到期后自动结算。",
-  "Choose a short-term contract pair": "选择秒合约交易对"
+  "Choose a short-term contract pair": "选择秒合约交易对",
+  "Spot reference": "现货参考价格",
+  "Underlying spot order book": "标的现货订单簿",
+  "Spot reference only — not the perpetual execution book.": "仅作现货参考，不是永续合约的执行订单簿。",
+  "Spot reference depth": "现货参考深度",
+  "The active seconds policy is unavailable. Payout rates and order entry are disabled until it can be verified.": "当前秒合约策略不可用。验证策略前，收益率和下单入口均已禁用。",
+  "The active seconds policy is unavailable. No order was sent.": "当前秒合约策略不可用，未发送订单。",
+  "Your available balance could not be verified. No order was sent.": "无法核实可用余额，未发送订单。",
+  "Amount is outside the active policy limits.": "金额超出当前策略限制。",
+  "Insufficient available USDT balance.": "USDT可用余额不足。",
+  "This market or duration is not enabled by the active policy.": "当前策略未启用此交易市场或周期。"
 }
