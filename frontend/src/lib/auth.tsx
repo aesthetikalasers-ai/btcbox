@@ -132,11 +132,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       await setSignedIn();
     } catch (cause) {
-      // A stale/expired Supabase session must not leave the app in "loading"
-      // forever. Clear it so the visitor can sign in again.
-      setError(cause instanceof Error ? cause.message : "Your session could not be restored. Please sign in again.");
+      // A BTCBOX API/network failure is not proof that the Supabase session is invalid.
+      // Preserve the persisted Supabase credentials so the user can recover without
+      // being silently signed out. Supabase clears genuinely invalid sessions itself.
+      setError(cause instanceof Error ? cause.message : "Your session could not be restored. Please try again.");
       setInitializationIssue(true);
-      await clientRef.current?.auth.signOut().catch(() => undefined);
       setTempToken("");
       setStatus("anonymous");
     } finally { exchangeLock.current = false; }
@@ -157,13 +157,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Keep credentials/session storage intact and expose an explicit recovery action.
     setInitializationIssue(false);
     const slowTimer = window.setTimeout(() => { if (active) setInitializationIssue(true); }, 12000);
-    // Hard watchdog: initialization must resolve. If a request hangs beyond the
-    // per-request timeouts, force anonymous so protected routes never deadlock.
+    // Hard watchdog: initialization must resolve. A timeout is not proof that
+    // credentials are invalid, so preserve the persisted Supabase session.
     const watchdogTimer = window.setTimeout(() => {
       if (!active) return;
       setError("Authentication restoration timed out. Please sign in again.");
       setInitializationIssue(true);
-      clientRef.current?.auth.signOut().catch(() => undefined);
       setTempToken("");
       setStatus("anonymous");
     }, 25000);
@@ -202,9 +201,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (active) {
           setError(cause instanceof Error ? cause.message : "Authentication is unavailable.");
           setInitializationIssue(true);
-          // Never leave protected routes stuck on the loading spinner: resolve
-          // to anonymous so visitors are redirected to /login and can sign in.
-          await clientRef.current?.auth.signOut().catch(() => undefined);
+          // Resolve the UI without destroying a potentially valid persisted
+          // Supabase session. A later retry/reload can restore it after recovery.
           setTempToken("");
           setStatus("anonymous");
         }
@@ -325,13 +323,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!client) throw new Error("Authentication is still initializing. Please try again.");
       const { data, error: updateError } = await client.auth.updateUser({ password });
       if (updateError) throw updateError;
-      if (!data.user) throw new Error("The login password could not be confirmed. Please try again.");
+      if (!data.user?.id) throw new Error("The login password could not be confirmed. Please try again.");
+
+      // Supabase may terminate a session after a password change. Re-authenticate
+      // immediately with the new password, and verify that it is still the exact
+      // same auth.users record (never create or switch to another BTCBOX account).
+      const loginEmail = data.user.email || email;
+      if (!loginEmail) throw new Error("The account email could not be verified. Continue with Google sign-in.");
+      const { data: signedIn, error: signInError } = await client.auth.signInWithPassword({ email: loginEmail, password });
+      if (signInError) throw signInError;
+      if (!signedIn.user || signedIn.user.id !== data.user.id || !signedIn.session?.access_token) {
+        throw new Error("The password was updated, but the same account session could not be restored. Please continue with Google sign-in.");
+      }
       setNotice("Your email login password is ready. You can now sign in with this email and password or continue with Google.");
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Login password could not be saved.");
       throw cause;
     } finally { setBusy(false); }
-  }, []);
+  }, [email]);
 
   const reauthenticateIdentityLinkWithGoogle = useCallback(async () => {
     setBusy(true); setError(""); setNotice("");
