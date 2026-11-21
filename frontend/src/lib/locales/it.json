@@ -1706,5 +1706,6 @@
   "Your available balance could not be verified. No order was sent.": "Impossibile verificare il saldo disponibile. Nessun ordine è stato inviato.",
   "Amount is outside the active policy limits.": "L'importo non rientra nei limiti della policy attiva.",
   "Insufficient available USDT balance.": "Saldo USDT disponibile insufficiente.",
-  "This market or duration is not enabled by the active policy.": "Questo mercato o questa durata non è abilitata dalla policy attiva."
+  "This market or duration is not enabled by the active policy.": "Questo mercato o questa durata non è abilitata dalla policy attiva.",
+  "Return to registration": "Torna alla registrazione"
 }
