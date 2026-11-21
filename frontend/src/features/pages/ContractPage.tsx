@@ -157,7 +157,7 @@ export function ContractPage() {
   /**
    * USDT→USD rate for the "≈ $" hint under the book's mid price. Contracts are
    * quoted in USDT, which is not exactly one dollar, so the hint is a real
-   * conversion. Falls back to 0.99999 when the FX endpoint is unavailable, so the
+   * conversion. Does not invent a rate when the FX endpoint is unavailable, so the
    * line still renders an honest approximation instead of a blank.
    */
   const [usdtUsd, setUsdtUsd] = useState<number | null>(null);
