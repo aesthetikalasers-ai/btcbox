@@ -1710,5 +1710,6 @@
   "Return to registration": "登録に戻る",
   "Provider": "プロバイダー",
   "Snapshot age": "スナップショットの経過時間",
-  "Provider age": "プロバイダー更新からの経過時間"
+  "Provider age": "プロバイダー更新からの経過時間",
+  "Data source": "データソース"
 }
