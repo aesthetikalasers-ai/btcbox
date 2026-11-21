@@ -32,7 +32,8 @@ import { CandlestickSeries, ColorType, createChart, type UTCTimestamp } from "li
 export function SecondsPage() {
   const { t, language } = useI18n();
   const locale = localeTags[language];
-  const { status } = useAuth();
+  const { status, user } = useAuth();
+  const authUserId = user?.id ?? "";
   const signedOut = status === "unauthenticated";
   const [snapshot, setSnapshot] = useState<SecondsPositionsSnapshot | null>(null);
   const [positionsLoadError, setPositionsLoadError] = useState(false);
@@ -131,6 +132,13 @@ export function SecondsPage() {
   useEffect(() => {
     const controller = new AbortController();
     if (status === "loading") {
+      setUid("");
+      setSnapshot(null);
+      setPositionsLoadError(false);
+      setPolicy(null);
+      setAvailableUSDT(null);
+      setPendingIntent(null);
+      setError("");
       setLoading(true);
       return () => controller.abort();
     }
@@ -187,7 +195,7 @@ export function SecondsPage() {
       })
       .finally(() => { if (!controller.signal.aborted) setLoading(false); });
     return () => controller.abort();
-  }, [reload, status, symbol]);
+  }, [reload, status, symbol, authUserId]);
 
   useEffect(() => {
     let cancelled = false;
