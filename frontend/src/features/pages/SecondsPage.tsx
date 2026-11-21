@@ -26,9 +26,6 @@ import { TradesPanel } from "../trade/TradesPanel";
 import { CHART_THEME } from "../../lib/chartTheme";
 import { CandlestickSeries, ColorType, createChart, type UTCTimestamp } from "lightweight-charts";
 
-/** Pairs the short-term contract product supports (mirrors the backend allow-list). */
-const SECONDS_MARKETS = ["BTC", "ETH", "SOL", "BNB"] as const;
-
 /**
  * Professional Institutional-Grade Seconds Contract Trading Page
  */
@@ -58,21 +55,23 @@ export function SecondsPage() {
   const [activeTab, setActiveTab] = useState<"positions" | "orders" | "history">("positions");
   const [bottomExpanded, setBottomExpanded] = useState(true);
   const [ticker, setTicker] = useState<MarketTicker | null>(null);
-  const [availableUSDT, setAvailableUSDT] = useState<string>("0.00");
+  const [availableUSDT, setAvailableUSDT] = useState<string | null>(null);
   // Durable order intent: the exact request is persisted per account+symbol so
   // a network failure can be retried with the SAME request_id (a new id would
   // risk a duplicate position). While it is pending, entry stays locked.
   const [pendingIntent, setPendingIntent] = useState<SecondsOrderInput | null>(null);
   const pendingKey = uid ? "btcbox.seconds.pending.v1." + uid + "." + symbol : "";
 
-  const DURATION_OPTIONS = [
-    { sec: 30, rate: 85, label: "30s" },
-    { sec: 60, rate: 88, label: "60s" },
-    { sec: 180, rate: 90, label: "180s" },
-    { sec: 300, rate: 92, label: "300s" },
-  ];
-
-  const QUICK_AMOUNTS = [10, 50, 100, 500];
+  const QUICK_AMOUNTS = [10, 50, 100, 500] as const;
+  const currentRate = policy ? policy.policy.payout_bps / 100 : null;
+  const durationOptions = policy
+    ? policy.policy.durations_sec.map((sec) => ({ sec, label: `${sec}s` }))
+    : [];
+  const minStake = policy ? Number(policy.policy.min_stake) : null;
+  const maxStake = policy ? Number(policy.policy.max_stake) : null;
+  const quickAmounts = policy && minStake !== null && maxStake !== null && availableUSDT !== null
+    ? QUICK_AMOUNTS.filter((value) => value >= minStake && value <= maxStake && value <= Number(availableUSDT))
+    : [];
 
 
 
@@ -106,7 +105,8 @@ export function SecondsPage() {
           const accountUid = accountResult.value.uid;
           setUid(accountUid);
           const usdtFree = accountResult.value.balances["USDT"]?.free;
-          if (usdtFree !== undefined) setAvailableUSDT(String(usdtFree));
+          if (usdtFree !== undefined && usdtFree !== null && Number.isFinite(Number(usdtFree)) && Number(usdtFree) >= 0) setAvailableUSDT(String(usdtFree));
+          else setAvailableUSDT(null);
           // Reloading the page must not forget an unconfirmed request: without
           // this the user could submit a second order for the same click.
           if (accountUid) {
@@ -219,9 +219,29 @@ export function SecondsPage() {
       setError(t("An earlier Seconds request is still unconfirmed. Retry the same request before placing a new one."));
       return;
     }
+    if (!policy) {
+      setError(t("The active seconds policy is unavailable. No order was sent."));
+      return;
+    }
+    if (availableUSDT === null) {
+      setError(t("Your available balance could not be verified. No order was sent."));
+      return;
+    }
     const numeric = Number(amount);
     if (!Number.isFinite(numeric) || numeric <= 0) {
       setError(t("Enter an amount greater than zero.")); return;
+    }
+    if (minStake === null || maxStake === null || numeric < minStake || numeric > maxStake) {
+      setError(t("Amount is outside the active policy limits."));
+      return;
+    }
+    if (numeric > Number(availableUSDT)) {
+      setError(t("Insufficient available USDT balance."));
+      return;
+    }
+    if (!policy.policy.symbols.includes(symbol) || !policy.policy.durations_sec.includes(duration)) {
+      setError(t("This market or duration is not enabled by the active policy."));
+      return;
     }
     const intent: SecondsOrderInput = {
       request_id: window.crypto.randomUUID().replace(/-/g, ""),
@@ -234,8 +254,15 @@ export function SecondsPage() {
     await sendIntent(intent);
   };
 
-  const currentRate = DURATION_OPTIONS.find((d) => d.sec === duration)?.rate || 85;
-  const profitExpect = Number(amount) > 0 ? (Number(amount) * (1 + currentRate / 100)).toFixed(2) : "0.00";
+  const profitExpect = currentRate !== null && Number(amount) > 0
+    ? (Number(amount) * (1 + currentRate / 100)).toFixed(2)
+    : "—";
+
+  useEffect(() => {
+    if (!policy) return;
+    if (!policy.policy.symbols.includes(symbol)) setSymbol(policy.policy.symbols[0] ?? "");
+    if (!policy.policy.durations_sec.includes(duration)) setDuration(policy.policy.durations_sec[0] ?? 0);
+  }, [policy, symbol, duration]);
   const openCount = snapshot?.open.length || 0;
 
 
@@ -324,13 +351,13 @@ export function SecondsPage() {
               <div>
                 <div className="flex justify-between items-center mb-2 text-xs">
                   <span className="text-brand-text-muted font-medium">{t("Settlement duration")}</span>
-                  <span className="text-brand-accent font-mono font-bold">{t("Return rate")}: +{currentRate}%</span>
+                  <span className="text-brand-accent font-mono font-bold">{t("Return rate")}: {currentRate === null ? "—" : `+${currentRate.toFixed(2)}%`}</span>
                 </div>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
-                  {DURATION_OPTIONS.map((opt) => (
-                    <button key={opt.sec} type="button" onClick={() => setDuration(opt.sec)} className={`flex flex-col items-center justify-center rounded-lg border py-1.5 transition-all ${duration === opt.sec ? "border-brand-accent bg-brand-accent/20 text-brand-accent shadow-sm shadow-brand-accent/20 font-bold" : "border-brand-border/50 bg-brand-surface text-brand-text-muted hover:border-brand-border-strong hover:text-brand-text"}`}>
+                  {durationOptions.map((opt) => (
+                    <button key={opt.sec} type="button" disabled={!policy || policy.actions_enabled !== true} onClick={() => setDuration(opt.sec)} className={`flex flex-col items-center justify-center rounded-lg border py-1.5 transition-all ${duration === opt.sec ? "border-brand-accent bg-brand-accent/20 text-brand-accent shadow-sm shadow-brand-accent/20 font-bold" : "border-brand-border/50 bg-brand-surface text-brand-text-muted hover:border-brand-border-strong hover:text-brand-text"}`}>
                       <span className="font-mono text-xs">{opt.label}</span>
-                      <span className="text-[9px] opacity-70">+{opt.rate}%</span>
+                      <span className="text-[9px] opacity-70">{currentRate === null ? "—" : `+${currentRate.toFixed(2)}%`}</span>
                     </button>
                   ))}
                 </div>
@@ -339,19 +366,19 @@ export function SecondsPage() {
               <div className="space-y-1.5">
                 <div className="flex justify-between items-center text-xs">
                   <span className="text-brand-text-muted font-medium">{t("Investment amount")} (USDT)</span>
-                  <span className="text-brand-text-muted font-mono">{t("Available")}: <strong className="text-brand-text">{signedOut ? "—" : Number(availableUSDT).toFixed(2)}</strong></span>
+                  <span className="text-brand-text-muted font-mono">{t("Available")}: <strong className="text-brand-text">{signedOut || availableUSDT === null ? "—" : Number(availableUSDT).toFixed(2)}</strong></span>
                 </div>
                 <div className="flex h-11 items-center rounded-lg border border-brand-border bg-brand-surface-2 px-3 focus-within:border-brand-accent">
-                  <input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0.00" className="h-full flex-1 bg-transparent font-mono text-sm text-brand-text outline-none placeholder:text-brand-text-muted" />
+                  <input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0.00" disabled={!policy || policy.actions_enabled !== true || availableUSDT === null} className="h-full flex-1 bg-transparent font-mono text-sm text-brand-text outline-none placeholder:text-brand-text-muted" />
                   <span className="text-xs font-bold text-brand-text-muted">USDT</span>
                 </div>
                 <div className="flex items-center gap-2 pt-1">
-                  {QUICK_AMOUNTS.map((val) => (
+                  {quickAmounts.map((val) => (
                     <button key={val} type="button" onClick={() => setAmount(String(val))} className={`h-[30px] flex-1 rounded-md border border-brand-border/60 bg-brand-surface-2 font-mono text-xs font-medium tabular-nums text-brand-text-muted hover:border-brand-accent hover:text-brand-accent ${amount === String(val) ? "border-brand-accent text-brand-accent bg-brand-accent/10" : ""}`}>
                       {val}
                     </button>
                   ))}
-                  <button type="button" onClick={() => setAmount(Number(availableUSDT) > 0 ? String(Math.floor(Number(availableUSDT))) : "100")} className="h-[30px] rounded-md border border-brand-border/60 bg-brand-surface-2 px-3 text-xs font-semibold text-brand-text-muted hover:border-brand-accent hover:text-brand-accent">
+                  <button type="button" disabled={!policy || availableUSDT === null || Number(availableUSDT) <= 0} onClick={() => setAmount(availableUSDT !== null && maxStake !== null ? String(Math.min(Number(availableUSDT), maxStake)) : "")} className="h-[30px] rounded-md border border-brand-border/60 bg-brand-surface-2 px-3 text-xs font-semibold text-brand-text-muted hover:border-brand-accent hover:text-brand-accent disabled:opacity-40">
                     {t("Max")}
                   </button>
                 </div>
@@ -359,17 +386,17 @@ export function SecondsPage() {
 
               <div className="flex items-center justify-between text-xs px-1 text-brand-text-muted p-2.5 rounded-xl bg-brand-surface-2/50 border border-brand-border/40">
                 <span>{t("Expected return")}</span>
-                <span className="font-mono font-bold text-sm text-brand-text"><strong className="text-profit">{profitExpect}</strong> USDT</span>
+                <span className="font-mono font-bold text-sm text-brand-text"><strong className="text-profit">{profitExpect}</strong>{profitExpect === "—" ? "" : " USDT"}</span>
               </div>
 
               <div className="grid grid-cols-2 gap-3 pt-1">
-                <button type="button" disabled={submitting || !!pendingIntent} onClick={() => submitSeconds("up")} className="flex h-11 items-center justify-center gap-2 rounded-lg bg-profit text-[15px] font-bold text-[#05201A] transition-transform hover:bg-profit/90 active:scale-[0.99] disabled:opacity-50">
+                <button type="button" disabled={submitting || !!pendingIntent || policy?.actions_enabled !== true || availableUSDT === null || Number(availableUSDT) <= 0 || currentRate === null} onClick={() => submitSeconds("up")} className="flex h-11 items-center justify-center gap-2 rounded-lg bg-profit text-[15px] font-bold text-[#05201A] transition-transform hover:bg-profit/90 active:scale-[0.99] disabled:opacity-50">
                   <TrendingUp className="h-5 w-5 stroke-[2.5]" />
-                  <span>{t("Buy up (long)")} (+{currentRate}%)</span>
+                  <span>{t("Buy up (long)")} {currentRate === null ? "" : `(+${currentRate.toFixed(2)}%)`}</span>
                 </button>
-                <button type="button" disabled={submitting || !!pendingIntent} onClick={() => submitSeconds("down")} className="flex h-11 items-center justify-center gap-2 rounded-lg bg-loss text-[15px] font-bold text-white transition-transform hover:bg-loss/90 active:scale-[0.99] disabled:opacity-50">
+                <button type="button" disabled={submitting || !!pendingIntent || policy?.actions_enabled !== true || availableUSDT === null || Number(availableUSDT) <= 0 || currentRate === null} onClick={() => submitSeconds("down")} className="flex h-11 items-center justify-center gap-2 rounded-lg bg-loss text-[15px] font-bold text-white transition-transform hover:bg-loss/90 active:scale-[0.99] disabled:opacity-50">
                   <TrendingDown className="h-5 w-5 stroke-[2.5]" />
-                  <span>{t("Buy down (short)")} (+{currentRate}%)</span>
+                  <span>{t("Buy down (short)")} {currentRate === null ? "" : `(+${currentRate.toFixed(2)}%)`}</span>
                 </button>
               </div>
             </div>
@@ -387,7 +414,7 @@ export function SecondsPage() {
           description={t("Choose a short-term contract pair")}
           emptyLabel={t("No matching market")}
           activeId={`${symbol}USDT`}
-          items={SECONDS_MARKETS.map((coin) => {
+          items={(policy?.policy.symbols ?? []).map((coin) => {
             const tk = coin === symbol ? ticker : null;
             return {
               id: `${coin}USDT`,
