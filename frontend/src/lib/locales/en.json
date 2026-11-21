@@ -462,7 +462,7 @@
   "Already have an account?": "Already have an account?",
   "Back to BTCBOX": "Back to BTCBOX",
   "Protected account access · Public markets remain available without signing in": "Protected account access · Public markets remain available without signing in",
-    "Use a password between 12 and 128 characters.": "Use a password between 12 and 128 characters.",
+  "Use a password between 12 and 128 characters.": "Use a password between 12 and 128 characters.",
   "Use a password between 8 and 128 characters.": "Use a password between 8 and 128 characters.",
   "The passwords do not match.": "The passwords do not match.",
   "Password could not be updated.": "Password could not be updated.",
@@ -1430,7 +1430,6 @@
   "Choose a perpetual contract symbol": "Choose a perpetual contract symbol",
   "Search symbol": "Search symbol",
   "No matching market": "No matching market",
-
   "Fullscreen chart": "Fullscreen chart",
   "Create an account with email, Google or a wallet.": "Create an account with email, Google or a wallet.",
   "Sign in with email, Google or a wallet to access your BTCBOX account.": "Sign in with email, Google or a wallet to access your BTCBOX account.",
@@ -1697,5 +1696,13 @@
   "Latest": "Last",
   "Return rate": "Return rate",
   "Pick a duration and direction; the round settles automatically.": "Pick a duration and direction; the round settles automatically.",
-  "Choose a short-term contract pair": "Choose a short-term contract pair"
+  "Choose a short-term contract pair": "Choose a short-term contract pair",
+  "Provider updated": "Provider updated",
+  "Source": "Source",
+  "Tick size": "Tick size",
+  "Quantity step": "Quantity step",
+  "Minimum quantity": "Minimum quantity",
+  "Minimum notional": "Minimum notional",
+  "Market trading rules are unavailable. Order entry is disabled.": "Market trading rules are unavailable. Order entry is disabled.",
+  "Price must follow the market tick; quantity must follow the step and minimum order rules.": "Price must follow the market tick; quantity must follow the step and minimum order rules."
 }

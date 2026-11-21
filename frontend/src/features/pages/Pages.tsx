@@ -1,6 +1,6 @@
 import * as Dialog from "@radix-ui/react-dialog";
 import { AuthRestoreState } from "../../components/AuthRestoreState";
-import { multiplyDecimalStrings, compareDecimalStrings } from "../../lib/decimal";
+import { multiplyDecimalStrings, compareDecimalStrings, isDecimalMultipleOfStep, addDecimalStep, floorDecimalToStep, roundDecimalToStep } from "../../lib/decimal";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { RefreshCw, TrendingUp, TrendingDown, Clock3, ShieldAlert, ArrowLeft, ChevronRight, ChevronDown, ChevronUp, ChevronsLeft, ChevronsRight, KeyRound, Copy, Check, LineChart, Plus, Minus, History, Layers, CandlestickChart, WifiOff, Search } from "lucide-react";
@@ -326,6 +326,7 @@ export function SpotTradingPage(){
  const navigate=useNavigate();
  const [ticker,setTicker]=useState<MarketTicker|null>(null);
  const [spotPairEnabled,setSpotPairEnabled]=useState(false);
+ const [spotPairRules,setSpotPairRules]=useState<SpotMarketPair|null>(null);
  const [chartInterval,setChartInterval]=useState("1h");
  // `compactTrade` (<=1279px) means "no inline chart": the chart moves into the
  // safe-area drawer and the document-flow dual-column workspace is used. At
@@ -427,7 +428,8 @@ export function SpotTradingPage(){
   // A quote older than 90s is treated as stale: the submit path refuses new
  // orders instead of trading against a stale price. `marketUpdatedAt` is the
  // exchange snapshot time, never the browser's receipt time.
- const marketSnapshotStale=!!ticker&&(!marketUpdatedAt||marketClockNow-marketUpdatedAt>90_000);
+ const providerTimestampMs=ticker?.providerTs?ticker.providerTs*1000:null;
+ const marketSnapshotStale=!!ticker&&(!providerTimestampMs||!Number.isFinite(providerTimestampMs)||providerTimestampMs<=0||marketClockNow-providerTimestampMs>90_000||providerTimestampMs-marketClockNow>5_000);
  const displayTicker=ticker;
  const tickerIsFallback=ticker?.source==="demo-preview"||ticker?.source==="sample-data";
  /**
@@ -512,14 +514,16 @@ export function SpotTradingPage(){
 
  useEffect(()=>{
   const controller=new AbortController();
-  setLoading(true);setError("");setSpotPairEnabled(false);setTradingStatus(null);setPairSymbols([]);setAvailableBalances({});setOrderType("limit");
+  setLoading(true);setError("");setSpotPairEnabled(false);setSpotPairRules(null);setTradingStatus(null);setPairSymbols([]);setAvailableBalances({});setOrderType("limit");
   setTicker(null);setCandles([]);setBook(null);setMarketUpdatedAt(null);setMarketFeedWarning("");setChartFeedWarning("");setPrice("");
   Promise.allSettled([getSpotMarketPairs(controller.signal),getMarkets(controller.signal),getOrderBook(symbol,controller.signal),getTradingStatus(controller.signal),getOrders(controller.signal),getAccount(controller.signal)]).then(results=>{
    if(controller.signal.aborted)return;
    const [pairResult,marketResult,bookResult,statusResult,ordersResult,accountResult]=results;
    if(pairResult.status==="fulfilled"){
     setPairSymbols(pairResult.value.filter(pair=>pair.quote_asset==="USDT").map(pair=>pair.base_asset+pair.quote_asset));
-    const enabled=pairResult.value.some(pair=>pair.base_asset===base&&pair.quote_asset==="USDT");
+    const selectedPair=pairResult.value.find(pair=>pair.base_asset===base&&pair.quote_asset==="USDT"&&pair.enabled===true)||null;
+    setSpotPairRules(selectedPair);
+    const enabled=!!selectedPair;
     setSpotPairEnabled(enabled);
     if(!enabled)setError("This spot market is not enabled by BTCBOX operators.");
    }else{
@@ -537,7 +541,7 @@ export function SpotTradingPage(){
     const selected=marketResult.value.find(item=>item.sym.toUpperCase()===marketBase)||null;
     if(selected){
      setTicker(selected);
-     setMarketUpdatedAt(selected.snapshotTs?selected.snapshotTs*1000:null);
+     setMarketUpdatedAt(selected.providerTs?selected.providerTs*1000:null);
      setMarketFeedWarning("");
      if(!isPriceManual && selected.source!=="demo-preview" && selected.source!=="sample-data"){ setPrice(String(selected.price)); }
     }else{setTicker(null);setMarketUpdatedAt(null);setPrice("");setMarketFeedWarning("Market data is temporarily unavailable for this pair.");}
@@ -574,7 +578,7 @@ export function SpotTradingPage(){
      const selected=marketResult.value.find(item=>item.sym.toUpperCase()===marketBase)||null;
      if(selected){
       setTicker(selected);
-      setMarketUpdatedAt(selected.snapshotTs?selected.snapshotTs*1000:null);
+      setMarketUpdatedAt(selected.providerTs?selected.providerTs*1000:null);
       if(!isPriceManual && selected.price && selected.source!=="demo-preview" && selected.source!=="sample-data"){ setPrice(String(selected.price)); }
      }else{setTicker(null);setMarketUpdatedAt(null);failed=true;}
     }else{setTicker(null);setMarketUpdatedAt(null);failed=true;}
@@ -591,6 +595,7 @@ export function SpotTradingPage(){
 
  // Chart interval changes never reset an edited order or a pending idempotent request.
  useEffect(()=>{
+  if(isPhone){setCandles([]);setChartFeedWarning("");return;}
   let cancelled=false;
   let refreshing=false;
   let pending:AbortController|undefined;
@@ -608,7 +613,7 @@ export function SpotTradingPage(){
   setCandles([]);load();
   const timer=window.setInterval(load,30000);
   return ()=>{cancelled=true;pending?.abort();window.clearInterval(timer);};
- },[symbol,chartInterval,reload]);
+ },[symbol,chartInterval,reload,isPhone]);
 
  useEffect(()=>{
   setPendingIntent(null);setPendingIntentInvalid(false);
@@ -668,8 +673,18 @@ export function SpotTradingPage(){
   return ()=>window.cancelAnimationFrame(frame);
  },[lastTradePrice]);
 
- const orderInputsValid=/^(?:0|[1-9]\d*)(?:\.\d{1,18})?$/.test(price)&&/^(?:0|[1-9]\d*)(?:\.\d{1,18})?$/.test(quantity)&&compareDecimalStrings(price,"0")===1&&compareDecimalStrings(quantity,"0")===1;
- const requiredBalance=side==="buy"?multiplyDecimalStrings(price,quantity):quantity;
+ const priceFormatValid=/^(?:0|[1-9]\d*)(?:\.\d{1,18})?$/.test(price)&&compareDecimalStrings(price,"0")===1;
+ const quantityFormatValid=/^(?:0|[1-9]\d*)(?:\.\d{1,18})?$/.test(quantity)&&compareDecimalStrings(quantity,"0")===1;
+ const estimatedNotional=priceFormatValid&&quantityFormatValid?multiplyDecimalStrings(price,quantity):undefined;
+ const priceStepValid=!!spotPairRules&&isDecimalMultipleOfStep(price,spotPairRules.price_tick);
+ const quantityStepValid=!!spotPairRules&&isDecimalMultipleOfStep(quantity,spotPairRules.quantity_step);
+ const minimumQuantityValid=!!spotPairRules&&(compareDecimalStrings(quantity,spotPairRules.min_quantity)??-1)>=0;
+ const minimumNotionalValid=!!spotPairRules&&!!estimatedNotional&&(compareDecimalStrings(estimatedNotional,spotPairRules.min_notional)??-1)>=0;
+ const minimumPriceValid=!!spotPairRules&&(!spotPairRules.min_limit_price||(compareDecimalStrings(price,String(spotPairRules.min_limit_price))??-1)>=0);
+ const maximumPriceValid=!!spotPairRules&&(!spotPairRules.max_limit_price||(compareDecimalStrings(price,String(spotPairRules.max_limit_price))??1)<=0);
+ const orderInputsValid=priceFormatValid&&quantityFormatValid&&priceStepValid&&quantityStepValid&&minimumQuantityValid&&minimumNotionalValid&&minimumPriceValid&&maximumPriceValid;
+ const orderRuleError=!spotPairRules?"Market trading rules are unavailable. Order entry is disabled.":price&&quantity&&!orderInputsValid?"Price must follow the market tick; quantity must follow the step and minimum order rules.":"";
+ const requiredBalance=side==="buy"?estimatedNotional:quantity;
  const availableBalance=availableBalances[side==="buy"?"USDT":base]?.free;
  const balanceComparison=requiredBalance&&availableBalance!==undefined?compareDecimalStrings(String(availableBalance),requiredBalance):undefined;
  const insufficientBalance=balanceComparison!==undefined&&balanceComparison<0;
@@ -686,7 +701,8 @@ export function SpotTradingPage(){
    if((!ticker||marketSnapshotStale)&&!pendingIntent){setError("A fresh timestamped market snapshot is required before placing a new order. No order was sent.");return;}
   if(!spotPairEnabled&&!pendingIntent){setError("This spot pair is not enabled by BTCBOX operators. No order was sent.");return;}
   if(!tradingStatus?.spot_order_entry_enabled&&!pendingIntent){setError("Spot order execution is currently disabled by server policy. No order was placed.");return;}
-  if(!pendingIntent&&(!orderInputsValid||balanceUnavailable||insufficientBalance||tickerIsFallback)){setError(insufficientBalance?"Insufficient available balance":"Account identity is unavailable. No order was sent.");return;}
+  if(!pendingIntent&&!orderInputsValid){setError(orderRuleError||"Enter a valid limit price and quantity.");return;}
+ if(!pendingIntent&&(balanceUnavailable||insufficientBalance||tickerIsFallback)){setError(insufficientBalance?"Insufficient available balance":"Account identity is unavailable. No order was sent.");return;}
   // A retained pending intent is already mid-flight from a previous attempt and
   // must be retried as-is; it never goes through the confirmation dialog again.
   if(pendingIntent){await sendOrder(pendingIntent, false);return;}
@@ -793,17 +809,21 @@ export function SpotTradingPage(){
   }finally{setBusy(false);}
  };
  const amountText=(value:unknown)=>value===null||value===undefined||value===""?"—":Number.isFinite(Number(value))?Number(value).toLocaleString(localeTags[language],{maximumFractionDigits:8}):String(value);
- const adjustPrice=(direction:number)=>{const raw=price||String(displayTicker?.price??"");const current=Number(raw);if(!Number.isFinite(current)||current<=0)return;const decimals=Math.min(8,Math.max(2,(raw.split(".")[1]||"").length));const step=10**-decimals;setPrice(Math.max(0,current+direction*step).toFixed(decimals));};
+ const adjustPrice=(direction:number)=>{
+  const step=spotPairRules?.price_tick;
+  if(!step)return;
+  const raw=price||String(displayTicker?.price??"");
+  const next=addDecimalStep(raw,step,direction===1?1:-1);
+  if(next)setPrice(next);
+ };
  // Quantity stepper (spec §27). It only nudges the displayed string by one unit
  // of the value's own precision — the authoritative precision and minimum-order
  // limits are still enforced by the existing submit validation.
  const adjustQuantity=(direction:number)=>{
-  const raw=quantity;
-  const decimals=Math.min(8,(raw.split(".")[1]||"").length);
-  const current=Number(raw||"0");
-  if(!Number.isFinite(current))return;
-  const next=Math.max(0,current+direction*10**-decimals);
-  setQuantity(next>0?next.toFixed(Math.max(decimals,0)).replace(/\.?0+$/,""):"");
+  const step=spotPairRules?.quantity_step;
+  if(!step)return;
+  const next=addDecimalStep(quantity||"0",step,direction===1?1:-1);
+  setQuantity(next==="0"?"":next);
  };
  // Six levels per side in both presentations (phone and desktop), matching the
  // professional exchange layout: 6 asks + mid + 6 bids.
@@ -845,12 +865,12 @@ export function SpotTradingPage(){
  // Executed orders only. Derived from the same authenticated `/api/orders`
  // payload — the fills tab never invents a trade or a fee.
  const filledOrders=orderHistory.filter(item=>["filled","completed","partially_filled","partially-filled"].includes(String(item.status||"").toLowerCase()));
- const entryDisabledReason=!tradingStatus?t("Spot execution status is unavailable. Order entry is disabled."):tradingInactive?t("Spot order execution is disabled by server policy. No order can be placed until the matching engine is approved and enabled."):staleSnapshot?t("Market snapshot is older than 90 seconds. Quotes and new order entry are disabled until fresh data arrives."):!spotPairEnabled?t("This spot market is not enabled by BTCBOX operators."):"";
+ const entryDisabledReason=!tradingStatus?t("Spot execution status is unavailable. Order entry is disabled."):tradingInactive?t("Spot order execution is disabled by server policy. No order can be placed until the matching engine is approved and enabled."):staleSnapshot?t("Market snapshot is older than 90 seconds. Quotes and new order entry are disabled until fresh data arrives."):!spotPairEnabled?t("This spot market is not enabled by BTCBOX operators."):!spotPairRules?t("Market trading rules are unavailable. Order entry is disabled."):orderRuleError?t(orderRuleError):"";
  const pickBookPrice=(nextPrice:string)=>{
     // Format with the SAME precision the book is displaying, so picking a level
     // never changes how many decimals the limit input shows ("62576.01" vs "62572").
     const decimals = DECIMALS_BY_PRECISION[effectiveDepthPrecision];
-    setPrice(Number(nextPrice).toFixed(decimals));
+    setPrice(spotPairRules ? roundDecimalToStep(nextPrice, spotPairRules.price_tick) : Number(nextPrice).toFixed(decimals));
     setIsPriceManual(true);
     setOrderSizePercent(0);
   };
@@ -863,6 +883,7 @@ export function SpotTradingPage(){
     </div>
    </div>
    <div className="term-chart-body">
+    <div className="absolute left-2 top-1 z-10 rounded bg-black/55 px-1.5 py-0.5 text-[9px] text-brand-text-muted">{t("Source")}: {candles[candles.length-1]?.source||"—"} · {candles.length?new Date(candles[candles.length-1].time).toLocaleTimeString():"—"}</div>
     <div ref={setChartNode} className="trade-candles h-full w-full">{!candles.length&&!loading?<p className="p-5 text-[12px] text-brand-text-muted">{t("No verified candle data is available for this market.")}</p>:null}</div>
    </div>
   </section>
@@ -907,7 +928,7 @@ export function SpotTradingPage(){
      <div><span>{t("24h high")}</span><b>{displayTicker?amountText(displayTicker.high):"—"}</b></div>
      <div><span>{t("24h low")}</span><b>{displayTicker?amountText(displayTicker.low):"—"}</b></div>
      <div><span>{t("24h volume")}</span><b>{displayTicker&&displayTicker.vol!==undefined&&displayTicker.vol!==null?amountText(displayTicker.vol):"—"}</b></div>
-     <div className="term-snapshot"><span>{t("Snapshot checked")}</span><b data-snapshot-ts={displayTicker?.snapshotTs ?? null}>{marketUpdatedAt ? new Date(marketUpdatedAt).toLocaleTimeString() : "—"}</b></div>
+     <div className="term-snapshot"><span>{t("Provider updated")}</span><b data-provider-ts={displayTicker?.providerTs ?? null}>{marketUpdatedAt ? new Date(marketUpdatedAt).toLocaleTimeString() : "—"}</b><small>{t("Source")}: {displayTicker?.source || "—"}</small></div>
     </div>
     <div className="term-top-links">
      <Link to="/assets" className="term-top-link"><Wallet className="h-3.5 w-3.5" aria-hidden="true"/>{t("Assets")}</Link>
@@ -986,6 +1007,7 @@ export function SpotTradingPage(){
      </section>
     </div>
     <section className={"term-col term-col--book"+(bookExpanded?" is-expanded":"")} aria-label={t("Order book")}>
+      <div className="px-2 pt-1 text-[9px] text-brand-text-muted">{t("Source")}: {displayBook?.source||"—"} · {displayBook?.snapshotTs?new Date(displayBook.snapshotTs*1000).toLocaleTimeString():"—"}</div>
      {/* Desktop-only: gives the depth ladder the whole column when a trader
          wants to read thickness rather than the tape. Pure layout, no data
          change. */}
@@ -1009,6 +1031,7 @@ export function SpotTradingPage(){
      </div>
     </section>
     <aside id="trade-entry" className="term-col term-col--entry" aria-label={t("Order form")}>
+     {spotPairRules?<p className="px-2 pb-1 text-[10px] leading-4 text-brand-text-muted">{t("Tick size")}: {spotPairRules.price_tick} · {t("Quantity step")}: {spotPairRules.quantity_step} · {t("Minimum quantity")}: {spotPairRules.min_quantity} · {t("Minimum notional")}: {spotPairRules.min_notional} USDT</p>:null}
      <TerminalOrderForm
       base={base}
       side={side}
@@ -1114,8 +1137,8 @@ export function SpotTradingPage(){
         Phones never mount it inline — they use the safe-area drawer instead, so
         only one `setChartNode` target exists at a time. */}
     {!compactTrade&&!isPhone?!chartOpen&&chartPanel:null}
-    <Card aria-label={t("Order book")} id="trade-depth" className="exchange-depth scroll-mt-16 border-brand-border bg-brand-surface"><CardContent className="spot-depth-content space-y-1.5"><div className="spot-book-toolbar spot-book-toolbar--top"><label><span className="sr-only">{t("Depth precision")}</span><select aria-label={t("Depth precision")} value={effectiveDepthPrecision} onChange={event=>setDepthPrecision(event.target.value as DepthPrecision)}>{pairPrecisionOptions.map(option=><option key={option} value={option}>{option}</option>)}</select></label><div className="spot-book-view" role="group" aria-label={t("Order book")}><button type="button" aria-label={t("Both sides")} aria-pressed={bookView==="both"} onClick={()=>setBookView("both")}><Columns2 className="h-3.5 w-3.5"/></button><button type="button" aria-label={t("Bids only")} aria-pressed={bookView==="bids"} onClick={()=>setBookView("bids")}><TrendingUp className="h-3.5 w-3.5"/></button><button type="button" aria-label={t("Asks only")} aria-pressed={bookView==="asks"} onClick={()=>setBookView("asks")}><TrendingDown className="h-3.5 w-3.5"/></button></div></div>{displayBook?<><div className="spot-book-columns"><span>{t("Price")}</span><span>{t("Quantity")}</span><span className="spot-book-cum"></span></div><div className="exchange-book-levels"><div className={bookView==="bids"?"hidden":""}>{asks.length?asks.map((row,index)=><div key={index} className="spot-book-row spot-book-row--click font-mono tabular-nums cursor-pointer" data-side="ask" style={{backgroundSize:askDepth[index]+"% 100%"}} onClick={()=>{setPrice(String(row[0]));setSide("buy");setIsPriceManual(true);}}><span title={String(row[0])} className="text-right text-loss">{amountText(row[0])}</span><span title={String(row[1])} className="text-right text-brand-text-muted">{amountText(row[1])}</span><span className="spot-book-cum text-right text-brand-text-muted">{amountText(askCumulative[index])}</span></div>):<p className="text-xs text-brand-text-muted">—</p>}</div><p className="spot-mid-price font-mono tabular-nums"><span className={"inline-flex items-center gap-1 "+(Number(ticker?.chg||0)>=0?"text-profit":"text-loss")}>{Number(ticker?.chg||0)>=0?<TrendingUp className="h-4 w-4"/>:<TrendingDown className="h-4 w-4"/>}<span key={displayTicker?amountText(displayTicker.price):"—"} className="inline-block anim-price-tick font-bold">{displayTicker?amountText(displayTicker.price):"—"}</span></span></p><div className={bookView==="asks"?"hidden":""}>{bids.length?bids.map((row,index)=><div key={index} className="spot-book-row spot-book-row--click font-mono tabular-nums cursor-pointer" data-side="bid" style={{backgroundSize:bidDepth[index]+"% 100%"}} onClick={()=>{setPrice(String(row[0]));setSide("sell");setIsPriceManual(true);}}><span title={String(row[0])} className="text-right text-profit">{amountText(row[0])}</span><span title={String(row[1])} className="text-right text-brand-text-muted">{amountText(row[1])}</span><span className="spot-book-cum text-right text-brand-text-muted">{amountText(bidCumulative[index])}</span></div>):<p className="text-xs text-brand-text-muted">—</p>}</div></div></>:<div className="space-y-1.5 py-2" role="status" aria-label={t("Loading order book")}>{[0,1,2,3,4,5,6,7].map(i=><div key={i} className="h-5 animate-pulse rounded bg-brand-surface-2"/>)}</div>}</CardContent></Card>
-    <Card id="trade-entry" className="exchange-entry scroll-mt-16 border-brand-border bg-brand-surface"><CardHeader className="spot-entry-head"><div className="spot-side grid grid-cols-2 gap-1.5"><Button aria-pressed={side==="buy"} variant={side==="buy"?"default":"outline"} onClick={()=>setSide("buy")} disabled={busy||!!pendingIntent||pendingIntentInvalid}>{t("Buy")}</Button><Button aria-pressed={side==="sell"} variant={side==="sell"?"destructive":"outline"} onClick={()=>setSide("sell")} disabled={busy||!!pendingIntent}>{t("Sell")}</Button></div></CardHeader><CardContent className="space-y-2"><label className="spot-order-type"><span className="sr-only">{t("Order type")}</span><select aria-label={t("Order type")} value={orderType} disabled={busy||!!pendingIntent} onChange={event=>setOrderType(event.target.value as "limit"|"market")}><option value="limit">{t("Limit order")}</option><option value="market">{t("Market order")}</option></select></label>{orderType==="market"?<div className="spot-policy">{t("Market orders are unavailable under the current trading contract. Switch to limit order to continue.")}</div>:null}<p className="spot-available"><span>{t("Available balance")}</span><strong>{availableBalances[side==="buy"?"USDT":base]?.free!==undefined?formatDecimalAmount(availableBalances[side==="buy"?"USDT":base].free,localeTags[language]):"—"} {side==="buy"?"USDT":base}</strong></p><form className="space-y-2" onSubmit={event=>void submitOrder(event)}><label className="block space-y-1 text-sm"><span>{t("Limit price (USDT)")}</span><div className="spot-price-control"><button type="button" aria-label={t("Decrease price")} disabled={busy||!!pendingIntent} onClick={()=>adjustPrice(-1)}><Minus className="h-3.5 w-3.5"/></button><input aria-label={t("Limit price (USDT)")} value={price} onChange={event=>setPrice(event.target.value)} disabled={busy||!!pendingIntent} inputMode="decimal" className="h-11 min-w-0 flex-1 rounded-lg border border-brand-border bg-brand-surface-2 px-3 text-sm text-brand-text outline-none transition-colors placeholder:text-brand-text-muted focus:border-brand-accent/60 focus:ring-2 focus:ring-brand-accent/15" required/><button type="button" aria-label={t("Increase price")} disabled={busy||!!pendingIntent} onClick={()=>adjustPrice(1)}><Plus className="h-3.5 w-3.5"/></button></div></label><div className="spot-quick-prices grid grid-cols-5 gap-1">{[-1,-0.5,0,0.5,1].map(pct=>{const basePx=Number(displayTicker?.price||0);const px=basePx*(1+pct/100);const dec=Math.min(8,Math.max(2,(String(displayTicker?.price||"1").split(".")[1]||"").length));return <button key={pct} type="button" disabled={busy||!!pendingIntent||!basePx} onClick={()=>{setPrice(px.toFixed(dec));setIsPriceManual(true);}} className="min-h-9 rounded-md border border-brand-border bg-brand-surface-2 text-[10px] font-semibold tabular-nums text-brand-text-muted transition-colors hover:border-brand-accent/40 hover:text-brand-accent disabled:opacity-50">{pct===0?t("Latest"):(pct>0?"+":"")+pct+"%"}</button>;})}</div><label className="block space-y-1 text-sm"><span>{t("Quantity")} · {base}</span><div className="spot-qty-control"><button type="button" aria-label={t("Decrease quantity")} disabled={busy||!!pendingIntent} onClick={()=>adjustQuantity(-1)}><Minus className="h-3.5 w-3.5"/></button><input aria-label={t("Quantity")+" · "+base} value={quantity} onChange={event=>setQuantity(event.target.value)} disabled={busy||!!pendingIntent} inputMode="decimal" className="h-11 min-w-0 flex-1 rounded-lg border border-brand-border bg-brand-surface-2 px-3 text-sm text-brand-text outline-none transition-colors placeholder:text-brand-text-muted focus:border-brand-accent/60 focus:ring-2 focus:ring-brand-accent/15" required/><button type="button" aria-label={t("Increase quantity")} disabled={busy||!!pendingIntent} onClick={()=>adjustQuantity(1)}><Plus className="h-3.5 w-3.5"/></button></div></label><div className="grid grid-cols-4 gap-1">{[25,50,75,100].map(pct=><button key={pct} type="button" disabled={busy||!!pendingIntent} onClick={()=>{const free=Number(availableBalances[side==="buy"?"USDT":base]?.free||0);const px=Number(price);if(side==="buy"&&px>0)setQuantity(((free*pct/100)/px).toFixed(6).replace(/\.?0+$/,""));else if(side==="sell")setQuantity((free*pct/100).toFixed(6).replace(/\.?0+$/,""));}} className="min-h-9 rounded-md border border-brand-border bg-brand-surface-2 text-xs font-semibold tabular-nums text-brand-text-muted transition-colors hover:border-brand-accent/40 hover:text-brand-accent disabled:opacity-50">{pct}%</button>)}</div><p className="spot-total hidden">{t("Estimated total")}: {price&&quantity&&Number(price)>0&&Number(quantity)>0?amountText(multiplyDecimalStrings(price,quantity))+" USDT":"—"}</p>{pendingIntent?<p className="break-all text-xs text-brand-warning">{t("Unconfirmed request ID. Keep the form unchanged and retry with the same ID.")} · {pendingIntent.client_order_id}</p>:null}<Button className={"w-full spot-submit spot-submit--"+side} type="submit" disabled={busy||pendingIntentInvalid||(!pendingIntent&&(!orderInputsValid||balanceUnavailable||insufficientBalance||tickerIsFallback))||(!ticker||marketSnapshotStale)&&!pendingIntent||(!spotPairEnabled&&!pendingIntent)||(!tradingStatus?.spot_order_entry_enabled&&!pendingIntent)||!price||!quantity||orderType!=="limit"}>{busy?t("Submitting…"):pendingIntent?t("Retry same order"):insufficientBalance?t("Insufficient available balance"):side==="buy"?t("Buy")+" "+base:t("Sell")+" "+base}</Button>{!tradingStatus?.spot_order_entry_enabled?<div className="spot-policy hidden">{t("Spot order execution is disabled by server policy. No order can be placed until the matching engine is approved and enabled.")}</div>:null}</form></CardContent></Card>
+    <Card aria-label={t("Order book")} id="trade-depth" className="exchange-depth scroll-mt-16 border-brand-border bg-brand-surface"><CardContent className="spot-depth-content space-y-1.5"><div className="text-[9px] text-brand-text-muted">{t("Source")}: {displayBook?.source||"—"} · {displayBook?.snapshotTs?new Date(displayBook.snapshotTs*1000).toLocaleTimeString():"—"}</div><div className="spot-book-toolbar spot-book-toolbar--top"><label><span className="sr-only">{t("Depth precision")}</span><select aria-label={t("Depth precision")} value={effectiveDepthPrecision} onChange={event=>setDepthPrecision(event.target.value as DepthPrecision)}>{pairPrecisionOptions.map(option=><option key={option} value={option}>{option}</option>)}</select></label><div className="spot-book-view" role="group" aria-label={t("Order book")}><button type="button" aria-label={t("Both sides")} aria-pressed={bookView==="both"} onClick={()=>setBookView("both")}><Columns2 className="h-3.5 w-3.5"/></button><button type="button" aria-label={t("Bids only")} aria-pressed={bookView==="bids"} onClick={()=>setBookView("bids")}><TrendingUp className="h-3.5 w-3.5"/></button><button type="button" aria-label={t("Asks only")} aria-pressed={bookView==="asks"} onClick={()=>setBookView("asks")}><TrendingDown className="h-3.5 w-3.5"/></button></div></div>{displayBook?<><div className="spot-book-columns"><span>{t("Price")}</span><span>{t("Quantity")}</span><span className="spot-book-cum"></span></div><div className="exchange-book-levels"><div className={bookView==="bids"?"hidden":""}>{asks.length?asks.map((row,index)=><div key={index} className="spot-book-row spot-book-row--click font-mono tabular-nums cursor-pointer" data-side="ask" style={{backgroundSize:askDepth[index]+"% 100%"}} onClick={()=>{setPrice(String(row[0]));setSide("buy");setIsPriceManual(true);}}><span title={String(row[0])} className="text-right text-loss">{amountText(row[0])}</span><span title={String(row[1])} className="text-right text-brand-text-muted">{amountText(row[1])}</span><span className="spot-book-cum text-right text-brand-text-muted">{amountText(askCumulative[index])}</span></div>):<p className="text-xs text-brand-text-muted">—</p>}</div><p className="spot-mid-price font-mono tabular-nums"><span className={"inline-flex items-center gap-1 "+(Number(ticker?.chg||0)>=0?"text-profit":"text-loss")}>{Number(ticker?.chg||0)>=0?<TrendingUp className="h-4 w-4"/>:<TrendingDown className="h-4 w-4"/>}<span key={displayTicker?amountText(displayTicker.price):"—"} className="inline-block anim-price-tick font-bold">{displayTicker?amountText(displayTicker.price):"—"}</span></span></p><div className={bookView==="asks"?"hidden":""}>{bids.length?bids.map((row,index)=><div key={index} className="spot-book-row spot-book-row--click font-mono tabular-nums cursor-pointer" data-side="bid" style={{backgroundSize:bidDepth[index]+"% 100%"}} onClick={()=>{setPrice(String(row[0]));setSide("sell");setIsPriceManual(true);}}><span title={String(row[0])} className="text-right text-profit">{amountText(row[0])}</span><span title={String(row[1])} className="text-right text-brand-text-muted">{amountText(row[1])}</span><span className="spot-book-cum text-right text-brand-text-muted">{amountText(bidCumulative[index])}</span></div>):<p className="text-xs text-brand-text-muted">—</p>}</div></div></>:<div className="space-y-1.5 py-2" role="status" aria-label={t("Loading order book")}>{[0,1,2,3,4,5,6,7].map(i=><div key={i} className="h-5 animate-pulse rounded bg-brand-surface-2"/>)}</div>}</CardContent></Card>
+    <Card id="trade-entry" className="exchange-entry scroll-mt-16 border-brand-border bg-brand-surface"><CardHeader className="spot-entry-head"><div className="spot-side grid grid-cols-2 gap-1.5"><Button aria-pressed={side==="buy"} variant={side==="buy"?"default":"outline"} onClick={()=>setSide("buy")} disabled={busy||!!pendingIntent||pendingIntentInvalid}>{t("Buy")}</Button><Button aria-pressed={side==="sell"} variant={side==="sell"?"destructive":"outline"} onClick={()=>setSide("sell")} disabled={busy||!!pendingIntent}>{t("Sell")}</Button></div></CardHeader><CardContent className="space-y-2"><label className="spot-order-type"><span className="sr-only">{t("Order type")}</span><select aria-label={t("Order type")} value={orderType} disabled={busy||!!pendingIntent} onChange={event=>setOrderType(event.target.value as "limit"|"market")}><option value="limit">{t("Limit order")}</option><option value="market">{t("Market order")}</option></select></label>{orderType==="market"?<div className="spot-policy">{t("Market orders are unavailable under the current trading contract. Switch to limit order to continue.")}</div>:null}<p className="spot-available"><span>{t("Available balance")}</span><strong>{availableBalances[side==="buy"?"USDT":base]?.free!==undefined?formatDecimalAmount(availableBalances[side==="buy"?"USDT":base].free,localeTags[language]):"—"} {side==="buy"?"USDT":base}</strong></p>{spotPairRules?<p className="text-[10px] leading-4 text-brand-text-muted">{t("Tick size")}: {spotPairRules.price_tick} · {t("Quantity step")}: {spotPairRules.quantity_step} · {t("Minimum quantity")}: {spotPairRules.min_quantity} · {t("Minimum notional")}: {spotPairRules.min_notional} USDT</p>:null}<form className="space-y-2" onSubmit={event=>void submitOrder(event)}><label className="block space-y-1 text-sm"><span>{t("Limit price (USDT)")}</span><div className="spot-price-control"><button type="button" aria-label={t("Decrease price")} disabled={busy||!!pendingIntent} onClick={()=>adjustPrice(-1)}><Minus className="h-3.5 w-3.5"/></button><input aria-label={t("Limit price (USDT)")} value={price} onChange={event=>setPrice(event.target.value)} disabled={busy||!!pendingIntent} inputMode="decimal" className="h-11 min-w-0 flex-1 rounded-lg border border-brand-border bg-brand-surface-2 px-3 text-sm text-brand-text outline-none transition-colors placeholder:text-brand-text-muted focus:border-brand-accent/60 focus:ring-2 focus:ring-brand-accent/15" required/><button type="button" aria-label={t("Increase price")} disabled={busy||!!pendingIntent} onClick={()=>adjustPrice(1)}><Plus className="h-3.5 w-3.5"/></button></div></label><div className="spot-quick-prices grid grid-cols-5 gap-1">{[-1,-0.5,0,0.5,1].map(pct=>{const basePx=Number(displayTicker?.price||0);const px=basePx*(1+pct/100);const raw=Number.isFinite(px)?px.toFixed(18).replace(/0+$/,"").replace(/\.$/,""):"";const snapped=spotPairRules?roundDecimalToStep(raw,spotPairRules.price_tick):"";return <button key={pct} type="button" disabled={busy||!!pendingIntent||!basePx||!spotPairRules} onClick={()=>{setPrice(snapped);setIsPriceManual(true);}} className="min-h-9 rounded-md border border-brand-border bg-brand-surface-2 text-[10px] font-semibold tabular-nums text-brand-text-muted transition-colors hover:border-brand-accent/40 hover:text-brand-accent disabled:opacity-50">{pct===0?t("Latest"):(pct>0?"+":"")+pct+"%"}</button>;})}</div><label className="block space-y-1 text-sm"><span>{t("Quantity")} · {base}</span><div className="spot-qty-control"><button type="button" aria-label={t("Decrease quantity")} disabled={busy||!!pendingIntent} onClick={()=>adjustQuantity(-1)}><Minus className="h-3.5 w-3.5"/></button><input aria-label={t("Quantity")+" · "+base} value={quantity} onChange={event=>setQuantity(event.target.value)} disabled={busy||!!pendingIntent} inputMode="decimal" className="h-11 min-w-0 flex-1 rounded-lg border border-brand-border bg-brand-surface-2 px-3 text-sm text-brand-text outline-none transition-colors placeholder:text-brand-text-muted focus:border-brand-accent/60 focus:ring-2 focus:ring-brand-accent/15" required/><button type="button" aria-label={t("Increase quantity")} disabled={busy||!!pendingIntent} onClick={()=>adjustQuantity(1)}><Plus className="h-3.5 w-3.5"/></button></div></label><div className="grid grid-cols-4 gap-1">{[25,50,75,100].map(pct=><button key={pct} type="button" disabled={busy||!!pendingIntent} onClick={()=>{const free=Number(availableBalances[side==="buy"?"USDT":base]?.free||0);const px=Number(price);const desired=side==="buy"&&px>0?(free*pct/100)/px:side==="sell"?free*pct/100:0;const raw=Number.isFinite(desired)&&desired>0?desired.toFixed(18).replace(/0+$/,"").replace(/\.$/,""):"";setQuantity(spotPairRules&&raw?floorDecimalToStep(raw,spotPairRules.quantity_step):"");}} className="min-h-9 rounded-md border border-brand-border bg-brand-surface-2 text-xs font-semibold tabular-nums text-brand-text-muted transition-colors hover:border-brand-accent/40 hover:text-brand-accent disabled:opacity-50">{pct}%</button>)}</div><p className="spot-total hidden">{t("Estimated total")}: {price&&quantity&&Number(price)>0&&Number(quantity)>0?amountText(multiplyDecimalStrings(price,quantity))+" USDT":"—"}</p>{orderRuleError?<p className="text-xs text-brand-danger" role="status">{t(orderRuleError)}</p>:null}{pendingIntent?<p className="break-all text-xs text-brand-warning">{t("Unconfirmed request ID. Keep the form unchanged and retry with the same ID.")} · {pendingIntent.client_order_id}</p>:null}<Button className={"w-full spot-submit spot-submit--"+side} type="submit" disabled={busy||pendingIntentInvalid||(!pendingIntent&&(!orderInputsValid||balanceUnavailable||insufficientBalance||tickerIsFallback))||(!ticker||marketSnapshotStale)&&!pendingIntent||(!spotPairEnabled&&!pendingIntent)||(!tradingStatus?.spot_order_entry_enabled&&!pendingIntent)||!price||!quantity||orderType!=="limit"}>{busy?t("Submitting…"):pendingIntent?t("Retry same order"):insufficientBalance?t("Insufficient available balance"):side==="buy"?t("Buy")+" "+base:t("Sell")+" "+base}</Button>{!tradingStatus?.spot_order_entry_enabled?<div className="spot-policy hidden">{t("Spot order execution is disabled by server policy. No order can be placed until the matching engine is approved and enabled.")}</div>:null}</form></CardContent></Card>
     <BottomOrderPanel
     id="trade-orders"
     className="exchange-orders scroll-mt-16"

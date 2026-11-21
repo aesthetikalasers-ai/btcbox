@@ -458,7 +458,7 @@
   "Already have an account?": "すでにアカウントをお持ちですか？",
   "Back to BTCBOX": "BTCBOXに戻る",
   "Protected account access · Public markets remain available without signing in": "アカウントへのアクセスは保護されています · 公開市場はログインせずにご利用いただけます",
-    "Use a password between 12 and 128 characters.": "パスワードは12文字以上128文字以内で設定してください。",
+  "Use a password between 12 and 128 characters.": "パスワードは12文字以上128文字以内で設定してください。",
   "Use a password between 8 and 128 characters.": "パスワードは8文字以上128文字以内で設定してください。",
   "The passwords do not match.": "パスワードが一致しません。",
   "Password could not be updated.": "パスワードを更新できませんでした。",
@@ -1430,7 +1430,6 @@
   "Choose a perpetual contract symbol": "無期限契約の銘柄を選択",
   "Search symbol": "銘柄を検索",
   "No matching market": "該当する市場がありません",
-
   "Fullscreen chart": "チャートを全画面表示",
   "Create an account with email, Google or a wallet.": "メール、Google、ウォレットでアカウントを作成できます。",
   "Sign in with email, Google or a wallet to access your BTCBOX account.": "メール、Google、ウォレットでBTCBOXアカウントにサインインできます。",
@@ -1697,5 +1696,13 @@
   "Latest": "直近",
   "Return rate": "收益率",
   "Pick a duration and direction; the round settles automatically.": "期間と方向を選ぶと、ラウンドは自動で決済されます。",
-  "Choose a short-term contract pair": "秒単位取引の通貨ペアを選択"
+  "Choose a short-term contract pair": "秒単位取引の通貨ペアを選択",
+  "Provider updated": "プロバイダー更新時刻",
+  "Source": "ソース",
+  "Tick size": "呼値単位",
+  "Quantity step": "数量刻み",
+  "Minimum quantity": "最小数量",
+  "Minimum notional": "最小注文金額",
+  "Market trading rules are unavailable. Order entry is disabled.": "市場取引ルールを取得できないため、注文入力は無効です。",
+  "Price must follow the market tick; quantity must follow the step and minimum order rules.": "価格は取引価格刻みに、数量は数量刻みと最小注文条件に従う必要があります。"
 }

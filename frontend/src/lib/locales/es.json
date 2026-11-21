@@ -461,7 +461,7 @@
   "Already have an account?": "¿Ya tienes una cuenta?",
   "Back to BTCBOX": "Volver a BTCBOX",
   "Protected account access · Public markets remain available without signing in": "Acceso protegido a la cuenta · Los mercados públicos siguen disponibles sin iniciar sesión",
-    "Use a password between 12 and 128 characters.": "Usa una contraseña de entre 12 y 128 caracteres.",
+  "Use a password between 12 and 128 characters.": "Usa una contraseña de entre 12 y 128 caracteres.",
   "Use a password between 8 and 128 characters.": "Usa una contraseña de entre 8 y 128 caracteres.",
   "The passwords do not match.": "Las contraseñas no coinciden.",
   "Password could not be updated.": "No se pudo actualizar la contraseña.",
@@ -1696,5 +1696,13 @@
   "Latest": "Últ.",
   "Return rate": "Rentabilidad",
   "Pick a duration and direction; the round settles automatically.": "Elige duración y dirección; la ronda se liquida automáticamente.",
-  "Choose a short-term contract pair": "Elige un par de contrato a corto plazo"
+  "Choose a short-term contract pair": "Elige un par de contrato a corto plazo",
+  "Provider updated": "Actualizado por el proveedor",
+  "Source": "Fuente",
+  "Tick size": "Tamaño del tick",
+  "Quantity step": "Paso de cantidad",
+  "Minimum quantity": "Cantidad mínima",
+  "Minimum notional": "Valor nominal mínimo",
+  "Market trading rules are unavailable. Order entry is disabled.": "Las reglas del mercado no están disponibles. La entrada de órdenes está deshabilitada.",
+  "Price must follow the market tick; quantity must follow the step and minimum order rules.": "El precio debe respetar el tick del mercado; la cantidad debe cumplir el paso y los mínimos de la orden."
 }

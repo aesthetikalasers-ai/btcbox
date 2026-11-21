@@ -1695,5 +1695,13 @@
   "Latest": "Mới",
   "Return rate": "Tỷ suất",
   "Pick a duration and direction; the round settles automatically.": "Chọn thời lượng và hướng; vòng sẽ tự động tất toán.",
-  "Choose a short-term contract pair": "Chọn cặp hợp đồng ngắn hạn"
+  "Choose a short-term contract pair": "Chọn cặp hợp đồng ngắn hạn",
+  "Provider updated": "Thời gian nhà cung cấp cập nhật",
+  "Source": "Nguồn",
+  "Tick size": "Bước giá",
+  "Quantity step": "Bước khối lượng",
+  "Minimum quantity": "Khối lượng tối thiểu",
+  "Minimum notional": "Giá trị lệnh tối thiểu",
+  "Market trading rules are unavailable. Order entry is disabled.": "Không thể tải quy tắc thị trường. Chức năng đặt lệnh đã bị tắt.",
+  "Price must follow the market tick; quantity must follow the step and minimum order rules.": "Giá phải tuân theo bước giá của thị trường; khối lượng phải đáp ứng bước khối lượng và mức tối thiểu của lệnh."
 }
