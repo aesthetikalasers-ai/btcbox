@@ -376,6 +376,13 @@ export function ContractPage() {
 
   // Countdown is shown only when the backend supplies the actual next funding time.
   useEffect(() => {
+    const target = selectedMarket?.next_funding_at
+      ? new Date(selectedMarket.next_funding_at).getTime()
+      : null;
+    if (target === null || !Number.isFinite(target)) {
+      setFundingCountdown("");
+      return;
+    }
     const fmt = (ms: number) => {
       if (ms <= 0) return "00:00:00";
       const total = Math.floor(ms / 1000);
@@ -385,16 +392,7 @@ export function ContractPage() {
       const pad = (n: number) => String(n).padStart(2, "0");
       return `${pad(h)}:${pad(m)}:${pad(s)}`;
     };
-    const tick = () => {
-      const target = selectedMarket?.next_funding_at
-        ? new Date(selectedMarket.next_funding_at).getTime()
-        : null;
-      if (target === null || !Number.isFinite(target)) {
-        setFundingCountdown("");
-        return;
-      }
-      setFundingCountdown(fmt(target - Date.now()));
-    };
+    const tick = () => setFundingCountdown(fmt(target - Date.now()));
     tick();
     const id = window.setInterval(tick, 1000);
     return () => window.clearInterval(id);
@@ -1191,6 +1189,7 @@ export function ContractPage() {
                     </span>
                   </div>
 
+                  <div className="pb-0.5 text-[9px] font-medium text-brand-text-muted">{t("Spot reference depth")}</div>
                   {/* 表头（币安风格：币种名 + 单位分两行） */}
                   <div className="grid grid-cols-[1.1fr_0.9fr] border-b border-white/5 pb-0.5 font-semibold leading-tight text-[10px] text-brand-text-muted">
                     <span>{t("Price")}<br />(USDT)</span>
