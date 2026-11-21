@@ -1711,5 +1711,7 @@
   "Provider": "プロバイダー",
   "Snapshot age": "スナップショットの経過時間",
   "Provider age": "プロバイダー更新からの経過時間",
-  "Data source": "データソース"
+  "Data source": "データソース",
+  "Market data source could not be verified. Trading is disabled.": "市場データの提供元を確認できないため、取引は無効になっています。",
+  "Market snapshot is stale or missing. Quotes are hidden until a fresh snapshot arrives.": "市場スナップショットが古いか取得できません。最新データが届くまで価格表示を停止します。"
 }
