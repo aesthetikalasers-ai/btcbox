@@ -203,8 +203,8 @@ export function TerminalOrderBook({
   view: BookView;
   onViewChange: (value: BookView) => void;
   onPickPrice: (price: string) => void;
-  /** USDT→USD rate for the "≈ $" hint. Defaults to the neutral 0.99999. */
-  usdtUsd?: number;
+  /** Verified USDT→USD rate for the "≈ $" hint; null means unavailable. */
+  usdtUsd?: number | null;
   rows?: number;
   className?: string;
 }) {
@@ -226,8 +226,7 @@ export function TerminalOrderBook({
   const spread = asks.length && bids.length ? Number(asks[0][0]) - Number(bids[0][0]) : null;
   const up = lastPrice !== "" && changePercent >= 0;
   const sizeDecimals = sizeDecimalsFor(decimals);
-  /* Dollar-equivalent of the mid price: `USDT price × USDT/USD rate`. The rate is
-     supplied by the caller; 0.99999 is used only when no real rate is available. */
+  /* Dollar-equivalent of the mid price; only show it when a verified rate exists. */
   const usdEquivalent = useMemo(() => {
     const price = Number(lastPrice);
     if (!Number.isFinite(price) || price <= 0) return "";
@@ -325,8 +324,8 @@ export function TerminalOrderBook({
           </div>
           {/* Approximate dollar value of the mid price. The book is quoted in
               USDT, so this is `lastPrice x usdtUsd` — a real conversion, not the
-              USDT figure relabelled with a "$". When the rate is unavailable the
-              caller supplies 0.99999 and the value is still marked "≈". */}
+              USDT figure relabelled with a "$". If the rate is unavailable, no
+              dollar-equivalent is shown. */}
           <div className="term-book-mid-alt">
             {usdEquivalent ? (
               <>
