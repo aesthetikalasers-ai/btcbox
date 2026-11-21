@@ -462,7 +462,7 @@
   "Already have an account?": "Already have an account?",
   "Back to BTCBOX": "Back to BTCBOX",
   "Protected account access · Public markets remain available without signing in": "Protected account access · Public markets remain available without signing in",
-    "Use a password between 12 and 128 characters.": "Use a password between 12 and 128 characters.",
+  "Use a password between 12 and 128 characters.": "Use a password between 12 and 128 characters.",
   "Use a password between 8 and 128 characters.": "Use a password between 8 and 128 characters.",
   "The passwords do not match.": "The passwords do not match.",
   "Password could not be updated.": "Password could not be updated.",
@@ -1430,7 +1430,6 @@
   "Choose a perpetual contract symbol": "Choose a perpetual contract symbol",
   "Search symbol": "Search symbol",
   "No matching market": "No matching market",
-
   "Fullscreen chart": "Fullscreen chart",
   "Create an account with email, Google or a wallet.": "Create an account with email, Google or a wallet.",
   "Sign in with email, Google or a wallet to access your BTCBOX account.": "Sign in with email, Google or a wallet to access your BTCBOX account.",
@@ -1697,5 +1696,15 @@
   "Latest": "Last",
   "Return rate": "Return rate",
   "Pick a duration and direction; the round settles automatically.": "Pick a duration and direction; the round settles automatically.",
-  "Choose a short-term contract pair": "Choose a short-term contract pair"
+  "Choose a short-term contract pair": "Choose a short-term contract pair",
+  "Spot reference": "Spot reference",
+  "Underlying spot order book": "Underlying spot order book",
+  "Spot reference only — not the perpetual execution book.": "Spot reference only — not the perpetual execution book.",
+  "Spot reference depth": "Spot reference depth",
+  "The active seconds policy is unavailable. Payout rates and order entry are disabled until it can be verified.": "The active seconds policy is unavailable. Payout rates and order entry are disabled until it can be verified.",
+  "The active seconds policy is unavailable. No order was sent.": "The active seconds policy is unavailable. No order was sent.",
+  "Your available balance could not be verified. No order was sent.": "Your available balance could not be verified. No order was sent.",
+  "Amount is outside the active policy limits.": "Amount is outside the active policy limits.",
+  "Insufficient available USDT balance.": "Insufficient available USDT balance.",
+  "This market or duration is not enabled by the active policy.": "This market or duration is not enabled by the active policy."
 }
