@@ -123,3 +123,16 @@ test("live market stream preserves provider provenance and does not invent quote
   assert.ok(!market.includes("Number(ticker.high) || price"));
   assert.ok(!market.includes("Number(ticker.low) || price"));
 });
+
+test("USDT to USD display never invents a near-parity fallback rate", () => {
+  const api = fs.readFileSync(path.join(root, "lib/api.ts"), "utf8");
+  const start = api.indexOf("export async function getUsdtUsdRate(");
+  const end = api.indexOf("export interface SpotOrderInput", start);
+  const fx = api.slice(start, end);
+  assert.ok(fx.includes("rate: null"));
+  assert.ok(!fx.includes("0.99999"));
+  for (const file of ["features/trade/OrderBookDepth.tsx", "features/trade/TerminalOrderBook.tsx"]) {
+    const source = fs.readFileSync(path.join(root, file), "utf8");
+    assert.ok(!source.includes("0.99999"));
+  }
+});
