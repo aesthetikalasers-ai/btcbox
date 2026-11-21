@@ -1720,5 +1720,10 @@
   "Open spot, perpetual and seconds trading products from one place.": "在同一入口使用现货、永续和秒合约交易产品。",
   "Launchpool is not currently available": "Launchpool 目前尚未开放",
   "No verified launchpool campaigns are currently published. Staking pools, reward rates and campaign statistics will appear here only when confirmed campaign data is available.": "目前没有已核实并发布的 Launchpool 活动。只有在活动数据得到确认后，才会显示质押池、奖励费率和活动统计。",
-  "View Earn products": "查看理财产品"
+  "View Earn products": "查看理财产品",
+  "Checking availability": "正在检查可用状态",
+  "Markets read-only": "市场仅供查看",
+  "Review available USDT-margined perpetual markets and their server-configured limits.": "查看可用的 USDT 本位永续市场及服务器配置的交易限制。",
+  "Submit positions only when server policy is enabled, with server-managed settlement.": "仅在服务器策略启用时提交仓位，结算由服务器管理。",
+  "View Earn products, yields and terms published by BTCBOX.": "查看 BTCBOX 实际发布的理财产品、收益率和条款。"
 }
