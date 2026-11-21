@@ -73,7 +73,7 @@ export function LiquidityChart({ candles = [] }: { candles?: MarketCandle[] }) {
         wickDownColor: CHART_THEME.down,
     });
 
-    series.setData(candles.map(c => ({ time: Math.floor(c.time / 1000) as import('lightweight-charts').UTCTimestamp, open: c.open, high: c.high, low: c.low, close: c.close })));
+    series.setData(candles.map(c => ({ time: Math.floor(c.time) as import('lightweight-charts').UTCTimestamp, open: c.open, high: c.high, low: c.low, close: c.close })));
     
     const volumeSeries = chart.addSeries(HistogramSeries, {
         color: 'rgba(162,176,190,0.18)',
@@ -90,7 +90,7 @@ export function LiquidityChart({ candles = [] }: { candles?: MarketCandle[] }) {
         },
     });
     
-    volumeSeries.setData(candles.map(c => ({ time: Math.floor(c.time / 1000) as import('lightweight-charts').UTCTimestamp, value: c.volume, color: c.close >= c.open ? 'rgba(53,214,166,0.25)' : 'rgba(240,107,120,0.25)' })));
+    volumeSeries.setData(candles.map(c => ({ time: Math.floor(c.time) as import('lightweight-charts').UTCTimestamp, value: c.volume, color: c.close >= c.open ? 'rgba(53,214,166,0.25)' : 'rgba(240,107,120,0.25)' })));
     
     const bars = { '1h': 1, '6h': 6, '24h': 24, '7d': 168, '30d': 720 }[activeRange] || 24;
     const totalBars = candles.length;
