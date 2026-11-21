@@ -214,3 +214,17 @@ test("perpetual page labels spot data and funding caps honestly", () => {
   assert.ok(depth.includes('t("Underlying spot order book")'));
   assert.ok(depth.includes('t("Spot reference only — not the perpetual execution book.")'));
 });
+
+test("the live app routes seconds trading through the policy-backed page", () => {
+  const app = fs.readFileSync(path.join(root, "App.tsx"), "utf8");
+  assert.ok(app.includes('from "./features/pages/SecondsPage"'));
+  assert.ok(!app.includes('SecondsPage } from "./features/pages/Pages"'));
+});
+
+test("spot trading provenance shows the actual source for each feed", () => {
+  const page = fs.readFileSync(path.join(root, "features/pages/Pages.tsx"), "utf8");
+  assert.ok(page.includes('t("Market data")'));
+  assert.ok(page.includes("displayTicker?.source"));
+  assert.ok(page.includes("displayBook?.source"));
+  assert.ok(page.includes("chartSource"));
+});
