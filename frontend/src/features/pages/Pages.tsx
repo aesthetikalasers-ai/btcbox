@@ -385,6 +385,8 @@ export function SpotTradingPage(){
  const [cancelRequestIds,setCancelRequestIds]=useState<Record<string,string>>({});
  const [reload,setReload]=useState(0);
  const [marketUpdatedAt,setMarketUpdatedAt]=useState<number|null>(null);
+ const [chartSource,setChartSource]=useState<string|null>(null);
+ const [showMarketData,setShowMarketData]=useState(false);
  const [marketClockNow,setMarketClockNow]=useState(Date.now());
  const [marketFeedWarning,setMarketFeedWarning]=useState("");
  const [chartFeedWarning,setChartFeedWarning]=useState("");
@@ -492,6 +494,10 @@ export function SpotTradingPage(){
   return null;
  })();
  const effectiveMarketFeedWarning=marketFeedWarning;
+ const marketDataSourceLabel=`${t("Ticker")}: ${displayTicker?.source||"—"} · ${t("Order book")}: ${displayBook?.source||book?.source||"—"} · ${t("Chart")}: ${chartSource||"—"}`;
+ const providerTimestamp=displayTicker?.providerTs??null;
+ const providerTime=providerTimestamp&&providerTimestamp>0?new Date(providerTimestamp*1000).toLocaleTimeString():"—";
+ const serverSnapshotTime=marketUpdatedAt?new Date(marketUpdatedAt).toLocaleTimeString():"—";
  // A failed `/api/market` leaves `ticker` null. Without a real quote there is no
  // price, no 24h stats and no basis for pricing an order, so the terminal shows
  // an explicit degraded state with a retry instead of blank fields that read as
@@ -513,7 +519,7 @@ export function SpotTradingPage(){
  useEffect(()=>{
   const controller=new AbortController();
   setLoading(true);setError("");setSpotPairEnabled(false);setTradingStatus(null);setPairSymbols([]);setAvailableBalances({});setOrderType("limit");
-  setTicker(null);setCandles([]);setBook(null);setMarketUpdatedAt(null);setMarketFeedWarning("");setChartFeedWarning("");setPrice("");
+  setTicker(null);setCandles([]);setChartSource(null);setBook(null);setMarketUpdatedAt(null);setMarketFeedWarning("");setChartFeedWarning("");setPrice("");
   Promise.allSettled([getSpotMarketPairs(controller.signal),getMarkets(controller.signal),getOrderBook(symbol,controller.signal),getTradingStatus(controller.signal),getOrders(controller.signal),getAccount(controller.signal)]).then(results=>{
    if(controller.signal.aborted)return;
    const [pairResult,marketResult,bookResult,statusResult,ordersResult,accountResult]=results;
@@ -600,12 +606,12 @@ export function SpotTradingPage(){
    const controller=new AbortController();pending=controller;
    const timeout=window.setTimeout(()=>controller.abort(),15000);
    getKlines(symbol,chartInterval,controller.signal).then(rows=>{
-    if(!cancelled){setCandles(rows);setChartFeedWarning("");}
+    if(!cancelled){setCandles(rows);setChartSource(rows.find(row=>typeof row.source==="string")?.source??null);setChartFeedWarning("");}
    }).catch(()=>{
-    if(!cancelled){setCandles([]);setChartFeedWarning("Chart data is temporarily unavailable.");}
+    if(!cancelled){setCandles([]);setChartSource(null);setChartFeedWarning("Chart data is temporarily unavailable.");}
    }).finally(()=>{window.clearTimeout(timeout);refreshing=false;});
   };
-  setCandles([]);load();
+  setCandles([]);setChartSource(null);load();
   const timer=window.setInterval(load,30000);
   return ()=>{cancelled=true;pending?.abort();window.clearInterval(timer);};
  },[symbol,chartInterval,reload]);
@@ -910,6 +916,7 @@ export function SpotTradingPage(){
      <div className="term-snapshot"><span>{t("Snapshot checked")}</span><b data-snapshot-ts={displayTicker?.snapshotTs ?? null}>{marketUpdatedAt ? new Date(marketUpdatedAt).toLocaleTimeString() : "—"}</b></div>
     </div>
     <div className="term-top-links">
+     <button type="button" className="term-top-link" aria-expanded={showMarketData} aria-controls="spot-market-data-details" onClick={()=>setShowMarketData(value=>!value)}>{t("Market data")}</button>
      <Link to="/assets" className="term-top-link"><Wallet className="h-3.5 w-3.5" aria-hidden="true"/>{t("Assets")}</Link>
      <Link to="/orders" className="term-top-link"><History className="h-3.5 w-3.5" aria-hidden="true"/>{t("Order history")}</Link>
      {/* Sign-in / registration deliberately absent: the global header owns those
@@ -917,6 +924,10 @@ export function SpotTradingPage(){
         ticker. */}
     </div>
    </header>
+   {showMarketData ? <div id="spot-market-data-details" role="region" aria-label={t("Market data")} className="border-b border-brand-border bg-brand-surface-2/50 px-3 py-2 text-[11px] text-brand-text-muted md:px-4">
+    <p className="font-medium text-brand-text">{marketDataSourceLabel}</p>
+    <p className="mt-1">{t("Server snapshot")}: <span className="font-mono tabular-nums">{serverSnapshotTime}</span> · {t("Provider snapshot")}: <span className="font-mono tabular-nums">{providerTime}</span></p>
+   </div> : null}
    {/* Market-data outage: distinct from the policy banner below. A trader must
        be able to tell "the server refused orders" apart from "the price feed is
        down", so this state gets its own colour, its own retry and no dismissal
