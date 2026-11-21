@@ -76,6 +76,25 @@ export function SecondsPage() {
   const quickAmounts = policy?.actions_enabled === true && minStake !== null && maxStake !== null && availableUSDT !== null
     ? QUICK_AMOUNTS.filter((value) => value >= minStake && value <= maxStake && value <= Number(availableUSDT))
     : [];
+  const marketSnapshotStale = !ticker?.snapshotTs || !Number.isFinite(Number(ticker.snapshotTs)) || clockNow - Number(ticker.snapshotTs) * 1000 > 90_000;
+  const displayTicker = marketSnapshotStale ? null : ticker;
+  const marketUnavailable = !displayTicker || marketFeedError;
+  const marketWarning = ticker && marketSnapshotStale
+    ? t("Market snapshot is stale or missing. Quotes are hidden until a fresh snapshot arrives.")
+    : marketFeedError
+      ? displayTicker
+        ? t("Market refresh failed. The last verified snapshot remains visible until it expires.")
+        : t("Market data is temporarily unavailable.")
+      : "";
+  const chartStale = chartUpdatedAt === null || clockNow - chartUpdatedAt > 90_000;
+  const chartUnavailable = chartStale || candles.length === 0;
+  const chartWarning = chartStale
+    ? t("Chart snapshot is stale or missing. Waiting for fresh data.")
+    : candles.length === 0
+      ? t("No chart data is currently available for this market.")
+      : chartFeedError
+        ? t("Chart refresh failed. The last verified snapshot remains visible until it expires.")
+        : "";
 
 
 
@@ -170,23 +189,30 @@ export function SecondsPage() {
   }, [reload, status, symbol]);
 
   useEffect(() => {
-    const node = chartNode;
-    if (!node) return;
     let cancelled = false;
+    setCandles([]);
+    setChartUpdatedAt(null);
+    setChartFeedError(false);
     const loadKlines = () => {
       const tf = interval === "line" ? "1m" : interval;
       getKlines(symbol + "USDT", tf).then((rows) => {
-        if (!cancelled) setCandles(rows);
-      }).catch(() => {});
+        if (!cancelled) {
+          setCandles(rows);
+          setChartUpdatedAt(Date.now());
+          setChartFeedError(false);
+        }
+      }).catch(() => {
+        if (!cancelled) setChartFeedError(true);
+      });
     };
     loadKlines();
     const timer = window.setInterval(loadKlines, 5000);
     return () => { cancelled = true; window.clearInterval(timer); };
-  }, [symbol, interval, chartNode]);
+  }, [symbol, interval]);
 
   useEffect(() => {
     const node = chartNode;
-    if (!node || !candles.length || node.clientWidth <= 0) return;
+    if (!node || !candles.length || chartStale || node.clientWidth <= 0) return;
     const chart = createChart(node, {
       width: node.clientWidth,
       height: node.clientHeight || 195,
@@ -211,7 +237,7 @@ export function SecondsPage() {
     });
     observer.observe(node);
     return () => { observer.disconnect(); chart.remove(); };
-  }, [candles, chartNode]);
+  }, [candles, chartNode, chartStale]);
 
   const refresh = () => setReload((value) => value + 1);
 
