@@ -24,7 +24,9 @@ test('React registration offers confirmed email signup alongside Google and wall
   assert.ok(authPage.includes('signInWithEmail'));
   assert.ok(authPage.includes('signUpWithEmail'));
   assert.ok(authPage.includes('Create account with email'));
-  assert.ok(!authPage.includes('requestPasswordReset'));
+  assert.ok(authPage.includes('requestPasswordReset'));
+  assert.ok(authPage.includes('submitPasswordReset'));
+  assert.ok(authPage.includes('showPasswordReset'));
   assert.ok(authPage.includes('completePasswordRecovery'));
   assert.ok(authPage.includes('Username or email'));
 });

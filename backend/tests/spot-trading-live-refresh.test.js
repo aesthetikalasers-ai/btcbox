@@ -40,7 +40,7 @@ test('spot trading live refresh never overwrites the customer-edited limit price
 
 test('spot trading clears stale ticker, order book, and candles when live refresh fails', () => {
   assert.ok(page.includes('marketUpdatedAt'));
-  assert.ok(page.includes('Snapshot checked'));
+  assert.ok(page.includes('Provider updated'));
   assert.ok(page.includes('marketFeedWarning'));
   const startRefresh = page.indexOf('const refreshMarketData=');
   const endRefresh = page.indexOf('const refreshId=window.setInterval', startRefresh);
@@ -105,8 +105,8 @@ test('market API carries per-symbol server snapshot time separately from provide
 });
 
 test('spot UI labels server snapshot time and does not substitute browser receipt time', () => {
-  assert.ok(page.includes('t("Snapshot checked")'));
-  assert.ok(page.includes('selected.snapshotTs?selected.snapshotTs*1000:null'));
+  assert.ok(page.includes('t("Provider updated")'));
+  assert.ok(page.includes('selected.providerTs?selected.providerTs*1000:null'));
   assert.ok(!page.includes('setMarketUpdatedAt(Date.now())'));
 });
 
@@ -126,7 +126,9 @@ test('sign-in and registration pages expose email, Google and wallet auth', () =
   assert.ok(authPage.includes('signInWithWeb3'));
   assert.ok(authPage.includes('Create account with email'));
 
-  assert.ok(!authPage.includes('requestPasswordReset'));
+  assert.ok(authPage.includes('requestPasswordReset'));
+  assert.ok(authPage.includes('submitPasswordReset'));
+  assert.ok(authPage.includes('showPasswordReset'));
   assert.ok(authPage.includes('completePasswordRecovery'));
 });
 
