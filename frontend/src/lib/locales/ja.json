@@ -458,7 +458,7 @@
   "Already have an account?": "すでにアカウントをお持ちですか？",
   "Back to BTCBOX": "BTCBOXに戻る",
   "Protected account access · Public markets remain available without signing in": "アカウントへのアクセスは保護されています · 公開市場はログインせずにご利用いただけます",
-    "Use a password between 12 and 128 characters.": "パスワードは12文字以上128文字以内で設定してください。",
+  "Use a password between 12 and 128 characters.": "パスワードは12文字以上128文字以内で設定してください。",
   "Use a password between 8 and 128 characters.": "パスワードは8文字以上128文字以内で設定してください。",
   "The passwords do not match.": "パスワードが一致しません。",
   "Password could not be updated.": "パスワードを更新できませんでした。",
@@ -1430,7 +1430,6 @@
   "Choose a perpetual contract symbol": "無期限契約の銘柄を選択",
   "Search symbol": "銘柄を検索",
   "No matching market": "該当する市場がありません",
-
   "Fullscreen chart": "チャートを全画面表示",
   "Create an account with email, Google or a wallet.": "メール、Google、ウォレットでアカウントを作成できます。",
   "Sign in with email, Google or a wallet to access your BTCBOX account.": "メール、Google、ウォレットでBTCBOXアカウントにサインインできます。",
@@ -1697,5 +1696,15 @@
   "Latest": "直近",
   "Return rate": "收益率",
   "Pick a duration and direction; the round settles automatically.": "期間と方向を選ぶと、ラウンドは自動で決済されます。",
-  "Choose a short-term contract pair": "秒単位取引の通貨ペアを選択"
+  "Choose a short-term contract pair": "秒単位取引の通貨ペアを選択",
+  "Spot reference": "現物参考価格",
+  "Underlying spot order book": "原資産の現物注文板",
+  "Spot reference only — not the perpetual execution book.": "現物の参考データです。無期限契約の約定板ではありません。",
+  "Spot reference depth": "現物参考板の厚み",
+  "The active seconds policy is unavailable. Payout rates and order entry are disabled until it can be verified.": "有効な秒単位契約ポリシーを取得できません。確認できるまで、払戻率と注文入力は無効です。",
+  "The active seconds policy is unavailable. No order was sent.": "有効な秒単位契約ポリシーを取得できませんでした。注文は送信されていません。",
+  "Your available balance could not be verified. No order was sent.": "利用可能残高を確認できませんでした。注文は送信されていません。",
+  "Amount is outside the active policy limits.": "金額が有効なポリシーの上限・下限を外れています。",
+  "Insufficient available USDT balance.": "利用可能なUSDT残高が不足しています。",
+  "This market or duration is not enabled by the active policy.": "この市場または期間は有効なポリシーで許可されていません。"
 }
