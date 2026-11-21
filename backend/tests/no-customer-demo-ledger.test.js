@@ -58,3 +58,19 @@ test("offline demo preview can only be enabled in development builds", () => {
   assert.ok(preview.indexOf("if (import.meta.env.DEV) {") < preview.indexOf("demoEnabled = demoQuery"));
   assert.ok(preview.includes("export const DEMO_PREVIEW_ACTIVE = demoEnabled"));
 });
+
+test("offline demo preview can only be enabled in development builds", () => {
+  const preview = fs.readFileSync(path.join(root, "lib/demoPreview.ts"), "utf8");
+  assert.ok(preview.includes("const forceDemo = import.meta.env.DEV &&"));
+  const gate = preview.indexOf("if (import.meta.env.DEV) {");
+  const activation = preview.indexOf("demoEnabled = demoQuery");
+  assert.ok(gate >= 0 && activation > gate, "query and localStorage activation must stay inside the DEV gate");
+  assert.ok(preview.includes("export const DEMO_PREVIEW_ACTIVE = demoEnabled"));
+});
+
+test("unused hardcoded market seed prices are not shipped in the live market engine", () => {
+  const market = fs.readFileSync(path.join(root, "lib/marketData.ts"), "utf8");
+  assert.ok(!market.includes("INITIAL_SEEDS"));
+  assert.ok(!market.includes("MockSeed"));
+  assert.ok(market.includes("Nothing is fabricated here"));
+});
