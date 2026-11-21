@@ -236,9 +236,8 @@ If a deep backend/provider defect exceeds the timebox, do not fake completion. R
 ## 9. Protected implementation boundaries
 
 - Keep the current GitHub + Vercel + Supabase architecture.
-- Follow the repository's single active integration candidate and the current docs/AI_COORDINATION.md.
+- Continue from the repository's current application code and verified API contracts; do not rely on obsolete branch or collaboration instructions.
 - Reuse existing components and API contracts wherever possible.
-- Respect team file ownership.
 - Preserve the locked Trade page layout.
 - No production database writes, destructive SQL, real financial operations, merge to main or production deployment without the required owner authorization.
 - Do not merge stale feature branches wholesale or replay already absorbed changes.
