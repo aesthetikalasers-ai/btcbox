@@ -131,7 +131,6 @@ function BannerCarousel({ markets }: { markets: MarketTicker[] }) {
                   <div className="mt-3 font-mono text-3xl font-extrabold tracking-tight tabular-nums text-brand-text">
                     ${fmtPrice(btc.price, localeTags[language])}
                   </div>
-                  <div className="mt-3 h-16 w-full bg-gradient-to-t from-brand-accent/20 to-transparent rounded-lg border-b-2 border-brand-accent" />
                 </div>
               )}
             </div>
