@@ -40,3 +40,14 @@
 - 必须记录阶段与退出条件、完成事项、修改文件、分支和完整 SHA、测试命令/结果/证据、未完成事项、阻塞、下一项唯一优先任务及规划一致性。
 - 未验证事项标记 NOT VERIFIED；没有提交不得编造 SHA；阶段退出条件未满足不得报告通过。
 - 该模板对所有参与者一视同仁，并要求重要进度后同步更新本状态文件。
+
+
+## 2026-11-22 — Admin portal and KYC mobile image repair
+
+- Owner explicitly instructed this repair to be committed directly to `main`; this task-specific instruction superseded the normal working-branch rule for these changes only. No merge or manual Vercel deployment was run.
+- Main commits (latest first): `b0f74488bcd8c7cab2ab9600283a3a02208519f8` (admin entry tests), `f31597c1d75f1f8aea8e4e942b3539f4c1ded8b8` (admin route), `1f1623edbbbad7c6d37239ed5c462f1589d747d1` (dedicated admin sign-in surface), `8c43ef2b228631debe12c754440266c9e85c9a62` (KYC mobile decoder test), `77e2bc507d01a9986ece3d08e97b77c2b4b33ef0` (KYC mobile image preparation).
+- Files changed: `frontend/src/features/pages/Pages.tsx`, `backend/tests/kyc-document-storage.test.js`, `frontend/src/features/admin/AdminPage.tsx`, `frontend/src/App.tsx`, `backend/tests/admin-entry.test.js`.
+- KYC frontend now falls back from `createImageBitmap` to native `Image` decoding, accepts image file selection broadly (including HEIC/HEIF where the browser can decode it), and still converts to JPEG <=512 KB before upload. Private bucket and server-side validation remain unchanged.
+- Admin portal now has an unmistakable standalone sign-in header and explicit `/admin/*` route coverage; authentication still uses the existing Supabase Auth + database RBAC flow. No bypass or static credentials were added.
+- Verification: **NOT VERIFIED** — source updates committed successfully, but no local build/test runner was available in this session and no CI result has been observed yet. Production deployment status and real mobile upload/admin login flows remain **NOT VERIFIED**.
+- Previous KYC decoder commits on `working` were left intact; this task did not merge or rewrite that branch.
