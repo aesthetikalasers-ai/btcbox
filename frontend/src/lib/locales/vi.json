@@ -1695,5 +1695,15 @@
   "Latest": "Mới",
   "Return rate": "Tỷ suất",
   "Pick a duration and direction; the round settles automatically.": "Chọn thời lượng và hướng; vòng sẽ tự động tất toán.",
-  "Choose a short-term contract pair": "Chọn cặp hợp đồng ngắn hạn"
+  "Choose a short-term contract pair": "Chọn cặp hợp đồng ngắn hạn",
+  "Spot reference": "Giá tham chiếu spot",
+  "Underlying spot order book": "Sổ lệnh spot của tài sản cơ sở",
+  "Spot reference only — not the perpetual execution book.": "Chỉ là dữ liệu tham chiếu spot — không phải sổ lệnh khớp lệnh hợp đồng vĩnh cửu.",
+  "Spot reference depth": "Độ sâu tham chiếu spot",
+  "The active seconds policy is unavailable. Payout rates and order entry are disabled until it can be verified.": "Chính sách hợp đồng giây đang hoạt động hiện không khả dụng. Tỷ lệ thanh toán và đặt lệnh bị tắt cho đến khi xác minh được chính sách.",
+  "The active seconds policy is unavailable. No order was sent.": "Chính sách hợp đồng giây đang hoạt động không khả dụng. Không có lệnh nào được gửi.",
+  "Your available balance could not be verified. No order was sent.": "Không thể xác minh số dư khả dụng. Không có lệnh nào được gửi.",
+  "Amount is outside the active policy limits.": "Số tiền nằm ngoài giới hạn của chính sách hiện tại.",
+  "Insufficient available USDT balance.": "Số dư USDT khả dụng không đủ.",
+  "This market or duration is not enabled by the active policy.": "Thị trường hoặc thời hạn này không được chính sách hiện tại cho phép."
 }
