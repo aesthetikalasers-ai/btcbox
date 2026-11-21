@@ -191,7 +191,7 @@ export function TerminalOrderBook({
   view,
   onViewChange,
   onPickPrice,
-  usdtUsd = 0.99999,
+  usdtUsd,
   rows = 10,
   className = "",
 }: {
@@ -224,7 +224,7 @@ export function TerminalOrderBook({
   const askRowsWidths = useMemo(() => [...askWidths].reverse(), [askWidths]);
 
   const spread = asks.length && bids.length ? Number(asks[0][0]) - Number(bids[0][0]) : null;
-  const up = changePercent >= 0;
+  const up = lastPrice !== "" && changePercent >= 0;
   const sizeDecimals = sizeDecimalsFor(decimals);
   /* Dollar-equivalent of the mid price: `USDT price × USDT/USD rate`. The rate is
      supplied by the caller; 0.99999 is used only when no real rate is available. */
@@ -245,7 +245,7 @@ export function TerminalOrderBook({
     const askNotional = asks.reduce((sum, row) => sum + Number(row[0]) * Number(row[1]), 0);
     const bidNotional = bids.reduce((sum, row) => sum + Number(row[0]) * Number(row[1]), 0);
     const total = askNotional + bidNotional;
-    if (!Number.isFinite(total) || total <= 0) return { buy: 50, sell: 50 };
+    if (!asks.length || !bids.length || !Number.isFinite(total) || total <= 0) return null;
     const buy = (bidNotional / total) * 100;
     return { buy: Math.min(100, Math.max(0, buy)), sell: Math.min(100, Math.max(0, 100 - buy)) };
   }, [asks, bids]);
@@ -328,10 +328,12 @@ export function TerminalOrderBook({
               USDT figure relabelled with a "$". When the rate is unavailable the
               caller supplies 0.99999 and the value is still marked "≈". */}
           <div className="term-book-mid-alt">
-            <span className="term-book-mid-alt-label">≈</span>
-            <span className="font-mono tabular-nums">
-              {usdEquivalent || "—"}
-            </span>
+            {usdEquivalent ? (
+              <>
+                <span className="term-book-mid-alt-label">≈</span>
+                <span className="font-mono tabular-nums">{usdEquivalent}</span>
+              </>
+            ) : <span className="font-mono tabular-nums">—</span>}
             <TrendingUp className={"ml-auto h-3 w-3 " + (up ? "text-profit" : "text-loss rotate-180")} aria-hidden="true" />
           </div>
 
@@ -347,19 +349,21 @@ export function TerminalOrderBook({
 
       {/* Buy/sell pressure bar — the tier-1 order-book footer. Replaces the old
           one-line hint so the book closes with a summary instead of prose. */}
-      <div
-        className="term-book-ratio"
-        role="img"
-        aria-label={`${t("Buyers")} ${pressure.buy.toFixed(2)}% / ${t("Sellers")} ${pressure.sell.toFixed(2)}%`}
-        title={view === "both" ? t("Click a price to fill the order form") : view === "bids" ? t("Bids only") : t("Asks only")}
-      >
-        <span className="term-book-ratio-buy" style={{ width: pressure.buy + "%" }} />
-        <span className="term-book-ratio-sell" style={{ width: pressure.sell + "%" }} />
-        <span className="term-book-ratio-labels">
-          <b className="text-profit tabular-nums">{pressure.buy.toFixed(2)}%</b>
-          <b className="text-loss tabular-nums">{pressure.sell.toFixed(2)}%</b>
-        </span>
-      </div>
+      {pressure ? (
+        <div
+          className="term-book-ratio"
+          role="img"
+          aria-label={`${t("Buyers")} ${pressure.buy.toFixed(2)}% / ${t("Sellers")} ${pressure.sell.toFixed(2)}%`}
+          title={view === "both" ? t("Click a price to fill the order form") : view === "bids" ? t("Bids only") : t("Asks only")}
+        >
+          <span className="term-book-ratio-buy" style={{ width: pressure.buy + "%" }} />
+          <span className="term-book-ratio-sell" style={{ width: pressure.sell + "%" }} />
+          <span className="term-book-ratio-labels">
+            <b className="text-profit tabular-nums">{pressure.buy.toFixed(2)}%</b>
+            <b className="text-loss tabular-nums">{pressure.sell.toFixed(2)}%</b>
+          </span>
+        </div>
+      ) : null}
     </div>
   );
 }
