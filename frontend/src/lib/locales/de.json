@@ -1713,5 +1713,9 @@
   "Provider age": "Alter des Anbieters",
   "Data source": "Datenquelle",
   "Market data source could not be verified. Trading is disabled.": "Die Marktdatenquelle konnte nicht verifiziert werden. Der Handel ist deaktiviert.",
-  "Market snapshot is stale or missing. Quotes are hidden until a fresh snapshot arrives.": "Der Marktsnapshot ist veraltet oder fehlt. Kurse bleiben ausgeblendet, bis ein aktueller Snapshot eintrifft."
+  "Market snapshot is stale or missing. Quotes are hidden until a fresh snapshot arrives.": "Der Marktsnapshot ist veraltet oder fehlt. Kurse bleiben ausgeblendet, bis ein aktueller Snapshot eintrifft.",
+  "Browse supported spot pairs and their live market data.": "Entdecke unterstützte Spot-Paare und ihre Live-Marktdaten.",
+  "Earn products": "Earn-Produkte",
+  "Review the products and terms currently published in BTCBOX Earn.": "Sieh dir die aktuell in BTCBOX Earn veröffentlichten Produkte und Bedingungen an.",
+  "Open spot, perpetual and seconds trading products from one place.": "Öffne Spot-, Perpetual- und Seconds-Produkte an einem Ort."
 }
