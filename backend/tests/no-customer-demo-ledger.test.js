@@ -1,9 +1,10 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import test from "node:test";
 
-const root = path.resolve(__dirname, "../../frontend/src");
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../frontend/src");
 
 test("customer app does not mount a local demo trading wallet", () => {
   const entry = fs.readFileSync(path.join(root, "main.tsx"), "utf8");
