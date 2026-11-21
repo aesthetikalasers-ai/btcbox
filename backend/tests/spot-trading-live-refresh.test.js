@@ -126,7 +126,8 @@ test('sign-in and registration pages expose email, Google and wallet auth', () =
   assert.ok(authPage.includes('signInWithWeb3'));
   assert.ok(authPage.includes('Create account with email'));
 
-  assert.ok(!authPage.includes('requestPasswordReset'));
+  assert.ok(authPage.includes('requestPasswordReset'));
+  assert.ok(authPage.includes('Forgot password?'));
   assert.ok(authPage.includes('completePasswordRecovery'));
 });
 
