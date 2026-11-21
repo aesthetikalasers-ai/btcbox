@@ -90,3 +90,15 @@ test("production account routes remain login-protected while market preview rout
   assert.ok(app.includes('<Route path="/orders" element={<ProtectedAccountRoute><OrdersPage /></ProtectedAccountRoute>} />'));
   assert.ok(app.includes('<Route path="/markets" element={<PublicRoute><MarketsPage /></PublicRoute>} />'));
 });
+
+test("production K-line requests never fall back to synthetic candles", () => {
+  const api = fs.readFileSync(path.join(root, "lib/api.ts"), "utf8");
+  const start = api.indexOf("export async function getKlines(");
+  const end = api.indexOf("export interface TradingStatus", start);
+  const getKlines = api.slice(start, end);
+  assert.ok(getKlines.includes("if (DEMO_PREVIEW_ACTIVE) return getDemoKlines(symbol, interval)"));
+  assert.equal((getKlines.match(/getDemoKlines/g) || []).length, 1);
+  assert.ok(!getKlines.includes("return getDemoKlines"));
+  assert.ok(getKlines.includes("rawTime / 1000"));
+  assert.ok(getKlines.includes("bySecond.set(time"));
+});
