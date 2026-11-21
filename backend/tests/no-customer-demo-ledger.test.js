@@ -86,3 +86,14 @@ test("no customer-facing component reads the local paper-trading context", () =>
   const consumers = files.filter((file) => fs.readFileSync(file, "utf8").includes("useTrading"));
   assert.deepEqual(consumers, [], "paper-trading context must not be consumed by customer pages or components");
 });
+
+test("production account routes remain login-protected while market preview routes stay public", () => {
+  const app = fs.readFileSync(path.join(root, "App.tsx"), "utf8");
+  assert.ok(app.includes("function PublicRoute"));
+  assert.ok(!app.includes("DemoRoute"));
+  assert.ok(app.includes("if (import.meta.env.DEV) return <>{children}</>;"));
+  assert.ok(app.includes('if (status !== "authenticated") return <SignInPrompt />;'));
+  assert.ok(app.includes('<Route path="/assets" element={<ProtectedAccountRoute><AssetsPage /></ProtectedAccountRoute>} />'));
+  assert.ok(app.includes('<Route path="/orders" element={<ProtectedAccountRoute><OrdersPage /></ProtectedAccountRoute>} />'));
+  assert.ok(app.includes('<Route path="/markets" element={<PublicRoute><MarketsPage /></PublicRoute>} />'));
+});
