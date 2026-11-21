@@ -1716,5 +1716,8 @@
   "Browse supported spot pairs and their live market data.": "Xem các cặp giao dịch spot được hỗ trợ và dữ liệu thị trường trực tiếp.",
   "Earn products": "Sản phẩm Earn",
   "Review the products and terms currently published in BTCBOX Earn.": "Xem các sản phẩm và điều khoản hiện được công bố trong BTCBOX Earn.",
-  "Open spot, perpetual and seconds trading products from one place.": "Truy cập các sản phẩm spot, perpetual và seconds tại cùng một nơi."
+  "Open spot, perpetual and seconds trading products from one place.": "Truy cập các sản phẩm spot, perpetual và seconds tại cùng một nơi.",
+  "Launchpool is not currently available": "Launchpool hiện chưa khả dụng",
+  "No verified launchpool campaigns are currently published. Staking pools, reward rates and campaign statistics will appear here only when confirmed campaign data is available.": "Hiện chưa có chiến dịch Launchpool đã xác minh nào được công bố. Pool staking, tỷ lệ thưởng và thống kê chiến dịch chỉ hiển thị khi có dữ liệu đã xác nhận.",
+  "View Earn products": "Xem sản phẩm Earn"
 }
