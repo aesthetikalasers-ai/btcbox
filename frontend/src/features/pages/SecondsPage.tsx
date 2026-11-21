@@ -256,6 +256,7 @@ export function SecondsPage() {
   // it as idempotent, so a retry can never open a second position.
   const sendIntent = async (intent: SecondsOrderInput) => {
     if (submitting) return;
+    if (status !== "authenticated") { setError(t("Please sign in to retry this seconds request.")); return; }
     setSubmitting(true); setError(""); setNotice("");
     try {
       const result = await submitSecondsOrder(intent);
@@ -281,6 +282,8 @@ export function SecondsPage() {
 
   const submitSeconds = async (dir: "up" | "down") => {
     if (submitting) return;
+    if (status !== "authenticated") { setError(t("Please sign in to place a seconds order.")); return; }
+    if (marketUnavailable) { setError(t("Market data is unavailable or stale. No order was sent.")); return; }
     if (!policy) {
       setError(t("The active seconds policy is unavailable. No order was sent."));
       return;
@@ -332,10 +335,9 @@ export function SecondsPage() {
 
   useEffect(() => {
     if (!policy) return;
-    if (!policy.policy.symbols.includes(symbol)) setSymbol(policy.policy.symbols[0] ?? "");
-    if (!policy.policy.durations_sec.includes(duration)) setDuration(policy.policy.durations_sec[0] ?? 0);
+    if (policy.policy.symbols.length > 0 && !policy.policy.symbols.includes(symbol)) setSymbol(policy.policy.symbols[0]);
+    if (policy.policy.durations_sec.length > 0 && !policy.policy.durations_sec.includes(duration)) setDuration(policy.policy.durations_sec[0]);
   }, [policy, symbol, duration]);
-  const openCount = snapshot?.open.length || 0;
 
 
 
@@ -353,7 +355,7 @@ export function SecondsPage() {
         <TradeProductNav />
         {/* 币对选择（下拉）+ 最新价 + 涨跌幅：单行不折，价格与标签都不硬切 */}
         <div className="flex min-w-0 items-center gap-2">
-          <button type="button" onClick={() => setSymbolPickerOpen(true)} aria-haspopup="dialog" aria-expanded={symbolPickerOpen}
+          <button type="button" onClick={() => setSymbolPickerOpen(true)} disabled={!policy || policy.policy.symbols.length === 0} aria-haspopup="dialog" aria-expanded={symbolPickerOpen}
             aria-label={t("Select market")}
             className="flex h-9 shrink-0 items-center gap-1 rounded-lg border border-brand-border bg-brand-surface px-2.5 text-[15px] font-bold leading-none text-brand-text transition-colors hover:border-brand-accent/50 hover:text-brand-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent/40">
             <span className="font-mono tabular-nums">{symbol}/USDT</span>
@@ -361,7 +363,7 @@ export function SecondsPage() {
           </button>
           <div className="ml-auto flex shrink-0 items-baseline gap-1.5 whitespace-nowrap" aria-live="polite">
             <span className="font-mono text-[20px] font-bold leading-none tabular-nums text-brand-text sm:text-2xl">
-              {ticker ? ticker.price.toLocaleString(locale, { minimumFractionDigits: 2 }) : "—"}
+              {displayTicker ? displayTicker.price.toLocaleString(locale, { minimumFractionDigits: 2 }) : "—"}
             </span>
             {ticker ? (
               <span className={"shrink-0 rounded px-1.5 py-0.5 font-mono text-[11px] font-bold tabular-nums " + (Number(ticker.chg) >= 0 ? "bg-profit/10 text-profit" : "bg-loss/10 text-loss")}>
@@ -377,7 +379,7 @@ export function SecondsPage() {
         {/* 未登录引导：与现货/永续使用同一套文案与按钮 */}
         {signedOut ? (
           <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-brand-border bg-brand-surface px-3 py-2.5">
-            <p className="text-xs text-brand-text-muted">{t("Please sign in to view your account data")}</p>
+            <p className="text-xs text-brand-text-muted">{t("Sign in to view your seconds positions and submit orders. Market data and chart preview remain public.")}</p>
             <Button asChild size="sm" variant="outline" className="h-8 shrink-0"><Link to="/login">{t("Go to sign in")}</Link></Button>
           </div>
         ) : null}
@@ -408,7 +410,7 @@ export function SecondsPage() {
                 </div>
               </CardHeader>
               <CardContent className="p-2 sm:p-3">
-                <div ref={setChartNode} className="h-[195px] sm:h-[320px] md:h-[360px] w-full" />
+                {chartUnavailable ? <div className="flex h-[195px] w-full items-center justify-center px-4 text-center text-xs text-brand-text-muted sm:h-[320px] md:h-[360px]">{chartWarning}</div> : <div ref={setChartNode} className="h-[195px] sm:h-[320px] md:h-[360px] w-full" />}
               </CardContent>
             </Card>
           </div>
@@ -443,7 +445,7 @@ export function SecondsPage() {
                   <span className="text-brand-text-muted font-mono">{t("Available")}: <strong className="text-brand-text">{signedOut || availableUSDT === null ? "—" : Number(availableUSDT).toFixed(2)}</strong></span>
                 </div>
                 <div className="flex h-11 items-center rounded-lg border border-brand-border bg-brand-surface-2 px-3 focus-within:border-brand-accent">
-                  <input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0.00" disabled={!policy || policy.actions_enabled !== true || availableUSDT === null || Number(availableUSDT) <= 0} className="h-full flex-1 bg-transparent font-mono text-sm text-brand-text outline-none placeholder:text-brand-text-muted" />
+                  <input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0.00" disabled={signedOut || !policy || policy.actions_enabled !== true || availableUSDT === null || Number(availableUSDT) <= 0} className="h-full flex-1 bg-transparent font-mono text-sm text-brand-text outline-none placeholder:text-brand-text-muted" />
                   <span className="text-xs font-bold text-brand-text-muted">USDT</span>
                 </div>
                 <div className="flex items-center gap-2 pt-1">
@@ -464,7 +466,7 @@ export function SecondsPage() {
               </div>
 
               <div className="grid grid-cols-2 gap-3 pt-1">
-                <button type="button" disabled={submitting || !!pendingIntent || policy?.actions_enabled !== true || availableUSDT === null || Number(availableUSDT) <= 0 || currentRate === null} onClick={() => submitSeconds("up")} className="flex h-11 items-center justify-center gap-2 rounded-lg bg-profit text-[15px] font-bold text-[#05201A] transition-transform hover:bg-profit/90 active:scale-[0.99] disabled:opacity-50">
+                <button type="button" disabled={signedOut || marketUnavailable || submitting || !!pendingIntent || policy?.actions_enabled !== true || availableUSDT === null || Number(availableUSDT) <= 0 || currentRate === null} onClick={() => submitSeconds("up")} className="flex h-11 items-center justify-center gap-2 rounded-lg bg-profit text-[15px] font-bold text-[#05201A] transition-transform hover:bg-profit/90 active:scale-[0.99] disabled:opacity-50">
                   <TrendingUp className="h-5 w-5 stroke-[2.5]" />
                   <span>{t("Buy up (long)")} {currentRate === null ? "" : `(+${currentRate.toFixed(2)}%)`}</span>
                 </button>
@@ -489,7 +491,7 @@ export function SecondsPage() {
           emptyLabel={t("No matching market")}
           activeId={`${symbol}USDT`}
           items={(policy?.policy.symbols ?? []).map((coin) => {
-            const tk = coin === symbol ? ticker : null;
+            const tk = coin === symbol ? displayTicker : null;
             return {
               id: `${coin}USDT`,
               label: `${coin}/USDT`,
@@ -507,9 +509,9 @@ export function SecondsPage() {
           ariaLabel={t("Trading details")}
           className="border-t border-brand-border pt-3"
           tabs={[
-            { key: "positions", label: `${t("Positions")} (${openCount})` },
-            { key: "orders", label: `${t("Open orders")} (${pendingIntent ? 1 : 0})` },
-            { key: "history", label: `${t("History")} (${snapshot?.history.length ?? 0})` },
+            { key: "positions", label: `${t("Positions")} (${signedOut || loading || positionsLoadError || !snapshot ? "—" : snapshot.open.length})` },
+            { key: "orders", label: `${t("Open orders")} (${signedOut || loading || positionsLoadError || !snapshot ? "—" : pendingIntent ? 1 : 0})` },
+            { key: "history", label: `${t("History")} (${signedOut || loading || positionsLoadError || !snapshot ? "—" : snapshot.history.length})` },
           ]}
           active={activeTab}
           onActiveChange={(key) => setActiveTab(key as "positions" | "orders" | "history")}
@@ -522,7 +524,13 @@ export function SecondsPage() {
           )}
         >
           {activeTab === "positions" ? (
-              snapshot?.open.length ? (
+              signedOut ? (
+                <BottomPanelEmpty>{t("Sign in to view your seconds positions.")}</BottomPanelEmpty>
+              ) : loading ? (
+                <BottomPanelEmpty>{t("Loading positions...")}</BottomPanelEmpty>
+              ) : positionsLoadError || !snapshot ? (
+                <BottomPanelEmpty>{t("Unable to load positions. Refresh to try again.")}</BottomPanelEmpty>
+              ) : snapshot.open.length ? (
                 <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                   {snapshot.open.map((item) => {
                     const directionUp = item.direction === "up";
@@ -553,7 +561,11 @@ export function SecondsPage() {
               )
             ) : activeTab === "orders" ? (
               <div className="space-y-2">
-                {pendingIntent ? (
+                {signedOut ? (
+                  <BottomPanelEmpty>{t("Sign in to view your seconds orders.")}</BottomPanelEmpty>
+                ) : loading ? (
+                  <BottomPanelEmpty>{t("Loading orders...")}</BottomPanelEmpty>
+                ) : pendingIntent ? (
                   <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-brand-accent/30 bg-brand-accent/10 p-3 text-xs">
                     <span className="min-w-0">{t("An earlier Seconds request is still unconfirmed. Retry the same request before placing a new one.")}</span>
                     <Button type="button" size="sm" variant="outline" disabled={submitting} onClick={retryPendingIntent} className="h-9 shrink-0">{t("Retry same request")}</Button>
@@ -563,7 +575,13 @@ export function SecondsPage() {
                 )}
               </div>
             ) : (
-              snapshot?.history.length ? (
+              signedOut ? (
+                <BottomPanelEmpty>{t("Sign in to view your seconds settlement history.")}</BottomPanelEmpty>
+              ) : loading ? (
+                <BottomPanelEmpty>{t("Loading history...")}</BottomPanelEmpty>
+              ) : positionsLoadError || !snapshot ? (
+                <BottomPanelEmpty>{t("Unable to load settlement history. Refresh to try again.")}</BottomPanelEmpty>
+              ) : snapshot.history.length ? (
                 <div className="space-y-2">
                   {snapshot.history.map((item) => {
                     const isWin = item.win;
