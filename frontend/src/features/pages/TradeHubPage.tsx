@@ -56,13 +56,17 @@ export function TradeHubPage() {
         if (controller.signal.aborted) return;
         setSecondsAvailability(seconds.status === "fulfilled" ? (seconds.value.actions_enabled ? "enabled" : "read-only") : "unavailable");
         setEarnAvailability(earn.status === "rejected" ? "unavailable" : earn.value.products.length === 0 ? "empty" : earn.value.actions_enabled ? "enabled" : "read-only");
-        setPerpAvailability(perp.status === "fulfilled" ? (perp.value.length > 0 ? "enabled" : "read-only") : "unavailable");
+        setPerpAvailability(perp.status === "fulfilled" ? (perp.value.some((market) => market.status === "trading") ? "enabled" : perp.value.length > 0 ? "read-only" : "unavailable") : "unavailable");
       });
     }
     return () => controller.abort();
   }, [status]);
 
-  const spotExecutionEnabled = tradingStatus?.spot_order_entry_enabled === true;
+  const spotExecutionEnabled = tradingStatus?.spot_order_entry_enabled === true && spotPairs.length > 0;
+  const spotStatusLabel = pairsLoading || (!tradingStatus && !tradingStatusError) ? t("Checking availability") : pairsError || tradingStatusError || spotPairs.length === 0 ? t("Unavailable") : spotExecutionEnabled ? t("Order entry enabled") : t("Read-only");
+  const secondsStatusLabel = secondsAvailability === "enabled" ? t("Order entry enabled") : secondsAvailability === "sign-in" ? t("Sign in required") : secondsAvailability === "loading" ? t("Checking availability") : secondsAvailability === "read-only" ? t("Read-only") : t("Unavailable");
+  const earnStatusLabel = earnAvailability === "enabled" ? t("Products available") : earnAvailability === "sign-in" ? t("Sign in required") : earnAvailability === "loading" ? t("Checking availability") : earnAvailability === "read-only" ? t("Read-only") : earnAvailability === "empty" ? t("No products") : t("Unavailable");
+  const perpStatusLabel = perpAvailability === "enabled" ? t("Live trading") : perpAvailability === "sign-in" ? t("Sign in required") : perpAvailability === "loading" ? t("Checking availability") : perpAvailability === "read-only" ? t("Markets read-only") : t("Unavailable");
 
 
 
@@ -81,11 +85,11 @@ export function TradeHubPage() {
               <ChartNoAxesCombined className="h-6 w-6" />
             </div>
             <CardTitle className="text-lg font-bold">{t("Spot")}</CardTitle>
-            <CardDescription className="text-xs">{t("Place server-validated limit orders on configured spot pairs with high liquidity.")}</CardDescription>
+            <CardDescription className="text-xs">{t("Place server-validated limit orders on configured spot pairs.")}</CardDescription>
           </CardHeader>
           <CardContent className="flex flex-wrap items-center justify-between gap-3 pt-0">
             <Badge data-testid="spot-availability" variant={spotExecutionEnabled ? "outline" : "secondary"} className={spotExecutionEnabled ? "border-brand-success/30 text-brand-success" : ""}>
-              {spotExecutionEnabled ? t("Order entry enabled") : t("Unavailable")}
+              {spotStatusLabel}
             </Badge>
             <Button asChild size="sm" variant="secondary" className="shrink-0 font-semibold">
               <Link to="/markets">{t("View markets")} <ArrowUpRight className="ml-1 h-4 w-4" /></Link>
@@ -100,11 +104,11 @@ export function TradeHubPage() {
               <TrendingUp className="h-6 w-6" />
             </div>
             <CardTitle className="text-lg font-bold">{t("Perpetual")}</CardTitle>
-            <CardDescription className="text-xs">{t("Trade USDT-margined perpetual contracts with dynamic leverage up to 100x.")}</CardDescription>
+            <CardDescription className="text-xs">{t("Review available USDT-margined perpetual markets and their server-configured limits.")}</CardDescription>
           </CardHeader>
           <CardContent className="flex flex-wrap items-center justify-between gap-3 pt-0">
             <Badge variant={perpAvailability === "enabled" ? "outline" : "secondary"} className={perpAvailability === "enabled" ? "border-brand-success/30 text-brand-success" : ""}>
-              {perpAvailability === "enabled" ? t("Live trading") : t("Unavailable")}
+              {perpStatusLabel}
             </Badge>
             <Button asChild size="sm" variant="secondary" className="shrink-0 font-semibold">
               <Link to="/contract">{t("Trade")} <ArrowUpRight className="ml-1 h-4 w-4" /></Link>
@@ -119,11 +123,11 @@ export function TradeHubPage() {
               <Zap className="h-6 w-6" />
             </div>
             <CardTitle className="text-lg font-bold">{t("Seconds")}</CardTitle>
-            <CardDescription className="text-xs">{t("Place policy-driven positions with independent timers and automated settlement.")}</CardDescription>
+            <CardDescription className="text-xs">{t("Submit positions only when server policy is enabled, with server-managed settlement.")}</CardDescription>
           </CardHeader>
           <CardContent className="flex flex-wrap items-center justify-between gap-3 pt-0">
             <Badge variant={secondsAvailability === "enabled" ? "outline" : "secondary"} className={secondsAvailability === "enabled" ? "border-brand-success/30 text-brand-success" : ""}>
-              {secondsAvailability === "enabled" ? t("Order entry enabled") : t("Sign in required")}
+              {secondsStatusLabel}
             </Badge>
             <Button asChild size="sm" variant="secondary" className="shrink-0 font-semibold">
               <Link to="/seconds">{status === "authenticated" ? t("Open") : t("Sign in to view")} <ArrowUpRight className="ml-1 h-4 w-4" /></Link>
@@ -138,11 +142,11 @@ export function TradeHubPage() {
               <Sprout className="h-6 w-6" />
             </div>
             <CardTitle className="text-lg font-bold">{t("Earn")}</CardTitle>
-            <CardDescription className="text-xs">{t("Review available Earn products, flexible yields, and manage capital positions.")}</CardDescription>
+            <CardDescription className="text-xs">{t("View Earn products, yields and terms published by BTCBOX.")}</CardDescription>
           </CardHeader>
           <CardContent className="flex flex-wrap items-center justify-between gap-3 pt-0">
             <Badge variant={earnAvailability === "enabled" ? "outline" : "secondary"} className={earnAvailability === "enabled" ? "border-brand-success/30 text-brand-success" : ""}>
-              {earnAvailability === "enabled" ? t("Products available") : t("Sign in required")}
+              {earnStatusLabel}
             </Badge>
             <Button asChild size="sm" variant="secondary" className="shrink-0 font-semibold">
               <Link to="/earn">{status === "authenticated" ? t("Open") : t("Sign in to view")} <ArrowUpRight className="ml-1 h-4 w-4" /></Link>
