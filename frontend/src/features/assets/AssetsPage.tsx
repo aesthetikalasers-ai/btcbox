@@ -140,10 +140,7 @@ export function AssetsPage() {
       <Card className="relative isolate overflow-hidden border border-white/10 bg-white/[0.03] shadow-2xl backdrop-blur-md">
         <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-transparent via-brand-accent/60 to-transparent" />
         <CardContent className="relative flex flex-col gap-4 p-5 sm:p-6">
-          {/* 迷你走势曲线（右上装饰，纯装饰性 SVG） */}
-          <svg aria-hidden="true" viewBox="0 0 120 40" className="pointer-events-none absolute right-4 top-4 h-10 w-32 opacity-80" fill="none">
-            <path d="M2 32 C 18 30, 28 20, 42 24 S 66 36, 80 28 S 104 8, 118 12" stroke="#f0b90b" strokeWidth="1.5" strokeLinecap="round" />
-          </svg>
+
           {/* 行 1：总资产估值 + 隐私眼睛 */}
           <div className="relative flex items-center gap-2">
             <p className="text-sm text-brand-text-secondary">{t("Estimated total value")}</p>
