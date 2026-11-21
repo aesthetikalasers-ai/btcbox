@@ -86,7 +86,7 @@ export function KlinePanel({ symbol, height = 480 }: { symbol: string; height?: 
     if (!candles.length) return;
     const data = candles
       .map((candle) => ({
-        time: Math.floor(candle.time / 1000) as UTCTimestamp,
+        time: Math.floor(candle.time) as UTCTimestamp,
         open: candle.open,
         high: candle.high,
         low: candle.low,
