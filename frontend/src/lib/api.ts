@@ -34,7 +34,7 @@ export interface MarketTicker {
   /** Server snapshot time (Unix seconds), not an exchange event timestamp. */
   snapshotTs?: number;
   /** Provider-supplied timestamp (Unix seconds): Coinbase last-trade time or Bybit response time; not a universal exchange-event timestamp. */
-  providerTs?: number;
+  providerTs?: number | null;
 }
 
 export interface MarketCandle {
@@ -182,8 +182,8 @@ export async function getMarkets(signal?: AbortSignal): Promise<MarketTicker[]> 
       const snapshot = payload.data?.[item.sym];
       return {
         ...item,
-        snapshotTs: Number.isFinite(snapshot?.ts) && Number(snapshot?.ts) > 0 ? Number(snapshot?.ts) : Math.floor(Date.now() / 1000),
-        providerTs: Number.isFinite(snapshot?.providerTs) && Number(snapshot?.providerTs) > 0 ? Number(snapshot?.providerTs) : Math.floor(Date.now() / 1000),
+        snapshotTs: Number.isFinite(snapshot?.ts) && Number(snapshot?.ts) > 0 ? Number(snapshot?.ts) : undefined,
+        providerTs: Number.isFinite(snapshot?.providerTs) && Number(snapshot?.providerTs) > 0 ? Number(snapshot?.providerTs) : null,
         source: typeof snapshot?.source === "string" ? snapshot.source : item.source,
       };
     });
