@@ -1711,5 +1711,7 @@
   "Provider": "Provider",
   "Snapshot age": "Snapshot age",
   "Provider age": "Provider age",
-  "Data source": "Data source"
+  "Data source": "Data source",
+  "Market data source could not be verified. Trading is disabled.": "Market data source could not be verified. Trading is disabled.",
+  "Market snapshot is stale or missing. Quotes are hidden until a fresh snapshot arrives.": "Market snapshot is stale or missing. Quotes are hidden until a fresh snapshot arrives."
 }
