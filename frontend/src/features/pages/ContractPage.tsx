@@ -165,7 +165,7 @@ export function ContractPage() {
     const controller = new AbortController();
     let cancelled = false;
     const load = () => {
-      getUsdtUsdRate(0.99999, controller.signal)
+      getUsdtUsdRate(controller.signal)
         .then((r) => { if (!cancelled) setUsdtUsd(r.rate); })
         .catch(() => {});
     };
@@ -220,8 +220,7 @@ export function ContractPage() {
    * "Cannot access before initialization", blanking the page).
    *
    * The contract is quoted in USDT, so this is `mid × USDT/USD rate`, not the
-   * USDT figure relabelled with a "$". 0.99999 is the neutral fallback used only
-   * when no live rate is available.
+   * USDT figure relabelled with a "$". No conversion is shown without a verified rate.
    */
   const midUsd = useMemo(() => {
     const px = Number(depthMid);
