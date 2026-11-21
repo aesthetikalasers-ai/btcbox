@@ -264,3 +264,42 @@ npx playwright test e2e/auth-dialog.spec.ts --project=desktop-chromium --reporte
 - 当前 main 的 `frontend/e2e/responsive-visual-qa.spec.ts` blob `99336537cb69069f75cf60f6f9fe31d0b769af75` 已覆盖固定宽度 375/390/430/768/1366/1440/1920 及多个中间宽度，并包含 `/trade-hub`；但通用路由/溢出断言不等于四卡片 2×2 几何验收。专项测试虽然尝试断言 375px 两列，但需与正确业务卡片语义一起更新。
 - 当前 main 的 `frontend/e2e/auth-routes.spec.ts` blob `52bd91700e93f96e163a7a0d9c6c29e68d7b6096` 第 35–46 行仍断言旧式独立登录页、Username/Password、无 Email 登录、Google disabled；第 119–130 行注册页断言与旧式全屏流程相关。它与最新协作规则/阶段 1 的预览页弹窗、Email/Password + Google 流程存在契约冲突。应用开发 AI 应按阶段 1 的真实产品流程修订测试，不能由数据库负责人修改前端测试。
 - 本轮仅静态读取源码与测试文件；未运行 Playwright、未声称 375px 实测失败、未修改任何前端文件。以上均为明确的源码/断言冲突，运行结果仍 **NOT VERIFIED**。
+
+
+## 2026-11-22 真實資產與模擬餘額隔離修復
+
+### 階段與範圍
+- 依本輪倉庫執行規則，未改 main；在共同開發分支 working 實施。
+- 本次是針對用戶回報「新註冊用戶資產顯示 10,000 USDT」的最小範圍修復；不更改交易模擬錢包行為、不修改真實金融帳本、不執行部署。
+- 階段位置仍依既定規劃記錄為階段 1 開發中；本次單一缺陷修復不代表階段 1 或整體驗收完成。
+
+### 根因與修復
+- 根因：frontend/src/features/assets/AssetsPage.tsx 透過 useTrading() 讀取 localStorage 紙面交易餘額，再將其合併到 getAccount() 後端帳戶餘額。紙面交易初始化包含 10,000 USDT，因此模擬金額會被錯誤呈現在真實資產頁。
+- 修復：資產頁移除 useTrading / paperBalances 依賴，資產列表只從 account?.balances 後端帳戶快照生成；原本 BTC/ETH/USDT 置頂與其他資產排序保留。
+- 模擬錢包 frontend/src/lib/trading.tsx 未修改，其他紙面交易流程保持原狀。
+- 新增回歸測試至 backend/tests/manual-credit-assets.test.js，斷言真實資產頁以後端帳戶餘額為唯一來源，且不引用模擬錢包或 demo 初始化餘額。
+
+### 變更與提交
+- 分支：working
+- 資產頁修復 commit：6856a6eb960a85ca375968bd5d7acf616241678e
+- 回歸測試 commit：96658ba70502476d2853247613ea86875dbd6cd9
+- 修改文件：frontend/src/features/assets/AssetsPage.tsx、backend/tests/manual-credit-assets.test.js。
+- 兩個檔案已從遠端 working 重新讀取確認；資產頁已不含 paperBalances / useTrading，測試檔已包含隔離回歸斷言。
+
+### 測試與驗收
+- 遠端源碼複核：PASS（已重新讀取修復後資產頁及測試檔，確認變更存在）。
+- node --test tests/manual-credit-assets.test.js：NOT VERIFIED（目前執行環境無法連線 GitHub 取得工作樹；本次未能在本地執行 Node 測試）。
+- 前端 npm run lint / npm run build：NOT VERIFIED。
+- GitHub commit workflow runs 查詢未返回可見 workflow run；不能推斷測試通過。
+- 實際註冊新測試用戶並在手機/桌面端登入查看：NOT VERIFIED。
+- 未合併 main、未部署 Vercel、未更改 Supabase 資料。
+
+### Supabase 真實帳本只讀核對
+- financial_accounts 有 3 筆 USDT 帳戶記錄，合計 available 610,000 USDT、frozen 0。
+- financial_ledger 有 4 筆 USDT 流水、4 個 operation；每個帳戶最新流水的 available/frozen 均與帳戶當前餘額一致，無缺失流水、無最新餘額對帳差異。
+- 4 筆流水均連到 financial_operations.operation_type=deposit_credit、狀態 applied，並連到 deposit_records.source=admin_manual、狀態 confirmed。
+- 因此這些不是前端 10,000 模擬餘額，而是已確認的管理員手動入帳記錄。只讀核查沒有證明這些入帳是否經所有者逐筆授權；不清除、不回滾、不修改。若要判斷是否應保留，需由所有者核對管理員入帳的業務意圖。
+- 本次 Supabase 僅執行 SELECT；沒有 DML、DDL、Auth 或 Storage 寫入。
+
+### 下一項唯一優先任務
+- 在可執行的 working 工作區跑回歸測試、前端 lint/build，再以隔離測試帳戶驗證「後端餘額為 0 時資產頁不顯示 10,000 USDT」；通過後再由所有者決定是否合併與部署。
