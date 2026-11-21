@@ -365,13 +365,14 @@ export function SecondsPage() {
             <span className="font-mono text-[20px] font-bold leading-none tabular-nums text-brand-text sm:text-2xl">
               {displayTicker ? displayTicker.price.toLocaleString(locale, { minimumFractionDigits: 2 }) : "—"}
             </span>
-            {ticker ? (
-              <span className={"shrink-0 rounded px-1.5 py-0.5 font-mono text-[11px] font-bold tabular-nums " + (Number(ticker.chg) >= 0 ? "bg-profit/10 text-profit" : "bg-loss/10 text-loss")}>
-                {(Number(ticker.chg) >= 0 ? "+" : "") + Number(ticker.chg).toFixed(2) + "%"}
+            {displayTicker ? (
+              <span className={"shrink-0 rounded px-1.5 py-0.5 font-mono text-[11px] font-bold tabular-nums " + (displayTicker.chg >= 0 ? "bg-profit/10 text-profit" : "bg-loss/10 text-loss")}>
+                {(displayTicker.chg >= 0 ? "+" : "") + Number(displayTicker.chg).toFixed(2) + "%"}
               </span>
             ) : null}
           </div>
         </div>
+        {marketWarning ? <p role="status" className="text-xs text-brand-text-muted">{marketWarning}</p> : null}
 
         {notice ? <div role="status" className="rounded-xl border border-brand-success/30 bg-brand-success/10 p-3 text-xs font-semibold text-brand-success flex items-center gap-2"><ShieldCheck className="h-4 w-4 shrink-0" />{notice}</div> : null}
         {error ? <div role="alert" className="rounded-xl border border-brand-danger/30 bg-brand-danger/10 p-3 text-xs font-semibold text-brand-danger flex items-center gap-2"><ShieldAlert className="h-4 w-4 shrink-0" />{error}</div> : null}
@@ -570,6 +571,8 @@ export function SecondsPage() {
                     <span className="min-w-0">{t("An earlier Seconds request is still unconfirmed. Retry the same request before placing a new one.")}</span>
                     <Button type="button" size="sm" variant="outline" disabled={submitting} onClick={retryPendingIntent} className="h-9 shrink-0">{t("Retry same request")}</Button>
                   </div>
+                ) : positionsLoadError || !snapshot ? (
+                  <BottomPanelEmpty>{t("Unable to load order status. Refresh to try again.")}</BottomPanelEmpty>
                 ) : (
                   <BottomPanelEmpty>{t("No open orders")}</BottomPanelEmpty>
                 )}
