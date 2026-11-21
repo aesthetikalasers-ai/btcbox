@@ -1123,7 +1123,7 @@ export function ContractPage() {
                 aria-expanded={symbolPickerOpen}
                 className="flex min-w-0 items-center gap-1 rounded text-[18px] font-bold leading-none text-brand-text transition-colors hover:text-brand-text-secondary"
               >
-                <span className="truncate">{selectedMarket ? `${selectedMarket.base_asset ?? selectedMarket.symbol.replace(/USDT$/i, "")}/USDT` : "BTC/USDT"}</span>
+                <span className="truncate">{selectedMarket ? `${selectedMarket.base_asset ?? selectedMarket.symbol.replace(/USDT$/i, "")}/USDT` : "—"}</span>
                 <ChevronDown className="h-4 w-4 shrink-0 text-brand-text-muted" aria-hidden="true" />
               </button>
             </div>
