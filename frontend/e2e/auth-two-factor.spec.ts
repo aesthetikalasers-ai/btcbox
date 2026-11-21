@@ -43,7 +43,7 @@ test("username login keeps the authenticator challenge visible and completes sig
   await page.goto("/login");
   await page.getByLabel("Username").fill("qa_user");
   await page.getByLabel("Password", { exact: true }).fill("a-secure-test-password");
-  await page.getByRole("button", { name: "Sign in with username" }).click();
+  await page.getByRole("button", { name: "Sign in" }).click();
 
   await expect(page.getByRole("heading", { name: "Verify your sign-in" })).toBeVisible();
   await expect(page.getByLabel("Authenticator code")).toBeVisible();
