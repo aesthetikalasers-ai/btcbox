@@ -462,7 +462,7 @@
   "Already have an account?": "Já tem uma conta?",
   "Back to BTCBOX": "Voltar à BTCBOX",
   "Protected account access · Public markets remain available without signing in": "Acesso protegido à conta · Os mercados públicos continuam disponíveis sem iniciar sessão",
-    "Use a password between 12 and 128 characters.": "Utilize uma palavra-passe entre 12 e 128 caracteres.",
+  "Use a password between 12 and 128 characters.": "Utilize uma palavra-passe entre 12 e 128 caracteres.",
   "Use a password between 8 and 128 characters.": "Utilize uma palavra-passe entre 8 e 128 caracteres.",
   "The passwords do not match.": "As palavras-passe não coincidem.",
   "Password could not be updated.": "Não foi possível atualizar a palavra-passe.",
@@ -1696,5 +1696,15 @@
   "Latest": "Últ.",
   "Return rate": "Retorno",
   "Pick a duration and direction; the round settles automatically.": "Escolha a duração e a direção; a ronda liquida automaticamente.",
-  "Choose a short-term contract pair": "Escolha um par de contrato de curto prazo"
+  "Choose a short-term contract pair": "Escolha um par de contrato de curto prazo",
+  "Spot reference": "Referência spot",
+  "Underlying spot order book": "Livro de ofertas spot do ativo subjacente",
+  "Spot reference only — not the perpetual execution book.": "Apenas referência spot — não é o livro de execução de perpétuos.",
+  "Spot reference depth": "Profundidade de referência spot",
+  "The active seconds policy is unavailable. Payout rates and order entry are disabled until it can be verified.": "A política ativa de contratos de segundos não está disponível. As taxas de pagamento e a entrada de ordens estão desativadas até que possa ser verificada.",
+  "The active seconds policy is unavailable. No order was sent.": "A política ativa de segundos não está disponível. Nenhuma ordem foi enviada.",
+  "Your available balance could not be verified. No order was sent.": "Não foi possível verificar o saldo disponível. Nenhuma ordem foi enviada.",
+  "Amount is outside the active policy limits.": "O valor está fora dos limites da política ativa.",
+  "Insufficient available USDT balance.": "Saldo disponível em USDT insuficiente.",
+  "This market or duration is not enabled by the active policy.": "Este mercado ou duração não está habilitado pela política ativa."
 }
