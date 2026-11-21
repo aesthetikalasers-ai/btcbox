@@ -63,6 +63,7 @@ export function OrderBookDepth({ mid, book, streamState, usdtUsd }: { mid?: numb
   const bids = levelled.bids;
   const fmt = (v: number, digits = decimals) =>
     v.toLocaleString(numberLocale, { minimumFractionDigits: digits, maximumFractionDigits: digits });
+  const midText = Number.isFinite(mid) && Number(mid) > 0 ? fmt(Number(mid)) : "—";
 
   /* Dollar value is shown only when the caller has a verified USDT/USD rate. */
   const usdText = useMemo(() => {
@@ -165,7 +166,7 @@ export function OrderBookDepth({ mid, book, streamState, usdtUsd }: { mid?: numb
           <div className="flex items-center justify-between border-y border-brand-border-subtle py-2">
             <span className="text-[11px] uppercase tracking-wide text-brand-text-muted">{t("Mid price")}</span>
             <span className="flex flex-col items-end">
-              <span className="font-mono text-lg font-bold tabular-nums text-brand-success">{fmt(mid)} <span className="text-xs font-medium">USDT</span></span>
+              <span className="font-mono text-lg font-bold tabular-nums text-brand-success">{midText} <span className="text-xs font-medium">USDT</span></span>
               {usdText ? <span className="font-mono text-[10px] tabular-nums text-brand-text-muted">≈ {usdText}</span> : null}
             </span>
           </div>
