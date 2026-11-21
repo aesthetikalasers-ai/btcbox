@@ -10,6 +10,7 @@ const path = require('node:path');
 const root = path.resolve(__dirname, '..');
 const sql = fs.readFileSync(path.join(root, 'supabase/sql/0041_perpetual_contract_v1.sql'), 'utf8');
 const fundingFixSql = fs.readFileSync(path.join(root, 'supabase/sql/0043_perpetual_funding_settlement_idempotency_v1.sql'), 'utf8');
+const orderFixSql = fs.readFileSync(path.join(root, 'supabase/sql/0044_perpetual_order_idempotency_flags_v1.sql'), 'utf8');
 
 test('0041 extends operation_type with perp_* and reuses financial_accounts/operations/ledger', () => {
   assert.ok(sql.includes("'perp_order_reserve'"));
@@ -162,6 +163,23 @@ test('0043 funding settlement serializes retries, trusts the persisted rate and 
   const fundingPaidUpdates = fn.match(/funding_paid\s*=\s*funding_paid\s*-\s*v_payment/gi) || [];
   assert.equal(fundingPaidUpdates.length, 1, 'funding_paid must be updated exactly once');
   assert.ok(fn.includes("raise exception 'funding rate does not match persisted funding rate'"));
+});
+
+test('0044 order idempotency binds reduce_only and close_position flags', () => {
+  const normalized = orderFixSql.toLowerCase();
+  const start = normalized.indexOf('create or replace function public.perp_submit_order');
+  const end = normalized.indexOf('revoke all on function public.perp_submit_order', start);
+  assert.ok(start >= 0 && end > start, '0044 order RPC replacement missing');
+  const fn = normalized.slice(start, end);
+  const replayStart = fn.indexOf('-- 1. idempotency replay.');
+  const replayEnd = fn.indexOf('-- 2. market & risk validation.', replayStart);
+  assert.ok(replayStart >= 0 && replayEnd > replayStart, 'order idempotency replay block missing');
+  const replay = fn.slice(replayStart, replayEnd);
+  assert.match(fn, /p_reduce_only\s*:=\s*coalesce\(p_reduce_only,false\)/);
+  assert.match(fn, /p_close_position\s*:=\s*coalesce\(p_close_position,false\)/);
+  assert.match(replay, /v_existing\.reduce_only\s*<>\s*p_reduce_only/);
+  assert.match(replay, /v_existing\.close_position\s*<>\s*p_close_position/);
+  assert.ok(fn.includes('p_reduce_only::text,p_close_position::text'), 'reserve request hash must include order intent flags');
 });
 
 test('no check constraint weakened: max_leverage bounded 1-100, mmr bounded, fees >=0, status enum closed', () => {
