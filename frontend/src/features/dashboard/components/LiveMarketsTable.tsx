@@ -118,7 +118,7 @@ export function LiveMarketsTable({ markets, loading, error }: {
       {showMarketData ? (
         <div id="market-data-details" role="region" aria-label={t("Market data")} className="grid grid-cols-2 gap-x-4 gap-y-2 border-b border-brand-border bg-brand-surface-2/40 px-4 py-3 text-xs md:grid-cols-3 md:px-6">
           <div><span className="block text-brand-text-muted">{t("Server snapshot")}</span><strong className="mt-0.5 block font-mono tabular-nums text-brand-text">{snapshotTime || "—"}</strong></div>
-          <div><span className="block text-brand-text-muted">{t("Provider snapshot")}</span><strong className="mt-0.5 block font-mono tabular-nums text-brand-text">{providerTime || "—"}</strong></div>
+          <div aria-label={`${t("Provider snapshot")} ${providerSource || "—"} ${providerTime || "—"} ${providerAgeLabel || "—"}`}><span className="block text-brand-text-muted">{t("Provider snapshot")}</span><strong className="mt-0.5 block font-mono tabular-nums text-brand-text">{providerTime || "—"}</strong></div>
           <div><span className="block text-brand-text-muted">{t("Provider")}</span><strong className="mt-0.5 block text-brand-text">{providerSource || "—"}</strong></div>
           <div><span className="block text-brand-text-muted">{t("Snapshot age")}</span><strong className="mt-0.5 block font-mono tabular-nums text-brand-text">{snapshotAgeSeconds === null ? "—" : `${snapshotAgeSeconds}s`}</strong></div>
           <div><span className="block text-brand-text-muted">{t("Provider age")}</span><strong className="mt-0.5 block text-brand-text">{providerAgeLabel || "—"}</strong></div>
