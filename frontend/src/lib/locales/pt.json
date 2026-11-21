@@ -1711,5 +1711,7 @@
   "Provider": "Provedor",
   "Snapshot age": "Idade do snapshot",
   "Provider age": "Idade do provedor",
-  "Data source": "Fonte de dados"
+  "Data source": "Fonte de dados",
+  "Market data source could not be verified. Trading is disabled.": "Não foi possível verificar a fonte dos dados de mercado. As negociações estão desativadas.",
+  "Market snapshot is stale or missing. Quotes are hidden until a fresh snapshot arrives.": "O snapshot do mercado está desatualizado ou ausente. As cotações ficam ocultas até chegar um snapshot atualizado."
 }
