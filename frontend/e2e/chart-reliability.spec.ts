@@ -2,9 +2,9 @@ import { expect, test } from '@playwright/test';
 
 test('chart responses are ordered and unique at the chart time precision', async ({ page }) => {
   await page.route('**/api/kline?**', route => route.fulfill({ json: { ok: true, source: 'isolated-test', klines: [
-    { time: 2000, open: 10, high: 12, low: 9, close: 11, volume: 1 },
-    { time: 1000, open: 10, high: 12, low: 9, close: 11, volume: 1 },
-    { time: 2500, open: 10, high: 13, low: 9, close: 12, volume: 2 },
+    { time: 1700000002000, open: 10, high: 12, low: 9, close: 11, volume: 1 },
+    { time: 1700000001000, open: 10, high: 12, low: 9, close: 11, volume: 1 },
+    { time: 1700000002500, open: 10, high: 13, low: 9, close: 12, volume: 2 },
     { time: -1000, open: 10, high: 12, low: 9, close: 11, volume: 1 },
   ] } }));
   await page.goto('/home');
@@ -12,7 +12,7 @@ test('chart responses are ordered and unique at the chart time precision', async
     const path = '/src/lib/api.ts';
     return (await import(path)).getKlines('BTCUSDT');
   });
-  expect(candles.map((c: { time: number }) => c.time)).toEqual([1000, 2500]);
+  expect(candles.map((c: { time: number }) => c.time)).toEqual([1700000001, 1700000002]);
   expect(candles[1].close).toBe(12);
 });
 
