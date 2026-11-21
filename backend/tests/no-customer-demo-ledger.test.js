@@ -34,3 +34,12 @@ test("seconds page displays only server positions and settlement history", () =>
   assert.ok(!page.includes("settleSecondsTrade"));
   assert.ok(!page.includes("lastSettleResult"));
 });
+
+test("perpetual market failures never fall back to synthetic customer markets", () => {
+  const page = fs.readFileSync(path.join(root, "features/pages/ContractPage.tsx"), "utf8");
+  assert.ok(!page.includes("getDemoPerpMarkets"));
+  assert.ok(page.includes("setMarkets([])"));
+  assert.ok(page.includes("setMarketsFallback(true)"));
+  assert.ok(page.includes("markets.length === 0 && !marketsLoading"));
+  assert.ok(page.includes("marketsError || t("));
+});
