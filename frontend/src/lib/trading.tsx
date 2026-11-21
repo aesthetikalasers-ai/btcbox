@@ -77,6 +77,7 @@ export interface PaperWalletHistory {
 }
 
 const STORAGE_KEY = "btcbox-paper-trading";
+// Development-only paper balance; production never loads or initializes this ledger.
 const DEMO_INITIAL_USDT = 10000;
 
 /** 生成一个可读的订单号。 */
@@ -433,8 +434,8 @@ export function useTrading(): TradingContextValue {
 }
 
 /**
- * 监听登录状态，登录/注册后自动初始化 10,000 USDT 演示钱包。
- * 需要挂载在 AuthProvider 内部。
+ * Development-only paper-wallet initializer. It is not mounted by the customer app,
+ * and its DEV guard prevents any production session from receiving a paper balance.
  */
 export function TradingInitializer() {
   const { status } = useAuth();
