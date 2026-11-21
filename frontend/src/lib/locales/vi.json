@@ -1705,5 +1705,6 @@
   "Your available balance could not be verified. No order was sent.": "Không thể xác minh số dư khả dụng. Không có lệnh nào được gửi.",
   "Amount is outside the active policy limits.": "Số tiền nằm ngoài giới hạn của chính sách hiện tại.",
   "Insufficient available USDT balance.": "Số dư USDT khả dụng không đủ.",
-  "This market or duration is not enabled by the active policy.": "Thị trường hoặc thời hạn này không được chính sách hiện tại cho phép."
+  "This market or duration is not enabled by the active policy.": "Thị trường hoặc thời hạn này không được chính sách hiện tại cho phép.",
+  "Return to registration": "Quay lại đăng ký"
 }
