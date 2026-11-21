@@ -1720,5 +1720,10 @@
   "Open spot, perpetual and seconds trading products from one place.": "現物、無期限、秒契約の商品をまとめて利用できます。",
   "Launchpool is not currently available": "Launchpoolは現在ご利用いただけません",
   "No verified launchpool campaigns are currently published. Staking pools, reward rates and campaign statistics will appear here only when confirmed campaign data is available.": "現在、確認済みのLaunchpoolキャンペーンは公開されていません。ステーキングプール、報酬率、キャンペーン統計は、確認済みデータがある場合にのみ表示されます。",
-  "View Earn products": "Earn商品を見る"
+  "View Earn products": "Earn商品を見る",
+  "Checking availability": "利用状況を確認中",
+  "Markets read-only": "マーケット閲覧のみ",
+  "Review available USDT-margined perpetual markets and their server-configured limits.": "利用可能なUSDT建て無期限市場とサーバー設定の取引制限を確認できます。",
+  "Submit positions only when server policy is enabled, with server-managed settlement.": "サーバーポリシーが有効な場合のみポジションを送信でき、決済はサーバーが管理します。",
+  "View Earn products, yields and terms published by BTCBOX.": "BTCBOXが公開しているEarn商品、利回り、条件を確認できます。"
 }
