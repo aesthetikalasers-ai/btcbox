@@ -69,7 +69,7 @@ export function SecondsPage() {
     : [];
   const minStake = policy ? Number(policy.policy.min_stake) : null;
   const maxStake = policy ? Number(policy.policy.max_stake) : null;
-  const quickAmounts = policy && minStake !== null && maxStake !== null && availableUSDT !== null
+  const quickAmounts = policy?.actions_enabled === true && minStake !== null && maxStake !== null && availableUSDT !== null
     ? QUICK_AMOUNTS.filter((value) => value >= minStake && value <= maxStake && value <= Number(availableUSDT))
     : [];
 
@@ -353,6 +353,8 @@ export function SecondsPage() {
                   <span className="text-brand-text-muted font-medium">{t("Settlement duration")}</span>
                   <span className="text-brand-accent font-mono font-bold">{t("Return rate")}: {currentRate === null ? "—" : `+${currentRate.toFixed(2)}%`}</span>
                 </div>
+                {!policy ? <p role="status" className="mb-2 text-xs text-brand-text-muted">{t("The active seconds policy is unavailable. Payout rates and order entry are disabled until it can be verified.")}</p> : null}
+                {policy && !policy.actions_enabled ? <p role="status" className="mb-2 text-xs text-brand-text-muted">{t("Seconds order entry is currently disabled by server policy.")}</p> : null}
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
                   {durationOptions.map((opt) => (
                     <button key={opt.sec} type="button" disabled={!policy || policy.actions_enabled !== true} onClick={() => setDuration(opt.sec)} className={`flex flex-col items-center justify-center rounded-lg border py-1.5 transition-all ${duration === opt.sec ? "border-brand-accent bg-brand-accent/20 text-brand-accent shadow-sm shadow-brand-accent/20 font-bold" : "border-brand-border/50 bg-brand-surface text-brand-text-muted hover:border-brand-border-strong hover:text-brand-text"}`}>
@@ -369,7 +371,7 @@ export function SecondsPage() {
                   <span className="text-brand-text-muted font-mono">{t("Available")}: <strong className="text-brand-text">{signedOut || availableUSDT === null ? "—" : Number(availableUSDT).toFixed(2)}</strong></span>
                 </div>
                 <div className="flex h-11 items-center rounded-lg border border-brand-border bg-brand-surface-2 px-3 focus-within:border-brand-accent">
-                  <input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0.00" disabled={!policy || policy.actions_enabled !== true || availableUSDT === null} className="h-full flex-1 bg-transparent font-mono text-sm text-brand-text outline-none placeholder:text-brand-text-muted" />
+                  <input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0.00" disabled={!policy || policy.actions_enabled !== true || availableUSDT === null || Number(availableUSDT) <= 0} className="h-full flex-1 bg-transparent font-mono text-sm text-brand-text outline-none placeholder:text-brand-text-muted" />
                   <span className="text-xs font-bold text-brand-text-muted">USDT</span>
                 </div>
                 <div className="flex items-center gap-2 pt-1">
@@ -378,7 +380,7 @@ export function SecondsPage() {
                       {val}
                     </button>
                   ))}
-                  <button type="button" disabled={!policy || availableUSDT === null || Number(availableUSDT) <= 0} onClick={() => setAmount(availableUSDT !== null && maxStake !== null ? String(Math.min(Number(availableUSDT), maxStake)) : "")} className="h-[30px] rounded-md border border-brand-border/60 bg-brand-surface-2 px-3 text-xs font-semibold text-brand-text-muted hover:border-brand-accent hover:text-brand-accent disabled:opacity-40">
+                  <button type="button" disabled={!policy || policy.actions_enabled !== true || availableUSDT === null || Number(availableUSDT) <= 0} onClick={() => setAmount(availableUSDT !== null && maxStake !== null ? String(Math.min(Number(availableUSDT), maxStake)) : "")} className="h-[30px] rounded-md border border-brand-border/60 bg-brand-surface-2 px-3 text-xs font-semibold text-brand-text-muted hover:border-brand-accent hover:text-brand-accent disabled:opacity-40">
                     {t("Max")}
                   </button>
                 </div>
