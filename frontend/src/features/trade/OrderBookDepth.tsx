@@ -67,8 +67,9 @@ export function OrderBookDepth({ mid, book, streamState, usdtUsd }: { mid?: numb
   /* Dollar value is shown only when the caller has a verified USDT/USD rate. */
   const usdText = useMemo(() => {
     const rate = Number(usdtUsd);
-    if (!Number.isFinite(mid) || mid <= 0 || !Number.isFinite(rate) || rate <= 0) return "";
-    return "$" + (mid * rate).toLocaleString(numberLocale, { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+    const price = Number(mid);
+    if (!Number.isFinite(price) || price <= 0 || !Number.isFinite(rate) || rate <= 0) return "";
+    return "$" + (price * rate).toLocaleString(numberLocale, { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
   }, [mid, usdtUsd, decimals, numberLocale]);
 
   const renderRow = (level: Level, side: "ask" | "bid", keyId: string) => (
