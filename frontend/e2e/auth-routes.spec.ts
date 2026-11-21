@@ -539,12 +539,15 @@ test("OAuth callback cancellation returns a visible recovery path without creati
   await expect(page).toHaveURL(/\/auth\/react-callback\?/);
 });
 
-test("OAuth callback failure returns a registration attempt to the registration entry", async ({ page }) => {
+test("OAuth callback failure keeps the error visible and offers the registration return path", async ({ page }) => {
   await page.goto("/auth/react-callback?intent=register&error=access_denied&error_description=Google%20sign-in%20was%20cancelled");
 
   await expect(page.getByText("Google sign-in was cancelled")).toBeVisible();
-  await expect(page.getByRole("link", { name: "Return to sign in" })).toHaveAttribute("href", "/register");
-  await expect(page).toHaveURL(/\/register$/, { timeout: 7500 });
+  const returnLink = page.getByRole("link", { name: "Return to registration" });
+  await expect(returnLink).toHaveAttribute("href", "/register");
+  await expect(page).toHaveURL(/\\/auth\\/react-callback\\?/);
+  await returnLink.click();
+  await expect(page).toHaveURL(/\\/register$/);
 });
 
 async function installAdminE2EIdentity(page: import("@playwright/test").Page) {
