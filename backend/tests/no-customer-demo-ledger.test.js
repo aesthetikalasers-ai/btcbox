@@ -261,3 +261,11 @@ test("obsolete hard-coded seconds page is not left in the shared pages module", 
   assert.ok(!pages.includes("DURATION_OPTIONS"));
   assert.ok(!pages.includes("QUICK_AMOUNTS"));
 });
+
+test("demo preview cannot be enabled by a production query string or stale browser storage", () => {
+  const preview = fs.readFileSync(path.join(root, "lib/demoPreview.ts"), "utf8");
+  assert.ok(preview.includes("const forceDemo = import.meta.env.DEV &&"));
+  assert.ok(preview.includes("if (import.meta.env.DEV)"));
+  assert.ok(preview.includes("let demoEnabled = false"));
+  assert.ok(preview.includes("export const DEMO_PREVIEW_ACTIVE = demoEnabled"));
+});
