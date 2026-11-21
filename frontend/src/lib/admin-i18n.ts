@@ -18,6 +18,8 @@ const messages: Record<string, string> = {
   "This manual credit was already recorded.": "此笔人工入账已记录。",
   "Manual credit recorded and audit event submitted.": "人工入账已记录，审计事件已提交。",
   "Manual credit was not confirmed.": "尚未确认人工入账结果。",
+  "Manual credit is disabled until the user's PostgreSQL ledger balance source is confirmed.": "只有确认用户余额来自 PostgreSQL 正式账本后，才能进行人工入账。",
+  "Manual credit is disabled until the user's PostgreSQL ledger balance source is confirmed. No credit was sent.": "只有确认用户余额来自 PostgreSQL 正式账本后，才能进行人工入账。未发送入账请求。",
   "Withdrawal queue refreshed.": "提现队列已刷新。",
   "Withdrawal review queue could not be refreshed.": "无法刷新提现审核队列。",
   "Audit source changed while loading older records. Refresh the Audit log before continuing.": "加载历史记录时审计数据源发生变化，请先刷新审计日志。",
