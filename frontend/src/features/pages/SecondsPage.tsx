@@ -86,12 +86,13 @@ export function SecondsPage() {
         ? t("Market refresh failed. The last verified snapshot remains visible until it expires.")
         : t("Market data is temporarily unavailable.")
       : "";
-  const chartStale = chartUpdatedAt === null || clockNow - chartUpdatedAt > 90_000;
+  const chartMaxAgeMs = interval === "15m" ? 20 * 60_000 : interval === "5m" ? 10 * 60_000 : 3 * 60_000;
+  const chartStale = chartUpdatedAt === null || clockNow - chartUpdatedAt > chartMaxAgeMs;
   const chartUnavailable = chartStale || candles.length === 0;
-  const chartWarning = chartStale
-    ? t("Chart snapshot is stale or missing. Waiting for fresh data.")
-    : candles.length === 0
-      ? t("No chart data is currently available for this market.")
+  const chartWarning = candles.length === 0
+    ? t("No chart data is currently available for this market.")
+    : chartStale
+      ? t("Chart snapshot is stale or missing. Waiting for fresh data.")
       : chartFeedError
         ? t("Chart refresh failed. The last verified snapshot remains visible until it expires.")
         : "";
@@ -198,7 +199,8 @@ export function SecondsPage() {
       getKlines(symbol + "USDT", tf).then((rows) => {
         if (!cancelled) {
           setCandles(rows);
-          setChartUpdatedAt(Date.now());
+          const latestCandleSeconds = rows.reduce((latest, row) => Math.max(latest, Number(row.time) || 0), 0);
+          setChartUpdatedAt(latestCandleSeconds > 0 ? latestCandleSeconds * 1000 : null);
           setChartFeedError(false);
         }
       }).catch(() => {
