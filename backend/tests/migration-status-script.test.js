@@ -154,6 +154,8 @@ test('Docker first-init and guarded empty-database bootstrap use the exact canon
   assert.ok(inventories[1].includes('0040_admin_superadmin_membership_listing_v1.sql'));
   assert.ok(inventories[1].includes('0041_perpetual_contract_v1.sql'));
   assert.ok(inventories[1].includes('0042_financial_operation_type_allowlist_reconciliation_v1.sql'));
+  assert.ok(inventories[1].includes('0043_perpetual_funding_settlement_idempotency_v1.sql'));
+  assert.ok(inventories[1].includes('0044_perpetual_order_idempotency_flags_v1.sql'));
 });
 
 
