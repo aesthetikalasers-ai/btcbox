@@ -1,9 +1,8 @@
 # BTCBOX Account Center — Information Architecture Map
 
 Date: 2026-11-02
-Review branch: `feature/ai1-visual`
 Scope: account hub and its relationship to the existing Assets destination.
-Status: source-audited proposal; implementation belongs to 2号 Interaction Team and requires peer review.
+Status: source-audited product/UX reference; re-check current routes and API behavior before implementation.
 
 ## 1. Product principle
 
@@ -99,10 +98,6 @@ The account hub may contain one compact balance snapshot with a clear **View Ass
 - [ ] Desktop and mobile layouts are checked at 320/375/390/430px.
 - [ ] Browser QA and tests are recorded as NOT RUN until actually executed.
 
-## 7. Ownership and handoff
+## 7. Implementation status
 
-- 2号 Interaction Team: route map, hierarchy, markup, actions, accessibility and user flow.
-- 1号 Visual Team: visual grouping, spacing, typography, responsive treatment after markup is available.
-- 3号 Business Team: confirm capability/API availability; do not let presentation imply a backend feature that does not exist.
-
-Implementation has not been made by this review. The current actionable handoff is `INT-1-007` in `docs/AI-ISSUE-LOG.md`.
+This document records an information-architecture review, not proof that the proposed changes have been implemented. Before changing the account center, verify the current route registry, backend API availability and existing user flows. Do not treat preview-only or unavailable entries as operational features.
