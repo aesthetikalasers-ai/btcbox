@@ -245,7 +245,7 @@ export function AccountSecurityPage() {
             {sheet === "password" && (
               <form className="space-y-3" aria-busy={busy} onSubmit={async (event: FormEvent<HTMLFormElement>) => {
                 event.preventDefault();
-                if (busy || newPassword !== confirmNewPassword || newPassword.length < 12) return;
+                if (busy || newPassword !== confirmNewPassword || newPassword.length < 8) return;
                 try {
                   await setSupabaseLoginPassword(newPassword);
                   setAccount((current) => current ? { ...current, has_login_password: true } : current);
@@ -253,11 +253,11 @@ export function AccountSecurityPage() {
                 } catch {}
               }}>
                 <p className="text-sm text-brand-text-secondary">{t("Set a password for this same Google account. You can then sign in with either Google or this email and password; your account and UID stay the same.")}</p>
-                <label className="block space-y-1.5 text-sm"><span className="text-brand-text-secondary">{t("New password")}</span><Input type="password" value={newPassword} onChange={(event) => setNewPassword(event.target.value)} autoComplete="new-password" minLength={12} maxLength={128} placeholder={t("At least 12 characters")} required /></label>
-                <label className="block space-y-1.5 text-sm"><span className="text-brand-text-secondary">{t("Confirm new password")}</span><Input type="password" value={confirmNewPassword} onChange={(event) => setConfirmNewPassword(event.target.value)} autoComplete="new-password" minLength={12} maxLength={128} required /></label>
+                <label className="block space-y-1.5 text-sm"><span className="text-brand-text-secondary">{t("New password")}</span><Input type="password" value={newPassword} onChange={(event) => setNewPassword(event.target.value)} autoComplete="new-password" minLength={8} maxLength={128} placeholder={t("At least 8 characters")} required /></label>
+                <label className="block space-y-1.5 text-sm"><span className="text-brand-text-secondary">{t("Confirm new password")}</span><Input type="password" value={confirmNewPassword} onChange={(event) => setConfirmNewPassword(event.target.value)} autoComplete="new-password" minLength={8} maxLength={128} required /></label>
                 {confirmNewPassword && newPassword !== confirmNewPassword && <p role="alert" className="text-sm text-brand-danger">{t("Passwords do not match.")}</p>}
                 {error && <p role="alert" className="text-sm text-brand-danger">{t(error)}</p>}
-                <Button type="submit" className="w-full" aria-busy={busy} disabled={busy || newPassword.length < 12 || newPassword !== confirmNewPassword}>{t("Save new password")}</Button>
+                <Button type="submit" className="w-full" aria-busy={busy} disabled={busy || newPassword.length < 8 || newPassword !== confirmNewPassword}>{t("Save new password")}</Button>
               </form>
             )}
 
