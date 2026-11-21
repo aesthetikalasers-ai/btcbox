@@ -224,7 +224,7 @@ export function TerminalOrderBook({
   const askRowsWidths = useMemo(() => [...askWidths].reverse(), [askWidths]);
 
   const spread = asks.length && bids.length ? Number(asks[0][0]) - Number(bids[0][0]) : null;
-  const up = lastPrice !== "" && changePercent >= 0;
+  const up = lastPrice !== "" && changePercent !== null && changePercent !== undefined && Number.isFinite(changePercent) && changePercent >= 0;
   const sizeDecimals = sizeDecimalsFor(decimals);
   /* Dollar-equivalent of the mid price; only show it when a verified rate exists. */
   const usdEquivalent = useMemo(() => {
