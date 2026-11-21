@@ -1725,5 +1725,6 @@
   "Markets read-only": "Markets read-only",
   "Review available USDT-margined perpetual markets and their server-configured limits.": "Review available USDT-margined perpetual markets and their server-configured limits.",
   "Submit positions only when server policy is enabled, with server-managed settlement.": "Submit positions only when server policy is enabled, with server-managed settlement.",
-  "View Earn products, yields and terms published by BTCBOX.": "View Earn products, yields and terms published by BTCBOX."
+  "View Earn products, yields and terms published by BTCBOX.": "View Earn products, yields and terms published by BTCBOX.",
+  "Limited availability": "Limited availability"
 }
