@@ -1562,34 +1562,68 @@ async function prepareKycDocumentImage(file: File): Promise<{
  document_content_type: "image/jpeg";
  document_image_base64: string;
 }> {
- if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
-  throw new Error("Choose a JPEG, PNG, or WebP identity document image.");
+ const fileType = String(file.type || "").toLowerCase();
+ const supportedExtension = /\\.(?:jpe?g|png|webp|heic|heif)$/i.test(file.name || "");
+ if (!fileType.startsWith("image/") && !supportedExtension) {
+  throw new Error("Choose an image file such as JPEG, PNG, WebP, or HEIC.");
  }
  if (!file.size || file.size > 8 * 1024 * 1024) {
   throw new Error("The selected image must be smaller than 8 MB before compression.");
  }
- const bitmap = await createImageBitmap(file);
+
+ // Prefer createImageBitmap, but fall back to the browser's native Image decoder
+ // for mobile browsers/codecs that do not implement the bitmap API consistently.
+ const objectUrl = URL.createObjectURL(file);
+ let bitmap: ImageBitmap | null = null;
+ let imageSource: CanvasImageSource | null = null;
+ let sourceWidth = 0, sourceHeight = 0;
  try {
-  let width = bitmap.width, height = bitmap.height;
-  const scale = Math.min(1, 1600 / Math.max(width, height));
-  width = Math.max(1, Math.round(width * scale));
-  height = Math.max(1, Math.round(height * scale));
+  if (typeof createImageBitmap === "function") {
+   try { bitmap = await createImageBitmap(file); } catch { bitmap = null; }
+  }
+  if (bitmap && bitmap.width > 0 && bitmap.height > 0) {
+   imageSource = bitmap;
+   sourceWidth = bitmap.width;
+   sourceHeight = bitmap.height;
+  } else {
+   bitmap?.close();
+   bitmap = null;
+   const image = new Image();
+   image.decoding = "async";
+   await new Promise<void>((resolve, reject) => {
+    image.onload = () => resolve();
+    image.onerror = () => reject(new Error("This browser cannot read this photo format. Choose a JPEG or PNG image."));
+    image.src = objectUrl;
+   });
+   imageSource = image;
+   sourceWidth = image.naturalWidth;
+   sourceHeight = image.naturalHeight;
+  }
+  if (!imageSource || !sourceWidth || !sourceHeight) {
+   throw new Error("The selected image could not be decoded. Choose a clear JPEG or PNG photo.");
+  }
+
+  const scale = Math.min(1, 1600 / Math.max(sourceWidth, sourceHeight));
+  let width = Math.max(1, Math.round(sourceWidth * scale));
+  let height = Math.max(1, Math.round(sourceHeight * scale));
   let blob: Blob | null = null;
-  for (let attempt = 0; attempt < 5; attempt++) {
+  const qualitySteps = [0.86, 0.8, 0.74, 0.68, 0.62, 0.56, 0.5, 0.44];
+  for (let attempt = 0; attempt < qualitySteps.length; attempt++) {
    const canvas = document.createElement("canvas");
    canvas.width = width; canvas.height = height;
    const context = canvas.getContext("2d");
    if (!context) throw new Error("This browser cannot prepare the document image.");
    context.fillStyle = "#ffffff";
    context.fillRect(0, 0, width, height);
-   context.drawImage(bitmap, 0, 0, width, height);
-   blob = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, "image/jpeg", [0.84, 0.78, 0.7, 0.62, 0.54][attempt]));
+   context.drawImage(imageSource, 0, 0, width, height);
+   blob = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, "image/jpeg", qualitySteps[attempt]));
    if (blob && blob.size <= 512 * 1024) break;
-   // Shrink both dimensions by the same factor to preserve the document's aspect ratio.
-   width = Math.max(1, Math.round(width * 0.82));
-   height = Math.max(1, Math.round(height * 0.82));
+   width = Math.max(1, Math.round(width * 0.88));
+   height = Math.max(1, Math.round(height * 0.88));
   }
-  if (!blob || blob.size > 512 * 1024) throw new Error("The image could not be compressed below 512 KB. Choose a clearer, smaller photo.");
+  if (!blob || blob.size > 512 * 1024) {
+   throw new Error("The image could not be compressed below 512 KB. Choose a clearer, smaller photo.");
+  }
   const dataUrl = await new Promise<string>((resolve, reject) => {
    const reader = new FileReader();
    reader.onerror = () => reject(new Error("The document image could not be read."));
@@ -1600,7 +1634,8 @@ async function prepareKycDocumentImage(file: File): Promise<{
   if (!encoded) throw new Error("The document image could not be prepared.");
   return { document_content_type: "image/jpeg", document_image_base64: encoded };
  } finally {
-  bitmap.close();
+  bitmap?.close();
+  URL.revokeObjectURL(objectUrl);
  }
 }
 
@@ -1673,7 +1708,7 @@ export function KycPage(){
    <label className="block space-y-1 text-sm"><span>{t("Full legal name")}</span><input value={name} onChange={event=>setName(event.target.value)} maxLength={100} autoComplete="name" required disabled={submitting} className="h-12 w-full rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-3 text-sm text-brand-text outline-none transition-colors placeholder:text-brand-text-muted focus:border-brand-accent/60 focus:ring-2 focus:ring-brand-accent/15"/></label>
    <div className="block space-y-2 text-sm"><span>{t("Identity document type")}</span><div className="flex flex-wrap gap-2">{([["id_card",t("ID card")],["passport",t("Passport")],["driver_license",t("Driver's license")]] as Array<["id_card"|"passport"|"driver_license",string]>).map(([value,label])=><button key={value} type="button" disabled={submitting} onClick={()=>setIdType(value)} className={`min-h-10 rounded-full border px-4 text-sm font-semibold transition-colors ${idType===value?"border-brand-accent bg-brand-accent/15 text-brand-accent":"border-brand-border bg-brand-surface-2 text-brand-text-muted hover:border-brand-accent/40 hover:text-brand-text"}`}>{label}</button>)}</div></div>
    <label className="block space-y-1 text-sm"><span>{t("Document number")}</span><input value={idNumber} onChange={event=>setIdNumber(event.target.value)} maxLength={64} autoComplete="off" required disabled={submitting} className="h-12 w-full rounded-xl border border-brand-border bg-brand-surface-2 px-3 py-3 font-mono text-sm text-brand-text outline-none transition-colors focus:border-brand-accent/60 focus:ring-2 focus:ring-brand-accent/15"/></label>
-   <div className="block space-y-2 text-sm"><span>{t("Identity document image")}</span><label className={`flex min-h-[88px] cursor-pointer flex-col items-center justify-center gap-1.5 rounded-xl border-2 border-dashed px-4 py-5 text-center transition-colors ${documentFile?"border-brand-accent/50 bg-brand-accent/[.04]":"border-brand-border bg-brand-surface-2 hover:border-brand-accent/40"} ${submitting?"pointer-events-none opacity-60":""}`}><input type="file" accept="image/jpeg,image/png,image/webp" disabled={submitting} onChange={event=>{setDocumentFile(event.target.files?.[0]||null);setSubmitError("");}} className="sr-only"/>{documentFile?<><span className="text-sm font-semibold text-brand-accent">{documentFile.name}</span><span className="text-xs text-brand-text-muted">{t("Tap to upload")}</span></>:<><span className="text-sm font-semibold text-brand-text">{t("Tap to upload")}</span><span className="text-xs text-brand-text-muted">{t("JPEG, PNG or WebP. Maximum original size 8 MB; securely compressed to 512 KB. Upload a clear, readable image.")}</span></>}</label></div>
+   <div className="block space-y-2 text-sm"><span>{t("Identity document image")}</span><label className={`flex min-h-[88px] cursor-pointer flex-col items-center justify-center gap-1.5 rounded-xl border-2 border-dashed px-4 py-5 text-center transition-colors ${documentFile?"border-brand-accent/50 bg-brand-accent/[.04]":"border-brand-border bg-brand-surface-2 hover:border-brand-accent/40"} ${submitting?"pointer-events-none opacity-60":""}`}><input type="file" accept="image/*" disabled={submitting} onChange={event=>{setDocumentFile(event.target.files?.[0]||null);setSubmitError("");}} className="sr-only"/>{documentFile?<><span className="text-sm font-semibold text-brand-accent">{documentFile.name}</span><span className="text-xs text-brand-text-muted">{t("Tap to upload")}</span></>:<><span className="text-sm font-semibold text-brand-text">{t("Tap to upload")}</span><span className="text-xs text-brand-text-muted">{t("JPEG, PNG or WebP. Maximum original size 8 MB; securely compressed to 512 KB. Upload a clear, readable image.")}</span></>}</label></div>
    <Button type="submit" block disabled={submitting||!name.trim()||!idNumber.trim()||!documentFile}>{submitting?t("Submitting…"):t("Submit for review")}</Button>
    {submitError?<p role="alert" className="text-sm text-brand-danger">{t(submitError)}</p>:null}{notice?<p role="status" className="text-sm text-brand-success">{notice}</p>:null}
   </form></CardContent></Card>:null}
