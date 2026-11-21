@@ -34,7 +34,7 @@ test.beforeEach(async ({ page }) => {
 test("login route exposes BTCBOX username, Google and wallet sign-in", async ({ page }) => {
   await page.goto("/login");
 
-  await expect(page.getByRole("heading", { name: "Sign in to your account", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Welcome back", exact: true })).toBeVisible();
   await expect(page.getByRole("banner")).toHaveCount(0);
   await expect(page.getByRole("navigation", { name: "Primary navigation" })).toHaveCount(0);
   await expect(page.getByLabel("Username")).toBeVisible();
@@ -1025,8 +1025,8 @@ test("trade chooser exposes exactly the four customer products (Spot/Perpetual/S
 
   // The Earn entry is visible publicly; the catalog and positions remain login-gated.
   await earnEntry.click();
-  await expect(page).toHaveURL(/\/login$/);
-  await expect(page.getByRole("heading", { name: "Welcome back", exact: true })).toBeVisible();
+  await expect(page).toHaveURL(/\/earn$/);
+  await expect(page.getByRole("heading", { name: "Sign in to your account", exact: true })).toBeVisible();
 });
 
 
