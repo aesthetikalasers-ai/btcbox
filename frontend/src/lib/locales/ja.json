@@ -1717,5 +1717,8 @@
   "Browse supported spot pairs and their live market data.": "対応する現物取引ペアとリアルタイムの市場データを確認できます。",
   "Earn products": "Earn商品",
   "Review the products and terms currently published in BTCBOX Earn.": "BTCBOX Earnで現在公開されている商品と条件を確認できます。",
-  "Open spot, perpetual and seconds trading products from one place.": "現物、無期限、秒契約の商品をまとめて利用できます。"
+  "Open spot, perpetual and seconds trading products from one place.": "現物、無期限、秒契約の商品をまとめて利用できます。",
+  "Launchpool is not currently available": "Launchpoolは現在ご利用いただけません",
+  "No verified launchpool campaigns are currently published. Staking pools, reward rates and campaign statistics will appear here only when confirmed campaign data is available.": "現在、確認済みのLaunchpoolキャンペーンは公開されていません。ステーキングプール、報酬率、キャンペーン統計は、確認済みデータがある場合にのみ表示されます。",
+  "View Earn products": "Earn商品を見る"
 }
