@@ -51,3 +51,46 @@
 - Admin portal now has an unmistakable standalone sign-in header and explicit `/admin/*` route coverage; authentication still uses the existing Supabase Auth + database RBAC flow. No bypass or static credentials were added.
 - Verification: **NOT VERIFIED** — source updates committed successfully, but no local build/test runner was available in this session and no CI result has been observed yet. Production deployment status and real mobile upload/admin login flows remain **NOT VERIFIED**.
 - Previous KYC decoder commits on `working` were left intact; this task did not merge or rewrite that branch.
+
+## 2026-11-22 — Admin OAuth return and KYC Storage repair (2号 AI)
+
+### Scope and branch baseline
+- Current planned stage remains **Stage 1 — authentication dialog, in progress**. This owner-requested repair addresses the standalone Admin Google OAuth return path and the blocking hosted KYC Storage configuration; no Earn or financial business rules were changed.
+- Main baseline before this repair: `c8af32fe78b3030c31399053fd0c8ce24547249e`.
+- Shared development branch observed during this repair: `working` HEAD `50d13511e0309d963df7c4afeff1124275c97f12`; it was not modified or rewritten.
+- Code commit: `fb3afe1888947faf21b62acfba20bb9b317c9c17`. This state report is included in the final commit of the same main-branch update.
+- Production deployment before this code update: main commit `c8af32fe78b3030c31399053fd0c8ce24547249e`, Vercel state **READY**. A live Playwright probe of `/admin` returned HTTP 200, rendered the distinct “Administrator sign in” surface, and reported no browser page errors.
+
+### Root causes and fixes
+- **Admin login returning to the customer front end — NEEDS FIX resolved in source:** `AdminPage` passed `redirectTo="/admin"`, but the standalone Google sign-in handler removed `btcbox:oauth:return-to` whenever `embedded=false`. The OAuth callback already consumed a saved same-origin return path; the sign-in handler now persists the validated `redirectTo` for standalone Admin login and rejects protocol-relative/external paths and callback loops.
+- **KYC photo upload unavailable — hosted Storage configuration resolved:** the production Supabase project had no `kyc-documents` bucket, while the backend correctly failed closed with `KYC_STORAGE_UNAVAILABLE`. Created the bucket as private, with a 524,288-byte limit and only `image/jpeg`, `image/png`, and `image/webp`. A read-only check confirmed no `storage.objects` policy references that grant customer access to this bucket. The frontend already supports native image-decoder fallback and normalizes supported mobile image formats to JPEG before upload.
+- Added the idempotent bucket setup source at `backend/supabase/operations/kyc-document-storage-bucket.sql` and updated `docs/KYC_DOCUMENT_STORAGE.md`.
+
+### Files changed
+- `frontend/src/features/auth/AuthPages.tsx`
+- `frontend/e2e/admin-oauth-return.spec.ts`
+- `backend/tests/admin-entry.test.js`
+- `backend/tests/kyc-document-storage.test.js`
+- `backend/supabase/operations/kyc-document-storage-bucket.sql`
+- `docs/KYC_DOCUMENT_STORAGE.md`
+- `docs/AI_PROJECT_STATE.md` (this handoff record)
+
+### Verification evidence
+- `npx tsc --noEmit` — **PASS**.
+- `npm run build` in `frontend/` — **PASS**.
+- `npm run build` in `backend/` — **PASS**.
+- `node --test tests/admin-entry.test.js tests/kyc-document-storage.test.js` in `backend/` — **PASS**.
+- `npx playwright test e2e/admin-oauth-return.spec.ts --project=desktop-chromium --reporter=line` — **PASS**, 2/2 tests: standalone Admin sign-in saves `/admin`; OAuth callback consumes it after synthetic Supabase session restoration.
+- Hosted Storage read-only verification — **PASS**: `kyc-documents`, private, 524,288 bytes, JPEG/PNG/WebP; no matching customer-facing `storage.objects` policy.
+- Live pre-fix production route probe — **PASS**: `/admin` returned HTTP 200 and the dedicated Admin sign-in heading; no page errors.
+- Full backend suite — **NEEDS FIX**: 558 passed, 2 failed in `google-only-auth.test.js` due existing auth assertions; one explicitly expects `requestPasswordReset` to be absent while the current auth page includes it. These unrelated assertions were not changed in this targeted repair.
+- `npm run check:i18n` — **NEEDS FIX**: 11 existing unregistered static `t()` keys and one missing legacy Vietnamese key. No locale files were changed in this repair.
+
+### Not yet verified / release boundary
+- A real KYC upload, signed admin preview, and download have **NOT VERIFIED**; no real identity document was uploaded.
+- Physical iOS Safari HEIC/HEIF selection/decoding has **NOT VERIFIED**; the source fallback is covered by existing regression assertions, not a physical-device run.
+- The new main commit has not yet completed its automatic Vercel production build at the time of this record. No manual deployment was run.
+- No user Auth membership, financial data, trading state, or environment variables were changed by this repair; the only hosted write was creation of the private KYC Storage bucket.
+
+### Next single priority
+- After the automatic Vercel deployment for the final main commit reaches **READY**, have the owner test Google sign-in from `/admin` with the authorized Super Admin account and confirm it remains at `/admin`; then verify KYC with a synthetic, non-sensitive test image. Do not use a real identity document for testing.
