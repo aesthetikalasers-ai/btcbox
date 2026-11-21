@@ -323,16 +323,14 @@ export async function getOrderBook(symbol = "BTCUSDT", signal?: AbortSignal): Pr
   // prices or quantities that could be mistaken for executable liquidity.
   return null;
 }
-export interface UsdtUsdRate { rate: number; source: string; stale?: boolean; }
+export interface UsdtUsdRate { rate: number | null; source: string; stale?: boolean; }
+
 /**
- * USDT → USD conversion rate for the "≈ $" hint under the order-book mid price.
- *
- * The trading pair is quoted in USDT, which is not exactly one dollar, so the
- * hint must be computed rather than echoed. On any failure this returns the
- * caller's neutral fallback (0.99999) with `stale: true` — the UI then still
- * shows an approximation instead of a blank or an invented exact figure.
+ * USDT → USD conversion rate for the approximate dollar hint under the order book.
+ * If the FX provider is unavailable, return null so the UI shows no conversion
+ * rather than inventing a near-parity quote.
  */
-export async function getUsdtUsdRate(fallback = 0.99999, signal?: AbortSignal): Promise<UsdtUsdRate> {
+export async function getUsdtUsdRate(signal?: AbortSignal): Promise<UsdtUsdRate> {
   try {
     const response = await fetch(`${API_BASE_URL}/fx/usdt-usd`, {
       credentials: "include", cache: "no-store", signal, headers: { Accept: "application/json" },
@@ -347,7 +345,7 @@ export async function getUsdtUsdRate(fallback = 0.99999, signal?: AbortSignal): 
   } catch (error) {
     if (error instanceof Error && error.name === "AbortError") throw error;
   }
-  return { rate: fallback, source: "fallback", stale: true };
+  return { rate: null, source: "unavailable", stale: true };
 }
 export interface SpotOrderInput { symbol: string; side: "buy" | "sell"; type: "limit"; qty: string; price: string; client_order_id: string; }
 export interface SpotOrderResult { order_id: string; status: string; price: number | string; quantity: number | string; remaining_quantity?: number | string; duplicate: boolean; }
