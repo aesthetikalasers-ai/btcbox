@@ -213,36 +213,52 @@ export async function getKlines(
       cache: "no-store",
       signal: controller.signal,
     });
-    if (response.ok) {
-      const payload = (await response.json().catch(() => null)) as KlineResponse | null;
-      if (payload && payload.ok === true && Array.isArray(payload.klines) && payload.klines.length > 0) {
-        // Reject impossible OHLC ranges (e.g. high below open/close) instead of
-        // drawing them as real candles.
-        const validCandles = payload.klines.every(candle =>
-          Number.isFinite(candle.open) && candle.open > 0 &&
-          Number.isFinite(candle.close) && candle.close > 0 &&
-          Number.isFinite(candle.high) && candle.high > 0 &&
-          Number.isFinite(candle.low) && candle.low > 0 &&
-          candle.high >= Math.max(candle.open, candle.close, candle.low) &&
-          candle.low <= Math.min(candle.open, candle.close, candle.high)
-        );
-        if (!validCandles) throw new ApiError("Chart data is malformed.", response.status, "INVALID_KLINE");
-        // Keep the provider identifier on the returned candles for diagnostics
-        // only — it is never rendered as a user-facing badge.
-        const candleSource = typeof payload.source === "string" ? payload.source : undefined;
-        return payload.klines.map(candle => ({ ...candle, source: candle.source ?? candleSource }));
-      }
+    if (!response.ok) {
+      throw new ApiError("Chart data is temporarily unavailable.", response.status, "KLINE_UNAVAILABLE");
     }
+    const payload = (await response.json().catch(() => null)) as KlineResponse | null;
+    if (!payload || payload.ok !== true || !Array.isArray(payload.klines)) {
+      throw new ApiError("Chart data is temporarily unavailable.", response.status, "KLINE_INVALID_RESPONSE");
+    }
+    if (payload.klines.length === 0) return [];
+
+    const validCandles = payload.klines.every(candle =>
+      Number.isFinite(candle.open) && candle.open > 0 &&
+      Number.isFinite(candle.close) && candle.close > 0 &&
+      Number.isFinite(candle.high) && candle.high > 0 &&
+      Number.isFinite(candle.low) && candle.low > 0 &&
+      candle.high >= Math.max(candle.open, candle.close, candle.low) &&
+      candle.low <= Math.min(candle.open, candle.close, candle.high) &&
+      Number.isFinite(candle.volume) && candle.volume >= 0
+    );
+    if (!validCandles) throw new ApiError("Chart data is malformed.", response.status, "INVALID_KLINE");
+
+    // The backend providers return candle open-times in milliseconds. The chart
+    // library expects Unix seconds. Normalize to seconds, discard invalid times,
+    // keep the latest candle for each second, then sort before rendering.
+    const bySecond = new Map<number, MarketCandle>();
+    const candleSource = typeof payload.source === "string" ? payload.source : undefined;
+    for (const candle of payload.klines) {
+      const rawTime = Number(candle.time);
+      if (!Number.isFinite(rawTime) || rawTime <= 0) continue;
+      const time = Math.floor(rawTime >= 100_000_000_000 ? rawTime / 1000 : rawTime);
+      if (!Number.isSafeInteger(time) || time <= 0) continue;
+      bySecond.set(time, {
+        ...candle,
+        time,
+        source: candle.source ?? candleSource,
+      });
+    }
+    return [...bySecond.values()].sort((a, b) => a.time - b.time);
   } catch (error) {
     if (error instanceof ApiError) throw error;
     if (error instanceof Error && error.name === "AbortError") throw error;
-    // Network error — fall back to demo candles so the chart always has data.
+    throw new ApiError("Chart data is temporarily unavailable.", 502, "KLINE_UNAVAILABLE");
+  } finally {
+    clearTimeout(timeout);
+    signal?.removeEventListener("abort", abort);
   }
-  // If no valid candles were returned, fall back to demo data so the chart
-  // always has data instead of showing an empty panel.
-  return getDemoKlines(symbol, interval);
 }
-
 
 export interface TradingStatus {
   spot_order_entry_enabled: boolean;
