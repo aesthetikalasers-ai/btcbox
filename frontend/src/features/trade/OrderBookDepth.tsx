@@ -64,9 +64,7 @@ export function OrderBookDepth({ mid, book, streamState, usdtUsd }: { mid?: numb
   const fmt = (v: number, digits = decimals) =>
     v.toLocaleString(numberLocale, { minimumFractionDigits: digits, maximumFractionDigits: digits });
 
-  /* Dollar value of the mid price. The contract is quoted in USDT, so this is a
-     real conversion (`mid × usdtUsd`) rather than the USDT figure relabelled with
-     a "$". The caller supplies the live rate; 0.99999 is the neutral fallback. */
+  /* Dollar value is shown only when the caller has a verified USDT/USD rate. */
   const usdText = useMemo(() => {
     const rate = Number(usdtUsd);
     if (!Number.isFinite(mid) || mid <= 0 || !Number.isFinite(rate) || rate <= 0) return "";
