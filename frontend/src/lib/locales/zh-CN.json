@@ -1710,5 +1710,6 @@
   "Return to registration": "返回注册页面",
   "Provider": "数据提供方",
   "Snapshot age": "快照时间差",
-  "Provider age": "上游更新时间差"
+  "Provider age": "上游更新时间差",
+  "Data source": "数据来源"
 }
