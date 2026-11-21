@@ -112,3 +112,14 @@ test("market quote provenance never invents provider timestamps", () => {
   assert.ok(getMarkets.includes(": null"));
   assert.ok(!getMarkets.includes("Math.floor(Date.now() / 1000)"));
 });
+
+test("live market stream preserves provider provenance and does not invent quote metrics", () => {
+  const market = fs.readFileSync(path.join(root, "lib/marketData.ts"), "utf8");
+  assert.ok(market.includes("providerTs,"));
+  assert.ok(market.includes("snapshotTs,"));
+  assert.ok(!market.includes("providerTs: this.lastFetchAt"));
+  assert.ok(!market.includes("snapshotTs: now"));
+  assert.ok(!market.includes("Number(ticker.chg) || 0"));
+  assert.ok(!market.includes("Number(ticker.high) || price"));
+  assert.ok(!market.includes("Number(ticker.low) || price"));
+});
