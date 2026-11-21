@@ -157,3 +157,32 @@ test("spot and perpetual pages do not seed a guessed USDT/USD rate", () => {
     assert.ok(!source.includes("0.99999"));
   }
 });
+
+test("all chart consumers use the normalized Unix-second candle timestamps", () => {
+  const files = [
+    "features/pages/SecondsPage.tsx",
+    "features/pages/Pages.tsx",
+    "features/trade/KlinePanel.tsx",
+    "features/trade/ChartDrawer.tsx",
+    "features/pages/KlineChartPage.tsx",
+    "features/dashboard/components/VolumeChart.tsx",
+    "features/dashboard/components/LiquidityChart.tsx",
+  ];
+  for (const file of files) {
+    const source = fs.readFileSync(path.join(root, file), "utf8");
+    assert.ok(!source.includes("time / 1000"), file + " must not divide already-normalized timestamps again");
+  }
+});
+
+test("seconds payout and limits come only from the active server policy", () => {
+  const page = fs.readFileSync(path.join(root, "features/pages/SecondsPage.tsx"), "utf8");
+  assert.ok(page.includes("policy.policy.payout_bps / 100"));
+  assert.ok(page.includes("policy.policy.durations_sec.map"));
+  assert.ok(page.includes("policy.policy.min_stake"));
+  assert.ok(page.includes("policy.policy.max_stake"));
+  assert.ok(page.includes("numeric > Number(availableUSDT)"));
+  assert.ok(page.includes("availableUSDT === null"));
+  assert.ok(!page.includes("DURATION_OPTIONS"));
+  assert.ok(!page.includes("rate: 85"));
+  assert.ok(!page.includes('useState<string>("0.00")'));
+});
