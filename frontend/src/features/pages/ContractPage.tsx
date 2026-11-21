@@ -1105,6 +1105,7 @@ export function ContractPage() {
 
   return (
     <>
+      <h1 className="sr-only">{t("Perpetual")}</h1>
       {/* 移动端产品切换入口（现货 / 永续 / 秒合约 / 理财）：桌面端由全局顶栏承担，
           移动端顶栏收敛后这里补一个与现货页一致的产品导航。 */}
       <div className="lg:hidden">
