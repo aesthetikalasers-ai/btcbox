@@ -197,7 +197,7 @@ export function TerminalOrderBook({
 }: {
   book: OrderBookSnapshot | null;
   lastPrice: string;
-  changePercent: number;
+  changePercent: number | null;
   precision: DepthPrecision;
   onPrecisionChange: (value: DepthPrecision) => void;
   view: BookView;
