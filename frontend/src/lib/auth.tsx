@@ -708,7 +708,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     requestPasswordReset, completePasswordRecovery, finishOAuth, verifyTwoFactor, getSupabaseAccessToken, signOut,
     clearError: () => setError(""),
   }), [status, initializationIssue, email, busy, error, notice, googleEnabled, walletEnabled, identityLinkSourceVerified, identityLinkNeedsTwoFactor, completeIdentityLinkReauthTwoFactor, needsCredentials, credentialRecoveryReady, credentialRecoveryNeedsTwoFactor, ethereumWallets, accountRestriction, signInWithGoogle, linkGoogleIdentity, linkWeb3Identity, signInWithUsername, setBtcboxCredentials, reauthenticateCredentialsWithGoogle, reauthenticateCredentialsWithWeb3, completeCredentialRecoveryTwoFactor, recoverBtcboxPassword, signInWithWeb3, signInWithEmail,
-    requestPasswordReset, completePasswordRecovery, finishOAuth, verifyTwoFactor, getSupabaseAccessToken, signOut, reauthenticateIdentityLinkWithGoogle, reauthenticateIdentityLinkWithWeb3]);
+    signUpWithEmail, requestPasswordReset, completePasswordRecovery, finishOAuth, verifyTwoFactor, getSupabaseAccessToken, signOut, reauthenticateIdentityLinkWithGoogle, reauthenticateIdentityLinkWithWeb3]);
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
