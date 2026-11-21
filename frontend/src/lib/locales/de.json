@@ -1720,5 +1720,10 @@
   "Open spot, perpetual and seconds trading products from one place.": "Öffne Spot-, Perpetual- und Seconds-Produkte an einem Ort.",
   "Launchpool is not currently available": "Launchpool ist derzeit nicht verfügbar",
   "No verified launchpool campaigns are currently published. Staking pools, reward rates and campaign statistics will appear here only when confirmed campaign data is available.": "Derzeit sind keine verifizierten Launchpool-Kampagnen veröffentlicht. Staking-Pools, Prämienraten und Kampagnenstatistiken erscheinen erst, wenn bestätigte Kampagnendaten vorliegen.",
-  "View Earn products": "Earn-Produkte ansehen"
+  "View Earn products": "Earn-Produkte ansehen",
+  "Checking availability": "Verfügbarkeit wird geprüft",
+  "Markets read-only": "Märkte nur lesbar",
+  "Review available USDT-margined perpetual markets and their server-configured limits.": "Sieh dir verfügbare USDT-margined Perpetual-Märkte und ihre serverseitig festgelegten Limits an.",
+  "Submit positions only when server policy is enabled, with server-managed settlement.": "Positionen können nur bei aktivierter Serverrichtlinie eingereicht werden; die Abrechnung erfolgt serverseitig.",
+  "View Earn products, yields and terms published by BTCBOX.": "Sieh dir die von BTCBOX veröffentlichten Earn-Produkte, Renditen und Bedingungen an."
 }
