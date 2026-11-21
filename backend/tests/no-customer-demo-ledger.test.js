@@ -269,3 +269,22 @@ test("demo preview cannot be enabled by a production query string or stale brows
   assert.ok(preview.includes("let demoEnabled = false"));
   assert.ok(preview.includes("export const DEMO_PREVIEW_ACTIVE = demoEnabled"));
 });
+
+test("withdrawal requires verified balance and fee instead of assuming zero", () => {
+  const pages = fs.readFileSync(path.join(root, "features/pages/Pages.tsx"), "utf8");
+  assert.ok(pages.includes("feeValue=selectedAddress&&config?config.fees?.[selectedAddress.coin]:undefined"));
+  assert.ok(pages.includes("available=balance?.free==null?null:Number(balance.free)"));
+  assert.ok(pages.includes("feeVerified"));
+  assert.ok(pages.includes("balanceVerified"));
+  assert.ok(!pages.includes("Number(balance?.free??0)"));
+  assert.ok(!pages.includes("Number(config.fees[selectedAddress.coin]??0)"));
+  assert.ok(pages.includes('value===null||value===undefined||value===""'));
+});
+
+test("asset balances show only backend values and contain no decorative fake sparkline", () => {
+  const assets = fs.readFileSync(path.join(root, "features/assets/AssetsPage.tsx"), "utf8");
+  assert.ok(assets.includes("Object.entries(account?.balances ?? {})"));
+  assert.ok(assets.includes("formatDecimalAmount(balance.free"));
+  assert.ok(!assets.includes("M2 32 C 18 30, 28 20"));
+  assert.ok(!assets.includes("paperBalances"));
+});
