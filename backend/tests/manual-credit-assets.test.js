@@ -45,3 +45,14 @@ test('asset balances fail closed when a free/frozen field is missing', () => {
   assert.ok(page.includes('formatDecimalAmount(balance.frozen, numberLocale)'));
   assert.ok(!page.includes('return "0";'));
 });
+
+
+test('real asset balances never include paper-trading demo funds', () => {
+  const assets = fs.readFileSync(path.resolve(__dirname, '../../frontend/src/features/assets/AssetsPage.tsx'), 'utf8');
+  assert.ok(assets.includes('Object.entries(account?.balances ?? {})'));
+  assert.ok(assets.includes('Real assets are sourced only from the authenticated backend account snapshot.'));
+  assert.ok(!assets.includes('useTrading'));
+  assert.ok(!assets.includes('paperBalances'));
+  assert.ok(!assets.includes('DEMO_INITIAL_USDT'));
+  assert.ok(!assets.includes('merged[coin]'));
+});
