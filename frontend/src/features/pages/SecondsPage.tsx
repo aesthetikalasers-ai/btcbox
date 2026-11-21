@@ -43,7 +43,7 @@ export function SecondsPage() {
   const [reload, setReload] = useState(0);
   const [symbol, setSymbol] = useState("BTC");
   const [duration, setDuration] = useState(30);
-  const [amount, setAmount] = useState("50");
+  const [amount, setAmount] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [clockNow, setClockNow] = useState(Date.now());
 
