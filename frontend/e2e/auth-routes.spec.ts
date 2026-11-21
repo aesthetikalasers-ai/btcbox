@@ -511,7 +511,7 @@ test("username login submits BTCBOX credentials to the username endpoint and sur
   await page.goto("/login");
   await page.getByLabel("Username").fill("qa_user");
   await page.getByLabel("Password", { exact: true }).fill("a-secure-test-password");
-  await page.getByRole("button", { name: "Sign in with username" }).click();
+  await page.getByRole("button", { name: "Sign in" }).click();
 
   await expect(page.getByRole("alert")).toContainText("Username or password is incorrect.");
   expect(submitted).toEqual({ username: "qa_user", password: "a-secure-test-password" });
@@ -1039,12 +1039,14 @@ test("registration experience stays clear and usable on a narrow mobile viewport
   await expect(page.getByRole("heading", { name: "Create your BTCBOX account" })).toBeVisible();
   await expect(page.getByRole("banner")).toHaveCount(0);
   await expect(page.getByRole("navigation", { name: "Primary navigation" })).toHaveCount(0);
+  await expect(page.getByLabel("Email", { exact: true })).toBeVisible();
+  await expect(page.getByLabel("Password", { exact: true })).toBeVisible();
+  await expect(page.getByLabel("Confirm password", { exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Create account with email" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Wallet" })).toBeVisible();
   await page.getByRole("button", { name: "Wallet" }).click();
   await expect(page.getByRole("button", { name: "Connect Ethereum wallet" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Connect Solana wallet" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Create account with email" })).toHaveCount(0);
-  await expect(page.getByLabel("Email address")).toHaveCount(0);
   const dimensions = await page.evaluate(() => ({ viewport: document.documentElement.clientWidth, content: document.documentElement.scrollWidth }));
   expect(dimensions.content).toBeLessThanOrEqual(dimensions.viewport);
 });
