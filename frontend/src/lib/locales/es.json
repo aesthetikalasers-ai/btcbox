@@ -1710,5 +1710,6 @@
   "Return to registration": "Volver al registro",
   "Provider": "Proveedor",
   "Snapshot age": "Antigüedad de la instantánea",
-  "Provider age": "Antigüedad del proveedor"
+  "Provider age": "Antigüedad del proveedor",
+  "Data source": "Fuente de datos"
 }
