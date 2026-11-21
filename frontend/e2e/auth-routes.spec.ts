@@ -205,11 +205,13 @@ test("password recovery is available without sending a request on page load", as
   expect(forbiddenRequests).toEqual([]);
 });
 
-test("unauthenticated customer is redirected from a protected route", async ({ page }) => {
+test("unauthenticated customer sees an inline sign-in prompt on a protected route", async ({ page }) => {
   await page.goto("/withdraw");
 
-  await expect(page).toHaveURL(/\/login$/);
-  await expect(page.getByRole("heading", { name: "Welcome back", exact: true })).toBeVisible();
+  await expect(page).toHaveURL(/\\/withdraw$/);
+  await expect(page.getByRole("heading", { name: "Sign in to your account", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Sign in", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Create account", exact: true })).toBeVisible();
 });
 
 test("administrator route requires a verified administrator identity", async ({ page }) => {
@@ -232,8 +234,8 @@ test("administrator route requires a verified administrator identity", async ({ 
 test("assets, orders and KYC remain behind the authenticated account gate", async ({ page }) => {
   for (const path of ["/assets", "/orders", "/kyc"]) {
     await page.goto(path);
-    await expect(page).toHaveURL(/\/login$/);
-    await expect(page.getByRole("heading", { name: "Welcome back", exact: true })).toBeVisible();
+    await expect(page).toHaveURL(new RegExp(path.replace("/", "\\/") + "$"));
+    await expect(page.getByRole("heading", { name: "Sign in to your account", exact: true })).toBeVisible();
   }
 });
 
@@ -248,8 +250,8 @@ test("signed-out customer routes never issue financial or account mutations", as
 
   for (const path of ["/deposit", "/withdraw", "/assets", "/orders", "/kyc", "/seconds", "/settings", "/earn"]) {
     await page.goto(path);
-    await expect(page).toHaveURL(/\/login$/);
-    await expect(page.getByRole("heading", { name: "Welcome back", exact: true })).toBeVisible();
+    await expect(page).toHaveURL(new RegExp(path.replace("/", "\\/") + "$"));
+    await expect(page.getByRole("heading", { name: "Sign in to your account", exact: true })).toBeVisible();
   }
 
   expect(mutationRequests).toEqual([]);
