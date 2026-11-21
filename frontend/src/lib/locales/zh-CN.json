@@ -1717,5 +1717,8 @@
   "Browse supported spot pairs and their live market data.": "查看支持的现货交易对及其实时行情数据。",
   "Earn products": "理财产品",
   "Review the products and terms currently published in BTCBOX Earn.": "查看 BTCBOX Earn 当前实际发布的产品及条款。",
-  "Open spot, perpetual and seconds trading products from one place.": "在同一入口使用现货、永续和秒合约交易产品。"
+  "Open spot, perpetual and seconds trading products from one place.": "在同一入口使用现货、永续和秒合约交易产品。",
+  "Launchpool is not currently available": "Launchpool 目前尚未开放",
+  "No verified launchpool campaigns are currently published. Staking pools, reward rates and campaign statistics will appear here only when confirmed campaign data is available.": "目前没有已核实并发布的 Launchpool 活动。只有在活动数据得到确认后，才会显示质押池、奖励费率和活动统计。",
+  "View Earn products": "查看理财产品"
 }
