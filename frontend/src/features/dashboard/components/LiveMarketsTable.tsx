@@ -81,8 +81,10 @@ export function LiveMarketsTable({ markets, loading, error }: {
   const snapshotStale = markets.some((item) => (item.snapshotTs || 0) > 0 && Date.now() / 1000 - (item.snapshotTs || 0) > 90);
   const feedError = error || (snapshotStale ? t("The market service snapshot is older than 90 seconds. Quotes are hidden until a fresh snapshot arrives.") : "");
   const displayMarkets = feedError ? [] : markets;
-  const latestProviderMarket = displayMarkets.reduce<MarketTicker | null>((latest, item) =>
-    (item.providerTs || 0) > (latest?.providerTs || 0) ? item : latest, null);
+  const latestProviderMarket = markets.reduce<MarketTicker | null>((latest, item) => {
+    if (!latest) return item;
+    return (item.providerTs ?? 0) > (latest.providerTs ?? 0) ? item : latest;
+  }, null);
   const providerTimestamp = latestProviderMarket?.providerTs || 0;
   const providerSource = (latestProviderMarket?.source || "").replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 32);
   const snapshotTime = latestSnapshotTs > 0
