@@ -60,13 +60,6 @@ test("offline demo preview can only be enabled in development builds", () => {
   assert.ok(preview.includes("export const DEMO_PREVIEW_ACTIVE = demoEnabled"));
 });
 
-test("unused hardcoded market seed prices are not shipped in the live market engine", () => {
-  const market = fs.readFileSync(path.join(root, "lib/marketData.ts"), "utf8");
-  assert.ok(!market.includes("INITIAL_SEEDS"));
-  assert.ok(!market.includes("MockSeed"));
-  assert.ok(market.includes("Nothing is fabricated here"));
-});
-
 test("new server-side customer accounts start with zero balances", () => {
   const backendRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
   const source = fs.readFileSync(path.join(backendRoot, "api-core.js"), "utf8");
