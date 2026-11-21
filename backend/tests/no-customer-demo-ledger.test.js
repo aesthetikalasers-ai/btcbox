@@ -241,3 +241,11 @@ test("market ticker rows require real price, change, high, low and volume values
   const spot = fs.readFileSync(path.join(root, "features/pages/Pages.tsx"), "utf8");
   assert.ok(spot.includes("!ticker?.source"));
 });
+
+test("admin does not invent zero balances or allow credits against an unknown ledger source", () => {
+  const admin = fs.readFileSync(path.join(root, "features/admin/AdminPage.tsx"), "utf8");
+  assert.ok(admin.includes('balances?.[coin]?.free == null ? "—"'));
+  assert.ok(admin.includes('financial_balance_source !== "postgres_financial_ledger"'));
+  assert.ok(!admin.includes('balances?.[coin]?.free ?? "0"'));
+  assert.ok(admin.includes("Manual credit is disabled until the user's PostgreSQL ledger balance source is confirmed."));
+});
