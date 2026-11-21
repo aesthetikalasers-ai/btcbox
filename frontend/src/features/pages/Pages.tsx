@@ -430,8 +430,8 @@ export function SpotTradingPage(){
  // orders instead of trading against a stale price. `marketUpdatedAt` is the
  // exchange snapshot time, never the browser's receipt time.
  const marketSnapshotStale=!!ticker&&(!marketUpdatedAt||marketClockNow-marketUpdatedAt>90_000);
- const displayTicker=ticker;
  const tickerIsFallback=!ticker?.source||ticker.source==="demo-preview"||ticker.source==="sample-data";
+ const displayTicker=tickerIsFallback?null:ticker;
  /**
   * Depth steps this pair can actually use, derived from its price. A 0.01 bucket
   * would merge ARB's 0.1277 book into one row and print a 0.13 best bid. The
@@ -493,7 +493,7 @@ export function SpotTradingPage(){
   if(Number.isFinite(snapshot)&&snapshot>0)return snapshot;
   return null;
  })();
- const effectiveMarketFeedWarning=marketFeedWarning;
+ const effectiveMarketFeedWarning=marketFeedWarning||(ticker&&tickerIsFallback?t("Market data source could not be verified. Trading is disabled."): "");
  const marketDataSourceLabel=`${t("Ticker")}: ${displayTicker?.source||"—"} · ${t("Order book")}: ${displayBook?.source||"—"} · ${t("Chart")}: ${chartSource||"—"}`;
  const providerTimestamp=displayTicker?.providerTs??null;
  const providerTime=providerTimestamp&&providerTimestamp>0?new Date(providerTimestamp*1000).toLocaleTimeString():"—";
@@ -581,7 +581,7 @@ export function SpotTradingPage(){
      if(selected){
       setTicker(selected);
       setMarketUpdatedAt(selected.snapshotTs?selected.snapshotTs*1000:null);
-      if(!isPriceManual && selected.price && selected.source!=="demo-preview" && selected.source!=="sample-data"){ setPrice(String(selected.price)); }
+      if(!isPriceManual && selected.price && selected.source && selected.source!=="demo-preview" && selected.source!=="sample-data"){ setPrice(String(selected.price)); }
      }else{setTicker(null);setMarketUpdatedAt(null);failed=true;}
     }else{setTicker(null);setMarketUpdatedAt(null);failed=true;}
     if(bookResult.status==="fulfilled"){setBook(bookResult.value);if(!bookResult.value)failed=true;}
