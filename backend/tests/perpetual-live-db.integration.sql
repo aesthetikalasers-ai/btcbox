@@ -117,6 +117,36 @@ BEGIN
     RAISE EXCEPTION 'Perpetual matching did not create the expected isolated long/short positions';
   END IF;
 
+  -- Reusing the original client key with a different reduce-only intent must fail closed.
+  v_failed := false;
+  BEGIN
+    PERFORM public.perp_submit_order(
+      'PERP-BUY-CI-REPLAY-FLAG-1','perp-long-ci','BTCUSDT','market','buy',NULL,1,1,true,false,
+      'perp-long-open-ci-0001'
+    );
+  EXCEPTION WHEN OTHERS THEN
+    IF SQLERRM NOT LIKE '%client order id payload mismatch%' THEN RAISE; END IF;
+    v_failed := true;
+  END;
+  IF NOT v_failed THEN
+    RAISE EXCEPTION 'Perpetual order replay accepted a changed reduce_only flag';
+  END IF;
+
+  -- close_position is a separate intent and must also be part of the replay payload.
+  v_failed := false;
+  BEGIN
+    PERFORM public.perp_submit_order(
+      'PERP-BUY-CI-REPLAY-FLAG-2','perp-long-ci','BTCUSDT','market','buy',NULL,1,1,true,true,
+      'perp-long-open-ci-0001'
+    );
+  EXCEPTION WHEN OTHERS THEN
+    IF SQLERRM NOT LIKE '%client order id payload mismatch%' THEN RAISE; END IF;
+    v_failed := true;
+  END;
+  IF NOT v_failed THEN
+    RAISE EXCEPTION 'Perpetual order replay accepted a changed close_position flag';
+  END IF;
+
   INSERT INTO public.perpetual_funding_rates(
     symbol,funding_at,rate,premium_index,mark_price,index_price,sources,settled
   ) VALUES (
