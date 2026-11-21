@@ -209,18 +209,18 @@ export function SecondsPage() {
 
   const submitSeconds = async (dir: "up" | "down") => {
     if (submitting) return;
+    if (!policy) {
+      setError(t("The active seconds policy is unavailable. No order was sent."));
+      return;
+    }
     // Server policy is authoritative: without an explicit enabling flag the
     // page never sends an order.
-    if (policy?.actions_enabled !== true) {
+    if (policy.actions_enabled !== true) {
       setError(t("Seconds order entry is currently disabled by server policy."));
       return;
     }
     if (pendingIntent) {
       setError(t("An earlier Seconds request is still unconfirmed. Retry the same request before placing a new one."));
-      return;
-    }
-    if (!policy) {
-      setError(t("The active seconds policy is unavailable. No order was sent."));
       return;
     }
     if (availableUSDT === null) {
