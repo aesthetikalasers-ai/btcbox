@@ -1707,5 +1707,8 @@
   "Amount is outside the active policy limits.": "金額が有効なポリシーの上限・下限を外れています。",
   "Insufficient available USDT balance.": "利用可能なUSDT残高が不足しています。",
   "This market or duration is not enabled by the active policy.": "この市場または期間は有効なポリシーで許可されていません。",
-  "Return to registration": "登録に戻る"
+  "Return to registration": "登録に戻る",
+  "Provider": "プロバイダー",
+  "Snapshot age": "スナップショットの経過時間",
+  "Provider age": "プロバイダー更新からの経過時間"
 }
