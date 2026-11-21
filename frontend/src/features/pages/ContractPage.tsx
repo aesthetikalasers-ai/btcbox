@@ -154,12 +154,7 @@ export function ContractPage() {
   const [positionsError, setPositionsError] = useState("");
   const [openOrders, setOpenOrders] = useState<PerpOrder[]>([]);
   const [orderHistory, setOrderHistory] = useState<PerpOrder[]>([]);
-  /**
-   * USDT→USD rate for the "≈ $" hint under the book's mid price. Contracts are
-   * quoted in USDT, which is not exactly one dollar, so the hint is a real
-   * conversion. Does not invent a rate when the FX endpoint is unavailable, so the
-   * line still renders an honest approximation instead of a blank.
-   */
+  /** Verified USDT→USD rate for the optional dollar-equivalent hint. */
   const [usdtUsd, setUsdtUsd] = useState<number | null>(null);
   useEffect(() => {
     const controller = new AbortController();
