@@ -1707,5 +1707,8 @@
   "Amount is outside the active policy limits.": "金额超出当前策略限制。",
   "Insufficient available USDT balance.": "USDT可用余额不足。",
   "This market or duration is not enabled by the active policy.": "当前策略未启用此交易市场或周期。",
-  "Return to registration": "返回注册页面"
+  "Return to registration": "返回注册页面",
+  "Provider": "数据提供方",
+  "Snapshot age": "快照时间差",
+  "Provider age": "上游更新时间差"
 }
