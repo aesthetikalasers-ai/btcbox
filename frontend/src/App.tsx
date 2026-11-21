@@ -50,11 +50,9 @@ function TradeRedirect() {
   return <RouteLoading />;
 }
 
-// Demo-user route wrapper: never forces a redirect to /login or /register.
-// Unauthenticated visitors still render the page with demo preview data.
-// Server-side authorization remains the source of truth: every account API
-// still answers AUTH_REQUIRED, and pages render an explicit sign-in prompt.
-function DemoRoute({ children }: { children: ReactNode }) {
+// Public route wrapper: market browsing and trade previews do not require sign-in.
+// Private account APIs and financial actions enforce authentication independently.
+function PublicRoute({ children }: { children: ReactNode }) {
   return <>{children}</>;
 }
 
@@ -106,10 +104,10 @@ function CustomerRoutes() {
   const location = useLocation();
   const isStandaloneAuthRoute = ["/login", "/register", "/auth/react-callback"].includes(location.pathname);
   const content = <div key={location.pathname} className="anim-fade-in min-w-0 flex-1"><AccountSetupGate><Suspense fallback={<RouteLoading />}><Routes>
-    <Route path="/home" element={<DemoRoute><Dashboard /></DemoRoute>} /><Route path="/markets" element={<DemoRoute><MarketsPage /></DemoRoute>} />
+    <Route path="/home" element={<PublicRoute><Dashboard /></PublicRoute>} /><Route path="/markets" element={<PublicRoute><MarketsPage /></PublicRoute>} />
     <Route path="/trade-hub" element={<TradeHubPage />} /><Route path="/trade" element={<TradeRedirect />} />
     <Route path="/trade/:symbol" element={<SpotTradingPage />} />
-    <Route path="/chart/:symbol" element={<DemoRoute><KlineChartPage /></DemoRoute>} />
+    <Route path="/chart/:symbol" element={<PublicRoute><KlineChartPage /></PublicRoute>} />
     <Route path="/seconds" element={<ProtectedAccountRoute><SecondsPage /></ProtectedAccountRoute>} />
     <Route path="/assets" element={<ProtectedAccountRoute><AssetsPage /></ProtectedAccountRoute>} /><Route path="/me" element={<MyPage />} />
     <Route path="/orders" element={<ProtectedAccountRoute><OrdersPage /></ProtectedAccountRoute>} />
@@ -117,8 +115,8 @@ function CustomerRoutes() {
     <Route path="/withdraw" element={<ProtectedAccountRoute><WithdrawPage /></ProtectedAccountRoute>} />
     <Route path="/address-book" element={<ProtectedAccountRoute><AddressBookPage /></ProtectedAccountRoute>} />
     <Route path="/earn" element={<ProtectedAccountRoute><EarnPage /></ProtectedAccountRoute>} />
-    <Route path="/contract" element={<DemoRoute><ContractPage /></DemoRoute>} />
-    <Route path="/mobile-terminal" element={<DemoRoute><MobileTradeTerminal /></DemoRoute>} />
+    <Route path="/contract" element={<PublicRoute><ContractPage /></PublicRoute>} />
+    <Route path="/mobile-terminal" element={<PublicRoute><MobileTradeTerminal /></PublicRoute>} />
     <Route path="/login" element={<AuthPage mode="login" />} /><Route path="/register" element={<AuthPage mode="register" />} /><Route path="/account-setup" element={<Navigate to="/me" replace />} /><Route path="/auth/react-callback" element={<AuthCallbackPage />} />
     <Route path="/kyc" element={<ProtectedAccountRoute><KycPage /></ProtectedAccountRoute>} />
     <Route path="/support" element={<SupportPage />} />
