@@ -288,3 +288,11 @@ test("asset balances show only backend values and contain no decorative fake spa
   assert.ok(!assets.includes("M2 32 C 18 30, 28 20"));
   assert.ok(!assets.includes("paperBalances"));
 });
+
+test("Earn page does not advertise hard-coded APY products", () => {
+  const pages = fs.readFileSync(path.join(root, "features/pages/Pages.tsx"), "utf8");
+  assert.ok(!pages.includes('rate:"5.20"'));
+  assert.ok(!pages.includes('rate:"3.80"'));
+  assert.ok(!pages.includes('rate:"4.50"'));
+  assert.ok(!pages.includes('t("Featured products")'));
+});
