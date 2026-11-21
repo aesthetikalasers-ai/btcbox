@@ -42,7 +42,7 @@ test("login route exposes BTCBOX username, Google and wallet sign-in", async ({ 
   await expect(page.getByLabel("Email address")).toHaveCount(0);
   await expect(page.getByLabel("Email password")).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Sign in with email" })).toHaveCount(0);
-  await expect(page.getByRole("button", { name: "Forgot password?" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Forgot password?" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Google" })).toBeDisabled();
   await expect(page.getByText("Google sign-in is temporarily unavailable.")).toBeVisible();
   await page.getByRole("button", { name: "Wallet" }).click();
@@ -60,7 +60,7 @@ test("login does not expose retired email authentication", async ({ page }) => {
   await page.goto("/login");
   await expect(page.getByRole("button", { name: "Wallet", exact: true })).toBeVisible();
   await expect(page.getByLabel("Email address")).toHaveCount(0);
-  await expect(page.getByRole("button", { name: "Forgot password?" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Forgot password?" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Create account with email" })).toHaveCount(0);
   expect(forbiddenRequests).toEqual([]);
 });
@@ -185,13 +185,13 @@ test("email registration uses Supabase confirmation and does not bypass BTCBOX p
   await page.getByLabel("Confirm password", { exact: true }).fill("StrongPassphrase123");
   await page.getByRole("button", { name: "Create account with email" }).click();
 
-  await expect(page.getByText("Registration received. Please check your email and confirm your address before signing in.")).toBeVisible();
+  await expect(page.getByText("If this email is already linked to a BTCBOX account, choose Sign in and use your original sign-in method. If this is a new registration, check your inbox for the confirmation email; also check your spam folder.")).toBeVisible();
   expect(signupEmail).toBe("new-user@example.invalid");
   expect(confirmationRedirect).toMatch(/\/auth\/react-callback\?intent=register$/);
   expect(accountProvisioningRequests).toEqual([]);
 });
 
-test("login does not expose retired email recovery", async ({ page }) => {
+test("password recovery is available without sending a request on page load", async ({ page }) => {
   const forbiddenRequests: string[] = [];
   page.on("request", request => {
     const url = new URL(request.url());
@@ -200,7 +200,7 @@ test("login does not expose retired email recovery", async ({ page }) => {
   await page.goto("/login");
   await expect(page.getByRole("button", { name: "Wallet", exact: true })).toBeVisible();
   await expect(page.getByLabel("Email address")).toHaveCount(0);
-  await expect(page.getByRole("button", { name: "Forgot password?" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Forgot password?" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Create account with email" })).toHaveCount(0);
   expect(forbiddenRequests).toEqual([]);
 });
@@ -294,7 +294,7 @@ test("account overview stays signed out after the auth session bootstrap check",
 
   await page.goto("/me");
 
-  await expect(page.getByText("Sign in to continue")).toBeVisible();
+  await expect(page.getByText("Sign in to your account", { exact: true })).toBeVisible();
   await expect(page.getByRole("link", { name: "Sign in", exact: true })).toHaveAttribute("href", "/login");
   // AuthProvider performs one read-only account probe to restore an existing cookie session.
   // That bootstrap GET is expected while signed out; no write endpoint is involved.
