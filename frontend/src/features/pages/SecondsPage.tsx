@@ -1,14 +1,12 @@
 
-import { useEffect, useRef, useState, type FormEvent } from "react";
-import { RefreshCw, TrendingUp, TrendingDown, ShieldCheck, ShieldAlert, BarChart2, Award, ChevronDown } from "lucide-react";
-import { Badge } from "../../components/ui/badge";
+import { useEffect, useState } from "react";
+import { RefreshCw, TrendingUp, TrendingDown, ShieldCheck, ShieldAlert, Award, ChevronDown } from "lucide-react";
 import { Button } from "../../components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/card";
+import { Card, CardContent, CardHeader } from "../../components/ui/card";
 import {
   getSecondsPositions,
   getSecondsPolicy,
   submitSecondsOrder,
-  settleSecondsPosition,
   getMarkets,
   getKlines,
   getAccount,
@@ -19,7 +17,6 @@ import {
   type MarketTicker,
 } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
-import { useMarketStream } from "../../lib/useMarketStream";
 import { useI18n, localeTags } from "../../lib/i18n";
 import { Link } from "react-router-dom";
 import { BottomOrderPanel, BottomPanelEmpty } from "../trade/BottomOrderPanel";
@@ -40,7 +37,6 @@ export function SecondsPage() {
   const locale = localeTags[language];
   const { status } = useAuth();
   const signedOut = status !== "authenticated";
-  const { status: marketStatus } = useMarketStream();
   const [snapshot, setSnapshot] = useState<SecondsPositionsSnapshot | null>(null);
   const [policy, setPolicy] = useState<SecondsPolicyResponse | null>(null);
   const [uid, setUid] = useState("");
@@ -53,7 +49,6 @@ export function SecondsPage() {
   const [amount, setAmount] = useState("50");
   const [submitting, setSubmitting] = useState(false);
   const [clockNow, setClockNow] = useState(Date.now());
-  const settling = useRef(new Set<string>());
 
   const [interval, setIntervalTab] = useState<"line" | "1m" | "5m" | "15m">("line");
   const [chartNode, setChartNode] = useState<HTMLDivElement | null>(null);
