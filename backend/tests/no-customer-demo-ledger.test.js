@@ -320,3 +320,14 @@ test("shared Pages module does not retain obsolete duplicate customer screens", 
   assert.ok(!pages.includes("export function SecondsPage"));
   assert.ok(!pages.includes("100x leverage"));
 });
+
+test("trade hub does not claim unsupported leverage, liquidity or execution availability", () => {
+  const hub = fs.readFileSync(path.join(root, "features/pages/TradeHubPage.tsx"), "utf8");
+  assert.ok(!hub.includes("100x"));
+  assert.ok(!hub.includes("high liquidity"));
+  assert.ok(hub.includes('market.status === "trading"'));
+  assert.ok(hub.includes("secondsStatusLabel"));
+  assert.ok(hub.includes("earnStatusLabel"));
+  assert.ok(hub.includes("perpStatusLabel"));
+  assert.ok(hub.includes("spotStatusLabel"));
+});
