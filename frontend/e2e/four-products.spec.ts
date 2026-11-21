@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 // Phase 4: four-product center red-line + mobile 2x2 grid.
-// Customer requirement: exactly Spot / Seconds / Contract / Earn; no Futures;
+// Customer requirement: exactly Spot / Perpetual / Seconds / Earn; no Futures;
 // product grid must be two columns at every viewport (never single-column stack).
 
 async function mockTradeHub(page: import("@playwright/test").Page) {
@@ -26,7 +26,7 @@ test("trade chooser shows exactly four products and no Futures entry", async ({ 
   await expect(page.getByRole("heading", { name: "Spot", exact: true })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Seconds", exact: true })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Earn", exact: true })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Contract", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Perpetual", exact: true })).toBeVisible();
   // Exactly four product-card titles in the chooser grid.
   const productTitles = page.locator("main").getByRole("heading", { name: /^(Spot|Seconds|Earn|Contract)$/ });
   await expect(productTitles).toHaveCount(4);
