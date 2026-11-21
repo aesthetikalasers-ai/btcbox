@@ -545,7 +545,7 @@ export function SpotTradingPage(){
      setTicker(selected);
      setMarketUpdatedAt(selected.snapshotTs?selected.snapshotTs*1000:null);
      setMarketFeedWarning("");
-     if(!isPriceManual && selected.source!=="demo-preview" && selected.source!=="sample-data"){ setPrice(String(selected.price)); }
+     if(!isPriceManual && selected.source && selected.source!=="demo-preview" && selected.source!=="sample-data"){ setPrice(String(selected.price)); }
     }else{setTicker(null);setMarketUpdatedAt(null);setPrice("");setMarketFeedWarning("Market data is temporarily unavailable for this pair.");}
    }else{setTicker(null);setMarketUpdatedAt(null);setPrice("");setError(marketResult.reason instanceof Error?marketResult.reason.message:"Live market data is unavailable.");}
    // initial load: a null book means the depth feed is unavailable, and the
