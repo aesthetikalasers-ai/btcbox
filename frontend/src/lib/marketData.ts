@@ -23,8 +23,8 @@ const POLL_INTERVAL_MS = 10_000;
 /** A snapshot older than this is reported as stale rather than live. */
 const STALE_AFTER_MS = 45_000;
 
-// 初始种子价格与数据（基于主流市场基准，保证离线及无后端时秒开）
-export interface MockSeed {
+/** Internal shape of a quote already received from the backend. */
+interface MarketMemoryRow {
   sym: string;
   name: string;
   price: number;
@@ -33,30 +33,6 @@ export interface MockSeed {
   low: number;
   vol: string;
 }
-
-export const INITIAL_SEEDS: MockSeed[] = [
-  { sym: "BTC", name: "Bitcoin", price: 88450.25, chg: 2.45, high: 89800.0, low: 86900.0, vol: "2485600000" },
-  { sym: "ETH", name: "Ethereum", price: 3120.8, chg: 3.18, high: 3185.5, low: 3010.2, vol: "1150400000" },
-  { sym: "SOL", name: "Solana", price: 214.65, chg: -1.24, high: 221.4, low: 208.5, vol: "682300000" },
-  { sym: "BNB", name: "BNB", price: 635.4, chg: 0.82, high: 642.0, low: 628.5, vol: "320100000" },
-  { sym: "XRP", name: "XRP", price: 0.7245, chg: 5.42, high: 0.748, low: 0.685, vol: "415000000" },
-  { sym: "DOGE", name: "Dogecoin", price: 0.1842, chg: -2.15, high: 0.1925, low: 0.179, vol: "210000000" },
-  { sym: "ADA", name: "Cardano", price: 0.584, chg: 1.65, high: 0.602, low: 0.571, vol: "142000000" },
-  { sym: "AVAX", name: "Avalanche", price: 34.85, chg: 4.12, high: 36.2, low: 33.1, vol: "185000000" },
-  { sym: "SUI", name: "Sui", price: 3.28, chg: 7.85, high: 3.42, low: 3.01, vol: "275000000" },
-  { sym: "NEAR", name: "NEAR Protocol", price: 5.62, chg: -0.45, high: 5.85, low: 5.48, vol: "98000000" },
-  { sym: "LINK", name: "Chainlink", price: 14.5, chg: 2.1, high: 14.95, low: 14.1, vol: "85000000" },
-  { sym: "DOT", name: "Polkadot", price: 6.82, chg: 3.44, high: 7.05, low: 6.58, vol: "124000000" },
-  { sym: "LTC", name: "Litecoin", price: 84.3, chg: -1.12, high: 86.1, low: 82.4, vol: "96000000" },
-  { sym: "MATIC", name: "Polygon", price: 0.412, chg: 2.9, high: 0.428, low: 0.398, vol: "138000000" },
-  { sym: "UNI", name: "Uniswap", price: 11.85, chg: 5.6, high: 12.3, low: 11.2, vol: "72000000" },
-  { sym: "TRX", name: "TRON", price: 0.134, chg: 0.75, high: 0.137, low: 0.131, vol: "155000000" },
-  { sym: "BCH", name: "Bitcoin Cash", price: 425.6, chg: -0.88, high: 432.0, low: 418.5, vol: "58000000" },
-  { sym: "ATOM", name: "Cosmos", price: 8.94, chg: 1.95, high: 9.12, low: 8.71, vol: "47000000" },
-  { sym: "ETC", name: "Ethereum Classic", price: 24.15, chg: -1.65, high: 24.8, low: 23.6, vol: "52000000" },
-  { sym: "USDC", name: "USD Coin", price: 1.0001, chg: 0.01, high: 1.0003, low: 0.9998, vol: "520000000" },
-  { sym: "PEPE", name: "Pepe", price: 0.0000185, chg: 11.4, high: 0.0000198, low: 0.0000165, vol: "380000000" },
-];
 
 export const ASSET_NAMES: Record<string, string> = {
   BTC: "Bitcoin",
@@ -91,7 +67,7 @@ export const getAssetName = (sym: string): string => {
 
 // 内存中维持最新价格状态，并产生平滑的高频跳动
 class LiveMarketEngine {
-  private prices: Map<string, MockSeed> = new Map();
+  private prices: Map<string, MarketMemoryRow> = new Map();
   private listeners: Set<() => void> = new Set();
   /** Timestamp of the last successful backend snapshot; null until one arrives. */
   private lastFetchAt: number | null = null;
