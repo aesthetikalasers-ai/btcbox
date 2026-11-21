@@ -5,9 +5,14 @@
  * This only calls GET /auth/v1/settings. It never signs up, logs in, requests
  * an OTP, or sends an email, so it does not consume the project's email quota.
  */
-const rawUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+const rawUrl =
+  process.env.SUPABASE_URL ||
+  process.env.SUPABASE_AUTH_URL ||
+  process.env.VITE_SUPABASE_URL ||
+  process.env.VITE_SUPABASE_AUTH_URL;
 const apiKey =
   process.env.SUPABASE_PUBLISHABLE_KEY ||
+  process.env.SUPABASE_AUTH_PUBLISHABLE_KEY ||
   process.env.SUPABASE_ANON_KEY ||
   process.env.VITE_SUPABASE_PUBLISHABLE_KEY ||
   process.env.VITE_SUPABASE_ANON_KEY;
