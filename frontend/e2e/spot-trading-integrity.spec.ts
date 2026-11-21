@@ -86,6 +86,7 @@ test("mobile chart refreshes verified candles while the drawer is expanded", asy
 
   await page.goto("/trade/BTCUSDT");
   await expect.poll(() => klineRequests).toBe(1);
+  await expect(page.locator(".spot-quote-source")).toContainText("binance-vision");
   await page.locator("#trade-chart-open").click();
   await expect(page.getByRole("region", { name: "Price chart" })).toBeVisible();
   await page.clock.fastForward(30000);

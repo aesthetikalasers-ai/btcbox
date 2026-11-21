@@ -1100,6 +1100,7 @@ export function SpotTradingPage(){
     {displayTicker ? <PriceBadge className="spot-quote-chg" value={displayTicker.chg} unit="percent" decimals={2} ariaLabel={t("24h change") + " " + Number(displayTicker.chg).toFixed(2) + "%"} /> : null}
    </div>
    <div className="spot-quote-meta font-mono tabular-nums"><span>{t("24h high")} <b>{displayTicker?amountText(displayTicker.high):"—"}</b></span><span>{t("24h low")} <b>{displayTicker?amountText(displayTicker.low):"—"}</b></span><Button id="trade-chart-open" ref={chartTrigger} type="button" size="sm" variant="ghost" aria-label={t("Price chart")} onClick={()=>setChartOpen(true)} className="ml-auto h-7 w-7 shrink-0 p-0 text-brand-text-muted"><ChartNoAxesCombined className="h-4 w-4"/></Button></div>
+   <div className="spot-quote-source flex flex-wrap gap-x-3 gap-y-1 px-1 text-[10px] text-brand-text-muted"><span>{t("Source")}: {displayTicker?.source||"—"}</span><span>{t("Provider updated")}: {marketUpdatedAt?new Date(marketUpdatedAt).toLocaleTimeString():"—"}</span></div>
   </div>
   {/* Pair switcher for the compact (document-flow) terminal. The desktop
       terminal mounts its own copy; both read the same enabled-pair list so a
