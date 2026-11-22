@@ -120,3 +120,14 @@
 - Source-level regression assertions: **PASS** (account API source retained; paper-ledger import/state merge absent).
 - Automated Node test execution, TypeScript check, frontend build, and live account verification: **NOT VERIFIED** in this session.
 - Release boundary unchanged: no PR, merge, deployment, production database write, or Supabase setting change.
+
+
+## 2026-11-23 — Admin support conversation visibility (2号 AI)
+
+- Work branch: `fix/kyc-upload-2mb-memory-20261123`; no changes to `main` or production.
+- The Admin support inbox previously returned only customer-authored messages, hiding administrator replies. The UI also rendered one card per incoming message, which made one customer's history appear as separate queue items.
+- The admin messages endpoint now returns both customer and administrator messages with their owning UID and email; the frontend groups them into one UID-scoped thread and displays sender, timestamp, full message history, and a derived unanswered-message count/status.
+- Added `backend/tests/admin-support-thread-view.test.js` to guard the response contract and UID grouping.
+- This is a conversation-history and unanswered-reply visibility improvement. **Persistent administrator unread/read receipts are still NOT VERIFIED / NOT IMPLEMENTED by this change**; the derived unanswered count is not represented as an unread count.
+- Automated test execution, TypeScript check, frontend build, A/B customer isolation end-to-end test, and audit-outbox consistency verification: **NOT VERIFIED**.
+- Release boundary unchanged: no PR, merge, deployment, or production Supabase/database changes.
