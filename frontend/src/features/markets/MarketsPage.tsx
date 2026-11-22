@@ -321,8 +321,8 @@ export function MarketsPage() {
             setMarkets([]);
             setError(
               reason instanceof Error && reason.name !== "AbortError"
-                ? reason.message
-                : "Market data is temporarily unavailable. Please try again shortly.",
+                ? t("Market data is temporarily unavailable.")
+                : t("Market data is temporarily unavailable."),
             );
           }
         })
