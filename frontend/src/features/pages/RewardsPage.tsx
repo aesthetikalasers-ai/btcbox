@@ -50,7 +50,7 @@ export function RewardsPage() {
         if (reason instanceof Error && reason.name === "AbortError") return;
         if (controller.signal.aborted) return;
         setData(null);
-        setError(reason instanceof Error ? reason.message : "Reward information is temporarily unavailable.");
+        setError(t("Reward information is temporarily unavailable."));
       })
       .finally(() => { if (!controller.signal.aborted) setLoading(false); });
     return () => controller.abort();
@@ -110,19 +110,6 @@ export function RewardsPage() {
         <CardContent className="flex flex-wrap items-center justify-between gap-3 p-5">
           <p className="text-sm text-brand-danger" role="alert">{t(error)}</p>
           <Button size="sm" variant="outline" onClick={() => setReload((n) => n + 1)}>{t("Try again")}</Button>
-        </CardContent>
-      </Card>
-    </PageFrame>;
-  }
-
-  if (!overview?.available) {
-    return <PageFrame title="Rewards & referrals" tone="account">
-      <Card className="border-brand-border bg-brand-surface">
-        <CardContent className="flex flex-col items-center gap-3 p-8 text-center">
-          <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-brand-surface-2 text-brand-text-muted"><Gift className="h-6 w-6" /></span>
-          <p className="text-sm font-semibold text-brand-text">{t("Referral rewards are not open yet")}</p>
-          <p className="max-w-md text-sm leading-6 text-brand-text-muted">{t("This section opens once referral rewards are available for your account. No earnings or invite counts are shown before then.")}</p>
-          <Button asChild size="sm" variant="outline" className="mt-1"><Link to="/support">{t("Contact support")}</Link></Button>
         </CardContent>
       </Card>
     </PageFrame>;
