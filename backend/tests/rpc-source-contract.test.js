@@ -303,3 +303,13 @@ test('first successful withdrawal always requires review based on PostgreSQL his
   assert.match(migration, /'require_admin_review', v_require_admin_review/);
   assert.match(migration, /grant execute on function public\.create_withdrawal_atomic\([\s\S]*?to service_role/i);
 });
+
+test('withdrawal approval references the original freeze operation without a second debit', () => {
+  const migration = read('supabase/sql/0039_withdrawal_approve_no_burn_v1.sql');
+  const approvalStart = migration.indexOf('CREATE OR REPLACE FUNCTION public.review_withdrawal_atomic');
+  const payoutStart = migration.indexOf('CREATE OR REPLACE FUNCTION public.mark_withdrawal_paid_atomic', approvalStart);
+  const approval = migration.slice(approvalStart, payoutStart);
+  assert.match(approval, /v_operation_id := v_w\.freeze_operation_id/i);
+  assert.match(approval, /review_operation_id=v_operation_id/i);
+  assert.doesNotMatch(approval, /apply_financial_operation\([\s\S]*?'withdraw_approve'/i);
+});
