@@ -295,13 +295,12 @@ export function SecondsPage() {
     if (status !== "authenticated") { setError(t("Please sign in to place a seconds order.")); return; }
     if (marketUnavailable) { setError(t("Market data is unavailable or stale. No order was sent.")); return; }
     if (!policy) {
-      setError(t("The active seconds policy is unavailable. No order was sent."));
+      setError(t("Trading is temporarily unavailable."));
       return;
     }
     // Server policy is authoritative: without an explicit enabling flag the
     // page never sends an order.
     if (policy.actions_enabled !== true) {
-      setError(t("Seconds order entry is currently disabled by server policy."));
       return;
     }
     if (pendingIntent) {
@@ -438,8 +437,6 @@ export function SecondsPage() {
                   <span className="text-brand-text-muted font-medium">{t("Settlement duration")}</span>
                   <span className="text-brand-accent font-mono font-bold">{t("Return rate")}: {currentRate === null ? "—" : `+${currentRate.toFixed(2)}%`}</span>
                 </div>
-                {!policy ? <p role="status" className="mb-2 text-xs text-brand-text-muted">{t("The active seconds policy is unavailable. Payout rates and order entry are disabled until it can be verified.")}</p> : null}
-                {policy && !policy.actions_enabled ? <p role="status" className="mb-2 text-xs text-brand-text-muted">{t("Seconds order entry is currently disabled by server policy.")}</p> : null}
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
                   {durationOptions.map((opt) => (
                     <button key={opt.sec} type="button" disabled={!policy || policy.actions_enabled !== true} onClick={() => setDuration(opt.sec)} className={`flex flex-col items-center justify-center rounded-lg border py-1.5 transition-all ${duration === opt.sec ? "border-brand-accent bg-brand-accent/20 text-brand-accent shadow-sm shadow-brand-accent/20 font-bold" : "border-brand-border/50 bg-brand-surface text-brand-text-muted hover:border-brand-border-strong hover:text-brand-text"}`}>
