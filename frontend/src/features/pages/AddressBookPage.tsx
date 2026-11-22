@@ -58,7 +58,7 @@ export function AddressBookPage() {
       .then((list) => { if (!controller.signal.aborted) setItems(list); })
       .catch((reason: unknown) => {
         if (reason instanceof Error && reason.name === "AbortError") return;
-        if (!controller.signal.aborted) { setItems([]); setError(reason instanceof Error ? reason.message : "Address book is temporarily unavailable."); }
+        if (!controller.signal.aborted) { setItems([]); setError(t("Account data is temporarily unavailable.")); }
       })
       .finally(() => { if (!controller.signal.aborted) setLoading(false); });
     return () => controller.abort();
