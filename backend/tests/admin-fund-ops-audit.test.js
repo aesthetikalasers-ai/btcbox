@@ -127,7 +127,7 @@ test('admin user screen exposes audited freeze controls only to users.freeze per
 
 test('frozen accounts cannot continue using Supabase-bearer administrator APIs or freeze themselves', () => {
   const authStart = api.indexOf('async function adminAuth()');
-  const authEnd = api.indexOf("\\n  // Durable outbox delivery", authStart);
+  const authEnd = api.indexOf("\n  // Durable outbox delivery", authStart);
   const auth = api.slice(authStart, authEnd);
   assert.ok(auth.includes('isSupabaseIdentityLinked(candidate, delegated.user.id)'));
   assert.ok(auth.includes('adminAccount && adminAccount.frozen'));
