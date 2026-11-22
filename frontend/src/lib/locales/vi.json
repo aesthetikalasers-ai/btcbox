@@ -1747,5 +1747,6 @@
   "Loading spot markets…": "Đang tải thị trường giao ngay…",
   "Unable to load Earn products. Please try again.": "Không thể tải sản phẩm Earn. Vui lòng thử lại.",
   "Unable to complete sign-in. Please try again.": "Không thể hoàn tất đăng nhập. Vui lòng thử lại.",
-  "Trading is temporarily unavailable.": "Giao dịch hiện tạm thời không khả dụng."
+  "Trading is temporarily unavailable.": "Giao dịch hiện tạm thời không khả dụng.",
+  "Only limit orders are available.": "Hiện chỉ hỗ trợ lệnh giới hạn."
 }
