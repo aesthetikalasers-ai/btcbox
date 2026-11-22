@@ -210,6 +210,11 @@ test('React auth preserves legacy email sign-in and Google registration alongsid
   assert.ok(security.includes('Link Google'));
   assert.ok(security.includes('Link Ethereum wallet'));
   assert.ok(security.includes('Link Solana wallet'));
+  assert.ok(security.includes('Email login password'));
+  assert.ok(security.includes('Set or change'));
+  assert.ok(!security.includes('account?.has_login_password ? t("Set") : t("Not set")'), 'Supabase email password status must not reuse BTCBOX password metadata');
+  assert.ok(provider.includes('client.auth.updateUser({ password })'));
+  assert.ok(provider.includes('signedIn.user.id !== data.user.id'), 'email password must remain on the same Supabase user');
   assert.ok(app.includes('AccountSetupGate'));
   assert.ok(app.includes('AccountSecurityPage'));
   assert.ok(!pages.includes('Terms of Service'));
