@@ -364,7 +364,7 @@ export function SpotTradingPage(){
     setPairSymbols(pairResult.value.filter(pair=>pair.quote_asset==="USDT").map(pair=>pair.base_asset+pair.quote_asset));
     const enabled=pairResult.value.some(pair=>pair.base_asset===base&&pair.quote_asset==="USDT");
     setSpotPairEnabled(enabled);
-    if(!enabled)setError("This spot market is not enabled by BTCBOX operators.");
+    if(!enabled)setError("This trading pair is currently unavailable.");
    }else{
     setSpotPairEnabled(false);
     setError(t("Unable to load spot markets. Please try again."));
@@ -462,8 +462,8 @@ export function SpotTradingPage(){
    const saved=JSON.parse(raw) as Parameters<typeof submitSpotOrder>[0];
    if(saved&&saved.symbol===symbol&&saved.type==="limit"&&(saved.side==="buy"||saved.side==="sell")&&typeof saved.qty==="string"&&typeof saved.price==="string"&&/^[A-Za-z0-9_-]{16,100}$/.test(saved.client_order_id)){
     setPendingIntent(saved);setSide(saved.side);setQuantity(saved.qty);setPrice(saved.price);
-   }else{setPendingIntentInvalid(true);setError("A saved spot order request is invalid. Check order history before allowing another order.");}
-  }catch{setPendingIntentInvalid(true);setError("A saved spot order request could not be read. No new order will be sent until it is reviewed.");}
+   }else{setPendingIntentInvalid(true);setError("We couldn't verify your pending order. Check order history before placing another order.");}
+  }catch{setPendingIntentInvalid(true);setError("We couldn't verify your pending order. Check order history before placing another order.");}
  },[accountUid,symbol,pendingStorageKey]);
 
  useEffect(()=>{
@@ -524,10 +524,10 @@ export function SpotTradingPage(){
  const submitOrder=async(event:FormEvent<HTMLFormElement>)=>{
   event.preventDefault();
   if(orderType!=="limit"){setError(t("Only limit orders are available."));return;}
-  if(pendingIntentInvalid){setError("A saved spot order request must be reconciled before another order can be placed.");return;}
-  if(tickerIsFallback&&!pendingIntent){setError("Live market data is unavailable. No order was sent.");return;}
-   if((!ticker||marketSnapshotStale)&&!pendingIntent){setError("A fresh timestamped market snapshot is required before placing a new order. No order was sent.");return;}
-  if(!spotPairEnabled&&!pendingIntent){setError("This spot pair is not enabled by BTCBOX operators. No order was sent.");return;}
+  if(pendingIntentInvalid){setError("Check your order history before placing another order.");return;}
+  if(tickerIsFallback&&!pendingIntent){setError("Live prices are unavailable. Your order was not submitted.");return;}
+   if((!ticker||marketSnapshotStale)&&!pendingIntent){setError("Live prices are updating. Please wait before placing an order.");return;}
+  if(!spotPairEnabled&&!pendingIntent){setError("This trading pair is currently unavailable. Your order was not submitted.");return;}
   if(!tradingStatus?.spot_order_entry_enabled&&!pendingIntent){setError(t("Trading is temporarily unavailable."));return;}
   if(!pendingIntent&&(!orderInputsValid||balanceUnavailable||insufficientBalance||tickerIsFallback)){setError(insufficientBalance?t("Insufficient available balance"):t("Sign in to continue"));return;}
   // A retained pending intent is already mid-flight from a previous attempt and
@@ -570,7 +570,7 @@ export function SpotTradingPage(){
    const latest=await getOrders();
    setOrders(latest);
    const confirmed=latest.some(item=>String(item.order_id??item.id??"")===result.order_id);
-   if(!confirmed){setError("The order response arrived, but order history has not confirmed it. Do not create another order; retry this same request.");return;}
+   if(!confirmed){setError("Your order status is not yet confirmed. Check order history before trying again.");return;}
    try{window.localStorage.removeItem(pendingStorageKey);}catch{}
    setPendingIntent(null);setPendingIntentInvalid(false);setQuantity("");
    setNotice(result.duplicate?"This order request was already recorded and confirmed.":"Limit order accepted and confirmed in order history.");
@@ -623,7 +623,7 @@ export function SpotTradingPage(){
    setOrders(latest);
    const updated=latest.find(item=>String(item.order_id??item.id??"")===orderId);
    const status=String(updated?.status||"").toLowerCase();
-   if(!["cancelled","canceled","rejected"].includes(status)){setError("The cancellation response arrived, but order history has not confirmed the final status. Retry only with the same request ID.");return;}
+   if(!["cancelled","canceled","rejected"].includes(status)){setError("Your cancellation status is not yet confirmed. Refresh order history before trying again.");return;}
    try{window.localStorage.removeItem(storageKey);}catch{}
    setCancelRequestIds(current=>{const next={...current};delete next[orderId];return next;});
    setNotice(result.duplicate?"This cancellation was already recorded and confirmed.":"Order cancellation confirmed in order history.");
@@ -1279,7 +1279,7 @@ export function EarnPage(){
     setSelectedProduct(current=>catalogResult.value.products.some(p=>p.product_id===current)?current:(catalogResult.value.products[0]?.product_id||""));
    }else{
     setProducts([]);setActionsEnabled(false);
-    if(!authRequired(catalogResult.reason))issues.push(localizedFailure(catalogResult.reason,"Earn catalog is unavailable. No product availability is assumed."));
+    if(!authRequired(catalogResult.reason))issues.push(localizedFailure(catalogResult.reason,"Earn products are temporarily unavailable. Please try again."));
    }
    setError(Array.from(new Set(issues)).join("\n"));
   }).finally(()=>{if(!controller.signal.aborted)setLoading(false);});
@@ -1297,7 +1297,7 @@ export function EarnPage(){
   const parsed=Number(amount);
   const decimals=amount.includes(".")?amount.split(".")[1].length:0;
   if(!Number.isFinite(parsed)||parsed<=0){setError("Enter an amount greater than zero.");return;}
-  if(decimals>selected.amount_scale){setError(`This product supports at most ${selected.amount_scale} decimal places.`);return;}
+  if(decimals>selected.amount_scale){setError(`The amount has too many decimal places.`);return;}
   const requestKey=`subscribe:${selected.product_id}:${amount.trim()}`;
   const requestId=requestIdFor(requestKey);
   setRequestIds(current=>({...current,[requestKey]:requestId}));
@@ -1388,9 +1388,9 @@ export function WithdrawPage(){
       const savedAddress=usable.find(item=>item.id===saved?.address_id);
       if(saved&&saved.version===1&&typeof saved.request_id==="string"&&/^[A-Za-z0-9_-]{16,100}$/.test(saved.request_id)&&typeof saved.amount==="string"&&typeof saved.address==="string"&&savedAddress&&!savedAddress.blocked&&!savedAddress.unbound&&savedAddress.coin===saved.coin&&savedAddress.network===saved.network){
        setPendingIntent(saved);setSelectedId(saved.address_id);setAmount(saved.amount);
-      }else{setPendingIntentInvalid(true);setError("A saved withdrawal request cannot be matched to its original destination. Contact support before creating another withdrawal.");}
+      }else{setPendingIntentInvalid(true);setError("We couldn't verify the saved withdrawal destination. Contact support before trying again.");}
      }else{setPendingIntent(null);setPendingIntentInvalid(false);setSelectedId(current=>usable.some(item=>item.id===current)?current:(usable[0]?.id||""));}
-    }catch{setPendingIntentInvalid(true);setError("A saved withdrawal request could not be read. Do not submit another withdrawal until its status is checked.");}
+    }catch{setPendingIntentInvalid(true);setError("We couldn't verify your saved withdrawal request. Check withdrawal history before trying again.");}
    })
    .catch(reason=>{
     if(reason instanceof Error&&reason.name==="AbortError")return;
@@ -1451,10 +1451,10 @@ export function WithdrawPage(){
    intent={version:1,request_id:requestId,address_id:selectedId,coin:selectedAddress.coin,network:selectedAddress.network,amount:amount.trim(),address:selectedAddress.address,created_at:Date.now()};
    if(!pendingStorageKey){setError(t("Sign in to continue"));submitLockRef.current=false;return;}
    try{window.localStorage.setItem(pendingStorageKey,JSON.stringify(intent));}
-   catch{setError("This browser cannot safely save the withdrawal request. No withdrawal was sent.");submitLockRef.current=false;return;}
+   catch{setError("This browser couldn't save your withdrawal request. Nothing was submitted.");submitLockRef.current=false;return;}
    setPendingIntent(intent);
   }
-  if(intent.address_id!==selectedId||intent.address!==selectedAddress.address||intent.coin!==selectedAddress.coin||intent.network!==selectedAddress.network){setError("The saved withdrawal destination no longer matches. Contact support before retrying.");setPendingIntentInvalid(true);submitLockRef.current=false;return;}
+  if(intent.address_id!==selectedId||intent.address!==selectedAddress.address||intent.coin!==selectedAddress.coin||intent.network!==selectedAddress.network){setError("The saved withdrawal destination has changed. Contact support before trying again.");setPendingIntentInvalid(true);submitLockRef.current=false;return;}
   setSubmitting(true);setError("");setActionMessage("");
   let requestAccepted=false;
   try{
@@ -1468,7 +1468,7 @@ export function WithdrawPage(){
    const latest=await getAccount();
    setAccount(latest);
    const confirmed=(latest.withdrawals||[]).some(item=>item.id===result.withdrawal_id);
-   if(!confirmed){setError("The withdrawal response arrived, but account history has not confirmed it. Keep this request and retry only with the same ID.");return;}
+   if(!confirmed){setError("Your withdrawal status is not yet confirmed. Check withdrawal history before trying again.");return;}
    clearPending();setAmount("");setFundPassword("");setTwofaCode("");
    setActionMessage(result.duplicate?t("This withdrawal request was already received and confirmed."):result.require_admin_review?t("Withdrawal submitted for staff review."):t("Withdrawal submitted and is awaiting staff processing."));
    setReload(value=>value+1);
@@ -1477,7 +1477,7 @@ export function WithdrawPage(){
    if(!requestAccepted&&reason instanceof ApiError&&reason.code==="WITHDRAWAL_FEE_CHANGED"){
     clearPending();
     try{setConfig(await getWithdrawalConfig());}catch{}
-    setError("The withdrawal fee changed. The latest fee has been refreshed. Review the request and submit again.");
+    setError("The withdrawal fee has changed. Review the updated fee and submit again.");
    }else if(!requestAccepted&&reason instanceof ApiError&&reason.status>=400&&reason.status<500&&reason.status!==409)clearPending();
   }finally{submitLockRef.current=false;setSubmitting(false);}
  };
