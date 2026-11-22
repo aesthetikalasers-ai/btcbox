@@ -123,3 +123,17 @@ test('admin user screen exposes audited freeze controls only to users.freeze per
   assert.ok(adminPage.includes('Re-read the target before asking staff to retry a non-idempotent'));
   assert.ok(adminPage.includes('Check the Audit log to confirm delivery.'));
 });
+
+
+test('frozen accounts cannot continue using Supabase-bearer administrator APIs or freeze themselves', () => {
+  const authStart = api.indexOf('async function adminAuth()');
+  const authEnd = api.indexOf("\\n  // Durable outbox delivery", authStart);
+  const auth = api.slice(authStart, authEnd);
+  assert.ok(auth.includes('isSupabaseIdentityLinked(candidate, delegated.user.id)'));
+  assert.ok(auth.includes('adminAccount && adminAccount.frozen'));
+  assert.ok(auth.includes("code: 'ACCOUNT_FROZEN'"));
+
+  const freeze = sliceRoute("if (sub === 'user/freeze' && method === 'POST')", "// POST /api/admin/user/reset-pwd");
+  assert.ok(freeze.includes('isSupabaseIdentityLinked(u, adminUserId)'));
+  assert.ok(freeze.includes('SELF_FREEZE_BLOCKED'));
+});
