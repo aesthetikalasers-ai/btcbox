@@ -76,6 +76,7 @@ class LiveMarketEngine {
   private listeners: Set<() => void> = new Set();
   /** Snapshot time supplied by the backend; polling success alone never makes quotes live. */
   private lastSnapshotTs: number | null = null;
+  private lastNotifiedStatus: MarketStatus = "unavailable";
   private pollTimer: number | null = null;
 
   // React 的 useSyncExternalStore 要求 getSnapshot 在数据未变化时返回同一个引用，
@@ -123,6 +124,7 @@ class LiveMarketEngine {
 
   private async refreshFromBackend() {
     const previousStatus = this.getStatus();
+    if (previousStatus !== this.lastNotifiedStatus) this.notify();
     try {
       const response = await fetch(`${API_BASE_PATH}/market`, {
         method: "GET",
@@ -151,6 +153,7 @@ class LiveMarketEngine {
 
       const next = new Map<string, MarketMemoryRow>();
       let changed = false;
+      let invalidSnapshot = false;
       for (const ticker of payload.markets) {
         if (!ticker || typeof ticker.sym !== "string") continue;
         const sym = ticker.sym.replace(/USDT$/, "").toUpperCase();
@@ -179,7 +182,10 @@ class LiveMarketEngine {
           snapshotTs <= 0 ||
           snapshotTs > nowSeconds + FUTURE_CLOCK_SKEW_SECONDS ||
           nowSeconds - snapshotTs > STALE_AFTER_MS / 1000
-        ) continue;
+        ) {
+          invalidSnapshot = true;
+          continue;
+        }
         const providerTs = Number.isFinite(provenance?.providerTs) && Number(provenance?.providerTs) > 0
           ? Number(provenance?.providerTs)
           : null;
@@ -211,7 +217,7 @@ class LiveMarketEngine {
           existing.providerTs !== row.providerTs
         ) changed = true;
       }
-      if (next.size === 0) return;
+      if (invalidSnapshot || next.size === 0) return;
       if (next.size !== this.prices.size) changed = true;
       if (next.size === 0) return;
       this.prices = next;
@@ -227,6 +233,7 @@ class LiveMarketEngine {
     // 数据已变化：先作废快照缓存，再通知订阅者。这样订阅方重新读取时
     // 会拿到一个新引用（内容确实变了），而在两次变化之间引用保持稳定。
     this.tickersSnapshot = null;
+    this.lastNotifiedStatus = this.getStatus();
     this.listeners.forEach((fn) => fn());
   }
 
