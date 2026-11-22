@@ -936,7 +936,6 @@ export function AdminPage() {
       setSupportReplyRequestIds((current) => { const next = { ...current }; delete next[uid]; return next; });
       const successMessage = result.audit_sync_pending ? "Support reply sent; audit delivery is pending." : "Support reply sent.";
       const queueRequestId = ++supportQueueRequestRef.current;
-      setSupport([]);
       try {
         const snapshot = await getAdminSupportMessages(token);
         if (queueRequestId !== supportQueueRequestRef.current) return;
@@ -944,7 +943,6 @@ export function AdminPage() {
         setNotice(successMessage);
       } catch {
         if (queueRequestId !== supportQueueRequestRef.current) return;
-        setSupport([]);
         setError(successMessage + " The conversation could not refresh. Reload this tab before replying again.");
       }
     } catch (reason) { setError(reason instanceof Error ? reason.message : "Support reply failed."); }
