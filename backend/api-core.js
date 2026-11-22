@@ -3396,6 +3396,7 @@ async function handleRequest(event, context) {
       if (['withdraw/approve','withdraw/reject','withdraw/mark-paid'].includes(route) && verb === 'POST') return 'withdrawals.review';
       if (route === 'orders' && verb === 'GET') return 'orders.read';
       if (route === 'support/messages' && verb === 'GET') return 'support.read';
+      if (route === 'support/read' && verb === 'POST') return 'support.read';
       if (route === 'support/reply' && verb === 'POST') return 'support.reply';
       if (route === 'support/faq' && verb === 'GET') return 'support.read';
       if ((route === 'support/faq' || route === 'support/faq/delete') && verb === 'POST') return 'support.manage';
@@ -4367,21 +4368,49 @@ async function handleRequest(event, context) {
       return json({ ok: true, duplicate: false, message_id: message.id, time: message.time, audit_sync_pending: auditFlush.pending });
     }
 
+    // POST /api/admin/support/read — persist per-admin, per-customer read receipt.
+    if (sub === 'support/read' && method === 'POST') {
+      const uid = String(body.uid || '').trim();
+      if (!uid || !db.users[uid]) return json({ ok: false, msg: 'Customer conversation not found.' }, 404);
+      if (!db.admin_support_read_receipts || typeof db.admin_support_read_receipts !== 'object') db.admin_support_read_receipts = {};
+      const receiptKey = String(adminUserId) + ':' + uid;
+      const userMessages = (Array.isArray(db.users[uid].support_messages) ? db.users[uid].support_messages : []).filter(function(m) { return m && m.from === 'user'; });
+      const latestUserMessage = userMessages.reduce(function(latest, m) { const time = String(m.time || ''); return time > latest ? time : latest; }, '');
+      const previousReadAt = String(db.admin_support_read_receipts[receiptKey] || '');
+      if (latestUserMessage && previousReadAt >= latestUserMessage) {
+        return json({ ok: true, duplicate: true, unread: 0, msg: 'Conversation is already marked as read.' });
+      }
+      const readAt = nowStr();
+      db.admin_support_read_receipts[receiptKey] = readAt;
+      await auditAdmin('support_mark_read', uid, JSON.stringify({ latest_user_message_at: latestUserMessage }), adminUserId);
+      await saveDB(db);
+      const auditFlush = await flushAdminAuditOutbox();
+      return json({ ok: true, duplicate: false, unread: 0, audit_sync_pending: auditFlush.pending, msg: 'Conversation marked as read.' });
+    }
+
     // GET /api/admin/support/messages — return complete UID-scoped conversations.
     // Keeping both senders in the same thread lets staff verify replies and prevents
     // the inbox from presenting each customer message as an unrelated conversation.
     if (sub === 'support/messages' && method === 'GET') {
       const list = [];
+      const readReceipts = db.admin_support_read_receipts && typeof db.admin_support_read_receipts === 'object' ? db.admin_support_read_receipts : {};
       Object.values(db.users).forEach(function (u) {
+        const uid = String(u.uid || '');
+        const receiptKey = String(adminUserId) + ':' + uid;
+        const lastReadAt = String(readReceipts[receiptKey] || '');
+        const unreadCount = (Array.isArray(u.support_messages) ? u.support_messages : []).filter(function(m) {
+          return m && m.from === 'user' && (!lastReadAt || String(m.time || '') > lastReadAt);
+        }).length;
         (Array.isArray(u.support_messages) ? u.support_messages : []).forEach(function (m) {
           if (!m || (m.from !== 'user' && m.from !== 'admin')) return;
           list.push({
             id: String(m.id || ''),
-            uid: String(u.uid || ''),
+            uid: uid,
             email: String(u.email || ''),
             from: m.from,
             content: String(m.content || ''),
-            time: String(m.time || '')
+            time: String(m.time || ''),
+            admin_unread_count: unreadCount
           });
         });
       });
