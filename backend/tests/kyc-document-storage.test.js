@@ -56,6 +56,8 @@ test('customer KYC form requires a compressed identity image', () => {
   assert.ok(page.includes('prepareKycDocumentImage'));
   assert.ok(page.includes('accept="image/*"'));
   assert.ok(page.includes('typeof createImageBitmap === "function"'));
+  assert.ok(page.includes('resizeWidth: 1600'));
+  assert.ok(page.includes('resizeQuality: "high"'));
   assert.ok(page.includes('const image = new Image()'));
   assert.ok(page.includes('heic|heif'));
   assert.ok(page.includes('document_image_base64'));
