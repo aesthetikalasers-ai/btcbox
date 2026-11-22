@@ -87,6 +87,7 @@ const messages: Record<string, string> = {
   "Manual credit": "人工入账",
   "Enter a valid reason (maximum 200 characters). No account change was sent.": "请输入有效原因（最多 200 个字符），未更改账户状态。",
   "Account status could not be changed. Refresh the user record before retrying.": "无法更改账户状态，请刷新用户资料后重试。",
+  "Account status was updated, but the response was interrupted. Check the Audit log to confirm delivery.": "账户状态已更新，但响应中断。请检查审计日志以确认记录已送达。",
   "Account frozen.": "账户已冻结。",
   "Account unfrozen.": "账户已解除冻结。",
   "Audit synchronization is pending.": "审计记录仍在等待同步。",
