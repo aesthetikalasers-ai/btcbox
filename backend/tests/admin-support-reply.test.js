@@ -21,11 +21,13 @@ test('admin support replies are permission-gated, persisted, audited and idempot
   for (const contract of [
     'body.request_id', 'body.conversation_id', "conversationId !== 'support:' + uid", 'SUPPORT_REPLY_IDEMPOTENCY_CONFLICT',
     "from: 'admin'", 'admin_id: adminUserId',
-    "auditAdmin('support_reply'", 'await saveDB(db)',
+    "auditAdmin(", "'conversation_id=' + conversationId", "'request_id=' + requestId",
+    'audit_event_id: auditEventId', 'await saveDB(db)',
     'await flushAdminAuditOutbox()', 'slice(-500)'
   ]) assert.ok(route.includes(contract), 'missing support reply contract: ' + contract);
   assert.ok(client.includes('admin/support/reply'));
   assert.ok(client.includes('request_id: requestId'));
+  assert.ok(api.includes("audit_event_id: priorAudit ? String(priorAudit.id || '') : ''"));
   assert.ok(admin.includes('supportReplyRequestIds'));
   assert.ok(admin.includes('adminReplySupport(token, uid, content, requestId)'));
 });
@@ -36,8 +38,9 @@ test('customer support history and admin replies stay scoped to one authenticate
   assert.ok(customerStart >= 0 && customerEnd > customerStart);
   const customerRoute = api.slice(customerStart, customerEnd);
   assert.ok(customerRoute.includes('if (!user)'));
-  assert.ok(customerRoute.includes('await markSupportConversationRead(user.uid)'));
-  assert.ok(customerRoute.includes('messages: user.support_messages.slice(-50)'));
+  assert.ok(customerRoute.includes('await markSupportConversationRead(user.uid, lastVisibleAdminMessage)'));
+  assert.ok(customerRoute.includes('const messages = (Array.isArray(user.support_messages) ? user.support_messages : []).slice(-50)'));
+  assert.ok(customerRoute.includes('lastVisibleAdminMessage'));
   assert.doesNotMatch(customerRoute, /Object\.values\(db\.users\)|db\.users\[/);
 
   const replyStart = api.indexOf("if (sub === 'support/reply' && method === 'POST')");

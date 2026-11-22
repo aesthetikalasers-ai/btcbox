@@ -11,11 +11,12 @@ test('real support message handler returns only the authenticated customer conve
     SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
     CONTEXT: process.env.CONTEXT,
   };
-  const readUids = [];
-  const readAtByUid = {
-    'uid-customer-a': '2026-11-22 10:00:00',
-    'uid-customer-b': '2026-11-22 10:03:00',
+  const cursorCalls = [];
+  const readStateByUid = {
+    'uid-customer-a': { message_id: '', read_at: '' },
+    'uid-customer-b': { message_id: '', read_at: '2026-11-22 10:02:00' },
   };
+  let injectedConcurrentReply = false;
   let revision = 7;
   let state = {
     users: {
@@ -24,7 +25,7 @@ test('real support message handler returns only the authenticated customer conve
         email: 'customer-a@example.test',
         support_messages: [
           { id: 'A-1', from: 'user', content: 'Private message for customer A', time: '2026-11-22 10:00:00' },
-          { id: 'A-2', from: 'admin', content: 'Private reply for customer A', time: '2026-11-22 10:01:00' },
+          { id: 'M1763805600000aaaaaaaaaaaa', from: 'admin', content: 'Private reply for customer A', time: '2026-11-22 10:01:00', admin_id: 'admin-1' },
         ],
       },
       'uid-customer-b': {
@@ -32,7 +33,7 @@ test('real support message handler returns only the authenticated customer conve
         email: 'customer-b@example.test',
         support_messages: [
           { id: 'B-1', from: 'user', content: 'Private message for customer B', time: '2026-11-22 10:02:00' },
-          { id: 'B-2', from: 'admin', content: 'Private reply for customer B', time: '2026-11-22 10:02:30', admin_id: 'admin-1' },
+          { id: 'M1763805750000bbbbbbbbbbbb', from: 'admin', content: 'Private reply for customer B', time: '2026-11-22 10:02:30', admin_id: 'admin-1' },
         ],
       },
     },
@@ -50,14 +51,25 @@ test('real support message handler returns only the authenticated customer conve
     if (url.pathname === '/rest/v1/btcbox_state') {
       return Response.json([{ revision, data: state }]);
     }
-    if (url.pathname === '/rest/v1/rpc/btcbox_mark_support_read') {
+    if (url.pathname === '/rest/v1/rpc/btcbox_mark_support_read_v2') {
       const payload = JSON.parse(init.body || '{}');
-      readUids.push(payload.p_uid);
-      return Response.json('2026-11-22 10:03:00');
+      cursorCalls.push(payload);
+      const current = readStateByUid[payload.p_uid] || { message_id: '', read_at: '' };
+      if (!current.message_id || payload.p_message_id > current.message_id) {
+        readStateByUid[payload.p_uid] = { message_id: payload.p_message_id, read_at: payload.p_read_at };
+      }
+      if (payload.p_uid === 'uid-customer-a' && !injectedConcurrentReply) {
+        injectedConcurrentReply = true;
+        state.users['uid-customer-a'].support_messages.push({
+          id: 'M1763805600500cccccccccccc', from: 'admin',
+          content: 'Concurrent reply must remain unread', time: '2026-11-22 10:01:00', admin_id: 'admin-2'
+        });
+      }
+      return Response.json(readStateByUid[payload.p_uid]);
     }
-    if (url.pathname === '/rest/v1/rpc/btcbox_get_support_read') {
+    if (url.pathname === '/rest/v1/rpc/btcbox_get_support_read_v2') {
       const payload = JSON.parse(init.body || '{}');
-      return Response.json(readAtByUid[payload.p_uid] || '1970-01-01 00:00:00');
+      return Response.json(readStateByUid[payload.p_uid] || { message_id: '', read_at: '' });
     }
     if (url.pathname === '/rest/v1/rpc/btcbox_save_state') {
       const payload = JSON.parse(init.body || '{}');
@@ -70,20 +82,16 @@ test('real support message handler returns only the authenticated customer conve
   };
 
   try {
-    const unreadA = await api.handler({
-      path: '/api/chat/unread',
-      httpMethod: 'GET',
+    const unreadAInitially = await api.handler({
+      path: '/api/chat/unread', httpMethod: 'GET',
       headers: { cookie: 'session_token=test-session-a' },
     }, {});
-    const unreadB = await api.handler({
-      path: '/api/chat/unread',
-      httpMethod: 'GET',
+    const unreadBInitially = await api.handler({
+      path: '/api/chat/unread', httpMethod: 'GET',
       headers: { cookie: 'session_token=test-session-b' },
     }, {});
-    assert.equal(unreadA.statusCode, 200);
-    assert.equal(unreadB.statusCode, 200);
-    assert.equal(JSON.parse(unreadA.body).unread, 1);
-    assert.equal(JSON.parse(unreadB.body).unread, 0);
+    assert.equal(JSON.parse(unreadAInitially.body).unread, 1);
+    assert.equal(JSON.parse(unreadBInitially.body).unread, 1, 'legacy timestamp fallback must preserve unread state');
 
     const customerA = await api.handler({
       path: '/api/support/messages',
@@ -110,6 +118,17 @@ test('real support message handler returns only the authenticated customer conve
     ]);
     assert.ok(!JSON.stringify(bodyA).includes('customer B'));
     assert.ok(!JSON.stringify(bodyB).includes('customer A'));
+    assert.ok(!bodyA.messages.some((message) => message.content === 'Concurrent reply must remain unread'));
+    const unreadAAfterOpen = await api.handler({
+      path: '/api/chat/unread', httpMethod: 'GET',
+      headers: { cookie: 'session_token=test-session-a' },
+    }, {});
+    assert.equal(JSON.parse(unreadAAfterOpen.body).unread, 1);
+    const unreadBAfterOpen = await api.handler({
+      path: '/api/chat/unread', httpMethod: 'GET',
+      headers: { cookie: 'session_token=test-session-b' },
+    }, {});
+    assert.equal(JSON.parse(unreadBAfterOpen.body).unread, 0);
     const sent = await api.handler({
       path: '/api/support/chat',
       httpMethod: 'POST',
@@ -148,8 +167,19 @@ test('real support message handler returns only the authenticated customer conve
     const refreshedBodyA = JSON.parse(refreshedA.body);
     const refreshedBodyB = JSON.parse(refreshedB.body);
     assert.ok(refreshedBodyA.messages.some((message) => message.content === 'A follow-up that belongs only to customer A'));
+    assert.ok(refreshedBodyA.messages.some((message) => message.content === 'Concurrent reply must remain unread'));
     assert.ok(!JSON.stringify(refreshedBodyB).includes('A follow-up that belongs only to customer A'));
-    assert.deepEqual(readUids, ['uid-customer-a', 'uid-customer-b', 'uid-customer-a', 'uid-customer-b']);
+    const unreadAFinal = await api.handler({
+      path: '/api/chat/unread', httpMethod: 'GET',
+      headers: { cookie: 'session_token=test-session-a' },
+    }, {});
+    assert.equal(JSON.parse(unreadAFinal.body).unread, 0);
+    assert.deepEqual(cursorCalls.map((call) => [call.p_uid, call.p_message_id]), [
+      ['uid-customer-a', 'M1763805600000aaaaaaaaaaaa'],
+      ['uid-customer-b', 'M1763805750000bbbbbbbbbbbb'],
+      ['uid-customer-a', 'M1763805600500cccccccccccc'],
+    ]);
+    assert.ok(cursorCalls.every((call) => call.p_read_at === '2026-11-22 10:01:00' || call.p_read_at === '2026-11-22 10:02:30'));
   } finally {
     global.fetch = originalFetch;
     for (const [key, value] of Object.entries(originalEnv)) {

@@ -14,15 +14,19 @@ test('support read markers no longer write the monolithic BTCBOX state', () => {
   const messagesEnd = api.indexOf("if (path === 'support/faq' && method === 'GET')", messagesStart);
   assert.ok(messagesStart >= 0 && messagesEnd > messagesStart);
   const messagesRoute = api.slice(messagesStart, messagesEnd);
-  assert.ok(messagesRoute.includes('await markSupportConversationRead(user.uid)'));
+  assert.ok(messagesRoute.includes('await markSupportConversationRead(user.uid, lastVisibleAdminMessage)'));
+  assert.ok(messagesRoute.includes('const lastVisibleAdminMessage = messages.slice().reverse().find'));
+  assert.ok(messagesRoute.includes('messages: messages'));
   assert.doesNotMatch(messagesRoute, /saveDB\(db\)|last_read_chat_at/);
 
   const unreadStart = api.indexOf("if (path === 'chat/unread' && method === 'GET')");
   const unreadEnd = api.indexOf('// ==================== 后台管理 API', unreadStart);
   assert.ok(unreadStart >= 0 && unreadEnd > unreadStart);
   const unreadRoute = api.slice(unreadStart, unreadEnd);
-  assert.ok(unreadRoute.includes('await getSupportConversationReadAt(user.uid)'));
-  assert.ok(unreadRoute.includes("m.from === 'admin'"));
+  assert.ok(unreadRoute.includes('await getSupportConversationReadState(user.uid)'));
+  assert.ok(unreadRoute.includes('readState.message_id'));
+  assert.ok(unreadRoute.includes('index > cursorIndex'));
+  assert.ok(unreadRoute.includes('message.time > readState.read_at'));
 });
 
 test('support read marker RPC is isolated, atomic, and service-role-only', () => {
@@ -54,4 +58,22 @@ test('support read migration preserves valid legacy UTC read markers', () => {
   assert.ok(canonical.includes("~ '^[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}'"));
   assert.ok(canonical.includes("pg_input_is_valid(u.value->>'last_read_chat_at', 'timestamp without time zone')"));
   assert.ok(canonical.includes('on conflict (uid) do update'));
+});
+
+
+test('support read cursor migration is additive, atomic and service-role-only', () => {
+  const cursorMigration = fs.readFileSync(path.join(root, 'supabase/sql/0043_support_read_cursor_v1.sql'), 'utf8');
+  const cursorUpgrade = fs.readFileSync(path.join(root, 'supabase/existing-schema-upgrades/0043_existing_schema_support_read_cursor_v1.sql'), 'utf8');
+  for (const contract of [
+    'add column if not exists last_read_message_id text',
+    'create or replace function public.btcbox_mark_support_read_v2',
+    'create or replace function public.btcbox_get_support_read_v2',
+    'on conflict (uid) do update',
+    'excluded.last_read_message_id > public.btcbox_support_read_state.last_read_message_id',
+    'grant execute on function public.btcbox_mark_support_read_v2(text, text, text) to service_role',
+    'grant execute on function public.btcbox_get_support_read_v2(text) to service_role'
+  ]) assert.ok(cursorMigration.toLowerCase().includes(contract.toLowerCase()), 'missing cursor SQL contract: ' + contract);
+  assert.equal(cursorUpgrade, cursorMigration);
+  assert.match(cursorMigration, /revoke all on function public\.btcbox_mark_support_read_v2\(text, text, text\) from public, anon, authenticated/i);
+  assert.match(cursorMigration, /revoke all on function public\.btcbox_get_support_read_v2\(text\) from public, anon, authenticated/i);
 });

@@ -77,6 +77,9 @@ test('migration order document records the prepared Seconds migration dependenci
   assert.ok(orderDoc.includes('bounded, read-only administrator queue for open Seconds positions'));
   assert.ok(orderDoc.includes('timestamp registry versions with four-digit source filenames'));
   assert.ok(orderDoc.includes('0042_support_read_state_v1.sql'));
+  assert.ok(orderDoc.includes('0043_support_read_cursor_v1.sql'));
+  assert.ok(orderDoc.includes('last_read_message_id'));
+  assert.ok(fs.existsSync(path.join(__dirname, '..', 'supabase', 'existing-schema-upgrades', '0043_existing_schema_support_read_cursor_v1.sql')));
   assert.ok(orderDoc.includes('isolated support read-marker table'));
   assert.equal((orderDoc.match(/## Existing-schema support read-state upgrade/g) || []).length, 1);
   const marketUpgradeSection = orderDoc.slice(orderDoc.indexOf('## Existing-schema market-catalogue upgrade'));

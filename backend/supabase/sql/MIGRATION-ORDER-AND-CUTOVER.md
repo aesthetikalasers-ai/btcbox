@@ -8,7 +8,7 @@ Use `backend/scripts/bootstrap-empty-database.sh` only against a verified empty 
 - requires `DATABASE_URL` and `BTCBOX_BOOTSTRAP_CONFIRM=YES`;
 - parses the URL hostname and refuses remote targets unless `BTCBOX_ALLOW_REMOTE_BOOTSTRAP=YES` is explicitly supplied;
 - checks that no BTCBOX-owned tables already exist before applying SQL;
-- applies the 35 canonical SQL files explicitly allowlisted in `backend/scripts/bootstrap-empty-database.sh`;
+- applies the 36 canonical SQL files explicitly allowlisted in `backend/scripts/bootstrap-empty-database.sh`;
 - creates the schema only; the first API request atomically inserts the empty `btcbox_state` singleton through `btcbox_save_state` at revision 0, with no demo users or balances;
 - stops on the first SQL error and never prints the database URL.
 
@@ -53,6 +53,7 @@ The current canonical source inventory is:
 33. `0040_admin_superadmin_membership_listing_v1.sql`
 34. `0041_perpetual_contract_v1.sql`
 35. `0042_support_read_state_v1.sql`
+36. `0043_support_read_cursor_v1.sql`
 
 The legacy `0008_financial_spot_trade_v3.sql` direct-fill RPC was removed because it bypassed the order book and was not called by the API. The durable matching engine now occupies `0008_financial_matching_engine_v1.sql` and is the only supported spot write path. Sequence `0009` is retired and intentionally omitted; the offline migration checker explicitly recognizes retired slots `0009` and `0015`–`0020`. The bootstrap allowlist contains only live numbered SQL files and is tested against the actual source inventory.
 
@@ -126,3 +127,8 @@ Apply this upgrade only after reading the target schema and confirming the targe
 `backend/supabase/existing-schema-upgrades/0039_existing_schema_market_catalog_upgrade_v1.sql` is an incremental upgrade for an existing BTCBOX database that already contains `financial_matching_markets` but lacks `read_spot_market_snapshot_v1`. It adds only the service-role-only read RPC and seeds four public quote pairs (`BTC`, `ETH`, `SOL`, `BNB` against `USDT`) when no operator configuration exists. Existing rows are never overwritten. It does not enable matching or any financial write path; those remain controlled by the runtime `FINANCIAL_*` flags.
 
 Apply this upgrade only after reading the target schema and confirming the target is an existing deployment missing this specific RPC. It is deliberately excluded from the empty-database bootstrap allowlist, where `0028_admin_rbac_service_rpc_wrappers_v1.sql` supplies the canonical read RPC alongside the audited administrator workflow.
+
+
+## Existing-schema support read-cursor upgrade
+
+`backend/supabase/existing-schema-upgrades/0043_existing_schema_support_read_cursor_v1.sql` is the additive upgrade after 0042. It adds the last-read message cursor and service-role-only cursor RPCs without rewriting support messages, sessions, user data, or financial records. Apply it only after verifying 0042 is installed in the intended database; do not run it against production as part of source review.
