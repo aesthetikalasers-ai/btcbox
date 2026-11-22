@@ -364,7 +364,7 @@ export function SpotTradingPage(){
     setPairSymbols(pairResult.value.filter(pair=>pair.quote_asset==="USDT").map(pair=>pair.base_asset+pair.quote_asset));
     const enabled=pairResult.value.some(pair=>pair.base_asset===base&&pair.quote_asset==="USDT");
     setSpotPairEnabled(enabled);
-    if(!enabled)setError("This trading pair is currently unavailable.");
+    if(!enabled)setError(t("Trading is temporarily unavailable."));
    }else{
     setSpotPairEnabled(false);
     setError(t("Unable to load spot markets. Please try again."));
@@ -383,7 +383,7 @@ export function SpotTradingPage(){
      setMarketUpdatedAt(selected.snapshotTs?selected.snapshotTs*1000:null);
      setMarketFeedWarning("");
      if(!isPriceManual && selected.source && selected.source!=="demo-preview" && selected.source!=="sample-data"){ setPrice(String(selected.price)); }
-    }else{setTicker(null);setMarketUpdatedAt(null);setPrice("");setMarketFeedWarning("Market data is temporarily unavailable for this pair.");}
+    }else{setTicker(null);setMarketUpdatedAt(null);setPrice("");setMarketFeedWarning(t("Market data is temporarily unavailable."));}
    }else{setTicker(null);setMarketUpdatedAt(null);setPrice("");setError(t("Market data is temporarily unavailable."));}
    // initial load: a null book means the depth feed is unavailable, and the
    // panel renders its own empty state.
@@ -423,7 +423,7 @@ export function SpotTradingPage(){
     }else{setTicker(null);setMarketUpdatedAt(null);failed=true;}
     if(bookResult.status==="fulfilled"){setBook(bookResult.value);if(!bookResult.value)failed=true;}
     else{setBook(null);failed=true;}
-    setMarketFeedWarning(failed?"Live market data is temporarily unavailable.":"");
+    setMarketFeedWarning(failed?t("Market data is temporarily unavailable."):"");
    }).finally(()=>{window.clearTimeout(timeoutId);refreshing=false;});
   };
 // The ticker and order book poll every 5 s; the gateway cache window absorbs
@@ -445,7 +445,7 @@ export function SpotTradingPage(){
    getKlines(symbol,chartInterval,controller.signal).then(rows=>{
     if(!cancelled){setCandles(rows);setChartSource(rows.find(row=>typeof row.source==="string")?.source??null);setChartFeedWarning("");}
    }).catch(()=>{
-    if(!cancelled){setCandles([]);setChartFeedWarning("Chart data is temporarily unavailable.");}
+    if(!cancelled){setCandles([]);setChartFeedWarning(t("Chart data is temporarily unavailable."));}
    }).finally(()=>{window.clearTimeout(timeout);refreshing=false;});
   };
   setCandles([]);load();
@@ -525,9 +525,9 @@ export function SpotTradingPage(){
   event.preventDefault();
   if(orderType!=="limit"){setError(t("Only limit orders are available."));return;}
   if(pendingIntentInvalid){setError("Check your order history before placing another order.");return;}
-  if(tickerIsFallback&&!pendingIntent){setError("Live prices are unavailable. Your order was not submitted.");return;}
+  if(tickerIsFallback&&!pendingIntent){setError(t("Market data is unavailable or stale. No order was sent."));return;}
    if((!ticker||marketSnapshotStale)&&!pendingIntent){setError("Live prices are updating. Please wait before placing an order.");return;}
-  if(!spotPairEnabled&&!pendingIntent){setError("This trading pair is currently unavailable. Your order was not submitted.");return;}
+  if(!spotPairEnabled&&!pendingIntent){setError(t("Trading is temporarily unavailable."));return;}
   if(!tradingStatus?.spot_order_entry_enabled&&!pendingIntent){setError(t("Trading is temporarily unavailable."));return;}
   if(!pendingIntent&&(!orderInputsValid||balanceUnavailable||insufficientBalance||tickerIsFallback)){setError(insufficientBalance?t("Insufficient available balance"):t("Sign in to continue"));return;}
   // A retained pending intent is already mid-flight from a previous attempt and
@@ -555,7 +555,7 @@ export function SpotTradingPage(){
   */
  const sendOrder=async(intent:Parameters<typeof submitSpotOrder>[0],persistIntent:boolean)=>{
   if(persistIntent){
-   if(!pendingStorageKey){setError("Account identity is unavailable. No order was sent.");return;}
+   if(!pendingStorageKey){setError(t("Sign in to continue"));return;}
    try{window.localStorage.setItem(pendingStorageKey,JSON.stringify(intent));}
    catch{setError("This browser cannot safely save the order request. No order was sent.");return;}
    setPendingIntent(intent);
@@ -1189,7 +1189,7 @@ export function DepositPage(){
  const copyAddress=async()=>{
   if(!address)return;
   try{
-   if(!navigator.clipboard?.writeText)throw new Error("Clipboard access is unavailable.");
+   if(!navigator.clipboard?.writeText)throw new Error(t("Unable to copy. Please try again."));
    await navigator.clipboard.writeText(address);
    setCopyMessage("Deposit address copied.");
   }catch{
