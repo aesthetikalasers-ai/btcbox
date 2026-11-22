@@ -1745,5 +1745,6 @@
   "Unable to load Earn products. Please try again.": "No se pudieron cargar los productos Earn. Inténtalo de nuevo.",
   "Unable to complete sign-in. Please try again.": "No se pudo completar el inicio de sesión. Inténtalo de nuevo.",
   "Trading is temporarily unavailable.": "El trading no está disponible temporalmente.",
-  "Only limit orders are available.": "Por ahora, solo están disponibles las órdenes limitadas."
+  "Only limit orders are available.": "Por ahora, solo están disponibles las órdenes limitadas.",
+  "Unable to copy. Please try again.": "No se pudo copiar. Inténtalo de nuevo."
 }
