@@ -17,9 +17,14 @@ function friendlyAuthErrorMessage(cause: unknown, fallback = "Authentication cou
   }
   if (code === "account_frozen") return "This BTCBOX account is frozen. Please contact support.";
   if (["auth_provider_not_allowed", "google_only_auth"].includes(code)) return "This sign-in method is not available. Please use an enabled sign-in method.";
-  if (["google_provider_unavailable", "auth_service_unavailable", "persistence_unavailable", "security_state_unavailable"].includes(code)) {
+  if (["google_provider_unavailable", "auth_service_unavailable", "persistence_unavailable", "security_state_unavailable", "network_error", "rate_limit_unavailable", "verification_unavailable"].includes(code)) {
     return "The authentication service is temporarily unavailable. Please try again later.";
   }
+  if (code === "rate_limited") return "Too many attempts. Please wait a moment and try again.";
+  if (["auth_required", "reauth_required"].includes(code)) return "Your sign-in session has expired. Please sign in again.";
+  if (code === "recent_target_reauth_required") return "Please verify the Google account or wallet you want to link, then try again.";
+  if (code === "account_update_conflict") return "Your account changed during this request. Please try again.";
+
   if (code === "invalid_credentials") return "Username or password is incorrect.";
   if (code === "invalid_supabase_identity") return "The sign-in identity could not be verified. Please try again.";
   if (["password_invalid", "current_password_invalid"].includes(code)) return "Your current password is incorrect.";
@@ -44,6 +49,7 @@ function friendlyAuthErrorMessage(cause: unknown, fallback = "Authentication cou
   if (code === "access_denied") return "Google sign-in was cancelled. You can return and try again.";
   // API errors always carry an HTTP status. Unknown codes must use the
   // operation-specific fallback rather than exposing a server-supplied message.
+  if (/^invalid(?: or already-used)? 2fa code\.?$/i.test(rawMessage)) return "The verification code is incorrect or has already been used. Please enter a current code.";
   if (typeof error.status === "number" || code) return fallback;
   if (rawMessage && !/(?:supabase|postgres|postgrest|database|sqlstate|\bselect\b|\binsert\b|\bupdate\b|stack trace|\bexception\b|fetch failed|networkerror|\bhttp\s*\d{3}\b|jwt|bearer|authorization|service.role|\b(?:uuid|token)\b)/i.test(rawMessage)) {
     return rawMessage;
