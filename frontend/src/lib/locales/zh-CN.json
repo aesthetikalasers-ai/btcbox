@@ -1745,5 +1745,6 @@
   "Unable to load Earn products. Please try again.": "暂时无法加载理财产品，请重试。",
   "Unable to complete sign-in. Please try again.": "暂时无法完成登录，请重试。",
   "Trading is temporarily unavailable.": "交易暂时无法使用。",
-  "Only limit orders are available.": "目前仅支持限价订单。"
+  "Only limit orders are available.": "目前仅支持限价订单。",
+  "Unable to copy. Please try again.": "无法复制，请重试。"
 }
