@@ -1733,5 +1733,20 @@
   "Earn products are temporarily unavailable. Please try again.": "I prodotti Earn non sono temporaneamente disponibili. Riprova più tardi.",
   "Unable to copy. Please try again.": "Impossibile copiare. Riprova.",
   "Unable to add this address. Please try again.": "Impossibile aggiungere questo indirizzo. Riprova.",
-  "No recent trades are currently available.": "Non sono disponibili operazioni recenti."
+  "No recent trades are currently available.": "Non sono disponibili operazioni recenti.",
+  "Set a password for this same Google account. You can then sign in with either Google or this email and password; your account and UID stay the same.": "Imposta una password per questo stesso account Google. Potrai quindi accedere con Google oppure con questa e-mail e password; il tuo account e il tuo UID resteranno invariati.",
+  "Username or email": "Nome utente o e-mail",
+  "Enter your username or email": "Inserisci il nome utente o l'e-mail",
+  "Perpetual market data is temporarily unavailable.": "I dati del mercato perpetuo non sono temporaneamente disponibili.",
+  "Live perpetual market data is unavailable. No order was sent.": "I dati in tempo reale del mercato perpetuo non sono disponibili. Nessun ordine è stato inviato.",
+  "No live perpetual markets available": "Nessun mercato perpetuo disponibile",
+  "JPEG, PNG or WebP. Maximum original size 8 MB; securely compressed to 2 MB. Upload a clear, readable image.": "JPEG, PNG o WebP. Dimensione originale massimo di 8 MB; compressione sicura a 2 MB. Carica un'immagine nitida e leggibile.",
+  "Reward information is temporarily unavailable.": "Le informazioni sui premi non sono temporaneamente disponibili.",
+  "Volume": "Volume",
+  "Live market data is temporarily unavailable.": "I dati di mercato in tempo reale non sono temporaneamente disponibili.",
+  "Amount (BTC)": "Importo (BTC)",
+  "Position ratio": "Rapporto della posizione",
+  "Open long": "Apri posizione long",
+  "Open short": "Apri posizione short",
+  "Profile": "Profilo"
 }

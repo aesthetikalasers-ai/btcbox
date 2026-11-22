@@ -1733,5 +1733,20 @@
   "The withdrawal fee has changed. Review the updated fee and submit again.": "The withdrawal fee has changed. Review the updated fee and submit again.",
   "Earn products are temporarily unavailable. Please try again.": "Earn products are temporarily unavailable. Please try again.",
   "Unable to add this address. Please try again.": "Unable to add this address. Please try again.",
-  "No recent trades are currently available.": "No recent trades are currently available."
+  "No recent trades are currently available.": "No recent trades are currently available.",
+  "Set a password for this same Google account. You can then sign in with either Google or this email and password; your account and UID stay the same.": "Set a password for this same Google account. You can then sign in with either Google or this email and password; your account and UID stay the same.",
+  "Username or email": "Username or email",
+  "Enter your username or email": "Enter your username or email",
+  "Perpetual market data is temporarily unavailable.": "Perpetual market data is temporarily unavailable.",
+  "Live perpetual market data is unavailable. No order was sent.": "Live perpetual market data is unavailable. No order was sent.",
+  "No live perpetual markets available": "No live perpetual markets available",
+  "JPEG, PNG or WebP. Maximum original size 8 MB; securely compressed to 2 MB. Upload a clear, readable image.": "JPEG, PNG or WebP. Maximum original size 8 MB; securely compressed to 2 MB. Upload a clear, readable image.",
+  "Reward information is temporarily unavailable.": "Reward information is temporarily unavailable.",
+  "Volume": "Volume",
+  "Live market data is temporarily unavailable.": "Live market data is temporarily unavailable.",
+  "Amount (BTC)": "Amount (BTC)",
+  "Position ratio": "Position ratio",
+  "Open long": "Open long",
+  "Open short": "Open short",
+  "Profile": "Profile"
 }

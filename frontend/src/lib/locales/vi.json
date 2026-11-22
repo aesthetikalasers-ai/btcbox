@@ -1733,5 +1733,20 @@
   "Earn products are temporarily unavailable. Please try again.": "Sản phẩm Earn hiện tạm thời không khả dụng. Vui lòng thử lại sau.",
   "Unable to copy. Please try again.": "Không thể sao chép. Vui lòng thử lại.",
   "Unable to add this address. Please try again.": "Không thể thêm địa chỉ này. Vui lòng thử lại.",
-  "No recent trades are currently available.": "Hiện chưa có giao dịch gần đây."
+  "No recent trades are currently available.": "Hiện chưa có giao dịch gần đây.",
+  "Set a password for this same Google account. You can then sign in with either Google or this email and password; your account and UID stay the same.": "Đặt mật khẩu cho chính tài khoản Google này. Sau đó, bạn có thể đăng nhập bằng Google hoặc bằng email và mật khẩu này; tài khoản và UID của bạn sẽ không thay đổi.",
+  "Username or email": "Tên người dùng hoặc email",
+  "Enter your username or email": "Nhập tên người dùng hoặc email",
+  "Perpetual market data is temporarily unavailable.": "Dữ liệu thị trường hợp đồng vĩnh cửu tạm thời không khả dụng.",
+  "Live perpetual market data is unavailable. No order was sent.": "Dữ liệu thị trường hợp đồng vĩnh cửu trực tiếp không khả dụng. Lệnh chưa được gửi.",
+  "No live perpetual markets available": "Không có thị trường hợp đồng vĩnh cửu khả dụng",
+  "JPEG, PNG or WebP. Maximum original size 8 MB; securely compressed to 2 MB. Upload a clear, readable image.": "JPEG, PNG hoặc WebP. Kích thước ảnh gốc tối đa 8 MB; ảnh sẽ được nén an toàn xuống 2 MB. Hãy tải lên ảnh rõ nét, dễ đọc.",
+  "Reward information is temporarily unavailable.": "Thông tin phần thưởng tạm thời không khả dụng.",
+  "Volume": "Khối lượng",
+  "Live market data is temporarily unavailable.": "Dữ liệu thị trường trực tiếp tạm thời không khả dụng.",
+  "Amount (BTC)": "Số lượng (BTC)",
+  "Position ratio": "Tỷ lệ vị thế",
+  "Open long": "Mở vị thế mua",
+  "Open short": "Mở vị thế bán",
+  "Profile": "Hồ sơ"
 }

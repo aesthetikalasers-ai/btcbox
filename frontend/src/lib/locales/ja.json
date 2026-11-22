@@ -1733,5 +1733,20 @@
   "Earn products are temporarily unavailable. Please try again.": "Earn商品は一時的にご利用いただけません。しばらくしてからお試しください。",
   "Unable to copy. Please try again.": "コピーできません。もう一度お試しください。",
   "Unable to add this address. Please try again.": "このアドレスを追加できませんでした。もう一度お試しください。",
-  "No recent trades are currently available.": "現在、最新の取引履歴はありません。"
+  "No recent trades are currently available.": "現在、最新の取引履歴はありません。",
+  "Set a password for this same Google account. You can then sign in with either Google or this email and password; your account and UID stay the same.": "同じGoogleアカウントにパスワードを設定すると、Googleまたはこのメールアドレスとパスワードでログインできます。アカウントとUIDは変わりません。",
+  "Username or email": "ユーザー名またはメールアドレス",
+  "Enter your username or email": "ユーザー名またはメールアドレスを入力",
+  "Perpetual market data is temporarily unavailable.": "無期限先物の市場データは一時的に利用できません。",
+  "Live perpetual market data is unavailable. No order was sent.": "無期限先物のリアルタイム市場データを取得できないため、注文は送信されませんでした。",
+  "No live perpetual markets available": "利用可能な無期限先物市場はありません",
+  "JPEG, PNG or WebP. Maximum original size 8 MB; securely compressed to 2 MB. Upload a clear, readable image.": "JPEG、PNG、WebPに対応。元画像は最大8 MBで、安全に2 MBまで圧縮されます。文字がはっきり読める画像をアップロードしてください。",
+  "Reward information is temporarily unavailable.": "報酬情報は一時的に利用できません。",
+  "Volume": "出来高",
+  "Live market data is temporarily unavailable.": "リアルタイム市場データは一時的に利用できません。",
+  "Amount (BTC)": "数量（BTC）",
+  "Position ratio": "ポジション比率",
+  "Open long": "ロングを建てる",
+  "Open short": "ショートを建てる",
+  "Profile": "プロフィール"
 }

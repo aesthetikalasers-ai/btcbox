@@ -1733,5 +1733,20 @@
   "The withdrawal fee has changed. Review the updated fee and submit again.": "La comisión de retiro ha cambiado. Revisa la nueva comisión y vuelve a enviar la solicitud.",
   "Earn products are temporarily unavailable. Please try again.": "Los productos Earn no están disponibles temporalmente. Inténtalo de nuevo más tarde.",
   "Unable to add this address. Please try again.": "No se pudo añadir esta dirección. Inténtalo de nuevo.",
-  "No recent trades are currently available.": "No hay operaciones recientes disponibles."
+  "No recent trades are currently available.": "No hay operaciones recientes disponibles.",
+  "Set a password for this same Google account. You can then sign in with either Google or this email and password; your account and UID stay the same.": "Establece una contraseña para esta misma cuenta de Google. Después podrás iniciar sesión con Google o con este correo y contraseña; tu cuenta y tu UID seguirán siendo los mismos.",
+  "Username or email": "Nombre de usuario o correo electrónico",
+  "Enter your username or email": "Introduce tu nombre de usuario o correo electrónico",
+  "Perpetual market data is temporarily unavailable.": "Los datos del mercado de perpetuos no están disponibles temporalmente.",
+  "Live perpetual market data is unavailable. No order was sent.": "Los datos en tiempo real del mercado perpetuo no están disponibles. No se envió ninguna orden.",
+  "No live perpetual markets available": "No hay mercados perpetuos disponibles",
+  "JPEG, PNG or WebP. Maximum original size 8 MB; securely compressed to 2 MB. Upload a clear, readable image.": "JPEG, PNG o WebP. Tamaño original máximo de 8 MB; se comprime de forma segura a 2 MB. Sube una imagen nítida y legible.",
+  "Reward information is temporarily unavailable.": "La información de recompensas no está disponible temporalmente.",
+  "Volume": "Volumen",
+  "Live market data is temporarily unavailable.": "Los datos del mercado en tiempo real no están disponibles temporalmente.",
+  "Amount (BTC)": "Cantidad (BTC)",
+  "Position ratio": "Proporción de posición",
+  "Open long": "Abrir posición larga",
+  "Open short": "Abrir posición corta",
+  "Profile": "Perfil"
 }

@@ -1733,5 +1733,20 @@
   "The withdrawal fee has changed. Review the updated fee and submit again.": "提现手续费已变更，请确认最新手续费后重新提交。",
   "Earn products are temporarily unavailable. Please try again.": "理财产品暂时无法加载，请稍后重试。",
   "Unable to add this address. Please try again.": "无法添加此地址，请稍后重试。",
-  "No recent trades are currently available.": "暂无最新成交记录。"
+  "No recent trades are currently available.": "暂无最新成交记录。",
+  "Set a password for this same Google account. You can then sign in with either Google or this email and password; your account and UID stay the same.": "为当前 Google 账户设置密码后，您即可使用 Google 或此邮箱和密码登录；账户及 UID 保持不变。",
+  "Username or email": "用户名或邮箱",
+  "Enter your username or email": "输入用户名或邮箱",
+  "Perpetual market data is temporarily unavailable.": "永续合约市场数据暂时不可用。",
+  "Live perpetual market data is unavailable. No order was sent.": "永续合约实时市场数据不可用，订单未发送。",
+  "No live perpetual markets available": "暂无可用的永续合约市场",
+  "JPEG, PNG or WebP. Maximum original size 8 MB; securely compressed to 2 MB. Upload a clear, readable image.": "支持 JPEG、PNG 或 WebP。原图最大 8 MB，系统会安全压缩至 2 MB。请上传清晰可读的图片。",
+  "Reward information is temporarily unavailable.": "奖励信息暂时不可用。",
+  "Volume": "成交量",
+  "Live market data is temporarily unavailable.": "实时市场数据暂时不可用。",
+  "Amount (BTC)": "数量（BTC）",
+  "Position ratio": "仓位比例",
+  "Open long": "开多",
+  "Open short": "开空",
+  "Profile": "个人资料"
 }

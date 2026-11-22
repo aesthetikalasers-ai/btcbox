@@ -1733,5 +1733,20 @@
   "Earn products are temporarily unavailable. Please try again.": "Os produtos Earn estão temporariamente indisponíveis. Tente novamente mais tarde.",
   "Unable to copy. Please try again.": "Não foi possível copiar. Tente novamente.",
   "Unable to add this address. Please try again.": "Não foi possível adicionar este endereço. Tente novamente.",
-  "No recent trades are currently available.": "Não há negociações recentes disponíveis no momento."
+  "No recent trades are currently available.": "Não há negociações recentes disponíveis no momento.",
+  "Set a password for this same Google account. You can then sign in with either Google or this email and password; your account and UID stay the same.": "Defina uma senha para esta mesma conta do Google. Depois, você poderá entrar com o Google ou com este e-mail e senha; sua conta e seu UID permanecerão iguais.",
+  "Username or email": "Nome de usuário ou e-mail",
+  "Enter your username or email": "Digite seu nome de usuário ou e-mail",
+  "Perpetual market data is temporarily unavailable.": "Os dados do mercado perpétuo estão temporariamente indisponíveis.",
+  "Live perpetual market data is unavailable. No order was sent.": "Os dados em tempo real do mercado perpétuo estão indisponíveis. Nenhuma ordem foi enviada.",
+  "No live perpetual markets available": "Não há mercados perpétuos disponíveis",
+  "JPEG, PNG or WebP. Maximum original size 8 MB; securely compressed to 2 MB. Upload a clear, readable image.": "JPEG, PNG ou WebP. Tamanho original máximo de 8 MB; compactação segura para 2 MB. Envie uma imagem nítida e legível.",
+  "Reward information is temporarily unavailable.": "As informações de recompensas estão temporariamente indisponíveis.",
+  "Volume": "Volume",
+  "Live market data is temporarily unavailable.": "Os dados do mercado em tempo real estão temporariamente indisponíveis.",
+  "Amount (BTC)": "Quantidade (BTC)",
+  "Position ratio": "Proporção da posição",
+  "Open long": "Abrir posição comprada",
+  "Open short": "Abrir posição vendida",
+  "Profile": "Perfil"
 }
