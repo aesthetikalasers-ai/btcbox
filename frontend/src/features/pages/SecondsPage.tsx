@@ -32,9 +32,9 @@ import { CandlestickSeries, ColorType, createChart, type UTCTimestamp } from "li
 export function SecondsPage() {
   const { t, language } = useI18n();
   const locale = localeTags[language];
-  const { status, user } = useAuth();
-  const authUserId = user?.id ?? "";
-  const signedOut = status === "unauthenticated";
+  const { status, email } = useAuth();
+  const authUserId = email;
+  const signedOut = status !== "authenticated";
   const [snapshot, setSnapshot] = useState<SecondsPositionsSnapshot | null>(null);
   const [positionsLoadError, setPositionsLoadError] = useState(false);
   const [policy, setPolicy] = useState<SecondsPolicyResponse | null>(null);
