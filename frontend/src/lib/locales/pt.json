@@ -1762,5 +1762,6 @@
   "The saved withdrawal destination has changed. Contact support before trying again.": "O endereço de saque salvo foi alterado. Entre em contato com o suporte antes de tentar novamente.",
   "Your withdrawal status is not yet confirmed. Check withdrawal history before trying again.": "O status do saque ainda não foi confirmado. Consulte o histórico antes de tentar novamente.",
   "The withdrawal fee has changed. Review the updated fee and submit again.": "A taxa de saque mudou. Confira a taxa atualizada e envie novamente.",
-  "Earn products are temporarily unavailable. Please try again.": "Os produtos Earn estão temporariamente indisponíveis. Tente novamente mais tarde."
+  "Earn products are temporarily unavailable. Please try again.": "Os produtos Earn estão temporariamente indisponíveis. Tente novamente mais tarde.",
+  "Unable to copy. Please try again.": "Não foi possível copiar. Tente novamente."
 }
