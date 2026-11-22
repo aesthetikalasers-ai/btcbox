@@ -1733,5 +1733,6 @@
   "Your withdrawal status is not yet confirmed. Check withdrawal history before trying again.": "O status do saque ainda não foi confirmado. Consulte o histórico antes de tentar novamente.",
   "The withdrawal fee has changed. Review the updated fee and submit again.": "A taxa de saque mudou. Confira a taxa atualizada e envie novamente.",
   "Earn products are temporarily unavailable. Please try again.": "Os produtos Earn estão temporariamente indisponíveis. Tente novamente mais tarde.",
-  "Unable to copy. Please try again.": "Não foi possível copiar. Tente novamente."
+  "Unable to copy. Please try again.": "Não foi possível copiar. Tente novamente.",
+  "Unable to add this address. Please try again.": "Não foi possível adicionar este endereço. Tente novamente."
 }
