@@ -1746,5 +1746,6 @@
   "Unable to load spot markets. Please try again.": "暂时无法加载现货市场，请重试。",
   "Loading spot markets…": "正在加载现货市场……",
   "Unable to load Earn products. Please try again.": "暂时无法加载理财产品，请重试。",
-  "Unable to complete sign-in. Please try again.": "暂时无法完成登录，请重试。"
+  "Unable to complete sign-in. Please try again.": "暂时无法完成登录，请重试。",
+  "Trading is temporarily unavailable.": "交易暂时无法使用。"
 }
