@@ -1746,5 +1746,6 @@
   "Unable to load spot markets. Please try again.": "現物市場を読み込めません。もう一度お試しください。",
   "Loading spot markets…": "現物市場を読み込み中…",
   "Unable to load Earn products. Please try again.": "Earn商品を読み込めません。もう一度お試しください。",
-  "Unable to complete sign-in. Please try again.": "ログインを完了できません。もう一度お試しください。"
+  "Unable to complete sign-in. Please try again.": "ログインを完了できません。もう一度お試しください。",
+  "Trading is temporarily unavailable.": "取引は一時的にご利用いただけません。"
 }
