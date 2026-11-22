@@ -6,7 +6,7 @@ const path = require('node:path');
 const root = path.resolve(__dirname, '..');
 const read = (name) => fs.readFileSync(path.join(root, '..', name), 'utf8');
 const api = read('frontend/src/lib/api.ts');
-const page = read('frontend/src/features/pages/Pages.tsx');
+const page = read('frontend/src/features/pages/SecondsPage.tsx');
 const app = read('frontend/src/App.tsx');
 const backend = fs.readFileSync(path.join(root, 'api-core.js'), 'utf8');
 
@@ -21,7 +21,7 @@ test('React Seconds page loads the server policy and validates the complete posi
 });
 
 test('React Seconds order entry persists a stable request and retries only the same intent until confirmed', () => {
-  assert.match(app, /<Route path="\/seconds" element=\{<ProtectedAccountRoute><SecondsPage \/><\/ProtectedAccountRoute>\}/);
+  assert.match(app, /<Route path="\/seconds" element=\{<PublicRoute><SecondsPage \/><\/PublicRoute>\}/);
   assert.match(api, /export async function submitSecondsOrder/);
   assert.match(page, /btcbox\.seconds\.pending\.v1\./);
   assert.match(page, /window\.crypto\.randomUUID\(\)/);
@@ -33,8 +33,11 @@ test('React Seconds order entry persists a stable request and retries only the s
 
 test('each mature position is settled independently by the server endpoint', () => {
   assert.match(api, /export async function settleSecondsPosition/);
-  assert.match(page, /snapshot\.open\.map\(position=>/);
-  assert.match(page, /request_id:"settle_"\+position\.position_id/);
+  assert.match(page, /snapshot\.open\.filter\(\(position\) =>/);
+  assert.match(page, /position\.settle_at \* 1000 <= snapshot\.server_now/);
+  assert.match(page, /settleSecondsPosition\(\{/);
+  assert.match(page, /request_id: "settle_" \+ position\.position_id/);
+  assert.match(page, /settlementInFlightRef/);
   assert.match(backend, /if \(path === 'seconds\/settle' && method === 'POST'\)/);
   assert.match(backend, /fetchSecondsReferencePrice\(symbol\)/);
 });
