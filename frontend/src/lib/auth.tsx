@@ -50,8 +50,12 @@ function friendlyAuthErrorMessage(cause: unknown, fallback = "Authentication cou
   // API errors always carry an HTTP status. Unknown codes must use the
   // operation-specific fallback rather than exposing a server-supplied message.
   if (/^invalid(?: or already-used)? 2fa code\.?$/i.test(rawMessage)) return "The verification code is incorrect or has already been used. Please enter a current code.";
+  if (/access_denied|user_cancelled|user canceled|sign-in was cancelled/i.test(rawMessage)) return "Google sign-in was cancelled. You can return and try again.";
+  if (/(?:failed to fetch|fetch failed|load failed|networkerror|network request failed|aborterror|timed out|timeout)/i.test(rawMessage)) {
+    return "The authentication service is temporarily unavailable. Please try again later.";
+  }
   if (typeof error.status === "number" || code) return fallback;
-  if (rawMessage && !/(?:supabase|postgres|postgrest|database|sqlstate|\bselect\b|\binsert\b|\bupdate\b|stack trace|\bexception\b|fetch failed|networkerror|\bhttp\s*\d{3}\b|jwt|bearer|authorization|service.role|\b(?:uuid|token)\b)/i.test(rawMessage)) {
+  if (rawMessage && !/(?:supabase|postgres|postgrest|database|sqlstate|\bselect\b|\binsert\b|\bupdate\b|stack trace|\bexception\b|fetch failed|failed to fetch|load failed|networkerror|network request failed|aborterror|\bhttp\s*\d{3}\b|jwt|bearer|authorization|service.role|\b(?:uuid|token)\b)/i.test(rawMessage)) {
     return rawMessage;
   }
   return fallback;
