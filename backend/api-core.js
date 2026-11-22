@@ -26,7 +26,7 @@ function supabaseHeaders() {
 }
 async function supportReadStateRpc(functionName, uid) {
   if (!supabaseStorageConfigured()) throw new Error('Support read state storage is unavailable');
-  const base = process.env.SUPABASE_URL.replace(/\\/+$/, '');
+  const base = process.env.SUPABASE_URL.replace(/\/+$/, '');
   const response = await fetch(base + '/rest/v1/rpc/' + functionName, {
     method: 'POST',
     headers: supabaseHeaders(),
