@@ -175,3 +175,12 @@
 - Local isolated Node scenario: 5 assertions passed for a 500-message customer alongside a one-message customer, unread counting, and a post-snapshot message remaining unread.
 - Full repository node --test, frontend typecheck/build, real multi-user/multi-admin browser E2E, and concurrent production-storage behavior: NOT VERIFIED. The legacy JSON state store still has cross-instance read-modify-write limitations; this change does not claim to solve that storage-layer race.
 - No PR, merge, deployment, or production database/Supabase changes.
+## 2026-11-23 — Prevent authenticated demo-wallet seeding (2号 AI)
+
+- Confirmed the current React AssetsPage reads `getAccount()` and builds the visible balance list only from `account.balances`; it does not merge the local paper-trading ledger.
+- Confirmed backend `emptyBalances()` initializes USDT, BTC, ETH, SOL, BNB, and USDC with `free: 0` and `frozen: 0`, and new Supabase-auth-linked user creation calls this factory.
+- Found an independent browser-side issue: `TradingInitializer` was mounted globally and seeded a local 10,000 USDT paper wallet whenever any authenticated user had an empty local paper ledger. This did not write backend balances, but it unnecessarily created demo funds in authenticated sessions and could be confused with real funds if future UI reused the context.
+- Removed the global `TradingInitializer` mount. Also removed unused local paper-settlement wiring from the live Seconds page; Seconds order submission and positions remain on the authenticated API path.
+- Added `backend/tests/no-authenticated-demo-wallet.test.js` to protect zero backend starting balances, API-only AssetsPage balances, no global demo-wallet seeding, and no paper settlement in the live Seconds page.
+- Source-level assertions against the latest branch files: 10/10 passed. Full `node --test`, TypeScript check, frontend build, browser E2E, and production user-account verification: NOT VERIFIED.
+- Existing users' historical backend balances were not altered. No local browser storage was remotely cleared. No PR, merge, deployment, or production database/Supabase changes.
