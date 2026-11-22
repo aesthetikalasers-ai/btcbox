@@ -73,7 +73,7 @@ export function SupportFaq() {
       <CardContent className="divide-y divide-brand-border-subtle p-0">
         {loading ? <p className="p-4 text-sm text-brand-text-muted sm:p-5" role="status">{t("Loading help articles…")}</p>
         : failed ? <div className="p-4 sm:p-5"><p className="text-sm text-brand-text-muted" role="alert">{t("Help articles could not be loaded.")}</p><Button type="button" size="sm" variant="outline" className="mt-3" onClick={() => setReload((n) => n + 1)}><RefreshCw className="mr-2 h-4 w-4" />{t("Try again")}</Button></div>
-        : entries.length === 0 ? <p className="p-4 text-sm text-brand-text-muted sm:p-5">{t("Help articles are being prepared. You can still send a message to support.")}</p>
+        : entries.length === 0 ? null
         : entries.map((entry, index) => {
           const expanded = open.includes(entry.id);
           const panelId = `support-faq-panel-${index}`;
