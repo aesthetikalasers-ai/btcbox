@@ -1744,5 +1744,7 @@
   "Explore seconds trading markets.": "秒単位取引市場を見る。",
   "Explore Earn products and yields.": "Earn商品と利回りを見る。",
   "Unable to load spot markets. Please try again.": "現物市場を読み込めません。もう一度お試しください。",
-  "Loading spot markets…": "現物市場を読み込み中…"
+  "Loading spot markets…": "現物市場を読み込み中…",
+  "Unable to load Earn products. Please try again.": "Earn商品を読み込めません。もう一度お試しください。",
+  "Unable to complete sign-in. Please try again.": "ログインを完了できません。もう一度お試しください。"
 }
