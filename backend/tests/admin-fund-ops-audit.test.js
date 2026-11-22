@@ -107,3 +107,17 @@ test('canonical financial_audit_log has indexes matching the admin audit-logs qu
   const base = fs.readFileSync(path.join(root, 'supabase/sql/0002_financial_ledger_v1.sql'), 'utf8');
   assert.ok(base.includes('financial_audit_subject_time_idx'));
 });
+
+
+test('admin user screen exposes audited freeze controls only to users.freeze permission holders', () => {
+  const frontendRoot = path.resolve(root, '../../frontend/src');
+  const apiClient = fs.readFileSync(path.join(frontendRoot, 'lib/api.ts'), 'utf8');
+  const adminPage = fs.readFileSync(path.join(frontendRoot, 'features/admin/AdminPage.tsx'), 'utf8');
+  assert.ok(apiClient.includes('setAdminUserFrozen'));
+  assert.ok(apiClient.includes('"admin/user/freeze"'));
+  assert.ok(adminPage.includes('hasPermission("users.freeze")'));
+  assert.ok(adminPage.includes('userFreezeReason.trim()'));
+  assert.ok(adminPage.includes('maxLength={200}'));
+  assert.ok(adminPage.includes('setAdminUserFrozen(token, { uid, frozen, reason })'));
+  assert.ok(adminPage.includes('Freezing blocks new sign-ins and revokes active sessions and pending 2FA challenges.'));
+});
