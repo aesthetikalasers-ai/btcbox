@@ -9,7 +9,7 @@ const read = (file) => fs.readFileSync(path.join(root, file), 'utf8');
 test('KYC image upload validates content, size and stores evidence privately', () => {
   const backend = read('backend/api-core.js');
   assert.ok(backend.includes("const KYC_STORAGE_BUCKET = 'kyc-documents'"));
-  assert.ok(backend.includes("const KYC_IMAGE_MAX_BYTES = 512 * 1024"));
+  assert.ok(backend.includes("const KYC_IMAGE_MAX_BYTES = 2 * 1024 * 1024"));
   assert.ok(backend.includes("['image/jpeg', 'image/png', 'image/webp'].includes(contentType)"));
   assert.ok(backend.includes("bytes.toString('ascii', 8, 12) === 'WEBP'"));
   assert.ok(backend.includes("bytes.toString('ascii', 0, 4) === 'RIFF'"));
@@ -60,7 +60,8 @@ test('customer KYC form requires a compressed identity image', () => {
   assert.ok(page.includes('heic|heif'));
   assert.ok(page.includes(String.raw`const supportedExtension = /\.(?:jpe?g|png|webp|heic|heif)$/i.test`), 'mobile image extensions must match a literal dot');
   assert.ok(page.includes('document_image_base64'));
-  assert.ok(page.includes('512 * 1024'));
+  assert.ok(page.includes('2 * 1024 * 1024'));
+  assert.ok(page.includes('2400 / Math.max(sourceWidth, sourceHeight)'), 'document image retains higher resolution for legibility');
   assert.ok(api.includes('document_content_type: "image/jpeg"'));
   assert.ok(api.includes('document_image_base64: string'));
   assert.ok(admin.includes('Open secure image'));
@@ -71,7 +72,7 @@ test('KYC private Storage bucket setup is idempotent and keeps customer access c
   assert.ok(setup.includes("'kyc-documents'"));
   assert.ok(setup.includes("public"));
   assert.ok(setup.includes("false"));
-  assert.ok(setup.includes("524288"));
+  assert.ok(setup.includes("2097152"));
   assert.ok(setup.includes("ARRAY['image/jpeg', 'image/png', 'image/webp']"));
   assert.ok(setup.includes("ON CONFLICT (id) DO UPDATE"));
   assert.ok(setup.includes("Do not add anon/authenticated read or write policies"));
