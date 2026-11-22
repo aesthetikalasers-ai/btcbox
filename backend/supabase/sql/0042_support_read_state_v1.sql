@@ -22,6 +22,7 @@ select u.key,
  where s.id = 'main'
    and length(coalesce(u.value->>'last_read_chat_at', '')) = 19
    and coalesce(u.value->>'last_read_chat_at', '') ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}'
+   and pg_input_is_valid(u.value->>'last_read_chat_at', 'timestamp without time zone')
 on conflict (uid) do update
   set last_read_at = greatest(public.btcbox_support_read_state.last_read_at, excluded.last_read_at),
       updated_at = now();
