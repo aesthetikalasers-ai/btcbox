@@ -19,7 +19,7 @@ test('admin support replies are permission-gated, persisted, audited and idempot
   const route = api.slice(start, end);
   assert.ok(!route.includes('const supportMessage ='), 'legacy non-idempotent route must not shadow the current handler');
   for (const contract of [
-    'body.request_id', 'SUPPORT_REPLY_IDEMPOTENCY_CONFLICT',
+    'body.request_id', 'body.conversation_id', "conversationId !== 'support:' + uid", 'SUPPORT_REPLY_IDEMPOTENCY_CONFLICT',
     "from: 'admin'", 'admin_id: adminUserId',
     "auditAdmin('support_reply'", 'await saveDB(db)',
     'await flushAdminAuditOutbox()', 'slice(-500)'
