@@ -123,6 +123,7 @@ function harness(marker = {}, options = {}) {
   const testRequire = (id) => {
     if (id === './admin-auth') return require('../admin-auth');
     if (id === './admin-rbac') return require('../admin-rbac');
+    if (id === './bank-account-validation') return require('../bank-account-validation');
     if (id === './seconds-policy-readiness') return { hasActiveVersionedSecondsPolicy: async () => false };
     return require(id);
   };
