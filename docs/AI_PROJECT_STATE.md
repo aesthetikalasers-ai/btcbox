@@ -131,3 +131,15 @@
 - This is a conversation-history and unanswered-reply visibility improvement. **Persistent administrator unread/read receipts are still NOT VERIFIED / NOT IMPLEMENTED by this change**; the derived unanswered count is not represented as an unread count.
 - Automated test execution, TypeScript check, frontend build, A/B customer isolation end-to-end test, and audit-outbox consistency verification: **NOT VERIFIED**.
 - Release boundary unchanged: no PR, merge, deployment, or production Supabase/database changes.
+
+
+## 2026-11-23 — International bank payout details and Admin management (2号 AI)
+
+- Work branch: `fix/kyc-upload-2mb-memory-20261123`; no changes to `main` or production.
+- Customer bank payout forms now accept either a local account number or an IBAN. US routing number, SWIFT/BIC, country code, and bank address are optional rather than universally required.
+- Backend validation accepts alphanumeric local account identifiers, checks the general IBAN structure, and validates US routing/SWIFT only when supplied. It does not claim to verify bank ownership or execute payments.
+- Customer account number, IBAN, and routing values are masked in customer-facing account/address responses. The customer-facing UI remains create/view only; customer PATCH/DELETE routes remain forbidden.
+- Added a dedicated Admin tab protected by `payout_addresses.read_sensitive`; edit/delete actions additionally require `payout_addresses.manage`. Admin changes require a reason, create address audit entries, and are sent to the admin audit outbox.
+- Added client API methods for listing and managing payout records, plus regression tests covering international fields, masking, immutable customer records, and Admin permissions/actions.
+- Automated execution, TypeScript build, and live browser tests: **NOT VERIFIED** in this session. IBAN format validation is structural and does not perform bank-side account verification.
+- Release boundary unchanged: no PR, merge, deployment, or production database/Supabase changes.
