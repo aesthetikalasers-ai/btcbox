@@ -1738,5 +1738,11 @@
   "The market service snapshot is missing, invalid or older than 90 seconds. Quotes are hidden until a fresh snapshot arrives.": "The market service snapshot is missing, invalid or older than 90 seconds. Quotes are hidden until a fresh snapshot arrives.",
   "Email login password": "Email login password",
   "Set or change": "Set or change",
-  "Subscriptions and redemptions are currently disabled by platform controls.": "Subscriptions and redemptions are currently disabled by platform controls."
+  "Subscriptions and redemptions are currently disabled by platform controls.": "Subscriptions and redemptions are currently disabled by platform controls.",
+  "Buy and sell digital assets on spot markets.": "Buy and sell digital assets on spot markets.",
+  "Explore perpetual contract markets.": "Explore perpetual contract markets.",
+  "Explore seconds trading markets.": "Explore seconds trading markets.",
+  "Explore Earn products and yields.": "Explore Earn products and yields.",
+  "Unable to load spot markets. Please try again.": "Unable to load spot markets. Please try again.",
+  "Loading spot markets…": "Loading spot markets…"
 }
