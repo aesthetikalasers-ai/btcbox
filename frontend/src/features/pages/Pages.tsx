@@ -603,14 +603,14 @@ export function SpotTradingPage(){
  />;
  const cancelOrder=async(order:OrderRecord)=>{
   const orderId=String(order.order_id??order.id??"");if(!orderId)return;
-  if(!accountUid){setError("Account identity is unavailable. Cancellation was not sent.");return;}
+  if(!accountUid){setError(t("Sign in to continue"));return;}
   const storageKey="btcbox.spot.cancel.v1."+accountUid+"."+orderId;
   let requestId=cancelRequestIds[orderId];
-  if(requestId==="storage_unavailable"){setError("This browser cannot safely restore the cancellation request. Refresh order history before retrying.");return;}
+  if(requestId==="storage_unavailable"){setError(t("Account data is temporarily unavailable."));return;}
   if(!requestId){
    requestId=window.crypto.randomUUID();
    try{window.localStorage.setItem(storageKey,requestId);}
-   catch{setError("This browser cannot safely save the cancellation request. No cancellation was sent.");return;}
+   catch{setError(t("Account data is temporarily unavailable."));return;}
    setCancelRequestIds(current=>({...current,[orderId]:requestId!}));
   }
   setBusy(true);setError("");setNotice("");
@@ -1095,7 +1095,7 @@ export function KycPage(){
    // there and must not replace the page with an error card.
    const authRequired=reason instanceof ApiError&&(reason.status===401||reason.code==="AUTH_REQUIRED");
    if(authRequired&&DEV_OPEN_ACCOUNT_PAGES){if(!controller.signal.aborted){setAccount({...DEV_ACCOUNT_PLACEHOLDER} as unknown as AccountSnapshot);setError("");}return;}
-   if(!controller.signal.aborted){setAccount(null);setError(reason instanceof Error?reason.message:"Verification status is temporarily unavailable.");}
+   if(!controller.signal.aborted){setAccount(null);setError(t("Account data is temporarily unavailable."));}
   }).finally(()=>{if(!controller.signal.aborted)setLoading(false);});
   return ()=>controller.abort();
  },[reload]);
@@ -1116,7 +1116,7 @@ export function KycPage(){
    setNotice(t("Verification details and document image submitted securely for staff review."));
    setReload(value=>value+1);
   }
-  catch(reason){setSubmitError(reason instanceof Error?reason.message:"Verification submission could not be confirmed. Refresh your status before retrying.");}
+  catch(reason){setSubmitError(t("Verification submission could not be confirmed. Refresh your status before retrying."));}
   finally{setSubmitting(false);}
  };
  return <PageFrame title="Identity verification" tone="account" backTo="/me">
@@ -1202,7 +1202,7 @@ export function DepositPage(){
    if(!controller.signal.aborted)setAddress(value);
   }).catch(reason=>{
    if(reason instanceof Error&&reason.name==="AbortError")return;
-   if(!controller.signal.aborted){setAddress("");setError(reason instanceof Error?reason.message:"Deposit address is unavailable.");}
+   if(!controller.signal.aborted){setAddress("");setError(t("Account data is temporarily unavailable."));}
   }).finally(()=>{if(!controller.signal.aborted)setLoading(false);});
   return ()=>controller.abort();
  },[coin,network,reload]);
@@ -1213,7 +1213,7 @@ export function DepositPage(){
    if(!controller.signal.aborted)setDepositHistory(Array.isArray(snapshot.deposits)?snapshot.deposits:[]);
   }).catch(reason=>{
    if(reason instanceof Error&&reason.name==="AbortError")return;
-   if(!controller.signal.aborted){setDepositHistory([]);setHistoryError(reason instanceof Error?reason.message:"Deposit history is temporarily unavailable.");}
+   if(!controller.signal.aborted){setDepositHistory([]);setHistoryError(t("Account data is temporarily unavailable."));}
   }).finally(()=>{if(!controller.signal.aborted)setHistoryLoading(false);});
   return ()=>controller.abort();
  },[historyReload]);
@@ -1400,7 +1400,7 @@ export function WithdrawPage(){
     // server's raw English message plus a retry that can never succeed.
     const signedOut=reason instanceof ApiError&&(reason.status===401||reason.code==="AUTH_REQUIRED");
     setNeedsSignIn(signedOut);
-    setError(signedOut?"":(reason instanceof Error?reason.message:"Wallet data is temporarily unavailable."));
+    setError(signedOut?"":t("Account data is temporarily unavailable."));
    }
    })
    .finally(()=>{if(!controller.signal.aborted)setLoading(false);});
@@ -1421,7 +1421,7 @@ export function WithdrawPage(){
    if(!controller.signal.aborted)setSelectedAddress(value);
   }).catch(reason=>{
    if(reason instanceof Error&&reason.name==="AbortError")return;
-   if(!controller.signal.aborted){setSelectedAddress(null);setError(reason instanceof Error?reason.message:"Selected withdrawal address is unavailable.");}
+   if(!controller.signal.aborted){setSelectedAddress(null);setError(t("Account data is temporarily unavailable."));}
   });
   return ()=>controller.abort();
  },[selectedId]);
@@ -1446,9 +1446,9 @@ export function WithdrawPage(){
   if(!intent){
    let requestId:string;
    try{requestId=window.crypto.randomUUID();}
-   catch{setError("Secure withdrawal request IDs are unavailable in this browser. No withdrawal was sent.");submitLockRef.current=false;return;}
+   catch{setError(t("Account data is temporarily unavailable."));submitLockRef.current=false;return;}
    intent={version:1,request_id:requestId,address_id:selectedId,coin:selectedAddress.coin,network:selectedAddress.network,amount:amount.trim(),address:selectedAddress.address,created_at:Date.now()};
-   if(!pendingStorageKey){setError("Account identity is unavailable. No withdrawal was sent.");submitLockRef.current=false;return;}
+   if(!pendingStorageKey){setError(t("Sign in to continue"));submitLockRef.current=false;return;}
    try{window.localStorage.setItem(pendingStorageKey,JSON.stringify(intent));}
    catch{setError("This browser cannot safely save the withdrawal request. No withdrawal was sent.");submitLockRef.current=false;return;}
    setPendingIntent(intent);
@@ -1472,7 +1472,7 @@ export function WithdrawPage(){
    setActionMessage(result.duplicate?t("This withdrawal request was already received and confirmed."):result.require_admin_review?t("Withdrawal submitted for staff review."):t("Withdrawal submitted and is awaiting staff processing."));
    setReload(value=>value+1);
   }catch(reason){
-   setError(reason instanceof Error?reason.message:"Withdrawal result is unconfirmed. Keep this request unchanged and retry with the same request ID.");
+   setError(t("Order result is unconfirmed. Keep the same request ID and check order history before retrying."));
    if(!requestAccepted&&reason instanceof ApiError&&reason.code==="WITHDRAWAL_FEE_CHANGED"){
     clearPending();
     try{setConfig(await getWithdrawalConfig());}catch{}
