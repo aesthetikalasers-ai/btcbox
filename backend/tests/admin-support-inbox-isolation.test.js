@@ -42,4 +42,11 @@ test('customer and admin support histories remain isolated by account UID', () =
   assert.ok(replyRoute.includes('const target = db.users[uid]'));
   assert.ok(replyRoute.includes('target.support_messages.push(message)'));
   assert.ok(!replyRoute.includes('db.users[uid].support_messages.push(message)') || replyRoute.includes('const target = db.users[uid]'));
+
+  const readStart = api.indexOf("if (sub === 'support/read' && method === 'POST')");
+  const readEnd = api.indexOf("// GET /api/admin/support/messages", readStart);
+  assert.ok(readStart >= 0 && readEnd > readStart);
+  const readRoute = api.slice(readStart, readEnd);
+  assert.ok(readRoute.includes('const readAt = latestUserMessage || nowStr()'));
+  assert.ok(!readRoute.includes('const readAt = nowStr()'), 'read receipts must not advance past messages visible in the read snapshot');
 });
