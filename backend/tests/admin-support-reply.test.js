@@ -61,6 +61,10 @@ test('customer support polling does not clear the visible conversation', () => {
   assert.match(refreshEffect, /if \(status !== "authenticated"\).*setMessages\(\[\]\)/);
   assert.doesNotMatch(refreshEffect, /setLoading\(true\);setMessages\(\[\]\)/);
   assert.ok(refreshEffect.includes('getSupportMessages(controller.signal)'));
+  const catchStart = refreshEffect.indexOf('}).catch((reason: unknown) => {');
+  const catchEnd = refreshEffect.indexOf('}).finally', catchStart);
+  assert.ok(catchStart >= 0 && catchEnd > catchStart);
+  assert.doesNotMatch(refreshEffect.slice(catchStart, catchEnd), /setMessages\\(\\[\\]\\)/);
 });
 
 test('admin support queue remains visible while refreshing after a reply', () => {
