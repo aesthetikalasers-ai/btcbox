@@ -19,7 +19,7 @@ export type MarketStatus = "live" | "stale" | "unavailable";
  */
 const API_BASE_PATH = (import.meta.env.VITE_API_BASE_URL?.trim().replace(/\/+$/, "")) || "/api";
 /** How often the engine refreshes its snapshot from /api/market. */
-const POLL_INTERVAL_MS = 10_000;
+const POLL_INTERVAL_MS = 3_000;
 /** A server snapshot older than this is never presented as live. */
 const STALE_AFTER_MS = 90_000;
 /** Small allowance for server/browser clock skew; larger future timestamps are invalid. */
