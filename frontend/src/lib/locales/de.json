@@ -1746,5 +1746,22 @@
   "Unable to complete sign-in. Please try again.": "Die Anmeldung konnte nicht abgeschlossen werden. Bitte versuchen Sie es erneut.",
   "Trading is temporarily unavailable.": "Der Handel ist vorübergehend nicht verfügbar.",
   "Only limit orders are available.": "Derzeit sind nur Limit-Orders verfügbar.",
-  "Unable to copy. Please try again.": "Kopieren nicht möglich. Bitte versuchen Sie es erneut."
+  "Unable to copy. Please try again.": "Kopieren nicht möglich. Bitte versuchen Sie es erneut.",
+  "We couldn't verify your pending order. Check order history before placing another order.": "Deine ausstehende Order konnte nicht bestätigt werden. Prüfe den Orderverlauf, bevor du eine weitere Order aufgibst.",
+  "Check your order history before placing another order.": "Prüfe den Orderverlauf, bevor du eine weitere Order aufgibst.",
+  "Live prices are unavailable. Your order was not submitted.": "Echtzeitkurse sind nicht verfügbar. Deine Order wurde nicht übermittelt.",
+  "Live prices are updating. Please wait before placing an order.": "Echtzeitkurse werden aktualisiert. Bitte warte, bevor du eine Order aufgibst.",
+  "This trading pair is currently unavailable.": "Dieses Handelspaar ist derzeit nicht verfügbar.",
+  "This trading pair is currently unavailable. Your order was not submitted.": "Dieses Handelspaar ist derzeit nicht verfügbar. Deine Order wurde nicht übermittelt.",
+  "Enter a valid limit price and quantity.": "Gib einen gültigen Limitpreis und eine gültige Menge ein.",
+  "Your order status is not yet confirmed. Check order history before trying again.": "Der Orderstatus ist noch nicht bestätigt. Prüfe den Orderverlauf, bevor du es erneut versuchst.",
+  "Your cancellation status is not yet confirmed. Refresh order history before trying again.": "Der Stornierungsstatus ist noch nicht bestätigt. Aktualisiere den Orderverlauf und versuche es erneut.",
+  "The amount has too many decimal places.": "Der Betrag enthält zu viele Nachkommastellen.",
+  "We couldn't verify the saved withdrawal destination. Contact support before trying again.": "Die gespeicherte Auszahlungsadresse konnte nicht bestätigt werden. Wende dich an den Support.",
+  "We couldn't verify your saved withdrawal request. Check withdrawal history before trying again.": "Dein gespeicherter Auszahlungsauftrag konnte nicht bestätigt werden. Prüfe den Auszahlungsverlauf.",
+  "This browser couldn't save your withdrawal request. Nothing was submitted.": "Dein Browser konnte den Auszahlungsauftrag nicht sicher speichern. Es wurde nichts übermittelt.",
+  "The saved withdrawal destination has changed. Contact support before trying again.": "Die gespeicherte Auszahlungsadresse hat sich geändert. Wende dich an den Support.",
+  "Your withdrawal status is not yet confirmed. Check withdrawal history before trying again.": "Der Auszahlungsstatus ist noch nicht bestätigt. Prüfe den Auszahlungsverlauf.",
+  "The withdrawal fee has changed. Review the updated fee and submit again.": "Die Auszahlungsgebühr hat sich geändert. Prüfe die neue Gebühr und sende den Auftrag erneut.",
+  "Earn products are temporarily unavailable. Please try again.": "Earn-Produkte sind vorübergehend nicht verfügbar. Bitte versuche es später erneut."
 }
