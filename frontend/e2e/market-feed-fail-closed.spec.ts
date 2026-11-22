@@ -186,3 +186,27 @@ test("spot trading hides expired quotes and blocks new orders until a fresh snap
   await expect(page.getByText("64,999", { exact: false })).toHaveCount(0);
   await expect(page.getByText("65,001", { exact: false })).toHaveCount(0);
 });
+
+
+test("market quotes without a server snapshot timestamp are hidden", async ({ page }) => {
+  await page.route("**/api/market", route => route.fulfill({
+    status: 200,
+    contentType: "application/json",
+    body: JSON.stringify({
+      ok: true,
+      markets: [{ sym: "BTCUSDT", price: 65000, chg: 1.25, high: 66000, low: 64000, vol: "1200", source: "provider" }],
+      data: { BTCUSDT: { providerTs: Math.floor(Date.now() / 1000), source: "provider" } },
+    }),
+  }));
+  await page.route("**/api/kline?**", route => route.fulfill({
+    status: 200,
+    contentType: "application/json",
+    body: JSON.stringify({ ok: true, source: "provider", klines: [] }),
+  }));
+
+  await page.goto("/markets");
+
+  await expect(page.getByText("The market service snapshot is missing, invalid or older than 90 seconds. Quotes are hidden until a fresh snapshot arrives.")).toBeVisible();
+  await expect(page.getByText("65,000", { exact: false })).toHaveCount(0);
+  await expect(page.getByRole("link", { name: "BTCUSDT spot trading" })).toHaveCount(0);
+});
