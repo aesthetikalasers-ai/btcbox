@@ -4120,6 +4120,7 @@ async function handleRequest(event, context) {
           if(body.routing_number!==undefined && body.routing_number!=='' && !/^\d{9}$/.test(String(body.routing_number).replace(/\s/g,''))) return json({ok:false,msg:'Operation failed.'},400);
           if(body.swift!==undefined && body.swift && !/^[A-Z]{4}[A-Z]{2}[A-Z0-9]{2}([A-Z0-9]{3})?$/.test(String(body.swift).toUpperCase())) return json({ok:false,msg:'Operation failed.'},400);
           if(body.iban!==undefined && body.iban && !/^[A-Z]{2}[0-9]{2}[A-Z0-9]{11,30}$/.test(String(body.iban).replace(/\s/g,'').toUpperCase())) return json({ok:false,msg:'Operation failed.'},400);
+          if(body.country!==undefined && body.country && !/^[A-Z]{2}$/i.test(String(body.country).trim())) return json({ok:false,msg:'Operation failed.'},400);
           if(body.account_number!==undefined && body.iban!==undefined && !String(body.account_number).replace(/\s/g,'') && !String(body.iban).replace(/\s/g,'')) return json({ok:false,msg:'At least one account number or IBAN is required.'},400);
           if(body.account_number!==undefined) addr.account_number=String(body.account_number).replace(/\s/g,'');
           if(body.routing_number!==undefined) addr.routing_number=String(body.routing_number).replace(/\s/g,'');
