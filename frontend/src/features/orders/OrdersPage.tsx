@@ -7,7 +7,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/ca
 import { SubPageLayout } from "../../components/layout/SubPageLayout";
 import { ApiError, getOrders, type OrderRecord } from "../../lib/api";
 import { useI18n, type Language } from "../../lib/i18n";
-import { useTrading } from "../../lib/trading";
 
 const dateLocales: Record<Language, string> = { en: "en-US", ja: "ja-JP", "zh-CN": "zh-CN", es: "es-ES", pt: "pt-PT", it: "it-IT", de: "de-DE" };
 
@@ -37,7 +36,6 @@ function statusVariant(status: string) {
 export function OrdersPage() {
   const { t, language } = useI18n();
   const dateLocale = dateLocales[language];
-  const { orders: paperOrders } = useTrading();
   const [openOnly, setOpenOnly] = useState(false);
   const [orders, setOrders] = useState<OrderRecord[]>([]);
   const [loading, setLoading] = useState(true);
@@ -95,22 +93,9 @@ export function OrdersPage() {
     };
   }, []);
 
-  // 合并纸面交易订单（客户端演示账本）与后端订单
-  const mergedOrders: OrderRecord[] = [
-    ...paperOrders.map((o) => ({
-      order_id: o.order_id,
-      id: o.order_id,
-      symbol: o.symbol,
-      side: o.side,
-      type: o.type,
-      price: o.price,
-      quantity: o.quantity,
-      status: o.status,
-      created_at: o.created_at,
-    })),
-    ...orders,
-  ];
-  const visibleOrders = openOnly ? mergedOrders.filter(order => ["open", "partially_filled", "partially-filled", "pending"].includes(String(order.status || "").toLowerCase())) : mergedOrders;
+  // The customer order history is sourced only from the authenticated backend API.
+  // Local paper orders are never mixed into a real account's order list.
+  const visibleOrders = openOnly ? orders.filter(order => ["open", "partially_filled", "partially-filled", "pending"].includes(String(order.status || "").toLowerCase())) : orders;
 
   return (
     <SubPageLayout
