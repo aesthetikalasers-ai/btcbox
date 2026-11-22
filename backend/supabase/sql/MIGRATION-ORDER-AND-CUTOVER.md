@@ -113,6 +113,10 @@ Never infer live database state from source filenames or migration version label
 
 Never infer live database state by comparing timestamp registry versions with four-digit source filenames. Do not run a migration, bootstrap, or hosted database write as part of source review.
 
+## Existing-schema support read-state upgrade
+
+`backend/supabase/existing-schema-upgrades/0042_existing_schema_support_read_state_v1.sql` is the incremental upgrade for an existing BTCBOX deployment. It creates the isolated support read-marker table and service-role-only atomic RPCs, backfills valid legacy UTC `last_read_chat_at` values from `btcbox_state`, and does not rewrite user, session, asset, order, or financial records. Apply this SQL to the intended existing database and verify the table/function grants before deploying the matching backend code. Do not run the fresh-database bootstrap or apply this change to production as part of source review.
+
 ## Existing-schema market-catalogue upgrade
 
 `backend/supabase/existing-schema-upgrades/0042_existing_schema_support_read_state_v1.sql` is the incremental upgrade for an existing BTCBOX deployment. It creates the isolated support read-marker table and service-role-only atomic RPCs, backfills valid legacy UTC `last_read_chat_at` values from `btcbox_state`, and does not rewrite user, session, asset, order, or financial records. Apply this SQL to the intended existing database and verify the table/function grants before deploying the matching backend code. Do not run the fresh-database bootstrap or apply this change to production as part of source review.
