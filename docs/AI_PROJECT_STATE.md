@@ -165,3 +165,12 @@
 - Added unit cases for valid DE/GB/FR examples, invalid checksum, malformed input, and whitespace grouping.
 - Local isolated Node check: **7/7 IBAN validation cases passed**. Full backend suite, frontend typecheck/build, and browser tests remain **NOT VERIFIED**.
 - No production Supabase changes, PR, merge, or deployment.
+## 2026-11-23 — Support inbox isolation and read-receipt boundary (2号 AI)
+
+- Fixed the Admin support inbox's global 500-message truncation. The response now includes up to the latest 100 messages independently for each customer UID, so a high-volume thread cannot crowd every other customer out of the inbox.
+- Unread counts are calculated against the customer's full retained message list before the per-customer response window is applied.
+- Admin read receipts now advance to the timestamp of the latest customer message visible in the read snapshot, rather than wall-clock time. This avoids marking a concurrently arriving message as read when it was not part of the snapshot.
+- Added backend/tests/admin-support-inbox-isolation.test.js and updated the existing Admin entry regression assertion for per-customer windows.
+- Local isolated Node scenario: 5 assertions passed for a 500-message customer alongside a one-message customer, unread counting, and a post-snapshot message remaining unread.
+- Full repository node --test, frontend typecheck/build, real multi-user/multi-admin browser E2E, and concurrent production-storage behavior: NOT VERIFIED. The legacy JSON state store still has cross-instance read-modify-write limitations; this change does not claim to solve that storage-layer race.
+- No PR, merge, deployment, or production database/Supabase changes.
