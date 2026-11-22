@@ -20,8 +20,10 @@ export type MarketStatus = "live" | "stale" | "unavailable";
 const API_BASE_PATH = (import.meta.env.VITE_API_BASE_URL?.trim().replace(/\/+$/, "")) || "/api";
 /** How often the engine refreshes its snapshot from /api/market. */
 const POLL_INTERVAL_MS = 10_000;
-/** A snapshot older than this is reported as stale rather than live. */
-const STALE_AFTER_MS = 45_000;
+/** A server snapshot older than this is never presented as live. */
+const STALE_AFTER_MS = 90_000;
+/** Small allowance for server/browser clock skew; larger future timestamps are invalid. */
+const FUTURE_CLOCK_SKEW_SECONDS = 30;
 
 /** Internal shape of a quote already received from the backend. */
 interface MarketMemoryRow {
@@ -72,8 +74,8 @@ export const getAssetName = (sym: string): string => {
 class LiveMarketEngine {
   private prices: Map<string, MarketMemoryRow> = new Map();
   private listeners: Set<() => void> = new Set();
-  /** Timestamp of the last successful backend snapshot; null until one arrives. */
-  private lastFetchAt: number | null = null;
+  /** Snapshot time supplied by the backend; polling success alone never makes quotes live. */
+  private lastSnapshotTs: number | null = null;
   private pollTimer: number | null = null;
 
   // React 的 useSyncExternalStore 要求 getSnapshot 在数据未变化时返回同一个引用，
@@ -89,14 +91,20 @@ class LiveMarketEngine {
   }
 
   /**
-   * Data-source state, derived purely from how old the last backend answer is.
-   *  - live:        a snapshot arrived within the freshness window
-   *  - stale:       the last snapshot is older than the freshness window
-   *  - unavailable: the backend has not answered since page load
+   * Data-source state, derived from backend-supplied snapshot timestamps.
+   * A successful HTTP poll carrying an old cached response is not fresh market data.
    */
   public getStatus(): MarketStatus {
-    if (this.lastFetchAt === null) return "unavailable";
-    return Date.now() - this.lastFetchAt > STALE_AFTER_MS ? "stale" : "live";
+    if (this.prices.size === 0 || this.lastSnapshotTs === null) return "unavailable";
+    const nowSeconds = Date.now() / 1000;
+    const staleAfterSeconds = STALE_AFTER_MS / 1000;
+    const hasInvalidOrStaleQuote = Array.from(this.prices.values()).some((item) => (
+      !Number.isFinite(item.snapshotTs) ||
+      !item.snapshotTs ||
+      item.snapshotTs > nowSeconds + FUTURE_CLOCK_SKEW_SECONDS ||
+      nowSeconds - item.snapshotTs > staleAfterSeconds
+    ));
+    return hasInvalidOrStaleQuote ? "stale" : "live";
   }
 
   /**
@@ -133,9 +141,9 @@ class LiveMarketEngine {
       // An explicitly empty, successful catalogue means there are no enabled
       // markets. Clear old quotes immediately instead of presenting them as live.
       if (payload.markets.length === 0) {
-        const hadData = this.prices.size > 0 || this.lastFetchAt !== null;
+        const hadData = this.prices.size > 0 || this.lastSnapshotTs !== null;
         this.prices.clear();
-        this.lastFetchAt = null;
+        this.lastSnapshotTs = null;
         this.tickersSnapshot = null;
         if (hadData) this.notify();
         return;
@@ -162,9 +170,16 @@ class LiveMarketEngine {
 
         const existing = this.prices.get(sym);
         const provenance = payload.data?.[ticker.sym] ?? payload.data?.[`${sym}USDT`];
-        const snapshotTs = Number.isFinite(provenance?.ts) && Number(provenance?.ts) > 0
-          ? Number(provenance?.ts)
-          : undefined;
+        const snapshotTs = Number(provenance?.ts);
+        const nowSeconds = Date.now() / 1000;
+        // Require a real server timestamp and reject stale/future cached payloads.
+        // Do not refresh freshness from the browser receipt time.
+        if (
+          !Number.isFinite(snapshotTs) ||
+          snapshotTs <= 0 ||
+          snapshotTs > nowSeconds + FUTURE_CLOCK_SKEW_SECONDS ||
+          nowSeconds - snapshotTs > STALE_AFTER_MS / 1000
+        ) continue;
         const providerTs = Number.isFinite(provenance?.providerTs) && Number(provenance?.providerTs) > 0
           ? Number(provenance?.providerTs)
           : null;
@@ -198,10 +213,11 @@ class LiveMarketEngine {
       }
       if (next.size === 0) return;
       if (next.size !== this.prices.size) changed = true;
+      if (next.size === 0) return;
       this.prices = next;
-      this.lastFetchAt = Date.now();
+      this.lastSnapshotTs = Math.max(...Array.from(next.values(), (item) => item.snapshotTs || 0));
       this.tickersSnapshot = null;
-      if (changed || previousStatus !== "live") this.notify();
+      if (changed || previousStatus !== this.getStatus()) this.notify();
     } catch {
       // Keep the last known values; getStatus() reports them as stale/unavailable.
     }
