@@ -171,7 +171,7 @@
   "Passport": "Passport",
   "Driver license": "Driver license",
   "Identity document image": "Identity document image",
-  "JPEG, PNG or WebP. Maximum original size 8 MB; securely compressed to 512 KB. Upload a clear, readable image.": "JPEG, PNG or WebP. Maximum original size 8 MB; securely compressed to 512 KB. Upload a clear, readable image.",
+  "JPEG, PNG or WebP. Maximum original size 5 MB; securely compressed to 2 MB. Upload a clear, readable image.": "JPEG, PNG or WebP. Maximum original size 8 MB; securely compressed to 512 KB. Upload a clear, readable image.",
   "Selected": "Selected",
   "Submitting…": "Submitting…",
   "Submit for review": "Submit for review",
