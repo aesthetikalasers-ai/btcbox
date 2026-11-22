@@ -25,7 +25,10 @@ test('React registration offers confirmed email signup alongside Google and wall
   assert.ok(authPage.includes('signUpWithEmail'));
   assert.ok(authPage.includes('Create account with email'));
   assert.ok(authPage.includes('requestPasswordReset'));
-  assert.ok(authPage.includes('resetPasswordForEmail') || read(''));
+  const authProvider = fs.readFileSync(path.resolve(root, '..', 'frontend/src/lib/auth.tsx'), 'utf8');
+  assert.ok(authProvider.includes('resetPasswordForEmail'));
+  assert.ok(authProvider.includes('flow=recovery'));
+  assert.ok(!authProvider.includes('verifyOtp('), 'password recovery must use an email link, not email OTP');
   assert.ok(authPage.includes('completePasswordRecovery'));
   assert.ok(authPage.includes('Username or email'));
 });
