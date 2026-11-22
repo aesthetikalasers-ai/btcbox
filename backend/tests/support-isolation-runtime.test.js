@@ -93,6 +93,22 @@ test('real support message handler returns only the authenticated customer conve
     }, {});
     assert.equal(sent.statusCode, 200);
     assert.equal(JSON.parse(sent.body).ok, true);
+    const duplicateSend = await api.handler({
+      path: '/api/support/chat',
+      httpMethod: 'POST',
+      headers: { cookie: 'session_token=test-session-a' },
+      body: JSON.stringify({ content: 'A follow-up that belongs only to customer A', request_id: 'support-request-id-a-001' }),
+    }, {});
+    assert.equal(duplicateSend.statusCode, 200);
+    assert.equal(JSON.parse(duplicateSend.body).duplicate, true);
+    assert.equal(state.users['uid-customer-a'].support_messages.filter((message) => message.request_id === 'support-request-id-a-001').length, 1);
+    const conflictingSend = await api.handler({
+      path: '/api/support/chat',
+      httpMethod: 'POST',
+      headers: { cookie: 'session_token=test-session-a' },
+      body: JSON.stringify({ content: 'Different body with same id', request_id: 'support-request-id-a-001' }),
+    }, {});
+    assert.equal(conflictingSend.statusCode, 409);
 
     const refreshedA = await api.handler({
       path: '/api/support/messages',
