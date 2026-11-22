@@ -1734,5 +1734,6 @@
   "The withdrawal fee has changed. Review the updated fee and submit again.": "La commissione di prelievo è cambiata. Controlla la nuova commissione e invia di nuovo la richiesta.",
   "Earn products are temporarily unavailable. Please try again.": "I prodotti Earn non sono temporaneamente disponibili. Riprova più tardi.",
   "Unable to copy. Please try again.": "Impossibile copiare. Riprova.",
-  "Unable to add this address. Please try again.": "Impossibile aggiungere questo indirizzo. Riprova."
+  "Unable to add this address. Please try again.": "Impossibile aggiungere questo indirizzo. Riprova.",
+  "No recent trades are currently available.": "Non sono disponibili operazioni recenti."
 }
