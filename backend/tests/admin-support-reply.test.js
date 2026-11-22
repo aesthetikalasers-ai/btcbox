@@ -30,6 +30,26 @@ test('admin support replies are permission-gated, persisted, audited and idempot
   assert.ok(admin.includes('adminReplySupport(token, uid, content, requestId)'));
 });
 
+test('customer support history and admin replies stay scoped to one authenticated UID', () => {
+  const customerStart = api.indexOf("if (path === 'support/messages' && method === 'GET')");
+  const customerEnd = api.indexOf("if (path === 'support/faq' && method === 'GET')", customerStart);
+  assert.ok(customerStart >= 0 && customerEnd > customerStart);
+  const customerRoute = api.slice(customerStart, customerEnd);
+  assert.ok(customerRoute.includes('if (!user)'));
+  assert.ok(customerRoute.includes('await markSupportConversationRead(user.uid)'));
+  assert.ok(customerRoute.includes('messages: user.support_messages.slice(-50)'));
+  assert.doesNotMatch(customerRoute, /Object\.values\(db\.users\)|db\.users\[/);
+
+  const replyStart = api.indexOf("if (sub === 'support/reply' && method === 'POST')");
+  const replyEnd = api.indexOf("if (sub === 'support/messages' && method === 'GET')", replyStart);
+  assert.ok(replyStart >= 0 && replyEnd > replyStart);
+  const replyRoute = api.slice(replyStart, replyEnd);
+  assert.ok(replyRoute.includes("conversationId !== 'support:' + uid"));
+  assert.ok(replyRoute.includes('const target = db.users[uid]'));
+  assert.ok(replyRoute.includes('target.support_messages.push(message)'));
+  assert.doesNotMatch(replyRoute, /user\.support_messages\.push\(message\)/);
+});
+
 test('admin support queue returns isolated per-customer conversations with reply history and status', () => {
   const start = api.indexOf("if (sub === 'support/messages' && method === 'GET')");
   const end = api.indexOf("// ---------- Admin: help centre", start);
