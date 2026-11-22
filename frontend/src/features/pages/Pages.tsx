@@ -1567,74 +1567,83 @@ async function prepareKycDocumentImage(file: File): Promise<{
  if (!fileType.startsWith("image/") && !supportedExtension) {
   throw new Error("Choose an image file such as JPEG, PNG, WebP, or HEIC.");
  }
- if (!file.size || file.size > 8 * 1024 * 1024) {
-  throw new Error("The selected image must be smaller than 8 MB before compression.");
+ // Bound the original file before decoding it. The upload itself is capped at 2 MiB.
+ if (!file.size || file.size > 5 * 1024 * 1024) {
+  throw new Error("The selected image must be 5 MB or smaller before compression.");
  }
 
- // Prefer createImageBitmap, but fall back to the browser's native Image decoder
- // for mobile browsers/codecs that do not implement the bitmap API consistently.
  const objectUrl = URL.createObjectURL(file);
  let bitmap: ImageBitmap | null = null;
  let imageSource: CanvasImageSource | null = null;
- let sourceWidth = 0, sourceHeight = 0;
+ let fallbackImage: HTMLImageElement | null = null;
+ let canvas: HTMLCanvasElement | null = null;
  try {
+  // Prefer createImageBitmap, but keep the native Image fallback for mobile codecs.
   if (typeof createImageBitmap === "function") {
    try { bitmap = await createImageBitmap(file); } catch { bitmap = null; }
   }
   if (bitmap && bitmap.width > 0 && bitmap.height > 0) {
    imageSource = bitmap;
-   sourceWidth = bitmap.width;
-   sourceHeight = bitmap.height;
   } else {
    bitmap?.close();
    bitmap = null;
-   const image = new Image();
-   image.decoding = "async";
+   fallbackImage = new Image();
+   fallbackImage.decoding = "async";
    await new Promise<void>((resolve, reject) => {
-    image.onload = () => resolve();
-    image.onerror = () => reject(new Error("This browser cannot read this photo format. Choose a JPEG or PNG image."));
-    image.src = objectUrl;
+    fallbackImage!.onload = () => resolve();
+    fallbackImage!.onerror = () => reject(new Error("This browser cannot read this photo format. Choose a JPEG or PNG image."));
+    fallbackImage!.src = objectUrl;
    });
-   imageSource = image;
-   sourceWidth = image.naturalWidth;
-   sourceHeight = image.naturalHeight;
+   imageSource = fallbackImage;
   }
+
+  const sourceWidth = bitmap?.width || fallbackImage?.naturalWidth || 0;
+  const sourceHeight = bitmap?.height || fallbackImage?.naturalHeight || 0;
   if (!imageSource || !sourceWidth || !sourceHeight) {
    throw new Error("The selected image could not be decoded. Choose a clear JPEG or PNG photo.");
   }
 
-  const scale = Math.min(1, 1600 / Math.max(sourceWidth, sourceHeight));
+  // Keep canvas allocations bounded and reuse one canvas across compression attempts.
+  const scale = Math.min(1, 2048 / Math.max(sourceWidth, sourceHeight));
   let width = Math.max(1, Math.round(sourceWidth * scale));
   let height = Math.max(1, Math.round(sourceHeight * scale));
+  canvas = document.createElement("canvas");
   let blob: Blob | null = null;
   const qualitySteps = [0.86, 0.8, 0.74, 0.68, 0.62, 0.56, 0.5, 0.44];
   for (let attempt = 0; attempt < qualitySteps.length; attempt++) {
-   const canvas = document.createElement("canvas");
-   canvas.width = width; canvas.height = height;
+   canvas.width = width;
+   canvas.height = height;
    const context = canvas.getContext("2d");
    if (!context) throw new Error("This browser cannot prepare the document image.");
    context.fillStyle = "#ffffff";
    context.fillRect(0, 0, width, height);
    context.drawImage(imageSource, 0, 0, width, height);
-   blob = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, "image/jpeg", qualitySteps[attempt]));
-   if (blob && blob.size <= 512 * 1024) break;
+   blob = await new Promise<Blob | null>(resolve => canvas!.toBlob(resolve, "image/jpeg", qualitySteps[attempt]));
+   if (blob && blob.size <= 2 * 1024 * 1024) break;
    width = Math.max(1, Math.round(width * 0.88));
    height = Math.max(1, Math.round(height * 0.88));
   }
-  if (!blob || blob.size > 512 * 1024) {
-   throw new Error("The image could not be compressed below 512 KB. Choose a clearer, smaller photo.");
+  if (!blob || blob.size > 2 * 1024 * 1024) {
+   throw new Error("The image could not be compressed below 2 MB. Choose a smaller or clearer photo.");
   }
-  const dataUrl = await new Promise<string>((resolve, reject) => {
-   const reader = new FileReader();
-   reader.onerror = () => reject(new Error("The document image could not be read."));
-   reader.onload = () => typeof reader.result === "string" ? resolve(reader.result) : reject(new Error("The document image could not be read."));
-   reader.readAsDataURL(blob as Blob);
-  });
-  const encoded = dataUrl.split(",")[1];
+
+  // Convert the compressed Blob directly; avoid a second full-size data URL copy.
+  let bytes = new Uint8Array(await blob.arrayBuffer());
+  const binaryChunks: string[] = [];
+  const chunkSize = 0x8000;
+  for (let offset = 0; offset < bytes.length; offset += chunkSize) {
+   binaryChunks.push(String.fromCharCode(...bytes.subarray(offset, offset + chunkSize)));
+  }
+  const encoded = btoa(binaryChunks.join(""));
+  binaryChunks.length = 0;
+  bytes = new Uint8Array(0);
   if (!encoded) throw new Error("The document image could not be prepared.");
   return { document_content_type: "image/jpeg", document_image_base64: encoded };
  } finally {
+  if (canvas) { canvas.width = 0; canvas.height = 0; }
   bitmap?.close();
+  imageSource = null;
+  fallbackImage = null;
   URL.revokeObjectURL(objectUrl);
  }
 }
