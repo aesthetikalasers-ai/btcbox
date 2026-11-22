@@ -34,7 +34,7 @@ export function SupportChat() {
   useEffect(() => {
     if (status !== "authenticated") { setLoading(false); setMessages([]); return; }
     const controller = new AbortController();
-    setLoading(true);setMessages([]);setError("");
+    setLoading(true);setError("");
     getSupportMessages(controller.signal).then(list => {
       if (!controller.signal.aborted) { setMessages(list); setError(""); }
     }).catch((reason: unknown) => {
