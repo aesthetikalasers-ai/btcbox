@@ -20,3 +20,11 @@ test('uncertain customer support sends retain the same request ID and exact body
   assert.match(chat, /sendSupportMessage\(message, requestId\)/);
   assert.match(chat, /const message = pendingRequestId \? pendingRequestContent : draft\.trim\(\)/);
 });
+
+test('customer support history and in-flight sends are isolated when the signed-in account changes', () => {
+  assert.match(chat, /\[status, email, reload, pendingStorageKey\]/);
+  assert.match(chat, /setMessages\(\[\]\);\s*setMessagesAccountKey\(""\);/);
+  assert.match(chat, /messagesAccountKey !== pendingStorageKey/);
+  assert.match(chat, /currentAccountKeyRef\.current !== requestAccountKey/);
+  assert.match(chat, /currentAccountKeyRef\.current === requestAccountKey/);
+});
