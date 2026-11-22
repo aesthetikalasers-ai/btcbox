@@ -78,7 +78,8 @@ test("public dashboard never renders zero-filled placeholder market rows", async
 
   await page.goto("/home");
 
-  await expect(page.getByText("No market pairs are currently available.")).toBeVisible();
+  // An empty successful catalogue is not assumed to mean the market feed is healthy.
+  await expect(page.getByText("Market feed unavailable", { exact: true })).toBeVisible();
   await expect(page.getByText("0.00", { exact: true })).toHaveCount(0);
   await expect(page.getByText(/65,?000\.00/)).toHaveCount(0);
 });
