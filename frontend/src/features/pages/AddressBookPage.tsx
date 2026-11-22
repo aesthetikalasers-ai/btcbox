@@ -280,6 +280,7 @@ function BankRow({ item, t, date }: { item: BankAddress; t: (k: string) => strin
       </div>
       <p className="mt-2 text-sm text-brand-text-secondary">{item.account_holder} · {item.iban ? `IBAN ${item.iban}` : `${t("Account")} ${item.account_number}`}</p>
       {item.country || item.routing_number || item.swift ? <p className="mt-1 text-xs text-brand-text-muted">{[item.country, item.routing_number ? `${t("Routing")} ${item.routing_number}` : "", item.swift ? `SWIFT ${item.swift}` : ""].filter(Boolean).join(" · ")}</p> : null}
+      {item.bank_address ? <p className="mt-1 text-xs text-brand-text-muted">{item.bank_address}</p> : null}
       <div className="mt-1 flex items-center justify-between gap-2">
         {item.note ? <p className="text-xs text-brand-text-muted">{item.note}</p> : <span />}
         <span className="text-xs text-brand-text-muted">{date(item.created_at)}</span>
