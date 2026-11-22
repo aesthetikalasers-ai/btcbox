@@ -1738,5 +1738,11 @@
   "Sign in to view your seconds settlement history.": "登录后查看秒合约结算记录。",
   "Loading history...": "正在加载历史记录……",
   "Unable to load settlement history. Refresh to try again.": "无法加载结算记录，请刷新后重试。",
-  "Subscriptions and redemptions are currently disabled by platform controls.": "平台目前尚未开放申购与赎回功能。"
+  "Subscriptions and redemptions are currently disabled by platform controls.": "平台目前尚未开放申购与赎回功能。",
+  "Buy and sell digital assets on spot markets.": "在现货市场买卖数字资产。",
+  "Explore perpetual contract markets.": "查看永续合约市场。",
+  "Explore seconds trading markets.": "查看秒合约交易市场。",
+  "Explore Earn products and yields.": "查看理财产品与收益。",
+  "Unable to load spot markets. Please try again.": "暂时无法加载现货市场，请重试。",
+  "Loading spot markets…": "正在加载现货市场……"
 }
