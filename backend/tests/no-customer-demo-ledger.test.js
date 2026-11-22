@@ -331,3 +331,18 @@ test("trade hub does not claim unsupported leverage, liquidity or execution avai
   assert.ok(hub.includes("perpStatusLabel"));
   assert.ok(hub.includes("spotStatusLabel"));
 });
+
+
+test("live market freshness is based on validated server snapshot timestamps, not browser poll time", () => {
+  const market = fs.readFileSync(path.join(root, "lib/marketData.ts"), "utf8");
+  assert.ok(market.includes("FUTURE_CLOCK_SKEW_SECONDS"));
+  assert.ok(market.includes("snapshotTs > nowSeconds + FUTURE_CLOCK_SKEW_SECONDS"));
+  assert.ok(market.includes("nowSeconds - snapshotTs > STALE_AFTER_MS / 1000"));
+  assert.ok(market.includes("invalidSnapshot || next.size === 0"));
+  assert.ok(!market.includes("this.lastFetchAt = Date.now()"));
+
+  const table = fs.readFileSync(path.join(root, "features/dashboard/components/LiveMarketsTable.tsx"), "utf8");
+  assert.ok(table.includes("const snapshotInvalid = markets.some"));
+  assert.ok(table.includes("!Number.isFinite(item.snapshotTs)"));
+  assert.ok(table.includes("missing, invalid or older than 90 seconds"));
+});
