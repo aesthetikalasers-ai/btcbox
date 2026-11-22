@@ -23,7 +23,7 @@ test('admin support inbox bounds history per customer instead of truncating the 
   const windowStart = route.indexOf('conversation.slice(-100).forEach');
   assert.ok(unreadStart >= 0 && windowStart > unreadStart, 'unread count must include the full retained conversation before response-window trimming');
 
-  for (const contract of ['String(adminUserId) + ':' + uid', "m.from === 'user'", "m.from !== 'user' && m.from !== 'admin'"]) {
+  for (const contract of ["String(adminUserId) + ':' + uid", "m.from === 'user'", "m.from !== 'user' && m.from !== 'admin'"]) {
     assert.ok(route.includes(contract), 'missing support inbox isolation contract: ' + contract);
   }
 });
