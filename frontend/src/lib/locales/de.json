@@ -889,7 +889,7 @@
   "Unable to reach BTCBOX services. Please try again.": "Die BTCBOX-Dienste sind nicht erreichbar. Bitte versuchen Sie es erneut.",
   "Unable to reach BTCBOX chart service.": "Der BTCBOX-Chartdienst ist nicht erreichbar.",
   "Order book data is malformed or empty.": "Die Orderbuchdaten sind fehlerhaft oder leer.",
-  "Order result is unconfirmed. Keep the same request ID and check order history before retrying.": "Das Orderergebnis ist nicht bestätigt. Behalten Sie dieselbe Anfrage-ID bei und prüfen Sie den Orderverlauf, bevor Sie es erneut versuchen.",
+  "Order result is unconfirmed. Keep the same request ID and check order history before retrying.": "Das Auftragsergebnis ist noch nicht bestätigt. Verwenden Sie dieselbe Anfrage-ID und prüfen Sie vor einem erneuten Versuch den Auftragsverlauf.",
   "Cancel result is unconfirmed. Keep the same request ID and refresh order history before retrying.": "Das Stornoergebnis ist nicht bestätigt. Behalten Sie dieselbe Anfrage-ID bei und aktualisieren Sie den Orderverlauf, bevor Sie es erneut versuchen.",
   "BTCBOX returned an invalid account response.": "BTCBOX hat eine ungültige Kontenantwort zurückgegeben.",
   "BTCBOX returned an invalid Earn catalog.": "BTCBOX hat einen ungültigen Earn-Katalog zurückgegeben.",
