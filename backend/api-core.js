@@ -4061,6 +4061,10 @@ async function handleRequest(event, context) {
       // rejected, etc.) require the admin exception flow with a reason.
       if (!isKycInReview(status) && !override) return json({ ok: false, code: 'KYC_EXCEPTION_REQUIRED', msg: 'Only applications awaiting review can be approved directly. Other states require the admin exception flow with a reason.' }, 409);
       if (isKycInReview(status) && !u.kyc.document_path && !override) return json({ ok: false, code: 'KYC_DOCUMENT_REQUIRED', msg: 'A stored identity document image is required before approval.' }, 409);
+      if (isKycInReview(status) && !override) {
+        try { await createSignedKycDocumentUrl(u.kyc.document_path, String(u.uid || '')); }
+        catch (_) { return json({ ok: false, code: 'KYC_DOCUMENT_UNAVAILABLE', msg: 'The stored identity document could not be verified. Approval was not applied.' }, 409); }
+      }
       if (override && !reason) return json({ ok: false, code: 'ADMIN_REASON_REQUIRED', msg: 'A reason is required for admin exception approval.' }, 400);
       u.kyc.status = 'approved';
       u.kyc.reviewed_by = adminUserId;

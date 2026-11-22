@@ -194,3 +194,17 @@ test('no new KYC RBAC permission was invented; only the existing kyc.read and ky
   assert.ok(detailRoute.includes("safeUser.kyc = { status: String(u.kyc && u.kyc.status || 'unsubmitted') }"));
   assert.ok(detailRoute.includes('KYC evidence and full identity numbers require the separate kyc.read permission'));
 });
+
+
+test('KYC approval verifies the private storage object before changing status', () => {
+  const start = api.indexOf("if (sub === 'kyc/approve' && method === 'POST')");
+  const end = api.indexOf("// POST /api/admin/kyc/reject", start);
+  assert.ok(start >= 0 && end > start, 'kyc/approve route must exist');
+  const route = api.slice(start, end);
+  const evidenceCheck = route.indexOf('await createSignedKycDocumentUrl(u.kyc.document_path, String(u.uid || \'\'))');
+  const approvalWrite = route.indexOf("u.kyc.status = 'approved'");
+  assert.ok(evidenceCheck >= 0 && evidenceCheck < approvalWrite, 'stored document must be verified before approval is written');
+  assert.ok(route.includes('KYC_DOCUMENT_UNAVAILABLE'));
+  assert.ok(route.includes('isKycInReview(status) && !override'));
+  assert.ok(route.includes('if (override && !reason)'));
+});
