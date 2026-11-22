@@ -109,3 +109,14 @@
 - Automated backend/frontend builds and full test suites: **NOT VERIFIED**. The local container cannot resolve GitHub to clone the repository, and the normal frontend/backend CI workflows are not configured to run on push to this task branch. No PR was opened solely to trigger CI.
 - Real image upload, mobile device memory behavior, HEIC/HEIF device decoding, and hosted bucket configuration after the proposed change: **NOT VERIFIED**.
 - Release boundary: do not merge or deploy this branch; do not apply the bucket SQL to production until the full project repair batch is reviewed and the owner authorizes the single coordinated release.
+
+
+## 2026-11-23 — Real wallet balance isolation (2号 AI)
+
+- Work branch: `fix/kyc-upload-2mb-memory-20261123`; based on the same isolated repair branch. `main` and production were not changed.
+- Found and removed a customer asset-page merge that overwrote authenticated account balances with local paper-trading balances.
+- The real Assets page now renders only `account.balances` returned by `GET /api/account`. Paper-trading state remains separate and is not presented as customer funds.
+- Added `backend/tests/assets-real-balance-source.test.js` to prevent reintroducing the local paper-ledger merge.
+- Source-level regression assertions: **PASS** (account API source retained; paper-ledger import/state merge absent).
+- Automated Node test execution, TypeScript check, frontend build, and live account verification: **NOT VERIFIED** in this session.
+- Release boundary unchanged: no PR, merge, deployment, production database write, or Supabase setting change.
