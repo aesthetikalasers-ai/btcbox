@@ -244,7 +244,7 @@ export function KlineChartPage() {
     };
   }, [candles, locale]);
 
-  const price = ticker?.price ?? candles[candles.length - 1]?.close ?? null;
+  const price = ticker?.price ?? null;
   const chg = ticker?.chg ?? null;
   const rising = chg === null ? true : chg >= 0;
   const high = ticker?.high ?? null;
