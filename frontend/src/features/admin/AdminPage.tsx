@@ -32,6 +32,7 @@ import {
   saveAdminSupportFaq,
   deleteAdminSupportFaq,
   getAdminUser,
+  setAdminUserFrozen,
   getAdminUsers,
   getAdminWithdrawals,
   saveAdminConfig,
@@ -108,6 +109,8 @@ export function AdminPage() {
   const [users, setUsers] = useState<AdminUserRecord[]>([]);
   const [search, setSearch] = useState("");
   const [selectedUser, setSelectedUser] = useState<AdminUserRecord | null>(null);
+  const [userFreezeReason, setUserFreezeReason] = useState("");
+  const userFreezeLockRef = useRef(false);
   const [creditAmount, setCreditAmount] = useState<Record<string, string>>({});
   const [creditReference, setCreditReference] = useState<Record<string, string>>({});
   const [creditNote, setCreditNote] = useState<Record<string, string>>({});
@@ -267,6 +270,7 @@ export function AdminPage() {
         userDetailRequestRef.current += 1;
         setUsers([]);
         setSelectedUser(null);
+        setUserFreezeReason("");
         const snapshot = await getAdminUsers(token, search);
         if (requestId !== tabLoadRequestRef.current) return;
         setUsers(snapshot.users);
@@ -449,6 +453,7 @@ export function AdminPage() {
     if (!token) return;
     const requestId = ++userDetailRequestRef.current;
     setBusy(true); setError(""); setNotice("");
+    setUserFreezeReason("");
     // A failed user-detail read must never leave another user's balances or
     // manual-credit controls on screen as if they belonged to the new selection.
     setSelectedUser(null);
@@ -462,6 +467,31 @@ export function AdminPage() {
       }
     } finally {
       if (requestId === userDetailRequestRef.current) setBusy(false);
+    }
+  };
+
+  const updateSelectedUserFreeze = async () => {
+    if (!token || !selectedUser || !hasPermission("users.freeze") || userFreezeLockRef.current) return;
+    const reason = userFreezeReason.trim();
+    if (!reason || reason.length > 200 || /[\\u0000-\\u001f\\u007f]/.test(reason)) {
+      setError("Enter a valid reason (maximum 200 characters). No account change was sent.");
+      return;
+    }
+    const uid = selectedUser.uid;
+    const frozen = !selectedUser.frozen;
+    userFreezeLockRef.current = true;
+    setBusy(true); setError(""); setNotice("");
+    try {
+      const result = await setAdminUserFrozen(token, { uid, frozen, reason });
+      setSelectedUser(current => current?.uid === uid ? { ...current, frozen, frozen_reason: frozen ? reason : "" } : current);
+      setUsers(current => current.map(user => user.uid === uid ? { ...user, frozen } : user));
+      setUserFreezeReason("");
+      setNotice(result.audit_sync_pending ? result.msg + " Audit synchronization is pending." : result.msg);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Account status could not be changed. Refresh the user record before retrying.");
+    } finally {
+      userFreezeLockRef.current = false;
+      setBusy(false);
     }
   };
 
@@ -1057,7 +1087,13 @@ export function AdminPage() {
       </CardContent></Card>
       <Card><CardHeader><CardTitle>{adminText("Manual credit")}</CardTitle><CardDescription>{adminText("UID and asset are bound by the selected user and asset row. No pending deposit order is created.")}</CardDescription></CardHeader><CardContent>
         {!selectedUser ? <p className="text-sm text-brand-text-muted">{adminText("Select a user to load their current balances.")}</p> : <>
-          <div className="mb-3 flex flex-wrap items-center justify-between gap-2"><p className="text-sm font-semibold">{selectedUser.email} · <span className="font-mono">{selectedUser.uid}</span></p>{hasPermission("deposits.read") ? <Badge variant="outline">{selectedUser.financial_balance_source === "postgres_financial_ledger" ? adminText("Balances: PostgreSQL ledger") : selectedUser.financial_balance_source === "legacy_state_retention_limited" ? adminText("Balances: legacy state · limited") : adminText("Balances: source unknown")}</Badge> : null}</div>
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2"><p className="text-sm font-semibold">{selectedUser.email} · <span className="font-mono">{selectedUser.uid}</span></p><div className="flex flex-wrap items-center gap-2"><Badge variant={selectedUser.frozen ? "destructive" : "success"}>{selectedUser.frozen ? adminText("Frozen") : adminText("Active")}</Badge>{hasPermission("deposits.read") ? <Badge variant="outline">{selectedUser.financial_balance_source === "postgres_financial_ledger" ? adminText("Balances: PostgreSQL ledger") : selectedUser.financial_balance_source === "legacy_state_retention_limited" ? adminText("Balances: legacy state · limited") : adminText("Balances: source unknown")}</Badge> : null}</div></div>
+          {hasPermission("users.freeze") ? <form className="mb-4 space-y-2 rounded-lg border border-brand-border p-3" onSubmit={event => { event.preventDefault(); void updateSelectedUserFreeze(); }}>
+            <p className="text-xs text-brand-text-muted">{selectedUser.frozen ? adminText("Unfreezing restores the ability to sign in. Existing sessions remain revoked.") : adminText("Freezing blocks new sign-ins and revokes active sessions and pending 2FA challenges.")}</p>
+            {selectedUser.frozen && selectedUser.frozen_reason ? <p className="text-xs text-brand-warning">{adminText("Current freeze reason:")} {selectedUser.frozen_reason}</p> : null}
+            <input value={userFreezeReason} onChange={event => setUserFreezeReason(event.target.value)} maxLength={200} required placeholder={adminText("Required reason for account status change")} className="w-full rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-2 text-sm text-brand-text"/>
+            <Button type="submit" size="sm" variant={selectedUser.frozen ? "outline" : "destructive"} disabled={busy || !userFreezeReason.trim()}>{selectedUser.frozen ? adminText("Unfreeze account") : adminText("Freeze account")}</Button>
+          </form> : null}
           {selectedUser.financial_balance_source !== "postgres_financial_ledger" ? <p role="status" className="text-xs text-brand-warning">{adminText("Manual credit is disabled until the user's PostgreSQL ledger balance source is confirmed.")}</p> : null}
           {!hasPermission("deposits.read") ? <p className="text-sm text-brand-text-muted">{adminText("Balance details require the deposits.read permission.")}</p> : <div className="space-y-3">{assets.map(coin=><form key={coin} className="rounded-xl border border-brand-border p-3" onSubmit={event=>void manualCredit(event,coin)}>
             <div className="mb-2 flex items-center justify-between"><span className="font-semibold">{coin}</span><span className="text-xs text-brand-text-muted">{adminText("Available:")}{selectedUser.balances?.[coin]?.free == null ? "—" : asText(selectedUser.balances[coin].free)}</span></div>
