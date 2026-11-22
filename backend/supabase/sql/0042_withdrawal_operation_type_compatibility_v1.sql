@@ -7,9 +7,10 @@
 -- Before applying this migration, run the SELECT-only
 -- diagnostics/withdrawal-settle-compatibility-preflight.sql in every target
 -- environment and retain its output. Both operation names remain accepted.
--- 0039 already links approval review_operation_id to freeze_operation_id and
--- writes payout_operation_id on payout completion; this migration deliberately
--- does not repeat those financial state transitions.
+-- 0039 introduced the intended review and payout behavior. Reassert its exact
+-- service RPC definitions here so environments that have an older 0039 body
+-- receive the same freeze linkage and payout operation linkage after 0041.
+-- Function replacement does not replay or alter any existing financial rows.
 
 alter table public.withdrawal_requests
   add column if not exists payout_operation_id uuid references public.financial_operations(id);
