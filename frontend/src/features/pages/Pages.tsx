@@ -1580,7 +1580,7 @@ async function prepareKycDocumentImage(file: File): Promise<{
  try {
   // Prefer createImageBitmap, but keep the native Image fallback for mobile codecs.
   if (typeof createImageBitmap === "function") {
-   try { bitmap = await createImageBitmap(file); } catch { bitmap = null; }
+   try { bitmap = await createImageBitmap(file, { resizeWidth: 1600, resizeQuality: "high" }); } catch { bitmap = null; }
   }
   if (bitmap && bitmap.width > 0 && bitmap.height > 0) {
    imageSource = bitmap;
