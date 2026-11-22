@@ -1734,5 +1734,6 @@
   "Your withdrawal status is not yet confirmed. Check withdrawal history before trying again.": "提现状态尚未确认，请先查看提现记录，再决定是否重试。",
   "The withdrawal fee has changed. Review the updated fee and submit again.": "提现手续费已变更，请确认最新手续费后重新提交。",
   "Earn products are temporarily unavailable. Please try again.": "理财产品暂时无法加载，请稍后重试。",
-  "Unable to add this address. Please try again.": "无法添加此地址，请稍后重试。"
+  "Unable to add this address. Please try again.": "无法添加此地址，请稍后重试。",
+  "No recent trades are currently available.": "暂无最新成交记录。"
 }
