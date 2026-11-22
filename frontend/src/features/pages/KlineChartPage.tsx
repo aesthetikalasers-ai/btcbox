@@ -60,25 +60,6 @@ const EXTRA_TIMEFRAMES: Array<{ key: string; kline: string }> = [
   { key: "1w", kline: "1w" },
 ];
 
-/** Deterministic mock recent-trades rows, stable across re-renders. */
-function mockRecentTrades(basePrice: number, count = 18): Array<{ id: number; price: number; qty: number; side: "buy" | "sell"; ts: number }> {
-  const rows: Array<{ id: number; price: number; qty: number; side: "buy" | "sell"; ts: number }> = [];
-  let price = basePrice;
-  const now = Date.now();
-  for (let i = 0; i < count; i += 1) {
-    const drift = (Math.sin(i * 1.7) * 0.0004 + (Math.random() - 0.5) * 0.0004) * price;
-    price = Math.max(0.0001, price + drift);
-    rows.push({
-      id: i,
-      price,
-      qty: Math.round((0.01 + Math.random() * 2.5) * 1000) / 1000,
-      side: drift >= 0 ? "buy" : "sell",
-      ts: now - i * 2600,
-    });
-  }
-  return rows;
-}
-
 export function KlineChartPage() {
   const { symbol: routeSymbol } = useParams();
   const { base, symbol } = normalizePair(routeSymbol);
@@ -112,9 +93,9 @@ export function KlineChartPage() {
         .then((rows) => {
           if (cancelled) return;
           const found = rows.find((m) => m.sym.toUpperCase() === base.toUpperCase()) || null;
-          if (found) setTicker(found);
+          setTicker(found);
         })
-        .catch(() => {});
+        .catch(() => { if (!cancelled) setTicker(null); });
     };
     load();
     const timer = window.setInterval(load, 5000);
@@ -263,15 +244,13 @@ export function KlineChartPage() {
     };
   }, [candles, locale]);
 
-  const price = ticker?.price ?? candles[candles.length - 1]?.close ?? 0;
-  const chg = ticker?.chg ?? 0;
-  const rising = chg >= 0;
-  const high = ticker?.high ?? (candles.length ? Math.max(...candles.map((c) => c.high)) : 0);
-  const low = ticker?.low ?? (candles.length ? Math.min(...candles.map((c) => c.low)) : 0);
-  const volBtc = ticker?.vol ?? "0";
-  const volUsdt = Number(volBtc) * price;
-
-  const recentTrades = useMemo(() => mockRecentTrades(price || 60000, 18), [price]);
+  const price = ticker?.price ?? candles[candles.length - 1]?.close ?? null;
+  const chg = ticker?.chg ?? null;
+  const rising = chg === null ? true : chg >= 0;
+  const high = ticker?.high ?? null;
+  const low = ticker?.low ?? null;
+  const volBtc = ticker?.vol ?? null;
+  const volUsdt = volBtc === null || price === null ? null : Number(volBtc) * price;
 
   const bids = (book?.bids || []).slice(0, 8);
   const asks = (book?.asks || []).slice(0, 8).slice().reverse();
@@ -291,7 +270,7 @@ export function KlineChartPage() {
                 <div className="flex items-center gap-2">
                   <span className="truncate text-lg font-bold text-brand-text">{base}/USDT</span>
                   <Badge variant="outline" className={cn("border-0 font-mono tabular-nums", rising ? "bg-brand-accent/15 text-brand-accent" : "bg-brand-danger/15 text-brand-danger")}>
-                    {rising ? "+" : ""}{chg.toFixed(2)}%
+                    {chg === null ? "—" : (rising ? "+" : "") + chg.toFixed(2) + "%"}
                   </Badge>
                 </div>
                 <p className="font-mono text-3xl font-bold tabular-nums leading-tight" style={{ color: rising ? "#0ECB81" : "#F6465D" }}>
@@ -459,17 +438,7 @@ export function KlineChartPage() {
                   <span className="text-right">{t("Time")}</span>
                 </div>
                 <div className="space-y-0.5">
-                  {recentTrades.map((row) => (
-                    <div key={row.id} className="grid grid-cols-3 gap-2 text-xs">
-                      <span className={row.side === "buy" ? "text-brand-accent" : "text-brand-danger"}>
-                        {fmt(row.price, locale, row.price >= 100 ? 2 : 4)}
-                      </span>
-                      <span className="text-right text-brand-text-muted">{row.qty.toFixed(4)}</span>
-                      <span className="text-right text-brand-text-muted">
-                        {new Date(row.ts).toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
-                      </span>
-                    </div>
-                  ))}
+                  <p className="py-8 text-center text-sm text-brand-text-muted" role="status">{t("No recent trades are currently available.")}</p>
                 </div>
               </div>
             ) : (
