@@ -73,7 +73,7 @@ export function KlinePanel({ symbol, height = 480 }: { symbol: string; height?: 
       .catch((reason: unknown) => {
         if (cancelled) return;
         setCandles([]);
-        setError(reason instanceof Error && reason.name !== "AbortError" ? reason.message : "Chart data is temporarily unavailable.");
+        setError(t("Chart data is temporarily unavailable."));
       })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; controller.abort(); };
