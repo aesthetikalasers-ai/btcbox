@@ -24,7 +24,12 @@ select o.id as operation_id,
  order by o.created_at, o.id;
 
 -- Summary of completed withdrawals whose payout operation is absent or unlinked.
-select count(*) as completed_without_payout_operation
-  from public.withdrawal_requests
- where status = 'completed'
-   and payout_operation_id is null;
+select count(*) as completed_without_linked_payout_operation
+  from public.withdrawal_requests w
+ where w.status = 'completed'
+   and not exists (
+     select 1
+       from public.financial_operations o
+      where o.metadata ->> 'withdrawal_id' = w.id
+        and o.operation_type in ('withdraw_paid','withdraw_settle')
+   );
