@@ -15,6 +15,7 @@ function friendlyAuthErrorMessage(cause: unknown): string {
   if (code === "GOOGLE_ONLY_AUTH") return "Email/password registration is disabled. Continue with Google or connect a supported wallet.";
   if (code === "GOOGLE_PROVIDER_UNAVAILABLE") return "Google sign-in is temporarily unavailable. Please try again later.";
   if (code === "INVALID_SUPABASE_IDENTITY") return "The sign-in identity could not be verified. Please try again.";
+  if (code === "bad_code_verifier" || /code challenge does not match previously saved code verifier/i.test(cause instanceof Error ? cause.message : "")) return "This sign-in attempt expired or was interrupted. Return to the login page and start again in the same tab; do not open multiple sign-in attempts at once.";
   const rawMessage = cause instanceof Error ? cause.message : "";
   if (/already associated|already linked|already exists|identity.*already|account.*already|user already/i.test(rawMessage)) {
     return "This sign-in identity is already linked to another BTCBOX account. Please sign in with that account, or contact support to merge your sign-in methods.";
