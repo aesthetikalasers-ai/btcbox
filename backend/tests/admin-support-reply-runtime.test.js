@@ -42,7 +42,7 @@ test('admin support reply writes only to the selected customer and exact retries
     if (url.pathname === '/rest/v1/rpc/admin_get_membership_v1') {
       return Response.json({
         found: true, active: true, user_id: adminId, is_super_admin: false,
-        revision: 1, permissions: ['support.reply'],
+        revision: 1, permissions: ['support.reply', 'support.read'],
       });
     }
     if (url.pathname === '/rest/v1/btcbox_state') {
@@ -79,6 +79,21 @@ test('admin support reply writes only to the selected customer and exact retries
     assert.equal(state.users['uid-customer-b'].support_messages.filter((m) => m.from === 'admin').length, 0);
     assert.equal(state.users['uid-customer-a'].support_messages.at(-1).admin_id, adminId);
     assert.equal(state.audit_logs.filter((entry) => entry.action === 'support_reply').length, 1);
+
+    const queue = await api.handler({
+      path: '/api/admin/support/messages',
+      httpMethod: 'GET',
+      headers: { authorization: 'Bearer test-admin-access-token-123456789' },
+    }, {});
+    assert.equal(queue.statusCode, 200);
+    const conversations = JSON.parse(queue.body).conversations;
+    assert.deepEqual(conversations.map((conversation) => conversation.conversation_id).sort(), [
+      'support:uid-customer-a', 'support:uid-customer-b',
+    ]);
+    const conversationA = conversations.find((conversation) => conversation.uid === 'uid-customer-a');
+    const conversationB = conversations.find((conversation) => conversation.uid === 'uid-customer-b');
+    assert.ok(conversationA.messages.some((message) => message.content === 'Reply only for customer A'));
+    assert.ok(!conversationB.messages.some((message) => message.content === 'Reply only for customer A'));
 
     const retry = await sendReply('uid-customer-a', 'support:uid-customer-a', 'Reply only for customer A');
     assert.equal(retry.statusCode, 200);
