@@ -42,6 +42,8 @@ export function AddressBookPage() {
   const [accountHolder, setAccountHolder] = useState("");
   const [bankName, setBankName] = useState("");
   const [accountNumber, setAccountNumber] = useState("");
+  const [iban, setIban] = useState("");
+  const [country, setCountry] = useState("");
   const [routingNumber, setRoutingNumber] = useState("");
   const [swift, setSwift] = useState("");
   const [bankAddress, setBankAddress] = useState("");
@@ -72,7 +74,7 @@ export function AddressBookPage() {
 
   const resetForm = () => {
     setAddress(""); setNote("");
-    setAccountHolder(""); setBankName(""); setAccountNumber(""); setRoutingNumber(""); setSwift(""); setBankAddress("");
+    setAccountHolder(""); setBankName(""); setAccountNumber(""); setIban(""); setCountry(""); setRoutingNumber(""); setSwift(""); setBankAddress("");
     setShowWireDetails(false);
     setFormError(""); setFormMessage("");
   };
@@ -166,9 +168,15 @@ export function AddressBookPage() {
                       <input value={bankName} onChange={(e) => setBankName(e.target.value)} required placeholder={t("Your bank")} className={inputCls} />
                     </label>
                     <label className="space-y-1.5 text-sm sm:col-span-2"><span className="text-brand-text-muted">{t("Account number")}</span>
-                      <input value={accountNumber} onChange={(e) => setAccountNumber(e.target.value)} required inputMode="numeric" placeholder={t("4–34 digits")} className={inputCls} />
+                      <input value={accountNumber} onChange={(e) => setAccountNumber(e.target.value)} inputMode="text" placeholder={t("Local account number (if no IBAN)")} className={inputCls} />
                     </label>
 
+                    <label className="space-y-1.5 text-sm sm:col-span-2"><span className="text-brand-text-muted">{t("IBAN (if applicable)")}</span>
+                      <input value={iban} onChange={(e) => setIban(e.target.value.toUpperCase())} autoComplete="off" placeholder={t("Enter IBAN for international accounts")} className={inputCls} />
+                    </label>
+                    <label className="space-y-1.5 text-sm"><span className="text-brand-text-muted">{t("Country code (optional)")}</span>
+                      <input value={country} onChange={(e) => setCountry(e.target.value.toUpperCase().slice(0,2))} maxLength={2} placeholder="US / GB / DE" className={inputCls} />
+                    </label>
                     {/* Grouped & collapsible international wire fields */}
                     <div className="overflow-hidden rounded-xl border border-brand-border/70 bg-brand-surface-2/40 sm:col-span-2">
                       <button
@@ -191,7 +199,7 @@ export function AddressBookPage() {
                           <div className="grid gap-3 sm:grid-cols-2">
                             <label className="space-y-1 text-xs">
                               <span className="text-brand-text-muted">{t("Routing number")}</span>
-                              <input value={routingNumber} onChange={(e) => setRoutingNumber(e.target.value)} required={showWireDetails} inputMode="numeric" placeholder={t("9 digits")} className="h-10 w-full rounded-lg border border-brand-border bg-brand-surface px-3 text-sm text-brand-text outline-none focus:border-brand-accent/60" />
+                              <input value={routingNumber} onChange={(e) => setRoutingNumber(e.target.value)} inputMode="numeric" placeholder={t("US routing number (optional)")} className="h-10 w-full rounded-lg border border-brand-border bg-brand-surface px-3 text-sm text-brand-text outline-none focus:border-brand-accent/60" />
                             </label>
                             <label className="space-y-1 text-xs">
                               <span className="text-brand-text-muted">{t("SWIFT / BIC (optional)")}</span>
@@ -199,7 +207,7 @@ export function AddressBookPage() {
                             </label>
                             <label className="space-y-1 text-xs sm:col-span-2">
                               <span className="text-brand-text-muted">{t("Bank address")}</span>
-                              <input value={bankAddress} onChange={(e) => setBankAddress(e.target.value)} required={showWireDetails} placeholder={t("Bank branch address")} className="h-10 w-full rounded-lg border border-brand-border bg-brand-surface px-3 text-sm text-brand-text outline-none focus:border-brand-accent/60" />
+                              <input value={bankAddress} onChange={(e) => setBankAddress(e.target.value)} placeholder={t("Bank branch address (optional)")} className="h-10 w-full rounded-lg border border-brand-border bg-brand-surface px-3 text-sm text-brand-text outline-none focus:border-brand-accent/60" />
                             </label>
                           </div>
                         </div>
@@ -270,8 +278,8 @@ function BankRow({ item, t, date }: { item: BankAddress; t: (k: string) => strin
         <span className="flex items-center gap-2 font-semibold"><Landmark className="h-4 w-4 text-brand-teal" />{item.bank_name}</span>
         {statusBadge(item, t)}
       </div>
-      <p className="mt-2 text-sm text-brand-text-secondary">{item.account_holder} · {t("Account")} {item.account_number}</p>
-      {item.routing_number ? <p className="mt-1 text-xs text-brand-text-muted">{t("Routing")} {item.routing_number}{item.swift ? ` · SWIFT ${item.swift}` : ""}</p> : null}
+      <p className="mt-2 text-sm text-brand-text-secondary">{item.account_holder} · {item.iban ? `IBAN ${item.iban}` : `${t("Account")} ${item.account_number}`}</p>
+      {item.country || item.routing_number || item.swift ? <p className="mt-1 text-xs text-brand-text-muted">{[item.country, item.routing_number ? `${t("Routing")} ${item.routing_number}` : "", item.swift ? `SWIFT ${item.swift}` : ""].filter(Boolean).join(" · ")}</p> : null}
       <div className="mt-1 flex items-center justify-between gap-2">
         {item.note ? <p className="text-xs text-brand-text-muted">{item.note}</p> : <span />}
         <span className="text-xs text-brand-text-muted">{date(item.created_at)}</span>
