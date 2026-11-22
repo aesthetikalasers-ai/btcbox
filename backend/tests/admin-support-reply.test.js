@@ -52,6 +52,17 @@ test('admin support queue returns isolated per-customer conversations with reply
   assert.ok(admin.includes('conversation.status==="waiting"'));
 });
 
+test('customer support polling does not clear the visible conversation', () => {
+  const chat = fs.readFileSync(path.resolve(root, '../frontend/src/features/support/SupportChat.tsx'), 'utf8');
+  const start = chat.indexOf('useEffect(() => {');
+  const end = chat.indexOf('}, [status, reload]);', start);
+  assert.ok(start >= 0 && end > start);
+  const refreshEffect = chat.slice(start, end);
+  assert.match(refreshEffect, /if \(status !== "authenticated"\).*setMessages\(\[\]\)/);
+  assert.doesNotMatch(refreshEffect, /setLoading\(true\);setMessages\(\[\]\)/);
+  assert.ok(refreshEffect.includes('getSupportMessages(controller.signal)'));
+});
+
 test('confirmed support reply is not reported as failed when the conversation refresh fails', () => {
   const start = admin.indexOf('const replySupport = async (uid: string)');
   const end = admin.indexOf('const saveSpotMarket = async', start);
