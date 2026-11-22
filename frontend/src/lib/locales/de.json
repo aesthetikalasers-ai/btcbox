@@ -1747,5 +1747,6 @@
   "Unable to load settlement history. Refresh to try again.": "Der Abrechnungsverlauf konnte nicht geladen werden. Aktualisiere und versuche es erneut.",
   "The market service snapshot is missing, invalid or older than 90 seconds. Quotes are hidden until a fresh snapshot arrives.": "Der Markt-Snapshot fehlt, ist ungültig oder älter als 90 Sekunden. Kurse bleiben verborgen, bis ein aktueller Snapshot eintrifft.",
   "Email login password": "E-Mail-Anmeldepasswort",
-  "Set or change": "Festlegen oder ändern"
+  "Set or change": "Festlegen oder ändern",
+  "Subscriptions and redemptions are currently disabled by platform controls.": "Abonnements und Rückgaben sind derzeit durch die Plattformsteuerung deaktiviert."
 }
