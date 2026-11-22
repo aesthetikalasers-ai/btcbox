@@ -1745,5 +1745,22 @@
   "Unable to load Earn products. Please try again.": "Không thể tải sản phẩm Earn. Vui lòng thử lại.",
   "Unable to complete sign-in. Please try again.": "Không thể hoàn tất đăng nhập. Vui lòng thử lại.",
   "Trading is temporarily unavailable.": "Giao dịch hiện tạm thời không khả dụng.",
-  "Only limit orders are available.": "Hiện chỉ hỗ trợ lệnh giới hạn."
+  "Only limit orders are available.": "Hiện chỉ hỗ trợ lệnh giới hạn.",
+  "We couldn't verify your pending order. Check order history before placing another order.": "Không thể xác minh lệnh đang chờ. Vui lòng kiểm tra lịch sử lệnh trước khi tạo lệnh mới.",
+  "Check your order history before placing another order.": "Vui lòng kiểm tra lịch sử lệnh trước khi tạo lệnh mới.",
+  "Live prices are unavailable. Your order was not submitted.": "Hiện không có giá trực tiếp. Lệnh của bạn chưa được gửi.",
+  "Live prices are updating. Please wait before placing an order.": "Giá trực tiếp đang được cập nhật. Vui lòng chờ trước khi đặt lệnh.",
+  "This trading pair is currently unavailable.": "Cặp giao dịch này hiện không khả dụng.",
+  "This trading pair is currently unavailable. Your order was not submitted.": "Cặp giao dịch này hiện không khả dụng. Lệnh của bạn chưa được gửi.",
+  "Enter a valid limit price and quantity.": "Vui lòng nhập giá giới hạn và số lượng hợp lệ.",
+  "Your order status is not yet confirmed. Check order history before trying again.": "Trạng thái lệnh chưa được xác nhận. Vui lòng kiểm tra lịch sử lệnh trước khi thử lại.",
+  "Your cancellation status is not yet confirmed. Refresh order history before trying again.": "Trạng thái hủy lệnh chưa được xác nhận. Vui lòng làm mới lịch sử lệnh rồi thử lại.",
+  "The amount has too many decimal places.": "Số tiền có quá nhiều chữ số thập phân.",
+  "We couldn't verify the saved withdrawal destination. Contact support before trying again.": "Không thể xác minh địa chỉ rút tiền đã lưu. Vui lòng liên hệ hỗ trợ trước khi thử lại.",
+  "We couldn't verify your saved withdrawal request. Check withdrawal history before trying again.": "Không thể xác minh yêu cầu rút tiền đã lưu. Vui lòng kiểm tra lịch sử rút tiền.",
+  "This browser couldn't save your withdrawal request. Nothing was submitted.": "Trình duyệt không thể lưu an toàn yêu cầu rút tiền. Chưa có yêu cầu nào được gửi.",
+  "The saved withdrawal destination has changed. Contact support before trying again.": "Địa chỉ rút tiền đã lưu đã thay đổi. Vui lòng liên hệ hỗ trợ trước khi thử lại.",
+  "Your withdrawal status is not yet confirmed. Check withdrawal history before trying again.": "Trạng thái rút tiền chưa được xác nhận. Vui lòng kiểm tra lịch sử trước khi thử lại.",
+  "The withdrawal fee has changed. Review the updated fee and submit again.": "Phí rút tiền đã thay đổi. Vui lòng kiểm tra mức phí mới và gửi lại.",
+  "Earn products are temporarily unavailable. Please try again.": "Sản phẩm Earn hiện tạm thời không khả dụng. Vui lòng thử lại sau."
 }
