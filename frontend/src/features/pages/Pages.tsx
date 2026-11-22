@@ -574,7 +574,7 @@ export function SpotTradingPage(){
    setPendingIntent(null);setPendingIntentInvalid(false);setQuantity("");
    setNotice(result.duplicate?"This order request was already recorded and confirmed.":"Limit order accepted and confirmed in order history.");
   }catch(reason){
-   setError(t("Order result is unconfirmed. Keep the same request ID and check open positions before retrying."));
+   setError(t("Order result is unconfirmed. Keep the same request ID and check order history before retrying."));
    if(!orderAccepted&&reason instanceof ApiError&&(reason.status===400||reason.status===401||reason.status===403||reason.code==="MATCHING_ENGINE_UNAVAILABLE")){
     try{window.localStorage.removeItem(pendingStorageKey);}catch{}
     setPendingIntent(null);setPendingIntentInvalid(false);
@@ -627,7 +627,7 @@ export function SpotTradingPage(){
    setCancelRequestIds(current=>{const next={...current};delete next[orderId];return next;});
    setNotice(result.duplicate?"This cancellation was already recorded and confirmed.":"Order cancellation confirmed in order history.");
   }catch(reason){
-   setError(t("Order result is unconfirmed. Keep the same request ID and check open positions before retrying."));
+   setError(t("Order result is unconfirmed. Keep the same request ID and check order history before retrying."));
    if(!cancelAccepted&&reason instanceof ApiError&&reason.status>=400&&reason.status<500&&reason.status!==409){
     try{window.localStorage.removeItem(storageKey);}catch{}
     setCancelRequestIds(current=>{const next={...current};delete next[orderId];return next;});
