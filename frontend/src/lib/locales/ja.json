@@ -1745,5 +1745,22 @@
   "Unable to load Earn products. Please try again.": "Earn商品を読み込めません。もう一度お試しください。",
   "Unable to complete sign-in. Please try again.": "ログインを完了できません。もう一度お試しください。",
   "Trading is temporarily unavailable.": "取引は一時的にご利用いただけません。",
-  "Only limit orders are available.": "現在は指値注文のみご利用いただけます。"
+  "Only limit orders are available.": "現在は指値注文のみご利用いただけます。",
+  "We couldn't verify your pending order. Check order history before placing another order.": "未確定の注文を確認できません。新しい注文を出す前に注文履歴をご確認ください。",
+  "Check your order history before placing another order.": "新しい注文を出す前に注文履歴をご確認ください。",
+  "Live prices are unavailable. Your order was not submitted.": "リアルタイム価格を取得できないため、注文は送信されていません。",
+  "Live prices are updating. Please wait before placing an order.": "リアルタイム価格を更新中です。しばらく待ってから注文してください。",
+  "This trading pair is currently unavailable.": "この取引ペアは現在ご利用いただけません。",
+  "This trading pair is currently unavailable. Your order was not submitted.": "この取引ペアは現在ご利用いただけません。注文は送信されていません。",
+  "Enter a valid limit price and quantity.": "有効な指値価格と数量を入力してください。",
+  "Your order status is not yet confirmed. Check order history before trying again.": "注文状況はまだ確認できていません。再試行する前に注文履歴をご確認ください。",
+  "Your cancellation status is not yet confirmed. Refresh order history before trying again.": "取消状況はまだ確認できていません。注文履歴を更新してご確認ください。",
+  "The amount has too many decimal places.": "小数点以下の桁数が上限を超えています。",
+  "We couldn't verify the saved withdrawal destination. Contact support before trying again.": "保存済みの出金先を確認できません。再試行する前にサポートへお問い合わせください。",
+  "We couldn't verify your saved withdrawal request. Check withdrawal history before trying again.": "保存済みの出金申請を確認できません。出金履歴をご確認ください。",
+  "This browser couldn't save your withdrawal request. Nothing was submitted.": "このブラウザーでは出金申請を安全に保存できませんでした。申請は送信されていません。",
+  "The saved withdrawal destination has changed. Contact support before trying again.": "保存済みの出金先が変更されています。再試行する前にサポートへお問い合わせください。",
+  "Your withdrawal status is not yet confirmed. Check withdrawal history before trying again.": "出金状況はまだ確認できていません。再試行する前に出金履歴をご確認ください。",
+  "The withdrawal fee has changed. Review the updated fee and submit again.": "出金手数料が変更されました。最新の手数料を確認して再申請してください。",
+  "Earn products are temporarily unavailable. Please try again.": "Earn商品は一時的にご利用いただけません。しばらくしてからお試しください。"
 }
