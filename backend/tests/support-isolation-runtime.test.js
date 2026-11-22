@@ -12,6 +12,10 @@ test('real support message handler returns only the authenticated customer conve
     CONTEXT: process.env.CONTEXT,
   };
   const readUids = [];
+  const readAtByUid = {
+    'uid-customer-a': '2026-11-22 10:00:00',
+    'uid-customer-b': '2026-11-22 10:03:00',
+  };
   let revision = 7;
   let state = {
     users: {
@@ -28,6 +32,7 @@ test('real support message handler returns only the authenticated customer conve
         email: 'customer-b@example.test',
         support_messages: [
           { id: 'B-1', from: 'user', content: 'Private message for customer B', time: '2026-11-22 10:02:00' },
+          { id: 'B-2', from: 'admin', content: 'Private reply for customer B', time: '2026-11-22 10:02:30', admin_id: 'admin-1' },
         ],
       },
     },
@@ -50,6 +55,10 @@ test('real support message handler returns only the authenticated customer conve
       readUids.push(payload.p_uid);
       return Response.json('2026-11-22 10:03:00');
     }
+    if (url.pathname === '/rest/v1/rpc/btcbox_get_support_read') {
+      const payload = JSON.parse(init.body || '{}');
+      return Response.json(readAtByUid[payload.p_uid] || '1970-01-01 00:00:00');
+    }
     if (url.pathname === '/rest/v1/rpc/btcbox_save_state') {
       const payload = JSON.parse(init.body || '{}');
       assert.equal(payload.p_expected_revision, revision);
@@ -61,6 +70,21 @@ test('real support message handler returns only the authenticated customer conve
   };
 
   try {
+    const unreadA = await api.handler({
+      path: '/api/chat/unread',
+      httpMethod: 'GET',
+      headers: { cookie: 'session_token=test-session-a' },
+    }, {});
+    const unreadB = await api.handler({
+      path: '/api/chat/unread',
+      httpMethod: 'GET',
+      headers: { cookie: 'session_token=test-session-b' },
+    }, {});
+    assert.equal(unreadA.statusCode, 200);
+    assert.equal(unreadB.statusCode, 200);
+    assert.equal(JSON.parse(unreadA.body).unread, 1);
+    assert.equal(JSON.parse(unreadB.body).unread, 0);
+
     const customerA = await api.handler({
       path: '/api/support/messages',
       httpMethod: 'GET',
@@ -82,6 +106,7 @@ test('real support message handler returns only the authenticated customer conve
     ]);
     assert.deepEqual(bodyB.messages.map((message) => message.content), [
       'Private message for customer B',
+      'Private reply for customer B',
     ]);
     assert.ok(!JSON.stringify(bodyA).includes('customer B'));
     assert.ok(!JSON.stringify(bodyB).includes('customer A'));
