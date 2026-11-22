@@ -4345,16 +4345,29 @@ async function handleRequest(event, context) {
       return json({ ok: true, duplicate: false, message_id: message.id, time: message.time, audit_sync_pending: auditFlush.pending });
     }
 
-    // GET /api/admin/support/messages 客服消息
+    // GET /api/admin/support/messages — return complete UID-scoped conversations.
+    // Keeping both senders in the same thread lets staff verify replies and prevents
+    // the inbox from presenting each customer message as an unrelated conversation.
     if (sub === 'support/messages' && method === 'GET') {
       const list = [];
       Object.values(db.users).forEach(function (u) {
-        (Array.isArray(u.support_messages) ? u.support_messages : []).filter(function(m){return m.from==='user';}).forEach(function (m) {
-          list.push({ id: m.id, uid: u.uid, email: u.email, content: m.content, time: m.time });
+        (Array.isArray(u.support_messages) ? u.support_messages : []).forEach(function (m) {
+          if (!m || (m.from !== 'user' && m.from !== 'admin')) return;
+          list.push({
+            id: String(m.id || ''),
+            uid: String(u.uid || ''),
+            email: String(u.email || ''),
+            from: m.from,
+            content: String(m.content || ''),
+            time: String(m.time || '')
+          });
         });
       });
-      list.sort(function (a, b) { return (a.time < b.time) ? 1 : -1; });
-      return json({ ok: true, messages: list.slice(0, 100) });
+      list.sort(function (a, b) {
+        if (a.time === b.time) return a.id < b.id ? -1 : 1;
+        return a.time < b.time ? -1 : 1;
+      });
+      return json({ ok: true, messages: list.slice(-500) });
     }
 
     // ---------- Admin: help centre (FAQ) ----------
