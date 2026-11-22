@@ -27,7 +27,8 @@ test('0042 restores the complete withdrawal, Spot, Seconds and Perpetual operati
   assert.match(migration, /payout_operation_id=v_operation_id/i);
   assert.match(migration, /create or replace function public\.review_withdrawal_atomic/i);
   assert.match(migration, /create or replace function public\.mark_withdrawal_paid_atomic/i);
-  assert.doesNotMatch(migration, /\b(update|delete|insert)\s+into\s+public\.(financial_accounts|financial_ledger|financial_operations|withdrawal_requests)/i);
+  const migrationDdlOnly = migration.replace(/\$\$[\s\S]*?\$\$/g, '');
+  assert.doesNotMatch(migrationDdlOnly, /\b(update|delete|insert)\s+into\s+public\.(financial_accounts|financial_ledger|financial_operations|withdrawal_requests)/i);
 });
 
 test('withdrawal review approval links the original freeze and payout records its operation ID', () => {
