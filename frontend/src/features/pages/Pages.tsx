@@ -105,7 +105,6 @@ export function MyPage(){
  const links=[
   {title:"Orders",to:"/orders",icon:ChartNoAxesCombined,surface:"border-brand-info/25 bg-brand-surface",iconTone:"bg-brand-info/10 text-brand-info",hoverTone:"hover:border-brand-info/45"},
   {title:"Referral & Rewards",to:"/rewards",icon:Gift,surface:"border-brand-accent/25 bg-brand-surface",iconTone:"bg-brand-accent/10 text-brand-accent",hoverTone:"hover:border-brand-accent/45"},
-  {title:"New listings",to:"/new-listings",icon:Rocket,surface:"border-brand-warning/25 bg-brand-surface",iconTone:"bg-brand-warning/10 text-brand-warning",hoverTone:"hover:border-brand-warning/45"},
   {title:"Support",to:"/support",icon:Headset,surface:"border-brand-violet/25 bg-brand-surface",iconTone:"bg-brand-violet/10 text-brand-violet",hoverTone:"hover:border-brand-violet/45"},
   {title:"Settings",to:"/settings",icon:ShieldCheck,surface:"border-brand-teal/25 bg-brand-surface",iconTone:"bg-brand-teal/10 text-brand-teal",hoverTone:"hover:border-brand-teal/45"},
   {title:"Trust centre",to:"/trust",icon:ShieldCheck,surface:"border-brand-border bg-brand-surface",iconTone:"bg-brand-surface-2 text-brand-text-muted",hoverTone:"hover:border-brand-border-strong"},
