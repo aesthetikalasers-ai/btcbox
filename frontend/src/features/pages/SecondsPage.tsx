@@ -1,11 +1,12 @@
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { RefreshCw, TrendingUp, TrendingDown, ShieldCheck, ShieldAlert, Award, ChevronDown } from "lucide-react";
 import { Button } from "../../components/ui/button";
 import { Card, CardContent, CardHeader } from "../../components/ui/card";
 import {
   getSecondsPositions,
   getSecondsPolicy,
+  settleSecondsPosition,
   submitSecondsOrder,
   getMarkets,
   getKlines,
@@ -48,6 +49,7 @@ export function SecondsPage() {
   const [amount, setAmount] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [clockNow, setClockNow] = useState(Date.now());
+  const settlementInFlightRef = useRef<Record<string, boolean>>({});
 
   const [interval, setIntervalTab] = useState<"line" | "1m" | "5m" | "15m">("line");
   const [chartNode, setChartNode] = useState<HTMLDivElement | null>(null);
@@ -196,6 +198,52 @@ export function SecondsPage() {
       .finally(() => { if (!controller.signal.aborted) setLoading(false); });
     return () => controller.abort();
   }, [reload, status, symbol, authUserId]);
+
+  // Refresh the server-owned position snapshot while the page is open. This
+  // drives maturity checks without trusting the browser clock or client prices.
+  useEffect(() => {
+    if (status !== "authenticated") return;
+    let cancelled = false;
+    let refreshing = false;
+    const refreshPositions = () => {
+      if (cancelled || refreshing) return;
+      refreshing = true;
+      getSecondsPositions()
+        .then((next) => { if (!cancelled) setSnapshot(next); })
+        .catch(() => { /* Keep the last confirmed snapshot; the normal error state remains available. */ })
+        .finally(() => { refreshing = false; });
+    };
+    const timer = window.setInterval(refreshPositions, 5000);
+    return () => { cancelled = true; window.clearInterval(timer); };
+  }, [status]);
+
+  // Each mature position is settled independently. The stable request ID is
+  // derived from the server-issued position ID, so refresh/retry cannot create
+  // a second settlement. The backend obtains the reference price and performs
+  // the ownership, maturity, idempotency and ledger checks transactionally.
+  useEffect(() => {
+    if (status !== "authenticated" || !snapshot || snapshot.cutover_incomplete) return;
+    const maturePositions = snapshot.open.filter((position) =>
+      Number.isFinite(position.settle_at) && position.settle_at * 1000 <= snapshot.server_now
+    );
+    const pending = maturePositions.filter((position) => !settlementInFlightRef.current[position.position_id]);
+    if (!pending.length) return;
+    pending.forEach((position) => { settlementInFlightRef.current[position.position_id] = true; });
+    let cancelled = false;
+    Promise.allSettled(pending.map((position) => settleSecondsPosition({
+      position_id: position.position_id,
+      symbol: position.symbol,
+      request_id: "settle_" + position.position_id,
+    }))).then((results) => {
+      if (cancelled || !results.some((result) => result.status === "fulfilled" && result.value.settled)) return;
+      return getSecondsPositions()
+        .then((next) => { if (!cancelled) setSnapshot(next); })
+        .catch(() => { /* The next poll will re-read the confirmed server state. */ });
+    }).finally(() => {
+      pending.forEach((position) => { delete settlementInFlightRef.current[position.position_id]; });
+    });
+    return () => { cancelled = true; };
+  }, [snapshot, status]);
 
   useEffect(() => {
     let cancelled = false;
