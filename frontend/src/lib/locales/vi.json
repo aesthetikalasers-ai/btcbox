@@ -1738,5 +1738,11 @@
   "Unable to load settlement history. Refresh to try again.": "Không thể tải lịch sử thanh toán. Vui lòng làm mới để thử lại.",
   "Email login password": "Mật khẩu đăng nhập email",
   "Set or change": "Thiết lập hoặc thay đổi",
-  "Subscriptions and redemptions are currently disabled by platform controls.": "Hiện tại, nền tảng đã tắt chức năng đăng ký và hoàn trả."
+  "Subscriptions and redemptions are currently disabled by platform controls.": "Hiện tại, nền tảng đã tắt chức năng đăng ký và hoàn trả.",
+  "Buy and sell digital assets on spot markets.": "Mua và bán tài sản kỹ thuật số trên thị trường giao ngay.",
+  "Explore perpetual contract markets.": "Khám phá thị trường hợp đồng vĩnh cửu.",
+  "Explore seconds trading markets.": "Khám phá thị trường giao dịch theo giây.",
+  "Explore Earn products and yields.": "Khám phá sản phẩm Earn và lợi suất.",
+  "Unable to load spot markets. Please try again.": "Không thể tải thị trường giao ngay. Vui lòng thử lại.",
+  "Loading spot markets…": "Đang tải thị trường giao ngay…"
 }
