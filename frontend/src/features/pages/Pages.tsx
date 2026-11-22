@@ -49,6 +49,7 @@ const GATEWAY_FAILURE_KEYS: Array<[RegExp, string]> = [
 ];
 function localizedFailure(reason: unknown, fallbackKey: string) {
   const code = reason instanceof ApiError && reason.code ? reason.code : "";
+  const message = reason instanceof Error ? reason.message : "";
   const gateway = GATEWAY_FAILURE_KEYS.find(([pattern]) => pattern.test(code + " " + message));
   if (gateway) return gateway[1];
   return fallbackKey;
