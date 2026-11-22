@@ -1738,5 +1738,11 @@
   "The market service snapshot is missing, invalid or older than 90 seconds. Quotes are hidden until a fresh snapshot arrives.": "La instantánea del mercado falta, no es válida o tiene más de 90 segundos. Las cotizaciones se ocultan hasta que llegue una instantánea reciente.",
   "Email login password": "Contraseña de inicio de sesión por correo",
   "Set or change": "Configurar o cambiar",
-  "Subscriptions and redemptions are currently disabled by platform controls.": "Las suscripciones y los reembolsos están desactivados actualmente por los controles de la plataforma."
+  "Subscriptions and redemptions are currently disabled by platform controls.": "Las suscripciones y los reembolsos están desactivados actualmente por los controles de la plataforma.",
+  "Buy and sell digital assets on spot markets.": "Compra y vende activos digitales en el mercado spot.",
+  "Explore perpetual contract markets.": "Explora los mercados de contratos perpetuos.",
+  "Explore seconds trading markets.": "Explora los mercados de trading por segundos.",
+  "Explore Earn products and yields.": "Explora los productos Earn y sus rendimientos.",
+  "Unable to load spot markets. Please try again.": "No se pudieron cargar los mercados spot. Inténtalo de nuevo.",
+  "Loading spot markets…": "Cargando mercados spot…"
 }
