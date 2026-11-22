@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
 import { Check, Coins, Copy, Gift, Inbox, Share2, Users } from "lucide-react";
 import { AuthRestoreState } from "../../components/AuthRestoreState";
 import { Badge } from "../../components/ui/badge";
@@ -17,12 +16,9 @@ import { PageFrame } from "./Pages";
  *
  * Rendering rules, in order of precedence:
  *   1. Signed out            -> sign-in prompt (opens the shared auth dialog).
- *   2. Programme not enabled -> a plain "not open yet" notice with no figures.
- *   3. Enabled               -> only the values the backend actually returned.
+ *   2. Enabled               -> only values returned for the signed-in account.
  *
- * Nothing here exposes internal implementation detail to the visitor: no
- * endpoint names, no field names, no placeholder percentages and no invented
- * earnings. Missing values render as an em dash rather than a guess.
+ * Missing values render as an em dash rather than an invented balance or reward.
  */
 export function RewardsPage() {
   const { t, language } = useI18n();
