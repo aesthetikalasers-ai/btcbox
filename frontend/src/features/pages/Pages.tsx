@@ -1003,7 +1003,7 @@ async function prepareKycDocumentImage(file: File): Promise<{
  document_image_base64: string;
 }> {
  const fileType = String(file.type || "").toLowerCase();
- const supportedExtension = /\\.(?:jpe?g|png|webp|heic|heif)$/i.test(file.name || "");
+ const supportedExtension = /\.(?:jpe?g|png|webp|heic|heif)$/i.test(file.name || "");
  if (!fileType.startsWith("image/") && !supportedExtension) {
   throw new Error("Choose an image file such as JPEG, PNG, WebP, or HEIC.");
  }
