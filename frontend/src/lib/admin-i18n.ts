@@ -90,6 +90,8 @@ const messages: Record<string, string> = {
   "Account status was updated, but the response was interrupted. Check the Audit log to confirm delivery.": "账户状态已更新，但响应中断。请检查审计日志以确认记录已送达。",
   "Account frozen.": "账户已冻结。",
   "Account unfrozen.": "账户已解除冻结。",
+  "This BTCBOX account is frozen. Administrator access is unavailable.": "此 BTCBOX 账户已被冻结，无法继续访问管理后台。",
+  "You cannot freeze your own administrator account.": "不能冻结自己的管理员账户。",
   "Audit synchronization is pending.": "审计记录仍在等待同步。",
   "Freezing blocks new sign-ins and revokes active sessions and pending 2FA challenges.": "冻结账户会阻止新的登录，并撤销现有会话及待完成的双重验证挑战。",
   "Unfreezing restores the ability to sign in. Existing sessions remain revoked.": "解除冻结后可以重新登录，之前的会话仍然失效。",
