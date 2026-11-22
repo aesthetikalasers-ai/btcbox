@@ -126,7 +126,11 @@ test('sign-in and registration pages expose email, Google and wallet auth', () =
   assert.ok(authPage.includes('signInWithWeb3'));
   assert.ok(authPage.includes('Create account with email'));
 
-  assert.ok(!authPage.includes('requestPasswordReset'));
+  assert.ok(authPage.includes('requestPasswordReset'));
+  const authProvider = fs.readFileSync(path.resolve(__dirname, '../../frontend/src/lib/auth.tsx'), 'utf8');
+  assert.ok(authProvider.includes('resetPasswordForEmail'));
+  assert.ok(authProvider.includes('flow=recovery'));
+  assert.ok(!authProvider.includes('verifyOtp('));
   assert.ok(authPage.includes('completePasswordRecovery'));
 });
 
