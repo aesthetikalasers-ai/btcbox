@@ -40,6 +40,11 @@ test('support read marker RPC is isolated, atomic, and service-role-only', () =>
     'at time zone \'UTC\''
   ]) assert.ok(canonical.toLowerCase().includes(contract.toLowerCase()), 'missing SQL contract: ' + contract);
   assert.equal(upgrade, canonical, 'existing-schema upgrade must stay byte-identical to canonical SQL');
+  assert.equal((canonical.match(/create table if not exists public\\.btcbox_support_read_state/g) || []).length, 1);
+  assert.equal((canonical.match(/create or replace function public\\.btcbox_mark_support_read/g) || []).length, 1);
+  assert.equal((canonical.match(/create or replace function public\\.btcbox_get_support_read/g) || []).length, 1);
+  assert.doesNotMatch(canonical, /;\\s*on conflict \\(uid\\) do update/);
+  assert.ok(canonical.trimEnd().endsWith('grant execute on function public.btcbox_get_support_read(text) to service_role;'));
 });
 
 test('support read migration preserves valid legacy UTC read markers', () => {
