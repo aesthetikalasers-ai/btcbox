@@ -1744,5 +1744,7 @@
   "Explore seconds trading markets.": "Khám phá thị trường giao dịch theo giây.",
   "Explore Earn products and yields.": "Khám phá sản phẩm Earn và lợi suất.",
   "Unable to load spot markets. Please try again.": "Không thể tải thị trường giao ngay. Vui lòng thử lại.",
-  "Loading spot markets…": "Đang tải thị trường giao ngay…"
+  "Loading spot markets…": "Đang tải thị trường giao ngay…",
+  "Unable to load Earn products. Please try again.": "Không thể tải sản phẩm Earn. Vui lòng thử lại.",
+  "Unable to complete sign-in. Please try again.": "Không thể hoàn tất đăng nhập. Vui lòng thử lại."
 }
