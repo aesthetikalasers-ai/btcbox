@@ -208,7 +208,7 @@ test("password recovery is available without sending a request on page load", as
 test("unauthenticated customer sees an inline sign-in prompt on a protected route", async ({ page }) => {
   await page.goto("/withdraw");
 
-  await expect(page).toHaveURL(/\\/withdraw$/);
+  await expect(page).toHaveURL(/\/withdraw$/);
   await expect(page.getByRole("heading", { name: "Sign in to your account", exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Sign in", exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Create account", exact: true })).toBeVisible();
@@ -581,9 +581,9 @@ test("OAuth callback failure keeps the error visible and offers the registration
   await expect(page.getByText("Google sign-in was cancelled")).toBeVisible();
   const returnLink = page.getByRole("link", { name: "Return to registration" });
   await expect(returnLink).toHaveAttribute("href", "/register");
-  await expect(page).toHaveURL(/\\/auth\\/react-callback\\?/);
+  await expect(page).toHaveURL(/\/auth\/react-callback\?/);
   await returnLink.click();
-  await expect(page).toHaveURL(/\\/register$/);
+  await expect(page).toHaveURL(/\/register$/);
 });
 
 async function installAdminE2EIdentity(page: import("@playwright/test").Page) {

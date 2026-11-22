@@ -31,6 +31,8 @@ jobs:
           node-version: 22
       - run: npm install
       - run: npm run lint
+      - name: Verify all locale dictionaries
+        run: npm run check:i18n
       - name: Verify exact decimal estimates
         run: node --experimental-strip-types --test tests/decimal.test.ts
       - run: npm run build
