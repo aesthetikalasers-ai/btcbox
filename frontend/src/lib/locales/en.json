@@ -1747,5 +1747,6 @@
   "Unable to load settlement history. Refresh to try again.": "Unable to load settlement history. Refresh to try again.",
   "The market service snapshot is missing, invalid or older than 90 seconds. Quotes are hidden until a fresh snapshot arrives.": "The market service snapshot is missing, invalid or older than 90 seconds. Quotes are hidden until a fresh snapshot arrives.",
   "Email login password": "Email login password",
-  "Set or change": "Set or change"
+  "Set or change": "Set or change",
+  "Subscriptions and redemptions are currently disabled by platform controls.": "Subscriptions and redemptions are currently disabled by platform controls."
 }
