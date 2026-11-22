@@ -122,3 +122,17 @@ test('confirmed support reply is not reported as failed when the conversation re
   assert.match(handler, /const successMessage = result\.audit_sync_pending/);
   assert.match(handler, /setError\(successMessage \+ " The conversation could not refresh\./);
 });
+
+
+test('definite support reply rejection unlocks editing but preserves uncertain and conflict retries', () => {
+  const start = admin.indexOf('const replySupport = async (uid: string)');
+  const end = admin.indexOf('const saveSpotMarket = async', start);
+  assert.ok(start >= 0 && end > start);
+  const handler = admin.slice(start, end);
+  assert.match(handler, /reason instanceof ApiError && reason\.status >= 400 && reason\.status < 500 && reason\.status !== 409/);
+  assert.ok(handler.includes('setSupportReplySubmitted((current) => ({ ...current, [uid]: false }))'));
+  assert.ok(handler.includes('delete next[uid]'));
+  assert.ok(handler.includes('window.sessionStorage.removeItem(supportReplyStorageKey(uid))'));
+  assert.ok(handler.includes('Keep 409 locked'));
+  assert.ok(handler.includes('finally { supportReplyLocksRef.current[uid] = false; setBusy(false); }'));
+});
