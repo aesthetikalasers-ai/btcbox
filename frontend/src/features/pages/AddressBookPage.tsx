@@ -102,7 +102,7 @@ export function AddressBookPage() {
       resetForm();
       setReload((n) => n + 1);
     } catch (reason) {
-      setFormError(reason instanceof Error ? reason.message : "Your address could not be added.");
+      setFormError(t("Unable to add this address. Please try again."));
     } finally {
       setSubmitting(false);
     }
