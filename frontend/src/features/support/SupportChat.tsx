@@ -34,6 +34,7 @@ export function SupportChat() {
   const currentAccountKeyRef = useRef(pendingStorageKey);
   currentAccountKeyRef.current = pendingStorageKey;
   const [messagesAccountKey, setMessagesAccountKey] = useState(pendingStorageKey);
+  const loadedAccountKeyRef = useRef("");
 
   // Keep an uncertain send's id and exact body across a page refresh in this
   // tab. The key is account-scoped so switching accounts cannot replay another
@@ -72,10 +73,13 @@ export function SupportChat() {
     }
     const accountKey = pendingStorageKey;
     const controller = new AbortController();
-    // Never leave the previous account's conversation visible while the next
-    // account's private history is loading.
-    setMessages([]);
-    setMessagesAccountKey("");
+    // Clear only when identity changes. Ordinary polling must not empty the
+    // visible conversation or cause a flicker every refresh interval.
+    if (loadedAccountKeyRef.current !== accountKey) {
+      loadedAccountKeyRef.current = accountKey;
+      setMessages([]);
+      setMessagesAccountKey("");
+    }
     setLoading(true);
     setError("");
     getSupportMessages(controller.signal).then(list => {
