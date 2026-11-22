@@ -94,3 +94,18 @@
 
 ### Next single priority
 - After the automatic Vercel deployment for the final main commit reaches **READY**, have the owner test Google sign-in from `/admin` with the authorized Super Admin account and confirm it remains at `/admin`; then verify KYC with a synthetic, non-sensitive test image. Do not use a real identity document for testing.
+
+
+## 2026-11-23 — KYC upload size and memory safeguards (2号 AI)
+
+- Work branch: `fix/kyc-upload-2mb-memory-20261123`, created from `main` baseline `8eef5f34ed7bf8e7790ae57516ce5f1810b7b24b`.
+- Agreed target: original selected image <= 5 MiB; compressed JPEG <= 2 MiB; private Supabase `kyc-documents` bucket <= 2,097,152 bytes; KYC POST body <= 3 MiB; all other API request bodies remain <= 1 MiB.
+- Frontend: pre-resize with `createImageBitmap` when supported, 2 MiB compression cap, reuse and clear canvas, close ImageBitmap, revoke object URL, and encode the Blob from an ArrayBuffer in chunks rather than creating a second data URL copy.
+- Backend: KYC-only request body allowance, reject oversized gateway-encoded requests before decoding, validate decoded base64 length before allocating the image Buffer, and avoid re-encoding the full image for canonical comparison.
+- Supabase: updated only the repeatable bucket SQL in this branch to 2 MiB. **No hosted Supabase setting, production database, Auth setting, environment variable, or Storage bucket was changed.**
+- Localization: updated the KYC upload guidance in all eight locale dictionaries.
+- Files changed: `frontend/src/features/pages/Pages.tsx`, `frontend/src/lib/locales/{en,zh-CN,ja,de,it,pt,es,vi}.json`, `backend/api-core.js`, `backend/tests/kyc-document-storage.test.js`, `backend/supabase/operations/kyc-document-storage-bucket.sql`, `docs/KYC_DOCUMENT_STORAGE.md`.
+- Static source checks: **PASS** for configured limits, request-body isolation, private bucket setting, memory cleanup hooks, canonical locale keys and JSON parsing.
+- Automated backend/frontend builds and full test suites: **NOT VERIFIED**. The local container cannot resolve GitHub to clone the repository, and the normal frontend/backend CI workflows are not configured to run on push to this task branch. No PR was opened solely to trigger CI.
+- Real image upload, mobile device memory behavior, HEIC/HEIF device decoding, and hosted bucket configuration after the proposed change: **NOT VERIFIED**.
+- Release boundary: do not merge or deploy this branch; do not apply the bucket SQL to production until the full project repair batch is reviewed and the owner authorizes the single coordinated release.
