@@ -282,7 +282,7 @@ export function SecondsPage() {
     } catch (reason) {
       // The intent stays persisted: the outcome is unknown, so the user must
       // retry the same request rather than submit a new one.
-      setError(reason instanceof Error ? reason.message : t("Order could not be confirmed."));
+      setError(t("Order result is unconfirmed. Keep the same request ID and check open positions before retrying."));
     } finally { setSubmitting(false); }
   };
 
