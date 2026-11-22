@@ -4325,9 +4325,10 @@ async function handleRequest(event, context) {
     // The request ID is persisted with the message so an exact retry cannot duplicate it.
     if (sub === 'support/reply' && method === 'POST') {
       const uid = String(body.uid || '').trim();
+      const conversationId = String(body.conversation_id || '').trim();
       const reply = String(body.content || '').trim();
       const requestId = String(body.request_id || '').trim();
-      if (!uid || uid.length > 128 || !reply || reply.length > 2000 ||
+      if (!uid || uid.length > 128 || conversationId !== 'support:' + uid || !reply || reply.length > 2000 ||
           !/^[A-Za-z0-9_-]{16,100}$/.test(requestId)) {
         return json({ ok: false, code: 'INVALID_SUPPORT_REPLY', msg: 'A customer, reply message, and valid request ID are required.' }, 400);
       }
