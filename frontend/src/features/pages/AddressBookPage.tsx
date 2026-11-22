@@ -82,11 +82,6 @@ export function AddressBookPage() {
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (submitting) return;
-    if (tab === "bank" && (!routingNumber.trim() || !bankAddress.trim())) {
-      setShowWireDetails(true);
-      setFormError(t("Please fill in the required wire routing and bank address fields."));
-      return;
-    }
     setFormError(""); setFormMessage("");
     setSubmitting(true);
     try {
@@ -95,8 +90,9 @@ export function AddressBookPage() {
       } else {
         await addAddress({
           type: "bank", account_holder: accountHolder.trim(), bank_name: bankName.trim(),
-          account_number: accountNumber.replace(/\s/g, ""), routing_number: routingNumber.replace(/\s/g, ""),
-          swift: swift.trim() ? swift.trim().toUpperCase() : undefined, bank_address: bankAddress.trim(),
+          account_number: accountNumber.replace(/\s/g, ""), iban: iban.replace(/\s/g, "").toUpperCase() || undefined,
+          country: country.trim().toUpperCase() || undefined, routing_number: routingNumber.replace(/\s/g, "") || undefined,
+          swift: swift.trim() ? swift.trim().toUpperCase() : undefined, bank_address: bankAddress.trim() || undefined,
           note: note.trim() || undefined,
         });
       }
