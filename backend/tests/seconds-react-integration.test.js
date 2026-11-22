@@ -26,7 +26,7 @@ test('React Seconds order entry persists a stable request and retries only the s
   assert.match(page, /btcbox\.seconds\.pending\.v1\./);
   assert.match(page, /window\.crypto\.randomUUID\(\)/);
   assert.match(page, /Retry same request/);
-  assert.match(page, /const confirmed=latest\.open\.some/);
+  assert.match(page, /const confirmed\s*=\s*latest\.open\.some/);
   assert.match(page, /policy\?\.actions_enabled/);
   assert.doesNotMatch(page, /No orders can be placed or settled from this page/);
 });
