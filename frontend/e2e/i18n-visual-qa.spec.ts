@@ -22,7 +22,7 @@ const localeRoutes = [
   { path: "/kyc", headingKey: "Identity verification" },
   { path: "/contract", headingKey: "Perpetual" },
   { path: "/seconds", headingKey: "Seconds contracts" },
-  { path: "/trade/BTCUSDT", heading: "BTCUSDT" },
+  { path: "/trade/BTCUSDT", heading: "BTC/USDT" },
 ];
 
 for (const locale of activeLocales) {

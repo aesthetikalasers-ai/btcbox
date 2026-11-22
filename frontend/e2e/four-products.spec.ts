@@ -28,7 +28,7 @@ test("trade chooser shows exactly four products and no Futures entry", async ({ 
   await expect(page.getByRole("heading", { name: "Earn", exact: true })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Perpetual", exact: true })).toBeVisible();
   // Exactly four product-card titles in the chooser grid.
-  const productTitles = page.locator("main").getByRole("heading", { name: /^(Spot|Seconds|Earn|Contract)$/ });
+  const productTitles = page.locator("main").getByRole("heading", { name: /^(Spot|Seconds|Earn|Perpetual)$/ });
   await expect(productTitles).toHaveCount(4);
   // No fifth product / forbidden Futures label anywhere on the page.
   await expect(page.getByText("Futures", { exact: true })).toHaveCount(0);

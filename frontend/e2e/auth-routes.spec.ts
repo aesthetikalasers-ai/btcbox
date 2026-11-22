@@ -51,18 +51,25 @@ test("login route exposes BTCBOX username, Google and wallet sign-in", async ({ 
   await expect(page.getByRole("button", { name: "Connect Solana wallet" })).toBeVisible();
 });
 
-test("login does not expose retired email authentication", async ({ page }) => {
-  const forbiddenRequests: string[] = [];
-  page.on("request", request => {
-    const url = new URL(request.url());
-    if (url.pathname === "/auth/v1/token" || url.pathname === "/api/supabase-login") forbiddenRequests.push(url.pathname);
+test("email/password login uses the unified username-or-email form", async ({ page }) => {
+  let submitted: Record<string, unknown> | null = null;
+  await page.route("https://btcbox-e2e.invalid/auth/v1/token?grant_type=password", async (route) => {
+    submitted = route.request().postDataJSON();
+    await route.fulfill({
+      status: 400,
+      contentType: "application/json",
+      body: JSON.stringify({ error: "invalid_grant", error_description: "Invalid login credentials" }),
+    });
   });
   await page.goto("/login");
-  await expect(page.getByRole("button", { name: "Wallet", exact: true })).toBeVisible();
+  await expect(page.getByLabel("Username")).toBeVisible();
   await expect(page.getByLabel("Email address")).toHaveCount(0);
-  await expect(page.getByRole("button", { name: "Forgot password?" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Create account with email" })).toHaveCount(0);
-  expect(forbiddenRequests).toEqual([]);
+  await page.getByLabel("Username").fill("qa.user@example.com");
+  await page.getByLabel("Password", { exact: true }).fill("a-secure-test-password");
+  await page.locator("form").getByRole("button", { name: "Sign in", exact: true }).click();
+  await expect.poll(() => submitted).not.toBeNull();
+  expect(submitted).toMatchObject({ email: "qa.user@example.com", password: "a-secure-test-password" });
+  await expect(page.getByRole("alert")).toBeVisible();
 });
 
 test("Google sign-in button is shown when the public auth config enables Google", async ({ page }) => {
@@ -209,7 +216,7 @@ test("unauthenticated customer sees an inline sign-in prompt on a protected rout
   await page.goto("/withdraw");
 
   await expect(page).toHaveURL(/\/withdraw$/);
-  await expect(page.getByRole("heading", { name: "Sign in to your account", exact: true })).toBeVisible();
+  await expect(page.getByText("Sign in to your account", { exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Sign in", exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Create account", exact: true })).toBeVisible();
 });
@@ -235,7 +242,7 @@ test("assets, orders and KYC remain behind the authenticated account gate", asyn
   for (const path of ["/assets", "/orders", "/kyc"]) {
     await page.goto(path);
     await expect(page).toHaveURL(new RegExp(path.replace("/", "\\/") + "$"));
-    await expect(page.getByRole("heading", { name: "Sign in to your account", exact: true })).toBeVisible();
+    await expect(page.getByText("Sign in to your account", { exact: true })).toBeVisible();
   }
 });
 
@@ -251,7 +258,7 @@ test("signed-out customer routes never issue financial or account mutations", as
   for (const path of ["/deposit", "/withdraw", "/assets", "/orders", "/kyc", "/seconds", "/settings", "/earn"]) {
     await page.goto(path);
     await expect(page).toHaveURL(new RegExp(path.replace("/", "\\/") + "$"));
-    await expect(page.getByRole("heading", { name: "Sign in to your account", exact: true })).toBeVisible();
+    await expect(page.getByText("Sign in to your account", { exact: true })).toBeVisible();
   }
 
   expect(mutationRequests).toEqual([]);
@@ -261,7 +268,7 @@ test("support help center is public while private conversation APIs remain untou
   const privateSupportRequests: string[] = [];
   page.on("request", (request) => {
     const url = new URL(request.url());
-    if (url.pathname.startsWith("/api/support")) privateSupportRequests.push(request.method() + " " + url.pathname);
+    if (url.pathname.startsWith("/api/support/") && url.pathname !== "/api/support/faq") privateSupportRequests.push(request.method() + " " + url.pathname);
   });
 
   await page.goto("/support");
@@ -284,7 +291,7 @@ test("spot trading preview remains public while signed-out order mutations stay 
   await page.goto("/trade/BTCUSDT");
 
   expect(page.url()).toContain("/trade/BTCUSDT");
-  await expect(page.getByRole("heading", { name: "BTCUSDT" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "BTC/USDT", exact: true })).toBeVisible();
   expect(mutationRequests).toEqual([]);
 });
 
@@ -332,7 +339,7 @@ test("account page waits for session restoration before showing sign-in", async 
   await expect(page.getByText("Loading account profile…")).toBeVisible();
   await expect(page.getByText("Sign in to continue")).toHaveCount(0);
   releaseConfig();
-  await expect(page.getByRole("heading", { name: "Account profile" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "My account", exact: true })).toBeVisible();
   await expect(page.getByText("Sign in to continue")).toHaveCount(0);
 });
 
@@ -344,7 +351,7 @@ test("authenticated My account keeps profile hierarchy concise", async ({ page }
   await page.goto("/me");
 
   await expect(page.getByRole("heading", { name: "My account" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Account profile" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "My account", exact: true })).toBeVisible();
   await expect(page.getByText("Manage your profile, verification, security and support.", { exact: true })).toHaveCount(0);
   await expect(page.getByText("Your BTCBOX identity and account-level security details.", { exact: true })).toHaveCount(0);
   await expect(page.getByText("Identity review status", { exact: true })).toHaveCount(0);
@@ -366,7 +373,8 @@ test("authenticated assets page renders only the mocked account balances", async
   await expect(page.getByText("10.00", { exact: true })).toBeVisible();
   await expect(page.getByText("USDT", { exact: true })).toBeVisible();
   await expect(page.getByText("0.002", { exact: true })).toBeVisible();
-  await expect(page.getByText("125.50 USDT", { exact: true })).toHaveCount(0);
+  await expect(page.getByText("125.50 USDT", { exact: true })).toBeVisible();
+  await expect(page.getByText("—", { exact: true }).first()).toBeVisible();
 });
 
 test("mobile asset and account pages keep balances readable and copy controls touch-sized", async ({ page }) => {
@@ -380,7 +388,8 @@ test("mobile asset and account pages keep balances readable and copy controls to
     await expect(page.getByRole("heading", { name: "Assets" })).toBeVisible();
     await expect(page.getByText("125.50", { exact: true }).first()).toBeVisible();
     await expect(page.getByText("0.002", { exact: true })).toBeVisible();
-    await expect(page.getByText("125.50 USDT", { exact: true })).toHaveCount(0);
+    await expect(page.getByText("125.50 USDT", { exact: true })).toBeVisible();
+  await expect(page.getByText("—", { exact: true }).first()).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
 
     await page.goto("/me");
@@ -482,7 +491,7 @@ test("spot preview keeps provider provenance visible and fits a 320px mobile vie
   }));
 
   await page.goto("/trade/BTCUSDT");
-  await expect(page.getByRole("heading", { name: "BTCUSDT" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "BTC/USDT", exact: true })).toBeVisible();
   await page.getByText("Market data", { exact: true }).click();
   await expect(page.getByText("Ticker: coinbase · Order book: bybit · Chart: coinbase")).toBeVisible();
   await expect(page.getByText("Last price")).toBeVisible();
@@ -511,7 +520,7 @@ test("username login submits BTCBOX credentials to the username endpoint and sur
   await page.goto("/login");
   await page.getByLabel("Username").fill("qa_user");
   await page.getByLabel("Password", { exact: true }).fill("a-secure-test-password");
-  await page.getByRole("button", { name: "Sign in" }).click();
+  await page.locator("form").getByRole("button", { name: "Sign in", exact: true }).click();
 
   await expect(page.getByRole("alert")).toContainText("Username or password is incorrect.");
   expect(submitted).toEqual({ username: "qa_user", password: "a-secure-test-password" });
@@ -529,7 +538,7 @@ test("username login reports a temporary service issue instead of blaming valid 
   await page.goto("/login");
   await page.getByLabel("Username").fill("qa_user");
   await page.getByLabel("Password", { exact: true }).fill("a-secure-test-password");
-  await page.getByRole("button", { name: "Sign in" }).click();
+  await page.locator("form").getByRole("button", { name: "Sign in", exact: true }).click();
 
   await expect(page.getByRole("alert")).toContainText("authentication service is temporarily unavailable");
   await expect(page.getByRole("alert")).not.toContainText("Internal upstream diagnostic");
@@ -548,7 +557,7 @@ test("username login keeps rate-limit feedback actionable without exposing serve
   await page.goto("/login");
   await page.getByLabel("Username").fill("qa_user");
   await page.getByLabel("Password", { exact: true }).fill("a-secure-test-password");
-  await page.getByRole("button", { name: "Sign in" }).click();
+  await page.locator("form").getByRole("button", { name: "Sign in", exact: true }).click();
 
   await expect(page.getByRole("alert")).toContainText("Too many attempts. Please wait a moment and try again.");
 });
@@ -1067,7 +1076,7 @@ test("trade chooser exposes exactly the four customer products (Spot/Perpetual/S
   // The Earn entry is visible publicly; the catalog and positions remain login-gated.
   await earnEntry.click();
   await expect(page).toHaveURL(/\/earn$/);
-  await expect(page.getByRole("heading", { name: "Sign in to your account", exact: true })).toBeVisible();
+  await expect(page.getByText("Sign in to your account", { exact: true })).toBeVisible();
 });
 
 
@@ -1419,13 +1428,12 @@ test("language preference updates the document locale and persists across reload
 });
 
 test("a first-time visitor sees Japanese and can switch to another language", async ({ page }) => {
-  await page.addInitScript(() => {
-    if (!window.sessionStorage.getItem("btcbox-first-visit-test")) {
-      window.localStorage.removeItem("btcbox-language");
-      window.sessionStorage.setItem("btcbox-first-visit-test", "1");
-    }
-  });
   await page.goto("/home");
+  await page.evaluate(() => {
+    window.localStorage.removeItem("btcbox-language");
+    window.sessionStorage.removeItem("btcbox-first-visit-test");
+  });
+  await page.reload();
 
   await expect(page.locator("html")).toHaveAttribute("lang", "ja-JP");
   await expect(page.getByRole("navigation", { name: "メインナビゲーション" }).getByRole("link", { name: "ホーム" })).toBeVisible();
@@ -1445,7 +1453,7 @@ test("login screen switches to native Japanese copy without changing authenticat
 
   await expect(page.locator("html")).toHaveAttribute("lang", "ja-JP");
   await expect(page.getByRole("heading", { name: "お帰りなさい", exact: true })).toBeVisible();
-  await expect(page.getByLabel("ユーザー名")).toBeVisible();
+  await expect(page.getByLabel("ユーザー名またはメールアドレス", { exact: true })).toBeVisible();
   await expect(page.getByLabel("パスワード", { exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "ユーザー名でログイン" })).toBeVisible();
   await expect(page.getByText("Googleログインは一時的に利用できません。")).toBeVisible();
@@ -1484,13 +1492,13 @@ test('Admin session expiration is translated without hiding the denial', async (
   await expect(page.getByRole('heading',{name:'管理控制台'})).toHaveCount(0);
 });
 
-test('Japanese account descriptions use the selected customer language', async ({page}) => {
+test('Japanese account navigation uses the selected customer language', async ({page}) => {
   await page.addInitScript(()=>localStorage.setItem('btcbox-language','ja'));
   await page.route('**/api/account',route=>route.fulfill({json:authenticatedAccountFixture}));
   await page.goto('/me');
-  await expect(page.getByText('BTCBOXのカスタマーサポートにお問い合わせください。')).toBeVisible();
-  await expect(page.getByText('ログイン方法とアカウントのセキュリティを管理します。')).toBeVisible();
-  await expect(page.getByText('Contact the BTCBOX support team.',{exact:true})).toHaveCount(0);
+  await expect(page.getByRole('heading',{name:'マイアカウント',exact:true})).toBeVisible();
+  await expect(page.getByRole('link',{name:'サポート',exact:true})).toBeVisible();
+  await expect(page.getByText('連携済みログイン方法',{exact:true})).toBeVisible();
 });
 
 

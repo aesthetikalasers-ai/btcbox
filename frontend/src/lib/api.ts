@@ -68,11 +68,10 @@ const configuredBase = import.meta.env.VITE_API_BASE_URL?.trim().replace(/\/+$/,
 export const API_BASE_URL = DEMO_PREVIEW_ACTIVE ? "/__demo_preview_blocked__" : configuredBase || "/api";
 
 /**
- * Single user-visible message for a market-data outage. Shown verbatim by the
- * terminal, the markets page and the dashboard, so an operator reading a
- * screenshot knows which upstream failed instead of guessing.
+ * Stable translation key for market-data outages. Provider diagnostics stay
+ * in logs; customer-facing pages show only this concise, localized message.
  */
-export const MARKET_UNAVAILABLE_MESSAGE = "行情连接已断开，暂时无法获取最新价格。请稍后重试。";
+export const MARKET_UNAVAILABLE_MESSAGE = "Market data is temporarily unavailable.";
 
 export class ApiError extends Error {
   readonly status: number;
@@ -141,7 +140,7 @@ export async function getSpotMarketPairs(signal?: AbortSignal): Promise<SpotMark
   } catch (error) {
     if (error instanceof Error && error.name === "AbortError") throw error;
   }
-  throw new ApiError("Spot market catalogue is unavailable. No markets can be shown until the exchange configuration is restored.", 503, "MARKET_CATALOG_UNAVAILABLE");
+  throw new ApiError("Market data is temporarily unavailable.", 503, "MARKET_CATALOG_UNAVAILABLE");
 }
 
 /**
@@ -150,8 +149,8 @@ export async function getSpotMarketPairs(signal?: AbortSignal): Promise<SpotMark
  * Throws instead of falling back to a sample table. A previous version returned
  * `getSampleMarkets()` on failure, which put plausible-looking prices on screen
  * while the backend was down — indistinguishable from real data, and therefore
- * more dangerous than an empty panel. Callers render `error.message` so the
- * outage is visible to users and developers alike.
+ * more dangerous than an empty panel. Callers translate the stable message key
+ * so customers see a concise localized status while diagnostics stay in logs.
  */
 export async function getMarkets(signal?: AbortSignal): Promise<MarketTicker[]> {
   if (DEMO_PREVIEW_ACTIVE) return getDemoMarkets();
@@ -171,10 +170,10 @@ export async function getMarkets(signal?: AbortSignal): Promise<MarketTicker[]> 
 
   const payload = (await response.json().catch(() => null)) as (MarketResponse & { code?: string }) | null;
   if (!response.ok || !payload || payload.ok !== true) {
-    throw new ApiError(payload?.msg || MARKET_UNAVAILABLE_MESSAGE, response.status, payload?.code || "MARKET_DATA_UNAVAILABLE");
+    throw new ApiError(MARKET_UNAVAILABLE_MESSAGE, response.status, payload?.code || "MARKET_DATA_UNAVAILABLE");
   }
   if (!Array.isArray(payload.markets) || payload.markets.length === 0) {
-    throw new ApiError(payload?.msg || MARKET_UNAVAILABLE_MESSAGE, response.status, payload?.code || "MARKET_DATA_UNAVAILABLE");
+    throw new ApiError(MARKET_UNAVAILABLE_MESSAGE, response.status, payload?.code || "MARKET_DATA_UNAVAILABLE");
   }
 
   const hasFiniteValue = (value: unknown) =>
@@ -215,7 +214,7 @@ export async function getMarkets(signal?: AbortSignal): Promise<MarketTicker[]> 
   ));
   if (snapshotInvalid) {
     throw new ApiError(
-      "The market service snapshot is missing, invalid or older than 90 seconds. Quotes are hidden until a fresh snapshot arrives.",
+      "Market data is temporarily unavailable.",
       502,
       "MARKET_SNAPSHOT_STALE",
     );
@@ -261,7 +260,7 @@ export async function getKlines(
       candle.low <= Math.min(candle.open, candle.close, candle.high) &&
       Number.isFinite(candle.volume) && candle.volume >= 0
     );
-    if (!validCandles) throw new ApiError("Chart data is malformed.", response.status, "INVALID_KLINE");
+    if (!validCandles) throw new ApiError("Chart data is temporarily unavailable.", response.status, "INVALID_KLINE");
 
     // The backend providers return candle open-times in milliseconds. The chart
     // library expects Unix seconds. Normalize to seconds, discard invalid times,
