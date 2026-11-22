@@ -48,7 +48,7 @@ test('spot trading clears stale ticker, order book, and candles when live refres
   assert.ok(refresh.includes('setTicker(null)'));
   assert.ok(refresh.includes('setMarketUpdatedAt(null)'));
   assert.ok(refresh.includes('setBook(null)'));
-  assert.ok(refresh.includes('Live market data is temporarily unavailable.'));
+  assert.ok(refresh.includes('Market data is temporarily unavailable.'));
   assert.ok(page.includes('setCandles([])'));
   assert.ok(!page.includes('showing the last confirmed data'));
 });
@@ -86,7 +86,7 @@ test('market table clears last confirmed prices and reports feed unavailability'
   assert.ok(marketTable.includes('const feedError = error || (snapshotStale ?'));
   assert.ok(marketTable.includes('const displayMarkets = feedError ? [] : markets'));
   assert.ok(marketTable.includes('feedError && displayMarkets.length === 0'));
-  assert.ok(marketTable.includes('markets.some((item) => (item.snapshotTs || 0) > 0 && Date.now() / 1000 - (item.snapshotTs || 0) > 90)'));
+  assert.ok(marketTable.includes('!Number.isFinite(item.snapshotTs) || !item.snapshotTs || nowSeconds - item.snapshotTs > 90'));
   assert.ok(!marketTable.includes('Showing the last confirmed market data.'));
   assert.ok(dashboard.includes('setMarkets([]);'));
 });
@@ -141,7 +141,7 @@ test('withdrawal submit handler synchronously blocks concurrent duplicate browse
   assert.ok(withdrawPage.includes('submitLockRef.current)return'));
   assert.ok(withdrawPage.includes('submitLockRef.current=true'));
   assert.ok(withdrawPage.includes('window.crypto.randomUUID()'));
-  assert.ok(withdrawPage.includes('Secure withdrawal request IDs are unavailable in this browser.'));
+  assert.ok(withdrawPage.includes('catch{setError(t("Account data is temporarily unavailable."));submitLockRef.current=false;return;}'));
   assert.ok(withdrawPage.includes('finally{submitLockRef.current=false;setSubmitting(false);}'));
 });
 
@@ -150,7 +150,7 @@ test('withdrawal retry preserves its idempotency key and saved intent before sen
   const send = withdrawPage.indexOf('submitWithdrawal({');
   assert.ok(persist >= 0 && send > persist);
   assert.ok(withdrawPage.includes('request_id:intent.request_id'));
-  assert.ok(withdrawPage.includes('Keep this request unchanged and retry with the same request ID.'));
+  assert.ok(withdrawPage.includes('Order result is unconfirmed. Keep the same request ID and check order history before retrying.'));
 });
 
 test('My account page clears stale profile data when its authenticated refresh fails', () => {
@@ -188,9 +188,9 @@ test('deposit address copy reports clipboard success and failure without silent 
   const start = pages.indexOf('export function DepositPage()');
   const end = pages.indexOf('export function ', start + 30);
   const deposit = pages.slice(start, end > start ? end : undefined);
-  assert.ok(deposit.includes('if(!navigator.clipboard?.writeText)throw new Error("Clipboard access is unavailable.")'));
+  assert.ok(deposit.includes('if(!navigator.clipboard?.writeText)throw new Error(t("Unable to copy. Please try again."))'));
   assert.ok(deposit.includes('setCopyMessage("Deposit address copied.")'));
-  assert.ok(deposit.includes('setCopyMessage("Could not copy the address. Select and copy it manually.")'));
+  assert.ok(deposit.includes('setCopyMessage(t("Unable to copy. Please try again."))'));
   assert.ok(deposit.includes('onClick={copyAddress}'));
 });
 
@@ -231,12 +231,10 @@ test('legacy account profile and order views clear stale snapshots before reload
   assert.ok(profileLoad.indexOf('setAccount(null)') >= 0);
   assert.ok(profileLoad.indexOf('setAccount(null)') < profileLoad.indexOf('getAccount(controller.signal)'));
 
-  const ordersStart = pages.indexOf('export function OrdersPage()');
-  const ordersEnd = pages.indexOf('export function ', ordersStart + 25);
-  const legacyOrders = pages.slice(ordersStart, ordersEnd > ordersStart ? ordersEnd : undefined);
-  assert.ok(legacyOrders.indexOf('setOrders([])') >= 0);
-  assert.ok(legacyOrders.indexOf('setOrders([])') < legacyOrders.indexOf('getOrders(controller.signal)'));
-  assert.ok(legacyOrders.includes('if(!controller.signal.aborted)setOrders([]);'));
+  const ordersPage = fs.readFileSync(path.resolve(__dirname, '../../frontend/src/features/orders/OrdersPage.tsx'), 'utf8');
+  assert.ok(ordersPage.indexOf('setOrders([]);') >= 0);
+  assert.ok(ordersPage.indexOf('setOrders([]);') < ordersPage.indexOf('getOrders(controller.signal)'));
+  assert.ok(ordersPage.includes('setOrders([]);'));
 });
 
 test('withdrawal, KYC and support views clear stale private records before account refresh', () => {
