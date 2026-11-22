@@ -103,8 +103,20 @@ export function SecondsPage() {
 
   useEffect(() => {
     const controller = new AbortController();
-    setLoading(true);
+    // Clear account-scoped values before every refresh or auth transition.
+    // A failed request must never leave another session's balance, positions,
+    // or previously-enabled policy visible/actionable.
+    setUid("");
+    setAvailableUSDT("0.00");
+    setSnapshot(null);
+    setPolicy(null);
+    setPendingIntent(null);
     setError("");
+    if (status !== "authenticated") {
+      setLoading(false);
+      return () => controller.abort();
+    }
+    setLoading(true);
     Promise.allSettled([getAccount(controller.signal), getSecondsPositions(controller.signal), getSecondsPolicy(controller.signal)])
       .then(([accountResult, positionsResult, policyResult]) => {
         if (controller.signal.aborted) return;
@@ -113,8 +125,7 @@ export function SecondsPage() {
           setUid(accountUid);
           const usdtFree = accountResult.value.balances["USDT"]?.free;
           if (usdtFree !== undefined) setAvailableUSDT(String(usdtFree));
-          // Reloading the page must not forget an unconfirmed request: without
-          // this the user could submit a second order for the same click.
+          // Restore only the pending intent belonging to the authenticated UID.
           if (accountUid) {
             try {
               const stored = window.localStorage.getItem("btcbox.seconds.pending.v1." + accountUid + "." + symbol);
@@ -127,7 +138,7 @@ export function SecondsPage() {
       })
       .finally(() => { if (!controller.signal.aborted) setLoading(false); });
     return () => controller.abort();
-  }, [reload]);
+  }, [reload, status]);
 
   useEffect(() => {
     const node = chartNode;
