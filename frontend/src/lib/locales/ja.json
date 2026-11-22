@@ -888,7 +888,7 @@
   "Unable to reach BTCBOX services. Please try again.": "BTCBOXサービスに接続できません。もう一度お試しください。",
   "Unable to reach BTCBOX chart service.": "BTCBOXチャートサービスに接続できません。",
   "Order book data is malformed or empty.": "注文板データが不正、または空です。",
-  "Order result is unconfirmed. Keep the same request ID and check order history before retrying.": "注文結果を確認できません。同じリクエストIDを保持し、再試行前に注文履歴を確認してください。",
+  "Order result is unconfirmed. Keep the same request ID and check order history before retrying.": "注文結果はまだ確認されていません。同じリクエストIDを保持し、再試行する前に注文履歴を確認してください。",
   "Cancel result is unconfirmed. Keep the same request ID and refresh order history before retrying.": "注文取消の結果を確認できません。同じリクエストIDを保持し、再試行前に注文履歴を更新してください。",
   "BTCBOX returned an invalid account response.": "BTCBOXから無効な口座応答が返されました。",
   "BTCBOX returned an invalid Earn catalog.": "BTCBOXから無効なEarn商品一覧が返されました。",
