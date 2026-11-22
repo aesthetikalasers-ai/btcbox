@@ -3214,6 +3214,12 @@ async function handleRequest(event, context) {
     const authHeader = event.headers && (event.headers.authorization || event.headers.Authorization);
     const delegated = await authorizeSupabaseAdmin({ authorization: authHeader, env: process.env });
     if (!delegated.ok) return { ok: false, status: delegated.status || 503, code: delegated.code || 'ADMIN_AUTH_UNAVAILABLE' };
+    const adminAccount = Object.values(db.users || {}).find(function (candidate) {
+      return isSupabaseIdentityLinked(candidate, delegated.user.id);
+    });
+    if (adminAccount && adminAccount.frozen) {
+      return { ok: false, status: 403, code: 'ACCOUNT_FROZEN' };
+    }
     return { ok: true, userId: delegated.user.id, membership: delegated.membership };
   }
   // Durable outbox delivery: state and pending audit event are saved together.
@@ -3274,7 +3280,8 @@ async function handleRequest(event, context) {
     if (!adminAuthResult || !adminAuthResult.ok) {
       const status = adminAuthResult && adminAuthResult.status ? adminAuthResult.status : 401;
       const code = adminAuthResult && adminAuthResult.code ? adminAuthResult.code : 'ADMIN_UNAUTHENTICATED';
-      const msg = status === 403 ? 'This Supabase identity is not an active BTCBOX administrator.' :
+      const msg = code === 'ACCOUNT_FROZEN' ? 'This BTCBOX account is frozen. Administrator access is unavailable.' :
+        status === 403 ? 'This Supabase identity is not an active BTCBOX administrator.' :
         status === 503 ? 'Administrator identity or permission store is temporarily unavailable.' :
         'A verified Supabase Auth bearer token is required.';
       return json({ ok: false, code, msg }, status);
@@ -3813,6 +3820,9 @@ async function handleRequest(event, context) {
       const reason = String(body.reason || '').trim().slice(0, 200);
       if (!reason) return json({ ok: false, code: 'ADMIN_REASON_REQUIRED', msg: frozen ? 'A reason is required to freeze an account.' : 'A reason is required to unfreeze an account.' }, 400);
       if (!!u.frozen === frozen) return json({ ok: false, code: 'ACCOUNT_STATE_UNCHANGED', msg: frozen ? 'Account is already frozen.' : 'Account is already active.' }, 409);
+      if (frozen && isSupabaseIdentityLinked(u, adminUserId)) {
+        return json({ ok: false, code: 'SELF_FREEZE_BLOCKED', msg: 'You cannot freeze your own administrator account.' }, 409);
+      }
       u.frozen = frozen;
       u.frozen_reason = frozen ? reason : '';
       // A freeze must take effect for already-authenticated users as well as
