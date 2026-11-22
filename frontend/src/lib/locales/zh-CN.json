@@ -245,7 +245,7 @@
   "Passport": "护照",
   "Driver license": "驾驶证",
   "Identity document image": "身份证件图片",
-  "支持 JPEG、PNG 或 WebP。原始图片最大 5 MB，系统会安全压缩至 2 MB。请上传清晰、可读的图片。": "支持 JPEG、PNG 或 WebP。原始文件最大 8 MB，安全压缩至 512 KB。请上传清晰可读的图片。",
+  "支持 JPEG、PNG 或 WebP。原始图片最大 5 MB，系统会安全压缩至 2 MB。请上传清晰、可读的图片。": "支持 JPEG、PNG 或 WebP。原始图片最大 5 MB，系统会安全压缩至 2 MB。请上传清晰、可读的图片。",
   "Selected": "已选择",
   "Submitting…": "正在提交…",
   "Submit for review": "提交审核",
