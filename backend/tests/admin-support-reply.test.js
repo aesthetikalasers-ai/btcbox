@@ -39,8 +39,12 @@ test('customer support history and admin replies stay scoped to one authenticate
   const customerRoute = api.slice(customerStart, customerEnd);
   assert.ok(customerRoute.includes('if (!user)'));
   assert.ok(customerRoute.includes('await markSupportConversationRead(user.uid, lastVisibleAdminMessage)'));
-  assert.ok(customerRoute.includes('const messages = (Array.isArray(user.support_messages) ? user.support_messages : []).slice(-50)'));
+  assert.ok(customerRoute.includes('(Array.isArray(user.support_messages) ? user.support_messages : [])'));
+  assert.ok(customerRoute.includes('.filter(function (message)'));
+  assert.ok(customerRoute.includes('.slice(-50)'));
+  assert.ok(customerRoute.includes('.map(function (message)'));
   assert.ok(customerRoute.includes('lastVisibleAdminMessage'));
+  assert.ok(customerRoute.includes('idempotency keys'));
   assert.doesNotMatch(customerRoute, /Object\.values\(db\.users\)|db\.users\[/);
 
   const replyStart = api.indexOf("if (sub === 'support/reply' && method === 'POST')");
