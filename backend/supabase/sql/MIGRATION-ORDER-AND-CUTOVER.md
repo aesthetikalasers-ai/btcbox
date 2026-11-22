@@ -8,7 +8,7 @@ Use `backend/scripts/bootstrap-empty-database.sh` only against a verified empty 
 - requires `DATABASE_URL` and `BTCBOX_BOOTSTRAP_CONFIRM=YES`;
 - parses the URL hostname and refuses remote targets unless `BTCBOX_ALLOW_REMOTE_BOOTSTRAP=YES` is explicitly supplied;
 - checks that no BTCBOX-owned tables already exist before applying SQL;
-- applies the 34 canonical SQL files explicitly allowlisted in `backend/scripts/bootstrap-empty-database.sh`;
+- applies the 35 canonical SQL files explicitly allowlisted in `backend/scripts/bootstrap-empty-database.sh`;
 - creates the schema only; the first API request atomically inserts the empty `btcbox_state` singleton through `btcbox_save_state` at revision 0, with no demo users or balances;
 - stops on the first SQL error and never prints the database URL.
 
@@ -52,8 +52,11 @@ The current canonical source inventory is:
 32. `0039_withdrawal_approve_no_burn_v1.sql`
 33. `0040_admin_superadmin_membership_listing_v1.sql`
 34. `0041_perpetual_contract_v1.sql`
+35. `0042_withdrawal_operation_type_compatibility_v1.sql`
 
 The legacy `0008_financial_spot_trade_v3.sql` direct-fill RPC was removed because it bypassed the order book and was not called by the API. The durable matching engine now occupies `0008_financial_matching_engine_v1.sql` and is the only supported spot write path. Sequence `0009` is retired and intentionally omitted; the offline migration checker explicitly recognizes retired slots `0009` and `0015`–`0020`. The bootstrap allowlist contains only live numbered SQL files and is tested against the actual source inventory.
+
+- `0042` runs after `0041` and restores the union of the withdrawal, Spot, Seconds, and Perpetual `financial_operations.operation_type` values. It retains legacy `withdraw_settle` rows while new payout completions use `withdraw_paid`. Run the SELECT-only withdrawal settlement compatibility preflight in every target environment before applying it. It does not rewrite operations, withdrawals, ledger rows, balances, or audit records. Migration `0039` already associates approval `review_operation_id` with the original `freeze_operation_id` and stores the payout operation link.
 
 ## Intentionally excluded legacy/optional material
 
@@ -101,7 +104,7 @@ All financial writes and matching remain fail-closed during source QA. Applying 
 
 Source CI verifies SQL inventory, shell syntax, bootstrap safety gates and source-level RPC contracts. It does not execute PostgreSQL DDL. Before any authorized hosted install:
 - use a disposable empty PostgreSQL/Supabase environment;
-- apply all 34 files in the exact order above and stop on any error;
+- apply all 35 files in the exact order above and stop on any error;
 - verify function signatures, RLS, grants, service-role-only execution and private schema exposure;
 - bootstrap the intended Super Admin and test delegated admin permissions;
 - test manual credit, withdrawal approval/payout completion, spot order idempotency and Seconds order/settlement concurrency/replay without enabling production financial cutover;
