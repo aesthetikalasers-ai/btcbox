@@ -1746,5 +1746,22 @@
   "Unable to complete sign-in. Please try again.": "No se pudo completar el inicio de sesión. Inténtalo de nuevo.",
   "Trading is temporarily unavailable.": "El trading no está disponible temporalmente.",
   "Only limit orders are available.": "Por ahora, solo están disponibles las órdenes limitadas.",
-  "Unable to copy. Please try again.": "No se pudo copiar. Inténtalo de nuevo."
+  "Unable to copy. Please try again.": "No se pudo copiar. Inténtalo de nuevo.",
+  "We couldn't verify your pending order. Check order history before placing another order.": "No pudimos verificar tu orden pendiente. Revisa el historial antes de crear otra orden.",
+  "Check your order history before placing another order.": "Revisa el historial de órdenes antes de crear otra.",
+  "Live prices are unavailable. Your order was not submitted.": "Los precios en tiempo real no están disponibles. No se envió tu orden.",
+  "Live prices are updating. Please wait before placing an order.": "Los precios en tiempo real se están actualizando. Espera antes de operar.",
+  "This trading pair is currently unavailable.": "Este par de trading no está disponible actualmente.",
+  "This trading pair is currently unavailable. Your order was not submitted.": "Este par de trading no está disponible. No se envió tu orden.",
+  "Enter a valid limit price and quantity.": "Introduce un precio límite y una cantidad válidos.",
+  "Your order status is not yet confirmed. Check order history before trying again.": "El estado de tu orden aún no está confirmado. Revisa el historial antes de volver a intentarlo.",
+  "Your cancellation status is not yet confirmed. Refresh order history before trying again.": "La cancelación aún no está confirmada. Actualiza el historial de órdenes antes de volver a intentarlo.",
+  "The amount has too many decimal places.": "El importe tiene demasiados decimales.",
+  "We couldn't verify the saved withdrawal destination. Contact support before trying again.": "No pudimos verificar la dirección de retiro guardada. Contacta con soporte antes de volver a intentarlo.",
+  "We couldn't verify your saved withdrawal request. Check withdrawal history before trying again.": "No pudimos verificar tu solicitud de retiro guardada. Revisa el historial de retiros.",
+  "This browser couldn't save your withdrawal request. Nothing was submitted.": "Este navegador no pudo guardar tu solicitud de retiro de forma segura. No se envió nada.",
+  "The saved withdrawal destination has changed. Contact support before trying again.": "La dirección de retiro guardada ha cambiado. Contacta con soporte antes de volver a intentarlo.",
+  "Your withdrawal status is not yet confirmed. Check withdrawal history before trying again.": "El estado de tu retiro aún no está confirmado. Revisa el historial antes de volver a intentarlo.",
+  "The withdrawal fee has changed. Review the updated fee and submit again.": "La comisión de retiro ha cambiado. Revisa la nueva comisión y vuelve a enviar la solicitud.",
+  "Earn products are temporarily unavailable. Please try again.": "Los productos Earn no están disponibles temporalmente. Inténtalo de nuevo más tarde."
 }
