@@ -3895,10 +3895,10 @@ async function handleRequest(event, context) {
       const reference = String(body.reference || '').trim();
       const note = String(body.note || '').trim().slice(0, 300);
       const idempotencyKey = String(body.idempotency_key || '').trim();
-      // A manual credit must be traceable to a verified incoming transfer.
-      // Accept a chain transaction hash or another auditable receipt reference.
-      if (!reference || reference.length > 160 || /[\u0000-\u001f\u007f]/.test(reference)) {
-        return json({ ok: false, code: 'DEPOSIT_REFERENCE_REQUIRED', msg: 'A verified transaction hash or receipt reference is required before manual credit.' }, 400);
+      // A transaction hash or receipt reference is optional for administrator-entered credits.
+      // When supplied, keep it bounded and safe for the canonical ledger/audit record.
+      if (reference.length > 160 || /[\u0000-\u001f\u007f]/.test(reference)) {
+        return json({ ok: false, code: 'DEPOSIT_REFERENCE_INVALID', msg: 'Transaction reference must be 160 characters or fewer and contain no control characters.' }, 400);
       }
       const u = db.users[uid];
       if (!u) return json({ ok: false, msg: 'User not found.' }, 404);
