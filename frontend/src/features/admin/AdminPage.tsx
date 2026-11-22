@@ -529,8 +529,8 @@ export function AdminPage() {
       return;
     }
     const reference = (creditReference[coin] || "").trim();
-    if (!reference || reference.length > 160 || /[\u0000-\u001f\u007f]/.test(reference)) {
-      setError("Enter the verified transaction hash or receipt reference before crediting.");
+    if (reference.length > 160 || /[\u0000-\u001f\u007f]/.test(reference)) {
+      setError("Transaction reference must be 160 characters or fewer and contain no control characters.");
       return;
     }
     if (!session?.user_id) {
@@ -1113,7 +1113,7 @@ export function AdminPage() {
           {!hasPermission("deposits.read") ? <p className="text-sm text-brand-text-muted">{adminText("Balance details require the deposits.read permission.")}</p> : <div className="space-y-3">{assets.map(coin=><form key={coin} className="rounded-xl border border-brand-border p-3" onSubmit={event=>void manualCredit(event,coin)}>
             <div className="mb-2 flex items-center justify-between"><span className="font-semibold">{coin}</span><span className="text-xs text-brand-text-muted">{adminText("Available:")}{selectedUser.balances?.[coin]?.free == null ? "—" : asText(selectedUser.balances[coin].free)}</span></div>
             <input disabled={!!creditRequestIds[coin]||!!creditPendingInvalid[coin]||busy||selectedUser.financial_balance_source!=="postgres_financial_ledger"} value={creditAmount[coin]||""} onChange={event=>setCreditAmount(current=>({...current,[coin]:event.target.value}))} placeholder={adminText("Verified amount received")} className="mb-2 w-full rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-2 text-sm text-brand-text" inputMode="decimal"/>
-            <input disabled={!!creditRequestIds[coin]||!!creditPendingInvalid[coin]||busy||selectedUser.financial_balance_source!=="postgres_financial_ledger"} value={creditReference[coin]||""} onChange={event=>setCreditReference(current=>({...current,[coin]:event.target.value}))} placeholder={adminText("Required TxID / receipt reference")} required maxLength={160} className="mb-2 w-full rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-2 text-sm text-brand-text"/>
+            <input disabled={!!creditRequestIds[coin]||!!creditPendingInvalid[coin]||busy||selectedUser.financial_balance_source!=="postgres_financial_ledger"} value={creditReference[coin]||""} onChange={event=>setCreditReference(current=>({...current,[coin]:event.target.value}))} placeholder={adminText("TxID / receipt reference (optional)")} maxLength={160} className="mb-2 w-full rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-2 text-sm text-brand-text"/>
             <input disabled={!!creditRequestIds[coin]||!!creditPendingInvalid[coin]||busy||selectedUser.financial_balance_source!=="postgres_financial_ledger"} value={creditNote[coin]||""} onChange={event=>setCreditNote(current=>({...current,[coin]:event.target.value}))} placeholder={adminText("Note (optional)")} className="mb-2 w-full rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-2 text-sm text-brand-text"/>
             <Button type="submit" size="sm" disabled={busy || !!creditPendingInvalid[coin] || selectedUser.financial_balance_source!=="postgres_financial_ledger" || !hasPermission("deposits.review") || !hasPermission("deposits.read")}>{creditRequestIds[coin] ? adminText("Retry same credit request") : adminText("Confirm manual credit")}</Button>
           </form>)}</div>}
