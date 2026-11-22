@@ -1746,5 +1746,6 @@
   "Unable to load spot markets. Please try again.": "Impossibile caricare i mercati spot. Riprova.",
   "Loading spot markets…": "Caricamento dei mercati spot…",
   "Unable to load Earn products. Please try again.": "Impossibile caricare i prodotti Earn. Riprova.",
-  "Unable to complete sign-in. Please try again.": "Impossibile completare l'accesso. Riprova."
+  "Unable to complete sign-in. Please try again.": "Impossibile completare l'accesso. Riprova.",
+  "Trading is temporarily unavailable.": "Il trading non è temporaneamente disponibile."
 }
