@@ -410,7 +410,7 @@ export function ContractPage() {
       .catch((reason: unknown) => {
         if (controller.signal.aborted) return;
         setPositions([]);
-        setPositionsError(reason instanceof ApiError ? reason.message : t("Awaiting the perpetual contract backend."));
+        setPositionsError(t("Unable to load positions. Refresh to try again."));
       })
       .finally(() => { if (!controller.signal.aborted) setPositionsLoading(false); });
     getPerpOpenOrders(controller.signal).then((rows) => { if (!controller.signal.aborted) setOpenOrders(rows); }).catch(() => { if (!controller.signal.aborted) setOpenOrders([]); });
@@ -507,7 +507,7 @@ export function ContractPage() {
       setQuantity("");
       setReload((n) => n + 1);
     } catch (reason: unknown) {
-      setSubmitError(reason instanceof Error ? reason.message : t("Awaiting the perpetual contract backend."));
+      setSubmitError(t("Order result is unconfirmed. Keep the same request ID and check open positions before retrying."));
     } finally {
       setBusy(false);
     }
@@ -1161,7 +1161,7 @@ export function ContractPage() {
 
 
         {marketsLoading && markets.length === 0 ? <TableSkeleton rows={4} /> : markets.length === 0 && !marketsLoading ? (
-          <EmptyState icon={Inbox} title={t("No live perpetual markets available")} hint={marketsError || t("Perpetual contract trading is currently unavailable.")} action={<Button size="sm" variant="outline" onClick={() => setReload((n) => n + 1)}>{t("Try again")}</Button>} />
+          <EmptyState icon={Inbox} title={t("No live perpetual markets available")} action={<Button size="sm" variant="outline" onClick={() => setReload((n) => n + 1)}>{t("Try again")}</Button>} />
         ) : null}
 
         {markets.length > 0 ? (
