@@ -1745,5 +1745,22 @@
   "Unable to load Earn products. Please try again.": "Não foi possível carregar os produtos Earn. Tente novamente.",
   "Unable to complete sign-in. Please try again.": "Não foi possível concluir o início de sessão. Tente novamente.",
   "Trading is temporarily unavailable.": "A negociação está temporariamente indisponível.",
-  "Only limit orders are available.": "Atualmente, apenas ordens limitadas estão disponíveis."
+  "Only limit orders are available.": "Atualmente, apenas ordens limitadas estão disponíveis.",
+  "We couldn't verify your pending order. Check order history before placing another order.": "Não foi possível confirmar sua ordem pendente. Verifique o histórico antes de enviar outra ordem.",
+  "Check your order history before placing another order.": "Verifique o histórico de ordens antes de enviar outra.",
+  "Live prices are unavailable. Your order was not submitted.": "Os preços em tempo real estão indisponíveis. Sua ordem não foi enviada.",
+  "Live prices are updating. Please wait before placing an order.": "Os preços em tempo real estão sendo atualizados. Aguarde antes de enviar uma ordem.",
+  "This trading pair is currently unavailable.": "Este par de negociação está indisponível no momento.",
+  "This trading pair is currently unavailable. Your order was not submitted.": "Este par de negociação está indisponível. Sua ordem não foi enviada.",
+  "Enter a valid limit price and quantity.": "Insira um preço limite e uma quantidade válidos.",
+  "Your order status is not yet confirmed. Check order history before trying again.": "O status da ordem ainda não foi confirmado. Verifique o histórico antes de tentar novamente.",
+  "Your cancellation status is not yet confirmed. Refresh order history before trying again.": "O cancelamento ainda não foi confirmado. Atualize o histórico de ordens antes de tentar novamente.",
+  "The amount has too many decimal places.": "O valor tem casas decimais demais.",
+  "We couldn't verify the saved withdrawal destination. Contact support before trying again.": "Não foi possível verificar o endereço de saque salvo. Entre em contato com o suporte antes de tentar novamente.",
+  "We couldn't verify your saved withdrawal request. Check withdrawal history before trying again.": "Não foi possível verificar sua solicitação de saque salva. Consulte o histórico de saques.",
+  "This browser couldn't save your withdrawal request. Nothing was submitted.": "Este navegador não conseguiu salvar sua solicitação de saque com segurança. Nada foi enviado.",
+  "The saved withdrawal destination has changed. Contact support before trying again.": "O endereço de saque salvo foi alterado. Entre em contato com o suporte antes de tentar novamente.",
+  "Your withdrawal status is not yet confirmed. Check withdrawal history before trying again.": "O status do saque ainda não foi confirmado. Consulte o histórico antes de tentar novamente.",
+  "The withdrawal fee has changed. Review the updated fee and submit again.": "A taxa de saque mudou. Confira a taxa atualizada e envie novamente.",
+  "Earn products are temporarily unavailable. Please try again.": "Os produtos Earn estão temporariamente indisponíveis. Tente novamente mais tarde."
 }
