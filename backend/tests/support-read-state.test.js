@@ -45,5 +45,7 @@ test('support read marker RPC is isolated, atomic, and service-role-only', () =>
 test('support read migration preserves valid legacy UTC read markers', () => {
   assert.ok(canonical.includes("u.value->>'last_read_chat_at'"));
   assert.ok(canonical.includes("::timestamp without time zone at time zone 'UTC'"));
+  assert.ok(canonical.includes("length(coalesce(u.value->>'last_read_chat_at', '')) = 19"));
+  assert.ok(canonical.includes("~ '^[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}'"));
   assert.ok(canonical.includes('on conflict (uid) do update'));
 });
