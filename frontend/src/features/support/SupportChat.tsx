@@ -36,6 +36,7 @@ export function SupportChat() {
   // tab. The key is account-scoped so switching accounts cannot replay another
   // customer's pending message.
   useEffect(() => {
+    setDraft("");
     setPendingRequestId("");
     setPendingRequestContent("");
     if (status !== "authenticated" || !pendingStorageKey) return;
