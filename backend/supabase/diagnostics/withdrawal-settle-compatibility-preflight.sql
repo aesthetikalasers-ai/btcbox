@@ -16,12 +16,10 @@ select o.id as operation_id,
        o.idempotency_key,
        o.metadata ->> 'withdrawal_id' as metadata_withdrawal_id,
        w.id as linked_withdrawal_id,
-       w.status as withdrawal_status,
-       w.payout_operation_id
+       w.status as withdrawal_status
   from public.financial_operations o
   left join public.withdrawal_requests w
     on w.id = o.metadata ->> 'withdrawal_id'
-    or w.payout_operation_id = o.id
  where o.operation_type in ('withdraw_settle','withdraw_paid')
  order by o.created_at, o.id;
 
