@@ -3141,10 +3141,19 @@ async function handleRequest(event, context) {
   // ---------- GET /api/support/messages ----------
   if (path === 'support/messages' && method === 'GET') {
     if (!user) return json({ ok: false, msg: 'Not signed in.', need_login: true });
-    const messages = (Array.isArray(user.support_messages) ? user.support_messages : []).slice(-50);
+    const messages = (Array.isArray(user.support_messages) ? user.support_messages : [])
+      .filter(function (message) {
+        return message && (message.from === 'user' || message.from === 'admin') &&
+          typeof message.content === 'string' && typeof message.time === 'string';
+      })
+      .slice(-50)
+      .map(function (message) {
+        // Customer history exposes conversation fields only, never staff IDs,
+        // idempotency keys, or internal audit-event identifiers.
+        return { id: String(message.id || ''), from: message.from, content: message.content, time: message.time };
+      });
     const lastVisibleAdminMessage = messages.slice().reverse().find(function (message) {
-      return message && message.from === 'admin' && typeof message.id === 'string' && message.id &&
-        typeof message.time === 'string' && message.time;
+      return message.from === 'admin' && message.id && message.time;
     });
     // Advance only through an administrator message actually included in this response.
     if (lastVisibleAdminMessage) await markSupportConversationRead(user.uid, lastVisibleAdminMessage);
@@ -3245,6 +3254,7 @@ async function handleRequest(event, context) {
     const unread = messages.filter(function (message, index) {
       if (!message || message.from !== 'admin') return false;
       if (cursorIndex >= 0) return index > cursorIndex;
+      if (readState.message_id) return String(message.id || '') > readState.message_id;
       return typeof message.time === 'string' && message.time > readState.read_at;
     }).length;
     return json({ ok: true, unread: unread });

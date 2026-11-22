@@ -17,6 +17,8 @@ test('support read markers no longer write the monolithic BTCBOX state', () => {
   assert.ok(messagesRoute.includes('await markSupportConversationRead(user.uid, lastVisibleAdminMessage)'));
   assert.ok(messagesRoute.includes('const lastVisibleAdminMessage = messages.slice().reverse().find'));
   assert.ok(messagesRoute.includes('messages: messages'));
+  assert.ok(messagesRoute.includes('id: String(message.id || \'\')'));
+  assert.ok(messagesRoute.includes('idempotency keys'));
   assert.doesNotMatch(messagesRoute, /saveDB\(db\)|last_read_chat_at/);
 
   const unreadStart = api.indexOf("if (path === 'chat/unread' && method === 'GET')");
@@ -26,6 +28,7 @@ test('support read markers no longer write the monolithic BTCBOX state', () => {
   assert.ok(unreadRoute.includes('await getSupportConversationReadState(user.uid)'));
   assert.ok(unreadRoute.includes('readState.message_id'));
   assert.ok(unreadRoute.includes('index > cursorIndex'));
+  assert.ok(unreadRoute.includes("String(message.id || '') > readState.message_id"));
   assert.ok(unreadRoute.includes('message.time > readState.read_at'));
 });
 

@@ -118,17 +118,27 @@ test('real support message handler returns only the authenticated customer conve
     ]);
     assert.ok(!JSON.stringify(bodyA).includes('customer B'));
     assert.ok(!JSON.stringify(bodyB).includes('customer A'));
+    assert.ok(!JSON.stringify(bodyA).includes('admin_id'));
+    assert.ok(!JSON.stringify(bodyA).includes('request_id'));
+    assert.ok(!JSON.stringify(bodyA).includes('audit_event_id'));
     assert.ok(!bodyA.messages.some((message) => message.content === 'Concurrent reply must remain unread'));
     const unreadAAfterOpen = await api.handler({
       path: '/api/chat/unread', httpMethod: 'GET',
       headers: { cookie: 'session_token=test-session-a' },
     }, {});
     assert.equal(JSON.parse(unreadAAfterOpen.body).unread, 1);
+    // Simulate a read cursor whose message has fallen out of the bounded
+    // history. Message-ID ordering still preserves newer unread messages.
+    readStateByUid['uid-customer-b'] = {
+      message_id: 'M1763805700000aaaaaaaaaaaa',
+      read_at: '2026-11-22 10:02:00'
+    };
     const unreadBAfterOpen = await api.handler({
       path: '/api/chat/unread', httpMethod: 'GET',
       headers: { cookie: 'session_token=test-session-b' },
     }, {});
-    assert.equal(JSON.parse(unreadBAfterOpen.body).unread, 0);
+    assert.equal(JSON.parse(unreadBAfterOpen.body).unread, 1);
+    readStateByUid['uid-customer-b'] = { message_id: '', read_at: '2026-11-22 10:02:00' };
     const sent = await api.handler({
       path: '/api/support/chat',
       httpMethod: 'POST',
