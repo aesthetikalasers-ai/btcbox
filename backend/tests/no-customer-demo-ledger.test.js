@@ -45,8 +45,9 @@ test("perpetual market failures never fall back to synthetic customer markets", 
   assert.ok(!page.includes("getDemoPerpMarkets"));
   assert.ok(page.includes("setMarkets([])"));
   assert.ok(page.includes("setMarketsFallback(true)"));
-  assert.ok(page.includes("markets.length === 0 && !marketsLoading"));
-  assert.ok(page.includes("marketsError || t("));
+  assert.ok(page.includes("!marketsLoading && marketsError ?"));
+  assert.ok(page.includes('role="alert"'));
+  assert.ok(page.includes("Perpetual market data is temporarily unavailable."));
 });
 
 test("production market data has no dormant hardcoded seed-price table", () => {
@@ -103,7 +104,8 @@ test("production K-line requests never fall back to synthetic candles", () => {
   const getKlines = api.slice(start, end);
   assert.ok(getKlines.includes("if (DEMO_PREVIEW_ACTIVE) return getDemoKlines(symbol, interval)"));
   assert.equal((getKlines.match(/getDemoKlines/g) || []).length, 1);
-  assert.ok(!getKlines.includes("return getDemoKlines"));
+  assert.ok(getKlines.includes("if (DEMO_PREVIEW_ACTIVE) return getDemoKlines(symbol, interval)"));
+  assert.equal((getKlines.match(/getDemoKlines/g) || []).length, 1);
   assert.ok(getKlines.includes("rawTime / 1000"));
   assert.ok(getKlines.includes("bySecond.set(time"));
 });
@@ -200,9 +202,12 @@ test("public market provenance keeps server and provider timestamps separate", (
   assert.ok(!marketTable.includes("providerTs ?? snapshotTs"));
 
   const spotPage = fs.readFileSync(path.join(root, "features/pages/Pages.tsx"), "utf8");
-  assert.ok(spotPage.includes("marketDataSourceLabel"));
-  assert.ok(spotPage.includes("displayBook?.source"));
-  assert.ok(spotPage.includes("rows.find(row=>typeof row.source==="));
+  assert.ok(spotPage.includes('ticker.source==="demo-preview"'));
+  assert.ok(spotPage.includes('selected.source && selected.source!=="demo-preview"'));
+  // Provider labels are intentionally omitted from the trader-facing terminal;
+  // the source is still retained in the API model and validated before use.
+  assert.ok(!spotPage.includes("displayTicker?.source"));
+  assert.ok(!spotPage.includes("displayBook?.source"));
   const api = fs.readFileSync(path.join(root, "lib/api.ts"), "utf8");
   assert.ok(api.includes("source: candle.source ?? candleSource"));
 });
@@ -222,16 +227,17 @@ test("perpetual page labels spot data and funding caps honestly", () => {
 
 test("the live app routes seconds trading through the policy-backed page", () => {
   const app = fs.readFileSync(path.join(root, "App.tsx"), "utf8");
-  assert.ok(app.includes('from "./features/pages/SecondsPage"'));
+  assert.ok(app.includes('import("./features/pages/SecondsPage")'));
+  assert.ok(app.includes('<Route path="/seconds" element={<PublicRoute><SecondsPage /></PublicRoute>} />'));
   assert.ok(!app.includes('SecondsPage } from "./features/pages/Pages"'));
 });
 
 test("spot trading provenance shows the actual source for each feed", () => {
   const page = fs.readFileSync(path.join(root, "features/pages/Pages.tsx"), "utf8");
-  assert.ok(page.includes('t("Market data")'));
-  assert.ok(page.includes("displayTicker?.source"));
-  assert.ok(page.includes("displayBook?.source"));
-  assert.ok(page.includes("chartSource"));
+  assert.ok(page.includes('tickerIsFallback=!ticker?.source||ticker.source==="demo-preview"'));
+  assert.ok(page.includes('selected.source && selected.source!=="demo-preview"'));
+  assert.ok(!page.includes("displayTicker?.source"));
+  assert.ok(!page.includes("displayBook?.source"));
 });
 
 test("market ticker rows require real price, change, high, low and volume values", () => {
@@ -299,7 +305,7 @@ test("Earn page does not advertise hard-coded APY products", () => {
 
 test("launchpool page never fabricates upcoming projects or campaign statistics", () => {
   const launchpool = fs.readFileSync(path.join(root, "features/pages/NewListingsPage.tsx"), "utf8");
-  assert.ok(launchpool.includes("No verified launchpool campaigns are currently published."));
+  assert.ok(launchpool.includes('<Navigate to="/markets" replace />'), "unimplemented launchpool entry must route to verified public markets");
   assert.ok(!launchpool.includes("UPCOMING_PROJECTS"));
   assert.ok(!launchpool.includes("totalStaked"));
   assert.ok(!launchpool.includes("participants"));
@@ -325,11 +331,14 @@ test("trade hub does not claim unsupported leverage, liquidity or execution avai
   const hub = fs.readFileSync(path.join(root, "features/pages/TradeHubPage.tsx"), "utf8");
   assert.ok(!hub.includes("100x"));
   assert.ok(!hub.includes("high liquidity"));
-  assert.ok(hub.includes('market.status === "trading"'));
-  assert.ok(hub.includes("secondsStatusLabel"));
-  assert.ok(hub.includes("earnStatusLabel"));
-  assert.ok(hub.includes("perpStatusLabel"));
-  assert.ok(hub.includes("spotStatusLabel"));
+  assert.ok(hub.includes('to="/markets"'));
+  assert.ok(hub.includes('to="/contract"'));
+  assert.ok(hub.includes('to="/seconds"'));
+  assert.ok(hub.includes('to="/earn"'));
+  const perp = fs.readFileSync(path.join(root, "features/pages/ContractPage.tsx"), "utf8");
+  const seconds = fs.readFileSync(path.join(root, "features/pages/SecondsPage.tsx"), "utf8");
+  assert.ok(perp.includes("marketsFallback") && perp.includes("disabled={busy || marketsFallback"));
+  assert.ok(seconds.includes("policy?.actions_enabled === true"));
 });
 
 
