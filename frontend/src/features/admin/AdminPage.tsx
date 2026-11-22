@@ -157,6 +157,7 @@ export function AdminPage() {
   const [supportFaqEnabled, setSupportFaqEnabled] = useState(true);
   const [supportReply, setSupportReply] = useState<Record<string, string>>({});
   const [supportReplyRequestIds, setSupportReplyRequestIds] = useState<Record<string, string>>({});
+  const [supportReplySubmitted, setSupportReplySubmitted] = useState<Record<string, boolean>>({});
   const [adminMemberships, setAdminMemberships] = useState<Array<{user_id:string;status:"active"|"suspended"|"revoked";revision:number;permissions:string[];created_at?:string;updated_at?:string}>>([]);
   const [adminCandidates, setAdminCandidates] = useState<AdminUserRecord[]>([]);
   const [adminSearch, setAdminSearch] = useState("");
@@ -188,6 +189,71 @@ export function AdminPage() {
   const [secondsReason, setSecondsReason] = useState("");
   const [secondsRequestId, setSecondsRequestId] = useState("");
   const [secondsRequestKey, setSecondsRequestKey] = useState("");
+
+  useEffect(() => {
+    if (!session?.user_id) return;
+    const prefix = "btcbox.admin.support-reply.v1." + session.user_id + ".";
+    const restoredContent: Record<string, string> = {};
+    const restoredIds: Record<string, string> = {};
+    const restoredSubmitted: Record<string, boolean> = {};
+    try {
+      for (let index = 0; index < window.sessionStorage.length; index += 1) {
+        const key = window.sessionStorage.key(index);
+        if (!key || !key.startsWith(prefix)) continue;
+        const uid = key.slice(prefix.length);
+        const saved = JSON.parse(window.sessionStorage.getItem(key) || "null") as {
+          version?: unknown; actor_id?: unknown; target_uid?: unknown;
+          request_id?: unknown; content?: unknown; submitted?: unknown;
+        } | null;
+        if (saved?.version !== 1 || saved.actor_id !== session.user_id || saved.target_uid !== uid ||
+            typeof saved.request_id !== "string" || !/^[A-Za-z0-9_-]{16,100}$/.test(saved.request_id) ||
+            typeof saved.content !== "string" || !saved.content.trim() || saved.content.length > 2000) continue;
+        restoredContent[uid] = saved.content;
+        restoredIds[uid] = saved.request_id;
+        restoredSubmitted[uid] = saved.submitted === true;
+      }
+    } catch {
+      // Session storage can be disabled; in-memory reply composition still works.
+    }
+    if (Object.keys(restoredContent).length) {
+      setSupportReply((current) => ({ ...current, ...restoredContent }));
+      setSupportReplyRequestIds((current) => ({ ...current, ...restoredIds }));
+      setSupportReplySubmitted((current) => ({ ...current, ...restoredSubmitted }));
+    }
+  }, [session?.user_id]);
+
+  const supportReplyStorageKey = (uid: string) =>
+    "btcbox.admin.support-reply.v1." + (session?.user_id || "") + "." + uid;
+
+  const updateSupportReply = (uid: string, content: string) => {
+    if (supportReplySubmitted[uid]) return;
+    let requestId = supportReplyRequestIds[uid];
+    if (!content.trim()) {
+      setSupportReply((current) => ({ ...current, [uid]: content }));
+      setSupportReplyRequestIds((current) => { const next = { ...current }; delete next[uid]; return next; });
+      if (session?.user_id) {
+        try { window.sessionStorage.removeItem(supportReplyStorageKey(uid)); } catch { /* Ignore unavailable storage. */ }
+      }
+      return;
+    }
+    if (!requestId) {
+      try { requestId = window.crypto.randomUUID(); }
+      catch {
+        setError("Secure support reply request IDs are unavailable in this browser. No reply was sent.");
+        return;
+      }
+      setSupportReplyRequestIds((current) => ({ ...current, [uid]: requestId }));
+    }
+    setSupportReply((current) => ({ ...current, [uid]: content }));
+    if (session?.user_id) {
+      try {
+        window.sessionStorage.setItem(supportReplyStorageKey(uid), JSON.stringify({
+          version: 1, actor_id: session.user_id, target_uid: uid,
+          request_id: requestId, content, submitted: false,
+        }));
+      } catch { /* The draft and request ID remain available in this tab. */ }
+    }
+  };
 
   const hasPermission = useCallback((permission: string) => {
     return !!session && (session.is_super_admin || session.permissions.includes(permission));
@@ -928,12 +994,25 @@ export function AdminPage() {
       }
       setSupportReplyRequestIds((current) => ({ ...current, [uid]: requestId }));
     }
+    setSupportReplySubmitted((current) => ({ ...current, [uid]: true }));
+    if (session?.user_id) {
+      try {
+        window.sessionStorage.setItem(supportReplyStorageKey(uid), JSON.stringify({
+          version: 1, actor_id: session.user_id, target_uid: uid,
+          request_id: requestId, content, submitted: true,
+        }));
+      } catch { /* The exact request remains in memory until the response is known. */ }
+    }
     supportReplyLocksRef.current[uid] = true;
     setBusy(true); setError(""); setNotice("");
     try {
       const result = await adminReplySupport(token, uid, content, requestId);
       setSupportReply((current) => ({ ...current, [uid]: "" }));
       setSupportReplyRequestIds((current) => { const next = { ...current }; delete next[uid]; return next; });
+      setSupportReplySubmitted((current) => { const next = { ...current }; delete next[uid]; return next; });
+      if (session?.user_id) {
+        try { window.sessionStorage.removeItem(supportReplyStorageKey(uid)); } catch { /* Server confirmed the reply. */ }
+      }
       const successMessage = result.audit_sync_pending ? "Support reply sent; audit delivery is pending." : "Support reply sent.";
       const queueRequestId = ++supportQueueRequestRef.current;
       try {
@@ -1141,7 +1220,7 @@ export function AdminPage() {
 
     {!loading && tab === "orders" ? <Card><CardHeader><div className="flex flex-wrap items-start justify-between gap-2"><div><CardTitle>{adminText("Orders")}</CardTitle><CardDescription>{ordersSource === "postgres_financial_matching" ? adminText("Customer order history and this administrator view use the canonical PostgreSQL matching orders.") : ordersSource === "legacy_state" ? adminText("Legacy state fallback is active because matching-engine mode was not requested.") : adminText("Order data source is not confirmed.")}</CardDescription></div><Badge variant={ordersSource === "postgres_financial_matching" ? "default" : "destructive"}>{ordersSource === "postgres_financial_matching" ? adminText("Source: PostgreSQL matching") : ordersSource === "legacy_state" ? adminText("Source: legacy state") : adminText("Source: unknown")}</Badge></div></CardHeader><CardContent><div className="overflow-x-auto"><table className="w-full min-w-[700px] text-left text-sm"><thead><tr className="border-b border-brand-border bg-brand-surface-2/50 type-label uppercase tracking-wide text-brand-text-muted"><th className="px-3 py-2.5">{adminText("ID")}</th><th className="px-3 py-2.5">{adminText("User")}</th><th className="px-3 py-2.5">{adminText("Symbol")}</th><th className="px-3 py-2.5">{adminText("Side")}</th><th className="px-3 py-2.5">{adminText("Status")}</th><th className="px-3 py-2.5">{adminText("Created")}</th></tr></thead><tbody>{orders.map((item,index)=><tr key={asText(item.id)||index} className="border-b border-brand-border-subtle transition-colors hover:bg-brand-surface-hover/40"><td className="px-3 py-2.5 font-mono text-xs">{asText(item.id)}</td><td className="px-3 py-2.5">{asText(item.uid||item.user_id)}</td><td className="px-3 py-2.5 font-medium">{asText(item.symbol)}</td><td className="px-3 py-2.5">{adminText(asText(item.side))}</td><td className="px-3 py-2.5"><Badge variant={statusVariant(asText(item.status))}>{adminText(asText(item.status))}</Badge></td><td className="whitespace-nowrap px-3 py-2.5">{formatDate(item.created_at||item.time)}</td></tr>)}{orders.length===0 ? <tr><td colSpan={6} className="px-3 py-10 text-center text-sm text-brand-text-muted">暂无订单记录。</td></tr> : null}</tbody></table></div></CardContent></Card> : null}
 
-    {!loading && tab === "support" ? <Card><CardHeader className="flex flex-row items-center justify-between"><div><CardTitle>{adminText("Support conversations")}</CardTitle><CardDescription>{adminText("Each customer has a separate conversation and reply history.")}</CardDescription></div><Button size="sm" variant="outline" disabled={busy} onClick={()=>void refreshSupportQueue()}>{adminText("Refresh queue")}</Button></CardHeader><CardContent className="space-y-4">{support.map(conversation=>{const uid=conversation.uid;return <section key={conversation.conversation_id} className="rounded-xl border border-brand-border p-3"><div className="flex flex-wrap items-center justify-between gap-2"><div><p className="text-sm font-semibold">{conversation.email || adminText("Customer")}</p><p className="font-mono text-xs text-brand-text-muted">{uid}</p></div><div className="flex items-center gap-2"><Badge variant={conversation.status==="waiting"?"warning":"success"}>{conversation.status==="waiting"?adminText("Waiting for reply"):adminText("Replied")}</Badge>{conversation.pending_count>0?<Badge variant="warning">{conversation.pending_count} {adminText("unanswered")}</Badge>:null}</div></div><div className="mt-3 max-h-80 space-y-2 overflow-y-auto rounded-lg bg-brand-surface-2 p-3">{conversation.messages.map(message=><div key={message.id} className={message.from==="admin"?"ml-6 rounded-lg bg-brand-surface p-3":"mr-6 rounded-lg border border-brand-border bg-brand-surface p-3"}><div className="mb-1 flex flex-wrap items-center justify-between gap-2 text-[11px] text-brand-text-muted"><span>{message.from==="admin"?adminText("Support"):adminText("Customer")}</span><span>{formatDate(message.time)}</span></div><p className="whitespace-pre-wrap break-words text-sm">{message.content}</p></div>)}</div><textarea value={supportReply[uid]||""} onChange={event=>{setSupportReply(current=>({...current,[uid]:event.target.value}));try { setSupportReplyRequestIds(current=>({...current,[uid]:window.crypto.randomUUID()})); } catch { setError("Secure support reply request IDs are unavailable in this browser. No reply was sent."); }}} rows={2} className="mt-3 w-full rounded-lg border border-brand-border bg-brand-surface-2 p-2 text-sm text-brand-text" placeholder={adminText("Reply to customer")}/><Button size="sm" className="mt-2" disabled={busy||!supportReply[uid]?.trim()||!hasPermission("support.reply")} onClick={()=>void replySupport(uid)}>{adminText("Send reply")}</Button></section>;})}{support.length===0 ? <p className="rounded-lg border border-dashed border-brand-border p-6 text-center text-sm text-brand-text-muted">暂无客服消息。</p> : null}</CardContent></Card> : null}
+    {!loading && tab === "support" ? <Card><CardHeader className="flex flex-row items-center justify-between"><div><CardTitle>{adminText("Support conversations")}</CardTitle><CardDescription>{adminText("Each customer has a separate conversation and reply history.")}</CardDescription></div><Button size="sm" variant="outline" disabled={busy} onClick={()=>void refreshSupportQueue()}>{adminText("Refresh queue")}</Button></CardHeader><CardContent className="space-y-4">{support.map(conversation=>{const uid=conversation.uid;return <section key={conversation.conversation_id} className="rounded-xl border border-brand-border p-3"><div className="flex flex-wrap items-center justify-between gap-2"><div><p className="text-sm font-semibold">{conversation.email || adminText("Customer")}</p><p className="font-mono text-xs text-brand-text-muted">{uid}</p></div><div className="flex items-center gap-2"><Badge variant={conversation.status==="waiting"?"warning":"success"}>{conversation.status==="waiting"?adminText("Waiting for reply"):adminText("Replied")}</Badge>{conversation.pending_count>0?<Badge variant="warning">{conversation.pending_count} {adminText("unanswered")}</Badge>:null}</div></div><div className="mt-3 max-h-80 space-y-2 overflow-y-auto rounded-lg bg-brand-surface-2 p-3">{conversation.messages.map(message=><div key={message.id} className={message.from==="admin"?"ml-6 rounded-lg bg-brand-surface p-3":"mr-6 rounded-lg border border-brand-border bg-brand-surface p-3"}><div className="mb-1 flex flex-wrap items-center justify-between gap-2 text-[11px] text-brand-text-muted"><span>{message.from==="admin"?adminText("Support"):adminText("Customer")}</span><span>{formatDate(message.time)}</span></div><p className="whitespace-pre-wrap break-words text-sm">{message.content}</p></div>)}</div><textarea value={supportReply[uid]||""} onChange={event=>updateSupportReply(uid,event.target.value)} disabled={!!supportReplySubmitted[uid]} maxLength={2000} rows={2} className="mt-3 w-full rounded-lg border border-brand-border bg-brand-surface-2 p-2 text-sm text-brand-text disabled:opacity-60" placeholder={adminText("Reply to customer")}/><Button size="sm" className="mt-2" disabled={busy||!supportReply[uid]?.trim()||!hasPermission("support.reply")} onClick={()=>void replySupport(uid)}>{adminText(supportReplySubmitted[uid] ? "Retry same request" : "Send reply")}</Button></section>;})}{support.length===0 ? <p className="rounded-lg border border-dashed border-brand-border p-6 text-center text-sm text-brand-text-muted">暂无客服消息。</p> : null}</CardContent></Card> : null}
     {!loading && tab === "support-faq" ? <div className="grid gap-4 xl:grid-cols-[minmax(0,1.05fr)_minmax(340px,0.95fr)]">
       <Card>
         <CardHeader>
