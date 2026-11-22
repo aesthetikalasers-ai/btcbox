@@ -1,5 +1,5 @@
-import { PageFrame } from "./Pages";
+import { Navigate } from "react-router-dom";
 
 export function NewListingsPage() {
-  return <PageFrame title="New coin mining" tone="market" backTo="/markets">{null}</PageFrame>;
+  return <Navigate to="/markets" replace />;
 }
