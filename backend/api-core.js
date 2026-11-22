@@ -24,6 +24,25 @@ function supabaseHeaders() {
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY;
   return { 'apikey': key, 'Authorization': 'Bearer ' + key, 'Content-Type': 'application/json' };
 }
+async function supportReadStateRpc(functionName, uid) {
+  if (!supabaseStorageConfigured()) throw new Error('Support read state storage is unavailable');
+  const base = process.env.SUPABASE_URL.replace(/\\/+$/, '');
+  const response = await fetch(base + '/rest/v1/rpc/' + functionName, {
+    method: 'POST',
+    headers: supabaseHeaders(),
+    body: JSON.stringify({ p_uid: String(uid || '') })
+  });
+  if (!response.ok) throw new Error('Support read state operation failed');
+  const value = await response.json();
+  if (typeof value !== 'string') throw new Error('Support read state response invalid');
+  return value;
+}
+async function markSupportConversationRead(uid) {
+  return supportReadStateRpc('btcbox_mark_support_read', uid);
+}
+async function getSupportConversationReadAt(uid) {
+  return supportReadStateRpc('btcbox_get_support_read', uid);
+}
 // Publishable/anon key 读取：trim 空白并校验格式，防止 env 值被换行/空格污染。
 // 合法格式：sb_publishable_ 开头（新格式）或 eyJ 开头（JWT 旧格式），不含任何空白字符。
 // 校验失败返回空串并告警，绝不把污染值返回给前端或用于 Auth 初始化。
@@ -3116,8 +3135,7 @@ async function handleRequest(event, context) {
   // ---------- GET /api/support/messages ----------
   if (path === 'support/messages' && method === 'GET') {
     if (!user) return json({ ok: false, msg: 'Not signed in.', need_login: true });
-    user.last_read_chat_at = nowStr(); // 拉取消息即标记已读
-    await saveDB(db);
+    await markSupportConversationRead(user.uid);
     return json({ ok: true, messages: user.support_messages.slice(-50) });
   }
 
@@ -3207,8 +3225,10 @@ async function handleRequest(event, context) {
   // ---------- GET /api/chat/unread（客服未读消息数）----------
   if (path === 'chat/unread' && method === 'GET') {
     if (!user) return json({ ok: false, msg: 'Not signed in.', need_login: true });
-    const lastRead = user.last_read_chat_at || '';
-    const unread = (user.support_messages || []).filter(function (m) { return m.from === 'admin' && m.time > lastRead; }).length;
+    const lastRead = await getSupportConversationReadAt(user.uid);
+    const unread = (user.support_messages || []).filter(function (m) {
+      return m && m.from === 'admin' && typeof m.time === 'string' && m.time > lastRead;
+    }).length;
     return json({ ok: true, unread: unread });
   }
 
