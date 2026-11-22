@@ -2276,6 +2276,7 @@ async function handleRequest(event, context) {
       const out = Object.assign({}, a);
       if (out.type === 'bank') {
         out.account_number = out.account_number ? '••••' + out.account_number.slice(-4) : '';
+        out.iban = out.iban ? out.iban.slice(0,2) + '••••••••' + out.iban.slice(-4) : '';
         out.routing_number = out.routing_number ? '••••' + out.routing_number.slice(-4) : '';
       } else if (out.type === 'crypto') {
         out.address = out.address.length > 14 ? out.address.slice(0,6) + '••••••' + out.address.slice(-6) : out.address;
