@@ -31,6 +31,9 @@ export function SupportChat() {
   const [sendMessage, setSendMessage] = useState("");
   const listRef = useRef<HTMLDivElement>(null);
   const pendingStorageKey = email ? "btcbox.support.pending.v1." + email.trim().toLowerCase() : "";
+  const currentAccountKeyRef = useRef(pendingStorageKey);
+  currentAccountKeyRef.current = pendingStorageKey;
+  const [messagesAccountKey, setMessagesAccountKey] = useState(pendingStorageKey);
 
   // Keep an uncertain send's id and exact body across a page refresh in this
   // tab. The key is account-scoped so switching accounts cannot replay another
@@ -39,6 +42,9 @@ export function SupportChat() {
     setDraft("");
     setPendingRequestId("");
     setPendingRequestContent("");
+    setSending(false);
+    setSendError("");
+    setSendMessage("");
     if (status !== "authenticated" || !pendingStorageKey) return;
     try {
       const raw = window.sessionStorage.getItem(pendingStorageKey);
@@ -58,17 +64,36 @@ export function SupportChat() {
   }, [status, pendingStorageKey]);
 
   useEffect(() => {
-    if (status !== "authenticated") { setLoading(false); setMessages([]); return; }
+    if (status !== "authenticated") {
+      setLoading(false);
+      setMessages([]);
+      setMessagesAccountKey("");
+      return;
+    }
+    const accountKey = pendingStorageKey;
     const controller = new AbortController();
-    setLoading(true);setError("");
+    // Never leave the previous account's conversation visible while the next
+    // account's private history is loading.
+    setMessages([]);
+    setMessagesAccountKey("");
+    setLoading(true);
+    setError("");
     getSupportMessages(controller.signal).then(list => {
-      if (!controller.signal.aborted) { setMessages(list); setError(""); }
+      if (!controller.signal.aborted && currentAccountKeyRef.current === accountKey) {
+        setMessages(list);
+        setMessagesAccountKey(accountKey);
+        setError("");
+      }
     }).catch((reason: unknown) => {
       if (reason instanceof Error && reason.name === "AbortError") return;
-      if(!controller.signal.aborted){setError(t("Unable to reach BTCBOX support. Please try again."));}
-    }).finally(() => { if (!controller.signal.aborted) setLoading(false); });
+      if (!controller.signal.aborted && currentAccountKeyRef.current === accountKey) {
+        setError(t("Unable to reach BTCBOX support. Please try again."));
+      }
+    }).finally(() => {
+      if (!controller.signal.aborted && currentAccountKeyRef.current === accountKey) setLoading(false);
+    });
     return () => controller.abort();
-  }, [status, reload]);
+  }, [status, email, reload, pendingStorageKey]);
 
   useEffect(() => { listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: "smooth" }); }, [messages]);
 
@@ -97,8 +122,10 @@ export function SupportChat() {
       }
     }
     setSending(true); setSendError(""); setSendMessage("");
+    const requestAccountKey = pendingStorageKey;
     try {
       const result = await sendSupportMessage(message, requestId);
+      if (currentAccountKeyRef.current !== requestAccountKey) return;
       setDraft(""); setPendingRequestId(""); setPendingRequestContent("");
       if (pendingStorageKey) {
         try { window.sessionStorage.removeItem(pendingStorageKey); } catch { /* The confirmed send remains visible in chat history. */ }
@@ -114,8 +141,12 @@ export function SupportChat() {
       setSendMessage(result.duplicate ? t("Your message was already received.") : t("Message sent."));
       setReload(n => n + 1);
     } catch (reason) {
-      setSendError(t("Unable to reach BTCBOX support. Please try again."));
-    } finally { setSending(false); }
+      if (currentAccountKeyRef.current === requestAccountKey) {
+        setSendError(t("Unable to reach BTCBOX support. Please try again."));
+      }
+    } finally {
+      if (currentAccountKeyRef.current === requestAccountKey) setSending(false);
+    }
   };
 
   const date = (raw?: string) => {
@@ -141,7 +172,11 @@ export function SupportChat() {
         {loading ? <p role="status" className="text-sm text-brand-text-muted">{t("Loading…")}</p> : null}
         {error ? <p role="alert" className="text-sm text-brand-danger">{t(error)}</p> : null}
         <div ref={listRef} className="max-h-72 space-y-2 overflow-y-auto pr-1">
-          {messages.length === 0 ? (
+          {messagesAccountKey !== pendingStorageKey || loading ? (
+            <p role="status" className="rounded-xl border border-dashed border-brand-border p-4 text-sm text-brand-text-muted">
+              {t("Loading…")}
+            </p>
+          ) : messages.length === 0 ? (
             <p className="rounded-xl border border-dashed border-brand-border p-4 text-sm text-brand-text-muted">
               {t("No messages yet. Start a conversation below.")}
             </p>
