@@ -1160,7 +1160,14 @@ export function ContractPage() {
         ) : null}
 
 
-        {marketsLoading && markets.length === 0 ? <TableSkeleton rows={4} /> : markets.length === 0 && !marketsLoading ? (
+        {marketsLoading && markets.length === 0 ? <TableSkeleton rows={4} /> : null}
+        {!marketsLoading && marketsError ? (
+          <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-brand-danger/30 bg-brand-danger/5 p-4 text-sm text-brand-danger">
+            <span>{t(marketsError)}</span>
+            <Button size="sm" variant="outline" onClick={() => setReload((n) => n + 1)}>{t("Try again")}</Button>
+          </div>
+        ) : null}
+        {!marketsLoading && !marketsError && markets.length === 0 ? (
           <EmptyState icon={Inbox} title={t("No live perpetual markets available")} action={<Button size="sm" variant="outline" onClick={() => setReload((n) => n + 1)}>{t("Try again")}</Button>} />
         ) : null}
 
