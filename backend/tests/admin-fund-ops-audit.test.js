@@ -120,4 +120,6 @@ test('admin user screen exposes audited freeze controls only to users.freeze per
   assert.ok(adminPage.includes('maxLength={200}'));
   assert.ok(adminPage.includes('setAdminUserFrozen(token, { uid, frozen, reason })'));
   assert.ok(adminPage.includes('Freezing blocks new sign-ins and revokes active sessions and pending 2FA challenges.'));
+  assert.ok(adminPage.includes('Re-read the target before asking staff to retry a non-idempotent'));
+  assert.ok(adminPage.includes('Check the Audit log to confirm delivery.'));
 });
