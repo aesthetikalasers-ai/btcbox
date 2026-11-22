@@ -39,7 +39,7 @@ export function SupportChat() {
       if (!controller.signal.aborted) { setMessages(list); setError(""); }
     }).catch((reason: unknown) => {
       if (reason instanceof Error && reason.name === "AbortError") return;
-      if(!controller.signal.aborted){setMessages([]);setError(t("Unable to reach BTCBOX support. Please try again."));}
+      if(!controller.signal.aborted){setError(t("Unable to reach BTCBOX support. Please try again."));}
     }).finally(() => { if (!controller.signal.aborted) setLoading(false); });
     return () => controller.abort();
   }, [status, reload]);
