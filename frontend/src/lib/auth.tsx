@@ -20,9 +20,9 @@ function friendlyAuthErrorMessage(cause: unknown, fallback = "Authentication cou
   if (["google_provider_unavailable", "auth_service_unavailable", "persistence_unavailable", "security_state_unavailable"].includes(code)) {
     return "The authentication service is temporarily unavailable. Please try again later.";
   }
-  if (["invalid_supabase_identity", "invalid_credentials", "password_invalid", "current_password_invalid"].includes(code)) {
-    return code === "current_password_invalid" ? "Your current password is incorrect." : "Your sign-in details could not be verified. Please check them and try again.";
-  }
+  if (code === "invalid_credentials") return "Username or password is incorrect.";
+  if (code === "invalid_supabase_identity") return "The sign-in identity could not be verified. Please try again.";
+  if (["password_invalid", "current_password_invalid"].includes(code)) return "Your current password is incorrect.";
   if (["twofa_challenge_expired", "otp_expired", "bad_code_verifier"].includes(code) ||
       /code challenge does not match previously saved code verifier/i.test(rawMessage)) {
     return "This verification attempt has expired or was interrupted. Return to the login page and start again in the same tab.";
@@ -41,7 +41,7 @@ function friendlyAuthErrorMessage(cause: unknown, fallback = "Authentication cou
   if (code === "email_not_confirmed") return "Please confirm your email address before signing in.";
   if (code === "weak_password") return "Choose a stronger password and try again.";
   if (code === "user_already_exists") return "This email is already registered. Please sign in instead.";
-  if (code === "access_denied") return "Sign-in was cancelled. You can return and try again.";
+  if (code === "access_denied") return "Google sign-in was cancelled. You can return and try again.";
   // API errors always carry an HTTP status. Unknown codes must use the
   // operation-specific fallback rather than exposing a server-supplied message.
   if (typeof error.status === "number" || code) return fallback;
