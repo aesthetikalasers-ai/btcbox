@@ -53,12 +53,13 @@ test('customer KYC form requires a compressed identity image', () => {
   const page = read('frontend/src/features/pages/Pages.tsx');
   const api = read('frontend/src/lib/api.ts');
   const admin = read('frontend/src/features/admin/AdminPage.tsx');
+  const backend = read('backend/api-core.js');
   assert.ok(page.includes('prepareKycDocumentImage'));
   assert.ok(page.includes('accept="image/*"'));
   assert.ok(page.includes('typeof createImageBitmap === "function"'));
   assert.ok(page.includes('resizeWidth: 1600'));
   assert.ok(page.includes('resizeQuality: "high"'));
-  assert.ok(page.includes('const image = new Image()'));
+  assert.ok(page.includes('fallbackImage = new Image()'), 'native Image remains as a decoder fallback when createImageBitmap is unavailable');
   assert.ok(page.includes('heic|heif'));
   assert.ok(page.includes('document_image_base64'));
   assert.ok(page.includes('2 * 1024 * 1024'));
