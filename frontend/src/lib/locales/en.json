@@ -1734,5 +1734,6 @@
   "Your withdrawal status is not yet confirmed. Check withdrawal history before trying again.": "Your withdrawal status is not yet confirmed. Check withdrawal history before trying again.",
   "The withdrawal fee has changed. Review the updated fee and submit again.": "The withdrawal fee has changed. Review the updated fee and submit again.",
   "Earn products are temporarily unavailable. Please try again.": "Earn products are temporarily unavailable. Please try again.",
-  "Unable to add this address. Please try again.": "Unable to add this address. Please try again."
+  "Unable to add this address. Please try again.": "Unable to add this address. Please try again.",
+  "No recent trades are currently available.": "No recent trades are currently available."
 }
