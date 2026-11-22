@@ -366,7 +366,7 @@ export function SpotTradingPage(){
     if(!enabled)setError("This spot market is not enabled by BTCBOX operators.");
    }else{
     setSpotPairEnabled(false);
-    setError(pairResult.reason instanceof Error?pairResult.reason.message:"Spot-market catalogue is unavailable.");
+    setError(t("Unable to load spot markets. Please try again."));
    }
    if(accountResult.status==="fulfilled"){setAccountUid(accountResult.value.uid);setAvailableBalances(accountResult.value.balances);}
    else if(accountResult.reason instanceof ApiError && accountResult.reason.code==="AUTH_REQUIRED"){setAccountUid("");setAvailableBalances({});}
@@ -383,14 +383,14 @@ export function SpotTradingPage(){
      setMarketFeedWarning("");
      if(!isPriceManual && selected.source && selected.source!=="demo-preview" && selected.source!=="sample-data"){ setPrice(String(selected.price)); }
     }else{setTicker(null);setMarketUpdatedAt(null);setPrice("");setMarketFeedWarning("Market data is temporarily unavailable for this pair.");}
-   }else{setTicker(null);setMarketUpdatedAt(null);setPrice("");setError(marketResult.reason instanceof Error?marketResult.reason.message:"Live market data is unavailable.");}
+   }else{setTicker(null);setMarketUpdatedAt(null);setPrice("");setError(t("Market data is temporarily unavailable."));}
    // initial load: a null book means the depth feed is unavailable, and the
    // panel renders its own empty state.
    setBook(bookResult.status==="fulfilled"?bookResult.value:null);
    if(statusResult.status==="fulfilled")setTradingStatus(statusResult.value);
    else setTradingStatus(null);
    if(ordersResult.status==="fulfilled")setOrders(ordersResult.value);
-   else if(ordersResult.reason instanceof ApiError && ordersResult.reason.code!=="AUTH_REQUIRED")setError(ordersResult.reason.message);
+   else if(ordersResult.reason instanceof ApiError && ordersResult.reason.code!=="AUTH_REQUIRED")setError(t("Account data is temporarily unavailable."));
   }).finally(()=>{if(!controller.signal.aborted)setLoading(false);});
   return ()=>controller.abort();
  },[symbol,reload,refreshTick]);
@@ -527,7 +527,7 @@ export function SpotTradingPage(){
   if(tickerIsFallback&&!pendingIntent){setError("Live market data is unavailable. No order was sent.");return;}
    if((!ticker||marketSnapshotStale)&&!pendingIntent){setError("A fresh timestamped market snapshot is required before placing a new order. No order was sent.");return;}
   if(!spotPairEnabled&&!pendingIntent){setError("This spot pair is not enabled by BTCBOX operators. No order was sent.");return;}
-  if(!tradingStatus?.spot_order_entry_enabled&&!pendingIntent){setError("Spot order execution is currently disabled by server policy. No order was placed.");return;}
+  if(!tradingStatus?.spot_order_entry_enabled&&!pendingIntent){setError(t("Trading is temporarily unavailable."));return;}
   if(!pendingIntent&&(!orderInputsValid||balanceUnavailable||insufficientBalance||tickerIsFallback)){setError(insufficientBalance?"Insufficient available balance":"Account identity is unavailable. No order was sent.");return;}
   // A retained pending intent is already mid-flight from a previous attempt and
   // must be retried as-is; it never goes through the confirmation dialog again.
@@ -574,7 +574,7 @@ export function SpotTradingPage(){
    setPendingIntent(null);setPendingIntentInvalid(false);setQuantity("");
    setNotice(result.duplicate?"This order request was already recorded and confirmed.":"Limit order accepted and confirmed in order history.");
   }catch(reason){
-   setError(reason instanceof Error?reason.message:"Order result is unconfirmed. Keep the same request ID and check orders before retrying.");
+   setError(t("Order result is unconfirmed. Keep the same request ID and check open positions before retrying."));
    if(!orderAccepted&&reason instanceof ApiError&&(reason.status===400||reason.status===401||reason.status===403||reason.code==="MATCHING_ENGINE_UNAVAILABLE")){
     try{window.localStorage.removeItem(pendingStorageKey);}catch{}
     setPendingIntent(null);setPendingIntentInvalid(false);
@@ -627,7 +627,7 @@ export function SpotTradingPage(){
    setCancelRequestIds(current=>{const next={...current};delete next[orderId];return next;});
    setNotice(result.duplicate?"This cancellation was already recorded and confirmed.":"Order cancellation confirmed in order history.");
   }catch(reason){
-   setError(reason instanceof Error?reason.message:"Cancellation result is unconfirmed. Refresh order history and retry only with the same request ID.");
+   setError(t("Order result is unconfirmed. Keep the same request ID and check open positions before retrying."));
    if(!cancelAccepted&&reason instanceof ApiError&&reason.status>=400&&reason.status<500&&reason.status!==409){
     try{window.localStorage.removeItem(storageKey);}catch{}
     setCancelRequestIds(current=>{const next={...current};delete next[orderId];return next;});
