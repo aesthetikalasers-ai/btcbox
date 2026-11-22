@@ -488,7 +488,22 @@ export function AdminPage() {
       setUserFreezeReason("");
       setNotice(result.audit_sync_pending ? result.msg + " Audit synchronization is pending." : result.msg);
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Account status could not be changed. Refresh the user record before retrying.");
+      // A network error can happen after the server has committed the state
+      // change. Re-read the target before asking staff to retry a non-idempotent
+      // freeze/unfreeze action.
+      let refreshedUser: AdminUserRecord | null = null;
+      try {
+        const refreshed = await getAdminUser(token, uid);
+        refreshedUser = refreshed.user;
+      } catch { /* Keep the original error when the reconciliation read also fails. */ }
+      if (refreshedUser && refreshedUser.frozen === frozen) {
+        setSelectedUser(current => current?.uid === uid ? refreshedUser : current);
+        setUsers(current => current.map(user => user.uid === uid ? { ...user, frozen } : user));
+        setUserFreezeReason("");
+        setNotice("Account status was updated, but the response was interrupted. Check the Audit log to confirm delivery.");
+      } else {
+        setError(cause instanceof Error ? cause.message : "Account status could not be changed. Refresh the user record before retrying.");
+      }
     } finally {
       userFreezeLockRef.current = false;
       setBusy(false);
