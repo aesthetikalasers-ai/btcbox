@@ -72,7 +72,7 @@ export function AssetsPage() {
         setSignedOut(true);
         setError("Sign in to view your assets.");
       } else {
-        setError(reason instanceof Error ? reason.message : "Account data is temporarily unavailable.");
+        setError(t("Account data is temporarily unavailable."));
       }
     } finally {
       if (requestId === requestIdRef.current) {
