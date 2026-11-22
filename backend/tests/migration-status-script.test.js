@@ -150,6 +150,10 @@ test('Docker first-init and guarded empty-database bootstrap use the exact canon
   assert.ok(inventories[1].includes('0036_service_role_maintain_privilege_revoke_v1.sql'));
   assert.ok(inventories[1].includes('0037_financial_write_rate_limit_scopes_v1.sql'));
   assert.ok(inventories[1].includes('0038_withdrawal_first_successful_review_guard_v1.sql'));
+  assert.ok(inventories[1].includes('0042_withdrawal_operation_type_compatibility_v1.sql'));
+  const orderDoc = fs.readFileSync(path.join(root, 'supabase', 'sql', 'MIGRATION-ORDER-AND-CUTOVER.md'), 'utf8');
+  assert.ok(orderDoc.includes('35 canonical SQL files'));
+  assert.ok(orderDoc.includes('0042_withdrawal_operation_type_compatibility_v1.sql'));
 });
 
 
