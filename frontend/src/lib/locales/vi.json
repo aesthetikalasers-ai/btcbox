@@ -1725,5 +1725,6 @@
   "Review available USDT-margined perpetual markets and their server-configured limits.": "Xem các thị trường perpetual ký quỹ USDT hiện có và giới hạn do máy chủ cấu hình.",
   "Submit positions only when server policy is enabled, with server-managed settlement.": "Chỉ gửi vị thế khi chính sách máy chủ được bật; việc thanh toán do máy chủ quản lý.",
   "View Earn products, yields and terms published by BTCBOX.": "Xem sản phẩm Earn, lợi suất và điều khoản được BTCBOX công bố.",
-  "Limited availability": "Khả dụng hạn chế"
+  "Limited availability": "Khả dụng hạn chế",
+  "The market service snapshot is missing, invalid or older than 90 seconds. Quotes are hidden until a fresh snapshot arrives.": "Ảnh chụp dữ liệu thị trường bị thiếu, không hợp lệ hoặc đã quá 90 giây. Giá sẽ bị ẩn cho đến khi có ảnh chụp mới."
 }
