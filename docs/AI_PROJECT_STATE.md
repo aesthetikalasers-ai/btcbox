@@ -137,7 +137,7 @@
 
 - Work branch: `fix/kyc-upload-2mb-memory-20261123`; no changes to `main` or production.
 - Customer bank payout forms now accept either a local account number or an IBAN. US routing number, SWIFT/BIC, country code, and bank address are optional rather than universally required.
-- Backend validation accepts alphanumeric local account identifiers, checks the general IBAN structure, and validates US routing/SWIFT only when supplied. It does not claim to verify bank ownership or execute payments.
+- Backend validation accepts alphanumeric local account identifiers, checks IBAN structure and ISO 13616 mod-97 checksum, and validates US routing/SWIFT only when supplied. It does not claim to verify bank ownership or execute payments.
 - Customer account number, IBAN, and routing values are masked in customer-facing account/address responses. The customer-facing UI remains create/view only; customer PATCH/DELETE routes remain forbidden.
 - Added a dedicated Admin tab protected by `payout_addresses.read_sensitive`; edit/delete actions additionally require `payout_addresses.manage`. Admin changes require a reason, create address audit entries, and are sent to the admin audit outbox.
 - Added client API methods for listing and managing payout records, plus regression tests covering international fields, masking, immutable customer records, and Admin permissions/actions.
@@ -155,3 +155,12 @@
 - Added `backend/tests/admin-support-read-receipts.test.js`.
 - Automated execution, multi-admin concurrency, and A/B user end-to-end verification: **NOT VERIFIED**.
 - No PR, merge, deployment, or production database changes.
+
+
+## 2026-11-23 — IBAN checksum validation (2号 AI)
+
+- Added a shared backend validator for IBAN structure and ISO 13616 mod-97 checksum. Whitespace grouping is accepted; stored values are normalized without whitespace.
+- Customer bank-address creation and Admin edits use the same validator so both paths enforce the same rules.
+- Added unit cases for valid DE/GB/FR examples, invalid checksum, malformed input, and whitespace grouping.
+- Local isolated Node check: **7/7 IBAN validation cases passed**. Full backend suite, frontend typecheck/build, and browser tests remain **NOT VERIFIED**.
+- No production Supabase changes, PR, merge, or deployment.
