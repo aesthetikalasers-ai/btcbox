@@ -889,7 +889,7 @@
   "Unable to reach BTCBOX services. Please try again.": "No se pudo conectar con los servicios de BTCBOX. Inténtalo de nuevo.",
   "Unable to reach BTCBOX chart service.": "No se pudo conectar con el servicio de gráficos de BTCBOX.",
   "Order book data is malformed or empty.": "Los datos del libro de órdenes están dañados o vacíos.",
-  "Order result is unconfirmed. Keep the same request ID and check order history before retrying.": "El resultado de la orden no está confirmado. Conserva el mismo ID de solicitud y revisa el historial antes de reintentar.",
+  "Order result is unconfirmed. Keep the same request ID and check order history before retrying.": "El resultado de la orden no está confirmado. Conserva el mismo ID de solicitud y consulta el historial antes de volver a intentarlo.",
   "Cancel result is unconfirmed. Keep the same request ID and refresh order history before retrying.": "El resultado de la cancelación no está confirmado. Conserva el mismo ID de solicitud y actualiza el historial antes de reintentar.",
   "BTCBOX returned an invalid account response.": "BTCBOX devolvió una respuesta de cuenta no válida.",
   "BTCBOX returned an invalid Earn catalog.": "BTCBOX devolvió un catálogo Earn no válido.",
