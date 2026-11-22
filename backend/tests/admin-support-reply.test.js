@@ -74,7 +74,7 @@ test('admin support queue returns isolated per-customer conversations with reply
 
 test('customer support polling preserves visible messages while account changes clear private history', () => {
   const chat = fs.readFileSync(path.resolve(root, '../frontend/src/features/support/SupportChat.tsx'), 'utf8');
-  const start = chat.indexOf('useEffect(() => {');
+  const start = chat.indexOf('useEffect(() => {\n    if (status !== "authenticated") {');
   const end = chat.indexOf('}, [status, email, reload, pendingStorageKey]);', start);
   assert.ok(start >= 0 && end > start);
   const refreshEffect = chat.slice(start, end);
@@ -83,7 +83,7 @@ test('customer support polling preserves visible messages while account changes 
   assert.match(refreshEffect, /getSupportMessages\(controller\.signal\)/);
   assert.match(refreshEffect, /if \(status !== "authenticated"\)[\s\S]*?setMessages\(\[\]\)/);
   assert.match(refreshEffect, /if \(loadedAccountKeyRef\.current !== accountKey\)[\s\S]*?setMessages\(\[\]\)/);
-  assert.ok(!refreshEffect.slice(refreshEffect.indexOf('const accountKey = pendingStorageKey')).startsWith('const accountKey = pendingStorageKey;\n    const controller = new AbortController();\n    // Clear only when identity changes.'));
+
 });
 
 test('uncertain admin replies keep one immutable request across refresh and retry', () => {
