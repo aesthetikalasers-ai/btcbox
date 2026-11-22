@@ -20,7 +20,55 @@ select u.key,
   from public.btcbox_state s
  cross join lateral jsonb_each(s.data->'users') as u(key, value)
  where s.id = 'main'
-   and coalesce(u.value->>'last_read_chat_at', '') ~ '^\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2}$'
+   and coalesce(u.value->>'last_read_chat_at', '') ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}
+on conflict (uid) do update
+  set last_read_at = greatest(public.btcbox_support_read_state.last_read_at, excluded.last_read_at),
+      updated_at = now();
+
+create or replace function public.btcbox_mark_support_read(p_uid text)
+returns text
+language plpgsql
+security invoker
+set search_path = ''
+as $$
+declare
+  v_read_at timestamptz;
+begin
+  if p_uid is null or length(p_uid) < 1 or length(p_uid) > 128 then
+    raise exception 'invalid support user id';
+  end if;
+
+  insert into public.btcbox_support_read_state (uid, last_read_at, updated_at)
+  values (p_uid, now(), now())
+  on conflict (uid) do update
+    set last_read_at = greatest(public.btcbox_support_read_state.last_read_at, excluded.last_read_at),
+        updated_at = now()
+  returning last_read_at into v_read_at;
+
+  return to_char(v_read_at at time zone 'UTC', 'YYYY-MM-DD HH24:MI:SS');
+end;
+$$;
+
+create or replace function public.btcbox_get_support_read(p_uid text)
+returns text
+language sql
+stable
+security invoker
+set search_path = ''
+as $$
+  select coalesce(
+    (select to_char(last_read_at at time zone 'UTC', 'YYYY-MM-DD HH24:MI:SS')
+       from public.btcbox_support_read_state
+      where uid = p_uid),
+    ''
+  );
+$$;
+
+revoke all on function public.btcbox_mark_support_read(text) from public, anon, authenticated;
+revoke all on function public.btcbox_get_support_read(text) from public, anon, authenticated;
+grant execute on function public.btcbox_mark_support_read(text) to service_role;
+grant execute on function public.btcbox_get_support_read(text) to service_role;
+
 on conflict (uid) do update
   set last_read_at = greatest(public.btcbox_support_read_state.last_read_at, excluded.last_read_at),
       updated_at = now();
