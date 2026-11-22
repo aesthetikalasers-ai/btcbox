@@ -119,7 +119,7 @@ test('normalizes levels and drops malformed rows', () => {
 test('stream intervals are sane', () => {
   assert.ok(core.DEPTH_INTERVAL_MS >= 1000, 'depth polls must not hammer providers');
   assert.ok(core.UPSTREAM_TIMEOUT_MS < core.DEPTH_INTERVAL_MS, 'upstream timeout must be shorter than the emit interval');
-  assert.ok(core.MAX_STREAM_MS <= 15 * 60 * 1000, 'stream lifetime must be bounded');
+  assert.ok(core.MAX_STREAM_MS <= 4 * 60 * 1000, 'stream must close gracefully before Vercel 300s function timeout');
 });
 
 test('cleans up timers when the client disconnects', async () => {
