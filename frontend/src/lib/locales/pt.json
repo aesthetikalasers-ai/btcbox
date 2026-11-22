@@ -1745,5 +1745,7 @@
   "Sign in to view your seconds settlement history.": "Entre para ver o histórico de liquidação Seconds.",
   "Loading history...": "Carregando histórico...",
   "Unable to load settlement history. Refresh to try again.": "Não foi possível carregar o histórico de liquidação. Atualize e tente novamente.",
-  "The market service snapshot is missing, invalid or older than 90 seconds. Quotes are hidden until a fresh snapshot arrives.": "O snapshot do mercado está ausente, inválido ou tem mais de 90 segundos. As cotações ficam ocultas até chegar um snapshot atualizado."
+  "The market service snapshot is missing, invalid or older than 90 seconds. Quotes are hidden until a fresh snapshot arrives.": "O snapshot do mercado está ausente, inválido ou tem mais de 90 segundos. As cotações ficam ocultas até chegar um snapshot atualizado.",
+  "Email login password": "Palavra-passe de início de sessão por e-mail",
+  "Set or change": "Definir ou alterar"
 }
