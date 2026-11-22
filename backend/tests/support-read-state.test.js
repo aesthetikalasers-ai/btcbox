@@ -15,7 +15,7 @@ test('support read markers no longer write the monolithic BTCBOX state', () => {
   assert.ok(messagesStart >= 0 && messagesEnd > messagesStart);
   const messagesRoute = api.slice(messagesStart, messagesEnd);
   assert.ok(messagesRoute.includes('await markSupportConversationRead(user.uid)'));
-  assert.doesNotMatch(messagesRoute, /saveDB\\(db\\)|last_read_chat_at/);
+  assert.doesNotMatch(messagesRoute, /saveDB\(db\)|last_read_chat_at/);
 
   const unreadStart = api.indexOf("if (path === 'chat/unread' && method === 'GET')");
   const unreadEnd = api.indexOf('// ==================== 后台管理 API', unreadStart);
