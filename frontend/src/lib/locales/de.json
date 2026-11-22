@@ -224,7 +224,6 @@
   "Review live Earn products and your positions. Subscribe and redeem are available only when backend financial controls are enabled.": "Prüfen Sie aktuelle Earn-Produkte und Ihre Positionen. Zeichnungen und Rückgaben sind nur verfügbar, wenn die Finanzkontrollen des Backends aktiviert sind.",
   "Submit your details and a clear photo of your identity document. BTCBOX staff will review the information and update your verification status.": "Übermitteln Sie Ihre Angaben und ein gut lesbares Foto Ihres Ausweisdokuments. Das BTCBOX-Team prüft die Informationen und aktualisiert Ihren Verifizierungsstatus.",
   "Use the same name and document details shown on your identity document. Do not send passwords or two-factor codes. Images are compressed before secure upload.": "Verwenden Sie denselben Namen und dieselben Dokumentdaten wie auf Ihrem Ausweis. Senden Sie niemals Passwörter oder Zwei-Faktor-Codes. Bilder werden vor dem sicheren Hochladen komprimiert.",
-  "JPEG, PNG oder WebP. Die Originaldatei darf höchstens 5 MB groß sein und wird vor dem Upload sicher auf 2 MB komprimiert. Bitte laden Sie ein klares, gut lesbares Bild hoch.": "JPEG, PNG oder WebP. Die Originaldatei darf höchstens 5 MB groß sein und wird vor dem Upload sicher auf 2 MB komprimiert. Bitte laden Sie ein klares, gut lesbares Bild hoch.",
   "This service is not currently available. Please check back later.": "Dieser Dienst ist derzeit nicht verfügbar. Bitte versuchen Sie es später erneut.",
   "Market snapshot is older than 90 seconds. Quotes and new order entry are disabled until fresh data arrives.": "Der Marktsnapshot ist älter als 90 Sekunden. Kurse und neue Orders bleiben deaktiviert, bis aktuelle Daten eintreffen.",
   "Order book snapshot is older than 90 seconds. Depth levels are hidden until fresh data arrives.": "Der Orderbuch-Snapshot ist älter als 90 Sekunden. Markttiefen werden ausgeblendet, bis aktuelle Daten eintreffen.",
@@ -463,7 +462,7 @@
   "Already have an account?": "Sie haben bereits ein Konto?",
   "Back to BTCBOX": "Zurück zu BTCBOX",
   "Protected account access · Public markets remain available without signing in": "Geschützter Kontozugriff · Öffentliche Märkte bleiben ohne Anmeldung verfügbar",
-    "Use a password between 12 and 128 characters.": "Verwenden Sie ein Passwort mit 12 bis 128 Zeichen.",
+  "Use a password between 12 and 128 characters.": "Verwenden Sie ein Passwort mit 12 bis 128 Zeichen.",
   "Use a password between 8 and 128 characters.": "Verwenden Sie ein Passwort mit 8 bis 128 Zeichen.",
   "The passwords do not match.": "Die Passwörter stimmen nicht überein.",
   "Password could not be updated.": "Das Passwort konnte nicht aktualisiert werden.",
@@ -1696,5 +1695,6 @@
   "Latest": "Akt.",
   "Return rate": "Rendite",
   "Pick a duration and direction; the round settles automatically.": "Wähle Dauer und Richtung; die Runde wird automatisch abgerechnet.",
-  "Choose a short-term contract pair": "Kurzfristiges Kontraktpaar wählen"
+  "Choose a short-term contract pair": "Kurzfristiges Kontraktpaar wählen",
+  "JPEG, PNG or WebP. Maximum original size 5 MB; securely compressed to 2 MB. Upload a clear, readable image.": "JPEG, PNG oder WebP. Die Originaldatei darf höchstens 5 MB groß sein und wird vor dem Upload sicher auf 2 MB komprimiert. Bitte laden Sie ein klares, gut lesbares Bild hoch."
 }
