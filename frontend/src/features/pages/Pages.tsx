@@ -443,7 +443,7 @@ export function SpotTradingPage(){
    const controller=new AbortController();pending=controller;
    const timeout=window.setTimeout(()=>controller.abort(),15000);
    getKlines(symbol,chartInterval,controller.signal).then(rows=>{
-    if(!cancelled){setCandles(rows);setChartSource(rows.find(row=>typeof row.source==="string")?.source??null);setChartFeedWarning("");}
+    if(!cancelled){setCandles(rows);setChartFeedWarning("");}
    }).catch(()=>{
     if(!cancelled){setCandles([]);setChartFeedWarning(t("Chart data is temporarily unavailable."));}
    }).finally(()=>{window.clearTimeout(timeout);refreshing=false;});
