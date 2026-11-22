@@ -229,7 +229,6 @@
   "Passport": "Pasaporte",
   "Driver license": "Permiso de conducir",
   "Identity document image": "Imagen del documento de identidad",
-  "JPEG, PNG o WebP. La imagen original puede tener un máximo de 5 MB y se comprimirá de forma segura a 2 MB antes de subirla. Sube una imagen clara y legible.": "JPEG, PNG o WebP. La imagen original puede tener un máximo de 5 MB y se comprimirá de forma segura a 2 MB antes de subirla. Sube una imagen clara y legible.",
   "Selected": "Seleccionado",
   "Submitting…": "Enviando…",
   "Submit for review": "Enviar para revisión",
@@ -461,7 +460,7 @@
   "Already have an account?": "¿Ya tienes una cuenta?",
   "Back to BTCBOX": "Volver a BTCBOX",
   "Protected account access · Public markets remain available without signing in": "Acceso protegido a la cuenta · Los mercados públicos siguen disponibles sin iniciar sesión",
-    "Use a password between 12 and 128 characters.": "Usa una contraseña de entre 12 y 128 caracteres.",
+  "Use a password between 12 and 128 characters.": "Usa una contraseña de entre 12 y 128 caracteres.",
   "Use a password between 8 and 128 characters.": "Usa una contraseña de entre 8 y 128 caracteres.",
   "The passwords do not match.": "Las contraseñas no coinciden.",
   "Password could not be updated.": "No se pudo actualizar la contraseña.",
@@ -1696,5 +1695,6 @@
   "Latest": "Últ.",
   "Return rate": "Rentabilidad",
   "Pick a duration and direction; the round settles automatically.": "Elige duración y dirección; la ronda se liquida automáticamente.",
-  "Choose a short-term contract pair": "Elige un par de contrato a corto plazo"
+  "Choose a short-term contract pair": "Elige un par de contrato a corto plazo",
+  "JPEG, PNG or WebP. Maximum original size 5 MB; securely compressed to 2 MB. Upload a clear, readable image.": "JPEG, PNG o WebP. La imagen original puede tener un máximo de 5 MB y se comprimirá de forma segura a 2 MB antes de subirla. Sube una imagen clara y legible."
 }
