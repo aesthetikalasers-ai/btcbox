@@ -58,6 +58,7 @@ test('customer KYC form requires a compressed identity image', () => {
   assert.ok(page.includes('typeof createImageBitmap === "function"'));
   assert.ok(page.includes('const image = new Image()'));
   assert.ok(page.includes('heic|heif'));
+  assert.ok(page.includes(String.raw`const supportedExtension = /\.(?:jpe?g|png|webp|heic|heif)$/i.test`), 'mobile image extensions must match a literal dot');
   assert.ok(page.includes('document_image_base64'));
   assert.ok(page.includes('512 * 1024'));
   assert.ok(api.includes('document_content_type: "image/jpeg"'));
