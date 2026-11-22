@@ -886,7 +886,7 @@
   "Unable to reach BTCBOX services. Please try again.": "Không thể kết nối dịch vụ BTCBOX. Vui lòng thử lại.",
   "Unable to reach BTCBOX chart service.": "Không thể kết nối dịch vụ biểu đồ BTCBOX.",
   "Order book data is malformed or empty.": "Dữ liệu sổ lệnh không hợp lệ hoặc trống.",
-  "Order result is unconfirmed. Keep the same request ID and check order history before retrying.": "Kết quả lệnh chưa được xác nhận. Giữ nguyên ID yêu cầu và kiểm tra lịch sử lệnh trước khi thử lại.",
+  "Order result is unconfirmed. Keep the same request ID and check order history before retrying.": "Kết quả lệnh chưa được xác nhận. Hãy giữ nguyên mã yêu cầu và kiểm tra lịch sử lệnh trước khi thử lại.",
   "Cancel result is unconfirmed. Keep the same request ID and refresh order history before retrying.": "Kết quả hủy lệnh chưa được xác nhận. Giữ nguyên ID yêu cầu và làm mới lịch sử lệnh trước khi thử lại.",
   "BTCBOX returned an invalid account response.": "BTCBOX trả về phản hồi tài khoản không hợp lệ.",
   "BTCBOX returned an invalid Earn catalog.": "BTCBOX trả về danh mục Earn không hợp lệ.",
