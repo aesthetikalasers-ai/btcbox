@@ -1193,7 +1193,7 @@ export function DepositPage(){
    await navigator.clipboard.writeText(address);
    setCopyMessage("Deposit address copied.");
   }catch{
-   setCopyMessage("Could not copy the address. Select and copy it manually.");
+   setCopyMessage(t("Unable to copy. Please try again."));
   }
  };
  useEffect(()=>{
@@ -1451,7 +1451,7 @@ export function WithdrawPage(){
    intent={version:1,request_id:requestId,address_id:selectedId,coin:selectedAddress.coin,network:selectedAddress.network,amount:amount.trim(),address:selectedAddress.address,created_at:Date.now()};
    if(!pendingStorageKey){setError(t("Sign in to continue"));submitLockRef.current=false;return;}
    try{window.localStorage.setItem(pendingStorageKey,JSON.stringify(intent));}
-   catch{setError("This browser couldn't save your withdrawal request. Nothing was submitted.");submitLockRef.current=false;return;}
+   catch{setError(t("Account data is temporarily unavailable."));submitLockRef.current=false;return;}
    setPendingIntent(intent);
   }
   if(intent.address_id!==selectedId||intent.address!==selectedAddress.address||intent.coin!==selectedAddress.coin||intent.network!==selectedAddress.network){setError("The saved withdrawal destination has changed. Contact support before trying again.");setPendingIntentInvalid(true);submitLockRef.current=false;return;}
