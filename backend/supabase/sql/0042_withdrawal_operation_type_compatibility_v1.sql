@@ -56,7 +56,7 @@ CREATE OR REPLACE FUNCTION public.apply_financial_operation(
   p_metadata jsonb DEFAULT '{}'::jsonb
 ) RETURNS jsonb
 LANGUAGE plpgsql SECURITY INVOKER SET search_path = ''
-AS $
+AS $$
 DECLARE
   v_op public.financial_operations%rowtype;
   v_available numeric(38,18);
@@ -123,7 +123,7 @@ $$;
   VALUES (v_op.id,p_user_id,p_asset,p_available_delta,p_frozen_delta,v_available,v_frozen);
   RETURN jsonb_build_object('ok',true,'duplicate',false,'operation_id',v_op.id,'available',v_available,'frozen',v_frozen);
 END;
-$;
+$$;
 
 CREATE OR REPLACE FUNCTION public.review_withdrawal_atomic(
   p_withdrawal_id text,
@@ -132,7 +132,7 @@ CREATE OR REPLACE FUNCTION public.review_withdrawal_atomic(
   p_reason text DEFAULT ''
 ) RETURNS jsonb
 LANGUAGE plpgsql SECURITY INVOKER SET search_path = ''
-AS $
+AS $$
 DECLARE
   v_w public.withdrawal_requests%rowtype;
   v_result jsonb;
@@ -183,7 +183,7 @@ BEGIN
 
   RETURN jsonb_build_object('ok',true,'duplicate',false,'withdrawal_id',v_w.id,'status',v_status);
 END;
-$;
+$$;
 
 CREATE OR REPLACE FUNCTION public.mark_withdrawal_paid_atomic(
   p_withdrawal_id text,
@@ -192,7 +192,7 @@ CREATE OR REPLACE FUNCTION public.mark_withdrawal_paid_atomic(
   p_note text DEFAULT ''
 ) RETURNS jsonb
 LANGUAGE plpgsql SECURITY INVOKER SET search_path = ''
-AS $
+AS $$
 DECLARE
   v_w public.withdrawal_requests%rowtype;
   v_ref text := left(btrim(coalesce(p_reference,'')),160);
@@ -246,7 +246,7 @@ BEGIN
   RETURN jsonb_build_object('ok',true,'duplicate',false,'withdrawal_id',v_w.id,
     'status','completed','payout_reference',v_ref,'paid_at',clock_timestamp());
 END;
-$;
+$$;
 
 REVOKE ALL ON FUNCTION public.apply_financial_operation(text,text,text,text,numeric,numeric,text,jsonb) FROM PUBLIC,anon,authenticated;
 REVOKE ALL ON FUNCTION public.review_withdrawal_atomic(text,text,boolean,text) FROM PUBLIC,anon,authenticated;
