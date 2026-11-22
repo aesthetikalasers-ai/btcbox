@@ -10,6 +10,8 @@ test('KYC image upload validates content, size and stores evidence privately', (
   const backend = read('backend/api-core.js');
   assert.ok(backend.includes("const KYC_STORAGE_BUCKET = 'kyc-documents'"));
   assert.ok(backend.includes("const KYC_IMAGE_MAX_BYTES = 2 * 1024 * 1024"));
+  assert.ok(backend.includes("const maxRequestBodyBytes = path === 'kyc' && method === 'POST'"));
+  assert.ok(backend.includes("? 3 * 1024 * 1024 : 1024 * 1024"), 'only KYC POST receives the larger JSON body allowance');
   assert.ok(backend.includes("['image/jpeg', 'image/png', 'image/webp'].includes(contentType)"));
   assert.ok(backend.includes("bytes.toString('ascii', 8, 12) === 'WEBP'"));
   assert.ok(backend.includes("bytes.toString('ascii', 0, 4) === 'RIFF'"));
