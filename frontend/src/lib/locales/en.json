@@ -1744,5 +1744,6 @@
   "Unable to load order status. Refresh to try again.": "Unable to load order status. Refresh to try again.",
   "Sign in to view your seconds settlement history.": "Sign in to view your seconds settlement history.",
   "Loading history...": "Loading history...",
-  "Unable to load settlement history. Refresh to try again.": "Unable to load settlement history. Refresh to try again."
+  "Unable to load settlement history. Refresh to try again.": "Unable to load settlement history. Refresh to try again.",
+  "The market service snapshot is missing, invalid or older than 90 seconds. Quotes are hidden until a fresh snapshot arrives.": "The market service snapshot is missing, invalid or older than 90 seconds. Quotes are hidden until a fresh snapshot arrives."
 }
