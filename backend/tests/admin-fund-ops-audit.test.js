@@ -78,7 +78,13 @@ test('account freeze/unfreeze is state-guarded, audited and never double-applied
   assert.ok(route.includes("auditAdmin(frozen ? 'user_freeze' : 'user_unfreeze'"));
   assert.ok(route.includes('await saveDB(db)'));
   assert.ok(route.includes('flushAdminAuditOutbox()'));
-  // No fund balance mutation here; account freeze is a login/withdrawal flag only.
+  // Freezing also revokes every active session and pending 2FA challenge for
+  // the target user, so an already-authenticated account is not left active.
+  assert.ok(route.includes("Object.keys(db.sessions || {}).forEach"));
+  assert.ok(route.includes("String(session.uid) === String(u.uid)"));
+  assert.ok(route.includes("Object.keys(db.temp_tokens || {}).forEach"));
+  assert.ok(route.includes("String(challenge.uid) === String(u.uid)"));
+  // No fund balance mutation is allowed as part of account freeze.
   assert.ok(!route.includes('balances'));
 });
 
