@@ -36,7 +36,7 @@ test('withdrawal compatibility preflight is read-only and inspects both legacy a
   const preflight = read('supabase/diagnostics/withdrawal-settle-compatibility-preflight.sql');
   assert.match(preflight, /operation_type in \('withdraw_settle','withdraw_paid'\)/i);
   assert.match(preflight, /metadata_withdrawal_id/i);
-  assert.match(preflight, /completed_without_payout_operation/i);
+  assert.match(preflight, /completed_without_linked_payout_operation/i);
   assert.doesNotMatch(preflight, /^\s*(insert|update|delete|alter|drop|create|truncate)\b/im);
 });
 
