@@ -1294,6 +1294,7 @@ export interface AdminUserRecord {
   kyc_status?: string;
   kyc?: { status?: string };
   frozen: boolean;
+  frozen_reason?: string;
   total_usdt?: string | number;
   balances?: Record<string, AccountBalance>;
   financial_balance_source?: "postgres_financial_ledger" | "legacy_state_retention_limited";
@@ -1417,6 +1418,9 @@ export async function getAdminUsers(token: string, search = "", signal?: AbortSi
 }
 export async function getAdminUser(token: string, uid: string, signal?: AbortSignal) {
   return adminRequest<{ ok: true; user: AdminUserRecord }>(token, `admin/user?uid=${encodeURIComponent(uid)}`, { signal });
+}
+export async function setAdminUserFrozen(token: string, input: { uid: string; frozen: boolean; reason: string }) {
+  return adminRequest<{ ok: true; msg: string; audit_sync_pending?: boolean }>(token, "admin/user/freeze", { method: "POST", body: input });
 }
 export async function getAdminWithdrawals(token: string, signal?: AbortSignal) {
   return adminRequest<{ ok: true; withdrawals: AdminWithdrawalRecord[]; pending_count?: number; pending_admin_review_count?: number }>(token, "admin/withdrawals", { signal });
