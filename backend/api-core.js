@@ -4128,6 +4128,10 @@ async function handleRequest(event, context) {
           if(body.swift!==undefined) addr.swift=String(body.swift).toUpperCase();
           if(body.iban!==undefined) addr.iban=String(body.iban).replace(/\s/g,'').toUpperCase();
           if(body.country!==undefined) addr.country=String(body.country).toUpperCase().slice(0,2);
+          if (!String(addr.account_holder || '').trim() || !String(addr.bank_name || '').trim() ||
+              (!String(addr.account_number || '').replace(/\s/g,'') && !String(addr.iban || '').replace(/\s/g,''))) {
+            return json({ok:false,msg:'Account holder, bank name, and an account number or IBAN are required.'},400);
+          }
         }
       } else return json({ok:false,msg:'Unknown operation.'},400);
       if(!Array.isArray(target.address_audit)) target.address_audit=[];
