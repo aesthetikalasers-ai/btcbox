@@ -21,6 +21,12 @@ test('0042 restores the complete withdrawal, Spot, Seconds and Perpetual operati
   assert.match(migration, /add constraint financial_operations_operation_type_check/i);
   assert.match(migration, /position\('withdraw_settle' in v_definition\)/i);
   assert.match(migration, /position\('withdraw_paid' in v_definition\)/i);
+  assert.match(migration, /add column if not exists payout_operation_id/i);
+  assert.match(migration, /v_operation_id := v_w\.freeze_operation_id/i);
+  assert.match(migration, /review_operation_id=v_operation_id/i);
+  assert.match(migration, /payout_operation_id=v_operation_id/i);
+  assert.match(migration, /create or replace function public\.review_withdrawal_atomic/i);
+  assert.match(migration, /create or replace function public\.mark_withdrawal_paid_atomic/i);
   assert.doesNotMatch(migration, /\b(update|delete|insert)\s+into\s+public\.(financial_accounts|financial_ledger|financial_operations|withdrawal_requests)/i);
 });
 
