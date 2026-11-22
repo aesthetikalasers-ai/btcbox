@@ -528,13 +528,13 @@ export function SpotTradingPage(){
    if((!ticker||marketSnapshotStale)&&!pendingIntent){setError("A fresh timestamped market snapshot is required before placing a new order. No order was sent.");return;}
   if(!spotPairEnabled&&!pendingIntent){setError("This spot pair is not enabled by BTCBOX operators. No order was sent.");return;}
   if(!tradingStatus?.spot_order_entry_enabled&&!pendingIntent){setError(t("Trading is temporarily unavailable."));return;}
-  if(!pendingIntent&&(!orderInputsValid||balanceUnavailable||insufficientBalance||tickerIsFallback)){setError(insufficientBalance?"Insufficient available balance":"Account identity is unavailable. No order was sent.");return;}
+  if(!pendingIntent&&(!orderInputsValid||balanceUnavailable||insufficientBalance||tickerIsFallback)){setError(insufficientBalance?t("Insufficient available balance"):t("Sign in to continue"));return;}
   // A retained pending intent is already mid-flight from a previous attempt and
   // must be retried as-is; it never goes through the confirmation dialog again.
   if(pendingIntent){await sendOrder(pendingIntent, false);return;}
 
   if(!/^(?:0|[1-9]\d*)(?:\.\d{1,18})?$/.test(quantity)||Number(quantity)<=0||!/^(?:0|[1-9]\d*)(?:\.\d{1,18})?$/.test(price)||Number(price)<=0){setError("Enter a valid limit price and quantity.");return;}
-  if(!pendingStorageKey){setError("Account identity is unavailable. No order was sent.");return;}
+  if(!pendingStorageKey){setError(t("Sign in to continue"));return;}
 
   // Decide whether this order warrants an explicit confirmation.
   const notional=Number(price)*Number(quantity);
