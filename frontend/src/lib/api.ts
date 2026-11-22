@@ -1504,6 +1504,9 @@ export async function getAdminOrders(token: string, signal?: AbortSignal) {
 export async function getAdminSupportMessages(token: string, signal?: AbortSignal) {
   return adminRequest<{ ok: true; messages: SupportMessage[] }>(token, "admin/support/messages", { signal });
 }
+export async function markAdminSupportRead(token: string, uid: string) {
+  return adminRequest<{ ok: true; duplicate?: boolean; unread: number; audit_sync_pending?: boolean }>(token, "admin/support/read", { method: "POST", body: { uid } });
+}
 export async function getAdminAddresses(token: string, signal?: AbortSignal) {
   return adminRequest<{ ok: true; addresses: AdminPayoutAddress[] }>(token, "admin/addresses", { signal });
 }
