@@ -9,9 +9,9 @@ const frontend = path.resolve(__dirname, '../../frontend/src');
 
 test('authenticated app startup does not seed a local demo wallet', () => {
   const main = fs.readFileSync(path.join(frontend, 'main.tsx'), 'utf8');
-  assert.ok(main.includes('import { TradingProvider } from "./lib/trading";'));
+  assert.ok(!main.includes('TradingProvider'));
   assert.ok(!main.includes('TradingInitializer'));
-  assert.ok(!main.includes('<TradingInitializer'));
+  assert.ok(!main.includes('btcbox-paper-trading'));
 });
 
 test('new backend accounts start with zero balances for every supported asset', () => {
