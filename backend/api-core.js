@@ -2265,7 +2265,7 @@ async function handleRequest(event, context) {
       fundpwd_reauth_mode: Array.isArray(user.auth_providers) && user.auth_providers.length ? 'twofa' : 'password',
       twofa_enabled: user.twofa_enabled,
       deposit_addresses: safeDepositAddresses(db.deposit_addresses),
-      addresses: (user.addresses || []).map(function(a){ const out=Object.assign({},a); if(out.type==='crypto' && out.address) out.address=out.address.length>14?out.address.slice(0,6)+'••••••'+out.address.slice(-6):out.address; if(out.account_number) out.account_number='••••'+out.account_number.slice(-4); if(out.routing_number) out.routing_number='••••'+out.routing_number.slice(-4); return out; }),
+      addresses: (user.addresses || []).map(function(a){ const out=Object.assign({},a); if(out.type==='crypto' && out.address) out.address=out.address.length>14?out.address.slice(0,6)+'••••••'+out.address.slice(-6):out.address; if(out.account_number) out.account_number='••••'+out.account_number.slice(-4); if(out.iban) out.iban=out.iban.slice(0,2)+'••••••••'+out.iban.slice(-4); if(out.routing_number) out.routing_number='••••'+out.routing_number.slice(-4); return out; }),
     });
   }
 
@@ -2313,9 +2313,23 @@ async function handleRequest(event, context) {
       if (!valid) return json({ok:false,msg:'Operation failed: invalid address format.'},400);
       record = { id:'A'+Date.now()+crypto.randomBytes(3).toString('hex'), type:type, coin:coin, network:network, address:address, note:note, created_at:nowStr(), flagged:false, blocked:false };
     } else {
-      const holder=String(body.account_holder||'').trim().slice(0,120), bank=String(body.bank_name||'').trim().slice(0,120), account=String(body.account_number||'').replace(/\s/g,''), routing=String(body.routing_number||'').replace(/\s/g,''), swift=String(body.swift||'').trim().toUpperCase(), bankAddress=String(body.bank_address||'').trim().slice(0,240);
-      if (!holder || !bank || !/^\d{4,34}$/.test(account) || !/^\d{9}$/.test(routing) || (swift && !/^[A-Z0-9]{8}([A-Z0-9]{3})?$/.test(swift)) || !bankAddress) return json({ok:false,msg:'Operation failed: please check your bank account details.'},400);
-      record={id:'A'+Date.now()+crypto.randomBytes(3).toString('hex'),type:type,account_holder:holder,bank_name:bank,account_number:account,routing_number:routing,swift:swift,bank_address:bankAddress,note:note,created_at:nowStr(),flagged:false,blocked:false};
+      const holder=String(body.account_holder||'').trim().slice(0,120), bank=String(body.bank_name||'').trim().slice(0,120);
+      const account=String(body.account_number||'').replace(/\s/g,'').toUpperCase();
+      const iban=String(body.iban||'').replace(/\s/g,'').toUpperCase();
+      const routing=String(body.routing_number||'').replace(/\s/g,'');
+      const swift=String(body.swift||'').trim().toUpperCase();
+      const bankAddress=String(body.bank_address||'').trim().slice(0,240);
+      const country=String(body.country||'').trim().toUpperCase().slice(0,2);
+      const validIban=!iban || /^[A-Z]{2}[0-9]{2}[A-Z0-9]{11,30}$/.test(iban);
+      if (!holder || !bank || (!account && !iban) || (account && !/^[A-Z0-9]{4,34}$/.test(account)) ||
+          !validIban || (routing && !/^\d{9}$/.test(routing)) ||
+          (swift && !/^[A-Z]{4}[A-Z]{2}[A-Z0-9]{2}([A-Z0-9]{3})?$/.test(swift)) ||
+          (country && !/^[A-Z]{2}$/.test(country))) {
+        return json({ok:false,msg:'Operation failed: please check your bank account details.'},400);
+      }
+      record={id:'A'+Date.now()+crypto.randomBytes(3).toString('hex'),type:type,account_holder:holder,bank_name:bank,
+        account_number:account,iban:iban,routing_number:routing,swift:swift,bank_address:bankAddress,country:country,
+        note:note,created_at:nowStr(),flagged:false,blocked:false};
     }
     if (!Array.isArray(user.addresses)) user.addresses=[];
     user.addresses.push(record);
@@ -4097,14 +4111,16 @@ async function handleRequest(event, context) {
           if(!valid) return json({ok:false,msg:'Operation failed.'},400);
           addr.address=newAddress; addr.coin=coin; addr.network=network; addr.unbound=false;
         } else {
-          const fields=['account_holder','bank_name','account_number','routing_number','swift','bank_address','note'];
+          const fields=['account_holder','bank_name','account_number','iban','routing_number','swift','bank_address','country','note'];
           fields.forEach(function(k){if(typeof body[k]==='string') addr[k]=body[k].trim();});
           if(body.account_number!==undefined && !/^\d{4,34}$/.test(String(body.account_number).replace(/\s/g,''))) return json({ok:false,msg:'Operation failed.'},400);
           if(body.routing_number!==undefined && !/^\d{9}$/.test(String(body.routing_number).replace(/\s/g,''))) return json({ok:false,msg:'Operation failed.'},400);
           if(body.swift!==undefined && body.swift && !/^[A-Z]{4}[A-Z]{2}[A-Z0-9]{2}([A-Z0-9]{3})?$/.test(String(body.swift).toUpperCase())) return json({ok:false,msg:'Operation failed.'},400);
+          if(body.iban!==undefined && body.iban && !/^[A-Z]{2}[0-9]{2}[A-Z0-9]{11,30}$/.test(String(body.iban).replace(/\\s/g,'').toUpperCase())) return json({ok:false,msg:'Operation failed.'},400);
+          if(body.account_number!==undefined && body.iban!==undefined && !String(body.account_number).replace(/\\s/g,'') && !String(body.iban).replace(/\\s/g,'')) return json({ok:false,msg:'At least one account number or IBAN is required.'},400);
           if(body.account_number!==undefined) addr.account_number=String(body.account_number).replace(/\s/g,'');
           if(body.routing_number!==undefined) addr.routing_number=String(body.routing_number).replace(/\s/g,'');
-          if(body.swift!==undefined) addr.swift=String(body.swift).toUpperCase();
+          if(body.swift!==undefined) addr.swift=String(body.swift).toUpperCase();\n          if(body.iban!==undefined) addr.iban=String(body.iban).replace(/\\s/g,'').toUpperCase();\n          if(body.country!==undefined) addr.country=String(body.country).toUpperCase().slice(0,2);
         }
       } else return json({ok:false,msg:'Unknown operation.'},400);
       if(!Array.isArray(target.address_audit)) target.address_audit=[];
