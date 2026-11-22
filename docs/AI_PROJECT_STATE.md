@@ -165,6 +165,7 @@
 - Added unit cases for valid DE/GB/FR examples, invalid checksum, malformed input, and whitespace grouping.
 - Local isolated Node check: **7/7 IBAN validation cases passed**. Full backend suite, frontend typecheck/build, and browser tests remain **NOT VERIFIED**.
 - No production Supabase changes, PR, merge, or deployment.
+
 ## 2026-11-23 — Support inbox isolation and read-receipt boundary (2号 AI)
 
 - Fixed the Admin support inbox's global 500-message truncation. The response now includes up to the latest 100 messages independently for each customer UID, so a high-volume thread cannot crowd every other customer out of the inbox.
