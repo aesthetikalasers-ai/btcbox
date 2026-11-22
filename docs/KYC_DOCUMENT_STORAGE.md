@@ -12,7 +12,7 @@
 
 ## One-time Supabase Storage setup
 
-The production Supabase project now has this bucket configured and verified. For repeatable setup or another environment, run backend/supabase/operations/kyc-document-storage-bucket.sql or apply the equivalent settings below:
+The production Supabase project previously had this private bucket configured and verified at 512 KiB. This task branch proposes a 2 MiB limit; no hosted Supabase setting has been changed. After review and approval, apply backend/supabase/operations/kyc-document-storage-bucket.sql to the intended environment:
 
 1. Open Supabase Dashboard → Storage → New bucket.
 2. Set the bucket ID to `kyc-documents`.
@@ -30,7 +30,7 @@ Source regression tests cover validation, private storage calls, signed URL expi
 ## Memory and request-size controls
 
 - Original selected image: maximum 5 MiB.
-- The browser downsizes to a maximum 2,048-pixel longest edge, reuses a single canvas across compression attempts, clears the canvas dimensions in `finally`, closes `ImageBitmap`, and releases the object URL.
+- The browser asks `createImageBitmap` to pre-resize to a 1,600-pixel width when supported, then downsizes to a maximum 2,048-pixel longest edge. It reuses a single canvas across compression attempts, clears canvas dimensions in `finally`, closes `ImageBitmap`, and releases the object URL. Older decoders use the native image fallback.
 - The compressed Blob is converted to base64 from an `ArrayBuffer` in bounded chunks rather than creating a second full-size data URL string.
 - The backend checks the encoded gateway-body size before decoding, applies a 3 MiB body limit only to KYC POST, and retains the 1 MiB limit for every other endpoint. Base64 validation checks decoded length before allocating the image Buffer and avoids a full re-encode copy.
 
