@@ -18,7 +18,7 @@ import { localeTags, useI18n } from "../../lib/i18n";
  */
 export function SupportChat() {
   const { t, language } = useI18n();
-  const { status } = useAuth();
+  const { status, email } = useAuth();
   const [messages, setMessages] = useState<SupportMessage[]>([]);
   const [loading, setLoading] = useState(status === "authenticated");
   const [error, setError] = useState("");
@@ -30,6 +30,31 @@ export function SupportChat() {
   const [sendError, setSendError] = useState("");
   const [sendMessage, setSendMessage] = useState("");
   const listRef = useRef<HTMLDivElement>(null);
+  const pendingStorageKey = email ? "btcbox.support.pending.v1." + email.trim().toLowerCase() : "";
+
+  // Keep an uncertain send's id and exact body across a page refresh in this
+  // tab. The key is account-scoped so switching accounts cannot replay another
+  // customer's pending message.
+  useEffect(() => {
+    setPendingRequestId("");
+    setPendingRequestContent("");
+    if (status !== "authenticated" || !pendingStorageKey) return;
+    try {
+      const raw = window.sessionStorage.getItem(pendingStorageKey);
+      if (!raw) return;
+      const pending = JSON.parse(raw) as { request_id?: unknown; content?: unknown };
+      if (typeof pending.request_id === "string" &&
+          /^[A-Za-z0-9_-]{16,100}$/.test(pending.request_id) &&
+          typeof pending.content === "string" && pending.content.trim().length > 0 &&
+          pending.content.length <= 2000) {
+        setPendingRequestId(pending.request_id);
+        setPendingRequestContent(pending.content);
+      }
+    } catch {
+      // Storage may be disabled; the current mounted component still keeps
+      // the stable request in memory and can retry without changing its ID.
+    }
+  }, [status, pendingStorageKey]);
 
   useEffect(() => {
     if (status !== "authenticated") { setLoading(false); setMessages([]); return; }
@@ -65,11 +90,18 @@ export function SupportChat() {
       try { requestId = window.crypto.randomUUID(); }
       catch { setSendError(t("Unable to reach BTCBOX support. Please try again.")); return; }
       setPendingRequestId(requestId); setPendingRequestContent(message);
+      if (pendingStorageKey) {
+        try { window.sessionStorage.setItem(pendingStorageKey, JSON.stringify({ request_id: requestId, content: message })); }
+        catch { /* Keep the request ID in memory; retries in this tab remain idempotent. */ }
+      }
     }
     setSending(true); setSendError(""); setSendMessage("");
     try {
       const result = await sendSupportMessage(message, requestId);
       setDraft(""); setPendingRequestId(""); setPendingRequestContent("");
+      if (pendingStorageKey) {
+        try { window.sessionStorage.removeItem(pendingStorageKey); } catch { /* The confirmed send remains visible in chat history. */ }
+      }
       if (!result.duplicate) {
         setMessages(current => [...current, {
           id: result.message_id || requestId,
