@@ -35,6 +35,15 @@ test('real asset page reads only the authenticated account snapshot', () => {
   assert.ok(!assets.includes('DEMO_INITIAL_USDT'));
 });
 
+test('real order history does not merge browser paper orders', () => {
+  const orders = fs.readFileSync(path.join(frontend, 'features/orders/OrdersPage.tsx'), 'utf8');
+  assert.ok(orders.includes('getOrders(controller.signal)'));
+  assert.ok(orders.includes('const visibleOrders = openOnly ? orders.filter'));
+  assert.ok(!orders.includes('useTrading'));
+  assert.ok(!orders.includes('paperOrders'));
+  assert.ok(!orders.includes('mergedOrders'));
+});
+
 test('live Seconds page does not read or settle the browser paper ledger', () => {
   const seconds = fs.readFileSync(path.join(frontend, 'features/pages/SecondsPage.tsx'), 'utf8');
   assert.ok(seconds.includes('submitSecondsOrder(intent)'));
