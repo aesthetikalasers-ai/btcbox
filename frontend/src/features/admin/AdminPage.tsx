@@ -473,7 +473,7 @@ export function AdminPage() {
   const updateSelectedUserFreeze = async () => {
     if (!token || !selectedUser || !hasPermission("users.freeze") || userFreezeLockRef.current) return;
     const reason = userFreezeReason.trim();
-    if (!reason || reason.length > 200 || /[\\u0000-\\u001f\\u007f]/.test(reason)) {
+    if (!reason || reason.length > 200 || /[\u0000-\u001f\u007f]/.test(reason)) {
       setError("Enter a valid reason (maximum 200 characters). No account change was sent.");
       return;
     }
