@@ -4385,7 +4385,10 @@ async function handleRequest(event, context) {
       if (latestUserMessage && previousReadAt >= latestUserMessage) {
         return json({ ok: true, duplicate: true, unread: 0, msg: 'Conversation is already marked as read.' });
       }
-      const readAt = nowStr();
+      // Advance only to the newest customer message visible in this read.
+      // Using wall-clock "now" could accidentally mark a concurrently arriving
+      // message as read even though it was not part of the conversation snapshot.
+      const readAt = latestUserMessage || nowStr();
       db.admin_support_read_receipts[receiptKey] = readAt;
       await auditAdmin('support_mark_read', uid, JSON.stringify({ latest_user_message_at: latestUserMessage }), adminUserId);
       await saveDB(db);
