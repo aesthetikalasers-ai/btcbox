@@ -20,7 +20,8 @@ select u.key,
   from public.btcbox_state s
  cross join lateral jsonb_each(s.data->'users') as u(key, value)
  where s.id = 'main'
-   and coalesce(u.value->>'last_read_chat_at', '') ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}
+   and length(coalesce(u.value->>'last_read_chat_at', '')) = 19
+   and coalesce(u.value->>'last_read_chat_at', '') ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}'
 on conflict (uid) do update
   set last_read_at = greatest(public.btcbox_support_read_state.last_read_at, excluded.last_read_at),
       updated_at = now();
