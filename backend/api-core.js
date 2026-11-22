@@ -4401,12 +4401,18 @@ async function handleRequest(event, context) {
       const readReceipts = db.admin_support_read_receipts && typeof db.admin_support_read_receipts === 'object' ? db.admin_support_read_receipts : {};
       Object.values(db.users).forEach(function (u) {
         const uid = String(u.uid || '');
+        const conversation = Array.isArray(u.support_messages) ? u.support_messages : [];
         const receiptKey = String(adminUserId) + ':' + uid;
         const lastReadAt = String(readReceipts[receiptKey] || '');
-        const unreadCount = (Array.isArray(u.support_messages) ? u.support_messages : []).filter(function(m) {
+        // Count unread customer messages across the full retained conversation,
+        // not only the window returned to the inbox.
+        const unreadCount = conversation.filter(function(m) {
           return m && m.from === 'user' && (!lastReadAt || String(m.time || '') > lastReadAt);
         }).length;
-        (Array.isArray(u.support_messages) ? u.support_messages : []).forEach(function (m) {
+        // Bound each customer's response independently. A busy customer's
+        // history must never consume the shared response window and hide other
+        // customers from the support inbox.
+        conversation.slice(-100).forEach(function (m) {
           if (!m || (m.from !== 'user' && m.from !== 'admin')) return;
           list.push({
             id: String(m.id || ''),
@@ -4423,7 +4429,7 @@ async function handleRequest(event, context) {
         if (a.time === b.time) return a.id < b.id ? -1 : 1;
         return a.time < b.time ? -1 : 1;
       });
-      return json({ ok: true, messages: list.slice(-500) });
+      return json({ ok: true, messages: list });
     }
 
     // ---------- Admin: help centre (FAQ) ----------
