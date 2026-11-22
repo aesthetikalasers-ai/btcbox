@@ -4393,9 +4393,9 @@ async function handleRequest(event, context) {
       return json({ ok: true, duplicate: false, unread: 0, audit_sync_pending: auditFlush.pending, msg: 'Conversation marked as read.' });
     }
 
-    // GET /api/admin/support/messages — return complete UID-scoped conversations.
-    // Keeping both senders in the same thread lets staff verify replies and prevents
-    // the inbox from presenting each customer message as an unrelated conversation.
+    // GET /api/admin/support/messages — return UID-scoped recent conversation windows.
+    // Keeping both senders together lets staff verify replies; the per-customer
+    // window prevents one busy thread from hiding other customers in the inbox.
     if (sub === 'support/messages' && method === 'GET') {
       const list = [];
       const readReceipts = db.admin_support_read_receipts && typeof db.admin_support_read_receipts === 'object' ? db.admin_support_read_receipts : {};
