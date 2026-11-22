@@ -16,6 +16,7 @@ import {
   adminRejectKyc,
   adminRejectWithdrawal,
   adminReplySupport,
+  markAdminSupportRead,
   getAdminAuditLogs,
   getAdminConfig,
   getAdminKyc,
@@ -117,7 +118,8 @@ function groupSupportThreads(messages: Array<Record<string, unknown>>) {
       if (thread.messages[index].from === "admin") break;
       if (thread.messages[index].from === "user") unanswered += 1;
     }
-    return { ...thread, latestTime: String(latest?.time || ""), latestFrom: latest?.from, unanswered };
+    const adminUnreadCount = Math.max(0, ...thread.messages.map(message => Number(message.admin_unread_count || 0)).filter(Number.isFinite));
+    return { ...thread, latestTime: String(latest?.time || ""), latestFrom: latest?.from, unanswered, adminUnreadCount };
   }).sort((left, right) => right.latestTime.localeCompare(left.latestTime));
 }
 
@@ -852,6 +854,18 @@ export function AdminPage() {
     finally { setBusy(false); }
   };
 
+  const markSupportThreadRead = async (uid: string) => {
+    if (!token || busy) return;
+    setBusy(true); setError(""); setNotice("");
+    try {
+      const result = await markAdminSupportRead(token, uid);
+      const snapshot = await getAdminSupportMessages(token);
+      setSupport((snapshot.messages || []) as unknown as Array<Record<string, unknown>>);
+      setNotice(result.audit_sync_pending ? "Conversation marked read; audit delivery is pending." : "Conversation marked as read.");
+    } catch (reason) { setError(reason instanceof Error ? reason.message : "Conversation read state could not be saved."); }
+    finally { setBusy(false); }
+  };
+
   const refreshSupportQueue = async () => {
     if (!token) return;
     const requestId = ++supportQueueRequestRef.current;
@@ -1169,7 +1183,7 @@ export function AdminPage() {
       </CardContent></Card>
       {editingPayoutAddress ? <Card><CardHeader><CardTitle>{adminText("Edit bank payout details")}</CardTitle></CardHeader><CardContent className="space-y-3"><div className="grid gap-3 sm:grid-cols-2">{([["account_holder","Account holder"],["bank_name","Bank name"],["account_number","Local account number"],["iban","IBAN"],["country","Country code"],["routing_number","Routing number"],["swift","SWIFT / BIC"],["bank_address","Bank address"],["note","Note"]] as const).map(([key,label])=><label key={key} className="space-y-1 text-sm"><span>{adminText(label)}</span><input value={payoutAddressDraft[key]} disabled={busy||!hasPermission("payout_addresses.manage")} onChange={event=>setPayoutAddressDraft(current=>({...current,[key]:event.target.value}))} className="w-full rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-2 text-sm text-brand-text"/></label>)}</div><label className="block space-y-1 text-sm"><span>{adminText("Reason for change (required)")}</span><textarea value={payoutAddressDraft.reason} onChange={event=>setPayoutAddressDraft(current=>({...current,reason:event.target.value}))} rows={2} maxLength={200} className="w-full rounded-lg border border-brand-border bg-brand-surface-2 p-3 text-sm text-brand-text"/></label><div className="flex gap-2"><Button disabled={busy||!hasPermission("payout_addresses.manage")||!payoutAddressDraft.reason.trim()} onClick={()=>void savePayoutAddress()}>{adminText("Save changes")}</Button><Button variant="outline" disabled={busy} onClick={()=>setEditingPayoutAddress(null)}>{adminText("Cancel")}</Button></div></CardContent></Card>:null}
     </div> : null}
-    {!loading && tab === "support" ? <Card><CardHeader className="flex flex-row items-center justify-between"><CardTitle>{adminText("Support messages")}</CardTitle><Button size="sm" variant="outline" disabled={busy} onClick={()=>void refreshSupportQueue()}>{adminText("Refresh queue")}</Button></CardHeader><CardContent className="space-y-3">{groupSupportThreads(support).map((thread)=> <div key={thread.uid} className="rounded-xl border border-brand-border p-3"><div className="flex flex-wrap items-center justify-between gap-2"><div><p className="text-sm font-semibold text-brand-text">{thread.email || thread.uid}</p><p className="text-xs text-brand-text-muted">{thread.uid}</p></div><Badge variant={thread.unanswered > 0 ? "warning" : "success"}>{thread.unanswered > 0 ? adminText("Awaiting reply") + " · " + thread.unanswered : adminText("Replied")}</Badge></div><div className="mt-3 space-y-2 rounded-lg bg-brand-surface-2/50 p-3">{thread.messages.map((message,index)=><div key={asText(message.id)||index} className={message.from === "admin" ? "ml-5 rounded-lg bg-brand-accent/10 p-2.5" : "mr-5 rounded-lg bg-brand-surface p-2.5"}><div className="flex items-center justify-between gap-2"><Badge variant={message.from === "admin" ? "outline" : "secondary"}>{message.from === "admin" ? adminText("Administrator") : adminText("Customer")}</Badge><span className="text-[11px] text-brand-text-muted">{formatDate(asText(message.time))}</span></div><p className="mt-2 whitespace-pre-wrap break-words text-sm">{asText(message.content)}</p></div>)}</div><textarea value={supportReply[thread.uid]||""} onChange={event=>{setSupportReply(current=>({...current,[thread.uid]:event.target.value}));try { setSupportReplyRequestIds(current=>({...current,[thread.uid]:window.crypto.randomUUID()})); } catch { setError("Secure support reply request IDs are unavailable in this browser. No reply was sent."); }}} rows={2} className="mt-3 w-full rounded-lg border border-brand-border bg-brand-surface-2 p-2 text-sm text-brand-text" placeholder={adminText("Reply to customer")}/><Button size="sm" className="mt-2" disabled={busy||!supportReply[thread.uid]?.trim()||!hasPermission("support.reply")} onClick={()=>void replySupport(thread.uid)}>{adminText("Send reply")}</Button></div>)}{support.length===0 ? <p className="rounded-lg border border-dashed border-brand-border p-6 text-center text-sm text-brand-text-muted">暂无客服消息。</p> : null}</CardContent></Card> : null}
+    {!loading && tab === "support" ? <Card><CardHeader className="flex flex-row items-center justify-between"><CardTitle>{adminText("Support messages")}</CardTitle><Button size="sm" variant="outline" disabled={busy} onClick={()=>void refreshSupportQueue()}>{adminText("Refresh queue")}</Button></CardHeader><CardContent className="space-y-3">{groupSupportThreads(support).map((thread)=> <div key={thread.uid} className="rounded-xl border border-brand-border p-3"><div className="flex flex-wrap items-center justify-between gap-2"><div><p className="text-sm font-semibold text-brand-text">{thread.email || thread.uid}</p><p className="text-xs text-brand-text-muted">{thread.uid}</p></div><div className="flex flex-wrap items-center gap-2"><Badge variant={thread.unanswered > 0 ? "warning" : "success"}>{thread.unanswered > 0 ? adminText("Awaiting reply") + " · " + thread.unanswered : adminText("Replied")}</Badge>{thread.adminUnreadCount > 0 ? <Badge variant="info">{adminText("Unread") + " · " + thread.adminUnreadCount}</Badge> : null}{thread.adminUnreadCount > 0 ? <Button size="sm" variant="outline" disabled={busy} onClick={()=>void markSupportThreadRead(thread.uid)}>{adminText("Mark read")}</Button> : null}</div></div><div className="mt-3 space-y-2 rounded-lg bg-brand-surface-2/50 p-3">{thread.messages.map((message,index)=><div key={asText(message.id)||index} className={message.from === "admin" ? "ml-5 rounded-lg bg-brand-accent/10 p-2.5" : "mr-5 rounded-lg bg-brand-surface p-2.5"}><div className="flex items-center justify-between gap-2"><Badge variant={message.from === "admin" ? "outline" : "secondary"}>{message.from === "admin" ? adminText("Administrator") : adminText("Customer")}</Badge><span className="text-[11px] text-brand-text-muted">{formatDate(asText(message.time))}</span></div><p className="mt-2 whitespace-pre-wrap break-words text-sm">{asText(message.content)}</p></div>)}</div><textarea value={supportReply[thread.uid]||""} onChange={event=>{setSupportReply(current=>({...current,[thread.uid]:event.target.value}));try { setSupportReplyRequestIds(current=>({...current,[thread.uid]:window.crypto.randomUUID()})); } catch { setError("Secure support reply request IDs are unavailable in this browser. No reply was sent."); }}} rows={2} className="mt-3 w-full rounded-lg border border-brand-border bg-brand-surface-2 p-2 text-sm text-brand-text" placeholder={adminText("Reply to customer")}/><Button size="sm" className="mt-2" disabled={busy||!supportReply[thread.uid]?.trim()||!hasPermission("support.reply")} onClick={()=>void replySupport(thread.uid)}>{adminText("Send reply")}</Button></div>)}{support.length===0 ? <p className="rounded-lg border border-dashed border-brand-border p-6 text-center text-sm text-brand-text-muted">暂无客服消息。</p> : null}</CardContent></Card> : null}
     {!loading && tab === "support-faq" ? <div className="grid gap-4 xl:grid-cols-[minmax(0,1.05fr)_minmax(340px,0.95fr)]">
       <Card>
         <CardHeader>
