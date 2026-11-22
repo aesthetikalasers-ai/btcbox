@@ -30,6 +30,28 @@ test('admin support replies are permission-gated, persisted, audited and idempot
   assert.ok(admin.includes('adminReplySupport(token, uid, content, requestId)'));
 });
 
+test('admin support queue returns isolated per-customer conversations with reply history and status', () => {
+  const start = api.indexOf("if (sub === 'support/messages' && method === 'GET')");
+  const end = api.indexOf("// ---------- Admin: help centre", start);
+  assert.ok(start >= 0 && end > start);
+  const route = api.slice(start, end);
+  for (const contract of [
+    'const conversations = []',
+    "Object.values(db.users).forEach(function (u)",
+    "u.support_messages",
+    "m.from === 'user' || m.from === 'admin'",
+    "conversation_id: 'support:' + uid",
+    "status: lastMessage.from === 'user' ? 'waiting' : 'replied'",
+    'pending_count: pendingCount',
+    'messages: messages',
+    'conversations: conversations.slice(0, 200)'
+  ]) assert.ok(route.includes(contract), 'missing isolated support conversation contract: ' + contract);
+  assert.ok(admin.includes('useState<AdminSupportConversation[]>([])'));
+  assert.ok(admin.includes('key={conversation.conversation_id}'));
+  assert.ok(admin.includes('conversation.messages.map(message'));
+  assert.ok(admin.includes('conversation.status==="waiting"'));
+});
+
 test('confirmed support reply is not reported as failed when the conversation refresh fails', () => {
   const start = admin.indexOf('const replySupport = async (uid: string)');
   const end = admin.indexOf('const saveSpotMarket = async', start);
