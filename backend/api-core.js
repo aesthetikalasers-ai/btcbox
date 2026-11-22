@@ -4362,13 +4362,53 @@ async function handleRequest(event, context) {
     // GET /api/admin/support/messages 客服消息
     if (sub === 'support/messages' && method === 'GET') {
       const list = [];
+      const conversations = [];
       Object.values(db.users).forEach(function (u) {
-        (Array.isArray(u.support_messages) ? u.support_messages : []).filter(function(m){return m.from==='user';}).forEach(function (m) {
-          list.push({ id: m.id, uid: u.uid, email: u.email, content: m.content, time: m.time });
+        const uid = String(u && u.uid || '');
+        if (!uid) return;
+        const messages = (Array.isArray(u.support_messages) ? u.support_messages : [])
+          .filter(function (m) {
+            return m && (m.from === 'user' || m.from === 'admin') &&
+              typeof m.content === 'string' && typeof m.time === 'string';
+          })
+          .slice(-100)
+          .map(function (m) {
+            return {
+              id: String(m.id || ''),
+              from: m.from,
+              content: m.content,
+              time: m.time,
+              ...(m.from === 'admin' && m.admin_id ? { admin_id: String(m.admin_id) } : {})
+            };
+          });
+        if (!messages.length) return;
+        const lastMessage = messages[messages.length - 1];
+        let lastAdminIndex = -1;
+        for (let index = messages.length - 1; index >= 0; index -= 1) {
+          if (messages[index].from === 'admin') { lastAdminIndex = index; break; }
+        }
+        const pendingCount = messages.slice(lastAdminIndex + 1)
+          .filter(function (m) { return m.from === 'user'; }).length;
+        const conversation = {
+          conversation_id: 'support:' + uid,
+          uid: uid,
+          email: String(u.email || ''),
+          messages: messages,
+          last_message: lastMessage,
+          status: lastMessage.from === 'user' ? 'waiting' : 'replied',
+          pending_count: pendingCount,
+          last_activity: lastMessage.time
+        };
+        conversations.push(conversation);
+        messages.filter(function (m) { return m.from === 'user'; }).forEach(function (m) {
+          list.push({ id: m.id, uid: uid, email: conversation.email, content: m.content, time: m.time });
         });
       });
+      conversations.sort(function (a, b) {
+        return String(a.last_activity) < String(b.last_activity) ? 1 : -1;
+      });
       list.sort(function (a, b) { return (a.time < b.time) ? 1 : -1; });
-      return json({ ok: true, messages: list.slice(0, 100) });
+      return json({ ok: true, conversations: conversations.slice(0, 200), messages: list.slice(0, 100) });
     }
 
     // ---------- Admin: help centre (FAQ) ----------
