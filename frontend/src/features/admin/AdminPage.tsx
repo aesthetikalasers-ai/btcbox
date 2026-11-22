@@ -191,6 +191,9 @@ export function AdminPage() {
   const [secondsRequestKey, setSecondsRequestKey] = useState("");
 
   useEffect(() => {
+    setSupportReply({});
+    setSupportReplyRequestIds({});
+    setSupportReplySubmitted({});
     if (!session?.user_id) return;
     const prefix = "btcbox.admin.support-reply.v1." + session.user_id + ".";
     const restoredContent: Record<string, string> = {};
