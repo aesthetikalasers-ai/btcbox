@@ -1746,5 +1746,22 @@
   "Unable to complete sign-in. Please try again.": "Unable to complete sign-in. Please try again.",
   "Trading is temporarily unavailable.": "Trading is temporarily unavailable.",
   "Only limit orders are available.": "Only limit orders are available.",
-  "Unable to copy. Please try again.": "Unable to copy. Please try again."
+  "Unable to copy. Please try again.": "Unable to copy. Please try again.",
+  "We couldn't verify your pending order. Check order history before placing another order.": "We couldn't verify your pending order. Check order history before placing another order.",
+  "Check your order history before placing another order.": "Check your order history before placing another order.",
+  "Live prices are unavailable. Your order was not submitted.": "Live prices are unavailable. Your order was not submitted.",
+  "Live prices are updating. Please wait before placing an order.": "Live prices are updating. Please wait before placing an order.",
+  "This trading pair is currently unavailable.": "This trading pair is currently unavailable.",
+  "This trading pair is currently unavailable. Your order was not submitted.": "This trading pair is currently unavailable. Your order was not submitted.",
+  "Enter a valid limit price and quantity.": "Enter a valid limit price and quantity.",
+  "Your order status is not yet confirmed. Check order history before trying again.": "Your order status is not yet confirmed. Check order history before trying again.",
+  "Your cancellation status is not yet confirmed. Refresh order history before trying again.": "Your cancellation status is not yet confirmed. Refresh order history before trying again.",
+  "The amount has too many decimal places.": "The amount has too many decimal places.",
+  "We couldn't verify the saved withdrawal destination. Contact support before trying again.": "We couldn't verify the saved withdrawal destination. Contact support before trying again.",
+  "We couldn't verify your saved withdrawal request. Check withdrawal history before trying again.": "We couldn't verify your saved withdrawal request. Check withdrawal history before trying again.",
+  "This browser couldn't save your withdrawal request. Nothing was submitted.": "This browser couldn't save your withdrawal request. Nothing was submitted.",
+  "The saved withdrawal destination has changed. Contact support before trying again.": "The saved withdrawal destination has changed. Contact support before trying again.",
+  "Your withdrawal status is not yet confirmed. Check withdrawal history before trying again.": "Your withdrawal status is not yet confirmed. Check withdrawal history before trying again.",
+  "The withdrawal fee has changed. Review the updated fee and submit again.": "The withdrawal fee has changed. Review the updated fee and submit again.",
+  "Earn products are temporarily unavailable. Please try again.": "Earn products are temporarily unavailable. Please try again."
 }
