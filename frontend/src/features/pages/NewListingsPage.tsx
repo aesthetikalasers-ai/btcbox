@@ -8,7 +8,7 @@ import { PageFrame } from "./Pages";
 /**
  * Launchpool is intentionally an honest unavailable state until a verified
  * campaign catalogue and participation API are connected. Never render
- * placeholder projects, invented APRs, pool totals, participants or positions.
+ * placeholder projects, invented APRs, pool totals, user counts or positions.
  */
 export function NewListingsPage() {
   const { t } = useI18n();
