@@ -39,7 +39,7 @@ export function SupportChat() {
       if (!controller.signal.aborted) { setMessages(list); setError(""); }
     }).catch((reason: unknown) => {
       if (reason instanceof Error && reason.name === "AbortError") return;
-      if(!controller.signal.aborted){setMessages([]);setError(reason instanceof Error ? reason.message : "Support conversation is temporarily unavailable.");}
+      if(!controller.signal.aborted){setMessages([]);setError(t("Unable to reach BTCBOX support. Please try again."));}
     }).finally(() => { if (!controller.signal.aborted) setLoading(false); });
     return () => controller.abort();
   }, [status, reload]);
@@ -63,7 +63,7 @@ export function SupportChat() {
     let requestId = pendingRequestId;
     if (!requestId) {
       try { requestId = window.crypto.randomUUID(); }
-      catch { setSendError("Secure request IDs are unavailable in this browser. No message was sent."); return; }
+      catch { setSendError(t("Unable to reach BTCBOX support. Please try again.")); return; }
       setPendingRequestId(requestId); setPendingRequestContent(message);
     }
     setSending(true); setSendError(""); setSendMessage("");
@@ -81,7 +81,7 @@ export function SupportChat() {
       setSendMessage(result.duplicate ? t("Your message was already received.") : t("Message sent."));
       setReload(n => n + 1);
     } catch (reason) {
-      setSendError(reason instanceof Error ? reason.message : "Your message could not be sent.");
+      setSendError(t("Unable to reach BTCBOX support. Please try again."));
     } finally { setSending(false); }
   };
 
