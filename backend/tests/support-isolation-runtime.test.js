@@ -12,7 +12,8 @@ test('real support message handler returns only the authenticated customer conve
     CONTEXT: process.env.CONTEXT,
   };
   const readUids = [];
-  const state = {
+  let revision = 7;
+  let state = {
     users: {
       'uid-customer-a': {
         uid: 'uid-customer-a',
@@ -42,12 +43,19 @@ test('real support message handler returns only the authenticated customer conve
   global.fetch = async (input, init = {}) => {
     const url = new URL(String(input));
     if (url.pathname === '/rest/v1/btcbox_state') {
-      return Response.json([{ revision: 7, data: state }]);
+      return Response.json([{ revision, data: state }]);
     }
     if (url.pathname === '/rest/v1/rpc/btcbox_mark_support_read') {
       const payload = JSON.parse(init.body || '{}');
       readUids.push(payload.p_uid);
       return Response.json('2026-11-22 10:03:00');
+    }
+    if (url.pathname === '/rest/v1/rpc/btcbox_save_state') {
+      const payload = JSON.parse(init.body || '{}');
+      assert.equal(payload.p_expected_revision, revision);
+      state = payload.p_data;
+      revision += 1;
+      return Response.json(true);
     }
     throw new Error('Unexpected test fetch: ' + url.pathname);
   };
@@ -77,7 +85,30 @@ test('real support message handler returns only the authenticated customer conve
     ]);
     assert.ok(!JSON.stringify(bodyA).includes('customer B'));
     assert.ok(!JSON.stringify(bodyB).includes('customer A'));
-    assert.deepEqual(readUids, ['uid-customer-a', 'uid-customer-b']);
+    const sent = await api.handler({
+      path: '/api/support/chat',
+      httpMethod: 'POST',
+      headers: { cookie: 'session_token=test-session-a' },
+      body: JSON.stringify({ content: 'A follow-up that belongs only to customer A', request_id: 'support-request-id-a-001' }),
+    }, {});
+    assert.equal(sent.statusCode, 200);
+    assert.equal(JSON.parse(sent.body).ok, true);
+
+    const refreshedA = await api.handler({
+      path: '/api/support/messages',
+      httpMethod: 'GET',
+      headers: { cookie: 'session_token=test-session-a' },
+    }, {});
+    const refreshedB = await api.handler({
+      path: '/api/support/messages',
+      httpMethod: 'GET',
+      headers: { cookie: 'session_token=test-session-b' },
+    }, {});
+    const refreshedBodyA = JSON.parse(refreshedA.body);
+    const refreshedBodyB = JSON.parse(refreshedB.body);
+    assert.ok(refreshedBodyA.messages.some((message) => message.content === 'A follow-up that belongs only to customer A'));
+    assert.ok(!JSON.stringify(refreshedBodyB).includes('A follow-up that belongs only to customer A'));
+    assert.deepEqual(readUids, ['uid-customer-a', 'uid-customer-b', 'uid-customer-a', 'uid-customer-b']);
   } finally {
     global.fetch = originalFetch;
     for (const [key, value] of Object.entries(originalEnv)) {
