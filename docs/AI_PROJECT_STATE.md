@@ -303,3 +303,39 @@ npx playwright test e2e/auth-dialog.spec.ts --project=desktop-chromium --reporte
 
 ### 下一項唯一優先任務
 - 在可執行的 working 工作區跑回歸測試、前端 lint/build，再以隔離測試帳戶驗證「後端餘額為 0 時資產頁不顯示 10,000 USDT」；通過後再由所有者決定是否合併與部署。
+
+
+## 2026-11-22 集成分支 / Perpetual API 幂等性只读复核（数据库负责人交接）
+
+### 规则、阶段与分支边界
+- 首先尝试读取 `chore/shared-ai-coordination` 的 `docs/AI_COORDINATION.md`，GitHub 返回 404（ref 不存在）；main 上该路径也不存在。当前可读取的正式规则来自 `working/docs/AI_COORDINATION.md`，blob SHA `190ab6ecf712dde2df62109692514e6cab1e431f`。
+- 当前规则：`main` 是唯一正式基准，`working` 是唯一共同开发分支；未经所有者批准不得继续创建/使用长期集成分支。当前阶段仍是阶段 1（认证弹窗 / 当前资产显示缺陷回归）开发中，尚未验收。Perpetual 复核作为用户本轮明确要求的只读跨团队风险核查记录，不改变阶段顺序，也不由数据库负责人修改 API 文件。
+- 当前 refs：main `8eef5f34ed7bf8e7790ae57516ce5f1810b7b24b`；working `564827924ffd49fd1ddadf7b9322bbb962a890cd`；integration 20261118 `9481a3815a7ce9b9601e56474123eee62c2e69b2`。compare：integration 相对 main diverged，ahead 17 / behind 102；working 相对 main diverged，ahead 24 / behind 166。未 rebase、merge、reset 或强推。
+- 用户指定的 `integration/btcbox-mainline-consolidation-20261108` 已不存在；当前仅见 integration 20261116 和 20261118。因正式规则只授权 working 为共同开发分支，本轮没有向 integration 分支提交代码或文档；本次只将交接记录写入正式 working 状态文件。
+
+### PR #67 当前事实
+- GitHub API 当前状态：PR #67 closed、merged=true、draft=false；head `c53fa948a599b560c1319726adfb57be6828b0fa`；merge commit `fbf301f88c5c19db94ea1546c590667a8818e842`；merged_at `2026-11-08T16:24:57Z`。
+- 因 PR 已合并，无法再将其保持/改回 Draft；没有尝试回退或改写历史。
+- PR head 的历史 Backend / PostgreSQL Schema / Frontend CI 分别为 `42498936887`、`42498936856`、`42498936859`，均 PASS；merge commit 的对应 push runs 分别为 `42499773113`、`42499772971`、`42499773083`，均 PASS。这些是 PR #67 历史 SHA 证据，不代表当前 main、integration 或 hosted schema 已满足发布条件。
+
+### 精确 SHA 的 Actions 证据
+- 当前 integration HEAD `9481a3815a7ce9b9601e56474123eee62c2e69b2`：Actions runs API 对该 exact SHA 返回 1 项：Watchdog `44860836262` PASS；Check Runs 共 2 项：Watchdog test PASS、Supabase Preview SKIPPED；combined status 为 pending 且 statuses=[]。Backend CI、PostgreSQL Schema CI、Frontend CI 均没有该 exact SHA 的 run/check 记录，故标记 NOT RUN / NOT VERIFIED，不推断为通过。
+- 0044 最终迁移清单测试提交 `71c30df52ec90b554c46b5de82ceec662f9d4d1a`：Watchdog `44860701307` PASS；Backend CI `44860701345` FAIL；Supabase Preview SKIPPED；无该 exact SHA 的 PostgreSQL Schema CI。Backend job 的 build 成功，`Run backend tests` 失败，后续 integration tests 与 fail-closed preflight 被跳过；失败测试名称/日志本轮未能通过 GitHub API 取得，根因 NOT VERIFIED。
+- 0044 SQL + 数据库场景的最近可核实 Schema CI 是 SHA `2a61bba5c529c3f114de8968553121a4e4fdc110` 的 run `44860697621`，job `empty-postgres-bootstrap` 全步骤 PASS，实际执行 `bash backend/scripts/test-postgres-schema-bootstrap.sh` 并应用规范 SQL 到 disposable PostgreSQL。该结果验证当时的 0044 migration 与集成 SQL；不能替代后续 `71c30df` 的 Backend CI，也不能证明 hosted Supabase 已安装迁移。
+- 当前 integration HEAD 的 Watchdog 通过仅证明该文档提交的 watchdog job 成功，不代表 backend、数据库、前端或 fail-closed 验收通过。
+
+### 新发现：close-position API 与 SQL 幂等合同不一致（API owner 负责）
+- Integration API 文件 blob：`b5def277c81888b88f877c94ac349e7d5fe1ae07`，close-position 路由约第 2960–2983 行；当前 main API blob `da0d50e2765770d78e3521d412fa52fc4fad138d`，约第 2990–3016 行；working API blob `f5b209e6637eafbd6e851ea9b0dbfc34fc5f83e2`，约第 2854–2880 行。三处路由行为一致：先按当前 position 查询 `side,quantity`；没有 position 就在调用 RPC 前返回 `NO_POSITION`；否则以当前 position quantity 和派生 side 调用 `perp_submit_order`。
+- 该 close-position 路由没有像普通 POST order（`rateCheckShared('spot_order')`）或 DELETE cancel（`rateCheckShared('spot_cancel')`）一样执行显式 shared rate limit。API contract test blob `d34e21290a209c2bb4721da67988f8b7de0b8787` 第 65–72 行只断言 NO_POSITION、reduce-only、market 和方向派生，没有限流或重试测试。
+- SQL `0044_perpetual_order_idempotency_flags_v1.sql` blob `5b7c4d4b747ed5c3caae543f74d3479c67efbece`：第 44–51 行在 duplicate replay 时比较 `v_existing.quantity <> p_quantity`；第 72–75 行随后才将 close-position 的 `p_quantity` 改成数据库当前 position quantity。因而在首次 close 已部分成交后，用同一 client_order_id 重试，API 会读取缩小后的 position quantity，SQL replay 会将其与原订单 quantity 比较并抛出 `client order id payload mismatch`；若首次 close 已全部完成，API 会先因 position 不存在而返回 `NO_POSITION`，根本到不了 SQL duplicate replay。该路径不能满足“结果不确定时用相同幂等键安全重试”的合同。
+- DB integration test blob `0a4e8ee56fcbe0c179f6ed8122dacbd5be03aab6` 第 132–147 行验证的是重用已有普通订单 ID、改变 `reduce_only/close_position` 必须拒绝；没有覆盖同一个 close-position 意图在部分/全部成交后重试的场景。
+- 建议 API owner：close-position 在读取当前仓位前先解析 `user.uid + client_order_id` 的既有订单并返回稳定 replay；或设计专用幂等 close RPC，使数据库在同一事务内锁定 position 并处理首次请求/重放。不得依赖重试时重新读取的 position quantity/side 作为原请求 payload。
+- 建议数据库 owner 与 API owner共同确定 close-position 的 canonical idempotency payload：稳定字段至少包含已认证 user、symbol、close-position intent；derived quantity/side 不应在 replay 时被当作客户端变化的意图字段。保持 reduce-only 防反向开仓不变。补充实际 PostgreSQL 场景：首次 close、部分成交后相同 key replay、完全成交后相同 key replay、同 key 换 symbol/intent 拒绝、并发相同 key 只创建一个 order。
+- 建议 API owner 在 close-position 路由加独立 shared rate-limit scope，并对 limiter unavailable fail closed；补充限流与 limiter outage 测试。
+- 以上为源码静态分析，未执行真实交易或 hosted financial RPC；没有修改 `backend/api-core.js`、SQL 或测试。问题归属 API/Backend + DB 合同联合确认。
+
+### 发布准备与当前阶段
+- `PRE-RELEASE-CHECKLIST.md` 当前仍为未勾选清单；没有本轮 staging 认证、真实 OAuth、hosted schema parity、财务账本端到端、独立视觉验收或生产回滚证据。PR #67 历史 CI PASS 不等于当前发布就绪。
+- 阶段 1 仍未通过；本轮没有把 Perpetual 风险插入当前阶段实施，也没有改变 Earn/Perpetual 的阶段顺序。
+- 本轮没有执行 hosted Supabase 写入/读取、Vercel 修改、部署、合并、真实财务操作或交易页布局修改。
+- 下一项唯一优先任务仍按最新状态记录执行：在可执行的 working 工作区运行当前资产隔离回归测试、前端 lint/build，再用隔离测试账号验证后端余额为 0 时资产页不再显示模拟 10,000 USDT；随后继续阶段 1 验收。Perpetual close-position 幂等/限流缺口交给 API owner 与 DB owner在相应阶段处理。
