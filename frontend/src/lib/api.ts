@@ -1574,7 +1574,7 @@ export async function deleteAdminSupportFaq(token: string, id: string) {
 export async function adminReplySupport(token: string, uid: string, content: string, requestId: string) {
   return adminRequest<{ ok: true; duplicate?: boolean; message_id?: string; audit_sync_pending?: boolean }>(token, "admin/support/reply", {
     method: "POST",
-    body: { uid, content, request_id: requestId },
+    body: { uid, conversation_id: "support:" + uid, content, request_id: requestId },
   });
 }
 
