@@ -23,7 +23,8 @@ test('admin support reply is idempotent by request_id and never duplicates a mes
   assert.ok(route.includes('duplicate: true'));
   // Persisted message carries the request_id and actor; audit + save follow.
   assert.ok(route.includes('request_id: requestId'));
-  assert.ok(route.includes("auditAdmin('support_reply'"));
+  assert.ok(route.includes("'support_reply'"));
+  assert.ok(route.includes('const auditEventId = await auditAdmin('));
   assert.ok(route.includes('await saveDB(db)'));
   assert.ok(route.includes('flushAdminAuditOutbox()'));
 });

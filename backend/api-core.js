@@ -3130,7 +3130,7 @@ async function handleRequest(event, context) {
         });
         return json({
           ok: true, duplicate: true, message_id: prior.id, time: prior.time,
-          audit_event_id: priorAudit ? String(priorAudit.id || '') : '',
+          audit_event_id: String(prior.audit_event_id || (priorAudit ? priorAudit.id : '') || ''),
           audit_sync_pending: !!(priorAudit && priorAudit.postgres_sync_status === 'pending')
         });
       }
@@ -4405,6 +4405,7 @@ async function handleRequest(event, context) {
         'conversation_id=' + conversationId + '; message_id=' + message.id + '; request_id=' + requestId,
         adminUserId
       );
+      message.audit_event_id = auditEventId;
       await saveDB(db);
       const auditFlush = await flushAdminAuditOutbox();
       return json({
@@ -4433,7 +4434,8 @@ async function handleRequest(event, context) {
               content: m.content,
               time: m.time,
               ...(m.from === 'admin' && m.admin_id ? { admin_id: String(m.admin_id) } : {}),
-              ...(m.from === 'admin' && m.request_id ? { request_id: String(m.request_id) } : {})
+              ...(m.from === 'admin' && m.request_id ? { request_id: String(m.request_id) } : {}),
+              ...(m.from === 'admin' && m.audit_event_id ? { audit_event_id: String(m.audit_event_id) } : {})
             };
           });
         if (!messages.length) return;

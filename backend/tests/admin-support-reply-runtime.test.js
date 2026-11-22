@@ -109,7 +109,10 @@ test('admin support reply writes only to the selected customer and exact retries
     ]);
     const conversationA = conversations.find((conversation) => conversation.uid === 'uid-customer-a');
     const conversationB = conversations.find((conversation) => conversation.uid === 'uid-customer-b');
-    assert.ok(conversationA.messages.some((message) => message.content === 'Reply only for customer A'));
+    const replyMessage = conversationA.messages.find((message) => message.content === 'Reply only for customer A');
+    assert.ok(replyMessage);
+    assert.equal(replyMessage.audit_event_id, firstBody.audit_event_id);
+    assert.equal(replyMessage.request_id, requestId);
     assert.ok(!conversationB.messages.some((message) => message.content === 'Reply only for customer A'));
 
     const retry = await sendReply('uid-customer-a', 'support:uid-customer-a', 'Reply only for customer A');

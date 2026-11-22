@@ -53,7 +53,7 @@ test('every non-financial admin mutation stages an audit event and saves state b
   }
   const calls = source.split('\n').filter(line => line.includes('auditAdmin(') && !line.includes('function auditAdmin'));
   assert.equal(calls.length, 11);
-  for (const line of calls) assert.match(line.trim(), /^await auditAdmin\(/);
+  for (const line of calls) assert.match(line.trim(), /^(?:const [A-Za-z_$][\w$]* = )?await auditAdmin\(/);
 });
 
 test('admin audit RPC uses a unique event ID and validates duplicate payloads', () => {

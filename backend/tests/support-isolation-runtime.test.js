@@ -178,6 +178,7 @@ test('real support message handler returns only the authenticated customer conve
       ['uid-customer-a', 'M1763805600000aaaaaaaaaaaa'],
       ['uid-customer-b', 'M1763805750000bbbbbbbbbbbb'],
       ['uid-customer-a', 'M1763805600500cccccccccccc'],
+      ['uid-customer-b', 'M1763805750000bbbbbbbbbbbb'],
     ]);
     assert.ok(cursorCalls.every((call) => call.p_read_at === '2026-11-22 10:01:00' || call.p_read_at === '2026-11-22 10:02:30'));
   } finally {

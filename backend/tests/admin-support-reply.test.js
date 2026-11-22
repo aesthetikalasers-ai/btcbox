@@ -21,7 +21,7 @@ test('admin support replies are permission-gated, persisted, audited and idempot
   for (const contract of [
     'body.request_id', 'body.conversation_id', "conversationId !== 'support:' + uid", 'SUPPORT_REPLY_IDEMPOTENCY_CONFLICT',
     "from: 'admin'", 'admin_id: adminUserId',
-    "auditAdmin(", "'conversation_id=' + conversationId", "'request_id=' + requestId",
+    "auditAdmin(", "'conversation_id=' + conversationId", "request_id=' + requestId",
     'audit_event_id: auditEventId', 'await saveDB(db)',
     'await flushAdminAuditOutbox()', 'slice(-500)'
   ]) assert.ok(route.includes(contract), 'missing support reply contract: ' + contract);
