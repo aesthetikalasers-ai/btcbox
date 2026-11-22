@@ -78,6 +78,10 @@ test('migration order document records the prepared Seconds migration dependenci
   assert.ok(orderDoc.includes('timestamp registry versions with four-digit source filenames'));
   assert.ok(orderDoc.includes('0042_support_read_state_v1.sql'));
   assert.ok(orderDoc.includes('isolated support read-marker table'));
+  assert.equal((orderDoc.match(/## Existing-schema support read-state upgrade/g) || []).length, 1);
+  const marketUpgradeSection = orderDoc.slice(orderDoc.indexOf('## Existing-schema market-catalogue upgrade'));
+  assert.ok(marketUpgradeSection.includes('0039_existing_schema_market_catalog_upgrade_v1.sql'));
+  assert.ok(!marketUpgradeSection.includes('0042_existing_schema_support_read_state_v1.sql'));
   assert.ok(orderDoc.includes('exactly one 11-argument service-role-only function remains'));
 });
 
