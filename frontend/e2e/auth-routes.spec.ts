@@ -517,6 +517,42 @@ test("username login submits BTCBOX credentials to the username endpoint and sur
   expect(submitted).toEqual({ username: "qa_user", password: "a-secure-test-password" });
 });
 
+test("username login reports a temporary service issue instead of blaming valid credentials", async ({ page }) => {
+  await page.route("**/api/login", async (route) => {
+    await route.fulfill({
+      status: 503,
+      contentType: "application/json",
+      body: JSON.stringify({ ok: false, code: "NETWORK_ERROR", msg: "Internal upstream diagnostic" }),
+    });
+  });
+
+  await page.goto("/login");
+  await page.getByLabel("Username").fill("qa_user");
+  await page.getByLabel("Password", { exact: true }).fill("a-secure-test-password");
+  await page.getByRole("button", { name: "Sign in" }).click();
+
+  await expect(page.getByRole("alert")).toContainText("authentication service is temporarily unavailable");
+  await expect(page.getByRole("alert")).not.toContainText("Internal upstream diagnostic");
+  await expect(page.getByRole("alert")).not.toContainText("incorrect");
+});
+
+test("username login keeps rate-limit feedback actionable without exposing server text", async ({ page }) => {
+  await page.route("**/api/login", async (route) => {
+    await route.fulfill({
+      status: 429,
+      contentType: "application/json",
+      body: JSON.stringify({ ok: false, code: "RATE_LIMITED", msg: "Too many requests. Please try again later." }),
+    });
+  });
+
+  await page.goto("/login");
+  await page.getByLabel("Username").fill("qa_user");
+  await page.getByLabel("Password", { exact: true }).fill("a-secure-test-password");
+  await page.getByRole("button", { name: "Sign in" }).click();
+
+  await expect(page.getByRole("alert")).toContainText("Too many attempts. Please wait a moment and try again.");
+});
+
 test("provider-authenticated users enter BTCBOX without forced username or password setup", async ({ page }) => {
   const credentialRequests: string[] = [];
   await page.route("**/api/account/credentials", async (route) => {
