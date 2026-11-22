@@ -157,10 +157,10 @@ export function AccountSecurityPage() {
           <button type="button" onClick={() => openSheet("password")} className="flex h-14 w-full items-center justify-between px-4 text-left transition-colors hover:bg-white/[0.02]">
             <span className="flex items-center gap-3">
               <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-cyan/10 text-brand-cyan"><Lock className="h-4 w-4" /></span>
-              <span className="text-sm font-medium text-brand-text">{t("Login password")}</span>
+              <span className="text-sm font-medium text-brand-text">{t("Email login password")}</span>
             </span>
             <span className="flex items-center gap-1.5 text-xs">
-              <span className="text-brand-text-muted">{account?.has_login_password ? t("Set") : t("Not set")}</span>
+              <span className="text-brand-text-muted">{t("Set or change")}</span>
               <ChevronRight className="h-4 w-4 text-brand-text-muted" />
             </span>
           </button>
@@ -248,7 +248,7 @@ export function AccountSecurityPage() {
                 if (busy || newPassword !== confirmNewPassword || newPassword.length < 8) return;
                 try {
                   await setSupabaseLoginPassword(newPassword);
-                  setAccount((current) => current ? { ...current, has_login_password: true } : current);
+                  // Supabase email-password state is independent of the BTCBOX username-password field.
                   setNewPassword(""); setConfirmNewPassword(""); setSheet(null);
                 } catch {}
               }}>
