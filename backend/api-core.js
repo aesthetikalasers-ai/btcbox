@@ -3815,6 +3815,19 @@ async function handleRequest(event, context) {
       if (!!u.frozen === frozen) return json({ ok: false, code: 'ACCOUNT_STATE_UNCHANGED', msg: frozen ? 'Account is already frozen.' : 'Account is already active.' }, 409);
       u.frozen = frozen;
       u.frozen_reason = frozen ? reason : '';
+      // A freeze must take effect for already-authenticated users as well as
+      // future logins. Revoke every active session and pending 2FA challenge
+      // for the target account; never touch the administrator's own session.
+      if (frozen) {
+        Object.keys(db.sessions || {}).forEach(function (token) {
+          const session = db.sessions[token];
+          if (session && String(session.uid) === String(u.uid)) delete db.sessions[token];
+        });
+        Object.keys(db.temp_tokens || {}).forEach(function (token) {
+          const challenge = db.temp_tokens[token];
+          if (challenge && String(challenge.uid) === String(u.uid)) delete db.temp_tokens[token];
+        });
+      }
       await auditAdmin(frozen ? 'user_freeze' : 'user_unfreeze', u.uid, reason, adminUserId);
       await saveDB(db);
       const auditFlush = await flushAdminAuditOutbox();
