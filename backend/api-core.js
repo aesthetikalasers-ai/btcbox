@@ -3124,15 +3124,7 @@ async function handleRequest(event, context) {
       const prior = user.support_messages.find(function (message) { return message && message.from === 'user' && message.request_id === requestId; });
       if (prior) {
         if (String(prior.content || '') !== content) return json({ ok: false, code: 'SUPPORT_MESSAGE_IDEMPOTENCY_CONFLICT', msg: 'This request ID was already used for a different message.' }, 409);
-        const priorAudit = (Array.isArray(db.audit_logs) ? db.audit_logs : []).find(function (entry) {
-          return entry && entry.action === 'support_reply' && String(entry.uid || '') === uid &&
-            String(entry.detail || '').includes('message_id=' + String(prior.id));
-        });
-        return json({
-          ok: true, duplicate: true, message_id: prior.id, time: prior.time,
-          audit_event_id: String(prior.audit_event_id || (priorAudit ? priorAudit.id : '') || ''),
-          audit_sync_pending: !!(priorAudit && priorAudit.postgres_sync_status === 'pending')
-        });
+        return json({ ok: true, duplicate: true, message_id: prior.id, time: prior.time });
       }
     }
     const messageId = 'M' + Date.now() + crypto.randomBytes(3).toString('hex');
@@ -4388,7 +4380,15 @@ async function handleRequest(event, context) {
         if (String(prior.content || '') !== reply) {
           return json({ ok: false, code: 'SUPPORT_REPLY_IDEMPOTENCY_CONFLICT', msg: 'This request ID was already used for a different reply.' }, 409);
         }
-        return json({ ok: true, duplicate: true, message_id: prior.id, time: prior.time });
+        const priorAudit = (Array.isArray(db.audit_logs) ? db.audit_logs : []).find(function (entry) {
+          return entry && entry.action === 'support_reply' && String(entry.uid || '') === uid &&
+            String(entry.detail || '').includes('message_id=' + String(prior.id));
+        });
+        return json({
+          ok: true, duplicate: true, message_id: prior.id, time: prior.time,
+          audit_event_id: String(prior.audit_event_id || (priorAudit ? priorAudit.id : '') || ''),
+          audit_sync_pending: !!(priorAudit && priorAudit.postgres_sync_status === 'pending')
+        });
       }
       const message = {
         id: 'M' + Date.now() + crypto.randomBytes(8).toString('hex'),

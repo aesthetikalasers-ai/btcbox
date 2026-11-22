@@ -27,7 +27,7 @@ test('admin support replies are permission-gated, persisted, audited and idempot
   ]) assert.ok(route.includes(contract), 'missing support reply contract: ' + contract);
   assert.ok(client.includes('admin/support/reply'));
   assert.ok(client.includes('request_id: requestId'));
-  assert.ok(api.includes("audit_event_id: priorAudit ? String(priorAudit.id || '') : ''"));
+  assert.ok(api.includes("audit_event_id: String(prior.audit_event_id || (priorAudit ? priorAudit.id : '') || '')"));
   assert.ok(admin.includes('supportReplyRequestIds'));
   assert.ok(admin.includes('adminReplySupport(token, uid, content, requestId)'));
 });
