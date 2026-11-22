@@ -354,3 +354,12 @@ test("live market freshness is based on validated server snapshot timestamps, no
   assert.ok(getMarkets.includes("nowSeconds - row.snapshotTs > 90"));
   assert.ok(getMarkets.includes('"MARKET_SNAPSHOT_STALE"'));
 });
+
+
+test("dashboard keeps its market overview component and exposes market-feed failures", () => {
+  const dashboard = fs.readFileSync(path.join(root, "features/dashboard/Dashboard.tsx"), "utf8");
+  assert.ok(dashboard.includes("function MarketTable("));
+  assert.ok(dashboard.includes("loading={loading} error={error}"));
+  assert.ok(dashboard.includes('t("Market feed unavailable")'));
+  assert.ok(dashboard.includes("t(error)"));
+});
