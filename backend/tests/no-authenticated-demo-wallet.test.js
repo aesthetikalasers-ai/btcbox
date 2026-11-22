@@ -14,6 +14,18 @@ test('authenticated app startup does not seed a local demo wallet', () => {
   assert.ok(!main.includes('<TradingInitializer'));
 });
 
+test('new backend accounts start with zero balances for every supported asset', () => {
+  const api = fs.readFileSync(path.resolve(__dirname, '../api-core.js'), 'utf8');
+  const start = api.indexOf('function emptyBalances()');
+  const end = api.indexOf('function safeDepositAddresses', start);
+  assert.ok(start >= 0 && end > start);
+  const emptyBalances = api.slice(start, end);
+  for (const asset of ['USDT', 'BTC', 'ETH', 'SOL', 'BNB', 'USDC']) {
+    assert.match(emptyBalances, new RegExp(asset + ': \\{ free: 0, frozen: 0 \\}'));
+  }
+  assert.ok(api.includes('balances: emptyBalances()'), 'new account creation must use the zero-balance factory');
+});
+
 test('real asset page reads only the authenticated account snapshot', () => {
   const assets = fs.readFileSync(path.join(frontend, 'features/assets/AssetsPage.tsx'), 'utf8');
   assert.ok(assets.includes('getAccount(controller.signal)'));
