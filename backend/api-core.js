@@ -1206,7 +1206,7 @@ function validateKycSubmission(body) {
 }
 
 const KYC_STORAGE_BUCKET = 'kyc-documents';
-const KYC_IMAGE_MAX_BYTES = 512 * 1024;
+const KYC_IMAGE_MAX_BYTES = 2 * 1024 * 1024;
 
 function validateKycImage(body) {
   const contentType = String(body && body.document_content_type || '').toLowerCase();
@@ -1214,13 +1214,17 @@ function validateKycImage(body) {
   if (!['image/jpeg', 'image/png', 'image/webp'].includes(contentType)) {
     return { ok: false, msg: 'Upload a JPEG, PNG, or WebP identity document image.' };
   }
-  if (!encoded || encoded.length > Math.ceil(KYC_IMAGE_MAX_BYTES * 4 / 3) + 8 || !/^[A-Za-z0-9+/]+={0,2}$/.test(encoded)) {
-    return { ok: false, msg: 'The identity document image is missing or too large (maximum 512 KB).' };
+  const padding = encoded.endsWith('==') ? 2 : (encoded.endsWith('=') ? 1 : 0);
+  const decodedLength = Math.floor(encoded.length * 3 / 4) - padding;
+  if (!encoded || encoded.length > Math.ceil(KYC_IMAGE_MAX_BYTES * 4 / 3) + 8 ||
+      encoded.length % 4 !== 0 || !/^[A-Za-z0-9+/]+={0,2}$/.test(encoded) ||
+      decodedLength <= 0 || decodedLength > KYC_IMAGE_MAX_BYTES) {
+    return { ok: false, msg: 'The identity document image is missing or too large (maximum 2 MB).' };
   }
   let bytes;
   try { bytes = Buffer.from(encoded, 'base64'); } catch (_) { return { ok: false, msg: 'The identity document image is invalid.' }; }
-  if (!bytes.length || bytes.length > KYC_IMAGE_MAX_BYTES || bytes.toString('base64').replace(/=+$/, '') !== encoded.replace(/=+$/, '')) {
-    return { ok: false, msg: 'The identity document image is invalid or exceeds 512 KB.' };
+  if (!bytes.length || bytes.length !== decodedLength || bytes.length > KYC_IMAGE_MAX_BYTES) {
+    return { ok: false, msg: 'The identity document image is invalid or exceeds 2 MB.' };
   }
   const jpeg = bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff;
   const png = bytes.length >= 8 && bytes.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]));
@@ -1392,19 +1396,28 @@ async function handleRequest(event, context) {
   let body = {};
   if (event.body !== undefined && event.body !== null && event.body !== '') {
     let rawBody;
+    const requestBodyLimit = path === 'kyc' && method === 'POST' ? 3 * 1024 * 1024 : 1024 * 1024;
     try {
-      rawBody = event.isBase64Encoded
-        ? Buffer.from(String(event.body), 'base64').toString('utf8')
-        : String(event.body);
+      if (event.isBase64Encoded) {
+        const encodedBody = String(event.body);
+        // Reject oversized gateway payloads before allocating the decoded body.
+        if (encodedBody.length > Math.ceil(requestBodyLimit * 4 / 3) + 8) {
+          return json({ ok: false, msg: 'Request body too large.', code: 'REQUEST_BODY_TOO_LARGE' }, 413);
+        }
+        rawBody = Buffer.from(encodedBody, 'base64').toString('utf8');
+      } else {
+        rawBody = String(event.body);
+      }
     } catch (e) {
       return json({ ok: false, msg: 'Invalid request format.', code: 'INVALID_REQUEST_BODY' }, 400);
     }
-    // Bound parsing cost and memory use for all API endpoints.
-    if (Buffer.byteLength(rawBody, 'utf8') > 1024 * 1024) {
+    // KYC alone receives 3 MiB for a 2 MiB image encoded as base64; all other APIs stay at 1 MiB.
+    if (Buffer.byteLength(rawBody, 'utf8') > requestBodyLimit) {
       return json({ ok: false, msg: 'Request body too large.', code: 'REQUEST_BODY_TOO_LARGE' }, 413);
     }
     try {
       body = JSON.parse(rawBody);
+      rawBody = null;
     } catch (e) {
       return json({ ok: false, msg: 'Request body is not valid JSON', code: 'INVALID_JSON' }, 400);
     }
