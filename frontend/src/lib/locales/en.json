@@ -1744,5 +1744,7 @@
   "Explore seconds trading markets.": "Explore seconds trading markets.",
   "Explore Earn products and yields.": "Explore Earn products and yields.",
   "Unable to load spot markets. Please try again.": "Unable to load spot markets. Please try again.",
-  "Loading spot markets…": "Loading spot markets…"
+  "Loading spot markets…": "Loading spot markets…",
+  "Unable to load Earn products. Please try again.": "Unable to load Earn products. Please try again.",
+  "Unable to complete sign-in. Please try again.": "Unable to complete sign-in. Please try again."
 }
