@@ -1747,5 +1747,6 @@
   "Loading spot markets…": "Spotmärkte werden geladen…",
   "Unable to load Earn products. Please try again.": "Earn-Produkte konnten nicht geladen werden. Bitte versuchen Sie es erneut.",
   "Unable to complete sign-in. Please try again.": "Die Anmeldung konnte nicht abgeschlossen werden. Bitte versuchen Sie es erneut.",
-  "Trading is temporarily unavailable.": "Der Handel ist vorübergehend nicht verfügbar."
+  "Trading is temporarily unavailable.": "Der Handel ist vorübergehend nicht verfügbar.",
+  "Only limit orders are available.": "Derzeit sind nur Limit-Orders verfügbar."
 }
