@@ -229,7 +229,7 @@
   "Passport": "Passaporto",
   "Driver license": "Patente di guida",
   "Identity document image": "Immagine del documento d'identità",
-  "JPEG, PNG o WebP. Dimensione massima dell'immagine originale: 5 MB; verrà compressa in modo sicuro a 2 MB prima del caricamento. Carica un'immagine chiara e leggibile.": "JPEG, PNG o WebP. Dimensione originale massima 8 MB; compressione sicura a 512 KB. Carica un'immagine chiara e leggibile.",
+  "JPEG, PNG o WebP. Dimensione massima dell'immagine originale: 5 MB; verrà compressa in modo sicuro a 2 MB prima del caricamento. Carica un'immagine chiara e leggibile.": "JPEG, PNG o WebP. Dimensione massima dell'immagine originale: 5 MB; verrà compressa in modo sicuro a 2 MB prima del caricamento. Carica un'immagine chiara e leggibile.",
   "Selected": "Selezionato",
   "Submitting…": "Invio in corso…",
   "Submit for review": "Invia per la revisione",
