@@ -1747,5 +1747,6 @@
   "Unable to load settlement history. Refresh to try again.": "Impossibile caricare lo storico dei regolamenti. Aggiorna e riprova.",
   "The market service snapshot is missing, invalid or older than 90 seconds. Quotes are hidden until a fresh snapshot arrives.": "L'istantanea del mercato manca, non è valida o ha più di 90 secondi. Le quotazioni sono nascoste finché non arriva un'istantanea aggiornata.",
   "Email login password": "Password di accesso via email",
-  "Set or change": "Imposta o modifica"
+  "Set or change": "Imposta o modifica",
+  "Subscriptions and redemptions are currently disabled by platform controls.": "Le sottoscrizioni e i riscatti sono attualmente disabilitati dai controlli della piattaforma."
 }
