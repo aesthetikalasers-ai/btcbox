@@ -3,8 +3,6 @@ import { useLocation } from "react-router-dom";
 import { Topbar } from "./Topbar";
 import { BottomNav } from "./BottomNav";
 import { SiteFooter } from "./SiteFooter";
-import { useI18n } from "../../lib/i18n";
-import { DEMO_PREVIEW_ACTIVE, exitDemoPreview } from "../../lib/demoPreview";
 import { useNavigationTier } from "../../lib/navigation";
 
 /**
@@ -17,7 +15,6 @@ import { useNavigationTier } from "../../lib/navigation";
  *   back affordance and page title become the primary navigation.
  */
 export function AppLayout({ children }: { children: ReactNode }) {
-  const { t } = useI18n();
   const location = useLocation();
   const tier = useNavigationTier(location.pathname);
   const isSubPage = tier === "sub";
@@ -38,11 +35,6 @@ export function AppLayout({ children }: { children: ReactNode }) {
         {/* Sub-pages own their header through SubPageLayout, so the global logo
             header and the bottom tab bar are intentionally omitted for that tier. */}
         {!isSubPage && <Topbar />}
-        {false && DEMO_PREVIEW_ACTIVE && <div role="status" className="flex h-6 items-center gap-2 border-b border-brand-border-subtle bg-brand-surface-2 px-3 py-1 leading-6 text-[10px] sm:px-5">
-          <span className="text-brand-text-muted capitalize">demo</span>
-          <span className="text-brand-text text-nounderline hover:opacity-80 transition-opacity">Preview</span>
-          <button type="button" onClick={exitDemoPreview} className="min-h-5 min-w-8 rounded-md px-1.5 text-xs font-medium text-brand-text underline underline-offset-1 hover:bg-brand-surface-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent/60">{t("Exit")}</button>
-        </div>}
         <main ref={mainRef} tabIndex={-1} data-terminal-route={isTerminalRoute ? "true" : undefined} className={`min-h-0 flex-1 overflow-y-auto focus:outline-none ${isSubPage ? "pb-0" : "pb-[calc(60px+env(safe-area-inset-bottom))] lg:pb-0"}`}>
           {children}
           {/* Footer lives inside the scroll container so it trails the content
