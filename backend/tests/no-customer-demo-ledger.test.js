@@ -345,4 +345,12 @@ test("live market freshness is based on validated server snapshot timestamps, no
   assert.ok(table.includes("const snapshotInvalid = markets.some"));
   assert.ok(table.includes("!Number.isFinite(item.snapshotTs)"));
   assert.ok(table.includes("missing, invalid or older than 90 seconds"));
+  const api = fs.readFileSync(path.join(root, "lib/api.ts"), "utf8");
+  const getMarketsStart = api.indexOf("export async function getMarkets(");
+  const getKlinesStart = api.indexOf("export async function getKlines(", getMarketsStart);
+  const getMarkets = api.slice(getMarketsStart, getKlinesStart);
+  assert.ok(getMarkets.includes("const snapshotInvalid = rows.some"));
+  assert.ok(getMarkets.includes("row.snapshotTs > nowSeconds + 30"));
+  assert.ok(getMarkets.includes("nowSeconds - row.snapshotTs > 90"));
+  assert.ok(getMarkets.includes('"MARKET_SNAPSHOT_STALE"'));
 });
