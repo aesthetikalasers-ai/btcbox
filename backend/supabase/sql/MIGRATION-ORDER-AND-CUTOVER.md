@@ -115,6 +115,8 @@ Never infer live database state by comparing timestamp registry versions with fo
 
 ## Existing-schema market-catalogue upgrade
 
+`backend/supabase/existing-schema-upgrades/0042_existing_schema_support_read_state_v1.sql` is the incremental upgrade for an existing BTCBOX deployment. It creates the isolated support read-marker table and service-role-only atomic RPCs, backfills valid legacy UTC `last_read_chat_at` values from `btcbox_state`, and does not rewrite user, session, asset, order, or financial records. Apply this SQL to the intended existing database and verify the table/function grants before deploying the matching backend code. Do not run the fresh-database bootstrap or apply this change to production as part of source review.
+
 `backend/supabase/existing-schema-upgrades/0039_existing_schema_market_catalog_upgrade_v1.sql` is an incremental upgrade for an existing BTCBOX database that already contains `financial_matching_markets` but lacks `read_spot_market_snapshot_v1`. It adds only the service-role-only read RPC and seeds four public quote pairs (`BTC`, `ETH`, `SOL`, `BNB` against `USDT`) when no operator configuration exists. Existing rows are never overwritten. It does not enable matching or any financial write path; those remain controlled by the runtime `FINANCIAL_*` flags.
 
 Apply this upgrade only after reading the target schema and confirming the target is an existing deployment missing this specific RPC. It is deliberately excluded from the empty-database bootstrap allowlist, where `0028_admin_rbac_service_rpc_wrappers_v1.sql` supplies the canonical read RPC alongside the audited administrator workflow.
