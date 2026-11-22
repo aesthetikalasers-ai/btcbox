@@ -34,6 +34,10 @@ test('customer bank account identifiers are masked and customer records remain i
 test('customer form supports IBAN and leaves regional wire fields optional', () => {
   assert.ok(addressPage.includes('IBAN (if applicable)'));
   assert.ok(addressPage.includes('setIban'));
+  assert.ok(addressPage.includes('iban: iban.replace'));
+  assert.ok(addressPage.includes('country: country.trim().toUpperCase()'));
+  assert.ok(addressPage.includes('routing_number: routingNumber.replace'));
+  assert.ok(!addressPage.includes('if (tab === "bank" && (!routingNumber.trim()'));
   assert.ok(!addressPage.includes('required={showWireDetails}'));
   assert.ok(!addressPage.includes('required inputMode="numeric" placeholder={t("4–34 digits")}'));
 });
