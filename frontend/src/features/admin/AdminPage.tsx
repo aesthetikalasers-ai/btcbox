@@ -92,6 +92,32 @@ function permissionLabel(key: string): string {
   return found ? found[1] : key;
 }
 
+function groupSupportThreads(messages: Array<Record<string, unknown>>) {
+  const grouped = new Map<string, { uid: string; email: string; messages: Array<Record<string, unknown>> }>();
+  for (const message of messages) {
+    const uid = String(message.uid || message.user_id || "").trim();
+    if (!uid) continue;
+    let thread = grouped.get(uid);
+    if (!thread) {
+      thread = { uid, email: String(message.email || ""), messages: [] };
+      grouped.set(uid, thread);
+    }
+    if (!thread.email && typeof message.email === "string") thread.email = message.email;
+    thread.messages.push(message);
+  }
+  return Array.from(grouped.values()).map((thread) => {
+    thread.messages.sort((left, right) => String(left.time || "").localeCompare(String(right.time || "")));
+    const latest = thread.messages[thread.messages.length - 1];
+    let unanswered = 0;
+    for (let index = thread.messages.length - 1; index >= 0; index -= 1) {
+      if (thread.messages[index].from === "admin") break;
+      if (thread.messages[index].from === "user") unanswered += 1;
+    }
+    return { ...thread, latestTime: String(latest?.time || ""), latestFrom: latest?.from, unanswered };
+  }).sort((left, right) => right.latestTime.localeCompare(left.latestTime));
+}
+
+
 export function AdminPage() {
   const { status: authStatus, getSupabaseAccessToken } = useAuth();
   const [token, setToken] = useState("");
@@ -1086,7 +1112,7 @@ export function AdminPage() {
 
     {!loading && tab === "orders" ? <Card><CardHeader><div className="flex flex-wrap items-start justify-between gap-2"><div><CardTitle>{adminText("Orders")}</CardTitle><CardDescription>{ordersSource === "postgres_financial_matching" ? adminText("Customer order history and this administrator view use the canonical PostgreSQL matching orders.") : ordersSource === "legacy_state" ? adminText("Legacy state fallback is active because matching-engine mode was not requested.") : adminText("Order data source is not confirmed.")}</CardDescription></div><Badge variant={ordersSource === "postgres_financial_matching" ? "default" : "destructive"}>{ordersSource === "postgres_financial_matching" ? adminText("Source: PostgreSQL matching") : ordersSource === "legacy_state" ? adminText("Source: legacy state") : adminText("Source: unknown")}</Badge></div></CardHeader><CardContent><div className="overflow-x-auto"><table className="w-full min-w-[700px] text-left text-sm"><thead><tr className="border-b border-brand-border bg-brand-surface-2/50 type-label uppercase tracking-wide text-brand-text-muted"><th className="px-3 py-2.5">{adminText("ID")}</th><th className="px-3 py-2.5">{adminText("User")}</th><th className="px-3 py-2.5">{adminText("Symbol")}</th><th className="px-3 py-2.5">{adminText("Side")}</th><th className="px-3 py-2.5">{adminText("Status")}</th><th className="px-3 py-2.5">{adminText("Created")}</th></tr></thead><tbody>{orders.map((item,index)=><tr key={asText(item.id)||index} className="border-b border-brand-border-subtle transition-colors hover:bg-brand-surface-hover/40"><td className="px-3 py-2.5 font-mono text-xs">{asText(item.id)}</td><td className="px-3 py-2.5">{asText(item.uid||item.user_id)}</td><td className="px-3 py-2.5 font-medium">{asText(item.symbol)}</td><td className="px-3 py-2.5">{adminText(asText(item.side))}</td><td className="px-3 py-2.5"><Badge variant={statusVariant(asText(item.status))}>{adminText(asText(item.status))}</Badge></td><td className="whitespace-nowrap px-3 py-2.5">{formatDate(item.created_at||item.time)}</td></tr>)}{orders.length===0 ? <tr><td colSpan={6} className="px-3 py-10 text-center text-sm text-brand-text-muted">暂无订单记录。</td></tr> : null}</tbody></table></div></CardContent></Card> : null}
 
-    {!loading && tab === "support" ? <Card><CardHeader className="flex flex-row items-center justify-between"><CardTitle>{adminText("Support messages")}</CardTitle><Button size="sm" variant="outline" disabled={busy} onClick={()=>void refreshSupportQueue()}>{adminText("Refresh queue")}</Button></CardHeader><CardContent className="space-y-3">{support.map((item,index)=>{const uid=asText(item.uid||item.user_id);return <div key={asText(item.id)||index} className="rounded-xl border border-brand-border p-3"><p className="text-xs text-brand-text-muted">{uid} · {formatDate(item.created_at||item.time)}</p><p className="mt-2 whitespace-pre-wrap text-sm">{asText(item.content||item.message)}</p><textarea value={supportReply[uid]||""} onChange={event=>{setSupportReply(current=>({...current,[uid]:event.target.value}));try { setSupportReplyRequestIds(current=>({...current,[uid]:window.crypto.randomUUID()})); } catch { setError("Secure support reply request IDs are unavailable in this browser. No reply was sent."); }}} rows={2} className="mt-3 w-full rounded-lg border border-brand-border bg-brand-surface-2 p-2 text-sm text-brand-text" placeholder={adminText("Reply to customer")}/><Button size="sm" className="mt-2" disabled={busy||!supportReply[uid]?.trim()||!hasPermission("support.reply")} onClick={()=>void replySupport(uid)}>{adminText("Send reply")}</Button></div>;})}{support.length===0 ? <p className="rounded-lg border border-dashed border-brand-border p-6 text-center text-sm text-brand-text-muted">暂无客服消息。</p> : null}</CardContent></Card> : null}
+    {!loading && tab === "support" ? <Card><CardHeader className="flex flex-row items-center justify-between"><CardTitle>{adminText("Support messages")}</CardTitle><Button size="sm" variant="outline" disabled={busy} onClick={()=>void refreshSupportQueue()}>{adminText("Refresh queue")}</Button></CardHeader><CardContent className="space-y-3">{groupSupportThreads(support).map((thread)=> <div key={thread.uid} className="rounded-xl border border-brand-border p-3"><div className="flex flex-wrap items-center justify-between gap-2"><div><p className="text-sm font-semibold text-brand-text">{thread.email || thread.uid}</p><p className="text-xs text-brand-text-muted">{thread.uid}</p></div><Badge variant={thread.unanswered > 0 ? "warning" : "success"}>{thread.unanswered > 0 ? adminText("Awaiting reply") + " · " + thread.unanswered : adminText("Replied")}</Badge></div><div className="mt-3 space-y-2 rounded-lg bg-brand-surface-2/50 p-3">{thread.messages.map((message,index)=><div key={asText(message.id)||index} className={message.from === "admin" ? "ml-5 rounded-lg bg-brand-accent/10 p-2.5" : "mr-5 rounded-lg bg-brand-surface p-2.5"}><div className="flex items-center justify-between gap-2"><Badge variant={message.from === "admin" ? "outline" : "secondary"}>{message.from === "admin" ? adminText("Administrator") : adminText("Customer")}</Badge><span className="text-[11px] text-brand-text-muted">{formatDate(asText(message.time))}</span></div><p className="mt-2 whitespace-pre-wrap break-words text-sm">{asText(message.content)}</p></div>)}</div><textarea value={supportReply[thread.uid]||""} onChange={event=>{setSupportReply(current=>({...current,[thread.uid]:event.target.value}));try { setSupportReplyRequestIds(current=>({...current,[thread.uid]:window.crypto.randomUUID()})); } catch { setError("Secure support reply request IDs are unavailable in this browser. No reply was sent."); }}} rows={2} className="mt-3 w-full rounded-lg border border-brand-border bg-brand-surface-2 p-2 text-sm text-brand-text" placeholder={adminText("Reply to customer")}/><Button size="sm" className="mt-2" disabled={busy||!supportReply[thread.uid]?.trim()||!hasPermission("support.reply")} onClick={()=>void replySupport(thread.uid)}>{adminText("Send reply")}</Button></div>)}{support.length===0 ? <p className="rounded-lg border border-dashed border-brand-border p-6 text-center text-sm text-brand-text-muted">暂无客服消息。</p> : null}</CardContent></Card> : null}
     {!loading && tab === "support-faq" ? <div className="grid gap-4 xl:grid-cols-[minmax(0,1.05fr)_minmax(340px,0.95fr)]">
       <Card>
         <CardHeader>
