@@ -4113,14 +4113,16 @@ async function handleRequest(event, context) {
         } else {
           const fields=['account_holder','bank_name','account_number','iban','routing_number','swift','bank_address','country','note'];
           fields.forEach(function(k){if(typeof body[k]==='string') addr[k]=body[k].trim();});
-          if(body.account_number!==undefined && !/^\d{4,34}$/.test(String(body.account_number).replace(/\s/g,''))) return json({ok:false,msg:'Operation failed.'},400);
-          if(body.routing_number!==undefined && !/^\d{9}$/.test(String(body.routing_number).replace(/\s/g,''))) return json({ok:false,msg:'Operation failed.'},400);
+          if(body.account_number!==undefined && body.account_number!=='' && !/^[A-Z0-9]{4,34}$/i.test(String(body.account_number).replace(/\s/g,''))) return json({ok:false,msg:'Operation failed.'},400);
+          if(body.routing_number!==undefined && body.routing_number!=='' && !/^\d{9}$/.test(String(body.routing_number).replace(/\s/g,''))) return json({ok:false,msg:'Operation failed.'},400);
           if(body.swift!==undefined && body.swift && !/^[A-Z]{4}[A-Z]{2}[A-Z0-9]{2}([A-Z0-9]{3})?$/.test(String(body.swift).toUpperCase())) return json({ok:false,msg:'Operation failed.'},400);
-          if(body.iban!==undefined && body.iban && !/^[A-Z]{2}[0-9]{2}[A-Z0-9]{11,30}$/.test(String(body.iban).replace(/\\s/g,'').toUpperCase())) return json({ok:false,msg:'Operation failed.'},400);
-          if(body.account_number!==undefined && body.iban!==undefined && !String(body.account_number).replace(/\\s/g,'') && !String(body.iban).replace(/\\s/g,'')) return json({ok:false,msg:'At least one account number or IBAN is required.'},400);
+          if(body.iban!==undefined && body.iban && !/^[A-Z]{2}[0-9]{2}[A-Z0-9]{11,30}$/.test(String(body.iban).replace(/\s/g,'').toUpperCase())) return json({ok:false,msg:'Operation failed.'},400);
+          if(body.account_number!==undefined && body.iban!==undefined && !String(body.account_number).replace(/\s/g,'') && !String(body.iban).replace(/\s/g,'')) return json({ok:false,msg:'At least one account number or IBAN is required.'},400);
           if(body.account_number!==undefined) addr.account_number=String(body.account_number).replace(/\s/g,'');
           if(body.routing_number!==undefined) addr.routing_number=String(body.routing_number).replace(/\s/g,'');
-          if(body.swift!==undefined) addr.swift=String(body.swift).toUpperCase();\n          if(body.iban!==undefined) addr.iban=String(body.iban).replace(/\\s/g,'').toUpperCase();\n          if(body.country!==undefined) addr.country=String(body.country).toUpperCase().slice(0,2);
+          if(body.swift!==undefined) addr.swift=String(body.swift).toUpperCase();
+          if(body.iban!==undefined) addr.iban=String(body.iban).replace(/\s/g,'').toUpperCase();
+          if(body.country!==undefined) addr.country=String(body.country).toUpperCase().slice(0,2);
         }
       } else return json({ok:false,msg:'Unknown operation.'},400);
       if(!Array.isArray(target.address_audit)) target.address_audit=[];
