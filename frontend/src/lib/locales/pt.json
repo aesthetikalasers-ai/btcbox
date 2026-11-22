@@ -1744,5 +1744,7 @@
   "Explore seconds trading markets.": "Explore os mercados de negociação por segundos.",
   "Explore Earn products and yields.": "Explore os produtos Earn e os seus rendimentos.",
   "Unable to load spot markets. Please try again.": "Não foi possível carregar os mercados spot. Tente novamente.",
-  "Loading spot markets…": "A carregar os mercados spot…"
+  "Loading spot markets…": "A carregar os mercados spot…",
+  "Unable to load Earn products. Please try again.": "Não foi possível carregar os produtos Earn. Tente novamente.",
+  "Unable to complete sign-in. Please try again.": "Não foi possível concluir o início de sessão. Tente novamente."
 }
