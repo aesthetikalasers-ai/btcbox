@@ -1206,7 +1206,7 @@ function validateKycSubmission(body) {
 }
 
 const KYC_STORAGE_BUCKET = 'kyc-documents';
-const KYC_IMAGE_MAX_BYTES = 512 * 1024;
+const KYC_IMAGE_MAX_BYTES = 2 * 1024 * 1024;
 
 function validateKycImage(body) {
   const contentType = String(body && body.document_content_type || '').toLowerCase();
@@ -1215,12 +1215,12 @@ function validateKycImage(body) {
     return { ok: false, msg: 'Upload a JPEG, PNG, or WebP identity document image.' };
   }
   if (!encoded || encoded.length > Math.ceil(KYC_IMAGE_MAX_BYTES * 4 / 3) + 8 || !/^[A-Za-z0-9+/]+={0,2}$/.test(encoded)) {
-    return { ok: false, msg: 'The identity document image is missing or too large (maximum 512 KB).' };
+    return { ok: false, msg: 'The identity document image is missing or too large (maximum 2 MB).' };
   }
   let bytes;
   try { bytes = Buffer.from(encoded, 'base64'); } catch (_) { return { ok: false, msg: 'The identity document image is invalid.' }; }
   if (!bytes.length || bytes.length > KYC_IMAGE_MAX_BYTES || bytes.toString('base64').replace(/=+$/, '') !== encoded.replace(/=+$/, '')) {
-    return { ok: false, msg: 'The identity document image is invalid or exceeds 512 KB.' };
+    return { ok: false, msg: 'The identity document image is invalid or exceeds 2 MB.' };
   }
   const jpeg = bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff;
   const png = bytes.length >= 8 && bytes.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]));
