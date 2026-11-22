@@ -184,6 +184,155 @@ function QuickActions() {
   );
 }
 
+function MarketTable({ markets, locale, loading, error, onViewAll }: { markets: MarketTicker[]; locale: string; loading: boolean; error: string; onViewAll: () => void }) {
+  const { t } = useI18n();
+  const tabs = useMemo(
+    () =>
+      [
+        { key: "hot", label: t("Hot pairs") },
+        { key: "gainers", label: t("Gainers") },
+        { key: "new", label: t("New listings") },
+        { key: "volume", label: t("24h volume") },
+      ] as const,
+    [t],
+  );
+  type TabKey = (typeof tabs)[number]["key"];
+  const [tab, setTab] = useState<TabKey>("hot");
+  const rows = useMemo(() => {
+    const list = [...markets];
+    if (tab === "gainers") list.sort((a, b) => b.chg - a.chg);
+    else if (tab === "volume") list.sort((a, b) => Number(b.vol) - Number(a.vol));
+    else if (tab === "new") list.sort((a, b) => (b.providerTs ?? b.snapshotTs ?? 0) - (a.providerTs ?? a.snapshotTs ?? 0));
+    else list.sort((a, b) => Number(b.vol) - Number(a.vol));
+    return list.slice(0, 8);
+  }, [markets, tab]);
+  if (rows.length === 0) {
+    return (
+      <section aria-label={t("Market overview")} className="overflow-hidden rounded-xl border border-white/[0.08] bg-brand-surface px-4 py-6 text-center">
+        <p className="text-sm font-semibold text-brand-text">{loading ? t("Loading…") : t("Market feed unavailable")}</p>
+        {error ? <p className="mt-2 break-words text-xs text-brand-text-muted">{t(error)}</p> : !loading ? <p className="mt-2 text-xs text-brand-text-muted">{t("No market pairs are currently available.")}</p> : null}
+        <button type="button" onClick={onViewAll} className="mt-3 text-xs font-semibold text-brand-accent">{t("View all markets")}</button>
+      </section>
+    );
+  }
+
+  return (
+    <section aria-label={t("Market overview")} className="overflow-hidden rounded-xl border border-white/[0.08] bg-brand-surface shadow-[inset_0_1px_0_0_rgba(255,255,255,0.12)] transition-all duration-300 hover:border-brand-accent/30 hover:shadow-[0_8px_30px_rgba(14,203,129,0.12)]">
+      <div className="flex items-center justify-between border-b border-brand-border px-3 py-2.5">
+        <h2 className="text-[13px] font-semibold text-brand-text">{t("Market overview")}</h2>
+        <button
+          type="button"
+          onClick={onViewAll}
+          className="flex items-center gap-0.5 text-[11px] font-medium text-brand-text-muted transition-colors hover:text-brand-accent"
+        >
+          {t("View all markets")}
+          <ArrowRight className="h-3 w-3" />
+        </button>
+      </div>
+
+      {/* Horizontal sub-tabs: Hot / Gainers / New / Volume. */}
+      <div className="flex items-center gap-1 overflow-x-auto border-b border-brand-border px-2 py-1.5" role="tablist" aria-label={t("Market overview")}>
+        {tabs.map((tabItem) => (
+          <button
+            key={tabItem.key}
+            type="button"
+            role="tab"
+            aria-selected={tab === tabItem.key}
+            onClick={() => setTab(tabItem.key)}
+            className={`shrink-0 rounded-full border px-3 py-1 text-[11px] font-semibold transition-colors ${
+              tab === tabItem.key
+                ? "border-brand-accent/50 bg-brand-accent/15 text-brand-accent"
+                : "border-transparent text-brand-text-muted hover:text-brand-text"
+            }`}
+          >
+            {tabItem.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Mobile: single-column list — icon+symbol left, price right, change pill. */}
+      <div className="sm:hidden">
+        {/* Column header row for a true exchange feel. */}
+        <div className="flex items-center gap-3 border-b border-brand-border px-3 py-2 text-[10px] font-medium uppercase tracking-wide text-brand-text-muted">
+          <span className="min-w-0 flex-1">{t("Pair")}</span>
+          <span className="w-[76px] text-right">{t("Last price")}</span>
+          <span className="w-[76px] text-right">{t("24h change")}</span>
+        </div>
+        {rows.map((m, idx) => {
+          const up = m.chg >= 0;
+          const isHot = (tab === "hot" || tab === "gainers") && idx < 3;
+          return (
+            <Link
+              key={m.sym}
+              to={`/trade/${pairSymbol(m.sym)}`}
+              className="flex min-w-0 items-center gap-3 border-b border-brand-border-subtle px-3 py-3 last:border-b-0 transition-colors hover:bg-brand-surface-hover/50"
+            >
+              <TokenIcon symbol={m.sym} className="h-7 w-7 shrink-0" />
+              <span className="min-w-0 flex-1">
+                <span className="flex items-baseline gap-1 min-w-0">
+                  <span className="truncate text-[15px] font-bold leading-tight text-brand-text">{m.sym}</span>
+                  <span className="text-[11px] font-medium text-brand-text-muted shrink-0">/USDT</span>
+                  {isHot ? <HotFlameIcon className="h-3.5 w-3.5 shrink-0" /> : null}
+                </span>
+                <span className="mt-0.5 block truncate text-[11px] font-normal leading-tight text-brand-text-muted">{t(getAssetName(m.sym))}</span>
+              </span>
+              <span className="shrink-0 text-right">
+                <span className="block font-mono text-[17px] font-bold leading-tight tabular-nums text-brand-text">{fmtPrice(m.price, locale)}</span>
+              </span>
+              <span
+                className={`flex h-7 min-w-[76px] shrink-0 items-center justify-center rounded-md px-2 text-[13px] font-semibold tabular-nums ${up ? "bg-brand-accent/10 text-brand-accent" : "bg-brand-danger/10 text-brand-danger"}`}
+              >
+                {fmtChange(m.chg, locale)}
+              </span>
+            </Link>
+          );
+        })}
+      </div>
+
+      {/* Desktop: fixed-column table. */}
+      <table className="hidden w-full table-fixed border-collapse sm:table">
+        <thead>
+          <tr className="border-b border-brand-border text-xs font-medium text-brand-text-muted">
+            <th scope="col" className="w-[38%] px-3 py-2 text-left font-medium">{t("Pair")}</th>
+            <th scope="col" className="w-[30%] px-1 py-2 text-right font-medium">{t("Last price")}</th>
+            <th scope="col" className="w-[32%] px-3 py-2 text-right font-medium">{t("24h change")}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((m) => {
+            const up = m.chg >= 0;
+            return (
+              <tr key={m.sym} className="border-b border-brand-border-subtle last:border-b-0 transition-colors hover:bg-brand-surface-hover/50">
+                <td className="px-3 py-2">
+                  <Link to={`/trade/${pairSymbol(m.sym)}`} className="flex min-w-0 items-center gap-2">
+                    <TokenIcon symbol={m.sym} className="h-[18px] w-[18px] shrink-0" />
+                    <span className="min-w-0">
+                      <div className="flex items-baseline gap-1 min-w-0">
+                        <span className="block truncate text-[13px] font-bold leading-tight text-brand-text">{m.sym}</span>
+                        <span className="text-[10px] font-medium text-brand-text-muted shrink-0">/USDT</span>
+                      </div>
+                      <span className="block truncate text-[10px] leading-tight text-brand-text-muted">{t(getAssetName(m.sym))}</span>
+                    </span>
+                  </Link>
+                </td>
+                <td className="px-1 py-2 text-right">
+                  <span className="font-mono text-[15px] font-bold tabular-nums text-brand-text">{fmtPrice(m.price, locale)}</span>
+                </td>
+                <td className="px-3 py-2 text-right">
+                  <span className={`inline-flex min-w-[64px] items-center justify-center rounded-md px-2 py-0.5 font-mono text-[12px] font-semibold tabular-nums ${up ? "bg-brand-accent/[0.07] text-brand-accent" : "bg-brand-danger/[0.07] text-brand-danger"}`}>
+                    {fmtChange(m.chg, locale)}
+                  </span>
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </section>
+  );
+}
+
+
 export function Dashboard() {
   const { language, t } = useI18n();
   const locale = localeTags[language];
@@ -240,7 +389,7 @@ export function Dashboard() {
       <BannerCarousel markets={markets} />
       <TickerMarquee markets={markets} locale={locale} />
       <QuickActions />
-      <MarketTable markets={markets} locale={locale} onViewAll={() => navigate("/markets")} />
+      <MarketTable markets={markets} locale={locale} loading={loading} error={error} onViewAll={() => navigate("/markets")} />
     </div>
   );
 }
