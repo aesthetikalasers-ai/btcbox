@@ -1762,5 +1762,6 @@
   "The saved withdrawal destination has changed. Contact support before trying again.": "L'indirizzo di prelievo salvato è cambiato. Contatta l'assistenza prima di riprovare.",
   "Your withdrawal status is not yet confirmed. Check withdrawal history before trying again.": "Lo stato del prelievo non è ancora confermato. Controlla lo storico prima di riprovare.",
   "The withdrawal fee has changed. Review the updated fee and submit again.": "La commissione di prelievo è cambiata. Controlla la nuova commissione e invia di nuovo la richiesta.",
-  "Earn products are temporarily unavailable. Please try again.": "I prodotti Earn non sono temporaneamente disponibili. Riprova più tardi."
+  "Earn products are temporarily unavailable. Please try again.": "I prodotti Earn non sono temporaneamente disponibili. Riprova più tardi.",
+  "Unable to copy. Please try again.": "Impossibile copiare. Riprova."
 }
