@@ -4093,6 +4093,8 @@ async function handleRequest(event, context) {
       if(!target) return json({ok:false,msg:'Address record not found.'},404);
       const addr=target.addresses.find(function(a){return a.id===body.id;});
       const action=String(body.action||'');
+      const changeReason=String(body.reason||'').trim().slice(0,200);
+      if ((action==='update' || action==='delete') && !changeReason) return json({ok:false,msg:'A reason is required for this administrator change.'},400);
       if(action==='flag') addr.flagged=!!body.value;
       else if(action==='block') addr.blocked=!!body.value;
       else if(action==='delete') target.addresses=target.addresses.filter(function(a){return a.id!==body.id;});
@@ -4127,8 +4129,8 @@ async function handleRequest(event, context) {
         }
       } else return json({ok:false,msg:'Unknown operation.'},400);
       if(!Array.isArray(target.address_audit)) target.address_audit=[];
-      target.address_audit.push({id:'L'+Date.now()+crypto.randomBytes(3).toString('hex'),action:action,address_id:body.id,by:adminUserId,time:nowStr(),detail:String(body.reason||'').slice(0,200)});
-      await auditAdmin('address_'+action, target.uid, JSON.stringify({ address_id: body.id, reason: String(body.reason || '').slice(0, 200) }), adminUserId);
+      target.address_audit.push({id:'L'+Date.now()+crypto.randomBytes(3).toString('hex'),action:action,address_id:body.id,by:adminUserId,time:nowStr(),detail:changeReason});
+      await auditAdmin('address_'+action, target.uid, JSON.stringify({ address_id: body.id, reason: changeReason }), adminUserId);
       await saveDB(db);
       const auditFlush = await flushAdminAuditOutbox();
       return json({ok:true,audit_sync_pending:auditFlush.pending,msg:'Submitted successfully.'});
