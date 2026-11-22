@@ -1726,5 +1726,6 @@
   "Review available USDT-margined perpetual markets and their server-configured limits.": "利用可能なUSDT建て無期限市場とサーバー設定の取引制限を確認できます。",
   "Submit positions only when server policy is enabled, with server-managed settlement.": "サーバーポリシーが有効な場合のみポジションを送信でき、決済はサーバーが管理します。",
   "View Earn products, yields and terms published by BTCBOX.": "BTCBOXが公開しているEarn商品、利回り、条件を確認できます。",
-  "Limited availability": "利用制限あり"
+  "Limited availability": "利用制限あり",
+  "The market service snapshot is missing, invalid or older than 90 seconds. Quotes are hidden until a fresh snapshot arrives.": "市場スナップショットが存在しないか無効、または90秒以上経過しています。新しいスナップショットが届くまで価格を非表示にします。"
 }
