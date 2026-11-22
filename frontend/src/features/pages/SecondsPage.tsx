@@ -19,7 +19,6 @@ import {
   type MarketTicker,
 } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
-import { useTrading } from "../../lib/trading";
 import { useMarketStream } from "../../lib/useMarketStream";
 import { useI18n, localeTags } from "../../lib/i18n";
 import { Link } from "react-router-dom";
@@ -41,7 +40,6 @@ export function SecondsPage() {
   const locale = localeTags[language];
   const { status } = useAuth();
   const signedOut = status !== "authenticated";
-  const { placeSecondsOrder, settleSecondsTrade, lastSettleResult, dismissSettleResult, openSecondsTrade } = useTrading();
   const { status: marketStatus } = useMarketStream();
   const [snapshot, setSnapshot] = useState<SecondsPositionsSnapshot | null>(null);
   const [policy, setPolicy] = useState<SecondsPolicyResponse | null>(null);
@@ -88,16 +86,6 @@ export function SecondsPage() {
     const timer = window.setInterval(() => setClockNow(Date.now()), 1000);
     return () => window.clearInterval(timer);
   }, []);
-
-  // 纸面秒合约自动结算：倒计时归零时对比入场价与到期价
-  useEffect(() => {
-    if (!openSecondsTrade || openSecondsTrade.ends_at > Date.now()) return;
-    const settlePrice = ticker ? ticker.price : openSecondsTrade.entry_price;
-    settleSecondsTrade(openSecondsTrade.id, settlePrice);
-    setActiveCountdown(null);
-    // 结算后刷新后端持仓视图
-    getSecondsPositions().then(setSnapshot).catch(() => {});
-  }, [openSecondsTrade, clockNow, ticker, settleSecondsTrade]);
 
   useEffect(() => {
     let cancelled = false;
