@@ -194,7 +194,7 @@
   "Sign in required": "需要登录",
   "Checking policy": "正在检查政策",
   "Policy unavailable": "政策不可用",
-  "Actions disabled": "操作已禁用",
+  "Actions disabled": "操作已停用",
   "Sign in to view the Earn catalog and your positions.": "登录以查看 Earn 产品目录和持仓。",
   "Checking the backend Earn catalog.": "正在检查后端 Earn 产品目录。",
   "Earn catalog is unavailable. No product availability is assumed.": "Earn 产品目录暂不可用，不会假定任何产品当前可申购。",
@@ -1738,5 +1738,5 @@
   "Sign in to view your seconds settlement history.": "登录后查看秒合约结算记录。",
   "Loading history...": "正在加载历史记录……",
   "Unable to load settlement history. Refresh to try again.": "无法加载结算记录，请刷新后重试。",
-  "Subscriptions and redemptions are currently disabled by platform controls.": "平台目前尚未啟用申購與贖回功能。"
+  "Subscriptions and redemptions are currently disabled by platform controls.": "平台目前尚未开放申购与赎回功能。"
 }
