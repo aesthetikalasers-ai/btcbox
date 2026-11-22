@@ -1763,5 +1763,6 @@
   "Your withdrawal status is not yet confirmed. Check withdrawal history before trying again.": "出金状況はまだ確認できていません。再試行する前に出金履歴をご確認ください。",
   "The withdrawal fee has changed. Review the updated fee and submit again.": "出金手数料が変更されました。最新の手数料を確認して再申請してください。",
   "Earn products are temporarily unavailable. Please try again.": "Earn商品は一時的にご利用いただけません。しばらくしてからお試しください。",
-  "Unable to copy. Please try again.": "コピーできません。もう一度お試しください。"
+  "Unable to copy. Please try again.": "コピーできません。もう一度お試しください。",
+  "Unable to add this address. Please try again.": "このアドレスを追加できませんでした。もう一度お試しください。"
 }
