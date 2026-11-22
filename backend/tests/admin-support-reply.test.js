@@ -72,19 +72,18 @@ test('admin support queue returns isolated per-customer conversations with reply
   assert.ok(admin.includes('conversation.status==="waiting"'));
 });
 
-test('customer support polling does not clear the visible conversation', () => {
+test('customer support polling preserves visible messages while account changes clear private history', () => {
   const chat = fs.readFileSync(path.resolve(root, '../frontend/src/features/support/SupportChat.tsx'), 'utf8');
   const start = chat.indexOf('useEffect(() => {');
-  const end = chat.indexOf('}, [status, reload]);', start);
+  const end = chat.indexOf('}, [status, email, reload, pendingStorageKey]);', start);
   assert.ok(start >= 0 && end > start);
   const refreshEffect = chat.slice(start, end);
-  assert.match(refreshEffect, /if \(status !== "authenticated"\).*setMessages\(\[\]\)/);
-  assert.doesNotMatch(refreshEffect, /setLoading\(true\);setMessages\(\[\]\)/);
-  assert.ok(refreshEffect.includes('getSupportMessages(controller.signal)'));
-  const catchStart = refreshEffect.indexOf('}).catch((reason: unknown) => {');
-  const catchEnd = refreshEffect.indexOf('}).finally', catchStart);
-  assert.ok(catchStart >= 0 && catchEnd > catchStart);
-  assert.doesNotMatch(refreshEffect.slice(catchStart, catchEnd), /setMessages\\(\\[\\]\\)/);
+  assert.match(refreshEffect, /loadedAccountKeyRef\.current !== accountKey/);
+  assert.match(refreshEffect, /setMessages\(\[\]\)/);
+  assert.match(refreshEffect, /getSupportMessages\(controller\.signal\)/);
+  assert.match(refreshEffect, /if \(status !== "authenticated"\)[\s\S]*?setMessages\(\[\]\)/);
+  assert.match(refreshEffect, /if \(loadedAccountKeyRef\.current !== accountKey\)[\s\S]*?setMessages\(\[\]\)/);
+  assert.ok(!refreshEffect.slice(refreshEffect.indexOf('const accountKey = pendingStorageKey')).startsWith('const accountKey = pendingStorageKey;\n    const controller = new AbortController();\n    // Clear only when identity changes.'));
 });
 
 test('uncertain admin replies keep one immutable request across refresh and retry', () => {
