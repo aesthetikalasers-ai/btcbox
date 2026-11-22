@@ -171,7 +171,6 @@
   "Passport": "Passport",
   "Driver license": "Driver license",
   "Identity document image": "Identity document image",
-  "JPEG, PNG or WebP. Maximum original size 5 MB; securely compressed to 2 MB. Upload a clear, readable image.": "JPEG, PNG or WebP. Maximum original size 8 MB; securely compressed to 512 KB. Upload a clear, readable image.",
   "Selected": "Selected",
   "Submitting…": "Submitting…",
   "Submit for review": "Submit for review",
@@ -462,7 +461,7 @@
   "Already have an account?": "Already have an account?",
   "Back to BTCBOX": "Back to BTCBOX",
   "Protected account access · Public markets remain available without signing in": "Protected account access · Public markets remain available without signing in",
-    "Use a password between 12 and 128 characters.": "Use a password between 12 and 128 characters.",
+  "Use a password between 12 and 128 characters.": "Use a password between 12 and 128 characters.",
   "Use a password between 8 and 128 characters.": "Use a password between 8 and 128 characters.",
   "The passwords do not match.": "The passwords do not match.",
   "Password could not be updated.": "Password could not be updated.",
@@ -1430,7 +1429,6 @@
   "Choose a perpetual contract symbol": "Choose a perpetual contract symbol",
   "Search symbol": "Search symbol",
   "No matching market": "No matching market",
-
   "Fullscreen chart": "Fullscreen chart",
   "Create an account with email, Google or a wallet.": "Create an account with email, Google or a wallet.",
   "Sign in with email, Google or a wallet to access your BTCBOX account.": "Sign in with email, Google or a wallet to access your BTCBOX account.",
@@ -1697,5 +1695,6 @@
   "Latest": "Last",
   "Return rate": "Return rate",
   "Pick a duration and direction; the round settles automatically.": "Pick a duration and direction; the round settles automatically.",
-  "Choose a short-term contract pair": "Choose a short-term contract pair"
+  "Choose a short-term contract pair": "Choose a short-term contract pair",
+  "JPEG, PNG or WebP. Maximum original size 5 MB; securely compressed to 2 MB. Upload a clear, readable image.": "JPEG, PNG or WebP. Maximum original size 5 MB; securely compressed to 2 MB. Upload a clear, readable image."
 }
