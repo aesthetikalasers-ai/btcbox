@@ -1744,5 +1744,6 @@
   "Unable to load order status. Refresh to try again.": "Impossibile caricare lo stato degli ordini. Aggiorna e riprova.",
   "Sign in to view your seconds settlement history.": "Accedi per visualizzare lo storico dei regolamenti Seconds.",
   "Loading history...": "Caricamento storico...",
-  "Unable to load settlement history. Refresh to try again.": "Impossibile caricare lo storico dei regolamenti. Aggiorna e riprova."
+  "Unable to load settlement history. Refresh to try again.": "Impossibile caricare lo storico dei regolamenti. Aggiorna e riprova.",
+  "The market service snapshot is missing, invalid or older than 90 seconds. Quotes are hidden until a fresh snapshot arrives.": "L'istantanea del mercato manca, non è valida o ha più di 90 secondi. Le quotazioni sono nascoste finché non arriva un'istantanea aggiornata."
 }
