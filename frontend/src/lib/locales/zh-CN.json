@@ -905,7 +905,7 @@
   "Unable to reach BTCBOX services. Please try again.": "无法连接 BTCBOX 服务，请重试。",
   "Unable to reach BTCBOX chart service.": "无法连接 BTCBOX 图表服务。",
   "Order book data is malformed or empty.": "订单簿数据格式错误或为空。",
-  "Order result is unconfirmed. Keep the same request ID and check order history before retrying.": "订单结果尚未确认。请保留相同请求 ID，并在重试前检查订单历史。",
+  "Order result is unconfirmed. Keep the same request ID and check order history before retrying.": "订单结果尚未确认。请保留相同请求编号，并先检查订单记录再重试。",
   "Cancel result is unconfirmed. Keep the same request ID and refresh order history before retrying.": "撤单结果尚未确认。请保留相同请求 ID，并在重试前刷新订单历史。",
   "BTCBOX returned an invalid account response.": "BTCBOX 返回了无效的账户响应。",
   "BTCBOX returned an invalid Earn catalog.": "BTCBOX 返回了无效的理财产品目录。",
