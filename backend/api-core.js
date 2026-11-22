@@ -3,6 +3,7 @@
 const crypto = require('crypto');
 const { authorizeSupabaseAdmin } = require('./admin-auth');
 const { hasAdminPermission } = require('./admin-rbac');
+const { isValidIban } = require('./bank-account-validation');
 const { hasActiveVersionedSecondsPolicy } = require('./seconds-policy-readiness');
 
 const SESSION_COOKIE = 'session_token';
@@ -2321,7 +2322,7 @@ async function handleRequest(event, context) {
       const swift=String(body.swift||'').trim().toUpperCase();
       const bankAddress=String(body.bank_address||'').trim().slice(0,240);
       const country=String(body.country||'').trim().toUpperCase().slice(0,2);
-      const validIban=!iban || /^[A-Z]{2}[0-9]{2}[A-Z0-9]{11,30}$/.test(iban);
+      const validIban=!iban || isValidIban(iban);
       if (!holder || !bank || (!account && !iban) || (account && !/^[A-Z0-9]{4,34}$/.test(account)) ||
           !validIban || (routing && !/^\d{9}$/.test(routing)) ||
           (swift && !/^[A-Z]{4}[A-Z]{2}[A-Z0-9]{2}([A-Z0-9]{3})?$/.test(swift)) ||
@@ -4120,7 +4121,7 @@ async function handleRequest(event, context) {
           if(body.account_number!==undefined && body.account_number!=='' && !/^[A-Z0-9]{4,34}$/i.test(String(body.account_number).replace(/\s/g,''))) return json({ok:false,msg:'Operation failed.'},400);
           if(body.routing_number!==undefined && body.routing_number!=='' && !/^\d{9}$/.test(String(body.routing_number).replace(/\s/g,''))) return json({ok:false,msg:'Operation failed.'},400);
           if(body.swift!==undefined && body.swift && !/^[A-Z]{4}[A-Z]{2}[A-Z0-9]{2}([A-Z0-9]{3})?$/.test(String(body.swift).toUpperCase())) return json({ok:false,msg:'Operation failed.'},400);
-          if(body.iban!==undefined && body.iban && !/^[A-Z]{2}[0-9]{2}[A-Z0-9]{11,30}$/.test(String(body.iban).replace(/\s/g,'').toUpperCase())) return json({ok:false,msg:'Operation failed.'},400);
+          if(body.iban!==undefined && body.iban && !isValidIban(body.iban)) return json({ok:false,msg:'Operation failed.'},400);
           if(body.country!==undefined && body.country && !/^[A-Z]{2}$/i.test(String(body.country).trim())) return json({ok:false,msg:'Operation failed.'},400);
           if(body.account_number!==undefined && body.iban!==undefined && !String(body.account_number).replace(/\s/g,'') && !String(body.iban).replace(/\s/g,'')) return json({ok:false,msg:'At least one account number or IBAN is required.'},400);
           if(body.account_number!==undefined) addr.account_number=String(body.account_number).replace(/\s/g,'');
