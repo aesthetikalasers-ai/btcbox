@@ -1124,8 +1124,8 @@ export interface SavedCryptoAddress {
 export interface BankAddress {
   id: string; type: "bank";
   account_holder: string; bank_name: string;
-  account_number: string; iban?: string; country?: string; routing_number: string;
-  swift?: string; bank_address: string;
+  account_number?: string; iban?: string; country?: string; routing_number?: string;
+  swift?: string; bank_address?: string;
   note?: string; created_at?: string; flagged?: boolean; blocked?: boolean; unbound?: boolean;
 }
 
@@ -1139,8 +1139,8 @@ export interface CryptoAddressInput {
 /** Input for creating a bank (fiat) address entry. */
 export interface BankAddressInput {
   type: "bank"; account_holder: string; bank_name: string;
-  account_number: string; iban?: string; country?: string; routing_number: string;
-  swift?: string; bank_address: string; note?: string;
+  account_number?: string; iban?: string; country?: string; routing_number?: string;
+  swift?: string; bank_address?: string; note?: string;
 }
 
 export async function addAddress(input: CryptoAddressInput | BankAddressInput): Promise<{ msg: string; address: SavedAddress }> {
