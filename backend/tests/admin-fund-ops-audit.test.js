@@ -110,7 +110,7 @@ test('canonical financial_audit_log has indexes matching the admin audit-logs qu
 
 
 test('admin user screen exposes audited freeze controls only to users.freeze permission holders', () => {
-  const frontendRoot = path.resolve(root, '../../frontend/src');
+  const frontendRoot = path.resolve(root, '../frontend/src');
   const apiClient = fs.readFileSync(path.join(frontendRoot, 'lib/api.ts'), 'utf8');
   const adminPage = fs.readFileSync(path.join(frontendRoot, 'features/admin/AdminPage.tsx'), 'utf8');
   assert.ok(apiClient.includes('setAdminUserFrozen'));
