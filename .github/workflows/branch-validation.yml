@@ -30,6 +30,12 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
+      - name: Install frontend dependencies for build-dependent smoke tests
+        run: npm install --prefix frontend --no-audit --no-fund
+      - name: Build frontend before backend smoke tests
+        run: npm --prefix frontend run build
+      - name: Assemble production site for smoke tests
+        run: node backend/scripts/build-site.js
       - name: Install backend dependencies
         run: npm ci --prefix backend --no-audit --no-fund
       - name: Run all backend tests
