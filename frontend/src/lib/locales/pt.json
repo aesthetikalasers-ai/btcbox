@@ -1734,5 +1734,6 @@
   "The withdrawal fee has changed. Review the updated fee and submit again.": "A taxa de saque mudou. Confira a taxa atualizada e envie novamente.",
   "Earn products are temporarily unavailable. Please try again.": "Os produtos Earn estão temporariamente indisponíveis. Tente novamente mais tarde.",
   "Unable to copy. Please try again.": "Não foi possível copiar. Tente novamente.",
-  "Unable to add this address. Please try again.": "Não foi possível adicionar este endereço. Tente novamente."
+  "Unable to add this address. Please try again.": "Não foi possível adicionar este endereço. Tente novamente.",
+  "No recent trades are currently available.": "Não há negociações recentes disponíveis no momento."
 }
