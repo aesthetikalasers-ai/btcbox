@@ -35,9 +35,8 @@ function friendlyAuthErrorMessage(cause: unknown, fallback = "Authentication cou
   if (["twofa_not_enabled", "user_not_found"].includes(code)) return "This verification session is no longer valid. Please sign in again.";
   if (["two_factor_required", "twofa_required"].includes(code)) return "Additional verification is required to continue.";
   if (["two_factor_invalid", "twofa_invalid"].includes(code)) return "The verification code is incorrect. Please try again.";
-  if (["recent_reauth_required", "recent_target_reauth_required", "reauth_required", "reauth_failed"].includes(code)) {
-    return "Please verify your identity again before continuing.";
-  }
+  if (code === "reauth_failed") return "Your current login password is incorrect.";
+  if (["recent_reauth_required", "reauth_required"].includes(code)) return "Please verify your identity again before continuing.";
   if (code === "identity_not_linked") return "This sign-in method is not linked to your BTCBOX account.";
   if (code === "identity_link_source_target_same") return "This sign-in method is already associated with the current account.";
   if (["username_required", "username_invalid"].includes(code)) return "Please enter a valid username.";
