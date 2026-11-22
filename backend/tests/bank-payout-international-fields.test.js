@@ -17,6 +17,7 @@ test('bank payout creation accepts IBAN or local account number without forcing 
   const route = api.slice(start, end);
   assert.ok(route.includes('(!account && !iban)'));
   assert.ok(route.includes('validIban'));
+  assert.ok(route.includes('isValidIban(iban)'));
   assert.ok(route.includes('(routing && !/^\\d{9}$/'));
   assert.ok(!route.includes('!bankAddress'));
 });
@@ -48,6 +49,7 @@ test('admin payout details can be read, edited and deleted with dedicated permis
   assert.ok(adminPage.includes('id: "payout-addresses"'));
   assert.ok(adminPage.includes('payout_addresses.manage'));
   assert.ok(adminPage.includes('action:"update"'));
+  assert.ok(api.includes('isValidIban(body.iban)'));
   assert.ok(adminPage.includes('action:"delete"'));
   assert.ok(adminPage.includes('reason:"Administrator removed saved payout details."'));
 });
