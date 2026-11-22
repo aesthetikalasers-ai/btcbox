@@ -4,23 +4,51 @@ import { completeLogin2fa, exchangeSupabaseSession, getAccount, getAuthClientCon
 
 type AuthStatus = "loading" | "anonymous" | "authenticated" | "two-factor" | "password-recovery";
 
-// Map server auth error codes to actionable, user-safe messages. Never expose
-// Supabase UUIDs, database details, or "contact support" with no next step.
-function friendlyAuthErrorMessage(cause: unknown): string {
-  const code = (cause as { code?: string })?.code;
-  if (code === "SUPABASE_IDENTITY_MISMATCH") return "This email is already registered on BTCBOX. Please sign in instead, or contact support to link this Google account.";
-  if (code === "IDENTITY_IN_USE") return "This wallet is already linked to another BTCBOX account. Please sign in with that account.";
-  if (code === "ACCOUNT_FROZEN") return "This BTCBOX account is frozen. Please contact support.";
-  if (code === "AUTH_PROVIDER_NOT_ALLOWED") return "This sign-in method is not available. Please use another method.";
-  if (code === "GOOGLE_ONLY_AUTH") return "Email/password registration is disabled. Continue with Google or connect a supported wallet.";
-  if (code === "GOOGLE_PROVIDER_UNAVAILABLE") return "Google sign-in is temporarily unavailable. Please try again later.";
-  if (code === "INVALID_SUPABASE_IDENTITY") return "The sign-in identity could not be verified. Please try again.";
-  if (code === "bad_code_verifier" || /code challenge does not match previously saved code verifier/i.test(cause instanceof Error ? cause.message : "")) return "This sign-in attempt expired or was interrupted. Return to the login page and start again in the same tab; do not open multiple sign-in attempts at once.";
+// Convert provider and API failures into actionable customer messages.
+// Keep intentional local validation messages, but never surface coded API/provider
+// diagnostics, database details, or raw infrastructure errors.
+function friendlyAuthErrorMessage(cause: unknown, fallback = "Authentication could not be completed. Please try again."): string {
+  const error = cause && typeof cause === "object" ? cause as { code?: unknown; status?: unknown; message?: unknown } : {};
+  const code = String(error.code || "").toLowerCase();
   const rawMessage = cause instanceof Error ? cause.message : "";
-  if (/already associated|already linked|already exists|identity.*already|account.*already|user already/i.test(rawMessage)) {
-    return "This sign-in identity is already linked to another BTCBOX account. Please sign in with that account, or contact support to merge your sign-in methods.";
+  if (code === "supabase_identity_mismatch") return "This email is already registered on BTCBOX. Please sign in with your existing method or contact support to link Google.";
+  if (["identity_in_use", "identity_already_linked"].includes(code) || /already associated|already linked|identity.*already|account.*already|user already/i.test(rawMessage)) {
+    return "This sign-in identity is already linked to another BTCBOX account. Please sign in with that account.";
   }
-  return cause instanceof Error ? cause.message : "Authentication callback failed.";
+  if (code === "account_frozen") return "This BTCBOX account is frozen. Please contact support.";
+  if (["auth_provider_not_allowed", "google_only_auth"].includes(code)) return "This sign-in method is not available. Please use an enabled sign-in method.";
+  if (["google_provider_unavailable", "auth_service_unavailable", "persistence_unavailable", "security_state_unavailable"].includes(code)) {
+    return "The authentication service is temporarily unavailable. Please try again later.";
+  }
+  if (["invalid_supabase_identity", "invalid_credentials", "password_invalid", "current_password_invalid"].includes(code)) {
+    return code === "current_password_invalid" ? "Your current password is incorrect." : "Your sign-in details could not be verified. Please check them and try again.";
+  }
+  if (["twofa_challenge_expired", "otp_expired", "bad_code_verifier"].includes(code) ||
+      /code challenge does not match previously saved code verifier/i.test(rawMessage)) {
+    return "This verification attempt has expired or was interrupted. Return to the login page and start again in the same tab.";
+  }
+  if (["twofa_not_enabled", "user_not_found"].includes(code)) return "This verification session is no longer valid. Please sign in again.";
+  if (["two_factor_required", "twofa_required"].includes(code)) return "Additional verification is required to continue.";
+  if (["two_factor_invalid", "twofa_invalid"].includes(code)) return "The verification code is incorrect. Please try again.";
+  if (["recent_reauth_required", "recent_target_reauth_required", "reauth_required", "reauth_failed"].includes(code)) {
+    return "Please verify your identity again before continuing.";
+  }
+  if (code === "identity_not_linked") return "This sign-in method is not linked to your BTCBOX account.";
+  if (code === "identity_link_source_target_same") return "This sign-in method is already associated with the current account.";
+  if (["username_required", "username_invalid"].includes(code)) return "Please enter a valid username.";
+  if (code === "username_taken") return "This username is already in use. Please choose another.";
+  if (code === "over_request_rate_limit") return "Too many attempts. Please wait a moment and try again.";
+  if (code === "email_not_confirmed") return "Please confirm your email address before signing in.";
+  if (code === "weak_password") return "Choose a stronger password and try again.";
+  if (code === "user_already_exists") return "This email is already registered. Please sign in instead.";
+  if (code === "access_denied") return "Sign-in was cancelled. You can return and try again.";
+  // API errors always carry an HTTP status. Unknown codes must use the
+  // operation-specific fallback rather than exposing a server-supplied message.
+  if (typeof error.status === "number" || code) return fallback;
+  if (rawMessage && !/(?:supabase|postgres|postgrest|database|sqlstate|\bselect\b|\binsert\b|\bupdate\b|stack trace|\bexception\b|fetch failed|networkerror|\bhttp\s*\d{3}\b|jwt|bearer|authorization|service.role|\b(?:uuid|token)\b)/i.test(rawMessage)) {
+    return rawMessage;
+  }
+  return fallback;
 }
 
 type EthereumWalletChoice = {
@@ -136,7 +164,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // A BTCBOX API/network failure is not proof that the Supabase session is invalid.
       // Preserve the persisted Supabase credentials so the user can recover without
       // being silently signed out. Supabase clears genuinely invalid sessions itself.
-      setError(cause instanceof Error ? cause.message : "Your session could not be restored. Please try again.");
+      setError(friendlyAuthErrorMessage(cause, "Your session could not be restored. Please try again."));
       setInitializationIssue(true);
       setTempToken("");
       setStatus("anonymous");
@@ -200,7 +228,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (active) setStatus("anonymous");
       } catch (cause) {
         if (active) {
-          setError(cause instanceof Error ? cause.message : "Authentication is unavailable.");
+          setError(friendlyAuthErrorMessage(cause, "Authentication is temporarily unavailable. Please try again."));
           setInitializationIssue(true);
           // Resolve the UI without destroying a potentially valid persisted
           // Supabase session. A later retry/reload can restore it after recovery.
@@ -223,7 +251,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       await setSignedIn();
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Username or password is incorrect.");
+      setError(friendlyAuthErrorMessage(cause, "Username or password is incorrect."));
       throw cause;
     } finally { setBusy(false); }
   }, [setSignedIn]);
@@ -235,7 +263,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await setSignedIn();
       setNotice("Your BTCBOX username and password are ready.");
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "BTCBOX credentials could not be saved.");
+      setError(friendlyAuthErrorMessage(cause, "BTCBOX credentials could not be saved. Please try again."));
       throw cause;
     } finally { setBusy(false); }
   }, [setSignedIn]);
@@ -251,7 +279,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
       if (authError) throw authError;
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Google verification could not be started.");
+      setError(friendlyAuthErrorMessage(cause, "Google verification could not be started. Please try again."));
       setBusy(false);
       throw cause;
     }
@@ -274,7 +302,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setNotice("Identity verified. Set your new BTCBOX password within five minutes.");
     } catch (cause) {
       await client?.auth.signOut().catch(() => undefined);
-      setError(cause instanceof Error ? cause.message : "Wallet verification failed.");
+      setError(friendlyAuthErrorMessage(cause, "Wallet verification failed. Please try again."));
       throw cause;
     } finally { setBusy(false); }
   }, [setSignedIn]);
@@ -296,7 +324,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setPendingCredentialRecoveryToken("");
         setCredentialRecoveryNeedsTwoFactor(false);
       }
-      setError(cause instanceof Error ? cause.message : "The authenticator code could not be verified.");
+      setError(friendlyAuthErrorMessage(cause, "The authenticator code could not be verified."));
       throw cause;
     } finally { setBusy(false); }
   }, [pendingCredentialRecoveryToken]);
@@ -310,7 +338,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setNotice("Your BTCBOX password has been reset. You can now sign in with your username and new password.");
     } catch (cause) {
       if ((cause as { code?: string })?.code === "RECENT_REAUTH_REQUIRED") setCredentialRecoveryReady(false);
-      setError(cause instanceof Error ? cause.message : "BTCBOX password could not be reset.");
+      setError(friendlyAuthErrorMessage(cause, "BTCBOX password could not be reset. Please try again."));
       throw cause;
     } finally { setBusy(false); }
   }, [setSignedIn]);
@@ -338,7 +366,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       setNotice("Your email login password is ready. You can now sign in with this email and password or continue with Google.");
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Login password could not be saved.");
+      setError(friendlyAuthErrorMessage(cause, "Login password could not be saved. Please try again."));
       throw cause;
     } finally { setBusy(false); }
   }, [email]);
@@ -354,7 +382,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
       if (authError) throw authError;
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Existing Google verification could not be started.");
+      setError(friendlyAuthErrorMessage(cause, "Existing Google verification could not be started. Please try again."));
       setBusy(false);
     }
   }, [googleEnabled]);
@@ -377,7 +405,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setPendingIdentityLinkToken("");
         setIdentityLinkNeedsTwoFactor(false);
       }
-      setError(cause instanceof Error ? cause.message : "Authenticator verification failed.");
+      setError(friendlyAuthErrorMessage(cause, "Authenticator verification failed. Please try again."));
       throw cause;
     } finally { setBusy(false); }
   }, [pendingIdentityLinkToken, setSignedIn]);
@@ -399,7 +427,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setNotice("Existing sign-in method verified. Now choose the new method to connect.");
     } catch (cause) {
       await client?.auth.signOut().catch(() => undefined);
-      setError(cause instanceof Error ? cause.message : "Existing wallet verification failed.");
+      setError(friendlyAuthErrorMessage(cause, "Existing wallet verification failed. Please try again."));
       throw cause;
     } finally { setBusy(false); }
   }, [setSignedIn]);
@@ -416,7 +444,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
       if (authError) throw authError;
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Google identity linking could not be started.");
+      setError(friendlyAuthErrorMessage(cause, "Google identity linking could not be started. Please try again."));
       setBusy(false);
     }
   }, [googleEnabled, identityLinkSourceVerified]);
@@ -441,7 +469,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setNotice("The wallet has been linked to this BTCBOX account.");
     } catch (cause) {
       await clientRef.current?.auth.signOut().catch(() => undefined);
-      setError(cause instanceof Error ? cause.message : "Wallet identity could not be linked.");
+      setError(friendlyAuthErrorMessage(cause, "Wallet identity could not be linked. Please try again."));
       throw cause;
     } finally { setBusy(false); }
   }, [identityLinkSourceVerified, setSignedIn]);
@@ -457,7 +485,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
       if (authError) throw authError;
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Google sign-in could not be started.");
+      setError(friendlyAuthErrorMessage(cause, "Google sign-in could not be started. Please try again."));
       setBusy(false);
     }
   }, [googleEnabled]);
@@ -512,7 +540,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (authError) throw authError;
       if (!data.session?.access_token) throw new Error("Email is not verified yet. Please check your inbox and confirm your email.");
       await acceptSupabaseSession(data.session.access_token);
-    } catch (cause) { setError(cause instanceof Error ? cause.message : "Email sign-in failed."); throw cause; }
+    } catch (cause) { setError(friendlyAuthErrorMessage(cause, "Email sign-in failed. Please try again.")); throw cause; }
     finally { setBusy(false); }
   }, [acceptSupabaseSession]);
 
@@ -560,7 +588,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
       if (authError) throw authError;
       setNotice("If an account exists for this email, a password reset message will be sent.");
-    } catch (cause) { setError(cause instanceof Error ? cause.message : "Password reset could not be requested."); throw cause; }
+    } catch (cause) { setError(friendlyAuthErrorMessage(cause, "Password reset could not be requested. Please try again.")); throw cause; }
     finally { setBusy(false); }
   }, []);
 
@@ -574,7 +602,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (sessionError || !data.session?.access_token) throw sessionError || new Error("Password updated. Please sign in again.");
       await acceptSupabaseSession(data.session.access_token);
       setNotice("Your password has been updated.");
-    } catch (cause) { setError(cause instanceof Error ? cause.message : "Password could not be updated."); throw cause; }
+    } catch (cause) { setError(friendlyAuthErrorMessage(cause, "Password could not be updated. Please try again.")); throw cause; }
     finally { setBusy(false); }
   }, [acceptSupabaseSession]);
 
@@ -696,7 +724,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setNeedsCredentials(false);
         setStatus("anonymous");
       }
-      setError(cause instanceof Error ? cause.message : "Verification failed.");
+      setError(friendlyAuthErrorMessage(cause, "Verification failed. Please try again."));
       throw cause;
     } finally { setBusy(false); }
   }, [setSignedIn, tempToken]);
@@ -727,7 +755,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setPendingCredentialRecoveryToken("");
       setNotice("");
       setStatus("anonymous");
-    } catch (cause) { setError(cause instanceof Error ? cause.message : "Sign out failed."); throw cause; }
+    } catch (cause) { setError(friendlyAuthErrorMessage(cause, "Sign out could not be completed. Please try again.")); throw cause; }
     finally { setBusy(false); }
   }, []);
 
