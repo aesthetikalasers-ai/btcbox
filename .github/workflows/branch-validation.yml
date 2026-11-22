@@ -1,0 +1,53 @@
+name: Branch validation
+
+on:
+  push:
+    branches:
+      - fix/kyc-upload-2mb-memory-20261123
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "backend/**"
+      - "frontend/**"
+      - ".github/workflows/branch-validation.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: branch-validation-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend-tests:
+    name: Backend full test suite
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install backend dependencies
+        run: npm ci --prefix backend --no-audit --no-fund
+      - name: Run all backend tests
+        run: npm --prefix backend test
+
+  frontend-build:
+    name: Frontend TypeScript and Vite build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install frontend dependencies
+        run: npm install --prefix frontend --no-audit --no-fund
+      - name: Run frontend production build
+        run: npm --prefix frontend run build
+      - name: Verify production site assembly
+        run: node backend/scripts/build-site.js
