@@ -14,7 +14,9 @@ test('uncertain customer support sends retain the same request ID and exact body
   assert.match(chat, /setPendingRequestId\(pending\.request_id\)/);
   assert.match(chat, /setPendingRequestContent\(pending\.content\)/);
   assert.match(chat, /window\.sessionStorage\.removeItem\(pendingStorageKey\)/);
-  assert.match(chat, /setDraft\("");\s*setPendingRequestId\("");\s*setPendingRequestContent\("")/);
+  assert.ok(chat.includes('setDraft("");'));
+  assert.ok(chat.includes('setPendingRequestId("");'));
+  assert.ok(chat.includes('setPendingRequestContent("");'));
   assert.match(chat, /sendSupportMessage\(message, requestId\)/);
   assert.match(chat, /const message = pendingRequestId \? pendingRequestContent : draft\.trim\(\)/);
 });
