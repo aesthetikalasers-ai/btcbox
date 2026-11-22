@@ -14,6 +14,7 @@ on:
       - "fix/post-merge-db-bootstrap-seconds-20261106"
       - "work/btcbox-unified-20261104"
       - "fix/remove-customer-demo-ledger-20261122"
+      - "fix/remove-customer-demo-ledger-20261122"
     paths:
       - "frontend/**"
       - ".github/workflows/frontend-ci.yml"
