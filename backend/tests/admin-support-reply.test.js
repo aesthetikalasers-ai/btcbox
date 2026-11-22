@@ -63,6 +63,16 @@ test('customer support polling does not clear the visible conversation', () => {
   assert.ok(refreshEffect.includes('getSupportMessages(controller.signal)'));
 });
 
+test('admin support queue remains visible while refreshing after a reply', () => {
+  const start = admin.indexOf('const replySupport = async (uid: string)');
+  const end = admin.indexOf('const saveSpotMarket = async', start);
+  assert.ok(start >= 0 && end > start);
+  const handler = admin.slice(start, end);
+  assert.doesNotMatch(handler, /setSupport\(\[\]\)/);
+  assert.ok(handler.includes('setSupport(snapshot.conversations || [])'));
+  assert.ok(handler.includes('The conversation could not refresh.'));
+});
+
 test('confirmed support reply is not reported as failed when the conversation refresh fails', () => {
   const start = admin.indexOf('const replySupport = async (uid: string)');
   const end = admin.indexOf('const saveSpotMarket = async', start);
