@@ -216,7 +216,7 @@ test('React auth preserves legacy email sign-in and Google registration alongsid
   assert.ok(provider.includes('client.auth.updateUser({ password })'));
   assert.ok(provider.includes('signedIn.user.id !== data.user.id'), 'email password must remain on the same Supabase user');
   assert.ok(provider.includes('code challenge does not match previously saved code verifier'));
-  assert.ok(provider.includes('do not open multiple sign-in attempts at once'), 'PKCE mismatch must give a safe recovery instruction');
+  assert.ok(provider.includes('Return to the login page and start again in the same tab.'), 'PKCE mismatch must give a safe recovery instruction');
   assert.ok(app.includes('AccountSetupGate'));
   assert.ok(app.includes('AccountSecurityPage'));
   assert.ok(!pages.includes('Terms of Service'));
