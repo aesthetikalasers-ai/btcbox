@@ -1727,5 +1727,7 @@
   "Submit positions only when server policy is enabled, with server-managed settlement.": "仅在服务器策略启用时提交仓位，结算由服务器管理。",
   "View Earn products, yields and terms published by BTCBOX.": "查看 BTCBOX 实际发布的理财产品、收益率和条款。",
   "Limited availability": "有限开放",
-  "The market service snapshot is missing, invalid or older than 90 seconds. Quotes are hidden until a fresh snapshot arrives.": "市场快照缺失、无效或已超过 90 秒。在收到新的快照前，行情报价将保持隐藏。"
+  "The market service snapshot is missing, invalid or older than 90 seconds. Quotes are hidden until a fresh snapshot arrives.": "市场快照缺失、无效或已超过 90 秒。在收到新的快照前，行情报价将保持隐藏。",
+  "Email login password": "邮箱登录密码",
+  "Set or change": "设置或修改"
 }
