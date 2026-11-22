@@ -972,9 +972,15 @@ export function AdminPage() {
     setBusy(true); setError(""); setNotice("");
     try {
       const result = await adminReplySupport(token, uid, content, requestId);
+      let readReceiptPending = false;
+      try { await markAdminSupportRead(token, uid); }
+      catch { readReceiptPending = true; }
       setSupportReply((current) => ({ ...current, [uid]: "" }));
       setSupportReplyRequestIds((current) => { const next = { ...current }; delete next[uid]; return next; });
-      const successMessage = result.audit_sync_pending ? "Support reply sent; audit delivery is pending." : "Support reply sent.";
+      const successMessage = [
+        result.audit_sync_pending ? "Support reply sent; audit delivery is pending." : "Support reply sent.",
+        readReceiptPending ? " The reply was sent, but the read receipt could not be saved; refresh the conversation." : ""
+      ].join("");
       const queueRequestId = ++supportQueueRequestRef.current;
       setSupport([]);
       try {
