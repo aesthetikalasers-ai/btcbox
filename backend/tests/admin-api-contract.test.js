@@ -127,3 +127,17 @@ test('customer payout-address endpoints use dedicated sensitive permissions, sep
   assert.ok(tab, 'global deposit configuration tab must be present');
   assert.equal(tab[1], 'system_config.read');
 });
+
+
+test('direct administrator balance adjustments remain blocked until a dual-approval queue exists', () => {
+  const permissionCheck = api.indexOf("if (!hasAdminPermission(adminMembership, requiredPermission))");
+  const guardStart = api.indexOf('// A financial adjustment request is not an approval workflow.', permissionCheck);
+  const sideEffectStart = api.indexOf('const priorAuditFlush = await flushAdminAuditOutbox();', guardStart);
+  assert.ok(permissionCheck >= 0 && guardStart > permissionCheck, 'balance guard must run after admin authorization');
+  assert.ok(sideEffectStart > guardStart, 'balance guard must run before audit flushing or route side effects');
+  const guard = api.slice(guardStart, sideEffectStart);
+  assert.ok(guard.includes("if (sub === 'user/balance' && method === 'POST')"));
+  assert.ok(guard.includes('FINANCIAL_ADJUSTMENT_APPROVAL_REQUIRED'));
+  assert.match(guard, /\}, 409\);/);
+  assert.ok(guard.includes('dual-approval adjustment queue'));
+});
