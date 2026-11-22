@@ -161,6 +161,7 @@
 
 - Added a shared backend validator for IBAN structure and ISO 13616 mod-97 checksum. Whitespace grouping is accepted; stored values are normalized without whitespace.
 - Customer bank-address creation and Admin edits use the same validator so both paths enforce the same rules.
+- Frontend `BankAddress` and `BankAddressInput` types now mark local account number, routing number, and bank address optional, matching the international form and backend contract.
 - Added unit cases for valid DE/GB/FR examples, invalid checksum, malformed input, and whitespace grouping.
 - Local isolated Node check: **7/7 IBAN validation cases passed**. Full backend suite, frontend typecheck/build, and browser tests remain **NOT VERIFIED**.
 - No production Supabase changes, PR, merge, or deployment.
