@@ -1399,8 +1399,12 @@ async function handleRequest(event, context) {
     } catch (e) {
       return json({ ok: false, msg: 'Invalid request format.', code: 'INVALID_REQUEST_BODY' }, 400);
     }
-    // Bound parsing cost and memory use for all API endpoints.
-    if (Buffer.byteLength(rawBody, 'utf8') > 1024 * 1024) {
+    // Keep the default request bound for every API. KYC images are base64-encoded,
+    // so a 2 MiB image needs about 2.67 MiB of JSON; allow 3 MiB only on this route.
+    const maxRequestBodyBytes = path === 'kyc' && method === 'POST'
+      ? 3 * 1024 * 1024
+      : 1024 * 1024;
+    if (Buffer.byteLength(rawBody, 'utf8') > maxRequestBodyBytes) {
       return json({ ok: false, msg: 'Request body too large.', code: 'REQUEST_BODY_TOO_LARGE' }, 413);
     }
     try {
