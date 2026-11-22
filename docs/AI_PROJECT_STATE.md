@@ -143,3 +143,15 @@
 - Added client API methods for listing and managing payout records, plus regression tests covering international fields, masking, immutable customer records, and Admin permissions/actions.
 - Automated execution, TypeScript build, and live browser tests: **NOT VERIFIED** in this session. IBAN format validation is structural and does not perform bank-side account verification.
 - Release boundary unchanged: no PR, merge, deployment, or production database/Supabase changes.
+
+
+## 2026-11-23 — Admin support read receipts (2号 AI)
+
+- Added a per-administrator, per-customer read receipt keyed by the authenticated administrator ID and customer UID. One staff member marking a thread read does not clear another staff member's unread count.
+- Admin inbox unread counts now include only customer-authored messages newer than that administrator's saved read timestamp.
+- Added an authorized `POST /api/admin/support/read` action, with an audit-outbox event. Repeated marks of an already-read thread are idempotent.
+- Admin UI now displays the persistent unread count and provides an explicit Mark read action. A successful reply also attempts to persist the thread's read receipt; a read-receipt failure is reported separately and does not falsely report that the reply failed.
+- Customer unread count remains separately calculated from admin-authored messages after the customer's `last_read_chat_at`; opening the customer's support conversation marks those messages read.
+- Added `backend/tests/admin-support-read-receipts.test.js`.
+- Automated execution, multi-admin concurrency, and A/B user end-to-end verification: **NOT VERIFIED**.
+- No PR, merge, deployment, or production database changes.
