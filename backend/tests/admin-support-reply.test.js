@@ -87,6 +87,22 @@ test('customer support polling does not clear the visible conversation', () => {
   assert.doesNotMatch(refreshEffect.slice(catchStart, catchEnd), /setMessages\\(\\[\\]\\)/);
 });
 
+test('uncertain admin replies keep one immutable request across refresh and retry', () => {
+  assert.ok(admin.includes('btcbox.admin.support-reply.v1.'));
+  assert.ok(admin.includes('window.sessionStorage.getItem(key)'));
+  assert.ok(admin.includes('window.sessionStorage.setItem(supportReplyStorageKey(uid)'));
+  assert.ok(admin.includes('submitted: true'));
+  assert.ok(admin.includes('setSupportReplySubmitted'));
+  assert.ok(admin.includes('Retry same request'));
+  const composerStart = admin.indexOf('<textarea value={supportReply[uid]');
+  const composerEnd = admin.indexOf('</Button>', composerStart);
+  assert.ok(composerStart >= 0 && composerEnd > composerStart);
+  const composer = admin.slice(composerStart, composerEnd);
+  assert.ok(composer.includes('disabled={!!supportReplySubmitted[uid]}'));
+  assert.ok(composer.includes('onChange={event=>updateSupportReply(uid,event.target.value)}'));
+  assert.doesNotMatch(composer, /crypto\.randomUUID/);
+});
+
 test('admin support queue remains visible while refreshing after a reply', () => {
   const start = admin.indexOf('const replySupport = async (uid: string)');
   const end = admin.indexOf('const saveSpotMarket = async', start);
