@@ -1036,6 +1036,18 @@ export interface SupportMessage {
   from: "user" | "admin";
   content: string;
   time: string;
+  admin_id?: string;
+}
+
+export interface AdminSupportConversation {
+  conversation_id: string;
+  uid: string;
+  email: string;
+  messages: SupportMessage[];
+  last_message: SupportMessage;
+  status: "waiting" | "replied";
+  pending_count: number;
+  last_activity: string;
 }
 
 /** One help-centre entry as published to customers (enabled entries only). */
@@ -1542,7 +1554,7 @@ export async function getAdminOrders(token: string, signal?: AbortSignal) {
   return adminRequest<{ ok: true; orders: OrderRecord[]; source?: string }>(token, "admin/orders", { signal });
 }
 export async function getAdminSupportMessages(token: string, signal?: AbortSignal) {
-  return adminRequest<{ ok: true; messages: SupportMessage[] }>(token, "admin/support/messages", { signal });
+  return adminRequest<{ ok: true; conversations: AdminSupportConversation[]; messages: Array<{ id: string; uid: string; email: string; content: string; time: string }> }>(token, "admin/support/messages", { signal });
 }
 export async function getAdminSupportFaq(token: string, signal?: AbortSignal) {
   return adminRequest<{ ok: true; entries: AdminSupportFaqEntry[] }>(token, "admin/support/faq", { signal });
