@@ -8,9 +8,9 @@
 -- diagnostics/withdrawal-settle-compatibility-preflight.sql in every target
 -- environment and retain its output. Both operation names remain accepted.
 -- 0039 introduced the intended review and payout behavior. Reassert its exact
--- service RPC definitions here so environments that have an older 0039 body
--- receive the same freeze linkage and payout operation linkage after 0041.
--- Function replacement does not replay or alter any existing financial rows.
+-- service RPC definitions here so environments with an older 0039 body receive
+-- the same freeze linkage and payout operation linkage after 0041.
+-- Function replacement does not replay or alter existing financial rows.
 
 alter table public.withdrawal_requests
   add column if not exists payout_operation_id uuid references public.financial_operations(id);
@@ -25,8 +25,8 @@ alter table public.financial_operations
     'withdraw_freeze',
     'withdraw_approve',
     'withdraw_reject',
-    'withdraw_settle', -- legacy historical operation name; retained for compatibility
-    'withdraw_paid',   -- canonical operation name for new manual payout settlements
+    'withdraw_settle',
+    'withdraw_paid',
     'earn_subscribe',
     'earn_redeem',
     'admin_adjustment',
@@ -63,26 +63,7 @@ DECLARE
   v_frozen numeric(38,18);
 BEGIN
   IF p_idempotency_key IS NULL OR length(p_idempotency_key) < 16 OR length(p_idempotency_key) > 128
-     OR p_user_id IS NULL OR p_user_id = '' OR p_asset IS NULL OR p_asset !~ '^[A-Z0-9]{2,16}-- operation names. This is a metadata assertion only; no customer data changes.
-do $$
-declare
-  v_definition text;
-begin
-  select pg_get_constraintdef(oid)
-    into v_definition
-    from pg_constraint
-   where conrelid = 'public.financial_operations'::regclass
-     and conname = 'financial_operations_operation_type_check';
-
-  if v_definition is null
-     or position('withdraw_settle' in v_definition) = 0
-     or position('withdraw_paid' in v_definition) = 0
-     or position('perp_trade' in v_definition) = 0 then
-    raise exception 'financial operation type compatibility constraint verification failed';
-  end if;
-end;
-$$;
-
+     OR p_user_id IS NULL OR p_user_id = '' OR p_asset IS NULL OR p_asset !~ '^[A-Z0-9]{2,16}$'
      OR p_operation_type NOT IN ('deposit_credit','withdraw_freeze','withdraw_approve','withdraw_reject','withdraw_paid','earn_subscribe','earn_redeem','admin_adjustment','spot_trade','spot_order_reserve','spot_order_cancel','seconds_open','seconds_settle')
      OR p_request_hash IS NULL OR p_request_hash = ''
      OR p_metadata IS NULL OR jsonb_typeof(p_metadata) <> 'object'
@@ -255,8 +236,7 @@ GRANT EXECUTE ON FUNCTION public.apply_financial_operation(text,text,text,text,n
 GRANT EXECUTE ON FUNCTION public.review_withdrawal_atomic(text,text,boolean,text) TO service_role;
 GRANT EXECUTE ON FUNCTION public.mark_withdrawal_paid_atomic(text,text,text,text) TO service_role;
 
--- Fail loudly if the effective constraint does not retain both withdrawal
--- operation names. This is a metadata assertion only; no customer data changes.
+-- Verify the effective CHECK definition without inspecting or changing customer rows.
 do $$
 declare
   v_definition text;
