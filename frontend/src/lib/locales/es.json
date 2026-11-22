@@ -1734,5 +1734,6 @@
   "Your withdrawal status is not yet confirmed. Check withdrawal history before trying again.": "El estado de tu retiro aún no está confirmado. Revisa el historial antes de volver a intentarlo.",
   "The withdrawal fee has changed. Review the updated fee and submit again.": "La comisión de retiro ha cambiado. Revisa la nueva comisión y vuelve a enviar la solicitud.",
   "Earn products are temporarily unavailable. Please try again.": "Los productos Earn no están disponibles temporalmente. Inténtalo de nuevo más tarde.",
-  "Unable to add this address. Please try again.": "No se pudo añadir esta dirección. Inténtalo de nuevo."
+  "Unable to add this address. Please try again.": "No se pudo añadir esta dirección. Inténtalo de nuevo.",
+  "No recent trades are currently available.": "No hay operaciones recientes disponibles."
 }
