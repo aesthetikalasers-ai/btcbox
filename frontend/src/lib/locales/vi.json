@@ -227,7 +227,6 @@
   "Passport": "Hộ chiếu",
   "Driver license": "Giấy phép lái xe",
   "Identity document image": "Hình ảnh giấy tờ tùy thân",
-  "Hỗ trợ JPEG, PNG hoặc WebP. Ảnh gốc tối đa 5 MB và sẽ được nén an toàn xuống 2 MB trước khi tải lên. Vui lòng tải ảnh rõ nét, dễ đọc.": "Hỗ trợ JPEG, PNG hoặc WebP. Ảnh gốc tối đa 5 MB và sẽ được nén an toàn xuống 2 MB trước khi tải lên. Vui lòng tải ảnh rõ nét, dễ đọc.",
   "Selected": "Đã chọn",
   "Submitting…": "Đang gửi…",
   "Submit for review": "Gửi để xét duyệt",
@@ -1695,5 +1694,6 @@
   "Latest": "Mới",
   "Return rate": "Tỷ suất",
   "Pick a duration and direction; the round settles automatically.": "Chọn thời lượng và hướng; vòng sẽ tự động tất toán.",
-  "Choose a short-term contract pair": "Chọn cặp hợp đồng ngắn hạn"
+  "Choose a short-term contract pair": "Chọn cặp hợp đồng ngắn hạn",
+  "JPEG, PNG or WebP. Maximum original size 5 MB; securely compressed to 2 MB. Upload a clear, readable image.": "Hỗ trợ JPEG, PNG hoặc WebP. Ảnh gốc tối đa 5 MB và sẽ được nén an toàn xuống 2 MB trước khi tải lên. Vui lòng tải ảnh rõ nét, dễ đọc."
 }
