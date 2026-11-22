@@ -1027,7 +1027,20 @@ export function AdminPage() {
         if (queueRequestId !== supportQueueRequestRef.current) return;
         setError(successMessage + " The conversation could not refresh. Reload this tab before replying again.");
       }
-    } catch (reason) { setError(reason instanceof Error ? reason.message : "Support reply failed."); }
+    } catch (reason) {
+      if (reason instanceof ApiError && reason.status >= 400 && reason.status < 500 && reason.status !== 409) {
+        // A definite client rejection means the server did not accept this
+        // reply. Let staff correct the text instead of trapping the composer
+        // behind an immutable retry. Keep 409 locked: it may indicate an
+        // idempotency conflict and needs reconciliation, not a new request.
+        setSupportReplySubmitted((current) => ({ ...current, [uid]: false }));
+        setSupportReplyRequestIds((current) => { const next = { ...current }; delete next[uid]; return next; });
+        if (session?.user_id) {
+          try { window.sessionStorage.removeItem(supportReplyStorageKey(uid)); } catch { /* The visible draft remains editable. */ }
+        }
+      }
+      setError(reason instanceof Error ? reason.message : "Support reply failed.");
+    }
     finally { supportReplyLocksRef.current[uid] = false; setBusy(false); }
   };
 
