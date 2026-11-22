@@ -43,4 +43,10 @@ test('live Seconds page does not read or settle the browser paper ledger', () =>
   assert.ok(!seconds.includes('placeSecondsOrder'));
   assert.ok(!seconds.includes('settleSecondsTrade'));
   assert.ok(!seconds.includes('openSecondsTrade'));
+  assert.ok(seconds.includes('setAvailableUSDT("0.00")'));
+  assert.ok(seconds.includes('setSnapshot(null)'));
+  assert.ok(seconds.includes('setPolicy(null)'));
+  assert.ok(seconds.includes('setPendingIntent(null)'));
+  assert.ok(seconds.includes('if (status !== "authenticated")'));
+  assert.ok(seconds.includes('}, [reload, status]);'), 'account state must reload when the authenticated session changes');
 });
