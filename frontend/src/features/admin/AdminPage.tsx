@@ -98,7 +98,7 @@ function statusVariant(status: string): "success" | "warning" | "destructive" | 
 }
 function permissionLabel(key: string): string {
   const found = adminPermissionOptions.find(([k]) => k === key);
-  return found ? found[1] : key;
+  return found ? adminText(found[1]) : adminText(key);
 }
 
 function groupSupportThreads(messages: Array<Record<string, unknown>>) {
