@@ -73,12 +73,24 @@ export function LiveMarketsTable({ markets, loading, error }: {
   };
   const [searchParams, setSearchParams] = useSearchParams();
   const query = (searchParams.get("q") || "").trim().toLowerCase();
-  const latestSnapshotTs = markets.reduce((latest, item) => Math.max(latest, item.snapshotTs || 0), 0);
-  const snapshotAgeSeconds = latestSnapshotTs > 0 ? Math.max(0, Math.floor(Date.now() / 1000 - latestSnapshotTs)) : null;
-  // Quotes older than 90s are treated as unavailable: showing a stale price is
-  // worse than showing none, because a trader could size an order against it.
-  const snapshotStale = markets.some((item) => (item.snapshotTs || 0) > 0 && Date.now() / 1000 - (item.snapshotTs || 0) > 90);
-  const feedError = error || (snapshotStale ? t("The market service snapshot is older than 90 seconds. Quotes are hidden until a fresh snapshot arrives.") : "");
+  const nowSeconds = Date.now() / 1000;
+  const snapshotInvalid = markets.some((item) => (
+    typeof item.snapshotTs !== "number" ||
+    !Number.isFinite(item.snapshotTs) ||
+    item.snapshotTs <= 0 ||
+    item.snapshotTs > nowSeconds + 30
+  ));
+  const latestSnapshotTs = markets.reduce((latest, item) => (
+    typeof item.snapshotTs === "number" && Number.isFinite(item.snapshotTs) && item.snapshotTs > 0 && item.snapshotTs <= nowSeconds + 30
+      ? Math.max(latest, item.snapshotTs)
+      : latest
+  ), 0);
+  const snapshotAgeSeconds = latestSnapshotTs > 0 ? Math.max(0, Math.floor(nowSeconds - latestSnapshotTs)) : null;
+  // Missing, invalid or old server timestamps must never be treated as live quotes.
+  const snapshotStale = snapshotInvalid || markets.some((item) => (
+    typeof item.snapshotTs !== "number" || !Number.isFinite(item.snapshotTs) || !item.snapshotTs || nowSeconds - item.snapshotTs > 90
+  ));
+  const feedError = error || (snapshotStale ? t("The market service snapshot is missing, invalid or older than 90 seconds. Quotes are hidden until a fresh snapshot arrives.") : "");
   const displayMarkets = feedError ? [] : markets;
   const latestProviderMarket = displayMarkets.reduce<MarketTicker | null>((latest, item) =>
     (item.providerTs || 0) > (latest?.providerTs || 0) ? item : latest, null);
