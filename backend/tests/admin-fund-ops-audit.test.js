@@ -108,3 +108,16 @@ test('canonical financial_audit_log has indexes matching the admin audit-logs qu
   const base = fs.readFileSync(path.join(root, 'supabase/sql/0002_financial_ledger_v1.sql'), 'utf8');
   assert.ok(base.includes('financial_audit_subject_time_idx'));
 });
+
+test('admin balance adjustment generates audit reasons without a staff-entered reason', () => {
+  const route = sliceRoute("if (sub === 'user/balance' && method === 'POST')", "// POST /api/admin/user/freeze");
+  assert.match(route, /const suppliedReason = String\(body\.reason \|\| ''\)/);
+  assert.ok(route.includes("'管理员后台上分'"));
+  assert.ok(route.includes("'管理员后台下分'"));
+  assert.ok(route.includes("'管理员后台冻结资金'"));
+  assert.ok(route.includes("'管理员后台解冻资金'"));
+  assert.ok(route.includes('p_reason: reason'));
+  const adminPage = fs.readFileSync(path.join(root, '../frontend/src/features/admin/AdminPage.tsx'), 'utf8');
+  assert.doesNotMatch(adminPage, /adjustReason|setAdjustReason|Reason \(required, at least 5 characters\)/);
+  assert.match(adminPage, /adminAdjustBalance\(token, \{ uid, coin: adjustCoin, delta, mode, request_id: requestId \}\)/);
+});
