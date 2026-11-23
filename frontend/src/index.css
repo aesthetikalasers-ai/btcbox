@@ -1282,7 +1282,7 @@ a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
   line-height: 1.2;
   text-overflow: ellipsis;
 }
-@media (min-width: 1024px) {
+@media (min-width: 768px) {
   .bf-bottom-nav { display: none; }
 }
 @media (max-width: 360px) {
