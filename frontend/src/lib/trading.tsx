@@ -78,6 +78,7 @@ export interface PaperWalletHistory {
 
 const STORAGE_KEY = "btcbox-paper-trading";
 const DEMO_INITIAL_USDT = 10000;
+const PAPER_TRADING_ENABLED = import.meta.env.DEV;
 
 /** 生成一个可读的订单号。 */
 function makeOrderId(): string {
@@ -86,6 +87,10 @@ function makeOrderId(): string {
 
 function nowIso(): string {
   return new Date().toISOString();
+}
+
+function emptyLedger(): PaperLedger {
+  return { balances: {}, orders: [], secondsTrades: [], withdrawals: [], perpPositions: [], walletHistory: [] };
 }
 
 function loadLedger(): PaperLedger {
@@ -107,14 +112,7 @@ function loadLedger(): PaperLedger {
   } catch {
     /* 存储不可用时回退到内存态 */
   }
-  return {
-    balances: {},
-    orders: [],
-    secondsTrades: [],
-    withdrawals: [],
-    perpPositions: [],
-    walletHistory: [],
-  };
+  return emptyLedger();
 }
 
 function saveLedger(ledger: PaperLedger): void {
@@ -178,7 +176,7 @@ export interface TradingContextValue {
 const TradingContext = createContext<TradingContextValue | null>(null);
 
 export function TradingProvider({ children }: { children: ReactNode }) {
-  const [ledger, setLedger] = useState<PaperLedger>(() => loadLedger());
+  const [ledger, setLedger] = useState<PaperLedger>(() => PAPER_TRADING_ENABLED ? loadLedger() : emptyLedger());
   const [lastSettleResult, setLastSettleResult] = useState<TradingContextValue["lastSettleResult"]>(null);
 
   const ledgerRef = useRef(ledger);
@@ -191,6 +189,7 @@ export function TradingProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const initializeDemoWallet = useCallback(() => {
+    if (!PAPER_TRADING_ENABLED) return;
     const current = ledgerRef.current;
     if (Object.keys(current.balances).length === 0) {
       commit(initialLedger());
@@ -198,11 +197,13 @@ export function TradingProvider({ children }: { children: ReactNode }) {
   }, [commit]);
 
   const resetDemo = useCallback(() => {
+    if (!PAPER_TRADING_ENABLED) return;
     commit(initialLedger());
     setLastSettleResult(null);
   }, [commit]);
 
   const placeSpotOrder = useCallback((input: PlaceSpotInput) => {
+    if (!PAPER_TRADING_ENABLED) return { ok: false as const, reason: "Local paper trading is disabled outside development." };
     const current = ledgerRef.current;
     const balances = { ...current.balances };
     const total = input.price * input.quantity;
@@ -242,6 +243,7 @@ export function TradingProvider({ children }: { children: ReactNode }) {
   }, [commit]);
 
   const placeSecondsOrder = useCallback((input: PlaceSecondsInput) => {
+    if (!PAPER_TRADING_ENABLED) return { ok: false as const, reason: "Local paper trading is disabled outside development." };
     const current = ledgerRef.current;
     const balances = { ...current.balances };
     const usdt = balances.USDT?.free ?? 0;
@@ -268,6 +270,7 @@ export function TradingProvider({ children }: { children: ReactNode }) {
   }, [commit]);
 
   const settleSecondsTrade = useCallback((id: string, settlePrice: number) => {
+    if (!PAPER_TRADING_ENABLED) return;
     const current = ledgerRef.current;
     const trade = current.secondsTrades.find((t) => t.id === id);
     if (!trade || trade.status !== "open") return;
@@ -299,6 +302,7 @@ export function TradingProvider({ children }: { children: ReactNode }) {
   const dismissSettleResult = useCallback(() => setLastSettleResult(null), []);
 
   const deposit = useCallback((coin: string, amount: number, network: string = "") => {
+    if (!PAPER_TRADING_ENABLED) return;
     const current = ledgerRef.current;
     if (!Number.isFinite(amount) || amount <= 0) return;
     const balances = { ...current.balances };
@@ -319,6 +323,7 @@ export function TradingProvider({ children }: { children: ReactNode }) {
   }, [commit, nowIso]);
 
   const withdraw = useCallback((coin: string, network: string, address: string, amount: number, fee: number) => {
+    if (!PAPER_TRADING_ENABLED) return { ok: false as const, reason: "Local paper trading is disabled outside development." };
     const current = ledgerRef.current;
     if (!Number.isFinite(amount) || amount <= 0) return { ok: false as const, reason: "Enter a valid withdrawal amount" };
     const free = current.balances[coin]?.free ?? 0;
@@ -347,6 +352,7 @@ export function TradingProvider({ children }: { children: ReactNode }) {
     return { ok: true as const };
   }, [commit, nowIso]);
   const openPerpPosition = useCallback((input: { symbol: string; base: string; side: "long" | "short"; leverage: number; margin: number; entry_price: number; quantity: number; margin_mode: "cross" | "isolated" }) => {
+    if (!PAPER_TRADING_ENABLED) return { ok: false as const, reason: "Local paper trading is disabled outside development." };
     const current = ledgerRef.current;
     if (!Number.isFinite(input.margin) || input.margin <= 0) return { ok: false as const, reason: "请输入有效的保证金" };
     const usdtFree = current.balances.USDT?.free ?? 0;
@@ -370,6 +376,7 @@ export function TradingProvider({ children }: { children: ReactNode }) {
   }, [commit]);
 
   const closePaperPosition = useCallback((id: string, exitPrice: number) => {
+    if (!PAPER_TRADING_ENABLED) return;
     const current = ledgerRef.current;
     const position = current.perpPositions.find((p) => p.id === id);
     if (!position) return;
@@ -426,7 +433,7 @@ export function TradingInitializer() {
   const { status } = useAuth();
   const { initializeDemoWallet } = useTrading();
   useEffect(() => {
-    if (status === "authenticated") initializeDemoWallet();
+    if (PAPER_TRADING_ENABLED && status === "authenticated") initializeDemoWallet();
   }, [status, initializeDemoWallet]);
   return null;
 }
