@@ -152,6 +152,20 @@ async function assertPageAtWidth(
     await expect(page.getByRole("heading", { name: route.heading, exact: true })).toBeVisible({ timeout: 15000 });
   }
 
+  if (["/home", "/markets", "/trade/BTCUSDT", "/assets", "/me"].includes(route.path)) {
+    const mobileNavigation = page.locator(".bf-bottom-nav");
+    const desktopProducts = page.locator('header nav[aria-label="Trade products"]');
+    const desktopAssets = page.locator('header a[href="/assets"]');
+    if (width < 768) {
+      await expect(mobileNavigation, "Phone pages must use the five-item bottom navigation.").toBeVisible();
+      await expect(desktopProducts, "Desktop product navigation must stay hidden on phones.").toBeHidden();
+    } else {
+      await expect(mobileNavigation, "The bottom navigation must not duplicate desktop navigation.").toBeHidden();
+      await expect(desktopProducts, "Desktop product navigation must appear from 768px.").toBeVisible();
+      await expect(desktopAssets, "Assets must remain directly reachable from the desktop header.").toBeVisible();
+    }
+  }
+
   if (!["/login", "/register"].includes(route.path) && width <= 480) {
     await expect(
       page.getByRole("link", { name: "BTCBOX home" }).getByRole("img", { name: "BTCBOX" }),
@@ -370,7 +384,7 @@ for (const route of routes) {
 // passing only at the seven required snapshot widths. These are desktop-browser
 // viewport sweeps; independent touch-device coverage is provided above.
 for (const route of routes.filter((item) => [
-  "/home", "/markets", "/trade/BTCUSDT", "/trade-hub",
+  "/home", "/markets", "/trade/BTCUSDT", "/trade-hub", "/assets",
 ].includes(item.path))) {
   test("continuous responsive sweep " + route.path, async ({ page }) => {
     test.setTimeout(300_000);
