@@ -295,6 +295,8 @@ async function assertPageAtWidth(
     expect(bookBox).not.toBeNull();
     expect(formBox).not.toBeNull();
     expect(ordersBox).not.toBeNull();
+    const bookShare = bookBox!.width / (bookBox!.width + formBox!.width);
+    expect(Math.abs(bookShare - 0.55), "Rendered tablet columns must measure 55:45 (order book:order entry).").toBeLessThanOrEqual(0.015);
     expect(bookBox!.x + bookBox!.width).toBeLessThanOrEqual(formBox!.x + 2);
     expect(Math.abs(bookBox!.y - formBox!.y)).toBeLessThanOrEqual(8);
     expect(ordersBox!.y).toBeGreaterThanOrEqual(Math.max(bookBox!.y + bookBox!.height, formBox!.y + formBox!.height) - 1);
@@ -498,6 +500,8 @@ test("trade interaction QA mobile spot market selection and order-book handoff",
   await expect(options.nth(0)).toContainText("BTC/USDT");
   await expect(options.nth(1)).toContainText("ETH/USDT");
   await expect(options.nth(2)).toContainText("SOL/USDT");
+  const listedPrices = await options.locator(".term-pair-option__price").allTextContents();
+  expect(new Set(listedPrices).size, "Each market option must show its own ticker price, not the active pair price.").toBe(3);
 
   const search = dialog.getByRole("searchbox", { name: "Search BTCBOX" });
   await search.fill("ETH");
