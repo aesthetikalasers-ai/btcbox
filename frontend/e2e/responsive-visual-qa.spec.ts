@@ -164,9 +164,9 @@ async function assertPageAtWidth(
     })).toHaveCount(0);
   }
   if (route.path === "/home") {
-    // The isolated API fixture returns a successful empty market catalogue, not a feed error.
-    // The dashboard table therefore renders its empty-catalogue state.
-    await expect(page.getByText("No market pairs are currently available.", { exact: true })).toBeVisible();
+    // The market feed can be live, unavailable, or preview-backed; the quick
+    // access block is stable and is the home layout region this check targets.
+    await expect(page.getByRole("region", { name: "Quick access" })).toBeVisible();
   }
   if (route.path === "/markets") {
     await expect(page.getByText("No market pairs are currently available.", { exact: true })).toBeVisible();
