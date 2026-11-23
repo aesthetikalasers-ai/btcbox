@@ -9,9 +9,13 @@ import { adminText } from "../../lib/admin-i18n";
 import { AuthPage } from "../auth/AuthPages";
 import {
   ApiError,
+  adminAdjustBalance,
   adminApproveKyc,
   adminApproveWithdrawal,
   adminManualCredit,
+  adminResetUserEmail,
+  adminResetUserPassword,
+  adminSetUserFrozen,
   adminMarkWithdrawalPaid,
   adminRejectKyc,
   adminRejectWithdrawal,
@@ -145,6 +149,18 @@ export function AdminPage() {
   const [creditNote, setCreditNote] = useState<Record<string, string>>({});
   const [creditRequestIds, setCreditRequestIds] = useState<Record<string, string>>({});
   const [creditPendingInvalid, setCreditPendingInvalid] = useState<Record<string, boolean>>({});
+  // Balance adjustment (credit / debit / freeze / unfreeze) for the selected user.
+  const [adjustCoin, setAdjustCoin] = useState("USDT");
+  const [adjustMode, setAdjustMode] = useState<"credit" | "debit" | "freeze" | "unfreeze">("credit");
+  const [adjustAmount, setAdjustAmount] = useState("");
+  const [adjustReason, setAdjustReason] = useState("");
+  const [adjustBusy, setAdjustBusy] = useState(false);
+  // Account actions: freeze state, credential changes and a direct staff message.
+  const [accountActionBusy, setAccountActionBusy] = useState(false);
+  const [freezeReason, setFreezeReason] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [newEmail, setNewEmail] = useState("");
+  const [directMessage, setDirectMessage] = useState("");
   const [withdrawals, setWithdrawals] = useState<AdminWithdrawalRecord[]>([]);
   const [reviewQueueLoading, setReviewQueueLoading] = useState(false);
   const [payoutReferences, setPayoutReferences] = useState<Record<string, string>>({});
@@ -508,6 +524,115 @@ export function AdminPage() {
     } finally {
       if (requestId === userDetailRequestRef.current) setBusy(false);
     }
+  };
+
+  // Re-read the selected user after a confirmed write so the balances on screen
+  // come from the server. A failed refresh must not mask the confirmed result.
+  const refreshSelectedUser = async (uid: string) => {
+    try { await selectUser(uid); } catch { /* Confirmed writes stay reported through the notice. */ }
+  };
+
+  const submitBalanceAdjustment = async () => {
+    if (!token || !selectedUser || adjustBusy) return;
+    const uid = selectedUser.uid;
+    const amount = adjustAmount.trim();
+    if (!/^(?:0|[1-9]\d*)(?:\.\d{1,18})?$/.test(amount) || /^0(?:\.0*)?$/.test(amount)) {
+      setError("Enter an amount greater than 0.");
+      return;
+    }
+    const reason = adjustReason.trim();
+    if (reason.length < 5) {
+      setError("Enter a reason of at least 5 characters.");
+      return;
+    }
+    let requestId = "";
+    try { requestId = window.crypto.randomUUID(); }
+    catch { setError("Secure request IDs are unavailable in this browser. No balance change was made."); return; }
+    const mode = adjustMode === "freeze" ? "freeze" : adjustMode === "unfreeze" ? "unfreeze" : "adjust";
+    const delta = adjustMode === "debit" ? "-" + amount : amount;
+    setAdjustBusy(true); setError(""); setNotice("");
+    try {
+      const result = await adminAdjustBalance(token, { uid, coin: adjustCoin, delta, mode, reason, request_id: requestId });
+      setNotice(result.msg || "Balance adjusted.");
+      setAdjustAmount(""); setAdjustReason("");
+      await refreshSelectedUser(uid);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Balance adjustment failed. Check the financial operation log before retrying.");
+    } finally { setAdjustBusy(false); }
+  };
+
+  const submitFreezeToggle = async () => {
+    if (!token || !selectedUser || accountActionBusy) return;
+    const uid = selectedUser.uid;
+    const nextFrozen = !selectedUser.frozen;
+    const reason = freezeReason.trim();
+    if (!reason) { setError("Enter a reason before changing the account state."); return; }
+    setAccountActionBusy(true); setError(""); setNotice("");
+    try {
+      const result = await adminSetUserFrozen(token, { uid, frozen: nextFrozen, reason });
+      setNotice(result.msg || (nextFrozen ? "Account frozen." : "Account unfrozen."));
+      setFreezeReason("");
+      await refreshSelectedUser(uid);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Account state could not be changed.");
+    } finally { setAccountActionBusy(false); }
+  };
+
+  const submitPasswordReset = async () => {
+    if (!token || !selectedUser || accountActionBusy) return;
+    const uid = selectedUser.uid;
+    if (newPassword.length < 12 || newPassword.length > 256) {
+      setError("The new password must be 12-256 characters.");
+      return;
+    }
+    setAccountActionBusy(true); setError(""); setNotice("");
+    try {
+      const result = await adminResetUserPassword(token, { uid, new_password: newPassword });
+      setNotice(result.msg || "Password has been reset.");
+      setNewPassword("");
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Password could not be reset.");
+    } finally { setAccountActionBusy(false); }
+  };
+
+  const submitEmailReset = async () => {
+    if (!token || !selectedUser || accountActionBusy) return;
+    const uid = selectedUser.uid;
+    const email = newEmail.trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 254) {
+      setError("Enter a valid email address.");
+      return;
+    }
+    setAccountActionBusy(true); setError(""); setNotice("");
+    try {
+      const result = await adminResetUserEmail(token, { uid, new_email: email });
+      setNotice(result.msg || "Email updated.");
+      setNewEmail("");
+      await refreshSelectedUser(uid);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Email could not be changed.");
+    } finally { setAccountActionBusy(false); }
+  };
+
+  // Staff can open a conversation with any existing customer account, including
+  // accounts that never wrote in, because the backend creates the thread.
+  const sendDirectMessage = async () => {
+    if (!token || !selectedUser || accountActionBusy) return;
+    const uid = selectedUser.uid;
+    const content = directMessage.trim();
+    if (!content) { setError("Enter a message before sending."); return; }
+    if (content.length > 2000) { setError("Keep the message under 2000 characters."); return; }
+    let requestId = "";
+    try { requestId = window.crypto.randomUUID(); }
+    catch { setError("Secure request IDs are unavailable in this browser. No message was sent."); return; }
+    setAccountActionBusy(true); setError(""); setNotice("");
+    try {
+      await adminReplySupport(token, uid, content, requestId);
+      setNotice("Message sent to the customer.");
+      setDirectMessage("");
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "The message could not be sent.");
+    } finally { setAccountActionBusy(false); }
   };
 
   const manualCredit = async (event: FormEvent<HTMLFormElement>, coin: string) => {
@@ -1162,7 +1287,7 @@ export function AdminPage() {
         <form className="mb-3 flex gap-2" onSubmit={event => { event.preventDefault(); void loadTab(); }}><input value={search} onChange={event => setSearch(event.target.value)} placeholder={adminText("Search UID or email")} className="h-11 min-w-0 flex-1 rounded-xl border border-brand-border bg-brand-surface-2 px-3 py-2 text-sm text-brand-text outline-none transition-colors focus:border-brand-accent/60 focus:ring-2 focus:ring-brand-accent/15"/><Button size="sm" type="submit">{adminText("Search")}</Button></form>
         <div className="overflow-x-auto"><table className="w-full min-w-[520px] text-left text-sm"><thead><tr className="border-b border-brand-border bg-brand-surface-2/50 type-label uppercase tracking-wide text-brand-text-muted"><th className="px-3 py-2.5">UID</th><th className="px-3 py-2.5">{adminText("Email")}</th><th className="px-3 py-2.5">{adminText("KYC")}</th><th className="px-3 py-2.5">{adminText("Status")}</th><th className="px-3 py-2.5 text-right">{adminText("Action")}</th></tr></thead><tbody>{users.map(user=><tr key={user.uid} className="border-b border-brand-border-subtle transition-colors hover:bg-brand-surface-hover/40"><td className="px-3 py-2.5 font-mono text-xs">{user.uid}</td><td className="px-3 py-2.5">{user.email}</td><td className="px-3 py-2.5"><Badge variant={statusVariant(user.kyc_status || user.kyc?.status || "")}>{user.kyc_status || user.kyc?.status || "—"}</Badge></td><td className="px-3 py-2.5"><Badge variant={user.frozen?"destructive":"success"}>{user.frozen?adminText("Frozen"):adminText("Active")}</Badge></td><td className="px-3 py-2.5 text-right"><Button size="sm" variant="outline" onClick={()=>void selectUser(user.uid)}>{adminText("Open")}</Button></td></tr>)}{users.length===0 ? <tr><td colSpan={5} className="px-3 py-10 text-center text-sm text-brand-text-muted">暂无用户记录，调整搜索条件后重试。</td></tr> : null}</tbody></table></div>
       </CardContent></Card>
-      <Card><CardHeader><CardTitle>{adminText("Manual credit")}</CardTitle><CardDescription>{adminText("UID and asset are bound by the selected user and asset row. No pending deposit order is created.")}</CardDescription></CardHeader><CardContent>
+      <div className="space-y-4"><Card><CardHeader><CardTitle>{adminText("Manual credit")}</CardTitle><CardDescription>{adminText("UID and asset are bound by the selected user and asset row. No pending deposit order is created.")}</CardDescription></CardHeader><CardContent>
         {!selectedUser ? <p className="text-sm text-brand-text-muted">{adminText("Select a user to load their current balances.")}</p> : <>
           <div className="mb-3 flex flex-wrap items-center justify-between gap-2"><p className="text-sm font-semibold">{selectedUser.email} · <span className="font-mono">{selectedUser.uid}</span></p>{hasPermission("deposits.read") ? <Badge variant="outline">{selectedUser.financial_balance_source === "postgres_financial_ledger" ? adminText("Balances: PostgreSQL ledger") : selectedUser.financial_balance_source === "legacy_state_retention_limited" ? adminText("Balances: legacy state · limited") : adminText("Balances: source unknown")}</Badge> : null}</div>
           {selectedUser.financial_balance_source !== "postgres_financial_ledger" ? <p role="status" className="mb-3 text-xs text-brand-warning">{adminText("Manual credit is disabled until the user's PostgreSQL ledger balance source is confirmed.")}</p> : null}
@@ -1181,6 +1306,48 @@ export function AdminPage() {
           </section> : null}
         </>}
       </CardContent></Card>
+      <Card><CardHeader><CardTitle>{adminText("Balance adjustment")}</CardTitle><CardDescription>{adminText("Add, deduct, freeze or unfreeze the selected user's available balance. Every operation is audited and idempotent.")}</CardDescription></CardHeader><CardContent className="space-y-3">
+        {!selectedUser ? <p className="text-sm text-brand-text-muted">{adminText("Select a user first.")}</p> : <>
+          <div className="grid gap-2 sm:grid-cols-2">
+            <label className="space-y-1 text-sm"><span className="text-brand-text-muted">{adminText("Asset")}</span><select value={adjustCoin} onChange={event => setAdjustCoin(event.target.value)} disabled={adjustBusy} className="h-11 w-full rounded-xl border border-brand-border bg-brand-surface-2 px-3 text-sm text-brand-text">{assets.map(coin => <option key={coin}>{coin}</option>)}</select></label>
+            <label className="space-y-1 text-sm"><span className="text-brand-text-muted">{adminText("Operation")}</span><select value={adjustMode} onChange={event => setAdjustMode(event.target.value as "credit" | "debit" | "freeze" | "unfreeze")} disabled={adjustBusy} className="h-11 w-full rounded-xl border border-brand-border bg-brand-surface-2 px-3 text-sm text-brand-text"><option value="credit">{adminText("Add balance")}</option><option value="debit">{adminText("Deduct balance")}</option><option value="freeze">{adminText("Freeze funds")}</option><option value="unfreeze">{adminText("Unfreeze funds")}</option></select></label>
+          </div>
+          <p className="text-xs text-brand-text-muted">{adminText("Available")}: {selectedUser.balances?.[adjustCoin]?.free == null ? "—" : asText(selectedUser.balances[adjustCoin].free)} · {adminText("Frozen")}: {selectedUser.balances?.[adjustCoin]?.frozen == null ? "—" : asText(selectedUser.balances[adjustCoin].frozen)}</p>
+          <input value={adjustAmount} onChange={event => setAdjustAmount(event.target.value)} disabled={adjustBusy} inputMode="decimal" placeholder={adminText("Amount")} className="h-11 w-full rounded-xl border border-brand-border bg-brand-surface-2 px-3 text-sm text-brand-text"/>
+          <input value={adjustReason} onChange={event => setAdjustReason(event.target.value)} disabled={adjustBusy} maxLength={200} placeholder={adminText("Reason (required, at least 5 characters)")} className="h-11 w-full rounded-xl border border-brand-border bg-brand-surface-2 px-3 text-sm text-brand-text"/>
+          <Button size="sm" disabled={adjustBusy || !hasPermission("financial_adjustment.request") || !adjustAmount.trim() || adjustReason.trim().length < 5} onClick={() => void submitBalanceAdjustment()}>{adjustBusy ? adminText("Processing…") : adminText("Confirm adjustment")}</Button>
+          {!hasPermission("financial_adjustment.request") ? <p className="text-xs text-brand-warning">{adminText("Requires the financial_adjustment.request permission.")}</p> : null}
+        </>}
+      </CardContent></Card>
+      <Card><CardHeader><CardTitle>{adminText("Account actions")}</CardTitle><CardDescription>{adminText("Freeze the account, reset the login password or email, and send a staff message to the customer.")}</CardDescription></CardHeader><CardContent className="space-y-4">
+        {!selectedUser ? <p className="text-sm text-brand-text-muted">{adminText("Select a user first.")}</p> : <>
+          <div className="space-y-2">
+            <div className="flex flex-wrap items-center justify-between gap-2"><span className="text-sm font-semibold">{adminText("Account state")}</span><Badge variant={selectedUser.frozen ? "destructive" : "success"}>{selectedUser.frozen ? adminText("Frozen") : adminText("Active")}</Badge></div>
+            <input value={freezeReason} onChange={event => setFreezeReason(event.target.value)} disabled={accountActionBusy} maxLength={200} placeholder={adminText("Reason for the account state change")} className="h-11 w-full rounded-xl border border-brand-border bg-brand-surface-2 px-3 text-sm text-brand-text"/>
+            <Button size="sm" variant={selectedUser.frozen ? "outline" : "destructive"} disabled={accountActionBusy || !hasPermission("users.freeze") || !freezeReason.trim()} onClick={() => void submitFreezeToggle()}>{selectedUser.frozen ? adminText("Unfreeze account") : adminText("Freeze account")}</Button>
+            {!hasPermission("users.freeze") ? <p className="text-xs text-brand-warning">{adminText("Requires the users.freeze permission.")}</p> : null}
+          </div>
+          <div className="space-y-2 border-t border-brand-border pt-3">
+            <p className="text-sm font-semibold">{adminText("Reset login password")}</p>
+            <input value={newPassword} onChange={event => setNewPassword(event.target.value)} disabled={accountActionBusy} type="password" autoComplete="new-password" placeholder={adminText("New password (12-256 characters)")} className="h-11 w-full rounded-xl border border-brand-border bg-brand-surface-2 px-3 text-sm text-brand-text"/>
+            <Button size="sm" disabled={accountActionBusy || !hasPermission("users.manage") || newPassword.length < 12} onClick={() => void submitPasswordReset()}>{adminText("Reset password")}</Button>
+            {!hasPermission("users.manage") ? <p className="text-xs text-brand-warning">{adminText("Requires the users.manage permission.")}</p> : null}
+          </div>
+          <div className="space-y-2 border-t border-brand-border pt-3">
+            <p className="text-sm font-semibold">{adminText("Change email")}</p>
+            <input value={newEmail} onChange={event => setNewEmail(event.target.value)} disabled={accountActionBusy} type="email" placeholder={adminText("New email address")} className="h-11 w-full rounded-xl border border-brand-border bg-brand-surface-2 px-3 text-sm text-brand-text"/>
+            <Button size="sm" disabled={accountActionBusy || !hasPermission("users.manage") || !newEmail.trim()} onClick={() => void submitEmailReset()}>{adminText("Change email")}</Button>
+          </div>
+          <div className="space-y-2 border-t border-brand-border pt-3">
+            <p className="text-sm font-semibold">{adminText("Contact customer")}</p>
+            <p className="text-xs text-brand-text-muted">{adminText("Sends a staff message into the customer's support thread. A new thread is created when the customer has never written in.")}</p>
+            <textarea value={directMessage} onChange={event => setDirectMessage(event.target.value)} disabled={accountActionBusy} rows={3} maxLength={2000} placeholder={adminText("Message to the customer")} className="w-full rounded-xl border border-brand-border bg-brand-surface-2 p-3 text-sm text-brand-text"/>
+            <Button size="sm" disabled={accountActionBusy || !hasPermission("support.reply") || !directMessage.trim()} onClick={() => void sendDirectMessage()}>{adminText("Send message")}</Button>
+            {!hasPermission("support.reply") ? <p className="text-xs text-brand-warning">{adminText("Requires the support.reply permission.")}</p> : null}
+          </div>
+        </>}
+      </CardContent></Card>
+      </div>
     </div> : null}
 
     {!loading && tab === "deposits" ? <Card><CardHeader><CardTitle>{adminText("Finance configuration")}</CardTitle><CardDescription>{adminText("Configure customer deposit addresses and server-enforced withdrawal fees. Staff verify incoming transfers and manually credit the selected user's asset row.")}</CardDescription></CardHeader><CardContent><form onSubmit={saveAddresses} className="space-y-5">

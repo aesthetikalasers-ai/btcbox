@@ -1503,6 +1503,24 @@ export async function saveAdminConfig(token: string, config: AdminConfig) {
 export async function adminManualCredit(token: string, input: { uid: string; coin: string; amount: string; reference: string; note?: string; idempotency_key: string }) {
   return adminRequest<{ ok: true; duplicate?: boolean; balance?: AccountBalance; audit_sync_pending?: boolean }>(token, "admin/deposit/confirm", { method: "POST", body: input });
 }
+export async function adminAdjustBalance(token: string, input: {
+  uid: string; coin: string; delta: string;
+  mode: "adjust" | "freeze" | "unfreeze"; reason: string; request_id: string;
+}) {
+  return adminRequest<{
+    ok: true; msg?: string; duplicate?: boolean; operation_id?: string;
+    balances?: Record<string, { free: string; frozen: string }>;
+  }>(token, "admin/user/balance", { method: "POST", body: input });
+}
+export async function adminSetUserFrozen(token: string, input: { uid: string; frozen: boolean; reason: string }) {
+  return adminRequest<{ ok: true; msg?: string; audit_sync_pending?: boolean }>(token, "admin/user/freeze", { method: "POST", body: input });
+}
+export async function adminResetUserPassword(token: string, input: { uid: string; new_password: string }) {
+  return adminRequest<{ ok: true; msg?: string; audit_sync_pending?: boolean }>(token, "admin/user/reset-pwd", { method: "POST", body: input });
+}
+export async function adminResetUserEmail(token: string, input: { uid: string; new_email: string }) {
+  return adminRequest<{ ok: true; msg?: string; audit_sync_pending?: boolean }>(token, "admin/user/reset-email", { method: "POST", body: input });
+}
 export async function adminApproveWithdrawal(token: string, id: string) {
   return adminRequest<{ ok: true; status: string; audit_sync_pending?: boolean }>(token, "admin/withdraw/approve", { method: "POST", body: { id } });
 }
