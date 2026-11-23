@@ -163,6 +163,38 @@ async function assertPageAtWidth(
   if (route.path === "/trade-hub") {
     await expect(page.getByTestId("spot-availability")).toHaveText("Unavailable");
   }
+  if (route.path === "/trade/BTCUSDT" && width >= 1280) {
+    // Wide desktop uses the dedicated terminal: market rail + chart/orders +
+    // order book + order entry. The three trading work areas must all remain
+    // independently visible and ordered left-to-right.
+    const terminal = page.locator(".spot-terminal--pro");
+    const layout = terminal.locator(".term-layout");
+    const chartColumn = layout.locator(":scope > .term-col--main");
+    const bookColumn = layout.locator(":scope > .term-col--book");
+    const entryColumn = layout.locator(":scope > .term-col--entry");
+    await expect(terminal).toBeVisible();
+    await expect(chartColumn).toBeVisible();
+    await expect(bookColumn).toBeVisible();
+    await expect(entryColumn).toBeVisible();
+    const [layoutBox, chartBox, bookBox, entryBox, columnCount] = await Promise.all([
+      layout.boundingBox(),
+      chartColumn.boundingBox(),
+      bookColumn.boundingBox(),
+      entryColumn.boundingBox(),
+      layout.evaluate((element) => getComputedStyle(element).gridTemplateColumns.trim().split(/\\s+/).length),
+    ]);
+    expect(layoutBox, "Desktop terminal grid must have a layout box.").not.toBeNull();
+    expect(chartBox, "Desktop chart column must have a layout box.").not.toBeNull();
+    expect(bookBox, "Desktop order book column must have a layout box.").not.toBeNull();
+    expect(entryBox, "Desktop order entry column must have a layout box.").not.toBeNull();
+    expect(columnCount, "Desktop terminal must retain its market rail and three trading areas.").toBe(4);
+    expect(chartBox!.x).toBeLessThan(bookBox!.x);
+    expect(bookBox!.x).toBeLessThan(entryBox!.x);
+    expect(chartBox!.width).toBeGreaterThan(300);
+    expect(bookBox!.width).toBeGreaterThanOrEqual(240);
+    expect(entryBox!.width).toBeGreaterThanOrEqual(280);
+  }
+
   if (route.path === "/trade/BTCUSDT" && width < 768) {
     // Phone trading deliberately keeps the order form and order book visible
     // together. The orders panel spans the full row below both columns.
