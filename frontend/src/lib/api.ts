@@ -218,6 +218,19 @@ export async function getMarkets(signal?: AbortSignal): Promise<MarketTicker[]> 
 
   // Empty or malformed provider data is an outage, never a reason to display seeded prices as live.
   if (rows.length === 0) throw new ApiError(MARKET_UNAVAILABLE_MESSAGE, 502, "MARKET_DATA_INVALID");
+  const nowSeconds = Date.now() / 1000;
+  const snapshotInvalid = rows.some((row) => (
+    typeof row.snapshotTs !== "number" ||
+    !Number.isFinite(row.snapshotTs) ||
+    row.snapshotTs <= 0 ||
+    row.snapshotTs > nowSeconds + 30
+  ));
+  const snapshotStale = snapshotInvalid || rows.some((row) => (
+    typeof row.snapshotTs !== "number" || nowSeconds - row.snapshotTs > 90
+  ));
+  if (snapshotStale) {
+    throw new ApiError("Market service snapshot is missing, invalid or older than 90 seconds.", 502, "MARKET_SNAPSHOT_STALE");
+  }
   return rows;
 }
 
