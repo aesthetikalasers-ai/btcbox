@@ -14,6 +14,11 @@ const SESSION_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 const LIVE_PRICE_CACHE_MS = 15000;
 let livePriceCache = { expiresAt: 0, prices: {} };
 
+// Public, read-only endpoints must not be coupled to the account-state singleton.
+// Market prices and display FX can continue during a persistence incident;
+// the health endpoint reports the degraded state explicitly.
+const PUBLIC_NO_DB_PATHS = new Set(['market', 'market/pairs', 'kline', 'depth', 'trading/status', 'config', 'fx/usdt-usd', 'health']);
+
 // ===== 数据层（失败时关闭；不使用陈旧缓存处理可变数据）=====
 // Legacy JSON/Blobs writes cannot resolve 跨实例并发读-改-写竞争; they are retired.
 // 注意：Netlify Blobs 不是事务型数据库。每次请求重新读取可以避免本实例
@@ -1458,10 +1463,20 @@ async function handleRequest(event, context) {
   if (!db) {
     // Public, read-only market endpoints do not depend on persistent state.
     // Keep prices / 24h change / 24h volume / klines available when Supabase is unavailable.
-    var publicNoDbPaths = ['market', 'market/pairs', 'kline', 'depth', 'trading/status', 'config'];
-    if (method !== 'GET' || publicNoDbPaths.indexOf(path) === -1) {
+    if (method !== 'GET' || !PUBLIC_NO_DB_PATHS.has(path)) {
       return json({ ok: false, msg: 'Network error. Please try again.', code: 'PERSISTENCE_UNAVAILABLE' }, 503);
     }
+  }
+
+  // ---------- GET /api/health ----------
+  // A health probe must remain reachable when storage is degraded, and must
+  // report that degradation rather than being masked by the generic DB gate.
+  if (path === 'health' && method === 'GET') {
+    return json({
+      ok: Boolean(db),
+      service: 'btcbox-api',
+      persistence: db ? 'available' : 'unavailable',
+    }, db ? 200 : 503);
   }
 
   // ---------- GET /api/config ----------
@@ -4712,6 +4727,7 @@ exports.handler = function (event, context) {
 // 导出纯函数供后端单元测试（无网络/无 DB 依赖）。
 exports._test = {
   loadDB: loadDB,
+  isPublicNoDbPath: (path, method) => method === 'GET' && PUBLIC_NO_DB_PATHS.has(path),
   defaultDB: defaultDB,
   depositAddressFromEnv: depositAddressFromEnv,
   DEPOSIT_ADDRESS_ENV_KEYS: DEPOSIT_ADDRESS_ENV_KEYS,
