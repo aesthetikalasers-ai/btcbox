@@ -14,7 +14,7 @@ test('legacy static auth support files remain valid JavaScript', () => {
   }
 });
 
-test('React registration offers confirmed email signup alongside Google and wallet; legacy username/email sign-in remains available', () => {
+test('React registration is Google/wallet only while existing email-password sign-in remains available', () => {
   const authPage = fs.readFileSync(path.resolve(root, '..', 'frontend/src/features/auth/AuthPages.tsx'), 'utf8');
   assert.ok(authPage.includes('signInWithUsername'));
   assert.ok(authPage.includes('Google'));
@@ -22,11 +22,13 @@ test('React registration offers confirmed email signup alongside Google and wall
   assert.ok(authPage.includes('Connect Ethereum wallet'));
   assert.ok(authPage.includes('Connect Solana wallet'));
   assert.ok(authPage.includes('signInWithEmail'));
-  assert.ok(authPage.includes('signUpWithEmail'));
-  assert.ok(authPage.includes('Create account with email'));
-  assert.ok(!authPage.includes('requestPasswordReset'));
-  assert.ok(authPage.includes('completePasswordRecovery'));
+  assert.ok(authPage.includes('signInWithGoogle'));
+  assert.ok(authPage.includes('signInWithWeb3'));
   assert.ok(authPage.includes('Username or email'));
+  assert.ok(authPage.includes('requestPasswordReset'));
+  assert.ok(!authPage.includes('signUpWithEmail'));
+  assert.ok(!authPage.includes('Create account with email'));
+  assert.ok(authPage.includes('Use Google or a supported wallet to create your BTCBOX account.'));
 });
 
 test('legacy static Google OAuth callback retains same-origin return-target safeguards', () => {
