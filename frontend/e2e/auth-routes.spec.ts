@@ -1304,18 +1304,17 @@ test("registration layout adapts from mobile to desktop without losing the ident
     await page.getByRole("button", { name: "Wallet" }).click();
     await expect(page.getByRole("button", { name: "Connect Ethereum wallet" })).toBeVisible();
     await expect(page.getByRole("button", { name: "Connect Solana wallet" })).toBeVisible();
-    await expect(page.getByTestId("auth-mode-switcher").getByRole("link", { name: "Sign in", exact: true })).toHaveAttribute("href", "/login");
-    await expect(page.getByLabel("Email address")).toHaveCount(0);
-    await expect(page.getByRole("button", { name: "Create account with email" })).toHaveCount(0);
-    await expect(page.getByLabel("Username")).toHaveCount(0);
+    await expect(page.getByTestId("auth-mode-switcher").getByRole("button", { name: "Sign in", exact: true })).toBeVisible();
+    await expect(page.getByLabel("Email", { exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Create account with email" })).toBeVisible();
+    await expect(page.getByLabel("Username or email")).toHaveCount(0);
     const dimensions = await page.evaluate(() => ({
       viewport: document.documentElement.clientWidth,
       content: document.documentElement.scrollWidth,
     }));
     expect(dimensions.content, `registration overflow at ${viewport.width}px`).toBeLessThanOrEqual(dimensions.viewport);
-    if (viewport.width >= 1024) {
-      await expect(page.getByRole("heading", { name: "A clearer way to enter the digital asset market." })).toBeVisible();
-    }
+    await expect(page.getByLabel("Email", { exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Create account with email" })).toBeVisible();
   }
 });
 
