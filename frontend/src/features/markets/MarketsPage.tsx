@@ -92,15 +92,6 @@ function MarketTable({ markets, locale, loading, error, favorites, onToggleFavor
 }) {
   const { t } = useI18n();
 
-  if (error) {
-    return (
-      <div className="rounded-xl border border-brand-danger/30 bg-brand-surface px-4 py-8 text-center" role="alert">
-        <p className="text-[13px] font-semibold text-brand-danger">{t("Market feed unavailable")}</p>
-        <p className="mt-1.5 break-words text-[12px] text-brand-text-muted">{t(error)}</p>
-      </div>
-    );
-  }
-
   if (loading && markets.length === 0) {
     return (
       <div className="overflow-hidden rounded-xl border border-brand-border bg-brand-surface" role="status" aria-label={t("Loading markets")}>
@@ -128,7 +119,14 @@ function MarketTable({ markets, locale, loading, error, favorites, onToggleFavor
   }
 
   return (
-    <div className="-mx-4 overflow-hidden rounded-none border-y border-white/[0.08] bg-brand-surface shadow-[inset_0_1px_0_0_rgba(255,255,255,0.12)] sm:-mx-5 md:mx-0 md:rounded-xl md:border md:border-white/[0.08]">
+    <>
+      {error && (
+        <div className="mb-2 rounded-lg border border-brand-danger/30 bg-brand-surface px-3 py-2 text-left" role="alert">
+          <p className="text-[12px] font-semibold text-brand-danger">{t("Market feed unavailable")}</p>
+          <p className="mt-0.5 break-words text-[11px] text-brand-text-muted">{t(error)}</p>
+        </div>
+      )}
+      <div className="-mx-4 overflow-hidden rounded-none border-y border-white/[0.08] bg-brand-surface shadow-[inset_0_1px_0_0_rgba(255,255,255,0.12)] sm:-mx-5 md:mx-0 md:rounded-xl md:border md:border-white/[0.08]">
       {/* Mobile: compact 3-column list — name+volume / price / change badge. */}
       <div className="md:hidden">
         <div className="flex items-center gap-2 border-b border-brand-border px-3 py-2 text-[10px] font-medium uppercase tracking-wide text-brand-text-muted">
