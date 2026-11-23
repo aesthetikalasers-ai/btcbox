@@ -191,7 +191,7 @@ export function SpotTradingPage(){
  // Mobile trade panel: the design board (docs/design/btcbox-mobile-design-board.svg,
  // Trade screen) defines three tabs — Buy | Sell | Order book. The book and the
  // order form therefore never share the phone viewport at the same time.
- const [mobilePanel,setMobilePanel]=useState<"buy"|"sell"|"book">("buy");
+
  useEffect(()=>{
   const media=window.matchMedia(DESKTOP_TRADE_QUERY);
   const phone=window.matchMedia("(max-width: 767px)");
@@ -974,16 +974,7 @@ export function SpotTradingPage(){
   />
   {/* Mobile trade tabs — design board Trade screen: Buy | Sell | Order book.
      Only one panel is mounted at a time on phones; desktop keeps its grid. */}
-  <div className="spot-mobile-tabs" role="tablist" aria-label={t("Trading panel")} data-active={mobilePanel}>
-   {([
-    ["buy",t("Buy")],
-    ["sell",t("Sell")],
-    ["book",t("Order book")],
-   ] as const).map(([key,label])=>
-    <button key={key} type="button" role="tab" aria-selected={mobilePanel===key} aria-controls="trade-workspace" className={mobilePanel===key?"is-active":""} onClick={()=>{setMobilePanel(key);if(key!=="book")setSide(key);}}>{label}</button>
-   )}
-  </div>
-  <div className="exchange-workspace" id="trade-workspace" data-mobile-panel={isPhone?mobilePanel:"all"}>
+  <div className="exchange-workspace" id="trade-workspace">
     {/* Desktop inline chart (spec §3): the central column owns the candles.
         Phones never mount it inline — they use the safe-area drawer instead, so
         only one `setChartNode` target exists at a time. */}
