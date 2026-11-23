@@ -10,6 +10,7 @@ const app = fs.readFileSync(path.join(root, 'assets/js/app-core.js'), 'utf8');
 const apiCore = fs.readFileSync(path.join(root, 'api-core.js'), 'utf8');
 const reactApp = fs.readFileSync(path.resolve(root, '../frontend/src/App.tsx'), 'utf8');
 const reactAdminPage = fs.readFileSync(path.resolve(root, '../frontend/src/features/admin/AdminPage.tsx'), 'utf8');
+const frontendApi = fs.readFileSync(path.resolve(root, '../frontend/src/lib/api.ts'), 'utf8');
 const adminAuth = fs.readFileSync(path.join(root, 'admin-auth.js'), 'utf8');
 const vercelConfig = JSON.parse(fs.readFileSync(path.join(root, 'vercel.json'), 'utf8'));
 const authPages = fs.readFileSync(path.resolve(root, '../frontend/src/features/auth/AuthPages.tsx'), 'utf8');
@@ -305,4 +306,30 @@ test('Vercel routing keeps API rewrites ahead of the SPA fallback and preserves 
   assert.ok(reactApp.includes('<Route path="/admin/*" element={<AdminPage />} />'));
   assert.ok(reactApp.includes('<Route path="/login" element={<AuthPage mode="login" />} />'));
   assert.ok(reactApp.includes('<Route path="/register" element={<AuthPage mode="register" />} />'));
+});
+
+
+test('admin frontend API endpoints are backed by matching backend routes', () => {
+  const contracts = [
+    ['admin/stats', "if (sub === 'stats' && method === 'GET')"],
+    ['admin/users', "if (sub === 'users' && method === 'GET')"],
+    ['admin/user?uid=', "if (sub === 'user' && method === 'GET')"],
+    ['admin/user/balance', "if (sub === 'user/balance' && method === 'POST')"],
+    ['admin/user/freeze', "if (sub === 'user/freeze' && method === 'POST')"],
+    ['admin/kyc', "if (sub === 'kyc' && method === 'GET')"],
+    ['admin/kyc/approve', "if (sub === 'kyc/approve' && method === 'POST')"],
+    ['admin/kyc/reject', "if (sub === 'kyc/reject' && method === 'POST')"],
+    ['admin/withdraw/approve', "if (sub === 'withdraw/approve' && method === 'POST')"],
+    ['admin/withdraw/reject', "if (sub === 'withdraw/reject' && method === 'POST')"],
+    ['admin/withdraw/mark-paid', "if (sub === 'withdraw/mark-paid' && method === 'POST')"],
+    ['admin/audit-logs', "if (sub === 'audit-logs' && method === 'GET')"],
+    ['admin/support/messages', "if (sub === 'support/messages' && method === 'GET')"],
+    ['admin/support/read', "if (sub === 'support/read' && method === 'POST')"],
+    ['admin/support/reply', "if (sub === 'support/reply' && method === 'POST')"],
+    ['admin/address/manage', "if (sub === 'address/manage' && method === 'POST')"],
+  ];
+  for (const [frontendPath, backendRoute] of contracts) {
+    assert.ok(frontendApi.includes(frontendPath), `frontend API helper missing ${frontendPath}`);
+    assert.ok(apiCore.includes(backendRoute), `backend route missing ${backendRoute}`);
+  }
 });
