@@ -5,6 +5,7 @@ const { authorizeSupabaseAdmin } = require('./admin-auth');
 const { hasAdminPermission } = require('./admin-rbac');
 const { isValidIban } = require('./bank-account-validation');
 const { hasActiveVersionedSecondsPolicy } = require('./seconds-policy-readiness');
+const { getUsdtUsd } = require('./market-gateway');
 
 const SESSION_COOKIE = 'session_token';
 const PBKDF2_ITER = 100000;
@@ -1714,6 +1715,28 @@ async function handleRequest(event, context) {
     try { await saveDB(db); }
     catch (_) { return json({ ok: false, code: 'PERSISTENCE_UNAVAILABLE', msg: 'Authentication is temporarily unavailable. Please try again.' }, 503); }
     return json({ ok: true }, 200, setCookieHeader(token2));
+  }
+
+  // ---------- GET /api/fx/usdt-usd (public, server-side provider gateway) ----------
+  // This route intentionally lives in the shared Vercel API handler rather than
+  // only in the local market-server. The frontend uses the same /api/* contract
+  // in production and local development, so production must not return 404.
+  // The gateway caches the provider result and falls back to a clearly marked
+  // stale/approximate value; this endpoint is display-only and never affects
+  // order, balance, or settlement calculations.
+  if (path === 'fx/usdt-usd' && method === 'GET') {
+    try {
+      const payload = await getUsdtUsd();
+      return json(payload);
+    } catch (_) {
+      return json({
+        ok: true,
+        rate: null,
+        source: 'unavailable',
+        stale: true,
+        msg: 'USDT/USD conversion is temporarily unavailable.'
+      }, 200);
+    }
   }
 
   // ---------- GET /api/kline (Coinbase primary, Bybit fallback) ----------
