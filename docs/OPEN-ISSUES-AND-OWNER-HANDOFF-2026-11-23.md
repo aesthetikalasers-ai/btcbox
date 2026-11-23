@@ -33,6 +33,10 @@
 - `frontend/e2e/auth-routes.spec.ts` 同時存在「email signup uses Supabase confirmation」和「retired email authentication/recovery」的互相矛盾斷言。
 - 不得直接刪除 email 註冊/登入/恢復測試。後端 `/api/register` 仍刻意 fail-closed（防止繞過郵箱確認及 service-role 直接建戶）；正式郵箱註冊應走 Supabase 公開 Auth `signUp`，確認郵箱後由現有 `/api/supabase-login` 驗證身份並初始化 BTCBOX 帳戶。已更新 `backend/tests/google-only-auth.test.js` 和 `backend/tests/spot-trading-live-refresh.test.js` 中 3 項禁止 `signUpWithEmail` 的舊斷言，改為要求 Supabase email signup 存在；這些測試仍需最新 Backend CI 證明通過。不可為了開放註冊而開啟 `/api/register` 直寫。
 
+### 語言字典核對
+- `frontend/src/lib/locales/vi.json` 在整合分支曾缺失，但 `check-i18n.mjs` 仍要求保留。已從主線恢復並補齊至 1,806 keys；目前 7 種語言可在 UI 選擇，越南語字典保留但語言入口仍按現有規格隱藏。
+- 已將 `npm run check:i18n` 加入前端 CI，需由新 run 證明 8 份字典、靜態 `t()` key 與保留字典檢查通過。
+
 ### 文件缺口
 - 本分支目前沒有 `docs/` 目錄；舊的 `docs/AI_COORDINATION.md` 與 `docs/OPEN-ISSUES-AND-OWNER-HANDOFF-2026-11-04.md` 在目前分支不可讀取。
 - 本交接檔與 `docs/AI_COORDINATION.md` 作為本分支最新有效協作說明。其他 AI 不應因找不到 11-04 舊文件而停止工作；應閱讀本文件及最新 PR/CI 狀態。
@@ -55,4 +59,4 @@
 - 不觸碰正式 Supabase 資料，不執行正式遷移。
 
 ## 完成記錄
-目前：已恢復協作規則與交接文件；已補上 React Supabase email signup 表單及 provider 方法（`ef0baca4`、`8c63c162`、`c82c051d`）；已更新後端 3 項舊的 Google-only UI 斷言；已把交易中心和首頁快捷入口的產品名稱統一為 Contract，並在 7 份語言字典補上對應翻譯（`ac52bdf`）；已修正 K 線秒級時間精度測試及 2FA/註冊響應式測試的過期 locator。尚未完成最新 CI、郵箱確認 callback 後的 provision E2E、Google/Email 同身份驗證，故不可宣告認證驗收完成。41 項歷史 CI 失敗仍需依最新 CI 逐項複核。
+目前：已恢復協作規則與交接文件；已補上 React Supabase email signup 表單及 provider 方法；新增郵箱確認 callback 後經 `/api/supabase-login` 初始化 BTCBOX 帳戶的 E2E 測試，且確認不呼叫舊 `/api/register`。已更新後端 3 項舊 Google-only UI 斷言；交易中心與首頁入口統一為 Contract。7 份啟用語言字典與恢復的越南語舊字典目前均為 1,806 個鍵。Playwright 已改用 production preview；行情 fixture、客服私有 API、公開 Earn、語言選擇器、OAuth callback 回復、2FA 與 K 線時間測試已修正。最新 head 的 CI 尚待完成，Google/Email 同身份鏈接、真實 SMTP 確認及全套資金/客服驗收仍未完成；不得宣告認證或整體整合驗收通過。

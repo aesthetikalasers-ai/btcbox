@@ -1,4 +1,5 @@
 'use strict';
+// Legacy filename retained for history; this suite now verifies email + Google + wallet auth, not a Google-only product policy.
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');

@@ -35,6 +35,7 @@ export default defineConfig({
       use: { ...devices["Pixel 7"] },
     },
   ],
+  // Use the production bundle: vite dev enables DEV_OPEN_ACCOUNT_PAGES and bypasses production auth gates.
   webServer: {
     command: "npm run preview -- --host 127.0.0.1 --port 4173 --strictPort",
     url: "http://127.0.0.1:4173",
