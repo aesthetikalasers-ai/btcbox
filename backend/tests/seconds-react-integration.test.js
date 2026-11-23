@@ -6,7 +6,7 @@ const path = require('node:path');
 const root = path.resolve(__dirname, '..');
 const read = (name) => fs.readFileSync(path.join(root, '..', name), 'utf8');
 const api = read('frontend/src/lib/api.ts');
-const page = read('frontend/src/features/pages/Pages.tsx');
+const page = read('frontend/src/features/pages/SecondsPage.tsx');
 const app = read('frontend/src/App.tsx');
 const backend = fs.readFileSync(path.join(root, 'api-core.js'), 'utf8');
 
