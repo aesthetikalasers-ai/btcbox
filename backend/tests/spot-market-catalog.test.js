@@ -127,9 +127,11 @@ test('order book snapshots normalize provider levels and expose source-specific 
 });
 
 test('spot chart preserves provider provenance and rejects impossible OHLC ranges', () => {
-  assert.ok(api.includes('high < Math.max(open, close, low)'));
-  assert.ok(api.includes('low > Math.min(open, close, high)'));
-  assert.ok(api.includes('const source = typeof payload.source === "string" ? payload.source : undefined'));
+  const normalizer = fs.readFileSync(path.resolve(root, '../frontend/src/lib/klineData.ts'), 'utf8');
+  assert.ok(normalizer.includes('high < Math.max(open, close, low)'));
+  assert.ok(normalizer.includes('low > Math.min(open, close, high)'));
+  assert.ok(normalizer.includes('source: typeof candle.source === "string" ? candle.source : fallbackSource'));
+  assert.ok(api.includes('normalizeKlines(payload.klines, payload.source)'));
   assert.ok(pages.includes('candles[candles.length-1]?.source'), 'chart provider source must be visible to the trader');
   assert.ok(pages.includes('setCandles([]);setChartFeedWarning(t("Chart data is temporarily unavailable."))'));
   assert.ok(!pages.includes("showing the last confirmed candles"));
