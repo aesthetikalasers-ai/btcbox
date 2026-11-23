@@ -20,7 +20,7 @@ test('mobile primary navigation exposes all five destinations and supports keybo
   await markets.focus();
   await expect(markets).toBeFocused();
   await page.keyboard.press('Enter');
-  await expect(page).toHaveURL(/\\/markets$/);
+  await expect(page).toHaveURL(url => new URL(url).pathname === "/markets");
   await expect(nav).toBeVisible();
   await expect(nav.getByRole('link', { name: 'Markets', exact: true })).toHaveAttribute('aria-current', 'page');
 });
@@ -35,6 +35,6 @@ test('mobile primary navigation is hidden at desktop width and returns at mobile
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(nav).toBeVisible();
   await nav.getByRole('link', { name: 'My', exact: true }).click();
-  await expect(page).toHaveURL(/\\/me$/);
+  await expect(page).toHaveURL(url => new URL(url).pathname === "/me");
   await expect(nav).toBeVisible();
 });
