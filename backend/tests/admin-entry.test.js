@@ -244,7 +244,7 @@ test('admin portal has a dedicated sign-in surface and owns nested admin routes'
   const adminPage = fs.readFileSync(path.resolve(root, '../frontend/src/features/admin/AdminPage.tsx'), 'utf8');
   assert.ok(app.includes('<Route path="/admin" element={<AdminPage />} />'));
   assert.ok(app.includes('<Route path="/admin/*" element={<AdminPage />} />'));
-  assert.ok(adminPage.includes('BTCBOX · ADMINISTRATION'));
+  assert.ok(adminPage.includes('BTCBOX · 管理后台'));
   assert.ok(adminPage.includes('Administrator sign in'));
   assert.ok(adminPage.includes('redirectTo="/admin"'));
 });
