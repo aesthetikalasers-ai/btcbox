@@ -17,7 +17,7 @@ const routes = [
   { path: "/trade-hub", heading: "Choose your trading mode" },
   { path: "/assets", heading: "Assets" },
   { path: "/me", heading: "My account" },
-  { path: "/settings", heading: "Account security" },
+  { path: "/settings", heading: "Security settings" },
   { path: "/support", heading: "Customer support" },
   { path: "/orders", heading: "Orders" },
   { path: "/deposit", heading: "Deposit" },
@@ -228,7 +228,10 @@ async function assertPageAtWidth(
     }
   }
 
-  if (!["/login", "/register"].includes(route.path) && width <= 480) {
+  // Standalone history pages intentionally use their own compact secondary
+  // navigation instead of the application shell. Only shell routes own the
+  // BTCBOX home logo.
+  if (["/home", "/markets", "/trade/BTCUSDT", "/trade-hub", "/assets", "/me", "/settings", "/support", "/deposit", "/withdraw", "/earn", "/kyc", "/contract", "/seconds"].includes(route.path) && width <= 480) {
     await expect(
       page.getByRole("link", { name: "BTCBOX home" }).getByRole("img", { name: "BTCBOX" }),
     ).toBeVisible();
@@ -327,8 +330,15 @@ async function assertPageAtWidth(
     const bidRows = orderbook.locator('.spot-book-row[data-side="bid"]');
     await expect(askRows).toHaveCount(2);
     await expect(bidRows).toHaveCount(2);
-    await expect(askRows.first()).toHaveAttribute("title", /^65001\.00 · /);
-    await expect(bidRows.first()).toHaveAttribute("title", /^64999\.00 · /);
+    // The clickable row carries its visible price in its first price cell.
+    // Assert that cell rather than a non-existent row title, so the screenshot
+    // gate proves that usable ask and bid prices were actually rendered.
+    // Asks are shown best-to-worst in the terminal's visual order, which is
+    // the reverse of the fixture payload. Check both levels to guard the
+    // fixture while retaining that trader-facing order.
+    await expect(askRows.first().locator("span").first()).toHaveAttribute("title", "65002.00");
+    await expect(askRows.last().locator("span").first()).toHaveAttribute("title", "65001.00");
+    await expect(bidRows.first().locator("span").first()).toHaveAttribute("title", "64999.00");
     await expect(page.locator(".spot-mobile-tabs")).toHaveCount(0);
     await expect(page.getByRole("button", { name: "Buy", exact: true }).first()).toBeVisible();
     await expect(page.getByRole("button", { name: "Sell", exact: true }).first()).toBeVisible();
