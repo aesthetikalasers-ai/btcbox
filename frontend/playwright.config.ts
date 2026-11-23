@@ -25,8 +25,8 @@ export default defineConfig({
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
   },
-  // CI acceptance is mobile-first. Desktop visual/layout acceptance is intentionally
-  // excluded from the merge gate; desktop remains available for optional local checks.
+  // CI acceptance covers touch-device phone widths and desktop terminal baselines.
+  // Both projects run against the local production bundle with isolated API mocks.
   projects: [
     {
       name: "mobile-chromium",
