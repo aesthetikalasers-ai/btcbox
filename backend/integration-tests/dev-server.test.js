@@ -19,14 +19,22 @@ test('local integration serves real JSON APIs and SPA deep links on one origin',
     await exited;
     clearTimeout(force);
   });
+  let stdoutLog = '';
+  let stderrLog = '';
+  child.stdout.on('data', data => { stdoutLog += data; });
+  child.stderr.on('data', data => { stderrLog += data; });
   const port = await new Promise((resolve, reject) => {
-    let output = '';
-    const timer = setTimeout(() => reject(new Error('Local server did not become ready')), 12000);
+    const formatLogs = () => {
+      const parts = [];
+      if (stderrLog.trim()) parts.push(`stderr:\n${stderrLog.trim()}`);
+      if (stdoutLog.trim()) parts.push(`stdout:\n${stdoutLog.trim()}`);
+      return parts.length ? `\n${parts.join('\n')}` : '';
+    };
+    const timer = setTimeout(() => reject(new Error(`Local server did not become ready${formatLogs()}`)), 12000);
     child.once('error', reject);
-    child.once('exit', code => { clearTimeout(timer); reject(new Error(`Server exited ${code}`)); });
-    child.stdout.on('data', data => {
-      output += data;
-      const match = output.match(/listening on port (\d+)/);
+    child.once('exit', (code, signal) => { clearTimeout(timer); reject(new Error(`Server exited ${code ?? signal}${formatLogs()}`)); });
+    child.stdout.on('data', () => {
+      const match = stdoutLog.match(/listening on port (\d+)/);
       if (match) { clearTimeout(timer); resolve(match[1]); }
     });
   });
