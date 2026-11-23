@@ -41,7 +41,7 @@ test('failed or empty provider refresh clears quotes and paints unavailable valu
 test('customer-facing pages do not advertise simulated orders or sample order history', () => {
   assert.doesNotMatch(customerPages, /No sample or simulated orders are shown/i);
   assert.doesNotMatch(customerPages, /Orders are never simulated in the browser/i);
-  assert.match(customerPages, /No orders are available for this account yet/);
+  assert.match(ordersPage, /No orders yet/);\n  assert.match(ordersPage, /When you place an order/);
   assert.doesNotMatch(customerPages, /Integration pending|This page is scaffolded|in this preview/i);
   assert.doesNotMatch(ordersPage, /No sample orders are generated/i);
 });
@@ -50,7 +50,7 @@ test('Vite dashboard does not keep stale quotes visible after a refresh error', 
   assert.match(liveMarketsTable, /const feedError = error \|\| \(snapshotStale \?/);
   assert.match(liveMarketsTable, /const displayMarkets = feedError \? \[\] : markets/);
   assert.match(liveMarketsTable, /feedError && displayMarkets\.length === 0/);
-  assert.ok(liveMarketsTable.includes('markets.some((item) => (item.snapshotTs || 0) > 0 && Date.now() / 1000 - (item.snapshotTs || 0) > 90)'));
+  assert.ok(liveMarketsTable.includes('const snapshotStale = snapshotInvalid || markets.some((item) => ('));\n  assert.ok(liveMarketsTable.includes('nowSeconds - item.snapshotTs > 90'));
   assert.doesNotMatch(liveMarketsTable, /Showing the last confirmed market data/);
 });
 
