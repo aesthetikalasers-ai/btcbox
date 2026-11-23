@@ -108,7 +108,7 @@ function CustomerRoutes() {
     <Route path="/deposit" element={<ProtectedAccountRoute><DepositPage /></ProtectedAccountRoute>} />
     <Route path="/withdraw" element={<ProtectedAccountRoute><WithdrawPage /></ProtectedAccountRoute>} />
     <Route path="/address-book" element={<ProtectedAccountRoute><AddressBookPage /></ProtectedAccountRoute>} />
-    <Route path="/earn" element={<ProtectedAccountRoute><EarnPage /></ProtectedAccountRoute>} />
+    <Route path="/earn" element={<EarnPage />} />
     <Route path="/contract" element={<ContractPage />} />
     <Route path="/mobile-terminal" element={<MobileTradeTerminal />} />
     <Route path="/login" element={<AuthPage mode="login" />} /><Route path="/register" element={<AuthPage mode="register" />} /><Route path="/account-setup" element={<Navigate to="/me" replace />} /><Route path="/auth/react-callback" element={<AuthCallbackPage />} />
