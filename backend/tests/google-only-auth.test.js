@@ -15,18 +15,24 @@ test('legacy static auth support files remain valid JavaScript', () => {
 });
 
 test('React login and registration expose the approved BTCBOX authentication methods', () => {
+  // The auth UI is split into a shared panel plus a callback page. The legacy
+  // /login and /register routes are thin wrappers that must reuse that panel so
+  // every entry point offers exactly the same approved methods.
   const authPage = fs.readFileSync(path.resolve(root, '..', 'frontend/src/features/auth/AuthPages.tsx'), 'utf8');
-  assert.ok(authPage.includes('signInWithUsername'));
-  assert.ok(authPage.includes('Google'));
-  assert.ok(authPage.includes('Wallet'));
-  assert.ok(authPage.includes('Connect Ethereum wallet'));
-  assert.ok(authPage.includes('Connect Solana wallet'));
-  assert.ok(!authPage.includes('signInWithEmail'));
-  assert.ok(authPage.includes('signUpWithEmail')); // email registration supported via Supabase Auth
-  assert.ok(!authPage.includes('requestPasswordReset'));
-  assert.ok(authPage.includes('completePasswordRecovery'));
-  assert.ok(!authPage.includes('Sign in with email'));
-  assert.ok(!authPage.includes('Register with email'));
+  const panel = fs.readFileSync(path.resolve(root, '..', 'frontend/src/features/auth/AuthFormPanel.tsx'), 'utf8');
+  const callback = fs.readFileSync(path.resolve(root, '..', 'frontend/src/features/auth/AuthCallbackPage.tsx'), 'utf8');
+  assert.ok(authPage.includes('<AuthFormPanel'), 'legacy auth routes must reuse the shared AuthFormPanel');
+  assert.ok(panel.includes('signInWithUsername'));
+  assert.ok(panel.includes('signInWithEmail'));
+  assert.ok(panel.includes('signUpWithEmail')); // email registration supported via Supabase Auth
+  assert.ok(panel.includes('requestPasswordReset'));
+  assert.ok(panel.includes('signInWithGoogle'));
+  assert.ok(panel.includes('signInWithWeb3'));
+  assert.ok(panel.includes('Google'));
+  assert.ok(panel.includes('Wallet'));
+  assert.ok(panel.includes('Connect Ethereum wallet'));
+  assert.ok(panel.includes('Connect Solana wallet'));
+  assert.ok(callback.includes('completePasswordRecovery'));
 });
 
 test('legacy static Google OAuth callback retains same-origin return-target safeguards', () => {
@@ -92,7 +98,10 @@ test('React Supabase email confirmation and Google OAuth use the isolated templa
   const auth = read('../frontend/src/features/auth/AuthPages.tsx');
   const provider = read('../frontend/src/lib/auth.tsx');
   assert.ok(app.includes('path="/auth/react-callback"'));
-  assert.ok(app.includes('<AuthPage mode="register" />'));
+  // /login and /register open the shared auth dialog through AuthRouteEntry instead
+  // of rendering a second, page-level authentication implementation.
+  assert.ok(app.includes('<AuthRouteEntry mode="register" />'));
+  assert.ok(app.includes('openAuthDialog(mode)'));
   assert.ok(auth.includes('Google'));
   assert.ok(!auth.includes('reg-terms') && !auth.includes('Terms of Service'));
   assert.ok(provider.includes('flowType: "pkce"'));
@@ -134,7 +143,7 @@ test('React auth server endpoints retain exact POST contracts and legacy callbac
 });
 
 test('OAuth callback renders an error once instead of retrying a consumed authorization code', () => {
-  const callback = read('../frontend/src/features/auth/AuthPages.tsx');
+  const callback = read('../frontend/src/features/auth/AuthCallbackPage.tsx');
   assert.ok(callback.includes('const oauthAttempted = useRef(false)'));
   assert.ok(callback.includes('if (!oauthAttempted.current && status !== "loading"'));
   assert.ok(callback.includes('oauthAttempted.current = true;'));
@@ -144,14 +153,15 @@ test('OAuth callback renders an error once instead of retrying a consumed author
 
 test('auth entry exposes a side-by-side sign-in/register choice and truthfully gates wallet access', () => {
   const page = read('../frontend/src/features/auth/AuthPages.tsx');
+  const panel = read('../frontend/src/features/auth/AuthFormPanel.tsx');
   const provider = read('../frontend/src/lib/auth.tsx');
   const api = read('../frontend/src/lib/api.ts');
-  assert.ok(page.includes('data-testid="auth-mode-switcher"'));
+  assert.ok(panel.includes('data-testid="auth-mode-switcher"'));
   assert.ok(page.includes('data-testid="auth-mobile-shell"'));
-  assert.ok(!page.includes('max-w-[1120px]'));
-  assert.ok(!page.includes('lg:grid-cols-[minmax(0,1.05fr)'));
-  assert.ok(page.includes('walletEnabled'));
-  assert.ok(page.includes('Wallet sign-in is temporarily unavailable.'));
+  assert.ok(!panel.includes('max-w-[1120px]'));
+  assert.ok(!panel.includes('lg:grid-cols-[minmax(0,1.05fr)'));
+  assert.ok(panel.includes('walletEnabled'));
+  assert.ok(panel.includes('Wallet sign-in is temporarily unavailable.'));
   assert.ok(page.includes('value="zh-CN"'));
   assert.ok(api.includes('wallet_enabled: boolean | null'));
   assert.ok(provider.includes('setWalletEnabled(config.wallet_enabled !== false)'));
@@ -173,6 +183,7 @@ test('React auth preserves Supabase email and Google alongside existing username
   const backend = read('api-core.js');
   const auth = read('../frontend/src/lib/auth.tsx');
   const pages = read('../frontend/src/features/auth/AuthPages.tsx');
+  const authPanel = read('../frontend/src/features/auth/AuthFormPanel.tsx');
   const provider = read('../frontend/src/lib/auth.tsx');
   const setup = read('../frontend/src/features/auth/AccountSetupPage.tsx');
   const security = read('../frontend/src/features/account/AccountSecurityPage.tsx');
@@ -191,7 +202,7 @@ test('React auth preserves Supabase email and Google alongside existing username
   assert.ok(auth.includes('signInWithEmail') && auth.includes('signUpWithEmail'));
   assert.ok(auth.includes('requestPasswordReset') && auth.includes('completePasswordRecovery'));
   assert.ok(auth.includes('flowType: "pkce"'));
-  for (const required of ['Sign in with username', 'Google', 'Connect Ethereum wallet', 'Connect Solana wallet']) assert.ok(pages.includes(required), 'auth page must expose ' + required);
+  for (const required of ['Sign in with username', 'Google', 'Connect Ethereum wallet', 'Connect Solana wallet']) assert.ok(authPanel.includes(required), 'auth page must expose ' + required);
   assert.ok(!pages.includes('No email registration is required'));
   assert.ok(auth.includes('eip6963:announceProvider'));
   assert.ok(auth.includes('eip6963:requestProvider'));
