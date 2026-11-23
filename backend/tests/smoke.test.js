@@ -316,7 +316,6 @@ test('seconds entry requires a confirmed positions snapshot and guards unknown o
 });
 
 
-
 test('seconds pre-write 503 responses are definitive while RPC and transport outcomes remain UNKNOWN', () => {
   const frontend = read('assets/js/views-trading.js');
   const start = frontend.indexOf('function isSecondsOrderOutcomeUnknown(r){');
