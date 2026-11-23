@@ -65,7 +65,7 @@ test('manual credit is blocked unless the target has an authoritative PostgreSQL
   const route = api.slice(start, end);
   assert.ok(route.includes("await readFinancialAccountSnapshot(uid)"));
   assert.ok(route.includes("FINANCIAL_BALANCE_SOURCE_UNVERIFIED"));
-  assert.ok(route.includes("Manual credit is disabled until the user's PostgreSQL ledger balance source is confirmed."));
+  assert.ok(route.includes("Manual credit is disabled until the user\\'s PostgreSQL ledger balance source is confirmed."));
   assert.ok(admin.includes('selectedUser.financial_balance_source !== "postgres_financial_ledger"'));
   assert.ok(admin.includes('selectedUser.balances?.[coin]?.free == null ? "—"'));
 });
