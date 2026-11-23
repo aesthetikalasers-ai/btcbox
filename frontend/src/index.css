@@ -825,7 +825,7 @@ a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
 
 @media (max-width:359px) {
  .exchange-workspace { grid-template-columns:minmax(0,1.08fr) minmax(0,.92fr); gap:6px; }
- .spot-book-row { font-size:12px; gap:4px; }
+ .spot-book-row { font-size:11px; gap:3px; }
  .spot-quote-grid { column-gap:12px; }
  .spot-quote-grid > div:first-child p:last-child { font-size:27px; }
 }
@@ -848,7 +848,7 @@ a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
    Spot terminal layout enhancements (Binance-style 4-column grid):
    viewport lock, collapsible market drawer, and maximize-able orders panel.
    Scoped to desktop (>=1280px) where the full 4-column grid is active;
-   mobile keeps its existing orderbook-left / entry-right document flow.
+   phones keep order-entry-left / order-book-right dual columns.
    ======================================================================== */
 @media (min-width:1024px) {
   /* Lock the terminal to the viewport so only inner regions scroll.
