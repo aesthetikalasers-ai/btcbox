@@ -1,14 +1,13 @@
 
-import { useEffect, useRef, useState, type FormEvent } from "react";
-import { RefreshCw, TrendingUp, TrendingDown, Clock3, ShieldCheck, ShieldAlert, BarChart2, Award, ChevronDown } from "lucide-react";
-import { Badge } from "../../components/ui/badge";
+import { useEffect, useRef, useState } from "react";
+import { RefreshCw, TrendingUp, TrendingDown, ShieldCheck, ShieldAlert, Award, ChevronDown } from "lucide-react";
 import { Button } from "../../components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/card";
+import { Card, CardContent, CardHeader } from "../../components/ui/card";
 import {
   getSecondsPositions,
   getSecondsPolicy,
-  submitSecondsOrder,
   settleSecondsPosition,
+  submitSecondsOrder,
   getMarkets,
   getKlines,
   getAccount,
@@ -19,8 +18,6 @@ import {
   type MarketTicker,
 } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
-import { useTrading } from "../../lib/trading";
-import { useMarketStream } from "../../lib/useMarketStream";
 import { useI18n, localeTags } from "../../lib/i18n";
 import { Link } from "react-router-dom";
 import { BottomOrderPanel, BottomPanelEmpty } from "../trade/BottomOrderPanel";
@@ -30,20 +27,17 @@ import { TradesPanel } from "../trade/TradesPanel";
 import { CHART_THEME } from "../../lib/chartTheme";
 import { CandlestickSeries, ColorType, createChart, type UTCTimestamp } from "lightweight-charts";
 
-/** Pairs the short-term contract product supports (mirrors the backend allow-list). */
-const SECONDS_MARKETS = ["BTC", "ETH", "SOL", "BNB"] as const;
-
 /**
  * Professional Institutional-Grade Seconds Contract Trading Page
  */
 export function SecondsPage() {
   const { t, language } = useI18n();
   const locale = localeTags[language];
-  const { status } = useAuth();
+  const { status, email } = useAuth();
+  const authUserId = email;
   const signedOut = status !== "authenticated";
-  const { placeSecondsOrder, settleSecondsTrade, lastSettleResult, dismissSettleResult, openSecondsTrade } = useTrading();
-  const { status: marketStatus } = useMarketStream();
   const [snapshot, setSnapshot] = useState<SecondsPositionsSnapshot | null>(null);
+  const [positionsLoadError, setPositionsLoadError] = useState(false);
   const [policy, setPolicy] = useState<SecondsPolicyResponse | null>(null);
   const [uid, setUid] = useState("");
   const [loading, setLoading] = useState(true);
@@ -52,10 +46,10 @@ export function SecondsPage() {
   const [reload, setReload] = useState(0);
   const [symbol, setSymbol] = useState("BTC");
   const [duration, setDuration] = useState(30);
-  const [amount, setAmount] = useState("50");
+  const [amount, setAmount] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [clockNow, setClockNow] = useState(Date.now());
-  const settling = useRef(new Set<string>());
+  const settlementInFlightRef = useRef<Record<string, boolean>>({});
 
   const [interval, setIntervalTab] = useState<"line" | "1m" | "5m" | "15m">("line");
   const [chartNode, setChartNode] = useState<HTMLDivElement | null>(null);
@@ -65,22 +59,46 @@ export function SecondsPage() {
   const [activeTab, setActiveTab] = useState<"positions" | "orders" | "history">("positions");
   const [bottomExpanded, setBottomExpanded] = useState(true);
   const [ticker, setTicker] = useState<MarketTicker | null>(null);
-  const [availableUSDT, setAvailableUSDT] = useState<string>("0.00");
-  const [activeCountdown, setActiveCountdown] = useState<{ dir: "up" | "down"; endsAt: number; amount: string; payout: string } | null>(null);
+  const [marketFeedError, setMarketFeedError] = useState(false);
+  const [chartUpdatedAt, setChartUpdatedAt] = useState<number | null>(null);
+  const [chartFeedError, setChartFeedError] = useState(false);
+  const [availableUSDT, setAvailableUSDT] = useState<string | null>(null);
   // Durable order intent: the exact request is persisted per account+symbol so
   // a network failure can be retried with the SAME request_id (a new id would
   // risk a duplicate position). While it is pending, entry stays locked.
   const [pendingIntent, setPendingIntent] = useState<SecondsOrderInput | null>(null);
   const pendingKey = uid ? "btcbox.seconds.pending.v1." + uid + "." + symbol : "";
 
-  const DURATION_OPTIONS = [
-    { sec: 30, rate: 85, label: "30s" },
-    { sec: 60, rate: 88, label: "60s" },
-    { sec: 180, rate: 90, label: "180s" },
-    { sec: 300, rate: 92, label: "300s" },
-  ];
-
-  const QUICK_AMOUNTS = [10, 50, 100, 500];
+  const QUICK_AMOUNTS = [10, 50, 100, 500] as const;
+  const currentRate = policy ? policy.policy.payout_bps / 100 : null;
+  const durationOptions = policy
+    ? policy.policy.durations_sec.map((sec) => ({ sec, label: `${sec}s` }))
+    : [];
+  const minStake = policy ? Number(policy.policy.min_stake) : null;
+  const maxStake = policy ? Number(policy.policy.max_stake) : null;
+  const quickAmounts = policy?.actions_enabled === true && minStake !== null && maxStake !== null && availableUSDT !== null
+    ? QUICK_AMOUNTS.filter((value) => value >= minStake && value <= maxStake && value <= Number(availableUSDT))
+    : [];
+  const marketSnapshotStale = !ticker?.snapshotTs || !Number.isFinite(Number(ticker.snapshotTs)) || clockNow - Number(ticker.snapshotTs) * 1000 > 90_000;
+  const displayTicker = marketSnapshotStale ? null : ticker;
+  const marketUnavailable = !displayTicker || marketFeedError;
+  const marketWarning = ticker && marketSnapshotStale
+    ? t("Market snapshot is stale or missing. Quotes are hidden until a fresh snapshot arrives.")
+    : marketFeedError
+      ? displayTicker
+        ? t("Market refresh failed. The last verified snapshot remains visible until it expires.")
+        : t("Market data is temporarily unavailable.")
+      : "";
+  const chartMaxAgeMs = interval === "15m" ? 20 * 60_000 : interval === "5m" ? 10 * 60_000 : 3 * 60_000;
+  const chartStale = chartUpdatedAt === null || clockNow - chartUpdatedAt > chartMaxAgeMs;
+  const chartUnavailable = chartStale || candles.length === 0;
+  const chartWarning = candles.length === 0
+    ? t("No chart data is currently available for this market.")
+    : chartStale
+      ? t("Chart snapshot is stale or missing. Waiting for fresh data.")
+      : chartFeedError
+        ? t("Chart refresh failed. The last verified snapshot remains visible until it expires.")
+        : "";
 
 
 
@@ -89,24 +107,24 @@ export function SecondsPage() {
     return () => window.clearInterval(timer);
   }, []);
 
-  // 纸面秒合约自动结算：倒计时归零时对比入场价与到期价
-  useEffect(() => {
-    if (!openSecondsTrade || openSecondsTrade.ends_at > Date.now()) return;
-    const settlePrice = ticker ? ticker.price : openSecondsTrade.entry_price;
-    settleSecondsTrade(openSecondsTrade.id, settlePrice);
-    setActiveCountdown(null);
-    // 结算后刷新后端持仓视图
-    getSecondsPositions().then(setSnapshot).catch(() => {});
-  }, [openSecondsTrade, clockNow, ticker, settleSecondsTrade]);
-
   useEffect(() => {
     let cancelled = false;
+    setTicker(null);
+    setMarketFeedError(false);
     const loadMarket = () => {
       getMarkets().then((mkts) => {
         if (cancelled) return;
         const found = mkts.find((m) => m.sym.toUpperCase() === symbol.toUpperCase());
-        if (found) setTicker(found);
-      }).catch(() => {});
+        if (found) {
+          setTicker(found);
+          setMarketFeedError(false);
+        } else {
+          setTicker(null);
+          setMarketFeedError(true);
+        }
+      }).catch(() => {
+        if (!cancelled) setMarketFeedError(true);
+      });
     };
     loadMarket();
     const timer = window.setInterval(loadMarket, 3000);
@@ -115,8 +133,38 @@ export function SecondsPage() {
 
   useEffect(() => {
     const controller = new AbortController();
+    if (status === "loading") {
+      setUid("");
+      setSnapshot(null);
+      setPositionsLoadError(false);
+      setPolicy(null);
+      setAvailableUSDT(null);
+      setPendingIntent(null);
+      setError("");
+      setLoading(true);
+      return () => controller.abort();
+    }
+    if (status !== "authenticated") {
+      setUid("");
+      setSnapshot(null);
+      setPositionsLoadError(false);
+      setPolicy(null);
+      setAvailableUSDT(null);
+      setPendingIntent(null);
+      setError("");
+      setLoading(false);
+      return () => controller.abort();
+    }
+
     setLoading(true);
     setError("");
+    setUid("");
+    setSnapshot(null);
+    setPositionsLoadError(false);
+    setPolicy(null);
+    setAvailableUSDT(null);
+    setPendingIntent(null);
+
     Promise.allSettled([getAccount(controller.signal), getSecondsPositions(controller.signal), getSecondsPolicy(controller.signal)])
       .then(([accountResult, positionsResult, policyResult]) => {
         if (controller.signal.aborted) return;
@@ -124,7 +172,8 @@ export function SecondsPage() {
           const accountUid = accountResult.value.uid;
           setUid(accountUid);
           const usdtFree = accountResult.value.balances["USDT"]?.free;
-          if (usdtFree !== undefined) setAvailableUSDT(String(usdtFree));
+          if (usdtFree !== undefined && usdtFree !== null && Number.isFinite(Number(usdtFree)) && Number(usdtFree) >= 0) setAvailableUSDT(String(usdtFree));
+          else setAvailableUSDT(null);
           // Reloading the page must not forget an unconfirmed request: without
           // this the user could submit a second order for the same click.
           if (accountUid) {
@@ -133,32 +182,95 @@ export function SecondsPage() {
               if (stored) setPendingIntent(JSON.parse(stored) as SecondsOrderInput);
             } catch { /* ignore unreadable storage */ }
           }
+        } else {
+          setError(t("Your available balance could not be verified. No order was sent."));
         }
-        if (positionsResult.status === "fulfilled") setSnapshot(positionsResult.value);
+        if (positionsResult.status === "fulfilled") {
+          setSnapshot(positionsResult.value);
+          setPositionsLoadError(false);
+        } else {
+          setSnapshot(null);
+          setPositionsLoadError(true);
+        }
         if (policyResult.status === "fulfilled") setPolicy(policyResult.value);
+        else setPolicy(null);
       })
       .finally(() => { if (!controller.signal.aborted) setLoading(false); });
     return () => controller.abort();
-  }, [reload]);
+  }, [reload, status, symbol, authUserId]);
+
+  // Refresh the server-owned position snapshot while the page is open. This
+  // drives maturity checks without trusting the browser clock or client prices.
+  useEffect(() => {
+    if (status !== "authenticated") return;
+    let cancelled = false;
+    let refreshing = false;
+    const refreshPositions = () => {
+      if (cancelled || refreshing) return;
+      refreshing = true;
+      getSecondsPositions()
+        .then((next) => { if (!cancelled) setSnapshot(next); })
+        .catch(() => { /* Keep the last confirmed snapshot; the normal error state remains available. */ })
+        .finally(() => { refreshing = false; });
+    };
+    const timer = window.setInterval(refreshPositions, 5000);
+    return () => { cancelled = true; window.clearInterval(timer); };
+  }, [status]);
+
+  // Each mature position is settled independently. The stable request ID is
+  // derived from the server-issued position ID, so refresh/retry cannot create
+  // a second settlement. The backend obtains the reference price and performs
+  // the ownership, maturity, idempotency and ledger checks transactionally.
+  useEffect(() => {
+    if (status !== "authenticated" || !snapshot || snapshot.cutover_incomplete) return;
+    const maturePositions = snapshot.open.filter((position) =>
+      Number.isFinite(position.settle_at) && position.settle_at * 1000 <= snapshot.server_now
+    );
+    const pending = maturePositions.filter((position) => !settlementInFlightRef.current[position.position_id]);
+    if (!pending.length) return;
+    pending.forEach((position) => { settlementInFlightRef.current[position.position_id] = true; });
+    let cancelled = false;
+    Promise.allSettled(pending.map((position) => settleSecondsPosition({
+      position_id: position.position_id,
+      symbol: position.symbol,
+      request_id: "settle_" + position.position_id,
+    }))).then((results) => {
+      if (cancelled || !results.some((result) => result.status === "fulfilled" && result.value.settled)) return;
+      return getSecondsPositions()
+        .then((next) => { if (!cancelled) setSnapshot(next); })
+        .catch(() => { /* The next poll will re-read the confirmed server state. */ });
+    }).finally(() => {
+      pending.forEach((position) => { delete settlementInFlightRef.current[position.position_id]; });
+    });
+    return () => { cancelled = true; };
+  }, [snapshot, status]);
 
   useEffect(() => {
-    const node = chartNode;
-    if (!node) return;
     let cancelled = false;
+    setCandles([]);
+    setChartUpdatedAt(null);
+    setChartFeedError(false);
     const loadKlines = () => {
       const tf = interval === "line" ? "1m" : interval;
       getKlines(symbol + "USDT", tf).then((rows) => {
-        if (!cancelled) setCandles(rows);
-      }).catch(() => {});
+        if (!cancelled) {
+          setCandles(rows);
+          const latestCandleSeconds = rows.reduce((latest, row) => Math.max(latest, Number(row.time) || 0), 0);
+          setChartUpdatedAt(latestCandleSeconds > 0 ? latestCandleSeconds * 1000 : null);
+          setChartFeedError(false);
+        }
+      }).catch(() => {
+        if (!cancelled) setChartFeedError(true);
+      });
     };
     loadKlines();
     const timer = window.setInterval(loadKlines, 5000);
     return () => { cancelled = true; window.clearInterval(timer); };
-  }, [symbol, interval, chartNode]);
+  }, [symbol, interval]);
 
   useEffect(() => {
     const node = chartNode;
-    if (!node || !candles.length || node.clientWidth <= 0) return;
+    if (!node || !candles.length || chartStale || node.clientWidth <= 0) return;
     const chart = createChart(node, {
       width: node.clientWidth,
       height: node.clientHeight || 195,
@@ -173,7 +285,7 @@ export function SecondsPage() {
       upColor: CHART_THEME.up, downColor: CHART_THEME.down, borderVisible: false, wickUpColor: CHART_THEME.up, wickDownColor: CHART_THEME.down
     });
     series.setData(candles.map((item) => ({
-      time: Math.floor(item.time / 1000) as UTCTimestamp,
+      time: Math.floor(item.time) as UTCTimestamp,
       open: item.open, high: item.high, low: item.low, close: item.close
     })).sort((a, b) => Number(a.time) - Number(b.time)));
     chart.timeScale().fitContent();
@@ -183,7 +295,7 @@ export function SecondsPage() {
     });
     observer.observe(node);
     return () => { observer.disconnect(); chart.remove(); };
-  }, [candles, chartNode]);
+  }, [candles, chartNode, chartStale]);
 
   const refresh = () => setReload((value) => value + 1);
 
@@ -202,6 +314,7 @@ export function SecondsPage() {
   // it as idempotent, so a retry can never open a second position.
   const sendIntent = async (intent: SecondsOrderInput) => {
     if (submitting) return;
+    if (status !== "authenticated") { setError(t("Please sign in to retry this seconds request.")); return; }
     setSubmitting(true); setError(""); setNotice("");
     try {
       const result = await submitSecondsOrder(intent);
@@ -217,7 +330,7 @@ export function SecondsPage() {
     } catch (reason) {
       // The intent stays persisted: the outcome is unknown, so the user must
       // retry the same request rather than submit a new one.
-      setError(reason instanceof Error ? reason.message : t("Order could not be confirmed."));
+      setError(t("Order result is unconfirmed. Keep the same request ID and check open positions before retrying."));
     } finally { setSubmitting(false); }
   };
 
@@ -227,19 +340,40 @@ export function SecondsPage() {
 
   const submitSeconds = async (dir: "up" | "down") => {
     if (submitting) return;
+    if (status !== "authenticated") { setError(t("Please sign in to place a seconds order.")); return; }
+    if (marketUnavailable) { setError(t("Market data is unavailable or stale. No order was sent.")); return; }
+    if (!policy) {
+      setError(t("Trading is temporarily unavailable."));
+      return;
+    }
     // Server policy is authoritative: without an explicit enabling flag the
     // page never sends an order.
-    if (policy?.actions_enabled !== true) {
-      setError(t("Seconds order entry is currently disabled by server policy."));
+    if (policy.actions_enabled !== true) {
       return;
     }
     if (pendingIntent) {
       setError(t("An earlier Seconds request is still unconfirmed. Retry the same request before placing a new one."));
       return;
     }
+    if (availableUSDT === null) {
+      setError(t("Your available balance could not be verified. No order was sent."));
+      return;
+    }
     const numeric = Number(amount);
     if (!Number.isFinite(numeric) || numeric <= 0) {
       setError(t("Enter an amount greater than zero.")); return;
+    }
+    if (minStake === null || maxStake === null || numeric < minStake || numeric > maxStake) {
+      setError(t("Amount is outside the active policy limits."));
+      return;
+    }
+    if (numeric > Number(availableUSDT)) {
+      setError(t("Insufficient available USDT balance."));
+      return;
+    }
+    if (!policy.policy.symbols.includes(symbol) || !policy.policy.durations_sec.includes(duration)) {
+      setError(t("This market or duration is not enabled by the active policy."));
+      return;
     }
     const intent: SecondsOrderInput = {
       request_id: window.crypto.randomUUID().replace(/-/g, ""),
@@ -252,14 +386,21 @@ export function SecondsPage() {
     await sendIntent(intent);
   };
 
-  const currentRate = DURATION_OPTIONS.find((d) => d.sec === duration)?.rate || 85;
-  const profitExpect = Number(amount) > 0 ? (Number(amount) * (1 + currentRate / 100)).toFixed(2) : "0.00";
-  const openCount = snapshot?.open.length || 0;
+  const profitExpect = currentRate !== null && Number(amount) > 0
+    ? (Number(amount) * (1 + currentRate / 100)).toFixed(2)
+    : "—";
+
+  useEffect(() => {
+    if (!policy) return;
+    if (policy.policy.symbols.length > 0 && !policy.policy.symbols.includes(symbol)) setSymbol(policy.policy.symbols[0]);
+    if (policy.policy.durations_sec.length > 0 && !policy.policy.durations_sec.includes(duration)) setDuration(policy.policy.durations_sec[0]);
+  }, [policy, symbol, duration]);
 
 
 
   return (
     <>
+      <h1 className="sr-only">{t("Seconds contracts")}</h1>
       {/* The global header owns the product switcher (Spot / Perpetual /
           Seconds / Earn). Rendering a second copy here duplicated the tabs and
           cost a full row above the workspace. */}
@@ -271,7 +412,7 @@ export function SecondsPage() {
         <TradeProductNav />
         {/* 币对选择（下拉）+ 最新价 + 涨跌幅：单行不折，价格与标签都不硬切 */}
         <div className="flex min-w-0 items-center gap-2">
-          <button type="button" onClick={() => setSymbolPickerOpen(true)} aria-haspopup="dialog" aria-expanded={symbolPickerOpen}
+          <button type="button" onClick={() => setSymbolPickerOpen(true)} disabled={!policy || policy.policy.symbols.length === 0} aria-haspopup="dialog" aria-expanded={symbolPickerOpen}
             aria-label={t("Select market")}
             className="flex h-9 shrink-0 items-center gap-1 rounded-lg border border-brand-border bg-brand-surface px-2.5 text-[15px] font-bold leading-none text-brand-text transition-colors hover:border-brand-accent/50 hover:text-brand-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent/40">
             <span className="font-mono tabular-nums">{symbol}/USDT</span>
@@ -279,15 +420,16 @@ export function SecondsPage() {
           </button>
           <div className="ml-auto flex shrink-0 items-baseline gap-1.5 whitespace-nowrap" aria-live="polite">
             <span className="font-mono text-[20px] font-bold leading-none tabular-nums text-brand-text sm:text-2xl">
-              {ticker ? ticker.price.toLocaleString(locale, { minimumFractionDigits: 2 }) : "—"}
+              {displayTicker ? displayTicker.price.toLocaleString(locale, { minimumFractionDigits: 2 }) : "—"}
             </span>
-            {ticker ? (
-              <span className={"shrink-0 rounded px-1.5 py-0.5 font-mono text-[11px] font-bold tabular-nums " + (Number(ticker.chg) >= 0 ? "bg-profit/10 text-profit" : "bg-loss/10 text-loss")}>
-                {(Number(ticker.chg) >= 0 ? "+" : "") + Number(ticker.chg).toFixed(2) + "%"}
+            {displayTicker ? (
+              <span className={"shrink-0 rounded px-1.5 py-0.5 font-mono text-[11px] font-bold tabular-nums " + (displayTicker.chg >= 0 ? "bg-profit/10 text-profit" : "bg-loss/10 text-loss")}>
+                {(displayTicker.chg >= 0 ? "+" : "") + Number(displayTicker.chg).toFixed(2) + "%"}
               </span>
             ) : null}
           </div>
         </div>
+        {marketWarning ? <p role="status" className="text-xs text-brand-text-muted">{marketWarning}</p> : null}
 
         {notice ? <div role="status" className="rounded-xl border border-brand-success/30 bg-brand-success/10 p-3 text-xs font-semibold text-brand-success flex items-center gap-2"><ShieldCheck className="h-4 w-4 shrink-0" />{notice}</div> : null}
         {error ? <div role="alert" className="rounded-xl border border-brand-danger/30 bg-brand-danger/10 p-3 text-xs font-semibold text-brand-danger flex items-center gap-2"><ShieldAlert className="h-4 w-4 shrink-0" />{error}</div> : null}
@@ -295,7 +437,7 @@ export function SecondsPage() {
         {/* 未登录引导：与现货/永续使用同一套文案与按钮 */}
         {signedOut ? (
           <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-brand-border bg-brand-surface px-3 py-2.5">
-            <p className="text-xs text-brand-text-muted">{t("Please sign in to view your account data")}</p>
+            <p className="text-xs text-brand-text-muted">{t("Sign in to view your seconds positions and submit orders. Market data and chart preview remain public.")}</p>
             <Button asChild size="sm" variant="outline" className="h-8 shrink-0"><Link to="/login">{t("Go to sign in")}</Link></Button>
           </div>
         ) : null}
@@ -326,7 +468,7 @@ export function SecondsPage() {
                 </div>
               </CardHeader>
               <CardContent className="p-2 sm:p-3">
-                <div ref={setChartNode} className="h-[195px] sm:h-[320px] md:h-[360px] w-full" />
+                {chartUnavailable ? <div className="flex h-[195px] w-full items-center justify-center px-4 text-center text-xs text-brand-text-muted sm:h-[320px] md:h-[360px]">{chartWarning}</div> : <div ref={setChartNode} className="h-[195px] sm:h-[320px] md:h-[360px] w-full" />}
               </CardContent>
             </Card>
           </div>
@@ -341,13 +483,13 @@ export function SecondsPage() {
               <div>
                 <div className="flex justify-between items-center mb-2 text-xs">
                   <span className="text-brand-text-muted font-medium">{t("Settlement duration")}</span>
-                  <span className="text-brand-accent font-mono font-bold">{t("Return rate")}: +{currentRate}%</span>
+                  <span className="text-brand-accent font-mono font-bold">{t("Return rate")}: {currentRate === null ? "—" : `+${currentRate.toFixed(2)}%`}</span>
                 </div>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
-                  {DURATION_OPTIONS.map((opt) => (
-                    <button key={opt.sec} type="button" onClick={() => setDuration(opt.sec)} className={`flex flex-col items-center justify-center rounded-lg border py-1.5 transition-all ${duration === opt.sec ? "border-brand-accent bg-brand-accent/20 text-brand-accent shadow-sm shadow-brand-accent/20 font-bold" : "border-brand-border/50 bg-brand-surface text-brand-text-muted hover:border-brand-border-strong hover:text-brand-text"}`}>
+                  {durationOptions.map((opt) => (
+                    <button key={opt.sec} type="button" disabled={!policy || policy.actions_enabled !== true} onClick={() => setDuration(opt.sec)} className={`flex flex-col items-center justify-center rounded-lg border py-1.5 transition-all ${duration === opt.sec ? "border-brand-accent bg-brand-accent/20 text-brand-accent shadow-sm shadow-brand-accent/20 font-bold" : "border-brand-border/50 bg-brand-surface text-brand-text-muted hover:border-brand-border-strong hover:text-brand-text"}`}>
                       <span className="font-mono text-xs">{opt.label}</span>
-                      <span className="text-[9px] opacity-70">+{opt.rate}%</span>
+                      <span className="text-[9px] opacity-70">{currentRate === null ? "—" : `+${currentRate.toFixed(2)}%`}</span>
                     </button>
                   ))}
                 </div>
@@ -356,19 +498,19 @@ export function SecondsPage() {
               <div className="space-y-1.5">
                 <div className="flex justify-between items-center text-xs">
                   <span className="text-brand-text-muted font-medium">{t("Investment amount")} (USDT)</span>
-                  <span className="text-brand-text-muted font-mono">{t("Available")}: <strong className="text-brand-text">{signedOut ? "—" : Number(availableUSDT).toFixed(2)}</strong></span>
+                  <span className="text-brand-text-muted font-mono">{t("Available")}: <strong className="text-brand-text">{signedOut || availableUSDT === null ? "—" : Number(availableUSDT).toFixed(2)}</strong></span>
                 </div>
                 <div className="flex h-11 items-center rounded-lg border border-brand-border bg-brand-surface-2 px-3 focus-within:border-brand-accent">
-                  <input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0.00" className="h-full flex-1 bg-transparent font-mono text-sm text-brand-text outline-none placeholder:text-brand-text-muted" />
+                  <input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0.00" disabled={signedOut || !policy || policy.actions_enabled !== true || availableUSDT === null || Number(availableUSDT) <= 0} className="h-full flex-1 bg-transparent font-mono text-sm text-brand-text outline-none placeholder:text-brand-text-muted" />
                   <span className="text-xs font-bold text-brand-text-muted">USDT</span>
                 </div>
                 <div className="flex items-center gap-2 pt-1">
-                  {QUICK_AMOUNTS.map((val) => (
+                  {quickAmounts.map((val) => (
                     <button key={val} type="button" onClick={() => setAmount(String(val))} className={`h-[30px] flex-1 rounded-md border border-brand-border/60 bg-brand-surface-2 font-mono text-xs font-medium tabular-nums text-brand-text-muted hover:border-brand-accent hover:text-brand-accent ${amount === String(val) ? "border-brand-accent text-brand-accent bg-brand-accent/10" : ""}`}>
                       {val}
                     </button>
                   ))}
-                  <button type="button" onClick={() => setAmount(Number(availableUSDT) > 0 ? String(Math.floor(Number(availableUSDT))) : "100")} className="h-[30px] rounded-md border border-brand-border/60 bg-brand-surface-2 px-3 text-xs font-semibold text-brand-text-muted hover:border-brand-accent hover:text-brand-accent">
+                  <button type="button" disabled={!policy || policy.actions_enabled !== true || availableUSDT === null || Number(availableUSDT) <= 0} onClick={() => setAmount(availableUSDT !== null && maxStake !== null ? String(Math.min(Number(availableUSDT), maxStake)) : "")} className="h-[30px] rounded-md border border-brand-border/60 bg-brand-surface-2 px-3 text-xs font-semibold text-brand-text-muted hover:border-brand-accent hover:text-brand-accent disabled:opacity-40">
                     {t("Max")}
                   </button>
                 </div>
@@ -376,39 +518,19 @@ export function SecondsPage() {
 
               <div className="flex items-center justify-between text-xs px-1 text-brand-text-muted p-2.5 rounded-xl bg-brand-surface-2/50 border border-brand-border/40">
                 <span>{t("Expected return")}</span>
-                <span className="font-mono font-bold text-sm text-brand-text"><strong className="text-profit">{profitExpect}</strong> USDT</span>
+                <span className="font-mono font-bold text-sm text-brand-text"><strong className="text-profit">{profitExpect}</strong>{profitExpect === "—" ? "" : " USDT"}</span>
               </div>
 
               <div className="grid grid-cols-2 gap-3 pt-1">
-                <button type="button" disabled={submitting || !!pendingIntent} onClick={() => submitSeconds("up")} className="flex h-11 items-center justify-center gap-2 rounded-lg bg-profit text-[15px] font-bold text-[#05201A] transition-transform hover:bg-profit/90 active:scale-[0.99] disabled:opacity-50">
+                <button type="button" disabled={signedOut || marketUnavailable || submitting || !!pendingIntent || policy?.actions_enabled !== true || availableUSDT === null || Number(availableUSDT) <= 0 || currentRate === null} onClick={() => submitSeconds("up")} className="flex h-11 items-center justify-center gap-2 rounded-lg bg-profit text-[15px] font-bold text-[#05201A] transition-transform hover:bg-profit/90 active:scale-[0.99] disabled:opacity-50">
                   <TrendingUp className="h-5 w-5 stroke-[2.5]" />
-                  <span>{t("Buy up (long)")} (+{currentRate}%)</span>
+                  <span>{t("Buy up (long)")} {currentRate === null ? "" : `(+${currentRate.toFixed(2)}%)`}</span>
                 </button>
-                <button type="button" disabled={submitting || !!pendingIntent} onClick={() => submitSeconds("down")} className="flex h-11 items-center justify-center gap-2 rounded-lg bg-loss text-[15px] font-bold text-white transition-transform hover:bg-loss/90 active:scale-[0.99] disabled:opacity-50">
+                <button type="button" disabled={submitting || !!pendingIntent || policy?.actions_enabled !== true || availableUSDT === null || Number(availableUSDT) <= 0 || currentRate === null} onClick={() => submitSeconds("down")} className="flex h-11 items-center justify-center gap-2 rounded-lg bg-loss text-[15px] font-bold text-white transition-transform hover:bg-loss/90 active:scale-[0.99] disabled:opacity-50">
                   <TrendingDown className="h-5 w-5 stroke-[2.5]" />
-                  <span>{t("Buy down (short)")} (+{currentRate}%)</span>
+                  <span>{t("Buy down (short)")} {currentRate === null ? "" : `(+${currentRate.toFixed(2)}%)`}</span>
                 </button>
               </div>
-              {activeCountdown ? (
-                <div className="rounded-xl border border-brand-accent/40 bg-brand-accent/[0.06] p-3">
-                  <div className="flex items-center justify-between">
-                    <span className="flex items-center gap-2 text-sm font-bold text-brand-text">
-                      {activeCountdown.dir === "up" ? <TrendingUp className="h-4 w-4 text-profit" /> : <TrendingDown className="h-4 w-4 text-loss" />}
-                      {activeCountdown.dir === "up" ? t("Buy up (long)") : t("Buy down (short)")}
-                    </span>
-                    <span className="font-mono text-2xl font-bold tabular-nums text-brand-accent">
-                      {Math.max(0, Math.ceil((activeCountdown.endsAt - clockNow) / 1000))}s
-                    </span>
-                  </div>
-                  <div className="mt-2 flex items-center justify-between text-xs text-brand-text-muted">
-                    <span>{t("Stake")} {activeCountdown.amount} USDT</span>
-                    <span>{t("Expected return")} <span className="font-mono font-semibold tabular-nums text-profit">{activeCountdown.payout} USDT</span></span>
-                  </div>
-                  <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-brand-surface-2">
-                    <div className="h-full rounded-full bg-brand-accent transition-all duration-1000" style={{ width: `${Math.min(100, Math.max(0, (activeCountdown.endsAt - clockNow) / (duration * 1000) * 100))}%` }} />
-                  </div>
-                </div>
-              ) : null}
             </div>
             {/* 最新成交（成交明细）：与永续/现货共用 TradesPanel，窄屏只显示最近 8 条 */}
             <div className="mt-3 border-t border-brand-border/60 pt-3">
@@ -424,8 +546,8 @@ export function SecondsPage() {
           description={t("Choose a short-term contract pair")}
           emptyLabel={t("No matching market")}
           activeId={`${symbol}USDT`}
-          items={SECONDS_MARKETS.map((coin) => {
-            const tk = coin === symbol ? ticker : null;
+          items={(policy?.policy.symbols ?? []).map((coin) => {
+            const tk = coin === symbol ? displayTicker : null;
             return {
               id: `${coin}USDT`,
               label: `${coin}/USDT`,
@@ -443,9 +565,9 @@ export function SecondsPage() {
           ariaLabel={t("Trading details")}
           className="border-t border-brand-border pt-3"
           tabs={[
-            { key: "positions", label: `${t("Positions")} (${openCount})` },
-            { key: "orders", label: `${t("Open orders")} (${pendingIntent ? 1 : 0})` },
-            { key: "history", label: `${t("History")} (${snapshot?.history.length ?? 0})` },
+            { key: "positions", label: `${t("Positions")} (${signedOut || loading || positionsLoadError || !snapshot ? "—" : snapshot.open.length})` },
+            { key: "orders", label: `${t("Open orders")} (${signedOut || loading || positionsLoadError || !snapshot ? "—" : pendingIntent ? 1 : 0})` },
+            { key: "history", label: `${t("History")} (${signedOut || loading || positionsLoadError || !snapshot ? "—" : snapshot.history.length})` },
           ]}
           active={activeTab}
           onActiveChange={(key) => setActiveTab(key as "positions" | "orders" | "history")}
@@ -458,7 +580,13 @@ export function SecondsPage() {
           )}
         >
           {activeTab === "positions" ? (
-              snapshot?.open.length ? (
+              signedOut ? (
+                <BottomPanelEmpty>{t("Sign in to view your seconds positions.")}</BottomPanelEmpty>
+              ) : loading ? (
+                <BottomPanelEmpty>{t("Loading positions...")}</BottomPanelEmpty>
+              ) : positionsLoadError || !snapshot ? (
+                <BottomPanelEmpty>{t("Unable to load positions. Refresh to try again.")}</BottomPanelEmpty>
+              ) : snapshot.open.length ? (
                 <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                   {snapshot.open.map((item) => {
                     const directionUp = item.direction === "up";
@@ -489,17 +617,29 @@ export function SecondsPage() {
               )
             ) : activeTab === "orders" ? (
               <div className="space-y-2">
-                {pendingIntent ? (
+                {signedOut ? (
+                  <BottomPanelEmpty>{t("Sign in to view your seconds orders.")}</BottomPanelEmpty>
+                ) : loading ? (
+                  <BottomPanelEmpty>{t("Loading orders...")}</BottomPanelEmpty>
+                ) : pendingIntent ? (
                   <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-brand-accent/30 bg-brand-accent/10 p-3 text-xs">
                     <span className="min-w-0">{t("An earlier Seconds request is still unconfirmed. Retry the same request before placing a new one.")}</span>
                     <Button type="button" size="sm" variant="outline" disabled={submitting} onClick={retryPendingIntent} className="h-9 shrink-0">{t("Retry same request")}</Button>
                   </div>
+                ) : positionsLoadError || !snapshot ? (
+                  <BottomPanelEmpty>{t("Unable to load order status. Refresh to try again.")}</BottomPanelEmpty>
                 ) : (
                   <BottomPanelEmpty>{t("No open orders")}</BottomPanelEmpty>
                 )}
               </div>
             ) : (
-              snapshot?.history.length ? (
+              signedOut ? (
+                <BottomPanelEmpty>{t("Sign in to view your seconds settlement history.")}</BottomPanelEmpty>
+              ) : loading ? (
+                <BottomPanelEmpty>{t("Loading history...")}</BottomPanelEmpty>
+              ) : positionsLoadError || !snapshot ? (
+                <BottomPanelEmpty>{t("Unable to load settlement history. Refresh to try again.")}</BottomPanelEmpty>
+              ) : snapshot.history.length ? (
                 <div className="space-y-2">
                   {snapshot.history.map((item) => {
                     const isWin = item.win;
@@ -526,25 +666,7 @@ export function SecondsPage() {
             )}
         </BottomOrderPanel>
       </div>
-      {lastSettleResult ? (
-        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-xs rounded-2xl border border-brand-border bg-brand-surface p-6 text-center shadow-overlay">
-            <div className={`mx-auto flex h-14 w-14 items-center justify-center rounded-full ${lastSettleResult.outcome === "won" ? "bg-brand-success/15 text-brand-success" : lastSettleResult.outcome === "tie" ? "bg-brand-text-muted/15 text-brand-text-muted" : "bg-brand-danger/15 text-brand-danger"}`}>
-              {lastSettleResult.outcome === "won" ? <TrendingUp className="h-7 w-7" /> : lastSettleResult.outcome === "tie" ? <Clock3 className="h-7 w-7" /> : <TrendingDown className="h-7 w-7" />}
-            </div>
-            <h3 className="mt-4 text-lg font-bold text-brand-text">
-              {lastSettleResult.outcome === "won" ? t("Congratulations! Profitable settlement") : lastSettleResult.outcome === "tie" ? t("Tie settlement") : t("This round was a loss")}
-            </h3>
-            <p className="mt-2 font-mono text-2xl font-bold tabular-nums" style={{ color: lastSettleResult.outcome === "won" ? CHART_THEME.up : lastSettleResult.outcome === "tie" ? CHART_THEME.text : CHART_THEME.down }}>
-              {lastSettleResult.outcome === "won" ? "+" : lastSettleResult.outcome === "tie" ? "" : "-"}{lastSettleResult.payout.toFixed(2)} USDT
-            </p>
-            <p className="mt-1 text-xs text-brand-text-muted">{t("Staked principal")} {lastSettleResult.amount.toFixed(2)} USDT</p>
-            <button type="button" onClick={dismissSettleResult} className="mt-5 flex min-h-11 w-full items-center justify-center rounded-xl bg-brand-accent text-sm font-bold text-[#05201A] transition-colors hover:bg-brand-accent/90">
-              {t("Got it")}
-            </button>
-          </div>
-        </div>
-      ) : null}
+
     </>
   );
 }
