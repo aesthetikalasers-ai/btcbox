@@ -190,7 +190,7 @@ function QuickActions() {
  * Compact market table. Uses a real <table> so column widths stay locked while
  * prices tick — the whole point of tabular-nums in a trading terminal.
  */
-function MarketTable({ markets, locale, onViewAll }: { markets: MarketTicker[]; locale: string; onViewAll: () => void }) {
+function MarketTable({ markets, locale, onViewAll, loading, error }: { markets: MarketTicker[]; locale: string; onViewAll: () => void; loading: boolean; error: string }) {
   const { t } = useI18n();
   const tabs = useMemo(
     () =>
@@ -212,7 +212,9 @@ function MarketTable({ markets, locale, onViewAll }: { markets: MarketTicker[]; 
     else list.sort((a, b) => Number(b.vol) - Number(a.vol));
     return list.slice(0, 8);
   }, [markets, tab]);
-  if (rows.length === 0) return null;
+  if (error) return <section role="status" className="rounded-xl border border-brand-border bg-brand-surface p-4 text-sm text-brand-text-muted">{t("Market feed unavailable")}<p className="mt-1 text-xs">{t(error)}</p></section>;
+  if (loading && rows.length === 0) return <section role="status" className="rounded-xl border border-brand-border bg-brand-surface p-4 text-sm text-brand-text-muted">{t("Loading market data")}</section>;
+  if (rows.length === 0) return <section role="status" className="rounded-xl border border-brand-border bg-brand-surface p-4 text-sm text-brand-text-muted">{t("Market feed unavailable")}</section>;
 
   return (
     <section aria-label={t("Market overview")} className="overflow-hidden rounded-xl border border-white/[0.08] bg-brand-surface shadow-[inset_0_1px_0_0_rgba(255,255,255,0.12)] transition-all duration-300 hover:border-brand-accent/30 hover:shadow-[0_8px_30px_rgba(14,203,129,0.12)]">
@@ -387,7 +389,7 @@ export function Dashboard() {
       <BannerCarousel markets={markets} />
       <TickerMarquee markets={markets} locale={locale} />
       <QuickActions />
-      <MarketTable markets={markets} locale={locale} onViewAll={() => navigate("/markets")} />
+      <MarketTable markets={markets} locale={locale} onViewAll={() => navigate("/markets")} loading={loading} error={error} />
     </div>
   );
 }
