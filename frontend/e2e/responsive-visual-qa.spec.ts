@@ -171,7 +171,7 @@ async function installInteractiveTradeApiMocks(page: Page) {
       }])),
     }),
   }));
-  await page.route("**/api/depth?*", (route) => route.fulfill({
+  await page.route(/\/api\/depth(?:\?.*)?$/, (route) => route.fulfill({
     status: 200,
     contentType: "application/json",
     body: JSON.stringify({
@@ -207,7 +207,7 @@ async function assertPageAtWidth(
   if (["/home", "/markets", "/trade/BTCUSDT", "/assets", "/me"].includes(route.path)) {
     const mobileNavigation = page.locator(".bf-bottom-nav");
     const desktopProducts = page.locator('header nav[aria-label="Trade products"]');
-    const desktopAssets = page.getByRole("link", { name: "Assets", exact: true });
+    const desktopAssets = page.locator('header:has(nav[aria-label="Trade products"]) a[href="/assets"][aria-label="Assets"]');
     if (width < 768) {
       await expect(mobileNavigation, "Phone pages must use the five-item bottom navigation.").toBeVisible();
       await expect(desktopProducts, "Desktop product navigation must stay hidden on phones.").toBeHidden();
