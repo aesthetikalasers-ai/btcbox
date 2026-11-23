@@ -327,8 +327,8 @@ async function assertPageAtWidth(
     const bidRows = orderbook.locator('.spot-book-row[data-side="bid"]');
     await expect(askRows).toHaveCount(2);
     await expect(bidRows).toHaveCount(2);
-    await expect(askRows.first()).toHaveAttribute("title", /^65001\\.00 · /);
-    await expect(bidRows.first()).toHaveAttribute("title", /^64999\\.00 · /);
+    await expect(askRows.first()).toHaveAttribute("title", /^65001\.00 · /);
+    await expect(bidRows.first()).toHaveAttribute("title", /^64999\.00 · /);
     await expect(page.locator(".spot-mobile-tabs")).toHaveCount(0);
     await expect(page.getByRole("button", { name: "Buy", exact: true }).first()).toBeVisible();
     await expect(page.getByRole("button", { name: "Sell", exact: true }).first()).toBeVisible();
