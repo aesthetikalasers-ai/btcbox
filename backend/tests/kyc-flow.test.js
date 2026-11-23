@@ -97,6 +97,14 @@ test('administrator cannot approve KYC without an uploaded, reviewable document 
   assert.match(queue, /disabled=\{busy\|\|!hasPermission\("kyc\.review"\)\|\|!item\.document_uploaded\|\|!item\.document_url\|\|!!item\.document_preview_error\}/);
   assert.ok(queue.includes('Identity document upload is required before approval.'));
   assert.ok(queue.includes('Document preview unavailable; refresh the queue before approval.'));
+  // Manual verification is a separate, permission-gated exception path and is not disabled by missing upload.
+  assert.ok(queue.includes('Manual identity verification'));
+  assert.ok(admin.includes('kind:"kyc-manual"'));
+  assert.ok(admin.includes('manualIdentityConfirmed'));
+  assert.ok(admin.includes('I personally verified this customer'));
+  assert.ok(admin.includes('admin_override: true'));
+  assert.ok(admin.includes('Manual verification method and notes'));
+  assert.ok(client.includes('admin_override?: boolean'));
   // Rejection remains available to authorized reviewers even when evidence is missing.
   assert.match(queue, /variant="destructive" disabled=\{busy\|\|!hasPermission\("kyc\.review"\)\} onClick=\{\(\)=>void reviewKyc\(item\.uid,false\)\}/);
 });
