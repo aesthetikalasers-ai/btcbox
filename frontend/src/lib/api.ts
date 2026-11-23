@@ -993,6 +993,14 @@ export interface SupportMessage {
   time: string;
 }
 
+export interface AdminPayoutAddress {
+  id: string; type: "bank" | "crypto"; uid: string; email?: string;
+  account_holder?: string; bank_name?: string; account_number?: string; iban?: string; country?: string;
+  routing_number?: string; swift?: string; bank_address?: string; note?: string;
+  coin?: string; network?: string; address?: string; created_at?: string;
+  flagged?: boolean; blocked?: boolean; unbound?: boolean;
+}
+
 /** One help-centre entry as published to customers (enabled entries only). */
 export interface SupportFaqEntry {
   id: string;
@@ -1115,8 +1123,8 @@ export interface SavedCryptoAddress {
 export interface BankAddress {
   id: string; type: "bank";
   account_holder: string; bank_name: string;
-  account_number: string; routing_number: string;
-  swift?: string; bank_address: string;
+  account_number?: string; iban?: string; country?: string; routing_number?: string;
+  swift?: string; bank_address?: string;
   note?: string; created_at?: string; flagged?: boolean; blocked?: boolean; unbound?: boolean;
 }
 
@@ -1130,8 +1138,8 @@ export interface CryptoAddressInput {
 /** Input for creating a bank (fiat) address entry. */
 export interface BankAddressInput {
   type: "bank"; account_holder: string; bank_name: string;
-  account_number: string; routing_number: string;
-  swift?: string; bank_address: string; note?: string;
+  account_number?: string; iban?: string; country?: string; routing_number?: string;
+  swift?: string; bank_address?: string; note?: string;
 }
 
 export async function addAddress(input: CryptoAddressInput | BankAddressInput): Promise<{ msg: string; address: SavedAddress }> {
@@ -1494,6 +1502,19 @@ export async function getAdminOrders(token: string, signal?: AbortSignal) {
 }
 export async function getAdminSupportMessages(token: string, signal?: AbortSignal) {
   return adminRequest<{ ok: true; messages: SupportMessage[] }>(token, "admin/support/messages", { signal });
+}
+export async function markAdminSupportRead(token: string, uid: string) {
+  return adminRequest<{ ok: true; duplicate?: boolean; unread: number; audit_sync_pending?: boolean }>(token, "admin/support/read", { method: "POST", body: { uid } });
+}
+export async function getAdminAddresses(token: string, signal?: AbortSignal) {
+  return adminRequest<{ ok: true; addresses: AdminPayoutAddress[] }>(token, "admin/addresses", { signal });
+}
+export async function manageAdminAddress(token: string, input: {
+  id: string; action: "update" | "delete"; reason: string;
+  account_holder?: string; bank_name?: string; account_number?: string; iban?: string;
+  country?: string; routing_number?: string; swift?: string; bank_address?: string; note?: string;
+}) {
+  return adminRequest<{ ok: true; audit_sync_pending?: boolean; msg: string }>(token, "admin/address/manage", { method: "POST", body: input });
 }
 export async function getAdminSupportFaq(token: string, signal?: AbortSignal) {
   return adminRequest<{ ok: true; entries: AdminSupportFaqEntry[] }>(token, "admin/support/faq", { signal });
