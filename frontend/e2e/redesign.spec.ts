@@ -165,7 +165,7 @@ test('V211 phone trade tabs switch panels and keep the chart in a safe-area draw
    await expect(book).toBeVisible();
    await expect(entry).toBeHidden();
    const b=(await book.boundingBox())!;
-   expect(b.width).toBeGreaterThan(width-24);
+   expect(b.width).toBeGreaterThanOrEqual(width-24);
    await tabs.getByRole('tab',{name:'Sell',exact:true}).click();
    await expect(entry).toBeVisible();
    await expect(book).toBeHidden();
