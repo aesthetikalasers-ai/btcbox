@@ -11,8 +11,8 @@ import {
   getDemoPerpMarkets,
   getDemoTradingStatus,
 } from "./demoPreview";
-import { normalizeKlines, type MarketCandle } from "./marketData";
-export type { MarketCandle } from "./marketData";
+import { normalizeKlines, type MarketCandle } from "./klineData";
+export type { MarketCandle } from "./klineData";
 import {
   demoCancelPerpOrder,
   demoClosePerpPosition,
