@@ -157,6 +157,8 @@ export function AdminPage() {
   const [adjustAmount, setAdjustAmount] = useState("");
   const [adjustReason, setAdjustReason] = useState("");
   const [adjustBusy, setAdjustBusy] = useState(false);
+  const [adjustRequestId, setAdjustRequestId] = useState("");
+  const [adjustPendingInvalid, setAdjustPendingInvalid] = useState(false);
   // Account actions: freeze state, credential changes and a direct staff message.
   const [accountActionBusy, setAccountActionBusy] = useState(false);
   const [freezeReason, setFreezeReason] = useState("");
@@ -479,6 +481,27 @@ export function AdminPage() {
 
   useEffect(() => {
     if (!session?.user_id || !selectedUser?.uid) return;
+    const key = "btcbox.admin.balance-adjustment.v1." + session.user_id + "." + selectedUser.uid;
+    setAdjustRequestId("");
+    setAdjustPendingInvalid(false);
+    try {
+      const raw = window.localStorage.getItem(key);
+      if (raw) {
+        const saved = JSON.parse(raw);
+        if (saved && saved.version === 1 && saved.actor_id === session.user_id && saved.target_uid === selectedUser.uid &&
+            typeof saved.request_id === "string" && /^[A-Za-z0-9_-]{16,100}$/.test(saved.request_id) &&
+            typeof saved.coin === "string" && assets.includes(saved.coin) &&
+            typeof saved.delta === "string" && /^-?(?:0|[1-9]\\d*)(?:\\.\\d{1,18})?$/.test(saved.delta) &&
+            typeof saved.mode === "string" && ["adjust", "freeze", "unfreeze"].includes(saved.mode) &&
+            typeof saved.reason === "string") {
+          setAdjustCoin(saved.coin);
+          setAdjustMode(saved.mode === "freeze" ? "freeze" : saved.mode === "unfreeze" ? "unfreeze" : saved.delta.startsWith("-") ? "debit" : "credit");
+          setAdjustAmount(saved.delta.replace(/^-/, ""));
+          setAdjustReason(saved.reason);
+          setAdjustRequestId(saved.request_id);
+        } else setAdjustPendingInvalid(true);
+      }
+    } catch { setAdjustPendingInvalid(true); }
     const amounts: Record<string,string> = {};
     const references: Record<string,string> = {};
     const notes: Record<string,string> = {};
@@ -562,9 +585,10 @@ export function AdminPage() {
       setError("Enter an amount greater than 0.");
       return;
     }
-    let requestId = "";
-    try { requestId = window.crypto.randomUUID(); }
-    catch { setError("Secure request IDs are unavailable in this browser. No balance change was made."); return; }
+    if (adjustPendingInvalid) {
+      setError("A saved balance-adjustment request could not be read. Check the financial audit log before creating another operation.");
+      return;
+    }
     const mode = adjustMode === "freeze" ? "freeze" : adjustMode === "unfreeze" ? "unfreeze" : "adjust";
     const reason = adjustReason.trim();
     if (mode !== "adjust" && reason.length < 5) {
@@ -572,14 +596,39 @@ export function AdminPage() {
       return;
     }
     const delta = adjustMode === "debit" ? "-" + amount : amount;
+    const storageKey = "btcbox.admin.balance-adjustment.v1." + session?.user_id + "." + uid;
+    const intent = { version: 1, actor_id: session?.user_id, target_uid: uid, coin: adjustCoin, delta, mode, reason };
+    let requestId = adjustRequestId;
+    if (requestId) {
+      try {
+        const saved = JSON.parse(window.localStorage.getItem(storageKey) || "null");
+        if (!saved || saved.request_id !== requestId || saved.actor_id !== session?.user_id || saved.target_uid !== uid ||
+            saved.coin !== adjustCoin || saved.delta !== delta || saved.mode !== mode || saved.reason !== reason) {
+          setError("A balance-adjustment request is still pending. Retry the exact same operation; do not change its details.");
+          return;
+        }
+      } catch {
+        setAdjustPendingInvalid(true);
+        setError("The saved balance-adjustment request could not be verified. Check the financial audit log before continuing.");
+        return;
+      }
+    } else {
+      try { requestId = window.crypto.randomUUID(); }
+      catch { setError("Secure request IDs are unavailable in this browser. No balance change was made."); return; }
+      try { window.localStorage.setItem(storageKey, JSON.stringify({ ...intent, request_id: requestId, created_at: Date.now() })); }
+      catch { setError("This browser cannot safely save the balance-adjustment request. No balance change was sent."); return; }
+      setAdjustRequestId(requestId);
+    }
     setAdjustBusy(true); setError(""); setNotice("");
     try {
       const result = await adminAdjustBalance(token, { uid, coin: adjustCoin, delta, mode, ...(reason ? { reason } : {}), request_id: requestId });
+      try { window.localStorage.removeItem(storageKey); } catch {}
+      setAdjustRequestId(""); setAdjustPendingInvalid(false);
       setNotice(result.msg || "Balance adjusted.");
       setAdjustAmount(""); setAdjustReason("");
       await refreshSelectedUser(uid);
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Balance adjustment failed. Check the financial operation log before retrying.");
+      setError((cause instanceof Error ? cause.message : "Balance adjustment could not be confirmed.") + " Retry the same operation to safely confirm the result; do not create a new adjustment.");
     } finally { setAdjustBusy(false); }
   };
 
@@ -1331,13 +1380,13 @@ export function AdminPage() {
       <Card><CardHeader><CardTitle>{adminText("Balance adjustment")}</CardTitle><CardDescription>{adminText("Add, deduct, freeze or unfreeze the selected user's available balance. Every operation is audited and idempotent.")}</CardDescription></CardHeader><CardContent className="space-y-3">
         {!selectedUser ? <p className="text-sm text-brand-text-muted">{adminText("Select a user first.")}</p> : <>
           <div className="grid gap-2 sm:grid-cols-2">
-            <label className="space-y-1 text-sm"><span className="text-brand-text-muted">{adminText("Asset")}</span><select value={adjustCoin} onChange={event => setAdjustCoin(event.target.value)} disabled={adjustBusy} className="h-11 w-full rounded-xl border border-brand-border bg-brand-surface-2 px-3 text-sm text-brand-text">{assets.map(coin => <option key={coin}>{coin}</option>)}</select></label>
-            <label className="space-y-1 text-sm"><span className="text-brand-text-muted">{adminText("Operation")}</span><select value={adjustMode} onChange={event => setAdjustMode(event.target.value as "credit" | "debit" | "freeze" | "unfreeze")} disabled={adjustBusy} className="h-11 w-full rounded-xl border border-brand-border bg-brand-surface-2 px-3 text-sm text-brand-text"><option value="credit">{adminText("Add balance")}</option><option value="debit">{adminText("Deduct balance")}</option><option value="freeze">{adminText("Freeze funds")}</option><option value="unfreeze">{adminText("Unfreeze funds")}</option></select></label>
+            <label className="space-y-1 text-sm"><span className="text-brand-text-muted">{adminText("Asset")}</span><select value={adjustCoin} onChange={event => setAdjustCoin(event.target.value)} disabled={adjustBusy || !!adjustRequestId || adjustPendingInvalid} className="h-11 w-full rounded-xl border border-brand-border bg-brand-surface-2 px-3 text-sm text-brand-text">{assets.map(coin => <option key={coin}>{coin}</option>)}</select></label>
+            <label className="space-y-1 text-sm"><span className="text-brand-text-muted">{adminText("Operation")}</span><select value={adjustMode} onChange={event => setAdjustMode(event.target.value as "credit" | "debit" | "freeze" | "unfreeze")} disabled={adjustBusy || !!adjustRequestId || adjustPendingInvalid} className="h-11 w-full rounded-xl border border-brand-border bg-brand-surface-2 px-3 text-sm text-brand-text"><option value="credit">{adminText("Add balance")}</option><option value="debit">{adminText("Deduct balance")}</option><option value="freeze">{adminText("Freeze funds")}</option><option value="unfreeze">{adminText("Unfreeze funds")}</option></select></label>
           </div>
           <p className="text-xs text-brand-text-muted">{adminText("Available")}: {selectedUser.balances?.[adjustCoin]?.free == null ? "—" : asText(selectedUser.balances[adjustCoin].free)} · {adminText("Frozen")}: {selectedUser.balances?.[adjustCoin]?.frozen == null ? "—" : asText(selectedUser.balances[adjustCoin].frozen)}</p>
-          <input value={adjustAmount} onChange={event => setAdjustAmount(event.target.value)} disabled={adjustBusy} inputMode="decimal" placeholder={adminText("Amount")} className="h-11 w-full rounded-xl border border-brand-border bg-brand-surface-2 px-3 text-sm text-brand-text"/>
-          {(adjustMode === "freeze" || adjustMode === "unfreeze") ? <input value={adjustReason} onChange={event => setAdjustReason(event.target.value)} disabled={adjustBusy} maxLength={200} placeholder={adminText("Reason (required, at least 5 characters)")} className="h-11 w-full rounded-xl border border-brand-border bg-brand-surface-2 px-3 text-sm text-brand-text"/> : null}
-          <Button size="sm" disabled={adjustBusy || !hasPermission("financial_adjustment.request") || !adjustAmount.trim() || ((adjustMode === "freeze" || adjustMode === "unfreeze") && adjustReason.trim().length < 5)} onClick={() => void submitBalanceAdjustment()}>{adjustBusy ? adminText("Processing…") : adminText("Confirm adjustment")}</Button>
+          <input value={adjustAmount} onChange={event => setAdjustAmount(event.target.value)} disabled={adjustBusy || !!adjustRequestId || adjustPendingInvalid} inputMode="decimal" placeholder={adminText("Amount")} className="h-11 w-full rounded-xl border border-brand-border bg-brand-surface-2 px-3 text-sm text-brand-text"/>
+          {(adjustMode === "freeze" || adjustMode === "unfreeze") ? <input value={adjustReason} onChange={event => setAdjustReason(event.target.value)} disabled={adjustBusy || !!adjustRequestId || adjustPendingInvalid} maxLength={200} placeholder={adminText("Reason (required, at least 5 characters)")} className="h-11 w-full rounded-xl border border-brand-border bg-brand-surface-2 px-3 text-sm text-brand-text"/> : null}
+          <Button size="sm" disabled={adjustBusy || !hasPermission("financial_adjustment.request") || !adjustAmount.trim() || ((adjustMode === "freeze" || adjustMode === "unfreeze") && adjustReason.trim().length < 5)} onClick={() => void submitBalanceAdjustment()}>{adjustBusy ? adminText("Processing…") : adjustRequestId ? adminText("Retry same adjustment") : adminText("Confirm adjustment")}</Button>{adjustPendingInvalid ? <p role="alert" className="text-xs text-brand-danger">{adminText("Saved adjustment request is unreadable. Check the financial audit log before continuing.")}</p> : adjustRequestId ? <p className="text-xs text-brand-warning">{adminText("A previous adjustment is awaiting confirmation. Retry the same operation; its request ID is preserved to prevent duplicate credit or debit.")}</p> : null}
           {!hasPermission("financial_adjustment.request") ? <p className="text-xs text-brand-warning">{adminText("Requires the financial_adjustment.request permission.")}</p> : null}
         </>}
       </CardContent></Card>
