@@ -153,6 +153,7 @@ export function AdminPage() {
   const [adjustCoin, setAdjustCoin] = useState("USDT");
   const [adjustMode, setAdjustMode] = useState<"credit" | "debit" | "freeze" | "unfreeze">("credit");
   const [adjustAmount, setAdjustAmount] = useState("");
+  const [adjustReason, setAdjustReason] = useState("");
   const [adjustBusy, setAdjustBusy] = useState(false);
   // Account actions: freeze state, credential changes and a direct staff message.
   const [accountActionBusy, setAccountActionBusy] = useState(false);
@@ -543,12 +544,17 @@ export function AdminPage() {
     try { requestId = window.crypto.randomUUID(); }
     catch { setError("Secure request IDs are unavailable in this browser. No balance change was made."); return; }
     const mode = adjustMode === "freeze" ? "freeze" : adjustMode === "unfreeze" ? "unfreeze" : "adjust";
+    const reason = adjustReason.trim();
+    if (mode !== "adjust" && reason.length < 5) {
+      setError("Enter a reason of at least 5 characters.");
+      return;
+    }
     const delta = adjustMode === "debit" ? "-" + amount : amount;
     setAdjustBusy(true); setError(""); setNotice("");
     try {
-      const result = await adminAdjustBalance(token, { uid, coin: adjustCoin, delta, mode, request_id: requestId });
+      const result = await adminAdjustBalance(token, { uid, coin: adjustCoin, delta, mode, ...(reason ? { reason } : {}), request_id: requestId });
       setNotice(result.msg || "Balance adjusted.");
-      setAdjustAmount("");
+      setAdjustAmount(""); setAdjustReason("");
       await refreshSelectedUser(uid);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Balance adjustment failed. Check the financial operation log before retrying.");
@@ -1308,7 +1314,8 @@ export function AdminPage() {
           </div>
           <p className="text-xs text-brand-text-muted">{adminText("Available")}: {selectedUser.balances?.[adjustCoin]?.free == null ? "—" : asText(selectedUser.balances[adjustCoin].free)} · {adminText("Frozen")}: {selectedUser.balances?.[adjustCoin]?.frozen == null ? "—" : asText(selectedUser.balances[adjustCoin].frozen)}</p>
           <input value={adjustAmount} onChange={event => setAdjustAmount(event.target.value)} disabled={adjustBusy} inputMode="decimal" placeholder={adminText("Amount")} className="h-11 w-full rounded-xl border border-brand-border bg-brand-surface-2 px-3 text-sm text-brand-text"/>
-          <Button size="sm" disabled={adjustBusy || !hasPermission("financial_adjustment.request") || !adjustAmount.trim()} onClick={() => void submitBalanceAdjustment()}>{adjustBusy ? adminText("Processing…") : adminText("Confirm adjustment")}</Button>
+          {(adjustMode === "freeze" || adjustMode === "unfreeze") ? <input value={adjustReason} onChange={event => setAdjustReason(event.target.value)} disabled={adjustBusy} maxLength={200} placeholder={adminText("Reason (required, at least 5 characters)")} className="h-11 w-full rounded-xl border border-brand-border bg-brand-surface-2 px-3 text-sm text-brand-text"/> : null}
+          <Button size="sm" disabled={adjustBusy || !hasPermission("financial_adjustment.request") || !adjustAmount.trim() || ((adjustMode === "freeze" || adjustMode === "unfreeze") && adjustReason.trim().length < 5)} onClick={() => void submitBalanceAdjustment()}>{adjustBusy ? adminText("Processing…") : adminText("Confirm adjustment")}</Button>
           {!hasPermission("financial_adjustment.request") ? <p className="text-xs text-brand-warning">{adminText("Requires the financial_adjustment.request permission.")}</p> : null}
         </>}
       </CardContent></Card>
