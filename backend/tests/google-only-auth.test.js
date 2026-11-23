@@ -198,7 +198,8 @@ test('React auth keeps Google/wallet registration and linked email-password logi
   assert.ok(auth.includes('requestPasswordReset') && auth.includes('completePasswordRecovery'));
   assert.ok(auth.includes('flowType: "pkce"'));
   for (const required of ['Username or email', 'Google', 'Connect Ethereum wallet', 'Connect Solana wallet']) assert.ok(pages.includes(required), 'auth page must expose ' + required);
-  assert.ok(pages.includes('Use Google or a supported wallet to create your BTCBOX account.'));\n  assert.ok(!pages.includes('Create account with email'));
+  assert.ok(pages.includes('Use Google or a supported wallet to create your BTCBOX account.'));
+  assert.ok(!pages.includes('Create account with email'));
   assert.ok(auth.includes('eip6963:announceProvider'));
   assert.ok(auth.includes('eip6963:requestProvider'));
   assert.ok(auth.includes('getInjectedSolanaWallet'));
