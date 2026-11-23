@@ -11,6 +11,8 @@ import {
   getDemoPerpMarkets,
   getDemoTradingStatus,
 } from "./demoPreview";
+import { normalizeKlines, type MarketCandle } from "./marketData";
+export type { MarketCandle } from "./marketData";
 import {
   demoCancelPerpOrder,
   demoClosePerpPosition,
@@ -37,16 +39,6 @@ export interface MarketTicker {
   providerTs?: number | null;
 }
 
-export interface MarketCandle {
-  /** Normalized Unix timestamp in seconds for chart libraries. */
-  time: number;
-  open: number;
-  high: number;
-  low: number;
-  close: number;
-  volume: number;
-  source?: string;
-}
 
 interface MarketResponse {
   ok: boolean;
@@ -265,29 +257,7 @@ export async function getKlines(
       throw new ApiError(payload?.msg || "Chart data is temporarily unavailable.", response.status, payload?.code || "KLINE_DATA_UNAVAILABLE");
     }
 
-    const source = typeof payload.source === "string" ? payload.source : undefined;
-    const byChartSecond = new Map<number, MarketCandle>();
-    for (const candle of payload.klines) {
-      const rawTime = Number(candle?.time);
-      const open = Number(candle?.open), high = Number(candle?.high);
-      const low = Number(candle?.low), close = Number(candle?.close);
-      const volume = Number(candle?.volume);
-      if (!Number.isFinite(rawTime) || rawTime <= 0 ||
-          !Number.isFinite(open) || open <= 0 ||
-          !Number.isFinite(high) || high <= 0 ||
-          !Number.isFinite(low) || low <= 0 ||
-          !Number.isFinite(close) || close <= 0 ||
-          !Number.isFinite(volume) || volume < 0 ||
-          high < Math.max(open, close, low) ||
-          low > Math.min(open, close, high)) continue;
-      const chartSecond = Math.floor(rawTime >= 100_000_000_000 ? rawTime / 1000 : rawTime);
-      if (!Number.isSafeInteger(chartSecond) || chartSecond <= 0) continue;
-      byChartSecond.set(chartSecond, {
-        time: chartSecond, open, high, low, close, volume,
-        source: typeof candle.source === "string" ? candle.source : source,
-      });
-    }
-    const normalized = [...byChartSecond.values()].sort((a, b) => a.time - b.time);
+    const normalized = normalizeKlines(payload.klines, payload.source);
     if (normalized.length === 0) {
       throw new ApiError("No verified candle data is available for this market.", response.status || 503, "KLINE_DATA_UNAVAILABLE");
     }
