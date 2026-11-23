@@ -254,7 +254,8 @@ test('admin support inbox can search customer threads, preview latest activity a
   assert.ok(reactAdminPage.includes('Search support by UID or email'));
   assert.ok(reactAdminPage.includes('Latest customer message'));
   assert.ok(reactAdminPage.includes('Open user profile'));
-  assert.ok(reactAdminPage.includes('void selectUser(thread.uid)'));
+  assert.ok(reactAdminPage.includes('setPendingSupportProfileUid(thread.uid)'));
+  assert.ok(reactAdminPage.includes('if (tab !== "users" || !pendingSupportProfileUid || loading) return;'));
 });
 
 test('admin user profile includes permission-scoped withdrawal history from the existing user detail API', () => {
