@@ -82,7 +82,6 @@ const messages: Record<string, string> = {
   "Retry same adjustment": "沿用原请求重试",
   "Saved adjustment request is unreadable. Check the financial audit log before continuing.": "已保存的调整请求无法读取，请先检查资金审计记录再继续。",
   "A previous adjustment is awaiting confirmation. Retry the same operation; its request ID is preserved to prevent duplicate credit or debit.": "上一笔调整仍待确认。请沿用同一笔操作重试，系统会保留请求编号，避免重复上分或下分。",
-  "Searching…": "搜索中…",
   "Email": "邮箱",
   "KYC": "身份认证",
   "Status": "状态",
