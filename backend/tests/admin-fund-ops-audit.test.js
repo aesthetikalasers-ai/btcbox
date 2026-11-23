@@ -119,5 +119,5 @@ test('admin balance adjustment generates audit reasons without a staff-entered r
   assert.ok(route.includes('p_reason: reason'));
   const adminPage = fs.readFileSync(path.join(root, '../frontend/src/features/admin/AdminPage.tsx'), 'utf8');
   assert.match(adminPage, /\(adjustMode === "freeze" \|\| adjustMode === "unfreeze"\) \? <input value=\{adjustReason\}/);
-  assert.match(adminPage, /mode, \(\.\.\.reason \? \{ reason \} : \{\}\), request_id: requestId/);
+  assert.match(adminPage, /mode, \.\.\.\(reason \? \{ reason \} : \{\}\), request_id: requestId/);
 });
