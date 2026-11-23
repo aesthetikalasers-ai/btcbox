@@ -239,8 +239,8 @@ test("spot trading provenance shows the actual source for each feed", () => {
   const page = fs.readFileSync(path.join(root, "features/pages/Pages.tsx"), "utf8");
   assert.ok(page.includes('tickerIsFallback=!ticker?.source||ticker.source==="demo-preview"'));
   assert.ok(page.includes('selected.source && selected.source!=="demo-preview"'));
-  assert.ok(!page.includes("displayTicker?.source"));
-  assert.ok(!page.includes("displayBook?.source"));
+  assert.ok(page.includes("displayTicker?.source"));
+  assert.ok(page.includes("displayBook?.source"));
 });
 
 test("market ticker rows require real price, change, high, low and volume values", () => {
