@@ -34,8 +34,12 @@ test('spot trading live refresh never overwrites the customer-edited limit price
   const guardedWrite = /!isPriceManual[^;]*setPrice\(|setPrice\(current=>current\|\|/.test(refresh);
   assert.ok(guardedWrite, 'the refresh must not write the price unconditionally');
   assert.ok(page.includes('isPriceManual'), 'the manual-price flag must exist');
-  // A stale snapshot must never overwrite an edited price either.
-  assert.match(page, /setIsPriceManual/);
+  // A ref keeps the manual-edit guard current inside the polling callback,
+  // avoiding a stale React state closure during five-second market refreshes.
+  assert.match(page, /const isPriceManualRef=useRef\(false\)/);
+  assert.match(refresh, /!isPriceManualRef\.current\s*&&\s*selected\.price/);
+  // Manual order-book selection and direct price edits both activate the guard.
+  assert.match(page, /isPriceManualRef\.current=true/);
 });
 
 test('spot trading clears stale ticker, order book, and candles when live refresh fails', () => {
