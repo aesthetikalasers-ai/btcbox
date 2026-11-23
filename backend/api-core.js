@@ -4427,18 +4427,30 @@ async function handleRequest(event, context) {
       if (!uid || !db.users[uid]) return json({ ok: false, msg: 'Customer conversation not found.' }, 404);
       if (!db.admin_support_read_receipts || typeof db.admin_support_read_receipts !== 'object') db.admin_support_read_receipts = {};
       const receiptKey = String(adminUserId) + ':' + uid;
-      const userMessages = (Array.isArray(db.users[uid].support_messages) ? db.users[uid].support_messages : []).filter(function(m) { return m && m.from === 'user'; });
-      const latestUserMessage = userMessages.reduce(function(latest, m) { const time = String(m.time || ''); return time > latest ? time : latest; }, '');
-      const previousReadAt = String(db.admin_support_read_receipts[receiptKey] || '');
-      if (latestUserMessage && previousReadAt >= latestUserMessage) {
-        return json({ ok: true, duplicate: true, unread: 0, msg: 'Conversation is already marked as read.' });
-      }
-      // Advance only to the newest customer message visible in this read.
-      // Using wall-clock "now" could accidentally mark a concurrently arriving
-      // message as read even though it was not part of the conversation snapshot.
-      const readAt = latestUserMessage || nowStr();
-      db.admin_support_read_receipts[receiptKey] = readAt;
-      await auditAdmin('support_mark_read', uid, JSON.stringify({ latest_user_message_at: latestUserMessage }), adminUserId);
+      const conversation = Array.isArray(db.users[uid].support_messages) ? db.users[uid].support_messages : [];
+      const userMessages = conversation.filter(function(m) { return m && m.from === 'user'; });
+      const latestUserMessage = userMessages.reduce(function(latest, message) {
+        if (!latest) return message;
+        const latestTime = String(latest.time || ''), messageTime = String(message.time || '');
+        if (messageTime > latestTime || (messageTime === latestTime && String(message.id || '') > String(latest.id || ''))) return message;
+        return latest;
+      }, null);
+      const previousReceipt = db.admin_support_read_receipts[receiptKey];
+      const previousReadAt = typeof previousReceipt === 'string' ? previousReceipt : String(previousReceipt && previousReceipt.read_at || '');
+      const previousMessageId = previousReceipt && typeof previousReceipt === 'object' ? String(previousReceipt.message_id || '') : '';
+      const previousIndex = previousMessageId ? conversation.findIndex(function(m) { return m && String(m.id || '') === previousMessageId; }) : -1;
+      const latestIndex = latestUserMessage ? conversation.indexOf(latestUserMessage) : -1;
+      const alreadyRead = latestUserMessage && (
+        previousIndex >= 0 ? previousIndex >= latestIndex :
+        previousMessageId ? String(latestUserMessage.id || '') <= previousMessageId :
+        previousReadAt && previousReadAt >= String(latestUserMessage.time || '')
+      );
+      if (alreadyRead) return json({ ok: true, duplicate: true, unread: 0, msg: 'Conversation is already marked as read.' });
+      const readReceipt = latestUserMessage
+        ? { message_id: String(latestUserMessage.id || ''), read_at: String(latestUserMessage.time || '') }
+        : { message_id: previousMessageId, read_at: previousReadAt || nowStr() };
+      db.admin_support_read_receipts[receiptKey] = readReceipt;
+      await auditAdmin('support_mark_read', uid, JSON.stringify({ latest_user_message_at: readReceipt.read_at, message_id: readReceipt.message_id }), adminUserId);
       await saveDB(db);
       const auditFlush = await flushAdminAuditOutbox();
       return json({ ok: true, duplicate: false, unread: 0, audit_sync_pending: auditFlush.pending, msg: 'Conversation marked as read.' });
@@ -4454,11 +4466,19 @@ async function handleRequest(event, context) {
         const uid = String(u.uid || '');
         const conversation = Array.isArray(u.support_messages) ? u.support_messages : [];
         const receiptKey = String(adminUserId) + ':' + uid;
-        const lastReadAt = String(readReceipts[receiptKey] || '');
+        const receipt = readReceipts[receiptKey];
+        const lastReadAt = typeof receipt === 'string' ? receipt : String(receipt && receipt.read_at || '');
+        const lastReadMessageId = receipt && typeof receipt === 'object' ? String(receipt.message_id || '') : '';
+        const readCursorIndex = lastReadMessageId
+          ? conversation.findIndex(function(m) { return m && String(m.id || '') === lastReadMessageId; })
+          : -1;
         // Count unread customer messages across the full retained conversation,
-        // not only the window returned to the inbox.
-        const unreadCount = conversation.filter(function(m) {
-          return m && m.from === 'user' && (!lastReadAt || String(m.time || '') > lastReadAt);
+        // using the exact message cursor so same-second arrivals stay unread.
+        const unreadCount = conversation.filter(function(m, index) {
+          if (!m || m.from !== 'user') return false;
+          if (readCursorIndex >= 0) return index > readCursorIndex;
+          if (lastReadMessageId) return String(m.id || '') > lastReadMessageId;
+          return !lastReadAt || String(m.time || '') > lastReadAt;
         }).length;
         // Bound each customer's response independently. A busy customer's
         // history must never consume the shared response window and hide other
