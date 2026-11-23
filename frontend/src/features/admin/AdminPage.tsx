@@ -146,6 +146,9 @@ export function AdminPage() {
   const [searchInput, setSearchInput] = useState("");
   const [userSearchBusy, setUserSearchBusy] = useState(false);
   const [selectedUser, setSelectedUser] = useState<AdminUserRecord | null>(null);
+  const [selectedUserAddresses, setSelectedUserAddresses] = useState<AdminPayoutAddress[]>([]);
+  const [selectedUserSupport, setSelectedUserSupport] = useState<Array<Record<string, unknown>>>([]);
+  const [profileRelatedLoading, setProfileRelatedLoading] = useState(false);
   const [creditAmount, setCreditAmount] = useState<Record<string, string>>({});
   const [creditReference, setCreditReference] = useState<Record<string, string>>({});
   const [creditNote, setCreditNote] = useState<Record<string, string>>({});
@@ -543,16 +546,31 @@ export function AdminPage() {
     // A failed user-detail read must never leave another user's balances or
     // manual-credit controls on screen as if they belonged to the new selection.
     setSelectedUser(null);
+    setSelectedUserAddresses([]);
+    setSelectedUserSupport([]);
+    const canReadAddresses = hasPermission("payout_addresses.read_sensitive");
+    const canReadSupport = hasPermission("support.read");
+    setProfileRelatedLoading(canReadAddresses || canReadSupport);
     try {
-      const result = await getAdminUser(token, uid);
-      if (requestId === userDetailRequestRef.current) setSelectedUser(result.user);
-
+      const [result, addressResult, supportResult] = await Promise.all([
+        getAdminUser(token, uid),
+        canReadAddresses ? getAdminAddresses(token).catch(() => null) : Promise.resolve(null),
+        canReadSupport ? getAdminSupportMessages(token).catch(() => null) : Promise.resolve(null),
+      ]);
+      if (requestId === userDetailRequestRef.current) {
+        setSelectedUser(result.user);
+        setSelectedUserAddresses((addressResult?.addresses || []).filter(item => item.uid === uid));
+        setSelectedUserSupport(((supportResult?.messages || []) as unknown as Array<Record<string, unknown>>).filter(message => String(message.uid || message.user_id || "") === uid));
+      }
     } catch (reason) {
       if (requestId === userDetailRequestRef.current) {
         setError(reason instanceof Error ? reason.message : "User account could not be loaded.");
       }
     } finally {
-      if (requestId === userDetailRequestRef.current) setBusy(false);
+      if (requestId === userDetailRequestRef.current) {
+        setBusy(false);
+        setProfileRelatedLoading(false);
+      }
     }
   };
 
@@ -1425,6 +1443,19 @@ export function AdminPage() {
           </div>
         </>}
       </CardContent></Card>
+      {hasPermission("payout_addresses.read_sensitive") ? <Card><CardHeader><CardTitle>{adminText("This user's saved addresses and bank cards")}</CardTitle><CardDescription>{adminText("Only records linked to the selected UID are shown here. Sensitive details remain permission-protected.")}</CardDescription></CardHeader><CardContent className="space-y-3">
+        {profileRelatedLoading ? <p className="text-sm text-brand-text-muted">{adminText("Loading linked records…")}</p> : null}
+        {selectedUserAddresses.map(item => <div key={item.id} className="rounded-xl border border-brand-border p-3"><div className="flex flex-wrap items-start justify-between gap-2"><div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><Badge variant="outline">{item.type === "bank" ? adminText("Bank card") : adminText("Crypto address")}</Badge><span className="text-xs text-brand-text-muted">{formatDate(item.created_at)}</span></div>{item.type === "bank" ? <><p className="mt-2 text-sm font-semibold">{item.bank_name} · {item.account_holder}</p><p className="mt-1 break-all font-mono text-xs">{item.iban ? "IBAN " + item.iban : "Account " + (item.account_number || "—")}</p><p className="mt-1 break-words text-xs text-brand-text-muted">{[item.country,item.routing_number ? "Routing " + item.routing_number : "",item.swift ? "SWIFT " + item.swift : "",item.bank_address].filter(Boolean).join(" · ")}</p></> : <><p className="mt-2 text-sm font-semibold">{item.coin} · {item.network}</p><p className="mt-1 break-all font-mono text-xs">{item.address}</p></>}</div><div className="flex shrink-0 gap-2"><Button size="sm" variant="outline" disabled={busy || item.type !== "bank" || !hasPermission("payout_addresses.manage")} onClick={() => beginPayoutAddressEdit(item)}>{adminText("Edit")}</Button><Button size="sm" variant="destructive" disabled={busy || !hasPermission("payout_addresses.manage")} onClick={() => setPendingDeletePayoutAddress(item)}>{adminText("Delete")}</Button></div></div></div>)}
+        {!profileRelatedLoading && selectedUserAddresses.length === 0 ? <p className="rounded-lg border border-dashed border-brand-border p-5 text-center text-sm text-brand-text-muted">{adminText("No saved addresses or bank cards for this user.")}</p> : null}
+      </CardContent></Card> : null}
+      {hasPermission("support.read") ? <Card><CardHeader><div className="flex flex-wrap items-center justify-between gap-2"><div><CardTitle>{adminText("This user's customer service conversation")}</CardTitle><CardDescription>{adminText("Messages below are linked to this UID only. Reply here to keep the conversation attached to the same customer.")}</CardDescription></div>{(() => { const thread = groupSupportThreads(selectedUserSupport)[0]; return thread?.adminUnreadCount ? <Button size="sm" variant="outline" disabled={busy} onClick={() => void markSupportThreadRead(selectedUser!.uid)}>{adminText("Mark read")}</Button> : null; })()}</div></CardHeader><CardContent className="space-y-3">
+        {profileRelatedLoading ? <p className="text-sm text-brand-text-muted">{adminText("Loading linked records…")}</p> : null}
+        {selectedUserSupport.map((message,index) => <div key={asText(message.id) || index} className={message.from === "admin" ? "ml-5 rounded-lg bg-brand-accent/10 p-3" : "mr-5 rounded-lg bg-brand-surface-2 p-3"}><div className="flex items-center justify-between gap-2"><Badge variant={message.from === "admin" ? "outline" : "secondary"}>{message.from === "admin" ? adminText("Administrator") : adminText("Customer")}</Badge><span className="text-[11px] text-brand-text-muted">{formatDate(message.time)}</span></div><p className="mt-2 whitespace-pre-wrap break-words text-sm">{asText(message.content)}</p></div>)}
+        {!profileRelatedLoading && selectedUserSupport.length === 0 ? <p className="rounded-lg border border-dashed border-brand-border p-5 text-center text-sm text-brand-text-muted">{adminText("No customer service messages for this user yet.")}</p> : null}
+        <textarea value={supportReply[selectedUser.uid] || ""} onChange={event => { const uid = selectedUser.uid; setSupportReply(current => ({...current,[uid]:event.target.value})); try { setSupportReplyRequestIds(current => ({...current,[uid]:window.crypto.randomUUID()})); } catch { setError("Secure support reply request IDs are unavailable in this browser. No reply was sent."); } }} rows={3} maxLength={2000} disabled={!hasPermission("support.reply")} className="w-full rounded-lg border border-brand-border bg-brand-surface-2 p-3 text-sm text-brand-text" placeholder={adminText("Reply to this customer")}/>
+        <Button size="sm" disabled={busy || !hasPermission("support.reply") || !supportReply[selectedUser.uid]?.trim()} onClick={() => void replySupport(selectedUser.uid)}>{adminText("Send reply")}</Button>
+        {!hasPermission("support.reply") ? <p className="text-xs text-brand-warning">{adminText("Requires the support.reply permission.")}</p> : null}
+      </CardContent></Card> : null}
       </div>
     </div> : null}
 
