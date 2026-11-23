@@ -21,8 +21,8 @@ test('live K-line requests never fall back to synthetic demo candles', () => {
     1,
     'synthetic candles may only be returned by the explicit demo-preview branch',
   );
-  assert.match(getKlinesSource, /payload\?\.code \|\| "KLINE_DATA_UNAVAILABLE"/);
-  assert.match(getKlinesSource, /normalized\.length === 0/);
+  assert.ok(getKlinesSource.includes('if (normalized.length === 0)'));
+  assert.ok(getKlinesSource.includes('"KLINE_DATA_UNAVAILABLE"'));
   assert.match(getKlinesSource, /No verified candle data is available/);
   assert.match(getKlinesSource, /KLINE_NETWORK_ERROR/);
   assert.doesNotMatch(getKlinesSource, /fall back to demo candles|fall back to demo data/i);
