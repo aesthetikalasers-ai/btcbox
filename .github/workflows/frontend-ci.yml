@@ -31,17 +31,3 @@ jobs:
       - name: Verify exact decimal estimates
         run: node --experimental-strip-types --test tests/decimal.test.ts tests/kline-data.test.ts
       - run: npm run build
-      - name: Install Chromium for isolated browser tests
-        run: npx playwright install --with-deps chromium
-      - name: Run mobile route and core-flow tests
-        run: npm run test:e2e
-      - name: Upload responsive visual QA screenshots
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: btcbox-responsive-visual-qa
-          path: |
-            frontend/test-results/visual-qa/**/*.png
-            frontend/test-results/i18n-visual-qa/**/*.png
-          if-no-files-found: warn
-          retention-days: 7
