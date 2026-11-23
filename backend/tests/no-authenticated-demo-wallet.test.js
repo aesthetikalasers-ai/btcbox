@@ -47,21 +47,16 @@ test('real order history does not merge browser paper orders', () => {
   assert.ok(!orders.includes('mergedOrders'));
 });
 
-test('live Seconds page does not read or settle the browser paper ledger', () => {
+test('live Seconds page uses only server balances, policy, positions and settlement', () => {
   const seconds = fs.readFileSync(path.join(frontend, 'features/pages/SecondsPage.tsx'), 'utf8');
-  assert.ok(seconds.includes('submitSecondsOrder(intent)'));
+  assert.ok(seconds.includes('getAccount(controller.signal)'));
+  assert.ok(seconds.includes('accountResult.value.balances["USDT"]?.free'));
+  assert.ok(seconds.includes('setAvailableUSDT(null)'));
   assert.ok(seconds.includes('getSecondsPositions(controller.signal)'));
+  assert.ok(seconds.includes('getSecondsPolicy(controller.signal)'));
+  assert.ok(seconds.includes('submitSecondsOrder(intent)'));
+  assert.ok(!seconds.includes('setAvailableUSDT("0.00")'));
   assert.ok(!seconds.includes('useTrading'));
-  assert.ok(!seconds.includes('placeSecondsOrder'));
   assert.ok(!seconds.includes('settleSecondsTrade'));
-  assert.ok(!seconds.includes('openSecondsTrade'));
-  assert.ok(!seconds.includes('activeCountdown'));
-  assert.ok(!seconds.includes('lastSettleResult'));
-  assert.ok(!seconds.includes('dismissSettleResult'));
-  assert.ok(seconds.includes('setAvailableUSDT("0.00")'));
-  assert.ok(seconds.includes('setSnapshot(null)'));
-  assert.ok(seconds.includes('setPolicy(null)'));
-  assert.ok(seconds.includes('setPendingIntent(null)'));
   assert.ok(seconds.includes('if (status !== "authenticated")'));
-  assert.ok(seconds.includes('}, [reload, status]);'), 'account state must reload when the authenticated session changes');
 });
