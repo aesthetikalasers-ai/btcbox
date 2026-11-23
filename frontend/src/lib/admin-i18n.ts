@@ -76,6 +76,7 @@ const messages: Record<string, string> = {
   "Search a user, then select an asset row for staff manual credit.": "搜索用户并选择资产行，进行人工入账。",
   "Search UID or email": "搜索用户编号或邮箱",
   "Search": "搜索",
+  "Searching…": "搜索中…",
   "Email": "邮箱",
   "KYC": "身份认证",
   "Status": "状态",
