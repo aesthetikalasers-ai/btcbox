@@ -433,8 +433,8 @@ test('admin user profile groups only that UID’s bank details, crypto addresses
   assert.ok(select.includes('hasPermission("support.read")'));
   assert.ok(select.includes('.filter(item => item.uid === uid)'));
   assert.ok(select.includes('String(message.uid || message.user_id || "") === uid'));
-  assert.ok(admin.includes('This user\\'s saved addresses and bank cards'));
-  assert.ok(admin.includes('This user\\'s customer service conversation'));
+  assert.ok(admin.includes("This user's saved addresses and bank cards"));
+  assert.ok(admin.includes("This user's customer service conversation"));
   assert.ok(admin.includes('onClick={() => void replySupport(selectedUser.uid)}'));
   assert.ok(admin.includes('onClick={() => void markSupportThreadRead(selectedUser!.uid)}'));
 });
