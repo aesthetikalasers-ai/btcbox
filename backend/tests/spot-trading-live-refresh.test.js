@@ -301,12 +301,16 @@ test('admin overview does not retain an old dashboard snapshot during a failed r
 });
 
 
-test('admin user search refresh clears the previous selected user before loading', () => {
+test('admin user search updates results without clearing the selected user or reloading the tab', () => {
   const admin = fs.readFileSync(path.resolve(__dirname, '../../frontend/src/features/admin/AdminPage.tsx'), 'utf8');
   const users = admin.slice(admin.indexOf('if (tab === "users")'), admin.indexOf('if (tab === "deposits")'));
   assert.ok(users.indexOf('setUsers([])') >= 0);
   assert.ok(users.indexOf('setSelectedUser(null)') > users.indexOf('setUsers([])'));
-  assert.ok(users.indexOf('setSelectedUser(null)') < users.indexOf('await getAdminUsers(token, search)'));
+  assert.ok(users.includes('await getAdminUsers(token, "")'));
+  const search = admin.slice(admin.indexOf('const searchUsers = async'), admin.indexOf('const submitBalanceAdjustment'));
+  assert.ok(search.includes('getAdminUsers(token, normalizedQuery)'));
+  assert.ok(!search.includes('loadTab()'));
+  assert.ok(!search.includes('setSelectedUser(null)'));
 });
 
 
