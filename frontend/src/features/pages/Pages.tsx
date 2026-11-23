@@ -282,8 +282,8 @@ export function SpotTradingPage(){
  const effectiveDepthPrecision:DepthPrecision=pairPrecisionOptions.includes(depthPrecision)?depthPrecision:pairPrecisionOptions[0];
  /**
   * USDT→USD rate behind the "≈ $" hint under the mid price. Polled at a slow
-  * cadence because the peg moves in basis points, and using a guessed fallback rate
-  * keeps the hint readable if the FX endpoint is unavailable.
+  * cadence because the peg moves in basis points. If the FX endpoint is unavailable,
+  * the conversion stays unavailable instead of substituting a guessed rate.
   */
  const [usdtUsd,setUsdtUsd]=useState<number | null>(null);
  useEffect(()=>{
