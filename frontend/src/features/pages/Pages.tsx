@@ -715,11 +715,12 @@ export function SpotTradingPage(){
  // payload — the fills tab never invents a trade or a fee.
  const filledOrders=orderHistory.filter(item=>["filled","completed","partially_filled","partially-filled"].includes(String(item.status||"").toLowerCase()));
  const entryDisabledReason=!tradingStatus?t("Spot execution status is unavailable. Order entry is disabled."):tradingInactive?t("Spot order execution is disabled by server policy. No order can be placed until the matching engine is approved and enabled."):staleSnapshot?t("Market snapshot is older than 90 seconds. Quotes and new order entry are disabled until fresh data arrives."):!spotPairEnabled?t("This spot market is not enabled by BTCBOX operators."):!spotPairRules?t("Market trading rules are unavailable. Order entry is disabled."):orderRuleError?t(orderRuleError):"";
- const pickBookPrice=(nextPrice:string)=>{
-    // Format with the SAME precision the book is displaying, so picking a level
-    // never changes how many decimals the limit input shows ("62576.01" vs "62572").
+ const pickBookPrice=(nextPrice:string, bookSide?:"ask"|"bid")=>{
+    // Match the selected level and side to the same order-entry state on desktop
+    // and mobile: asks populate a buy, bids populate a sell.
     const decimals = DECIMALS_BY_PRECISION[effectiveDepthPrecision];
     setPrice(spotPairRules ? roundDecimalToStep(nextPrice, spotPairRules.price_tick) : Number(nextPrice).toFixed(decimals));
+    if(bookSide)setSide(bookSide==="ask"?"buy":"sell");
     setIsPriceManual(true);
     setOrderSizePercent(0);
   };
