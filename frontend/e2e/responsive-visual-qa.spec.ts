@@ -183,6 +183,16 @@ async function installInteractiveTradeApiMocks(page: Page) {
       bids: [["64999.00", "0.25"], ["64998.00", "0.40"]],
     }),
   }));
+  await page.route("**/api/trading/status**", (route) => route.fulfill({
+    status: 200,
+    contentType: "application/json",
+    body: JSON.stringify({
+      ok: true,
+      spot_order_entry_enabled: true,
+      spot_cancel_enabled: true,
+      supported_order_types: ["limit", "market"],
+    }),
+  }));
 }
 
 async function assertPageAtWidth(
@@ -313,6 +323,12 @@ async function assertPageAtWidth(
     await expect(orderForm).toBeVisible();
     await expect(orderbook).toBeVisible();
     await expect(orders).toBeVisible();
+    const askRows = orderbook.locator('.spot-book-row[data-side="ask"]');
+    const bidRows = orderbook.locator('.spot-book-row[data-side="bid"]');
+    await expect(askRows).toHaveCount(2);
+    await expect(bidRows).toHaveCount(2);
+    await expect(askRows.first()).toHaveAttribute("title", /^65001\\.00 · /);
+    await expect(bidRows.first()).toHaveAttribute("title", /^64999\\.00 · /);
     await expect(page.locator(".spot-mobile-tabs")).toHaveCount(0);
     await expect(page.getByRole("button", { name: "Buy", exact: true }).first()).toBeVisible();
     await expect(page.getByRole("button", { name: "Sell", exact: true }).first()).toBeVisible();
@@ -452,6 +468,11 @@ for (const route of routes) {
     const output = path.resolve(process.cwd(), "test-results/visual-qa");
     fs.mkdirSync(path.join(output, projectName), { recursive: true });
     await installVisualApiMocks(page);
+    // Trade screenshots must use a deterministic live-like market fixture;
+    // empty visual-only market mocks made the order book look broken.
+    if (route.path === "/trade/BTCUSDT") {
+      await installInteractiveTradeApiMocks(page);
+    }
 
     if (isMobileProject) {
       const touchPoints = await page.evaluate(() => navigator.maxTouchPoints);
