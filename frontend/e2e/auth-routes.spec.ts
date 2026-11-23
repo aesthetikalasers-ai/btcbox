@@ -31,18 +31,18 @@ test.beforeEach(async ({ page }) => {
   await page.route("https://btcbox-e2e.invalid/**", (route) => route.abort());
 });
 
-test("login route exposes BTCBOX username, Google and wallet sign-in", async ({ page }) => {
+test("login route exposes BTCBOX username/email, Google and wallet sign-in", async ({ page }) => {
   await page.goto("/login");
 
   await expect(page.getByRole("heading", { name: "Welcome back", exact: true })).toBeVisible();
   await expect(page.getByRole("banner")).toHaveCount(0);
   await expect(page.getByRole("navigation", { name: "Primary navigation" })).toHaveCount(0);
-  await expect(page.getByLabel("Username")).toBeVisible();
+  await expect(page.getByLabel("Username or email")).toBeVisible();
   await expect(page.getByLabel("Password", { exact: true })).toBeVisible();
   await expect(page.getByLabel("Email address")).toHaveCount(0);
   await expect(page.getByLabel("Email password")).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Sign in with email" })).toHaveCount(0);
-  await expect(page.getByRole("button", { name: "Forgot password?" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Forgot password?" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Google" })).toBeDisabled();
   await expect(page.getByText("Google sign-in is temporarily unavailable.")).toBeVisible();
   await page.getByRole("button", { name: "Wallet" }).click();
@@ -51,18 +51,41 @@ test("login route exposes BTCBOX username, Google and wallet sign-in", async ({ 
   await expect(page.getByRole("button", { name: "Connect Solana wallet" })).toBeVisible();
 });
 
-test("login does not expose retired email authentication", async ({ page }) => {
-  const forbiddenRequests: string[] = [];
-  page.on("request", request => {
-    const url = new URL(request.url());
-    if (url.pathname === "/auth/v1/token" || url.pathname === "/api/supabase-login") forbiddenRequests.push(url.pathname);
+test("email and password login remains available through Supabase Auth", async ({ page }) => {
+  const authRequests: string[] = [];
+  await page.route("**/auth/v1/token**", async route => {
+    authRequests.push(route.request().url());
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        access_token: "e2e-email-access-token",
+        token_type: "bearer",
+        expires_in: 3600,
+        refresh_token: "e2e-email-refresh-token",
+        user: {
+          id: "11111111-1111-4111-8111-111111111111",
+          aud: "authenticated",
+          role: "authenticated",
+          email: "email-user@example.invalid",
+          email_confirmed_at: "2026-11-22T00:00:00.000Z",
+          app_metadata: { provider: "email", providers: ["email"] },
+          user_metadata: {},
+          identities: [{ provider: "email" }],
+        },
+      }),
+    });
   });
+  await page.route("**/api/supabase-login", route => route.fulfill({ status: 200, json: { ok: true } }));
+  await page.route("**/api/account", route => route.fulfill({ status: 200, json: authenticatedAccountFixture }));
+
   await page.goto("/login");
-  await expect(page.getByRole("button", { name: "Wallet", exact: true })).toBeVisible();
-  await expect(page.getByLabel("Email address")).toHaveCount(0);
-  await expect(page.getByRole("button", { name: "Forgot password?" })).toHaveCount(0);
-  await expect(page.getByRole("button", { name: "Create account with email" })).toHaveCount(0);
-  expect(forbiddenRequests).toEqual([]);
+  await page.getByLabel("Username or email").fill("email-user@example.invalid");
+  await page.getByLabel("Password", { exact: true }).fill("StrongPassphrase123");
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
+
+  await expect.poll(() => authRequests.length).toBe(1);
+  await expect(page).toHaveURL(/\/home$/);
 });
 
 test("Google sign-in button is shown when the public auth config enables Google", async ({ page }) => {
@@ -191,25 +214,27 @@ test("email registration uses Supabase confirmation and does not bypass BTCBOX p
   expect(accountProvisioningRequests).toEqual([]);
 });
 
-test("login does not expose retired email recovery", async ({ page }) => {
-  const forbiddenRequests: string[] = [];
-  page.on("request", request => {
-    const url = new URL(request.url());
-    if (url.pathname === "/auth/v1/recover" || url.pathname === "/api/supabase-login") forbiddenRequests.push(url.pathname);
+test("email password recovery sends a Supabase reset request", async ({ page }) => {
+  const recoveryRequests: string[] = [];
+  await page.route("**/auth/v1/recover**", async route => {
+    recoveryRequests.push(route.request().url());
+    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({}) });
   });
   await page.goto("/login");
-  await expect(page.getByRole("button", { name: "Wallet", exact: true })).toBeVisible();
-  await expect(page.getByLabel("Email address")).toHaveCount(0);
-  await expect(page.getByRole("button", { name: "Forgot password?" })).toHaveCount(0);
-  await expect(page.getByRole("button", { name: "Create account with email" })).toHaveCount(0);
-  expect(forbiddenRequests).toEqual([]);
+  await page.getByRole("button", { name: "Forgot password?" }).click();
+  await page.getByLabel("Email", { exact: true }).fill("email-user@example.invalid");
+  await page.getByRole("button", { name: "Send reset link" }).click();
+  await expect(page.getByRole("status")).toContainText("If an account exists for this email");
+  await expect.poll(() => recoveryRequests.length).toBe(1);
 });
 
-test("unauthenticated customer is redirected from a protected route", async ({ page }) => {
+test("unauthenticated customer sees an in-place sign-in gate on protected routes", async ({ page }) => {
   await page.goto("/withdraw");
 
-  await expect(page).toHaveURL(/\/login$/);
-  await expect(page.getByRole("heading", { name: "Welcome back", exact: true })).toBeVisible();
+  await expect(page).toHaveURL(/\/withdraw$/);
+  await expect(page.getByRole("heading", { name: "Sign in to your account" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Sign in", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Create account", exact: true })).toBeVisible();
 });
 
 test("administrator route requires a verified administrator identity", async ({ page }) => {
@@ -229,27 +254,31 @@ test("administrator route requires a verified administrator identity", async ({ 
   expect(adminRequests).toEqual([]);
 });
 
-test("assets, orders and KYC remain behind the authenticated account gate", async ({ page }) => {
+test("assets, orders and KYC remain behind the in-place authenticated account gate", async ({ page }) => {
   for (const path of ["/assets", "/orders", "/kyc"]) {
     await page.goto(path);
-    await expect(page).toHaveURL(/\/login$/);
-    await expect(page.getByRole("heading", { name: "Welcome back", exact: true })).toBeVisible();
+    await expect(page).toHaveURL(new RegExp(path.replace("/", "\\/") + "$"));
+    await expect(page.getByRole("heading", { name: "Sign in to your account" })).toBeVisible();
   }
 });
 
-test("signed-out customer routes never issue financial or account mutations", async ({ page }) => {
+test("signed-out financial routes keep in-place gates and public previews issue no mutations", async ({ page }) => {
   const mutationRequests: string[] = [];
-  page.on("request", (request) => {
+  page.on("request", request => {
     const url = new URL(request.url());
     if (url.pathname.startsWith("/api/") && ["POST", "PUT", "PATCH", "DELETE"].includes(request.method())) {
       mutationRequests.push(request.method() + " " + url.pathname);
     }
   });
 
-  for (const path of ["/deposit", "/withdraw", "/assets", "/orders", "/kyc", "/seconds", "/settings", "/earn"]) {
+  for (const path of ["/deposit", "/withdraw", "/assets", "/orders", "/kyc", "/settings"]) {
     await page.goto(path);
-    await expect(page).toHaveURL(/\/login$/);
-    await expect(page.getByRole("heading", { name: "Welcome back", exact: true })).toBeVisible();
+    await expect(page).toHaveURL(new RegExp(path.replace("/", "\\/") + "$"));
+    await expect(page.getByRole("heading", { name: "Sign in to your account" })).toBeVisible();
+  }
+  for (const path of ["/seconds", "/earn"]) {
+    await page.goto(path);
+    await expect(page).toHaveURL(new RegExp(path.replace("/", "\\/") + "$"));
   }
 
   expect(mutationRequests).toEqual([]);
