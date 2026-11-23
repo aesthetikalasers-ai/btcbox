@@ -6,7 +6,7 @@ const path = require('node:path');
 
 const api = fs.readFileSync(path.resolve(__dirname, '../api-core.js'), 'utf8');
 
-test('customer conversation reads and unread count are scoped to the authenticated user record', () => {
+test('customer conversation reads and unread count use the per-user message cursor RPC', () => {
   const readStart = api.indexOf("if (path === 'support/messages' && method === 'GET')");
   const readEnd = api.indexOf("// ---------- GET /api/support/faq", readStart);
   const unreadStart = api.indexOf("if (path === 'chat/unread' && method === 'GET')");
@@ -14,10 +14,13 @@ test('customer conversation reads and unread count are scoped to the authenticat
   assert.ok(readStart >= 0 && readEnd > readStart && unreadStart >= 0 && unreadEnd > unreadStart);
   const readRoute = api.slice(readStart, readEnd);
   const unreadRoute = api.slice(unreadStart, unreadEnd);
-  assert.ok(readRoute.includes("user.last_read_chat_at = nowStr()"));
-  assert.ok(readRoute.includes("user.support_messages.slice(-50)"));
-  assert.ok(unreadRoute.includes("user.support_messages"));
-  assert.ok(unreadRoute.includes("m.from === 'admin' && m.time > lastRead"));
+  assert.ok(readRoute.includes("await markSupportConversationRead(user.uid, lastVisibleAdminMessage)"));
+  assert.ok(unreadRoute.includes("await getSupportConversationReadState(user.uid)"));
+  assert.ok(unreadRoute.includes("cursorIndex >= 0"));
+  assert.ok(unreadRoute.includes("index > cursorIndex"));
+  assert.ok(api.includes("btcbox_mark_support_read_v2"));
+  assert.ok(api.includes("btcbox_get_support_read_v2"));
+  assert.ok(api.includes("supportReadCursorRpc"));
 });
 
 test('administrator replies are UID-scoped, idempotent, and audited before persistence', () => {
