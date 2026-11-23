@@ -192,7 +192,7 @@ export function AuthPage({ mode, redirectTo, embedded = false, onModeChange }: {
             {(status === "two-factor" || registering) && <CardDescription className="max-w-[380px] text-sm leading-6 text-brand-text-muted">
               {status === "two-factor"
                 ? t("Enter your authenticator code to finish signing in.")
-                : t("Create an account with Google or a supported wallet.")}
+                : t("Create an account with email, Google or a supported wallet.")}
             </CardDescription>}
             {status !== "two-factor" && <div data-testid="auth-mode-switcher" className="grid grid-cols-2 rounded-xl border border-brand-border bg-brand-surface-2 p-1 text-sm font-semibold">
               <button type="button" onClick={() => switchAuthMode("login")} className={`flex min-h-10 items-center justify-center rounded-lg transition-colors ${!registering ? "bg-brand-accent text-[#05201A] shadow-sm" : "text-brand-text-secondary hover:text-brand-text"}`}>{t("Sign in")}</button>
