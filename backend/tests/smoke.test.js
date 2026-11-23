@@ -12,7 +12,13 @@ const root = path.resolve(__dirname, '..');
 const read = (p) => fs.readFileSync(path.join(root, p), 'utf8');
 
 test('build-site.js publishes the React root and consent assets without legacy SPA entries', () => {
-  execFileSync('node', [path.join(root, 'scripts', 'build-site.js')], { cwd: root, stdio: 'ignore' });
+  const frontendRoot = path.resolve(root, '..', 'frontend');
+  const frontendDist = path.join(frontendRoot, 'dist');
+  if (!fs.existsSync(path.join(frontendDist, 'index.html')) || !fs.existsSync(path.join(frontendDist, 'frontend-assets'))) {
+    const npmCmd = process.platform === 'win32' ? 'npm.cmd' : 'npm';
+    execFileSync(npmCmd, ['--prefix', frontendRoot, 'run', 'build'], { cwd: root, encoding: 'utf8', shell: process.platform === 'win32' });
+  }
+  execFileSync(process.execPath, [path.join(root, 'scripts', 'build-site.js')], { cwd: root, encoding: 'utf8' });
   assert.ok(fs.existsSync(path.join(root, 'dist', 'index.html')));
   assert.ok(fs.existsSync(path.join(root, 'dist', 'index.html')));
   assert.ok(fs.readFileSync(path.join(root, 'dist', 'index.html'), 'utf8').includes('/frontend-assets/'));
