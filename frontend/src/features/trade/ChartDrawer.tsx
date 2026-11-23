@@ -157,7 +157,7 @@ export function ChartDrawer({ symbol = "BTC/USDT", marketType = "perpetual", ope
     if (seriesRef.current) { chart.removeSeries(seriesRef.current); seriesRef.current = null; }
     if (!candles.length) return;
     const data = candles
-      .map((c) => ({ time: Math.floor(c.time / 1000) as UTCTimestamp, open: c.open, high: c.high, low: c.low, close: c.close }))
+      .map((c) => ({ time: Math.floor(c.time) as UTCTimestamp, open: c.open, high: c.high, low: c.low, close: c.close }))
       .sort((a, b) => Number(a.time) - Number(b.time));
     if (timeframe === "Line") {
       const series = chart.addSeries(AreaSeries, {
