@@ -41,7 +41,7 @@ test("username login keeps the authenticator challenge visible and completes sig
   await page.route("https://btcbox-e2e.invalid/**", route => route.abort());
 
   await page.goto("/login");
-  await page.getByLabel("Username").fill("qa_user");
+  await page.getByLabel("Username or email").fill("qa_user");
   await page.getByLabel("Password", { exact: true }).fill("a-secure-test-password");
   await page.getByRole("button", { name: "Sign in with username" }).click();
 
