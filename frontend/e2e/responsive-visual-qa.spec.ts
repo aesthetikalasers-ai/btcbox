@@ -2,18 +2,17 @@ import { expect, test, type Page } from "@playwright/test";
 import fs from "node:fs";
 import path from "node:path";
 
-const fixedWidths = [375, 390, 430, 768, 1366, 1440, 1920];
+const fixedWidths = [768, 1024, 1279, 1280, 1366, 1440, 1920];
 const mobileWidths = [320, 360, 375, 390, 430];
 const continuityWidths = [
-  320, 360, 375, 390, 414, 430, 480, 540, 600, 640, 680, 720,
-  768, 820, 860, 899, 900, 960, 1024, 1100, 1180, 1280, 1366,
+  768, 820, 860, 899, 900, 960, 1024, 1100, 1180, 1279, 1280, 1366,
   1440, 1536, 1680, 1920,
 ];
 const routes = [
   { path: "/login", heading: "Welcome back" },
   { path: "/register", heading: "Create your BTCBOX account" },
-  { path: "/home", heading: "Market overview" },
-  { path: "/markets", heading: "Market overview" },
+  { path: "/home", heading: "Digital asset exchange" },
+  { path: "/markets", heading: "Markets" },
   { path: "/trade/BTCUSDT", heading: "BTCUSDT" },
   { path: "/trade-hub", heading: "Choose your trading mode" },
   { path: "/assets", heading: "Assets" },
@@ -133,6 +132,59 @@ async function installVisualApiMocks(page: Page) {
   await page.route("https://btcbox-e2e.invalid/**", (route) => route.abort());
 }
 
+async function installInteractiveTradeApiMocks(page: Page) {
+  const now = Math.floor(Date.now() / 1000);
+  const bases = [
+    { base_asset: "BTC", quote_asset: "USDT", enabled: true },
+    { base_asset: "ETH", quote_asset: "USDT", enabled: true },
+    { base_asset: "SOL", quote_asset: "USDT", enabled: true },
+  ];
+  const markets = [
+    { sym: "BTC", price: 65000, chg: 1.2, high: 66000, low: 64000, vol: "100", source: "e2e" },
+    { sym: "ETH", price: 3200, chg: 0.8, high: 3300, low: 3100, vol: "200", source: "e2e" },
+    { sym: "SOL", price: 150, chg: -0.4, high: 155, low: 145, vol: "300", source: "e2e" },
+  ];
+  const pairRules = bases.map((pair) => ({
+    ...pair,
+    price_tick: "0.01",
+    quantity_step: "0.000001",
+    min_quantity: "0.000001",
+    min_notional: "1",
+    min_limit_price: null,
+    max_limit_price: null,
+  }));
+  await page.route("**/api/market/pairs", (route) => route.fulfill({
+    status: 200,
+    contentType: "application/json",
+    body: JSON.stringify({ ok: true, markets: pairRules, source: "e2e" }),
+  }));
+  await page.route("**/api/market", (route) => route.fulfill({
+    status: 200,
+    contentType: "application/json",
+    body: JSON.stringify({
+      ok: true,
+      markets,
+      data: Object.fromEntries(markets.map((market) => [market.sym, {
+        ts: now,
+        providerTs: now,
+        source: "e2e",
+      }])),
+    }),
+  }));
+  await page.route(/\/api\/depth(?:\?.*)?$/, (route) => route.fulfill({
+    status: 200,
+    contentType: "application/json",
+    body: JSON.stringify({
+      ok: true,
+      source: "e2e",
+      snapshotTs: now,
+      providerTs: now,
+      asks: [["65001.00", "0.20"], ["65002.00", "0.35"]],
+      bids: [["64999.00", "0.25"], ["64998.00", "0.40"]],
+    }),
+  }));
+}
+
 async function assertPageAtWidth(
   page: Page,
   route: (typeof routes)[number],
@@ -144,7 +196,27 @@ async function assertPageAtWidth(
   await page.goto(route.path, { waitUntil: "domcontentloaded" });
   await expect(page.locator("#root")).not.toBeEmpty();
   expect(new URL(page.url()).pathname).toBe(route.path);
-  await expect(page.getByRole("heading", { name: route.heading, exact: true })).toBeVisible({ timeout: 15000 });
+  if (route.path === "/trade/BTCUSDT" && width >= 1280) {
+    // The locked desktop terminal intentionally hides the duplicate page H1;
+    // the ticker header's market selector is its visible pair identifier.
+    await expect(page.locator(".term-top-pair")).toBeVisible({ timeout: 15000 });
+  } else {
+    await expect(page.getByRole("heading", { name: route.heading, exact: true })).toBeVisible({ timeout: 15000 });
+  }
+
+  if (["/home", "/markets", "/trade/BTCUSDT", "/assets", "/me"].includes(route.path)) {
+    const mobileNavigation = page.locator(".bf-bottom-nav");
+    const desktopProducts = page.locator('header nav[aria-label="Trade products"]');
+    const desktopAssets = page.locator('header:has(nav[aria-label="Trade products"]) a[href="/assets"][aria-label="Assets"]');
+    if (width < 768) {
+      await expect(mobileNavigation, "Phone pages must use the five-item bottom navigation.").toBeVisible();
+      await expect(desktopProducts, "Desktop product navigation must stay hidden on phones.").toBeHidden();
+    } else {
+      await expect(mobileNavigation, "The bottom navigation must not duplicate desktop navigation.").toBeHidden();
+      await expect(desktopProducts, "Desktop product navigation must appear from 768px.").toBeVisible();
+      await expect(desktopAssets.first(), "Assets must remain directly reachable from the desktop header.").toBeVisible();
+    }
+  }
 
   if (!["/login", "/register"].includes(route.path) && width <= 480) {
     await expect(
@@ -157,29 +229,157 @@ async function assertPageAtWidth(
       exact: true,
     })).toHaveCount(0);
   }
-  if (route.path === "/home" || route.path === "/markets") {
-    await expect(page.getByText("No markets enabled", { exact: true })).toBeVisible();
+  if (route.path === "/home") {
+    // The market feed can be live, unavailable, or preview-backed; the quick
+    // access block is stable and is the home layout region this check targets.
+    await expect(page.getByRole("region", { name: "Quick access" })).toBeVisible();
+  }
+  if (route.path === "/markets") {
+    await expect(page.getByText("No market pairs are currently available.", { exact: true })).toBeVisible();
   }
   if (route.path === "/trade-hub") {
     await expect(page.getByTestId("spot-availability")).toHaveText("Unavailable");
   }
-  if (route.path === "/trade/BTCUSDT" && width < 768) {
-    // Full-width phone panels are switched deliberately; never squeeze the
-    // order form and depth ladder into narrow side-by-side columns.
-    const orderbook = page.locator(".exchange-workspace > .exchange-depth");
-    const orderForm = page.locator(".exchange-workspace > .exchange-entry");
-    const tabs = page.locator(".spot-mobile-tabs");
-    await expect(tabs).toBeVisible();
+  if (route.path === "/trade/BTCUSDT" && width >= 1280) {
+    // Wide desktop uses the dedicated terminal: market rail + chart/orders +
+    // order book + order entry. The three trading work areas must all remain
+    // independently visible and ordered left-to-right.
+    const terminal = page.locator(".spot-terminal--pro");
+    const layout = terminal.locator(".term-layout");
+    const chartColumn = layout.locator(":scope > .term-col--main");
+    const bookColumn = layout.locator(":scope > .term-col--book");
+    const entryColumn = layout.locator(":scope > .term-col--entry");
+    await expect(terminal).toBeVisible();
+    await expect(chartColumn).toBeVisible();
+    await expect(bookColumn).toBeVisible();
+    await expect(entryColumn).toBeVisible();
+    const [layoutBox, chartBox, bookBox, entryBox, columnCount] = await Promise.all([
+      layout.boundingBox(),
+      chartColumn.boundingBox(),
+      bookColumn.boundingBox(),
+      entryColumn.boundingBox(),
+      layout.evaluate((element) => getComputedStyle(element).gridTemplateColumns.trim().split(/\s+/).length),
+    ]);
+    expect(layoutBox, "Desktop terminal grid must have a layout box.").not.toBeNull();
+    expect(chartBox, "Desktop chart column must have a layout box.").not.toBeNull();
+    expect(bookBox, "Desktop order book column must have a layout box.").not.toBeNull();
+    expect(entryBox, "Desktop order entry column must have a layout box.").not.toBeNull();
+    expect(columnCount, "Desktop terminal must retain its market rail and three trading areas.").toBe(4);
+    expect(chartBox!.x).toBeLessThan(bookBox!.x);
+    expect(bookBox!.x).toBeLessThan(entryBox!.x);
+    expect(chartBox!.width).toBeGreaterThan(300);
+    expect(bookBox!.width).toBeGreaterThanOrEqual(240);
+    expect(entryBox!.width).toBeGreaterThanOrEqual(280);
+  }
+
+  if (route.path === "/trade/BTCUSDT" && width >= 768 && width < 1280) {
+    // Tablet compact mode moves the chart to its drawer; no empty chart track
+    // may remain ahead of the visible order book and order-entry columns.
+    const workspace = page.locator(".exchange-workspace");
+    const orderbook = workspace.locator(":scope > .exchange-depth");
+    const orderForm = workspace.locator(":scope > .exchange-entry");
+    const orders = workspace.locator(":scope > .exchange-orders");
+    await expect(orderbook).toBeVisible();
     await expect(orderForm).toBeVisible();
-    await expect(orderbook).toBeHidden();
+    await expect(orders).toBeVisible();
+    const [bookBox, formBox, ordersBox, columns] = await Promise.all([
+      orderbook.boundingBox(),
+      orderForm.boundingBox(),
+      orders.boundingBox(),
+      workspace.evaluate((element) => {
+        const template = getComputedStyle(element).gridTemplateColumns.trim();
+        return template.match(/minmax\([^)]*\)|fit-content\([^)]*\)|\S+/g)?.length ?? 0;
+      }),
+    ]);
+    expect(columns, "Tablet compact workspace must use two columns, not reserve an empty chart track.").toBe(2);
+    expect(bookBox).not.toBeNull();
+    expect(formBox).not.toBeNull();
+    expect(ordersBox).not.toBeNull();
+    const bookShare = bookBox!.width / (bookBox!.width + formBox!.width);
+    expect(Math.abs(bookShare - 0.55), "Rendered tablet columns must measure 55:45 (order book:order entry).").toBeLessThanOrEqual(0.015);
+    expect(bookBox!.x + bookBox!.width).toBeLessThanOrEqual(formBox!.x + 2);
+    expect(Math.abs(bookBox!.y - formBox!.y)).toBeLessThanOrEqual(8);
+    expect(ordersBox!.y).toBeGreaterThanOrEqual(Math.max(bookBox!.y + bookBox!.height, formBox!.y + formBox!.height) - 1);
+    await expect(page.locator("#trade-chart-open")).toBeVisible();
+  }
+
+  if (route.path === "/trade/BTCUSDT" && width < 768) {
+    // Phone trading deliberately keeps the order form and order book visible
+    // together. The orders panel spans the full row below both columns.
+    const workspace = page.locator(".exchange-workspace");
+    const orderbook = workspace.locator(":scope > .exchange-depth");
+    const orderForm = workspace.locator(":scope > .exchange-entry");
+    const orders = workspace.locator(":scope > .exchange-orders");
+    await expect(orderForm).toBeVisible();
+    await expect(orderbook).toBeVisible();
+    await expect(orders).toBeVisible();
+    await expect(page.locator(".spot-mobile-tabs")).toHaveCount(0);
     await expect(page.getByRole("button", { name: "Buy", exact: true }).first()).toBeVisible();
     await expect(page.getByRole("button", { name: "Sell", exact: true }).first()).toBeVisible();
-    await tabs.getByRole("tab", { name: "Order book", exact: true }).click();
-    await expect(orderbook).toBeVisible();
-    await expect(orderForm).toBeHidden();
-    const bookBox = await orderbook.boundingBox();
-    expect(bookBox, "Phone orderbook must have a layout box.").not.toBeNull();
-    expect(bookBox!.width, "Phone orderbook must use the available width.").toBeGreaterThan(width - 24);
+
+    const sideButtons = orderForm.locator(".spot-entry-head .spot-side button");
+    await expect(sideButtons).toHaveCount(2);
+    for (const button of await sideButtons.all()) {
+      const buttonBox = await button.boundingBox();
+      expect(buttonBox?.height ?? 0, "Phone Buy/Sell controls must meet a 44px touch target.").toBeGreaterThanOrEqual(44);
+    }
+    const formControlFontSizes = await orderForm.locator(".spot-order-type select, input").evaluateAll(
+      (elements) => elements.map((element) => Number.parseFloat(getComputedStyle(element).fontSize)),
+    );
+    expect(
+      formControlFontSizes.length ? Math.min(...formControlFontSizes) : 0,
+      "Phone order inputs and selects must use at least 16px text to avoid iOS focus zoom.",
+    ).toBeGreaterThanOrEqual(16);
+
+    const [workspaceBox, formBox, bookBox, ordersBox] = await Promise.all([
+      workspace.boundingBox(),
+      orderForm.boundingBox(),
+      orderbook.boundingBox(),
+      orders.boundingBox(),
+    ]);
+    expect(workspaceBox, "Phone trading workspace must have a layout box.").not.toBeNull();
+    expect(formBox, "Phone order entry must have a layout box.").not.toBeNull();
+    expect(bookBox, "Phone order book must have a layout box.").not.toBeNull();
+    expect(ordersBox, "Phone orders panel must have a layout box.").not.toBeNull();
+    const [bookToolbarBox, precisionBox, precisionSelectBox, viewBox] = await Promise.all([
+      orderbook.locator(".spot-book-toolbar--top").boundingBox(),
+      orderbook.locator(".spot-book-toolbar--top label").boundingBox(),
+      orderbook.locator(".spot-book-toolbar--top select").boundingBox(),
+      orderbook.locator(".spot-book-toolbar--top .spot-book-view").boundingBox(),
+    ]);
+    expect(bookToolbarBox).not.toBeNull();
+    expect(precisionBox).not.toBeNull();
+    expect(precisionSelectBox).not.toBeNull();
+    expect(viewBox).not.toBeNull();
+    expect(precisionSelectBox!.width, "Phone depth precision must remain readable.").toBeGreaterThanOrEqual(52);
+    expect(precisionBox!.x).toBeGreaterThanOrEqual(bookToolbarBox!.x - 1);
+    expect(viewBox!.x + viewBox!.width).toBeLessThanOrEqual(bookToolbarBox!.x + bookToolbarBox!.width + 1);
+    expect(precisionBox!.x + precisionBox!.width).toBeLessThanOrEqual(viewBox!.x + 1);
+    expect(formBox!.width, "Phone order entry must retain usable width.").toBeGreaterThan(120);
+    expect(bookBox!.width, "Phone order book must retain usable width.").toBeGreaterThan(100);
+    const formShare = formBox!.width / (formBox!.width + bookBox!.width);
+    expect(Math.abs(formShare - 0.55), "Rendered phone columns must measure 55:45 (order entry:order book).").toBeLessThanOrEqual(0.015);
+    expect(formBox!.x + formBox!.width, "Order entry must occupy the left column.").toBeLessThanOrEqual(bookBox!.x + 2);
+    expect(Math.abs(formBox!.y - bookBox!.y), "Order entry and order book must share the same row.").toBeLessThanOrEqual(8);
+    expect(
+      ordersBox!.y,
+      "Open orders must sit below both trading columns.",
+    ).toBeGreaterThanOrEqual(Math.max(formBox!.y + formBox!.height, bookBox!.y + bookBox!.height) - 1);
+    expect(
+      ordersBox!.width,
+      "Open orders must span the trading workspace.",
+    ).toBeGreaterThan(workspaceBox!.width - 16);
+
+    const buySide = sideButtons.nth(0);
+    const sellSide = sideButtons.nth(1);
+    await buySide.click();
+    await expect(buySide).toHaveAttribute("aria-pressed", "true");
+    await expect(sellSide).toHaveAttribute("aria-pressed", "false");
+    await expect(orderForm.locator(".spot-submit")).toContainText("Buy BTC");
+    await sellSide.click();
+    await expect(sellSide).toHaveAttribute("aria-pressed", "true");
+    await expect(buySide).toHaveAttribute("aria-pressed", "false");
+    await expect(orderForm.locator(".spot-submit")).toContainText("Sell BTC");
 
     const chartTrigger = page.locator("#trade-chart-open");
     await expect(chartTrigger, "Phone spot trading must expose the chart drawer trigger.").toBeVisible();
@@ -187,12 +387,15 @@ async function assertPageAtWidth(
     const chartRegion = page.getByRole("region", { name: "Price chart" });
     await expect(chartRegion, "The mobile K-line drawer must be mounted.").toBeVisible();
     const drawerPanel = page.locator(".trade-drawer-panel");
-    const expandedBox = await drawerPanel.boundingBox();
-    expect(expandedBox, "The K-line drawer must expand after the trigger is pressed.").not.toBeNull();
-    expect(expandedBox!.height, "The K-line drawer must expand beyond its collapsed bar.").toBeGreaterThan(44);
+    await expect.poll(
+      async () => (await drawerPanel.boundingBox())?.height ?? 0,
+      { message: "The K-line drawer must expand after the trigger is pressed.", timeout: 5000 },
+    ).toBeGreaterThan(44);
     await chartRegion.getByRole("button", { name: "Collapse chart" }).first().click();
-    const collapsedBox = await drawerPanel.boundingBox();
-    expect(collapsedBox!.height, "The K-line drawer must collapse cleanly.").toBeLessThanOrEqual(50);
+    await expect.poll(
+      async () => (await drawerPanel.boundingBox())?.height ?? Number.POSITIVE_INFINITY,
+      { message: "The K-line drawer must collapse cleanly.", timeout: 5000 },
+    ).toBeLessThanOrEqual(50);
   }
 
   await page.evaluate(() => document.fonts.ready);
@@ -261,11 +464,88 @@ for (const route of routes) {
   });
 }
 
+test("trade interaction QA mobile spot market selection and order-book handoff", async ({ page }) => {
+  test.skip(test.info().project.name !== "mobile-chromium", "Trade interaction QA runs in the mobile touch project.");
+  await page.setViewportSize({ width: 390, height: 844 });
+  await installVisualApiMocks(page);
+  await installInteractiveTradeApiMocks(page);
+  await page.goto("/trade/BTCUSDT", { waitUntil: "domcontentloaded" });
+
+  const askRow = page.locator('.exchange-depth .spot-book-row[data-side="ask"]').first();
+  const bidRow = page.locator('.exchange-depth .spot-book-row[data-side="bid"]').first();
+  await expect(askRow).toBeVisible();
+  await expect(bidRow).toBeVisible();
+  const priceInput = page.getByRole("textbox", { name: "Limit price (USDT)" });
+  const buySide = page.locator(".spot-entry-head .spot-side button").nth(0);
+  const sellSide = page.locator(".spot-entry-head .spot-side button").nth(1);
+
+  const askPrice = await askRow.locator("span").first().getAttribute("title");
+  const selectedAskPrice = askPrice ?? "";
+  expect(selectedAskPrice).toMatch(/^6500[12]\.00$/);
+  await askRow.click();
+  await expect(priceInput).toHaveValue(selectedAskPrice);
+  await expect(buySide).toHaveAttribute("aria-pressed", "true");
+  await expect(sellSide).toHaveAttribute("aria-pressed", "false");
+
+  const bidPrice = await bidRow.locator("span").first().getAttribute("title");
+  const selectedBidPrice = bidPrice ?? "";
+  expect(selectedBidPrice).toMatch(/^6499[89]\.00$/);
+  await bidRow.click();
+  await expect(priceInput).toHaveValue(selectedBidPrice);
+  await expect(sellSide).toHaveAttribute("aria-pressed", "true");
+  await expect(buySide).toHaveAttribute("aria-pressed", "false");
+
+  await page.getByRole("button", { name: "Select market" }).click();
+  const dialog = page.getByRole("dialog", { name: "Select market" });
+  const options = dialog.locator(".term-pair-option");
+  await expect(options).toHaveCount(3);
+  await expect(options.nth(0)).toContainText("BTC/USDT");
+  await expect(options.nth(1)).toContainText("ETH/USDT");
+  await expect(options.nth(2)).toContainText("SOL/USDT");
+  const listedPrices = await options.locator(".term-pair-option__price").allTextContents();
+  expect(new Set(listedPrices).size, "Each market option must show its own ticker price, not the active pair price.").toBe(3);
+
+  const search = dialog.getByRole("searchbox", { name: "Search BTCBOX" });
+  await search.fill("ETH");
+  await expect(options).toHaveCount(1);
+  await expect(options.first()).toContainText("ETH/USDT");
+  await search.fill("");
+  await options.filter({ hasText: "SOL/USDT" }).click();
+  await expect(page).toHaveURL(/\/trade\/SOLUSDT$/);
+});
+
+test("trade interaction QA desktop order-book side and price handoff", async ({ page }) => {
+  test.skip(test.info().project.name !== "desktop-chromium", "Desktop order-book interaction QA runs in desktop Chromium.");
+  await page.setViewportSize({ width: 1366, height: 900 });
+  await installVisualApiMocks(page);
+  await installInteractiveTradeApiMocks(page);
+  await page.goto("/trade/BTCUSDT", { waitUntil: "domcontentloaded" });
+
+  const askRow = page.locator('.term-col--book .spot-book-row[data-side="ask"]').first();
+  const bidRow = page.locator('.term-col--book .spot-book-row[data-side="bid"]').first();
+  await expect(askRow).toBeVisible();
+  await expect(bidRow).toBeVisible();
+  const priceInput = page.getByRole("textbox", { name: "Limit price (USDT)" });
+  const sideTabs = page.locator('.term-form [role="tab"]');
+  const buyTab = sideTabs.nth(0);
+  const sellTab = sideTabs.nth(1);
+
+  await askRow.click();
+  await expect(priceInput).toHaveValue("65001.00");
+  await expect(buyTab).toHaveAttribute("aria-selected", "true");
+  await expect(sellTab).toHaveAttribute("aria-selected", "false");
+
+  await bidRow.click();
+  await expect(priceInput).toHaveValue("64999.00");
+  await expect(sellTab).toHaveAttribute("aria-selected", "true");
+  await expect(buyTab).toHaveAttribute("aria-selected", "false");
+});
+
 // Dense width sampling checks that layouts transition continuously rather than
 // passing only at the seven required snapshot widths. These are desktop-browser
 // viewport sweeps; independent touch-device coverage is provided above.
 for (const route of routes.filter((item) => [
-  "/home", "/markets", "/trade/BTCUSDT", "/trade-hub",
+  "/home", "/markets", "/trade/BTCUSDT", "/trade-hub", "/assets",
 ].includes(item.path))) {
   test("continuous responsive sweep " + route.path, async ({ page }) => {
     test.setTimeout(300_000);
