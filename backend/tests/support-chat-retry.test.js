@@ -18,7 +18,8 @@ test('uncertain customer support sends retain the same request ID and exact body
   assert.ok(chat.includes('setPendingRequestId("");'));
   assert.ok(chat.includes('setPendingRequestContent("");'));
   assert.match(chat, /sendSupportMessage\(message, requestId\)/);
-  assert.match(chat, /const message = pendingRequestId \? pendingRequestContent : draft\.trim\(\)/);
+  assert.match(chat, /const hasPending = pendingRequestAccountKey === requestAccountKey && !!pendingRequestId/);
+  assert.match(chat, /const message = hasPending \? pendingRequestContent : draft\.trim\(\)/);
 });
 
 test('customer support history and in-flight sends are isolated when the signed-in account changes', () => {
