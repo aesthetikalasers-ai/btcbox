@@ -1813,5 +1813,6 @@
   "US routing number (optional)": "US-Bankleitzahl (optional)",
   "Bank branch address (optional)": "Adresse der Bankfiliale (optional)",
   "Withdrawal result is unconfirmed. Keep the same request ID and check withdrawal history before retrying.": "Das Auszahlungsergebnis ist unbestätigt. Behalte dieselbe Anfrage-ID bei und prüfe den Auszahlungsverlauf, bevor du es erneut versuchst.",
-  "Please wait before requesting another email. Check your inbox for an earlier link.": "Bitte warte, bevor du eine weitere E-Mail anforderst. Wenn du bereits einen Link angefordert hast, prüfe deinen Posteingang und Spam-Ordner."
+  "Please wait before requesting another email. Check your inbox for an earlier link.": "Bitte warte, bevor du eine weitere E-Mail anforderst. Wenn du bereits einen Link angefordert hast, prüfe deinen Posteingang und Spam-Ordner.",
+  "Trade USDT-margined perpetual contracts. Availability and limits are determined by the server.": "Handle USDT-besicherte Perpetual-Kontrakte. Verfügbarkeit und Limits werden vom Server festgelegt."
 }
