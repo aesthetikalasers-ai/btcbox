@@ -1,4 +1,4 @@
--- 0042_withdrawal_operation_type_compatibility_v1.sql
+-- 0044_withdrawal_operation_type_compatibility_v1.sql
 -- Forward-only compatibility repair after 0041_perpetual_contract_v1.sql.
 -- 0041 replaced the operation_type CHECK and accidentally omitted withdrawal
 -- operation types. Preserve historical withdraw_settle while new payouts use
