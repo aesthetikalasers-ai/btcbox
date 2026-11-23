@@ -57,7 +57,6 @@ type AuthContextValue = {
   linkWeb3Identity: (chain: "ethereum" | "solana", wallet?: unknown) => Promise<void>;
   signInWithWeb3: (chain: "ethereum" | "solana", wallet?: unknown) => Promise<void>;
   signInWithEmail: (email: string, password: string) => Promise<void>;
-  signUpWithEmail: (email: string, password: string) => Promise<void>;
   requestPasswordReset: (email: string) => Promise<void>;
   completePasswordRecovery: (password: string) => Promise<void>;
   finishOAuth: () => Promise<void>;
@@ -515,41 +514,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     finally { setBusy(false); }
   }, [acceptSupabaseSession]);
 
-  const signUpWithEmail = useCallback(async (address: string, password: string) => {
-    setBusy(true); setError(""); setNotice("");
-    try {
-      const client = clientRef.current;
-      if (!client) throw new Error("Authentication is still initializing. Please try again.");
-      const { data, error: authError } = await client.auth.signUp({
-        email: address.trim().toLowerCase(),
-        password,
-        options: {
-          emailRedirectTo: window.location.origin + "/auth/react-callback?intent=register",
-        },
-      });
-      if (authError) throw authError;
-      if (!data.user) throw new Error("Email registration failed.");
-
-      // Never provision a BTCBOX account from an unconfirmed email identity.
-      // With Supabase confirmation enabled, the normal result has no session;
-      // the confirmation link returns through the existing PKCE callback.
-      const emailConfirmed = Boolean(data.user.email_confirmed_at || data.user.confirmed_at);
-      if (data.session?.access_token && emailConfirmed) {
-        await acceptSupabaseSession(data.session.access_token);
-        return;
-      }
-      if (data.session?.access_token && !emailConfirmed) {
-        await client.auth.signOut();
-      }
-      setNotice("If this email is already linked to a BTCBOX account, choose Sign in and use your original sign-in method. If this is a new registration, check your inbox for the confirmation email; also check your spam folder.");
-    } catch (cause) {
-      // Keep provider diagnostics out of the registration UI. Supabase may
-      // intentionally return indistinguishable responses for existing addresses.
-      setError("Email registration failed.");
-      throw cause;
-    } finally { setBusy(false); }
-  }, [acceptSupabaseSession]);
-
   const requestPasswordReset = useCallback(async (address: string) => {
     setBusy(true); setError(""); setNotice("");
     try {
@@ -731,11 +695,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const value = useMemo(() => ({
-    status, initializationIssue, email, busy, error, notice, googleEnabled, walletEnabled, identityLinkSourceVerified, identityLinkNeedsTwoFactor, completeIdentityLinkReauthTwoFactor, needsCredentials, credentialRecoveryReady, credentialRecoveryNeedsTwoFactor, ethereumWallets, accountRestriction, signInWithGoogle, reauthenticateIdentityLinkWithGoogle, reauthenticateIdentityLinkWithWeb3, linkGoogleIdentity, linkWeb3Identity, signInWithUsername, setBtcboxCredentials, reauthenticateCredentialsWithGoogle, reauthenticateCredentialsWithWeb3, completeCredentialRecoveryTwoFactor, recoverBtcboxPassword, signInWithWeb3, signInWithEmail, signUpWithEmail,
+    status, initializationIssue, email, busy, error, notice, googleEnabled, walletEnabled, identityLinkSourceVerified, identityLinkNeedsTwoFactor, completeIdentityLinkReauthTwoFactor, needsCredentials, credentialRecoveryReady, credentialRecoveryNeedsTwoFactor, ethereumWallets, accountRestriction, signInWithGoogle, reauthenticateIdentityLinkWithGoogle, reauthenticateIdentityLinkWithWeb3, linkGoogleIdentity, linkWeb3Identity, signInWithUsername, setBtcboxCredentials, reauthenticateCredentialsWithGoogle, reauthenticateCredentialsWithWeb3, completeCredentialRecoveryTwoFactor, recoverBtcboxPassword, signInWithWeb3, signInWithEmail,
     requestPasswordReset, completePasswordRecovery, finishOAuth, verifyTwoFactor, getSupabaseAccessToken, signOut, setSupabaseLoginPassword,
     clearError: () => setError(""),
   }), [status, initializationIssue, email, busy, error, notice, googleEnabled, walletEnabled, identityLinkSourceVerified, identityLinkNeedsTwoFactor, completeIdentityLinkReauthTwoFactor, needsCredentials, credentialRecoveryReady, credentialRecoveryNeedsTwoFactor, ethereumWallets, accountRestriction, signInWithGoogle, linkGoogleIdentity, linkWeb3Identity, signInWithUsername, setBtcboxCredentials, reauthenticateCredentialsWithGoogle, reauthenticateCredentialsWithWeb3, completeCredentialRecoveryTwoFactor, recoverBtcboxPassword, signInWithWeb3, signInWithEmail,
-    signUpWithEmail, requestPasswordReset, completePasswordRecovery, finishOAuth, verifyTwoFactor, getSupabaseAccessToken, signOut, setSupabaseLoginPassword, reauthenticateIdentityLinkWithGoogle, reauthenticateIdentityLinkWithWeb3]);
+    requestPasswordReset, completePasswordRecovery, finishOAuth, verifyTwoFactor, getSupabaseAccessToken, signOut, setSupabaseLoginPassword, reauthenticateIdentityLinkWithGoogle, reauthenticateIdentityLinkWithWeb3]);
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
