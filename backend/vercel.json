@@ -28,9 +28,9 @@
     { "source": "/((?!api/).*)", "destination": "/index.html" }
   ],
   "functions": {
-    "api/stream.js": { "maxDuration": 300, "memory": 256 },
-    "api/router.js": { "maxDuration": 30, "memory": 512 },
-    "api/[...path].js": { "maxDuration": 30, "memory": 512 }
+    "api/stream.js": { "maxDuration": 300 },
+    "api/router.js": { "maxDuration": 30 },
+    "api/[...path].js": { "maxDuration": 30 }
   },
   "regions": ["iad1"],
   "git": {
