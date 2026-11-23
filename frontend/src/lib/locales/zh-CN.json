@@ -245,7 +245,6 @@
   "Passport": "护照",
   "Driver license": "驾驶证",
   "Identity document image": "身份证件图片",
-  "JPEG, PNG or WebP. Maximum original size 8 MB; securely compressed to 512 KB. Upload a clear, readable image.": "支持 JPEG、PNG 或 WebP。原始文件最大 8 MB，安全压缩至 512 KB。请上传清晰可读的图片。",
   "Selected": "已选择",
   "Submitting…": "正在提交…",
   "Submit for review": "提交审核",
@@ -477,7 +476,7 @@
   "Already have an account?": "已经有账户？",
   "Back to BTCBOX": "返回 BTCBOX",
   "Protected account access · Public markets remain available without signing in": "受保护的账户访问 · 无需登录即可浏览公开市场",
-    "Use a password between 12 and 128 characters.": "密码长度必须为 12 至 128 个字符。",
+  "Use a password between 12 and 128 characters.": "密码长度必须为 12 至 128 个字符。",
   "Use a password between 8 and 128 characters.": "密码长度必须为 8 至 128 个字符。",
   "The passwords do not match.": "两次输入的密码不一致。",
   "Password could not be updated.": "无法更新密码。",
@@ -1430,7 +1429,6 @@
   "Choose a perpetual contract symbol": "选择永续合约交易对",
   "Search symbol": "搜索交易对",
   "No matching market": "无匹配市场",
-
   "Fullscreen chart": "全屏图表",
   "Create an account with email, Google or a wallet.": "使用邮箱、Google 或钱包创建账户。",
   "Sign in with email, Google or a wallet to access your BTCBOX account.": "使用邮箱、Google 或钱包登录以访问您的 BTCBOX 账户。",
@@ -1697,5 +1695,15 @@
   "Latest": "最新",
   "Return rate": "收益率",
   "Pick a duration and direction; the round settles automatically.": "选择周期与方向即可下单，回合到期后自动结算。",
-  "Choose a short-term contract pair": "选择秒合约交易对"
+  "Choose a short-term contract pair": "选择秒合约交易对",
+  "JPEG, PNG or WebP. Maximum original size 5 MB; securely compressed to 2 MB. Upload a clear, readable image.": "支持 JPEG、PNG 或 WebP。原始图片最大 5 MB，系统会安全压缩至 2 MB。请上传清晰、可读的图片。",
+  "JPEG, PNG or WebP. Maximum original size 8 MB; securely compressed to 512 KB. Upload a clear, readable image.": "支持 JPEG、PNG 或 WebP。原始文件最大 8 MB，安全压缩至 512 KB。请上传清晰可读的图片。",
+  "Provider updated": "数据源更新时间",
+  "Source": "数据源",
+  "Tick size": "最小价格变动单位",
+  "Quantity step": "数量步进",
+  "Minimum quantity": "最低数量",
+  "Minimum notional": "最低名义金额",
+  "Market trading rules are unavailable. Order entry is disabled.": "暂时无法获取市场交易规则，已禁用下单。",
+  "Price must follow the market tick; quantity must follow the step and minimum order rules.": "价格必须符合市场最小变动单位；数量必须符合数量步进及最低下单要求。"
 }
