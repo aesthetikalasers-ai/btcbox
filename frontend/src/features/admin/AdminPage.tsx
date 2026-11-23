@@ -1028,11 +1028,31 @@ export function AdminPage() {
     }
     const storageKey = "btcbox.admin.payout-reference.v1." + session.user_id + "." + id;
     try {
-      window.localStorage.setItem(storageKey, JSON.stringify({
-        version: 1, actor_id: session.user_id, withdrawal_id: id, reference,
-      }));
+      const rawPending = window.localStorage.getItem(storageKey);
+      if (rawPending) {
+        let pending: unknown;
+        try { pending = JSON.parse(rawPending); }
+        catch {
+          setError("A saved payout request could not be verified. Check the withdrawal history before retrying.");
+          return;
+        }
+        const saved = pending as { version?: unknown; actor_id?: unknown; withdrawal_id?: unknown; reference?: unknown };
+        if (saved.version !== 1 || saved.actor_id !== session.user_id || saved.withdrawal_id !== id ||
+            typeof saved.reference !== "string" || !saved.reference.trim()) {
+          setError("A saved payout request could not be verified. Check the withdrawal history before retrying.");
+          return;
+        }
+        if (saved.reference !== reference) {
+          setError("A payout request is still pending with a different TxID. Enter the exact saved reference; do not replace it.");
+          return;
+        }
+      } else {
+        window.localStorage.setItem(storageKey, JSON.stringify({
+          version: 1, actor_id: session.user_id, withdrawal_id: id, reference,
+        }));
+      }
     } catch {
-      setError("This browser cannot safely save the payout reference. No payout update was sent.");
+      setError("This browser cannot safely verify the saved payout reference. No payout update was sent.");
       return;
     }
     payoutSubmitLockRef.current = true;
@@ -1071,6 +1091,9 @@ export function AdminPage() {
       setNotice("");
       return;
     }
+    const lockKey = "kyc:" + uid;
+    if (reviewActionLocksRef.current[lockKey]) return;
+    reviewActionLocksRef.current[lockKey] = true;
     setBusy(true); setError(""); setNotice("");
     try {
       await adminApproveKyc(token, uid);
@@ -1080,6 +1103,7 @@ export function AdminPage() {
       // and exception approval requirements; they are not proof of a prior success.
       setError(reason instanceof Error ? reason.message : "KYC review was not confirmed.");
     } finally {
+      reviewActionLocksRef.current[lockKey] = false;
       setBusy(false);
     }
   };
