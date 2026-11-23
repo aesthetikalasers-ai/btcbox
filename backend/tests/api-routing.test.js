@@ -9,6 +9,7 @@ const { Readable } = require('node:stream');
 process.env.ADMIN_PASS = 'BTCBOX-Test-Only-Admin-Pass-2026!';
 const adapter = require('../api-adapter.js');
 const catchAll = require('../api/[...path].js');
+const streamApi = require('../stream-api.js');
 const routes = ['login/2fa','addresses/select','order/cancel','seconds/order','seconds/settle','seconds/positions','settings/password','settings/fundpwd','2fa/enable','2fa/confirm','2fa/disable','support/chat','support/messages','chat/unread','admin/stats','admin/users','admin/user','admin/addresses','admin/withdrawals','admin/orders','admin/support/messages','admin/config','admin/audit-logs'];
 function listJavaScriptFiles(dir, prefix='') {
   return fs.readdirSync(dir,{withFileTypes:true}).flatMap(entry=>{
@@ -41,7 +42,15 @@ test('vercel.json routes /api/stream before the catch-all rewrite', () => {
   assert.ok(streamIndex !== -1, '/api/stream/(.*) rewrite must exist');
   assert.ok(apiIndex !== -1, '/api/(.*) rewrite must exist');
   assert.ok(streamIndex < apiIndex, 'stream rewrite must be evaluated before the catch-all');
+  assert.equal(rewrites[streamIndex].destination, '/api/stream?channel=$1', 'the stream rewrite must preserve the captured channel as a query parameter');
   assert.ok(config.functions && config.functions['api/stream.js'], 'stream function needs an explicit maxDuration');
+});
+test('the SSE handler resolves depth and trades after Vercel rewrites the path to /api/stream', () => {
+  for (const channel of ['depth', 'trades']) {
+    const rewrittenUrl = new URL('/api/stream?channel=' + channel + '&symbol=BTCUSDT', 'https://example.test');
+    assert.equal(streamApi.resolveChannel(rewrittenUrl), channel);
+  }
+  assert.equal(streamApi.resolveChannel(new URL('/api/stream/depth', 'https://example.test')), 'depth', 'direct channel paths remain backward compatible');
 });
 test('all 23 nested API routes preserve their canonical request path through the catch-all', () => {
   assert.equal(routes.length,23);
