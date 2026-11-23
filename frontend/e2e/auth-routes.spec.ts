@@ -40,12 +40,12 @@ test.beforeEach(async ({ page }) => {
   await page.route("**/api/market", route => route.fulfill({ status: 200, json: {
     ok: true,
     markets: [
-      { sym: "BTCUSDT", price: 65000, chg: 1.25, high: 66000, low: 64000, vol: "1200", source: "provider" },
-      { sym: "ETHUSDT", price: 3200, chg: 0.8, high: 3300, low: 3100, vol: "500", source: "provider" },
+      { sym: "BTC", price: 65000, chg: 1.25, high: 66000, low: 64000, vol: "1200", source: "provider" },
+      { sym: "ETH", price: 3200, chg: 0.8, high: 3300, low: 3100, vol: "500", source: "provider" },
     ],
     data: {
-      BTCUSDT: { ts: now, providerTs: now, source: "provider" },
-      ETHUSDT: { ts: now, providerTs: now, source: "provider" },
+      BTC: { ts: now, providerTs: now, source: "provider" },
+      ETH: { ts: now, providerTs: now, source: "provider" },
     },
   } }));
   await page.route("**/api/kline?**", route => route.fulfill({ status: 200, json: { ok: true, source: "provider", klines: [] } }));
