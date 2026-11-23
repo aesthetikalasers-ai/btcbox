@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useAuth } from "./auth";
+import { DEMO_PREVIEW_ACTIVE } from "./demoPreview";
 
 /** 纸面交易账户存储在 localStorage 中的结构。 */
 export interface PaperLedger {
@@ -78,7 +79,7 @@ export interface PaperWalletHistory {
 
 const STORAGE_KEY = "btcbox-paper-trading";
 const DEMO_INITIAL_USDT = 10000;
-const PAPER_TRADING_ENABLED = import.meta.env.DEV;
+const PAPER_TRADING_ENABLED = import.meta.env.DEV && DEMO_PREVIEW_ACTIVE;
 
 /** 生成一个可读的订单号。 */
 function makeOrderId(): string {

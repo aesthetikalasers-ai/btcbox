@@ -17,7 +17,7 @@ test('live market engine starts empty and never exposes hard-coded seed quotes',
 });
 
 test('paper balances and demo market data are restricted to local development', () => {
-  assert.match(trading, /const PAPER_TRADING_ENABLED = import\.meta\.env\.DEV/);
+  assert.match(trading, /const PAPER_TRADING_ENABLED = import\.meta\.env\.DEV && DEMO_PREVIEW_ACTIVE/);
   assert.match(trading, /PAPER_TRADING_ENABLED \? loadLedger\(\) : emptyLedger\(\)/);
   assert.match(demoPreview, /const forceDemo = import\.meta\.env\.DEV &&/);
   assert.match(demoPreview, /if \(import\.meta\.env\.DEV\)/);
