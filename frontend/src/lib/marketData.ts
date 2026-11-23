@@ -64,7 +64,7 @@ export const getAssetName = (sym: string): string => {
 };
 
 
-// 内存中维持最新价格状态，并产生平滑的高频跳动
+// 内存中只维护后端返回的最新行情快照
 class LiveMarketEngine {
   private prices: Map<string, MarketPrice> = new Map();
   private listeners: Set<() => void> = new Set();
