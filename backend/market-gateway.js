@@ -450,8 +450,9 @@ const lastGoodDepth = new Map();
  * The two providers are raced in parallel with a short timeout: this value only
  * decorates a hint, so it must never delay first paint. A serial chain of two
  * 5s timeouts previously made the first request after boot block for 10s.
+ * If neither provider answers, the gateway returns an explicit unavailable
+ * payload rather than inventing a conversion rate.
  */
-const USDT_USD_FALLBACK = 0.99999;
 const USDT_USD_TTL_MS = 30000;
 const USDT_USD_TIMEOUT_MS = 1500;
 let lastGoodUsdtUsd = null;
@@ -483,12 +484,20 @@ async function getUsdtUsd({ timeoutMs = USDT_USD_TIMEOUT_MS } = {}) {
       return { ok: true, rate: good.rate, source: good.source };
     }
 
-    const stale = lastGoodUsdtUsd ?? USDT_USD_FALLBACK;
+    if (lastGoodUsdtUsd !== null) {
+      return {
+        ok: true,
+        rate: lastGoodUsdtUsd,
+        source: 'stale',
+        stale: true,
+      };
+    }
     return {
-      ok: true,
-      rate: stale,
-      source: lastGoodUsdtUsd === null ? 'fallback' : 'stale',
+      ok: false,
+      code: 'FX_DATA_UNAVAILABLE',
+      source: 'unavailable',
       stale: true,
+      msg: 'USDT/USD conversion is temporarily unavailable.',
     };
   })().catch((error) => {
     CACHE.delete('usdt-usd');
