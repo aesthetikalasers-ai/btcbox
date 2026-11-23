@@ -140,7 +140,9 @@ test('withdrawal submit handler synchronously blocks concurrent duplicate browse
   assert.ok(withdrawPage.includes('submitLockRef.current)return'));
   assert.ok(withdrawPage.includes('submitLockRef.current=true'));
   assert.ok(withdrawPage.includes('window.crypto.randomUUID()'));
-  const requestIdStart = withdrawPage.indexOf('requestId=window.crypto.randomUUID()');\n  const requestIdFailure = withdrawPage.indexOf('catch{setError(t("Account data is temporarily unavailable."));submitLockRef.current=false;return;}', requestIdStart);\n  assert.ok(requestIdStart >= 0 && requestIdFailure > requestIdStart, 'missing secure request IDs must stop before sending');
+  const requestIdStart = withdrawPage.indexOf('requestId=window.crypto.randomUUID()');
+  const requestIdFailure = withdrawPage.indexOf('catch{setError(t("Account data is temporarily unavailable."));submitLockRef.current=false;return;}', requestIdStart);
+  assert.ok(requestIdStart >= 0 && requestIdFailure > requestIdStart, 'missing secure request IDs must stop before sending');
   assert.ok(withdrawPage.includes('finally{submitLockRef.current=false;setSubmitting(false);}'));
 });
 
