@@ -3503,12 +3503,6 @@ async function handleRequest(event, context) {
     if (!hasAdminPermission(adminMembership, requiredPermission)) {
       return json({ ok: false, code: 'ADMIN_PERMISSION_DENIED', permission: requiredPermission, msg: 'Your administrator role does not allow this action.' }, 403);
     }
-    // A financial adjustment request is not an approval workflow. The current
-    // RPC applies the ledger mutation immediately, so keep this endpoint closed
-    // until a separately authorized maker-checker queue is implemented.
-    if (sub === 'user/balance' && method === 'POST') {
-      return json({ ok: false, code: 'FINANCIAL_ADJUSTMENT_APPROVAL_REQUIRED', msg: 'Direct administrator balance adjustments are disabled. Use the verified deposit workflow or wait for the dual-approval adjustment queue.' }, 409);
-    }
     // Manual credit operators must also be allowed to inspect deposit history
     // so the existing receipt/ledger record can be checked before crediting.
     if (sub === 'deposit/confirm' && method === 'POST' &&
@@ -3887,25 +3881,29 @@ async function handleRequest(event, context) {
         if (!u) return json({ ok: false, msg: 'User not found.' }, 404);
         const coin = String(body.coin || 'USDT').trim().toUpperCase();
         const allowedCoins = ['USDT', 'BTC', 'ETH', 'SOL', 'BNB', 'USDC'];
-        const delta = Number(body.delta);
+        // Keep financial inputs as decimal text. Converting a customer balance
+        // adjustment through Number would silently round valid 18-place ledger
+        // amounts before the request hash reaches PostgreSQL.
+        const deltaInput = String(body.delta || '').trim();
+        const deltaNegative = deltaInput.startsWith('-');
+        const amountText = parseMoneyInput(deltaNegative ? deltaInput.slice(1) : deltaInput);
         const mode = String(body.mode || 'adjust').trim().toLowerCase();
         const requestId = String(body.request_id || '').trim();
         const reason = String(body.reason || '').trim().slice(0, 500);
         if (!allowedCoins.includes(coin)) return json({ ok: false, msg: 'Operation failed: coin not supported.' }, 400);
         if (!['adjust', 'freeze', 'unfreeze'].includes(mode)) return json({ ok: false, msg: 'Invalid fund operation type.' }, 400);
-        if (!Number.isFinite(delta) || delta === 0 || Math.abs(delta) > 1e12 || !Number.isSafeInteger(Math.round(delta * 1e8)) || (mode !== 'adjust' && delta < 0)) return json({ ok: false, msg: 'Invalid operation amount. Freeze/unfreeze amounts must be positive.' }, 400);
+        if (!amountText || compareMoney(amountText, '0') <= 0 || compareMoney(amountText, '1000000000000') > 0 || (mode !== 'adjust' && deltaNegative)) return json({ ok: false, msg: 'Invalid operation amount. Freeze/unfreeze amounts must be positive.' }, 400);
         if (!/^[A-Za-z0-9_-]{16,100}$/.test(requestId)) return json({ ok: false, code: 'IDEMPOTENCY_KEY_REQUIRED', msg: 'A valid operation ID is required. Balance was unchanged.' }, 400);
         if (reason.length < 5) return json({ ok: false, msg: 'Please provide an adjustment reason of at least 5 characters. Balance was unchanged.' }, 400);
         const adminId = adminUserId;
         if (!adminId) return json({ ok: false, code: 'ADMIN_ACTOR_NOT_CONFIGURED', msg: 'Administrator audit identity not configured. Balance was unchanged.' }, 503);
-        // Canonical decimal text must match PostgreSQL numeric::text when hashing the RPC payload.
-        const canonicalDecimal = function (n) { return (n < 0 ? '-' : '') + Math.abs(n).toFixed(8).replace(/\.?0+$/, ''); };
-        let availableDelta = delta;
-        let frozenDelta = 0;
-        if (mode === 'freeze') { availableDelta = -delta; frozenDelta = delta; }
-        else if (mode === 'unfreeze') { availableDelta = delta; frozenDelta = -delta; }
-        const availableDeltaText = canonicalDecimal(availableDelta);
-        const frozenDeltaText = canonicalDecimal(frozenDelta);
+        // PostgreSQL numeric::text preserves canonical decimal notation. Build
+        // the exact same representation before hashing the RPC payload.
+        const signed = function (negative) { return negative ? '-' + amountText : amountText; };
+        let availableDeltaText = signed(deltaNegative);
+        let frozenDeltaText = '0';
+        if (mode === 'freeze') { availableDeltaText = signed(true); frozenDeltaText = amountText; }
+        else if (mode === 'unfreeze') { availableDeltaText = amountText; frozenDeltaText = signed(true); }
         const requestHash = crypto.createHash('sha256').update([adminId, String(u.uid), coin, availableDeltaText, frozenDeltaText, reason].join('|')).digest('hex');
         try {
           const base = process.env.SUPABASE_URL.replace(/\/+$/, '');

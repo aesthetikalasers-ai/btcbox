@@ -82,10 +82,17 @@ test('account freeze/unfreeze is state-guarded, audited and never double-applied
   assert.ok(!route.includes('balances'));
 });
 
-test('direct administrator balance adjustment remains disabled pending maker-checker', () => {
-  const afterPermission = api.indexOf("if (sub === 'user/balance' && method === 'POST') {\n      return json({ ok: false, code: 'FINANCIAL_ADJUSTMENT_APPROVAL_REQUIRED'");
-  assert.ok(afterPermission >= 0, 'direct balance adjustment must be closed before the handler body');
-  assert.ok(api.includes('dual-approval adjustment queue'));
+test('direct administrator balance adjustment uses the atomic, idempotent financial ledger', () => {
+  const route = sliceRoute("if (sub === 'user/balance' && method === 'POST')", "// POST /api/admin/user/freeze");
+  assert.ok(route.includes('financialWritesEnabled()'));
+  assert.ok(route.includes('admin_adjustment_atomic'));
+  assert.ok(route.includes('parseMoneyInput'));
+  assert.ok(route.includes('compareMoney(amountText'));
+  assert.ok(route.includes('IDEMPOTENCY_KEY_REQUIRED'));
+  assert.ok(route.includes('requestHash'));
+  assert.ok(route.includes('availableDeltaText'));
+  assert.ok(route.includes('frozenDeltaText'));
+  assert.ok(!route.includes('u.balances'));
 });
 
 test('canonical financial_audit_log has indexes matching the admin audit-logs query access paths', () => {

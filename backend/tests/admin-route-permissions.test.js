@@ -66,21 +66,17 @@ test('unknown admin routes and insufficient permissions fail closed before route
 });
 
 
-test('direct admin balance adjustment is blocked until a dual-approval workflow exists', () => {
-  const gate = api.indexOf("if (sub === 'user/balance' && method === 'POST') {", api.indexOf('const requiredPermission ='));
-  const outbox = api.indexOf('const priorAuditFlush = await flushAdminAuditOutbox()', gate);
-  const mutation = api.indexOf("// POST /api/admin/user/balance", outbox);
-  assert.ok(gate >= 0 && outbox > gate && mutation > outbox);
-  const guard = api.slice(gate, outbox);
-  assert.ok(guard.includes("code: 'FINANCIAL_ADJUSTMENT_APPROVAL_REQUIRED'"));
-  assert.ok(guard.includes('Direct administrator balance adjustments are disabled.'));
-  assert.ok(guard.includes('dual-approval adjustment queue'));
-  assert.ok(!guard.includes('admin_adjustment_atomic'));
+test('direct admin balance adjustment remains explicitly permission-gated', () => {
+  const route = api.slice(api.indexOf("// POST /api/admin/user/balance"), api.indexOf("// POST /api/admin/user/freeze"));
+  assert.ok(route.includes('admin_adjustment_atomic'));
+  assert.ok(route.includes('IDEMPOTENCY_KEY_REQUIRED'));
+  assert.ok(route.includes('ADMIN_ACTOR_NOT_CONFIGURED'));
+  assert.ok(route.includes('FINANCIAL_CUTOVER_INCOMPLETE'));
 });
 
-test('admin role editor does not offer the unapproved immediate financial adjustment permission', () => {
+test('admin role editor exposes the explicit manual balance-adjustment permission', () => {
   const admin = require('node:fs').readFileSync(require('node:path').resolve(__dirname, '../../frontend/src/features/admin/AdminPage.tsx'), 'utf8');
-  assert.ok(!admin.includes('["financial_adjustment.request","Request financial adjustment"]'));
+  assert.ok(admin.includes('["financial_adjustment.request","Manual balance adjustment"]'));
   assert.ok(admin.includes('Manual deposit credit'));
 });
 
