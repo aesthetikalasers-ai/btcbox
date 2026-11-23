@@ -153,7 +153,6 @@ export function AdminPage() {
   const [adjustCoin, setAdjustCoin] = useState("USDT");
   const [adjustMode, setAdjustMode] = useState<"credit" | "debit" | "freeze" | "unfreeze">("credit");
   const [adjustAmount, setAdjustAmount] = useState("");
-  const [adjustReason, setAdjustReason] = useState("");
   const [adjustBusy, setAdjustBusy] = useState(false);
   // Account actions: freeze state, credential changes and a direct staff message.
   const [accountActionBusy, setAccountActionBusy] = useState(false);
@@ -540,11 +539,6 @@ export function AdminPage() {
       setError("Enter an amount greater than 0.");
       return;
     }
-    const reason = adjustReason.trim();
-    if (reason.length < 5) {
-      setError("Enter a reason of at least 5 characters.");
-      return;
-    }
     let requestId = "";
     try { requestId = window.crypto.randomUUID(); }
     catch { setError("Secure request IDs are unavailable in this browser. No balance change was made."); return; }
@@ -552,9 +546,9 @@ export function AdminPage() {
     const delta = adjustMode === "debit" ? "-" + amount : amount;
     setAdjustBusy(true); setError(""); setNotice("");
     try {
-      const result = await adminAdjustBalance(token, { uid, coin: adjustCoin, delta, mode, reason, request_id: requestId });
+      const result = await adminAdjustBalance(token, { uid, coin: adjustCoin, delta, mode, request_id: requestId });
       setNotice(result.msg || "Balance adjusted.");
-      setAdjustAmount(""); setAdjustReason("");
+      setAdjustAmount("");
       await refreshSelectedUser(uid);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Balance adjustment failed. Check the financial operation log before retrying.");
@@ -1249,7 +1243,7 @@ export function AdminPage() {
     <div className="mx-auto flex w-full max-w-4xl flex-col gap-6">
       <header className="border-b border-brand-border pb-5">
         <BrandLogo compact />
-        <p className="mt-4 text-xs font-semibold uppercase tracking-[0.2em] text-brand-accent">BTCBOX · ADMINISTRATION</p>
+        <p className="mt-4 text-xs font-semibold uppercase tracking-[0.2em] text-brand-accent">BTCBOX · 管理后台</p>
         <h1 className="mt-2 text-2xl font-bold tracking-tight text-brand-text sm:text-3xl">{adminText("Administrator sign in")}</h1>
         <p className="mt-2 max-w-2xl text-sm leading-6 text-brand-text-muted">{adminText("This is the private BTCBOX control center. Sign in with the Google or email identity that has been granted administrator access. Customer trading pages and balances are not part of this portal.")}</p>
       </header>
@@ -1314,8 +1308,7 @@ export function AdminPage() {
           </div>
           <p className="text-xs text-brand-text-muted">{adminText("Available")}: {selectedUser.balances?.[adjustCoin]?.free == null ? "—" : asText(selectedUser.balances[adjustCoin].free)} · {adminText("Frozen")}: {selectedUser.balances?.[adjustCoin]?.frozen == null ? "—" : asText(selectedUser.balances[adjustCoin].frozen)}</p>
           <input value={adjustAmount} onChange={event => setAdjustAmount(event.target.value)} disabled={adjustBusy} inputMode="decimal" placeholder={adminText("Amount")} className="h-11 w-full rounded-xl border border-brand-border bg-brand-surface-2 px-3 text-sm text-brand-text"/>
-          <input value={adjustReason} onChange={event => setAdjustReason(event.target.value)} disabled={adjustBusy} maxLength={200} placeholder={adminText("Reason (required, at least 5 characters)")} className="h-11 w-full rounded-xl border border-brand-border bg-brand-surface-2 px-3 text-sm text-brand-text"/>
-          <Button size="sm" disabled={adjustBusy || !hasPermission("financial_adjustment.request") || !adjustAmount.trim() || adjustReason.trim().length < 5} onClick={() => void submitBalanceAdjustment()}>{adjustBusy ? adminText("Processing…") : adminText("Confirm adjustment")}</Button>
+          <Button size="sm" disabled={adjustBusy || !hasPermission("financial_adjustment.request") || !adjustAmount.trim()} onClick={() => void submitBalanceAdjustment()}>{adjustBusy ? adminText("Processing…") : adminText("Confirm adjustment")}</Button>
           {!hasPermission("financial_adjustment.request") ? <p className="text-xs text-brand-warning">{adminText("Requires the financial_adjustment.request permission.")}</p> : null}
         </>}
       </CardContent></Card>
