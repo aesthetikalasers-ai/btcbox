@@ -3732,6 +3732,12 @@ async function handleRequest(event, context) {
       const uid = (event.queryStringParameters && event.queryStringParameters.uid) || '';
       const u = db.users[uid];
       if (!u) return json({ ok: false, msg: 'User not found.' }, 404);
+      // Verify that the target account has an authoritative PostgreSQL ledger snapshot
+      // before any manual credit RPC can be reached. Legacy JSON balances are never creditable.
+      try { await readFinancialAccountSnapshot(uid); }
+      catch (_) {
+        return json({ ok: false, code: 'FINANCIAL_BALANCE_SOURCE_UNVERIFIED', msg: 'Manual credit is disabled until the user\'s PostgreSQL ledger balance source is confirmed. No credit was sent.' }, 409);
+      }
       // Never expose password hashes, salts, or session tokens through admin user detail APIs.
       const safeUser = JSON.parse(JSON.stringify(u));
       delete safeUser.password_hash;
