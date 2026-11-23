@@ -3,8 +3,8 @@ import { AuthRestoreState } from "../../components/AuthRestoreState";
 import { multiplyDecimalStrings, divideDecimalStrings, compareDecimalStrings, isDecimalMultipleOfStep, addDecimalStep, floorDecimalToStep, roundDecimalToStep } from "../../lib/decimal";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
-import { RefreshCw, TrendingUp, TrendingDown, Clock3, ShieldAlert, ArrowLeft, ChevronRight, ChevronDown, ChevronUp, ChevronsLeft, ChevronsRight, KeyRound, Copy, Check, LineChart, Plus, Minus, History, Layers, CandlestickChart, WifiOff, Search } from "lucide-react";
-import { ApiError, getAccount, getOrders, getMarkets, getSpotMarketPairs, getKlines, getOrderBook, getUsdtUsdRate, getTradingStatus, submitSpotOrder, cancelSpotOrder, getSecondsPositions, getSecondsPolicy, submitSecondsOrder, settleSecondsPosition, getDepositAddress, getSavedCryptoAddresses, getSelectedCryptoAddress, getWithdrawalConfig, submitWithdrawal, getEarnCatalog, submitEarnAction, getPerpMarkets, getSupportUnread, type PerpMarket, type EarnProduct, type EarnPosition, type SavedCryptoAddress, type AccountBalance, type AccountSnapshot, type DepositRecord, type OrderRecord, type MarketTicker, type MarketCandle, type OrderBookSnapshot, type SpotMarketPair, type TradingStatus, type SecondsPositionsSnapshot, type SecondsOrderInput, type SecondsPolicyResponse, type SelectedCryptoAddress, type WithdrawalConfig, type WithdrawalRecord, submitKyc } from "../../lib/api";
+import { RefreshCw, TrendingUp, TrendingDown, Clock3, ShieldAlert, ArrowLeft, ChevronRight, ChevronDown, ChevronsLeft, ChevronsRight, KeyRound, Copy, Check, Plus, Minus, History, WifiOff, Search } from "lucide-react";
+import { ApiError, getAccount, getOrders, getMarkets, getSpotMarketPairs, getKlines, getOrderBook, getUsdtUsdRate, getTradingStatus, submitSpotOrder, cancelSpotOrder, getDepositAddress, getSavedCryptoAddresses, getSelectedCryptoAddress, getWithdrawalConfig, submitWithdrawal, getEarnCatalog, submitEarnAction, getSupportUnread, type EarnProduct, type EarnPosition, type SavedCryptoAddress, type AccountBalance, type AccountSnapshot, type DepositRecord, type OrderRecord, type MarketTicker, type MarketCandle, type OrderBookSnapshot, type TradingStatus, type SelectedCryptoAddress, type WithdrawalConfig, type WithdrawalRecord, submitKyc } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
 import { DEV_ACCOUNT_PLACEHOLDER, DEV_OPEN_ACCOUNT_PAGES } from "../../lib/devAccess";
 import { useAuthDialog } from "../../lib/auth-dialog";
@@ -41,18 +41,18 @@ type ChartHandle = { chart: IChartApi; series: ISeriesApi<"Candlestick">; priceL
  * copy (for example "The Earn catalogue is not served by the local market
  * gateway."). That text must never reach a localized screen verbatim, so the
  * known replies are mapped onto keys that already ship with every dictionary.
- * Any other message is returned unchanged so real server copy is not swallowed.
+ * Unknown server messages are replaced with a page-specific safe fallback.
  */
 const GATEWAY_FAILURE_KEYS: Array<[RegExp, string]> = [
-  [/EARN_DATA_UNAVAILABLE|earn catalog(ue)? is not served/i, "Earn catalog is unavailable. No product availability is assumed."],
-  [/AUTH_CLIENT_CONFIG_UNAVAILABLE|authentication is not configured for the local market gateway/i, "Authentication is unavailable. Please reload and try again."],
+  [/EARN_DATA_UNAVAILABLE|earn catalog(ue)? is not served/i, "Unable to load Earn products. Please try again."],
+  [/AUTH_CLIENT_CONFIG_UNAVAILABLE|authentication is not configured for the local market gateway/i, "Unable to complete sign-in. Please try again."],
 ];
 function localizedFailure(reason: unknown, fallbackKey: string) {
   const code = reason instanceof ApiError && reason.code ? reason.code : "";
   const message = reason instanceof Error ? reason.message : "";
   const gateway = GATEWAY_FAILURE_KEYS.find(([pattern]) => pattern.test(code + " " + message));
   if (gateway) return gateway[1];
-  return message || fallbackKey;
+  return fallbackKey;
 }
 export function PageFrame({eyebrow,title,description,children,className="",tone,backTo,action,onBack}:{eyebrow?:string;title:string;description?:string;children:ReactNode;className?:string;tone:PageFrameTone;backTo?:string;action?:ReactNode;onBack?:()=>void}){
  const {t}=useI18n();
@@ -62,122 +62,6 @@ export function PageFrame({eyebrow,title,description,children,className="",tone,
  * Displays the TradeHub service directory and its available product entry points.
  * Keeps each service routed to its existing dedicated workflow.
  */
-export function TradeHubPage(){
- const {t}=useI18n();
- const {status}=useAuth();
- const [spotPairs,setSpotPairs]=useState<SpotMarketPair[]>([]);
- const [pairsLoading,setPairsLoading]=useState(true);
- const [pairsError,setPairsError]=useState("");
- const [tradingStatus,setTradingStatus]=useState<TradingStatus|null>(null);
- const [tradingStatusError,setTradingStatusError]=useState("");
- const [secondsAvailability,setSecondsAvailability]=useState<"loading"|"sign-in"|"enabled"|"read-only"|"unavailable">("loading");
- const [earnAvailability,setEarnAvailability]=useState<"loading"|"sign-in"|"enabled"|"read-only"|"empty"|"unavailable">("loading");
- const [perpAvailability,setPerpAvailability]=useState<"loading"|"sign-in"|"enabled"|"read-only"|"unavailable">("loading");
- useEffect(()=>{
-  const controller=new AbortController();
-  getSpotMarketPairs(controller.signal).then(setSpotPairs).catch(reason=>{
-   if(reason instanceof Error&&reason.name==="AbortError")return;
-   setPairsError(reason instanceof Error?reason.message:"Spot-market catalogue is unavailable.");
-  }).finally(()=>{if(!controller.signal.aborted)setPairsLoading(false);});
-  return ()=>controller.abort();
- },[]);
- useEffect(()=>{
-  const controller=new AbortController();
-  setTradingStatus(null);setTradingStatusError("");
-  getTradingStatus(controller.signal).then(snapshot=>{
-   if(!controller.signal.aborted)setTradingStatus(snapshot);
-  }).catch(reason=>{
-   if(reason instanceof Error&&reason.name==="AbortError")return;
-   if(!controller.signal.aborted)setTradingStatusError(reason instanceof Error?reason.message:"Spot execution status is unavailable.");
-  });
-  if(status==="loading"){
-   setSecondsAvailability("loading");setEarnAvailability("loading");setPerpAvailability("loading");
-  }else if(status!=="authenticated"){
-   setSecondsAvailability("sign-in");setEarnAvailability("sign-in");setPerpAvailability("sign-in");
-  }else{
-   setSecondsAvailability("loading");setEarnAvailability("loading");setPerpAvailability("loading");
-   Promise.allSettled([getSecondsPolicy(controller.signal),getEarnCatalog(controller.signal),getPerpMarkets(controller.signal)]).then(([seconds,earn,perp])=>{
-    if(controller.signal.aborted)return;
-    setSecondsAvailability(seconds.status==="fulfilled"?(seconds.value.actions_enabled?"enabled":"read-only"):"unavailable");
-    setEarnAvailability(earn.status==="rejected"?"unavailable":earn.value.products.length===0?"empty":earn.value.actions_enabled?"enabled":"read-only");
-    setPerpAvailability(perp.status==="fulfilled"?(perp.value.length>0?"enabled":"read-only"):"unavailable");
-   });
-  }
-  return ()=>controller.abort();
- },[status]);
- const spotExecutionEnabled=tradingStatus?.spot_order_entry_enabled===true;
-
-
-  const spotBadge = pairsLoading
-    ? t("Checking markets")
-    : pairsError
-    ? t("Markets unavailable")
-    : !spotPairs.length
-    ? t("Unavailable")
-    : tradingStatusError
-    ? t("Execution unavailable")
-    : tradingStatus === null
-    ? t("Checking execution")
-    : spotExecutionEnabled
-    ? t("Order entry enabled")
-    : t("Unavailable");
-
- const spotBadgeVariant=pairsLoading?"info" as const:pairsError?"destructive" as const:!spotPairs.length?"warning" as const:tradingStatusError?"destructive" as const:tradingStatus===null?"info" as const:spotExecutionEnabled?"success" as const:"warning" as const;
- const spotDescription=pairsLoading?t("Checking backend-enabled spot markets."):pairsError?t("Spot availability cannot be confirmed. Order entry remains unavailable."):!spotPairs.length?t("No spot markets are currently enabled. Spot order entry remains unavailable."):tradingStatusError?t("Markets are listed, but execution status cannot be confirmed. Order entry remains unavailable."):tradingStatus===null?t("Checking server-side order execution status."):spotExecutionEnabled?t("Place server-validated limit orders on configured spot pairs."):t("Configured markets are visible, but spot order execution is disabled by server policy.");
- const secondsDescription=secondsAvailability==="sign-in"?t("Sign in to check the active Seconds policy and availability."):secondsAvailability==="loading"?t("Checking the active backend Seconds policy."):secondsAvailability==="unavailable"?t("Seconds policy is unavailable. New positions remain disabled."):secondsAvailability==="read-only"?t("The policy is configured, but new positions are disabled by backend financial controls."):t("Place policy-driven positions with independent timers and server-side settlement.");
- const secondsBadge=secondsAvailability==="sign-in"?t("Sign in required"):secondsAvailability==="loading"?t("Checking policy"):secondsAvailability==="unavailable"?t("Policy unavailable"):secondsAvailability==="read-only"?t("Actions disabled"):t("Order entry enabled");
- const earnDescription=earnAvailability==="sign-in"?t("Sign in to view the Earn catalog and your positions."):earnAvailability==="loading"?t("Checking the backend Earn catalog."):earnAvailability==="unavailable"?t("Earn catalog is unavailable. No product availability is assumed."):earnAvailability==="empty"?t("No Earn products are currently available."):earnAvailability==="read-only"?t("Earn products are listed, but subscribe and redeem actions are disabled by backend financial controls."):t("Review available Earn products and manage positions.");
- const earnBadge=earnAvailability==="sign-in"?t("Sign in required"):earnAvailability==="loading"?t("Checking catalog"):earnAvailability==="unavailable"?t("Catalog unavailable"):earnAvailability==="empty"?t("No products"):earnAvailability==="read-only"?t("Read-only"):t("Products available");
- return <PageFrame title="Choose your trading mode" tone="trading">
-  <div className="grid gap-4 sm:grid-cols-2">
-   <Card className="card-lift border-brand-border bg-brand-surface"><CardHeader><div className="mb-2 flex h-12 w-12 items-center justify-center rounded-xl border border-brand-accent/20 bg-brand-accent/10 text-brand-text-secondary"><ChartNoAxesCombined className="h-5 w-5"/></div><CardTitle>{t("Spot")}</CardTitle><CardDescription>{spotDescription}</CardDescription></CardHeader><CardContent className="flex flex-wrap items-center justify-between gap-3"><Badge data-testid="spot-availability" variant={spotExecutionEnabled?"outline":"secondary"}>{t(spotBadge)}</Badge><Button asChild size="sm" variant="secondary" className="shrink-0"><Link to="/markets">{t("View markets")} <ArrowUpRight className="h-4 w-4"/></Link></Button></CardContent></Card>
-   <Card className="card-lift border-brand-border bg-brand-surface"><CardHeader><div className="mb-2 flex h-12 w-12 items-center justify-center rounded-xl border border-brand-accent/20 bg-brand-accent/10 text-brand-text-secondary"><ArrowLeftRight className="h-5 w-5"/></div><CardTitle>{t("Seconds")}</CardTitle><CardDescription>{secondsDescription}</CardDescription></CardHeader><CardContent className="flex flex-wrap items-center justify-between gap-3"><Badge variant={secondsAvailability==="enabled"?"outline":"secondary"}>{secondsBadge}</Badge><Button asChild size="sm" variant="secondary" className="shrink-0"><Link to="/seconds">{status==="authenticated"?t("Open"):t("Sign in to view")} <ArrowUpRight className="h-4 w-4"/></Link></Button></CardContent></Card>
-   <Card className="card-lift border-brand-border bg-brand-surface"><CardHeader><div className="mb-2 flex h-12 w-12 items-center justify-center rounded-xl border border-brand-accent/20 bg-brand-accent/10 text-brand-text-secondary"><Sprout className="h-5 w-5"/></div><CardTitle>{t("Earn")}</CardTitle><CardDescription>{earnDescription}</CardDescription></CardHeader><CardContent className="flex flex-wrap items-center justify-between gap-3"><Badge variant={earnAvailability==="enabled"?"outline":"secondary"}>{earnBadge}</Badge><Button asChild size="sm" variant="secondary" className="shrink-0"><Link to="/earn">{status==="authenticated"?t("Open"):t("Sign in to view")} <ArrowUpRight className="h-4 w-4"/></Link></Button></CardContent></Card>
-   <Card className="card-lift border-brand-border bg-brand-surface"><CardHeader><div className="mb-2 flex h-12 w-12 items-center justify-center rounded-xl border border-brand-violet/20 bg-brand-violet/10 text-brand-violet"><TrendingUp className="h-5 w-5"/></div><CardTitle>{t("Perpetual")}</CardTitle><CardDescription>{perpAvailability==="sign-in"?t("Sign in to view perpetual contracts and open positions."):perpAvailability==="loading"?t("Checking perpetual contracts availability."):perpAvailability==="unavailable"?t("Perpetual contract trading is currently unavailable."):perpAvailability==="read-only"?t("Perpetual contract market is available in read-only mode."):t("Trade USDT-margined perpetual contracts with up to 100x leverage.")}</CardDescription></CardHeader><CardContent className="flex flex-wrap items-center justify-between gap-3"><Badge variant={perpAvailability==="enabled"?"outline":"secondary"}>{perpAvailability==="sign-in"?t("Sign in required"):perpAvailability==="loading"?t("Checking"):perpAvailability==="unavailable"?t("Unavailable"):perpAvailability==="read-only"?t("Read-only"):t("Live trading")}</Badge><Button asChild size="sm" variant="secondary" className="shrink-0"><Link to="/contract">{t("Trade")} <ArrowUpRight className="h-4 w-4"/></Link></Button></CardContent></Card>
-  </div>
-  <section className="space-y-3">
-   <div className="flex flex-wrap items-center justify-between gap-3"><h2 className="type-section-title">{t("Spot markets")}</h2>{!pairsLoading&&!pairsError?<span className="text-xs text-brand-text-muted">{spotPairs.length} {t("pairs")}</span>:null}</div>
-   {pairsLoading?<Card className="border-brand-border bg-brand-surface"><CardContent className="p-5 text-sm text-brand-text-muted" role="status">{t("Loading configured spot markets…")}</CardContent></Card>:null}
-   {!pairsLoading&&!pairsError&&!spotPairs.length?<Card className="border-dashed border-brand-border bg-transparent"><CardContent className="p-5 text-sm text-brand-text-muted">{t("No spot markets are currently enabled. Please check again later.")}</CardContent></Card>:null}
-   {pairsError?<Card className="border-brand-danger/30 bg-brand-surface"><CardContent className="p-5 text-sm text-brand-danger" role="alert">{t(pairsError)}</CardContent></Card>:null}
-   {spotPairs.length?<div className="grid gap-3 sm:grid-cols-2">{spotPairs.map(pair=><Card key={pair.base_asset+"/"+pair.quote_asset} className="card-lift min-w-0 border-brand-border bg-brand-surface"><CardHeader><CardTitle>{pair.base_asset}/{pair.quote_asset}</CardTitle><CardDescription>{t("This pair is configured. Order entry availability is shown above.")}</CardDescription></CardHeader><CardContent className="flex flex-wrap items-center justify-between gap-3"><Badge variant="outline">{t("Enabled")}</Badge><Button asChild size="sm" variant="secondary" className="shrink-0"><Link to={"/trade/"+pair.base_asset+pair.quote_asset}>{t("Open")} <ArrowUpRight className="h-4 w-4"/></Link></Button></CardContent></Card>)}</div>:null}
-  </section>
- </PageFrame>;
-}
-export function AssetsPage(){
- const {t,language}=useI18n();
- const numberLocale=localeTags[language];
- const [account,setAccount]=useState<AccountSnapshot|null>(null);
- const [loading,setLoading]=useState(true);
- const [error,setError]=useState("");
- const [reload,setReload]=useState(0);
- useEffect(()=>{
-  const controller=new AbortController();
-  setLoading(true);setError("");
-  getAccount(controller.signal).then(setAccount).catch((reason:unknown)=>{
-   if(reason instanceof Error && reason.name==="AbortError")return;
-   setError(reason instanceof Error?reason.message:"Account balances are temporarily unavailable.");
-  }).finally(()=>{if(!controller.signal.aborted)setLoading(false);});
-  return ()=>controller.abort();
- },[reload]);
- const amount=(raw:number|string|undefined)=>formatDecimalAmount(raw,numberLocale,10);
- const balances: Array<[string, AccountBalance]> = account ? Object.entries(account.balances) as Array<[string, AccountBalance]> : [];
- return <PageFrame title="Assets" tone="assets">
-  <div className="flex flex-wrap items-center justify-between gap-3"><div className="flex items-center gap-2"><Badge variant="outline" className="border-brand-border">{t("Live account data")}</Badge>{account&&!loading?<span className="text-xs text-brand-text-muted">{balances.length} {t("assets")}</span>:null}</div></div>
-  {loading?<Card className="border-brand-border bg-brand-surface"><CardContent className="p-6 text-sm text-brand-text-muted" role="status">{t("Loading account balances…")}</CardContent></Card>
-   :error?<Card className="border-brand-danger/30 bg-brand-surface"><CardContent className="flex flex-wrap items-center justify-between gap-3 p-5"><p className="text-sm text-brand-danger" role="alert">{t(error)}</p><Button size="sm" variant="outline" onClick={()=>setReload((n)=>n+1)}>{t("Try again")}</Button></CardContent></Card>
-   :account?<>
-    <section aria-label={t("Wallet overview")} className="grid gap-3">
-     <Card className="relative overflow-hidden border-brand-teal/25 bg-brand-surface ring-1 ring-brand-teal/[0.05]"><span aria-hidden="true" className="absolute inset-y-0 left-0 w-1 bg-brand-teal"/><CardContent className="flex flex-wrap items-center justify-between gap-4 p-4 sm:p-5"><div className="min-w-0"><p className="type-meta pl-1 font-semibold uppercase tracking-wide text-brand-text-muted">{t("Estimated account value")}</p><p className="mt-2 break-all text-2xl font-bold tabular-nums text-brand-text sm:text-3xl">{account.valuation_complete?amount(account.totalUsdt)+" USDT":"—"}</p></div><div className="flex flex-wrap gap-2"><Button asChild className="min-h-11"><Link to="/deposit">{t("Deposit")}</Link></Button><Button asChild variant="outline" className="min-h-11"><Link to="/withdraw">{t("Withdraw")}</Link></Button></div></CardContent></Card>
-    </section>
-    <section className="space-y-3"><div className="flex items-center justify-between"><h2 className="type-section-title">{t("Your assets")}</h2><span className="text-xs text-brand-text-muted">{balances.length}</span></div>
-     {balances.length?balances.map(([asset,balance],index)=><Card key={asset} className={"relative -mx-3 overflow-hidden rounded-none border-brand-border bg-brand-surface transition-colors hover:border-brand-teal/20 sm:-mx-4 md:mx-0 md:rounded-xl "+(index%3===0?"border-l-2 border-l-brand-teal":index%3===1?"border-l-2 border-l-brand-cyan":"border-l-2 border-l-brand-violet")}><CardContent className="grid grid-cols-2 gap-3 p-4 sm:grid-cols-4 sm:p-5"><div className="flex min-w-0 items-center gap-3"><TokenIcon symbol={asset} className="h-9 w-9 shrink-0"/><div className="min-w-0"><p className="text-xs text-brand-text-muted">{t("Asset")}</p><p className="mt-1 truncate font-semibold">{asset}</p></div></div><div><p className="text-xs text-brand-text-muted">{t("Available")}</p><p className="mt-1 break-all font-medium tabular-nums">{amount(balance.free)}</p></div><div><p className="text-xs text-brand-text-muted">{t("In orders")}</p><p className="mt-1 break-all font-medium tabular-nums">{amount(balance.frozen)}</p></div><div><p className="text-xs text-brand-text-muted">{t("USDT value")}</p><p className="mt-1 break-all font-medium tabular-nums">{balance.usdt===undefined?"—":amount(balance.usdt)}</p></div></CardContent></Card>)
-      :<Card className="border-brand-border bg-brand-surface"><CardContent className="p-5 text-sm text-brand-text-muted">{t("No asset balances were returned by the account service.")}</CardContent></Card>}
-    </section>
-   </>:null}
-  <div className="grid gap-4 sm:grid-cols-3">{[{title:"Deposit",to:"/deposit",label:"Open deposit"},{title:"Withdraw",to:"/withdraw",label:"Open withdrawal"},{title:"Earn",to:"/earn",label:"Explore Earn"}].map(x=><Card key={x.to} className="border-brand-border bg-brand-surface"><CardContent className="p-5"><p className="type-label text-brand-text-secondary">{t(x.title)}</p><Button asChild variant="link" className="mt-2 min-h-0 h-auto px-0 py-0 text-left text-brand-text-secondary"><Link to={x.to}>{t(x.label)} <ArrowUpRight className="h-4 w-4"/></Link></Button></CardContent></Card>)}</div>
- </PageFrame>;
-}
 export function MyPage(){
  const {t}=useI18n();
  const {status,signOut}=useAuth();
@@ -222,7 +106,6 @@ export function MyPage(){
  const links=[
   {title:"Orders",to:"/orders",icon:ChartNoAxesCombined,surface:"border-brand-info/25 bg-brand-surface",iconTone:"bg-brand-info/10 text-brand-info",hoverTone:"hover:border-brand-info/45"},
   {title:"Referral & Rewards",to:"/rewards",icon:Gift,surface:"border-brand-accent/25 bg-brand-surface",iconTone:"bg-brand-accent/10 text-brand-accent",hoverTone:"hover:border-brand-accent/45"},
-  {title:"New listings",to:"/new-listings",icon:Rocket,surface:"border-brand-warning/25 bg-brand-surface",iconTone:"bg-brand-warning/10 text-brand-warning",hoverTone:"hover:border-brand-warning/45"},
   {title:"Support",to:"/support",icon:Headset,surface:"border-brand-violet/25 bg-brand-surface",iconTone:"bg-brand-violet/10 text-brand-violet",hoverTone:"hover:border-brand-violet/45"},
   {title:"Settings",to:"/settings",icon:ShieldCheck,surface:"border-brand-teal/25 bg-brand-surface",iconTone:"bg-brand-teal/10 text-brand-teal",hoverTone:"hover:border-brand-teal/45"},
   {title:"Trust centre",to:"/trust",icon:ShieldCheck,surface:"border-brand-border bg-brand-surface",iconTone:"bg-brand-surface-2 text-brand-text-muted",hoverTone:"hover:border-brand-border-strong"},
@@ -237,8 +120,8 @@ export function MyPage(){
    <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
     <div className="flex flex-col rounded-xl border border-white/[0.08] bg-brand-surface p-4 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.12)] transition-all duration-200"><p className="text-xs text-brand-text-muted font-medium">{t("Estimated account value")}</p><p className="mt-2 text-xl font-bold font-mono tracking-tight tabular-nums text-brand-text">•••••• <span className="text-xs font-normal text-brand-text-muted">USDT</span></p><div className="mt-2.5 flex items-center gap-2"><Link to="/login" className="text-xs text-brand-accent font-semibold hover:underline">{t("Sign in to view")}</Link></div></div>
     <div className="flex flex-col rounded-xl border border-white/[0.08] bg-brand-surface p-4 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.12)] transition-all duration-200"><p className="text-xs text-brand-text-muted font-medium">{t("Security tier")}</p><p className="mt-2 text-base font-bold text-brand-text">—</p><span className="mt-2.5 text-xs text-brand-text-muted font-medium flex items-center gap-1"><LockKeyhole className="h-3.5 w-3.5"/>{t("Sign in to view")}</span></div>
-    <div className="flex flex-col rounded-xl border border-white/[0.08] bg-brand-surface p-4 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.12)] transition-all duration-200"><p className="text-xs text-brand-text-muted font-medium">{t("Fee tier")}</p><p className="mt-2 text-base font-bold text-brand-text">VIP 0</p><span className="mt-2.5 text-xs text-brand-text-secondary">{t("Maker 0.1% / Taker 0.1%")}</span></div>
-    <div className="flex flex-col rounded-xl border border-white/[0.08] bg-brand-surface p-4 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.12)] transition-all duration-200"><p className="text-xs text-brand-text-muted font-medium">{t("Affiliate Program")}</p><p className="mt-2 text-base font-bold text-brand-text">Up to 40%</p><Link to="/register" className="mt-2.5 text-xs text-brand-accent font-semibold hover:underline">{t("Join affiliate")}</Link></div>
+    <div className="flex flex-col rounded-xl border border-white/[0.08] bg-brand-surface p-4 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.12)] transition-all duration-200"><p className="text-xs text-brand-text-muted font-medium">{t("Fee tier")}</p><p className="mt-2 text-base font-bold text-brand-text">—</p><span className="mt-2.5 text-xs text-brand-text-muted font-medium">{t("Sign in to view")}</span></div>
+    <div className="flex flex-col rounded-xl border border-white/[0.08] bg-brand-surface p-4 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.12)] transition-all duration-200"><p className="text-xs text-brand-text-muted font-medium">{t("Affiliate Program")}</p><p className="mt-2 text-base font-bold text-brand-text">—</p><Link to="/register" className="mt-2.5 text-xs text-brand-accent font-semibold hover:underline">{t("Join affiliate")}</Link></div>
    </div>
   </div>
   :loading?<Card className="border-brand-border bg-brand-surface"><CardContent className="p-6 text-sm text-brand-text-muted" role="status">{t("Loading account profile…")}</CardContent></Card>
@@ -272,50 +155,6 @@ export function MyPage(){
  </PageFrame>;
 }
 
-
-export function OrdersPage(){
- const {t,language}=useI18n();
- const [orders,setOrders]=useState<OrderRecord[]>([]);
- const [loading,setLoading]=useState(true);
- const [error,setError]=useState("");
- const [reload,setReload]=useState(0);
- useEffect(()=>{
-  const controller=new AbortController();
-  setLoading(true);setOrders([]);setError("");
-  getOrders(controller.signal).then(setOrders).catch((reason:unknown)=>{
-   if(reason instanceof Error && reason.name==="AbortError")return;
-   if(!controller.signal.aborted)setOrders([]);
-   setError(reason instanceof Error?reason.message:"Order history is temporarily unavailable.");
-  }).finally(()=>{if(!controller.signal.aborted)setLoading(false);});
-  return ()=>controller.abort();
- },[reload]);
- const value=(raw:unknown)=>raw===null||raw===undefined||raw===""?"—":String(raw);
- const date=(raw?:string)=>{if(!raw)return "—";const parsed=new Date(raw);return Number.isNaN(parsed.getTime())?raw:parsed.toLocaleString(localeTags[language]);};
- const statusTone=(status?:string)=>{
-  const normalized=String(status||"").toLowerCase();
-  if(["filled","completed","success","settled"].includes(normalized))return "border-brand-success/30 bg-brand-success/[.07] text-brand-success";
-  if(["cancelled","canceled","rejected","failed","expired"].includes(normalized))return "border-brand-danger/30 bg-brand-danger/[.07] text-brand-danger";
-  return "border-brand-border bg-brand-surface-2 text-brand-text-muted";
- };
- return <PageFrame title="Orders" tone="orders" backTo="/me">
-  <div className="flex flex-wrap items-center justify-between gap-3">
-   <div className="flex items-center gap-2"><Badge variant="outline" className="border-brand-border">{t("Read-only history")}</Badge>{!loading&&!error?<span className="text-xs text-brand-text-muted">{orders.length} {t("records")}</span>:null}</div>
-   <Button size="sm" variant="outline" disabled={loading} onClick={()=>setReload((n)=>n+1)}><RefreshCw className={"mr-2 h-4 w-4 "+(loading?"animate-spin":"")}/>{t("Refresh")}</Button>
-  </div>
-  {loading?<Card className="border-brand-border bg-brand-surface"><CardContent className="p-6 text-sm text-brand-text-muted" role="status">{t("Loading orders…")}</CardContent></Card>
-   :error?<Card className="border-brand-danger/30 bg-brand-surface"><CardContent className="flex flex-wrap items-center justify-between gap-3 p-5"><p className="text-sm text-brand-danger" role="alert">{t(error)}</p><Button size="sm" variant="outline" onClick={()=>setReload((n)=>n+1)}>{t("Try again")}</Button></CardContent></Card>
-   :orders.length===0?<Card className="border-brand-border bg-brand-surface"><CardContent className="flex flex-col items-center px-5 py-12 text-center"><div className="mb-3 flex h-12 w-12 items-center justify-center rounded-xl border border-brand-border bg-brand-surface-2"><Clock3 className="h-5 w-5 text-brand-text-muted"/></div><p className="font-semibold">{t("No orders returned")}</p><p className="mt-2 max-w-md text-sm text-brand-text-muted">{t("No orders are available for this account yet.")}</p><Button asChild variant="secondary" className="mt-5"><Link to="/trade-hub">{t("Explore trading")}</Link></Button></CardContent></Card>
-   :<div className="space-y-3">{orders.map((order,index)=>{
-    const id=value(order.order_id??order.id);
-    const side=String(order.side||"").toLowerCase();
-    return <Card key={id!=="—"?id:index} className="min-w-0 border-brand-border bg-brand-surface"><CardContent className="grid gap-3 p-4 sm:p-5">
-     <div className="flex flex-wrap items-center justify-between gap-2"><div className="flex min-w-0 items-center gap-2"><span className="truncate font-semibold">{value(order.symbol)}</span><Badge variant="outline" className={side==="buy"?"border-brand-success/30 text-brand-success":side==="sell"?"border-brand-danger/30 text-brand-danger":"border-brand-border"}>{value(order.side)}</Badge><span className="text-xs text-brand-text-muted">{value(order.type)}</span></div><Badge variant="outline" className={statusTone(order.status)}>{value(order.status)}</Badge></div>
-     <div className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-4"><div><p className="text-xs text-brand-text-muted">{t("Price")}</p><p className="mt-1 font-medium tabular-nums">{value(order.price)}</p></div><div><p className="text-xs text-brand-text-muted">{t("Quantity")}</p><p className="mt-1 font-medium tabular-nums">{value(order.quantity)}</p></div><div><p className="text-xs text-brand-text-muted">{t("Amount")}</p><p className="mt-1 font-medium tabular-nums">{value(order.amount)}</p></div><div><p className="text-xs text-brand-text-muted">{t("Created")}</p><p className="mt-1 font-medium">{date(order.created_at)}</p></div></div>
-     <p className="border-t border-brand-border pt-2 text-[11px] text-brand-text-muted">{t("Order ID")}: <span className="break-all font-mono">{id}</span></p>
-    </CardContent></Card>;
-   })}</div>}
- </PageFrame>;
-}
 
 export function SpotTradingPage(){
  const {symbol:routeSymbol}=useParams();
@@ -430,8 +269,8 @@ export function SpotTradingPage(){
  // exchange snapshot time, never the browser's receipt time.
  const providerTimestampMs=ticker?.providerTs?ticker.providerTs*1000:null;
  const marketSnapshotStale=!!ticker&&(!providerTimestampMs||!Number.isFinite(providerTimestampMs)||providerTimestampMs<=0||marketClockNow-providerTimestampMs>90_000||providerTimestampMs-marketClockNow>5_000);
- const displayTicker=ticker;
- const tickerIsFallback=ticker?.source==="demo-preview"||ticker?.source==="sample-data";
+ const tickerIsFallback=!ticker?.source||ticker.source==="demo-preview"||ticker.source==="sample-data";
+ const displayTicker=tickerIsFallback||marketSnapshotStale?null:ticker;
  /**
   * Depth steps this pair can actually use, derived from its price. A 0.01 bucket
   * would merge ARB's 0.1277 book into one row and print a 0.13 best bid. The
@@ -442,14 +281,14 @@ export function SpotTradingPage(){
  const effectiveDepthPrecision:DepthPrecision=pairPrecisionOptions.includes(depthPrecision)?depthPrecision:pairPrecisionOptions[0];
  /**
   * USDT→USD rate behind the "≈ $" hint under the mid price. Polled at a slow
-  * cadence because the peg moves in basis points, and falling back to 0.99999
+  * cadence because the peg moves in basis points, and using a guessed fallback rate
   * keeps the hint readable if the FX endpoint is unavailable.
   */
- const [usdtUsd,setUsdtUsd]=useState(0.99999);
+ const [usdtUsd,setUsdtUsd]=useState<number | null>(null);
  useEffect(()=>{
   const controller=new AbortController();
   let cancelled=false;
-  const load=()=>{getUsdtUsdRate(0.99999,controller.signal).then(r=>{if(!cancelled)setUsdtUsd(r.rate);}).catch(()=>{});};
+  const load=()=>{getUsdtUsdRate(controller.signal).then(r=>{if(!cancelled)setUsdtUsd(r.rate);}).catch(()=>{});};
   load();
   const timer=window.setInterval(load,60000);
   return ()=>{cancelled=true;controller.abort();window.clearInterval(timer);};
@@ -493,16 +332,20 @@ export function SpotTradingPage(){
   if(Number.isFinite(snapshot)&&snapshot>0)return snapshot;
   return null;
  })();
- const effectiveMarketFeedWarning=marketFeedWarning;
+ const effectiveMarketFeedWarning=marketFeedWarning||(ticker&&tickerIsFallback?t("Market data is temporarily unavailable."):marketSnapshotStale?t("Market data is temporarily unavailable."):"");
+
+
+
+
  // A failed `/api/market` leaves `ticker` null. Without a real quote there is no
  // price, no 24h stats and no basis for pricing an order, so the terminal shows
  // an explicit degraded state with a retry instead of blank fields that read as
  // zero. No sample value is ever substituted.
- const marketUnavailable=!ticker;
+ const marketUnavailable=!displayTicker||marketSnapshotStale;
 
  useEffect(()=>{
-  if(!ticker||marketSnapshotStale){
-   if(!ticker||price===String(ticker.price))setPrice("");
+  if(!displayTicker||marketSnapshotStale){
+   if(!displayTicker||price===String(ticker?.price))setPrice("");
   }
  },[ticker,marketSnapshotStale,price]);
 
@@ -525,10 +368,10 @@ export function SpotTradingPage(){
     setSpotPairRules(selectedPair);
     const enabled=!!selectedPair;
     setSpotPairEnabled(enabled);
-    if(!enabled)setError("This spot market is not enabled by BTCBOX operators.");
+    if(!enabled)setError(t("Trading is temporarily unavailable."));
    }else{
     setSpotPairEnabled(false);
-    setError(pairResult.reason instanceof Error?pairResult.reason.message:"Spot-market catalogue is unavailable.");
+    setError(t("Unable to load spot markets. Please try again."));
    }
    if(accountResult.status==="fulfilled"){setAccountUid(accountResult.value.uid);setAvailableBalances(accountResult.value.balances);}
    else if(accountResult.reason instanceof ApiError && accountResult.reason.code==="AUTH_REQUIRED"){setAccountUid("");setAvailableBalances({});}
@@ -543,16 +386,16 @@ export function SpotTradingPage(){
      setTicker(selected);
      setMarketUpdatedAt(selected.providerTs?selected.providerTs*1000:null);
      setMarketFeedWarning("");
-     if(!isPriceManual && selected.source!=="demo-preview" && selected.source!=="sample-data"){ setPrice(String(selected.price)); }
-    }else{setTicker(null);setMarketUpdatedAt(null);setPrice("");setMarketFeedWarning("Market data is temporarily unavailable for this pair.");}
-   }else{setTicker(null);setMarketUpdatedAt(null);setPrice("");setError(marketResult.reason instanceof Error?marketResult.reason.message:"Live market data is unavailable.");}
+     if(!isPriceManual && selected.source && selected.source!=="demo-preview" && selected.source!=="sample-data"){ setPrice(String(selected.price)); }
+    }else{setTicker(null);setMarketUpdatedAt(null);setPrice("");setMarketFeedWarning(t("Market data is temporarily unavailable."));}
+   }else{setTicker(null);setMarketUpdatedAt(null);setPrice("");setError(t("Market data is temporarily unavailable."));}
    // initial load: a null book means the depth feed is unavailable, and the
    // panel renders its own empty state.
    setBook(bookResult.status==="fulfilled"?bookResult.value:null);
    if(statusResult.status==="fulfilled")setTradingStatus(statusResult.value);
    else setTradingStatus(null);
    if(ordersResult.status==="fulfilled")setOrders(ordersResult.value);
-   else if(ordersResult.reason instanceof ApiError && ordersResult.reason.code!=="AUTH_REQUIRED")setError(ordersResult.reason.message);
+   else if(ordersResult.reason instanceof ApiError && ordersResult.reason.code!=="AUTH_REQUIRED")setError(t("Account data is temporarily unavailable."));
   }).finally(()=>{if(!controller.signal.aborted)setLoading(false);});
   return ()=>controller.abort();
  },[symbol,reload,refreshTick]);
@@ -579,12 +422,12 @@ export function SpotTradingPage(){
      if(selected){
       setTicker(selected);
       setMarketUpdatedAt(selected.providerTs?selected.providerTs*1000:null);
-      if(!isPriceManual && selected.price && selected.source!=="demo-preview" && selected.source!=="sample-data"){ setPrice(String(selected.price)); }
+      if(!isPriceManual && selected.price && selected.source && selected.source!=="demo-preview" && selected.source!=="sample-data"){ setPrice(String(selected.price)); }
      }else{setTicker(null);setMarketUpdatedAt(null);failed=true;}
     }else{setTicker(null);setMarketUpdatedAt(null);failed=true;}
     if(bookResult.status==="fulfilled"){setBook(bookResult.value);if(!bookResult.value)failed=true;}
     else{setBook(null);failed=true;}
-    setMarketFeedWarning(failed?"Live market data is temporarily unavailable.":"");
+    setMarketFeedWarning(failed?t("Market data is temporarily unavailable."):"");
    }).finally(()=>{window.clearTimeout(timeoutId);refreshing=false;});
   };
 // The ticker and order book poll every 5 s; the gateway cache window absorbs
@@ -607,7 +450,7 @@ export function SpotTradingPage(){
    getKlines(symbol,chartInterval,controller.signal).then(rows=>{
     if(!cancelled){setCandles(rows);setChartFeedWarning("");}
    }).catch(()=>{
-    if(!cancelled){setCandles([]);setChartFeedWarning("Chart data is temporarily unavailable.");}
+    if(!cancelled){setCandles([]);setChartFeedWarning(t("Chart data is temporarily unavailable."));}
    }).finally(()=>{window.clearTimeout(timeout);refreshing=false;});
   };
   setCandles([]);load();
@@ -624,8 +467,8 @@ export function SpotTradingPage(){
    const saved=JSON.parse(raw) as Parameters<typeof submitSpotOrder>[0];
    if(saved&&saved.symbol===symbol&&saved.type==="limit"&&(saved.side==="buy"||saved.side==="sell")&&typeof saved.qty==="string"&&typeof saved.price==="string"&&/^[A-Za-z0-9_-]{16,100}$/.test(saved.client_order_id)){
     setPendingIntent(saved);setSide(saved.side);setQuantity(saved.qty);setPrice(saved.price);
-   }else{setPendingIntentInvalid(true);setError("A saved spot order request is invalid. Check order history before allowing another order.");}
-  }catch{setPendingIntentInvalid(true);setError("A saved spot order request could not be read. No new order will be sent until it is reviewed.");}
+   }else{setPendingIntentInvalid(true);setError("We couldn't verify your pending order. Check order history before placing another order.");}
+  }catch{setPendingIntentInvalid(true);setError("We couldn't verify your pending order. Check order history before placing another order.");}
  },[accountUid,symbol,pendingStorageKey]);
 
  useEffect(()=>{
@@ -650,7 +493,7 @@ export function SpotTradingPage(){
   if(!node||!candles.length||node.clientWidth<=0||(compactTrade&&!chartOpen))return;
   const chart=createChart(node,{width:node.clientWidth,height:node.clientHeight||320,handleScroll:{vertTouchDrag:false,horzTouchDrag:true},handleScale:{pinch:true},layout:{attributionLogo:false,background:{type:ColorType.Solid,color:CHART_THEME.background},textColor:CHART_THEME.text},grid:{vertLines:{color:CHART_THEME.grid},horzLines:{color:CHART_THEME.grid}},rightPriceScale:{borderColor:CHART_THEME.border},timeScale:{borderColor:CHART_THEME.border,timeVisible:true,secondsVisible:false,rightOffset:6,minBarSpacing:5}});
   const series=chart.addSeries(CandlestickSeries,{upColor:CHART_THEME.up,downColor:CHART_THEME.down,borderVisible:false,wickUpColor:CHART_THEME.up,wickDownColor:CHART_THEME.down});
-  series.setData(candles.map(item=>({time:Math.floor(item.time/1000) as UTCTimestamp,open:item.open,high:item.high,low:item.low,close:item.close})).sort((a,b)=>Number(a.time)-Number(b.time)));
+  series.setData(candles.map(item=>({time:Math.floor(item.time) as UTCTimestamp,open:item.open,high:item.high,low:item.low,close:item.close})).sort((a,b)=>Number(a.time)-Number(b.time)));
   chart.timeScale().fitContent();
   // The last-trade price line keeps the price scale aligned with the order book:
   // without it the axis was only as wide as the fetched candles, so a price that
@@ -708,11 +551,11 @@ export function SpotTradingPage(){
   if(pendingIntent){await sendOrder(pendingIntent, false);return;}
 
   if(!/^(?:0|[1-9]\d*)(?:\.\d{1,18})?$/.test(quantity)||Number(quantity)<=0||!/^(?:0|[1-9]\d*)(?:\.\d{1,18})?$/.test(price)||Number(price)<=0){setError("Enter a valid limit price and quantity.");return;}
-  if(!pendingStorageKey){setError("Account identity is unavailable. No order was sent.");return;}
+  if(!pendingStorageKey){setError(t("Sign in to continue"));return;}
 
   // Decide whether this order warrants an explicit confirmation.
   const notional=Number(price)*Number(quantity);
-  const marketPrice=ticker?Number(ticker.price):null;
+  const marketPrice=displayTicker?Number(displayTicker.price):null;
   const deviationPct=priceDeviationPct(Number(price),marketPrice);
   if(shouldConfirmOrder(notional,deviationPct)){
    setError("");
@@ -728,7 +571,7 @@ export function SpotTradingPage(){
   */
  const sendOrder=async(intent:Parameters<typeof submitSpotOrder>[0],persistIntent:boolean)=>{
   if(persistIntent){
-   if(!pendingStorageKey){setError("Account identity is unavailable. No order was sent.");return;}
+   if(!pendingStorageKey){setError(t("Sign in to continue"));return;}
    try{window.localStorage.setItem(pendingStorageKey,JSON.stringify(intent));}
    catch{setError("This browser cannot safely save the order request. No order was sent.");return;}
    setPendingIntent(intent);
@@ -743,12 +586,12 @@ export function SpotTradingPage(){
    const latest=await getOrders();
    setOrders(latest);
    const confirmed=latest.some(item=>String(item.order_id??item.id??"")===result.order_id);
-   if(!confirmed){setError("The order response arrived, but order history has not confirmed it. Do not create another order; retry this same request.");return;}
+   if(!confirmed){setError("Your order status is not yet confirmed. Check order history before trying again.");return;}
    try{window.localStorage.removeItem(pendingStorageKey);}catch{}
    setPendingIntent(null);setPendingIntentInvalid(false);setQuantity("");
    setNotice(result.duplicate?"This order request was already recorded and confirmed.":"Limit order accepted and confirmed in order history.");
   }catch(reason){
-   setError(reason instanceof Error?reason.message:"Order result is unconfirmed. Keep the same request ID and check orders before retrying.");
+   setError(t("Order result is unconfirmed. Keep the same request ID and check order history before retrying."));
    if(!orderAccepted&&reason instanceof ApiError&&(reason.status===400||reason.status===401||reason.status===403||reason.code==="MATCHING_ENGINE_UNAVAILABLE")){
     try{window.localStorage.removeItem(pendingStorageKey);}catch{}
     setPendingIntent(null);setPendingIntentInvalid(false);
@@ -777,14 +620,14 @@ export function SpotTradingPage(){
  />;
  const cancelOrder=async(order:OrderRecord)=>{
   const orderId=String(order.order_id??order.id??"");if(!orderId)return;
-  if(!accountUid){setError("Account identity is unavailable. Cancellation was not sent.");return;}
+  if(!accountUid){setError(t("Sign in to continue"));return;}
   const storageKey="btcbox.spot.cancel.v1."+accountUid+"."+orderId;
   let requestId=cancelRequestIds[orderId];
-  if(requestId==="storage_unavailable"){setError("This browser cannot safely restore the cancellation request. Refresh order history before retrying.");return;}
+  if(requestId==="storage_unavailable"){setError(t("Account data is temporarily unavailable."));return;}
   if(!requestId){
    requestId=window.crypto.randomUUID();
    try{window.localStorage.setItem(storageKey,requestId);}
-   catch{setError("This browser cannot safely save the cancellation request. No cancellation was sent.");return;}
+   catch{setError(t("Account data is temporarily unavailable."));return;}
    setCancelRequestIds(current=>({...current,[orderId]:requestId!}));
   }
   setBusy(true);setError("");setNotice("");
@@ -796,12 +639,12 @@ export function SpotTradingPage(){
    setOrders(latest);
    const updated=latest.find(item=>String(item.order_id??item.id??"")===orderId);
    const status=String(updated?.status||"").toLowerCase();
-   if(!["cancelled","canceled","rejected"].includes(status)){setError("The cancellation response arrived, but order history has not confirmed the final status. Retry only with the same request ID.");return;}
+   if(!["cancelled","canceled","rejected"].includes(status)){setError("Your cancellation status is not yet confirmed. Refresh order history before trying again.");return;}
    try{window.localStorage.removeItem(storageKey);}catch{}
    setCancelRequestIds(current=>{const next={...current};delete next[orderId];return next;});
    setNotice(result.duplicate?"This cancellation was already recorded and confirmed.":"Order cancellation confirmed in order history.");
   }catch(reason){
-   setError(reason instanceof Error?reason.message:"Cancellation result is unconfirmed. Refresh order history and retry only with the same request ID.");
+   setError(t("Order result is unconfirmed. Keep the same request ID and check order history before retrying."));
    if(!cancelAccepted&&reason instanceof ApiError&&reason.status>=400&&reason.status<500&&reason.status!==409){
     try{window.localStorage.removeItem(storageKey);}catch{}
     setCancelRequestIds(current=>{const next={...current};delete next[orderId];return next;});
@@ -859,7 +702,7 @@ export function SpotTradingPage(){
  const staleSnapshot=!!ticker&&marketSnapshotStale;
  const bannerKey=[effectiveMarketFeedWarning,chartFeedWarning,tradingInactive?"engine":"",staleSnapshot?"stale":""].join("|");
  const bannerVisible=(effectiveMarketFeedWarning||chartFeedWarning||tradingInactive||staleSnapshot)&&!dismissedBanners.includes(bannerKey);
- const bannerText=[effectiveMarketFeedWarning,chartFeedWarning,staleSnapshot?t("Market snapshot is older than 90 seconds. Quotes and new order entry are disabled until fresh data arrives."):"",tradingInactive?t("Spot order execution is disabled by server policy. No order can be placed until the matching engine is approved and enabled."):""].filter(Boolean).join(" · ");
+ const bannerText=[effectiveMarketFeedWarning,chartFeedWarning,(staleSnapshot||tradingInactive)?t("Trading is temporarily unavailable."):""].filter(Boolean).join(" · ");
  const bannerDismissed=!bannerVisible&&dismissedBanners.includes(bannerKey);
  const orderHistory=orders.filter(item=>!["open","partially_filled","partially-filled","pending"].includes(String(item.status||"").toLowerCase()));
  // Executed orders only. Derived from the same authenticated `/api/orders`
@@ -923,7 +766,7 @@ export function SpotTradingPage(){
      </button>
      <PriceBadge className="spot-quote-chg" value={displayTicker?displayTicker.chg:null} unit="percent" decimals={2} ariaLabel={t("24h change")} />
     </div>
-    <span className="term-top-price font-mono tabular-nums"><span key={displayTicker?amountText(displayTicker.price):"—"} className={"inline-block anim-price-tick "+(Number(ticker?.chg||0)>=0?"text-profit":"text-loss")}>{displayTicker?amountText(displayTicker.price):"—"}</span></span>
+    <span className="term-top-price font-mono tabular-nums"><span key={displayTicker?amountText(displayTicker.price):"—"} className={"inline-block anim-price-tick "+(displayTicker?.chg===undefined||displayTicker?.chg===null?"text-brand-text":displayTicker.chg>=0?"text-profit":"text-loss")}>{displayTicker?amountText(displayTicker.price):"—"}</span></span>
     <div className="term-top-stats">
      <div><span>{t("24h high")}</span><b>{displayTicker?amountText(displayTicker.high):"—"}</b></div>
      <div><span>{t("24h low")}</span><b>{displayTicker?amountText(displayTicker.low):"—"}</b></div>
@@ -944,7 +787,7 @@ export function SpotTradingPage(){
        (a stale screen should not be permanently silent). */}
    {marketUnavailable?<div className="term-feeddown" role="alert">
     <WifiOff className="h-4 w-4 shrink-0" aria-hidden="true"/>
-    <span className="min-w-0 flex-1">{t("行情连接已断开，暂时无法获取最新价格。请稍后重试。")}</span>
+    <span className="min-w-0 flex-1">{t(effectiveMarketFeedWarning || "行情连接已断开，暂时无法获取最新价格。请稍后重试.")}</span>
     <button type="button" className="term-feeddown-retry" onClick={()=>setRefreshTick(value=>value+1)}>
      <RefreshCw className="h-3.5 w-3.5" aria-hidden="true"/>{t("Retry")}
     </button>
@@ -1017,7 +860,7 @@ export function SpotTradingPage(){
      <TerminalOrderBook
       book={displayBook}
       lastPrice={displayTicker?amountText(displayTicker.price):""}
-      changePercent={Number(ticker?.chg||0)}
+      changePercent={displayTicker?.chg??null}
       precision={effectiveDepthPrecision}
       onPrecisionChange={value=>setDepthPrecision(value)}
       view={bookView as BookView}
@@ -1072,8 +915,8 @@ export function SpotTradingPage(){
      return {
       id:pair,
       label:`${pair.replace(/USDT$/,"")}/USDT`,
-      price:ticker?amountText(ticker.price):null,
-      changePct:ticker&&Number.isFinite(Number(ticker.chg))?Number(ticker.chg):null,
+      price:displayTicker?amountText(displayTicker.price):null,
+      changePct:displayTicker&&Number.isFinite(Number(displayTicker.chg))?Number(displayTicker.chg):null,
      };
     })}
     onSelect={(pair)=>navigate(`/trade/${pair}`)}
@@ -1096,7 +939,7 @@ export function SpotTradingPage(){
       {base}/USDT<ChevronDown className="h-3.5 w-3.5 shrink-0" aria-hidden="true"/>
     </button>
     <span className="spot-quote-badge">{t("Spot")}</span>
-    <span className={"spot-quote-price font-mono tabular-nums "+(Number(ticker?.chg||0)>=0?"text-profit":"text-loss")}>{displayTicker?amountText(displayTicker.price):"—"}</span>
+    <span className={"spot-quote-price font-mono tabular-nums "+(displayTicker?.chg===undefined||displayTicker?.chg===null?"text-brand-text":displayTicker.chg>=0?"text-profit":"text-loss")}>{displayTicker?amountText(displayTicker.price):"—"}</span>
     {displayTicker ? <PriceBadge className="spot-quote-chg" value={displayTicker.chg} unit="percent" decimals={2} ariaLabel={t("24h change") + " " + Number(displayTicker.chg).toFixed(2) + "%"} /> : null}
    </div>
    <div className="spot-quote-meta font-mono tabular-nums"><span>{t("24h high")} <b>{displayTicker?amountText(displayTicker.high):"—"}</b></span><span>{t("24h low")} <b>{displayTicker?amountText(displayTicker.low):"—"}</b></span><Button id="trade-chart-open" ref={chartTrigger} type="button" size="sm" variant="ghost" aria-label={t("Price chart")} onClick={()=>setChartOpen(true)} className="ml-auto h-7 w-7 shrink-0 p-0 text-brand-text-muted"><ChartNoAxesCombined className="h-4 w-4"/></Button></div>
@@ -1116,8 +959,8 @@ export function SpotTradingPage(){
     return {
      id:pair,
      label:`${pair.replace(/USDT$/,"")}/USDT`,
-     price:ticker?amountText(ticker.price):null,
-     changePct:ticker&&Number.isFinite(Number(ticker.chg))?Number(ticker.chg):null,
+     price:displayTicker?amountText(displayTicker.price):null,
+     changePct:displayTicker&&Number.isFinite(Number(displayTicker.chg))?Number(displayTicker.chg):null,
     };
    })}
    onSelect={(pair)=>navigate(`/trade/${pair}`)}
@@ -1170,417 +1013,6 @@ export function SpotTradingPage(){
 
 export function SectionPage({title,description}:{title:string;description:string}){const {t}=useI18n();return <PageFrame title={title} tone="market"><Card className="border-brand-border bg-brand-surface"><CardContent className="flex flex-wrap items-start gap-3 p-4 sm:p-5"><span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-brand-border bg-brand-surface-2 text-brand-text-muted"><LockKeyhole className="h-5 w-5"/></span><Badge variant="outline" className="shrink-0 border-brand-border text-brand-text-muted">{t("Unavailable")}</Badge><p className="type-body-compact min-w-0 flex-1 text-brand-text-muted">{t("This service is not currently available. Please check back later.")}</p></CardContent></Card></PageFrame>}
 
-
-export function SecondsPage(){
- const {t,language}=useI18n();
- const [snapshot,setSnapshot]=useState<SecondsPositionsSnapshot|null>(null);
- const [policy,setPolicy]=useState<SecondsPolicyResponse|null>(null);
- const [uid,setUid]=useState("");
- const [loading,setLoading]=useState(true);
- const [error,setError]=useState("");
- const [policyError,setPolicyError]=useState("");
- const [notice,setNotice]=useState("");
- const [reload,setReload]=useState(0);
- const [symbol,setSymbol]=useState("BTC");
- const [direction,setDirection]=useState<"up"|"down">("up");
- const [duration,setDuration]=useState(30);
- const [amount,setAmount]=useState("50");
- const [pendingIntent,setPendingIntent]=useState<SecondsOrderInput|null>(null);
- const [submitting,setSubmitting]=useState(false);
- const [clockNow,setClockNow]=useState(Date.now());
- const settling=useRef(new Set<string>());
- const storageKey=uid?"btcbox.seconds.pending.v1."+uid:"";
-
- const [interval,setIntervalTab]=useState<"line"|"1m"|"5m"|"15m">("line");
- const [chartNode,setChartNode]=useState<HTMLDivElement|null>(null);
- const [candles,setCandles]=useState<MarketCandle[]>([]);
- const [activeTab,setActiveTab]=useState<"open"|"history">("open");
- const [ticker,setTicker]=useState<MarketTicker|null>(null);
- const [availableUSDT,setAvailableUSDT]=useState<string>("0.00");
-
- const DURATION_OPTIONS = [
-  { sec: 30, rate: 85, label: "30s" },
-  { sec: 60, rate: 88, label: "60s" },
-  { sec: 180, rate: 90, label: "180s" },
-  { sec: 300, rate: 92, label: "300s" },
- ];
-
- const QUICK_AMOUNTS = [10, 50, 100, 500];
-
- useEffect(()=>{
-  const timer=window.setInterval(()=>setClockNow(Date.now()),1000);
-  return ()=>window.clearInterval(timer);
- },[]);
-
- // 轮询当前币种的最新行情与 USDT 余额
- useEffect(()=>{
-  let cancelled = false;
-  const loadMarket = () => {
-   getMarkets().then(mkts => {
-    if (cancelled) return;
-    const found = mkts.find(m => m.sym.toUpperCase() === symbol.toUpperCase());
-    if (found) setTicker(found);
-   }).catch(()=>{});
-  };
-  loadMarket();
-  const timer = window.setInterval(loadMarket, 3000);
-  return () => { cancelled = true; window.clearInterval(timer); };
- }, [symbol]);
-
- useEffect(()=>{
-  const controller=new AbortController();
-  setLoading(true);setError("");setPolicyError("");
-  Promise.allSettled([getAccount(controller.signal),getSecondsPositions(controller.signal),getSecondsPolicy(controller.signal)]).then(([accountResult,positionsResult,policyResult])=>{
-   if(controller.signal.aborted)return;
-   let restoredIntent:SecondsOrderInput|null=null;
-   if(accountResult.status==="fulfilled"){
-    const nextUid=accountResult.value.uid;
-    setUid(nextUid);
-    const usdtFree = accountResult.value.balances["USDT"]?.free;
-    if (usdtFree !== undefined) setAvailableUSDT(String(usdtFree));
-    try{
-     const raw=window.localStorage.getItem("btcbox.seconds.pending.v1."+nextUid);
-     if(raw){
-      const saved=JSON.parse(raw) as SecondsOrderInput;
-      if(saved&&typeof saved.request_id==="string"&&/^[A-Za-z0-9_-]{16,100}$/.test(saved.request_id)&&
-         ["BTC","ETH","SOL","BNB"].includes(saved.symbol)&&(saved.direction==="up"||saved.direction==="down")&&
-         Number.isSafeInteger(saved.duration_sec)&&saved.duration_sec>0&&typeof saved.amount==="string"){
-       restoredIntent=saved;
-      }else window.localStorage.removeItem("btcbox.seconds.pending.v1."+nextUid);
-     }
-    }catch{restoredIntent=null;}
-   }
-   setPendingIntent(restoredIntent);
-   if(restoredIntent){setSymbol(restoredIntent.symbol);setDirection(restoredIntent.direction);setDuration(restoredIntent.duration_sec);setAmount(restoredIntent.amount);}
-   if(positionsResult.status==="fulfilled")setSnapshot(positionsResult.value);
-   if(policyResult.status==="fulfilled"){
-    setPolicy(policyResult.value);
-   }
-  }).finally(()=>{if(!controller.signal.aborted)setLoading(false);});
-  return ()=>controller.abort();
- },[reload]);
-
- // 渲染中间 K 线 / 分时图表
- useEffect(()=>{
-  const node = chartNode;
-  if (!node) return;
-  let cancelled = false;
-  const loadKlines = () => {
-   const tf = interval === "line" ? "1m" : interval;
-   getKlines(symbol + "USDT", tf).then(rows => {
-    if (!cancelled) setCandles(rows);
-   }).catch(()=>{});
-  };
-  loadKlines();
-  const timer = window.setInterval(loadKlines, 5000);
-  return () => { cancelled = true; window.clearInterval(timer); };
- }, [symbol, interval, chartNode]);
-
- useEffect(()=>{
-  const node = chartNode;
-  if (!node || !candles.length || node.clientWidth <= 0) return;
-  const chart = createChart(node, {
-   width: node.clientWidth,
-   height: node.clientHeight || 200,
-   handleScroll: { vertTouchDrag: false, horzTouchDrag: true },
-   handleScale: { pinch: true },
-   layout: { attributionLogo: false, background: { type: ColorType.Solid, color: CHART_THEME.background }, textColor: CHART_THEME.text, fontSize: 10 },
-   grid: { vertLines: { color: "rgba(38,52,67,0.3)" }, horzLines: { color: "rgba(38,52,67,0.3)" } },
-   rightPriceScale: { borderColor: "rgba(38,52,67,0.5)" },
-   timeScale: { borderColor: "rgba(38,52,67,0.5)", timeVisible: true, secondsVisible: false, rightOffset: 6, minBarSpacing: 5 }
-  });
-  const series = chart.addSeries(CandlestickSeries, {
-   upColor: CHART_THEME.up,
-   downColor: CHART_THEME.down,
-   borderVisible: false,
-   wickUpColor: CHART_THEME.up,
-   wickDownColor: CHART_THEME.down
-  });
-  series.setData(candles.map(item => ({
-   time: Math.floor(item.time / 1000) as UTCTimestamp,
-   open: item.open,
-   high: item.high,
-   low: item.low,
-   close: item.close
-  })).sort((a, b) => Number(a.time) - Number(b.time)));
-  chart.timeScale().fitContent();
-  const observer = new ResizeObserver(entries => {
-   const width = entries[0]?.contentRect.width;
-   if (width) chart.applyOptions({ width: Math.floor(width) });
-  });
-  observer.observe(node);
-  return () => { observer.disconnect(); chart.remove(); };
- }, [candles, chartNode]);
-
- useEffect(()=>{
-  if(!policy?.actions_enabled||!snapshot?.open.length)return;
-  const timers=snapshot.open.map(position=>{
-   const delay=Math.max(0,position.settle_at*1000-Date.now());
-   return window.setTimeout(async()=>{
-    if(settling.current.has(position.position_id))return;
-    settling.current.add(position.position_id);
-    try{
-     const result=await settleSecondsPosition({
-      position_id:position.position_id,
-      symbol:position.symbol,
-      request_id:"settle_"+position.position_id
-     });
-     if(result.settled)setReload(value=>value+1);
-     else window.setTimeout(()=>setReload(value=>value+1),5000);
-    }catch{
-     window.setTimeout(()=>setReload(value=>value+1),10000);
-    }finally{settling.current.delete(position.position_id);}
-   },Math.min(delay,2147483000));
-  });
-  return ()=>timers.forEach(timer=>window.clearTimeout(timer));
- },[policy?.actions_enabled,snapshot?.open]);
-
- const refresh=()=>setReload(value=>value+1);
- const clearPending=()=>{
-  if(storageKey){
-   try{window.localStorage.removeItem(storageKey);}
-   catch{setError(t("The saved Seconds request could not be cleared. Keep this request and retry only with the same request ID."));return false;}
-  }
-  setPendingIntent(null);
-  return true;
- };
- const sendIntent=async(intent:SecondsOrderInput)=>{
-  if(submitting)return;
-  setSubmitting(true);setError("");setNotice("");
-  try{
-   const result=await submitSecondsOrder(intent);
-   const latest=await getSecondsPositions();
-   setSnapshot(latest);
-   const confirmed=latest.open.some(position=>position.position_id===result.position_id);
-   if(!confirmed){
-    setError(t("The order response arrived, but the positions list has not confirmed it. Do not create another order; retry this same request."));
-    return;
-   }
-   if(!clearPending())return;
-   setNotice(result.duplicate?t("This order was already received and has been confirmed."):t("Order confirmed. Funds are reserved and the position has its own settlement time."));
-  }catch(reason){
-   setError(reason instanceof Error?reason.message:t("Order status is unconfirmed. Keep this request and retry only with the same request ID."));
-  }finally{setSubmitting(false);}
- };
- const retryPendingIntent=()=>{if(pendingIntent)void sendIntent(pendingIntent);};
-
- const submitSeconds=async(dir: "up" | "down")=>{
-  if(submitting)return;
-  if(policy?.actions_enabled!==true){
-   setError(t("Seconds order entry is currently disabled by server policy."));
-   return;
-  }
-  if(pendingIntent){
-   setError(t("An earlier Seconds request is still unconfirmed. Retry the same request before placing a new one."));
-   return;
-  }
-  if(!storageKey){
-   setError(t("Account identity is unavailable. No order was sent."));
-   return;
-  }
-  const numeric=Number(amount);
-  if(!Number.isFinite(numeric)||numeric<=0){
-   setError(t("Enter an amount greater than zero."));return;
-  }
-  const intent:SecondsOrderInput={
-   request_id:window.crypto.randomUUID().replace(/-/g,""),
-   symbol,
-   direction:dir,
-   duration_sec:duration,
-   amount:amount.trim()
-  };
-  try{window.localStorage.setItem(storageKey,JSON.stringify(intent));}
-  catch{
-   setError(t("This browser cannot safely save the order request. No order was sent."));
-   return;
-  }
-  setPendingIntent(intent);
-  await sendIntent(intent);
- };
-
- const currentRate = DURATION_OPTIONS.find(d => d.sec === duration)?.rate || 85;
- const profitExpect = Number(amount) > 0 ? (Number(amount) * (1 + currentRate / 100)).toFixed(2) : "0.00";
- const openCount = snapshot?.open.length || 0;
-
- return <PageFrame title={t("Seconds")} className="spot-terminal !gap-1.5 !p-1.5 sm:!p-3" tone="trading">
-  {/* The global header already carries the product switcher; repeating it here
-      pushed the seconds workspace down by a full row. */}
-
-  {/* 1. 交易对切换与行情条 (完全对齐现货风格) */}
-  <div className="flex items-center justify-between px-1 py-1 -mt-0.5">
-   <div className="flex items-center gap-2">
-    <span className="text-base font-bold text-brand-text tracking-tight flex items-center gap-1.5">
-     <span className="text-sm text-brand-text-muted">≡</span>
-     {symbol}/USDT
-    </span>
-    <span className={"text-[10px] font-semibold px-1.5 py-0.5 rounded " + (Number(ticker?.chg||0)>=0?"text-profit bg-profit/10":"text-loss bg-loss/10")}>
-     {ticker ? (Number(ticker.chg)>=0?"+":"") + Number(ticker.chg).toFixed(2) + "%" : "—"}
-    </span>
-   </div>
-   <div className="flex items-center gap-1">
-    {["BTC","ETH","SOL"].map(coin=><button key={coin} type="button" onClick={()=>setSymbol(coin)} className={"px-2 py-0.5 rounded text-[11px] font-bold transition-colors "+(symbol===coin?"bg-brand-accent/20 text-brand-accent":"text-brand-text-muted hover:text-brand-text")}>{coin}</button>)}
-   </div>
-  </div>
-
-  {/* 行情卡片 */}
-  <div className="flex items-center justify-between px-2 py-1 rounded-lg bg-brand-surface/40 border border-brand-border/40">
-   <div className="flex items-baseline gap-2">
-    <span className="text-xl font-bold font-mono tracking-tight text-brand-text tabular-nums">
-     {ticker ? ticker.price.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2}) : "—"}
-    </span>
-    <span className={"text-xs font-bold font-mono tabular-nums " + (Number(ticker?.chg||0) >= 0 ? "text-profit" : "text-loss")}>
-     {ticker ? (Number(ticker.chg) >= 0 ? "+" : "") + Number(ticker.chg).toFixed(2) + "%" : "—"}
-    </span>
-   </div>
-   <div className="flex items-center gap-4 text-[11px] font-mono tabular-nums">
-    <div className="flex items-center gap-1.5">
-     <span className="text-brand-text-muted">{t("High")}</span>
-     <span className="text-brand-text font-medium">{ticker ? Number(ticker.high).toLocaleString() : "—"}</span>
-    </div>
-    <div className="flex items-center gap-1.5">
-     <span className="text-brand-text-muted">{t("Low")}</span>
-     <span className="text-brand-text font-medium">{ticker ? Number(ticker.low).toLocaleString() : "—"}</span>
-    </div>
-   </div>
-  </div>
-
-  {notice?<div role="status" className="rounded-lg border border-brand-success/25 bg-brand-success/5 p-1.5 text-xs text-brand-success">{notice}</div>:null}
-  {error?<div role="alert" className="rounded-lg border border-brand-danger/25 bg-brand-danger/5 p-1.5 text-xs text-brand-danger">{error}</div>:null}
-  {pendingIntent?<div role="status" className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-brand-warning/30 bg-brand-warning/5 p-2 text-xs text-brand-text"><span>{t("An earlier Seconds request is still unconfirmed. Retry the same request before placing a new one.")}</span><Button type="button" size="sm" variant="outline" disabled={submitting} onClick={retryPendingIntent}>{t("Retry same request")}</Button></div>:null}
-
-  <div className="rounded-xl border border-brand-border bg-brand-surface p-2.5 space-y-2.5">
-   {/* 周期选择卡片 */}
-   <div>
-    <div className="flex justify-between items-center mb-1 text-[11px] text-brand-text-muted">
-     <span>{t("Settlement period")}</span>
-     <span>{t("Expected return rate")}: <strong className="text-brand-accent font-mono font-bold">+{currentRate}%</strong></span>
-    </div>
-    <div className="grid grid-cols-4 gap-1.5">
-     {DURATION_OPTIONS.map(opt => (
-      <button key={opt.sec} type="button" onClick={()=>setDuration(opt.sec)} className={"flex flex-col items-center justify-center py-1.5 rounded-lg border transition-all "+(duration===opt.sec?"border-brand-accent bg-brand-accent/15 text-brand-accent shadow-sm":"border-brand-border/60 bg-brand-surface-2 text-brand-text-secondary hover:border-brand-border-strong")}>
-       <span className="font-mono text-xs font-bold">{opt.label}</span>
-       <span className="text-[10px] opacity-80">{t("Return")} {opt.rate}%</span>
-      </button>
-     ))}
-    </div>
-   </div>
-
-   {/* 投资金额 */}
-   <div className="space-y-1.5">
-    <div className="flex justify-between items-center text-[11px]">
-     <span className="text-brand-text-muted">{t("Investment amount")} (USDT)</span>
-     <span className="text-brand-text-muted font-mono">{t("Available")}: <strong className="text-brand-text">{Number(availableUSDT).toFixed(2)}</strong> USDT</span>
-    </div>
-    <div className="flex items-center rounded-lg border border-brand-border bg-brand-surface-2 h-10 px-3 focus-within:border-brand-accent/60">
-     <input type="number" value={amount} onChange={e=>setAmount(e.target.value)} placeholder={t("Enter investment amount")} className="h-full flex-1 bg-transparent font-mono text-xs text-brand-text outline-none placeholder:text-brand-text-muted" />
-     <span className="text-xs font-bold text-brand-text-muted">USDT</span>
-    </div>
-    <div className="flex items-center gap-1.5">
-     {QUICK_AMOUNTS.map(val => (
-      <button key={val} type="button" onClick={()=>setAmount(String(val))} className={"h-6 flex-1 rounded border border-brand-border/60 bg-brand-surface-2 text-[11px] font-mono font-medium text-brand-text-muted hover:border-brand-accent/50 hover:text-brand-accent active:bg-brand-surface "+(amount===String(val)?"border-brand-accent text-brand-accent":"")}>
-       {val}
-      </button>
-     ))}
-     <button type="button" onClick={()=>setAmount(Number(availableUSDT) > 0 ? String(Math.floor(Number(availableUSDT))) : "100")} className="h-6 px-2.5 rounded border border-brand-border/60 bg-brand-surface-2 text-[11px] font-semibold text-brand-text-muted hover:border-brand-accent/50 hover:text-brand-accent">
-       {t("All")}
-     </button>
-    </div>
-   </div>
-
-   {/* 预期收益预览 */}
-   <div className="flex items-center justify-between text-xs px-1 text-brand-text-muted">
-    <span>{t("Expected principal and interest at expiry")}</span>
-    <span className="font-mono font-bold text-sm text-brand-text"><strong className="text-profit">{profitExpect}</strong> USDT</span>
-   </div>
-
-   {/* 双色买涨/买跌按钮 */}
-   <div className="grid grid-cols-2 gap-2 pt-0.5">
-    <button type="button" disabled={submitting||!!pendingIntent} onClick={()=>submitSeconds("up")} className="h-10 rounded-lg bg-profit text-[#05201A] font-bold text-sm flex items-center justify-center gap-1.5 hover:bg-profit/90 active:scale-[0.99] transition-transform disabled:opacity-50">
-     <TrendingUp className="h-4 w-4 stroke-[2.5]" />
-     <span>{t("Buy up")} ({currentRate}%)</span>
-    </button>
-    <button type="button" disabled={submitting||!!pendingIntent} onClick={()=>submitSeconds("down")} className="h-10 rounded-lg bg-loss text-white font-bold text-sm flex items-center justify-center gap-1.5 hover:bg-loss/90 active:scale-[0.99] transition-transform disabled:opacity-50">
-     <TrendingDown className="h-4 w-4 stroke-[2.5]" />
-     <span>{t("Buy down")} ({currentRate}%)</span>
-    </button>
-   </div>
-  </div>
-
-  {/* 5. 底部持仓与倒计时栏 (纯文字下划线 Tab 栏) */}
-  <div className="border-t border-brand-border/40 pt-1.5 -mt-1">
-   <div className="flex items-center justify-between border-b border-brand-border/40 pb-2 px-1">
-    <div className="flex items-center gap-6">
-     <button type="button" onClick={()=>setActiveTab("open")} className={"relative text-sm font-semibold pb-2 transition-colors "+(activeTab==="open"?"text-brand-text":"text-brand-text-muted hover:text-brand-text-secondary")}>
-      {t("Open positions")} ({openCount})
-      {activeTab==="open" && <span className="absolute bottom-0 inset-x-0 h-0.5 bg-brand-accent rounded-full" />}
-     </button>
-     <button type="button" onClick={()=>setActiveTab("history")} className={"relative text-sm font-semibold pb-2 transition-colors "+(activeTab==="history"?"text-brand-text":"text-brand-text-muted hover:text-brand-text-secondary")}>
-      {t("Order history")}
-      {activeTab==="history" && <span className="absolute bottom-0 inset-x-0 h-0.5 bg-brand-accent rounded-full" />}
-     </button>
-    </div>
-    <button type="button" onClick={refresh} className="text-brand-text-muted hover:text-brand-accent transition-colors" title={t("Refresh")}>
-     <RefreshCw className={"h-3.5 w-3.5 "+(loading?"animate-spin":"")} />
-    </button>
-   </div>
-
-   <div className="pt-2">
-    {activeTab === "open" ? (
-     snapshot?.open.length ? (
-      <div className="space-y-2">
-       {snapshot.open.map(item => {
-        const directionUp = item.direction === "up";
-        const secondsLeft = Math.max(0, Math.ceil((item.settle_at * 1000 - clockNow) / 1000));
-        return <div key={item.position_id} className="p-3 rounded-lg bg-brand-surface border border-brand-border/50 flex items-center justify-between text-xs">
-         <div>
-          <div className="flex items-center gap-1.5 font-bold">
-           <span>{item.symbol}/USDT</span>
-           <span className={"px-1.5 py-0.2 rounded text-[10px] " + (directionUp ? "bg-profit/15 text-profit" : "bg-loss/15 text-loss")}>
-            {directionUp ? t("Up ↑") : t("Down ↓")} {item.duration_sec}s
-           </span>
-          </div>
-          <p className="text-[11px] text-brand-text-muted mt-1 font-mono">
-           {t("Principal")}: {item.amount} USDT · {t("Entry")}: {item.open_price}
-          </p>
-         </div>
-         <div className="text-right font-mono">
-          <p className="text-brand-accent font-bold text-sm">{secondsLeft > 0 ? secondsLeft + "s" : t("Settling…")}</p>
-          <p className="text-[10px] text-brand-text-muted mt-0.5">{t("Time remaining")}</p>
-         </div>
-        </div>;
-       })}
-      </div>
-     ) : (
-      <div className="py-6 text-center text-xs text-brand-text-muted">{t("No active seconds contract positions.")}</div>
-     )
-    ) : (
-     snapshot?.history.length ? (
-      <div className="space-y-2">
-       {snapshot.history.map(item => {
-        const isWin = item.win;
-        const isTie = item.tie;
-        return <div key={item.position_id} className="p-3 rounded-lg bg-brand-surface border border-brand-border/40 flex items-center justify-between text-xs">
-         <div>
-          <p className="font-semibold text-brand-text">{item.symbol}/USDT · {item.duration_sec}s</p>
-          <p className="text-[11px] text-brand-text-muted font-mono mt-0.5">{t("Stake")} {item.amount} USDT</p>
-         </div>
-         <div className="text-right font-mono">
-          <span className={"font-bold text-sm " + (isWin ? "text-profit" : isTie ? "text-brand-text-secondary" : "text-loss")}>
-           {isWin ? "+" + item.pnl : isTie ? "0.00" : item.pnl} USDT
-          </span>
-          <p className="text-[10px] text-brand-text-muted">{isWin ? t("Win") : isTie ? t("Tie") : t("Loss")}</p>
-         </div>
-        </div>;
-       })}
-      </div>
-     ) : (
-      <div className="py-6 text-center text-xs text-brand-text-muted">{t("No settlement history records.")}</div>
-     )
-    )}
-   </div>
-  </div>
- </PageFrame>;
-}
 
 async function prepareKycDocumentImage(file: File): Promise<{
  document_content_type: "image/jpeg";
@@ -1697,7 +1129,7 @@ export function KycPage(){
    // there and must not replace the page with an error card.
    const authRequired=reason instanceof ApiError&&(reason.status===401||reason.code==="AUTH_REQUIRED");
    if(authRequired&&DEV_OPEN_ACCOUNT_PAGES){if(!controller.signal.aborted){setAccount({...DEV_ACCOUNT_PLACEHOLDER} as unknown as AccountSnapshot);setError("");}return;}
-   if(!controller.signal.aborted){setAccount(null);setError(reason instanceof Error?reason.message:"Verification status is temporarily unavailable.");}
+   if(!controller.signal.aborted){setAccount(null);setError(t("Account data is temporarily unavailable."));}
   }).finally(()=>{if(!controller.signal.aborted)setLoading(false);});
   return ()=>controller.abort();
  },[reload]);
@@ -1718,7 +1150,7 @@ export function KycPage(){
    setNotice(t("Verification details and document image submitted securely for staff review."));
    setReload(value=>value+1);
   }
-  catch(reason){setSubmitError(reason instanceof Error?reason.message:"Verification submission could not be confirmed. Refresh your status before retrying.");}
+  catch(reason){setSubmitError(t("Verification submission could not be confirmed. Refresh your status before retrying."));}
   finally{setSubmitting(false);}
  };
  return <PageFrame title="Identity verification" tone="account" backTo="/me">
@@ -1790,11 +1222,11 @@ export function DepositPage(){
  const copyAddress=async()=>{
   if(!address)return;
   try{
-   if(!navigator.clipboard?.writeText)throw new Error("Clipboard access is unavailable.");
+   if(!navigator.clipboard?.writeText)throw new Error(t("Unable to copy. Please try again."));
    await navigator.clipboard.writeText(address);
    setCopyMessage("Deposit address copied.");
   }catch{
-   setCopyMessage("Could not copy the address. Select and copy it manually.");
+   setCopyMessage(t("Unable to copy. Please try again."));
   }
  };
  useEffect(()=>{
@@ -1804,7 +1236,7 @@ export function DepositPage(){
    if(!controller.signal.aborted)setAddress(value);
   }).catch(reason=>{
    if(reason instanceof Error&&reason.name==="AbortError")return;
-   if(!controller.signal.aborted){setAddress("");setError(reason instanceof Error?reason.message:"Deposit address is unavailable.");}
+   if(!controller.signal.aborted){setAddress("");setError(t("Account data is temporarily unavailable."));}
   }).finally(()=>{if(!controller.signal.aborted)setLoading(false);});
   return ()=>controller.abort();
  },[coin,network,reload]);
@@ -1815,7 +1247,7 @@ export function DepositPage(){
    if(!controller.signal.aborted)setDepositHistory(Array.isArray(snapshot.deposits)?snapshot.deposits:[]);
   }).catch(reason=>{
    if(reason instanceof Error&&reason.name==="AbortError")return;
-   if(!controller.signal.aborted){setDepositHistory([]);setHistoryError(reason instanceof Error?reason.message:"Deposit history is temporarily unavailable.");}
+   if(!controller.signal.aborted){setDepositHistory([]);setHistoryError(t("Account data is temporarily unavailable."));}
   }).finally(()=>{if(!controller.signal.aborted)setHistoryLoading(false);});
   return ()=>controller.abort();
  },[historyReload]);
@@ -1864,11 +1296,6 @@ export function EarnPage(){
  const [actionMessage,setActionMessage]=useState("");
  const [requestIds,setRequestIds]=useState<Record<string,string>>({});
  const [reload,setReload]=useState(0);
- const [featuredToast,setFeaturedToast]=useState("");
- const showFeaturedToast=()=>{
-  setFeaturedToast(t("This product will open for subscription soon."));
-  window.setTimeout(()=>setFeaturedToast(""),2600);
- };
  useEffect(()=>{
   const controller=new AbortController();
   setLoading(true);setError("");
@@ -1885,7 +1312,7 @@ export function EarnPage(){
     setSelectedProduct(current=>catalogResult.value.products.some(p=>p.product_id===current)?current:(catalogResult.value.products[0]?.product_id||""));
    }else{
     setProducts([]);setActionsEnabled(false);
-    if(!authRequired(catalogResult.reason))issues.push(localizedFailure(catalogResult.reason,"Earn catalog is unavailable. No product availability is assumed."));
+    if(!authRequired(catalogResult.reason))issues.push(localizedFailure(catalogResult.reason,"Earn products are temporarily unavailable. Please try again."));
    }
    setError(Array.from(new Set(issues)).join("\n"));
   }).finally(()=>{if(!controller.signal.aborted)setLoading(false);});
@@ -1896,14 +1323,14 @@ export function EarnPage(){
  // Signed-out and empty states share one compact notice instead of repeated cards.
  const hasEarnData=products.length>0||positions.length>0;
  const requestIdFor=(key:string)=>requestIds[key]||crypto.randomUUID();
- const number=(value:number|string|undefined)=>{const n=Number(value);return Number.isFinite(n)?n.toLocaleString(localeTags[language],{maximumFractionDigits:10}):"—";};
+ const number=(value:number|string|null|undefined)=>{if(value===null||value===undefined||value==="")return "—";const n=Number(value);return Number.isFinite(n)?n.toLocaleString(localeTags[language],{maximumFractionDigits:10}):"—";};
  const operate=async(event:FormEvent<HTMLFormElement>)=>{
   event.preventDefault();
   if(!selected||!actionsEnabled||busy)return;
   const parsed=Number(amount);
   const decimals=amount.includes(".")?amount.split(".")[1].length:0;
   if(!Number.isFinite(parsed)||parsed<=0){setError("Enter an amount greater than zero.");return;}
-  if(decimals>selected.amount_scale){setError(`This product supports at most ${selected.amount_scale} decimal places.`);return;}
+  if(decimals>selected.amount_scale){setError(`The amount has too many decimal places.`);return;}
   const requestKey=`subscribe:${selected.product_id}:${amount.trim()}`;
   const requestId=requestIdFor(requestKey);
   setRequestIds(current=>({...current,[requestKey]:requestId}));
@@ -1934,37 +1361,22 @@ export function EarnPage(){
   }finally{setBusy(false);}
  };
  return <PageFrame title="Earn" tone="earn" backTo="/assets">
-  <div className="flex flex-wrap items-center justify-between gap-3"><div className="flex items-center gap-2"><span className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-success/10 text-brand-success"><Sprout className="h-4 w-4"/></span><div><p className="text-sm font-semibold text-brand-text">{t("BTCBOX Earn")}</p><p className="text-xs text-brand-text-muted">{t("Live catalog · account-backed positions")}</p></div>{products.length?<Badge variant="outline" className="border-brand-success/25 text-brand-success">{t("Live product catalog")}</Badge>:null}</div></div>
+  <div className="flex flex-wrap items-center justify-between gap-3"><div className="flex items-center gap-2"><span className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-success/10 text-brand-success"><Sprout className="h-4 w-4"/></span><div><p className="text-sm font-semibold text-brand-text">{t("BTCBOX Earn")}</p></div></div></div>
   {loading?<Card aria-busy={loading} className="border-brand-border bg-brand-surface"><CardContent className="space-y-3 p-5" role="status"><div className="h-4 w-1/3 animate-pulse rounded bg-brand-surface-2"/><div className="grid gap-3 sm:grid-cols-3"><div className="h-20 animate-pulse rounded-xl bg-brand-surface-2"/><div className="h-20 animate-pulse rounded-xl bg-brand-surface-2"/><div className="h-20 animate-pulse rounded-xl bg-brand-surface-2"/></div><p className="text-sm text-brand-text-muted">{t("Loading Earn products and positions…")}</p></CardContent></Card>
   :<>
    {signedOut?<div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-brand-border bg-brand-surface p-4"><div className="flex min-w-0 items-center gap-3"><span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-brand-accent/20 bg-brand-accent/10 text-brand-accent"><LockKeyhole className="h-5 w-5"/></span><div className="min-w-0"><p className="text-sm font-semibold text-brand-text">{t("Sign in to view the Earn catalog and your positions.")}</p><p className="mt-0.5 text-xs text-brand-text-muted">{t("Please sign in to view your account data")}</p></div></div><div className="flex shrink-0 items-center gap-2"><Button type="button" size="sm" className="h-10" onClick={()=>openAuthDialog("login")}>{t("Sign in")}</Button><Button type="button" size="sm" variant="outline" className="h-10" onClick={()=>openAuthDialog("register")}>{t("Create account")}</Button></div></div>
    :error?<div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-brand-danger/30 bg-brand-surface p-3"><div className="min-w-0 space-y-1" role="alert">{error.split("\n").filter(Boolean).map((line,index)=><p key={`${index}-${line}`} className="text-sm text-brand-danger">{t(line)}</p>)}</div><Button size="sm" variant="outline" onClick={()=>setReload(n=>n+1)}>{t("Try again")}</Button></div>
    :null}
    {actionMessage?<p className="rounded-xl border border-brand-success/30 p-3 text-sm text-brand-success" role="status">{t(actionMessage)}</p>:null}
-   {!signedOut&&hasEarnData?<div className="grid gap-3 sm:grid-cols-3">{products.length>0?<Card className="overflow-hidden border-brand-success/20 bg-brand-surface"><CardContent className="p-4"><p className="text-xs font-semibold uppercase tracking-[.12em] text-brand-text-muted">{t("Available products")}</p><p className="mt-2 text-2xl font-semibold tabular-nums text-brand-success">{products.length}</p><p className="mt-1 text-xs text-brand-text-muted">{t("Live catalog entries")}</p></CardContent></Card>:null}{positions.length>0?<Card className="overflow-hidden border-brand-cyan/20 bg-brand-surface"><CardContent className="p-4"><p className="text-xs font-semibold uppercase tracking-[.12em] text-brand-text-muted">{t("My Earn positions")}</p><p className="mt-2 text-2xl font-semibold tabular-nums text-brand-cyan">{positions.length}</p><p className="mt-1 text-xs text-brand-text-muted">{t("Returned account records")}</p></CardContent></Card>:null}{activePositions>0?<Card className="overflow-hidden border-brand-violet/20 bg-brand-surface"><CardContent className="p-4"><p className="text-xs font-semibold uppercase tracking-[.12em] text-brand-text-muted">{t("Active positions")}</p><p className="mt-2 text-2xl font-semibold tabular-nums text-brand-violet">{activePositions}</p><p className="mt-1 text-xs text-brand-text-muted">{t("Currently held")}</p></CardContent></Card>:null}</div>:null}
-   <section className="space-y-3">
-    <div className="flex items-center justify-between"><h2 className="type-section-title">{t("Featured products")}</h2><Badge variant="outline" className="border-brand-success/25 text-brand-success">{t("Coming soon")}</Badge></div>
-    <div className="grid gap-3 sm:grid-cols-3">
-     {[{name:t("USDT Flexible Savings"),rate:"5.20",term:t("Deposit and withdraw anytime"),asset:"USDT"},{name:t("BTC Steady Fixed Term"),rate:"3.80",term:`30 ${t("days")}`,asset:"BTC"},{name:t("ETH Staking Yield"),rate:"4.50",term:t("Flexible staking"),asset:"ETH"}].map((p)=>(
-      <button key={p.asset} type="button" onClick={showFeaturedToast} className="group flex flex-col items-start gap-3 rounded-xl border border-brand-border bg-brand-surface p-4 text-left transition-all duration-150 hover:border-brand-success/40 hover:bg-brand-surface-hover active:scale-[0.98]">
-       <div className="flex w-full items-center justify-between"><span className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand-success/10 text-brand-success">{p.asset}</span><Badge variant="outline" className="border-brand-border text-brand-text-muted">{t("Coming soon")}</Badge></div>
-       <div><p className="text-sm font-semibold text-brand-text">{p.name}</p><p className="mt-0.5 text-xs text-brand-text-muted">{t("Term")} {p.term}</p></div>
-       <p className="font-mono text-3xl font-extrabold tracking-tight tabular-nums text-brand-success">{p.rate}%<span className="ml-1.5 text-xs font-bold uppercase tracking-wider text-brand-text-muted">{t("APY")}</span></p>
-      </button>
-     ))}
-    </div>
-   </section>
-   {featuredToast?<div role="status" aria-live="polite" className="pointer-events-none fixed inset-x-3 bottom-24 z-[70] mx-auto flex max-w-sm items-center justify-center rounded-xl border border-brand-success/30 bg-brand-surface/95 px-4 py-3 text-sm font-medium text-brand-text shadow-overlay backdrop-blur-xl">{featuredToast}</div>:null}
-   {!actionsEnabled&&hasEarnData?<Card className="border-brand-border bg-brand-surface"><CardContent className="p-4"><Badge variant="outline" className="border-brand-border text-brand-text-muted">{t("Coming soon")}</Badge><p className="mt-2 text-sm text-brand-text-secondary">{t("Earn products are undergoing a pre-launch security audit and will open for subscription soon.")}</p></CardContent></Card>:null}
-   {products.length?<section className="space-y-3"><div className="flex items-end justify-between gap-3"><div><h2 className="type-section-title">{t("Available products")}</h2><p className="type-meta mt-1 text-brand-text-muted">{t("Rates and terms returned by the BTCBOX product catalog.")}</p></div><Badge variant="outline" className="border-brand-border">{products.length} {t("products")}</Badge></div>
+   {!signedOut&&hasEarnData?<div className="grid gap-3 sm:grid-cols-3">{products.length>0?<Card className="overflow-hidden border-brand-success/20 bg-brand-surface"><CardContent className="p-4"><p className="text-xs font-semibold uppercase tracking-[.12em] text-brand-text-muted">{t("Available products")}</p><p className="mt-2 text-2xl font-semibold tabular-nums text-brand-success">{products.length}</p><p className="mt-1 text-xs text-brand-text-muted">{t("Live catalog entries")}</p></CardContent></Card>:null}{positions.length>0?<Card className="overflow-hidden border-brand-cyan/20 bg-brand-surface"><CardContent className="p-4"><p className="text-xs font-semibold uppercase tracking-[.12em] text-brand-text-muted">{t("My Earn positions")}</p><p className="mt-2 text-2xl font-semibold tabular-nums text-brand-cyan">{positions.length}</p></CardContent></Card>:null}{activePositions>0?<Card className="overflow-hidden border-brand-violet/20 bg-brand-surface"><CardContent className="p-4"><p className="text-xs font-semibold uppercase tracking-[.12em] text-brand-text-muted">{t("Active positions")}</p><p className="mt-2 text-2xl font-semibold tabular-nums text-brand-violet">{activePositions}</p><p className="mt-1 text-xs text-brand-text-muted">{t("Currently held")}</p></CardContent></Card>:null}</div>:null}
+      {products.length?<section className="space-y-3"><div className="flex items-end justify-between gap-3"><div><h2 className="type-section-title">{t("Available products")}</h2><p className="type-meta mt-1 text-brand-text-muted">{t("Rates and terms returned by the BTCBOX product catalog.")}</p></div><Badge variant="outline" className="border-brand-border">{products.length} {t("products")}</Badge></div>
     <div className="grid gap-3 sm:grid-cols-2">{products.map(product=><Card key={product.product_id} className="group relative overflow-hidden border-brand-success/20 bg-brand-surface ring-1 ring-brand-success/[0.025] transition-all hover:-translate-y-0.5 hover:border-brand-success/35 hover:shadow-lg hover:shadow-brand-success/[0.04]"><CardContent className="flex h-full flex-col gap-4 p-4 sm:p-5"><div className="flex items-start justify-between gap-3"><div className="flex min-w-0 items-center gap-3"><span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-success/10 text-brand-success"><Sprout className="h-5 w-5"/></span><div className="min-w-0"><p className="font-semibold text-brand-text">{product.asset}</p><p className="type-meta mt-0.5 text-brand-text-muted">{product.product_type==="demand"?t("Flexible"):t("Fixed term")}</p></div></div><Badge variant="outline" className="shrink-0">{product.product_type==="demand"?t("Flexible"):t("Fixed")}</Badge></div><div className="rounded-xl border border-brand-success/20 bg-brand-surface p-4"><p className="type-meta font-semibold uppercase tracking-[.12em] text-brand-text-muted">{t("Annual rate")}</p><p className="mt-1 font-mono text-3xl sm:text-4xl font-extrabold tracking-tight tabular-nums text-brand-success">{number(product.apy_percent)}%<span className="ml-1.5 text-xs font-bold uppercase tracking-wider text-brand-text-muted">{t("APY")}</span></p></div><div className="flex flex-wrap items-center justify-between gap-2"><p className="type-meta text-brand-text-muted">{product.term_days===0?t("Withdraw according to flexible-product rules"):`${product.term_days} ${t("days")}`} · {t("Early redemption fee")}: {number(product.early_fee_percent)}%</p><Button size="sm" variant={selectedProduct===product.product_id?"default":"outline"} onClick={()=>setSelectedProduct(product.product_id)}>{selectedProduct===product.product_id?t("Selected"):t("Select")}</Button></div></CardContent></Card>)}</div>
    </section>:null}
-   {products.length?<Card className="relative overflow-hidden border-brand-accent/25 bg-brand-surface ring-1 ring-brand-accent/[0.04]"><div className="h-1 bg-brand-surface"/><CardHeader className="border-b border-brand-border bg-brand-surface"><div className="flex items-center gap-3"><span className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand-accent/10 text-brand-accent"><ArrowUpRight className="h-4 w-4"/></span><div><CardTitle>{t("Subscribe")}</CardTitle><CardDescription>{t("Your available balance and product limits are validated by the financial database.")}</CardDescription></div></div></CardHeader><CardContent className="p-4 sm:p-6"><form aria-busy={busy} className="space-y-4" onSubmit={operate}><label className="block space-y-1.5 text-sm"><span className="text-brand-text-muted">{t("Product")}</span><select value={selectedProduct} disabled={busy} onChange={e=>setSelectedProduct(e.target.value)} className="min-h-12 w-full rounded-xl border border-brand-border bg-brand-surface-2 px-3 py-3 text-brand-text outline-none transition-colors focus:border-brand-violet/60 focus:ring-2 focus:ring-brand-violet/15">{products.map(product=><option key={product.product_id} value={product.product_id}>{product.asset} · {product.product_type==="demand"?t("Flexible"):`${product.term_days} ${t("days fixed")}`}</option>)}</select></label><label className="block space-y-1.5 text-sm"><span className="text-brand-text-muted">{t("Amount")} ({selected?.asset||""})</span><input inputMode="decimal" value={amount} disabled={busy||!actionsEnabled} onChange={e=>setAmount(e.target.value)} placeholder="0.00" className="min-h-12 w-full rounded-xl border border-brand-border bg-brand-surface-2 px-3 py-3 text-brand-text outline-none transition-colors focus:border-brand-violet/60 focus:ring-2 focus:ring-brand-violet/15" /></label><Button type="submit" className="min-h-12 w-full bg-primary text-primary-foreground hover:bg-primary/90 sm:w-auto" disabled={!actionsEnabled||busy||!selected}>{busy?t("Processing…"):t("Subscribe")}</Button></form></CardContent></Card>:null}
+   {products.length&&actionsEnabled?<Card className="relative overflow-hidden border-brand-accent/25 bg-brand-surface ring-1 ring-brand-accent/[0.04]"><div className="h-1 bg-brand-surface"/><CardHeader className="border-b border-brand-border bg-brand-surface"><div className="flex items-center gap-3"><span className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand-accent/10 text-brand-accent"><ArrowUpRight className="h-4 w-4"/></span><div><CardTitle>{t("Subscribe")}</CardTitle><CardDescription>{t("Your available balance and product limits are validated by the financial database.")}</CardDescription></div></div></CardHeader><CardContent className="p-4 sm:p-6"><form aria-busy={busy} className="space-y-4" onSubmit={operate}><label className="block space-y-1.5 text-sm"><span className="text-brand-text-muted">{t("Product")}</span><select value={selectedProduct} disabled={busy} onChange={e=>setSelectedProduct(e.target.value)} className="min-h-12 w-full rounded-xl border border-brand-border bg-brand-surface-2 px-3 py-3 text-brand-text outline-none transition-colors focus:border-brand-violet/60 focus:ring-2 focus:ring-brand-violet/15">{products.map(product=><option key={product.product_id} value={product.product_id}>{product.asset} · {product.product_type==="demand"?t("Flexible"):`${product.term_days} ${t("days fixed")}`}</option>)}</select></label><label className="block space-y-1.5 text-sm"><span className="text-brand-text-muted">{t("Amount")} ({selected?.asset||""})</span><input inputMode="decimal" value={amount} disabled={busy||!actionsEnabled} onChange={e=>setAmount(e.target.value)} placeholder="0.00" className="min-h-12 w-full rounded-xl border border-brand-border bg-brand-surface-2 px-3 py-3 text-brand-text outline-none transition-colors focus:border-brand-violet/60 focus:ring-2 focus:ring-brand-violet/15" /></label><Button type="submit" className="min-h-12 w-full bg-primary text-primary-foreground hover:bg-primary/90 sm:w-auto" disabled={!actionsEnabled||busy||!selected}>{busy?t("Processing…"):t("Subscribe")}</Button></form></CardContent></Card>:null}
    {positions.length?<section className="space-y-3"><h2 className="type-section-title">{t("My Earn positions")}</h2>
-    {positions.map(position=><Card key={position.id} className="overflow-hidden border-brand-border bg-brand-surface  transition-colors hover:border-brand-cyan/25"><CardContent className="space-y-3 p-4"><div className="flex flex-wrap items-center justify-between gap-2"><div><p className="font-semibold">{position.product||position.product_id}</p><p className="text-xs text-brand-text-muted">{position.type==="flexible"?t("Flexible"):t("Fixed")} · <span className="font-mono text-sm font-bold text-brand-success">{number(position.apy)}%</span> <span className="font-semibold text-brand-text-secondary">{t("APY")}</span></p></div><Badge variant={earnStatusBadgeVariant(normalizeEarnStatus(position.status))}>{earnStatusLabel(normalizeEarnStatus(position.status), t)}</Badge></div><div className="grid grid-cols-2 gap-2 text-sm sm:grid-cols-3"><div className="rounded-lg bg-brand-surface-2/70 p-3"><p className="text-xs text-brand-text-muted">{t("Principal")}</p><p className="mt-1 break-all font-semibold tabular-nums">{number(position.amount)}</p></div><div className="rounded-lg bg-brand-success/[0.055] p-3"><p className="text-xs text-brand-text-muted">{t("Estimated interest")}</p><p className="mt-1 break-all font-semibold tabular-nums text-brand-success">{number(position.expected_interest)}</p></div><div className="rounded-lg bg-brand-surface-2/70 p-3"><p className="text-xs text-brand-text-muted">{t("End / maturity")}</p><p className="mt-1 break-all font-semibold">{position.end||"—"}</p></div></div>{normalizeEarnStatus(position.status)==="active"?<Button size="sm" variant="outline" className="min-h-10 border-brand-accent/30 text-brand-accent hover:bg-brand-accent/[0.06]" disabled={!actionsEnabled||busy} onClick={()=>redeem(position)}>{t("Redeem")}</Button>:null}</CardContent></Card>)}
+    {positions.map(position=><Card key={position.id} className="overflow-hidden border-brand-border bg-brand-surface  transition-colors hover:border-brand-cyan/25"><CardContent className="space-y-3 p-4"><div className="flex flex-wrap items-center justify-between gap-2"><div><p className="font-semibold">{position.product||position.product_id}</p><p className="text-xs text-brand-text-muted">{position.type==="flexible"?t("Flexible"):t("Fixed")} · <span className="font-mono text-sm font-bold text-brand-success">{number(position.apy)}%</span> <span className="font-semibold text-brand-text-secondary">{t("APY")}</span></p></div><Badge variant={earnStatusBadgeVariant(normalizeEarnStatus(position.status))}>{earnStatusLabel(normalizeEarnStatus(position.status), t)}</Badge></div><div className="grid grid-cols-2 gap-2 text-sm sm:grid-cols-3"><div className="rounded-lg bg-brand-surface-2/70 p-3"><p className="text-xs text-brand-text-muted">{t("Principal")}</p><p className="mt-1 break-all font-semibold tabular-nums">{number(position.amount)}</p></div><div className="rounded-lg bg-brand-success/[0.055] p-3"><p className="text-xs text-brand-text-muted">{t("Estimated interest")}</p><p className="mt-1 break-all font-semibold tabular-nums text-brand-success">{number(position.expected_interest)}</p></div><div className="rounded-lg bg-brand-surface-2/70 p-3"><p className="text-xs text-brand-text-muted">{t("End / maturity")}</p><p className="mt-1 break-all font-semibold">{position.end||"—"}</p></div></div>{normalizeEarnStatus(position.status)==="active"&&actionsEnabled?<Button size="sm" variant="outline" className="min-h-10 border-brand-accent/30 text-brand-accent hover:bg-brand-accent/[0.06]" disabled={busy} onClick={()=>redeem(position)}>{t("Redeem")}</Button>:null}</CardContent></Card>)}
    </section>:null}
-   {!signedOut&&!hasEarnData?<Card className="border-brand-border bg-brand-surface"><CardContent className="flex flex-wrap items-center justify-between gap-3 p-4"><div className="min-w-0"><p className="text-sm font-semibold text-brand-text">{t("No Earn products are currently available.")}</p><p className="mt-1 text-xs text-brand-text-muted">{t("No Earn positions were returned for this account.")}</p></div><Button size="sm" variant="outline" onClick={()=>setReload(n=>n+1)}>{t("Refresh")}</Button></CardContent></Card>:null}
-  </>}
+     </>}
  </PageFrame>;
 }
 
@@ -2009,9 +1421,9 @@ export function WithdrawPage(){
       const savedAddress=usable.find(item=>item.id===saved?.address_id);
       if(saved&&saved.version===1&&typeof saved.request_id==="string"&&/^[A-Za-z0-9_-]{16,100}$/.test(saved.request_id)&&typeof saved.amount==="string"&&typeof saved.address==="string"&&savedAddress&&!savedAddress.blocked&&!savedAddress.unbound&&savedAddress.coin===saved.coin&&savedAddress.network===saved.network){
        setPendingIntent(saved);setSelectedId(saved.address_id);setAmount(saved.amount);
-      }else{setPendingIntentInvalid(true);setError("A saved withdrawal request cannot be matched to its original destination. Contact support before creating another withdrawal.");}
+      }else{setPendingIntentInvalid(true);setError("We couldn't verify the saved withdrawal destination. Contact support before trying again.");}
      }else{setPendingIntent(null);setPendingIntentInvalid(false);setSelectedId(current=>usable.some(item=>item.id===current)?current:(usable[0]?.id||""));}
-    }catch{setPendingIntentInvalid(true);setError("A saved withdrawal request could not be read. Do not submit another withdrawal until its status is checked.");}
+    }catch{setPendingIntentInvalid(true);setError("We couldn't verify your saved withdrawal request. Check withdrawal history before trying again.");}
    })
    .catch(reason=>{
     if(reason instanceof Error&&reason.name==="AbortError")return;
@@ -2022,7 +1434,7 @@ export function WithdrawPage(){
     // server's raw English message plus a retry that can never succeed.
     const signedOut=reason instanceof ApiError&&(reason.status===401||reason.code==="AUTH_REQUIRED");
     setNeedsSignIn(signedOut);
-    setError(signedOut?"":(reason instanceof Error?reason.message:"Wallet data is temporarily unavailable."));
+    setError(signedOut?"":t("Account data is temporarily unavailable."));
    }
    })
    .finally(()=>{if(!controller.signal.aborted)setLoading(false);});
@@ -2043,19 +1455,22 @@ export function WithdrawPage(){
    if(!controller.signal.aborted)setSelectedAddress(value);
   }).catch(reason=>{
    if(reason instanceof Error&&reason.name==="AbortError")return;
-   if(!controller.signal.aborted){setSelectedAddress(null);setError(reason instanceof Error?reason.message:"Selected withdrawal address is unavailable.");}
+   if(!controller.signal.aborted){setSelectedAddress(null);setError(t("Account data is temporarily unavailable."));}
   });
   return ()=>controller.abort();
  },[selectedId]);
 
  const usableAddresses=addresses.filter(item=>!item.blocked&&!item.unbound);
  const balance=selectedAddress&&account?.balances?account.balances[selectedAddress.coin]:undefined;
- const fee=selectedAddress&&config?Number(config.fees[selectedAddress.coin]??0):0;
- const available=Number(balance?.free??0);
+ const feeValue=selectedAddress&&config?config.fees?.[selectedAddress.coin]:undefined;
+ const fee=feeValue==null?null:Number(feeValue);
+ const available=balance?.free==null?null:Number(balance.free);
+ const feeVerified=fee!==null&&Number.isFinite(fee)&&fee>=0;
+ const balanceVerified=available!==null&&Number.isFinite(available)&&available>=0;
  const parsedAmount=Number(amount);
  const pendingStorageKey=account?.uid?"btcbox.withdraw.pending.v1."+account.uid:"";
  const clearPending=()=>{if(pendingStorageKey){try{window.localStorage.removeItem(pendingStorageKey);}catch{}}setPendingIntent(null);setPendingIntentInvalid(false);};
- const canSubmit=!!config?.actions_enabled&&!pendingIntentInvalid&&!!selectedAddress&&Number.isFinite(parsedAmount)&&parsedAmount>0&&parsedAmount<=available&&!!fundPassword.trim()&&(!account?.twofa_enabled||/^\d{6}$/.test(twofaCode))&&!submitting&&!loading;
+ const canSubmit=!!config?.actions_enabled&&!pendingIntentInvalid&&!!selectedAddress&&available!==null&&Number.isFinite(available)&&available>=0&&feeVerified&&Number.isFinite(parsedAmount)&&parsedAmount>0&&parsedAmount<=available&&!!fundPassword.trim()&&(!account?.twofa_enabled||/^\d{6}$/.test(twofaCode))&&!submitting&&!loading;
 
  const submit=async(event:FormEvent<HTMLFormElement>)=>{
   event.preventDefault();
@@ -2065,14 +1480,14 @@ export function WithdrawPage(){
   if(!intent){
    let requestId:string;
    try{requestId=window.crypto.randomUUID();}
-   catch{setError("Secure withdrawal request IDs are unavailable in this browser. No withdrawal was sent.");submitLockRef.current=false;return;}
+   catch{setError(t("Account data is temporarily unavailable."));submitLockRef.current=false;return;}
    intent={version:1,request_id:requestId,address_id:selectedId,coin:selectedAddress.coin,network:selectedAddress.network,amount:amount.trim(),address:selectedAddress.address,created_at:Date.now()};
-   if(!pendingStorageKey){setError("Account identity is unavailable. No withdrawal was sent.");submitLockRef.current=false;return;}
+   if(!pendingStorageKey){setError(t("Sign in to continue"));submitLockRef.current=false;return;}
    try{window.localStorage.setItem(pendingStorageKey,JSON.stringify(intent));}
-   catch{setError("This browser cannot safely save the withdrawal request. No withdrawal was sent.");submitLockRef.current=false;return;}
+   catch{setError(t("Account data is temporarily unavailable."));submitLockRef.current=false;return;}
    setPendingIntent(intent);
   }
-  if(intent.address_id!==selectedId||intent.address!==selectedAddress.address||intent.coin!==selectedAddress.coin||intent.network!==selectedAddress.network){setError("The saved withdrawal destination no longer matches. Contact support before retrying.");setPendingIntentInvalid(true);submitLockRef.current=false;return;}
+  if(intent.address_id!==selectedId||intent.address!==selectedAddress.address||intent.coin!==selectedAddress.coin||intent.network!==selectedAddress.network){setError("The saved withdrawal destination has changed. Contact support before trying again.");setPendingIntentInvalid(true);submitLockRef.current=false;return;}
   setSubmitting(true);setError("");setActionMessage("");
   let requestAccepted=false;
   try{
@@ -2086,16 +1501,16 @@ export function WithdrawPage(){
    const latest=await getAccount();
    setAccount(latest);
    const confirmed=(latest.withdrawals||[]).some(item=>item.id===result.withdrawal_id);
-   if(!confirmed){setError("The withdrawal response arrived, but account history has not confirmed it. Keep this request and retry only with the same ID.");return;}
+   if(!confirmed){setError("Your withdrawal status is not yet confirmed. Check withdrawal history before trying again.");return;}
    clearPending();setAmount("");setFundPassword("");setTwofaCode("");
    setActionMessage(result.duplicate?t("This withdrawal request was already received and confirmed."):result.require_admin_review?t("Withdrawal submitted for staff review."):t("Withdrawal submitted and is awaiting staff processing."));
    setReload(value=>value+1);
   }catch(reason){
-   setError(reason instanceof Error?reason.message:"Withdrawal result is unconfirmed. Keep this request unchanged and retry with the same request ID.");
+   setError(t("Order result is unconfirmed. Keep the same request ID and check order history before retrying."));
    if(!requestAccepted&&reason instanceof ApiError&&reason.code==="WITHDRAWAL_FEE_CHANGED"){
     clearPending();
     try{setConfig(await getWithdrawalConfig());}catch{}
-    setError("The withdrawal fee changed. The latest fee has been refreshed. Review the request and submit again.");
+    setError("The withdrawal fee has changed. Review the updated fee and submit again.");
    }else if(!requestAccepted&&reason instanceof ApiError&&reason.status>=400&&reason.status<500&&reason.status!==409)clearPending();
   }finally{submitLockRef.current=false;setSubmitting(false);}
  };
@@ -2106,26 +1521,27 @@ export function WithdrawPage(){
   :<>
    <Card aria-busy={loading} className="overflow-hidden border border-white/[0.08] bg-brand-surface shadow-[inset_0_1px_0_0_rgba(255,255,255,0.12)]"><CardHeader className="border-b border-brand-border bg-brand-surface"><div className="flex min-w-0 items-center gap-3"><span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand-cyan/10 text-brand-cyan"><Wallet className="h-4 w-4"/></span><div className="min-w-0"><CardTitle>{t("Available balances")}</CardTitle><CardDescription>{account?.valuation_complete?t("Estimated total value"):t("Some asset prices are unavailable; total valuation is incomplete.")}</CardDescription></div></div></CardHeader><CardContent className="p-4 sm:p-5">
     {Object.keys(account?.balances||{}).length===0?<p className="rounded-xl border border-dashed border-brand-border p-5 text-sm text-brand-text-muted">{t("No asset balances are currently available.")}</p>:<div className="grid grid-cols-1 gap-3 min-[420px]:grid-cols-2 xl:grid-cols-3">
-    {(Object.entries(account?.balances||{}) as Array<[string,AccountBalance]>).map(([asset,row],index)=><div key={asset} className="relative overflow-hidden rounded-xl border border-brand-border bg-brand-surface-2/60 p-4"><div className={"absolute inset-y-0 left-0 w-1 "+(index%3===0?"bg-brand-cyan":index%3===1?"bg-brand-violet":"bg-brand-teal")}/><div className="flex items-center gap-3"><TokenIcon symbol={asset} className="h-9 w-9"/><div className="min-w-0"><p className="font-semibold text-brand-text">{asset}</p><p className="type-meta text-brand-text-muted">{t("Wallet balance")}</p></div></div><div className="mt-4 grid grid-cols-2 gap-2"><div className="rounded-lg bg-brand-bg/70 p-3"><p className="type-meta text-brand-text-muted">{t("Available")}</p><p className="mt-1 break-all text-sm font-semibold tabular-nums text-brand-text">{String(row.free??"0")}</p></div><div className="rounded-lg bg-brand-bg/70 p-3"><p className="type-meta text-brand-text-muted">{t("Frozen")}</p><p className="mt-1 break-all text-sm font-semibold tabular-nums text-brand-text-secondary">{String(row.frozen??"0")}</p></div></div></div>)}
+    {(Object.entries(account?.balances||{}) as Array<[string,AccountBalance]>).map(([asset,row],index)=><div key={asset} className="relative overflow-hidden rounded-xl border border-brand-border bg-brand-surface-2/60 p-4"><div className={"absolute inset-y-0 left-0 w-1 "+(index%3===0?"bg-brand-cyan":index%3===1?"bg-brand-violet":"bg-brand-teal")}/><div className="flex items-center gap-3"><TokenIcon symbol={asset} className="h-9 w-9"/><div className="min-w-0"><p className="font-semibold text-brand-text">{asset}</p><p className="type-meta text-brand-text-muted">{t("Wallet balance")}</p></div></div><div className="mt-4 grid grid-cols-2 gap-2"><div className="rounded-lg bg-brand-bg/70 p-3"><p className="type-meta text-brand-text-muted">{t("Available")}</p><p className="mt-1 break-all text-sm font-semibold tabular-nums text-brand-text">{row.free==null?"—":String(row.free)}</p></div><div className="rounded-lg bg-brand-bg/70 p-3"><p className="type-meta text-brand-text-muted">{t("Frozen")}</p><p className="mt-1 break-all text-sm font-semibold tabular-nums text-brand-text-secondary">{row.frozen==null?"—":String(row.frozen)}</p></div></div></div>)}
     </div>}
    </CardContent></Card>
 
-   <Card aria-busy={submitting} className="relative overflow-hidden border border-white/[0.08] bg-brand-surface shadow-[inset_0_1px_0_0_rgba(255,255,255,0.12)]"><span aria-hidden="true" className="absolute inset-x-0 top-0 h-1 bg-brand-surface"/><CardHeader className="border-b border-brand-border bg-brand-surface"><div className="flex min-w-0 items-center gap-3"><span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-accent/10 text-brand-accent"><ArrowUpRight className="h-5 w-5"/></span><div className="min-w-0"><CardTitle>{t("Submit withdrawal")}</CardTitle><CardDescription>{t("Select a saved address. Asset and network are taken from that address; staff review and manually pay approved requests.")}</CardDescription></div></div></CardHeader><CardContent className="p-4 sm:p-6">
+   {config?.actions_enabled ? (
+<Card aria-busy={submitting} className="relative overflow-hidden border border-white/[0.08] bg-brand-surface shadow-[inset_0_1px_0_0_rgba(255,255,255,0.12)]"><span aria-hidden="true" className="absolute inset-x-0 top-0 h-1 bg-brand-surface"/><CardHeader className="border-b border-brand-border bg-brand-surface"><div className="flex min-w-0 items-center gap-3"><span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-accent/10 text-brand-accent"><ArrowUpRight className="h-5 w-5"/></span><div className="min-w-0"><CardTitle>{t("Submit withdrawal")}</CardTitle><CardDescription>{t("Select a saved address. Asset and network are taken from that address; staff review and manually pay approved requests.")}</CardDescription></div></div></CardHeader><CardContent className="p-4 sm:p-6">
     {usableAddresses.length===0?<div className="rounded-xl border border-dashed border-brand-border p-5 text-sm text-brand-text-muted">{t("No eligible saved withdrawal addresses are available. Add an address to your address book or contact support.")}</div>
     :<form aria-busy={submitting} className="space-y-4" onSubmit={submit}>
      <label className="block space-y-1.5 text-sm"><span className="text-brand-text-muted">{t("Saved withdrawal address")}</span><select value={selectedId} disabled={!!pendingIntent||pendingIntentInvalid||submitting} onChange={event=>{setSelectedId(event.target.value);setError("");}} className="h-12 w-full rounded-xl border border-brand-border bg-brand-surface-2 px-3 py-3 text-sm text-brand-text outline-none transition-colors focus:border-brand-accent/60 focus:ring-2 focus:ring-brand-accent/15">{usableAddresses.map(item=><option key={item.id} value={item.id}>{item.coin} · {item.network} · {item.address}</option>)}</select></label>
      {selectedAddress?<div className="min-w-0 rounded-xl border border-brand-border bg-brand-surface-2/70 p-3 text-xs leading-5 text-brand-text-muted sm:p-4"><p>{t("Selected destination")}: {selectedAddress.coin} · {selectedAddress.network}</p><p className="mt-1 break-all font-mono">{selectedAddress.address.length>18?selectedAddress.address.slice(0,8)+"—"+selectedAddress.address.slice(-8):selectedAddress.address}</p></div>:<p className="text-xs text-brand-text-muted">{t("Loading selected address…")}</p>}
-     <label className="block space-y-1.5 text-sm"><span className="text-brand-text-muted">{t("Amount")} {selectedAddress ? "(" + selectedAddress.coin + ")" : ""}</span><input inputMode="decimal" value={amount} disabled={!!pendingIntent||pendingIntentInvalid||submitting} onChange={event=>setAmount(event.target.value)} placeholder="0.00" className="min-h-12 w-full rounded-xl border border-brand-border bg-brand-surface-2 px-3 py-3 text-brand-text outline-none transition-colors focus:border-brand-violet/60 focus:ring-2 focus:ring-brand-violet/15"/></label>
-     {selectedAddress?<div className="grid grid-cols-1 gap-3 rounded-xl border border-brand-border bg-brand-surface-2/50 p-4 text-sm min-[420px]:grid-cols-2"><div><p className="text-xs text-brand-text-muted">{t("Available")}</p><p className="mt-1 tabular-nums">{available.toLocaleString(localeTags[language],{maximumFractionDigits:10})} {selectedAddress.coin}</p></div><div><p className="text-xs text-brand-text-muted">{t("Withdrawal fee")}</p><p className="mt-1 tabular-nums">{Number.isFinite(fee)?fee.toLocaleString(localeTags[language],{maximumFractionDigits:10}):"—"} {selectedAddress.coin}</p></div></div>:null}
+     <label className="block space-y-1.5 text-sm"><span className="text-brand-text-muted">{t("Amount")} {selectedAddress ? "(" + selectedAddress.coin + ")" : ""}</span><input inputMode="decimal" value={amount} disabled={!!pendingIntent||pendingIntentInvalid||submitting||!balanceVerified||!feeVerified} onChange={event=>setAmount(event.target.value)} placeholder="0.00" className="min-h-12 w-full rounded-xl border border-brand-border bg-brand-surface-2 px-3 py-3 text-brand-text outline-none transition-colors focus:border-brand-violet/60 focus:ring-2 focus:ring-brand-violet/15"/></label>
+     {selectedAddress?<div className="grid grid-cols-1 gap-3 rounded-xl border border-brand-border bg-brand-surface-2/50 p-4 text-sm min-[420px]:grid-cols-2"><div><p className="text-xs text-brand-text-muted">{t("Available")}</p><p className="mt-1 tabular-nums">{balanceVerified&&available!==null?available.toLocaleString(localeTags[language],{maximumFractionDigits:10}):"—"} {selectedAddress.coin}</p></div><div><p className="text-xs text-brand-text-muted">{t("Withdrawal fee")}</p><p className="mt-1 tabular-nums">{feeVerified&&fee!==null?fee.toLocaleString(localeTags[language],{maximumFractionDigits:10}):"—"} {selectedAddress.coin}</p></div></div>:null}
      <label className="block space-y-1.5 text-sm"><span className="text-brand-text-secondary">{t("Fund password")}</span><input type="password" autoComplete="current-password" value={fundPassword} disabled={submitting} onChange={event=>setFundPassword(event.target.value)} className="min-h-12 w-full rounded-xl border border-brand-border bg-brand-surface-2 px-3 py-3 text-brand-text outline-none transition-colors focus:border-brand-violet/60 focus:ring-2 focus:ring-brand-violet/15" required/></label>
      {account?.twofa_enabled?<label className="block space-y-1.5 text-sm"><span className="text-brand-text-secondary">{t("Two-factor code")}</span><input inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={twofaCode} disabled={submitting} onChange={event=>setTwofaCode(event.target.value.replace(/\D/g,"").slice(0,6))} className="min-h-12 w-full rounded-xl border border-brand-border bg-brand-surface-2 px-3 py-3 text-brand-text outline-none transition-colors focus:border-brand-violet/60 focus:ring-2 focus:ring-brand-violet/15" required/></label>:null}
-     {config&&!config.actions_enabled?<div className="rounded-xl border border-brand-border bg-brand-surface-2/60 p-4 text-sm text-brand-text-secondary"><Badge variant="outline" className="border-brand-border text-brand-text-muted">{t("Withdrawals temporarily unavailable")}</Badge><p className="mt-2">{t("The financial ledger cutover has not been enabled. You can review your wallet, but no withdrawal request can be submitted yet.")}</p></div>:null}
      {error?<p role="alert" className="text-sm text-brand-danger">{error}</p>:null}
      {actionMessage?<p role="status" className="text-sm text-brand-success">{actionMessage}</p>:null}
      <Button type="submit" className="min-h-12 w-full bg-primary text-primary-foreground hover:bg-primary/90 sm:w-auto" disabled={!canSubmit}>{submitting?t("Submitting…"):pendingIntent?t("Retry same request"):t("Submit for staff review")}</Button>
      {pendingIntent?<p className="break-all text-xs text-brand-text-muted">{t("Request result is not yet confirmed. Re-enter your fund password and 2FA code, then retry with the same request ID.")} · {pendingIntent.request_id}</p>:null}
     </form>}
    </CardContent></Card>
+) : null}
 
    <Card className="overflow-hidden border border-white/[0.08] bg-brand-surface shadow-[inset_0_1px_0_0_rgba(255,255,255,0.12)]"><CardHeader className="border-b border-brand-border bg-brand-surface-2/60"><CardTitle>{t("Withdrawal history")}</CardTitle></CardHeader><CardContent className="space-y-2">
     {account?.withdrawals?.length?account.withdrawals.slice().reverse().map((item:WithdrawalRecord)=> <div key={item.id} className="flex flex-wrap items-start justify-between gap-3 rounded-xl border border-brand-border bg-brand-surface-2/40 p-4 transition-colors hover:bg-brand-surface-2/70"><div className="min-w-0"><p className="font-semibold">{item.amount} {item.coin} · {item.network||"—"}</p><p className="mt-1 break-all text-xs text-brand-text-muted">{item.address||"—"}</p><p className="mt-1 text-xs text-brand-text-muted">{item.time||item.paid_at||"—"}</p>{item.payout_reference||item.txid?<p className="mt-1 break-all text-xs text-brand-text-muted">TxID / reference: {item.payout_reference||item.txid}</p>:null}</div><Badge variant={withdrawalStatusBadgeVariant(normalizeWithdrawalStatus(item.status))}>{withdrawalStatusLabel(normalizeWithdrawalStatus(item.status), t)}</Badge></div>)
