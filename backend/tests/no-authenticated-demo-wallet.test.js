@@ -7,11 +7,14 @@ const path = require('node:path');
 
 const frontend = path.resolve(__dirname, '../../frontend/src');
 
-test('authenticated app startup does not seed a local demo wallet', () => {
+test('authenticated app startup never initializes a customer demo wallet', () => {
   const main = fs.readFileSync(path.join(frontend, 'main.tsx'), 'utf8');
-  assert.ok(!main.includes('TradingProvider'));
-  assert.ok(!main.includes('TradingInitializer'));
-  assert.ok(!main.includes('btcbox-paper-trading'));
+  assert.ok(main.includes('TradingProvider'), 'the context provider remains mounted for shared hooks');
+  assert.ok(!main.includes('TradingInitializer'), 'no automatic demo wallet initializer may run');
+  const trading = fs.readFileSync(path.join(frontend, 'lib/trading.tsx'), 'utf8');
+  assert.ok(trading.includes('PAPER_TRADING_ENABLED ? loadLedger() : emptyLedger()'));
+  assert.ok(trading.includes('if (!PAPER_TRADING_ENABLED) return;'));
+  assert.ok(trading.includes('const PAPER_TRADING_ENABLED = import.meta.env.DEV && DEMO_PREVIEW_ACTIVE'));
 });
 
 test('new backend accounts start with zero balances for every supported asset', () => {
