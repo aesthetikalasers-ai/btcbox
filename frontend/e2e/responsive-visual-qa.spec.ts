@@ -234,7 +234,10 @@ async function assertPageAtWidth(
       orderbook.boundingBox(),
       orderForm.boundingBox(),
       orders.boundingBox(),
-      workspace.evaluate((element) => getComputedStyle(element).gridTemplateColumns.trim().split(/\\s+/).length),
+      workspace.evaluate((element) => {
+        const template = getComputedStyle(element).gridTemplateColumns.trim();
+        return template.match(/minmax\([^)]*\)|fit-content\([^)]*\)|\S+/g)?.length ?? 0;
+      }),
     ]);
     expect(columns, "Tablet compact workspace must use two columns, not reserve an empty chart track.").toBe(2);
     expect(bookBox).not.toBeNull();
