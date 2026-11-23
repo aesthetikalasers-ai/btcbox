@@ -471,8 +471,8 @@ test("trade interaction QA mobile spot market selection and order-book handoff",
   await installInteractiveTradeApiMocks(page);
   await page.goto("/trade/BTCUSDT", { waitUntil: "domcontentloaded" });
 
-  const askRow = page.locator('.exchange-depth [data-side="ask"] .spot-book-row').first();
-  const bidRow = page.locator('.exchange-depth [data-side="bid"] .spot-book-row').first();
+  const askRow = page.locator('.exchange-depth .spot-book-row[data-side="ask"]').first();
+  const bidRow = page.locator('.exchange-depth .spot-book-row[data-side="bid"]').first();
   await expect(askRow).toBeVisible();
   await expect(bidRow).toBeVisible();
   const priceInput = page.getByRole("textbox", { name: "Limit price (USDT)" });
