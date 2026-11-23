@@ -81,7 +81,7 @@ export function TradeHubPage() {
               <ChartNoAxesCombined className="h-6 w-6" />
             </div>
             <CardTitle className="text-lg font-bold">{t("Spot")}</CardTitle>
-            <CardDescription className="text-xs">{t("Place server-validated limit orders on configured spot pairs with high liquidity.")}</CardDescription>
+            <CardDescription className="text-xs">{t("Place server-validated limit orders on configured spot pairs.")}</CardDescription>
           </CardHeader>
           <CardContent className="flex flex-wrap items-center justify-between gap-3 pt-0">
             <Badge data-testid="spot-availability" variant={spotExecutionEnabled ? "outline" : "secondary"} className={spotExecutionEnabled ? "border-brand-success/30 text-brand-success" : ""}>
@@ -100,7 +100,7 @@ export function TradeHubPage() {
               <TrendingUp className="h-6 w-6" />
             </div>
             <CardTitle className="text-lg font-bold">{t("Perpetual")}</CardTitle>
-            <CardDescription className="text-xs">{t("Trade USDT-margined perpetual contracts with dynamic leverage up to 100x.")}</CardDescription>
+            <CardDescription className="text-xs">{t("Trade USDT-margined perpetual contracts. Availability and limits are determined by the server.")}</CardDescription>
           </CardHeader>
           <CardContent className="flex flex-wrap items-center justify-between gap-3 pt-0">
             <Badge variant={perpAvailability === "enabled" ? "outline" : "secondary"} className={perpAvailability === "enabled" ? "border-brand-success/30 text-brand-success" : ""}>
