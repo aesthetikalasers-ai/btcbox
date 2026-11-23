@@ -3,7 +3,7 @@ import { createRoot } from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
 import App from "./App";
 import { AuthProvider } from "./lib/auth";
-import { TradingProvider, TradingInitializer } from "./lib/trading";
+import { TradingProvider } from "./lib/trading";
 import "./index.css";
 
 createRoot(document.getElementById("root")!).render(
@@ -11,7 +11,6 @@ createRoot(document.getElementById("root")!).render(
     <BrowserRouter>
       <AuthProvider>
         <TradingProvider>
-          <TradingInitializer />
           <App />
         </TradingProvider>
       </AuthProvider>
