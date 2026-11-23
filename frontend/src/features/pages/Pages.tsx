@@ -264,11 +264,12 @@ export function SpotTradingPage(){
  const chartRef=useRef<ChartHandle|null>(null);
  const base=symbol.endsWith("USDT")?symbol.slice(0,-4):"BTC";
  const pendingStorageKey=accountUid?"btcbox.spot.pending.v1."+accountUid+"."+symbol:"";
-  // A quote older than 90s is treated as stale: the submit path refuses new
- // orders instead of trading against a stale price. `marketUpdatedAt` is the
- // exchange snapshot time, never the browser's receipt time.
+  // Freshness is based on the server snapshot timestamp, not the provider's
+ // last-trade timestamp (which can legitimately be older in a quiet market).
+ // Provider time remains separate and is shown as provenance only.
+ const serverSnapshotTimestampMs=ticker?.snapshotTs?ticker.snapshotTs*1000:null;
  const providerTimestampMs=ticker?.providerTs?ticker.providerTs*1000:null;
- const marketSnapshotStale=!!ticker&&(!providerTimestampMs||!Number.isFinite(providerTimestampMs)||providerTimestampMs<=0||marketClockNow-providerTimestampMs>90_000||providerTimestampMs-marketClockNow>5_000);
+ const marketSnapshotStale=!!ticker&&(!serverSnapshotTimestampMs||!Number.isFinite(serverSnapshotTimestampMs)||serverSnapshotTimestampMs<=0||marketClockNow-serverSnapshotTimestampMs>90_000||serverSnapshotTimestampMs-marketClockNow>30_000);
  const tickerIsFallback=!ticker?.source||ticker.source==="demo-preview"||ticker.source==="sample-data";
  const displayTicker=tickerIsFallback||marketSnapshotStale?null:ticker;
  /**
@@ -771,7 +772,7 @@ export function SpotTradingPage(){
      <div><span>{t("24h high")}</span><b>{displayTicker?amountText(displayTicker.high):"—"}</b></div>
      <div><span>{t("24h low")}</span><b>{displayTicker?amountText(displayTicker.low):"—"}</b></div>
      <div><span>{t("24h volume")}</span><b>{displayTicker&&displayTicker.vol!==undefined&&displayTicker.vol!==null?amountText(displayTicker.vol):"—"}</b></div>
-     <div className="term-snapshot"><span>{t("Provider updated")}</span><b data-provider-ts={displayTicker?.providerTs ?? null}>{marketUpdatedAt ? new Date(marketUpdatedAt).toLocaleTimeString() : "—"}</b><small>{t("Source")}: {displayTicker?.source || "—"}</small></div>
+     <div className="term-snapshot"><span>{t("Snapshot checked")}</span><b data-snapshot-ts={displayTicker?.snapshotTs ?? null}>{serverSnapshotTimestampMs ? new Date(serverSnapshotTimestampMs).toLocaleTimeString() : "—"}</b><small>{t("Provider updated")}: {providerTimestampMs ? new Date(providerTimestampMs).toLocaleTimeString() : "—"}</small><small>{t("Source")}: {displayTicker?.source || "—"}</small></div>
     </div>
     <div className="term-top-links">
      <Link to="/assets" className="term-top-link"><Wallet className="h-3.5 w-3.5" aria-hidden="true"/>{t("Assets")}</Link>
