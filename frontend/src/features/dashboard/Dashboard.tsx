@@ -157,7 +157,7 @@ function QuickActions() {
   // `badge` is optional: it is reserved for campaigns that are genuinely live.
   const entries: Array<{ to: string; label: string; icon: typeof ArrowLeftRight; badge?: string }> = [
     { to: "/trade", label: t("Spot"), icon: ArrowLeftRight },
-    { to: "/contract", label: t("Perpetual"), icon: TrendingUp },
+    { to: "/contract", label: t("Contract"), icon: TrendingUp },
     { to: "/seconds", label: t("Seconds"), icon: ChartNoAxesCombined },
     { to: "/earn", label: t("Earn"), icon: Sprout },
     { to: "/deposit", label: t("Deposit"), icon: ArrowDownToLine },

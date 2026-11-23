@@ -51,7 +51,7 @@ export function TradeHubPage() {
             <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-xl border border-brand-violet/20 bg-brand-violet/10 text-brand-violet">
               <TrendingUp className="h-6 w-6" />
             </div>
-            <CardTitle className="text-lg font-bold">{t("Perpetual")}</CardTitle>
+            <CardTitle className="text-lg font-bold">{t("Contract")}</CardTitle>
             <CardDescription className="text-xs">{t("Explore perpetual contract markets.")}</CardDescription>
           </CardHeader>
           <CardContent className="pt-0">
