@@ -2768,4 +2768,21 @@ a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
     gap: 3px;
     font-size: 9px;
   }
+  /* At 320px the depth column is narrow enough that the precision selector
+     plus three view toggles otherwise spill left into the Sell control. */
+  .spot-terminal .exchange-depth .spot-book-toolbar--top {
+    gap: 2px;
+  }
+  .spot-terminal .exchange-depth .spot-book-toolbar--top select {
+    width: 38px;
+    min-width: 38px;
+    padding-inline: 2px;
+  }
+  .spot-terminal .exchange-depth .spot-book-toolbar--top .spot-book-view {
+    gap: 0;
+  }
+  .spot-terminal .exchange-depth .spot-book-toolbar--top .spot-book-view button {
+    width: 24px;
+    min-width: 24px;
+  }
 }
