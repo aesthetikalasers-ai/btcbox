@@ -315,7 +315,10 @@ export function AdminPage() {
 
   const loadTab = useCallback(async () => {
     const requestId = ++tabLoadRequestRef.current;
-    if (tab !== "users") userDetailRequestRef.current += 1;
+    if (tab !== "users") {
+      userDetailRequestRef.current += 1;
+      setProfileRelatedLoading(false);
+    }
     if (tab !== "seconds") secondsQueueRequestRef.current += 1;
     if (!token || !session) return;
     const auditRequestId = ++auditPageRequestRef.current;
