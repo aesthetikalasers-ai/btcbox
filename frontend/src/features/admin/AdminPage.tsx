@@ -143,6 +143,8 @@ export function AdminPage() {
   const [stats, setStats] = useState<Record<string, unknown> | null>(null);
   const [users, setUsers] = useState<AdminUserRecord[]>([]);
   const [search, setSearch] = useState("");
+  const [searchInput, setSearchInput] = useState("");
+  const [userSearchBusy, setUserSearchBusy] = useState(false);
   const [selectedUser, setSelectedUser] = useState<AdminUserRecord | null>(null);
   const [creditAmount, setCreditAmount] = useState<Record<string, string>>({});
   const [creditReference, setCreditReference] = useState<Record<string, string>>({});
@@ -179,6 +181,7 @@ export function AdminPage() {
   const auditPageRequestRef = useRef(0);
   const tabLoadRequestRef = useRef(0);
   const userDetailRequestRef = useRef(0);
+  const userSearchRequestRef = useRef(0);
   const adminCandidatesRequestRef = useRef(0);
   const secondsQueueRequestRef = useRef(0);
   const kycRefreshLockRef = useRef(false);
@@ -530,6 +533,25 @@ export function AdminPage() {
   // come from the server. A failed refresh must not mask the confirmed result.
   const refreshSelectedUser = async (uid: string) => {
     try { await selectUser(uid); } catch { /* Confirmed writes stay reported through the notice. */ }
+  };
+
+  const searchUsers = async (query: string) => {
+    if (!token || userSearchBusy) return;
+    const normalizedQuery = query.trim();
+    const requestId = ++userSearchRequestRef.current;
+    setSearch(normalizedQuery);
+    setUserSearchBusy(true);
+    setError("");
+    try {
+      const snapshot = await getAdminUsers(token, normalizedQuery);
+      if (requestId === userSearchRequestRef.current) setUsers(snapshot.users || []);
+    } catch (reason) {
+      if (requestId === userSearchRequestRef.current) {
+        setError(reason instanceof Error ? reason.message : "User search could not be completed.");
+      }
+    } finally {
+      if (requestId === userSearchRequestRef.current) setUserSearchBusy(false);
+    }
   };
 
   const submitBalanceAdjustment = async () => {
@@ -1284,7 +1306,7 @@ export function AdminPage() {
 
     {!loading && tab === "users" ? <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(360px,0.9fr)]">
       <Card><CardHeader><CardTitle>{adminText("Users")}</CardTitle><CardDescription>{adminText("Search a user, then select an asset row for staff manual credit.")}</CardDescription></CardHeader><CardContent>
-        <form className="mb-3 flex gap-2" onSubmit={event => { event.preventDefault(); void loadTab(); }}><input value={search} onChange={event => setSearch(event.target.value)} placeholder={adminText("Search UID or email")} className="h-11 min-w-0 flex-1 rounded-xl border border-brand-border bg-brand-surface-2 px-3 py-2 text-sm text-brand-text outline-none transition-colors focus:border-brand-accent/60 focus:ring-2 focus:ring-brand-accent/15"/><Button size="sm" type="submit">{adminText("Search")}</Button></form>
+        <form className="mb-3 flex gap-2" onSubmit={event => { event.preventDefault(); void searchUsers(searchInput); }}><input value={searchInput} onChange={event => setSearchInput(event.target.value)} placeholder={adminText("Search UID or email")} className="h-11 min-w-0 flex-1 rounded-xl border border-brand-border bg-brand-surface-2 px-3 py-2 text-sm text-brand-text outline-none transition-colors focus:border-brand-accent/60 focus:ring-2 focus:ring-brand-accent/15"/><Button size="sm" type="submit" disabled={userSearchBusy}>{userSearchBusy ? adminText("Searching…") : adminText("Search")}</Button></form>
         <div className="overflow-x-auto"><table className="w-full min-w-[520px] text-left text-sm"><thead><tr className="border-b border-brand-border bg-brand-surface-2/50 type-label uppercase tracking-wide text-brand-text-muted"><th className="px-3 py-2.5">UID</th><th className="px-3 py-2.5">{adminText("Email")}</th><th className="px-3 py-2.5">{adminText("KYC")}</th><th className="px-3 py-2.5">{adminText("Status")}</th><th className="px-3 py-2.5 text-right">{adminText("Action")}</th></tr></thead><tbody>{users.map(user=><tr key={user.uid} className="border-b border-brand-border-subtle transition-colors hover:bg-brand-surface-hover/40"><td className="px-3 py-2.5 font-mono text-xs">{user.uid}</td><td className="px-3 py-2.5">{user.email}</td><td className="px-3 py-2.5"><Badge variant={statusVariant(user.kyc_status || user.kyc?.status || "")}>{user.kyc_status || user.kyc?.status || "—"}</Badge></td><td className="px-3 py-2.5"><Badge variant={user.frozen?"destructive":"success"}>{user.frozen?adminText("Frozen"):adminText("Active")}</Badge></td><td className="px-3 py-2.5 text-right"><Button size="sm" variant="outline" onClick={()=>void selectUser(user.uid)}>{adminText("Open")}</Button></td></tr>)}{users.length===0 ? <tr><td colSpan={5} className="px-3 py-10 text-center text-sm text-brand-text-muted">暂无用户记录，调整搜索条件后重试。</td></tr> : null}</tbody></table></div>
       </CardContent></Card>
       <div className="space-y-4"><Card><CardHeader><CardTitle>{adminText("Manual credit")}</CardTitle><CardDescription>{adminText("UID and asset are bound by the selected user and asset row. No pending deposit order is created.")}</CardDescription></CardHeader><CardContent>
