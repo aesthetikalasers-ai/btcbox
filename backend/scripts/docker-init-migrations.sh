@@ -22,7 +22,7 @@ if [ "$EXISTING" != "0" ]; then
 fi
 
 # Keep this allowlist byte-for-byte aligned by filename with
-# bootstrap-empty-database.sh and MIGRATION-ORDER-AND-CUTOVER.md.
+# bootstrap-empty-database.sh.
 # 0009 and 0015-0020 are retired/excluded sequence slots, not migrations.
 FILES=(
   0001_btcbox_state_cas.sql

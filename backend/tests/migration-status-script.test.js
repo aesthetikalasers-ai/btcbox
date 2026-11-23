@@ -54,29 +54,36 @@ test('migration checker refuses to compare timestamp ledger versions with four-d
   } finally { fs.rmSync(tempDir, { recursive: true, force: true }); }
 });
 
-test('migration order document records the prepared Seconds migration dependencies', () => {
-  const orderDoc = fs.readFileSync(path.join(__dirname, '..', 'supabase/sql/MIGRATION-ORDER-AND-CUTOVER.md'), 'utf8');
-  const rateLimit = orderDoc.indexOf('0023_btcbox_shared_rate_limit_v1.sql');
-  const settlement = orderDoc.indexOf('0024_seconds_settlement_idempotency_v1.sql');
-  const policy = orderDoc.indexOf('0025_seconds_policy_versioning_v1.sql');
-  const adminRbac = orderDoc.indexOf('0026_admin_rbac_private_store_v1.sql');
-  const manualPayout = orderDoc.indexOf('0027_withdrawal_manual_payout_completion_v1.sql');
-  const rbacWrappers = orderDoc.indexOf('0028_admin_rbac_service_rpc_wrappers_v1.sql');
-  const feeIdempotency = orderDoc.indexOf('0029_withdrawal_fee_quote_idempotency_v1.sql');
-  const secondsAdminQueue = orderDoc.indexOf('0030_seconds_admin_open_positions_read_v1.sql');
-  const durationAlignment = orderDoc.indexOf('0031_seconds_policy_duration_alignment_v1.sql');
-  const auditIndexes = orderDoc.indexOf('0032_admin_audit_log_filter_indexes_v1.sql');
-  const withdrawalCleanup = orderDoc.indexOf('0033_withdrawal_legacy_rpc_cleanup_v1.sql');
-  const auditDuplicateCleanup = orderDoc.indexOf('0034_financial_audit_duplicate_index_cleanup_v1.sql');
-  const serviceRolePrivileges = orderDoc.indexOf('0035_service_role_privilege_minimization_v1.sql');
-  assert.ok(rateLimit >= 0 && settlement > rateLimit && policy > settlement && adminRbac > policy && manualPayout > adminRbac && rbacWrappers > manualPayout && feeIdempotency > rbacWrappers && secondsAdminQueue > feeIdempotency && durationAlignment > secondsAdminQueue && auditIndexes > durationAlignment && withdrawalCleanup > auditIndexes && auditDuplicateCleanup > withdrawalCleanup && serviceRolePrivileges > auditDuplicateCleanup);
-  assert.ok(orderDoc.includes('depends on the Seconds base schema in'));
-  assert.ok(orderDoc.includes('adds Seconds settlement request-hash idempotency'));
-  assert.ok(orderDoc.includes('withdrawal fee quotes replay-safe'));
-  assert.ok(orderDoc.includes('retain their stored fee'));
-  assert.ok(orderDoc.includes('bounded, read-only administrator queue for open Seconds positions'));
-  assert.ok(orderDoc.includes('timestamp registry versions with four-digit source filenames'));
-  assert.ok(orderDoc.includes('exactly one 11-argument service-role-only function remains'));
+test('canonical bootstrap source preserves the prepared Seconds and Admin migration dependencies', () => {
+  const root = path.resolve(__dirname, '..');
+  const scripts = ['bootstrap-empty-database.sh', 'docker-init-migrations.sh']
+    .map(name => fs.readFileSync(path.join(root, 'scripts', name), 'utf8'));
+  const required = [
+    '0023_btcbox_shared_rate_limit_v1.sql',
+    '0024_seconds_settlement_idempotency_v1.sql',
+    '0025_seconds_policy_versioning_v1.sql',
+    '0026_admin_rbac_private_store_v1.sql',
+    '0027_withdrawal_manual_payout_completion_v1.sql',
+    '0028_admin_rbac_service_rpc_wrappers_v1.sql',
+    '0029_withdrawal_fee_quote_idempotency_v1.sql',
+    '0030_seconds_admin_open_positions_read_v1.sql',
+    '0031_seconds_policy_duration_alignment_v1.sql',
+    '0032_admin_audit_log_filter_indexes_v1.sql',
+    '0033_withdrawal_legacy_rpc_cleanup_v1.sql',
+    '0034_financial_audit_duplicate_index_cleanup_v1.sql',
+    '0035_service_role_privilege_minimization_v1.sql'
+  ];
+  for (const source of scripts) {
+    const block = source.split('FILES=(')[1]?.split(LF + ')')[0];
+    assert.ok(block, 'canonical migration inventory missing');
+    const configured = block.split(LF).map(line => line.trim()).filter(line => line.endsWith('.sql'));
+    let previous = -1;
+    for (const file of required) {
+      const index = configured.indexOf(file);
+      assert.ok(index > previous, 'migration dependency order is incorrect for ' + file);
+      previous = index;
+    }
+  }
 });
 
 test('existing-schema upgrades are kept outside the fresh-bootstrap SQL inventory', () => {
