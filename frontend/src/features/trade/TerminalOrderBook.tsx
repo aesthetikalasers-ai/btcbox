@@ -144,7 +144,7 @@ function LevelRows({
   side: "ask" | "bid";
   decimals: number;
   sizeDecimals: number;
-  onPick: (price: string) => void;
+  onPick: (price: string, side: "ask" | "bid") => void;
 }) {
   const color = side === "ask" ? "text-loss" : "text-profit";
   return (
@@ -153,7 +153,7 @@ function LevelRows({
         <button
           key={side + row[0]}
           type="button"
-          onClick={() => onPick(row[0])}
+          onClick={() => onPick(row[0], side)}
           data-side={side}
           title={row[0] + " · " + row[1]}
           className="spot-book-row spot-book-row--click font-mono tabular-nums"
@@ -202,7 +202,7 @@ export function TerminalOrderBook({
   onPrecisionChange: (value: DepthPrecision) => void;
   view: BookView;
   onViewChange: (value: BookView) => void;
-  onPickPrice: (price: string) => void;
+  onPickPrice: (price: string, side: "ask" | "bid") => void;
   /** Verified USDT→USD rate for the "≈ $" hint; null means unavailable. */
   usdtUsd?: number | null;
   rows?: number;
