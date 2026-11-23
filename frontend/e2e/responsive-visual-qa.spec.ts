@@ -163,8 +163,11 @@ async function assertPageAtWidth(
       exact: true,
     })).toHaveCount(0);
   }
-  if (route.path === "/home" || route.path === "/markets") {
-    await expect(page.getByText("No markets enabled", { exact: true })).toBeVisible();
+  if (route.path === "/home") {
+    await expect(page.getByText("Market feed unavailable", { exact: true })).toBeVisible();
+  }
+  if (route.path === "/markets") {
+    await expect(page.getByText("No market pairs are currently available.", { exact: true })).toBeVisible();
   }
   if (route.path === "/trade-hub") {
     await expect(page.getByTestId("spot-availability")).toHaveText("Unavailable");
