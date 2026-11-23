@@ -291,3 +291,18 @@ test('admin support inbox reports unanswered counts from the full retained threa
   assert.ok(supportRoute.includes('unanswered_count: unansweredCount'));
   assert.ok(reactAdminPage.includes('message.unanswered_count || 0'));
 });
+
+
+test('Vercel routing keeps API rewrites ahead of the SPA fallback and preserves legacy auth/admin aliases', () => {
+  const rewrites = Array.isArray(vercelConfig.rewrites) ? vercelConfig.rewrites : [];
+  const apiRewriteIndex = rewrites.findIndex(rule => rule.source === '/api/(.*)' && rule.destination === '/api/router');
+  const spaRewriteIndex = rewrites.findIndex(rule => rule.source === '/((?!api/).*)' && rule.destination === '/index.html');
+  assert.ok(apiRewriteIndex >= 0, 'API requests must reach the backend router');
+  assert.ok(spaRewriteIndex > apiRewriteIndex, 'the SPA fallback must not shadow API routes');
+  const redirects = Array.isArray(vercelConfig.redirects) ? vercelConfig.redirects : [];
+  assert.ok(redirects.some(rule => rule.source === '/admin.html' && rule.destination === '/admin'));
+  assert.ok(redirects.some(rule => rule.source === '/auth/callback' && rule.destination === '/auth/react-callback'));
+  assert.ok(reactApp.includes('<Route path="/admin/*" element={<AdminPage />} />'));
+  assert.ok(reactApp.includes('<Route path="/login" element={<AuthPage mode="login" />} />'));
+  assert.ok(reactApp.includes('<Route path="/register" element={<AuthPage mode="register" />} />'));
+});
