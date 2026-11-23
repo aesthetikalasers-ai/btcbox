@@ -31,3 +31,7 @@ jobs:
       - name: Verify exact decimal estimates
         run: node --experimental-strip-types --test tests/decimal.test.ts tests/kline-data.test.ts
       - run: npm run build
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Verify critical SPA routes on the production bundle
+        run: npm run test:e2e -- --grep "@routing"
