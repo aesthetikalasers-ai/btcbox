@@ -491,7 +491,7 @@ export function AdminPage() {
         if (saved && saved.version === 1 && saved.actor_id === session.user_id && saved.target_uid === selectedUser.uid &&
             typeof saved.request_id === "string" && /^[A-Za-z0-9_-]{16,100}$/.test(saved.request_id) &&
             typeof saved.coin === "string" && assets.includes(saved.coin) &&
-            typeof saved.delta === "string" && /^-?(?:0|[1-9]\\d*)(?:\\.\\d{1,18})?$/.test(saved.delta) &&
+            typeof saved.delta === "string" && /^-?(?:0|[1-9]\d*)(?:\.\d{1,18})?$/.test(saved.delta) &&
             typeof saved.mode === "string" && ["adjust", "freeze", "unfreeze"].includes(saved.mode) &&
             typeof saved.reason === "string") {
           setAdjustCoin(saved.coin);
