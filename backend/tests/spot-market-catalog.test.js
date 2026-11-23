@@ -16,7 +16,8 @@ test('public USDT/USD FX route is exposed by the shared Vercel API handler', () 
   assert.ok(route >= 0 && klineStart > route, 'FX route must be present before the kline route');
   const routeBlock = backend.slice(route, klineStart);
   assert.ok(routeBlock.includes("getUsdtUsd()"));
-  assert.ok(routeBlock.includes("source: 'fallback'"));
+  assert.ok(routeBlock.includes("code: 'FX_DATA_UNAVAILABLE'"));
+  assert.ok(!routeBlock.includes("rate: 0.99999"));
   assert.ok(api.includes('getUsdtUsdRate'));
   assert.ok(api.includes('${API_BASE_URL}/fx/usdt-usd'));
 });
@@ -35,6 +36,7 @@ test('public spot-market catalogue is sourced from operator configuration', () =
   assert.match(backend, /catch \(error\) \{ throw new Error\('Spot market catalogue unavailable:/);
   assert.ok(api.includes("MARKET_CATALOG_UNAVAILABLE"));
   assert.ok(!api.includes("return getSampleMarketPairs()"), "the public client must not fabricate a pair list");
+  assert.ok(api.includes("return { rate: null, source: \"unavailable\", stale: true }"));
 });
 
 test('market ticker, candles and depth are gated by enabled spot pairs', () => {
