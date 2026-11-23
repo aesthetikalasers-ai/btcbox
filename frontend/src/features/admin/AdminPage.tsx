@@ -664,7 +664,14 @@ export function AdminPage() {
       setAdjustRequestId(""); setAdjustPendingInvalid(false);
       setNotice(result.msg || "Balance adjusted.");
       setAdjustAmount(""); setAdjustReason("");
-      await refreshSelectedUser(uid);
+      try {
+        await refreshSelectedUser(uid);
+      } catch (refreshError) {
+        // The ledger operation is already confirmed. Never tell staff to retry
+        // the adjustment with a new request ID just because the profile read failed.
+        setError((refreshError instanceof Error ? refreshError.message : "User profile refresh failed.") +
+          " The balance operation was confirmed. Refresh this user profile; do not submit the adjustment again.");
+      }
     } catch (cause) {
       setError((cause instanceof Error ? cause.message : "Balance adjustment could not be confirmed.") + " Retry the same operation to safely confirm the result; do not create a new adjustment.");
     } finally { setAdjustBusy(false); }
