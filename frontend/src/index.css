@@ -2757,7 +2757,7 @@ a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
    their later 12px depth typography and wider grid gap win in the cascade. */
 @media (max-width: 359px) {
   .spot-terminal .exchange-workspace {
-    grid-template-columns: minmax(0, 1.08fr) minmax(0, .92fr);
+    grid-template-columns: minmax(0, 55fr) minmax(0, 45fr);
     gap: 6px;
   }
   .spot-terminal .exchange-depth .spot-book-row {
