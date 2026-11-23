@@ -153,7 +153,6 @@ class LiveMarketEngine {
 
       const next = new Map<string, MarketMemoryRow>();
       let changed = false;
-      let invalidSnapshot = false;
       for (const ticker of payload.markets) {
         if (!ticker || typeof ticker.sym !== "string") continue;
         const sym = ticker.sym.replace(/USDT$/, "").toUpperCase();
@@ -183,7 +182,6 @@ class LiveMarketEngine {
           snapshotTs > nowSeconds + FUTURE_CLOCK_SKEW_SECONDS ||
           nowSeconds - snapshotTs > STALE_AFTER_MS / 1000
         ) {
-          invalidSnapshot = true;
           continue;
         }
         const providerTs = Number.isFinite(provenance?.providerTs) && Number(provenance?.providerTs) > 0
@@ -217,7 +215,7 @@ class LiveMarketEngine {
           existing.providerTs !== row.providerTs
         ) changed = true;
       }
-      if (invalidSnapshot || next.size === 0) return;
+      if (next.size === 0) return;
       if (next.size !== this.prices.size) changed = true;
       if (next.size === 0) return;
       this.prices = next;
