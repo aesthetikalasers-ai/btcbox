@@ -1274,9 +1274,9 @@ a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
 }
 
 /* ========================================================================
-   Mobile Spot Trading refactor (Binance-style single column):
-   quote strip -> order book -> order entry -> collapsible orders tabs.
-   Scoped to <=767.98px; desktop 4-column grid untouched.
+   Mobile Spot Trading (320–767px):
+   quote strip -> two-column order entry + order book -> full-width orders.
+   The K-line stays in the bottom drawer; desktop terminal rules remain separate.
    ======================================================================== */
 @media (max-width: 767.98px) {
   .spot-terminal { gap: 6px; padding-top: 4px; }
