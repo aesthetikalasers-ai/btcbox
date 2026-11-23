@@ -1505,7 +1505,7 @@ export async function adminManualCredit(token: string, input: { uid: string; coi
 }
 export async function adminAdjustBalance(token: string, input: {
   uid: string; coin: string; delta: string;
-  mode: "adjust" | "freeze" | "unfreeze"; reason: string; request_id: string;
+  mode: "adjust" | "freeze" | "unfreeze"; reason?: string; request_id: string;
 }) {
   return adminRequest<{
     ok: true; msg?: string; duplicate?: boolean; operation_id?: string;
