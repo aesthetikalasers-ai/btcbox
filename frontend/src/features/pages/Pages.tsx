@@ -793,7 +793,7 @@ export function SpotTradingPage(){
        (a stale screen should not be permanently silent). */}
    {marketUnavailable?<div className="term-feeddown" role="alert">
     <WifiOff className="h-4 w-4 shrink-0" aria-hidden="true"/>
-    <span className="min-w-0 flex-1">{t(effectiveMarketFeedWarning || "行情连接已断开，暂时无法获取最新价格。请稍后重试.")}</span>
+    <span className="min-w-0 flex-1">{t(effectiveMarketFeedWarning || "行情连接已断开，暂时无法获取最新价格。请稍后重试。")}</span>
     <button type="button" className="term-feeddown-retry" onClick={()=>setRefreshTick(value=>value+1)}>
      <RefreshCw className="h-3.5 w-3.5" aria-hidden="true"/>{t("Retry")}
     </button>
