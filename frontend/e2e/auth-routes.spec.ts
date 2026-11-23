@@ -273,7 +273,7 @@ test("email signup explains Supabase confirmation rate limits without weakening 
   await page.goto("/register");
   await page.getByLabel("Email", { exact: true }).fill("rate-limited@example.invalid");
   await page.getByLabel("Password", { exact: true }).fill("StrongPassphrase123!");
-  await page.getByLabel("Confirm your password", { exact: true }).fill("StrongPassphrase123!");
+  await page.getByLabel("Confirm password", { exact: true }).fill("StrongPassphrase123!");
   await page.getByRole("button", { name: "Create account with email" }).click();
   await expect(page.getByText("Please wait before requesting another email. Check your inbox for an earlier link.", { exact: true })).toBeVisible();
 });
@@ -297,8 +297,8 @@ test("unauthenticated customer sees an in-place sign-in gate on protected routes
 
   await expect(page).toHaveURL(/\/withdraw$/);
   await expect(page.getByRole("heading", { name: "Sign in to your account" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Sign in", exact: true })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Create account", exact: true })).toBeVisible();
+  await expect(page.getByRole("main").getByRole("button", { name: "Sign in", exact: true })).toBeVisible();
+  await expect(page.getByRole("main").getByRole("button", { name: "Create account", exact: true })).toBeVisible();
 });
 
 test("administrator route requires a verified administrator identity", async ({ page }) => {
@@ -352,7 +352,7 @@ test("support help center is public while private conversation APIs remain untou
   const privateSupportRequests: string[] = [];
   page.on("request", (request) => {
     const url = new URL(request.url());
-    if (url.pathname.startsWith("/api/support")) privateSupportRequests.push(request.method() + " " + url.pathname);
+    if (url.pathname.startsWith("/api/support") && !(request.method() === "GET" && url.pathname === "/api/support/faq")) privateSupportRequests.push(request.method() + " " + url.pathname);
   });
 
   await page.goto("/support");
