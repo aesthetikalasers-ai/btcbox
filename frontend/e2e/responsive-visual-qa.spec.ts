@@ -287,14 +287,17 @@ async function assertPageAtWidth(
     expect(formBox, "Phone order entry must have a layout box.").not.toBeNull();
     expect(bookBox, "Phone order book must have a layout box.").not.toBeNull();
     expect(ordersBox, "Phone orders panel must have a layout box.").not.toBeNull();
-    const [bookToolbarBox, precisionBox, viewBox] = await Promise.all([
+    const [bookToolbarBox, precisionBox, precisionSelectBox, viewBox] = await Promise.all([
       orderbook.locator(".spot-book-toolbar--top").boundingBox(),
       orderbook.locator(".spot-book-toolbar--top label").boundingBox(),
+      orderbook.locator(".spot-book-toolbar--top select").boundingBox(),
       orderbook.locator(".spot-book-toolbar--top .spot-book-view").boundingBox(),
     ]);
     expect(bookToolbarBox).not.toBeNull();
     expect(precisionBox).not.toBeNull();
+    expect(precisionSelectBox).not.toBeNull();
     expect(viewBox).not.toBeNull();
+    expect(precisionSelectBox!.width, "Phone depth precision must remain readable.").toBeGreaterThanOrEqual(44);
     expect(precisionBox!.x).toBeGreaterThanOrEqual(bookToolbarBox!.x - 1);
     expect(viewBox!.x + viewBox!.width).toBeLessThanOrEqual(bookToolbarBox!.x + bookToolbarBox!.width + 1);
     expect(precisionBox!.x + precisionBox!.width).toBeLessThanOrEqual(viewBox!.x + 1);
