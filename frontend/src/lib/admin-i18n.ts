@@ -397,6 +397,20 @@ const messages: Record<string, string> = {
   "This action cannot be undone and will be recorded in the audit log.": "此操作无法撤销，并将记录在审计日志中。",
   "Confirm delete": "确认删除",
   "Manual balance adjustment": "手动调整余额",
+  "Enter an amount greater than 0.": "请输入大于 0 的金额。",
+  "Secure request IDs are unavailable in this browser. No balance change was made.": "此浏览器无法生成安全的请求编号，余额未作任何变更。",
+  "Enter a reason before changing the account state.": "变更账户状态前，请填写原因。",
+  "The new password must be 12-256 characters.": "新密码长度必须为 12–256 个字符。",
+  "Enter a valid email address.": "请输入有效的邮箱地址。",
+  "Enter a message before sending.": "发送前请填写消息内容。",
+  "Keep the message under 2000 characters.": "消息长度不得超过 2000 个字符。",
+  "Secure request IDs are unavailable in this browser. No message was sent.": "此浏览器无法生成安全的请求编号，消息未发送。",
+  "Manual credit is disabled until the user's PostgreSQL ledger balance source is confirmed. No credit was sent.": "确认用户余额来自 PostgreSQL 账本前，人工入账功能已停用，未发送入账请求。",
+  "Enter an account number or IBAN.": "请输入银行账号或 IBAN。",
+  "Message sent to the customer.": "已向客户发送消息。",
+  "Balance adjusted through the financial ledger.": "已通过资金账本完成余额调整。",
+  "Funds moved to frozen balance.": "资金已转入冻结余额。",
+  "Frozen funds returned to available balance.": "冻结资金已转回可用余额。",
 };
 
 export function adminText(message: string): string {
