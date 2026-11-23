@@ -110,19 +110,20 @@ test('spot UI labels server snapshot time and does not substitute browser receip
   assert.ok(!page.includes('setMarketUpdatedAt(Date.now())'));
 });
 
-const authPage = fs.readFileSync(path.resolve(__dirname, '../../frontend/src/features/auth/AuthPages.tsx'), 'utf8');
+const authPanel = fs.readFileSync(path.resolve(__dirname, '../../frontend/src/features/auth/AuthFormPanel.tsx'), 'utf8');
+const authCallback = fs.readFileSync(path.resolve(__dirname, '../../frontend/src/features/auth/AuthCallbackPage.tsx'), 'utf8');
 
-test('sign-in and registration pages expose Google and wallet auth; email/password entry removed', () => {
-  assert.ok(authPage.includes('Google'));
-  assert.ok(authPage.includes('Wallet'));
-  assert.ok(authPage.includes('signInWithGoogle'));
-  assert.ok(authPage.includes('Connect Ethereum wallet'));
-  assert.ok(authPage.includes('Connect Solana wallet'));
-  assert.ok(authPage.includes('signInWithWeb3'));
-  assert.ok(authPage.includes('Sign in with username'));
-
-  assert.ok(!authPage.includes('requestPasswordReset'));
-  assert.ok(authPage.includes('completePasswordRecovery'));
+test('sign-in and registration pages expose email, Google, username and wallet auth through the shared panel', () => {
+  assert.ok(authPanel.includes('Google'));
+  assert.ok(authPanel.includes('Wallet'));
+  assert.ok(authPanel.includes('signInWithGoogle'));
+  assert.ok(authPanel.includes('Connect Ethereum wallet'));
+  assert.ok(authPanel.includes('Connect Solana wallet'));
+  assert.ok(authPanel.includes('signInWithWeb3'));
+  assert.ok(authPanel.includes('Sign in with username'));
+  assert.ok(authPanel.includes('signInWithEmail'));
+  assert.ok(authPanel.includes('requestPasswordReset'));
+  assert.ok(authCallback.includes('completePasswordRecovery'));
 });
 
 const withdrawStart = pages.indexOf('export function WithdrawPage()');
