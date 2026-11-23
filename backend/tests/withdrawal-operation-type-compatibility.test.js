@@ -4,7 +4,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const root = path.resolve(__dirname, '..', '..');
-const sql = fs.readFileSync(path.join(root, 'backend/supabase/sql/0042_withdrawal_operation_type_compatibility_v1.sql'), 'utf8');
+const sql = fs.readFileSync(path.join(root, 'backend/supabase/sql/0044_withdrawal_operation_type_compatibility_v1.sql'), 'utf8');
 
 test('withdrawal compatibility migration keeps the full financial operation type union', () => {
   const constraint = sql.match(/check \(operation_type in \(([\s\S]*?)\)\);/i);
