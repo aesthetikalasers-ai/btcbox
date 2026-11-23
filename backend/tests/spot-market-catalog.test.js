@@ -10,6 +10,17 @@ const backend = fs.readFileSync(path.join(root, 'api-core.js'), 'utf8');
 const api = fs.readFileSync(path.resolve(root, '../frontend/src/lib/api.ts'), 'utf8');
 const pages = fs.readFileSync(path.resolve(root, '../frontend/src/features/pages/Pages.tsx'), 'utf8');
 
+test('public USDT/USD FX route is exposed by the shared Vercel API handler', () => {
+  const route = backend.indexOf("if (path === 'fx/usdt-usd' && method === 'GET')");
+  const klineStart = backend.indexOf("if (path === 'kline' && method === 'GET')");
+  assert.ok(route >= 0 && klineStart > route, 'FX route must be present before the kline route');
+  const routeBlock = backend.slice(route, klineStart);
+  assert.ok(routeBlock.includes("getUsdtUsd()"));
+  assert.ok(routeBlock.includes("source: 'unavailable'"));
+  assert.ok(api.includes('getUsdtUsdRate'));
+  assert.ok(api.includes('${API_BASE_URL}/fx/usdt-usd'));
+});
+
 test('public spot-market catalogue is sourced from operator configuration', () => {
   const route = backend.indexOf("if (path === 'market/pairs' && method === 'GET')");
   const marketRoute = backend.indexOf("if (path === 'market' && method === 'GET')");
