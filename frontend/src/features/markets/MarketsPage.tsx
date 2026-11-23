@@ -318,7 +318,9 @@ export function MarketsPage() {
         })
         .catch((reason: unknown) => {
           if (!cancelled) {
-            setMarkets([]);
+            // Keep the last verified market snapshot visible during transient
+            // upstream failures. Surface the error so the feed is visibly stale
+            // without blanking unrelated market UI.
             setError(
               reason instanceof Error && reason.name !== "AbortError"
                 ? reason.message
