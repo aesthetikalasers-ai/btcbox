@@ -2772,14 +2772,18 @@ a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
      plus three view toggles otherwise spill left into the Sell control. */
   .spot-terminal .exchange-depth .spot-book-toolbar--top {
     gap: 2px;
+    row-gap: 2px;
+    flex-wrap: wrap;
+    justify-content: flex-start;
   }
   .spot-terminal .exchange-depth .spot-book-toolbar--top select {
-    width: 38px;
-    min-width: 38px;
+    width: 48px;
+    min-width: 48px;
     padding-inline: 2px;
   }
   .spot-terminal .exchange-depth .spot-book-toolbar--top .spot-book-view {
     gap: 0;
+    margin-left: auto;
   }
   .spot-terminal .exchange-depth .spot-book-toolbar--top .spot-book-view button {
     width: 24px;
