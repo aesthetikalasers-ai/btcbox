@@ -184,14 +184,13 @@ export function SpotTradingPage(){
   */
  const [marketList,setMarketList]=useState<MarketTicker[]>([]);
  const [marketFilter,setMarketFilter]=useState("");
- const [pairRailOpen,setPairRailOpen]=useState(true);
+ const [pairRailOpen,setPairRailOpen]=useState(()=>window.matchMedia("(min-width: 1536px)").matches);
  // `isPhone` (<=767px) hides the market-list drawer on phones; the order form and
  // order book stay side-by-side (Binance-style dual column) at every width.
  const [isPhone,setIsPhone]=useState(()=>window.matchMedia("(max-width: 767px)").matches);
- // Mobile trade panel: the design board (docs/design/btcbox-mobile-design-board.svg,
- // Trade screen) defines three tabs — Buy | Sell | Order book. The book and the
- // order form therefore never share the phone viewport at the same time.
- const [mobilePanel,setMobilePanel]=useState<"buy"|"sell"|"book">("buy");
+ // Phones keep the order form and order book visible together in the two-column workspace;
+ // only the chart moves to the bottom drawer.
+
  useEffect(()=>{
   const media=window.matchMedia(DESKTOP_TRADE_QUERY);
   const phone=window.matchMedia("(max-width: 767px)");
@@ -716,11 +715,12 @@ export function SpotTradingPage(){
  // payload — the fills tab never invents a trade or a fee.
  const filledOrders=orderHistory.filter(item=>["filled","completed","partially_filled","partially-filled"].includes(String(item.status||"").toLowerCase()));
  const entryDisabledReason=!tradingStatus?t("Spot execution status is unavailable. Order entry is disabled."):tradingInactive?t("Spot order execution is disabled by server policy. No order can be placed until the matching engine is approved and enabled."):staleSnapshot?t("Market snapshot is older than 90 seconds. Quotes and new order entry are disabled until fresh data arrives."):!spotPairEnabled?t("This spot market is not enabled by BTCBOX operators."):!spotPairRules?t("Market trading rules are unavailable. Order entry is disabled."):orderRuleError?t(orderRuleError):"";
- const pickBookPrice=(nextPrice:string)=>{
-    // Format with the SAME precision the book is displaying, so picking a level
-    // never changes how many decimals the limit input shows ("62576.01" vs "62572").
+ const pickBookPrice=(nextPrice:string, bookSide?:"ask"|"bid")=>{
+    // Match the selected level and side to the same order-entry state on desktop
+    // and mobile: asks populate a buy, bids populate a sell.
     const decimals = DECIMALS_BY_PRECISION[effectiveDepthPrecision];
     setPrice(spotPairRules ? roundDecimalToStep(nextPrice, spotPairRules.price_tick) : Number(nextPrice).toFixed(decimals));
+    if(bookSide)setSide(bookSide==="ask"?"buy":"sell");
     setIsPriceManual(true);
     setOrderSizePercent(0);
   };
@@ -794,7 +794,7 @@ export function SpotTradingPage(){
        (a stale screen should not be permanently silent). */}
    {marketUnavailable?<div className="term-feeddown" role="alert">
     <WifiOff className="h-4 w-4 shrink-0" aria-hidden="true"/>
-    <span className="min-w-0 flex-1">{t(effectiveMarketFeedWarning || "行情连接已断开，暂时无法获取最新价格。请稍后重试.")}</span>
+    <span className="min-w-0 flex-1">{t(effectiveMarketFeedWarning || "行情连接已断开，暂时无法获取最新价格。请稍后重试。")}</span>
     <button type="button" className="term-feeddown-retry" onClick={()=>setRefreshTick(value=>value+1)}>
      <RefreshCw className="h-3.5 w-3.5" aria-hidden="true"/>{t("Retry")}
     </button>
@@ -922,8 +922,8 @@ export function SpotTradingPage(){
      return {
       id:pair,
       label:`${pair.replace(/USDT$/,"")}/USDT`,
-      price:displayTicker?amountText(displayTicker.price):null,
-      changePct:displayTicker&&Number.isFinite(Number(displayTicker.chg))?Number(displayTicker.chg):null,
+      price:ticker?amountText(ticker.price):null,
+      changePct:ticker&&Number.isFinite(Number(ticker.chg))?Number(ticker.chg):null,
      };
     })}
     onSelect={(pair)=>navigate(`/trade/${pair}`)}
@@ -966,24 +966,15 @@ export function SpotTradingPage(){
     return {
      id:pair,
      label:`${pair.replace(/USDT$/,"")}/USDT`,
-     price:displayTicker?amountText(displayTicker.price):null,
-     changePct:displayTicker&&Number.isFinite(Number(displayTicker.chg))?Number(displayTicker.chg):null,
+     price:ticker?amountText(ticker.price):null,
+     changePct:ticker&&Number.isFinite(Number(ticker.chg))?Number(ticker.chg):null,
     };
    })}
    onSelect={(pair)=>navigate(`/trade/${pair}`)}
   />
-  {/* Mobile trade tabs — design board Trade screen: Buy | Sell | Order book.
-     Only one panel is mounted at a time on phones; desktop keeps its grid. */}
-  <div className="spot-mobile-tabs" role="tablist" aria-label={t("Trading panel")} data-active={mobilePanel}>
-   {([
-    ["buy",t("Buy")],
-    ["sell",t("Sell")],
-    ["book",t("Order book")],
-   ] as const).map(([key,label])=>
-    <button key={key} type="button" role="tab" aria-selected={mobilePanel===key} aria-controls="trade-workspace" className={mobilePanel===key?"is-active":""} onClick={()=>{setMobilePanel(key);if(key!=="book")setSide(key);}}>{label}</button>
-   )}
-  </div>
-  <div className="exchange-workspace" id="trade-workspace" data-mobile-panel={isPhone?mobilePanel:"all"}>
+  {/* Shared trading workspace: phones show order entry and order book side by side;
+      the chart is moved to the drawer and open orders span the row below. */}
+  <div className="exchange-workspace" id="trade-workspace">
     {/* Desktop inline chart (spec §3): the central column owns the candles.
         Phones never mount it inline — they use the safe-area drawer instead, so
         only one `setChartNode` target exists at a time. */}
