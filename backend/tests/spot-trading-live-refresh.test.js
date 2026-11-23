@@ -151,7 +151,7 @@ test('withdrawal retry preserves its idempotency key and saved intent before sen
   const send = withdrawPage.indexOf('submitWithdrawal({');
   assert.ok(persist >= 0 && send > persist);
   assert.ok(withdrawPage.includes('request_id:intent.request_id'));
-  assert.ok(withdrawPage.includes('Order result is unconfirmed. Keep the same request ID and check order history before retrying.'));
+  assert.ok(withdrawPage.includes('Withdrawal result is unconfirmed. Keep the same request ID and check withdrawal history before retrying.'));
 });
 
 test('My account page clears stale profile data when its authenticated refresh fails', () => {
