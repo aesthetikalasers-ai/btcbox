@@ -144,7 +144,13 @@ async function assertPageAtWidth(
   await page.goto(route.path, { waitUntil: "domcontentloaded" });
   await expect(page.locator("#root")).not.toBeEmpty();
   expect(new URL(page.url()).pathname).toBe(route.path);
-  await expect(page.getByRole("heading", { name: route.heading, exact: true })).toBeVisible({ timeout: 15000 });
+  if (route.path === "/trade/BTCUSDT" && width >= 1280) {
+    // The locked desktop terminal intentionally hides the duplicate page H1;
+    // the ticker header's market selector is its visible pair identifier.
+    await expect(page.locator(".term-top-pair")).toBeVisible({ timeout: 15000 });
+  } else {
+    await expect(page.getByRole("heading", { name: route.heading, exact: true })).toBeVisible({ timeout: 15000 });
+  }
 
   if (!["/login", "/register"].includes(route.path) && width <= 480) {
     await expect(
