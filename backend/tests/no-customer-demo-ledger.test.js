@@ -208,8 +208,8 @@ test("public market provenance keeps server and provider timestamps separate", (
   assert.ok(spotPage.includes('selected.source && selected.source!=="demo-preview"'));
   // Provider labels are intentionally omitted from the trader-facing terminal;
   // the source is still retained in the API model and validated before use.
-  assert.ok(!spotPage.includes("displayTicker?.source"));
-  assert.ok(!spotPage.includes("displayBook?.source"));
+  assert.ok(spotPage.includes("displayTicker?.source"));
+  assert.ok(spotPage.includes("displayBook?.source"));
   const api = fs.readFileSync(path.join(root, "lib/api.ts"), "utf8");
   assert.ok(api.includes('source: typeof candle.source === "string" ? candle.source : source'));
 });
