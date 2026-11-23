@@ -39,7 +39,7 @@ test('market favorites persist, sorting changes rows, and ETH opens its own pair
   await expect(page.getByRole('link',{name:/BTC\\s*\\/USDT/})).toHaveCount(0);
   await page.reload();
   await page.getByRole('button',{name:'Favorites',exact:true}).click();
-  await expect(page.getByRole('button',{name:'ETH/USDT ETH'})).toBeVisible();
+  await expect(page.getByRole('link',{name:/ETH\\s*\\/USDT/}).first()).toBeVisible();
   // The ETH trade link routes to its own spot pair. Scope to the market table
   // (inside <main>) so the navigation and banner "Trade" links are excluded.
   await page.locator('main').getByRole('link',{name:'Trade',exact:true}).first().click();
