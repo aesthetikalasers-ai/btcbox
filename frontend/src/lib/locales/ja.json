@@ -1813,5 +1813,6 @@
   "US routing number (optional)": "米国のルーティング番号（任意）",
   "Bank branch address (optional)": "銀行支店の住所（任意）",
   "Withdrawal result is unconfirmed. Keep the same request ID and check withdrawal history before retrying.": "出金結果は未確認です。同じリクエストIDを保持し、再試行する前に出金履歴を確認してください。",
-  "Please wait before requesting another email. Check your inbox for an earlier link.": "メールを再度リクエストする前に、しばらくお待ちください。すでにリンクをリクエストした場合は、受信トレイと迷惑メールフォルダーを確認してください。"
+  "Please wait before requesting another email. Check your inbox for an earlier link.": "メールを再度リクエストする前に、しばらくお待ちください。すでにリンクをリクエストした場合は、受信トレイと迷惑メールフォルダーを確認してください。",
+  "Trade USDT-margined perpetual contracts. Availability and limits are determined by the server.": "USDT建て無期限契約を取引できます。利用可否と取引制限はサーバーによって決定されます。"
 }
