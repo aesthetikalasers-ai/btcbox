@@ -505,7 +505,7 @@ test("trade interaction QA mobile spot market selection and order-book handoff",
   await expect(options.first()).toContainText("ETH/USDT");
   await search.fill("");
   await options.filter({ hasText: "SOL/USDT" }).click();
-  await expect(page).toHaveURL(/\\/trade\\/SOLUSDT$/);
+  await expect(page).toHaveURL(/\/trade\/SOLUSDT$/);
 });
 
 // Dense width sampling checks that layouts transition continuously rather than
