@@ -421,7 +421,7 @@ test("account overview stays signed out after the auth session bootstrap check",
   await page.goto("/me");
 
   await expect(page.getByText("Sign in to your account", { exact: true })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Sign in", exact: true })).toBeVisible();
+  await expect(page.getByRole("main").getByRole("button", { name: "Sign in", exact: true })).toBeVisible();
   // AuthProvider performs one read-only account probe to restore an existing cookie session.
   // That bootstrap GET is expected while signed out; no write endpoint is involved.
   expect(privateAccountRequests).toEqual(["GET"]);
