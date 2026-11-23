@@ -3,6 +3,7 @@
 const crypto = require('crypto');
 const { authorizeSupabaseAdmin } = require('./admin-auth');
 const { hasAdminPermission } = require('./admin-rbac');
+const { isValidIban } = require('./bank-account-validation');
 const { hasActiveVersionedSecondsPolicy } = require('./seconds-policy-readiness');
 
 const SESSION_COOKIE = 'session_token';
@@ -1206,7 +1207,7 @@ function validateKycSubmission(body) {
 }
 
 const KYC_STORAGE_BUCKET = 'kyc-documents';
-const KYC_IMAGE_MAX_BYTES = 512 * 1024;
+const KYC_IMAGE_MAX_BYTES = 2 * 1024 * 1024;
 
 function validateKycImage(body) {
   const contentType = String(body && body.document_content_type || '').toLowerCase();
@@ -1214,13 +1215,17 @@ function validateKycImage(body) {
   if (!['image/jpeg', 'image/png', 'image/webp'].includes(contentType)) {
     return { ok: false, msg: 'Upload a JPEG, PNG, or WebP identity document image.' };
   }
-  if (!encoded || encoded.length > Math.ceil(KYC_IMAGE_MAX_BYTES * 4 / 3) + 8 || !/^[A-Za-z0-9+/]+={0,2}$/.test(encoded)) {
-    return { ok: false, msg: 'The identity document image is missing or too large (maximum 512 KB).' };
+  const padding = encoded.endsWith('==') ? 2 : (encoded.endsWith('=') ? 1 : 0);
+  const decodedLength = Math.floor(encoded.length * 3 / 4) - padding;
+  if (!encoded || encoded.length > Math.ceil(KYC_IMAGE_MAX_BYTES * 4 / 3) + 8 ||
+      encoded.length % 4 !== 0 || !/^[A-Za-z0-9+/]+={0,2}$/.test(encoded) ||
+      decodedLength <= 0 || decodedLength > KYC_IMAGE_MAX_BYTES) {
+    return { ok: false, msg: 'The identity document image is missing or too large (maximum 2 MB).' };
   }
   let bytes;
   try { bytes = Buffer.from(encoded, 'base64'); } catch (_) { return { ok: false, msg: 'The identity document image is invalid.' }; }
-  if (!bytes.length || bytes.length > KYC_IMAGE_MAX_BYTES || bytes.toString('base64').replace(/=+$/, '') !== encoded.replace(/=+$/, '')) {
-    return { ok: false, msg: 'The identity document image is invalid or exceeds 512 KB.' };
+  if (!bytes.length || bytes.length !== decodedLength || bytes.length > KYC_IMAGE_MAX_BYTES) {
+    return { ok: false, msg: 'The identity document image is invalid or exceeds 2 MB.' };
   }
   const jpeg = bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff;
   const png = bytes.length >= 8 && bytes.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]));
@@ -1392,19 +1397,28 @@ async function handleRequest(event, context) {
   let body = {};
   if (event.body !== undefined && event.body !== null && event.body !== '') {
     let rawBody;
+    const requestBodyLimit = path === 'kyc' && method === 'POST' ? 3 * 1024 * 1024 : 1024 * 1024;
     try {
-      rawBody = event.isBase64Encoded
-        ? Buffer.from(String(event.body), 'base64').toString('utf8')
-        : String(event.body);
+      if (event.isBase64Encoded) {
+        const encodedBody = String(event.body);
+        // Reject oversized gateway payloads before allocating the decoded body.
+        if (encodedBody.length > Math.ceil(requestBodyLimit * 4 / 3) + 8) {
+          return json({ ok: false, msg: 'Request body too large.', code: 'REQUEST_BODY_TOO_LARGE' }, 413);
+        }
+        rawBody = Buffer.from(encodedBody, 'base64').toString('utf8');
+      } else {
+        rawBody = String(event.body);
+      }
     } catch (e) {
       return json({ ok: false, msg: 'Invalid request format.', code: 'INVALID_REQUEST_BODY' }, 400);
     }
-    // Bound parsing cost and memory use for all API endpoints.
-    if (Buffer.byteLength(rawBody, 'utf8') > 1024 * 1024) {
+    // KYC alone receives 3 MiB for a 2 MiB image encoded as base64; all other APIs stay at 1 MiB.
+    if (Buffer.byteLength(rawBody, 'utf8') > requestBodyLimit) {
       return json({ ok: false, msg: 'Request body too large.', code: 'REQUEST_BODY_TOO_LARGE' }, 413);
     }
     try {
       body = JSON.parse(rawBody);
+      rawBody = null;
     } catch (e) {
       return json({ ok: false, msg: 'Request body is not valid JSON', code: 'INVALID_JSON' }, 400);
     }
@@ -2252,7 +2266,7 @@ async function handleRequest(event, context) {
       fundpwd_reauth_mode: Array.isArray(user.auth_providers) && user.auth_providers.length ? 'twofa' : 'password',
       twofa_enabled: user.twofa_enabled,
       deposit_addresses: safeDepositAddresses(db.deposit_addresses),
-      addresses: (user.addresses || []).map(function(a){ const out=Object.assign({},a); if(out.type==='crypto' && out.address) out.address=out.address.length>14?out.address.slice(0,6)+'••••••'+out.address.slice(-6):out.address; if(out.account_number) out.account_number='••••'+out.account_number.slice(-4); if(out.routing_number) out.routing_number='••••'+out.routing_number.slice(-4); return out; }),
+      addresses: (user.addresses || []).map(function(a){ const out=Object.assign({},a); if(out.type==='crypto' && out.address) out.address=out.address.length>14?out.address.slice(0,6)+'••••••'+out.address.slice(-6):out.address; if(out.account_number) out.account_number='••••'+out.account_number.slice(-4); if(out.iban) out.iban=out.iban.slice(0,2)+'••••••••'+out.iban.slice(-4); if(out.routing_number) out.routing_number='••••'+out.routing_number.slice(-4); return out; }),
     });
   }
 
@@ -2263,6 +2277,7 @@ async function handleRequest(event, context) {
       const out = Object.assign({}, a);
       if (out.type === 'bank') {
         out.account_number = out.account_number ? '••••' + out.account_number.slice(-4) : '';
+        out.iban = out.iban ? out.iban.slice(0,2) + '••••••••' + out.iban.slice(-4) : '';
         out.routing_number = out.routing_number ? '••••' + out.routing_number.slice(-4) : '';
       } else if (out.type === 'crypto') {
         out.address = out.address.length > 14 ? out.address.slice(0,6) + '••••••' + out.address.slice(-6) : out.address;
@@ -2300,9 +2315,23 @@ async function handleRequest(event, context) {
       if (!valid) return json({ok:false,msg:'Operation failed: invalid address format.'},400);
       record = { id:'A'+Date.now()+crypto.randomBytes(3).toString('hex'), type:type, coin:coin, network:network, address:address, note:note, created_at:nowStr(), flagged:false, blocked:false };
     } else {
-      const holder=String(body.account_holder||'').trim().slice(0,120), bank=String(body.bank_name||'').trim().slice(0,120), account=String(body.account_number||'').replace(/\s/g,''), routing=String(body.routing_number||'').replace(/\s/g,''), swift=String(body.swift||'').trim().toUpperCase(), bankAddress=String(body.bank_address||'').trim().slice(0,240);
-      if (!holder || !bank || !/^\d{4,34}$/.test(account) || !/^\d{9}$/.test(routing) || (swift && !/^[A-Z0-9]{8}([A-Z0-9]{3})?$/.test(swift)) || !bankAddress) return json({ok:false,msg:'Operation failed: please check your bank account details.'},400);
-      record={id:'A'+Date.now()+crypto.randomBytes(3).toString('hex'),type:type,account_holder:holder,bank_name:bank,account_number:account,routing_number:routing,swift:swift,bank_address:bankAddress,note:note,created_at:nowStr(),flagged:false,blocked:false};
+      const holder=String(body.account_holder||'').trim().slice(0,120), bank=String(body.bank_name||'').trim().slice(0,120);
+      const account=String(body.account_number||'').replace(/\s/g,'').toUpperCase();
+      const iban=String(body.iban||'').replace(/\s/g,'').toUpperCase();
+      const routing=String(body.routing_number||'').replace(/\s/g,'');
+      const swift=String(body.swift||'').trim().toUpperCase();
+      const bankAddress=String(body.bank_address||'').trim().slice(0,240);
+      const country=String(body.country||'').trim().toUpperCase().slice(0,2);
+      const validIban=!iban || isValidIban(iban);
+      if (!holder || !bank || (!account && !iban) || (account && !/^[A-Z0-9]{4,34}$/.test(account)) ||
+          !validIban || (routing && !/^\d{9}$/.test(routing)) ||
+          (swift && !/^[A-Z]{4}[A-Z]{2}[A-Z0-9]{2}([A-Z0-9]{3})?$/.test(swift)) ||
+          (country && !/^[A-Z]{2}$/.test(country))) {
+        return json({ok:false,msg:'Operation failed: please check your bank account details.'},400);
+      }
+      record={id:'A'+Date.now()+crypto.randomBytes(3).toString('hex'),type:type,account_holder:holder,bank_name:bank,
+        account_number:account,iban:iban,routing_number:routing,swift:swift,bank_address:bankAddress,country:country,
+        note:note,created_at:nowStr(),flagged:false,blocked:false};
     }
     if (!Array.isArray(user.addresses)) user.addresses=[];
     user.addresses.push(record);
@@ -3368,6 +3397,7 @@ async function handleRequest(event, context) {
       if (['withdraw/approve','withdraw/reject','withdraw/mark-paid'].includes(route) && verb === 'POST') return 'withdrawals.review';
       if (route === 'orders' && verb === 'GET') return 'orders.read';
       if (route === 'support/messages' && verb === 'GET') return 'support.read';
+      if (route === 'support/read' && verb === 'POST') return 'support.read';
       if (route === 'support/reply' && verb === 'POST') return 'support.reply';
       if (route === 'support/faq' && verb === 'GET') return 'support.read';
       if ((route === 'support/faq' || route === 'support/faq/delete') && verb === 'POST') return 'support.manage';
@@ -4065,6 +4095,8 @@ async function handleRequest(event, context) {
       if(!target) return json({ok:false,msg:'Address record not found.'},404);
       const addr=target.addresses.find(function(a){return a.id===body.id;});
       const action=String(body.action||'');
+      const changeReason=String(body.reason||'').trim().slice(0,200);
+      if ((action==='update' || action==='delete') && !changeReason) return json({ok:false,msg:'A reason is required for this administrator change.'},400);
       if(action==='flag') addr.flagged=!!body.value;
       else if(action==='block') addr.blocked=!!body.value;
       else if(action==='delete') target.addresses=target.addresses.filter(function(a){return a.id!==body.id;});
@@ -4084,19 +4116,28 @@ async function handleRequest(event, context) {
           if(!valid) return json({ok:false,msg:'Operation failed.'},400);
           addr.address=newAddress; addr.coin=coin; addr.network=network; addr.unbound=false;
         } else {
-          const fields=['account_holder','bank_name','account_number','routing_number','swift','bank_address','note'];
+          const fields=['account_holder','bank_name','account_number','iban','routing_number','swift','bank_address','country','note'];
           fields.forEach(function(k){if(typeof body[k]==='string') addr[k]=body[k].trim();});
-          if(body.account_number!==undefined && !/^\d{4,34}$/.test(String(body.account_number).replace(/\s/g,''))) return json({ok:false,msg:'Operation failed.'},400);
-          if(body.routing_number!==undefined && !/^\d{9}$/.test(String(body.routing_number).replace(/\s/g,''))) return json({ok:false,msg:'Operation failed.'},400);
+          if(body.account_number!==undefined && body.account_number!=='' && !/^[A-Z0-9]{4,34}$/i.test(String(body.account_number).replace(/\s/g,''))) return json({ok:false,msg:'Operation failed.'},400);
+          if(body.routing_number!==undefined && body.routing_number!=='' && !/^\d{9}$/.test(String(body.routing_number).replace(/\s/g,''))) return json({ok:false,msg:'Operation failed.'},400);
           if(body.swift!==undefined && body.swift && !/^[A-Z]{4}[A-Z]{2}[A-Z0-9]{2}([A-Z0-9]{3})?$/.test(String(body.swift).toUpperCase())) return json({ok:false,msg:'Operation failed.'},400);
+          if(body.iban!==undefined && body.iban && !isValidIban(body.iban)) return json({ok:false,msg:'Operation failed.'},400);
+          if(body.country!==undefined && body.country && !/^[A-Z]{2}$/i.test(String(body.country).trim())) return json({ok:false,msg:'Operation failed.'},400);
+          if(body.account_number!==undefined && body.iban!==undefined && !String(body.account_number).replace(/\s/g,'') && !String(body.iban).replace(/\s/g,'')) return json({ok:false,msg:'At least one account number or IBAN is required.'},400);
           if(body.account_number!==undefined) addr.account_number=String(body.account_number).replace(/\s/g,'');
           if(body.routing_number!==undefined) addr.routing_number=String(body.routing_number).replace(/\s/g,'');
           if(body.swift!==undefined) addr.swift=String(body.swift).toUpperCase();
+          if(body.iban!==undefined) addr.iban=String(body.iban).replace(/\s/g,'').toUpperCase();
+          if(body.country!==undefined) addr.country=String(body.country).toUpperCase().slice(0,2);
+          if (!String(addr.account_holder || '').trim() || !String(addr.bank_name || '').trim() ||
+              (!String(addr.account_number || '').replace(/\s/g,'') && !String(addr.iban || '').replace(/\s/g,''))) {
+            return json({ok:false,msg:'Account holder, bank name, and an account number or IBAN are required.'},400);
+          }
         }
       } else return json({ok:false,msg:'Unknown operation.'},400);
       if(!Array.isArray(target.address_audit)) target.address_audit=[];
-      target.address_audit.push({id:'L'+Date.now()+crypto.randomBytes(3).toString('hex'),action:action,address_id:body.id,by:adminUserId,time:nowStr(),detail:String(body.reason||'').slice(0,200)});
-      await auditAdmin('address_'+action, target.uid, JSON.stringify({ address_id: body.id, reason: String(body.reason || '').slice(0, 200) }), adminUserId);
+      target.address_audit.push({id:'L'+Date.now()+crypto.randomBytes(3).toString('hex'),action:action,address_id:body.id,by:adminUserId,time:nowStr(),detail:changeReason});
+      await auditAdmin('address_'+action, target.uid, JSON.stringify({ address_id: body.id, reason: changeReason }), adminUserId);
       await saveDB(db);
       const auditFlush = await flushAdminAuditOutbox();
       return json({ok:true,audit_sync_pending:auditFlush.pending,msg:'Submitted successfully.'});
@@ -4332,16 +4373,66 @@ async function handleRequest(event, context) {
       return json({ ok: true, duplicate: false, message_id: message.id, time: message.time, audit_sync_pending: auditFlush.pending });
     }
 
-    // GET /api/admin/support/messages 客服消息
+    // POST /api/admin/support/read — persist per-admin, per-customer read receipt.
+    if (sub === 'support/read' && method === 'POST') {
+      const uid = String(body.uid || '').trim();
+      if (!uid || !db.users[uid]) return json({ ok: false, msg: 'Customer conversation not found.' }, 404);
+      if (!db.admin_support_read_receipts || typeof db.admin_support_read_receipts !== 'object') db.admin_support_read_receipts = {};
+      const receiptKey = String(adminUserId) + ':' + uid;
+      const userMessages = (Array.isArray(db.users[uid].support_messages) ? db.users[uid].support_messages : []).filter(function(m) { return m && m.from === 'user'; });
+      const latestUserMessage = userMessages.reduce(function(latest, m) { const time = String(m.time || ''); return time > latest ? time : latest; }, '');
+      const previousReadAt = String(db.admin_support_read_receipts[receiptKey] || '');
+      if (latestUserMessage && previousReadAt >= latestUserMessage) {
+        return json({ ok: true, duplicate: true, unread: 0, msg: 'Conversation is already marked as read.' });
+      }
+      // Advance only to the newest customer message visible in this read.
+      // Using wall-clock "now" could accidentally mark a concurrently arriving
+      // message as read even though it was not part of the conversation snapshot.
+      const readAt = latestUserMessage || nowStr();
+      db.admin_support_read_receipts[receiptKey] = readAt;
+      await auditAdmin('support_mark_read', uid, JSON.stringify({ latest_user_message_at: latestUserMessage }), adminUserId);
+      await saveDB(db);
+      const auditFlush = await flushAdminAuditOutbox();
+      return json({ ok: true, duplicate: false, unread: 0, audit_sync_pending: auditFlush.pending, msg: 'Conversation marked as read.' });
+    }
+
+    // GET /api/admin/support/messages — return UID-scoped recent conversation windows.
+    // Keeping both senders together lets staff verify replies; the per-customer
+    // window prevents one busy thread from hiding other customers in the inbox.
     if (sub === 'support/messages' && method === 'GET') {
       const list = [];
+      const readReceipts = db.admin_support_read_receipts && typeof db.admin_support_read_receipts === 'object' ? db.admin_support_read_receipts : {};
       Object.values(db.users).forEach(function (u) {
-        (Array.isArray(u.support_messages) ? u.support_messages : []).filter(function(m){return m.from==='user';}).forEach(function (m) {
-          list.push({ id: m.id, uid: u.uid, email: u.email, content: m.content, time: m.time });
+        const uid = String(u.uid || '');
+        const conversation = Array.isArray(u.support_messages) ? u.support_messages : [];
+        const receiptKey = String(adminUserId) + ':' + uid;
+        const lastReadAt = String(readReceipts[receiptKey] || '');
+        // Count unread customer messages across the full retained conversation,
+        // not only the window returned to the inbox.
+        const unreadCount = conversation.filter(function(m) {
+          return m && m.from === 'user' && (!lastReadAt || String(m.time || '') > lastReadAt);
+        }).length;
+        // Bound each customer's response independently. A busy customer's
+        // history must never consume the shared response window and hide other
+        // customers from the support inbox.
+        conversation.slice(-100).forEach(function (m) {
+          if (!m || (m.from !== 'user' && m.from !== 'admin')) return;
+          list.push({
+            id: String(m.id || ''),
+            uid: uid,
+            email: String(u.email || ''),
+            from: m.from,
+            content: String(m.content || ''),
+            time: String(m.time || ''),
+            admin_unread_count: unreadCount
+          });
         });
       });
-      list.sort(function (a, b) { return (a.time < b.time) ? 1 : -1; });
-      return json({ ok: true, messages: list.slice(0, 100) });
+      list.sort(function (a, b) {
+        if (a.time === b.time) return a.id < b.id ? -1 : 1;
+        return a.time < b.time ? -1 : 1;
+      });
+      return json({ ok: true, messages: list });
     }
 
     // ---------- Admin: help centre (FAQ) ----------
