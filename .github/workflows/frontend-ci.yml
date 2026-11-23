@@ -8,6 +8,7 @@ on:
   push:
     branches: 
       - main
+      - "integration/btcbox-acceptance-20261123"
       - "feature/btcbox-complete-redesign"
       - "feature/btcbox-react-frontend-20261104"
       - "feat/btcbox-web3-auth-20261105"
