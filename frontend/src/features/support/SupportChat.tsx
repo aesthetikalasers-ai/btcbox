@@ -182,7 +182,7 @@ export function SupportChat() {
     }
   };
 
-  const visibleMessages = messagesAccountKey === pendingStorageKey ? messages : [];
+  const visibleMessages = messagesAccountKey !== pendingStorageKey ? [] : messages;
   const date = (raw?: string) => {
     if (!raw) return "—";
     const parsed = new Date(raw);
