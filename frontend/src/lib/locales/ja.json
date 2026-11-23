@@ -1804,5 +1804,13 @@
   "Contract": "契約",
   "Confirm your password": "パスワードを再入力",
   "Your BTCBOX account is ready. You can sign in with your email and password or continue with Google.": "BTCBOXアカウントの準備ができました。メールアドレスとパスワード、またはGoogleでログインできます。",
-  "Create an account with email, Google or a supported wallet.": "メールアドレス、Google、または対応ウォレットでアカウントを作成できます。"
+  "Create an account with email, Google or a supported wallet.": "メールアドレス、Google、または対応ウォレットでアカウントを作成できます。",
+  "Loading market data": "市場データを読み込み中",
+  "Local account number (if no IBAN)": "IBANがない場合の現地口座番号",
+  "IBAN (if applicable)": "IBAN（該当する場合）",
+  "Enter IBAN for international accounts": "海外口座の場合はIBANを入力してください",
+  "Country code (optional)": "国コード（任意）",
+  "US routing number (optional)": "米国のルーティング番号（任意）",
+  "Bank branch address (optional)": "銀行支店の住所（任意）",
+  "Withdrawal result is unconfirmed. Keep the same request ID and check withdrawal history before retrying.": "出金結果は未確認です。同じリクエストIDを保持し、再試行する前に出金履歴を確認してください。"
 }

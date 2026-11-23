@@ -1804,5 +1804,13 @@
   "Contract": "Hợp đồng",
   "Confirm your password": "Xác nhận lại mật khẩu",
   "Your BTCBOX account is ready. You can sign in with your email and password or continue with Google.": "Tài khoản BTCBOX của bạn đã sẵn sàng. Bạn có thể đăng nhập bằng email và mật khẩu hoặc tiếp tục bằng Google.",
-  "Create an account with email, Google or a supported wallet.": "Tạo tài khoản bằng email, Google hoặc ví được hỗ trợ."
+  "Create an account with email, Google or a supported wallet.": "Tạo tài khoản bằng email, Google hoặc ví được hỗ trợ.",
+  "Loading market data": "Đang tải dữ liệu thị trường",
+  "Local account number (if no IBAN)": "Số tài khoản nội địa (nếu không có IBAN)",
+  "IBAN (if applicable)": "IBAN (nếu áp dụng)",
+  "Enter IBAN for international accounts": "Nhập IBAN cho tài khoản quốc tế",
+  "Country code (optional)": "Mã quốc gia (không bắt buộc)",
+  "US routing number (optional)": "Số định tuyến ngân hàng Hoa Kỳ (không bắt buộc)",
+  "Bank branch address (optional)": "Địa chỉ chi nhánh ngân hàng (không bắt buộc)",
+  "Withdrawal result is unconfirmed. Keep the same request ID and check withdrawal history before retrying.": "Kết quả rút tiền chưa được xác nhận. Hãy giữ nguyên ID yêu cầu và kiểm tra lịch sử rút tiền trước khi thử lại."
 }

@@ -1804,5 +1804,13 @@
   "Contract": "Contract",
   "Confirm your password": "Confirm your password",
   "Your BTCBOX account is ready. You can sign in with your email and password or continue with Google.": "Your BTCBOX account is ready. You can sign in with your email and password or continue with Google.",
-  "Create an account with email, Google or a supported wallet.": "Create an account with email, Google or a supported wallet."
+  "Create an account with email, Google or a supported wallet.": "Create an account with email, Google or a supported wallet.",
+  "Loading market data": "Loading market data",
+  "Local account number (if no IBAN)": "Local account number (if no IBAN)",
+  "IBAN (if applicable)": "IBAN (if applicable)",
+  "Enter IBAN for international accounts": "Enter IBAN for international accounts",
+  "Country code (optional)": "Country code (optional)",
+  "US routing number (optional)": "US routing number (optional)",
+  "Bank branch address (optional)": "Bank branch address (optional)",
+  "Withdrawal result is unconfirmed. Keep the same request ID and check withdrawal history before retrying.": "Withdrawal result is unconfirmed. Keep the same request ID and check withdrawal history before retrying."
 }

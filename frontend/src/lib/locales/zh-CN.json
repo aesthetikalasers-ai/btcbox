@@ -1804,5 +1804,13 @@
   "Contract": "合约",
   "Confirm your password": "再次确认您的密码",
   "Your BTCBOX account is ready. You can sign in with your email and password or continue with Google.": "BTCBOX 账户已创建。您现在可以使用邮箱和密码登录，也可以继续使用 Google 登录。",
-  "Create an account with email, Google or a supported wallet.": "使用邮箱、Google 或支持的钱包创建账户。"
+  "Create an account with email, Google or a supported wallet.": "使用邮箱、Google 或支持的钱包创建账户。",
+  "Loading market data": "正在加载市场数据",
+  "Local account number (if no IBAN)": "本地账户号码（如无 IBAN）",
+  "IBAN (if applicable)": "IBAN（如适用）",
+  "Enter IBAN for international accounts": "国际账户请输入 IBAN",
+  "Country code (optional)": "国家/地区代码（可选）",
+  "US routing number (optional)": "美国银行路由号码（可选）",
+  "Bank branch address (optional)": "银行分行地址（可选）",
+  "Withdrawal result is unconfirmed. Keep the same request ID and check withdrawal history before retrying.": "提现结果尚未确认。请保留相同的请求 ID，并在重试前检查提现历史记录。"
 }
