@@ -133,6 +133,7 @@ export function AdminPage() {
   const [token, setToken] = useState("");
   const [session, setSession] = useState<AdminSession | null>(null);
   const [tab, setTab] = useState<Tab>("overview");
+  const [navSearch, setNavSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const payoutSubmitLockRef = useRef(false);
@@ -301,6 +302,10 @@ export function AdminPage() {
   }, [session?.user_id]);
 
   const allowedTabs = useMemo(() => [...tabs.filter((item) => hasPermission(item.permission)), ...(session?.is_super_admin ? [{ id: "admins" as Tab, label: "Administrators", permission: "super_admin.only" }] : [])], [hasPermission, session]);
+  const visibleTabs = useMemo(() => {
+    const query = navSearch.trim().toLocaleLowerCase();
+    return allowedTabs.filter(item => !query || item.id.toLocaleLowerCase().includes(query) || item.label.toLocaleLowerCase().includes(query) || adminText(item.label).toLocaleLowerCase().includes(query));
+  }, [allowedTabs, navSearch]);
   useEffect(() => {
     if (allowedTabs.length && !allowedTabs.some((item) => item.id === tab)) setTab(allowedTabs[0].id);
   }, [allowedTabs, tab]);
@@ -1337,8 +1342,12 @@ export function AdminPage() {
       <Badge variant={session.is_super_admin ? "default" : "info"}>{session.is_super_admin ? adminText("SUPER ADMIN") : adminText("ACTIVE ADMIN")}</Badge>
     </div>
     {!session.is_super_admin ? <div className="flex flex-wrap items-center gap-1.5 rounded-xl border border-brand-border bg-brand-surface px-4 py-2.5"><span className="type-meta font-semibold uppercase tracking-wide text-brand-text-muted">当前权限</span>{session.permissions.length ? session.permissions.map(key => <Badge key={key} variant="outline" className="text-[11px]">{permissionLabel(key)}</Badge>) : <span className="text-xs text-brand-text-muted">无单独授权（超级管理员权限外）</span>}</div> : null}
-    <div role="navigation" aria-label="管理功能" className="flex max-w-full gap-2 overflow-x-auto border-b border-brand-border pb-3">
-      {allowedTabs.map(item => <Button key={item.id} className="shrink-0 whitespace-nowrap" size="sm" variant={tab === item.id ? "default" : "outline"} onClick={() => { setTab(item.id); setError(""); setNotice(""); }}>{adminText(item.label)}</Button>)}
+    <div className="space-y-2">
+      <input value={navSearch} onChange={event => setNavSearch(event.target.value)} placeholder={adminText("Search admin features")} aria-label={adminText("Search admin features")} className="h-10 w-full rounded-xl border border-brand-border bg-brand-surface px-3 text-sm text-brand-text outline-none focus:border-brand-accent/60 sm:max-w-xs"/>
+      <div role="navigation" aria-label="管理功能" className="flex max-w-full gap-2 overflow-x-auto border-b border-brand-border pb-3">
+        {visibleTabs.map(item => <Button key={item.id} className="shrink-0 whitespace-nowrap" size="sm" variant={tab === item.id ? "default" : "outline"} onClick={() => { setTab(item.id); setError(""); setNotice(""); }}>{adminText(item.label)}</Button>)}
+        {visibleTabs.length === 0 ? <span className="px-2 py-2 text-sm text-brand-text-muted">{adminText("No matching admin features")}</span> : null}
+      </div>
     </div>
     {error ? <div role="alert" className="rounded-xl border border-brand-danger/30 bg-brand-danger/10 p-3 text-sm text-brand-danger">{adminText(error)}</div> : null}
     {notice ? <div role="status" className="rounded-xl border border-brand-success/30 bg-brand-success/10 p-3 text-sm text-brand-success">{adminText(notice)}</div> : null}
@@ -1384,7 +1393,7 @@ export function AdminPage() {
           <p className="text-xs text-brand-text-muted">{adminText("Available")}: {selectedUser.balances?.[adjustCoin]?.free == null ? "—" : asText(selectedUser.balances[adjustCoin].free)} · {adminText("Frozen")}: {selectedUser.balances?.[adjustCoin]?.frozen == null ? "—" : asText(selectedUser.balances[adjustCoin].frozen)}</p>
           <input value={adjustAmount} onChange={event => setAdjustAmount(event.target.value)} disabled={adjustBusy || !!adjustRequestId || adjustPendingInvalid} inputMode="decimal" placeholder={adminText("Amount")} className="h-11 w-full rounded-xl border border-brand-border bg-brand-surface-2 px-3 text-sm text-brand-text"/>
           {(adjustMode === "freeze" || adjustMode === "unfreeze") ? <input value={adjustReason} onChange={event => setAdjustReason(event.target.value)} disabled={adjustBusy || !!adjustRequestId || adjustPendingInvalid} maxLength={200} placeholder={adminText("Reason (required, at least 5 characters)")} className="h-11 w-full rounded-xl border border-brand-border bg-brand-surface-2 px-3 text-sm text-brand-text"/> : null}
-          <Button size="sm" disabled={adjustBusy || !hasPermission("financial_adjustment.request") || !adjustAmount.trim() || ((adjustMode === "freeze" || adjustMode === "unfreeze") && adjustReason.trim().length < 5)} onClick={() => void submitBalanceAdjustment()}>{adjustBusy ? adminText("Processing…") : adjustRequestId ? adminText("Retry same adjustment") : adminText("Confirm adjustment")}</Button>{adjustPendingInvalid ? <p role="alert" className="text-xs text-brand-danger">{adminText("Saved adjustment request is unreadable. Check the financial audit log before continuing.")}</p> : adjustRequestId ? <p className="text-xs text-brand-warning">{adminText("A previous adjustment is awaiting confirmation. Retry the same operation; its request ID is preserved to prevent duplicate credit or debit.")}</p> : null}
+          <Button size="sm" disabled={adjustBusy || adjustPendingInvalid || !hasPermission("financial_adjustment.request") || !adjustAmount.trim() || ((adjustMode === "freeze" || adjustMode === "unfreeze") && adjustReason.trim().length < 5)} onClick={() => void submitBalanceAdjustment()}>{adjustBusy ? adminText("Processing…") : adjustRequestId ? adminText("Retry same adjustment") : adminText("Confirm adjustment")}</Button>{adjustPendingInvalid ? <p role="alert" className="text-xs text-brand-danger">{adminText("Saved adjustment request is unreadable. Check the financial audit log before continuing.")}</p> : adjustRequestId ? <p className="text-xs text-brand-warning">{adminText("A previous adjustment is awaiting confirmation. Retry the same operation; its request ID is preserved to prevent duplicate credit or debit.")}</p> : null}
           {!hasPermission("financial_adjustment.request") ? <p className="text-xs text-brand-warning">{adminText("Requires the financial_adjustment.request permission.")}</p> : null}
         </>}
       </CardContent></Card>
