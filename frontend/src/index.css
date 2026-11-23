@@ -1213,7 +1213,7 @@ a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
   }
 }
 
-/* Narrow trading workspace: keep order entry and depth readable instead of squeezing two columns. */
+/* Compact phones keep the order form and depth ladder side by side; the chart remains in its drawer. */
 @media (max-width: 767px) {
   .exchange-workspace {
     grid-template-columns: minmax(0, 1fr);
@@ -1362,10 +1362,8 @@ a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
     color: var(--color-brand-text-faint);
   }
 
-  /* Phone trading is deliberately single-panel: a 320px viewport cannot
-     provide a usable professional order form and readable depth ladder in
-     two columns. Keep both panels mounted, but expose Buy / Sell / Order book
-     tabs and let the selected panel use the full content width. */
+  /* Phone trading keeps order entry and the order book visible together.
+     The chart is opened from the quote strip in a bottom drawer. */
   .spot-mobile-tabs {
     display: flex;
     align-items: center;
@@ -1471,8 +1469,7 @@ a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
   .spot-book-toolbar select { width:58px; min-width:58px; height:28px; min-height:28px; padding:0 1px; }
   .spot-book-view button { min-height:28px; width:26px; min-width:26px; }
 
-  /* The mobile Buy/Sell tabs already choose the side, so the in-form switch is
-     redundant there. Desktop keeps it (no tabs above 768px). */
+  /* Keep the in-form Buy/Sell switch visible on phones; both panels remain in view. */
   .spot-entry-head .spot-side { display: grid; }
   .spot-entry-head { padding: 0 0 4px; }
 
@@ -2766,5 +2763,57 @@ a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
      flex change. */
   .term-col--book.is-expanded > div:first-of-type { height: auto; }
   .term-col--book.is-expanded .term-book-body { flex: 0 0 auto; height: auto; max-height: none; }
+}
+
+/* Phone spot trading: preserve the two-column terminal at every supported
+   phone width (320–430px). Order entry stays on the left, depth on the right,
+   and open orders span the full width below. The chart remains a bottom drawer. */
+@media (max-width: 767.98px) {
+  .spot-mobile-tabs { display: none !important; }
+  .exchange-workspace {
+    display: grid;
+    grid-template-columns: minmax(0, 1.1fr) minmax(0, .9fr);
+    grid-template-rows: auto auto;
+    align-items: start;
+    gap: 8px;
+    min-width: 0;
+  }
+  .exchange-workspace > .exchange-entry {
+    display: flex;
+    grid-column: 1;
+    grid-row: 1;
+    width: auto;
+    min-width: 0;
+    margin-top: 0;
+  }
+  .exchange-workspace > .exchange-depth {
+    display: flex;
+    grid-column: 2;
+    grid-row: 1;
+    width: auto;
+    min-width: 0;
+    margin-top: 0;
+  }
+  .exchange-workspace > .exchange-orders {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    min-width: 0;
+    margin-top: 0;
+  }
+  .exchange-entry > div,
+  .exchange-depth > div,
+  .exchange-entry form,
+  .spot-price-control,
+  .spot-qty-control {
+    min-width: 0;
+  }
+  .exchange-entry input { min-width: 0; }
+}
+
+@media (max-width: 359.98px) {
+  .exchange-workspace { grid-template-columns: minmax(0, 1.08fr) minmax(0, .92fr); gap: 6px; }
+  .spot-book-row,
+  .spot-book-columns { font-size: 11px; }
+  .spot-book-row { gap: 3px; }
 }
 
