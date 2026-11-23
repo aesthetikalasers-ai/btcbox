@@ -25,6 +25,31 @@ function supabaseHeaders() {
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY;
   return { 'apikey': key, 'Authorization': 'Bearer ' + key, 'Content-Type': 'application/json' };
 }
+async function supportReadCursorRpc(functionName, payload) {
+  if (!supabaseStorageConfigured()) throw new Error('Support read state storage is unavailable');
+  const base = process.env.SUPABASE_URL.replace(/\/+$/, '');
+  const response = await fetch(base + '/rest/v1/rpc/' + functionName, {
+    method: 'POST', headers: supabaseHeaders(), body: JSON.stringify(payload),
+    signal: AbortSignal.timeout(4000)
+  });
+  if (!response.ok) throw new Error('Support read state operation failed');
+  const value = await response.json();
+  if (!value || typeof value !== 'object' || Array.isArray(value) ||
+      typeof value.message_id !== 'string' || typeof value.read_at !== 'string') {
+    throw new Error('Support read state response invalid');
+  }
+  return value;
+}
+async function markSupportConversationRead(uid, message) {
+  if (!message || typeof message.id !== 'string' || !message.id ||
+      typeof message.time !== 'string' || !message.time) throw new Error('Support read cursor is invalid');
+  return supportReadCursorRpc('btcbox_mark_support_read_v2', {
+    p_uid: String(uid || ''), p_message_id: message.id, p_read_at: message.time
+  });
+}
+async function getSupportConversationReadState(uid) {
+  return supportReadCursorRpc('btcbox_get_support_read_v2', { p_uid: String(uid || '') });
+}
 // Publishable/anon key 读取：trim 空白并校验格式，防止 env 值被换行/空格污染。
 // 合法格式：sb_publishable_ 开头（新格式）或 eyJ 开头（JWT 旧格式），不含任何空白字符。
 // 校验失败返回空串并告警，绝不把污染值返回给前端或用于 Auth 初始化。
@@ -3141,9 +3166,23 @@ async function handleRequest(event, context) {
   // ---------- GET /api/support/messages ----------
   if (path === 'support/messages' && method === 'GET') {
     if (!user) return json({ ok: false, msg: 'Not signed in.', need_login: true });
-    user.last_read_chat_at = nowStr(); // 拉取消息即标记已读
-    await saveDB(db);
-    return json({ ok: true, messages: user.support_messages.slice(-50) });
+    const messages = (Array.isArray(user.support_messages) ? user.support_messages : [])
+      .filter(function (message) {
+        return message && (message.from === 'user' || message.from === 'admin') &&
+          typeof message.content === 'string' && typeof message.time === 'string';
+      })
+      .slice(-50)
+      .map(function (message) {
+        // Customer history exposes conversation fields only, never staff IDs,
+        // idempotency keys, or internal audit-event identifiers.
+        return { id: String(message.id || ''), from: message.from, content: message.content, time: message.time };
+      });
+    const lastVisibleAdminMessage = messages.slice().reverse().find(function (message) {
+      return message.from === 'admin' && message.id && message.time;
+    });
+    // Advance only through an administrator message actually included in this response.
+    if (lastVisibleAdminMessage) await markSupportConversationRead(user.uid, lastVisibleAdminMessage);
+    return json({ ok: true, messages: messages });
   }
 
   // ---------- GET /api/support/faq（帮助中心公开条目）----------
@@ -3232,8 +3271,17 @@ async function handleRequest(event, context) {
   // ---------- GET /api/chat/unread（客服未读消息数）----------
   if (path === 'chat/unread' && method === 'GET') {
     if (!user) return json({ ok: false, msg: 'Not signed in.', need_login: true });
-    const lastRead = user.last_read_chat_at || '';
-    const unread = (user.support_messages || []).filter(function (m) { return m.from === 'admin' && m.time > lastRead; }).length;
+    const readState = await getSupportConversationReadState(user.uid);
+    const messages = Array.isArray(user.support_messages) ? user.support_messages : [];
+    const cursorIndex = readState.message_id
+      ? messages.findIndex(function (message) { return message && String(message.id || '') === readState.message_id; })
+      : -1;
+    const unread = messages.filter(function (message, index) {
+      if (!message || message.from !== 'admin') return false;
+      if (cursorIndex >= 0) return index > cursorIndex;
+      if (readState.message_id) return String(message.id || '') > readState.message_id;
+      return typeof message.time === 'string' && message.time > readState.read_at;
+    }).length;
     return json({ ok: true, unread: unread });
   }
 
