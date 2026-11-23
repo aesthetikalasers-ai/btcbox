@@ -238,12 +238,15 @@ async function assertPageAtWidth(
     const chartRegion = page.getByRole("region", { name: "Price chart" });
     await expect(chartRegion, "The mobile K-line drawer must be mounted.").toBeVisible();
     const drawerPanel = page.locator(".trade-drawer-panel");
-    const expandedBox = await drawerPanel.boundingBox();
-    expect(expandedBox, "The K-line drawer must expand after the trigger is pressed.").not.toBeNull();
-    expect(expandedBox!.height, "The K-line drawer must expand beyond its collapsed bar.").toBeGreaterThan(44);
+    await expect.poll(
+      async () => (await drawerPanel.boundingBox())?.height ?? 0,
+      { message: "The K-line drawer must expand after the trigger is pressed.", timeout: 5000 },
+    ).toBeGreaterThan(44);
     await chartRegion.getByRole("button", { name: "Collapse chart" }).first().click();
-    const collapsedBox = await drawerPanel.boundingBox();
-    expect(collapsedBox!.height, "The K-line drawer must collapse cleanly.").toBeLessThanOrEqual(50);
+    await expect.poll(
+      async () => (await drawerPanel.boundingBox())?.height ?? Number.POSITIVE_INFINITY,
+      { message: "The K-line drawer must collapse cleanly.", timeout: 5000 },
+    ).toBeLessThanOrEqual(50);
   }
 
   await page.evaluate(() => document.fonts.ready);
