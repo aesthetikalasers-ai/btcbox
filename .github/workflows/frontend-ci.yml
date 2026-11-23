@@ -40,6 +40,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: btcbox-mobile-responsive-qa
-          path: frontend/test-results/visual-qa/mobile-chromium/*.png
+          path: frontend/test-results/visual-qa/**/*.png
           if-no-files-found: ignore
           retention-days: 7
