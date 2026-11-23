@@ -1606,3 +1606,49 @@ test("homepage authentication opens an in-place dialog and mode switches stay in
   await expect(page).toHaveURL(/\/markets$/);
   await expect(dialog).toBeHidden();
 });
+
+
+test("@routing standalone auth routes survive direct navigation, refresh and trailing slashes on narrow screens", async ({ page }) => {
+  for (const width of [320, 375]) {
+    await page.setViewportSize({ width, height: 812 });
+    for (const [path, heading] of [
+      ["/login", "Welcome back"],
+      ["/login/", "Welcome back"],
+      ["/register", "Create your BTCBOX account"],
+      ["/register/", "Create your BTCBOX account"],
+    ] as const) {
+      await page.goto(path);
+      await expect(page.getByRole("heading", { name: heading, exact: true })).toBeVisible();
+      await expect(page.getByRole("banner")).toHaveCount(0);
+      await expect(page.getByRole("navigation", { name: "Primary navigation" })).toHaveCount(0);
+      const widthBeforeReload = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+      expect(widthBeforeReload, `horizontal overflow at ${width}px on ${path}`).toBeLessThanOrEqual(0);
+      await page.reload();
+      await expect(page.getByRole("heading", { name: heading, exact: true })).toBeVisible();
+      const widthAfterReload = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+      expect(widthAfterReload, `horizontal overflow after reload at ${width}px on ${path}`).toBeLessThanOrEqual(0);
+    }
+  }
+});
+
+test("@routing admin nested paths keep the admin application and Chinese locale", async ({ page }) => {
+  await page.goto("/admin/audit");
+  await expect(page).toHaveURL(/\/admin\/audit$/);
+  await expect(page.getByRole("heading", { name: "欢迎回来", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "钱包" })).toBeVisible();
+});
+
+test("@routing spot terminal direct URL and browser refresh preserve the terminal route", async ({ page }) => {
+  await page.setViewportSize({ width: 375, height: 812 });
+  await page.goto("/trade/BTCUSDT");
+  await expect(page.locator('main[data-terminal-route="true"]')).toBeVisible();
+  await expect(page).toHaveURL(/\/trade\/BTCUSDT$/);
+  await page.reload();
+  await expect(page.locator('main[data-terminal-route="true"]')).toBeVisible();
+  await expect(page).toHaveURL(/\/trade\/BTCUSDT$/);
+});
+
+test("@routing unknown paths resolve to the explicit 404 page", async ({ page }) => {
+  await page.goto("/this-route-does-not-exist");
+  await expect(page.getByRole("heading", { name: "Page not found", exact: true })).toBeVisible();
+});
