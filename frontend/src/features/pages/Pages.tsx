@@ -184,7 +184,7 @@ export function SpotTradingPage(){
   */
  const [marketList,setMarketList]=useState<MarketTicker[]>([]);
  const [marketFilter,setMarketFilter]=useState("");
- const [pairRailOpen,setPairRailOpen]=useState(true);
+ const [pairRailOpen,setPairRailOpen]=useState(()=>window.matchMedia("(min-width: 1536px)").matches);
  // `isPhone` (<=767px) hides the market-list drawer on phones; the order form and
  // order book stay side-by-side (Binance-style dual column) at every width.
  const [isPhone,setIsPhone]=useState(()=>window.matchMedia("(max-width: 767px)").matches);
