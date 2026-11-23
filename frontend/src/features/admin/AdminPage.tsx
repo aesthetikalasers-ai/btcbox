@@ -1067,7 +1067,9 @@ export function AdminPage() {
     try {
       const result = await manageAdminAddress(token, { id:editingPayoutAddress.id, action:"update", ...payoutAddressDraft });
       const snapshot = await getAdminAddresses(token);
-      setPayoutAddresses(snapshot.addresses || []); setEditingPayoutAddress(null);
+      setPayoutAddresses(snapshot.addresses || []);
+      if (selectedUser) setSelectedUserAddresses((snapshot.addresses || []).filter(item => item.uid === selectedUser.uid));
+      setEditingPayoutAddress(null);
       setNotice(result.audit_sync_pending ? "Bank payout details saved; audit delivery is pending." : "Bank payout details saved.");
     } catch (reason) { setError(reason instanceof Error ? reason.message : "Bank payout details were not saved."); }
     finally { setBusy(false); }
@@ -1079,6 +1081,7 @@ export function AdminPage() {
     try {
       const result = await manageAdminAddress(token, { id:item.id, action:"delete", reason:"Administrator removed saved payout details." });
       setPayoutAddresses(current => current.filter(entry => entry.id !== item.id));
+      setSelectedUserAddresses(current => current.filter(entry => entry.id !== item.id));
       if (editingPayoutAddress?.id === item.id) setEditingPayoutAddress(null);
       setPendingDeletePayoutAddress(null);
       setNotice(result.audit_sync_pending ? "Bank payout details deleted; audit delivery is pending." : "Bank payout details deleted.");
@@ -1092,7 +1095,9 @@ export function AdminPage() {
     try {
       const result = await markAdminSupportRead(token, uid);
       const snapshot = await getAdminSupportMessages(token);
-      setSupport((snapshot.messages || []) as unknown as Array<Record<string, unknown>>);
+      const messages = (snapshot.messages || []) as unknown as Array<Record<string, unknown>>;
+      setSupport(messages);
+      setSelectedUserSupport(messages.filter(message => String(message.uid || message.user_id || "") === uid));
       setNotice(result.audit_sync_pending ? "Conversation marked read; audit delivery is pending." : "Conversation marked as read.");
     } catch (reason) { setError(reason instanceof Error ? reason.message : "Conversation read state could not be saved."); }
     finally { setBusy(false); }
@@ -1218,7 +1223,9 @@ export function AdminPage() {
       try {
         const snapshot = await getAdminSupportMessages(token);
         if (queueRequestId !== supportQueueRequestRef.current) return;
-        setSupport((snapshot.messages || []) as unknown as Array<Record<string, unknown>>);
+        const messages = (snapshot.messages || []) as unknown as Array<Record<string, unknown>>;
+        setSupport(messages);
+        setSelectedUserSupport(messages.filter(message => String(message.uid || message.user_id || "") === uid));
         setNotice(successMessage);
       } catch {
         if (queueRequestId !== supportQueueRequestRef.current) return;
