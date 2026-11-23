@@ -209,6 +209,7 @@ export function SpotTradingPage(){
  const [notice,setNotice]=useState("");
  const [side,setSide]=useState<"buy"|"sell">("buy");
  const [price,setPrice]=useState("");
+ const isPriceManualRef=useRef(false);
  const [quantity,setQuantity]=useState("");
  const [accountUid,setAccountUid]=useState("");
  const [availableBalances,setAvailableBalances]=useState<Record<string,{free:number|string}>>({});
