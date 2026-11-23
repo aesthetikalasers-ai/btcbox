@@ -38,6 +38,7 @@ export interface MarketTicker {
 }
 
 export interface MarketCandle {
+  /** Normalized Unix timestamp in seconds for chart libraries. */
   time: number;
   open: number;
   high: number;
@@ -260,11 +261,11 @@ export async function getKlines(
     const source = typeof payload.source === "string" ? payload.source : undefined;
     const byChartSecond = new Map<number, MarketCandle>();
     for (const candle of payload.klines) {
-      const time = Number(candle?.time);
+      const rawTime = Number(candle?.time);
       const open = Number(candle?.open), high = Number(candle?.high);
       const low = Number(candle?.low), close = Number(candle?.close);
       const volume = Number(candle?.volume);
-      if (!Number.isFinite(time) || time <= 0 ||
+      if (!Number.isFinite(rawTime) || rawTime <= 0 ||
           !Number.isFinite(open) || open <= 0 ||
           !Number.isFinite(high) || high <= 0 ||
           !Number.isFinite(low) || low <= 0 ||
@@ -272,10 +273,10 @@ export async function getKlines(
           !Number.isFinite(volume) || volume < 0 ||
           high < Math.max(open, close, low) ||
           low > Math.min(open, close, high)) continue;
-      const chartSecond = Math.floor(time / 1000);
+      const chartSecond = Math.floor(rawTime >= 100_000_000_000 ? rawTime / 1000 : rawTime);
       if (!Number.isSafeInteger(chartSecond) || chartSecond <= 0) continue;
       byChartSecond.set(chartSecond, {
-        time, open, high, low, close, volume,
+        time: chartSecond, open, high, low, close, volume,
         source: typeof candle.source === "string" ? candle.source : source,
       });
     }
