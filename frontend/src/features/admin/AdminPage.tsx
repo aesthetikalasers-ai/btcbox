@@ -970,6 +970,14 @@ export function AdminPage() {
         setReviewReason("");
         setManualIdentityConfirmed(false);
         await refreshKycQueueAfterReview("KYC approved after manual identity verification.");
+        if (selectedUser?.uid === target.uid) {
+          try {
+            const refreshed = await getAdminUser(token, target.uid);
+            setSelectedUser(refreshed.user);
+          } catch {
+            setError("KYC approval was recorded, but the user profile could not refresh. Reopen the user profile to confirm the latest status.");
+          }
+        }
       } else {
         await adminRejectKyc(token, target.uid, reasonText);
         setReviewDialog(null);
@@ -1386,9 +1394,11 @@ export function AdminPage() {
 
     {!loading && tab === "overview" && stats ? <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
       {[
-        ["Total users", stats.total_users], ["Pending withdrawals", stats.pending_withdrawals],
-        ["Pending KYC", stats.pending_kyc], ["Review queue", stats.pending_admin_review_withdrawals],
-      ].map(([label, value], index) => <Card key={adminText(String(label))} className="overflow-hidden border-brand-border bg-brand-surface"><div className={"h-1 "+(index===0?"bg-brand-info":index===1?"bg-brand-text-muted":index===2?"bg-brand-text-muted":"bg-brand-accent")}/><CardContent className="p-4 sm:p-5"><p className="type-meta font-semibold uppercase tracking-wide text-brand-text-muted">{adminText(String(label))}</p><p className="type-price mt-2 text-brand-text">{asText(value)}</p></CardContent></Card>)}
+        { label:"Total users", value:stats.total_users, tab:null, permission:"dashboard.read" },
+        { label:"Pending withdrawals", value:stats.pending_withdrawals, tab:"withdrawals" as Tab, permission:"withdrawals.read" },
+        { label:"Pending KYC", value:stats.pending_kyc, tab:"kyc" as Tab, permission:"kyc.read" },
+        { label:"Review queue", value:stats.pending_admin_review_withdrawals, tab:"withdrawals" as Tab, permission:"withdrawals.read" },
+      ].map((item,index) => <Card key={adminText(item.label)} className="overflow-hidden border-brand-border bg-brand-surface"><div className={"h-1 "+(index===0?"bg-brand-info":index===1?"bg-brand-text-muted":index===2?"bg-brand-text-muted":"bg-brand-accent")}/><CardContent className="p-4 sm:p-5"><p className="type-meta font-semibold uppercase tracking-wide text-brand-text-muted">{adminText(item.label)}</p><p className="type-price mt-2 text-brand-text">{asText(item.value)}</p>{item.tab && hasPermission(item.permission) ? <Button size="sm" variant="outline" className="mt-3" onClick={()=>{setTab(item.tab!);setError("");setNotice("");}}>{adminText("Open review queue")}</Button> : null}</CardContent></Card>)}
     </div> : null}
 
     {!loading && tab === "users" ? <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(360px,0.9fr)]">
@@ -1428,6 +1438,7 @@ export function AdminPage() {
           {!hasPermission("financial_adjustment.request") ? <p className="text-xs text-brand-warning">{adminText("Requires the financial_adjustment.request permission.")}</p> : null}
         </>}
       </CardContent></Card>
+      {selectedUser ? <Card><CardHeader><CardTitle>{adminText("KYC verification")}</CardTitle><CardDescription>{adminText("Administrators may complete a manual identity verification without waiting for a customer submission. Verify the identity independently and record the verification method; the decision is audited.")}</CardDescription></CardHeader><CardContent className="space-y-3"><div className="flex flex-wrap items-center justify-between gap-2"><span className="text-sm text-brand-text-muted">{adminText("Current KYC status")}</span><Badge variant={statusVariant(selectedUser.kyc_status || selectedUser.kyc?.status || "unsubmitted")}>{adminText(selectedUser.kyc_status || selectedUser.kyc?.status || "unsubmitted")}</Badge></div><Button size="sm" disabled={busy || !hasPermission("kyc.review")} onClick={()=>{setReviewDialog({kind:"kyc-manual",uid:selectedUser.uid});setReviewReason("");setManualIdentityConfirmed(false);setError("");setNotice("");}}>{adminText("Perform manual KYC verification")}</Button>{!hasPermission("kyc.review") ? <p className="text-xs text-brand-warning">{adminText("Requires the kyc.review permission.")}</p> : null}</CardContent></Card> : null}
       <Card><CardHeader><CardTitle>{adminText("Account actions")}</CardTitle><CardDescription>{adminText("Freeze the account, reset the login password or email, and send a staff message to the customer.")}</CardDescription></CardHeader><CardContent className="space-y-4">
         {!selectedUser ? <p className="text-sm text-brand-text-muted">{adminText("Select a user first.")}</p> : <>
           <div className="space-y-2">
