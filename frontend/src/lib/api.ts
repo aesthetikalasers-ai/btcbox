@@ -33,7 +33,7 @@ export interface MarketTicker {
   source: string;
   /** Server snapshot time (Unix seconds), not an exchange event timestamp. */
   snapshotTs?: number;
-  /** Provider-supplied timestamp (Unix seconds): Coinbase last-trade time or Bybit response time; not a universal exchange-event timestamp. */
+  /** Timestamp supplied by the selected upstream provider (Unix seconds), when available; never synthesized by the browser. */
   providerTs?: number;
 }
 
@@ -131,10 +131,15 @@ export async function getSpotMarketPairs(signal?: AbortSignal): Promise<SpotMark
     if (response.ok) {
       const payload = await response.json().catch(() => null) as { ok?: boolean; markets?: SpotMarketPair[] } | null;
       if (payload && payload.ok === true && Array.isArray(payload.markets) && payload.markets.length > 0) {
-        return payload.markets.filter(market =>
+        const validMarkets = payload.markets.filter(market =>
           market && market.enabled === true && typeof market.base_asset === "string" &&
-          market.quote_asset === "USDT"
+          market.quote_asset === "USDT" &&
+          Number.isFinite(Number(market.price_tick)) && Number(market.price_tick) > 0 &&
+          Number.isFinite(Number(market.quantity_step)) && Number(market.quantity_step) > 0 &&
+          Number.isFinite(Number(market.min_quantity)) && Number(market.min_quantity) > 0 &&
+          Number.isFinite(Number(market.min_notional)) && Number(market.min_notional) >= 0
         );
+        if (validMarkets.length > 0) return validMarkets;
       }
     }
   } catch (error) {
@@ -182,8 +187,8 @@ export async function getMarkets(signal?: AbortSignal): Promise<MarketTicker[]> 
       const snapshot = payload.data?.[item.sym];
       return {
         ...item,
-        snapshotTs: Number.isFinite(snapshot?.ts) && Number(snapshot?.ts) > 0 ? Number(snapshot?.ts) : Math.floor(Date.now() / 1000),
-        providerTs: Number.isFinite(snapshot?.providerTs) && Number(snapshot?.providerTs) > 0 ? Number(snapshot?.providerTs) : Math.floor(Date.now() / 1000),
+        snapshotTs: Number.isFinite(snapshot?.ts) && Number(snapshot?.ts) > 0 ? Number(snapshot?.ts) : undefined,
+        providerTs: Number.isFinite(snapshot?.providerTs) && Number(snapshot?.providerTs) > 0 ? Number(snapshot?.providerTs) : undefined,
         source: typeof snapshot?.source === "string" ? snapshot.source : item.source,
       };
     });
@@ -203,45 +208,55 @@ export async function getKlines(
   const abort = () => controller.abort();
   if (signal?.aborted) abort();
   else signal?.addEventListener("abort", abort, { once: true });
-  const timeout = setTimeout(abort, 4000);
+  const timeout = setTimeout(abort, 8000);
   try {
     const query = new URLSearchParams({ symbol, interval });
     const response = await fetch(`${API_BASE_URL}/kline?${query.toString()}`, {
-      method: "GET",
-      credentials: "include",
-      headers: { Accept: "application/json" },
-      cache: "no-store",
+      method: "GET", credentials: "include",
+      headers: { Accept: "application/json" }, cache: "no-store",
       signal: controller.signal,
     });
-    if (response.ok) {
-      const payload = (await response.json().catch(() => null)) as KlineResponse | null;
-      if (payload && payload.ok === true && Array.isArray(payload.klines) && payload.klines.length > 0) {
-        // Reject impossible OHLC ranges (e.g. high below open/close) instead of
-        // drawing them as real candles.
-        const validCandles = payload.klines.every(candle =>
-          Number.isFinite(candle.open) && candle.open > 0 &&
-          Number.isFinite(candle.close) && candle.close > 0 &&
-          Number.isFinite(candle.high) && candle.high > 0 &&
-          Number.isFinite(candle.low) && candle.low > 0 &&
-          candle.high >= Math.max(candle.open, candle.close, candle.low) &&
-          candle.low <= Math.min(candle.open, candle.close, candle.high)
-        );
-        if (!validCandles) throw new ApiError("Chart data is malformed.", response.status, "INVALID_KLINE");
-        // Keep the provider identifier on the returned candles for diagnostics
-        // only — it is never rendered as a user-facing badge.
-        const candleSource = typeof payload.source === "string" ? payload.source : undefined;
-        return payload.klines.map(candle => ({ ...candle, source: candle.source ?? candleSource }));
-      }
+    const payload = (await response.json().catch(() => null)) as KlineResponse | null;
+    if (!response.ok || !payload || payload.ok !== true || !Array.isArray(payload.klines)) {
+      throw new ApiError(payload?.msg || "Chart data is temporarily unavailable.", response.status, payload?.code || "KLINE_DATA_UNAVAILABLE");
     }
+
+    const source = typeof payload.source === "string" ? payload.source : undefined;
+    const byChartSecond = new Map<number, MarketCandle>();
+    for (const candle of payload.klines) {
+      const time = Number(candle?.time);
+      const open = Number(candle?.open), high = Number(candle?.high);
+      const low = Number(candle?.low), close = Number(candle?.close);
+      const volume = Number(candle?.volume);
+      if (!Number.isFinite(time) || time <= 0 ||
+          !Number.isFinite(open) || open <= 0 ||
+          !Number.isFinite(high) || high <= 0 ||
+          !Number.isFinite(low) || low <= 0 ||
+          !Number.isFinite(close) || close <= 0 ||
+          !Number.isFinite(volume) || volume < 0 ||
+          high < Math.max(open, close, low) ||
+          low > Math.min(open, close, high)) continue;
+      const chartSecond = Math.floor(time / 1000);
+      if (!Number.isSafeInteger(chartSecond) || chartSecond <= 0) continue;
+      byChartSecond.set(chartSecond, {
+        time, open, high, low, close, volume,
+        source: typeof candle.source === "string" ? candle.source : source,
+      });
+    }
+    const normalized = [...byChartSecond.values()].sort((a, b) => a.time - b.time);
+    if (normalized.length === 0) {
+      throw new ApiError("No verified candle data is available for this market.", response.status || 503, "KLINE_DATA_UNAVAILABLE");
+    }
+    return normalized;
   } catch (error) {
     if (error instanceof ApiError) throw error;
     if (error instanceof Error && error.name === "AbortError") throw error;
-    // Network errors must remain visible; synthetic candles are only available
-    // through the explicit development-only DEMO_PREVIEW_ACTIVE branch above.
+    throw new ApiError("Chart data is temporarily unavailable. Please retry.", 0, "KLINE_NETWORK_ERROR");
+  } finally {
+    clearTimeout(timeout);
+    signal?.removeEventListener("abort", abort);
   }
-  throw new ApiError(MARKET_UNAVAILABLE_MESSAGE, 502, "KLINE_DATA_UNAVAILABLE");
 }
-
 
 export interface TradingStatus {
   spot_order_entry_enabled: boolean;
