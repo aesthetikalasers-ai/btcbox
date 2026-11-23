@@ -268,6 +268,7 @@ function MarketTable({ markets, locale, loading, error, favorites, onToggleFavor
         </tbody>
       </table>
     </div>
+    </>
   );
 }
 
