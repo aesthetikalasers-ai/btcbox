@@ -321,7 +321,7 @@ async function assertPageAtWidth(
     await expect(sideButtons).toHaveCount(2);
     for (const button of await sideButtons.all()) {
       const buttonBox = await button.boundingBox();
-      expect(buttonBox?.height ?? 0, "Phone Buy/Sell controls must meet a 44px touch target.").toBeGreaterThanOrEqual(52);
+      expect(buttonBox?.height ?? 0, "Phone Buy/Sell controls must meet a 44px touch target.").toBeGreaterThanOrEqual(44);
     }
     const formControlFontSizes = await orderForm.locator(".spot-order-type select, input").evaluateAll(
       (elements) => elements.map((element) => Number.parseFloat(getComputedStyle(element).fontSize)),
@@ -351,7 +351,7 @@ async function assertPageAtWidth(
     expect(precisionBox).not.toBeNull();
     expect(precisionSelectBox).not.toBeNull();
     expect(viewBox).not.toBeNull();
-    expect(precisionSelectBox!.width, "Phone depth precision must remain readable.").toBeGreaterThanOrEqual(44);
+    expect(precisionSelectBox!.width, "Phone depth precision must remain readable.").toBeGreaterThanOrEqual(52);
     expect(precisionBox!.x).toBeGreaterThanOrEqual(bookToolbarBox!.x - 1);
     expect(viewBox!.x + viewBox!.width).toBeLessThanOrEqual(bookToolbarBox!.x + bookToolbarBox!.width + 1);
     expect(precisionBox!.x + precisionBox!.width).toBeLessThanOrEqual(viewBox!.x + 1);
