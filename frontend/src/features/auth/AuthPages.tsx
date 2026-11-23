@@ -18,14 +18,11 @@ export function AuthPage({ mode, redirectTo, embedded = false, onModeChange }: {
   const { t, language, setLanguage } = useI18n();
   const {
     status, busy, error, notice, googleEnabled, walletEnabled, ethereumWallets,
-    signInWithGoogle, signInWithUsername, signInWithEmail, signUpWithEmail, signInWithWeb3,
+    signInWithGoogle, signInWithUsername, signInWithEmail, signInWithWeb3,
     requestPasswordReset, verifyTwoFactor, clearError,
   } = useAuth();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const [emailAddress, setEmailAddress] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [localFormError, setLocalFormError] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showPasswordReset, setShowPasswordReset] = useState(false);
   const [resetEmail, setResetEmail] = useState("");
@@ -40,7 +37,6 @@ export function AuthPage({ mode, redirectTo, embedded = false, onModeChange }: {
 
   useEffect(() => {
     clearError();
-    setLocalFormError("");
     setEmailAddress("");
     setPassword("");
     setConfirmPassword("");
@@ -85,28 +81,6 @@ export function AuthPage({ mode, redirectTo, embedded = false, onModeChange }: {
     if (busy) return;
     try { await requestPasswordReset(resetEmail.trim()); }
     catch { /* AuthProvider displays a generic, privacy-safe response. */ }
-  };
-
-  const submitEmailRegistration = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (busy) return;
-    setLocalFormError("");
-    // Read the submitted DOM values as well as React state. Mobile browsers and
-    // password managers can autofill fields without dispatching React onChange.
-    const formData = new FormData(event.currentTarget);
-    const submittedEmail = String(formData.get("email") || "").trim();
-    const submittedPassword = String(formData.get("password") || "");
-    const submittedConfirmation = String(formData.get("confirmPassword") || "");
-    if (!submittedEmail || submittedPassword.length < 12 || submittedConfirmation.length < 12) {
-      setLocalFormError("Please complete all fields using a valid email and a password of at least 12 characters.");
-      return;
-    }
-    if (submittedPassword !== submittedConfirmation) {
-      setLocalFormError("Passwords do not match.");
-      return;
-    }
-    try { await signUpWithEmail(submittedEmail, submittedPassword); }
-    catch { /* AuthProvider displays a safe registration error. */ }
   };
 
   const walletButtons = <div className="mt-2 grid gap-2" role="group" aria-label={t("Wallet")}>
@@ -200,7 +174,7 @@ export function AuthPage({ mode, redirectTo, embedded = false, onModeChange }: {
             {(status === "two-factor" || registering) && <CardDescription className="max-w-[380px] text-sm leading-6 text-brand-text-muted">
               {status === "two-factor"
                 ? t("Enter your authenticator code to finish signing in.")
-                : t("Create an account with email, Google or a wallet.")}
+                : t("Create an account with Google or a supported wallet.")}
             </CardDescription>}
             {status !== "two-factor" && <div data-testid="auth-mode-switcher" className="grid grid-cols-2 rounded-xl border border-brand-border bg-brand-surface-2 p-1 text-sm font-semibold">
               <button type="button" onClick={() => switchAuthMode("login")} className={`flex min-h-10 items-center justify-center rounded-lg transition-colors ${!registering ? "bg-brand-accent text-[#05201A] shadow-sm" : "text-brand-text-secondary hover:text-brand-text"}`}>{t("Sign in")}</button>
@@ -208,7 +182,6 @@ export function AuthPage({ mode, redirectTo, embedded = false, onModeChange }: {
             </div>}
           </CardHeader>
           <CardContent className="space-y-4 px-5 pb-6 sm:px-8 sm:pb-8">
-            {localFormError && <div role="alert" className="rounded-lg border border-loss/30 bg-loss/10 p-3 text-sm text-loss">{t(localFormError)}</div>}
             {error && <div role="alert" className="flex items-start justify-between gap-3 rounded-lg border border-loss/30 bg-loss/10 p-3 text-sm text-loss">
               <span className="min-w-0 break-words">{t(error)}{/already registered|already linked/i.test(error) && <> {embedded ? <button type="button" onClick={() => switchAuthMode("login")} className="font-semibold underline underline-offset-4 hover:opacity-80">{t("Go to sign in")}</button> : <Link to="/login" className="font-semibold underline underline-offset-4 hover:opacity-80">{t("Go to sign in")}</Link>}</>}</span>
               <button type="button" aria-label={t("Dismiss sign-in error")} className="flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-lg px-2 text-xs font-semibold underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent/70" onClick={clearError}>{t("Dismiss")}</button>
@@ -258,23 +231,7 @@ export function AuthPage({ mode, redirectTo, embedded = false, onModeChange }: {
                 <button type="button" className="min-h-11 w-full text-sm font-semibold text-brand-text-secondary underline-offset-4 hover:text-brand-text hover:underline" onClick={() => { setShowPasswordReset(false); clearError(); }}>{t("Sign in")}</button>
               </form>}
 
-              {mode === "register" && <form className="space-y-3" aria-busy={busy} onSubmit={submitEmailRegistration}>
-                <div>
-                  <label htmlFor="btcbox-register-email" className="mb-1.5 block text-sm text-brand-text-muted">{t("Email")}</label>
-                  <Input id="btcbox-register-email" name="email" className="h-12" type="email" value={emailAddress} onChange={event => setEmailAddress(event.target.value)} autoComplete="email" maxLength={254} placeholder={t("Enter your email address")} required />
-                </div>
-                <div>
-                  <label htmlFor="btcbox-register-password" className="mb-1.5 block text-sm text-brand-text-muted">{t("Password")}</label>
-                  <Input id="btcbox-register-password" name="password" className="h-12" type={showPassword ? "text" : "password"} value={password} onChange={event => setPassword(event.target.value)} autoComplete="new-password" minLength={12} maxLength={128} placeholder={t("Enter your password")} required />
-                </div>
-                <div>
-                  <label htmlFor="btcbox-register-confirm-password" className="mb-1.5 block text-sm text-brand-text-muted">{t("Confirm password")}</label>
-                  <Input id="btcbox-register-confirm-password" name="confirmPassword" className="h-12" type="password" value={confirmPassword} onChange={event => setConfirmPassword(event.target.value)} autoComplete="new-password" minLength={12} maxLength={128} placeholder={t("Confirm password")} required />
-                </div>
-                <Button type="submit" className="min-h-12 w-full" aria-busy={busy} disabled={busy}>
-                  <KeyRound className="mr-2 h-4 w-4" /> {busy ? t("Submitting…") : t("Create account with email")}
-                </Button>
-              </form>}
+              {mode === "register" && <p className="rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-3 text-sm text-brand-text-secondary">{t("Use Google or a supported wallet to create your BTCBOX account.")}</p>}
 
               {(mode === "register" || !showPasswordReset) && identityButtons}
 
