@@ -2777,8 +2777,8 @@ a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
     justify-content: flex-start;
   }
   .spot-terminal .exchange-depth .spot-book-toolbar--top select {
-    width: 48px;
-    min-width: 48px;
+    width: 56px;
+    min-width: 56px;
     padding-inline: 2px;
   }
   .spot-terminal .exchange-depth .spot-book-toolbar--top .spot-book-view {
