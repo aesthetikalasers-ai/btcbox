@@ -4530,6 +4530,15 @@ async function handleRequest(event, context) {
           if (lastReadMessageId) return String(m.id || '') > lastReadMessageId;
           return !lastReadAt || String(m.time || '') > lastReadAt;
         }).length;
+        // Count consecutive unanswered customer messages across the full retained
+        // conversation; the UI window is capped at 100 messages per customer.
+        let unansweredCount = 0;
+        for (let index = conversation.length - 1; index >= 0; index -= 1) {
+          const message = conversation[index];
+          if (!message) continue;
+          if (message.from === 'admin') break;
+          if (message.from === 'user') unansweredCount += 1;
+        }
         // Bound each customer's response independently. A busy customer's
         // history must never consume the shared response window and hide other
         // customers from the support inbox.
@@ -4542,7 +4551,8 @@ async function handleRequest(event, context) {
             from: m.from,
             content: String(m.content || ''),
             time: String(m.time || ''),
-            admin_unread_count: unreadCount
+            admin_unread_count: unreadCount,
+            unanswered_count: unansweredCount
           });
         });
       });
