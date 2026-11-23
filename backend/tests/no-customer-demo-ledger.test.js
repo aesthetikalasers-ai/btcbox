@@ -12,9 +12,9 @@ test("customer app keeps the provider but makes the local paper ledger developme
   assert.ok(!entry.includes("TradingInitializer"), "automatic demo wallet initialization must stay disabled");
 
   const trading = fs.readFileSync(path.join(root, "lib/trading.tsx"), "utf8");
-  assert.ok(trading.includes("import.meta.env.DEV ? loadLedger() : emptyLedger()"));
-  assert.ok(trading.includes("if (!import.meta.env.DEV) return;"));
-  assert.ok(trading.includes('if (import.meta.env.DEV && status === "authenticated") initializeDemoWallet();'));
+  assert.ok(trading.includes("PAPER_TRADING_ENABLED ? loadLedger() : emptyLedger()"));
+  assert.ok(trading.includes("if (!PAPER_TRADING_ENABLED) return;"));
+  assert.ok(trading.includes('if (PAPER_TRADING_ENABLED && status === "authenticated") initializeDemoWallet();'));
 });
 
 test("real asset balances are sourced only from the backend account snapshot", () => {
@@ -88,13 +88,15 @@ test("no customer-facing component reads the local paper-trading context", () =>
 
 test("production account routes remain login-protected while market preview routes stay public", () => {
   const app = fs.readFileSync(path.join(root, "App.tsx"), "utf8");
-  assert.ok(app.includes("function PublicRoute"));
   assert.ok(!app.includes("DemoRoute"));
   assert.ok(app.includes("if (import.meta.env.DEV) return <>{children}</>;"));
   assert.ok(app.includes('if (status !== "authenticated") return <SignInPrompt />;'));
   assert.ok(app.includes('<Route path="/assets" element={<ProtectedAccountRoute><AssetsPage /></ProtectedAccountRoute>} />'));
   assert.ok(app.includes('<Route path="/orders" element={<ProtectedAccountRoute><OrdersPage /></ProtectedAccountRoute>} />'));
-  assert.ok(app.includes('<Route path="/markets" element={<PublicRoute><MarketsPage /></PublicRoute>} />'));
+  assert.ok(app.includes('<Route path="/markets" element={<MarketsPage />} />'));
+  assert.ok(app.includes('<Route path="/seconds" element={<SecondsPage />} />'));
+  assert.ok(app.includes('<Route path="/contract" element={<ContractPage />} />'));
+  assert.ok(app.includes('<Route path="/earn" element={<EarnPage />} />'));
 });
 
 test("production K-line requests never fall back to synthetic candles", () => {
