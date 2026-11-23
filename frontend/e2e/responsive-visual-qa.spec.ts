@@ -512,6 +512,33 @@ test("trade interaction QA mobile spot market selection and order-book handoff",
   await expect(page).toHaveURL(/\/trade\/SOLUSDT$/);
 });
 
+test("trade interaction QA desktop order-book side and price handoff", async ({ page }) => {
+  test.skip(test.info().project.name !== "desktop-chromium", "Desktop order-book interaction QA runs in desktop Chromium.");
+  await page.setViewportSize({ width: 1366, height: 900 });
+  await installVisualApiMocks(page);
+  await installInteractiveTradeApiMocks(page);
+  await page.goto("/trade/BTCUSDT", { waitUntil: "domcontentloaded" });
+
+  const askRow = page.locator('.term-col--book .spot-book-row[data-side="ask"]').first();
+  const bidRow = page.locator('.term-col--book .spot-book-row[data-side="bid"]').first();
+  await expect(askRow).toBeVisible();
+  await expect(bidRow).toBeVisible();
+  const priceInput = page.getByRole("textbox", { name: "Limit price (USDT)" });
+  const sideTabs = page.locator('.term-form [role="tab"]');
+  const buyTab = sideTabs.nth(0);
+  const sellTab = sideTabs.nth(1);
+
+  await askRow.click();
+  await expect(priceInput).toHaveValue("65001.00");
+  await expect(buyTab).toHaveAttribute("aria-selected", "true");
+  await expect(sellTab).toHaveAttribute("aria-selected", "false");
+
+  await bidRow.click();
+  await expect(priceInput).toHaveValue("64999.00");
+  await expect(sellTab).toHaveAttribute("aria-selected", "true");
+  await expect(buyTab).toHaveAttribute("aria-selected", "false");
+});
+
 // Dense width sampling checks that layouts transition continuously rather than
 // passing only at the seven required snapshot widths. These are desktop-browser
 // viewport sweeps; independent touch-device coverage is provided above.
