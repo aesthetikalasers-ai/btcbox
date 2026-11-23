@@ -214,6 +214,51 @@ test("email registration uses Supabase confirmation and does not bypass BTCBOX p
   expect(accountProvisioningRequests).toEqual([]);
 });
 
+test("confirmed email registration exchanges the Supabase identity and provisions the BTCBOX account", async ({ page }) => {
+  let exchangeCalls = 0;
+  let exchangedAccessToken = "";
+  let directRegistrationCalls = 0;
+  await page.route("**/auth/v1/token**", async route => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        access_token: "e2e-confirmed-email-access-token",
+        token_type: "bearer",
+        expires_in: 3600,
+        refresh_token: "e2e-confirmed-email-refresh-token",
+        user: {
+          id: "11111111-1111-4111-8111-111111111111",
+          aud: "authenticated",
+          role: "authenticated",
+          email: "new-user@example.invalid",
+          email_confirmed_at: "2026-11-23T00:00:00.000Z",
+          app_metadata: { provider: "email", providers: ["email"] },
+          user_metadata: {},
+          identities: [{ provider: "email" }],
+        },
+      }),
+    });
+  });
+  await page.route("**/api/supabase-login", async route => {
+    exchangeCalls += 1;
+    exchangedAccessToken = String(route.request().postDataJSON()?.access_token || "");
+    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ ok: true }) });
+  });
+  await page.route("**/api/register", async route => {
+    directRegistrationCalls += 1;
+    await route.fulfill({ status: 403, contentType: "application/json", body: JSON.stringify({ ok: false }) });
+  });
+  await page.route("**/api/account", route => route.fulfill({ status: 200, json: authenticatedAccountFixture }));
+
+  await page.goto("/auth/react-callback?intent=register&code=e2e-confirmed-email-code");
+  await expect(page).toHaveURL(/\/me$/);
+  await expect(page.getByRole("heading", { name: "My account" })).toBeVisible();
+  await expect.poll(() => exchangeCalls).toBe(1);
+  expect(exchangedAccessToken).toBe("e2e-confirmed-email-access-token");
+  expect(directRegistrationCalls).toBe(0);
+});
+
 test("email password recovery sends a Supabase reset request", async ({ page }) => {
   const recoveryRequests: string[] = [];
   await page.route("**/auth/v1/recover**", async route => {
