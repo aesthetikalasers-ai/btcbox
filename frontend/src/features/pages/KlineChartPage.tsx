@@ -180,7 +180,7 @@ export function KlineChartPage() {
 
     const mapped = candles
       .map((c) => ({
-        time: Math.floor(c.time / 1000) as UTCTimestamp,
+        time: Math.floor(c.time) as UTCTimestamp,
         open: c.open,
         high: c.high,
         low: c.low,
