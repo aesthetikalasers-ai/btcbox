@@ -1507,7 +1507,7 @@ export function WithdrawPage(){
    setActionMessage(result.duplicate?t("This withdrawal request was already received and confirmed."):result.require_admin_review?t("Withdrawal submitted for staff review."):t("Withdrawal submitted and is awaiting staff processing."));
    setReload(value=>value+1);
   }catch(reason){
-   setError(t("Order result is unconfirmed. Keep the same request ID and check order history before retrying."));
+   setError(t("Withdrawal result is unconfirmed. Keep the same request ID and check withdrawal history before retrying."));
    if(!requestAccepted&&reason instanceof ApiError&&reason.code==="WITHDRAWAL_FEE_CHANGED"){
     clearPending();
     try{setConfig(await getWithdrawalConfig());}catch{}
