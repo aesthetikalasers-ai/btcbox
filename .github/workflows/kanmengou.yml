@@ -28,6 +28,8 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
 
       - name: Identify changed files
         id: changes
@@ -54,13 +56,19 @@ jobs:
             echo "run_app_checks=false" >> "$GITHUB_OUTPUT"
           fi
 
+      # smoke.test.js executes backend/scripts/build-site.js, which requires the
+      # Vite output in frontend/dist, so the build must run before the tests.
+      - name: Install backend dependencies
+        if: steps.changes.outputs.run_app_checks == 'true'
+        run: npm ci --prefix backend
+
+      - name: Build the Vite frontend and assemble the public site
+        if: steps.changes.outputs.run_app_checks == 'true'
+        run: npm run build --prefix backend
+
       - name: Run backend unit tests
         if: steps.changes.outputs.run_app_checks == 'true'
         run: npm test --prefix backend
-
-      - name: Build frontend and backend site
-        if: steps.changes.outputs.run_app_checks == 'true'
-        run: npm run build --prefix backend
 
       - name: Validate frontend translations
         if: steps.changes.outputs.run_app_checks == 'true'
