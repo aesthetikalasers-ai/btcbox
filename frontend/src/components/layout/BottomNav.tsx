@@ -17,7 +17,7 @@ export function BottomNav() {
   return (
     <nav
       aria-label="Primary navigation"
-      className="bf-bottom-nav lg:hidden"
+      className="bf-bottom-nav md:hidden"
       style={{ zIndex: 40 }}
     >
       {navLinks.map(({ to, label, icon: Icon, exact }) => (
