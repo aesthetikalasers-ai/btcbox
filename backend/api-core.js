@@ -1721,24 +1721,22 @@ async function handleRequest(event, context) {
   // This route intentionally lives in the shared Vercel API handler rather than
   // only in the local market-server. The frontend uses the same /api/* contract
   // in production and local development, so production must not return 404.
-  // The gateway caches the provider result and falls back to a clearly marked
-  // stale/approximate value; this endpoint is display-only and never affects
-  // order, balance, or settlement calculations.
+  // The gateway caches successful provider results and may reuse a previously
+  // verified rate as stale display metadata. It never invents a rate after a
+  // cold-start outage; this endpoint is display-only and never affects order,
+  // balance, or settlement calculations.
   if (path === 'fx/usdt-usd' && method === 'GET') {
     try {
       const payload = await getUsdtUsd();
-      return json(payload);
+      return json(payload, payload.ok === true ? 200 : 503);
     } catch (_) {
-      // Keep the frontend contract valid even if the gateway itself fails.
-      // This is display-only and explicitly marked stale; it is never used for
-      // order, balance, or settlement calculations.
       return json({
-        ok: true,
-        rate: 0.99999,
-        source: 'fallback',
+        ok: false,
+        code: 'FX_DATA_UNAVAILABLE',
+        source: 'unavailable',
         stale: true,
         msg: 'USDT/USD conversion is temporarily unavailable.'
-      }, 200);
+      }, 503);
     }
   }
 
