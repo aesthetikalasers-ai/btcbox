@@ -1,4 +1,4 @@
-import type { MarketCandle, MarketTicker, OrderBookSnapshot, SpotMarketPair } from "./api";
+import type { MarketCandle, MarketTicker } from "./api";
 
 /**
  * Data-source state for the live market engine.
@@ -8,16 +8,6 @@ import type { MarketCandle, MarketTicker, OrderBookSnapshot, SpotMarketPair } fr
  * stale, and a page that never received data reports it as unavailable.
  */
 export type MarketStatus = "live" | "stale" | "unavailable";
-
-interface MarketPrice {
-  sym: string;
-  name: string;
-  price: number;
-  chg: number;
-  high: number;
-  low: number;
-  vol: string;
-}
 
 /**
  * API prefix for the live market engine.
@@ -29,9 +19,25 @@ interface MarketPrice {
  */
 const API_BASE_PATH = (import.meta.env.VITE_API_BASE_URL?.trim().replace(/\/+$/, "")) || "/api";
 /** How often the engine refreshes its snapshot from /api/market. */
-const POLL_INTERVAL_MS = 10_000;
-/** A snapshot older than this is reported as stale rather than live. */
-const STALE_AFTER_MS = 45_000;
+const POLL_INTERVAL_MS = 3_000;
+/** A server snapshot older than this is never presented as live. */
+const STALE_AFTER_MS = 90_000;
+/** Small allowance for server/browser clock skew; larger future timestamps are invalid. */
+const FUTURE_CLOCK_SKEW_SECONDS = 30;
+
+/** Internal shape of a quote already received from the backend. */
+interface MarketMemoryRow {
+  sym: string;
+  name: string;
+  price: number;
+  chg: number;
+  high: number;
+  low: number;
+  vol: string;
+  source: string;
+  snapshotTs?: number;
+  providerTs?: number | null;
+}
 
 export const ASSET_NAMES: Record<string, string> = {
   BTC: "Bitcoin",
@@ -64,14 +70,13 @@ export const getAssetName = (sym: string): string => {
 };
 
 
-// 内存中只维护后端返回的最新行情快照
+// Maintain the latest validated backend snapshot in memory; never synthesize movement.
 class LiveMarketEngine {
-  private prices: Map<string, MarketPrice> = new Map();
+  private prices: Map<string, MarketMemoryRow> = new Map();
   private listeners: Set<() => void> = new Set();
-  /** Timestamp of the last successful backend snapshot; null until one arrives. */
-  private lastFetchAt: number | null = null;
-  /** Provider the backend reported (coinbase / bybit), for provenance display. */
-  private lastProviderSource = "";
+  /** Snapshot time supplied by the backend; polling success alone never makes quotes live. */
+  private lastSnapshotTs: number | null = null;
+  private lastNotifiedStatus: MarketStatus = "unavailable";
   private pollTimer: number | null = null;
 
   // React 的 useSyncExternalStore 要求 getSnapshot 在数据未变化时返回同一个引用，
@@ -87,14 +92,20 @@ class LiveMarketEngine {
   }
 
   /**
-   * Data-source state, derived purely from how old the last backend answer is.
-   *  - live:        a snapshot arrived within the freshness window
-   *  - stale:       the last snapshot is older than the freshness window
-   *  - unavailable: the backend has not answered since page load
+   * Data-source state, derived from backend-supplied snapshot timestamps.
+   * A successful HTTP poll carrying an old cached response is not fresh market data.
    */
   public getStatus(): MarketStatus {
-    if (this.lastFetchAt === null) return "unavailable";
-    return Date.now() - this.lastFetchAt > STALE_AFTER_MS ? "stale" : "live";
+    if (this.prices.size === 0 || this.lastSnapshotTs === null) return "unavailable";
+    const nowSeconds = Date.now() / 1000;
+    const staleAfterSeconds = STALE_AFTER_MS / 1000;
+    const hasInvalidOrStaleQuote = Array.from(this.prices.values()).some((item) => (
+      !Number.isFinite(item.snapshotTs) ||
+      !item.snapshotTs ||
+      item.snapshotTs > nowSeconds + FUTURE_CLOCK_SKEW_SECONDS ||
+      nowSeconds - item.snapshotTs > staleAfterSeconds
+    ));
+    return hasInvalidOrStaleQuote ? "stale" : "live";
   }
 
   /**
@@ -112,6 +123,8 @@ class LiveMarketEngine {
   }
 
   private async refreshFromBackend() {
+    const previousStatus = this.getStatus();
+    if (previousStatus !== this.lastNotifiedStatus) this.notify();
     try {
       const response = await fetch(`${API_BASE_PATH}/market`, {
         method: "GET",
@@ -120,32 +133,97 @@ class LiveMarketEngine {
         cache: "no-store",
       });
       if (!response.ok) return;
-      const payload = (await response.json().catch(() => null)) as { ok?: boolean; markets?: MarketTicker[] } | null;
-      if (!payload || payload.ok !== true || !Array.isArray(payload.markets) || payload.markets.length === 0) return;
+      const payload = (await response.json().catch(() => null)) as {
+        ok?: boolean;
+        markets?: MarketTicker[];
+        data?: Record<string, { ts?: number; providerTs?: number | null; source?: string }>;
+      } | null;
+      if (!payload || payload.ok !== true || !Array.isArray(payload.markets)) return;
 
-      let changed = false;
-      for (const ticker of payload.markets) {
-        if (!ticker || !ticker.sym) continue;
-        const sym = String(ticker.sym).replace("USDT", "").toUpperCase();
-        const price = Number(ticker.price);
-        if (!Number.isFinite(price) || price <= 0) continue;
-        const existing = this.prices.get(sym);
-        if (ticker.source) this.lastProviderSource = String(ticker.source);
-        if (existing && existing.price === price && existing.chg === Number(ticker.chg)) continue;
-        changed = true;
-        this.prices.set(sym, {
-          sym,
-          name: existing ? existing.name : sym,
-          price,
-          chg: Number(ticker.chg) || 0,
-          high: Number(ticker.high) || price,
-          low: Number(ticker.low) || price,
-          vol: String(ticker.vol ?? "0"),
-        });
+      // An explicitly empty, successful catalogue means there are no enabled
+      // markets. Clear old quotes immediately instead of presenting them as live.
+      if (payload.markets.length === 0) {
+        const hadData = this.prices.size > 0 || this.lastSnapshotTs !== null;
+        this.prices.clear();
+        this.lastSnapshotTs = null;
+        this.tickersSnapshot = null;
+        if (hadData) this.notify();
+        return;
       }
-      this.lastFetchAt = Date.now();
-      if (changed) this.notify();
-      else this.tickersSnapshot = null;
+
+      const next = new Map<string, MarketMemoryRow>();
+      let changed = false;
+      let invalidSnapshot = false;
+      for (const ticker of payload.markets) {
+        if (!ticker || typeof ticker.sym !== "string") continue;
+        const sym = ticker.sym.replace(/USDT$/, "").toUpperCase();
+        const price = Number(ticker.price);
+        const chg = Number(ticker.chg);
+        const high = Number(ticker.high);
+        const low = Number(ticker.low);
+        const volume = Number(ticker.vol);
+        if (
+          !sym ||
+          !Number.isFinite(price) || price <= 0 ||
+          !Number.isFinite(chg) ||
+          !Number.isFinite(high) || high <= 0 ||
+          !Number.isFinite(low) || low <= 0 ||
+          !Number.isFinite(volume) || volume < 0
+        ) continue;
+
+        const existing = this.prices.get(sym);
+        const provenance = payload.data?.[ticker.sym] ?? payload.data?.[`${sym}USDT`];
+        const snapshotTs = Number(provenance?.ts);
+        const nowSeconds = Date.now() / 1000;
+        // Require a real server timestamp and reject stale/future cached payloads.
+        // Do not refresh freshness from the browser receipt time.
+        if (
+          !Number.isFinite(snapshotTs) ||
+          snapshotTs <= 0 ||
+          snapshotTs > nowSeconds + FUTURE_CLOCK_SKEW_SECONDS ||
+          nowSeconds - snapshotTs > STALE_AFTER_MS / 1000
+        ) {
+          invalidSnapshot = true;
+          continue;
+        }
+        const providerTs = Number.isFinite(provenance?.providerTs) && Number(provenance?.providerTs) > 0
+          ? Number(provenance?.providerTs)
+          : null;
+        const source = typeof provenance?.source === "string"
+          ? provenance.source
+          : typeof ticker.source === "string" ? ticker.source : "backend";
+        const row: MarketMemoryRow = {
+          sym,
+          name: existing?.name ?? sym,
+          price,
+          chg,
+          high,
+          low,
+          vol: String(ticker.vol),
+          source,
+          snapshotTs,
+          providerTs,
+        };
+        next.set(sym, row);
+        if (
+          !existing ||
+          existing.price !== row.price ||
+          existing.chg !== row.chg ||
+          existing.high !== row.high ||
+          existing.low !== row.low ||
+          existing.vol !== row.vol ||
+          existing.source !== row.source ||
+          existing.snapshotTs !== row.snapshotTs ||
+          existing.providerTs !== row.providerTs
+        ) changed = true;
+      }
+      if (invalidSnapshot || next.size === 0) return;
+      if (next.size !== this.prices.size) changed = true;
+      if (next.size === 0) return;
+      this.prices = next;
+      this.lastSnapshotTs = Math.max(...Array.from(next.values(), (item) => item.snapshotTs || 0));
+      this.tickersSnapshot = null;
+      if (changed || previousStatus !== this.getStatus()) this.notify();
     } catch {
       // Keep the last known values; getStatus() reports them as stale/unavailable.
     }
@@ -155,6 +233,7 @@ class LiveMarketEngine {
     // 数据已变化：先作废快照缓存，再通知订阅者。这样订阅方重新读取时
     // 会拿到一个新引用（内容确实变了），而在两次变化之间引用保持稳定。
     this.tickersSnapshot = null;
+    this.lastNotifiedStatus = this.getStatus();
     this.listeners.forEach((fn) => fn());
   }
 
@@ -167,7 +246,6 @@ class LiveMarketEngine {
     const cleanSym = sym.replace("USDT", "").toUpperCase();
     const item = this.prices.get(cleanSym);
     if (!item) return null;
-    const now = Math.floor(Date.now() / 1000);
     return {
       sym: item.sym,
       price: item.price,
@@ -175,9 +253,9 @@ class LiveMarketEngine {
       high: item.high,
       low: item.low,
       vol: item.vol,
-      source: this.lastProviderSource || "backend",
-      snapshotTs: now,
-      providerTs: this.lastFetchAt ? Math.floor(this.lastFetchAt / 1000) : now,
+      source: item.source,
+      snapshotTs: item.snapshotTs,
+      providerTs: item.providerTs,
     };
   }
 
@@ -186,7 +264,6 @@ class LiveMarketEngine {
     // 这是 useSyncExternalStore 的 getSnapshot 契约要求（同一数据必须同一引用）。
     if (this.tickersSnapshot) return this.tickersSnapshot;
 
-    const now = Math.floor(Date.now() / 1000);
     this.tickersSnapshot = Array.from(this.prices.values()).map((item) => ({
       sym: item.sym,
       price: item.price,
@@ -194,26 +271,13 @@ class LiveMarketEngine {
       high: item.high,
       low: item.low,
       vol: item.vol,
-      source: this.lastProviderSource || "backend",
-      snapshotTs: now,
-      providerTs: this.lastFetchAt ? Math.floor(this.lastFetchAt / 1000) : now,
+      source: item.source,
+      snapshotTs: item.snapshotTs,
+      providerTs: item.providerTs,
     }));
     return this.tickersSnapshot;
   }
 
-  public getSpotMarketPairs(): SpotMarketPair[] {
-    return Array.from(this.prices.values()).map(({ sym }) => ({
-      base_asset: sym,
-      quote_asset: "USDT",
-      enabled: true,
-      price_tick: sym === "PEPE" ? "0.000001" : sym === "XRP" || sym === "DOGE" || sym === "MATIC" || sym === "TRX" ? "0.0001" : "0.01",
-      quantity_step: "0.0001",
-      min_quantity: "0.0001",
-      min_notional: "5",
-      min_limit_price: null,
-      max_limit_price: null,
-    }));
-  }
 
   /**
    * Chart candles are never synthesised here. They come from GET /api/kline,
