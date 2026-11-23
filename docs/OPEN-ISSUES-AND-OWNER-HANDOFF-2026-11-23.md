@@ -23,6 +23,7 @@
 - Workflow run：`45120420987`
 - Build job：`137512668281`
 - 先前執行報告：41 failed、76 passed，Playwright 執行約 15 分鐘。
+- 最新一輪提交 `ac52bdf` 已觸發新的 Backend / Frontend / PostgreSQL schema / Change Guard workflow；截至本文件更新時仍在 queue，尚無新結果。
 - 此數字是該次歷史 run 的結果，不代表目前 head 的 CI 狀態；每次提交後需重新查最新 workflow。
 - 失敗分布包括認證路由、帳戶保護、資產/訂單資料斷言、交易中心產品名稱、首頁/交易頁 i18n、語言選單、客服提示及 K 線時間精度。必須逐個用例核實根因，不能把所有失敗歸類為同一問題。
 
@@ -30,7 +31,7 @@
 - 已在本分支新增 `AuthPages.tsx` 郵箱註冊表單，並在 `auth.tsx` 新增 `signUpWithEmail`：直接呼叫 Supabase Auth `signUp`，以 `/auth/react-callback?intent=register` 作為郵件確認回跳；不經過自建 service-role 註冊接口。需在 lint/build/E2E 及後端身份 provision 測試通過後才能標記完成。
 - `frontend/src/lib/auth.tsx` 現已包含 `signInWithEmail`、`signUpWithEmail`、`requestPasswordReset` 和 `completePasswordRecovery`。錯誤映射仍有 `GOOGLE_ONLY_AUTH` 文案，須確認僅代表舊 `/api/register` 直寫路徑被封鎖，不可再作為前端 Supabase 註冊的禁用條件。
 - `frontend/e2e/auth-routes.spec.ts` 同時存在「email signup uses Supabase confirmation」和「retired email authentication/recovery」的互相矛盾斷言。
-- 不得直接刪除 email 註冊/登入/恢復測試。後端 `/api/register` 仍刻意 fail-closed（防止繞過郵箱確認及 service-role 直接建戶）；正式郵箱註冊應走 Supabase 公開 Auth `signUp`，確認郵箱後由現有 `/api/supabase-login` 驗證身份並初始化 BTCBOX 帳戶。需由 1號 AI 核對/更新 `backend/tests/google-only-auth.test.js` 中舊的 Google-only 斷言，並補充 email provider provisioning 測試；不可為了開放註冊而開啟 `/api/register` 直寫。
+- 不得直接刪除 email 註冊/登入/恢復測試。後端 `/api/register` 仍刻意 fail-closed（防止繞過郵箱確認及 service-role 直接建戶）；正式郵箱註冊應走 Supabase 公開 Auth `signUp`，確認郵箱後由現有 `/api/supabase-login` 驗證身份並初始化 BTCBOX 帳戶。已更新 `backend/tests/google-only-auth.test.js` 和 `backend/tests/spot-trading-live-refresh.test.js` 中 3 項禁止 `signUpWithEmail` 的舊斷言，改為要求 Supabase email signup 存在；這些測試仍需最新 Backend CI 證明通過。不可為了開放註冊而開啟 `/api/register` 直寫。
 
 ### 文件缺口
 - 本分支目前沒有 `docs/` 目錄；舊的 `docs/AI_COORDINATION.md` 與 `docs/OPEN-ISSUES-AND-OWNER-HANDOFF-2026-11-04.md` 在目前分支不可讀取。
@@ -54,4 +55,4 @@
 - 不觸碰正式 Supabase 資料，不執行正式遷移。
 
 ## 完成記錄
-目前：已恢復協作規則與交接文件；已補上 React Supabase email signup 表單及 provider 方法（提交 `c82c051d`、`8c63c162`、`ef0baca4`）；尚未完成前端 E2E、後端舊測試更新及身份初始化驗證，故不可宣告郵箱註冊驗收完成。41 項歷史 CI 失敗仍待逐項修復。
+目前：已恢復協作規則與交接文件；已補上 React Supabase email signup 表單及 provider 方法（`ef0baca4`、`8c63c162`、`c82c051d`）；已更新後端 3 項舊的 Google-only UI 斷言；已把交易中心和首頁快捷入口的產品名稱統一為 Contract，並在 7 份語言字典補上對應翻譯（`ac52bdf`）；已修正 K 線秒級時間精度測試及 2FA/註冊響應式測試的過期 locator。尚未完成最新 CI、郵箱確認 callback 後的 provision E2E、Google/Email 同身份驗證，故不可宣告認證驗收完成。41 項歷史 CI 失敗仍需依最新 CI 逐項複核。
