@@ -16,7 +16,7 @@ test('public USDT/USD FX route is exposed by the shared Vercel API handler', () 
   assert.ok(route >= 0 && klineStart > route, 'FX route must be present before the kline route');
   const routeBlock = backend.slice(route, klineStart);
   assert.ok(routeBlock.includes("getUsdtUsd()"));
-  assert.ok(routeBlock.includes("source: 'unavailable'"));
+  assert.ok(routeBlock.includes("source: 'fallback'"));
   assert.ok(api.includes('getUsdtUsdRate'));
   assert.ok(api.includes('${API_BASE_URL}/fx/usdt-usd'));
 });
