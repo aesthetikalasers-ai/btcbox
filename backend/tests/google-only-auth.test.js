@@ -29,7 +29,8 @@ test('React registration supports Supabase email, Google and wallet while email-
   assert.ok(authPage.includes('requestPasswordReset'));
   assert.ok(authPage.includes('signUpWithEmail'));
   assert.ok(authPage.includes('Create account with email'));
-  assert.ok(authPage.includes('emailRedirectTo: window.location.origin + "/auth/react-callback?intent=register"'));
+  const authProvider = fs.readFileSync(path.resolve(root, '..', 'frontend/src/lib/auth.tsx'), 'utf8');
+  assert.ok(authProvider.includes('emailRedirectTo: window.location.origin + "/auth/react-callback?intent=register"'));
 });
 
 test('legacy static Google OAuth callback retains same-origin return-target safeguards', () => {
