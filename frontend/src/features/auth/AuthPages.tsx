@@ -18,11 +18,14 @@ export function AuthPage({ mode, redirectTo, embedded = false, onModeChange }: {
   const { t, language, setLanguage } = useI18n();
   const {
     status, busy, error, notice, googleEnabled, walletEnabled, ethereumWallets,
-    signInWithGoogle, signInWithUsername, signInWithEmail, signInWithWeb3,
+    signInWithGoogle, signInWithUsername, signInWithEmail, signUpWithEmail, signInWithWeb3,
     requestPasswordReset, verifyTwoFactor, clearError,
   } = useAuth();
   const [username, setUsername] = useState("");
+  const [registerEmail, setRegisterEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [registrationError, setRegistrationError] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showPasswordReset, setShowPasswordReset] = useState(false);
   const [resetEmail, setResetEmail] = useState("");
@@ -38,6 +41,8 @@ export function AuthPage({ mode, redirectTo, embedded = false, onModeChange }: {
   useEffect(() => {
     clearError();
     setPassword("");
+    setConfirmPassword("");
+    setRegistrationError("");
     setShowPasswordReset(false);
     setResetEmail("");
     setWalletMenuOpen(false);
@@ -71,6 +76,21 @@ export function AuthPage({ mode, redirectTo, embedded = false, onModeChange }: {
       if (username.includes("@")) await signInWithEmail(username, password);
       else await signInWithUsername(username, password);
     }
+    catch { /* AuthProvider displays the safe error. */ }
+  };
+
+  const submitEmailRegistration = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setRegistrationError("");
+    if (password.length < 12 || password.length > 128) {
+      setRegistrationError("Use a password between 12 and 128 characters.");
+      return;
+    }
+    if (password !== confirmPassword) {
+      setRegistrationError("The passwords do not match.");
+      return;
+    }
+    try { await signUpWithEmail(registerEmail.trim(), password); }
     catch { /* AuthProvider displays the safe error. */ }
   };
 
@@ -229,7 +249,24 @@ export function AuthPage({ mode, redirectTo, embedded = false, onModeChange }: {
                 <button type="button" className="min-h-11 w-full text-sm font-semibold text-brand-text-secondary underline-offset-4 hover:text-brand-text hover:underline" onClick={() => { setShowPasswordReset(false); clearError(); }}>{t("Sign in")}</button>
               </form>}
 
-              {mode === "register" && <p className="rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-3 text-sm text-brand-text-secondary">{t("Use Google or a supported wallet to create your BTCBOX account.")}</p>}
+              {mode === "register" && <form className="space-y-3" aria-busy={busy} onSubmit={submitEmailRegistration}>
+                {registrationError && <p role="alert" className="text-sm text-loss">{t(registrationError)}</p>}
+                <div>
+                  <label htmlFor="btcbox-register-email" className="mb-1.5 block text-sm text-brand-text-muted">{t("Email")}</label>
+                  <Input id="btcbox-register-email" className="h-12" type="email" value={registerEmail} onChange={event => setRegisterEmail(event.target.value)} autoComplete="email" maxLength={254} placeholder={t("Enter your email address")} required />
+                </div>
+                <div>
+                  <label htmlFor="btcbox-register-password" className="mb-1.5 block text-sm text-brand-text-muted">{t("Password")}</label>
+                  <Input id="btcbox-register-password" className="h-12" type="password" value={password} onChange={event => setPassword(event.target.value)} autoComplete="new-password" minLength={12} maxLength={128} placeholder={t("Create a password")} required />
+                </div>
+                <div>
+                  <label htmlFor="btcbox-confirm-password" className="mb-1.5 block text-sm text-brand-text-muted">{t("Confirm password")}</label>
+                  <Input id="btcbox-confirm-password" className="h-12" type="password" value={confirmPassword} onChange={event => setConfirmPassword(event.target.value)} autoComplete="new-password" minLength={12} maxLength={128} placeholder={t("Confirm your password")} required />
+                </div>
+                <Button type="submit" className="min-h-12 w-full" aria-busy={busy} disabled={busy || !registerEmail.trim() || password.length < 12 || confirmPassword.length < 12}>
+                  <KeyRound className="mr-2 h-4 w-4" /> {busy ? t("Creating account…") : t("Create account with email")}
+                </Button>
+              </form>}
 
               {(mode === "register" || !showPasswordReset) && identityButtons}
 
