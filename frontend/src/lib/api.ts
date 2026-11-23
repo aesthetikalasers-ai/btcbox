@@ -236,11 +236,10 @@ export async function getKlines(
   } catch (error) {
     if (error instanceof ApiError) throw error;
     if (error instanceof Error && error.name === "AbortError") throw error;
-    // Network error — fall back to demo candles so the chart always has data.
+    // Network errors must remain visible; synthetic candles are only available
+    // through the explicit development-only DEMO_PREVIEW_ACTIVE branch above.
   }
-  // If no valid candles were returned, fall back to demo data so the chart
-  // always has data instead of showing an empty panel.
-  return getDemoKlines(symbol, interval);
+  throw new ApiError(MARKET_UNAVAILABLE_MESSAGE, 502, "KLINE_DATA_UNAVAILABLE");
 }
 
 
