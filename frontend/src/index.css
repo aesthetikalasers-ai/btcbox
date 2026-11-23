@@ -593,8 +593,7 @@ a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
    `max-width: 767.98px` so the 4-column desktop workspace is unaffected.
    ======================================================================== */
 @media (max-width: 767.98px) {
-  /* --- Mobile workspace: single column, driven by the trade tabs ----------
-     The panel choice lives in `.spot-mobile-tabs` further below. */
+  /* --- Mobile workspace: dual-column order entry and depth ladder ----------- */
 
   /* --- Compact inline chart inside the header-triggered drawer ------------ */
   .exchange-chart--compact {
@@ -825,7 +824,7 @@ a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
 }
 
 @media (max-width:359px) {
- .exchange-workspace { gap:10px; }
+ .exchange-workspace { grid-template-columns:minmax(0,1.08fr) minmax(0,.92fr); gap:6px; }
  .spot-book-row { font-size:12px; gap:4px; }
  .spot-quote-grid { column-gap:12px; }
  .spot-quote-grid > div:first-child p:last-child { font-size:27px; }
@@ -1213,26 +1212,6 @@ a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
   }
 }
 
-/* Compact phones keep the order form and depth ladder side by side; the chart remains in its drawer. */
-@media (max-width: 767px) {
-  .exchange-workspace {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 12px;
-  }
-  .exchange-entry {
-    grid-column: 1;
-    grid-row: 1;
-  }
-  .exchange-depth {
-    grid-column: 1;
-    grid-row: 2;
-  }
-  .exchange-orders {
-    grid-column: 1;
-    grid-row: 3;
-    margin-top: 0;
-  }
-}
 
 
 /* BTCBOX responsive primary navigation: fixed horizontal mobile tab bar.
@@ -1362,51 +1341,31 @@ a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
     color: var(--color-brand-text-faint);
   }
 
-  /* Phone trading keeps order entry and the order book visible together.
-     The chart is opened from the quote strip in a bottom drawer. */
-  .spot-mobile-tabs {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    min-height: 44px;
-    padding: 3px;
-    border: 1px solid var(--color-brand-border);
-    border-radius: 8px;
-    background: var(--color-brand-surface-2);
-  }
-  .spot-mobile-tabs button {
-    flex: 1 1 0;
-    min-height: 40px;
-    border-radius: 6px;
-    color: var(--color-brand-text-muted);
-    font-size: 13px;
-    font-weight: 600;
-    transition: background-color .15s ease, color .15s ease;
-  }
-  .spot-mobile-tabs button.is-active { background: var(--color-brand-surface); color: var(--color-brand-text); }
-  .spot-mobile-tabs button[aria-selected="true"]:first-child { color: var(--color-profit); }
-  .spot-mobile-tabs button[aria-selected="true"]:nth-child(2) { color: var(--color-loss); }
-
+  /* Phone trading stays two-column: order entry left, depth ladder right.
+     The chart remains in its bottom drawer and orders span the full row below. */
   .exchange-workspace {
     display: grid;
-    grid-template-columns: minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1.1fr) minmax(0, .9fr);
+    grid-template-rows: auto auto;
     gap: 8px;
     align-items: start;
+    min-width: 0;
   }
-  .exchange-workspace > .exchange-entry,
-  .exchange-workspace > .exchange-depth {
+  .exchange-workspace > .exchange-entry {
+    display: flex;
     grid-column: 1;
     grid-row: 1;
     margin-top: 0;
     min-width: 0;
-    width: 100%;
+    width: auto;
   }
-  .exchange-workspace[data-mobile-panel="buy"] > .exchange-depth,
-  .exchange-workspace[data-mobile-panel="sell"] > .exchange-depth {
-    display: none;
-  }
-  .exchange-workspace[data-mobile-panel="book"] > .exchange-entry {
-    display: none;
+  .exchange-workspace > .exchange-depth {
+    display: flex;
+    grid-column: 2;
+    grid-row: 1;
+    margin-top: 0;
+    min-width: 0;
+    width: auto;
   }
   .exchange-workspace > .exchange-orders {
     grid-column: 1 / -1;
@@ -2764,56 +2723,3 @@ a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
   .term-col--book.is-expanded > div:first-of-type { height: auto; }
   .term-col--book.is-expanded .term-book-body { flex: 0 0 auto; height: auto; max-height: none; }
 }
-
-/* Phone spot trading: preserve the two-column terminal at every supported
-   phone width (320–430px). Order entry stays on the left, depth on the right,
-   and open orders span the full width below. The chart remains a bottom drawer. */
-@media (max-width: 767.98px) {
-  .spot-mobile-tabs { display: none !important; }
-  .exchange-workspace {
-    display: grid;
-    grid-template-columns: minmax(0, 1.1fr) minmax(0, .9fr);
-    grid-template-rows: auto auto;
-    align-items: start;
-    gap: 8px;
-    min-width: 0;
-  }
-  .exchange-workspace > .exchange-entry {
-    display: flex;
-    grid-column: 1;
-    grid-row: 1;
-    width: auto;
-    min-width: 0;
-    margin-top: 0;
-  }
-  .exchange-workspace > .exchange-depth {
-    display: flex;
-    grid-column: 2;
-    grid-row: 1;
-    width: auto;
-    min-width: 0;
-    margin-top: 0;
-  }
-  .exchange-workspace > .exchange-orders {
-    grid-column: 1 / -1;
-    grid-row: 2;
-    min-width: 0;
-    margin-top: 0;
-  }
-  .exchange-entry > div,
-  .exchange-depth > div,
-  .exchange-entry form,
-  .spot-price-control,
-  .spot-qty-control {
-    min-width: 0;
-  }
-  .exchange-entry input { min-width: 0; }
-}
-
-@media (max-width: 359.98px) {
-  .exchange-workspace { grid-template-columns: minmax(0, 1.08fr) minmax(0, .92fr); gap: 6px; }
-  .spot-book-row,
-  .spot-book-columns { font-size: 11px; }
-  .spot-book-row { gap: 3px; }
-}
-
