@@ -28,7 +28,6 @@ import {
   type PerpOrder,
   type PerpPosition,
 } from "../../lib/api";
-import { getDemoPerpMarkets } from "../../lib/demoPreview";
 import { useAuth } from "../../lib/auth";
 import { useMarketStream } from "../../lib/useMarketStream";
 import { localeTags, useI18n } from "../../lib/i18n";
@@ -155,18 +154,13 @@ export function ContractPage() {
   const [positionsError, setPositionsError] = useState("");
   const [openOrders, setOpenOrders] = useState<PerpOrder[]>([]);
   const [orderHistory, setOrderHistory] = useState<PerpOrder[]>([]);
-  /**
-   * USDT→USD rate for the "≈ $" hint under the book's mid price. Contracts are
-   * quoted in USDT, which is not exactly one dollar, so the hint is a real
-   * conversion. Falls back to 0.99999 when the FX endpoint is unavailable, so the
-   * line still renders an honest approximation instead of a blank.
-   */
-  const [usdtUsd, setUsdtUsd] = useState(0.99999);
+  /** Verified USDT→USD rate for the optional dollar-equivalent hint. */
+  const [usdtUsd, setUsdtUsd] = useState<number | null>(null);
   useEffect(() => {
     const controller = new AbortController();
     let cancelled = false;
     const load = () => {
-      getUsdtUsdRate(0.99999, controller.signal)
+      getUsdtUsdRate(controller.signal)
         .then((r) => { if (!cancelled) setUsdtUsd(r.rate); })
         .catch(() => {});
     };
@@ -221,8 +215,7 @@ export function ContractPage() {
    * "Cannot access before initialization", blanking the page).
    *
    * The contract is quoted in USDT, so this is `mid × USDT/USD rate`, not the
-   * USDT figure relabelled with a "$". 0.99999 is the neutral fallback used only
-   * when no live rate is available.
+   * USDT figure relabelled with a "$". No conversion is shown without a verified rate.
    */
   const midUsd = useMemo(() => {
     const px = Number(depthMid);
@@ -243,11 +236,15 @@ export function ContractPage() {
   // not produced a ticker for this symbol yet.
   const baseAsset = selectedMarket?.base_asset ?? (symbol ? symbol.replace(/USDT$/i, "") : "BTC");
   const liveTicker = useMemo(() => tickers.find((tk) => tk.sym.toUpperCase() === baseAsset.toUpperCase()) ?? null, [tickers, baseAsset]);
-  const displayPrice = liveTicker?.price ?? (markPrice !== null && markPrice !== undefined ? Number(markPrice) : null);
-  const displayChg = liveTicker?.chg ?? null;
+  const contractMarkPrice = markPrice !== null && Number(markPrice) > 0 ? Number(markPrice) : null;
+  // When no contract mark is available, show the spot ticker only as an
+  // explicitly labelled underlying reference — never as a perpetual mark price.
+  const displayPrice = contractMarkPrice ?? liveTicker?.price ?? null;
+  const displayPriceLabel = contractMarkPrice !== null ? t("Mark price") : t("Spot reference");
+  const displayChg = null;
 
-  // The perpetual page shows the same underlying book as the spot pair, so the
-  // stream is only opened when the contract symbol is a valid spot symbol.
+  // The contract page currently has no contract-specific depth endpoint. This is
+  // explicitly displayed as underlying spot reference depth, never execution depth.
   // NOTE: the base asset can be as short as 2 characters ("BTCUSDT"), so the
   // quantifier must not require five — `{5,20}` silently rejected every normal
   // pair and left the order book permanently on "waiting".
@@ -268,8 +265,8 @@ export function ContractPage() {
     },
   });
 
-  const fundingRatePct = selectedMarket?.funding_rate_cap !== undefined && selectedMarket.funding_rate_cap !== null
-    ? `${(Number(selectedMarket.funding_rate_cap) * 100).toFixed(4)}%`
+  const fundingRateCapPct = selectedMarket?.funding_rate_cap !== undefined && selectedMarket.funding_rate_cap !== null
+    ? `≤ ${(Number(selectedMarket.funding_rate_cap) * 100).toFixed(4)}%`
     : EM_DASH;
 
   // Polled depth snapshot. The SSE stream is the primary path, but a blocked or
@@ -339,16 +336,13 @@ export function ContractPage() {
         setMarketsFallback(false);
         setSymbol((current) => (rows.some((m) => m.symbol === current) ? current : rows[0]?.symbol ?? ""));
       })
-      .catch((reason: unknown) => {
+      .catch(() => {
         if (controller.signal.aborted) return;
-        // Keep the terminal available when the live perpetual catalogue is
-        // unreachable. This catalogue is explicitly marked as simulated; it
-        // must not be represented as a live market feed.
-        const fallback = getDemoPerpMarkets();
-        setMarkets(fallback);
-        setSymbol((current) =>
-          fallback.some((market) => market.symbol === current) ? current : fallback[0]?.symbol ?? "",
-        );
+        // Never replace an unavailable live contract catalogue with synthetic
+        // markets. An empty catalogue keeps order entry closed until the
+        // backend returns real, enabled markets again.
+        setMarkets([]);
+        setSymbol("");
         setMarketsFallback(true);
         setMarketsError(t("Perpetual market data is temporarily unavailable."));
       })
@@ -375,10 +369,15 @@ export function ContractPage() {
     return () => controller.abort();
   }, []);
 
-  // Live countdown to the next funding settlement. Anchored to the market's
-  // `next_funding_at` when available, otherwise to the top of the current 8-hour
-  // window (00:00 / 08:00 / 16:00 UTC) so the mobile row always ticks.
+  // Countdown is shown only when the backend supplies the actual next funding time.
   useEffect(() => {
+    const target = selectedMarket?.next_funding_at
+      ? new Date(selectedMarket.next_funding_at).getTime()
+      : null;
+    if (target === null || !Number.isFinite(target)) {
+      setFundingCountdown("");
+      return;
+    }
     const fmt = (ms: number) => {
       if (ms <= 0) return "00:00:00";
       const total = Math.floor(ms / 1000);
@@ -388,16 +387,7 @@ export function ContractPage() {
       const pad = (n: number) => String(n).padStart(2, "0");
       return `${pad(h)}:${pad(m)}:${pad(s)}`;
     };
-    const tick = () => {
-      const next = selectedMarket?.next_funding_at ? new Date(selectedMarket.next_funding_at).getTime() : null;
-      let target = next;
-      if (!target || !Number.isFinite(target)) {
-        const interval = selectedMarket?.funding_interval_sec || 28800;
-        const now = Date.now();
-        target = Math.ceil(now / (interval * 1000)) * (interval * 1000);
-      }
-      setFundingCountdown(fmt(target - Date.now()));
-    };
+    const tick = () => setFundingCountdown(fmt(target - Date.now()));
     tick();
     const id = window.setInterval(tick, 1000);
     return () => window.clearInterval(id);
@@ -420,7 +410,7 @@ export function ContractPage() {
       .catch((reason: unknown) => {
         if (controller.signal.aborted) return;
         setPositions([]);
-        setPositionsError(reason instanceof ApiError ? reason.message : t("Awaiting the perpetual contract backend."));
+        setPositionsError(t("Unable to load positions. Refresh to try again."));
       })
       .finally(() => { if (!controller.signal.aborted) setPositionsLoading(false); });
     getPerpOpenOrders(controller.signal).then((rows) => { if (!controller.signal.aborted) setOpenOrders(rows); }).catch(() => { if (!controller.signal.aborted) setOpenOrders([]); });
@@ -517,7 +507,7 @@ export function ContractPage() {
       setQuantity("");
       setReload((n) => n + 1);
     } catch (reason: unknown) {
-      setSubmitError(reason instanceof Error ? reason.message : t("Awaiting the perpetual contract backend."));
+      setSubmitError(t("Order result is unconfirmed. Keep the same request ID and check open positions before retrying."));
     } finally {
       setBusy(false);
     }
@@ -995,7 +985,7 @@ export function ContractPage() {
       </div>
 
       {/* 可开保证金（币安节奏：开多按钮上方） */}
-      <div className="flex justify-between text-[12px] tabular-nums"><span className="text-brand-text-muted">{t("Open margin")}</span><span className="text-brand-text">{estimatedMargin === null ? "0 USDT" : `${money(estimatedMargin, locale, 2)} USDT`}</span></div>
+      <div className="flex justify-between text-[12px] tabular-nums"><span className="text-brand-text-muted">{t("Open margin")}</span><span className="text-brand-text">{estimatedMargin === null ? EM_DASH : `${money(estimatedMargin, locale, 2)} USDT`}</span></div>
 
       {/* 开多 / 开空 按钮：与桌面端下单卡一致地左右并排，底部不再被常驻 K 线
           折叠条遮挡（垂直堆叠时最后一颗按钮会落在折叠条下方）。
@@ -1109,6 +1099,7 @@ export function ContractPage() {
 
   return (
     <>
+      <h1 className="sr-only">{t("Perpetual")}</h1>
       {/* 移动端产品切换入口（现货 / 永续 / 秒合约 / 理财）：桌面端由全局顶栏承担，
           移动端顶栏收敛后这里补一个与现货页一致的产品导航。 */}
       <div className="lg:hidden">
@@ -1127,7 +1118,7 @@ export function ContractPage() {
                 aria-expanded={symbolPickerOpen}
                 className="flex min-w-0 items-center gap-1 rounded text-[18px] font-bold leading-none text-brand-text transition-colors hover:text-brand-text-secondary"
               >
-                <span className="truncate">{selectedMarket ? `${selectedMarket.base_asset ?? selectedMarket.symbol.replace(/USDT$/i, "")}/USDT` : "BTC/USDT"}</span>
+                <span className="truncate">{selectedMarket ? `${selectedMarket.base_asset ?? selectedMarket.symbol.replace(/USDT$/i, "")}/USDT` : "—"}</span>
                 <ChevronDown className="h-4 w-4 shrink-0 text-brand-text-muted" aria-hidden="true" />
               </button>
             </div>
@@ -1143,6 +1134,7 @@ export function ContractPage() {
           </div>
           {/* 币安式：涨跌幅紧跟交易对名下方（红绿醒目） */}
           <div className="flex min-w-0 items-baseline gap-2">
+            <span className="shrink-0 text-[10px] text-brand-text-muted">{displayPriceLabel}</span>
             <span className={cn("bf-tabular font-mono text-[24px] font-bold leading-none", displayChg !== null ? (displayChg >= 0 ? "text-brand-success" : "text-brand-danger") : "text-brand-text")}>{displayPrice !== null && displayPrice !== undefined ? money(displayPrice, locale) : EM_DASH}</span>
             {/* 无行情时不再渲染孤立的“—”涨跌幅占位 */}
             {displayChg !== null ? (
@@ -1168,8 +1160,15 @@ export function ContractPage() {
         ) : null}
 
 
-        {marketsLoading && markets.length === 0 ? <TableSkeleton rows={4} /> : markets.length === 0 && !marketsError ? (
-          <EmptyState icon={Inbox} title={t("No markets enabled")} hint={t("Perpetual contract trading is currently unavailable.")} action={<Button size="sm" variant="outline" onClick={() => setReload((n) => n + 1)}>{t("Try again")}</Button>} />
+        {marketsLoading && markets.length === 0 ? <TableSkeleton rows={4} /> : null}
+        {!marketsLoading && marketsError ? (
+          <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-brand-danger/30 bg-brand-danger/5 p-4 text-sm text-brand-danger">
+            <span>{t(marketsError)}</span>
+            <Button size="sm" variant="outline" onClick={() => setReload((n) => n + 1)}>{t("Try again")}</Button>
+          </div>
+        ) : null}
+        {!marketsLoading && !marketsError && markets.length === 0 ? (
+          <EmptyState icon={Inbox} title={t("No live perpetual markets available")} action={<Button size="sm" variant="outline" onClick={() => setReload((n) => n + 1)}>{t("Try again")}</Button>} />
         ) : null}
 
         {markets.length > 0 ? (
@@ -1185,13 +1184,14 @@ export function ContractPage() {
                 <div className="flex min-w-0 flex-col justify-start pr-3 pb-[68px] text-[11px] tabular-nums">
                   {/* 顶部：资金费率 + 倒计时（禁止折行） */}
                   <div className="flex items-center justify-between gap-1 whitespace-nowrap pb-1">
-                    <span className="shrink-0 text-[11px] text-brand-text-muted">{t("Funding rate")}</span>
+                    <span className="shrink-0 text-[11px] text-brand-text-muted">{t("Funding rate cap")}</span>
                     <span className="min-w-0 text-right">
-                      <span className="whitespace-nowrap font-mono text-[11px] font-semibold tabular-nums text-brand-text-secondary">{fundingRatePct}</span>
-                      <span className="ml-1.5 whitespace-nowrap font-mono text-[11px] tabular-nums text-brand-text-muted">{fundingCountdown}</span>
+                      <span className="whitespace-nowrap font-mono text-[11px] font-semibold tabular-nums text-brand-text-secondary">{fundingRateCapPct}</span>
+                      <span className="ml-1.5 whitespace-nowrap font-mono text-[11px] tabular-nums text-brand-text-muted">{fundingCountdown || "—"}</span>
                     </span>
                   </div>
 
+                  <div className="pb-0.5 text-[9px] font-medium text-brand-text-muted">{t("Spot reference depth")}</div>
                   {/* 表头（币安风格：币种名 + 单位分两行） */}
                   <div className="grid grid-cols-[1.1fr_0.9fr] border-b border-white/5 pb-0.5 font-semibold leading-tight text-[10px] text-brand-text-muted">
                     <span>{t("Price")}<br />(USDT)</span>
