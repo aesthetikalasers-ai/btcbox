@@ -3959,6 +3959,12 @@ async function handleRequest(event, context) {
       }
       const u = db.users[uid];
       if (!u) return json({ ok: false, msg: 'User not found.' }, 404);
+      // Never credit a legacy JSON-only account. Confirm the target's canonical
+      // PostgreSQL ledger snapshot before issuing the atomic manual-credit RPC.
+      try { await readFinancialAccountSnapshot(uid); }
+      catch (_) {
+        return json({ ok: false, code: 'FINANCIAL_BALANCE_SOURCE_UNVERIFIED', msg: 'Manual credit is disabled until the user\'s PostgreSQL ledger balance source is confirmed. No credit was sent.' }, 409);
+      }
       if (!['USDT', 'BTC', 'ETH', 'SOL', 'BNB', 'USDC'].includes(coin)) return json({ ok: false, msg: 'Coin not supported.' }, 400);
       if (amountText === null || compareMoney(amountText, '0') <= 0 || compareMoney(amountText, '1000000000000') > 0 || !/^\d+(?:\.\d{1,12})?$/.test(String(body.amount || '').trim())) {
         return json({ ok: false, msg: 'Invalid deposit amount. Must be a valid number greater than 0.' }, 400);
