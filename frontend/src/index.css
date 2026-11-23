@@ -2722,6 +2722,37 @@ a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
   .term-col--book.is-expanded .term-book-body { flex: 0 0 auto; height: auto; max-height: none; }
 }
 
+
+/* Tablet compact terminal (768–1279px): the chart is in its drawer, so do not
+   reserve the empty chart column from the wide desktop grid. Keep the book and
+   order form side by side, with open orders spanning the row below. */
+@media (min-width: 768px) and (max-width: 1279px) {
+  .spot-terminal .exchange-workspace {
+    display: grid;
+    grid-template-columns: minmax(0, 1.1fr) minmax(0, .9fr);
+    grid-template-rows: auto auto;
+    gap: 12px;
+    min-width: 0;
+  }
+  .spot-terminal .exchange-workspace > .exchange-depth {
+    grid-column: 1;
+    grid-row: 1;
+    min-width: 0;
+    width: auto;
+  }
+  .spot-terminal .exchange-workspace > .exchange-entry {
+    grid-column: 2;
+    grid-row: 1;
+    min-width: 0;
+    width: auto;
+  }
+  .spot-terminal .exchange-workspace > .exchange-orders {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    min-width: 0;
+  }
+}
+
 /* Narrow-phone overrides must follow the shared mobile rules above: otherwise
    their later 12px depth typography and wider grid gap win in the cascade. */
 @media (max-width: 359px) {
