@@ -34,4 +34,12 @@ jobs:
       - name: Install Playwright Chromium
         run: npx playwright install --with-deps chromium
       - name: Verify critical SPA routes on the production bundle
-        run: npm run test:e2e -- --grep "@routing"
+        run: npm run test:e2e -- --grep "@routing|responsive visual QA /(home|markets|trade/BTCUSDT|assets|me) at V1.0 widths|continuous responsive sweep /(home|markets|trade/BTCUSDT|assets)|trade interaction QA"
+      - name: Upload mobile responsive QA screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: btcbox-mobile-responsive-qa
+          path: frontend/test-results/visual-qa/**/*.png
+          if-no-files-found: ignore
+          retention-days: 7
