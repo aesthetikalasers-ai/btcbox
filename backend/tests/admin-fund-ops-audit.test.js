@@ -118,6 +118,7 @@ test('admin balance adjustment generates audit reasons without a staff-entered r
   assert.ok(route.includes("'管理员后台解冻资金'"));
   assert.ok(route.includes('p_reason: reason'));
   const adminPage = fs.readFileSync(path.join(root, '../frontend/src/features/admin/AdminPage.tsx'), 'utf8');
+  assert.ok(adminPage.includes('if (mode !== "adjust" && reason.length < 5)'));
   assert.match(adminPage, /\(adjustMode === "freeze" \|\| adjustMode === "unfreeze"\) \? <input value=\{adjustReason\}/);
   assert.match(adminPage, /mode, \.\.\.\(reason \? \{ reason \} : \{\}\), request_id: requestId/);
 });
