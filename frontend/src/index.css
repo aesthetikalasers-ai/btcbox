@@ -822,7 +822,7 @@ a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
 }
 
 @media (max-width:359px) {
- .exchange-workspace { grid-template-columns:minmax(0,1.08fr) minmax(0,.92fr); gap:6px; }
+ .exchange-workspace { grid-template-columns:minmax(0,55fr) minmax(0,45fr); gap:6px; }
  .spot-book-row { font-size:11px; gap:3px; }
  .spot-quote-grid { column-gap:12px; }
  .spot-quote-grid > div:first-child p:last-child { font-size:27px; }
