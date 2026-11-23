@@ -8,8 +8,6 @@ import {
   ChevronRight,
   ClipboardList,
   Gift,
-  Rocket,
-  Sparkles,
   Sprout,
   TrendingUp,
   Users,
@@ -88,9 +86,9 @@ function BannerCarousel({ markets }: { markets: MarketTicker[] }) {
   const btc = markets.find((market) => market.sym === "BTC");
   const btcUp = (btc?.chg ?? 0) >= 0;
   const slides: BannerSlide[] = [
-    { title: t("New token listings"), sub: t("Discover the latest assets listed on BTCBOX"), to: "/markets", gradient: "from-brand-accent/40 via-brand-surface to-brand-surface", glow: "radial-gradient(120% 120% at 100% 100%, color-mix(in srgb, var(--color-brand-accent) 26%, transparent), transparent 60%)", glowTop: "radial-gradient(90% 90% at 0% 0%, color-mix(in srgb, var(--color-brand-accent) 18%, transparent), transparent 55%)" },
-    { title: t("Staking rewards"), sub: t("Earn passive rewards on your idle assets"), to: "/earn", gradient: "from-brand-violet/40 via-brand-surface to-brand-surface", glow: "radial-gradient(120% 120% at 100% 100%, color-mix(in srgb, var(--color-brand-violet) 26%, transparent), transparent 60%)", glowTop: "radial-gradient(90% 90% at 0% 0%, color-mix(in srgb, var(--color-brand-violet) 18%, transparent), transparent 55%)" },
-    { title: t("Trading competition"), sub: t("Compete, trade, and win exclusive prizes"), to: "/trade-hub", gradient: "from-brand-cyan/40 via-brand-surface to-brand-surface", glow: "radial-gradient(120% 120% at 100% 100%, color-mix(in srgb, var(--color-brand-cyan) 26%, transparent), transparent 60%)", glowTop: "radial-gradient(90% 90% at 0% 0%, color-mix(in srgb, var(--color-brand-cyan) 18%, transparent), transparent 55%)" },
+    { title: t("Supported markets"), sub: t("Browse supported spot pairs and their live market data."), to: "/markets", gradient: "from-brand-accent/40 via-brand-surface to-brand-surface", glow: "radial-gradient(120% 120% at 100% 100%, color-mix(in srgb, var(--color-brand-accent) 26%, transparent), transparent 60%)", glowTop: "radial-gradient(90% 90% at 0% 0%, color-mix(in srgb, var(--color-brand-accent) 18%, transparent), transparent 55%)" },
+    { title: t("Earn products"), sub: t("Review the products and terms currently published in BTCBOX Earn."), to: "/earn", gradient: "from-brand-violet/40 via-brand-surface to-brand-surface", glow: "radial-gradient(120% 120% at 100% 100%, color-mix(in srgb, var(--color-brand-violet) 26%, transparent), transparent 60%)", glowTop: "radial-gradient(90% 90% at 0% 0%, color-mix(in srgb, var(--color-brand-violet) 18%, transparent), transparent 55%)" },
+    { title: t("Trading workspace"), sub: t("Open spot, perpetual and seconds trading products from one place."), to: "/trade-hub", gradient: "from-brand-cyan/40 via-brand-surface to-brand-surface", glow: "radial-gradient(120% 120% at 100% 100%, color-mix(in srgb, var(--color-brand-cyan) 26%, transparent), transparent 60%)", glowTop: "radial-gradient(90% 90% at 0% 0%, color-mix(in srgb, var(--color-brand-cyan) 18%, transparent), transparent 55%)" },
   ];
 
   useEffect(() => {
@@ -185,42 +183,6 @@ function QuickActions() {
         ))}
       </div>
     </section>
-  );
-}
-
-/**
- * Prominent entry button for the new-coin mining / launchpad programme.
- *
- * Deliberately a single wide CTA rather than a 9th quick-action tile: mining is
- * a campaign surface, not a core trading tab, so it reads as an invitation while
- * still sitting at the top of the home screen next to Rewards.
- */
-function MiningButton() {
-  const { t } = useI18n();
-  return (
-    <Link
-      to="/new-listings"
-      className="group relative flex min-w-0 items-center gap-3 overflow-hidden rounded-xl border border-brand-accent/25 bg-gradient-to-r from-brand-accent/[0.10] via-brand-surface to-brand-surface p-3 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.10)] transition-all duration-300 hover:border-brand-accent/40 hover:shadow-[0_10px_34px_-12px_rgba(14,203,129,0.30)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent/60"
-    >
-      {/* Ambient glow that brightens on hover. */}
-      <span aria-hidden="true" className="pointer-events-none absolute -right-6 -top-8 h-24 w-24 rounded-full bg-brand-accent/15 blur-2xl transition-opacity duration-300 group-hover:opacity-100 opacity-70" />
-      <span className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-brand-accent/10 text-brand-accent shadow-[inset_0_1px_0_0_rgba(255,255,255,0.18)]">
-        <Rocket className="h-5 w-5" strokeWidth={1.9} />
-      </span>
-      <span className="relative min-w-0 flex-1">
-        <span className="flex items-center gap-1.5">
-          <span className="truncate text-sm font-bold text-brand-text">{t("New coin mining")}</span>
-          <Sparkles className="h-3.5 w-3.5 shrink-0 text-brand-accent" strokeWidth={2} />
-        </span>
-        <span className="mt-0.5 block text-[11px] leading-relaxed text-brand-text-muted [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2] overflow-hidden">
-          {t("Stake for new listings and share the launchpool rewards.")}
-        </span>
-      </span>
-      <span className="relative flex h-8 shrink-0 items-center gap-1 rounded-lg border border-brand-accent/30 bg-brand-accent/15 px-3 text-xs font-bold text-brand-accent transition-transform duration-200 group-hover:scale-[1.04]">
-        {t("Join")}
-        <ChevronRight className="h-3.5 w-3.5" strokeWidth={2.5} />
-      </span>
-    </Link>
   );
 }
 
@@ -425,7 +387,6 @@ export function Dashboard() {
       <BannerCarousel markets={markets} />
       <TickerMarquee markets={markets} locale={locale} />
       <QuickActions />
-      <MiningButton />
       <MarketTable markets={markets} locale={locale} onViewAll={() => navigate("/markets")} />
     </div>
   );
