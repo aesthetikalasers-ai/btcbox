@@ -533,14 +533,17 @@ test("trade interaction QA desktop order-book side and price handoff", async ({ 
   const askPrice = (await askRow.getAttribute("title") ?? "").split(" · ")[0];
   expect(askPrice).toMatch(/^6500[12]\.00$/);
   await askRow.click();
-  await expect(priceInput).toHaveValue(askPrice);
+  await expect(priceInput).toHaveValue(String(Number(askPrice)));
+  // A market refresh runs every five seconds. The selected book price must remain manual.
+  await page.waitForTimeout(5500);
+  await expect(priceInput).toHaveValue(String(Number(askPrice)));
   await expect(buyTab).toHaveAttribute("aria-selected", "true");
   await expect(sellTab).toHaveAttribute("aria-selected", "false");
 
   const bidPrice = (await bidRow.getAttribute("title") ?? "").split(" · ")[0];
   expect(bidPrice).toMatch(/^6499[89]\.00$/);
   await bidRow.click();
-  await expect(priceInput).toHaveValue(bidPrice);
+  await expect(priceInput).toHaveValue(String(Number(bidPrice)));
   await expect(sellTab).toHaveAttribute("aria-selected", "true");
   await expect(buyTab).toHaveAttribute("aria-selected", "false");
 });
