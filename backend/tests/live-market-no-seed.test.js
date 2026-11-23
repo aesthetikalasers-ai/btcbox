@@ -11,7 +11,7 @@ const demoPreview = fs.readFileSync(path.join(frontend, 'lib/demoPreview.ts'), '
 
 test('live market engine starts empty and never exposes hard-coded seed quotes', () => {
   assert.doesNotMatch(marketData, /INITIAL_SEEDS|MockSeed|初始种子价格/);
-  assert.match(marketData, /private prices: Map<string, MarketPrice> = new Map\(\)/);
+  assert.match(marketData, /private prices: Map<string, MarketMemoryRow> = new Map\(\)/);
   assert.match(marketData, /Nothing is fabricated here/);
   assert.match(marketData, /getStatus\(\): MarketStatus/);
 });
