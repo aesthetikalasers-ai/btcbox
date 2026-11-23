@@ -10,6 +10,8 @@ process.env.ADMIN_PASS = 'BTCBOX-Test-Only-Admin-Pass-2026!';
 const adapter = require('../api-adapter.js');
 const catchAll = require('../api/[...path].js');
 const streamApi = require('../stream-api.js');
+const streamCore = require('../stream-core.js');
+const apiCore = require('../api-core.js');
 const routes = ['login/2fa','addresses/select','order/cancel','seconds/order','seconds/settle','seconds/positions','settings/password','settings/fundpwd','2fa/enable','2fa/confirm','2fa/disable','support/chat','support/messages','chat/unread','admin/stats','admin/users','admin/user','admin/addresses','admin/withdrawals','admin/orders','admin/support/messages','admin/config','admin/audit-logs'];
 function listJavaScriptFiles(dir, prefix='') {
   return fs.readdirSync(dir,{withFileTypes:true}).flatMap(entry=>{
@@ -76,4 +78,16 @@ test('nested POST preserves method, body, cookie and authorization', () => {
   assert.equal(event.path,'/api/seconds/order'); assert.equal(event.httpMethod,'POST');
   assert.deepEqual(event.queryStringParameters,{source:'mobile'}); assert.equal(event.body,body);
   assert.equal(event.headers.cookie,'session_token=session-value'); assert.equal(event.headers.authorization,'Bearer test-token');
+});
+
+test('public market and display endpoints remain available without account persistence', () => {
+  for (const route of ['market', 'market/pairs', 'kline', 'depth', 'fx/usdt-usd']) {
+    assert.equal(apiCore._test.isPublicNoDbPath(route, 'GET'), true, route + ' must not depend on account-state persistence');
+  }
+  assert.equal(apiCore._test.isPublicNoDbPath('login', 'GET'), false);
+  assert.equal(apiCore._test.isPublicNoDbPath('market', 'POST'), false);
+  assert.equal(apiCore._test.isPublicNoDbPath('health', 'GET'), true);
+});
+test('SSE lifetime ends before Vercel hard timeout and permits clean reconnect', () => {
+  assert.ok(streamCore.MAX_STREAM_MS < 300000, 'stream must close before the Vercel 300s function timeout');
 });
