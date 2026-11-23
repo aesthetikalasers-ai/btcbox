@@ -587,7 +587,7 @@ export function AdminPage() {
     const uid = pendingSupportProfileUid;
     setPendingSupportProfileUid("");
     void selectUser(uid);
-  }, [tab, pendingSupportProfileUid, loading]);
+  }, [tab, pendingSupportProfileUid, loading, selectUser]);
 
   // Re-read the selected user after a confirmed write so the balances on screen
   // come from the server. A failed refresh must not mask the confirmed result.
