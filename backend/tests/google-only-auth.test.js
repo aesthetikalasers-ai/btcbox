@@ -190,7 +190,8 @@ test('React auth keeps Google/wallet registration and linked email-password logi
   assert.ok(auth.includes('setBtcboxCredentials'));
   assert.ok(auth.includes('linkGoogleIdentity'));
   assert.ok(auth.includes('linkWeb3Identity'));
-  assert.ok(auth.includes('signInWithEmail') && auth.includes('setSupabaseLoginPassword'));\n  assert.ok(!auth.includes('signUpWithEmail'));
+  assert.ok(auth.includes('signInWithEmail') && auth.includes('setSupabaseLoginPassword'));
+  assert.ok(!auth.includes('signUpWithEmail'));
   assert.ok(!auth.includes('emailRedirectTo: window.location.origin + "/auth/react-callback?intent=register"'));
   assert.ok(backend.includes('function getSupabaseLoginProvider(identity)'));
   assert.ok(backend.includes('const authProvider = getSupabaseLoginProvider(identity);'));
