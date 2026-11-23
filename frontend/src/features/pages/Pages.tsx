@@ -382,7 +382,10 @@ export function SpotTradingPage(){
     const marketBase=symbol.endsWith("USDT")?symbol.slice(0,-4):symbol;
     // Keep the whole snapshot so the rail can list every tradable pair.
     setMarketList(marketResult.value);
-    const selected=marketResult.value.find(item=>item.sym.toUpperCase()===marketBase)||null;
+    const selected=marketResult.value.find(item=>{
+     const marketSymbol=item.sym.toUpperCase();
+     return marketSymbol===marketBase||marketSymbol===symbol;
+    })||null;
     if(selected){
      setTicker(selected);
      setMarketUpdatedAt(selected.providerTs?selected.providerTs*1000:null);
@@ -419,7 +422,10 @@ export function SpotTradingPage(){
     let failed=false;
     if(marketResult.status==="fulfilled"){
      const marketBase=symbol.endsWith("USDT")?symbol.slice(0,-4):symbol;
-     const selected=marketResult.value.find(item=>item.sym.toUpperCase()===marketBase)||null;
+     const selected=marketResult.value.find(item=>{
+     const marketSymbol=item.sym.toUpperCase();
+     return marketSymbol===marketBase||marketSymbol===symbol;
+    })||null;
      if(selected){
       setTicker(selected);
       setMarketUpdatedAt(selected.providerTs?selected.providerTs*1000:null);
