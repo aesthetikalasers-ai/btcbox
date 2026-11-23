@@ -33,7 +33,7 @@ jobs:
       - run: npm run build
       - name: Install Chromium for isolated browser tests
         run: npx playwright install --with-deps chromium
-      - name: Run desktop and mobile route smoke tests
+      - name: Run mobile route and core-flow tests
         run: npm run test:e2e
       - name: Upload responsive visual QA screenshots
         if: always()
