@@ -188,9 +188,8 @@ export function SpotTradingPage(){
  // `isPhone` (<=767px) hides the market-list drawer on phones; the order form and
  // order book stay side-by-side (Binance-style dual column) at every width.
  const [isPhone,setIsPhone]=useState(()=>window.matchMedia("(max-width: 767px)").matches);
- // Mobile trade panel: the design board (docs/design/btcbox-mobile-design-board.svg,
- // Trade screen) defines three tabs — Buy | Sell | Order book. The book and the
- // order form therefore never share the phone viewport at the same time.
+ // Phones keep the order form and order book visible together in the two-column workspace;
+ // only the chart moves to the bottom drawer.
 
  useEffect(()=>{
   const media=window.matchMedia(DESKTOP_TRADE_QUERY);
@@ -972,8 +971,8 @@ export function SpotTradingPage(){
    })}
    onSelect={(pair)=>navigate(`/trade/${pair}`)}
   />
-  {/* Mobile trade tabs — design board Trade screen: Buy | Sell | Order book.
-     Only one panel is mounted at a time on phones; desktop keeps its grid. */}
+  {/* Shared trading workspace: phones show order entry and order book side by side;
+      the chart is moved to the drawer and open orders span the row below. */}
   <div className="exchange-workspace" id="trade-workspace">
     {/* Desktop inline chart (spec §3): the central column owns the candles.
         Phones never mount it inline — they use the safe-area drawer instead, so
