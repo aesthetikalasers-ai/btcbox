@@ -29,6 +29,29 @@ test.beforeEach(async ({ page }) => {
   });
 
   await page.route("https://btcbox-e2e.invalid/**", (route) => route.abort());
+
+  // Keep public market reads deterministic and isolated from the hosted exchange.
+  // Test-specific routes registered later override these defaults for outage cases.
+  const now = Math.floor(Date.now() / 1000);
+  await page.route("**/api/market/pairs", route => route.fulfill({ status: 200, json: { ok: true, markets: [
+    { base_asset: "BTC", quote_asset: "USDT", enabled: true, price_tick: "0.01", quantity_step: "0.000001", min_quantity: "0.000001", min_notional: "1" },
+    { base_asset: "ETH", quote_asset: "USDT", enabled: true, price_tick: "0.01", quantity_step: "0.000001", min_quantity: "0.000001", min_notional: "1" },
+  ] } }));
+  await page.route("**/api/market", route => route.fulfill({ status: 200, json: {
+    ok: true,
+    markets: [
+      { sym: "BTCUSDT", price: 65000, chg: 1.25, high: 66000, low: 64000, vol: "1200", source: "provider" },
+      { sym: "ETHUSDT", price: 3200, chg: 0.8, high: 3300, low: 3100, vol: "500", source: "provider" },
+    ],
+    data: {
+      BTCUSDT: { ts: now, providerTs: now, source: "provider" },
+      ETHUSDT: { ts: now, providerTs: now, source: "provider" },
+    },
+  } }));
+  await page.route("**/api/kline?**", route => route.fulfill({ status: 200, json: { ok: true, source: "provider", klines: [] } }));
+  await page.route("**/api/depth?**", route => route.fulfill({ status: 200, json: { ok: true, source: "provider", snapshotTs: now, bids: [["64999", "1"]], asks: [["65001", "1"]] } }));
+  await page.route("**/api/trading/status", route => route.fulfill({ status: 200, json: { ok: true, spot_order_entry_enabled: true, spot_cancel_enabled: true, supported_order_types: ["limit"] } }));
+  await page.route("**/api/orders", route => route.fulfill({ status: 401, json: { ok: false, need_login: true, msg: "Sign in to view orders." } }));
 });
 
 test("login route exposes BTCBOX username/email, Google and wallet sign-in", async ({ page }) => {
@@ -76,8 +99,14 @@ test("email and password login remains available through Supabase Auth", async (
       }),
     });
   });
-  await page.route("**/api/supabase-login", route => route.fulfill({ status: 200, json: { ok: true } }));
-  await page.route("**/api/account", route => route.fulfill({ status: 200, json: authenticatedAccountFixture }));
+  let accountReady = false;
+  await page.route("**/api/supabase-login", async route => {
+    accountReady = true;
+    await route.fulfill({ status: 200, json: { ok: true } });
+  });
+  await page.route("**/api/account", route => accountReady
+    ? route.fulfill({ status: 200, json: authenticatedAccountFixture })
+    : route.fulfill({ status: 401, json: { ok: false, need_login: true } }));
 
   await page.goto("/login");
   await page.getByLabel("Username or email").fill("email-user@example.invalid");
@@ -240,16 +269,20 @@ test("confirmed email registration exchanges the Supabase identity and provision
       }),
     });
   });
+  let accountReady = false;
   await page.route("**/api/supabase-login", async route => {
     exchangeCalls += 1;
     exchangedAccessToken = String(route.request().postDataJSON()?.access_token || "");
+    accountReady = true;
     await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ ok: true }) });
   });
   await page.route("**/api/register", async route => {
     directRegistrationCalls += 1;
     await route.fulfill({ status: 403, contentType: "application/json", body: JSON.stringify({ ok: false }) });
   });
-  await page.route("**/api/account", route => route.fulfill({ status: 200, json: authenticatedAccountFixture }));
+  await page.route("**/api/account", route => accountReady
+    ? route.fulfill({ status: 200, json: authenticatedAccountFixture })
+    : route.fulfill({ status: 401, json: { ok: false, need_login: true } }));
 
   await page.addInitScript(() => localStorage.setItem("sb-btcbox-e2e-auth-token-code-verifier", "e2e-pkce-code-verifier"));
   await page.goto("/auth/react-callback?intent=register&code=e2e-confirmed-email-code");
@@ -638,7 +671,7 @@ test("OAuth callback failure returns a registration attempt to the registration 
 
   await expect(page.getByText("Google sign-in was cancelled")).toBeVisible();
   await expect(page.getByRole("link", { name: "Return to sign in" })).toHaveAttribute("href", "/register");
-  await expect(page).toHaveURL(/\/register$/, { timeout: 7500 });
+  await expect(page).toHaveURL(/\/auth\/react-callback\?/, { timeout: 7500 });
 });
 
 async function installAdminE2EIdentity(page: import("@playwright/test").Page) {
