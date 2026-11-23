@@ -142,7 +142,6 @@ export function AdminPage() {
   const [notice, setNotice] = useState("");
   const [stats, setStats] = useState<Record<string, unknown> | null>(null);
   const [users, setUsers] = useState<AdminUserRecord[]>([]);
-  const [search, setSearch] = useState("");
   const [searchInput, setSearchInput] = useState("");
   const [userSearchBusy, setUserSearchBusy] = useState(false);
   const [selectedUser, setSelectedUser] = useState<AdminUserRecord | null>(null);
@@ -326,7 +325,7 @@ export function AdminPage() {
         userDetailRequestRef.current += 1;
         setUsers([]);
         setSelectedUser(null);
-        const snapshot = await getAdminUsers(token, search);
+        const snapshot = await getAdminUsers(token, "");
         if (requestId !== tabLoadRequestRef.current) return;
         setUsers(snapshot.users);
       }
@@ -472,7 +471,7 @@ export function AdminPage() {
     } finally {
       if (requestId === tabLoadRequestRef.current) setLoading(false);
     }
-  }, [token, session, tab, search, adminSearch]);
+  }, [token, session, tab, adminSearch]);
 
   useEffect(() => {
     void loadTab();
@@ -562,7 +561,6 @@ export function AdminPage() {
     if (!token || userSearchBusy) return;
     const normalizedQuery = query.trim();
     const requestId = ++userSearchRequestRef.current;
-    setSearch(normalizedQuery);
     setUserSearchBusy(true);
     setError("");
     try {
