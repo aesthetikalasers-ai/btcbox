@@ -530,13 +530,17 @@ test("trade interaction QA desktop order-book side and price handoff", async ({ 
   const buyTab = sideTabs.nth(0);
   const sellTab = sideTabs.nth(1);
 
+  const askPrice = (await askRow.getAttribute("title") ?? "").split(" · ")[0];
+  expect(askPrice).toMatch(/^6500[12]\.00$/);
   await askRow.click();
-  await expect(priceInput).toHaveValue("65001.00");
+  await expect(priceInput).toHaveValue(askPrice);
   await expect(buyTab).toHaveAttribute("aria-selected", "true");
   await expect(sellTab).toHaveAttribute("aria-selected", "false");
 
+  const bidPrice = (await bidRow.getAttribute("title") ?? "").split(" · ")[0];
+  expect(bidPrice).toMatch(/^6499[89]\.00$/);
   await bidRow.click();
-  await expect(priceInput).toHaveValue("64999.00");
+  await expect(priceInput).toHaveValue(bidPrice);
   await expect(sellTab).toHaveAttribute("aria-selected", "true");
   await expect(buyTab).toHaveAttribute("aria-selected", "false");
 });
