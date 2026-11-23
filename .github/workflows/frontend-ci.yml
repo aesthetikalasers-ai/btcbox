@@ -34,4 +34,4 @@ jobs:
       - name: Install Playwright Chromium
         run: npx playwright install --with-deps chromium
       - name: Verify critical SPA routes on the production bundle
-        run: npm run test:e2e -- --grep "@routing"
+        run: npm run test:e2e -- --grep "@routing|responsive visual QA /trade/BTCUSDT at V1.0 widths"
