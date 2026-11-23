@@ -343,7 +343,7 @@ const messages: Record<string, string> = {
   "buy": "买入",
   "sell": "卖出",
   "cancelled": "已撤销",
-  "partially_filled": "部分成交"
+  "partially_filled": "部分成交",
   "Administrator sign in": "管理员登录",
   "This is the private BTCBOX control center. Sign in with the Google or email identity that has been granted administrator access. Customer trading pages and balances are not part of this portal.": "这是 BTCBOX 专用管理中心。请使用已获管理员权限的 Google 或邮箱账户登录。客户交易页面及客户余额不属于此管理入口。",
   "Administrator authentication": "管理员身份验证",
