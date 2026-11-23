@@ -108,8 +108,12 @@ test("production K-line requests never fall back to synthetic candles", () => {
   assert.equal((getKlines.match(/getDemoKlines/g) || []).length, 1);
   assert.ok(getKlines.includes("if (DEMO_PREVIEW_ACTIVE) return getDemoKlines(symbol, interval)"));
   assert.equal((getKlines.match(/getDemoKlines/g) || []).length, 1);
-  assert.ok(getKlines.includes("rawTime >= 100_000_000_000 ? rawTime / 1000 : rawTime"));
-  assert.ok(getKlines.includes("byChartSecond.set(chartSecond"));
+  assert.ok(getKlines.includes("normalizeKlines(payload.klines, payload.source)"));
+  const normalizer = fs.readFileSync(path.join(root, "lib/klineData.ts"), "utf8");
+  assert.ok(normalizer.includes("rawTime >= 100_000_000_000 ? rawTime / 1000 : rawTime"));
+  assert.ok(normalizer.includes("byChartSecond.set(chartSecond"));
+  assert.ok(normalizer.includes("high < Math.max(open, close, low)"));
+  assert.ok(normalizer.includes("low > Math.min(open, close, high)"));
 });
 
 test("market quote provenance never invents provider timestamps", () => {
@@ -209,8 +213,10 @@ test("public market provenance keeps server and provider timestamps separate", (
   // Ticker and depth sources remain visible for feed traceability.
   assert.ok(spotPage.includes("displayTicker?.source"));
   assert.ok(spotPage.includes("displayBook?.source"));
+  const normalizer = fs.readFileSync(path.join(root, "lib/klineData.ts"), "utf8");
+  assert.ok(normalizer.includes('source: typeof candle.source === "string" ? candle.source : fallbackSource'));
   const api = fs.readFileSync(path.join(root, "lib/api.ts"), "utf8");
-  assert.ok(api.includes('source: typeof candle.source === "string" ? candle.source : source'));
+  assert.ok(api.includes("normalizeKlines(payload.klines, payload.source)"));
 });
 
 test("perpetual page labels spot data and funding caps honestly", () => {
