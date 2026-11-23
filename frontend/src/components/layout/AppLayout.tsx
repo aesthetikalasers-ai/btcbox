@@ -43,7 +43,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
           <span className="text-brand-text text-nounderline hover:opacity-80 transition-opacity">Preview</span>
           <button type="button" onClick={exitDemoPreview} className="min-h-5 min-w-8 rounded-md px-1.5 text-xs font-medium text-brand-text underline underline-offset-1 hover:bg-brand-surface-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent/60">{t("Exit")}</button>
         </div>}
-        <main ref={mainRef} tabIndex={-1} data-terminal-route={isTerminalRoute ? "true" : undefined} className={`min-h-0 flex-1 overflow-y-auto focus:outline-none ${isSubPage ? "pb-0" : "pb-[calc(60px+env(safe-area-inset-bottom))] lg:pb-0"}`}>
+        <main ref={mainRef} tabIndex={-1} data-terminal-route={isTerminalRoute ? "true" : undefined} className={`min-h-0 flex-1 overflow-y-auto focus:outline-none ${isSubPage ? "pb-0" : "pb-[calc(60px+env(safe-area-inset-bottom))] md:pb-0"}`}>
           {children}
           {/* Footer lives inside the scroll container so it trails the content
               instead of being pinned above the mobile tab bar. The terminal
