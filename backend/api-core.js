@@ -3889,7 +3889,9 @@ async function handleRequest(event, context) {
         const amountText = parseMoneyInput(deltaNegative ? deltaInput.slice(1) : deltaInput);
         const mode = String(body.mode || 'adjust').trim().toLowerCase();
         const requestId = String(body.request_id || '').trim();
-        const reason = String(body.reason || '').trim().slice(0, 500);
+        const suppliedReason = String(body.reason || '').trim().slice(0, 500);
+        // Keep database audit metadata mandatory without asking staff to type a reason.
+        const reason = suppliedReason || (mode === 'freeze' ? '管理员后台冻结资金' : mode === 'unfreeze' ? '管理员后台解冻资金' : deltaNegative ? '管理员后台下分' : '管理员后台上分');
         if (!allowedCoins.includes(coin)) return json({ ok: false, msg: 'Operation failed: coin not supported.' }, 400);
         if (!['adjust', 'freeze', 'unfreeze'].includes(mode)) return json({ ok: false, msg: 'Invalid fund operation type.' }, 400);
         if (!amountText || compareMoney(amountText, '0') <= 0 || compareMoney(amountText, '1000000000000') > 0 || (mode !== 'adjust' && deltaNegative)) return json({ ok: false, msg: 'Invalid operation amount. Freeze/unfreeze amounts must be positive.' }, 400);
