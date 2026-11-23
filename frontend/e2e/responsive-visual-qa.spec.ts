@@ -267,7 +267,7 @@ async function assertPageAtWidth(
     await expect(sideButtons).toHaveCount(2);
     for (const button of await sideButtons.all()) {
       const buttonBox = await button.boundingBox();
-      expect(buttonBox?.height ?? 0, "Phone Buy/Sell controls must meet a 44px touch target.").toBeGreaterThanOrEqual(44);
+      expect(buttonBox?.height ?? 0, "Phone Buy/Sell controls must meet a 44px touch target.").toBeGreaterThanOrEqual(52);
     }
     const formControlFontSizes = await orderForm.locator(".spot-order-type select, input").evaluateAll(
       (elements) => elements.map((element) => Number.parseFloat(getComputedStyle(element).fontSize)),
