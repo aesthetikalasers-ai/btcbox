@@ -37,9 +37,7 @@ export function AuthPage({ mode, redirectTo, embedded = false, onModeChange }: {
 
   useEffect(() => {
     clearError();
-    setEmailAddress("");
     setPassword("");
-    setConfirmPassword("");
     setShowPasswordReset(false);
     setResetEmail("");
     setWalletMenuOpen(false);
@@ -215,7 +213,7 @@ export function AuthPage({ mode, redirectTo, embedded = false, onModeChange }: {
                   <KeyRound className="mr-2 h-4 w-4" /> {busy ? t("Signing in…") : t("Sign in")}
                 </Button>
                 <div className="text-right">
-                  <button type="button" className="min-h-11 px-1 text-sm font-semibold text-brand-accent underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent/70" onClick={() => { setResetEmail(username.includes("@") ? username : ""); clearError(); setLocalFormError(""); setShowPasswordReset(true); }}>{t("Forgot password?")}</button>
+                  <button type="button" className="min-h-11 px-1 text-sm font-semibold text-brand-accent underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent/70" onClick={() => { setResetEmail(username.includes("@") ? username : ""); clearError(); setShowPasswordReset(true); }}>{t("Forgot password?")}</button>
                 </div>
               </form>}
 
