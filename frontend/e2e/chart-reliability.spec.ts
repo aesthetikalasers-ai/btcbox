@@ -12,7 +12,7 @@ test('chart responses are ordered and unique at the chart time precision', async
     const path = '/src/lib/api.ts';
     return (await import(path)).getKlines('BTCUSDT');
   });
-  expect(candles.map((c: { time: number }) => c.time)).toEqual([1700000000000, 1700000002500]);
+  expect(candles.map((c: { time: number }) => c.time)).toEqual([1700000000, 1700000002]);
   expect(candles[1].close).toBe(12);
 });
 
