@@ -339,3 +339,50 @@ npx playwright test e2e/auth-dialog.spec.ts --project=desktop-chromium --reporte
 - 阶段 1 仍未通过；本轮没有把 Perpetual 风险插入当前阶段实施，也没有改变 Earn/Perpetual 的阶段顺序。
 - 本轮没有执行 hosted Supabase 写入/读取、Vercel 修改、部署、合并、真实财务操作或交易页布局修改。
 - 下一项唯一优先任务仍按最新状态记录执行：在可执行的 working 工作区运行当前资产隔离回归测试、前端 lint/build，再用隔离测试账号验证后端余额为 0 时资产页不再显示模拟 10,000 USDT；随后继续阶段 1 验收。Perpetual close-position 幂等/限流缺口交给 API owner 与 DB owner在相应阶段处理。
+
+
+## 2026-11-23 自动化续接核查（数据库/集成负责人）
+
+### 规则、阶段与分支边界
+- 首先读取 `chore/shared-ai-coordination/docs/AI_COORDINATION.md`：GitHub 返回 404，且分支搜索未发现 `chore/shared-ai-coordination`。
+- 当前 `main` 的 `docs/AI_COORDINATION.md` 已被 commit `8eef5f34ed7bf8e7790ae57516ce5f1810b7b24b` 删除（commit message: `docs: remove obsolete AI coordination instructions`）。仍可读取的旧版规则只在 `working/docs/AI_COORDINATION.md`，blob `190ab6ecf712dde2df62109692514e6cab1e431f`；该文件规定 `working` 是唯一共同开发分支、禁止未经所有者批准新增长期分支。
+- 最新可读执行规划仍将当前阶段定为阶段 1（认证弹窗），阶段 1 未验收。main 的 `docs/AI_PROJECT_STATE.md` 仍要求等待 Vercel READY 后由所有者测试 /admin Google 登录及合成 KYC 图片。
+- refs：main `8eef5f34ed7bf8e7790ae57516ce5f1810b7b24b`；working（本记录提交前）`d6dc8fd142a1ac3e2af037d8fbb649b3bcaf2d9a`；integration 20261118 `9481a3815a7ce9b9601e56474123eee62c2e69b2`。compare：working 相对 main diverged，ahead 25 / behind 166；integration 20261118 diverged，ahead 17 / behind 102。
+- `integration/btcbox-mainline-consolidation-20261108` 与 `chore/shared-ai-coordination` 均不存在。由于 main 已删除协调文件、working 仍保留旧规则且严重分叉，本轮不向过时 integration 分支写入，也不执行 rebase/merge；仅在规则仍指定的 working 状态文件追加本只读核查记录。此分支策略冲突需所有者明确指定权威协调 ref 和后续开发分支。
+
+### PR #67 当前事实
+- PR #67 API 状态：closed、merged=true、draft=false；head `c53fa948a599b560c1319726adfb57be6828b0fa`；merge commit `fbf301f88c5c19db94ea1546c590667a8818e842`；merged_at `2026-11-08T16:24:57Z`。
+- PR review submissions = 0，review threads = 0。PR 描述及历史评论中“Draft/unmerged”文字已过期；以当前 GitHub PR API 的 merged=true 为准，不能再将其改回 Draft，也未尝试回退。
+- PR head 的 Backend / PostgreSQL Schema / Frontend runs：`42498936887`、`42498936856`、`42498936859`，全部 completed/success；merge commit 对应 runs：`42499773113`、`42499772971`、`42499773083`，全部 completed/success。仅为历史 SHA 证据。
+
+### 精确 SHA 的 GitHub Actions
+- main `8eef5f34ed7bf8e7790ae57516ce5f1810b7b24b`：Actions API 返回 8 个 runs（4 个 Watchdog push、4 个 Sync mirror schedule），全部 completed/success；9 个 check runs 中 4 个 Watchdog test success、4 个 mirror success、1 个 Supabase Preview skipped。Combined status 另有 Vercel failure（非 GitHub Actions）；该 SHA 没有 Backend CI、PostgreSQL Schema CI 或 Frontend CI。
+- working `d6dc8fd142a1ac3e2af037d8fbb649b3bcaf2d9a`：Backend CI run `44980634404` conclusion=failure；GitHub jobs API 对该 run 返回 0 jobs，无法取得失败步骤/日志，根因 NOT VERIFIED。Watchdog run `44980635495` success；check runs 为 Supabase Preview skipped、Watchdog test success。尝试重跑失败工作流被 GitHub 403 拒绝（“This workflow run cannot be retried”）。
+- integration 20261118 `9481a3815a7ce9b9601e56474123eee62c2e69b2`：仅 Watchdog run `44860836262` success；Supabase Preview skipped；无该 SHA 的 Backend / PostgreSQL Schema / Frontend CI。
+- 本轮未执行本地测试：容器无法解析 github.com，浅克隆失败；不得将源码静态核对描述为测试通过。
+
+### 阶段 1 发现：资产隔离修复只存在于 working，main 仍合并模拟余额
+- main `frontend/src/features/assets/AssetsPage.tsx` blob `b63b01c819ccb3e8a0c704359bc986f156fb5501`：第 10 行导入 `useTrading`，第 46 行读取 `paperBalances`，第 104–118 行把 paper balances 合并进 `account?.balances`。该逻辑会让纸面交易初始化余额继续出现在真实资产列表。
+- working 修复版本 blob `6734b59cdaf2b0d2595cebd5dd5a2036c5e3b879`：第 99–101 行只从已认证后端 account snapshot 生成余额，不再引用 `useTrading/paperBalances`。
+- working 回归测试 blob `304505c8244c5acd59303d9d111a24a9850f6de8` 第 50 行新增 “real asset balances never include paper-trading demo funds”；main 测试 blob `c6318e3c98171869f018b3c53b50ca7126a2925f` 只有前三项测试，没有该隔离断言。现有测试是源码静态断言，不是隔离账号的真实 UI/API 端到端验证。
+- 该修复尚未进入 main；由于 working 与 main diverged 25/166，本轮不直接 cherry-pick/merge。应用开发负责人需在所有者确认的 main-derived 开发基线上保留这项最小修复并运行测试。
+
+### 阶段 1 发现：认证合同与 E2E 断言不一致
+- main `frontend/src/features/auth/AuthPages.tsx` blob `7e22adf2508e14316d16aa54dc4e5a699802185e` 第 77 行含 email sign-in，第 275 行含 Email 注册按钮。
+- main `frontend/src/lib/auth.tsx` blob `dbc0d92cae5619931a77039529413cded143dab8` 第 506–540 行通过 Supabase `signInWithPassword/signUp` 处理 Email 登录和注册，并要求未确认邮箱不得完成 BTCBOX provisioning；这与“保留 Email + Google”规则方向一致。旧 `POST /api/register` 路由在 main `backend/api-core.js` blob `da0d50e2765770d78e3521d412fa52fc4fad138d` 第 1447–1454 行仍返回 `GOOGLE_ONLY_AUTH`，应明确标记为 legacy endpoint，避免误把它当作 Email signup 主流程。
+- 但 main `frontend/e2e/auth-routes.spec.ts` blob `83c24673209b1a3ee8710190321953e69c13e252` 第 42–46、62–64、90–91 行仍断言 Email 登录/找回入口不存在；同文件第 138–190 行又验证 Email signup。这些断言与当前 AuthPages 的 Email 登录实现及阶段 1 Email + Google 规则冲突。main 不存在 `frontend/e2e/auth-dialog.spec.ts`，该六路径弹窗验收文件只存在于 working。
+- `docs/2026-11-20-PREFLIGHT-CODE-REVIEW.md` 对 Google-only 的描述与当前 main AuthPages/auth.tsx 不完全一致。应用开发负责人需统一真实产品合同、旧 endpoint 说明和 E2E 断言；本轮未修改其文件，也未声称认证已实测。
+
+### Perpetual 静态风险复核（后续阶段/其他负责人）
+- main `backend/api-core.js` blob `da0d50e2765770d78e3521d412fa52fc4fad138d` 第 2990–3005 行的 close-position 路由先查询当前仓位、无仓位即返回 `NO_POSITION`，未调用 shared rate limiter；integration API blob `b5def277c81888b88f877c94ac349e7d5fe1ae07` 第 2946–2961 行相同。部分成交后以同一幂等键重试会因数量变化而与原请求不一致；全部成交后则在 SQL replay 前被 `NO_POSITION` 截断。
+- integration SQL `0044_perpetual_order_idempotency_flags_v1.sql` blob `5b7c4d4b747ed5c3caae543f74d3479c67efbece` 第 49–60 行先比较已有订单 quantity，第 90 行才按当前仓位重算 close-position quantity；close retry 合同仍未修复。API/DB owner 需设计稳定 close intent 幂等合同，并补部分成交、全部成交、并发重放测试。
+- main `perp-funding-worker.js` blob `48da054ba1ad486d344869b6e8d58f7fe57ca814` 第 40–59 行不检查资金费率 POST/PATCH 的 HTTP 成功状态；逐用户结算失败只记录日志，仍可能把 funding rate 标记 settled 并推进 next_funding_at。
+- main `perp-liquidation-worker.js` blob `87c509bf4a225684aca71076205acb7b10c767a3` 未见 `FINANCIAL_PERPETUAL_ENGINE_ENABLED` 或 `financialWritesEnabled` 检查。API/Backend owner 需确定保护性强平的独立默认关闭/授权策略；本轮未运行 worker 或金融 RPC。
+
+### 发布准备与阶段状态
+- main `PRE-RELEASE-CHECKLIST.md` blob `c4edae56d7b8cee484b12319f8975436dbbaa1db`：24 项未勾选、0 项勾选。仍包含旧 `ADMIN_PASS/ADMIN_USER`、旧 60 项测试口径等过期条目，与当前 Supabase Auth + DB RBAC 结构不一致；需由发布负责人更新清单，不可据此声称发布门槛已满足。
+- 当前阶段仍为阶段 1，认证弹窗/Email + Google 真实链路、资产余额隔离的运行时验证、main 与 working 代码一致性均未完成。视觉验收、hosted Auth parity、真实金融执行和生产就绪均 NOT VERIFIED。
+- 本轮没有修改应用代码、SQL、测试、Vercel、hosted Supabase、Auth 设置或资金开关；没有合并、部署、真实资金操作或交易页布局变更。
+
+### 下一项唯一优先任务
+- 所有者先明确权威协调文档 ref（`chore/shared-ai-coordination` 当前不存在，main 已删除 `docs/AI_COORDINATION.md`）及 working/main 的安全整合策略；确认后由应用开发负责人把资产隔离修复与 Email + Google 弹窗合同纳入 main-derived 工作基线，并运行资产回归、认证 E2E、前端 lint/build。阶段 1 未通过前不推进 Earn/Perpetual 后续阶段。
