@@ -215,6 +215,20 @@ async function assertPageAtWidth(
     await expect(page.getByRole("button", { name: "Buy", exact: true }).first()).toBeVisible();
     await expect(page.getByRole("button", { name: "Sell", exact: true }).first()).toBeVisible();
 
+    const sideButtons = orderForm.locator(".spot-entry-head .spot-side button");
+    await expect(sideButtons).toHaveCount(2);
+    for (const button of await sideButtons.all()) {
+      const buttonBox = await button.boundingBox();
+      expect(buttonBox?.height ?? 0, "Phone Buy/Sell controls must meet a 44px touch target.").toBeGreaterThanOrEqual(44);
+    }
+    const formControlFontSizes = await orderForm.locator(".spot-order-type select, input").evaluateAll(
+      (elements) => elements.map((element) => Number.parseFloat(getComputedStyle(element).fontSize)),
+    );
+    expect(
+      formControlFontSizes.length ? Math.min(...formControlFontSizes) : 0,
+      "Phone order inputs and selects must use at least 16px text to avoid iOS focus zoom.",
+    ).toBeGreaterThanOrEqual(16);
+
     const [workspaceBox, formBox, bookBox, ordersBox] = await Promise.all([
       workspace.boundingBox(),
       orderForm.boundingBox(),
