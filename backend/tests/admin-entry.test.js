@@ -97,7 +97,7 @@ test('admin console hydrates only supported read APIs and maps canonical user fi
 });
 
 test('admin console supports manual credit by selected user and does not create pending deposit orders', () => {
-  assert.match(accountView, /w\.status==='pending'\|\|w\.status==='pending_admin_review'/);
+  assert.match(accountView, /w\\.status==='pending'\\|\\|w\\.status==='pending_admin_review'/);
   assert.match(accountView, /尚无管理员充值列表读取接口/);
 });
 
