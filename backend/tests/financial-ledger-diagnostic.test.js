@@ -8,8 +8,8 @@ const assert = require('node:assert/strict');
 const root = path.resolve(__dirname, '..');
 const read = (relative) => fs.readFileSync(path.join(root, relative), 'utf8');
 
-test('0042 restores the complete withdrawal, Spot, Seconds and Perpetual operation type union', () => {
-  const migration = read('supabase/sql/0042_withdrawal_operation_type_compatibility_v1.sql');
+test('0044 restores the complete withdrawal, Spot, Seconds and Perpetual operation type union', () => {
+  const migration = read('supabase/sql/0044_withdrawal_operation_type_compatibility_v1.sql');
   for (const operationType of [
     'withdraw_settle', 'withdraw_paid', 'withdraw_freeze', 'withdraw_approve',
     'withdraw_reject', 'spot_trade', 'spot_order_reserve', 'spot_order_cancel',
