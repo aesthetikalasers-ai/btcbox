@@ -1755,7 +1755,7 @@ async function handleRequest(event, context) {
     }
   }
 
-  // ---------- GET /api/kline (Coinbase primary, Bybit fallback) ----------
+  // ---------- GET /api/kline (Binance Vision primary, fresh-provider fallback) ----------
   if (path === 'kline' && method === 'GET') {
     const symbol = ((event.queryStringParameters && event.queryStringParameters.symbol) || 'BTCUSDT').toUpperCase();
     const interval = (event.queryStringParameters && event.queryStringParameters.interval) || '1m';
@@ -1769,33 +1769,60 @@ async function handleRequest(event, context) {
     } catch (_) {
       return json({ ok: false, code: 'MARKET_CATALOG_UNAVAILABLE', msg: 'Spot market catalogue is temporarily unavailable.', klines: [], data: {} }, 503);
     }
-    const coinbaseGranularity = { '1m': 60, '5m': 300, '15m': 900, '1h': 3600, '1d': 86400 }[interval];
+    const intervalSeconds = { '1m':60, '3m':180, '5m':300, '15m':900, '30m':1800, '1h':3600, '2h':7200, '4h':14400, '1d':86400 }[interval];
+    const intervalBybit = { '1m':'1', '3m':'3', '5m':'5', '15m':'15', '30m':'30', '1h':'60', '2h':'120', '4h':'240', '1d':'D' }[interval];
     const timeoutFetchJson = async url => {
       const res = await fetch(url, { signal: AbortSignal.timeout(5000), headers: { 'Accept': 'application/json' } });
       if (!res.ok) throw new Error('market provider HTTP ' + res.status);
       return res.json();
     };
+    const normalizeCandles = rows => (Array.isArray(rows) ? rows : [])
+      .filter(k => Array.isArray(k) && k.length >= 6 && k.slice(0, 6).every(v => Number.isFinite(Number(v))))
+      .map(k => ({ time: Number(k[0]), open: Number(k[1]), high: Number(k[2]), low: Number(k[3]), close: Number(k[4]), volume: Number(k[5]) }))
+      .filter(k => k.time > 0 && k.open > 0 && k.high > 0 && k.low > 0 && k.close > 0 && k.volume >= 0
+        && k.high >= Math.max(k.open, k.close, k.low) && k.low <= Math.min(k.open, k.close, k.high))
+      .sort((a, b) => a.time - b.time);
+    // A provider returning HTTP 200 is not enough: reject candle sets whose
+    // newest open time is too old for the selected interval. Otherwise a stale
+    // Coinbase response can look like a healthy chart while live tickers move.
+    const candleSetIsFresh = rows => {
+      if (!rows.length) return false;
+      const latestOpenMs = Number(rows[rows.length - 1].time);
+      const ageSeconds = Date.now() / 1000 - latestOpenMs / 1000;
+      return Number.isFinite(ageSeconds) && ageSeconds >= -30 && ageSeconds <= Math.max(intervalSeconds * 3, 180);
+    };
+    const candleResponse = (rows, source) => json({ ok: true, source, klines: rows, data: rows });
+
+    // Binance Vision is already the reachable public provider for production
+    // ticker/depth requests and supports every interval exposed by this API.
+    // Use it first so unsupported/stale Coinbase candles cannot disable charts.
+    try {
+      const rows = await timeoutFetchJson('https://data-api.binance.vision/api/v3/klines?symbol=' + encodeURIComponent(symbol) + '&interval=' + encodeURIComponent(interval) + '&limit=350');
+      const normalized = normalizeCandles(rows);
+      if (candleSetIsFresh(normalized)) return candleResponse(normalized, 'binance-vision');
+    } catch (_) { /* Try the independent providers below. */ }
+
+    const coinbaseGranularity = { '1m':60, '5m':300, '15m':900, '1h':3600, '1d':86400 }[interval];
     if (coinbaseGranularity) {
       try {
         const rows = await timeoutFetchJson('https://api.exchange.coinbase.com/products/' + encodeURIComponent(base + '-USDT') + '/candles?granularity=' + coinbaseGranularity);
         if (!Array.isArray(rows)) throw new Error('invalid Coinbase candles');
-        const raw = rows.filter(k => Array.isArray(k) && k.length >= 6 && k.slice(0, 6).every(v => Number.isFinite(Number(v))))
-          .map(k => [Number(k[0]) * 1000, Number(k[3]), Number(k[2]), Number(k[1]), Number(k[4]), Number(k[5])])
-          .sort((a, b) => a[0] - b[0]);
-        if (raw.length) return json({ ok: true, source: 'coinbase', klines: raw.map(k => ({ time: k[0], open: k[1], high: k[2], low: k[3], close: k[4], volume: k[5] })), data: raw });
-      } catch (_) { /* Try Bybit below; never synthesize candle values. */ }
+        const normalized = normalizeCandles(rows
+          .filter(k => Array.isArray(k) && k.length >= 6)
+          .map(k => [Number(k[0]) * 1000, Number(k[3]), Number(k[2]), Number(k[1]), Number(k[4]), Number(k[5])]));
+        if (candleSetIsFresh(normalized)) return candleResponse(normalized, 'coinbase');
+      } catch (_) { /* Try Bybit below; stale candles are never returned as live. */ }
     }
     try {
-      const intervalBybit = { '1m':'1', '3m':'3', '5m':'5', '15m':'15', '30m':'30', '1h':'60', '2h':'120', '4h':'240', '1d':'D' }[interval];
-      const payload = await timeoutFetchJson('https://api.bybit.com/v5/market/kline?category=spot&symbol=' + encodeURIComponent(symbol) + '&interval=' + encodeURIComponent(intervalBybit) + '&limit=300');
+      const payload = await timeoutFetchJson('https://api.bybit.com/v5/market/kline?category=spot&symbol=' + encodeURIComponent(symbol) + '&interval=' + encodeURIComponent(intervalBybit) + '&limit=350');
       const rows = payload && payload.result && payload.result.list;
       if (!Array.isArray(rows)) throw new Error('invalid Bybit candles');
-      const raw = rows.filter(k => Array.isArray(k) && k.length >= 6 && k.slice(0, 6).every(v => Number.isFinite(Number(v))))
-        .map(k => [Number(k[0]), Number(k[1]), Number(k[2]), Number(k[3]), Number(k[4]), Number(k[5])])
-        .sort((a, b) => a[0] - b[0]);
-      if (!raw.length) throw new Error('empty Bybit candles');
-      return json({ ok: true, source: 'bybit', klines: raw.map(k => ({ time: k[0], open: k[1], high: k[2], low: k[3], close: k[4], volume: k[5] })), data: raw });
-    } catch (_) { return json({ ok: false, code: 'KLINE_DATA_UNAVAILABLE', msg: 'K-line data unavailable.', klines: [], data: [] }, 503); }
+      const normalized = normalizeCandles(rows);
+      if (candleSetIsFresh(normalized)) return candleResponse(normalized, 'bybit');
+      throw new Error('Bybit candles are stale or empty');
+    } catch (_) {
+      return json({ ok: false, code: 'KLINE_DATA_UNAVAILABLE', msg: 'Fresh K-line data is temporarily unavailable.', klines: [], data: [] }, 503);
+    }
   }
 
   // ---------- GET /api/depth (Coinbase primary, Bybit fallback) ----------
