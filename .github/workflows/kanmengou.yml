@@ -1,31 +1,67 @@
-name: CI with Claude Watchdog
-on: [push, pull_request]
+name: BTCBOX Change Guard
+
+on:
+  pull_request:
+  push:
+    branches:
+      - working
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: btcbox-check-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  test:
+  check:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write     # 用于自动创建修复分支和提交
-      issues: write       # 用于自动创建故障排查 Issue
-      pull-requests: write # 用于自动提交修复好的 Pull Request
-    
+    timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
-      
-      - uses: actions/setup-node@v4
+      - name: Checkout source
+        uses: actions/checkout@v4
         with:
-          node-version: '18'
-          
-      - name: Install and test
-        run: |
-          npm ci
-          npm test
-        continue-on-error: true # 关键：让测试即使报错也不中断，留给看门狗去分析
+          fetch-depth: 0
 
-      - name: Claude Code Watchdog failure analysis
-        if: failure()
-        uses: cardscan-ai/claude-code-watchdog@v0.3.1
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
         with:
-          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
-          test_results_path: 'test-results/**/*.xml' # 换成你实际的测试结果路径
-          create_fixes: 'true'                       # 开启自动生成修复 PR 功能
+          node-version: 22
+
+      - name: Identify changed files
+        id: changes
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PUSH_BEFORE_SHA: ${{ github.event.before }}
+          HEAD_SHA: ${{ github.sha }}
+        shell: bash
+        run: |
+          if [[ "$EVENT_NAME" == "pull_request" ]]; then
+            BASE_SHA="$PR_BASE_SHA"
+            git diff --name-only "$BASE_SHA...$HEAD_SHA" > /tmp/changed-files.txt
+          elif [[ -n "$PUSH_BEFORE_SHA" && "$PUSH_BEFORE_SHA" != "0000000000000000000000000000000000000000" ]]; then
+            git diff --name-only "$PUSH_BEFORE_SHA" "$HEAD_SHA" > /tmp/changed-files.txt
+          else
+            git ls-tree -r --name-only "$HEAD_SHA" > /tmp/changed-files.txt
+          fi
+          cat /tmp/changed-files.txt
+
+          if grep -Eq '^(backend/|frontend/|\.github/workflows/)' /tmp/changed-files.txt; then
+            echo "run_app_checks=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "run_app_checks=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Run backend unit tests
+        if: steps.changes.outputs.run_app_checks == 'true'
+        run: npm test --prefix backend
+
+      - name: Build frontend and backend site
+        if: steps.changes.outputs.run_app_checks == 'true'
+        run: npm run build --prefix backend
+
+      - name: Validate frontend translations
+        if: steps.changes.outputs.run_app_checks == 'true'
+        run: npm run check:i18n --prefix frontend
