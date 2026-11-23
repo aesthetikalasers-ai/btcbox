@@ -1490,7 +1490,7 @@ test("language preference updates the document locale and persists across reload
   await expect.poll(() => page.locator("html").getAttribute("lang")).toBe("en-US");
 
   await page.getByRole("button", { name: "Language" }).click();
-  await page.getByRole("option", { name: "日本語" }).click();
+  await page.getByRole("dialog").getByRole("option", { name: "日本語" }).click();
   await expect(page.locator("html")).toHaveAttribute("lang", "ja-JP");
   await expect(page.getByRole("heading", { name: "マーケット概要", exact: true })).toBeVisible();
 
@@ -1513,7 +1513,7 @@ test("a first-time visitor sees Japanese and can switch to another language", as
   await expect(page.getByRole("heading", { name: "マーケット概要", exact: true })).toBeVisible();
 
   await page.getByRole("button", { name: "言語" }).click();
-  await page.getByRole("option", { name: "Deutsch" }).click();
+  await page.getByRole("dialog").getByRole("option", { name: "Deutsch" }).click();
   await expect(page.locator("html")).toHaveAttribute("lang", "de-DE");
   await expect(page.getByRole("heading", { name: "Marktübersicht", exact: true })).toBeVisible();
   await page.reload();
@@ -1524,7 +1524,7 @@ test("a first-time visitor sees Japanese and can switch to another language", as
 test("login screen switches to native Japanese copy without changing authentication controls", async ({ page }) => {
   await page.goto("/login");
   await page.getByRole("button", { name: "Language" }).click();
-  await page.getByRole("option", { name: "日本語" }).click();
+  await page.getByRole("dialog").getByRole("option", { name: "日本語" }).click();
 
   await expect(page.locator("html")).toHaveAttribute("lang", "ja-JP");
   await expect(page.getByRole("heading", { name: "お帰りなさい", exact: true })).toBeVisible();
