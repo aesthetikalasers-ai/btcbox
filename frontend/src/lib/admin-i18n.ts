@@ -76,6 +76,8 @@ const messages: Record<string, string> = {
   "Search a user, then select an asset row for staff manual credit.": "搜索用户并选择资产行，进行人工入账。",
   "Search UID or email": "搜索用户编号或邮箱",
   "Search": "搜索",
+  "Search admin features": "搜索后台功能",
+  "No matching admin features": "没有找到匹配的后台功能",
   "Searching…": "搜索中…",
   "Retry same adjustment": "沿用原请求重试",
   "Saved adjustment request is unreadable. Check the financial audit log before continuing.": "已保存的调整请求无法读取，请先检查资金审计记录再继续。",
