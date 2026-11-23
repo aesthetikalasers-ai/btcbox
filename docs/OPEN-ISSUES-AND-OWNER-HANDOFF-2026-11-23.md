@@ -34,7 +34,7 @@
 - 不得直接刪除 email 註冊/登入/恢復測試。後端 `/api/register` 仍刻意 fail-closed（防止繞過郵箱確認及 service-role 直接建戶）；正式郵箱註冊應走 Supabase 公開 Auth `signUp`，確認郵箱後由現有 `/api/supabase-login` 驗證身份並初始化 BTCBOX 帳戶。已更新 `backend/tests/google-only-auth.test.js` 和 `backend/tests/spot-trading-live-refresh.test.js` 中 3 項禁止 `signUpWithEmail` 的舊斷言，改為要求 Supabase email signup 存在；這些測試仍需最新 Backend CI 證明通過。不可為了開放註冊而開啟 `/api/register` 直寫。
 
 ### 語言字典核對
-- `frontend/src/lib/locales/vi.json` 在整合分支曾缺失，但 `check-i18n.mjs` 仍要求保留。已從主線恢復並補齊至 1,806 keys；目前 7 種語言可在 UI 選擇，越南語字典保留但語言入口仍按現有規格隱藏。
+- `frontend/src/lib/locales/vi.json` 在整合分支曾缺失，但 `check-i18n.mjs` 仍要求保留。已從主線恢復並補齊至 1,814 keys；目前 7 種語言可在 UI 選擇，越南語字典保留但語言入口仍按現有規格隱藏。
 - 已將 `npm run check:i18n` 加入前端 CI，需由新 run 證明 8 份字典、靜態 `t()` key 與保留字典檢查通過。
 
 ### 文件缺口
@@ -59,4 +59,10 @@
 - 不觸碰正式 Supabase 資料，不執行正式遷移。
 
 ## 完成記錄
-目前：已恢復協作規則與交接文件；已補上 React Supabase email signup 表單及 provider 方法；新增郵箱確認 callback 後經 `/api/supabase-login` 初始化 BTCBOX 帳戶的 E2E 測試，且確認不呼叫舊 `/api/register`。已更新後端 3 項舊 Google-only UI 斷言；交易中心與首頁入口統一為 Contract。7 份啟用語言字典與恢復的越南語舊字典目前均為 1,806 個鍵。Playwright 已改用 production preview；行情 fixture、客服私有 API、公開 Earn、語言選擇器、OAuth callback 回復、2FA 與 K 線時間測試已修正。最新 head 的 CI 尚待完成，Google/Email 同身份鏈接、真實 SMTP 確認及全套資金/客服驗收仍未完成；不得宣告認證或整體整合驗收通過。
+目前：已恢復協作規則與交接文件；已補上 React Supabase email signup 表單及 provider 方法；新增郵箱確認 callback 後經 `/api/supabase-login` 初始化 BTCBOX 帳戶的 E2E 測試，且確認不呼叫舊 `/api/register`。已更新後端 3 項舊 Google-only UI 斷言；交易中心與首頁入口統一為 Contract。7 份啟用語言字典與恢復的越南語舊字典目前均為 1,814 個鍵。Playwright 已改用 production preview；行情 fixture、客服私有 API、公開 Earn、語言選擇器、OAuth callback 回復、2FA 與 K 線時間測試已修正。最新 head 的 CI 尚待完成，Google/Email 同身份鏈接、真實 SMTP 確認及全套資金/客服驗收仍未完成；不得宣告認證或整體整合驗收通過。
+
+### Supabase 邮件与身份链接核对
+- Supabase 项目状态为 `ACTIVE_HEALTHY`。只读认证日志记录 7 次确认邮件发送事件；同一检查窗口有 18 次 `over_email_send_rate_limit`（注册确认 13 次、密码恢复 5 次）。未修改 SMTP、认证限流或生产设置。
+- 已在前端加入限流友好提示，并补齐 8 份字典翻译。该提示只解释等待与检查收件箱，不放宽服务端安全限制。
+- Supabase 官方规则：相同且已验证的邮箱可自动关联身份；已有 Google 账户增加邮箱密码应更新同一 Supabase 用户密码，不能另建 BTCBOX 账户。真实账户的同身份登录仍需实际验收。
+- 功能分支 CI 改为由 PR 触发，push 检查仅保留 main，避免同一提交重复跑完整前后端测试。

@@ -1812,5 +1812,6 @@
   "Country code (optional)": "国家/地区代码（可选）",
   "US routing number (optional)": "美国银行路由号码（可选）",
   "Bank branch address (optional)": "银行分行地址（可选）",
-  "Withdrawal result is unconfirmed. Keep the same request ID and check withdrawal history before retrying.": "提现结果尚未确认。请保留相同的请求 ID，并在重试前检查提现历史记录。"
+  "Withdrawal result is unconfirmed. Keep the same request ID and check withdrawal history before retrying.": "提现结果尚未确认。请保留相同的请求 ID，并在重试前检查提现历史记录。",
+  "Please wait before requesting another email. Check your inbox for an earlier link.": "请稍后再请求发送邮件。如果你已经请求过链接，请检查收件箱和垃圾邮件。"
 }

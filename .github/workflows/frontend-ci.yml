@@ -7,14 +7,8 @@ on:
       - "frontend/**"
       - ".github/workflows/frontend-ci.yml"
   push:
-    branches: 
+    branches:
       - main
-      - "integration/btcbox-acceptance-20261123"
-      - "feature/btcbox-complete-redesign"
-      - "feature/btcbox-react-frontend-20261104"
-      - "feat/btcbox-web3-auth-20261105"
-      - "fix/post-merge-db-bootstrap-seconds-20261106"
-      - "work/btcbox-unified-20261104"
     paths:
       - "frontend/**"
       - ".github/workflows/frontend-ci.yml"

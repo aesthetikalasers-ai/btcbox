@@ -1812,5 +1812,6 @@
   "Country code (optional)": "Código do país (opcional)",
   "US routing number (optional)": "Número de encaminhamento dos EUA (opcional)",
   "Bank branch address (optional)": "Morada da agência bancária (opcional)",
-  "Withdrawal result is unconfirmed. Keep the same request ID and check withdrawal history before retrying.": "O resultado do levantamento não está confirmado. Mantenha o mesmo ID do pedido e consulte o histórico de levantamentos antes de tentar novamente."
+  "Withdrawal result is unconfirmed. Keep the same request ID and check withdrawal history before retrying.": "O resultado do levantamento não está confirmado. Mantenha o mesmo ID do pedido e consulte o histórico de levantamentos antes de tentar novamente.",
+  "Please wait before requesting another email. Check your inbox for an earlier link.": "Aguarde antes de solicitar outro e-mail. Se já pediu um link, verifique a caixa de entrada e a pasta de spam."
 }

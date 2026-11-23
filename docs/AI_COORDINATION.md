@@ -67,3 +67,11 @@ PR #102 只有在下列項目全部完成後才可提出合併：
 3. 測試/CI 證據（run、job、commit、結果）。
 4. 跨模組接口不一致、衝突、重複代碼及安全風險。
 5. 下一責任人及下一步。
+
+
+## 2026-11-23 authentication and CI acceptance notes
+- Email signup must use Supabase Auth confirmation and then `/api/supabase-login`; never bypass confirmation with the legacy `/api/register` route.
+- Supabase links identities with the same verified email. For an existing Google account, add an email password to that same Supabase user via `updateUser({ password })`; do not create a second BTCBOX account. The backend must keep the same Supabase UUID mapping.
+- Auth rate-limit errors (`over_email_send_rate_limit`) must be translated to a clear wait/check-inbox message. Do not disable email confirmation or raise live rate limits just to make tests pass.
+- Read-only Supabase log audit on 2026-11-23 found 7 confirmation-mail send events and 18 email-send rate-limit events (13 confirmation, 5 recovery). No Supabase settings were changed.
+- Feature branches run the full frontend/backend checks through their PR; push-triggered CI is restricted to `main` to avoid running the same suite twice for each PR commit.

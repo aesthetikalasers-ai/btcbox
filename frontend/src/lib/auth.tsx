@@ -16,6 +16,7 @@ function friendlyAuthErrorMessage(cause: unknown): string {
   if (code === "GOOGLE_PROVIDER_UNAVAILABLE") return "Google sign-in is temporarily unavailable. Please try again later.";
   if (code === "INVALID_SUPABASE_IDENTITY") return "The sign-in identity could not be verified. Please try again.";
   const rawMessage = cause instanceof Error ? cause.message : "";
+  if (code === "over_email_send_rate_limit" || /email rate limit exceeded|only request this after/i.test(rawMessage)) return "Please wait before requesting another email. Check your inbox for an earlier link.";
   if (/already associated|already linked|already exists|identity.*already|account.*already|user already/i.test(rawMessage)) {
     return "This sign-in identity is already linked to another BTCBOX account. Please sign in with that account, or contact support to merge your sign-in methods.";
   }

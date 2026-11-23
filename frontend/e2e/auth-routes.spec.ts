@@ -251,12 +251,31 @@ test("confirmed email registration exchanges the Supabase identity and provision
   });
   await page.route("**/api/account", route => route.fulfill({ status: 200, json: authenticatedAccountFixture }));
 
+  await page.addInitScript(() => localStorage.setItem("sb-btcbox-e2e-auth-token-code-verifier", "e2e-pkce-code-verifier"));
   await page.goto("/auth/react-callback?intent=register&code=e2e-confirmed-email-code");
   await expect(page).toHaveURL(/\/me$/);
   await expect(page.getByRole("heading", { name: "My account" })).toBeVisible();
   await expect.poll(() => exchangeCalls).toBe(1);
   expect(exchangedAccessToken).toBe("e2e-confirmed-email-access-token");
   expect(directRegistrationCalls).toBe(0);
+});
+
+test("email signup explains Supabase confirmation rate limits without weakening protection", async ({ page }) => {
+  await page.route("**/auth/v1/signup", route => route.fulfill({
+    status: 429,
+    contentType: "application/json",
+    body: JSON.stringify({
+      code: "over_email_send_rate_limit",
+      message: "email rate limit exceeded",
+      msg: "For security purposes, you can only request this after 27 seconds.",
+    }),
+  }));
+  await page.goto("/register");
+  await page.getByLabel("Email", { exact: true }).fill("rate-limited@example.invalid");
+  await page.getByLabel("Password", { exact: true }).fill("StrongPassphrase123!");
+  await page.getByLabel("Confirm your password", { exact: true }).fill("StrongPassphrase123!");
+  await page.getByRole("button", { name: "Create account with email" }).click();
+  await expect(page.getByText("Please wait before requesting another email. Check your inbox for an earlier link.", { exact: true })).toBeVisible();
 });
 
 test("email password recovery sends a Supabase reset request", async ({ page }) => {
