@@ -243,7 +243,7 @@ async function assertPageAtWidth(
     expect(bookBox).not.toBeNull();
     expect(formBox).not.toBeNull();
     expect(ordersBox).not.toBeNull();
-    expect(formBox!.x + formBox!.width).toBeLessThanOrEqual(bookBox!.x + 2);
+    expect(bookBox!.x + bookBox!.width).toBeLessThanOrEqual(formBox!.x + 2);
     expect(Math.abs(bookBox!.y - formBox!.y)).toBeLessThanOrEqual(8);
     expect(ordersBox!.y).toBeGreaterThanOrEqual(Math.max(bookBox!.y + bookBox!.height, formBox!.y + formBox!.height) - 1);
     await expect(page.locator("#trade-chart-open")).toBeVisible();
