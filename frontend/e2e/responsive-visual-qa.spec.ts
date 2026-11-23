@@ -206,6 +206,32 @@ async function assertPageAtWidth(
     expect(entryBox!.width).toBeGreaterThanOrEqual(280);
   }
 
+  if (route.path === "/trade/BTCUSDT" && width >= 768 && width < 1280) {
+    // Tablet compact mode moves the chart to its drawer; no empty chart track
+    // may remain ahead of the visible order book and order-entry columns.
+    const workspace = page.locator(".exchange-workspace");
+    const orderbook = workspace.locator(":scope > .exchange-depth");
+    const orderForm = workspace.locator(":scope > .exchange-entry");
+    const orders = workspace.locator(":scope > .exchange-orders");
+    await expect(orderbook).toBeVisible();
+    await expect(orderForm).toBeVisible();
+    await expect(orders).toBeVisible();
+    const [bookBox, formBox, ordersBox, columns] = await Promise.all([
+      orderbook.boundingBox(),
+      orderForm.boundingBox(),
+      orders.boundingBox(),
+      workspace.evaluate((element) => getComputedStyle(element).gridTemplateColumns.trim().split(/\\s+/).length),
+    ]);
+    expect(columns, "Tablet compact workspace must use two columns, not reserve an empty chart track.").toBe(2);
+    expect(bookBox).not.toBeNull();
+    expect(formBox).not.toBeNull();
+    expect(ordersBox).not.toBeNull();
+    expect(bookBox!.x + bookBox!.width).toBeLessThanOrEqual(formBox!.x + 2);
+    expect(Math.abs(bookBox!.y - formBox!.y)).toBeLessThanOrEqual(8);
+    expect(ordersBox!.y).toBeGreaterThanOrEqual(Math.max(bookBox!.y + bookBox!.height, formBox!.y + formBox!.height) - 1);
+    await expect(page.locator("#trade-chart-open")).toBeVisible();
+  }
+
   if (route.path === "/trade/BTCUSDT" && width < 768) {
     // Phone trading deliberately keeps the order form and order book visible
     // together. The orders panel spans the full row below both columns.
