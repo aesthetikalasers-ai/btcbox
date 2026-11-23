@@ -27,10 +27,10 @@
 - 失敗分布包括認證路由、帳戶保護、資產/訂單資料斷言、交易中心產品名稱、首頁/交易頁 i18n、語言選單、客服提示及 K 線時間精度。必須逐個用例核實根因，不能把所有失敗歸類為同一問題。
 
 ### 認證實作與測試不一致
-- `frontend/src/features/auth/AuthPages.tsx` 當前登入表單允許 username/email + password，並有 forgot-password 表單；但註冊頁目前只顯示「Use Google or a supported wallet」提示，沒有 email signup 表單。
-- `frontend/src/lib/auth.tsx` 有 `signInWithEmail`、`requestPasswordReset` 和 `completePasswordRecovery`，但目前可見實作未見對應 email signup 方法；錯誤映射仍有 `GOOGLE_ONLY_AUTH` 文案。
+- 已在本分支新增 `AuthPages.tsx` 郵箱註冊表單，並在 `auth.tsx` 新增 `signUpWithEmail`：直接呼叫 Supabase Auth `signUp`，以 `/auth/react-callback?intent=register` 作為郵件確認回跳；不經過自建 service-role 註冊接口。需在 lint/build/E2E 及後端身份 provision 測試通過後才能標記完成。
+- `frontend/src/lib/auth.tsx` 現已包含 `signInWithEmail`、`signUpWithEmail`、`requestPasswordReset` 和 `completePasswordRecovery`。錯誤映射仍有 `GOOGLE_ONLY_AUTH` 文案，須確認僅代表舊 `/api/register` 直寫路徑被封鎖，不可再作為前端 Supabase 註冊的禁用條件。
 - `frontend/e2e/auth-routes.spec.ts` 同時存在「email signup uses Supabase confirmation」和「retired email authentication/recovery」的互相矛盾斷言。
-- 不得直接刪除 email 註冊/登入/恢復測試。需先檢查 backend auth callback、帳戶 provision、Supabase provider 設定及重複身份處理，再補齊端到端流程。
+- 不得直接刪除 email 註冊/登入/恢復測試。後端 `/api/register` 仍刻意 fail-closed（防止繞過郵箱確認及 service-role 直接建戶）；正式郵箱註冊應走 Supabase 公開 Auth `signUp`，確認郵箱後由現有 `/api/supabase-login` 驗證身份並初始化 BTCBOX 帳戶。需由 1號 AI 核對/更新 `backend/tests/google-only-auth.test.js` 中舊的 Google-only 斷言，並補充 email provider provisioning 測試；不可為了開放註冊而開啟 `/api/register` 直寫。
 
 ### 文件缺口
 - 本分支目前沒有 `docs/` 目錄；舊的 `docs/AI_COORDINATION.md` 與 `docs/OPEN-ISSUES-AND-OWNER-HANDOFF-2026-11-04.md` 在目前分支不可讀取。
@@ -54,4 +54,4 @@
 - 不觸碰正式 Supabase 資料，不執行正式遷移。
 
 ## 完成記錄
-目前：已恢復協作規則與交接文件；尚未宣告 41 項 CI 失敗已修復。後續每項修復以 commit SHA、CI run 和測試證據追加記錄。
+目前：已恢復協作規則與交接文件；已補上 React Supabase email signup 表單及 provider 方法（提交 `c82c051d`、`8c63c162`、`ef0baca4`）；尚未完成前端 E2E、後端舊測試更新及身份初始化驗證，故不可宣告郵箱註冊驗收完成。41 項歷史 CI 失敗仍待逐項修復。
