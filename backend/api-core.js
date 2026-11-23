@@ -4109,9 +4109,13 @@ async function handleRequest(event, context) {
       const status = normalizeKycStatus(u.kyc.status);
       const override = body.admin_override === true;
       const reason = String(body.reason || '').trim().slice(0, 300);
+      // A response-lost retry after a successful normal approval is safe to
+      // acknowledge as a duplicate; it must not create another audit event.
+      if (status === 'approved' && !override) {
+        return json({ ok: true, duplicate: true, audit_sync_pending: false, msg: 'KYC application was already approved.' });
+      }
       // Accept every in-review alias (pending / processing / under_review) as a
-      // normal approval target. Only non-in-review states (already approved,
-      // rejected, etc.) require the admin exception flow with a reason.
+      // normal approval target. Other states require the admin exception flow.
       if (!isKycInReview(status) && !override) return json({ ok: false, code: 'KYC_EXCEPTION_REQUIRED', msg: 'Only applications awaiting review can be approved directly. Other states require the admin exception flow with a reason.' }, 409);
       if (isKycInReview(status) && !u.kyc.document_path && !override) return json({ ok: false, code: 'KYC_DOCUMENT_REQUIRED', msg: 'A stored identity document image is required before approval.' }, 409);
       if (override && !reason) return json({ ok: false, code: 'ADMIN_REASON_REQUIRED', msg: 'A reason is required for admin exception approval.' }, 400);
