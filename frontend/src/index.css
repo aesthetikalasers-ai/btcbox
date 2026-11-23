@@ -2721,3 +2721,20 @@ a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
   .term-col--book.is-expanded > div:first-of-type { height: auto; }
   .term-col--book.is-expanded .term-book-body { flex: 0 0 auto; height: auto; max-height: none; }
 }
+
+/* Narrow-phone overrides must follow the shared mobile rules above: otherwise
+   their later 12px depth typography and wider grid gap win in the cascade. */
+@media (max-width: 359px) {
+  .spot-terminal .exchange-workspace {
+    grid-template-columns: minmax(0, 1.08fr) minmax(0, .92fr);
+    gap: 6px;
+  }
+  .spot-terminal .exchange-depth .spot-book-row {
+    gap: 3px;
+    font-size: 11px;
+  }
+  .spot-terminal .exchange-depth .spot-book-columns {
+    gap: 3px;
+    font-size: 9px;
+  }
+}
