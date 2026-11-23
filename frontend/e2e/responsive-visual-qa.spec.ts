@@ -2,11 +2,10 @@ import { expect, test, type Page } from "@playwright/test";
 import fs from "node:fs";
 import path from "node:path";
 
-const fixedWidths = [375, 390, 430, 768, 1366, 1440, 1920];
+const fixedWidths = [768, 1024, 1279, 1280, 1366, 1440, 1920];
 const mobileWidths = [320, 360, 375, 390, 430];
 const continuityWidths = [
-  320, 360, 375, 390, 414, 430, 480, 540, 600, 640, 680, 720,
-  768, 820, 860, 899, 900, 960, 1024, 1100, 1180, 1280, 1366,
+  768, 820, 860, 899, 900, 960, 1024, 1100, 1180, 1279, 1280, 1366,
   1440, 1536, 1680, 1920,
 ];
 const routes = [
@@ -131,6 +130,59 @@ async function installVisualApiMocks(page: Page) {
     });
   });
   await page.route("https://btcbox-e2e.invalid/**", (route) => route.abort());
+}
+
+async function installInteractiveTradeApiMocks(page: Page) {
+  const now = Math.floor(Date.now() / 1000);
+  const bases = [
+    { base_asset: "BTC", quote_asset: "USDT", enabled: true },
+    { base_asset: "ETH", quote_asset: "USDT", enabled: true },
+    { base_asset: "SOL", quote_asset: "USDT", enabled: true },
+  ];
+  const markets = [
+    { sym: "BTC", price: 65000, chg: 1.2, high: 66000, low: 64000, vol: "100", source: "e2e" },
+    { sym: "ETH", price: 3200, chg: 0.8, high: 3300, low: 3100, vol: "200", source: "e2e" },
+    { sym: "SOL", price: 150, chg: -0.4, high: 155, low: 145, vol: "300", source: "e2e" },
+  ];
+  const pairRules = bases.map((pair) => ({
+    ...pair,
+    price_tick: "0.01",
+    quantity_step: "0.000001",
+    min_quantity: "0.000001",
+    min_notional: "1",
+    min_limit_price: null,
+    max_limit_price: null,
+  }));
+  await page.route("**/api/market/pairs", (route) => route.fulfill({
+    status: 200,
+    contentType: "application/json",
+    body: JSON.stringify({ ok: true, markets: pairRules, source: "e2e" }),
+  }));
+  await page.route("**/api/market", (route) => route.fulfill({
+    status: 200,
+    contentType: "application/json",
+    body: JSON.stringify({
+      ok: true,
+      markets,
+      data: Object.fromEntries(markets.map((market) => [market.sym, {
+        ts: now,
+        providerTs: now,
+        source: "e2e",
+      }])),
+    }),
+  }));
+  await page.route("**/api/depth?*", (route) => route.fulfill({
+    status: 200,
+    contentType: "application/json",
+    body: JSON.stringify({
+      ok: true,
+      source: "e2e",
+      snapshotTs: now,
+      providerTs: now,
+      asks: [["65001.00", "0.20"], ["65002.00", "0.35"]],
+      bids: [["64999.00", "0.25"], ["64998.00", "0.40"]],
+    }),
+  }));
 }
 
 async function assertPageAtWidth(
@@ -303,6 +355,8 @@ async function assertPageAtWidth(
     expect(precisionBox!.x + precisionBox!.width).toBeLessThanOrEqual(viewBox!.x + 1);
     expect(formBox!.width, "Phone order entry must retain usable width.").toBeGreaterThan(120);
     expect(bookBox!.width, "Phone order book must retain usable width.").toBeGreaterThan(100);
+    const formShare = formBox!.width / (formBox!.width + bookBox!.width);
+    expect(Math.abs(formShare - 0.55), "Rendered phone columns must measure 55:45 (order entry:order book).").toBeLessThanOrEqual(0.015);
     expect(formBox!.x + formBox!.width, "Order entry must occupy the left column.").toBeLessThanOrEqual(bookBox!.x + 2);
     expect(Math.abs(formBox!.y - bookBox!.y), "Order entry and order book must share the same row.").toBeLessThanOrEqual(8);
     expect(
@@ -313,6 +367,17 @@ async function assertPageAtWidth(
       ordersBox!.width,
       "Open orders must span the trading workspace.",
     ).toBeGreaterThan(workspaceBox!.width - 16);
+
+    const buySide = sideButtons.nth(0);
+    const sellSide = sideButtons.nth(1);
+    await buySide.click();
+    await expect(buySide).toHaveAttribute("aria-pressed", "true");
+    await expect(sellSide).toHaveAttribute("aria-pressed", "false");
+    await expect(orderForm.locator(".spot-submit")).toContainText("Buy BTC");
+    await sellSide.click();
+    await expect(sellSide).toHaveAttribute("aria-pressed", "true");
+    await expect(buySide).toHaveAttribute("aria-pressed", "false");
+    await expect(orderForm.locator(".spot-submit")).toContainText("Sell BTC");
 
     const chartTrigger = page.locator("#trade-chart-open");
     await expect(chartTrigger, "Phone spot trading must expose the chart drawer trigger.").toBeVisible();
@@ -396,6 +461,52 @@ for (const route of routes) {
     }
   });
 }
+
+test("trade interaction QA mobile spot market selection and order-book handoff", async ({ page }) => {
+  test.skip(test.info().project.name !== "mobile-chromium", "Trade interaction QA runs in the mobile touch project.");
+  await page.setViewportSize({ width: 390, height: 844 });
+  await installVisualApiMocks(page);
+  await installInteractiveTradeApiMocks(page);
+  await page.goto("/trade/BTCUSDT", { waitUntil: "domcontentloaded" });
+
+  const askRow = page.locator('.exchange-depth [data-side="ask"] .spot-book-row').first();
+  const bidRow = page.locator('.exchange-depth [data-side="bid"] .spot-book-row').first();
+  await expect(askRow).toBeVisible();
+  await expect(bidRow).toBeVisible();
+  const priceInput = page.getByRole("textbox", { name: "Limit price (USDT)" });
+  const buySide = page.locator(".spot-entry-head .spot-side button").nth(0);
+  const sellSide = page.locator(".spot-entry-head .spot-side button").nth(1);
+
+  const askPrice = await askRow.locator("span").first().getAttribute("title");
+  expect(askPrice).toBe("65001.00");
+  await askRow.click();
+  await expect(priceInput).toHaveValue("65001.00");
+  await expect(buySide).toHaveAttribute("aria-pressed", "true");
+  await expect(sellSide).toHaveAttribute("aria-pressed", "false");
+
+  const bidPrice = await bidRow.locator("span").first().getAttribute("title");
+  expect(bidPrice).toBe("64999.00");
+  await bidRow.click();
+  await expect(priceInput).toHaveValue("64999.00");
+  await expect(sellSide).toHaveAttribute("aria-pressed", "true");
+  await expect(buySide).toHaveAttribute("aria-pressed", "false");
+
+  await page.getByRole("button", { name: "Select market" }).click();
+  const dialog = page.getByRole("dialog", { name: "Select market" });
+  const options = dialog.locator(".term-pair-option");
+  await expect(options).toHaveCount(3);
+  await expect(options.nth(0)).toContainText("BTC/USDT");
+  await expect(options.nth(1)).toContainText("ETH/USDT");
+  await expect(options.nth(2)).toContainText("SOL/USDT");
+
+  const search = dialog.getByRole("searchbox", { name: "Search BTCBOX" });
+  await search.fill("ETH");
+  await expect(options).toHaveCount(1);
+  await expect(options.first()).toContainText("ETH/USDT");
+  await search.fill("");
+  await options.filter({ hasText: "SOL/USDT" }).click();
+  await expect(page).toHaveURL(/\\/trade\\/SOLUSDT$/);
+});
 
 // Dense width sampling checks that layouts transition continuously rather than
 // passing only at the seven required snapshot widths. These are desktop-browser
