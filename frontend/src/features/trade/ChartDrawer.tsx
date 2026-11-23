@@ -52,6 +52,7 @@ export function ChartDrawer({ symbol = "BTC/USDT", marketType = "perpetual", ope
   const [candles, setCandles] = useState<MarketCandle[]>([]);
   const [chartLoading, setChartLoading] = useState(true);
   const [chartError, setChartError] = useState("");
+  const [retryTick, setRetryTick] = useState(0);
 
   const pairSymbol = useMemo(() => {
     const normalized = symbol.replace(/[^A-Z0-9]/gi, "").toUpperCase();
@@ -106,7 +107,8 @@ export function ChartDrawer({ symbol = "BTC/USDT", marketType = "perpetual", ope
     return () => { chart.remove(); chartRef.current = null; seriesRef.current = null; };
   }, []);
 
-  // Load live candles from the market service when the pair or interval changes.
+  // Load only provider-verified candles. An unavailable/empty response is
+  // rendered as an explicit error state; this component never creates sample data.
   useEffect(() => {
     let cancelled = false;
     const controller = new AbortController();
@@ -116,14 +118,38 @@ export function ChartDrawer({ symbol = "BTC/USDT", marketType = "perpetual", ope
     getKlines(pairSymbol, chartInterval, controller.signal)
       .then((rows) => { if (!cancelled) setCandles(rows); })
       .catch((reason: unknown) => {
-        if (cancelled) return;
+        if (cancelled || (reason instanceof Error && reason.name === "AbortError")) return;
         setCandles([]);
-        setChartError(reason instanceof Error && reason.name !== "AbortError" ? reason.message : "Chart data is temporarily unavailable.");
+        setChartError(reason instanceof Error ? reason.message : "Chart data is temporarily unavailable.");
       })
       .finally(() => { if (!cancelled) setChartLoading(false); });
     return () => { cancelled = true; controller.abort(); };
-  }, [pairSymbol, chartInterval]);
+  }, [pairSymbol, chartInterval, retryTick]);
 
+  // Refresh while the mobile chart is expanded. Requests are serialized and
+  // aborted on close, pair change, or unmount.
+  useEffect(() => {
+    if (snap !== "expanded") return;
+    let cancelled = false;
+    let refreshing = false;
+    let pending: AbortController | undefined;
+    const refresh = () => {
+      if (cancelled || refreshing) return;
+      refreshing = true;
+      const controller = new AbortController();
+      pending = controller;
+      getKlines(pairSymbol, chartInterval, controller.signal)
+        .then((rows) => { if (!cancelled) { setCandles(rows); setChartError(""); } })
+        .catch((reason: unknown) => {
+          if (cancelled || (reason instanceof Error && reason.name === "AbortError")) return;
+          setCandles([]);
+          setChartError(reason instanceof Error ? reason.message : "Chart data is temporarily unavailable.");
+        })
+        .finally(() => { refreshing = false; });
+    };
+    const timer = window.setInterval(refresh, 30000);
+    return () => { cancelled = true; pending?.abort(); window.clearInterval(timer); };
+  }, [pairSymbol, chartInterval, snap]);
   // (Re)build series + data when candles or timeframe change.
   useEffect(() => {
     const chart = chartRef.current;
@@ -294,12 +320,22 @@ export function ChartDrawer({ symbol = "BTC/USDT", marketType = "perpetual", ope
             mobile (which starts collapsed); it has zero height when collapsed. */}
         <div className="relative min-h-0 flex-1">
           <div ref={containerRef} className="absolute inset-0" />
+          {!collapsed && candles.length > 0 ? (
+            <div className="pointer-events-none absolute left-2 top-1 z-10 rounded bg-black/55 px-1.5 py-0.5 text-[9px] text-brand-text-muted">
+              {t("Source")}: {candles[candles.length - 1].source || "—"} · {new Date(candles[candles.length - 1].time).toLocaleTimeString()}
+            </div>
+          ) : null}
           {!collapsed && (
             <>
               {chartLoading ? (
                 <div className="pointer-events-none absolute inset-0 flex items-center justify-center text-xs text-brand-text-muted" role="status">{t("Loading…")}</div>
               ) : chartError ? (
-                <div className="pointer-events-none absolute inset-0 flex items-center justify-center px-4 text-center text-xs text-brand-danger" role="alert">{t(chartError)}</div>
+                <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-brand-surface/80 px-4 text-center text-xs text-brand-danger" role="alert">
+                  <span>{t(chartError)}</span>
+                  <button type="button" className="min-h-9 rounded-md border border-brand-border px-3 text-brand-text" onClick={() => setRetryTick((value) => value + 1)}>{t("Retry")}</button>
+                </div>
+              ) : !candles.length ? (
+                <div className="absolute inset-0 flex items-center justify-center px-4 text-center text-xs text-brand-text-muted" role="status">{t("No verified candle data is available for this market.")}</div>
               ) : null}
             </>
           )}
