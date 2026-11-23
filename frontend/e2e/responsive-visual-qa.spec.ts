@@ -155,7 +155,7 @@ async function assertPageAtWidth(
   if (["/home", "/markets", "/trade/BTCUSDT", "/assets", "/me"].includes(route.path)) {
     const mobileNavigation = page.locator(".bf-bottom-nav");
     const desktopProducts = page.locator('header nav[aria-label="Trade products"]');
-    const desktopAssets = page.locator('header a[href="/assets"]');
+    const desktopAssets = page.locator('header a[href="/assets"]:visible');
     if (width < 768) {
       await expect(mobileNavigation, "Phone pages must use the five-item bottom navigation.").toBeVisible();
       await expect(desktopProducts, "Desktop product navigation must stay hidden on phones.").toBeHidden();
