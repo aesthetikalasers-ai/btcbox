@@ -369,9 +369,9 @@ export interface UsdtUsdRate { rate: number | null; source: string; stale?: bool
  * USDT → USD conversion rate for the "≈ $" hint under the order-book mid price.
  *
  * The trading pair is quoted in USDT, which is not exactly one dollar, so the
- * hint must be computed rather than echoed. On any failure this returns the
- * caller's neutral fallback (0.99999) with `stale: true` — the UI then still
- * shows an approximation instead of a blank or an invented exact figure.
+ * hint must be computed rather than echoed. On a cold-start provider outage this
+ * returns `rate: null`, so the UI can omit the hint instead of showing a guessed
+ * conversion.
  */
 export async function getUsdtUsdRate(signal?: AbortSignal): Promise<UsdtUsdRate> {
   try {
