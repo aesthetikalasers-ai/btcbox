@@ -101,7 +101,7 @@ test('order book snapshots normalize provider levels and expose source-specific 
   assert.ok(api.includes('const normalizeLevels = (rows: unknown[])'));
   assert.ok(api.includes('INVALID_ORDER_BOOK'));
   assert.ok(pages.includes('const providerTimestampMs=ticker?.providerTs?ticker.providerTs*1000:null;'));
-  assert.ok(pages.includes('!providerTimestampMs||!Number.isFinite(providerTimestampMs)'));
+  assert.ok(pages.includes('!serverSnapshotTimestampMs||!Number.isFinite(serverSnapshotTimestampMs)'));
   assert.ok(pages.includes('(!ticker||marketSnapshotStale)&&!pendingIntent'));
   assert.ok(pages.includes('displayTicker?.source'), 'ticker provider source must be visible to the trader');
   assert.ok(pages.includes('const orderBookSnapshotStale=!!book&&(!book.snapshotTs||marketClockNow-book.snapshotTs*1000>90_000)'));
