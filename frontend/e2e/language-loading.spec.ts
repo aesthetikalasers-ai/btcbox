@@ -35,7 +35,7 @@ test('languages load on demand, cache in memory and persist across navigation an
   await page.locator('a[href="/home"]:visible').last().click();
   await expect(page.locator('html')).toHaveAttribute('lang', 'de-DE');
   await page.reload();
-  await expect(page.getByRole('button', { name: 'Language', exact: true })).toContainText('Deutsch');
+  await expect(page.getByRole('button', { name: 'Sprache', exact: true })).toContainText('Deutsch');
   await expect(page.locator('html')).toHaveAttribute('lang', 'de-DE');
 });
 
