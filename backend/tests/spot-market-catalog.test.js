@@ -118,7 +118,7 @@ test('spot chart preserves provider provenance and rejects impossible OHLC range
   assert.ok(api.includes('low > Math.min(open, close, high)'));
   assert.ok(api.includes('const source = typeof payload.source === "string" ? payload.source : undefined'));
   assert.ok(pages.includes('candles[candles.length-1]?.source'), 'chart provider source must be visible to the trader');
-  assert.ok(pages.includes('setCandles([]);setChartFeedWarning("Chart data is temporarily unavailable.")'));
+  assert.ok(pages.includes('setCandles([]);setChartFeedWarning(t("Chart data is temporarily unavailable."))'));
   assert.ok(!pages.includes("showing the last confirmed candles"));
 });
 
