@@ -1433,8 +1433,8 @@ a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
     grid-template-columns: minmax(70px,1fr) minmax(0,1fr);
     gap: 4px;
     /* Spec §04/§E: order-book numerals are 12px on both desktop and phone.
-       A smaller size here used to clip the price precision on 360–430px. */
-    font-size: 11px;
+       Keep the price and quantity legible at the narrowest supported widths. */
+    font-size: 12px;
   }
   .spot-book-columns { margin-bottom: 2px; padding: 0 2px; font-size: 10px; }
   .spot-book-columns span:first-child { text-align: left; }
@@ -1446,7 +1446,7 @@ a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
     line-height: 28px;
     padding: 0 2px;
     border-radius: 2px;
-    font-size: 11px;
+    font-size: 12px;
   }
   .spot-book-row span:first-child { text-align: left; }
   .spot-mid-price {
