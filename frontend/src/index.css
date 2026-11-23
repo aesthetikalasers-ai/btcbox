@@ -2301,6 +2301,8 @@ a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
   .term-book-body > [data-book-side][class*="hidden"] { display: none; }
   .term-book-body .spot-book-row {
     position: relative;
+    /* Explicitly retain the 12px minimum for terminal depth numerals on phones. */
+    font-size: 12px;
     /* 24px rows (was 21px): the phone book is read with a thumb, and 21px rows
        crowded the tap targets and the numerals together. 24px still fits six
        levels per side plus the mid bar on a 375px-wide screen. */
