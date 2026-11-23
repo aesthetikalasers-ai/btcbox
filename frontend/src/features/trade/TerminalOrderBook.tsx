@@ -202,7 +202,7 @@ export function TerminalOrderBook({
   onPrecisionChange: (value: DepthPrecision) => void;
   view: BookView;
   onViewChange: (value: BookView) => void;
-  onPickPrice: (price: string, side: "ask" | "bid") => void;
+  onPickPrice: (price: string, side?: "ask" | "bid") => void;
   /** Verified USDT→USD rate for the "≈ $" hint; null means unavailable. */
   usdtUsd?: number | null;
   rows?: number;
