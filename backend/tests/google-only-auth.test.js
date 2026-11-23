@@ -14,7 +14,7 @@ test('legacy static auth support files remain valid JavaScript', () => {
   }
 });
 
-test('React registration is Google/wallet only while existing email-password sign-in remains available', () => {
+test('React registration supports Supabase email, Google and wallet while email-password sign-in remains available', () => {
   const authPage = fs.readFileSync(path.resolve(root, '..', 'frontend/src/features/auth/AuthPages.tsx'), 'utf8');
   assert.ok(authPage.includes('signInWithUsername'));
   assert.ok(authPage.includes('Google'));
@@ -26,9 +26,9 @@ test('React registration is Google/wallet only while existing email-password sig
   assert.ok(authPage.includes('signInWithWeb3'));
   assert.ok(authPage.includes('Username or email'));
   assert.ok(authPage.includes('requestPasswordReset'));
-  assert.ok(!authPage.includes('signUpWithEmail'));
-  assert.ok(!authPage.includes('Create account with email'));
-  assert.ok(authPage.includes('Use Google or a supported wallet to create your BTCBOX account.'));
+  assert.ok(authPage.includes('signUpWithEmail'));
+  assert.ok(authPage.includes('Create account with email'));
+  assert.ok(authPage.includes('emailRedirectTo: window.location.origin + "/auth/react-callback?intent=register"'));
 });
 
 test('legacy static Google OAuth callback retains same-origin return-target safeguards', () => {
@@ -171,7 +171,7 @@ test('Web3 provider probe checks all Supabase error fields without accepting unr
   assert.ok(core.includes("messages.some(message => /web3 provider is disabled|provider is disabled/.test(message))"));
   assert.ok(!core.includes("too short).*(message|signature)"));
 });
-test('React auth keeps Google/wallet registration and linked email-password login', () => {
+test('React auth supports email signup plus Google/wallet and linked email-password login', () => {
   const backend = read('api-core.js');
   const auth = read('../frontend/src/lib/auth.tsx');
   const pages = read('../frontend/src/features/auth/AuthPages.tsx');
@@ -191,15 +191,15 @@ test('React auth keeps Google/wallet registration and linked email-password logi
   assert.ok(auth.includes('linkGoogleIdentity'));
   assert.ok(auth.includes('linkWeb3Identity'));
   assert.ok(auth.includes('signInWithEmail') && auth.includes('setSupabaseLoginPassword'));
-  assert.ok(!auth.includes('signUpWithEmail'));
-  assert.ok(!auth.includes('emailRedirectTo: window.location.origin + "/auth/react-callback?intent=register"'));
+  assert.ok(auth.includes('signUpWithEmail'));
+  assert.ok(auth.includes('emailRedirectTo: window.location.origin + "/auth/react-callback?intent=register"'));
   assert.ok(backend.includes('function getSupabaseLoginProvider(identity)'));
   assert.ok(backend.includes('const authProvider = getSupabaseLoginProvider(identity);'));
   assert.ok(auth.includes('requestPasswordReset') && auth.includes('completePasswordRecovery'));
   assert.ok(auth.includes('flowType: "pkce"'));
   for (const required of ['Username or email', 'Google', 'Connect Ethereum wallet', 'Connect Solana wallet']) assert.ok(pages.includes(required), 'auth page must expose ' + required);
-  assert.ok(pages.includes('Use Google or a supported wallet to create your BTCBOX account.'));
-  assert.ok(!pages.includes('Create account with email'));
+  assert.ok(pages.includes('Create account with email'));
+  assert.ok(pages.includes('Create account with email'));
   assert.ok(auth.includes('eip6963:announceProvider'));
   assert.ok(auth.includes('eip6963:requestProvider'));
   assert.ok(auth.includes('getInjectedSolanaWallet'));
