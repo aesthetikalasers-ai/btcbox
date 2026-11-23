@@ -422,8 +422,6 @@ a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
 @media (max-width:392.98px) {
   .exchange-depth { padding-bottom:12px; }
 }
-/* Mobile-only trade tabs (Buy | Sell | Order book). Shown under 768px only. */
-.spot-mobile-tabs { display:none; }
 /* Spec §2/§7: the trading terminal is full-bleed — 16px page margins and 8px
    card gaps. The generic PageFrame caps content at `max-w-[1520px]` and pads
    32px, which wasted ~400px on a 1920 display and forced every card to scroll
