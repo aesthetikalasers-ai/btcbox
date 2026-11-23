@@ -127,3 +127,20 @@ test('customer payout-address endpoints use dedicated sensitive permissions, sep
   assert.ok(tab, 'global deposit configuration tab must be present');
   assert.equal(tab[1], 'system_config.read');
 });
+
+ 
+test('confirmed admin balance adjustment is not retried with a new request ID when only the profile refresh fails', () => {
+  const start = adminPage.indexOf('const submitBalanceAdjustment = async');
+  const end = adminPage.indexOf('const submitFreezeToggle', start);
+  assert.ok(start >= 0 && end > start);
+  const handler = adminPage.slice(start, end);
+  const confirmed = handler.indexOf('setNotice(result.msg || "Balance adjusted.")');
+  const refresh = handler.indexOf('await refreshSelectedUser(uid)', confirmed);
+  const outerCatch = handler.indexOf('} catch (cause)', refresh);
+  assert.ok(confirmed >= 0 && refresh > confirmed && outerCatch > refresh);
+  const refreshCatch = handler.slice(refresh, outerCatch);
+  assert.ok(refreshCatch.includes('The balance operation was confirmed.'));
+  assert.ok(refreshCatch.includes('do not submit the adjustment again.'));
+  assert.ok(!refreshCatch.includes('Retry the same operation'));
+  assert.ok(handler.indexOf('window.localStorage.removeItem(storageKey)') < confirmed);
+});
