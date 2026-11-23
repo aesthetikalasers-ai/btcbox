@@ -265,3 +265,20 @@ test('admin user profile includes permission-scoped withdrawal history from the 
   assert.ok(reactAdminPage.includes('TxID / reference'));
   assert.ok(apiCore.includes("safeUser.withdrawal_history = normalized.withdrawals.slice(0, 20)"));
 });
+
+
+test('admin user profile remains available when financial snapshot is unverified while manual balance writes stay ledger-only', () => {
+  const userStart = apiCore.indexOf("if (sub === 'user' && method === 'GET')");
+  const userEnd = apiCore.indexOf("// Stage the audit event", userStart);
+  const userRoute = apiCore.slice(userStart, userEnd);
+  assert.ok(userStart >= 0 && userEnd > userStart);
+  assert.doesNotMatch(userRoute, /readFinancialAccountSnapshot\(uid\)[\s\S]{0,350}return json\(\{ ok: false, code: 'FINANCIAL_BALANCE_SOURCE_UNVERIFIED'/);
+  assert.ok(userRoute.includes("safeUser.financial_balance_source = 'unverified'"));
+  assert.ok(userRoute.includes("delete safeUser.balances"));
+  const balanceStart = apiCore.indexOf("if (sub === 'user/balance' && method === 'POST')");
+  const balanceEnd = apiCore.indexOf("// POST /api/admin/user/freeze", balanceStart);
+  const balanceRoute = apiCore.slice(balanceStart, balanceEnd);
+  assert.ok(balanceRoute.includes("admin_adjustment_atomic"));
+  assert.ok(balanceRoute.includes("if (!financialWritesEnabled())"));
+  assert.doesNotMatch(balanceRoute, /saveDB\(db\)/);
+});
