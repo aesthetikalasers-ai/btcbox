@@ -231,7 +231,8 @@ test('active account and order pages clear stale snapshots before reload and aft
   assert.ok(assets.indexOf('setAccount(null)') < assets.indexOf('getAccount(controller.signal)'));
   assert.ok(orders.includes('setOrders([])'));
   assert.ok(orders.indexOf('setOrders([])') < orders.indexOf('getOrders(controller.signal)'));
-  assert.ok(orders.includes('if(!controller.signal.aborted)setOrders([]);'));
+  assert.ok(orders.includes('if (controller.signal.aborted || requestId !== requestIdRef.current) return;'));
+  assert.ok(orders.includes('setOrders([]);'));
 });
 
 test('withdrawal, KYC and support views clear stale private records before account refresh', () => {
