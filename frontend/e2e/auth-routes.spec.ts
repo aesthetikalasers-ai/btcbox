@@ -323,8 +323,8 @@ test("account overview stays signed out after the auth session bootstrap check",
 
   await page.goto("/me");
 
-  await expect(page.getByText("Sign in to continue")).toBeVisible();
-  await expect(page.getByRole("link", { name: "Sign in", exact: true })).toHaveAttribute("href", "/login");
+  await expect(page.getByText("Sign in to your account", { exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Sign in", exact: true })).toBeVisible();
   // AuthProvider performs one read-only account probe to restore an existing cookie session.
   // That bootstrap GET is expected while signed out; no write endpoint is involved.
   expect(privateAccountRequests).toEqual(["GET"]);
@@ -359,8 +359,10 @@ test("account page waits for session restoration before showing sign-in", async 
   await expect(page.getByText("Loading account profile…")).toBeVisible();
   await expect(page.getByText("Sign in to continue")).toHaveCount(0);
   releaseConfig();
-  await expect(page.getByRole("heading", { name: "Account profile" })).toBeVisible();
-  await expect(page.getByText("Sign in to continue")).toHaveCount(0);
+  await expect(page.getByRole("heading", { name: "My account" })).toBeVisible();
+  await expect(page.getByText("qa_user", { exact: true })).toBeVisible();
+  await expect(page.getByText("e2e-user-001", { exact: true })).toBeVisible();
+  await expect(page.getByText("Sign in to your account")).toHaveCount(0);
 });
 
 test("authenticated My account keeps profile hierarchy concise", async ({ page }) => {
@@ -371,7 +373,8 @@ test("authenticated My account keeps profile hierarchy concise", async ({ page }
   await page.goto("/me");
 
   await expect(page.getByRole("heading", { name: "My account" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Account profile" })).toBeVisible();
+  await expect(page.getByText("qa_user", { exact: true })).toBeVisible();
+  await expect(page.getByText("e2e-user-001", { exact: true })).toBeVisible();
   await expect(page.getByText("Manage your profile, verification, security and support.", { exact: true })).toHaveCount(0);
   await expect(page.getByText("Your BTCBOX identity and account-level security details.", { exact: true })).toHaveCount(0);
   await expect(page.getByText("Identity review status", { exact: true })).toHaveCount(0);
@@ -393,7 +396,7 @@ test("authenticated assets page renders only the mocked account balances", async
   await expect(page.getByText("10.00", { exact: true })).toBeVisible();
   await expect(page.getByText("USDT", { exact: true })).toBeVisible();
   await expect(page.getByText("0.002", { exact: true })).toBeVisible();
-  await expect(page.getByText("125.50 USDT", { exact: true })).toHaveCount(0);
+  await expect(page.getByText("125.50 USDT", { exact: true })).toBeVisible();
 });
 
 test("mobile asset and account pages keep balances readable and copy controls touch-sized", async ({ page }) => {
@@ -538,7 +541,7 @@ test("username login submits BTCBOX credentials to the username endpoint and sur
   await page.goto("/login");
   await page.getByLabel("Username or email").fill("qa_user");
   await page.getByLabel("Password", { exact: true }).fill("a-secure-test-password");
-  await page.getByRole("button", { name: "Sign in with username" }).click();
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
 
   await expect(page.getByRole("alert")).toContainText("Username or password is incorrect.");
   expect(submitted).toEqual({ username: "qa_user", password: "a-secure-test-password" });
@@ -1070,8 +1073,8 @@ test("registration experience stays clear and usable on a narrow mobile viewport
   await page.getByRole("button", { name: "Wallet" }).click();
   await expect(page.getByRole("button", { name: "Connect Ethereum wallet" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Connect Solana wallet" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Create account with email" })).toHaveCount(0);
-  await expect(page.getByLabel("Email address")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Create account with email" })).toBeVisible();
+  await expect(page.getByLabel("Email", { exact: true })).toBeVisible();
   const dimensions = await page.evaluate(() => ({ viewport: document.documentElement.clientWidth, content: document.documentElement.scrollWidth }));
   expect(dimensions.content).toBeLessThanOrEqual(dimensions.viewport);
 });
@@ -1389,15 +1392,15 @@ test("language preference updates the document locale and persists across reload
   await page.goto("/home");
   await expect.poll(() => page.locator("html").getAttribute("lang")).toBe("en-US");
 
-  const language = page.getByRole("combobox", { name: "Language" });
-  await language.selectOption("ja");
+  await page.getByRole("button", { name: "Language" }).click();
+  await page.getByRole("option", { name: "日本語" }).click();
   await expect(page.locator("html")).toHaveAttribute("lang", "ja-JP");
-  await expect(page.getByRole("navigation", { name: "メインナビゲーション" }).getByRole("link", { name: "ホーム" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "マーケット概要", exact: true })).toBeVisible();
 
   await page.reload();
   await expect(page.locator("html")).toHaveAttribute("lang", "ja-JP");
-  await expect(page.getByRole("combobox", { name: "言語" })).toHaveValue("ja");
-  await expect(page.getByRole("navigation", { name: "メインナビゲーション" }).getByRole("link", { name: "ホーム" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "言語" })).toContainText("日本語");
+  await expect(page.getByRole("heading", { name: "マーケット概要", exact: true })).toBeVisible();
 });
 
 test("a first-time visitor sees Japanese and can switch to another language", async ({ page }) => {
@@ -1410,31 +1413,32 @@ test("a first-time visitor sees Japanese and can switch to another language", as
   await page.goto("/home");
 
   await expect(page.locator("html")).toHaveAttribute("lang", "ja-JP");
-  await expect(page.getByRole("navigation", { name: "メインナビゲーション" }).getByRole("link", { name: "ホーム" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "マーケット概要", exact: true })).toBeVisible();
 
-  const language = page.getByRole("combobox", { name: "言語" });
-  await language.selectOption("de");
+  await page.getByRole("button", { name: "言語" }).click();
+  await page.getByRole("option", { name: "Deutsch" }).click();
   await expect(page.locator("html")).toHaveAttribute("lang", "de-DE");
+  await expect(page.getByRole("heading", { name: "Marktübersicht", exact: true })).toBeVisible();
   await page.reload();
-  await expect(page.locator("header select")).toHaveValue("de");
+  await expect(page.getByRole("button", { name: "Sprache" })).toContainText("Deutsch");
 });
 
 
 test("login screen switches to native Japanese copy without changing authentication controls", async ({ page }) => {
   await page.goto("/login");
-  const language = page.getByRole("combobox", { name: "Language" });
-  await language.selectOption("ja");
+  await page.getByRole("button", { name: "Language" }).click();
+  await page.getByRole("option", { name: "日本語" }).click();
 
   await expect(page.locator("html")).toHaveAttribute("lang", "ja-JP");
   await expect(page.getByRole("heading", { name: "お帰りなさい", exact: true })).toBeVisible();
-  await expect(page.getByLabel("ユーザー名")).toBeVisible();
+  await expect(page.getByLabel("ユーザー名またはメールアドレス")).toBeVisible();
   await expect(page.getByLabel("パスワード", { exact: true })).toBeVisible();
-  await expect(page.getByRole("button", { name: "ユーザー名でログイン" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "ログイン", exact: true })).toBeVisible();
   await expect(page.getByText("Googleログインは一時的に利用できません。")).toBeVisible();
 
   await page.reload();
   await expect(page.locator("html")).toHaveAttribute("lang", "ja-JP");
-  await expect(page.getByRole("combobox", { name: "言語" })).toHaveValue("ja");
+  await expect(page.getByRole("button", { name: "言語" })).toContainText("日本語");
   await expect(page.getByRole("heading", { name: "お帰りなさい", exact: true })).toBeVisible();
 });
 

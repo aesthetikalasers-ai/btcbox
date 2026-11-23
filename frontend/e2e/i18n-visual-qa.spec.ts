@@ -76,23 +76,34 @@ for (const locale of activeLocales) {
           });
           return;
         }
-        if (pathname === "/api/market" || pathname === "/api/market/pairs") {
+        if (pathname === "/api/market/pairs") {
           await route.fulfill({
             status: 200,
             contentType: "application/json",
             body: JSON.stringify({
               ok: true,
-              markets: [
-                {
-                  sym: "BTC",
-                  price: 50000,
-                  chg: 1.25,
-                  vol: 1000000,
-                  providerTs: 1700000000000,
-                  snapshotTs: 1700000000000,
-                },
-              ],
-              data: {},
+              markets: [{
+                base_asset: "BTC", quote_asset: "USDT", enabled: true,
+                price_tick: "0.01", quantity_step: "0.00001", min_quantity: "0.00001", min_notional: "5",
+              }],
+            }),
+          });
+          return;
+        }
+        if (pathname === "/api/market") {
+          const nowSeconds = Math.floor(Date.now() / 1000);
+          await route.fulfill({
+            status: 200,
+            contentType: "application/json",
+            body: JSON.stringify({
+              ok: true,
+              markets: [{
+                sym: "BTC", price: 50000, chg: 1.25, high: 51000, low: 49000,
+                vol: "1000000", source: "e2e-market-feed",
+              }],
+              data: {
+                BTC: { ts: nowSeconds, providerTs: nowSeconds, source: "e2e-market-feed" },
+              },
             }),
           });
           return;
