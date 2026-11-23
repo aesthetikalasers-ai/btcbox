@@ -29,7 +29,7 @@ jobs:
       - name: Verify all locale dictionaries
         run: npm run check:i18n
       - name: Verify exact decimal estimates
-        run: node --experimental-strip-types --test tests/decimal.test.ts
+        run: node --experimental-strip-types --test tests/decimal.test.ts tests/kline-data.test.ts
       - run: npm run build
       - name: Install Chromium for isolated browser tests
         run: npx playwright install --with-deps chromium
