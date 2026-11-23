@@ -51,3 +51,24 @@ test('spot cancel API forwards a stable client cancellation ID to the transactio
   assert.match(handler, /p_client_cancel_id: cancelId/);
   assert.match(handler, /MATCHING_ENGINE_UNAVAILABLE/);
 });
+
+test('spot submit acquires both advisory locks before loading the current market rule row', () => {
+  const start = migration.indexOf('create or replace function public.submit_limit_order_matching_v1');
+  const end = migration.indexOf('create or replace function public.cancel_limit_order_matching_v1', start);
+  const fn = migration.slice(start, end);
+  const marketLock = fn.indexOf('pg_advisory_xact_lock(hashtextextended(v_pair, 0))');
+  const marketLookup = fn.indexOf('select * into v_market');
+  assert.ok(marketLock >= 0 && marketLookup > marketLock);
+});
+
+test('cancel request identity is locked and replayed before loading or mutating an order', () => {
+  const start = migration.indexOf('create or replace function public.cancel_limit_order_matching_v1');
+  const end = migration.indexOf('revoke all on function public.submit_limit_order_matching_v1', start);
+  const fn = migration.slice(start, end);
+  const cancelLock = fn.indexOf("pg_advisory_xact_lock(hashtextextended(p_user_id||':'||p_client_cancel_id,0))");
+  const replayLookup = fn.indexOf('select * into v_cancel');
+  const orderLookup = fn.indexOf('select * into v_order');
+  assert.ok(cancelLock >= 0 && replayLookup > cancelLock && orderLookup > replayLookup);
+  assert.match(fn, /v_cancel\.order_id<>p_order_id OR v_cancel\.request_hash<>v_request_hash/i);
+  assert.match(fn, /insert into public\.financial_matching_cancel_requests\(user_id,client_cancel_id,order_id,request_hash,response\)/i);
+});
