@@ -1545,8 +1545,8 @@ export async function adminMarkWithdrawalPaid(token: string, input: { id: string
 export async function getAdminKyc(token: string, signal?: AbortSignal) {
   return adminRequest<{ ok: true; kycs: AdminKycRecord[] }>(token, "admin/kyc", { signal });
 }
-export async function adminApproveKyc(token: string, uid: string, reason = "") {
-  return adminRequest<{ ok: true }>(token, "admin/kyc/approve", { method: "POST", body: { uid, reason } });
+export async function adminApproveKyc(token: string, uid: string, options: { admin_override?: boolean; reason?: string } = {}) {
+  return adminRequest<{ ok: true; audit_sync_pending?: boolean; msg?: string }>(token, "admin/kyc/approve", { method: "POST", body: { uid, ...options } });
 }
 export async function adminRejectKyc(token: string, uid: string, reason: string) {
   return adminRequest<{ ok: true }>(token, "admin/kyc/reject", { method: "POST", body: { uid, reason } });
