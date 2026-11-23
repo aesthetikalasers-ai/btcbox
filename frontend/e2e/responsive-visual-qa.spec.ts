@@ -181,7 +181,7 @@ async function assertPageAtWidth(
       chartColumn.boundingBox(),
       bookColumn.boundingBox(),
       entryColumn.boundingBox(),
-      layout.evaluate((element) => getComputedStyle(element).gridTemplateColumns.trim().split(/\\s+/).length),
+      layout.evaluate((element) => getComputedStyle(element).gridTemplateColumns.trim().split(/\s+/).length),
     ]);
     expect(layoutBox, "Desktop terminal grid must have a layout box.").not.toBeNull();
     expect(chartBox, "Desktop chart column must have a layout box.").not.toBeNull();
