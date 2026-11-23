@@ -34,7 +34,7 @@ export interface MarketTicker {
   /** Server snapshot time (Unix seconds), not an exchange event timestamp. */
   snapshotTs?: number;
   /** Timestamp supplied by the selected upstream provider (Unix seconds), when available; never synthesized by the browser. */
-  providerTs?: number;
+  providerTs?: number | null;
 }
 
 export interface MarketCandle {
@@ -72,6 +72,11 @@ export const API_BASE_URL = DEMO_PREVIEW_ACTIVE ? "/__demo_preview_blocked__" : 
  * screenshot knows which upstream failed instead of guessing.
  */
 export const MARKET_UNAVAILABLE_MESSAGE = "行情连接已断开，暂时无法获取最新价格。请稍后重试。";
+
+function hasFiniteValue(value: unknown): boolean {
+  if (typeof value === "number") return Number.isFinite(value);
+  return typeof value === "string" && value.trim() !== "" && Number.isFinite(Number(value));
+}
 
 export class ApiError extends Error {
   readonly status: number;
@@ -182,14 +187,32 @@ export async function getMarkets(signal?: AbortSignal): Promise<MarketTicker[]> 
   }
 
   const rows = payload.markets
-    .filter((item) => item && typeof item.sym === "string" && Number.isFinite(item.price) && item.price > 0)
+    .filter((item) => {
+      if (!item || typeof item.sym !== "string" || !item.sym.trim()) return false;
+      const snapshot = payload.data?.[item.sym];
+      const source = typeof snapshot?.source === "string" && snapshot.source.trim()
+        ? snapshot.source
+        : typeof item.source === "string" ? item.source.trim() : "";
+      return hasFiniteValue(item.price) && Number(item.price) > 0 &&
+        hasFiniteValue(item.chg) &&
+        hasFiniteValue(item.high) && Number(item.high) > 0 &&
+        hasFiniteValue(item.low) && Number(item.low) > 0 &&
+        Number(item.high) >= Number(item.low) &&
+        hasFiniteValue(item.vol) && Number(item.vol) >= 0 &&
+        source.length > 0;
+    })
     .map(item => {
       const snapshot = payload.data?.[item.sym];
       return {
         ...item,
+        price: Number(item.price),
+        chg: Number(item.chg),
+        high: Number(item.high),
+        low: Number(item.low),
+        vol: String(item.vol),
         snapshotTs: Number.isFinite(snapshot?.ts) && Number(snapshot?.ts) > 0 ? Number(snapshot?.ts) : undefined,
-        providerTs: Number.isFinite(snapshot?.providerTs) && Number(snapshot?.providerTs) > 0 ? Number(snapshot?.providerTs) : undefined,
-        source: typeof snapshot?.source === "string" ? snapshot.source : item.source,
+        providerTs: Number.isFinite(snapshot?.providerTs) && Number(snapshot?.providerTs) > 0 ? Number(snapshot?.providerTs) : null,
+        source: typeof snapshot?.source === "string" && snapshot.source.trim() ? snapshot.source : item.source,
       };
     });
 
