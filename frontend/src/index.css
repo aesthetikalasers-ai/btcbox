@@ -1433,14 +1433,14 @@ a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
   /* --- Compact order entry ---------------------------------------------- */
   .spot-entry-head { padding: 0 0 6px; margin: 0; }
   .spot-entry-head > div { margin: 0; }
-  .spot-side button { min-height: 36px; border-radius: 6px; }
-  .spot-order-type select { height: 32px; min-height: 32px; font-size: 12px; }
+  .spot-side button { min-height: 44px; border-radius: 6px; }
+  .spot-order-type select { height: 44px; min-height: 44px; font-size: 16px; }
   .spot-price-control { gap: 4px; }
   .spot-price-control button { width: 32px; min-width: 32px; min-height: 32px; }
-  .exchange-entry input { height: 36px; padding: 8px 10px; font-size: 15px; }
+  .exchange-entry input { height: 40px; min-height: 40px; padding: 8px 8px; font-size: 16px; }
   .exchange-entry form > button.spot-submit {
-    min-height: 40px;
-    height: 40px;
+    min-height: 44px;
+    height: 44px;
     border-radius: 8px;
     font-weight: 700;
     letter-spacing: .02em;
