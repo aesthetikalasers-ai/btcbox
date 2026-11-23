@@ -1813,5 +1813,6 @@
   "US routing number (optional)": "US routing number (optional)",
   "Bank branch address (optional)": "Bank branch address (optional)",
   "Withdrawal result is unconfirmed. Keep the same request ID and check withdrawal history before retrying.": "Withdrawal result is unconfirmed. Keep the same request ID and check withdrawal history before retrying.",
-  "Please wait before requesting another email. Check your inbox for an earlier link.": "Please wait before requesting another email. Check your inbox for an earlier link."
+  "Please wait before requesting another email. Check your inbox for an earlier link.": "Please wait before requesting another email. Check your inbox for an earlier link.",
+  "Trade USDT-margined perpetual contracts. Availability and limits are determined by the server.": "Trade USDT-margined perpetual contracts. Availability and limits are determined by the server."
 }
