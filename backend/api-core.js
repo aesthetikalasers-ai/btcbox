@@ -1729,10 +1729,13 @@ async function handleRequest(event, context) {
       const payload = await getUsdtUsd();
       return json(payload);
     } catch (_) {
+      // Keep the frontend contract valid even if the gateway itself fails.
+      // This is display-only and explicitly marked stale; it is never used for
+      // order, balance, or settlement calculations.
       return json({
         ok: true,
-        rate: null,
-        source: 'unavailable',
+        rate: 0.99999,
+        source: 'fallback',
         stale: true,
         msg: 'USDT/USD conversion is temporarily unavailable.'
       }, 200);
