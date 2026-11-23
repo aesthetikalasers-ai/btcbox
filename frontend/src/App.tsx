@@ -96,7 +96,10 @@ function RouteLoading() {
 }
 function CustomerRoutes() {
   const location = useLocation();
-  const isStandaloneAuthRoute = ["/login", "/register", "/auth/react-callback"].includes(location.pathname);
+  // React Router accepts trailing slashes for route matching; keep the shell
+  // decision consistent so /login/ and /register/ remain standalone auth pages.
+  const normalizedPathname = location.pathname.replace(/\/+$/, "") || "/";
+  const isStandaloneAuthRoute = ["/login", "/register", "/auth/react-callback"].includes(normalizedPathname);
   const content = <div key={location.pathname} className="anim-fade-in min-w-0 flex-1"><AccountSetupGate><Suspense fallback={<RouteLoading />}><Routes>
     <Route path="/home" element={<Dashboard />} /><Route path="/markets" element={<MarketsPage />} />
     <Route path="/trade-hub" element={<TradeHubPage />} /><Route path="/trade" element={<TradeRedirect />} />
@@ -133,7 +136,9 @@ function CustomerRoutes() {
 }
 export default function App() {
   const { pathname } = useLocation();
-  return <I18nProvider fixedLanguage={/^\/admin\/?$/i.test(pathname) ? "zh-CN" : undefined}><Suspense fallback={<RouteLoading />}><Routes>
+  // All admin sub-routes belong to the same Chinese-language admin application.
+  const isAdminRoute = /^\/admin(?:\/|$)/i.test(pathname);
+  return <I18nProvider fixedLanguage={isAdminRoute ? "zh-CN" : undefined}><Suspense fallback={<RouteLoading />}><Routes>
     <Route path="/admin" element={<AdminPage />} />
     <Route path="/admin/*" element={<AdminPage />} />
     <Route path="/*" element={<CustomerRoutes />} />
