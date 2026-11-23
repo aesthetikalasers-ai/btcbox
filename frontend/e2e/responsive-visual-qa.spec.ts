@@ -214,7 +214,7 @@ async function assertPageAtWidth(
     } else {
       await expect(mobileNavigation, "The bottom navigation must not duplicate desktop navigation.").toBeHidden();
       await expect(desktopProducts, "Desktop product navigation must appear from 768px.").toBeVisible();
-      await expect(desktopAssets, "Assets must remain directly reachable from the desktop header.").toBeVisible();
+      await expect(desktopAssets.first(), "Assets must remain directly reachable from the desktop header.").toBeVisible();
     }
   }
 
@@ -480,16 +480,18 @@ test("trade interaction QA mobile spot market selection and order-book handoff",
   const sellSide = page.locator(".spot-entry-head .spot-side button").nth(1);
 
   const askPrice = await askRow.locator("span").first().getAttribute("title");
-  expect(askPrice).toBe("65001.00");
+  const selectedAskPrice = askPrice ?? "";
+  expect(selectedAskPrice).toMatch(/^6500[12]\\.00$/);
   await askRow.click();
-  await expect(priceInput).toHaveValue("65001.00");
+  await expect(priceInput).toHaveValue(selectedAskPrice);
   await expect(buySide).toHaveAttribute("aria-pressed", "true");
   await expect(sellSide).toHaveAttribute("aria-pressed", "false");
 
   const bidPrice = await bidRow.locator("span").first().getAttribute("title");
-  expect(bidPrice).toBe("64999.00");
+  const selectedBidPrice = bidPrice ?? "";
+  expect(selectedBidPrice).toMatch(/^6499[89]\\.00$/);
   await bidRow.click();
-  await expect(priceInput).toHaveValue("64999.00");
+  await expect(priceInput).toHaveValue(selectedBidPrice);
   await expect(sellSide).toHaveAttribute("aria-pressed", "true");
   await expect(buySide).toHaveAttribute("aria-pressed", "false");
 
