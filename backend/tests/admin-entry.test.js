@@ -248,3 +248,19 @@ test('admin portal has a dedicated sign-in surface and owns nested admin routes'
   assert.ok(adminPage.includes('Administrator sign in'));
   assert.ok(adminPage.includes('redirectTo="/admin"'));
 });
+
+test('admin support inbox can search customer threads, preview latest activity and open the matching user profile', () => {
+  assert.ok(reactAdminPage.includes('const [supportSearch, setSupportSearch] = useState("")'));
+  assert.ok(reactAdminPage.includes('Search support by UID or email'));
+  assert.ok(reactAdminPage.includes('Latest customer message'));
+  assert.ok(reactAdminPage.includes('Open user profile'));
+  assert.ok(reactAdminPage.includes('void selectUser(thread.uid)'));
+});
+
+test('admin user profile includes permission-scoped withdrawal history from the existing user detail API', () => {
+  assert.ok(reactAdminPage.includes('selectedUser.withdrawal_history'));
+  assert.ok(reactAdminPage.includes('selectedUser.withdrawal_history_source'));
+  assert.ok(reactAdminPage.includes('withdrawals.read'));
+  assert.ok(reactAdminPage.includes('TxID / reference'));
+  assert.ok(apiCore.includes("safeUser.withdrawal_history = normalized.withdrawals.slice(0, 20)"));
+});
