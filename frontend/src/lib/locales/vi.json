@@ -1813,5 +1813,6 @@
   "US routing number (optional)": "Số định tuyến ngân hàng Hoa Kỳ (không bắt buộc)",
   "Bank branch address (optional)": "Địa chỉ chi nhánh ngân hàng (không bắt buộc)",
   "Withdrawal result is unconfirmed. Keep the same request ID and check withdrawal history before retrying.": "Kết quả rút tiền chưa được xác nhận. Hãy giữ nguyên ID yêu cầu và kiểm tra lịch sử rút tiền trước khi thử lại.",
-  "Please wait before requesting another email. Check your inbox for an earlier link.": "Vui lòng chờ trước khi yêu cầu gửi email khác. Nếu bạn đã yêu cầu liên kết, hãy kiểm tra hộp thư đến và thư rác."
+  "Please wait before requesting another email. Check your inbox for an earlier link.": "Vui lòng chờ trước khi yêu cầu gửi email khác. Nếu bạn đã yêu cầu liên kết, hãy kiểm tra hộp thư đến và thư rác.",
+  "Trade USDT-margined perpetual contracts. Availability and limits are determined by the server.": "Giao dịch hợp đồng vĩnh cửu ký quỹ bằng USDT. Máy chủ quyết định khả năng cung cấp và các giới hạn."
 }
