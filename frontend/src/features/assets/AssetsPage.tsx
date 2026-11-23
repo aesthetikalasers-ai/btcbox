@@ -7,7 +7,6 @@ import { ApiError, getAccount, type AccountBalance, type AccountSnapshot } from 
 import { formatDecimalAmount, localeTags, useI18n } from "../../lib/i18n";
 import { TokenIcon } from "../../components/ui/TokenIcon";
 import { useAuth } from "../../lib/auth";
-import { useTrading } from "../../lib/trading";
 import { DEV_OPEN_ACCOUNT_PAGES } from "../../lib/devAccess";
 
 const PINNED_COINS = ["BTC", "ETH", "USDT"];
@@ -43,7 +42,6 @@ export function AssetsPage() {
   const { t, language } = useI18n();
   const { status } = useAuth();
   const authenticated = status === "authenticated";
-  const { balances: paperBalances } = useTrading();
   const numberLocale = localeTags[language];
   const [account, setAccount] = useState<AccountSnapshot | null>(null);
   const [loading, setLoading] = useState(true);
@@ -100,22 +98,13 @@ export function AssetsPage() {
   }, []);
 
   const balances = useMemo(() => {
-    // 合并后端账户余额与纸面交易账本（演示持仓）
-    const merged: Record<string, AccountBalance> = { ...(account?.balances ?? {}) };
-    for (const [coin, b] of Object.entries(paperBalances)) {
-      merged[coin] = {
-        free: b.free,
-        frozen: b.frozen,
-        valuation_available: false,
-      };
-    }
-    const entries = Object.entries(merged) as Array<[string, AccountBalance]>;
+    const entries = Object.entries(account?.balances ?? {}) as Array<[string, AccountBalance]>;
     const pinned = PINNED_COINS.map((coin) => entries.find(([c]) => c.toUpperCase() === coin)).filter((x): x is [string, AccountBalance] => Boolean(x));
     const rest = entries
       .filter(([coin]) => !PINNED_COINS.includes(coin.toUpperCase()))
       .sort((a, b) => Number(b[1].free || 0) + Number(b[1].frozen || 0) - (Number(a[1].free || 0) + Number(a[1].frozen || 0)));
     return [...pinned, ...rest];
-  }, [account, paperBalances]);
+  }, [account]);
 
   return (
     <div aria-busy={loading} className="tone-assets relative mx-auto flex w-full max-w-[1200px] min-w-0 flex-col gap-5 p-3 sm:p-4 md:p-6 lg:p-8">
@@ -151,10 +140,6 @@ export function AssetsPage() {
       <Card className="relative isolate overflow-hidden border border-white/10 bg-white/[0.03] shadow-2xl backdrop-blur-md">
         <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-transparent via-brand-accent/60 to-transparent" />
         <CardContent className="relative flex flex-col gap-4 p-5 sm:p-6">
-          {/* 迷你走势曲线（右上装饰，纯装饰性 SVG） */}
-          <svg aria-hidden="true" viewBox="0 0 120 40" className="pointer-events-none absolute right-4 top-4 h-10 w-32 opacity-80" fill="none">
-            <path d="M2 32 C 18 30, 28 20, 42 24 S 66 36, 80 28 S 104 8, 118 12" stroke="#f0b90b" strokeWidth="1.5" strokeLinecap="round" />
-          </svg>
           {/* 行 1：总资产估值 + 隐私眼睛 */}
           <div className="relative flex items-center gap-2">
             <p className="text-sm text-brand-text-secondary">{t("Estimated total value")}</p>

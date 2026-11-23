@@ -69,7 +69,7 @@ export function VolumeChart({ candles = [] }: { candles?: MarketCandle[] }) {
       },
     });
 
-    series.setData(candles.map(c => ({ time: Math.floor(c.time / 1000) as import('lightweight-charts').UTCTimestamp, value: c.volume, color: c.close >= c.open ? 'rgba(53,214,166,0.8)' : 'rgba(240,107,120,0.8)' })));
+    series.setData(candles.map(c => ({ time: Math.floor(c.time) as import('lightweight-charts').UTCTimestamp, value: c.volume, color: c.close >= c.open ? 'rgba(53,214,166,0.8)' : 'rgba(240,107,120,0.8)' })));
     
     const bars = { '1d': 24, '7d': 168, '30d': 720 }[activeRange] || 24;
     const totalBars = candles.length;

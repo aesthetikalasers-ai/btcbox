@@ -24,3 +24,25 @@ test('balance comparison preserves exact values and rejects unavailable data', a
   assert.equal(compareDecimalStrings('01.200', '1.2'), 0);
   for (const value of ['', '-1', 'NaN', '1e3', '1'.repeat(257)]) assert.equal(compareDecimalStrings(value, '1'), undefined);
 });
+
+test('spot market steps and order sizing use exact decimal arithmetic', async () => {
+  const {
+    divideDecimalStrings,
+    isDecimalMultipleOfStep,
+    addDecimalStep,
+    floorDecimalToStep,
+    roundDecimalToStep,
+  } = await import('../src/lib/decimal.ts');
+
+  assert.equal(divideDecimalStrings('25', '65000', 18), '0.000384615384615384');
+  assert.equal(isDecimalMultipleOfStep('65000.02', '0.01'), true);
+  assert.equal(isDecimalMultipleOfStep('65000.001', '0.01'), false);
+  assert.equal(isDecimalMultipleOfStep('0.0015', '0.0005'), true);
+  assert.equal(isDecimalMultipleOfStep('0.0012', '0.0005'), false);
+  assert.equal(addDecimalStep('65000.00', '0.01', 1), '65000.01');
+  assert.equal(addDecimalStep('65000.00', '0.01', -1), '64999.99');
+  assert.equal(floorDecimalToStep('0.00129', '0.0001'), '0.0012');
+  assert.equal(roundDecimalToStep('65000.006', '0.01'), '65000.01');
+  assert.equal(divideDecimalStrings('1', '0', 18), undefined);
+  assert.equal(isDecimalMultipleOfStep('1', '0'), false);
+});

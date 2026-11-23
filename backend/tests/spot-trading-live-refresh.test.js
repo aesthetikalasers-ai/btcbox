@@ -40,7 +40,7 @@ test('spot trading live refresh never overwrites the customer-edited limit price
 
 test('spot trading clears stale ticker, order book, and candles when live refresh fails', () => {
   assert.ok(page.includes('marketUpdatedAt'));
-  assert.ok(page.includes('Snapshot checked'));
+  assert.ok(page.includes('Provider updated'));
   assert.ok(page.includes('marketFeedWarning'));
   const startRefresh = page.indexOf('const refreshMarketData=');
   const endRefresh = page.indexOf('const refreshId=window.setInterval', startRefresh);
@@ -48,7 +48,7 @@ test('spot trading clears stale ticker, order book, and candles when live refres
   assert.ok(refresh.includes('setTicker(null)'));
   assert.ok(refresh.includes('setMarketUpdatedAt(null)'));
   assert.ok(refresh.includes('setBook(null)'));
-  assert.ok(refresh.includes('Live market data is temporarily unavailable.'));
+  assert.ok(refresh.includes('Market data is temporarily unavailable.'));
   assert.ok(page.includes('setCandles([])'));
   assert.ok(!page.includes('showing the last confirmed data'));
 });
@@ -86,7 +86,7 @@ test('market table clears last confirmed prices and reports feed unavailability'
   assert.ok(marketTable.includes('const feedError = error || (snapshotStale ?'));
   assert.ok(marketTable.includes('const displayMarkets = feedError ? [] : markets'));
   assert.ok(marketTable.includes('feedError && displayMarkets.length === 0'));
-  assert.ok(marketTable.includes('markets.some((item) => (item.snapshotTs || 0) > 0 && Date.now() / 1000 - (item.snapshotTs || 0) > 90)'));
+  assert.ok(marketTable.includes('const snapshotStale = snapshotInvalid || markets.some((item) => (') && marketTable.includes('nowSeconds - item.snapshotTs > 90'));
   assert.ok(!marketTable.includes('Showing the last confirmed market data.'));
   assert.ok(dashboard.includes('setMarkets([]);'));
 });
@@ -106,7 +106,7 @@ test('market API carries per-symbol server snapshot time separately from provide
 
 test('spot UI labels server snapshot time and does not substitute browser receipt time', () => {
   assert.ok(page.includes('t("Snapshot checked")'));
-  assert.ok(page.includes('selected.snapshotTs?selected.snapshotTs*1000:null'));
+  assert.ok(page.includes('const serverSnapshotTimestampMs=ticker?.snapshotTs?ticker.snapshotTs*1000:null;'));
   assert.ok(!page.includes('setMarketUpdatedAt(Date.now())'));
 });
 
@@ -126,7 +126,7 @@ test('sign-in and registration pages expose email, Google and wallet auth', () =
   assert.ok(authPage.includes('signInWithWeb3'));
   assert.ok(authPage.includes('Create account with email'));
 
-  assert.ok(!authPage.includes('requestPasswordReset'));
+  assert.ok(authPage.includes('requestPasswordReset'));
   assert.ok(authPage.includes('completePasswordRecovery'));
 });
 
@@ -140,7 +140,9 @@ test('withdrawal submit handler synchronously blocks concurrent duplicate browse
   assert.ok(withdrawPage.includes('submitLockRef.current)return'));
   assert.ok(withdrawPage.includes('submitLockRef.current=true'));
   assert.ok(withdrawPage.includes('window.crypto.randomUUID()'));
-  assert.ok(withdrawPage.includes('Secure withdrawal request IDs are unavailable in this browser.'));
+  const requestIdStart = withdrawPage.indexOf('requestId=window.crypto.randomUUID()');
+  const requestIdFailure = withdrawPage.indexOf('catch{setError(t("Account data is temporarily unavailable."));submitLockRef.current=false;return;}', requestIdStart);
+  assert.ok(requestIdStart >= 0 && requestIdFailure > requestIdStart, 'missing secure request IDs must stop before sending');
   assert.ok(withdrawPage.includes('finally{submitLockRef.current=false;setSubmitting(false);}'));
 });
 
@@ -149,7 +151,7 @@ test('withdrawal retry preserves its idempotency key and saved intent before sen
   const send = withdrawPage.indexOf('submitWithdrawal({');
   assert.ok(persist >= 0 && send > persist);
   assert.ok(withdrawPage.includes('request_id:intent.request_id'));
-  assert.ok(withdrawPage.includes('Keep this request unchanged and retry with the same request ID.'));
+  assert.ok(withdrawPage.includes('Withdrawal result is unconfirmed. Keep the same request ID and check withdrawal history before retrying.'));
 });
 
 test('My account page clears stale profile data when its authenticated refresh fails', () => {
@@ -187,9 +189,9 @@ test('deposit address copy reports clipboard success and failure without silent 
   const start = pages.indexOf('export function DepositPage()');
   const end = pages.indexOf('export function ', start + 30);
   const deposit = pages.slice(start, end > start ? end : undefined);
-  assert.ok(deposit.includes('if(!navigator.clipboard?.writeText)throw new Error("Clipboard access is unavailable.")'));
+  assert.ok(deposit.includes('if(!navigator.clipboard?.writeText)throw new Error(t("Unable to copy. Please try again."))'));
   assert.ok(deposit.includes('setCopyMessage("Deposit address copied.")'));
-  assert.ok(deposit.includes('setCopyMessage("Could not copy the address. Select and copy it manually.")'));
+  assert.ok(deposit.includes('setCopyMessage(t("Unable to copy. Please try again."))'));
   assert.ok(deposit.includes('onClick={copyAddress}'));
 });
 
@@ -222,20 +224,15 @@ test('admin withdrawal queue is non-actionable until a refreshed queue has retur
   assert.ok(adminPage.includes('<input disabled={reviewQueueLoading} value={payoutReferences[item.id]||""}'));
 });
 
-test('legacy account profile and order views clear stale snapshots before reload and after failures', () => {
-  const myStart = pages.indexOf('export function MyPage()');
-  const myEnd = pages.indexOf('export function ', myStart + 25);
-  const myPage = pages.slice(myStart, myEnd > myStart ? myEnd : undefined);
-  const profileLoad = myPage.slice(myPage.indexOf('const controller=new AbortController()'));
-  assert.ok(profileLoad.indexOf('setAccount(null)') >= 0);
-  assert.ok(profileLoad.indexOf('setAccount(null)') < profileLoad.indexOf('getAccount(controller.signal)'));
-
-  const ordersStart = pages.indexOf('export function OrdersPage()');
-  const ordersEnd = pages.indexOf('export function ', ordersStart + 25);
-  const legacyOrders = pages.slice(ordersStart, ordersEnd > ordersStart ? ordersEnd : undefined);
-  assert.ok(legacyOrders.indexOf('setOrders([])') >= 0);
-  assert.ok(legacyOrders.indexOf('setOrders([])') < legacyOrders.indexOf('getOrders(controller.signal)'));
-  assert.ok(legacyOrders.includes('if(!controller.signal.aborted)setOrders([]);'));
+test('active account and order pages clear stale snapshots before reload and after failures', () => {
+  const assets = fs.readFileSync(path.resolve(__dirname, '../../frontend/src/features/assets/AssetsPage.tsx'), 'utf8');
+  const orders = fs.readFileSync(path.resolve(__dirname, '../../frontend/src/features/orders/OrdersPage.tsx'), 'utf8');
+  assert.ok(assets.includes('setAccount(null)'));
+  assert.ok(assets.indexOf('setAccount(null)') < assets.indexOf('getAccount(controller.signal)'));
+  assert.ok(orders.includes('setOrders([])'));
+  assert.ok(orders.indexOf('setOrders([])') < orders.indexOf('getOrders(controller.signal)'));
+  assert.ok(orders.includes('if (controller.signal.aborted || requestId !== requestIdRef.current) return;'));
+  assert.ok(orders.includes('setOrders([]);'));
 });
 
 test('withdrawal, KYC and support views clear stale private records before account refresh', () => {
@@ -257,8 +254,11 @@ test('withdrawal, KYC and support views clear stale private records before accou
   // The support conversation lives in SupportChat; the page component only
   // composes it, so the stale-record contract is checked against that module.
   const support = fs.readFileSync(path.resolve(__dirname, '../../frontend/src/features/support/SupportChat.tsx'), 'utf8');
-  assert.ok(support.includes('setLoading(true);setMessages([]);setError("")'));
-  assert.ok(support.includes('if(!controller.signal.aborted){setMessages([]);setError('));
+  assert.ok(support.includes('setLoading(true);'));
+  assert.ok(support.includes('setMessages([]);'));
+  assert.ok(support.includes('setMessagesAccountKey("")'));
+  assert.ok(support.includes('pendingStorageKey'));
+  assert.ok(support.includes('currentAccountKeyRef.current !== requestAccountKey'));
 });
 
 

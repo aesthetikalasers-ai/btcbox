@@ -1,4 +1,5 @@
 'use strict';
+// Legacy filename retained for history; this suite now verifies email + Google + wallet auth, not a Google-only product policy.
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -14,7 +15,7 @@ test('legacy static auth support files remain valid JavaScript', () => {
   }
 });
 
-test('React registration offers confirmed email signup alongside Google and wallet; legacy username/email sign-in remains available', () => {
+test('React registration supports Supabase email, Google and wallet while email-password sign-in remains available', () => {
   const authPage = fs.readFileSync(path.resolve(root, '..', 'frontend/src/features/auth/AuthPages.tsx'), 'utf8');
   assert.ok(authPage.includes('signInWithUsername'));
   assert.ok(authPage.includes('Google'));
@@ -22,11 +23,14 @@ test('React registration offers confirmed email signup alongside Google and wall
   assert.ok(authPage.includes('Connect Ethereum wallet'));
   assert.ok(authPage.includes('Connect Solana wallet'));
   assert.ok(authPage.includes('signInWithEmail'));
+  assert.ok(authPage.includes('signInWithGoogle'));
+  assert.ok(authPage.includes('signInWithWeb3'));
+  assert.ok(authPage.includes('Username or email'));
+  assert.ok(authPage.includes('requestPasswordReset'));
   assert.ok(authPage.includes('signUpWithEmail'));
   assert.ok(authPage.includes('Create account with email'));
-  assert.ok(!authPage.includes('requestPasswordReset'));
-  assert.ok(authPage.includes('completePasswordRecovery'));
-  assert.ok(authPage.includes('Username or email'));
+  const authProvider = fs.readFileSync(path.resolve(root, '..', 'frontend/src/lib/auth.tsx'), 'utf8');
+  assert.ok(authProvider.includes('emailRedirectTo: window.location.origin + "/auth/react-callback?intent=register"'));
 });
 
 test('legacy static Google OAuth callback retains same-origin return-target safeguards', () => {
@@ -87,7 +91,7 @@ test('React auth client config is public-only and runs before database loading',
 });
 
 
-test('React Supabase email confirmation and Google OAuth use the isolated template callback without legacy consent UI', () => {
+test('React Supabase password recovery and Google OAuth use the isolated template callback without legacy consent UI', () => {
   const app = read('../frontend/src/App.tsx');
   const auth = read('../frontend/src/features/auth/AuthPages.tsx');
   const provider = read('../frontend/src/lib/auth.tsx');
@@ -169,7 +173,7 @@ test('Web3 provider probe checks all Supabase error fields without accepting unr
   assert.ok(core.includes("messages.some(message => /web3 provider is disabled|provider is disabled/.test(message))"));
   assert.ok(!core.includes("too short).*(message|signature)"));
 });
-test('React auth preserves legacy email sign-in and Google registration alongside username and wallet paths', () => {
+test('React auth supports email signup plus Google/wallet and linked email-password login', () => {
   const backend = read('api-core.js');
   const auth = read('../frontend/src/lib/auth.tsx');
   const pages = read('../frontend/src/features/auth/AuthPages.tsx');
@@ -188,14 +192,16 @@ test('React auth preserves legacy email sign-in and Google registration alongsid
   assert.ok(auth.includes('setBtcboxCredentials'));
   assert.ok(auth.includes('linkGoogleIdentity'));
   assert.ok(auth.includes('linkWeb3Identity'));
-  assert.ok(auth.includes('signInWithEmail') && auth.includes('signUpWithEmail'));
+  assert.ok(auth.includes('signInWithEmail') && auth.includes('setSupabaseLoginPassword'));
+  assert.ok(auth.includes('signUpWithEmail'));
   assert.ok(auth.includes('emailRedirectTo: window.location.origin + "/auth/react-callback?intent=register"'));
   assert.ok(backend.includes('function getSupabaseLoginProvider(identity)'));
   assert.ok(backend.includes('const authProvider = getSupabaseLoginProvider(identity);'));
   assert.ok(auth.includes('requestPasswordReset') && auth.includes('completePasswordRecovery'));
   assert.ok(auth.includes('flowType: "pkce"'));
   for (const required of ['Username or email', 'Google', 'Connect Ethereum wallet', 'Connect Solana wallet']) assert.ok(pages.includes(required), 'auth page must expose ' + required);
-  assert.ok(!pages.includes('No email registration is required'));
+  assert.ok(pages.includes('Create account with email'));
+  assert.ok(pages.includes('Create account with email'));
   assert.ok(auth.includes('eip6963:announceProvider'));
   assert.ok(auth.includes('eip6963:requestProvider'));
   assert.ok(auth.includes('getInjectedSolanaWallet'));

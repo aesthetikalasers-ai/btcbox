@@ -11,6 +11,8 @@ import {
   getDemoPerpMarkets,
   getDemoTradingStatus,
 } from "./demoPreview";
+import { normalizeKlines, type MarketCandle } from "./klineData";
+export type { MarketCandle } from "./klineData";
 import {
   demoCancelPerpOrder,
   demoClosePerpPosition,
@@ -33,19 +35,10 @@ export interface MarketTicker {
   source: string;
   /** Server snapshot time (Unix seconds), not an exchange event timestamp. */
   snapshotTs?: number;
-  /** Provider-supplied timestamp (Unix seconds): Coinbase last-trade time or Bybit response time; not a universal exchange-event timestamp. */
-  providerTs?: number;
+  /** Timestamp supplied by the selected upstream provider (Unix seconds), when available; never synthesized by the browser. */
+  providerTs?: number | null;
 }
 
-export interface MarketCandle {
-  time: number;
-  open: number;
-  high: number;
-  low: number;
-  close: number;
-  volume: number;
-  source?: string;
-}
 
 interface MarketResponse {
   ok: boolean;
@@ -72,6 +65,11 @@ export const API_BASE_URL = DEMO_PREVIEW_ACTIVE ? "/__demo_preview_blocked__" : 
  * screenshot knows which upstream failed instead of guessing.
  */
 export const MARKET_UNAVAILABLE_MESSAGE = "行情连接已断开，暂时无法获取最新价格。请稍后重试。";
+
+function hasFiniteValue(value: unknown): boolean {
+  if (typeof value === "number") return Number.isFinite(value);
+  return typeof value === "string" && value.trim() !== "" && Number.isFinite(Number(value));
+}
 
 export class ApiError extends Error {
   readonly status: number;
@@ -131,10 +129,15 @@ export async function getSpotMarketPairs(signal?: AbortSignal): Promise<SpotMark
     if (response.ok) {
       const payload = await response.json().catch(() => null) as { ok?: boolean; markets?: SpotMarketPair[] } | null;
       if (payload && payload.ok === true && Array.isArray(payload.markets) && payload.markets.length > 0) {
-        return payload.markets.filter(market =>
+        const validMarkets = payload.markets.filter(market =>
           market && market.enabled === true && typeof market.base_asset === "string" &&
-          market.quote_asset === "USDT"
+          market.quote_asset === "USDT" &&
+          Number.isFinite(Number(market.price_tick)) && Number(market.price_tick) > 0 &&
+          Number.isFinite(Number(market.quantity_step)) && Number(market.quantity_step) > 0 &&
+          Number.isFinite(Number(market.min_quantity)) && Number(market.min_quantity) > 0 &&
+          Number.isFinite(Number(market.min_notional)) && Number(market.min_notional) >= 0
         );
+        if (validMarkets.length > 0) return validMarkets;
       }
     }
   } catch (error) {
@@ -177,19 +180,57 @@ export async function getMarkets(signal?: AbortSignal): Promise<MarketTicker[]> 
   }
 
   const rows = payload.markets
-    .filter((item) => item && typeof item.sym === "string" && Number.isFinite(item.price) && item.price > 0)
+    .filter((item) => {
+      if (!item || typeof item.sym !== "string" || !item.sym.trim()) return false;
+      const snapshot = payload.data?.[item.sym];
+      const source = typeof snapshot?.source === "string" && snapshot.source.trim()
+        ? snapshot.source
+        : typeof item.source === "string" ? item.source.trim() : "";
+      return hasFiniteValue(item.price) && Number(item.price) > 0 &&
+        hasFiniteValue(item.chg) &&
+        hasFiniteValue(item.high) && Number(item.high) > 0 &&
+        hasFiniteValue(item.low) && Number(item.low) > 0 &&
+        Number(item.high) >= Number(item.low) &&
+        hasFiniteValue(item.vol) && Number(item.vol) >= 0 &&
+        source.length > 0;
+    })
     .map(item => {
       const snapshot = payload.data?.[item.sym];
       return {
         ...item,
-        snapshotTs: Number.isFinite(snapshot?.ts) && Number(snapshot?.ts) > 0 ? Number(snapshot?.ts) : Math.floor(Date.now() / 1000),
-        providerTs: Number.isFinite(snapshot?.providerTs) && Number(snapshot?.providerTs) > 0 ? Number(snapshot?.providerTs) : Math.floor(Date.now() / 1000),
-        source: typeof snapshot?.source === "string" ? snapshot.source : item.source,
+        price: Number(item.price),
+        chg: Number(item.chg),
+        high: Number(item.high),
+        low: Number(item.low),
+        vol: String(item.vol),
+        snapshotTs: Number.isFinite(snapshot?.ts) && Number(snapshot?.ts) > 0 ? Number(snapshot?.ts) : undefined,
+        providerTs: Number.isFinite(snapshot?.providerTs) && Number(snapshot?.providerTs) > 0 ? Number(snapshot?.providerTs) : null,
+        source: typeof snapshot?.source === "string" && snapshot.source.trim() ? snapshot.source : item.source,
       };
     });
 
   // Empty or malformed provider data is an outage, never a reason to display seeded prices as live.
   if (rows.length === 0) throw new ApiError(MARKET_UNAVAILABLE_MESSAGE, 502, "MARKET_DATA_INVALID");
+  const nowSeconds = Date.now() / 1000;
+  const snapshotInvalid = rows.some((row) => (
+    typeof row.snapshotTs !== "number" ||
+    !Number.isFinite(row.snapshotTs) ||
+    row.snapshotTs <= 0 ||
+    row.snapshotTs > nowSeconds + 30
+  ));
+  const providerTimestampInvalid = rows.some((row) => (
+    typeof row.providerTs !== "number" ||
+    !Number.isFinite(row.providerTs) ||
+    row.providerTs <= 0 ||
+    row.providerTs > nowSeconds + 30 ||
+    nowSeconds - row.providerTs > 90
+  ));
+  const snapshotStale = snapshotInvalid || providerTimestampInvalid || rows.some((row) => (
+    typeof row.snapshotTs !== "number" || nowSeconds - row.snapshotTs > 90
+  ));
+  if (snapshotStale) {
+    throw new ApiError("Market service snapshot is missing, invalid or older than 90 seconds.", 502, "MARKET_SNAPSHOT_STALE");
+  }
   return rows;
 }
 
@@ -203,46 +244,33 @@ export async function getKlines(
   const abort = () => controller.abort();
   if (signal?.aborted) abort();
   else signal?.addEventListener("abort", abort, { once: true });
-  const timeout = setTimeout(abort, 4000);
+  const timeout = setTimeout(abort, 8000);
   try {
     const query = new URLSearchParams({ symbol, interval });
     const response = await fetch(`${API_BASE_URL}/kline?${query.toString()}`, {
-      method: "GET",
-      credentials: "include",
-      headers: { Accept: "application/json" },
-      cache: "no-store",
+      method: "GET", credentials: "include",
+      headers: { Accept: "application/json" }, cache: "no-store",
       signal: controller.signal,
     });
-    if (response.ok) {
-      const payload = (await response.json().catch(() => null)) as KlineResponse | null;
-      if (payload && payload.ok === true && Array.isArray(payload.klines) && payload.klines.length > 0) {
-        // Reject impossible OHLC ranges (e.g. high below open/close) instead of
-        // drawing them as real candles.
-        const validCandles = payload.klines.every(candle =>
-          Number.isFinite(candle.open) && candle.open > 0 &&
-          Number.isFinite(candle.close) && candle.close > 0 &&
-          Number.isFinite(candle.high) && candle.high > 0 &&
-          Number.isFinite(candle.low) && candle.low > 0 &&
-          candle.high >= Math.max(candle.open, candle.close, candle.low) &&
-          candle.low <= Math.min(candle.open, candle.close, candle.high)
-        );
-        if (!validCandles) throw new ApiError("Chart data is malformed.", response.status, "INVALID_KLINE");
-        // Keep the provider identifier on the returned candles for diagnostics
-        // only — it is never rendered as a user-facing badge.
-        const candleSource = typeof payload.source === "string" ? payload.source : undefined;
-        return payload.klines.map(candle => ({ ...candle, source: candle.source ?? candleSource }));
-      }
+    const payload = (await response.json().catch(() => null)) as KlineResponse | null;
+    if (!response.ok || !payload || payload.ok !== true || !Array.isArray(payload.klines)) {
+      throw new ApiError(payload?.msg || "Chart data is temporarily unavailable.", response.status, payload?.code || "KLINE_DATA_UNAVAILABLE");
     }
+
+    const normalized = normalizeKlines(payload.klines, payload.source);
+    if (normalized.length === 0) {
+      throw new ApiError("No verified candle data is available for this market.", response.status || 503, "KLINE_DATA_UNAVAILABLE");
+    }
+    return normalized;
   } catch (error) {
     if (error instanceof ApiError) throw error;
     if (error instanceof Error && error.name === "AbortError") throw error;
-    // Network error — fall back to demo candles so the chart always has data.
+    throw new ApiError("Chart data is temporarily unavailable. Please retry.", 0, "KLINE_NETWORK_ERROR");
+  } finally {
+    clearTimeout(timeout);
+    signal?.removeEventListener("abort", abort);
   }
-  // If no valid candles were returned, fall back to demo data so the chart
-  // always has data instead of showing an empty panel.
-  return getDemoKlines(symbol, interval);
 }
-
 
 export interface TradingStatus {
   spot_order_entry_enabled: boolean;
@@ -306,16 +334,16 @@ export async function getOrderBook(symbol = "BTCUSDT", signal?: AbortSignal): Pr
   // prices or quantities that could be mistaken for executable liquidity.
   return null;
 }
-export interface UsdtUsdRate { rate: number; source: string; stale?: boolean; }
+export interface UsdtUsdRate { rate: number | null; source: string; stale?: boolean; }
 /**
  * USDT → USD conversion rate for the "≈ $" hint under the order-book mid price.
  *
  * The trading pair is quoted in USDT, which is not exactly one dollar, so the
- * hint must be computed rather than echoed. On any failure this returns the
- * caller's neutral fallback (0.99999) with `stale: true` — the UI then still
- * shows an approximation instead of a blank or an invented exact figure.
+ * hint must be computed rather than echoed. On a cold-start provider outage this
+ * returns `rate: null`, so the UI can omit the hint instead of showing a guessed
+ * conversion.
  */
-export async function getUsdtUsdRate(fallback = 0.99999, signal?: AbortSignal): Promise<UsdtUsdRate> {
+export async function getUsdtUsdRate(signal?: AbortSignal): Promise<UsdtUsdRate> {
   try {
     const response = await fetch(`${API_BASE_URL}/fx/usdt-usd`, {
       credentials: "include", cache: "no-store", signal, headers: { Accept: "application/json" },
@@ -330,7 +358,7 @@ export async function getUsdtUsdRate(fallback = 0.99999, signal?: AbortSignal): 
   } catch (error) {
     if (error instanceof Error && error.name === "AbortError") throw error;
   }
-  return { rate: fallback, source: "fallback", stale: true };
+  return { rate: null, source: "unavailable", stale: true };
 }
 export interface SpotOrderInput { symbol: string; side: "buy" | "sell"; type: "limit"; qty: string; price: string; client_order_id: string; }
 export interface SpotOrderResult { order_id: string; status: string; price: number | string; quantity: number | string; remaining_quantity?: number | string; duplicate: boolean; }
@@ -994,6 +1022,14 @@ export interface SupportMessage {
   time: string;
 }
 
+export interface AdminPayoutAddress {
+  id: string; type: "bank" | "crypto"; uid: string; email?: string;
+  account_holder?: string; bank_name?: string; account_number?: string; iban?: string; country?: string;
+  routing_number?: string; swift?: string; bank_address?: string; note?: string;
+  coin?: string; network?: string; address?: string; created_at?: string;
+  flagged?: boolean; blocked?: boolean; unbound?: boolean;
+}
+
 /** One help-centre entry as published to customers (enabled entries only). */
 export interface SupportFaqEntry {
   id: string;
@@ -1116,8 +1152,8 @@ export interface SavedCryptoAddress {
 export interface BankAddress {
   id: string; type: "bank";
   account_holder: string; bank_name: string;
-  account_number: string; routing_number: string;
-  swift?: string; bank_address: string;
+  account_number?: string; iban?: string; country?: string; routing_number?: string;
+  swift?: string; bank_address?: string;
   note?: string; created_at?: string; flagged?: boolean; blocked?: boolean; unbound?: boolean;
 }
 
@@ -1131,8 +1167,8 @@ export interface CryptoAddressInput {
 /** Input for creating a bank (fiat) address entry. */
 export interface BankAddressInput {
   type: "bank"; account_holder: string; bank_name: string;
-  account_number: string; routing_number: string;
-  swift?: string; bank_address: string; note?: string;
+  account_number?: string; iban?: string; country?: string; routing_number?: string;
+  swift?: string; bank_address?: string; note?: string;
 }
 
 export async function addAddress(input: CryptoAddressInput | BankAddressInput): Promise<{ msg: string; address: SavedAddress }> {
@@ -1479,8 +1515,8 @@ export async function adminMarkWithdrawalPaid(token: string, input: { id: string
 export async function getAdminKyc(token: string, signal?: AbortSignal) {
   return adminRequest<{ ok: true; kycs: AdminKycRecord[] }>(token, "admin/kyc", { signal });
 }
-export async function adminApproveKyc(token: string, uid: string, reason = "") {
-  return adminRequest<{ ok: true }>(token, "admin/kyc/approve", { method: "POST", body: { uid, reason } });
+export async function adminApproveKyc(token: string, uid: string, options: { admin_override?: boolean; reason?: string } = {}) {
+  return adminRequest<{ ok: true; audit_sync_pending?: boolean; msg?: string }>(token, "admin/kyc/approve", { method: "POST", body: { uid, ...options } });
 }
 export async function adminRejectKyc(token: string, uid: string, reason: string) {
   return adminRequest<{ ok: true }>(token, "admin/kyc/reject", { method: "POST", body: { uid, reason } });
@@ -1495,6 +1531,19 @@ export async function getAdminOrders(token: string, signal?: AbortSignal) {
 }
 export async function getAdminSupportMessages(token: string, signal?: AbortSignal) {
   return adminRequest<{ ok: true; messages: SupportMessage[] }>(token, "admin/support/messages", { signal });
+}
+export async function markAdminSupportRead(token: string, uid: string) {
+  return adminRequest<{ ok: true; duplicate?: boolean; unread: number; audit_sync_pending?: boolean }>(token, "admin/support/read", { method: "POST", body: { uid } });
+}
+export async function getAdminAddresses(token: string, signal?: AbortSignal) {
+  return adminRequest<{ ok: true; addresses: AdminPayoutAddress[] }>(token, "admin/addresses", { signal });
+}
+export async function manageAdminAddress(token: string, input: {
+  id: string; action: "update" | "delete"; reason: string;
+  account_holder?: string; bank_name?: string; account_number?: string; iban?: string;
+  country?: string; routing_number?: string; swift?: string; bank_address?: string; note?: string;
+}) {
+  return adminRequest<{ ok: true; audit_sync_pending?: boolean; msg: string }>(token, "admin/address/manage", { method: "POST", body: input });
 }
 export async function getAdminSupportFaq(token: string, signal?: AbortSignal) {
   return adminRequest<{ ok: true; entries: AdminSupportFaqEntry[] }>(token, "admin/support/faq", { signal });

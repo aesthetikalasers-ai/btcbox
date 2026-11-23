@@ -12,10 +12,11 @@ function friendlyAuthErrorMessage(cause: unknown): string {
   if (code === "IDENTITY_IN_USE") return "This wallet is already linked to another BTCBOX account. Please sign in with that account.";
   if (code === "ACCOUNT_FROZEN") return "This BTCBOX account is frozen. Please contact support.";
   if (code === "AUTH_PROVIDER_NOT_ALLOWED") return "This sign-in method is not available. Please use another method.";
-  if (code === "GOOGLE_ONLY_AUTH") return "Email/password registration is disabled. Continue with Google or connect a supported wallet.";
+  if (code === "GOOGLE_ONLY_AUTH") return "Email registration must be completed through the secure Supabase confirmation flow.";
   if (code === "GOOGLE_PROVIDER_UNAVAILABLE") return "Google sign-in is temporarily unavailable. Please try again later.";
   if (code === "INVALID_SUPABASE_IDENTITY") return "The sign-in identity could not be verified. Please try again.";
   const rawMessage = cause instanceof Error ? cause.message : "";
+  if (code === "over_email_send_rate_limit" || /email rate limit exceeded|only request this after/i.test(rawMessage)) return "Please wait before requesting another email. Check your inbox for an earlier link.";
   if (/already associated|already linked|already exists|identity.*already|account.*already|user already/i.test(rawMessage)) {
     return "This sign-in identity is already linked to another BTCBOX account. Please sign in with that account, or contact support to merge your sign-in methods.";
   }
@@ -528,24 +529,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         },
       });
       if (authError) throw authError;
-      if (!data.user) throw new Error("Email registration failed.");
-
-      // Never provision a BTCBOX account from an unconfirmed email identity.
-      // With Supabase confirmation enabled, the normal result has no session;
-      // the confirmation link returns through the existing PKCE callback.
-      const emailConfirmed = Boolean(data.user.email_confirmed_at || data.user.confirmed_at);
-      if (data.session?.access_token && emailConfirmed) {
+      if (!data.user) throw new Error("Registration could not be confirmed. Please try again.");
+      if (data.session?.access_token) {
         await acceptSupabaseSession(data.session.access_token);
-        return;
+        setNotice("Your BTCBOX account is ready. You can sign in with your email and password or continue with Google.");
+      } else {
+        setNotice("Registration received. Please check your email and confirm your address before signing in.");
       }
-      if (data.session?.access_token && !emailConfirmed) {
-        await client.auth.signOut();
-      }
-      setNotice("If this email is already linked to a BTCBOX account, choose Sign in and use your original sign-in method. If this is a new registration, check your inbox for the confirmation email; also check your spam folder.");
     } catch (cause) {
-      // Keep provider diagnostics out of the registration UI. Supabase may
-      // intentionally return indistinguishable responses for existing addresses.
-      setError("Email registration failed.");
+      setError(cause instanceof Error ? cause.message : "Email registration failed.");
       throw cause;
     } finally { setBusy(false); }
   }, [acceptSupabaseSession]);
@@ -734,8 +726,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     status, initializationIssue, email, busy, error, notice, googleEnabled, walletEnabled, identityLinkSourceVerified, identityLinkNeedsTwoFactor, completeIdentityLinkReauthTwoFactor, needsCredentials, credentialRecoveryReady, credentialRecoveryNeedsTwoFactor, ethereumWallets, accountRestriction, signInWithGoogle, reauthenticateIdentityLinkWithGoogle, reauthenticateIdentityLinkWithWeb3, linkGoogleIdentity, linkWeb3Identity, signInWithUsername, setBtcboxCredentials, reauthenticateCredentialsWithGoogle, reauthenticateCredentialsWithWeb3, completeCredentialRecoveryTwoFactor, recoverBtcboxPassword, signInWithWeb3, signInWithEmail, signUpWithEmail,
     requestPasswordReset, completePasswordRecovery, finishOAuth, verifyTwoFactor, getSupabaseAccessToken, signOut, setSupabaseLoginPassword,
     clearError: () => setError(""),
-  }), [status, initializationIssue, email, busy, error, notice, googleEnabled, walletEnabled, identityLinkSourceVerified, identityLinkNeedsTwoFactor, completeIdentityLinkReauthTwoFactor, needsCredentials, credentialRecoveryReady, credentialRecoveryNeedsTwoFactor, ethereumWallets, accountRestriction, signInWithGoogle, linkGoogleIdentity, linkWeb3Identity, signInWithUsername, setBtcboxCredentials, reauthenticateCredentialsWithGoogle, reauthenticateCredentialsWithWeb3, completeCredentialRecoveryTwoFactor, recoverBtcboxPassword, signInWithWeb3, signInWithEmail,
-    signUpWithEmail, requestPasswordReset, completePasswordRecovery, finishOAuth, verifyTwoFactor, getSupabaseAccessToken, signOut, setSupabaseLoginPassword, reauthenticateIdentityLinkWithGoogle, reauthenticateIdentityLinkWithWeb3]);
+  }), [status, initializationIssue, email, busy, error, notice, googleEnabled, walletEnabled, identityLinkSourceVerified, identityLinkNeedsTwoFactor, completeIdentityLinkReauthTwoFactor, needsCredentials, credentialRecoveryReady, credentialRecoveryNeedsTwoFactor, ethereumWallets, accountRestriction, signInWithGoogle, linkGoogleIdentity, linkWeb3Identity, signInWithUsername, setBtcboxCredentials, reauthenticateCredentialsWithGoogle, reauthenticateCredentialsWithWeb3, completeCredentialRecoveryTwoFactor, recoverBtcboxPassword, signInWithWeb3, signInWithEmail, signUpWithEmail,
+    requestPasswordReset, completePasswordRecovery, finishOAuth, verifyTwoFactor, getSupabaseAccessToken, signOut, setSupabaseLoginPassword, reauthenticateIdentityLinkWithGoogle, reauthenticateIdentityLinkWithWeb3]);
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 

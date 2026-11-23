@@ -33,8 +33,8 @@ export function formatDecimalAmount(value: number | string | undefined | null, l
 }
 
 
-// Keep default, fallback and the fixed Admin language available without a request. Other languages are
-// fetched only when selected; the legacy Vietnamese dictionary stays in source.
+// Keep default, fallback and the fixed Admin language available without a request. Other supported languages
+// are fetched only when selected.
 const dictionaries: Partial<Record<Language, Dictionary>> = { en: english, ja: japanese, "zh-CN": chinese };
 const dictionaryUrls = { es: spanishUrl, pt: portugueseUrl, it: italianUrl, de: germanUrl };
 const pendingLoads = new Map<Language, Promise<Dictionary>>();

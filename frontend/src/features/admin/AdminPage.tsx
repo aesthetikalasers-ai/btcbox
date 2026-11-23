@@ -16,6 +16,7 @@ import {
   adminRejectKyc,
   adminRejectWithdrawal,
   adminReplySupport,
+  markAdminSupportRead,
   getAdminAuditLogs,
   getAdminConfig,
   getAdminKyc,
@@ -28,6 +29,9 @@ import {
   getAdminSecondsOpenPositions,
   getAdminSpotMarkets,
   getAdminSupportMessages,
+  getAdminAddresses,
+  manageAdminAddress,
+  type AdminPayoutAddress,
   getAdminSupportFaq,
   saveAdminSupportFaq,
   deleteAdminSupportFaq,
@@ -49,8 +53,8 @@ import {
   type AdminWithdrawalRecord,
 } from "../../lib/api";
 
-type ReviewDialogState = { kind: "withdrawal"; id: string } | { kind: "kyc"; uid: string };
-type Tab = "overview" | "users" | "deposits" | "withdrawals" | "kyc" | "audit" | "orders" | "support" | "support-faq" | "admins" | "seconds" | "markets";
+type ReviewDialogState = { kind: "withdrawal"; id: string } | { kind: "kyc" | "kyc-manual"; uid: string };
+type Tab = "overview" | "users" | "deposits" | "withdrawals" | "kyc" | "audit" | "orders" | "support" | "support-faq" | "payout-addresses" | "admins" | "seconds" | "markets";
 const tabs: Array<{ id: Tab; label: string; permission: string }> = [
   { id: "overview", label: "Overview", permission: "dashboard.read" },
   { id: "users", label: "Users & manual credit", permission: "users.read" },
@@ -60,11 +64,12 @@ const tabs: Array<{ id: Tab; label: string; permission: string }> = [
   { id: "audit", label: "Audit log", permission: "financial_audit.read" },
   { id: "orders", label: "Orders", permission: "orders.read" },
   { id: "support", label: "Support", permission: "support.read" },
+  { id: "payout-addresses", label: "Bank payout details", permission: "payout_addresses.read_sensitive" },
   { id: "support-faq", label: "Help centre", permission: "support.manage" },
   { id: "seconds", label: "Seconds policy", permission: "seconds_policy.read" },
   { id: "markets", label: "Spot markets", permission: "system_config.read" },
 ];
-const adminPermissionOptions = [["dashboard.read","Dashboard"],["users.read","Read users"],["users.manage","Manage users"],["users.freeze","Freeze accounts"],["kyc.read","Read KYC"],["kyc.review","Review KYC"],["deposits.read","Read deposits"],["deposits.review","Manual deposit credit"],["payout_addresses.read_sensitive","Read sensitive customer payout addresses"],["payout_addresses.manage","Manage customer payout addresses"],["withdrawals.read","Read withdrawals"],["withdrawals.review","Review and mark paid"],["orders.read","Read orders"],["support.read","Read support"],["support.reply","Reply to support"],["support.manage","Manage support"],["announcements.read","Read announcements"],["announcements.manage","Manage announcements"],["system_config.read","Read system configuration"],["system_config.write","Edit system configuration"],["seconds_policy.read","Read Seconds policy"],["seconds_policy.manage","Manage Seconds policy"],["financial_audit.read","Read financial audit"]] as const;
+const adminPermissionOptions = [["dashboard.read","Dashboard"],["users.read","Read users"],["users.manage","Manage users"],["users.freeze","Freeze accounts"],["financial_adjustment.request","Manual balance adjustment"],["kyc.read","Read KYC"],["kyc.review","Review KYC"],["deposits.read","Read deposits"],["deposits.review","Manual deposit credit"],["payout_addresses.read_sensitive","Read sensitive customer payout addresses"],["payout_addresses.manage","Manage customer payout addresses"],["withdrawals.read","Read withdrawals"],["withdrawals.review","Review and mark paid"],["orders.read","Read orders"],["support.read","Read support"],["support.reply","Reply to support"],["support.manage","Manage support"],["announcements.read","Read announcements"],["announcements.manage","Manage announcements"],["system_config.read","Read system configuration"],["system_config.write","Edit system configuration"],["seconds_policy.read","Read Seconds policy"],["seconds_policy.manage","Manage Seconds policy"],["financial_audit.read","Read financial audit"]] as const;
 const depositAddressKeys = [
   "USDT-TRC20", "USDT-ERC20", "USDT-BEP20", "BTC-BTC",
   "ETH-ERC20", "SOL-SOL", "BNB-BEP20", "USDC-ERC20",
@@ -92,6 +97,33 @@ function permissionLabel(key: string): string {
   return found ? found[1] : key;
 }
 
+function groupSupportThreads(messages: Array<Record<string, unknown>>) {
+  const grouped = new Map<string, { uid: string; email: string; messages: Array<Record<string, unknown>> }>();
+  for (const message of messages) {
+    const uid = String(message.uid || message.user_id || "").trim();
+    if (!uid) continue;
+    let thread = grouped.get(uid);
+    if (!thread) {
+      thread = { uid, email: String(message.email || ""), messages: [] };
+      grouped.set(uid, thread);
+    }
+    if (!thread.email && typeof message.email === "string") thread.email = message.email;
+    thread.messages.push(message);
+  }
+  return Array.from(grouped.values()).map((thread) => {
+    thread.messages.sort((left, right) => String(left.time || "").localeCompare(String(right.time || "")));
+    const latest = thread.messages[thread.messages.length - 1];
+    let unanswered = 0;
+    for (let index = thread.messages.length - 1; index >= 0; index -= 1) {
+      if (thread.messages[index].from === "admin") break;
+      if (thread.messages[index].from === "user") unanswered += 1;
+    }
+    const adminUnreadCount = Math.max(0, ...thread.messages.map(message => Number(message.admin_unread_count || 0)).filter(Number.isFinite));
+    return { ...thread, latestTime: String(latest?.time || ""), latestFrom: latest?.from, unanswered, adminUnreadCount };
+  }).sort((left, right) => right.latestTime.localeCompare(left.latestTime));
+}
+
+
 export function AdminPage() {
   const { status: authStatus, getSupabaseAccessToken } = useAuth();
   const [token, setToken] = useState("");
@@ -118,6 +150,7 @@ export function AdminPage() {
   const [payoutReferences, setPayoutReferences] = useState<Record<string, string>>({});
   const [reviewDialog, setReviewDialog] = useState<ReviewDialogState | null>(null);
   const [reviewReason, setReviewReason] = useState("");
+  const [manualIdentityConfirmed, setManualIdentityConfirmed] = useState(false);
   const [config, setConfig] = useState<AdminConfig>({
     deposit_addresses: {},
     withdrawal_fees: {},
@@ -142,6 +175,11 @@ export function AdminPage() {
   const [orders, setOrders] = useState<Array<Record<string, unknown>>>([]);
   const [ordersSource, setOrdersSource] = useState("unknown");
   const [support, setSupport] = useState<Array<Record<string, unknown>>>([]);
+  const [payoutAddresses, setPayoutAddresses] = useState<AdminPayoutAddress[]>([]);
+  const [editingPayoutAddress, setEditingPayoutAddress] = useState<AdminPayoutAddress | null>(null);
+  const [pendingDeletePayoutAddress, setPendingDeletePayoutAddress] = useState<AdminPayoutAddress | null>(null);
+  const [payoutAddressDraft, setPayoutAddressDraft] = useState({ account_holder:"", bank_name:"", account_number:"", iban:"", country:"", routing_number:"", swift:"", bank_address:"", note:"", reason:"" });
+
   // Help-centre editor state. Content lives in the backend state document, so the
   // console is the only place FAQs are created or changed.
   const [supportFaq, setSupportFaq] = useState<AdminSupportFaqEntry[]>([]);
@@ -346,6 +384,13 @@ export function AdminPage() {
         setOrders((snapshot.orders || []) as unknown as Array<Record<string, unknown>>);
         setOrdersSource(snapshot.source || "unknown");
       }
+      if (tab === "payout-addresses") {
+        setPayoutAddresses([]);
+        setEditingPayoutAddress(null);
+        const snapshot = await getAdminAddresses(token);
+        if (requestId !== tabLoadRequestRef.current) return;
+        setPayoutAddresses(snapshot.addresses || []);
+      }
       if (tab === "support") {
         const queueRequestId = ++supportQueueRequestRef.current;
         setSupport([]);
@@ -468,6 +513,10 @@ export function AdminPage() {
   const manualCredit = async (event: FormEvent<HTMLFormElement>, coin: string) => {
     event.preventDefault();
     if (!token || !selectedUser || manualCreditLocksRef.current[coin]) return;
+    if (selectedUser.financial_balance_source !== "postgres_financial_ledger") {
+      setError("Manual credit is disabled until the user's PostgreSQL ledger balance source is confirmed. No credit was sent.");
+      return;
+    }
     if (creditPendingInvalid[coin]) {
       setError("A saved manual-credit request is unreadable. Check the user's ledger before creating another credit.");
       return;
@@ -672,7 +721,7 @@ export function AdminPage() {
     if (!token || !reviewDialog) return;
     const reasonText = reviewReason.trim();
     if (!reasonText) {
-      setError("A rejection reason is required.");
+      setError(reviewDialog.kind === "kyc-manual" ? "A manual verification method and review note are required." : "A rejection reason is required.");
       return;
     }
     const target = reviewDialog;
@@ -688,6 +737,16 @@ export function AdminPage() {
         setReviewDialog(null);
         setReviewReason("");
         await refreshWithdrawalQueue("Withdrawal rejection and refund confirmed.");
+      } else if (target.kind === "kyc-manual") {
+        if (!manualIdentityConfirmed) {
+          setError("Confirm that you personally verified the customer's identity before approval.");
+          return;
+        }
+        await adminApproveKyc(token, target.uid, { admin_override: true, reason: reasonText });
+        setReviewDialog(null);
+        setReviewReason("");
+        setManualIdentityConfirmed(false);
+        await refreshKycQueueAfterReview("KYC approved after manual identity verification.");
       } else {
         await adminRejectKyc(token, target.uid, reasonText);
         setReviewDialog(null);
@@ -774,6 +833,52 @@ export function AdminPage() {
     } finally {
       setBusy(false);
     }
+  };
+
+  const beginPayoutAddressEdit = (item: AdminPayoutAddress) => {
+    setEditingPayoutAddress(item);
+    setPayoutAddressDraft({ account_holder:item.account_holder||"", bank_name:item.bank_name||"", account_number:item.account_number||"", iban:item.iban||"", country:item.country||"", routing_number:item.routing_number||"", swift:item.swift||"", bank_address:item.bank_address||"", note:item.note||"", reason:"" });
+    setError(""); setNotice("");
+  };
+
+  const savePayoutAddress = async () => {
+    if (!token || !editingPayoutAddress || !payoutAddressDraft.reason.trim() || busy) return;
+    if (editingPayoutAddress.type === "bank" && !payoutAddressDraft.account_number.trim() && !payoutAddressDraft.iban.trim()) {
+      setError("Enter an account number or IBAN."); return;
+    }
+    setBusy(true); setError(""); setNotice("");
+    try {
+      const result = await manageAdminAddress(token, { id:editingPayoutAddress.id, action:"update", ...payoutAddressDraft });
+      const snapshot = await getAdminAddresses(token);
+      setPayoutAddresses(snapshot.addresses || []); setEditingPayoutAddress(null);
+      setNotice(result.audit_sync_pending ? "Bank payout details saved; audit delivery is pending." : "Bank payout details saved.");
+    } catch (reason) { setError(reason instanceof Error ? reason.message : "Bank payout details were not saved."); }
+    finally { setBusy(false); }
+  };
+
+  const deletePayoutAddress = async (item: AdminPayoutAddress) => {
+    if (!token || busy) return;
+    setBusy(true); setError(""); setNotice("");
+    try {
+      const result = await manageAdminAddress(token, { id:item.id, action:"delete", reason:"Administrator removed saved payout details." });
+      setPayoutAddresses(current => current.filter(entry => entry.id !== item.id));
+      if (editingPayoutAddress?.id === item.id) setEditingPayoutAddress(null);
+      setPendingDeletePayoutAddress(null);
+      setNotice(result.audit_sync_pending ? "Bank payout details deleted; audit delivery is pending." : "Bank payout details deleted.");
+    } catch (reason) { setError(reason instanceof Error ? reason.message : "Bank payout details were not deleted."); }
+    finally { setBusy(false); }
+  };
+
+  const markSupportThreadRead = async (uid: string) => {
+    if (!token || busy) return;
+    setBusy(true); setError(""); setNotice("");
+    try {
+      const result = await markAdminSupportRead(token, uid);
+      const snapshot = await getAdminSupportMessages(token);
+      setSupport((snapshot.messages || []) as unknown as Array<Record<string, unknown>>);
+      setNotice(result.audit_sync_pending ? "Conversation marked read; audit delivery is pending." : "Conversation marked as read.");
+    } catch (reason) { setError(reason instanceof Error ? reason.message : "Conversation read state could not be saved."); }
+    finally { setBusy(false); }
   };
 
   const refreshSupportQueue = async () => {
@@ -882,9 +987,15 @@ export function AdminPage() {
     setBusy(true); setError(""); setNotice("");
     try {
       const result = await adminReplySupport(token, uid, content, requestId);
+      let readReceiptPending = false;
+      try { await markAdminSupportRead(token, uid); }
+      catch { readReceiptPending = true; }
       setSupportReply((current) => ({ ...current, [uid]: "" }));
       setSupportReplyRequestIds((current) => { const next = { ...current }; delete next[uid]; return next; });
-      const successMessage = result.audit_sync_pending ? "Support reply sent; audit delivery is pending." : "Support reply sent.";
+      const successMessage = [
+        result.audit_sync_pending ? "Support reply sent; audit delivery is pending." : "Support reply sent.",
+        readReceiptPending ? " The reply was sent, but the read receipt could not be saved; refresh the conversation." : ""
+      ].join("");
       const queueRequestId = ++supportQueueRequestRef.current;
       setSupport([]);
       try {
@@ -1054,12 +1165,13 @@ export function AdminPage() {
       <Card><CardHeader><CardTitle>{adminText("Manual credit")}</CardTitle><CardDescription>{adminText("UID and asset are bound by the selected user and asset row. No pending deposit order is created.")}</CardDescription></CardHeader><CardContent>
         {!selectedUser ? <p className="text-sm text-brand-text-muted">{adminText("Select a user to load their current balances.")}</p> : <>
           <div className="mb-3 flex flex-wrap items-center justify-between gap-2"><p className="text-sm font-semibold">{selectedUser.email} · <span className="font-mono">{selectedUser.uid}</span></p>{hasPermission("deposits.read") ? <Badge variant="outline">{selectedUser.financial_balance_source === "postgres_financial_ledger" ? adminText("Balances: PostgreSQL ledger") : selectedUser.financial_balance_source === "legacy_state_retention_limited" ? adminText("Balances: legacy state · limited") : adminText("Balances: source unknown")}</Badge> : null}</div>
+          {selectedUser.financial_balance_source !== "postgres_financial_ledger" ? <p role="status" className="mb-3 text-xs text-brand-warning">{adminText("Manual credit is disabled until the user's PostgreSQL ledger balance source is confirmed.")}</p> : null}
           {!hasPermission("deposits.read") ? <p className="text-sm text-brand-text-muted">{adminText("Balance details require the deposits.read permission.")}</p> : <div className="space-y-3">{assets.map(coin=><form key={coin} className="rounded-xl border border-brand-border p-3" onSubmit={event=>void manualCredit(event,coin)}>
-            <div className="mb-2 flex items-center justify-between"><span className="font-semibold">{coin}</span><span className="text-xs text-brand-text-muted">{adminText("Available:")}{asText(selectedUser.balances?.[coin]?.free ?? "0")}</span></div>
-            <input disabled={!!creditRequestIds[coin]||!!creditPendingInvalid[coin]||busy} value={creditAmount[coin]||""} onChange={event=>setCreditAmount(current=>({...current,[coin]:event.target.value}))} placeholder={adminText("Verified amount received")} className="mb-2 w-full rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-2 text-sm text-brand-text" inputMode="decimal"/>
+            <div className="mb-2 flex items-center justify-between"><span className="font-semibold">{coin}</span><span className="text-xs text-brand-text-muted">{adminText("Available:")}{selectedUser.balances?.[coin]?.free == null ? "—" : asText(selectedUser.balances[coin].free)}</span></div>
+            <input disabled={!!creditRequestIds[coin]||!!creditPendingInvalid[coin]||busy||selectedUser.financial_balance_source!=="postgres_financial_ledger"} value={creditAmount[coin]||""} onChange={event=>setCreditAmount(current=>({...current,[coin]:event.target.value}))} placeholder={adminText("Verified amount received")} className="mb-2 w-full rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-2 text-sm text-brand-text" inputMode="decimal"/>
             <input disabled={!!creditRequestIds[coin]||!!creditPendingInvalid[coin]||busy} value={creditReference[coin]||""} onChange={event=>setCreditReference(current=>({...current,[coin]:event.target.value}))} placeholder={adminText("Required TxID / receipt reference")} required maxLength={160} className="mb-2 w-full rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-2 text-sm text-brand-text"/>
             <input disabled={!!creditRequestIds[coin]||!!creditPendingInvalid[coin]||busy} value={creditNote[coin]||""} onChange={event=>setCreditNote(current=>({...current,[coin]:event.target.value}))} placeholder={adminText("Note (optional)")} className="mb-2 w-full rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-2 text-sm text-brand-text"/>
-            <Button type="submit" size="sm" disabled={busy || !!creditPendingInvalid[coin] || !hasPermission("deposits.review") || !hasPermission("deposits.read")}>{creditRequestIds[coin] ? adminText("Retry same credit request") : adminText("Confirm manual credit")}</Button>
+            <Button type="submit" size="sm" disabled={busy || !!creditPendingInvalid[coin] || selectedUser.financial_balance_source!=="postgres_financial_ledger" || !hasPermission("deposits.review") || !hasPermission("deposits.read")}>{creditRequestIds[coin] ? adminText("Retry same credit request") : adminText("Confirm manual credit")}</Button>
           </form>)}</div>}
           {hasPermission("deposits.read") ? <section className="mt-6 space-y-3 border-t border-brand-border pt-4">
             <div className="flex flex-wrap items-center justify-between gap-2"><div><h3 className="text-sm font-semibold">{adminText("Deposit history · latest 20")}</h3><p className="mt-1 text-xs text-brand-text-muted">{adminText("The account snapshot returns the 20 most recent deposits. Use the Audit log for the wider financial event trail.")}</p></div><Badge variant="outline">{selectedUser.deposit_history_source === "postgres_financial_ledger" ? adminText("Source: PostgreSQL ledger") : selectedUser.deposit_history_source === "legacy_state_retention_limited" ? adminText("Source: legacy state · limited") : adminText("Source: unavailable")}</Badge></div>
@@ -1080,13 +1192,20 @@ export function AdminPage() {
 
     {!loading && tab === "withdrawals" ? <Card><CardHeader><div className="flex flex-wrap items-start justify-between gap-3"><div><CardTitle>{adminText("Withdrawal queue")}</CardTitle><CardDescription>{adminText("Approve or reject requests. After staff actually transfer funds, mark paid with the TxID/reference.")}</CardDescription></div><Button size="sm" variant="outline" disabled={reviewQueueLoading || busy} onClick={()=>void refreshWithdrawalQueueManually()}>{reviewQueueLoading ? adminText("Refreshing…") : adminText("Refresh queue")}</Button></div></CardHeader><CardContent><div className="overflow-x-auto"><table className="w-full min-w-[900px] text-left text-sm"><thead><tr className="border-b border-brand-border bg-brand-surface-2/50 type-label uppercase tracking-wide text-brand-text-muted"><th className="px-3 py-2.5">{adminText("ID")}</th><th className="px-3 py-2.5">{adminText("User")}</th><th className="px-3 py-2.5 text-right">{adminText("Asset / amount")}</th><th className="px-3 py-2.5">{adminText("Network / destination")}</th><th className="px-3 py-2.5">{adminText("Status")}</th><th className="px-3 py-2.5">{adminText("Action")}</th></tr></thead><tbody>{withdrawals.map(item=><tr key={item.id} className="border-b border-brand-border-subtle align-top transition-colors hover:bg-brand-surface-hover/40"><td className="px-3 py-2.5 font-mono text-xs">{item.id}</td><td className="px-3 py-2.5">{item.uid}</td><td className="px-3 py-2.5 text-right tabular-nums"><span className="mr-1 text-xs text-brand-text-muted">{item.coin}</span>{item.amount}<div className="text-xs text-brand-text-muted">{adminText("Fee")} {item.fee}</div></td><td className="max-w-[260px] break-all px-3 py-2.5">{item.network}<div className="text-xs text-brand-text-muted">{item.address}</div></td><td className="px-3 py-2.5"><Badge variant={statusVariant(item.status)}>{adminText(item.status)}</Badge></td><td className="min-w-[220px] space-y-2 px-3 py-2.5">{item.status==="pending"||item.status==="pending_admin_review"?<><Button size="sm" disabled={busy||reviewQueueLoading||!hasPermission("withdrawals.review")} onClick={()=>void approveWithdrawal(item.id)}>{adminText("Approve")}</Button><Button size="sm" variant="destructive" disabled={busy||reviewQueueLoading||!hasPermission("withdrawals.review")} onClick={()=>void rejectWithdrawal(item.id)}>{adminText("Reject")}</Button></>:item.status==="approved"?<><input disabled={reviewQueueLoading} value={payoutReferences[item.id]||""} onChange={event=>setPayoutReferences(current=>({...current,[item.id]:event.target.value}))} placeholder={adminText("Required TxID / reference")} maxLength={160} className="w-full rounded-lg border border-brand-border bg-brand-surface-2 px-2 py-2 text-xs text-brand-text"/><Button size="sm" disabled={busy||reviewQueueLoading||!payoutReferences[item.id]?.trim()||!hasPermission("withdrawals.review")} onClick={()=>void markPaid(item.id)}>{adminText("Mark paid")}</Button></>:<span className="text-xs text-brand-text-muted">{item.payout_reference||"—"}</span>}</td></tr>)}{withdrawals.length===0 ? <tr><td colSpan={6} className="px-3 py-10 text-center text-sm text-brand-text-muted">暂无待处理提现申请。</td></tr> : null}</tbody></table></div></CardContent></Card> : null}
 
-    {!loading && tab === "kyc" ? <Card><CardHeader><div className="flex flex-wrap items-center justify-between gap-3"><CardTitle>{adminText("KYC review")}</CardTitle><Button size="sm" variant="outline" disabled={reviewQueueLoading || busy} onClick={()=>void refreshKycQueue()}>{reviewQueueLoading ? adminText("Refreshing…") : adminText("Refresh queue")}</Button></div></CardHeader><CardContent><div className="overflow-x-auto"><table className="w-full min-w-[700px] text-left text-sm"><thead><tr className="border-b border-brand-border bg-brand-surface-2/50 type-label uppercase tracking-wide text-brand-text-muted"><th className="px-3 py-2.5">{adminText("User")}</th><th className="px-3 py-2.5">{adminText("Name")}</th><th className="px-3 py-2.5">{adminText("Document")}</th><th className="px-3 py-2.5">{adminText("Status")}</th><th className="px-3 py-2.5">{adminText("Submitted")}</th><th className="px-3 py-2.5">{adminText("Action")}</th></tr></thead><tbody>{kyc.map(item=><tr key={item.uid} className="border-b border-brand-border-subtle transition-colors hover:bg-brand-surface-hover/40"><td className="px-3 py-2.5">{item.uid}<div className="text-xs text-brand-text-muted">{item.email}</div></td><td className="px-3 py-2.5">{item.name}</td><td className="px-3 py-2.5">{item.id_type}<div className="mt-1 text-xs">{item.document_url&&!item.document_preview_error?<a href={item.document_url} target="_blank" rel="noreferrer" className="text-brand-accent underline underline-offset-2">{adminText("Open secure image")}</a>:<span className="text-brand-text-muted">{item.document_preview_error||"Document image missing"}</span>}</div></td><td className="px-3 py-2.5"><Badge variant={statusVariant(item.status)}>{adminText(item.status)}</Badge></td><td className="whitespace-nowrap px-3 py-2.5">{formatDate(item.submitted_at)}</td><td className="space-x-2 px-3 py-2.5"><Button size="sm" disabled={busy||!hasPermission("kyc.review")||!item.document_uploaded||!item.document_url||!!item.document_preview_error} onClick={()=>void reviewKyc(item.uid,true)}>{adminText("Approve")}</Button><Button size="sm" variant="destructive" disabled={busy||!hasPermission("kyc.review")} onClick={()=>void reviewKyc(item.uid,false)}>{adminText("Reject")}</Button>{!item.document_uploaded||!item.document_url||item.document_preview_error?<p className="mt-1 text-xs text-brand-text-muted">{!item.document_uploaded?adminText("Identity document upload is required before approval."):adminText("Document preview unavailable; refresh the queue before approval.")}</p>:null}</td></tr>)}{kyc.length===0 ? <tr><td colSpan={6} className="px-3 py-10 text-center text-sm text-brand-text-muted">暂无待审核 KYC 申请。</td></tr> : null}</tbody></table></div></CardContent></Card> : null}
+    {!loading && tab === "kyc" ? <Card><CardHeader><div className="flex flex-wrap items-center justify-between gap-3"><CardTitle>{adminText("KYC review")}</CardTitle><Button size="sm" variant="outline" disabled={reviewQueueLoading || busy} onClick={()=>void refreshKycQueue()}>{reviewQueueLoading ? adminText("Refreshing…") : adminText("Refresh queue")}</Button></div></CardHeader><CardContent><div className="overflow-x-auto"><table className="w-full min-w-[700px] text-left text-sm"><thead><tr className="border-b border-brand-border bg-brand-surface-2/50 type-label uppercase tracking-wide text-brand-text-muted"><th className="px-3 py-2.5">{adminText("User")}</th><th className="px-3 py-2.5">{adminText("Name")}</th><th className="px-3 py-2.5">{adminText("Document")}</th><th className="px-3 py-2.5">{adminText("Status")}</th><th className="px-3 py-2.5">{adminText("Submitted")}</th><th className="px-3 py-2.5">{adminText("Action")}</th></tr></thead><tbody>{kyc.map(item=><tr key={item.uid} className="border-b border-brand-border-subtle transition-colors hover:bg-brand-surface-hover/40"><td className="px-3 py-2.5">{item.uid}<div className="text-xs text-brand-text-muted">{item.email}</div></td><td className="px-3 py-2.5">{item.name}</td><td className="px-3 py-2.5">{item.id_type}<div className="mt-1 text-xs">{item.document_url&&!item.document_preview_error?<a href={item.document_url} target="_blank" rel="noreferrer" className="text-brand-accent underline underline-offset-2">{adminText("Open secure image")}</a>:<span className="text-brand-text-muted">{item.document_preview_error||"Document image missing"}</span>}</div></td><td className="px-3 py-2.5"><Badge variant={statusVariant(item.status)}>{adminText(item.status)}</Badge></td><td className="whitespace-nowrap px-3 py-2.5">{formatDate(item.submitted_at)}</td><td className="space-x-2 px-3 py-2.5"><Button size="sm" disabled={busy||!hasPermission("kyc.review")||!item.document_uploaded||!item.document_url||!!item.document_preview_error} onClick={()=>void reviewKyc(item.uid,true)}>{adminText("Approve")}</Button><Button size="sm" variant="outline" disabled={busy||!hasPermission("kyc.review")} onClick={()=>{setReviewDialog({kind:"kyc-manual",uid:item.uid});setReviewReason("");setManualIdentityConfirmed(false);setError("");setNotice("");}}>{adminText("Manual identity verification")}</Button><Button size="sm" variant="destructive" disabled={busy||!hasPermission("kyc.review")} onClick={()=>void reviewKyc(item.uid,false)}>{adminText("Reject")}</Button>{!item.document_uploaded||!item.document_url||item.document_preview_error?<p className="mt-1 text-xs text-brand-text-muted">{!item.document_uploaded?adminText("Identity document upload is required before approval."):adminText("Document preview unavailable; refresh the queue before approval.")}</p>:null}</td></tr>)}{kyc.length===0 ? <tr><td colSpan={6} className="px-3 py-10 text-center text-sm text-brand-text-muted">暂无待审核 KYC 申请。</td></tr> : null}</tbody></table></div></CardContent></Card> : null}
 
     {!loading && tab === "audit" ? <Card><CardHeader><div className="flex flex-wrap items-start justify-between gap-2"><div><CardTitle>{adminText("Financial audit log")}</CardTitle><CardDescription>{auditCompleteness === "postgres_canonical" ? adminText("Canonical append-only PostgreSQL history. Financial operations and account history use the same database source.") : auditCompleteness === "state_document_retention_limited" ? adminText("Retention-limited state-file history. Do not treat this list as a complete financial audit record.") : adminText("Audit source is not confirmed. Do not treat this list as complete until the source is verified.")} {adminText("Operator ID is the recorded actor identifier, not a display name.")}</CardDescription></div><Badge variant={auditCompleteness === "postgres_canonical" ? "default" : "destructive"}>{auditSource === "postgres_financial_audit_log" ? adminText("PostgreSQL canonical") : auditSource === "btcbox_state" ? adminText("State file · limited") : adminText("Source unknown")}</Badge></div></CardHeader><CardContent><div className="overflow-x-auto"><table className="w-full min-w-[1000px] text-left text-sm"><thead><tr className="border-b border-brand-border bg-brand-surface-2/50 type-label uppercase tracking-wide text-brand-text-muted"><th className="px-3 py-2.5">{adminText("Event ID")}</th><th className="px-3 py-2.5">{adminText("Time")}</th><th className="px-3 py-2.5">{adminText("Operator ID")}</th><th className="px-3 py-2.5">{adminText("Action")}</th><th className="px-3 py-2.5">{adminText("Affected user UID")}</th><th className="px-3 py-2.5">{adminText("Sync")}</th><th className="px-3 py-2.5">{adminText("Detail")}</th></tr></thead><tbody>{audit.length ? audit.map((item,index)=><tr key={item.id||index} className="border-b border-brand-border-subtle transition-colors hover:bg-brand-surface-hover/40"><td className="px-3 py-2.5 font-mono text-xs">{item.id}</td><td className="whitespace-nowrap px-3 py-2.5">{formatDate(item.time)}</td><td className="px-3 py-2.5 font-mono text-xs">{item.by}</td><td className="px-3 py-2.5">{item.action}</td><td className="px-3 py-2.5">{item.uid}</td><td className="px-3 py-2.5"><Badge variant={item.postgres_sync_status === "synced" || item.postgres_sync_status === "completed" ? "success" : "outline"}>{asText(item.postgres_sync_status)}</Badge></td><td className="max-w-[280px] break-all px-3 py-2.5 text-xs">{item.detail}</td></tr>) : <tr><td colSpan={7} className="px-3 py-10 text-center text-sm text-brand-text-muted">{adminText("No audit records are available in this snapshot.")}</td></tr>}</tbody></table></div><div className="mt-4 flex flex-wrap items-center justify-between gap-3"><p className="text-xs text-brand-text-muted">{adminText("Showing")}{audit.length} {adminText("records from this source snapshot.")}</p>{auditNextBefore ? <Button type="button" variant="outline" disabled={auditPageLoading} onClick={()=>void loadOlderAuditRecords()}>{auditPageLoading ? adminText("Loading older records...") : adminText("Load older records")}</Button> : <span className="text-xs text-brand-text-muted">{auditSource === "postgres_financial_audit_log" ? adminText("No older records in this snapshot.") : adminText("Legacy snapshot pagination is unavailable; this source is retention-limited.")}</span>}</div></CardContent></Card> : null}
 
     {!loading && tab === "orders" ? <Card><CardHeader><div className="flex flex-wrap items-start justify-between gap-2"><div><CardTitle>{adminText("Orders")}</CardTitle><CardDescription>{ordersSource === "postgres_financial_matching" ? adminText("Customer order history and this administrator view use the canonical PostgreSQL matching orders.") : ordersSource === "legacy_state" ? adminText("Legacy state fallback is active because matching-engine mode was not requested.") : adminText("Order data source is not confirmed.")}</CardDescription></div><Badge variant={ordersSource === "postgres_financial_matching" ? "default" : "destructive"}>{ordersSource === "postgres_financial_matching" ? adminText("Source: PostgreSQL matching") : ordersSource === "legacy_state" ? adminText("Source: legacy state") : adminText("Source: unknown")}</Badge></div></CardHeader><CardContent><div className="overflow-x-auto"><table className="w-full min-w-[700px] text-left text-sm"><thead><tr className="border-b border-brand-border bg-brand-surface-2/50 type-label uppercase tracking-wide text-brand-text-muted"><th className="px-3 py-2.5">{adminText("ID")}</th><th className="px-3 py-2.5">{adminText("User")}</th><th className="px-3 py-2.5">{adminText("Symbol")}</th><th className="px-3 py-2.5">{adminText("Side")}</th><th className="px-3 py-2.5">{adminText("Status")}</th><th className="px-3 py-2.5">{adminText("Created")}</th></tr></thead><tbody>{orders.map((item,index)=><tr key={asText(item.id)||index} className="border-b border-brand-border-subtle transition-colors hover:bg-brand-surface-hover/40"><td className="px-3 py-2.5 font-mono text-xs">{asText(item.id)}</td><td className="px-3 py-2.5">{asText(item.uid||item.user_id)}</td><td className="px-3 py-2.5 font-medium">{asText(item.symbol)}</td><td className="px-3 py-2.5">{adminText(asText(item.side))}</td><td className="px-3 py-2.5"><Badge variant={statusVariant(asText(item.status))}>{adminText(asText(item.status))}</Badge></td><td className="whitespace-nowrap px-3 py-2.5">{formatDate(item.created_at||item.time)}</td></tr>)}{orders.length===0 ? <tr><td colSpan={6} className="px-3 py-10 text-center text-sm text-brand-text-muted">暂无订单记录。</td></tr> : null}</tbody></table></div></CardContent></Card> : null}
 
-    {!loading && tab === "support" ? <Card><CardHeader className="flex flex-row items-center justify-between"><CardTitle>{adminText("Support messages")}</CardTitle><Button size="sm" variant="outline" disabled={busy} onClick={()=>void refreshSupportQueue()}>{adminText("Refresh queue")}</Button></CardHeader><CardContent className="space-y-3">{support.map((item,index)=>{const uid=asText(item.uid||item.user_id);return <div key={asText(item.id)||index} className="rounded-xl border border-brand-border p-3"><p className="text-xs text-brand-text-muted">{uid} · {formatDate(item.created_at||item.time)}</p><p className="mt-2 whitespace-pre-wrap text-sm">{asText(item.content||item.message)}</p><textarea value={supportReply[uid]||""} onChange={event=>{setSupportReply(current=>({...current,[uid]:event.target.value}));try { setSupportReplyRequestIds(current=>({...current,[uid]:window.crypto.randomUUID()})); } catch { setError("Secure support reply request IDs are unavailable in this browser. No reply was sent."); }}} rows={2} className="mt-3 w-full rounded-lg border border-brand-border bg-brand-surface-2 p-2 text-sm text-brand-text" placeholder={adminText("Reply to customer")}/><Button size="sm" className="mt-2" disabled={busy||!supportReply[uid]?.trim()||!hasPermission("support.reply")} onClick={()=>void replySupport(uid)}>{adminText("Send reply")}</Button></div>;})}{support.length===0 ? <p className="rounded-lg border border-dashed border-brand-border p-6 text-center text-sm text-brand-text-muted">暂无客服消息。</p> : null}</CardContent></Card> : null}
+    {!loading && tab === "payout-addresses" ? <div className="space-y-4">
+      <Card><CardHeader><div className="flex flex-wrap items-center justify-between gap-2"><div><CardTitle>{adminText("Customer bank payout details")}</CardTitle><CardDescription>{adminText("Sensitive bank details are visible only to administrators with the required permission. All changes are audited.")}</CardDescription></div><Button size="sm" variant="outline" disabled={busy} onClick={()=>{setPayoutAddresses([]);void getAdminAddresses(token).then(result=>setPayoutAddresses(result.addresses||[])).catch(reason=>setError(reason instanceof Error?reason.message:"Payout details could not be refreshed."));}}>{adminText("Refresh")}</Button></div></CardHeader><CardContent className="space-y-3">
+      {payoutAddresses.filter(item=>item.type==="bank").map(item=><div key={item.id} className="rounded-xl border border-brand-border p-3"><div className="flex flex-wrap items-start justify-between gap-3"><div className="min-w-0"><p className="font-semibold">{item.bank_name} · {item.account_holder}</p><p className="mt-1 text-xs text-brand-text-muted">{item.email||item.uid} · {item.uid}</p><p className="mt-2 break-all font-mono text-xs">{item.iban ? "IBAN "+item.iban : "Account "+(item.account_number||"—")}</p><p className="mt-1 text-xs text-brand-text-muted">{[item.country,item.routing_number?"Routing "+item.routing_number:"",item.swift?"SWIFT "+item.swift:"",item.bank_address].filter(Boolean).join(" · ")}</p><p className="mt-1 text-xs text-brand-text-muted">{formatDate(item.created_at)}</p></div><div className="flex gap-2"><Button size="sm" variant="outline" disabled={busy||!hasPermission("payout_addresses.manage")} onClick={()=>beginPayoutAddressEdit(item)}>{adminText("Edit")}</Button><Button size="sm" variant="destructive" disabled={busy||!hasPermission("payout_addresses.manage")} onClick={()=>setPendingDeletePayoutAddress(item)}>{adminText("Delete")}</Button></div></div></div>)}
+      {payoutAddresses.filter(item=>item.type==="bank").length===0?<p className="rounded-lg border border-dashed border-brand-border p-6 text-center text-sm text-brand-text-muted">{adminText("No saved bank payout details.")}</p>:null}
+      </CardContent></Card>
+      {editingPayoutAddress ? <Card><CardHeader><CardTitle>{adminText("Edit bank payout details")}</CardTitle></CardHeader><CardContent className="space-y-3"><div className="grid gap-3 sm:grid-cols-2">{([["account_holder","Account holder"],["bank_name","Bank name"],["account_number","Local account number"],["iban","IBAN"],["country","Country code"],["routing_number","Routing number"],["swift","SWIFT / BIC"],["bank_address","Bank address"],["note","Note"]] as const).map(([key,label])=><label key={key} className="space-y-1 text-sm"><span>{adminText(label)}</span><input value={payoutAddressDraft[key]} disabled={busy||!hasPermission("payout_addresses.manage")} onChange={event=>setPayoutAddressDraft(current=>({...current,[key]:event.target.value}))} className="w-full rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-2 text-sm text-brand-text"/></label>)}</div><label className="block space-y-1 text-sm"><span>{adminText("Reason for change (required)")}</span><textarea value={payoutAddressDraft.reason} onChange={event=>setPayoutAddressDraft(current=>({...current,reason:event.target.value}))} rows={2} maxLength={200} className="w-full rounded-lg border border-brand-border bg-brand-surface-2 p-3 text-sm text-brand-text"/></label><div className="flex gap-2"><Button disabled={busy||!hasPermission("payout_addresses.manage")||!payoutAddressDraft.reason.trim()} onClick={()=>void savePayoutAddress()}>{adminText("Save changes")}</Button><Button variant="outline" disabled={busy} onClick={()=>setEditingPayoutAddress(null)}>{adminText("Cancel")}</Button></div></CardContent></Card>:null}
+    </div> : null}
+    {!loading && tab === "support" ? <Card><CardHeader className="flex flex-row items-center justify-between"><CardTitle>{adminText("Support messages")}</CardTitle><Button size="sm" variant="outline" disabled={busy} onClick={()=>void refreshSupportQueue()}>{adminText("Refresh queue")}</Button></CardHeader><CardContent className="space-y-3">{groupSupportThreads(support).map((thread)=> <div key={thread.uid} className="rounded-xl border border-brand-border p-3"><div className="flex flex-wrap items-center justify-between gap-2"><div><p className="text-sm font-semibold text-brand-text">{thread.email || thread.uid}</p><p className="text-xs text-brand-text-muted">{thread.uid}</p></div><div className="flex flex-wrap items-center gap-2"><Badge variant={thread.unanswered > 0 ? "warning" : "success"}>{thread.unanswered > 0 ? adminText("Awaiting reply") + " · " + thread.unanswered : adminText("Replied")}</Badge>{thread.adminUnreadCount > 0 ? <Badge variant="info">{adminText("Unread") + " · " + thread.adminUnreadCount}</Badge> : null}{thread.adminUnreadCount > 0 ? <Button size="sm" variant="outline" disabled={busy} onClick={()=>void markSupportThreadRead(thread.uid)}>{adminText("Mark read")}</Button> : null}</div></div><div className="mt-3 space-y-2 rounded-lg bg-brand-surface-2/50 p-3">{thread.messages.map((message,index)=><div key={asText(message.id)||index} className={message.from === "admin" ? "ml-5 rounded-lg bg-brand-accent/10 p-2.5" : "mr-5 rounded-lg bg-brand-surface p-2.5"}><div className="flex items-center justify-between gap-2"><Badge variant={message.from === "admin" ? "outline" : "secondary"}>{message.from === "admin" ? adminText("Administrator") : adminText("Customer")}</Badge><span className="text-[11px] text-brand-text-muted">{formatDate(asText(message.time))}</span></div><p className="mt-2 whitespace-pre-wrap break-words text-sm">{asText(message.content)}</p></div>)}</div><textarea value={supportReply[thread.uid]||""} onChange={event=>{setSupportReply(current=>({...current,[thread.uid]:event.target.value}));try { setSupportReplyRequestIds(current=>({...current,[thread.uid]:window.crypto.randomUUID()})); } catch { setError("Secure support reply request IDs are unavailable in this browser. No reply was sent."); }}} rows={2} className="mt-3 w-full rounded-lg border border-brand-border bg-brand-surface-2 p-2 text-sm text-brand-text" placeholder={adminText("Reply to customer")}/><Button size="sm" className="mt-2" disabled={busy||!supportReply[thread.uid]?.trim()||!hasPermission("support.reply")} onClick={()=>void replySupport(thread.uid)}>{adminText("Send reply")}</Button></div>)}{support.length===0 ? <p className="rounded-lg border border-dashed border-brand-border p-6 text-center text-sm text-brand-text-muted">暂无客服消息。</p> : null}</CardContent></Card> : null}
     {!loading && tab === "support-faq" ? <div className="grid gap-4 xl:grid-cols-[minmax(0,1.05fr)_minmax(340px,0.95fr)]">
       <Card>
         <CardHeader>
@@ -1184,6 +1303,7 @@ export function AdminPage() {
         <Button block disabled={busy||!adminTargetUserId||(!adminMemberships.some(item=>item.user_id===adminTargetUserId)&&!adminPermissions.length)||!adminReason.trim()} onClick={()=>{const existing=adminMemberships.find(item=>item.user_id===adminTargetUserId);void submitAdminMembershipChange(existing?"set_permissions":"provision",adminTargetUserId,existing?.revision||0,adminPermissions);}}>{adminMemberships.some(item=>item.user_id===adminTargetUserId)?adminText("Save permissions"):adminText("Provision administrator")}</Button>
       </CardContent></Card>
     </div> : null}
+    {pendingDeletePayoutAddress ? <div className="fixed inset-0 z-[100] flex items-center justify-center bg-brand-bg/80 p-4" role="presentation"><section role="dialog" aria-modal="true" aria-labelledby="delete-payout-title" className="w-full max-w-md rounded-xl border border-brand-border bg-brand-surface p-5 shadow-2xl"><h2 id="delete-payout-title" className="text-lg font-semibold">{adminText("Delete bank payout details?")}</h2><p className="mt-2 text-sm text-brand-text-muted">{pendingDeletePayoutAddress.bank_name} · {pendingDeletePayoutAddress.account_holder}. {adminText("This action cannot be undone and will be recorded in the audit log.")}</p><div className="mt-5 flex justify-end gap-2"><Button variant="outline" disabled={busy} onClick={()=>setPendingDeletePayoutAddress(null)}>{adminText("Cancel")}</Button><Button variant="destructive" disabled={busy||!hasPermission("payout_addresses.manage")} onClick={()=>void deletePayoutAddress(pendingDeletePayoutAddress)}>{adminText("Confirm delete")}</Button></div></section></div>:null}
     {reviewDialog ? <div
       className="fixed inset-0 z-[100] flex items-center justify-center bg-brand-bg/80 p-4"
       role="presentation"
@@ -1198,16 +1318,18 @@ export function AdminPage() {
       >
         <div className="mb-4">
           <h2 id="review-dialog-title" className="text-lg font-semibold text-brand-text">
-            {reviewDialog.kind === "withdrawal" ? adminText("Reject withdrawal") : adminText("Reject KYC application")}
+            {reviewDialog.kind === "withdrawal" ? adminText("Reject withdrawal") : reviewDialog.kind === "kyc-manual" ? adminText("Manual identity verification") : adminText("Reject KYC application")}
           </h2>
           <p id="review-dialog-description" className="mt-1 text-sm text-brand-text-muted">
             {reviewDialog.kind === "withdrawal"
               ? adminText("The rejection and refund will be recorded together. Enter the reason for the audit record.")
-              : adminText("Enter the reason that will be recorded with this KYC decision.")}
+              : reviewDialog.kind === "kyc-manual"
+                ? adminText("Use this only after you have independently verified the customer's identity. Record the verification method and details; this action is audited.")
+                : adminText("Enter the reason that will be recorded with this KYC decision.")}
           </p>
         </div>
         <label className="block space-y-2 text-sm">
-          <span className="font-medium text-brand-text">{adminText("Rejection reason")}<span className="text-brand-danger">*</span></span>
+          <span className="font-medium text-brand-text">{adminText(reviewDialog.kind === "kyc-manual" ? "Manual verification method and notes" : "Rejection reason")}<span className="text-brand-danger">*</span></span>
           <textarea
             autoFocus
             value={reviewReason}
@@ -1215,16 +1337,17 @@ export function AdminPage() {
             rows={4}
             maxLength={300}
             disabled={busy}
-            placeholder={adminText("Enter a clear reason (up to 300 characters)")}
+            placeholder={adminText(reviewDialog.kind === "kyc-manual" ? "Describe how identity was checked (for example, live video call and document comparison)." : "Enter a clear reason (up to 300 characters)")}
             className="w-full resize-y rounded-lg border border-brand-border bg-brand-surface-2 p-3 text-brand-text outline-none focus:border-brand-accent"
           />
           <span className="block text-right text-xs text-brand-text-muted">{reviewReason.length}/300</span>
         </label>
+        {reviewDialog.kind === "kyc-manual" ? <label className="mt-4 flex items-start gap-2 text-sm text-brand-text"><input type="checkbox" checked={manualIdentityConfirmed} disabled={busy} onChange={event=>setManualIdentityConfirmed(event.target.checked)} className="mt-1" /><span>{adminText("I personally verified this customer's identity and confirm the evidence is sufficient.")}</span></label> : null}
         {error ? <p role="alert" className="mt-3 text-sm text-brand-danger">{adminText(error)}</p> : null}
         <div className="mt-5 flex flex-col-reverse justify-end gap-2 sm:flex-row">
           <Button type="button" variant="outline" disabled={busy} onClick={() => { setReviewDialog(null); setReviewReason(""); }}>{adminText("Cancel")}</Button>
-          <Button type="button" variant="destructive" disabled={busy || !reviewReason.trim()} onClick={() => void confirmReviewRejection()}>
-            {busy ? adminText("Submitting…") : adminText("Confirm rejection")}
+          <Button type="button" variant={reviewDialog.kind === "kyc-manual" ? "default" : "destructive"} disabled={busy || !reviewReason.trim() || (reviewDialog.kind === "kyc-manual" && !manualIdentityConfirmed)} onClick={() => void confirmReviewRejection()}>
+            {busy ? adminText("Submitting…") : adminText(reviewDialog.kind === "kyc-manual" ? "Confirm manual approval" : "Confirm rejection")}
           </Button>
         </div>
       </section>

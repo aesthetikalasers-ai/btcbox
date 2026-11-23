@@ -20,7 +20,7 @@ test('languages load on demand, cache in memory and persist across navigation an
     if (request.resourceType() === 'fetch' && /\.json(?:\?|$)/.test(request.url())) requested.push(request.url());
   });
   await page.goto('/login');
-  await expect(page.getByLabel('Username', { exact: true })).toBeVisible();
+  await expect(page.getByLabel('Username or email', { exact: true })).toBeVisible();
   expect(requested).toHaveLength(0);
   await page.locator('select').selectOption('de');
   await expect(page.locator('html')).toHaveAttribute('lang', 'de-DE');
@@ -35,8 +35,7 @@ test('languages load on demand, cache in memory and persist across navigation an
   await page.locator('a[href="/home"]:visible').last().click();
   await expect(page.locator('html')).toHaveAttribute('lang', 'de-DE');
   await page.reload();
-  await expect(page.locator('header select')).toHaveValue('de');
-  await expect(page.locator('header select')).toHaveCSS('color-scheme', 'dark');
+  await expect(page.getByRole('button', { name: 'Sprache', exact: true })).toContainText('Deutsch');
   await expect(page.locator('html')).toHaveAttribute('lang', 'de-DE');
 });
 
@@ -48,14 +47,14 @@ test('a failed language request can retry without losing form input or the saved
     return route.continue();
   });
   await page.goto('/login');
-  await page.getByLabel('Username', { exact: true }).fill('retained-name');
+  await page.getByLabel('Username or email', { exact: true }).fill('retained-name');
   await page.locator('select').selectOption('de');
   await expect(page.getByRole('alert')).toContainText('Unable to load this language. Please try again.');
-  await expect(page.getByLabel('Username', { exact: true })).toHaveValue('retained-name');
+  await expect(page.getByLabel('Username or email', { exact: true })).toHaveValue('retained-name');
   expect(await page.evaluate(() => localStorage.getItem('btcbox-language'))).toBe('en');
   await page.getByRole('alert').getByRole('button', { name: 'Try again' }).click();
   await expect(page.locator('html')).toHaveAttribute('lang', 'de-DE');
-  await expect(page.getByLabel('Benutzername', { exact: true })).toHaveValue('retained-name');
+  await expect(page.getByLabel('Benutzername oder E-Mail', { exact: true })).toHaveValue('retained-name');
   expect(attempts).toBe(2);
 });
 
@@ -90,13 +89,13 @@ test('a stalled language request times out and leaves the current page usable', 
     await route.continue().catch(() => {});
   });
   await page.goto('/login');
-  await page.getByLabel('Username', { exact: true }).fill('keep-this-form');
+  await page.getByLabel('Username or email', { exact: true }).fill('keep-this-form');
   await page.locator('select').selectOption('de');
   await expect.poll(() => !!release).toBe(true);
   await page.clock.fastForward(10_001);
   await expect(page.getByRole('alert')).toContainText('Unable to load this language. Please try again.');
   await page.getByRole('alert').getByRole('button', { name: 'Cancel', exact: true }).click();
-  await expect(page.getByLabel('Username', { exact: true })).toHaveValue('keep-this-form');
+  await expect(page.getByLabel('Username or email', { exact: true })).toHaveValue('keep-this-form');
   await expect(page.locator('html')).toHaveAttribute('lang', 'en-US');
   release!();
 });
@@ -115,7 +114,7 @@ test('an invalid saved-language response shows a recoverable state before render
   invalid = false;
   await page.getByRole('alert').getByRole('button').last().click();
   await expect(page.locator('html')).toHaveAttribute('lang', 'de-DE');
-  await expect(page.getByLabel('Benutzername', { exact: true })).toBeVisible();
+  await expect(page.getByLabel('Benutzername oder E-Mail', { exact: true })).toBeVisible();
 });
 
 

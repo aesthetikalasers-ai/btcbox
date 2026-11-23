@@ -224,7 +224,10 @@ test('admin console exposes read-only order and support inbox views with escaped
   const supportStart = apiCore.indexOf("if (sub === 'support/messages' && method === 'GET')");
   assert.ok(orderStart >= 0 && supportStart > orderStart);
   assert.ok(apiCore.slice(orderStart, supportStart).includes("source: 'legacy_state'"));
-  assert.ok(apiCore.slice(supportStart).includes('list.slice(0, 100)'));
+  const supportRoute = apiCore.slice(supportStart);
+  assert.ok(supportRoute.includes('conversation.slice(-100).forEach'));
+  assert.ok(supportRoute.includes('return json({ ok: true, messages: list });'));
+  assert.ok(!supportRoute.includes('list.slice(-500)'));
 });
 
 test('public build excludes the retired legacy admin shell while retaining the React admin route', () => {

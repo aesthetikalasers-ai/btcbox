@@ -28,7 +28,9 @@ const TRADES_INTERVAL_MS = 3000;
 /** Ping cadence so proxies do not treat the connection as idle. */
 const PING_INTERVAL_MS = 15000;
 /** Hard cap on stream lifetime; EventSource reconnects seamlessly afterwards. */
-const MAX_STREAM_MS = 10 * 60 * 1000;
+// Stay below the Vercel Function's 300s hard timeout so cleanup can close
+// the response cleanly and EventSource can reconnect without a platform kill.
+const MAX_STREAM_MS = 4 * 60 * 1000;
 /**
  * Upstream request timeout. Must stay below the emit interval so a slow provider
  * cannot make requests overlap; the `inFlight` guard in the handler is a second

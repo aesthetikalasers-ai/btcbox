@@ -25,20 +25,29 @@ export default defineConfig({
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
   },
+  // CI acceptance is mobile-first. Desktop visual/layout acceptance is intentionally
+  // excluded from the merge gate; desktop remains available for optional local checks.
   projects: [
-    {
-      name: "desktop-chromium",
-      use: { ...devices["Desktop Chrome"] },
-    },
     {
       name: "mobile-chromium",
       use: { ...devices["Pixel 7"] },
     },
   ],
-  webServer: {
-    command: "npm run dev -- --host 127.0.0.1 --port 4173 --strictPort",
-    url: "http://127.0.0.1:4173",
-    reuseExistingServer: !process.env.CI,
-    timeout: 120_000,
-  },
+  // Use the production bundle: vite dev enables DEV_OPEN_ACCOUNT_PAGES and bypasses production auth gates.
+  webServer: [
+    {
+      command: "npm run preview -- --host 127.0.0.1 --port 4173 --strictPort",
+      url: "http://127.0.0.1:4173",
+      reuseExistingServer: !process.env.CI,
+      timeout: 120_000,
+    },
+    {
+      // A separate Vite dev origin is used only by source-module unit probes.
+      // Route/UI acceptance continues to run against the production bundle above.
+      command: "npm run dev -- --host 127.0.0.1 --port 4174 --strictPort",
+      url: "http://127.0.0.1:4174",
+      reuseExistingServer: !process.env.CI,
+      timeout: 120_000,
+    },
+  ],
 });

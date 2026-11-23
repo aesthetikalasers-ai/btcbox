@@ -114,8 +114,8 @@ export function getDemoMarketPairs(): SpotMarketPair[] {
 export function getDemoKlines(symbol: string, interval: string): MarketCandle[] {
   const basePrice = marketSeeds.find((market) => `${market.sym}USDT` === symbol.toUpperCase())?.price
     ?? marketSeeds[0].price;
-  const step = interval === "1m" ? 60_000 : interval === "5m" ? 300_000 : interval === "1d" ? 86_400_000 : 3_600_000;
-  const now = Math.floor(Date.now() / step) * step;
+  const step = interval === "1m" ? 60 : interval === "5m" ? 300 : interval === "1d" ? 86_400 : 3_600;
+  const now = Math.floor(Date.now() / 1000 / step) * step;
   let previousClose = basePrice * 0.992;
 
   return Array.from({ length: 48 }, (_, index) => {

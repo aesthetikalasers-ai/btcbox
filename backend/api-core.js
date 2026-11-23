@@ -3,7 +3,9 @@
 const crypto = require('crypto');
 const { authorizeSupabaseAdmin } = require('./admin-auth');
 const { hasAdminPermission } = require('./admin-rbac');
+const { isValidIban } = require('./bank-account-validation');
 const { hasActiveVersionedSecondsPolicy } = require('./seconds-policy-readiness');
+const { getUsdtUsd } = require('./market-gateway');
 
 const SESSION_COOKIE = 'session_token';
 const PBKDF2_ITER = 100000;
@@ -11,6 +13,11 @@ const PBKDF2_KEYLEN = 32;
 const SESSION_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 const LIVE_PRICE_CACHE_MS = 15000;
 let livePriceCache = { expiresAt: 0, prices: {} };
+
+// Public, read-only endpoints must not be coupled to the account-state singleton.
+// Market prices and display FX can continue during a persistence incident;
+// the health endpoint reports the degraded state explicitly.
+const PUBLIC_NO_DB_PATHS = new Set(['market', 'market/pairs', 'kline', 'depth', 'trading/status', 'config', 'fx/usdt-usd', 'health']);
 
 // ===== 数据层（失败时关闭；不使用陈旧缓存处理可变数据）=====
 // Legacy JSON/Blobs writes cannot resolve 跨实例并发读-改-写竞争; they are retired.
@@ -23,6 +30,31 @@ function supabaseStorageConfigured() {
 function supabaseHeaders() {
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY;
   return { 'apikey': key, 'Authorization': 'Bearer ' + key, 'Content-Type': 'application/json' };
+}
+async function supportReadCursorRpc(functionName, payload) {
+  if (!supabaseStorageConfigured()) throw new Error('Support read state storage is unavailable');
+  const base = process.env.SUPABASE_URL.replace(/\/+$/, '');
+  const response = await fetch(base + '/rest/v1/rpc/' + functionName, {
+    method: 'POST', headers: supabaseHeaders(), body: JSON.stringify(payload),
+    signal: AbortSignal.timeout(4000)
+  });
+  if (!response.ok) throw new Error('Support read state operation failed');
+  const value = await response.json();
+  if (!value || typeof value !== 'object' || Array.isArray(value) ||
+      typeof value.message_id !== 'string' || typeof value.read_at !== 'string') {
+    throw new Error('Support read state response invalid');
+  }
+  return value;
+}
+async function markSupportConversationRead(uid, message) {
+  if (!message || typeof message.id !== 'string' || !message.id ||
+      typeof message.time !== 'string' || !message.time) throw new Error('Support read cursor is invalid');
+  return supportReadCursorRpc('btcbox_mark_support_read_v2', {
+    p_uid: String(uid || ''), p_message_id: message.id, p_read_at: message.time
+  });
+}
+async function getSupportConversationReadState(uid) {
+  return supportReadCursorRpc('btcbox_get_support_read_v2', { p_uid: String(uid || '') });
 }
 // Publishable/anon key 读取：trim 空白并校验格式，防止 env 值被换行/空格污染。
 // 合法格式：sb_publishable_ 开头（新格式）或 eyJ 开头（JWT 旧格式），不含任何空白字符。
@@ -1206,7 +1238,7 @@ function validateKycSubmission(body) {
 }
 
 const KYC_STORAGE_BUCKET = 'kyc-documents';
-const KYC_IMAGE_MAX_BYTES = 512 * 1024;
+const KYC_IMAGE_MAX_BYTES = 2 * 1024 * 1024;
 
 function validateKycImage(body) {
   const contentType = String(body && body.document_content_type || '').toLowerCase();
@@ -1214,13 +1246,17 @@ function validateKycImage(body) {
   if (!['image/jpeg', 'image/png', 'image/webp'].includes(contentType)) {
     return { ok: false, msg: 'Upload a JPEG, PNG, or WebP identity document image.' };
   }
-  if (!encoded || encoded.length > Math.ceil(KYC_IMAGE_MAX_BYTES * 4 / 3) + 8 || !/^[A-Za-z0-9+/]+={0,2}$/.test(encoded)) {
-    return { ok: false, msg: 'The identity document image is missing or too large (maximum 512 KB).' };
+  const padding = encoded.endsWith('==') ? 2 : (encoded.endsWith('=') ? 1 : 0);
+  const decodedLength = Math.floor(encoded.length * 3 / 4) - padding;
+  if (!encoded || encoded.length > Math.ceil(KYC_IMAGE_MAX_BYTES * 4 / 3) + 8 ||
+      encoded.length % 4 !== 0 || !/^[A-Za-z0-9+/]+={0,2}$/.test(encoded) ||
+      decodedLength <= 0 || decodedLength > KYC_IMAGE_MAX_BYTES) {
+    return { ok: false, msg: 'The identity document image is missing or too large (maximum 2 MB).' };
   }
   let bytes;
   try { bytes = Buffer.from(encoded, 'base64'); } catch (_) { return { ok: false, msg: 'The identity document image is invalid.' }; }
-  if (!bytes.length || bytes.length > KYC_IMAGE_MAX_BYTES || bytes.toString('base64').replace(/=+$/, '') !== encoded.replace(/=+$/, '')) {
-    return { ok: false, msg: 'The identity document image is invalid or exceeds 512 KB.' };
+  if (!bytes.length || bytes.length !== decodedLength || bytes.length > KYC_IMAGE_MAX_BYTES) {
+    return { ok: false, msg: 'The identity document image is invalid or exceeds 2 MB.' };
   }
   const jpeg = bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff;
   const png = bytes.length >= 8 && bytes.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]));
@@ -1392,19 +1428,28 @@ async function handleRequest(event, context) {
   let body = {};
   if (event.body !== undefined && event.body !== null && event.body !== '') {
     let rawBody;
+    const requestBodyLimit = path === 'kyc' && method === 'POST' ? 3 * 1024 * 1024 : 1024 * 1024;
     try {
-      rawBody = event.isBase64Encoded
-        ? Buffer.from(String(event.body), 'base64').toString('utf8')
-        : String(event.body);
+      if (event.isBase64Encoded) {
+        const encodedBody = String(event.body);
+        // Reject oversized gateway payloads before allocating the decoded body.
+        if (encodedBody.length > Math.ceil(requestBodyLimit * 4 / 3) + 8) {
+          return json({ ok: false, msg: 'Request body too large.', code: 'REQUEST_BODY_TOO_LARGE' }, 413);
+        }
+        rawBody = Buffer.from(encodedBody, 'base64').toString('utf8');
+      } else {
+        rawBody = String(event.body);
+      }
     } catch (e) {
       return json({ ok: false, msg: 'Invalid request format.', code: 'INVALID_REQUEST_BODY' }, 400);
     }
-    // Bound parsing cost and memory use for all API endpoints.
-    if (Buffer.byteLength(rawBody, 'utf8') > 1024 * 1024) {
+    // KYC alone receives 3 MiB for a 2 MiB image encoded as base64; all other APIs stay at 1 MiB.
+    if (Buffer.byteLength(rawBody, 'utf8') > requestBodyLimit) {
       return json({ ok: false, msg: 'Request body too large.', code: 'REQUEST_BODY_TOO_LARGE' }, 413);
     }
     try {
       body = JSON.parse(rawBody);
+      rawBody = null;
     } catch (e) {
       return json({ ok: false, msg: 'Request body is not valid JSON', code: 'INVALID_JSON' }, 400);
     }
@@ -1418,10 +1463,20 @@ async function handleRequest(event, context) {
   if (!db) {
     // Public, read-only market endpoints do not depend on persistent state.
     // Keep prices / 24h change / 24h volume / klines available when Supabase is unavailable.
-    var publicNoDbPaths = ['market', 'market/pairs', 'kline', 'depth', 'trading/status', 'config'];
-    if (method !== 'GET' || publicNoDbPaths.indexOf(path) === -1) {
+    if (method !== 'GET' || !PUBLIC_NO_DB_PATHS.has(path)) {
       return json({ ok: false, msg: 'Network error. Please try again.', code: 'PERSISTENCE_UNAVAILABLE' }, 503);
     }
+  }
+
+  // ---------- GET /api/health ----------
+  // A health probe must remain reachable when storage is degraded, and must
+  // report that degradation rather than being masked by the generic DB gate.
+  if (path === 'health' && method === 'GET') {
+    return json({
+      ok: Boolean(db),
+      service: 'btcbox-api',
+      persistence: db ? 'available' : 'unavailable',
+    }, db ? 200 : 503);
   }
 
   // ---------- GET /api/config ----------
@@ -1675,6 +1730,29 @@ async function handleRequest(event, context) {
     try { await saveDB(db); }
     catch (_) { return json({ ok: false, code: 'PERSISTENCE_UNAVAILABLE', msg: 'Authentication is temporarily unavailable. Please try again.' }, 503); }
     return json({ ok: true }, 200, setCookieHeader(token2));
+  }
+
+  // ---------- GET /api/fx/usdt-usd (public, server-side provider gateway) ----------
+  // This route intentionally lives in the shared Vercel API handler rather than
+  // only in the local market-server. The frontend uses the same /api/* contract
+  // in production and local development, so production must not return 404.
+  // The gateway caches successful provider results and may reuse a previously
+  // verified rate as stale display metadata. It never invents a rate after a
+  // cold-start outage; this endpoint is display-only and never affects order,
+  // balance, or settlement calculations.
+  if (path === 'fx/usdt-usd' && method === 'GET') {
+    try {
+      const payload = await getUsdtUsd();
+      return json(payload, payload.ok === true ? 200 : 503);
+    } catch (_) {
+      return json({
+        ok: false,
+        code: 'FX_DATA_UNAVAILABLE',
+        source: 'unavailable',
+        stale: true,
+        msg: 'USDT/USD conversion is temporarily unavailable.'
+      }, 503);
+    }
   }
 
   // ---------- GET /api/kline (Coinbase primary, Bybit fallback) ----------
@@ -2252,7 +2330,7 @@ async function handleRequest(event, context) {
       fundpwd_reauth_mode: Array.isArray(user.auth_providers) && user.auth_providers.length ? 'twofa' : 'password',
       twofa_enabled: user.twofa_enabled,
       deposit_addresses: safeDepositAddresses(db.deposit_addresses),
-      addresses: (user.addresses || []).map(function(a){ const out=Object.assign({},a); if(out.type==='crypto' && out.address) out.address=out.address.length>14?out.address.slice(0,6)+'••••••'+out.address.slice(-6):out.address; if(out.account_number) out.account_number='••••'+out.account_number.slice(-4); if(out.routing_number) out.routing_number='••••'+out.routing_number.slice(-4); return out; }),
+      addresses: (user.addresses || []).map(function(a){ const out=Object.assign({},a); if(out.type==='crypto' && out.address) out.address=out.address.length>14?out.address.slice(0,6)+'••••••'+out.address.slice(-6):out.address; if(out.account_number) out.account_number='••••'+out.account_number.slice(-4); if(out.iban) out.iban=out.iban.slice(0,2)+'••••••••'+out.iban.slice(-4); if(out.routing_number) out.routing_number='••••'+out.routing_number.slice(-4); return out; }),
     });
   }
 
@@ -2263,6 +2341,7 @@ async function handleRequest(event, context) {
       const out = Object.assign({}, a);
       if (out.type === 'bank') {
         out.account_number = out.account_number ? '••••' + out.account_number.slice(-4) : '';
+        out.iban = out.iban ? out.iban.slice(0,2) + '••••••••' + out.iban.slice(-4) : '';
         out.routing_number = out.routing_number ? '••••' + out.routing_number.slice(-4) : '';
       } else if (out.type === 'crypto') {
         out.address = out.address.length > 14 ? out.address.slice(0,6) + '••••••' + out.address.slice(-6) : out.address;
@@ -2300,9 +2379,23 @@ async function handleRequest(event, context) {
       if (!valid) return json({ok:false,msg:'Operation failed: invalid address format.'},400);
       record = { id:'A'+Date.now()+crypto.randomBytes(3).toString('hex'), type:type, coin:coin, network:network, address:address, note:note, created_at:nowStr(), flagged:false, blocked:false };
     } else {
-      const holder=String(body.account_holder||'').trim().slice(0,120), bank=String(body.bank_name||'').trim().slice(0,120), account=String(body.account_number||'').replace(/\s/g,''), routing=String(body.routing_number||'').replace(/\s/g,''), swift=String(body.swift||'').trim().toUpperCase(), bankAddress=String(body.bank_address||'').trim().slice(0,240);
-      if (!holder || !bank || !/^\d{4,34}$/.test(account) || !/^\d{9}$/.test(routing) || (swift && !/^[A-Z0-9]{8}([A-Z0-9]{3})?$/.test(swift)) || !bankAddress) return json({ok:false,msg:'Operation failed: please check your bank account details.'},400);
-      record={id:'A'+Date.now()+crypto.randomBytes(3).toString('hex'),type:type,account_holder:holder,bank_name:bank,account_number:account,routing_number:routing,swift:swift,bank_address:bankAddress,note:note,created_at:nowStr(),flagged:false,blocked:false};
+      const holder=String(body.account_holder||'').trim().slice(0,120), bank=String(body.bank_name||'').trim().slice(0,120);
+      const account=String(body.account_number||'').replace(/\s/g,'').toUpperCase();
+      const iban=String(body.iban||'').replace(/\s/g,'').toUpperCase();
+      const routing=String(body.routing_number||'').replace(/\s/g,'');
+      const swift=String(body.swift||'').trim().toUpperCase();
+      const bankAddress=String(body.bank_address||'').trim().slice(0,240);
+      const country=String(body.country||'').trim().toUpperCase().slice(0,2);
+      const validIban=!iban || isValidIban(iban);
+      if (!holder || !bank || (!account && !iban) || (account && !/^[A-Z0-9]{4,34}$/.test(account)) ||
+          !validIban || (routing && !/^\d{9}$/.test(routing)) ||
+          (swift && !/^[A-Z]{4}[A-Z]{2}[A-Z0-9]{2}([A-Z0-9]{3})?$/.test(swift)) ||
+          (country && !/^[A-Z]{2}$/.test(country))) {
+        return json({ok:false,msg:'Operation failed: please check your bank account details.'},400);
+      }
+      record={id:'A'+Date.now()+crypto.randomBytes(3).toString('hex'),type:type,account_holder:holder,bank_name:bank,
+        account_number:account,iban:iban,routing_number:routing,swift:swift,bank_address:bankAddress,country:country,
+        note:note,created_at:nowStr(),flagged:false,blocked:false};
     }
     if (!Array.isArray(user.addresses)) user.addresses=[];
     user.addresses.push(record);
@@ -3112,9 +3205,23 @@ async function handleRequest(event, context) {
   // ---------- GET /api/support/messages ----------
   if (path === 'support/messages' && method === 'GET') {
     if (!user) return json({ ok: false, msg: 'Not signed in.', need_login: true });
-    user.last_read_chat_at = nowStr(); // 拉取消息即标记已读
-    await saveDB(db);
-    return json({ ok: true, messages: user.support_messages.slice(-50) });
+    const messages = (Array.isArray(user.support_messages) ? user.support_messages : [])
+      .filter(function (message) {
+        return message && (message.from === 'user' || message.from === 'admin') &&
+          typeof message.content === 'string' && typeof message.time === 'string';
+      })
+      .slice(-50)
+      .map(function (message) {
+        // Customer history exposes conversation fields only, never staff IDs,
+        // idempotency keys, or internal audit-event identifiers.
+        return { id: String(message.id || ''), from: message.from, content: message.content, time: message.time };
+      });
+    const lastVisibleAdminMessage = messages.slice().reverse().find(function (message) {
+      return message.from === 'admin' && message.id && message.time;
+    });
+    // Advance only through an administrator message actually included in this response.
+    if (lastVisibleAdminMessage) await markSupportConversationRead(user.uid, lastVisibleAdminMessage);
+    return json({ ok: true, messages: messages });
   }
 
   // ---------- GET /api/support/faq（帮助中心公开条目）----------
@@ -3203,8 +3310,17 @@ async function handleRequest(event, context) {
   // ---------- GET /api/chat/unread（客服未读消息数）----------
   if (path === 'chat/unread' && method === 'GET') {
     if (!user) return json({ ok: false, msg: 'Not signed in.', need_login: true });
-    const lastRead = user.last_read_chat_at || '';
-    const unread = (user.support_messages || []).filter(function (m) { return m.from === 'admin' && m.time > lastRead; }).length;
+    const readState = await getSupportConversationReadState(user.uid);
+    const messages = Array.isArray(user.support_messages) ? user.support_messages : [];
+    const cursorIndex = readState.message_id
+      ? messages.findIndex(function (message) { return message && String(message.id || '') === readState.message_id; })
+      : -1;
+    const unread = messages.filter(function (message, index) {
+      if (!message || message.from !== 'admin') return false;
+      if (cursorIndex >= 0) return index > cursorIndex;
+      if (readState.message_id) return String(message.id || '') > readState.message_id;
+      return typeof message.time === 'string' && message.time > readState.read_at;
+    }).length;
     return json({ ok: true, unread: unread });
   }
 
@@ -3368,6 +3484,7 @@ async function handleRequest(event, context) {
       if (['withdraw/approve','withdraw/reject','withdraw/mark-paid'].includes(route) && verb === 'POST') return 'withdrawals.review';
       if (route === 'orders' && verb === 'GET') return 'orders.read';
       if (route === 'support/messages' && verb === 'GET') return 'support.read';
+      if (route === 'support/read' && verb === 'POST') return 'support.read';
       if (route === 'support/reply' && verb === 'POST') return 'support.reply';
       if (route === 'support/faq' && verb === 'GET') return 'support.read';
       if ((route === 'support/faq' || route === 'support/faq/delete') && verb === 'POST') return 'support.manage';
@@ -3385,12 +3502,6 @@ async function handleRequest(event, context) {
     if (!requiredPermission) return json({ ok: false, code: 'ADMIN_ROUTE_NOT_FOUND', msg: 'Administrator route not found.' }, 404);
     if (!hasAdminPermission(adminMembership, requiredPermission)) {
       return json({ ok: false, code: 'ADMIN_PERMISSION_DENIED', permission: requiredPermission, msg: 'Your administrator role does not allow this action.' }, 403);
-    }
-    // A financial adjustment request is not an approval workflow. The current
-    // RPC applies the ledger mutation immediately, so keep this endpoint closed
-    // until a separately authorized maker-checker queue is implemented.
-    if (sub === 'user/balance' && method === 'POST') {
-      return json({ ok: false, code: 'FINANCIAL_ADJUSTMENT_APPROVAL_REQUIRED', msg: 'Direct administrator balance adjustments are disabled. Use the verified deposit workflow or wait for the dual-approval adjustment queue.' }, 409);
     }
     // Manual credit operators must also be allowed to inspect deposit history
     // so the existing receipt/ledger record can be checked before crediting.
@@ -3654,6 +3765,12 @@ async function handleRequest(event, context) {
       const uid = (event.queryStringParameters && event.queryStringParameters.uid) || '';
       const u = db.users[uid];
       if (!u) return json({ ok: false, msg: 'User not found.' }, 404);
+      // Verify that the target account has an authoritative PostgreSQL ledger snapshot
+      // before any manual credit RPC can be reached. Legacy JSON balances are never creditable.
+      try { await readFinancialAccountSnapshot(uid); }
+      catch (_) {
+        return json({ ok: false, code: 'FINANCIAL_BALANCE_SOURCE_UNVERIFIED', msg: 'Manual credit is disabled until the user\'s PostgreSQL ledger balance source is confirmed. No credit was sent.' }, 409);
+      }
       // Never expose password hashes, salts, or session tokens through admin user detail APIs.
       const safeUser = JSON.parse(JSON.stringify(u));
       delete safeUser.password_hash;
@@ -3764,25 +3881,29 @@ async function handleRequest(event, context) {
         if (!u) return json({ ok: false, msg: 'User not found.' }, 404);
         const coin = String(body.coin || 'USDT').trim().toUpperCase();
         const allowedCoins = ['USDT', 'BTC', 'ETH', 'SOL', 'BNB', 'USDC'];
-        const delta = Number(body.delta);
+        // Keep financial inputs as decimal text. Converting a customer balance
+        // adjustment through Number would silently round valid 18-place ledger
+        // amounts before the request hash reaches PostgreSQL.
+        const deltaInput = String(body.delta || '').trim();
+        const deltaNegative = deltaInput.startsWith('-');
+        const amountText = parseMoneyInput(deltaNegative ? deltaInput.slice(1) : deltaInput);
         const mode = String(body.mode || 'adjust').trim().toLowerCase();
         const requestId = String(body.request_id || '').trim();
         const reason = String(body.reason || '').trim().slice(0, 500);
         if (!allowedCoins.includes(coin)) return json({ ok: false, msg: 'Operation failed: coin not supported.' }, 400);
         if (!['adjust', 'freeze', 'unfreeze'].includes(mode)) return json({ ok: false, msg: 'Invalid fund operation type.' }, 400);
-        if (!Number.isFinite(delta) || delta === 0 || Math.abs(delta) > 1e12 || !Number.isSafeInteger(Math.round(delta * 1e8)) || (mode !== 'adjust' && delta < 0)) return json({ ok: false, msg: 'Invalid operation amount. Freeze/unfreeze amounts must be positive.' }, 400);
+        if (!amountText || compareMoney(amountText, '0') <= 0 || compareMoney(amountText, '1000000000000') > 0 || (mode !== 'adjust' && deltaNegative)) return json({ ok: false, msg: 'Invalid operation amount. Freeze/unfreeze amounts must be positive.' }, 400);
         if (!/^[A-Za-z0-9_-]{16,100}$/.test(requestId)) return json({ ok: false, code: 'IDEMPOTENCY_KEY_REQUIRED', msg: 'A valid operation ID is required. Balance was unchanged.' }, 400);
         if (reason.length < 5) return json({ ok: false, msg: 'Please provide an adjustment reason of at least 5 characters. Balance was unchanged.' }, 400);
         const adminId = adminUserId;
         if (!adminId) return json({ ok: false, code: 'ADMIN_ACTOR_NOT_CONFIGURED', msg: 'Administrator audit identity not configured. Balance was unchanged.' }, 503);
-        // Canonical decimal text must match PostgreSQL numeric::text when hashing the RPC payload.
-        const canonicalDecimal = function (n) { return (n < 0 ? '-' : '') + Math.abs(n).toFixed(8).replace(/\.?0+$/, ''); };
-        let availableDelta = delta;
-        let frozenDelta = 0;
-        if (mode === 'freeze') { availableDelta = -delta; frozenDelta = delta; }
-        else if (mode === 'unfreeze') { availableDelta = delta; frozenDelta = -delta; }
-        const availableDeltaText = canonicalDecimal(availableDelta);
-        const frozenDeltaText = canonicalDecimal(frozenDelta);
+        // PostgreSQL numeric::text preserves canonical decimal notation. Build
+        // the exact same representation before hashing the RPC payload.
+        const signed = function (negative) { return negative ? '-' + amountText : amountText; };
+        let availableDeltaText = signed(deltaNegative);
+        let frozenDeltaText = '0';
+        if (mode === 'freeze') { availableDeltaText = signed(true); frozenDeltaText = amountText; }
+        else if (mode === 'unfreeze') { availableDeltaText = amountText; frozenDeltaText = signed(true); }
         const requestHash = crypto.createHash('sha256').update([adminId, String(u.uid), coin, availableDeltaText, frozenDeltaText, reason].join('|')).digest('hex');
         try {
           const base = process.env.SUPABASE_URL.replace(/\/+$/, '');
@@ -3875,6 +3996,12 @@ async function handleRequest(event, context) {
       }
       const u = db.users[uid];
       if (!u) return json({ ok: false, msg: 'User not found.' }, 404);
+      // Never credit a legacy JSON-only account. Confirm the target's canonical
+      // PostgreSQL ledger snapshot before issuing the atomic manual-credit RPC.
+      try { await readFinancialAccountSnapshot(uid); }
+      catch (_) {
+        return json({ ok: false, code: 'FINANCIAL_BALANCE_SOURCE_UNVERIFIED', msg: 'Manual credit is disabled until the user\'s PostgreSQL ledger balance source is confirmed. No credit was sent.' }, 409);
+      }
       if (!['USDT', 'BTC', 'ETH', 'SOL', 'BNB', 'USDC'].includes(coin)) return json({ ok: false, msg: 'Coin not supported.' }, 400);
       if (amountText === null || compareMoney(amountText, '0') <= 0 || compareMoney(amountText, '1000000000000') > 0 || !/^\d+(?:\.\d{1,12})?$/.test(String(body.amount || '').trim())) {
         return json({ ok: false, msg: 'Invalid deposit amount. Must be a valid number greater than 0.' }, 400);
@@ -4065,6 +4192,8 @@ async function handleRequest(event, context) {
       if(!target) return json({ok:false,msg:'Address record not found.'},404);
       const addr=target.addresses.find(function(a){return a.id===body.id;});
       const action=String(body.action||'');
+      const changeReason=String(body.reason||'').trim().slice(0,200);
+      if ((action==='update' || action==='delete') && !changeReason) return json({ok:false,msg:'A reason is required for this administrator change.'},400);
       if(action==='flag') addr.flagged=!!body.value;
       else if(action==='block') addr.blocked=!!body.value;
       else if(action==='delete') target.addresses=target.addresses.filter(function(a){return a.id!==body.id;});
@@ -4084,19 +4213,28 @@ async function handleRequest(event, context) {
           if(!valid) return json({ok:false,msg:'Operation failed.'},400);
           addr.address=newAddress; addr.coin=coin; addr.network=network; addr.unbound=false;
         } else {
-          const fields=['account_holder','bank_name','account_number','routing_number','swift','bank_address','note'];
+          const fields=['account_holder','bank_name','account_number','iban','routing_number','swift','bank_address','country','note'];
           fields.forEach(function(k){if(typeof body[k]==='string') addr[k]=body[k].trim();});
-          if(body.account_number!==undefined && !/^\d{4,34}$/.test(String(body.account_number).replace(/\s/g,''))) return json({ok:false,msg:'Operation failed.'},400);
-          if(body.routing_number!==undefined && !/^\d{9}$/.test(String(body.routing_number).replace(/\s/g,''))) return json({ok:false,msg:'Operation failed.'},400);
+          if(body.account_number!==undefined && body.account_number!=='' && !/^[A-Z0-9]{4,34}$/i.test(String(body.account_number).replace(/\s/g,''))) return json({ok:false,msg:'Operation failed.'},400);
+          if(body.routing_number!==undefined && body.routing_number!=='' && !/^\d{9}$/.test(String(body.routing_number).replace(/\s/g,''))) return json({ok:false,msg:'Operation failed.'},400);
           if(body.swift!==undefined && body.swift && !/^[A-Z]{4}[A-Z]{2}[A-Z0-9]{2}([A-Z0-9]{3})?$/.test(String(body.swift).toUpperCase())) return json({ok:false,msg:'Operation failed.'},400);
+          if(body.iban!==undefined && body.iban && !isValidIban(body.iban)) return json({ok:false,msg:'Operation failed.'},400);
+          if(body.country!==undefined && body.country && !/^[A-Z]{2}$/i.test(String(body.country).trim())) return json({ok:false,msg:'Operation failed.'},400);
+          if(body.account_number!==undefined && body.iban!==undefined && !String(body.account_number).replace(/\s/g,'') && !String(body.iban).replace(/\s/g,'')) return json({ok:false,msg:'At least one account number or IBAN is required.'},400);
           if(body.account_number!==undefined) addr.account_number=String(body.account_number).replace(/\s/g,'');
           if(body.routing_number!==undefined) addr.routing_number=String(body.routing_number).replace(/\s/g,'');
           if(body.swift!==undefined) addr.swift=String(body.swift).toUpperCase();
+          if(body.iban!==undefined) addr.iban=String(body.iban).replace(/\s/g,'').toUpperCase();
+          if(body.country!==undefined) addr.country=String(body.country).toUpperCase().slice(0,2);
+          if (!String(addr.account_holder || '').trim() || !String(addr.bank_name || '').trim() ||
+              (!String(addr.account_number || '').replace(/\s/g,'') && !String(addr.iban || '').replace(/\s/g,''))) {
+            return json({ok:false,msg:'Account holder, bank name, and an account number or IBAN are required.'},400);
+          }
         }
       } else return json({ok:false,msg:'Unknown operation.'},400);
       if(!Array.isArray(target.address_audit)) target.address_audit=[];
-      target.address_audit.push({id:'L'+Date.now()+crypto.randomBytes(3).toString('hex'),action:action,address_id:body.id,by:adminUserId,time:nowStr(),detail:String(body.reason||'').slice(0,200)});
-      await auditAdmin('address_'+action, target.uid, JSON.stringify({ address_id: body.id, reason: String(body.reason || '').slice(0, 200) }), adminUserId);
+      target.address_audit.push({id:'L'+Date.now()+crypto.randomBytes(3).toString('hex'),action:action,address_id:body.id,by:adminUserId,time:nowStr(),detail:changeReason});
+      await auditAdmin('address_'+action, target.uid, JSON.stringify({ address_id: body.id, reason: changeReason }), adminUserId);
       await saveDB(db);
       const auditFlush = await flushAdminAuditOutbox();
       return json({ok:true,audit_sync_pending:auditFlush.pending,msg:'Submitted successfully.'});
@@ -4332,16 +4470,86 @@ async function handleRequest(event, context) {
       return json({ ok: true, duplicate: false, message_id: message.id, time: message.time, audit_sync_pending: auditFlush.pending });
     }
 
-    // GET /api/admin/support/messages 客服消息
+    // POST /api/admin/support/read — persist per-admin, per-customer read receipt.
+    if (sub === 'support/read' && method === 'POST') {
+      const uid = String(body.uid || '').trim();
+      if (!uid || !db.users[uid]) return json({ ok: false, msg: 'Customer conversation not found.' }, 404);
+      if (!db.admin_support_read_receipts || typeof db.admin_support_read_receipts !== 'object') db.admin_support_read_receipts = {};
+      const receiptKey = String(adminUserId) + ':' + uid;
+      const conversation = Array.isArray(db.users[uid].support_messages) ? db.users[uid].support_messages : [];
+      const userMessages = conversation.filter(function(m) { return m && m.from === 'user'; });
+      const latestUserMessage = userMessages.reduce(function(latest, message) {
+        if (!latest) return message;
+        const latestTime = String(latest.time || ''), messageTime = String(message.time || '');
+        if (messageTime > latestTime || (messageTime === latestTime && String(message.id || '') > String(latest.id || ''))) return message;
+        return latest;
+      }, null);
+      const previousReceipt = db.admin_support_read_receipts[receiptKey];
+      const previousReadAt = typeof previousReceipt === 'string' ? previousReceipt : String(previousReceipt && previousReceipt.read_at || '');
+      const previousMessageId = previousReceipt && typeof previousReceipt === 'object' ? String(previousReceipt.message_id || '') : '';
+      const previousIndex = previousMessageId ? conversation.findIndex(function(m) { return m && String(m.id || '') === previousMessageId; }) : -1;
+      const latestIndex = latestUserMessage ? conversation.indexOf(latestUserMessage) : -1;
+      const alreadyRead = latestUserMessage && (
+        previousIndex >= 0 ? previousIndex >= latestIndex :
+        previousMessageId ? String(latestUserMessage.id || '') <= previousMessageId :
+        previousReadAt && previousReadAt >= String(latestUserMessage.time || '')
+      );
+      if (alreadyRead) return json({ ok: true, duplicate: true, unread: 0, msg: 'Conversation is already marked as read.' });
+      const readReceipt = latestUserMessage
+        ? { message_id: String(latestUserMessage.id || ''), read_at: String(latestUserMessage.time || '') }
+        : { message_id: previousMessageId, read_at: previousReadAt || nowStr() };
+      db.admin_support_read_receipts[receiptKey] = readReceipt;
+      await auditAdmin('support_mark_read', uid, JSON.stringify({ latest_user_message_at: readReceipt.read_at, message_id: readReceipt.message_id }), adminUserId);
+      await saveDB(db);
+      const auditFlush = await flushAdminAuditOutbox();
+      return json({ ok: true, duplicate: false, unread: 0, audit_sync_pending: auditFlush.pending, msg: 'Conversation marked as read.' });
+    }
+
+    // GET /api/admin/support/messages — return UID-scoped recent conversation windows.
+    // Keeping both senders together lets staff verify replies; the per-customer
+    // window prevents one busy thread from hiding other customers in the inbox.
     if (sub === 'support/messages' && method === 'GET') {
       const list = [];
+      const readReceipts = db.admin_support_read_receipts && typeof db.admin_support_read_receipts === 'object' ? db.admin_support_read_receipts : {};
       Object.values(db.users).forEach(function (u) {
-        (Array.isArray(u.support_messages) ? u.support_messages : []).filter(function(m){return m.from==='user';}).forEach(function (m) {
-          list.push({ id: m.id, uid: u.uid, email: u.email, content: m.content, time: m.time });
+        const uid = String(u.uid || '');
+        const conversation = Array.isArray(u.support_messages) ? u.support_messages : [];
+        const receiptKey = String(adminUserId) + ':' + uid;
+        const receipt = readReceipts[receiptKey];
+        const lastReadAt = typeof receipt === 'string' ? receipt : String(receipt && receipt.read_at || '');
+        const lastReadMessageId = receipt && typeof receipt === 'object' ? String(receipt.message_id || '') : '';
+        const readCursorIndex = lastReadMessageId
+          ? conversation.findIndex(function(m) { return m && String(m.id || '') === lastReadMessageId; })
+          : -1;
+        // Count unread customer messages across the full retained conversation,
+        // using the exact message cursor so same-second arrivals stay unread.
+        const unreadCount = conversation.filter(function(m, index) {
+          if (!m || m.from !== 'user') return false;
+          if (readCursorIndex >= 0) return index > readCursorIndex;
+          if (lastReadMessageId) return String(m.id || '') > lastReadMessageId;
+          return !lastReadAt || String(m.time || '') > lastReadAt;
+        }).length;
+        // Bound each customer's response independently. A busy customer's
+        // history must never consume the shared response window and hide other
+        // customers from the support inbox.
+        conversation.slice(-100).forEach(function (m) {
+          if (!m || (m.from !== 'user' && m.from !== 'admin')) return;
+          list.push({
+            id: String(m.id || ''),
+            uid: uid,
+            email: String(u.email || ''),
+            from: m.from,
+            content: String(m.content || ''),
+            time: String(m.time || ''),
+            admin_unread_count: unreadCount
+          });
         });
       });
-      list.sort(function (a, b) { return (a.time < b.time) ? 1 : -1; });
-      return json({ ok: true, messages: list.slice(0, 100) });
+      list.sort(function (a, b) {
+        if (a.time === b.time) return a.id < b.id ? -1 : 1;
+        return a.time < b.time ? -1 : 1;
+      });
+      return json({ ok: true, messages: list });
     }
 
     // ---------- Admin: help centre (FAQ) ----------
@@ -4517,6 +4725,7 @@ exports.handler = function (event, context) {
 // 导出纯函数供后端单元测试（无网络/无 DB 依赖）。
 exports._test = {
   loadDB: loadDB,
+  isPublicNoDbPath: (path, method) => method === 'GET' && PUBLIC_NO_DB_PATHS.has(path),
   defaultDB: defaultDB,
   depositAddressFromEnv: depositAddressFromEnv,
   DEPOSIT_ADDRESS_ENV_KEYS: DEPOSIT_ADDRESS_ENV_KEYS,

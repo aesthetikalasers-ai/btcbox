@@ -4,9 +4,3 @@
 [submodule "frontend/vendor/shadcn-fintech"]
 	path = frontend/vendor/shadcn-fintech
 	url = https://github.com/abderrahimghazali/shadcn-fintech.git
-[submodule "references/btcbox-v33"]
-	path = references/btcbox-v33
-	url = https://github.com/avali9308-code/btcbox-v33.git
-[submodule "references/source-archives"]
-	path = references/source-archives
-	url = https://github.com/avali9308-code/BTC.git

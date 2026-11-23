@@ -9,17 +9,15 @@ import { localeTags, useI18n } from "../../lib/i18n";
 /**
  * Customer support conversation.
  *
- * Lives in the support feature so the user-facing chat is one self-contained
- * module: history load, send, idempotent retry and the empty/error states all
- * stay here. The page only decides whether the visitor may see it.
- *
- * A send is retried with the *same* request id, so a network failure can never
- * produce two tickets for one message.
+ * History, pending sends and in-flight responses are scoped to the signed-in
+ * account. A retry keeps the same request ID and exact message body across a
+ * page refresh, while account changes immediately hide the previous thread.
  */
 export function SupportChat() {
   const { t, language } = useI18n();
-  const { status } = useAuth();
+  const { status, email } = useAuth();
   const [messages, setMessages] = useState<SupportMessage[]>([]);
+  const [messagesAccountKey, setMessagesAccountKey] = useState("");
   const [loading, setLoading] = useState(status === "authenticated");
   const [error, setError] = useState("");
   const [reload, setReload] = useState(0);
@@ -27,49 +25,144 @@ export function SupportChat() {
   const [sending, setSending] = useState(false);
   const [pendingRequestId, setPendingRequestId] = useState("");
   const [pendingRequestContent, setPendingRequestContent] = useState("");
+  const [pendingRequestAccountKey, setPendingRequestAccountKey] = useState("");
   const [sendError, setSendError] = useState("");
   const [sendMessage, setSendMessage] = useState("");
   const listRef = useRef<HTMLDivElement>(null);
+  const currentAccountKeyRef = useRef("");
+
+  const pendingStorageKey = status === "authenticated" && email.trim()
+    ? "btcbox.support.pending.v1." + email.trim().toLowerCase()
+    : "";
+  currentAccountKeyRef.current = pendingStorageKey;
 
   useEffect(() => {
-    if (status !== "authenticated") { setLoading(false); setMessages([]); return; }
+    if (status !== "authenticated" || !pendingStorageKey) {
+      setLoading(false);
+      setMessages([]);
+      setMessagesAccountKey("");
+      setPendingRequestId("");
+      setPendingRequestContent("");
+      setPendingRequestAccountKey("");
+      setSending(false);
+      return;
+    }
+
+    const requestAccountKey = pendingStorageKey;
     const controller = new AbortController();
-    setLoading(true);setMessages([]);setError("");
+    setLoading(true);
+    setMessages([]);
+    setMessagesAccountKey("");
+    setError("");
+    setSendError("");
+    setSendMessage("");
+    setSending(false);
+
+    try {
+      const raw = window.sessionStorage.getItem(pendingStorageKey);
+      if (raw) {
+        const pending = JSON.parse(raw) as { request_id?: unknown; content?: unknown };
+        if (
+          typeof pending.request_id === "string" &&
+          /^[A-Za-z0-9_-]{16,100}$/.test(pending.request_id) &&
+          typeof pending.content === "string" &&
+          pending.content.trim().length > 0 &&
+          pending.content.length <= 2000
+        ) {
+          setPendingRequestId(pending.request_id);
+          setPendingRequestContent(pending.content);
+          setPendingRequestAccountKey(pendingStorageKey);
+        } else {
+          window.sessionStorage.removeItem(pendingStorageKey);
+          setPendingRequestId("");
+          setPendingRequestContent("");
+          setPendingRequestAccountKey("");
+        }
+      } else {
+        setPendingRequestId("");
+        setPendingRequestContent("");
+        setPendingRequestAccountKey("");
+      }
+    } catch {
+      setError("A pending support message could not be restored. Please check the conversation before sending again.");
+    }
+
     getSupportMessages(controller.signal).then(list => {
-      if (!controller.signal.aborted) { setMessages(list); setError(""); }
+      if (!controller.signal.aborted && currentAccountKeyRef.current === requestAccountKey) {
+        setMessages(list);
+        setMessagesAccountKey(requestAccountKey);
+        setError("");
+      }
     }).catch((reason: unknown) => {
       if (reason instanceof Error && reason.name === "AbortError") return;
-      if(!controller.signal.aborted){setMessages([]);setError(reason instanceof Error ? reason.message : "Support conversation is temporarily unavailable.");}
-    }).finally(() => { if (!controller.signal.aborted) setLoading(false); });
+      if (!controller.signal.aborted && currentAccountKeyRef.current === requestAccountKey) {
+        setMessages([]);
+        setMessagesAccountKey(requestAccountKey);
+        setError(reason instanceof Error ? reason.message : "Support conversation is temporarily unavailable.");
+      }
+    }).finally(() => {
+      if (!controller.signal.aborted && currentAccountKeyRef.current === requestAccountKey) setLoading(false);
+    });
     return () => controller.abort();
-  }, [status, reload]);
+  }, [status, email, reload, pendingStorageKey]);
 
-  useEffect(() => { listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: "smooth" }); }, [messages]);
-
-  // Poll for staff replies while the conversation is open. The top bar already
-  // refreshes its unread badge every 60s; without this the visitor had to reload
-  // the page to see the reply the badge was announcing.
   useEffect(() => {
-    if (status !== "authenticated") return;
+    listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: "smooth" });
+  }, [messages]);
+
+  // Poll for staff replies while the current customer's conversation is open.
+  useEffect(() => {
+    if (status !== "authenticated" || !pendingStorageKey) return;
     const timer = window.setInterval(() => setReload(n => n + 1), 30_000);
     return () => window.clearInterval(timer);
-  }, [status]);
+  }, [status, pendingStorageKey]);
 
   const send = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (sending) return;
-    const message = pendingRequestId ? pendingRequestContent : draft.trim();
+    const requestAccountKey = pendingStorageKey;
+    if (status !== "authenticated" || !requestAccountKey) {
+      setSendError("Sign in to send a support message.");
+      return;
+    }
+
+    const hasPending = pendingRequestAccountKey === requestAccountKey && !!pendingRequestId;
+    const message = hasPending ? pendingRequestContent : draft.trim();
     if (!message) return;
-    let requestId = pendingRequestId;
+
+    let requestId = hasPending ? pendingRequestId : "";
     if (!requestId) {
       try { requestId = window.crypto.randomUUID(); }
-      catch { setSendError("Secure request IDs are unavailable in this browser. No message was sent."); return; }
-      setPendingRequestId(requestId); setPendingRequestContent(message);
+      catch {
+        setSendError("Secure request IDs are unavailable in this browser. No message was sent.");
+        return;
+      }
     }
-    setSending(true); setSendError(""); setSendMessage("");
+
+    try {
+      window.sessionStorage.setItem(pendingStorageKey, JSON.stringify({ request_id: requestId, content: message }));
+    } catch {
+      setSendError("This browser cannot safely retain the pending message. No message was sent.");
+      return;
+    }
+
+    setPendingRequestId(requestId);
+    setPendingRequestContent(message);
+    setPendingRequestAccountKey(requestAccountKey);
+    setSending(true);
+    setSendError("");
+    setSendMessage("");
+
     try {
       const result = await sendSupportMessage(message, requestId);
-      setDraft(""); setPendingRequestId(""); setPendingRequestContent("");
+      try { window.sessionStorage.removeItem(pendingStorageKey); } catch { /* Keep the in-memory result; a stale entry is idempotent. */ }
+      if (currentAccountKeyRef.current !== requestAccountKey) return;
+
+      setDraft("");
+      setPendingRequestId("");
+      setPendingRequestContent("");
+      setPendingRequestAccountKey("");
+      setMessagesAccountKey(requestAccountKey);
       if (!result.duplicate) {
         setMessages(current => [...current, {
           id: result.message_id || requestId,
@@ -81,10 +174,15 @@ export function SupportChat() {
       setSendMessage(result.duplicate ? t("Your message was already received.") : t("Message sent."));
       setReload(n => n + 1);
     } catch (reason) {
-      setSendError(reason instanceof Error ? reason.message : "Your message could not be sent.");
-    } finally { setSending(false); }
+      if (currentAccountKeyRef.current === requestAccountKey) {
+        setSendError(reason instanceof Error ? reason.message : "Your message could not be sent.");
+      }
+    } finally {
+      if (currentAccountKeyRef.current === requestAccountKey) setSending(false);
+    }
   };
 
+  const visibleMessages = messagesAccountKey !== pendingStorageKey ? [] : messages;
   const date = (raw?: string) => {
     if (!raw) return "—";
     const parsed = new Date(raw);
@@ -108,11 +206,11 @@ export function SupportChat() {
         {loading ? <p role="status" className="text-sm text-brand-text-muted">{t("Loading…")}</p> : null}
         {error ? <p role="alert" className="text-sm text-brand-danger">{t(error)}</p> : null}
         <div ref={listRef} className="max-h-72 space-y-2 overflow-y-auto pr-1">
-          {messages.length === 0 ? (
+          {visibleMessages.length === 0 ? (
             <p className="rounded-xl border border-dashed border-brand-border p-4 text-sm text-brand-text-muted">
               {t("No messages yet. Start a conversation below.")}
             </p>
-          ) : messages.map(item => (
+          ) : visibleMessages.map(item => (
             <div key={item.id} className={`flex ${item.from === "user" ? "justify-end" : "justify-start"}`}>
               <div className={`max-w-[85%] rounded-xl px-3 py-2 text-sm ${item.from === "user" ? "bg-brand-accent/15 text-brand-text" : "bg-brand-surface-2 text-brand-text-secondary"}`}>
                 <p className="whitespace-pre-wrap break-words">{item.content}</p>
@@ -123,9 +221,9 @@ export function SupportChat() {
         </div>
         <form onSubmit={send} className="space-y-2">
           <textarea
-            value={pendingRequestId ? pendingRequestContent : draft}
+            value={pendingRequestAccountKey === pendingStorageKey && pendingRequestId ? pendingRequestContent : draft}
             onChange={event => setDraft(event.target.value)}
-            disabled={sending || !!pendingRequestId}
+            disabled={sending || (pendingRequestAccountKey === pendingStorageKey && !!pendingRequestId)}
             maxLength={2000}
             rows={3}
             placeholder={t("Type your message (1–2,000 characters)")}
@@ -136,9 +234,9 @@ export function SupportChat() {
           <div className="flex items-center justify-end">
             <span className="text-[11px] tabular-nums text-brand-text-muted">{draft.length}/2000</span>
           </div>
-          <Button type="submit" disabled={sending || (!draft.trim() && !pendingRequestId)} className="min-h-11 w-full">
+          <Button type="submit" disabled={sending || (!draft.trim() && !(pendingRequestAccountKey === pendingStorageKey && pendingRequestId))} className="min-h-11 w-full">
             <Send className="mr-2 h-4 w-4" />
-            {sending ? t("Sending…") : pendingRequestId ? t("Retry same request") : t("Send message")}
+            {sending ? t("Sending…") : pendingRequestAccountKey === pendingStorageKey && pendingRequestId ? t("Retry same request") : t("Send message")}
           </Button>
         </form>
       </CardContent>

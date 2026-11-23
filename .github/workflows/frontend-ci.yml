@@ -1,18 +1,14 @@
 name: BTCBOX frontend CI
 
 on:
+  workflow_dispatch:
   pull_request:
     paths:
       - "frontend/**"
       - ".github/workflows/frontend-ci.yml"
   push:
-    branches: 
+    branches:
       - main
-      - "feature/btcbox-complete-redesign"
-      - "feature/btcbox-react-frontend-20261104"
-      - "feat/btcbox-web3-auth-20261105"
-      - "fix/post-merge-db-bootstrap-seconds-20261106"
-      - "work/btcbox-unified-20261104"
     paths:
       - "frontend/**"
       - ".github/workflows/frontend-ci.yml"
@@ -30,12 +26,14 @@ jobs:
           node-version: 22
       - run: npm install
       - run: npm run lint
+      - name: Verify all locale dictionaries
+        run: npm run check:i18n
       - name: Verify exact decimal estimates
-        run: node --experimental-strip-types --test tests/decimal.test.ts
+        run: node --experimental-strip-types --test tests/decimal.test.ts tests/kline-data.test.ts
       - run: npm run build
       - name: Install Chromium for isolated browser tests
         run: npx playwright install --with-deps chromium
-      - name: Run desktop and mobile route smoke tests
+      - name: Run mobile route and core-flow tests
         run: npm run test:e2e
       - name: Upload responsive visual QA screenshots
         if: always()

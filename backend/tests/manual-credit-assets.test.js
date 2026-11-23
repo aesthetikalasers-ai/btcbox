@@ -45,3 +45,27 @@ test('asset balances fail closed when a free/frozen field is missing', () => {
   assert.ok(page.includes('formatDecimalAmount(balance.frozen, numberLocale)'));
   assert.ok(!page.includes('return "0";'));
 });
+
+ 
+test('real asset balances never include paper-trading demo funds', () => {
+  const assets = fs.readFileSync(path.resolve(__dirname, '../../frontend/src/features/assets/AssetsPage.tsx'), 'utf8');
+  assert.ok(assets.includes('Object.entries(account?.balances ?? {})'));
+  assert.ok(assets.includes('getAccount(controller.signal)'));
+  assert.ok(!assets.includes('useTrading'));
+  assert.ok(!assets.includes('paperBalances'));
+  assert.ok(!assets.includes('DEMO_INITIAL_USDT'));
+  assert.ok(!assets.includes('merged[coin]'));
+});
+
+
+test('manual credit is blocked unless the target has an authoritative PostgreSQL ledger snapshot', () => {
+  const start = api.indexOf("if (sub === 'deposit/confirm' && method === 'POST')");
+  const end = api.indexOf("// POST /api/admin/withdraw/approve", start);
+  assert.ok(start >= 0 && end > start);
+  const route = api.slice(start, end);
+  assert.ok(route.includes("await readFinancialAccountSnapshot(uid)"));
+  assert.ok(route.includes("FINANCIAL_BALANCE_SOURCE_UNVERIFIED"));
+  assert.ok(route.includes("Manual credit is disabled until the user\\'s PostgreSQL ledger balance source is confirmed."));
+  assert.ok(admin.includes('selectedUser.financial_balance_source !== "postgres_financial_ledger"'));
+  assert.ok(admin.includes('selectedUser.balances?.[coin]?.free == null ? "—"'));
+});

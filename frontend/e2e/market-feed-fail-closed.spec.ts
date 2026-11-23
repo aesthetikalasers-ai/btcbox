@@ -8,7 +8,7 @@ test("stale quotes are hidden from both the summary and list when snapshots have
       { sym: "BTC", price: 65000, chg: 1, high: 66000, low: 64000, vol: "1200", source: "provider" },
       { sym: "ETH", price: 3200, chg: 1, high: 3300, low: 3100, vol: "500", source: "provider" },
     ],
-    data: { BTC: { ts: now - 100 }, ETH: { ts: now } },
+    data: { BTC: { ts: now - 100, providerTs: now - 100, source: "provider" }, ETH: { ts: now, providerTs: now, source: "provider" } },
   } }));
   await page.route("**/api/kline?**", route => route.fulfill({ status: 200, json: { ok: true, klines: [] } }));
   await page.goto("/markets");
@@ -27,7 +27,7 @@ test("a timed-out market refresh hides previous quotes and a later refresh recov
   await page.route("**/api/market", async route => {
     if (stallNext) { stallNext = false; stalled = true; await pending; await route.abort().catch(() => {}); return; }
     const now = Math.floor(Date.now() / 1000);
-    await route.fulfill({ status: 200, json: { ok: true, markets: [{ sym: "BTC", price: 65000, chg: 1, high: 66000, low: 64000, vol: "1200", source: "provider" }], data: { BTC: { ts: now } } } });
+    await route.fulfill({ status: 200, json: { ok: true, markets: [{ sym: "BTC", price: 65000, chg: 1, high: 66000, low: 64000, vol: "1200", source: "provider" }], data: { BTC: { ts: now, providerTs: now, source: "provider" } } } });
   });
   await page.route("**/api/kline?**", route => route.fulfill({ status: 200, json: { ok: true, klines: [] } }));
   try {

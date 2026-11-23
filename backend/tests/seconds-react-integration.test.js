@@ -6,7 +6,7 @@ const path = require('node:path');
 const root = path.resolve(__dirname, '..');
 const read = (name) => fs.readFileSync(path.join(root, '..', name), 'utf8');
 const api = read('frontend/src/lib/api.ts');
-const page = read('frontend/src/features/pages/Pages.tsx');
+const page = read('frontend/src/features/pages/SecondsPage.tsx');
 const app = read('frontend/src/App.tsx');
 const backend = fs.readFileSync(path.join(root, 'api-core.js'), 'utf8');
 
@@ -18,23 +18,25 @@ test('React Seconds page loads the server policy and validates the complete posi
   assert.match(api, /INVALID_SECONDS_POSITIONS_RESPONSE/);
   assert.match(api, /payload\.open\.every\(isSecondsPosition\)/);
   assert.match(page, /getSecondsPolicy\(controller\.signal\)/);
+  assert.match(page, /getAccount\(controller\.signal\)/);
 });
 
-test('React Seconds order entry persists a stable request and retries only the same intent until confirmed', () => {
-  assert.match(app, /<Route path="\/seconds" element=\{<ProtectedAccountRoute><SecondsPage \/><\/ProtectedAccountRoute>\}/);
+test('Seconds preview is public while order entry requires an authenticated account and server policy', () => {
+  assert.match(app, /<Route path="\/seconds" element=\{<SecondsPage \/>\} \/>/);
   assert.match(api, /export async function submitSecondsOrder/);
   assert.match(page, /btcbox\.seconds\.pending\.v1\./);
   assert.match(page, /window\.crypto\.randomUUID\(\)/);
   assert.match(page, /Retry same request/);
-  assert.match(page, /const confirmed=latest\.open\.some/);
-  assert.match(page, /policy\?\.actions_enabled/);
-  assert.doesNotMatch(page, /No orders can be placed or settled from this page/);
+  assert.ok(page.includes('policy?.actions_enabled === true'));
+  assert.ok(page.includes('status !== "authenticated"'));
+  assert.doesNotMatch(page, /useTrading|settleSecondsTrade/);
 });
 
-test('each mature position is settled independently by the server endpoint', () => {
+test('each mature position is settled independently by the server endpoint with a stable request ID', () => {
   assert.match(api, /export async function settleSecondsPosition/);
-  assert.match(page, /snapshot\.open\.map\(position=>/);
-  assert.match(page, /request_id:"settle_"\+position\.position_id/);
+  assert.match(page, /const maturePositions = snapshot\.open\.filter/);
+  assert.match(page, /pending\.map\(\(position\) => settleSecondsPosition/);
+  assert.match(page, /request_id: "settle_" \+ position\.position_id/);
   assert.match(backend, /if \(path === 'seconds\/settle' && method === 'POST'\)/);
   assert.match(backend, /fetchSecondsReferencePrice\(symbol\)/);
 });

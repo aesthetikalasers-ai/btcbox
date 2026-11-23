@@ -14,7 +14,7 @@ VALUES (
   'kyc-documents',
   'kyc-documents',
   false,
-  524288,
+  2097152,
   ARRAY['image/jpeg', 'image/png', 'image/webp']
 )
 ON CONFLICT (id) DO UPDATE

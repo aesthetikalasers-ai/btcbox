@@ -58,8 +58,10 @@ test('React withdrawal intent persists only non-secret request fields and retrie
   assert.ok(pages.includes('window.localStorage.setItem(pendingStorageKey,JSON.stringify(intent))'));
   assert.ok(pages.includes('request_id:intent.request_id'));
   assert.ok(pages.indexOf('window.localStorage.setItem(pendingStorageKey,JSON.stringify(intent))') < pages.indexOf('await submitWithdrawal({'));
-  assert.ok(pages.includes('The withdrawal response arrived, but account history has not confirmed it.'));
-  assert.ok(pages.includes('Re-enter your fund password and 2FA code'));
+  assert.ok(pages.includes('Your withdrawal status is not yet confirmed. Check withdrawal history before trying again.'));
+  assert.ok(pages.includes('fund_password:fundPassword'));
+  assert.ok(pages.includes('...(account?.twofa_enabled?{twofa_code:twofaCode}:{})'));
+  assert.ok(pages.includes('account?.twofa_enabled'));
   assert.ok(pages.includes('reason.status!==409'));
 });
 

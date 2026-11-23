@@ -5,7 +5,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const sql = fs.readFileSync(path.resolve(__dirname, '../supabase/sql/0026_admin_rbac_private_store_v1.sql'), 'utf8');
-const design = fs.readFileSync(path.resolve(__dirname, '../../docs/SECONDS_POLICY_ADMIN_RBAC.md'), 'utf8');
+const policyRpc = fs.readFileSync(path.resolve(__dirname, '../supabase/sql/0028_admin_rbac_service_rpc_wrappers_v1.sql'), 'utf8');
 
 test('administrator storage lives in a non-exposed private schema with RLS and no browser grants', () => {
   assert.match(sql, /CREATE SCHEMA IF NOT EXISTS private/i);
@@ -99,16 +99,16 @@ test('migration source is not applied and bootstrap does not provision a default
   assert.match(sql, /it does not create an admin/i);
   const beforeBootstrap = sql.slice(0, sql.indexOf('CREATE OR REPLACE FUNCTION private.bootstrap_super_admin_v1'));
   assert.doesNotMatch(beforeBootstrap, /INSERT INTO private\.admin_memberships/i);
-  assert.match(design, /initial Super Admin bootstrap is a one-time owner-controlled database operation/i);
-  assert.match(design, /This bootstrap is not exposed as an API/i);
+  assert.match(sql, /REVOKE ALL ON FUNCTION private\.bootstrap_super_admin_v1\(uuid,text,text\) FROM PUBLIC, anon, authenticated, service_role/i);
+  assert.match(sql, /GRANT EXECUTE ON FUNCTION private\.bootstrap_super_admin_v1\(uuid,text,text\) TO postgres/i);
 });
 
-test('design supersedes old two-person bootstrap and three-person approval requirements', () => {
-  assert.match(design, /Super Admin may complete the policy change alone/i);
-  assert.match(design, /without a three-person workflow/i);
-  assert.match(design, /No three-person or distinct-author\/reviewer\/activator requirement applies/i);
-  assert.match(design, /project owner verifies the Auth UUID out of band/i);
-  assert.doesNotMatch(design, /two separately authenticated approvers/i);
+test('Seconds policy changes use a single audited, idempotent activation RPC', () => {
+  assert.match(policyRpc, /FUNCTION private\.admin_set_seconds_policy_v1/i);
+  assert.match(policyRpc, /UPDATE public\.seconds_contract_policy_active/i);
+  assert.match(policyRpc, /INSERT INTO public\.seconds_contract_policy_audit/i);
+  assert.match(policyRpc, /INSERT INTO private\.seconds_policy_request_idempotency/i);
+  assert.match(policyRpc, /seconds_policy\.manage/i);
 });
 
 

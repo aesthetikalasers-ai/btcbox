@@ -29,20 +29,43 @@ test.beforeEach(async ({ page }) => {
   });
 
   await page.route("https://btcbox-e2e.invalid/**", (route) => route.abort());
+
+  // Keep public market reads deterministic and isolated from the hosted exchange.
+  // Test-specific routes registered later override these defaults for outage cases.
+  const now = Math.floor(Date.now() / 1000);
+  await page.route("**/api/market/pairs", route => route.fulfill({ status: 200, json: { ok: true, markets: [
+    { base_asset: "BTC", quote_asset: "USDT", enabled: true, price_tick: "0.01", quantity_step: "0.000001", min_quantity: "0.000001", min_notional: "1" },
+    { base_asset: "ETH", quote_asset: "USDT", enabled: true, price_tick: "0.01", quantity_step: "0.000001", min_quantity: "0.000001", min_notional: "1" },
+  ] } }));
+  await page.route("**/api/market", route => route.fulfill({ status: 200, json: {
+    ok: true,
+    markets: [
+      { sym: "BTC", price: 65000, chg: 1.25, high: 66000, low: 64000, vol: "1200", source: "provider" },
+      { sym: "ETH", price: 3200, chg: 0.8, high: 3300, low: 3100, vol: "500", source: "provider" },
+    ],
+    data: {
+      BTC: { ts: now, providerTs: now, source: "provider" },
+      ETH: { ts: now, providerTs: now, source: "provider" },
+    },
+  } }));
+  await page.route("**/api/kline?**", route => route.fulfill({ status: 200, json: { ok: true, source: "provider", klines: [] } }));
+  await page.route("**/api/depth?**", route => route.fulfill({ status: 200, json: { ok: true, source: "provider", snapshotTs: now, bids: [["64999", "1"]], asks: [["65001", "1"]] } }));
+  await page.route("**/api/trading/status", route => route.fulfill({ status: 200, json: { ok: true, spot_order_entry_enabled: true, spot_cancel_enabled: true, supported_order_types: ["limit"] } }));
+  await page.route("**/api/orders", route => route.fulfill({ status: 401, json: { ok: false, need_login: true, msg: "Sign in to view orders." } }));
 });
 
-test("login route exposes BTCBOX username, Google and wallet sign-in", async ({ page }) => {
+test("login route exposes BTCBOX username/email, Google and wallet sign-in", async ({ page }) => {
   await page.goto("/login");
 
   await expect(page.getByRole("heading", { name: "Welcome back", exact: true })).toBeVisible();
   await expect(page.getByRole("banner")).toHaveCount(0);
   await expect(page.getByRole("navigation", { name: "Primary navigation" })).toHaveCount(0);
-  await expect(page.getByLabel("Username")).toBeVisible();
+  await expect(page.getByLabel("Username or email")).toBeVisible();
   await expect(page.getByLabel("Password", { exact: true })).toBeVisible();
   await expect(page.getByLabel("Email address")).toHaveCount(0);
   await expect(page.getByLabel("Email password")).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Sign in with email" })).toHaveCount(0);
-  await expect(page.getByRole("button", { name: "Forgot password?" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Forgot password?" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Google" })).toBeDisabled();
   await expect(page.getByText("Google sign-in is temporarily unavailable.")).toBeVisible();
   await page.getByRole("button", { name: "Wallet" }).click();
@@ -51,18 +74,47 @@ test("login route exposes BTCBOX username, Google and wallet sign-in", async ({ 
   await expect(page.getByRole("button", { name: "Connect Solana wallet" })).toBeVisible();
 });
 
-test("login does not expose retired email authentication", async ({ page }) => {
-  const forbiddenRequests: string[] = [];
-  page.on("request", request => {
-    const url = new URL(request.url());
-    if (url.pathname === "/auth/v1/token" || url.pathname === "/api/supabase-login") forbiddenRequests.push(url.pathname);
+test("email and password login remains available through Supabase Auth", async ({ page }) => {
+  const authRequests: string[] = [];
+  await page.route("**/auth/v1/token**", async route => {
+    authRequests.push(route.request().url());
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        access_token: "e2e-email-access-token",
+        token_type: "bearer",
+        expires_in: 3600,
+        refresh_token: "e2e-email-refresh-token",
+        user: {
+          id: "11111111-1111-4111-8111-111111111111",
+          aud: "authenticated",
+          role: "authenticated",
+          email: "email-user@example.invalid",
+          email_confirmed_at: "2026-11-22T00:00:00.000Z",
+          app_metadata: { provider: "email", providers: ["email"] },
+          user_metadata: {},
+          identities: [{ provider: "email" }],
+        },
+      }),
+    });
   });
+  let accountReady = false;
+  await page.route("**/api/supabase-login", async route => {
+    accountReady = true;
+    await route.fulfill({ status: 200, json: { ok: true } });
+  });
+  await page.route("**/api/account", route => accountReady
+    ? route.fulfill({ status: 200, json: authenticatedAccountFixture })
+    : route.fulfill({ status: 401, json: { ok: false, need_login: true } }));
+
   await page.goto("/login");
-  await expect(page.getByRole("button", { name: "Wallet", exact: true })).toBeVisible();
-  await expect(page.getByLabel("Email address")).toHaveCount(0);
-  await expect(page.getByRole("button", { name: "Forgot password?" })).toHaveCount(0);
-  await expect(page.getByRole("button", { name: "Create account with email" })).toHaveCount(0);
-  expect(forbiddenRequests).toEqual([]);
+  await page.getByLabel("Username or email").fill("email-user@example.invalid");
+  await page.getByLabel("Password", { exact: true }).fill("StrongPassphrase123");
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
+
+  await expect.poll(() => authRequests.length).toBe(1);
+  await expect(page).toHaveURL(/\/home$/);
 });
 
 test("Google sign-in button is shown when the public auth config enables Google", async ({ page }) => {
@@ -191,25 +243,95 @@ test("email registration uses Supabase confirmation and does not bypass BTCBOX p
   expect(accountProvisioningRequests).toEqual([]);
 });
 
-test("login does not expose retired email recovery", async ({ page }) => {
-  const forbiddenRequests: string[] = [];
-  page.on("request", request => {
-    const url = new URL(request.url());
-    if (url.pathname === "/auth/v1/recover" || url.pathname === "/api/supabase-login") forbiddenRequests.push(url.pathname);
+test("confirmed email registration exchanges the Supabase identity and provisions the BTCBOX account", async ({ page }) => {
+  let exchangeCalls = 0;
+  let exchangedAccessToken = "";
+  let directRegistrationCalls = 0;
+  await page.route("**/auth/v1/token**", async route => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        access_token: "e2e-confirmed-email-access-token",
+        token_type: "bearer",
+        expires_in: 3600,
+        refresh_token: "e2e-confirmed-email-refresh-token",
+        user: {
+          id: "11111111-1111-4111-8111-111111111111",
+          aud: "authenticated",
+          role: "authenticated",
+          email: "new-user@example.invalid",
+          email_confirmed_at: "2026-11-23T00:00:00.000Z",
+          app_metadata: { provider: "email", providers: ["email"] },
+          user_metadata: {},
+          identities: [{ provider: "email" }],
+        },
+      }),
+    });
   });
-  await page.goto("/login");
-  await expect(page.getByRole("button", { name: "Wallet", exact: true })).toBeVisible();
-  await expect(page.getByLabel("Email address")).toHaveCount(0);
-  await expect(page.getByRole("button", { name: "Forgot password?" })).toHaveCount(0);
-  await expect(page.getByRole("button", { name: "Create account with email" })).toHaveCount(0);
-  expect(forbiddenRequests).toEqual([]);
+  let accountReady = false;
+  await page.route("**/api/supabase-login", async route => {
+    exchangeCalls += 1;
+    exchangedAccessToken = String(route.request().postDataJSON()?.access_token || "");
+    accountReady = true;
+    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ ok: true }) });
+  });
+  await page.route("**/api/register", async route => {
+    directRegistrationCalls += 1;
+    await route.fulfill({ status: 403, contentType: "application/json", body: JSON.stringify({ ok: false }) });
+  });
+  await page.route("**/api/account", route => accountReady
+    ? route.fulfill({ status: 200, json: authenticatedAccountFixture })
+    : route.fulfill({ status: 401, json: { ok: false, need_login: true } }));
+
+  await page.addInitScript(() => localStorage.setItem("sb-btcbox-e2e-auth-token-code-verifier", "e2e-pkce-code-verifier"));
+  await page.goto("/auth/react-callback?intent=register&code=e2e-confirmed-email-code");
+  await expect(page).toHaveURL(/\/me$/);
+  await expect(page.getByRole("heading", { name: "My account" })).toBeVisible();
+  await expect.poll(() => exchangeCalls).toBe(1);
+  expect(exchangedAccessToken).toBe("e2e-confirmed-email-access-token");
+  expect(directRegistrationCalls).toBe(0);
 });
 
-test("unauthenticated customer is redirected from a protected route", async ({ page }) => {
+test("email signup explains Supabase confirmation rate limits without weakening protection", async ({ page }) => {
+  await page.route("**/auth/v1/signup", route => route.fulfill({
+    status: 429,
+    contentType: "application/json",
+    body: JSON.stringify({
+      code: "over_email_send_rate_limit",
+      message: "email rate limit exceeded",
+      msg: "For security purposes, you can only request this after 27 seconds.",
+    }),
+  }));
+  await page.goto("/register");
+  await page.getByLabel("Email", { exact: true }).fill("rate-limited@example.invalid");
+  await page.getByLabel("Password", { exact: true }).fill("StrongPassphrase123!");
+  await page.getByLabel("Confirm password", { exact: true }).fill("StrongPassphrase123!");
+  await page.getByRole("button", { name: "Create account with email" }).click();
+  await expect(page.getByText("Please wait before requesting another email. Check your inbox for an earlier link.", { exact: true })).toBeVisible();
+});
+
+test("email password recovery sends a Supabase reset request", async ({ page }) => {
+  const recoveryRequests: string[] = [];
+  await page.route("**/auth/v1/recover**", async route => {
+    recoveryRequests.push(route.request().url());
+    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({}) });
+  });
+  await page.goto("/login");
+  await page.getByRole("button", { name: "Forgot password?" }).click();
+  await page.getByLabel("Email", { exact: true }).fill("email-user@example.invalid");
+  await page.getByRole("button", { name: "Send reset link" }).click();
+  await expect(page.getByRole("status")).toContainText("If an account exists for this email");
+  await expect.poll(() => recoveryRequests.length).toBe(1);
+});
+
+test("unauthenticated customer sees an in-place sign-in gate on protected routes", async ({ page }) => {
   await page.goto("/withdraw");
 
-  await expect(page).toHaveURL(/\/login$/);
-  await expect(page.getByRole("heading", { name: "Welcome back", exact: true })).toBeVisible();
+  await expect(page).toHaveURL(/\/withdraw$/);
+  await expect(page.getByRole("heading", { name: "Sign in to your account" })).toBeVisible();
+  await expect(page.getByRole("main").getByRole("button", { name: "Sign in", exact: true })).toBeVisible();
+  await expect(page.getByRole("main").getByRole("button", { name: "Create account", exact: true })).toBeVisible();
 });
 
 test("administrator route requires a verified administrator identity", async ({ page }) => {
@@ -229,27 +351,31 @@ test("administrator route requires a verified administrator identity", async ({ 
   expect(adminRequests).toEqual([]);
 });
 
-test("assets, orders and KYC remain behind the authenticated account gate", async ({ page }) => {
+test("assets, orders and KYC remain behind the in-place authenticated account gate", async ({ page }) => {
   for (const path of ["/assets", "/orders", "/kyc"]) {
     await page.goto(path);
-    await expect(page).toHaveURL(/\/login$/);
-    await expect(page.getByRole("heading", { name: "Welcome back", exact: true })).toBeVisible();
+    await expect(page).toHaveURL(new RegExp(path.replace("/", "\\/") + "$"));
+    await expect(page.getByRole("heading", { name: "Sign in to your account" })).toBeVisible();
   }
 });
 
-test("signed-out customer routes never issue financial or account mutations", async ({ page }) => {
+test("signed-out financial routes keep in-place gates and public previews issue no mutations", async ({ page }) => {
   const mutationRequests: string[] = [];
-  page.on("request", (request) => {
+  page.on("request", request => {
     const url = new URL(request.url());
     if (url.pathname.startsWith("/api/") && ["POST", "PUT", "PATCH", "DELETE"].includes(request.method())) {
       mutationRequests.push(request.method() + " " + url.pathname);
     }
   });
 
-  for (const path of ["/deposit", "/withdraw", "/assets", "/orders", "/kyc", "/seconds", "/settings", "/earn"]) {
+  for (const path of ["/deposit", "/withdraw", "/assets", "/orders", "/kyc", "/settings"]) {
     await page.goto(path);
-    await expect(page).toHaveURL(/\/login$/);
-    await expect(page.getByRole("heading", { name: "Welcome back", exact: true })).toBeVisible();
+    await expect(page).toHaveURL(new RegExp(path.replace("/", "\\/") + "$"));
+    await expect(page.getByRole("heading", { name: "Sign in to your account" })).toBeVisible();
+  }
+  for (const path of ["/seconds", "/earn"]) {
+    await page.goto(path);
+    await expect(page).toHaveURL(new RegExp(path.replace("/", "\\/") + "$"));
   }
 
   expect(mutationRequests).toEqual([]);
@@ -259,7 +385,7 @@ test("support help center is public while private conversation APIs remain untou
   const privateSupportRequests: string[] = [];
   page.on("request", (request) => {
     const url = new URL(request.url());
-    if (url.pathname.startsWith("/api/support")) privateSupportRequests.push(request.method() + " " + url.pathname);
+    if (url.pathname.startsWith("/api/support") && !(request.method() === "GET" && url.pathname === "/api/support/faq")) privateSupportRequests.push(request.method() + " " + url.pathname);
   });
 
   await page.goto("/support");
@@ -294,8 +420,8 @@ test("account overview stays signed out after the auth session bootstrap check",
 
   await page.goto("/me");
 
-  await expect(page.getByText("Sign in to continue")).toBeVisible();
-  await expect(page.getByRole("link", { name: "Sign in", exact: true })).toHaveAttribute("href", "/login");
+  await expect(page.getByText("Sign in to your account", { exact: true })).toBeVisible();
+  await expect(page.getByRole("main").getByRole("button", { name: "Sign in", exact: true })).toBeVisible();
   // AuthProvider performs one read-only account probe to restore an existing cookie session.
   // That bootstrap GET is expected while signed out; no write endpoint is involved.
   expect(privateAccountRequests).toEqual(["GET"]);
@@ -330,8 +456,10 @@ test("account page waits for session restoration before showing sign-in", async 
   await expect(page.getByText("Loading account profile…")).toBeVisible();
   await expect(page.getByText("Sign in to continue")).toHaveCount(0);
   releaseConfig();
-  await expect(page.getByRole("heading", { name: "Account profile" })).toBeVisible();
-  await expect(page.getByText("Sign in to continue")).toHaveCount(0);
+  await expect(page.getByRole("heading", { name: "My account" })).toBeVisible();
+  await expect(page.getByText("qa_user", { exact: true })).toBeVisible();
+  await expect(page.getByText("e2e-user-001", { exact: true })).toBeVisible();
+  await expect(page.getByText("Sign in to your account")).toHaveCount(0);
 });
 
 test("authenticated My account keeps profile hierarchy concise", async ({ page }) => {
@@ -342,7 +470,8 @@ test("authenticated My account keeps profile hierarchy concise", async ({ page }
   await page.goto("/me");
 
   await expect(page.getByRole("heading", { name: "My account" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Account profile" })).toBeVisible();
+  await expect(page.getByText("qa_user", { exact: true })).toBeVisible();
+  await expect(page.getByText("e2e-user-001", { exact: true })).toBeVisible();
   await expect(page.getByText("Manage your profile, verification, security and support.", { exact: true })).toHaveCount(0);
   await expect(page.getByText("Your BTCBOX identity and account-level security details.", { exact: true })).toHaveCount(0);
   await expect(page.getByText("Identity review status", { exact: true })).toHaveCount(0);
@@ -364,7 +493,7 @@ test("authenticated assets page renders only the mocked account balances", async
   await expect(page.getByText("10.00", { exact: true })).toBeVisible();
   await expect(page.getByText("USDT", { exact: true })).toBeVisible();
   await expect(page.getByText("0.002", { exact: true })).toBeVisible();
-  await expect(page.getByText("125.50 USDT", { exact: true })).toHaveCount(0);
+  await expect(page.getByText("125.50 USDT", { exact: true })).toBeVisible();
 });
 
 test("mobile asset and account pages keep balances readable and copy controls touch-sized", async ({ page }) => {
@@ -507,9 +636,9 @@ test("username login submits BTCBOX credentials to the username endpoint and sur
   });
 
   await page.goto("/login");
-  await page.getByLabel("Username").fill("qa_user");
+  await page.getByLabel("Username or email").fill("qa_user");
   await page.getByLabel("Password", { exact: true }).fill("a-secure-test-password");
-  await page.getByRole("button", { name: "Sign in with username" }).click();
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
 
   await expect(page.getByRole("alert")).toContainText("Username or password is incorrect.");
   expect(submitted).toEqual({ username: "qa_user", password: "a-secure-test-password" });
@@ -542,7 +671,7 @@ test("OAuth callback failure returns a registration attempt to the registration 
 
   await expect(page.getByText("Google sign-in was cancelled")).toBeVisible();
   await expect(page.getByRole("link", { name: "Return to sign in" })).toHaveAttribute("href", "/register");
-  await expect(page).toHaveURL(/\/register$/, { timeout: 7500 });
+  await expect(page).toHaveURL(/\/auth\/react-callback\?/, { timeout: 7500 });
 });
 
 async function installAdminE2EIdentity(page: import("@playwright/test").Page) {
@@ -1041,8 +1170,8 @@ test("registration experience stays clear and usable on a narrow mobile viewport
   await page.getByRole("button", { name: "Wallet" }).click();
   await expect(page.getByRole("button", { name: "Connect Ethereum wallet" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Connect Solana wallet" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Create account with email" })).toHaveCount(0);
-  await expect(page.getByLabel("Email address")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Create account with email" })).toBeVisible();
+  await expect(page.getByLabel("Email", { exact: true })).toBeVisible();
   const dimensions = await page.evaluate(() => ({ viewport: document.documentElement.clientWidth, content: document.documentElement.scrollWidth }));
   expect(dimensions.content).toBeLessThanOrEqual(dimensions.viewport);
 });
@@ -1275,18 +1404,17 @@ test("registration layout adapts from mobile to desktop without losing the ident
     await page.getByRole("button", { name: "Wallet" }).click();
     await expect(page.getByRole("button", { name: "Connect Ethereum wallet" })).toBeVisible();
     await expect(page.getByRole("button", { name: "Connect Solana wallet" })).toBeVisible();
-    await expect(page.getByTestId("auth-mode-switcher").getByRole("link", { name: "Sign in", exact: true })).toHaveAttribute("href", "/login");
-    await expect(page.getByLabel("Email address")).toHaveCount(0);
-    await expect(page.getByRole("button", { name: "Create account with email" })).toHaveCount(0);
-    await expect(page.getByLabel("Username")).toHaveCount(0);
+    await expect(page.getByTestId("auth-mode-switcher").getByRole("button", { name: "Sign in", exact: true })).toBeVisible();
+    await expect(page.getByLabel("Email", { exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Create account with email" })).toBeVisible();
+    await expect(page.getByLabel("Username or email")).toHaveCount(0);
     const dimensions = await page.evaluate(() => ({
       viewport: document.documentElement.clientWidth,
       content: document.documentElement.scrollWidth,
     }));
     expect(dimensions.content, `registration overflow at ${viewport.width}px`).toBeLessThanOrEqual(dimensions.viewport);
-    if (viewport.width >= 1024) {
-      await expect(page.getByRole("heading", { name: "A clearer way to enter the digital asset market." })).toBeVisible();
-    }
+    await expect(page.getByLabel("Email", { exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Create account with email" })).toBeVisible();
   }
 });
 
@@ -1361,15 +1489,15 @@ test("language preference updates the document locale and persists across reload
   await page.goto("/home");
   await expect.poll(() => page.locator("html").getAttribute("lang")).toBe("en-US");
 
-  const language = page.getByRole("combobox", { name: "Language" });
-  await language.selectOption("ja");
+  await page.getByRole("button", { name: "Language" }).click();
+  await page.getByRole("dialog").getByRole("option", { name: "日本語" }).click();
   await expect(page.locator("html")).toHaveAttribute("lang", "ja-JP");
-  await expect(page.getByRole("navigation", { name: "メインナビゲーション" }).getByRole("link", { name: "ホーム" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "マーケット概要", exact: true })).toBeVisible();
 
   await page.reload();
   await expect(page.locator("html")).toHaveAttribute("lang", "ja-JP");
-  await expect(page.getByRole("combobox", { name: "言語" })).toHaveValue("ja");
-  await expect(page.getByRole("navigation", { name: "メインナビゲーション" }).getByRole("link", { name: "ホーム" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "言語" })).toContainText("日本語");
+  await expect(page.getByRole("heading", { name: "マーケット概要", exact: true })).toBeVisible();
 });
 
 test("a first-time visitor sees Japanese and can switch to another language", async ({ page }) => {
@@ -1382,31 +1510,32 @@ test("a first-time visitor sees Japanese and can switch to another language", as
   await page.goto("/home");
 
   await expect(page.locator("html")).toHaveAttribute("lang", "ja-JP");
-  await expect(page.getByRole("navigation", { name: "メインナビゲーション" }).getByRole("link", { name: "ホーム" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "マーケット概要", exact: true })).toBeVisible();
 
-  const language = page.getByRole("combobox", { name: "言語" });
-  await language.selectOption("de");
+  await page.getByRole("button", { name: "言語" }).click();
+  await page.getByRole("dialog").getByRole("option", { name: "Deutsch" }).click();
   await expect(page.locator("html")).toHaveAttribute("lang", "de-DE");
+  await expect(page.getByRole("heading", { name: "Marktübersicht", exact: true })).toBeVisible();
   await page.reload();
-  await expect(page.locator("header select")).toHaveValue("de");
+  await expect(page.getByRole("button", { name: "Sprache" })).toContainText("Deutsch");
 });
 
 
 test("login screen switches to native Japanese copy without changing authentication controls", async ({ page }) => {
   await page.goto("/login");
-  const language = page.getByRole("combobox", { name: "Language" });
-  await language.selectOption("ja");
+  await page.getByRole("button", { name: "Language" }).click();
+  await page.getByRole("dialog").getByRole("option", { name: "日本語" }).click();
 
   await expect(page.locator("html")).toHaveAttribute("lang", "ja-JP");
   await expect(page.getByRole("heading", { name: "お帰りなさい", exact: true })).toBeVisible();
-  await expect(page.getByLabel("ユーザー名")).toBeVisible();
+  await expect(page.getByLabel("ユーザー名またはメールアドレス")).toBeVisible();
   await expect(page.getByLabel("パスワード", { exact: true })).toBeVisible();
-  await expect(page.getByRole("button", { name: "ユーザー名でログイン" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "ログイン", exact: true })).toBeVisible();
   await expect(page.getByText("Googleログインは一時的に利用できません。")).toBeVisible();
 
   await page.reload();
   await expect(page.locator("html")).toHaveAttribute("lang", "ja-JP");
-  await expect(page.getByRole("combobox", { name: "言語" })).toHaveValue("ja");
+  await expect(page.getByRole("button", { name: "言語" })).toContainText("日本語");
   await expect(page.getByRole("heading", { name: "お帰りなさい", exact: true })).toBeVisible();
 });
 

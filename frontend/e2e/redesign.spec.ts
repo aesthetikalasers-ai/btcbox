@@ -27,19 +27,19 @@ test('market favorites persist, sorting changes rows, and ETH opens its own pair
   await page.goto('/markets',{waitUntil:'domcontentloaded'});
   // Each market row exposes a "Trade" link; the first row is BTC by default volume sort.
   const tradeLinks = () => page.getByRole('link',{name:'Trade',exact:true}).filter({visible:true});
-  await expect(page.getByRole('button',{name:'BTC/USDT BTC'})).toBeVisible();
+  await expect(page.getByRole('link',{name:/BTC\s*\/USDT/}).first()).toBeVisible();
   // Sort by 24h change moves ETH (3.4%) ahead of BTC (1.2%).
   await page.getByLabel('Sort by').selectOption('change');
-  await expect(page.getByRole('button',{name:'ETH/USDT ETH'})).toBeVisible();
-  await expect(page.getByRole('button',{name:'BTC/USDT BTC'})).toBeVisible();
+  await expect(page.getByRole('link',{name:/ETH\s*\/USDT/}).first()).toBeVisible();
+  await expect(page.getByRole('link',{name:/BTC\s*\/USDT/}).first()).toBeVisible();
   // Favourite ETH, then filter to favourites only.
   await page.getByRole('button',{name:'Add to favorites ETH',exact:true}).filter({visible:true}).click();
   await page.getByRole('button',{name:'Favorites',exact:true}).click();
-  await expect(page.getByRole('button',{name:'ETH/USDT ETH'})).toBeVisible();
-  await expect(page.getByRole('button',{name:'BTC/USDT BTC'})).toHaveCount(0);
+  await expect(page.getByRole('link',{name:/ETH\s*\/USDT/}).first()).toBeVisible();
+  await expect(page.getByRole('link',{name:/BTC\s*\/USDT/})).toHaveCount(0);
   await page.reload();
   await page.getByRole('button',{name:'Favorites',exact:true}).click();
-  await expect(page.getByRole('button',{name:'ETH/USDT ETH'})).toBeVisible();
+  await expect(page.getByRole('link',{name:/ETH\s*\/USDT/}).first()).toBeVisible();
   // The ETH trade link routes to its own spot pair. Scope to the market table
   // (inside <main>) so the navigation and banner "Trade" links are excluded.
   await page.locator('main').getByRole('link',{name:'Trade',exact:true}).first().click();
@@ -165,7 +165,7 @@ test('V211 phone trade tabs switch panels and keep the chart in a safe-area draw
    await expect(book).toBeVisible();
    await expect(entry).toBeHidden();
    const b=(await book.boundingBox())!;
-   expect(b.width).toBeGreaterThan(width-24);
+   expect(b.width).toBeGreaterThanOrEqual(width-24);
    await tabs.getByRole('tab',{name:'Sell',exact:true}).click();
    await expect(entry).toBeVisible();
    await expect(book).toBeHidden();

@@ -10,6 +10,18 @@ const backend = fs.readFileSync(path.join(root, 'api-core.js'), 'utf8');
 const api = fs.readFileSync(path.resolve(root, '../frontend/src/lib/api.ts'), 'utf8');
 const pages = fs.readFileSync(path.resolve(root, '../frontend/src/features/pages/Pages.tsx'), 'utf8');
 
+test('public USDT/USD FX route is exposed by the shared Vercel API handler', () => {
+  const route = backend.indexOf("if (path === 'fx/usdt-usd' && method === 'GET')");
+  const klineStart = backend.indexOf("if (path === 'kline' && method === 'GET')");
+  assert.ok(route >= 0 && klineStart > route, 'FX route must be present before the kline route');
+  const routeBlock = backend.slice(route, klineStart);
+  assert.ok(routeBlock.includes("getUsdtUsd()"));
+  assert.ok(routeBlock.includes("code: 'FX_DATA_UNAVAILABLE'"));
+  assert.ok(!routeBlock.includes("rate: 0.99999"));
+  assert.ok(api.includes('getUsdtUsdRate'));
+  assert.ok(api.includes('${API_BASE_URL}/fx/usdt-usd'));
+});
+
 test('public spot-market catalogue is sourced from operator configuration', () => {
   const route = backend.indexOf("if (path === 'market/pairs' && method === 'GET')");
   const marketRoute = backend.indexOf("if (path === 'market' && method === 'GET')");
@@ -24,6 +36,7 @@ test('public spot-market catalogue is sourced from operator configuration', () =
   assert.match(backend, /catch \(error\) \{ throw new Error\('Spot market catalogue unavailable:/);
   assert.ok(api.includes("MARKET_CATALOG_UNAVAILABLE"));
   assert.ok(!api.includes("return getSampleMarketPairs()"), "the public client must not fabricate a pair list");
+  assert.ok(api.includes("return { rate: null, source: \"unavailable\", stale: true }"));
 });
 
 test('market ticker, candles and depth are gated by enabled spot pairs', () => {
@@ -45,7 +58,7 @@ test('user Trade Hub links only to configured pairs and Spot order submission ch
   assert.ok(pages.includes('pair.base_asset===base&&pair.quote_asset==="USDT"'));
   assert.ok(pages.includes('if(!spotPairEnabled&&!pendingIntent)'));
   assert.ok(pages.includes('(!spotPairEnabled&&!pendingIntent)'));
-  assert.ok(pages.includes('setSpotPairEnabled(false);setTradingStatus(null)'));
+  assert.ok(pages.includes('setSpotPairEnabled(false);setSpotPairRules(null);setTradingStatus(null)'));
   assert.ok(pages.includes('(!spotPairEnabled&&!pendingIntent)||(!tradingStatus?.spot_order_entry_enabled&&!pendingIntent)'));
 });
 
@@ -76,7 +89,7 @@ test('market timestamps distinguish server snapshot time from provider-specific 
   assert.ok(route.includes('const snapshotTs = Math.floor(Date.now() / 1000)'), 'server snapshot time is generated after provider responses');
   assert.ok(route.includes('ts: snapshotTs, providerTs: marketsByBase[row.sym].providerTs'));
   assert.ok(api.includes('Server snapshot time (Unix seconds), not an exchange event timestamp.'));
-  assert.ok(api.includes('not a universal exchange-event timestamp.'));
+  assert.ok(api.includes('never synthesized by the browser.'));
 });
 
 test('public ticker snapshots use a short shared-cache window and clients bypass browser cache', () => {
@@ -100,24 +113,27 @@ test('order book snapshots normalize provider levels and expose source-specific 
   assert.ok(route.includes('snapshotTs: Math.floor(Date.now() / 1000), providerTs'));
   assert.ok(api.includes('const normalizeLevels = (rows: unknown[])'));
   assert.ok(api.includes('INVALID_ORDER_BOOK'));
-  assert.ok(pages.includes('const marketSnapshotStale=!!ticker&&(!marketUpdatedAt||marketClockNow-marketUpdatedAt>90_000)'));
+  assert.ok(pages.includes('const providerTimestampMs=ticker?.providerTs?ticker.providerTs*1000:null;'));
+  assert.ok(pages.includes('!serverSnapshotTimestampMs||!Number.isFinite(serverSnapshotTimestampMs)'));
   assert.ok(pages.includes('(!ticker||marketSnapshotStale)&&!pendingIntent'));
-  assert.ok(!pages.includes('displayTicker?.source'), 'ticker source badge must not be rendered');
+  assert.ok(pages.includes('displayTicker?.source'), 'ticker provider source must be visible to the trader');
   assert.ok(pages.includes('const orderBookSnapshotStale=!!book&&(!book.snapshotTs||marketClockNow-book.snapshotTs*1000>90_000)'));
   assert.ok(pages.includes('const streamDepthFresh=liveDepth.updatedAt!==null&&Date.now()-liveDepth.updatedAt<=90_000'));
   assert.ok(pages.includes('const displayBook=streamDepthFresh?liveDepth.data:(orderBookSnapshotStale?null:book)'));
   // A stale stream frame cannot shadow a newer polled provider snapshot.
   assert.ok(pages.includes('orderBookSnapshotStale?null:book'), 'stale polled book must not be rendered as live');
-  // Provider source badges were intentionally removed from the trader-facing UI.
-  assert.ok(!pages.includes('displayBook?.source'), 'order book source must not be rendered');
+  // Ticker and depth provider source badges are visible for feed traceability.
+  assert.ok(pages.includes('displayBook?.source'), 'order book provider source must be visible to the trader');
 });
 
 test('spot chart preserves provider provenance and rejects impossible OHLC ranges', () => {
-  assert.ok(api.includes('candle.high >= Math.max(candle.open, candle.close, candle.low)'));
-  assert.ok(api.includes('candle.low <= Math.min(candle.open, candle.close, candle.high)'));
-  assert.ok(api.includes('const candleSource = typeof payload.source === "string" ? payload.source : undefined'));
-  assert.ok(!pages.includes('candles[0]?.source'), 'chart source must not be rendered');
-  assert.ok(pages.includes('setCandles([]);setChartFeedWarning("Chart data is temporarily unavailable.")'));
+  const normalizer = fs.readFileSync(path.resolve(root, '../frontend/src/lib/klineData.ts'), 'utf8');
+  assert.ok(normalizer.includes('high < Math.max(open, close, low)'));
+  assert.ok(normalizer.includes('low > Math.min(open, close, high)'));
+  assert.ok(normalizer.includes('source: typeof candle.source === "string" ? candle.source : fallbackSource'));
+  assert.ok(api.includes('normalizeKlines(payload.klines, payload.source)'));
+  assert.ok(pages.includes('candles[candles.length-1]?.source'), 'chart provider source must be visible to the trader');
+  assert.ok(pages.includes('setCandles([]);setChartFeedWarning(t("Chart data is temporarily unavailable."))'));
   assert.ok(!pages.includes("showing the last confirmed candles"));
 });
 
