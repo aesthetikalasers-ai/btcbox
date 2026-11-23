@@ -481,7 +481,7 @@ test("trade interaction QA mobile spot market selection and order-book handoff",
 
   const askPrice = await askRow.locator("span").first().getAttribute("title");
   const selectedAskPrice = askPrice ?? "";
-  expect(selectedAskPrice).toMatch(/^6500[12]\\.00$/);
+  expect(selectedAskPrice).toMatch(/^6500[12]\.00$/);
   await askRow.click();
   await expect(priceInput).toHaveValue(selectedAskPrice);
   await expect(buySide).toHaveAttribute("aria-pressed", "true");
@@ -489,7 +489,7 @@ test("trade interaction QA mobile spot market selection and order-book handoff",
 
   const bidPrice = await bidRow.locator("span").first().getAttribute("title");
   const selectedBidPrice = bidPrice ?? "";
-  expect(selectedBidPrice).toMatch(/^6499[89]\\.00$/);
+  expect(selectedBidPrice).toMatch(/^6499[89]\.00$/);
   await bidRow.click();
   await expect(priceInput).toHaveValue(selectedBidPrice);
   await expect(sellSide).toHaveAttribute("aria-pressed", "true");
