@@ -119,6 +119,11 @@ export function LiveMarketsTable({ markets, loading, error }: {
         </div>
         {loading || feedError ? <span className="shrink-0 rounded-md border border-brand-border bg-brand-surface-2 px-3 py-2 text-xs font-semibold text-brand-text-secondary">{loading ? t("Loading…") : t("Unavailable")}</span> : visibleMarkets.length > 0 ? <span className="shrink-0 rounded-md border border-brand-border bg-brand-surface-2 px-3 py-2 text-xs font-semibold text-brand-text-secondary">{visibleMarkets.length} {t("pairs")}</span> : null}
       </div>
+      {displayMarkets.length > 0 && <div className="flex flex-wrap gap-x-4 gap-y-1 border-b border-brand-border px-4 py-2 text-[11px] text-brand-text-muted md:px-6">
+        <span>{t("Server snapshot")}: <strong className="font-mono font-medium tabular-nums text-brand-text-secondary">{snapshotTime || "—"}</strong></span>
+        <span>{t("Provider snapshot")}: <strong className="font-mono font-medium tabular-nums text-brand-text-secondary">{providerTime || "—"}</strong>{providerAgeLabel ? " · " + providerAgeLabel : ""}</span>
+        {providerSource ? <span>{t("Source")}: <strong className="font-medium text-brand-text-secondary">{providerSource}</strong></span> : null}
+      </div>}
       {displayMarkets.length > 0 && <div className="grid gap-3 border-b border-brand-border px-4 py-3 md:grid-cols-[minmax(180px,1fr)_auto] md:items-center md:px-6">
         <label className="relative block">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-brand-text-muted" />
