@@ -109,7 +109,7 @@ test('order book snapshots normalize provider levels and expose source-specific 
   assert.ok(pages.includes('const displayBook=streamDepthFresh?liveDepth.data:(orderBookSnapshotStale?null:book)'));
   // A stale stream frame cannot shadow a newer polled provider snapshot.
   assert.ok(pages.includes('orderBookSnapshotStale?null:book'), 'stale polled book must not be rendered as live');
-  // Provider source badges were intentionally removed from the trader-facing UI.
+  // Ticker and depth provider source badges are visible for feed traceability.
   assert.ok(pages.includes('displayBook?.source'), 'order book provider source must be visible to the trader');
 });
 
