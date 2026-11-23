@@ -921,8 +921,8 @@ export function SpotTradingPage(){
      return {
       id:pair,
       label:`${pair.replace(/USDT$/,"")}/USDT`,
-      price:displayTicker?amountText(displayTicker.price):null,
-      changePct:displayTicker&&Number.isFinite(Number(displayTicker.chg))?Number(displayTicker.chg):null,
+      price:ticker?amountText(ticker.price):null,
+      changePct:ticker&&Number.isFinite(Number(ticker.chg))?Number(ticker.chg):null,
      };
     })}
     onSelect={(pair)=>navigate(`/trade/${pair}`)}
@@ -965,8 +965,8 @@ export function SpotTradingPage(){
     return {
      id:pair,
      label:`${pair.replace(/USDT$/,"")}/USDT`,
-     price:displayTicker?amountText(displayTicker.price):null,
-     changePct:displayTicker&&Number.isFinite(Number(displayTicker.chg))?Number(displayTicker.chg):null,
+     price:ticker?amountText(ticker.price):null,
+     changePct:ticker&&Number.isFinite(Number(ticker.chg))?Number(ticker.chg):null,
     };
    })}
    onSelect={(pair)=>navigate(`/trade/${pair}`)}
