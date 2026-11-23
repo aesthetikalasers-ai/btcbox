@@ -411,6 +411,7 @@ const messages: Record<string, string> = {
   "Balance adjusted through the financial ledger.": "已通过资金账本完成余额调整。",
   "Funds moved to frozen balance.": "资金已转入冻结余额。",
   "Frozen funds returned to available balance.": "冻结资金已转回可用余额。",
+  "Reason (required, at least 5 characters)": "原因（必填，至少 5 个字符）",
 };
 
 export function adminText(message: string): string {
