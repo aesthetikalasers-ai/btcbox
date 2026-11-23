@@ -12,8 +12,8 @@ const continuityWidths = [
 const routes = [
   { path: "/login", heading: "Welcome back" },
   { path: "/register", heading: "Create your BTCBOX account" },
-  { path: "/home", heading: "Market overview" },
-  { path: "/markets", heading: "Market overview" },
+  { path: "/home", heading: "Digital asset exchange" },
+  { path: "/markets", heading: "Markets" },
   { path: "/trade/BTCUSDT", heading: "BTCUSDT" },
   { path: "/trade-hub", heading: "Choose your trading mode" },
   { path: "/assets", heading: "Assets" },
