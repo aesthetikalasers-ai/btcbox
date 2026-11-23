@@ -1453,6 +1453,7 @@ export function AdminPage() {
           </div>
         </>}
       </CardContent></Card>
+      {selectedUser ? <>
       {hasPermission("payout_addresses.read_sensitive") ? <Card><CardHeader><CardTitle>{adminText("This user's saved addresses and bank cards")}</CardTitle><CardDescription>{adminText("Only records linked to the selected UID are shown here. Sensitive details remain permission-protected.")}</CardDescription></CardHeader><CardContent className="space-y-3">
         {profileRelatedLoading ? <p className="text-sm text-brand-text-muted">{adminText("Loading linked records…")}</p> : null}
         {selectedUserAddresses.map(item => <div key={item.id} className="rounded-xl border border-brand-border p-3"><div className="flex flex-wrap items-start justify-between gap-2"><div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><Badge variant="outline">{item.type === "bank" ? adminText("Bank card") : adminText("Crypto address")}</Badge><span className="text-xs text-brand-text-muted">{formatDate(item.created_at)}</span></div>{item.type === "bank" ? <><p className="mt-2 text-sm font-semibold">{item.bank_name} · {item.account_holder}</p><p className="mt-1 break-all font-mono text-xs">{item.iban ? "IBAN " + item.iban : "Account " + (item.account_number || "—")}</p><p className="mt-1 break-words text-xs text-brand-text-muted">{[item.country,item.routing_number ? "Routing " + item.routing_number : "",item.swift ? "SWIFT " + item.swift : "",item.bank_address].filter(Boolean).join(" · ")}</p></> : <><p className="mt-2 text-sm font-semibold">{item.coin} · {item.network}</p><p className="mt-1 break-all font-mono text-xs">{item.address}</p></>}</div><div className="flex shrink-0 gap-2"><Button size="sm" variant="outline" disabled={busy || item.type !== "bank" || !hasPermission("payout_addresses.manage")} onClick={() => beginPayoutAddressEdit(item)}>{adminText("Edit")}</Button><Button size="sm" variant="destructive" disabled={busy || !hasPermission("payout_addresses.manage")} onClick={() => setPendingDeletePayoutAddress(item)}>{adminText("Delete")}</Button></div></div></div>)}
@@ -1466,6 +1467,7 @@ export function AdminPage() {
         <Button size="sm" disabled={busy || !hasPermission("support.reply") || !supportReply[selectedUser.uid]?.trim()} onClick={() => void replySupport(selectedUser.uid)}>{adminText("Send reply")}</Button>
         {!hasPermission("support.reply") ? <p className="text-xs text-brand-warning">{adminText("Requires the support.reply permission.")}</p> : null}
       </CardContent></Card> : null}
+      </> : null}
       </div>
     </div> : null}
 
