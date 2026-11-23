@@ -80,7 +80,20 @@ for (const locale of activeLocales) {
           await route.fulfill({
             status: 200,
             contentType: "application/json",
-            body: JSON.stringify({ ok: true, markets: [], data: {} }),
+            body: JSON.stringify({
+              ok: true,
+              markets: [
+                {
+                  sym: "BTC",
+                  price: 50000,
+                  chg: 1.25,
+                  vol: 1000000,
+                  providerTs: 1700000000000,
+                  snapshotTs: 1700000000000,
+                },
+              ],
+              data: {},
+            }),
           });
           return;
         }
