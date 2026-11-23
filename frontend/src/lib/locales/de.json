@@ -1801,5 +1801,8 @@
   "Open long": "Long-Position eröffnen",
   "Open short": "Short-Position eröffnen",
   "Profile": "Profil",
-  "Contract": "Kontrakt"
+  "Contract": "Kontrakt",
+  "Confirm your password": "Passwort erneut bestätigen",
+  "Your BTCBOX account is ready. You can sign in with your email and password or continue with Google.": "Dein BTCBOX-Konto ist bereit. Du kannst dich mit E-Mail und Passwort oder weiterhin mit Google anmelden.",
+  "Create an account with email, Google or a supported wallet.": "Erstelle ein Konto mit E-Mail, Google oder einer unterstützten Wallet."
 }

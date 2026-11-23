@@ -1801,5 +1801,8 @@
   "Open long": "ロングを建てる",
   "Open short": "ショートを建てる",
   "Profile": "プロフィール",
-  "Contract": "契約"
+  "Contract": "契約",
+  "Confirm your password": "パスワードを再入力",
+  "Your BTCBOX account is ready. You can sign in with your email and password or continue with Google.": "BTCBOXアカウントの準備ができました。メールアドレスとパスワード、またはGoogleでログインできます。",
+  "Create an account with email, Google or a supported wallet.": "メールアドレス、Google、または対応ウォレットでアカウントを作成できます。"
 }

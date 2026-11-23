@@ -1801,5 +1801,8 @@
   "Open long": "开多",
   "Open short": "开空",
   "Profile": "个人资料",
-  "Contract": "合约"
+  "Contract": "合约",
+  "Confirm your password": "再次确认您的密码",
+  "Your BTCBOX account is ready. You can sign in with your email and password or continue with Google.": "BTCBOX 账户已创建。您现在可以使用邮箱和密码登录，也可以继续使用 Google 登录。",
+  "Create an account with email, Google or a supported wallet.": "使用邮箱、Google 或支持的钱包创建账户。"
 }
