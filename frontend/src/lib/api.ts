@@ -226,7 +226,14 @@ export async function getMarkets(signal?: AbortSignal): Promise<MarketTicker[]> 
     row.snapshotTs <= 0 ||
     row.snapshotTs > nowSeconds + 30
   ));
-  const snapshotStale = snapshotInvalid || rows.some((row) => (
+  const providerTimestampInvalid = rows.some((row) => (
+    typeof row.providerTs !== "number" ||
+    !Number.isFinite(row.providerTs) ||
+    row.providerTs <= 0 ||
+    row.providerTs > nowSeconds + 30 ||
+    nowSeconds - row.providerTs > 90
+  ));
+  const snapshotStale = snapshotInvalid || providerTimestampInvalid || rows.some((row) => (
     typeof row.snapshotTs !== "number" || nowSeconds - row.snapshotTs > 90
   ));
   if (snapshotStale) {
