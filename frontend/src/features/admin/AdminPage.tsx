@@ -53,7 +53,7 @@ import {
   type AdminWithdrawalRecord,
 } from "../../lib/api";
 
-type ReviewDialogState = { kind: "withdrawal"; id: string } | { kind: "kyc"; uid: string };
+type ReviewDialogState = { kind: "withdrawal"; id: string } | { kind: "kyc" | "kyc-manual"; uid: string };
 type Tab = "overview" | "users" | "deposits" | "withdrawals" | "kyc" | "audit" | "orders" | "support" | "support-faq" | "payout-addresses" | "admins" | "seconds" | "markets";
 const tabs: Array<{ id: Tab; label: string; permission: string }> = [
   { id: "overview", label: "Overview", permission: "dashboard.read" },
@@ -150,6 +150,7 @@ export function AdminPage() {
   const [payoutReferences, setPayoutReferences] = useState<Record<string, string>>({});
   const [reviewDialog, setReviewDialog] = useState<ReviewDialogState | null>(null);
   const [reviewReason, setReviewReason] = useState("");
+  const [manualIdentityConfirmed, setManualIdentityConfirmed] = useState(false);
   const [config, setConfig] = useState<AdminConfig>({
     deposit_addresses: {},
     withdrawal_fees: {},
@@ -720,7 +721,7 @@ export function AdminPage() {
     if (!token || !reviewDialog) return;
     const reasonText = reviewReason.trim();
     if (!reasonText) {
-      setError("A rejection reason is required.");
+      setError(reviewDialog.kind === "kyc-manual" ? "A manual verification method and review note are required." : "A rejection reason is required.");
       return;
     }
     const target = reviewDialog;
@@ -736,6 +737,16 @@ export function AdminPage() {
         setReviewDialog(null);
         setReviewReason("");
         await refreshWithdrawalQueue("Withdrawal rejection and refund confirmed.");
+      } else if (target.kind === "kyc-manual") {
+        if (!manualIdentityConfirmed) {
+          setError("Confirm that you personally verified the customer's identity before approval.");
+          return;
+        }
+        await adminApproveKyc(token, target.uid, { admin_override: true, reason: reasonText });
+        setReviewDialog(null);
+        setReviewReason("");
+        setManualIdentityConfirmed(false);
+        await refreshKycQueueAfterReview("KYC approved after manual identity verification.");
       } else {
         await adminRejectKyc(token, target.uid, reasonText);
         setReviewDialog(null);
@@ -1181,7 +1192,7 @@ export function AdminPage() {
 
     {!loading && tab === "withdrawals" ? <Card><CardHeader><div className="flex flex-wrap items-start justify-between gap-3"><div><CardTitle>{adminText("Withdrawal queue")}</CardTitle><CardDescription>{adminText("Approve or reject requests. After staff actually transfer funds, mark paid with the TxID/reference.")}</CardDescription></div><Button size="sm" variant="outline" disabled={reviewQueueLoading || busy} onClick={()=>void refreshWithdrawalQueueManually()}>{reviewQueueLoading ? adminText("Refreshing…") : adminText("Refresh queue")}</Button></div></CardHeader><CardContent><div className="overflow-x-auto"><table className="w-full min-w-[900px] text-left text-sm"><thead><tr className="border-b border-brand-border bg-brand-surface-2/50 type-label uppercase tracking-wide text-brand-text-muted"><th className="px-3 py-2.5">{adminText("ID")}</th><th className="px-3 py-2.5">{adminText("User")}</th><th className="px-3 py-2.5 text-right">{adminText("Asset / amount")}</th><th className="px-3 py-2.5">{adminText("Network / destination")}</th><th className="px-3 py-2.5">{adminText("Status")}</th><th className="px-3 py-2.5">{adminText("Action")}</th></tr></thead><tbody>{withdrawals.map(item=><tr key={item.id} className="border-b border-brand-border-subtle align-top transition-colors hover:bg-brand-surface-hover/40"><td className="px-3 py-2.5 font-mono text-xs">{item.id}</td><td className="px-3 py-2.5">{item.uid}</td><td className="px-3 py-2.5 text-right tabular-nums"><span className="mr-1 text-xs text-brand-text-muted">{item.coin}</span>{item.amount}<div className="text-xs text-brand-text-muted">{adminText("Fee")} {item.fee}</div></td><td className="max-w-[260px] break-all px-3 py-2.5">{item.network}<div className="text-xs text-brand-text-muted">{item.address}</div></td><td className="px-3 py-2.5"><Badge variant={statusVariant(item.status)}>{adminText(item.status)}</Badge></td><td className="min-w-[220px] space-y-2 px-3 py-2.5">{item.status==="pending"||item.status==="pending_admin_review"?<><Button size="sm" disabled={busy||reviewQueueLoading||!hasPermission("withdrawals.review")} onClick={()=>void approveWithdrawal(item.id)}>{adminText("Approve")}</Button><Button size="sm" variant="destructive" disabled={busy||reviewQueueLoading||!hasPermission("withdrawals.review")} onClick={()=>void rejectWithdrawal(item.id)}>{adminText("Reject")}</Button></>:item.status==="approved"?<><input disabled={reviewQueueLoading} value={payoutReferences[item.id]||""} onChange={event=>setPayoutReferences(current=>({...current,[item.id]:event.target.value}))} placeholder={adminText("Required TxID / reference")} maxLength={160} className="w-full rounded-lg border border-brand-border bg-brand-surface-2 px-2 py-2 text-xs text-brand-text"/><Button size="sm" disabled={busy||reviewQueueLoading||!payoutReferences[item.id]?.trim()||!hasPermission("withdrawals.review")} onClick={()=>void markPaid(item.id)}>{adminText("Mark paid")}</Button></>:<span className="text-xs text-brand-text-muted">{item.payout_reference||"—"}</span>}</td></tr>)}{withdrawals.length===0 ? <tr><td colSpan={6} className="px-3 py-10 text-center text-sm text-brand-text-muted">暂无待处理提现申请。</td></tr> : null}</tbody></table></div></CardContent></Card> : null}
 
-    {!loading && tab === "kyc" ? <Card><CardHeader><div className="flex flex-wrap items-center justify-between gap-3"><CardTitle>{adminText("KYC review")}</CardTitle><Button size="sm" variant="outline" disabled={reviewQueueLoading || busy} onClick={()=>void refreshKycQueue()}>{reviewQueueLoading ? adminText("Refreshing…") : adminText("Refresh queue")}</Button></div></CardHeader><CardContent><div className="overflow-x-auto"><table className="w-full min-w-[700px] text-left text-sm"><thead><tr className="border-b border-brand-border bg-brand-surface-2/50 type-label uppercase tracking-wide text-brand-text-muted"><th className="px-3 py-2.5">{adminText("User")}</th><th className="px-3 py-2.5">{adminText("Name")}</th><th className="px-3 py-2.5">{adminText("Document")}</th><th className="px-3 py-2.5">{adminText("Status")}</th><th className="px-3 py-2.5">{adminText("Submitted")}</th><th className="px-3 py-2.5">{adminText("Action")}</th></tr></thead><tbody>{kyc.map(item=><tr key={item.uid} className="border-b border-brand-border-subtle transition-colors hover:bg-brand-surface-hover/40"><td className="px-3 py-2.5">{item.uid}<div className="text-xs text-brand-text-muted">{item.email}</div></td><td className="px-3 py-2.5">{item.name}</td><td className="px-3 py-2.5">{item.id_type}<div className="mt-1 text-xs">{item.document_url&&!item.document_preview_error?<a href={item.document_url} target="_blank" rel="noreferrer" className="text-brand-accent underline underline-offset-2">{adminText("Open secure image")}</a>:<span className="text-brand-text-muted">{item.document_preview_error||"Document image missing"}</span>}</div></td><td className="px-3 py-2.5"><Badge variant={statusVariant(item.status)}>{adminText(item.status)}</Badge></td><td className="whitespace-nowrap px-3 py-2.5">{formatDate(item.submitted_at)}</td><td className="space-x-2 px-3 py-2.5"><Button size="sm" disabled={busy||!hasPermission("kyc.review")||!item.document_uploaded||!item.document_url||!!item.document_preview_error} onClick={()=>void reviewKyc(item.uid,true)}>{adminText("Approve")}</Button><Button size="sm" variant="destructive" disabled={busy||!hasPermission("kyc.review")} onClick={()=>void reviewKyc(item.uid,false)}>{adminText("Reject")}</Button>{!item.document_uploaded||!item.document_url||item.document_preview_error?<p className="mt-1 text-xs text-brand-text-muted">{!item.document_uploaded?adminText("Identity document upload is required before approval."):adminText("Document preview unavailable; refresh the queue before approval.")}</p>:null}</td></tr>)}{kyc.length===0 ? <tr><td colSpan={6} className="px-3 py-10 text-center text-sm text-brand-text-muted">暂无待审核 KYC 申请。</td></tr> : null}</tbody></table></div></CardContent></Card> : null}
+    {!loading && tab === "kyc" ? <Card><CardHeader><div className="flex flex-wrap items-center justify-between gap-3"><CardTitle>{adminText("KYC review")}</CardTitle><Button size="sm" variant="outline" disabled={reviewQueueLoading || busy} onClick={()=>void refreshKycQueue()}>{reviewQueueLoading ? adminText("Refreshing…") : adminText("Refresh queue")}</Button></div></CardHeader><CardContent><div className="overflow-x-auto"><table className="w-full min-w-[700px] text-left text-sm"><thead><tr className="border-b border-brand-border bg-brand-surface-2/50 type-label uppercase tracking-wide text-brand-text-muted"><th className="px-3 py-2.5">{adminText("User")}</th><th className="px-3 py-2.5">{adminText("Name")}</th><th className="px-3 py-2.5">{adminText("Document")}</th><th className="px-3 py-2.5">{adminText("Status")}</th><th className="px-3 py-2.5">{adminText("Submitted")}</th><th className="px-3 py-2.5">{adminText("Action")}</th></tr></thead><tbody>{kyc.map(item=><tr key={item.uid} className="border-b border-brand-border-subtle transition-colors hover:bg-brand-surface-hover/40"><td className="px-3 py-2.5">{item.uid}<div className="text-xs text-brand-text-muted">{item.email}</div></td><td className="px-3 py-2.5">{item.name}</td><td className="px-3 py-2.5">{item.id_type}<div className="mt-1 text-xs">{item.document_url&&!item.document_preview_error?<a href={item.document_url} target="_blank" rel="noreferrer" className="text-brand-accent underline underline-offset-2">{adminText("Open secure image")}</a>:<span className="text-brand-text-muted">{item.document_preview_error||"Document image missing"}</span>}</div></td><td className="px-3 py-2.5"><Badge variant={statusVariant(item.status)}>{adminText(item.status)}</Badge></td><td className="whitespace-nowrap px-3 py-2.5">{formatDate(item.submitted_at)}</td><td className="space-x-2 px-3 py-2.5"><Button size="sm" disabled={busy||!hasPermission("kyc.review")||!item.document_uploaded||!item.document_url||!!item.document_preview_error} onClick={()=>void reviewKyc(item.uid,true)}>{adminText("Approve")}</Button><Button size="sm" variant="outline" disabled={busy||!hasPermission("kyc.review")} onClick={()=>{setReviewDialog({kind:"kyc-manual",uid:item.uid});setReviewReason("");setManualIdentityConfirmed(false);setError("");setNotice("");}}>{adminText("Manual identity verification")}</Button><Button size="sm" variant="destructive" disabled={busy||!hasPermission("kyc.review")} onClick={()=>void reviewKyc(item.uid,false)}>{adminText("Reject")}</Button>{!item.document_uploaded||!item.document_url||item.document_preview_error?<p className="mt-1 text-xs text-brand-text-muted">{!item.document_uploaded?adminText("Identity document upload is required before approval."):adminText("Document preview unavailable; refresh the queue before approval.")}</p>:null}</td></tr>)}{kyc.length===0 ? <tr><td colSpan={6} className="px-3 py-10 text-center text-sm text-brand-text-muted">暂无待审核 KYC 申请。</td></tr> : null}</tbody></table></div></CardContent></Card> : null}
 
     {!loading && tab === "audit" ? <Card><CardHeader><div className="flex flex-wrap items-start justify-between gap-2"><div><CardTitle>{adminText("Financial audit log")}</CardTitle><CardDescription>{auditCompleteness === "postgres_canonical" ? adminText("Canonical append-only PostgreSQL history. Financial operations and account history use the same database source.") : auditCompleteness === "state_document_retention_limited" ? adminText("Retention-limited state-file history. Do not treat this list as a complete financial audit record.") : adminText("Audit source is not confirmed. Do not treat this list as complete until the source is verified.")} {adminText("Operator ID is the recorded actor identifier, not a display name.")}</CardDescription></div><Badge variant={auditCompleteness === "postgres_canonical" ? "default" : "destructive"}>{auditSource === "postgres_financial_audit_log" ? adminText("PostgreSQL canonical") : auditSource === "btcbox_state" ? adminText("State file · limited") : adminText("Source unknown")}</Badge></div></CardHeader><CardContent><div className="overflow-x-auto"><table className="w-full min-w-[1000px] text-left text-sm"><thead><tr className="border-b border-brand-border bg-brand-surface-2/50 type-label uppercase tracking-wide text-brand-text-muted"><th className="px-3 py-2.5">{adminText("Event ID")}</th><th className="px-3 py-2.5">{adminText("Time")}</th><th className="px-3 py-2.5">{adminText("Operator ID")}</th><th className="px-3 py-2.5">{adminText("Action")}</th><th className="px-3 py-2.5">{adminText("Affected user UID")}</th><th className="px-3 py-2.5">{adminText("Sync")}</th><th className="px-3 py-2.5">{adminText("Detail")}</th></tr></thead><tbody>{audit.length ? audit.map((item,index)=><tr key={item.id||index} className="border-b border-brand-border-subtle transition-colors hover:bg-brand-surface-hover/40"><td className="px-3 py-2.5 font-mono text-xs">{item.id}</td><td className="whitespace-nowrap px-3 py-2.5">{formatDate(item.time)}</td><td className="px-3 py-2.5 font-mono text-xs">{item.by}</td><td className="px-3 py-2.5">{item.action}</td><td className="px-3 py-2.5">{item.uid}</td><td className="px-3 py-2.5"><Badge variant={item.postgres_sync_status === "synced" || item.postgres_sync_status === "completed" ? "success" : "outline"}>{asText(item.postgres_sync_status)}</Badge></td><td className="max-w-[280px] break-all px-3 py-2.5 text-xs">{item.detail}</td></tr>) : <tr><td colSpan={7} className="px-3 py-10 text-center text-sm text-brand-text-muted">{adminText("No audit records are available in this snapshot.")}</td></tr>}</tbody></table></div><div className="mt-4 flex flex-wrap items-center justify-between gap-3"><p className="text-xs text-brand-text-muted">{adminText("Showing")}{audit.length} {adminText("records from this source snapshot.")}</p>{auditNextBefore ? <Button type="button" variant="outline" disabled={auditPageLoading} onClick={()=>void loadOlderAuditRecords()}>{auditPageLoading ? adminText("Loading older records...") : adminText("Load older records")}</Button> : <span className="text-xs text-brand-text-muted">{auditSource === "postgres_financial_audit_log" ? adminText("No older records in this snapshot.") : adminText("Legacy snapshot pagination is unavailable; this source is retention-limited.")}</span>}</div></CardContent></Card> : null}
 
@@ -1307,16 +1318,18 @@ export function AdminPage() {
       >
         <div className="mb-4">
           <h2 id="review-dialog-title" className="text-lg font-semibold text-brand-text">
-            {reviewDialog.kind === "withdrawal" ? adminText("Reject withdrawal") : adminText("Reject KYC application")}
+            {reviewDialog.kind === "withdrawal" ? adminText("Reject withdrawal") : reviewDialog.kind === "kyc-manual" ? adminText("Manual identity verification") : adminText("Reject KYC application")}
           </h2>
           <p id="review-dialog-description" className="mt-1 text-sm text-brand-text-muted">
             {reviewDialog.kind === "withdrawal"
               ? adminText("The rejection and refund will be recorded together. Enter the reason for the audit record.")
-              : adminText("Enter the reason that will be recorded with this KYC decision.")}
+              : reviewDialog.kind === "kyc-manual"
+                ? adminText("Use this only after you have independently verified the customer's identity. Record the verification method and details; this action is audited.")
+                : adminText("Enter the reason that will be recorded with this KYC decision.")}
           </p>
         </div>
         <label className="block space-y-2 text-sm">
-          <span className="font-medium text-brand-text">{adminText("Rejection reason")}<span className="text-brand-danger">*</span></span>
+          <span className="font-medium text-brand-text">{adminText(reviewDialog.kind === "kyc-manual" ? "Manual verification method and notes" : "Rejection reason")}<span className="text-brand-danger">*</span></span>
           <textarea
             autoFocus
             value={reviewReason}
@@ -1324,16 +1337,17 @@ export function AdminPage() {
             rows={4}
             maxLength={300}
             disabled={busy}
-            placeholder={adminText("Enter a clear reason (up to 300 characters)")}
+            placeholder={adminText(reviewDialog.kind === "kyc-manual" ? "Describe how identity was checked (for example, live video call and document comparison)." : "Enter a clear reason (up to 300 characters)")}
             className="w-full resize-y rounded-lg border border-brand-border bg-brand-surface-2 p-3 text-brand-text outline-none focus:border-brand-accent"
           />
           <span className="block text-right text-xs text-brand-text-muted">{reviewReason.length}/300</span>
         </label>
+        {reviewDialog.kind === "kyc-manual" ? <label className="mt-4 flex items-start gap-2 text-sm text-brand-text"><input type="checkbox" checked={manualIdentityConfirmed} disabled={busy} onChange={event=>setManualIdentityConfirmed(event.target.checked)} className="mt-1" /><span>{adminText("I personally verified this customer's identity and confirm the evidence is sufficient.")}</span></label> : null}
         {error ? <p role="alert" className="mt-3 text-sm text-brand-danger">{adminText(error)}</p> : null}
         <div className="mt-5 flex flex-col-reverse justify-end gap-2 sm:flex-row">
           <Button type="button" variant="outline" disabled={busy} onClick={() => { setReviewDialog(null); setReviewReason(""); }}>{adminText("Cancel")}</Button>
-          <Button type="button" variant="destructive" disabled={busy || !reviewReason.trim()} onClick={() => void confirmReviewRejection()}>
-            {busy ? adminText("Submitting…") : adminText("Confirm rejection")}
+          <Button type="button" variant={reviewDialog.kind === "kyc-manual" ? "default" : "destructive"} disabled={busy || !reviewReason.trim() || (reviewDialog.kind === "kyc-manual" && !manualIdentityConfirmed)} onClick={() => void confirmReviewRejection()}>
+            {busy ? adminText("Submitting…") : adminText(reviewDialog.kind === "kyc-manual" ? "Confirm manual approval" : "Confirm rejection")}
           </Button>
         </div>
       </section>
