@@ -412,6 +412,18 @@ const messages: Record<string, string> = {
   "Funds moved to frozen balance.": "资金已转入冻结余额。",
   "Frozen funds returned to available balance.": "冻结资金已转回可用余额。",
   "Reason (required, at least 5 characters)": "原因（必填，至少 5 个字符）",
+  "Financial ledger cutover is incomplete. Balance was unchanged.": "资金账本切换尚未完成，余额未作任何变更。",
+  "Financial database not configured. Balance was unchanged.": "资金数据库尚未配置，余额未作任何变更。",
+  "User not found.": "未找到该用户。",
+  "Operation failed: coin not supported.": "操作失败：不支持该币种。",
+  "Invalid fund operation type.": "资金操作类型无效。",
+  "Invalid operation amount. Freeze/unfreeze amounts must be positive.": "操作金额无效。冻结／解冻金额必须为正数。",
+  "A valid operation ID is required. Balance was unchanged.": "需要有效的操作编号，余额未作任何变更。",
+  "Please provide an adjustment reason of at least 5 characters. Balance was unchanged.": "请提供至少 5 个字符的调整原因，余额未作任何变更。",
+  "Administrator audit identity not configured. Balance was unchanged.": "管理员审计身份尚未配置，余额未作任何变更。",
+  "Balance adjustment was not confirmed by the database. Please check the financial operation log before retrying. Do not repeat the operation directly.": "数据库尚未确认余额调整结果。请先检查资金操作日志，不要直接重复执行。",
+  "This fund operation has already been processed. It was not executed again.": "此资金操作已处理，系统未重复执行。",
+  "Financial database temporarily unavailable. Did not fall back to the legacy balance system. Please check the operation log.": "资金数据库暂时不可用，系统未回退至旧余额系统。请检查操作日志。",
 };
 
 export function adminText(message: string): string {
