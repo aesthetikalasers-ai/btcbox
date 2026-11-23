@@ -15,8 +15,9 @@ test('production K-line route uses Binance Vision for every advertised interval'
   for (const interval of ['1m', '3m', '5m', '15m', '30m', '1h', '2h', '4h', '1d']) {
     assert.ok(route.includes("'" + interval + "'"), 'interval ' + interval + ' must be supported');
   }
-  assert.ok(route.includes("'4h':'4h'"), '4h charts must not depend on the Bybit-only fallback');
-  assert.ok(route.includes("'1d':'1d'"), 'daily candles must be supported by the primary provider');
+  assert.ok(route.includes("'4h':'240'"), '4h fallback mapping must use Bybit 4-hour candles');
+  assert.ok(route.includes("'1d':'D'"), 'daily fallback mapping must use Bybit daily candles');
+  assert.ok(route.includes("'&interval=' + encodeURIComponent(interval)"), 'Binance Vision must receive the selected chart interval directly');
 });
 
 test('production K-line route rejects stale provider responses instead of returning HTTP 200 with old candles', () => {
