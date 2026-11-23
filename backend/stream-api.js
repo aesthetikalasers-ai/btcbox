@@ -8,9 +8,8 @@
  *
  * Deliberately mounted OUTSIDE the buffered `api-adapter.js` path: that adapter
  * awaits the whole handler result before calling `res.end()`, which is
- * incompatible with streaming. Vercel rewrites `/api/*` to the buffered router,
- * so `vercel.json` routes `/api/stream/*` to this function first (see the
- * `functions` + `rewrites` entries).
+ * incompatible with streaming. Vercel rewrites `/api/stream/*` to this function
+ * and forwards the captured channel as a query parameter.
  *
  * Security posture:
  *   - Public market data only. No account data, no balances, no order status.
@@ -43,6 +42,10 @@ function resolveCorsOrigin(req) {
   return allowed.has(origin) ? origin : null;
 }
 
+function resolveChannel(url) {
+  return String(url.searchParams.get('channel') || url.pathname.split('/').filter(Boolean).pop() || '').toLowerCase();
+}
+
 module.exports = async function streamHandler(req, res) {
   if (req.method !== 'GET' && req.method !== 'HEAD') {
     res.statusCode = 405;
@@ -53,7 +56,7 @@ module.exports = async function streamHandler(req, res) {
   }
 
   const url = new URL(req.url || '/', 'https://vercel.invalid');
-  const channel = String(url.pathname.split('/').filter(Boolean).pop() || '').toLowerCase();
+  const channel = resolveChannel(url);
   if (channel !== 'depth' && channel !== 'trades') {
     res.statusCode = 404;
     res.setHeader('Content-Type', 'application/json; charset=utf-8');
@@ -152,3 +155,4 @@ module.exports = async function streamHandler(req, res) {
   res.on('close', cleanup);
   res.on('error', cleanup);
 };
+module.exports.resolveChannel = resolveChannel;
