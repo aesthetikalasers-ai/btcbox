@@ -1,6 +1,6 @@
-# BTCBOX
+# BTCBOX backend
 
-BTCBOX frontend and shared Node API handler. The current migration target is Vercel with Supabase-backed persistence. See `VERCEL-DEPLOYMENT.md` and `SUPABASE-FIRST-DEPLOYMENT.md` before deploying.
+Shared Node API handler and Vercel deployment build. The repository-root `README.md` is the canonical project overview and build entry point. Canonical SQL bootstrap and cutover safeguards are documented in `backend/supabase/sql/MIGRATION-ORDER-AND-CUTOVER.md`.
 
 ## Financial safety status
 
