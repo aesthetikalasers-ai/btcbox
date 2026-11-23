@@ -282,3 +282,12 @@ test('admin user profile remains available when financial snapshot is unverified
   assert.ok(balanceRoute.includes("if (!financialWritesEnabled())"));
   assert.doesNotMatch(balanceRoute, /saveDB\(db\)/);
 });
+
+
+test('admin support inbox reports unanswered counts from the full retained thread, not only the visible 100-message window', () => {
+  const supportStart = apiCore.indexOf("if (sub === 'support/messages' && method === 'GET')");
+  const supportRoute = apiCore.slice(supportStart);
+  assert.ok(supportRoute.includes('let unansweredCount = 0;'));
+  assert.ok(supportRoute.includes('unanswered_count: unansweredCount'));
+  assert.ok(reactAdminPage.includes('message.unanswered_count || 0'));
+});
