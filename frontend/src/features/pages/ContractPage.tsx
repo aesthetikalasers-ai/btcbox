@@ -1140,7 +1140,7 @@ export function ContractPage() {
       </div>
       <div className="mx-auto flex min-h-dvh w-full min-w-0 max-w-[430px] flex-col bg-brand-bg px-0 pb-[calc(132px+env(safe-area-inset-bottom))] text-brand-text min-[600px]:max-w-[1280px] min-[600px]:px-4 xl:max-w-[1560px] xl:gap-4 xl:px-8 xl:pb-6 xl:pt-4">
         <header className="flex min-w-0 flex-col justify-center gap-2 px-4 pt-2.5 pb-1 xl:h-auto xl:rounded-xl xl:border xl:border-brand-border xl:bg-brand-surface xl:px-4 xl:py-2">
-          {/* 行 1：合约名（市场选择）+ 永续标签 + 图表/更多 图标 */}
+          {/* 行 1：合约名（市场选择）+ 永续标签 + 图表入口 */}
           <div className="flex min-w-0 items-center gap-2">
             <div className="relative min-w-0">
                 <button
