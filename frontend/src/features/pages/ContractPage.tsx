@@ -244,8 +244,8 @@ export function ContractPage() {
   const contractMarkPrice = markPrice !== null && Number(markPrice) > 0 ? Number(markPrice) : null;
   // When no contract mark is available, show the spot ticker only as an
   // explicitly labelled underlying reference — never as a perpetual mark price.
-  const displayPrice = contractMarkPrice ?? liveTicker?.price ?? null;
-  const displayPriceLabel = contractMarkPrice !== null ? t("Mark price") : t("Spot reference");
+  const displayPrice = contractMarkPrice;
+  const displayPriceLabel = t("Mark price");
   const displayChg = null;
 
   // The contract page currently has no contract-specific depth endpoint. This is
@@ -1221,7 +1221,6 @@ export function ContractPage() {
                     </span>
                   </div>
 
-                  <div className="pb-0.5 text-[9px] font-medium text-brand-text-muted">{t("Spot reference")}</div>
                   {/* 表头（币安风格：币种名 + 单位分两行） */}
                   <div className="grid grid-cols-[1.1fr_0.9fr] border-b border-white/5 pb-0.5 font-semibold leading-tight text-[10px] text-brand-text-muted">
                     <span>{t("Price")}<br />(USDT)</span>
