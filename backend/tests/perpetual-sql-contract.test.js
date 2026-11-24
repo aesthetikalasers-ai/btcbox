@@ -259,6 +259,9 @@ test('funding boundary fails closed without a persisted validated non-zero-or-ze
   assert.ok(!fundingSql.includes('intentionally records zero funding'));
   assert.ok(fundingSql.includes('v_rate.premium_index is null'));
   assert.ok(fundingSql.includes('v_rate.settled'));
+  assert.ok(fundingSql.includes('funding source samples are invalid or stale'));
+  assert.ok(fundingSql.includes('funding snapshot samples are invalid or stale'));
+  assert.ok(fundingSql.includes('v_market.mark_price_stale_sec*1000'));
 });
 
 test('liquidation settles due funding before reloading position and calculating maintenance margin', () => {
