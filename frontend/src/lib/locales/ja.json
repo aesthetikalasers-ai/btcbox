@@ -1831,7 +1831,6 @@
   "Re-enter fund password": "資金パスワードを再入力",
   "Current login password": "現在のログインパスワード",
   "Enter current login password": "現在のログインパスワードを入力",
-  "Authenticator code": "認証アプリのコード",
   "6-digit code": "6桁のコード",
   "OAuth accounts must enable two-factor authentication before setting a fund password.": "OAuthアカウントで資金パスワードを設定するには、先に2要素認証を有効にしてください。",
   "Open security settings": "セキュリティ設定を開く",
