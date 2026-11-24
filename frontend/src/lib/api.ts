@@ -1341,6 +1341,15 @@ export interface AdminConfig {
   withdrawal_fees: Record<string, string>;
   announcement: string;
 }
+export interface AdminAssetConfig {
+  code: string;
+  name: string;
+  display_name: string;
+  display_precision: number;
+  enabled: boolean;
+  visible: boolean;
+  sort_order: number;
+}
 export interface AdminSpotMarket {
   base_asset: string;
   quote_asset: string;
@@ -1434,6 +1443,12 @@ export async function getAdminWithdrawals(token: string, signal?: AbortSignal) {
 }
 export async function getAdminConfig(token: string, signal?: AbortSignal) {
   return adminRequest<AdminConfig & { ok: true }>(token, "admin/config", { signal });
+}
+export async function getAdminAssets(token: string, signal?: AbortSignal) {
+  return adminRequest<{ ok: true; assets: AdminAssetConfig[] }>(token, "admin/assets", { signal });
+}
+export async function saveAdminAssets(token: string, assets: AdminAssetConfig[]) {
+  return adminRequest<{ ok: true; assets: AdminAssetConfig[]; audit_sync_pending?: boolean }>(token, "admin/assets", { method: "POST", body: { assets } });
 }
 export async function getAdminSpotMarkets(token: string, signal?: AbortSignal) {
   return adminRequest<{ ok: true; markets: AdminSpotMarket[] }>(token, "admin/spot-markets", { signal });
