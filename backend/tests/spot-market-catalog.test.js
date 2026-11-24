@@ -70,7 +70,7 @@ test('user Trade Hub links only to configured pairs and Spot order submission ch
   assert.ok(pages.includes('if(spotCatalogDegraded&&!pendingIntent)'));
   assert.ok(pages.includes('if(!spotPairEnabled&&!pendingIntent)'));
   assert.ok(pages.includes('(!spotPairEnabled&&!pendingIntent)'));
-  assert.ok(pages.includes('setSpotPairEnabled(false);setSpotPairRules(null);setTradingStatus(null)'));
+  assert.ok(pages.includes('setSpotPairEnabled(false);setSpotCatalogDegraded(false);setSpotPairRules(null);setTradingStatus(null)'));
   assert.ok(pages.includes('(!spotPairEnabled&&!pendingIntent)||(!tradingStatus?.spot_order_entry_enabled&&!pendingIntent)'));
 });
 
@@ -107,7 +107,8 @@ test('market timestamps distinguish server snapshot time from provider-specific 
 test('public ticker snapshots use a short shared-cache window and clients bypass browser cache', () => {
   const marketStart = backend.indexOf("if (path === 'market' && method === 'GET')");
   assert.ok(marketStart >= 0);
-  const route = backend.slice(marketStart, marketStart + 9000);
+  const routeEnd = backend.indexOf('// Public capability snapshot', marketStart);
+  const route = backend.slice(marketStart, routeEnd);
   assert.ok(route.includes("'Cache-Control': 'public, max-age=0, s-maxage=2, stale-while-revalidate=1'"));
   assert.ok(api.includes('cache: "no-store"'));
   assert.ok(pages.includes('window.setInterval(refreshMarketData,5000)'));
