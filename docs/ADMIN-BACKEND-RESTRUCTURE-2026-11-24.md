@@ -249,3 +249,4 @@ The Admin workspace navigation is now grouped by business ownership rather than 
 - System: administrator membership
 
 Groups are permission-filtered: a group is hidden when the current administrator has no visible tabs in it. This is navigation organization only; it does not grant permissions or expose the unwired Perpetual admin routes. The User centre now owns the user directory and selection only. Selecting a user opens the dedicated Finance centre module, where manual credit and manual debit are separate action views. Deposit history remains visible alongside the selected user's finance actions. Neither manual action is re-labelled as deposit review.
+The manual-debit panel is localized with the rest of the Chinese administrator interface, and the existing `financial_adjustment.request` permission remains the action gate.
