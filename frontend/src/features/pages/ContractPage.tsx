@@ -1213,7 +1213,7 @@ export function ContractPage() {
           <>
             <div className="lg:hidden">
               {/* 左右双栏：左下单 + 右紧凑盘口（底边严格齐平），顶部加呼吸间距 */}
-              <div data-testid="perp-mobile-workspace" className="compact-trade-form mt-2.5 grid grid-cols-2 items-start gap-2 border-t border-brand-border/40 px-4 pt-2">
+              <div data-testid="perp-mobile-workspace" className="compact-trade-form mt-2.5 grid grid-cols-2 items-stretch gap-2 border-t border-brand-border/40 px-4 pt-2">
                 {/* 左：移动端紧凑下单表单 */}
                 <div className="flex min-w-0 flex-col">{mobileOrderEntry}</div>
 
