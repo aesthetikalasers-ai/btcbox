@@ -218,7 +218,11 @@ export async function getMarkets(signal?: AbortSignal): Promise<MarketTicker[]> 
     row.snapshotTs <= 0 ||
     row.snapshotTs > nowSeconds + 30
   ));
-  const providerTimestampInvalid = rows.some((row) => (
+  // Some valid providers (notably Coinbase) do not expose an exchange event
+  // timestamp for every snapshot. providerTs is explicitly nullable in the
+  // response contract, so its absence must not invalidate an otherwise fresh
+  // server snapshot. When supplied, however, it must still be recent and sane.
+  const providerTimestampInvalid = rows.some((row) => row.providerTs !== null && (
     typeof row.providerTs !== "number" ||
     !Number.isFinite(row.providerTs) ||
     row.providerTs <= 0 ||
