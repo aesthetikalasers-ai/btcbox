@@ -23,11 +23,11 @@ test('Admin spot-market panel is permission-gated and uses the audited API clien
 
 test('Spot-market editor is constrained to supported ledger assets and keeps fees fail-closed', () => {
   const supported = backend.match(/const SUPPORTED_LEDGER_ASSETS = new Set\(\[([\s\S]*?)\]\);/);
-  const uiAssets = admin.match(/const spotAssets = \[([^\]]+)\];/);
-  assert.ok(supported && uiAssets, 'backend and UI supported asset catalogues must exist');
+  assert.ok(supported, 'backend supported asset catalogue must exist');
   const backendAssets = [...supported[1].matchAll(/'([A-Z0-9]+)'/g)].map(match => match[1]).sort();
-  const frontendAssets = [...uiAssets[1].matchAll(/"([A-Z0-9]+)"/g)].map(match => match[1]).sort();
-  assert.deepEqual(frontendAssets, backendAssets);
+  assert.equal(backendAssets.length, 26);
+  assert.match(admin, /assetCatalog\.filter\(asset=>!\["USDT","USDC"\]\.includes\(asset\.code\)&&\(\(asset\.enabled&&asset\.visible&&asset\.spot_enabled\)\|\|asset\.code===spotMarketDraft\.base_asset\)\)/);
+  assert.doesNotMatch(admin, /const spotAssets = \[/);
   assert.match(backend, /SUPPORTED_LEDGER_ASSETS\.has\(baseAsset\)/);
   assert.match(backend, /SUPPORTED_LEDGER_ASSETS\.has\(quoteAsset\)/);
   assert.match(admin, /maker\/taker fees stay at zero until fee movements are implemented atomically/i);
