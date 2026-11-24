@@ -128,7 +128,7 @@ begin
         v_frozen_delta := v_from_margin;
       end;
     end if;
-  else
+  elsif v_payment > 0 then
     update public.financial_accounts set available=available+v_payment, version=version+1, updated_at=now()
      where user_id=p_user_id and asset='USDT';
     v_avail_delta := v_payment;
