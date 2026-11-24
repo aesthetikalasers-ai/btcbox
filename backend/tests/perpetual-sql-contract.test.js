@@ -236,3 +236,9 @@ test('funding worker calls one atomic market RPC and never advances the boundary
   assert.ok(!fundingWorker.includes('&enabled=eq.true'));
   assert.ok(fundingSql.includes('where symbol=p_symbol for update'));
 });
+
+test('mark-price source validation requires unique trusted provider identities', () => {
+  assert.ok(sql.includes("v_source_name not in ('binance','okx','coingecko')"));
+  assert.ok(sql.includes('v_source_name = any(v_sources_seen)'));
+  assert.ok(sql.includes('mark price sources must be unique trusted providers'));
+});
