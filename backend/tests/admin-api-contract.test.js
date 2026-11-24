@@ -111,6 +111,19 @@ test('admin user-list financial totals disclose their actual data source', () =>
   assert.ok(adminPage.includes('Financial total (USDT)'));
 });
 
+test('admin user directory declares its state-file source and 200-row completeness limit', () => {
+  const start = api.indexOf("if (sub === 'users' && method === 'GET')");
+  const end = api.indexOf("// GET /api/admin/kyc", start);
+  assert.ok(start >= 0 && end > start, 'admin users route must exist');
+  const route = api.slice(start, end);
+  assert.ok(route.includes("source: 'btcbox_state_user_directory'"));
+  assert.ok(route.includes("completeness: matchedCount > list.length ? 'limit_reached' : 'snapshot'"));
+  assert.ok(route.includes('matched_count: matchedCount'));
+  assert.ok(client.includes('matched_count: number'));
+  assert.ok(adminPage.includes('usersDirectoryCompleteness === "limit_reached"'));
+  assert.ok(adminPage.includes('Source: BTCBOX state user directory'));
+});
+
 test('withdrawal rejection API requires a bounded, non-control-character audit reason', () => {
   const start = api.indexOf("if (sub === 'withdraw/reject' && method === 'POST')");
   const end = api.indexOf("// POST /api/admin/withdraw/mark-paid", start);
