@@ -145,6 +145,7 @@ test('admin perpetual market routes are reachable only through explicit system-c
   assert.ok(writeRoute.includes('market_min_quantity: marketMinQuantity'));
   assert.ok(writeRoute.includes('market_max_quantity: marketMaxQuantity'));
   assert.ok(writeRoute.includes("!maxPositionNotional || compareMoney(maxPositionNotional,'0')<=0"));
+  assert.ok(writeRoute.includes("compareMoney(maxPositionNotional,minNotional)<0"));
   assert.ok(writeRoute.includes('invalidMarketMax'));
   assert.ok(writeRoute.includes("compareMoney(minNotional,'0')<=0"));
 });
