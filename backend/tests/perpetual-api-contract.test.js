@@ -129,6 +129,8 @@ test('workers exist and are idempotent/restart-safe', () => {
   assert.ok(mark.includes('PERP_COINGECKO_IDS'), 'additional symbols require an explicit provider mapping');
   assert.ok(mark.includes('market.mark_price_stale_sec'), 'mark worker uses the market-specific stale threshold');
   assert.ok(mark.includes('market.circuit_breaker_deviation_pct'), 'mark worker uses the market-specific circuit breaker');
+  assert.ok(mark.includes("symbol !== String(market.base_asset || '').toUpperCase() + String(market.quote_asset || '').toUpperCase()"),
+    'mark worker rejects symbol/base/quote mismatches');
   assert.ok(mark.includes('ADAUSDT') && mark.includes('AVAXUSDT') && mark.includes('DOGEUSDT') && mark.includes('XRPUSDT'),
     'registered BTCBOX assets have built-in provider mappings');
   const fund = fs.readFileSync(path.join(root, 'scripts', 'perp-funding-worker.js'), 'utf8');
