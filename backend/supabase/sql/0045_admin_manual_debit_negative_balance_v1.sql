@@ -24,10 +24,14 @@ BEGIN
        WHERE o.id::text = v_operation_id
          AND o.user_id = NEW.user_id
          AND o.asset = NEW.asset
-         AND o.operation_type = 'admin_adjustment'
-         AND o.metadata->>'reason' = 'admin_manual_debit'
+         AND (
+           (o.operation_type = 'admin_adjustment' AND o.metadata->>'reason' = 'admin_manual_debit')
+           OR
+           (TG_OP = 'UPDATE' AND OLD.available < 0 AND NEW.available > OLD.available
+             AND o.operation_type = 'deposit_credit')
+         )
     ) THEN
-      RAISE EXCEPTION 'negative available balance requires a marked admin manual debit';
+      RAISE EXCEPTION 'negative available balance requires a marked admin debit or a deposit offset';
     END IF;
   END IF;
   RETURN NEW;
@@ -44,10 +48,14 @@ BEGIN
      WHERE o.id = NEW.operation_id
        AND o.user_id = NEW.user_id
        AND o.asset = NEW.asset
-       AND o.operation_type = 'admin_adjustment'
-       AND o.metadata->>'reason' = 'admin_manual_debit'
+       AND (
+         (o.operation_type = 'admin_adjustment' AND o.metadata->>'reason' = 'admin_manual_debit')
+         OR
+         (o.operation_type = 'deposit_credit' AND NEW.available_delta > 0
+           AND NEW.available_after - NEW.available_delta < 0)
+       )
   ) THEN
-    RAISE EXCEPTION 'negative ledger balance requires a marked admin manual debit';
+    RAISE EXCEPTION 'negative ledger balance requires a marked admin debit or a deposit offset';
   END IF;
   RETURN NEW;
 END;
