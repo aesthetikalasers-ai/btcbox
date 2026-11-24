@@ -2640,7 +2640,6 @@ async function handleRequest(event, context) {
       if (!result || result.ok !== true || !Array.isArray(result.markets) || !result.markets.length) {
         return json({ ok: false, code: 'MARKET_DATA_UNAVAILABLE', msg: 'Market data unavailable.', markets: [], data: {}, source: 'unavailable' }, 503);
       }
-      const snapshotTs = Math.floor(Date.now() / 1000);
       const out = result.markets
         .filter(row => row && /^[A-Z0-9]{2,12}$/.test(String(row.sym || '')))
         .map(row => ({
@@ -2655,11 +2654,16 @@ async function handleRequest(event, context) {
       const dataObj = {};
       out.forEach(row => {
         const gatewayRow = result.data && result.data[row.sym] ? result.data[row.sym] : {};
+        const gatewaySnapshotTs = Number(gatewayRow.ts);
+        const gatewayProviderTs = Number(gatewayRow.providerTs);
+        const gatewayVolume = Number(gatewayRow.vol);
         dataObj[row.sym] = {
           price: row.price, chg: row.chg, high: row.high, low: row.low,
-          vol: Number.isFinite(Number(gatewayRow.vol)) && Number(gatewayRow.vol) >= 0 ? Number(gatewayRow.vol) : Number(row.vol),
-          ts: snapshotTs,
-          providerTs: Number.isFinite(Number(gatewayRow.providerTs)) ? Number(gatewayRow.providerTs) : null,
+          vol: gatewayRow.vol !== null && gatewayRow.vol !== undefined && Number.isFinite(gatewayVolume) && gatewayVolume >= 0 ? gatewayVolume : Number(row.vol),
+          // Preserve the gateway's original server timestamp. In particular, do
+          // not refresh an old last-good snapshot's timestamp during an outage.
+          ts: Number.isFinite(gatewaySnapshotTs) && gatewaySnapshotTs > 0 ? gatewaySnapshotTs : null,
+          providerTs: gatewayRow.providerTs !== null && gatewayRow.providerTs !== undefined && Number.isFinite(gatewayProviderTs) && gatewayProviderTs > 0 ? gatewayProviderTs : null,
           source: row.source
         };
       });
