@@ -42,7 +42,7 @@ export function TradeProductNav({ leftIndent = "px-3.5 sm:px-4 md:px-6 lg:px-8" 
   const { pathname } = useLocation();
   const active = activeProduct(pathname);
   const [assetCatalog, setAssetCatalog] = useState<PublicAssetConfig[] | null>(null);
-  const [hasSpotPairs, setHasSpotPairs] = useState(false);
+  const [firstSpotPair, setFirstSpotPair] = useState("");
 
   useEffect(() => {
     const controller = new AbortController();
@@ -50,14 +50,19 @@ export function TradeProductNav({ leftIndent = "px-3.5 sm:px-4 md:px-6 lg:px-8" 
       .then((assets) => { if (!controller.signal.aborted) setAssetCatalog(assets); })
       .catch(() => { if (!controller.signal.aborted) setAssetCatalog([]); });
     getSpotMarketPairs(controller.signal)
-      .then((pairs) => { if (!controller.signal.aborted) setHasSpotPairs(pairs.length > 0); })
-      .catch(() => { if (!controller.signal.aborted) setHasSpotPairs(false); });
+      .then((pairs) => {
+        if (!controller.signal.aborted) {
+          const firstEnabled = pairs.find((pair) => pair.enabled && pair.quote_asset === "USDT");
+          setFirstSpotPair(firstEnabled ? firstEnabled.base_asset + firstEnabled.quote_asset : "");
+        }
+      })
+      .catch(() => { if (!controller.signal.aborted) setFirstSpotPair(""); });
     return () => controller.abort();
   }, []);
 
   const availableProducts = assetCatalog
     ? PRODUCTS.filter(({ key }) => {
-        if (key === "spot" && !hasSpotPairs) return false;
+        if (key === "spot" && !firstSpotPair) return false;
         const quoteAsset = assetCatalog.find((asset) => asset.code === "USDT");
         if ((key === "spot" || key === "perpetual") &&
             (!quoteAsset || !quoteAsset.enabled || !quoteAsset.visible ||
@@ -69,7 +74,7 @@ export function TradeProductNav({ leftIndent = "px-3.5 sm:px-4 md:px-6 lg:px-8" 
             key === "perpetual" ? asset.perpetual_enabled :
               key === "seconds" ? asset.seconds_enabled : asset.earn_enabled)
         );
-      })
+      }).map((product) => product.key === "spot" ? { ...product, to: `/trade/${firstSpotPair}` } : product)
     : [];
 
   if (availableProducts.length === 0) return null;
