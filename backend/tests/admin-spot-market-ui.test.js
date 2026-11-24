@@ -11,7 +11,7 @@ const admin = fs.readFileSync(path.resolve(root, '../frontend/src/features/admin
 const backend = fs.readFileSync(path.join(root, 'api-core.js'), 'utf8');
 
 test('Admin spot-market panel is permission-gated and uses the audited API client', () => {
-  assert.match(admin, /id: "markets", label: "Spot markets", permission: "system_config\.read"/);
+  assert.match(admin, /id: "markets", label: "Spot & Perpetual markets", permission: "system_config\.read"/);
   assert.match(admin, /tab === "markets"/);
   assert.match(admin, /getAdminSpotMarkets\(token\)/);
   assert.match(admin, /saveAdminSpotMarket\(token/);
