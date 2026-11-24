@@ -112,7 +112,7 @@ test('withdrawal actions, support read receipts, and every FAQ method retain exp
 
   for (const [route, permission, explicitMethod] of requiredMappings) {
     if (explicitMethod) {
-      const expectedLine = route === 'support/faq' && explicitMethod === 'POST'
+      const expectedLine = (route === 'support/faq' || route === 'support/faq/delete') && explicitMethod === 'POST'
         ? "if ((route === 'support/faq' || route === 'support/faq/delete') && verb === 'POST') return 'support.manage';"
         : `if (route === '${route}' && verb === '${explicitMethod}') return '${permission}';`;
       assert.ok(
