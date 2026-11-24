@@ -1353,6 +1353,8 @@ export interface AdminUserRecord {
   kyc?: { status?: string };
   frozen: boolean;
   total_usdt?: string | number;
+  financial_summary_source?: "postgres_financial_ledger" | "legacy_state_retention_limited";
+  financial_summary_completeness?: "canonical_snapshot" | "retention_limited";
   balances?: Record<string, AccountBalance>;
   financial_balance_source?: "postgres_financial_ledger" | "legacy_state_retention_limited";
   deposit_history?: DepositRecord[];
