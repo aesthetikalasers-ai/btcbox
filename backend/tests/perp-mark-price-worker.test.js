@@ -10,11 +10,11 @@ test('uses quantity-weighted prices across multiple executable levels', () => {
     { price: '99', remaining_quantity: '2' }
   ];
   const asks = [
-    { price: '102', remaining_quantity: '1' },
-    { price: '103', remaining_quantity: '3' }
+    { price: '100.5', remaining_quantity: '1' },
+    { price: '101', remaining_quantity: '3' }
   ];
   const expectedBid = (100 * 2 + 99 * 2) / 4;
-  const expectedAsk = (102 * 1 + 103 * 3) / 4;
+  const expectedAsk = (100.5 * 1 + 101 * 3) / 4;
   assert.equal(calculateBookDepthMidPrice(bids, asks), (expectedBid + expectedAsk) / 2);
 });
 
