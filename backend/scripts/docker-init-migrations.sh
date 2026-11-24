@@ -62,6 +62,7 @@ FILES=(
   0042_support_read_state_v1.sql
   0043_support_read_cursor_v1.sql
   0044_withdrawal_operation_type_compatibility_v1.sql
+  0045_admin_manual_debit_negative_balance_v1.sql
 )
 
 for file in "${FILES[@]}"; do
