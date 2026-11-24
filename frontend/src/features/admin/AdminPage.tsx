@@ -1286,26 +1286,52 @@ export function AdminPage() {
   if (loading && !session) return <div className="mx-auto max-w-7xl p-6"><Card><CardContent className="p-8 text-sm text-brand-text-muted">{adminText("Verifying administrator identity…")}</CardContent></Card></div>;
   if (!session) return <div className="mx-auto max-w-3xl p-6"><Card><CardHeader><CardTitle>{adminText("BTCBOX Administrator")}</CardTitle><CardDescription>{adminText("Administrator access requires a verified Supabase Auth identity with an active BTCBOX administrator membership.")}</CardDescription></CardHeader><CardContent><p className="text-sm text-brand-danger">{adminText(error || "Administrator membership was not found.")}</p></CardContent></Card></div>;
 
-  return <div className="tone-admin mx-auto w-full max-w-[1600px] space-y-5 p-3 sm:p-5 lg:p-7">
-    <div className="flex flex-wrap items-start justify-between gap-3 rounded-xl border border-brand-border bg-brand-surface p-5 sm:items-center sm:p-6">
-      <div><BrandLogo compact /><p className="type-meta mt-3 font-semibold uppercase tracking-[0.18em] text-brand-accent">{adminText("BTCBOX / CONTROL CENTER")}</p><h1 className="mt-1 text-2xl font-bold tracking-tight text-brand-text sm:text-3xl">{adminText("Administrator Console")}</h1><p className="mt-1 text-sm text-brand-text-muted">{session.is_super_admin ? adminText("Super Administrator") : adminText("Role-based administrator")} · {session.user_id}</p></div>
-      <Badge variant={session.is_super_admin ? "default" : "info"}>{session.is_super_admin ? adminText("SUPER ADMIN") : adminText("ACTIVE ADMIN")}</Badge>
-    </div>
-    {!session.is_super_admin ? <div className="flex flex-wrap items-center gap-1.5 rounded-xl border border-brand-border bg-brand-surface px-4 py-2.5"><span className="type-meta font-semibold uppercase tracking-wide text-brand-text-muted">当前权限</span>{session.permissions.length ? session.permissions.map(key => <Badge key={key} variant="outline" className="text-[11px]">{permissionLabel(key)}</Badge>) : <span className="text-xs text-brand-text-muted">无单独授权（超级管理员权限外）</span>}</div> : null}
-    <div role="navigation" aria-label="管理功能" className="flex max-w-full flex-wrap items-start gap-x-5 gap-y-3 border-b border-brand-border pb-3">
-      {ADMIN_TAB_GROUPS.map(group => {
-        const visibleItems = allowedTabs.filter(item => group.tabs.includes(item.id));
-        if (!visibleItems.length) return null;
-        return <section key={group.id} aria-label={adminText(group.label)} className="min-w-0">
-          <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-brand-text-muted">{adminText(group.label)}</p>
-          <div className="flex flex-wrap gap-1.5">
-            {visibleItems.map(item => <Button key={item.id} className="whitespace-nowrap" size="sm" variant={tab === item.id ? "default" : "outline"} onClick={() => { setTab(item.id); setError(""); setNotice(""); }}>{adminText(item.label)}</Button>)}
+  return <div className="tone-admin min-h-screen w-full bg-brand-bg">
+    <div className="mx-auto grid min-h-screen w-full max-w-[1920px] grid-cols-1 lg:grid-cols-[248px_minmax(0,1fr)]">
+      <aside className="border-b border-brand-border bg-brand-surface-2/70 px-4 py-4 sm:px-5 lg:sticky lg:top-0 lg:h-screen lg:overflow-y-auto lg:border-b-0 lg:border-r lg:px-4 lg:py-6">
+        <div className="flex items-center justify-between gap-3">
+          <BrandLogo compact />
+          <Badge variant={session.is_super_admin ? "default" : "info"}>{session.is_super_admin ? adminText("SUPER ADMIN") : adminText("ACTIVE ADMIN")}</Badge>
+        </div>
+        <div className="mt-5 border-b border-brand-border pb-4 lg:mt-7">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-brand-accent">{adminText("BTCBOX / CONTROL CENTER")}</p>
+          <h1 className="mt-1 text-lg font-semibold tracking-tight text-brand-text">{adminText("Administrator Console")}</h1>
+          <p className="mt-1 truncate text-xs text-brand-text-muted" title={session.user_id}>{session.is_super_admin ? adminText("Super Administrator") : adminText("Role-based administrator")} · {session.user_id}</p>
+        </div>
+        <nav aria-label={adminText("Management navigation")} className="no-scrollbar mt-4 flex max-w-full gap-5 overflow-x-auto pb-2 lg:mt-5 lg:block lg:space-y-5 lg:overflow-visible lg:pb-0">
+          {ADMIN_TAB_GROUPS.map(group => {
+            const visibleItems = allowedTabs.filter(item => group.tabs.includes(item.id));
+            if (!visibleItems.length) return null;
+            return <section key={group.id} aria-label={adminText(group.label)} className="min-w-max lg:min-w-0">
+              <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-brand-text-muted">{adminText(group.label)}</p>
+              <div className="flex gap-1 lg:grid lg:gap-1">
+                {visibleItems.map(item => <Button key={item.id} className="min-h-9 justify-start whitespace-nowrap px-3 text-left lg:w-full" size="sm" variant={tab === item.id ? "secondary" : "ghost"} onClick={() => { setTab(item.id); setError(""); setNotice(""); }}>{adminText(item.label)}</Button>)}
+              </div>
+            </section>;
+          })}
+        </nav>
+        {!session.is_super_admin ? <div className="mt-5 hidden border-t border-brand-border pt-4 lg:block">
+          <p className="text-[10px] font-semibold uppercase tracking-wide text-brand-text-muted">{adminText("Current permissions")}</p>
+          <p className="mt-1 text-xs text-brand-text-muted">{session.permissions.length} {adminText("permissions assigned")}</p>
+        </div> : null}
+      </aside>
+      <main className="min-w-0 p-3 sm:p-5 xl:p-7">
+        <header className="mb-5 flex flex-wrap items-center justify-between gap-3 border-b border-brand-border pb-4">
+          <div className="min-w-0">
+            <p className="text-xs text-brand-text-muted">{adminText("BTCBOX administration")}</p>
+            <h2 className="mt-1 text-xl font-semibold text-brand-text">{adminText(allowedTabs.find(item => item.id === tab)?.label || tab)}</h2>
           </div>
-        </section>;
-      })}
-    </div>
-    {error ? <div role="alert" className="rounded-xl border border-brand-danger/30 bg-brand-danger/10 p-3 text-sm text-brand-danger">{adminText(error)}</div> : null}
-    {notice ? <div role="status" className="rounded-xl border border-brand-success/30 bg-brand-success/10 p-3 text-sm text-brand-success">{adminText(notice)}</div> : null}
+          <div className="flex items-center gap-2">
+            <Badge variant="outline">{adminText("Secure console")}</Badge>
+            <span className="hidden max-w-[220px] truncate text-xs text-brand-text-muted sm:inline" title={session.user_id}>{session.user_id}</span>
+          </div>
+        </header>
+        {!session.is_super_admin ? <div className="mb-4 flex flex-wrap items-center gap-1.5 rounded-lg border border-brand-border bg-brand-surface px-3 py-2">
+          <span className="mr-1 text-[10px] font-semibold uppercase tracking-wide text-brand-text-muted">{adminText("Current permissions")}</span>
+          {session.permissions.length ? session.permissions.map(key => <Badge key={key} variant="outline" className="text-[10px]">{permissionLabel(key)}</Badge>) : <span className="text-xs text-brand-text-muted">{adminText("No separately assigned permissions")}</span>}
+        </div> : null}
+        {error ? <div role="alert" className="mb-4 rounded-lg border border-brand-danger/30 bg-brand-danger/10 p-3 text-sm text-brand-danger">{adminText(error)}</div> : null}
+        {notice ? <div role="status" className="mb-4 rounded-lg border border-brand-success/30 bg-brand-success/10 p-3 text-sm text-brand-success">{adminText(notice)}</div> : null}
     {loading ? <Card><CardContent className="p-6 text-sm text-brand-text-muted">{adminText("Loading")}{adminText(allowedTabs.find(item=>item.id===tab)?.label||tab)}…</CardContent></Card> : null}
 
     {!loading && tab === "overview" && stats ? <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -1587,5 +1613,7 @@ export function AdminPage() {
         </div>
       </section>
     </div> : null}
+      </main>
+    </div>
   </div>;
 }
