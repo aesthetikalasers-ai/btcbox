@@ -293,7 +293,7 @@
   "Place buy limit order": "提交买入限价单",
   "Place sell limit order": "提交卖出限价单",
   "Order book snapshot unavailable": "订单簿快照暂不可用",
-  "Live market depth": "实时市场深度",
+  "Market depth": "市场深度",
   "Asks": "卖盘",
   "Bids": "买盘",
   "Enter an amount within the active backend policy limits.": "请输入符合当前后端政策限额的金额。",
