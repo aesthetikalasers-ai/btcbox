@@ -70,6 +70,16 @@ const tabs: Array<{ id: Tab; label: string; permission: string }> = [
   { id: "seconds", label: "Seconds policy", permission: "seconds_policy.read" },
   { id: "markets", label: "Spot markets", permission: "system_config.read" },
 ];
+
+const adminTabGroups: Array<{ id: string; label: string; tabs: Tab[] }> = [
+  { id: "workspace", label: "Workspace", tabs: ["overview"] },
+  { id: "users", label: "User centre", tabs: ["users", "kyc"] },
+  { id: "finance", label: "Finance centre", tabs: ["deposits", "withdrawals", "payout-addresses"] },
+  { id: "trading", label: "Trading operations", tabs: ["orders", "markets", "seconds"] },
+  { id: "support", label: "Support centre", tabs: ["support", "support-faq"] },
+  { id: "audit", label: "Audit centre", tabs: ["audit"] },
+  { id: "system", label: "System", tabs: ["admins"] },
+];
 const adminPermissionOptions = [["dashboard.read","Dashboard"],["users.read","Read users"],["users.manage","Manage users"],["users.freeze","Freeze accounts"],["financial_adjustment.request","Manual balance adjustment"],["kyc.read","Read KYC"],["kyc.review","Review KYC"],["deposits.read","Read deposits"],["deposits.review","Manual deposit credit"],["payout_addresses.read_sensitive","Read sensitive customer payout addresses"],["payout_addresses.manage","Manage customer payout addresses"],["withdrawals.read","Read withdrawals"],["withdrawals.review","Review and mark paid"],["orders.read","Read orders"],["support.read","Read support"],["support.reply","Reply to support"],["support.manage","Manage support"],["announcements.read","Read announcements"],["announcements.manage","Manage announcements"],["system_config.read","Read system configuration"],["system_config.write","Edit system configuration"],["seconds_policy.read","Read Seconds policy"],["seconds_policy.manage","Manage Seconds policy"],["financial_audit.read","Read financial audit"]] as const;
 const depositAddressKeys = [
   "USDT-TRC20", "USDT-ERC20", "USDT-BEP20", "BTC-BTC",
@@ -1149,8 +1159,17 @@ export function AdminPage() {
       <Badge variant={session.is_super_admin ? "default" : "info"}>{session.is_super_admin ? adminText("SUPER ADMIN") : adminText("ACTIVE ADMIN")}</Badge>
     </div>
     {!session.is_super_admin ? <div className="flex flex-wrap items-center gap-1.5 rounded-xl border border-brand-border bg-brand-surface px-4 py-2.5"><span className="type-meta font-semibold uppercase tracking-wide text-brand-text-muted">当前权限</span>{session.permissions.length ? session.permissions.map(key => <Badge key={key} variant="outline" className="text-[11px]">{permissionLabel(key)}</Badge>) : <span className="text-xs text-brand-text-muted">无单独授权（超级管理员权限外）</span>}</div> : null}
-    <div role="navigation" aria-label="管理功能" className="flex max-w-full gap-2 overflow-x-auto border-b border-brand-border pb-3">
-      {allowedTabs.map(item => <Button key={item.id} className="shrink-0 whitespace-nowrap" size="sm" variant={tab === item.id ? "default" : "outline"} onClick={() => { setTab(item.id); setError(""); setNotice(""); }}>{adminText(item.label)}</Button>)}
+    <div role="navigation" aria-label="管理功能" className="flex max-w-full flex-wrap items-start gap-x-5 gap-y-3 border-b border-brand-border pb-3">
+      {adminTabGroups.map(group => {
+        const visibleItems = allowedTabs.filter(item => group.tabs.includes(item.id));
+        if (!visibleItems.length) return null;
+        return <section key={group.id} aria-label={adminText(group.label)} className="min-w-0">
+          <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-brand-text-muted">{adminText(group.label)}</p>
+          <div className="flex flex-wrap gap-1.5">
+            {visibleItems.map(item => <Button key={item.id} className="whitespace-nowrap" size="sm" variant={tab === item.id ? "default" : "outline"} onClick={() => { setTab(item.id); setError(""); setNotice(""); }}>{adminText(item.label)}</Button>)}
+          </div>
+        </section>;
+      })}
     </div>
     {error ? <div role="alert" className="rounded-xl border border-brand-danger/30 bg-brand-danger/10 p-3 text-sm text-brand-danger">{adminText(error)}</div> : null}
     {notice ? <div role="status" className="rounded-xl border border-brand-success/30 bg-brand-success/10 p-3 text-sm text-brand-success">{adminText(notice)}</div> : null}
