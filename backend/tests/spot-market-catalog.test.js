@@ -89,7 +89,7 @@ test('market timestamps distinguish server snapshot time from provider-specific 
   assert.ok(route.includes('const gatewaySnapshotTs = Number(gatewayRow.ts)'), 'API reads the gateway server snapshot time');
   assert.ok(route.includes('ts: Number.isFinite(gatewaySnapshotTs) && gatewaySnapshotTs > 0 ? gatewaySnapshotTs : null'), 'API preserves the gateway timestamp instead of refreshing stale data');
   assert.ok(route.includes('ts: Number.isFinite(gatewaySnapshotTs) && gatewaySnapshotTs > 0 ? gatewaySnapshotTs : null'), 'stale fallback age must remain unchanged');
-  assert.ok(route.includes('providerTs: Number.isFinite(Number(gatewayRow.providerTs))'), 'API preserves provider timestamp separately');
+  assert.ok(route.includes('providerTs: gatewayRow.providerTs !== null && gatewayRow.providerTs !== undefined && Number.isFinite(gatewayProviderTs) && gatewayProviderTs > 0 ? gatewayProviderTs : null'), 'API preserves provider timestamp separately');
   assert.ok(api.includes('Server snapshot time (Unix seconds), not an exchange event timestamp.'));
   assert.ok(api.includes('never synthesized by the browser.'));
 });
