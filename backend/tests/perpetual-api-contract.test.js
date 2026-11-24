@@ -46,7 +46,7 @@ test('public perpetual catalogue returns the configured minimum notional and fro
 
 test('perpetual public markets fail visibly when disabled or database reads fail', () => {
   const route = routeSlice("path === 'perpetual/markets' && method === 'GET'", "path === 'perpetual/order' && method === 'POST'");
-  assert.ok(api.includes("'perpetual/markets'"), 'public market reads must not depend on the account-state singleton');
+  assert.ok(api.includes("'depth', 'perpetual/markets', 'trading/status'"), 'public market reads must not depend on the account-state singleton');
   assert.ok(route.includes('perpetual_enabled: false'));
   assert.ok(route.includes('markets: []'));
   assert.ok(route.includes("code: 'PERPETUAL_MARKETS_DISABLED'"));
