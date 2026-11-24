@@ -406,8 +406,13 @@ async function getMarket({ symbols = DEFAULT_SYMBOLS, timeoutMs = 6000 } = {}) {
       if (!payload || !Array.isArray(payload.markets) || !payload.markets.length) continue;
       successes.push({ id, payload });
       if (payload.markets.length >= threshold) {
-        rememberGoodMarket(payload, bases);
-        return payload;
+        // If an earlier provider already supplied valid rows, merge them first
+        // so the full fallback does not overwrite the primary's per-symbol data.
+        const complete = successes.length > 1
+          ? mergeMarketPayloads(successes.map((item) => item.payload), bases)
+          : payload;
+        rememberGoodMarket(complete, bases);
+        return complete;
       }
     } catch (_) {
       // Move to the next provider. Provider errors never become fabricated data.
