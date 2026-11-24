@@ -1105,6 +1105,7 @@
   "Enter a valid price.": "Enter a valid price.",
   "Enter a valid quantity.": "Enter a valid quantity.",
   "Quantity is below the market minimum.": "Quantity is below the market minimum.",
+  "Order notional is below the market minimum.": "Order notional is below the market minimum.",
   "Place order": "Place order",
   "Order type": "Order type",
   "Decrease price": "Decrease price",
