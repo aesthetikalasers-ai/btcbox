@@ -25,7 +25,7 @@ test('fund-password setup and withdrawal UIs accept the exact backend policy', (
   assert.ok(!withdrawalView.includes("if(!/^\\d{6}$/.test($('#wd-fundpwd').value))"));
 
   assert.ok(accountView.includes('New Fund Password (at least 8 characters, letters and numbers)'));
-  assert.ok(accountView.includes("id='fp-new' class='auth-input' type='password' minlength='8' maxlength='128'"));
+  assert.ok(accountView.includes('id="fp-new" class="auth-input" type="password" minlength="8" maxlength="128"'));
   assert.ok(accountView.includes('newFundPassword.length<8||!/[A-Za-z]/.test(newFundPassword)||!/[0-9]/.test(newFundPassword)||/\\s/.test(newFundPassword)'));
   assert.ok(!accountView.includes('New Fund Password (6 digits)'));
   assert.ok(!accountView.includes("if(!/^\\d{6}$/.test($('#fp-new').value)"));
@@ -42,7 +42,7 @@ test('ambiguous withdrawal results are checked against owner-scoped PostgreSQL h
   assert.ok(withdrawalView.includes('if(result.found!==false) throw new Error'));
   assert.ok(withdrawalView.includes('const withdrawalIntent=retryIntent||{version:1,request_id:uid()'));
   assert.ok(withdrawalView.includes('request_id:withdrawalIntent.request_id'));
-  assert.ok(withdrawalView.includes('coin!==retryIntent.coin||amtRaw!==retryIntent.amount||addr!==retryIntent.address||$(\\'#wd-network\\').value!==retryIntent.network'));
+  assert.ok(withdrawalView.includes("coin!==retryIntent.coin||amtRaw!==retryIntent.amount||addr!==retryIntent.address||$('#wd-network').value!==retryIntent.network"));
   assert.ok(withdrawalView.includes('No matching withdrawal record was found.'));
 });
 
