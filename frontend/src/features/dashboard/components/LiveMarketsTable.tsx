@@ -3,7 +3,7 @@ import { Search, Star } from "lucide-react";
 import { Link, useSearchParams } from "react-router-dom";
 import { TokenIcon } from "../../../components/ui/TokenIcon";
 import { Card } from "./Card";
-import type { MarketTicker } from "../../../lib/api";
+import { getPublicAssetCatalog, type MarketTicker, type PublicAssetConfig } from "../../../lib/api";
 import { getAssetName } from "../../../lib/marketData";
 import { useI18n, localeTags } from "../../../lib/i18n";
 
@@ -39,11 +39,20 @@ export function LiveMarketsTable({ markets, loading, error }: {
   error: string;
 }) {
   const { t, language } = useI18n();
+  const [assetCatalog, setAssetCatalog] = useState<PublicAssetConfig[]>([]);
   const [sort, setSort] = useState("volume");
   const [favoritesOnly, setFavoritesOnly] = useState(false);
   const [favorites, setFavorites] = useState<string[]>(() => {
     try { const saved: unknown = JSON.parse(localStorage.getItem("btcbox.market-favorites") || "[]"); return Array.isArray(saved) ? saved.filter((item): item is string => typeof item === "string").slice(0, 200) : []; } catch { return []; }
   });
+  useEffect(() => {
+    const controller = new AbortController();
+    getPublicAssetCatalog(controller.signal).then(setAssetCatalog).catch(() => {
+      if (!controller.signal.aborted) setAssetCatalog([]);
+    });
+    return () => controller.abort();
+  }, []);
+  const assetNames = useMemo(() => Object.fromEntries(assetCatalog.map(asset => [asset.code, asset.display_name || asset.name])), [assetCatalog]);
   const toggleFavorite = (symbol: string) => {
     const next = favorites.includes(symbol) ? favorites.filter(item => item !== symbol) : [...favorites, symbol];
     setFavorites(next);
@@ -109,8 +118,8 @@ export function LiveMarketsTable({ markets, loading, error }: {
   const visibleMarkets = useMemo(() => displayMarkets.filter((item) => {
     if (favoritesOnly && !favorites.includes(item.sym)) return false;
     if (!query) return true;
-    return item.sym.toLowerCase().includes(query) || (names[item.sym] || "").toLowerCase().includes(query);
-  }).sort((a, b) => sort === "change" ? b.chg - a.chg : sort === "price" ? b.price - a.price : Number(b.vol) - Number(a.vol)), [displayMarkets, query, favoritesOnly, favorites, sort]);
+    return item.sym.toLowerCase().includes(query) || (assetNames[item.sym] || names[item.sym] || getAssetName(item.sym)).toLowerCase().includes(query);
+  }).sort((a, b) => sort === "change" ? b.chg - a.chg : sort === "price" ? b.price - a.price : Number(b.vol) - Number(a.vol)), [displayMarkets, query, favoritesOnly, favorites, sort, assetNames]);
   return (
     <Card className="flex flex-col overflow-hidden p-0 md:p-0">
       <div className="flex items-center justify-between gap-3 border-b border-brand-border px-4 py-4 md:px-6">
@@ -157,7 +166,7 @@ export function LiveMarketsTable({ markets, loading, error }: {
                       <span className="truncate text-sm font-bold text-brand-text">{item.sym}</span>
                       <span className="text-[11px] font-medium text-brand-text-muted shrink-0">/USDT</span>
                     </div>
-                    <p className="type-meta mt-0.5 truncate text-brand-text-muted">{t(getAssetName(item.sym))}</p>
+                    <p className="type-meta mt-0.5 truncate text-brand-text-muted">{t(assetNames[item.sym] || getAssetName(item.sym))}</p>
                   </div>
                 </div>
                 <div className="flex shrink-0 flex-col items-end gap-1.5">
@@ -184,7 +193,7 @@ export function LiveMarketsTable({ markets, loading, error }: {
                           <span className="text-sm font-bold text-brand-text group-hover:text-brand-accent">{item.sym}</span>
                           <span className="text-xs font-medium text-brand-text-muted shrink-0">/USDT</span>
                         </div>
-                        <p className="text-xs text-brand-text-muted">{t(getAssetName(item.sym))}</p>
+                        <p className="text-xs text-brand-text-muted">{t(assetNames[item.sym] || getAssetName(item.sym))}</p>
                       </Link>
                     </div>
                   </td>
