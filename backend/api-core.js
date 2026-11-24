@@ -470,8 +470,10 @@ async function perpRpc(name, payload) {
 async function perpRestGet(pathAndQuery) {
   const base = process.env.SUPABASE_URL.replace(/\/+$/, '');
   const response = await fetch(base + '/rest/v1/' + pathAndQuery, { method: 'GET', headers: supabaseHeaders() });
-  if (!response.ok) return [];
-  return response.json().catch(() => []);
+  if (!response.ok) throw new Error('Perpetual database read failed: ' + response.status);
+  const rows = await response.json().catch(() => null);
+  if (!Array.isArray(rows)) throw new Error('Perpetual database read returned an invalid payload');
+  return rows;
 }
 
 // Seconds-contract reference price. The server always fetches the open/settle
@@ -3049,7 +3051,8 @@ async function handleRequest(event, context) {
   // ---------- GET /api/perpetual/markets (public) ----------
   if (path === 'perpetual/markets' && method === 'GET') {
     if (!perpetualEngineRequested() || !supabaseStorageConfigured()) {
-      return json({ ok: true, perpetual_enabled: false, markets: [], msg: 'Perpetual trading is not enabled yet.' });
+      return json({ ok: false, code: 'PERPETUAL_MARKETS_DISABLED', perpetual_enabled: false, markets: [],
+        msg: 'Perpetual markets are not enabled. No contract market is currently available.' }, 503);
     }
     try {
       const markets = await perpRestGet('perpetual_markets?select=symbol,base_asset,quote_asset,enabled,status,price_tick,quantity_step,min_quantity,max_quantity,max_position_notional,max_leverage,maintenance_margin_rate,maker_fee_rate,taker_fee_rate,funding_interval_sec,funding_rate_cap,next_funding_at,mark_price_stale_sec&enabled=eq.true&order=symbol.asc');
@@ -3073,7 +3076,10 @@ async function handleRequest(event, context) {
         }
       }));
       return json({ ok: true, perpetual_enabled: perpetualEngineEnabled(), markets: withPrices });
-    } catch (e) { return json({ ok: true, perpetual_enabled: false, markets: [] }, 200); }
+    } catch (e) {
+      return json({ ok: false, code: 'PERPETUAL_MARKETS_UNAVAILABLE', perpetual_enabled: false, markets: [],
+        msg: 'Perpetual market configuration or price feed is unavailable. No contract market can be used.' }, 503);
+    }
   }
   // ---------- POST /api/perpetual/order (auth) ----------
   if (path === 'perpetual/order' && method === 'POST') {
