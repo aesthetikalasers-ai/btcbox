@@ -19,7 +19,10 @@ function routeSlice(startMarker, endMarker) {
 
 test('perpetual engine feature switch defaults OFF and gates every write', () => {
   assert.ok(api.includes('function perpetualEngineEnabled()'));
-  assert.ok(api.includes("process.env.FINANCIAL_PERPETUAL_ENGINE_ENABLED === '1' && financialWritesEnabled()"));
+  assert.ok(api.includes("process.env.FINANCIAL_PERPETUAL_ENGINE_ENABLED === '1'"));
+  assert.ok(api.includes("process.env.FINANCIAL_PERPETUAL_WORKERS_READY === '1'"));
+  assert.ok(api.includes('mark-price, funding and liquidation workers are deployed and monitored'));
+  assert.ok(api.includes('&& financialWritesEnabled()'));
   // writes must check perpetualEngineEnabled() BEFORE calling perpRpc
   assert.ok(api.includes("if (!perpetualEngineEnabled()) return json({ ok: false, code: 'PERPETUAL_ENGINE_UNAVAILABLE'"));
   assert.ok(api.includes('Perpetual trading is not enabled. No order was created and your balance was unchanged.'));
