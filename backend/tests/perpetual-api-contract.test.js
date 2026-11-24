@@ -192,6 +192,8 @@ test('perpetual funding settlement updates funding_paid once and cannot borrow a
     'funding debit must be bounded by this position isolated margin');
   assert.ok(fn.includes("raise exception 'funding isolated margin invariant failed'"),
     'funding debit must fail closed when isolated margin is insufficient');
+  assert.ok(fn.includes('elsif v_payment > 0 then'),
+    'zero funding must not mutate the financial account version');
 });
 
 test('perpetual migration preserves existing production financial operation types', () => {
