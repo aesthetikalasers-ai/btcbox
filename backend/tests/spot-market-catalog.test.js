@@ -27,7 +27,7 @@ test('public spot-market catalogue is sourced from operator configuration', () =
   const marketRoute = backend.indexOf("if (path === 'market' && method === 'GET')");
   assert.ok(route >= 0 && marketRoute > route, 'catalogue route must precede ticker route');
   const routeBlock = backend.slice(route, marketRoute);
-  assert.ok(routeBlock.includes('readSpotMarketCatalog()'));
+  assert.ok(routeBlock.includes('readSpotMarketCatalog(db)'));
   assert.ok(!routeBlock.includes('if (!user)'), 'public catalogue must not require a user session');
   assert.ok(routeBlock.includes('markets.filter(market => market.enabled)'));
   assert.ok(backend.includes("market.quote_asset !== 'USDT'"));
@@ -44,7 +44,7 @@ test('market ticker, candles and depth are gated by enabled spot pairs', () => {
   const klineStart = backend.indexOf("if (path === 'kline' && method === 'GET')");
   const depthStart = backend.indexOf("if (path === 'depth' && method === 'GET')");
   assert.ok(marketStart >= 0 && klineStart >= 0 && depthStart >= 0);
-  assert.ok(backend.slice(marketStart, marketStart + 9000).includes('readSpotMarketCatalog()'));
+  assert.ok(backend.slice(marketStart, marketStart + 9000).includes('readSpotMarketCatalog(db)'));
   assert.ok(backend.slice(marketStart, marketStart + 9000).includes('configured_empty'));
   assert.ok(backend.slice(klineStart, klineStart + 5000).includes('SPOT_MARKET_DISABLED'));
   assert.ok(backend.slice(depthStart, depthStart + 3000).includes('SPOT_MARKET_DISABLED'));
