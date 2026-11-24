@@ -63,8 +63,12 @@ async function installVisualApiMocks(page: Page) {
             email: "visual@example.invalid",
             username: "visual_qa",
             has_login_password: true,
-            balances: {},
-            totalUsdt: "0",
+            balances: {
+              BTC: { free: "0.125", frozen: "0.025", usdt: "8125", valuation_available: true },
+              ETH: { free: "1.5", frozen: "0.1", usdt: "4800", valuation_available: true },
+              USDT: { free: "2500", frozen: "100", usdt: "2600", valuation_available: true },
+            },
+            totalUsdt: "15525",
             valuation_complete: true,
             unpriced_assets: [],
             kyc: { status: "not_submitted" },
@@ -249,6 +253,23 @@ async function assertPageAtWidth(
   }
   if (route.path === "/markets") {
     await expect(page.getByText("No market pairs are currently available.", { exact: true })).toBeVisible();
+  }
+  if (route.path === "/assets") {
+    const list = page.getByTestId("asset-balance-list");
+    await expect(list).toBeVisible();
+    await expect(list.locator(":scope > div > div")).toHaveCount(3);
+    for (const coin of ["BTC", "ETH", "USDT"]) await expect(list.getByText(coin, { exact: true })).toBeVisible();
+    const style = await list.evaluate((element) => {
+      const css = getComputedStyle(element);
+      return { borderWidth: css.borderTopWidth, background: css.backgroundColor, shadow: css.boxShadow, radius: css.borderRadius };
+    });
+    expect(style.borderWidth, "Asset rows must not be wrapped in a visible card border.").toBe("0px");
+    expect(style.background, "Asset list must blend into the page background.").toBe("rgba(0, 0, 0, 0)");
+    expect(style.shadow, "Asset list must not cast a card shadow.").toBe("none");
+    expect(style.radius, "Asset list must not have a card radius.").toBe("0px");
+  }
+  if (route.path === "/trade/BTCUSDT") {
+    await expect(page.getByText(/^(Latest trades|Recent trades)$/i)).toHaveCount(0);
   }
   if (route.path === "/trade-hub") {
     await expect(page.getByTestId("spot-availability")).toHaveText("Unavailable");

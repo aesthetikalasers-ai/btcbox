@@ -178,7 +178,7 @@ export function AssetsPage() {
         <h2 className="type-section-title page-accent">{t("Asset balances")}</h2>
       </div>
       {loading ? <div className="space-y-2" role="status" aria-live="polite"><div className="h-14 animate-pulse rounded-xl bg-brand-surface-2"/><div className="h-14 animate-pulse rounded-xl bg-brand-surface-2"/><div className="h-14 animate-pulse rounded-xl bg-brand-surface-2"/></div>
-      : balances.length ? <div className="overflow-hidden">
+      : balances.length ? <div data-testid="asset-balance-list" className="overflow-hidden">
         <div className="divide-y divide-white/[0.06]">
           {balances.map(([coin, balance]) => {
             const coinName = COIN_NAMES[coin] ?? coin;
