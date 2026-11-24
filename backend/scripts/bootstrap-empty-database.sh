@@ -94,14 +94,7 @@ FILES=(
   0042_support_read_state_v1.sql
   0043_support_read_cursor_v1.sql
   0044_withdrawal_operation_type_compatibility_v1.sql
-  0045_market_asset_categories_v1.sql
-  0046_perpetual_funding_atomic_clearing_v1.sql
-  0047_perpetual_liquidation_accounting_closure_v1.sql
-  0048_perpetual_funding_rate_producer_v1.sql
-  0049_btcbox_complete_26_asset_registry_v1.sql
-  0050_perpetual_bootstrap_mark_price_v1.sql
-  0051_perpetual_market_min_notional_v1.sql
-  0052_perpetual_two_source_median_bootstrap_v1.sql
+  0045_admin_manual_debit_negative_balance_v1.sql
 )
 
 echo "[info] Bootstrapping a fresh BTCBOX schema with ${#FILES[@]} canonical SQL files."
