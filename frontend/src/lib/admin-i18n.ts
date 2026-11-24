@@ -491,6 +491,11 @@ const messages: Record<string, string> = {
   "open_only": "仅允许开仓",
   "liquidation_only": "仅允许平仓",
   "Perpetual market settings were saved, but the list could not refresh. Reload the tab before making another change.": "永续市场配置已保存，但列表刷新失败。再次修改前请重新加载此页面。",
+  "Limit quantity step": "限价单数量步长",
+  "Limit minimum quantity": "限价单最小数量",
+  "Market quantity step": "市价单数量步长",
+  "Market minimum quantity": "市价单最小数量",
+  "Market maximum quantity (optional)": "市价单最大数量（可选）",
 };
 
 export function adminText(message: string): string {
