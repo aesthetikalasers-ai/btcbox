@@ -130,13 +130,17 @@ test('admin user directory reports local Supabase identity-link mapping anomalie
   assert.ok(start >= 0 && end > start, 'admin users route must exist');
   const route = api.slice(start, end);
   assert.ok(route.includes('const identityOwnerCounts = new Map()'));
-  assert.ok(route.includes("auth_identity_link_status: hasDuplicateIdentity ? 'duplicate_mapping' : linkedIdentityIds.length ? 'linked' : 'missing'"));
+  assert.ok(route.includes("const identityLinkStatus = hasDuplicateIdentity ? 'duplicate_mapping' :"));
+  assert.ok(route.includes("hasInvalidIdentity ? 'invalid_mapping' : linkedIdentityIds.length ? 'linked' : 'missing'"));
+  assert.ok(route.includes('.filter(isSupabaseUserId)'));
+  assert.ok(route.includes('new Set('));
   assert.ok(route.includes('auth_identity_count: linkedIdentityIds.length'));
-  assert.ok(client.includes('"linked" | "missing" | "duplicate_mapping"'));
+  assert.ok(client.includes('"linked" | "missing" | "duplicate_mapping" | "invalid_mapping"'));
   assert.ok(adminPage.includes('user.auth_identity_link_status === "duplicate_mapping"'));
   assert.ok(adminPage.includes('No linked Auth UUID'));
   assert.ok(adminPage.includes('Linked in BTCBOX'));
   assert.ok(adminPage.includes('Duplicate mapping'));
+  assert.ok(adminPage.includes('Invalid Auth UUID'));
   assert.ok(!route.includes('auth.users'));
 });
 
