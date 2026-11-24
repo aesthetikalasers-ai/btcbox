@@ -3823,7 +3823,15 @@ async function handleRequest(event, context) {
     // GET /api/admin/users?search=
     if (sub === 'users' && method === 'GET') {
       const q = ((event.queryStringParameters && event.queryStringParameters.search) || '').toLowerCase();
-      let list = Object.values(db.users);
+      const allUsers = Object.values(db.users || {});
+      const identityOwnerCounts = new Map();
+      allUsers.forEach(function (candidate) {
+        getUserLinkedIdentityIds(candidate).forEach(function (identityId) {
+          const normalizedId = String(identityId).toLowerCase();
+          identityOwnerCounts.set(normalizedId, (identityOwnerCounts.get(normalizedId) || 0) + 1);
+        });
+      });
+      let list = allUsers;
       if (q) list = list.filter(function (u) { return String(u.email || '').toLowerCase().indexOf(q) > -1 || String(u.uid || '').toLowerCase().indexOf(q) > -1; });
       const matchedCount = list.length;
       list = list.slice(0, 200);
@@ -3843,7 +3851,11 @@ async function handleRequest(event, context) {
         try { await getLiveUsdtPrices(priceBases); } catch (_) {}
       }
       return json({ ok: true, source: 'btcbox_state_user_directory', completeness: matchedCount > list.length ? 'limit_reached' : 'snapshot', matched_count: matchedCount, returned_count: list.length, users: list.map(function (u) {
-        const record = { uid: u.uid, email: u.email || '', admin_auth_user_id: adminMembership.is_super_admin === true ? String(u.supabase_user_id || (Array.isArray(u.supabase_user_ids) ? u.supabase_user_ids[0] : '') || '') : '', kyc_status: (u.kyc && u.kyc.status) || 'unverified', created_at: u.created_at || '', frozen: !!u.frozen, twofa: !!u.twofa_enabled };
+        const linkedIdentityIds = getUserLinkedIdentityIds(u);
+        const hasDuplicateIdentity = linkedIdentityIds.some(function (identityId) {
+          return (identityOwnerCounts.get(String(identityId).toLowerCase()) || 0) > 1;
+        });
+        const record = { uid: u.uid, email: u.email || '', auth_identity_link_status: hasDuplicateIdentity ? 'duplicate_mapping' : linkedIdentityIds.length ? 'linked' : 'missing', auth_identity_count: linkedIdentityIds.length, admin_auth_user_id: adminMembership.is_super_admin === true ? String(u.supabase_user_id || (Array.isArray(u.supabase_user_ids) ? u.supabase_user_ids[0] : '') || '') : '', kyc_status: (u.kyc && u.kyc.status) || 'unverified', created_at: u.created_at || '', frozen: !!u.frozen, twofa: !!u.twofa_enabled };
         if (canReadFinancialAudit) {
           const balances = normalizedBalances ? (normalizedBalances[String(u.uid)] || {}) : (u.balances || {});
           record.total_usdt = totalUsdt(balances, livePriceCache.prices);
