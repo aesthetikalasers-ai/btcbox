@@ -206,7 +206,9 @@ export function ContractPage() {
   const effectiveLeverage = Math.min(leveragePills, maxLeverage);
   const markPrice = selectedMarket?.mark_price ?? null;
   const indexPrice = selectedMarket?.index_price ?? null;
-  const depthMid = markPrice !== null && Number(markPrice) > 0 ? Number(markPrice) : undefined;
+  const validMarkPrice = markPrice !== null && Number(markPrice) > 0 ? Number(markPrice) : null;
+  const validIndexPrice = indexPrice !== null && Number(indexPrice) > 0 ? Number(indexPrice) : null;
+  const depthMid = validMarkPrice ?? validIndexPrice ?? undefined;
 
   /**
    * Dollar value of the mid price for the compact mobile book's "≈ $" hint.
@@ -240,10 +242,11 @@ export function ContractPage() {
   // Falls back to the mark price from the market catalogue when the stream has
   // not produced a ticker for this symbol yet.
   const baseAsset = selectedMarket?.base_asset ?? (symbol ? symbol.replace(/USDT$/i, "") : "BTC");
-  const contractMarkPrice = markPrice !== null && Number(markPrice) > 0 ? Number(markPrice) : null;
-  // Do not substitute a spot ticker when a perpetual mark price is unavailable.
-  const displayPrice = contractMarkPrice;
-  const displayPriceLabel = t("Mark price");
+  const contractMarkPrice = validMarkPrice;
+  // Show the independently validated index when the executable mark is not ready.
+  // Never substitute a spot ticker or label an index snapshot as a mark price.
+  const displayPrice = contractMarkPrice ?? validIndexPrice;
+  const displayPriceLabel = contractMarkPrice !== null ? t("Mark price") : t("Index price");
   const displayChg = null;
 
   // The contract page currently has no contract-specific depth endpoint. This is
@@ -1328,7 +1331,7 @@ export function ContractPage() {
                 <KlinePanel symbol={selectedMarket?.symbol ?? symbol ?? "BTCUSDT"} height={440} />
               </section>
               <section aria-label={t("Order book")} className="min-w-0">
-                <OrderBookDepth mid={depthMid} book={displayBook} streamState={liveDepth.state} usdtUsd={usdtUsd} />
+                <OrderBookDepth mid={depthMid} book={displayBook} streamState={liveDepth.state} usdtUsd={usdtUsd} baseAsset={baseAsset} />
               </section>
               <section aria-label={t("Place order")} className="min-w-0">
                 {orderEntryCard}
