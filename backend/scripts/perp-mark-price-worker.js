@@ -188,7 +188,7 @@ async function fetchProviderPriceMaps(markets) {
     for (const row of results[0].value) {
       const symbol = String(row && row.symbol || '').toUpperCase();
       if (!symbols.includes(symbol)) continue;
-      const price = Number(row.lastPrice), ts = Number(row.closeTime);
+      const price = Number(row.lastPrice), ts = Number(row && row.closeTime);
       if (Number.isFinite(price) && price > 0 && Number.isFinite(ts) && ts > 0) maps.binance.set(symbol, { source: 'binance', price, ts });
     }
   } else console.warn('[perp-mark] Binance batch ticker request failed:', results[0].status === 'rejected' ? results[0].reason.message : 'invalid payload');
