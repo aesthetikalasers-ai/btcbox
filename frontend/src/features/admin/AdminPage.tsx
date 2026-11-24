@@ -1,4 +1,5 @@
 import { AuthRestoreState } from "../../components/AuthRestoreState";
+import { ManualDebitPanel } from "./ManualDebitPanel";
 import { BrandLogo } from "../../components/BrandLogo";
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { Badge } from "../../components/ui/badge";
@@ -1165,6 +1166,7 @@ export function AdminPage() {
       <Card><CardHeader><CardTitle>{adminText("Manual credit")}</CardTitle><CardDescription>{adminText("UID and asset are bound by the selected user and asset row. No pending deposit order is created.")}</CardDescription></CardHeader><CardContent>
         {!selectedUser ? <p className="text-sm text-brand-text-muted">{adminText("Select a user to load their current balances.")}</p> : <>
           <div className="mb-3 flex flex-wrap items-center justify-between gap-2"><p className="text-sm font-semibold">{selectedUser.email} · <span className="font-mono">{selectedUser.uid}</span></p>{hasPermission("deposits.read") ? <Badge variant="outline">{selectedUser.financial_balance_source === "postgres_financial_ledger" ? adminText("Balances: PostgreSQL ledger") : selectedUser.financial_balance_source === "legacy_state_retention_limited" ? adminText("Balances: legacy state · limited") : adminText("Balances: source unknown")}</Badge> : null}</div>
+          <ManualDebitPanel token={token} actorId={session.user_id} user={selectedUser} coins={assets} canAdjust={hasPermission("financial_adjustment.request") && hasPermission("deposits.read")} onComplete={() => void selectUser(selectedUser.uid)} />
           {selectedUser.financial_balance_source !== "postgres_financial_ledger" ? <p role="status" className="mb-3 text-xs text-brand-warning">{adminText("Manual credit is disabled until the user's PostgreSQL ledger balance source is confirmed.")}</p> : null}
           {!hasPermission("deposits.read") ? <p className="text-sm text-brand-text-muted">{adminText("Balance details require the deposits.read permission.")}</p> : <div className="space-y-3">{assets.map(coin=><form key={coin} className="rounded-xl border border-brand-border p-3" onSubmit={event=>void manualCredit(event,coin)}>
             <div className="mb-2 flex items-center justify-between"><span className="font-semibold">{coin}</span><span className="text-xs text-brand-text-muted">{adminText("Available:")}{selectedUser.balances?.[coin]?.free == null ? "—" : asText(selectedUser.balances[coin].free)}</span></div>
