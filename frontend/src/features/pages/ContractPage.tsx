@@ -1327,13 +1327,13 @@ export function ContractPage() {
             </div>
 
             <div data-testid="perp-desktop-terminal" className="hidden min-w-0 gap-3 xl:grid xl:grid-cols-[minmax(0,1fr)_minmax(260px,320px)_minmax(280px,340px)]">
-              <section aria-label={t("Perpetual chart")} className="min-w-0 overflow-hidden rounded-xl border border-brand-border bg-brand-surface">
+              <section aria-label={t("Chart")} className="min-w-0 overflow-hidden rounded-xl border border-brand-border bg-brand-surface">
                 <KlinePanel symbol={selectedMarket?.symbol ?? symbol ?? "BTCUSDT"} height={440} />
               </section>
               <section aria-label={t("Order book")} className="min-w-0">
                 <OrderBookDepth mid={depthMid} book={displayBook} streamState={liveDepth.state} usdtUsd={usdtUsd} />
               </section>
-              <section aria-label={t("Order entry")} className="min-w-0">
+              <section aria-label={t("Place order")} className="min-w-0">
                 {orderEntryCard}
               </section>
               <div className="col-span-full grid min-w-0 grid-cols-[minmax(0,1fr)_minmax(0,2fr)] gap-3">
