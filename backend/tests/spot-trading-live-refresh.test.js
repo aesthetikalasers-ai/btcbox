@@ -94,12 +94,15 @@ test('market table clears last confirmed prices and reports feed unavailability'
 const api = fs.readFileSync(path.resolve(__dirname, '../../frontend/src/lib/api.ts'), 'utf8');
 const backend = fs.readFileSync(path.resolve(__dirname, '../api-core.js'), 'utf8');
 
+const gateway = fs.readFileSync(path.resolve(__dirname, '../market-gateway.js'), 'utf8');
+
 test('market API carries per-symbol server snapshot time separately from provider event time', () => {
   assert.ok(backend.includes('const snapshotTs = Math.floor(Date.now() / 1000)'));
-  assert.ok(backend.includes('ts: snapshotTs, providerTs: marketsByBase[row.sym].providerTs, source: row.source'));
-  assert.ok(backend.includes("products/' + productId + '/ticker'"));
-  assert.ok(backend.includes('Date.parse(ticker.time)'));
-  assert.ok(backend.includes('Math.floor(providerTimeMs / 1000)'));
+  assert.ok(backend.includes('ts: snapshotTs,'));
+  assert.ok(backend.includes('providerTs: Number.isFinite(Number(gatewayRow.providerTs))'));
+  assert.ok(gateway.includes('Date.parse(ticker.time)'));
+  assert.ok(gateway.includes('Math.floor(providerTimeMs / 1000)'));
+  assert.ok(gateway.includes('async function bybitMarket'));
   assert.ok(api.includes('providerTs?: number'));
   assert.ok(api.includes('snapshotTs?: number'));
   assert.ok(api.includes('snapshotTs: Number.isFinite(snapshot?.ts)'));
