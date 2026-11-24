@@ -543,7 +543,7 @@ async function readSpotMarketCatalog(state) {
   if (!response.ok || !result || result.ok !== true || !Array.isArray(result.markets)) {
     throw new Error('Spot market catalogue read failed');
   }
-  const enabledAssets = new Set(normalizeAdminAssetCatalog(state && state.asset_catalog).filter(function (asset) { return asset.enabled; }).map(function (asset) { return asset.code; }));
+  const enabledAssets = new Set(normalizeAdminAssetCatalog(state && state.asset_catalog).filter(function (asset) { return asset.enabled && asset.spot_enabled; }).map(function (asset) { return asset.code; }));
   return result.markets.map(market => {
     if (!market || typeof market.base_asset !== 'string' || typeof market.quote_asset !== 'string' ||
         typeof market.enabled !== 'boolean' || !SUPPORTED_LEDGER_ASSETS.has(market.base_asset) ||
@@ -575,7 +575,7 @@ const ASSET_CATALOG_DEFAULTS = [
   ['USDT','Tether'],['USDC','USD Coin'],['BTC','Bitcoin'],['ETH','Ethereum'],['SOL','Solana'],['BNB','BNB'],
   ['XRP','XRP'],['DOGE','Dogecoin'],['ADA','Cardano'],['AVAX','Avalanche'],['LINK','Chainlink'],['DOT','Polkadot'],['TRX','TRON'],['LTC','Litecoin'],['BCH','Bitcoin Cash'],
   ['NEAR','NEAR Protocol'],['UNI','Uniswap'],['ATOM','Cosmos'],['ETC','Ethereum Classic'],['APT','Aptos'],['ARB','Arbitrum'],['OP','Optimism'],['SUI','Sui'],['INJ','Injective'],['TIA','Celestia'],['FIL','Filecoin']
-].map(function (entry, index) { return { code: entry[0], name: entry[1], display_name: entry[1], display_precision: 8, enabled: true, visible: true, sort_order: (index + 1) * 10 }; });
+].map(function (entry, index) { return { code: entry[0], name: entry[1], display_name: entry[1], display_precision: 8, enabled: true, visible: true, spot_enabled: true, perpetual_enabled: true, seconds_enabled: true, earn_enabled: true, sort_order: (index + 1) * 10 }; });
 function normalizeAdminAssetCatalog(value) {
   const source = Array.isArray(value) ? value : ASSET_CATALOG_DEFAULTS;
   const byCode = new Map(source.filter(function (item) { return item && typeof item.code === 'string'; }).map(function (item) { return [item.code, item]; }));
@@ -588,11 +588,20 @@ function normalizeAdminAssetCatalog(value) {
       display_precision: Number.isInteger(item.display_precision) && item.display_precision >= 0 && item.display_precision <= 18 ? item.display_precision : fallback.display_precision,
       enabled: typeof item.enabled === 'boolean' ? item.enabled : fallback.enabled,
       visible: typeof item.visible === 'boolean' ? item.visible : fallback.visible,
+      spot_enabled: typeof item.spot_enabled === 'boolean' ? item.spot_enabled : fallback.spot_enabled,
+      perpetual_enabled: typeof item.perpetual_enabled === 'boolean' ? item.perpetual_enabled : fallback.perpetual_enabled,
+      seconds_enabled: typeof item.seconds_enabled === 'boolean' ? item.seconds_enabled : fallback.seconds_enabled,
+      earn_enabled: typeof item.earn_enabled === 'boolean' ? item.earn_enabled : fallback.earn_enabled,
       sort_order: Number.isInteger(item.sort_order) && item.sort_order >= 0 && item.sort_order <= 9999 ? item.sort_order : fallback.sort_order
     };
   }).sort(function (a, b) { return a.sort_order - b.sort_order || a.code.localeCompare(b.code); });
 }
 
+
+function isAssetModuleEnabled(state, code, moduleKey) {
+  const asset = normalizeAdminAssetCatalog(state && state.asset_catalog).find(function (item) { return item.code === code; });
+  return !!(asset && asset.enabled && asset[moduleKey] === true);
+}
 
 async function readAdminAccountBalances(userIds) {
   if (!supabaseStorageConfigured()) throw new Error('Financial database unavailable');
@@ -1509,7 +1518,8 @@ async function handleRequest(event, context) {
     return json({ ok: true, assets: normalizeAdminAssetCatalog(db && db.asset_catalog).map(function (asset) {
       return { code: asset.code, name: asset.name, display_name: asset.display_name,
         display_precision: asset.display_precision, enabled: asset.enabled,
-        visible: asset.visible, sort_order: asset.sort_order };
+        visible: asset.visible, spot_enabled: asset.spot_enabled, perpetual_enabled: asset.perpetual_enabled,
+        seconds_enabled: asset.seconds_enabled, earn_enabled: asset.earn_enabled, sort_order: asset.sort_order };
     }) });
   }
 
@@ -2863,7 +2873,8 @@ async function handleRequest(event, context) {
           !Number.isInteger(Number(item.term_days)) || !Number.isFinite(Number(item.early_fee_percent)) ||
           !Number.isInteger(Number(item.amount_scale)) || item.active !== true;
       })) return json({ ok: false, code: 'EARN_CATALOG_INVALID', msg: 'Earn product data is invalid.' }, 503);
-      return json({ ok: true, products: rows, actions_enabled: financialWritesEnabled() && supabaseStorageConfigured() });
+      const availableProducts = rows.filter(item => isAssetModuleEnabled(db, item.asset, 'earn_enabled'));
+      return json({ ok: true, products: availableProducts, actions_enabled: financialWritesEnabled() && supabaseStorageConfigured() && availableProducts.length > 0 });
     } catch (e) {
       return json({ ok: false, code: 'EARN_CATALOG_UNAVAILABLE', msg: 'Earn products are temporarily unavailable.' }, 503);
     }
@@ -2890,6 +2901,7 @@ async function handleRequest(event, context) {
       if (!products.has(productId)) return json({ ok: false, msg: 'This earn product is not supported.' }, 400);
       { const rl = await rateCheckShared('earn_subscribe', String(user.uid)); if (rl.unavailable) return rateLimitUnavailableJson(); if (rl.limited) return rateLimitedJson(rl.retryAfter); }
       const asset = productId.endsWith('_BTC') ? 'BTC' : productId.endsWith('_ETH') ? 'ETH' : 'USDT';
+      if (!isAssetModuleEnabled(db, asset, 'earn_enabled')) return json({ ok: false, code: 'ASSET_MODULE_DISABLED', msg: 'Earn subscriptions are not enabled for this asset. Existing positions can still be redeemed.' }, 403);
       const positionId = 'EP' + crypto.createHash('sha256').update(String(user.uid) + '|' + requestId).digest('hex').slice(0, 32);
       const requestHash = crypto.createHash('sha256').update(JSON.stringify({ user_id: String(user.uid), product_id: productId, asset, amount: String(amount), request_id: requestId })).digest('hex');
       try {
@@ -2945,7 +2957,8 @@ async function handleRequest(event, context) {
       if (!rpc.ok || !result || result.ok !== true || !validPolicy) {
         return json({ ok: false, code: 'SECONDS_POLICY_UNAVAILABLE', msg: 'Short-term contract policy is not configured or is invalid.' }, 503);
       }
-      return json({ ok: true, policy, actions_enabled: financialWritesEnabled() });
+      const activeSymbols = policy.symbols.filter(symbol => isAssetModuleEnabled(db, symbol, 'seconds_enabled'));
+      return json({ ok: true, policy: { ...policy, symbols: activeSymbols }, actions_enabled: financialWritesEnabled() && activeSymbols.length > 0 });
     } catch (_) {
       return json({ ok: false, code: 'SECONDS_POLICY_UNAVAILABLE', msg: 'Short-term contract policy is temporarily unavailable.' }, 503);
     }
@@ -2970,6 +2983,7 @@ async function handleRequest(event, context) {
     const amount = parseMoneyInput(body.amount);
     const requestId = String(body.request_id || '').trim();
     if (!SECONDS_ALLOWED_SYMBOLS.has(symbol)) return json({ ok: false, msg: 'This trading pair is not supported for short-term contracts.' }, 400);
+    if (!isAssetModuleEnabled(db, symbol, 'seconds_enabled')) return json({ ok: false, code: 'ASSET_MODULE_DISABLED', msg: 'Short-term contracts are not enabled for this asset.' }, 403);
     if (!['up', 'down'].includes(direction)) return json({ ok: false, msg: 'Invalid trade direction.' }, 400);
     if (!Number.isSafeInteger(durationSec) || durationSec <= 0) return json({ ok: false, msg: 'Invalid contract duration.' }, 400);
     if (amount === null || compareMoney(amount, '0') <= 0) return json({ ok: false, msg: 'Invalid investment amount.' }, 400);
@@ -3064,7 +3078,8 @@ async function handleRequest(event, context) {
     }
     try {
       const markets = await perpRestGet('perpetual_markets?select=symbol,base_asset,quote_asset,enabled,status,price_tick,quantity_step,min_quantity,max_quantity,max_position_notional,max_leverage,maintenance_margin_rate,maker_fee_rate,taker_fee_rate,funding_interval_sec,funding_rate_cap,next_funding_at,mark_price_stale_sec&enabled=eq.true&order=symbol.asc');
-      return json({ ok: true, perpetual_enabled: perpetualEngineEnabled(), markets: markets });
+      const availableMarkets = markets.filter(market => isAssetModuleEnabled(db, market.base_asset, 'perpetual_enabled') && isAssetModuleEnabled(db, market.quote_asset, 'perpetual_enabled'));
+      return json({ ok: true, perpetual_enabled: perpetualEngineEnabled() && availableMarkets.length > 0, markets: availableMarkets });
     } catch (e) { return json({ ok: true, perpetual_enabled: false, markets: [] }, 200); }
   }
   // ---------- POST /api/perpetual/order (auth) ----------
@@ -3083,6 +3098,12 @@ async function handleRequest(event, context) {
     const closePosition = body.close_position === true;
     const clientOrderId = String(body.client_order_id || (event.headers && (event.headers['x-idempotency-key'] || event.headers['X-Idempotency-Key'])) || '').trim();
     if (!/^[A-Z0-9]{3,20}$/.test(symbol)) return json({ ok: false, msg: 'Invalid trading pair.', code: 'INVALID_SYMBOL' }, 400);
+    if (!reduceOnly) {
+      const baseAsset = ASSET_CATALOG_DEFAULTS.map(asset => asset.code).find(code => symbol === code + 'USDT' || symbol === code + '-USDT');
+      if (!baseAsset || !isAssetModuleEnabled(db, baseAsset, 'perpetual_enabled') || !isAssetModuleEnabled(db, 'USDT', 'perpetual_enabled')) {
+        return json({ ok: false, code: 'ASSET_MODULE_DISABLED', msg: 'New perpetual positions are not enabled for this asset. Existing positions can still be reduced or closed.' }, 403);
+      }
+    }
     if (!['limit','market'].includes(type)) return json({ ok: false, msg: 'Only limit or market orders are supported.', code: 'INVALID_ORDER_TYPE' }, 400);
     if (!['buy','sell'].includes(side)) return json({ ok: false, msg: 'Invalid trade direction.', code: 'INVALID_SIDE' }, 400);
     if (type === 'limit' && (price === null || compareMoney(price, '0') <= 0)) return json({ ok: false, msg: 'Invalid limit price.', code: 'INVALID_PRICE' }, 400);
@@ -3670,11 +3691,14 @@ async function handleRequest(event, context) {
         if (!canonical || seen.has(code) || !name || name.length > 64 || !displayName || displayName.length > 64 ||
             !Number.isInteger(precision) || precision < 0 || precision > 18 ||
             typeof item.enabled !== 'boolean' || typeof item.visible !== 'boolean' ||
+            typeof item.spot_enabled !== 'boolean' || typeof item.perpetual_enabled !== 'boolean' ||
+            typeof item.seconds_enabled !== 'boolean' || typeof item.earn_enabled !== 'boolean' ||
             !Number.isInteger(sortOrder) || sortOrder < 0 || sortOrder > 9999) {
           return json({ ok: false, code: 'ASSET_CONFIG_INVALID', msg: 'Asset fields are invalid or contain an unsupported asset.' }, 400);
         }
         seen.add(code);
-        normalized.push({ code: code, name: name, display_name: displayName, display_precision: precision, enabled: item.enabled, visible: item.visible, sort_order: sortOrder });
+        normalized.push({ code: code, name: name, display_name: displayName, display_precision: precision, enabled: item.enabled, visible: item.visible, spot_enabled: item.spot_enabled, perpetual_enabled: item.perpetual_enabled,
+          seconds_enabled: item.seconds_enabled, earn_enabled: item.earn_enabled, sort_order: sortOrder });
       }
       if (seen.size !== ASSET_CATALOG_DEFAULTS.length) return json({ ok: false, code: 'ASSET_CATALOG_INCOMPLETE', msg: 'All 26 supported assets must be retained.' }, 400);
       normalized.sort(function (a, b) { return a.sort_order - b.sort_order || a.code.localeCompare(b.code); });
