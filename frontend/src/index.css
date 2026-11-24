@@ -1607,7 +1607,7 @@ a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
   }
   .trade-drawer-root--perpetual .trade-drawer-panel {
     width: 100%;
-    max-width: min(900px, 100%);
+    max-width: 100%;
   }
 }
 
