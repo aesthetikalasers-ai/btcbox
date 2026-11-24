@@ -243,7 +243,9 @@ export function ContractPage() {
   // Show the independently validated index when the executable mark is not ready.
   // Never substitute a spot ticker or label an index snapshot as a mark price.
   const displayPrice = contractMarkPrice ?? validIndexPrice;
-  const displayPriceLabel = contractMarkPrice !== null ? t("Mark price") : t("Index price");
+  const displayPriceLabel = selectedMarket?.mark_price_status === "bootstrap"
+    ? t("Bootstrap reference")
+    : contractMarkPrice !== null ? t("Mark price") : t("Index price");
   const displayChg = null;
 
   // The contract page currently has no contract-specific depth endpoint. This is
@@ -1162,7 +1164,7 @@ export function ContractPage() {
               </span>
             ) : null}
             <div className="ml-auto hidden min-w-0 shrink-0 items-center gap-2 text-right text-[11px] text-brand-text-muted xl:flex">
-              <span className="flex items-center gap-1"><span>{t("Mark")}</span><span className="bf-tabular font-mono text-brand-text-secondary">{money(markPrice, locale)}</span></span>
+              <span className="flex items-center gap-1"><span>{t(selectedMarket?.mark_price_status === "bootstrap" ? "Bootstrap" : "Mark")}</span><span className="bf-tabular font-mono text-brand-text-secondary">{money(markPrice, locale)}</span></span>
               <span className="flex items-center gap-1"><span>{t("Index")}</span><span className="bf-tabular font-mono text-brand-text-secondary">{money(indexPrice, locale)}</span></span>
             </div>
           </div>
