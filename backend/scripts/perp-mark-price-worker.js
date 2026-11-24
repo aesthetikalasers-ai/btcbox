@@ -268,7 +268,7 @@ async function main() {
         res = await recordMark(symbol, indexPrice, markPrice, freshSources, maxAgeSec);
       } catch (bookError) {
         if (!module.exports.shouldUseBootstrapMark(bookError)) throw bookError;
-        if (!canBootstrapWithSources(freshSources)) throw new Error('bootstrap mark requires three distinct fresh providers; received ' + freshSources.length);
+        if (!canBootstrapWithSources(freshSources)) throw new Error('bootstrap mark requires at least two distinct fresh providers; received ' + freshSources.length);
         markPrice = indexPrice;
         res = await recordBootstrapMark(symbol, indexPrice, freshSources, maxAgeSec);
         console.warn('[perp-mark]', symbol, 'bootstrap anchor active; order book is not yet deep enough; funding snapshots remain blocked.');
