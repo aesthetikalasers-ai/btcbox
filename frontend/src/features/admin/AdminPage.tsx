@@ -121,7 +121,9 @@ function groupSupportThreads(messages: Array<Record<string, unknown>>) {
       if (thread.messages[index].from === "user") unanswered += 1;
     }
     const adminUnreadCount = Math.max(0, ...thread.messages.map(message => Number(message.admin_unread_count || 0)).filter(Number.isFinite));
-    return { ...thread, latestTime: String(latest?.time || ""), latestFrom: latest?.from, unanswered, adminUnreadCount };
+    const reportedUnanswered = Number(latest?.thread_unanswered_count);
+    const finalUnanswered = Number.isFinite(reportedUnanswered) ? Math.max(0, reportedUnanswered) : unanswered;
+    return { ...thread, latestTime: String(latest?.time || ""), latestFrom: latest?.from, unanswered: finalUnanswered, adminUnreadCount };
   }).sort((left, right) => right.latestTime.localeCompare(left.latestTime));
 }
 
