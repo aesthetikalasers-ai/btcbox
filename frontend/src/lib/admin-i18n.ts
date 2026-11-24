@@ -394,7 +394,7 @@ const messages: Record<string, string> = {
   "buy": "买入",
   "sell": "卖出",
   "cancelled": "已撤销",
-  "partially_filled": "部分成交"
+  "partially_filled": "部分成交",
   "Perpetual market configuration": "永续市场配置",
   "Configure the existing USDT-margined perpetual market fields. Saving never activates trading; all markets remain disabled and paused.": "配置现有 USDT 本位永续合约参数。保存不会启用交易，所有市场始终保持停用和暂停。",
   "Trading disabled": "交易已停用",
