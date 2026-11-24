@@ -2,7 +2,7 @@ export type AdminTab = "overview" | "users" | "deposits" | "withdrawals" | "fina
 
 export const ADMIN_TABS: Array<{ id: AdminTab; label: string; permission: string }> = [
   { id: "overview", label: "Overview", permission: "dashboard.read" },
-  { id: "users", label: "Users & manual credit", permission: "users.read" },
+  { id: "users", label: "Users", permission: "users.read" },
   { id: "deposits", label: "Deposit addresses", permission: "system_config.read" },
   { id: "withdrawals", label: "Withdrawals", permission: "withdrawals.read" },
   { id: "financial-adjustments", label: "Manual credit / debit", permission: "users.read" },
