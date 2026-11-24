@@ -49,7 +49,7 @@ test('withdrawal UNKNOWN intent and request ID survive a full page reload', () =
 });
 
 test('persistent withdrawal intent contains only its documented non-secret fields', () => {
-  const intent = assets.match(/const withdrawalIntent=\{([^}]+)\};/);
+  const intent = assets.match(/const withdrawalIntent=retryIntent\|\|\{([^}]+)\};/);
   assert.ok(intent, 'withdrawal intent object must be explicit and auditable');
   const keys = [...intent[1].matchAll(/(?:^|,)\s*([a-z_]+)\s*(?=:|,|$)/g)].map(match => match[1]).sort();
   assert.deepEqual(keys, ['address','amount','coin','created_at','network','request_id','version'].sort());
