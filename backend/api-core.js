@@ -570,6 +570,28 @@ const SUPPORTED_LEDGER_ASSETS = new Set([
   'XRP', 'DOGE', 'ADA', 'AVAX', 'LINK', 'DOT', 'TRX', 'LTC', 'BCH', 'NEAR', 'UNI', 'ATOM', 'ETC',
   'APT', 'ARB', 'OP', 'SUI', 'INJ', 'TIA', 'FIL',
 ]);
+const ASSET_CATALOG_DEFAULTS = [
+  ['USDT','Tether'],['USDC','USD Coin'],['BTC','Bitcoin'],['ETH','Ethereum'],['SOL','Solana'],['BNB','BNB'],
+  ['XRP','XRP'],['DOGE','Dogecoin'],['ADA','Cardano'],['AVAX','Avalanche'],['LINK','Chainlink'],['DOT','Polkadot'],['TRX','TRON'],['LTC','Litecoin'],['BCH','Bitcoin Cash'],
+  ['NEAR','NEAR Protocol'],['UNI','Uniswap'],['ATOM','Cosmos'],['ETC','Ethereum Classic'],['APT','Aptos'],['ARB','Arbitrum'],['OP','Optimism'],['SUI','Sui'],['INJ','Injective'],['TIA','Celestia'],['FIL','Filecoin']
+].map(function (entry, index) { return { code: entry[0], name: entry[1], display_name: entry[1], display_precision: 8, enabled: true, visible: true, sort_order: (index + 1) * 10 }; });
+function normalizeAdminAssetCatalog(value) {
+  const source = Array.isArray(value) ? value : ASSET_CATALOG_DEFAULTS;
+  const byCode = new Map(source.filter(function (item) { return item && typeof item.code === 'string'; }).map(function (item) { return [item.code, item]; }));
+  return ASSET_CATALOG_DEFAULTS.map(function (fallback) {
+    const item = byCode.get(fallback.code) || fallback;
+    return {
+      code: fallback.code,
+      name: typeof item.name === 'string' ? item.name : fallback.name,
+      display_name: typeof item.display_name === 'string' ? item.display_name : fallback.display_name,
+      display_precision: Number.isInteger(item.display_precision) && item.display_precision >= 0 && item.display_precision <= 18 ? item.display_precision : fallback.display_precision,
+      enabled: typeof item.enabled === 'boolean' ? item.enabled : fallback.enabled,
+      visible: typeof item.visible === 'boolean' ? item.visible : fallback.visible,
+      sort_order: Number.isInteger(item.sort_order) && item.sort_order >= 0 && item.sort_order <= 9999 ? item.sort_order : fallback.sort_order
+    };
+  }).sort(function (a, b) { return a.sort_order - b.sort_order || a.code.localeCompare(b.code); });
+}
+
 
 async function readAdminAccountBalances(userIds) {
   if (!supabaseStorageConfigured()) throw new Error('Financial database unavailable');
@@ -3490,6 +3512,8 @@ async function handleRequest(event, context) {
       if ((route === 'support/faq' || route === 'support/faq/delete') && verb === 'POST') return 'support.manage';
       if (route === 'push' && verb === 'POST') return 'announcements.manage';
       if (route === 'audit-logs' && verb === 'GET') return 'financial_audit.read';
+      if (route === 'assets' && verb === 'GET') return 'system_config.read';
+      if (route === 'assets' && verb === 'POST') return 'system_config.write';
       if (route === 'spot-markets' && verb === 'GET') return 'system_config.read';
       if (route === 'spot-markets' && verb === 'POST') return 'system_config.write';
       if (route === 'config' && verb === 'GET') return 'system_config.read';
@@ -3603,6 +3627,42 @@ async function handleRequest(event, context) {
       } catch (_) {
         return json({ ok: false, code: 'SECONDS_POLICY_CHANGE_UNAVAILABLE', msg: 'Seconds policy update could not be confirmed. Refresh before retrying.' }, 503);
       }
+    }
+
+    // Asset catalogue is independent from spot pairs, deposit addresses and withdrawal networks.
+    if (sub === 'assets' && method === 'GET') {
+      return json({ ok: true, assets: normalizeAdminAssetCatalog(db.asset_catalog) });
+    }
+    if (sub === 'assets' && method === 'POST') {
+      if (!Array.isArray(body.assets) || body.assets.length !== ASSET_CATALOG_DEFAULTS.length) {
+        return json({ ok: false, code: 'ASSET_CATALOG_INVALID', msg: 'The asset catalogue must contain the complete supported asset set.' }, 400);
+      }
+      const seen = new Set();
+      const normalized = [];
+      for (const item of body.assets) {
+        if (!item || typeof item !== 'object' || Array.isArray(item)) return json({ ok: false, code: 'ASSET_CONFIG_INVALID', msg: 'Invalid asset configuration.' }, 400);
+        const code = String(item.code || '').trim().toUpperCase();
+        const canonical = ASSET_CATALOG_DEFAULTS.find(function (asset) { return asset.code === code; });
+        const name = typeof item.name === 'string' ? item.name.trim() : '';
+        const displayName = typeof item.display_name === 'string' ? item.display_name.trim() : '';
+        const precision = item.display_precision;
+        const sortOrder = item.sort_order;
+        if (!canonical || seen.has(code) || !name || name.length > 64 || !displayName || displayName.length > 64 ||
+            !Number.isInteger(precision) || precision < 0 || precision > 18 ||
+            typeof item.enabled !== 'boolean' || typeof item.visible !== 'boolean' ||
+            !Number.isInteger(sortOrder) || sortOrder < 0 || sortOrder > 9999) {
+          return json({ ok: false, code: 'ASSET_CONFIG_INVALID', msg: 'Asset fields are invalid or contain an unsupported asset.' }, 400);
+        }
+        seen.add(code);
+        normalized.push({ code: code, name: name, display_name: displayName, display_precision: precision, enabled: item.enabled, visible: item.visible, sort_order: sortOrder });
+      }
+      if (seen.size !== ASSET_CATALOG_DEFAULTS.length) return json({ ok: false, code: 'ASSET_CATALOG_INCOMPLETE', msg: 'All 26 supported assets must be retained.' }, 400);
+      normalized.sort(function (a, b) { return a.sort_order - b.sort_order || a.code.localeCompare(b.code); });
+      db.asset_catalog = normalized;
+      await auditAdmin('asset_catalog_update', 'asset_catalog', JSON.stringify({ asset_count: normalized.length, enabled_count: normalized.filter(function (asset) { return asset.enabled; }).length, visible_count: normalized.filter(function (asset) { return asset.visible; }).length }), adminUserId);
+      await saveDB(db);
+      const auditFlush = await flushAdminAuditOutbox();
+      return json({ ok: true, assets: normalized, audit_sync_pending: auditFlush.pending });
     }
 
     // Spot-market controls are permissioned, audited and persisted through PostgreSQL RPCs.
