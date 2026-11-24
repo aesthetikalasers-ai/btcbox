@@ -49,7 +49,27 @@ begin
 end
 $asset_trigger$;
 
--- Seed only the canonical base assets already present in the live registry.
+-- A populated Supabase project must already have the complete asset set. This
+-- prevents the legacy production asset-insert trigger from creating wallet rows
+-- as an unintended side effect of a perpetual schema migration.
+do $asset_preflight$
+declare
+  v_has_users boolean := false;
+  v_asset_count integer;
+begin
+  if to_regclass('auth.users') is not null then
+    execute 'select exists(select 1 from auth.users)' into v_has_users;
+  end if;
+  select count(*) into v_asset_count
+    from public.btcbox_assets
+   where asset_code in ('ADA','AVAX','BNB','BTC','DOGE','ETH','SOL','USDT','XRP');
+  if v_has_users and v_asset_count <> 9 then
+    raise exception 'populated project asset registry is incomplete; reconcile btcbox_assets before perpetual migration';
+  end if;
+end
+$asset_preflight$;
+
+-- Seed only the canonical base assets for a fresh/empty bootstrap.
 -- Existing names, precision and active state always win on conflict.
 insert into public.btcbox_assets(asset_code,asset_name,asset_type,decimals,active)
 values
