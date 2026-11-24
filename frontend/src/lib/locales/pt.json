@@ -1819,5 +1819,22 @@
   "Unable to load open orders. Refresh to try again.": "Não foi possível carregar as ordens abertas. Atualize e tente novamente.",
   "Unable to load order history. Refresh to try again.": "Não foi possível carregar o histórico de ordens. Atualize e tente novamente.",
   "Unable to load trade history. Refresh to try again.": "Não foi possível carregar o histórico de negociações. Atualize e tente novamente.",
-  "Unable to load funding history. Refresh to try again.": "Não foi possível carregar o histórico de financiamento. Atualize e tente novamente."
+  "Unable to load funding history. Refresh to try again.": "Não foi possível carregar o histórico de financiamento. Atualize e tente novamente.",
+  "Set or change fund password": "Definir ou alterar a senha de fundos",
+  "Create a separate password for account fund security. It is not your login password.": "Crie uma senha separada para proteger os fundos da conta. Ela não é a senha de login.",
+  "Account security details could not be verified. Refresh the page before changing your fund password.": "Não foi possível verificar os dados de segurança da conta. Atualize a página antes de alterar a senha de fundos.",
+  "Account verification": "Verificação da conta",
+  "Fund password is stored separately from your login password. Never share it with anyone.": "A senha de fundos é armazenada separadamente da senha de login. Nunca a compartilhe.",
+  "New fund password": "Nova senha de fundos",
+  "At least 8 characters, letters and numbers": "Pelo menos 8 caracteres, com letras e números",
+  "Confirm fund password": "Confirmar senha de fundos",
+  "Re-enter fund password": "Digite novamente a senha de fundos",
+  "Current login password": "Senha de login atual",
+  "Enter current login password": "Insira a senha de login atual",
+  "Authenticator code": "Código do autenticador",
+  "6-digit code": "Código de 6 dígitos",
+  "OAuth accounts must enable two-factor authentication before setting a fund password.": "As contas OAuth devem ativar a autenticação de dois fatores antes de definir uma senha de fundos.",
+  "Open security settings": "Abrir configurações de segurança",
+  "Saving…": "Salvando…",
+  "Save fund password": "Salvar senha de fundos"
 }
