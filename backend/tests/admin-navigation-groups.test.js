@@ -16,7 +16,7 @@ test('admin navigation groups the existing tabs by business centre without dupli
   const expected = [
     'tabs: ["overview"]',
     'tabs: ["users", "kyc"]',
-    'tabs: ["deposits", "withdrawals", "financial-adjustments", "payout-addresses"]',
+    'tabs: ["deposit-records", "deposits", "withdrawals", "financial-adjustments", "payout-addresses"]',
     'tabs: ["orders", "markets", "seconds"]',
     'tabs: ["support", "support-faq"]',
     'tabs: ["audit"]',
