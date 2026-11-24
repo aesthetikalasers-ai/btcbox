@@ -230,6 +230,9 @@ test('perpetual market reads expose fresh bootstrap index anchors without mislab
   assert.ok(route.includes("mark_price: fresh ? String(row.mark_price) : null"));
   assert.ok(route.includes("index_price: freshIndex ? String(row.index_price) : null"));
   assert.ok(route.includes("mark_price_status: fresh ? row.status : freshIndex ? row.status : 'stale'"));
+  const page = fs.readFileSync(path.join(root, '../frontend/src/features/pages/ContractPage.tsx'), 'utf8');
+  assert.ok(page.includes('Bootstrap reference'));
+  assert.ok(page.includes('mark_price_status === "bootstrap"'));
   assert.ok(route.includes("keeping Mark Price unavailable until BTCBOX has"));
 });
 
