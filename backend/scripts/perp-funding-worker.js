@@ -3,7 +3,9 @@
 // BTCBOX Perpetual funding worker.
 // - One atomic database RPC settles every open position for a due market.
 // - The RPC holds the shared market lock and advances the funding boundary in the same transaction.
-// - v1 deliberately uses zero funding until a validated premium-index calculation is implemented.
+// - Never synthesizes a zero-rate row. A separate validated rate producer must persist
+//   the complete premium/index/mark/source snapshot before this worker can settle a boundary.
+// - Missing or stale snapshots fail closed; the database does not advance next_funding_at.
 // - Never moves funds outside the database RPC. Requires SUPABASE_URL + service-role key.
 const SUPABASE_URL = String(process.env.SUPABASE_URL || '').replace(/\/+$/, '');
 const SERVICE_KEY = String(process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY || '');
