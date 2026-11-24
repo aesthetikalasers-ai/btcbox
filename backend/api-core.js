@@ -2514,7 +2514,7 @@ async function handleRequest(event, context) {
         request_id: 'eq.' + requestId,
         limit: '1'
       });
-      const base = process.env.SUPABASE_URL.replace(/\\/+$/, '');
+      const base = process.env.SUPABASE_URL.replace(/\/+$/, '');
       const response = await fetch(base + '/rest/v1/withdrawal_requests?' + query.toString(), {
         method: 'GET', headers: supabaseHeaders(), signal: AbortSignal.timeout(5000)
       });
