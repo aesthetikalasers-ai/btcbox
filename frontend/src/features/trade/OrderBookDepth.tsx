@@ -48,7 +48,7 @@ function decimalsFor(precision: number): number {
  * Order-book depth panel. It renders only backend/provider depth levels.
  * Missing or stale depth is an unavailable state, never a synthetic book.
  */
-export function OrderBookDepth({ mid, book, streamState, usdtUsd }: { mid?: number; book: DepthLevels | null; streamState?: "idle" | "connecting" | "live" | "degraded" | "closed"; usdtUsd?: number | null }) {
+export function OrderBookDepth({ mid, book, streamState, usdtUsd, baseAsset = "BTC" }: { mid?: number; book: DepthLevels | null; streamState?: "idle" | "connecting" | "live" | "degraded" | "closed"; usdtUsd?: number | null; baseAsset?: string }) {
   const { t, language } = useI18n();
   const numberLocale = localeTags[language] || "en-US";
   const [precision, setPrecision] = useState<number>(0.01);
@@ -154,7 +154,7 @@ export function OrderBookDepth({ mid, book, streamState, usdtUsd }: { mid?: numb
         <>
         <div className="grid grid-cols-3 gap-2 pb-1 text-right text-[10px] uppercase tracking-wide text-brand-text-faint">
           <span>{t("Price")} (USDT)</span>
-          <span>{t("Size")} (BTC)</span>
+          <span>{t("Size")} ({baseAsset})</span>
           <span>{t("Total")}</span>
         </div>
         {view !== "bids" ? (
