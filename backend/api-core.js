@@ -3827,8 +3827,9 @@ async function handleRequest(event, context) {
       if (q) list = list.filter(function (u) { return String(u.email || '').toLowerCase().indexOf(q) > -1 || String(u.uid || '').toLowerCase().indexOf(q) > -1; });
       list = list.slice(0, 200);
       const canReadFinancialAudit = hasAdminPermission(adminMembership, 'financial_audit.read');
+      const useCanonicalFinancialReads = financialPostgresReadsEnabled();
       let normalizedBalances = null;
-      if (canReadFinancialAudit && financialPostgresReadsEnabled()) {
+      if (canReadFinancialAudit && useCanonicalFinancialReads) {
         try { normalizedBalances = await readAdminAccountBalances(list.map(function (u) { return String(u.uid); })); }
         catch (e) { return json({ ok: false, msg: 'Financial data temporarily unavailable. Please try again later.', code: 'FINANCIAL_READ_UNAVAILABLE' }, 503); }
       }
@@ -3845,6 +3846,8 @@ async function handleRequest(event, context) {
         if (canReadFinancialAudit) {
           const balances = normalizedBalances ? (normalizedBalances[String(u.uid)] || {}) : (u.balances || {});
           record.total_usdt = totalUsdt(balances, livePriceCache.prices);
+          record.financial_summary_source = useCanonicalFinancialReads ? 'postgres_financial_ledger' : 'legacy_state_retention_limited';
+          record.financial_summary_completeness = useCanonicalFinancialReads ? 'canonical_snapshot' : 'retention_limited';
         }
         return record;
       }) });
@@ -3886,12 +3889,8 @@ async function handleRequest(event, context) {
       const uid = (event.queryStringParameters && event.queryStringParameters.uid) || '';
       const u = db.users[uid];
       if (!u) return json({ ok: false, msg: 'User not found.' }, 404);
-      // Verify that the target account has an authoritative PostgreSQL ledger snapshot
-      // before any manual credit RPC can be reached. Legacy JSON balances are never creditable.
-      try { await readFinancialAccountSnapshot(uid); }
-      catch (_) {
-        return json({ ok: false, code: 'FINANCIAL_BALANCE_SOURCE_UNVERIFIED', msg: 'Manual credit is disabled until the user\'s PostgreSQL ledger balance source is confirmed. No credit was sent.' }, 409);
-      }
+      // Basic user identity and verification details remain available under users.read.
+      // Financial projections below are independently permission-scoped and fail closed when canonical reads are enabled.
       // Never expose password hashes, salts, or session tokens through admin user detail APIs.
       const safeUser = JSON.parse(JSON.stringify(u));
       delete safeUser.password_hash;
