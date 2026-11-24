@@ -119,7 +119,7 @@ test('workers exist and are idempotent/restart-safe', () => {
   for (const f of ['perp-mark-price-worker.js', 'perp-funding-worker.js', 'perp-liquidation-worker.js']) {
     const src = fs.readFileSync(path.join(root, 'scripts', f), 'utf8');
     assert.ok(src.includes('SUPABASE_SERVICE_ROLE_KEY'), f + ' must require service key');
-    assert.ok(src.includes('perp_record_mark_price') || src.includes('perp_settle_funding_one') || src.includes('perp_liquidate_position'), f + ' must call a perp RPC');
+    assert.ok(src.includes('perp_record_mark_price') || src.includes('perp_settle_funding_one') || src.includes('perp_settle_funding_market') || src.includes('perp_liquidate_position'), f + ' must call a perp RPC');
   }
   const mark = fs.readFileSync(path.join(root, 'scripts', 'perp-mark-price-worker.js'), 'utf8');
   assert.ok(mark.includes('sources.length < 2'), 'mark worker requires >=2 sources');
@@ -263,15 +263,16 @@ test('liquidation records insurance funding and bad debt as explicit auditable o
   assert.match(migration, /order reserve operation missing/i);
 });
 
-test('funding worker retries failed settlements and never advances the boundary after a partial failure', () => {
+test('funding worker delegates each due market boundary to one atomic database RPC', () => {
   const fund = fs.readFileSync(path.join(root, 'scripts', 'perp-funding-worker.js'), 'utf8');
   assert.ok(fund.includes('async function restGetAll(query)'));
   assert.ok(fund.includes("'Range-Unit': 'items'"));
-  assert.ok(fund.includes('if (marketFailed)'));
-  assert.ok(fund.includes('boundary NOT advanced'));
-  assert.ok(fund.indexOf('if (marketFailed)') < fund.indexOf('funding settled marker'));
-  assert.ok(fund.includes("if (!r.ok) throw new Error('REST GET failed: ' + r.status)"));
-  assert.ok(fund.includes("if (!rateResponse.ok) throw new Error('funding rate insert failed"));
+  assert.ok(fund.includes("rpc('perp_settle_funding_market'"));
+  assert.ok(fund.includes('result.ok !== true'));
+  assert.ok(fund.includes('result.stale_boundary'));
+  assert.ok(fund.includes('next_funding_at=not.is.null'));
+  assert.ok(!fund.includes("rpc('perp_settle_funding_one'"));
+  assert.ok(!fund.includes('funding settled marker'));
 });
 
 test('liquidation worker paginates every position and does not convert REST failures into an empty position set', () => {
@@ -286,6 +287,6 @@ test('liquidation worker paginates every position and does not convert REST fail
 test('perpetual workers validate RPC success payloads before counting settlements or liquidations', () => {
   const fund = fs.readFileSync(path.join(root, 'scripts', 'perp-funding-worker.js'), 'utf8');
   const liq = fs.readFileSync(path.join(root, 'scripts', 'perp-liquidation-worker.js'), 'utf8');
-  assert.ok(fund.includes("res.ok !== true"));
+  assert.ok(fund.includes("result.ok !== true"));
   assert.ok(liq.includes("res.ok !== true"));
 });
