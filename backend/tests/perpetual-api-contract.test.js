@@ -112,6 +112,25 @@ test('admin perpetual market upsert validates max_leverage <= 100 and mmr range,
   assert.ok(route.includes('perpetual_markets?on_conflict=symbol'));
 });
 
+test('admin perpetual market routes are reachable only through explicit system-config permissions', () => {
+  const permissionStart = api.indexOf('const requiredPermission = (function(route, verb)');
+  const permissionEnd = api.indexOf(')(sub, method);', permissionStart);
+  const permissions = api.slice(permissionStart, permissionEnd);
+  assert.ok(permissions.includes("route === 'perpetual/markets' && verb === 'GET') return 'system_config.read'"));
+  assert.ok(permissions.includes("route === 'perpetual/market' && verb === 'POST') return 'system_config.write'"));
+  assert.ok(permissions.includes("route === 'perpetual/liquidations' && verb === 'GET') return 'financial_audit.read'"));
+  assert.ok(permissions.includes("route === 'perpetual/insurance' && verb === 'GET') return 'financial_audit.read'"));
+  const readStart = api.indexOf("perpSub === 'markets' && method === 'GET'");
+  assert.ok(readStart >= 0);
+  const readRoute = api.slice(readStart, readStart + 1500);
+  assert.ok(readRoute.includes('min_notional'));
+  const writeStart = api.indexOf("perpSub === 'market' && method === 'POST'");
+  const writeRoute = api.slice(writeStart, writeStart + 3000);
+  assert.ok(writeRoute.includes("const minNotional = parseMoneyInput(body.min_notional)"));
+  assert.ok(writeRoute.includes('min_notional: minNotional'));
+  assert.ok(writeRoute.includes("compareMoney(minNotional,'0')<=0"));
+});
+
 test('admin perpetual liquidations & insurance endpoints gated by financial_audit.read', () => {
   assert.ok(api.includes("perpSub === 'liquidations' && method === 'GET'"));
   assert.ok(api.includes("perpSub === 'insurance' && method === 'GET'"));
