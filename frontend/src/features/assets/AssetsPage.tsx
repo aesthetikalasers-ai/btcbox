@@ -134,7 +134,7 @@ export function AssetsPage() {
       const hasPositiveAmount = (value: number | string | undefined) => {
         if (typeof value === "number") return Number.isFinite(value) && value > 0;
         const raw = String(value ?? "").trim();
-        return /^\\d+(?:\\.\\d+)?$/.test(raw) && /[1-9]/.test(raw);
+        return /^\d+(?:\.\d+)?$/.test(raw) && /[1-9]/.test(raw);
       };
       const hasFunds = hasPositiveAmount(balance.free) || hasPositiveAmount(balance.frozen);
       return hasFunds || !config || (config.enabled && config.visible);
