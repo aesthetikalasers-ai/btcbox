@@ -19,7 +19,7 @@ test('market category taxonomy seeds only definitions and does not guess asset a
 });
 
 test('category assignments support multiple tags and optional chain contract identity', () => {
-  assert.match(migration, /asset_code text not null/i);
+  assert.match(migration, /asset_code text not null references public\\.btcbox_assets\\(asset_code\\)/i);
   assert.match(migration, /network text/i);
   assert.match(migration, /contract_address text/i);
   assert.match(migration, /btcbox_asset_category_identity_uidx/i);
