@@ -9,9 +9,10 @@ const root = path.resolve(__dirname, '..');
 const api = fs.readFileSync(path.resolve(root, '../frontend/src/lib/api.ts'), 'utf8');
 const admin = fs.readFileSync(path.resolve(root, '../frontend/src/features/admin/AdminPage.tsx'), 'utf8');
 const backend = fs.readFileSync(path.join(root, 'api-core.js'), 'utf8');
+const navigation = fs.readFileSync(path.resolve(root, '../frontend/src/features/admin/admin-navigation.ts'), 'utf8');
 
 test('Admin spot-market panel is permission-gated and uses the audited API client', () => {
-  assert.match(admin, /id: "markets", label: "Spot & Perpetual markets", permission: "system_config\.read"/);
+  assert.match(navigation, /id: "markets", label: "Spot & Perpetual markets", permission: "system_config\.read"/);
   assert.match(admin, /tab === "markets"/);
   assert.match(admin, /getAdminSpotMarkets\(token\)/);
   assert.match(admin, /saveAdminSpotMarket\(token/);
