@@ -5,6 +5,7 @@ import { TokenIcon } from "../../../components/ui/TokenIcon";
 import { Card } from "./Card";
 import { getPublicAssetCatalog, type MarketTicker, type PublicAssetConfig } from "../../../lib/api";
 import { getAssetName } from "../../../lib/marketData";
+import { filterPublicSpotMarkets } from "../../../lib/publicAssetMarkets";
 import { useI18n, localeTags } from "../../../lib/i18n";
 
 const assetCodeFromMarketSymbol = (symbol: string) => symbol.endsWith("USDT") ? symbol.slice(0, -4) : symbol;
@@ -41,7 +42,8 @@ export function LiveMarketsTable({ markets, loading, error }: {
   error: string;
 }) {
   const { t, language } = useI18n();
-  const [assetCatalog, setAssetCatalog] = useState<PublicAssetConfig[]>([]);
+  const [assetCatalog, setAssetCatalog] = useState<PublicAssetConfig[] | null>(null);
+  const [assetCatalogError, setAssetCatalogError] = useState("");
   const [sort, setSort] = useState("volume");
   const [favoritesOnly, setFavoritesOnly] = useState(false);
   const [favorites, setFavorites] = useState<string[]>(() => {
@@ -49,12 +51,20 @@ export function LiveMarketsTable({ markets, loading, error }: {
   });
   useEffect(() => {
     const controller = new AbortController();
-    getPublicAssetCatalog(controller.signal).then(setAssetCatalog).catch(() => {
-      if (!controller.signal.aborted) setAssetCatalog([]);
+    getPublicAssetCatalog(controller.signal).then((assets) => {
+      if (!controller.signal.aborted) {
+        setAssetCatalog(assets);
+        setAssetCatalogError("");
+      }
+    }).catch(() => {
+      if (!controller.signal.aborted) {
+        setAssetCatalog(null);
+        setAssetCatalogError("Asset configuration is temporarily unavailable.");
+      }
     });
     return () => controller.abort();
   }, []);
-  const assetNames = useMemo(() => Object.fromEntries(assetCatalog.map(asset => [asset.code, asset.display_name || asset.name])), [assetCatalog]);
+  const assetNames = useMemo(() => Object.fromEntries((assetCatalog ?? []).map(asset => [asset.code, asset.display_name || asset.name])), [assetCatalog]);
   const toggleFavorite = (symbol: string) => {
     const next = favorites.includes(symbol) ? favorites.filter(item => item !== symbol) : [...favorites, symbol];
     setFavorites(next);
@@ -117,10 +127,7 @@ export function LiveMarketsTable({ markets, loading, error }: {
   const providerAgeLabel = providerAgeSeconds !== null
     ? new Intl.RelativeTimeFormat(numberLocale, { numeric: "auto", style: "short" }).format(-providerAgeSeconds, "second")
     : "";
-  const visibleMarkets = useMemo(() => displayMarkets.filter((item) => {
-    const baseAsset = assetCodeFromMarketSymbol(item.sym);
-    const assetConfig = assetCatalog.find((asset) => asset.code === baseAsset);
-    if (assetCatalog.length > 0 && (!assetConfig || !assetConfig.enabled || !assetConfig.visible || !assetConfig.spot_enabled)) return false;
+  const visibleMarkets = useMemo(() => filterPublicSpotMarkets(displayMarkets, assetCatalog).filter((item) => {
     if (favoritesOnly && !favorites.includes(item.sym)) return false;
     if (!query) return true;
     return item.sym.toLowerCase().includes(query) || (assetNames[assetCodeFromMarketSymbol(item.sym)] || names[assetCodeFromMarketSymbol(item.sym)] || getAssetName(item.sym)).toLowerCase().includes(query);
@@ -131,7 +138,7 @@ export function LiveMarketsTable({ markets, loading, error }: {
         <div className="min-w-0">
           <h2 className="type-section-title text-brand-text">{t("Spot markets")}</h2>
         </div>
-        {loading || feedError ? <span className="shrink-0 rounded-md border border-brand-border bg-brand-surface-2 px-3 py-2 text-xs font-semibold text-brand-text-secondary">{loading ? t("Loading…") : t("Unavailable")}</span> : visibleMarkets.length > 0 ? <span className="shrink-0 rounded-md border border-brand-border bg-brand-surface-2 px-3 py-2 text-xs font-semibold text-brand-text-secondary">{visibleMarkets.length} {t("pairs")}</span> : null}
+        {assetCatalog === null || loading || feedError ? <span className="shrink-0 rounded-md border border-brand-border bg-brand-surface-2 px-3 py-2 text-xs font-semibold text-brand-text-secondary">{assetCatalog === null && !assetCatalogError ? t("Loading…") : t("Unavailable")}</span> : visibleMarkets.length > 0 ? <span className="shrink-0 rounded-md border border-brand-border bg-brand-surface-2 px-3 py-2 text-xs font-semibold text-brand-text-secondary">{visibleMarkets.length} {t("pairs")}</span> : null}
       </div>
       {displayMarkets.length > 0 && <div className="flex flex-wrap gap-x-4 gap-y-1 border-b border-brand-border px-4 py-2 text-[11px] text-brand-text-muted md:px-6">
         <span>{t("Server snapshot")}: <strong className="font-mono font-medium tabular-nums text-brand-text-secondary">{snapshotTime || "—"}</strong></span>
@@ -148,7 +155,12 @@ export function LiveMarketsTable({ markets, loading, error }: {
           <select aria-label={t("Sort by")} value={sort} onChange={event => setSort(event.target.value)} className="min-w-0 max-w-[128px] rounded-lg border border-brand-border bg-brand-surface px-2 text-xs"><option value="volume">{t("24h volume")}</option><option value="change">{t("24h change")}</option><option value="price">{t("Last price")}</option></select>
         </div>
       </div>}
-      {feedError && displayMarkets.length === 0 ? (
+      {assetCatalog === null ? (
+        <div role="status" className="px-5 py-10 text-center">
+          <p className="text-sm font-semibold text-brand-text">{assetCatalogError ? t("Market feed unavailable") : t("Loading market data")}</p>
+          {assetCatalogError ? <p className="mt-2 break-words text-sm text-brand-text-muted">{t(assetCatalogError)}</p> : null}
+        </div>
+      ) : feedError && displayMarkets.length === 0 ? (
         <div className="px-5 py-10 text-center">
           <p className="text-sm font-semibold text-brand-text">{t("Market feed unavailable")}</p>
           <p className="mt-2 break-words text-sm text-brand-text-muted">{t(feedError)}</p>
