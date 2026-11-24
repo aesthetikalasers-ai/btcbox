@@ -1,14 +1,20 @@
 import { cn } from "../../lib/utils";
 import { useEffect, useState } from "react";
 
-// Lazily resolve the `cryptocurrency-icons` color SVG set (nearly 500 coins).
-// import.meta.glob returns a map of "path" -> dynamic import(); we resolve the
-// exact color icon for a symbol at render time and fall back to the local
-// monogram disc when the symbol is missing from the set.
+// Prefer the repository's reviewed local token marks, then resolve the
+// packaged cryptocurrency-icons set. Missing marks use a monogram fallback;
+// never synthesize a token logo from a ticker or an unrelated brand.
+const LOCAL_TOKEN_ICON_SYMBOLS = new Set([
+  "ada", "atom", "avax", "bch", "bnb", "btc", "doge", "dot", "etc", "eth",
+  "link", "ltc", "matic", "near", "pepe", "sol", "sui", "trx", "uni", "usdc",
+  "usdt", "xrp",
+]);
 const cryptoIconModules = import.meta.glob<string>("../../../node_modules/cryptocurrency-icons/svg/color/*.svg", { eager: true, import: "default" });
 
 const iconUrlFor = (symbol: string): string | undefined => {
-  const key = `../../../node_modules/cryptocurrency-icons/svg/color/${symbol.toLowerCase()}.svg`;
+  const normalized = symbol.toLowerCase();
+  if (LOCAL_TOKEN_ICON_SYMBOLS.has(normalized)) return `/token-icons/${normalized}.svg`;
+  const key = `../../../node_modules/cryptocurrency-icons/svg/color/${normalized}.svg`;
   return cryptoIconModules[key];
 };
 
