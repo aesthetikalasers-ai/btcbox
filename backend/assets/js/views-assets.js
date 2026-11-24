@@ -296,7 +296,7 @@ VIEWS.withdraw = function(){
       '<div class="va-step-panel" data-wpanel="3">'+
         '<div class="va-card"><div class="va-card-body">'+
           '<div class="section-title" style="margin-bottom:14px">Security Verification</div>'+
-          '<div class="va-field"><label class="auth-label">Fund Password (6 digits)</label><input id="wd-fundpwd" class="auth-input num" type="password" maxlength="6" placeholder="******" required></div>'+
+          '<div class="va-field"><label class="auth-label">Fund Password (at least 8 characters, letters and numbers)</label><input id="wd-fundpwd" class="auth-input" type="password" minlength="8" maxlength="128" autocomplete="current-password" placeholder="Enter your fund password" required></div>'+
           '<div class="va-field"><label class="auth-label">2FA Code '+(state.settings.twofa?'':'(disabled — optional)')+'</label><input id="wd-2fa" class="auth-input num" maxlength="6" placeholder="000000"></div>'+
           '<div class="va-info" style="margin-bottom:16px">Withdrawals are debited after submission and reviewed manually. Double-check the address before submitting.</div>'+
           '<div class="va-info" style="margin-bottom:16px;border-color:var(--warning);color:var(--text-primary)"><b>提币规则：</b>提币地址需先绑定并通过审核；新绑定地址 24 小时后可提币；首次提币及大额提币需人工审核。</div>'+
@@ -532,7 +532,8 @@ VIEWS.withdraw.afterRender = function(){
     if(!amt||amt<=0){toast('Enter a valid amount.','err');return;}
     const avail=state.balances[coin]?state.balances[coin].free:0;
     if(amt+currentFee()>avail){toast('Insufficient balance for the amount plus network fee.','err');return;}
-    if(!/^\d{6}$/.test($('#wd-fundpwd').value)){toast('Fund password must be 6 digits.','err');return;}
+    const fundPassword=$('#wd-fundpwd').value;
+    if(fundPassword.length<8||!/[A-Za-z]/.test(fundPassword)||!/[0-9]/.test(fundPassword)||/\s/.test(fundPassword)){toast('Fund password must be at least 8 characters and contain both letters and numbers, without spaces.','err');return;}
     if(state.settings.twofa&&!/^\d{6}$/.test($('#wd-2fa').value)){toast('Enter your 6-digit 2FA code.','err');return;}
     const btn=$('#wd-submit');if(!btn)return;
     const withdrawalIntent={version:1,request_id:uid(),coin,amount:amtRaw,address:addr,network:$('#wd-network').value,created_at:Date.now()};
