@@ -113,6 +113,7 @@ test('trade product navigation follows public asset visibility and module switch
   assert.ok(tradeNav.includes('asset.code === "USDT"'));
   assert.ok(tradeNav.includes('quoteAsset.spot_enabled'));
   assert.ok(tradeNav.includes('quoteAsset.perpetual_enabled'));
+  assert.ok(tradeNav.includes('["BTC", "ETH", "SOL", "BNB"].includes(asset.code)'));
   assert.ok(tradeNav.includes('PRODUCTS.filter'));
   assert.ok(tradeNav.includes('availableProducts.map'));
   assert.ok(tradeNav.includes('if (availableProducts.length === 0) return null'));
