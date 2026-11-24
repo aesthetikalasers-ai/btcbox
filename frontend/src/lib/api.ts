@@ -1017,9 +1017,13 @@ export function buildTotpUri(secret: string, accountLabel: string): string {
 
 export interface SupportMessage {
   id: string;
+  uid?: string;
+  email?: string;
+  username?: string;
   from: "user" | "admin";
   content: string;
   time: string;
+  admin_unread_count?: number;
 }
 
 export interface AdminPayoutAddress {
@@ -1532,8 +1536,9 @@ export async function getAdminAuditLogs(token: string, limit = 50, signal?: Abor
 export async function getAdminOrders(token: string, signal?: AbortSignal) {
   return adminRequest<{ ok: true; orders: OrderRecord[]; source?: string }>(token, "admin/orders", { signal });
 }
-export async function getAdminSupportMessages(token: string, signal?: AbortSignal) {
-  return adminRequest<{ ok: true; messages: SupportMessage[] }>(token, "admin/support/messages", { signal });
+export async function getAdminSupportMessages(token: string, search = "", signal?: AbortSignal) {
+  const query = search.trim() ? "?search=" + encodeURIComponent(search.trim()) : "";
+  return adminRequest<{ ok: true; messages: SupportMessage[]; search?: string | null }>(token, "admin/support/messages" + query, { signal });
 }
 export async function markAdminSupportRead(token: string, uid: string) {
   return adminRequest<{ ok: true; duplicate?: boolean; unread: number; audit_sync_pending?: boolean }>(token, "admin/support/read", { method: "POST", body: { uid } });
