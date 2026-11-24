@@ -58,7 +58,8 @@ export function TradeProductNav({ leftIndent = "px-3.5 sm:px-4 md:px-6 lg:px-8" 
             (!quoteAsset || !quoteAsset.enabled || !quoteAsset.visible ||
               !(key === "spot" ? quoteAsset.spot_enabled : quoteAsset.perpetual_enabled))) return false;
         return assetCatalog.some((asset) =>
-          asset.code !== "USDT" && asset.enabled && asset.visible &&
+          asset.code !== "USDT" && (key !== "seconds" || ["BTC", "ETH", "SOL", "BNB"].includes(asset.code)) &&
+          asset.enabled && asset.visible &&
           (key === "spot" ? asset.spot_enabled :
             key === "perpetual" ? asset.perpetual_enabled :
               key === "seconds" ? asset.seconds_enabled : asset.earn_enabled)
