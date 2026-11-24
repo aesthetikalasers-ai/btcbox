@@ -7,6 +7,8 @@ import { getPublicAssetCatalog, type MarketTicker, type PublicAssetConfig } from
 import { getAssetName } from "../../../lib/marketData";
 import { useI18n, localeTags } from "../../../lib/i18n";
 
+const assetCodeFromMarketSymbol = (symbol: string) => symbol.endsWith("USDT") ? symbol.slice(0, -4) : symbol;
+
 const names: Record<string, string> = {
   BTC: "Bitcoin", ETH: "Ethereum", SOL: "Solana", BNB: "BNB",
   XRP: "XRP", DOGE: "Dogecoin", ADA: "Cardano", AVAX: "Avalanche",
@@ -116,12 +118,12 @@ export function LiveMarketsTable({ markets, loading, error }: {
     ? new Intl.RelativeTimeFormat(numberLocale, { numeric: "auto", style: "short" }).format(-providerAgeSeconds, "second")
     : "";
   const visibleMarkets = useMemo(() => displayMarkets.filter((item) => {
-    const baseAsset = item.sym.endsWith("USDT") ? item.sym.slice(0, -4) : item.sym;
+    const baseAsset = assetCodeFromMarketSymbol(item.sym);
     const assetConfig = assetCatalog.find((asset) => asset.code === baseAsset);
     if (assetCatalog.length > 0 && (!assetConfig || !assetConfig.enabled || !assetConfig.visible || !assetConfig.spot_enabled)) return false;
     if (favoritesOnly && !favorites.includes(item.sym)) return false;
     if (!query) return true;
-    return item.sym.toLowerCase().includes(query) || (assetNames[item.sym] || names[item.sym] || getAssetName(item.sym)).toLowerCase().includes(query);
+    return item.sym.toLowerCase().includes(query) || (assetNames[assetCodeFromMarketSymbol(item.sym)] || names[item.sym] || getAssetName(item.sym)).toLowerCase().includes(query);
   }).sort((a, b) => sort === "change" ? b.chg - a.chg : sort === "price" ? b.price - a.price : Number(b.vol) - Number(a.vol)), [displayMarkets, assetCatalog, query, favoritesOnly, favorites, sort, assetNames]);
   return (
     <Card className="flex flex-col overflow-hidden p-0 md:p-0">
@@ -169,7 +171,7 @@ export function LiveMarketsTable({ markets, loading, error }: {
                       <span className="truncate text-sm font-bold text-brand-text">{item.sym}</span>
                       <span className="text-[11px] font-medium text-brand-text-muted shrink-0">/USDT</span>
                     </div>
-                    <p className="type-meta mt-0.5 truncate text-brand-text-muted">{t(assetNames[item.sym] || getAssetName(item.sym))}</p>
+                    <p className="type-meta mt-0.5 truncate text-brand-text-muted">{t(assetNames[assetCodeFromMarketSymbol(item.sym)] || getAssetName(item.sym))}</p>
                   </div>
                 </div>
                 <div className="flex shrink-0 flex-col items-end gap-1.5">
@@ -196,7 +198,7 @@ export function LiveMarketsTable({ markets, loading, error }: {
                           <span className="text-sm font-bold text-brand-text group-hover:text-brand-accent">{item.sym}</span>
                           <span className="text-xs font-medium text-brand-text-muted shrink-0">/USDT</span>
                         </div>
-                        <p className="text-xs text-brand-text-muted">{t(assetNames[item.sym] || getAssetName(item.sym))}</p>
+                        <p className="text-xs text-brand-text-muted">{t(assetNames[assetCodeFromMarketSymbol(item.sym)] || getAssetName(item.sym))}</p>
                       </Link>
                     </div>
                   </td>
