@@ -237,6 +237,8 @@ test("perpetual page labels spot data and funding caps honestly", () => {
   assert.ok(page.includes('t("Mark price")'));
   assert.ok(page.includes('t("Index price")'));
   assert.ok(page.includes("displayPrice = contractMarkPrice ?? validIndexPrice"));
+  assert.ok(page.includes("price: m.index_price != null"));
+  assert.ok(!page.includes("tickers.find"));
   assert.ok(page.includes('t("Funding rate cap")'));
   assert.ok(page.includes("fundingRateCapPct"));
   assert.ok(page.includes('setFundingCountdown("")'));
