@@ -242,7 +242,7 @@ export function AdminPage() {
     base_asset: "", price_tick: "", quantity_step: "", min_quantity: "", min_notional: "5",
     max_quantity: "", max_position_notional: "", max_leverage: "1", maintenance_margin_rate: "0.05",
     maker_fee_rate: "0", taker_fee_rate: "0", funding_interval_sec: "28800", funding_rate_cap: "0.0075",
-    mark_price_stale_sec: "60", circuit_breaker_deviation_pct: "5",
+    mark_price_stale_sec: "60", circuit_breaker_deviation_pct: "5", reason: "",
   });
 
   const [secondsPolicy, setSecondsPolicy] = useState<{policy_id:string;policy_version:number;symbols:string[];durations_sec:number[];min_stake:number|string;max_stake:number|string;payout_bps:number;per_user_open_exposure:number|string|null;max_open_positions_per_user:number|null}|null>(null);
@@ -1390,6 +1390,7 @@ export function AdminPage() {
     const takerFee = Number(draft.taker_fee_rate);
     const fundingCap = Number(draft.funding_rate_cap);
     const breaker = Number(draft.circuit_breaker_deviation_pct);
+    const reason = draft.reason.trim();
     if (!spotAssets.includes(draft.base_asset) || ["USDT", "USDC"].includes(draft.base_asset) ||
         !positive(draft.price_tick) || !positive(draft.quantity_step) || !positive(draft.min_quantity) ||
         !positive(draft.min_notional) || !optionalPositive(draft.max_quantity) || !optionalPositive(draft.max_position_notional) ||
@@ -1400,7 +1401,7 @@ export function AdminPage() {
         !Number.isInteger(fundingInterval) || fundingInterval !== 28800 ||
         !Number.isFinite(fundingCap) || fundingCap <= 0 || fundingCap > 0.0075 ||
         !Number.isInteger(staleSec) || staleSec < 15 || staleSec > 300 ||
-        !Number.isFinite(breaker) || breaker <= 0 || breaker > 20) {
+        !Number.isFinite(breaker) || breaker <= 0 || breaker > 20 || reason.length < 5 || reason.length > 500 || /[\\u0000-\\u001f\\u007f]/.test(reason)) {
       setError("Check all perpetual market parameters. Markets are saved paused and disabled; funding interval is fixed at 8 hours.");
       return;
     }
@@ -1414,7 +1415,7 @@ export function AdminPage() {
         max_leverage: maxLeverage, maintenance_margin_rate: draft.maintenance_margin_rate.trim(),
         maker_fee_rate: draft.maker_fee_rate.trim(), taker_fee_rate: draft.taker_fee_rate.trim(),
         funding_interval_sec: fundingInterval, funding_rate_cap: draft.funding_rate_cap.trim(),
-        mark_price_stale_sec: staleSec, circuit_breaker_deviation_pct: draft.circuit_breaker_deviation_pct.trim(),
+        mark_price_stale_sec: staleSec, circuit_breaker_deviation_pct: draft.circuit_breaker_deviation_pct.trim(), reason,
       });
       setNotice("Perpetual market configuration saved. The market remains paused and disabled.");
       const refreshed = await getAdminPerpMarkets(token);
@@ -1729,7 +1730,7 @@ export function AdminPage() {
                     base_asset:market.base_asset,price_tick:String(market.price_tick),quantity_step:String(market.quantity_step),min_quantity:String(market.min_quantity),min_notional:String(market.min_notional),
                     max_quantity:market.max_quantity==null?"":String(market.max_quantity),max_position_notional:market.max_position_notional==null?"":String(market.max_position_notional),
                     max_leverage:String(market.max_leverage),maintenance_margin_rate:String(market.maintenance_margin_rate),maker_fee_rate:String(market.maker_fee_rate),taker_fee_rate:String(market.taker_fee_rate),
-                    funding_interval_sec:String(market.funding_interval_sec),funding_rate_cap:String(market.funding_rate_cap),mark_price_stale_sec:String(market.mark_price_stale_sec),circuit_breaker_deviation_pct:String(market.circuit_breaker_deviation_pct)
+                    funding_interval_sec:String(market.funding_interval_sec),funding_rate_cap:String(market.funding_rate_cap),mark_price_stale_sec:String(market.mark_price_stale_sec),circuit_breaker_deviation_pct:String(market.circuit_breaker_deviation_pct),reason:""
                   })}>{adminText("Edit")}</Button></td>
                 </tr>)}</tbody>
               </table>
@@ -1744,8 +1745,9 @@ export function AdminPage() {
                 ["funding_interval_sec","Funding interval (seconds)"],["funding_rate_cap","Funding rate cap"],["mark_price_stale_sec","Mark price max age (seconds)"],["circuit_breaker_deviation_pct","Circuit breaker deviation (%)"]
               ] as const).map(([key,label])=><label key={key} className="space-y-1 text-sm"><span>{adminText(label)}</span><input value={perpMarketDraft[key]} disabled={busy||!hasPermission("system_config.write")||(key==="funding_interval_sec")} onChange={event=>setPerpMarketDraft(current=>({...current,[key]:event.target.value}))} inputMode="decimal" className="w-full rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-2 text-brand-text"/></label>)}
             </div>
+            <label className="block space-y-1 text-sm"><span>{adminText("Reason for market configuration change (required)")}</span><textarea value={perpMarketDraft.reason} disabled={busy||!hasPermission("system_config.write")} onChange={event=>setPerpMarketDraft(current=>({...current,reason:event.target.value}))} rows={2} maxLength={500} className="w-full rounded-lg border border-brand-border bg-brand-surface-2 p-3 text-brand-text"/></label>
             <p className="text-xs text-brand-text-muted">{adminText("Saved configurations are always paused and disabled. Tick size, step size and exchange filters must be verified against current USDⓈ-M exchangeInfo before use.")}</p>
-            {hasPermission("system_config.write") ? <Button disabled={busy||!perpMarketDraft.base_asset} onClick={()=>void savePerpMarket()}>{adminText("Save paused perpetual market")}</Button> : <p className="text-sm text-brand-text-muted">{adminText("Your administrator role is read-only for perpetual markets.")}</p>}
+            {hasPermission("system_config.write") ? <Button disabled={busy||!perpMarketDraft.base_asset||perpMarketDraft.reason.trim().length<5} onClick={()=>void savePerpMarket()}>{adminText("Save paused perpetual market")}</Button> : <p className="text-sm text-brand-text-muted">{adminText("Your administrator role is read-only for perpetual markets.")}</p>}
           </CardContent>
         </Card>
       </div>
