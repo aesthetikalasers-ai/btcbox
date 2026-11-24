@@ -4544,7 +4544,7 @@ async function handleRequest(event, context) {
             const legacyUser = Object.values(usersById).find(function (u) { return String(u.uid) === String(w.uid); });
             return Object.assign({}, w, { email: legacyUser ? (legacyUser.email || '') : '' });
           });
-          return json({ ok: true, withdrawals: list, source: 'postgres_financial_ledger' });
+          return json({ ok: true, withdrawals: list, source: 'postgres_financial_ledger', completeness: 'pending_queue' });
         } catch (e) {
           return json({ ok: false, msg: 'Financial data temporarily unavailable. Please try again later.', code: 'FINANCIAL_READ_UNAVAILABLE' }, 503);
         }
@@ -4556,7 +4556,7 @@ async function handleRequest(event, context) {
         });
       });
       list.sort(function (a, b) { return (a.time < b.time) ? 1 : -1; });
-      return json({ ok: true, withdrawals: list });
+      return json({ ok: true, withdrawals: list, source: 'legacy_state_snapshot', completeness: 'partial' });
     }
     // GET /api/admin/orders 全部订单。When the matching engine is requested,
     // never silently show legacy JSON orders: they would omit orders written to PostgreSQL.
