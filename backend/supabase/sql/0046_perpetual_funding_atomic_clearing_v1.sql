@@ -44,6 +44,7 @@ language plpgsql security invoker set search_path = '' as $$
 declare
   v_pos public.perpetual_positions%rowtype;
   v_rate public.perpetual_funding_rates%rowtype;
+  v_market public.perpetual_markets%rowtype;
   v_op uuid;
   v_notional numeric(38,18);
   v_payment numeric(38,18);
@@ -62,9 +63,25 @@ begin
   -- wrapper holds it for the whole boundary; this also protects direct RPC use.
   perform pg_advisory_xact_lock(hashtextextended('perp-market:'||p_symbol, 0));
 
+  select * into v_market from public.perpetual_markets where symbol=p_symbol for update;
+  if not found then raise exception 'perpetual market configuration missing'; end if;
+  if v_market.next_funding_at is null or v_market.next_funding_at <> p_funding_at
+     or p_funding_at > now() then
+    raise exception 'funding boundary is not current and due';
+  end if;
+
   select * into v_rate from public.perpetual_funding_rates
    where symbol=p_symbol and funding_at=p_funding_at;
   if not found then raise exception 'funding rate not recorded'; end if;
+  if abs(v_rate.rate) > v_market.funding_rate_cap then
+    raise exception 'funding rate exceeds market cap';
+  end if;
+  if v_rate.rate <> 0 and (
+       v_rate.mark_price is null or v_rate.mark_price <= 0
+       or v_rate.index_price is null or v_rate.index_price <= 0
+     ) then
+    raise exception 'non-zero funding requires recorded mark and index prices';
+  end if;
 
   v_idem := 'perp-funding-'||p_symbol||'-'||floor(extract(epoch from p_funding_at))::text||'-'||p_user_id;
   if exists (select 1 from public.financial_operations where idempotency_key=v_idem) then
@@ -152,6 +169,9 @@ begin
   if p_symbol is null or p_symbol !~ '^[A-Z0-9]{3,20}$' or p_funding_at is null then
     raise exception 'invalid perpetual market funding boundary';
   end if;
+  if p_funding_at > now() then
+    raise exception 'funding boundary is not due';
+  end if;
 
   -- Same lock key as perp_submit_order/perp_cancel_order/perp_liquidate_position.
   -- No order can open or change a position while the boundary is being settled.
@@ -175,6 +195,15 @@ begin
   select * into v_rate from public.perpetual_funding_rates
    where symbol=p_symbol and funding_at=p_funding_at for update;
   if not found then raise exception 'funding rate row unavailable'; end if;
+  if abs(v_rate.rate) > v_market.funding_rate_cap then
+    raise exception 'funding rate exceeds market cap';
+  end if;
+  if v_rate.rate <> 0 and (
+       v_rate.mark_price is null or v_rate.mark_price <= 0
+       or v_rate.index_price is null or v_rate.index_price <= 0
+     ) then
+    raise exception 'non-zero funding requires recorded mark and index prices';
+  end if;
 
   for v_pos in
     select user_id from public.perpetual_positions
