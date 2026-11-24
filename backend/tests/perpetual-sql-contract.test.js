@@ -184,3 +184,15 @@ test('bad debt operation has an explicit zero-delta ledger audit marker without 
   assert.ok(sql.includes('select v_bad_debt_op,p_user_id,\'USDT\',0,0,available,frozen'));
   assert.ok(sql.includes('platform receivable'));
 });
+
+test('order idempotency binds reduce-only and close-position flags', () => {
+  assert.ok(sql.includes('v_existing.reduce_only is distinct from coalesce(p_reduce_only,false)'));
+  assert.ok(sql.includes('v_existing.close_position is distinct from coalesce(p_close_position,false)'));
+});
+
+test('reduce-only and market IOC responses return the persisted final remainder after cancellation', () => {
+  const finalized = sql.indexOf('select remaining_quantity into v_remaining');
+  const response = sql.indexOf("'remaining_quantity',v_remaining", finalized);
+  assert.ok(finalized >= 0, 'final persisted remaining quantity must be re-read');
+  assert.ok(response > finalized, 'response must use the re-read persisted quantity');
+});
