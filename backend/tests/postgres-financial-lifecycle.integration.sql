@@ -503,9 +503,12 @@ DECLARE
 BEGIN
   INSERT INTO public.perpetual_markets(
     symbol,base_asset,quote_asset,enabled,status,price_tick,quantity_step,min_quantity,
+    market_quantity_step,market_min_quantity,max_position_notional,
     funding_interval_sec,funding_rate_cap,mark_price_stale_sec,next_funding_at
-  ) VALUES ('BTCUSDT','BTC','USDT',true,'trading',0.01,0.001,0.001,28800,0.0075,300,v_at)
+  ) VALUES ('BTCUSDT','BTC','USDT',true,'trading',0.01,0.001,0.001,0.001,0.001,1000000,28800,0.0075,300,v_at)
   ON CONFLICT(symbol) DO UPDATE SET enabled=true,status='trading',
+    market_quantity_step=excluded.market_quantity_step,market_min_quantity=excluded.market_min_quantity,
+    max_position_notional=excluded.max_position_notional,
     funding_interval_sec=28800,funding_rate_cap=0.0075,mark_price_stale_sec=300,next_funding_at=excluded.next_funding_at;
 
   PERFORM pg_temp.test_credit('MD-PERP-L','perp-long-ci','USDT',1000,'perp-long-credit-0001','long-ref','perp CI');
@@ -569,9 +572,12 @@ BEGIN
   v_ts := floor(extract(epoch from clock_timestamp())*1000)::text;
   INSERT INTO public.perpetual_markets(
     symbol,base_asset,quote_asset,enabled,status,price_tick,quantity_step,min_quantity,
+    market_quantity_step,market_min_quantity,max_position_notional,
     maintenance_margin_rate,funding_interval_sec,funding_rate_cap,mark_price_stale_sec,next_funding_at
-  ) VALUES ('SOLUSDT','SOL','USDT',true,'trading',0.001,0.001,0.001,0.005,28800,0.0075,300,v_at)
-  ON CONFLICT(symbol) DO UPDATE SET enabled=true,status='trading',funding_interval_sec=28800,
+  ) VALUES ('SOLUSDT','SOL','USDT',true,'trading',0.001,0.001,0.001,0.001,0.001,1000000,0.005,28800,0.0075,300,v_at)
+  ON CONFLICT(symbol) DO UPDATE SET enabled=true,status='trading',
+    market_quantity_step=excluded.market_quantity_step,market_min_quantity=excluded.market_min_quantity,
+    max_position_notional=excluded.max_position_notional,funding_interval_sec=28800,
     funding_rate_cap=0.0075,mark_price_stale_sec=300,next_funding_at=excluded.next_funding_at;
   IF EXISTS (SELECT 1 FROM public.perpetual_positions WHERE symbol='SOLUSDT' AND closed_at IS NULL) THEN
     RAISE EXCEPTION 'no-position funding guard fixture unexpectedly has an open position';
@@ -606,9 +612,12 @@ BEGIN
   v_ts := floor(extract(epoch from clock_timestamp())*1000)::text;
   INSERT INTO public.perpetual_markets(
     symbol,base_asset,quote_asset,enabled,status,price_tick,quantity_step,min_quantity,
+    market_quantity_step,market_min_quantity,max_position_notional,
     maintenance_margin_rate,funding_interval_sec,funding_rate_cap,mark_price_stale_sec,next_funding_at
-  ) VALUES ('ETHUSDT','ETH','USDT',true,'trading',0.01,0.001,0.001,0.005,28800,0.0075,300,v_at)
+  ) VALUES ('ETHUSDT','ETH','USDT',true,'trading',0.01,0.001,0.001,0.001,0.001,1000000,0.005,28800,0.0075,300,v_at)
   ON CONFLICT(symbol) DO UPDATE SET enabled=true,status='trading',maintenance_margin_rate=0.005,
+    market_quantity_step=excluded.market_quantity_step,market_min_quantity=excluded.market_min_quantity,
+    max_position_notional=excluded.max_position_notional,
     funding_interval_sec=28800,funding_rate_cap=0.0075,mark_price_stale_sec=300,next_funding_at=excluded.next_funding_at;
   PERFORM pg_temp.test_credit('MD-PERP-LIQ','perp-liq-ci','USDT',100,'perp-liq-credit-0001','liq-ref','perp CI');
   UPDATE public.financial_accounts SET available=available-10,frozen=frozen+10 WHERE user_id='perp-liq-ci' AND asset='USDT';
