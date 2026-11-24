@@ -76,6 +76,15 @@ const tabs: Array<{ id: Tab; label: string; permission: string }> = [
   { id: "seconds", label: "Seconds policy", permission: "seconds_policy.read" },
   { id: "markets", label: "Spot markets", permission: "system_config.read" },
 ];
+const adminTabGroups: Array<{ id: string; label: string; tabs: Tab[] }> = [
+  { id: "workspace", label: "Workspace", tabs: ["overview"] },
+  { id: "users", label: "User centre", tabs: ["users", "kyc"] },
+  { id: "finance", label: "Finance centre", tabs: ["deposits", "withdrawals", "payout-addresses"] },
+  { id: "trading", label: "Trading operations", tabs: ["orders", "seconds", "markets"] },
+  { id: "support", label: "Support centre", tabs: ["support", "support-faq"] },
+  { id: "audit", label: "Audit centre", tabs: ["audit"] },
+  { id: "system", label: "System", tabs: ["admins"] },
+];
 const adminPermissionOptions = [["dashboard.read","Dashboard"],["users.read","Read users"],["users.manage","Manage users"],["users.freeze","Freeze accounts"],["financial_adjustment.request","Manual balance adjustment"],["kyc.read","Read KYC"],["kyc.review","Review KYC"],["deposits.read","Read deposits"],["deposits.review","Manual deposit credit"],["payout_addresses.read_sensitive","Read sensitive customer payout addresses"],["payout_addresses.manage","Manage customer payout addresses"],["withdrawals.read","Read withdrawals"],["withdrawals.review","Review and mark paid"],["orders.read","Read orders"],["support.read","Read support"],["support.reply","Reply to support"],["support.manage","Manage support"],["announcements.read","Read announcements"],["announcements.manage","Manage announcements"],["system_config.read","Read system configuration"],["system_config.write","Edit system configuration"],["seconds_policy.read","Read Seconds policy"],["seconds_policy.manage","Manage Seconds policy"],["financial_audit.read","Read financial audit"]] as const;
 const depositAddressKeys = [
   "USDT-TRC20", "USDT-ERC20", "USDT-BEP20", "BTC-BTC",
@@ -1500,8 +1509,17 @@ export function AdminPage() {
     {!session.is_super_admin ? <div className="flex flex-wrap items-center gap-1.5 rounded-xl border border-brand-border bg-brand-surface px-4 py-2.5"><span className="type-meta font-semibold uppercase tracking-wide text-brand-text-muted">当前权限</span>{session.permissions.length ? session.permissions.map(key => <Badge key={key} variant="outline" className="text-[11px]">{permissionLabel(key)}</Badge>) : <span className="text-xs text-brand-text-muted">无单独授权（超级管理员权限外）</span>}</div> : null}
     <div className="space-y-2">
       <input value={navSearch} onChange={event => setNavSearch(event.target.value)} placeholder={adminText("Search admin features")} aria-label={adminText("Search admin features")} className="h-10 w-full rounded-xl border border-brand-border bg-brand-surface px-3 text-sm text-brand-text outline-none focus:border-brand-accent/60 sm:max-w-xs"/>
-      <div role="navigation" aria-label="管理功能" className="flex max-w-full gap-2 overflow-x-auto border-b border-brand-border pb-3">
-        {visibleTabs.map(item => <Button key={item.id} className="shrink-0 whitespace-nowrap" size="sm" variant={tab === item.id ? "default" : "outline"} onClick={() => { setTab(item.id); setError(""); setNotice(""); }}>{adminText(item.label)}</Button>)}
+      <div role="navigation" aria-label="管理功能" className="grid gap-3 border-b border-brand-border pb-3 xl:grid-cols-2 2xl:grid-cols-3">
+        {adminTabGroups.map(group => {
+          const groupTabs = visibleTabs.filter(item => group.tabs.includes(item.id));
+          if (!groupTabs.length) return null;
+          return <section key={group.id} aria-label={adminText(group.label)} className="min-w-0 rounded-lg border border-brand-border bg-brand-surface/40 p-3">
+            <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-brand-text-muted">{adminText(group.label)}</h3>
+            <div className="flex flex-wrap gap-2">
+              {groupTabs.map(item => <Button key={item.id} className="whitespace-nowrap" size="sm" variant={tab === item.id ? "default" : "outline"} onClick={() => { setTab(item.id); setError(""); setNotice(""); }}>{adminText(item.label)}</Button>)}
+            </div>
+          </section>;
+        })}
         {visibleTabs.length === 0 ? <span className="px-2 py-2 text-sm text-brand-text-muted">{adminText("No matching admin features")}</span> : null}
       </div>
     </div>
