@@ -1024,6 +1024,7 @@ export interface SupportMessage {
   content: string;
   time: string;
   admin_unread_count?: number;
+  thread_unanswered_count?: number;
 }
 
 export interface AdminPayoutAddress {
