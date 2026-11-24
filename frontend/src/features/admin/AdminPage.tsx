@@ -1696,6 +1696,54 @@ export function AdminPage() {
         <label className="block space-y-1 text-sm"><span>{adminText("Reason (required)")}</span><textarea value={spotMarketDraft.reason} disabled={busy||!!spotMarketRequestId||!hasPermission("system_config.write")} onChange={event=>setSpotMarketDraft(current=>({...current,reason:event.target.value}))} rows={2} maxLength={500} className="w-full rounded-lg border border-brand-border bg-brand-surface-2 p-3 text-brand-text"/></label>
         {hasPermission("system_config.write") ? <Button block disabled={busy||!spotMarketDraft.reason.trim()} onClick={()=>void saveSpotMarket()}>{spotMarketRequestId ? adminText("Retry same update") : adminText("Save market settings")}</Button> : <p className="text-sm text-brand-text-muted">{adminText("Your administrator role is read-only for spot markets.")}</p>}
       </CardContent></Card>
+      <div className="col-span-full">
+        <Card>
+          <CardHeader>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <CardTitle>{adminText("Perpetual market configuration")}</CardTitle>
+                <CardDescription>{adminText("Configure USDT-margined perpetual market rules. Every saved market remains disabled and paused; enabling trading is a separate release gate.")}</CardDescription>
+              </div>
+              <Badge variant="warning">{adminText("Trading disabled")}</Badge>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {perpMarkets.length ? <div className="overflow-x-auto">
+              <table className="w-full min-w-[900px] text-left text-sm">
+                <thead><tr className="border-b border-brand-border bg-brand-surface-2/50 text-xs uppercase tracking-wide text-brand-text-muted">
+                  <th className="px-3 py-2">{adminText("Pair")}</th><th className="px-3 py-2">{adminText("Status")}</th><th className="px-3 py-2 text-right">{adminText("Leverage")}</th><th className="px-3 py-2 text-right">{adminText("Tick / step")}</th><th className="px-3 py-2 text-right">{adminText("Minimum notional")}</th><th className="px-3 py-2 text-right">{adminText("Maintenance margin")}</th><th className="px-3 py-2 text-right">{adminText("Action")}</th>
+                </tr></thead>
+                <tbody>{perpMarkets.map(market=><tr key={market.symbol} className="border-b border-brand-border-subtle">
+                  <td className="px-3 py-2 font-semibold">{market.symbol}</td>
+                  <td className="px-3 py-2"><Badge variant={market.enabled ? "warning" : "outline"}>{market.enabled ? adminText("Enabled") : adminText("Disabled")}/{adminText(market.status)}</Badge></td>
+                  <td className="px-3 py-2 text-right tabular-nums">{market.max_leverage}×</td>
+                  <td className="px-3 py-2 text-right font-mono text-xs">{asText(market.price_tick)} / {asText(market.quantity_step)}</td>
+                  <td className="px-3 py-2 text-right tabular-nums">{asText(market.min_notional)} USDT</td>
+                  <td className="px-3 py-2 text-right tabular-nums">{(Number(market.maintenance_margin_rate)*100).toFixed(3)}%</td>
+                  <td className="px-3 py-2 text-right"><Button size="sm" variant="outline" disabled={busy||!hasPermission("system_config.write")} onClick={()=>setPerpMarketDraft({
+                    base_asset:market.base_asset,price_tick:String(market.price_tick),quantity_step:String(market.quantity_step),min_quantity:String(market.min_quantity),min_notional:String(market.min_notional),
+                    max_quantity:market.max_quantity==null?"":String(market.max_quantity),max_position_notional:market.max_position_notional==null?"":String(market.max_position_notional),
+                    max_leverage:String(market.max_leverage),maintenance_margin_rate:String(market.maintenance_margin_rate),maker_fee_rate:String(market.maker_fee_rate),taker_fee_rate:String(market.taker_fee_rate),
+                    funding_interval_sec:String(market.funding_interval_sec),funding_rate_cap:String(market.funding_rate_cap),mark_price_stale_sec:String(market.mark_price_stale_sec),circuit_breaker_deviation_pct:String(market.circuit_breaker_deviation_pct)
+                  })}>{adminText("Edit")}</Button></td>
+                </tr>)}</tbody>
+              </table>
+            </div> : <p className="rounded-lg border border-dashed border-brand-border p-5 text-center text-sm text-brand-text-muted">{adminText("No perpetual markets are configured. No contract can be traded.")}</p>}
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              <label className="space-y-1 text-sm"><span>{adminText("Base asset")}</span><select value={perpMarketDraft.base_asset} disabled={busy||!hasPermission("system_config.write")} onChange={event=>setPerpMarketDraft(current=>({...current,base_asset:event.target.value}))} className="w-full rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-2 text-brand-text"><option value="">{adminText("Select asset")}</option>{spotAssets.filter(asset=>asset!=="USDT"&&asset!=="USDC").map(asset=><option key={asset} value={asset}>{asset}/USDT</option>)}</select></label>
+              <label className="space-y-1 text-sm"><span>{adminText("Quote asset")}</span><input value="USDT" readOnly className="w-full rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-2 text-brand-text"/></label>
+              {([
+                ["price_tick","Price tick"],["quantity_step","Quantity step"],["min_quantity","Minimum quantity"],["min_notional","Minimum notional (USDT)"],
+                ["max_quantity","Maximum quantity (optional)"],["max_position_notional","Maximum position notional (optional)"],["max_leverage","Maximum leverage"],
+                ["maintenance_margin_rate","Maintenance margin rate"],["maker_fee_rate","Maker fee rate"],["taker_fee_rate","Taker fee rate"],
+                ["funding_interval_sec","Funding interval (seconds)"],["funding_rate_cap","Funding rate cap"],["mark_price_stale_sec","Mark price max age (seconds)"],["circuit_breaker_deviation_pct","Circuit breaker deviation (%)"]
+              ] as const).map(([key,label])=><label key={key} className="space-y-1 text-sm"><span>{adminText(label)}</span><input value={perpMarketDraft[key]} disabled={busy||!hasPermission("system_config.write")||(key==="funding_interval_sec")} onChange={event=>setPerpMarketDraft(current=>({...current,[key]:event.target.value}))} inputMode="decimal" className="w-full rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-2 text-brand-text"/></label>)}
+            </div>
+            <p className="text-xs text-brand-text-muted">{adminText("Saved configurations are always paused and disabled. Tick size, step size and exchange filters must be verified against current USDⓈ-M exchangeInfo before use.")}</p>
+            {hasPermission("system_config.write") ? <Button disabled={busy||!perpMarketDraft.base_asset} onClick={()=>void savePerpMarket()}>{adminText("Save paused perpetual market")}</Button> : <p className="text-sm text-brand-text-muted">{adminText("Your administrator role is read-only for perpetual markets.")}</p>}
+          </CardContent>
+        </Card>
+      </div>
     </div> : null}
     {!loading && tab === "seconds" && secondsPolicy ? <Card><CardHeader><CardTitle>{adminText("Seconds contract policy")}</CardTitle><CardDescription>{adminText("Changes create and activate a new immutable policy version. Existing open positions keep their original policy snapshot. 85% is the minimum payout rate; no fixed upper limit is imposed.")}</CardDescription></CardHeader><CardContent className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2"><Badge variant="outline">{adminText("Active version")}{secondsPolicy.policy_version}</Badge><span className="text-xs text-brand-text-muted">{adminText("Policy ID ·")}{secondsPolicy.policy_id}</span></div>
