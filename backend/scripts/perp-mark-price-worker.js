@@ -2,7 +2,7 @@
 'use strict';
 // BTCBOX Perpetual mark-price worker.
 // - Discovers enabled perpetual markets from Supabase unless PERP_MARK_SYMBOLS narrows the set.
-// - Aggregates fresh spot references from Binance, OKX and CoinGecko (>=2 required).
+// - Aggregates fresh spot references from Binance, OKX and CoinGecko (>=2 independent fresh providers; <2% disagreement required for status=ok).
 // - Uses each market's stale-price and circuit-breaker limits; the DB remains authoritative.
 // - Never writes balances. Requires SUPABASE_URL + service-role key.
 // - Run one tick frequently (target ~5s) from a supervised worker runtime.
