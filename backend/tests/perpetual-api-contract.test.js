@@ -46,6 +46,7 @@ test('public perpetual catalogue returns the configured minimum notional and fro
 
 test('perpetual public markets fail visibly when disabled or database reads fail', () => {
   const route = routeSlice("path === 'perpetual/markets' && method === 'GET'", "path === 'perpetual/order' && method === 'POST'");
+  assert.ok(api.includes("'perpetual/markets'"), 'public market reads must not depend on the account-state singleton');
   assert.ok(route.includes('perpetual_enabled: false'));
   assert.ok(route.includes('markets: []'));
   assert.ok(route.includes("code: 'PERPETUAL_MARKETS_DISABLED'"));
@@ -221,13 +222,15 @@ test('perpetual read API response fields match the frontend adapters', () => {
 });
 
 
-test('perpetual market reads expose only fresh mark/index feed values', () => {
+test('perpetual market reads expose fresh bootstrap index anchors without mislabeling them as mark prices', () => {
   const route = routeSlice("path === 'perpetual/markets' && method === 'GET'", "path === 'perpetual/order' && method === 'POST'");
   assert.ok(route.includes("perp_latest_mark_price"));
   assert.ok(route.includes("['ok', 'degraded'].includes(row.status)"));
+  assert.ok(route.includes("['ok', 'degraded', 'bootstrap'].includes(row.status)"));
   assert.ok(route.includes("mark_price: fresh ? String(row.mark_price) : null"));
-  assert.ok(route.includes("index_price: fresh ? String(row.index_price) : null"));
-  assert.ok(route.includes("mark_price_status: fresh ? row.status : 'stale'"));
+  assert.ok(route.includes("index_price: freshIndex ? String(row.index_price) : null"));
+  assert.ok(route.includes("mark_price_status: fresh ? row.status : freshIndex ? row.status : 'stale'"));
+  assert.ok(route.includes("keeping Mark Price unavailable until BTCBOX has"));
 });
 
 
