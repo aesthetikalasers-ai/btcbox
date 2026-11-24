@@ -24,6 +24,42 @@ create table if not exists public.perpetual_liquidation_journal (
 );
 create index if not exists perpetual_liquidation_journal_operation_idx
   on public.perpetual_liquidation_journal(operation_id);
+create unique index if not exists perpetual_liquidation_events_insurance_operation_uidx
+  on public.perpetual_liquidation_events(insurance_operation_id)
+  where insurance_operation_id is not null;
+
+-- Backfill prior liquidation events if this repair is applied after an earlier
+-- 0041 deployment. The old event already contains the three loss-waterfall
+-- amounts; no historical financial account or ledger row is rewritten.
+insert into public.perpetual_liquidation_journal
+  (event_id,operation_id,line_no,account_code,debit,credit)
+select e.id,e.operation_id,1,'perp_liquidation_loss',
+       e.margin_lost+e.insurance_cover+e.bad_debt,0
+  from public.perpetual_liquidation_events e
+ where e.margin_lost+e.insurance_cover+e.bad_debt > 0
+union all
+select e.id,e.operation_id,2,'user_isolated_margin',0,e.margin_lost
+  from public.perpetual_liquidation_events e where e.margin_lost > 0
+union all
+select e.id,e.operation_id,3,'insurance_fund',0,e.insurance_cover
+  from public.perpetual_liquidation_events e where e.insurance_cover > 0
+union all
+select e.id,e.operation_id,4,'platform_risk_absorption',0,e.bad_debt
+  from public.perpetual_liquidation_events e where e.bad_debt > 0
+on conflict (event_id,line_no) do nothing;
+
+do $
+begin
+  if exists (
+    select event_id
+      from public.perpetual_liquidation_journal
+     group by event_id
+    having sum(debit) <> sum(credit)
+  ) then
+    raise exception 'historical perpetual liquidation journal backfill is unbalanced';
+  end if;
+end;
+$;
 
 alter table public.perpetual_liquidation_journal enable row level security;
 revoke all on public.perpetual_liquidation_journal from public, anon, authenticated;
