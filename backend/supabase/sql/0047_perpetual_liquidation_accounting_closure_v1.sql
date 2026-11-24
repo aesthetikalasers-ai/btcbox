@@ -192,7 +192,7 @@ begin
     insert into public.financial_operations(idempotency_key,user_id,asset,operation_type,request_hash,metadata)
     values ('perp-bad-debt-'||v_pos.id::text,'__perp_platform__','USDT','perp_bad_debt',
       encode(extensions.digest(v_idem||':bad-debt:'||v_bad_debt::text,'sha256'),'hex'),
-      jsonb_build_object('symbol',p_symbol,'liquidation_operation_id',v_op,'amount',v_bad_debt,'insurance_cover',v_insurance_cover))
+      jsonb_build_object('symbol',p_symbol,'affected_user_id',p_user_id,'liquidation_operation_id',v_op,'amount',v_bad_debt,'insurance_cover',v_insurance_cover))
     returning id into v_bad_debt_op;
     insert into public.perpetual_bad_debt_events(user_id,symbol,liquidation_operation_id,bad_debt_operation_id,amount,insurance_cover)
     values (p_user_id,p_symbol,v_op,v_bad_debt_op,v_bad_debt,v_insurance_cover);
