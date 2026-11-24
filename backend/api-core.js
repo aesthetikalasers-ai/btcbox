@@ -3763,6 +3763,12 @@ async function handleRequest(event, context) {
           !reason || reason.length > 500 || !/^[A-Za-z0-9_-]{16,100}$/.test(requestId)) {
         return json({ ok: false, code: 'SPOT_MARKET_CONFIG_INVALID', msg: 'Spot market parameters are invalid.' }, 400);
       }
+      // A market may be prepared while disabled, but it cannot be activated
+      // unless its base asset is enabled, visible and explicitly allowed for Spot.
+      // This keeps direct API calls aligned with the live asset catalogue UI.
+      if (enabled && (!isAssetModuleEnabled(db, baseAsset, 'spot_enabled') || !isAssetVisible(db, baseAsset))) {
+        return json({ ok: false, code: 'SPOT_ASSET_NOT_AVAILABLE', msg: 'Enable and make this asset visible for Spot before activating its market.' }, 409);
+      }
       const normalized = {
         base_asset: baseAsset, quote_asset: quoteAsset, enabled,
         price_tick: priceTick, quantity_step: quantityStep, min_quantity: minQuantity,
