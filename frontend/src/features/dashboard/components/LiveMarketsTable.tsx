@@ -116,10 +116,13 @@ export function LiveMarketsTable({ markets, loading, error }: {
     ? new Intl.RelativeTimeFormat(numberLocale, { numeric: "auto", style: "short" }).format(-providerAgeSeconds, "second")
     : "";
   const visibleMarkets = useMemo(() => displayMarkets.filter((item) => {
+    const baseAsset = item.sym.endsWith("USDT") ? item.sym.slice(0, -4) : item.sym;
+    const assetConfig = assetCatalog.find((asset) => asset.code === baseAsset);
+    if (assetCatalog.length > 0 && (!assetConfig || !assetConfig.enabled || !assetConfig.visible || !assetConfig.spot_enabled)) return false;
     if (favoritesOnly && !favorites.includes(item.sym)) return false;
     if (!query) return true;
     return item.sym.toLowerCase().includes(query) || (assetNames[item.sym] || names[item.sym] || getAssetName(item.sym)).toLowerCase().includes(query);
-  }).sort((a, b) => sort === "change" ? b.chg - a.chg : sort === "price" ? b.price - a.price : Number(b.vol) - Number(a.vol)), [displayMarkets, query, favoritesOnly, favorites, sort, assetNames]);
+  }).sort((a, b) => sort === "change" ? b.chg - a.chg : sort === "price" ? b.price - a.price : Number(b.vol) - Number(a.vol)), [displayMarkets, assetCatalog, query, favoritesOnly, favorites, sort, assetNames]);
   return (
     <Card className="flex flex-col overflow-hidden p-0 md:p-0">
       <div className="flex items-center justify-between gap-3 border-b border-brand-border px-4 py-4 md:px-6">
