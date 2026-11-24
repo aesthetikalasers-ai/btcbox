@@ -2,11 +2,27 @@
 -- Add an explicit per-market minimum order notional and enforce it atomically
 -- in the authoritative order RPC. Existing markets remain paused/disabled.
 alter table public.perpetual_markets
-  add column if not exists min_notional numeric(38,18);
+  add column if not exists min_notional numeric(38,18),
+  add column if not exists market_quantity_step numeric(38,18),
+  add column if not exists market_min_quantity numeric(38,18),
+  add column if not exists market_max_quantity numeric(38,18);
 
 update public.perpetual_markets
    set min_notional = 5
  where min_notional is null;
+
+-- Preserve existing market behavior during upgrade; new admin writes must
+-- explicitly supply the market-order filters sourced from MARKET_LOT_SIZE.
+update public.perpetual_markets
+   set market_quantity_step = quantity_step
+ where market_quantity_step is null;
+update public.perpetual_markets
+   set market_min_quantity = min_quantity
+ where market_min_quantity is null;
+
+alter table public.perpetual_markets
+  alter column market_quantity_step set not null,
+  alter column market_min_quantity set not null;
 
 alter table public.perpetual_markets
   alter column min_notional set default 5,
@@ -21,6 +37,16 @@ begin
   ) then
     alter table public.perpetual_markets
       add constraint perpetual_markets_min_notional_positive check (min_notional > 0);
+  end if;
+  if not exists (
+    select 1 from pg_constraint
+     where conrelid = 'public.perpetual_markets'::regclass
+       and conname = 'perpetual_markets_market_lot_positive'
+  ) then
+    alter table public.perpetual_markets
+      add constraint perpetual_markets_market_lot_positive
+      check (market_quantity_step > 0 and market_min_quantity > 0
+        and (market_max_quantity is null or market_max_quantity >= market_min_quantity));
   end if;
 end $$;
 
@@ -86,10 +112,18 @@ begin
   if not found then raise exception 'perpetual market disabled or unconfigured'; end if;
   if v_market.status not in ('trading','open_only') then raise exception 'perpetual market not accepting orders'; end if;
   if p_leverage > v_market.max_leverage then raise exception 'leverage exceeds market maximum'; end if;
-  if mod(p_quantity, v_market.quantity_step) <> 0 then raise exception 'quantity precision invalid'; end if;
+  if p_type='market' and not coalesce(p_reduce_only,false) then
+    if mod(p_quantity, v_market.market_quantity_step) <> 0 then raise exception 'market quantity precision invalid'; end if;
+    if p_quantity < v_market.market_min_quantity then raise exception 'market quantity below minimum'; end if;
+    if v_market.market_max_quantity is not null and p_quantity > v_market.market_max_quantity then raise exception 'market quantity above maximum'; end if;
+  else
+    -- Reduce-only market orders deliberately use the regular lot step so a
+    -- user can always close/reduce a position opened through limit fills.
+    if mod(p_quantity, v_market.quantity_step) <> 0 then raise exception 'quantity precision invalid'; end if;
+    if p_quantity < v_market.min_quantity then raise exception 'quantity below minimum'; end if;
+    if v_market.max_quantity is not null and p_quantity > v_market.max_quantity then raise exception 'quantity above maximum'; end if;
+  end if;
   if p_type='limit' and mod(p_price, v_market.price_tick) <> 0 then raise exception 'price precision invalid'; end if;
-  if p_quantity < v_market.min_quantity then raise exception 'quantity below minimum'; end if;
-  if v_market.max_quantity is not null and p_quantity > v_market.max_quantity then raise exception 'quantity above maximum'; end if;
 
   -- 3. Mark price freshness (circuit breaker): reject opens if feed stale/deviated.
   select * into v_mark from public.perp_latest_mark_price(p_symbol, v_market.mark_price_stale_sec);
