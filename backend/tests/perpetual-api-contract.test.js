@@ -31,13 +31,22 @@ test('perpetual engine feature switch defaults OFF and gates every write', () =>
   assert.ok(api.includes("error.code = 'PERPETUAL_ENGINE_UNAVAILABLE'"));
 });
 
-test('perpetual public markets never fake availability — returns empty list when disabled', () => {
+test('perpetual public markets fail visibly when disabled or database reads fail', () => {
   const route = routeSlice("path === 'perpetual/markets' && method === 'GET'", "path === 'perpetual/order' && method === 'POST'");
   assert.ok(route.includes('perpetual_enabled: false'));
   assert.ok(route.includes('markets: []'));
-  assert.ok(route.includes('Perpetual trading is not enabled yet.'));
+  assert.ok(route.includes("code: 'PERPETUAL_MARKETS_DISABLED'"));
+  assert.ok(route.includes('Perpetual markets are not enabled.'));
+  assert.ok(route.includes('PERPETUAL_MARKETS_UNAVAILABLE'));
+  assert.ok(route.includes('}, 503)'));
   // reads enabled markets only (enabled=eq.true)
   assert.ok(route.includes('enabled=eq.true'));
+});
+
+test('perpetual REST reads never convert missing tables or malformed responses into empty success', () => {
+  const helper = api.slice(api.indexOf('async function perpRestGet('), api.indexOf('// Seconds-contract reference price.'));
+  assert.ok(helper.includes("if (!response.ok) throw new Error('Perpetual database read failed: ' + response.status)"));
+  assert.ok(helper.includes("if (!Array.isArray(rows)) throw new Error('Perpetual database read returned an invalid payload')"));
 });
 
 test('perpetual order submission validates all inputs before RPC and requires idempotency key', () => {
