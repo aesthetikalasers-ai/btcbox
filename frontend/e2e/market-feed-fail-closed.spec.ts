@@ -40,6 +40,28 @@ test("fresh market snapshots remain usable when provider timestamps are null or 
   await expect(page.getByText("Market feed unavailable", { exact: true })).toHaveCount(0);
 });
 
+test("fresh server market snapshots remain visible when one quiet pair has an old last-trade timestamp", async ({ page }) => {
+  const now = Math.floor(Date.now() / 1000);
+  await page.route("**/api/market", route => route.fulfill({ status: 200, json: {
+    ok: true,
+    markets: [
+      { sym: "BTC", price: 65000, chg: 1, high: 66000, low: 64000, vol: "1200", source: "binance-vision" },
+      { sym: "ETH", price: 3200, chg: 0.5, high: 3300, low: 3100, vol: "500", source: "binance-vision" },
+    ],
+    data: {
+      BTC: { ts: now, providerTs: now, source: "binance-vision" },
+      ETH: { ts: now, providerTs: now - 600, source: "binance-vision" },
+    },
+  } }));
+  await page.route("**/api/kline?**", route => route.fulfill({ status: 200, json: { ok: true, klines: [] } }));
+
+  await page.goto("/home");
+
+  await expect(page.getByText("Market feed unavailable", { exact: true })).toHaveCount(0);
+  await expect(page.getByText("65,000.00", { exact: true })).toBeVisible();
+  await expect(page.getByText("3,200.00", { exact: true })).toBeVisible();
+});
+
 test("a timed-out market refresh hides previous quotes and a later refresh recovers", async ({ page }) => {
   test.setTimeout(40_000);
   let stallNext = false;

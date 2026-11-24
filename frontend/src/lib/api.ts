@@ -218,16 +218,16 @@ export async function getMarkets(signal?: AbortSignal): Promise<MarketTicker[]> 
     row.snapshotTs <= 0 ||
     row.snapshotTs > nowSeconds + 30
   ));
-  // Some valid providers (notably Coinbase) do not expose an exchange event
-  // timestamp for every snapshot. providerTs is explicitly nullable in the
-  // response contract, so its absence must not invalidate an otherwise fresh
-  // server snapshot. When supplied, however, it must still be recent and sane.
+  // providerTs is the provider's last-trade/event time, not the time at
+  // which this aggregate snapshot was fetched. Quiet markets can legitimately
+  // have an older last trade while their current 24h ticker remains valid.
+  // Reject impossible/future provider timestamps, but use snapshotTs alone
+  // for freshness so one illiquid pair cannot blank the entire market list.
   const providerTimestampInvalid = rows.some((row) => row.providerTs !== null && (
     typeof row.providerTs !== "number" ||
     !Number.isFinite(row.providerTs) ||
     row.providerTs <= 0 ||
-    row.providerTs > nowSeconds + 30 ||
-    nowSeconds - row.providerTs > 90
+    row.providerTs > nowSeconds + 30
   ));
   const snapshotStale = snapshotInvalid || providerTimestampInvalid || rows.some((row) => (
     typeof row.snapshotTs !== "number" || nowSeconds - row.snapshotTs > 90
