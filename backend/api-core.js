@@ -3049,7 +3049,26 @@ async function handleRequest(event, context) {
     }
     try {
       const markets = await perpRestGet('perpetual_markets?select=symbol,base_asset,quote_asset,enabled,status,price_tick,quantity_step,min_quantity,max_quantity,max_position_notional,max_leverage,maintenance_margin_rate,maker_fee_rate,taker_fee_rate,funding_interval_sec,funding_rate_cap,next_funding_at,mark_price_stale_sec&enabled=eq.true&order=symbol.asc');
-      return json({ ok: true, perpetual_enabled: perpetualEngineEnabled(), markets: markets });
+      const base = process.env.SUPABASE_URL.replace(/\\/+$/, '');
+      const withPrices = await Promise.all(markets.map(async (market) => {
+        try {
+          const response = await fetch(base + '/rest/v1/rpc/perp_latest_mark_price', {
+            method: 'POST', headers: supabaseHeaders(),
+            body: JSON.stringify({ p_symbol: market.symbol, p_max_age_sec: market.mark_price_stale_sec })
+          });
+          const rows = await response.json().catch(() => []);
+          const row = Array.isArray(rows) ? rows[0] : null;
+          const age = Number(row && row.age_sec);
+          const fresh = response.ok && row && ['ok', 'degraded'].includes(row.status) &&
+            Number.isFinite(age) && age >= 0 && age <= Number(market.mark_price_stale_sec) &&
+            Number(row.mark_price) > 0 && Number(row.index_price) > 0;
+          return { ...market, mark_price: fresh ? String(row.mark_price) : null, index_price: fresh ? String(row.index_price) : null,
+            mark_price_status: fresh ? row.status : 'stale' };
+        } catch (_) {
+          return { ...market, mark_price: null, index_price: null, mark_price_status: 'unavailable' };
+        }
+      }));
+      return json({ ok: true, perpetual_enabled: perpetualEngineEnabled(), markets: withPrices });
     } catch (e) { return json({ ok: true, perpetual_enabled: false, markets: [] }, 200); }
   }
   // ---------- POST /api/perpetual/order (auth) ----------
