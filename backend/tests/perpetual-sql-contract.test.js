@@ -357,6 +357,16 @@ test('funding financial operations reject unversioned or stale snapshots', () =>
   assert.ok(fundingRateSql.includes("new.operation_type <> 'perp_funding'"));
 });
 
+test('funding snapshot settlement validates version and freshness even when there are no positions', () => {
+  assert.ok(fundingRateSql.includes('create or replace function public.perp_guard_funding_snapshot_settlement_v1()'));
+  assert.ok(fundingRateSql.includes("new.formula_version is distinct from 'btcbox-funding-v1'"));
+  assert.ok(fundingRateSql.includes("new.calculated_at < now() - interval '2 minutes'"));
+  assert.ok(fundingRateSql.includes('new.premium_index is distinct from v_expected_premium'));
+  assert.ok(fundingRateSql.includes('new.rate is distinct from v_expected_rate'));
+  assert.ok(fundingRateSql.includes('before update of settled on public.perpetual_funding_rates'));
+  assert.ok(fundingRateSql.includes('new.settled = true'));
+});
+
 test('funding-rate producer is separate from the settlement worker and never changes balances', () => {
   assert.ok(fundingRateWorker.includes("rpc/perp_record_funding_rate_snapshot"));
   assert.ok(fundingRateWorker.includes('calculateImpactPrices'));
