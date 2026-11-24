@@ -62,6 +62,13 @@ test('0051 adds a positive per-market minimum notional and enforces it inside th
   assert.ok(migration.includes('coalesce(p_price, v_mark.mark_price) * p_quantity < v_market.min_notional'));
   assert.ok(migration.includes('if not p_reduce_only and not p_close_position'));
   assert.ok(migration.includes('min_notional numeric(38,18)'));
+  assert.ok(migration.includes('market_quantity_step numeric(38,18)'));
+  assert.ok(migration.includes('market_min_quantity numeric(38,18)'));
+  assert.ok(migration.includes('market_max_quantity numeric(38,18)'));
+  assert.ok(migration.includes("p_type='market' and not coalesce(p_reduce_only,false)"));
+  assert.ok(migration.includes('market quantity precision invalid'));
+  assert.ok(migration.includes('market quantity below minimum'));
+  assert.ok(migration.includes('Reduce-only market orders deliberately use the regular lot step'));
 });
 
 test('submit order idempotency: unique (user, client_order_id) + duplicate replay + payload mismatch raise', () => {
