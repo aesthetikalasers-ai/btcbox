@@ -4800,8 +4800,9 @@ async function handleRequest(event, context) {
         if (!hasAdminPermission(adminMembership, 'system_config.write')) return json({ ok: false, code: 'ADMIN_PERMISSION_DENIED', permission: 'system_config.write' }, 403);
         if (!supabaseStorageConfigured()) return json({ ok: false, code: 'PERPETUAL_RPC_NOT_CONFIGURED' }, 503);
 
-        const symbol = String(body.symbol || '').trim().toUpperCase();
         const baseAsset = String(body.base_asset || '').trim().toUpperCase();
+        const requestedSymbol = String(body.symbol || '').trim().toUpperCase();
+        const symbol = requestedSymbol || (baseAsset ? baseAsset + 'USDT' : '');
         const priceTick = parseMoneyInput(body.price_tick);
         const quantityStep = parseMoneyInput(body.quantity_step);
         const minQuantity = parseMoneyInput(body.min_quantity);
