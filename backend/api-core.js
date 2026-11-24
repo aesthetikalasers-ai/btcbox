@@ -4827,7 +4827,7 @@ async function handleRequest(event, context) {
             !quantityStep || compareMoney(quantityStep, '0') <= 0 ||
             !minQuantity || compareMoney(minQuantity, '0') <= 0 ||
             (maxQuantity !== null && (compareMoney(maxQuantity, '0') <= 0 || compareMoney(maxQuantity, minQuantity) < 0)) ||
-            (maxPositionNotional !== null && compareMoney(maxPositionNotional, '0') <= 0) ||
+            (!maxPositionNotional || compareMoney(maxPositionNotional, '0') <= 0) ||
             invalidOptionalLimits ||
             !Number.isInteger(maxLeverage) || maxLeverage < 1 || maxLeverage > 100 ||
             !Number.isFinite(mmr) || mmr < 0 || mmr > 0.5 ||
@@ -4838,7 +4838,7 @@ async function handleRequest(event, context) {
             !Number.isInteger(staleSec) || staleSec < 15 || staleSec > 300 ||
             !Number.isFinite(breaker) || breaker <= 0 || breaker > 20 ||
             reason.length < 5 || reason.length > 500 || /[\u0000-\u001f\u007f]/.test(reason)) {
-          return json({ ok: false, code: 'INVALID_MARKET_CONFIG', msg: 'Invalid perpetual market configuration. Check asset, precision, risk limits and required reason.' }, 400);
+          return json({ ok: false, code: 'INVALID_MARKET_CONFIG', msg: 'Invalid perpetual market configuration. Check asset, precision, positive maximum exposure cap, risk limits and required reason.' }, 400);
         }
 
         // Configuration writes never activate trading. Activation requires a separate release gate.
