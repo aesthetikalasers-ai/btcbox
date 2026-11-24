@@ -246,7 +246,7 @@ test('mark-price source validation requires unique trusted provider identities',
 test('perpetual migration reuses and preserves the canonical BTCBOX asset registry', () => {
   assert.ok(sql.includes('create table if not exists public.btcbox_assets'));
   assert.ok(sql.includes('on conflict (asset_code) do nothing'));
-  assert.ok(sql.includes('ADA','Cardano'));
+  assert.ok(sql.includes("('ADA','Cardano','crypto',6,true)"));
   assert.ok(sql.includes('public.btcbox_assets(asset_code)'));
   assert.ok(sql.includes('Deliberately do not create the legacy btcbox_asset_seed_wallet_accounts_v1'));
 });
