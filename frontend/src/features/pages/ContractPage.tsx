@@ -153,6 +153,8 @@ export function ContractPage() {
   const [positionsError, setPositionsError] = useState("");
   const [openOrders, setOpenOrders] = useState<PerpOrder[]>([]);
   const [orderHistory, setOrderHistory] = useState<PerpOrder[]>([]);
+  const [ordersError, setOrdersError] = useState("");
+  const [historyError, setHistoryError] = useState("");
   /** Verified USDT→USD rate for the optional dollar-equivalent hint. */
   const [usdtUsd, setUsdtUsd] = useState<number | null>(null);
   useEffect(() => {
@@ -168,8 +170,9 @@ export function ContractPage() {
     return () => { cancelled = true; controller.abort(); window.clearInterval(timer); };
   }, []);
   const [trades, setTrades] = useState<Array<{ trade_id: string; side: string; price: number | string; quantity: number | string; created_at?: string }>>([]);
-  const [funding, setFunding] = useState<Array<{ funding_at: string; funding_rate: number | string; payment?: number | string; mark_price?: number | string | null }>>([]);
+  const [funding, setFunding] = useState<Array<{ funding_at: string; funding_rate: number | string | null; payment?: number | string; mark_price?: number | string | null }>>([]);
   const [tabLoading, setTabLoading] = useState(false);
+  const [tabError, setTabError] = useState("");
   const [tab, setTab] = useState<Tab>("open");
   const [reload, setReload] = useState(0);
   const [mobileSegTab, setMobileSegTab] = useState<"positions" | "open" | "history">("positions");
@@ -404,6 +407,8 @@ export function ContractPage() {
     const controller = new AbortController();
     setPositionsLoading(true);
     setPositionsError("");
+    setOrdersError("");
+    setHistoryError("");
     getPerpPositions(controller.signal)
       .then((rows) => { if (!controller.signal.aborted) setPositions(rows); })
       .catch((reason: unknown) => {
@@ -412,8 +417,12 @@ export function ContractPage() {
         setPositionsError(t("Unable to load positions. Refresh to try again."));
       })
       .finally(() => { if (!controller.signal.aborted) setPositionsLoading(false); });
-    getPerpOpenOrders(controller.signal).then((rows) => { if (!controller.signal.aborted) setOpenOrders(rows); }).catch(() => { if (!controller.signal.aborted) setOpenOrders([]); });
-    getPerpOrderHistory(controller.signal).then((rows) => { if (!controller.signal.aborted) setOrderHistory(rows); }).catch(() => { if (!controller.signal.aborted) setOrderHistory([]); });
+    getPerpOpenOrders(controller.signal).then((rows) => { if (!controller.signal.aborted) setOpenOrders(rows); }).catch(() => {
+      if (!controller.signal.aborted) { setOpenOrders([]); setOrdersError(t("Unable to load open orders. Refresh to try again.")); }
+    });
+    getPerpOrderHistory(controller.signal).then((rows) => { if (!controller.signal.aborted) setOrderHistory(rows); }).catch(() => {
+      if (!controller.signal.aborted) { setOrderHistory([]); setHistoryError(t("Unable to load order history. Refresh to try again.")); }
+    });
     return () => controller.abort();
   }, [status, reload, submitOk, t]);
 
@@ -421,11 +430,12 @@ export function ContractPage() {
     if (status !== "authenticated" || !symbol || (tab !== "trades" && tab !== "funding")) return;
     const controller = new AbortController();
     setTabLoading(true);
+    setTabError("");
     if (tab === "trades") {
-      getPerpTrades(symbol, controller.signal).then((rows) => { if (!controller.signal.aborted) setTrades(rows); }).catch(() => { if (!controller.signal.aborted) setTrades([]); })
+      getPerpTrades(symbol, controller.signal).then((rows) => { if (!controller.signal.aborted) setTrades(rows); }).catch(() => { if (!controller.signal.aborted) { setTrades([]); setTabError(t("Unable to load trade history. Refresh to try again.")); } })
         .finally(() => { if (!controller.signal.aborted) setTabLoading(false); });
     } else {
-      getPerpFundingHistory(symbol, controller.signal).then((rows) => { if (!controller.signal.aborted) setFunding(rows); }).catch(() => { if (!controller.signal.aborted) setFunding([]); })
+      getPerpFundingHistory(symbol, controller.signal).then((rows) => { if (!controller.signal.aborted) setFunding(rows); }).catch(() => { if (!controller.signal.aborted) { setFunding([]); setTabError(t("Unable to load funding history. Refresh to try again.")); } })
         .finally(() => { if (!controller.signal.aborted) setTabLoading(false); });
     }
     return () => controller.abort();
@@ -612,7 +622,9 @@ export function ContractPage() {
 
 
 
-  const openOrdersBody = positionsLoading ? <TableSkeleton rows={2} /> : openOrders.length === 0 ? (
+  const openOrdersBody = positionsLoading ? <TableSkeleton rows={2} /> : ordersError ? (
+    <p className="p-4 text-sm text-brand-danger" role="alert">{ordersError}</p>
+  ) : openOrders.length === 0 ? (
     <EmptyState icon={Inbox} title={t("No open orders")} hint={t("Open orders will appear here once submitted and before they fill.")} />
   ) : (
     <div className="overflow-x-auto">
@@ -647,7 +659,9 @@ export function ContractPage() {
     </div>
   );
 
-  const mobileHistoryBody = orderHistory.length === 0 ? (
+  const mobileHistoryBody = historyError ? (
+    <p className="p-4 text-sm text-brand-danger" role="alert">{historyError}</p>
+  ) : orderHistory.length === 0 ? (
     <EmptyState icon={Inbox} title={t("No order history")} hint={t("Filled and cancelled orders will appear here.")} />
   ) : (
     <div className="space-y-2 px-4">
@@ -687,8 +701,8 @@ export function ContractPage() {
       {mobileSegTab === "positions"
         ? (positions.length === 0 && !positionsLoading && !positionsError ? <BottomPanelEmpty>{t("No positions")}</BottomPanelEmpty> : positionsBody)
         : mobileSegTab === "open"
-          ? (openOrders.length === 0 && !positionsLoading ? <BottomPanelEmpty>{t("No orders")}</BottomPanelEmpty> : openOrdersBody)
-          : (orderHistory.length === 0 ? <BottomPanelEmpty>{t("No history")}</BottomPanelEmpty> : mobileHistoryBody)}
+          ? (ordersError ? openOrdersBody : openOrders.length === 0 && !positionsLoading ? <BottomPanelEmpty>{t("No orders")}</BottomPanelEmpty> : openOrdersBody)
+          : (historyError ? mobileHistoryBody : orderHistory.length === 0 ? <BottomPanelEmpty>{t("No history")}</BottomPanelEmpty> : mobileHistoryBody)}
     </BottomOrderPanel>
   );
 
