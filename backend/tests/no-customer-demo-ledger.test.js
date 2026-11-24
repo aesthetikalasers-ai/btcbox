@@ -235,6 +235,8 @@ test("perpetual page labels spot data and funding caps honestly", () => {
   const page = fs.readFileSync(path.join(root, "features/pages/ContractPage.tsx"), "utf8");
   assert.ok(!page.includes('t("Spot reference")'));
   assert.ok(page.includes('t("Mark price")'));
+  assert.ok(page.includes('t("Index price")'));
+  assert.ok(page.includes("displayPrice = contractMarkPrice ?? validIndexPrice"));
   assert.ok(page.includes('t("Funding rate cap")'));
   assert.ok(page.includes("fundingRateCapPct"));
   assert.ok(page.includes('setFundingCountdown("")'));
@@ -242,6 +244,8 @@ test("perpetual page labels spot data and funding caps honestly", () => {
   assert.ok(page.includes("estimatedMargin === null ? EM_DASH"));
   const depth = fs.readFileSync(path.join(root, "features/trade/OrderBookDepth.tsx"), "utf8");
   assert.ok(depth.includes('t("Live market depth")'));
+  assert.ok(depth.includes('({ mid, book, streamState, usdtUsd, baseAsset = "BTC" }'));
+  assert.ok(depth.includes('t("Size")} ({baseAsset})'));
   assert.ok(!depth.includes('t("Spot reference only — not the perpetual execution book.")'));
 });
 
