@@ -32,7 +32,7 @@ test('exact message ID search returns nearby conversation context and full-threa
 });
 
 test('support UI submits server-side search and exposes message IDs without changing reply/read actions', () => {
-  assert.ok(client.includes('getAdminSupportMessages(token, search = ""'));
+  assert.match(client, /getAdminSupportMessages\(token: string, search = ""/);
   assert.ok(client.includes('"admin/support/messages" + query'));
   assert.ok(page.includes('Search message ID, UID, username or email'));
   assert.ok(page.includes('setSupportSearchApplied(supportSearch.trim())'));
