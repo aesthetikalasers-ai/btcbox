@@ -412,6 +412,48 @@ export function SpotTradingPage(){
   return ()=>controller.abort();
  },[symbol,reload,refreshTick]);
 
+ // Re-check the authoritative spot-pair catalogue while the terminal stays open.
+ // This is separate from the market-price stream: disabling a pair must remove it
+ // from the picker and lock new orders without waiting for a route change.
+ useEffect(()=>{
+  let cancelled=false;
+  let refreshing=false;
+  let pending:AbortController|null=null;
+  const refreshPairs=()=>{
+   if(cancelled||refreshing||document.visibilityState!=="visible")return;
+   refreshing=true;
+   const controller=new AbortController();
+   pending=controller;
+   getSpotMarketPairs(controller.signal).then(pairs=>{
+    if(cancelled||controller.signal.aborted)return;
+    const enabled=pairs.filter(pair=>pair.enabled===true&&pair.quote_asset==="USDT");
+    const selected=enabled.find(pair=>pair.base_asset===base&&pair.quote_asset==="USDT")||null;
+    setPairSymbols(enabled.map(pair=>pair.base_asset+pair.quote_asset));
+    setSpotPairRules(selected);
+    setSpotPairEnabled(!!selected);
+    setMarketList(current=>current.filter(item=>enabled.some(pair=>pair.base_asset===baseAssetCode(item.sym))));
+    if(!selected){
+     setTicker(null);setBook(null);setCandles([]);setMarketUpdatedAt(null);setPrice("");
+     setMarketFeedWarning(t("This spot market is no longer enabled."));
+    }
+   }).catch(()=>{
+    if(cancelled||controller.signal.aborted)return;
+    setPairSymbols([]);setSpotPairRules(null);setSpotPairEnabled(false);setMarketList([]);
+    setTicker(null);setBook(null);setCandles([]);setMarketUpdatedAt(null);setPrice("");
+    setMarketFeedWarning(t("Spot market configuration is temporarily unavailable."));
+   }).finally(()=>{refreshing=false;});
+  };
+  refreshPairs();
+  const timer=window.setInterval(refreshPairs,30000);
+  window.addEventListener("focus",refreshPairs);
+  document.addEventListener("visibilitychange",refreshPairs);
+  return ()=>{
+   cancelled=true;window.clearInterval(timer);pending?.abort();
+   window.removeEventListener("focus",refreshPairs);
+   document.removeEventListener("visibilitychange",refreshPairs);
+  };
+ },[symbol,t]);
+
  // The initial route load above also fetches account/order state. Keep the
  // public ticker and order book fresh independently without reloading the form
  // or overwriting a price the customer is currently editing.
