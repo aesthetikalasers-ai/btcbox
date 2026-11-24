@@ -55,6 +55,12 @@ const PROVIDERS = {
     supports: ['market', 'kline', 'depth'],
     mapSymbol: (base) => `${base}USDT`,
   },
+  bybit: {
+    base: 'https://api.bybit.com',
+    // One public spot-ticker request covers all symbols; response time is validated.
+    supports: ['market'],
+    mapSymbol: (base) => `${base}USDT`,
+  },
   coinbase: {
     base: 'https://api.exchange.coinbase.com',
     // Coinbase has no public REST depth/kline in this shape, so it is used for
@@ -82,11 +88,10 @@ const DEPTH_TTL_MS = 1000;
 
 function providerOrder() {
   const raw = process.env.MARKET_PROVIDER_ORDER;
-  // Default is a genuine two-source chain: Binance Vision (full catalogue, not
-  // geo-blocked) raced against Coinbase (independent operator). Racing both means
-  // a single provider outage cannot empty the ticker, and the fastest usable
-  // answer wins — see `raceProviders`.
-  const list = (raw ? raw.split(',') : ['binance-vision', 'coinbase', 'binance-us'])
+  // Prefer one batched Binance Vision request, then one batched Bybit request.
+  // Coinbase remains the final independent fallback because it requires several
+  // requests per missing symbol and must not be fanned out on every refresh.
+  const list = (raw ? raw.split(',') : ['binance-vision', 'bybit', 'coinbase', 'binance-us'])
     .map((s) => s.trim())
     .filter((s) => s && PROVIDERS[s]);
   return list.length ? list : ['binance-vision'];
@@ -206,6 +211,42 @@ async function coinbaseMarket(provider, bases, timeoutMs) {
   if (!markets.length) throw new Error('no usable Coinbase rows');
   markets.sort((a, b) => bases.indexOf(a.sym) - bases.indexOf(b.sym));
   return { ok: true, markets, data, source: 'coinbase' };
+}
+
+async function bybitMarket(provider, bases, timeoutMs) {
+  const payload = await fetchJson(`${provider.base}/v5/market/tickers?category=spot`, timeoutMs);
+  const rows = payload && payload.result && payload.result.list;
+  if (!Array.isArray(rows)) throw new Error('invalid Bybit ticker payload');
+
+  const providerTimeMs = num(payload.time);
+  const providerTs = providerTimeMs && providerTimeMs > 0 ? Math.floor(providerTimeMs / 1000) : null;
+  const now = Math.floor(Date.now() / 1000);
+  // Bybit's payload timestamp is a response timestamp, so it must be present,
+  // not materially future-dated, and no more than 60 seconds old.
+  if (providerTs === null || providerTs > now + 15 || now - providerTs > 60) {
+    throw new Error('Bybit ticker response timestamp is missing or stale');
+  }
+
+  const bySymbol = new Map(rows
+    .filter((row) => row && typeof row.symbol === 'string' && /USDT$/.test(row.symbol))
+    .map((row) => [row.symbol.slice(0, -4), row]));
+  const markets = [];
+  const data = {};
+  for (const base of bases) {
+    const row = bySymbol.get(base);
+    if (!row) continue;
+    const price = num(row.lastPrice);
+    const high = num(row.highPrice24h);
+    const low = num(row.lowPrice24h);
+    const changeFraction = num(row.price24hPcnt);
+    const vol = num(row.turnover24h);
+    if (!(price > 0) || !(high > 0) || !(low > 0) || changeFraction === null || !(vol >= 0)) continue;
+    const chg = changeFraction * 100;
+    markets.push({ sym: base, price, chg, high, low, vol: String(vol), source: 'bybit' });
+    data[base] = { price, chg, high, low, vol, ts: now, providerTs, source: 'bybit' };
+  }
+  if (!markets.length) throw new Error('no usable Bybit ticker rows');
+  return { ok: true, markets, data, source: 'bybit' };
 }
 
 async function binanceKlines(provider, symbol, interval, limit, timeoutMs) {
@@ -340,11 +381,11 @@ async function getMarket({ symbols = DEFAULT_SYMBOLS, timeoutMs = 6000 } = {}) {
   const bases = [...new Set(symbols.map((s) => String(s).toUpperCase().replace(/USDT$/, '')))]
     .filter((base) => /^[A-Z0-9]{2,12}$/.test(base) && base !== 'USDT');
   const candidates = providerOrder().filter((id) => PROVIDERS[id].supports.includes('market'));
-  const threshold = Math.max(1, Math.ceil(bases.length * 0.6));
+  const threshold = Math.max(1, bases.length);
   const snapshotKey = [...bases].sort().join(',');
   const run = (id) => {
     const provider = PROVIDERS[id];
-    const reader = id === 'coinbase' ? coinbaseMarket : binanceMarket;
+    const reader = id === 'coinbase' ? coinbaseMarket : id === 'bybit' ? bybitMarket : binanceMarket;
     return cached(`market:${id}:${bases.join(',')}`, TICKER_TTL_MS, () => reader(provider, bases, timeoutMs));
   };
 
