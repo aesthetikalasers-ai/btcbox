@@ -5,13 +5,14 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const page = fs.readFileSync(path.resolve(__dirname, '../../frontend/src/features/admin/AdminPage.tsx'), 'utf8');
+const registry = fs.readFileSync(path.resolve(__dirname, '../../frontend/src/features/admin/admin-navigation.ts'), 'utf8');
 const i18n = fs.readFileSync(path.resolve(__dirname, '../../frontend/src/lib/admin-i18n.ts'), 'utf8');
 
 test('admin navigation groups the existing tabs by business centre without duplicating or inventing modules', () => {
-  const start = page.indexOf('const adminTabGroups:');
-  const end = page.indexOf('const adminPermissionOptions', start);
+  const start = registry.indexOf('export const ADMIN_TAB_GROUPS:');
+  const end = registry.length;
   assert.ok(start >= 0 && end > start);
-  const groups = page.slice(start, end);
+  const groups = registry.slice(start, end);
   const expected = [
     'tabs: ["overview"]',
     'tabs: ["users", "kyc"]',
@@ -22,6 +23,7 @@ test('admin navigation groups the existing tabs by business centre without dupli
     'tabs: ["admins"]',
   ];
   for (const item of expected) assert.ok(groups.includes(item), 'missing business-centre group ' + item);
+  assert.ok(page.includes('ADMIN_TAB_GROUPS.map'));
   assert.ok(page.includes('allowedTabs.filter(item => group.tabs.includes(item.id))'));
   assert.ok(page.includes('if (!visibleItems.length) return null'));
   assert.ok(!groups.includes('"perpetual"'), 'do not expose a non-wired perpetual module');
