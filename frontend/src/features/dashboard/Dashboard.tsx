@@ -200,7 +200,7 @@ function QuickActions({ hasSpot, spotTo, hasPerpetual, hasSeconds, hasEarn }: { 
  * Compact market table. Uses a real <table> so column widths stay locked while
  * prices tick — the whole point of tabular-nums in a trading terminal.
  */
-function MarketTable({ markets, locale, onViewAll, loading, error }: { markets: MarketTicker[]; locale: string; onViewAll: () => void; loading: boolean; error: string }) {
+function MarketTable({ markets, locale, onViewAll, loading, error, assetNames }: { markets: MarketTicker[]; locale: string; onViewAll: () => void; loading: boolean; error: string; assetNames: Record<string, string> }) {
   const { t } = useI18n();
   const tabs = useMemo(
     () =>
@@ -284,7 +284,7 @@ function MarketTable({ markets, locale, onViewAll, loading, error }: { markets: 
                   <span className="text-[11px] font-medium text-brand-text-muted shrink-0">/USDT</span>
                   {isHot ? <HotFlameIcon className="h-3.5 w-3.5 shrink-0" /> : null}
                 </span>
-                <span className="mt-0.5 block truncate text-[11px] font-normal leading-tight text-brand-text-muted">{t(getAssetName(m.sym))}</span>
+                <span className="mt-0.5 block truncate text-[11px] font-normal leading-tight text-brand-text-muted">{t(assetNames[m.sym] || getAssetName(m.sym))}</span>
               </span>
               <span className="shrink-0 text-right">
                 <span className="block font-mono text-[17px] font-bold leading-tight tabular-nums text-brand-text">{fmtPrice(m.price, locale)}</span>
@@ -409,6 +409,7 @@ export function Dashboard() {
   }, []);
 
   const publicMarkets = useMemo(() => filterPublicSpotMarkets(markets, assetCatalog), [markets, assetCatalog]);
+  const publicAssetNames = useMemo(() => Object.fromEntries((assetCatalog ?? []).map((asset) => [asset.code, asset.display_name || asset.name])), [assetCatalog]);
   const marketDisplayError = error || assetCatalogError;
   const hasEarn = !!assetCatalog?.some((asset) => asset.enabled && asset.visible && asset.earn_enabled);
   const hasPerpetual = !!assetCatalog?.some((asset) => asset.code !== "USDT" && asset.enabled && asset.visible && asset.perpetual_enabled) &&
@@ -427,7 +428,7 @@ export function Dashboard() {
       <BannerCarousel markets={publicMarkets} hasEarn={hasEarn} hasTrading={hasTrading} />
       <TickerMarquee markets={publicMarkets} locale={locale} />
       <QuickActions hasSpot={publicMarkets.length > 0} spotTo={publicMarkets[0] ? `/trade/${pairSymbol(publicMarkets[0].sym)}` : "/markets"} hasPerpetual={hasPerpetual} hasSeconds={hasSeconds} hasEarn={hasEarn} />
-      <MarketTable markets={publicMarkets} locale={locale} onViewAll={() => navigate("/markets")} loading={loading || assetCatalog === null} error={marketDisplayError} />
+      <MarketTable markets={publicMarkets} locale={locale} onViewAll={() => navigate("/markets")} loading={loading || assetCatalog === null} error={marketDisplayError} assetNames={publicAssetNames} />
     </div>
   );
 }
