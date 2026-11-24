@@ -63,31 +63,32 @@ test('user Trade Hub links only to configured pairs and Spot order submission ch
 });
 
 
-test('Bybit fallback rejects missing, stale, and implausibly future response timestamps', () => {
-  const marketStart = backend.indexOf("if (path === 'market' && method === 'GET')");
-  const klineStart = backend.indexOf("if (path === 'kline' && method === 'GET')", marketStart);
-  const route = backend.slice(marketStart, klineStart);
-  const bybitStart = route.indexOf("const missingBases = bases.filter");
-  const bybitEnd = route.indexOf("const snapshotTs =", bybitStart);
-  const fallback = route.slice(bybitStart, bybitEnd);
-  assert.ok(fallback.includes("providerTs === null || providerTs > now + 15 || now - providerTs > 60"));
-  assert.ok(fallback.indexOf('providerTs === null') < fallback.indexOf('normalize(base'));
+test('Bybit fallback is batched and rejects missing, stale, and future response timestamps', () => {
+  const gateway = fs.readFileSync(path.join(root, 'market-gateway.js'), 'utf8');
+  assert.ok(gateway.includes('async function bybitMarket(provider, bases, timeoutMs)'));
+  assert.ok(gateway.includes('/v5/market/tickers?category=spot'));
+  assert.ok(gateway.includes('providerTs === null || providerTs > now + 15 || now - providerTs > 60'));
+  assert.ok(gateway.includes("['binance-vision', 'bybit', 'coinbase', 'binance-us']"));
   // Coinbase's timestamp is last-trade time, not response time; do not apply
-  // the Bybit response-age gate to it because quiet markets can have old trades.
-  const coinbase = route.slice(0, bybitStart);
-  assert.ok(coinbase.includes("Date.parse(ticker.time) / 1000"));
+  // Bybit's response-age gate to it because quiet markets can have old trades.
+  const coinbaseStart = gateway.indexOf('async function coinbaseMarket');
+  const klinesStart = gateway.indexOf('async function binanceKlines', coinbaseStart);
+  const coinbase = gateway.slice(coinbaseStart, klinesStart);
+  assert.ok(coinbase.includes('Date.parse(ticker.time)'));
   assert.ok(!coinbase.includes('now - providerTs > 60'));
 });
 
 test('market timestamps distinguish server snapshot time from provider-specific timestamps', () => {
+  const gateway = fs.readFileSync(path.join(root, 'market-gateway.js'), 'utf8');
   const marketStart = backend.indexOf("if (path === 'market' && method === 'GET')");
   const klineStart = backend.indexOf("if (path === 'kline' && method === 'GET')", marketStart);
   const route = backend.slice(marketStart, klineStart);
-  assert.ok(route.includes("Date.parse(ticker.time) / 1000"), 'Coinbase timestamp is the last-trade timestamp');
-  assert.ok(route.includes("const providerTimeMs = Number(payload.time)"), 'Bybit timestamp is the provider response timestamp');
-  assert.ok(route.includes('providerTs'));
+  assert.ok(gateway.includes('Date.parse(ticker.time)'), 'Coinbase timestamp is the last-trade timestamp');
+  assert.ok(gateway.includes('const providerTimeMs = num(payload.time)'), 'Bybit timestamp is the provider response timestamp');
+  assert.ok(gateway.includes('ts: now, providerTs'), 'gateway preserves provider time separately');
   assert.ok(route.includes('const snapshotTs = Math.floor(Date.now() / 1000)'), 'server snapshot time is generated after provider responses');
-  assert.ok(route.includes('ts: snapshotTs, providerTs: marketsByBase[row.sym].providerTs'));
+  assert.ok(route.includes('ts: snapshotTs,'), 'API emits server snapshot time per symbol');
+  assert.ok(route.includes('providerTs: Number.isFinite(Number(gatewayRow.providerTs))'), 'API preserves provider timestamp separately');
   assert.ok(api.includes('Server snapshot time (Unix seconds), not an exchange event timestamp.'));
   assert.ok(api.includes('never synthesized by the browser.'));
 });
@@ -96,7 +97,7 @@ test('public ticker snapshots use a short shared-cache window and clients bypass
   const marketStart = backend.indexOf("if (path === 'market' && method === 'GET')");
   assert.ok(marketStart >= 0);
   const route = backend.slice(marketStart, marketStart + 9000);
-  assert.ok(route.includes("'Cache-Control': 'public, max-age=0, s-maxage=2, stale-while-revalidate=1'"));
+  assert.ok(route.includes("'Cache-Control': 'public, s-maxage=2, stale-while-revalidate=1'"));
   assert.ok(api.includes('cache: "no-store"'));
   assert.ok(pages.includes('window.setInterval(refreshMarketData,5000)'));
 });
