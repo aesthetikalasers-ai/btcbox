@@ -42,7 +42,7 @@ test('admin navigation groups the existing tabs by business centre without dupli
 });
 
 test('admin business-centre navigation labels have Chinese translations', () => {
-  for (const label of ['Workspace', 'User centre', 'Finance centre', 'Trading operations', 'Support centre', 'Audit centre', 'System']) {
+  for (const label of ['Workspace', 'User centre', 'Finance centre', 'Trading operations', 'Support centre', 'Audit centre', 'System', 'Seconds contracts']) {
     assert.ok(i18n.includes('"' + label + '":'), 'missing translation for ' + label);
   }
 });
