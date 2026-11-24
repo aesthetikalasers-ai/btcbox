@@ -462,7 +462,7 @@ const messages: Record<string, string> = {
   "This fund operation has already been processed. It was not executed again.": "此资金操作已处理，系统未重复执行。",
   "Financial database temporarily unavailable. Did not fall back to the legacy balance system. Please check the operation log.": "资金数据库暂时不可用，系统未回退至旧余额系统。请检查操作日志。",
   "Perpetual market configuration": "永续合约市场配置",
-  "Configure USDT-margined perpetual market rules. Every saved market remains disabled and paused; enabling trading is a separate release gate.": "配置 USDT 本位永续合约市场规则。保存后的市场始终保持停用和暂停；开放交易必须经过独立验收。",
+  "Configure USDT-margined perpetual market rules. Every saved market remains disabled and paused; enabling trading is a separate release gate.": "配置 USDT 本位永续合约市场规则。保存后交易始终保持暂停；可单独启用行情源预热价格，开放交易必须经过独立验收。",
   "Trading disabled": "交易未开放",
   "Leverage": "杠杆",
   "Maintenance margin": "维持保证金",
@@ -498,6 +498,10 @@ const messages: Record<string, string> = {
   "Market minimum quantity": "市价单最小数量",
   "Market maximum quantity (optional)": "市价单最大数量（可选）",
   "Price / limit step / market step": "价格步长／限价单步长／市价单步长",
+  "Enable market-data feed (trading remains paused)": "启用市场数据行情源（交易仍保持暂停）",
+  "Feed enabled": "行情源已启用",
+  "Feed disabled": "行情源已停用",
+  "Perpetual market configuration saved. Trading remains paused; the market-data feed follows the selected setting.": "永续市场配置已保存。交易仍保持暂停；行情源按所选设置运行。",
 };
 
 export function adminText(message: string): string {
