@@ -81,11 +81,11 @@ test('asset module flags independently gate new product entry while preserving e
   assert.ok(api.includes('function isAssetVisible(state, code)'));
   assert.ok(api.includes('market.enabled && isAssetVisible(db, market.base_asset) && isAssetVisible(db, market.quote_asset)'));
   assert.ok(api.includes('market.enabled && isAssetVisible(db, market.base_asset) && isAssetVisible(db, market.quote_asset) && market.quote_asset === \'USDT\''));
-  assert.ok(api.includes("policy.symbols.filter(symbol => isAssetModuleEnabled(db, symbol, 'seconds_enabled'))"));
+  assert.ok(api.includes("policy.symbols.filter(symbol => isAssetModuleEnabled(db, symbol, 'seconds_enabled') && isAssetVisible(db, symbol))"));
   assert.ok(api.includes("if (!isAssetModuleEnabled(db, symbol, 'seconds_enabled'))"));
-  assert.ok(api.includes("isAssetModuleEnabled(db, market.base_asset, 'perpetual_enabled')"));
+  assert.ok(api.includes("isAssetModuleEnabled(db, market.base_asset, 'perpetual_enabled') && isAssetModuleEnabled(db, market.quote_asset, 'perpetual_enabled') && isAssetVisible(db, market.base_asset) && isAssetVisible(db, market.quote_asset)"));
   assert.ok(api.includes("if (!reduceOnly) {"));
-  assert.ok(api.includes("rows.filter(item => isAssetModuleEnabled(db, item.asset, 'earn_enabled'))"));
+  assert.ok(api.includes("rows.filter(item => isAssetModuleEnabled(db, item.asset, 'earn_enabled') && isAssetVisible(db, item.asset))"));
   assert.ok(api.includes("if (!isAssetModuleEnabled(db, asset, 'earn_enabled'))"));
   const redeemStart = api.indexOf("if (action === 'redeem')");
   assert.ok(redeemStart > 0);
