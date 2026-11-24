@@ -236,9 +236,8 @@ export function ContractPage() {
   const selectedMinQuantity = usesMarketLot ? selectedMarket?.market_min_quantity ?? selectedMarket?.min_quantity : selectedMarket?.min_quantity;
   const quantityDecimals = decimalsFromTick(selectedQuantityStep);
 
-  // Live 24h ticker for the selected contract symbol (Binance-style header).
-  // Falls back to the mark price from the market catalogue when the stream has
-  // not produced a ticker for this symbol yet.
+  // Perpetual price display uses a validated mark, then the validated index
+  // during bootstrap. It never substitutes spot ticker data.
   const baseAsset = selectedMarket?.base_asset ?? (symbol ? symbol.replace(/USDT$/i, "") : "BTC");
   const contractMarkPrice = validMarkPrice;
   // Show the independently validated index when the executable mark is not ready.
