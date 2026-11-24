@@ -486,6 +486,10 @@ const messages: Record<string, string> = {
   "Perpetual market configuration could not be confirmed.": "无法确认永续市场配置结果。",
   "Perpetual market configuration is temporarily unavailable. The spot market list remains available.": "永续市场配置暂时不可用，现货市场列表仍可正常查看。",
   "Reason for market configuration change (required)": "市场配置变更原因（必填）",
+  "paused": "暂停",
+  "trading": "交易中",
+  "open_only": "仅允许开仓",
+  "liquidation_only": "仅允许平仓",
   "Perpetual market settings were saved, but the list could not refresh. Reload the tab before making another change.": "永续市场配置已保存，但列表刷新失败。再次修改前请重新加载此页面。",
 };
 
