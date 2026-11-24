@@ -301,7 +301,7 @@ test('mark worker sends the fresh source array and uses an independent perpetual
   assert.ok(markWorker.includes('side=eq.sell'));
   assert.ok(markWorker.includes('calculateBookDepthMidPrice'));
   assert.ok(markWorker.includes('remaining_quantity=gt.0'));
-  assert.ok(markWorker.includes('limit=5'));
+  assert.ok(markWorker.includes('limit=50'));
   assert.ok(!markWorker.includes('updated_at=gte.'));
   assert.ok(markWorker.includes('insufficient two-level'));
 });
