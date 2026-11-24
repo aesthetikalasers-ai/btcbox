@@ -211,6 +211,47 @@ export function SecondsPage() {
     return () => controller.abort();
   }, [reload, status, symbol, authUserId]);
 
+  // Revalidate the server-owned seconds policy while the terminal remains open.
+  // A disabled asset immediately removes the stale policy and blocks new orders.
+  useEffect(() => {
+    if (status !== "authenticated") return;
+    let cancelled = false;
+    let refreshing = false;
+    let pending: AbortController | null = null;
+    const refreshPolicy = () => {
+      if (cancelled || refreshing || document.visibilityState !== "visible") return;
+      refreshing = true;
+      const controller = new AbortController();
+      pending = controller;
+      getSecondsPolicy(controller.signal)
+        .then((next) => {
+          if (cancelled || controller.signal.aborted) return;
+          setPolicy(next);
+          setPolicyUnavailableMessage("");
+        })
+        .catch((reason: unknown) => {
+          if (cancelled || controller.signal.aborted) return;
+          setPolicy(null);
+          const code = (reason as { code?: string } | undefined)?.code;
+          setPolicyUnavailableMessage(code === "SECONDS_ASSETS_DISABLED"
+            ? t("Seconds contracts are unavailable because no supported assets are enabled.")
+            : t("Seconds contract policy is temporarily unavailable. No new order can be submitted."));
+        })
+        .finally(() => { refreshing = false; });
+    };
+    refreshPolicy();
+    const timer = window.setInterval(refreshPolicy, 30000);
+    window.addEventListener("focus", refreshPolicy);
+    document.addEventListener("visibilitychange", refreshPolicy);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+      pending?.abort();
+      window.removeEventListener("focus", refreshPolicy);
+      document.removeEventListener("visibilitychange", refreshPolicy);
+    };
+  }, [status, t]);
+
   // Refresh the server-owned position snapshot while the page is open. This
   // drives maturity checks without trusting the browser clock or client prices.
   useEffect(() => {
