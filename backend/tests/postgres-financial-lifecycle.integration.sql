@@ -562,6 +562,45 @@ BEGIN
     RAISE EXCEPTION 'missing funding snapshot did not fail closed without advancing boundary';
   END IF;
 
+  -- A market with no positions must not advance its funding boundary on a
+  -- stale or unversioned snapshot: no financial_operations row would exist to
+  -- invoke the per-operation guard, so the snapshot settlement trigger is vital.
+  v_at := clock_timestamp()-interval '1 second';
+  v_ts := floor(extract(epoch from clock_timestamp())*1000)::text;
+  INSERT INTO public.perpetual_markets(
+    symbol,base_asset,quote_asset,enabled,status,price_tick,quantity_step,min_quantity,
+    maintenance_margin_rate,funding_interval_sec,funding_rate_cap,mark_price_stale_sec,next_funding_at
+  ) VALUES ('SOLUSDT','SOL','USDT',true,'trading',0.001,0.001,0.001,0.005,28800,0.0075,300,v_at)
+  ON CONFLICT(symbol) DO UPDATE SET enabled=true,status='trading',funding_interval_sec=28800,
+    funding_rate_cap=0.0075,mark_price_stale_sec=300,next_funding_at=excluded.next_funding_at;
+  IF EXISTS (SELECT 1 FROM public.perpetual_positions WHERE symbol='SOLUSDT' AND closed_at IS NULL) THEN
+    RAISE EXCEPTION 'no-position funding guard fixture unexpectedly has an open position';
+  END IF;
+  INSERT INTO public.perpetual_funding_rates(
+    symbol,funding_at,rate,premium_index,mark_price,index_price,sources,settled,
+    formula_version,interest_rate,impact_bid_price,impact_ask_price,calculated_at
+  ) VALUES ('SOLUSDT',v_at,0.001,0.0015,1000,1000,jsonb_build_array(
+    jsonb_build_object('source','binance','price','1000','ts',v_ts),
+    jsonb_build_object('source','okx','price','1001','ts',v_ts)),false,
+    'btcbox-funding-v1',0.0001,1001,1002,clock_timestamp()-interval '3 minutes')
+  ON CONFLICT(symbol,funding_at) DO UPDATE SET
+    rate=excluded.rate,premium_index=excluded.premium_index,mark_price=excluded.mark_price,
+    index_price=excluded.index_price,sources=excluded.sources,settled=false,
+    formula_version=excluded.formula_version,interest_rate=excluded.interest_rate,
+    impact_bid_price=excluded.impact_bid_price,impact_ask_price=excluded.impact_ask_price,
+    calculated_at=excluded.calculated_at;
+  v_failed := false;
+  BEGIN
+    PERFORM public.perp_settle_funding_market('SOLUSDT',v_at);
+  EXCEPTION WHEN OTHERS THEN
+    v_failed := SQLERRM LIKE '%fresh btcbox-funding-v1 snapshot%';
+  END;
+  IF NOT v_failed
+     OR (SELECT next_funding_at FROM public.perpetual_markets WHERE symbol='SOLUSDT')<>v_at
+     OR (SELECT settled FROM public.perpetual_funding_rates WHERE symbol='SOLUSDT' AND funding_at=v_at) IS TRUE THEN
+    RAISE EXCEPTION 'no-position stale funding snapshot advanced or settled the market boundary';
+  END IF;
+
   -- Liquidation must settle the due short-side funding credit first, then reload and close.
   v_at := clock_timestamp()-interval '1 second';
   v_ts := floor(extract(epoch from clock_timestamp())*1000)::text;
