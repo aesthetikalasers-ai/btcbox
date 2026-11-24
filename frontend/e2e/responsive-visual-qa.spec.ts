@@ -351,6 +351,11 @@ async function assertPageAtWidth(
     await expect(workspace.getByTestId("perp-leverage-pills")).toBeVisible();
     const chartDrawer = page.locator(".trade-drawer-root");
     await expect(chartDrawer, "Perpetual chart drawer must remain available below 1024px.").toBeVisible();
+    if (width >= 600) {
+      const drawerBox = await chartDrawer.locator(".trade-drawer-panel").boundingBox();
+      expect(drawerBox, "Tablet chart drawer must have a layout box.").not.toBeNull();
+      expect(drawerBox!.width, "Tablet chart drawer must use the available page width.").toBeGreaterThan(width * 0.85);
+    }
     await chartDrawer.getByRole("button", { name: "Expand chart" }).click();
     await expect(chartDrawer.getByRole("button", { name: "Collapse chart" }).first()).toBeVisible();
     const chartBody = chartDrawer.locator(".trade-drawer-panel > .relative.min-h-0.flex-1");
