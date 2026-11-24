@@ -240,10 +240,8 @@ export function ContractPage() {
   // Falls back to the mark price from the market catalogue when the stream has
   // not produced a ticker for this symbol yet.
   const baseAsset = selectedMarket?.base_asset ?? (symbol ? symbol.replace(/USDT$/i, "") : "BTC");
-  const liveTicker = useMemo(() => tickers.find((tk) => tk.sym.toUpperCase() === baseAsset.toUpperCase()) ?? null, [tickers, baseAsset]);
   const contractMarkPrice = markPrice !== null && Number(markPrice) > 0 ? Number(markPrice) : null;
-  // When no contract mark is available, show the spot ticker only as an
-  // explicitly labelled underlying reference — never as a perpetual mark price.
+  // Do not substitute a spot ticker when a perpetual mark price is unavailable.
   const displayPrice = contractMarkPrice;
   const displayPriceLabel = t("Mark price");
   const displayChg = null;
