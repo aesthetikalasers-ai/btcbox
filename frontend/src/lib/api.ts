@@ -1630,6 +1630,7 @@ export interface PerpMarket {
   price_tick: string;
   quantity_step: string;
   min_quantity: string;
+  min_notional: string;
   funding_interval_sec: number;
   funding_rate_cap: number;
   next_funding_at?: string | null;
