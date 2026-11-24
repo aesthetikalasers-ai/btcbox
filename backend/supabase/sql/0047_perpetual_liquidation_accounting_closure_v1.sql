@@ -48,7 +48,7 @@ select e.id,e.operation_id,4,'platform_risk_absorption',0,e.bad_debt
   from public.perpetual_liquidation_events e where e.bad_debt > 0
 on conflict (event_id,line_no) do nothing;
 
-do $
+do $verify$
 begin
   if exists (
     select event_id
@@ -59,7 +59,7 @@ begin
     raise exception 'historical perpetual liquidation journal backfill is unbalanced';
   end if;
 end;
-$;
+$verify$;
 
 alter table public.perpetual_liquidation_journal enable row level security;
 revoke all on public.perpetual_liquidation_journal from public, anon, authenticated;
