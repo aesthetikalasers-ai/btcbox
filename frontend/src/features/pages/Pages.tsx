@@ -184,19 +184,17 @@ export function SpotTradingPage(){
  const [marketList,setMarketList]=useState<MarketTicker[]>([]);
  const [marketFilter,setMarketFilter]=useState("");
  const [pairRailOpen,setPairRailOpen]=useState(()=>window.matchMedia("(min-width: 1536px)").matches);
- // `isPhone` (<=767px) hides the market-list drawer on phones; the order form and
- // order book stay side-by-side (Binance-style dual column) at every width.
- const [isPhone,setIsPhone]=useState(()=>window.matchMedia("(max-width: 767px)").matches);
- // Phones keep the order form and order book visible together in the two-column workspace;
- // only the chart moves to the bottom drawer.
+ // The compact H5 workspace (<=1023px) keeps order entry and order book side by side;
+ // the K-line stays in the bottom drawer rather than taking workspace width.
+ const [isPhone,setIsPhone]=useState(()=>window.matchMedia("(max-width: 1023px)").matches);
 
  useEffect(()=>{
   const media=window.matchMedia(DESKTOP_TRADE_QUERY);
-  const phone=window.matchMedia("(max-width: 767px)");
-  const update=()=>{setCompactTrade(media.matches);setChartOpen(false);setIsPhone(phone.matches);};
+  const compactViewport=window.matchMedia("(max-width: 1023px)");
+  const update=()=>{setCompactTrade(media.matches);setChartOpen(false);setIsPhone(compactViewport.matches);};
   media.addEventListener("change",update);
-  phone.addEventListener("change",update);
-  return ()=>{media.removeEventListener("change",update);phone.removeEventListener("change",update);};
+  compactViewport.addEventListener("change",update);
+  return ()=>{media.removeEventListener("change",update);compactViewport.removeEventListener("change",update);};
  },[]);
  const [candles,setCandles]=useState<MarketCandle[]>([]);
  const [book,setBook]=useState<OrderBookSnapshot|null>(null);
@@ -985,9 +983,8 @@ export function SpotTradingPage(){
 
  </PageFrame>;
  const terminalBody=compactTrade||isPhone?<>{compactTerminal}{orderConfirmation}</>:<>{proTerminal}{orderConfirmation}</>;
- // Phones use the same bottom-anchored K-line drawer as the perpetual page
- // (65dvh-style sheet pinned above the bottom nav). Tablets/desktop keep the
- // inline chart panel inside their workspace grid.
+ // Compact viewports below 1024px use the same bottom-anchored K-line drawer
+ // as the perpetual page. The desktop inline chart remains at 1280px and above.
  if (isPhone) {
   return <><ChartDrawer symbol={symbol} marketType="spot" open={chartOpen} onOpenChange={setChartOpen} />{terminalBody}</>;
  }
