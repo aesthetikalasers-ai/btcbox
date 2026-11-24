@@ -195,6 +195,8 @@ test('token icon rendering uses packaged crypto SVGs with a non-fabricated fallb
   assert.ok(tokenIcon.includes('`/token-icons/${normalized}.svg`'));
   assert.ok(localTokenIconFiles.includes('near.svg'));
   assert.ok(localTokenIconFiles.includes('sui.svg'));
+  const localIconBlock = tokenIcon.slice(tokenIcon.indexOf('const LOCAL_TOKEN_ICON_SYMBOLS'), tokenIcon.indexOf('const cryptoIconModules'));
+  for (const file of localTokenIconFiles) assert.ok(localIconBlock.includes('"' + file.replace(/\.svg$/, '') + '"'), 'local token icon is not registered: ' + file);
   assert.ok(tokenIcon.includes('onError={() => setHasError(true)}'));
   assert.ok(tokenIcon.includes('normalizeSymbol(symbol).substring(0, 3)'));
 });
