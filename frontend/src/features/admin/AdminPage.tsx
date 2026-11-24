@@ -1418,8 +1418,13 @@ export function AdminPage() {
         mark_price_stale_sec: staleSec, circuit_breaker_deviation_pct: draft.circuit_breaker_deviation_pct.trim(), reason,
       });
       setNotice("Perpetual market configuration saved. The market remains paused and disabled.");
-      const refreshed = await getAdminPerpMarkets(token);
-      setPerpMarkets(refreshed.markets || []);
+      setPerpMarketDraft(current => ({ ...current, reason: "" }));
+      try {
+        const refreshed = await getAdminPerpMarkets(token);
+        setPerpMarkets(refreshed.markets || []);
+      } catch {
+        setError("Perpetual market settings were saved, but the list could not refresh. Reload the tab before making another change.");
+      }
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "Perpetual market configuration could not be confirmed.");
     } finally { setBusy(false); }
