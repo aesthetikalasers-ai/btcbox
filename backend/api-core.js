@@ -1755,7 +1755,7 @@ async function handleRequest(event, context) {
     }
   }
 
-  // ---------- GET /api/kline (Coinbase primary, Bybit fallback) ----------
+  // ---------- GET /api/kline (Binance Vision primary, fresh-provider fallback) ----------
   if (path === 'kline' && method === 'GET') {
     const symbol = ((event.queryStringParameters && event.queryStringParameters.symbol) || 'BTCUSDT').toUpperCase();
     const interval = (event.queryStringParameters && event.queryStringParameters.interval) || '1m';
@@ -1769,33 +1769,60 @@ async function handleRequest(event, context) {
     } catch (_) {
       return json({ ok: false, code: 'MARKET_CATALOG_UNAVAILABLE', msg: 'Spot market catalogue is temporarily unavailable.', klines: [], data: {} }, 503);
     }
-    const coinbaseGranularity = { '1m': 60, '5m': 300, '15m': 900, '1h': 3600, '1d': 86400 }[interval];
+    const intervalSeconds = { '1m':60, '3m':180, '5m':300, '15m':900, '30m':1800, '1h':3600, '2h':7200, '4h':14400, '1d':86400 }[interval];
+    const intervalBybit = { '1m':'1', '3m':'3', '5m':'5', '15m':'15', '30m':'30', '1h':'60', '2h':'120', '4h':'240', '1d':'D' }[interval];
     const timeoutFetchJson = async url => {
       const res = await fetch(url, { signal: AbortSignal.timeout(5000), headers: { 'Accept': 'application/json' } });
       if (!res.ok) throw new Error('market provider HTTP ' + res.status);
       return res.json();
     };
+    const normalizeCandles = rows => (Array.isArray(rows) ? rows : [])
+      .filter(k => Array.isArray(k) && k.length >= 6 && k.slice(0, 6).every(v => Number.isFinite(Number(v))))
+      .map(k => ({ time: Number(k[0]), open: Number(k[1]), high: Number(k[2]), low: Number(k[3]), close: Number(k[4]), volume: Number(k[5]) }))
+      .filter(k => k.time > 0 && k.open > 0 && k.high > 0 && k.low > 0 && k.close > 0 && k.volume >= 0
+        && k.high >= Math.max(k.open, k.close, k.low) && k.low <= Math.min(k.open, k.close, k.high))
+      .sort((a, b) => a.time - b.time);
+    // A provider returning HTTP 200 is not enough: reject candle sets whose
+    // newest open time is too old for the selected interval. Otherwise a stale
+    // Coinbase response can look like a healthy chart while live tickers move.
+    const candleSetIsFresh = rows => {
+      if (!rows.length) return false;
+      const latestOpenMs = Number(rows[rows.length - 1].time);
+      const ageSeconds = Date.now() / 1000 - latestOpenMs / 1000;
+      return Number.isFinite(ageSeconds) && ageSeconds >= -30 && ageSeconds <= Math.max(intervalSeconds * 3, 180);
+    };
+    const candleResponse = (rows, source) => json({ ok: true, source, klines: rows, data: rows });
+
+    // Binance Vision is already the reachable public provider for production
+    // ticker/depth requests and supports every interval exposed by this API.
+    // Use it first so unsupported/stale Coinbase candles cannot disable charts.
+    try {
+      const rows = await timeoutFetchJson('https://data-api.binance.vision/api/v3/klines?symbol=' + encodeURIComponent(symbol) + '&interval=' + encodeURIComponent(interval) + '&limit=350');
+      const normalized = normalizeCandles(rows);
+      if (candleSetIsFresh(normalized)) return candleResponse(normalized, 'binance-vision');
+    } catch (_) { /* Try the independent providers below. */ }
+
+    const coinbaseGranularity = { '1m':60, '5m':300, '15m':900, '1h':3600, '1d':86400 }[interval];
     if (coinbaseGranularity) {
       try {
         const rows = await timeoutFetchJson('https://api.exchange.coinbase.com/products/' + encodeURIComponent(base + '-USDT') + '/candles?granularity=' + coinbaseGranularity);
         if (!Array.isArray(rows)) throw new Error('invalid Coinbase candles');
-        const raw = rows.filter(k => Array.isArray(k) && k.length >= 6 && k.slice(0, 6).every(v => Number.isFinite(Number(v))))
-          .map(k => [Number(k[0]) * 1000, Number(k[3]), Number(k[2]), Number(k[1]), Number(k[4]), Number(k[5])])
-          .sort((a, b) => a[0] - b[0]);
-        if (raw.length) return json({ ok: true, source: 'coinbase', klines: raw.map(k => ({ time: k[0], open: k[1], high: k[2], low: k[3], close: k[4], volume: k[5] })), data: raw });
-      } catch (_) { /* Try Bybit below; never synthesize candle values. */ }
+        const normalized = normalizeCandles(rows
+          .filter(k => Array.isArray(k) && k.length >= 6)
+          .map(k => [Number(k[0]) * 1000, Number(k[3]), Number(k[2]), Number(k[1]), Number(k[4]), Number(k[5])]));
+        if (candleSetIsFresh(normalized)) return candleResponse(normalized, 'coinbase');
+      } catch (_) { /* Try Bybit below; stale candles are never returned as live. */ }
     }
     try {
-      const intervalBybit = { '1m':'1', '3m':'3', '5m':'5', '15m':'15', '30m':'30', '1h':'60', '2h':'120', '4h':'240', '1d':'D' }[interval];
-      const payload = await timeoutFetchJson('https://api.bybit.com/v5/market/kline?category=spot&symbol=' + encodeURIComponent(symbol) + '&interval=' + encodeURIComponent(intervalBybit) + '&limit=300');
+      const payload = await timeoutFetchJson('https://api.bybit.com/v5/market/kline?category=spot&symbol=' + encodeURIComponent(symbol) + '&interval=' + encodeURIComponent(intervalBybit) + '&limit=350');
       const rows = payload && payload.result && payload.result.list;
       if (!Array.isArray(rows)) throw new Error('invalid Bybit candles');
-      const raw = rows.filter(k => Array.isArray(k) && k.length >= 6 && k.slice(0, 6).every(v => Number.isFinite(Number(v))))
-        .map(k => [Number(k[0]), Number(k[1]), Number(k[2]), Number(k[3]), Number(k[4]), Number(k[5])])
-        .sort((a, b) => a[0] - b[0]);
-      if (!raw.length) throw new Error('empty Bybit candles');
-      return json({ ok: true, source: 'bybit', klines: raw.map(k => ({ time: k[0], open: k[1], high: k[2], low: k[3], close: k[4], volume: k[5] })), data: raw });
-    } catch (_) { return json({ ok: false, code: 'KLINE_DATA_UNAVAILABLE', msg: 'K-line data unavailable.', klines: [], data: [] }, 503); }
+      const normalized = normalizeCandles(rows);
+      if (candleSetIsFresh(normalized)) return candleResponse(normalized, 'bybit');
+      throw new Error('Bybit candles are stale or empty');
+    } catch (_) {
+      return json({ ok: false, code: 'KLINE_DATA_UNAVAILABLE', msg: 'Fresh K-line data is temporarily unavailable.', klines: [], data: [] }, 503);
+    }
   }
 
   // ---------- GET /api/depth (Coinbase primary, Bybit fallback) ----------
@@ -3765,12 +3792,8 @@ async function handleRequest(event, context) {
       const uid = (event.queryStringParameters && event.queryStringParameters.uid) || '';
       const u = db.users[uid];
       if (!u) return json({ ok: false, msg: 'User not found.' }, 404);
-      // Verify that the target account has an authoritative PostgreSQL ledger snapshot
-      // before any manual credit RPC can be reached. Legacy JSON balances are never creditable.
-      try { await readFinancialAccountSnapshot(uid); }
-      catch (_) {
-        return json({ ok: false, code: 'FINANCIAL_BALANCE_SOURCE_UNVERIFIED', msg: 'Manual credit is disabled until the user\'s PostgreSQL ledger balance source is confirmed. No credit was sent.' }, 409);
-      }
+      // Financial snapshot availability must not block non-financial user profile actions.
+      // Manual balance writes remain fail-closed in the dedicated ledger RPC below.
       // Never expose password hashes, salts, or session tokens through admin user detail APIs.
       const safeUser = JSON.parse(JSON.stringify(u));
       delete safeUser.password_hash;
@@ -3818,7 +3841,10 @@ async function handleRequest(event, context) {
             safeUser.withdrawal_history_source = 'postgres_financial_ledger';
           }
         } catch (e) {
-          return json({ ok: false, msg: 'Financial data temporarily unavailable. Please try again later.', code: 'FINANCIAL_READ_UNAVAILABLE' }, 503);
+          // Keep the non-financial profile usable, but expose no stale or legacy
+          // financial values. The UI disables manual credit unless the canonical
+          // PostgreSQL ledger snapshot is positively confirmed.
+          if (canReadDeposits) safeUser.financial_balance_source = 'unverified';
         }
       } else {
         if (canReadDeposits) {
@@ -3889,7 +3915,9 @@ async function handleRequest(event, context) {
         const amountText = parseMoneyInput(deltaNegative ? deltaInput.slice(1) : deltaInput);
         const mode = String(body.mode || 'adjust').trim().toLowerCase();
         const requestId = String(body.request_id || '').trim();
-        const reason = String(body.reason || '').trim().slice(0, 500);
+        const suppliedReason = String(body.reason || '').trim().slice(0, 500);
+        // Keep database audit metadata mandatory without asking staff to type a reason.
+        const reason = suppliedReason || (mode === 'freeze' ? '管理员后台冻结资金' : mode === 'unfreeze' ? '管理员后台解冻资金' : deltaNegative ? '管理员后台下分' : '管理员后台上分');
         if (!allowedCoins.includes(coin)) return json({ ok: false, msg: 'Operation failed: coin not supported.' }, 400);
         if (!['adjust', 'freeze', 'unfreeze'].includes(mode)) return json({ ok: false, msg: 'Invalid fund operation type.' }, 400);
         if (!amountText || compareMoney(amountText, '0') <= 0 || compareMoney(amountText, '1000000000000') > 0 || (mode !== 'adjust' && deltaNegative)) return json({ ok: false, msg: 'Invalid operation amount. Freeze/unfreeze amounts must be positive.' }, 400);
@@ -4108,9 +4136,13 @@ async function handleRequest(event, context) {
       const status = normalizeKycStatus(u.kyc.status);
       const override = body.admin_override === true;
       const reason = String(body.reason || '').trim().slice(0, 300);
+      // A response-lost retry after a successful normal approval is safe to
+      // acknowledge as a duplicate; it must not create another audit event.
+      if (status === 'approved' && !override) {
+        return json({ ok: true, duplicate: true, audit_sync_pending: false, msg: 'KYC application was already approved.' });
+      }
       // Accept every in-review alias (pending / processing / under_review) as a
-      // normal approval target. Only non-in-review states (already approved,
-      // rejected, etc.) require the admin exception flow with a reason.
+      // normal approval target. Other states require the admin exception flow.
       if (!isKycInReview(status) && !override) return json({ ok: false, code: 'KYC_EXCEPTION_REQUIRED', msg: 'Only applications awaiting review can be approved directly. Other states require the admin exception flow with a reason.' }, 409);
       if (isKycInReview(status) && !u.kyc.document_path && !override) return json({ ok: false, code: 'KYC_DOCUMENT_REQUIRED', msg: 'A stored identity document image is required before approval.' }, 409);
       if (override && !reason) return json({ ok: false, code: 'ADMIN_REASON_REQUIRED', msg: 'A reason is required for admin exception approval.' }, 400);
@@ -4529,6 +4561,15 @@ async function handleRequest(event, context) {
           if (lastReadMessageId) return String(m.id || '') > lastReadMessageId;
           return !lastReadAt || String(m.time || '') > lastReadAt;
         }).length;
+        // Count consecutive unanswered customer messages across the full retained
+        // conversation; the UI window is capped at 100 messages per customer.
+        let unansweredCount = 0;
+        for (let index = conversation.length - 1; index >= 0; index -= 1) {
+          const message = conversation[index];
+          if (!message) continue;
+          if (message.from === 'admin') break;
+          if (message.from === 'user') unansweredCount += 1;
+        }
         // Bound each customer's response independently. A busy customer's
         // history must never consume the shared response window and hide other
         // customers from the support inbox.
@@ -4541,7 +4582,8 @@ async function handleRequest(event, context) {
             from: m.from,
             content: String(m.content || ''),
             time: String(m.time || ''),
-            admin_unread_count: unreadCount
+            admin_unread_count: unreadCount,
+            unanswered_count: unansweredCount
           });
         });
       });

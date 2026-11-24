@@ -127,3 +127,45 @@ test('customer payout-address endpoints use dedicated sensitive permissions, sep
   assert.ok(tab, 'global deposit configuration tab must be present');
   assert.equal(tab[1], 'system_config.read');
 });
+
+ 
+test('confirmed admin balance adjustment is not retried with a new request ID when only the profile refresh fails', () => {
+  const start = adminPage.indexOf('const submitBalanceAdjustment = async');
+  const end = adminPage.indexOf('const submitFreezeToggle', start);
+  assert.ok(start >= 0 && end > start);
+  const handler = adminPage.slice(start, end);
+  const confirmed = handler.indexOf('setNotice(result.msg || "Balance adjusted.")');
+  const refresh = handler.indexOf('await refreshSelectedUser(uid)', confirmed);
+  const outerCatch = handler.indexOf('} catch (cause)', refresh);
+  assert.ok(confirmed >= 0 && refresh > confirmed && outerCatch > refresh);
+  const refreshCatch = handler.slice(refresh, outerCatch);
+  assert.ok(refreshCatch.includes('The balance operation was confirmed.'));
+  assert.ok(refreshCatch.includes('do not submit the adjustment again.'));
+  assert.ok(!refreshCatch.includes('Retry the same operation'));
+  assert.ok(handler.indexOf('window.localStorage.removeItem(storageKey)') < confirmed);
+});
+
+test('KYC approval retries are idempotent and direct approvals use a per-user synchronous lock', () => {
+  const routeStart = api.indexOf("if (sub === 'kyc/approve' && method === 'POST')");
+  const routeEnd = api.indexOf("// POST /api/admin/kyc/reject", routeStart);
+  const route = api.slice(routeStart, routeEnd);
+  assert.ok(route.includes("status === 'approved' && !override"));
+  assert.ok(route.includes("duplicate: true"));
+  assert.ok(route.indexOf("status === 'approved' && !override") < route.indexOf("KYC_EXCEPTION_REQUIRED"));
+  const handlerStart = adminPage.indexOf('const reviewKyc = async');
+  const handlerEnd = adminPage.indexOf('const beginPayoutAddressEdit', handlerStart);
+  const handler = adminPage.slice(handlerStart, handlerEnd);
+  assert.ok(handler.includes('const lockKey = "kyc:" + uid'));
+  assert.ok(handler.includes('if (reviewActionLocksRef.current[lockKey]) return;'));
+  assert.ok(handler.includes('reviewActionLocksRef.current[lockKey] = false'));
+});
+
+test('manual payout retries cannot replace a previously saved TxID reference', () => {
+  const handlerStart = adminPage.indexOf('const markPaid = async');
+  const handlerEnd = adminPage.indexOf('const saveAddresses = async', handlerStart);
+  const handler = adminPage.slice(handlerStart, handlerEnd);
+  assert.ok(handler.includes('window.localStorage.getItem(storageKey)'));
+  assert.ok(handler.includes('saved.reference !== reference'));
+  assert.ok(handler.includes('Enter the exact saved reference; do not replace it.'));
+  assert.ok(handler.indexOf('saved.reference !== reference') < handler.indexOf('adminMarkWithdrawalPaid(token'));
+});

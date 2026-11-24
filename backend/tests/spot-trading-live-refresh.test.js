@@ -34,8 +34,12 @@ test('spot trading live refresh never overwrites the customer-edited limit price
   const guardedWrite = /!isPriceManual[^;]*setPrice\(|setPrice\(current=>current\|\|/.test(refresh);
   assert.ok(guardedWrite, 'the refresh must not write the price unconditionally');
   assert.ok(page.includes('isPriceManual'), 'the manual-price flag must exist');
-  // A stale snapshot must never overwrite an edited price either.
-  assert.match(page, /setIsPriceManual/);
+  // A ref keeps the manual-edit guard current inside the polling callback,
+  // avoiding a stale React state closure during five-second market refreshes.
+  assert.match(page, /const isPriceManualRef=useRef\(false\)/);
+  assert.match(refresh, /!isPriceManualRef\.current\s*&&\s*selected\.price/);
+  // Manual order-book selection and direct price edits both activate the guard.
+  assert.match(page, /isPriceManualRef\.current=true/);
 });
 
 test('spot trading clears stale ticker, order book, and candles when live refresh fails', () => {
@@ -301,12 +305,16 @@ test('admin overview does not retain an old dashboard snapshot during a failed r
 });
 
 
-test('admin user search refresh clears the previous selected user before loading', () => {
+test('admin user search updates results without clearing the selected user or reloading the tab', () => {
   const admin = fs.readFileSync(path.resolve(__dirname, '../../frontend/src/features/admin/AdminPage.tsx'), 'utf8');
   const users = admin.slice(admin.indexOf('if (tab === "users")'), admin.indexOf('if (tab === "deposits")'));
   assert.ok(users.indexOf('setUsers([])') >= 0);
   assert.ok(users.indexOf('setSelectedUser(null)') > users.indexOf('setUsers([])'));
-  assert.ok(users.indexOf('setSelectedUser(null)') < users.indexOf('await getAdminUsers(token, search)'));
+  assert.ok(users.includes('await getAdminUsers(token, "")'));
+  const search = admin.slice(admin.indexOf('const searchUsers = async'), admin.indexOf('const submitBalanceAdjustment'));
+  assert.ok(search.includes('getAdminUsers(token, normalizedQuery)'));
+  assert.ok(!search.includes('loadTab()'));
+  assert.ok(!search.includes('setSelectedUser(null)'));
 });
 
 
@@ -417,4 +425,20 @@ test('admin Seconds queue ignores stale initial and manual refresh responses', (
   assert.ok(admin.includes('const requestId = ++secondsQueueRequestRef.current; setSecondsQueueLoading(true); setSecondsOpenPositions([]); setSecondsOpenSummary(null);'));
   assert.ok(admin.includes('if (requestId !== secondsQueueRequestRef.current) return; setSecondsOpenPositions(result.positions);'));
   assert.ok(admin.includes('if (requestId === secondsQueueRequestRef.current) setSecondsQueueLoading(false);'));
+});
+
+
+test('admin user profile groups only that UID’s bank details, crypto addresses and support conversation', () => {
+  const admin = fs.readFileSync(path.resolve(__dirname, '../../frontend/src/features/admin/AdminPage.tsx'), 'utf8');
+  const selectStart = admin.indexOf('const selectUser = async');
+  const selectEnd = admin.indexOf('// Re-read the selected user', selectStart);
+  const select = admin.slice(selectStart, selectEnd);
+  assert.ok(select.includes('hasPermission("payout_addresses.read_sensitive")'));
+  assert.ok(select.includes('hasPermission("support.read")'));
+  assert.ok(select.includes('.filter(item => item.uid === uid)'));
+  assert.ok(select.includes('String(message.uid || message.user_id || "") === uid'));
+  assert.ok(admin.includes("This user's saved addresses and bank cards"));
+  assert.ok(admin.includes("This user's customer service conversation"));
+  assert.ok(admin.includes('onClick={() => void replySupport(selectedUser.uid)}'));
+  assert.ok(admin.includes('onClick={() => void markSupportThreadRead(selectedUser!.uid)}'));
 });

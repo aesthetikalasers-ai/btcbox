@@ -61,7 +61,7 @@ type ReviewDialogState = { kind: "withdrawal"; id: string } | { kind: "kyc" | "k
 type Tab = "overview" | "users" | "deposits" | "withdrawals" | "kyc" | "audit" | "orders" | "support" | "support-faq" | "payout-addresses" | "admins" | "seconds" | "markets";
 const tabs: Array<{ id: Tab; label: string; permission: string }> = [
   { id: "overview", label: "Overview", permission: "dashboard.read" },
-  { id: "users", label: "Users & manual credit", permission: "users.read" },
+  { id: "users", label: "User management center", permission: "users.read" },
   { id: "deposits", label: "Deposit addresses", permission: "system_config.read" },
   { id: "withdrawals", label: "Withdrawals", permission: "withdrawals.read" },
   { id: "kyc", label: "KYC", permission: "kyc.read" },
@@ -98,7 +98,7 @@ function statusVariant(status: string): "success" | "warning" | "destructive" | 
 }
 function permissionLabel(key: string): string {
   const found = adminPermissionOptions.find(([k]) => k === key);
-  return found ? found[1] : key;
+  return found ? adminText(found[1]) : adminText(key);
 }
 
 function groupSupportThreads(messages: Array<Record<string, unknown>>) {
@@ -122,6 +122,8 @@ function groupSupportThreads(messages: Array<Record<string, unknown>>) {
       if (thread.messages[index].from === "admin") break;
       if (thread.messages[index].from === "user") unanswered += 1;
     }
+    const fullUnansweredCount = Math.max(0, ...thread.messages.map(message => Number(message.unanswered_count || 0)).filter(Number.isFinite));
+    unanswered = Math.max(unanswered, fullUnansweredCount);
     const adminUnreadCount = Math.max(0, ...thread.messages.map(message => Number(message.admin_unread_count || 0)).filter(Number.isFinite));
     return { ...thread, latestTime: String(latest?.time || ""), latestFrom: latest?.from, unanswered, adminUnreadCount };
   }).sort((left, right) => right.latestTime.localeCompare(left.latestTime));
@@ -133,6 +135,7 @@ export function AdminPage() {
   const [token, setToken] = useState("");
   const [session, setSession] = useState<AdminSession | null>(null);
   const [tab, setTab] = useState<Tab>("overview");
+  const [navSearch, setNavSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const payoutSubmitLockRef = useRef(false);
@@ -142,8 +145,12 @@ export function AdminPage() {
   const [notice, setNotice] = useState("");
   const [stats, setStats] = useState<Record<string, unknown> | null>(null);
   const [users, setUsers] = useState<AdminUserRecord[]>([]);
-  const [search, setSearch] = useState("");
+  const [searchInput, setSearchInput] = useState("");
+  const [userSearchBusy, setUserSearchBusy] = useState(false);
   const [selectedUser, setSelectedUser] = useState<AdminUserRecord | null>(null);
+  const [selectedUserAddresses, setSelectedUserAddresses] = useState<AdminPayoutAddress[]>([]);
+  const [selectedUserSupport, setSelectedUserSupport] = useState<Array<Record<string, unknown>>>([]);
+  const [profileRelatedLoading, setProfileRelatedLoading] = useState(false);
   const [creditAmount, setCreditAmount] = useState<Record<string, string>>({});
   const [creditReference, setCreditReference] = useState<Record<string, string>>({});
   const [creditNote, setCreditNote] = useState<Record<string, string>>({});
@@ -155,6 +162,8 @@ export function AdminPage() {
   const [adjustAmount, setAdjustAmount] = useState("");
   const [adjustReason, setAdjustReason] = useState("");
   const [adjustBusy, setAdjustBusy] = useState(false);
+  const [adjustRequestId, setAdjustRequestId] = useState("");
+  const [adjustPendingInvalid, setAdjustPendingInvalid] = useState(false);
   // Account actions: freeze state, credential changes and a direct staff message.
   const [accountActionBusy, setAccountActionBusy] = useState(false);
   const [freezeReason, setFreezeReason] = useState("");
@@ -179,6 +188,7 @@ export function AdminPage() {
   const auditPageRequestRef = useRef(0);
   const tabLoadRequestRef = useRef(0);
   const userDetailRequestRef = useRef(0);
+  const userSearchRequestRef = useRef(0);
   const adminCandidatesRequestRef = useRef(0);
   const secondsQueueRequestRef = useRef(0);
   const kycRefreshLockRef = useRef(false);
@@ -191,6 +201,8 @@ export function AdminPage() {
   const [orders, setOrders] = useState<Array<Record<string, unknown>>>([]);
   const [ordersSource, setOrdersSource] = useState("unknown");
   const [support, setSupport] = useState<Array<Record<string, unknown>>>([]);
+  const [supportSearch, setSupportSearch] = useState("");
+  const [pendingSupportProfileUid, setPendingSupportProfileUid] = useState("");
   const [payoutAddresses, setPayoutAddresses] = useState<AdminPayoutAddress[]>([]);
   const [editingPayoutAddress, setEditingPayoutAddress] = useState<AdminPayoutAddress | null>(null);
   const [pendingDeletePayoutAddress, setPendingDeletePayoutAddress] = useState<AdminPayoutAddress | null>(null);
@@ -297,13 +309,20 @@ export function AdminPage() {
   }, [session?.user_id]);
 
   const allowedTabs = useMemo(() => [...tabs.filter((item) => hasPermission(item.permission)), ...(session?.is_super_admin ? [{ id: "admins" as Tab, label: "Administrators", permission: "super_admin.only" }] : [])], [hasPermission, session]);
+  const visibleTabs = useMemo(() => {
+    const query = navSearch.trim().toLocaleLowerCase();
+    return allowedTabs.filter(item => !query || item.id.toLocaleLowerCase().includes(query) || item.label.toLocaleLowerCase().includes(query) || adminText(item.label).toLocaleLowerCase().includes(query));
+  }, [allowedTabs, navSearch]);
   useEffect(() => {
     if (allowedTabs.length && !allowedTabs.some((item) => item.id === tab)) setTab(allowedTabs[0].id);
   }, [allowedTabs, tab]);
 
   const loadTab = useCallback(async () => {
     const requestId = ++tabLoadRequestRef.current;
-    if (tab !== "users") userDetailRequestRef.current += 1;
+    if (tab !== "users") {
+      userDetailRequestRef.current += 1;
+      setProfileRelatedLoading(false);
+    }
     if (tab !== "seconds") secondsQueueRequestRef.current += 1;
     if (!token || !session) return;
     const auditRequestId = ++auditPageRequestRef.current;
@@ -321,7 +340,7 @@ export function AdminPage() {
         userDetailRequestRef.current += 1;
         setUsers([]);
         setSelectedUser(null);
-        const snapshot = await getAdminUsers(token, search);
+        const snapshot = await getAdminUsers(token, "");
         if (requestId !== tabLoadRequestRef.current) return;
         setUsers(snapshot.users);
       }
@@ -467,7 +486,7 @@ export function AdminPage() {
     } finally {
       if (requestId === tabLoadRequestRef.current) setLoading(false);
     }
-  }, [token, session, tab, search, adminSearch]);
+  }, [token, session, tab, adminSearch]);
 
   useEffect(() => {
     void loadTab();
@@ -476,6 +495,27 @@ export function AdminPage() {
 
   useEffect(() => {
     if (!session?.user_id || !selectedUser?.uid) return;
+    const key = "btcbox.admin.balance-adjustment.v1." + session.user_id + "." + selectedUser.uid;
+    setAdjustRequestId("");
+    setAdjustPendingInvalid(false);
+    try {
+      const raw = window.localStorage.getItem(key);
+      if (raw) {
+        const saved = JSON.parse(raw);
+        if (saved && saved.version === 1 && saved.actor_id === session.user_id && saved.target_uid === selectedUser.uid &&
+            typeof saved.request_id === "string" && /^[A-Za-z0-9_-]{16,100}$/.test(saved.request_id) &&
+            typeof saved.coin === "string" && assets.includes(saved.coin) &&
+            typeof saved.delta === "string" && /^-?(?:0|[1-9]\d*)(?:\.\d{1,18})?$/.test(saved.delta) &&
+            typeof saved.mode === "string" && ["adjust", "freeze", "unfreeze"].includes(saved.mode) &&
+            typeof saved.reason === "string") {
+          setAdjustCoin(saved.coin);
+          setAdjustMode(saved.mode === "freeze" ? "freeze" : saved.mode === "unfreeze" ? "unfreeze" : saved.delta.startsWith("-") ? "debit" : "credit");
+          setAdjustAmount(saved.delta.replace(/^-/, ""));
+          setAdjustReason(saved.reason);
+          setAdjustRequestId(saved.request_id);
+        } else setAdjustPendingInvalid(true);
+      }
+    } catch { setAdjustPendingInvalid(true); }
     const amounts: Record<string,string> = {};
     const references: Record<string,string> = {};
     const notes: Record<string,string> = {};
@@ -513,23 +553,66 @@ export function AdminPage() {
     // A failed user-detail read must never leave another user's balances or
     // manual-credit controls on screen as if they belonged to the new selection.
     setSelectedUser(null);
+    setSelectedUserAddresses([]);
+    setSelectedUserSupport([]);
+    const canReadAddresses = hasPermission("payout_addresses.read_sensitive");
+    const canReadSupport = hasPermission("support.read");
+    setProfileRelatedLoading(canReadAddresses || canReadSupport);
     try {
-      const result = await getAdminUser(token, uid);
-      if (requestId === userDetailRequestRef.current) setSelectedUser(result.user);
-
+      const [result, addressResult, supportResult] = await Promise.all([
+        getAdminUser(token, uid),
+        canReadAddresses ? getAdminAddresses(token).catch(() => null) : Promise.resolve(null),
+        canReadSupport ? getAdminSupportMessages(token).catch(() => null) : Promise.resolve(null),
+      ]);
+      if (requestId === userDetailRequestRef.current) {
+        setSelectedUser(result.user);
+        setSelectedUserAddresses((addressResult?.addresses || []).filter(item => item.uid === uid));
+        setSelectedUserSupport(((supportResult?.messages || []) as unknown as Array<Record<string, unknown>>).filter(message => String(message.uid || message.user_id || "") === uid));
+        if ((canReadAddresses && !addressResult) || (canReadSupport && !supportResult)) {
+          setError("Some user-linked records could not be loaded. Retry opening this user's profile before making changes.");
+        }
+      }
     } catch (reason) {
       if (requestId === userDetailRequestRef.current) {
         setError(reason instanceof Error ? reason.message : "User account could not be loaded.");
       }
     } finally {
-      if (requestId === userDetailRequestRef.current) setBusy(false);
+      if (requestId === userDetailRequestRef.current) {
+        setBusy(false);
+        setProfileRelatedLoading(false);
+      }
     }
   };
+
+  useEffect(() => {
+    if (tab !== "users" || !pendingSupportProfileUid || loading) return;
+    const uid = pendingSupportProfileUid;
+    setPendingSupportProfileUid("");
+    void selectUser(uid);
+  }, [tab, pendingSupportProfileUid, loading, selectUser]);
 
   // Re-read the selected user after a confirmed write so the balances on screen
   // come from the server. A failed refresh must not mask the confirmed result.
   const refreshSelectedUser = async (uid: string) => {
     try { await selectUser(uid); } catch { /* Confirmed writes stay reported through the notice. */ }
+  };
+
+  const searchUsers = async (query: string) => {
+    if (!token || userSearchBusy) return;
+    const normalizedQuery = query.trim();
+    const requestId = ++userSearchRequestRef.current;
+    setUserSearchBusy(true);
+    setError("");
+    try {
+      const snapshot = await getAdminUsers(token, normalizedQuery);
+      if (requestId === userSearchRequestRef.current) setUsers(snapshot.users || []);
+    } catch (reason) {
+      if (requestId === userSearchRequestRef.current) {
+        setError(reason instanceof Error ? reason.message : "User search could not be completed.");
+      }
+    } finally {
+      if (requestId === userSearchRequestRef.current) setUserSearchBusy(false);
+    }
   };
 
   const submitBalanceAdjustment = async () => {
@@ -540,24 +623,57 @@ export function AdminPage() {
       setError("Enter an amount greater than 0.");
       return;
     }
+    if (adjustPendingInvalid) {
+      setError("A saved balance-adjustment request could not be read. Check the financial audit log before creating another operation.");
+      return;
+    }
+    const mode = adjustMode === "freeze" ? "freeze" : adjustMode === "unfreeze" ? "unfreeze" : "adjust";
     const reason = adjustReason.trim();
-    if (reason.length < 5) {
+    if (mode !== "adjust" && reason.length < 5) {
       setError("Enter a reason of at least 5 characters.");
       return;
     }
-    let requestId = "";
-    try { requestId = window.crypto.randomUUID(); }
-    catch { setError("Secure request IDs are unavailable in this browser. No balance change was made."); return; }
-    const mode = adjustMode === "freeze" ? "freeze" : adjustMode === "unfreeze" ? "unfreeze" : "adjust";
     const delta = adjustMode === "debit" ? "-" + amount : amount;
+    const storageKey = "btcbox.admin.balance-adjustment.v1." + session?.user_id + "." + uid;
+    const intent = { version: 1, actor_id: session?.user_id, target_uid: uid, coin: adjustCoin, delta, mode, reason };
+    let requestId = adjustRequestId;
+    if (requestId) {
+      try {
+        const saved = JSON.parse(window.localStorage.getItem(storageKey) || "null");
+        if (!saved || saved.request_id !== requestId || saved.actor_id !== session?.user_id || saved.target_uid !== uid ||
+            saved.coin !== adjustCoin || saved.delta !== delta || saved.mode !== mode || saved.reason !== reason) {
+          setError("A balance-adjustment request is still pending. Retry the exact same operation; do not change its details.");
+          return;
+        }
+      } catch {
+        setAdjustPendingInvalid(true);
+        setError("The saved balance-adjustment request could not be verified. Check the financial audit log before continuing.");
+        return;
+      }
+    } else {
+      try { requestId = window.crypto.randomUUID(); }
+      catch { setError("Secure request IDs are unavailable in this browser. No balance change was made."); return; }
+      try { window.localStorage.setItem(storageKey, JSON.stringify({ ...intent, request_id: requestId, created_at: Date.now() })); }
+      catch { setError("This browser cannot safely save the balance-adjustment request. No balance change was sent."); return; }
+      setAdjustRequestId(requestId);
+    }
     setAdjustBusy(true); setError(""); setNotice("");
     try {
-      const result = await adminAdjustBalance(token, { uid, coin: adjustCoin, delta, mode, reason, request_id: requestId });
+      const result = await adminAdjustBalance(token, { uid, coin: adjustCoin, delta, mode, ...(reason ? { reason } : {}), request_id: requestId });
+      try { window.localStorage.removeItem(storageKey); } catch {}
+      setAdjustRequestId(""); setAdjustPendingInvalid(false);
       setNotice(result.msg || "Balance adjusted.");
       setAdjustAmount(""); setAdjustReason("");
-      await refreshSelectedUser(uid);
+      try {
+        await refreshSelectedUser(uid);
+      } catch (refreshError) {
+        // The ledger operation is already confirmed. Never tell staff to retry
+        // the adjustment with a new request ID just because the profile read failed.
+        setError((refreshError instanceof Error ? refreshError.message : "User profile refresh failed.") +
+          " The balance operation was confirmed. Refresh this user profile; do not submit the adjustment again.");
+      }
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Balance adjustment failed. Check the financial operation log before retrying.");
+      setError((cause instanceof Error ? cause.message : "Balance adjustment could not be confirmed.") + " Retry the same operation to safely confirm the result; do not create a new adjustment.");
     } finally { setAdjustBusy(false); }
   };
 
@@ -872,6 +988,14 @@ export function AdminPage() {
         setReviewReason("");
         setManualIdentityConfirmed(false);
         await refreshKycQueueAfterReview("KYC approved after manual identity verification.");
+        if (selectedUser?.uid === target.uid) {
+          try {
+            const refreshed = await getAdminUser(token, target.uid);
+            setSelectedUser(refreshed.user);
+          } catch {
+            setError("KYC approval was recorded, but the user profile could not refresh. Reopen the user profile to confirm the latest status.");
+          }
+        }
       } else {
         await adminRejectKyc(token, target.uid, reasonText);
         setReviewDialog(null);
@@ -904,11 +1028,31 @@ export function AdminPage() {
     }
     const storageKey = "btcbox.admin.payout-reference.v1." + session.user_id + "." + id;
     try {
-      window.localStorage.setItem(storageKey, JSON.stringify({
-        version: 1, actor_id: session.user_id, withdrawal_id: id, reference,
-      }));
+      const rawPending = window.localStorage.getItem(storageKey);
+      if (rawPending) {
+        let pending: unknown;
+        try { pending = JSON.parse(rawPending); }
+        catch {
+          setError("A saved payout request could not be verified. Check the withdrawal history before retrying.");
+          return;
+        }
+        const saved = pending as { version?: unknown; actor_id?: unknown; withdrawal_id?: unknown; reference?: unknown };
+        if (saved.version !== 1 || saved.actor_id !== session.user_id || saved.withdrawal_id !== id ||
+            typeof saved.reference !== "string" || !saved.reference.trim()) {
+          setError("A saved payout request could not be verified. Check the withdrawal history before retrying.");
+          return;
+        }
+        if (saved.reference !== reference) {
+          setError("A payout request is still pending with a different TxID. Enter the exact saved reference; do not replace it.");
+          return;
+        }
+      } else {
+        window.localStorage.setItem(storageKey, JSON.stringify({
+          version: 1, actor_id: session.user_id, withdrawal_id: id, reference,
+        }));
+      }
     } catch {
-      setError("This browser cannot safely save the payout reference. No payout update was sent.");
+      setError("This browser cannot safely verify the saved payout reference. No payout update was sent.");
       return;
     }
     payoutSubmitLockRef.current = true;
@@ -947,6 +1091,9 @@ export function AdminPage() {
       setNotice("");
       return;
     }
+    const lockKey = "kyc:" + uid;
+    if (reviewActionLocksRef.current[lockKey]) return;
+    reviewActionLocksRef.current[lockKey] = true;
     setBusy(true); setError(""); setNotice("");
     try {
       await adminApproveKyc(token, uid);
@@ -956,6 +1103,7 @@ export function AdminPage() {
       // and exception approval requirements; they are not proof of a prior success.
       setError(reason instanceof Error ? reason.message : "KYC review was not confirmed.");
     } finally {
+      reviewActionLocksRef.current[lockKey] = false;
       setBusy(false);
     }
   };
@@ -975,7 +1123,9 @@ export function AdminPage() {
     try {
       const result = await manageAdminAddress(token, { id:editingPayoutAddress.id, action:"update", ...payoutAddressDraft });
       const snapshot = await getAdminAddresses(token);
-      setPayoutAddresses(snapshot.addresses || []); setEditingPayoutAddress(null);
+      setPayoutAddresses(snapshot.addresses || []);
+      if (selectedUser) setSelectedUserAddresses((snapshot.addresses || []).filter(item => item.uid === selectedUser.uid));
+      setEditingPayoutAddress(null);
       setNotice(result.audit_sync_pending ? "Bank payout details saved; audit delivery is pending." : "Bank payout details saved.");
     } catch (reason) { setError(reason instanceof Error ? reason.message : "Bank payout details were not saved."); }
     finally { setBusy(false); }
@@ -987,6 +1137,7 @@ export function AdminPage() {
     try {
       const result = await manageAdminAddress(token, { id:item.id, action:"delete", reason:"Administrator removed saved payout details." });
       setPayoutAddresses(current => current.filter(entry => entry.id !== item.id));
+      setSelectedUserAddresses(current => current.filter(entry => entry.id !== item.id));
       if (editingPayoutAddress?.id === item.id) setEditingPayoutAddress(null);
       setPendingDeletePayoutAddress(null);
       setNotice(result.audit_sync_pending ? "Bank payout details deleted; audit delivery is pending." : "Bank payout details deleted.");
@@ -1000,7 +1151,9 @@ export function AdminPage() {
     try {
       const result = await markAdminSupportRead(token, uid);
       const snapshot = await getAdminSupportMessages(token);
-      setSupport((snapshot.messages || []) as unknown as Array<Record<string, unknown>>);
+      const messages = (snapshot.messages || []) as unknown as Array<Record<string, unknown>>;
+      setSupport(messages);
+      setSelectedUserSupport(messages.filter(message => String(message.uid || message.user_id || "") === uid));
       setNotice(result.audit_sync_pending ? "Conversation marked read; audit delivery is pending." : "Conversation marked as read.");
     } catch (reason) { setError(reason instanceof Error ? reason.message : "Conversation read state could not be saved."); }
     finally { setBusy(false); }
@@ -1126,7 +1279,9 @@ export function AdminPage() {
       try {
         const snapshot = await getAdminSupportMessages(token);
         if (queueRequestId !== supportQueueRequestRef.current) return;
-        setSupport((snapshot.messages || []) as unknown as Array<Record<string, unknown>>);
+        const messages = (snapshot.messages || []) as unknown as Array<Record<string, unknown>>;
+        setSupport(messages);
+        setSelectedUserSupport(messages.filter(message => String(message.uid || message.user_id || "") === uid));
         setNotice(successMessage);
       } catch {
         if (queueRequestId !== supportQueueRequestRef.current) return;
@@ -1249,7 +1404,7 @@ export function AdminPage() {
     <div className="mx-auto flex w-full max-w-4xl flex-col gap-6">
       <header className="border-b border-brand-border pb-5">
         <BrandLogo compact />
-        <p className="mt-4 text-xs font-semibold uppercase tracking-[0.2em] text-brand-accent">BTCBOX · ADMINISTRATION</p>
+        <p className="mt-4 text-xs font-semibold uppercase tracking-[0.2em] text-brand-accent">BTCBOX · 管理后台</p>
         <h1 className="mt-2 text-2xl font-bold tracking-tight text-brand-text sm:text-3xl">{adminText("Administrator sign in")}</h1>
         <p className="mt-2 max-w-2xl text-sm leading-6 text-brand-text-muted">{adminText("This is the private BTCBOX control center. Sign in with the Google or email identity that has been granted administrator access. Customer trading pages and balances are not part of this portal.")}</p>
       </header>
@@ -1268,8 +1423,12 @@ export function AdminPage() {
       <Badge variant={session.is_super_admin ? "default" : "info"}>{session.is_super_admin ? adminText("SUPER ADMIN") : adminText("ACTIVE ADMIN")}</Badge>
     </div>
     {!session.is_super_admin ? <div className="flex flex-wrap items-center gap-1.5 rounded-xl border border-brand-border bg-brand-surface px-4 py-2.5"><span className="type-meta font-semibold uppercase tracking-wide text-brand-text-muted">当前权限</span>{session.permissions.length ? session.permissions.map(key => <Badge key={key} variant="outline" className="text-[11px]">{permissionLabel(key)}</Badge>) : <span className="text-xs text-brand-text-muted">无单独授权（超级管理员权限外）</span>}</div> : null}
-    <div role="navigation" aria-label="管理功能" className="flex max-w-full gap-2 overflow-x-auto border-b border-brand-border pb-3">
-      {allowedTabs.map(item => <Button key={item.id} className="shrink-0 whitespace-nowrap" size="sm" variant={tab === item.id ? "default" : "outline"} onClick={() => { setTab(item.id); setError(""); setNotice(""); }}>{adminText(item.label)}</Button>)}
+    <div className="space-y-2">
+      <input value={navSearch} onChange={event => setNavSearch(event.target.value)} placeholder={adminText("Search admin features")} aria-label={adminText("Search admin features")} className="h-10 w-full rounded-xl border border-brand-border bg-brand-surface px-3 text-sm text-brand-text outline-none focus:border-brand-accent/60 sm:max-w-xs"/>
+      <div role="navigation" aria-label="管理功能" className="flex max-w-full gap-2 overflow-x-auto border-b border-brand-border pb-3">
+        {visibleTabs.map(item => <Button key={item.id} className="shrink-0 whitespace-nowrap" size="sm" variant={tab === item.id ? "default" : "outline"} onClick={() => { setTab(item.id); setError(""); setNotice(""); }}>{adminText(item.label)}</Button>)}
+        {visibleTabs.length === 0 ? <span className="px-2 py-2 text-sm text-brand-text-muted">{adminText("No matching admin features")}</span> : null}
+      </div>
     </div>
     {error ? <div role="alert" className="rounded-xl border border-brand-danger/30 bg-brand-danger/10 p-3 text-sm text-brand-danger">{adminText(error)}</div> : null}
     {notice ? <div role="status" className="rounded-xl border border-brand-success/30 bg-brand-success/10 p-3 text-sm text-brand-success">{adminText(notice)}</div> : null}
@@ -1277,19 +1436,21 @@ export function AdminPage() {
 
     {!loading && tab === "overview" && stats ? <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
       {[
-        ["Total users", stats.total_users], ["Pending withdrawals", stats.pending_withdrawals],
-        ["Pending KYC", stats.pending_kyc], ["Review queue", stats.pending_admin_review_withdrawals],
-      ].map(([label, value], index) => <Card key={adminText(String(label))} className="overflow-hidden border-brand-border bg-brand-surface"><div className={"h-1 "+(index===0?"bg-brand-info":index===1?"bg-brand-text-muted":index===2?"bg-brand-text-muted":"bg-brand-accent")}/><CardContent className="p-4 sm:p-5"><p className="type-meta font-semibold uppercase tracking-wide text-brand-text-muted">{adminText(String(label))}</p><p className="type-price mt-2 text-brand-text">{asText(value)}</p></CardContent></Card>)}
+        { label:"Total users", value:stats.total_users, tab:null, permission:"dashboard.read" },
+        { label:"Pending withdrawals", value:stats.pending_withdrawals, tab:"withdrawals" as Tab, permission:"withdrawals.read" },
+        { label:"Pending KYC", value:stats.pending_kyc, tab:"kyc" as Tab, permission:"kyc.read" },
+        { label:"Review queue", value:stats.pending_admin_review_withdrawals, tab:"withdrawals" as Tab, permission:"withdrawals.read" },
+      ].map((item,index) => <Card key={adminText(item.label)} className="overflow-hidden border-brand-border bg-brand-surface"><div className={"h-1 "+(index===0?"bg-brand-info":index===1?"bg-brand-text-muted":index===2?"bg-brand-text-muted":"bg-brand-accent")}/><CardContent className="p-4 sm:p-5"><p className="type-meta font-semibold uppercase tracking-wide text-brand-text-muted">{adminText(item.label)}</p><p className="type-price mt-2 text-brand-text">{asText(item.value)}</p>{item.tab && hasPermission(item.permission) ? <Button size="sm" variant="outline" className="mt-3" onClick={()=>{setTab(item.tab!);setError("");setNotice("");}}>{adminText("Open review queue")}</Button> : null}</CardContent></Card>)}
     </div> : null}
 
     {!loading && tab === "users" ? <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(360px,0.9fr)]">
-      <Card><CardHeader><CardTitle>{adminText("Users")}</CardTitle><CardDescription>{adminText("Search a user, then select an asset row for staff manual credit.")}</CardDescription></CardHeader><CardContent>
-        <form className="mb-3 flex gap-2" onSubmit={event => { event.preventDefault(); void loadTab(); }}><input value={search} onChange={event => setSearch(event.target.value)} placeholder={adminText("Search UID or email")} className="h-11 min-w-0 flex-1 rounded-xl border border-brand-border bg-brand-surface-2 px-3 py-2 text-sm text-brand-text outline-none transition-colors focus:border-brand-accent/60 focus:ring-2 focus:ring-brand-accent/15"/><Button size="sm" type="submit">{adminText("Search")}</Button></form>
+      <Card><CardHeader><CardTitle>{adminText("User management center")}</CardTitle><CardDescription>{adminText("Search and open one user to manage balances, account status, bank cards, payout addresses and customer service in one place.")}</CardDescription></CardHeader><CardContent>
+        <form className="mb-3 flex gap-2" onSubmit={event => { event.preventDefault(); void searchUsers(searchInput); }}><input value={searchInput} onChange={event => setSearchInput(event.target.value)} placeholder={adminText("Search UID or email")} className="h-11 min-w-0 flex-1 rounded-xl border border-brand-border bg-brand-surface-2 px-3 py-2 text-sm text-brand-text outline-none transition-colors focus:border-brand-accent/60 focus:ring-2 focus:ring-brand-accent/15"/><Button size="sm" type="submit" disabled={userSearchBusy}>{userSearchBusy ? adminText("Searching…") : adminText("Search")}</Button></form>
         <div className="overflow-x-auto"><table className="w-full min-w-[520px] text-left text-sm"><thead><tr className="border-b border-brand-border bg-brand-surface-2/50 type-label uppercase tracking-wide text-brand-text-muted"><th className="px-3 py-2.5">UID</th><th className="px-3 py-2.5">{adminText("Email")}</th><th className="px-3 py-2.5">{adminText("KYC")}</th><th className="px-3 py-2.5">{adminText("Status")}</th><th className="px-3 py-2.5 text-right">{adminText("Action")}</th></tr></thead><tbody>{users.map(user=><tr key={user.uid} className="border-b border-brand-border-subtle transition-colors hover:bg-brand-surface-hover/40"><td className="px-3 py-2.5 font-mono text-xs">{user.uid}</td><td className="px-3 py-2.5">{user.email}</td><td className="px-3 py-2.5"><Badge variant={statusVariant(user.kyc_status || user.kyc?.status || "")}>{user.kyc_status || user.kyc?.status || "—"}</Badge></td><td className="px-3 py-2.5"><Badge variant={user.frozen?"destructive":"success"}>{user.frozen?adminText("Frozen"):adminText("Active")}</Badge></td><td className="px-3 py-2.5 text-right"><Button size="sm" variant="outline" onClick={()=>void selectUser(user.uid)}>{adminText("Open")}</Button></td></tr>)}{users.length===0 ? <tr><td colSpan={5} className="px-3 py-10 text-center text-sm text-brand-text-muted">暂无用户记录，调整搜索条件后重试。</td></tr> : null}</tbody></table></div>
       </CardContent></Card>
       <div className="space-y-4"><Card><CardHeader><CardTitle>{adminText("Manual credit")}</CardTitle><CardDescription>{adminText("UID and asset are bound by the selected user and asset row. No pending deposit order is created.")}</CardDescription></CardHeader><CardContent>
         {!selectedUser ? <p className="text-sm text-brand-text-muted">{adminText("Select a user to load their current balances.")}</p> : <>
-          <div className="mb-3 flex flex-wrap items-center justify-between gap-2"><p className="text-sm font-semibold">{selectedUser.email} · <span className="font-mono">{selectedUser.uid}</span></p>{hasPermission("deposits.read") ? <Badge variant="outline">{selectedUser.financial_balance_source === "postgres_financial_ledger" ? adminText("Balances: PostgreSQL ledger") : selectedUser.financial_balance_source === "legacy_state_retention_limited" ? adminText("Balances: legacy state · limited") : adminText("Balances: source unknown")}</Badge> : null}</div>
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2"><p className="text-sm font-semibold">{selectedUser.email} · <span className="font-mono">{selectedUser.uid}</span></p><div className="flex items-center gap-2">{hasPermission("deposits.read") ? <Badge variant="outline">{selectedUser.financial_balance_source === "postgres_financial_ledger" ? adminText("Balances: PostgreSQL ledger") : selectedUser.financial_balance_source === "legacy_state_retention_limited" ? adminText("Balances: legacy state · limited") : adminText("Balances: source unknown")}</Badge> : null}<Button size="sm" variant="outline" disabled={busy} onClick={() => void selectUser(selectedUser.uid)}>{adminText("Refresh user profile")}</Button></div></div>
           {selectedUser.financial_balance_source !== "postgres_financial_ledger" ? <p role="status" className="mb-3 text-xs text-brand-warning">{adminText("Manual credit is disabled until the user's PostgreSQL ledger balance source is confirmed.")}</p> : null}
           {!hasPermission("deposits.read") ? <p className="text-sm text-brand-text-muted">{adminText("Balance details require the deposits.read permission.")}</p> : <div className="space-y-3">{assets.map(coin=><form key={coin} className="rounded-xl border border-brand-border p-3" onSubmit={event=>void manualCredit(event,coin)}>
             <div className="mb-2 flex items-center justify-between"><span className="font-semibold">{coin}</span><span className="text-xs text-brand-text-muted">{adminText("Available:")}{selectedUser.balances?.[coin]?.free == null ? "—" : asText(selectedUser.balances[coin].free)}</span></div>
@@ -1304,21 +1465,26 @@ export function AdminPage() {
               selectedUser.deposit_history.length === 0 ? <p className="text-sm text-brand-text-muted">{adminText("No deposit records found.")}</p> :
               <div className="overflow-x-auto"><table className="w-full min-w-[760px] text-left text-xs"><thead><tr className="border-b border-brand-border bg-brand-surface-2/50 type-label uppercase tracking-wide text-brand-text-muted"><th className="px-3 py-2.5">{adminText("Asset / network")}</th><th className="px-3 py-2.5 text-right">{adminText("Amount")}</th><th className="px-3 py-2.5">{adminText("Status")}</th><th className="px-3 py-2.5">{adminText("Record ID")}</th><th className="px-3 py-2.5">{adminText("Reference")}</th><th className="px-3 py-2.5">{adminText("Time")}</th></tr></thead><tbody>{selectedUser.deposit_history.map((item,index)=><tr key={item.id || index} className="border-b border-brand-border-subtle transition-colors hover:bg-brand-surface-hover/40"><td className="px-3 py-2.5">{item.coin} · {item.network || "—"}</td><td className="px-3 py-2.5 text-right font-mono tabular-nums">{asText(item.amount)}</td><td className="px-3 py-2.5"><Badge variant={statusVariant(item.status)}>{adminText(item.status)}</Badge></td><td className="max-w-[180px] truncate px-3 py-2.5 font-mono" title={item.id || ""}>{item.id || "—"}</td><td className="max-w-[220px] truncate px-3 py-2.5 font-mono" title={item.reference || item.txid || ""}>{item.reference || item.txid || "—"}</td><td className="whitespace-nowrap px-3 py-2.5">{formatDate(item.time)}</td></tr>)}</tbody></table></div>}
           </section> : null}
+          {hasPermission("withdrawals.read") ? <section className="mt-6 space-y-3 border-t border-brand-border pt-4">
+            <div className="flex flex-wrap items-center justify-between gap-2"><div><h3 className="text-sm font-semibold">{adminText("Withdrawal history · latest 20")}</h3><p className="mt-1 text-xs text-brand-text-muted">{adminText("The account snapshot returns the 20 most recent withdrawals. Use the withdrawal queue for pending actions.")}</p></div><Badge variant="outline">{selectedUser.withdrawal_history_source==="postgres_financial_ledger"?adminText("Source: PostgreSQL ledger"):selectedUser.withdrawal_history_source==="legacy_state_retention_limited"?adminText("Source: legacy state · limited"):adminText("Source: unavailable")}</Badge></div>
+            {!selectedUser.withdrawal_history?<p className="text-sm text-brand-text-muted">{adminText("Withdrawal history is not available in this response. Refresh the user record before reviewing a payout.")}</p>:selectedUser.withdrawal_history.length===0?<p className="text-sm text-brand-text-muted">{adminText("No withdrawal records found.")}</p>:<div className="overflow-x-auto"><table className="w-full min-w-[760px] text-left text-xs"><thead><tr className="border-b border-brand-border bg-brand-surface-2/50 type-label uppercase tracking-wide text-brand-text-muted"><th className="px-3 py-2.5">{adminText("Asset / network")}</th><th className="px-3 py-2.5 text-right">{adminText("Amount")}</th><th className="px-3 py-2.5">{adminText("Status")}</th><th className="px-3 py-2.5">{adminText("Record ID")}</th><th className="px-3 py-2.5">{adminText("TxID / reference")}</th><th className="px-3 py-2.5">{adminText("Time")}</th></tr></thead><tbody>{selectedUser.withdrawal_history.map((item,index)=><tr key={item.id||index} className="border-b border-brand-border-subtle"><td className="px-3 py-2.5">{item.coin} · {item.network||"—"}</td><td className="px-3 py-2.5 text-right font-mono tabular-nums">{asText(item.amount)}</td><td className="px-3 py-2.5"><Badge variant={statusVariant(item.status)}>{adminText(item.status)}</Badge></td><td className="max-w-[180px] truncate px-3 py-2.5 font-mono" title={item.id}>{item.id}</td><td className="max-w-[220px] truncate px-3 py-2.5 font-mono" title={item.txid||item.payout_reference||""}>{item.txid||item.payout_reference||"—"}</td><td className="whitespace-nowrap px-3 py-2.5">{formatDate(item.time||item.paid_at)}</td></tr>)}</tbody></table></div>}
+          </section> : null}
         </>}
       </CardContent></Card>
       <Card><CardHeader><CardTitle>{adminText("Balance adjustment")}</CardTitle><CardDescription>{adminText("Add, deduct, freeze or unfreeze the selected user's available balance. Every operation is audited and idempotent.")}</CardDescription></CardHeader><CardContent className="space-y-3">
         {!selectedUser ? <p className="text-sm text-brand-text-muted">{adminText("Select a user first.")}</p> : <>
           <div className="grid gap-2 sm:grid-cols-2">
-            <label className="space-y-1 text-sm"><span className="text-brand-text-muted">{adminText("Asset")}</span><select value={adjustCoin} onChange={event => setAdjustCoin(event.target.value)} disabled={adjustBusy} className="h-11 w-full rounded-xl border border-brand-border bg-brand-surface-2 px-3 text-sm text-brand-text">{assets.map(coin => <option key={coin}>{coin}</option>)}</select></label>
-            <label className="space-y-1 text-sm"><span className="text-brand-text-muted">{adminText("Operation")}</span><select value={adjustMode} onChange={event => setAdjustMode(event.target.value as "credit" | "debit" | "freeze" | "unfreeze")} disabled={adjustBusy} className="h-11 w-full rounded-xl border border-brand-border bg-brand-surface-2 px-3 text-sm text-brand-text"><option value="credit">{adminText("Add balance")}</option><option value="debit">{adminText("Deduct balance")}</option><option value="freeze">{adminText("Freeze funds")}</option><option value="unfreeze">{adminText("Unfreeze funds")}</option></select></label>
+            <label className="space-y-1 text-sm"><span className="text-brand-text-muted">{adminText("Asset")}</span><select value={adjustCoin} onChange={event => setAdjustCoin(event.target.value)} disabled={adjustBusy || !!adjustRequestId || adjustPendingInvalid} className="h-11 w-full rounded-xl border border-brand-border bg-brand-surface-2 px-3 text-sm text-brand-text">{assets.map(coin => <option key={coin}>{coin}</option>)}</select></label>
+            <label className="space-y-1 text-sm"><span className="text-brand-text-muted">{adminText("Operation")}</span><select value={adjustMode} onChange={event => setAdjustMode(event.target.value as "credit" | "debit" | "freeze" | "unfreeze")} disabled={adjustBusy || !!adjustRequestId || adjustPendingInvalid} className="h-11 w-full rounded-xl border border-brand-border bg-brand-surface-2 px-3 text-sm text-brand-text"><option value="credit">{adminText("Add balance")}</option><option value="debit">{adminText("Deduct balance")}</option><option value="freeze">{adminText("Freeze funds")}</option><option value="unfreeze">{adminText("Unfreeze funds")}</option></select></label>
           </div>
           <p className="text-xs text-brand-text-muted">{adminText("Available")}: {selectedUser.balances?.[adjustCoin]?.free == null ? "—" : asText(selectedUser.balances[adjustCoin].free)} · {adminText("Frozen")}: {selectedUser.balances?.[adjustCoin]?.frozen == null ? "—" : asText(selectedUser.balances[adjustCoin].frozen)}</p>
-          <input value={adjustAmount} onChange={event => setAdjustAmount(event.target.value)} disabled={adjustBusy} inputMode="decimal" placeholder={adminText("Amount")} className="h-11 w-full rounded-xl border border-brand-border bg-brand-surface-2 px-3 text-sm text-brand-text"/>
-          <input value={adjustReason} onChange={event => setAdjustReason(event.target.value)} disabled={adjustBusy} maxLength={200} placeholder={adminText("Reason (required, at least 5 characters)")} className="h-11 w-full rounded-xl border border-brand-border bg-brand-surface-2 px-3 text-sm text-brand-text"/>
-          <Button size="sm" disabled={adjustBusy || !hasPermission("financial_adjustment.request") || !adjustAmount.trim() || adjustReason.trim().length < 5} onClick={() => void submitBalanceAdjustment()}>{adjustBusy ? adminText("Processing…") : adminText("Confirm adjustment")}</Button>
+          <input value={adjustAmount} onChange={event => setAdjustAmount(event.target.value)} disabled={adjustBusy || !!adjustRequestId || adjustPendingInvalid} inputMode="decimal" placeholder={adminText("Amount")} className="h-11 w-full rounded-xl border border-brand-border bg-brand-surface-2 px-3 text-sm text-brand-text"/>
+          {(adjustMode === "freeze" || adjustMode === "unfreeze") ? <input value={adjustReason} onChange={event => setAdjustReason(event.target.value)} disabled={adjustBusy || !!adjustRequestId || adjustPendingInvalid} maxLength={200} placeholder={adminText("Reason (required, at least 5 characters)")} className="h-11 w-full rounded-xl border border-brand-border bg-brand-surface-2 px-3 text-sm text-brand-text"/> : null}
+          <Button size="sm" disabled={adjustBusy || adjustPendingInvalid || !hasPermission("financial_adjustment.request") || !adjustAmount.trim() || ((adjustMode === "freeze" || adjustMode === "unfreeze") && adjustReason.trim().length < 5)} onClick={() => void submitBalanceAdjustment()}>{adjustBusy ? adminText("Processing…") : adjustRequestId ? adminText("Retry same adjustment") : adminText("Confirm adjustment")}</Button>{adjustPendingInvalid ? <p role="alert" className="text-xs text-brand-danger">{adminText("Saved adjustment request is unreadable. Check the financial audit log before continuing.")}</p> : adjustRequestId ? <p className="text-xs text-brand-warning">{adminText("A previous adjustment is awaiting confirmation. Retry the same operation; its request ID is preserved to prevent duplicate credit or debit.")}</p> : null}
           {!hasPermission("financial_adjustment.request") ? <p className="text-xs text-brand-warning">{adminText("Requires the financial_adjustment.request permission.")}</p> : null}
         </>}
       </CardContent></Card>
+      {selectedUser ? <Card><CardHeader><CardTitle>{adminText("KYC verification")}</CardTitle><CardDescription>{adminText("Administrators may complete a manual identity verification without waiting for a customer submission. Verify the identity independently and record the verification method; the decision is audited.")}</CardDescription></CardHeader><CardContent className="space-y-3"><div className="flex flex-wrap items-center justify-between gap-2"><span className="text-sm text-brand-text-muted">{adminText("Current KYC status")}</span><Badge variant={statusVariant(selectedUser.kyc_status || selectedUser.kyc?.status || "unsubmitted")}>{adminText(selectedUser.kyc_status || selectedUser.kyc?.status || "unsubmitted")}</Badge></div><Button size="sm" disabled={busy || !hasPermission("kyc.review")} onClick={()=>{setReviewDialog({kind:"kyc-manual",uid:selectedUser.uid});setReviewReason("");setManualIdentityConfirmed(false);setError("");setNotice("");}}>{adminText("Perform manual KYC verification")}</Button>{!hasPermission("kyc.review") ? <p className="text-xs text-brand-warning">{adminText("Requires the kyc.review permission.")}</p> : null}</CardContent></Card> : null}
       <Card><CardHeader><CardTitle>{adminText("Account actions")}</CardTitle><CardDescription>{adminText("Freeze the account, reset the login password or email, and send a staff message to the customer.")}</CardDescription></CardHeader><CardContent className="space-y-4">
         {!selectedUser ? <p className="text-sm text-brand-text-muted">{adminText("Select a user first.")}</p> : <>
           <div className="space-y-2">
@@ -1347,6 +1513,22 @@ export function AdminPage() {
           </div>
         </>}
       </CardContent></Card>
+      {selectedUser ? <>
+      {hasPermission("payout_addresses.read_sensitive") ? <Card><CardHeader><CardTitle>{adminText("This user's saved addresses and bank cards")}</CardTitle><CardDescription>{adminText("Only records linked to the selected UID are shown here. Sensitive details remain permission-protected.")}</CardDescription></CardHeader><CardContent className="space-y-3">
+        {profileRelatedLoading ? <p className="text-sm text-brand-text-muted">{adminText("Loading linked records…")}</p> : null}
+        {selectedUserAddresses.map(item => <div key={item.id} className="rounded-xl border border-brand-border p-3"><div className="flex flex-wrap items-start justify-between gap-2"><div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><Badge variant="outline">{item.type === "bank" ? adminText("Bank card") : adminText("Crypto address")}</Badge><span className="text-xs text-brand-text-muted">{formatDate(item.created_at)}</span></div>{item.type === "bank" ? <><p className="mt-2 text-sm font-semibold">{item.bank_name} · {item.account_holder}</p><p className="mt-1 break-all font-mono text-xs">{item.iban ? "IBAN " + item.iban : "Account " + (item.account_number || "—")}</p><p className="mt-1 break-words text-xs text-brand-text-muted">{[item.country,item.routing_number ? "Routing " + item.routing_number : "",item.swift ? "SWIFT " + item.swift : "",item.bank_address].filter(Boolean).join(" · ")}</p></> : <><p className="mt-2 text-sm font-semibold">{item.coin} · {item.network}</p><p className="mt-1 break-all font-mono text-xs">{item.address}</p></>}</div><div className="flex shrink-0 gap-2"><Button size="sm" variant="outline" disabled={busy || item.type !== "bank" || !hasPermission("payout_addresses.manage")} onClick={() => beginPayoutAddressEdit(item)}>{adminText("Edit")}</Button><Button size="sm" variant="destructive" disabled={busy || !hasPermission("payout_addresses.manage")} onClick={() => setPendingDeletePayoutAddress(item)}>{adminText("Delete")}</Button></div></div></div>)}
+        {!profileRelatedLoading && selectedUserAddresses.length === 0 ? <p className="rounded-lg border border-dashed border-brand-border p-5 text-center text-sm text-brand-text-muted">{adminText("No saved addresses or bank cards for this user.")}</p> : null}
+        {editingPayoutAddress?.uid === selectedUser.uid ? <div className="space-y-3 rounded-xl border border-brand-accent/30 bg-brand-surface-2 p-3"><p className="text-sm font-semibold">{adminText("Edit bank payout details")}</p><div className="grid gap-3 sm:grid-cols-2">{([["account_holder","Account holder"],["bank_name","Bank name"],["account_number","Local account number"],["iban","IBAN"],["country","Country code"],["routing_number","Routing number"],["swift","SWIFT / BIC"],["bank_address","Bank address"],["note","Note"]] as const).map(([key,label])=><label key={key} className="space-y-1 text-sm"><span>{adminText(label)}</span><input value={payoutAddressDraft[key]} disabled={busy||!hasPermission("payout_addresses.manage")} onChange={event=>setPayoutAddressDraft(current=>({...current,[key]:event.target.value}))} className="w-full rounded-lg border border-brand-border bg-brand-surface px-3 py-2 text-sm text-brand-text"/></label>)}</div><label className="block space-y-1 text-sm"><span>{adminText("Reason for change (required)")}</span><textarea value={payoutAddressDraft.reason} onChange={event=>setPayoutAddressDraft(current=>({...current,reason:event.target.value}))} rows={2} maxLength={200} className="w-full rounded-lg border border-brand-border bg-brand-surface p-3 text-sm text-brand-text"/></label><div className="flex gap-2"><Button size="sm" disabled={busy||!hasPermission("payout_addresses.manage")||!payoutAddressDraft.reason.trim()} onClick={()=>void savePayoutAddress()}>{adminText("Save changes")}</Button><Button size="sm" variant="outline" disabled={busy} onClick={()=>setEditingPayoutAddress(null)}>{adminText("Cancel")}</Button></div></div> : null}
+      </CardContent></Card> : null}
+      {hasPermission("support.read") ? <Card><CardHeader><div className="flex flex-wrap items-center justify-between gap-2"><div><CardTitle>{adminText("This user's customer service conversation")}</CardTitle><CardDescription>{adminText("Messages below are linked to this UID only. Reply here to keep the conversation attached to the same customer.")}</CardDescription></div>{(() => { const thread = groupSupportThreads(selectedUserSupport)[0]; return thread?.adminUnreadCount ? <Button size="sm" variant="outline" disabled={busy} onClick={() => void markSupportThreadRead(selectedUser!.uid)}>{adminText("Mark read")}</Button> : null; })()}</div></CardHeader><CardContent className="space-y-3">
+        {profileRelatedLoading ? <p className="text-sm text-brand-text-muted">{adminText("Loading linked records…")}</p> : null}
+        {selectedUserSupport.map((message,index) => <div key={asText(message.id) || index} className={message.from === "admin" ? "ml-5 rounded-lg bg-brand-accent/10 p-3" : "mr-5 rounded-lg bg-brand-surface-2 p-3"}><div className="flex items-center justify-between gap-2"><Badge variant={message.from === "admin" ? "outline" : "secondary"}>{message.from === "admin" ? adminText("Administrator") : adminText("Customer")}</Badge><span className="text-[11px] text-brand-text-muted">{formatDate(message.time)}</span></div><p className="mt-2 whitespace-pre-wrap break-words text-sm">{asText(message.content)}</p></div>)}
+        {!profileRelatedLoading && selectedUserSupport.length === 0 ? <p className="rounded-lg border border-dashed border-brand-border p-5 text-center text-sm text-brand-text-muted">{adminText("No customer service messages for this user yet.")}</p> : null}
+        <textarea value={supportReply[selectedUser.uid] || ""} onChange={event => { const uid = selectedUser.uid; setSupportReply(current => ({...current,[uid]:event.target.value})); try { setSupportReplyRequestIds(current => ({...current,[uid]:window.crypto.randomUUID()})); } catch { setError("Secure support reply request IDs are unavailable in this browser. No reply was sent."); } }} rows={3} maxLength={2000} disabled={!hasPermission("support.reply")} className="w-full rounded-lg border border-brand-border bg-brand-surface-2 p-3 text-sm text-brand-text" placeholder={adminText("Reply to this customer")}/>
+        <Button size="sm" disabled={busy || !hasPermission("support.reply") || !supportReply[selectedUser.uid]?.trim()} onClick={() => void replySupport(selectedUser.uid)}>{adminText("Send reply")}</Button>
+        {!hasPermission("support.reply") ? <p className="text-xs text-brand-warning">{adminText("Requires the support.reply permission.")}</p> : null}
+      </CardContent></Card> : null}
+      </> : null}
       </div>
     </div> : null}
 
@@ -1372,7 +1554,17 @@ export function AdminPage() {
       </CardContent></Card>
       {editingPayoutAddress ? <Card><CardHeader><CardTitle>{adminText("Edit bank payout details")}</CardTitle></CardHeader><CardContent className="space-y-3"><div className="grid gap-3 sm:grid-cols-2">{([["account_holder","Account holder"],["bank_name","Bank name"],["account_number","Local account number"],["iban","IBAN"],["country","Country code"],["routing_number","Routing number"],["swift","SWIFT / BIC"],["bank_address","Bank address"],["note","Note"]] as const).map(([key,label])=><label key={key} className="space-y-1 text-sm"><span>{adminText(label)}</span><input value={payoutAddressDraft[key]} disabled={busy||!hasPermission("payout_addresses.manage")} onChange={event=>setPayoutAddressDraft(current=>({...current,[key]:event.target.value}))} className="w-full rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-2 text-sm text-brand-text"/></label>)}</div><label className="block space-y-1 text-sm"><span>{adminText("Reason for change (required)")}</span><textarea value={payoutAddressDraft.reason} onChange={event=>setPayoutAddressDraft(current=>({...current,reason:event.target.value}))} rows={2} maxLength={200} className="w-full rounded-lg border border-brand-border bg-brand-surface-2 p-3 text-sm text-brand-text"/></label><div className="flex gap-2"><Button disabled={busy||!hasPermission("payout_addresses.manage")||!payoutAddressDraft.reason.trim()} onClick={()=>void savePayoutAddress()}>{adminText("Save changes")}</Button><Button variant="outline" disabled={busy} onClick={()=>setEditingPayoutAddress(null)}>{adminText("Cancel")}</Button></div></CardContent></Card>:null}
     </div> : null}
-    {!loading && tab === "support" ? <Card><CardHeader className="flex flex-row items-center justify-between"><CardTitle>{adminText("Support messages")}</CardTitle><Button size="sm" variant="outline" disabled={busy} onClick={()=>void refreshSupportQueue()}>{adminText("Refresh queue")}</Button></CardHeader><CardContent className="space-y-3">{groupSupportThreads(support).map((thread)=> <div key={thread.uid} className="rounded-xl border border-brand-border p-3"><div className="flex flex-wrap items-center justify-between gap-2"><div><p className="text-sm font-semibold text-brand-text">{thread.email || thread.uid}</p><p className="text-xs text-brand-text-muted">{thread.uid}</p></div><div className="flex flex-wrap items-center gap-2"><Badge variant={thread.unanswered > 0 ? "warning" : "success"}>{thread.unanswered > 0 ? adminText("Awaiting reply") + " · " + thread.unanswered : adminText("Replied")}</Badge>{thread.adminUnreadCount > 0 ? <Badge variant="info">{adminText("Unread") + " · " + thread.adminUnreadCount}</Badge> : null}{thread.adminUnreadCount > 0 ? <Button size="sm" variant="outline" disabled={busy} onClick={()=>void markSupportThreadRead(thread.uid)}>{adminText("Mark read")}</Button> : null}</div></div><div className="mt-3 space-y-2 rounded-lg bg-brand-surface-2/50 p-3">{thread.messages.map((message,index)=><div key={asText(message.id)||index} className={message.from === "admin" ? "ml-5 rounded-lg bg-brand-accent/10 p-2.5" : "mr-5 rounded-lg bg-brand-surface p-2.5"}><div className="flex items-center justify-between gap-2"><Badge variant={message.from === "admin" ? "outline" : "secondary"}>{message.from === "admin" ? adminText("Administrator") : adminText("Customer")}</Badge><span className="text-[11px] text-brand-text-muted">{formatDate(asText(message.time))}</span></div><p className="mt-2 whitespace-pre-wrap break-words text-sm">{asText(message.content)}</p></div>)}</div><textarea value={supportReply[thread.uid]||""} onChange={event=>{setSupportReply(current=>({...current,[thread.uid]:event.target.value}));try { setSupportReplyRequestIds(current=>({...current,[thread.uid]:window.crypto.randomUUID()})); } catch { setError("Secure support reply request IDs are unavailable in this browser. No reply was sent."); }}} rows={2} className="mt-3 w-full rounded-lg border border-brand-border bg-brand-surface-2 p-2 text-sm text-brand-text" placeholder={adminText("Reply to customer")}/><Button size="sm" className="mt-2" disabled={busy||!supportReply[thread.uid]?.trim()||!hasPermission("support.reply")} onClick={()=>void replySupport(thread.uid)}>{adminText("Send reply")}</Button></div>)}{support.length===0 ? <p className="rounded-lg border border-dashed border-brand-border p-6 text-center text-sm text-brand-text-muted">暂无客服消息。</p> : null}</CardContent></Card> : null}
+    {!loading && tab === "support" ? <Card><CardHeader className="flex flex-row items-center justify-between"><CardTitle>{adminText("Support messages")}</CardTitle><Button size="sm" variant="outline" disabled={busy} onClick={()=>void refreshSupportQueue()}>{adminText("Refresh queue")}</Button></CardHeader><CardContent className="space-y-3">
+      <input value={supportSearch} onChange={event=>setSupportSearch(event.target.value)} placeholder={adminText("Search support by UID or email")} aria-label={adminText("Search support by UID or email")} className="h-11 w-full rounded-xl border border-brand-border bg-brand-surface-2 px-3 text-sm text-brand-text outline-none focus:border-brand-accent/60"/>
+      {groupSupportThreads(support).filter(thread=>{const q=supportSearch.trim().toLowerCase();return !q||thread.uid.toLowerCase().includes(q)||thread.email.toLowerCase().includes(q);}).map(thread=>{const latest=thread.messages[thread.messages.length-1];return <div key={thread.uid} className="rounded-xl border border-brand-border p-3">
+        <div className="flex flex-wrap items-start justify-between gap-2"><div className="min-w-0"><p className="text-sm font-semibold text-brand-text">{thread.email||thread.uid}</p><p className="text-xs text-brand-text-muted">{thread.uid}</p><p className="mt-2 line-clamp-2 break-words text-sm text-brand-text-muted">{latest?(latest.from==="admin"?adminText("Latest reply")+": ":adminText("Latest customer message")+": ")+asText(latest.content):"—"}</p><p className="mt-1 text-[11px] text-brand-text-muted">{formatDate(thread.latestTime)}</p></div>
+        <div className="flex flex-wrap items-center gap-2"><Badge variant={thread.unanswered > 0?"warning":"success"}>{thread.unanswered > 0?adminText("Awaiting reply")+" · "+thread.unanswered:adminText("Replied")}</Badge>{thread.adminUnreadCount > 0?<Badge variant="info">{adminText("Unread")+" · "+thread.adminUnreadCount}</Badge>:null}<Button size="sm" variant="outline" onClick={()=>{setSearchInput(thread.uid);setPendingSupportProfileUid(thread.uid);setTab("users");}}>{adminText("Open user profile")}</Button>{thread.adminUnreadCount > 0?<Button size="sm" variant="outline" disabled={busy} onClick={()=>void markSupportThreadRead(thread.uid)}>{adminText("Mark read")}</Button>:null}</div></div>
+        <div className="mt-3 space-y-2 rounded-lg bg-brand-surface-2/50 p-3">{thread.messages.map((message,index)=><div key={asText(message.id)||index} className={message.from==="admin"?"ml-5 rounded-lg bg-brand-accent/10 p-2.5":"mr-5 rounded-lg bg-brand-surface p-2.5"}><div className="flex items-center justify-between gap-2"><Badge variant={message.from==="admin"?"outline":"secondary"}>{message.from==="admin"?adminText("Administrator"):adminText("Customer")}</Badge><span className="text-[11px] text-brand-text-muted">{formatDate(asText(message.time))}</span></div><p className="mt-2 whitespace-pre-wrap break-words text-sm">{asText(message.content)}</p></div>)}</div>
+        <textarea value={supportReply[thread.uid]||""} onChange={event=>{setSupportReply(current=>({...current,[thread.uid]:event.target.value}));try{setSupportReplyRequestIds(current=>({...current,[thread.uid]:window.crypto.randomUUID()}));}catch{setError("Secure support reply request IDs are unavailable in this browser. No reply was sent.");}}} rows={2} className="mt-3 w-full rounded-lg border border-brand-border bg-brand-surface-2 p-2 text-sm text-brand-text" placeholder={adminText("Reply to customer")}/><Button size="sm" className="mt-2" disabled={busy||!supportReply[thread.uid]?.trim()||!hasPermission("support.reply")} onClick={()=>void replySupport(thread.uid)}>{adminText("Send reply")}</Button>
+      </div>;})}
+      {support.length===0?<p className="rounded-lg border border-dashed border-brand-border p-6 text-center text-sm text-brand-text-muted">暂无客服消息。</p>:null}
+      {support.length>0&&!groupSupportThreads(support).some(thread=>{const q=supportSearch.trim().toLowerCase();return !q||thread.uid.toLowerCase().includes(q)||thread.email.toLowerCase().includes(q);})?<p className="rounded-lg border border-dashed border-brand-border p-6 text-center text-sm text-brand-text-muted">{adminText("No support conversations match this search.")}</p>:null}
+    </CardContent></Card> : null}
     {!loading && tab === "support-faq" ? <div className="grid gap-4 xl:grid-cols-[minmax(0,1.05fr)_minmax(340px,0.95fr)]">
       <Card>
         <CardHeader>

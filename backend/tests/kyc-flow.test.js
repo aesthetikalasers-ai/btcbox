@@ -202,3 +202,22 @@ test('no new KYC RBAC permission was invented; only the existing kyc.read and ky
   assert.ok(detailRoute.includes("safeUser.kyc = { status: String(u.kyc && u.kyc.status || 'unsubmitted') }"));
   assert.ok(detailRoute.includes('KYC evidence and full identity numbers require the separate kyc.read permission'));
 });
+
+
+test('admin overview links KYC counts to the review queue and user profiles can perform audited manual KYC', () => {
+  assert.ok(admin.includes('{ label:"Pending KYC", value:stats.pending_kyc, tab:"kyc" as Tab, permission:"kyc.read" }'));
+  assert.ok(admin.includes('adminText("Open review queue")'));
+  assert.ok(admin.includes('setTab(item.tab!)'));
+  assert.ok(admin.includes('adminText("KYC verification")'));
+  assert.ok(admin.includes('adminText("Perform manual KYC verification")'));
+  assert.ok(admin.includes('setReviewDialog({kind:"kyc-manual",uid:selectedUser.uid})'));
+  assert.ok(admin.includes('hasPermission("kyc.review")'));
+  assert.ok(admin.includes('await adminApproveKyc(token, target.uid, { admin_override: true, reason: reasonText })'));
+  assert.ok(admin.includes('if (!manualIdentityConfirmed)'));
+  assert.ok(admin.includes('await getAdminUser(token, target.uid)'));
+  const approvalStart = api.indexOf("if (sub === 'kyc/approve' && method === 'POST')");
+  const approvalEnd = api.indexOf("// POST /api/admin/kyc/reject", approvalStart);
+  const approvalRoute = api.slice(approvalStart, approvalEnd);
+  assert.ok(approvalRoute.includes("if (override && !reason)"));
+  assert.ok(approvalRoute.includes("await auditAdmin(override ? 'kyc_approve_exception'"));
+});

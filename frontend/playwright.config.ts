@@ -25,12 +25,16 @@ export default defineConfig({
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
   },
-  // CI acceptance is mobile-first. Desktop visual/layout acceptance is intentionally
-  // excluded from the merge gate; desktop remains available for optional local checks.
+  // CI acceptance covers touch-device phone widths and desktop terminal baselines.
+  // Both projects run against the local production bundle with isolated API mocks.
   projects: [
     {
       name: "mobile-chromium",
       use: { ...devices["Pixel 7"] },
+    },
+    {
+      name: "desktop-chromium",
+      use: { ...devices["Desktop Chrome"], viewport: { width: 1440, height: 900 } },
     },
   ],
   // Use the production bundle: vite dev enables DEV_OPEN_ACCOUNT_PAGES and bypasses production auth gates.

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { ArrowLeftRight, CandlestickChart, Headset, Search, Sprout, TrendingUp, User } from "lucide-react";
+import { ArrowLeftRight, CandlestickChart, Headset, Search, Sprout, TrendingUp, User, Wallet } from "lucide-react";
 import { useI18n } from "../../lib/i18n";
 import { useAuth } from "../../lib/auth";
 import { getSupportUnread } from "../../lib/api";
@@ -105,13 +105,15 @@ export function Topbar() {
               key={key}
               to={to}
               aria-current={isActive ? "page" : undefined}
+              aria-label={t(label)}
+              title={t(label)}
               className={cn(
-                "relative flex h-14 items-center gap-1.5 px-2.5 text-[13px] transition-colors",
+                "relative flex h-14 items-center gap-1.5 px-2 text-[13px] transition-colors lg:px-2.5",
                 isActive ? "font-semibold text-brand-text" : "font-medium text-brand-text-muted hover:text-brand-text",
               )}
             >
               <Icon className={cn("h-[15px] w-[15px] shrink-0", isActive ? "text-brand-accent" : "text-brand-text-muted")} />
-              <span className="whitespace-nowrap">{t(label)}</span>
+              <span className="hidden whitespace-nowrap lg:inline">{t(label)}</span>
               <span
                 aria-hidden="true"
                 className={cn(
@@ -123,6 +125,22 @@ export function Topbar() {
           );
         })}
       </nav>
+
+      {/* Assets stays visible in the desktop header instead of being hidden
+          behind the account menu. Mobile continues to use the fixed bottom tab. */}
+      <Link
+        to="/assets"
+        aria-current={pathname.startsWith("/assets") ? "page" : undefined}
+        aria-label={t("Assets")}
+        title={t("Assets")}
+        className={cn(
+          "hidden h-14 shrink-0 items-center gap-1.5 px-2 text-[13px] transition-colors md:flex lg:px-2.5",
+          pathname.startsWith("/assets") ? "font-semibold text-brand-text" : "font-medium text-brand-text-muted hover:text-brand-text",
+        )}
+      >
+        <Wallet className={cn("h-[15px] w-[15px] shrink-0", pathname.startsWith("/assets") ? "text-brand-accent" : "text-brand-text-muted")} />
+        <span className="hidden whitespace-nowrap lg:inline">{t("Assets")}</span>
+      </Link>
 
       {/* Search takes the leftover space, capped so it never crowds the tabs. */}
       <form onSubmit={submitSearch} role="search" className="relative mx-auto hidden min-w-0 max-w-[420px] flex-1 lg:block">

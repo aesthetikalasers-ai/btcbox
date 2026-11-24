@@ -1302,7 +1302,7 @@ export interface AdminUserRecord {
   frozen: boolean;
   total_usdt?: string | number;
   balances?: Record<string, AccountBalance>;
-  financial_balance_source?: "postgres_financial_ledger" | "legacy_state_retention_limited";
+  financial_balance_source?: "postgres_financial_ledger" | "legacy_state_retention_limited" | "unverified";
   deposit_history?: DepositRecord[];
   deposit_history_source?: "postgres_financial_ledger" | "legacy_state_retention_limited";
   withdrawal_history?: WithdrawalRecord[];
@@ -1505,7 +1505,7 @@ export async function adminManualCredit(token: string, input: { uid: string; coi
 }
 export async function adminAdjustBalance(token: string, input: {
   uid: string; coin: string; delta: string;
-  mode: "adjust" | "freeze" | "unfreeze"; reason: string; request_id: string;
+  mode: "adjust" | "freeze" | "unfreeze"; reason?: string; request_id: string;
 }) {
   return adminRequest<{
     ok: true; msg?: string; duplicate?: boolean; operation_id?: string;
