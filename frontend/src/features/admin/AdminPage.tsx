@@ -484,8 +484,8 @@ export function AdminPage() {
   }, [session?.user_id, selectedUser?.uid]);
 
 
-  const selectUser = async (uid: string) => {
-    if (!token) return;
+  const selectUser = async (uid: string): Promise<boolean> => {
+    if (!token) return false;
     const requestId = ++userDetailRequestRef.current;
     setBusy(true); setError(""); setNotice("");
     // A failed user-detail read must never leave another user's balances or
@@ -493,12 +493,14 @@ export function AdminPage() {
     setSelectedUser(null);
     try {
       const result = await getAdminUser(token, uid);
-      if (requestId === userDetailRequestRef.current) setSelectedUser(result.user);
-
+      if (requestId !== userDetailRequestRef.current) return false;
+      setSelectedUser(result.user);
+      return true;
     } catch (reason) {
       if (requestId === userDetailRequestRef.current) {
         setError(reason instanceof Error ? reason.message : "User account could not be loaded.");
       }
+      return false;
     } finally {
       if (requestId === userDetailRequestRef.current) setBusy(false);
     }
@@ -1163,7 +1165,7 @@ export function AdminPage() {
     {!loading && tab === "users" ? <div className="grid gap-4">
       <Card><CardHeader><CardTitle>{adminText("Users")}</CardTitle><CardDescription>{adminText("Search for a user and open their record. Financial operations are managed in the Finance centre.")}</CardDescription></CardHeader><CardContent>
         <form className="mb-3 flex gap-2" onSubmit={event => { event.preventDefault(); void loadTab(); }}><input value={search} onChange={event => setSearch(event.target.value)} placeholder={adminText("Search UID or email")} className="h-11 min-w-0 flex-1 rounded-xl border border-brand-border bg-brand-surface-2 px-3 py-2 text-sm text-brand-text outline-none transition-colors focus:border-brand-accent/60 focus:ring-2 focus:ring-brand-accent/15"/><Button size="sm" type="submit">{adminText("Search")}</Button></form>
-        <div className="overflow-x-auto"><table className="w-full min-w-[520px] text-left text-sm"><thead><tr className="border-b border-brand-border bg-brand-surface-2/50 type-label uppercase tracking-wide text-brand-text-muted"><th className="px-3 py-2.5">UID</th><th className="px-3 py-2.5">{adminText("Email")}</th><th className="px-3 py-2.5">{adminText("KYC")}</th><th className="px-3 py-2.5">{adminText("Status")}</th><th className="px-3 py-2.5 text-right">{adminText("Action")}</th></tr></thead><tbody>{users.map(user=><tr key={user.uid} className="border-b border-brand-border-subtle transition-colors hover:bg-brand-surface-hover/40"><td className="px-3 py-2.5 font-mono text-xs">{user.uid}</td><td className="px-3 py-2.5">{user.email}</td><td className="px-3 py-2.5"><Badge variant={statusVariant(user.kyc_status || user.kyc?.status || "")}>{user.kyc_status || user.kyc?.status || "—"}</Badge></td><td className="px-3 py-2.5"><Badge variant={user.frozen?"destructive":"success"}>{user.frozen?adminText("Frozen"):adminText("Active")}</Badge></td><td className="px-3 py-2.5 text-right"><Button size="sm" variant="outline" onClick={()=>{setFinancialAction("credit");void selectUser(user.uid).then(()=>setTab("financial-adjustments"));}}>{adminText("Open")}</Button></td></tr>)}{users.length===0 ? <tr><td colSpan={5} className="px-3 py-10 text-center text-sm text-brand-text-muted">暂无用户记录，调整搜索条件后重试。</td></tr> : null}</tbody></table></div>
+        <div className="overflow-x-auto"><table className="w-full min-w-[520px] text-left text-sm"><thead><tr className="border-b border-brand-border bg-brand-surface-2/50 type-label uppercase tracking-wide text-brand-text-muted"><th className="px-3 py-2.5">UID</th><th className="px-3 py-2.5">{adminText("Email")}</th><th className="px-3 py-2.5">{adminText("KYC")}</th><th className="px-3 py-2.5">{adminText("Status")}</th><th className="px-3 py-2.5 text-right">{adminText("Action")}</th></tr></thead><tbody>{users.map(user=><tr key={user.uid} className="border-b border-brand-border-subtle transition-colors hover:bg-brand-surface-hover/40"><td className="px-3 py-2.5 font-mono text-xs">{user.uid}</td><td className="px-3 py-2.5">{user.email}</td><td className="px-3 py-2.5"><Badge variant={statusVariant(user.kyc_status || user.kyc?.status || "")}>{user.kyc_status || user.kyc?.status || "—"}</Badge></td><td className="px-3 py-2.5"><Badge variant={user.frozen?"destructive":"success"}>{user.frozen?adminText("Frozen"):adminText("Active")}</Badge></td><td className="px-3 py-2.5 text-right"><Button size="sm" variant="outline" onClick={()=>{setFinancialAction("credit");void selectUser(user.uid).then(loaded=>{if(loaded)setTab("financial-adjustments");});}}>{adminText("Open")}</Button></td></tr>)}{users.length===0 ? <tr><td colSpan={5} className="px-3 py-10 text-center text-sm text-brand-text-muted">暂无用户记录，调整搜索条件后重试。</td></tr> : null}</tbody></table></div>
       </CardContent></Card>
     </div> : null}
 
