@@ -1,4 +1,6 @@
 import { AuthRestoreState } from "../../components/AuthRestoreState";
+import { ManualDebitPanel } from "./ManualDebitPanel";
+import { ADMIN_TAB_GROUPS, ADMIN_TABS, type AdminTab } from "./admin-navigation";
 import { BrandLogo } from "../../components/BrandLogo";
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { Badge } from "../../components/ui/badge";
@@ -9,16 +11,13 @@ import { adminText } from "../../lib/admin-i18n";
 import { AuthPage } from "../auth/AuthPages";
 import {
   ApiError,
-  adminAdjustBalance,
   adminApproveKyc,
   adminApproveWithdrawal,
   adminManualCredit,
-  adminResetUserEmail,
-  adminResetUserPassword,
-  adminSetUserFrozen,
   adminMarkWithdrawalPaid,
   adminRejectKyc,
   adminRejectWithdrawal,
+  adminSetUserFrozen,
   adminReplySupport,
   markAdminSupportRead,
   getAdminAuditLogs,
@@ -33,7 +32,8 @@ import {
   getAdminSecondsOpenPositions,
   getAdminSpotMarkets,
   getAdminPerpMarkets,
-  saveAdminPerpMarket,
+  getAdminAssets,
+  saveAdminAssets,
   getAdminSupportMessages,
   getAdminAddresses,
   manageAdminAddress,
@@ -43,10 +43,13 @@ import {
   deleteAdminSupportFaq,
   getAdminUser,
   getAdminUsers,
+  getAdminDeposits,
   getAdminWithdrawals,
   saveAdminConfig,
   saveAdminSecondsPolicy,
   saveAdminSpotMarket,
+  saveAdminPerpMarket,
+  type AdminAssetConfig,
   type AdminAuditRecord,
   type AdminConfig,
   type AdminKycRecord,
@@ -57,32 +60,18 @@ import {
   type AdminSecondsOpenPosition,
   type AdminSecondsOpenPositionsSnapshot,
   type AdminUserRecord,
+  type AdminDepositRecord,
   type AdminWithdrawalRecord,
 } from "../../lib/api";
 
-type ReviewDialogState = { kind: "withdrawal"; id: string } | { kind: "kyc" | "kyc-manual"; uid: string };
-type Tab = "overview" | "users" | "deposits" | "withdrawals" | "kyc" | "audit" | "orders" | "support" | "support-faq" | "payout-addresses" | "admins" | "seconds" | "markets";
-const tabs: Array<{ id: Tab; label: string; permission: string }> = [
-  { id: "overview", label: "Overview", permission: "dashboard.read" },
-  { id: "users", label: "User management center", permission: "users.read" },
-  { id: "deposits", label: "Deposit addresses", permission: "system_config.read" },
-  { id: "withdrawals", label: "Withdrawals", permission: "withdrawals.read" },
-  { id: "kyc", label: "KYC", permission: "kyc.read" },
-  { id: "audit", label: "Audit log", permission: "financial_audit.read" },
-  { id: "orders", label: "Orders", permission: "orders.read" },
-  { id: "support", label: "Support", permission: "support.read" },
-  { id: "payout-addresses", label: "Bank payout details", permission: "payout_addresses.read_sensitive" },
-  { id: "support-faq", label: "Help centre", permission: "support.manage" },
-  { id: "seconds", label: "Seconds policy", permission: "seconds_policy.read" },
-  { id: "markets", label: "Spot markets", permission: "system_config.read" },
-];
+type ReviewDialogState = { kind: "withdrawal"; id: string } | { kind: "kyc" | "kyc-manual"; uid: string } | { kind: "user-freeze"; uid: string; frozen: boolean };
+
 const adminPermissionOptions = [["dashboard.read","Dashboard"],["users.read","Read users"],["users.manage","Manage users"],["users.freeze","Freeze accounts"],["financial_adjustment.request","Manual balance adjustment"],["kyc.read","Read KYC"],["kyc.review","Review KYC"],["deposits.read","Read deposits"],["deposits.review","Manual deposit credit"],["payout_addresses.read_sensitive","Read sensitive customer payout addresses"],["payout_addresses.manage","Manage customer payout addresses"],["withdrawals.read","Read withdrawals"],["withdrawals.review","Review and mark paid"],["orders.read","Read orders"],["support.read","Read support"],["support.reply","Reply to support"],["support.manage","Manage support"],["announcements.read","Read announcements"],["announcements.manage","Manage announcements"],["system_config.read","Read system configuration"],["system_config.write","Edit system configuration"],["seconds_policy.read","Read Seconds policy"],["seconds_policy.manage","Manage Seconds policy"],["financial_audit.read","Read financial audit"]] as const;
 const depositAddressKeys = [
   "USDT-TRC20", "USDT-ERC20", "USDT-BEP20", "BTC-BTC",
   "ETH-ERC20", "SOL-SOL", "BNB-BEP20", "USDC-ERC20",
 ];
 const assets = ["USDT", "BTC", "ETH", "SOL", "BNB", "USDC"];
-const spotAssets = ["USDT", "USDC", "BTC", "ETH", "SOL", "BNB", "XRP", "DOGE", "ADA", "AVAX", "LINK", "DOT", "TRX", "LTC", "BCH", "NEAR", "UNI", "ATOM", "ETC", "APT", "ARB", "OP", "SUI", "INJ", "TIA", "FIL"];
 
 function asText(value: unknown) {
   return value === null || value === undefined ? "—" : String(value);
@@ -101,20 +90,21 @@ function statusVariant(status: string): "success" | "warning" | "destructive" | 
 }
 function permissionLabel(key: string): string {
   const found = adminPermissionOptions.find(([k]) => k === key);
-  return found ? adminText(found[1]) : adminText(key);
+  return found ? found[1] : key;
 }
 
 function groupSupportThreads(messages: Array<Record<string, unknown>>) {
-  const grouped = new Map<string, { uid: string; email: string; messages: Array<Record<string, unknown>> }>();
+  const grouped = new Map<string, { uid: string; email: string; username: string; messages: Array<Record<string, unknown>> }>();
   for (const message of messages) {
     const uid = String(message.uid || message.user_id || "").trim();
     if (!uid) continue;
     let thread = grouped.get(uid);
     if (!thread) {
-      thread = { uid, email: String(message.email || ""), messages: [] };
+      thread = { uid, email: String(message.email || ""), username: String(message.username || ""), messages: [] };
       grouped.set(uid, thread);
     }
     if (!thread.email && typeof message.email === "string") thread.email = message.email;
+    if (!thread.username && typeof message.username === "string") thread.username = message.username;
     thread.messages.push(message);
   }
   return Array.from(grouped.values()).map((thread) => {
@@ -125,10 +115,10 @@ function groupSupportThreads(messages: Array<Record<string, unknown>>) {
       if (thread.messages[index].from === "admin") break;
       if (thread.messages[index].from === "user") unanswered += 1;
     }
-    const fullUnansweredCount = Math.max(0, ...thread.messages.map(message => Number(message.unanswered_count || 0)).filter(Number.isFinite));
-    unanswered = Math.max(unanswered, fullUnansweredCount);
     const adminUnreadCount = Math.max(0, ...thread.messages.map(message => Number(message.admin_unread_count || 0)).filter(Number.isFinite));
-    return { ...thread, latestTime: String(latest?.time || ""), latestFrom: latest?.from, unanswered, adminUnreadCount };
+    const reportedUnanswered = Number(latest?.thread_unanswered_count);
+    const finalUnanswered = Number.isFinite(reportedUnanswered) ? Math.max(0, reportedUnanswered) : unanswered;
+    return { ...thread, latestTime: String(latest?.time || ""), latestFrom: latest?.from, unanswered: finalUnanswered, adminUnreadCount };
   }).sort((left, right) => right.latestTime.localeCompare(left.latestTime));
 }
 
@@ -137,8 +127,7 @@ export function AdminPage() {
   const { status: authStatus, getSupabaseAccessToken } = useAuth();
   const [token, setToken] = useState("");
   const [session, setSession] = useState<AdminSession | null>(null);
-  const [tab, setTab] = useState<Tab>("overview");
-  const [navSearch, setNavSearch] = useState("");
+  const [tab, setTab] = useState<AdminTab>("overview");
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const payoutSubmitLockRef = useRef(false);
@@ -148,32 +137,20 @@ export function AdminPage() {
   const [notice, setNotice] = useState("");
   const [stats, setStats] = useState<Record<string, unknown> | null>(null);
   const [users, setUsers] = useState<AdminUserRecord[]>([]);
-  const [searchInput, setSearchInput] = useState("");
-  const [userSearchBusy, setUserSearchBusy] = useState(false);
+  const [usersDirectoryCompleteness, setUsersDirectoryCompleteness] = useState<"snapshot" | "limit_reached" | null>(null);
+  const [usersDirectoryMatchedCount, setUsersDirectoryMatchedCount] = useState(0);
+  const [search, setSearch] = useState("");
   const [selectedUser, setSelectedUser] = useState<AdminUserRecord | null>(null);
-  const [selectedUserAddresses, setSelectedUserAddresses] = useState<AdminPayoutAddress[]>([]);
-  const [selectedUserSupport, setSelectedUserSupport] = useState<Array<Record<string, unknown>>>([]);
-  const [profileRelatedLoading, setProfileRelatedLoading] = useState(false);
+  const [financialAction, setFinancialAction] = useState<"credit" | "debit">("credit");
   const [creditAmount, setCreditAmount] = useState<Record<string, string>>({});
   const [creditReference, setCreditReference] = useState<Record<string, string>>({});
   const [creditNote, setCreditNote] = useState<Record<string, string>>({});
   const [creditRequestIds, setCreditRequestIds] = useState<Record<string, string>>({});
   const [creditPendingInvalid, setCreditPendingInvalid] = useState<Record<string, boolean>>({});
-  // Balance adjustment (credit / debit / freeze / unfreeze) for the selected user.
-  const [adjustCoin, setAdjustCoin] = useState("USDT");
-  const [adjustMode, setAdjustMode] = useState<"credit" | "debit" | "freeze" | "unfreeze">("credit");
-  const [adjustAmount, setAdjustAmount] = useState("");
-  const [adjustReason, setAdjustReason] = useState("");
-  const [adjustBusy, setAdjustBusy] = useState(false);
-  const [adjustRequestId, setAdjustRequestId] = useState("");
-  const [adjustPendingInvalid, setAdjustPendingInvalid] = useState(false);
-  // Account actions: freeze state, credential changes and a direct staff message.
-  const [accountActionBusy, setAccountActionBusy] = useState(false);
-  const [freezeReason, setFreezeReason] = useState("");
-  const [newPassword, setNewPassword] = useState("");
-  const [newEmail, setNewEmail] = useState("");
-  const [directMessage, setDirectMessage] = useState("");
+  const [deposits, setDeposits] = useState<AdminDepositRecord[]>([]);
   const [withdrawals, setWithdrawals] = useState<AdminWithdrawalRecord[]>([]);
+  const [withdrawalQueueSource, setWithdrawalQueueSource] = useState<"postgres_financial_ledger" | "legacy_state_snapshot" | null>(null);
+  const [withdrawalQueueCompleteness, setWithdrawalQueueCompleteness] = useState<"pending_queue" | "partial" | null>(null);
   const [reviewQueueLoading, setReviewQueueLoading] = useState(false);
   const [payoutReferences, setPayoutReferences] = useState<Record<string, string>>({});
   const [reviewDialog, setReviewDialog] = useState<ReviewDialogState | null>(null);
@@ -191,7 +168,6 @@ export function AdminPage() {
   const auditPageRequestRef = useRef(0);
   const tabLoadRequestRef = useRef(0);
   const userDetailRequestRef = useRef(0);
-  const userSearchRequestRef = useRef(0);
   const adminCandidatesRequestRef = useRef(0);
   const secondsQueueRequestRef = useRef(0);
   const kycRefreshLockRef = useRef(false);
@@ -205,7 +181,7 @@ export function AdminPage() {
   const [ordersSource, setOrdersSource] = useState("unknown");
   const [support, setSupport] = useState<Array<Record<string, unknown>>>([]);
   const [supportSearch, setSupportSearch] = useState("");
-  const [pendingSupportProfileUid, setPendingSupportProfileUid] = useState("");
+  const [supportSearchApplied, setSupportSearchApplied] = useState("");
   const [payoutAddresses, setPayoutAddresses] = useState<AdminPayoutAddress[]>([]);
   const [editingPayoutAddress, setEditingPayoutAddress] = useState<AdminPayoutAddress | null>(null);
   const [pendingDeletePayoutAddress, setPendingDeletePayoutAddress] = useState<AdminPayoutAddress | null>(null);
@@ -230,6 +206,7 @@ export function AdminPage() {
   const [adminReason, setAdminReason] = useState("");
   const [adminRequestId, setAdminRequestId] = useState("");
   const [adminRequestKey, setAdminRequestKey] = useState("");
+  const [assetCatalog, setAssetCatalog] = useState<AdminAssetConfig[]>([]);
   const [spotMarkets, setSpotMarkets] = useState<AdminSpotMarket[]>([]);
   const [spotMarketDraft, setSpotMarketDraft] = useState({
     base_asset: "BTC", quote_asset: "USDT", enabled: true,
@@ -239,12 +216,11 @@ export function AdminPage() {
   const [spotMarketRequestId, setSpotMarketRequestId] = useState("");
   const [perpMarkets, setPerpMarkets] = useState<AdminPerpMarket[]>([]);
   const [perpMarketDraft, setPerpMarketDraft] = useState({
-    base_asset: "", feed_enabled: false, price_tick: "", quantity_step: "", min_quantity: "", min_notional: "5",
-    market_quantity_step: "", market_min_quantity: "", market_max_quantity: "", max_quantity: "", max_position_notional: "", max_leverage: "1", maintenance_margin_rate: "0.05",
-    maker_fee_rate: "0", taker_fee_rate: "0", funding_interval_sec: "28800", funding_rate_cap: "0.0075",
+    base_asset: "BTC", price_tick: "0.01", quantity_step: "0.000001", min_quantity: "0.000001",
+    max_quantity: "", max_position_notional: "", max_leverage: "1", maintenance_margin_rate: "0.05",
+    maker_fee_rate: "0", taker_fee_rate: "0", funding_rate_cap: "0.0075",
     mark_price_stale_sec: "60", circuit_breaker_deviation_pct: "5", reason: "",
   });
-
   const [secondsPolicy, setSecondsPolicy] = useState<{policy_id:string;policy_version:number;symbols:string[];durations_sec:number[];min_stake:number|string;max_stake:number|string;payout_bps:number;per_user_open_exposure:number|string|null;max_open_positions_per_user:number|null}|null>(null);
   const [secondsOpenPositions, setSecondsOpenPositions] = useState<AdminSecondsOpenPosition[]>([]);
   const [secondsOpenSummary, setSecondsOpenSummary] = useState<AdminSecondsOpenPositionsSnapshot | null>(null);
@@ -319,21 +295,14 @@ export function AdminPage() {
     }
   }, [session?.user_id]);
 
-  const allowedTabs = useMemo(() => [...tabs.filter((item) => hasPermission(item.permission)), ...(session?.is_super_admin ? [{ id: "admins" as Tab, label: "Administrators", permission: "super_admin.only" }] : [])], [hasPermission, session]);
-  const visibleTabs = useMemo(() => {
-    const query = navSearch.trim().toLocaleLowerCase();
-    return allowedTabs.filter(item => !query || item.id.toLocaleLowerCase().includes(query) || item.label.toLocaleLowerCase().includes(query) || adminText(item.label).toLocaleLowerCase().includes(query));
-  }, [allowedTabs, navSearch]);
+  const allowedTabs = useMemo(() => [...ADMIN_TABS.filter((item) => hasPermission(item.permission)), ...(session?.is_super_admin ? [{ id: "admins" as AdminTab, label: "Administrators", permission: "super_admin.only" }] : [])], [hasPermission, session]);
   useEffect(() => {
     if (allowedTabs.length && !allowedTabs.some((item) => item.id === tab)) setTab(allowedTabs[0].id);
   }, [allowedTabs, tab]);
 
   const loadTab = useCallback(async () => {
     const requestId = ++tabLoadRequestRef.current;
-    if (tab !== "users") {
-      userDetailRequestRef.current += 1;
-      setProfileRelatedLoading(false);
-    }
+    if (tab !== "users") userDetailRequestRef.current += 1;
     if (tab !== "seconds") secondsQueueRequestRef.current += 1;
     if (!token || !session) return;
     const auditRequestId = ++auditPageRequestRef.current;
@@ -350,10 +319,20 @@ export function AdminPage() {
       if (tab === "users") {
         userDetailRequestRef.current += 1;
         setUsers([]);
+        setUsersDirectoryCompleteness(null);
+        setUsersDirectoryMatchedCount(0);
         setSelectedUser(null);
-        const snapshot = await getAdminUsers(token, "");
+        const snapshot = await getAdminUsers(token, search);
         if (requestId !== tabLoadRequestRef.current) return;
         setUsers(snapshot.users);
+        setUsersDirectoryCompleteness(snapshot.completeness);
+        setUsersDirectoryMatchedCount(snapshot.matched_count);
+      }
+      if (tab === "deposit-records") {
+        setDeposits([]);
+        const snapshot = await getAdminDeposits(token);
+        if (requestId !== tabLoadRequestRef.current) return;
+        setDeposits(snapshot.deposits || []);
       }
       if (tab === "deposits") {
         setConfig({ deposit_addresses: {}, withdrawal_fees: {}, announcement: "" });
@@ -361,17 +340,28 @@ export function AdminPage() {
         if (requestId !== tabLoadRequestRef.current) return;
         setConfig(snapshot);
       }
+      if (tab === "assets") {
+        setAssetCatalog([]);
+        const result = await getAdminAssets(token);
+        if (requestId !== tabLoadRequestRef.current) return;
+        setAssetCatalog(result.assets || []);
+      }
       if (tab === "markets") {
         setSpotMarkets([]);
         setPerpMarkets([]);
-        const [result, perpResult] = await Promise.allSettled([getAdminSpotMarkets(token), getAdminPerpMarkets(token)]);
+        setAssetCatalog([]);
+        const [spotResult, perpResult, assetResult] = await Promise.allSettled([
+          getAdminSpotMarkets(token), getAdminPerpMarkets(token), getAdminAssets(token),
+        ]);
         if (requestId !== tabLoadRequestRef.current) return;
-        if (result.status !== "fulfilled") throw result.reason;
-        setSpotMarkets(result.value.markets || []);
+        if (spotResult.status !== "fulfilled") throw spotResult.reason;
+        setSpotMarkets(spotResult.value.markets || []);
         if (perpResult.status === "fulfilled") setPerpMarkets(perpResult.value.markets || []);
+        else setError("Perpetual market configuration is temporarily unavailable. Spot markets remain available.");
+        if (assetResult.status === "fulfilled") setAssetCatalog(assetResult.value.assets || []);
         else {
-          setPerpMarkets([]);
-          setError("Perpetual market configuration is temporarily unavailable. The spot market list remains available.");
+          setAssetCatalog([]);
+          setError("The asset catalogue could not be loaded. Perpetual market configuration is read-only until it is available.");
         }
         const pendingKey = "btcbox.admin.spot-market.v1." + session.user_id;
         try {
@@ -393,10 +383,14 @@ export function AdminPage() {
       if (tab === "withdrawals") {
         const queueRequestId = ++withdrawalQueueRequestRef.current;
         setWithdrawals([]);
+        setWithdrawalQueueSource(null);
+        setWithdrawalQueueCompleteness(null);
         try {
           const snapshot = await getAdminWithdrawals(token);
           if (requestId !== tabLoadRequestRef.current || queueRequestId !== withdrawalQueueRequestRef.current) return;
           setWithdrawals(snapshot.withdrawals || []);
+          setWithdrawalQueueSource(snapshot.source || null);
+          setWithdrawalQueueCompleteness(snapshot.completeness || null);
         } catch (reason) {
           if (requestId !== tabLoadRequestRef.current || queueRequestId !== withdrawalQueueRequestRef.current) return;
           throw reason;
@@ -424,7 +418,7 @@ export function AdminPage() {
         const snapshot = await getAdminAuditLogs(token);
         if (requestId === tabLoadRequestRef.current && auditRequestId === auditPageRequestRef.current) {
           setAudit(snapshot.logs || []);
-          setAuditNextBefore(snapshot.source === "postgres_financial_audit_log" ? snapshot.next_before || null : null);
+          setAuditNextBefore(snapshot.next_before || null);
           setAuditSource(snapshot.source || "unknown");
           setAuditCompleteness(snapshot.completeness || "unknown");
         }
@@ -448,7 +442,7 @@ export function AdminPage() {
         const queueRequestId = ++supportQueueRequestRef.current;
         setSupport([]);
         try {
-          const snapshot = await getAdminSupportMessages(token);
+          const snapshot = await getAdminSupportMessages(token, supportSearchApplied);
           if (requestId !== tabLoadRequestRef.current || queueRequestId !== supportQueueRequestRef.current) return;
           setSupport((snapshot.messages || []) as unknown as Array<Record<string, unknown>>);
         } catch (reason) {
@@ -504,7 +498,7 @@ export function AdminPage() {
     } finally {
       if (requestId === tabLoadRequestRef.current) setLoading(false);
     }
-  }, [token, session, tab, adminSearch]);
+  }, [token, session, tab, search, adminSearch, supportSearchApplied]);
 
   useEffect(() => {
     void loadTab();
@@ -513,27 +507,6 @@ export function AdminPage() {
 
   useEffect(() => {
     if (!session?.user_id || !selectedUser?.uid) return;
-    const key = "btcbox.admin.balance-adjustment.v1." + session.user_id + "." + selectedUser.uid;
-    setAdjustRequestId("");
-    setAdjustPendingInvalid(false);
-    try {
-      const raw = window.localStorage.getItem(key);
-      if (raw) {
-        const saved = JSON.parse(raw);
-        if (saved && saved.version === 1 && saved.actor_id === session.user_id && saved.target_uid === selectedUser.uid &&
-            typeof saved.request_id === "string" && /^[A-Za-z0-9_-]{16,100}$/.test(saved.request_id) &&
-            typeof saved.coin === "string" && assets.includes(saved.coin) &&
-            typeof saved.delta === "string" && /^-?(?:0|[1-9]\d*)(?:\.\d{1,18})?$/.test(saved.delta) &&
-            typeof saved.mode === "string" && ["adjust", "freeze", "unfreeze"].includes(saved.mode) &&
-            typeof saved.reason === "string") {
-          setAdjustCoin(saved.coin);
-          setAdjustMode(saved.mode === "freeze" ? "freeze" : saved.mode === "unfreeze" ? "unfreeze" : saved.delta.startsWith("-") ? "debit" : "credit");
-          setAdjustAmount(saved.delta.replace(/^-/, ""));
-          setAdjustReason(saved.reason);
-          setAdjustRequestId(saved.request_id);
-        } else setAdjustPendingInvalid(true);
-      }
-    } catch { setAdjustPendingInvalid(true); }
     const amounts: Record<string,string> = {};
     const references: Record<string,string> = {};
     const notes: Record<string,string> = {};
@@ -564,209 +537,26 @@ export function AdminPage() {
   }, [session?.user_id, selectedUser?.uid]);
 
 
-  const selectUser = async (uid: string) => {
-    if (!token) return;
+  const selectUser = async (uid: string): Promise<boolean> => {
+    if (!token) return false;
     const requestId = ++userDetailRequestRef.current;
     setBusy(true); setError(""); setNotice("");
     // A failed user-detail read must never leave another user's balances or
     // manual-credit controls on screen as if they belonged to the new selection.
     setSelectedUser(null);
-    setSelectedUserAddresses([]);
-    setSelectedUserSupport([]);
-    const canReadAddresses = hasPermission("payout_addresses.read_sensitive");
-    const canReadSupport = hasPermission("support.read");
-    setProfileRelatedLoading(canReadAddresses || canReadSupport);
     try {
-      const [result, addressResult, supportResult] = await Promise.all([
-        getAdminUser(token, uid),
-        canReadAddresses ? getAdminAddresses(token).catch(() => null) : Promise.resolve(null),
-        canReadSupport ? getAdminSupportMessages(token).catch(() => null) : Promise.resolve(null),
-      ]);
-      if (requestId === userDetailRequestRef.current) {
-        setSelectedUser(result.user);
-        setSelectedUserAddresses((addressResult?.addresses || []).filter(item => item.uid === uid));
-        setSelectedUserSupport(((supportResult?.messages || []) as unknown as Array<Record<string, unknown>>).filter(message => String(message.uid || message.user_id || "") === uid));
-        if ((canReadAddresses && !addressResult) || (canReadSupport && !supportResult)) {
-          setError("Some user-linked records could not be loaded. Retry opening this user's profile before making changes.");
-        }
-      }
+      const result = await getAdminUser(token, uid);
+      if (requestId !== userDetailRequestRef.current) return false;
+      setSelectedUser(result.user);
+      return true;
     } catch (reason) {
       if (requestId === userDetailRequestRef.current) {
         setError(reason instanceof Error ? reason.message : "User account could not be loaded.");
       }
+      return false;
     } finally {
-      if (requestId === userDetailRequestRef.current) {
-        setBusy(false);
-        setProfileRelatedLoading(false);
-      }
+      if (requestId === userDetailRequestRef.current) setBusy(false);
     }
-  };
-
-  useEffect(() => {
-    if (tab !== "users" || !pendingSupportProfileUid || loading) return;
-    const uid = pendingSupportProfileUid;
-    setPendingSupportProfileUid("");
-    void selectUser(uid);
-  }, [tab, pendingSupportProfileUid, loading, selectUser]);
-
-  // Re-read the selected user after a confirmed write so the balances on screen
-  // come from the server. A failed refresh must not mask the confirmed result.
-  const refreshSelectedUser = async (uid: string) => {
-    try { await selectUser(uid); } catch { /* Confirmed writes stay reported through the notice. */ }
-  };
-
-  const searchUsers = async (query: string) => {
-    if (!token || userSearchBusy) return;
-    const normalizedQuery = query.trim();
-    const requestId = ++userSearchRequestRef.current;
-    setUserSearchBusy(true);
-    setError("");
-    try {
-      const snapshot = await getAdminUsers(token, normalizedQuery);
-      if (requestId === userSearchRequestRef.current) setUsers(snapshot.users || []);
-    } catch (reason) {
-      if (requestId === userSearchRequestRef.current) {
-        setError(reason instanceof Error ? reason.message : "User search could not be completed.");
-      }
-    } finally {
-      if (requestId === userSearchRequestRef.current) setUserSearchBusy(false);
-    }
-  };
-
-  const submitBalanceAdjustment = async () => {
-    if (!token || !selectedUser || adjustBusy) return;
-    const uid = selectedUser.uid;
-    const amount = adjustAmount.trim();
-    if (!/^(?:0|[1-9]\d*)(?:\.\d{1,18})?$/.test(amount) || /^0(?:\.0*)?$/.test(amount)) {
-      setError("Enter an amount greater than 0.");
-      return;
-    }
-    if (adjustPendingInvalid) {
-      setError("A saved balance-adjustment request could not be read. Check the financial audit log before creating another operation.");
-      return;
-    }
-    const mode = adjustMode === "freeze" ? "freeze" : adjustMode === "unfreeze" ? "unfreeze" : "adjust";
-    const reason = adjustReason.trim();
-    if (mode !== "adjust" && reason.length < 5) {
-      setError("Enter a reason of at least 5 characters.");
-      return;
-    }
-    const delta = adjustMode === "debit" ? "-" + amount : amount;
-    const storageKey = "btcbox.admin.balance-adjustment.v1." + session?.user_id + "." + uid;
-    const intent = { version: 1, actor_id: session?.user_id, target_uid: uid, coin: adjustCoin, delta, mode, reason };
-    let requestId = adjustRequestId;
-    if (requestId) {
-      try {
-        const saved = JSON.parse(window.localStorage.getItem(storageKey) || "null");
-        if (!saved || saved.request_id !== requestId || saved.actor_id !== session?.user_id || saved.target_uid !== uid ||
-            saved.coin !== adjustCoin || saved.delta !== delta || saved.mode !== mode || saved.reason !== reason) {
-          setError("A balance-adjustment request is still pending. Retry the exact same operation; do not change its details.");
-          return;
-        }
-      } catch {
-        setAdjustPendingInvalid(true);
-        setError("The saved balance-adjustment request could not be verified. Check the financial audit log before continuing.");
-        return;
-      }
-    } else {
-      try { requestId = window.crypto.randomUUID(); }
-      catch { setError("Secure request IDs are unavailable in this browser. No balance change was made."); return; }
-      try { window.localStorage.setItem(storageKey, JSON.stringify({ ...intent, request_id: requestId, created_at: Date.now() })); }
-      catch { setError("This browser cannot safely save the balance-adjustment request. No balance change was sent."); return; }
-      setAdjustRequestId(requestId);
-    }
-    setAdjustBusy(true); setError(""); setNotice("");
-    try {
-      const result = await adminAdjustBalance(token, { uid, coin: adjustCoin, delta, mode, ...(reason ? { reason } : {}), request_id: requestId });
-      try { window.localStorage.removeItem(storageKey); } catch {}
-      setAdjustRequestId(""); setAdjustPendingInvalid(false);
-      setNotice(result.msg || "Balance adjusted.");
-      setAdjustAmount(""); setAdjustReason("");
-      try {
-        await refreshSelectedUser(uid);
-      } catch (refreshError) {
-        // The ledger operation is already confirmed. Never tell staff to retry
-        // the adjustment with a new request ID just because the profile read failed.
-        setError((refreshError instanceof Error ? refreshError.message : "User profile refresh failed.") +
-          " The balance operation was confirmed. Refresh this user profile; do not submit the adjustment again.");
-      }
-    } catch (cause) {
-      setError((cause instanceof Error ? cause.message : "Balance adjustment could not be confirmed.") + " Retry the same operation to safely confirm the result; do not create a new adjustment.");
-    } finally { setAdjustBusy(false); }
-  };
-
-  const submitFreezeToggle = async () => {
-    if (!token || !selectedUser || accountActionBusy) return;
-    const uid = selectedUser.uid;
-    const nextFrozen = !selectedUser.frozen;
-    const reason = freezeReason.trim();
-    if (!reason) { setError("Enter a reason before changing the account state."); return; }
-    setAccountActionBusy(true); setError(""); setNotice("");
-    try {
-      const result = await adminSetUserFrozen(token, { uid, frozen: nextFrozen, reason });
-      setNotice(result.msg || (nextFrozen ? "Account frozen." : "Account unfrozen."));
-      setFreezeReason("");
-      await refreshSelectedUser(uid);
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Account state could not be changed.");
-    } finally { setAccountActionBusy(false); }
-  };
-
-  const submitPasswordReset = async () => {
-    if (!token || !selectedUser || accountActionBusy) return;
-    const uid = selectedUser.uid;
-    if (newPassword.length < 12 || newPassword.length > 256) {
-      setError("The new password must be 12-256 characters.");
-      return;
-    }
-    setAccountActionBusy(true); setError(""); setNotice("");
-    try {
-      const result = await adminResetUserPassword(token, { uid, new_password: newPassword });
-      setNotice(result.msg || "Password has been reset.");
-      setNewPassword("");
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Password could not be reset.");
-    } finally { setAccountActionBusy(false); }
-  };
-
-  const submitEmailReset = async () => {
-    if (!token || !selectedUser || accountActionBusy) return;
-    const uid = selectedUser.uid;
-    const email = newEmail.trim().toLowerCase();
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 254) {
-      setError("Enter a valid email address.");
-      return;
-    }
-    setAccountActionBusy(true); setError(""); setNotice("");
-    try {
-      const result = await adminResetUserEmail(token, { uid, new_email: email });
-      setNotice(result.msg || "Email updated.");
-      setNewEmail("");
-      await refreshSelectedUser(uid);
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Email could not be changed.");
-    } finally { setAccountActionBusy(false); }
-  };
-
-  // Staff can open a conversation with any existing customer account, including
-  // accounts that never wrote in, because the backend creates the thread.
-  const sendDirectMessage = async () => {
-    if (!token || !selectedUser || accountActionBusy) return;
-    const uid = selectedUser.uid;
-    const content = directMessage.trim();
-    if (!content) { setError("Enter a message before sending."); return; }
-    if (content.length > 2000) { setError("Keep the message under 2000 characters."); return; }
-    let requestId = "";
-    try { requestId = window.crypto.randomUUID(); }
-    catch { setError("Secure request IDs are unavailable in this browser. No message was sent."); return; }
-    setAccountActionBusy(true); setError(""); setNotice("");
-    try {
-      await adminReplySupport(token, uid, content, requestId);
-      setNotice("Message sent to the customer.");
-      setDirectMessage("");
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "The message could not be sent.");
-    } finally { setAccountActionBusy(false); }
   };
 
   const manualCredit = async (event: FormEvent<HTMLFormElement>, coin: string) => {
@@ -851,10 +641,14 @@ export function AdminPage() {
     const requestId = ++withdrawalQueueRequestRef.current;
     setReviewQueueLoading(true);
     setWithdrawals([]);
+    setWithdrawalQueueSource(null);
+    setWithdrawalQueueCompleteness(null);
     try {
       const snapshot = await getAdminWithdrawals(token);
       if (requestId !== withdrawalQueueRequestRef.current) return;
       setWithdrawals(snapshot.withdrawals || []);
+      setWithdrawalQueueSource(snapshot.source || null);
+      setWithdrawalQueueCompleteness(snapshot.completeness || null);
       setError("");
       setNotice(confirmedAction);
     } catch {
@@ -868,11 +662,13 @@ export function AdminPage() {
   const refreshWithdrawalQueueManually = async () => {
     if (!token) return;
     const requestId = ++withdrawalQueueRequestRef.current;
-    setReviewQueueLoading(true); setWithdrawals([]); setError(""); setNotice("");
+    setReviewQueueLoading(true); setWithdrawals([]); setWithdrawalQueueSource(null); setWithdrawalQueueCompleteness(null); setError(""); setNotice("");
     try {
       const snapshot = await getAdminWithdrawals(token);
       if (requestId !== withdrawalQueueRequestRef.current) return;
       setWithdrawals(snapshot.withdrawals || []);
+      setWithdrawalQueueSource(snapshot.source || null);
+      setWithdrawalQueueCompleteness(snapshot.completeness || null);
       setNotice("Withdrawal queue refreshed.");
     } catch (reason) {
       if (requestId !== withdrawalQueueRequestRef.current) return;
@@ -900,11 +696,23 @@ export function AdminPage() {
       }
       setAudit(current => {
         const seen = new Set(current.map(item => item.id));
-        return [...current, ...(snapshot.logs || []).filter(item => !seen.has(item.id))];
+        const appended: AdminAuditRecord[] = [];
+        for (const item of snapshot.logs || []) {
+          const key = item.id || "";
+          if (key && seen.has(key)) continue;
+          if (key) seen.add(key);
+          appended.push(item);
+        }
+        return [...current, ...appended];
       });
       setAuditNextBefore(snapshot.next_before || null);
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "Older audit records could not be loaded.");
+      if (reason && typeof reason === "object" && "code" in reason && reason.code === "AUDIT_CURSOR_NOT_FOUND") {
+        setAuditNextBefore(null);
+        setError("The older audit cursor has expired from this retention-limited snapshot. Refresh the Audit log to start again.");
+      } else {
+        setError(reason instanceof Error ? reason.message : "Older audit records could not be loaded.");
+      }
     } finally {
       if (requestId === auditPageRequestRef.current) setAuditPageLoading(false);
     }
@@ -980,11 +788,11 @@ export function AdminPage() {
     if (!token || !reviewDialog) return;
     const reasonText = reviewReason.trim();
     if (!reasonText) {
-      setError(reviewDialog.kind === "kyc-manual" ? "A manual verification method and review note are required." : "A rejection reason is required.");
+      setError(reviewDialog.kind === "kyc-manual" ? "A manual verification method and review note are required." : reviewDialog.kind === "user-freeze" ? "An account status change reason is required." : "A rejection reason is required.");
       return;
     }
     const target = reviewDialog;
-    const actionLockKey = target.kind === "withdrawal" ? "withdrawal:" + target.id : "kyc:" + target.uid;
+    const actionLockKey = target.kind === "withdrawal" ? "withdrawal:" + target.id : (target.kind === "user-freeze" ? "user-freeze:" : "kyc:") + target.uid;
     if (reviewActionLocksRef.current[actionLockKey]) return;
     reviewActionLocksRef.current[actionLockKey] = true;
     setBusy(true); setError(""); setNotice("");
@@ -1006,14 +814,14 @@ export function AdminPage() {
         setReviewReason("");
         setManualIdentityConfirmed(false);
         await refreshKycQueueAfterReview("KYC approved after manual identity verification.");
-        if (selectedUser?.uid === target.uid) {
-          try {
-            const refreshed = await getAdminUser(token, target.uid);
-            setSelectedUser(refreshed.user);
-          } catch {
-            setError("KYC approval was recorded, but the user profile could not refresh. Reopen the user profile to confirm the latest status.");
-          }
-        }
+      } else if (target.kind === "user-freeze") {
+        const frozen = target.frozen === true;
+        await adminSetUserFrozen(token, { uid: target.uid, frozen, reason: reasonText });
+        setUsers(current => current.map(user => user.uid === target.uid ? { ...user, frozen } : user));
+        setSelectedUser(current => current?.uid === target.uid ? { ...current, frozen } : current);
+        setReviewDialog(null);
+        setReviewReason("");
+        setNotice(frozen ? "User account frozen." : "User account unfrozen.");
       } else {
         await adminRejectKyc(token, target.uid, reasonText);
         setReviewDialog(null);
@@ -1046,31 +854,11 @@ export function AdminPage() {
     }
     const storageKey = "btcbox.admin.payout-reference.v1." + session.user_id + "." + id;
     try {
-      const rawPending = window.localStorage.getItem(storageKey);
-      if (rawPending) {
-        let pending: unknown;
-        try { pending = JSON.parse(rawPending); }
-        catch {
-          setError("A saved payout request could not be verified. Check the withdrawal history before retrying.");
-          return;
-        }
-        const saved = pending as { version?: unknown; actor_id?: unknown; withdrawal_id?: unknown; reference?: unknown };
-        if (saved.version !== 1 || saved.actor_id !== session.user_id || saved.withdrawal_id !== id ||
-            typeof saved.reference !== "string" || !saved.reference.trim()) {
-          setError("A saved payout request could not be verified. Check the withdrawal history before retrying.");
-          return;
-        }
-        if (saved.reference !== reference) {
-          setError("A payout request is still pending with a different TxID. Enter the exact saved reference; do not replace it.");
-          return;
-        }
-      } else {
-        window.localStorage.setItem(storageKey, JSON.stringify({
-          version: 1, actor_id: session.user_id, withdrawal_id: id, reference,
-        }));
-      }
+      window.localStorage.setItem(storageKey, JSON.stringify({
+        version: 1, actor_id: session.user_id, withdrawal_id: id, reference,
+      }));
     } catch {
-      setError("This browser cannot safely verify the saved payout reference. No payout update was sent.");
+      setError("This browser cannot safely save the payout reference. No payout update was sent.");
       return;
     }
     payoutSubmitLockRef.current = true;
@@ -1109,9 +897,6 @@ export function AdminPage() {
       setNotice("");
       return;
     }
-    const lockKey = "kyc:" + uid;
-    if (reviewActionLocksRef.current[lockKey]) return;
-    reviewActionLocksRef.current[lockKey] = true;
     setBusy(true); setError(""); setNotice("");
     try {
       await adminApproveKyc(token, uid);
@@ -1121,7 +906,6 @@ export function AdminPage() {
       // and exception approval requirements; they are not proof of a prior success.
       setError(reason instanceof Error ? reason.message : "KYC review was not confirmed.");
     } finally {
-      reviewActionLocksRef.current[lockKey] = false;
       setBusy(false);
     }
   };
@@ -1141,9 +925,7 @@ export function AdminPage() {
     try {
       const result = await manageAdminAddress(token, { id:editingPayoutAddress.id, action:"update", ...payoutAddressDraft });
       const snapshot = await getAdminAddresses(token);
-      setPayoutAddresses(snapshot.addresses || []);
-      if (selectedUser) setSelectedUserAddresses((snapshot.addresses || []).filter(item => item.uid === selectedUser.uid));
-      setEditingPayoutAddress(null);
+      setPayoutAddresses(snapshot.addresses || []); setEditingPayoutAddress(null);
       setNotice(result.audit_sync_pending ? "Bank payout details saved; audit delivery is pending." : "Bank payout details saved.");
     } catch (reason) { setError(reason instanceof Error ? reason.message : "Bank payout details were not saved."); }
     finally { setBusy(false); }
@@ -1155,7 +937,6 @@ export function AdminPage() {
     try {
       const result = await manageAdminAddress(token, { id:item.id, action:"delete", reason:"Administrator removed saved payout details." });
       setPayoutAddresses(current => current.filter(entry => entry.id !== item.id));
-      setSelectedUserAddresses(current => current.filter(entry => entry.id !== item.id));
       if (editingPayoutAddress?.id === item.id) setEditingPayoutAddress(null);
       setPendingDeletePayoutAddress(null);
       setNotice(result.audit_sync_pending ? "Bank payout details deleted; audit delivery is pending." : "Bank payout details deleted.");
@@ -1168,10 +949,8 @@ export function AdminPage() {
     setBusy(true); setError(""); setNotice("");
     try {
       const result = await markAdminSupportRead(token, uid);
-      const snapshot = await getAdminSupportMessages(token);
-      const messages = (snapshot.messages || []) as unknown as Array<Record<string, unknown>>;
-      setSupport(messages);
-      setSelectedUserSupport(messages.filter(message => String(message.uid || message.user_id || "") === uid));
+      const snapshot = await getAdminSupportMessages(token, supportSearchApplied);
+      setSupport((snapshot.messages || []) as unknown as Array<Record<string, unknown>>);
       setNotice(result.audit_sync_pending ? "Conversation marked read; audit delivery is pending." : "Conversation marked as read.");
     } catch (reason) { setError(reason instanceof Error ? reason.message : "Conversation read state could not be saved."); }
     finally { setBusy(false); }
@@ -1182,7 +961,7 @@ export function AdminPage() {
     const requestId = ++supportQueueRequestRef.current;
     setSupport([]); setError(""); setNotice("");
     try {
-      const snapshot = await getAdminSupportMessages(token);
+      const snapshot = await getAdminSupportMessages(token, supportSearchApplied);
       if (requestId !== supportQueueRequestRef.current) return;
       setSupport((snapshot.messages || []) as unknown as Array<Record<string, unknown>>);
       setNotice("Support queue refreshed.");
@@ -1295,11 +1074,9 @@ export function AdminPage() {
       const queueRequestId = ++supportQueueRequestRef.current;
       setSupport([]);
       try {
-        const snapshot = await getAdminSupportMessages(token);
+        const snapshot = await getAdminSupportMessages(token, supportSearchApplied);
         if (queueRequestId !== supportQueueRequestRef.current) return;
-        const messages = (snapshot.messages || []) as unknown as Array<Record<string, unknown>>;
-        setSupport(messages);
-        setSelectedUserSupport(messages.filter(message => String(message.uid || message.user_id || "") === uid));
+        setSupport((snapshot.messages || []) as unknown as Array<Record<string, unknown>>);
         setNotice(successMessage);
       } catch {
         if (queueRequestId !== supportQueueRequestRef.current) return;
@@ -1308,6 +1085,26 @@ export function AdminPage() {
       }
     } catch (reason) { setError(reason instanceof Error ? reason.message : "Support reply failed."); }
     finally { supportReplyLocksRef.current[uid] = false; setBusy(false); }
+  };
+
+  const saveAssetCatalog = async () => {
+    if (!token || !hasPermission("system_config.write")) return;
+    if (assetCatalog.length !== 26 || new Set(assetCatalog.map(asset => asset.code)).size !== 26) {
+      setError("The asset catalogue must retain all 26 supported assets.");
+      return;
+    }
+    if (assetCatalog.some(asset => !asset.name.trim() || !asset.display_name.trim() || !Number.isInteger(asset.display_precision) || asset.display_precision < 0 || asset.display_precision > 18 || !Number.isInteger(asset.sort_order) || asset.sort_order < 0 || asset.sort_order > 9999)) {
+      setError("Check asset names, display precision (0–18), and sort order (0–9999).");
+      return;
+    }
+    setBusy(true); setError(""); setNotice("");
+    try {
+      const result = await saveAdminAssets(token, assetCatalog);
+      setAssetCatalog(result.assets || []);
+      setNotice("The 26-asset catalogue has been saved.");
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "Asset catalogue could not be saved.");
+    } finally { setBusy(false); }
   };
 
   const saveSpotMarket = async () => {
@@ -1383,50 +1180,47 @@ export function AdminPage() {
     const positive = (value: string) => decimal.test(value.trim()) && Number(value) > 0;
     const optionalPositive = (value: string) => !value.trim() || positive(value);
     const maxLeverage = Number(draft.max_leverage);
-    const fundingInterval = Number(draft.funding_interval_sec);
-    const staleSec = Number(draft.mark_price_stale_sec);
     const mmr = Number(draft.maintenance_margin_rate);
     const makerFee = Number(draft.maker_fee_rate);
     const takerFee = Number(draft.taker_fee_rate);
     const fundingCap = Number(draft.funding_rate_cap);
+    const staleSec = Number(draft.mark_price_stale_sec);
     const breaker = Number(draft.circuit_breaker_deviation_pct);
     const reason = draft.reason.trim();
-    if (!spotAssets.includes(draft.base_asset) || ["USDT", "USDC"].includes(draft.base_asset) ||
+    const supportedBaseAsset = assetCatalog.some(asset => asset.code === draft.base_asset && !["USDT", "USDC"].includes(asset.code));
+    if (!supportedBaseAsset ||
         !positive(draft.price_tick) || !positive(draft.quantity_step) || !positive(draft.min_quantity) ||
-        !positive(draft.min_notional) || !positive(draft.market_quantity_step) || !positive(draft.market_min_quantity) ||
-        !optionalPositive(draft.market_max_quantity) || !optionalPositive(draft.max_quantity) || !positive(draft.max_position_notional) || Number(draft.max_position_notional) < Number(draft.min_notional) ||
-        (draft.market_max_quantity.trim() && Number(draft.market_max_quantity) < Number(draft.market_min_quantity)) ||
+        !optionalPositive(draft.max_quantity) || !positive(draft.max_position_notional) ||
+        (draft.max_quantity.trim() && Number(draft.max_quantity) < Number(draft.min_quantity)) ||
         !Number.isInteger(maxLeverage) || maxLeverage < 1 || maxLeverage > 100 ||
-        !Number.isFinite(mmr) || mmr <= 0 || mmr > 0.5 ||
+        !Number.isFinite(mmr) || mmr < 0 || mmr > 0.5 ||
         !Number.isFinite(makerFee) || makerFee < 0 || makerFee > 0.1 ||
         !Number.isFinite(takerFee) || takerFee < 0 || takerFee > 0.1 ||
-        !Number.isInteger(fundingInterval) || fundingInterval !== 28800 ||
         !Number.isFinite(fundingCap) || fundingCap <= 0 || fundingCap > 0.0075 ||
         !Number.isInteger(staleSec) || staleSec < 15 || staleSec > 300 ||
-        !Number.isFinite(breaker) || breaker <= 0 || breaker > 20 || reason.length < 5 || reason.length > 500 || /[\u0000-\u001f\u007f]/.test(reason)) {
-      setError("Check all perpetual market parameters. Markets are saved paused and disabled; funding interval is fixed at 8 hours.");
+        !Number.isFinite(breaker) || breaker <= 0 || breaker > 20 ||
+        reason.length < 5 || reason.length > 500 || /[\u0000-\u001f\u007f]/.test(reason)) {
+      setError("Check the asset and perpetual risk parameters, including a positive maximum exposure cap. Markets are always saved disabled and paused; funding interval is fixed at 8 hours.");
       return;
     }
     setBusy(true); setError(""); setNotice("");
     try {
       await saveAdminPerpMarket(token, {
-        base_asset: draft.base_asset, quote_asset: "USDT", enabled: draft.feed_enabled, status: "paused",
-        price_tick: draft.price_tick.trim(), quantity_step: draft.quantity_step.trim(),
-        min_quantity: draft.min_quantity.trim(), min_notional: draft.min_notional.trim(),
-        market_quantity_step: draft.market_quantity_step.trim(), market_min_quantity: draft.market_min_quantity.trim(), market_max_quantity: draft.market_max_quantity.trim() || null,
+        base_asset: draft.base_asset, quote_asset: "USDT", enabled: false, status: "paused",
+        price_tick: draft.price_tick.trim(), quantity_step: draft.quantity_step.trim(), min_quantity: draft.min_quantity.trim(),
         max_quantity: draft.max_quantity.trim() || null, max_position_notional: draft.max_position_notional.trim() || null,
         max_leverage: maxLeverage, maintenance_margin_rate: draft.maintenance_margin_rate.trim(),
         maker_fee_rate: draft.maker_fee_rate.trim(), taker_fee_rate: draft.taker_fee_rate.trim(),
-        funding_interval_sec: fundingInterval, funding_rate_cap: draft.funding_rate_cap.trim(),
+        funding_interval_sec: 28800, funding_rate_cap: draft.funding_rate_cap.trim(),
         mark_price_stale_sec: staleSec, circuit_breaker_deviation_pct: draft.circuit_breaker_deviation_pct.trim(), reason,
       });
-      setNotice("Perpetual market configuration saved. Trading remains paused; the market-data feed follows the selected setting.");
+      setNotice("Perpetual market configuration saved. The market remains paused and disabled.");
       setPerpMarketDraft(current => ({ ...current, reason: "" }));
       try {
         const refreshed = await getAdminPerpMarkets(token);
         setPerpMarkets(refreshed.markets || []);
       } catch {
-        setError("Perpetual market settings were saved, but the list could not refresh. Reload the tab before making another change.");
+        setError("Perpetual market settings were saved, but the list could not refresh. Reload the Markets tab before making another change.");
       }
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "Perpetual market configuration could not be confirmed.");
@@ -1479,7 +1273,7 @@ export function AdminPage() {
     <div className="mx-auto flex w-full max-w-4xl flex-col gap-6">
       <header className="border-b border-brand-border pb-5">
         <BrandLogo compact />
-        <p className="mt-4 text-xs font-semibold uppercase tracking-[0.2em] text-brand-accent">BTCBOX · 管理后台</p>
+        <p className="mt-4 text-xs font-semibold uppercase tracking-[0.2em] text-brand-accent">BTCBOX · ADMINISTRATION</p>
         <h1 className="mt-2 text-2xl font-bold tracking-tight text-brand-text sm:text-3xl">{adminText("Administrator sign in")}</h1>
         <p className="mt-2 max-w-2xl text-sm leading-6 text-brand-text-muted">{adminText("This is the private BTCBOX control center. Sign in with the Google or email identity that has been granted administrator access. Customer trading pages and balances are not part of this portal.")}</p>
       </header>
@@ -1492,154 +1286,189 @@ export function AdminPage() {
   if (loading && !session) return <div className="mx-auto max-w-7xl p-6"><Card><CardContent className="p-8 text-sm text-brand-text-muted">{adminText("Verifying administrator identity…")}</CardContent></Card></div>;
   if (!session) return <div className="mx-auto max-w-3xl p-6"><Card><CardHeader><CardTitle>{adminText("BTCBOX Administrator")}</CardTitle><CardDescription>{adminText("Administrator access requires a verified Supabase Auth identity with an active BTCBOX administrator membership.")}</CardDescription></CardHeader><CardContent><p className="text-sm text-brand-danger">{adminText(error || "Administrator membership was not found.")}</p></CardContent></Card></div>;
 
-  return <div className="tone-admin mx-auto w-full max-w-[1600px] space-y-5 p-3 sm:p-5 lg:p-7">
-    <div className="flex flex-wrap items-start justify-between gap-3 rounded-xl border border-brand-border bg-brand-surface p-5 sm:items-center sm:p-6">
-      <div><BrandLogo compact /><p className="type-meta mt-3 font-semibold uppercase tracking-[0.18em] text-brand-accent">{adminText("BTCBOX / CONTROL CENTER")}</p><h1 className="mt-1 text-2xl font-bold tracking-tight text-brand-text sm:text-3xl">{adminText("Administrator Console")}</h1><p className="mt-1 text-sm text-brand-text-muted">{session.is_super_admin ? adminText("Super Administrator") : adminText("Role-based administrator")} · {session.user_id}</p></div>
-      <Badge variant={session.is_super_admin ? "default" : "info"}>{session.is_super_admin ? adminText("SUPER ADMIN") : adminText("ACTIVE ADMIN")}</Badge>
-    </div>
-    {!session.is_super_admin ? <div className="flex flex-wrap items-center gap-1.5 rounded-xl border border-brand-border bg-brand-surface px-4 py-2.5"><span className="type-meta font-semibold uppercase tracking-wide text-brand-text-muted">当前权限</span>{session.permissions.length ? session.permissions.map(key => <Badge key={key} variant="outline" className="text-[11px]">{permissionLabel(key)}</Badge>) : <span className="text-xs text-brand-text-muted">无单独授权（超级管理员权限外）</span>}</div> : null}
-    <div className="space-y-2">
-      <input value={navSearch} onChange={event => setNavSearch(event.target.value)} placeholder={adminText("Search admin features")} aria-label={adminText("Search admin features")} className="h-10 w-full rounded-xl border border-brand-border bg-brand-surface px-3 text-sm text-brand-text outline-none focus:border-brand-accent/60 sm:max-w-xs"/>
-      <div role="navigation" aria-label="管理功能" className="flex max-w-full gap-2 overflow-x-auto border-b border-brand-border pb-3">
-        {visibleTabs.map(item => <Button key={item.id} className="shrink-0 whitespace-nowrap" size="sm" variant={tab === item.id ? "default" : "outline"} onClick={() => { setTab(item.id); setError(""); setNotice(""); }}>{adminText(item.label)}</Button>)}
-        {visibleTabs.length === 0 ? <span className="px-2 py-2 text-sm text-brand-text-muted">{adminText("No matching admin features")}</span> : null}
-      </div>
-    </div>
-    {error ? <div role="alert" className="rounded-xl border border-brand-danger/30 bg-brand-danger/10 p-3 text-sm text-brand-danger">{adminText(error)}</div> : null}
-    {notice ? <div role="status" className="rounded-xl border border-brand-success/30 bg-brand-success/10 p-3 text-sm text-brand-success">{adminText(notice)}</div> : null}
+  return <div className="tone-admin min-h-screen w-full bg-brand-bg">
+    <div className="mx-auto grid min-h-screen w-full max-w-[1920px] grid-cols-1 lg:grid-cols-[248px_minmax(0,1fr)]">
+      <aside className="border-b border-brand-border bg-brand-surface-2/70 px-4 py-4 sm:px-5 lg:sticky lg:top-0 lg:h-screen lg:overflow-y-auto lg:border-b-0 lg:border-r lg:px-4 lg:py-6">
+        <div className="flex items-center justify-between gap-3">
+          <BrandLogo compact />
+          <Badge className="max-w-full whitespace-normal break-words text-right" variant={session.is_super_admin ? "default" : "info"}>{session.is_super_admin ? adminText("SUPER ADMIN") : adminText("ACTIVE ADMIN")}</Badge>
+        </div>
+        <div className="mt-5 border-b border-brand-border pb-4 lg:mt-7">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-brand-accent">{adminText("BTCBOX / CONTROL CENTER")}</p>
+          <h1 className="mt-1 text-lg font-semibold tracking-tight text-brand-text">{adminText("Administrator Console")}</h1>
+          <p className="mt-1 truncate text-xs text-brand-text-muted" title={session.user_id}>{session.is_super_admin ? adminText("Super Administrator") : adminText("Role-based administrator")} · {session.user_id}</p>
+        </div>
+        <nav aria-label={adminText("Management navigation")} className="mt-4 grid grid-cols-1 gap-y-4 pb-2 min-[520px]:grid-cols-2 min-[520px]:gap-x-5 lg:mt-5 lg:grid-cols-1 lg:gap-y-5 lg:pb-0">
+          {ADMIN_TAB_GROUPS.map(group => {
+            const visibleItems = allowedTabs.filter(item => group.tabs.includes(item.id));
+            if (!visibleItems.length) return null;
+            return <section key={group.id} aria-label={adminText(group.label)} className="min-w-0">
+              <p className="mb-2 break-words text-[10px] font-semibold uppercase tracking-[0.14em] text-brand-text-muted">{adminText(group.label)}</p>
+              <div className="grid grid-cols-1 gap-1">
+                {visibleItems.map(item => <Button key={item.id} className="min-h-10 w-full justify-start whitespace-normal px-2.5 text-left text-xs sm:text-sm lg:px-3" size="sm" variant={tab === item.id ? "secondary" : "ghost"} onClick={() => { setTab(item.id); setError(""); setNotice(""); }}>{adminText(item.label)}</Button>)}
+              </div>
+            </section>;
+          })}
+        </nav>
+        {!session.is_super_admin ? <div className="mt-5 hidden border-t border-brand-border pt-4 lg:block">
+          <p className="text-[10px] font-semibold uppercase tracking-wide text-brand-text-muted">{adminText("Current permissions")}</p>
+          <p className="mt-1 text-xs text-brand-text-muted">{session.permissions.length} {adminText("permissions assigned")}</p>
+        </div> : null}
+      </aside>
+      <main className="min-w-0 p-3 sm:p-5 xl:p-7">
+        <header className="mb-5 flex flex-wrap items-center justify-between gap-3 border-b border-brand-border pb-4">
+          <div className="min-w-0">
+            <p className="text-xs text-brand-text-muted">{adminText("BTCBOX administration")}</p>
+            <h2 className="mt-1 text-xl font-semibold text-brand-text">{adminText(allowedTabs.find(item => item.id === tab)?.label || tab)}</h2>
+          </div>
+          <div className="flex items-center gap-2">
+            <Badge variant="outline">{adminText("Secure console")}</Badge>
+            <span className="hidden max-w-[220px] truncate text-xs text-brand-text-muted sm:inline" title={session.user_id}>{session.user_id}</span>
+          </div>
+        </header>
+        {!session.is_super_admin ? <div className="mb-4 flex flex-wrap items-center gap-1.5 rounded-lg border border-brand-border bg-brand-surface px-3 py-2">
+          <span className="mr-1 text-[10px] font-semibold uppercase tracking-wide text-brand-text-muted">{adminText("Current permissions")}</span>
+          {session.permissions.length ? session.permissions.map(key => <Badge key={key} variant="outline" className="max-w-full whitespace-normal break-words text-[10px]">{permissionLabel(key)}</Badge>) : <span className="text-xs text-brand-text-muted">{adminText("No separately assigned permissions")}</span>}
+        </div> : null}
+        {error ? <div role="alert" className="mb-4 rounded-lg border border-brand-danger/30 bg-brand-danger/10 p-3 text-sm text-brand-danger">{adminText(error)}</div> : null}
+        {notice ? <div role="status" className="mb-4 rounded-lg border border-brand-success/30 bg-brand-success/10 p-3 text-sm text-brand-success">{adminText(notice)}</div> : null}
     {loading ? <Card><CardContent className="p-6 text-sm text-brand-text-muted">{adminText("Loading")}{adminText(allowedTabs.find(item=>item.id===tab)?.label||tab)}…</CardContent></Card> : null}
 
     {!loading && tab === "overview" && stats ? <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
       {[
-        { label:"Total users", value:stats.total_users, tab:null, permission:"dashboard.read" },
-        { label:"Pending withdrawals", value:stats.pending_withdrawals, tab:"withdrawals" as Tab, permission:"withdrawals.read" },
-        { label:"Pending KYC", value:stats.pending_kyc, tab:"kyc" as Tab, permission:"kyc.read" },
-        { label:"Review queue", value:stats.pending_admin_review_withdrawals, tab:"withdrawals" as Tab, permission:"withdrawals.read" },
-      ].map((item,index) => <Card key={adminText(item.label)} className="overflow-hidden border-brand-border bg-brand-surface"><div className={"h-1 "+(index===0?"bg-brand-info":index===1?"bg-brand-text-muted":index===2?"bg-brand-text-muted":"bg-brand-accent")}/><CardContent className="p-4 sm:p-5"><p className="type-meta font-semibold uppercase tracking-wide text-brand-text-muted">{adminText(item.label)}</p><p className="type-price mt-2 text-brand-text">{asText(item.value)}</p>{item.tab && hasPermission(item.permission) ? <Button size="sm" variant="outline" className="mt-3" onClick={()=>{setTab(item.tab!);setError("");setNotice("");}}>{adminText("Open review queue")}</Button> : null}</CardContent></Card>)}
+        ["Total users", stats.total_users, "Registered user records"], ["Pending withdrawals", stats.pending_withdrawals, "Withdrawal requests awaiting review"],
+        ["Pending KYC", stats.pending_kyc, "Identity applications awaiting review"], ["Review queue", stats.pending_admin_review_withdrawals, "Withdrawals requiring administrator review"],
+      ].map(([label, value, description], index) => <Card key={adminText(String(label))} className="overflow-hidden border-brand-border bg-brand-surface"><div className={"h-1 "+(index===0?"bg-brand-info":index===1?"bg-brand-text-muted":index===2?"bg-brand-text-muted":"bg-brand-accent")}/><CardContent className="p-4 sm:p-5"><p className="type-meta font-semibold uppercase tracking-wide text-brand-text-muted">{adminText(String(label))}</p><p className="type-price mt-2 text-brand-text">{asText(value)}</p><p className="mt-1 text-xs leading-5 text-brand-text-muted">{adminText(String(description))}</p></CardContent></Card>)}
     </div> : null}
 
-    {!loading && tab === "users" ? <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(360px,0.9fr)]">
-      <Card><CardHeader><CardTitle>{adminText("User management center")}</CardTitle><CardDescription>{adminText("Search and open one user to manage balances, account status, bank cards, payout addresses and customer service in one place.")}</CardDescription></CardHeader><CardContent>
-        <form className="mb-3 flex gap-2" onSubmit={event => { event.preventDefault(); void searchUsers(searchInput); }}><input value={searchInput} onChange={event => setSearchInput(event.target.value)} placeholder={adminText("Search UID or email")} className="h-11 min-w-0 flex-1 rounded-xl border border-brand-border bg-brand-surface-2 px-3 py-2 text-sm text-brand-text outline-none transition-colors focus:border-brand-accent/60 focus:ring-2 focus:ring-brand-accent/15"/><Button size="sm" type="submit" disabled={userSearchBusy}>{userSearchBusy ? adminText("Searching…") : adminText("Search")}</Button></form>
-        <div className="overflow-x-auto"><table className="w-full min-w-[520px] text-left text-sm"><thead><tr className="border-b border-brand-border bg-brand-surface-2/50 type-label uppercase tracking-wide text-brand-text-muted"><th className="px-3 py-2.5">UID</th><th className="px-3 py-2.5">{adminText("Email")}</th><th className="px-3 py-2.5">{adminText("KYC")}</th><th className="px-3 py-2.5">{adminText("Status")}</th><th className="px-3 py-2.5 text-right">{adminText("Action")}</th></tr></thead><tbody>{users.map(user=><tr key={user.uid} className="border-b border-brand-border-subtle transition-colors hover:bg-brand-surface-hover/40"><td className="px-3 py-2.5 font-mono text-xs">{user.uid}</td><td className="px-3 py-2.5">{user.email}</td><td className="px-3 py-2.5"><Badge variant={statusVariant(user.kyc_status || user.kyc?.status || "")}>{user.kyc_status || user.kyc?.status || "—"}</Badge></td><td className="px-3 py-2.5"><Badge variant={user.frozen?"destructive":"success"}>{user.frozen?adminText("Frozen"):adminText("Active")}</Badge></td><td className="px-3 py-2.5 text-right"><Button size="sm" variant="outline" onClick={()=>void selectUser(user.uid)}>{adminText("Open")}</Button></td></tr>)}{users.length===0 ? <tr><td colSpan={5} className="px-3 py-10 text-center text-sm text-brand-text-muted">暂无用户记录，调整搜索条件后重试。</td></tr> : null}</tbody></table></div>
+    {!loading && tab === "overview" ? <section className="mt-5 space-y-3" aria-labelledby="admin-overview-shortcuts">
+      <div className="flex flex-wrap items-end justify-between gap-2">
+        <div>
+          <h3 id="admin-overview-shortcuts" className="text-sm font-semibold text-brand-text">{adminText("Operational shortcuts")}</h3>
+          <p className="mt-1 text-xs text-brand-text-muted">{adminText("Open the main review queues and management areas directly.")}</p>
+        </div>
+      </div>
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        {([
+          { id: "withdrawals", title: "Withdrawal queue", description: "Review and process withdrawal requests.", count: stats?.pending_withdrawals },
+          { id: "kyc", title: "KYC review", description: "Review pending identity applications.", count: stats?.pending_kyc },
+          { id: "users", title: "User centre", description: "Search customer records and open user details." },
+          { id: "deposit-records", title: "Deposit records", description: "Inspect recent ledger deposit records." },
+        ] as const).filter(item => allowedTabs.some(allowed => allowed.id === item.id)).map(item => <button key={item.id} type="button" onClick={() => setTab(item.id)} className="group min-w-0 rounded-lg border border-brand-border bg-brand-surface p-4 text-left transition-colors hover:border-brand-accent/50 hover:bg-brand-surface-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent">
+          <div className="flex items-start justify-between gap-3">
+            <span className="text-sm font-semibold text-brand-text">{adminText(item.title)}</span>
+            {"count" in item ? <span className={"shrink-0 rounded-md border px-2.5 py-1 font-mono text-lg font-semibold tabular-nums " + (Number(item.count) > 0 ? "border-brand-accent/50 bg-brand-accent/10 text-brand-accent" : "border-brand-border bg-brand-surface-2 text-brand-text-muted")}>{asText(item.count)}</span> : null}
+          </div>
+          <p className="mt-2 text-xs leading-5 text-brand-text-muted">{adminText(item.description)}</p>
+          <span className="mt-3 inline-block text-xs font-semibold text-brand-accent">{adminText("Open section")} →</span>
+        </button>)}
+      </div>
+    </section> : null}
+
+    {!loading && tab === "users" ? <div className="grid gap-4">
+      <Card><CardHeader><CardTitle>{adminText("Users")}</CardTitle><CardDescription>{adminText("Search for a user and open their record. Financial operations are managed in the Finance centre.")}</CardDescription></CardHeader><CardContent>
+        <div className="mb-3 flex flex-wrap items-center gap-2"><Badge variant="outline">{adminText("Source: BTCBOX state user directory")}</Badge>{usersDirectoryCompleteness === "limit_reached" ? <Badge variant="destructive">{adminText("Result limit reached")}</Badge> : usersDirectoryCompleteness === "snapshot" ? <Badge variant="outline">{adminText("Snapshot results")}</Badge> : null}<span className="text-xs text-brand-text-muted">{usersDirectoryMatchedCount} {adminText("matching users")}</span></div><form className="mb-3 flex flex-wrap gap-2" onSubmit={event => { event.preventDefault(); void loadTab(); }}><input value={search} onChange={event => setSearch(event.target.value)} placeholder={adminText("Search UID or email")} className="h-11 min-w-0 flex-1 rounded-xl border border-brand-border bg-brand-surface-2 px-3 py-2 text-sm text-brand-text outline-none transition-colors focus:border-brand-accent/60 focus:ring-2 focus:ring-brand-accent/15"/><Button size="sm" type="submit">{adminText("Search")}</Button></form>
+        <div className="grid gap-3 sm:grid-cols-2 2xl:grid-cols-3">
+          {users.map(user => <Card key={user.uid} className="min-w-0 border-brand-border bg-brand-surface">
+            <CardContent className="space-y-3 p-4">
+              <div className="flex flex-wrap items-start justify-between gap-2">
+                <div className="min-w-0 flex-1">
+                  <p className="break-all font-mono text-xs font-semibold text-brand-text">{user.uid}</p>
+                  <p className="mt-1 break-all text-sm text-brand-text-muted">{user.email}</p>
+                </div>
+                <Badge variant={user.frozen ? "destructive" : "success"}>{user.frozen ? adminText("Frozen") : adminText("Active")}</Badge>
+              </div>
+              <div className="grid gap-3 border-t border-brand-border pt-3 sm:grid-cols-2">
+                <div className="min-w-0">
+                  <p className="text-[10px] font-semibold uppercase tracking-wide text-brand-text-muted">{adminText("Auth link")}</p>
+                  <Badge className="mt-1 max-w-full whitespace-normal break-words" variant={user.auth_identity_link_status === "duplicate_mapping" || user.auth_identity_link_status === "invalid_mapping" ? "destructive" : user.auth_identity_link_status === "linked" ? "success" : "outline"}>{user.auth_identity_link_status === "duplicate_mapping" ? adminText("Duplicate mapping") : user.auth_identity_link_status === "invalid_mapping" ? adminText("Invalid Auth UUID") : user.auth_identity_link_status === "linked" ? adminText("Linked in BTCBOX") : adminText("No linked Auth UUID")}</Badge>
+                  <p className="mt-1 text-[10px] text-brand-text-muted">{user.auth_identity_count ?? 0} {adminText("linked identities")}</p>
+                </div>
+                <div className="min-w-0">
+                  <p className="text-[10px] font-semibold uppercase tracking-wide text-brand-text-muted">{adminText("KYC")}</p>
+                  <div className="mt-1"><Badge variant={statusVariant(user.kyc_status || user.kyc?.status || "")}>{user.kyc_status || user.kyc?.status || "—"}</Badge></div>
+                </div>
+                {hasPermission("financial_audit.read") ? <div className="min-w-0 sm:col-span-2">
+                  <p className="text-[10px] font-semibold uppercase tracking-wide text-brand-text-muted">{adminText("Financial total (USDT)")}</p>
+                  <p className="mt-1 font-mono text-sm tabular-nums text-brand-text">{user.total_usdt == null ? "—" : asText(user.total_usdt)}</p>
+                  <p className="mt-1 text-[10px] text-brand-text-muted">{user.financial_summary_source === "postgres_financial_ledger" ? adminText("Balances: PostgreSQL ledger") : user.financial_summary_source === "legacy_state_retention_limited" ? adminText("Balances: legacy state · limited") : adminText("Balances: source unknown")}</p>
+                </div> : null}
+              </div>
+              <div className="flex flex-wrap gap-2 border-t border-brand-border pt-3">
+                <Button size="sm" variant="outline" onClick={() => { setFinancialAction("credit"); void selectUser(user.uid).then(loaded => { if (loaded) setTab("financial-adjustments"); }); }}>{adminText("Open")}</Button>
+                {hasPermission("users.freeze") ? <Button size="sm" variant={user.frozen ? "outline" : "destructive"} onClick={() => { setReviewDialog({kind:"user-freeze",uid:user.uid,frozen:!user.frozen}); setReviewReason(""); setError(""); setNotice(""); }}>{adminText(user.frozen ? "Unfreeze" : "Freeze")}</Button> : null}
+              </div>
+            </CardContent>
+          </Card>)}
+          {users.length === 0 ? <div className="rounded-lg border border-dashed border-brand-border p-8 text-center text-sm text-brand-text-muted sm:col-span-2 2xl:col-span-3">暂无用户记录，调整搜索条件后重试。</div> : null}
+        </div>
+        
       </CardContent></Card>
-      <div className="space-y-4"><Card><CardHeader><CardTitle>{adminText("Manual credit")}</CardTitle><CardDescription>{adminText("UID and asset are bound by the selected user and asset row. No pending deposit order is created.")}</CardDescription></CardHeader><CardContent>
-        {!selectedUser ? <p className="text-sm text-brand-text-muted">{adminText("Select a user to load their current balances.")}</p> : <>
-          <div className="mb-3 flex flex-wrap items-center justify-between gap-2"><p className="text-sm font-semibold">{selectedUser.email} · <span className="font-mono">{selectedUser.uid}</span></p><div className="flex items-center gap-2">{hasPermission("deposits.read") ? <Badge variant="outline">{selectedUser.financial_balance_source === "postgres_financial_ledger" ? adminText("Balances: PostgreSQL ledger") : selectedUser.financial_balance_source === "legacy_state_retention_limited" ? adminText("Balances: legacy state · limited") : adminText("Balances: source unknown")}</Badge> : null}<Button size="sm" variant="outline" disabled={busy} onClick={() => void selectUser(selectedUser.uid)}>{adminText("Refresh user profile")}</Button></div></div>
+    </div> : null}
+
+    {!loading && tab === "financial-adjustments" ? <Card><CardHeader><CardTitle>{adminText("Financial adjustments")}</CardTitle><CardDescription>{adminText("Manual credit and manual debit are separate actions. Select a user in the User centre first.")}</CardDescription></CardHeader><CardContent className="space-y-4">
+        {!selectedUser ? <div className="flex flex-wrap items-center justify-between gap-3"><p className="text-sm text-brand-text-muted">{adminText("Select a user from the User centre to load their current balances.")}</p><Button size="sm" variant="outline" onClick={() => setTab("users")}>{adminText("Open User centre")}</Button></div> : <>
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-brand-border bg-brand-surface-2/50 p-3"><div className="min-w-0"><p className="text-[10px] font-semibold uppercase tracking-wide text-brand-text-muted">{adminText("Selected account")}</p><p className="mt-1 break-all text-sm font-semibold text-brand-text">{selectedUser.email}</p><p className="mt-1 break-all font-mono text-xs text-brand-text-muted">{selectedUser.uid}</p></div>{hasPermission("deposits.read") ? <Badge variant="outline">{selectedUser.financial_balance_source === "postgres_financial_ledger" ? adminText("Balances: PostgreSQL ledger") : selectedUser.financial_balance_source === "legacy_state_retention_limited" ? adminText("Balances: legacy state · limited") : adminText("Balances: source unknown")}</Badge> : null}</div>
+          <div className="flex flex-wrap items-center gap-2 rounded-lg border border-brand-border bg-brand-surface-2/40 p-2" role="group" aria-label={adminText("Financial action")}>
+            <Button size="sm" variant={financialAction === "credit" ? "default" : "outline"} onClick={() => setFinancialAction("credit")}>{adminText("Manual credit")}</Button>
+            <Button size="sm" variant={financialAction === "debit" ? "default" : "outline"} onClick={() => setFinancialAction("debit")}>{adminText("Manual debit")}</Button>
+          </div>
+          {financialAction === "debit" ?           <ManualDebitPanel token={token} actorId={session.user_id} user={selectedUser} coins={assets} canAdjust={hasPermission("financial_adjustment.request") && hasPermission("deposits.read")} onComplete={() => void selectUser(selectedUser.uid)} /> : null}
+          {financialAction === "credit" ? <>
           {selectedUser.financial_balance_source !== "postgres_financial_ledger" ? <p role="status" className="mb-3 text-xs text-brand-warning">{adminText("Manual credit is disabled until the user's PostgreSQL ledger balance source is confirmed.")}</p> : null}
-          {!hasPermission("deposits.read") ? <p className="text-sm text-brand-text-muted">{adminText("Balance details require the deposits.read permission.")}</p> : <div className="space-y-3">{assets.map(coin=><form key={coin} className="rounded-xl border border-brand-border p-3" onSubmit={event=>void manualCredit(event,coin)}>
+          {!hasPermission("deposits.read") ? <p className="text-sm text-brand-text-muted">{adminText("Balance details require the deposits.read permission.")}</p> : <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">{assets.map(coin=><form key={coin} className="flex h-full flex-col rounded-xl border border-brand-border p-3" onSubmit={event=>void manualCredit(event,coin)}>
             <div className="mb-2 flex items-center justify-between"><span className="font-semibold">{coin}</span><span className="text-xs text-brand-text-muted">{adminText("Available:")}{selectedUser.balances?.[coin]?.free == null ? "—" : asText(selectedUser.balances[coin].free)}</span></div>
             <input disabled={!!creditRequestIds[coin]||!!creditPendingInvalid[coin]||busy||selectedUser.financial_balance_source!=="postgres_financial_ledger"} value={creditAmount[coin]||""} onChange={event=>setCreditAmount(current=>({...current,[coin]:event.target.value}))} placeholder={adminText("Verified amount received")} className="mb-2 w-full rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-2 text-sm text-brand-text" inputMode="decimal"/>
             <input disabled={!!creditRequestIds[coin]||!!creditPendingInvalid[coin]||busy} value={creditReference[coin]||""} onChange={event=>setCreditReference(current=>({...current,[coin]:event.target.value}))} placeholder={adminText("Required TxID / receipt reference")} required maxLength={160} className="mb-2 w-full rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-2 text-sm text-brand-text"/>
             <input disabled={!!creditRequestIds[coin]||!!creditPendingInvalid[coin]||busy} value={creditNote[coin]||""} onChange={event=>setCreditNote(current=>({...current,[coin]:event.target.value}))} placeholder={adminText("Note (optional)")} className="mb-2 w-full rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-2 text-sm text-brand-text"/>
             <Button type="submit" size="sm" disabled={busy || !!creditPendingInvalid[coin] || selectedUser.financial_balance_source!=="postgres_financial_ledger" || !hasPermission("deposits.review") || !hasPermission("deposits.read")}>{creditRequestIds[coin] ? adminText("Retry same credit request") : adminText("Confirm manual credit")}</Button>
           </form>)}</div>}
+          </> : null}
           {hasPermission("deposits.read") ? <section className="mt-6 space-y-3 border-t border-brand-border pt-4">
             <div className="flex flex-wrap items-center justify-between gap-2"><div><h3 className="text-sm font-semibold">{adminText("Deposit history · latest 20")}</h3><p className="mt-1 text-xs text-brand-text-muted">{adminText("The account snapshot returns the 20 most recent deposits. Use the Audit log for the wider financial event trail.")}</p></div><Badge variant="outline">{selectedUser.deposit_history_source === "postgres_financial_ledger" ? adminText("Source: PostgreSQL ledger") : selectedUser.deposit_history_source === "legacy_state_retention_limited" ? adminText("Source: legacy state · limited") : adminText("Source: unavailable")}</Badge></div>
             {!selectedUser.deposit_history ? <p className="text-sm text-brand-text-muted">{adminText("Deposit history is not available in this response. Refresh the user record before reviewing a credit.")}</p> :
               selectedUser.deposit_history.length === 0 ? <p className="text-sm text-brand-text-muted">{adminText("No deposit records found.")}</p> :
               <div className="overflow-x-auto"><table className="w-full min-w-[760px] text-left text-xs"><thead><tr className="border-b border-brand-border bg-brand-surface-2/50 type-label uppercase tracking-wide text-brand-text-muted"><th className="px-3 py-2.5">{adminText("Asset / network")}</th><th className="px-3 py-2.5 text-right">{adminText("Amount")}</th><th className="px-3 py-2.5">{adminText("Status")}</th><th className="px-3 py-2.5">{adminText("Record ID")}</th><th className="px-3 py-2.5">{adminText("Reference")}</th><th className="px-3 py-2.5">{adminText("Time")}</th></tr></thead><tbody>{selectedUser.deposit_history.map((item,index)=><tr key={item.id || index} className="border-b border-brand-border-subtle transition-colors hover:bg-brand-surface-hover/40"><td className="px-3 py-2.5">{item.coin} · {item.network || "—"}</td><td className="px-3 py-2.5 text-right font-mono tabular-nums">{asText(item.amount)}</td><td className="px-3 py-2.5"><Badge variant={statusVariant(item.status)}>{adminText(item.status)}</Badge></td><td className="max-w-[180px] truncate px-3 py-2.5 font-mono" title={item.id || ""}>{item.id || "—"}</td><td className="max-w-[220px] truncate px-3 py-2.5 font-mono" title={item.reference || item.txid || ""}>{item.reference || item.txid || "—"}</td><td className="whitespace-nowrap px-3 py-2.5">{formatDate(item.time)}</td></tr>)}</tbody></table></div>}
           </section> : null}
-          {hasPermission("withdrawals.read") ? <section className="mt-6 space-y-3 border-t border-brand-border pt-4">
-            <div className="flex flex-wrap items-center justify-between gap-2"><div><h3 className="text-sm font-semibold">{adminText("Withdrawal history · latest 20")}</h3><p className="mt-1 text-xs text-brand-text-muted">{adminText("The account snapshot returns the 20 most recent withdrawals. Use the withdrawal queue for pending actions.")}</p></div><Badge variant="outline">{selectedUser.withdrawal_history_source==="postgres_financial_ledger"?adminText("Source: PostgreSQL ledger"):selectedUser.withdrawal_history_source==="legacy_state_retention_limited"?adminText("Source: legacy state · limited"):adminText("Source: unavailable")}</Badge></div>
-            {!selectedUser.withdrawal_history?<p className="text-sm text-brand-text-muted">{adminText("Withdrawal history is not available in this response. Refresh the user record before reviewing a payout.")}</p>:selectedUser.withdrawal_history.length===0?<p className="text-sm text-brand-text-muted">{adminText("No withdrawal records found.")}</p>:<div className="overflow-x-auto"><table className="w-full min-w-[760px] text-left text-xs"><thead><tr className="border-b border-brand-border bg-brand-surface-2/50 type-label uppercase tracking-wide text-brand-text-muted"><th className="px-3 py-2.5">{adminText("Asset / network")}</th><th className="px-3 py-2.5 text-right">{adminText("Amount")}</th><th className="px-3 py-2.5">{adminText("Status")}</th><th className="px-3 py-2.5">{adminText("Record ID")}</th><th className="px-3 py-2.5">{adminText("TxID / reference")}</th><th className="px-3 py-2.5">{adminText("Time")}</th></tr></thead><tbody>{selectedUser.withdrawal_history.map((item,index)=><tr key={item.id||index} className="border-b border-brand-border-subtle"><td className="px-3 py-2.5">{item.coin} · {item.network||"—"}</td><td className="px-3 py-2.5 text-right font-mono tabular-nums">{asText(item.amount)}</td><td className="px-3 py-2.5"><Badge variant={statusVariant(item.status)}>{adminText(item.status)}</Badge></td><td className="max-w-[180px] truncate px-3 py-2.5 font-mono" title={item.id}>{item.id}</td><td className="max-w-[220px] truncate px-3 py-2.5 font-mono" title={item.txid||item.payout_reference||""}>{item.txid||item.payout_reference||"—"}</td><td className="whitespace-nowrap px-3 py-2.5">{formatDate(item.time||item.paid_at)}</td></tr>)}</tbody></table></div>}
-          </section> : null}
         </>}
-      </CardContent></Card>
-      <Card><CardHeader><CardTitle>{adminText("Balance adjustment")}</CardTitle><CardDescription>{adminText("Add, deduct, freeze or unfreeze the selected user's available balance. Every operation is audited and idempotent.")}</CardDescription></CardHeader><CardContent className="space-y-3">
-        {!selectedUser ? <p className="text-sm text-brand-text-muted">{adminText("Select a user first.")}</p> : <>
-          <div className="grid gap-2 sm:grid-cols-2">
-            <label className="space-y-1 text-sm"><span className="text-brand-text-muted">{adminText("Asset")}</span><select value={adjustCoin} onChange={event => setAdjustCoin(event.target.value)} disabled={adjustBusy || !!adjustRequestId || adjustPendingInvalid} className="h-11 w-full rounded-xl border border-brand-border bg-brand-surface-2 px-3 text-sm text-brand-text">{assets.map(coin => <option key={coin}>{coin}</option>)}</select></label>
-            <label className="space-y-1 text-sm"><span className="text-brand-text-muted">{adminText("Operation")}</span><select value={adjustMode} onChange={event => setAdjustMode(event.target.value as "credit" | "debit" | "freeze" | "unfreeze")} disabled={adjustBusy || !!adjustRequestId || adjustPendingInvalid} className="h-11 w-full rounded-xl border border-brand-border bg-brand-surface-2 px-3 text-sm text-brand-text"><option value="credit">{adminText("Add balance")}</option><option value="debit">{adminText("Deduct balance")}</option><option value="freeze">{adminText("Freeze funds")}</option><option value="unfreeze">{adminText("Unfreeze funds")}</option></select></label>
-          </div>
-          <p className="text-xs text-brand-text-muted">{adminText("Available")}: {selectedUser.balances?.[adjustCoin]?.free == null ? "—" : asText(selectedUser.balances[adjustCoin].free)} · {adminText("Frozen")}: {selectedUser.balances?.[adjustCoin]?.frozen == null ? "—" : asText(selectedUser.balances[adjustCoin].frozen)}</p>
-          <input value={adjustAmount} onChange={event => setAdjustAmount(event.target.value)} disabled={adjustBusy || !!adjustRequestId || adjustPendingInvalid} inputMode="decimal" placeholder={adminText("Amount")} className="h-11 w-full rounded-xl border border-brand-border bg-brand-surface-2 px-3 text-sm text-brand-text"/>
-          {(adjustMode === "freeze" || adjustMode === "unfreeze") ? <input value={adjustReason} onChange={event => setAdjustReason(event.target.value)} disabled={adjustBusy || !!adjustRequestId || adjustPendingInvalid} maxLength={200} placeholder={adminText("Reason (required, at least 5 characters)")} className="h-11 w-full rounded-xl border border-brand-border bg-brand-surface-2 px-3 text-sm text-brand-text"/> : null}
-          <Button size="sm" disabled={adjustBusy || adjustPendingInvalid || !hasPermission("financial_adjustment.request") || !adjustAmount.trim() || ((adjustMode === "freeze" || adjustMode === "unfreeze") && adjustReason.trim().length < 5)} onClick={() => void submitBalanceAdjustment()}>{adjustBusy ? adminText("Processing…") : adjustRequestId ? adminText("Retry same adjustment") : adminText("Confirm adjustment")}</Button>{adjustPendingInvalid ? <p role="alert" className="text-xs text-brand-danger">{adminText("Saved adjustment request is unreadable. Check the financial audit log before continuing.")}</p> : adjustRequestId ? <p className="text-xs text-brand-warning">{adminText("A previous adjustment is awaiting confirmation. Retry the same operation; its request ID is preserved to prevent duplicate credit or debit.")}</p> : null}
-          {!hasPermission("financial_adjustment.request") ? <p className="text-xs text-brand-warning">{adminText("Requires the financial_adjustment.request permission.")}</p> : null}
-        </>}
-      </CardContent></Card>
-      {selectedUser ? <Card><CardHeader><CardTitle>{adminText("KYC verification")}</CardTitle><CardDescription>{adminText("Administrators may complete a manual identity verification without waiting for a customer submission. Verify the identity independently and record the verification method; the decision is audited.")}</CardDescription></CardHeader><CardContent className="space-y-3"><div className="flex flex-wrap items-center justify-between gap-2"><span className="text-sm text-brand-text-muted">{adminText("Current KYC status")}</span><Badge variant={statusVariant(selectedUser.kyc_status || selectedUser.kyc?.status || "unsubmitted")}>{adminText(selectedUser.kyc_status || selectedUser.kyc?.status || "unsubmitted")}</Badge></div><Button size="sm" disabled={busy || !hasPermission("kyc.review")} onClick={()=>{setReviewDialog({kind:"kyc-manual",uid:selectedUser.uid});setReviewReason("");setManualIdentityConfirmed(false);setError("");setNotice("");}}>{adminText("Perform manual KYC verification")}</Button>{!hasPermission("kyc.review") ? <p className="text-xs text-brand-warning">{adminText("Requires the kyc.review permission.")}</p> : null}</CardContent></Card> : null}
-      <Card><CardHeader><CardTitle>{adminText("Account actions")}</CardTitle><CardDescription>{adminText("Freeze the account, reset the login password or email, and send a staff message to the customer.")}</CardDescription></CardHeader><CardContent className="space-y-4">
-        {!selectedUser ? <p className="text-sm text-brand-text-muted">{adminText("Select a user first.")}</p> : <>
-          <div className="space-y-2">
-            <div className="flex flex-wrap items-center justify-between gap-2"><span className="text-sm font-semibold">{adminText("Account state")}</span><Badge variant={selectedUser.frozen ? "destructive" : "success"}>{selectedUser.frozen ? adminText("Frozen") : adminText("Active")}</Badge></div>
-            <input value={freezeReason} onChange={event => setFreezeReason(event.target.value)} disabled={accountActionBusy} maxLength={200} placeholder={adminText("Reason for the account state change")} className="h-11 w-full rounded-xl border border-brand-border bg-brand-surface-2 px-3 text-sm text-brand-text"/>
-            <Button size="sm" variant={selectedUser.frozen ? "outline" : "destructive"} disabled={accountActionBusy || !hasPermission("users.freeze") || !freezeReason.trim()} onClick={() => void submitFreezeToggle()}>{selectedUser.frozen ? adminText("Unfreeze account") : adminText("Freeze account")}</Button>
-            {!hasPermission("users.freeze") ? <p className="text-xs text-brand-warning">{adminText("Requires the users.freeze permission.")}</p> : null}
-          </div>
-          <div className="space-y-2 border-t border-brand-border pt-3">
-            <p className="text-sm font-semibold">{adminText("Reset login password")}</p>
-            <input value={newPassword} onChange={event => setNewPassword(event.target.value)} disabled={accountActionBusy} type="password" autoComplete="new-password" placeholder={adminText("New password (12-256 characters)")} className="h-11 w-full rounded-xl border border-brand-border bg-brand-surface-2 px-3 text-sm text-brand-text"/>
-            <Button size="sm" disabled={accountActionBusy || !hasPermission("users.manage") || newPassword.length < 12} onClick={() => void submitPasswordReset()}>{adminText("Reset password")}</Button>
-            {!hasPermission("users.manage") ? <p className="text-xs text-brand-warning">{adminText("Requires the users.manage permission.")}</p> : null}
-          </div>
-          <div className="space-y-2 border-t border-brand-border pt-3">
-            <p className="text-sm font-semibold">{adminText("Change email")}</p>
-            <input value={newEmail} onChange={event => setNewEmail(event.target.value)} disabled={accountActionBusy} type="email" placeholder={adminText("New email address")} className="h-11 w-full rounded-xl border border-brand-border bg-brand-surface-2 px-3 text-sm text-brand-text"/>
-            <Button size="sm" disabled={accountActionBusy || !hasPermission("users.manage") || !newEmail.trim()} onClick={() => void submitEmailReset()}>{adminText("Change email")}</Button>
-          </div>
-          <div className="space-y-2 border-t border-brand-border pt-3">
-            <p className="text-sm font-semibold">{adminText("Contact customer")}</p>
-            <p className="text-xs text-brand-text-muted">{adminText("Sends a staff message into the customer's support thread. A new thread is created when the customer has never written in.")}</p>
-            <textarea value={directMessage} onChange={event => setDirectMessage(event.target.value)} disabled={accountActionBusy} rows={3} maxLength={2000} placeholder={adminText("Message to the customer")} className="w-full rounded-xl border border-brand-border bg-brand-surface-2 p-3 text-sm text-brand-text"/>
-            <Button size="sm" disabled={accountActionBusy || !hasPermission("support.reply") || !directMessage.trim()} onClick={() => void sendDirectMessage()}>{adminText("Send message")}</Button>
-            {!hasPermission("support.reply") ? <p className="text-xs text-brand-warning">{adminText("Requires the support.reply permission.")}</p> : null}
-          </div>
-        </>}
-      </CardContent></Card>
-      {selectedUser ? <>
-      {hasPermission("payout_addresses.read_sensitive") ? <Card><CardHeader><CardTitle>{adminText("This user's saved addresses and bank cards")}</CardTitle><CardDescription>{adminText("Only records linked to the selected UID are shown here. Sensitive details remain permission-protected.")}</CardDescription></CardHeader><CardContent className="space-y-3">
-        {profileRelatedLoading ? <p className="text-sm text-brand-text-muted">{adminText("Loading linked records…")}</p> : null}
-        {selectedUserAddresses.map(item => <div key={item.id} className="rounded-xl border border-brand-border p-3"><div className="flex flex-wrap items-start justify-between gap-2"><div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><Badge variant="outline">{item.type === "bank" ? adminText("Bank card") : adminText("Crypto address")}</Badge><span className="text-xs text-brand-text-muted">{formatDate(item.created_at)}</span></div>{item.type === "bank" ? <><p className="mt-2 text-sm font-semibold">{item.bank_name} · {item.account_holder}</p><p className="mt-1 break-all font-mono text-xs">{item.iban ? "IBAN " + item.iban : "Account " + (item.account_number || "—")}</p><p className="mt-1 break-words text-xs text-brand-text-muted">{[item.country,item.routing_number ? "Routing " + item.routing_number : "",item.swift ? "SWIFT " + item.swift : "",item.bank_address].filter(Boolean).join(" · ")}</p></> : <><p className="mt-2 text-sm font-semibold">{item.coin} · {item.network}</p><p className="mt-1 break-all font-mono text-xs">{item.address}</p></>}</div><div className="flex shrink-0 gap-2"><Button size="sm" variant="outline" disabled={busy || item.type !== "bank" || !hasPermission("payout_addresses.manage")} onClick={() => beginPayoutAddressEdit(item)}>{adminText("Edit")}</Button><Button size="sm" variant="destructive" disabled={busy || !hasPermission("payout_addresses.manage")} onClick={() => setPendingDeletePayoutAddress(item)}>{adminText("Delete")}</Button></div></div></div>)}
-        {!profileRelatedLoading && selectedUserAddresses.length === 0 ? <p className="rounded-lg border border-dashed border-brand-border p-5 text-center text-sm text-brand-text-muted">{adminText("No saved addresses or bank cards for this user.")}</p> : null}
-        {editingPayoutAddress?.uid === selectedUser.uid ? <div className="space-y-3 rounded-xl border border-brand-accent/30 bg-brand-surface-2 p-3"><p className="text-sm font-semibold">{adminText("Edit bank payout details")}</p><div className="grid gap-3 sm:grid-cols-2">{([["account_holder","Account holder"],["bank_name","Bank name"],["account_number","Local account number"],["iban","IBAN"],["country","Country code"],["routing_number","Routing number"],["swift","SWIFT / BIC"],["bank_address","Bank address"],["note","Note"]] as const).map(([key,label])=><label key={key} className="space-y-1 text-sm"><span>{adminText(label)}</span><input value={payoutAddressDraft[key]} disabled={busy||!hasPermission("payout_addresses.manage")} onChange={event=>setPayoutAddressDraft(current=>({...current,[key]:event.target.value}))} className="w-full rounded-lg border border-brand-border bg-brand-surface px-3 py-2 text-sm text-brand-text"/></label>)}</div><label className="block space-y-1 text-sm"><span>{adminText("Reason for change (required)")}</span><textarea value={payoutAddressDraft.reason} onChange={event=>setPayoutAddressDraft(current=>({...current,reason:event.target.value}))} rows={2} maxLength={200} className="w-full rounded-lg border border-brand-border bg-brand-surface p-3 text-sm text-brand-text"/></label><div className="flex gap-2"><Button size="sm" disabled={busy||!hasPermission("payout_addresses.manage")||!payoutAddressDraft.reason.trim()} onClick={()=>void savePayoutAddress()}>{adminText("Save changes")}</Button><Button size="sm" variant="outline" disabled={busy} onClick={()=>setEditingPayoutAddress(null)}>{adminText("Cancel")}</Button></div></div> : null}
       </CardContent></Card> : null}
-      {hasPermission("support.read") ? <Card><CardHeader><div className="flex flex-wrap items-center justify-between gap-2"><div><CardTitle>{adminText("This user's customer service conversation")}</CardTitle><CardDescription>{adminText("Messages below are linked to this UID only. Reply here to keep the conversation attached to the same customer.")}</CardDescription></div>{(() => { const thread = groupSupportThreads(selectedUserSupport)[0]; return thread?.adminUnreadCount ? <Button size="sm" variant="outline" disabled={busy} onClick={() => void markSupportThreadRead(selectedUser!.uid)}>{adminText("Mark read")}</Button> : null; })()}</div></CardHeader><CardContent className="space-y-3">
-        {profileRelatedLoading ? <p className="text-sm text-brand-text-muted">{adminText("Loading linked records…")}</p> : null}
-        {selectedUserSupport.map((message,index) => <div key={asText(message.id) || index} className={message.from === "admin" ? "ml-5 rounded-lg bg-brand-accent/10 p-3" : "mr-5 rounded-lg bg-brand-surface-2 p-3"}><div className="flex items-center justify-between gap-2"><Badge variant={message.from === "admin" ? "outline" : "secondary"}>{message.from === "admin" ? adminText("Administrator") : adminText("Customer")}</Badge><span className="text-[11px] text-brand-text-muted">{formatDate(message.time)}</span></div><p className="mt-2 whitespace-pre-wrap break-words text-sm">{asText(message.content)}</p></div>)}
-        {!profileRelatedLoading && selectedUserSupport.length === 0 ? <p className="rounded-lg border border-dashed border-brand-border p-5 text-center text-sm text-brand-text-muted">{adminText("No customer service messages for this user yet.")}</p> : null}
-        <textarea value={supportReply[selectedUser.uid] || ""} onChange={event => { const uid = selectedUser.uid; setSupportReply(current => ({...current,[uid]:event.target.value})); try { setSupportReplyRequestIds(current => ({...current,[uid]:window.crypto.randomUUID()})); } catch { setError("Secure support reply request IDs are unavailable in this browser. No reply was sent."); } }} rows={3} maxLength={2000} disabled={!hasPermission("support.reply")} className="w-full rounded-lg border border-brand-border bg-brand-surface-2 p-3 text-sm text-brand-text" placeholder={adminText("Reply to this customer")}/>
-        <Button size="sm" disabled={busy || !hasPermission("support.reply") || !supportReply[selectedUser.uid]?.trim()} onClick={() => void replySupport(selectedUser.uid)}>{adminText("Send reply")}</Button>
-        {!hasPermission("support.reply") ? <p className="text-xs text-brand-warning">{adminText("Requires the support.reply permission.")}</p> : null}
-      </CardContent></Card> : null}
-      </> : null}
-      </div>
-    </div> : null}
 
     {!loading && tab === "deposits" ? <Card><CardHeader><CardTitle>{adminText("Finance configuration")}</CardTitle><CardDescription>{adminText("Configure customer deposit addresses and server-enforced withdrawal fees. Staff verify incoming transfers and manually credit the selected user's asset row.")}</CardDescription></CardHeader><CardContent><form onSubmit={saveAddresses} className="space-y-5">
       <section className="space-y-3"><h3 className="text-sm font-semibold text-brand-text">{adminText("Deposit addresses")}</h3><div className="grid gap-3 md:grid-cols-2">{depositAddressKeys.map(key=><label key={key} className="block space-y-1"><span className="text-xs font-semibold text-brand-text-muted">{key.replace("_"," · ")}</span><input value={config.deposit_addresses[key]||""} onChange={event=>setConfig(current=>({...current,deposit_addresses:{...current.deposit_addresses,[key]:event.target.value}}))} className="w-full rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-2 text-sm text-brand-text" placeholder={adminText("Configured wallet address")}/></label>)}</div></section>
       <section className="space-y-3"><div><h3 className="text-sm font-semibold text-brand-text">{adminText("Withdrawal fees")}</h3><p className="text-xs text-brand-text-muted">{adminText("These values are applied by the server when a withdrawal is submitted. Enter zero to disable a fee for an asset.")}</p></div><div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{assets.map(coin=><label key={coin} className="block space-y-1"><span className="text-xs font-semibold text-brand-text-muted">{coin} {adminText("fee")}</span><input inputMode="decimal" value={config.withdrawal_fees?.[coin] ?? ""} onChange={event=>setConfig(current=>({...current,withdrawal_fees:{...current.withdrawal_fees,[coin]:event.target.value}}))} className="w-full rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-2 text-sm text-brand-text" placeholder="0"/></label>)}</div></section>
       <label className="block space-y-1"><span className="text-xs font-semibold text-brand-text-muted">{adminText("Customer announcement")}</span><textarea value={config.announcement||""} onChange={event=>setConfig(current=>({...current,announcement:event.target.value}))} rows={3} className="w-full rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-2 text-sm text-brand-text"/></label>
-      <Button type="submit" disabled={busy || !hasPermission("system_config.write")}>{adminText("Save configuration")}</Button>
+      <Button type="submit" className="w-full sm:w-auto" disabled={busy || !hasPermission("system_config.write")}>{adminText("Save configuration")}</Button>
     </form></CardContent></Card> : null}
 
-    {!loading && tab === "withdrawals" ? <Card><CardHeader><div className="flex flex-wrap items-start justify-between gap-3"><div><CardTitle>{adminText("Withdrawal queue")}</CardTitle><CardDescription>{adminText("Approve or reject requests. After staff actually transfer funds, mark paid with the TxID/reference.")}</CardDescription></div><Button size="sm" variant="outline" disabled={reviewQueueLoading || busy} onClick={()=>void refreshWithdrawalQueueManually()}>{reviewQueueLoading ? adminText("Refreshing…") : adminText("Refresh queue")}</Button></div></CardHeader><CardContent><div className="overflow-x-auto"><table className="w-full min-w-[900px] text-left text-sm"><thead><tr className="border-b border-brand-border bg-brand-surface-2/50 type-label uppercase tracking-wide text-brand-text-muted"><th className="px-3 py-2.5">{adminText("ID")}</th><th className="px-3 py-2.5">{adminText("User")}</th><th className="px-3 py-2.5 text-right">{adminText("Asset / amount")}</th><th className="px-3 py-2.5">{adminText("Network / destination")}</th><th className="px-3 py-2.5">{adminText("Status")}</th><th className="px-3 py-2.5">{adminText("Action")}</th></tr></thead><tbody>{withdrawals.map(item=><tr key={item.id} className="border-b border-brand-border-subtle align-top transition-colors hover:bg-brand-surface-hover/40"><td className="px-3 py-2.5 font-mono text-xs">{item.id}</td><td className="px-3 py-2.5">{item.uid}</td><td className="px-3 py-2.5 text-right tabular-nums"><span className="mr-1 text-xs text-brand-text-muted">{item.coin}</span>{item.amount}<div className="text-xs text-brand-text-muted">{adminText("Fee")} {item.fee}</div></td><td className="max-w-[260px] break-all px-3 py-2.5">{item.network}<div className="text-xs text-brand-text-muted">{item.address}</div></td><td className="px-3 py-2.5"><Badge variant={statusVariant(item.status)}>{adminText(item.status)}</Badge></td><td className="min-w-[220px] space-y-2 px-3 py-2.5">{item.status==="pending"||item.status==="pending_admin_review"?<><Button size="sm" disabled={busy||reviewQueueLoading||!hasPermission("withdrawals.review")} onClick={()=>void approveWithdrawal(item.id)}>{adminText("Approve")}</Button><Button size="sm" variant="destructive" disabled={busy||reviewQueueLoading||!hasPermission("withdrawals.review")} onClick={()=>void rejectWithdrawal(item.id)}>{adminText("Reject")}</Button></>:item.status==="approved"?<><input disabled={reviewQueueLoading} value={payoutReferences[item.id]||""} onChange={event=>setPayoutReferences(current=>({...current,[item.id]:event.target.value}))} placeholder={adminText("Required TxID / reference")} maxLength={160} className="w-full rounded-lg border border-brand-border bg-brand-surface-2 px-2 py-2 text-xs text-brand-text"/><Button size="sm" disabled={busy||reviewQueueLoading||!payoutReferences[item.id]?.trim()||!hasPermission("withdrawals.review")} onClick={()=>void markPaid(item.id)}>{adminText("Mark paid")}</Button></>:<span className="text-xs text-brand-text-muted">{item.payout_reference||"—"}</span>}</td></tr>)}{withdrawals.length===0 ? <tr><td colSpan={6} className="px-3 py-10 text-center text-sm text-brand-text-muted">暂无待处理提现申请。</td></tr> : null}</tbody></table></div></CardContent></Card> : null}
+    {!loading && tab === "deposit-records" ? <Card><CardHeader><div className="flex flex-wrap items-start justify-between gap-3"><div><CardTitle>{adminText("Deposit records")}</CardTitle><CardDescription>{adminText("Read-only latest 200 records from the canonical PostgreSQL financial ledger. This page does not confirm deposits or credit balances.")}</CardDescription></div><Button size="sm" variant="outline" onClick={() => void loadTab()}>{adminText("Refresh records")}</Button></div></CardHeader><CardContent><div className="mb-3 flex flex-wrap items-center gap-2"><Badge variant="outline">{adminText("Source: PostgreSQL ledger")}</Badge><Badge variant="outline">{adminText("Latest 200 · not exhaustive")}</Badge></div><div className="overflow-x-auto"><table className="w-full min-w-[900px] text-left text-sm"><thead><tr className="border-b border-brand-border bg-brand-surface-2/50 type-label uppercase tracking-wide text-brand-text-muted"><th className="px-3 py-2.5">{adminText("Time")}</th><th className="px-3 py-2.5">{adminText("User / email")}</th><th className="px-3 py-2.5">{adminText("Asset / network")}</th><th className="px-3 py-2.5 text-right">{adminText("Amount")}</th><th className="px-3 py-2.5">{adminText("Status")}</th><th className="px-3 py-2.5">{adminText("Transaction hash")}</th><th className="px-3 py-2.5">{adminText("Record ID")}</th></tr></thead><tbody>{deposits.map(item=><tr key={item.id} className="border-b border-brand-border-subtle align-top transition-colors hover:bg-brand-surface-hover/40"><td className="whitespace-nowrap px-3 py-2.5">{formatDate(item.time)}</td><td className="max-w-[220px] break-all px-3 py-2.5"><div className="break-all">{item.uid}</div><div className="break-all text-xs text-brand-text-muted">{item.email || "—"}</div></td><td className="px-3 py-2.5">{item.coin} · {item.network || "—"}</td><td className="px-3 py-2.5 text-right font-mono tabular-nums">{item.amount}</td><td className="px-3 py-2.5"><Badge variant={statusVariant(item.status)}>{adminText(item.status)}</Badge></td><td className="max-w-[220px] break-all px-3 py-2.5 font-mono text-xs" title={item.txid || ""}>{item.txid || "—"}</td><td className="max-w-[180px] break-all px-3 py-2.5 font-mono text-xs" title={item.id}>{item.id}</td></tr>)}</tbody></table></div>{deposits.length === 0 ? <p className="py-6 text-center text-sm text-brand-text-muted">{adminText("No deposit records found in the latest query.")}</p> : null}</CardContent></Card> : null}
 
-    {!loading && tab === "kyc" ? <Card><CardHeader><div className="flex flex-wrap items-center justify-between gap-3"><CardTitle>{adminText("KYC review")}</CardTitle><Button size="sm" variant="outline" disabled={reviewQueueLoading || busy} onClick={()=>void refreshKycQueue()}>{reviewQueueLoading ? adminText("Refreshing…") : adminText("Refresh queue")}</Button></div></CardHeader><CardContent><div className="overflow-x-auto"><table className="w-full min-w-[700px] text-left text-sm"><thead><tr className="border-b border-brand-border bg-brand-surface-2/50 type-label uppercase tracking-wide text-brand-text-muted"><th className="px-3 py-2.5">{adminText("User")}</th><th className="px-3 py-2.5">{adminText("Name")}</th><th className="px-3 py-2.5">{adminText("Document")}</th><th className="px-3 py-2.5">{adminText("Status")}</th><th className="px-3 py-2.5">{adminText("Submitted")}</th><th className="px-3 py-2.5">{adminText("Action")}</th></tr></thead><tbody>{kyc.map(item=><tr key={item.uid} className="border-b border-brand-border-subtle transition-colors hover:bg-brand-surface-hover/40"><td className="px-3 py-2.5">{item.uid}<div className="text-xs text-brand-text-muted">{item.email}</div></td><td className="px-3 py-2.5">{item.name}</td><td className="px-3 py-2.5">{item.id_type}<div className="mt-1 text-xs">{item.document_url&&!item.document_preview_error?<a href={item.document_url} target="_blank" rel="noreferrer" className="text-brand-accent underline underline-offset-2">{adminText("Open secure image")}</a>:<span className="text-brand-text-muted">{item.document_preview_error||"Document image missing"}</span>}</div></td><td className="px-3 py-2.5"><Badge variant={statusVariant(item.status)}>{adminText(item.status)}</Badge></td><td className="whitespace-nowrap px-3 py-2.5">{formatDate(item.submitted_at)}</td><td className="space-x-2 px-3 py-2.5"><Button size="sm" disabled={busy||!hasPermission("kyc.review")||!item.document_uploaded||!item.document_url||!!item.document_preview_error} onClick={()=>void reviewKyc(item.uid,true)}>{adminText("Approve")}</Button><Button size="sm" variant="outline" disabled={busy||!hasPermission("kyc.review")} onClick={()=>{setReviewDialog({kind:"kyc-manual",uid:item.uid});setReviewReason("");setManualIdentityConfirmed(false);setError("");setNotice("");}}>{adminText("Manual identity verification")}</Button><Button size="sm" variant="destructive" disabled={busy||!hasPermission("kyc.review")} onClick={()=>void reviewKyc(item.uid,false)}>{adminText("Reject")}</Button>{!item.document_uploaded||!item.document_url||item.document_preview_error?<p className="mt-1 text-xs text-brand-text-muted">{!item.document_uploaded?adminText("Identity document upload is required before approval."):adminText("Document preview unavailable; refresh the queue before approval.")}</p>:null}</td></tr>)}{kyc.length===0 ? <tr><td colSpan={6} className="px-3 py-10 text-center text-sm text-brand-text-muted">暂无待审核 KYC 申请。</td></tr> : null}</tbody></table></div></CardContent></Card> : null}
+    {!loading && tab === "withdrawals" ? <Card><CardHeader><div className="flex flex-wrap items-start justify-between gap-3"><div><CardTitle>{adminText("Withdrawal queue")}</CardTitle><CardDescription>{adminText("Approve or reject requests. After staff actually transfer funds, mark paid with the TxID/reference.")}</CardDescription></div><Button size="sm" variant="outline" disabled={reviewQueueLoading || busy} onClick={()=>void refreshWithdrawalQueueManually()}>{reviewQueueLoading ? adminText("Refreshing…") : adminText("Refresh queue")}</Button></div></CardHeader><CardContent>{withdrawalQueueSource === "legacy_state_snapshot" && withdrawalQueueCompleteness === "partial" ? <div className="mb-3 rounded-md border border-amber-500/40 bg-amber-500/5 px-3 py-2 text-xs text-amber-200">{adminText("Legacy withdrawal snapshot · partial queue. Do not treat this as the complete canonical queue.")}</div> : withdrawalQueueSource === "postgres_financial_ledger" && withdrawalQueueCompleteness === "pending_queue" ? <div className="mb-3 flex flex-wrap items-center gap-2"><Badge variant="outline">{adminText("Source: PostgreSQL ledger")}</Badge><Badge variant="outline">{adminText("Canonical pending queue")}</Badge></div> : <div className="mb-3 flex flex-wrap items-center gap-2"><Badge variant="destructive">{adminText("Source not confirmed")}</Badge><span className="text-xs text-brand-text-muted">{adminText("Verify queue completeness before treating this list as the full withdrawal queue.")}</span></div>}<div className="overflow-x-auto overscroll-x-contain"><table className="w-full min-w-[900px] text-left text-sm"><thead><tr className="border-b border-brand-border bg-brand-surface-2/50 type-label uppercase tracking-wide text-brand-text-muted"><th className="px-3 py-2.5">{adminText("ID")}</th><th className="px-3 py-2.5">{adminText("User")}</th><th className="px-3 py-2.5 text-right">{adminText("Asset / amount")}</th><th className="px-3 py-2.5">{adminText("Network / destination")}</th><th className="px-3 py-2.5">{adminText("Status")}</th><th className="px-3 py-2.5">{adminText("Action")}</th></tr></thead><tbody>{withdrawals.map(item=><tr key={item.id} className="border-b border-brand-border-subtle align-top transition-colors hover:bg-brand-surface-hover/40"><td className="max-w-[180px] break-all px-3 py-2.5 font-mono text-xs">{item.id}</td><td className="max-w-[220px] break-all px-3 py-2.5"><div className="break-all font-mono text-xs">{item.uid || "—"}</div></td><td className="px-3 py-2.5 text-right tabular-nums"><span className="mr-1 text-xs text-brand-text-muted">{item.coin}</span>{item.amount}<div className="text-xs text-brand-text-muted">{adminText("Fee")} {item.fee}</div></td><td className="max-w-[260px] break-all px-3 py-2.5">{item.network}<div className="text-xs text-brand-text-muted">{item.address}</div></td><td className="px-3 py-2.5"><Badge variant={statusVariant(item.status)}>{adminText(item.status)}</Badge></td><td className="min-w-[220px] px-3 py-2.5"><div className="flex flex-wrap items-center gap-2">{item.status==="pending"||item.status==="pending_admin_review"?<><Button size="sm" disabled={busy||reviewQueueLoading||!hasPermission("withdrawals.review")} onClick={()=>void approveWithdrawal(item.id)}>{adminText("Approve")}</Button><Button size="sm" variant="destructive" disabled={busy||reviewQueueLoading||!hasPermission("withdrawals.review")} onClick={()=>void rejectWithdrawal(item.id)}>{adminText("Reject")}</Button></>:item.status==="approved"?<><input disabled={reviewQueueLoading} value={payoutReferences[item.id]||""} onChange={event=>setPayoutReferences(current=>({...current,[item.id]:event.target.value}))} placeholder={adminText("Required TxID / reference")} maxLength={160} className="w-full rounded-lg border border-brand-border bg-brand-surface-2 px-2 py-2 text-xs text-brand-text"/><Button size="sm" disabled={busy||reviewQueueLoading||!payoutReferences[item.id]?.trim()||!hasPermission("withdrawals.review")} onClick={()=>void markPaid(item.id)}>{adminText("Mark paid")}</Button></>:<span className="text-xs text-brand-text-muted">{item.payout_reference||"—"}</span>}</div></td></tr>)}{withdrawals.length===0 ? <tr><td colSpan={6} className="px-3 py-10 text-center text-sm text-brand-text-muted">暂无待处理提现申请。</td></tr> : null}</tbody></table></div></CardContent></Card> : null}
 
-    {!loading && tab === "audit" ? <Card><CardHeader><div className="flex flex-wrap items-start justify-between gap-2"><div><CardTitle>{adminText("Financial audit log")}</CardTitle><CardDescription>{auditCompleteness === "postgres_canonical" ? adminText("Canonical append-only PostgreSQL history. Financial operations and account history use the same database source.") : auditCompleteness === "state_document_retention_limited" ? adminText("Retention-limited state-file history. Do not treat this list as a complete financial audit record.") : adminText("Audit source is not confirmed. Do not treat this list as complete until the source is verified.")} {adminText("Operator ID is the recorded actor identifier, not a display name.")}</CardDescription></div><Badge variant={auditCompleteness === "postgres_canonical" ? "default" : "destructive"}>{auditSource === "postgres_financial_audit_log" ? adminText("PostgreSQL canonical") : auditSource === "btcbox_state" ? adminText("State file · limited") : adminText("Source unknown")}</Badge></div></CardHeader><CardContent><div className="overflow-x-auto"><table className="w-full min-w-[1000px] text-left text-sm"><thead><tr className="border-b border-brand-border bg-brand-surface-2/50 type-label uppercase tracking-wide text-brand-text-muted"><th className="px-3 py-2.5">{adminText("Event ID")}</th><th className="px-3 py-2.5">{adminText("Time")}</th><th className="px-3 py-2.5">{adminText("Operator ID")}</th><th className="px-3 py-2.5">{adminText("Action")}</th><th className="px-3 py-2.5">{adminText("Affected user UID")}</th><th className="px-3 py-2.5">{adminText("Sync")}</th><th className="px-3 py-2.5">{adminText("Detail")}</th></tr></thead><tbody>{audit.length ? audit.map((item,index)=><tr key={item.id||index} className="border-b border-brand-border-subtle transition-colors hover:bg-brand-surface-hover/40"><td className="px-3 py-2.5 font-mono text-xs">{item.id}</td><td className="whitespace-nowrap px-3 py-2.5">{formatDate(item.time)}</td><td className="px-3 py-2.5 font-mono text-xs">{item.by}</td><td className="px-3 py-2.5">{item.action}</td><td className="px-3 py-2.5">{item.uid}</td><td className="px-3 py-2.5"><Badge variant={item.postgres_sync_status === "synced" || item.postgres_sync_status === "completed" ? "success" : "outline"}>{asText(item.postgres_sync_status)}</Badge></td><td className="max-w-[280px] break-all px-3 py-2.5 text-xs">{item.detail}</td></tr>) : <tr><td colSpan={7} className="px-3 py-10 text-center text-sm text-brand-text-muted">{adminText("No audit records are available in this snapshot.")}</td></tr>}</tbody></table></div><div className="mt-4 flex flex-wrap items-center justify-between gap-3"><p className="text-xs text-brand-text-muted">{adminText("Showing")}{audit.length} {adminText("records from this source snapshot.")}</p>{auditNextBefore ? <Button type="button" variant="outline" disabled={auditPageLoading} onClick={()=>void loadOlderAuditRecords()}>{auditPageLoading ? adminText("Loading older records...") : adminText("Load older records")}</Button> : <span className="text-xs text-brand-text-muted">{auditSource === "postgres_financial_audit_log" ? adminText("No older records in this snapshot.") : adminText("Legacy snapshot pagination is unavailable; this source is retention-limited.")}</span>}</div></CardContent></Card> : null}
+    {!loading && tab === "kyc" ? <Card><CardHeader><div className="flex flex-wrap items-center justify-between gap-3"><CardTitle>{adminText("KYC review")}</CardTitle><Button size="sm" variant="outline" disabled={reviewQueueLoading || busy} onClick={()=>void refreshKycQueue()}>{reviewQueueLoading ? adminText("Refreshing…") : adminText("Refresh queue")}</Button></div></CardHeader><CardContent><div className="overflow-x-auto overscroll-x-contain"><table className="w-full min-w-[1000px] text-left text-sm"><thead><tr className="border-b border-brand-border bg-brand-surface-2/50 type-label uppercase tracking-wide text-brand-text-muted"><th className="px-3 py-2.5">{adminText("User")}</th><th className="px-3 py-2.5">{adminText("Name")}</th><th className="px-3 py-2.5">{adminText("Document")}</th><th className="px-3 py-2.5">{adminText("Status")}</th><th className="px-3 py-2.5">{adminText("Submitted")}</th><th className="px-3 py-2.5">{adminText("Action")}</th></tr></thead><tbody>{kyc.map(item=><tr key={item.uid} className="border-b border-brand-border-subtle transition-colors hover:bg-brand-surface-hover/40"><td className="max-w-[220px] break-all px-3 py-2.5">{item.uid}<div className="break-all text-xs text-brand-text-muted">{item.email}</div></td><td className="px-3 py-2.5">{item.name}</td><td className="px-3 py-2.5">{item.id_type}<div className="mt-1 text-xs">{item.document_url&&!item.document_preview_error?<a href={item.document_url} target="_blank" rel="noreferrer" className="text-brand-accent underline underline-offset-2">{adminText("Open secure image")}</a>:<span className="text-brand-text-muted">{item.document_preview_error||"Document image missing"}</span>}</div></td><td className="px-3 py-2.5"><Badge variant={statusVariant(item.status)}>{adminText(item.status)}</Badge></td><td className="whitespace-nowrap px-3 py-2.5">{formatDate(item.submitted_at)}</td><td className="min-w-[340px] px-3 py-2.5"><div className="flex flex-wrap gap-2"><Button size="sm" disabled={busy||!hasPermission("kyc.review")||!item.document_uploaded||!item.document_url||!!item.document_preview_error} onClick={()=>void reviewKyc(item.uid,true)}>{adminText("Approve")}</Button><Button size="sm" variant="outline" disabled={busy||!hasPermission("kyc.review")} onClick={()=>{setReviewDialog({kind:"kyc-manual",uid:item.uid});setReviewReason("");setManualIdentityConfirmed(false);setError("");setNotice("");}}>{adminText("Manual identity verification")}</Button><Button size="sm" variant="destructive" disabled={busy||!hasPermission("kyc.review")} onClick={()=>void reviewKyc(item.uid,false)}>{adminText("Reject")}</Button>{!item.document_uploaded||!item.document_url||item.document_preview_error?<p className="mt-1 text-xs text-brand-text-muted">{!item.document_uploaded?adminText("Identity document upload is required before approval."):adminText("Document preview unavailable; refresh the queue before approval.")}</p>:null}</div></td></tr>)}{kyc.length===0 ? <tr><td colSpan={6} className="px-3 py-10 text-center text-sm text-brand-text-muted">暂无待审核 KYC 申请。</td></tr> : null}</tbody></table></div></CardContent></Card> : null}
 
-    {!loading && tab === "orders" ? <Card><CardHeader><div className="flex flex-wrap items-start justify-between gap-2"><div><CardTitle>{adminText("Orders")}</CardTitle><CardDescription>{ordersSource === "postgres_financial_matching" ? adminText("Customer order history and this administrator view use the canonical PostgreSQL matching orders.") : ordersSource === "legacy_state" ? adminText("Legacy state fallback is active because matching-engine mode was not requested.") : adminText("Order data source is not confirmed.")}</CardDescription></div><Badge variant={ordersSource === "postgres_financial_matching" ? "default" : "destructive"}>{ordersSource === "postgres_financial_matching" ? adminText("Source: PostgreSQL matching") : ordersSource === "legacy_state" ? adminText("Source: legacy state") : adminText("Source: unknown")}</Badge></div></CardHeader><CardContent><div className="overflow-x-auto"><table className="w-full min-w-[700px] text-left text-sm"><thead><tr className="border-b border-brand-border bg-brand-surface-2/50 type-label uppercase tracking-wide text-brand-text-muted"><th className="px-3 py-2.5">{adminText("ID")}</th><th className="px-3 py-2.5">{adminText("User")}</th><th className="px-3 py-2.5">{adminText("Symbol")}</th><th className="px-3 py-2.5">{adminText("Side")}</th><th className="px-3 py-2.5">{adminText("Status")}</th><th className="px-3 py-2.5">{adminText("Created")}</th></tr></thead><tbody>{orders.map((item,index)=><tr key={asText(item.id)||index} className="border-b border-brand-border-subtle transition-colors hover:bg-brand-surface-hover/40"><td className="px-3 py-2.5 font-mono text-xs">{asText(item.id)}</td><td className="px-3 py-2.5">{asText(item.uid||item.user_id)}</td><td className="px-3 py-2.5 font-medium">{asText(item.symbol)}</td><td className="px-3 py-2.5">{adminText(asText(item.side))}</td><td className="px-3 py-2.5"><Badge variant={statusVariant(asText(item.status))}>{adminText(asText(item.status))}</Badge></td><td className="whitespace-nowrap px-3 py-2.5">{formatDate(item.created_at||item.time)}</td></tr>)}{orders.length===0 ? <tr><td colSpan={6} className="px-3 py-10 text-center text-sm text-brand-text-muted">暂无订单记录。</td></tr> : null}</tbody></table></div></CardContent></Card> : null}
+    {!loading && tab === "audit" ? <Card><CardHeader><div className="flex flex-wrap items-start justify-between gap-2"><div><CardTitle>{adminText("Financial audit log")}</CardTitle><CardDescription>{auditCompleteness === "postgres_canonical" ? adminText("Canonical append-only PostgreSQL history. Financial operations and account history use the same database source.") : auditCompleteness === "state_document_retention_limited" ? adminText("Retention-limited state-file history. Do not treat this list as a complete financial audit record.") : adminText("Audit source is not confirmed. Do not treat this list as complete until the source is verified.")} {adminText("Operator ID is the recorded actor identifier, not a display name.")}</CardDescription></div><Badge variant={auditCompleteness === "postgres_canonical" ? "default" : "destructive"}>{auditSource === "postgres_financial_audit_log" ? adminText("PostgreSQL canonical") : auditSource === "btcbox_state" ? adminText("State file · limited") : adminText("Source unknown")}</Badge></div></CardHeader><CardContent><div className="overflow-x-auto overscroll-x-contain"><table className="w-full min-w-[1000px] text-left text-sm"><thead><tr className="border-b border-brand-border bg-brand-surface-2/50 type-label uppercase tracking-wide text-brand-text-muted"><th className="px-3 py-2.5">{adminText("Event ID")}</th><th className="px-3 py-2.5">{adminText("Time")}</th><th className="px-3 py-2.5">{adminText("Operator")}</th><th className="px-3 py-2.5">{adminText("Action")}</th><th className="px-3 py-2.5">{adminText("Affected user UID")}</th><th className="px-3 py-2.5">{adminText("Sync")}</th><th className="px-3 py-2.5">{adminText("Detail")}</th></tr></thead><tbody>{audit.length ? audit.map((item,index)=><tr key={item.id||index} className="border-b border-brand-border-subtle transition-colors hover:bg-brand-surface-hover/40"><td className="max-w-[180px] break-all px-3 py-2.5 font-mono text-xs">{item.id}</td><td className="whitespace-nowrap px-3 py-2.5">{formatDate(item.time)}</td><td className="px-3 py-2.5"><div className="break-all font-mono text-xs">{item.by}</div><div className="mt-1 text-[10px] text-brand-text-muted">{item.operator_identity_status === "linked" ? (item.operator_email || item.operator_uid) : item.operator_identity_status === "ambiguous" ? adminText("Ambiguous account mapping") : item.operator_identity_status === "unmatched" ? adminText("No BTCBOX account match") : adminText("System or legacy actor")}</div></td><td className="max-w-[180px] break-words px-3 py-2.5">{item.action}</td><td className="max-w-[180px] break-all px-3 py-2.5">{item.uid}</td><td className="px-3 py-2.5"><Badge variant={item.postgres_sync_status === "synced" || item.postgres_sync_status === "completed" ? "success" : "outline"}>{asText(item.postgres_sync_status) || adminText("Not confirmed")}</Badge></td><td className="max-w-[280px] break-all px-3 py-2.5 text-xs">{item.detail}</td></tr>) : <tr><td colSpan={7} className="px-3 py-10 text-center text-sm text-brand-text-muted">{adminText("No audit records are available in this snapshot.")}</td></tr>}</tbody></table></div><div className="mt-4 flex flex-wrap items-center justify-between gap-3"><p className="text-xs text-brand-text-muted">{adminText("Showing")}{audit.length} {adminText("records from this source snapshot.")}</p>{auditNextBefore ? <Button type="button" variant="outline" disabled={auditPageLoading} onClick={()=>void loadOlderAuditRecords()}>{auditPageLoading ? adminText("Loading older records...") : adminText("Load older records")}</Button> : <span className="text-xs text-brand-text-muted">{adminText("No older records in this snapshot.")}</span>}</div></CardContent></Card> : null}
+
+    {!loading && tab === "orders" ? <Card><CardHeader><div className="flex flex-wrap items-start justify-between gap-2"><div><CardTitle>{adminText("Orders")}</CardTitle><CardDescription>{ordersSource === "postgres_financial_matching" ? adminText("Customer order history and this administrator view use the canonical PostgreSQL matching orders.") : ordersSource === "legacy_state" ? adminText("Legacy state fallback is active because matching-engine mode was not requested.") : adminText("Order data source is not confirmed.")}</CardDescription></div><Badge variant={ordersSource === "postgres_financial_matching" ? "default" : "destructive"}>{ordersSource === "postgres_financial_matching" ? adminText("Source: PostgreSQL matching") : ordersSource === "legacy_state" ? adminText("Source: legacy state") : adminText("Source: unknown")}</Badge></div></CardHeader><CardContent><div className="overflow-x-auto overscroll-x-contain"><table className="w-full min-w-[700px] text-left text-sm"><thead><tr className="border-b border-brand-border bg-brand-surface-2/50 type-label uppercase tracking-wide text-brand-text-muted"><th className="px-3 py-2.5">{adminText("ID")}</th><th className="px-3 py-2.5">{adminText("User")}</th><th className="px-3 py-2.5">{adminText("Symbol")}</th><th className="px-3 py-2.5">{adminText("Side")}</th><th className="px-3 py-2.5">{adminText("Status")}</th><th className="px-3 py-2.5">{adminText("Created")}</th></tr></thead><tbody>{orders.map((item,index)=><tr key={asText(item.id)||index} className="border-b border-brand-border-subtle transition-colors hover:bg-brand-surface-hover/40"><td className="max-w-[180px] break-all px-3 py-2.5 font-mono text-xs">{asText(item.id)}</td><td className="max-w-[180px] break-all px-3 py-2.5">{asText(item.uid||item.user_id)}</td><td className="px-3 py-2.5 font-medium">{asText(item.symbol)}</td><td className="px-3 py-2.5">{adminText(asText(item.side))}</td><td className="px-3 py-2.5"><Badge variant={statusVariant(asText(item.status))}>{adminText(asText(item.status))}</Badge></td><td className="whitespace-nowrap px-3 py-2.5">{formatDate(item.created_at||item.time)}</td></tr>)}{orders.length===0 ? <tr><td colSpan={6} className="px-3 py-10 text-center text-sm text-brand-text-muted">暂无订单记录。</td></tr> : null}</tbody></table></div></CardContent></Card> : null}
 
     {!loading && tab === "payout-addresses" ? <div className="space-y-4">
       <Card><CardHeader><div className="flex flex-wrap items-center justify-between gap-2"><div><CardTitle>{adminText("Customer bank payout details")}</CardTitle><CardDescription>{adminText("Sensitive bank details are visible only to administrators with the required permission. All changes are audited.")}</CardDescription></div><Button size="sm" variant="outline" disabled={busy} onClick={()=>{setPayoutAddresses([]);void getAdminAddresses(token).then(result=>setPayoutAddresses(result.addresses||[])).catch(reason=>setError(reason instanceof Error?reason.message:"Payout details could not be refreshed."));}}>{adminText("Refresh")}</Button></div></CardHeader><CardContent className="space-y-3">
-      {payoutAddresses.filter(item=>item.type==="bank").map(item=><div key={item.id} className="rounded-xl border border-brand-border p-3"><div className="flex flex-wrap items-start justify-between gap-3"><div className="min-w-0"><p className="font-semibold">{item.bank_name} · {item.account_holder}</p><p className="mt-1 text-xs text-brand-text-muted">{item.email||item.uid} · {item.uid}</p><p className="mt-2 break-all font-mono text-xs">{item.iban ? "IBAN "+item.iban : "Account "+(item.account_number||"—")}</p><p className="mt-1 text-xs text-brand-text-muted">{[item.country,item.routing_number?"Routing "+item.routing_number:"",item.swift?"SWIFT "+item.swift:"",item.bank_address].filter(Boolean).join(" · ")}</p><p className="mt-1 text-xs text-brand-text-muted">{formatDate(item.created_at)}</p></div><div className="flex gap-2"><Button size="sm" variant="outline" disabled={busy||!hasPermission("payout_addresses.manage")} onClick={()=>beginPayoutAddressEdit(item)}>{adminText("Edit")}</Button><Button size="sm" variant="destructive" disabled={busy||!hasPermission("payout_addresses.manage")} onClick={()=>setPendingDeletePayoutAddress(item)}>{adminText("Delete")}</Button></div></div></div>)}
+      <div className="grid gap-3 md:grid-cols-2">
+      {payoutAddresses.filter(item=>item.type==="bank").map(item=><div key={item.id} className="rounded-xl border border-brand-border p-3"><div className="flex flex-wrap items-start justify-between gap-3"><div className="min-w-0"><p className="break-words font-semibold">{item.bank_name} · {item.account_holder}</p><p className="mt-1 break-all text-xs text-brand-text-muted">{item.email||item.uid} · {item.uid}</p><p className="mt-2 break-all font-mono text-xs">{item.iban ? "IBAN "+item.iban : "Account "+(item.account_number||"—")}</p><p className="mt-1 break-words text-xs text-brand-text-muted">{[item.country,item.routing_number?"Routing "+item.routing_number:"",item.swift?"SWIFT "+item.swift:"",item.bank_address].filter(Boolean).join(" · ")}</p><p className="mt-1 text-xs text-brand-text-muted">{formatDate(item.created_at)}</p></div><div className="flex flex-wrap gap-2"><Button size="sm" variant="outline" disabled={busy||!hasPermission("payout_addresses.manage")} onClick={()=>beginPayoutAddressEdit(item)}>{adminText("Edit")}</Button><Button size="sm" variant="destructive" disabled={busy||!hasPermission("payout_addresses.manage")} onClick={()=>setPendingDeletePayoutAddress(item)}>{adminText("Delete")}</Button></div></div></div>)}
+      </div>
       {payoutAddresses.filter(item=>item.type==="bank").length===0?<p className="rounded-lg border border-dashed border-brand-border p-6 text-center text-sm text-brand-text-muted">{adminText("No saved bank payout details.")}</p>:null}
       </CardContent></Card>
-      {editingPayoutAddress ? <Card><CardHeader><CardTitle>{adminText("Edit bank payout details")}</CardTitle></CardHeader><CardContent className="space-y-3"><div className="grid gap-3 sm:grid-cols-2">{([["account_holder","Account holder"],["bank_name","Bank name"],["account_number","Local account number"],["iban","IBAN"],["country","Country code"],["routing_number","Routing number"],["swift","SWIFT / BIC"],["bank_address","Bank address"],["note","Note"]] as const).map(([key,label])=><label key={key} className="space-y-1 text-sm"><span>{adminText(label)}</span><input value={payoutAddressDraft[key]} disabled={busy||!hasPermission("payout_addresses.manage")} onChange={event=>setPayoutAddressDraft(current=>({...current,[key]:event.target.value}))} className="w-full rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-2 text-sm text-brand-text"/></label>)}</div><label className="block space-y-1 text-sm"><span>{adminText("Reason for change (required)")}</span><textarea value={payoutAddressDraft.reason} onChange={event=>setPayoutAddressDraft(current=>({...current,reason:event.target.value}))} rows={2} maxLength={200} className="w-full rounded-lg border border-brand-border bg-brand-surface-2 p-3 text-sm text-brand-text"/></label><div className="flex gap-2"><Button disabled={busy||!hasPermission("payout_addresses.manage")||!payoutAddressDraft.reason.trim()} onClick={()=>void savePayoutAddress()}>{adminText("Save changes")}</Button><Button variant="outline" disabled={busy} onClick={()=>setEditingPayoutAddress(null)}>{adminText("Cancel")}</Button></div></CardContent></Card>:null}
+      {editingPayoutAddress ? <Card><CardHeader><CardTitle>{adminText("Edit bank payout details")}</CardTitle></CardHeader><CardContent className="space-y-3"><div className="grid gap-3 sm:grid-cols-2">{([["account_holder","Account holder"],["bank_name","Bank name"],["account_number","Local account number"],["iban","IBAN"],["country","Country code"],["routing_number","Routing number"],["swift","SWIFT / BIC"],["bank_address","Bank address"],["note","Note"]] as const).map(([key,label])=><label key={key} className="space-y-1 text-sm"><span>{adminText(label)}</span><input value={payoutAddressDraft[key]} disabled={busy||!hasPermission("payout_addresses.manage")} onChange={event=>setPayoutAddressDraft(current=>({...current,[key]:event.target.value}))} className="w-full rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-2 text-sm text-brand-text"/></label>)}</div><label className="block space-y-1 text-sm"><span>{adminText("Reason for change (required)")}</span><textarea value={payoutAddressDraft.reason} onChange={event=>setPayoutAddressDraft(current=>({...current,reason:event.target.value}))} rows={2} maxLength={200} className="w-full rounded-lg border border-brand-border bg-brand-surface-2 p-3 text-sm text-brand-text"/></label><div className="flex flex-col-reverse gap-2 sm:flex-row"><Button disabled={busy||!hasPermission("payout_addresses.manage")||!payoutAddressDraft.reason.trim()} onClick={()=>void savePayoutAddress()}>{adminText("Save changes")}</Button><Button variant="outline" disabled={busy} onClick={()=>setEditingPayoutAddress(null)}>{adminText("Cancel")}</Button></div></CardContent></Card>:null}
     </div> : null}
-    {!loading && tab === "support" ? <Card><CardHeader className="flex flex-row items-center justify-between"><CardTitle>{adminText("Support messages")}</CardTitle><Button size="sm" variant="outline" disabled={busy} onClick={()=>void refreshSupportQueue()}>{adminText("Refresh queue")}</Button></CardHeader><CardContent className="space-y-3">
-      <input value={supportSearch} onChange={event=>setSupportSearch(event.target.value)} placeholder={adminText("Search support by UID or email")} aria-label={adminText("Search support by UID or email")} className="h-11 w-full rounded-xl border border-brand-border bg-brand-surface-2 px-3 text-sm text-brand-text outline-none focus:border-brand-accent/60"/>
-      {groupSupportThreads(support).filter(thread=>{const q=supportSearch.trim().toLowerCase();return !q||thread.uid.toLowerCase().includes(q)||thread.email.toLowerCase().includes(q);}).map(thread=>{const latest=thread.messages[thread.messages.length-1];return <div key={thread.uid} className="rounded-xl border border-brand-border p-3">
-        <div className="flex flex-wrap items-start justify-between gap-2"><div className="min-w-0"><p className="text-sm font-semibold text-brand-text">{thread.email||thread.uid}</p><p className="text-xs text-brand-text-muted">{thread.uid}</p><p className="mt-2 line-clamp-2 break-words text-sm text-brand-text-muted">{latest?(latest.from==="admin"?adminText("Latest reply")+": ":adminText("Latest customer message")+": ")+asText(latest.content):"—"}</p><p className="mt-1 text-[11px] text-brand-text-muted">{formatDate(thread.latestTime)}</p></div>
-        <div className="flex flex-wrap items-center gap-2"><Badge variant={thread.unanswered > 0?"warning":"success"}>{thread.unanswered > 0?adminText("Awaiting reply")+" · "+thread.unanswered:adminText("Replied")}</Badge>{thread.adminUnreadCount > 0?<Badge variant="info">{adminText("Unread")+" · "+thread.adminUnreadCount}</Badge>:null}<Button size="sm" variant="outline" onClick={()=>{setSearchInput(thread.uid);setPendingSupportProfileUid(thread.uid);setTab("users");}}>{adminText("Open user profile")}</Button>{thread.adminUnreadCount > 0?<Button size="sm" variant="outline" disabled={busy} onClick={()=>void markSupportThreadRead(thread.uid)}>{adminText("Mark read")}</Button>:null}</div></div>
-        <div className="mt-3 space-y-2 rounded-lg bg-brand-surface-2/50 p-3">{thread.messages.map((message,index)=><div key={asText(message.id)||index} className={message.from==="admin"?"ml-5 rounded-lg bg-brand-accent/10 p-2.5":"mr-5 rounded-lg bg-brand-surface p-2.5"}><div className="flex items-center justify-between gap-2"><Badge variant={message.from==="admin"?"outline":"secondary"}>{message.from==="admin"?adminText("Administrator"):adminText("Customer")}</Badge><span className="text-[11px] text-brand-text-muted">{formatDate(asText(message.time))}</span></div><p className="mt-2 whitespace-pre-wrap break-words text-sm">{asText(message.content)}</p></div>)}</div>
-        <textarea value={supportReply[thread.uid]||""} onChange={event=>{setSupportReply(current=>({...current,[thread.uid]:event.target.value}));try{setSupportReplyRequestIds(current=>({...current,[thread.uid]:window.crypto.randomUUID()}));}catch{setError("Secure support reply request IDs are unavailable in this browser. No reply was sent.");}}} rows={2} className="mt-3 w-full rounded-lg border border-brand-border bg-brand-surface-2 p-2 text-sm text-brand-text" placeholder={adminText("Reply to customer")}/><Button size="sm" className="mt-2" disabled={busy||!supportReply[thread.uid]?.trim()||!hasPermission("support.reply")} onClick={()=>void replySupport(thread.uid)}>{adminText("Send reply")}</Button>
-      </div>;})}
-      {support.length===0?<p className="rounded-lg border border-dashed border-brand-border p-6 text-center text-sm text-brand-text-muted">暂无客服消息。</p>:null}
-      {support.length>0&&!groupSupportThreads(support).some(thread=>{const q=supportSearch.trim().toLowerCase();return !q||thread.uid.toLowerCase().includes(q)||thread.email.toLowerCase().includes(q);})?<p className="rounded-lg border border-dashed border-brand-border p-6 text-center text-sm text-brand-text-muted">{adminText("No support conversations match this search.")}</p>:null}
-    </CardContent></Card> : null}
+    {!loading && tab === "support" ? <Card><CardHeader className="flex flex-col items-start justify-between gap-2 sm:flex-row sm:items-center"><CardTitle>{adminText("Support messages")}</CardTitle><Button size="sm" variant="outline" disabled={busy} onClick={()=>void refreshSupportQueue()}>{adminText("Refresh queue")}</Button></CardHeader><CardContent className="space-y-3">
+      <form className="flex flex-wrap gap-2" onSubmit={event=>{event.preventDefault();setSupportSearchApplied(supportSearch.trim());}}>
+        <input value={supportSearch} onChange={event=>setSupportSearch(event.target.value)} placeholder={adminText("Search message ID, UID, username or email")} className="h-10 min-w-0 flex-1 rounded-lg border border-brand-border bg-brand-surface-2 px-3 text-sm text-brand-text" />
+        <Button size="sm" type="submit">{adminText("Search")}</Button>
+        <Button size="sm" type="button" variant="outline" onClick={()=>{setSupportSearch("");setSupportSearchApplied("");}}>{adminText("Clear")}</Button>
+      </form>
+      {supportSearchApplied ? <p className="text-xs text-brand-text-muted">{adminText("Search results for")} {supportSearchApplied}</p> : null}
+      <div className="grid gap-3 2xl:grid-cols-2">
+      {groupSupportThreads(support).map((thread)=> <div key={thread.uid} className="rounded-xl border border-brand-border p-3"><div className="flex flex-col items-start justify-between gap-2 sm:flex-row sm:items-center"><div className="min-w-0 max-w-full"><p className="break-words text-sm font-semibold text-brand-text">{thread.username ? thread.username + " · " : ""}{thread.email || thread.uid}</p><p className="break-all text-xs text-brand-text-muted">{thread.uid}</p></div><div className="flex w-full flex-wrap items-center gap-2 sm:w-auto"><Badge variant={thread.unanswered > 0 ? "warning" : "success"}>{thread.unanswered > 0 ? adminText("Awaiting reply") + " · " + thread.unanswered : adminText("Replied")}</Badge>{thread.adminUnreadCount > 0 ? <Badge variant="info">{adminText("Unread") + " · " + thread.adminUnreadCount}</Badge> : null}{thread.adminUnreadCount > 0 ? <Button size="sm" variant="outline" disabled={busy} onClick={()=>void markSupportThreadRead(thread.uid)}>{adminText("Mark read")}</Button> : null}</div></div><div className="mt-3 space-y-2 rounded-lg bg-brand-surface-2/50 p-3">{thread.messages.map((message,index)=><div key={asText(message.id)||index} className={message.from === "admin" ? "ml-5 rounded-lg bg-brand-accent/10 p-2.5" : "mr-5 rounded-lg bg-brand-surface p-2.5"}><div className="flex flex-wrap items-center justify-between gap-2"><Badge variant={message.from === "admin" ? "outline" : "secondary"}>{message.from === "admin" ? adminText("Administrator") : adminText("Customer")}</Badge><span className="break-all text-[11px] text-brand-text-muted">{formatDate(asText(message.time))} · ID {asText(message.id)}</span></div><p className="mt-2 whitespace-pre-wrap break-words text-sm">{asText(message.content)}</p></div>)}</div><textarea value={supportReply[thread.uid]||""} onChange={event=>{setSupportReply(current=>({...current,[thread.uid]:event.target.value}));try { setSupportReplyRequestIds(current=>({...current,[thread.uid]:window.crypto.randomUUID()})); } catch { setError("Secure support reply request IDs are unavailable in this browser. No reply was sent."); }}} rows={2} className="mt-3 w-full rounded-lg border border-brand-border bg-brand-surface-2 p-2 text-sm text-brand-text" placeholder={adminText("Reply to customer")}/><Button size="sm" className="mt-2" disabled={busy||!supportReply[thread.uid]?.trim()||!hasPermission("support.reply")} onClick={()=>void replySupport(thread.uid)}>{adminText("Send reply")}</Button></div>)}{support.length===0 ? <p className="rounded-lg border border-dashed border-brand-border p-6 text-center text-sm text-brand-text-muted 2xl:col-span-2">{supportSearchApplied ? adminText("No matching messages found.") : adminText("No support messages yet.")}</p> : null}
+      </div></CardContent></Card> : null}
     {!loading && tab === "support-faq" ? <div className="grid gap-4 xl:grid-cols-[minmax(0,1.05fr)_minmax(340px,0.95fr)]">
       <Card>
         <CardHeader>
@@ -1656,10 +1485,10 @@ export function AdminPage() {
             <div className="flex flex-wrap items-center gap-2">
               <Badge variant={entry.enabled ? "success" : "outline"}>{entry.enabled ? adminText("Published") : adminText("Hidden")}</Badge>
               <span className="type-meta text-brand-text-muted">{adminText("Order")} {entry.order}</span>
-              <span className="ml-auto font-mono text-[11px] text-brand-text-muted">{entry.id}</span>
+              <span className="ml-auto max-w-full break-all font-mono text-[11px] text-brand-text-muted">{entry.id}</span>
             </div>
-            <p className="mt-2 text-sm font-semibold text-brand-text">{entry.question}</p>
-            <p className="mt-1 whitespace-pre-wrap text-xs leading-5 text-brand-text-secondary">{entry.answer}</p>
+            <p className="mt-2 break-words text-sm font-semibold text-brand-text">{entry.question}</p>
+            <p className="mt-1 whitespace-pre-wrap break-words text-xs leading-5 text-brand-text-secondary">{entry.answer}</p>
             <div className="mt-3 flex flex-wrap gap-2">
               <Button size="sm" variant="outline" disabled={supportFaqBusy || !hasPermission("support.manage")} onClick={()=>startEditSupportFaq(entry)}>{adminText("Edit")}</Button>
               <Button size="sm" variant="outline" className="border-brand-danger/30 text-brand-danger hover:bg-brand-danger/5 hover:text-brand-danger" disabled={supportFaqBusy || !hasPermission("support.manage")} onClick={()=>void removeSupportFaqEntry(entry.id)}>{adminText("Delete")}</Button>
@@ -1696,17 +1525,21 @@ export function AdminPage() {
         </CardContent>
       </Card>
     </div> : null}
+    {!loading && tab === "assets" ? <Card><CardHeader><CardTitle>{adminText("Asset configuration · 26 assets")}</CardTitle><CardDescription>{adminText("Manage asset identity, display name, display precision, visibility and independent Spot, Perpetual, Seconds and Earn availability. These controls are separate from spot pair parameters and deposit or withdrawal network settings. Disabling new product entry does not remove existing balances or prevent users from closing or redeeming existing positions.")}</CardDescription></CardHeader><CardContent className="space-y-3">
+      <div className="overflow-x-auto overscroll-x-contain"><table className="w-full min-w-[1420px] text-left text-sm"><thead><tr className="border-b border-brand-border bg-brand-surface-2/50 text-xs uppercase tracking-wide text-brand-text-muted"><th className="px-3 py-2">{adminText("Asset")}</th><th className="px-3 py-2">{adminText("Name")}</th><th className="px-3 py-2">{adminText("Display name")}</th><th className="px-3 py-2 text-right">{adminText("Display decimals")}</th><th className="px-3 py-2 text-right">{adminText("Sort")}</th><th className="px-3 py-2 text-center">{adminText("Enabled")}</th><th className="px-3 py-2 text-center">{adminText("Visible")}</th><th className="px-3 py-2 text-center">{adminText("Spot")}</th><th className="px-3 py-2 text-center">{adminText("Perpetual")}</th><th className="px-3 py-2 text-center">{adminText("Seconds")}</th><th className="px-3 py-2 text-center">{adminText("Earn")}</th></tr></thead><tbody>{assetCatalog.map((asset,index)=><tr key={asset.code} className="border-b border-brand-border-subtle"><td className="px-3 py-2.5 font-semibold tabular-nums">{asset.code}</td><td className="px-3 py-2"><input aria-label={asset.code+" name"} value={asset.name} disabled={busy||!hasPermission("system_config.write")} maxLength={64} onChange={event=>setAssetCatalog(current=>current.map((item,i)=>i===index?{...item,name:event.target.value}:item))} className="w-full min-w-28 rounded-md border border-brand-border bg-brand-surface-2 px-2 py-1.5 text-brand-text"/></td><td className="px-3 py-2"><input aria-label={asset.code+" display name"} value={asset.display_name} disabled={busy||!hasPermission("system_config.write")} maxLength={64} onChange={event=>setAssetCatalog(current=>current.map((item,i)=>i===index?{...item,display_name:event.target.value}:item))} className="w-full min-w-28 rounded-md border border-brand-border bg-brand-surface-2 px-2 py-1.5 text-brand-text"/></td><td className="px-3 py-2 text-right"><input aria-label={asset.code+" display precision"} type="number" min="0" max="18" step="1" value={asset.display_precision} disabled={busy||!hasPermission("system_config.write")} onChange={event=>setAssetCatalog(current=>current.map((item,i)=>i===index?{...item,display_precision:Number(event.target.value)}:item))} className="w-20 rounded-md border border-brand-border bg-brand-surface-2 px-2 py-1.5 text-right tabular-nums text-brand-text"/></td><td className="px-3 py-2 text-right"><input aria-label={asset.code+" sort order"} type="number" min="0" max="9999" step="1" value={asset.sort_order} disabled={busy||!hasPermission("system_config.write")} onChange={event=>setAssetCatalog(current=>current.map((item,i)=>i===index?{...item,sort_order:Number(event.target.value)}:item))} className="w-20 rounded-md border border-brand-border bg-brand-surface-2 px-2 py-1.5 text-right tabular-nums text-brand-text"/></td><td className="px-3 py-2 text-center"><input aria-label={asset.code+" enabled"} type="checkbox" checked={asset.enabled} disabled={busy||!hasPermission("system_config.write")} onChange={event=>setAssetCatalog(current=>current.map((item,i)=>i===index?{...item,enabled:event.target.checked}:item))}/></td><td className="px-3 py-2 text-center"><input aria-label={asset.code+" visible"} type="checkbox" checked={asset.visible} disabled={busy||!hasPermission("system_config.write")} onChange={event=>setAssetCatalog(current=>current.map((item,i)=>i===index?{...item,visible:event.target.checked}:item))}/></td><td className="px-3 py-2 text-center"><input aria-label={asset.code+" spot enabled"} type="checkbox" checked={asset.spot_enabled} disabled={busy||!hasPermission("system_config.write")} onChange={event=>setAssetCatalog(current=>current.map((item,i)=>i===index?{...item,spot_enabled:event.target.checked}:item))}/></td><td className="px-3 py-2 text-center"><input aria-label={asset.code+" perpetual enabled"} type="checkbox" checked={asset.perpetual_enabled} disabled={busy||!hasPermission("system_config.write")} onChange={event=>setAssetCatalog(current=>current.map((item,i)=>i===index?{...item,perpetual_enabled:event.target.checked}:item))}/></td><td className="px-3 py-2 text-center"><input aria-label={asset.code+" seconds enabled"} type="checkbox" checked={asset.seconds_enabled} disabled={busy||!hasPermission("system_config.write")} onChange={event=>setAssetCatalog(current=>current.map((item,i)=>i===index?{...item,seconds_enabled:event.target.checked}:item))}/></td><td className="px-3 py-2 text-center"><input aria-label={asset.code+" earn enabled"} type="checkbox" checked={asset.earn_enabled} disabled={busy||!hasPermission("system_config.write")} onChange={event=>setAssetCatalog(current=>current.map((item,i)=>i===index?{...item,earn_enabled:event.target.checked}:item))}/></td></tr>)}</tbody></table></div>
+      <div className="flex flex-wrap items-center justify-between gap-3"><p className="text-xs text-brand-text-muted">{adminText("Asset codes are fixed in this catalogue; all 26 entries remain present. Global status, front-end visibility and each product-module switch are independent.")}</p>{hasPermission("system_config.write")?<Button className="w-full sm:w-auto" disabled={busy||assetCatalog.length!==26} onClick={()=>void saveAssetCatalog()}>{busy?adminText("Saving…"):adminText("Save asset configuration")}</Button>:<Badge variant="outline">{adminText("Read only")}</Badge>}</div>
+    </CardContent></Card> : null}
     {!loading && tab === "markets" ? <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(340px,0.9fr)]">
       <Card><CardHeader><CardTitle>{adminText("Spot market catalogue")}</CardTitle><CardDescription>{adminText("Only enabled pairs accept limit orders. Market orders remain disabled; maker/taker fees stay at zero until fee movements are implemented atomically.")}</CardDescription></CardHeader><CardContent className="space-y-3">
-        {spotMarkets.length ? <div className="overflow-x-auto"><table className="w-full min-w-[620px] text-left text-sm"><thead><tr className="border-b border-brand-border bg-brand-surface-2/50 type-label uppercase tracking-wide text-brand-text-muted"><th className="px-3 py-2.5">{adminText("Pair")}</th><th className="px-3 py-2.5">{adminText("Status")}</th><th className="px-3 py-2.5 text-right">{adminText("Tick / step")}</th><th className="px-3 py-2.5 text-right">{adminText("Min quantity / notional")}</th><th className="px-3 py-2.5 text-right">{adminText("Action")}</th></tr></thead><tbody>{spotMarkets.map(market=><tr key={market.base_asset + "/" + market.quote_asset} className="border-b border-brand-border-subtle transition-colors hover:bg-brand-surface-hover/40"><td className="px-3 py-2.5 font-semibold">{market.base_asset}/{market.quote_asset}</td><td className="px-3 py-2.5"><Badge variant={market.enabled ? "success" : "outline"}>{market.enabled ? adminText("Enabled") : adminText("Disabled")}</Badge></td><td className="px-3 py-2.5 text-right text-xs tabular-nums">{asText(market.price_tick)} / {asText(market.quantity_step)}</td><td className="px-3 py-2.5 text-right text-xs tabular-nums">{asText(market.min_quantity)} / {asText(market.min_notional)}</td><td className="px-3 py-2.5 text-right"><Button size="sm" variant="outline" disabled={busy || !!spotMarketRequestId || !hasPermission("system_config.write")} onClick={()=>setSpotMarketDraft({base_asset:market.base_asset,quote_asset:market.quote_asset,enabled:market.enabled,price_tick:String(market.price_tick),quantity_step:String(market.quantity_step),min_quantity:String(market.min_quantity),min_notional:String(market.min_notional),min_limit_price:market.min_limit_price==null?"":String(market.min_limit_price),max_limit_price:market.max_limit_price==null?"":String(market.max_limit_price),reason:""})}>{adminText("Edit")}</Button></td></tr>)}</tbody></table></div> : <p className="text-sm text-brand-text-muted">{adminText("No spot pairs have been configured yet.")}</p>}
+        {spotMarkets.length ? <div className="overflow-x-auto overscroll-x-contain"><table className="w-full min-w-[620px] text-left text-sm"><thead><tr className="border-b border-brand-border bg-brand-surface-2/50 type-label uppercase tracking-wide text-brand-text-muted"><th className="px-3 py-2.5">{adminText("Pair")}</th><th className="px-3 py-2.5">{adminText("Status")}</th><th className="px-3 py-2.5 text-right">{adminText("Tick / step")}</th><th className="px-3 py-2.5 text-right">{adminText("Min quantity / notional")}</th><th className="px-3 py-2.5 text-right">{adminText("Action")}</th></tr></thead><tbody>{spotMarkets.map(market=><tr key={market.base_asset + "/" + market.quote_asset} className="border-b border-brand-border-subtle transition-colors hover:bg-brand-surface-hover/40"><td className="break-all px-3 py-2.5 font-semibold">{market.base_asset}/{market.quote_asset}</td><td className="px-3 py-2.5"><Badge variant={market.enabled ? "success" : "outline"}>{market.enabled ? adminText("Enabled") : adminText("Disabled")}</Badge></td><td className="px-3 py-2.5 text-right text-xs tabular-nums">{asText(market.price_tick)} / {asText(market.quantity_step)}</td><td className="px-3 py-2.5 text-right text-xs tabular-nums">{asText(market.min_quantity)} / {asText(market.min_notional)}</td><td className="px-3 py-2.5 text-right"><Button size="sm" variant="outline" disabled={busy || !!spotMarketRequestId || !hasPermission("system_config.write")} onClick={()=>setSpotMarketDraft({base_asset:market.base_asset,quote_asset:market.quote_asset,enabled:market.enabled,price_tick:String(market.price_tick),quantity_step:String(market.quantity_step),min_quantity:String(market.min_quantity),min_notional:String(market.min_notional),min_limit_price:market.min_limit_price==null?"":String(market.min_limit_price),max_limit_price:market.max_limit_price==null?"":String(market.max_limit_price),reason:""})}>{adminText("Edit")}</Button></td></tr>)}</tbody></table></div> : <p className="text-sm text-brand-text-muted">{adminText("No spot pairs have been configured yet.")}</p>}
         <Button size="sm" variant="outline" disabled={busy || !!spotMarketRequestId || !hasPermission("system_config.write")} onClick={()=>setSpotMarketDraft({base_asset:"",quote_asset:"USDT",enabled:false,price_tick:"0.01",quantity_step:"0.000001",min_quantity:"0.000001",min_notional:"1",min_limit_price:"",max_limit_price:"",reason:""})}>{adminText("Add market pair")}</Button>
       </CardContent></Card>
       <Card><CardHeader><CardTitle>{adminText("Market parameters")}</CardTitle><CardDescription>{adminText("Changes are permission-checked, request-ID protected and audited by PostgreSQL. Existing orders keep their accepted terms.")}</CardDescription></CardHeader><CardContent className="space-y-3">
         {spotMarketRequestId ? <p role="status" className="rounded-lg border border-brand-border bg-brand-surface-2 p-3 text-xs text-brand-text-muted">{adminText("A previous request is unconfirmed. Retry the exact same update; fields are locked to prevent changing the payload.")}</p> : null}
-        <div className="grid grid-cols-2 gap-3"><label className="space-y-1 text-sm"><span>{adminText("Base asset")}</span><select value={spotMarketDraft.base_asset} disabled={busy||!!spotMarketRequestId||!hasPermission("system_config.write")} onChange={event=>setSpotMarketDraft(current=>({...current,base_asset:event.target.value}))} className="w-full rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-2 text-brand-text"><option value="">{adminText("Select asset")}</option>{spotAssets.map(asset=><option key={asset} value={asset}>{asset}</option>)}</select></label><label className="space-y-1 text-sm"><span>{adminText("Quote asset")}</span><input value="USDT" readOnly disabled className="w-full rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-2 text-brand-text"/></label></div>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2"><label className="space-y-1 text-sm"><span>{adminText("Base asset")}</span><select value={spotMarketDraft.base_asset} disabled={busy||!!spotMarketRequestId||!hasPermission("system_config.write")} onChange={event=>setSpotMarketDraft(current=>({...current,base_asset:event.target.value}))} className="w-full rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-2 text-brand-text"><option value="">{adminText("Select asset")}</option>{assetCatalog.filter(asset=>!["USDT","USDC"].includes(asset.code)&&((asset.enabled&&asset.visible&&asset.spot_enabled)||asset.code===spotMarketDraft.base_asset)).map(asset=><option key={asset.code} value={asset.code}>{asset.code}</option>)}</select></label><label className="space-y-1 text-sm"><span>{adminText("Quote asset")}</span><input value="USDT" readOnly disabled className="w-full rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-2 text-brand-text"/></label></div>
         <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={spotMarketDraft.enabled} disabled={busy||!!spotMarketRequestId||!hasPermission("system_config.write")} onChange={event=>setSpotMarketDraft(current=>({...current,enabled:event.target.checked}))}/>{adminText("Enable this market")}</label>
-        <div className="grid grid-cols-2 gap-3">{([["price_tick","Price tick"],["quantity_step","Quantity step"],["min_quantity","Minimum quantity"],["min_notional","Minimum notional"]] as const).map(([key,label])=><label key={key} className="space-y-1 text-sm"><span>{adminText(label)}</span><input value={spotMarketDraft[key as keyof typeof spotMarketDraft] as string} disabled={busy||!!spotMarketRequestId||!hasPermission("system_config.write")} onChange={event=>setSpotMarketDraft(current=>({...current,[key]:event.target.value}))} inputMode="decimal" className="w-full rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-2 text-brand-text"/></label>)}</div>
-        <div className="grid grid-cols-2 gap-3"><label className="space-y-1 text-sm"><span>{adminText("Minimum limit price (optional)")}</span><input value={spotMarketDraft.min_limit_price} disabled={busy||!!spotMarketRequestId||!hasPermission("system_config.write")} onChange={event=>setSpotMarketDraft(current=>({...current,min_limit_price:event.target.value}))} inputMode="decimal" className="w-full rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-2 text-brand-text"/></label><label className="space-y-1 text-sm"><span>{adminText("Maximum limit price (optional)")}</span><input value={spotMarketDraft.max_limit_price} disabled={busy||!!spotMarketRequestId||!hasPermission("system_config.write")} onChange={event=>setSpotMarketDraft(current=>({...current,max_limit_price:event.target.value}))} inputMode="decimal" className="w-full rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-2 text-brand-text"/></label></div>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">{([["price_tick","Price tick"],["quantity_step","Quantity step"],["min_quantity","Minimum quantity"],["min_notional","Minimum notional"]] as const).map(([key,label])=><label key={key} className="space-y-1 text-sm"><span>{adminText(label)}</span><input value={spotMarketDraft[key as keyof typeof spotMarketDraft] as string} disabled={busy||!!spotMarketRequestId||!hasPermission("system_config.write")} onChange={event=>setSpotMarketDraft(current=>({...current,[key]:event.target.value}))} inputMode="decimal" className="w-full rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-2 text-brand-text"/></label>)}</div>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2"><label className="space-y-1 text-sm"><span>{adminText("Minimum limit price (optional)")}</span><input value={spotMarketDraft.min_limit_price} disabled={busy||!!spotMarketRequestId||!hasPermission("system_config.write")} onChange={event=>setSpotMarketDraft(current=>({...current,min_limit_price:event.target.value}))} inputMode="decimal" className="w-full rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-2 text-brand-text"/></label><label className="space-y-1 text-sm"><span>{adminText("Maximum limit price (optional)")}</span><input value={spotMarketDraft.max_limit_price} disabled={busy||!!spotMarketRequestId||!hasPermission("system_config.write")} onChange={event=>setSpotMarketDraft(current=>({...current,max_limit_price:event.target.value}))} inputMode="decimal" className="w-full rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-2 text-brand-text"/></label></div>
         <label className="block space-y-1 text-sm"><span>{adminText("Reason (required)")}</span><textarea value={spotMarketDraft.reason} disabled={busy||!!spotMarketRequestId||!hasPermission("system_config.write")} onChange={event=>setSpotMarketDraft(current=>({...current,reason:event.target.value}))} rows={2} maxLength={500} className="w-full rounded-lg border border-brand-border bg-brand-surface-2 p-3 text-brand-text"/></label>
         {hasPermission("system_config.write") ? <Button block disabled={busy||!spotMarketDraft.reason.trim()} onClick={()=>void saveSpotMarket()}>{spotMarketRequestId ? adminText("Retry same update") : adminText("Save market settings")}</Button> : <p className="text-sm text-brand-text-muted">{adminText("Your administrator role is read-only for spot markets.")}</p>}
       </CardContent></Card>
@@ -1716,56 +1549,59 @@ export function AdminPage() {
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div>
                 <CardTitle>{adminText("Perpetual market configuration")}</CardTitle>
-                <CardDescription>{adminText("Configure USDT-margined perpetual market rules. Every saved market remains paused; its data feed may be enabled to prewarm mark prices. Trading activation is a separate release gate.")}</CardDescription>
+                <CardDescription>{adminText("Configure existing USDT-margined perpetual market fields. New or edited settings are saved disabled and paused; the list shows each market's actual stored status.")}</CardDescription>
               </div>
               <Badge variant="warning">{adminText("Trading disabled")}</Badge>
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
-            {perpMarkets.length ? <div className="overflow-x-auto">
-              <table className="w-full min-w-[900px] text-left text-sm">
+            {perpMarkets.length ? <div className="overflow-x-auto overscroll-x-contain">
+              <table className="w-full min-w-[1080px] text-left text-sm">
                 <thead><tr className="border-b border-brand-border bg-brand-surface-2/50 text-xs uppercase tracking-wide text-brand-text-muted">
-                  <th className="px-3 py-2">{adminText("Pair")}</th><th className="px-3 py-2">{adminText("Status")}</th><th className="px-3 py-2 text-right">{adminText("Leverage")}</th><th className="px-3 py-2 text-right">{adminText("Maximum exposure")}</th><th className="px-3 py-2 text-right">{adminText("Price / limit step / market step")}</th><th className="px-3 py-2 text-right">{adminText("Minimum notional")}</th><th className="px-3 py-2 text-right">{adminText("Maintenance margin")}</th><th className="px-3 py-2 text-right">{adminText("Action")}</th>
+                  <th className="px-3 py-2">{adminText("Pair")}</th><th className="px-3 py-2">{adminText("Status")}</th>
+                  <th className="px-3 py-2 text-right">{adminText("Leverage")}</th><th className="px-3 py-2 text-right">{adminText("Tick / step")}</th>
+                  <th className="px-3 py-2 text-right">{adminText("Minimum quantity")}</th><th className="px-3 py-2 text-right">{adminText("Mark stale / circuit breaker")}</th>
+                  <th className="px-3 py-2 text-right">{adminText("Action")}</th>
                 </tr></thead>
-                <tbody>{perpMarkets.map(market=><tr key={market.symbol} className="border-b border-brand-border-subtle">
-                  <td className="px-3 py-2 font-semibold">{market.symbol}</td>
-                  <td className="px-3 py-2"><Badge variant={market.enabled ? "warning" : "outline"}>{market.enabled ? adminText("Feed enabled") : adminText("Feed disabled")}/{adminText(market.status)}</Badge></td>
-                  <td className="px-3 py-2 text-right tabular-nums">{market.max_leverage}×</td>
-                  <td className="px-3 py-2 text-right tabular-nums">{asText(market.max_position_notional)} USDT</td>
-                  <td className="px-3 py-2 text-right font-mono text-xs">{asText(market.price_tick)} / {asText(market.quantity_step)}</td>
-                  <td className="px-3 py-2 text-right tabular-nums">{asText(market.min_notional)} USDT</td>
-                  <td className="px-3 py-2 text-right tabular-nums">{(Number(market.maintenance_margin_rate)*100).toFixed(3)}%</td>
-                  <td className="px-3 py-2 text-right"><Button size="sm" variant="outline" disabled={busy||!hasPermission("system_config.write")} onClick={()=>setPerpMarketDraft({
-                    base_asset:market.base_asset,feed_enabled:market.enabled,price_tick:String(market.price_tick),quantity_step:String(market.quantity_step),min_quantity:String(market.min_quantity),min_notional:String(market.min_notional),market_quantity_step:String(market.market_quantity_step),market_min_quantity:String(market.market_min_quantity),market_max_quantity:market.market_max_quantity==null?"":String(market.market_max_quantity),
-                    max_quantity:market.max_quantity==null?"":String(market.max_quantity),max_position_notional:market.max_position_notional==null?"":String(market.max_position_notional),
-                    max_leverage:String(market.max_leverage),maintenance_margin_rate:String(market.maintenance_margin_rate),maker_fee_rate:String(market.maker_fee_rate),taker_fee_rate:String(market.taker_fee_rate),
-                    funding_interval_sec:String(market.funding_interval_sec),funding_rate_cap:String(market.funding_rate_cap),mark_price_stale_sec:String(market.mark_price_stale_sec),circuit_breaker_deviation_pct:String(market.circuit_breaker_deviation_pct),reason:""
+                <tbody>{perpMarkets.map(market => <tr key={market.symbol} className="border-b border-brand-border-subtle">
+                  <td className="break-all px-3 py-2.5 font-semibold">{market.base_asset}/{market.quote_asset}</td>
+                  <td className="px-3 py-2.5"><Badge className="max-w-[220px] whitespace-normal break-words" variant={market.enabled ? "destructive" : "warning"}>{market.enabled ? adminText("Enabled") : adminText("Disabled")} · {adminText(market.status)}</Badge></td>
+                  <td className="px-3 py-2.5 text-right tabular-nums">{market.max_leverage}x</td>
+                  <td className="px-3 py-2.5 text-right text-xs tabular-nums">{asText(market.price_tick)} / {asText(market.quantity_step)}</td>
+                  <td className="px-3 py-2.5 text-right text-xs tabular-nums">{asText(market.min_quantity)}</td>
+                  <td className="px-3 py-2.5 text-right text-xs tabular-nums">{market.mark_price_stale_sec}s / {asText(market.circuit_breaker_deviation_pct)}%</td>
+                  <td className="px-3 py-2.5 text-right"><Button size="sm" variant="outline" disabled={busy || !hasPermission("system_config.write")} onClick={() => setPerpMarketDraft({
+                    base_asset: market.base_asset, price_tick: String(market.price_tick), quantity_step: String(market.quantity_step),
+                    min_quantity: String(market.min_quantity), max_quantity: market.max_quantity == null ? "" : String(market.max_quantity),
+                    max_position_notional: market.max_position_notional == null ? "" : String(market.max_position_notional),
+                    max_leverage: String(market.max_leverage), maintenance_margin_rate: String(market.maintenance_margin_rate),
+                    maker_fee_rate: String(market.maker_fee_rate), taker_fee_rate: String(market.taker_fee_rate),
+                    funding_rate_cap: String(market.funding_rate_cap), mark_price_stale_sec: String(market.mark_price_stale_sec),
+                    circuit_breaker_deviation_pct: String(market.circuit_breaker_deviation_pct), reason: "",
                   })}>{adminText("Edit")}</Button></td>
                 </tr>)}</tbody>
               </table>
             </div> : <p className="rounded-lg border border-dashed border-brand-border p-5 text-center text-sm text-brand-text-muted">{adminText("No perpetual markets are configured. No contract can be traded.")}</p>}
-            <label className="flex items-center gap-2 rounded-lg border border-brand-border bg-brand-surface-2 p-3 text-sm"><input type="checkbox" checked={perpMarketDraft.feed_enabled} disabled={busy||!hasPermission("system_config.write")} onChange={event=>setPerpMarketDraft(current=>({...current,feed_enabled:event.target.checked}))}/><span>{adminText("Enable market-data feed (trading remains paused)")}</span></label>
             <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-              <label className="space-y-1 text-sm"><span>{adminText("Base asset")}</span><select value={perpMarketDraft.base_asset} disabled={busy||!hasPermission("system_config.write")} onChange={event=>setPerpMarketDraft(current=>({...current,base_asset:event.target.value}))} className="w-full rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-2 text-brand-text"><option value="">{adminText("Select asset")}</option>{spotAssets.filter(asset=>asset!=="USDT"&&asset!=="USDC").map(asset=><option key={asset} value={asset}>{asset}/USDT</option>)}</select></label>
+              <label className="space-y-1 text-sm"><span>{adminText("Base asset")}</span><select value={perpMarketDraft.base_asset} disabled={busy || !hasPermission("system_config.write")} onChange={event => setPerpMarketDraft(current => ({ ...current, base_asset: event.target.value }))} className="w-full rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-2 text-brand-text">
+                <option value="">{adminText("Select asset")}</option>
+                {assetCatalog.filter(asset => !["USDT", "USDC"].includes(asset.code)).map(asset => <option key={asset.code} value={asset.code}>{asset.code}/USDT{asset.enabled && asset.visible && asset.perpetual_enabled ? "" : " · " + adminText("asset module off")}</option>)}
+              </select></label>
               <label className="space-y-1 text-sm"><span>{adminText("Quote asset")}</span><input value="USDT" readOnly className="w-full rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-2 text-brand-text"/></label>
-              {([
-                ["price_tick","Price tick"],["quantity_step","Limit quantity step"],["min_quantity","Limit minimum quantity"],["market_quantity_step","Market quantity step"],["market_min_quantity","Market minimum quantity"],["market_max_quantity","Market maximum quantity (optional)"],["min_notional","Minimum notional (USDT)"],
-                ["max_quantity","Maximum quantity (optional)"],["max_position_notional","Maximum position notional (USDT)"],["max_leverage","Maximum leverage"],
-                ["maintenance_margin_rate","Maintenance margin rate"],["maker_fee_rate","Maker fee rate"],["taker_fee_rate","Taker fee rate"],
-                ["funding_interval_sec","Funding interval (seconds)"],["funding_rate_cap","Funding rate cap"],["mark_price_stale_sec","Mark price max age (seconds)"],["circuit_breaker_deviation_pct","Circuit breaker deviation (%)"]
-              ] as const).map(([key,label])=><label key={key} className="space-y-1 text-sm"><span>{adminText(label)}</span><input value={perpMarketDraft[key]} disabled={busy||!hasPermission("system_config.write")||(key==="funding_interval_sec")} onChange={event=>setPerpMarketDraft(current=>({...current,[key]:event.target.value}))} inputMode="decimal" className="w-full rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-2 text-brand-text"/></label>)}
+              {([[ "price_tick", "Price tick" ], [ "quantity_step", "Quantity step" ], [ "min_quantity", "Minimum quantity" ], [ "max_quantity", "Maximum quantity (optional)" ], [ "max_position_notional", "Maximum position notional (required)" ], [ "max_leverage", "Maximum leverage (1–100)" ], [ "maintenance_margin_rate", "Maintenance margin rate (0–0.5)" ], [ "maker_fee_rate", "Maker fee rate (0–0.1)" ], [ "taker_fee_rate", "Taker fee rate (0–0.1)" ], [ "funding_rate_cap", "Funding rate cap (max 0.0075)" ], [ "mark_price_stale_sec", "Mark-price stale seconds (15–300)" ], [ "circuit_breaker_deviation_pct", "Circuit breaker deviation % (max 20)" ]] as const).map(([key, label]) => <label key={key} className="space-y-1 text-sm"><span>{adminText(label)}</span><input value={perpMarketDraft[key]} disabled={busy || !hasPermission("system_config.write")} onChange={event => setPerpMarketDraft(current => ({ ...current, [key]: event.target.value }))} inputMode="decimal" className="w-full rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-2 text-brand-text"/></label>)}
+              <label className="space-y-1 text-sm"><span>{adminText("Funding interval")}</span><input value="8 hours (28,800 seconds)" readOnly className="w-full rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-2 text-brand-text"/></label>
             </div>
-            <label className="block space-y-1 text-sm"><span>{adminText("Reason for market configuration change (required)")}</span><textarea value={perpMarketDraft.reason} disabled={busy||!hasPermission("system_config.write")} onChange={event=>setPerpMarketDraft(current=>({...current,reason:event.target.value}))} rows={2} maxLength={500} className="w-full rounded-lg border border-brand-border bg-brand-surface-2 p-3 text-brand-text"/></label>
-            <p className="text-xs text-brand-text-muted">{adminText("Saved configurations are always paused and disabled. Tick size, step size and exchange filters must be verified against current USDⓈ-M exchangeInfo before use.")}</p>
-            {hasPermission("system_config.write") ? <Button disabled={busy||!perpMarketDraft.base_asset||perpMarketDraft.reason.trim().length<5} onClick={()=>void savePerpMarket()}>{adminText("Save paused perpetual market")}</Button> : <p className="text-sm text-brand-text-muted">{adminText("Your administrator role is read-only for perpetual markets.")}</p>}
+            <label className="block space-y-1 text-sm"><span>{adminText("Reason for configuration change (required)")}</span><textarea value={perpMarketDraft.reason} disabled={busy || !hasPermission("system_config.write")} onChange={event => setPerpMarketDraft(current => ({ ...current, reason: event.target.value }))} rows={2} maxLength={500} className="w-full rounded-lg border border-brand-border bg-brand-surface-2 p-3 text-brand-text"/></label>
+            <p className="text-xs text-brand-text-muted">{adminText("Asset availability is still controlled by the 26-asset catalogue. Market configuration does not enable the Perpetual module or start matching. Min-notional fields from PR #116 are not shown because their database migration is not part of this branch.")}</p>
+            {hasPermission("system_config.write") ? <Button block disabled={busy || assetCatalog.length !== 26 || !perpMarketDraft.reason.trim()} onClick={() => void savePerpMarket()}>{adminText("Save paused market configuration")}</Button> : <p className="text-sm text-brand-text-muted">{adminText("Your administrator role is read-only for perpetual markets.")}</p>}
           </CardContent>
         </Card>
       </div>
     </div> : null}
     {!loading && tab === "seconds" && secondsPolicy ? <Card><CardHeader><CardTitle>{adminText("Seconds contract policy")}</CardTitle><CardDescription>{adminText("Changes create and activate a new immutable policy version. Existing open positions keep their original policy snapshot. 85% is the minimum payout rate; no fixed upper limit is imposed.")}</CardDescription></CardHeader><CardContent className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-2"><Badge variant="outline">{adminText("Active version")}{secondsPolicy.policy_version}</Badge><span className="text-xs text-brand-text-muted">{adminText("Policy ID ·")}{secondsPolicy.policy_id}</span></div>
+      <div className="flex flex-wrap items-center justify-between gap-2"><Badge variant="outline">{adminText("Active version")}{secondsPolicy.policy_version}</Badge><span className="min-w-0 max-w-full break-all text-right text-xs text-brand-text-muted">{adminText("Policy ID ·")}{secondsPolicy.policy_id}</span></div>
       <div><p className="mb-2 text-sm font-semibold">{adminText("Supported markets")}</p><div className="flex flex-wrap gap-2">{["BTC","ETH","SOL","BNB"].map(symbol=><label key={symbol} className="flex items-center gap-2 rounded-lg border border-brand-border px-3 py-2 text-sm"><input type="checkbox" checked={secondsSymbols.includes(symbol)} disabled={busy||!hasPermission("seconds_policy.manage")} onChange={event=>setSecondsSymbols(current=>event.target.checked?[...current,symbol]:current.filter(item=>item!==symbol))}/>{symbol}</label>)}</div></div>
-      <div><p className="mb-2 text-sm font-semibold">{adminText("Contract durations (seconds)")}</p><div className="flex flex-wrap gap-2">{secondsDurations.slice().sort((a,b)=>a-b).map(duration=><button key={duration} type="button" disabled={busy||!hasPermission("seconds_policy.manage")||secondsDurations.length<=1} onClick={()=>setSecondsDurations(current=>current.filter(item=>item!==duration))} className="rounded-lg border border-brand-border px-3 py-2 text-sm tabular-nums">{duration}{adminText("s")}<span className="ml-1 text-brand-text-muted">×</span></button>)}</div><div className="mt-2 flex gap-2"><input type="number" min="1" step="1" value={secondsDurationInput} disabled={busy||!hasPermission("seconds_policy.manage")} onChange={event=>setSecondsDurationInput(event.target.value)} className="w-32 rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-2 text-sm text-brand-text" aria-label={adminText("Add duration in seconds")}/><Button size="sm" type="button" variant="outline" disabled={busy||!hasPermission("seconds_policy.manage")||!Number.isSafeInteger(Number(secondsDurationInput))||Number(secondsDurationInput)<=0||secondsDurations.includes(Number(secondsDurationInput))} onClick={()=>{setSecondsDurations(current=>[...current,Number(secondsDurationInput)].sort((a,b)=>a-b));setSecondsDurationInput("");}}>{adminText("Add duration")}</Button></div></div>
+      <div><p className="mb-2 text-sm font-semibold">{adminText("Contract durations (seconds)")}</p><div className="flex flex-wrap gap-2">{secondsDurations.slice().sort((a,b)=>a-b).map(duration=><button key={duration} type="button" disabled={busy||!hasPermission("seconds_policy.manage")||secondsDurations.length<=1} onClick={()=>setSecondsDurations(current=>current.filter(item=>item!==duration))} className="rounded-lg border border-brand-border px-3 py-2 text-sm tabular-nums">{duration}{adminText("s")}<span className="ml-1 text-brand-text-muted">×</span></button>)}</div><div className="mt-2 flex flex-wrap gap-2"><input type="number" min="1" step="1" value={secondsDurationInput} disabled={busy||!hasPermission("seconds_policy.manage")} onChange={event=>setSecondsDurationInput(event.target.value)} className="w-full min-w-0 flex-1 rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-2 text-sm text-brand-text sm:w-32 sm:flex-none" aria-label={adminText("Add duration in seconds")}/><Button size="sm" type="button" variant="outline" disabled={busy||!hasPermission("seconds_policy.manage")||!Number.isSafeInteger(Number(secondsDurationInput))||Number(secondsDurationInput)<=0||secondsDurations.includes(Number(secondsDurationInput))} onClick={()=>{setSecondsDurations(current=>[...current,Number(secondsDurationInput)].sort((a,b)=>a-b));setSecondsDurationInput("");}}>{adminText("Add duration")}</Button></div></div>
       <div className="grid gap-3 sm:grid-cols-2"><label className="space-y-1 text-sm"><span>{adminText("Minimum stake (USDT)")}</span><input value={secondsMinStake} disabled={busy||!hasPermission("seconds_policy.manage")} onChange={event=>setSecondsMinStake(event.target.value)} inputMode="decimal" className="w-full rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-2 text-brand-text"/></label><label className="space-y-1 text-sm"><span>{adminText("Maximum stake (USDT)")}</span><input value={secondsMaxStake} disabled={busy||!hasPermission("seconds_policy.manage")} onChange={event=>setSecondsMaxStake(event.target.value)} inputMode="decimal" className="w-full rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-2 text-brand-text"/></label><label className="space-y-1 text-sm"><span>{adminText("Winning payout rate (%) · minimum 85")}</span><input value={secondsPayoutPercent} disabled={busy||!hasPermission("seconds_policy.manage")} onChange={event=>setSecondsPayoutPercent(event.target.value)} inputMode="decimal" className="w-full rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-2 text-brand-text"/></label><label className="space-y-1 text-sm"><span>{adminText("Per-user open exposure limit (USDT, optional)")}</span><input value={secondsExposure} disabled={busy||!hasPermission("seconds_policy.manage")} onChange={event=>setSecondsExposure(event.target.value)} inputMode="decimal" placeholder={adminText("No additional limit")} className="w-full rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-2 text-brand-text"/></label><label className="space-y-1 text-sm"><span>{adminText("Maximum unfinished positions per user (optional)")}</span><input type="number" min="1" step="1" value={secondsMaxOpenPositions} disabled={busy||!hasPermission("seconds_policy.manage")} onChange={event=>setSecondsMaxOpenPositions(event.target.value)} placeholder={adminText("No count limit")} className="w-full rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-2 text-brand-text"/></label></div>
       <label className="block space-y-1 text-sm"><span>{adminText("Reason for policy change (required)")}</span><textarea value={secondsReason} disabled={busy||!hasPermission("seconds_policy.manage")} onChange={event=>setSecondsReason(event.target.value)} rows={2} maxLength={500} className="w-full rounded-lg border border-brand-border bg-brand-surface-2 p-3 text-brand-text" placeholder={adminText("Explain why these rules are changing")}/></label>
       {hasPermission("seconds_policy.manage")?<Button block disabled={busy||!secondsReason.trim()} onClick={()=>void saveSecondsPolicy()}>{adminText("Create and activate new policy version")}</Button>:<p className="text-sm text-brand-text-muted">{adminText("Your administrator role is read-only for Seconds policy.")}</p>}
@@ -1774,23 +1610,23 @@ export function AdminPage() {
       {secondsQueueError ? <p role="alert" className="rounded-lg border border-brand-border p-3 text-sm text-brand-text-muted">{secondsQueueError}</p> : null}
       {secondsOpenSummary ? <div className="grid gap-2 sm:grid-cols-3"><div className="rounded-lg border border-brand-border p-3"><p className="text-xs text-brand-text-muted">{adminText("Open positions")}</p><p className="mt-1 text-xl font-semibold tabular-nums text-brand-text">{secondsOpenSummary.total_open_count}</p></div><div className="rounded-lg border border-brand-border p-3"><p className="text-xs text-brand-text-muted">{adminText("Open exposure · USDT")}</p><p className="mt-1 text-xl font-semibold tabular-nums text-brand-text">{Number(secondsOpenSummary.total_open_exposure).toLocaleString("zh-CN",{maximumFractionDigits:8})}</p></div><div className="rounded-lg border border-brand-border p-3"><p className="text-xs text-brand-text-muted">{adminText("Past maturity, not yet settled")}</p><p className="mt-1 text-xl font-semibold tabular-nums text-brand-text">{secondsOpenSummary.overdue_count}</p></div></div> : null}
       {secondsOpenSummary?.truncated ? <p className="text-xs text-brand-text-muted">{adminText("Showing the earliest 100 open positions. Summary totals include all open positions.")}</p> : null}
-      {secondsOpenPositions.length ? <div className="space-y-2">{secondsOpenPositions.map(position=><div key={position.position_id} className="rounded-xl border border-brand-border p-3"><div className="flex flex-wrap items-center justify-between gap-2"><div className="font-semibold">{position.symbol}/USDT · {position.direction.toUpperCase()}</div><Badge variant={position.overdue ? "destructive" : "outline"}>{position.overdue ? adminText("Maturity reached · awaiting settlement") : adminText("Open")}</Badge></div><div className="mt-2 grid gap-2 text-xs sm:grid-cols-2 xl:grid-cols-4"><div><span className="text-brand-text-muted">{adminText("Stake")}</span><p className="font-medium">{Number(position.amount).toLocaleString("zh-CN",{maximumFractionDigits:8})} USDT</p></div><div><span className="text-brand-text-muted">{adminText("Open price")}</span><p className="font-medium">{Number(position.open_price).toLocaleString("zh-CN",{maximumFractionDigits:12})}</p></div><div><span className="text-brand-text-muted">{adminText("Duration / payout")}</span><p className="font-medium">{position.duration_sec}{adminText("s ·")}{position.payout_bps_snapshot === null ? adminText("Legacy 85%") : (position.payout_bps_snapshot/100)+"%"}</p></div><div><span className="text-brand-text-muted">{adminText("Maturity")}</span><p className="font-medium">{new Date(position.settle_at).toLocaleString("zh-CN")}</p></div></div><div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-brand-text-muted"><span>{adminText("User UID ·")}<span className="font-mono">{position.user_id}</span></span><span>{adminText("Position ·")}<span className="font-mono">{position.position_id}</span></span><span>{adminText("Policy v")}{position.policy_version ?? "legacy"}</span></div></div>)}</div> : secondsQueueError ? null : <p className="rounded-lg border border-dashed border-brand-border p-6 text-center text-sm text-brand-text-muted">{adminText("No open Seconds positions.")}</p>}
+      {secondsOpenPositions.length ? <div className="space-y-2">{secondsOpenPositions.map(position=><div key={position.position_id} className="rounded-xl border border-brand-border p-3"><div className="flex flex-wrap items-center justify-between gap-2"><div className="font-semibold">{position.symbol}/USDT · {position.direction.toUpperCase()}</div><Badge variant={position.overdue ? "destructive" : "outline"}>{position.overdue ? adminText("Maturity reached · awaiting settlement") : adminText("Open")}</Badge></div><div className="mt-2 grid gap-2 text-xs sm:grid-cols-2 xl:grid-cols-4"><div><span className="text-brand-text-muted">{adminText("Stake")}</span><p className="font-medium">{Number(position.amount).toLocaleString("zh-CN",{maximumFractionDigits:8})} USDT</p></div><div><span className="text-brand-text-muted">{adminText("Open price")}</span><p className="font-medium">{Number(position.open_price).toLocaleString("zh-CN",{maximumFractionDigits:12})}</p></div><div><span className="text-brand-text-muted">{adminText("Duration / payout")}</span><p className="font-medium">{position.duration_sec}{adminText("s ·")}{position.payout_bps_snapshot === null ? adminText("Legacy 85%") : (position.payout_bps_snapshot/100)+"%"}</p></div><div><span className="text-brand-text-muted">{adminText("Maturity")}</span><p className="font-medium">{new Date(position.settle_at).toLocaleString("zh-CN")}</p></div></div><div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-brand-text-muted"><span className="min-w-0 break-all">{adminText("User UID ·")}<span className="break-all font-mono">{position.user_id}</span></span><span className="min-w-0 break-all">{adminText("Position ·")}<span className="break-all font-mono">{position.position_id}</span></span><span>{adminText("Policy v")}{position.policy_version ?? "legacy"}</span></div></div>)}</div> : secondsQueueError ? null : <p className="rounded-lg border border-dashed border-brand-border p-6 text-center text-sm text-brand-text-muted">{adminText("No open Seconds positions.")}</p>}
     </CardContent></Card> : null}
     {!loading && tab === "admins" && session.is_super_admin ? <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(360px,0.9fr)]">
       <Card><CardHeader><CardTitle>{adminText("Delegated administrators")}</CardTitle><CardDescription>{adminText("Only the Super Admin can provision, change, suspend or revoke administrator access. Every change requires a reason and is recorded by the database.")}</CardDescription></CardHeader><CardContent className="space-y-3">
-        {adminMemberships.length ? adminMemberships.map(item=><div key={item.user_id} className="rounded-xl border border-brand-border p-3"><div className="flex flex-wrap items-start justify-between gap-2"><div><p className="font-mono text-xs text-brand-text">{item.user_id}</p><p className="mt-1 text-xs text-brand-text-muted">{adminText("Revision")}{item.revision} · {formatDate(item.updated_at||item.created_at)}</p></div><Badge variant={statusVariant(item.status)}>{adminText(item.status)}</Badge></div><div className="mt-2 flex flex-wrap gap-1.5">{item.permissions.length ? item.permissions.map(key=><Badge key={key} variant="outline" className="text-[11px]">{permissionLabel(key)}</Badge>) : <span className="text-xs text-brand-text-muted">无权限</span>}</div><div className="mt-3 flex flex-wrap gap-2"><Button size="sm" variant="outline" disabled={busy||item.status==="revoked"} onClick={()=>{setAdminTargetUserId(item.user_id);setAdminPermissions(item.permissions);setAdminReason("");setAdminRequestId("");setAdminRequestKey("");}}>{adminText("Edit permissions")}</Button>{item.status==="active"?<Button size="sm" variant="outline" disabled={busy} onClick={()=>void submitAdminMembershipChange("suspend",item.user_id,item.revision,[])}>{adminText("Suspend")}</Button>:null}{item.status==="suspended"?<Button size="sm" variant="outline" disabled={busy} onClick={()=>void submitAdminMembershipChange("reactivate",item.user_id,item.revision,item.permissions)}>{adminText("Reactivate")}</Button>:null}{item.status!=="revoked"?<Button size="sm" variant="destructive" disabled={busy} onClick={()=>void submitAdminMembershipChange("revoke",item.user_id,item.revision,[])}>{adminText("Revoke")}</Button>:null}</div></div>) : <p className="text-sm text-brand-text-muted">{adminText("No delegated administrators have been provisioned.")}</p>}
+        {adminMemberships.length ? adminMemberships.map(item=><div key={item.user_id} className={"rounded-xl border p-3 transition-colors " + (adminTargetUserId === item.user_id ? "border-brand-accent/60 bg-brand-surface-hover/40" : "border-brand-border")}><div className="flex flex-wrap items-start justify-between gap-2"><div className="min-w-0"><p className="break-all font-mono text-xs text-brand-text">{item.user_id}</p><p className="mt-1 text-xs text-brand-text-muted">{adminText("Revision")}{item.revision} · {formatDate(item.updated_at||item.created_at)}</p></div><Badge variant={statusVariant(item.status)}>{adminText(item.status)}</Badge></div><div className="mt-2 flex flex-wrap gap-1.5">{item.permissions.length ? item.permissions.map(key=><Badge key={key} variant="outline" className="max-w-full whitespace-normal break-words text-[11px]">{permissionLabel(key)}</Badge>) : <span className="text-xs text-brand-text-muted">无权限</span>}</div><div className="mt-3 flex flex-wrap gap-2"><Button size="sm" variant="outline" disabled={busy||item.status==="revoked"} onClick={()=>{setAdminTargetUserId(item.user_id);setAdminPermissions(item.permissions);setAdminReason("");setAdminRequestId("");setAdminRequestKey("");}}>{adminText("Edit permissions")}</Button>{item.status==="active"?<Button size="sm" variant="outline" disabled={busy} onClick={()=>void submitAdminMembershipChange("suspend",item.user_id,item.revision,[])}>{adminText("Suspend")}</Button>:null}{item.status==="suspended"?<Button size="sm" variant="outline" disabled={busy} onClick={()=>void submitAdminMembershipChange("reactivate",item.user_id,item.revision,item.permissions)}>{adminText("Reactivate")}</Button>:null}{item.status!=="revoked"?<Button size="sm" variant="destructive" disabled={busy} onClick={()=>void submitAdminMembershipChange("revoke",item.user_id,item.revision,[])}>{adminText("Revoke")}</Button>:null}</div></div>) : <p className="text-sm text-brand-text-muted">{adminText("No delegated administrators have been provisioned.")}</p>}
       </CardContent></Card>
       <Card><CardHeader><CardTitle>{adminMemberships.some(item=>item.user_id===adminTargetUserId)?adminText("Edit administrator permissions"):adminText("Provision administrator")}</CardTitle><CardDescription>{adminText("Select an existing BTCBOX user. The database verifies that the target UUID belongs to a real Supabase Auth user.")}</CardDescription></CardHeader><CardContent className="space-y-3">
-        <form className="flex gap-2" onSubmit={event=>{event.preventDefault();if(!token)return;const requestId=++adminCandidatesRequestRef.current;setAdminCandidates([]);setError("");void getAdminUsers(token,adminSearch).then(result=>{if(requestId===adminCandidatesRequestRef.current)setAdminCandidates(result.users||[]);}).catch(reason=>{if(requestId===adminCandidatesRequestRef.current)setError(reason instanceof Error?reason.message:"User search failed.");});}}><input value={adminSearch} onChange={event=>setAdminSearch(event.target.value)} placeholder={adminText("Search user email or UID")} className="h-11 min-w-0 flex-1 rounded-xl border border-brand-border bg-brand-surface-2 px-3 py-2 text-sm text-brand-text outline-none transition-colors focus:border-brand-accent/60 focus:ring-2 focus:ring-brand-accent/15"/><Button size="sm" type="submit" variant="outline">{adminText("Search")}</Button></form>
+        <form className="flex flex-wrap gap-2" onSubmit={event=>{event.preventDefault();if(!token)return;const requestId=++adminCandidatesRequestRef.current;setAdminCandidates([]);setError("");void getAdminUsers(token,adminSearch).then(result=>{if(requestId===adminCandidatesRequestRef.current)setAdminCandidates(result.users||[]);}).catch(reason=>{if(requestId===adminCandidatesRequestRef.current)setError(reason instanceof Error?reason.message:"User search failed.");});}}><input value={adminSearch} onChange={event=>setAdminSearch(event.target.value)} placeholder={adminText("Search user email or UID")} className="h-11 min-w-0 flex-1 rounded-xl border border-brand-border bg-brand-surface-2 px-3 py-2 text-sm text-brand-text outline-none transition-colors focus:border-brand-accent/60 focus:ring-2 focus:ring-brand-accent/15"/><Button size="sm" type="submit" variant="outline">{adminText("Search")}</Button></form>
         <select value={adminTargetUserId} onChange={event=>{const value=event.target.value;setAdminTargetUserId(value);const found=adminMemberships.find(item=>item.user_id===value);setAdminPermissions(found?.permissions||[]);setAdminRequestId("");setAdminRequestKey("");}} className="w-full rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-2 text-sm text-brand-text"><option value="">{adminText("Select an Auth-linked user")}</option>{adminCandidates.filter(user=>/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(user.admin_auth_user_id||"")&&!adminMemberships.some(item=>item.user_id===user.admin_auth_user_id)).map(user=><option key={user.uid} value={user.admin_auth_user_id}>{user.email} {adminText("· BTCBOX UID")}{user.uid}</option>)}{adminMemberships.some(item=>item.user_id===adminTargetUserId)?<option value={adminTargetUserId}>{adminTargetUserId}</option>:null}</select>
-        <div className="grid gap-2 sm:grid-cols-2">{adminPermissionOptions.map(([key,label])=><label key={key} className="flex items-center gap-2 rounded-lg border border-brand-border p-2 text-xs"><input type="checkbox" checked={adminPermissions.includes(key)} onChange={event=>setAdminPermissions(current=>event.target.checked?[...current,key]:current.filter(item=>item!==key))}/><span>{adminText(label)}</span></label>)}</div>
+        <div className="grid gap-2 sm:grid-cols-2 2xl:grid-cols-3">{adminPermissionOptions.map(([key,label])=><label key={key} className="flex items-center gap-2 rounded-lg border border-brand-border p-2 text-xs"><input type="checkbox" checked={adminPermissions.includes(key)} onChange={event=>setAdminPermissions(current=>event.target.checked?[...current,key]:current.filter(item=>item!==key))}/><span>{adminText(label)}</span></label>)}</div>
         <textarea value={adminReason} onChange={event=>setAdminReason(event.target.value)} rows={2} maxLength={500} placeholder={adminText("Required reason for this administrator change")} className="w-full rounded-lg border border-brand-border bg-brand-surface-2 p-3 text-sm text-brand-text"/>
         <Button block disabled={busy||!adminTargetUserId||(!adminMemberships.some(item=>item.user_id===adminTargetUserId)&&!adminPermissions.length)||!adminReason.trim()} onClick={()=>{const existing=adminMemberships.find(item=>item.user_id===adminTargetUserId);void submitAdminMembershipChange(existing?"set_permissions":"provision",adminTargetUserId,existing?.revision||0,adminPermissions);}}>{adminMemberships.some(item=>item.user_id===adminTargetUserId)?adminText("Save permissions"):adminText("Provision administrator")}</Button>
       </CardContent></Card>
     </div> : null}
-    {pendingDeletePayoutAddress ? <div className="fixed inset-0 z-[100] flex items-center justify-center bg-brand-bg/80 p-4" role="presentation"><section role="dialog" aria-modal="true" aria-labelledby="delete-payout-title" className="w-full max-w-md rounded-xl border border-brand-border bg-brand-surface p-5 shadow-2xl"><h2 id="delete-payout-title" className="text-lg font-semibold">{adminText("Delete bank payout details?")}</h2><p className="mt-2 text-sm text-brand-text-muted">{pendingDeletePayoutAddress.bank_name} · {pendingDeletePayoutAddress.account_holder}. {adminText("This action cannot be undone and will be recorded in the audit log.")}</p><div className="mt-5 flex justify-end gap-2"><Button variant="outline" disabled={busy} onClick={()=>setPendingDeletePayoutAddress(null)}>{adminText("Cancel")}</Button><Button variant="destructive" disabled={busy||!hasPermission("payout_addresses.manage")} onClick={()=>void deletePayoutAddress(pendingDeletePayoutAddress)}>{adminText("Confirm delete")}</Button></div></section></div>:null}
+    {pendingDeletePayoutAddress ? <div className="fixed inset-0 z-[100] flex items-start justify-center overflow-y-auto bg-brand-bg/80 p-4 sm:items-center" role="presentation"><section role="dialog" aria-modal="true" aria-labelledby="delete-payout-title" className="max-h-[calc(100dvh-2rem)] w-full max-w-md overflow-y-auto overscroll-contain rounded-xl border border-brand-border bg-brand-surface p-4 shadow-2xl sm:p-5"><h2 id="delete-payout-title" className="text-lg font-semibold">{adminText("Delete bank payout details?")}</h2><p className="mt-2 text-sm text-brand-text-muted">{pendingDeletePayoutAddress.bank_name} · {pendingDeletePayoutAddress.account_holder}. {adminText("This action cannot be undone and will be recorded in the audit log.")}</p><div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end"><Button variant="outline" disabled={busy} onClick={()=>setPendingDeletePayoutAddress(null)}>{adminText("Cancel")}</Button><Button variant="destructive" disabled={busy||!hasPermission("payout_addresses.manage")} onClick={()=>void deletePayoutAddress(pendingDeletePayoutAddress)}>{adminText("Confirm delete")}</Button></div></section></div>:null}
     {reviewDialog ? <div
-      className="fixed inset-0 z-[100] flex items-center justify-center bg-brand-bg/80 p-4"
+      className="fixed inset-0 z-[100] flex items-start justify-center overflow-y-auto bg-brand-bg/80 p-4 sm:items-center"
       role="presentation"
       onMouseDown={event => { if (event.target === event.currentTarget && !busy) { setReviewDialog(null); setReviewReason(""); } }}
     >
@@ -1799,43 +1635,47 @@ export function AdminPage() {
         aria-modal="true"
         aria-labelledby="review-dialog-title"
         aria-describedby="review-dialog-description"
-        className="w-full max-w-lg rounded-xl border border-brand-border bg-brand-surface p-5 shadow-2xl"
+        className="max-h-[calc(100dvh-2rem)] w-full max-w-lg overflow-y-auto overscroll-contain rounded-xl border border-brand-border bg-brand-surface p-4 shadow-2xl sm:p-5"
       >
         <div className="mb-4">
           <h2 id="review-dialog-title" className="text-lg font-semibold text-brand-text">
-            {reviewDialog.kind === "withdrawal" ? adminText("Reject withdrawal") : reviewDialog.kind === "kyc-manual" ? adminText("Manual identity verification") : adminText("Reject KYC application")}
+            {reviewDialog.kind === "withdrawal" ? adminText("Reject withdrawal") : reviewDialog.kind === "kyc-manual" ? adminText("Manual identity verification") : reviewDialog.kind === "user-freeze" ? adminText(reviewDialog.frozen ? "Freeze user account" : "Unfreeze user account") : adminText("Reject KYC application")}
           </h2>
           <p id="review-dialog-description" className="mt-1 text-sm text-brand-text-muted">
             {reviewDialog.kind === "withdrawal"
               ? adminText("The rejection and refund will be recorded together. Enter the reason for the audit record.")
               : reviewDialog.kind === "kyc-manual"
                 ? adminText("Use this only after you have independently verified the customer's identity. Record the verification method and details; this action is audited.")
-                : adminText("Enter the reason that will be recorded with this KYC decision.")}
+                : reviewDialog.kind === "user-freeze"
+                  ? adminText("Record why this customer account is being frozen or unfrozen. The change is written to the administrator audit log.")
+                  : adminText("Enter the reason that will be recorded with this KYC decision.")}
           </p>
         </div>
         <label className="block space-y-2 text-sm">
-          <span className="font-medium text-brand-text">{adminText(reviewDialog.kind === "kyc-manual" ? "Manual verification method and notes" : "Rejection reason")}<span className="text-brand-danger">*</span></span>
+          <span className="font-medium text-brand-text">{adminText(reviewDialog.kind === "kyc-manual" ? "Manual verification method and notes" : reviewDialog.kind === "user-freeze" ? "Account status change reason" : "Rejection reason")}<span className="text-brand-danger">*</span></span>
           <textarea
             autoFocus
             value={reviewReason}
             onChange={event => setReviewReason(event.target.value)}
             rows={4}
-            maxLength={300}
+            maxLength={reviewDialog.kind === "user-freeze" ? 200 : 300}
             disabled={busy}
-            placeholder={adminText(reviewDialog.kind === "kyc-manual" ? "Describe how identity was checked (for example, live video call and document comparison)." : "Enter a clear reason (up to 300 characters)")}
+            placeholder={adminText(reviewDialog.kind === "kyc-manual" ? "Describe how identity was checked (for example, live video call and document comparison)." : reviewDialog.kind === "user-freeze" ? "Enter the reason for this account status change." : "Enter a clear reason (up to 300 characters)")}
             className="w-full resize-y rounded-lg border border-brand-border bg-brand-surface-2 p-3 text-brand-text outline-none focus:border-brand-accent"
           />
-          <span className="block text-right text-xs text-brand-text-muted">{reviewReason.length}/300</span>
+          <span className="block text-right text-xs text-brand-text-muted">{reviewReason.length}/{reviewDialog.kind === "user-freeze" ? 200 : 300}</span>
         </label>
         {reviewDialog.kind === "kyc-manual" ? <label className="mt-4 flex items-start gap-2 text-sm text-brand-text"><input type="checkbox" checked={manualIdentityConfirmed} disabled={busy} onChange={event=>setManualIdentityConfirmed(event.target.checked)} className="mt-1" /><span>{adminText("I personally verified this customer's identity and confirm the evidence is sufficient.")}</span></label> : null}
         {error ? <p role="alert" className="mt-3 text-sm text-brand-danger">{adminText(error)}</p> : null}
         <div className="mt-5 flex flex-col-reverse justify-end gap-2 sm:flex-row">
           <Button type="button" variant="outline" disabled={busy} onClick={() => { setReviewDialog(null); setReviewReason(""); }}>{adminText("Cancel")}</Button>
-          <Button type="button" variant={reviewDialog.kind === "kyc-manual" ? "default" : "destructive"} disabled={busy || !reviewReason.trim() || (reviewDialog.kind === "kyc-manual" && !manualIdentityConfirmed)} onClick={() => void confirmReviewRejection()}>
-            {busy ? adminText("Submitting…") : adminText(reviewDialog.kind === "kyc-manual" ? "Confirm manual approval" : "Confirm rejection")}
+          <Button type="button" variant={reviewDialog.kind === "kyc-manual" || (reviewDialog.kind === "user-freeze" && reviewDialog.frozen === false) ? "default" : "destructive"} disabled={busy || !reviewReason.trim() || (reviewDialog.kind === "kyc-manual" && !manualIdentityConfirmed)} onClick={() => void confirmReviewRejection()}>
+            {busy ? adminText("Submitting…") : adminText(reviewDialog.kind === "kyc-manual" ? "Confirm manual approval" : reviewDialog.kind === "user-freeze" ? (reviewDialog.frozen ? "Confirm freeze" : "Confirm unfreeze") : "Confirm rejection")}
           </Button>
         </div>
       </section>
     </div> : null}
+      </main>
+    </div>
   </div>;
 }
