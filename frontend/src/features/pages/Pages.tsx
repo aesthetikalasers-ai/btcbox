@@ -389,7 +389,7 @@ export function SpotTradingPage(){
      setMarketFeedWarning("");
      if(!isPriceManualRef.current && selected.source && selected.source!=="demo-preview" && selected.source!=="sample-data"){ setPrice(String(selected.price)); }
     }else{setTicker(null);setPrice("");setMarketFeedWarning(t("Market data is temporarily unavailable."));}
-   }else{setTicker(null);setMarketUpdatedAt(null);setPrice("");setError(t("Market data is temporarily unavailable."));}
+   }else{setTicker(null);setPrice("");setError(t("Market data is temporarily unavailable."));}
    // initial load: a null book means the depth feed is unavailable, and the
    // panel renders its own empty state.
    setBook(bookResult.status==="fulfilled"?bookResult.value:null);
