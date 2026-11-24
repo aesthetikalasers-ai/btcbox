@@ -1819,5 +1819,22 @@
   "Unable to load open orders. Refresh to try again.": "Không thể tải lệnh đang mở. Hãy làm mới và thử lại.",
   "Unable to load order history. Refresh to try again.": "Không thể tải lịch sử lệnh. Hãy làm mới và thử lại.",
   "Unable to load trade history. Refresh to try again.": "Không thể tải lịch sử giao dịch. Hãy làm mới và thử lại.",
-  "Unable to load funding history. Refresh to try again.": "Không thể tải lịch sử phí funding. Hãy làm mới và thử lại."
+  "Unable to load funding history. Refresh to try again.": "Không thể tải lịch sử phí funding. Hãy làm mới và thử lại.",
+  "Set or change fund password": "Đặt hoặc thay đổi mật khẩu quỹ",
+  "Create a separate password for account fund security. It is not your login password.": "Tạo mật khẩu riêng để bảo vệ tiền trong tài khoản. Mật khẩu này khác mật khẩu đăng nhập.",
+  "Account security details could not be verified. Refresh the page before changing your fund password.": "Không thể xác minh thông tin bảo mật tài khoản. Hãy tải lại trang trước khi thay đổi mật khẩu quỹ.",
+  "Account verification": "Xác minh tài khoản",
+  "Fund password is stored separately from your login password. Never share it with anyone.": "Mật khẩu quỹ được lưu riêng với mật khẩu đăng nhập. Không chia sẻ mật khẩu này với bất kỳ ai.",
+  "New fund password": "Mật khẩu quỹ mới",
+  "At least 8 characters, letters and numbers": "Ít nhất 8 ký tự, gồm chữ cái và chữ số",
+  "Confirm fund password": "Xác nhận mật khẩu quỹ",
+  "Re-enter fund password": "Nhập lại mật khẩu quỹ",
+  "Current login password": "Mật khẩu đăng nhập hiện tại",
+  "Enter current login password": "Nhập mật khẩu đăng nhập hiện tại",
+  "Authenticator code": "Mã ứng dụng xác thực",
+  "6-digit code": "Mã gồm 6 chữ số",
+  "OAuth accounts must enable two-factor authentication before setting a fund password.": "Tài khoản OAuth phải bật xác thực hai yếu tố trước khi đặt mật khẩu quỹ.",
+  "Open security settings": "Mở cài đặt bảo mật",
+  "Saving…": "Đang lưu…",
+  "Save fund password": "Lưu mật khẩu quỹ"
 }
