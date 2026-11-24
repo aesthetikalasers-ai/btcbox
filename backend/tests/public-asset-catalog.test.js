@@ -9,6 +9,8 @@ const root = path.resolve(__dirname, '..');
 const api = fs.readFileSync(path.join(root, 'api-core.js'), 'utf8');
 const client = fs.readFileSync(path.resolve(root, '../../frontend/src/lib/api.ts'), 'utf8');
 const assetsPage = fs.readFileSync(path.resolve(root, '../../frontend/src/features/assets/AssetsPage.tsx'), 'utf8');
+const marketsPage = fs.readFileSync(path.resolve(root, '../../frontend/src/features/markets/MarketsPage.tsx'), 'utf8');
+const dashboardMarkets = fs.readFileSync(path.resolve(root, '../../frontend/src/features/dashboard/components/LiveMarketsTable.tsx'), 'utf8');
 
 test('public asset catalogue exposes only display metadata and never wallet or account data', () => {
   const start = api.indexOf("if (path === 'assets' && method === 'GET')");
@@ -53,4 +55,9 @@ test('wallet asset display follows configured names, precision metadata, visibil
   assert.ok(assetsPage.includes('formatConfiguredAssetAmount(balance.frozen, numberLocale, displayPrecision)'));
   assert.ok(assetsPage.includes('hasEnabledSpotPair'));
   assert.ok(assetsPage.includes('pair.enabled'));
+  assert.ok(marketsPage.includes('getPublicAssetCatalog(controller.signal)'));
+  assert.ok(marketsPage.includes('assetNames[market.sym] || getAssetName(market.sym)'));
+  assert.ok(marketsPage.includes('assetNames={assetNames}'));
+  assert.ok(dashboardMarkets.includes('getPublicAssetCatalog(controller.signal)'));
+  assert.ok(dashboardMarkets.includes('assetNames[item.sym] || getAssetName(item.sym)'));
 });
