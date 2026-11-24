@@ -699,8 +699,8 @@ export function AdminPage() {
         const appended: AdminAuditRecord[] = [];
         for (const item of snapshot.logs || []) {
           const key = item.id || "";
-          if (!key || seen.has(key)) continue;
-          seen.add(key);
+          if (key && seen.has(key)) continue;
+          if (key) seen.add(key);
           appended.push(item);
         }
         return [...current, ...appended];
