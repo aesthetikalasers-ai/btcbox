@@ -1598,6 +1598,19 @@ a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
   .trade-drawer-root { display: none; }
 }
 
+/* Perpetual compact workspace extends through 1279px; keep its chart drawer
+   available there without changing the protected spot drawer breakpoint. */
+@media (min-width: 1024px) and (max-width: 1279px) {
+  .trade-drawer-root--perpetual {
+    display: flex;
+    bottom: 0;
+  }
+  .trade-drawer-root--perpetual .trade-drawer-panel {
+    width: 100%;
+    max-width: min(900px, 100%);
+  }
+}
+
 /* ------------------------------------------------------------------------- *
  * Shared bottom order panel (spot / perpetual / seconds).
  *
