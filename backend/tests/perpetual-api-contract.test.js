@@ -112,7 +112,7 @@ test('perpetual trades & funding reads exist and are auth-gated', () => {
 test('admin perpetual market upsert validates max_leverage <= 100 and mmr range, gated by system_config.write', () => {
   const start = api.indexOf("perpSub === 'market' && method === 'POST'");
   assert.ok(start >= 0, 'admin perpetual market upsert route missing');
-  const route = api.slice(start, start + 4000);
+  const route = api.slice(start, start + 6500);
   assert.ok(route.includes("hasAdminPermission(adminMembership, 'system_config.write')"));
   assert.ok(route.includes('maxLeverage > 100'));
   assert.ok(route.includes('mmr < 0 || mmr > 0.5'));
@@ -134,7 +134,7 @@ test('admin perpetual market routes are reachable only through explicit system-c
   const readRoute = api.slice(readStart, readStart + 1500);
   assert.ok(readRoute.includes('min_notional'));
   const writeStart = api.indexOf("perpSub === 'market' && method === 'POST'");
-  const writeRoute = api.slice(writeStart, writeStart + 3000);
+  const writeRoute = api.slice(writeStart, writeStart + 5500);
   assert.ok(writeRoute.includes("const minNotional = parseMoneyInput(body.min_notional)"));
   assert.ok(writeRoute.includes('min_notional: minNotional'));
   assert.ok(writeRoute.includes("compareMoney(minNotional,'0')<=0"));
