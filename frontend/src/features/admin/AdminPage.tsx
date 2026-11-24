@@ -1540,12 +1540,12 @@ export function AdminPage() {
             value={reviewReason}
             onChange={event => setReviewReason(event.target.value)}
             rows={4}
-            maxLength={300}
+            maxLength={reviewDialog.kind === "user-freeze" ? 200 : 300}
             disabled={busy}
             placeholder={adminText(reviewDialog.kind === "kyc-manual" ? "Describe how identity was checked (for example, live video call and document comparison)." : reviewDialog.kind === "user-freeze" ? "Enter the reason for this account status change." : "Enter a clear reason (up to 300 characters)")}
             className="w-full resize-y rounded-lg border border-brand-border bg-brand-surface-2 p-3 text-brand-text outline-none focus:border-brand-accent"
           />
-          <span className="block text-right text-xs text-brand-text-muted">{reviewReason.length}/300</span>
+          <span className="block text-right text-xs text-brand-text-muted">{reviewReason.length}/{reviewDialog.kind === "user-freeze" ? 200 : 300}</span>
         </label>
         {reviewDialog.kind === "kyc-manual" ? <label className="mt-4 flex items-start gap-2 text-sm text-brand-text"><input type="checkbox" checked={manualIdentityConfirmed} disabled={busy} onChange={event=>setManualIdentityConfirmed(event.target.checked)} className="mt-1" /><span>{adminText("I personally verified this customer's identity and confirm the evidence is sufficient.")}</span></label> : null}
         {error ? <p role="alert" className="mt-3 text-sm text-brand-danger">{adminText(error)}</p> : null}
