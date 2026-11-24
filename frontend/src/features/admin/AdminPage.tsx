@@ -1129,7 +1129,7 @@ export function AdminPage() {
   const savePerpMarket = async () => {
     if (!token || !hasPermission("system_config.write")) return;
     const draft = perpMarketDraft;
-    const decimal = /^(?:0|[1-9]\\d{0,19})(?:\\.\\d{1,18})?$/;
+    const decimal = /^(?:0|[1-9]\d{0,19})(?:\.\d{1,18})?$/;
     const positive = (value: string) => decimal.test(value.trim()) && Number(value) > 0;
     const optionalPositive = (value: string) => !value.trim() || positive(value);
     const maxLeverage = Number(draft.max_leverage);
@@ -1152,7 +1152,7 @@ export function AdminPage() {
         !Number.isFinite(fundingCap) || fundingCap <= 0 || fundingCap > 0.0075 ||
         !Number.isInteger(staleSec) || staleSec < 15 || staleSec > 300 ||
         !Number.isFinite(breaker) || breaker <= 0 || breaker > 20 ||
-        reason.length < 5 || reason.length > 500 || /[\\u0000-\\u001f\\u007f]/.test(reason)) {
+        reason.length < 5 || reason.length > 500 || /[\u0000-\u001f\u007f]/.test(reason)) {
       setError("Check the asset and perpetual risk parameters. Markets are always saved disabled and paused; funding interval is fixed at 8 hours.");
       return;
     }
