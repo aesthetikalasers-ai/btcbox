@@ -245,6 +245,26 @@ test('funding settlement is market-atomic and shares the order-entry advisory lo
   assert.ok(fundingSql.includes("grant execute on function public.perp_settle_funding_market(text,timestamptz) to service_role"));
 });
 
+test('funding boundary fails closed without a persisted validated non-zero-or-zero rate snapshot', () => {
+  assert.ok(fundingSql.includes('validated funding rate snapshot missing'));
+  assert.ok(fundingSql.includes('funding snapshot is incomplete'));
+  assert.ok(fundingSql.includes('funding snapshot has insufficient source samples'));
+  assert.ok(!fundingSql.includes('values (p_symbol,p_funding_at,0,0,false)'));
+  assert.ok(!fundingSql.includes('intentionally records zero funding'));
+  assert.ok(fundingSql.includes('v_rate.premium_index is null'));
+  assert.ok(fundingSql.includes('v_rate.settled'));
+});
+
+test('liquidation settles due funding before reloading position and calculating maintenance margin', () => {
+  const settleAt = liquidationAccountingSql.indexOf('public.perp_settle_funding_market(p_symbol, v_market.next_funding_at)');
+  const reloadAt = liquidationAccountingSql.indexOf('select * into v_pos from public.perpetual_positions', settleAt);
+  const riskAt = liquidationAccountingSql.indexOf('v_mm := v_notional * v_market.maintenance_margin_rate');
+  assert.ok(settleAt >= 0, 'liquidation must settle the due funding boundary');
+  assert.ok(reloadAt > settleAt, 'position must be reloaded after funding changes margin');
+  assert.ok(riskAt > reloadAt, 'maintenance margin check must use post-funding position state');
+  assert.ok(liquidationAccountingSql.includes('due funding boundary could not be settled before liquidation'));
+});
+
 test('funding clearing ledger writes an equal-and-opposite counter-entry and backfills prior history', () => {
   assert.ok(fundingSql.includes('create table if not exists public.perpetual_funding_clearing_ledger'));
   assert.ok(fundingSql.includes('check (clearing_delta = -payment_delta)'));
