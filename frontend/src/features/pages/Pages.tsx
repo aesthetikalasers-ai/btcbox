@@ -730,7 +730,6 @@ export function SpotTradingPage(){
     </div>
    </div>
    <div className="term-chart-body">
-    <div className="absolute left-2 top-1 z-10 rounded bg-black/55 px-1.5 py-0.5 text-[9px] text-brand-text-muted">{t("Source")}: {candles[candles.length-1]?.source||"—"} · {candles.length?new Date(candles[candles.length-1].time).toLocaleTimeString():"—"}</div>
     <div ref={setChartNode} className="trade-candles h-full w-full">{!candles.length&&!loading?<p className="p-5 text-[12px] text-brand-text-muted">{t("No verified candle data is available for this market.")}</p>:null}</div>
    </div>
   </section>
