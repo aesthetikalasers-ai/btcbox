@@ -227,3 +227,11 @@ The operator workflow is intentionally minimal:
 - The migration is committed to this isolated branch only. It has **not** been applied to any Supabase database.
 - No production deployment, production DB write, PR #113 modification, or merge has been performed.
 - CI and database integration tests must validate this migration before any staging application. Production application requires a separate explicit authorization.
+
+## Approved implementation update: support cross-conversation search (2026-11-24)
+
+- The Support inbox now accepts a server-side search query for message ID, UID, username, or email.
+- Exact message-ID matches return nearby conversation context; identity matches return the latest retained messages for the matching user.
+- Search results are bounded to 500 messages, with at most 100 messages per selected conversation. The browser does not download every retained conversation to search locally.
+- Message IDs and usernames are visible in the inbox. Existing read-cursor, unread-count, and reply actions remain in place; full-thread unanswered status is supplied by the backend so a narrow search result does not mislabel the conversation.
+- Search remains within the existing `support.read` permission boundary. Reply still requires `support.reply`.
