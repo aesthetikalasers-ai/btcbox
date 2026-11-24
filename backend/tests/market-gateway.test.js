@@ -135,10 +135,10 @@ test('provider order falls back when the first provider fails', async () => {
 test('missing provider event timestamps stay null instead of being synthesized', async () => {
   const restore = stubFetch(async (url) => {
     const href = String(url);
-    if (href.includes('/products')) {
+    if (href.endsWith('/products')) {
       return jsonResponse([{ id: 'BTC-USDT', quote_currency: 'USDT', status: 'online', trading_disabled: false }]);
     }
-    if (href.includes('/ticker')) return jsonResponse({ price: '64200' });
+    if (href.endsWith('/ticker')) return jsonResponse({ price: '64200' });
     if (href.includes('/stats')) return jsonResponse({ open: '64000', high: '65447', low: '63336', volume: '10' });
     throw new Error('unexpected provider request');
   });
