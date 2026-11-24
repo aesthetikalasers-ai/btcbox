@@ -1838,7 +1838,7 @@ async function handleRequest(event, context) {
     if (!/^[A-Z0-9]{5,20}$/.test(symbol) || !symbol.endsWith('USDT') || symbol.length <= 4) return json({ ok: false, msg: 'Invalid USDT symbol' }, 400);
     const base = symbol.slice(0, -4);
     try {
-      const catalog = await readSpotMarketCatalog();
+      const catalog = await readSpotMarketCatalog(db);
       if (!catalog.some(market => market.enabled && market.base_asset === base && market.quote_asset === 'USDT')) {
         return json({ ok: false, code: 'SPOT_MARKET_DISABLED', msg: 'This spot market is not enabled.', bids: [], asks: [] }, 404);
       }
@@ -2618,7 +2618,7 @@ async function handleRequest(event, context) {
   // Public catalogue exposes only enabled, operator-configured USDT pairs.
   if (path === 'market/pairs' && method === 'GET') {
     try {
-      const markets = await readSpotMarketCatalog();
+      const markets = await readSpotMarketCatalog(db);
       return json({ ok: true, markets: markets.filter(market => market.enabled) });
     } catch (_) {
       return json({ ok: false, code: 'MARKET_CATALOG_UNAVAILABLE', msg: 'Spot market catalogue is temporarily unavailable.', markets: [] }, 503);
@@ -2642,7 +2642,7 @@ async function handleRequest(event, context) {
      */
     let bases;
     try {
-      const catalog = await readSpotMarketCatalog();
+      const catalog = await readSpotMarketCatalog(db);
       bases = [...new Set(catalog.filter(market => market.enabled && market.quote_asset === 'USDT').map(market => market.base_asset))];
     } catch (_) {
       return json({ ok: false, code: 'MARKET_CATALOG_UNAVAILABLE', msg: 'Spot market catalogue is temporarily unavailable.', markets: [], data: {} }, 503);
