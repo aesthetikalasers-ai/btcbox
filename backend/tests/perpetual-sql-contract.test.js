@@ -54,6 +54,16 @@ test('submit order: market disabled / stale mark / insufficient margin / leverag
   assert.ok(sql.includes('price deviation circuit breaker active'));
 });
 
+test('0051 adds a positive per-market minimum notional and enforces it inside the atomic order RPC', () => {
+  const migration = fs.readFileSync(path.join(root, 'supabase/sql/0051_perpetual_market_min_notional_v1.sql'), 'utf8');
+  assert.ok(migration.includes('add column if not exists min_notional numeric(38,18)'));
+  assert.ok(migration.includes('perpetual_markets_min_notional_positive'));
+  assert.ok(migration.includes("raise exception 'order notional below market minimum'"));
+  assert.ok(migration.includes('coalesce(p_price, v_mark.mark_price) * p_quantity < v_market.min_notional'));
+  assert.ok(migration.includes('if not p_reduce_only and not p_close_position'));
+  assert.ok(migration.includes('min_notional numeric(38,18)'));
+});
+
 test('submit order idempotency: unique (user, client_order_id) + duplicate replay + payload mismatch raise', () => {
   assert.ok(sql.includes('unique (user_id, client_order_id)'));
   assert.ok(sql.includes("raise exception 'client order id payload mismatch'"));
