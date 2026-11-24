@@ -168,7 +168,8 @@ test('financial operation type expansion is additive, atomic, and preserves lega
 
 test('position fill helper validates direct service-role inputs before changing positions', () => {
   assert.ok(sql.includes("raise exception 'invalid perpetual position fill'"));
-  assert.ok(sql.includes("p_fill_direction not in ('buy','sell')"));
+  assert.ok(sql.includes("p_fill_direction is null or p_fill_direction not in ('buy','sell')"));
+  assert.ok(sql.includes('p_symbol is null or p_symbol !~'));
   assert.ok(sql.includes('p_fill_qty is null or p_fill_qty <= 0'));
   assert.ok(sql.includes('p_fill_price is null or p_fill_price <= 0'));
   assert.ok(sql.includes('p_leverage > 100'));
