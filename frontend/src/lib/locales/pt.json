@@ -1707,7 +1707,9 @@
   "Minimum notional": "Valor mínimo da ordem",
   "Market trading rules are unavailable. Order entry is disabled.": "As regras do mercado estão indisponíveis. A entrada de ordens está desativada.",
   "Price must follow the market tick; quantity must follow the step and minimum order rules.": "O preço deve seguir o tick do mercado; a quantidade deve respeitar o incremento e os mínimos da ordem.",
-  "Spot reference": "Referência spot",
+  "Spot reference": "Referência spot",,
+  "Bootstrap reference": "Preço de referência inicial",
+  "Bootstrap": "Inicial"
   "Underlying spot order book": "Livro de ofertas spot do ativo subjacente",
   "Spot reference only — not the perpetual execution book.": "Apenas referência spot — não é o livro de execução de perpétuos.",
   "Spot reference depth": "Profundidade de referência spot",
