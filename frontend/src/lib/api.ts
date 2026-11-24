@@ -1718,6 +1718,8 @@ export async function closePerpPosition(input: { symbol: string; clientOrderId: 
 type PerpOrderApiRow = Omit<PerpOrder, "order_id"> & { id: string; order_id?: string };
 type PerpPositionApiRow = Omit<PerpPosition, "position_id" | "unrealized_pnl" | "liquidation_price"> & {
   id?: string; position_id?: string;
+  unrealized_pnl?: number | string | null;
+  liquidation_price?: number | string | null;
   unrealized_pnl_est?: number | string | null;
   liquidation_price_est?: number | string | null;
 };
