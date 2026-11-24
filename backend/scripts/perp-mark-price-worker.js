@@ -214,9 +214,9 @@ function buildFreshSources(providerMaps, symbol, nowMs, maxAgeSec) {
     .filter(source => source && Math.abs(nowMs - source.ts) <= maxAgeSec * 1000);
 }
 function canBootstrapWithSources(sources) {
-  if (!Array.isArray(sources) || sources.length !== 3) return false;
+  if (!Array.isArray(sources) || sources.length < 2) return false;
   const names = new Set(sources.map(source => String(source && source.source || '').toLowerCase()));
-  return names.size === 3 && ['binance', 'okx', 'coingecko'].every(name => names.has(name));
+  return names.size === sources.length && sources.every(source => ['binance', 'okx', 'coingecko'].includes(String(source && source.source || '').toLowerCase()));
 }
 async function mapWithConcurrency(items, concurrency, fn) {
   const results = new Array(items.length);
@@ -257,10 +257,10 @@ async function main() {
       hadFailure = true;
       return;
     }
-    const prices = freshSources.map(s => s.price);
-    const mean = prices.reduce((a, b) => a + b, 0) / prices.length;
-    const maxDevPct = Math.max(...prices.map(p => Math.abs((p - mean) / mean) * 100));
-    const indexPrice = mean;
+    const prices = freshSources.map(s => s.price).sort((a, b) => a - b);
+    const mid = Math.floor(prices.length / 2);
+    const indexPrice = prices.length % 2 ? prices[mid] : (prices[mid - 1] + prices[mid]) / 2;
+    const maxDevPct = Math.max(...prices.map(p => Math.abs((p - indexPrice) / indexPrice) * 100));
     try {
       let res, markPrice;
       try {
@@ -268,7 +268,7 @@ async function main() {
         res = await recordMark(symbol, indexPrice, markPrice, freshSources, maxAgeSec);
       } catch (bookError) {
         if (!module.exports.shouldUseBootstrapMark(bookError)) throw bookError;
-        if (!canBootstrapWithSources(freshSources)) throw new Error('bootstrap mark requires three distinct fresh providers; received ' + freshSources.length);
+        if (!canBootstrapWithSources(freshSources)) throw new Error('bootstrap mark requires at least two distinct fresh providers; received ' + freshSources.length);
         markPrice = indexPrice;
         res = await recordBootstrapMark(symbol, indexPrice, freshSources, maxAgeSec);
         console.warn('[perp-mark]', symbol, 'bootstrap anchor active; order book is not yet deep enough; funding snapshots remain blocked.');
