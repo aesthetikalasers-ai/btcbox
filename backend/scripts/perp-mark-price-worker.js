@@ -175,6 +175,62 @@ async function recordBootstrapMark(symbol, indexPrice, freshSources, maxAgeSec) 
   }
   return j;
 }
+async function fetchProviderPriceMaps(markets) {
+  const symbols = markets.map(m => String(m.symbol || '').toUpperCase());
+  const ids = [...new Set(symbols.map(s => COINGECKO_IDS[s]).filter(Boolean))];
+  const results = await Promise.allSettled([
+    fetchJson('https://api.binance.com/api/v3/ticker/24hr', FETCH_TIMEOUT_MS),
+    fetchJson('https://www.okx.com/api/v5/market/tickers?instType=SPOT', FETCH_TIMEOUT_MS),
+    ids.length ? fetchJson('https://api.coingecko.com/api/v3/simple/price?ids=' + encodeURIComponent(ids.join(',')) + '&vs_currencies=usdt&include_last_updated_at=true', FETCH_TIMEOUT_MS) : Promise.resolve({})
+  ]);
+  const maps = { binance: new Map(), okx: new Map(), coingecko: new Map() };
+  if (results[0].status === 'fulfilled' && Array.isArray(results[0].value)) {
+    for (const row of results[0].value) {
+      const symbol = String(row && row.symbol || '').toUpperCase();
+      if (!symbols.includes(symbol)) continue;
+      const price = Number(row.lastPrice), ts = Number(row && row.closeTime);
+      if (Number.isFinite(price) && price > 0 && Number.isFinite(ts) && ts > 0) maps.binance.set(symbol, { source: 'binance', price, ts });
+    }
+  } else console.warn('[perp-mark] Binance batch ticker request failed:', results[0].status === 'rejected' ? results[0].reason.message : 'invalid payload');
+  if (results[1].status === 'fulfilled' && results[1].value && results[1].value.code === '0' && Array.isArray(results[1].value.data)) {
+    for (const row of results[1].value.data) {
+      const symbol = String(row && row.instId || '').replace(/-/g, '').toUpperCase();
+      if (!symbols.includes(symbol)) continue;
+      const price = Number(row.last), ts = Number(row && row.ts);
+      if (Number.isFinite(price) && price > 0 && Number.isFinite(ts) && ts > 0) maps.okx.set(symbol, { source: 'okx', price, ts });
+    }
+  } else console.warn('[perp-mark] OKX batch ticker request failed:', results[1].status === 'rejected' ? results[1].reason.message : 'invalid payload');
+  if (results[2].status === 'fulfilled' && results[2].value && typeof results[2].value === 'object') {
+    for (const symbol of symbols) {
+      const id = COINGECKO_IDS[symbol], row = id && results[2].value[id];
+      const price = Number(row && row.usdt), ts = Number(row && row.last_updated_at) * 1000;
+      if (Number.isFinite(price) && price > 0 && Number.isFinite(ts) && ts > 0) maps.coingecko.set(symbol, { source: 'coingecko', price, ts });
+    }
+  } else console.warn('[perp-mark] CoinGecko batch price request failed:', results[2].status === 'rejected' ? results[2].reason.message : 'invalid payload');
+  return maps;
+}
+function buildFreshSources(providerMaps, symbol, nowMs, maxAgeSec) {
+  return ['binance', 'okx', 'coingecko'].map(provider => providerMaps[provider] && providerMaps[provider].get(symbol))
+    .filter(source => source && Math.abs(nowMs - source.ts) <= maxAgeSec * 1000);
+}
+function canBootstrapWithSources(sources) {
+  if (!Array.isArray(sources) || sources.length !== 3) return false;
+  const names = new Set(sources.map(source => String(source && source.source || '').toLowerCase()));
+  return names.size === 3 && ['binance', 'okx', 'coingecko'].every(name => names.has(name));
+}
+async function mapWithConcurrency(items, concurrency, fn) {
+  const results = new Array(items.length);
+  let next = 0;
+  async function worker() {
+    while (true) {
+      const index = next++;
+      if (index >= items.length) return;
+      results[index] = await fn(items[index], index);
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(concurrency, items.length) }, () => worker()));
+  return results;
+}
 async function main() {
   if (!SUPABASE_URL || !SERVICE_KEY) { console.error('[perp-mark] SUPABASE_URL/SERVICE_KEY not configured; exit.'); process.exit(1); }
   const markets = await restGetAll('perpetual_markets?select=symbol,base_asset,quote_asset,mark_price_stale_sec,circuit_breaker_deviation_pct&enabled=eq.true&order=symbol.asc');
@@ -183,8 +239,9 @@ async function main() {
     console.log('[perp-mark] no enabled perpetual markets selected; no mark rows written.');
     process.exit(0);
   }
+  const providerMaps = await fetchProviderPriceMaps(selected);
   let hadFailure = false;
-  for (const market of selected) {
+  await mapWithConcurrency(selected, 4, async market => {
     const symbol = String(market.symbol || '').toUpperCase();
     const maxAgeSec = Number(market.mark_price_stale_sec) || 60;
     const breakerPct = Number(market.circuit_breaker_deviation_pct) || CIRCUIT_BREAKER_PCT;
@@ -192,35 +249,26 @@ async function main() {
         || symbol !== String(market.base_asset || '').toUpperCase() + String(market.quote_asset || '').toUpperCase()) {
       console.error('[perp-mark] invalid enabled market configuration; skipping', symbol);
       hadFailure = true;
-      continue;
+      return;
     }
-    const sources = [];
-    for (const fn of [binancePrice, okxPrice, coingeckoPrice]) {
-      try { sources.push(await fn(symbol)); }
-      catch (e) { console.warn('[perp-mark] source failed for', symbol, '-', e.message); }
-    }
-    const nowMs = Date.now();
-    const freshSources = sources.filter(source => Math.abs(nowMs - source.ts) <= maxAgeSec * 1000);
+    const freshSources = buildFreshSources(providerMaps, symbol, Date.now(), maxAgeSec);
     if (freshSources.length < 2) {
       console.warn('[perp-mark]', symbol, 'only', freshSources.length, 'fresh source(s) available; skipping record (requires >=2).');
       hadFailure = true;
-      continue;
+      return;
     }
     const prices = freshSources.map(s => s.price);
     const mean = prices.reduce((a, b) => a + b, 0) / prices.length;
     const maxDevPct = Math.max(...prices.map(p => Math.abs((p - mean) / mean) * 100));
-    const indexPrice = mean; // independent multi-source spot index
+    const indexPrice = mean;
     try {
-      let res;
-      let markPrice;
+      let res, markPrice;
       try {
-        // Once the market has a two-sided, multi-level executable book, use its
-        // independent midpoint. Empty/shallow startup books use a separately
-        // labelled bootstrap anchor from the validated external spot index.
         markPrice = await perpetualBookMidPrice(symbol);
         res = await recordMark(symbol, indexPrice, markPrice, freshSources, maxAgeSec);
       } catch (bookError) {
         if (!module.exports.shouldUseBootstrapMark(bookError)) throw bookError;
+        if (!canBootstrapWithSources(freshSources)) throw new Error('bootstrap mark requires three distinct fresh providers; received ' + freshSources.length);
         markPrice = indexPrice;
         res = await recordBootstrapMark(symbol, indexPrice, freshSources, maxAgeSec);
         console.warn('[perp-mark]', symbol, 'bootstrap anchor active; order book is not yet deep enough; funding snapshots remain blocked.');
@@ -232,12 +280,11 @@ async function main() {
       console.error('[perp-mark] record failed for', symbol, '-', e.message);
       hadFailure = true;
     }
-  }
+  });
   process.exit(hadFailure ? 2 : 0);
 }
-
 if (require.main === module) {
   main().catch(e => { console.error('[perp-mark] fatal:', e.message); process.exit(3); });
 }
 
-module.exports = { calculateBookDepthMidPrice, shouldUseBootstrapMark: error => /insufficient two-level/.test(String(error && error.message || error)), DEFAULT_COINGECKO_IDS };
+module.exports = { calculateBookDepthMidPrice, shouldUseBootstrapMark: error => /insufficient two-level/.test(String(error && error.message || error)), DEFAULT_COINGECKO_IDS, buildFreshSources, canBootstrapWithSources, mapWithConcurrency };

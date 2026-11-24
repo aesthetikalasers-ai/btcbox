@@ -11,7 +11,8 @@ Build from the repository root:
 docker build -f backend/Dockerfile.perpetual-workers -t btcbox-perpetual-workers .
 ```
 
-Run as a dedicated always-on container with restart policy `unless-stopped`:
+Run as a dedicated always-on container with restart policy `unless-stopped`
+(or the hosting platform's equivalent `ALWAYS` policy):
 
 ```sh
 docker run -d --name btcbox-perpetual-workers --restart unless-stopped \
@@ -36,10 +37,14 @@ non-overlapping passes:
 | Funding settlement | 5 seconds | Atomic due-boundary settlement |
 | Liquidation | 1 second | Database-authoritative maintenance-margin checks |
 
-The mark-price cadence is intentionally 60 seconds because the configured
-market freshness window is 60 seconds and the public CoinGecko endpoint is
-queried per symbol. Review provider quotas before increasing market count or
-shortening the cadence. A stale feed blocks new risk and pauses liquidation;
+The mark-price cadence is 60 seconds because the configured market freshness
+window is 60 seconds. Each pass batches Binance 24-hour tickers, OKX spot
+tickers, and CoinGecko multi-ID prices into one request per provider, then
+processes enabled markets with bounded concurrency. Bootstrap marks require all
+three distinct fresh providers; normal order-book marks still require at least
+two fresh index providers. Review provider quotas and pass duration before
+increasing market count or shortening the cadence. A stale feed blocks new risk
+and pauses liquidation;
 the worker never substitutes an old or fabricated price.
 
 ## Operational gates
