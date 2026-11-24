@@ -1709,7 +1709,7 @@
   "Price must follow the market tick; quantity must follow the step and minimum order rules.": "价格必须符合市场最小变动单位；数量必须符合数量步进及最低下单要求。",
   "Spot reference": "现货参考价格",
   "Bootstrap reference": "启动参考价格",
-  "Bootstrap": "启动价"
+  "Bootstrap": "启动价",
   "Underlying spot order book": "标的现货订单簿",
   "Spot reference only — not the perpetual execution book.": "仅作现货参考，不是永续合约的执行订单簿。",
   "Spot reference depth": "现货参考深度",
