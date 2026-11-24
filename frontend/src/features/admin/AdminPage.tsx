@@ -32,6 +32,8 @@ import {
   getAdminSecondsPolicy,
   getAdminSecondsOpenPositions,
   getAdminSpotMarkets,
+  getAdminPerpMarkets,
+  saveAdminPerpMarket,
   getAdminSupportMessages,
   getAdminAddresses,
   manageAdminAddress,
@@ -50,6 +52,7 @@ import {
   type AdminKycRecord,
   type AdminSession,
   type AdminSpotMarket,
+  type AdminPerpMarket,
   type AdminSupportFaqEntry,
   type AdminSecondsOpenPosition,
   type AdminSecondsOpenPositionsSnapshot,
@@ -234,6 +237,14 @@ export function AdminPage() {
     min_notional: "1", min_limit_price: "", max_limit_price: "", reason: "",
   });
   const [spotMarketRequestId, setSpotMarketRequestId] = useState("");
+  const [perpMarkets, setPerpMarkets] = useState<AdminPerpMarket[]>([]);
+  const [perpMarketDraft, setPerpMarketDraft] = useState({
+    base_asset: "", price_tick: "", quantity_step: "", min_quantity: "", min_notional: "5",
+    max_quantity: "", max_position_notional: "", max_leverage: "1", maintenance_margin_rate: "0.05",
+    maker_fee_rate: "0", taker_fee_rate: "0", funding_interval_sec: "28800", funding_rate_cap: "0.0075",
+    mark_price_stale_sec: "60", circuit_breaker_deviation_pct: "5",
+  });
+
   const [secondsPolicy, setSecondsPolicy] = useState<{policy_id:string;policy_version:number;symbols:string[];durations_sec:number[];min_stake:number|string;max_stake:number|string;payout_bps:number;per_user_open_exposure:number|string|null;max_open_positions_per_user:number|null}|null>(null);
   const [secondsOpenPositions, setSecondsOpenPositions] = useState<AdminSecondsOpenPosition[]>([]);
   const [secondsOpenSummary, setSecondsOpenSummary] = useState<AdminSecondsOpenPositionsSnapshot | null>(null);
@@ -352,9 +363,11 @@ export function AdminPage() {
       }
       if (tab === "markets") {
         setSpotMarkets([]);
-        const result = await getAdminSpotMarkets(token);
+        setPerpMarkets([]);
+        const [result, perpResult] = await Promise.all([getAdminSpotMarkets(token), getAdminPerpMarkets(token)]);
         if (requestId !== tabLoadRequestRef.current) return;
         setSpotMarkets(result.markets || []);
+        setPerpMarkets(perpResult.markets || []);
         const pendingKey = "btcbox.admin.spot-market.v1." + session.user_id;
         try {
           const raw = window.localStorage.getItem(pendingKey);
@@ -1355,6 +1368,54 @@ export function AdminPage() {
       }
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "Spot-market update could not be confirmed. Retry the same saved request.");
+    } finally { setBusy(false); }
+  };
+
+  const savePerpMarket = async () => {
+    if (!token || !hasPermission("system_config.write")) return;
+    const draft = perpMarketDraft;
+    const decimal = /^(?:0|[1-9]\\d{0,19})(?:\\.\\d{1,18})?$/;
+    const positive = (value: string) => decimal.test(value.trim()) && Number(value) > 0;
+    const optionalPositive = (value: string) => !value.trim() || positive(value);
+    const maxLeverage = Number(draft.max_leverage);
+    const fundingInterval = Number(draft.funding_interval_sec);
+    const staleSec = Number(draft.mark_price_stale_sec);
+    const mmr = Number(draft.maintenance_margin_rate);
+    const makerFee = Number(draft.maker_fee_rate);
+    const takerFee = Number(draft.taker_fee_rate);
+    const fundingCap = Number(draft.funding_rate_cap);
+    const breaker = Number(draft.circuit_breaker_deviation_pct);
+    if (!spotAssets.includes(draft.base_asset) || ["USDT", "USDC"].includes(draft.base_asset) ||
+        !positive(draft.price_tick) || !positive(draft.quantity_step) || !positive(draft.min_quantity) ||
+        !positive(draft.min_notional) || !optionalPositive(draft.max_quantity) || !optionalPositive(draft.max_position_notional) ||
+        !Number.isInteger(maxLeverage) || maxLeverage < 1 || maxLeverage > 100 ||
+        !Number.isFinite(mmr) || mmr <= 0 || mmr > 0.5 ||
+        !Number.isFinite(makerFee) || makerFee < 0 || makerFee > 0.1 ||
+        !Number.isFinite(takerFee) || takerFee < 0 || takerFee > 0.1 ||
+        !Number.isInteger(fundingInterval) || fundingInterval !== 28800 ||
+        !Number.isFinite(fundingCap) || fundingCap <= 0 || fundingCap > 0.0075 ||
+        !Number.isInteger(staleSec) || staleSec < 15 || staleSec > 300 ||
+        !Number.isFinite(breaker) || breaker <= 0 || breaker > 20) {
+      setError("Check all perpetual market parameters. Markets are saved paused and disabled; funding interval is fixed at 8 hours.");
+      return;
+    }
+    setBusy(true); setError(""); setNotice("");
+    try {
+      await saveAdminPerpMarket(token, {
+        base_asset: draft.base_asset, quote_asset: "USDT", enabled: false, status: "paused",
+        price_tick: draft.price_tick.trim(), quantity_step: draft.quantity_step.trim(),
+        min_quantity: draft.min_quantity.trim(), min_notional: draft.min_notional.trim(),
+        max_quantity: draft.max_quantity.trim() || null, max_position_notional: draft.max_position_notional.trim() || null,
+        max_leverage: maxLeverage, maintenance_margin_rate: draft.maintenance_margin_rate.trim(),
+        maker_fee_rate: draft.maker_fee_rate.trim(), taker_fee_rate: draft.taker_fee_rate.trim(),
+        funding_interval_sec: fundingInterval, funding_rate_cap: draft.funding_rate_cap.trim(),
+        mark_price_stale_sec: staleSec, circuit_breaker_deviation_pct: draft.circuit_breaker_deviation_pct.trim(),
+      });
+      setNotice("Perpetual market configuration saved. The market remains paused and disabled.");
+      const refreshed = await getAdminPerpMarkets(token);
+      setPerpMarkets(refreshed.markets || []);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "Perpetual market configuration could not be confirmed.");
     } finally { setBusy(false); }
   };
 
