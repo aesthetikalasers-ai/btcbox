@@ -53,3 +53,37 @@ Evidence status:
 - STATIC SOURCE CHECKED: route, permission, paused-state, risk-field and UI wiring assertions are present.
 - TEST PASSED: not claimed; the test suite and frontend build have not been executed in this environment.
 - NOT VERIFIED: staging database behavior, live admin API behavior, visual rendering and production state.
+
+## Follow-up source review — authoritative order RPC (2026-11-24)
+
+This follow-up inspected the complete function bodies in current branch migration `0041_perpetual_contract_v1.sql` and compared the replacement function in PR #116 migration `0051_perpetual_market_min_notional_v1.sql`. This is source review only; no SQL was executed and no financial SQL was changed.
+
+### Confirmed current-0041 findings
+
+1. **`liquidation_only` cannot accept user reduce/close orders.** In `perp_submit_order`, the market status guard rejects every status outside `trading` and `open_only` before reaching the reduce-only branch (0041 lines 405–408). The market lookup also requires `enabled=true` (line 405). A safe correction must explicitly define which statuses permit reduce-only orders; it must not accidentally allow new exposure in `paused`.
+2. **Resting maker reduce-only orders are not capped against the maker's live position.** The current matching loop caps the taker with `v_reducible_remaining` (0041 line 141 and lines 569–572), but it does not reload and cap a maker's reducible position before calculating the fill. A maker reduce-only order can therefore outlive the position it was meant to close; a later fill risks reducing through zero and opening the opposite side. PR #116 adds maker-side live-position lookup, fill capping and exhausted-order cancellation (its replacement function lines 168–183 and 264–270); that logic still needs regression coverage before adoption.
+3. **Stale mark data blocks reduce-only orders too.** The current function raises on missing/stale mark data without a reduce-only exception (0041 lines 414–419). Emergency close behavior under stale pricing needs an explicit execution policy; simply bypassing all price safeguards is not an acceptable automatic fix.
+4. **Market-IOC response can disagree with persisted order state.** On an unfilled market-order remainder, the function sets the stored order to `remaining_quantity=0,status='cancelled'` (0041 lines 580–600), but returns the local `v_remaining` variable without re-reading the row (lines 611–613). PR #116 re-reads the persisted `remaining_quantity` before constructing the response (replacement function lines 314–317). Add an API/RPC regression test for partial-fill and no-fill IOC cases.
+5. **Existing null exposure caps remain fail-open for openings.** Current 0041 only checks `max_position_notional` when it is non-null (lines 442–451). Admin API/form validation protects new or edited configurations, but does not protect legacy rows. The order RPC must reject opening orders when the cap is null, zero or invalid, independently of UI state.
+
+### PR #116 follow-up concerns
+
+1. **Reduce-only status handling is too broad as written.** PR #116 bypasses the `trading/open_only` status guard whenever `p_reduce_only` is true (replacement function lines 59–62). This appears to permit reduce-only orders in `paused` as well as `liquidation_only`. Define an explicit state matrix: `paused` should not silently inherit emergency-close behavior; `liquidation_only` should allow only validated risk-reducing actions; `trading/open_only` should retain their intended opening rules.
+2. **The replacement still needs a fail-closed max-cap review.** The PR function has both an early positive-cap check (lines 65–67) and a later exposure calculation (lines 121–129). Verify the complete PL/pgSQL block structure and ensure the later exposure calculation is not nested behind the leverage exception or otherwise unreachable before accepting the migration.
+3. **Maker-side reduce-only protection is a useful targeted change, not grounds to import the whole RPC.** The replacement changes order matching, position updates, fees, margin movement and IOC cancellation. Do not transplant the complete function merely to obtain the maker cap or minimum-notional guard.
+
+### Required regression matrix before any financial SQL change
+
+- Market states: `trading`, `open_only`, `liquidation_only`, `paused`, with enabled true/false; test open, reduce-only partial close, full close and liquidation-engine close separately.
+- Reduce-only maker and taker: live position smaller than resting order, position fully closed before later fill, partial fill across multiple counterparties, and no reverse-side position creation.
+- Mark feed: fresh, stale, missing and circuit-breaker-deviated; verify the explicitly approved close policy for each case.
+- Market IOC: no fill, partial fill, full fill; response remaining quantity must equal the persisted order row and all reserve balances must reconcile.
+- Exposure cap: positive, null, zero, legacy null row, concurrent orders and partial fills.
+- Financial invariants: available/frozen balances, isolated margin, maker/taker fees, insurance credits, operation idempotency, ledger uniqueness and cancel/release behavior.
+- Funding and liquidation: duplicate interval settlement, insufficient available balance with margin fallback, stale mark protection, open-order reserve release, insurance coverage and bad-debt recording.
+
+Evidence status for this follow-up:
+- SOURCE OBSERVED: complete current 0041 function bodies and PR #116 replacement function.
+- STATIC REVIEW: findings above are based on source control flow and schema constraints; no runtime behavior is claimed.
+- TEST PASSED: none claimed for this follow-up.
+- NOT VERIFIED: PostgreSQL execution, concurrency behavior, staging ledger invariants, live API behavior and production state.
