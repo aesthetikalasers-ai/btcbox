@@ -3147,7 +3147,7 @@ async function handleRequest(event, context) {
     if (!user) return json({ ok: false, msg: 'Not signed in.', need_login: true }, 401);
     if (!perpetualEngineRequested()) return json({ ok: true, positions: [], perpetual_enabled: false });
     try {
-      const positions = await perpRestGet('perpetual_positions?select=symbol,side,quantity,entry_price,isolated_margin,realized_pnl,funding_paid,last_mark_price,created_at&user_id=eq.' + encodeURIComponent(String(user.uid)) + '&closed_at=is.null&order=symbol.asc');
+      const positions = await perpRestGet('perpetual_positions?select=id,symbol,side,quantity,entry_price,isolated_margin,realized_pnl,funding_paid,last_mark_price,created_at&user_id=eq.' + encodeURIComponent(String(user.uid)) + '&closed_at=is.null&order=symbol.asc');
       const out = [];
       for (const p of positions) {
         let mark = null, unrealized = null, estLiqPrice = null, roePct = null;
@@ -3166,7 +3166,7 @@ async function handleRequest(event, context) {
             estLiqPrice = p.side === 'long' ? entry * (1 - margin / notional) : entry * (1 + margin / notional);
           }
         } catch (_) { /* mark unavailable; return position without estimate */ }
-        out.push({ symbol: p.symbol, side: p.side, quantity: p.quantity, entry_price: p.entry_price,
+        out.push({ position_id: p.id, symbol: p.symbol, side: p.side, quantity: p.quantity, entry_price: p.entry_price,
           isolated_margin: p.isolated_margin, realized_pnl: p.realized_pnl, funding_paid: p.funding_paid,
           mark_price: mark, unrealized_pnl_est: unrealized, roe_pct_est: roePct, liquidation_price_est: estLiqPrice,
           created_at: p.created_at });

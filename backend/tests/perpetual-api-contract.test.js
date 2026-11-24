@@ -126,3 +126,14 @@ test('workers exist and are idempotent/restart-safe', () => {
   assert.ok(liq.includes('mark price stale'), 'liquidation worker pauses on stale mark');
   assert.ok(liq.includes('BAD DEBT'), 'liquidation worker escalates bad debt');
 });
+
+
+test('perpetual read API response fields match the frontend adapters', () => {
+  const orders = routeSlice("path === 'perpetual/orders' && method === 'GET'", "path === 'perpetual/positions' && method === 'GET'");
+  assert.ok(orders.includes('open: open, history: history'));
+  const positions = routeSlice("path === 'perpetual/positions' && method === 'GET'", "path === 'perpetual/trades' && method === 'GET'");
+  assert.ok(positions.includes('select=id,symbol,side,quantity'));
+  assert.ok(positions.includes('position_id: p.id'));
+  const funding = routeSlice("path === 'perpetual/funding' && method === 'GET'", "path === 'support/chat' && method === 'POST'");
+  assert.ok(funding.includes('history: history, rates: rates'));
+});

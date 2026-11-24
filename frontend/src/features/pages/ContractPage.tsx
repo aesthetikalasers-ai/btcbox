@@ -978,9 +978,15 @@ export function ContractPage() {
       </div>
 
       {/* 可用 / 可开 辅助行（币安节奏：按钮前；两列并排，省出一行高度） */}
-      <div className="grid grid-cols-2 gap-1 text-[12px] tabular-nums">
-        <div className="min-w-0 truncate"><span className="text-brand-text-muted">{t("Available")}</span> <span className="text-brand-text">{availableUsdt === null ? EM_DASH : `${money(availableUsdt, locale, 2)} USDT`}</span></div>
-        <div className="min-w-0 truncate text-right"><span className="text-brand-text-muted">{t("Openable")}</span> <span className="text-brand-text">{openableQty === null ? EM_DASH : `${money(openableQty, locale, 4)} ${baseAsset}`}</span></div>
+      <div className="grid grid-cols-2 gap-2 text-[11px] tabular-nums">
+        <div className="min-w-0">
+          <span className="block break-words text-[10px] leading-4 text-brand-text-muted">{t("Available")}</span>
+          <span className="block break-all font-medium leading-4 text-brand-text">{availableUsdt === null ? EM_DASH : `${money(availableUsdt, locale, 2)} USDT`}</span>
+        </div>
+        <div className="min-w-0 text-right">
+          <span className="block break-words text-[10px] leading-4 text-brand-text-muted">{t("Openable")}</span>
+          <span className="block break-all font-medium leading-4 text-brand-text">{openableQty === null ? EM_DASH : `${money(openableQty, locale, 4)} ${baseAsset}`}</span>
+        </div>
       </div>
 
       {/* 可开保证金（币安节奏：开多按钮上方） */}
