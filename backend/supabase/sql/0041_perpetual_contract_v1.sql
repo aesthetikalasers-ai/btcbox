@@ -48,8 +48,8 @@ insert into public.financial_accounts(user_id, asset) values ('__perp_insurance_
 -- 2. Markets / risk parameters (admin-managed).
 create table if not exists public.perpetual_markets (
   symbol text primary key check (symbol ~ '^[A-Z0-9]{3,20}$'),
-  base_asset text not null check (base_asset ~ '^[A-Z0-9]{2,16}$'),
-  quote_asset text not null default 'USDT' check (quote_asset = 'USDT'),
+  base_asset text not null references public.btcbox_assets(asset_code) on update cascade on delete restrict,
+  quote_asset text not null default 'USDT' references public.btcbox_assets(asset_code) on update cascade on delete restrict check (quote_asset = 'USDT'),
   enabled boolean not null default false,
   status text not null default 'paused' check (status in ('trading','paused','open_only','liquidation_only')),
   price_tick numeric(38,18) not null check (price_tick > 0),
