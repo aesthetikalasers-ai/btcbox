@@ -75,6 +75,8 @@ test('0051 adds a positive per-market minimum notional and enforces it inside th
   assert.ok(migration.includes("if p_leverage > v_market.max_leverage then raise exception 'leverage exceeds market maximum'; end if;"));
   assert.ok(migration.includes("where symbol=p_symbol and (enabled=true or coalesce(p_reduce_only,false))"));
   assert.ok(migration.includes("v_market.status not in ('trading','open_only') and not coalesce(p_reduce_only,false)"));
+  assert.ok(migration.includes("if not coalesce(p_reduce_only,false) then\n      raise exception 'mark price unavailable or stale';"));
+  assert.ok(migration.includes('elsif v_mark.max_deviation_pct > v_market.circuit_breaker_deviation_pct'));
   assert.ok(migration.includes("set enabled = false, status = 'paused'"));
   assert.ok(migration.includes('market risk exposure cap unavailable'));
   assert.ok(migration.includes("notify pgrst, 'reload schema'"));
