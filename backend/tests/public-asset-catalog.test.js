@@ -18,7 +18,7 @@ test('public asset catalogue exposes only display metadata and never wallet or a
   assert.ok(start >= 0 && end > start, 'public asset catalogue route must exist');
   const route = api.slice(start, end);
   for (const field of ['code: asset.code', 'name: asset.name', 'display_name: asset.display_name',
-    'display_precision: asset.display_precision', 'enabled: asset.enabled', 'visible: asset.visible', 'sort_order: asset.sort_order']) {
+    'display_precision: asset.display_precision', 'enabled: asset.enabled', 'visible: asset.visible', 'spot_enabled: asset.spot_enabled', 'perpetual_enabled: asset.perpetual_enabled', 'seconds_enabled: asset.seconds_enabled', 'earn_enabled: asset.earn_enabled', 'sort_order: asset.sort_order']) {
     assert.ok(route.includes(field), 'public metadata missing ' + field);
   }
   assert.ok(!route.includes('deposit_addresses'));
@@ -64,4 +64,30 @@ test('wallet asset display follows configured names, precision metadata, visibil
   assert.ok(marketsPage.includes('assetNames={assetNames}'));
   assert.ok(dashboardMarkets.includes('getPublicAssetCatalog(controller.signal)'));
   assert.ok(dashboardMarkets.includes('assetNames[item.sym] || getAssetName(item.sym)'));
+});
+
+
+test('asset module flags independently gate new product entry while preserving exit paths', () => {
+  for (const flag of ['spot_enabled','perpetual_enabled','seconds_enabled','earn_enabled']) {
+    assert.ok(api.includes(flag + ': typeof item.' + flag + ' === \'boolean\' ? item.' + flag + ' : fallback.' + flag));
+  }
+  assert.ok(api.includes("filter(function (asset) { return asset.enabled && asset.spot_enabled; })"));
+  assert.ok(api.includes("policy.symbols.filter(symbol => isAssetModuleEnabled(db, symbol, 'seconds_enabled'))"));
+  assert.ok(api.includes("if (!isAssetModuleEnabled(db, symbol, 'seconds_enabled'))"));
+  assert.ok(api.includes("isAssetModuleEnabled(db, market.base_asset, 'perpetual_enabled')"));
+  assert.ok(api.includes("if (!reduceOnly) {"));
+  assert.ok(api.includes("rows.filter(item => isAssetModuleEnabled(db, item.asset, 'earn_enabled'))"));
+  assert.ok(api.includes("if (!isAssetModuleEnabled(db, asset, 'earn_enabled'))"));
+  const redeemStart = api.indexOf("if (action === 'redeem')");
+  assert.ok(redeemStart > 0);
+  assert.ok(!api.slice(redeemStart, api.indexOf("return json({ ok: false, msg: 'Unknown operation.'", redeemStart)).includes('ASSET_MODULE_DISABLED'));
+  assert.ok(admin.includes('asset.code+" spot enabled"'));
+  assert.ok(admin.includes('asset.code+" perpetual enabled"'));
+  assert.ok(admin.includes('asset.code+" seconds enabled"'));
+  assert.ok(admin.includes('asset.code+" earn enabled"'));
+  assert.ok(client.includes('typeof asset.spot_enabled === "boolean"'));
+  assert.ok(client.includes('typeof asset.perpetual_enabled === "boolean"'));
+  assert.ok(client.includes('typeof asset.seconds_enabled === "boolean"'));
+  assert.ok(client.includes('typeof asset.earn_enabled === "boolean"'));
+  assert.ok(assetsPage.includes('assetConfig.earn_enabled'));
 });
