@@ -192,6 +192,34 @@ test('an unavailable provider yields an explicit failure, never synthetic prices
 });
 
 
+test('last-good market fallback keeps the original snapshot timestamp and marks the response degraded', async () => {
+  const originalNow = Date.now;
+  let now = originalNow();
+  let fail = false;
+  Date.now = () => now;
+  const restore = stubFetch(async () => {
+    if (fail) throw new Error('upstream unavailable');
+    return jsonResponse([{ ...TICKER_ROWS[0], closeTime: now }]);
+  });
+  try {
+    const gw = freshGateway({ MARKET_PROVIDER_ORDER: 'binance-vision' });
+    const live = await gw.getMarket({ symbols: ['BTC'] });
+    const originalSnapshotTs = live.data.BTC.ts;
+    assert.ok(originalSnapshotTs > 0);
+
+    fail = true;
+    now += 2_000; // expire the provider cache without waiting in real time
+    const fallback = await gw.getMarket({ symbols: ['BTC'] });
+    assert.equal(fallback.ok, true);
+    assert.equal(fallback.stale, true);
+    assert.equal(fallback.degraded, true);
+    assert.equal(fallback.data.BTC.ts, originalSnapshotTs);
+  } finally {
+    restore();
+    Date.now = originalNow;
+  }
+});
+
 test('getKlines normalises candles and rejects impossible OHLC ranges', async () => {
   const restore = stubFetch(async () =>
     jsonResponse([
