@@ -1708,6 +1708,8 @@
   "Market trading rules are unavailable. Order entry is disabled.": "市場取引ルールを取得できないため、注文入力は無効です。",
   "Price must follow the market tick; quantity must follow the step and minimum order rules.": "価格は取引価格刻みに、数量は数量刻みと最小注文条件に従う必要があります。",
   "Spot reference": "現物参考価格",
+  "Bootstrap reference": "初期参照価格",
+  "Bootstrap": "初期値",
   "Underlying spot order book": "原資産の現物注文板",
   "Spot reference only — not the perpetual execution book.": "現物の参考データです。無期限契約の約定板ではありません。",
   "Spot reference depth": "現物参考板の厚み",
